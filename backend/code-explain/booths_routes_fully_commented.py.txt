@@ -1,0 +1,731 @@
+"""
+攤位管理 API
+
+此模組提供攤位（Booth）的完整 CRUD 操作和相關業務邏輯。
+包含攤位列表查詢、創建、更新、刪除、地圖佈局、攤位選擇、電力選項等功能。
+"""
+
+# ==================== 導入模組 ====================
+
+# typing.Any: 用於類型提示，表示可以是任何類型
+# 在 FastAPI 中，雖然函數返回類型標註為 Any，但實際上會根據 response_model 進行驗證和序列化
+# 使用 Any 的原因：
+# 1. FastAPI 會根據 response_model 自動驗證返回數據
+# 2. 避免類型檢查器（如 mypy）的嚴格檢查
+# 3. 保持代碼簡潔，實際類型由 response_model 定義
+from typing import Any
+
+# FastAPI 核心組件
+# APIRouter: 用於創建路由組，可以將相關的路由組織在一起
+# Depends: 用於依賴注入，可以注入認證、資料庫會話等
+# HTTPException: 用於拋出 HTTP 異常（如 404, 400, 403 等）
+# Query: 用於定義查詢參數（URL 中的 ?key=value 部分）
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+# Starlette 的 Request 對象
+# 用於訪問 HTTP 請求的完整信息（headers, body, cookies 等）
+from starlette.requests import Request
+
+# 自定義依賴項
+# CurrentUser: 當前登入的後台管理員用戶（User 模型）
+# CurrentMember: 當前登入的前台會員（Member 模型）
+# OptionalCurrentUser: 可選的後台管理員用戶（可能為 None）
+# SessionDep: 資料庫會話依賴，自動管理資料庫連接的生命週期
+# get_current_active_superuser: 獲取當前活躍的超級管理員（用於需要超級管理員權限的端點）
+# get_member_by_id: 根據 ID 獲取會員
+# get_current_member_optional: 可選地獲取當前會員（從 JWT token 或請求中）
+from app.api.deps import (
+    CurrentUser,
+    CurrentMember,
+    OptionalCurrentUser,
+    SessionDep,
+    get_current_active_superuser,
+    get_member_by_id,
+    get_current_member_optional,
+)
+
+# 攤位相關的數據模型
+# BoothCreate: 創建攤位時使用的數據模型（包含必填欄位）
+# BoothPublic: 公開的攤位數據模型（用於 API 響應，不包含敏感信息）
+# BoothsPublic: 攤位列表響應模型（包含攤位列表和總數）
+# BoothUpdate: 更新攤位時使用的數據模型（所有欄位都是可選的）
+# Message: 簡單的消息響應模型（用於刪除等操作的成功消息）
+from app.models import BoothCreate, BoothPublic, BoothsPublic, BoothUpdate, Message
+
+# 電力相關的響應模型
+# BoothElectricityOptionsResponse: 攤位電力選項響應（包含電量、電壓等選項）
+from app.models.electricity import BoothElectricityOptionsResponse
+
+# 攤位地圖相關的模型
+# BoothMapLayoutResponse: 攤位地圖佈局響應（包含所有攤位及其座標）
+# BoothMapLayoutConfigResponse: 地圖佈局配置響應（包含佈局類型、背景圖片等）
+# BoothSelectionRequest: 攤位選擇請求（包含訂單 ID、會員 ID 等）
+# BoothSelectionResponse: 攤位選擇響應（包含選擇結果和狀態）
+from app.models.booth_map import (
+    BoothMapLayoutResponse,
+    BoothMapLayoutConfigResponse,
+    BoothSelectionRequest,
+    BoothSelectionResponse,
+)
+
+# 業務邏輯服務層
+# booth_service: 攤位業務邏輯服務（處理攤位的 CRUD 操作）
+from app.services.booth_service import booth_service
+
+# electricity_rule_service: 電力規則服務（處理活動的電力計算規則）
+from app.services.general_contractor_service import electricity_rule_service
+
+# order_service: 訂單服務（處理訂單相關業務邏輯）
+from app.services.order_service import order_service
+
+# booth_order_subscription_service: 攤位訂單訂閱服務（處理攤位與訂單的關聯）
+from app.services.booth_order_subscription_service import booth_order_subscription_service
+
+# ==================== 路由初始化 ====================
+
+# 創建一個新的 API 路由組
+# 這個 router 會被註冊到主應用程序中
+router = APIRouter()
+
+# ==================== 常量定義 ====================
+
+# 查詢參數的描述文字常量
+# 這些常量用於 Query() 的 description 參數，提供 API 文檔中的描述
+DESC_SKIP = "跳過的記錄數"  # 用於分頁，跳過前 N 條記錄
+DESC_LIMIT = "限制返回的記錄數"  # 用於分頁，限制返回的記錄數量
+DESC_EVENT_ID = "活動 ID"  # 用於篩選特定活動的攤位
+DESC_BOOKING_STATUS = "預訂狀態"  # 用於篩選攤位的預訂狀態（available, booked 等）
+DESC_INCLUDE_DELETED = "是否包含已刪除的攤位"  # 是否包含軟刪除的攤位
+
+# 錯誤消息常量
+MSG_BOOTH_NOT_FOUND = "攤位不存在"  # 統一的錯誤消息，便於維護和國際化
+
+# ==================== API 端點定義 ====================
+
+@router.get("/", response_model=BoothsPublic)
+def read_booths(
+    request: Request,  # HTTP 請求對象（雖然此函數中未使用，但保留以備將來需要）
+    session: SessionDep,  # 資料庫會話依賴，自動注入
+    current_user: OptionalCurrentUser = None,  # 可選的當前用戶（後台管理員）
+    skip: int = Query(default=0, ge=0, description=DESC_SKIP),  # 跳過的記錄數，必須 >= 0
+    limit: int = Query(default=100, ge=1, le=1000, description=DESC_LIMIT),  # 限制返回數量，1-1000 之間
+    event_id: str | None = Query(default=None, description=DESC_EVENT_ID),  # 可選的活動 ID 篩選
+    booking_status: str | None = Query(default=None, description=DESC_BOOKING_STATUS),  # 可選的預訂狀態篩選
+    include_deleted: bool = Query(default=False, description=DESC_INCLUDE_DELETED),  # 是否包含已刪除的攤位
+) -> Any:  # 返回類型為 Any，但實際會根據 response_model=BoothsPublic 進行驗證
+    """
+    獲取攤位列表
+
+    支援分頁、活動篩選、預訂狀態篩選等功能。
+    可以選擇是否包含已軟刪除的攤位。
+    """
+    # 調用服務層獲取攤位列表
+    # booth_service.list_booths() 會根據提供的參數查詢資料庫
+    booths = booth_service.list_booths(
+        session,  # 資料庫會話
+        skip=skip,  # 跳過的記錄數（用於分頁）
+        limit=limit,  # 限制返回的記錄數（用於分頁）
+        event_id=event_id,  # 活動 ID 篩選（如果提供）
+        booking_status=booking_status,  # 預訂狀態篩選（如果提供）
+        include_deleted=include_deleted,  # 是否包含已刪除的攤位
+    )
+
+    # 獲取符合條件的攤位總數（用於分頁計算）
+    count = booth_service.count_booths(
+        session,  # 資料庫會話
+        event_id=event_id,  # 活動 ID 篩選（如果提供）
+        include_deleted=include_deleted  # 是否包含已刪除的攤位
+    )
+
+    # 將資料庫模型轉換為公開模型（Pydantic 模型）
+    # model_validate() 會自動驗證和轉換數據類型
+    # 使用列表推導式批量轉換所有攤位
+    data = [BoothPublic.model_validate(booth) for booth in booths]
+
+    # 返回符合 BoothsPublic 模型的響應
+    # BoothsPublic 包含 data（攤位列表）和 count（總數）
+    return BoothsPublic(data=data, count=count)
+
+
+@router.post(
+    "/",  # POST 請求路徑為根路徑 "/"
+    response_model=BoothPublic,  # 響應模型為單個攤位
+)
+def create_booth(
+    *,  # * 表示後面的參數都必須使用關鍵字參數（不能使用位置參數）
+    session: SessionDep,  # 資料庫會話依賴
+    booth_in: BoothCreate,  # 創建攤位的數據模型（從請求 body 中解析）
+    current_user: OptionalCurrentUser = None,  # 可選的後台管理員用戶
+    current_member: CurrentMember | None = Depends(get_current_member_optional),  # 可選的前台會員（通過依賴注入獲取）
+) -> Any:  # 返回類型為 Any，實際返回 BoothPublic
+    """
+    創建攤位
+
+    支援兩種認證方式：
+    1. 後台管理員（User）：需要超級管理員權限
+    2. 前台會員（Member）：主辦單位可以為自己的活動建立攤位
+    """
+    # 在函數內部導入（避免循環導入）
+    # OptionalCurrentMember: 可選的會員類型（雖然這裡未使用，但保留以備將來需要）
+    from app.api.deps import OptionalCurrentMember
+    # event_service: 活動服務，用於驗證活動是否存在和權限檢查
+    from app.services.event_service import event_service
+
+    # 檢查是否已認證（必須有後台管理員或前台會員其中一種）
+    if not current_user and not current_member:
+        # 如果兩種認證都沒有，返回 401 未授權錯誤
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # 優先檢查前台會員（因為前台會員是活動的主辦單位）
+    if current_member:
+        # 驗證活動是否屬於該會員
+        # 獲取活動信息
+        event = event_service.get_event(session, event_id=booth_in.event_id)
+        if not event:
+            # 如果活動不存在，返回 404 錯誤
+            raise HTTPException(status_code=404, detail="Event not found")
+        # 檢查活動的 member_id 是否與當前會員的 ID 匹配
+        # 使用 str() 轉換是為了確保類型一致（UUID 和字符串的比較）
+        if event.member_id and str(event.member_id) != str(current_member.id):
+            # 如果活動不屬於當前會員，返回 403 禁止訪問錯誤
+            raise HTTPException(status_code=403, detail="Not authorized to create booths for other members' events")
+    # 如果是後台管理員，檢查是否為超級管理員
+    elif current_user:
+        # 只有超級管理員可以創建攤位（後台管理員）
+        if not current_user.is_superuser:
+            # 如果不是超級管理員，返回 403 禁止訪問錯誤
+            raise HTTPException(status_code=403, detail="Only superusers can create booths")
+
+    # 嘗試創建攤位
+    try:
+        # 調用服務層創建攤位
+        booth = booth_service.create_booth(session, booth_in=booth_in)
+        # 將資料庫模型轉換為公開模型並返回
+        return BoothPublic.model_validate(booth)
+    except ValueError as e:
+        # 如果創建失敗（例如數據驗證失敗），捕獲 ValueError 並返回 400 錯誤
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ==================== Booth Map Selection APIs ====================
+# 注意：更具體的路由必須在通用路由之前定義
+# 這是因為 FastAPI 按照路由定義的順序匹配，如果 "/{booth_id}" 在 "/map/{event_id}" 之前，
+# FastAPI 會將 "map" 當作 booth_id，導致路由匹配錯誤
+
+@router.get(
+    "/map/{event_id}",  # GET 請求，路徑包含活動 ID
+    response_model=BoothMapLayoutResponse  # 響應模型為攤位地圖佈局
+)
+def get_booth_map_layout(
+    request: Request,  # HTTP 請求對象
+    *,  # 後面的參數都必須使用關鍵字參數
+    session: SessionDep,  # 資料庫會話
+    event_id: str,  # 活動 ID（從路徑參數中獲取）
+    current_user: OptionalCurrentUser = None,  # 可選的當前用戶
+) -> Any:  # 返回類型為 Any，實際返回 BoothMapLayoutResponse
+    """
+    獲取攤位地圖佈局
+
+    返回活動的所有攤位及其座標資訊，用於顯示地圖佈局。
+
+    Args:
+        session: 資料庫連線會話
+        event_id: 活動 ID
+        current_user: 當前用戶
+
+    Returns:
+        BoothMapLayoutResponse: 攤位地圖佈局
+
+    Raises:
+        404: 活動不存在
+    """
+    # 在函數內部導入服務（避免循環導入）
+    from app.services.event_service import event_service  # 活動服務
+    from app.services.map_service import map_service  # 地圖服務
+
+    # 驗證活動存在
+    event = event_service.get_event(session, event_id=event_id)
+    if not event:
+        # 如果活動不存在，返回 404 錯誤
+        raise HTTPException(status_code=404, detail="活動不存在")
+
+    # 獲取所有攤位（不包含已刪除的）
+    # skip=0, limit=10000 表示獲取所有攤位（假設一個活動不會超過 10000 個攤位）
+    booths = booth_service.list_booths(
+        session,  # 資料庫會話
+        event_id=event_id,  # 活動 ID
+        include_deleted=False,  # 不包含已刪除的攤位
+        skip=0,  # 不跳過任何記錄
+        limit=10000  # 限制最多 10000 條（實際上是獲取所有）
+    )
+
+    # 獲取地圖背景圖片
+    map_url = None  # 初始化為 None
+    try:
+        # 嘗試獲取活動的地圖（可能沒有地圖）
+        maps = map_service.list_maps(session, event_id=event_id, skip=0, limit=1)
+        # 如果找到了地圖，使用第一個地圖的 URL
+        if maps and len(maps) > 0:
+            map_url = maps[0].map_url
+    except Exception:
+        # 如果獲取地圖時發生錯誤（例如沒有地圖），忽略錯誤
+        pass  # 如果沒有地圖，忽略錯誤
+
+    # 統計攤位狀態
+    # 使用生成器表達式和 sum() 計算可用攤位數量
+    # 遍歷所有攤位，如果 booking_status == "available"，計數 +1
+    available_count = sum(1 for b in booths if b.booking_status == "available")
+    # 使用生成器表達式和 sum() 計算已預訂攤位數量
+    booked_count = sum(1 for b in booths if b.booking_status == "booked")
+
+    # 將所有攤位轉換為公開模型
+    # 使用列表推導式批量轉換
+    booth_list = [BoothPublic.model_validate(booth) for booth in booths]
+
+    # 返回攤位地圖佈局響應
+    return BoothMapLayoutResponse(
+        event_id=event_id,  # 活動 ID
+        booths=booth_list,  # 攤位列表
+        total_booths=len(booth_list),  # 總攤位數
+        available_booths=available_count,  # 可用攤位數
+        booked_booths=booked_count,  # 已預訂攤位數
+        map_url=map_url,  # 地圖背景圖片 URL（可能為 None）
+    )
+
+
+@router.post(
+    "/{booth_id}/select",  # POST 請求，路徑包含攤位 ID 和 "/select"
+    response_model=BoothSelectionResponse  # 響應模型為攤位選擇響應
+)
+def select_booth(
+    *,  # 後面的參數都必須使用關鍵字參數
+    request: Request,  # HTTP 請求對象（用於獲取 JWT token）
+    session: SessionDep,  # 資料庫會話
+    booth_id: str,  # 攤位 ID（從路徑參數中獲取）
+    selection: BoothSelectionRequest,  # 選擇請求（從請求 body 中解析，包含 order_id、member_id 等）
+) -> Any:  # 返回類型為 Any，實際返回 BoothSelectionResponse
+    """
+    選擇攤位
+
+    為訂單選擇攤位，創建攤位訂閱關聯。
+    如果 temporary_reservation=true，可以設置過期時間（需要 booth 表有對應欄位）。
+
+    支援兩種認證方式：
+    1. JWT token 認證（通過 Authorization header）
+    2. member_id 在請求 body 中（如果沒有 JWT token）
+
+    Args:
+        request: HTTP 請求物件
+        session: 資料庫連線會話
+        booth_id: 攤位 ID
+        selection: 選擇請求（可包含 member_id）
+
+    Returns:
+        BoothSelectionResponse: 選擇結果
+
+    Raises:
+        404: 攤位、訂單或會員不存在
+        400: 攤位不可用或會員未啟用
+        401: 認證失敗
+    """
+    # 獲取會員：優先使用 JWT token，否則使用請求 body 中的 member_id
+    member = None  # 初始化為 None
+
+    # 嘗試從 JWT token 獲取會員
+    # get_current_member_optional() 會從請求的 Authorization header 中解析 JWT token
+    member = get_current_member_optional(request, session)
+
+    # 如果沒有 JWT token 或 JWT 認證失敗，使用請求 body 中的 member_id
+    if member is None:
+        # 檢查請求 body 中是否提供了 member_id
+        if not selection.member_id:
+            # 如果兩種方式都沒有提供會員信息，返回 401 未授權錯誤
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required: provide JWT token or member_id in request body"
+            )
+        # 使用提供的 member_id 獲取會員
+        member = get_member_by_id(selection.member_id, session)
+
+    # 檢查會員身份：只有攤販可以租攤位
+    # member.identity 可能是 'vendor'（攤販）、'organizer'（主辦單位）等
+    if member.identity != 'vendor':
+        # 如果不是攤販，返回 403 禁止訪問錯誤
+        raise HTTPException(
+            status_code=403,
+            detail="只有攤販可以租用攤位"
+        )
+
+    # 驗證攤位存在且可用
+    # booth_service.crud.get() 是通用的 CRUD 方法，根據 ID 獲取單個記錄
+    booth = booth_service.crud.get(session, booth_id)
+    # 檢查攤位是否存在且未被軟刪除
+    if not booth or booth.deleted_at is not None:
+        # 如果攤位不存在或已被刪除，返回 404 錯誤
+        raise HTTPException(status_code=404, detail="攤位不存在")
+
+    # 檢查攤位的預訂狀態
+    if booth.booking_status != "available":
+        # 如果攤位不可用（例如已被預訂），返回 400 錯誤
+        raise HTTPException(
+            status_code=400, detail=f"攤位不可用，當前狀態: {booth.booking_status}"
+        )
+
+    # 驗證訂單存在（如果提供）
+    subscription_id = None  # 初始化訂閱 ID 為 None
+    if selection.order_id:  # 如果請求中提供了訂單 ID
+        # 獲取訂單
+        order = order_service.crud.get(session, selection.order_id)
+        if not order:
+            # 如果訂單不存在，返回 404 錯誤
+            raise HTTPException(status_code=404, detail="訂單不存在")
+
+        # 驗證訂單屬於當前會員
+        # order.buyer_id 是訂單的買家 ID（會員 ID）
+        # 使用 str() 轉換是為了確保類型一致
+        if order.buyer_id != str(member.id):
+            # 如果訂單不屬於當前會員，返回 403 禁止訪問錯誤
+            raise HTTPException(
+                status_code=403, detail="您沒有權限訪問此訂單"
+            )
+
+        # 創建攤位訂閱（攤位與訂單的關聯）
+        # 在函數內部導入模型（避免循環導入）
+        from app.models import BoothOrderSubscriptionCreate
+
+        # 創建訂閱數據模型
+        subscription_create = BoothOrderSubscriptionCreate(
+            booth_id=booth_id,  # 攤位 ID
+            event_id=booth.event_id,  # 活動 ID（從攤位中獲取）
+            order_id=selection.order_id,  # 訂單 ID
+        )
+        try:
+            # 調用服務創建訂閱關聯
+            subscription = booth_order_subscription_service.create_subscription(
+                session, subscription_in=subscription_create
+            )
+            # 保存訂閱 ID（用於響應）
+            subscription_id = subscription.id
+        except ValueError as e:
+            # 如果創建訂閱失敗（例如重複訂閱），返回 400 錯誤
+            raise HTTPException(status_code=400, detail=str(e))
+
+        # 注意：不在此處更新攤位狀態為 "booked"
+        # 攤位狀態應該在訂單付款成功後才更新為 "booked"
+        # 這樣如果用戶放棄付款，攤位仍然可用
+        # 攤位狀態將在付款回調中更新
+
+    # 返回攤位選擇響應
+    return BoothSelectionResponse(
+        booth_id=booth_id,  # 攤位 ID
+        booking_status=booth.booking_status,  # 保持當前狀態（仍然是 "available"）
+        subscription_id=subscription_id,  # 訂閱 ID（如果創建了訂閱）
+        message="攤位選擇成功，請完成付款以確認預訂",  # 提示消息
+    )
+
+
+# ==================== Electricity Selection APIs ====================
+# 注意：更具體的路由必須在通用路由之前定義
+# "/{booth_id}/electricity-options" 必須在 "/{booth_id}" 之前定義
+
+@router.get(
+    "/{booth_id}/electricity-options",  # GET 請求，獲取攤位的電力選項
+    response_model=BoothElectricityOptionsResponse  # 響應模型為電力選項響應
+)
+def get_booth_electricity_options(
+    *,  # 後面的參數都必須使用關鍵字參數
+    session: SessionDep,  # 資料庫會話
+    booth_id: str,  # 攤位 ID（從路徑參數中獲取）
+    current_user: CurrentUser,  # 當前用戶（必須提供，不能為 None）
+) -> Any:  # 返回類型為 Any，實際返回 BoothElectricityOptionsResponse
+    """
+    獲取攤位的電力選項
+
+    返回指定攤位可用的電力選項，包括基本電量、最大電量、可用電壓等。
+
+    Args:
+        session: 資料庫連線會話
+        booth_id: 攤位 ID
+        current_user: 當前用戶
+
+    Returns:
+        BoothElectricityOptionsResponse: 攤位電力選項
+
+    Raises:
+        404: 攤位不存在或活動沒有電力規則
+    """
+    # 獲取攤位
+    booth = booth_service.crud.get(session, booth_id)
+    # 檢查攤位是否存在且未被軟刪除
+    if not booth or booth.deleted_at is not None:
+        # 如果攤位不存在，返回 404 錯誤
+        raise HTTPException(status_code=404, detail="攤位不存在")
+
+    # 獲取活動的電力規則
+    # 一個活動通常只有一個電力規則
+    rules = electricity_rule_service.list_rules(
+        session,  # 資料庫會話
+        event_id=booth.event_id,  # 活動 ID（從攤位中獲取）
+        skip=0,  # 不跳過記錄
+        limit=1  # 只獲取第一條規則
+    )
+    # 檢查是否找到電力規則
+    if not rules:
+        # 如果沒有電力規則，返回 404 錯誤
+        raise HTTPException(status_code=404, detail="活動沒有設定電力計算規則")
+
+    # 獲取第一條規則（通常只有一條）
+    rule = rules[0]
+
+    # 根據規則計算可用選項
+    # 假設基本電量為規則的 base_wattage，最大電量為 10000W（可根據實際需求調整）
+    base_wattage = rule.base_wattage  # 基本電量（瓦特）
+    excess_wattage = 10000  # 預設最大電量（10000 瓦特）
+    # 可用電量 = 最大電量 - 基本電量
+    available_wattage = excess_wattage - base_wattage
+
+    # 電壓選項（根據台灣常見電壓）
+    # 110V 和 220V 是台灣常見的電壓標準
+    voltage_options = [110, 220]
+
+    # 插座數量（預設 4 個，可根據實際需求調整）
+    outlet_count = 4
+
+    # 返回電力選項響應
+    return BoothElectricityOptionsResponse(
+        booth_id=booth_id,  # 攤位 ID
+        base_wattage=base_wattage,  # 基本電量
+        excess_wattage=excess_wattage,  # 最大電量
+        available_wattage=available_wattage,  # 可用電量
+        voltage_options=voltage_options,  # 電壓選項列表
+        outlet_count=outlet_count  # 插座數量
+    )
+
+
+@router.get("/{booth_id}", response_model=BoothPublic)
+def read_booth(
+    session: SessionDep,  # 資料庫會話
+    current_user: CurrentUser,  # 當前用戶（必須提供）
+    booth_id: str,  # 攤位 ID（從路徑參數中獲取）
+) -> Any:  # 返回類型為 Any，實際返回 BoothPublic
+    """
+    獲取單個攤位的詳細信息
+
+    根據攤位 ID 獲取攤位的完整信息。
+    """
+    # 獲取攤位
+    booth = booth_service.crud.get(session, booth_id)
+    # 檢查攤位是否存在且未被軟刪除
+    if not booth or booth.deleted_at is not None:
+        # 如果攤位不存在，返回 404 錯誤（使用常量定義的錯誤消息）
+        raise HTTPException(status_code=404, detail=MSG_BOOTH_NOT_FOUND)
+    # 將資料庫模型轉換為公開模型並返回
+    return BoothPublic.model_validate(booth)
+
+
+@router.patch(
+    "/{booth_id}",  # PATCH 請求，更新攤位（部分更新）
+    dependencies=[Depends(get_current_active_superuser)],  # 依賴項：必須是超級管理員
+    response_model=BoothPublic  # 響應模型為單個攤位
+)
+def update_booth(
+    *,  # 後面的參數都必須使用關鍵字參數
+    session: SessionDep,  # 資料庫會話
+    booth_id: str,  # 攤位 ID（從路徑參數中獲取）
+    booth_in: BoothUpdate,  # 更新數據模型（從請求 body 中解析，所有欄位都是可選的）
+    current_user: CurrentUser,  # 當前用戶（通過依賴項確保是超級管理員）
+) -> Any:  # 返回類型為 Any，實際返回 BoothPublic
+    """
+    更新攤位
+
+    只有超級管理員可以更新攤位。
+    使用 PATCH 方法，只更新提供的欄位（部分更新）。
+    """
+    try:
+        # 調用服務層更新攤位
+        booth = booth_service.update_booth(session, booth_id=booth_id, booth_in=booth_in)
+    except ValueError as e:
+        # 如果更新失敗（例如數據驗證失敗），返回 400 錯誤
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # 檢查攤位是否存在（更新後可能返回 None）
+    if not booth:
+        # 如果攤位不存在，返回 404 錯誤
+        raise HTTPException(status_code=404, detail=MSG_BOOTH_NOT_FOUND)
+    # 將資料庫模型轉換為公開模型並返回
+    return BoothPublic.model_validate(booth)
+
+
+@router.delete(
+    "/{booth_id}",  # DELETE 請求，刪除攤位
+    response_model=Message  # 響應模型為簡單消息
+)
+def delete_booth(
+    *,  # 後面的參數都必須使用關鍵字參數
+    session: SessionDep,  # 資料庫會話
+    booth_id: str,  # 攤位 ID（從路徑參數中獲取）
+    current_user: OptionalCurrentUser = None,  # 可選的後台管理員用戶
+    current_member: CurrentMember | None = Depends(get_current_member_optional),  # 可選的前台會員
+) -> Any:  # 返回類型為 Any，實際返回 Message
+    """
+    刪除攤位
+
+    支援兩種認證方式：
+    1. 後台管理員（User）：需要超級管理員權限
+    2. 前台會員（Member）：主辦單位可以刪除自己活動的攤位
+
+    注意：這是軟刪除（soft delete），只會設置 deleted_at 欄位，不會真正從資料庫中刪除。
+    """
+    # 在函數內部導入服務（避免循環導入）
+    from app.services.event_service import event_service
+
+    # 檢查是否已認證（必須有後台管理員或前台會員其中一種）
+    if not current_user and not current_member:
+        # 如果兩種認證都沒有，返回 401 未授權錯誤
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # 獲取攤位
+    booth = booth_service.crud.get(session, booth_id)
+    # 檢查攤位是否存在且未被軟刪除
+    if not booth or booth.deleted_at is not None:
+        # 如果攤位不存在或已被刪除，返回 404 錯誤
+        raise HTTPException(status_code=404, detail=MSG_BOOTH_NOT_FOUND)
+
+    # 優先檢查前台會員（因為前台會員是活動的主辦單位）
+    if current_member:
+        # 驗證活動是否屬於該會員
+        event = event_service.get_event(session, event_id=booth.event_id)
+        if not event:
+            # 如果活動不存在，返回 404 錯誤
+            raise HTTPException(status_code=404, detail="Event not found")
+        # 檢查活動的 member_id 是否與當前會員的 ID 匹配
+        if event.member_id and str(event.member_id) != str(current_member.id):
+            # 如果活動不屬於當前會員，返回 403 禁止訪問錯誤
+            raise HTTPException(status_code=403, detail="Not authorized to delete booths for other members' events")
+    # 如果是後台管理員，檢查是否為超級管理員
+    elif current_user:
+        # 只有超級管理員可以刪除攤位（後台管理員）
+        if not current_user.is_superuser:
+            # 如果不是超級管理員，返回 403 禁止訪問錯誤
+            raise HTTPException(status_code=403, detail="Only superusers can delete booths")
+
+    # 調用服務層刪除攤位（軟刪除）
+    booth = booth_service.delete_booth(session, booth_id=booth_id)
+    # 檢查攤位是否存在（刪除後可能返回 None）
+    if not booth:
+        # 如果攤位不存在，返回 404 錯誤
+        raise HTTPException(status_code=404, detail=MSG_BOOTH_NOT_FOUND)
+    # 返回成功消息
+    return Message(message="攤位已成功刪除")
+
+
+@router.get(
+    "/available",  # GET 請求，獲取可用攤位列表
+    response_model=BoothsPublic  # 響應模型為攤位列表
+)
+def get_available_booths(
+    *,  # 後面的參數都必須使用關鍵字參數
+    session: SessionDep,  # 資料庫會話
+    event_id: str = Query(description="活動 ID"),  # 活動 ID（必須提供，作為查詢參數）
+    current_user: CurrentUser,  # 當前用戶（必須提供）
+    booth_type: str | None = Query(default=None, description="攤位類型篩選"),  # 可選的攤位類型篩選
+    min_amount: float | None = Query(default=None, description="最小金額篩選"),  # 可選的最小金額篩選
+    max_amount: float | None = Query(default=None, description="最大金額篩選"),  # 可選的最大金額篩選
+    skip: int = Query(default=0, ge=0, description=DESC_SKIP),  # 跳過的記錄數，必須 >= 0
+    limit: int = Query(default=100, ge=1, le=1000, description=DESC_LIMIT),  # 限制返回數量，1-1000 之間
+) -> Any:  # 返回類型為 Any，實際返回 BoothsPublic
+    """
+    獲取可用攤位列表
+
+    返回活動中可用的攤位列表，支援按類型、金額範圍篩選。
+
+    Args:
+        session: 資料庫連線會話
+        event_id: 活動 ID
+        current_user: 當前用戶
+        booth_type: 攤位類型（可選）
+        min_amount: 最小金額（可選）
+        max_amount: 最大金額（可選）
+        skip: 跳過的記錄數
+        limit: 限制返回的記錄數
+
+    Returns:
+        BoothsPublic: 可用攤位列表
+    """
+    # 獲取可用攤位（booking_status="available"）
+    booths = booth_service.list_booths(
+        session,  # 資料庫會話
+        event_id=event_id,  # 活動 ID
+        booking_status="available",  # 只獲取可用攤位
+        include_deleted=False,  # 不包含已刪除的攤位
+        skip=skip,  # 跳過的記錄數（用於分頁）
+        limit=limit,  # 限制返回的記錄數（用於分頁）
+    )
+
+    # 應用額外篩選（在服務層篩選之後）
+    filtered_booths = []  # 初始化過濾後的攤位列表
+    for booth in booths:  # 遍歷所有攤位
+        # 如果提供了攤位類型篩選，檢查攤位類型是否匹配
+        if booth_type and booth.booth_type != booth_type:
+            continue  # 如果不匹配，跳過此攤位
+        # 如果提供了最小金額篩選，檢查攤位價格是否大於等於最小金額
+        # override_booth_price 是攤位的覆蓋價格（如果設置了）
+        if min_amount is not None and booth.override_booth_price < min_amount:
+            continue  # 如果價格太低，跳過此攤位
+        # 如果提供了最大金額篩選，檢查攤位價格是否小於等於最大金額
+        if max_amount is not None and booth.override_booth_price > max_amount:
+            continue  # 如果價格太高，跳過此攤位
+        # 如果通過所有篩選，添加到過濾後的列表
+        filtered_booths.append(booth)
+
+    # 計算過濾後的攤位數量
+    count = len(filtered_booths)
+    # 將資料庫模型轉換為公開模型
+    data = [BoothPublic.model_validate(booth) for booth in filtered_booths]
+    # 返回攤位列表響應
+    return BoothsPublic(data=data, count=count)
+
+
+@router.get(
+    "/map-layout",  # GET 請求，獲取地圖佈局配置
+    response_model=BoothMapLayoutConfigResponse  # 響應模型為地圖佈局配置
+)
+def get_map_layout_config(
+    *,  # 後面的參數都必須使用關鍵字參數
+    session: SessionDep,  # 資料庫會話
+    event_id: str = Query(description="活動 ID"),  # 活動 ID（必須提供，作為查詢參數）
+    current_user: CurrentUser,  # 當前用戶（必須提供）
+) -> Any:  # 返回類型為 Any，實際返回 BoothMapLayoutConfigResponse
+    """
+    獲取地圖佈局配置
+
+    返回活動的地圖配置資訊，包括佈局類型、背景圖片等。
+
+    Args:
+        session: 資料庫連線會話
+        event_id: 活動 ID
+        current_user: 當前用戶
+
+    Returns:
+        BoothMapLayoutConfigResponse: 地圖配置
+
+    Raises:
+        404: 活動不存在
+    """
+    # 在函數內部導入服務（避免循環導入）
+    from app.services.event_service import event_service
+
+    # 驗證活動存在
+    event = event_service.get_event(session, event_id=event_id)
+    if not event:
+        # 如果活動不存在，返回 404 錯誤
+        raise HTTPException(status_code=404, detail="活動不存在")
+
+    # 返回預設配置（可以從 event 表或新建配置表獲取）
+    # 目前使用預設值
+    return BoothMapLayoutConfigResponse(
+        event_id=event_id,  # 活動 ID
+        layout_type="grid",  # 佈局類型（網格佈局）
+        background_image_url=None,  # 背景圖片 URL（目前為 None）
+        grid_config=None,  # 網格配置（目前為 None）
+    )
