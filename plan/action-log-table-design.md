@@ -415,9 +415,11 @@ approval_request（不合併方案）
    - https://www.red-gate.com/blog/database-design-for-audit-logging
 
 3. **Budibase — Workflow Management Database Design**
-   - 建議 workflow 系統包含 Requests（請求）、States（狀態）、Transitions（流轉）、Actions（動作）。
-   - Request 表作為 workflow 的核心，支援多對多的 stakeholder 關係。
-   - https://budibase.com/blog/data/workflow-management-database-design/
+   - 描述完整的 workflow engine 資料庫設計（7+ 張表：processes、requests、states、transitions、actions...）
+   - 核心概念：request 有狀態、狀態之間有合法的流轉路徑（transition）、動作（action）觸發流轉
+   - 我們不需要整套 workflow engine，但它的概念是我們設計的理論基礎
+   - 原文：https://budibase.com/blog/data/workflow-management-database-design/
+   - 中文全文翻譯：[budibase-workflow-database-design-translation.md](budibase-workflow-database-design-translation.md)
 
 4. **GeeksforGeeks — Database Design for Workflow Management Systems**
    - 強調職責分離："Workflow management stays isolated... Task execution is managed separately, enabling independent tracking."
