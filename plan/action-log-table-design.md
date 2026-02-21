@@ -154,11 +154,40 @@ booth_id   VARCHAR(36) REFERENCES booths(id),    -- 攤位 FK
 -- 每筆只填一個，其他都是 NULL
 ```
 
+**「每筆只填一個」的意思：**
+
+同一列裡四個 FK 欄位只有一個有值，其他三個是 NULL：
+
+```
+id    | order_id | event_id | ticket_id | booth_id | action
+------+----------+----------+-----------+----------+----------------
+aaa   | ord-123  | NULL     | NULL      | NULL     | CANCEL
+bbb   | NULL     | evt-456  | NULL      | NULL     | DELETE_REQUEST
+ccc   | NULL     | NULL     | NULL      | bth-789  | CANCEL
+```
+
+- 第一筆跟訂單有關 → 只填 `order_id`，其他空著
+- 第二筆跟活動有關 → 只填 `event_id`，其他空著
+- 第三筆跟攤位有關 → 只填 `booth_id`，其他空著
+
 | 優點 | 缺點 |
 |---|---|
-| 可以加外鍵約束，資料庫層保證一致性 | 每多一個實體就要 ALTER TABLE 加欄位 |
+| 可以加外鍵約束，資料庫層保證一致性 | 每多一個實體就要 `ALTER TABLE ADD COLUMN`，改 schema |
 | 查詢可以 JOIN：`JOIN events ON action_log.event_id = events.id` | 一堆 NULL 欄位，看起來很稀疏 |
-| IDE/工具可以自動檢測關聯 | 查「這筆 log 屬於哪個實體」要檢查所有 FK 欄位哪個不是 NULL |
+| IDE/工具可以自動檢測關聯 | 查「這筆 log 屬於哪個實體」要寫 `COALESCE(order_id, event_id, ticket_id, booth_id)` |
+| 刪除原始資料時 DB 可以自動 CASCADE 或阻擋 | 未來加 `refund_id`、`company_id` 會越長越多欄位 |
+
+**對比做法 A 用 `entity_type` + `entity_id`，同樣的資料長這樣：**
+
+```
+id    | entity_type | entity_id | action
+------+-------------+-----------+----------------
+aaa   | order       | ord-123   | CANCEL
+bbb   | event       | evt-456   | DELETE_REQUEST
+ccc   | booth       | bth-789   | CANCEL
+```
+
+兩個欄位就搞定，不管有幾種實體都不用改 schema。
 
 ### 做法 C：`entity_type` + `entity_id` + CHECK 約束（折衷）
 
@@ -285,6 +314,76 @@ INDEX idx_created (created_at)              -- 按時間查
 - 加 partition（按 entity_type 或按月份）
 - 定期歸檔舊資料到 archive 表
 - 這些都不需要改程式碼，只是 DBA 操作
+
+---
+
+## 表名討論：到底要叫什麼？
+
+既然我們的核心需求是「活動刪除要經過審核」，那表名應該反映這個用途。
+幾個候選名字：
+
+| 表名 | 語意 | 適合什麼場景 |
+|---|---|---|
+| `action_log` | 操作紀錄 | 偏「記錄已發生的事」，語意上不含審核流程 |
+| `action_request` | 操作請求 | 偏「有人提出請求，等待處理」 |
+| `approval_request` | 審核請求 | 最直白地表達「需要審核」 |
+| `workflow_request` | 流程請求 | 偏通用 workflow 引擎的概念，對我們來說有點太大 |
+
+### 分析
+
+**`action_log`**
+- 優點：跟現有 `order_log` 風格一致，名字通用
+- 缺點：「log」暗示寫完不動（audit 紀錄），但我們需要 UPDATE status
+- 適合：如果這張表要同時處理純紀錄 + 審核流程
+
+**`action_request`**
+- 優點：「request」表達了「這是一個請求，還在等回應」
+- 缺點：純紀錄（訂單編輯 log）不太像一個 request
+- 適合：如果這張表主要用來做審核流程
+
+**`approval_request`**
+- 優點：最明確，看到表名就知道「這是需要審核的東西」
+- 缺點：如果未來要放不需要審核的操作紀錄就不適合
+- 適合：如果這張表專門用來做審核，不混純紀錄
+
+### 取決於一個決定：要不要合併 order_log？
+
+**如果合併**（order_log 的資料也搬進來）：
+- 這張表同時有「純紀錄」和「審核請求」兩種資料
+- 叫 `action_log` 比較合適（涵蓋範圍廣）
+- 用 `status` 欄位區分：NULL = 純紀錄，pending/approved/rejected = 審核流程
+
+**如果不合併**（order_log 保持原樣，新表只做審核流程）：
+- 這張表專門處理需要人審核的請求
+- 叫 `approval_request` 最精準
+- 每筆資料都有 status，不會有空值的問題
+- 語意乾淨：看到 approval_request 就知道是等審核的，看到 order_log 就知道是操作紀錄
+
+### 欄位比較
+
+```
+action_log（合併方案）
+├── 純紀錄用：status = NULL, reviewer = NULL
+│   例：訂單編輯、訂單取消（已經發生了，不需要核准）
+│
+└── 審核流程用：status = pending → approved/rejected
+    例：活動刪除請求（需要管理員核准）
+
+approval_request（不合併方案）
+└── 每筆都是審核流程：status = pending → approved/rejected
+    例：活動刪除請求、未來的退款審核、攤位取消審核
+    （order_log 留在原地不動）
+```
+
+### 建議
+
+看你更在意哪一點：
+
+| 在意的點 | 建議 |
+|---|---|
+| 少維護一張表 | `action_log`（合併） |
+| 表名語意精準、職責單一 | `approval_request`（不合併，order_log 不動） |
+| 現階段最省事 | `approval_request`（不動 order_log，不用 migrate 舊資料） |
 
 ---
 
