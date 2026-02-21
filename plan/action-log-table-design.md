@@ -34,6 +34,16 @@ review_notes, reviewed_at, details(JSON), created_at, updated_at
 - 單表資料量大，要注意 index
 - 欄位設計要取公約數，特殊需求得塞 JSON
 
+**相關參考：**
+- Redgate — Generic tables: "Minimal schema footprint, flexible, can audit any table without adding new audit tables"
+  https://www.red-gate.com/blog/database-design-for-audit-logging
+- Microsoft Q&A — 社群建議用 centralized log table，透過欄位區分類型
+  https://learn.microsoft.com/en-us/answers/questions/116029/sql-server-best-way-to-design-centralize-log-table
+- luoyangpeng/action-log — Laravel 套件也用單一 `action_log` 表，驗證此命名為業界慣例
+  https://github.com/luoyangpeng/action-log
+- Patrick Karsh — Polymorphic Associations: `entity_type` + `entity_id` 模式的設計基礎
+  https://patrickkarsh.medium.com/polymorphic-associations-database-design-basics-17faf2eb313
+
 ---
 
 ## 方案二：每個實體各自一張 log 表
@@ -50,6 +60,14 @@ review_notes, reviewed_at, details(JSON), created_at, updated_at
 - 每多一個實體就多一張表 + repository + service
 - 跨實體查詢要 UNION
 - 結構重複多，維護成本高
+
+**相關參考：**
+- Redgate — Shadow tables: "any change in the structure of the main table must be reflected in the corresponding shadow table, which makes it difficult to maintain"
+  https://www.red-gate.com/blog/database-design-for-audit-logging
+- DZone — SRP 原則：每張表代表一個概念，支持拆分的理論依據
+  https://dzone.com/articles/building-solid-databases-0
+- GeeksforGeeks — 強調職責分離："Workflow management stays isolated... Task execution is managed separately"
+  https://www.geeksforgeeks.org/dbms/database-design-for-workflow-management-systems/
 
 ---
 
@@ -76,6 +94,15 @@ review_notes, reviewed_at, created_at, updated_at
 **壞處：**
 - 兩張表要維護
 - 有些操作可能兩邊都要寫（例如刪除核准後，request 更新狀態，同時 log 記一筆）
+
+**相關參考：**
+- Martin Fowler — Audit Log 強調「寫完不動」的純紀錄特性，支持 activity_log 拆分的理論依據
+  https://martinfowler.com/eaaDev/AuditLog.html
+- Budibase — Workflow 系統中 Request 表是核心，有狀態流轉，支持 action_request 拆分的理論依據
+  https://budibase.com/blog/data/workflow-management-database-design/
+  中文翻譯：[budibase-workflow-database-design-translation.md](budibase-workflow-database-design-translation.md)
+- Redgate — 區分 Traceability（追蹤資料變更）和 Auditability（追蹤使用者行為），兩者混在一起會造成重複紀錄
+  https://www.red-gate.com/blog/database-design-how-to-keep-track-of-what-the-users-do/
 
 ---
 
