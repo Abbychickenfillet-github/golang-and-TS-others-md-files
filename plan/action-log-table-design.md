@@ -554,6 +554,108 @@ approval_request（不合併方案）
 
 ---
 
+## 議題三：Production 資料遷移期間的資料一致性
+
+### 問題
+
+假設要擴展 `order_log`（改表名 + 加欄位），或遷移到新資料庫 `futuresign_reg`：
+- 跑遷移腳本的這段時間，使用者還在用系統
+- 萬一遷移進行中有新的訂單取消、新的資料寫入 `order_log`
+- 這些新資料會不會漏掉？要暫停服務嗎？
+
+### 三種做法
+
+#### 做法 1：停機維護（最簡單，適合我們的規模）
+
+```
+1. 公告維護時間（例如凌晨 2:00 ~ 2:30）
+2. 關閉服務（docker compose down）
+3. 跑遷移腳本（ALTER TABLE / 資料搬移）
+4. 驗證資料（row count 比對）
+5. 部署新版程式碼
+6. 重啟服務
+```
+
+| 優點 | 缺點 |
+|---|---|
+| 最簡單，100% 不會漏資料 | 服務會中斷 |
+| 不需要額外工具或機制 | 使用者體驗差（但凌晨影響很小） |
+| 驗證容易，關機狀態下資料不會變 | — |
+
+**適合我們嗎？** order_log 才 26 筆，整個遷移 < 1 分鐘就能完成。凌晨停機 5 分鐘影響趨近於零。
+
+#### 做法 2：雙寫（Dual Write）— 不停機
+
+```
+階段 1：建新表，部署新版程式碼同時寫舊表和新表（雙寫）
+階段 2：背景跑腳本把舊資料搬到新表（backfill）
+階段 3：驗證新表資料完整（row count + 抽樣比對）
+階段 4：切換程式碼只讀寫新表（cutover）
+階段 5：觀察一段時間，確認沒問題後刪舊表
+```
+
+| 優點 | 缺點 |
+|---|---|
+| 零停機 | 程式碼要改兩次（先雙寫，再單寫） |
+| 使用者完全感受不到 | 雙寫期間有 race condition 風險 |
+| 業界大廠標準做法 | 對 26 筆資料來說嚴重 over-engineering |
+
+#### 做法 3：Shadow Table + 觸發器 — 不停機
+
+```
+階段 1：建新表（shadow table）
+階段 2：在舊表上建 TRIGGER，任何寫入自動同步到新表
+階段 3：背景搬舊資料到新表（backfill）
+階段 4：驗證兩邊資料一致
+階段 5：原子操作切換：RENAME TABLE order_log TO order_log_old, action_log TO order_log
+階段 6：移除 TRIGGER，刪舊表
+```
+
+| 優點 | 缺點 |
+|---|---|
+| 零停機 | 需要寫 TRIGGER，增加複雜度 |
+| TRIGGER 在資料庫事務內，不會漏資料 | TRIGGER 會略微影響寫入效能 |
+| 切換是原子操作（RENAME TABLE） | 對 26 筆資料來說 over-engineering |
+
+### 我們的情況分析
+
+```
+目前 order_log 資料量：26 筆
+預估遷移時間：< 1 分鐘（甚至 < 10 秒）
+使用者量：低（staging 階段）
+```
+
+**結論：直接停機維護（做法 1）就好。**
+
+但如果選擇「不動 order_log，另建 approval_request 新表」，那連停機都不需要：
+- 新表是全新的，不影響任何現有資料
+- 部署新版程式碼就開始用，完全零風險
+- 這也是為什麼「不合併」方案在現階段最省事的另一個原因
+
+### 如果未來資料量大了（幾十萬筆以上）怎麼辦？
+
+到那時候再考慮做法 2 或 3。關鍵步驟：
+
+1. **Backfill 要分批跑** — `WHERE id > ? LIMIT 1000`，不要一次搬完鎖死表
+2. **驗證要做** — `SELECT COUNT(*) FROM old_table` vs `SELECT COUNT(*) FROM new_table`
+3. **保留回滾方案** — 切換後舊表先留著不刪，觀察幾天確認沒問題再刪
+4. **監控 lag** — 如果用 TRIGGER 或 CDC，監控新舊表之間的延遲
+
+### 參考出處
+
+- InfoQ — Shadow Table Strategy: "Database triggers propagate every INSERT, UPDATE, or DELETE from the original to the shadow table, ensuring data integrity." 切換用 atomic table rename，不會漏資料
+  https://www.infoq.com/articles/shadow-table-strategy-data-migration/
+- Coffee Bytes — Zero Downtime Migrations: Shadow Table Strategy，詳細解說六個階段（建表 → backfill → 同步 → 驗證 → 切換 → 清理）
+  https://coffeebytes.dev/en/databases/zero-downtime-migrations-shadow-table-strategy-explained/
+- GitLab Docs — Avoiding Downtime in Migrations: "Adding columns is inherently safe." Renaming tables 需要多版本漸進式處理，或用 database view 相容舊程式碼
+  https://docs.gitlab.com/development/database/avoiding_downtime_in_migrations/
+- LaunchDarkly — 3 Best Practices for Zero-Downtime Database Migrations: 建議用 feature flag 控制切換，確保可以隨時回滾
+  https://launchdarkly.com/blog/3-best-practices-for-zero-downtime-database-migrations/
+- GitLab Docs — Rename Table Without Downtime: 用 database view 指向新表名，讓舊程式碼繼續用舊名查詢
+  https://docs.gitlab.com/ee/development/database/rename_database_tables.html
+
+---
+
 ## 參考文獻
 
 1. **Martin Fowler — Audit Log Pattern**
