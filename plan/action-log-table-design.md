@@ -221,6 +221,132 @@ case "order":
 
 ---
 
+## 議題一：operator_type 有必要嗎？
+
+### 問題
+
+我們系統有兩種帳號體系：
+- `member` 表 — 前台會員（主辦方、攤販、消費者）
+- `user` 表 — 後台管理員
+
+當 action_log 記錄「誰做了這件事」的時候，`operator_id` 存的是一個 UUID。
+但光看 UUID 不知道要去 member 表還是 user 表查這個人是誰。
+
+### 三種做法
+
+**做法 1：加 `operator_type` 欄位（推薦）**
+
+```sql
+operator_id    VARCHAR(36)  -- UUID
+operator_type  VARCHAR(20)  -- 'member' 或 'user'
+```
+
+| 優點 | 缺點 |
+|---|---|
+| 程式碼可以根據 type 去對的表查 operator 資訊 | 多一個欄位 |
+| 跟 entity_type + entity_id 是同樣的設計模式，一致性好 | 沒有外鍵約束 |
+| 未來如果多一種身分（例如 vendor）只要加一個 type 值 | — |
+
+這就是 polymorphic association 的模式，跟 entity_type + entity_id 同理。
+Rails、Laravel、Django 都用這種方式處理「一個欄位可能指向不同表」的情況。
+
+**做法 2：分兩個欄位 `member_id` + `user_id`**
+
+```sql
+member_id  VARCHAR(36) REFERENCES members(id)  -- 前台會員
+user_id    VARCHAR(36) REFERENCES users(id)     -- 後台管理員
+-- 每筆只填一個，另一個 NULL
+```
+
+| 優點 | 缺點 |
+|---|---|
+| 可以加外鍵約束 | 每多一種身分就要 ALTER TABLE 加欄位 |
+| JOIN 查名字比較直覺 | 跟做法 B（獨立 FK）一樣的稀疏 NULL 問題 |
+
+**做法 3：統一 user 表（改架構）**
+
+把 member 和 user 合併成同一張表，用 role 欄位區分身分。
+這樣 operator_id 就只會指向一張表，不需要 type。
+
+| 優點 | 缺點 |
+|---|---|
+| 根本解決「不知道指向哪張表」的問題 | 改動太大，現有架構動不了 |
+| 可以加外鍵約束 | member 和 user 的欄位差異很大，硬合不合理 |
+
+### 建議
+
+**用做法 1（operator_type）**。理由：
+- 跟 entity_type + entity_id 一致，整張表的設計風格統一
+- 不需要改現有的 member / user 架構
+- 查詢時 `WHERE operator_type = 'member'` 就知道去 member 表 JOIN
+
+### 參考出處
+
+- DoltHub: "None of these approaches are perfect. Selection depends on query patterns, space constraints, and maintainability priorities."
+  - https://www.dolthub.com/blog/2024-06-25-polymorphic-associations/
+- Hashrocket: polymorphic association 的 type + id 模式 "was popularized by Ruby on Rails"，是業界標準做法
+  - https://hashrocket.com/blog/posts/modeling-polymorphic-associations-in-a-relational-database
+- MSSQLTips: "Achieving this relationship with foreign keys is technically impossible... you can't define a foreign key reference to multiple tables"
+  - https://www.mssqltips.com/sqlservertip/8149/polymorphic-associations-sql-server-foreign-keys/
+
+---
+
+## 議題二：純紀錄沒有 reviewer，大量 NULL 欄位有差嗎？
+
+### 問題
+
+如果合併成一張表，有些資料是純紀錄（訂單編輯），不需要審核流程。
+這些列的 `status`、`reviewer_id`、`reviewer_type`、`review_notes`、`reviewed_at` 全部都會是 NULL。
+這樣會不會浪費空間或影響效能？
+
+### 結論：MySQL InnoDB 的 NULL 幾乎不佔空間
+
+MySQL InnoDB 儲存 NULL 的方式：
+- 每列有一個 **NULL bitmap**（位元圖），每個 nullable 欄位佔 1 bit
+- 如果一列有 5 個 nullable 欄位全部是 NULL，額外成本 = 5 bits ≈ 不到 1 byte
+- 相比之下，一個 VARCHAR(36) 存 UUID 要 37 bytes
+
+| 情境 | 額外空間成本 |
+|---|---|
+| 5 個 NULL 欄位（reviewer_id, reviewer_type 等） | < 1 byte/列 |
+| 100 萬筆純紀錄 × 5 個 NULL 欄位 | < 1 MB |
+| 同樣 100 萬筆如果都存空字串 `""` 代替 NULL | 約 5~10 MB |
+
+**NULL 比空字串還省空間。**
+
+### 查詢效能的影響
+
+**有影響的情況：**
+- `NOT IN()` 子查詢碰到 nullable 欄位時，MySQL 要額外檢查 NULL，效能會差
+- 解法：用 `NOT EXISTS` 或 `WHERE column IS NOT NULL` 取代 `NOT IN()`
+
+**沒影響的情況（我們的場景）：**
+- `WHERE status = 'pending'` — 直接比對值，NULL 列自動排除，不影響效能
+- `WHERE entity_type = 'event' AND entity_id = ?` — 跟 NULL 欄位無關
+- `WHERE reviewer_id = ?` — 如果有 index，NULL 列不在 index 裡，反而更快
+
+### 所以純紀錄的空 reviewer 欄位不是問題
+
+| 擔心的點 | 實際影響 |
+|---|---|
+| 浪費儲存空間 | 幾乎不佔（< 1 byte/列） |
+| 查詢變慢 | 我們的查詢模式不會踩到 NULL 效能陷阱 |
+| 資料看起來稀疏 | 純粹視覺問題，不影響功能 |
+| 語意不清（為什麼 reviewer 是空的） | 看 status：NULL = 純紀錄，pending = 等審核，一目瞭然 |
+
+### 參考出處
+
+- SQL Sunday: NULL 在 `NOT IN()` 子查詢中會導致嚴重效能問題，建議用 `NOT EXISTS` 取代。實際案例：Stack Overflow 查詢從跑數小時降到幾秒
+  - https://sqlsunday.com/2019/01/03/nullable-columns-and-performance/
+- DbVisualizer: "MySQL columns are nullable by default unless explicitly marked NOT NULL"，nullable 是 MySQL 的預設行為，設計上就是預期會有 NULL
+  - https://www.dbvis.com/thetable/mysql-nullable-columns-everything-you-need-to-know/
+- MySQL 官方文件: `IS NULL` 最佳化 — MySQL 會自動最佳化 NULL 條件的查詢
+  - https://dev.mysql.com/doc/refman/8.4/en/is-null-optimization.html
+- Leapcell: "Understanding NULL's Impact on Database Performance" — NULL 影響最大的是 aggregate function 和 NOT IN，一般 WHERE 等值查詢不受影響
+  - https://leapcell.io/blog/the-silent-killer-understanding-null-s-impact-on-database-performance
+
+---
+
 ## 現有 `order_log` vs 活動刪除請求的差異
 
 | | order_log（現有） | 活動刪除請求（新需求） |
