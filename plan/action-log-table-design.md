@@ -89,20 +89,19 @@ review_notes, reviewed_at, details(JSON), created_at, updated_at
 id, entity_type, entity_id, action, operator_id, reason, details(JSON), created_at
 ```
 
-**`action_request`** — 管理正在進行的請求（有狀態流轉）
+**`action_request`** — 管理正在進行的請求（每個狀態變更都是一筆新紀錄）
 ```sql
-id, entity_type, entity_id, action_type, status, reason,
-requested_by_id, requested_by_type, reviewed_by_id, reviewed_by_type,
-review_notes, reviewed_at, created_at, updated_at
+id, entity_type, entity_id, action_type, reason,
+operator_id, operator_type, review_notes, details(JSON), created_at
 ```
 
 **好處：**
 - 語意最清楚：log 就是 log，request 就是 request
-- 各自有明確的讀寫模式（log 只寫不改，request 會更新狀態）
+- 兩張表都是 append-only（只 INSERT 不 UPDATE），資料不可變
 
 **壞處：**
 - 兩張表要維護
-- 有些操作可能兩邊都要寫（例如刪除核准後，request 更新狀態，同時 log 記一筆）
+- 查詢「目前狀態」需要找該實體最新的 action：`ORDER BY created_at DESC LIMIT 1`
 
 **相關參考：**
 - Martin Fowler — Audit Log 強調「寫完不動」的純紀錄特性，支持 activity_log 拆分的理論依據
@@ -121,23 +120,40 @@ review_notes, reviewed_at, created_at, updated_at
 
 ```sql
 CREATE TABLE action_log (
-  id           VARCHAR(36) PRIMARY KEY,  -- UUID 主鍵
-  entity_type  VARCHAR(50) NOT NULL,     -- 這筆紀錄屬於哪種資料表（見下方說明）
-  entity_id    VARCHAR(36) NOT NULL,     -- 對應那筆資料的 ID
-  action       VARCHAR(50) NOT NULL,     -- 做了什麼操作
-  status       VARCHAR(30) DEFAULT NULL, -- 狀態（純紀錄可以是 NULL，審核流程才需要）
-  reason       TEXT,                     -- 為什麼做這個操作
-  operator_id  VARCHAR(36),              -- 誰發起的（ID）
-  operator_type VARCHAR(20),             -- 發起者是哪種身分（見下方說明）
-  reviewer_id  VARCHAR(36),              -- 誰審核的（ID），純紀錄不需要
-  reviewer_type VARCHAR(20),             -- 審核者是哪種身分
-  review_notes TEXT,                     -- 審核備註
-  reviewed_at  DATETIME,                 -- 審核時間
-  details      JSON,                     -- 額外資訊（變更前後的值等等）
-  created_at   DATETIME NOT NULL,
-  updated_at   DATETIME
+  id            VARCHAR(36) PRIMARY KEY,  -- UUID 主鍵
+  entity_type   VARCHAR(50) NOT NULL,     -- 這筆紀錄屬於哪種資料表（見下方說明）
+  entity_id     VARCHAR(36) NOT NULL,     -- 對應那筆資料的 ID
+  action        VARCHAR(50) NOT NULL,     -- 做了什麼操作（也隱含了狀態語意）
+  reason        TEXT,                     -- 為什麼做這個操作
+  operator_id   VARCHAR(36),              -- 誰執行的（ID）
+  operator_type VARCHAR(20),              -- 執行者是哪種身分（見下方說明）
+  notes         TEXT,                     -- 備註（審核備註、取消原因等）
+  details       JSON,                     -- 額外資訊（變更前後的值等等）
+  created_at    DATETIME NOT NULL         -- 這個動作發生的時間（每筆都有自己的時間戳）
 );
+-- 不需要 updated_at，因為這張表是 append-only（只 INSERT 不 UPDATE）
+-- 不需要 status 欄位，因為 action 本身就表達了狀態語意
+-- 不需要獨立的 reviewer 欄位，審核動作（APPROVE/REJECT）就是一筆新紀錄，operator 就是審核者
 ```
+
+### 為什麼不需要 status 和 reviewer 欄位？
+
+**傳統做法（會 UPDATE）：**
+```
+一筆紀錄：id=1, action=DELETE_REQUEST, status=pending → (UPDATE) status=approved, reviewer_id=xxx
+問題：pending 是什麼時候的？approved 又是什麼時候的？UPDATE 會覆蓋掉時間資訊
+```
+
+**我們的做法（只 INSERT）：**
+```
+第 1 筆：id=1, action=DELETE_REQUEST, operator=主辦方, created_at=2025-02-21 10:00:00
+第 2 筆：id=2, action=APPROVE,        operator=管理員, created_at=2025-02-21 14:30:00, notes='已確認無訂單'
+每個動作都有自己的時間戳，不會丟失任何資訊
+```
+
+- `action` 本身就表達了狀態：`DELETE_REQUEST` = 等待審核、`APPROVE` = 已核准、`REJECT` = 已駁回
+- 審核者就是 APPROVE/REJECT 那筆紀錄的 `operator`，不需要另外的 `reviewer` 欄位
+- 查詢目前狀態：`WHERE entity_type='event' AND entity_id=? ORDER BY created_at DESC LIMIT 1`
 
 ### 每個欄位的白話解釋
 
@@ -145,16 +161,13 @@ CREATE TABLE action_log (
 |---|---|---|
 | `entity_type` | 這筆 log 是關於「哪張表」的資料 | `'event'`, `'order'`, `'ticket'`, `'booth'` |
 | `entity_id` | 那張表裡面「哪一筆」 | `'46f5ad59-5ce0-42fa-8963-71054edebe0e'`（某個活動的 ID） |
-| `action` | 做了什麼事 | `'CANCEL'`, `'REFUND_REVIEW'`, `'EDIT'`, `'DELETE_REQUEST'`, `'APPROVE'` |
-| `status` | 這件事的進度（有審核流程才需要） | `'pending'`（等審核）, `'approved'`, `'rejected'`, `'cancelled'`, 或 `NULL`（純紀錄不需要狀態） |
+| `action` | 做了什麼事（同時隱含狀態語意） | `'CANCEL'`, `'EDIT'`, `'DELETE_REQUEST'`, `'APPROVE'`, `'REJECT'` |
 | `reason` | 為什麼要做這件事 | `'活動無法如期舉辦'`, `'買家要求退款'` |
-| `operator_id` | 發起這個操作的人的 ID | 某個 member 或 user 的 UUID |
-| `operator_type` | 發起者的身分是什麼。因為我們系統有兩種帳號體系（`member` = 前台會員，`user` = 後台管理員），同一個 `operator_id` 沒辦法知道要去 member 表還是 user 表查，所以需要這個欄位標記 | `'member'`（主辦方/攤販/消費者）, `'user'`（後台管理員） |
-| `reviewer_id` | 審核者的 ID（例如管理員核准刪除請求） | 某個 user 的 UUID |
-| `reviewer_type` | 審核者的身分（同 operator_type 的道理） | `'user'`（通常是管理員審核） |
-| `review_notes` | 審核時留的備註 | `'已確認無訂單，核准刪除'` |
-| `reviewed_at` | 什麼時候審核的 | `2025-02-21 14:30:00` |
+| `operator_id` | 執行這個動作的人的 ID | 某個 member 或 user 的 UUID |
+| `operator_type` | 執行者的身分。因為我們系統有兩種帳號體系（`member` = 前台會員，`user` = 後台管理員），同一個 `operator_id` 沒辦法知道要去 member 表還是 user 表查，所以需要這個欄位標記 | `'member'`（主辦方/攤販/消費者）, `'user'`（後台管理員） |
+| `notes` | 備註（審核備註、取消原因等） | `'已確認無訂單，核准刪除'` |
 | `details` | 放不進固定欄位的額外資訊，用 JSON 彈性存 | `{"old_amount": 1000, "new_amount": 800, "payment_status": "paid"}` |
+| `created_at` | 這個動作發生的時間 | `2025-02-21 14:30:00` |
 
 ---
 
@@ -180,7 +193,7 @@ entity_id    VARCHAR(36)  -- 那筆資料的 UUID
 - Rails 的 Polymorphic Associations
 - Django 的 ContentType framework
 
-### 做法 B：每個實體一個獨立的外鍵欄位
+### 做法 B：每個實體一個獨立的外鍵欄位(我覺得是爛方法)
 
 ```sql
 order_id   VARCHAR(36) REFERENCES orders(id),    -- 訂單 FK
@@ -327,26 +340,27 @@ user_id    VARCHAR(36) REFERENCES users(id)     -- 後台管理員
 
 ---
 
-## 議題二：純紀錄沒有 reviewer，大量 NULL 欄位有差嗎？
+## 議題二：純紀錄的 NULL 欄位有差嗎？
 
 ### 問題
 
-如果合併成一張表，有些資料是純紀錄（訂單編輯），不需要審核流程。
-這些列的 `status`、`reviewer_id`、`reviewer_type`、`review_notes`、`reviewed_at` 全部都會是 NULL。
-這樣會不會浪費空間或影響效能？
+如果合併成一張表，有些資料是純紀錄（訂單編輯），不需要 `reason`、`notes`、`details` 等欄位。
+這些列會有部分欄位是 NULL。這樣會不會浪費空間或影響效能？
+
+> **備註**：在改為 append-only 設計後，已移除 `status`、`reviewer_*`、`reviewed_at`、`updated_at` 等欄位，NULL 欄位數量大幅減少。但此分析仍適用於剩餘的 nullable 欄位。
 
 ### 結論：MySQL InnoDB 的 NULL 幾乎不佔空間
 
 MySQL InnoDB 儲存 NULL 的方式：
 - 每列有一個 **NULL bitmap**（位元圖），每個 nullable 欄位佔 1 bit
-- 如果一列有 5 個 nullable 欄位全部是 NULL，額外成本 = 5 bits ≈ 不到 1 byte
+- 如果一列有 3 個 nullable 欄位全部是 NULL，額外成本 = 3 bits ≈ 不到 1 byte
 - 相比之下，一個 VARCHAR(36) 存 UUID 要 37 bytes
 
 | 情境 | 額外空間成本 |
 |---|---|
-| 5 個 NULL 欄位（reviewer_id, reviewer_type 等） | < 1 byte/列 |
-| 100 萬筆純紀錄 × 5 個 NULL 欄位 | < 1 MB |
-| 同樣 100 萬筆如果都存空字串 `""` 代替 NULL | 約 5~10 MB |
+| 3 個 NULL 欄位（reason, notes, details） | < 1 byte/列 |
+| 100 萬筆純紀錄 × 3 個 NULL 欄位 | < 1 MB |
+| 同樣 100 萬筆如果都存空字串 `""` 代替 NULL | 約 3~6 MB |
 
 **NULL 比空字串還省空間。**
 
@@ -357,18 +371,16 @@ MySQL InnoDB 儲存 NULL 的方式：
 - 解法：用 `NOT EXISTS` 或 `WHERE column IS NOT NULL` 取代 `NOT IN()`
 
 **沒影響的情況（我們的場景）：**
-- `WHERE status = 'pending'` — 直接比對值，NULL 列自動排除，不影響效能
+- `WHERE action = 'DELETE_REQUEST'` — 直接比對值，不涉及 NULL
 - `WHERE entity_type = 'event' AND entity_id = ?` — 跟 NULL 欄位無關
-- `WHERE reviewer_id = ?` — 如果有 index，NULL 列不在 index 裡，反而更快
-
-### 所以純紀錄的空 reviewer 欄位不是問題
+### 所以 NULL 欄位不是問題
 
 | 擔心的點 | 實際影響 |
 |---|---|
 | 浪費儲存空間 | 幾乎不佔（< 1 byte/列） |
 | 查詢變慢 | 我們的查詢模式不會踩到 NULL 效能陷阱 |
 | 資料看起來稀疏 | 純粹視覺問題，不影響功能 |
-| 語意不清（為什麼 reviewer 是空的） | 看 status：NULL = 純紀錄，pending = 等審核，一目瞭然 |
+| 語意不清 | 看 `action` 欄位就知道這筆紀錄的用途，不需要額外判斷 |
 
 ### 參考出處
 
@@ -388,9 +400,9 @@ MySQL InnoDB 儲存 NULL 的方式：
 | | order_log（現有） | 活動刪除請求（新需求） |
 |---|---|---|
 | 用途 | 記錄已發生的操作 | 管理審核中的請求 |
-| 狀態流轉 | 無 | pending → approved / rejected / cancelled |
-| 是否 UPDATE | 不會 | 會（更新狀態） |
-| 操作者追蹤 | 只有 operator_id | 分申請者和審核者 |
+| 狀態流轉 | 無 | 用多筆紀錄表達：DELETE_REQUEST → APPROVE / REJECT |
+| 寫入模式 | 只 INSERT | 也是只 INSERT（每個動作一筆新紀錄，不覆寫舊的） |
+| 操作者追蹤 | 只有 operator_id | 分申請者和審核者（各自在不同筆紀錄上） |
 | 實體範圍 | 只有 order | 通用（event/order/booth） |
 | 額外資料 | details JSON | review_notes |
 
@@ -403,15 +415,18 @@ MySQL InnoDB 儲存 NULL 的方式：
 | | Audit Log（稽核紀錄） | Approval Workflow（審核流程） |
 |---|---|---|
 | 回答的問題 | 「誰在什麼時候改了什麼？」 | 「誰提了什麼申請？通過了沒？」 |
-| 資料流向 | 只寫入，寫完不再修改 | 有狀態流轉（pending → approved / rejected） |
+| 資料流向 | 只寫入，寫完不再修改 | 也是只寫入——每個狀態變更都 INSERT 一筆新紀錄 |
 | 目的 | 事後追查、合規 | 事前管控、流程把關 |
 | 例子 | 管理員把活動名稱從 A 改成 B | 主辦方申請刪除活動，等管理員核准 |
-| 需要 status 欄位嗎 | 不需要 | 需要 |
+| 欄位差異 | 不需要 reviewer 相關欄位 | 審核動作（APPROVE/REJECT）的紀錄帶有 reviewer 資訊 |
 
 **我們的活動刪除功能是 approval workflow**，不是 audit log。
-但兩者可以共用同一張表，差別在於：
-- 純紀錄（audit）：`status` 為 NULL，寫入後不再修改
-- 審核流程（approval）：`status` 從 `pending` 開始，後續會 UPDATE 為 `approved` / `rejected`
+但兩者可以共用同一張表，而且**都是 append-only（只 INSERT 不 UPDATE）**：
+- 純紀錄（audit）：一筆紀錄，寫入後不再修改。例：`action=EDIT`
+- 審核流程（approval）：用**多筆紀錄**表達流程，每個動作各自一筆，各有自己的時間戳：
+  - 第一筆：`action=DELETE_REQUEST`（主辦方申請刪除）
+  - 第二筆：`action=APPROVE` 或 `action=REJECT`（管理員審核，帶 reviewer 資訊）
+  - 查詢目前狀態：找同一個 `entity_type + entity_id` 的最新一筆 `action`
 
 ### Redgate 文章說的 "generic" 是什麼意思？
 
@@ -450,8 +465,8 @@ MySQL InnoDB 處理 100 萬筆是很輕鬆的，前提是 index 要對：
 
 ```sql
 -- 必要的 index
-INDEX idx_entity (entity_type, entity_id)   -- 查某個活動/訂單的 log
-INDEX idx_action_status (action, status)    -- 查所有待審核的刪除請求
+INDEX idx_entity (entity_type, entity_id)   -- 查某個活動/訂單的所有 log
+INDEX idx_action (action)                   -- 查所有待審核的刪除請求（WHERE action='DELETE_REQUEST'）
 INDEX idx_created (created_at)              -- 按時間查
 ```
 
@@ -495,7 +510,7 @@ INDEX idx_created (created_at)              -- 按時間查
 
 **`action_log`**
 - 優點：跟現有 `order_log` 風格一致，名字通用
-- 缺點：「log」暗示寫完不動（audit 紀錄），但我們需要 UPDATE status
+- 優點：所有資料都是 append-only，「log」的語意完全正確
 - 適合：如果這張表要同時處理純紀錄 + 審核流程
 
 **`action_request`**
@@ -524,15 +539,17 @@ INDEX idx_created (created_at)              -- 按時間查
 ### 欄位比較
 
 ```
-action_log（合併方案）
-├── 純紀錄用：status = NULL, reviewer = NULL
-│   例：訂單編輯、訂單取消（已經發生了，不需要核准）
+action_log（合併方案）— 所有資料都是 append-only
+├── 純紀錄：action=EDIT, action=CANCEL（一筆搞定，不需要後續動作）
+│   例：訂單編輯、訂單取消
 │
-└── 審核流程用：status = pending → approved/rejected
-    例：活動刪除請求（需要管理員核准）
+└── 審核流程：多筆紀錄串連，每個動作各自一筆
+    例：活動刪除
+    第 1 筆：action=DELETE_REQUEST, operator=主辦方, created_at=申請時間
+    第 2 筆：action=APPROVE,        operator=管理員, created_at=審核時間
 
-approval_request（不合併方案）
-└── 每筆都是審核流程：status = pending → approved/rejected
+approval_request（不合併方案）— 同樣是 append-only
+└── 每筆都是審核相關動作
     例：活動刪除請求、未來的退款審核、攤位取消審核
     （order_log 留在原地不動）
 ```
