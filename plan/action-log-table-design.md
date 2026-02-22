@@ -179,6 +179,88 @@ CREATE TABLE action_log (
 - 每筆都有自己的 `created_at`，完整保留時間軸
 - 查詢目前狀態：`WHERE entity_type='event' AND entity_id=? AND action='DELETE' ORDER BY created_at DESC LIMIT 1`
 
+### append-only 多筆紀錄的查詢代價分析
+
+一個退款流程會產生 3 筆紀錄：
+
+```
+第 1 筆：action=REFUND, status=pending,  applier=消費者,  created_at=10:00
+第 2 筆：action=REFUND, status=approved, reviewer=管理員, created_at=14:00
+第 3 筆：action=REFUND, status=success,  reviewer=系統,   created_at=14:05
+```
+
+跟 UPDATE 做法相比，查詢難度差異：
+
+| 查詢場景 | UPDATE 做法 | append-only 做法 | 誰比較好 |
+|---|---|---|---|
+| 查某筆的目前狀態 | `WHERE id=?` | `ORDER BY created_at DESC LIMIT 1` | 差不多 |
+| 查某筆的完整歷程 | 做不到（被覆寫了） | `ORDER BY created_at` 直接撈 | append-only 贏 |
+| 列出所有 pending | `WHERE status='pending'` | 需要 `NOT EXISTS` 子查詢 | UPDATE 比較簡單 |
+| pending 了多久 | 做不到（不知道何時變 pending） | `created_at` 直接看 | append-only 贏 |
+
+**唯一變難的查詢**是「列出所有目前還在 pending 的」：
+
+```sql
+-- UPDATE 做法：一行搞定
+SELECT * FROM action_log WHERE action='REFUND' AND status='pending';
+
+-- append-only 做法：要確認 pending 是「最新狀態」（後面沒有 approved/rejected）
+SELECT a.* FROM action_log a
+WHERE a.action = 'REFUND' AND a.status = 'pending'
+AND NOT EXISTS (
+    SELECT 1 FROM action_log b
+    WHERE b.entity_type = a.entity_type
+    AND b.entity_id = a.entity_id
+    AND b.action = 'REFUND'
+    AND b.created_at > a.created_at
+);
+```
+
+**效能影響**：`NOT EXISTS` 子查詢只在同一個 entity 的同一個 action 裡面找（通常 2~3 筆），不是掃全表。有以下 index 就是毫秒級：
+
+```sql
+INDEX idx_entity_action (entity_type, entity_id, action, created_at)
+```
+
+**如果覺得子查詢煩**，可以建 View 封裝：
+
+```sql
+CREATE VIEW action_log_latest AS
+SELECT a.* FROM action_log a
+WHERE a.created_at = (
+    SELECT MAX(b.created_at) FROM action_log b
+    WHERE b.entity_type = a.entity_type
+    AND b.entity_id = a.entity_id
+    AND b.action = a.action
+);
+
+-- 之後查 pending 就跟 UPDATE 做法一樣直覺：
+SELECT * FROM action_log_latest WHERE action='REFUND' AND status='pending';
+```
+
+**結論**：append-only 唯一的查詢代價是「找目前狀態」多一層子查詢。但換來的是完整的時間軸紀錄 — 什麼時候申請、什麼時候核准、什麼時候到帳，在退款這種敏感場景很重要。UPDATE 做法連「客戶等了多久才被核准」都查不出來。
+
+### 為什麼不拆兩張表？（方案三的問題）
+
+方案三提出把純紀錄（`activity_log`）和審核流程（`action_request`）拆成兩張表，理由是「語意不同應該分開」。
+
+但在 append-only 設計下，**一張表已經用 `status` 欄位自然區分了兩種情境**：
+
+| 情境 | 怎麼存 | 幾筆 |
+|---|---|---|
+| 純紀錄（訂單編輯） | `action=EDIT, status=NULL` | 1 筆搞定 |
+| 審核流程（活動刪除） | `action=DELETE, status=pending → approved` | 多筆串連 |
+| 退款流程 | `action=REFUND, status=pending → approved → success` | 多筆串連 |
+
+三種場景結構完全一樣，差別只在 `status` 有沒有值、有幾筆。拆成兩張表反而：
+
+1. **多維護一套程式碼**：兩張表各自需要 repository / service / handler
+2. **多一層判斷邏輯**：「這個操作該寫進哪張表？」 — 純紀錄還是審核流程？邊界不總是清楚的
+3. **跨表查詢變複雜**：「列出某活動所有操作紀錄」要 UNION 兩張表
+4. **沒有實質好處**：兩張表都是 append-only，結構幾乎一樣，拆開只是多了維護成本
+
+所以我們選方案一（合併），方案三留在文件中作為對照分析，說明為什麼我們不這樣做。
+
 ### 每個欄位的白話解釋
 
 | 欄位 | 用途 | 舉例 |
