@@ -293,7 +293,7 @@ Aalpha 從開發公司的角度，介紹多攤商電商平台的架構設計和�
 我們的系統本質上就是一個 **multi-vendor marketplace**：
 - vendor（品牌商）= 攤商
 - booth_booking = 攤位租賃（入駐審核）
-- product (sell_type=vendor_goods) = 攤商上架的商品
+- product (sell_type=vendor_merchandise) = 攤商上架的商品
 
 但我們目前**不處理金流和物流**（Issue #308 明確說只做展示），所以比完整的 multi-vendor 平台簡單很多。Aalpha 提到的佣金結算、分潤付款、多地點出貨等功能，都是未來如果要做線上購買時才需要考慮的。
 
