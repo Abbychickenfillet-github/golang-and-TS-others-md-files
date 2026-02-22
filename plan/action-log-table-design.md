@@ -848,7 +848,8 @@ approval_request（不合併方案）— 同樣是 append-only
 1. **Martin Fowler — Audit Log Pattern**
    - "Any time something significant happens you write some record indicating what happened and when it happened."
    - Audit Log 優點是簡單，缺點是資料量大後查詢困難。建議 audit log 和核心業務邏輯保持鬆耦合。
-   - https://martinfowler.com/eaaDev/AuditLog.html
+   - 原文：https://martinfowler.com/eaaDev/AuditLog.html
+   - 中文翻譯：[martin-fowler-audit-log-translation.md](martin-fowler-audit-log-translation.md)
 
 2. **Redgate — Database Design for Audit Logging**
    - 比較了 Shadow Tables（每實體獨立）vs Generic Tables（統一表）兩種方式。
