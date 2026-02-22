@@ -308,6 +308,49 @@ case "order":
 當 action_log 記錄「誰做了這件事」的時候，`applier_id` 和 `reviewer_id` 存的是 UUID。
 但光看 UUID 不知道要去 member 表還是 user 表查這個人是誰。
 
+### 「我們有 TryBothAuth 了，還需要 type 嗎？」
+
+需要。TryBothAuth 跟 type 欄位解決的是**不同時間點**的問題：
+
+| | TryBothAuth | applier_type / reviewer_type |
+|---|---|---|
+| 什麼時候用 | API 請求的當下（runtime） | 三個月後讀 log 的時候（query time） |
+| 解決什麼 | 「現在打 API 的人是 member 還是 user？」 | 「這筆 log 的 applier_id 要去哪張表查？」 |
+| 存活時間 | request 結束就沒了 | 永久寫在 DB 裡 |
+
+寫入 log 的時候你確實知道身分（TryBothAuth 告訴你了），但如果你**不把這個資訊存下來**，讀的時候就要：
+
+```go
+// 沒有 type 欄位的悲慘情況：每次讀 log 都要查兩張表
+member, _ := memberRepo.GetByID(log.ApplierID)
+if member == nil {
+    user, _ := userRepo.GetByID(log.ApplierID)  // 第二次查詢
+}
+```
+
+有 type 欄位就直接知道去哪查，一次搞定：
+
+```go
+// 有 type 欄位：直接知道去哪張表
+switch log.ApplierType {
+case "member":
+    member, _ := memberRepo.GetByID(log.ApplierID)
+case "user":
+    user, _ := userRepo.GetByID(log.ApplierID)
+}
+```
+
+### UUID 碰撞：理論上不會，但 type 的目的不是防碰撞
+
+UUID v4 的碰撞機率是 1/2.71 × 10^18 — 每秒產生 10 億個 UUID，要跑 85 年才有 50% 機率碰撞一次。所以碰撞不是加 type 的主要理由。
+
+**加 type 的真正理由是查詢效率和語意清晰**：
+
+1. **查詢效率**：沒有 type 就要查兩張表（member + user），有 type 就查一張
+2. **語意清晰**：光看一個 UUID 不知道這是會員還是管理員
+3. **業界慣例**：GitLab 官方文件明確說 polymorphic association 必須兩個欄位一起用：`WHERE source_type = 'Project' AND source_id = 13083`
+4. **防禦性設計**：雖然 UUID 碰撞機率趨近於零，但 type 欄位等於加了一層保險，確保即使 UUID 碰巧一樣也不會查錯表
+
 ### 三種做法
 
 **做法 1：加 `applier_type` / `reviewer_type` 欄位（推薦）**
@@ -363,11 +406,15 @@ user_id    VARCHAR(36) REFERENCES users(id)     -- 後台管理員
 
 ### 參考出處
 
-- DoltHub: "None of these approaches are perfect. Selection depends on query patterns, space constraints, and maintainability priorities."
+- GitLab — Polymorphic Associations 官方指南：明確說 polymorphic association 必須用 type + id 兩個欄位一起過濾，單靠 id 無法確定指向哪張表。"Enforcing consistency on the database level is absolutely crucial... you always need to filter using both columns."
+  - https://docs.gitlab.com/development/database/polymorphic_associations/
+- DoltHub — Choosing a Database Schema for Polymorphic Data：比較了 5 種 polymorphic 實作方式的優缺點。"None of these approaches are perfect. Selection depends on query patterns, space constraints, and maintainability priorities."
   - https://www.dolthub.com/blog/2024-06-25-polymorphic-associations/
-- Hashrocket: polymorphic association 的 type + id 模式 "was popularized by Ruby on Rails"，是業界標準做法
+- Wikipedia — UUID：UUID v4 碰撞機率為 1/2.71 × 10^18，每秒產生 10 億個要跑 85 年才有 50% 碰撞機率。理論上不會碰撞，但 type 欄位的目的是查詢效率而非防碰撞。
+  - https://en.wikipedia.org/wiki/Universally_unique_identifier
+- Hashrocket — Modeling Polymorphic Associations：polymorphic association 的 type + id 模式 "was popularized by Ruby on Rails"，是業界標準做法
   - https://hashrocket.com/blog/posts/modeling-polymorphic-associations-in-a-relational-database
-- MSSQLTips: "Achieving this relationship with foreign keys is technically impossible... you can't define a foreign key reference to multiple tables"
+- MSSQLTips — Polymorphic Associations："Achieving this relationship with foreign keys is technically impossible... you can't define a foreign key reference to multiple tables"
   - https://www.mssqltips.com/sqlservertip/8149/polymorphic-associations-sql-server-foreign-keys/
 
 ---
