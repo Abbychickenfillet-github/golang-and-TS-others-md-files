@@ -137,6 +137,88 @@ Tab 分隔就是上面 Java 程式碼裡用 `\t` 分隔的那個格式 — 每�
 | actual date + record date | 我們用 `created_at` 同時當兩者（因為 log 都是即時寫入的） |
 | 用檔案存 + ASCII 格式 | 我們用資料庫存，用 SQL 查 |
 | 「資料量大後處理困難」 | 我們的 `NOT EXISTS` 子查詢就是這個代價，但以我們的規模（< 100 萬筆）不是問題 |
-| 「跟核心業務邏輯保持鬆耦合」 | action_log 是獨立的表，不影響 event/order 等主表的結構 |
+| 「跟核心業務邏輯保持鬆耦合」 | 見下方「鬆耦合的真正含義」 |
 
 Fowler 這篇是 2004 年的文章，很多實作建議已經過時（檔案 vs DB、XML vs JSON），但核心設計理念——**「發生什麼就記什麼，寫完不動」**——到現在還是 audit log 的標準做法，也是我們 action_log 的設計基礎。
+
+---
+
+## 鬆耦合的真正含義
+
+Fowler 說「整合越緊密，Audit Log 就越不適用」，這裡的**鬆耦合**不是指「把 log 呼叫抽成一個 service method」——那只是程式碼組織，業務邏輯裡還是**明確地呼叫** log service，本質上仍然是**緊耦合**。
+
+### 緊耦合（我們目前的做法）
+
+```go
+func (s *OrderService) ApproveOrder(orderID string) error {
+    // 業務邏輯
+    order.Status = "approved"
+    s.orderRepo.Update(order)
+
+    // 直接呼叫 log — 業務程式碼「知道」要寫 log
+    s.actionLogService.Create(ActionLog{
+        EntityType: "order",
+        EntityID:   orderID,
+        Action:     "approve",
+    })
+    return nil
+}
+```
+
+即使把 `actionLogService.Create()` 抽成獨立的 service，業務程式碼裡還是**顯式呼叫**它，兩者綁在一起。如果 log service 掛了，業務操作可能也跟著失敗。
+
+### 真正的鬆耦合：三種做法
+
+**1. 非同步 / 訊息佇列（Async / Message Queue）**
+
+業務程式碼只發送事件，不直接寫 log。獨立的 consumer 負責接收事件並寫入 log。
+
+```
+業務邏輯 → 發送事件到 Queue（RabbitMQ / Kafka）→ Log Consumer 接收 → 寫入 action_log
+```
+
+- 業務程式碼不知道 log 的存在，只負責發事件
+- log consumer 掛了不影響業務操作
+- 缺點：需要額外的訊息佇列基礎設施
+
+**2. AOP / Decorator（切面導向 / 裝飾器）**
+
+用框架的攔截機制，在方法執行前後**自動**記錄，業務程式碼完全不需要寫任何 log 相關的程式碼。
+
+```go
+// 業務程式碼完全不知道 log 的存在
+func (s *OrderService) ApproveOrder(orderID string) error {
+    order.Status = "approved"
+    s.orderRepo.Update(order)
+    return nil
+}
+
+// 攔截器/裝飾器自動補上 log
+@AuditLog(entity="order", action="approve")  // 類似 Java Spring AOP 的寫法
+```
+
+- 業務程式碼完全乾淨，不含任何 log 邏輯
+- 透過註解或 middleware 設定哪些操作要記錄
+- 缺點：Go 沒有原生 AOP 支援，通常用 middleware 或程式碼生成模擬
+
+**3. CDC / Change Data Capture（Debezium 監控 binlog）**
+
+完全不在應用層寫 log。透過 Debezium 等工具監聽資料庫的 binlog（變更日誌），自動捕捉所有資料異動。
+
+```
+業務邏輯 → 寫入 DB → DB 產生 binlog → Debezium 監聽 binlog → 自動寫入 audit log
+```
+
+- 零侵入：應用程式碼完全不需要改動
+- 100% 捕捉：任何資料變動都會被記錄，不會漏掉
+- 缺點：需要 Debezium + Kafka 基礎設施，設定和維護成本高
+
+### 我們的選擇
+
+我們目前用的是**緊耦合**做法（業務程式碼裡直接呼叫 log service），這對我們的規模和階段來說是合理的：
+
+- 團隊小、系統簡單，緊耦合的維護成本低
+- 不需要額外的 message queue 或 CDC 基礎設施
+- log 寫入失敗時可以立即發現（而不是靜默丟失）
+
+等到系統規模變大、log 需求變複雜時，再考慮遷移到 message queue 或 AOP 的做法。
