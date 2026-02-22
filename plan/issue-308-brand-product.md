@@ -49,7 +49,7 @@
 | `Currency` | 幣別 | 幣別 |
 | `EventID` | 所屬活動 | 所屬活動（品牌商品必填） |
 | `ProviderCompanyID` | 承包商公司 ID | 品牌商公司 ID |
-| `ProductTypeID` | 設備分類（必填） | **不需要** → 改為可選 |
+| `ProductTypeID` | 設備分類（必填） | 品牌商品分類（必填）— 見[議題一](#議題一producttypeid-維持-not-null--品牌商品也要選分類)、[議題四](#議題四product_type-表也要加-sell_type-區分) |
 | `Deposit` | 押金 | NULL |
 | `Specifications` | 規格 JSON | NULL |
 | `PurchaseType` | rent/purchase | NULL |
@@ -73,64 +73,38 @@ ALTER TABLE product
 ALTER TABLE product
     ADD COLUMN booth_booking_id VARCHAR(36) NULL COMMENT '對應攤位預訂 ID';
 
--- 4. ProductTypeID 改為可選
-ALTER TABLE product
-    MODIFY COLUMN product_type_id VARCHAR(36) NULL COMMENT '商品類型 ID（設備必填，品牌商品可選）';
-
--- 5. 索引
+-- 4. 索引（ProductTypeID 維持 NOT NULL，品牌商品也要選分類）
 CREATE INDEX idx_product_sell_type ON product (sell_type);
 CREATE INDEX idx_product_display ON product (event_id, sell_type, status, display_start_at, display_end_at);
 ```
 
 ---
 
-## 議題一：ProductTypeID 改為可選，會不會影響既有設備資料？
+## 議題一：ProductTypeID 維持 NOT NULL — 品牌商品也要選分類
 
-### 問題
+> GitHub 子議題：[#309](https://github.com/yutuo-tech/futuresign_backend/issues/309)
 
-目前 `product_type_id` 是設備分類的必填欄位（每個設備都要歸類，例如「桌椅」、「電力設備」）。
-但品牌商品**不需要**設備分類 — 品牌商品有自己的分類邏輯（食物、手工藝品、周邊等），跟設備分類完全不同。
+### 結論
 
-所以要把 `product_type_id` 從 NOT NULL 改成 NULL：
+**`product_type_id` 不改成 NULL。** 品牌商品也必須選擇分類，只是選的是 `sell_type = 'vendor_merchandise'` 的分類（食物、手工藝品、周邊等），跟設備分類（桌椅、電力設備）隔離。
 
-```sql
-ALTER TABLE product
-    MODIFY COLUMN product_type_id VARCHAR(36) NULL COMMENT '商品類型 ID（設備必填，品牌商品可選）';
-```
+搭配[議題四](#議題四product_type-表也要加-sell_type-區分)，在 `product_type` 表加 `sell_type` 欄位區分，品牌商和承包商各自管理自己的分類，互不干擾。
 
-### 會影響既有資料嗎？
-
-**不會。** `NOT NULL → NULL` 是放寬約束，不是收緊。
-
-| 影響範圍 | 結果 |
-|---|---|
-| 既有設備資料（product_type_id 有值） | 完全不受影響，值還在 |
-| 新建設備 | 程式碼端要繼續驗證必填（DB 不擋了，改由 service 層檢查） |
-| 新建品牌商品 | product_type_id 留 NULL，不需要分類 |
-
-### 需要注意的地方
-
-DB 層放寬成 NULL 之後，**設備的必填驗證要移到程式碼端**：
+### Service 層驗證
 
 ```go
-// service/product_service.go
+// service/product_service.go — 驗證 product 和 product_type 的 sell_type 一致
 func (s *ProductService) CreateProduct(dto ProductCreate) error {
-    if dto.SellType == "equipment" && dto.ProductTypeID == "" {
-        return errors.New("設備必須選擇商品類型")
+    productType, _ := s.productTypeRepo.GetByID(dto.ProductTypeID)
+    if productType.SellType != dto.SellType {
+        return errors.New("商品類型與銷售類型不匹配")
     }
-    // ...
 }
 ```
 
-這樣設備還是必填，品牌商品可以不填，邏輯在程式碼裡控制而不是 DB 約束。
+### ~~之前的想法（已棄用）~~
 
-### 未來考慮
-
-如果品牌商品也需要分類，有兩條路：
-1. **共用 product_type 表**：在 product_type 加 `category`（equipment / vendor_merchandise）區分
-2. **品牌商品用 JSON**：把分類資訊存在 `specifications` JSON 欄位
-
-目前階段不需要決定，先讓 product_type_id 可選就好。
+~~原本考慮把 `product_type_id` 改成 NULL，讓品牌商品不用選分類。~~ 但既然 `product_type` 表會加 `sell_type` 區分（議題四），品牌商品就該有自己的分類，不用把欄位改成可選。
 
 ---
 
