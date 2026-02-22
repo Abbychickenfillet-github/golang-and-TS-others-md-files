@@ -875,7 +875,7 @@ approval_request（不合併方案）— 同樣是 append-only
 6. **Patrick Karsh — Polymorphic Associations: Database Design Basics**
    - 關於 `entity_type` + `entity_id` 的多態關聯設計模式。
    - "Rather than creating multiple tables for each entity type, you consolidate them into a single table, keeping your schema clean."
-   - 缺點：沒有資料庫層級的外鍵約束。
+   - 缺點：沒有資料庫層級的外鍵約束 — 但 log 表不需要外鍵，原始資料被刪了 log 保留也合理。
    - https://patrickkarsh.medium.com/polymorphic-associations-database-design-basics-17faf2eb313
 
 7. **Microsoft Q&A — Best way to design centralize log table**
