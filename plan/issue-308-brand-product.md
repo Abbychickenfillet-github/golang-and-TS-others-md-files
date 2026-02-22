@@ -84,6 +84,106 @@ CREATE INDEX idx_product_display ON product (event_id, sell_type, status, displa
 
 ---
 
+## 品牌商品多張圖片的儲存方式
+
+品牌商品可能有多張圖片（商品正面、側面、包裝等）。目前 product 表只有一個 `img_url` 欄位，只能存一張。以下比較三種做法：
+
+### 做法 1：JSON 欄位（在 product 表加一個 JSON column）
+
+```sql
+ALTER TABLE product ADD COLUMN image_urls JSON COMMENT '商品圖片 URL 陣列';
+-- 存的內容：["https://s3.../img1.jpg", "https://s3.../img2.jpg", "https://s3.../img3.jpg"]
+```
+
+| 優點 | 缺點 |
+|---|---|
+| 不用多開一張表，改動最小 | MySQL 無法直接對 JSON 內容加索引（需要 generated column） |
+| 前端拿到就是陣列，不用額外 JOIN | 無法對單張圖片做 metadata 管理（排序、主圖標記、alt text） |
+| 寫入簡單，一次 UPDATE 搞定 | JSON 內的資料無法加外鍵約束 |
+| 適合「圖片就是一串 URL，不需要個別管理」的場景 | 如果要查「哪些商品用了某張圖片」很難做 |
+
+**適合的場景**：圖片只是展示用，不需要排序、不需要標記主圖、不需要對單張圖片做操作。
+
+**參考**：
+- [Percona — JSON and Relational Databases](https://www.percona.com/blog/json-and-relational-databases-part-one/): 建議用 JSON 存動態/非結構化的資料，固定結構的欄位還是用傳統 column
+- [MySQL JSON Guide](https://www.digibeatrix.com/db/en/mysql-en/data-types-en/mysql-json-type-array/): JSON 適合「不需要頻繁查詢和索引」的場景
+
+### 做法 2：獨立的圖片表（一對多關聯）
+
+```sql
+CREATE TABLE product_image (
+    id              VARCHAR(36) PRIMARY KEY,
+    product_id      VARCHAR(36) NOT NULL,
+    image_url       VARCHAR(500) NOT NULL,
+    sort_order      INT NOT NULL DEFAULT 0,    -- 排序（0=第一張）
+    is_primary      BOOLEAN NOT NULL DEFAULT FALSE, -- 是否為主圖
+    created_at      DATETIME NOT NULL,
+    FOREIGN KEY (product_id) REFERENCES product(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_product_image_product ON product_image (product_id, sort_order);
+```
+
+| 優點 | 缺點 |
+|---|---|
+| 可以對每張圖片加 metadata（排序、主圖、alt text） | 多一張表 + repository + service |
+| 可以加外鍵約束，刪商品自動刪圖片（CASCADE） | 查商品列表要 JOIN 或子查詢 |
+| 可以對 image_url 加索引，查「某張圖片被哪些商品用」很容易 | 寫入要處理多筆 INSERT |
+| **跟我們現有的 `event_image` 表是同樣的設計模式，一致性好** | — |
+| 業界電商平台（Shopify、WooCommerce）都用獨立圖片表 | — |
+
+**適合的場景**：圖片需要排序、標記主圖、未來可能加 alt text 或圖片分類。
+
+**參考**：
+- [Princeton — E-Commerce Database Design](https://www.princeton.edu/~rcurtis/ultradev/ecommdatabase2.html): 正規化做法，圖片表跟商品表一對多
+- [AppMaster — Product Table in E-Commerce](https://appmaster.io/blog/product-table-in-e-commerce-databases): 推薦獨立 Images 表管理商品圖片
+- 我們自己的 `event_image` 表就是這個模式（`event_id` + `image_url`），product_image 可以照搬
+
+### 做法 3：多個固定欄位（img_url_1, img_url_2, img_url_3...）
+
+```sql
+ALTER TABLE product
+    ADD COLUMN img_url_2 VARCHAR(500),
+    ADD COLUMN img_url_3 VARCHAR(500),
+    ADD COLUMN img_url_4 VARCHAR(500),
+    ADD COLUMN img_url_5 VARCHAR(500);
+```
+
+| 優點 | 缺點 |
+|---|---|
+| 最簡單，不用 JSON 也不用新表 | 上限固定（5 張就 5 張，要加就 ALTER TABLE） |
+| 查詢直覺，不用 JOIN 或 JSON 解析 | 大量 NULL 欄位（只有 2 張圖片時 3 個欄位是 NULL） |
+| — | 無法排序或標記主圖（除非再加 is_primary 之類的欄位） |
+| — | 違反正規化（重複的欄位結構） |
+| — | 前端要處理不確定數量的欄位（img_url_1 到 img_url_N） |
+
+**適合的場景**：確定圖片數量上限很小（例如最多 3 張），且不需要任何 metadata。
+
+### 三種做法比較
+
+| | JSON 欄位 | 獨立圖片表 | 多個固定欄位 |
+|---|---|---|---|
+| 改動大小 | 小（加一個 column） | 中（新表 + CRUD） | 小（加幾個 column） |
+| 圖片數量彈性 | 無上限 | 無上限 | 固定上限 |
+| 排序/主圖標記 | 困難 | 容易（sort_order, is_primary） | 困難 |
+| 查詢效能 | JSON 解析有開銷 | JOIN 但走 index 很快 | 最快（直接欄位） |
+| 資料庫正規化 | 不符合（陣列塞一個欄位） | 符合（一對多正規關聯） | 不符合（重複結構） |
+| 跟現有系統一致性 | — | **跟 event_image 一致** | — |
+| 未來擴展性 | 中 | 高 | 低 |
+| MySQL JSON 索引支援 | 差（需 generated column） | 好（直接加 index） | 好（直接加 index） |
+
+### 建議
+
+**做法 2（獨立圖片表）**最適合我們，理由：
+1. 跟現有的 `event_image` 表設計一致，團隊已經熟悉這個模式
+2. 品牌商品的圖片需要排序（第一張是主圖、商品詳情頁輪播）
+3. 未來可能需要加 alt text（SEO / 無障礙）、圖片分類（主圖/細節/包裝）
+4. 刪除商品時圖片自動 CASCADE 清除，不用手動處理
+5. 業界電商平台（Shopify、WooCommerce）都用獨立圖片表
+
+如果確定**只是簡單展示、不需要排序和主圖標記**，做法 1（JSON）也可以，改動最小。做法 3（多個固定欄位）不建議，太不彈性。
+
+---
+
 ## 新增 API 端點
 
 | HTTP | 路徑 | Auth | 說明 |
