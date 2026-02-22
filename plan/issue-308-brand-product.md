@@ -84,7 +84,57 @@ CREATE INDEX idx_product_display ON product (event_id, sell_type, status, displa
 
 ---
 
-## 品牌商品多張圖片的儲存方式
+## 議題一：ProductTypeID 改為可選，會不會影響既有設備資料？
+
+### 問題
+
+目前 `product_type_id` 是設備分類的必填欄位（每個設備都要歸類，例如「桌椅」、「電力設備」）。
+但品牌商品**不需要**設備分類 — 品牌商品有自己的分類邏輯（食物、手工藝品、周邊等），跟設備分類完全不同。
+
+所以要把 `product_type_id` 從 NOT NULL 改成 NULL：
+
+```sql
+ALTER TABLE product
+    MODIFY COLUMN product_type_id VARCHAR(36) NULL COMMENT '商品類型 ID（設備必填，品牌商品可選）';
+```
+
+### 會影響既有資料嗎？
+
+**不會。** `NOT NULL → NULL` 是放寬約束，不是收緊。
+
+| 影響範圍 | 結果 |
+|---|---|
+| 既有設備資料（product_type_id 有值） | 完全不受影響，值還在 |
+| 新建設備 | 程式碼端要繼續驗證必填（DB 不擋了，改由 service 層檢查） |
+| 新建品牌商品 | product_type_id 留 NULL，不需要分類 |
+
+### 需要注意的地方
+
+DB 層放寬成 NULL 之後，**設備的必填驗證要移到程式碼端**：
+
+```go
+// service/product_service.go
+func (s *ProductService) CreateProduct(dto ProductCreate) error {
+    if dto.SellType == "device" && dto.ProductTypeID == "" {
+        return errors.New("設備必須選擇商品類型")
+    }
+    // ...
+}
+```
+
+這樣設備還是必填，品牌商品可以不填，邏輯在程式碼裡控制而不是 DB 約束。
+
+### 未來考慮
+
+如果品牌商品也需要分類，有兩條路：
+1. **共用 product_type 表**：在 product_type 加 `category`（device / vendor_goods）區分
+2. **品牌商品用 JSON**：把分類資訊存在 `specifications` JSON 欄位
+
+目前階段不需要決定，先讓 product_type_id 可選就好。
+
+---
+
+## 議題二：品牌商品多張圖片的儲存方式
 
 品牌商品可能有多張圖片（商品正面、側面、包裝等）。目前 product 表只有一個 `img_url` 欄位，只能存一張。以下比較三種做法：
 
