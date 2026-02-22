@@ -48,7 +48,7 @@ notes, details(JSON), created_at
 - ~~純紀錄型的資料會有一堆空的 status/reviewer 欄位~~ → 見 [Q2](#q2純紀錄的-null-欄位有差嗎)：MySQL InnoDB 的 NULL 每欄位只佔 1 bit，100 萬筆 < 1 MB，不是問題
 - 單表資料量大，要注意 index → 見 [Q8](#q8效能分析合併-vs-拆分在大資料量下的表現)：100 萬筆以內毫秒級，千萬筆以下不是瓶頸
 - 欄位設計要取公約數，特殊需求得塞 JSON
-- **業務程式碼與 log 是緊耦合** — 業務邏輯裡直接呼叫 log service 寫入紀錄，兩者綁在一起。如果 log service 掛了可能影響業務操作。真正的鬆耦合需要 async/message queue、AOP/decorator、或 CDC（Debezium 監控 binlog）等機制，但以我們的規模和階段，緊耦合是合理的取捨。詳見 [Martin Fowler 翻譯 — 鬆耦合的真正含義](martin-fowler-audit-log-translation.md#鬆耦合的真正含義)
+- **業務程式碼與 log 是緊耦合** — 業務邏輯裡直接呼叫 log service 寫入紀錄，兩者綁在一起。如果 log service 掛了可能影響業務操作。真正的鬆耦合需要 async/message queue、AOP/decorator、或 CDC（Debezium 監控 binlog）等機制，是否需要改為鬆耦合需要團隊另外評估。詳見 [Martin Fowler 翻譯 — 鬆耦合的真正含義](martin-fowler-audit-log-translation.md#鬆耦合的真正含義)
 
 **相關參考：**
 - Redgate — Generic tables: "Minimal schema footprint, flexible, can audit any table without adding new audit tables"
