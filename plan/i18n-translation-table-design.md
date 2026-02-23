@@ -4,29 +4,7 @@
 
 ---
 
-## 兩種做法比較
-
-### 方案 A：直接在原表加欄位（Column-per-Language）
-
-```
-event
-├── name           -- 活動名稱（中文）
-├── name_en        -- 活動名稱（英文）
-├── description
-├── description_en
-├── short_description
-├── short_description_en
-└── ...其他欄位
-```
-
-| 優點 | 缺點 |
-|------|------|
-| 實作最快，不需 JOIN | 每新增一種語言就要 ALTER TABLE 改 schema |
-| 查詢簡單直接 | 欄位數量隨語言數 × 可翻譯欄位數膨脹 |
-| | 需要修改所有相關的應用程式查詢 |
-| | 違反資料庫正規化原則 |
-
-### 方案 B：獨立翻譯表（Separate Translation Table）✅ 推薦
+## 採用方案：獨立翻譯表（Separate Translation Table）
 
 ```
 event（只存語言無關的資料）
@@ -37,7 +15,7 @@ event（只存語言無關的資料）
 ├── is_free
 └── ...
 
-event_translation（存語言相關的文字）
+event_i18n（存語言相關的文字）
 ├── id
 ├── event_id (FK → event.id)
 ├── locale (varchar, e.g. "zh-TW", "en")
@@ -119,8 +97,61 @@ event_translation（存語言相關的文字）
 
 | 主表 | 翻譯表 | 可翻譯欄位 |
 |------|--------|-----------|
-| `event` | `event_translation` | name, description, short_description |
+| `event` | `event_i18n` | name, description, short_description |
 | `ticket`（票券） | `ticket_translation` | name, description（視欄位而定） |
+
+---
+
+## 自動翻譯：翻譯內容怎麼產生？
+
+上面討論的是「翻譯資料怎麼存」，但翻譯內容本身有兩種產生方式：
+
+### 人工翻譯（傳統 i18n 做法）
+
+主辦方自己輸入中英文版本，或交給翻譯人員處理。
+- 參考文章：[Day 23: 使用 API 管理 i18n，多語言支援的後端實作](https://ithelp.ithome.com.tw/articles/10356758)
+- 該文章用 Node.js + Express 建 API 回傳**事先寫好的**翻譯 JSON，不具備自動翻譯能力
+
+### 自動翻譯（串接翻譯 API）
+
+系統自動將中文翻成英文，使用者不需自己輸入英文。
+
+#### 可用服務比較
+
+| 服務 | 特點 | 費用 |
+|------|------|------|
+| **Google Cloud Translation API** | 最成熟，支援 100+ 語言 | 每月 50 萬字元免費，超過 $20/百萬字元 |
+| **DeepL API** | 翻譯品質公認最好（歐亞語系） | Free 版 50 萬字元/月 |
+| **Claude / GPT** | 可處理上下文、語氣、專業術語 | 依 token 計費 |
+
+> Google Cloud Translation API 定價來源：[Pricing | Cloud Translation | Google Cloud](https://cloud.google.com/translate/pricing)
+
+#### FutureSign 用量估算（Google Cloud Translation）
+
+| 項目 | 估算 |
+|------|------|
+| 每個活動可翻譯字元 | name (~50) + short_description (~200) + description (~2,000) ≈ **2,250 字元** |
+| 免費額度（每月） | 500,000 字元 |
+| 免費可翻譯活動數 | ≈ **222 個活動/月** |
+| 超過免費額度 | $20 / 百萬字元（約 444 個活動才 $1 美元） |
+
+初期免費額度應該綽綽有餘。
+
+### 推薦做法：翻譯表 + 自動翻譯 API 搭配使用
+
+```
+主辦方建立活動（輸入中文）
+    ↓
+後端呼叫翻譯 API（如 Google Cloud Translation）自動產生英文版
+    ↓
+存入 event_i18n 表（locale="en"）
+    ↓
+主辦方可在後台手動修正翻譯（保留人工校正彈性）
+    ↓
+前端依使用者語系從 API 取得對應翻譯
+```
+
+這樣使用者建活動時不需要自己打英文，系統自動翻好，同時保留人工修正的彈性。
 
 ---
 
