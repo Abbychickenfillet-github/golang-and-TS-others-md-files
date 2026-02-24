@@ -27,9 +27,12 @@ Step 1: 先選語系（下拉選單）→ 填活動資訊 → 存入 event_i18n�
 Step 2: 其他活動設定
 （翻譯管理可在活動建立後隨時新增其他語系）
 
+event 表的 name / description / short_description → 棄用（遷移後移除欄位）
+event 表新增 default_locale 欄位 → 記錄活動建立時的語系
+
 查詢邏輯：
-  無 locale   → 讀 event 表欄位（default fallback）
-  有 locale   → 查 event_i18n(exact match) → 沒有就 fallback event 表
+  有 locale   → 查 event_i18n(exact match) → 沒有就查 event_i18n(default_locale)
+  無 locale   → 查 event_i18n WHERE locale = event.default_locale
 ```
 
 ---
@@ -55,11 +58,14 @@ Step 2: 其他活動設定
 請求帶 locale 參數：
   查 event_i18n WHERE event_id = ? AND locale = ?（精確匹配）
   → 找到 → 回傳翻譯內容
-  → 找不到 → fallback 到 event 表的 name/description/short_description
+  → 找不到 → 查 event_i18n WHERE locale = event.default_locale（fallback 到建立時的語系）
+  → 還是沒有 → 回傳空（理論上不應發生，因為建立時一定有 default_locale 的記錄）
 
 請求無 locale 參數：
-  → 直接讀 event 表（向下相容）
+  → 查 event_i18n WHERE locale = event.default_locale
 ```
+
+**event 表不再提供文字內容，所有文字都從 event_i18n 讀取。**
 
 **不做語系族群 fallback**（`en-us` 找不到不會自動查 `en`），保持邏輯簡單。
 如果未來需要，可以在 service 層加一層 `normalizeLocale()` 做族群 fallback。
@@ -68,93 +74,109 @@ Step 2: 其他活動設定
 
 ## 後端改動
 
-### 1. Event Model — 保留欄位作為 default fallback
+### 1. Event Model — 棄用文字欄位、新增 default_locale
 **檔案**: `internal/models/event.go`
-```go
-// event.Name / event.Description / event.ShortDescription 保留
-// 角色從「原文」變為「default fallback」
-// 不刪欄位，確保向下相容
-```
 
-### 2. Event Model — 新增 default_locale 欄位（可選）
-**檔案**: `internal/models/event.go`
 ```go
+// 棄用（遷移後移除）：
+// Name             string  → 搬到 event_i18n
+// Description      string  → 搬到 event_i18n
+// ShortDescription string  → 搬到 event_i18n
+
+// 新增：
 DefaultLocale string `gorm:"type:varchar(10);not null;default:'zh-tw';comment:活動預設語系" json:"default_locale"`
 ```
-- 記錄這個活動最初是用什麼語言建立的
-- 消費者端可以用來決定預設顯示語系
 
-### 3. Handler — locale fallback 邏輯改動
+**棄用步驟**（分階段）：
+1. 先新增 `default_locale` 欄位
+2. 資料遷移：現有活動的 name/desc/short_desc 複製到 event_i18n（locale = zh-tw）
+3. 改所有讀取邏輯從 event_i18n 讀
+4. event 表的 name/desc/short_desc 改為 nullable（過渡期）
+5. 確認全部正常後，移除這三個欄位
+
+### 2. Handler — 所有文字改從 event_i18n 讀取
 **檔案**: `internal/handler/event_handler.go`
 
 現在（第 333-346 行）：
 ```go
-// 舊：zh-TW 跳過查 i18n
+// 舊：zh-TW 跳過查 i18n，其他語系才查
 if locale != "" && locale != "zh-TW" && locale != "zh-tw" && h.i18nService != nil {
 ```
 
 改成：
 ```go
-// 新：所有 locale 都查 event_i18n（含 zh-tw）
-if locale != "" && h.i18nService != nil {
-    translation, err := h.i18nService.GetTranslationByEventAndLocale(ctx, eventID, locale)
+// 新：文字內容一律從 event_i18n 讀取
+targetLocale := locale
+if targetLocale == "" {
+    targetLocale = event.DefaultLocale // 沒指定就用活動建立時的語系
+}
+
+if h.i18nService != nil {
+    translation, err := h.i18nService.GetTranslationByEventAndLocale(ctx, eventID, targetLocale)
     if err != nil {
-        logger.Warn("查詢活動翻譯失敗，使用 default fallback", "error", err, "event_id", eventID, "locale", locale)
+        logger.Warn("查詢活動翻譯失敗", "error", err, "event_id", eventID, "locale", targetLocale)
     }
     if translation != nil {
         eventPublic.Name = translation.Name
         eventPublic.Description = translation.Description
         eventPublic.ShortDescription = translation.ShortDescription
-        eventPublic.Locale = &locale
+        eventPublic.Locale = &targetLocale
     }
-    // translation == nil → 保持 event 表原文（default fallback）
+    // translation == nil → name/desc/short_desc 為空（不應發生）
 }
 ```
 
-### 4. Service — 建立活動時同步建立 i18n 記錄
+### 3. Service — 建立活動時文字存入 event_i18n
 **檔案**: `internal/service/event_service.go`
 
-CreateEvent 流程加入：
+CreateEvent 流程改為：
 ```go
 func (s *eventService) CreateEvent(req *dto.EventCreate) (*models.Event, error) {
-    // 1. 建立 event（name/desc/short_desc 仍寫入 event 表當 fallback）
-    event := &models.Event{...}
+    locale := strings.ToLower(req.Locale)
+    if locale == "" {
+        locale = "zh-tw"
+    }
+
+    // 1. 建立 event（不再寫入 name/desc/short_desc，只存結構性欄位）
+    event := &models.Event{
+        DefaultLocale: locale,
+        // ... 日期、地點、狀態等結構性欄位
+    }
     if err := s.eventRepo.Create(event); err != nil {
         return nil, err
     }
 
-    // 2. 同步建立 event_i18n 記錄
-    locale := req.Locale  // 前端傳來的語系選擇
-    if locale == "" {
-        locale = "zh-tw"  // default
-    }
+    // 2. 文字內容存入 event_i18n
     i18n := &models.EventI18n{
         EventID:          event.ID,
-        Locale:           strings.ToLower(locale),
-        Name:             event.Name,
-        Description:      event.Description,
-        ShortDescription: event.ShortDescription,
+        Locale:           locale,
+        Name:             req.Name,
+        Description:      req.Description,
+        ShortDescription: req.ShortDescription,
     }
     if err := s.i18nRepo.Create(ctx, i18n); err != nil {
-        logger.Warn("建立預設語系翻譯失敗", "error", err)
+        return nil, fmt.Errorf("建立活動翻譯失敗: %w", err)  // 這裡要 return error，不能只 warn
     }
 
     return event, nil
 }
 ```
 
-### 5. DTO — CreateEvent 加入 locale 欄位
+### 4. DTO — CreateEvent 加入 locale 欄位
 **檔案**: `internal/dto/event.go`
 ```go
 type EventCreate struct {
-    // ... 現有欄位
+    // ... 現有欄位（name/desc/short_desc 保留在 DTO 中，但 service 會存到 event_i18n 而非 event）
     Locale string `json:"locale" binding:"omitempty"` // 活動建立時的語系（預設 zh-tw）
 }
 ```
 
-### 6. 資料遷移 — 現有活動補建 zh-tw 記錄
+### 5. 資料遷移 — 現有活動搬移文字到 event_i18n
 ```sql
--- 為所有還沒有 zh-tw 翻譯的活動建立 i18n 記錄
+-- Step 1: 新增 default_locale 欄位
+ALTER TABLE event ADD COLUMN default_locale VARCHAR(10) NOT NULL DEFAULT 'zh-tw';
+
+-- Step 2: 為所有現有活動建立 zh-tw 翻譯記錄（從 event 表複製文字）
 INSERT INTO event_i18n (id, event_id, locale, name, description, short_description, created_at, updated_at)
 SELECT
     UUID(), e.id, 'zh-tw', e.name, e.description, e.short_description, NOW(), NOW()
@@ -163,6 +185,16 @@ WHERE NOT EXISTS (
     SELECT 1 FROM event_i18n ei
     WHERE ei.event_id = e.id AND ei.locale = 'zh-tw'
 );
+
+-- Step 3: 確認遷移正確後，將 event 表文字欄位改為 nullable（過渡期）
+ALTER TABLE event MODIFY COLUMN name VARCHAR(255) NULL;
+ALTER TABLE event MODIFY COLUMN description TEXT NULL;
+ALTER TABLE event MODIFY COLUMN short_description VARCHAR(2000) NULL;
+
+-- Step 4: 最終移除欄位（確認所有讀取邏輯都改完後）
+-- ALTER TABLE event DROP COLUMN name;
+-- ALTER TABLE event DROP COLUMN description;
+-- ALTER TABLE event DROP COLUMN short_description;
 ```
 
 ---
@@ -219,11 +251,14 @@ const { data: event } = useQuery({
 ### 後端
 | 檔案 | 修改 |
 |------|------|
-| `internal/models/event.go` | 新增 `DefaultLocale` 欄位 |
+| `internal/models/event.go` | 新增 `DefaultLocale`，棄用 `Name/Description/ShortDescription` |
 | `internal/models/event_i18n.go` | 移除 `DeletedAt`（搭配 hard delete 計畫） |
 | `internal/dto/event.go` | `EventCreate` 加入 `Locale` 欄位 |
-| `internal/handler/event_handler.go` | 移除 `locale != "zh-TW"` 判斷，所有 locale 都查 i18n |
-| `internal/service/event_service.go` | `CreateEvent` 同步建立 event_i18n 記錄 |
+| `internal/dto/event.go` | `EventPublic` 的 Name/Desc 改從 i18n 填入 |
+| `internal/handler/event_handler.go` | 所有文字從 event_i18n 讀取，不再讀 event 表 |
+| `internal/handler/event_handler.go` | GetEvent/ListEvents 的 DTO 轉換邏輯 |
+| `internal/service/event_service.go` | `CreateEvent` 文字存 event_i18n、`EventToPublic` 改邏輯 |
+| `internal/service/event_service.go` | `UpdateEvent` 更新 event_i18n 而非 event 表 |
 | `internal/repository/event_i18n_repository.go` | Delete 改 hard delete（搭配 hard delete 計畫） |
 
 ### 前端 — Official Website
@@ -239,21 +274,35 @@ const { data: event } = useQuery({
 | `src/routes/_layout/events.tsx` | EventTranslations 顯示含 zh-tw 的所有語系 |
 
 ### 資料庫
-| 動作 | SQL |
-|------|-----|
-| 為現有活動補建 zh-tw 翻譯 | `INSERT INTO event_i18n SELECT ... FROM event WHERE NOT EXISTS ...` |
-| 新增 default_locale 欄位 | `ALTER TABLE event ADD COLUMN default_locale VARCHAR(10) NOT NULL DEFAULT 'zh-tw'` |
-| 清理軟刪除記錄 | `DELETE FROM event_i18n WHERE deleted_at IS NOT NULL` |
-| 移除 deleted_at 欄位 | `ALTER TABLE event_i18n DROP COLUMN deleted_at` |
+| 階段 | 動作 |
+|------|------|
+| Phase 1 | `ALTER TABLE event ADD COLUMN default_locale` |
+| Phase 2 | `INSERT INTO event_i18n ... FROM event`（複製現有文字到 zh-tw） |
+| Phase 3 | 清理軟刪除記錄：`DELETE FROM event_i18n WHERE deleted_at IS NOT NULL` |
+| Phase 4 | `ALTER TABLE event_i18n DROP COLUMN deleted_at` |
+| Phase 5 | `ALTER TABLE event MODIFY name/desc/short_desc NULL`（過渡期） |
+| Phase 6 | `ALTER TABLE event DROP COLUMN name, description, short_description`（最終） |
 
 ---
 
-## 向下相容考量
+## 向下相容 & 遷移策略
 
-1. **event 表的 name/description/short_description 不刪除** — 作為 default fallback
-2. **無 locale 參數的 API 請求** — 行為不變，直接讀 event 表
-3. **現有的 event_i18n 記錄** — 不受影響，繼續正常運作
-4. **資料遷移可分階段** — 先改 handler 邏輯 → 再補建 zh-tw 記錄 → 最後改前端 Step 1
+分 3 個階段，確保零停機：
+
+### 階段 1：雙寫（新舊並行）
+- CreateEvent 同時寫 event 表 + event_i18n（兩邊都有資料）
+- 讀取仍從 event 表（舊邏輯不動）
+- 前端不用改
+
+### 階段 2：切換讀取來源
+- 讀取改從 event_i18n 讀
+- event 表繼續雙寫（安全網）
+- 如果出問題可以秒切回階段 1
+
+### 階段 3：移除舊欄位
+- 停止雙寫，只寫 event_i18n
+- event 表的 name/desc/short_desc 改 nullable → 最終 DROP COLUMN
+- 前端 Step 1 改為語系選擇
 
 ---
 
@@ -261,7 +310,7 @@ const { data: event } = useQuery({
 
 ### 結論：不強制，但建議引導
 
-採用 **Drupal / Payload CMS 的彈性模式**：系統有 default locale（`zh-tw`），但允許用任何語系建立活動。`event` 表的 `name/description/short_description` 作為 ultimate fallback。
+採用 **Drupal / Payload CMS 的彈性模式**：系統有 default locale（`zh-tw`），但允許用任何語系建立活動。`event.default_locale` 記錄建立時的語系，查詢時 fallback 到該語系的 event_i18n 記錄。
 
 ### 業界做法比較
 
@@ -322,9 +371,10 @@ const { data: event } = useQuery({
 ### 我們的選擇：策略 B + 提示
 
 1. **不強制** — 允許任何語系建立活動
-2. **event 表永遠有 fallback** — 建立時的內容同步寫入 event.name/description/short_description
+2. **event_i18n(default_locale) 作為 fallback** — 查詢時沒有指定 locale 就用 default_locale 的 i18n 記錄
 3. **UI 引導** — 活動管理頁面如果缺少 zh-tw 翻譯，顯示提示標籤
 4. **default_locale 欄位** — 記錄活動最初建立時使用的語系
+5. **event 表不保留文字欄位** — 遷移完成後移除 name/description/short_description
 
 ### 文獻依據
 
