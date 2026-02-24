@@ -206,21 +206,54 @@ ALTER TABLE event MODIFY COLUMN short_description VARCHAR(2000) NULL;
 #### 1. EventsCreateBasicPage — Step 1 加入語系選擇
 **檔案**: `src/pages/EventsCreateBasicPage.tsx`
 
-Step 1 最上方加入語系下拉選單：
+Step 1 最上方加入語系下拉選單，**選擇的語系即為 default_locale**：
+
+```
+Step 1 — 建立活動：
+┌─────────────────────────────────┐
+│ 活動資訊語系  [zh-TW ▼]        │  ← 此選擇 = default_locale
+│   選項：                        │
+│   · 繁體中文 (zh-TW)           │
+│   · English US (en-US)         │
+│   · English UK (en-GB)         │
+│                                 │
+│ 活動名稱     [________________] │
+│ 活動簡介     [________________] │
+│ 活動描述     [________________] │
+└─────────────────────────────────┘
+```
+
 ```tsx
 <FormControl isRequired>
   <FormLabel>活動資訊語系</FormLabel>
   <Select {...register('locale')} defaultValue="zh-tw">
-    <option value="zh-tw">繁體中文</option>
+    <option value="zh-tw">繁體中文 (zh-TW)</option>
     <option value="en-us">English (US)</option>
-    <option value="en-gb">English (UK)</option>
-    <option value="ja">日本語</option>
+    <option value="en-gb">English (GB)</option>
   </Select>
   <FormHelperText>選擇此活動的主要語言，建立後可新增其他語系翻譯</FormHelperText>
 </FormControl>
 ```
 
-#### 2. Step 3 翻譯管理 — 移除或改為「新增其他語系」
+#### 2. 翻譯管理 UI — default_locale 不可刪除
+
+活動建立後，在翻譯管理頁面：
+
+```
+翻譯管理：
+┌─────────────────────────────────┐
+│  zh-TW  [預設]  [編輯]         │  ← default_locale，不可刪除
+│  en-US          [編輯] [刪除]  │
+│  en-GB          [編輯] [刪除]  │
+│  [+ 新增語系]                   │
+└─────────────────────────────────┘
+```
+
+- default_locale 語系顯示「預設」標籤
+- default_locale 語系只能編輯，不能刪除（前端隱藏刪除按鈕）
+- 其他語系可自由新增/編輯/刪除
+
+#### 3. Step 3 翻譯管理 — 改為「新增其他語系」
 原本 Step 3 是翻譯區塊，現在 Step 1 已經選了語系：
 - Step 3 改為「新增其他語系翻譯」（可選）
 - 或將翻譯管理移到活動建立後的編輯頁面
