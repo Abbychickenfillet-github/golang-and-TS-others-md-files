@@ -75,11 +75,12 @@
 
 ```go
 type BoothProduct struct {
-    ID                string          `gorm:"type:varchar(36);primaryKey"`
-    BoothID           string          `gorm:"type:varchar(36);not null;index"`
-    EventID           string          `gorm:"type:varchar(36);not null;index"`
-    VendorCompanyID   string          `gorm:"type:varchar(36);not null;index"`
-    Name              string          `gorm:"type:varchar(255);not null"`
+    ID              string  `gorm:"type:varchar(36);primaryKey"`
+    BoothID         *string `gorm:"type:varchar(36);index;comment:scope=booth 時必填"`
+    EventID         *string `gorm:"type:varchar(36);index;comment:scope=booth 時必填"`
+    VendorCompanyID string  `gorm:"type:varchar(36);not null;index"`
+    Scope           string  `gorm:"type:varchar(20);not null;default:booth;comment:booth=攤位專屬 global=全域"`
+    Name            string  `gorm:"type:varchar(255);not null"`
     Description       *string         `gorm:"type:text"`
     ImgURLs           json.RawMessage `gorm:"type:json;comment:商品圖片 JSON 陣列"`
     Price             decimal.Decimal `gorm:"type:decimal(12,2);not null;default:0.00"`
@@ -178,9 +179,10 @@ type BoothProductImage struct {
 ```sql
 CREATE TABLE `booth_product` (
   `id` varchar(36) NOT NULL COMMENT '攤位商品 ID',
-  `booth_id` varchar(36) NOT NULL COMMENT '攤位 ID',
-  `event_id` varchar(36) NOT NULL COMMENT '活動 ID',
+  `booth_id` varchar(36) NULL COMMENT '攤位 ID（scope=booth 時必填）',
+  `event_id` varchar(36) NULL COMMENT '活動 ID（scope=booth 時必填）',
   `vendor_company_id` varchar(36) NOT NULL COMMENT '廠商公司 ID',
+  `scope` varchar(20) NOT NULL DEFAULT 'booth' COMMENT 'booth=攤位專屬, global=全域商品',
   `name` varchar(255) NOT NULL COMMENT '商品名稱',
   `description` text COMMENT '商品描述',
   `img_urls` json COMMENT '商品圖片 JSON 陣列 [{"url":"...","order":0}]',
