@@ -384,6 +384,119 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 ---
 
+## CreatedAt / UpdatedAt 自動維護機制
+
+### 為什麼我們沒寫任何程式碼，時間就自動填好了？
+
+看我們的 `Base` struct：
+
+```go
+// internal/models/base.go
+type Base struct {
+    ID        string         `gorm:"type:varchar(36);primaryKey;column:id"`
+    CreatedAt time.Time      `gorm:"not null;column:created_at"`     // ← 沒有寫任何 hook
+    UpdatedAt time.Time      `gorm:"not null;column:updated_at"`     // ← 也沒有
+    DeletedAt gorm.DeletedAt `gorm:"index;column:deleted_at"`
+}
+```
+
+我們只寫了 `BeforeCreate` hook 來產生 UUID，但 **CreatedAt / UpdatedAt 完全沒有手動處理**。
+
+### 答案：GORM 靠「欄位名稱」自動辨識
+
+GORM 內部有一個 schema parser（結構解析器），在啟動時掃描每個 Model 的欄位名稱：
+
+| 欄位名稱 | GORM 自動標記 | 行為 |
+|----------|--------------|------|
+| `CreatedAt` | `autoCreateTime` | `Create` 時自動填入 `time.Now()` |
+| `UpdatedAt` | `autoUpdateTime` | `Create` 和每次 `Update` / `Save` 時自動填入 `time.Now()` |
+
+你**不需要**寫任何 tag 或 hook，GORM 純粹靠欄位名叫 `CreatedAt` 和 `UpdatedAt` 就會觸發。
+
+### 實際發生了什麼
+
+```go
+// 1. 建立記錄
+user := User{Name: "小明", Email: "ming@example.com"}
+db.Create(&user)
+// GORM 內部自動做了：
+//   user.CreatedAt = time.Now()  ← 自動
+//   user.UpdatedAt = time.Now()  ← 自動
+//   user.ID = GenerateUUID()     ← 我們寫的 BeforeCreate hook
+// SQL: INSERT INTO user (id, name, email, created_at, updated_at)
+//      VALUES ('uuid...', '小明', 'ming@example.com', '2026-02-25 10:00:00', '2026-02-25 10:00:00')
+
+// 2. 更新記錄
+db.Model(&user).Update("name", "小華")
+// GORM 內部自動做了：
+//   updated_at = time.Now()  ← 每次 update 都會重新設定
+// SQL: UPDATE user SET name = '小華', updated_at = '2026-02-25 11:30:00' WHERE id = 'uuid...'
+
+// 3. 用 Save 更新（整筆覆寫）
+user.Name = "小華"
+db.Save(&user)
+// SQL: UPDATE user SET name = '小華', email = 'ming@example.com',
+//      updated_at = '2026-02-25 11:30:00' WHERE id = 'uuid...'
+//      ↑ updated_at 自動更新，created_at 不動
+```
+
+### 自動 vs 手動 的差異
+
+```
+我們專案的 Base struct 自動維護機制：
+
+┌──────────────┬────────────────────────────┬──────────────────┐
+│    欄位       │      誰負責                 │     怎麼觸發      │
+├──────────────┼────────────────────────────┼──────────────────┤
+│ ID           │ 我們寫的 BeforeCreate hook  │ 手動（base.go）   │
+│ CreatedAt    │ GORM 內建自動辨識           │ 自動（靠欄位名稱） │
+│ UpdatedAt    │ GORM 內建自動辨識           │ 自動（靠欄位名稱） │
+│ DeletedAt    │ GORM 內建軟刪除機制         │ 自動（靠型別）     │
+└──────────────┴────────────────────────────┴──────────────────┘
+```
+
+### 如果欄位不叫 CreatedAt 會怎樣？
+
+如果欄位取名叫別的（例如 `InsertedAt`），GORM 就**不會自動維護**，你需要手動加 tag：
+
+```go
+// ❌ 欄位名不對，GORM 不會自動維護
+type Bad struct {
+    InsertedAt time.Time  // GORM 不認識這個名字，不會自動填
+}
+
+// ✅ 加 tag 手動指定
+type Good struct {
+    InsertedAt time.Time `gorm:"autoCreateTime"`  // 手動告訴 GORM：這是建立時間
+    ModifiedAt time.Time `gorm:"autoUpdateTime"`  // 手動告訴 GORM：這是更新時間
+}
+```
+
+### 能不能阻止自動更新？
+
+有時候你想更新某些欄位但**不想**動 `updated_at`，可以用 `UpdateColumn`：
+
+```go
+// 正常更新 — updated_at 會自動更新
+db.Model(&user).Update("name", "小華")
+// SQL: UPDATE user SET name = '小華', updated_at = '...' WHERE id = '...'
+
+// 跳過自動更新 — updated_at 不動
+db.Model(&user).UpdateColumn("name", "小華")
+// SQL: UPDATE user SET name = '小華' WHERE id = '...'
+//      ↑ 沒有 updated_at
+```
+
+| 方法 | updated_at 自動更新 | 觸發 Hook |
+|------|---------------------|----------|
+| `Update()` | ✅ 會 | ✅ 會 |
+| `Updates()` | ✅ 會 | ✅ 會 |
+| `Save()` | ✅ 會 | ✅ 會 |
+| `UpdateColumn()` | ❌ 不會 | ❌ 不會 |
+| `UpdateColumns()` | ❌ 不會 | ❌ 不會 |
+
+---
+
 ## 延伸閱讀
 
 - [GORM 官方文件](https://gorm.io/docs/)
