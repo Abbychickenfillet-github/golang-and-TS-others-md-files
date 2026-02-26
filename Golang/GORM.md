@@ -384,6 +384,120 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 ---
 
+## Base 是什麼？b.ID 是什麼？
+
+### Base = 所有資料表共用的「模板」
+
+每一張資料表都有 `id`、`created_at`、`updated_at`、`deleted_at` 四個欄位。
+與其每個 Model 都重複寫一次，不如抽出來放在一個共用 struct 叫 `Base`：
+
+```go
+// internal/models/base.go
+type Base struct {
+    ID        string         // 每筆資料的唯一識別碼（UUID）
+    CreatedAt time.Time      // 這筆資料是什麼時候建立的
+    UpdatedAt time.Time      // 這筆資料最後一次被更新是什麼時候
+    DeletedAt gorm.DeletedAt // 軟刪除時間（有值 = 已刪除）
+}
+```
+
+### 其他 Model 怎麼用 Base？
+
+直接嵌入（embed），就自動繼承四個欄位：
+
+```go
+// internal/models/event.go
+type Event struct {
+    Base                    // ← 嵌入 Base，自動擁有 ID, CreatedAt, UpdatedAt, DeletedAt
+    Name        string      // 活動名稱
+    Description string      // 活動描述
+    MemberID    string      // 主辦方 ID
+}
+
+// internal/models/user.go
+type User struct {
+    Base                    // ← 同樣嵌入 Base
+    Email       string
+    FullName    *string
+}
+```
+
+等於資料庫長這樣：
+
+```
+event 表                          user 表
+┌──────────────┬──────────┐      ┌──────────────┬──────────┐
+│ id           │ varchar  │      │ id           │ varchar  │  ← 來自 Base
+│ created_at   │ datetime │      │ created_at   │ datetime │  ← 來自 Base
+│ updated_at   │ datetime │      │ updated_at   │ datetime │  ← 來自 Base
+│ deleted_at   │ datetime │      │ deleted_at   │ datetime │  ← 來自 Base
+│ name         │ varchar  │      │ email        │ varchar  │  ← Event 自己的
+│ description  │ text     │      │ full_name    │ varchar  │  ← User 自己的
+│ member_id    │ varchar  │      └──────────────┴──────────┘
+└──────────────┴──────────┘
+```
+
+### b.ID 是什麼？
+
+`b` 是函式接收器（receiver），代表「這個 Base 實例本身」：
+
+```go
+func (b *Base) BeforeCreate(_ *gorm.DB) error {
+//    ↑
+//    b = 這個 Base 實例
+//    b.ID = 這個 Base 實例的 ID 欄位
+
+    if b.ID == "" {          // 如果 ID 是空的
+        b.ID = GenerateUUID() // 就產生一個 UUID 填進去
+    }
+    return nil
+}
+```
+
+當你建立一個 Event 時：
+
+```go
+event := Event{Name: "展覽活動"}
+db.Create(&event)
+```
+
+因為 `Event` 嵌入了 `Base`，GORM 會呼叫 `Base.BeforeCreate()`，
+此時 `b` 就是這個 event 裡面的 Base 部分，`b.ID` 就是 `event.ID`。
+
+### return nil 是什麼？等於 return null 嗎？
+
+**是的，概念上 `nil` 就是 Go 的 `null`。**
+
+```go
+func (b *Base) BeforeCreate(_ *gorm.DB) error {
+    if b.ID == "" {
+        b.ID = GenerateUUID()
+    }
+    return nil  // ← 回傳 nil，意思是「沒有錯誤」
+}
+```
+
+這個函式的回傳型別是 `error`。在 Go 裡面：
+
+| 回傳值 | 意思 | GORM 的反應 |
+|--------|------|------------|
+| `return nil` | 沒有錯誤，一切正常 | 繼續執行 INSERT |
+| `return errors.New("出錯了")` | 有錯誤 | **中止 INSERT**，不會寫入資料庫 |
+
+```go
+// 類比其他語言：
+// Go:          return nil
+// JavaScript:  return null
+// Python:      return None
+// Java:        return null
+// TypeScript:  return null
+```
+
+為什麼一定要 `return nil`？因為 Go 要求函式宣告了回傳 `error` 就**必須回傳**，
+不能像 JavaScript 那樣省略 return。
+
+---
+
 ## CreatedAt / UpdatedAt 自動維護機制
 
 ### 為什麼我們沒寫任何程式碼，時間就自動填好了？
