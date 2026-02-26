@@ -19,7 +19,8 @@ import "encoding/json"
 // 底層定義：就是 []byte
 type RawMessage []byte
 
-// 存入 DB 時：Go struct → JSON bytes → MySQL JSON 欄位
+// 存入 DB 時：Go struct → JSON bytes →
+// MySQL JSON 欄位
 urls := []string{"url1", "url2"}
 raw, _ := json.Marshal(urls)  // raw = []byte(`["url1","url2"]`)
 
@@ -41,34 +42,118 @@ GORM 不知道怎麼自動把 `[]string` 存進 MySQL 的 JSON 欄位。
 | `[]string` | ❌ 不知道怎麼存 | 會報錯 |
 | `json.RawMessage` | `JSON` | 直接存原始 JSON bytes |
 
-## 實際用法（FutureSign booth_product）
+## 完整資料流程圖（以 booth_product.img_urls 為例）
 
-### Model（存 DB）
+### 寫入流程：前端 → DB
+
+```
+1. 前端 POST request body:
+   { "img_urls": ["https://s3.../product-001.jpg", "https://s3.../product-002.jpg"] }
+                    ↓
+2. Gin 框架自動解析 request body → DTO
+   DTO: ImgURLs []string   ← Gin 把 JSON array 變成 Go 的 []string
+                    ↓
+3. Service 層：json.Marshal() ← ★ Marshal 在這裡發生！
+   json.Marshal([]string{"https://s3.../product-001.jpg", "https://s3.../product-002.jpg"})
+   → json.RawMessage ([]byte)
+   → 內容是 [91 34 104 116 116 112 ...] （人看到就是 ["https://s3.../product-001.jpg","https://s3.../product-002.jpg"]）
+                    ↓
+4. GORM 把 json.RawMessage 直接塞進 MySQL JSON 欄位
+   → MySQL 裡存的: ["https://s3.../product-001.jpg","https://s3.../product-002.jpg"]
+```
+
+### 讀出流程：DB → 前端
+
+```
+1. MySQL JSON 欄位 → GORM 讀出 json.RawMessage ([]byte)
+   → 內容是 ["https://s3.../product-001.jpg","https://s3.../product-002.jpg"] 的 bytes
+                    ↓
+2. Service 層：json.Unmarshal() ← ★ Unmarshal 在這裡發生！
+   json.Unmarshal(product.ImgURLs, &imgURLs)
+   → []string{"https://s3.../product-001.jpg", "https://s3.../product-002.jpg"}
+                    ↓
+3. 放進 DTO 的 ImgURLs []string 欄位
+                    ↓
+4. Gin 自動轉成 JSON response 回給前端
+   { "img_urls": ["https://s3.../product-001.jpg", "https://s3.../product-002.jpg"] }
+```
+
+### 三層各自負責不同型別
+
+```
+層級          型別                  為什麼用這個型別
+─────────────────────────────────────────────────────────────
+DTO           []string             方便前端互動，Gin 自動解析/回傳
+Service       json.Marshal/        在 []string 和 json.RawMessage 之間橋接轉換
+              Unmarshal
+Model (GORM)  json.RawMessage      GORM 看得懂，能直接存 MySQL JSON 欄位
+─────────────────────────────────────────────────────────────
+```
+
+### 實際程式碼對應
+
+**Model（存 DB）**
 ```go
 type BoothProduct struct {
     // ...
     ImgURLs json.RawMessage `gorm:"type:json" json:"img_urls,omitempty"`
-    // DB 裡存的是: ["https://s3.ap-northeast-1.amazonaws.com/future-sign/product-001.jpg"]
+    // DB 裡存的是: ["https://s3.../product-001.jpg"]
 }
 ```
 
-### Service — 寫入
+**DTO（跟前端互動）**
 ```go
-// DTO 用 []string 方便前端傳入
-// 存 DB 前轉成 json.RawMessage
-urls := []string{"https://s3.ap-northeast-1.amazonaws.com/future-sign/product-001.jpg"}
-imgURLs, _ := json.Marshal(urls)  // → []byte
-product.ImgURLs = imgURLs
+type BoothProductCreate struct {
+    // ...
+    ImgURLs []string `json:"img_urls,omitempty"`  // 前端傳 ["url1","url2"]，Gin 自動解析成 []string
+}
 ```
 
-### Service — 讀出
+**Service — 寫入（Marshal 在這裡）**
 ```go
-// 從 DB 讀出是 json.RawMessage ([]byte)
-// 回傳給前端前轉回 []string
-var imgURLs []string
-json.Unmarshal(product.ImgURLs, &imgURLs)
-// 放進 DTO 的 ImgURLs []string 欄位
+// DTO 的 []string → Model 的 json.RawMessage
+var imgURLs json.RawMessage
+if len(req.ImgURLs) > 0 {
+    imgURLs, _ = json.Marshal(req.ImgURLs)  // []string → []byte (json.RawMessage)
+}
+product.ImgURLs = imgURLs
+// 接著 GORM 就可以把 json.RawMessage 存進 MySQL JSON 欄位了
 ```
+
+**Service — 讀出（Unmarshal 在這裡）**
+```go
+// Model 的 json.RawMessage → DTO 的 []string
+var imgURLs []string
+if len(product.ImgURLs) > 0 {
+    _ = json.Unmarshal(product.ImgURLs, &imgURLs)  // []byte (json.RawMessage) → []string
+}
+// 放進 DTO 回傳給前端
+```
+
+## 「原始 JSON bytes」到底是什麼意思？
+
+「原始」不是亂碼，而是「**還沒被 parse 成 Go struct 的 JSON 文字**」。
+
+就像 JS 裡：
+```js
+const raw = '["https://s3.../product-001.jpg"]'  // 這是一個「字串」，還沒 JSON.parse
+const parsed = JSON.parse(raw)                     // 現在才變成真正的 Array
+```
+
+Go 裡 `json.RawMessage` 就是那個「還沒 parse 的字串」，只不過 Go 用 `[]byte` 存：
+```go
+// json.RawMessage 存的內容：
+// 人看到的：["https://s3.../product-001.jpg"]     ← 人類可讀的 JSON 文字
+// 記憶體裡：[91 34 104 116 116 112 115 ...]       ← 同一段文字的 UTF-8 byte 數值
+//            [   "   h    t    t    p    s
+
+// Unmarshal 之後才變成 Go 的 []string，可以用 [0]、len() 操作
+var urls []string
+json.Unmarshal(rawMessage, &urls)
+fmt.Println(urls[0])  // https://s3.../product-001.jpg
+```
+
+**MySQL JSON 欄位裡存的就是你肉眼能讀的 JSON 字串，不是亂碼。**
 
 ## 常見搭配
 
@@ -251,6 +336,54 @@ x = 123  // ❌ 編譯錯誤！string 不能放 int
 // Go 沒有 .toString()，要用 strconv.Itoa(123) 或 fmt.Sprintf("%d", 123)
 ```
 
+## []string 有排序嗎？
+
+**有！** Go 的 slice（`[]string`）跟 JS 的 Array 一樣，是**有序的**，索引從 0 開始。
+
+```go
+urls := []string{
+    "https://s3.../product-001.jpg",  // index 0
+    "https://s3.../product-002.jpg",  // index 1
+    "https://s3.../product-003.jpg",  // index 2
+}
+
+fmt.Println(urls[0])  // https://s3.../product-001.jpg
+fmt.Println(urls[1])  // https://s3.../product-002.jpg
+fmt.Println(len(urls)) // 3
+```
+
+JS 完全等價：
+```js
+const urls = [
+    "https://s3.../product-001.jpg",  // index 0
+    "https://s3.../product-002.jpg",  // index 1
+    "https://s3.../product-003.jpg",  // index 2
+]
+
+console.log(urls[0])  // https://s3.../product-001.jpg
+console.log(urls.length) // 3
+```
+
+### 整條資料流順序都保留
+
+```
+前端傳入：["img-A.jpg", "img-B.jpg", "img-C.jpg"]   ← 有序 (index 0, 1, 2)
+    ↓
+DTO []string：["img-A.jpg", "img-B.jpg", "img-C.jpg"]  ← 有序 (index 0, 1, 2)
+    ↓
+json.Marshal → ["img-A.jpg","img-B.jpg","img-C.jpg"]   ← JSON array 本身就有序
+    ↓
+MySQL JSON 欄位：["img-A.jpg","img-B.jpg","img-C.jpg"] ← JSON array 有序
+    ↓
+json.Unmarshal → []string{"img-A.jpg", "img-B.jpg", "img-C.jpg"} ← 有序 (index 0, 1, 2)
+    ↓
+DTO []string → 前端：["img-A.jpg", "img-B.jpg", "img-C.jpg"]  ← 有序 (index 0, 1, 2)
+```
+
+**順序從頭到尾都不會改變。** 所以前端拖曳排序圖片後的順序，存進 DB 再讀出來，順序是一樣的。
+
+> 注意：Go 的 `map` 是**無序的**（跟 JS 的 Object 一樣不保證順序），但 `slice`（`[]`）一定有序。
+
 ## 重點
 
 - `json.RawMessage` 本質是 `[]byte`
@@ -262,3 +395,4 @@ x = 123  // ❌ 編譯錯誤！string 不能放 int
 - **Marshal** 扁平無縮排（存 DB 用），**MarshalIndent** 有縮排（debug 用）
 - Go 的 `[]string` = JS 的 `string[]`，`[]` 代表 slice（動態陣列）
 - Go 是靜態型別，宣告時就要指定型別，不像 JS 可以隨便換
+- **`[]string` 是有序的**（index 0, 1, 2...），順序從前端到 DB 再到前端全程保留
