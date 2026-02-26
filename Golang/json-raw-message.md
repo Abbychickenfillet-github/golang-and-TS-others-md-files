@@ -384,6 +384,68 @@ DTO []string → 前端：["img-A.jpg", "img-B.jpg", "img-C.jpg"]  ← 有序 (i
 
 > 注意：Go 的 `map` 是**無序的**（跟 JS 的 Object 一樣不保證順序），但 `slice`（`[]`）一定有序。
 
+## 靜態陣列 vs 動態陣列（Array vs Slice）
+
+Go 有兩種陣列，JS 只有一種（動態的 Array）。
+
+### 靜態陣列 (Array) — `[N]type`，長度固定
+
+```go
+// [3]string — 固定 3 個，宣告時就釘死，不能 append
+var fixed [3]string = [3]string{"A", "B", "C"}
+
+fixed[0] = "X"           // ✅ 可以改內容
+// fixed = append(fixed, "D")  // ❌ 編譯錯誤！Array 不能 append
+fmt.Println(len(fixed))  // 3（永遠是 3）
+```
+
+### 動態陣列 (Slice) — `[]type`，長度可變
+
+```go
+// []string — 沒有指定長度，可以隨時增減
+var dynamic []string = []string{"A", "B"}
+
+dynamic = append(dynamic, "C")  // ✅ 可以一直加
+dynamic = append(dynamic, "D", "E")  // ✅ 一次加多個也行
+fmt.Println(len(dynamic))  // 5
+fmt.Println(dynamic)       // [A B C D E]
+
+// 刪除 index 1 的元素
+dynamic = append(dynamic[:1], dynamic[2:]...)  // [A C D E]
+```
+
+### 差異對照表
+
+| | 靜態陣列 `[N]type` | 動態陣列 (Slice) `[]type` |
+|---|---|---|
+| 宣告 | `[3]string{"A","B","C"}` | `[]string{"A","B"}` |
+| 長度 | 固定，編譯時決定 | 可變，runtime 隨時改 |
+| append | ❌ 不行 | ✅ `append(s, "X")` |
+| 刪除元素 | ❌ 不行 | ✅ `append(s[:i], s[i+1:]...)` |
+| JS 對照 | TypeScript tuple `[string, string, string]` | JS `Array` / TS `string[]` |
+| 使用頻率 | 極少（<1%） | 幾乎都用這個（99%） |
+
+### JS 對照
+
+```js
+// JS 沒有靜態陣列的概念，Array 天生就是動態的
+const arr = ["A", "B"]
+arr.push("C")  // OK，JS array 永遠可以 push
+
+// TypeScript 的 tuple 可以「模擬」固定長度，但只是型別檢查
+const fixed: [string, string, string] = ["A", "B", "C"]
+// fixed.push("D")  // TypeScript 不會報錯（runtime 還是 JS array）
+```
+
+### 為什麼 Go 要分兩種？
+
+Go 是靜態型別 + 注重效能的語言：
+- **靜態陣列**在 stack 上分配，效能極高，但長度固定
+- **Slice**在 heap 上分配，有 `len`（目前長度）和 `cap`（容量）的概念，可以動態成長
+
+**實務上 99% 都用 Slice（`[]string`），幾乎不用靜態陣列（`[3]string`）。**
+我們專案裡的 `[]string`、`[]BoothProduct`、`[]byte` 全部都是 Slice。
+
 ## 重點
 
 - `json.RawMessage` 本質是 `[]byte`
@@ -396,3 +458,4 @@ DTO []string → 前端：["img-A.jpg", "img-B.jpg", "img-C.jpg"]  ← 有序 (i
 - Go 的 `[]string` = JS 的 `string[]`，`[]` 代表 slice（動態陣列）
 - Go 是靜態型別，宣告時就要指定型別，不像 JS 可以隨便換
 - **`[]string` 是有序的**（index 0, 1, 2...），順序從前端到 DB 再到前端全程保留
+- **靜態陣列 `[N]type`** 長度固定不能 append，**Slice `[]type`** 長度可變可以 append — 實務上 99% 用 Slice
