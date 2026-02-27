@@ -150,7 +150,7 @@ net/
 
 ## `encoding/json` — 不是每個 handler 都需要
 
-> 完整說明見 [沒有 encoding/json 就不能用 Marshal / Unmarshal 嗎？](encoding-json-marshal-unmarshal.md)
+> 完整說明見 [沒有 encoding/json 就不能用 Marshal / Unmarshal 嗎？](the-need-of-encoding-json-for-marshal-and-unmarshal.md)
 
 [Gin 框架](Gin框架筆記.md)已經封裝了 JSON 操作：
 - `c.ShouldBindJSON(&req)` — 自動把 request body 的 JSON 解析成 struct
