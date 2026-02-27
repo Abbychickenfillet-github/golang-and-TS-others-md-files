@@ -1,313 +1,224 @@
-
-❯ pending-count
-  pending-count
-  1297 / 3173 requests
-  223 kB / 61,991 kB transferred
-  29.9 kB / 61,621 kB resources
-  Finish: 1 hr
-  DOMContentLoaded: 11 min
-  Request URL
-  http://localhost:8003/api/v1/refunds/pending-count
-  Request Method
-  GET
-  Status Code
-  載入會員資料時發生錯誤
-
-  錯誤 undefined: undefined
-
-● 讓我檢查這些錯誤：
-
-● Bash(docker logs template-backend-go-1 2>&1 | grep -E "refunds|members|error|ERROR|500" | tail -30)
-  ⎿  {
-       "time": "2026-01-20T14:00:10.81722866Z",
-       "level": "WARN",
-     … +446 lines (ctrl+o to expand)
-
-● 問題很清楚了：
-
-  問題分析
-  ┌───────────────────────────────┬──────────────────────┬─────────────────────┐
-  │             問題              │         狀態         │        說明         │
-  ├───────────────────────────────┼──────────────────────┼─────────────────────┤
-  │ /api/v1/refunds/pending-count │ 404                  │ Go 後端沒有這個 API │
-  ├───────────────────────────────┼──────────────────────┼─────────────────────┤
-  │ 前端瘋狂輪詢                  │ 每分鐘重試           │ 導致 1297 個請求    │
-  ├───────────────────────────────┼──────────────────────┼─────────────────────┤
-  │ 會員資料錯誤                  │ undefined: undefined │ 可能也是缺少 API    │
-  └───────────────────────────────┴──────────────────────┴─────────────────────┘
-  讓我檢查 Go 後端有哪些 refunds 相關的路由：
-
-● Bash(grep -rn "refund" C:/coding/template/backend-go/internal/handler/*.go 2>/dev/null | head -20 || echo "No refund handlers
-      found")
-  ⎿ C:/coding/template/backend-go/internal/handler/order_handler.go:937:// @Param refund_request body dto.OrderRefundRequest true
-     "退款資訊"
-    C:/coding/template/backend-go/internal/handler/order_handler.go:941:// @Router /api/v1/orders/{order_id}/refund [post]
-    … +27 lines (ctrl+o to expand)
-
-
-● Bash(grep -n "pending-count\|PendingCount" C:/coding/template/backend-go/internal/handler/refund_handler.go 2>/dev/null || echo "No
-      pending-count in refund_handler")
-  ⎿  175:// GetPendingCount 取得待審核退款數量
-     181:// @Success 200 {object} dto.RefundPendingCountResponse "待審核數量"
-     182:// @Router /api/v1/refunds/pending-count [get]
-     … +5 lines (ctrl+o to expand)
-
-● Handler 存在！讓我檢查路由是否有正確註冊：
-
-● Bash(grep -rn "refund\|Refund" C:/coding/template/backend-go/cmd/server/main.go 2>/dev/null | head -20)
-  ⎿  1567:              // POST /api/v1/orders/:order_id/refund - 退款訂單
-     1568:              orders.POST("/:order_id/refund", middleware.AuthRequired(), orderHandler.RefundOrder)
-     1660:              // POST /api/v1/tickets/:ticket_id/refund - 退票
-     1661:              tickets.POST("/:ticket_id/refund", middleware.AuthRequired(), ticketHandler.RefundTicket)
-
-● Bash(grep -n "refunds\|RefundHandler\|pending-count" C:/coding/template/backend-go/cmd/server/main.go 2>/dev/null | head -20)
-  ⎿  (No content)
-
-● Search(pattern: "refunds|RefundHandler", path: "backend-go\cmd\server\main.go", output_mode: "content")
-  ⎿  Found 0 lines
-
-● 找到問題了！ RefundHandler 沒有在 main.go 註冊路由。
-
-  讓我看看 RefundHandler 有哪些方法需要註冊：
-
-● Search(pattern: "func \(h \*RefundHandler\)", path: "backend-go\internal\handler\refund_handler.go", output_mode: "content")
-  ⎿  Found 8 lines (ctrl+o to expand)
-
-● 問題確認
-
-  RefundHandler 有 8 個方法，但完全沒有在 main.go 註冊路由，所以全部都是 404。
-
-  需要註冊的路由：
-  ┌───────────────────────┬──────┬────────────────────────────────────┐
-  │         方法          │ HTTP │                路由                │
-  ├───────────────────────┼──────┼────────────────────────────────────┤
-  │ ListRefunds           │ GET  │ /api/v1/refunds                    │
-  ├───────────────────────┼──────┼────────────────────────────────────┤
-  │ GetPendingCount       │ GET  │ /api/v1/refunds/pending-count      │
-  ├───────────────────────┼──────┼────────────────────────────────────┤
-  │ CheckCanApprove       │ GET  │ /api/v1/refunds/can-approve        │
-  ├───────────────────────┼──────┼────────────────────────────────────┤
-  │ GetRefund             │ GET  │ /api/v1/refunds/:refund_id         │
-  ├───────────────────────┼──────┼────────────────────────────────────┤
-  │ RequestRefund         │ POST │ /api/v1/refunds                    │
-  ├───────────────────────┼──────┼────────────────────────────────────┤
-  │ ApproveRefund         │ POST │ /api/v1/refunds/:refund_id/approve │
-  ├───────────────────────┼──────┼────────────────────────────────────┤
-  │ RejectRefund          │ POST │ /api/v1/refunds/:refund_id/reject  │
-  ├───────────────────────┼──────┼────────────────────────────────────┤
-  │ GetOrderRefundHistory │ GET  │ /api/v1/orders/:order_id/refunds   │
-  └───────────────────────┴──────┴────────────────────────────────────┘
-  ---
-  你想要我現在把這些路由加到 main.go 嗎？這樣就能修復 404 和前端瘋狂輪詢的問題。
-
-✻ Churned for 1m 6s
-
-❯ 好並且幫我寫到GITHUB ISSUES以及今天的開發日誌!
-
-● Search(pattern: "NewRefundHandler|refundService|RefundService|refundRepo", path: "backend-go\cmd\server\main.go", output_mode:
-        "content")
-  ⎿  Found 0 lines
-
-● Bash(ls C:/coding/template/backend-go/internal/service/refund* 2>/dev/null && ls
-      C:/coding/template/backend-go/internal/repository/refund* 2>/dev/null)
-  ⎿  C:/coding/template/backend-go/internal/service/refund_service.go
-     C:/coding/template/backend-go/internal/service/refund_service_test.go
-     C:/coding/template/backend-go/internal/repository/refund_repository.go
-
-● Search(pattern: "NewOrderHandler|orderHandler|orderService|orderRepo", path: "backend-go\cmd\server\main.go", output_mode:
-        "content")
-  ⎿  Found 77 lines (ctrl+o to expand)
-
-● Read(backend-go\cmd\server\main.go)
-  ⎿  Read 80 lines
-
-● Search(pattern: "func NewRefund|type RefundService|type refundService struct", path:
-        "backend-go\internal\service\refund_service.go", output_mode: "content")
-  ⎿  Found 20 lines (ctrl+o to expand)
-
-● Search(pattern: "func NewRefundRepository", path: "backend-go\internal\repository\refund_repository.go", output_mode: "content")
-  ⎿  Found 4 lines (ctrl+o to expand)
-
-● Read(backend-go\cmd\server\main.go)
-  ⎿  Read 60 lines
-
-● 現在開始添加程式碼：
-
-● Update(backend-go\cmd\server\main.go)
-  ⎿  Added 1 line
-      356    generalContractorRepo := repository.NewGeneralContractorRepository(database.DB)           // 承包商 repository
-
-           (General Contractor CRUD)
-      357    notificationLogRepo := repository.NewNotificationLogRepository(database.DB)               // 通知記錄 repository
-
-
-      358    userActivationTokenRepo := repository.NewUserActivationTokenRepository(database.DB)       // 用戶啟用 Token
-
-
-           repository
-      359 +  refundRepo := repository.NewRefundRepository(database.DB)                                 // 退款記錄 repository
-
-
-      360
-      361    // 初始化 service
-
-      362    authService := service.NewAuthService(userRepo, cfg)
-
-● Update(backend-go\cmd\server\main.go)
-  ⎿  Added 1 line
-      407    generalContractorService := service.NewGeneralContractorService(generalContractorRepo, permissionService)
-
-                                        // 承包商 service (General Contractor CRUD)
-
-      408    roleService := service.NewRoleService(roleRepo, userRepo, logger.Logger)
-
-                                        // 角色 service
-      409    registrationService := service.NewRegistrationService(database.DB, logger.Logger, eventRepo, boothRepo,
-           orderRepo, orderItemRepo, orderElectricityRepo, boothOrderSubscriptionRepo, electricityRuleRepo, productRepo,
-           eventBoothTypePricingRepo, paymentService) // 註冊服務 (Complete Registration Flow)
-
-
-      410 +  refundService := service.NewRefundService(refundRepo, orderRepo, paymentService, notificationService)
-          +
-          +                             // 退款 service
-      411
-      412    // 初始化圖片服務（可選，需要 AWS 配置）
-
-
-      413    var imageService service.ImageService
-
-● Update(backend-go\cmd\server\main.go)
-  ⎿  Added 1 line
-      471    generalContractorHandler := handler.NewGeneralContractorHandler(generalContractorService)
-                                 // 承包商 handler (General Contractor CRUD)
-
-      472    roleHandler := handler.NewRoleHandler(roleService)
-                                 // 角色 handler
-      473    registrationHandler := handler.NewRegistrationHandler(registrationService)
-                                 // 註冊 handler (Complete Registration Flow)
-      474 +  refundHandler := handler.NewRefundHandler(refundService)
-          +                       // 退款 handler
-      475
-      476    // 圖片 handler（可選，需要 AWS 配置）
-
-
-      477    var imageHandler handler.ImageHandler
-
-● Search(pattern: "setupOrderRoutes|setupTicketRoutes", path: "backend-go\cmd\server\main.go", output_mode: "content")
-  ⎿  Found 6 lines (ctrl+o to expand)
-
-● Update(backend-go\cmd\server\main.go)
-  ⎿  Added 3 lines
-      575    // 訂單管理路由
-
-
-      576    setupOrderRoutes(v1, orderHandler, orderSummaryHandler, orderExportHandler, orderNotificationHandler, cfg)
-      577
-      578 +  // 退款管理路由
-
-
-      579 +  setupRefundRoutes(v1, refundHandler)
-      580 +
-      581    // 訂單項目管理路由
-
-
-      582    setupOrderItemRoutes(v1, orderItemHandler)
-      583
-
-● Read(backend-go\cmd\server\main.go)
-  ⎿  Read 50 lines
-
-● Bash(wc -l C:/coding/template/backend-go/cmd/server/main.go)
-  ⎿  1795 C:/coding/template/backend-go/cmd/server/main.go
-
-● Read(backend-go\cmd\server\main.go)
-  ⎿  Read 27 lines
-
-● Read(backend-go\internal\handler\refund_handler.go)
-  ⎿  Read 120 lines
-
-● Search(pattern: "@Router /api/v1/refund", path: "backend-go\internal\handler\refund_handler.go", output_mode: "content")
-  ⎿  Found 8 lines (ctrl+o to expand)
-
-● Update(backend-go\cmd\server\main.go)
-  ⎿  Added 30 lines
-      1793      images.DELETE("", middleware.AuthRequired(), imageHandler.DeleteImage)
-      1794    }
-      1795  }
-      1796 +
-      1797 +// setupRefundRoutes 設定退款管理相關路由
-
-
-      1798 +func setupRefundRoutes(v1 *gin.RouterGroup, refundHandler *handler.RefundHandler) {
-      1799 +  refunds := v1.Group("/refunds")
-      1800 +  {
-      1801 +    // GET /api/v1/refunds - 列出退款申請
-
-
-      1802 +    refunds.GET("", middleware.AuthRequired(), refundHandler.ListRefunds)
-      1803 +
-      1804 +    // GET /api/v1/refunds/pending-count - 取得待審核退款數量
-
-
-      1805 +    refunds.GET("/pending-count", middleware.AuthRequired(), refundHandler.GetPendingCount)
-      1806 +
-      1807 +    // GET /api/v1/refunds/can-approve - 檢查當前用戶是否可以審核退款
-
-
-      1808 +    refunds.GET("/can-approve", middleware.AuthRequired(), refundHandler.CheckCanApprove)
-      1809 +
-      1810 +    // POST /api/v1/refunds/request - 申請退款
-
-
-      1811 +    refunds.POST("/request", middleware.AuthRequired(), refundHandler.RequestRefund)
-      1812 +
-      1813 +    // GET /api/v1/refunds/order/:order_id/history - 取得訂單的退款歷史
-
-
-      1814 +    refunds.GET("/order/:order_id/history", middleware.AuthRequired(), refundHandler.GetOrderRefundHistory)
-      1815 +
-      1816 +    // GET /api/v1/refunds/:refund_id - 取得退款詳情
-
-
-      1817 +    refunds.GET("/:refund_id", middleware.AuthRequired(), refundHandler.GetRefund)
-      1818 +
-      1819 +    // POST /api/v1/refunds/:refund_id/approve - 審核通過退款
-
-
-      1820 +    refunds.POST("/:refund_id/approve", middleware.AuthRequired(), refundHandler.ApproveRefund)
-      1821 +
-      1822 +    // POST /api/v1/refunds/:refund_id/reject - 拒絕退款
-
-
-      1823 +    refunds.POST("/:refund_id/reject", middleware.AuthRequired(), refundHandler.RejectRefund)
-      1824 +  }
-      1825 +}
-
-● 路由已添加。現在重建並測試：
-
-● Bash(docker compose up backend-go -d --build 2>&1 | tail -15)
-  ⎿  #13 naming to docker.io/library/template-backend-go:latest done
-     #13 unpacking to docker.io/library/template-backend-go:latest
-     #13 unpacking to docker.io/library/template-backend-go:latest 0.2s done
-     … +12 lines (ctrl+o to expand)
-
-● Bash(sleep 15 && docker logs template-backend-go-1 2>&1 | grep -i "refund" | tail -10) timeout: 25s
-  ⎿  (No content)
-
-● Bash(docker logs template-backend-go-1 2>&1 | grep -E "refunds|pending-count" | head -10)
-  ⎿ [GIN-debug] GET    /api/v1/refunds           --> github.com/yutuo-tech/futuresign_backend/internal/handler.(*RefundHandler).L
-    istRefunds-fm (5 handlers)
-    [GIN-debug] GET    /api/v1/refunds/pending-count --> github.com/yutuo-tech/futuresign_backend/internal/handler.(*RefundHandle
-    … +13 lines (ctrl+o to expand)
-
-
-
-● 路由已成功註冊！測試 pending-count 端點：
-
-● Bash(curl -s http://localhost:8003/api/v1/refunds/pending-count)
-  ⎿  {
-       "detail": "Not authenticated"
-     }
-
-● 成功！ 端點現在正常工作（需要認證，不再是 404）。
-
+# Go 路由註冊 + Router Group + Logger 放哪裡
+
+## Router Group（路由群組）
+
+### 為什麼需要 Group？
+
+如果沒有 Group，每條路由都要寫完整路徑：
+
+```go
+// ❌ 沒有 Group — 又臭又長，重複寫 /api/v1/booth-products
+router.PATCH("/api/v1/booth-products/:id", handler.Update)
+router.DELETE("/api/v1/booth-products/:id", handler.Delete)
+router.GET("/api/v1/booth-products", handler.List)
+router.GET("/api/v1/orders/:id", orderHandler.Get)
+router.POST("/api/v1/orders", orderHandler.Create)
+```
+
+用 Group 把共同前綴提取出來：
+
+```go
+// ✅ 有 Group — 乾淨、有層次
+v1 := router.Group("/api/v1")               // 第一層：版本號
+{
+    boothProducts := v1.Group("/booth-products")  // 第二層：資源名稱
+    {
+        boothProducts.PATCH("/:id", handler.Update)   // 完整路徑 = /api/v1/booth-products/:id
+        boothProducts.DELETE("/:id", handler.Delete)   // 完整路徑 = /api/v1/booth-products/:id
+        boothProducts.GET("", handler.List)             // 完整路徑 = /api/v1/booth-products
+    }
+
+    orders := v1.Group("/orders")                 // 第二層：另一個資源
+    {
+        orders.GET("/:id", orderHandler.Get)           // 完整路徑 = /api/v1/orders/:id
+        orders.POST("", orderHandler.Create)           // 完整路徑 = /api/v1/orders
+    }
+}
+```
+
+### 路徑組合方式
+
+Group 是**層層疊加**的：
+
+```
+router.Group("/api/v1")          →  /api/v1
+       .Group("/booth-products") →  /api/v1/booth-products
+       .PATCH("/:id")           →  /api/v1/booth-products/:id
+```
+
+### Group 還可以綁 Middleware
+
+```go
+// 這個 Group 底下的所有路由都要先過 AuthRequired() 驗證
+authorized := v1.Group("/booth-products", middleware.AuthRequired())
+{
+    authorized.POST("", handler.Create)     // 需要登入
+    authorized.PATCH("/:id", handler.Update) // 需要登入
+}
+
+// 這些路由不需要登入
+public := v1.Group("/booth-products")
+{
+    public.GET("/:id", handler.Get)         // 不需要登入
+    public.GET("/event/:event_id", handler.GetByEvent) // 不需要登入
+}
+```
+
+### 專案中的實際結構
+
+```go
+// main.go
+func setupBoothProductRoutes(v1 *gin.RouterGroup, handler *handler.BoothProductHandler, cfg *config.Config) {
+    boothProducts := v1.Group("/booth-products")
+    {
+        // 公開（不需登入）
+        boothProducts.GET("/event/:event_id", handler.GetBoothProductsByEvent)
+        boothProducts.GET("/:id", handler.GetBoothProduct)
+
+        // 品牌商（Member 登入）
+        boothProducts.GET("/my", middleware.MemberAuthRequired(cfg), handler.GetMyBoothProducts)
+
+        // 品牌商或系統方都可以（TryBothAuth = 試 User 或 Member）
+        boothProducts.POST("", middleware.TryBothAuth(), handler.CreateBoothProduct)
+        boothProducts.PATCH("/:id", middleware.TryBothAuth(), handler.UpdateBoothProduct)
+
+        // 系統管理員專用
+        boothProducts.GET("", middleware.AuthRequired(), handler.GetAllBoothProducts)
+    }
+}
+```
+
+---
+
+## Logger 放哪裡？
+
+### 答案：哪裡都可以放，但放的「內容」不同
+
+Logger **沒有規定只能放在某一層**。每一層都可以寫 log，但記錄的東西不同：
+
+```
+┌─────────────┬────────────────────────────────────────┐
+│    層級      │         Logger 記錄什麼                 │
+├─────────────┼────────────────────────────────────────┤
+│  Middleware  │ 每個 HTTP 請求的進出                     │
+│             │ 「誰在什麼時間打了什麼 API，花了多久」      │
+│             │ → 像大門的監視器，記錄所有進出             │
+├─────────────┼────────────────────────────────────────┤
+│  Handler    │ 請求解析失敗、權限不足                    │
+│             │ 「JSON 格式錯誤」「沒有權限」              │
+│             │ → 像門衛的記錄簿，記錄被擋下的人           │
+├─────────────┼────────────────────────────────────────┤
+│  Service    │ 業務邏輯的關鍵節點                       │
+│             │ 「建立預購單」「庫存不足」「狀態變更」       │
+│             │ → 像業務部門的工作日誌                    │
+├─────────────┼────────────────────────────────────────┤
+│  Repository │ SQL 錯誤、查詢效能                       │
+│             │ 「資料庫連線失敗」「查詢超時」              │
+│             │ → 像倉庫的異常報告                       │
+└─────────────┴────────────────────────────────────────┘
+```
+
+### 專案中各層的 logger 實例
+
+**Middleware — 記錄 HTTP 請求**（Gin 自帶）：
+```go
+// Gin 預設就有 Logger middleware，自動記錄每個請求
+// [GIN] 2026/02/27 - 10:30:00 | 200 | 12.3ms | 192.168.1.1 | PATCH "/api/v1/booth-products/xxx"
+router.Use(gin.Logger())
+```
+
+**Handler — 很少寫 log**（通常不需要，因為 middleware 已經記了）：
+```go
+// Handler 層通常只在異常時記錄
+func (h *BoothProductHandler) UpdateBoothProduct(c *gin.Context) {
+    // 正常流程不寫 log，交給 middleware 和 service
+    // 但如果要 debug 可以加
+}
+```
+
+**Service — 最常寫 log 的地方**：
+```go
+func (s *preOrderService) CreatePreOrder(...) {
+    logger.Info("建立預購單", "buyer_member_id", buyerMemberID)  // ← 關鍵業務事件
+
+    if !hasTicket {
+        logger.Error("驗證入場票券失敗", "error", err)           // ← 業務邏輯錯誤
+        return nil, errors.New("需要先購買票券")
+    }
+
+    logger.Info("預購單建立成功", "id", preOrder.ID)            // ← 成功結果
+}
+```
+
+**Repository — 只在錯誤時記錄**：
+```go
+func (r *boothProductRepository) GetByID(...) {
+    err := db.Where("id = ?", id).First(&product).Error
+    if err != nil {
+        // 通常 Repository 不寫 log，讓 Service 層去記
+        // 但如果是 DB 連線問題，可以在這裡記
+        return nil, err  // ← 直接回傳 error 給 Service
+    }
+}
+```
+
+### 最佳實務
+
+```
+Middleware：自動記錄所有請求（Gin 內建，不用自己寫）
+Handler：  幾乎不寫 log（除非 debug）
+Service：  主要寫 log 的地方（業務事件 + 錯誤）
+Repository：通常不寫 log（error 往上拋給 Service 記就好）
+```
+
+原因：如果每一層都寫 log，同一件事會被記錄 3-4 次，log 檔會很吵。
+所以慣例是 **Service 層統一記錄業務日誌**，其他層只在特殊情況才記。
+
+---
+
+## Gin 的 `c` vs Go 的 `ctx`
+
+常見混淆：Handler 參數裡的 `c` 是什麼？
+
+```go
+func (h *Handler) Update(c *gin.Context) {
+//                       ↑ 這是 Gin 的 Context，不是 Go 原生的
+```
+
+| | `c *gin.Context` | `ctx context.Context` |
+|---|---|---|
+| **來源** | Gin 框架（第三方套件） | Go 標準庫 |
+| **包含** | HTTP 的一切：URL、body、header、cookie | 只有取消信號、超時 |
+| **用在** | Handler 層 | Service、Repository 層 |
+| **能做** | `c.Param("id")`、`c.JSON(200, ...)`、`c.ShouldBindJSON()` | 傳遞超時，沒有 HTTP 功能 |
+
+Handler 裡會同時看到兩者：
+
+```go
+func (h *Handler) Update(c *gin.Context) {
+    id := c.Param("id")               // ← 用 Gin Context 讀 HTTP
+    c.ShouldBindJSON(&req)             // ← 用 Gin Context 解析 JSON
+
+    product, err := h.service.Update(
+        c.Request.Context(),           // ← 取出 Go 原生 context 傳給 Service
+        id, &req,                      //    因為 Service 不碰 Gin
+    )
+
+    c.JSON(200, product)               // ← 用 Gin Context 回傳 HTTP
+}
+```
+
+一句話：`c` 是 Gin 的 HTTP 百寶箱，`ctx` 是 Go 原生的精簡背包。
+Handler 用 `c` 處理 HTTP，用 `c.Request.Context()` 提取精簡版傳給下層。
+
+---
+
+## 一句話總結
+
+| 概念 | 一句話 |
+|------|--------|
+| **Router Group** | 把共同的 URL 前綴提取出來，避免重複寫，還可以綁 Middleware |
+| **`v1.Group("/xxx")`** | 建立子路由群組，路徑會自動疊加 |
+| **Logger 放哪** | 哪裡都能放，但 Service 層是主要位置，Middleware 自動記 HTTP |
+| **`c` (gin.Context)** | Gin 的 HTTP 百寶箱，只活在 Handler 層 |
+| **`ctx` (context.Context)** | Go 原生的精簡背包，傳給 Service/Repository 層 |
