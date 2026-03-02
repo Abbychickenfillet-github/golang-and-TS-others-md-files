@@ -25,7 +25,7 @@
 | id | varchar(36) PK | UUID |
 | event_id | varchar(36) FK | 關聯活動 |
 | title | varchar(255) | 手冊標題 |
-| cover_image_url | varchar(500) | 封面圖片 |
+| cover_image_urls | varchar(500) | 封面圖片 |
 | description | text | 手冊說明 |
 | sort_order | int | 排序 |
 | status | varchar(20) | draft / published |
@@ -61,7 +61,7 @@
 | DELETE | `/:id/handbooks/:hid/pages/:pid` | TryBothAuth | 刪除頁面 |
 | PUT | `/:id/handbooks/:hid/pages/reorder` | TryBothAuth | 重排頁面順序 |
 | GET | `/:id/handbooks/:hid/full` | Optional | 手冊+所有頁面（閱讀器用） |
-
+**要只能是主辦或者系統方才能更新手冊內容**確認端點有做到權限保護
 ---
 
 ## 後端檔案清單（Go）
@@ -617,95 +617,29 @@ TipTap 的 Image extension 渲染為標準 `<img>` tag，支援**瀏覽器能渲
 
 ---
 
-## Phase 8 踩坑紀錄 — html2pdf.js + oklch() 顏色衝突
+## Phase 8 踩坑紀錄 — html2pdf.js 完全失敗，改用 window.print()
 
-### 問題
+> **詳細 debug 記錄（含截圖）**：[pdf-download-html2pdf-to-window-print.md](../debugging/pdf-download-html2pdf-to-window-print.md)
+> **GitHub Issue（含截圖）**：https://github.com/yutuo-tech/future_sign.official-website/issues/86
 
-點擊 PDF 下載 icon 後顯示「PDF 下載失敗」，Console 錯誤：
-```
-Error: Attempting to parse an unsupported color function "oklch"
-    at ht (html2pdf.bundle.min.js)
-```
+### 實驗紀錄表
 
-### 原因
+| # | 嘗試方案 | 結果 | 失敗原因 |
+|---|---------|------|---------|
+| 1 | `<button>` 嵌套在 `<Link>` 內 | ❌ 點擊無反應 | React Router Link 攔截 click |
+| 2 | button 和 Link 改為 siblings | ❌ oklch parse error | html2canvas 不支援 oklch() |
+| 3 | 改用 bundled 版 html2pdf.js | ❌ 同上 | bundled 只是打包方式不同，html2canvas 同一套 |
+| 4 | onclone 移除所有 stylesheet | ❌ PDF 空白 | 移除所有 CSS → 無渲染資訊 |
+| 5 | opacity:0 + oklch→#000 + 還原 opacity | ❌ PDF 仍空白 | html2pdf 多層 clone，opacity 還原沒覆蓋到正確副本 |
+| 6 | **window.open() + document.write() + window.print()** | ✅ **成功** | 瀏覽器原生引擎，支援所有 CSS |
 
-**html2pdf.js 的內部引擎 html2canvas 不支援 CSS `oklch()` 顏色函式。**
+### 結論
 
-整個下載流程：
-```
-使用者點擊下載 icon
-  → API 呼叫 GET /events/:id/handbooks/:hid/full（✅ 成功）
-  → html2pdf.js 建立 DOM clone
-  → html2canvas 解析 clone 的所有 CSS 樣式
-  → 遇到 oklch() → ❌ 拋出 Error
-```
-
-**為什麼會遇到 oklch？**
-Tailwind CSS v4 預設使用 `oklch()` 色彩空間定義顏色（如 `oklch(0.7 0.15 200)`）。即使我們的 PDF 容器全部用 inline style 設定 hex 顏色（`#333`、`#fff`），html2canvas 在 clone DOM 時會把**整個頁面的 CSS 樣式表**（`<style>` 和 `<link rel="stylesheet">`）一起 clone，然後嘗試解析所有 CSS，包含那些沒有直接套用到容器的 oklch 顏色。
-
-### 背景知識
-
-#### "html2" 不是 HTML 版本 2
-
-`html2canvas` = "HTML **to** canvas"，把 HTML 轉成 Canvas 點陣圖。
-`html2pdf.js` = "HTML **to** PDF"，把 HTML 轉成 PDF。
-
-這裡的 `2` = `to`（英文諧音），是常見的命名慣例：
-- `markdown2html` = Markdown to HTML
-- `csv2json` = CSV to JSON
-- `pdf2image` = PDF to Image
-
-#### oklch 是什麼？
-
-`oklch()` 是 CSS Color Level 4 的新顏色函式，比傳統 `rgb()` / `hsl()` 更符合人眼感知：
-```css
-/* 傳統 */
-color: rgb(59, 130, 246);
-color: hsl(217, 91%, 60%);
-
-/* oklch（Tailwind CSS v4 預設） */
-color: oklch(0.623 0.214 259.1);
-/*         亮度   色度   色相    */
-```
-
-Tailwind CSS v4 選用 oklch 是因為它能產生更均勻的色階（調整亮度時不會色偏），但代價是舊版工具（如 html2canvas v1.x）還沒更新支援。
-
-### 解決方案
-
-在 html2canvas 的 `onclone` callback 中，**移除 clone 文件中所有樣式表**。因為 PDF 容器已全部使用 inline style，不依賴頁面的 CSS：
-
-```typescript
-html2canvas: {
-  scale: 2,
-  useCORS: true,
-  onclone: (clonedDoc: Document) => {
-    // html2canvas 不支援 oklch() 顏色（Tailwind CSS v4 預設使用）
-    // 移除頁面樣式表避免解析錯誤，PDF 容器已全部使用 inline style
-    clonedDoc.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove())
-  },
-},
-```
-
-**為什麼這樣做安全？**
-- 我們的 PDF 容器是用 `document.createElement` 動態建立的
-- 所有元素（標題、內容、footer）都用 `element.style.xxx = '...'` 設定樣式
-- 不依賴任何外部 CSS class（沒有用 Tailwind class）
-- 移除樣式表只影響 clone 副本，不影響原始頁面
-
-### 額外修正：使用 bundled 版本
-
-html2pdf.js 的 `package.json` 中 `"main": "dist/html2pdf.js"` 是**非 bundled** 版本，使用 `require("html2canvas")` 載入外部依賴。Vite 的動態 `import()` 可能無法正確解析這個 CJS require。
-
-改用 bundled 版本 `dist/html2pdf.bundle.min.js`（包含 html2canvas + jsPDF），確保依賴不會缺失：
-
-```typescript
-// @ts-expect-error html2pdf.js bundled 版本沒有獨立的型別宣告
-const mod = await import('html2pdf.js/dist/html2pdf.bundle.min.js')
-const html2pdf = mod.default ?? mod
-```
+html2pdf.js（html2canvas）在使用 Tailwind CSS v4 的專案中無法運作。經 5 次修補後放棄，改用瀏覽器原生列印 API。最終方案：開新分頁 → 寫入乾淨 HTML → 使用者點「列印 / 儲存為 PDF」按鈕。
 
 ### 教訓
 
-1. **html2canvas 不是瀏覽器引擎** — 它用 JS 重新實作 CSS 解析器，對新 CSS 語法的支援永遠落後瀏覽器
-2. **「build 通過 ≠ runtime 正常」** — TypeScript 只檢查型別，html2canvas 的 CSS 解析是 runtime 行為
-3. **Tailwind CSS v4 的 oklch 是隱形地雷** — 任何需要解析 CSS 的第三方工具（html2canvas、JSDOM、puppeteer 的某些模式）都可能中招
+1. **html2canvas ≠ 瀏覽器引擎** — 用 JS 重新實作 CSS 解析器，永遠追不上瀏覽器
+2. **build 通過 ≠ runtime 正常** — TypeScript 只檢查型別，oklch 是 runtime 解析錯誤
+3. **oklch 是隱形地雷** — Tailwind v4 預設用 oklch，會搞壞所有自行解析 CSS 的第三方工具
+4. **連續打補丁不如換方案** — 第 3 次失敗後就該考慮換方案，而非繼續在同一條路上修
