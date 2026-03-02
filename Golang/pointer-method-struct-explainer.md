@@ -110,3 +110,10 @@ func main() {
 *   `Name string`、`Age int` 就是表單上的格子。
 *   它本身不會動，就只是一張紙（資料）。
 *   要讓它動，你要寫 Method (`func (u *User) Save()`)，就像是教電腦「拿到這張表單時要做什麼事」。
+
+---
+
+## 相關筆記
+
+- [struct-tag-backtick-json.md](struct-tag-backtick-json.md) — Struct tag（backtick、json tag）、Logger 如何從 Struct 取值
+- [dto-api-response.md](dto-api-response.md) — DTO 與 API 回傳格式（json tag 控制 JSON key）
