@@ -632,5 +632,6 @@ Gin 自動設定 Content-Type + 序列化 JSON + 寫入 response
 
 ## 相關筆記
 
+- [struct-tag-backtick-json.md](struct-tag-backtick-json.md) -- Backtick、雙引號、json tag、Logger 與 Struct 的關係
 - [json-raw-message.md](json-raw-message.md) -- json.RawMessage、Marshal/Unmarshal
 - [GORM.md](GORM.md) -- GORM 模型與資料庫操作
