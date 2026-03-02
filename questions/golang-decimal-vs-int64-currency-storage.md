@@ -5,6 +5,7 @@
 > 相關筆記：[後端 DTO 角色與三層架構](../Golang/後端DTO角色與三層架構.md) — Model vs DTO 的型別差異
 
 ---
+例如目前攤位資料表，其攤位尺寸全部存成int，怕會有問題<img width="1896" height="723" alt="image" src="https://github.com/user-attachments/assets/e092d1ce-7698-40c7-94af-4563163baf98" />
 
 ## 結論（先講答案）
 
