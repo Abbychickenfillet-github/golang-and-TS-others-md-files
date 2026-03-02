@@ -29,6 +29,7 @@
 | description | text | 手冊說明 |
 | sort_order | int | 排序 |
 | status | varchar(20) | draft / published |
+| allowed_footer_event_name | tinyint(1) NOT NULL DEFAULT 0 | PDF footer 是否顯示活動名稱（**預設關閉**）。主辦方可在設定面板中開啟，開啟後使用者下載 PDF 每頁底部會印上活動名稱 + 活動連結 |
 | created_at / updated_at / deleted_at | datetime | 時間戳（軟刪除） |
 
 ### `event_handbook_page`（手冊頁面）
@@ -61,7 +62,8 @@
 | DELETE | `/:id/handbooks/:hid/pages/:pid` | TryBothAuth | 刪除頁面 |
 | PUT | `/:id/handbooks/:hid/pages/reorder` | TryBothAuth | 重排頁面順序 |
 | GET | `/:id/handbooks/:hid/full` | Optional | 手冊+所有頁面（閱讀器用） |
-**要只能是主辦或者系統方才能更新手冊內容**確認端點有做到權限保護
+**權限保護 ✅ 已確認**：所有寫入端點（POST/PATCH/DELETE/PUT）受 `TryBothAuth()` + `checkEventPermission()` + `CanManageEvent()` 三層保護。只有超級管理員、後台管理員（user）、活動建立者、同公司 approved member 可以寫入。消費者和品牌商的 member 只能 GET，無法建立/更新/刪除任何手冊內容。
+
 ---
 
 ## 後端檔案清單（Go）
@@ -500,6 +502,9 @@ logger.Info("更新手冊頁面",
 | Phase 8.4 | 卡片 UI 修正（Download icon + 「更新時間：」label） | ✅ 完成 |
 | Phase 8.5 | 設定面板 footer toggle（EventHandbookPageEditorPage） | ✅ 完成 |
 | Phase 9 | 攤位平面圖格式支援（待規劃） | ⬜ 待實作 |
+| Phase 10.1 | 封面圖上傳（設定面板 MultiImageUpload） | ✅ 完成 |
+| Phase 10.2 | PDF Footer URL 加 `#handbooks` hash | ✅ 完成 |
+| Phase 10.3 | PDF Footer 排版修正（absolute → flexbox） | ✅ 完成 |
 
 ### PR
 - Backend: https://github.com/yutuo-tech/futuresign_backend/pull/333 (已 merge → stage)
@@ -643,3 +648,121 @@ html2pdf.js（html2canvas）在使用 Tailwind CSS v4 的專案中無法運作�
 2. **build 通過 ≠ runtime 正常** — TypeScript 只檢查型別，oklch 是 runtime 解析錯誤
 3. **oklch 是隱形地雷** — Tailwind v4 預設用 oklch，會搞壞所有自行解析 CSS 的第三方工具
 4. **連續打補丁不如換方案** — 第 3 次失敗後就該考慮換方案，而非繼續在同一條路上修
+
+---
+
+## 追加功能（Phase 10）— 封面圖上傳 + PDF Footer 修正
+
+> **GitHub Issue（含截圖）**：https://github.com/yutuo-tech/future_sign.official-website/issues/86
+
+### 10.1 封面圖上傳
+
+**需求**：`cover_image_urls` 欄位後端和型別都已存在，但設定面板沒有上傳 UI。
+
+**實作**：
+- 複用現有 `MultiImageUpload` 元件（`src/components/image-upload.tsx`）
+- 在設定面板「描述」和「儲存按鈕」之間加入封面圖上傳區
+- `handleSaveSettings` 加入 `cover_image_urls` 陣列比較邏輯
+- 最多 4 張封面圖
+
+**影響檔案**：
+- `src/pages/EventHandbookPageEditorPage.tsx` — 修改
+
+---
+
+### 10.2 PDF Footer URL 修正
+
+**問題**：PDF footer 的活動連結是 `/event/${eventId}`，缺少 `#handbooks` hash。使用者點連結無法直接跳到手冊 tab。
+
+**修正**：
+```typescript
+// 修正前
+const eventUrl = `${window.location.origin}/event/${eventId}`
+// 修正後
+const eventUrl = `${window.location.origin}/event/${eventId}#handbooks`
+```
+
+**影響檔案**：
+- `src/pages/EventDetailPage.tsx` — 修改（1 行）
+
+---
+
+### 10.3 PDF Footer 排版修正 — 從踩坑到最終方案
+
+**問題**：`.page-footer` 用 `position: absolute; bottom: 24px`，當頁面內容超過可用高度時，footer 被推到獨立的新一頁，非常難看。
+
+**截圖**：
+
+Footer 被推到獨立新一頁：
+![footer on separate page](https://github.com/user-attachments/assets/02bbd9b7-61dd-435c-8c2d-abb1ca4fb2e5)
+
+修正後 footer 在列印引擎的原生頁尾區域：
+![footer fixed](https://github.com/user-attachments/assets/de52fc3e-9198-44ec-a5ad-6ac64097dea2)
+
+#### 嘗試過程（3 次失敗 → 最終成功）
+
+| # | 方案 | 結果 | 為什麼失敗 |
+|---|------|------|-----------|
+| 1 | `position: absolute; bottom: 24px` | ❌ footer 被推到獨立新一頁 | `min-height: 297mm` 讓 div 超過可印區域（`@page margin: 20mm` 只剩 257mm），absolute footer 跟著被推走 |
+| 2 | flexbox `margin-top: auto` | ❌ 多餘的 `border-top` 線 + 仍被推到新一頁 | `min-height: 297mm` 在列印時仍超過可印區域；即使加 `@media print { min-height: auto }`，預覽和列印需要兩套 footer（preview + fixed），過度複雜 |
+| 3 | `position: fixed; bottom: 0`（列印模式） | ❌ 需要兩個 footer 元素（preview 用 + print 用），線條多餘 | 預覽時要顯示、列印時要隱藏再換成 fixed 版本，HTML 結構醜且 `border-top` 線無法消除 |
+| 4 | **CSS `@page` margin boxes** | ✅ **完美！** | Chrome 131+ 原生支援，footer 直接由列印引擎渲染在每頁底部邊距區域，不需要任何 HTML 元素 |
+
+#### 最終方案：CSS `@page` margin boxes
+
+```css
+@page {
+  size: A4;
+  margin: 20mm;
+  @bottom-left {
+    content: "活動名稱";
+    font-size: 9pt;
+    color: #888;
+  }
+  @bottom-right {
+    content: "活動連結 URL";
+    font-size: 9pt;
+    color: #888;
+  }
+}
+```
+
+- **零 HTML 元素**：不需要 `.page-footer` div，CSS `@page` 的 `@bottom-left` / `@bottom-right` 直接定義頁尾內容
+- **列印引擎原生**：等同瀏覽器 Ctrl+P 的頁首頁尾，位於 `@page margin` 區域內，不佔內容空間
+- **每頁自動重複**：列印引擎自動在每一頁的相同位置渲染
+- **瀏覽器支援**：Chrome 131+（2024-11 發布），我們的使用者都是現代瀏覽器
+
+> **參考**：https://developer.chrome.com/blog/print-margins
+
+#### 10.3.1 設定面板 Tooltip
+
+在「PDF 活動名稱 Footer」toggle 旁加了 `(i)` tooltip：
+> 「為避免主辦忘記將活動名稱加入手冊，可以開啟此功能，自動在 PDF 每頁底部顯示活動名稱與連結。」
+
+---
+
+### 10.4 影響檔案總覽
+
+| # | 檔案 | 變更 |
+|---|------|------|
+| 1 | `src/pages/EventHandbookPageEditorPage.tsx` | 設定面板加 `MultiImageUpload`，儲存 `cover_image_urls`；footer toggle 加 Tooltip |
+| 2 | `src/pages/EventDetailPage.tsx` | PDF URL 加 `#handbooks` |
+| 3 | `src/lib/utils/generateHandbookPdf.ts` | 移除所有 HTML footer 元素，改用 CSS `@page` margin boxes |
+
+---
+
+### 10.5 測試紀錄
+
+使用以下活動與手冊進行 PDF footer 排版測試：
+
+- **活動頁面**：`http://localhost:3000/event/46f5ad59-5ce0-42fa-8963-71054edebe0e#handbook`
+- **測試手冊**：`水電與進場須知`（id: `601e1206-3709-4cfd-b39c-257d46b7f97c`）
+  - `allowed_footer_event_name: 1`（已開啟 footer）
+  - `status: published`
+  - 手冊內已上傳好圖片，內容夠長可以觸發跨頁情境
+
+> 如果同事要測試 PDF 下載，可以直接用這本手冊，不用再另外上傳圖片。
+
+**cover_image_urls 上傳測試成功**：
+
+![cover image upload test](https://github.com/user-attachments/assets/f8961501-919f-4f70-b957-f91b5c1509c0)
