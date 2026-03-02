@@ -1434,3 +1434,493 @@ export class EventMemberBlocksService {
 - 不執行 `npm run generate-client`
 - Commit 不加 Co-Authored-By
 - SQL 建表手動在 stage/prod 執行
+
+---
+
+## 實作順序概覽（新增 Phase 2-5）
+
+```
+Phase 1: Backend 基礎 (Step 1-8) ← 原檔已有
+├── Step 1: Models (3 新建 + 1 修改)
+├── Step 2: DTOs (3 新建 + 1 修改)
+├── Step 3: Repositories (3 新建)
+├── Step 4: Services (3 新建)
+├── Step 5: Handler (1 新建，含 3 組路由)
+├── Step 6: Booth 整合
+├── Step 7: Migration + DI + 路由
+└── Step 8: Event Service 修改
+
+Phase 2: Backend Email + 可見性 (Step 11-13)
+├── Step 11: Email 模板 (2 新建)
+├── Step 12: NotificationService 擴充
+└── Step 13: access-check API + 活動列表過濾
+
+Phase 3: Official Website (Step 14-18)
+├── Step 14: API 模組
+├── Step 15: EventApplyVendorPage (新頁面)
+├── Step 16: EventRegisterBoothPage (攔截)
+├── Step 17: EventDetailPage (按鈕 + 封鎖)
+└── Step 18: EventVendorsPage (審核 + 封鎖管理)
+
+Phase 4: Dashboard (Step 9-10) ← 原檔已有
+├── Step 9: Dashboard API Client (4 新建)
+└── Step 10: Dashboard 頁面 (3 Tab Panels)
+
+Phase 5: API Regression Testing (api-lab-mcp)
+└── Step 19: 用 api-lab-mcp 測試所有新 API 端點
+```
+
+---
+
+## Commit 策略：每步完成 → 測試 → Commit（共 ~17 次）
+
+每完成一個 Step，用 api-lab-mcp 測試相關 API 端點（backend 步驟），確認通過後 commit。
+
+| Commit # | Step | 測試方式 | Commit Message |
+|----------|------|---------|----------------|
+| 1 | Step 1 | `make build` + `make test` | `feat: add event company review/block/member-block models` |
+| 2 | Step 2 | `make build` + `make test` | `feat: add event review/block DTOs + event RequireVendorReview` |
+| 3 | Step 3 | `make build` + `make test` (含 repo 單元測試) | `feat: add event review/block repositories with N+1 prevention` |
+| 4 | Step 4 | `make build` + `make test` (含 service 單元測試) | `feat: add event review/block services with business logic` |
+| 5 | Step 5 | `make build` + `make test` (含 handler 單元測試) | `feat: add event review/block handler with 15 API endpoints` |
+| 6 | Step 6 | `make build` + `make test` | `feat: integrate vendor review check into booth selection` |
+| 7 | Step 7 | `make test` + api-lab-mcp 測全部 15 個 CRUD API | `feat: wire DI + routes for event review/block system` |
+| 8 | Step 8 | `make test` + api-lab-mcp 測 RequireVendorReview | `feat: add RequireVendorReview to event service` |
+| 9 | Step 11 | `make build` + `make test` | `feat: add vendor application email templates` |
+| 10 | Step 12 | `make test` + api-lab-mcp 測申請→確認 email | `feat: extend notification service for vendor review emails` |
+| 11 | Step 13 | `make test` + api-lab-mcp 測 access-check (5 case) | `feat: add event access-check API + visibility filtering` |
+| 12 | Step 14 | `npm run build` (TS 編譯) | `feat: add event review API module for official website` |
+| 13 | Step 15 | `npm run build` | `feat: add EventApplyVendorPage with RWD` |
+| 14 | Step 16 | `npm run build` | `feat: add access check interception to booth registration` |
+| 15 | Step 17 | `npm run build` | `feat: integrate review/block into EventDetailPage` |
+| 16 | Step 18 | `npm run build` | `feat: add review/block tabs to EventVendorsPage` |
+| 17 | Step 9-10 | Dashboard `npm run build` | `feat: add review/block management to dashboard with RBAC` |
+
+**最終 regression**：Step 7 後 + Step 11 後 + Step 13 後，各用 `batch_test` 跑一次完整 regression。
+
+---
+
+## Phase 2: Backend Email + 可見性 (Step 11-13)
+
+### Step 11: Email 模板 (2 新建 + 測試)
+
+#### 11a. 新建 `backend-go/internal/service/email/templates/vendor_application_notification.html`
+通知主辦方有新申請。參考 `organizer_order_notification.html` 的樣式。
+
+#### 修改 `template_data.go` — 加 data struct
+```go
+type VendorApplicationEmailData struct {
+    OrganizerName, EventName, CompanyName, BrandName string
+    ApplicantName, ApplicantEmail, ApplyTime, ReviewURL string
+}
+```
+
+#### 修改 `templates.go` — 加 Render 方法
+```go
+func (r *TemplateRenderer) RenderVendorApplicationNotification(data VendorApplicationEmailData) (string, error)
+```
+
+#### 11b. 新建 `backend-go/internal/service/email/templates/vendor_application_result.html`
+通知品牌商審核結果。
+
+```go
+type VendorApplicationResultEmailData struct {
+    VendorName, EventName, StatusText, ReviewComment, EventURL string
+}
+func (r *TemplateRenderer) RenderVendorApplicationResult(data VendorApplicationResultEmailData) (string, error)
+```
+
+#### 11-test. 加入既有 `backend-go/internal/service/notification_service_test.go` 或新建 email template test
+- `TestRenderVendorApplicationNotification` — 渲染成功，含所有欄位
+- `TestRenderVendorApplicationResult_Approved` — StatusText="已核准"
+- `TestRenderVendorApplicationResult_Rejected` — StatusText="已拒絕"
+
+### Step 12: NotificationService 擴充
+
+#### 修改 `backend-go/internal/service/notification_service.go`
+
+12a. 新增常數：`NotificationTypeVendorReview = "vendor_review"`
+
+12b. Interface 新增 2 方法：
+```go
+SendVendorApplicationNotification(ctx, eventID, companyID, memberID string) (*NotificationLog, error)
+SendVendorApplicationResult(ctx, eventID, companyID, status, reviewComment string) (*NotificationLog, error)
+```
+
+12c. struct 加 `companyRepo`，用 setter 模式避免破壞現有建構：
+```go
+func (s *notificationService) SetCompanyRepo(repo repository.CompanyRepository) { s.companyRepo = repo }
+```
+
+12d. 在 `cmd/server/main.go` DI 中呼叫 setter
+
+12e. 修改 `event_company_review_service.go`：
+- struct 加 `notificationService NotificationService`
+- `ApplyToEvent` 成功後 goroutine 發 `SendVendorApplicationNotification`
+- `ReviewApplication` 後 goroutine 發 `SendVendorApplicationResult`
+
+### Step 13: 活動可見性過濾
+
+#### 13a. 新 DTO `backend-go/internal/dto/event_access_check.go`
+```go
+type EventAccessCheckResponse struct {
+    CanAccess           bool    `json:"can_access"`
+    Reason              string  `json:"reason,omitempty"`
+    ReviewStatus        *string `json:"review_status,omitempty"`
+    IsBlocked           bool    `json:"is_blocked"`
+    RequireVendorReview bool    `json:"require_vendor_review"`
+}
+```
+
+#### 13b. 新 Handler: `CheckEventAccess` 加在 `event_handler.go`
+路由：`GET /events/:id/access-check` (MemberAuth)
+
+邏輯：取 member 的 approved company IDs → 查 member_block → 查 company_block → 查 review status → 回傳
+
+需要在 EventHandler 注入: `eventCompanyReviewRepo`, `eventCompanyBlockRepo`, `eventMemberBlockRepo`, `memberCompanyRepo`
+
+#### 13c. Repository 新增方法
+```go
+// EventCompanyBlockRepository
+GetBlockedEventIDsByCompanyIDs(ctx, companyIDs []string) ([]string, error)
+// EventMemberBlockRepository
+GetBlockedEventIDsByMemberID(ctx, memberID string) ([]string, error)
+```
+
+#### 13d. 品牌商查詢單筆審核狀態
+`GET /event-company-reviews/event/:event_id/company/:company_id` (已在 Step 5 路由表)
+
+---
+
+## Phase 3: Official Website (Step 14-18)
+
+### Step 14: API 模組
+
+#### 14a. 新建 `futuresign.official_website/src/lib/api/event-review.ts`
+使用 `apiClient` 模式，包含：
+- `applyToEvent(eventId, companyId)`
+- `getMyReviewStatus(eventId, companyId)`
+- `checkAccess(eventId)`
+- `listByEvent(eventId, status?)`
+- `reviewApplication(reviewId, status, comment?)`
+- `blockCompany / blockMember / unblockCompany / unblockMember`
+- `listCompanyBlocks / listMemberBlocks`
+
+#### 14b. 修改 `futuresign.official_website/src/lib/api/types.ts`
+Event interface 加 `require_vendor_review?: boolean`
+
+### Step 15: 品牌商申請頁面
+
+#### 15a. 修改 `App.tsx` — 加路由
+```tsx
+const EventApplyVendorPage = lazy(() => import('@/pages/EventApplyVendorPage'))
+<Route path="/event/:id/apply" element={<ProtectedRoute><EventApplyVendorPage /></ProtectedRoute>} />
+```
+
+#### 15b. 新建 `futuresign.official_website/src/pages/EventApplyVendorPage.tsx`
+參考 BecomeVendorPage.tsx 的 pattern (plain React state + validation)
+
+**流程**：
+1. 驗證 vendor identity → 否則 redirect
+2. Fetch approved vendor companies
+3. Fetch event info + access check
+4. 如果 is_blocked → 封鎖畫面
+5. 如果已有審核記錄 → 狀態畫面 (pending/approved/rejected)
+6. 如果不需審核 → 提示可直接選位
+7. 表單：選公司 → 送出申請
+
+**RWD**：手機 w-full 按鈕、桌面居中 max-w-lg 卡片
+
+### Step 16: 攤位購買流程攔截
+
+修改 `EventRegisterBoothPage.tsx`：
+在初始化邏輯中加入 `eventReviewApi.checkAccess(eventId)`，攔截被封鎖 / 未審核的用戶。
+- is_blocked → toast.error + redirect 到活動頁
+- require_vendor_review && review_status !== 'approved' → redirect 到 /apply
+
+### Step 17: 活動詳情頁整合
+
+修改 `EventDetailPage.tsx`：
+- 17a. 用 `useQuery` 查 access-check（僅登入時），被封鎖顯示 NotFound
+- 17b. 品牌商看到「申請加入」按鈕 vs 「選擇攤位」按鈕的條件切換
+
+### Step 18: 主辦管理頁面
+
+修改 `EventVendorsPage.tsx` (~900 行)：
+用 Tabs 組件分 3 個 Tab：
+
+1. **已確認品牌商** — 現有內容不動
+2. **申請審核** — 審核列表 + 篩選 + 核准/拒絕按鈕 + DropdownMenu(封鎖)
+3. **封鎖管理** — 子 Tabs: 封鎖公司 / 封鎖會員，含解封按鈕
+
+---
+
+## Phase 4 補充: RBAC 權限設計
+
+現有系統使用 `role.permissions` JSON 欄位存權限，格式 `{"key": true/false}`。
+目前有 44 個權限，需新增品牌商審核/封鎖的權限。
+
+#### 新增權限常數 — 修改 `backend-go/internal/models/permission.go`
+
+在 `PermissionKeys` struct 加入：
+```go
+// Event Company Reviews (品牌商審核)
+EventCompanyReviewsView   string  // "event_company_reviews.view"
+EventCompanyReviewsCreate string  // "event_company_reviews.create"
+EventCompanyReviewsEdit   string  // "event_company_reviews.edit" (審核操作)
+EventCompanyReviewsDelete string  // "event_company_reviews.delete"
+
+// Event Company Blocks (公司封鎖)
+EventCompanyBlocksView   string  // "event_company_blocks.view"
+EventCompanyBlocksCreate string  // "event_company_blocks.create" (封鎖)
+EventCompanyBlocksDelete string  // "event_company_blocks.delete" (解封)
+
+// Event Member Blocks (會員封鎖)
+EventMemberBlocksView   string  // "event_member_blocks.view"
+EventMemberBlocksCreate string  // "event_member_blocks.create" (封鎖)
+EventMemberBlocksDelete string  // "event_member_blocks.delete" (解封)
+```
+共 +10 個權限（44 → 54）
+
+#### Handler 路由加權限 Middleware
+
+修改 `event_company_review_handler.go` 的路由（Step 5 / Step 7）：
+
+**審核 API** — Dashboard 端（TryBothAuth）加 `RequirePermissionForUser`：
+```go
+// Dashboard 用戶需要權限，Member 端不需要（MemberAuth 不檢查 RBAC）
+reviews.GET("/:id", middleware.TryBothAuth(), middleware.RequirePermissionForUser("event_company_reviews.view"), ...)
+reviews.GET("/event/:event_id", middleware.TryBothAuth(), middleware.RequirePermissionForUser("event_company_reviews.view"), ...)
+reviews.PATCH("/:id/review", middleware.MemberAuthRequired(cfg), ...) // Member only, 不需 RBAC
+```
+
+**封鎖 API** — 同理：
+```go
+blocks.GET("/event/:event_id", middleware.TryBothAuth(), middleware.RequirePermissionForUser("event_company_blocks.view"), ...)
+blocks.POST("", middleware.MemberAuthRequired(cfg), ...) // Member 端操作
+blocks.DELETE("/:id", middleware.MemberAuthRequired(cfg), ...) // Member 端操作
+```
+
+#### Dashboard 權限模組 — 修改 `futuresign.dashboard/src/constants/permissionModules.ts`
+
+在 Events category 加入 3 個新模組：
+
+```typescript
+// 加在 Events 分類下
+{
+  key: "event_company_reviews",
+  label: "品牌商審核",
+  actions: ["view", "create", "edit", "delete"],
+},
+{
+  key: "event_company_blocks",
+  label: "品牌商封鎖",
+  actions: ["view", "create", "delete"],
+},
+{
+  key: "event_member_blocks",
+  label: "會員封鎖",
+  actions: ["view", "create", "delete"],
+},
+```
+
+#### 預設角色權限
+
+| 角色 | 審核(view/edit) | 公司封鎖(view/create/delete) | 會員封鎖(view/create/delete) |
+|------|----------------|---------------------------|---------------------------|
+| BOSS | 全部 | 全部 | 全部 |
+| IT | 全部 | 全部 | 全部 |
+| MANAGER | view, edit | view, create, delete | view, create, delete |
+| ADMIN | view, edit | view, create | view, create |
+| PT | view only | view only | view only |
+
+需手動更新 DB 中各 role 的 permissions JSON，或在 dashboard 勾選。
+
+#### Dashboard Panel 權限控制
+
+Tab 顯示/隱藏根據當前用戶權限：
+```tsx
+const { hasPermission } = usePermission()
+{hasPermission("event_company_reviews.view") && <Tab>申請名單</Tab>}
+{hasPermission("event_company_blocks.view") && <Tab>已封鎖公司</Tab>}
+{hasPermission("event_member_blocks.view") && <Tab>已封鎖會員</Tab>}
+```
+
+Panel 內的操作按鈕也需權限控制：
+```tsx
+{hasPermission("event_company_reviews.edit") && <Button>核准</Button>}
+{hasPermission("event_company_blocks.create") && <Button>封鎖品牌商</Button>}
+{hasPermission("event_company_blocks.delete") && <Button>解封</Button>}
+```
+
+---
+
+## Phase 5: API Regression Testing (api-lab-mcp)
+
+### 測試策略
+
+使用 [api-lab-mcp](https://github.com/atototo/api-lab-mcp) MCP 工具在每個 Phase 完成後進行端對端 API 測試。
+
+### 19a. 測試前置：取得 Auth Token
+
+```
+mcp__api-lab-mcp__set_auth_config → bearer token
+```
+用既有測試帳號登入取得 JWT token，設定為 session auth。
+
+### 19b. Phase 1 完成後 — 核心 CRUD 測試
+
+用 `batch_test` 一次跑完所有新 API 端點：
+
+**審核 API 測試 (6 個)：**
+1. `POST /event-company-reviews` — 品牌商申請 → assert status=201, body 有 id
+2. `POST /event-company-reviews` — 重複申請 → assert status=409 (conflict)
+3. `GET /event-company-reviews/event/:event_id` — 列表 → assert status=200, data is array
+4. `GET /event-company-reviews/event/:event_id/company/:company_id` — 單筆查詢 → assert status=200
+5. `PATCH /event-company-reviews/:id/review` body={status:"approved"} → assert status=200, status=approved
+6. `PATCH /event-company-reviews/:id/review` body={status:"rejected"} → assert status=200, status=rejected
+
+**公司封鎖 API 測試 (4 個)：**
+1. `POST /event-company-blocks` → assert 201
+2. `POST /event-company-blocks` 重複 → assert 409
+3. `GET /event-company-blocks/event/:event_id` → assert 200, data is array
+4. `DELETE /event-company-blocks/:id` → assert 200 (解封)
+
+**會員封鎖 API 測試 (4 個)：**
+1. `POST /event-member-blocks` → assert 201
+2. `GET /event-member-blocks/event/:event_id` → assert 200
+3. `DELETE /event-member-blocks/:id` → assert 200
+4. `GET /event-member-blocks/:id` 已刪除 → assert 404
+
+### 19c. Phase 2 完成後 — Access Check + 封鎖可見性測試
+
+**Access Check API 測試 (5 個)：**
+1. 正常用戶 `GET /events/:id/access-check` → assert can_access=true
+2. 被封鎖會員 → assert is_blocked=true, can_access=false
+3. 被封鎖公司 → assert is_blocked=true
+4. 需審核但未申請 → assert require_vendor_review=true, review_status=null
+5. 已核准 → assert review_status="approved", can_access=true
+
+### 19d. 業務邏輯整合測試
+
+**完整流程 (sequential batch)：**
+1. 主辦建活動 + 設定 require_vendor_review=true
+2. 品牌商申請 → assert pending
+3. access-check → assert review_status=pending, can_access=false
+4. 主辦核准 → assert approved
+5. access-check → assert can_access=true
+6. 主辦封鎖公司 → assert 201
+7. access-check → assert is_blocked=true
+8. 主辦解封 → access-check → assert can_access=true
+
+### 19e. Regression Testing 設計
+
+建立 `api-test-config.json` 配置檔（可用 `load_config` 載入）：
+```json
+{
+  "environments": {
+    "local": { "baseUrl": "http://localhost:8080/api/v1" },
+    "staging": { "baseUrl": "https://staging-api.futuresign.com/api/v1" }
+  }
+}
+```
+
+**Regression 測試流程：**
+1. 每次部署前用 `batch_test` 跑 19b-19d 全部 assertions
+2. 用 `reportFormat: "failures"` 只顯示失敗項
+3. 設定 `stopOnFailure: false` 跑完全部再看結果
+4. 如果有 failure → 標記具體哪個 API 壞了
+
+**回歸測試命令範例：**
+```
+mcp__api-lab-mcp__batch_test({
+  tests: [...全部 19 個測試],
+  options: { parallel: false, stopOnFailure: false, timeout: 10000 },
+  reportFormat: "failures"
+})
+```
+
+### 19f. Sentry MCP 自動化 Regression
+
+當 API 上線後出錯，利用 Sentry MCP 插件自動化產生回歸測試：
+
+**流程：**
+1. **Sentry MCP 抓 Issue** — Claude 透過 Sentry MCP 讀取最新 Issue，取得完整 Context（API 參數、Header、用戶環境）
+2. **分析錯誤根因** — 例如 `user_id` 為空、`company_id` 不存在等
+3. **自動生成測試** — 用 api-lab-mcp 的 `test_with_assertions` 直接重現錯誤場景
+4. **加入 regression suite** — 將該測試加入 batch_test 配置，確保同類錯誤不再發生
+
+**範例場景：**
+```
+Sentry Issue #123: POST /event-company-reviews 500 error
+Context: { event_id: "xxx", company_id: "" }  ← company_id 為空
+
+→ 自動產生 assertion:
+  test_with_assertions({
+    url: "/event-company-reviews",
+    method: "POST",
+    body: { event_id: "xxx", company_id: "" },
+    assertions: [
+      { type: "status", expected: 400 },  // 應該是 400 不是 500
+      { type: "contains", expected: "company_id is required" }
+    ]
+  })
+```
+
+**好處：** 不需開 Sentry 網頁，從 Issue 到 regression test 全自動完成。
+
+---
+
+## 檔案總表
+
+### 新建檔案 (25 個：18 實作 + 7 測試)
+
+| # | 檔案 | 用途 |
+|---|------|------|
+| 1 | `backend-go/internal/models/event_company_review.go` | 審核 Model |
+| 2 | `backend-go/internal/models/event_company_block.go` | 公司封鎖 Model |
+| 3 | `backend-go/internal/models/event_member_block.go` | 會員封鎖 Model |
+| 4 | `backend-go/internal/dto/event_company_review.go` | 審核 DTO |
+| 5 | `backend-go/internal/dto/event_company_block.go` | 公司封鎖 DTO |
+| 6 | `backend-go/internal/dto/event_member_block.go` | 會員封鎖 DTO |
+| 7 | `backend-go/internal/dto/event_access_check.go` | access-check DTO |
+| 8 | `backend-go/internal/repository/event_company_review_repository.go` | 審核 Repo |
+| 9 | `backend-go/internal/repository/event_company_review_repository_test.go` | 審核 Repo 測試 |
+| 10 | `backend-go/internal/repository/event_company_block_repository.go` | 公司封鎖 Repo |
+| 11 | `backend-go/internal/repository/event_company_block_repository_test.go` | 公司封鎖 Repo 測試 |
+| 12 | `backend-go/internal/repository/event_member_block_repository.go` | 會員封鎖 Repo |
+| 13 | `backend-go/internal/repository/event_member_block_repository_test.go` | 會員封鎖 Repo 測試 |
+| 14 | `backend-go/internal/service/event_company_review_service.go` | 審核 Service |
+| 15 | `backend-go/internal/service/event_company_review_service_test.go` | 審核 Service 測試 |
+| 16 | `backend-go/internal/service/event_company_block_service.go` | 公司封鎖 Service |
+| 17 | `backend-go/internal/service/event_company_block_service_test.go` | 公司封鎖 Service 測試 |
+| 18 | `backend-go/internal/service/event_member_block_service.go` | 會員封鎖 Service |
+| 19 | `backend-go/internal/service/event_member_block_service_test.go` | 會員封鎖 Service 測試 |
+| 20 | `backend-go/internal/handler/event_company_review_handler.go` | 合併 Handler |
+| 21 | `backend-go/internal/handler/event_company_review_handler_test.go` | Handler 測試 |
+| 22 | `backend-go/internal/service/email/templates/vendor_application_notification.html` | 申請通知 Email |
+| 23 | `backend-go/internal/service/email/templates/vendor_application_result.html` | 結果通知 Email |
+| 24 | `official_website/src/lib/api/event-review.ts` | 前台 API 模組 |
+| 25 | `official_website/src/pages/EventApplyVendorPage.tsx` | 品牌商申請頁面 |
+
+### 修改檔案 (17 個)
+
+| # | 檔案 | 變更 |
+|---|------|------|
+| 1 | `backend-go/internal/models/event.go` | +RequireVendorReview 欄位 |
+| 2 | `backend-go/internal/models/permission.go` | +10 權限常數 (RBAC) |
+| 3 | `backend-go/internal/dto/event.go` | +RequireVendorReview (4 處) |
+| 4 | `backend-go/internal/handler/booth_handler.go` | +CheckVendorCanParticipate 攔截 |
+| 5 | `backend-go/internal/handler/event_handler.go` | +CheckEventAccess handler |
+| 6 | `backend-go/internal/service/event_service.go` | +RequireVendorReview 處理 |
+| 7 | `backend-go/internal/service/notification_service.go` | +1 type, +2 methods, +companyRepo |
+| 8 | `backend-go/internal/service/email/template_data.go` | +2 data structs |
+| 9 | `backend-go/internal/service/email/templates.go` | +2 Render methods |
+| 10 | `backend-go/internal/migrate/migrate.go` | +3 models |
+| 11 | `backend-go/cmd/server/main.go` | +DI 接線, +路由, +setter, +RBAC middleware |
+| 12 | `official_website/src/App.tsx` | +EventApplyVendorPage route |
+| 13 | `official_website/src/lib/api/types.ts` | Event +require_vendor_review |
+| 14 | `official_website/src/pages/EventRegisterBoothPage.tsx` | +access check 攔截 |
+| 15 | `official_website/src/pages/EventDetailPage.tsx` | +封鎖檢查, +申請按鈕 |
+| 16 | `official_website/src/pages/EventVendorsPage.tsx` | +Tabs(審核+封鎖) |
+| 17 | `dashboard/src/constants/permissionModules.ts` | +3 權限模組 (RBAC UI) |
