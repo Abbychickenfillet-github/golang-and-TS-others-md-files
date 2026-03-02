@@ -289,7 +289,144 @@ printWindow.document.close()
 
 ---
 
+## Phase 10 Footer 排版問題（2026-03-02）
+
+### 問題
+
+Phase 8 的 window.print() 方案成功後，實際使用發現一個排版問題：`.page-footer` 使用 `position: absolute; bottom: 24px`，當頁面內容較長、超過 A4 可用高度時，footer 會被推到獨立的新一頁，只有一行灰色小字在整張空白 A4 紙上，非常難看。
+
+### 截圖
+
+**Footer 被推到獨立新一頁**：
+
+![footer on separate page](https://github.com/user-attachments/assets/02bbd9b7-61dd-435c-8c2d-abb1ca4fb2e5)
+
+**修正後 footer 緊跟在內容後面**：
+
+![footer fixed](https://github.com/user-attachments/assets/de52fc3e-9198-44ec-a5ad-6ac64097dea2)
+
+### 原因分析
+
+```css
+/* 原始 CSS */
+.page {
+  min-height: 297mm;
+  position: relative;  /* ← absolute 的定位基準 */
+}
+.page-footer {
+  position: absolute;
+  bottom: 24px;        /* ← 距離 .page 底部 24px */
+  left: 48px;
+  right: 48px;
+}
+```
+
+`position: absolute` 讓 footer 脫離正常文件流，定位在 `.page` 的底部。但 `.page` 有 `min-height: 297mm`，**不是** `height: 297mm`。當內容超過 297mm 時，`.page` 會被撐大，`bottom: 24px` 的 footer 跟著被推到更下面。在列印分頁時，超出 A4 範圍的 footer 就落到下一頁。
+
+### 嘗試修復過程（3 次失敗 → 最終成功）
+
+#### 嘗試 1：flexbox `margin-top: auto`（失敗）
+
+```css
+.page { display: flex; flex-direction: column; min-height: 297mm; }
+.page-content { flex: 1; }
+.page-footer { margin-top: auto; border-top: 1px solid #ddd; }
+```
+
+**結果**：❌ 仍然被推到新一頁
+
+**原因**：`min-height: 297mm` 在列印時超過可印區域（`@page margin: 20mm` 上下共 40mm，可印區域只有 257mm）。即使加 `@media print { .page { min-height: auto; } }`，footer 用 HTML 元素實作就會有 `border-top` 線條，視覺上多餘。
+
+---
+
+#### 嘗試 2：`position: fixed`（列印模式）+ 雙 footer 元素（失敗）
+
+把 footer 拆成兩個元素：
+- `.page-footer-preview`：在每個 `.page` div 內，螢幕預覽用
+- `.page-footer-fixed`：在 `.page-wrapper` 外，`position: fixed; bottom: 0`，列印時顯示
+
+```css
+@media print {
+  .page-footer-preview { display: none; }
+  .page-footer-fixed { display: flex; position: fixed; bottom: 0; }
+}
+```
+
+**結果**：❌ 過度複雜，且預覽時仍有多餘的 `border-top` 線
+
+**原因**：需要維護兩份相同內容的 HTML 元素，一個預覽用一個列印用。`position: fixed` 在列印模式中確實能每頁重複，但預覽畫面的 footer 還是有礙眼的線。根本問題是「HTML 元素做 footer」這條路走不通。
+
+---
+
+#### 嘗試 3（最終方案）：CSS `@page` margin boxes ✅
+
+Abby 提出的關鍵洞察：**「你就不能直接寫到列印的那個 footer 嗎？」**
+
+搜尋後發現 Chrome 131+（2024-11 發布）支援 CSS `@page` margin boxes — 可以直接把內容寫進瀏覽器列印引擎的頁尾區域。
+
+```css
+@page {
+  size: A4;
+  margin: 20mm;
+  @bottom-left {
+    content: "活動名稱";
+    font-size: 9pt;
+    color: #888;
+  }
+  @bottom-right {
+    content: "活動連結 URL";
+    font-size: 9pt;
+    color: #888;
+  }
+}
+```
+
+**結果**：✅ 完美！
+
+**為什麼成功**：
+1. **零 HTML 元素**：不需要任何 `.page-footer` div，純 CSS 定義
+2. **列印引擎原生**：`@bottom-left` / `@bottom-right` 是 `@page` 的 margin box，位於頁面邊距區域內，不佔內容空間
+3. **每頁自動重複**：列印引擎自動在每一頁相同位置渲染，不需要每個 `.page` div 都放一個 footer
+4. **不影響預覽**：`@page` 只在列印/存 PDF 時生效，瀏覽器預覽不會顯示多餘元素
+5. **沒有多餘的線**：因為根本沒有 HTML 元素，自然不會有 `border-top`
+
+> **參考**：https://developer.chrome.com/blog/print-margins
+
+### 完整嘗試紀錄表
+
+| # | 方案 | 結果 | 為什麼失敗 |
+|---|------|------|-----------|
+| 0 | `position: absolute; bottom: 24px`（原始） | ❌ | `min-height: 297mm` 超過可印區域，absolute footer 被推到新一頁 |
+| 1 | flexbox `margin-top: auto` | ❌ | `min-height` 問題 + `border-top` 線條多餘 |
+| 2 | `position: fixed` 雙 footer 元素 | ❌ | 過度複雜 + 預覽仍有多餘線條 |
+| 3 | **CSS `@page` margin boxes** | ✅ | Chrome 131+ 原生支援，零 HTML 元素，列印引擎自動處理 |
+
+### 教訓
+
+1. **先問「這個東西原生有沒有支援」** — 列印 footer 是瀏覽器列印引擎的基本功能，`@page` margin boxes 就是為此而生的 API
+2. **HTML 元素做列印 footer 是錯誤方向** — absolute、flexbox、fixed 都是在 HTML 層面模擬列印 footer，本質上走錯路了
+3. **Chrome 131 是分水嶺** — 2024-11 之前只能用 hack，之後可以用 `@page` margin boxes 正規做法
+
+### 測試用活動與手冊
+
+使用以下資料測試 PDF footer 排版問題：
+
+- **活動頁面**：`http://localhost:3000/event/46f5ad59-5ce0-42fa-8963-71054edebe0e#handbook`
+- **測試手冊**：`水電與進場須知`（id: `601e1206-3709-4cfd-b39c-257d46b7f97c`）
+  - `event_id`: `46f5ad59-5ce0-42fa-8963-71054edebe0e`
+  - `allowed_footer_event_name`: `1`（已開啟 footer）
+  - `status`: `published`
+  - 手冊內已上傳好圖片，內容夠長可觸發跨頁 footer 問題
+
+> 同事如果懶得自己上傳圖片，可以直接用這本手冊測試 PDF 下載功能。
+
+**cover_image_urls 上傳測試成功**：
+
+![cover image upload test](https://github.com/user-attachments/assets/f8961501-919f-4f70-b957-f91b5c1509c0)
+
+---
+
 ## 相關筆記
 
-- [digital-book-implementation-plan.md](../plan/digital-book-implementation-plan.md) — Phase 8 完整實作計畫 + 踩坑摘要
+- [digital-book-implementation-plan.md](../plan/digital-book-implementation-plan.md) — Phase 8 完整實作計畫 + 踩坑摘要 + Phase 10 記錄
 - [struct-tag-backtick-json.md](../Golang/struct-tag-backtick-json.md) — Phase 8 中順帶學習的 Go struct tag 語法
