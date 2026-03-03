@@ -534,6 +534,29 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 |------|------|------|------|
 | Step 9-10 | Dashboard API Client + 頁面 | ✅ 完成 | 4 新建 + 4 修改，含 RBAC 權限 |
 
+### Dashboard require_vendor_review 開關（已完成）
+
+| 檔案 | 變更 | 原因 |
+|------|------|------|
+| `futuresign.dashboard/src/routes/_layout/events.tsx` | +`Switch` import, +`FormHelperText` import, +`isITOrBoss` destructure, +`require_vendor_review` 欄位到 `EventPublic`/`EditEventFormValues`/defaultValues/reset/payload, +`toggleVendorReviewMutation`, +品牌商審核 Tab 頂部 Switch, +EditEventModal 內 Switch | IT/BOSS 可直接在 Tab 或 Modal 切換 `require_vendor_review` |
+| `futuresign.dashboard/src/client/services/events.ts` | `EventCreate` 加 `require_vendor_review`, `EventPublic` 加 `require_vendor_review` + `is_featured` | Dashboard API 型別對齊後端 |
+
+### Official Website require_vendor_review 開關 + 品牌商申請表（已完成）
+
+| 檔案 | 變更 | 原因 |
+|------|------|------|
+| `futuresign.official_website/src/components/ui/switch.tsx` | **新建** — Radix Switch 元件 | 提供 shadcn/ui Switch UI 元件 |
+| `futuresign.official_website/src/pages/EventsCreateBasicPage.tsx` | +`Switch` import, formData +`require_vendor_review`, loadEventData 加欄位, 送出 payload 加欄位, Step 4 報名設定加 Switch, Step 7 確認頁加顯示, Step 7 加票券必填+活動手冊提醒 | 主辦建立/編輯活動時可設定品牌商審核 |
+| `futuresign.official_website/src/pages/EventRegisterBoothPage.tsx` | +`sweetalert2` + `useCallback` import, +`vendorAccessResult`/`isApplyingVendor` state, 改 access-check 邏輯（存結果不 redirect）, +`handleVendorApply` 函式（SweetAlert 確認）, +`needsVendorReview` 判斷, +品牌商申請攔截 UI（選公司+送出+狀態顯示） | 品牌商直接在 register 頁面申請，不跳轉 |
+| `futuresign.official_website/src/lib/i18n/translations/zh-TW.json` | +`requireVendorReview`, `requireVendorReviewDesc`, `enabled`, `disabled`, `ticketSettingsRequired`, `ticketSettingsHint`, `eventManualHint` | i18n 繁中翻譯 |
+| `futuresign.official_website/src/lib/i18n/translations/en.json` | 同上英文版 | i18n 英文翻譯 |
+
+### Golang 筆記
+
+| 檔案 | 內容 |
+|------|------|
+| `Abby-notes/Golang/setter.md` | **新建** — Setter 模式避免破壞現有建構函式的說明文件 |
+
 ### 未完成項目
 
 | Step | 內容 | 狀態 |
