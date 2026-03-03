@@ -2212,11 +2212,16 @@ var (
 | Step 17 | EventDetailPage（申請按鈕 + 封鎖檢查） | ✅ 完成 | useQuery accessCheck |
 | Step 18 | EventVendorsPage（審核+封鎖 Tabs） | ✅ 完成 | 3 個 Tab |
 
+### Dashboard Phase 4 完成狀態
+
+| Step | 內容 | 狀態 | 備註 |
+|------|------|------|------|
+| Step 9-10 | Dashboard API Client + 頁面 | ✅ 完成 | 4 新建 + 4 修改，含 RBAC 權限 |
+
 ### 未完成項目
 
 | Step | 內容 | 狀態 |
 |------|------|------|
-| Step 9-10 | Dashboard API Client + 頁面 | ❌ 待做 |
 | Step 11 | Email 模板 | ❌ 待做 |
 | Step 12 | NotificationService 擴充 | ❌ 待做 |
 | Step 13 | access-check API + 活動列表過濾 | ❌ 待做 |
