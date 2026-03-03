@@ -1924,3 +1924,263 @@ Context: { event_id: "xxx", company_id: "" }  ← company_id 為空
 | 15 | `official_website/src/pages/EventDetailPage.tsx` | +封鎖檢查, +申請按鈕 |
 | 16 | `official_website/src/pages/EventVendorsPage.tsx` | +Tabs(審核+封鎖) |
 | 17 | `dashboard/src/constants/permissionModules.ts` | +3 權限模組 (RBAC UI) |
+
+---
+
+## 設計變更：封鎖合併為一張表 `event_block`
+
+### 變更原因
+原計畫 `event_company_block` + `event_member_block` 兩張表結構高度重複，合併為 `event_block` 用 `block_type` 區分。
+
+### 合併後結構
+
+```
+event_block
+├── id (varchar 36, PK)
+├── event_id (varchar 36, not null)
+├── block_type (varchar 20, not null) -- 'company' 或 'member'
+├── target_id (varchar 36, not null) -- block_type=company 時為 company_id，block_type=member 時為 member_id
+├── reason (varchar 500, nullable) -- 封鎖原因
+├── blocked_by (varchar 36, not null) -- 操作者 member ID
+├── created_at, updated_at, deleted_at
+└── UNIQUE KEY uk_event_block (event_id, block_type, target_id)
+```
+
+### 影響範圍
+- Model: 原 2 檔 → 1 檔 `event_block.go`
+- DTO: 原 2 檔 → 1 檔 `event_block.go`
+- Repository: 原 2 檔 → 1 檔 `event_block_repository.go`
+- Service: 原 2 檔 → 1 檔 `event_block_service.go`
+- Handler: 合併在 `event_company_review_handler.go` 內，路由不變
+- 權限: `event_company_blocks.*` + `event_member_blocks.*` → `event_blocks.*`（6 個權限 → 3 個）
+
+---
+
+## SQL 建表語法
+
+### 1. event_company_review（品牌商審核）
+
+```sql
+CREATE TABLE `event_company_review` (
+  `id` varchar(36) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
+  `event_id` varchar(36) NOT NULL COMMENT '活動 ID',
+  `company_id` varchar(36) NOT NULL COMMENT '公司 ID',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '審核狀態 (pending/approved/rejected)',
+  `review_comment` varchar(500) DEFAULT NULL COMMENT '審核意見',
+  `reviewed_by` varchar(36) DEFAULT NULL COMMENT '審核人 member ID',
+  `reviewed_at` datetime DEFAULT NULL COMMENT '審核時間',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_event_company_review` (`event_id`, `company_id`),
+  KEY `idx_ecr_event` (`event_id`),
+  KEY `idx_ecr_company` (`company_id`),
+  KEY `idx_ecr_status` (`status`),
+  KEY `idx_event_company_review_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='活動品牌商審核記錄';
+```
+
+### 2. event_block（活動封鎖 — 公司/會員合併）
+
+```sql
+CREATE TABLE `event_block` (
+  `id` varchar(36) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
+  `event_id` varchar(36) NOT NULL COMMENT '活動 ID',
+  `block_type` varchar(20) NOT NULL COMMENT '封鎖類型 (company/member)',
+  `target_id` varchar(36) NOT NULL COMMENT '被封鎖對象 ID (company_id 或 member_id)',
+  `reason` varchar(500) DEFAULT NULL COMMENT '封鎖原因',
+  `blocked_by` varchar(36) NOT NULL COMMENT '操作者 member ID',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_event_block` (`event_id`, `block_type`, `target_id`),
+  KEY `idx_eb_event` (`event_id`),
+  KEY `idx_eb_type` (`block_type`),
+  KEY `idx_eb_target` (`target_id`),
+  KEY `idx_event_block_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='活動封鎖記錄（公司/會員）';
+```
+
+### 3. event 表新增欄位
+
+```sql
+ALTER TABLE `event`
+  ADD COLUMN `require_vendor_review` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否需要品牌商審核'
+  AFTER `is_featured`;
+```
+
+---
+
+## 🔄 Backend 設計變更：統一為 `event_review` 單表（取代上方 3 表設計）
+
+> **重要**：以下內容取代上方 Step 1-8 的 3 表設計（event_company_review + event_company_block + event_member_block）
+> 前端路由與 API 呼叫方式不變，只是後端底層改為單表。
+
+### 變更原因
+
+審核（review）和封鎖（block）本質相同：
+- 都是「某活動 + 某對象」的狀態記錄
+- 封鎖只是 status = 'blocked'
+- 解封只是 status 改為 'approved'
+- 合併後減少表數量與 JOIN 複雜度
+
+### 單表設計：`event_review`
+
+```
+event_review
+├── id (PK, UUID)
+├── event_id (varchar 36, not null)
+├── target_type (varchar 20, not null) — 'company' | 'member'
+├── target_id (varchar 36, not null)   — company_id 或 member_id
+├── status (varchar 20, not null)      — 'pending' | 'approved' | 'rejected' | 'blocked'
+├── review_comment (varchar 500)       — 審核意見或封鎖原因
+├── reviewed_by (varchar 36)           — 操作者 member ID
+├── reviewed_at (datetime)             — 操作時間
+├── created_at / updated_at / deleted_at (GORM Base)
+└── UK: (event_id, target_type, target_id) — 同一活動+對象類型+對象ID 只能有一筆
+```
+
+### 狀態機
+
+**公司 (target_type = 'company')**：
+```
+(無記錄) → pending → approved
+                   → rejected
+                   → blocked → approved (解封)
+(無記錄) → blocked (直接封鎖)
+```
+
+**會員 (target_type = 'member')**：
+```
+(無記錄) → blocked → approved (解封)
+```
+會員不需要申請審核流程，只有封鎖/解封。
+
+### 新 SQL CREATE TABLE（取代上方 event_company_review + event_block 兩張表）
+
+```sql
+CREATE TABLE `event_review` (
+  `id` varchar(36) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
+  `event_id` varchar(36) NOT NULL COMMENT '活動 ID',
+  `target_type` varchar(20) NOT NULL COMMENT '對象類型 (company/member)',
+  `target_id` varchar(36) NOT NULL COMMENT '對象 ID (company_id 或 member_id)',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '狀態 (pending/approved/rejected/blocked)',
+  `review_comment` varchar(500) DEFAULT NULL COMMENT '審核意見或封鎖原因',
+  `reviewed_by` varchar(36) DEFAULT NULL COMMENT '操作者 member ID',
+  `reviewed_at` datetime DEFAULT NULL COMMENT '操作時間',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_event_review` (`event_id`, `target_type`, `target_id`),
+  KEY `idx_er_event` (`event_id`),
+  KEY `idx_er_type` (`target_type`),
+  KEY `idx_er_target` (`target_id`),
+  KEY `idx_er_status` (`status`),
+  KEY `idx_event_review_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='活動審核/封鎖記錄（統一表）';
+```
+
+> event 表 ALTER TABLE 不變（新增 `require_vendor_review`）。
+
+### 後端檔案對應表（取代原 3 表設計的新建檔案）
+
+| 原計畫（3 表） | 統一後（1 表） | 說明 |
+|---------------|---------------|------|
+| `models/event_company_review.go` | `models/event_review.go` | 統一 Model |
+| `models/event_company_block.go` | ❌ 不需要 | 合併 |
+| `models/event_member_block.go` | ❌ 不需要 | 合併 |
+| `dto/event_company_review.go` | `dto/event_review.go` | 統一 DTO |
+| `dto/event_company_block.go` | ❌ 不需要 | 合併 |
+| `dto/event_member_block.go` | ❌ 不需要 | 合併 |
+| `repository/event_company_review_repository.go` | `repository/event_review_repository.go` | 統一 Repo |
+| `repository/event_company_block_repository.go` | ❌ 不需要 | 合併 |
+| `repository/event_member_block_repository.go` | ❌ 不需要 | 合併 |
+| `service/event_company_review_service.go` | `service/event_review_service.go` | 統一 Service |
+| `service/event_company_block_service.go` | ❌ 不需要 | 合併 |
+| `service/event_member_block_service.go` | ❌ 不需要 | 合併 |
+| `handler/event_company_review_handler.go` | `handler/event_review_handler.go` | 統一 Handler |
+
+**新建檔案：7 個（原 25 個 → 大幅簡化）**
+1. `backend-go/internal/models/event_review.go`
+2. `backend-go/internal/dto/event_review.go`
+3. `backend-go/internal/repository/event_review_repository.go`
+4. `backend-go/internal/repository/event_review_repository_test.go`
+5. `backend-go/internal/service/event_review_service.go`
+6. `backend-go/internal/service/event_review_service_test.go`
+7. `backend-go/internal/handler/event_review_handler.go`
+
+**修改檔案不變**（event.go、dto/event.go、booth_handler.go、main.go、migrate.go 等）
+
+### 統一 API 路由表（取代原 15 個 → 合併為 9 個）
+
+| Method | Path | 功能 | Auth |
+|--------|------|------|------|
+| POST | `/event-reviews` | 品牌商申請加入活動 | MemberAuth |
+| GET | `/event-reviews/:id` | 取得單筆審核/封鎖記錄 | TryBothAuth |
+| GET | `/event-reviews/event/:event_id` | 列出活動下的記錄（可篩 target_type/status） | TryBothAuth |
+| GET | `/event-reviews/event/:event_id/company/:company_id` | 查詢品牌商審核狀態 | MemberAuth |
+| GET | `/event-reviews/company/:company_id` | 列出某公司在所有活動的記錄 | MemberAuth |
+| PATCH | `/event-reviews/:id/review` | 主辦審核（approved/rejected） | MemberAuth |
+| POST | `/event-reviews/block` | 封鎖公司或會員 | MemberAuth |
+| PATCH | `/event-reviews/:id/unblock` | 解封（status → approved） | MemberAuth |
+| DELETE | `/event-reviews/:id` | 刪除記錄（軟刪除） | TryBothAuth |
+
+### Service 主要方法
+
+```go
+type EventReviewService interface {
+    ApplyToEvent(ctx, req)                       // 品牌商申請
+    ReviewApplication(ctx, id, req, reviewerID)  // 主辦審核
+    BlockTarget(ctx, req, blockedBy)             // 封鎖公司或會員
+    UnblockTarget(ctx, id, reviewerID)           // 解封 → status=approved
+    GetByID(ctx, id)                             // 查詢單筆
+    GetByEventAndTarget(ctx, eventID, targetType, targetID) // 查詢特定對象
+    ListByEvent(ctx, eventID, targetType, status, skip, limit) // 活動下的記錄
+    ListByTarget(ctx, targetType, targetID, skip, limit)       // 對象在所有活動的記錄
+    CheckVendorCanParticipate(ctx, eventID, companyID, memberID, requireVendorReview) // Booth 攔截
+    DeleteReview(ctx, id)                        // 軟刪除
+}
+```
+
+### 前端對應
+
+前端 API 呼叫路徑隨後端統一：
+
+**Official Website**：
+- `event-review.ts` 中的 API 函式改呼叫 `/event-reviews/...` 路徑
+- 品牌商申請頁面、攤位攔截、審核管理頁面的邏輯不變
+
+**Dashboard**：
+- `eventCompanyReview.ts` service 改呼叫統一 API
+- 封鎖管理改用 `/event-reviews/block` 和 `/event-reviews/:id/unblock`
+- Tab panels 查詢用 `target_type` 和 `status` 參數區分
+
+### 錯誤定義
+
+```go
+var (
+    ErrEventReviewNotFound  = errors.New("審核記錄不存在")
+    ErrEventReviewExists    = errors.New("該公司已申請過此活動")
+    ErrEventCompanyBlocked  = errors.New("該公司已被此活動封鎖")
+    ErrEventMemberBlocked   = errors.New("該會員已被此活動封鎖")
+    ErrVendorNotApproved    = errors.New("品牌商尚未通過此活動審核")
+    ErrInvalidReviewStatus  = errors.New("無效的審核狀態")
+    ErrTargetAlreadyBlocked = errors.New("該對象已被封鎖")
+)
+```
+
+### CheckVendorCanParticipate 攔截邏輯
+
+被 `booth_handler.go` 的 `SelectBooth` 呼叫：
+
+```
+1. 查 member 是否被封鎖 (target_type=member, status=blocked) → ErrEventMemberBlocked
+2. 查 company 是否被封鎖 (target_type=company, status=blocked) → ErrEventCompanyBlocked
+3. 如果 requireVendorReview=true：
+   - 查 company 審核記錄
+   - 如果無記錄 或 status != approved → ErrVendorNotApproved
+4. 全部通過 → return nil（放行）
+```
