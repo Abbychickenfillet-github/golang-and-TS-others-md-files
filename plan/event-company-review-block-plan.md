@@ -21,7 +21,7 @@ event_review
 ├── target_type (varchar 20, not null) — 'company' | 'member'
 ├── target_id (varchar 36, not null)   — company_id 或 member_id
 ├── applier_member_id (varchar 36, nullable) — 申請者 member ID（代表誰去申請的）⭐ 2026-03-03 新增
-├── status (varchar 20, not null)      — 'pending' | 'approved' | 'rejected' | 'blocked'
+├── status (varchar 20, not null)      — 'pending' | 'approved' | 'rejected'（rejected 同時用於「拒絕」與「封鎖」）
 ├── review_comment (varchar 500)       — 審核意見或封鎖原因
 ├── reviewed_by (varchar 36)           — 操作者 member ID（審核/封鎖操作者）
 ├── reviewed_at (datetime)             — 操作時間
@@ -34,14 +34,13 @@ event_review
 **公司 (target_type = 'company')**：
 ```
 (無記錄) → pending → approved
-                   → rejected
-                   → blocked → approved (解封)
-(無記錄) → blocked (直接封鎖)
+                   → rejected → approved (解封)
+(無記錄) → rejected (直接封鎖/拒絕)
 ```
 
 **會員 (target_type = 'member')**：
 ```
-(無記錄) → blocked → approved (解封)
+(無記錄) → rejected → approved (解封)
 ```
 會員不需要申請審核流程，只有封鎖/解封。
 
@@ -52,11 +51,10 @@ CREATE TABLE `event_review` (
   `id` varchar(36) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted_at` datetime DEFAULT NULL,
   `event_id` varchar(36) NOT NULL COMMENT '活動 ID',
   `target_type` varchar(20) NOT NULL COMMENT '對象類型 (company/member)',
   `target_id` varchar(36) NOT NULL COMMENT '對象 ID (company_id 或 member_id)',
-  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '狀態 (pending/approved/rejected/blocked)',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '狀態 (pending/approved/rejected)',
   `review_comment` varchar(500) DEFAULT NULL COMMENT '審核意見或封鎖原因',
   `reviewed_by` varchar(36) DEFAULT NULL COMMENT '操作者 member ID',
   `reviewed_at` datetime DEFAULT NULL COMMENT '操作時間',
@@ -65,8 +63,7 @@ CREATE TABLE `event_review` (
   KEY `idx_er_event` (`event_id`),
   KEY `idx_er_type` (`target_type`),
   KEY `idx_er_target` (`target_id`),
-  KEY `idx_er_status` (`status`),
-  KEY `idx_event_review_deleted_at` (`deleted_at`)
+  KEY `idx_er_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='活動審核/封鎖記錄（統一表）';
 ```
 
@@ -115,7 +112,7 @@ type EventReview struct {
     EventID       string     `gorm:"type:varchar(36);not null;uniqueIndex:uk_event_review,priority:1"`
     TargetType    string     `gorm:"type:varchar(20);not null;uniqueIndex:uk_event_review,priority:2"` // company | member
     TargetID      string     `gorm:"type:varchar(36);not null;uniqueIndex:uk_event_review,priority:3"`
-    Status        string     `gorm:"type:varchar(20);not null;default:'pending'"` // pending | approved | rejected | blocked
+    Status        string     `gorm:"type:varchar(20);not null;default:'pending'"` // pending | approved | rejected（rejected 同時用於拒絕和封鎖）
     ReviewComment *string    `gorm:"type:varchar(500)"`
     ReviewedBy    *string    `gorm:"type:varchar(36)"`
     ReviewedAt    *time.Time `gorm:"type:datetime"`
@@ -177,8 +174,8 @@ var (
 被 `booth_handler.go` 的 `SelectBooth` 呼叫：
 
 ```
-1. 查 member 是否被封鎖 (target_type=member, status=blocked) → ErrEventMemberBlocked
-2. 查 company 是否被封鎖 (target_type=company, status=blocked) → ErrEventCompanyBlocked
+1. 查 member 是否被封鎖 (target_type=member, status=rejected) → ErrEventMemberBlocked
+2. 查 company 是否被封鎖 (target_type=company, status=rejected) → ErrEventCompanyBlocked
 3. 如果 requireVendorReview=true：
    - 查 company 審核記錄
    - 如果無記錄 或 status != approved → ErrVendorNotApproved
@@ -228,7 +225,7 @@ var (
 - `BlockTargetRequest { event_id, target_type, target_id, review_comment? }`
 - `EventReviewResponse` — 完整審核記錄（含 company_name, brand_name, member_name, member_email）
 - `EventReviewListResponse { data[], count }`
-- `EventAccessCheckResponse { can_access, reason?, review_status?, is_blocked, require_vendor_review }`
+- `EventAccessCheckResponse { can_access, reason?, review_status?, is_blocked (deprecated, 改用 review_status=rejected), require_vendor_review }`
 
 **方法**（9 個）：
 ```
@@ -256,7 +253,7 @@ eventReviewApi.checkAccess(eventId)           // GET /events/:id/access-check
 ```
              ┌─ not-vendor ──→ [前往申請品牌商] 按鈕 → /become-vendor
              │
-loading ─────┼─ blocked ─────→ Ban icon + "無法參加此活動"
+loading ─────┼─ rejected ────→ Ban icon + "無法參加此活動"
              │
              ├─ no-review ───→ CheckCircle icon + "無需審核" → [前往選擇攤位]
              │
@@ -302,7 +299,7 @@ memberApi.getMemberCompanies(user.id) → 篩選 approved + vendor/organizer rol
   ↓ 0 間 → not-vendor
   ↓ ≥1 間 → 預設選第一間
 eventReviewApi.checkAccess(eventId)
-  ↓ is_blocked → blocked
+  ↓ status=rejected → rejected（封鎖）
   ↓ !require_vendor_review → no-review
   ↓ review_status 存在 → getByEventAndCompany → status
   ↓ 無記錄 → form
@@ -316,7 +313,7 @@ eventReviewApi.checkAccess(eventId)
 
 ```
 已登入 + isVendor:
-  ┌─ is_blocked ────→ 紅色 Alert: "您已被此活動封鎖，無法參加"
+  ┌─ status=rejected ─→ 紅色 Alert: "您已被此活動封鎖，無法參加"
   │
   ├─ require_vendor_review + review_status == 'pending'
   │   → 黃色 Alert: "您的申請正在審核中" + Clock icon
@@ -343,7 +340,7 @@ eventReviewApi.checkAccess(eventId)
 fetchData() {
   try {
     const access = await eventReviewApi.checkAccess(eventId)
-    if (access.is_blocked) → toast.error("您已被此活動封鎖") → redirect /event/:id
+    if (status === 'rejected') → SweetAlert 顯示封鎖訊息 → return
     if (access.require_vendor_review && review_status !== 'approved')
       → toast.error("請先完成品牌商審核申請") → redirect /event/:id/apply
   } catch { /* API 尚未實作時忽略 */ }
@@ -404,7 +401,7 @@ fetchData() {
 
 **新增 function**：
 - `fetchReviews(eventId, filter?)` — 查審核列表 (target_type=company)
-- `fetchBlocks(eventId, typeFilter?)` — 查封鎖列表 (status=blocked)
+- `fetchBlocks(eventId, typeFilter?)` — 查封鎖列表 (status=rejected)
 - `handleReview(id, status, comment?)` — 核准/拒絕
 - `handleBlock(eventId, targetType, targetId)` — 封鎖
 - `handleUnblock(id)` — 解封
@@ -476,7 +473,7 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 
 **權限控制**：
 - 「審核」按鈕：需 `event-reviews.edit` + status=pending 才顯示
-- 「封鎖」按鈕：需 `event-blocks.create` + status≠blocked 才顯示
+- 「封鎖」按鈕：需 `event-blocks.create` + status≠rejected 才顯示
 - 封鎖後自動 invalidate reviews + blocks 的 query cache
 
 ### UI/UX 設計：EventBlocksPanel（封鎖管理 Tab）
@@ -573,7 +570,7 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 
 1. 直接讀取 `event.require_vendor_review` 欄位（已包含在 event API 回應中）
 2. 用 `GET /event-reviews/event/:event_id/company/:company_id` 逐一檢查品牌商的已核可公司審核狀態
-3. 分類結果：approved → 進入攤位頁；pending → 顯示審核中；rejected → 顯示未通過；blocked → 靜默導回活動列表；404（尚未申請）→ 彈出申請表單
+3. 分類結果：approved → 進入攤位頁；pending → 顯示審核中；rejected → SweetAlert 提示無法參加（不跳轉）；404（尚未申請）→ 彈出申請表單
 
 #### 封鎖行為變更（2026-03-03 更新）
 
@@ -597,7 +594,7 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 - `TestCreate_Success` — 建立審核記錄
 - `TestGetByID_Found` / `TestGetByID_NotFound`
 - `TestGetByEventAndTarget_Found` / `_NotFound`
-- `TestGetByEventID_WithStatusFilter` — pending/approved/rejected/blocked 篩選
+- `TestGetByEventID_WithStatusFilter` — pending/approved/rejected 篩選
 - `TestGetByEventID_WithTargetTypeFilter` — company/member 篩選
 - `TestGetByTargetID_Pagination` — 分頁
 - `TestUpdate_StatusChange` — 更新狀態
@@ -613,7 +610,7 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 - `TestBlockTarget_Company_Success`
 - `TestBlockTarget_Member_Success`
 - `TestBlockTarget_AlreadyBlocked` → ErrTargetAlreadyBlocked
-- `TestUnblockTarget_Success` → status 從 blocked 變 approved
+- `TestUnblockTarget_Success` → status 從 rejected 變 approved
 - `TestCheckVendorCanParticipate_NoReviewRequired` → nil（直接放行）
 - `TestCheckVendorCanParticipate_Approved` → nil
 - `TestCheckVendorCanParticipate_NotApproved` → ErrVendorNotApproved
@@ -634,7 +631,7 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 7. `PATCH /event-reviews/:id/review` body={status:"rejected"} → assert 200
 
 **封鎖/解封 API：**
-8. `POST /event-reviews/block` — 封鎖公司 → assert 201, status=blocked
+8. `POST /event-reviews/block` — 封鎖公司 → assert 201, status=rejected
 9. `POST /event-reviews/block` — 封鎖會員 → assert 201
 10. `PATCH /event-reviews/:id/unblock` → assert 200, status=approved
 
@@ -651,8 +648,8 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 3. access-check → assert require_vendor_review=true, review_status=pending
 4. 主辦核准 → assert status=approved
 5. access-check → assert can_access=true
-6. 主辦封鎖公司 → assert 201, status=blocked
-7. access-check → assert is_blocked=true
+6. 主辦封鎖公司 → assert 201, status=rejected
+7. access-check → assert review_status=rejected
 8. 主辦解封 → assert status=approved
 9. access-check → assert can_access=true
 ```
