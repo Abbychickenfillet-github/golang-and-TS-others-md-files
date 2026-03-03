@@ -2184,3 +2184,177 @@ var (
    - 如果無記錄 或 status != approved → ErrVendorNotApproved
 4. 全部通過 → return nil（放行）
 ```
+
+---
+
+## ✅ 實作進度追蹤（2026-03-03 更新）
+
+### Backend Phase 1 完成狀態
+
+| Step | 內容 | 狀態 | 備註 |
+|------|------|------|------|
+| Step 1 | Model 層 (`event_review.go` + event.go 修改) | ✅ 完成 | 統一單表設計 |
+| Step 2 | DTO 層 (`event_review.go` + event.go 修改) | ✅ 完成 | |
+| Step 3 | Repository 層 (`event_review_repository.go` + test) | ✅ 完成 | 含 Preload Company/Member |
+| Step 4 | Service 層 (`event_review_service.go` + test) | ✅ 完成 | 不需 companyRepo/memberRepo |
+| Step 5 | Handler 層 (`event_review_handler.go`) | ✅ 完成 | 9 個 API 端點 |
+| Step 6 | Booth 整合 (`booth_handler.go`) | ✅ 完成 | SetEventReviewService setter |
+| Step 7 | Migration + DI + 路由 (`main.go`, `migrate.go`) | ✅ 完成 | |
+| Step 8 | Event Service 修改 | ✅ 完成 | RequireVendorReview 處理 |
+
+### Frontend Phase 3 完成狀態
+
+| Step | 內容 | 狀態 | 備註 |
+|------|------|------|------|
+| Step 14 | API 模組 (`event-review.ts` + `types.ts`) | ✅ 完成 | |
+| Step 15 | EventApplyVendorPage（品牌商申請頁面） | ✅ 完成 | 含 6 種頁面狀態 |
+| Step 16 | EventRegisterBoothPage（攤位攔截） | ✅ 完成 | access-check 攔截 |
+| Step 17 | EventDetailPage（申請按鈕 + 封鎖檢查） | ✅ 完成 | useQuery accessCheck |
+| Step 18 | EventVendorsPage（審核+封鎖 Tabs） | ✅ 完成 | 3 個 Tab |
+
+### 未完成項目
+
+| Step | 內容 | 狀態 |
+|------|------|------|
+| Step 9-10 | Dashboard API Client + 頁面 | ❌ 待做 |
+| Step 11 | Email 模板 | ❌ 待做 |
+| Step 12 | NotificationService 擴充 | ❌ 待做 |
+| Step 13 | access-check API + 活動列表過濾 | ❌ 待做 |
+
+---
+
+## 🔧 Backend For Loop 修正（2026-03-03）
+
+> 老闆要求：「不要用 for 迴圈，能用 ORM 處理完就不要用 for」
+
+### 修正 1: booth_handler.go — 用 ORM Pluck 取代 slices.IndexFunc
+
+**改動前**：
+```go
+memberCompanies, _ := h.memberCompanyService.GetMemberCompaniesByMemberID(member.ID)
+idx := slices.IndexFunc(memberCompanies, func(mc *models.MemberCompany) bool {
+    return mc.Status == "approved"
+})
+companyID := memberCompanies[idx].CompanyID
+```
+
+**改動後**：
+```go
+approvedIDs, mcErr := h.memberCompanyService.GetApprovedCompanyIDs(member.ID)
+if mcErr == nil && len(approvedIDs) > 0 {
+    companyID = approvedIDs[0]
+}
+```
+
+**新增方法**：
+- `member_company_repository.go` → `GetApprovedCompanyIDsByMemberID()` 用 GORM `Pluck("company_id", &companyIDs)`
+- `member_company_service.go` → `GetApprovedCompanyIDs()` interface + 實作
+
+### 修正 2: event_review_service.go — 用 GORM Preload 取代 N+1 查詢
+
+**改動前**：
+```go
+// buildResponse 中逐筆查詢 company 和 member
+company, _ := s.companyRepo.GetByID(ctx, review.TargetID)
+member, _ := s.memberRepo.GetByID(ctx, review.TargetID)
+```
+
+**改動後**：
+```go
+// Repository 層 Preload，Service 層直接取用
+if review.Company != nil {
+    resp.CompanyName = &review.Company.CompanyName
+    resp.BrandName = review.Company.BrandName
+}
+if review.Member != nil {
+    resp.MemberName = &review.Member.Name
+    resp.MemberEmail = &review.Member.Email
+}
+```
+
+**Model 新增 Association**：
+```go
+// event_review.go — 多態關聯（constraint:- 不建外鍵）
+Company *Company `gorm:"foreignKey:TargetID;constraint:-" json:"company,omitempty"`
+Member  *Member  `gorm:"foreignKey:TargetID;constraint:-" json:"member,omitempty"`
+```
+
+**Repository Preload**：
+```go
+// 所有查詢方法加上 Preload
+db.Preload("Event").Preload("Company").Preload("Member")
+```
+
+**Service 建構子簡化**：
+```go
+// 改動前：4 個依賴
+func NewEventReviewService(reviewRepo, eventRepo, companyRepo, memberRepo)
+// 改動後：2 個依賴（不再需要 companyRepo/memberRepo）
+func NewEventReviewService(reviewRepo, eventRepo)
+```
+
+---
+
+## 📱 Frontend 實作細節（2026-03-03）
+
+### Step 14: event-review.ts API 模組
+
+**檔案**: `official_website/src/lib/api/event-review.ts`
+
+匯出型別：
+- `ApplyToEventRequest` / `ReviewApplicationRequest` / `BlockTargetRequest`
+- `EventReviewResponse` / `EventReviewListResponse` / `EventAccessCheckResponse`
+
+匯出方法 (10 個)：
+```
+eventReviewApi.applyToEvent(req)
+eventReviewApi.getReview(id)
+eventReviewApi.listByEvent(eventId, params?)
+eventReviewApi.getByEventAndCompany(eventId, companyId)
+eventReviewApi.listByCompany(companyId)
+eventReviewApi.reviewApplication(id, req)
+eventReviewApi.blockTarget(req)
+eventReviewApi.unblockTarget(id)
+eventReviewApi.deleteReview(id)
+eventReviewApi.checkAccess(eventId)
+```
+
+### Step 15: EventApplyVendorPage.tsx
+
+**路由**: `/event/:id/apply`（ProtectedRoute）
+
+**頁面狀態機**：
+```
+loading → 驗證中
+not-vendor → 尚未成為品牌商（引導至 /become-vendor）
+blocked → 被封鎖（無法參加此活動）
+status → 已有審核記錄（pending/approved/rejected）
+no-review → 不需審核（直接選攤位）
+form → 申請表單（選公司→送出）
+```
+
+**流程**：驗證 vendor identity → fetch approved companies → access check → 狀態分流
+
+### Step 16: EventRegisterBoothPage.tsx 攔截
+
+在 `fetchData` 開頭加入 access-check：
+- `is_blocked` → toast.error + redirect 到活動頁
+- `require_vendor_review && review_status !== 'approved'` → redirect 到 `/event/:id/apply`
+- catch 忽略（API 可能未實作）
+
+### Step 17: EventDetailPage.tsx 整合
+
+- 用 `useQuery(['eventAccessCheck', eventId])` 查 access-check（僅登入時）
+- 被封鎖 → 顯示「無法參加此活動」
+- 需審核且未通過 → 顯示狀態/申請按鈕
+- 已通過或不需審核 → 原本的註冊按鈕
+
+### Step 18: EventVendorsPage.tsx Tabs
+
+3 個 Tab：
+1. **已確認品牌商** — 原有內容（vendorList）
+2. **申請審核** — 審核列表 + 篩選(all/pending/approved/rejected) + 核准/拒絕/封鎖按鈕
+3. **封鎖管理** — 封鎖列表 + 解封按鈕
+
+新增 state：`activeMainTab`, `reviews`, `reviewsLoading`, `reviewFilter`, `blocks`, `blocksLoading`, `reviewActionLoading`
+新增 function：`fetchReviews`, `fetchBlocks`, `handleReview`, `handleBlock`, `handleUnblock`
