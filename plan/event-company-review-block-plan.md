@@ -20,11 +20,12 @@ event_review
 ├── event_id (varchar 36, not null)
 ├── target_type (varchar 20, not null) — 'company' | 'member'
 ├── target_id (varchar 36, not null)   — company_id 或 member_id
+├── applier_member_id (varchar 36, nullable) — 申請者 member ID（代表誰去申請的）⭐ 2026-03-03 新增
 ├── status (varchar 20, not null)      — 'pending' | 'approved' | 'rejected' | 'blocked'
 ├── review_comment (varchar 500)       — 審核意見或封鎖原因
-├── reviewed_by (varchar 36)           — 操作者 member ID
+├── reviewed_by (varchar 36)           — 操作者 member ID（審核/封鎖操作者）
 ├── reviewed_at (datetime)             — 操作時間
-├── created_at / updated_at / deleted_at (GORM Base)
+├── created_at / updated_at (GORM BaseWithoutSoftDelete，無 deleted_at)
 └── UK: (event_id, target_type, target_id) — 同一活動+對象類型+對象ID 只能有一筆
 ```
 
@@ -125,19 +126,21 @@ type EventReview struct {
 }
 ```
 
-### API 路由表（9 個端點）
+### API 路由表（8 個端點）
 
 | Method | Path | 功能 | Auth |
 |--------|------|------|------|
 | POST | `/event-reviews` | 品牌商申請加入活動 | MemberAuth |
 | GET | `/event-reviews/:id` | 取得單筆審核/封鎖記錄 | TryBothAuth |
 | GET | `/event-reviews/event/:event_id` | 列出活動下的記錄（可篩 target_type/status） | TryBothAuth |
-| GET | `/event-reviews/event/:event_id/company/:company_id` | 查詢品牌商審核狀態 | MemberAuth |
-| GET | `/event-reviews/company/:company_id` | 列出某公司在所有活動的記錄 | MemberAuth |
-| PATCH | `/event-reviews/:id/review` | 主辦審核（approved/rejected） | MemberAuth |
-| POST | `/event-reviews/block` | 封鎖公司或會員 | MemberAuth |
-| PATCH | `/event-reviews/:id/unblock` | 解封（status → approved） | MemberAuth |
-| DELETE | `/event-reviews/:id` | 刪除記錄（軟刪除） | TryBothAuth |
+| GET | `/event-reviews/event/:event_id/company/:company_id` | 查詢品牌商審核狀態 | TryBothAuth |
+| GET | `/event-reviews/company/:company_id` | 列出某公司在所有活動的記錄 | TryBothAuth |
+| PATCH | `/event-reviews/:id/review` | 主辦/系統方審核（approved/rejected） | TryBothAuth |
+| POST | `/event-reviews/block` | 封鎖公司或會員（主辦/系統方） | TryBothAuth |
+| PATCH | `/event-reviews/:id/unblock` | 解封（status → approved） | TryBothAuth |
+
+> **Auth 說明**：除了 `POST /event-reviews`（品牌商申請）使用 MemberAuth，其餘全部使用 TryBothAuth，讓系統方 (User) 和主辦 (Member) 都能操作。
+> **DELETE 已移除**：event_review 不使用軟刪除（`BaseWithoutSoftDelete`），不提供刪除端點。
 
 ### Service 主要方法
 
@@ -152,7 +155,6 @@ type EventReviewService interface {
     ListByEvent(ctx, eventID, targetType, status, skip, limit) // 活動下的記錄
     ListByTarget(ctx, targetType, targetID, skip, limit)       // 對象在所有活動的記錄
     CheckVendorCanParticipate(ctx, eventID, companyID, memberID, requireVendorReview) // Booth 攔截
-    DeleteReview(ctx, id)                        // 軟刪除
 }
 ```
 
@@ -203,7 +205,7 @@ var (
 
 | # | 檔案 | 用途 |
 |---|------|------|
-| 1 | `official_website/src/lib/api/event-review.ts` | 前台 API 模組（10 個方法） |
+| 1 | `official_website/src/lib/api/event-review.ts` | 前台 API 模組（9 個方法） |
 | 2 | `official_website/src/pages/EventApplyVendorPage.tsx` | 品牌商申請頁面 |
 
 ### 修改檔案
@@ -228,7 +230,7 @@ var (
 - `EventReviewListResponse { data[], count }`
 - `EventAccessCheckResponse { can_access, reason?, review_status?, is_blocked, require_vendor_review }`
 
-**方法**（10 個）：
+**方法**（9 個）：
 ```
 eventReviewApi.applyToEvent(req)              // POST /event-reviews
 eventReviewApi.getReview(id)                  // GET /event-reviews/:id
@@ -238,7 +240,6 @@ eventReviewApi.listByCompany(companyId)       // GET /event-reviews/company/:com
 eventReviewApi.reviewApplication(id, req)     // PATCH /event-reviews/:id/review
 eventReviewApi.blockTarget(req)               // POST /event-reviews/block
 eventReviewApi.unblockTarget(id)              // PATCH /event-reviews/:id/unblock
-eventReviewApi.deleteReview(id)               // DELETE /event-reviews/:id
 eventReviewApi.checkAccess(eventId)           // GET /events/:id/access-check
 ```
 
@@ -513,7 +514,7 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 | Step 2 | DTO 層 (`event_review.go` + event.go 修改) | ✅ 完成 | |
 | Step 3 | Repository 層 (`event_review_repository.go` + test) | ✅ 完成 | 含 Preload Company/Member |
 | Step 4 | Service 層 (`event_review_service.go` + test) | ✅ 完成 | 不需 companyRepo/memberRepo |
-| Step 5 | Handler 層 (`event_review_handler.go`) | ✅ 完成 | 9 個 API 端點 |
+| Step 5 | Handler 層 (`event_review_handler.go`) | ✅ 完成 | 8 個 API 端點 |
 | Step 6 | Booth 整合 (`booth_handler.go`) | ✅ 完成 | SetEventReviewService setter |
 | Step 7 | Migration + DI + 路由 (`main.go`, `migrate.go`) | ✅ 完成 | |
 | Step 8 | Event Service 修改 | ✅ 完成 | RequireVendorReview 處理 |
@@ -563,7 +564,27 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 |------|------|------|
 | Step 11 | Email 模板 | ❌ 待做 |
 | Step 12 | NotificationService 擴充 | ❌ 待做 |
-| Step 13 | access-check API + 活動列表過濾 | ❌ 待做 |
+| Step 13 | access-check API + 活動列表過濾 | ⚠️ 前端已用替代方案繞過（見下方說明） |
+
+#### Step 13 替代方案（2026-03-03）
+
+原定 `GET /events/:id/access-check` API 尚未實作。
+前端 `EventRegisterPage.tsx` 改用已有的 API 組合替代：
+
+1. 直接讀取 `event.require_vendor_review` 欄位（已包含在 event API 回應中）
+2. 用 `GET /event-reviews/event/:event_id/company/:company_id` 逐一檢查品牌商的已核可公司審核狀態
+3. 分類結果：approved → 進入攤位頁；pending → 顯示審核中；rejected → 顯示未通過；blocked → 靜默導回活動列表；404（尚未申請）→ 彈出申請表單
+
+#### 封鎖行為變更（2026-03-03 更新）
+
+原設計：被封鎖的品牌商靜默 redirect 到 `/events`。
+**新設計**：被封鎖的品牌商留在當前頁面，顯示 SweetAlert 提示訊息（不跳轉）：
+
+- **中文**：「感謝對本次專案的關注。因目前資源與名額優先配置給特定方向，暫時無法將您納入名單。」
+- **English**: "While we appreciate your interest, we are unable to move forward with your candidacy at this time."
+
+受影響檔案：
+- `EventRegisterPage.tsx` — `Swal.fire()` 顯示提示後 return（不跳轉）
 
 ---
 
@@ -616,7 +637,6 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 8. `POST /event-reviews/block` — 封鎖公司 → assert 201, status=blocked
 9. `POST /event-reviews/block` — 封鎖會員 → assert 201
 10. `PATCH /event-reviews/:id/unblock` → assert 200, status=approved
-11. `DELETE /event-reviews/:id` → assert 200
 
 **權限測試：**
 12. `POST /event-reviews` 無 auth → assert 401
@@ -665,8 +685,8 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 #### 封鎖流程
 11. 主辦在「申請審核」Tab 點「封鎖」某品牌商
 12. 切到「封鎖管理」Tab → 看到被封鎖記錄
-13. 品牌商進入活動詳情頁 → 看到封鎖通知
-14. 品牌商進入攤位頁 → redirect 回活動頁 + toast
+13. 品牌商進入活動詳情頁 → 靜默 redirect 到 `/events`（等同看不到活動）
+14. 品牌商直接進入攤位頁 → 靜默 redirect 到 `/events`
 15. 主辦解封 → 品牌商可再次參加
 
 #### Dashboard 管理
@@ -682,9 +702,59 @@ Chakra UI v2 Table + Modal，使用 `useQuery` + `useMutation`。
 
 ---
 
+## API 端對端測試結果（api-lab-mcp, 2026-03-03）
+
+### 測試帳號
+- **品牌商**：`wwdzqubrlkadbyktgg@xfavaj.com` / `Gg1234567@`
+- **Member ID**：`67546eab-04ae-4ed2-9517-98d7320eb5ea`
+- **公司**：金琺斯有限公司 (`31124619-7d6a-4393-8d96-3c93f5f850f3`)
+- **活動**：亞洲香水節 (`a6c19274-2da0-4aa0-9433-62636af9d2de`, require_vendor_review=true)
+
+### 測試結果
+
+| # | API | Method | 預期 | 實際 | 狀態 |
+|---|-----|--------|------|------|------|
+| 1 | `/event-reviews/event/:eid/company/:cid` | GET | 404（尚無紀錄） | 404 | ✅ |
+| 2 | `/event-reviews/event/:eid` | GET | 200（空列表） | 200 | ✅ |
+| 3 | `/event-reviews` | POST（申請） | 201 | 201 | ✅ |
+| 4 | `/event-reviews/event/:eid/company/:cid` | GET（建立後） | 200, status=pending | 200, status=pending | ✅ |
+| 5 | `/event-reviews/:id` | DELETE | ~~已移除~~ | - | ⛔ 已移除 |
+| 6 | `/member-companies/member/:mid` | GET | 200, 含 approved 公司 | 200, 金琺斯有限公司 | ✅ |
+| 7 | `/events/:eid` | GET | require_vendor_review=true | true | ✅ |
+
+### 前端替代方案驗證
+
+`handleBoothClick` 不依賴 `access-check` API，改用以下流程：
+```
+1. 讀 event.require_vendor_review → true
+2. 載入 approvedCompanies → [金琺斯有限公司]
+3. 呼叫 getByEventAndCompany → 404（尚未申請）
+4. 彈出 SweetAlert「確定要以金琺斯有限公司的名義申請嗎？」
+5. 使用者確認 → POST /event-reviews → 201
+6. 彈出「申請已送出」
+```
+
+多公司流程：
+```
+1. approvedCompanies 有多間 → SweetAlert 下拉選擇
+2. 使用者選公司 → POST /event-reviews → 201
+```
+
+---
+
 ## DB 變更執行記錄
 
 | 日期 | 操作 | future_sign_stage | future_sign_prod |
 |------|------|:-:|:-:|
 | 2026-03-03 | `CREATE TABLE event_review` | ✅ | ✅ |
 | 2026-03-03 | `ALTER TABLE event ADD require_vendor_review` | ✅ | ✅ |
+| 2026-03-03 | `ALTER TABLE event_review ADD applier_member_id` + index | ✅ | ✅ |
+| 2026-03-03 | `ALTER TABLE event_review DROP COLUMN deleted_at` | ✅ | ✅ |
+
+### applier_member_id 欄位 SQL（2026-03-03 新增）
+
+```sql
+-- 新增 applier_member_id 欄位：記錄誰代表公司去申請
+ALTER TABLE event_review ADD COLUMN applier_member_id VARCHAR(36) NULL COMMENT '申請者 member ID（代表誰去申請的）' AFTER target_id;
+CREATE INDEX idx_er_applier ON event_review(applier_member_id);
+```
