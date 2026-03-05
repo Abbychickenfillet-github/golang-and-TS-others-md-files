@@ -26,6 +26,69 @@ go func() {
 - goroutine 非常輕量，一個只佔幾 KB（OS thread 通常佔 1-2 MB）
 - 可以同時跑成千上萬個 goroutine
 
+#### Goroutine 是什麼？
+
+Goroutine 是 Go 自己管理的**輕量級執行單元**，可以想成「超輕量的背景工作」。
+
+**用餐廳比喻：**
+```
+傳統 Thread（執行緒）= 請一個正職廚師
+  → 成本高（1-2 MB 記憶體）、數量有限（幾百個就吃力了）
+
+Goroutine = 請一個工讀生
+  → 成本低（幾 KB 記憶體）、可以請很多（幾萬個都沒問題）
+  → Go runtime 會自動分配工讀生到廚房的爐子上（OS thread）
+```
+
+**沒有 goroutine 的程式（同步）：**
+```go
+func main() {
+    taskA()  // 做完 A 才能做 B（排隊）
+    taskB()  // 做完 B 才能做 C
+    taskC()
+}
+```
+
+**有 goroutine 的程式（併發）：**
+```go
+func main() {
+    go taskA()  // A 在背景跑
+    go taskB()  // B 也在背景跑
+    go taskC()  // C 也在背景跑
+    // A、B、C 同時進行，不用排隊
+
+    time.Sleep(time.Second) // 等它們做完（實務上用 channel 或 WaitGroup）
+}
+```
+
+**跨語言對比：**
+```javascript
+// JavaScript — 沒有 goroutine，用 Promise 模擬併發
+await Promise.all([taskA(), taskB(), taskC()])
+```
+```python
+# Python — 用 asyncio 或 threading
+import asyncio
+await asyncio.gather(taskA(), taskB(), taskC())
+```
+```go
+// Go — 只要加 go 關鍵字就好
+go taskA()
+go taskB()
+go taskC()
+```
+
+**Goroutine vs Thread vs Process：**
+| | Goroutine | Thread（執行緒） | Process（程序） |
+|---|---|---|---|
+| **記憶體** | 幾 KB | 1-2 MB | 幾十 MB |
+| **建立速度** | 極快 | 慢 | 很慢 |
+| **數量上限** | 幾十萬個 | 幾千個 | 幾百個 |
+| **誰管理** | Go runtime | OS | OS |
+| **通訊方式** | channel | 共享記憶體（需要鎖） | IPC / socket |
+
+> 重點：goroutine 不是 thread。Go runtime 會把多個 goroutine 分配到少數幾個 OS thread 上執行，這叫做 **M:N 調度**（M 個 goroutine 跑在 N 個 thread 上）。
+
 ### 2. `chan` — Channel（goroutine 之間的通訊管道）
 ```go
 ch := make(chan string)       // 無緩衝 channel
