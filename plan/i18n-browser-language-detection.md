@@ -3,6 +3,9 @@
 ## 為什麼要調查這個？
 
 Jessie 提出需求：需要確認國外客人進入網站時能不能直接看到英文頁面。擔心國外客人一進來看到中文，找不到切換語系的按鈕，導致使用體驗很差。
+<img width="967" height="1244" alt="image" src="https://github.com/user-attachments/assets/73f0c5ca-f510-4a01-aa3e-81516493a04c" />
+<img width="1185" height="1039" alt="image" src="https://github.com/user-attachments/assets/7677bd04-9ea2-4398-88f6-b66ca98cf497" />
+
 
 ## 結論：目前不會
 
