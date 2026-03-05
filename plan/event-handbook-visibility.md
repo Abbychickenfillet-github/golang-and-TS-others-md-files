@@ -167,18 +167,14 @@ visibility?: 'public' | 'consumer' | 'vendor'
 
 UI 參考：可參考 `event-coupons.tsx` 的活動選擇 + 列表收合模式
 
-#### ⑪ 新增路由註冊 — `src/routeTree.gen.ts`（自動產生）
-
-TanStack Router file-based routing，建立檔案後會自動產生。
-
-#### ⑫ 新增側邊欄入口 — `src/components/Common/Sidebar.tsx`（或類似）
+#### ⑪ 新增側邊欄入口 — `src/components/Common/Sidebar.tsx`（或類似）
 
 在側邊欄加入「手冊管理」連結：
 ```tsx
 { icon: FiFileText, label: "手冊管理", path: "/event-handbooks" }
 ```
 
-#### ⑬ API Client — `src/client/services/` 或直接用 `__request`
+#### ⑫ API Client — `src/client/services/` 或直接用 `__request`
 
 Dashboard 沒有 official_website 的 `eventHandbookApi`，需要新增或直接用 `__request`：
 ```typescript
@@ -195,7 +191,7 @@ PATCH /api/v1/events/{eventId}/handbooks/{handbookId}
 DELETE /api/v1/events/{eventId}/handbooks/{handbookId}
 ```
 
-#### ⑭ 手冊 Visibility 選擇 UI
+#### ⑬ 手冊 Visibility 選擇 UI
 
 在新增/編輯手冊的表單加入：
 ```tsx
