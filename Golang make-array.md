@@ -100,3 +100,87 @@ class MapService {
 ```
 
 `s` 就是 Go 版的 `this`，指向 `mapService` 實例。
+
+## make + GORM 實際資料流範例
+
+`make` 組出來的 struct 還只是**記憶體裡的 Go 物件**，要透過 GORM 的 `Create` 才會變成 SQL INSERT 寫進資料庫。
+
+### 實際程式碼（coupon_program_ticket_repository.go）
+
+```go
+// 1. 用 make 建立空的 slice（記憶體裡）
+rows := make([]models.CouponProgramTicket, len(ticketIDs))
+
+// 2. 用 for 迴圈把資料填進去（還是在記憶體裡）
+for i, tid := range ticketIDs {
+    rows[i] = models.CouponProgramTicket{
+        CouponProgramID: programID,
+        TicketID:        tid,
+    }
+}
+
+// 3. GORM 把 Go 物件轉成 INSERT INTO ... 寫入資料庫
+tx.Create(&rows)
+```
+
+### 資料流圖解
+
+```
+make([]models.CouponProgramTicket, 3)
+    ↓ 記憶體裡的空 slice
+    [{}, {}, {}]
+
+for 迴圈填值
+    ↓ 記憶體裡的 Go struct
+    [
+      {CouponProgramID: "prog-1", TicketID: "ticket-A"},
+      {CouponProgramID: "prog-1", TicketID: "ticket-B"},
+      {CouponProgramID: "prog-1", TicketID: "ticket-C"},
+    ]
+
+tx.Create(&rows)
+    ↓ GORM 轉成 SQL
+    INSERT INTO coupon_program_tickets
+      (coupon_program_id, ticket_id)
+    VALUES
+      ('prog-1', 'ticket-a'),
+      ('prog-1', 'ticket-b'),
+      ('prog-1', 'ticket-c');
+    ↓
+    寫入資料庫 ✅
+```
+
+### `tx` 是什麼？
+
+`tx` = **transaction**（資料庫交易），是 GORM 的慣例命名。
+
+```go
+r.db.Transaction(func(tx *gorm.DB) error {
+    // tx 就是這次交易的 DB 連線
+    // 在這個 func 裡面的所有操作是「一組」的：
+    //   - 全部成功 → 一起 commit
+    //   - 任一失敗（return err）→ 全部 rollback
+})
+```
+
+對比 JS 的概念：
+```javascript
+// 類似 JS 的 try-catch 但是是資料庫層級
+const tx = await db.beginTransaction()
+try {
+    await tx.delete(...)  // 刪除舊的
+    await tx.insert(...)  // 新增新的
+    await tx.commit()     // 全部成功，一起存
+} catch (err) {
+    await tx.rollback()   // 任一失敗，全部撤銷
+}
+```
+
+### `r.db` vs `tx` 差別
+
+| 寫法 | 意思 |
+|------|------|
+| `r.db.Create(...)` | 直接執行，沒有交易保護 |
+| `tx.Create(...)` | 在交易裡執行，失敗會 rollback |
+
+在 `ReplaceByProgramID` 裡用 `tx` 是因為「先刪後建」必須是原子操作——刪了卻沒建成功會出事。
