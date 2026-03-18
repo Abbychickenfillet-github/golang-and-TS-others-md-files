@@ -540,7 +540,7 @@ type BoothConsumerPublic struct {
 ### c.ShouldBindJSON() — 自動解析 request body
 
 反過來，前端 POST 過來的 JSON 也能自動解析成 Go struct：
-
+c.JSON跟c.ShouldBindJSON不一樣嗎
 ```go
 // 前端送來：
 // POST /api/v1/booths
