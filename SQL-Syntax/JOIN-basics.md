@@ -61,7 +61,7 @@ WHERE order_id = "..."               -- 兩個 WHERE
 ```
 
 問題：
-1. `FROM booth` → 你從 booth 開始，但 booth 表沒有 order_id 欄位
+1. `FROM booth` → 你從 booth 開始，但 booth 表沒有 order_id 欄位。所以FROM跟WHERE要同一個表，也不是
 2. JOIN 寫在 WHERE 後面 → 語法錯誤，JOIN 要寫在 FROM 後面
 3. 兩個 WHERE → 只能有一個 WHERE
 
@@ -170,3 +170,47 @@ JOIN booth b ON b.id = bos.order_id
 -- 對：booth_id 才是
 JOIN booth b ON b.id = bos.booth_id
 ```
+
+### 4. JOIN 的表寫錯、別名沒定義
+
+```sql
+-- 錯：FROM 和 JOIN 都是 member，而且用了沒定義的別名 o
+SELECT order.order_number
+FROM member
+JOIN member m ON m.id = o.buyer_id
+WHERE m.email = "testmember008@futuresign.test";
+```
+
+問題：
+1. `FROM member JOIN member` → 兩邊都是 member，應該有一邊是 `order`
+2. `o.buyer_id` → 別名 `o` 從來沒有定義過
+3. `order` 是 SQL 保留字，要用反引號包起來
+
+```sql
+-- 對：
+SELECT o.order_number
+FROM `order` o
+JOIN member m ON m.id = o.buyer_id
+WHERE m.email = "testmember008@futuresign.test";
+```
+
+---
+
+## SELECT 不一定要跟 FROM 是同一張表
+
+用了 `JOIN` 之後，`SELECT` 可以從 **任何一張已經 JOIN 進來的表** 取欄位。
+
+| 規則 | 說明 |
+|---|---|
+| **沒有 JOIN 時** | `SELECT` 只能用 `FROM` 那張表的欄位 |
+| **有 JOIN 時** | `SELECT` 可以用 **FROM + 所有 JOIN 進來的表** 的欄位 |
+
+```sql
+-- FROM 是 order，但 SELECT 同時取了 order 和 member 的欄位，完全合法
+SELECT o.order_number, m.email, m.name
+FROM `order` o
+JOIN member m ON m.id = o.buyer_id
+WHERE m.email = "testmember008@futuresign.test";
+```
+
+重點：**你 SELECT 的欄位，必須來自你有 FROM 或 JOIN 進來的表。**
