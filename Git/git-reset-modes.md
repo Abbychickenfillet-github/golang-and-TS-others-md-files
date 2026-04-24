@@ -1,5 +1,34 @@
 # Git Reset 三種模式
 
+## 前置：Index（暫存區）是什麼？
+
+**Index 是 `git add` 後、`commit` 前的暫存區。只有 add 過的改動才會進 index，沒 add 的不算——commit 時只打包 index 裡的東西。**
+
+一句話：**「Index = add 過後的東西」**。更精準講是「已 staged、等著下次 commit 的快照」。
+
+### Git 的三個區域
+
+```
+working tree（你改的檔案）
+    │ git add
+    ▼
+Index / Staging area（暫存區 = add 過的東西）
+    │ git commit
+    ▼
+HEAD / 提交歷史
+```
+
+### 在 git status 裡怎麼看
+
+| 顏色 | 狀態 | 在哪一層 |
+|---|---|---|
+| 🟢 綠字 "Changes to be committed" | 已 staged | **Index** |
+| 🔴 紅字 "Changes not staged" | 已改但沒 add | **Working tree** |
+
+下面講的三種 reset 模式，差別就在**它們會不會清 Index（和 working tree）**。
+
+---
+
 ## 指令格式
 
 ```bash
