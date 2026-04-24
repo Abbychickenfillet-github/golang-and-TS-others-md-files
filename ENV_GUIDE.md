@@ -144,6 +144,66 @@ services:
          MYSQL_HOST = "xxx" (來自 .env.staging)
 ```
 
+### `environment:` 是什麼？跟底下的鍵值對是什麼關係？
+
+`environment:` 是 docker-compose.yml 中 service 層級的一個 **key（屬性）**，它的值是一個**列表（list）**，每一項是一組環境變數的鍵值對：
+
+```yaml
+services:
+  frontend:
+    environment:                    # ← 這是 docker-compose 的 key（屬性名）
+      - NODE_ENV=production         # ← 這是底下的 value（環境變數鍵值對）
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8003/api/v1}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:5174}
+```
+
+**結構關係**：
+
+```
+docker-compose.yml
+└── services:          ← 頂層 key
+    └── frontend:      ← service 名稱
+        ├── image:     ← service 屬性
+        ├── env_file:  ← service 屬性（從檔案載入環境變數）
+        └── environment:  ← service 屬性（直接定義環境變數）
+            ├── NODE_ENV=production
+            ├── NEXT_PUBLIC_API_BASE_URL=...
+            └── NEXT_PUBLIC_APP_URL=...
+```
+
+所以 `environment:` 本身不是環境變數，它是 docker-compose 的語法結構，用來「裝」環境變數的容器。
+
+### `environment:` vs `env_file:` 的優先順序
+
+兩者都能設定環境變數，**同名變數時 `environment:` 永遠勝出**：
+
+```
+優先級（低 → 高）：
+
+1. env_file: 中的 .env           ← 最先載入，最容易被覆蓋
+2. env_file: 中的 .env.local
+3. env_file: 中的 .env.production
+4. environment: 區塊中直接定義     ← 最高優先級 ✅
+```
+
+**範例**：如果 `.env` 裡有 `NODE_ENV=development`，但 `environment:` 寫了 `NODE_ENV=production`，容器內會是 `production`。
+
+### `environment:` 鍵值對的兩種寫法
+
+```yaml
+# 寫法一：list 格式（用 -）
+environment:
+  - NODE_ENV=production
+  - API_URL=http://localhost:8003
+
+# 寫法二：map 格式（用 :）
+environment:
+  NODE_ENV: production
+  API_URL: http://localhost:8003
+```
+
+兩種效果完全一樣，本專案使用 list 格式。
+
 ### 為什麼需要 environment: 區塊？
 
 `environment:` 的作用是**明確指定**哪些變數要注入到容器中：
