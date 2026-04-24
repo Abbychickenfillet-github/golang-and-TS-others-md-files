@@ -13,6 +13,7 @@ Region（區域）
   └── Availability Zone / AZ（可用區）
         └── Logical Data Center（邏輯資料中心）
 ```
+<img width="1200" height="984" alt="image" src="https://github.com/user-attachments/assets/f3b6c7c6-9be3-4f58-b579-e81512c3eee3" />
 
 ### 各層定義
 
