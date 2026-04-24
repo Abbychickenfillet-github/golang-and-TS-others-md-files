@@ -1,5 +1,37 @@
 # Golang Gin 框架學習筆記
 
+## 0. Engine 是什麼？白話解釋
+
+`gin.Engine` 就是你整個 Web 伺服器的**大腦**。
+
+想像你開了一間餐廳：
+- **Engine = 餐廳本身**，它負責管理所有事情
+- **路由 (Routes) = 菜單**，客人點「/api/v1/users」這道菜，Engine 就知道要交給哪個廚師（Handler）處理
+- **中介軟體 (Middleware) = 門口的接待員**，每個客人進來前先經過他們（檢查身份、記錄來訪時間等）
+- **Handler = 廚師**，實際處理請求、回傳結果
+
+所以 `gin.New()` 就是：**蓋一間空的餐廳，裡面什麼都沒有，你自己決定要請哪些接待員、放哪些菜單**。
+
+```go
+// 蓋餐廳
+r := gin.New()
+
+// 請接待員（中介軟體）
+r.Use(middleware.JWTAuth(cfg))   // 檢查身份證
+r.Use(cors.New(...))             // 允許跨國客人進來
+
+// 放菜單（註冊路由）
+r.GET("/api/v1/products", productHandler.List)   // 客人點這道 → 交給 productHandler
+r.POST("/api/v1/orders", orderHandler.Create)    // 客人點這道 → 交給 orderHandler
+
+// 開門營業
+r.Run(":8010")  // 在 8010 號門口等客人
+```
+
+**一句話總結**：`gin.Engine` 就是你的 HTTP 伺服器，所有請求進來都先經過它，它決定要交給誰處理。
+
+---
+
 ## 1. `gin.New()` vs `gin.Default()`
 
 在 Gin 框架中，初始化一個路由引擎（Engine）通常有兩種方法：
