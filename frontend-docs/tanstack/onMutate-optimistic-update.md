@@ -61,6 +61,8 @@ onMutate: async (newData) => {
 onMutate → 快取改成 { status: "published" }
     ↓
 之前觸發的 refetch 回來了 → 快取被覆蓋成 { status: "draft" }
+
+畫面 2
     ↓
 UI 閃回「草稿」 💥
 ```
