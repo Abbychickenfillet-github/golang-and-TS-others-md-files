@@ -143,7 +143,200 @@ Region: ap-northeast-1
 
 ---
 
-## 5. HA（High Availability）— 為什麼 Subnet 要跨 AZ
+## 5. ENI — 真正持有網路身分的東西
+
+### 「EC2 有 IP」這句話其實不精確
+
+常見直覺：EC2 有 IP、EC2 綁 SG。
+**正解**：IP、MAC、**Security Group** 這些網路屬性**全部綁在 ENI，不是 EC2 本身**。
+
+### ENI = Elastic Network Interface（彈性網路介面）
+
+**ENI 是 VPC 裡的虛擬網路卡**。每台 EC2 啟動時，AWS 會自動附上一張 primary ENI——這就是為什麼你會覺得「EC2 有 IP」。實際上是那張 ENI 有 IP，EC2 只是接上了這張網卡。
+
+### 最直覺的比喻：SIM 卡插手機
+
+別用「虛擬網卡」想——想成 **SIM 卡和手機的關係**：
+
+| SIM 卡 / 手機 | AWS 對應 |
+|---|---|
+| **SIM 卡**（電話號碼、認證、方案）| **ENI**（IP、SG、MAC）|
+| **手機**（CPU、螢幕、OS）| **EC2**（CPU、RAM、OS）|
+| SIM 卡從舊手機拔下、插到新手機 | **ENI detach → attach 到新 EC2** |
+| 結果：電話號碼跟著 SIM 走 | 結果：IP/SG 跟著 ENI 走，前端完全無感 |
+| 手機摔壞 → 換新手機、插回舊 SIM | EC2 掛掉 → 開新 EC2、掛回原 ENI |
+| 一台手機雙 SIM | 一台 EC2 多張 ENI |
+
+**一句話**：**ENI 是「網路身分 SIM 卡」、EC2 是「跑運算的手機」——兩個可以獨立換，身分跟著 SIM 走**。
+
+### 「虛擬裝」到底在裝什麼？
+
+EC2 和 ENI **兩邊都是軟體抽象**，沒有實體網卡、沒有實體插槽。所以 attach 這個動作實際上只是 AWS 改一行設定：
+
+```
+ENI-abc 原本：attachedTo = EC2-123
+執行 detach：  attachedTo = null
+執行 attach：   attachedTo = EC2-456   ← 0.5 秒完成，沒動任何硬體
+```
+
+VPC 的路由表、ARP 表跟著這個 mapping 變更。所以「attach」不是真的裝什麼，是 **AWS 改了一筆資料說「這張 SIM 卡現在插在那支手機上」**。
+
+### ENI 和 EC2 誰持有什麼？
+
+| 屬性 | 屬於誰 |
+|---|---|
+| Private IP | ✅ **ENI** |
+| Public IP / Elastic IP | ✅ **ENI** |
+| MAC Address | ✅ **ENI** |
+| **Security Group** | ✅ **ENI**（⚠️ 不是 EC2！）|
+| 要放哪個 Subnet | ✅ **ENI**（決定這張網卡落在哪個 AZ）|
+| CPU / RAM / 硬碟 | ✅ **EC2** |
+| 作業系統 | ✅ **EC2** |
+
+### 修正版的 Subnet 內部架構
+
+```
+    Internet / 其他服務
+       │
+       ▼
+┌─────────────────────────────────────┐
+│  Subnet                              │
+│  ┌───────────────────────────────┐  │
+│  │  【ENI】                       │  │  ← 網路入口（有 IP、綁 SG）
+│  │   - Private IP: 10.0.1.5       │  │
+│  │   - Security Group: web-sg     │  │  ← SG 綁這裡
+│  │   - MAC: 02:xx:xx              │  │
+│  └──────────────┬────────────────┘  │
+│                 │ attach            │
+│                 ▼                    │
+│  ┌───────────────────────────────┐  │
+│  │  EC2                           │  │  ← 算力（CPU/RAM/OS）
+│  │   - t3.small                   │  │
+│  │   - Ubuntu 22.04               │  │
+│  │   - 你的程式                    │  │
+│  └───────────────────────────────┘  │
+└──────────────────────────────────────┘
+```
+
+### 為什麼拆成 ENI + EC2 兩層？
+
+1. **故障轉移（Failover）**：EC2 掛了 → 把 ENI 搬到備用機 → **IP/SG 不變**，前端無感
+2. **多網卡架構**：一台 EC2 可多張 ENI → 例如一張對外（public subnet）、一張對內（private subnet），各綁不同 SG
+3. **ENI 是 VPC 的網路原子單位**——不只 EC2 用，**Lambda (in VPC)、RDS、ECS Fargate** 全部透過 ENI 連 VPC
+
+### ENI 的類型
+
+| 類型 | 特徵 |
+|---|---|
+| **Primary ENI** | EC2 建立時 AWS 自動附上，**生命週期和 EC2 綁**（刪 EC2 時一起刪、不能 detach）|
+| **Secondary ENI** | 你手動建立，可獨立 detach / attach / 搬家 |
+
+### 示意圖：Secondary ENI 跨 EC2 搬家（故障轉移）
+
+```
+情境：EC2-A 突然掛掉，把跑業務的 Secondary ENI 搬到備機 EC2-B
+
+T0 — 正常運作
+  EC2-A
+    ├─ Primary ENI   ★         (綁 EC2-A，不能 detach)
+    └─ Secondary ENI ☆         (業務流量目前走這張)
+
+  EC2-B（待命）
+    └─ Primary ENI   ★
+
+             ↓  EC2-A 掛了 → detach Secondary ENI → attach 到 EC2-B
+                (IP / SG / MAC 全保留)
+
+T1 — 搬家完成
+  EC2-A（已死）
+    └─ Primary ENI              ← 跟 EC2-A 共生死
+
+  EC2-B
+    ├─ Primary ENI   ★
+    └─ Secondary ENI ☆          ← 業務流量無縫接上、前端無感
+
+★ Primary ENI   — 不能 detach、跟 EC2 共生死
+☆ Secondary ENI — 可 detach / attach、跨 EC2 搬家
+```
+
+一張 ENI 也可以有**多個 Private IP**（secondary IPs），用於虛擬 IP、多租戶等進階場景。
+
+---
+
+## 6. NACL vs Security Group — Subnet 邊界 vs ENI 的兩層防火牆
+
+### 兩層防火牆的位置
+
+AWS 的網路流量要**穿過兩層防火牆**才能到 EC2：
+
+```
+    Internet
+       │
+       ▼
+┌────────────────────────────────────┐
+│  VPC                                │
+│                                     │
+│   【NACL】← Subnet 邊界              │  防火牆 1：Subnet 層
+│   (stateless、可 deny)              │
+│       │                             │
+│       ▼                             │
+│   【SG】← 綁在 ENI 上                │  防火牆 2：ENI 層
+│   (stateful、只能 allow)            │
+│       │                             │
+│       ▼                             │
+│     EC2（OS + 程式）                 │
+└─────────────────────────────────────┘
+```
+
+### 核心差異對照
+
+| 維度 | **NACL** | **Security Group** |
+|---|---|---|
+| **作用在** | **Subnet** 邊界 | **ENI** 上（綁單張網卡）|
+| **狀態** | **Stateless**（無狀態）| **Stateful**（有狀態）|
+| **規則** | ✅ Allow + ✅ **Deny** | ✅ Allow only（不能 deny）|
+| **判斷順序** | **按編號由小到大**，第一條符合就生效 | **所有規則一起看**，有一條 allow 就放行 |
+| **預設行為** | 自訂 NACL 全 Deny / 預設 NACL 全 Allow | 全 Deny（要自己加 allow）|
+| **比喻** | Subnet 入口的**警衛** | ENI（網卡）上的**門鎖** |
+
+### Stateful vs Stateless — 最容易踩雷的差別
+
+#### Stateful（SG）— 有記憶
+
+```
+客戶端 ──入站 80 allow──► ENI
+ENI    ──回應──────────► 客戶端   ✅ 自動放行
+                                （SG 記得：這是剛才放進來的請求的回應）
+```
+
+**只要設入站 allow，回應的出站自動放行**。
+
+#### Stateless（NACL）— 沒記憶
+
+```
+客戶端 ──入站 80 allow──► Subnet
+Subnet ──回應──────────► 客戶端   ❌ 被擋！
+                                （NACL 當作全新流量處理，要另設出站 allow）
+```
+
+**入站和出站要分別設**，不然回應會被擋掉。
+
+### 什麼時候真的需要動 NACL？
+
+日常 95% **只用 SG 就夠了**（預設 NACL 全 allow、不會擋你）。NACL 出場時機：
+
+1. **明確 deny 某些 IP**（SG 做不到，只能 allow）
+2. **整個 Subnet 的粗粒度防護**（private subnet 禁止任何外連）
+3. **合規需求**（HIPAA / PCI-DSS 要雙層防護）
+4. **封鎖已知攻擊 IP**（一條 NACL deny 規則全 Subnet 生效）
+
+### 一句話記憶
+
+> **NACL 是 Subnet 的警衛、SG 是 ENI（網卡）的門鎖。SG 有記性（stateful）、NACL 沒記性（stateless）；SG 只會放行、NACL 還能明確禁止。**
+
+---
+
+## 7. HA（High Availability）— 為什麼 Subnet 要跨 AZ
 
 ### HA 定義
 
@@ -193,7 +386,7 @@ ap-northeast-1a（掛了）              ap-northeast-1c（還活著）
 
 ---
 
-## 6. 一句話 mental model
+## 8. 一句話 mental model
 
 | 元件 | 類比 |
 |---|---|
@@ -201,12 +394,15 @@ ap-northeast-1a（掛了）              ap-northeast-1c（還活著）
 | **AZ** | 在那個角落裡哪一棟獨立的大樓（1a vs 1c）|
 | **VPC** | 你租的那整片辦公園區 |
 | **Subnet** | 園區裡的每一棟小樓 |
-| **EC2** | 小樓裡的某一間辦公室（虛擬的，但用起來像實體）|
+| **NACL** | 小樓大門的警衛（stateless、能擋人）|
+| **ENI** | 辦公桌上的網路線插座（有 IP、有 SG——像 SIM 卡）|
+| **SG** | 辦公桌的門鎖（stateful、只會放行）|
+| **EC2** | 坐在辦公桌前的人（算力、虛擬的但用起來像實體）|
 | **HA** | 公司在不同大樓都開辦公室，一棟燒了還能繼續上班 |
 
 ---
 
-## 7. 速查表
+## 9. 速查表
 
 ### 哪個元件綁哪個層級？
 
@@ -216,7 +412,10 @@ ap-northeast-1a（掛了）              ap-northeast-1c（還活著）
 | **AZ** | 屬於某個 Region | 不跨 Region |
 | **VPC** | 跨多個 AZ（透過不同 subnet） | **不跨 Region** |
 | **Subnet** | — | **不跨 AZ** |
-| **EC2** | 屬於某個 Subnet | 一台機器只在一個 Subnet |
+| **NACL** | 綁在 Subnet | 一個 Subnet 一個 NACL |
+| **ENI** | 綁在某個 Subnet | **不跨 Subnet**（也就不跨 AZ）|
+| **SG** | 綁在 ENI（可共用給多張 ENI）| — |
+| **EC2** | 屬於某台 EC2 | 一台 EC2 至少一張 primary ENI |
 
 ### 常見問答
 
@@ -225,6 +424,12 @@ ap-northeast-1a（掛了）              ap-northeast-1c（還活著）
 | VPC 能跨 Region 嗎？ | ❌ 不能。要連 Region 用 VPC Peering 或 Transit Gateway |
 | Subnet 能跨 AZ 嗎？ | ❌ 不能。要跨 AZ 就切多個 Subnet |
 | EC2 能跨 Subnet 嗎？ | ❌ 不能（一台只屬於一個 Subnet），但可以多開幾台分散在不同 Subnet |
+| **SG 綁在 EC2 還是 ENI？** | ✅ **ENI**（很多教學說綁 EC2 是簡化說法）|
+| 一台 EC2 可以有多張 ENI 嗎？ | ✅ 可以，且可以各綁不同 SG、各走不同 Subnet |
+| ENI 能跨 Subnet 搬家嗎？ | ❌ 不能。ENI 建立時綁定 Subnet，要搬只能刪了重建 |
+| ENI 能跨 EC2 搬家嗎？ | ✅ 可以（Secondary ENI）。Primary ENI 不行 |
+| NACL 和 SG 要同時設嗎？ | 日常 **只改 SG**（預設 NACL 全 allow）|
+| Lambda / RDS 也有 ENI 嗎？ | ✅ 在 VPC 裡執行時都會建 ENI |
 | AZ 之間通訊要收錢嗎？ | ✅ 會有 AZ 間流量費（數 cents / GB，但量大就痛）|
 | Region 之間通訊要收錢嗎？ | ✅ 更貴，而且延遲高 |
 
@@ -232,5 +437,6 @@ ap-northeast-1a（掛了）              ap-northeast-1c（還活著）
 
 ## 相關資源
 
-- [YouTube — 從東京到全球：探索 AWS Region 和 VPC 的關鍵連結](https://www.youtube.com/watch?v=6QGuf0O1j4E&list=PLVVMQF8vWNCKO5nG4tfEIrFJu1rHcEnRk&index=2)
+- [YouTube — 從東京到全球：探索 AWS Region 和 VPC 的關鍵連結（index=2）](https://www.youtube.com/watch?v=6QGuf0O1j4E&list=PLVVMQF8vWNCKO5nG4tfEIrFJu1rHcEnRk&index=2)
+- [YouTube — AWS教學 Network - ENI vs SG vs EC2 關係介紹（index=24）](https://www.youtube.com/watch?v=uICq0rkOgyw&list=PLVVMQF8vWNCKO5nG4tfEIrFJu1rHcEnRk&index=24)
 - 配套筆記：[ec2-instance-setup.md](ec2-instance-setup.md)
