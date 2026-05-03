@@ -100,6 +100,34 @@
 3. 跳不動（沒有更近的鄰居）→ 下到下一層繼續
 4. 走到 layer 0 → 就是答案
 
+**實際資料長相**（pseudo-JSON）：
+
+```python
+hnsw_index = {
+    "entry_point": 891,                                  # 最上層的入口節點 ID
+    "max_level": 3,
+    "nodes": {
+        12345: {
+            "vector": [0.23, -0.45, ..., 0.07],         # 1536 個 float
+            "level": 2,                                  # 此節點存在到 layer 2
+            "neighbors": {
+                0: [42, 891, 15, 203, 7, 1024, ...],   # layer 0 鄰居（最多 M=16 個）
+                1: [891, 7, 1024],                      # layer 1 鄰居
+                2: [891]                                # layer 2 鄰居
+            }
+        },
+        42: {
+            "vector": [0.18, 0.33, ...],
+            "level": 0,                                  # 只存在 layer 0
+            "neighbors": { 0: [12345, 88, 203, ...] }
+        },
+        # ... 1000 萬個節點
+    }
+}
+```
+
+每個節點不只是個向量，**還帶一份鄰居名單**——這就是讓搜尋「跳鄰居」能跑起來的關鍵。
+
 **主要使用者**：Qdrant、Weaviate、pgvector (HNSW 模式)、Milvus、Elasticsearch 8.x+
 
 **論文**：Malkov & Yashunin 2016 — *"Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs"*
@@ -126,6 +154,30 @@ arXiv：<https://arxiv.org/abs/1603.09320>
 ```
 
 **速度估算**：原本要算 1000 萬次，現在算 `1024 + 1000萬 × 8/1024 ≈ 8.1 萬次`，快約 100 倍。
+
+**實際資料長相**（pseudo-JSON）：
+
+```python
+ivf_index = {
+    "centroids": [                              # K-means 分群中心
+        [0.1, 0.2, ..., 0.5],                  # centroid_0 (1536 dim)
+        [0.5, -0.3, ..., 0.2],                 # centroid_1
+        # ... 共 1024 個 centroid
+    ],
+    "inverted_lists": {                         # 群中心 ID → 該群的向量 IDs
+        0: [3, 17, 88, 234, 1099, ...],       # cluster 0 含哪些向量
+        1: [5, 42, 76, ...],
+        # ... 1024 個 lists
+    },
+    "raw_vectors": {                            # 還是要存原始向量（精算距離用）
+        3:  [...],
+        17: [...],
+        # ... 1000 萬條
+    }
+}
+```
+
+**重點**：**centroid 表 + 倒排清單**就是 IVF 的本體，原始向量還是要留著（用來精算距離）。
 
 **主要使用者**：FAISS、Milvus、pgvector (ivfflat 模式)
 
@@ -154,6 +206,28 @@ arXiv：<https://arxiv.org/abs/1702.08734>
 
 **通常與 IVF 組合 → IVF-PQ**，FAISS 的經典配方，億級向量首選。
 
+**實際資料長相**（pseudo-JSON）：
+
+```python
+pq_index = {
+    "codebooks": [                              # 64 段，每段 256 個碼字
+        [                                       # codebook_0（第 0 段子向量的 256 種樣式）
+            [0.1, 0.2, ..., 0.3],              # 24 維（原向量第 0 段）
+            [0.5, -0.1, ..., 0.7],
+            # ... 256 個 24-dim 向量
+        ],
+        # ... 共 64 個 codebook
+    ],
+    "encoded_vectors": {                        # 每個原向量壓縮成 64 個 byte
+        1: bytes([42, 7, 199, 0, 88, ..., 33]),  # 64 bytes（本來 6144 bytes）
+        2: bytes([11, 200, 4, ...]),
+        # ...
+    }
+}
+```
+
+**怎麼算距離**：query 切成 64 段，每段去 codebook 查表算近似距離，加起來就是答案。**全程不碰原始 float vector**，所以才快。
+
 **論文**：Jégou, Douze, Schmid 2011 — *"Searching in One Billion Vectors: Re-rank With Source Coding"* / *"Product Quantization for Nearest Neighbor Search"* (TPAMI)
 PDF：<https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf>
 
@@ -170,6 +244,27 @@ hash_fn_3: vec → bucket_id   ┘
 
 查詢時：query 算 hash → 只看同 bucket 的向量
 ```
+
+**實際資料長相**（pseudo-JSON）：
+
+```python
+lsh_index = {
+    "hash_tables": [
+        {                                       # 第 1 張 hash table
+            (0, 1, 1, 0, 1): [3, 88, 1024],   # bucket key (位元串) → 該桶向量 IDs
+            (1, 0, 0, 1, 1): [17, 42, 99],
+            # ...
+        },
+        {                                       # 第 2 張 hash table
+            (1, 1, 0, 1, 0): [5, 88, 234],
+            # ...
+        },
+        # ... 通常 5 ~ 20 張 table
+    ]
+}
+```
+
+**怎麼搜**：query 算多組 hash → 看每張 table 裡同 bucket 的向量 → 對這些候選做精算。
 
 **現況**：較早期方法（1998 提出），高維場景多被 HNSW / IVF-PQ 取代，但仍是 ANN 的**理論奠基**。
 
@@ -228,17 +323,100 @@ PDF：<https://suhasjs.github.io/files/diskann_neurips19.pdf>
 
 ---
 
-### 想實際比較？看 ANN-Benchmarks
-
-業界公認的 benchmark：<https://ann-benchmarks.com/>
-
-把 HNSW、IVF-PQ、ScaNN、Annoy、Faiss 等十幾種 index 在 SIFT、GIST、GloVe 等 dataset 上跑 **recall vs QPS** 曲線，可以直接看到「同樣準確度下誰最快」。
-
----
-
 ### 一句話收斂
 
 > **Embedding model 產出向量，Index 是為這些向量建的「目錄」（圖 / 分群 / hash 等資料結構），讓 query 不用線性掃整個庫。**
+
+---
+
+## 0.6 怎麼讀 ANN-Benchmarks 的圖
+
+> **ANN-Benchmarks** 是業界公認的 ANN 演算法 benchmark：<https://ann-benchmarks.com/>
+> **範例頁面**：<https://ann-benchmarks.com/glove-100-angular_10_angular.html>
+> 這節教怎麼解讀這類頁面，幫助你在實務上挑 index。
+
+### Dataset 本身在量什麼
+
+以 `glove-100-angular_10_angular` 為例：
+
+| 項目 | 值 | 解釋 |
+|------|----|----|
+| Dataset | **GloVe-100** | Stanford 的詞向量，每個單字 100 維 |
+| 向量數 | **約 118 萬條** | 用來建 index 的資料 |
+| 查詢數 | **約 1 萬條** | 從 dataset 抽出來的測試集 |
+| Distance | **angular** | = cosine similarity |
+| **k = 10** | 每次查詢回傳最近的 10 條 | 跟「真正最近的 10 條」比對算 recall |
+
+### 主圖：Recall vs Queries per second（最重要的那張）
+
+```
+QPS (queries/sec, log scale, 越高越快)
+  ▲
+1e5│                                   ●─────●─── HNSW (hnswlib)
+   │                              ●───●            ScaNN
+1e4│                         ●───●
+   │                    ●───●
+1e3│               ●───●        annoy
+   │          ●───●
+1e2│     ●───●                           IVF-PQ
+   │ ●───                                          flat (brute force)
+ 10│●                                                              ●
+   └──────────────────────────────────────────────►
+   0.5    0.7    0.8    0.9    0.95    0.99    1.0    Recall（準確度）
+```
+
+### 怎麼解讀
+
+| 軸 / 元素 | 意思 |
+|-----------|------|
+| **X 軸 (Recall)** | 準確度。0.95 = 「正確答案的 10 條裡，這個演算法找到了 9.5 條」 |
+| **Y 軸 (QPS)** | 每秒能處理幾次查詢，**log scale**，所以一格差 10 倍 |
+| **每條曲線** | 一個演算法（HNSW、ScaNN、annoy、IVF-PQ...） |
+| **曲線上每個點** | 該演算法的一組參數設定（例如 HNSW 的 `ef_search=10, 50, 200`） |
+| **越往右上角越好** | 又快又準的 Pareto frontier |
+
+### 三個關鍵觀察
+
+1. **沒有最好的演算法，只有最好的 trade-off**
+   - 想要 recall=0.99 的高準確度 → HNSW / ScaNN 通常勝
+   - 願意接受 recall=0.85 但要極省記憶體 → IVF-PQ
+   - recall 必須 1.0（不能錯）→ 只能 brute force（flat）
+
+2. **同個演算法「一條曲線」是調參數的結果**
+   - HNSW 把 `ef_search` 調大 → 找更多鄰居 → recall ↑、QPS ↓
+   - 看到的曲線是「同一演算法、不同設定」連起來的軌跡
+
+3. **Pareto frontier**
+   - 圖右上角的「外輪廓」是最佳解集合
+   - 落在輪廓**內側**的演算法（同 recall 比 frontier 慢）→ 在這個 dataset 上**輸了**
+
+### 同頁面其他三張圖
+
+| 圖 | X 軸 | Y 軸 | 看什麼 |
+|----|------|------|--------|
+| Recall vs **Build time** | Recall | 建索引耗時 | 建一次 index 要多久（HNSW 出名地慢） |
+| Recall vs **Index size** | Recall | 索引佔用記憶體 | 部署成本（IVF-PQ 在這項通常最強） |
+| Recall vs **Distance computations** | Recall | 每查詢做幾次距離計算 | 演算法理論效率 |
+
+### 如果只看一張，看哪張？
+
+**主圖 (Recall vs QPS)**——直接回答「我願意接受多少準確度損失，能換到多少速度」。實務選型 80% 看這張就夠了，再用 Index size 圖檢查記憶體是否吃得下。
+
+### 怎麼用這個 benchmark 實際選 index
+
+1. **先確認你的場景對應到哪個 dataset**：
+   - 文字 embedding（sentence-transformers / OpenAI）→ 看 `glove-100-angular` 或 `nytimes-256-angular`
+   - 圖像 / 影片 embedding → 看 `sift-128-euclidean` 或 `gist-960-euclidean`
+   - 高維（1000+）→ 看 `gist-960` 或 `deep-image-96`
+2. **在主圖找你能接受的 recall**（通常 0.9 ~ 0.95）
+3. **在這個 recall 上挑 QPS 最高的演算法**
+4. **對照 Index size 圖**確認記憶體夠不夠
+
+### 相關資源
+
+- **ANN-Benchmarks 主頁**：<https://ann-benchmarks.com/>
+- **GitHub repo**（可自己跑）：<https://github.com/erikbern/ann-benchmarks>
+- **Big-ANN-Benchmarks**（10 億級規模）：<https://big-ann-benchmarks.com/>
 
 ---
 
