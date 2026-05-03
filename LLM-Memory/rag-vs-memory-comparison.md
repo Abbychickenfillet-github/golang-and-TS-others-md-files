@@ -59,6 +59,189 @@
 
 ---
 
+## 0.5 Index 長什麼樣子？—— 向量索引的資料結構
+
+> **常見誤解**：很多人以為 vector index 就是「一串 vector 排好放著」（像 `[1, 5, ...]`），其實**完全不是**。
+> Index 是建在向量集合**之上**的**另一層資料結構**，目的是讓查詢時**避免逐一比對**所有向量。
+
+### 為什麼非用 Index 不可
+
+假設 vector store 有 1,000 萬條 1536 維向量：
+
+| 方式 | 比對次數 | 時間量級 |
+|------|---------|---------|
+| **Brute force（沒 index）** | 1,000 萬次 cosine 相似度 | 數秒~數十秒 |
+| **HNSW（有 index）** | 幾百次（圖跳轉） | 數毫秒 |
+
+差三~四個數量級——所以**任何能用的 vector store 一定都建了 index**，只是用哪一種而已。
+
+---
+
+### 主流 Vector Index 家族
+
+#### 🌐 HNSW (Hierarchical Navigable Small World) — 目前最主流
+
+**結構**：多層圖（multi-layer graph），每個節點連到一些鄰居。
+
+```
+  Layer 2:   ●─────────────●            ← 稀疏層、長距離連線（快速跳）
+            /               \
+  Layer 1: ●──●─────●──●───●            ← 中等密度
+          / /       \ \  \
+  Layer 0:●─●─●─●─●─●─●─●─●             ← 所有節點都在這層、短距離連線（精確）
+```
+
+**節點實際存的內容**：`(向量本身, [layer0 鄰居 IDs], [layer1 鄰居 IDs], ...)`
+所以一個節點不只是個向量，還帶著一份「鄰居名單」。
+
+**搜尋過程**（貪婪走圖）：
+1. 從最上層入口節點出發
+2. 在當前層的鄰居裡找**離 query 最近**的，跳過去
+3. 跳不動（沒有更近的鄰居）→ 下到下一層繼續
+4. 走到 layer 0 → 就是答案
+
+**主要使用者**：Qdrant、Weaviate、pgvector (HNSW 模式)、Milvus、Elasticsearch 8.x+
+
+**論文**：Malkov & Yashunin 2016 — *"Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs"*
+arXiv：<https://arxiv.org/abs/1603.09320>
+
+---
+
+#### 📦 IVF (Inverted File Index)
+
+**結構**：先用 K-means 把全部向量分成 K 群，存「群中心 → 該群的向量 IDs」倒排表。
+
+```
+建索引時（離線跑一次）：
+  1000 萬向量 → K-means → 1024 個群中心 (centroids)
+  + 倒排表：
+    centroid_0 → [vec_id_3, vec_id_17, vec_id_88, ...]
+    centroid_1 → [vec_id_5, vec_id_42, ...]
+    ...
+
+查詢時：
+  query → 算跟 1024 個 centroid 的距離
+        → 取最近的 nprobe 個 cluster（例如 8 個）
+        → 只在這 8 個 cluster 內找 top-K
+```
+
+**速度估算**：原本要算 1000 萬次，現在算 `1024 + 1000萬 × 8/1024 ≈ 8.1 萬次`，快約 100 倍。
+
+**主要使用者**：FAISS、Milvus、pgvector (ivfflat 模式)
+
+**論文**：Johnson, Douze, Jégou 2017 — *"Billion-scale similarity search with GPUs"*（FAISS）
+arXiv：<https://arxiv.org/abs/1702.08734>
+
+---
+
+#### 🗜 PQ (Product Quantization) / IVF-PQ
+
+**結構**：把高維向量**壓縮**成短碼，省記憶體 + 加速距離計算。
+
+```
+原始向量：1536 dim × float32 = 6,144 bytes
+   │
+   ├── 切成 M=64 段子向量（每段 24 維）
+   │
+   ▼
+每段獨立做 K-means → 256 個 codebook
+   │
+   ▼
+壓縮後：64 個 1-byte 整數 = 64 bytes      ← 壓縮 96 倍
+```
+
+**為什麼快**：用「查表」（lookup table）算近似距離，比直接算 float 點積快很多。
+
+**通常與 IVF 組合 → IVF-PQ**，FAISS 的經典配方，億級向量首選。
+
+**論文**：Jégou, Douze, Schmid 2011 — *"Searching in One Billion Vectors: Re-rank With Source Coding"* / *"Product Quantization for Nearest Neighbor Search"* (TPAMI)
+PDF：<https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf>
+
+---
+
+#### #️⃣ LSH (Locality-Sensitive Hashing)
+
+**結構**：設計一族 hash 函數，讓**相近的向量大機率被 hash 到同一個 bucket**。
+
+```
+hash_fn_1: vec → bucket_id   ┐
+hash_fn_2: vec → bucket_id   ├── 多張 hash table
+hash_fn_3: vec → bucket_id   ┘
+
+查詢時：query 算 hash → 只看同 bucket 的向量
+```
+
+**現況**：較早期方法（1998 提出），高維場景多被 HNSW / IVF-PQ 取代，但仍是 ANN 的**理論奠基**。
+
+**論文**：Indyk & Motwani 1998 — *"Approximate Nearest Neighbors: Towards Removing the Curse of Dimensionality"* (STOC 1998)
+PDF：<https://www.cs.princeton.edu/courses/archive/spring04/cos598B/bib/IndykM-curse.pdf>
+
+---
+
+#### 🚀 ScaNN / DiskANN — 大規模專用
+
+**ScaNN**（Google）：量化 + 學習型分群，在 ann-benchmarks 多項指標領先。
+論文：Guo et al. 2020 — *"Accelerating Large-Scale Inference with Anisotropic Vector Quantization"* (ICML 2020)
+arXiv：<https://arxiv.org/abs/1908.10396>
+
+**DiskANN**（Microsoft）：圖索引**放 SSD 而不是 RAM**，**單機處理 10 億向量**。
+論文：Subramanya et al. 2019 — *"DiskANN: Fast Accurate Billion-point Nearest Neighbor Search on a Single Node"* (NeurIPS 2019)
+PDF：<https://suhasjs.github.io/files/diskann_neurips19.pdf>
+
+---
+
+#### 📋 Flat（不建 index，老實逐一算）
+
+**結構**：就是個向量陣列，brute force 比對。
+
+**何時可用**：資料量 < 10 萬時，brute force 反而**比 ANN 準確**（沒有近似誤差）且夠快。
+
+**注意**：pgvector 預設就是 Flat，要 `CREATE INDEX ... USING hnsw` 才會建索引。
+
+---
+
+### 對照：BM25 全文檢索的 Inverted Index
+
+關鍵字檢索（BM25）用的 index 完全不是向量類，叫**倒排索引 (inverted index)**：
+
+```
+"退款" → [doc_3, doc_17, doc_42, ...]    （詞 → 包含這個詞的所有 doc IDs）
+"政策" → [doc_3, doc_8, doc_42, ...]
+"假期" → [doc_5, doc_99, ...]
+```
+
+**主要實作**：Lucene → Elasticsearch / OpenSearch、Tantivy (Rust)、Whoosh (Python)
+
+**經典教科書**：Manning, Raghavan, Schütze — *Introduction to Information Retrieval*（Stanford，**免費全文**）
+<https://nlp.stanford.edu/IR-book/>
+
+---
+
+### Index 選型速查表
+
+| 資料量 | 主流選擇 | 原因 |
+|--------|----------|------|
+| < 10 萬 | **Flat** | brute force 夠快、無近似誤差 |
+| 10 萬 ~ 1000 萬 | **HNSW** | 速度/準確度/記憶體平衡最好 |
+| 1000 萬 ~ 1 億 | **IVF-PQ** | 記憶體吃不消，需要量化壓縮 |
+| 1 億 ~ 10 億+ | **DiskANN / ScaNN** | 必須放 SSD 或極致量化 |
+
+---
+
+### 想實際比較？看 ANN-Benchmarks
+
+業界公認的 benchmark：<https://ann-benchmarks.com/>
+
+把 HNSW、IVF-PQ、ScaNN、Annoy、Faiss 等十幾種 index 在 SIFT、GIST、GloVe 等 dataset 上跑 **recall vs QPS** 曲線，可以直接看到「同樣準確度下誰最快」。
+
+---
+
+### 一句話收斂
+
+> **Embedding model 產出向量，Index 是為這些向量建的「目錄」（圖 / 分群 / hash 等資料結構），讓 query 不用線性掃整個庫。**
+
+---
+
 ## 1. RAG 是什麼？—— 原始問題的由來
 
 ### 論文源頭
