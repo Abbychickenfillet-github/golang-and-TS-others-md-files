@@ -133,6 +133,27 @@ hnsw_index = {
 **論文**：Malkov & Yashunin 2016 — *"Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs"*
 arXiv：<https://arxiv.org/abs/1603.09320>
 
+##### 常見混淆：HNSW 的 graph vs LangGraph？
+
+抽象層都是 graph（節點 + 邊），但**本質目的完全不同**：
+
+| 對照 | HNSW | LangGraph |
+|------|------|-----------|
+| **節點代表** | 一個向量資料點 | 一個執行單元（LLM call / tool call） |
+| **邊代表** | 鄰近關係（空間靠近） | 控制流轉移（這步跑完跳哪） |
+| **目的** | 加速最近鄰搜尋（**檢索**） | 編排 agent 工作流程（**執行**） |
+| **性質** | 靜態資料結構 | 動態 workflow / state machine |
+| **有 state？** | ❌ 圖建好就不動 | ✅ State 在節點間流轉、被修改 |
+| **走訪邏輯** | 貪婪搜尋（往最近鄰跳） | conditional edge（看 state 決定下一步） |
+
+**類比**：
+- HNSW 的 graph 像**捷運路線圖**——告訴你「淡水站」最近的站是「紅樹林」「竹圍」，幫你找鄰居
+- LangGraph 像**料理食譜流程圖**——告訴你「炒完肉若鹹度夠就上桌，否則加水再煮」
+
+**唯一共通點**：都建立在圖論基礎上，「節點 + 邊」抽象 + 走訪概念（BFS/DFS/貪婪）的數學語彙可共用。但**不會**拿 HNSW 編排 agent，也**不會**拿 LangGraph 做向量檢索。
+
+> 一句話：**HNSW 的 graph 是「資料的空間地圖」，LangGraph 是「程式的執行流程圖」。**
+
 ---
 
 #### 📦 IVF (Inverted File Index)
@@ -206,7 +227,130 @@ arXiv：<https://arxiv.org/abs/1702.08734>
 
 **通常與 IVF 組合 → IVF-PQ**，FAISS 的經典配方，億級向量首選。
 
-**實際資料長相**（pseudo-JSON）：
+---
+
+##### 為什麼叫「Product」Quantization？
+
+「Product」來自**笛卡爾積 (Cartesian product)**。
+
+如果直接對整個 1536 維向量做 K-means，要表達夠細緻得有 `256^1536` 個碼字——記憶體爆炸不可能。
+
+PQ 的核心 trick：**把空間「拆」成 M 個獨立子空間，各自做小規模量化**。最終可表達的不同向量數 = `256 × 256 × ... × 256`（M 次）= `256^M` 種，但實際儲存的碼字只有 `M × 256` 個。
+
+數字感受（M=64）：
+
+| 方式 | 可表達向量數 | 實際儲存的碼字 |
+|------|-------------|----------------|
+| 整個向量做 K-means (k=256) | 256 個 | 256 個 ✓ |
+| **PQ (M=64, k=256)** | **256⁶⁴ ≈ 10¹⁵⁴** | 64 × 256 = 16,384 個 ✓ |
+
+→ 用很少的儲存空間，表達「組合爆炸」級的向量數。這就是 product 的意義。
+
+---
+
+##### 三步驟詳解
+
+**1️⃣ 訓練階段（建 codebook）**
+
+對每個子空間 m = 0, 1, ..., M-1：
+- 取所有訓練向量的「第 m 段（24 維）」
+- 在這 24 維空間跑 K-means (k=256)
+- 得到 256 個中心點 → 這就是 `codebook_m`
+
+```
+訓練資料 1000 萬條 1536-dim 向量
+        │
+        ▼ 切成 64 段
+每段都是 1000 萬條 24-dim 向量
+        │
+        ▼ 各段獨立 K-means
+對「第 0 段」跑 K-means → codebook_0  (256 個 24-dim 中心)
+對「第 1 段」跑 K-means → codebook_1
+...
+對「第 63 段」跑 K-means → codebook_63
+```
+
+**2️⃣ Encoding（壓縮儲存）**
+
+對每個要存的向量 v（1536-dim）：
+- 切成 64 段子向量 v_0, v_1, ..., v_63（每段 24 維）
+- 對每段 v_m，找 codebook_m 中**最近的中心點 ID**（0~255）
+- 把這 64 個 ID 串起來 → **64 bytes 的 PQ code**
+
+```
+v = [0.23, -0.45, ..., 0.07]   (1536 dim)
+       ▼ 切成 64 段
+v_0  = [0.23, -0.45, ..., 0.11]   → 找 codebook_0  最近 → 中心 #42
+v_1  = [0.18,  0.33, ..., -0.21]  → 找 codebook_1  最近 → 中心 #7
+...
+v_63 = [0.07, ..., 0.02]          → 找 codebook_63 最近 → 中心 #199
+       ▼
+PQ code = bytes([42, 7, ..., 199])   ← 64 bytes
+```
+
+**3️⃣ 查詢階段（ADC — Asymmetric Distance Computation）**
+
+PQ 厲害的地方：**query 是 full precision，DB 是壓縮的，能高速算近似距離**。「Asymmetric」指的就是 query / DB 兩邊精度不對稱。
+
+**步驟 A — 建 distance table（每個 query 只做一次）**
+
+對 query 向量 q：
+- 切成 64 段 q_0, q_1, ..., q_63
+- 對每個 m，預先算 q_m 跟 codebook_m 中所有 256 個中心的距離
+- 結果是 `64 × 256` 的查表（distance table），約 64 KB
+
+```
+distance_table[m][c] = || q_m - codebook_m[c] ||²
+
+m =  0: [d(q_0, c_0),  d(q_0, c_1),  ..., d(q_0, c_255)]   ← 256 個 float
+m =  1: [d(q_1, c_0),  d(q_1, c_1),  ..., d(q_1, c_255)]
+...
+m = 63: [d(q_63, c_0), d(q_63, c_1), ..., d(q_63, c_255)]
+```
+
+**步驟 B — 對每個 DB 向量算近似距離（純查表 + 加總）**
+
+對每個 DB 向量的 PQ code = `[42, 7, ..., 199]`：
+
+```
+approx_dist(q, v) = distance_table[0][42]
+                  + distance_table[1][7]
+                  + ...
+                  + distance_table[63][199]
+```
+
+**全程沒做任何浮點數乘法，純 64 次 lookup + 加法**——這就是 PQ 速度的根源。
+
+---
+
+##### 具體數字：100 萬條 1536-dim 向量
+
+| 指標 | 沒 PQ | 有 PQ (M=64) | 倍數 |
+|------|-------|-------------|------|
+| **記憶體** | 1M × 1536 × 4 byte = **5.7 GB** | 1M × 64 byte = **61 MB** | **96×** 壓縮 |
+| **每查詢 ops** | 1M × 1536 次浮點乘法 ≈ 1.5G ops | 1M × 64 次查表 + 加總 = 64M ops | **24×** 加速 |
+| **準確度** | 100% 精確 | recall ~85-95%（近似） | 視 M、nbits 調整 |
+
+→ PQ 是**用準確度換記憶體 + 速度**，億級向量場景幾乎是必選。
+
+---
+
+##### 可調參數
+
+| 參數 | 意思 | 典型值 | 影響 |
+|------|------|--------|------|
+| **M** | 切幾段子向量 | 8, 16, 32, **64** | M ↑ → 準確度 ↑、計算 ↑、code 變長 |
+| **nbits** | 每段用幾 bits 編碼 | **8** (= 256 碼字) | nbits ↑ → 準確度 ↑、記憶體 ↑ |
+| **PQ code 大小** | 壓縮後一個向量幾 bytes | `M × nbits / 8` | M=64, nbits=8 → 64 bytes |
+
+**經驗法則**：
+- D 維向量切成 M = D/4 段（每段 4 ~ 32 維最佳）
+- nbits 幾乎都用 8（256 碼字）
+- 準確度不夠 → 提高 M 或結合 IVF 做 IVF-PQ
+
+---
+
+##### 實際資料長相（pseudo-JSON）
 
 ```python
 pq_index = {
@@ -226,10 +370,55 @@ pq_index = {
 }
 ```
 
-**怎麼算距離**：query 切成 64 段，每段去 codebook 查表算近似距離，加起來就是答案。**全程不碰原始 float vector**，所以才快。
+---
 
-**論文**：Jégou, Douze, Schmid 2011 — *"Searching in One Billion Vectors: Re-rank With Source Coding"* / *"Product Quantization for Nearest Neighbor Search"* (TPAMI)
+##### IVF-PQ — FAISS 的億級配方
+
+PQ 單獨用其實還是要對所有 DB 向量算近似距離（雖然每次只是查表），1 億條向量還是 1 億次查表。
+
+→ 跟 IVF 組合：**IVF 先快速縮小範圍到 nprobe 個 cluster，PQ 在這些 cluster 裡的向量上算近似距離**。
+
+```
+查詢流程（IVF-PQ）：
+  query
+    │
+    ▼
+  IVF: 比對 1024 個 centroid → 取最近 8 個 cluster
+    │
+    ▼
+  範圍縮小到約 1 億 × 8/1024 ≈ 78 萬條向量
+    │
+    ▼
+  PQ: 對這 78 萬個 PQ code 查表算近似距離
+    │
+    ▼
+  取 top-K
+```
+
+**FAISS 經典命名**：`IVF1024,PQ64x8` = 1024 個 IVF cluster + PQ 切 64 段 + 每段 8 bits。
+
+---
+
+##### PQ 家族變體
+
+| 變體 | 改進點 | 何時用 |
+|------|-------|--------|
+| **OPQ** (Optimized PQ) | 訓練時先學一個旋轉矩陣，讓向量分佈更適合切段 | 子空間相關性強時提升 recall |
+| **RVQ** (Residual VQ) | 量化殘差再量化 → 多階段壓縮 | 想更高壓縮率 |
+| **AQ** (Additive Quantization) | 更一般化的版本 | 學術研究用 |
+| **ScaNN's anisotropic VQ** | 針對「最近鄰排序」優化的量化 | Google 大規模場景 |
+
+---
+
+**怎麼算距離（總結）**：query 切成 M 段 → 對 codebook 預算 distance table → 對每個 DB 向量的 M-byte code 做 M 次查表加總。**全程不碰原始 float vector**，所以才快。
+
+**論文**：Jégou, Douze, Schmid 2011 — *"Product Quantization for Nearest Neighbor Search"* (TPAMI)
 PDF：<https://lear.inrialpes.fr/pubs/2011/JDS11/jegou_searching_with_quantization.pdf>
+
+**OPQ 論文**：Ge et al. 2013 — *"Optimized Product Quantization"* (CVPR)
+PDF：<https://kaiminghe.github.io/publications/cvpr13opq.pdf>
+
+**FAISS 入門教學**：Pinecone 寫得很好的教學系列 — <https://www.pinecone.io/learn/series/faiss/product-quantization/>
 
 ---
 
@@ -309,6 +498,107 @@ PDF：<https://suhasjs.github.io/files/diskann_neurips19.pdf>
 
 **經典教科書**：Manning, Raghavan, Schütze — *Introduction to Information Retrieval*（Stanford，**免費全文**）
 <https://nlp.stanford.edu/IR-book/>
+
+#### 為什麼叫「倒排」？
+
+「**正排 (forward index)**」 vs 「**倒排 (inverted index)**」是兩種**相反**的組織方式：
+
+| 類型 | 組織方式 | 結構 | 適合查什麼 |
+|------|---------|------|-----------|
+| **正排 (forward)** | docID → 這篇文件包含哪些詞 | `doc_1 → ["Caesar", "conquered", "Gaul"]` | 「給我 doc_1 的內容」 |
+| **倒排 (inverted)** | 詞 → 哪些文件包含這個詞 | `"Caesar" → [doc_1, doc_2, doc_3]` | 「哪些文件含 Caesar？」 |
+
+**為什麼叫「倒」？** 因為它把「文件 → 詞」這個自然方向**翻轉**成「詞 → 文件」。
+
+**為什麼搜尋要用倒排？** 因為查詢時是「拿著詞找文件」（使用者輸入「Caesar」要找含這個詞的所有文件）。如果用正排，得逐篇文件掃描，O(N) 慢死；用倒排直接 O(1) 拿到答案清單。
+
+```
+查 "Caesar AND killed"
+  ▼
+倒排索引：
+  Caesar → [1, 2, 3]
+  killed → [2]
+  ▼
+取交集 → [2]   ← 直接得到答案
+```
+
+→ **倒排索引是搜尋引擎的根本資料結構**，Google、Elasticsearch、Lucene 全部都靠它。
+
+#### 補充：倒排索引怎麼建？
+
+來自 Stanford IR Book Chapter 1 / 4。**Nonpositional index**（不記錄詞位置的版本）建構三步驟：
+
+##### Step 1 — 蒐集所有 (term, docID) 配對
+
+```
+doc_1: "Caesar conquered Gaul"
+doc_2: "Brutus killed Caesar"
+doc_3: "Caesar was great"
+        ▼
+[(Caesar, 1), (conquered, 1), (Gaul, 1),
+ (Brutus, 2), (killed, 2), (Caesar, 2),
+ (Caesar, 3), (was, 3), (great, 3)]
+```
+
+##### Step 2 — 排序（term 為主鍵、docID 為次鍵）
+
+```
+[(Brutus, 2), (Caesar, 1), (Caesar, 2), (Caesar, 3),
+ (Gaul, 1), (conquered, 1), (great, 3), (killed, 2), (was, 3)]
+```
+
+##### Step 3 — 合併成 postings list + 計算統計
+
+```
+Brutus    → df=1  → [2]
+Caesar    → df=3  → [1, 2, 3]      ← 三篇都出現
+Gaul      → df=1  → [1]
+conquered → df=1  → [1]
+great     → df=1  → [3]
+killed    → df=1  → [2]
+was       → df=1  → [3]
+```
+
+`df` = document frequency（多少篇文件包含這個詞），用來算 TF-IDF / BM25 評分。
+
+##### Nonpositional vs Positional Index
+
+| 類型 | 記錄什麼 | 用途 |
+|------|----------|------|
+| **Nonpositional** | 「哪些 docID 包含這個詞」 | 一般檢索、TF-IDF / BM25 評分 |
+| **Positional** | 「在 docID 的第幾個位置」 | Phrase search（"machine learning" 要相鄰）、proximity search |
+
+Positional 範例：
+
+```
+Caesar → [doc_1: [pos 0],  doc_2: [pos 2],  doc_3: [pos 0]]
+                  ↑              ↑              ↑
+               第 0 個字       第 2 個字       第 0 個字
+```
+
+##### 大資料怎麼辦？BSBI / SPIMI
+
+> "For small collections, all this can be done in memory" ——這句話是個伏筆。
+
+當 collection 太大（例如整個 web、Wikipedia），(term, docID) 配對放不進記憶體。三大解法：
+
+| 方法 | 核心 idea |
+|------|-----------|
+| **BSBI** (Blocked Sort-Based Indexing) | 切 block → 每塊在記憶體 sort → 寫磁碟成 sorted runs → 最後 external merge sort |
+| **SPIMI** (Single-Pass In-Memory Indexing) | 不需排序，每塊直接在記憶體建小索引，最後合併（更快） |
+| **MapReduce / 分散式** | 多機平行，map 階段切 token、reduce 階段合 postings（Google / Hadoop 風格） |
+
+`BSBI` 跟資料庫的 **external sort** 是同個概念。
+
+##### 對照向量索引建構
+
+| 維度 | 倒排索引 BSBI | 向量索引 HNSW/IVF |
+|------|---------------|-------------------|
+| 建索引瓶頸 | **排序** + I/O | **計算 K-means / 圖鄰居** |
+| 大資料解法 | 切 block → external sort | 切 shard → distributed build |
+| 全部讀完才能查 | ✅ 是 | ✅ 是 |
+
+兩種 index 的「建」階段都很重——這也是為什麼 ANN-Benchmarks 圖會有「Recall vs **Build time**」這項指標。
 
 ---
 
