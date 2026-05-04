@@ -44,6 +44,109 @@ SELECT * FROM items ORDER BY embedding <-> '[0.5, 0.5, ..., 0.5]' LIMIT 5;
 | **HNSW** | `CREATE INDEX ... USING hnsw (embedding vector_l2_ops)` | 主流選擇（10 萬~1000 萬） |
 | **IVFFlat** | `CREATE INDEX ... USING ivfflat (embedding vector_l2_ops) WITH (lists = 100)` | 大型資料 + 接受近似 |
 
+### 數學背景：歐幾里德距離 (L2)
+
+> **歐式距離就是畢氏定理的推廣。**
+
+`<->` 運算子背後的數學就是這個。先理解原理，後面看 SQL 就秒懂。
+
+#### 公式（用 LaTeX 寫的）
+
+$$
+d(A, B) = \sqrt{\sum_{i=1}^{n} (a_i - b_i)^2}
+$$
+
+> ⚠️ `$$ ... $$` 是 **Markdown / Obsidian 的 LaTeX 數學排版語法**（給人看的展示），**不是程式碼**，不能執行。雙錢字符是 block 模式、單錢字符 `$ ... $` 是 inline 模式。Obsidian、GitHub、Jupyter 都支援。
+
+白話：**對應位置相減 → 平方 → 加總 → 開根號**。
+
+#### 從 2D 到 N 維
+
+| 維度 | 範例 | 計算 |
+|------|------|------|
+| 2D（畢氏定理）| A=(0,0), B=(3,4) | √((0-3)² + (0-4)²) = √(9+16) = √25 = **5** |
+| 3D（4.3 的「蘋果 vs 香蕉」）| A=[1,0,0], B=[0.9,0,0.1] | √(0.01 + 0 + 0.01) = √0.02 ≈ **0.1414** |
+| 1536D（OpenAI embedding）| i 從 1 跑到 1536 | 公式不變，CPU SIMD 幾微秒搞定 |
+
+#### Python 一行實現（給電腦跑的）
+
+```python
+import numpy as np
+
+vec1 = np.array([1.0, 0.0, 0.0])      # 蘋果
+vec2 = np.array([0.9, 0.0, 0.1])      # 香蕉
+
+distance = np.sqrt(sum(pow(vec1 - vec2, 2)))
+print(distance)   # 0.1414...
+```
+
+#### LaTeX 公式 vs Python 程式碼差在哪？
+
+| | LaTeX `$$ ... $$` | Python `np.sqrt(...)` |
+|---|---|---|
+| 是什麼 | 數學排版語法 | 可執行程式碼 |
+| 給誰看 | 人（給排版引擎渲染）| 電腦（給 Python 直譯器執行）|
+| 在哪用 | Markdown / Obsidian / 論文 | `.py` 檔 / Jupyter |
+| 能跑嗎 | ❌ 純展示 | ✅ 跑出 `0.1414...` |
+| 範例 | $d = \sqrt{(3-0)^2 + (4-0)^2} = 5$（會渲染成數學符號）| `np.sqrt((3-0)**2 + (4-0)**2)` → `5.0` |
+
+→ 兩者**做的是同一件事**（畢氏定理），只是一個「給人看公式」、一個「讓電腦算結果」。
+
+#### 逐字拆解 Python 程式碼
+
+| 部分 | 是什麼 | 範例算式 |
+|------|--------|---------|
+| `np` | **NumPy** 慣例別名（**不是 neural**！源自 `import numpy as np`）| Python 數值運算標準函式庫 |
+| `np.array([...])` | 建 NumPy 陣列 | 把 list 變成能向量化運算的物件 |
+| `vec1 - vec2` | NumPy **element-wise 減法**（對應位置相減）| `[1-0.9, 0-0, 0-0.1] = [0.1, 0, -0.1]` |
+| `pow(x, 2)` | Python 內建 **冪次函式**：`pow(底數, 指數)` | 第 2 個參數 `2` = 指數 = 平方 → `[0.01, 0, 0.01]` |
+| `sum(...)` | 加總所有元素 | `0.01 + 0 + 0.01 = 0.02` |
+| `np.sqrt(x)` | **square root**（開平方根） | `√0.02 ≈ 0.1414` |
+
+#### `pow` 的第 2 個參數是「指數」
+
+| 寫法 | 意思 |
+|------|------|
+| `pow(x, 2)` | x² 平方 |
+| `pow(x, 3)` | x³ 立方 |
+| `pow(x, 0.5)` | √x 開根號（等同 `sqrt`）|
+| `pow(x, -1)` | 1/x 倒數 |
+
+三種等價寫法都常見：
+
+```python
+pow(vec1 - vec2, 2)        # Python 內建 pow
+(vec1 - vec2) ** 2         # ** 運算子（最 Pythonic）
+np.square(vec1 - vec2)     # NumPy 函式（最快）
+```
+
+#### 為什麼不用 for 迴圈？
+
+NumPy 的「**向量化運算 (vectorization)**」：對整個陣列一次運算完，底層用 C + SIMD 並行跑。
+
+```python
+# 沒 NumPy 的笨寫法（1536 維會 loop 1536 次）
+total = 0
+for i in range(len(vec1)):
+    total += (vec1[i] - vec2[i]) ** 2
+distance = total ** 0.5
+
+# NumPy 一行（快、簡潔）
+distance = np.sqrt(sum(pow(vec1 - vec2, 2)))
+```
+
+#### 跟 pgvector `<->` 的對應關係
+
+```
+   pgvector (SQL)                  Python (NumPy)
+   ───────────────                 ──────────────
+embedding <-> '[1,0,0]'    ≡    np.sqrt(sum(pow(vec - query, 2)))
+         ▲                                ▲
+    DB 內建運算子                     手算等價版
+```
+
+→ `<->` 把這條公式封裝成 DB 運算子，且能走 HNSW 索引加速。實務上 NumPy 還有更精煉的 `np.linalg.norm(vec1 - vec2)` 直接算 L2。
+
 ---
 
 ## 1. Image (Docker) vs git clone — 該下載哪個？
@@ -57,6 +160,192 @@ SELECT * FROM items ORDER BY embedding <-> '[0.5, 0.5, ..., 0.5]' LIMIT 5;
 | 大小 | 數 MB | 數百 MB |
 | 能直接執行嗎 | ❌ 要 build | ✅ `docker run` 立刻跑 |
 | Windows 上難度 | ⚠️ 需 Visual Studio + Postgres dev headers | ✅ 裝好 Docker Desktop 就能用 |
+
+### 兩個指令並排對照（具體層面）
+
+#### 🅰 `git clone` 你執行了什麼？
+
+```powershell
+git clone https://github.com/pgvector/pgvector.git
+```
+
+**幕後發生的事**：
+
+```
+1. Git 連到 GitHub
+   ▼
+2. 下載 pgvector 的整個 git repo（含歷史紀錄）
+   ▼
+3. 解壓到 ./pgvector/ 目錄
+```
+
+**結束後本機長這樣**：
+
+```
+你的硬碟：
+  C:\coding\pgvector\
+    ├── src/          ← C 語言原始碼
+    ├── test/         ← 測試檔
+    ├── README.md     ← 文件
+    ├── Makefile      ← 編譯規則
+    └── ...
+
+你的記憶體：
+  （沒新增任何執行中的程序）
+```
+
+**結束後能做什麼？**
+- ✅ 用編輯器打開 `.c` 檔讀原始碼
+- ✅ 看 README 學概念
+- ❌ 沒有 Postgres 在跑
+- ❌ pgvector 沒裝在任何 Postgres 上
+- ❌ **不能 `CREATE EXTENSION vector;`**
+
+→ git clone **只是「拿到檔案」**，**什麼都還沒「跑起來」**。
+
+#### 🅱 `docker run` 你執行了什麼？
+
+```powershell
+docker run -d --name pgvector-test `
+  -e POSTGRES_PASSWORD=mysecret `
+  -e POSTGRES_DB=test_rag `
+  -p 5432:5432 `
+  pgvector/pgvector:pg17
+```
+
+**幕後發生的事**：
+
+```
+1. Docker 連到 Docker Hub
+   ▼
+2. 下載「pgvector + Postgres + Linux」的完整 image（約 400MB）
+   ▼
+3. 從 image 啟動一個容器
+   ▼
+4. 容器內 Linux 啟動 → Postgres 17 自動啟動
+   ▼
+5. pgvector 已經編譯好放在 extension 目錄（image 內建）
+   ▼
+6. 容器開放 5432 port，等你連線
+```
+
+**結束後本機長這樣**：
+
+```
+你的硬碟：
+  Docker 的 image 快取（系統管理，看不見的地方）
+
+你的記憶體：
+  pgvector-test 容器（執行中）
+    └── 內含跑著的 Postgres 17
+        └── pgvector 擴充已待命
+
+監聽中的 port:
+  localhost:5432  ← 你可以從本機連進去
+```
+
+**結束後能做什麼？**
+- ✅ `docker exec` 進去操作
+- ✅ DBeaver / psql 從 localhost:5432 連線
+- ✅ **`CREATE EXTENSION vector;` 立刻能跑**
+- ✅ 開始建表、存向量、查詢
+
+→ docker run **是「下載 + 安裝 + 啟動 + 設定」一次完成**。
+
+### 執行後狀態對照
+
+| | git clone 後 | docker run 後 |
+|---|---|---|
+| **本機檔案系統** | 多了 `./pgvector/` 資料夾（純文字 / 原始碼）| Docker 快取多一個 image |
+| **執行中程序** | 沒新增任何程序 | 多一個跑著的容器 |
+| **Postgres 在跑嗎** | ❌ | ✅ |
+| **pgvector 已裝？** | ❌ 只有原始碼 | ✅ 編譯好且裝在 Postgres 中 |
+| **能 `CREATE EXTENSION` 嗎** | ❌ | ✅ |
+| **能用 DBeaver 連線嗎** | ❌（沒 DB 在跑）| ✅ localhost:5432 |
+| **下一步** | 編譯 + 裝（複雜，見下方）| 直接連線開幹 |
+
+### 兩條路線完整步驟對照
+
+#### 🅰 git clone 路線（不推薦，但完整列出）
+
+```powershell
+# 1. clone（你已經做了）
+git clone https://github.com/pgvector/pgvector.git
+cd pgvector
+
+# 2. 安裝 PostgreSQL（如果還沒裝）
+# Windows: https://www.postgresql.org/download/windows/
+
+# 3. 安裝 build 工具
+# Windows: 裝 Visual Studio 2022 + C++ workload + Windows SDK
+
+# 4. 設定環境變數，讓 build 系統能找到 Postgres dev headers
+$env:PGROOT = "C:\Program Files\PostgreSQL\17"
+$env:PATH += ";$env:PGROOT\bin"
+
+# 5. 開啟 Visual Studio 的「x64 Native Tools Command Prompt」
+#    然後 cd 回 pgvector 目錄
+
+# 6. 用 nmake build（Windows 專用）
+nmake /F Makefile.win
+
+# 7. 安裝到 Postgres extension 目錄
+nmake /F Makefile.win install
+
+# 8. 啟動本機 Postgres 服務（如果沒自動啟動）
+net start postgresql-x64-17
+
+# 9. 連到 Postgres
+psql -U postgres
+
+# 10. 啟用擴充
+CREATE EXTENSION vector;
+```
+
+→ **10 步驟，每一步都可能出錯**。Linux / Mac 上比較簡單，Windows 上是折磨。
+
+#### 🅱 docker run 路線（推薦）
+
+```powershell
+# 1. 確認 Docker Desktop 開了
+docker --version
+
+# 2. 起容器（自動下載 image + 跑起來）
+docker run -d --name pgvector-test `
+  -e POSTGRES_PASSWORD=mysecret `
+  -e POSTGRES_DB=test_rag `
+  -p 5432:5432 `
+  pgvector/pgvector:pg17
+
+# 3. 進去
+docker exec -it pgvector-test psql -U postgres -d test_rag
+
+# 4. 啟用擴充
+CREATE EXTENSION vector;
+```
+
+→ **4 步驟，10 分鐘搞定**。
+
+### ⚠️ 你現在的狀態
+
+如果你已經 `git clone https://github.com/pgvector/pgvector.git` 到 `C:\coding\pgvector`：
+
+| 你做了 | 達成了什麼 | 還差什麼 |
+|--------|----------|---------|
+| ✅ git clone | 拿到原始碼，可以**讀**它 | **不能執行**——什麼都還沒跑 |
+| ❌ docker run | -| 還沒做，所以還沒有 Postgres / pgvector 可用 |
+
+**clone 到的 `C:\coding\pgvector\`** 不會消失也不會干擾，**留著當參考用就好**——要實際用 pgvector，**還是要 docker run**。
+
+### 一句話收斂
+
+> **git clone 拿到「原料」（C 原始碼，要自己組裝）**
+> **docker run 拿到「成品」（已組好的 Postgres + pgvector，立刻能用）**
+>
+> 兩個指令做的事**根本不同**——不是二選一的對等選項，而是「不同目的的不同工具」。
+> 想用 pgvector 做 RAG → **docker run**；想讀 C 原始碼學內部實作 → **git clone**。
+
+---
 
 ### 何時用哪個
 
