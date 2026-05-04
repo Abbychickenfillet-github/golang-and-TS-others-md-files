@@ -110,18 +110,155 @@ docker run -d --name pgvector-test `
   pgvector/pgvector:pg17
 ```
 
-**參數解釋**：
+#### 整體結構速覽
 
-| 參數 | 意思 |
+```
+docker run                    ← 1. 指令本體
+-d                            ← 2. 執行模式
+--name pgvector-test          ← 3. 容器名字
+-e VAR=value                  ← 4. 環境變數（兩個）
+-p 5432:5432                  ← 5. port 映射
+pgvector/pgvector:pg17        ← 6. image 名字（沒 dash 前綴的就是它）
+```
+
+末尾的反引號 `` ` `` 是 **PowerShell 的換行字元**（等同 bash 的 `\`、CMD 的 `^`）。後面**不能有空格**，否則被當字面字元。
+
+#### 參數逐一拆解
+
+##### 1. `docker run` —— 指令本體
+
+| | docker run | docker exec |
+|---|------------|-------------|
+| 動作 | **建一個新容器並啟動** | 在**已存在且執行中**的容器內**跑指令** |
+| 第一次 | ✅ 用這個 | ❌ 容器還沒建 |
+| 之後互動 | ❌ 會建第二個容器 | ✅ 用這個進去 |
+
+→ **第一次** 用 `docker run`（建容器）；**之後想進去**用 `docker exec`。
+
+##### 2. `-d` —— **d**etached（背景執行）
+
+| 沒寫 `-d` | 加了 `-d` |
+|---------|----------|
+| PowerShell 卡在這、一直印 log，Ctrl+C 會把容器停掉 | 立刻回到 prompt，容器在背景跑，要看 log 用 `docker logs` |
+
+→ **學習 / 使用**幾乎都加 `-d`，**只有想看即時 log debug** 才不加。
+
+##### 3. `--name pgvector-test` —— 容器名字
+
+| 沒寫 `--name` | 加了 `--name` |
+|---------|----------|
+| Docker 給隨機名（如 `quirky_einstein`），操作要用容器 ID（一串亂碼） | 之後操作可以用名字：`docker stop pgvector-test` |
+
+⚠️ 名字必須**獨一無二**，已存在同名容器會報錯。
+
+##### 4. `-e VAR=value` —— **e**nv（環境變數）
+
+`-e` 出現兩次，傳兩個環境變數進容器：
+
+###### `-e POSTGRES_PASSWORD=mysecret`
+
+- **POSTGRES_PASSWORD** 是 Postgres 官方 image 規定的環境變數
+- **必填**！沒寫會啟動失敗：
+  ```
+  Error: Database is uninitialized and superuser password is not specified.
+         You must specify POSTGRES_PASSWORD ...
+  ```
+- `mysecret` = 你定的密碼（之後連線要用這個）
+
+⚠️ 學習用 `mysecret` 沒問題，**正式環境不要**——要用更強的密碼。
+
+###### `-e POSTGRES_DB=test_rag`
+
+- 容器啟動時**自動建立**一個叫 `test_rag` 的資料庫
+- **可選**——沒寫的話只有預設的 `postgres` 資料庫
+
+| 沒寫 `POSTGRES_DB` | 寫了 `POSTGRES_DB=test_rag` |
+|---|---|
+| 進去後只有 `postgres`、`template0`、`template1` | 多一個 `test_rag` 自動建好 |
+| 想要 `test_rag` 要自己 `CREATE DATABASE test_rag;` | 省一步 |
+
+###### Postgres image 還支援的其他環境變數
+
+| 變數 | 作用 |
 |------|------|
-| `-d` | 背景執行 (detached) |
-| `--name pgvector-test` | 容器名稱（之後操作用得到） |
-| `-e POSTGRES_PASSWORD=mysecret` | 設定密碼（必填，否則容器啟動失敗） |
-| `-e POSTGRES_DB=test_rag` | 啟動時自動建立的資料庫名稱 |
-| `-p 5432:5432` | 把容器的 5432 port 映射到本機 5432 |
-| `pgvector/pgvector:pg17` | 官方 image：pgvector + Postgres 17 |
+| `POSTGRES_PASSWORD` | 密碼（必填）|
+| `POSTGRES_DB` | 啟動時建的 DB 名 |
+| `POSTGRES_USER` | superuser 名字（預設 `postgres`） |
+| `POSTGRES_INITDB_ARGS` | 傳給 initdb 的額外參數 |
 
-> 💡 **pg17 vs pg16？** Postgres 主版本，新版功能多但相容性較窄。學習用直接 `pg17`，與生產環境一致才考慮其他。
+##### 5. `-p 5432:5432` —— **p**ort 映射（最容易搞錯）
+
+| 格式 | `<host_port>:<container_port>` |
+|------|-------------------------------|
+
+```
+你的 Windows                     Docker 容器
+  │                                  │
+  │   localhost:5432  ─────────►   :5432
+  │      ▲ 本機 port               ▲ 容器內 Postgres 在聽的 port
+  │      │                          │
+  │      └───── 透過 -p 映射 ───────┘
+  │
+  DBeaver / Python 連到 localhost:5432
+  → Docker 自動轉發到容器的 5432 → Postgres 收到
+```
+
+| 沒寫 `-p` | 加了 `-p 5432:5432` |
+|---------|----------------------|
+| 容器內 Postgres 跑得好好的，**但你從外面連不到** | 從本機 5432 能連到容器內 Postgres |
+
+###### 為什麼是 `5432:5432`？
+
+- 5432 是 **Postgres 的預設 port**（業界慣例）
+- 容器內也是 5432（pgvector image 內建這樣）
+- 兩邊一樣，所以寫 `5432:5432`
+
+###### 如果本機 5432 被佔用了？
+
+例如你已有別的 Postgres 佔了 5432：
+
+```
+Error: bind: address already in use
+```
+
+**解法**：左邊改成別的 port：
+
+```powershell
+-p 5433:5432
+   ▲    ▲
+   │    └── 容器內還是 5432（不能改，Postgres 只聽這個）
+   │
+   └── 本機改成 5433（你連線時用 5433）
+```
+
+連線時就用 `localhost:5433`。
+
+##### 6. `pgvector/pgvector:pg17` —— image 名字
+
+```
+pgvector / pgvector : pg17
+   ▲         ▲        ▲
+   │         │        └── 標籤 tag（哪個版本）
+   │         └── image 名字
+   └── repo / 組織名字
+```
+
+**從 Docker Hub 拉**：<https://hub.docker.com/r/pgvector/pgvector>
+
+**tag 選擇**：
+
+```
+pgvector/pgvector:pg17     ← Postgres 17（最新主版本）
+pgvector/pgvector:pg16     ← Postgres 16
+pgvector/pgvector:pg15     ← Postgres 15
+pgvector/pgvector:latest   ← 最新（可能不穩定，不建議）
+```
+
+→ 一般用具體版本（`pg17`），**不要**用 `latest`（明天可能變另一個版本）。
+
+**第一次跑**會自動從 Docker Hub 下載 image（約 400MB），第二次以後從本機快取啟動。
+
+---
 
 ### Step 2：確認容器跑起來
 
@@ -132,6 +269,27 @@ docker ps
 docker logs pgvector-test
 # 看到 "database system is ready to accept connections" 表示 OK
 ```
+
+#### 參數解釋
+
+##### `docker ps` —— **p**rocess list（執行中的容器）
+
+| 寫法 | 意思 |
+|------|------|
+| `docker ps` | 只看執行中的容器 |
+| `docker ps -a` | 看**所有**容器（含已停止的） |
+| `docker ps -q` | 只列 container ID（可以 pipe 給其他指令） |
+
+##### `docker logs <name>` —— 看容器 log
+
+| 寫法 | 意思 |
+|------|------|
+| `docker logs pgvector-test` | 印目前所有 log |
+| `docker logs -f pgvector-test` | **f**ollow（即時跟蹤新 log，類似 `tail -f`） |
+| `docker logs --tail 50 pgvector-test` | 只看最後 50 行 |
+| `docker logs --since 10m pgvector-test` | 看最近 10 分鐘 |
+
+---
 
 ### Step 3：連進去 Postgres
 
@@ -145,18 +303,115 @@ docker exec -it pgvector-test psql -U postgres -d test_rag
 test_rag=#
 ```
 
+#### 參數逐一拆解
+
+##### 整體結構
+
+```
+docker exec   -it   pgvector-test   psql   -U postgres   -d test_rag
+   ▲          ▲       ▲             ▲       ▲              ▲
+   1          2       3             4       5              6
+```
+
+##### 1. `docker exec` —— 在「已執行」的容器內執行指令
+
+跟 `docker run` 的差異前面講過：`run` 是「建新容器」，`exec` 是「在已建好且執行中的容器內跑指令」。
+
+##### 2. `-it` —— interactive + tty
+
+合在一起的兩個 flag：
+
+| 旗標 | 縮寫展開 | 作用 |
+|------|---------|------|
+| `-i` | **i**nteractive | 保持 stdin 打開（讓你能輸入指令）|
+| `-t` | **t**ty | 配一個終端機（讓畫面能正常顯示）|
+
+⚠️ **這個 `-i` 不是 grep 的 ignore case，也不是 sed 的 in-place**——是 docker 的 interactive。同字母在不同指令意義不同（詳見 [`../CLI/cli-flag-meaning-conflicts.md`](../CLI/cli-flag-meaning-conflicts.md)）。
+
+###### 沒 `-it` 會怎樣？
+
+```bash
+docker exec pgvector-test psql -U postgres
+# 進去後 psql 啟動，但你打字看不到 prompt，按 Enter 沒反應
+# 因為沒給 terminal，psql 不知道怎麼跟你互動
+```
+
+加 `-it` 後正常進入 psql prompt。
+
+##### 3. `pgvector-test` —— 哪個容器
+
+就是你 `docker run --name` 取的名字。
+
+##### 4. `psql` —— 容器內要執行的指令
+
+`psql` = **P**ost**g**re**S**Q**L** 的官方命令列客戶端。pgvector image 內已內建。
+
+##### 5. `-U postgres` —— psql 的 **U**ser flag（不是 docker 的）
+
+`postgres` 是預設 superuser，由 image 自動建立。
+
+##### 6. `-d test_rag` —— psql 的 **d**atabase flag
+
+直接連進 `test_rag` 這個 DB。沒寫的話會連到跟使用者同名的 DB（`postgres`），之後要 `\c test_rag` 切過去。
+
+##### psql 其他常用 flag
+
+```bash
+psql -U postgres                    # 用 postgres 使用者
+psql -U postgres -d test_rag        # 連到 test_rag 這個 DB
+psql -U postgres -h localhost       # 指定 host
+psql -U postgres -p 5432            # 指定 port
+psql -U postgres -W                 # 強制要求輸密碼
+psql -U postgres -c "SELECT 1"      # 直接執行 SQL 不進 prompt
+```
+
+---
+
 ### Step 4：啟用 pgvector 擴充
 
 ```sql
-CREATE EXTENSION vector;
+CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-驗證：
+#### `IF NOT EXISTS` 的作用
+
+| 寫法 | 第二次執行 |
+|------|----------|
+| `CREATE EXTENSION vector;` | ❌ 報錯 `already exists` |
+| `CREATE EXTENSION IF NOT EXISTS vector;` | ✅ 沒事，已存在就跳過 |
+
+→ **建議都加 `IF NOT EXISTS`**，重複執行不會壞事。
+
+#### 驗證
 
 ```sql
 \dx
 -- 應該看到 vector 擴充已安裝
 ```
+
+`\dx` = **d**escribe e**x**tensions（psql 的 meta-command，列出所有擴充）。
+
+##### psql 其他常用 meta-command
+
+| 指令 | 縮寫展開 | 作用 |
+|------|---------|------|
+| `\l` | **l**ist databases | 列出所有資料庫 |
+| `\c <db>` | **c**onnect | 切換到某個 DB |
+| `\dt` | **d**escribe **t**ables | 列出當前 DB 的所有 table |
+| `\d <table>` | **d**escribe | 看某個 table 的結構 |
+| `\dx` | **d**escribe e**x**tensions | 列出所有擴充 |
+| `\du` | **d**escribe **u**sers | 列出所有使用者 |
+| `\q` | **q**uit | 離開 psql |
+| `\?` | help | 看所有 meta-command |
+| `\h <SQL>` | **h**elp on SQL | 看某個 SQL 語法說明 |
+
+##### ⚠️ 第一次嘗試 `CREATE EXTENSION vector;` 報錯怎麼辦？
+
+| 錯誤訊息 | 原因 | 解法 |
+|----------|------|------|
+| `ERROR: extension "vector" is not available` | 連到的 Postgres **沒裝 pgvector** | 換成 pgvector image / 雲端 Postgres |
+| `ERROR: permission denied to create extension` | 沒有 superuser 權限 | 用 `postgres` 使用者連 |
+| `ERROR: extension "vector" already exists` | 已建過 | 加 `IF NOT EXISTS` 或忽略 |
 
 ---
 
