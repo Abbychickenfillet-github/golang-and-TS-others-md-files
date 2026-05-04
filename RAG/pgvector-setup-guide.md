@@ -326,6 +326,137 @@ CREATE EXTENSION vector;
 
 → **4 步驟，10 分鐘搞定**。
 
+### 🌳 決策樹：本地已有 Postgres 怎麼辦？
+
+```
+要用 pgvector 做 RAG
+  │
+  ├── 你的「本地資料庫」有裝 pgvector 擴充嗎？
+  │     （SELECT * FROM pg_available_extensions WHERE name='vector';）
+  │     │
+  │     ├── ✅ 有 → 直接用，CREATE EXTENSION vector; 完事
+  │     │       不需要 Docker
+  │     │
+  │     └── ❌ 沒有 ← 多數人的情況
+  │           │
+  │           ├── 路線 A：在本地 Postgres 裝 pgvector
+  │           │   （Windows 上：要 VS + dev headers + nmake 編譯）
+  │           │   ⚠️ 折磨自己，不推薦
+  │           │
+  │           └── 路線 B：另起 Docker pgvector 容器  ★推薦
+  │                 │
+  │                 └── 怕資料消失嗎？
+  │                       │
+  │                       ├── 沒加 `-v volume`
+  │                       │   docker rm 砍掉容器 → ❌ 資料消失
+  │                       │
+  │                       └── 加 `-v pgvector_data:/var/lib/postgresql/data`
+  │                           docker rm 砍掉容器 → ✅ 資料保留在 Docker volume
+  │                           下次 docker run 用同 volume 名 → 自動接續
+```
+
+### 「我有本地 DB，跑 Docker pgvector 還有差嗎？」
+
+**有差，因為「有 Postgres」≠「有 pgvector」**：
+
+```
+你的本地 Postgres                Docker pgvector 容器
+        │                              │
+   不同的 Postgres 實例           不同的 Postgres 實例
+        │                              │
+   ❌ 沒裝 pgvector              ✅ 內建 pgvector
+        │                              │
+        └─── 完全獨立、互不干擾 ───┘
+```
+
+→ 兩個 Postgres **並行存在**，跑 Docker 不會影響本地的，本地的也不會幫 Docker 提供 pgvector。
+
+#### ⚠️ port 衝突注意
+
+兩個都用預設 5432 會衝突。**解法**：Docker 改用 5433：
+
+```powershell
+-p 5433:5432
+   ▲
+   本機改成 5433（避開本地 Postgres 的 5432）
+```
+
+連線時用 `localhost:5433`。
+
+### 💾 資料會不會消失？三種狀態
+
+#### 狀態 1：沒加 `-v`（預設）
+
+```
+容器啟動 → 寫資料 → 資料存在容器內部 layer
+docker stop pgvector-test    ← 停止：資料還在 ✅
+docker start pgvector-test   ← 重啟：資料還在 ✅
+docker rm pgvector-test      ← 刪除：資料消失 ❌
+```
+
+→ 只要**不刪容器**資料還在。容器砍掉就玩完。
+
+#### 狀態 2：用 named volume（推薦）
+
+```powershell
+docker run ... -v pgvector_data:/var/lib/postgresql/data ...
+```
+
+```
+容器啟動 → 寫資料 → 資料存到 Docker 管理的 volume `pgvector_data`
+                  （volume 是獨立物件，存在容器外）
+docker rm pgvector-test       ← 刪容器：資料還在 volume ✅
+docker run ... -v pgvector_data:/var/lib/postgresql/data ...
+                              ← 重新起容器、用同名 volume → 資料接續 ✅
+```
+
+→ **學 RAG 期間建議用這個**，玩壞了 `docker rm` 重來資料還在。
+
+#### 狀態 3：bind mount（綁本機資料夾）
+
+```powershell
+docker run ... -v C:\pgvector-data:/var/lib/postgresql/data ...
+```
+
+資料寫到本機的 `C:\pgvector-data` 資料夾，容器砍掉資料還在你的 C 槽。
+適合「想完全控制資料在哪」的人。
+
+#### 三者比較
+
+| 狀態 | 容器 stop/start | 容器 rm | 看得到資料檔嗎 |
+|------|---------------|--------|--------------|
+| 沒 `-v` | ✅ 保留 | ❌ 消失 | ❌ |
+| `-v 名稱:容器路徑` (named volume) | ✅ 保留 | ✅ 保留 | ⚠️ Docker 管理區 |
+| `-v 本機路徑:容器路徑` (bind mount) | ✅ 保留 | ✅ 保留 | ✅ 在你硬碟上 |
+
+### 推薦的完整指令（含資料持久化 + 避開 port 衝突）
+
+```powershell
+docker run -d --name pgvector-test `
+  -e POSTGRES_PASSWORD=mysecret `
+  -e POSTGRES_DB=test_rag `
+  -p 5433:5432 `
+  -v pgvector_data:/var/lib/postgresql/data `
+  pgvector/pgvector:pg17
+```
+
+**比基本版多了兩個東西**：
+
+| 改動 | 解決什麼 |
+|------|---------|
+| `-p 5433:5432`（不是 5432:5432）| 避開本地 Postgres 的 5432 |
+| `-v pgvector_data:/var/lib/postgresql/data` | 資料持久化 |
+
+連線時：
+
+```
+Host: localhost
+Port: 5433              ← 注意改成 5433
+User: postgres
+Password: mysecret
+Database: test_rag
+```
+
 ### ⚠️ 你現在的狀態
 
 如果你已經 `git clone https://github.com/pgvector/pgvector.git` 到 `C:\coding\pgvector`：
