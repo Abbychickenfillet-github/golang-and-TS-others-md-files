@@ -1311,6 +1311,90 @@ docker run -d --name pgvector-test `
 
 → 詳見 Section 1 的「🌳 決策樹」 + 「💾 資料會不會消失？」 + Section 8。
 
+### Q5.5：DB 名是 `test_rag`、`test-RAG` 還是 `test_RAG`？
+
+✅ **`test_rag`**（小寫 + 底線）。因為 docker run 時是 `-e POSTGRES_DB=test_rag`。
+
+⚠️ **PostgreSQL 識別字慣例**：
+- 用底線 `_` 而非 dash `-`（`test-rag` 在 SQL 裡需要加雙引號才能用）
+- 預設轉小寫（`TEST_RAG` 寫進去也會變 `test_rag`）
+
+→ 想確認當前所有 DB：`docker exec pgvector-test psql -U postgres -c "\l"`
+
+### Q5.6：為什麼 Docker 容器密碼是 `mysecret`，不是我本地 Postgres 的密碼？
+
+✅ **因為這是兩個完全獨立的 Postgres 實例**：
+
+```
+你的本地 Postgres                Docker pgvector 容器
+─────────────────                ──────────────────────
+裝在 Windows                     裝在 Docker（虛擬化）
+密碼：abc123（你之前裝時設的）   密碼：mysecret（docker run 時 -e 設的）
+       ▲                                ▲
+       │                                │
+       └──── 兩者完全獨立 ────────────────┘
+```
+
+**每次 `docker run -e POSTGRES_PASSWORD=XXX` 都能重新指定**——這是給「**這個容器**」的，跟你本地的無關。
+
+### Q5.7：為什麼 `docker exec` 進去**不問密碼**？
+
+```powershell
+docker exec -it pgvector-test psql -U postgres -d test_rag
+       ↑ 進去後直接 test_rag=# 沒問密碼
+```
+
+**因為「從容器內部連 Postgres」走的是 trust 驗證**——容器內 Postgres 的 `pg_hba.conf` 對「本機 socket / localhost」連線**自動信任**。
+
+而**從容器外連**（例如 DBeaver / psql 用 `localhost:5433`）→ **才會問密碼**，那時候用 `mysecret`。
+
+```
+從容器內連                    從容器外連
+─────────                    ─────────
+docker exec ... psql         psql -h localhost -p 5433
+       │                              │
+   走 Unix socket               走 TCP/IP
+       │                              │
+  Postgres 自動信任            要密碼 = mysecret
+       │                              │
+       ▼                              ▼
+   ✅ 直接進去               ✅ 輸入 mysecret 才進去
+```
+
+### Q5.8：我在 psql 視窗輸入 `mysecret` 為什麼失敗？
+
+99% 是**你連到的 Postgres 不是 Docker 那個**——是**你本地的 Postgres**（密碼 abc123，不是 mysecret）。
+
+#### 三種連線情境速查
+
+| 怎麼連 | 連到誰 | 用什麼密碼 | 會不會問密碼 |
+|---------|-------|-----------|------------|
+| `docker exec -it pgvector-test psql ...` | 容器內 Postgres | （不問）| ❌ 不問 |
+| `psql -h localhost -p 5433 -U postgres -d test_rag` | 容器內 Postgres（從外面）| `mysecret` | ✅ 問 |
+| `psql -U postgres`（沒指定 host/port）| **本地** Postgres | `abc123` | ✅ 問 |
+| pgAdmin / DBeaver 連 5432 | **本地** Postgres | `abc123` | ✅ 問 |
+| pgAdmin / DBeaver 連 5433 | 容器內 Postgres | `mysecret` | ✅ 問 |
+
+→ **port 號決定你連到哪個 Postgres**：5432 = 本地、5433 = Docker。
+
+#### 偵錯流程
+
+如果輸入密碼失敗：
+
+```
+1. 看你下的指令有沒有 -h localhost -p 5433
+   ├── 沒有 → 預設連 5432 = 本地 → 用 abc123
+   └── 有   → 連 5433 = Docker → 用 mysecret
+
+2. 看 GUI 工具的 port 設定
+   ├── 5432 → 本地 → 用 abc123
+   └── 5433 → Docker → 用 mysecret
+
+3. 還是不行：直接用 docker exec 從內部進
+   docker exec -it pgvector-test psql -U postgres -d test_rag
+   → 不會問密碼
+```
+
 ### Q6：Visual Studio vs VS Code 差在哪？
 
 | | Visual Studio | VS Code |
