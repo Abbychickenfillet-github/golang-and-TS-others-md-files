@@ -44,6 +44,63 @@ SELECT * FROM items ORDER BY embedding <-> '[0.5, 0.5, ..., 0.5]' LIMIT 5;
 | **HNSW** | `CREATE INDEX ... USING hnsw (embedding vector_l2_ops)` | 主流選擇（10 萬~1000 萬） |
 | **IVFFlat** | `CREATE INDEX ... USING ivfflat (embedding vector_l2_ops) WITH (lists = 100)` | 大型資料 + 接受近似 |
 
+#### `_ops` 是什麼？
+
+上面表格的 `vector_l2_ops` 後綴 `_ops` = **op**erator clas**s**（運算子類別），是 PostgreSQL 通用的索引機制術語，告訴索引「比較這個欄位時，**要用哪一種距離 / 順序定義**」。
+
+##### 拆解 `vector_l2_ops`
+
+```
+vector  _  l2  _  ops
+   ▲       ▲      ▲
+ 型別     方法   operator class
+```
+
+| 部分 | 意思 |
+|------|------|
+| `vector` | 適用的資料型別（pgvector 的 vector type）|
+| `l2` | 用 L2 距離（歐幾里得，下節詳解）|
+| `ops` | operator class 的縮寫（PostgreSQL 慣例後綴）|
+
+##### 為什麼要分三種？
+
+同一個 vector type 有 3 種「相似」定義（L2、Cosine、內積），建索引時要先講好「按哪一種排序」，不然 HNSW 不知道怎麼排這棵圖：
+
+| operator class | 對應運算子 | 距離 | 適用 |
+|---|---|---|---|
+| `vector_l2_ops` | `<->` | L2 (Euclidean) | 數值、影像 |
+| `vector_cosine_ops` | `<=>` | Cosine | 文字 embedding 主流 |
+| `vector_ip_ops` | `<#>` | 負內積 | 已正規化向量 |
+
+##### 鐵則：索引 ops 必須跟查詢運算子配對
+
+```sql
+-- ✅ 配對正確 → 索引被使用，超快
+CREATE INDEX ON items USING hnsw (embedding vector_l2_ops);
+SELECT * FROM items ORDER BY embedding <-> '[1,0,0]' LIMIT 5;
+
+-- ❌ 配對錯誤 → 索引廢掉，退回全表掃描
+CREATE INDEX ON items USING hnsw (embedding vector_l2_ops);
+SELECT * FROM items ORDER BY embedding <=> '[1,0,0]' LIMIT 5;
+--                                    ▲
+--                          Cosine，索引是 L2，Postgres 不認得這個組合
+```
+
+→ **要用哪個距離查詢，就建哪個 ops 的索引**；想兩種都用就建兩個索引。
+
+##### `_ops` 不是 pgvector 發明的
+
+是 PostgreSQL **通用索引擴充機制**，內建型別也有：
+
+| operator class | 用途 |
+|---|---|
+| `int4_ops` | 整數預設排序 |
+| `text_pattern_ops` | `LIKE 'abc%'` 前綴搜尋（跟一般 `text_ops` 不同）|
+| `gin_trgm_ops` | pg_trgm 模糊搜尋 |
+| `jsonb_path_ops` | JSONB 路徑搜尋 |
+
+任何資料型別想被索引，都要為「每種比較方式」註冊一個 operator class —— pgvector 只是延續這套慣例。
+
 ### 數學背景：歐幾里德距離 (L2)
 
 > **歐式距離就是畢氏定理的推廣。**
@@ -277,7 +334,16 @@ cd pgvector
 # Windows: https://www.postgresql.org/download/windows/
 
 # 3. 安裝 build 工具
-# Windows: 裝 Visual Studio 2022 + C++ workload + Windows SDK
+# Windows: 裝 Visual Studio（不是 VS Code！）+ C++ workload + Windows SDK
+#
+# ⚠️ Visual Studio ≠ VS Code：
+#   - Visual Studio 是完整 IDE（含 C++ compiler），數 GB ~ 30+ GB
+#   - VS Code 是輕量編輯器（沒 compiler），~300 MB
+#   - 編譯 pgvector 需要 C++ compiler → 必須裝 Visual Studio
+#
+# 任何現代版本都行（VS 2019 / 2022 / 2025 / 2026），安裝時必勾：
+#   ✅ 「使用 C++ 的桌面開發」(Desktop development with C++) workload
+#   ✅ Windows SDK（通常自動包含）
 
 # 4. 設定環境變數，讓 build 系統能找到 Postgres dev headers
 $env:PGROOT = "C:\Program Files\PostgreSQL\17"
@@ -325,6 +391,109 @@ CREATE EXTENSION vector;
 ```
 
 → **4 步驟，10 分鐘搞定**。
+
+### 🚨 最關鍵誤解：`git clone` ≠ 「裝好」
+
+很多人 `git clone https://github.com/pgvector/pgvector.git` 之後以為「**我裝好 pgvector 了**」——**這是錯的**。
+
+#### IKEA 比喻
+
+```
+你做的：git clone
+       ▼
+你家裡多了一個 IKEA 零件包
+（一堆木板 + 螺絲 + 說明書）
+
+  C:\coding\pgvector\
+    ├── src/         ← 木板（C 原始碼）
+    ├── Makefile     ← 說明書
+    └── README.md    ← 更多說明書
+
+
+【但你家還沒有桌子！】
+零件還是零件、根本還沒組裝、更沒搬進房間。
+```
+
+→ 「**檔案還在 `coding/pgvector`**」≠「**裝在 Postgres 上**」。
+
+#### 真正的「裝在 Postgres 上」是什麼？
+
+「裝」這個動作有 4 個步驟，**只有全部做完才算裝好**：
+
+```
+Step 1: 編譯原始碼
+  C:\coding\pgvector\ 的 .c 檔  ──compile──►  vector.dll（編譯產物）
+
+Step 2: 把 vector.dll 複製到 Postgres 的 lib 目錄
+  → C:\Program Files\PostgreSQL\17\lib\vector.dll
+
+Step 3: 把 vector.control 複製到 Postgres 的 extension 目錄
+  → C:\Program Files\PostgreSQL\17\share\extension\vector.control
+
+Step 4: 把 vector--*.sql 複製到 Postgres 的 extension 目錄
+  → C:\Program Files\PostgreSQL\17\share\extension\vector--0.7.0.sql
+```
+
+**只有 Postgres 安裝目錄裡有這幾個檔案**，Postgres 才認得 `CREATE EXTENSION vector;`。
+
+→ 你 `coding/pgvector` **只完成 Step 0（拿到原料）**，Step 1-4 都沒做。
+
+#### 怎麼驗證「沒裝好」？
+
+```sql
+-- 連到本地 Postgres 跑這個
+SELECT * FROM pg_available_extensions WHERE name = 'vector';
+```
+
+| 結果 | 代表 |
+|------|------|
+| 有結果 | ✅ pgvector 確實裝在這個 Postgres 上 |
+| 沒結果 | ❌ 沒裝好，光 git clone 不算 |
+
+→ 如果**沒結果**，就是 Step 1-4 沒做完。
+
+#### 各種類似誤解的對照
+
+| 你以為的「裝了」 | 實際狀態 |
+|----------------|---------|
+| `git clone XXX` | ❌ 只下載原始碼，沒裝 |
+| 把 `.zip` 解壓縮 | ❌ 只把檔案攤開，沒裝 |
+| 把 `.exe` 放到桌面 | ❌ 沒執行就沒裝 |
+| `pip install xxx` | ✅ 真的裝（pip 自動編譯+放到正確位置）|
+| `npm install` | ✅ 真的裝（npm 自動處理）|
+| `docker run pgvector/pgvector` | ✅ 真的裝（image 內早就裝好了）|
+| `CREATE EXTENSION vector;` 成功 | ✅ 真的裝 |
+
+→ **`git clone` 跟 `pip install` / `npm install` 不是同一回事**。git clone **單純只下載**，不會自動編譯也不會自動安裝。
+
+#### 冰箱比喻
+
+```
+冰箱（= 你的本地 Postgres 的 extension 目錄）
+  ├── postgis            ← 已裝好的擴充
+  ├── plpgsql           ← 已裝好的擴充
+  └── ?                  ← 沒有 vector
+
+你的桌上（= C:\coding\pgvector）
+  └── 一袋從超市買來的食材    ← git clone 來的原始碼
+```
+
+「**冰箱裡沒有那道菜**」≠「**桌上沒有食材**」。
+食材在桌上沒錯，但**還沒做菜**、**還沒放進冰箱**。
+
+→ 你要嘛**把食材做成菜並放進冰箱**（路線 A：編譯 + 裝進本地 Postgres）
+→ 要嘛**直接訂一個別的冰箱已經裝滿菜的**（路線 B：Docker pgvector image）
+
+#### 結論：你 clone 的 `coding/pgvector` 怎麼處理？
+
+| 想法 | 動作 |
+|------|------|
+| 想刪掉省空間 | 可以刪，但留著也不到 100 MB |
+| 想留著 | ✅ 推薦——可以**讀原始碼學原理**，配合本筆記 0.5 節向量索引概念 |
+| 想用它讓本地 Postgres 有 pgvector | 需要走完整路線 A（裝 VS + 編譯）|
+| 想要能用的 pgvector | 走路線 B：`docker run` |
+
+---
 
 ### 🌳 決策樹：本地已有 Postgres 怎麼辦？
 
@@ -1083,7 +1252,266 @@ docker run -d --name pgvector-test `
 
 ---
 
-## 11. 下一步學什麼？
+## 11. 常見誤解 FAQ（學習過程累積的所有問題）
+
+### Q1：image 的 docker 跟 git clone 差在哪？
+
+| | git clone | Docker image |
+|---|---|---|
+| 拿到的是 | 原始碼（C 語言） | 已 build 好的成品 |
+| 比喻 | IKEA 零件包 | 已組好的家具 |
+| 大小 | 數 MB | 數百 MB |
+| 能直接執行嗎 | ❌ 要 build | ✅ `docker run` 立刻跑 |
+
+→ 詳見 Section 1 的「兩個指令並排對照」。
+
+### Q2：我已經 git clone 到 `coding/pgvector` 了，可以直接執行 `CREATE EXTENSION vector;` 嗎？
+
+❌ **不行**。git clone 只是下載原始碼到資料夾，**pgvector 還沒裝在任何 Postgres 上**。
+
+要嘛走路線 A（編譯安裝）、要嘛走路線 B（Docker，推薦）。
+
+→ 詳見 Section 1 的「🚨 最關鍵誤解：git clone ≠ 「裝好」」。
+
+### Q3：`docker exec -it pgvector-test psql -U postgres` 是執行啥？
+
+「在已執行中的 `pgvector-test` 容器內，用 postgres 使用者開啟 psql 客戶端」。
+
+| 旗標 | 意思 |
+|------|------|
+| `docker exec` | 在已執行的容器內跑指令（vs `docker run` 是建新容器）|
+| `-i` | **i**nteractive（保持 stdin 打開）|
+| `-t` | **t**ty（配終端機）|
+| `psql` | Postgres 客戶端 |
+| `-U postgres` | psql 的 **U**ser flag |
+
+→ 詳見 Step 3 的「參數逐一拆解」。
+
+### Q4：`POSTGRES_DB` 是 shell 指令嗎？
+
+❌ **不是**。`POSTGRES_DB` 是**環境變數的名字**，不是指令。
+
+| | 環境變數 | Shell 指令 |
+|---|---------|-----------|
+| 是什麼 | 儲存值的「容器」 | 能執行的「動詞」 |
+| 例子 | `PATH`、`POSTGRES_DB` | `ls`、`docker` |
+
+→ 詳見 [`../CLI/environment-variables-basics.md`](../CLI/environment-variables-basics.md)。
+
+### Q5：我有本地 Postgres，跑 Docker pgvector 還有差嗎？資料會消失嗎？
+
+**有差**——「有 Postgres」≠「有 pgvector」。兩個 Postgres 並行存在、互不干擾。
+
+**資料持久化**：
+
+| 做法 | 容器 stop | 容器 rm |
+|------|----------|---------|
+| 沒 `-v` | ✅ 保留 | ❌ 消失 |
+| 有 `-v pgvector_data:/var/lib/postgresql/data` | ✅ 保留 | ✅ **保留** |
+
+→ 詳見 Section 1 的「🌳 決策樹」 + 「💾 資料會不會消失？」 + Section 8。
+
+### Q6：Visual Studio vs VS Code 差在哪？
+
+| | Visual Studio | VS Code |
+|---|---|---|
+| 本質 | 完整 IDE（含 C++ compiler）| 輕量編輯器（沒 compiler）|
+| 大小 | 數 GB ~ 30+ GB | ~300 MB |
+| 編譯 pgvector 能用嗎 | ✅ 可以 | ❌ 不行（沒 compiler）|
+| 跨平台 | 主要 Windows / 有 Mac | Windows / Mac / Linux |
+| 價錢 | Community 免費 / Pro 付費 | 完全免費 |
+
+→ 編譯 pgvector 需要 Visual Studio（不是 VS Code）。但**學 RAG 階段**強烈建議走 Docker，根本不需要 Visual Studio。
+
+### Q7：Visual Studio 2026 / 2025 / 2022 哪個版本可以？
+
+任何**現代版本**都行（2019 / 2022 / 2025 / 2026），安裝時勾選：
+
+✅ 「使用 C++ 的桌面開發」(Desktop development with C++) workload
+✅ Windows SDK（通常自動包含）
+
+但實話：**學 RAG 不要為此裝 Visual Studio**——Docker 路線 4 分鐘搞定，不需 Visual Studio。
+
+### Q8：pgvector 預設是 Flat 嗎？
+
+✅ 是。pgvector 預設不建索引（= Flat / brute force）。資料變多需要：
+
+```sql
+CREATE INDEX ON items USING hnsw (embedding vector_cosine_ops);
+```
+
+→ 詳見 Section 0 的「pgvector 支援的索引」。
+
+### Q9：`<->` 是什麼意思？跟 `<=>`、`<#>` 有什麼差？
+
+pgvector 的距離運算子：
+
+| 運算子 | 距離類型 | 對應 ops | 何時用 |
+|--------|---------|----------|--------|
+| `<->` | L2 (Euclidean) | `vector_l2_ops` | 最直覺，多數場景 |
+| `<=>` | Cosine | `vector_cosine_ops` | 文字 embedding 主流 |
+| `<#>` | 負內積 | `vector_ip_ops` | 已正規化向量 |
+
+→ 詳見 Section 4.4 + Section 0 的「`_ops` 是什麼？」。
+
+### Q10：`docker run -d --name pgvector-test -e POSTGRES_PASSWORD=mysecret -e POSTGRES_DB=test_rag -p 5432:5432 pgvector/pgvector:pg17` 每個參數是什麼？
+
+| 參數 | 縮寫展開 | 作用 |
+|------|---------|------|
+| `-d` | **d**etached | 背景執行 |
+| `--name` | - | 容器名字 |
+| `-e VAR=value` | **e**nv | 環境變數 |
+| `-p host:container` | **p**ort | port 映射 |
+| `pgvector/pgvector:pg17` | - | image 名字（沒 dash 前綴的就是它）|
+
+→ 詳見 Step 1 的「參數逐一拆解」（每個參數都有獨立小節）。
+
+### Q11：本機 5432 port 被佔用怎麼辦？
+
+```powershell
+-p 5433:5432
+   ▲    ▲
+   │    └── 容器內還是 5432（不能改）
+   │
+   └── 本機改成 5433（你連線時用 5433）
+```
+
+→ 詳見 Step 1 第 5 點 `-p` 的說明。
+
+### Q12：psql 進去後常用指令？
+
+| psql meta-command | 縮寫展開 | 作用 |
+|------|---------|------|
+| `\l` | **l**ist databases | 列出所有 DB |
+| `\c <db>` | **c**onnect | 切換 DB |
+| `\dt` | **d**escribe **t**ables | 列出 table |
+| `\d <table>` | **d**escribe | 看 table 結構 |
+| `\dx` | **d**escribe e**x**tensions | 列出擴充 |
+| `\q` | **q**uit | 離開 |
+
+→ 詳見 Step 4 的「psql 其他常用 meta-command」。
+
+### Q13：`CREATE EXTENSION vector;` 跟 `CREATE EXTENSION IF NOT EXISTS vector;` 差在哪？
+
+| 寫法 | 第二次執行 |
+|------|----------|
+| `CREATE EXTENSION vector;` | ❌ 報錯 `already exists` |
+| `CREATE EXTENSION IF NOT EXISTS vector;` | ✅ 已存在就跳過 |
+
+→ **建議都加 `IF NOT EXISTS`**，重複執行不會壞事。詳見 Step 4。
+
+### Q14：CLI 旗標相關的疑問（`-la`、`-iE`、`-i` 等）
+
+`ls -la | grep -iE "rag|RAG"` 拆解：
+
+| 部分 | 屬於哪個指令 | 意思 |
+|------|------------|------|
+| `-l` | ls | **l**ong format（詳細格式）|
+| `-a` | ls | **a**ll（含隱藏檔）|
+| `-i` | grep | **i**gnore case |
+| `-E` | grep | **E**xtended regex |
+
+⚠️ 同字母 `-i` 在不同指令意思**完全不同**：
+
+| 指令 | `-i` 意思 |
+|------|----------|
+| **grep** | **i**gnore case |
+| **sed** | **i**n-place |
+| **docker exec** | **i**nteractive |
+| **rm / cp** | **i**nteractive（覆蓋前詢問）|
+| **ls** | **i**node |
+
+→ 詳見 [`../CLI/grep-options.md`](../CLI/grep-options.md)、[`../CLI/ls-options.md`](../CLI/ls-options.md)、[`../CLI/cli-flag-meaning-conflicts.md`](../CLI/cli-flag-meaning-conflicts.md)。
+
+### Q15：1536 dim 長什麼樣？我想像不出來
+
+人類腦袋只能視覺化 3D。**過了 3D 不要試圖「看到形狀」**——想成「Excel 表的 1536 個欄位」就好。
+
+→ 詳見 [`../LLM-Memory/rag-vs-memory-comparison.md`](../LLM-Memory/rag-vs-memory-comparison.md) 的 0.5 節「1536 維長什麼樣？」。
+
+### Q16：什麼是「近似距離 (approximate distance)」？
+
+不是真的算原始向量的距離，是**用查表方式估算**的距離。**99% 接近真實值，但速度快 100 倍**。
+
+PQ 的 ADC（Asymmetric Distance Computation）就是這個機制。ANN (Approximate Nearest Neighbor) 的 「**A**」就是 Approximate（近似）的意思。
+
+→ 詳見 [`../LLM-Memory/rag-vs-memory-comparison.md`](../LLM-Memory/rag-vs-memory-comparison.md) 的 0.5 節「近似距離」。
+
+### Q17：K-means 的「mean」是什麼意思？是「方法 (method)」嗎？
+
+❌ **不是「方法」**。
+
+| 英文 | 中文 |
+|------|------|
+| **mean** | **平均（值）** |
+| ~~method~~ | 方法（完全不同的字）|
+
+K-means = K 個平均值 = K 個群中心（因為中心 = 該群所有點的平均）。
+
+中文標準翻譯：**K-平均演算法** ✓ 或 **K-均值演算法** ✓。
+
+→ 詳見 [`../LLM-Memory/ml-supervised-vs-unsupervised.md`](../LLM-Memory/ml-supervised-vs-unsupervised.md) 第 10 節。
+
+### Q18：KNN 跟 K-means 是同一個東西嗎？
+
+❌ **完全不同**。只是名字都有 K。
+
+| | KNN | K-means |
+|---|-----|---------|
+| 學習類型 | **監督式** | **非監督式** |
+| K 是什麼 | 看 K 個鄰居 | 分 K 個群 |
+| 用途 | 預測新點屬於哪一類 | 把全部點分群 |
+
+→ 詳見 [`../LLM-Memory/ml-supervised-vs-unsupervised.md`](../LLM-Memory/ml-supervised-vs-unsupervised.md) 第 10 節。
+
+### Q19：強化式學習為什麼叫「沒答案」？跟 prompt 有關嗎？
+
+❌ **跟 prompt 無關**。RL 是 LLM 訓練階段的方法，prompt 是訓練完之後使用者跟模型的對話。
+
+「沒答案」= **沒人告訴 agent「每一步該怎麼做」，只能從「最後得幾分」反推哪些動作是對的**。
+
+例如下棋：80 步下完才知道「贏了 +1」，要從幾百萬局的勝負反推。
+
+→ 詳見 [`../LLM-Memory/ml-supervised-vs-unsupervised.md`](../LLM-Memory/ml-supervised-vs-unsupervised.md) 第 4 節。
+
+### Q20：HNSW / IVF / PQ 這些索引的資料結構長怎樣？
+
+不是「一串向量排好放著」（像 `[1, 5]`），而是建在向量集合**之上**的**另一層資料結構**：
+
+| Index | 結構 |
+|-------|------|
+| **HNSW** | 多層圖，每個節點 `(向量, [鄰居 IDs])` |
+| **IVF** | K-means 分群中心 + 倒排清單 `cluster_id → [vec_ids]` |
+| **PQ** | 64 個 codebook + 每個向量壓縮成 64 bytes |
+| **LSH** | 多張 hash table，相近向量大機率同 bucket |
+
+→ 詳見 [`../LLM-Memory/rag-vs-memory-comparison.md`](../LLM-Memory/rag-vs-memory-comparison.md) 的 0.5 節「主流 Vector Index 家族」。
+
+### Q21：HNSW 的 graph 跟 LangGraph 是同樣概念嗎？
+
+抽象上都是 graph（節點 + 邊），但**目的完全不同**：
+
+| | HNSW | LangGraph |
+|---|------|-----------|
+| 節點代表 | 向量資料點 | 執行單元（LLM call）|
+| 邊代表 | 鄰近關係 | 控制流轉移 |
+| 目的 | 加速最近鄰搜尋 | 編排 agent 工作流 |
+
+→ HNSW 是「資料的空間地圖」，LangGraph 是「程式的執行流程圖」。詳見 0.5 節 HNSW 子節「常見混淆」。
+
+### Q22：監督式 vs 非監督式 vs 強化式怎麼分？
+
+| 類型 | 訓練資料 | 例子 |
+|------|---------|------|
+| **監督式** | 題目 + **正確答案** | 1000 張照片標好「貓/狗」→ 訓練分類器 |
+| **非監督式** | **只有題目，沒答案** | 給 1000 張照片，自動分群 |
+| **強化式** | 沒答案，但有**獎勵訊號** | 下棋贏 +1 輸 -1 |
+
+→ 詳見 [`../LLM-Memory/ml-supervised-vs-unsupervised.md`](../LLM-Memory/ml-supervised-vs-unsupervised.md)。
+
+---
+
+## 12. 下一步學什麼？
 
 完成這份 setup 後，建議的學習路徑：
 
