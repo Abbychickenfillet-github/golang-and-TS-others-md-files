@@ -1453,6 +1453,65 @@ CREATE EXTENSION vector;     -- ← 這個 DB 也要裝一次
 
 ⚠️ 多數時候**不需要**——學 RAG 期間就用 `test_rag` 就好。
 
+### Q5.8.7：⚠️ 我在 psql 裡打 `psql -U xxx` 好像沒反應 / prompt 變 `-#`？
+
+**因為 `psql` 是 shell 的指令**（外部程式），**不能在 psql 裡面再呼叫**。
+
+#### 兩種「世界」要分清楚
+
+```
+PowerShell（shell 世界）              psql（資料庫世界）
+─────────────────                    ─────────────────
+docker exec ... psql ...     ◄── 從這啟動 psql
+psql -U xxx -d xxx           ◄── 從這指定連線
+
+ (進去 psql 之後)             ─────►  postgres=#
+                                         │
+                                  在這只能打 SQL 或 \meta-command
+                                  例如：
+                                    \c test_rag        ← 切換 DB
+                                    \dt                ← 看 table
+                                    SELECT * FROM ... ← 查資料
+                                    \q                 ← 離開
+```
+
+#### `=#` vs `-#` prompt 差別
+
+| Prompt | 意思 |
+|--------|------|
+| `postgres=#` | 等你打新 SQL 指令 |
+| `postgres-#` | SQL 還沒結束（前面那行沒 `;` 結尾），等你繼續打 |
+
+你在 psql 裡打 `psql -U test_rag` 會被當 SQL 解析，沒看到 `;` 所以變成 `postgres-#` 一直等。**按 Ctrl+C 取消** 即可。
+
+#### 切換 DB 的三種方法
+
+##### 方法 A：在 psql 裡用 `\c`（最快）
+
+```sql
+postgres=# \c test_rag
+You are now connected to database "test_rag" as user "postgres".
+test_rag=#
+```
+
+##### 方法 B：離開 psql 後重新連並指定 `-d`
+
+```sql
+postgres=# \q
+```
+
+```powershell
+docker exec -it pgvector-test psql -U postgres -d test_rag
+```
+
+##### 方法 C：直接從 PowerShell 跑單個 SQL
+
+```powershell
+docker exec pgvector-test psql -U postgres -d test_rag -c "SELECT * FROM items;"
+```
+
+---
+
 ### Q5.9：我在 psql 視窗輸入 `mysecret` 為什麼失敗？
 
 99% 是**你連到的 Postgres 不是 Docker 那個**——是**你本地的 Postgres**（密碼 abc123，不是 mysecret）。
