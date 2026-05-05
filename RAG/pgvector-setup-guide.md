@@ -1361,7 +1361,99 @@ docker exec ... psql         psql -h localhost -p 5433
    ✅ 直接進去               ✅ 輸入 mysecret 才進去
 ```
 
-### Q5.8：我在 psql 視窗輸入 `mysecret` 為什麼失敗？
+### Q5.8.5：⚠️ 進去後 `\dt` 跟 `\dx` 看不到 vector 跟 items？（最容易踩的坑）
+
+**99% 是你連到「錯的 database」**——通常是預設的 `postgres` DB，而不是裝了 vector 的 `test_rag` DB。
+
+#### 從 prompt 一眼看出來
+
+```
+postgres=#         ← 你在「postgres」這個 DB（沒裝 vector）
+   ▲
+prompt 前綴 = 當前 DB 名
+
+test_rag=#         ← 你應該在這個 DB（裝了 vector + 有 items）
+```
+
+#### 為什麼會走錯 DB？
+
+```powershell
+# ❌ 沒指定 DB → 預設連到跟 user 同名的「postgres」DB
+psql -U postgres
+
+# ✅ 指定 test_rag
+psql -U postgres -d test_rag
+
+# ✅ docker exec 版本
+docker exec -it pgvector-test psql -U postgres -d test_rag
+                                                ▲
+                                            指定 -d
+```
+
+#### ⚠️ 重要概念：PostgreSQL 的擴充和 table 是「per-database」
+
+裝在 A 資料庫**不會自動出現在** B 資料庫。每個 DB 是獨立的：
+
+```
+Docker 容器內的 Postgres
+├── postgres（DB，預設）
+│   ├── 擴充：只有 plpgsql（預設）
+│   └── tables: 無
+│
+├── test_rag（DB，docker run 時建的）
+│   ├── 擴充：plpgsql + vector ✅
+│   └── tables: items ✅
+│
+├── template0（系統 DB）
+└── template1（系統 DB）
+```
+
+→ 「vector 在 Postgres 上」**不夠精確**——應該說「vector 在 Postgres 的 `test_rag` DB 上」。
+
+#### 解法：在 psql 裡切換 DB
+
+```sql
+postgres=# \c test_rag
+You are now connected to database "test_rag" as user "postgres".
+
+test_rag=# \dt           -- 看到 items 表 ✅
+test_rag=# \dx           -- 看到 vector 擴充 ✅
+test_rag=# SELECT * FROM items;
+```
+
+`\c` = **c**onnect，psql 的 meta-command。
+
+#### 偵錯流程
+
+```
+\dt 沒看到我建的表？\dx 沒看到 vector？
+        │
+        ▼
+1. 看 prompt 前綴是什麼 DB
+        │
+        ├── postgres=# → 你在錯的 DB，跑 \c test_rag
+        │
+        └── test_rag=# → 對的 DB
+                │
+                ├── 還是沒看到？
+                │   ├── 確認進去的是 Docker 容器（不是本地 Postgres）
+                │   └── docker exec -it pgvector-test psql -U postgres -d test_rag
+                │
+                └── 看得到 → ✅ 完成！
+```
+
+#### 「per-database」的另一個含意：要在每個 DB 都裝一次
+
+如果你想在 `postgres` DB 也用 vector：
+
+```sql
+\c postgres
+CREATE EXTENSION vector;     -- ← 這個 DB 也要裝一次
+```
+
+⚠️ 多數時候**不需要**——學 RAG 期間就用 `test_rag` 就好。
+
+### Q5.9：我在 psql 視窗輸入 `mysecret` 為什麼失敗？
 
 99% 是**你連到的 Postgres 不是 Docker 那個**——是**你本地的 Postgres**（密碼 abc123，不是 mysecret）。
 
