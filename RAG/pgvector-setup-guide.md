@@ -1512,6 +1512,73 @@ docker exec pgvector-test psql -U postgres -d test_rag -c "SELECT * FROM items;"
 
 ---
 
+### Q5.8.8：⚠️ `\dx` 報錯 `bash: dx: command not found`？
+
+你跑去**容器的 bash shell** 了，不是 psql！這兩個是不同層級的環境。
+
+#### 三層 prompt 對照（重要！）
+
+```
+Layer 1: PowerShell (Windows host)
+  PS C:\coding\futuresign>
+  │
+  │  docker exec -it pgvector-test bash    ← 這樣會進 bash
+  ▼
+Layer 2: Container bash（容器內 Linux shell）
+  root@6a01995c60dc / [pgvector-test]
+  docker >                               ← 在這打 \dx 會錯
+  │
+  │  psql -U postgres -d test_rag        ← 這樣才會進 psql
+  ▼
+Layer 3: psql
+  test_rag=#                             ← 在這才能用 \dx \c \dt
+```
+
+#### 為什麼 `\dx` 在 bash 裡會錯？
+
+```bash
+docker > \dx
+bash: dx: command not found
+```
+
+bash 看到 `\dx` 把 `\d` 當跳脫字元 + 字母 `x`，然後去找叫 `dx` 的 bash 指令——找不到。
+
+`\dx`、`\c`、`\dt` 是 **psql 的 meta-command**，**只在 psql 裡有效**。
+
+#### 怎麼從 bash 進 psql？
+
+```bash
+docker > psql -U postgres -d test_rag
+psql (17.9...)
+test_rag=#               ← 進來了！這時 \dx \c \dt 才生效
+```
+
+#### 我是怎麼跑到 bash 的？
+
+通常兩種情況：
+1. **Docker Desktop 點 "Open in terminal"**：自動開 debug bash（sandbox 模式）
+2. **手動下了 `docker exec -it pgvector-test bash`**
+
+→ 學習階段**不需要進 bash**，直接 `docker exec -it pgvector-test psql -U postgres -d test_rag` 一步到位進 psql。
+
+#### 怎麼離開？
+
+```
+psql 內 (test_rag=#)        →  打 \q              → 回到 bash
+container bash (docker >)   →  打 exit 或 Ctrl+D  → 回到 PowerShell
+PowerShell (PS C:\...)      →  關掉視窗即可
+```
+
+#### 各層級可用指令對照
+
+| Prompt 樣貌 | 你在哪 | 可用指令 | 不可用 |
+|------------|-------|---------|--------|
+| `PS C:\...>` | Windows PowerShell | `docker`, `git`, `ls`, ... | psql meta-command |
+| `docker >` 或 `root@xxx:/#` | 容器內 bash | `psql`, `ls`, `cat`, ... | psql meta-command |
+| `postgres=#` 或 `test_rag=#` | psql 內 | `\dt`, `\dx`, `\c`, SQL | shell 指令 |
+
+---
+
 ### Q5.9：我在 psql 視窗輸入 `mysecret` 為什麼失敗？
 
 99% 是**你連到的 Postgres 不是 Docker 那個**——是**你本地的 Postgres**（密碼 abc123，不是 mysecret）。
