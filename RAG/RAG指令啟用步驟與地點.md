@@ -262,7 +262,51 @@ postgres-#                                ← 進入 SQL 多行模式（dash 不
 **原因**：psql 是 shell 程式，不能在 psql 裡再呼叫自己。
 **解法**：在 psql 裡切 DB 用 `\c test_rag`，不要打 `psql -U ...`。
 
-### 錯誤 5：連 psql 但密碼錯
+### 錯誤 5：忘了打 `;` 結尾，prompt 卡在 `-#`
+
+```
+test_rag=# SELECT * FROM items
+test_rag-#                          ← dash！還在等
+```
+
+**原因**：每個 SQL 指令都要用 `;` 結尾，psql 才知道你打完了。
+**解法**：在 `test_rag-#` 後面直接補打 `;` 按 Enter，會把 buffer 裡的 SQL 執行完。
+
+```
+test_rag-# ;                        ← 補打分號
+                                   ↓
+ id | description |  embedding
+----+-------------+-------------
+  1 | 蘋果        | [1,0,0]
+  ...
+test_rag=#                          ← 變回等號
+```
+
+**或想清空 buffer 重新打**：按 Ctrl+C，prompt 回到 `=#`，再從頭打 `SELECT * FROM items;`。
+
+### 錯誤 6：把反斜線 `\` 打成正斜線 `/`
+
+```
+test_rag=# /dt                  ← ⚠️ 是 / 不是 \
+test_rag-#                      ← 變 dash 了！
+```
+
+**原因**：`/` 在 SQL 是除法運算子，psql 把 `/dt` 當不完整 SQL 開頭，等你補完。
+**解法**：psql meta-command **一定**用反斜線：
+
+```
+✅ \dt    \dx    \c    \q
+❌ /dt    /dx    /c    /q
+```
+
+**鍵盤位置**：
+
+| 符號 | Windows 鍵盤位置 |
+|------|----------------|
+| `\` 反斜線 | Enter 上面那個鍵（跟 `\|` 同一鍵）|
+| `/` 正斜線 | 右 Shift 旁邊（跟 `?` 同一鍵）|
+
+### 錯誤 7：連 psql 但密碼錯
 
 ```
 psql -U postgres
