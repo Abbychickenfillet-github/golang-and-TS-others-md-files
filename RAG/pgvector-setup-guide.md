@@ -1579,6 +1579,150 @@ PowerShell (PS C:\...)      →  關掉視窗即可
 
 ---
 
+### Q5.8.9：⚠️ 在容器內打 `docker exec ...` 顯示 `docker: not found`？
+
+**因為你在「容器內」，不是 Windows 主機**——容器裡沒裝 docker 執行檔。
+
+#### Host（主機）vs Container（容器）邊界
+
+```
+┌─────────────────────────────────────────────┐
+│ Windows 主機                                 │
+│ ──────────                                  │
+│ ✅ docker 指令在這                           │
+│ ✅ git, node, npm, PowerShell                │
+│                                             │
+│ ┌─────────────────────────────────────────┐ │
+│ │ pgvector-test 容器（Mini Linux）         │ │
+│ │ ───────────────                         │ │
+│ │ ❌ 沒有 docker                          │ │
+│ │ ✅ psql (image 內建)                    │ │
+│ │ ✅ ls, cat, bash (Linux 基本工具)       │ │
+│ │ ✅ Postgres 17 + pgvector                │ │
+│ └─────────────────────────────────────────┘ │
+└─────────────────────────────────────────────┘
+```
+
+**規則**：每個地方只能用「**那個地方有的東西**」。
+
+| 你在哪 | 能用 docker？ | 能用 psql？ |
+|--------|------------|-----------|
+| Windows PowerShell | ✅ | ❌（除非另外裝）|
+| 容器內 bash | ❌ | ✅ |
+| psql 內 | ❌ | ❌（已經在裡面了）|
+
+→ 在容器內，要連 Postgres **直接 `psql -U postgres -d test_rag` 就好**，不需要再 `docker exec`。
+
+#### 要回 PowerShell 用 docker 指令？
+
+```
+容器內 bash → 打 exit 或 Ctrl+D → 回 Windows PowerShell → 才能用 docker
+```
+
+### Q5.8.10：Docker Desktop 的鯨魚 ASCII art / Debug Shell 是什麼？
+
+那是 **Docker Desktop 的 Debug Shell** 開啟時的歡迎畫面。
+
+```
+     ▄
+   ▄ ▄ ▄  ▀▄▀ 
+ ▄ ▄ ▄ ▄ ▄▇▀  █▀▄ █▀█ █▀▀ █▄▀ █▀▀ █▀█
+▀████████▀    █▄▀ █▄█ █▄▄ █ █ ██▄ █▀▄
+ ▀█████▀                        DEBUG
+```
+
+**鯨魚 + 貨櫃** = Docker 官方 mascot，象徵「容器（container = 貨櫃）漂在大海上載貨」。
+
+#### Debug Shell 是什麼？
+
+- 從 Docker Desktop **GUI 上點 "Exec" / "Open in terminal"** 觸發
+- 本質是 `docker exec -it <container> bash` 的 GUI 包裝
+- 給你**檢查容器檔案系統、log、debug** 用的
+
+⚠️ 學 RAG **不用點這個按鈕**，會帶你進 bash 反而多繞一層。直接從 PowerShell 用 `docker exec` 進 psql 比較快。
+
+### Q5.8.11：為什麼要三層 prompt？以 Docker Desktop 來說正確順序？
+
+**不需要每次都走三層**——這只是「**理論上可以去的三個地方**」。
+
+#### 各場景該去哪一層？
+
+```
+我想做的事                       推薦路徑
+─────────────                   ───────────
+跑 SQL / 查資料                  PowerShell ──► psql        （跳過 bash）
+                                 docker exec -it ... psql -U ... -d ...
+
+啟動 / 停止容器                  PowerShell                  （psql 都不用進）
+                                 docker start / stop ...
+
+看容器 log                       PowerShell                  （用 docker logs）
+                                 docker logs pgvector-test
+
+進去容器看檔案 / debug            PowerShell ──► bash         （才需要 bash）
+                                 docker exec -it ... bash
+
+修改容器內設定檔                  PowerShell ──► bash ──► vim
+```
+
+→ **學 RAG 99% 時間在 PowerShell 跟 psql 兩層之間切換**，bash 那層幾乎用不到。
+
+#### Docker Desktop 推薦操作順序
+
+```
+1. 開 Docker Desktop（看到鯨魚圖示在工作列即可，不用點開 GUI）
+   ↓
+2. 開 PowerShell
+   ↓
+3. docker run ... pgvector/pgvector:pg17    （第一次建容器）
+   ↓
+4. docker exec -it pgvector-test psql -U postgres -d test_rag
+                                             （之後每次都這樣進去）
+   ↓
+5. 在 psql 玩 SQL
+   ↓
+6. \q 離開 psql 回 PowerShell
+```
+
+→ **不用點 Docker Desktop 的 "Exec" 按鈕**。
+
+### Q5.8.12：完整逐字拆解 `docker exec -it pgvector-test psql -U postgres -d test_rag`
+
+```
+docker exec  -it  pgvector-test  psql  -U postgres  -d test_rag
+   ▲          ▲       ▲           ▲       ▲           ▲
+   │          │       │           │       │           │
+   1          2       3           4       5           6
+```
+
+| 位置 | 是什麼 | 解讀 |
+|------|--------|------|
+| 1. `docker exec` | docker 指令 | 「在已執行的容器內跑指令」 |
+| 2. `-it` | docker 旗標 | **i**nteractive + **t**ty（互動式 + 終端機）|
+| 3. `pgvector-test` | 容器名 | 哪個容器 |
+| 4. `psql` | 容器內要執行的指令 | 進 psql 客戶端 |
+| 5. `-U postgres` | psql 旗標 | **U**ser = postgres |
+| 6. `-d test_rag` | psql 旗標 | **d**atabase = test_rag |
+
+#### ⚠️ 易混淆：`-it` 不是 detached mode！
+
+兩個正好相反的概念：
+
+| 旗標 | 全名 | 意思 |
+|------|------|------|
+| **`-d`** | **d**etached | **背景執行，不顯示畫面**（立刻回 prompt）|
+| **`-i`** | **i**nteractive | 保持 stdin 開啟（能輸入指令）|
+| **`-t`** | **t**ty | 配終端機（畫面正常顯示）|
+| **`-it`** | i + t 合併 | 互動模式 + 終端機 |
+
+→ `-d`（detached）跟 `-it`（interactive）**幾乎不會一起用**——一個要背景、一個要前景互動。
+
+#### 中文翻譯
+
+> 「**在已執行的 pgvector-test 容器內，以互動模式 + 配終端機，用 postgres 使用者執行 psql 客戶端，連到 test_rag 這個資料庫。**」
+
+---
+
 ### Q5.9：我在 psql 視窗輸入 `mysecret` 為什麼失敗？
 
 99% 是**你連到的 Postgres 不是 Docker 那個**——是**你本地的 Postgres**（密碼 abc123，不是 mysecret）。
