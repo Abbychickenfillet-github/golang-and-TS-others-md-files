@@ -11,6 +11,9 @@
 ---
 
 ## 0. 一張圖看懂三層 prompt
+<img width="1915" height="1080" alt="image" src="https://github.com/user-attachments/assets/88f5efb3-dd26-4324-a357-b5a4176b91d6" />
+<img width="1889" height="1056" alt="image" src="https://github.com/user-attachments/assets/bef6334b-792a-4849-a3bf-268736ff994f" />
+<img width="1830" height="1271" alt="image" src="https://github.com/user-attachments/assets/fb0d9c03-5db0-42b7-acd7-ca6e9905b418" />
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
