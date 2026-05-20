@@ -124,7 +124,7 @@ all-MiniLM-L6-v2     ← 新版（推薦）
 
 `paraphrase-multilingual-MiniLM-L12-v2` 這個 model 就**存在 Hugging Face 上**：
 <https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2>
-
+ clustering or semantic search.
 打開來看會有：
 - ✅ Model 的下載連結
 - ✅ Model card（說明文件）
