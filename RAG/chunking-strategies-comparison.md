@@ -447,6 +447,56 @@ chunking 是純 Python 字串操作，沒用 model
 
 ---
 
+## 9. 我們專案實際採用的策略（決策 → 程式碼對照）
+
+> 補充 2026-05-20：abby-notes-rag 真正用的 chunker，以及更正「它底層其實是 LangChain」。
+
+當初決策（出自 [2026-05-07-rag-system-design.md](2026-05-07-rag-system-design.md) 的「Chunking 策略」）：
+
+```
+1. 先按 # / ## / ### / #### headers 切分
+2. 每塊上限 800 tokens（中文約 1200-1600 字）
+3. 每塊下限 100 tokens（過小的合併到上一塊）
+4. 超過 800 tokens 的段落用 sliding window 再切
+```
+
+實作在 `abby-notes-rag/src/chunker.py`，決策對照程式碼：
+
+| 當初決策 | chunker.py 實作 | 誰做的 |
+|---------|---------------|-------|
+| 規則1：按 # ## ### #### 切 | `HEADERS_TO_SPLIT` + `MarkdownHeaderTextSplitter` | LangChain |
+| 規則2：上限 800 tokens | `max_tokens` + 超過才切 | tiktoken 算 token |
+| 規則4：超過用 sliding window | `RecursiveCharacterTextSplitter.from_tiktoken_encoder`（含 overlap） | LangChain |
+| 規則3：下限 100、太小合併 | `if tokens < min_tokens: 合併到 prev` | **自己寫的邏輯** |
+
+數字 800 / 100 / 100 來自 `.env` 的 `CHUNK_MAX_TOKENS` / `CHUNK_OVERLAP_TOKENS` / `CHUNK_MIN_TOKENS`，經 config.py 傳入。
+
+**重點更正**：chunker.py **不是**「從零自己寫切割演算法」。真正切割是 LangChain 的兩個 splitter；我們自己寫的是 **編排層**——呼叫順序、`heading_path` 組裝、小 chunk 合併、`Chunk` dataclass。
+
+---
+
+## 10. LangChain 要錢嗎？（常見誤會）
+
+LangChain 是一家公司（LangChain, Inc.），但「是公司」不等於「東西都要錢」。要分清楚開源函式庫 vs 付費 SaaS：
+
+| LangChain 的東西 | 收費嗎 | 說明 |
+|----------------|-------|-----|
+| langchain / langchain-text-splitters（函式庫） | **免費**（MIT 開源） | `pip install` 的這些，含所有 splitter |
+| MarkdownHeaderTextSplitter | **免費** | 純 Python 字串處理，本機跑 |
+| RecursiveCharacterTextSplitter | **免費** | 同上 |
+| LangSmith（除錯/監控雲端服務） | 付費 | 要註冊的 SaaS |
+| LangGraph Platform（部署服務） | 付費 | 雲端部署產品 |
+
+**公司怎麼賺錢**：靠 LangSmith、LangGraph Platform 等雲端 SaaS 訂閱，不是函式庫。
+
+**為什麼 splitter 一定免費**：它不連網、不呼叫 API、不需要金鑰，全程在你電腦上跑。沒有 AI / model / API call = 不可能產生費用。就是聰明一點的字串切割。
+
+**這份筆記唯一會花錢的**：Level 6 的 `SemanticChunker`——但花錢的不是 LangChain，是它呼叫的 `OpenAIEmbeddings`（OpenAI API）。外殼免費，它打的 OpenAI API 要錢。
+
+**我們的 chunker.py 完全免費**：`MarkdownHeaderTextSplitter` + `RecursiveCharacterTextSplitter.from_tiktoken_encoder` + tiktoken（OpenAI 開源 tokenizer，本機跑）全免費，整條 chunking 流程 $0。
+
+---
+
 ## 相關筆記
 
 - [concepts-chunking-vs-embedding-vs-llm-vs-pgvector.md](concepts-chunking-vs-embedding-vs-llm-vs-pgvector.md) — 概念釐清（chunking 不是 model）
