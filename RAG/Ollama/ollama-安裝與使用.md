@@ -67,7 +67,7 @@ try { Invoke-RestMethod "http://localhost:11434/api/tags" -TimeoutSec 5 -ErrorAc
 裝好 Ollama **只是裝了引擎，還沒有模型**。沒模型就無法生成任何東西。
 
 ```powershell
-ollama pull qwen2.5:3b
+ollama pull qwen2.5:7b
 ```
 
 模型大小對照（中文場景）：
@@ -76,8 +76,8 @@ ollama pull qwen2.5:3b
 |-----|------|-----|-----|
 | `qwen2.5:0.5b` | ~0.4GB | 低 | 只測試流程 |
 | `qwen2.5:1.5b` | ~1GB | 中下 | 快速試 |
-| `qwen2.5:3b` | ~1.9GB | 中（夠用） | **本專案預設** |
-| `qwen2.5:7b` | ~4.7GB | 好 | 品質優先 |
+| `qwen2.5:3b` | ~1.9GB | 中（夠用） | 輕量備選（記憶體吃緊時） |
+| `qwen2.5:7b` | ~4.7GB | 好 | **本專案預設**（品質優先，32GB RAM 撐得住） |
 
 > Ollama 的下載**可斷點續傳**（分層下載），網路不穩比 pip 穩。多 GB 下載會跑很久。
 
@@ -93,7 +93,7 @@ cd C:\coding\futuresign\abby-notes-rag
 ```
 
 - `--provider ollama` 用本機 Ollama 生成
-- 預設模型是 `qwen2.5:3b`（在 `DEFAULT_MODELS`），要換用 `--model qwen2.5:7b`
+- 預設模型是 `qwen2.5:7b`（在 `DEFAULT_MODELS`），記憶體吃緊可換 `--model qwen2.5:3b`
 - ask.py 的 `call_ollama` 就是 POST 到 `http://localhost:11434/api/generate`
 
 ---

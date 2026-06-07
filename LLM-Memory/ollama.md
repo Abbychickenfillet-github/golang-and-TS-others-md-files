@@ -237,16 +237,45 @@ ollama pull nomic-embed-text   # 137M 參數，CPU 快到飛起
 
 ### 6.7 你（Abby）的情境
 
+> ⚠️ 下面這段是**還沒實測硬體前的猜測**，已被 6.8 的實測更正，保留當對照。
+
 - Windows 11、沒提過獨顯配置 → 假設沒有
 - 已經在付 Claude API 錢、Claude Code 跑得很順
 - 目標：學 LLM 概念 + 可能做 Abby-notes 的 RAG
 
-**最務實的建議**：**先不要裝 Ollama**。理由：
+**（舊評估）最務實的建議**：**先不要裝 Ollama**。理由：
 1. 沒獨顯 → 純 CPU 體感太差
 2. 你要學的概念（RAG、chunking、embedding、retrieval）用 Claude API + 本地 embedding 就能全部跑
 3. **AnythingLLM 模式 2**（上次推的那個）就是為你這種情境設計的
 
 等哪天你真的想玩**本地 LLM 推論本身**、或買了獨顯、或換 Mac M 系列——再回來裝 Ollama 5 分鐘就搞定。
+
+### 6.8 實機規格實測（2026-06-07）
+
+實際查過硬體後，6.7 的「沒獨顯就別裝」假設要更正：
+
+| 項目 | 結果 |
+|---|---|
+| 獨立顯卡 | **沒有**（DeskIn 是遠端桌面虛擬顯示器，不算顯卡） |
+| 內顯 | **Intel Arc Graphics**（內建，共享系統記憶體） |
+| 系統記憶體 | **約 32GB** |
+
+> `Win32_VideoController` 回報的「VRAM 2GB」**不準**——對內顯/大記憶體常溢位失真。Intel Arc 內顯是**共享系統 RAM**，不是獨立 2GB。
+
+**為什麼能跑 `qwen2.5:7b`**：關鍵不是顯卡，是**32GB 大記憶體**。
+
+- `qwen2.5:7b` Q4 量化只要 **~4.7GB**（見 §5 對照表），32GB RAM 塞下綽綽有餘
+- 就算純 CPU / Intel Arc 跑也**裝得下**，瓶頸只在速度（token/s），不在記憶體
+- 這就是「電腦系統可以支援 7b」的真正原因——**記憶體裝得下**，而非有強顯卡
+
+**選型對照**（見 [[ollama-安裝與使用]]）：
+
+| 模型 | 大小 | 定位 |
+|---|---|---|
+| `qwen2.5:7b` | ~4.7GB | abby-notes-rag **專案預設**（`DEFAULT_MODELS["ollama"]`，品質優先） |
+| `qwen2.5:3b` | ~1.9GB | 輕量備選，記憶體吃緊時用 `--model qwen2.5:3b` |
+
+> 更正（2026-06-07）：實際查 `abby-notes-rag/scripts/ask.py` 後確認 `DEFAULT_MODELS["ollama"]` **本來就是 `qwen2.5:7b`**，不是 3b——舊筆記（含本檔與 ollama-安裝與使用.md）寫「預設 3b」是過時資訊，已一併更正。32GB RAM 撐得住 7b 就是這個選擇的底氣。
 
 ---
 
