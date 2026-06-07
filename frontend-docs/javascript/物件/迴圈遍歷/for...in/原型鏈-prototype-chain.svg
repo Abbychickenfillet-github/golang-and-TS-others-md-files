@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" font-family="Noto Sans CJK SC, sans-serif">
+  <rect x="0" y="0" width="960" height="620" fill="#ffffff"/>
+  <text x="30" y="44" font-size="26" font-weight="700" fill="#1a1a2e">JavaScript 原型鏈與 for...in / 類陣列</text>
+  <text x="30" y="74" font-size="15" fill="#5b6b7c">陣列其實是物件,沿著 [[Prototype]] 一路往上找方法;for...in 走整條鏈,但只列「可列舉」屬性</text>
+  <text x="60" y="118" font-size="16" font-weight="700" fill="#2563eb">① 真正的陣列 arr = ["a","b"]</text>
+  <rect x="60" y="135" width="340" height="92" rx="10" fill="#eef4ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="78" y="162" font-size="15" font-weight="700" fill="#1a1a2e">arr  (實體 / instance)</text>
+  <text x="78" y="186" font-size="13" fill="#2b3a4a">自有可列舉:  "0":"a"   "1":"b"   ← for...in 會列</text>
+  <text x="78" y="208" font-size="13" fill="#94794a">自有不可列舉:  length   ← for...in 不列</text>
+  <line x1="230" y1="227" x2="230" y2="262" stroke="#2563eb" stroke-width="2" marker-end="url(#a)"/>
+  <text x="240" y="252" font-size="12" fill="#2563eb">[[Prototype]]  (__proto__)</text>
+  <rect x="60" y="262" width="340" height="86" rx="10" fill="#f4f7fb" stroke="#64748b" stroke-width="2"/>
+  <text x="78" y="288" font-size="15" font-weight="700" fill="#1a1a2e">Array.prototype</text>
+  <text x="78" y="311" font-size="13" fill="#2b3a4a">forEach . map . filter . indexOf . push ...</text>
+  <text x="78" y="333" font-size="12" fill="#94794a">全部「不可列舉」 → for...in 不會列出</text>
+  <line x1="230" y1="348" x2="230" y2="383" stroke="#64748b" stroke-width="2" marker-end="url(#b)"/>
+  <text x="240" y="373" font-size="12" fill="#64748b">[[Prototype]]</text>
+  <rect x="60" y="383" width="340" height="86" rx="10" fill="#f4f7fb" stroke="#64748b" stroke-width="2"/>
+  <text x="78" y="409" font-size="15" font-weight="700" fill="#1a1a2e">Object.prototype</text>
+  <text x="78" y="432" font-size="13" fill="#2b3a4a">toString . hasOwnProperty . valueOf ...</text>
+  <text x="78" y="454" font-size="12" fill="#94794a">同樣「不可列舉」 → for...in 不會列出</text>
+  <line x1="230" y1="469" x2="230" y2="500" stroke="#64748b" stroke-width="2" marker-end="url(#b)"/>
+  <rect x="160" y="500" width="140" height="40" rx="8" fill="#1a1a2e"/>
+  <text x="230" y="525" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">null  (鏈的終點)</text>
+  <text x="560" y="118" font-size="16" font-weight="700" fill="#c2410c">② 類陣列 array-like</text>
+  <rect x="560" y="135" width="350" height="118" rx="10" fill="#fff5ec" stroke="#c2410c" stroke-width="2"/>
+  <text x="578" y="162" font-size="14" font-weight="700" fill="#1a1a2e">{ 0:"a", 1:"b", length:2 }</text>
+  <text x="578" y="186" font-size="13" fill="#2b3a4a">長得像陣列(有數字鍵 + length)</text>
+  <text x="578" y="208" font-size="13" fill="#2b3a4a">但 [[Prototype]] 直接指向 Object.prototype</text>
+  <text x="578" y="232" font-size="13" font-weight="700" fill="#c2410c">→ 沒有 Array.prototype,所以沒有 forEach/map</text>
+  <line x1="735" y1="253" x2="735" y2="300" stroke="#c2410c" stroke-width="2" marker-end="url(#c)"/>
+  <text x="748" y="282" font-size="12" fill="#c2410c">跳過 Array.prototype</text>
+  <rect x="560" y="300" width="350" height="70" rx="10" fill="#f4f7fb" stroke="#64748b" stroke-width="2"/>
+  <text x="578" y="326" font-size="14" font-weight="700" fill="#1a1a2e">Object.prototype</text>
+  <text x="578" y="349" font-size="12" fill="#64748b">只有 Object 的通用方法</text>
+  <rect x="560" y="398" width="350" height="142" rx="10" fill="#ecfdf3" stroke="#16a34a" stroke-width="2"/>
+  <text x="578" y="424" font-size="14" font-weight="700" fill="#15803d">怎麼把類陣列變成真陣列?</text>
+  <text x="578" y="450" font-size="13" fill="#14532d">Array.from(obj)          // 推薦,最直覺</text>
+  <text x="578" y="474" font-size="13" fill="#14532d">[...iterable]            // 展開,需可迭代</text>
+  <text x="578" y="498" font-size="13" fill="#14532d">Array.prototype.slice.call(obj)   // 老寫法</text>
+  <text x="578" y="524" font-size="12" fill="#3f7d57">常見類陣列:arguments、NodeList、字串</text>
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#2563eb"/></marker>
+    <marker id="b" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#64748b"/></marker>
+    <marker id="c" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#c2410c"/></marker>
+  </defs>
+</svg>
