@@ -275,7 +275,7 @@ ollama pull nomic-embed-text   # 137M 參數，CPU 快到飛起
 | `qwen2.5:7b` | ~4.7GB | abby-notes-rag **專案預設**（`DEFAULT_MODELS["ollama"]`，品質優先） |
 | `qwen2.5:3b` | ~1.9GB | 輕量備選，記憶體吃緊時用 `--model qwen2.5:3b` |
 
-> 更正（2026-06-07）：實際查 `abby-notes-rag/scripts/ask.py` 後確認 `DEFAULT_MODELS["ollama"]` **本來就是 `qwen2.5:7b`**，不是 3b——舊筆記（含本檔與 ollama-安裝與使用.md）寫「預設 3b」是過時資訊，已一併更正。32GB RAM 撐得住 7b 就是這個選擇的底氣。
+**Qwen2.5 是什麼**：阿里巴巴雲「通義千問（Qwen）」團隊研發的開源 LLM，採 **Apache 2.0 協議**開源、可免費商用。型號裡的 `7b` = **70 億參數（7 billion）**，中文能力特別強。32GB RAM 撐得住 7b，這就是它能當 abby-notes-rag 預設的底氣。
 
 ---
 
