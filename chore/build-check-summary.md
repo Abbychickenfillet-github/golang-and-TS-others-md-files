@@ -1,66 +1,66 @@
-# 构建检查和实现总结
+# 構建檢查和實現總結
 
-## 1. 构建检查结果
+## 1. 構建檢查結果
 
-### ✅ 模型文件检查
-- `backend/app/models/order_electricity.py` - ✅ 无错误
-- `backend/app/models/order_item.py` - ✅ 无错误
-- `backend/app/models/general_contractor.py` - ✅ 无错误
-- `backend/app/models/order.py` - ✅ 无错误
+### ✅ 模型文件檢查
+- `backend/app/models/order_electricity.py` - ✅ 無錯誤
+- `backend/app/models/order_item.py` - ✅ 無錯誤
+- `backend/app/models/general_contractor.py` - ✅ 無錯誤
+- `backend/app/models/order.py` - ✅ 無錯誤
 
-### ✅ Linter 检查
-- 所有文件通过 linter 检查，无语法错误
+### ✅ Linter 檢查
+- 所有文件通過 linter 檢查，無語法錯誤
 
-## 2. 实现检查结果
+## 2. 實現檢查結果
 
-### ❌ 发现的问题
+### ❌ 發現的問題
 
-#### 问题 1：后端 API 未设置 `calculation_rule_id`
-**位置**：`backend/app/api/routes/orders.py` 的 `add_electricity_to_order` 函数
+#### 問題 1：後端 API 未設置 `calculation_rule_id`
+**位置**：`backend/app/api/routes/orders.py` 的 `add_electricity_to_order` 函數
 
-**问题**：
-- 创建 `OrderElectricityBase` 时没有查找并设置 `calculation_rule_id`
-- 根据设计，应该自动查找活动的有效规则并设置
+**問題**：
+- 創建 `OrderElectricityBase` 時沒有查找並設置 `calculation_rule_id`
+- 根據設計，應該自動查找活動的有效規則並設置
 
-**修复**：
-- ✅ 已修复：添加了自动查找规则的逻辑
-- 优先使用客户选择的规则（如果提供）
-- 否则查找活动的默认规则（`company_id IS NULL`）
-- 如果都没有，查找任何有效的规则
+**修復**：
+- ✅ 已修復：添加了自動查找規則的邏輯
+- 優先使用客戶選擇的規則（如果提供）
+- 否則查找活動的默認規則（`company_id IS NULL`）
+- 如果都沒有，查找任何有效的規則
 
-#### 问题 2：前端未传递 `calculation_rule_id`
+#### 問題 2：前端未傳遞 `calculation_rule_id`
 **位置**：`official_website/app/event/[id]/register/electricity/page.tsx`
 
-**当前实现**：
-- 前端只传递 `wattage`, `voltage`, `cable_length`
-- 没有传递 `calculation_rule_id`
+**當前實現**：
+- 前端只傳遞 `wattage`, `voltage`, `cable_length`
+- 沒有傳遞 `calculation_rule_id`
 
-**设计说明**：
-- 根据设计文档："客户以规则选择，而非公司选择"
-- 但目前的实现是后端自动选择规则（符合简化流程）
-- 如果未来需要让用户选择规则，前端需要添加规则选择 UI
+**設計說明**：
+- 根據設計文檔："客戶以規則選擇，而非公司選擇"
+- 但目前的實現是後端自動選擇規則（符合簡化流程）
+- 如果未來需要讓用戶選擇規則，前端需要添加規則選擇 UI
 
-### ✅ 已正确实现的部分
+### ✅ 已正確實現的部分
 
-1. **模型定义**：
+1. **模型定義**：
    - ✅ `OrderElectricityBase` 包含 `calculation_rule_id` 字段
-   - ✅ `OrderElectricityCreate` 包含 `calculation_rule_id` 字段（可选）
+   - ✅ `OrderElectricityCreate` 包含 `calculation_rule_id` 字段（可選）
    - ✅ `ElectricityCalculationRuleBase` 包含 `expired_at` 字段
    - ✅ `OrderItemBase` 包含 `furniture_company_id` 字段
 
-2. **前端电力选择页面**：
-   - ✅ 正确获取活动电力规则
-   - ✅ 正确验证瓦数（必须是 500W 的倍数）
-   - ✅ 正确调用后端 API
+2. **前端電力選擇頁面**：
+   - ✅ 正確獲取活動電力規則
+   - ✅ 正確驗證瓦數（必須是 500W 的倍數）
+   - ✅ 正確調用後端 API
 
-3. **后端 API**：
-   - ✅ 正确验证订单状态
-   - ✅ 正确验证瓦数
-   - ✅ 正确计算费用（`calculate_electricity_cost`）
+3. **後端 API**：
+   - ✅ 正確驗證訂單狀態
+   - ✅ 正確驗證瓦數
+   - ✅ 正確計算費用（`calculate_electricity_cost`）
 
-## 3. 修复内容
+## 3. 修復內容
 
-### 修复 1：后端自动查找并设置规则
+### 修復 1：後端自動查找並設置規則
 
 ```python
 # 查找活動的有效電力規則
@@ -77,7 +77,7 @@ if not calculation_rule_id:
     ...
 ```
 
-### 修复 2：模型更新
+### 修復 2：模型更新
 
 ```python
 class OrderElectricityCreate(SQLModel):
@@ -88,37 +88,37 @@ class OrderElectricityCreate(SQLModel):
     )
 ```
 
-## 4. 建议的后续改进
+## 4. 建議的後續改進
 
-### 选项 A：保持当前实现（推荐）
-- 后端自动选择规则
-- 简化用户流程
-- 适合大多数场景（一个活动通常只有一个有效规则）
+### 選項 A：保持當前實現（推薦）
+- 後端自動選擇規則
+- 簡化用戶流程
+- 適合大多數場景（一個活動通常只有一個有效規則）
 
-### 选项 B：添加规则选择功能
-如果未来需要支持多个规则选择：
+### 選項 B：添加規則選擇功能
+如果未來需要支持多個規則選擇：
 1. 前端修改：
-   - 在电力选择页面添加规则选择下拉框
-   - 显示规则的公司名称和价格信息
-   - 传递 `calculation_rule_id` 到后端
+   - 在電力選擇頁面添加規則選擇下拉框
+   - 顯示規則的公司名稱和價格信息
+   - 傳遞 `calculation_rule_id` 到後端
 
-2. 后端修改：
-   - 验证客户选择的规则是否有效
-   - 确保规则属于当前活动
+2. 後端修改：
+   - 驗證客戶選擇的規則是否有效
+   - 確保規則屬於當前活動
 
-## 5. 总结
+## 5. 總結
 
 ### ✅ 已完成
-- 模型定义正确
-- 后端 API 已修复，会自动查找并设置规则
-- 前端实现符合当前设计（简化流程）
+- 模型定義正確
+- 後端 API 已修復，會自動查找並設置規則
+- 前端實現符合當前設計（簡化流程）
 
-### ⚠️ 注意事项
-- 当前实现是后端自动选择规则
-- 如果未来需要用户选择规则，需要修改前端 UI
-- SQL 迁移文件已准备好，可以执行
+### ⚠️ 注意事項
+- 當前實現是後端自動選擇規則
+- 如果未來需要用戶選擇規則，需要修改前端 UI
+- SQL 遷移文件已準備好，可以執行
 
 ### 📝 下一步
-1. 执行 SQL 迁移：`backend/sql/127_electricity_rule_refactor.sql`
-2. 测试后端 API 是否正确设置 `calculation_rule_id`
-3. 测试前端电力选择流程
+1. 執行 SQL 遷移：`backend/sql/127_electricity_rule_refactor.sql`
+2. 測試後端 API 是否正確設置 `calculation_rule_id`
+3. 測試前端電力選擇流程

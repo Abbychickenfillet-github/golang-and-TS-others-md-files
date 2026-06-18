@@ -1,69 +1,69 @@
-# 代码审查问题回答
+# 代碼審查問題回答
 
-## 1. 目前有设定预设的规则吗？如果有的话在哪？为什么用"默认规则"这个字眼？
-
-**回答**：
-- ❌ **没有预设的规则**。我错误地假设 `company_id IS NULL` 是"默认规则"，但实际上：
-  - `company_id` 可以是 `NULL`（不绑定特定公司）
-  - `company_id` 也可以绑定特定公司（如 GC 或 electricity_company）
-  - 没有设计说明 `company_id IS NULL` 是"默认规则"
-- **修复**：移除"默认规则"的概念，直接查找活动的有效规则（`status='active'` 且 `expired_at IS NULL`）
-
-## 2. status='active' 和 deleted_at 是一样的用途，检查哪个用的比较多，删除哪一个？
+## 1. 目前有設定預設的規則嗎？如果有的話在哪？為什麼用"默認規則"這個字眼？
 
 **回答**：
-- **检查结果**：
-  - `status` 在代码中大量使用（639行）
-  - `deleted_at` 在代码中大量使用（169行）
-  - **但是** `electricity_calculation_rule` 表**只有 `status` 和 `expired_at`，没有 `deleted_at`**
-- **结论**：
-  - ✅ **保留 `status='active'`**：用于判断规则是否启用
-  - ✅ **保留 `expired_at IS NULL`**：用于判断规则是否已过期（历史记录）
-  - ❌ **不需要 `deleted_at`**：`electricity_calculation_rule` 表没有这个字段
+- ❌ **沒有預設的規則**。我錯誤地假設 `company_id IS NULL` 是"默認規則"，但實際上：
+  - `company_id` 可以是 `NULL`（不綁定特定公司）
+  - `company_id` 也可以綁定特定公司（如 GC 或 electricity_company）
+  - 沒有設計說明 `company_id IS NULL` 是"默認規則"
+- **修復**：移除"默認規則"的概念，直接查找活動的有效規則（`status='active'` 且 `expired_at IS NULL`）
 
-## 3. `if rule and rule.event_id and rule.status=active and rule.expired_at is None:` 的话就做 `calculation_rule_id = rule.id`？这个等号后面的 `rule.id` 算什么？
+## 2. status='active' 和 deleted_at 是一樣的用途，檢查哪個用的比較多，刪除哪一個？
 
 **回答**：
-- `rule.id` 是规则的 **UUID**（主键）
-- 用来设置到 `order_electricity.calculation_rule_id` 字段
-- 建立 `order_electricity` 和 `electricity_calculation_rule` 的关联关系
+- **檢查結果**：
+  - `status` 在代碼中大量使用（639行）
+  - `deleted_at` 在代碼中大量使用（169行）
+  - **但是** `electricity_calculation_rule` 表**只有 `status` 和 `expired_at`，沒有 `deleted_at`**
+- **結論**：
+  - ✅ **保留 `status='active'`**：用於判斷規則是否啟用
+  - ✅ **保留 `expired_at IS NULL`**：用於判斷規則是否已過期（歷史記錄）
+  - ❌ **不需要 `deleted_at`**：`electricity_calculation_rule` 表沒有這個字段
+
+## 3. `if rule and rule.event_id and rule.status=active and rule.expired_at is None:` 的話就做 `calculation_rule_id = rule.id`？這個等號後面的 `rule.id` 算什麼？
+
+**回答**：
+- `rule.id` 是規則的 **UUID**（主鍵）
+- 用來設置到 `order_electricity.calculation_rule_id` 字段
+- 建立 `order_electricity` 和 `electricity_calculation_rule` 的關聯關係
 - **示例**：
   ```python
   calculation_rule_id = rule.id  # 例如: "123e4567-e89b-12d3-a456-426614174000"
-  # 然后设置到 order_electricity 表
+  # 然後設置到 order_electricity 表
   electricity_base = OrderElectricityBase(
-      calculation_rule_id=calculation_rule_id,  # 关联到规则
+      calculation_rule_id=calculation_rule_id,  # 關聯到規則
       ...
   )
   ```
 
-## 4. 为什么要验证规则是否存在且有效？
+## 4. 為什麼要驗證規則是否存在且有效？
 
 **回答**：
-- ❌ **这个验证是多余的**，因为：
-  - 前端**不会传递** `calculation_rule_id`（前端只传递 `wattage`, `voltage`, `cable_length`）
-  - 后端应该**自动查找**活动的有效规则
-  - 不需要验证客户选择的规则（因为客户不会选择）
-- **修复**：移除验证逻辑，直接查找活动的有效规则
+- ❌ **這個驗證是多餘的**，因為：
+  - 前端**不會傳遞** `calculation_rule_id`（前端只傳遞 `wattage`, `voltage`, `cable_length`）
+  - 後端應該**自動查找**活動的有效規則
+  - 不需要驗證客戶選擇的規則（因為客戶不會選擇）
+- **修復**：移除驗證邏輯，直接查找活動的有效規則
 
-## 5. 怎么会有人用我们没有设定的规则？这是谁写的逻辑？
+## 5. 怎麼會有人用我們沒有設定的規則？這是誰寫的邏輯？
 
 **回答**：
-- ❌ **这是我刚才添加的逻辑，是过度设计**
-- 我错误地假设：
-  - 前端可能会传递 `calculation_rule_id`
-  - 需要验证客户选择的规则
-  - 需要区分"默认规则"和"公司规则"
-- **实际情况**：
-  - 前端不会传递 `calculation_rule_id`
-  - 后端应该自动查找活动的有效规则
-  - 不需要区分"默认规则"和"公司规则"
-- **修复**：简化逻辑，直接查找活动的有效规则
+- ❌ **這是我剛才添加的邏輯，是過度設計**
+- 我錯誤地假設：
+  - 前端可能會傳遞 `calculation_rule_id`
+  - 需要驗證客戶選擇的規則
+  - 需要區分"默認規則"和"公司規則"
+- **實際情況**：
+  - 前端不會傳遞 `calculation_rule_id`
+  - 後端應該自動查找活動的有效規則
+  - 不需要區分"默認規則"和"公司規則"
+- **修復**：簡化邏輯，直接查找活動的有效規則
 
-## 修复后的代码逻辑
+## 修復後的代碼邏輯
 
 ```python
-# 简化后的逻辑
+# 簡化後的邏輯
 # 查找活動的有效規則（status='active' 且 expired_at IS NULL）
 rule = session.exec(
     select(ElectricityCalculationRule)
@@ -78,10 +78,10 @@ rule = session.exec(
 calculation_rule_id = rule.id if rule else None
 ```
 
-## 总结
+## 總結
 
-1. ❌ 移除"默认规则"的概念
-2. ✅ 使用 `status='active'` 和 `expired_at IS NULL` 判断有效规则
-3. ✅ `rule.id` 是规则的 UUID，用于关联
-4. ❌ 移除多余的验证逻辑
-5. ❌ 简化代码，直接查找活动的有效规则
+1. ❌ 移除"默認規則"的概念
+2. ✅ 使用 `status='active'` 和 `expired_at IS NULL` 判斷有效規則
+3. ✅ `rule.id` 是規則的 UUID，用於關聯
+4. ❌ 移除多餘的驗證邏輯
+5. ❌ 簡化代碼，直接查找活動的有效規則
