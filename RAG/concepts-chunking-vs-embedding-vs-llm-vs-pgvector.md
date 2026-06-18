@@ -19,7 +19,7 @@
 | chunking 是 model 做的 | chunking 是**純文字操作**，沒用任何 model |
 | embedding model 就是 LLM 的小弟 | embedding model 跟 LLM 是**不同任務的不同神經網路** |
 | pgvector 是個資料庫 | pgvector 是 PostgreSQL 的 **extension**（擴充套件）|
-| 一個 model 應該支援所有語言 | model 表現受**訓練資料分布**影響，沒辦法兩全 |
+| 一個 model 應該支援所有語言 | model 表現受**訓練資料分佈**影響，沒辦法兩全 |
 
 ---
 

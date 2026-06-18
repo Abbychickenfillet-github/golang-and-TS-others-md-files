@@ -303,9 +303,9 @@ def relative_path(absolute: Path) -> str:
 |-----|------|-------|-----|
 | 1 | `docker compose up -d` | 啟動 PostgreSQL 容器 | 打地基 |
 | 2 | `python scripts/init_db.py` | 讀 init_db.sql → 建 chunks 表 + HNSW 索引 | 蓋房子 |
-| 3 | `python scripts/ingest.py` | 把 4172 個 chunk 寫進表 | 搬家具 |
+| 3 | `python scripts/ingest.py` | 把 4172 個 chunk 寫進表 | 搬傢俱 |
 
-**順序不能反**：表還沒建就 ingest，會噴 `relation "chunks" does not exist`（房子還沒蓋就要搬家具）。
+**順序不能反**：表還沒建就 ingest，會噴 `relation "chunks" does not exist`（房子還沒蓋就要搬傢俱）。
 `init_db.py` 本身只是「讀 SQL 檔 → 連 DB → `cur.execute(sql)` 執行建表」。
 
 ---

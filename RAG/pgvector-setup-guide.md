@@ -59,7 +59,7 @@ vector  _  l2  _  ops
 | 部分 | 意思 |
 |------|------|
 | `vector` | 適用的資料型別（pgvector 的 vector type）|
-| `l2` | 用 L2 距離（歐幾里得，下節詳解）|
+| `l2` | 用 L2 距離（歐幾裡得，下節詳解）|
 | `ops` | operator class 的縮寫（PostgreSQL 慣例後綴）|
 
 ##### 為什麼要分三種？
@@ -101,7 +101,7 @@ SELECT * FROM items ORDER BY embedding <=> '[1,0,0]' LIMIT 5;
 
 任何資料型別想被索引，都要為「每種比較方式」註冊一個 operator class —— pgvector 只是延續這套慣例。
 
-### 數學背景：歐幾里德距離 (L2)
+### 數學背景：歐幾裡德距離 (L2)
 
 > **歐式距離就是畢氏定理的推廣。**
 
@@ -213,7 +213,7 @@ embedding <-> '[1,0,0]'    ≡    np.sqrt(sum(pow(vec - query, 2)))
 | | **git clone** | **Docker image** |
 |---|---|---|
 | 拿到的是 | 原始碼（C 語言 source） | 已 build 好的完整環境（含 Postgres + pgvector） |
-| 比喻 | IKEA 零件包 + 說明書 | 已組好的家具 |
+| 比喻 | IKEA 零件包 + 說明書 | 已組好的傢俱 |
 | 大小 | 數 MB | 數百 MB |
 | 能直接執行嗎 | ❌ 要 build | ✅ `docker run` 立刻跑 |
 | Windows 上難度 | ⚠️ 需 Visual Studio + Postgres dev headers | ✅ 裝好 Docker Desktop 就能用 |
@@ -535,7 +535,7 @@ SELECT * FROM pg_available_extensions WHERE name = 'vector';
         │                              │
    ❌ 沒裝 pgvector              ✅ 內建 pgvector
         │                              │
-        └─── 完全獨立、互不干擾 ───┘
+        └─── 完全獨立、互不幹擾 ───┘
 ```
 
 → 兩個 Postgres **並行存在**，跑 Docker 不會影響本地的，本地的也不會幫 Docker 提供 pgvector。
@@ -1024,7 +1024,7 @@ INSERT INTO items (description, embedding) VALUES
   ('香蕉',   '[0.9, 0, 0.1]'),-- 偏向「水果」
   ('狗',     '[0, 1, 0]'),    -- 偏向「動物」
   ('貓',     '[0, 0.9, 0.1]'),-- 偏向「動物」
-  ('桌子',   '[0, 0, 1]');    -- 偏向「家具」
+  ('桌子',   '[0, 0, 1]');    -- 偏向「傢俱」
 ```
 
 ### 4.3 找最相近的：「跟蘋果最像的東西」
@@ -1140,7 +1140,7 @@ def embed(text: str) -> list[float]:
 conn = psycopg2.connect(...)
 cur = conn.cursor()
 
-texts = ["蘋果是水果", "狗是寵物", "桌子是家具"]
+texts = ["蘋果是水果", "狗是寵物", "桌子是傢俱"]
 for text in texts:
     vec = embed(text)
     cur.execute(
@@ -1160,7 +1160,7 @@ cur.execute("""
 
 for row in cur.fetchall():
     print(row)
-# 預期：「蘋果是水果」最近、「狗是寵物」次之、「桌子是家具」最遠
+# 預期：「蘋果是水果」最近、「狗是寵物」次之、「桌子是傢俱」最遠
 ```
 
 ---
@@ -1259,7 +1259,7 @@ docker run -d --name pgvector-test `
 | | git clone | Docker image |
 |---|---|---|
 | 拿到的是 | 原始碼（C 語言） | 已 build 好的成品 |
-| 比喻 | IKEA 零件包 | 已組好的家具 |
+| 比喻 | IKEA 零件包 | 已組好的傢俱 |
 | 大小 | 數 MB | 數百 MB |
 | 能直接執行嗎 | ❌ 要 build | ✅ `docker run` 立刻跑 |
 
@@ -1300,7 +1300,7 @@ docker run -d --name pgvector-test `
 
 ### Q5：我有本地 Postgres，跑 Docker pgvector 還有差嗎？資料會消失嗎？
 
-**有差**——「有 Postgres」≠「有 pgvector」。兩個 Postgres 並行存在、互不干擾。
+**有差**——「有 Postgres」≠「有 pgvector」。兩個 Postgres 並行存在、互不幹擾。
 
 **資料持久化**：
 

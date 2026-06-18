@@ -91,7 +91,7 @@ OpenAI、Google、Meta、北京智源（BAAI）等大公司／研究機構，花
 bge-m3：
   參數量：~568M（5.68 億個 float32 數字）
   檔案大小：~2.3 GB（pytorch_model.bin / safetensors）
-  載入記憶體後：~2.3 GB RAM 占用
+  載入記憶體後：~2.3 GB RAM 佔用
 ```
 
 下載到本地：

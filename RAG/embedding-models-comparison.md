@@ -160,7 +160,7 @@ model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 texts = [
     "蘋果是水果",
     "狗是寵物",
-    "桌子是家具"
+    "桌子是傢俱"
 ]
 vectors = model.encode(texts, batch_size=32, normalize_embeddings=True)
 
@@ -268,7 +268,7 @@ cur.execute("""
 """)
 
 # 存資料
-texts = ["蘋果是水果", "狗是寵物", "桌子是家具"]
+texts = ["蘋果是水果", "狗是寵物", "桌子是傢俱"]
 vectors = model.encode(texts, normalize_embeddings=True)
 
 for text, vec in zip(texts, vectors):
