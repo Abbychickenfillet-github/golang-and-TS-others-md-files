@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object 靜態方法總覽</title>
+</head>
+<body>
+    <header>
+        <h1>Object 靜態方法總覽（開 F12 Console 看輸出）</h1>
+        <p>全部用範例物件 <code>{ name: "Abby", age: 20 }</code> 示範。</p>
+    </header>
+
+    <script>
+    "use strict";
+    // =====================================================================
+    // 範例物件
+    // =====================================================================
+    const person = { name: "Abby", age: 20 };
+
+    // 重點區分：
+    //  - Object.xxx()  → 「靜態方法」，掛在 Object 這個建構函式上（你打 Object. 看到的那排）
+    //  - obj.xxx()     → 「實例方法」，來自 Object.prototype（hasOwnProperty、toString…）
+
+
+    // =====================================================================
+    // 0. constructor / new Object()
+    // =====================================================================
+    console.log("===== 0. constructor =====");
+    // 每個物件都有 constructor，指向「建立它的函式」。plain object 指向 Object
+    console.log(person.constructor === Object);   // true
+    console.log(new Object({ a: 1 }));            // 用建構函式建物件（很少這樣寫，直接 {} 就好）
+
+
+    // =====================================================================
+    // 1. 讀「屬性」：keys / values / entries
+    // =====================================================================
+    console.log("===== 1. keys / values / entries =====");
+    console.log(Object.keys(person));     // ["name", "age"]        只回「可列舉自有屬性」的鍵
+    console.log(Object.values(person));   // ["Abby", 20]           值
+    console.log(Object.entries(person));  // [["name","Abby"], ["age",20]]  鍵值對陣列
+    // entries 常配 for...of 拆解：
+    for (const [key, value] of Object.entries(person)) {
+        console.log(`${key} = ${value}`);
+    }
+
+
+    // =====================================================================
+    // 2. assign：複製 / 合併物件（淺拷貝）
+    // =====================================================================
+    console.log("===== 2. assign =====");
+    const copy = Object.assign({}, person);                 // 複製一份新的
+    const merged = Object.assign({}, person, { age: 21, city: "Taipei" }); // 後面覆蓋前面
+    console.log(copy);    // { name: "Abby", age: 20 }
+    console.log(merged);  // { name: "Abby", age: 21, city: "Taipei" }
+    // 現代等價寫法：展開運算子 → const copy = { ...person }
+
+
+    // =====================================================================
+    // 3. fromEntries：entries 的反向（鍵值對 → 物件）
+    // =====================================================================
+    console.log("===== 3. fromEntries =====");
+    const pairs = [["name", "Abby"], ["age", 20]];
+    console.log(Object.fromEntries(pairs));   // { name: "Abby", age: 20 }
+    // 經典用途：把物件轉成 entries → map 改造 → fromEntries 變回物件
+    const upper = Object.fromEntries(
+        Object.entries(person).map(([k, v]) => [k.toUpperCase(), v])
+    );
+    console.log(upper);   // { NAME: "Abby", AGE: 20 }
+
+
+    // =====================================================================
+    // 4. create：用「指定的原型」建新物件
+    // =====================================================================
+    console.log("===== 4. create =====");
+    const proto = { greet() { return "hi, I am " + this.name; } };
+    const child = Object.create(proto);   // child 的原型是 proto
+    child.name = "Abby";
+    console.log(child.greet());                       // "hi, I am Abby"（greet 是繼承來的）
+    console.log(Object.getPrototypeOf(child) === proto); // true
+    console.log(Object.create(null));     // 建立「沒有原型」的純淨物件（連 toString 都沒有）
+
+
+    // =====================================================================
+    // 5. getPrototypeOf / setPrototypeOf：取得 / 設定原型
+    // =====================================================================
+    console.log("===== 5. getPrototypeOf / setPrototypeOf =====");
+    console.log(Object.getPrototypeOf(person) === Object.prototype);  // true
+    const animal = { eats: true };
+    const dog = {};
+    Object.setPrototypeOf(dog, animal);   // 讓 dog 繼承 animal（少用，影響效能）
+    console.log(dog.eats);                // true（繼承來的）
+
+
+    // =====================================================================
+    // 6. 屬性描述子 descriptor：getOwnPropertyDescriptor(s)
+    // =====================================================================
+    console.log("===== 6. getOwnPropertyDescriptor(s) =====");
+    // 每個屬性背後都有 4 個旗標：value / writable / enumerable / configurable
+    console.log(Object.getOwnPropertyDescriptor(person, "name"));
+    // { value: "Abby", writable: true, enumerable: true, configurable: true }
+    console.log(Object.getOwnPropertyDescriptors(person)); // 一次拿全部屬性的描述子
+
+
+    // =====================================================================
+    // 7. defineProperty / defineProperties：精細地定義屬性
+    // =====================================================================
+    console.log("===== 7. defineProperty / defineProperties =====");
+    const obj7 = {};
+    Object.defineProperty(obj7, "id", {
+        value: 1001,
+        writable: false,     // 不能改值
+        enumerable: false,   // for...in / Object.keys 看不到（隱身）
+        configurable: false  // 不能刪除或再重新定義
+    });
+    console.log(obj7.id);            // 1001
+    console.log(Object.keys(obj7));  // [] ← 因為 enumerable:false，被隱藏
+    obj7.id = 9999;                  // 嚴格模式下會報錯（writable:false）
+
+    Object.defineProperties(obj7, {  // 一次定義多個
+        a: { value: 1, enumerable: true },
+        b: { value: 2, enumerable: true }
+    });
+    console.log(obj7);   // { a: 1, b: 2 }（id 隱身）
+
+
+    // =====================================================================
+    // 8. getOwnPropertyNames / getOwnPropertySymbols：列出「所有」自有屬性
+    // =====================================================================
+    console.log("===== 8. getOwnPropertyNames / getOwnPropertySymbols =====");
+    // 跟 Object.keys 的差別：連「不可列舉」的也會列出來
+    console.log(Object.getOwnPropertyNames(obj7));   // ["id", "a", "b"] ← 連隱身的 id 也列
+    const sym = Symbol("secret");
+    const obj8 = { [sym]: "隱藏值", visible: 1 };
+    console.log(Object.getOwnPropertySymbols(obj8)); // [Symbol(secret)] ← 只列 Symbol 鍵
+    // 小結：keys（可列舉字串鍵）⊂ getOwnPropertyNames（全部字串鍵）；Symbol 鍵要另外用這個拿
+
+
+    // =====================================================================
+    // 9. freeze / isFrozen / seal / isSealed / preventExtensions / isExtensible
+    //    凍結程度：preventExtensions < seal < freeze
+    // =====================================================================
+    console.log("===== 9. freeze / seal / preventExtensions =====");
+    const frozen = Object.freeze({ x: 1 });
+    frozen.x = 2;          // 無效（嚴格模式報錯）：freeze = 不能改、不能加、不能刪
+    console.log(frozen.x, Object.isFrozen(frozen));   // 1 true
+
+    const sealed = Object.seal({ y: 1 });
+    sealed.y = 2;          // ✅ 可以改現有屬性
+    sealed.z = 3;          // ❌ 不能新增屬性
+    console.log(sealed, Object.isSealed(sealed));     // { y: 2 } true
+
+    const noExt = Object.preventExtensions({ w: 1 });
+    noExt.w = 2;           // ✅ 可改
+    noExt.v = 3;           // ❌ 不能新增
+    console.log(noExt, Object.isExtensible(noExt));   // { w: 2 } false
+
+
+    // =====================================================================
+    // 10. is：比 === 更嚴謹的相等判斷
+    // =====================================================================
+    console.log("===== 10. is =====");
+    console.log(Object.is(NaN, NaN));   // true  （=== 會是 false！）
+    console.log(Object.is(0, -0));      // false （=== 會是 true！）
+    console.log(Object.is("a", "a"));   // true  （一般情況跟 === 一樣）
+
+
+    // =====================================================================
+    // 11. hasOwn：檢查「自有屬性」（取代舊的 hasOwnProperty）
+    // =====================================================================
+    console.log("===== 11. hasOwn =====");
+    console.log(Object.hasOwn(person, "name"));      // true  ← 是自己的屬性
+    console.log(Object.hasOwn(person, "toString"));  // false ← 繼承來的，不算自有
+    // 為何推薦它取代 obj.hasOwnProperty("name")：
+    //   Object.create(null) 建的物件沒有 hasOwnProperty 方法，但 Object.hasOwn 照樣能用
+
+
+    // =====================================================================
+    // 12. groupBy（ES2024，較新）：依 callback 把陣列分組成物件
+    // =====================================================================
+    console.log("===== 12. groupBy =====");
+    const people = [
+        { name: "Abby", age: 20 },
+        { name: "Joe", age: 20 },
+        { name: "Jim", age: 30 }
+    ];
+    const byAge = Object.groupBy(people, (p) => p.age);
+    console.log(byAge);
+    // { 20: [{Abby}, {Joe}], 30: [{Jim}] }
+    // 註：很新的 API，舊瀏覽器可能不支援
+
+
+    // =====================================================================
+    // 速查表（分類）
+    // =====================================================================
+    // 讀屬性        : keys / values / entries / getOwnPropertyNames / getOwnPropertySymbols
+    // 複製合併      : assign（淺拷貝；現代用 {...obj}）
+    // 物件↔鍵值對   : entries ↔ fromEntries
+    // 建立 / 原型   : create / getPrototypeOf / setPrototypeOf
+    // 屬性描述/定義 : getOwnPropertyDescriptor(s) / defineProperty / defineProperties
+    // 凍結保護      : preventExtensions < seal < freeze（+ isExtensible/isSealed/isFrozen）
+    // 比較 / 檢查   : is（嚴謹相等）/ hasOwn（自有屬性）
+    // 分組          : groupBy（ES2024）
+    </script>
+</body>
+</html>

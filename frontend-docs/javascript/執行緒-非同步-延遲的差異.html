@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>執行緒 vs 非同步 vs 延遲</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;}
+.meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 3px;border-radius:3px;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">執行緒 vs 非同步 vs 延遲</h1>
+  <div class="tags"><span class="tag">#gemini</span><span class="tag">#javascript</span><span class="tag">#nodejs</span><span class="tag">#執行緒</span><span class="tag">#非同步</span><span class="tag">#延遲</span><span class="tag">#event-loop</span></div>
+  <div class="meta">更新於 2026-06-17　·　<a href="https://gemini.google.com/app/e215a3e48b97b46c" target="_blank">來源連結</a></div>
+</header>
+<h1>執行緒 vs 非同步 vs 延遲</h1>
+
+<section class="card"><h2>重點整理</h2>
+<p>三者都跟「時間、等待」有關，但本質完全不同。用<mark style="background: #FFF3A3A6;">飲料店</mark>比喻最好懂：</p>
+<h3>1. 執行緒 Thread —「做事的人」</h3>
+<p>作業系統能進行運算排程的<mark style="background: #ADCCFFA6;">最小單位</mark>，就是「實際動手做事的員工」。</p>
+<ul>
+<li><mark style="background: #BBFABBA6;">單執行緒</mark>：只有一個員工，做完一杯才能接下一單；遇到要現榨很久的果汁，整條人龍就卡住。這是 JavaScript 的本質。</li>
+<li><mark style="background: #BBFABBA6;">多執行緒</mark>：請了四五個員工分工，某人卡住其他人仍能服務別的客人。</li>
+</ul>
+<h3>2. 非同步 Asynchronous —「做事的方法（切換任務）」</h3>
+<p>一種<mark style="background: #ADCCFFA6;">程式設計架構模式</mark>，任務執行順序不必死板地等前一件完全做完。</p>
+<ul>
+<li><mark style="background: #FF5582A6;">同步（Synchronous）</mark>：員工點完餐死站在廚房等茶煮好，不收錢不接單，整店「卡死（Blocking）」。</li>
+<li><mark style="background: #BBFABBA6;">非同步（Asynchronous）</mark>：把茶葉丟進熱水（發出請求）後不等它好，立刻轉身服務下一位；計時器逼逼叫（完成通知）才回來把茶倒出。</li>
+</ul>
+<blockquote>
+<p>[!note] 核心：JavaScript 雖然只有「一個員工（單執行緒）」，但它是時間管理大師，靠「非同步」在等待空檔塞別的事做，所以網頁才不會動不動卡死。</p>
+</blockquote>
+<h3>3. 延遲 Latency / Delay —「等待的時間」</h3>
+<p>不是人也不是方法，而是一個<mark style="background: #FFB8EBA6;">物理指標</mark>：從發出指令到看到結果中間消耗的時間差。</p>
+<ul>
+<li>飲料店：點完餐到拿到飲料隔了 10 分鐘，這 10 分鐘就是延遲。</li>
+<li>程式中：</li>
+<li><strong>網路延遲（Network Latency）</strong>：<code>fetch</code> 請求到 API 伺服器、資料傳回花了 200ms。</li>
+<li><strong>人為延遲（Delay）</strong>：你刻意寫 <code>setTimeout(() =&gt; {}, 3000)</code> 製造的等待。</li>
+</ul>
+<p>一句話總結：<mark style="background: #FFF3A3A6;">執行緒是「誰做」、非同步是「怎麼做」、延遲是「等多久」。</mark></p>
+</section>
+<section class="card"><h2>各對話來源</h2>
+<h3>執行緒、非同步、延遲差異解析(2026-06)— https://gemini.google.com/app/e215a3e48b97b46c</h3>
+<p>使用者：解釋非同步跟執行序跟延遲三個的差異。</p>
+<p>Gemini：(摘要)用飲料店比喻：執行緒＝做事的員工（單/多執行緒，JS 本質單執行緒）；非同步＝做事方法，同步會 Blocking 卡死、非同步在等待空檔切換任務；延遲＝物理時間差（網路延遲 vs setTimeout 人為延遲）。</p></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-17</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{hljs.highlightAll();}catch(e){}</script>
+</body>
+</html>

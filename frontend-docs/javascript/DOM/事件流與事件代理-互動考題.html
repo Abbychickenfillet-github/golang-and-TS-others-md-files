@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>事件流與事件代理 · 互動考題</title>
+<style>
+  :root{
+    --hl-yellow:#FFF3A3; --hl-red:#FF5582; --hl-green:#BBFABB;
+    --hl-blue:#ADCCFF; --hl-pink:#FFB8EB; --hl-purple:#D2B3FF;
+    --bg:#fbfaf7; --card:#ffffff; --ink:#2b2b33; --muted:#6b6b76;
+    --line:#e8e6df; --accent:#4f7cff; --code-bg:#1e2230; --code-ink:#e6e6e6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+    line-height:1.75;}
+  .wrap{max-width:840px;margin:0 auto;padding:32px 20px 80px;}
+  header.top{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:8px;}
+  h1{font-size:1.7rem;margin:0 0 6px;font-family:Georgia,"Songti TC",serif;}
+  .sub{color:var(--muted);font-size:.92rem;}
+  .pills{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;}
+  .pill{background:#eef1ff;color:#3a51b8;border-radius:999px;padding:2px 11px;font-size:.74rem;}
+  a.src{color:var(--accent);text-decoration:none;font-size:.82rem;}
+  a.src:hover{text-decoration:underline;}
+
+  .toolbar{position:sticky;top:0;z-index:5;background:rgba(251,250,247,.92);
+    backdrop-filter:blur(6px);display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+    padding:12px 0;border-bottom:1px solid var(--line);margin-bottom:18px;}
+  .btn{border:1px solid var(--line);background:var(--card);border-radius:9px;
+    padding:7px 13px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;}
+  .btn:hover{border-color:var(--accent);color:var(--accent);}
+  .score{margin-left:auto;font-size:.85rem;color:var(--muted);}
+  .score b{color:var(--ink);}
+
+  section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.03);}
+  h2{font-size:1.18rem;margin:0 0 4px;display:flex;align-items:center;gap:8px;}
+  h2 .tag{font-size:.7rem;background:var(--hl-yellow);color:#7a6a00;border-radius:6px;
+    padding:1px 7px;font-weight:600;}
+  .hint{color:var(--muted);font-size:.84rem;margin:0 0 14px;}
+
+  mark{padding:.05em .25em;border-radius:4px;}
+  .y{background:var(--hl-yellow)} .r{background:var(--hl-red)} .g{background:var(--hl-green)}
+  .b{background:var(--hl-blue)} .pk{background:var(--hl-pink)} .pp{background:var(--hl-purple)}
+
+  .q{margin:0 0 14px;padding:12px 14px;border-radius:10px;background:#faf9f5;border:1px solid var(--line);}
+  .q .num{font-size:.74rem;color:var(--muted);}
+  .blank{display:inline-block;min-width:62px;text-align:center;border-bottom:2px dashed var(--accent);
+    color:transparent;cursor:pointer;border-radius:4px;padding:0 6px;background:#eef1ff;
+    user-select:none;transition:.15s;font-weight:600;}
+  .blank:hover{background:#dfe6ff;}
+  .blank.show{color:#1b3aa0;background:var(--hl-blue);border-bottom-color:transparent;cursor:default;}
+  code{background:#eee9df;border-radius:5px;padding:.05em .35em;font-family:"SF Mono",Consolas,monospace;font-size:.92em;}
+
+  .qi{margin:0 0 18px;}
+  .qi p.ask{margin:0 0 8px;font-weight:600;}
+  .qi textarea{width:100%;min-height:54px;border:1px solid var(--line);border-radius:9px;
+    padding:9px 11px;font-size:.92rem;font-family:inherit;resize:vertical;}
+  .qi textarea:focus{outline:none;border-color:var(--accent);}
+  .row{display:flex;gap:8px;align-items:center;margin-top:7px;}
+  .feedback{font-size:.86rem;margin-top:8px;padding:9px 12px;border-radius:9px;display:none;}
+  .feedback.ok{display:block;background:#e9fbe9;border:1px solid #bbf0bb;color:#1f7a36;}
+  .feedback.miss{display:block;background:#fff0f4;border:1px solid #ffc7d6;color:#b03056;}
+  .model{margin-top:8px;font-size:.88rem;background:#f4f1ff;border-left:4px solid var(--hl-purple);
+    padding:9px 12px;border-radius:6px;display:none;}
+  .model.show{display:block;}
+  .tf{display:block;}
+  .tfbtn{margin-left:8px;font-size:.78rem;padding:3px 10px;}
+  .tfans{display:none;margin-top:8px;font-size:.88rem;background:#eef7ff;border-left:4px solid var(--hl-blue);padding:9px 12px;border-radius:6px;}
+  .tfans.show{display:block;}
+
+  pre{background:var(--code-bg);color:var(--code-ink);border-radius:10px;padding:14px 16px;
+    overflow:auto;font-family:"SF Mono",Consolas,monospace;font-size:.86rem;line-height:1.6;}
+  pre .cblank{display:inline-block;min-width:40px;text-align:center;background:#39405a;color:transparent;
+    border-radius:4px;cursor:pointer;border-bottom:2px dashed #7f95ff;}
+  pre .cblank:hover{background:#48507040;}
+  pre .cblank.show{color:#ffe7a0;background:#5a4a17;border-bottom-color:transparent;cursor:default;}
+
+  .diagram{width:100%;height:auto;display:block;margin:6px 0 2px;}
+  .dlegend{display:flex;gap:18px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:6px;}
+  .dlegend span b{color:var(--ink);}
+  footer{margin-top:34px;text-align:center;color:var(--muted);font-size:.78rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>事件流與事件代理 · 互動考題</h1>
+    <div class="sub">DOM Event Flow &amp; Delegation — 點空格看答案、或自己打字作答</div>
+    <div class="pills">
+      <span class="pill">#javascript</span><span class="pill">#DOM</span>
+      <span class="pill">#事件流</span><span class="pill">#事件代理</span><span class="pill">#react</span>
+    </div>
+    <div style="margin-top:8px">
+      <a class="src" href="https://gemini.google.com/app/8a1e12a8c8001b14" target="_blank">來源 Gemini 對話 ↗</a>
+      &nbsp;·&nbsp;<a class="src" href="事件流與事件代理.md">概念筆記 .md ↗</a>
+      &nbsp;·&nbsp;<a class="src" href="事件流與事件代理-互動筆記.html">互動筆記 ↗</a>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn" onclick="revealAll()">全部顯示答案</button>
+    <button class="btn" onclick="hideAll()">全部隱藏</button>
+    <button class="btn" onclick="checkAll()">檢查作答</button>
+    <button class="btn" onclick="resetAll()">重置</button>
+    <span class="score">填空已開：<b id="clozeScore">0</b> / <span id="clozeTotal">0</span>　作答：<b id="inputScore">0</b> / <span id="inputTotal">0</span></span>
+  </div>
+
+  <section class="card">
+    <h2>🧭 事件流地圖<span class="tag">先看圖</span></h2>
+    <p class="hint">點一個 <code>&lt;li&gt;</code>，訊號是「單向一條龍」：先<mark class="b">捕獲</mark>下樓 → <mark class="y">目標</mark> → 再<mark class="b">冒泡</mark>上樓。<strong>不會</strong>擴散給兄弟元素。</p>
+    <svg class="diagram" viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="事件流示意圖">
+      <g font-family="-apple-system, sans-serif" font-size="14" text-anchor="middle">
+        <rect x="270" y="14" width="160" height="34" rx="8" fill="#eef1ff" stroke="#c7d2ff"/>
+        <text x="350" y="36" fill="#3a51b8">Window</text>
+        <rect x="270" y="64" width="160" height="34" rx="8" fill="#eef1ff" stroke="#c7d2ff"/>
+        <text x="350" y="86" fill="#3a51b8">Document</text>
+        <rect x="270" y="114" width="160" height="34" rx="8" fill="#fff7d6" stroke="#f0e08a"/>
+        <text x="350" y="136" fill="#7a6a00">&lt;ul&gt;　(爸爸／監聽器)</text>
+        <rect x="270" y="164" width="160" height="34" rx="8" fill="#ffe2ef" stroke="#ffb8d6"/>
+        <text x="350" y="186" fill="#b03056">&lt;li&gt;　(e.target)</text>
+      </g>
+      <g stroke="#4f7cff" stroke-width="2.5" fill="none" marker-end="url(#ar)">
+        <path d="M255,31 C150,31 150,181 255,181"/>
+      </g>
+      <text x="120" y="108" fill="#4f7cff" font-size="13" text-anchor="middle">① 捕獲<tspan x="120" dy="16">由外→內</tspan></text>
+      <g stroke="#e06aa0" stroke-width="2.5" fill="none" marker-end="url(#ar2)">
+        <path d="M445,181 C560,181 560,31 445,31"/>
+      </g>
+      <text x="585" y="108" fill="#e06aa0" font-size="13" text-anchor="middle">③ 冒泡<tspan x="585" dy="16">由內→外</tspan></text>
+      <text x="350" y="228" fill="#7a6a00" font-size="12" text-anchor="middle">② 目標：抵達真正被點的 &lt;li&gt;</text>
+      <defs>
+        <marker id="ar" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#4f7cff"/></marker>
+        <marker id="ar2" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e06aa0"/></marker>
+      </defs>
+    </svg>
+    <div class="dlegend">
+      <span><b>e.target</b>＝真正被點的人（寄件人）</span>
+      <span><b>e.currentTarget</b>＝監聽器在誰身上（收件地點）</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>✏️ A. 填空速記<span class="tag">點空格看答案</span></h2>
+    <p class="hint">先在心裡想答案，再點藍色空格揭曉。</p>
+
+    <div class="q"><span class="num">A1.</span> 事件流三階段的順序是：<span class="blank" data-a="捕獲 Capturing"></span> → <span class="blank" data-a="目標 Target"></span> → <span class="blank" data-a="冒泡 Bubbling"></span>。</div>
+
+    <div class="q"><span class="num">A2.</span> 捕獲階段的方向是由 <span class="blank" data-a="外"></span> 到 <span class="blank" data-a="內"></span>（<code>Window → Document → ul → li</code>）。</div>
+
+    <div class="q"><span class="num">A3.</span> 冒泡階段的方向是由 <span class="blank" data-a="內"></span> 到 <span class="blank" data-a="外"></span>（<code>li → ul → Document → Window</code>）。</div>
+
+    <div class="q"><span class="num">A4.</span> 真正被點擊的元素是 <span class="blank" data-a="e.target"></span>；監聽器掛在誰身上是 <span class="blank" data-a="e.currentTarget"></span>。</div>
+
+    <div class="q"><span class="num">A5.</span> <code>addEventListener('click', fn, true)</code> 的 <code>true</code> 代表在 <span class="blank" data-a="捕獲"></span> 階段執行；省略或 <code>false</code> 代表在 <span class="blank" data-a="冒泡"></span> 階段執行（預設）。</div>
+
+    <div class="q"><span class="num">A6.</span> <code>e.target.tagName</code> 回傳的字串永遠是 <span class="blank" data-a="大寫"></span>，例如 <span class="blank" data-a="'LI'"></span>；防呆可用 <code>.toLowerCase()</code> 或 <code>e.target.matches('li')</code>。</div>
+
+    <div class="q"><span class="num">A7.</span> 阻止事件繼續「傳播」用 <span class="blank" data-a="e.stopPropagation()"></span>；阻止瀏覽器「內建預設行為」（如 a 跳轉、form 送出）用 <span class="blank" data-a="e.preventDefault()"></span>。</div>
+
+    <div class="q"><span class="num">A8.</span> 把監聽器統一綁在父層、靠 <code>e.target</code> 判斷是誰被點，這個技巧叫 <span class="blank" data-a="事件代理 Event Delegation"></span>。</div>
+  </section>
+
+  <section class="card">
+    <h2>💻 B. 程式碼挖空<span class="tag">點黑格看答案</span></h2>
+    <p class="hint">事件代理：讓任何 <code>&lt;li&gt;</code> 被點擊時變灰色。</p>
+<pre>const parentUl = document.querySelector('ul');
+
+parentUl.addEventListener('click', function (e) {
+  // 確認點到的是 li（注意大小寫！）
+  if (e.target.<span class="cblank" data-a="tagName">    </span> === '<span class="cblank" data-a="LI">  </span>') {
+    e.target.style.backgroundColor = 'gray';
+  }
+});</pre>
+    <p class="hint" style="margin-top:14px">React 標準寫法（資料驅動，<mark class="g">最推薦</mark>）：</p>
+<pre>const [activeIndex, setActiveIndex] = <span class="cblank" data-a="useState(null)">         </span>;
+
+{items.map((item, index) =&gt; (
+  &lt;li key={index}
+      onClick={() =&gt; <span class="cblank" data-a="setActiveIndex(index)">              </span>}
+      style={{ backgroundColor: activeIndex === index ? 'gray' : 'transparent' }}&gt;
+    {item}
+  &lt;/li&gt;
+))}</pre>
+  </section>
+
+  <section class="card">
+    <h2>🧠 C. 自我作答<span class="tag">打字 + 檢查</span></h2>
+    <p class="hint">用自己的話回答，按「檢查」比對關鍵字，再看參考答案。</p>
+
+    <div class="qi" data-keys='[["效能","記憶體","listener","監聽器多"],["動態","新增","新生","後來"]]'>
+      <p class="ask">C1. 事件代理解決了哪兩個痛點？</p>
+      <textarea placeholder="你的答案…"></textarea>
+      <div class="row"><button class="btn" onclick="checkOne(this)">檢查</button><button class="btn" onclick="showModel(this)">看參考答案</button></div>
+      <div class="feedback"></div>
+      <div class="model">① <mark class="g">效能／記憶體</mark>：1000 個 li 只綁 1 個監聽器（每個 addEventListener 都吃記憶體）。② <mark class="g">動態新增元素自動生效</mark>：監聽器在永遠存在的父層，新生的 li 不必再綁，被點時冒泡到父層就會觸發。</div>
+    </div>
+
+    <div class="qi" data-keys='[["父層","爸爸","ul","document","外層"],["冒泡","傳","上"]]'>
+      <p class="ask">C2. 為什麼「動態新增」的 li 不用再綁事件，被點也能觸發？</p>
+      <textarea placeholder="你的答案…"></textarea>
+      <div class="row"><button class="btn" onclick="checkOne(this)">檢查</button><button class="btn" onclick="showModel(this)">看參考答案</button></div>
+      <div class="feedback"></div>
+      <div class="model">因為監聽器綁在<mark class="b">永遠存在的父層</mark>（ul / document）。新生的 li 本身沒綁任何東西，但被點時訊號會<mark class="b">冒泡</mark>往上傳給父層，父層的監聽器就會被觸發並用 e.target 認出它。</div>
+    </div>
+
+    <div class="qi" data-keys='[["不衝突","沒衝突","不會衝突"]]'>
+      <p class="ask">C3. <code>e.stopPropagation()</code> 和 <code>e.target</code> 會衝突嗎？為什麼？</p>
+      <textarea placeholder="你的答案…"></textarea>
+      <div class="row"><button class="btn" onclick="checkOne(this)">檢查</button><button class="btn" onclick="showModel(this)">看參考答案</button></div>
+      <div class="feedback"></div>
+      <div class="model"><mark class="g">不衝突</mark>，分工不同：<mark class="y">e.target</mark> 是「偵探」指出哪個元素被點；<mark class="r">e.stopPropagation()</mark> 是「保全」阻止事件繼續往外擴散。</div>
+    </div>
+
+    <div class="qi" data-keys='[["preventdefault","preventDefault","e.preventdefault"]]'>
+      <p class="ask">C4. 要讓 <code>&lt;a&gt;</code> 點了不要跳轉，用哪個方法？</p>
+      <textarea placeholder="你的答案…"></textarea>
+      <div class="row"><button class="btn" onclick="checkOne(this)">檢查</button><button class="btn" onclick="showModel(this)">看參考答案</button></div>
+      <div class="feedback"></div>
+      <div class="model"><mark class="r">e.preventDefault()</mark>。它阻止「瀏覽器內建預設行為」（a 跳轉、form 送出、右鍵選單）。注意：它和 stopPropagation 都<strong>不會</strong>阻止 target 本身的 JS（如 console.log）執行。</div>
+    </div>
+
+    <div class="qi" data-keys='[["圖片","img","燈箱","放大"],["關","空白","彈窗","跳窗","關閉"]]'>
+      <p class="ask">C5. 把事件綁在 <code>document</code> 上，舉兩個實戰用途。</p>
+      <textarea placeholder="你的答案…"></textarea>
+      <div class="row"><button class="btn" onclick="checkOne(this)">檢查</button><button class="btn" onclick="showModel(this)">看參考答案</button></div>
+      <div class="feedback"></div>
+      <div class="model">① 全網頁<mark class="pk">動態圖片燈箱</mark>：判斷 <code>e.target.tagName === 'IMG'</code> 就放大（動態載入的圖也通用）。② <mark class="pk">點空白處關閉彈窗</mark>：判斷 <code>e.target.id !== 'my-image'</code> 就關掉跳窗。</div>
+    </div>
+
+    <div class="qi" data-keys='[["外層","祖先","父","ul","document","上層"],["代理","處理","統一","幫","接住"]]'>
+      <p class="ask">C6. 為什麼 DOM 需要「冒泡」這個階段？（它和捕獲是 W3C 定義的兩個傳播階段）</p>
+      <textarea placeholder="你的答案…"></textarea>
+      <div class="row"><button class="btn" onclick="checkOne(this)">檢查</button><button class="btn" onclick="showModel(this)">看參考答案</button></div>
+      <div class="feedback"></div>
+      <div class="model">為了讓<mark class="b">外層（祖先）元素能在事件浮上來時統一處理子元素的事件</mark>＝事件代理：① 省資源（只綁 1 個監聽器）② 動態新增的子元素不必再綁，被點時冒泡上來就會被父層接住處理。捕獲（由外往內）和冒泡（由內往外）是 <mark class="y">W3C 定義的兩個傳播階段</mark>，中間夾著「目標」抵達點。</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>⭕❌ D. 是非題<span class="tag">先判斷再點看答案</span></h2>
+    <p class="hint">心裡先決定「對 / 錯」，再點「看答案」對照理由。</p>
+
+    <div class="q tf"><span class="num">D1.</span> 每寫一個 <code>addEventListener</code>，瀏覽器就會在<mark class="y">記憶體裡建立一筆監聽器</mark>；綁太多會吃記憶體。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">✅ <b>對</b>。這正是「事件代理」要把監聽器集中綁在父層的原因——1000 個 <code>li</code> 只綁 1 個，而不是 1000 個，省記憶體也避免卡頓。</div></div>
+
+    <div class="q tf"><span class="num">D2.</span> <code>e.stopPropagation()</code> 會連 target 自己的 <code>console.log</code> 也一起擋掉。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">❌ <b>錯</b>。它只擋「往外傳播」，不會擋 target 自己的 JS。連 <code>e.preventDefault()</code>（擋瀏覽器內建行為）也一樣不會擋你寫的 console.log。</div></div>
+
+    <div class="q tf"><span class="num">D3.</span> <code>e.target.tagName</code> 拿到的是小寫字串 <code>'li'</code>。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">❌ <b>錯</b>。永遠是<mark class="r">大寫</mark> <code>'LI'</code>；寫 <code>'Li'</code> 會對不到。防呆用 <code>.toLowerCase()</code> 或 <code>e.target.matches('li')</code>。</div></div>
+
+    <div class="q tf"><span class="num">D4.</span> <code>addEventListener</code> 第三參數預設是 <code>false</code>，也就是在<mark class="b">冒泡</mark>階段才執行。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">✅ <b>對</b>。要在捕獲階段執行才寫 <code>true</code>（或 <code>{capture:true}</code>）。</div></div>
+
+    <div class="q tf"><span class="num">D5.</span> 把外層監聽器改成捕獲（<code>true</code>），點內層時外層會比內層<mark class="g">先</mark>執行。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">✅ <b>對</b>。捕獲由外往內，外層在「下樓」時就先跑了，所以順序翻轉成 外→內。</div></div>
+
+    <div class="q tf"><span class="num">D6.</span> 捕獲和冒泡是 <mark class="b">W3C 標準定義的兩個傳播階段</mark>；冒泡讓外層能「代理」處理子元素的事件。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">✅ <b>對</b>。事件流＝捕獲（下樓）＋冒泡（上樓）兩個傳播方向，中間夾著「目標」抵達點。有了冒泡，外層才能在事件浮上來時統一處理（事件代理）。</div></div>
+  </section>
+
+  <section class="card">
+    <h2>🐞 E. 找錯題<span class="tag">點看答案</span></h2>
+    <p class="hint">下面這段想「點祖父就印出阿公」，但其實有好幾個錯。先自己抓，再看答案。</p>
+<pre>const grandpa = document.querySelectorbyId("grandpa");
+grandpa.addEventListener(click, console.log("阿公"));</pre>
+
+    <div class="q tf"><span class="num">E1.</span> 找出全部的錯與修正。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">
+        ① <code>querySelectorbyId</code> <mark class="r">不存在</mark> → 用 <code>document.getElementById("grandpa")</code>（不加 #）或 <code>document.querySelector("#grandpa")</code>（加 #）。<br>
+        ② <code>click</code> 沒加引號＝被當成變數 → 要寫字串 <code>"click"</code>。<br>
+        ③ <mark class="r">最關鍵</mark>：<code>console.log("阿公")</code> 是「<b>立刻呼叫</b>」，回傳值 <code>undefined</code> 才被當成 handler → 「阿公」在跑到那行就印一次、之後點擊毫無反應。要傳「<b>函式本身</b>」不是呼叫結果。<br>
+        ④ 想拿 <code>e.target.id</code> 必須用「<b>會接收參數的函式</b>」；<code>e</code> 是瀏覽器自動帶入 handler 的第一個參數。<br>
+        ✅ 正解：
+        <pre style="margin-top:6px">const grandpa = document.getElementById("grandpa");
+grandpa.addEventListener("click", (e) =&gt; {
+  console.log("阿公", e.target.id);
+});</pre>
+      </div></div>
+
+    <div class="q tf"><span class="num">E2.</span> <code>addEventListener("click", fn())</code> 和 <code>addEventListener("click", fn)</code> 效果一樣。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">❌ <b>錯</b>。<code>fn</code> 是「傳函式本身」（點擊才執行、瀏覽器自動帶入 e）；<code>fn()</code> 是「<mark class="r">立刻呼叫</mark>」、把回傳值當 handler。只有當 <code>fn</code> 會回傳另一個函式時 <code>fn()</code> 才有意義。</div></div>
+
+    <div class="q tf"><span class="num">E3.</span> <code>getElementById</code> 的參數要加 <code>#</code>，例如 <code>getElementById("#grandpa")</code>。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">❌ <b>錯</b>。<code>getElementById</code> 傳<mark class="y">純 id（不加 #）</mark>：<code>getElementById("grandpa")</code>。加 <code>#</code> 是給 <code>querySelector("#grandpa")</code> 用的（它吃 CSS 選擇器）。</div></div>
+
+    <div class="q tf"><span class="num">E4.</span> 出現 <code>Cannot read properties of undefined (reading 'id')</code>，代表 <code>.id</code> 寫錯了。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">❌ <b>錯</b>。<code>.id</code> 沒寫錯；是「<code>.id</code> 前面那個東西是 <mark class="r">undefined / null</mark>」。鏈式存取 <code>a.b.id</code> 報「讀 <code>'id'</code>」＝ <code>a.b</code> 是 undefined。常見 <code>e.target</code> 或 <code>e.currentTarget</code> 取到 null。<br>典型陷阱：<b>事件結束後</b>才讀事件（存進變數、放 setTimeout、await）→ <code>currentTarget</code> 會被重設為 <mark class="r">null</mark>（但 <code>target</code> 還在）。所以「target 可以、currentTarget 爆」就是這個。修法：在 handler 內<b>當下同步</b>讀，或先 <code>const id = e.currentTarget.id</code> 存起來。</div></div>
+  </section>
+
+  <section class="card">
+    <h2>🎯 F. querySelector vs getElementById<span class="tag">⭕❌ 故意寫錯</span></h2>
+    <p class="hint">每題判斷對(⭕)或錯(❌)，再點看答案。重點看 <code>#</code> 的有無！</p>
+
+    <div class="q tf"><span class="num">F1.</span> <code>document.getElementById("#parent")</code> 抓得到 <code>id="parent"</code> 的元素。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">❌ <b>錯</b>。<code>getElementById</code> 傳<mark class="y">純 id、不加 #</mark>。寫 <code>"#parent"</code> 會去找 id 字面叫「#parent」的元素→找不到、回傳 <code>null</code>。正解 <code>getElementById("parent")</code>。</div></div>
+
+    <div class="q tf"><span class="num">F2.</span> <code>document.querySelector("#parent")</code> 抓得到 <code>id="parent"</code> 的元素。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">⭕ <b>對</b>。<code>querySelector</code> 吃 <mark class="b">CSS 選擇器</mark>，id 要加 <code>#</code>。</div></div>
+
+    <div class="q tf"><span class="num">F3.</span> <code>document.querySelector("parent")</code> 抓得到 <code>id="parent"</code> 的元素。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">❌ <b>錯</b>。沒加 <code>#</code> 會被當成<mark class="r">標籤名 &lt;parent&gt;</mark>，找不到→<code>null</code>。要寫 <code>querySelector("#parent")</code>。</div></div>
+
+    <div class="q tf"><span class="num">F4.</span> <code>document.getElementById("parent")</code> 抓得到 <code>id="parent"</code> 的元素。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">⭕ <b>對</b>。這是正解寫法（純 id、不加 #）。</div></div>
+
+    <div class="q tf"><span class="num">F5.</span> <code>document.querySelector(".item")</code> 會回傳「所有」 class 是 item 的元素。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">❌ <b>錯</b>。<code>querySelector</code> 只回傳<mark class="y">第一個</mark>符合的。要全部用 <code>querySelectorAll(".item")</code>（回傳 NodeList）。</div></div>
+
+    <div class="q tf"><span class="num">F6.</span> 找不到元素時，<code>getElementById</code> 和 <code>querySelector</code> 都回傳 <code>null</code>。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">⭕ <b>對</b>。接著對它 <code>.addEventListener</code> 或 <code>.id</code> 就會爆「Cannot read properties of null」。<code>querySelectorAll</code> 找不到則回傳<mark class="b">空的 NodeList</mark>（不是 null）。</div></div>
+  </section>
+
+  <section class="card">
+    <h2>🐫 G. 命名慣例（camelCase）<span class="tag">⭕❌</span></h2>
+    <p class="hint">分清楚「屬性的名字」和「屬性回傳的值」。</p>
+
+    <div class="q tf"><span class="num">G1.</span> <code>tagName</code> 寫成 camelCase，是因為它是 JS 屬性（JS/DOM API 命名慣例）。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">⭕ <b>對</b>。JS/DOM 的屬性、方法都 camelCase：<code>innerHTML</code>、<code>textContent</code>、<code>className</code>、<code>querySelector</code>、<code>getElementById</code>、<code>parentNode</code>…</div></div>
+
+    <div class="q tf"><span class="num">G2.</span> <code>el.tagName</code> 回傳的值也是 camelCase，例如 <code>'Li'</code>。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">❌ <b>錯</b>。屬性名是 camelCase，但<mark class="r">回傳值是大寫</mark> <code>'LI'</code>（DOM 規範）。兩種大小寫別混。</div></div>
+
+    <div class="q tf"><span class="num">G3.</span> HTML 標籤要寫成 camelCase，例如 <code>&lt;Div&gt;</code> 才正確。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">❌ <b>錯</b>。HTML 標籤名大小寫不敏感，<mark class="y">慣例寫小寫</mark> <code>&lt;div&gt;</code>。camelCase 是 JS 屬性那邊的事。</div></div>
+
+    <div class="q tf"><span class="num">G4.</span> HTML 的 <code>class="..."</code>，在 JS 對應的屬性是 <code>el.className</code>。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">⭕ <b>對</b>。因為 <code>class</code> 是 JS 保留字＋camelCase 慣例，所以 JS 端叫 <code>className</code>。</div></div>
+
+    <div class="q tf"><span class="num">G5.</span> HTML 的 <code>data-user-id="..."</code>，在 JS 用 <code>el.dataset.userId</code> 取得。
+      <button class="btn tfbtn" onclick="this.nextElementSibling.classList.toggle('show')">看答案</button>
+      <div class="tfans">⭕ <b>對</b>。HTML 的 kebab-case <code>data-user-id</code> → JS 自動轉成 camelCase <code>dataset.userId</code>。</div></div>
+  </section>
+
+  <footer>由 Gemini 對話自動整理成考題 · 更新於 2026-06-15<br>口訣：記憶體很貴，別給每個小孩請保鏢；大門口裝一個監視器，誰開門（冒泡）警衛（e.target）就認出誰。</footer>
+</div>
+
+<script>
+  var blanks = [].slice.call(document.querySelectorAll('.blank, .cblank'));
+  blanks.forEach(function(b){
+    b.textContent = ' ';
+    b.addEventListener('click', function(){
+      if(!b.classList.contains('show')){ b.textContent=b.dataset.a; b.classList.add('show'); updateScore(); }
+    });
+  });
+  document.getElementById('clozeTotal').textContent = blanks.length;
+  function revealAll(){ blanks.forEach(function(b){ if(!b.classList.contains('show')){ b.textContent=b.dataset.a; b.classList.add('show'); }}); updateScore(); }
+  function hideAll(){ blanks.forEach(function(b){ b.classList.remove('show'); b.textContent=' '; }); updateScore(); }
+  function updateScore(){ document.getElementById('clozeScore').textContent = blanks.filter(function(b){return b.classList.contains('show');}).length; }
+
+  var items = [].slice.call(document.querySelectorAll('.qi'));
+  document.getElementById('inputTotal').textContent = items.length;
+  function norm(s){ return (s||'').toLowerCase().replace(/\s|，|,|。|、|；|;|\.|\(|\)|（|）/g,''); }
+  function gradeOne(qi){
+    var keys = JSON.parse(qi.dataset.keys);
+    var ans = norm(qi.querySelector('textarea').value);
+    if(!ans) return null;
+    var hit=0;
+    keys.forEach(function(group){ if(group.some(function(k){return ans.indexOf(norm(k))>-1;})) hit++; });
+    return hit>=keys.length;
+  }
+  function checkOne(btn){
+    var qi=btn.closest('.qi'); var fb=qi.querySelector('.feedback');
+    var r=gradeOne(qi);
+    if(r===null){ fb.className='feedback miss'; fb.textContent='先寫點東西再檢查 🙂'; return; }
+    fb.className='feedback '+(r?'ok':'miss');
+    fb.textContent = r ? '✅ 抓到關鍵點了！再對一下參考答案。' : '🤔 好像漏了重點，點「看參考答案」對照。';
+    updateInputScore();
+  }
+  function showModel(btn){ btn.closest('.qi').querySelector('.model').classList.add('show'); }
+  function checkAll(){ items.forEach(function(qi){ checkOne(qi.querySelector('.row .btn')); }); }
+  function updateInputScore(){
+    var ok=0; items.forEach(function(qi){ if(gradeOne(qi)===true) ok++; });
+    document.getElementById('inputScore').textContent=ok;
+  }
+  function resetAll(){
+    hideAll();
+    items.forEach(function(qi){ qi.querySelector('textarea').value=''; qi.querySelector('.feedback').className='feedback'; qi.querySelector('.model').classList.remove('show'); });
+    document.querySelectorAll('.tfans').forEach(function(t){ t.classList.remove('show'); });
+    updateInputScore();
+  }
+</script>
+</body>
+</html>

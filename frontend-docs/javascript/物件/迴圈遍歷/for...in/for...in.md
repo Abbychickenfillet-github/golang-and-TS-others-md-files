@@ -1,7 +1,7 @@
 # JavaScript `for...in` 迴圈(完整版)
 
 > 路徑:frontend-docs / javascript / 物件 / 迴圈遍歷 / for...in
-> 相關:[[JavaScript-字串方法]]、[[index-explanation]]、[[for-in-vs-Object-keys-medium]]、[[字串組合-樣板字面值vs加號串接]]、[[loops-and-increment-operators]]
+> 相關:[[for...of]]、[[JavaScript-字串方法]]、[[index-explanation]]、[[for-in-vs-Object-keys-medium]]、[[字串組合-樣板字面值vs加號串接]]、[[loops-and-increment-operators]]
 > MDN:<https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Statements/for...in>
 > 來源練習:`JavaScript-practicing/while-loop.html`(`showProps` / `showObject`)
 
@@ -50,6 +50,56 @@ function showProps(obj, objName){
 - 放**外面**的話 `result` 不會歸零,第二次呼叫會接著上次的內容越接越長(經典 bug)。
 - 判斷口訣:**「這個變數該不該每次呼叫就重置?」要重置 → 放裡面**（絕大多數情況）；想跨呼叫持續累積（少見）才放外面。
 
+### ⑦ 裡外同名的 `result` 會衝突嗎？→ 不會（作用域 / 遮蔽）
+
+`let` 有**作用域**：function 裡面的 `result` 和外面的 `result` 是**兩個不同的變數**，只是同名，住不同房間，不會打架。
+
+```js
+let result = ""            // A：外層變數
+function showProps(obj){
+  let result = ""          // B：裡層變數（完全是另一個）
+  return result            // 丟出去的是 B 的「值」(字串)，不是變數本身
+}
+```
+
+- 不同作用域同名 → **不會報「重複宣告」**；裡層的 B 會「**遮蔽 shadow**」外層 A，函式內碰不到 A。
+- `return` 拋出的是**值**（字串），與外層 A 無關。
+- **只有「同一個作用域」用 `let` 宣告兩次同名才會 SyntaxError**：
+  ```js
+  let result = ""; let result = ""   // ❌ 同層重複宣告
+  ```
+- 建議：既然把 `let result` 搬進 function，外面那行就**沒人用了，直接刪掉**，別留著混淆。
+
+### ⑧ 為什麼要 `result + return`？不是 `console.log` 就好嗎？
+
+差別在「**結果最後要拿去做什麼**」：
+
+| | 只用 `console.log` | `result += ...` + `return result` |
+|---|---|---|
+| 結果在哪 | F12 console（印完就沒了） | 變成一個**字串值**，可自由運用 |
+| 能塞進網頁嗎 | ❌ 不行 | ✅ `innerText = showProps(...)` |
+| 能存 / 再加工 | ❌ 拿不回來 | ✅ 可以 |
+
+- 只想「看一眼」→ 直接 `console.log`，不用 result（之前的練習就是）。
+- 想把結果「**拿出來用**」（顯示在網頁、存起來、再加工）→ 必須 `result` 累積 + `return` 交出去。
+- 本練習 line 136 `document.getElementById("output").innerText = showProps(Joe,"Joe")` 正是要顯示在網頁，所以**非用 result + return 不可**，不是多此一舉。
+- 口訣：**`console.log` ＝ 印出來看；`return` ＝ 交出去用。**
+- 補充：MDN 用 `var` 是舊寫法，現在用 `let`。
+
+### ⑨ 呼叫函式（showObject）常見的 3 個錯
+
+```js
+function showObject(obj, objName){ ... }
+document.getElementById("output2").innerText = ShowObject(Joejo, Joe2)
+```
+1. **大小寫**：`ShowObject` ≠ `showObject` → `ReferenceError: ShowObject is not defined`。呼叫要跟定義一字不差。
+2. **第二參數要傳「字串」**：`objName` 是物件名稱字串（`objName + "." + f`），應傳 `"Joejo"`，不是變數；且 `Joe2` 根本沒宣告 → ReferenceError。
+3. **函式內又寫死物件名**：`for(const f in Joejo)`、`Joejo[f]` 要全改成參數 `obj`，不要前後一個 `Joejo` 一個 `obj` 混用（同觀察 ③）。
+
+其他注意：
+- DOM 目標元素要存在：HTML 沒有 `id="output2"` → `getElementById` 回 `null` → `.innerText` 報 `Cannot set properties of null`。
+- `result` 一圈別重複累加多種格式，除非真的想要每屬性印多行。
+
 ---
 
 ## 1. 「properties」= 鍵名,不是值
@@ -63,7 +113,7 @@ for (const key in user) {
 }
 ```
 
-對照:`for...in` 走「鍵」,`for...of` 走「值」。
+對照:`for...in` 走「鍵」,[[for...of]] 走「值」。
 
 ## 2. 會連「繼承來的可列舉屬性」一起走 → 看原型鏈
 

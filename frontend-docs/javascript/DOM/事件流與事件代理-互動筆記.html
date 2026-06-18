@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>事件流與事件代理 · 互動筆記</title>
+<style>
+  :root{
+    --hl-yellow:#FFF3A3; --hl-red:#FF5582; --hl-green:#BBFABB;
+    --hl-blue:#ADCCFF; --hl-pink:#FFB8EB; --hl-purple:#D2B3FF;
+    --bg:#fbfaf7; --card:#ffffff; --ink:#2b2b33; --muted:#6b6b76;
+    --line:#e8e6df; --accent:#4f7cff; --code-bg:#1e2230; --code-ink:#e6e6e6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
+  .wrap{max-width:860px;margin:0 auto;padding:32px 20px 80px;}
+  header.top{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:8px;}
+  h1{font-size:1.7rem;margin:0 0 6px;font-family:Georgia,"Songti TC",serif;}
+  .sub{color:var(--muted);font-size:.92rem;}
+  .pills{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;}
+  .pill{background:#eef1ff;color:#3a51b8;border-radius:999px;padding:2px 11px;font-size:.74rem;}
+  a.lnk{color:var(--accent);text-decoration:none;font-size:.82rem;}
+  a.lnk:hover{text-decoration:underline;}
+  section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.03);}
+  h2{font-size:1.2rem;margin:0 0 6px;display:flex;align-items:center;gap:8px;}
+  h2 .tag{font-size:.7rem;background:var(--hl-yellow);color:#7a6a00;border-radius:6px;padding:1px 7px;font-weight:600;}
+  h3{font-size:1rem;margin:18px 0 6px;}
+  p{margin:.4rem 0;}
+  .hint{color:var(--muted);font-size:.86rem;}
+  mark{padding:.05em .25em;border-radius:4px;}
+  .y{background:var(--hl-yellow)} .r{background:var(--hl-red)} .g{background:var(--hl-green)}
+  .b{background:var(--hl-blue)} .pk{background:var(--hl-pink)} .pp{background:var(--hl-purple)}
+  code{background:#eee9df;border-radius:5px;padding:.05em .35em;font-family:"SF Mono",Consolas,monospace;font-size:.92em;}
+  pre{background:var(--code-bg);color:var(--code-ink);border-radius:10px;padding:14px 16px;overflow:auto;
+    font-family:"SF Mono",Consolas,monospace;font-size:.84rem;line-height:1.6;}
+  table{border-collapse:collapse;width:100%;font-size:.9rem;margin:10px 0;}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
+  th{background:#f4f1ea;}
+  tr:nth-child(even) td{background:#faf9f5;}
+  .callout{border-left:4px solid var(--hl-yellow);background:#fffdf2;border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:.9rem;}
+  .callout.warn{border-left-color:var(--hl-red);background:#fff5f7;}
+  .callout.tip{border-left-color:var(--hl-green);background:#f3fcf3;}
+
+  /* demo */
+  .ctrls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;}
+  .btn{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:6px 12px;font-size:.84rem;cursor:pointer;color:var(--ink);transition:.15s;}
+  .btn:hover{border-color:var(--accent);color:var(--accent);}
+  .lbox{border:1px solid var(--line);border-radius:12px;padding:13px;}
+  .lhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+  .lname{font-size:.9rem;}
+  .toggles{display:flex;gap:6px;}
+  .tg{font-size:.74rem;padding:3px 9px;border-radius:7px;border:1px solid var(--line);background:#fff;cursor:pointer;}
+  .tg.cap{background:#fff1d6;border-color:#f0d48a;color:#8a6a10;}
+  .tg.bub{background:#e9f0ff;border-color:#c2d2ff;color:#3a51b8;}
+  .tg.stopon{background:#ffe3ea;border-color:#ffb8c9;color:#a8264a;}
+  #kidbox{width:100%;border:none;border-radius:10px;background:var(--hl-blue);color:#1b3aa0;
+    padding:16px;text-align:center;cursor:pointer;font-size:.92rem;font-weight:600;}
+  #kidbox:hover{filter:brightness(.97);}
+  .console{margin-top:12px;background:#11141c;color:#d7dcea;border-radius:10px;padding:12px 14px;
+    font-family:"SF Mono",Consolas,monospace;font-size:.8rem;min-height:46px;}
+  .logline{padding:3px 0;border-bottom:1px dashed #2a2f3d;}
+  .logline:last-child{border-bottom:none;}
+  .ph{display:inline-block;border-radius:5px;padding:0 7px;font-size:.72rem;margin:0 4px;}
+  .ph.cap{background:#5a4a17;color:#ffe7a0;} .ph.bub{background:#1c3a66;color:#bcd6ff;} .ph.tgt{background:#1f5a3a;color:#bff5cf;}
+  .cut{color:#ff9db0;}
+  /* delegation demo */
+  ul.list{list-style:none;margin:0;padding:0;border:1px dashed #c2d2ff;border-radius:10px;}
+  ul.list li{padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;font-size:.9rem;}
+  ul.list li:last-child{border-bottom:none;}
+  ul.list li.on{background:#d9d9de;color:#444;}
+  .counter{font-size:.82rem;color:var(--muted);}
+  .counter b{color:var(--accent);}
+  footer{margin-top:34px;text-align:center;color:var(--muted);font-size:.78rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>事件流與事件代理 · 互動筆記</h1>
+    <div class="sub">DOM Event Flow &amp; Delegation — 會動的教學頁,親手點點看就懂</div>
+    <div class="pills"><span class="pill">#javascript</span><span class="pill">#DOM</span><span class="pill">#事件流</span><span class="pill">#事件代理</span></div>
+    <div style="margin-top:8px">
+      <a class="lnk" href="事件流與事件代理.md">概念筆記 .md ↗</a> ·
+      <a class="lnk" href="事件流與事件代理-互動考題.html">互動考題 ↗</a> ·
+      <a class="lnk" href="https://gemini.google.com/app/8a1e12a8c8001b14" target="_blank">來源對話 ↗</a>
+    </div>
+  </header>
+
+  <!-- 概念 -->
+  <section class="card">
+    <h2>① 事件流是「單向一條龍」<span class="tag">先建立直覺</span></h2>
+    <p>點一個 <code>&lt;li&gt;</code>,訊號的旅程固定是:<mark class="b">捕獲(由外→內)</mark> → <mark class="y">目標</mark> → <mark class="b">冒泡(由內→外)</mark>。它<strong>不會</strong>擴散給兄弟元素,只會經過自己的祖先鏈。</p>
+    <svg viewBox="0 0 700 235" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="事件流方向圖">
+      <g font-family="-apple-system,sans-serif" font-size="13.5" text-anchor="middle">
+        <rect x="275" y="12" width="150" height="32" rx="8" fill="#eef1ff" stroke="#c7d2ff"/><text x="350" y="33" fill="#3a51b8">Window</text>
+        <rect x="275" y="58" width="150" height="32" rx="8" fill="#eef1ff" stroke="#c7d2ff"/><text x="350" y="79" fill="#3a51b8">Document</text>
+        <rect x="275" y="104" width="150" height="32" rx="8" fill="#fff7d6" stroke="#f0e08a"/><text x="350" y="125" fill="#7a6a00">&lt;ul&gt; (爸爸)</text>
+        <rect x="275" y="150" width="150" height="32" rx="8" fill="#ffe2ef" stroke="#ffb8d6"/><text x="350" y="171" fill="#b03056">&lt;li&gt; (e.target)</text>
+      </g>
+      <g stroke="#4f7cff" stroke-width="2.5" fill="none" marker-end="url(#a1)"><path d="M260,28 C150,28 150,166 260,166"/></g>
+      <text x="120" y="92" fill="#4f7cff" font-size="12.5" text-anchor="middle">① 捕獲<tspan x="120" dy="15">由外→內</tspan></text>
+      <g stroke="#e06aa0" stroke-width="2.5" fill="none" marker-end="url(#a2)"><path d="M440,166 C560,166 560,28 440,28"/></g>
+      <text x="585" y="92" fill="#e06aa0" font-size="12.5" text-anchor="middle">③ 冒泡<tspan x="585" dy="15">由內→外</tspan></text>
+      <text x="350" y="210" fill="#7a6a00" font-size="11.5" text-anchor="middle">② 目標：抵達真正被點的 &lt;li&gt;</text>
+      <defs>
+        <marker id="a1" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#4f7cff"/></marker>
+        <marker id="a2" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e06aa0"/></marker>
+      </defs>
+    </svg>
+  </section>
+
+  <!-- 現場 demo 1 -->
+  <section class="card">
+    <h2>② 現場：點一下,看順序怎麼跑<span class="tag">親手玩</span></h2>
+    <p class="hint">點最內層藍色「子 li」。每層可切 <mark class="b">冒泡</mark>↔<mark class="y">捕獲</mark>,或開 <mark class="r">stopPropagation</mark> 看事件被攔截。</p>
+    <div class="ctrls"><button class="btn" id="d1reset">清除紀錄</button></div>
+
+    <div class="lbox" id="gp" style="background:#fafafa">
+      <div class="lhead">
+        <span class="lname">祖父 <code>#grandpa</code> <span class="hint">div</span></span>
+        <div class="toggles"><button class="tg bub" data-ph="gp">冒泡</button><button class="tg" data-stop="gp">stop✗</button></div>
+      </div>
+      <div class="lbox" id="dad" style="background:#fff">
+        <div class="lhead">
+          <span class="lname">父 <code>#dad</code> <span class="hint">ul</span></span>
+          <div class="toggles"><button class="tg bub" data-ph="dad">冒泡</button><button class="tg" data-stop="dad">stop✗</button></div>
+        </div>
+        <button id="kidbox">👆 點我　子 <code>#kid</code> · li (target)</button>
+      </div>
+    </div>
+    <div class="console" id="d1log"><span class="hint" style="color:#7a8197">（這裡會顯示觸發順序…）</span></div>
+    <div class="callout tip" style="margin-top:14px">把<strong>祖父</strong>切成「捕獲」再點 → 祖父會變<strong>第一個</strong>跑(捕獲由外往內,先經過它)。這證明<mark class="g">順序是看「階段」決定的</mark>,不是看誰被點。</div>
+  </section>
+
+  <!-- target vs currentTarget -->
+  <section class="card">
+    <h2>③ e.target vs e.currentTarget</h2>
+    <p>看上面 console 那兩欄就懂了:</p>
+    <table>
+      <tr><th></th><th><code>e.target</code></th><th><code>e.currentTarget</code></th></tr>
+      <tr><td>意思</td><td><mark class="y">真正被點的元素</mark>(事件起點)</td><td><mark class="b">監聽器掛在誰身上</mark>(此刻經手那層)</td></tr>
+      <tr><td>點 kid 時</td><td>永遠是 <code>kid</code></td><td>kid → dad → grandpa(逐層變)</td></tr>
+      <tr><td>會不會變</td><td>整場<strong>不變</strong></td><td>每一層<strong>都不同</strong></td></tr>
+    </table>
+    <div class="callout">比喻:<code>e.target</code> = 信封上的<strong>寄件人</strong>(誰寄的,不會變);<code>e.currentTarget</code> = <strong>此刻經手的收發室</strong>。一般 function 裡 <code>e.currentTarget === this</code>。</div>
+  </section>
+
+  <!-- 現場 demo 2: 事件代理 -->
+  <section class="card">
+    <h2>④ 現場：事件代理為什麼省資源又能接動態元素<span class="tag">親手玩</span></h2>
+    <p class="hint">監聽器<strong>只綁在 <code>&lt;ul&gt;</code> 一個</strong>。點任何 li 會變灰;按「新增」生出來的新 li,<mark class="g">不用再綁也能直接點</mark>(因為冒泡會傳到 ul)。</p>
+    <div class="ctrls">
+      <button class="btn" id="addLi"><strong>＋</strong> 動態新增一個 li</button>
+      <span class="counter">綁定的監聽器數量：<b id="lcount">1</b> 個（不管幾個 li）</span>
+    </div>
+    <ul class="list" id="list">
+      <li>項目一</li><li>項目二</li><li>項目三</li>
+    </ul>
+    <div class="console" id="d2log" style="min-height:30px"><span class="hint" style="color:#7a8197">（點 li 看 e.target…）</span></div>
+<pre>const ul = document.querySelector('ul');
+ul.addEventListener('click', (e) =&gt; {
+  if (e.target.tagName === '<mark class="r">LI</mark>') {        // tagName 永遠大寫
+    e.target.classList.toggle('on');     // 用 e.target 精準命中被點的 li
+  }
+});</pre>
+    <div class="callout warn">沒有事件代理的災難:1000 個 li 要綁 1000 個監聽器(吃記憶體);而且後來才新增的 li 點了沒反應,要每次手動再綁。代理把這兩個問題一次解決。</div>
+  </section>
+
+  <!-- stopPropagation vs preventDefault -->
+  <section class="card">
+    <h2>⑤ stopPropagation vs preventDefault（常搞混的大魔王）</h2>
+    <table>
+      <tr><th>方法</th><th>管的事</th><th>經典場景</th></tr>
+      <tr><td><code>e.stopPropagation()</code></td><td><mark class="r">阻止「傳播」</mark>(事件流到我為止,別再傳給其他節點)</td><td>事件代理時防止冒泡亂觸發外層</td></tr>
+      <tr><td><code>e.preventDefault()</code></td><td><mark class="r">阻止「瀏覽器內建預設行為」</mark></td><td>阻止 a 跳轉、form 送出重整、右鍵選單</td></tr>
+    </table>
+    <div class="callout"><mark class="pp">兩者都不會</mark>阻止 target 本身的 JS(如 <code>console.log</code>)執行;它們也不衝突——<code>e.target</code> 是偵探(指出誰),<code>stopPropagation</code> 是保全(擋擴散)。<br><code>stopPropagation()</code> 裝在哪個階段就中斷哪個階段(裝捕獲就到不了目標;裝冒泡就不再往上)。</div>
+  </section>
+
+  <!-- React -->
+  <section class="card">
+    <h2>⑥ React 怎麼寫</h2>
+    <p>React 內部用 SyntheticEvent,預設也在冒泡階段。<mark class="g">最推薦資料驅動</mark>:用 state 記住被點的 index,綁在 map 出來的 li,不碰原生 DOM。</p>
+<pre>const [activeIndex, setActiveIndex] = useState(null);
+
+{items.map((item, index) =&gt; (
+  &lt;li key={index}
+      onClick={() =&gt; setActiveIndex(index)}
+      style={{ backgroundColor: activeIndex === index ? 'gray' : 'transparent' }}&gt;
+    {item}
+  &lt;/li&gt;
+))}</pre>
+    <div class="callout">若硬要用事件代理(綁 <code>&lt;ul&gt;</code>),仍要 <code>e.target.tagName === 'LI'</code>——記得<mark class="r">大寫</mark>,寫 <code>'Li'</code> 會對不到;防呆用 <code>.toLowerCase()</code> 或 <code>e.target.matches('li')</code>。</div>
+  </section>
+
+  <footer>互動筆記 · 由 Gemini 對話整理 · 更新於 2026-06-15<br>口訣：記憶體很貴,別給每個小孩請保鏢;大門口裝一個監視器,誰開門(冒泡)警衛(e.target)就認出誰。</footer>
+</div>
+
+<script>
+(function(){
+  var layers=[{id:'gp',name:'祖父 div'},{id:'dad',name:'父 ul'},{id:'kid',name:'子 li'}];
+  var phase={gp:'bubble',dad:'bubble',kid:'bubble'};
+  var stop={gp:false,dad:false,kid:false};
+  var handlers={}, order=0;
+  var log=document.getElementById('d1log');
+  function clear(){order=0;log.innerHTML='<span class="hint" style="color:#7a8197">（這裡會顯示觸發順序…）</span>';}
+  function phInfo(p){return p===1?['cap','捕獲']:p===3?['bub','冒泡']:['tgt','目標'];}
+  function mk(L){return function(e){
+    if(order===0) log.innerHTML='';
+    order++;
+    var pi=phInfo(e.eventPhase);
+    var cut = stop[L.id] ? ' <span class="cut">⛔ 在這層 stopPropagation()，後面不再傳</span>' : '';
+    var div=document.createElement('div');
+    div.className='logline';
+    div.innerHTML=order+'. '+L.name+'<span class="ph '+pi[0]+'">'+pi[1]+'</span> target=<b>'+e.target.id+'</b> · currentTarget=<b>'+e.currentTarget.id+'</b>'+cut;
+    log.appendChild(div);
+    if(stop[L.id]) e.stopPropagation();
+  };}
+  function bind(){
+    layers.forEach(function(L){
+      var el=document.getElementById(L.id);
+      if(handlers[L.id]) el.removeEventListener('click',handlers[L.id],handlers[L.id]._cap);
+      var h=mk(L); h._cap=(phase[L.id]==='capture');
+      el.addEventListener('click',h,{capture:h._cap});
+      handlers[L.id]=h;
+    });
+  }
+  document.querySelectorAll('[data-ph]').forEach(function(b){
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
+      var id=b.dataset.ph, cap=(phase[id]=phase[id]==='bubble'?'capture':'bubble')==='capture';
+      b.textContent=cap?'捕獲':'冒泡'; b.className='tg '+(cap?'cap':'bub');
+      bind(); clear();
+    });
+  });
+  document.querySelectorAll('[data-stop]').forEach(function(b){
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
+      var id=b.dataset.stop; stop[id]=!stop[id];
+      b.textContent=stop[id]?'stop✓':'stop✗'; b.className='tg '+(stop[id]?'stopon':'');
+      clear();
+    });
+  });
+  document.getElementById('kidbox').addEventListener('mousedown',clear);
+  document.getElementById('d1reset').addEventListener('click',clear);
+  bind();
+
+  // delegation demo
+  var list=document.getElementById('list'), d2=document.getElementById('d2log'), n=3;
+  list.addEventListener('click',function(e){
+    if(e.target.tagName==='LI'){
+      e.target.classList.toggle('on');
+      d2.innerHTML='<div class="logline">e.target = <b>'+e.target.textContent.trim()+'</b> ('+(e.target.classList.contains('on')?'變灰':'復原')+') · currentTarget = <b>ul</b></div>';
+    }
+  });
+  document.getElementById('addLi').addEventListener('click',function(){
+    n++; var li=document.createElement('li');
+    li.textContent='新項目 '+n+'（動態生成）';
+    list.appendChild(li);
+    d2.innerHTML='<div class="logline">已新增第 '+n+' 個 li ✅ 監聽器仍是 <b>1</b> 個，直接點它就會變灰</div>';
+  });
+})();
+</script>
+</body>
+</html>
