@@ -74,10 +74,10 @@ docker compose -f docker-compose.yml -f docker-compose.personal.yml up -d
 
 ### 方案 3：檢查並手動釋放埠號
 
-#### Windows PowerShell 檢查埠號占用
+#### Windows PowerShell 檢查埠號佔用
 
 ```powershell
-# 檢查特定埠號是否被占用
+# 檢查特定埠號是否被佔用
 netstat -ano | findstr :8003
 netstat -ano | findstr :5003
 netstat -ano | findstr :3000
@@ -156,14 +156,14 @@ docker compose -p myproject up -d
 
 ```powershell
 # 檢查專案使用的埠號
-Write-Host "檢查 Docker 埠號占用情況..." -ForegroundColor Cyan
+Write-Host "檢查 Docker 埠號佔用情況..." -ForegroundColor Cyan
 
 $ports = @(8003, 5003, 3000)
 
 foreach ($port in $ports) {
     $connection = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
     if ($connection) {
-        Write-Host "埠號 $port 已被占用" -ForegroundColor Red
+        Write-Host "埠號 $port 已被佔用" -ForegroundColor Red
         Write-Host "  PID: $($connection.OwningProcess)" -ForegroundColor Yellow
     } else {
         Write-Host "埠號 $port 可用" -ForegroundColor Green

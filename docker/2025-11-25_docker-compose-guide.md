@@ -213,7 +213,7 @@ docker compose up -d
 
 ### 端口衝突
 
-如果遇到端口被占用的錯誤，修改 `docker-compose.yml` 中的端口映射：
+如果遇到端口被佔用的錯誤，修改 `docker-compose.yml` 中的端口映射：
 
 ```yaml
 backend:
