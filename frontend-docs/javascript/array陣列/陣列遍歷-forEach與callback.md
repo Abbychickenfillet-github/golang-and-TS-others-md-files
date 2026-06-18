@@ -307,7 +307,7 @@ numbers.forEach((n, index) => console.log(index, n)) // 用 index
 
 `console.log(\`triple: ${numbers.forEach(triple)}\`)` 會印 **`triple: undefined`**：forEach 回傳 undefined，不能這樣印結果（triple 是靠副作用改陣列，不回傳）。
 
-⚠️ 副作用會「污染下游」——實際踩過的災情：
+⚠️ 副作用會「汙染下游」——實際踩過的災情：
 ```js
 let numbers = [4,5,9,10,11]
 numbers.forEach(display)   // 印 4,5,9,10,11（原始）

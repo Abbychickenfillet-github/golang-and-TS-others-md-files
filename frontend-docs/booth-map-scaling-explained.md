@@ -267,15 +267,15 @@ const scale = useMemo(() => {
 ### 滾輪縮放的數學
 
 ```typescript
-// 用戶滾輪縮放，以游標位置為中心
+// 用戶滾輪縮放，以遊標位置為中心
 const cx = 滑鼠在容器內的 X 位置
 const cy = 滑鼠在容器內的 Y 位置
 
 const factor = 滾輪向下 ? 0.92 : 1.08  // 縮小 or 放大
 const newZoom = Math.max(0.5, Math.min(5, oldZoom * factor))
 
-// 關鍵：保持游標下方的地圖點不動
-// 原理：游標位置 = pan + 地圖點 * zoom
+// 關鍵：保持遊標下方的地圖點不動
+// 原理：遊標位置 = pan + 地圖點 * zoom
 //       cx = pan.x + point * oldZoom
 //       cx = newPan.x + point * newZoom
 // 解出：newPan.x = cx - (cx - pan.x) * (newZoom / oldZoom)
@@ -286,7 +286,7 @@ newPan = {
 }
 ```
 
-**白話文**：滾輪縮放時，你游標指著的那個點會「釘住不動」，其他地方圍繞它放大或縮小。這就是 Google Maps 的操作方式。
+**白話文**：滾輪縮放時，你遊標指著的那個點會「釘住不動」，其他地方圍繞它放大或縮小。這就是 Google Maps 的操作方式。
 
 ---
 

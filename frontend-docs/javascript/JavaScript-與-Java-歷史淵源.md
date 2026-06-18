@@ -16,7 +16,7 @@ updated: 2026-06-11
 ### Netscape(網景)是公司
 
 - 1990 年代著名的美國網際網路軟體公司,招牌產品 Netscape Navigator 瀏覽器。
-- 「Netscape 的工程師」= 該公司員工;最著名的是 **Brendan Eich**,1995 年在網景發明了 JavaScript。
+- 「Netscape 的工程師」= 該公司員工;最著名的是 **Brendan Eich**,1995 年在網景發明瞭 JavaScript。
 
 ### 昇陽的 Java
 

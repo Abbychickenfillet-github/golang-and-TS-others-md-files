@@ -1,39 +1,39 @@
-# _layout 路由和 ActionMenu 组件详解
+# _layout 路由和 ActionMenu 組件詳解
 
-## 1. 为什么 `_layout` 属于 routes？
+## 1. 為什麼 `_layout` 屬於 routes？
 
-### TanStack Router 的布局路由机制
+### TanStack Router 的佈局路由機制
 
-在 TanStack Router 中，`_layout` 是一个**布局路由（Layout Route）**，用于实现**嵌套路由**和**共享布局**。
+在 TanStack Router 中，`_layout` 是一個**佈局路由（Layout Route）**，用於實現**嵌套路由**和**共享佈局**。
 
-### 路由结构
+### 路由結構
 
 ```
 routes/
-├── __root.tsx          # 根路由（最外层）
-├── _layout.tsx         # 布局路由（Dashboard 布局）
+├── __root.tsx          # 根路由（最外層）
+├── _layout.tsx         # 佈局路由（Dashboard 佈局）
 │   ├── _layout/
 │   │   ├── orders.tsx  # 子路由：/orders
 │   │   ├── members.tsx # 子路由：/members
 │   │   ├── events.tsx  # 子路由：/events
 │   │   └── ...
-├── login.tsx           # 独立路由（不在布局内）
-└── signup.tsx         # 独立路由（不在布局内）
+├── login.tsx           # 獨立路由（不在佈局內）
+└── signup.tsx         # 獨立路由（不在佈局內）
 ```
 
 ### 工作原理
 
-#### 1. `_layout.tsx` - 布局组件
+#### 1. `_layout.tsx` - 佈局組件
 ```tsx
 // frontend/src/routes/_layout.tsx
 function Layout() {
   return (
     <Flex>
-      <Sidebar />        {/* 侧边栏 - 所有子路由共享 */}
+      <Sidebar />        {/* 側邊欄 - 所有子路由共享 */}
       <Box>
-        <Outlet />       {/* 子路由内容在这里渲染 */}
+        <Outlet />       {/* 子路由內容在這裡渲染 */}
       </Box>
-      <UserMenu />       {/* 用户菜单 - 所有子路由共享 */}
+      <UserMenu />       {/* 用戶菜單 - 所有子路由共享 */}
     </Flex>
   )
 }
@@ -43,34 +43,34 @@ function Layout() {
 ```tsx
 // frontend/src/routes/_layout/orders.tsx
 export const Route = createFileRoute("/_layout/orders")({
-  component: Orders,  // 这个组件会被渲染在 <Outlet /> 中
+  component: Orders,  // 這個組件會被渲染在 <Outlet /> 中
 })
 ```
 
-### 为什么这样设计？
+### 為什麼這樣設計？
 
-1. **共享布局**：所有 Dashboard 页面（orders, members, events 等）都需要：
-   - 侧边栏（Sidebar）
-   - 用户菜单（UserMenu）
-   - 登录验证（beforeLoad）
+1. **共享佈局**：所有 Dashboard 頁面（orders, members, events 等）都需要：
+   - 側邊欄（Sidebar）
+   - 用戶菜單（UserMenu）
+   - 登錄驗證（beforeLoad）
 
-2. **代码复用**：不需要在每个页面重复写布局代码
+2. **代碼複用**：不需要在每個頁面重複寫佈局代碼
 
-3. **路由嵌套**：TanStack Router 自动处理路由嵌套
+3. **路由嵌套**：TanStack Router 自動處理路由嵌套
    - `/orders` → 渲染 `_layout.tsx` + `_layout/orders.tsx`
    - `/members` → 渲染 `_layout.tsx` + `_layout/members.tsx`
 
-### 路由对比
+### 路由對比
 
-| 路由类型 | 路径 | 是否有布局 | 用途 |
+| 路由類型 | 路徑 | 是否有佈局 | 用途 |
 |---------|------|-----------|------|
-| 布局路由 | `/_layout` | 是（自己就是布局） | Dashboard 主布局 |
-| 子路由 | `/_layout/orders` | 是（继承父布局） | 订单管理页面 |
-| 独立路由 | `/login` | 否 | 登录页面（不需要侧边栏） |
+| 佈局路由 | `/_layout` | 是（自己就是佈局） | Dashboard 主佈局 |
+| 子路由 | `/_layout/orders` | 是（繼承父佈局） | 訂單管理頁面 |
+| 獨立路由 | `/login` | 否 | 登錄頁面（不需要側邊欄） |
 
-## 2. `showResetToNotCheckedIn` 的逻辑
+## 2. `showResetToNotCheckedIn` 的邏輯
 
-### 状态流转图
+### 狀態流轉圖
 
 ```
 未報到 (not_checked_in)
@@ -82,35 +82,35 @@ export const Route = createFileRoute("/_layout/orders")({
 未報到 (not_checked_in)
 ```
 
-### 代码逻辑
+### 代碼邏輯
 
 ```tsx
-// 当前状态
+// 當前狀態
 const currentStatus = order.check_in_status || "not_checked_in"
 
-// 根据状态决定显示哪些按钮
+// 根據狀態決定顯示哪些按鈕
 const showCheckIn = canCheckIn && currentStatus !== "checked_in"
-// 含义：如果状态不是"已報到"，显示"入場登記"按钮
-// 适用状态：not_checked_in, left
+// 含義：如果狀態不是"已報到"，顯示"入場登記"按鈕
+// 適用狀態：not_checked_in, left
 
 const showCheckOut = canCheckIn && currentStatus === "checked_in"
-// 含义：如果状态是"已報到"，显示"離場登記"按钮
-// 适用状态：checked_in
+// 含義：如果狀態是"已報到"，顯示"離場登記"按鈕
+// 適用狀態：checked_in
 
 const showResetToNotCheckedIn = canCheckIn && currentStatus === "left"
-// 含义：如果状态是"已離場"，显示"重設為未報到"按钮
-// 适用状态：left
+// 含義：如果狀態是"已離場"，顯示"重設為未報到"按鈕
+// 適用狀態：left
 ```
 
-### 按钮显示逻辑
+### 按鈕顯示邏輯
 
 ```tsx
 <ActionMenu
   canCheckIn={showCheckIn || showResetToNotCheckedIn}
-  // 当 showCheckIn=true 或 showResetToNotCheckedIn=true 时，显示"入場登記"按钮
+  // 當 showCheckIn=true 或 showResetToNotCheckedIn=true 時，顯示"入場登記"按鈕
 
   canCheckOut={showCheckOut}
-  // 当 showCheckOut=true 时，显示"離場登記"按钮
+  // 當 showCheckOut=true 時，顯示"離場登記"按鈕
 
   onCheckIn={() =>
     onCheckInStatusChange(
@@ -118,41 +118,41 @@ const showResetToNotCheckedIn = canCheckIn && currentStatus === "left"
       showResetToNotCheckedIn ? "not_checked_in" : "checked_in"
     )
   }
-  // 如果 showResetToNotCheckedIn=true，点击后设置为 "not_checked_in"
-  // 否则设置为 "checked_in"
+  // 如果 showResetToNotCheckedIn=true，點擊後設置為 "not_checked_in"
+  // 否則設置為 "checked_in"
 
   checkInLabel={showResetToNotCheckedIn ? "重設為未報到" : "入場登記"}
-  // 根据 showResetToNotCheckedIn 的值显示不同的按钮文字
+  // 根據 showResetToNotCheckedIn 的值顯示不同的按鈕文字
 />
 ```
 
-### 为什么 `showResetToNotCheckedIn` 是 `false`？
+### 為什麼 `showResetToNotCheckedIn` 是 `false`？
 
-如果按钮显示"入場登記"，说明 `showResetToNotCheckedIn = false`
+如果按鈕顯示"入場登記"，說明 `showResetToNotCheckedIn = false`
 
 **可能的原因：**
-1. `currentStatus !== "left"`（当前状态不是"已離場"）
-2. `canCheckIn = false`（用户没有权限）
+1. `currentStatus !== "left"`（當前狀態不是"已離場"）
+2. `canCheckIn = false`（用戶沒有權限）
 
-**当前状态可能是：**
-- `"not_checked_in"`（未報到）→ 显示"入場登記"
-- `"checked_in"`（已報到）→ 显示"離場登記"
-- `"left"`（已離場）→ 显示"重設為未報到"
+**當前狀態可能是：**
+- `"not_checked_in"`（未報到）→ 顯示"入場登記"
+- `"checked_in"`（已報到）→ 顯示"離場登記"
+- `"left"`（已離場）→ 顯示"重設為未報到"
 
-## 3. 为什么 ActionMenu 这么复杂？
+## 3. 為什麼 ActionMenu 這麼複雜？
 
-### ActionMenu 的设计目标
+### ActionMenu 的設計目標
 
-ActionMenu 是一个**通用组件**，需要在多个场景下使用：
+ActionMenu 是一個**通用組件**，需要在多個場景下使用：
 
-1. **订单管理**：查看、入場登記、離場登記
-2. **会员管理**：查看、編輯、刪除
-3. **活动管理**：查看、編輯、刪除
-4. **其他管理页面**：不同的操作组合
+1. **訂單管理**：查看、入場登記、離場登記
+2. **會員管理**：查看、編輯、刪除
+3. **活動管理**：查看、編輯、刪除
+4. **其他管理頁面**：不同的操作組合
 
-### 复杂性来源
+### 複雜性來源
 
-#### 1. 多种操作类型
+#### 1. 多種操作類型
 ```tsx
 interface ActionMenuProps {
   onView?: () => void      // 查看
@@ -163,34 +163,34 @@ interface ActionMenuProps {
 }
 ```
 
-#### 2. 动态显示控制
+#### 2. 動態顯示控制
 ```tsx
-canView?: boolean      // 是否显示"查看"
-canEdit?: boolean      // 是否显示"編輯"
-canCheckIn?: boolean   // 是否显示"入場登記"
-canCheckOut?: boolean  // 是否显示"離場登記"
+canView?: boolean      // 是否顯示"查看"
+canEdit?: boolean      // 是否顯示"編輯"
+canCheckIn?: boolean   // 是否顯示"入場登記"
+canCheckOut?: boolean  // 是否顯示"離場登記"
 ```
 
-#### 3. 动态标签文字
+#### 3. 動態標籤文字
 ```tsx
 checkInLabel?: string   // "入場登記" 或 "重設為未報到"
 checkOutLabel?: string  // "離場登記"
 ```
 
-#### 4. 权限控制
+#### 4. 權限控制
 ```tsx
 // 在 orders.tsx 中
 const canCheckIn = hasPermission("order.check-in")
 
-// 根据权限和状态决定显示哪些按钮
+// 根據權限和狀態決定顯示哪些按鈕
 const showCheckIn = canCheckIn && currentStatus !== "checked_in"
 const showCheckOut = canCheckIn && currentStatus === "checked_in"
 const showResetToNotCheckedIn = canCheckIn && currentStatus === "left"
 ```
 
-### 为什么需要这么复杂？
+### 為什麼需要這麼複雜？
 
-#### 场景 1：订单管理
+#### 場景 1：訂單管理
 ```tsx
 <ActionMenu
   canView={true}
@@ -202,7 +202,7 @@ const showResetToNotCheckedIn = canCheckIn && currentStatus === "left"
 />
 ```
 
-#### 场景 2：会员管理
+#### 場景 2：會員管理
 ```tsx
 <ActionMenu
   canView={true}
@@ -213,7 +213,7 @@ const showResetToNotCheckedIn = canCheckIn && currentStatus === "left"
 />
 ```
 
-#### 场景 3：活动管理
+#### 場景 3：活動管理
 ```tsx
 <ActionMenu
   canView={true}
@@ -224,12 +224,12 @@ const showResetToNotCheckedIn = canCheckIn && currentStatus === "left"
 />
 ```
 
-### 简化方案（如果只用于订单）
+### 簡化方案（如果只用於訂單）
 
-如果 ActionMenu 只用于订单管理，可以简化为：
+如果 ActionMenu 只用於訂單管理，可以簡化為：
 
 ```tsx
-// 简化版本（仅用于订单）
+// 簡化版本（僅用於訂單）
 function OrderActionMenu({ order, onCheckIn, onCheckOut }) {
   const currentStatus = order.check_in_status || "not_checked_in"
 
@@ -258,13 +258,13 @@ function OrderActionMenu({ order, onCheckIn, onCheckOut }) {
 }
 ```
 
-**但这样做的缺点：**
-- 无法在其他页面复用
-- 每个页面都需要写自己的 ActionMenu
-- 代码重复
+**但這樣做的缺點：**
+- 無法在其他頁面複用
+- 每個頁面都需要寫自己的 ActionMenu
+- 代碼重複
 
-## 总结
+## 總結
 
-1. **`_layout` 是布局路由**：用于实现 Dashboard 的共享布局（侧边栏、用户菜单等）
-2. **`showResetToNotCheckedIn`**：当状态为 `"left"` 时为 `true`，按钮文字变为"重設為未報到"
-3. **ActionMenu 复杂的原因**：需要支持多种场景、权限控制、动态显示，是一个通用组件
+1. **`_layout` 是佈局路由**：用於實現 Dashboard 的共享佈局（側邊欄、用戶菜單等）
+2. **`showResetToNotCheckedIn`**：當狀態為 `"left"` 時為 `true`，按鈕文字變為"重設為未報到"
+3. **ActionMenu 複雜的原因**：需要支持多種場景、權限控制、動態顯示，是一個通用組件
