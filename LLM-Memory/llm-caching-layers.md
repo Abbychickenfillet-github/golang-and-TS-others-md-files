@@ -168,7 +168,7 @@ Anthropic 另外有 1 小時 TTL，收 **2x**（100% 加價）——因為 VRAM 
 這個價格結構其實是**在逼你做對的事**：
 
 1. **鼓勵「真的會重用才快取」**——只用一次會虧，強迫你想清楚這段 prompt 會不會被重用
-2. **防止濫用**——不然大家什麼都標 `cache_control`，Anthropic 的 VRAM 會被垃圾 cache 塞爆
+2. **防止濫用**——不然大傢什麼都標 `cache_control`，Anthropic 的 VRAM 會被垃圾 cache 塞爆
 3. **補償 infra 成本**——VRAM 真的是錢
 
 **一句話總結**：**Cache write 的 25% 加價是 VRAM 的 5 分鐘租金，不是 token 費。設計上就是「用 1 次會虧、用 2 次打平、用 3 次以上開始賺」**——強迫開發者只在真的重用場景才啟用 caching。

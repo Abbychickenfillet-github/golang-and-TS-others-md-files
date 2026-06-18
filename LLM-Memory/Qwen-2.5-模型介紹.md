@@ -15,7 +15,7 @@ updated: 2026-06-11
 - Qwen-2.5 是阿里雲(Alibaba Cloud)通義千問團隊開發的強大開源語言模型。
 - 系列在推理、程式碼、數學等多種任務表現優異,並支援多語言。
 - 7B(七十億參數)版本在資源效率與能力之間取得良好平衡。
-- 對話中亦提及可進一步了解量化(quantization)如何運作。
+- 對話中亦提及可進一步瞭解量化(quantization)如何運作。
 
 ## 各對話來源
 ### Understanding Alibaba's Qwen-2.5 Model(2026-06)— https://gemini.google.com/app/4832c9d36f1ef435
