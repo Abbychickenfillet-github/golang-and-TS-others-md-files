@@ -36,7 +36,7 @@ DB-3: user_id % 4 == 3 的訂單  (2.5 億)
 
 | 名詞 | 是什麼 | 比喻 |
 |------|-------|------|
-| **DB Instance（實例）** | 一個跑著的 MySQL **server 程式**（占 port、占記憶體、占 CPU） | 一台「冰箱」 |
+| **DB Instance（實例）** | 一個跑著的 MySQL **server 程式**（佔 port、佔記憶體、佔 CPU） | 一台「冰箱」 |
 | **Database（資料庫）** | Instance 裡面的一個 schema | 冰箱裡的一個「抽屜」 |
 | **Table（表）** | Database 裡的一張表 | 抽屜裡的一個「盒子」 |
 

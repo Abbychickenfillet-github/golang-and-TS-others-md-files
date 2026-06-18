@@ -52,7 +52,7 @@
 | 2 | **main** | 2026-03-09 10:50 | 正式環境主分支 |
 | 3 | **stage** | 2026-03-07 03:21 | Staging 整合分支 |
 | 4 | dashboard-layout-sequence-feat-fix | 2026-03-06 17:17 | 活動頁面 RWD — 手機版查看詳情 Modal + EventTabs |
-| 5 | feat/event-vendor-review-block | 2026-03-06 09:17 | 訂單列表付款欄位改善 — 重命名表頭、修正對齊 |
+| 5 | feat/event-vendor-review-block | 2026-03-06 09:17 | 訂單列表付款欄位改善 — 重命名錶頭、修正對齊 |
 | 6 | feat/map-selector-atomic-wizard | 2026-03-03 00:17 | 攤位類型 map_id 篩選 + Wizard 批量儲存 + inline 編輯 |
 | 7 | pre_order | 2026-02-28 18:01 | 地圖 + 攤位 Multi-Step Wizard Drawer |
 | 8 | feat/event-deletion-request | 2026-02-25 17:13 | 活動刪除申請 — 已購票未退款禁止核准刪除 |

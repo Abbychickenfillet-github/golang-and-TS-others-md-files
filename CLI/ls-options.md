@@ -128,5 +128,5 @@ Get-ChildItem -Recurse        # 等同 ls -R
 ## 相關筆記
 
 - [grep-options.md](grep-options.md) — grep 選項對照
-- [基本小常识.md](基本小常识.md)
+- [基本小常識.md](基本小常識.md)
 - [powershell-vs-bash.md](powershell-vs-bash.md)

@@ -108,4 +108,4 @@ if (typeof process !== 'undefined' && process.env) {
 | `@ts-expect-error` | ❌ | 偷吃步，繞過檢查 |
 | `@ts-ignore` | ❌ | 更糟，永久忽略 |
 | `typeof !== 'undefined'` | ✅ | 正確做法，安全又有型別 |
-| 安裝 `@types/node` | ⚠️ | 會污染全域型別，看情況用 |
+| 安裝 `@types/node` | ⚠️ | 會汙染全域型別，看情況用 |
