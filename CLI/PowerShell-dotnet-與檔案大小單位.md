@@ -30,5 +30,5 @@ updated: 2026-06-11
 - **GiB vs GB**:帶 i 的 GiB 是二進位(1024 為基數,精確反映電腦內部);一般 GB 是十進位(1000 為基數,行銷/日常簡化)。1KB(二進位)= 1024 bytes。
 
 ## 各對話來源
-### PowerShell 静态成员访问运算符(2026-06)— https://gemini.google.com/app/96f45d0a81d7c05b
+### PowerShell 靜態成員存取運算子(2026-06)— https://gemini.google.com/app/96f45d0a81d7c05b
 使用者與 Gemini 討論:Windows(C/C++)與 PowerShell(.NET)的關係、`npm config get prefix` 與 `Get-ChildItem` 找含 Claude 的檔案、AppData/Roaming 隱藏資料夾與設定同步、Length 欄位為 bytes、byte/bit 概念、GiB(1024) vs GB(1000) 的差別。對話末段使用者轉為情緒性訊息(提到連續兩天沒進食),Gemini 回應關心並建議先吃點好消化的食物。

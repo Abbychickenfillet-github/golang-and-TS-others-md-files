@@ -1,28 +1,28 @@
-# Bash 指令笔记（Claude 协作版）
+# Bash 指令筆記（Claude 協作版）
 
-## mysqldump - 导出数据库结构
+## mysqldump - 匯出資料庫結構
 
-### 基本语法
+### 基本語法
 
 ```bash
-mysqldump -h 主机 -P 端口 -u 用户名 -p'密码' --no-data 数据库名 > 输出文件.sql
+mysqldump -h 主機 -P 連接埠 -u 使用者名稱 -p'密碼' --no-data 資料庫名 > 輸出檔案.sql
 ```
 
-### 参数说明
+### 參數說明
 
-| 参数 | 说明 |
+| 參數 | 說明 |
 |------|------|
-| `-h` | 主机地址 (host) |
-| `-P` | 端口号 (Port，注意是大写P) |
-| `-u` | 用户名 (user) |
-| `-p'密码'` | 密码（紧跟 -p，无空格）|
-| `--no-data` | 只导出结构，不导出数据 |
-| `>` | 重定向输出到文件 |
+| `-h` | 主機位址 (host) |
+| `-P` | 連接埠號 (Port，注意是大寫 P) |
+| `-u` | 使用者名稱 (user) |
+| `-p'密碼'` | 密碼（緊接 -p，無空格）|
+| `--no-data` | 只匯出結構，不匯出資料 |
+| `>` | 重定向輸出到檔案 |
 
-### 实际案例
+### 實際案例
 
 ```bash
-# 使用 Docker 运行 mysqldump（当本地没有 mysql 客户端时）
+# 使用 Docker 執行 mysqldump（當本機沒有 mysql 用戶端時）
 docker run --rm mysql:8.0 mysqldump \
   -h hnd1.clusters.zeabur.com \
   -P 32195 \
@@ -33,119 +33,119 @@ docker run --rm mysql:8.0 mysqldump \
   > sql/futuresign_prod_dump_20260124.sql
 ```
 
-### 常见问题
+### 常見問題
 
-#### ⚠️ 警告：密码不安全
+#### ⚠️ 警告：密碼不安全
 
-**问题**：执行命令后看到以下警告
+**問題**：執行命令後看到以下警告
 ```
 mysqldump: [Warning] Using a password on the command line interface can be insecure.
 ```
 
 **解答**：
-- ✅ 这只是**警告**，不是错误
-- ✅ 命令**已经成功执行**了
-- ✅ 文件应该已经生成了
-- ⚠️ 这个警告是提醒你：密码暴露在命令行中可能被其他用户看到
-- 💡 对于一次性操作，可以忽略这个警告
+- ✅ 這只是**警告**，不是錯誤
+- ✅ 命令**已經成功執行**了
+- ✅ 檔案應該已經產生了
+- ⚠️ 這個警告是提醒你：密碼暴露在命令列中可能被其他使用者看到
+- 💡 對於一次性操作，可以忽略這個警告
 
-**如何验证成功**：
+**如何驗證成功**：
 ```bash
-# 检查文件是否生成
+# 檢查檔案是否產生
 ls -lh sql/futuresign_prod_dump_20260124.sql
 
-# 如果看到文件大小（例如 613K），就表示成功了！
+# 如果看到檔案大小（例如 613K），就表示成功了！
 ```
 
-#### 没有 mysqldump 命令
+#### 沒有 mysqldump 命令
 
-**问题**：
+**問題**：
 ```
 mysqldump: command not found
 ```
 
-**解决方案**：使用 Docker
+**解決方案**：使用 Docker
 ```bash
-docker run --rm mysql:8.0 mysqldump [其他参数...]
+docker run --rm mysql:8.0 mysqldump [其他參數...]
 ```
 
 ---
 
-## ls - 列出文件
+## ls - 列出檔案
 
-### 常用选项
+### 常用選項
 
 ```bash
-ls              # 列出当前目录文件
-ls -l           # 详细格式（long format）
-ls -h           # 人类可读的文件大小（human-readable）
-ls -lh          # 组合：详细 + 可读大小
-ls -a           # 显示隐藏文件（all）
-ls -lha         # 全部组合
+ls              # 列出目前目錄檔案
+ls -l           # 詳細格式（long format）
+ls -h           # 人類可讀的檔案大小（human-readable）
+ls -lh          # 組合：詳細 + 可讀大小
+ls -a           # 顯示隱藏檔案（all）
+ls -lha         # 全部組合
 ```
 
-### 输出说明
+### 輸出說明
 
 ```bash
 $ ls -lh sql/futuresign_prod_dump_20260124.sql
 -rw-r--r-- 1 User 197121 613K Jan 24 15:47 sql/futuresign_prod_dump_20260124.sql
 │          │ │    │      │    │        │
-│          │ │    │      │    │        └─ 文件名
-│          │ │    │      │    └─ 修改日期时间
-│          │ │    │      └─ 文件大小（613KB）
-│          │ │    └─ 用户组ID
-│          │ └─ 用户名
-│          └─ 连接数
-└─ 权限（r=读 w=写 x=执行）
+│          │ │    │      │    │        └─ 檔名
+│          │ │    │      │    └─ 修改日期時間
+│          │ │    │      └─ 檔案大小（613KB）
+│          │ │    └─ 使用者群組 ID
+│          │ └─ 使用者名稱
+│          └─ 連結數
+└─ 權限（r=讀 w=寫 x=執行）
 ```
 
 ---
 
-## diff - 比较文件差异
+## diff - 比較檔案差異
 
 ### 基本用法
 
 ```bash
-diff file1.txt file2.txt          # 简单比较
-diff -u file1.txt file2.txt       # 统一格式（unified format）
-diff -u file1 file2 > diff.txt    # 保存差异到文件
+diff file1.txt file2.txt          # 簡單比較
+diff -u file1.txt file2.txt       # 統一格式（unified format）
+diff -u file1 file2 > diff.txt    # 儲存差異到檔案
 ```
 
-### 输出符号说明
+### 輸出符號說明
 
 ```
----  第一个文件
-+++  第二个文件
--    第一个文件有，第二个文件没有（删除）
-+    第二个文件有，第一个文件没有（新增）
+---  第一個檔案
++++  第二個檔案
+-    第一個檔案有，第二個檔案沒有（刪除）
++    第二個檔案有，第一個檔案沒有（新增）
 ```
 
-### 实际案例
+### 實際案例
 
 ```bash
-# 比较两个数据库 schema
+# 比較兩個資料庫 schema
 diff -u sql/futuresign_prod_dump_20260124.sql sql/futuresign_dev_dump_20260121_151711.sql > sql/schema_diff.txt
 ```
 
 ---
 
-## grep - 搜索文本
+## grep - 搜尋文字
 
 ### 基本用法
 
 ```bash
-grep "搜索内容" 文件名              # 搜索并显示匹配行
-grep -c "搜索内容" 文件名           # 计数（count）
-grep "CREATE TABLE" *.sql         # 搜索多个文件
+grep "搜尋內容" 檔名               # 搜尋並顯示匹配行
+grep -c "搜尋內容" 檔名            # 計數（count）
+grep "CREATE TABLE" *.sql         # 搜尋多個檔案
 ```
 
-### 实际案例
+### 實際案例
 
 ```bash
-# 统计 SQL 文件中有多少个表
+# 統計 SQL 檔案中有多少個資料表
 grep -c "CREATE TABLE" dump.sql
 
-# 列出所有表名
+# 列出所有資料表名
 grep "CREATE TABLE" dump.sql
 ```
 
@@ -158,68 +158,68 @@ grep "CREATE TABLE" dump.sql
 ```bash
 命令1 | 命令2
 ```
-- 把**命令1的输出**作为**命令2的输入**
-- 可以无限串接
+- 把**命令1的輸出**作為**命令2的輸入**
+- 可以無限串接
 
-### 实际案例
+### 實際案例
 
 ```bash
-# 找出所有表名并排序
+# 找出所有資料表名並排序
 grep "CREATE TABLE" dump.sql | sort
 
-# 找出所有表名，排序，然后保存到文件
+# 找出所有資料表名，排序，然後儲存到檔案
 grep "CREATE TABLE" dump.sql | sort > tables.txt
 
-# 复杂案例：搜索 → 排序 → 只看前10个
+# 複雜案例：搜尋 → 排序 → 只看前 10 個
 grep "CREATE TABLE" dump.sql | sort | head -10
 ```
 
 ---
 
-## 重定向符号
+## 重定向符號
 
 ```bash
->     # 输出重定向（覆盖）
->>    # 输出重定向（追加）
-<     # 输入重定向
-2>    # 错误输出重定向
-2>&1  # 把错误输出合并到标准输出
+>     # 輸出重定向（覆蓋）
+>>    # 輸出重定向（追加）
+<     # 輸入重定向
+2>    # 錯誤輸出重定向
+2>&1  # 把錯誤輸出合併到標準輸出
 ```
 
-### 实际案例
+### 實際案例
 
 ```bash
-# 覆盖写入
+# 覆蓋寫入
 echo "hello" > file.txt
 
-# 追加写入
+# 追加寫入
 echo "world" >> file.txt
 
-# 忽略错误信息
+# 忽略錯誤訊息
 command 2>/dev/null
 
-# 错误和正常输出都保存
+# 錯誤和正常輸出都儲存
 command > output.txt 2>&1
 ```
 
 ---
 
-## 作者笔记
+## 作者筆記
 
 ### 2026-01-24 - mysqldump 首次使用
 
-**任务**：导出生产数据库的 schema
+**任務**：匯出生產資料庫的 schema
 
 **遇到的困惑**：
-1. 执行命令后出现 warning，以为命令失败了
-2. 不知道如何确认是否成功
+1. 執行命令後出現 warning，以為命令失敗了
+2. 不知道如何確認是否成功
 
-**解决方法**：
-1. ✅ Warning 不是错误，只是安全提示
-2. ✅ 使用 `ls -lh` 检查文件大小，确认导出成功
-3. ✅ 如果文件大小合理（不是 0KB），就表示成功了
+**解決方法**：
+1. ✅ Warning 不是錯誤，只是安全提示
+2. ✅ 使用 `ls -lh` 檢查檔案大小，確認匯出成功
+3. ✅ 如果檔案大小合理（不是 0KB），就表示成功了
 
-**经验教训**：
-- Bash 命令成功时通常**不会有输出**（"no news is good news"）
+**經驗教訓**：
+- Bash 命令成功時通常**不會有輸出**（"no news is good news"）
 - Warning ≠ Error
-- 遇到 Warning 先检查**结果**而不是停下来
+- 遇到 Warning 先檢查**結果**而不是停下來

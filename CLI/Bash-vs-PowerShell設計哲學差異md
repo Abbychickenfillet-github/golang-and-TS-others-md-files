@@ -1,98 +1,116 @@
-# CLI 基本小常识
+# CLI 基本小常識
 
-## Bash vs PowerShell 设计哲学差异
+## Bash vs PowerShell 設計哲學差異
 
-### 为什么 Bash 需要 `-lh`，PowerShell 不需要？
+### 為什麼 Bash 需要 `-lh`，PowerShell 不需要？
 
 #### Bash (Linux/Mac)
 ```bash
-# 默认：只显示文件名
+# 預設：只顯示檔名
 $ ls
 file1.txt  file2.txt  folder1
 
-# 需要加 -l 才显示详细信息
+# 需要加 -l 才顯示詳細資訊
 $ ls -l
 -rw-r--r-- 1 user group 1234567 Jan 24 15:47 file1.txt
 
-# 需要加 -h 才显示人类可读的大小
+# 需要加 -h 才顯示人類可讀的大小
 $ ls -lh
 -rw-r--r-- 1 user group 1.2M Jan 24 15:47 file1.txt
                           ^^^^
-                          自动转换为 KB/MB/GB
+                          自動轉換為 KB/MB/GB
 ```
 
 #### PowerShell (Windows)
 ```powershell
-# 默认：自动显示详细信息，文件大小自动可读
+# 預設：自動顯示詳細資訊，檔案大小自動可讀
 PS> ls
 
 Mode    LastWriteTime     Length Name
 ----    -------------     ------ ----
 -a----  1/24/2026  3:47PM 626995 futuresign_prod_dump_20260124.sql
                           ^^^^^^
-                          自动显示完整大小（字节）
+                          自動顯示完整大小（位元組）
 ```
 
 ---
 
-### 设计哲学对比
+### 設計哲學對比
 
 | 特性 | Bash (Unix/Linux) | PowerShell (Windows) |
 |------|-------------------|---------------------|
-| **哲学** | 简约主义 | 面向对象 |
-| **默认输出** | 最少信息（只有文件名） | 结构化信息（包含多个属性） |
-| **数据类型** | 纯文本流 | .NET 对象 |
-| **参数设计** | 需要什么加什么 | 默认就给你全部 |
-| **文件大小** | 默认字节，需 `-h` 转换 | 默认字节，可用属性访问 |
+| **哲學** | 簡約主義 | 物件導向 |
+| **預設輸出** | 最少資訊（只有檔名） | 結構化資訊（包含多個屬性） |
+| **資料型別** | 純文字流 | .NET 物件 |
+| **參數設計** | 需要什麼加什麼 | 預設就給你全部 |
+| **檔案大小** | 預設位元組，需 `-h` 轉換 | 預設位元組，可用屬性存取 |
 
 ---
 
-### 实际案例对比
+### 底層實作語言（重點）
 
-#### 查看文件大小
+> 常見疑問：PowerShell 底層是 C 還是 .NET？
+
+| 終端機 | 底層實作 | 撰寫語言 |
+|--------|----------|----------|
+| **Bash** | 直接編譯成原生程式 | **C 語言** |
+| **Windows PowerShell（1.0–5.1）** | 建立在 **.NET Framework** 之上 | **C#** |
+| **PowerShell Core / 7+（6.0 起）** | 建立在 **.NET（跨平台）** 之上 | **C#** |
+
+- **PowerShell 本體是用 C# 寫的，跑在 .NET 執行環境（CLR）上**——所以它在管道裡傳遞的是 **.NET 物件**，而不是純文字。這正是它和 Bash 最大的設計差異來源。
+- 嚴格來說，.NET 執行環境（CLR）再往下一層的核心（GC、JIT 編譯器）才是用 C/C++ 實作的；但對使用者而言，PowerShell 屬於「**.NET 生態系**」。
+- Bash 則是 1989 年用 **C 語言**寫成的原生程式，沒有中間的虛擬機／執行環境，輸出自然就是純文字串流。
+
+**一句話記憶**：Bash = C 寫的純文字工具；PowerShell = C# 寫的 .NET 物件工具。
+
+---
+
+### 實際案例對比
+
+#### 查看檔案大小
 
 **Bash:**
 ```bash
 # 方式1：使用 -lh
 ls -lh file.sql
-# 输出: -rw-r--r-- 1 user group 613K Jan 24 15:47 file.sql
+# 輸出: -rw-r--r-- 1 user group 613K Jan 24 15:47 file.sql
 
-# 方式2：只要文件名和大小
+# 方式2：只要檔名和大小
 ls -lh file.sql | awk '{print $5, $9}'
-# 输出: 613K file.sql
+# 輸出: 613K file.sql
 ```
 
 **PowerShell:**
 ```powershell
-# 方式1：默认显示
+# 方式1：預設顯示
 ls file.sql
-# 自动显示表格格式
+# 自動顯示表格格式
 
-# 方式2：只要文件名和大小
+# 方式2：只要檔名和大小
 ls file.sql | Select-Object Name, Length
 
-# 方式3：转换为 KB
+# 方式3：轉換為 KB
 (Get-Item file.sql).Length / 1KB
-# 输出: 612.3046875
+# 輸出: 612.3046875
 ```
 
 ---
 
-## 路径分隔符差异
+## 路徑分隔符差異
 
 ### Windows vs Unix/Linux
 
-| 系统 | 路径分隔符 | 示例 |
+| 系統 | 路徑分隔符 | 範例 |
 |------|-----------|------|
-| **Windows (原生)** | `\` 反斜杠 | `C:\Users\Abby\file.txt` |
-| **Unix/Linux/Mac** | `/` 斜杠 | `/home/abby/file.txt` |
-| **PowerShell** | 两者都支持 | `C:\Users\Abby` 或 `C:/Users/Abby` |
-| **Git Bash (Windows)** | `/` 斜杠 | `/c/Users/Abby/file.txt` |
+| **Windows (原生)** | `\` 反斜線 | `C:\Users\Abby\file.txt` |
+| **Unix/Linux/Mac** | `/` 斜線 | `/home/abby/file.txt` |
+| **PowerShell** | 兩者都支援 | `C:\Users\Abby` 或 `C:/Users/Abby` |
+| **Git Bash (Windows)** | `/` 斜線 | `/c/Users/Abby/file.txt` |
 
-### 注意事项
+### 注意事項
 
 ```powershell
-# PowerShell 中，这两个都可以：
+# PowerShell 中，這兩個都可以：
 cd C:\coding\template
 cd C:/coding/template
 
@@ -102,28 +120,28 @@ cd /c/coding/template
 
 ---
 
-## 为什么会有这些差异？
+## 為什麼會有這些差異？
 
-### Bash (Unix) - 1970年代设计
-- ✅ **简约哲学**：默认最少输出，节省终端空间
-- ✅ **管道优先**：输出纯文本，方便串接多个命令
-- ✅ **每个参数做一件事**：`-l` = 详细，`-h` = 人类可读，`-a` = 显示隐藏文件
+### Bash (Unix) - 1970 年代設計
+- ✅ **簡約哲學**：預設最少輸出，節省終端機空間
+- ✅ **管道優先**：輸出純文字，方便串接多個命令
+- ✅ **每個參數做一件事**：`-l` = 詳細，`-h` = 人類可讀，`-a` = 顯示隱藏檔案
 
-### PowerShell - 2006年设计
-- ✅ **现代设计**：屏幕够大，默认显示详细信息
-- ✅ **面向对象**：输出是 .NET 对象，不只是文本
-- ✅ **自我说明**：命令名称清晰（Get-ChildItem 而不是 ls）
+### PowerShell - 2006 年設計
+- ✅ **現代設計**：螢幕夠大，預設顯示詳細資訊
+- ✅ **物件導向**：輸出是 .NET 物件，不只是文字
+- ✅ **自我說明**：命令名稱清晰（Get-ChildItem 而不是 ls）
 
 ---
 
-## 实用技巧
+## 實用技巧
 
-### Bash 常用组合
+### Bash 常用組合
 
 ```bash
-ls -lha     # 详细 + 人类可读 + 显示隐藏文件
-ls -lhS     # 按文件大小排序（S = Size）
-ls -lht     # 按修改时间排序（t = Time）
+ls -lha     # 詳細 + 人類可讀 + 顯示隱藏檔案
+ls -lhS     # 按檔案大小排序（S = Size）
+ls -lht     # 按修改時間排序（t = Time）
 ```
 
 ### PowerShell 常用用法
@@ -132,49 +150,49 @@ ls -lht     # 按修改时间排序（t = Time）
 # 按大小排序
 ls | Sort-Object Length -Descending
 
-# 只显示文件夹
+# 只顯示資料夾
 ls | Where-Object {$_.PSIsContainer}
 
-# 只显示文件
+# 只顯示檔案
 ls | Where-Object {!$_.PSIsContainer}
 
-# 递归显示（包含子文件夹）
+# 遞迴顯示（包含子資料夾）
 ls -Recurse
 
-# 格式化显示（自动转换单位）
+# 格式化顯示（自動轉換單位）
 ls | Format-Table Name, @{Label="Size(MB)";Expression={$_.Length / 1MB}}
 ```
 
 ---
 
-## 常见命令对照表
+## 常見命令對照表
 
-| 功能 | Bash | PowerShell | 说明 |
+| 功能 | Bash | PowerShell | 說明 |
 |------|------|-----------|------|
-| 列出文件 | `ls` | `Get-ChildItem` 或 `ls` | PowerShell 的 ls 是别名 |
-| 查看文件 | `cat file` | `Get-Content file` | PowerShell 也支持 `cat` |
-| 搜索文本 | `grep "text" file` | `Select-String "text" file` | |
-| 复制文件 | `cp file1 file2` | `Copy-Item file1 file2` | PowerShell 也支持 `cp` |
-| 移动文件 | `mv file1 file2` | `Move-Item file1 file2` | PowerShell 也支持 `mv` |
-| 删除文件 | `rm file` | `Remove-Item file` | PowerShell 也支持 `rm` |
-| 显示当前路径 | `pwd` | `Get-Location` 或 `pwd` | |
-| 切换目录 | `cd path` | `Set-Location path` 或 `cd` | |
+| 列出檔案 | `ls` | `Get-ChildItem` 或 `ls` | PowerShell 的 ls 是別名 |
+| 查看檔案 | `cat file` | `Get-Content file` | PowerShell 也支援 `cat` |
+| 搜尋文字 | `grep "text" file` | `Select-String "text" file` | |
+| 複製檔案 | `cp file1 file2` | `Copy-Item file1 file2` | PowerShell 也支援 `cp` |
+| 移動檔案 | `mv file1 file2` | `Move-Item file1 file2` | PowerShell 也支援 `mv` |
+| 刪除檔案 | `rm file` | `Remove-Item file` | PowerShell 也支援 `rm` |
+| 顯示目前路徑 | `pwd` | `Get-Location` 或 `pwd` | |
+| 切換目錄 | `cd path` | `Set-Location path` 或 `cd` | |
 
 ---
 
-## 总结
+## 總結
 
 **Bash**：
-- 🎯 默认简洁，需要什么功能就加参数
-- 🎯 `-l` = long (详细信息)
-- 🎯 `-h` = human-readable (人类可读)
+- 🎯 預設簡潔，需要什麼功能就加參數
+- 🎯 `-l` = long (詳細資訊)
+- 🎯 `-h` = human-readable (人類可讀)
 
 **PowerShell**：
-- 🎯 默认就给你详细信息
-- 🎯 文件大小直接显示
-- 🎯 支持 Bash 风格的别名（如 `ls`, `cat`, `pwd`）
+- 🎯 預設就給你詳細資訊
+- 🎯 檔案大小直接顯示
+- 🎯 支援 Bash 風格的別名（如 `ls`, `cat`, `pwd`）
 
-**建议**：
-- 在 Windows 上用 PowerShell，默认就够用
-- 在 Linux/Mac 或 Git Bash 上用 Bash，记得加 `-lh`
-- 需要更详细的信息时，PowerShell 用 `Select-Object`，Bash 用参数组合
+**建議**：
+- 在 Windows 上用 PowerShell，預設就夠用
+- 在 Linux/Mac 或 Git Bash 上用 Bash，記得加 `-lh`
+- 需要更詳細的資訊時，PowerShell 用 `Select-Object`，Bash 用參數組合
