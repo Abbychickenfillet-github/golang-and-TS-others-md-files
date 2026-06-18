@@ -274,7 +274,7 @@ def update_electricity_rule_price(
 3. **數據完整性**：每個明細記錄都明確標記服務供應商
 4. **查詢效率**：通過索引優化查詢性能
 5. **擴展性**：未來可以輕鬆支持更多公司
-6. **避免冗余**：不在 `order` 表綁定公司，避免同一活動所有訂單都是同一家公司
+6. **避免冗餘**：不在 `order` 表綁定公司，避免同一活動所有訂單都是同一家公司
 
 ## 注意事項
 
@@ -315,5 +315,5 @@ def update_electricity_rule_price(
 - ✅ `order_item.furniture_company_id`（傢俱服務供應商）
 - ✅ `electricity_calculation_rule.company_id`（支持歷史記錄）
 - ✅ 支持未來多公司場景
-- ✅ 避免 `order` 表冗余（同一活動所有訂單都是同一家公司）
+- ✅ 避免 `order` 表冗餘（同一活動所有訂單都是同一家公司）
 - ✅ 數據關係清晰（規則屬於活動+公司，明細屬於訂單+規則/公司）

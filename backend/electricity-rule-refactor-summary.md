@@ -18,7 +18,7 @@
 
 ### 3. `order` 表
 - ❌ **移除** `calculation_rule_id`：改為在 `order_electricity` 綁定
-- 避免同一活動所有訂單都是同一家公司（冗余）
+- 避免同一活動所有訂單都是同一家公司（冗餘）
 
 ### 4. `order_item` 表
 - ✅ **新增** `furniture_company_id`：傢俱服務供應商 ID

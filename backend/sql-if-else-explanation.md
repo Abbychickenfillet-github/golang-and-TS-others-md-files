@@ -1,19 +1,19 @@
-# SQL 中的 IF...ELSE 逻辑
+# SQL 中的 IF...ELSE 邏輯
 
-## 问题：这是 IF...ELSE 吗？
+## 問題：這是 IF...ELSE 嗎？
 
-**答案：是的！** 这是 MySQL 的 `IF()` 函数，相当于编程语言中的 if...else。
+**答案：是的！** 這是 MySQL 的 `IF()` 函數，相當於編程語言中的 if...else。
 
-## SQL 代码解析
+## SQL 代碼解析
 
 ```sql
 SET @sql := IF(@col_exists = 0,
-    'ALTER TABLE order_electricity ADD COLUMN ...',  -- 如果条件为真（字段不存在）
-    'SELECT ''Column calculation_rule_id already exists'' AS message'  -- 如果条件为假（字段已存在）
+    'ALTER TABLE order_electricity ADD COLUMN ...',  -- 如果條件為真（字段不存在）
+    'SELECT ''Column calculation_rule_id already exists'' AS message'  -- 如果條件為假（字段已存在）
 );
 ```
 
-### 等价的编程语言写法
+### 等價的編程語言寫法
 
 #### Python
 ```python
@@ -40,19 +40,19 @@ if (col_exists == 0) {
 }
 ```
 
-## MySQL IF() 函数语法
+## MySQL IF() 函數語法
 
 ```sql
-IF(条件, 值1, 值2)
+IF(條件, 值1, 值2)
 ```
 
-- **条件为真**：返回 `值1`
-- **条件为假**：返回 `值2`
+- **條件為真**：返回 `值1`
+- **條件為假**：返回 `值2`
 
 ### 完整流程
 
 ```sql
--- 步骤 1：检查字段是否存在（相当于 if 的条件判断）
+-- 步驟 1：檢查字段是否存在（相當於 if 的條件判斷）
 SET @col_exists := (
     SELECT COUNT(*)
     FROM information_schema.COLUMNS
@@ -60,30 +60,30 @@ SET @col_exists := (
       AND TABLE_NAME = 'order_electricity'
       AND COLUMN_NAME = 'calculation_rule_id'
 );
--- 结果：@col_exists = 0（不存在）或 1（存在）
+-- 結果：@col_exists = 0（不存在）或 1（存在）
 
--- 步骤 2：根据条件选择执行哪个 SQL（相当于 if...else）
+-- 步驟 2：根據條件選擇執行哪個 SQL（相當於 if...else）
 SET @sql := IF(@col_exists = 0,
-    -- IF 条件为真（字段不存在）→ 执行这个
+    -- IF 條件為真（字段不存在）→ 執行這個
     'ALTER TABLE order_electricity
      ADD COLUMN calculation_rule_id VARCHAR(36) NULL COMMENT ''使用的計費規則 ID'' AFTER order_id',
 
-    -- IF 条件为假（字段已存在）→ 执行这个
+    -- IF 條件為假（字段已存在）→ 執行這個
     'SELECT ''Column calculation_rule_id already exists in order_electricity'' AS message'
 );
 
--- 步骤 3：执行选择的 SQL（相当于执行 if 或 else 分支的代码）
+-- 步驟 3：執行選擇的 SQL（相當於執行 if 或 else 分支的代碼）
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 ```
 
-## 执行流程图
+## 執行流程圖
 
 ```
-开始
+開始
   ↓
-检查字段是否存在
+檢查字段是否存在
   ↓
 @col_exists = ?
   ↓
@@ -92,10 +92,10 @@ DEALLOCATE PREPARE stmt;
     └──────┬──────┘
            │
            ↓
-    IF 条件为真
+    IF 條件為真
            │
            ↓
-    执行 ALTER TABLE
+    執行 ALTER TABLE
     ADD COLUMN ...
            │
            ↓
@@ -108,61 +108,61 @@ DEALLOCATE PREPARE stmt;
     └──────┬──────┘   │
            │          │
            ↓          │
-    IF 条件为假       │
+    IF 條件為假       │
            │          │
            ↓          │
-    执行 SELECT       │
+    執行 SELECT       │
     'already exists' │
            │          │
            ↓          │
-    显示消息          │
-    字段保持不变      │
+    顯示消息          │
+    字段保持不變      │
            │          │
            └──────────┘
            ↓
-        结束
+        結束
 ```
 
-## 实际执行示例
+## 實際執行示例
 
-### 示例 1：字段不存在（首次执行）
+### 示例 1：字段不存在（首次執行）
 
 ```sql
--- 1. 检查
+-- 1. 檢查
 @col_exists = 0  -- 字段不存在
 
--- 2. IF 判断
-IF(0 = 0, ...)  -- 条件为真 ✅
+-- 2. IF 判斷
+IF(0 = 0, ...)  -- 條件為真 ✅
 
--- 3. 执行
+-- 3. 執行
 ALTER TABLE order_electricity
 ADD COLUMN calculation_rule_id VARCHAR(36) NULL ...
 
--- 结果：字段被添加 ✅
+-- 結果：字段被添加 ✅
 ```
 
-### 示例 2：字段已存在（重复执行）
+### 示例 2：字段已存在（重複執行）
 
 ```sql
--- 1. 检查
+-- 1. 檢查
 @col_exists = 1  -- 字段已存在
 
--- 2. IF 判断
-IF(1 = 0, ...)  -- 条件为假 ❌
+-- 2. IF 判斷
+IF(1 = 0, ...)  -- 條件為假 ❌
 
--- 3. 执行
+-- 3. 執行
 SELECT 'Column calculation_rule_id already exists in order_electricity' AS message
 
--- 结果：显示消息，字段保持不变
+-- 結果：顯示消息，字段保持不變
 ```
 
-## 为什么使用动态 SQL？
+## 為什麼使用動態 SQL？
 
-### 问题：为什么不直接写 IF...ELSE？
+### 問題：為什麼不直接寫 IF...ELSE？
 
-**直接写法（MySQL 不支持）**：
+**直接寫法（MySQL 不支持）**：
 ```sql
--- ❌ MySQL 不支持这种语法
+-- ❌ MySQL 不支持這種語法
 IF @col_exists = 0 THEN
     ALTER TABLE order_electricity ADD COLUMN ...;
 ELSE
@@ -171,33 +171,33 @@ END IF;
 ```
 
 **原因**：
-- MySQL 的 `IF...ELSE` 只能在存储过程（Stored Procedure）中使用
-- 普通 SQL 脚本不支持 `IF...ELSE` 语句块
-- 但可以使用 `IF()` 函数
+- MySQL 的 `IF...ELSE` 只能在存儲過程（Stored Procedure）中使用
+- 普通 SQL 腳本不支持 `IF...ELSE` 語句塊
+- 但可以使用 `IF()` 函數
 
-### 解决方案：动态 SQL
+### 解決方案：動態 SQL
 
 ```sql
--- ✅ 使用 IF() 函数 + 动态 SQL
+-- ✅ 使用 IF() 函數 + 動態 SQL
 SET @sql := IF(@col_exists = 0,
-    'ALTER TABLE ...',  -- SQL 语句作为字符串
-    'SELECT ...'         -- SQL 语句作为字符串
+    'ALTER TABLE ...',  -- SQL 語句作為字符串
+    'SELECT ...'         -- SQL 語句作為字符串
 );
 
-PREPARE stmt FROM @sql;  -- 准备执行
-EXECUTE stmt;            -- 执行
+PREPARE stmt FROM @sql;  -- 準備執行
+EXECUTE stmt;            -- 執行
 ```
 
-## 总结
+## 總結
 
-| 概念 | SQL 写法 | 编程语言等价 |
+| 概念 | SQL 寫法 | 編程語言等價 |
 |------|---------|------------|
-| 条件判断 | `IF(条件, 值1, 值2)` | `if (条件) { 值1 } else { 值2 }` |
-| 变量赋值 | `SET @var = ...` | `var = ...` |
-| 动态执行 | `PREPARE ... EXECUTE` | `eval()` 或类似 |
+| 條件判斷 | `IF(條件, 值1, 值2)` | `if (條件) { 值1 } else { 值2 }` |
+| 變量賦值 | `SET @var = ...` | `var = ...` |
+| 動態執行 | `PREPARE ... EXECUTE` | `eval()` 或類似 |
 
-**关键点**：
-- ✅ `IF()` 函数 = if...else
-- ✅ `@col_exists = 0` = 条件判断
-- ✅ 动态 SQL = 根据条件执行不同的 SQL 语句
-- ✅ 这是**幂等性**设计，可以安全重复执行
+**關鍵點**：
+- ✅ `IF()` 函數 = if...else
+- ✅ `@col_exists = 0` = 條件判斷
+- ✅ 動態 SQL = 根據條件執行不同的 SQL 語句
+- ✅ 這是**冪等性**設計，可以安全重複執行
