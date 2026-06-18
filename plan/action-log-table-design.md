@@ -610,7 +610,7 @@ SELECT * FROM action_log_latest WHERE action='REFUND' AND status='pending';
 | | Audit Log（稽核紀錄） | Approval Workflow（審核流程） |
 |---|---|---|
 | 回答的問題 | 「誰在什麼時候改了什麼？」 | 「誰提了什麼申請？通過了沒？」 |
-| 資料流向 | 只寫入，寫完不再修改 | 也是只寫入——每個狀態變更都 INSERT 一筆新紀錄 |
+| 資料流向 | 只寫入，寫完不再修改 | 也是隻寫入——每個狀態變更都 INSERT 一筆新紀錄 |
 | 目的 | 事後追查、合規 | 事前管控、流程把關 |
 | 例子 | 管理員把活動名稱從 A 改成 B | 主辦方申請刪除活動，等管理員核准 |
 | 欄位差異 | status 和 reviewer 為 NULL | status 有值（pending/approved/rejected），reviewer 記錄審核者 |
@@ -671,7 +671,7 @@ INDEX idx_created (created_at)              -- 按時間查
 |---|---|---|
 | 用途 | 記錄已發生的操作 | 管理審核中的請求 |
 | 狀態流轉 | 無 | 用多筆紀錄表達：action=DELETE + status=pending → status=approved / rejected |
-| 寫入模式 | 只 INSERT | 也是只 INSERT（每個狀態變更一筆新紀錄，不覆寫舊的） |
+| 寫入模式 | 只 INSERT | 也是隻 INSERT（每個狀態變更一筆新紀錄，不覆寫舊的） |
 | 操作者追蹤 | 只有 operator_id | 分 applier（申請者）和 reviewer（審核者），各自在不同筆紀錄上 |
 | 實體範圍 | 只有 order | 通用（event/order/booth） |
 | 額外資料 | details JSON | notes + details JSON |

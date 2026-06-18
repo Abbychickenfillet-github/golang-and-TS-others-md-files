@@ -3,7 +3,7 @@
 > 相關 Issue：[Issue #308 — 品牌商品頁功能](issue-308-brand-product.md)
 > GitHub: https://github.com/yutuo-tech/futuresign_backend/issues/308
 
-這些文章在規劃 product 表擴展（新增 `sell_type` 區分設備/品牌商品）時作為參考，了解業界電商資料庫的常見設計模式。
+這些文章在規劃 product 表擴展（新增 `sell_type` 區分設備/品牌商品）時作為參考，瞭解業界電商資料庫的常見設計模式。
 
 ---
 

@@ -88,7 +88,7 @@ CREATE INDEX idx_product_display ON product (event_id, sell_type, status, displa
 
 **`product_type_id` 不改成 NULL。** 品牌商品也必須選擇分類，只是選的是 `sell_type = 'vendor_merchandise'` 的分類（食物、手工藝品、周邊等），跟設備分類（桌椅、電力設備）隔離。
 
-搭配[議題四](#議題四product_type-表也要加-sell_type-區分)，在 `product_type` 表加 `sell_type` 欄位區分，品牌商和承包商各自管理自己的分類，互不干擾。
+搭配[議題四](#議題四product_type-表也要加-sell_type-區分)，在 `product_type` 表加 `sell_type` 欄位區分，品牌商和承包商各自管理自己的分類，互不幹擾。
 
 ### Service 層驗證
 
@@ -489,7 +489,7 @@ CREATE INDEX idx_product_type_sell_type ON product_type (sell_type);
 |---|---|
 | 承包商看設備分類 | `SELECT * FROM product_type WHERE sell_type = 'equipment'` |
 | 品牌商看商品分類 | `SELECT * FROM product_type WHERE sell_type = 'vendor_merchandise'` |
-| 承包商刪除分類 | 只影響 `sell_type = 'equipment'` 的資料，品牌商不受影響 |
+| 承包商刪除分類 | 隻影響 `sell_type = 'equipment'` 的資料，品牌商不受影響 |
 | 品牌商新增分類 | 只新增 `sell_type = 'vendor_merchandise'` 的資料，承包商看不到 |
 
 ### 跟 product 表的 sell_type 呼應
