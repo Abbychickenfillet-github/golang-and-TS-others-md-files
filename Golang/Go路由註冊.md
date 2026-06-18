@@ -208,7 +208,7 @@ func (h *Handler) Update(c *gin.Context) {
 }
 ```
 
-一句話：`c` 是 Gin 的 HTTP 百寶箱，`ctx` 是 Go 原生的精簡背包。
+一句話：`c` 是 Gin 的 HTTP 百寶箱，`ctx` 是 Go 原生的精簡揹包。
 Handler 用 `c` 處理 HTTP，用 `c.Request.Context()` 提取精簡版傳給下層。
 
 ---
@@ -221,4 +221,4 @@ Handler 用 `c` 處理 HTTP，用 `c.Request.Context()` 提取精簡版傳給下
 | **`v1.Group("/xxx")`** | 建立子路由群組，路徑會自動疊加 |
 | **Logger 放哪** | 哪裡都能放，但 Service 層是主要位置，Middleware 自動記 HTTP |
 | **`c` (gin.Context)** | Gin 的 HTTP 百寶箱，只活在 Handler 層 |
-| **`ctx` (context.Context)** | Go 原生的精簡背包，傳給 Service/Repository 層 |
+| **`ctx` (context.Context)** | Go 原生的精簡揹包，傳給 Service/Repository 層 |

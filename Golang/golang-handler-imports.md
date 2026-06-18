@@ -97,7 +97,7 @@ json.Unmarshal(w.Body.Bytes(), &result)     // ← 需要 encoding/json
 ```
 
 一句話：**正常 handler 有管家（[main.go](cmd-server-vs-internal-handler.md)），測試檔案要自己當管家。**
-詳見 [interface 與依賴注入](interface-dependency-injection.md) 了解 main.go 組裝依賴的原理。
+詳見 [interface 與依賴注入](interface-dependency-injection.md) 瞭解 main.go 組裝依賴的原理。
 
 ---
 
