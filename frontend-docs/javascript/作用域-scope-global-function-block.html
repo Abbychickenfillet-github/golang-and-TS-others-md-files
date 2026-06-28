@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JS 作用域 Scope（Global / Function / Block）必考重點</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;}
+.meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 3px;border-radius:3px;cursor:pointer;transition:color .12s,background .12s;}
+mark.quiz-hidden{color:transparent!important;background:#cbd2dc!important;border-radius:4px;box-shadow:inset 0 0 0 1px #aab3c0;user-select:none;}
+mark.quiz-hidden *{color:transparent!important;}
+.quiz-bar{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap;}
+.quiz-btn{cursor:pointer;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:.8rem;padding:5px 14px;border-radius:999px;}
+.quiz-btn:hover{background:var(--accent);color:#fff;}
+.quiz-hint{color:var(--muted);font-size:.76rem;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">JS 作用域 Scope（Global / Function / Block）必考重點</h1>
+  <div class="tags"><span class="tag">#gemini</span><span class="tag">#javascript</span><span class="tag">#scope</span><span class="tag">#作用域</span><span class="tag">#面試考點</span></div>
+  <div class="meta">更新於 2026-06-20　·　<a href="https://gemini.google.com/app/15c0dae8feeae7c1" target="_blank">來源連結</a></div>
+  <div class="quiz-bar">
+    <button class="quiz-btn" id="quizToggle" type="button">🙈 隱藏全部重點（自我測驗）</button>
+    <span class="quiz-hint">點任一螢光筆可單獨顯示／隱藏答案</span>
+  </div>
+</header>
+<h1>JS 作用域 Scope（Global / Function / Block）必考重點</h1>
+<blockquote>
+<p>作用域決定變數「在哪裡可以被訪問，在哪裡會被關在門外」，是面試與實戰超高頻考點。</p>
+</blockquote>
+
+<section class="card"><h2>重點整理</h2>
+<h3>三種作用域對比</h3>
+<p><strong>1. Global Scope（全域作用域）</strong> — 宣告在所有函式或區塊 <code>{}</code> 之外，任何地方都能存取。<br />
+<mark style="background: #FF5582A6;">必考陷阱：</mark>瀏覽器環境下，<code>var</code> 宣告的全域變數會變成 <code>window</code> 的屬性（<code>var a=1</code> 等於 <code>window.a</code>）；<mark style="background: #FFF3A3A6;">但 <code>let</code>／<code>const</code> 的全域變數不會掛到 <code>window</code></mark>。過多全域變數會造成「全域命名空間汙染」。</p>
+<p><strong>2. Local / Function Scope（區域 / 函式作用域）</strong> — 宣告在函式內部，只能在該函式內存取。<code>var</code>、<code>let</code>、<code>const</code> 在函式內都被限制在此。</p>
+<p><strong>3. Block Scope（區塊作用域）</strong> — 宣告在任何一對 <code>{}</code>（如 <code>if</code>、<code>for</code>、<code>while</code>）內。<mark style="background: #ADCCFFA6;">只有 <code>let</code> 與 <code>const</code> 支援 Block Scope；<code>var</code> 完全不支援</mark>（var 會無視大括號跑到外面）。</p>
+<table>
+<thead>
+<tr>
+<th>作用域類型</th>
+<th>適用關鍵字</th>
+<th>外部可存取</th>
+<th>常見場景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Global</td>
+<td>var, let, const</td>
+<td>是</td>
+<td>整個 JS 檔最外層</td>
+</tr>
+<tr>
+<td>Function (Local)</td>
+<td>var, let, const</td>
+<td>否</td>
+<td>函式內部</td>
+</tr>
+<tr>
+<td>Block</td>
+<td>let, const（var 不支援）</td>
+<td>否</td>
+<td>if、for 迴圈</td>
+</tr>
+</tbody>
+</table>
+<h3>🔥 面試必考三大情境題</h3>
+<p><strong>考點一：var 在 for 迴圈中的 Block Scope 災難</strong>（常結合 setTimeout）</p>
+<pre><code class="language-js">for (var i = 0; i &lt; 3; i++) {
+  setTimeout(() =&gt; console.log(i), 1000);
+}
+// 答案：1 秒後連續印出 3, 3, 3
+</code></pre>
+<p><mark style="background: #FF5582A6;">為什麼？</mark><code>var</code> 沒有 Block Scope，<code>i</code> 是共用變數；setTimeout 執行時迴圈早跑完，<code>i</code> 已是 3。<br />
+<mark style="background: #BBFABBA6;">解法：把 <code>var</code> 改成 <code>let</code></mark>，每次迭代產生獨立的區塊作用域，鎖住當下的 i：</p>
+<pre><code class="language-js">for (let i = 0; i &lt; 3; i++) {
+  setTimeout(() =&gt; console.log(i), 1000);
+}
+// 答案：印出 0, 1, 2
+</code></pre>
+<p><strong>考點二：範疇鍊(Scope Chain) 與 靜態作用域(Lexical Scope)</strong><br />
+JS 採用<mark style="background: #ADCCFFA6;">語法作用域(Lexical Scope)</mark>：作用域在程式碼「寫好時」就決定，不是「執行時」。</p>
+<pre><code class="language-js">let name = 'Global';
+function foo() { console.log(name); }
+function bar() { let name = 'Local'; foo(); }
+bar();
+// 答案：印出 'Global'，不是 'Local'
+</code></pre>
+<p><code>foo()</code> 定義時上層作用域就是 Global；內部找不到 <code>name</code> 就往外層找，這個鏈結叫 <mark style="background: #FFF3A3A6;">Scope Chain</mark>。</p>
+<p><strong>考點三：未宣告變數的「自動全域化」陷阱</strong></p>
+<pre><code class="language-js">function test() { a = 10; }  // 前面沒寫 var/let/const
+test();
+console.log(a); // 答案：10（不會報錯！）
+</code></pre>
+<p>非嚴格模式下，對未宣告變數賦值，JS 會自動在 Global Scope 建立它。<mark style="background: #FF5582A6;">這是不良習慣</mark>，開啟 <code>"use strict";</code> 可避免。</p>
+</section>
+<section class="card"><h2>各對話來源</h2>
+<h3>JavaScript 作用域重點整理（2026-06）— https://gemini.google.com/app/15c0dae8feeae7c1</h3>
+<p><strong>使用者：</strong> 幫我整理 JavaScript: local scope, block scope, global scope 必備重點、必考重點。</p>
+<p><strong>Gemini：</strong> （內容已整合進上方「重點整理」：三種作用域定義與對照表、var 掛 window 陷阱、for+setTimeout 經典題、Lexical Scope/Scope Chain、自動全域化陷阱與 use strict。）</p></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-20</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{hljs.highlightAll();}catch(e){}
+(function(){
+  var marks=[].slice.call(document.querySelectorAll('mark'));
+  marks.forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('quiz-hidden');});});
+  var btn=document.getElementById('quizToggle'),hidden=false;
+  if(btn){btn.addEventListener('click',function(){
+    hidden=!hidden;
+    marks.forEach(function(m){m.classList.toggle('quiz-hidden',hidden);});
+    btn.textContent=hidden?'👀 顯示全部重點':'🙈 隱藏全部重點（自我測驗）';
+  });}
+})();</script>
+</body>
+</html>

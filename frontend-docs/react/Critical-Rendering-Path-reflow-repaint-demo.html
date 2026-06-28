@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>重排 vs 重繪 實測 Demo</title>
+<style>
+  body{font-family:system-ui,"Noto Sans TC",sans-serif;background:#0f1220;color:#e7e9f3;padding:24px;line-height:1.7}
+  h1{font-size:22px} h2{font-size:17px;color:#5ee0c0;margin-top:24px}
+  button{background:#7c9bff;color:#0b0e1c;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;margin:4px 6px 4px 0}
+  button.warn{background:#ffb454}
+  #box{width:120px;height:60px;background:#5ee0c0;color:#0b0e1c;display:flex;align-items:center;justify-content:center;border-radius:8px;margin:14px 0;font-weight:700;transition:none}
+  #log{background:#0b0e1c;border:1px solid #2c3358;border-radius:8px;padding:12px;font-family:monospace;font-size:13px;white-space:pre-wrap;min-height:80px}
+  .note{color:#9aa3c7;font-size:13px}
+</style>
+</head>
+<body>
+  <h1>🔬 重排（Reflow）vs 重繪（Repaint）實測</h1>
+  <p class="note">打開 <b>F12 → Performance（效能）</b> 錄製後再按下面的按鈕，可在火焰圖看到 <b>Layout</b>（重排）與 <b>Paint</b>（重繪）事件，親眼驗證「重排一定先於重繪」。</p>
+
+  <div id="box">BOX</div>
+
+  <h2>只重繪（改顏色，幾何不變）</h2>
+  <button onclick="repaintOnly()">改背景色 → 只 Paint</button>
+
+  <h2>重排＋重繪（改寬度，幾何改變）</h2>
+  <button class="warn" onclick="reflow()">改寬度 → Layout 後必 Paint</button>
+
+  <h2>Layout Thrashing vs 讀寫分離（看 console 耗時）</h2>
+  <button onclick="bad()">❌ 交錯讀寫（強制同步重排）</button>
+  <button onclick="good()">✅ 讀寫分離</button>
+
+  <h2>Log</h2>
+  <div id="log">尚未操作…</div>
+
+<script>
+const box=document.getElementById('box'), log=document.getElementById('log');
+function out(t){log.textContent=t+"\n"+log.textContent;}
+
+function repaintOnly(){
+  box.style.backgroundColor = '#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0');
+  out('🎨 只改 background-color → 觸發 Repaint（幾何沒變，不重排）');
+}
+function reflow(){
+  box.style.width = (80+Math.floor(Math.random()*200))+'px';
+  out('📐 改 width → 觸發 Reflow（Layout），接著一定 Repaint');
+}
+
+// 製造一堆元素來放大差異
+function makeBoxes(n){
+  const f=document.createDocumentFragment();
+  for(let i=0;i<n;i++){const d=document.createElement('div');d.className='probe';d.style.width='50px';d.textContent='.';f.appendChild(d);}
+  const host=document.createElement('div');host.id='host';host.appendChild(f);document.body.appendChild(host);
+  return [...host.children];
+}
+function cleanup(){const h=document.getElementById('host');if(h)h.remove();}
+
+function bad(){
+  cleanup(); const boxes=makeBoxes(2000); const t=performance.now();
+  for(const el of boxes){ el.style.width = el.offsetWidth + 1 + 'px'; } // 寫後立刻讀 → 強制同步重排
+  out('❌ Layout thrashing 耗時：'+(performance.now()-t).toFixed(1)+' ms'); cleanup();
+}
+function good(){
+  cleanup(); const boxes=makeBoxes(2000); const t=performance.now();
+  const widths = boxes.map(el=>el.offsetWidth);            // 先全部讀
+  boxes.forEach((el,i)=> el.style.width = widths[i]+1+'px'); // 再全部寫
+  out('✅ 讀寫分離 耗時：'+(performance.now()-t).toFixed(1)+' ms'); cleanup();
+}
+</script>
+</body>
+</html>

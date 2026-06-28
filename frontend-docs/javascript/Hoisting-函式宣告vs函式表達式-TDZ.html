@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hoisting：函式宣告 vs 函式表達式（TDZ）與 toFixed 比較陷阱</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;}
+.meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 3px;border-radius:3px;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">Hoisting：函式宣告 vs 函式表達式（TDZ）與 toFixed 比較陷阱</h1>
+  <div class="tags"><span class="tag">#gemini</span><span class="tag">#javascript</span><span class="tag">#hoisting</span><span class="tag">#tdz</span><span class="tag">#function</span><span class="tag">#toFixed</span></div>
+  <div class="meta">更新於 2026-06-19　·　<a href="https://gemini.google.com/app/a8283484f401c280" target="_blank">來源連結</a></div>
+</header>
+<h1>Hoisting：函式宣告 vs 函式表達式（TDZ）與 toFixed 比較陷阱</h1>
+<blockquote>
+<p>此對話標題被自動命名為「閉包」，但實際內容是 Hoisting／TDZ 與折扣計算，故依實質內容歸檔。</p>
+</blockquote>
+<section class="card"><h2>重點整理</h2>
+<h3>函式宣告為什麼免疫於 TDZ？</h3>
+<p>JS 引擎在執行前有「編譯階段」。看到 <mark style="background: #ADCCFFA6;">函式宣告</mark> <code>function foo(){}</code> 時，會把<mark style="background: #FFF3A3A6;">「名稱＋整個函式內容」一起提升到範疇頂端</mark>，所以在實際第一行之前就能呼叫，沒有死區。</p>
+<pre><code class="language-javascript">processProducts();              // ✅ 可以，提早呼叫沒問題
+function processProducts(){ console.log(&quot;成功執行！&quot;); }
+</code></pre>
+<h3>什麼時候才會遇到 TDZ？</h3>
+<p>把函式放進 <code>let</code> / <code>const</code>（<mark style="background: #ADCCFFA6;">函式表達式</mark>）時，編譯階段<mark style="background: #FF5582A6;">只提升變數名稱、不初始化</mark>。從提升到執行到賦值那行之間就是 <mark style="background: #FF5582A6;">TDZ（暫時性死區）</mark>，在死區內呼叫直接報錯。</p>
+<pre><code class="language-javascript">processProducts();   // ❌ ReferenceError: Cannot access ... before initialization
+const processProducts = function(){ console.log(&quot;我想執行...&quot;); };
+</code></pre>
+<blockquote>
+<p>[!note] 記憶法<br />
+<code>function foo(){}</code>（宣告）：連名帶身體一起提升，<mark style="background: #BBFABBA6;">沒有 TDZ，隨處可用</mark>。<br />
+<code>const foo = function(){}</code>（表達式）：變數雖提升但賦值前都在 TDZ，提早呼叫直接死。</p>
+</blockquote>
+<h3>補充：折扣計算與 <code>toFixed</code> 比較陷阱</h3>
+<ul>
+<li>兩種折扣寫法數學等價：<code>price - price*discount/100</code> 與 <code>price*(1 - discount/100)</code>（discount=30、price=100 都得 70）。</li>
+<li><mark style="background: #FF5582A6;">陷阱</mark>：<code>.toFixed(2)</code> 會把數字轉成<mark style="background: #FFB8EBA6;">字串</mark>，之後若直接拿去和數字（如 <code>&gt; 80</code>）比較，會因字串 vs 數字而產生意外結果。比較前要先 <code>Number(...)</code> 轉回數字。</li>
+</ul>
+<h3>補充：匯出 / 搬移 AI 對話（對話原文含此實用資訊）</h3>
+<ul>
+<li><mark style="background: #BBFABBA6;">ChatGPT</mark>：設定 → 資料控制 → 匯出資料，幾分鐘後寄到信箱（連結 24 小時有效），解壓有 <code>chat.html</code> 與 <code>conversations.json</code>。</li>
+<li><mark style="background: #BBFABBA6;">Gemini</mark>：單一對話用「分享與匯出」可存到 Google 文件／Gmail 草稿；完整歷史要用 <mark style="background: #ADCCFFA6;">Google Takeout</mark> →「取消全選」→ 找「我的活動 My Activity」勾「Gemini Apps」→ 建立匯出。</li>
+<li>搬家建議：與其丟整坨 JSON（雜訊多），不如請 AI 把「記憶／偏好」整理成 Markdown 清單，貼到新 AI 的自訂指令，理解效率最高。</li>
+</ul></section>
+<section class="card"><h2>各對話來源</h2>
+<h3>JavaScript 閉包的重要性（實為 Hoisting/TDZ 與折扣計算 + AI 匯出）（2026-06）— https://gemini.google.com/app/a8283484f401c280</h3>
+<p>使用者：（看程式碼）finalPrice 先乘折扣再 toFixed，filter 又拿字串和 80 比？</p>
+<p>Gemini：<code>processProducts</code> 算 finalPrice 時先乘 <code>(1 - totalDiscount/100)</code>，第 54 行 <code>.toFixed(2)</code> 轉成字串，第 58 行 <code>.filter</code> 拿字串與數字 80 比可能有意外結果，比較前應轉回數字。</p>
+<p>使用者：黑底與白底畫面的算法差在哪？</p>
+<p>Gemini：黑底 <code>price - price*discount/100</code>、白底 <code>price*(1 + ...)</code>，數學上等價（discount=30、price=100 皆得 70），只是不同表達方式。</p>
+<p>使用者：直接 <code>function processProducts</code> 不會有 TDZ／暫時性死區嗎？</p>
+<p>Gemini：不會。函式宣告在編譯階段「連名帶身體」提升到範疇頂端，提早呼叫也沒問題；只有 <code>const/let</code> 的函式表達式才有 TDZ（只提升變數名、不初始化，賦值前呼叫報錯）。記憶法如上。</p>
+<p>使用者：要怎麼把 ChatGPT 的記憶/對話全部匯出到其他 AI？</p>
+<p>Gemini：沒有一鍵同步。ChatGPT：設定→資料控制→匯出資料（寄信、含 chat.html 與 conversations.json）。搬家建議提煉「記憶/偏好」成 Markdown 貼到新 AI 自訂指令，比丟整坨 JSON 好。</p>
+<p>使用者：Gemini 有匯出對話功能嗎？（並請協助記錄今天 1 點後做的事）</p>
+<p>Gemini：單一對話可「分享與匯出」到 Docs/Gmail 草稿；完整歷史用 Google Takeout →取消全選→「我的活動」勾「Gemini Apps」→建立匯出。並提供把系統變更紀錄整理成文字、以及 Google 行事曆「一鍵加入」連結／手動欄位（活動 13:00–14:00）。</p></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-19</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{document.querySelectorAll('pre code').forEach(function(b){hljs.highlightElement(b);});}catch(e){}</script>
+</body>
+</html>

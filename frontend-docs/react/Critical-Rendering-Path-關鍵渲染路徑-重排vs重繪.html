@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Critical Rendering Path（關鍵渲染路徑）＋ 重排 vs 重繪</title>
+<style>
+  :root{
+    --bg:#0f1220; --panel:#181c2e; --panel2:#1f2440; --ink:#e7e9f3; --muted:#9aa3c7;
+    --line:#2c3358; --accent:#7c9bff; --accent2:#5ee0c0; --warn:#ffb454; --danger:#ff7a90;
+    --ok:#6ee7a0; --chip:#262c4a; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:radial-gradient(1200px 600px at 20% -10%,#1a2142 0%,transparent 60%),var(--bg);
+    color:var(--ink);font-family:"Segoe UI","Noto Sans TC",system-ui,-apple-system,sans-serif;
+    line-height:1.75;letter-spacing:.2px;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:40px 22px 100px}
+  header.hero{
+    background:linear-gradient(135deg,#222a52,#161a2e);border:1px solid var(--line);
+    border-radius:20px;padding:30px 28px;margin-bottom:26px;position:relative;overflow:hidden
+  }
+  header.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;
+    background:radial-gradient(circle,var(--accent) 0%,transparent 70%);opacity:.18}
+  h1{margin:0 0 6px;font-size:30px}
+  .sub{color:var(--muted);font-size:15px}
+  .tags{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+  .tag{background:var(--chip);border:1px solid var(--line);color:var(--accent2);
+    padding:4px 12px;border-radius:999px;font-size:13px}
+  h2{margin:36px 0 12px;font-size:22px;border-left:4px solid var(--accent);padding-left:12px}
+  h3{margin:24px 0 8px;font-size:18px;color:var(--accent2)}
+  p{margin:10px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin:14px 0}
+  .muted{color:var(--muted)}
+  code{background:#0b0e1c;border:1px solid var(--line);padding:1px 7px;border-radius:6px;color:#ffd9a0;font-size:13.5px}
+  pre{background:#0b0e1c;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;font-size:13.5px}
+  pre code{border:none;background:none;padding:0;color:#cfe3ff}
+  .wlink{color:var(--accent);text-decoration:none;border-bottom:1px dashed var(--accent)}
+  .wlink::before{content:"🔗 ";opacity:.7}
+  /* CRP pipeline */
+  .pipe{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin:18px 0}
+  .step{flex:1 1 120px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    padding:12px;text-align:center;position:relative;transition:.25s;cursor:default;min-width:110px}
+  .step .n{font-size:12px;color:var(--muted)}
+  .step .t{font-weight:700;margin-top:4px}
+  .step .e{font-size:12px;color:var(--muted);margin-top:2px}
+  .step.lit{border-color:var(--accent);box-shadow:0 0 0 2px rgba(124,155,255,.25);transform:translateY(-3px)}
+  .step.reflow.lit{border-color:var(--warn);box-shadow:0 0 0 2px rgba(255,180,84,.3)}
+  .step.repaint.lit{border-color:var(--accent2);box-shadow:0 0 0 2px rgba(94,224,192,.3)}
+  .runbtn{background:var(--accent);color:#0b0e1c;border:none;border-radius:10px;padding:9px 16px;
+    font-weight:700;cursor:pointer;font-size:14px}
+  .runbtn:hover{filter:brightness(1.08)}
+  /* compare table */
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--accent2)}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:700}
+  .pill.r{background:rgba(255,180,84,.15);color:var(--warn);border:1px solid var(--warn)}
+  .pill.p{background:rgba(94,224,192,.15);color:var(--accent2);border:1px solid var(--accent2)}
+  /* interactive blanks */
+  .blank{background:#2a2f52;border-bottom:2px solid var(--accent);border-radius:4px;padding:1px 14px;
+    cursor:pointer;color:transparent;user-select:none;transition:.2s;font-weight:700;min-width:60px;display:inline-block;text-align:center}
+  .blank:hover{background:#343b66}
+  .blank.show{color:var(--accent2);background:rgba(94,224,192,.12);border-bottom-color:var(--accent2)}
+  .hint{font-size:12px;color:var(--muted);margin-left:6px}
+  /* quiz */
+  .q{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+  .q .qh{font-weight:700;margin-bottom:10px}
+  .opt{display:block;background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;margin:6px 0;cursor:pointer;transition:.15s}
+  .opt:hover{border-color:var(--accent)}
+  .opt.correct{border-color:var(--ok);background:rgba(110,231,160,.12)}
+  .opt.wrong{border-color:var(--danger);background:rgba(255,122,144,.12)}
+  .toggle{background:var(--chip);border:1px solid var(--line);color:var(--accent);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font-size:13px;margin-top:8px}
+  .answer{display:none;margin-top:10px;padding:12px 14px;border-left:3px solid var(--accent2);
+    background:rgba(94,224,192,.06);border-radius:0 8px 8px 0}
+  .answer.show{display:block}
+  .essay textarea{width:100%;min-height:90px;background:#0b0e1c;color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:10px;font-family:inherit;font-size:14px;resize:vertical}
+  .tf{display:flex;gap:10px;margin-top:8px}
+  .tf button{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    border-radius:8px;padding:9px;cursor:pointer;font-weight:700}
+  .tf button.sel-correct{border-color:var(--ok);background:rgba(110,231,160,.15)}
+  .tf button.sel-wrong{border-color:var(--danger);background:rgba(255,122,144,.15)}
+  .feedback{font-size:13px;margin-top:8px;min-height:18px}
+  .key{display:inline-block;background:#0b0e1c;border:1px solid var(--line);border-bottom-width:3px;
+    border-radius:6px;padding:0 8px;font-size:13px}
+  .callout{border-left:4px solid var(--warn);background:rgba(255,180,84,.08);padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+  .callout.ok{border-color:var(--ok);background:rgba(110,231,160,.08)}
+  .small{font-size:13px}
+  footer{margin-top:50px;color:var(--muted);font-size:13px;text-align:center;border-top:1px solid var(--line);padding-top:20px}
+  .toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .toc a{font-size:13px;color:var(--ink);background:var(--chip);border:1px solid var(--line);
+    padding:5px 11px;border-radius:8px;text-decoration:none}
+  .toc a:hover{border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>🎨 Critical Rendering Path（關鍵渲染路徑）</h1>
+    <div class="sub">瀏覽器從「拿到 HTML / CSS / JS」到「畫面真正出現像素」之間，到底發生了什麼事？<br>並且回答：<b>重排（Reflow）和重繪（Repaint）哪一個先？</b></div>
+    <div class="tags">
+      <span class="tag">#前端</span><span class="tag">#瀏覽器渲染</span>
+      <span class="tag">#效能優化</span><span class="tag">#面試常考</span>
+    </div>
+    <div class="toc">
+      <a href="#what">① CRP 是什麼</a>
+      <a href="#steps">② 六大步驟</a>
+      <a href="#order">③ 重排 vs 重繪：誰先？</a>
+      <a href="#trigger">④ 什麼會觸發</a>
+      <a href="#opt">⑤ 優化技巧</a>
+      <a href="#quiz">⑥ 互動測驗</a>
+    </div>
+  </header>
+
+  <p class="muted small">🔗 關聯筆記（Obsidian 雙向連結）：
+    <a class="wlink" href="#">[[DOM 與 CSSOM]]</a>
+    <a class="wlink" href="#">[[requestAnimationFrame]]</a>
+    <a class="wlink" href="#">[[GPU 合成 Composite]]</a>
+    <a class="wlink" href="#">[[防抖與節流 debounce-throttle]]</a>
+    <a class="wlink" href="#">[[CSS will-change 與 transform]]</a>
+  </p>
+
+  <!-- ====== ① ====== -->
+  <h2 id="what">① Critical Rendering Path 是什麼</h2>
+  <div class="card">
+    <p><b>關鍵渲染路徑</b>指的是瀏覽器把 <code>HTML</code>、<code>CSS</code>、<code>JavaScript</code> 轉換成螢幕上「實際像素」所必須經過的一連串步驟。優化 CRP，就是讓「首次有意義的畫面」更快出現（影響 FCP / LCP 等指標）。</p>
+    <p class="muted small">一句話記憶：<b>把字串（程式碼）變成像素（畫面）的最短關鍵流程。</b></p>
+  </div>
+
+  <!-- ====== ② ====== -->
+  <h2 id="steps">② 六大步驟（點「播放」看流程點亮）</h2>
+  <div class="card">
+    <div class="pipe" id="pipe">
+      <div class="step" data-i="0"><div class="n">Step 1</div><div class="t">DOM</div><div class="e">解析 HTML</div></div>
+      <div class="step" data-i="1"><div class="n">Step 2</div><div class="t">CSSOM</div><div class="e">解析 CSS</div></div>
+      <div class="step" data-i="2"><div class="n">Step 3</div><div class="t">Render Tree</div><div class="e">DOM＋CSSOM</div></div>
+      <div class="step reflow" data-i="3"><div class="n">Step 4</div><div class="t">Layout / 重排</div><div class="e">算位置大小</div></div>
+      <div class="step repaint" data-i="4"><div class="n">Step 5</div><div class="t">Paint / 重繪</div><div class="e">填顏色像素</div></div>
+      <div class="step" data-i="5"><div class="n">Step 6</div><div class="t">Composite</div><div class="e">圖層合成</div></div>
+    </div>
+    <button class="runbtn" id="play">▶ 播放渲染流程</button>
+    <div style="margin-top:14px" class="small muted">
+      <p><b>1. DOM Tree</b>：解析 HTML，建立節點樹。</p>
+      <p><b>2. CSSOM Tree</b>：解析 CSS，建立樣式樹（CSS 是<b>渲染阻塞</b>資源）。</p>
+      <p><b>3. Render Tree</b>：把 DOM ＋ CSSOM 合併，<b>只留下會顯示的節點</b>（<code>display:none</code> 不會進 render tree，但 <code>visibility:hidden</code> 會）。</p>
+      <p><b>4. Layout（又叫 Reflow / 重排）</b>：計算每個節點的<b>幾何資訊</b>——確切的位置、寬高、相對關係。</p>
+      <p><b>5. Paint（又叫 Repaint / 重繪）</b>：把節點轉成實際像素，填上顏色、文字、邊框、陰影、背景。</p>
+      <p><b>6. Composite（合成）</b>：把多個圖層（layers）依正確順序疊合成最終畫面，常由 GPU 處理。</p>
+    </div>
+  </div>
+
+  <!-- ====== ③ ====== -->
+  <h2 id="order">③ 核心問題：重排（Reflow）和重繪（Repaint）哪一個先？</h2>
+
+  <div class="callout ok">
+    <b>結論：重排（Reflow / Layout）先，重繪（Repaint / Paint）後。</b><br>
+    在流程順序上是 <b>Layout → Paint</b>。瀏覽器一定要先算出「東西在哪、多大」，才有辦法「在那個位置塗上顏色」。
+  </div>
+
+  <div class="card">
+    <h3>為什麼是這個順序？用蓋房子比喻</h3>
+    <p>🏗️ <b>重排 = 量地、放隔間、定家具位置</b>（決定幾何）。<br>
+       🎨 <b>重繪 = 油漆牆面、貼壁紙</b>（決定外觀）。</p>
+    <p>你不可能在「還沒決定牆在哪」之前就先油漆，所以<b>一定先量好（重排），再上色（重繪）</b>。</p>
+
+    <h3>更關鍵的一條規則（面試加分）</h3>
+    <p class="card" style="background:var(--panel2)">
+      🔁 <b>重排「一定」會引發重繪；但重繪「不一定」會引發重排。</b><br>
+      <span class="muted small">因為位置/大小一旦改變（重排），那塊區域的像素必須重畫（重繪）。但若只是改顏色（重繪），幾何沒變，就不需要重排。所以<b>重排比重繪更昂貴</b>，效能優化要優先避免重排。</span>
+    </p>
+
+    <h3>填空練習（點灰色色塊看答案）</h3>
+    <p>渲染順序是先 <span class="blank" data-a="重排 Reflow">重排 Reflow</span> 再 <span class="blank" data-a="重繪 Repaint">重繪 Repaint</span>。
+       其中 <span class="blank" data-a="重排">重排</span> 一定會引發 <span class="blank" data-a="重繪">重繪</span>，
+       但 <span class="blank" data-a="重繪">重繪</span> 不一定會引發 <span class="blank" data-a="重排">重排</span>。
+       所以效能上 <span class="blank" data-a="重排">重排</span> 的成本比較高。
+       <span class="hint">← 點任一色塊顯示／再點隱藏</span>
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>重排 vs 重繪 對照表</h3>
+    <table>
+      <tr><th>比較項目</th><th><span class="pill r">重排 Reflow / Layout</span></th><th><span class="pill p">重繪 Repaint / Paint</span></th></tr>
+      <tr><td>改變了什麼</td><td>幾何：位置、大小、排版結構</td><td>外觀：顏色、背景、邊框、陰影、文字色</td></tr>
+      <tr><td>順序</td><td>先（第 4 步）</td><td>後（第 5 步）</td></tr>
+      <tr><td>連帶關係</td><td>會連帶引發重繪</td><td>不會連帶引發重排</td></tr>
+      <tr><td>效能成本</td><td>高（可能牽動整棵子樹甚至整頁）</td><td>較低（只重畫受影響區域）</td></tr>
+      <tr><td>典型觸發</td><td><code>width</code>、<code>height</code>、<code>top</code>、<code>margin</code>、<code>display</code>、新增/刪除節點、改字體大小、讀取 <code>offsetWidth</code></td><td><code>color</code>、<code>background-color</code>、<code>visibility</code>、<code>box-shadow</code>、<code>border-color</code></td></tr>
+    </table>
+    <p class="small muted">💡 最理想：能不碰重排、也不碰重繪。<code>transform</code> 與 <code>opacity</code> 的動畫可以只走 <b>Composite（合成）</b>，交給 GPU，跳過重排與重繪——這就是流暢動畫的秘訣。見 <a class="wlink" href="#">[[CSS will-change 與 transform]]</a>。</p>
+  </div>
+
+  <!-- ====== ④ ====== -->
+  <h2 id="trigger">④ 什麼操作會觸發？</h2>
+  <div class="card">
+    <h3>會觸發「重排」的常見動作</h3>
+    <pre><code>// ❌ 改幾何 → 重排（接著一定重繪）
+el.style.width = "300px";
+el.style.display = "block";
+el.style.margin = "20px";
+document.body.appendChild(newNode);   // 增刪節點
+window.resize / 字體大小改變 / 內容變多
+
+// ⚠️ 讀取「即時幾何值」會強制同步重排（layout thrashing）
+el.offsetWidth; el.offsetHeight; el.getBoundingClientRect();
+el.scrollTop; getComputedStyle(el);</code></pre>
+
+    <h3>只觸發「重繪」、不重排的動作</h3>
+    <pre><code>// ✅ 只改外觀 → 只重繪
+el.style.color = "#fff";
+el.style.backgroundColor = "tomato";
+el.style.visibility = "hidden";       // 注意：仍佔位，所以不重排
+el.style.boxShadow = "0 2px 8px #000";</code></pre>
+
+    <div class="callout">
+      <b>陷阱題：<code>visibility:hidden</code> vs <code>display:none</code></b><br>
+      <code>visibility:hidden</code>：元素還佔空間 → 只<b>重繪</b>。<br>
+      <code>display:none</code>：元素從版面消失 → 觸發<b>重排</b>（連幾何都變了）。
+    </div>
+  </div>
+
+  <!-- ====== ⑤ ====== -->
+  <h2 id="opt">⑤ 優化技巧（減少重排重繪）</h2>
+  <div class="card">
+    <ol>
+      <li><b>批次修改樣式</b>：用 <code>class</code> 一次切換，或先 <code>cssText</code> 一次寫完，不要一行一行改。</li>
+      <li><b>讀寫分離</b>：避免「讀幾何 → 寫樣式 → 又讀幾何」交錯，會造成 <b>layout thrashing</b>（強制多次同步重排）。先全部讀、再全部寫。</li>
+      <li><b>離線操作</b>：先 <code>display:none</code> 或用 <code>DocumentFragment</code> 改完再一次插回 DOM。</li>
+      <li><b>用 <code>transform</code> / <code>opacity</code> 做動畫</b>：走合成層，跳過重排重繪。搭配 <code>will-change</code> 提前提示瀏覽器。</li>
+      <li><b>動畫用 <code>requestAnimationFrame</code></b>：在下一次<b>重繪前</b>執行，和瀏覽器的刷新節奏對齊，避免掉幀。見 <a class="wlink" href="#">[[requestAnimationFrame]]</a>。</li>
+    </ol>
+    <pre><code>// ❌ Layout thrashing：讀-寫-讀-寫交錯，每次都強制重排
+for (const el of boxes){
+  el.style.width = el.offsetWidth + 10 + "px"; // 讀後馬上寫
+}
+
+// ✅ 讀寫分離：先讀完，再寫完
+const widths = boxes.map(el => el.offsetWidth); // 全部讀
+boxes.forEach((el,i)=> el.style.width = widths[i] + 10 + "px"); // 全部寫</code></pre>
+  </div>
+
+  <!-- ====== ⑥ ====== -->
+  <h2 id="quiz">⑥ 互動測驗</h2>
+
+  <!-- 單選 -->
+  <div class="q" data-correct="1">
+    <div class="qh">Q1（單選）下列關於重排與重繪的順序，何者正確？</div>
+    <div class="opt" data-i="0">先重繪，再重排</div>
+    <div class="opt" data-i="1">先重排，再重繪</div>
+    <div class="opt" data-i="2">兩者同時發生，沒有先後</div>
+    <div class="opt" data-i="3">看瀏覽器決定，順序不固定</div>
+    <div class="feedback"></div>
+  </div>
+
+  <!-- 是非題 -->
+  <div class="q tfq" data-ans="true">
+    <div class="qh">Q2（是非）「重排一定會引發重繪，但重繪不一定會引發重排。」</div>
+    <div class="tf">
+      <button data-v="true">⭕ 對</button>
+      <button data-v="false">❌ 錯</button>
+    </div>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="q tfq" data-ans="false">
+    <div class="qh">Q3（是非）「把 <code>el.style.color</code> 改成紅色會觸發重排。」</div>
+    <div class="tf">
+      <button data-v="true">⭕ 對</button>
+      <button data-v="false">❌ 錯</button>
+    </div>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="q tfq" data-ans="true">
+    <div class="qh">Q4（是非）「<code>display:none</code> 會觸發重排，<code>visibility:hidden</code> 只觸發重繪。」</div>
+    <div class="tf">
+      <button data-v="true">⭕ 對</button>
+      <button data-v="false">❌ 錯</button>
+    </div>
+    <div class="feedback"></div>
+  </div>
+
+  <!-- 申論題 -->
+  <div class="q essay">
+    <div class="qh">Q5（申論）請說明完整的 Critical Rendering Path 流程，並解釋為什麼「重排一定先於重繪」。再舉一個前端優化重排重繪的實際做法。</div>
+    <textarea placeholder="先寫下你自己的答案，再點下方看參考解答…"></textarea>
+    <button class="toggle">顯示 / 隱藏 參考解答</button>
+    <div class="answer">
+      <p><b>① CRP 流程：</b>解析 HTML 建立 <b>DOM</b> → 解析 CSS 建立 <b>CSSOM</b> → 兩者合併成 <b>Render Tree</b>（只含可見節點）→ <b>Layout（重排）</b> 計算每個節點的位置與大小 → <b>Paint（重繪）</b> 把節點轉成像素、上色 → <b>Composite</b> 把圖層合成最終畫面。</p>
+      <p><b>② 為何重排先於重繪：</b>重繪需要知道「要在哪裡、多大範圍」塗顏色，而這些幾何資訊正是重排階段算出來的。沒有幾何就無法上色，所以順序必為 Layout → Paint。延伸：重排改變幾何，該區域必須重畫，因此<b>重排一定引發重繪</b>；而重繪只改外觀、幾何不變，<b>不會反過來引發重排</b>，故重排成本更高。</p>
+      <p><b>③ 優化實例：</b>用 <code>transform: translate()</code> 取代修改 <code>top/left</code> 來做位移動畫，讓動畫走 GPU 合成層，跳過重排與重繪；或採「讀寫分離」避免 layout thrashing；或用 <code>class</code> 批次切換樣式。</p>
+    </div>
+  </div>
+
+  <!-- 申論題 2 -->
+  <div class="q essay">
+    <div class="qh">Q6（申論）什麼是 layout thrashing（強制同步重排）？為什麼會發生？怎麼避免？</div>
+    <textarea placeholder="寫下你的答案…"></textarea>
+    <button class="toggle">顯示 / 隱藏 參考解答</button>
+    <div class="answer">
+      <p>瀏覽器原本會把多次 DOM 修改<b>合併</b>，在適當時機一次重排（批次最佳化）。但當你在修改樣式後<b>馬上讀取即時幾何值</b>（如 <code>offsetWidth</code>、<code>getBoundingClientRect()</code>），瀏覽器為了給你正確數字，被迫<b>立刻同步重排</b>。若在迴圈中「寫一次、讀一次」反覆交錯，就會觸發多次強制重排，效能急遽下降，這就是 <b>layout thrashing</b>。</p>
+      <p><b>避免方法：讀寫分離</b>——先把所有需要的幾何值一次讀完存起來，再統一進行所有寫入；或使用 <code>requestAnimationFrame</code> 安排寫入，避免在同一幀內讀寫交錯。</p>
+    </div>
+  </div>
+
+  <footer>
+    📝 本筆記由 ChatGPT 匯出資料與 Abby-notes 對照整理（你的匯出檔中曾在 <code>requestAnimationFrame</code> 脈絡提過 repaint，已在此補上完整 CRP 與重排/重繪順序）。<br>
+    可貼進 Obsidian，建議搭配 <b>HTML Reader</b> 外掛閱讀；雙向連結 <code>[[ ]]</code> 已預留，highlightr 可標重點。<br>
+    <span class="key">提示</span> 灰色色塊＝填空（點擊翻答案），測驗即時批改。
+  </footer>
+</div>
+
+<script>
+// ---- 填空 ----
+document.querySelectorAll('.blank').forEach(b=>{
+  b.textContent = b.dataset.a;          // 內容存在但被 transparent 隱藏
+  b.addEventListener('click',()=>b.classList.toggle('show'));
+});
+
+// ---- CRP 流程播放 ----
+const steps=[...document.querySelectorAll('#pipe .step')];
+document.getElementById('play').addEventListener('click',()=>{
+  steps.forEach(s=>s.classList.remove('lit'));
+  steps.forEach((s,i)=>setTimeout(()=>{
+    steps.forEach(x=>x.classList.remove('lit'));
+    s.classList.add('lit');
+    if(i===steps.length-1) setTimeout(()=>s.classList.remove('lit'),700);
+  }, i*650));
+});
+
+// ---- 單選題 ----
+document.querySelectorAll('.q[data-correct]').forEach(q=>{
+  const correct=+q.dataset.correct, fb=q.querySelector('.feedback');
+  q.querySelectorAll('.opt').forEach(o=>o.addEventListener('click',()=>{
+    q.querySelectorAll('.opt').forEach(x=>x.classList.remove('correct','wrong'));
+    if(+o.dataset.i===correct){o.classList.add('correct');fb.textContent='✅ 正確！先量好幾何（重排），才能上色（重繪）。';fb.style.color='var(--ok)';}
+    else{o.classList.add('wrong');q.querySelector(`.opt[data-i="${correct}"]`).classList.add('correct');fb.textContent='❌ 再想想：渲染順序是 Layout → Paint。';fb.style.color='var(--danger)';}
+  }));
+});
+
+// ---- 是非題 ----
+document.querySelectorAll('.tfq').forEach(q=>{
+  const ans=q.dataset.ans==='true', fb=q.querySelector('.feedback');
+  q.querySelectorAll('.tf button').forEach(btn=>btn.addEventListener('click',()=>{
+    q.querySelectorAll('.tf button').forEach(b=>b.classList.remove('sel-correct','sel-wrong'));
+    const picked=btn.dataset.v==='true';
+    if(picked===ans){btn.classList.add('sel-correct');fb.textContent='✅ 答對了！';fb.style.color='var(--ok)';}
+    else{btn.classList.add('sel-wrong');fb.textContent='❌ 不對喔，正確答案是「'+(ans?'對':'錯')+'」。';fb.style.color='var(--danger)';}
+  }));
+});
+
+// ---- 申論／參考解答 toggle ----
+document.querySelectorAll('.essay .toggle').forEach(t=>{
+  t.addEventListener('click',()=>t.nextElementSibling.classList.toggle('show'));
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown 渲染為 DOM 的過程（Runtime vs Build-time）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>Markdown 渲染為 DOM 的過程（Runtime vs Build-time）</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#frontend</span><span class="pill">#markdown</span><span class="pill">#dom</span><span class="pill">#marked-js</span><span class="pill">#ssg</span><span class="pill">#web-platform</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/e2b23f09e5b753b9" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><h2>重點整理</h2>
+<h3>核心觀念：Markdown 不能「直接」被渲染成 DOM</h3>
+<p>瀏覽器原生只看得懂 <mark style="background: #ADCCFFA6;">HTML、CSS、JavaScript</mark> 三種東西。把一個 <code>.md</code> 檔案直接丟進瀏覽器，它<mark style="background: #FF5582A6;">只會當成純文字（Plain Text）顯示</mark>，<strong>不會</strong>自動把 <code>#</code> 變成 <code>&lt;h1&gt;</code>、把 <code>**字**</code> 變成 <code>&lt;strong&gt;</code>。</p>
+<p>所以一定要經過一個<mark style="background: #FFF3A3A6;">「轉換」步驟</mark>，先把 Markdown 變成 HTML 字串，瀏覽器才能解析成 DOM。</p>
+<h3>兩種轉換做法</h3>
+<table>
+<thead>
+<tr>
+<th>做法</th>
+<th>何時轉換</th>
+<th>代表工具</th>
+<th>特點</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><mark style="background: #ADCCFFA6;">前端即時轉換 (Runtime)</mark></td>
+<td>瀏覽器執行時</td>
+<td>marked.js</td>
+<td>動態、彈性，但要在用戶端跑 JS</td>
+</tr>
+<tr>
+<td><mark style="background: #ADCCFFA6;">靜態預編譯 (Build-time)</mark></td>
+<td>專案打包時</td>
+<td>Next.js / Gatsby / Astro</td>
+<td>使用者下載到的已是現成 DOM，最快</td>
+</tr>
+</tbody>
+</table>
+<h3>做法一：前端即時轉換（Runtime）</h3>
+<p>利用 JavaScript 在瀏覽器執行時動態把 Markdown 轉成 HTML，再塞進 DOM：</p>
+<pre><code class="language-js">// 使用 marked.js 範例
+import { marked } from 'marked';
+
+const markdownString = &quot;# 這是標題&quot;;
+// 1. 轉成 HTML 字串
+const htmlString = marked.parse(markdownString);
+// 2. 塞進 DOM，瀏覽器才會渲染
+document.getElementById('content').innerHTML = htmlString;
+</code></pre>
+<p>關鍵兩步：<mark style="background: #FFF3A3A6;"><code>marked.parse()</code> 轉成 HTML 字串</mark> →（再）<mark style="background: #FFF3A3A6;">用 <code>innerHTML</code> 塞進 DOM</mark>。</p>
+<blockquote>
+<p>[!warning] 安全提醒<br />
+用 <code>innerHTML</code> 注入由 Markdown 轉出的 HTML，若來源不可信會有 <mark style="background: #FF5582A6;">XSS 風險</mark>，正式專案通常會搭配 DOMPurify 之類的工具先做淨化（sanitize）。</p>
+</blockquote>
+<h3>做法二：靜態預編譯（Build-time）</h3>
+<p>現代部落格框架（Next.js、Gatsby、Astro）最常用。在專案<mark style="background: #FFF3A3A6;">打包（Build）的時候</mark>，系統就先把所有 <code>.md</code> 檔案轉成 <code>.html</code>。使用者瀏覽時下載到的<mark style="background: #BBFABBA6;">已經是現成的 DOM 結構</mark>，不需要在瀏覽器再跑轉換，載入更快、對 SEO 更友善。</p>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>Markdown 渲染 DOM 的過程（2026-06）— https://gemini.google.com/app/e2b23f09e5b753b9</h3>
+<p><strong>使用者：</strong> Markdown 可以直接跟其他 html 檔案一樣被渲染成 DOM 嗎</p>
+<p><strong>Gemini：</strong> 簡短的答案是：不行，Markdown 不能直接像 HTML 一樣被瀏覽器渲染成 DOM。瀏覽器原生只看得懂 HTML、CSS 和 JavaScript。當你把一個 <code>.md</code> 檔案丟進瀏覽器時，它通常只會把它當成純文字（Plain Text）顯示，而不會自動幫你把 <code>#</code> 變成 <code>&lt;h1&gt;</code>，或是把 <code>**字**</code> 變成 <code>&lt;strong&gt;</code>。不過，可以透過一個「轉換」的過程，讓 Markdown 變成 DOM。</p>
+<p>現代前端的做法有兩種：</p>
+<ol>
+<li>
+<p><strong>前端即時轉換 (Runtime)</strong> — 利用 JavaScript 在瀏覽器執行時動態轉換（例如 marked.js）：先 <code>marked.parse()</code> 轉成 HTML 字串，再用 <code>innerHTML</code> 塞進 DOM，瀏覽器才會渲染。</p>
+</li>
+<li>
+<p><strong>靜態預編譯 (Build-time)</strong> — 現代部落格（如 Next.js, Gatsby, Astro）最常用。在專案打包（Build）的時候，系統就已經先把 <code>.md</code> 檔案全部轉成 <code>.html</code> 檔案了，使用者下載到瀏覽器時，已經是現成的 DOM 結構。</p>
+</li>
+</ol></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-06-27</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>

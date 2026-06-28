@@ -1,5 +1,7 @@
 # React Hooks 規則：useMemo 不能放在 conditional return 之後
 
+> 相關：[[React-Context-Provider消費者-AuthProvider與路由保護]]（Context value 變動造成的重渲染，常用 useMemo 包 value 來緩解）
+
 ## 規則
 
 React Hooks（`useState`、`useEffect`、`useMemo`、`useCallback` 等）**必須在元件的最頂層呼叫**，不能放在：
