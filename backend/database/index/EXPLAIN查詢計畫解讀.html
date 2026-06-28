@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EXPLAIN 查詢計畫解讀 — PostgreSQL Scan 型別 · MySQL type/key/Extra</title>
+<style>
+  :root{--bg:#0f1220;--panel:#171a2b;--panel2:#1e2236;--ink:#e8ebf5;--muted:#9aa3c0;
+    --line:#2b3050;--accent:#6ea8fe;--accent2:#7ee0c0;--warn:#ff5d6c;--warn-bg:#2a1620;
+    --ok:#34d399;--bad:#fb7185;--yellow:#f6c453;--pg:#5ad1ff;--my:#ffae57}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#1b2140 0,transparent 60%),var(--bg);
+    color:var(--ink);font-family:"Noto Sans TC","Segoe UI",system-ui,sans-serif;line-height:1.75;padding:0 0 80px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 22px}
+  header.hero{padding:54px 22px 30px;text-align:center;background:linear-gradient(180deg,rgba(110,168,254,.12),transparent);border-bottom:1px solid var(--line)}
+  header.hero h1{font-size:27px;margin:0 0 8px}.sub{color:var(--muted);font-size:15px}
+  .crumbs{font-size:13px;color:var(--muted);margin-top:14px}.crumbs code{background:var(--panel2);padding:2px 8px;border-radius:6px;color:var(--accent2)}
+  section{margin:38px 0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  h2{font-size:22px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  h2 .no{font-size:13px;font-weight:700;color:#0c1020;background:var(--accent);border-radius:8px;padding:3px 10px}
+  h3{font-size:17px;margin:20px 0 8px;color:var(--accent2)}
+  p{margin:10px 0}.lead{color:var(--muted);margin-top:2px}
+  code{font-family:"JetBrains Mono",Consolas,monospace;background:#0c1020;border:1px solid var(--line);padding:1px 6px;border-radius:6px;font-size:.9em;color:#ffd9a0}
+  pre{background:#0c1020;border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto;font-size:12.5px;line-height:1.6}
+  pre code{background:none;border:none;padding:0;color:#d9e2ff}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--accent2)}
+  .warn{background:var(--warn-bg);border:1px solid var(--warn);border-left:5px solid var(--warn);border-radius:12px;padding:16px;margin:14px 0}
+  .warn .lbl{display:inline-block;font-weight:800;color:#fff;background:var(--warn);border-radius:6px;padding:2px 10px;font-size:12px;margin-bottom:6px}
+  .ok{--warn:#34d399;--warn-bg:#0f2a20}.info{--warn:#6ea8fe;--warn-bg:#10203a}
+  .small{font-size:12.5px;color:var(--muted)}
+  /* type ladder */
+  .ladder{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0;align-items:stretch}
+  .rung{flex:1;min-width:90px;border-radius:10px;padding:10px 8px;text-align:center;border:1px solid var(--line);font-size:12.5px}
+  .rung b{display:block;font-size:14px;margin-bottom:2px}
+  .g1{background:#0f2a20;border-color:#34d399;color:#9ff0c8}
+  .g2{background:#13301f;border-color:#5ad19a;color:#bff3d2}
+  .g3{background:#2a2a12;border-color:#cbb43a;color:#f0e2a0}
+  .g4{background:#3a2410;border-color:#ffae57;color:#ffd9a0}
+  .g5{background:#2a1620;border-color:#ff5d6c;color:#ffb0a0}
+  .acc{border:1px solid var(--line);border-radius:12px;margin:10px 0;overflow:hidden;background:var(--panel2)}
+  .acc>button{width:100%;text-align:left;background:none;border:none;color:var(--ink);padding:14px 16px;font-size:15px;font-weight:700;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .acc>button .tg{color:var(--accent);font-size:13px;white-space:nowrap}
+  .acc>button .vd{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:auto;margin-right:8px}
+  .vd.good{background:#0f2a20;color:#7ee0c0;border:1px solid #34d399}
+  .vd.bad{background:#2a1620;color:#ffb0a0;border:1px solid #ff5d6c}
+  .vd.warn2{background:#3a2410;color:#ffd9a0;border:1px solid #ffae57}
+  .acc .body{max-height:0;overflow:hidden;transition:max-height .4s ease;padding:0 16px}
+  .acc.open .body{max-height:900px;padding:0 16px 14px}
+  .hl-bad{color:#ff8a96;font-weight:700}.hl-good{color:#7ee0c0;font-weight:700}.hl-warn{color:#ffc98a;font-weight:700}
+  .blank{display:inline-block;min-width:80px;background:#f6c453;color:#3a2c00;border-radius:6px;padding:1px 12px;font-weight:800;cursor:pointer;text-align:center;border:1px solid #d9a93a;user-select:none}
+  .blank.revealed{background:#1b3a2a;color:#7ee0c0;border-color:#2e6b4c}
+  .q{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0}.q .qno{font-size:12px;font-weight:800;color:var(--muted)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+  .col{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .col.pg{border-top:3px solid var(--pg)}.col.my{border-top:3px solid var(--my)}
+  .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}.b-pg{background:#0e2a3a;color:#bdeaff}.b-my{background:#3a2a10;color:#ffd9a0}
+  footer{max-width:1000px;margin:30px auto 0;padding:18px 22px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+  @media(max-width:760px){.cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <h1>EXPLAIN 查詢計畫解讀</h1>
+  <div class="sub">資料庫到底怎麼執行你的 SQL？看懂它有沒有走索引、會不會回表、有沒有 filesort</div>
+  <div class="crumbs">放在 <code>backend/database/index/</code> · 搭配 <code>[[索引查詢指令與實戰案例]]</code></div>
+</header>
+<div class="wrap">
+
+<!-- 00 -->
+<section>
+  <h2><span class="no">00</span> EXPLAIN 是什麼？跟 EXPLAIN ANALYZE 差在哪</h2>
+  <p><code>EXPLAIN</code> 讓資料庫把「<strong>它打算怎麼執行這條 SQL</strong>」（查詢計畫 query plan）攤開給你看——走哪個索引、掃多少列、要不要排序。它是你判斷「<strong>查詢慢在哪</strong>」最直接的工具。</p>
+  <table>
+    <tr><th>指令</th><th>會不會真的執行</th><th>給你什麼</th></tr>
+    <tr><td><code>EXPLAIN ...</code></td><td>不執行，只估計</td><td>預估的計畫、成本(cost)、預估列數</td></tr>
+    <tr><td><code>EXPLAIN ANALYZE ...</code></td><td><strong>會真的跑一次</strong></td><td>實際耗時、實際列數（估計 vs 實際差很多 = 統計過期）</td></tr>
+    <tr><td><code>EXPLAIN (ANALYZE, BUFFERS)</code><span class="small">（PG）</span></td><td>會跑</td><td>再加上讀了幾個 page（看 I/O）</td></tr>
+  </table>
+  <div class="warn"><span class="lbl">⚠ 注意</span><p style="margin:6px 0 0"><code>EXPLAIN ANALYZE</code> 會<strong>真的執行</strong>你的 SQL！對 <code>UPDATE/DELETE</code> 用它會真的改資料——要測寫入請包在交易裡最後 <code>ROLLBACK</code>。</p></div>
+</section>
+
+<!-- 01 PG scan 型別 -->
+<section>
+  <h2><span class="no">01</span> PostgreSQL：三種 Scan 一定要會認</h2>
+  <table>
+    <tr><th>計畫節點</th><th>意思</th><th>好壞</th></tr>
+    <tr><td><strong>Seq Scan</strong>（循序掃描）</td><td>從頭到尾掃整張表，沒用索引</td><td><span class="hl-bad">大表上是警訊</span>（小表反而正常）</td></tr>
+    <tr><td><strong>Index Scan</strong></td><td>走索引定位，再回 heap 撈整列（<strong>回表</strong>）</td><td><span class="hl-good">好</span>，但有回表成本</td></tr>
+    <tr><td><strong>Index Only Scan</strong></td><td>欄位都在索引裡，<strong>不回表</strong>（涵蓋索引）</td><td><span class="hl-good">最好</span> 🎉</td></tr>
+    <tr><td>Bitmap Index/Heap Scan</td><td>命中列數中等時，先收集再批次回表</td><td>中等選擇性時的折衷</td></tr>
+  </table>
+  <p class="small">看計畫先抓三個數字：<code>cost=啟動..總成本</code>、<code>rows=預估列數</code>、<code>actual time</code>（ANALYZE 才有）。估計 rows 跟 actual rows 差很多 → 該 <code>ANALYZE 表;</code> 更新統計。</p>
+
+  <h3>點開看實際 plan（PG）</h3>
+  <div class="acc" id="pg1"><button onclick="acc('pg1')">範例 1：沒走索引的 Seq Scan <span class="vd bad">壞</span><span class="tg">＋ 點開</span></button>
+    <div class="body">
+<pre><code>EXPLAIN ANALYZE SELECT * FROM orders WHERE total &gt; 100;
+
+<span class="hl-bad">Seq Scan</span> on orders  (cost=0.00..18.50 rows=300 width=64)
+                       (actual time=0.012..0.480 rows=280 loops=1)
+  Filter: (total &gt; 100)
+  <span class="hl-bad">Rows Removed by Filter: 720</span>      ← 掃了 1000 列、丟掉 720 列</code></pre>
+      <p class="small">整表掃描、靠 Filter 一列列篩。<code>total</code> 沒索引時就會這樣。資料量大就慢 → 考慮 <code>CREATE INDEX ON orders(total)</code>。</p>
+    </div>
+  </div>
+  <div class="acc" id="pg2"><button onclick="acc('pg2')">範例 2：Index Scan（有走索引，但會回表）<span class="vd good">好</span><span class="tg">＋ 點開</span></button>
+    <div class="body">
+<pre><code>EXPLAIN ANALYZE SELECT * FROM orders WHERE id = 5;
+
+<span class="hl-good">Index Scan</span> using orders_pkey on orders
+       (cost=0.28..8.30 rows=1 width=64) (actual time=0.02..0.02 rows=1)
+  Index Cond: (id = 5)         ← 用索引條件定位</code></pre>
+      <p class="small">走 PK 索引找到位置，再回 heap 撈 <code>SELECT *</code> 的其它欄位（回表）。單筆查詢很快。</p>
+    </div>
+  </div>
+  <div class="acc" id="pg3"><button onclick="acc('pg3')">範例 3：Index Only Scan（涵蓋索引，不回表）<span class="vd good">最好</span><span class="tg">＋ 點開</span></button>
+    <div class="body">
+<pre><code>EXPLAIN ANALYZE SELECT id FROM orders WHERE id = 5;
+
+<span class="hl-good">Index Only Scan</span> using orders_pkey on orders ...
+  Index Cond: (id = 5)
+  <span class="hl-good">Heap Fetches: 0</span>          ← 0 = 完全沒回表 🎉</code></pre>
+      <p class="small">要的欄位都在索引裡 → 只讀索引就湊齊答案。<code>Heap Fetches: 0</code> 是「沒回表」的鐵證。用 <code>INCLUDE</code> 加欄位可製造這效果。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 02 MySQL -->
+<section>
+  <h2><span class="no">02</span> MySQL：看懂 type / key / Extra</h2>
+  <p>MySQL 的 <code>EXPLAIN</code> 是一排欄位，最關鍵看三個：<code>type</code>（存取方式好壞）、<code>key</code>（實際用了哪個索引）、<code>Extra</code>（額外動作）。</p>
+
+  <h3><code>type</code> 等級（左邊最好 → 右邊最壞）</h3>
+  <div class="ladder">
+    <div class="rung g1"><b>const / eq_ref</b>最多一列（PK/唯一）</div>
+    <div class="rung g2"><b>ref</b>用非唯一索引<br>命中數列</div>
+    <div class="rung g3"><b>range</b>索引範圍掃<br>(BETWEEN/&gt;)</div>
+    <div class="rung g4"><b>index</b>掃整個索引<br>(全索引)</div>
+    <div class="rung g5"><b>ALL</b>全表掃描<br>(沒用索引)</div>
+  </div>
+  <p class="small">看到 <span class="hl-bad">type=ALL</span> 且表很大 → 通常要加索引。<code>key=NULL</code> 也代表沒用到任何索引。</p>
+
+  <h3>常見 <code>Extra</code> 值</h3>
+  <table>
+    <tr><th>Extra</th><th>意思</th><th>好壞</th></tr>
+    <tr><td><code>Using index</code></td><td><strong>涵蓋索引</strong>，只讀索引、不回表</td><td><span class="hl-good">很好 🎉</span></td></tr>
+    <tr><td><code>Using where</code></td><td>取回後還要再用 WHERE 過濾</td><td>中性</td></tr>
+    <tr><td><code>Using index condition</code></td><td>索引條件下推(ICP)，在索引層先濾</td><td><span class="hl-good">好</span></td></tr>
+    <tr><td><code>Using filesort</code></td><td>排序<strong>沒辦法靠索引</strong>，要額外排序</td><td><span class="hl-warn">注意</span>（大資料量會慢）</td></tr>
+    <tr><td><code>Using temporary</code></td><td>要建暫存表（常見於 GROUP BY/DISTINCT）</td><td><span class="hl-warn">注意</span></td></tr>
+  </table>
+
+  <h3>點開看實際 plan（MySQL）</h3>
+  <div class="acc" id="my1"><button onclick="acc('my1')">範例 1：type=ref，用到複合索引 <span class="vd good">好</span><span class="tg">＋ 點開</span></button>
+    <div class="body">
+<pre><code>EXPLAIN SELECT * FROM orders WHERE member_id = 5;
+
+id type  key                possible_keys      rows  Extra
+1  <span class="hl-good">ref</span>   idx_order_member   idx_order_member   3     Using where</code></pre>
+      <p class="small"><code>type=ref</code> + <code>key=idx_order_member</code> ＝ 有走索引、命中少數列。健康。</p>
+    </div>
+  </div>
+  <div class="acc" id="my2"><button onclick="acc('my2')">範例 2：type=ALL，整表掃描 <span class="vd bad">壞</span><span class="tg">＋ 點開</span></button>
+    <div class="body">
+<pre><code>EXPLAIN SELECT * FROM orders WHERE total &gt; 100;
+
+id type  key   possible_keys  rows   Extra
+1  <span class="hl-bad">ALL</span>   <span class="hl-bad">NULL</span>  NULL           10000  Using where</code></pre>
+      <p class="small"><code>type=ALL</code>、<code>key=NULL</code> ＝ 沒任何索引可用，掃一萬列。<code>total</code> 該建索引。</p>
+    </div>
+  </div>
+  <div class="acc" id="my3"><button onclick="acc('my3')">範例 3：Extra=Using index（涵蓋索引不回表）<span class="vd good">最好</span><span class="tg">＋ 點開</span></button>
+    <div class="body">
+<pre><code>-- 索引 (member_id, status)，只查這兩欄
+EXPLAIN SELECT member_id, status FROM orders WHERE member_id = 5;
+
+id type  key                 rows  Extra
+1  ref   idx_member_status   3     <span class="hl-good">Using index</span>   ← 不回表 🎉</code></pre>
+      <p class="small"><code>Using index</code> ＝ 答案全在索引葉子裡，省掉回表。等同 PG 的 Index Only Scan。</p>
+    </div>
+  </div>
+  <div class="acc" id="my4"><button onclick="acc('my4')">範例 4：Extra=Using filesort（排序沒吃到索引）<span class="vd warn2">注意</span><span class="tg">＋ 點開</span></button>
+    <div class="body">
+<pre><code>EXPLAIN SELECT * FROM orders WHERE member_id=5 ORDER BY created_at;
+-- 若索引只有 (member_id)，沒含 created_at：
+
+id type key               rows Extra
+1  ref  idx_order_member  3    Using where; <span class="hl-warn">Using filesort</span></code></pre>
+      <p class="small"><code>Using filesort</code> ＝ 排序得另外做。把索引改成複合 <code>(member_id, created_at)</code>，排序就能直接吃索引、filesort 消失。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 03 對照 -->
+<section>
+  <h2><span class="no">03</span> PG ↔ MySQL 名詞對照</h2>
+  <div class="cols">
+    <div class="col pg"><span class="badge b-pg">PostgreSQL</span>
+      <p style="margin:8px 0 0;font-size:13.5px">Seq Scan ＝ 全表掃描<br>Index Scan ＝ 走索引 + 回表<br>Index Only Scan ＝ 不回表<br>Heap Fetches: 0 ＝ 沒回表<br>看 I/O：加 <code>BUFFERS</code></p></div>
+    <div class="col my"><span class="badge b-my">MySQL</span>
+      <p style="margin:8px 0 0;font-size:13.5px">type=ALL ＝ 全表掃描<br>type=ref/range ＝ 走索引<br>Extra: Using index ＝ 不回表<br>（無「Using index」就是會回表）<br>Using filesort/temporary ＝ 額外排序/暫存</p></div>
+  </div>
+  <div class="warn ok"><span class="lbl" style="background:#34d399;color:#053">三個自我檢查問題</span>
+    <p style="margin:6px 0 0">看任何 plan，問自己：① <strong>有沒有走索引？</strong>（PG 不是 Seq Scan / MySQL 不是 ALL）② <strong>有沒有回表？</strong>（PG 看 Index Only / MySQL 看 Using index）③ <strong>有沒有額外排序？</strong>（filesort / Sort 節點）。三題都漂亮，這條查詢就穩了。</p>
+  </div>
+</section>
+
+<!-- 04 quiz -->
+<section>
+  <h2><span class="no">04</span> 小測驗（點黃框看答案）</h2>
+  <div class="q"><span class="qno">填 1</span><p>會「真的執行」SQL、給你實際耗時的是
+    <span class="blank" onclick="flip(this)" data-a="EXPLAIN ANALYZE">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 2</span><p>PG 計畫出現
+    <span class="blank" onclick="flip(this)" data-a="Seq Scan">點我</span> 代表整表掃描、沒走索引（大表是警訊）。</p></div>
+  <div class="q"><span class="qno">填 3</span><p>PG 的
+    <span class="blank" onclick="flip(this)" data-a="Index Only Scan（Heap Fetches: 0）">點我</span> 代表用涵蓋索引、完全不回表。</p></div>
+  <div class="q"><span class="qno">填 4</span><p>MySQL 的 <code>type</code> 出現
+    <span class="blank" onclick="flip(this)" data-a="ALL">點我</span>、<code>key=NULL</code>，就是沒用到任何索引。</p></div>
+  <div class="q"><span class="qno">填 5</span><p>MySQL <code>Extra</code> 出現
+    <span class="blank" onclick="flip(this)" data-a="Using index">點我</span> 代表涵蓋索引、不回表（＝PG 的 Index Only Scan）。</p></div>
+  <div class="q"><span class="qno">填 6</span><p>看到 <code>Using filesort</code>，可把索引改成
+    <span class="blank" onclick="flip(this)" data-a="含排序欄的複合索引">點我</span> 來消除它。</p></div>
+</section>
+
+</div>
+<footer>
+  <p>關聯：<code>[[索引查詢指令與實戰案例]]</code>（查詢指令）、<code>[[B+樹與索引結構－叢集索引vs非叢集索引]]</code>（回表原理）、<code>[[explain-query-analysis]]</code>、<code>[[資料庫索引與B+tree-最左字首原則]]</code>。</p>
+</footer>
+<script>
+function flip(el){if(el.classList.contains('revealed')){el.classList.remove('revealed');el.textContent='點我';}else{el.classList.add('revealed');el.textContent=el.dataset.a;}}
+function acc(id){var el=document.getElementById(id);el.classList.toggle('open');var t=el.querySelector('.tg');t.textContent=el.classList.contains('open')?'－ 收合':'＋ 點開';}
+</script>
+</body>
+</html>

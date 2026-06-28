@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>索引查詢指令與實戰案例 — 查詢指令 · PG vs MySQL · Hot row · 複合索引 · 按讚計數器</title>
+<style>
+  :root{--bg:#0f1220;--panel:#171a2b;--panel2:#1e2236;--ink:#e8ebf5;--muted:#9aa3c0;
+    --line:#2b3050;--accent:#6ea8fe;--accent2:#7ee0c0;--warn:#ff5d6c;--warn-bg:#2a1620;
+    --ok:#34d399;--bad:#fb7185;--yellow:#f6c453;--pg:#5ad1ff;--my:#ffae57}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#1b2140 0,transparent 60%),var(--bg);
+    color:var(--ink);font-family:"Noto Sans TC","Segoe UI",system-ui,sans-serif;line-height:1.75;padding:0 0 80px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 22px}
+  header.hero{padding:54px 22px 30px;text-align:center;background:linear-gradient(180deg,rgba(110,168,254,.12),transparent);border-bottom:1px solid var(--line)}
+  header.hero h1{font-size:28px;margin:0 0 8px}.sub{color:var(--muted);font-size:15px}
+  .crumbs{font-size:13px;color:var(--muted);margin-top:14px}.crumbs code{background:var(--panel2);padding:2px 8px;border-radius:6px;color:var(--accent2)}
+  section{margin:38px 0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  h2{font-size:22px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  h2 .no{font-size:13px;font-weight:700;color:#0c1020;background:var(--accent);border-radius:8px;padding:3px 10px}
+  h3{font-size:17px;margin:22px 0 8px;color:var(--accent2)}
+  p{margin:10px 0}.lead{color:var(--muted);margin-top:2px}
+  code{font-family:"JetBrains Mono",Consolas,monospace;background:#0c1020;border:1px solid var(--line);padding:1px 6px;border-radius:6px;font-size:.9em;color:#ffd9a0}
+  pre{background:#0c1020;border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto;font-size:13px}
+  pre code{background:none;border:none;padding:0;color:#d9e2ff}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--accent2)}
+  .warn{background:var(--warn-bg);border:1px solid var(--warn);border-left:5px solid var(--warn);border-radius:12px;padding:16px;margin:14px 0}
+  .warn .lbl{display:inline-block;font-weight:800;color:#fff;background:var(--warn);border-radius:6px;padding:2px 10px;font-size:12px;margin-bottom:6px}
+  .ok{--warn:#34d399;--warn-bg:#0f2a20}.info{--warn:#6ea8fe;--warn-bg:#10203a}
+  .small{font-size:12.5px;color:var(--muted)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+  .col{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .col.pg{border-top:3px solid var(--pg)}.col.my{border-top:3px solid var(--my)}
+  .col h4{margin:0 0 6px}.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .b-pg{background:#0e2a3a;color:#bdeaff}.b-my{background:#3a2a10;color:#ffd9a0}
+  .blank{display:inline-block;min-width:80px;background:var(--yellow);color:#3a2c00;border-radius:6px;padding:1px 12px;font-weight:800;cursor:pointer;text-align:center;border:1px solid #d9a93a;user-select:none}
+  .blank.revealed{background:#1b3a2a;color:#7ee0c0;border-color:#2e6b4c}
+  .q{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0}.q .qno{font-size:12px;font-weight:800;color:var(--muted)}
+  .pill{display:inline-block;background:var(--panel2);border:1px solid var(--line);color:var(--accent2);font-size:12px;border-radius:20px;padding:3px 10px;margin:2px 4px 2px 0}
+  footer{max-width:1000px;margin:30px auto 0;padding:18px 22px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+  @media(max-width:760px){.cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <h1>索引查詢指令與實戰案例</h1>
+  <div class="sub">怎麼查索引 · PostgreSQL vs MySQL · Hot row · 非唯一/複合索引 · 全站按讚計數器</div>
+  <div class="crumbs">放在 <code>backend/database/index/</code> · 觀念基礎請看同層的 <code>[[B+樹與索引結構－叢集索引vs非叢集索引]]</code></div>
+</header>
+<div class="wrap">
+
+<!-- 00 -->
+<section>
+  <h2><span class="no">00</span> 這篇 vs B+樹那篇的分工</h2>
+  <p class="lead">B+樹那篇講「索引長什麼樣、為什麼」（觀念）；這篇講「<strong>怎麼下指令查索引、結果怎麼讀、實戰會遇到的案例</strong>」（操作）。兩篇都放 index/。</p>
+  <p><span class="pill">cluster</span><span class="pill">non-cluster</span><span class="pill">heap-organized</span><span class="pill">SHOW INDEX</span><span class="pill">EXPLAIN</span><span class="pill">redundant index</span><span class="pill">hot row</span><span class="pill">複合索引</span><span class="pill">按讚計數器</span></p>
+</section>
+
+<!-- 01 怎麼查 -->
+<section>
+  <h2><span class="no">01</span> 怎麼查索引？用什麼指令（PG vs MySQL）</h2>
+
+  <h3>A. 看「這張表有哪些索引」</h3>
+  <div class="cols">
+    <div class="col my"><span class="badge b-my">MySQL</span><h4>SHOW INDEX</h4>
+<pre><code>SHOW INDEX FROM event;
+-- 重點欄位：
+-- Key_name(索引名) Seq_in_index(複合索引第幾欄)
+-- Non_unique(1=非唯一) Cardinality(不重複值估計)
+-- Index_type=BTREE Collation=A(升冪)</code></pre></div>
+    <div class="col pg"><span class="badge b-pg">PostgreSQL</span><h4>\d 或 pg_indexes</h4>
+<pre><code>\d event                 -- psql 內看表結構含索引
+-- 或查系統視圖：
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = 'event';</code></pre></div>
+  </div>
+
+  <h3>B. 看「這條查詢有沒有用到索引 / 有沒有回表」</h3>
+  <div class="cols">
+    <div class="col my"><span class="badge b-my">MySQL</span>
+<pre><code>EXPLAIN
+SELECT * FROM event WHERE member_id = 5;
+-- 看 key 欄位=用了哪個索引；
+-- type=ref/range 好，type=ALL 是全表掃描(壞)；
+-- Extra: "Using index" = 涵蓋索引不回表 🎉
+
+EXPLAIN ANALYZE SELECT ...;  -- 8.0+ 給實際耗時</code></pre></div>
+    <div class="col pg"><span class="badge b-pg">PostgreSQL</span>
+<pre><code>EXPLAIN (ANALYZE, BUFFERS)
+SELECT * FROM event WHERE member_id = 5;
+-- Index Scan      = 用索引(會回表)
+-- Index Only Scan = 涵蓋索引(不回表) 🎉
+-- Seq Scan        = 全表掃描(壞)
+-- Heap Fetches    = 回表次數</code></pre></div>
+  </div>
+
+  <h3>C. 看「哪些索引重複多餘 / 從沒被用過」（清索引）</h3>
+  <table>
+    <tr><th>想知道</th><th>MySQL 指令</th><th>需要 performance_schema？</th></tr>
+    <tr><td>重複/多餘索引（結構面）</td><td><code>SELECT * FROM sys.schema_redundant_indexes;</code></td><td style="color:#7ee0c0">不需要 ✅</td></tr>
+    <tr><td>從沒被用過的索引（執行面）</td><td><code>SELECT * FROM sys.schema_unused_indexes;</code></td><td style="color:#ff8a96">需要開著 ❌</td></tr>
+  </table>
+  <p class="small">PostgreSQL 對應：用過幾次看 <code>pg_stat_user_indexes</code> 的 <code>idx_scan</code> 欄（=0 代表沒被用過）。細節見 <code>[[鎖與交易與並發控制]]</code> 第 01 章。</p>
+</section>
+
+<!-- 02 三種儲存組織 -->
+<section>
+  <h2><span class="no">02</span> cluster / non-cluster / heap-organized：PG vs MySQL</h2>
+  <table>
+    <tr><th>　</th><th>MySQL InnoDB</th><th>PostgreSQL</th></tr>
+    <tr><td><strong>表怎麼存</strong></td><td>照 PK <strong>叢集</strong>（clustered）</td><td>永遠 <strong>heap-organized</strong>（無序堆積）</td></tr>
+    <tr><td><strong>PK 索引葉子</strong></td><td>＝整列資料（找到即拿到）</td><td>＝指標 ctid（仍要回 heap）</td></tr>
+    <tr><td><strong>二級索引葉子</strong></td><td>放 PK 值 → 回表走叢集索引</td><td>放 ctid → 回表跳 heap</td></tr>
+    <tr><td><strong>有沒有真叢集索引</strong></td><td>有（就是 PK）</td><td>沒有，<code>CLUSTER</code> 只能一次性重排</td></tr>
+    <tr><td><strong>避免回表</strong></td><td>涵蓋索引（多欄索引把欄位都帶上）</td><td><code>INCLUDE</code> → Index-Only Scan</td></tr>
+  </table>
+  <div class="warn info"><span class="lbl" style="background:#6ea8fe;color:#06182e">一句話</span>
+    <p style="margin:6px 0 0">底層都是 <strong>B+樹</strong>（同資料結構）；差別在「表本身怎麼擺」：<strong>InnoDB 照 PK 叢集、PostgreSQL 永遠 heap</strong>。所以同一句 SQL，在兩邊的 query plan 不一定一樣。heap 這個詞容易誤會，另見 <code>[[三種Heap的差異釐清]]</code>。</p>
+  </div>
+</section>
+
+<!-- 03 案例 -->
+<section>
+  <h2><span class="no">03</span> 實戰案例：查詢結果會遇到什麼</h2>
+
+  <h3>案例 1：非唯一索引（Non-unique index）</h3>
+  <p>允許欄位有重複值的索引，<code>SHOW INDEX</code> 裡 <code>Non_unique = 1</code>。大多數二級索引都是非唯一，例如 <code>status</code>、<code>member_id</code>。對比：唯一索引 <code>Non_unique=0</code>（如 email），會額外保證「不重複」。</p>
+<pre><code>CREATE INDEX idx_event_status ON event (status);   -- 非唯一：很多列 status 都=published
+CREATE UNIQUE INDEX uq_member_email ON member (email); -- 唯一：每個 email 只能一列</code></pre>
+  <p class="small">查詢時：非唯一索引 <code>WHERE status='published'</code> 會回傳<strong>很多列</strong>（type=ref，可能很多筆）；唯一索引 <code>WHERE email=?</code> 最多一列（type=const/eq_ref，最快）。</p>
+
+  <h3>案例 2：複合索引（Composite index）＋ 最左前綴</h3>
+  <p>多欄合成一個排序鍵 <code>(member_id, created_at)</code>。規則：<strong>等值欄在前、排序/範圍欄在後</strong>，且查詢必須用到<strong>最左前綴</strong>才吃得到。</p>
+<pre><code>CREATE INDEX idx_member_created ON event (member_id, created_at);
+
+-- ✅ 吃得到（用到最左欄 member_id）
+WHERE member_id = 5 ORDER BY created_at;
+WHERE member_id = 5 AND created_at > '2026-01-01';
+-- ❌ 吃不到（跳過最左欄，直接查 created_at）
+WHERE created_at > '2026-01-01';</code></pre>
+  <p class="small">驗證：對上面三句各跑一次 <code>EXPLAIN</code>，看 <code>key</code> 是否顯示 <code>idx_member_created</code>；吃不到的那句會變 <code>Seq Scan / type=ALL</code>。</p>
+
+  <h3>案例 3：Hot Row（熱點列）— 並發瓶頸</h3>
+  <p><strong>Hot row ＝ 被大量並發交易同時讀寫的「同一列」</strong>，變成鎖競爭的瓶頸。索引能讓你「找得快」，但找得快不代表「改得快」——大家搶改同一列時，會卡在那列的 X 鎖排隊上。</p>
+  <div class="warn"><span class="lbl">怎麼發現 hot row</span>
+    <p style="margin:6px 0 0">MySQL：查 <code>performance_schema.data_locks</code> / <code>data_lock_waits</code> 看誰在等誰；或看 <code>SHOW ENGINE INNODB STATUS</code> 的 LATEST DETECTED DEADLOCK / 等鎖資訊。症狀：某列更新延遲飆高、鎖等待暴增。</p>
+  </div>
+  <p class="small">注意：hot row 是<strong>並發/鎖</strong>問題，不是索引能解的——索引解「找」，hot row 要靠「<strong>分散寫入</strong>」解（見下個案例）。</p>
+
+  <h3>案例 4：全站按讚計數器（把上面全部串起來）</h3>
+  <p>需求：一篇貼文的「總讚數」，全站使用者同時按。天真設計就是經典 hot row 雷：</p>
+<pre><code>-- ❌ 天真：所有人搶改同一列 → hot row，按讚一多就卡在這列的 X 鎖
+UPDATE post SET like_count = like_count + 1 WHERE id = 123;</code></pre>
+  <div class="cols">
+    <div class="col"><h4>改法 A：分片計數器（sharded counter）</h4>
+<pre><code>-- 把一個計數拆成 N 列，隨機挑一列加
+UPDATE post_like_shard
+SET cnt = cnt + 1
+WHERE post_id=123 AND shard = FLOOR(RAND()*10);
+-- 讀總數時把 N 列加起來
+SELECT SUM(cnt) FROM post_like_shard WHERE post_id=123;</code></pre>
+      <p class="small">把「一個 hot row」拆成 10 個 warm row，分散鎖競爭。</p></div>
+    <div class="col"><h4>改法 B：明細表 + 索引（可查誰按過）</h4>
+<pre><code>CREATE TABLE post_like (
+  post_id BIGINT, user_id BIGINT,
+  PRIMARY KEY (post_id, user_id)   -- 複合主鍵：防重複按
+);
+-- 複合索引(post_id,user_id)：查「某貼文被誰按」走最左前綴
+SELECT COUNT(*) FROM post_like WHERE post_id=123;</code></pre>
+      <p class="small">用<strong>複合主鍵</strong>天然防止同一人重複按；<code>COUNT(*)</code> 走索引。量大時再加維護式總數或快取(Redis)。</p></div>
+  </div>
+  <p class="small">這個例子同時用到：<strong>複合索引</strong>（post_id,user_id）、<strong>非唯一/唯一</strong>（PK 防重複）、<strong>hot row</strong>（天真寫法的病）、<strong>FOR UPDATE/原子更新</strong>（lock 那篇）。索引讓你查得快，但寫入熱點要靠「分散」而非索引解決。</p>
+</section>
+
+<!-- 04 quiz -->
+<section>
+  <h2><span class="no">04</span> 小測驗（點黃框看答案）</h2>
+  <div class="q"><span class="qno">填 1</span><p>MySQL 看某表全部索引用
+    <span class="blank" onclick="flip(this)" data-a="SHOW INDEX FROM 表">點我</span>；PostgreSQL 用 <code>\d 表</code> 或查 <code>pg_indexes</code>。</p></div>
+  <div class="q"><span class="qno">填 2</span><p>想知道一條查詢有沒有用到索引、有沒有回表，用
+    <span class="blank" onclick="flip(this)" data-a="EXPLAIN / EXPLAIN ANALYZE">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 3</span><p><code>SHOW INDEX</code> 裡 <code>Non_unique=1</code> 代表這是
+    <span class="blank" onclick="flip(this)" data-a="非唯一索引">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 4</span><p>複合索引 <code>(member_id, created_at)</code> 必須用到
+    <span class="blank" onclick="flip(this)" data-a="最左前綴(member_id)">點我</span> 才吃得到。</p></div>
+  <div class="q"><span class="qno">填 5</span><p>很多人同時搶改同一列、造成鎖競爭瓶頸的那列，叫
+    <span class="blank" onclick="flip(this)" data-a="Hot row 熱點列">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 6</span><p>解決按讚計數器 hot row，可以把一列拆成多列分散寫入，這招叫
+    <span class="blank" onclick="flip(this)" data-a="分片計數器 sharded counter">點我</span>。</p></div>
+</section>
+
+</div>
+<footer>
+  <p>關聯：<code>[[B+樹與索引結構－叢集索引vs非叢集索引]]</code>（觀念）、<code>[[鎖與交易與並發控制]]</code>（hot row/FOR UPDATE）、<code>[[三種Heap的差異釐清]]</code>、<code>[[索引index與外鍵命名]]</code>。</p>
+  <p class="small">想看真 plan：在 PG 跑 <code>EXPLAIN (ANALYZE, BUFFERS)</code> 對照 Index Scan(回表) vs Index Only Scan(不回表)；在 MySQL 跑 <code>EXPLAIN</code> 看 Extra 是否 "Using index"。</p>
+</footer>
+<script>
+function flip(el){if(el.classList.contains('revealed')){el.classList.remove('revealed');el.textContent='點我';}else{el.classList.add('revealed');el.textContent=el.dataset.a;}}
+</script>
+</body>
+</html>

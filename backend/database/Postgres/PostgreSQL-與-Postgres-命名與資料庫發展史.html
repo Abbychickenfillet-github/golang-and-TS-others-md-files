@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PostgreSQL 與 Postgres 命名差異與資料庫發展史</title>
+<style>
+:root{--bg:#fbfaf7;--card:#ffffff;--ink:#2b2b2b;--muted:#6b6b6b;--line:#e7e3da;--accent:#7c6f9b;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 22px 64px;}
+header.note-head{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:26px;}
+h1.title{font-family:Georgia,"Songti TC",serif;font-size:30px;margin:0 0 12px;line-height:1.3;}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0;}
+.pill{background:#efeaf7;color:#5b4f7a;border:1px solid #ded3f0;border-radius:999px;
+ padding:3px 11px;font-size:12.5px;}
+.meta{color:var(--muted);font-size:13px;margin-top:6px;}
+.meta a{color:var(--accent);}
+.toolbar{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap;}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+ padding:7px 14px;font-size:13.5px;color:#4a4458;box-shadow:0 1px 0 rgba(0,0,0,.02);}
+.btn:hover{background:#f4f1fb;}
+h2{font-size:21px;margin:34px 0 12px;padding-left:11px;border-left:5px solid var(--accent);}
+h3{font-size:17px;margin:22px 0 8px;color:#3b3550;}
+h4{font-size:15px;margin:16px 0 6px;color:#574f6b;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:16px 0;box-shadow:0 2px 10px rgba(60,50,90,.04);}
+p{margin:10px 0;}
+ul,ol{margin:8px 0 8px 4px;padding-left:22px;}
+li{margin:5px 0;}
+code{background:#f1eef8;border-radius:5px;padding:1px 6px;font-size:.92em;
+ font-family:"SFMono-Regular",Consolas,"Cascadia Code",monospace;}
+pre{background:#1f1b2e;color:#eee;border-radius:11px;padding:15px 16px;overflow-x:auto;
+ font-size:13.5px;line-height:1.6;}
+pre code{background:none;padding:0;color:inherit;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
+th{background:#f1ecf8;}
+tbody tr:nth-child(even){background:#faf8fd;}
+mark{padding:.5px 3px;border-radius:3px;}
+blockquote{margin:12px 0;padding:6px 14px;border-left:4px solid var(--line);color:var(--muted);background:#faf9f6;border-radius:6px;}
+.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #888;background:#faf9fc;
+ border-radius:10px;}
+.callout-title{font-weight:700;margin-bottom:4px;}
+.callout-body>:first-child{margin-top:0;}
+.callout-body>:last-child{margin-bottom:0;}
+.src-turn{margin:14px 0;}
+.src-user{background:#eef4ff;border-left:4px solid #ADCCFF;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.src-gem{background:#f4f1ec;border-left:4px solid #cdbfa6;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.role{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:#7a6f55;display:block;margin-bottom:3px;}
+.src-user .role{color:#3f63a8;}
+.spoiler{background:#3b3550;color:transparent;border-radius:5px;padding:1px 8px;cursor:pointer;
+ transition:.15s;user-select:none;box-shadow:inset 0 0 0 1px #ccc;}
+.spoiler::after{content:"　點此看答案　";color:#cdbfe8;font-size:.85em;}
+.spoiler.on{background:#e7ffe7;color:#1c5e1c;box-shadow:inset 0 0 0 1px #BBFABB;user-select:text;}
+.spoiler.on::after{content:"";}
+footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);
+ color:var(--muted);font-size:12.5px;text-align:center;}
+</style></head><body><div class="wrap">
+<header class="note-head"><h1 class="title">PostgreSQL 與 Postgres 命名差異與資料庫發展史</h1>
+<div class="pills"><span class="pill">#gemini</span><span class="pill">#database</span><span class="pill">#postgresql</span><span class="pill">#history</span><span class="pill">#ingres</span></div><div class="meta">更新：2026-06-25　· 來源：<a href="https://gemini.google.com/app/4865dff657acd024" target="_blank">來源1</a></div>
+<div class="toolbar"><span class="btn" onclick="toggleAll(false)">🙈 隱藏所有答案</span>
+<span class="btn" onclick="toggleAll(true)">👀 顯示所有答案</span></div>
+</header>
+<h1>PostgreSQL 與 Postgres 命名差異與資料庫發展史</h1>
+<h2>重點整理</h2>
+<h3>1. PostgreSQL 跟 Postgres 是同一個東西嗎？</h3>
+<div class="callout" style="border-left-color:#BBFABB"><div class="callout-title">✅ 是同一個東西</div><div class="callout-body"><p><mark style="background: #ADCCFFA6;">PostgreSQL 是正式官方名稱，Postgres 是社群／開發者最常用的簡稱（官方認可的別名）</mark>。</p></div></div>
+
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>PostgreSQL</th>
+<th>Postgres</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>性質</td>
+<td>正式官方名稱</td>
+<td>常用簡稱／別名</td>
+</tr>
+<tr>
+<td>建議場景</td>
+<td>正式文件、履歷、論文、合約</td>
+<td>口頭、社群討論、技術文章</td>
+</tr>
+<tr>
+<td>常見於</td>
+<td>套件名 <code>postgresql-server</code></td>
+<td>指令 <code>postgres -V</code></td>
+</tr>
+</tbody>
+</table>
+<p>命名由來：<mark style="background: #FFF3A3A6;">Ingres → Post-gres（Post-Ingres，Ingres 的後繼者）→ Postgres95（1995 加入 SQL）→ PostgreSQL（1996 為強調支援 SQL 標準而正式更名）</mark>。<code>PostgreSQL</code> 是 PostgreSQL 全球開發小組的註冊商標。</p>
+<div class="callout" style="border-left-color:#BBFABB"><div class="callout-title">💡 搜尋小撇步</div><div class="callout-body"><p>兩個關鍵字通常可互換，但搜 <code>PostgreSQL</code> 通常能拿到更精確的官方技術細節。</p></div></div>
+
+<h3>2. Ingres 是什麼</h3>
+<div class="callout" style="border-left-color:#ADCCFF"><div class="callout-title">ℹ️ Ingres = PostgreSQL 的「祖先」</div><div class="callout-body"><p>Ingres（Interactive Graphics Retrieval System）是 1970 年代早期在 <mark style="background: #ADCCFFA6;">加州大學柏克萊分校（UC Berkeley）</mark> 開發的研究型關聯式資料庫，由 <mark style="background: #FFF3A3A6;">Michael Stonebraker 教授</mark> 帶領。</p></div></div>
+
+<ul>
+<li>它是最早實現關聯式模型的系統之一。</li>
+<li>是 PostgreSQL 的直系前身（Postgres = Post-Ingres）。</li>
+<li>影響了 Microsoft SQL Server、Sybase 等商業資料庫。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Ingres</th>
+<th>PostgreSQL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>誕生</td>
+<td>1973</td>
+<td>1986（Postgres 期刊發表）</td>
+</tr>
+<tr>
+<td>查詢語言</td>
+<td>QUEL（後來才支援 SQL）</td>
+<td>SQL（標準）</td>
+</tr>
+<tr>
+<td>現況</td>
+<td>商業／開源併行（Actian）</td>
+<td>全球最受歡迎開源資料庫之一</td>
+</tr>
+</tbody>
+</table>
+<div class="callout" style="border-left-color:#D2B3FF"><div class="callout-title">📝 小知識</div><div class="callout-body"><p>Ingres 確立的許多技術（<mark style="background: #D2B3FFA6;">B-tree 索引、查詢優化</mark>）至今仍深深影響你寫的每一行 SQL。</p></div></div>
+
+<h3>3. 資料庫發展史簡表（從「森林」到「關聯」）</h3>
+<ol>
+<li><strong>前關聯式（1960s）</strong>：階層式模型（樹狀）、網狀模型（多對多但極複雜）。缺點是<mark style="background: #FF5582A6;">程式碼與資料結構高度耦合</mark>，改欄位就要重寫程式。</li>
+<li><strong>轉折點（1970）</strong>：IBM 的 <mark style="background: #FFF3A3A6;">E. F. Codd 發表論文，用集合論把資料放進二維表格，用鍵值建立關聯</mark>，資料庫不再需要處理物理存取路徑，只專注邏輯結構。</li>
+<li><strong>三大門派（1970s–80s）</strong>：IBM System R（發明了 SQL）、Oracle（Larry Ellison 讀了 Codd 論文搶先做商用版）、Ingres（UC Berkeley，開源／PostgreSQL 的發源地）。</li>
+<li><strong>SQL 統治（1990s）</strong>：MySQL 出現（1995，輕量、Web 2.0 寵兒）；Postgres 加入 SQL → 改名 PostgreSQL。</li>
+<li><strong>NoSQL / NewSQL（2000s–2010s）</strong>：MongoDB、Redis 放棄部分強一致性換水平擴展；NewSQL/HTAP 想結合 SQL 嚴謹與 NoSQL 擴充。</li>
+</ol>
+<div class="callout" style="border-left-color:#9aa"><div class="callout-title">❝ 歷史的趣味</div><div class="callout-body"><p>現在許多最新技術（如<mark style="background: #FFB8EBA6;">向量資料庫、向量檢索</mark>）核心仍是在擴充 PostgreSQL 的功能——證明 40 年前 Ingres 奠定的「可擴充性」架構多麼前瞻。</p></div></div>
+
+<hr />
+<h2>自我測驗</h2>
+<ol>
+<li>（是非題）PostgreSQL 與 Postgres 是兩套不同的資料庫。
+   答案：<span class="spoiler">✗。同一個東西，PostgreSQL 是正式名稱，Postgres 是官方認可的簡稱。</span></li>
+<li>（填空）Postgres 名稱的意思是 <span class="spoiler">Post-Ingres（Ingres 的後繼者）</span>。</li>
+<li>（申論題）簡述 E. F. Codd 1970 年的論文為什麼是資料庫發展的轉折點。
+   答案：<span class="spoiler">他提出用數學集合論處理資料，把資料存進二維表格、以鍵值建立關聯。從此資料庫不必再處理物理存取路徑，開發者只需專注邏輯結構，解決了前關聯式時代「程式碼與資料結構高度耦合、改欄位就要重寫程式」的痛點，催生了 System R、Oracle、Ingres 三大計畫與 SQL。</span></li>
+</ol>
+<hr />
+<h2>各對話來源</h2>
+<h3>PostgreSQL 與 Postgres 的區別（2026-06）— https://gemini.google.com/app/4865dff657acd024</h3>
+<div class="src-user"><span class="role">使用者</span>PostgreSQL 跟 Postgres 有不一樣嗎？</div>
+<div class="src-gem"><span class="role">Gemini</span>它們是指同一個東西。PostgreSQL 是正式官方名稱，Postgres 是社群與開發者最常用的簡稱／別名。由來：Ingres → Post-gres（Post-Ingres）→ Postgres95（1995 加入 SQL）→ PostgreSQL（1996 為強調支援 SQL 標準而正式更名）。正式文件用 PostgreSQL，口頭與社群常用 Postgres，兩者搜尋時可互換，但搜 PostgreSQL 通常拿到更精確的官方細節。</div>
+<div class="src-user"><span class="role">使用者</span>ingres 是什麼？</div>
+<div class="src-gem"><span class="role">Gemini</span>Ingres（Interactive Graphics Retrieval System）是 1970 年代早期在 UC Berkeley 開發的研究型關聯式資料庫，由 Michael Stonebraker 教授帶領，是最早實現關聯式模型的系統之一，也是 PostgreSQL 的直系前身（Postgres = Post-Ingres）。它影響了 Microsoft SQL Server、Sybase。Ingres 1973 年誕生、用 QUEL 語言；PostgreSQL 1986 年（Postgres 期刊發表）、用標準 SQL。Ingres 所確立的 B-tree 索引、查詢優化等概念至今仍影響著 SQL。</div>
+<div class="src-user"><span class="role">使用者</span>單純對資料庫發展史感興趣。</div>
+<div class="src-gem"><span class="role">Gemini</span>資料庫演進——前關聯式（1960s）有階層式、網狀模型，缺點是程式碼與資料結構高度耦合；轉折點（1970）E. F. Codd 發表論文用集合論把資料放進二維表格、用鍵值建立關聯；三大門派（1970s–80s）IBM System R（發明 SQL）、Oracle（搶先做商用）、Ingres（開源／PostgreSQL 發源地）；1990s SQL 黃金期，MySQL 出現、Postgres 加入 SQL 改名 PostgreSQL；2000s–2010s NoSQL（MongoDB、Redis）與 NewSQL/HTAP 興起。有趣的是現在最新的向量資料庫核心仍是在擴充 PostgreSQL。</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-06-25</footer>
+</div><script>
+function toggleAll(show){document.querySelectorAll('.spoiler').forEach(function(s){
+ if(show){s.classList.add('on');}else{s.classList.remove('on');}});}
+document.addEventListener('click',function(e){
+ if(e.target.classList&&e.target.classList.contains('spoiler')){e.target.classList.toggle('on');}});
+(function(){var l=document.createElement('link');l.rel='stylesheet';
+ l.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
+ document.head.appendChild(l);var s=document.createElement('script');
+ s.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+ s.onload=function(){try{hljs.highlightAll();}catch(e){}};document.head.appendChild(s);})();
+</script></body></html>

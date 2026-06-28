@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HeidiSQL 匯出查詢結果 與 ALTER TABLE 語法</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>HeidiSQL 匯出查詢結果 與 ALTER TABLE 語法</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#SQL</span><span class="pill">#HeidiSQL</span><span class="pill">#ALTER-TABLE</span><span class="pill">#資料庫</span></div><div class="meta">來源：Gemini · 分類：技術 · <a href="https://gemini.google.com/app/02196625daafd10f" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><blockquote>
+<p>此筆記只抽取對話中的「可重複使用技術知識」；對話另含 futuresign 專案的業務討論與 LINE 訊息潤飾，屬專案瑣事，未納入。</p>
+</blockquote>
+</section><section class="card"><h2>重點整理</h2>
+<h3>HeidiSQL：匯出「查詢結果」≠「SQL 匯出」</h3>
+<p><mark style="background: #FF5582A6;">「SQL 匯出」功能不能用來匯出 SELECT 跑出來的結果網格</mark>——它是用來匯出<mark style="background: #ADCCFFA6;">資料庫結構與資料表內容（資料庫物件）</mark>的。</p>
+<p>要匯出底部「結果」標籤頁看到的查詢結果，正確做法是<mark style="background: #BBFABBA6;">在結果網格上按右鍵 →「匯出網格行（Export grid rows）」</mark>：</p>
+<ol>
+<li>在「查詢」頁執行 <code>SELECT</code>，結果顯示在底部「結果」區。</li>
+<li>要部分匯出就拖曳選取幾行；要全部則不必選。</li>
+<li>在結果網格<mark style="background: #FFF3A3A6;">按右鍵 → 匯出網格行</mark>。</li>
+<li>設定格式：<mark style="background: #FFF3A3A6;">CSV</mark>（易用 Excel/程式讀）或 HTML/Excel；勾選<mark style="background: #BBFABBA6;">「包含列標題 Include column headers」</mark>（強烈建議，否則不知欄位是什麼）。</li>
+</ol>
+<h3>ALTER TABLE：新增欄位 <code>ADD COLUMN</code></h3>
+<p>語法：<code>ALTER TABLE [表名] ADD COLUMN [欄名] [型態] [約束] [位置];</code></p>
+<pre><code class="language-sql">-- 新增 VARCHAR 欄位,放在 price_per_unit 之後
+ALTER TABLE `future_sign`.`electricity_calculation_rule`
+ADD COLUMN `spec_name` VARCHAR(50) NULL AFTER `price_per_unit`;
+</code></pre>
+<ul>
+<li><mark style="background: #ADCCFFA6;"><code>AFTER 欄名</code></mark> 指定新欄位插在哪個欄位之後。</li>
+<li>用 <code>VARCHAR(n)</code> 存放文字規格說明（例如 <code>0.5KW</code>、<code>110V15A</code>）。</li>
+</ul>
+<h3>ALTER TABLE：欄位改名 <code>CHANGE COLUMN</code></h3>
+<pre><code class="language-sql">-- 把 amper 改名為更語意化的 spec_name
+ALTER TABLE `future_sign`.`electricity_calculation_rule`
+CHANGE COLUMN `amper` `spec_name` VARCHAR(50) NULL DEFAULT NULL;
+</code></pre>
+<p><mark style="background: #FF5582A6;"><code>CHANGE COLUMN</code> 改名時必須重寫完整型態定義</mark>（<code>VARCHAR(50) NULL DEFAULT NULL</code>），不能只給新名字。</p>
+<h3>INSERT INTO ... VALUES 的欄位順序陷阱</h3>
+<p>使用 <mark style="background: #FF5582A6;"><code>INSERT INTO 表 VALUES (...)</code> 省略欄位列表</mark>時，VALUES 內的值<mark style="background: #FFF3A3A6;">必須與資料表「當前的欄位順序」完全一致</mark>，不能缺漏或錯位。所以每次 <code>ALTER TABLE</code> 改了欄位（新增/改名/換位）後，舊的 INSERT 語句都要跟著重排。<br />
+（較安全的寫法是明寫欄位列表：<code>INSERT INTO 表 (col1, col2, ...) VALUES (...)</code>。）</p>
+<h3>補充：命名建議</h3>
+<p>描述「品項/規格」的欄位，避免含糊的 <code>electricity_name</code>，改用中性具體的 <code>item_name</code>／<code>rule_name</code>／<code>spec_name</code>，並讓「費用規則表」與「實際申請表」<mark style="background: #FFF3A3A6;">職責分離</mark>，用 <code>rule_id</code>/<code>item_id</code> 外鍵關聯。</p>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>HeidiSQL 匯出資料庫 SQL 檔案（2026-06）— https://gemini.google.com/app/02196625daafd10f</h3>
+<p><strong>使用者：</strong> 我們要怎麼在 HeidiSQL 匯出底下搜尋結果？</p>
+<p><strong>Gemini：</strong> 在 HeidiSQL 中不能用「SQL 匯出」功能來匯出查詢結果（SELECT 後底下的表格）——「SQL 匯出」是用來匯出資料庫結構和資料表內容（資料庫物件）。要匯出底部「結果」標籤頁的查詢結果，須用「匯出網格行（Export grid rows）」：①執行 SELECT，結果顯示在底部；②要部分匯出就拖曳選取，全部則不選；③在結果網格按右鍵 →「匯出網格行」；④設定格式（CSV 易於 Excel/程式讀，或 HTML/Excel），檔名，勾選「包含列標題」（強烈建議）。</p>
+<p><strong>使用者：</strong> 也可以幫我新增 amper 這個 column，用來輔助說明品項的名稱。</p>
+<p><strong>Gemini：</strong> 新增 VARCHAR 欄位最合適。<code>ALTER TABLE … ADD COLUMN \</code>amper` VARCHAR(50) NULL AFTER `price_per_unit`;<code>。注意用</code>INSERT INTO table VALUES (...)` 省略欄位列表時，VALUES 的值必須與資料表當前欄位順序完全一致。</p>
+<p><strong>使用者：</strong> 我的取名好奇怪，要叫 electricity_name 還是 add_on_…？</p>
+<p><strong>Gemini：</strong> 不建議 electricity_name（與 amper 功能重疊）。建議用 item_name／rule_name／spec_name 等中性具體詞；並把「費用規則表」與「實際申請表（如 power_add_on_application）」職責分離，用 rule_id/item_id 外鍵關聯。可先把 amper 改名：<code>ALTER TABLE … CHANGE COLUMN \</code>amper` `spec_name` VARCHAR(50) NULL DEFAULT NULL;`。</p>
+<p><strong>使用者：</strong> field 是什麼？（資料表結構圖中）</p>
+<p><strong>Gemini：</strong> 在結構圖中 Field（欄位）是佔位符／列標題，表示「這裡還要一個欄位」或提示第一列是 Column Name、第二列是 Data Type，是需要被替換掉的暫時文字，不是標準 SQL 資料型態。中介庫存表建議補上 stock_count(INT)、unit_price(DECIMAL) 等實際欄位與 PK/FK 屬性。</p>
+<p>（本對話另含綠界 ECPay 特店分潤金流、小米/紅米內建筆記因 SQLite＋Android 沙盒無法直接資料夾同步、需改用 Markor＋Syncthing/FolderSync 同步到 Obsidian 等延伸討論，以及多則給業主的 LINE 訊息潤飾——屬專案/工具瑣事，未納入本技術筆記。）</p></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-06-26</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>

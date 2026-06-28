@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三種 Heap 的差異釐清 ＋ heap-organized vs 非叢集索引（視覺化）</title>
+<style>
+  :root{--bg:#0f1220;--panel:#171a2b;--panel2:#1e2236;--ink:#e8ebf5;--muted:#9aa3c0;
+    --line:#2b3050;--accent:#6ea8fe;--accent2:#7ee0c0;--warn:#ff5d6c;--warn-bg:#2a1620;
+    --ds:#c08cff;--mem:#ffae57;--db:#5ad1ff;--heap:#ff8a6a;--clu:#34d399;--tree:#6ea8fe}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#1b2140 0,transparent 60%),var(--bg);
+    color:var(--ink);font-family:"Noto Sans TC","Segoe UI",system-ui,sans-serif;line-height:1.75;padding:0 0 80px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 22px}
+  header.hero{padding:54px 22px 30px;text-align:center;background:linear-gradient(180deg,rgba(110,168,254,.12),transparent);border-bottom:1px solid var(--line)}
+  header.hero h1{font-size:27px;margin:0 0 8px}.sub{color:var(--muted);font-size:15px}
+  .crumbs{font-size:13px;color:var(--muted);margin-top:14px}.crumbs code{background:var(--panel2);padding:2px 8px;border-radius:6px;color:var(--accent2)}
+  section{margin:38px 0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  h2{font-size:22px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  h2 .no{font-size:13px;font-weight:700;color:#0c1020;background:var(--accent);border-radius:8px;padding:3px 10px}
+  h3{font-size:17px;margin:18px 0 8px;color:var(--accent2)}
+  p{margin:10px 0}.lead{color:var(--muted);margin-top:2px}
+  code{font-family:"JetBrains Mono",Consolas,monospace;background:#0c1020;border:1px solid var(--line);padding:1px 6px;border-radius:6px;font-size:.9em;color:#ffd9a0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:10px 11px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--accent2)}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card.ds{border-top:3px solid var(--ds)}.card.mem{border-top:3px solid var(--mem)}.card.db{border-top:3px solid var(--db)}
+  .card h4{margin:6px 0 6px;font-size:15px}
+  .tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;display:inline-block}
+  .t-ds{background:#2a1f45;color:#d9c4ff}.t-mem{background:#3a2a10;color:#ffd9a0}.t-db{background:#0e2a3a;color:#bdeaff}
+  .warn{background:var(--warn-bg);border:1px solid var(--warn);border-left:5px solid var(--warn);border-radius:12px;padding:16px;margin:14px 0}
+  .warn .lbl{display:inline-block;font-weight:800;color:#fff;background:var(--warn);border-radius:6px;padding:2px 10px;font-size:12px;margin-bottom:6px}
+  .ok{--warn:#34d399;--warn-bg:#0f2a20}.info{--warn:#6ea8fe;--warn-bg:#10203a}
+  .small{font-size:12.5px;color:var(--muted)}
+  .blank{display:inline-block;min-width:80px;background:#f6c453;color:#3a2c00;border-radius:6px;padding:1px 12px;font-weight:800;cursor:pointer;text-align:center;border:1px solid #d9a93a;user-select:none}
+  .blank.revealed{background:#1b3a2a;color:#7ee0c0;border-color:#2e6b4c}
+  .q{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0}.q .qno{font-size:12px;font-weight:800;color:var(--muted)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:10px}
+  .legend span{display:flex;align-items:center;gap:6px}.dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+  footer{max-width:1000px;margin:30px auto 0;padding:18px 22px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+  @media(max-width:760px){.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <h1>Heap 釐清 ＋ heap-organized vs 非叢集索引</h1>
+  <div class="sub">同名三種 heap · 「很多顆小樹嗎？」一次用圖講清楚</div>
+  <div class="crumbs">放在 <code>backend/database/heap/</code> · 名詞釐清，避免誤會</div>
+</header>
+<div class="wrap">
+
+<!-- 00 -->
+<section>
+  <h2><span class="no">00</span> 先分清楚：三個同名、毫不相關的 heap</h2>
+  <div class="cards">
+    <div class="card ds"><span class="tag t-ds">① 資料結構</span><h4>🌳 二元堆積 Binary Heap</h4>
+      <p class="small">完全二元樹，父 ≥/≤ 子，<strong>最大/最小值永遠在頂端</strong>。做優先佇列、heapsort。<strong>跟資料庫無關。</strong></p></div>
+    <div class="card mem"><span class="tag t-mem">② 記憶體</span><h4>🧠 記憶體堆區 Heap Memory</h4>
+      <p class="small">程式<strong>動態配置</strong>記憶體那塊（相對 stack）。<code>malloc</code>/<code>new</code> 拿到的就在這。<strong>跟資料庫無關。</strong></p></div>
+    <div class="card db"><span class="tag t-db">③ 資料庫 ✅</span><h4>🗄️ 堆積表 Heap Table</h4>
+      <p class="small">「<strong>沒依任何鍵排序、一頁頁隨意堆放</strong>」的資料表儲存方式。PostgreSQL 預設、SQL Server 沒建 clustered index 時。</p></div>
+  </div>
+  <div class="warn"><span class="lbl">最容易誤會</span>
+    <p style="margin:6px 0 0">你學索引看到的 heap（heap-organized、回 heap 撈資料）是<strong>第 ③ 種</strong>，跟刷題的二元堆積①、記憶體②<strong>只是同名、完全無關</strong>。資料庫的 heap ＝「<strong>一堆沒排序的資料頁</strong>」，跟叢集索引（照鍵排好）正好相反。</p>
+  </div>
+</section>
+
+<!-- 01 你的兩個問題 -->
+<section>
+  <h2><span class="no">01</span> 你的問題：heap-organized ＝ 非叢集索引嗎？是很多顆小樹嗎？</h2>
+
+  <div class="warn info"><span class="lbl" style="background:#6ea8fe;color:#06182e">先給結論</span>
+    <p style="margin:6px 0 0">① <strong>heap-organized ≠ 非叢集索引</strong>——它們是<strong>兩個不同維度</strong>：一個講「表怎麼存」，一個講「某個索引的類型」。<br>
+       ② <strong>「樹」是索引，不是 heap</strong>：每個索引各自是一棵 B+樹（可以很多顆），但 heap 本身<strong>不是樹</strong>，是平的資料頁堆。</p>
+  </div>
+
+  <h3>兩個維度，別黏在一起</h3>
+  <table>
+    <tr><th>名詞</th><th>它在描述什麼</th><th>答案是</th></tr>
+    <tr><td><code>heap-organized</code></td><td>【<strong>表</strong>】怎麼存（儲存組織方式）</td><td>一堆<strong>無序</strong>的資料頁</td></tr>
+    <tr><td><code>非叢集索引</code></td><td>【<strong>某個索引</strong>】的類型</td><td>葉子放<strong>指標</strong>、要回表</td></tr>
+  </table>
+  <p>一個講表、一個講索引，<strong>不是同一件事</strong>。但兩者有因果關係：當一張表是 heap-organized（沒有叢集索引當家），那它上面<strong>所有索引「只能」都是非叢集索引</strong>——因為沒有任何索引的葉子是資料本身，全都得靠指標回 heap。</p>
+
+  <h3>🎨 圖解：左邊 heap 表 vs 右邊叢集表</h3>
+  <svg viewBox="0 0 960 520" width="100%" style="background:#0c1020;border:1px solid var(--line);border-radius:12px">
+    <defs>
+      <marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#9aa3c0"/></marker>
+      <marker id="ahg" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#34d399"/></marker>
+    </defs>
+    <line x1="480" y1="50" x2="480" y2="500" stroke="#2b3050" stroke-width="2" stroke-dasharray="6 6"/>
+
+    <!-- ===== LEFT: heap-organized (PostgreSQL) ===== -->
+    <text x="240" y="40" fill="#bdeaff" font-size="16" font-weight="bold" text-anchor="middle">① Heap-organized 表（PostgreSQL）</text>
+
+    <!-- three index trees -->
+    <g>
+      <polygon points="100,70 64,150 136,150" fill="#16223e" stroke="#6ea8fe" stroke-width="2"/>
+      <text x="100" y="108" fill="#bcd4ff" font-size="12" text-anchor="middle">B+樹</text>
+      <text x="100" y="166" fill="#8fb6ff" font-size="11" text-anchor="middle">PK 索引</text>
+    </g>
+    <g>
+      <polygon points="240,70 204,150 276,150" fill="#16223e" stroke="#6ea8fe" stroke-width="2"/>
+      <text x="240" y="108" fill="#bcd4ff" font-size="12" text-anchor="middle">B+樹</text>
+      <text x="240" y="166" fill="#8fb6ff" font-size="11" text-anchor="middle">idx_email</text>
+    </g>
+    <g>
+      <polygon points="380,70 344,150 416,150" fill="#16223e" stroke="#6ea8fe" stroke-width="2"/>
+      <text x="380" y="108" fill="#bcd4ff" font-size="12" text-anchor="middle">B+樹</text>
+      <text x="380" y="166" fill="#8fb6ff" font-size="11" text-anchor="middle">idx_status</text>
+    </g>
+    <text x="240" y="186" fill="#7d88ad" font-size="11" text-anchor="middle">↑ 三個索引＝三棵獨立的樹（葉子存 ctid 指標）</text>
+
+    <!-- arrows down to heap -->
+    <g stroke="#9aa3c0" stroke-width="2" marker-end="url(#ah)">
+      <line x1="100" y1="172" x2="120" y2="232"/>
+      <line x1="240" y1="172" x2="240" y2="232"/>
+      <line x1="380" y1="172" x2="360" y2="232"/>
+    </g>
+
+    <!-- heap box -->
+    <rect x="40" y="236" width="400" height="150" rx="12" fill="#2a1812" stroke="#ff8a6a" stroke-width="2"/>
+    <text x="240" y="262" fill="#ffb89a" font-size="14" font-weight="bold" text-anchor="middle">HEAP 資料堆</text>
+    <text x="240" y="282" fill="#d9a08a" font-size="11.5" text-anchor="middle">無序資料頁 · 不是樹！</text>
+    <g font-size="11" text-anchor="middle">
+      <rect x="60" y="298" width="80" height="30" rx="6" fill="#3a221a" stroke="#ff8a6a"/><text x="100" y="318" fill="#ffd0c0">id=99 整列</text>
+      <rect x="150" y="298" width="80" height="30" rx="6" fill="#3a221a" stroke="#ff8a6a"/><text x="190" y="318" fill="#ffd0c0">id=3 整列</text>
+      <rect x="240" y="298" width="80" height="30" rx="6" fill="#3a221a" stroke="#ff8a6a"/><text x="280" y="318" fill="#ffd0c0">id=57 整列</text>
+      <rect x="330" y="298" width="80" height="30" rx="6" fill="#3a221a" stroke="#ff8a6a"/><text x="370" y="318" fill="#ffd0c0">id=12 整列</text>
+      <rect x="105" y="338" width="80" height="30" rx="6" fill="#3a221a" stroke="#ff8a6a"/><text x="145" y="358" fill="#ffd0c0">id=41 整列</text>
+      <rect x="195" y="338" width="80" height="30" rx="6" fill="#3a221a" stroke="#ff8a6a"/><text x="235" y="358" fill="#ffd0c0">id=8 整列</text>
+      <rect x="285" y="338" width="80" height="30" rx="6" fill="#3a221a" stroke="#ff8a6a"/><text x="325" y="358" fill="#ffd0c0">id=70 整列</text>
+    </g>
+    <text x="240" y="420" fill="#cfd6f0" font-size="12" text-anchor="middle" font-weight="bold">heap 自己不是樹，是「被指向的」無序資料</text>
+    <text x="240" y="442" fill="#9aa3c0" font-size="11.5" text-anchor="middle">索引可以很多顆樹，全都指向「同一個」heap</text>
+    <text x="240" y="462" fill="#9aa3c0" font-size="11.5" text-anchor="middle">查非 PK 欄 → 走索引拿 ctid → 回 heap 撈整列（回表）</text>
+
+    <!-- ===== RIGHT: clustered (InnoDB) ===== -->
+    <text x="720" y="40" fill="#9ff0c8" font-size="16" font-weight="bold" text-anchor="middle">② 叢集表（MySQL InnoDB）</text>
+
+    <!-- big clustered tree -->
+    <polygon points="660,66 540,300 780,300" fill="#0f2a20" stroke="#34d399" stroke-width="2"/>
+    <text x="660" y="120" fill="#bff3e2" font-size="13" text-anchor="middle" font-weight="bold">主鍵叢集 B+樹</text>
+    <text x="660" y="142" fill="#8fd9bd" font-size="11" text-anchor="middle">（表本身就是這棵樹）</text>
+    <!-- leaf = data row -->
+    <g font-size="10.5" text-anchor="middle">
+      <rect x="546" y="304" width="74" height="34" rx="6" fill="#10231b" stroke="#34d399"/><text x="583" y="320" fill="#c8ffe0">1 ▸ 整列</text><text x="583" y="333" fill="#7aa" font-size="9">葉子=資料</text>
+      <rect x="624" y="304" width="74" height="34" rx="6" fill="#10231b" stroke="#34d399"/><text x="661" y="320" fill="#c8ffe0">2 ▸ 整列</text><text x="661" y="333" fill="#7aa" font-size="9">葉子=資料</text>
+      <rect x="702" y="304" width="74" height="34" rx="6" fill="#10231b" stroke="#34d399"/><text x="739" y="320" fill="#c8ffe0">3 ▸ 整列</text><text x="739" y="333" fill="#7aa" font-size="9">葉子=資料</text>
+    </g>
+
+    <!-- secondary index small tree -->
+    <polygon points="880,90 844,165 916,165" fill="#16223e" stroke="#6ea8fe" stroke-width="2"/>
+    <text x="880" y="128" fill="#bcd4ff" font-size="11" text-anchor="middle">二級索引</text>
+    <text x="880" y="182" fill="#8fb6ff" font-size="10.5" text-anchor="middle">葉子＝PK 值</text>
+    <!-- arrow secondary -> clustered leaf (回表 via PK) -->
+    <path d="M860,168 C820,230 800,270 760,304" fill="none" stroke="#34d399" stroke-width="2" marker-end="url(#ahg)"/>
+    <text x="835" y="250" fill="#7ee0c0" font-size="10.5" text-anchor="middle">拿 PK 回表</text>
+
+    <text x="720" y="396" fill="#cfd6f0" font-size="12" text-anchor="middle" font-weight="bold">沒有獨立 heap：資料就住在主鍵那棵樹的葉子</text>
+    <text x="720" y="418" fill="#9aa3c0" font-size="11.5" text-anchor="middle">二級索引另成一棵樹，葉子放 PK</text>
+    <text x="720" y="438" fill="#9aa3c0" font-size="11.5" text-anchor="middle">查二級索引 → 拿 PK → 回主鍵樹撈整列（回表）</text>
+  </svg>
+  <div class="legend">
+    <span><i class="dot" style="background:#6ea8fe"></i>B+樹（索引）</span>
+    <span><i class="dot" style="background:#ff8a6a"></i>HEAP（無序資料堆，不是樹）</span>
+    <span><i class="dot" style="background:#34d399"></i>叢集樹（葉子＝資料）</span>
+  </div>
+
+  <h3>所以針對你的兩個問題</h3>
+  <div class="warn ok"><span class="lbl" style="background:#34d399;color:#053">Q：heap-organized ＝ 非叢集索引嗎？</span>
+    <p style="margin:6px 0 0"><strong>不是。</strong> heap-organized 是「表」的儲存方式（無序資料堆）；非叢集索引是「索引」的一種（葉子放指標）。但在 heap 表上，<strong>所有索引都只能是非叢集索引</strong>——這是因果，不是相等。</p>
+  </div>
+  <div class="warn info"><span class="lbl" style="background:#6ea8fe;color:#06182e">Q：那是很多顆小樹嗎？</span>
+    <p style="margin:6px 0 0"><strong>對一半。</strong> ✅ 每個索引各自是一棵 B+樹，一張表有幾個索引就有幾棵樹（可以很多顆）。❌ 但 <strong>heap 本身不是樹</strong>，它是平的資料頁堆。<strong>樹是「索引」，heap 是「被索引指向的資料」</strong>——別把這兩個角色混在一起。</p>
+  </div>
+</section>
+
+<!-- 01half PK vs ctid -->
+<section>
+  <h2><span class="no">1½</span> heap 無序＝沒有 PK 嗎？ctid 是 PK 的替代品嗎？</h2>
+
+  <div class="warn info"><span class="lbl" style="background:#6ea8fe;color:#06182e">先破除一個誤會</span>
+    <p style="margin:6px 0 0"><strong>「heap 無序」跟「有沒有 PK」是兩件不同的事，別黏在一起。</strong> heap 表<strong>照樣可以有 PK</strong>！PK 只是「<strong>另一棵索引樹</strong>」，負責保證唯一、給你和外鍵當識別——但它<strong>不會把資料排序</strong>，資料仍躺在無序的 heap 裡。PostgreSQL 正是這樣：每張表都是 heap，PK 只是一個 unique 的 B+樹索引，葉子存 ctid 指回 heap。</p>
+  </div>
+
+  <h3>PK 和 ctid/RID 是「兩個不同角色」，不是替代關係</h3>
+  <table>
+    <tr><th>　</th><th>PK（主鍵）</th><th>ctid / RID</th></tr>
+    <tr><td>是什麼</td><td><strong>邏輯</strong>識別碼（你選的、有意義，如 id=5）</td><td><strong>實體</strong>位址（檔案／分頁／列號）</td></tr>
+    <tr><td>誰在用</td><td>你、外鍵、JOIN、API</td><td>儲存引擎內部定位用</td></tr>
+    <tr><td>穩不穩定</td><td><strong>穩定</strong>，不會變</td><td><strong>會變！</strong>UPDATE／VACUUM FULL／CLUSTER 後就改變</td></tr>
+    <tr><td>怎麼來的</td><td>你定義 + 唯一索引強制不重複</td><td>引擎自動給，跟著實體位置走</td></tr>
+    <tr><td>能當外鍵嗎</td><td>能</td><td><strong>不能</strong>（會變，不可靠）</td></tr>
+  </table>
+  <p>所以 ctid <strong>不是「PK 的替代品」</strong>，它是「<strong>索引用來找到 heap 那一列的低階指標</strong>」。所有索引（<strong>包含 PK 索引</strong>）的葉子都存 ctid。查 <code>WHERE id=5</code> 時：走 PK 索引那棵樹 → 拿到 ctid → 跳到 heap 對應的那一列讀整列（這就是 PG 幾乎每次查詢都要回表的原因）。</p>
+
+  <div class="warn ok"><span class="lbl" style="background:#34d399;color:#053">關鍵分離</span>
+    <p style="margin:6px 0 0"><strong>「實體順序」（heap vs 叢集）和「邏輯識別」（PK）是兩件獨立的事。</strong><br>
+    · <strong>heap 表</strong>：可以有 PK，但 PK <strong>不決定</strong>實體排序（資料仍無序，靠 ctid 定位）。<br>
+    · <strong>叢集表（InnoDB）</strong>：PK <strong>同時</strong>決定實體排序（資料照 PK 排好，葉子就是資料）。<br>
+    差別只在「PK 有沒有順便排序資料」，不在「有沒有 PK」。</p>
+  </div>
+
+  <div class="warn"><span class="lbl">實用警告</span>
+    <p style="margin:6px 0 0">ctid <strong>會變</strong>（PG 的 UPDATE 會寫新版本→新 ctid，VACUUM FULL / CLUSTER 也會重排）。所以<strong>千萬別把 ctid 當永久 ID 或寫進程式邏輯／外鍵</strong>。要穩定識別一律用 PK。</p>
+  </div>
+</section>
+
+<!-- 02 三者並排 -->
+<section>
+  <h2><span class="no">02</span> 三種 heap 並排對照（速查）</h2>
+  <table>
+    <tr><th>面向</th><th><span style="color:var(--ds)">① 二元堆積</span></th><th><span style="color:var(--mem)">② 記憶體堆區</span></th><th><span style="color:var(--db)">③ 堆積表(DB)</span></th></tr>
+    <tr><td>它是什麼</td><td>完全二元樹</td><td>記憶體區域</td><td>資料表儲存方式</td></tr>
+    <tr><td>核心性質</td><td>父≥/≤子，頂端極值</td><td>動態配置、可要/還</td><td>列<strong>無序</strong>，插哪算哪</td></tr>
+    <tr><td>是不是樹</td><td>是（樹）</td><td>不是</td><td><strong>不是</strong>（平的資料頁）</td></tr>
+    <tr><td>對照物</td><td>vs 二元搜尋樹</td><td>vs Stack</td><td>vs 叢集索引（照鍵排好）</td></tr>
+    <tr><td>怎麼定位</td><td>陣列索引 2i/2i+1</td><td>指標/位址</td><td>RID / ctid</td></tr>
+  </table>
+  <p class="small">分辨法：看到 heap 先問「<strong>演算法、記憶體、還是資料表？</strong>」對不上就不是同一個。延伸：<code>[[B+樹與索引結構－叢集索引vs非叢集索引]]</code> 第 4½ 章、<code>[[索引查詢指令與實戰案例]]</code> 第 02 章。</p>
+</section>
+
+<!-- 03 quiz -->
+<section>
+  <h2><span class="no">03</span> 小測驗（點黃框看答案）</h2>
+  <div class="q"><span class="qno">填 1</span><p>PostgreSQL 表預設無序、要靠 ctid 定位，這種儲存方式叫
+    <span class="blank" onclick="flip(this)" data-a="堆積表 Heap Table / heap-organized">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 2</span><p>heap-organized 講的是「表」怎麼存；非叢集索引講的是「索引」的類型，所以兩者
+    <span class="blank" onclick="flip(this)" data-a="不相等（不同維度）">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 3</span><p>一張 heap 表上有 3 個索引，就有
+    <span class="blank" onclick="flip(this)" data-a="3 棵 B+樹（heap 不算樹）">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 4</span><p>這些索引樹的葉子存的是指標（ctid），全都指向
+    <span class="blank" onclick="flip(this)" data-a="同一個 heap">點我</span>。</p></div>
+  <div class="q"><span class="qno">是非</span><p>判斷：heap 本身是一棵樹。
+    <span class="blank" onclick="flip(this)" data-a="錯！heap 是平的資料頁，樹是索引">點我</span></p></div>
+</section>
+
+</div>
+<footer>
+  <p>關聯：<code>[[B+樹與索引結構－叢集索引vs非叢集索引]]</code>、<code>[[索引查詢指令與實戰案例]]</code>、<code>[[鎖與交易與並發控制]]</code>。</p>
+</footer>
+<script>
+function flip(el){if(el.classList.contains('revealed')){el.classList.remove('revealed');el.textContent='點我';}else{el.classList.add('revealed');el.textContent=el.dataset.a;}}
+</script>
+</body>
+</html>

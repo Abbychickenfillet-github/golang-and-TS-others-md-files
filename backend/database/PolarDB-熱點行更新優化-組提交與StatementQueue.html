@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PolarDB 熱點行更新優化（組提交 Group Commit 與 Statement Queue）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>PolarDB 熱點行更新優化（組提交 Group Commit 與 Statement Queue）</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#database</span><span class="pill">#polardb</span><span class="pill">#mysql</span><span class="pill">#高並發</span><span class="pill">#行鎖</span><span class="pill">#group-commit</span><span class="pill">#statement-queue</span><span class="pill">#熱點行</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/e1b34595dac7a211" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><h2>重點整理</h2>
+<h3>先搞懂問題：什麼是「熱點行」排隊等鎖</h3>
+<p>當很多事務在<mark style="background: #ADCCFFA6;">短時間內更新同一行資料（熱點行 hot row）</mark>時，只有一個事務能更新，其他必須等待。</p>
+<p>關鍵釐清：這些等待的事務<mark style="background: #FF5582A6;">並不是「各自有一個鎖」</mark>，而是<mark style="background: #BBFABBA6;">排隊等待取得「同一個」行鎖</mark>。持有鎖的事務 commit 或 rollback 釋放鎖後，下一個排隊者才拿得到。</p>
+<blockquote>
+<p>[!note] 名詞釐清<br />
+<mark style="background: #ADCCFFA6;">PolarDB</mark> 是阿里雲自研的<mark style="background: #FFF3A3A6;">「雲原生資料庫（Cloud-Native Database）」</mark>，名稱跟 Hulu 影集、MySQL 都無關（對話中 Gemini 一度語音辨識錯亂，特此標註）。</p>
+</blockquote>
+<h3>優化技術一：熱點行 UPDATE 優化（Hot row optimization）</h3>
+<p>針對「多事務搶同一行鎖」的核心優化，靠<mark style="background: #FFF3A3A6;">流水線分組（Group Update）</mark>＋<mark style="background: #FFF3A3A6;">組提交（Group Commit）</mark>。</p>
+<p><strong>Leader / Follower 機制（消除申請行鎖的等待）：</strong></p>
+<ul>
+<li>組內<mark style="background: #FFF3A3A6;">第一個更新操作 = Leader</mark>：負責讀取目標資料行並加鎖。</li>
+<li>後續更新操作 = <mark style="background: #FFF3A3A6;">Follower</mark>：要對同一行加鎖時，發現 Leader 已持有行鎖，就<mark style="background: #BBFABBA6;">無需等待，直接獲得行鎖</mark>。</li>
+<li>效果：<mark style="background: #FFB8EBA6;">減少行鎖的加鎖次數與時間開銷</mark>。</li>
+</ul>
+<p><strong>組提交流程：</strong> 多筆更新先收集進記憶體（<code>Collect and Update Memory Record</code> / Row Cache 暫存），由 Leader 統一收集更新記憶體紀錄，再以群組方式一起提交（<code>Group Committing</code>）→ <mark style="background: #FFB8EBA6;">大幅減少磁碟 I/O 次數與鎖衝突</mark>。</p>
+<h3>優化技術二：Statement Queue（語句隊列）</h3>
+<p>如果<strong>沒有</strong>開啟上面的熱點行優化，PolarDB 還提供另一種排隊機制。</p>
+<ul>
+<li>痛點：原生 MySQL 中，多條語句對同一行並發操作時，執行緒會在 InnoDB 行鎖上<mark style="background: #FF5582A6;">「硬碰硬」競爭</mark>，造成嚴重鎖等待與衝突，系統吞吐量暴跌。</li>
+<li>做法：透過 <mark style="background: #ADCCFFA6;">Hint 語法</mark>，把這些衝突語句在進入資料庫引擎前，先用 <mark style="background: #FFF3A3A6;">Hash 演算法路由到一個共享的「排隊桶（Bucket）」</mark>，讓語句在隊列中依序排隊，而不是直接去頻繁申請/釋放鎖 → <mark style="background: #BBFABBA6;">降低內核的鎖衝突開銷</mark>。</li>
+</ul>
+<h3>它如何把高並發熱點行更新做到「並行處理」</h3>
+<p>把針對同一熱點行的更新操作<mark style="background: #FFF3A3A6;">分組</mark>，再用類似 Hash 演算法把不同的組<mark style="background: #FFF3A3A6;">並行處理</mark>，最大化並發吞吐。</p>
+<h3>數字累加 vs 字串更新的差別</h3>
+<ul>
+<li>數字（<code>1 + 1 + 1</code>）本質是<mark style="background: #FFF3A3A6;">累加</mark>，組內可以一次合併算完。</li>
+<li>字串一直被改寫時，會按<mark style="background: #ADCCFFA6;">先後順序分批處理與提交</mark>，<mark style="background: #FF5582A6;">最終值取決於「最後一個成功執行的更新」</mark>。</li>
+</ul>
+<h3>想找官方文件</h3>
+<p>到<mark style="background: #ADCCFFA6;">阿里雲幫助中心（Alibaba Cloud Help Center）</mark>搜尋關鍵字：<code>PolarDB 热点行性能优化</code>（英：Hot row optimization）或 <code>PolarDB Statement Queue</code>。</p>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>阿里云 PolarDB 数据库介绍（2026-06）— https://gemini.google.com/app/e1b34595dac7a211</h3>
+<blockquote>
+<p>對話為語音輸入，以下為整理後的問答重點（去除語音辨識雜訊）。</p>
+</blockquote>
+<p><strong>使用者：</strong> （它）在一段時間內針對同一資料能進行更新，其他事物則需要等待；那等待的這些，是不是每一個等待的都有一個鎖？</p>
+<p><strong>Gemini：</strong> 當其他事務嘗試更新相同的熱點行時，它們會被掛起，直到持有鎖的事務提交或回滾並釋放鎖。這些等待的事務並沒有各自的鎖，而是排隊等待獲得鎖。</p>
+<p><strong>使用者：</strong> 給我鎖的機制、排隊的參考 document。</p>
+<p><strong>Gemini：</strong> 在 PolarDB 架構中主要有兩種技術處理高並發排隊與行鎖等待：<br />
+1.《熱點數據行 UPDATE 操作的性能優化》（Hot row optimization）— 核心是組提交與流水線：大量並發更新同一行時，內核自動按到達順序分組（Group Update）。「組內第一個更新操作為 Leader，其讀取目標數據行並且加鎖。後續更新操作為 Follower，其對目標數據行加鎖時，如果發現 Leader 已經持有行鎖，無需等待，直接獲得行鎖。」藉此減少行鎖的加鎖次數和時間開銷。<br />
+2.《使用 Statement Queue 優化高並發性能》— 原生 MySQL 多語句針對相同行並發時，執行線程會在 InnoDB 行鎖上硬碰硬競爭，吞吐量暴跌。PolarDB 允許透過 Hint 把衝突語句在進入引擎前以 Hash 路由到共享排隊桶（Bucket）中依序排隊，降低鎖衝突開銷。</p>
+<p><strong>使用者：</strong> 這些是怎麼對高並發熱點行更新做到並行處理？</p>
+<p><strong>Gemini：</strong> PolarDB 透過將針對同一熱點行的更新操作分組，並使用類似哈希演算法的技術將不同的組並行處理，從而最大程度實現並發更新、提高整體效能。</p>
+<p><strong>使用者：</strong> 圖解 sequence：update the same hot row、row 快取，快取的內容是什麼？</p>
+<p><strong>Gemini：</strong> 多個針對相同熱點行的更新請求會集中到「Row Cache」暫存。此階段系統不會立即對各請求單獨加鎖，而是由組內 Leader 執行收集與更新記憶體紀錄；接著以群組方式提交，減少鎖定衝突。</p>
+<p><strong>使用者：</strong> 透過 group commit 的機制是什麼？</p>
+<p><strong>Gemini：</strong> 先把同一熱點行的更新請求收集在記憶體（圖中的 Collect and Update Memory Record），再在適當時機一起提交（Group Committing），減少磁碟 I/O、提高效能。</p>
+<p><strong>使用者：</strong> 可是如果是一直更改裡面的 string 字串，最後會以什麼為主？</p>
+<p><strong>Gemini：</strong> 系統根據主鍵或唯一鍵進行哈希分組。對同一桶中的字串更新，按先後順序分批處理與提交，最終值取決於最後一個成功執行的更新操作。</p>
+<p><strong>使用者：</strong> PolarDB 不是阿里的嗎？（對 AI 語音誤判提問）</p>
+<p><strong>Gemini：</strong> PolarDB 代表「雲原生數據庫」，是阿里雲自主研發的資料庫產品，並不是 Hulu 影集或 MySQL。</p></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-06-27</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>

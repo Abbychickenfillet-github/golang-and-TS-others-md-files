@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鎖與交易與並發控制 — S/X 鎖 · 鎖競爭 · 主動加鎖 · 死鎖 · 隔離等級</title>
+<style>
+  :root{--bg:#0f1220;--panel:#171a2b;--panel2:#1e2236;--ink:#e8ebf5;--muted:#9aa3c0;
+    --line:#2b3050;--accent:#6ea8fe;--accent2:#7ee0c0;--warn:#ff5d6c;--warn-bg:#2a1620;
+    --ok:#34d399;--bad:#fb7185;--yellow:#f6c453;--s:#5ad1ff;--x:#ff8ac0}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#1b2140 0,transparent 60%),var(--bg);
+    color:var(--ink);font-family:"Noto Sans TC","Segoe UI",system-ui,sans-serif;line-height:1.75;padding:0 0 80px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 22px}
+  header.hero{padding:54px 22px 30px;text-align:center;background:linear-gradient(180deg,rgba(110,168,254,.12),transparent);border-bottom:1px solid var(--line)}
+  header.hero h1{font-size:28px;margin:0 0 8px}.sub{color:var(--muted);font-size:15px}
+  .crumbs{font-size:13px;color:var(--muted);margin-top:14px}.crumbs code{background:var(--panel2);padding:2px 8px;border-radius:6px;color:var(--accent2)}
+  section{margin:38px 0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  h2{font-size:22px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  h2 .no{font-size:13px;font-weight:700;color:#0c1020;background:var(--accent);border-radius:8px;padding:3px 10px}
+  h3{font-size:17px;margin:22px 0 8px;color:var(--accent2)}
+  p{margin:10px 0}.lead{color:var(--muted);margin-top:2px}
+  code{font-family:"JetBrains Mono",Consolas,monospace;background:#0c1020;border:1px solid var(--line);padding:1px 6px;border-radius:6px;font-size:.9em;color:#ffd9a0}
+  pre{background:#0c1020;border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto;font-size:13px}
+  pre code{background:none;border:none;padding:0;color:#d9e2ff}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--accent2)}
+  .warn{background:var(--warn-bg);border:1px solid var(--warn);border-left:5px solid var(--warn);border-radius:12px;padding:16px;margin:14px 0}
+  .warn .lbl{display:inline-block;font-weight:800;color:#fff;background:var(--warn);border-radius:6px;padding:2px 10px;font-size:12px;margin-bottom:6px}
+  .ok{--warn:#34d399;--warn-bg:#0f2a20}.info{--warn:#6ea8fe;--warn-bg:#10203a}
+  .small{font-size:12.5px;color:var(--muted)}
+  /* ===== 2x2 四格相容矩陣 ===== */
+  .matrix{display:grid;grid-template-columns:120px 1fr 1fr;gap:10px;margin:18px 0;align-items:stretch}
+  .matrix .hd{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+  .matrix .rh{flex-direction:column;gap:2px}
+  .matrix .cell{border-radius:12px;padding:18px 12px;text-align:center;border:2px solid;min-height:96px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+  .cell .big{font-size:26px;font-weight:800;line-height:1}
+  .cell .lab{font-size:13px;font-weight:700}
+  .cell .ex{font-size:11.5px;opacity:.85}
+  .c-ok{background:#0f2a20;border-color:#34d399;color:#9ff0c8}
+  .c-no{background:#2a1620;border-color:#ff5d6c;color:#ffb0a0}
+  .axis{font-size:12px;color:var(--muted);text-align:center;margin-top:-6px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+  .col{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .col.s{border-top:3px solid var(--s)}.col.x{border-top:3px solid var(--x)}
+  .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}.b-s{background:#0e2a3a;color:#bdeaff}.b-x{background:#3a1830;color:#ffc4e2}
+  .blank{display:inline-block;min-width:80px;background:var(--yellow);color:#3a2c00;border-radius:6px;padding:1px 12px;font-weight:800;cursor:pointer;text-align:center;border:1px solid #d9a93a;user-select:none}
+  .blank.revealed{background:#1b3a2a;color:#7ee0c0;border-color:#2e6b4c}
+  .q{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0}.q .qno{font-size:12px;font-weight:800;color:var(--muted)}
+  .acc{border:1px solid var(--line);border-radius:12px;margin:10px 0;overflow:hidden;background:var(--panel2)}
+  .acc>button{width:100%;text-align:left;background:none;border:none;color:var(--ink);padding:14px 16px;font-size:15px;font-weight:700;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+  .acc>button .tg{color:var(--accent);font-size:13px}
+  .acc .body{max-height:0;overflow:hidden;transition:max-height .4s ease;padding:0 16px}
+  .acc.open .body{max-height:1200px;padding:0 16px 14px}
+  .good{color:#7ee0c0;font-weight:700}.bad{color:#ff8a96;font-weight:700}
+  footer{max-width:1000px;margin:30px auto 0;padding:18px 22px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+  @media(max-width:760px){.cols{grid-template-columns:1fr}.matrix{grid-template-columns:90px 1fr 1fr}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <h1>鎖與交易與並發控制</h1>
+  <div class="sub">S/X 四格相容矩陣 · 鎖競爭 · 主動加鎖（正確 vs 不好的寫法）· 死鎖 · 隔離等級</div>
+  <div class="crumbs">放在 <code>backend/database/lock/</code> · 延伸自索引話題</div>
+</header>
+<div class="wrap">
+
+<!-- 01 為何有共享鎖 -->
+<section>
+  <h2><span class="no">01</span> 為什麼 UPDATE 要排他，卻還要有「共享鎖」？</h2>
+  <p>因為<strong>不是所有動作都要改值</strong>。讀跟讀之間從不衝突——兩個人同時看同一個值，誰都不會把對方看壞。若只有排他鎖，連「只想讀、但要鎖住防止被改」的交易也會互卡，純粹浪費效能。所以鎖分兩種基本型：</p>
+  <div class="cols">
+    <div class="col s"><span class="badge b-s">S 鎖 Shared（共享／讀鎖）</span>
+      <h3 style="margin-top:8px">📖 借閱影印本</h3>
+      <p class="small">很多人可同時各拿影印本看同一本書，互不妨礙。多個交易能<strong>同時持有同一列的 S 鎖</strong>。語法：<code>SELECT ... FOR SHARE</code>（MySQL 舊：<code>LOCK IN SHARE MODE</code>）。</p>
+    </div>
+    <div class="col x"><span class="badge b-x">X 鎖 Exclusive（排他／寫鎖）</span>
+      <h3 style="margin-top:8px">✍️ 把正本借回家改寫</h3>
+      <p class="small">原書正在被改，誰都不能同時碰。<strong>一次只有一個交易能持有，排斥其他所有鎖</strong>。語法：<code>SELECT ... FOR UPDATE</code>，以及所有 <code>UPDATE/DELETE</code> 自動上的鎖。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 02 四格矩陣 -->
+<section>
+  <h2><span class="no">02</span> S/X 相容性：2×2 四格矩陣</h2>
+  <p class="lead">「我想要的鎖」對上「別人已持有的鎖」，能不能立刻拿到？四格一次看懂。</p>
+
+  <div class="matrix">
+    <div class="hd" style="background:transparent;border:none"></div>
+    <div class="hd">對方持有<br><span style="color:var(--s)">S 鎖</span></div>
+    <div class="hd">對方持有<br><span style="color:var(--x)">X 鎖</span></div>
+
+    <div class="hd rh">我要<br><span style="color:var(--s)">S 鎖</span></div>
+    <div class="cell c-ok"><div class="big">✔</div><div class="lab">相容</div><div class="ex">讀+讀，立刻拿到</div></div>
+    <div class="cell c-no"><div class="big">✘</div><div class="lab">阻塞（等）</div><div class="ex">對方在寫，要等他放鎖</div></div>
+
+    <div class="hd rh">我要<br><span style="color:var(--x)">X 鎖</span></div>
+    <div class="cell c-no"><div class="big">✘</div><div class="lab">阻塞（等）</div><div class="ex">有人在讀，不能改</div></div>
+    <div class="cell c-no"><div class="big">✘</div><div class="lab">阻塞（等）</div><div class="ex">寫+寫，必須排隊</div></div>
+  </div>
+  <div class="axis">唯一綠格＝<strong>S + S</strong>。記法：<strong>讀讀不擋，只要牽涉到寫就互斥。</strong></div>
+
+  <div class="warn info"><span class="lbl" style="background:#6ea8fe;color:#06182e">實際場景：外鍵檢查只要 S 鎖</span>
+    <p style="margin:6px 0 0">InnoDB 檢查外鍵約束時（確認被參照那列還在），只上 <strong>S 鎖</strong>——只是要「確認資料還在、暫時別被刪」，不需要、也不該擋住另一個同時做同樣檢查的交易。這就是為什麼 S 鎖要存在：讓「單純讀、但要防止被改」不必付排他的代價。</p>
+  </div>
+
+  <div class="acc" id="acc-il">
+    <button onclick="acc('acc-il')">延伸：InnoDB 還有「意向鎖 IS/IX」（為什麼需要） <span class="tg">＋ 點開</span></button>
+    <div class="body">
+      <p>除了列上的 S/X，InnoDB 在<strong>表層級</strong>還有意向鎖 <strong>IS / IX</strong>。用途：當某交易想鎖<em>整張表</em>時，不必逐列檢查「有沒有人鎖了某列」，只要看表上有沒有 IX/IS 旗標就知道。等於在大門口掛個牌子「裡面有人在改某些列」，加速衝突判斷。它們彼此大多相容，只跟「表層 X」衝突，平常不太需要手動管。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 03 鎖競爭 -->
+<section>
+  <h2><span class="no">03</span> 鎖競爭（Lock Contention）：效能怎麼被吃掉的</h2>
+  <p><strong>鎖競爭＝很多交易想要同一個資源的衝突鎖，只好排隊等。</strong> 隊伍越長、持鎖時間越久，吞吐量越низ。三個放大鎖競爭的因素：</p>
+  <table>
+    <tr><th>因素</th><th>為什麼變慢</th><th>怎麼緩解</th></tr>
+    <tr><td><strong>持鎖時間太長</strong></td><td>交易裡夾了慢查詢、外部 API call、人為等待，鎖一直不放</td><td>交易盡量短；先算好再進交易；別在交易裡呼叫外部服務</td></tr>
+    <tr><td><strong>熱點列 Hot row</strong></td><td>大家搶改同一列（如全站計數器），全卡在那列 X 鎖</td><td>分片計數器、批次累加、用 Redis 原子計數</td></tr>
+    <tr><td><strong>鎖範圍太大</strong></td><td>沒走索引 → 掃描鎖了一堆不相關的列（甚至整表）</td><td>讓 <code>WHERE</code> 走索引，把鎖縮到目標列（見下方警告）</td></tr>
+  </table>
+  <div class="warn"><span class="lbl">索引也會影響鎖範圍！</span>
+    <p style="margin:6px 0 0">InnoDB 是<strong>對「掃到的索引記錄」上鎖</strong>。如果 <code>UPDATE ... WHERE x=?</code> 的 <code>x</code> 沒有索引，它可能掃描並鎖住<strong>很多列甚至整張表</strong>，鎖競爭瞬間爆炸。所以「<strong>WHERE 條件走索引</strong>」不只查得快，也讓<strong>鎖得準、鎖得少</strong>。這就是索引與鎖的交會點。</p>
+  </div>
+</section>
+
+<!-- 04 主動加鎖 -->
+<section>
+  <h2><span class="no">04</span> 工程師如何「主動」加鎖？正確 vs 不好的寫法</h2>
+  <p>平常 <code>UPDATE/DELETE</code> 會自動上 X 鎖。但「<strong>先讀、判斷、再改</strong>」這種情境，讀的那一步預設不上鎖，中間就有空窗 → 要<strong>主動加鎖</strong>。</p>
+
+  <h3>兩個主動加鎖語法</h3>
+  <table>
+    <tr><th>語法</th><th>上什麼鎖</th><th>用在</th></tr>
+    <tr><td><code>SELECT ... FOR UPDATE</code></td><td><strong>X 鎖</strong></td><td>讀完馬上要改（扣庫存、轉帳）</td></tr>
+    <tr><td><code>SELECT ... FOR SHARE</code><br><span class="small">(舊:LOCK IN SHARE MODE)</span></td><td><strong>S 鎖</strong></td><td>讀完不改、但要確保這段時間別人不能改（一致性讀）</td></tr>
+  </table>
+
+  <h3>❌ 不好的寫法（會 lost update）</h3>
+<pre><code>-- 讀和改分兩句，中間沒鎖，資料庫不知道它們是「同一件事」
+SELECT stock FROM products WHERE id=1;     -- A、B 都讀到 stock=10
+-- 程式各自算 10-1=9
+UPDATE products SET stock=9 WHERE id=1;     -- A、B 都寫回 9（少扣一次！）</code></pre>
+  <p class="small bad">問題：兩句之間的空窗完全沒保護，兩個交易的修改互相覆蓋＝lost update。</p>
+
+  <h3>✅ 正確寫法之一：悲觀鎖 FOR UPDATE</h3>
+<pre><code>START TRANSACTION;
+SELECT stock FROM products WHERE id=1 FOR UPDATE;  -- 讀就上 X 鎖，B 被卡住排隊
+-- 確認 stock>0 後
+UPDATE products SET stock = stock - 1 WHERE id=1;
+COMMIT;                                            -- 放鎖，B 才進來，讀到的已是 9</code></pre>
+  <p class="small good">假設「衝突很常發生」就先鎖起來。代價：並發被序列化、要小心死鎖。</p>
+
+  <h3>✅ 正確寫法之二：原子更新（最簡單時優先）</h3>
+<pre><code>-- 不先讀，直接讓資料庫在一句內完成「讀+算+寫」，天然沒有空窗
+UPDATE products SET stock = stock - 1 WHERE id=1 AND stock > 0;
+-- 看「影響列數」：=1 成功；=0 代表沒庫存或被搶完</code></pre>
+  <p class="small good">能用一句 <code>x = x - 1</code> 解決就別先 SELECT。單純扣減這是最省事、最快的做法。</p>
+
+  <h3>✅ 正確寫法之三：樂觀鎖（衝突少時）</h3>
+<pre><code>-- 用版本號，不先鎖；改的時候比對版本
+SELECT stock, version FROM products WHERE id=1;     -- 讀到 version=7
+UPDATE products SET stock=stock-1, version=version+1
+WHERE id=1 AND version=7;                            -- 影響列數=0 → 被別人搶先 → 重試</code></pre>
+  <p class="small good">假設「衝突很少」，不上鎖、衝突了才重試。並發高、衝突低時效能最好。</p>
+
+  <div class="warn info"><span class="lbl" style="background:#6ea8fe;color:#06182e">怎麼選</span>
+    <p style="margin:6px 0 0">單純加減 → <strong>原子更新</strong>；要先讀複雜邏輯再改、且衝突常見 → <strong>FOR UPDATE（悲觀）</strong>；衝突很少、想要高並發 → <strong>版本號（樂觀）</strong>。三者都能擋 lost update，差在「假設衝突多還是少」。</p>
+  </div>
+</section>
+
+<!-- 04half 三個澄清 -->
+<section>
+  <h2><span class="no">4&frac12;</span> 三個常卡住的澄清：version / 主動 S 鎖 / 新舊語法</h2>
+
+  <h3>① 樂觀鎖跟 <code>version</code> 到底什麼關係？</h3>
+  <p>悲觀鎖＝「假設一定撞，先鎖」；樂觀鎖＝「假設很少撞，不鎖，等要寫時才檢查有沒有被插隊」。那個 <code>version</code> 欄就是檢查依據——它是一支「<strong>我讀到之後有沒有人動過？</strong>」的探針。</p>
+  <table>
+    <tr><th>步驟</th><th>A 交易</th><th>B 交易</th></tr>
+    <tr><td>讀</td><td>讀到 stock=10, <strong>version=7</strong></td><td>讀到 stock=10, <strong>version=7</strong></td></tr>
+    <tr><td>寫</td><td><code>UPDATE ... SET stock=9, version=8 WHERE id=1 AND version=7</code> → 影響 <span class="good">1 列</span>（version 變 8）</td><td><code>... WHERE id=1 AND version=7</code> → 現在 version 是 8，撞不到 → 影響 <span class="bad">0 列</span></td></tr>
+    <tr><td>結果</td><td>成功</td><td><strong>影響列數=0 → 知道被搶先 → 重讀(version=8)、重算、再試</strong></td></tr>
+  </table>
+  <p class="small">關鍵信號就是「<strong>影響列數 = 0</strong>」＝有人在你讀完後改過。全程沒有 DB 鎖，純靠版本對不上來偵測衝突，所以一樣能擋 lost update。對照：FOR UPDATE 是「事前就鎖、別人等」；樂觀鎖是「事後才查、撞了重試」。</p>
+
+  <h3>② 主動上 S 鎖（<code>FOR SHARE</code>）為什麼還要「主動」？</h3>
+  <p>因為<strong>普通的 <code>SELECT</code> 在 InnoDB 預設下根本不上鎖</strong>——它讀的是 MVCC 快照，讀完別人照樣能改那列。所以當你需要「我讀到的這列，在交易結束前別人不准改/刪」，就得<strong>主動</strong>用 <code>FOR SHARE</code> 把「無鎖快照讀」升級成「上鎖讀」。</p>
+  <div class="warn info"><span class="lbl" style="background:#6ea8fe;color:#06182e">為什麼用 S 不用 X？</span>
+    <p style="margin:6px 0 0">S 鎖<strong>讓別人也能讀</strong>（S+S 相容），只擋「改」。典型場景：你讀一筆 parent 列、待會要插 child 參照它，需確保 parent 在 commit 前不被刪——<code>FOR SHARE</code> 剛好：大家能一起讀、但誰都不能刪它，又不像 <code>FOR UPDATE</code> 把其他讀的人也擋掉。</p>
+  </div>
+  <p class="small">一句話：<strong>普通 SELECT 不鎖，要鎖就得自己講；FOR SHARE =「大家可以一起讀，但這段時間誰都別改它」。</strong></p>
+
+  <h3>③ <code>LOCK IN SHARE MODE</code> 是舊語法？</h3>
+  <table>
+    <tr><th>　</th><th>舊寫法</th><th>新寫法（建議）</th></tr>
+    <tr><td>上 S 鎖</td><td><code>SELECT ... LOCK IN SHARE MODE</code></td><td><code>SELECT ... FOR SHARE</code></td></tr>
+    <tr><td>引入版本</td><td>一直都有</td><td><strong>MySQL 8.0.1 起</strong></td></tr>
+    <tr><td>支援 NOWAIT / SKIP LOCKED</td><td class="bad">不支援</td><td class="good">支援（撞鎖不等、或跳過被鎖的列）</td></tr>
+  </table>
+  <p class="small">兩者效果一樣，新版用 <code>FOR SHARE</code>。對應的寫鎖一直是 <code>FOR UPDATE</code>。PostgreSQL 一直都是 <code>FOR SHARE</code> / <code>FOR UPDATE</code>。<code>NOWAIT</code>=撞鎖立刻報錯不等；<code>SKIP LOCKED</code>=跳過已被鎖的列（常用於搶工作佇列）。</p>
+</section>
+
+<!-- 04three -->
+<section>
+  <h2><span class="no">4¾</span> 鎖耗不耗效能？「樂觀」在哪？問號是什麼？</h2>
+
+  <h3>① 鎖會耗效能嗎？是哪個零件的效能？</h3>
+  <p>先講清楚：鎖的成本<strong>主要不是磁碟、也不是 RAM，而是「時間／吞吐量」</strong>（交易被序列化、使用者等更久）。只有「鎖表記帳」用到一點點 RAM/CPU。</p>
+  <table>
+    <tr><th>成本來源</th><th>說明</th><th>吃哪個零件</th></tr>
+    <tr><td>取鎖/放鎖的記帳</td><td>鎖管理器在記憶體維護鎖表「誰鎖了什麼」</td><td><strong>RAM（少量）+ CPU（少量）</strong></td></tr>
+    <tr><td><strong>阻塞等待（最大宗）</strong></td><td>交易被卡住空等、work 被序列化 → 吞吐↓、延遲↑</td><td><strong>時間/吞吐量</strong>（等待中不燒 CPU、不用磁碟，純粹「卡著等」）</td></tr>
+    <tr><td>死鎖</td><td>偵測 + 回滾 + 重試</td><td>CPU + 白做的工</td></tr>
+  </table>
+  <div class="warn info"><span class="lbl" style="background:#6ea8fe;color:#06182e">跟磁碟的關係（重要，別混淆）</span>
+    <p style="margin:6px 0 0">鎖<strong>不直接</strong>造成磁碟 I/O。但若交易<strong>持鎖期間還去做慢磁碟讀寫</strong>，鎖就被佔更久 → 放大競爭。對比記住：<strong>索引</strong>省的是<strong>磁碟 I/O</strong>（少讀 page）；<strong>鎖</strong>省的是<strong>等待時間/吞吐量</strong>——兩者是不同零件、不同維度。</p>
+  </div>
+  <p class="small">降成本：交易短、<code>WHERE</code> 走索引把鎖縮小、持鎖期間別做慢 I/O、衝突少時改用樂觀。InnoDB 普通 <code>SELECT</code> 是 MVCC 快照、<strong>不上鎖</strong>，所以「讀」不會卡在鎖等待，別亂用 <code>FOR UPDATE</code> 把讀也鎖起來。</p>
+
+  <h3>② version 只是探針，為何叫「樂觀鎖」？樂觀在哪？</h3>
+  <p>「樂觀／悲觀」講的是<strong>對「會不會撞」的態度</strong>，不是機制本身：<strong>悲觀</strong>＝賭一定撞 → 先鎖保平安；<strong>樂觀</strong>＝賭應該不撞 → 先不鎖、直接做，只在寫的那刻用 version 驗證賭對沒。</p>
+  <div class="warn info"><span class="lbl" style="background:#6ea8fe;color:#06182e">樂觀的部分</span>
+    <p style="margin:6px 0 0">＝你<strong>樂觀地選擇不上鎖、直接賭沒人動</strong>；version 只是事後驗證這個賭注的工具。若你悲觀，你會選「先鎖」而不是「先賭」。其實樂觀鎖<strong>根本沒拿任何 DB 鎖</strong>，「鎖」是借用的名字，本質是一種並發控制策略。</p>
+  </div>
+
+  <h3>③ <code>WHERE version=?</code> 的問號是什麼？實際是問號還是數字？</h3>
+  <p><code>?</code> 是<strong>參數佔位符（placeholder）</strong>，不是真的打一個問號。它代表「這裡之後綁一個值進來」，用在<strong>參數化查詢</strong>以避免 SQL injection。</p>
+  <p>· <strong>SQL 工具手打</strong>（psql/HeidiSQL）：直接寫數字 → <code>WHERE version = 7</code><br>· <strong>程式碼裡</strong>：用佔位符、值另外傳。</p>
+<pre><code>// GORM（你的 stack）
+result := db.Model(&Product{}).
+    Where("id = ? AND version = ?", id, ver).
+    Updates(map[string]any{"stock": gorm.Expr("stock - 1"), "version": ver + 1})
+if result.RowsAffected == 0 {
+    // 被別人搶先 → 重讀重試
+}
+
+// database/sql：MySQL 用 ? ；PostgreSQL 用 $1,$2
+db.Exec("UPDATE products SET stock=stock-1, version=? WHERE id=? AND version=?", ver+1, id, ver)</code></pre>
+  <p class="small">重點：<strong>用佔位符讓驅動綁值，別字串拼接</strong>（拼接有 SQL injection 風險）。MySQL 佔位符是 <code>?</code>，PostgreSQL 是 <code>$1</code>、<code>$2</code>。</p>
+</section>
+
+<!-- 05 死鎖 -->
+<section>
+  <h2><span class="no">05</span> 死鎖（Deadlock）：兩邊互等對方放鎖</h2>
+  <p>A 鎖了列1、想要列2；B 鎖了列2、想要列1 → 互相等，永遠不會結束。InnoDB 會<strong>自動偵測並回滾其中一個交易</strong>（犧牲者收到 deadlock error），另一個得以完成。</p>
+<pre><code>-- A: UPDATE ... WHERE id=1;  然後想 UPDATE ... WHERE id=2;
+-- B: UPDATE ... WHERE id=2;  然後想 UPDATE ... WHERE id=1;
+-- → 交叉等待，InnoDB 砍掉其中一個</code></pre>
+  <p><strong>怎麼避免：</strong>① 多個交易<strong>用固定順序</strong>存取資源（都先小 id 再大 id）；② 交易盡量短；③ 接到 deadlock error 就<strong>重試</strong>整個交易。查死鎖：<code>SHOW ENGINE INNODB STATUS</code> 的 LATEST DETECTED DEADLOCK 區塊。</p>
+</section>
+
+<!-- 06 隔離等級 -->
+<section>
+  <h2><span class="no">06</span> 隔離等級（順帶建立座標）</h2>
+  <p>鎖的鬆緊由「交易隔離等級」決定。由鬆到嚴：</p>
+  <table>
+    <tr><th>等級</th><th>會發生的異常</th><th>備註</th></tr>
+    <tr><td>Read Uncommitted</td><td>髒讀、不可重複讀、幻讀</td><td>幾乎不用</td></tr>
+    <tr><td>Read Committed</td><td>不可重複讀、幻讀</td><td>PostgreSQL 預設</td></tr>
+    <tr><td>Repeatable Read</td><td>（InnoDB 用 gap lock 連幻讀也大致擋掉）</td><td><strong>MySQL InnoDB 預設</strong></td></tr>
+    <tr><td>Serializable</td><td>無（最嚴）</td><td>等於把交易序列化，最慢</td></tr>
+  </table>
+  <p class="small">名詞：<strong>髒讀</strong>=讀到別人還沒 commit 的資料；<strong>不可重複讀</strong>=同一交易兩次讀同一列值不同；<strong>幻讀</strong>=兩次範圍查詢列數不同。InnoDB 在 RR 下用 <strong>gap lock / next-key lock</strong> 鎖住「區間」來防幻讀——這也是為什麼有時你會鎖到「還不存在的列」。</p>
+</section>
+
+<!-- 07 quiz -->
+<section>
+  <h2><span class="no">07</span> 小測驗（點黃框看答案）</h2>
+  <div class="q"><span class="qno">填 1</span><p>S/X 四格矩陣中唯一相容（綠）的組合是
+    <span class="blank" onclick="flip(this)" data-a="S + S（讀+讀）">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 2</span><p>主動對讀到的列上 X 鎖的語法是
+    <span class="blank" onclick="flip(this)" data-a="SELECT ... FOR UPDATE">點我</span>；上 S 鎖是 <code>FOR SHARE</code>。</p></div>
+  <div class="q"><span class="qno">填 3</span><p>單純扣庫存，最省事的防 lost update 寫法是
+    <span class="blank" onclick="flip(this)" data-a="原子更新 stock=stock-1 WHERE ... AND stock>0">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 4</span><p>用版本號比對、衝突才重試的做法叫
+    <span class="blank" onclick="flip(this)" data-a="樂觀鎖">點我</span>；先鎖起來的叫悲觀鎖。</p></div>
+  <div class="q"><span class="qno">填 5</span><p>兩個交易交叉互等對方放鎖、永遠卡住，叫
+    <span class="blank" onclick="flip(this)" data-a="死鎖 Deadlock">點我</span>，InnoDB 會自動回滾其一。</p></div>
+  <div class="q"><span class="qno">填 6</span><p>如果 <code>UPDATE</code> 的 <code>WHERE</code> 沒走索引，鎖範圍可能擴大到
+    <span class="blank" onclick="flip(this)" data-a="很多列甚至整表">點我</span>，加劇鎖競爭。</p></div>
+  <div class="q"><span class="qno">申論</span><p>用全站按讚計數器說明：為什麼「索引讓你查得快」不能解決「寫入熱點(hot row)」？你會怎麼設計？（提示：分片計數器 / 原子更新 / 明細表）</p></div>
+</section>
+
+</div>
+<footer>
+  <p>關聯：<code>[[B+樹與索引結構－叢集索引vs非叢集索引]]</code>、<code>[[索引查詢指令與實戰案例]]</code>（hot row、按讚計數器）、<code>[[三種Heap的差異釐清]]</code>。</p>
+  <p class="small">想實際看鎖：開兩個 session，A 跑 <code>SELECT ... FOR UPDATE</code> 不 commit，B 跑同一列的 <code>UPDATE</code> 會卡住；再查 <code>performance_schema.data_lock_waits</code> 看誰等誰。</p>
+</footer>
+<script>
+function flip(el){if(el.classList.contains('revealed')){el.classList.remove('revealed');el.textContent='點我';}else{el.classList.add('revealed');el.textContent=el.dataset.a;}}
+function acc(id){const el=document.getElementById(id);el.classList.toggle('open');const t=el.querySelector('.tg');t.textContent=el.classList.contains('open')?'－ 收合':'＋ 點開';}
+</script>
+</body>
+</html>
