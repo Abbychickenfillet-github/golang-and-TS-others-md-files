@@ -5,7 +5,7 @@
 ### 後端相關文檔 → `backend/backend-docs/`
 所有後端相關的技術文檔都應該存放在 `backend/backend-docs/` 目錄中，包括：
 - FastAPI 路由和 API 說明
-- 數據庫相關文檔
+- 資料庫相關文檔
 - Docker Compose 配置說明
 - 後端開發指南
 - API 測試文檔
@@ -20,7 +20,7 @@
 項目開發流程、階段總結、規劃文檔存放在 `flow&docs/` 目錄中。
 
 ### 配置和狀態文檔 → `docs&memory/`
-開發過程中的配置狀態、環境變量說明等存放在 `docs&memory/` 目錄中。
+開發過程中的配置狀態、環境變數說明等存放在 `docs&memory/` 目錄中。
 
 ## 文檔命名規範
 

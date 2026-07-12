@@ -16,7 +16,7 @@ buffer = BytesIO()
 buffer.write(b"Hello World")
 
 # 像讀檔案一樣讀取數據
-buffer.seek(0)  # 將指針移到開頭
+buffer.seek(0)  # 將指標移到開頭
 data = buffer.read()
 ```
 
@@ -74,23 +74,23 @@ def export_to_excel(
     # 3. 輸出到 BytesIO（在記憶體中）
     output = BytesIO()  # ⭐ 創建一個記憶體緩衝區
     wb.save(output)      # ⭐ 將 Excel 保存到記憶體，而不是磁碟
-    output.seek(0)       # ⭐ 將指針移回開頭（重要！）
+    output.seek(0)       # ⭐ 將指標移回開頭（重要！）
     return output        # ⭐ 返回 BytesIO 物件
 ```
 
 ### 為什麼需要 `output.seek(0)`？
 
-**原因**：當你寫入數據到 BytesIO 後，指針（cursor）會移動到**末尾**。
+**原因**：當你寫入數據到 BytesIO 後，指標（cursor）會移動到**末尾**。
 
 ```python
 output = BytesIO()
-wb.save(output)  # 寫入後，指針在末尾
+wb.save(output)  # 寫入後，指標在末尾
 
-# 如果直接讀取，會讀不到數據（因為指針在末尾）
+# 如果直接讀取，會讀不到數據（因為指標在末尾）
 data = output.read()  # ❌ 會是空的！
 
-# 解決：將指針移回開頭
-output.seek(0)  # ⭐ 將指針移到開頭（位置 0）
+# 解決：將指標移回開頭
+output.seek(0)  # ⭐ 將指標移到開頭（位置 0）
 data = output.read()  # ✅ 現在可以讀到數據了
 ```
 
@@ -181,7 +181,7 @@ buffer.write("World".encode())  # 字串需要先編碼
 ### 3. 讀取數據
 
 ```python
-buffer.seek(0)  # ⭐ 重要：先將指針移到開頭
+buffer.seek(0)  # ⭐ 重要：先將指標移到開頭
 data = buffer.read()  # 讀取所有數據
 # 或
 data = buffer.read(10)  # 讀取前 10 個字節
@@ -191,7 +191,7 @@ data = buffer.read(10)  # 讀取前 10 個字節
 
 ```python
 buffer.seek(0)
-data = buffer.getvalue()  # 獲取所有數據（不移動指針）
+data = buffer.getvalue()  # 獲取所有數據（不移動指標）
 ```
 
 ## 在本專案中的完整範例
@@ -213,8 +213,8 @@ def export_to_excel(...) -> BytesIO:
     output = BytesIO()  # 創建記憶體緩衝區
     wb.save(output)     # 將 Excel 保存到記憶體
     
-    # 4. 重置指針（重要！）
-    output.seek(0)      # 將指針移到開頭
+    # 4. 重置指標（重要！）
+    output.seek(0)      # 將指標移到開頭
     
     # 5. 返回 BytesIO 物件
     return output       # 前端可以下載這個數據
@@ -227,7 +227,7 @@ def export_to_excel(...) -> BytesIO:
 ```python
 output = BytesIO()
 wb.save(output)
-data = output.read()  # ❌ 會是空的！因為指針在末尾
+data = output.read()  # ❌ 會是空的！因為指標在末尾
 
 # ✅ 正確
 output.seek(0)
@@ -238,7 +238,7 @@ data = output.read()  # ✅ 可以讀到數據
 
 ```python
 output.seek(0)
-data1 = output.read()  # 讀取後，指針又移到末尾
+data1 = output.read()  # 讀取後，指標又移到末尾
 data2 = output.read()   # ❌ 會是空的！
 
 # ✅ 正確：每次讀取前都要 seek(0)
@@ -273,7 +273,7 @@ buffer.write("text data")
 1. **`BytesIO`** 是在記憶體中創建的類似檔案的物件
 2. **用途**：處理二進位數據，不需要寫入磁碟
 3. **優點**：速度快、不需要管理檔案
-4. **重要**：讀取前要 `seek(0)` 將指針移回開頭
+4. **重要**：讀取前要 `seek(0)` 將指標移回開頭
 5. **在本專案中**：用於生成 Excel 檔案供下載
 
 ## 在本專案中的實際應用

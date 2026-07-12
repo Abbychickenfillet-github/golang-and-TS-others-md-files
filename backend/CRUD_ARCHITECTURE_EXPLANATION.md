@@ -36,14 +36,14 @@ class BoothCRUD(BaseCRUD[Booth, BoothCreate, BoothUpdate]):
    ```python
    class BaseCRUD:
        def __init__(self, model: type[ModelType]):
-           self.model = model  # 保存模型類到實例變量
+           self.model = model  # 保存模型類到實例變數
    ```
    - 將 `Booth` 模型類保存到 `self.model`
    - 這樣 `BoothCRUD` 實例就知道要操作哪個模型了
 
 ### 為什麼需要這樣做？
 
-**目的**：讓 `BoothCRUD` 實例知道要操作哪個數據庫模型
+**目的**：讓 `BoothCRUD` 實例知道要操作哪個資料庫模型
 
 **效果**：
 - `self.model = Booth` 被設置
@@ -73,7 +73,7 @@ booth = booth_crud.get(session, booth_id)
 
 ### 1. Models（模型層）
 - **位置**：`backend/app/models/`
-- **作用**：定義數據庫表結構
+- **作用**：定義資料庫表結構
 - **範例**：`Booth`, `Event`, `EventBoothType`
 
 ```python
@@ -86,7 +86,7 @@ class Booth(BoothBase, table=True):
 
 ### 2. CRUD（數據訪問層）
 - **位置**：`backend/app/crud/`
-- **作用**：提供數據庫的增刪改查操作
+- **作用**：提供資料庫的增刪改查操作
 - **範例**：`BoothCRUD`, `EventCRUD`
 
 ```python
@@ -134,7 +134,7 @@ def get_booth(session: SessionDep, booth_id: str):
 
 1. **職責分離**
    - Models：只定義數據結構
-   - CRUD：只處理數據庫操作
+   - CRUD：只處理資料庫操作
    - Services：只處理業務邏輯
    - Routes：只處理 HTTP 請求
 
@@ -147,7 +147,7 @@ def get_booth(session: SessionDep, booth_id: str):
    - 可以 Mock 依賴層
 
 4. **易於維護**
-   - 修改數據庫操作只需要改 CRUD
+   - 修改資料庫操作只需要改 CRUD
    - 修改業務邏輯只需要改 Service
    - 修改 API 接口只需要改 Routes
 

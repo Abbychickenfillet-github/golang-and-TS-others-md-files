@@ -293,7 +293,7 @@ with ThreadPoolExecutor() as pool:
 
 - Mem0 支援的底層庫（pgvector、Qdrant、Neo4j…）**不全有 async 版本**
 - Python 裡「I/O 密集型任務」用 ThreadPool 跟 asyncio 效能差不多
-- ThreadPool 語法簡單、對同步 API 兼容最好
+- ThreadPool 語法簡單、對同步 API 相容最好
 
 所以對一個「要相容 20+ 家 storage」的框架，**ThreadPool 是比 asyncio 更務實的選擇**。
 

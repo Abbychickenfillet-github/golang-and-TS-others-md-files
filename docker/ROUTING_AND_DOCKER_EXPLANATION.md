@@ -19,7 +19,7 @@ from fastapi import APIRouter  # 從 FastAPI 框架導入
 api_router = APIRouter()
 ```
 
-這行代碼創建了一個**空的路由器實例**，用於：
+這行程式碼創建了一個**空的路由器實例**，用於：
 1. 收集所有子路由（通過 `include_router()` 添加）
 2. 組織和管理不同的路由模塊
 3. 最終註冊到主 FastAPI 應用
@@ -132,7 +132,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)  # /api/v1
 ## 1. Company-Verification 路由路徑檢查
 
 ### 當前狀態
-- **代碼中的路徑**：`/api/v1/company-verifications`（複數）
+- **程式碼中的路徑**：`/api/v1/company-verifications`（複數）
 - **註冊位置**：`backend/app/api/main.py:50`
   ```python
   api_router.include_router(
@@ -147,7 +147,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)  # /api/v1
 
 ### 解決方案
 **選項1：保持使用複數（推薦）**
-- 保持代碼中的 `/company-verifications`（複數）
+- 保持程式碼中的 `/company-verifications`（複數）
 - 這是 RESTful API 的最佳實踐（資源集合使用複數）
 
 **選項2：改為單數**
@@ -172,8 +172,8 @@ app.include_router(api_router, prefix=settings.API_V1_STR)  # /api/v1
 
 ## 2. localhost:8003 的大物件（大文件上傳）問題
 
-### 端口說明
-- **8003** 是後端 API 的端口（映射到容器內的 8000）
+### 連接埠說明
+- **8003** 是後端 API 的連接埠（映射到容器內的 8000）
 - 配置位置：`docker-compose.yml:40`
   ```yaml
   ports:
@@ -182,12 +182,12 @@ app.include_router(api_router, prefix=settings.API_V1_STR)  # /api/v1
 
 ### 當前文件大小限制
 1. **應用層限制**：
-   - 默認：5MB（`backend/app/services/image_service.py:34`）
+   - 預設：5MB（`backend/app/services/image_service.py:34`）
    - 部分前端組件：10MB（`frontend/src/components/Common/ImageDropzone.tsx:36`）
 
 2. **FastAPI/Uvicorn 限制**：
    - 當前未明確配置
-   - Uvicorn 默認限制：**1MB**（這可能是問題所在！）
+   - Uvicorn 預設限制：**1MB**（這可能是問題所在！）
 
 ### 解決方案：增加大文件上傳支持
 
@@ -222,8 +222,8 @@ command: [
 ]
 ```
 
-#### 方法3：使用環境變量
-在 `docker-compose.yml` 的環境變量中添加：
+#### 方法3：使用環境變數
+在 `docker-compose.yml` 的環境變數中添加：
 
 ```yaml
 environment:
@@ -233,7 +233,7 @@ environment:
 ### 推薦配置
 - **圖片上傳**：10-20MB（足夠大多數圖片）
 - **文檔上傳**：50MB（用於 PDF、Word 等）
-- **視頻上傳**：100MB+（如果需要）
+- **影片上傳**：100MB+（如果需要）
 
 ## 3. Docker Compose Restart vs Watch 詳解
 
@@ -243,7 +243,7 @@ environment:
 - **位置**：`docker-compose.yml:38`
 - **作用**：當容器異常退出時，Docker 會自動重啟容器
 - **使用場景**：生產環境，確保服務高可用
-- **不適用於**：開發環境（因為會干擾調試）
+- **不適用於**：開發環境（因為會干擾除錯）
 
 #### `docker compose watch`（開發模式）
 - **作用**：監聽文件變化，自動同步到容器並重啟服務
@@ -253,7 +253,7 @@ environment:
 #### `docker compose restart`（手動重啟）
 - **作用**：重啟正在運行的服務
 - **前提**：服務必須已經在運行
-- **不會**：重新構建鏡像或啟動已停止的服務
+- **不會**：重新構建映像檔或啟動已停止的服務
 
 ### 命令對比
 
@@ -300,10 +300,10 @@ docker compose watch backend
 
 #### 場景4：配置更改後
 ```bash
-# 如果只是環境變量或配置更改
+# 如果只是環境變數或配置更改
 docker compose restart backend
 
-# 如果需要重新構建鏡像
+# 如果需要重新構建映像檔
 docker compose up --build backend
 ```
 

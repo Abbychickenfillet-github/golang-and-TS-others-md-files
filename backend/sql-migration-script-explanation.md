@@ -4,9 +4,9 @@
 
 ### 1. `information_schema.COLUMNS` 是什麼？
 
-`information_schema` 是 MySQL 的**系統數據庫**，存儲了所有數據庫的元數據（metadata）。
+`information_schema` 是 MySQL 的**系統資料庫**，存儲了所有資料庫的元數據（metadata）。
 
-- **`information_schema.COLUMNS`**：存儲所有數據庫中所有表的所有字段信息
+- **`information_schema.COLUMNS`**：存儲所有資料庫中所有表的所有字段信息
 - 這是 MySQL 內置的，不需要創建
 - 可以查詢表結構、字段類型、是否允許 NULL 等信息
 
@@ -18,11 +18,11 @@ WHERE TABLE_SCHEMA = 'your_database_name'
   AND COLUMN_NAME = 'calculation_rule_id';
 ```
 
-這會返回該字段的詳細信息（類型、是否允許 NULL、默認值等）。
+這會返回該字段的詳細信息（類型、是否允許 NULL、預設值等）。
 
-### 2. 為什麼沒有寫數據庫的本名？
+### 2. 為什麼沒有寫資料庫的本名？
 
-使用了 `DATABASE()` 函數，它會**自動返回當前連接的數據庫名稱**。
+使用了 `DATABASE()` 函數，它會**自動返回當前連接的資料庫名稱**。
 
 ```sql
 WHERE TABLE_SCHEMA = DATABASE()
@@ -30,12 +30,12 @@ WHERE TABLE_SCHEMA = DATABASE()
 
 **等價於**：
 ```sql
-WHERE TABLE_SCHEMA = 'your_database_name'  -- 假設當前數據庫是 your_database_name
+WHERE TABLE_SCHEMA = 'your_database_name'  -- 假設當前資料庫是 your_database_name
 ```
 
 **優點**：
-- ✅ 不需要硬編碼數據庫名稱
-- ✅ 腳本可以在不同數據庫上運行
+- ✅ 不需要硬編碼資料庫名稱
+- ✅ 腳本可以在不同資料庫上運行
 - ✅ 更靈活、可移植
 
 ### 3. 腳本邏輯詳解
@@ -53,7 +53,7 @@ SET @col_exists := (
 
 **這一步做什麼**：
 - 查詢 `information_schema.COLUMNS` 表
-- 查找當前數據庫中 `order_electricity` 表的 `calculation_rule_id` 字段
+- 查找當前資料庫中 `order_electricity` 表的 `calculation_rule_id` 字段
 - `COUNT(*)` 返回匹配的行數：
   - `0` = 字段不存在
   - `1` = 字段已存在
@@ -79,7 +79,7 @@ DEALLOCATE PREPARE stmt;
 ```
 
 **動態 SQL 執行**：
-- `PREPARE`：準備 SQL 語句（存儲在 `@sql` 變量中）
+- `PREPARE`：準備 SQL 語句（存儲在 `@sql` 變數中）
 - `EXECUTE`：執行準備好的語句
 - `DEALLOCATE`：釋放資源
 
@@ -172,6 +172,6 @@ SELECT 'Column calculation_rule_id already exists' AS message
 
 **關鍵點**：
 - `information_schema.COLUMNS` 是系統表，存儲字段元數據
-- `DATABASE()` 自動獲取當前數據庫名稱
+- `DATABASE()` 自動獲取當前資料庫名稱
 - 這是**冪等性**設計，可以安全重複執行
 - 如果看到 "already exists" 消息，說明字段已存在，腳本**沒有**執行添加操作

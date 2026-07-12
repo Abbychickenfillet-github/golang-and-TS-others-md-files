@@ -115,5 +115,5 @@ ORDER BY e.created_at DESC, c.company_name;
 ## 注意事項
 
 1. **數據遷移**：如果 `order` 表還有 `calculation_rule_id`，需要遷移到 `order_electricity`
-2. **向後兼容**：現有 API 可能需要更新
+2. **向後相容**：現有 API 可能需要更新
 3. **前端顯示**：後台需要更新規則列表顯示邏輯

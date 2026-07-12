@@ -137,7 +137,7 @@ error TS7006: Parameter 'option' implicitly has an 'any' type.
 
 ### 相關指令
 ```bash
-# 搜尋所有 license_plate 相關代碼
+# 搜尋所有 license_plate 相關程式碼
 grep -r "license_plate" frontend/src/
 grep -r "license_search" frontend/src/
 ```
@@ -224,7 +224,7 @@ def map_email_verification_status(raw_value: Any) -> str | None:
 #### 4.5 CRUD 操作更新
 **檔案：** `backend/app/crud/member.py`
 - 更新 `get_multi_with_filter` 和 `count_with_filter` 方法
-- 正確處理 `email_verified` 的字符串類型篩選
+- 正確處理 `email_verified` 的字串類型篩選
 
 ### 前端修改
 
@@ -293,7 +293,7 @@ prestart-1 | scripts/prestart.sh: line 8: $'\r': command not found
 ```
 
 ### 原因
-Windows 使用 CRLF (`\r\n`) 作為行尾符號，而 Linux 容器使用 LF (`\n`)。當 Windows 檔案被複製到容器時，`\r` 字符被當作檔案名稱的一部分，導致找不到檔案。
+Windows 使用 CRLF (`\r\n`) 作為行尾符號，而 Linux 容器使用 LF (`\n`)。當 Windows 檔案被複製到容器時，`\r` 字元被當作檔案名稱的一部分，導致找不到檔案。
 
 ### 解決方案
 

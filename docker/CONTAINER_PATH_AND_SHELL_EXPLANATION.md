@@ -12,9 +12,9 @@
 ├── .venv/              ← Python 虛擬環境
 ├── pyproject.toml       ← 項目配置文件
 ├── uv.lock             ← 依賴鎖定文件
-├── alembic.ini         ← 數據庫遷移配置
+├── alembic.ini         ← 資料庫遷移配置
 ├── scripts/            ← 腳本目錄
-└── app/                ← 應用代碼目錄（這就是為什麼是 /app/app）
+└── app/                ← 應用程式碼目錄（這就是為什麼是 /app/app）
     ├── main.py         ← FastAPI 應用入口
     ├── api/            ← API 路由
     │   └── main.py     ← 路由主文件
@@ -33,13 +33,13 @@ WORKDIR /app/                    # 設置工作目錄為 /app
 COPY ./pyproject.toml /app/     # 複製配置文件到 /app
 COPY ./uv.lock /app/            # 複製依賴文件到 /app
 COPY ./scripts /app/scripts     # 複製腳本到 /app/scripts
-COPY ./app /app/app             # 複製應用代碼到 /app/app ← 關鍵！
+COPY ./app /app/app             # 複製應用程式碼到 /app/app ← 關鍵！
 ```
 
 **原因**：
 - `/app/` 是**項目根目錄**，包含所有項目文件（配置文件、腳本、依賴等）
-- `/app/app/` 是**應用代碼目錄**，只包含 Python 應用代碼
-- 這樣設計可以保持項目結構清晰，區分項目文件和應用代碼
+- `/app/app/` 是**應用程式碼目錄**，只包含 Python 應用程式碼
+- 這樣設計可以保持項目結構清晰，區分項目文件和應用程式碼
 
 #### 2. docker-compose.yml 中的 watch 配置
 
@@ -69,25 +69,25 @@ develop:
 
 ### 為什麼不是 `/app`？
 
-如果直接使用 `/app` 作為應用代碼目錄，會導致：
+如果直接使用 `/app` 作為應用程式碼目錄，會導致：
 
 ```
 /app/                    ← 工作目錄
-├── main.py             ← 應用代碼
-├── api/                ← 應用代碼
+├── main.py             ← 應用程式碼
+├── api/                ← 應用程式碼
 ├── pyproject.toml      ← 項目配置
 ├── scripts/            ← 腳本
 └── ...                 ← 所有文件混在一起
 ```
 
 **問題**：
-- ❌ 項目文件和應用代碼混在一起
-- ❌ 無法清晰區分項目配置和應用代碼
+- ❌ 項目文件和應用程式碼混在一起
+- ❌ 無法清晰區分項目配置和應用程式碼
 - ❌ 不符合 Python 項目的最佳實踐
 
 **使用 `/app/app` 的好處**：
-- ✅ 項目文件和應用代碼分離
-- ✅ 符合 Python 項目結構（項目根目錄 + 應用代碼目錄）
+- ✅ 項目文件和應用程式碼分離
+- ✅ 符合 Python 項目結構（項目根目錄 + 應用程式碼目錄）
 - ✅ 便於管理和維護
 
 ## 2. 命令使用：PowerShell、CMD 還是 bash？
@@ -272,7 +272,7 @@ cd /app/app && python -m pytest
 
 1. **`/app/app` 路徑**：
    - `/app/` 是項目根目錄（包含配置文件、腳本等）
-   - `/app/app/` 是應用代碼目錄（包含 Python 代碼）
+   - `/app/app/` 是應用程式碼目錄（包含 Python 程式碼）
    - 這樣設計保持項目結構清晰
 
 2. **命令使用**：

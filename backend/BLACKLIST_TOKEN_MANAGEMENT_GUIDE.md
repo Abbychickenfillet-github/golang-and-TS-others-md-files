@@ -27,7 +27,7 @@
    docker compose exec backend python scripts/blacklist_token.py --token "token-string-here"
    ```
 
-2. **直接操作數據庫**（需要知道 jti）：
+2. **直接操作資料庫**（需要知道 jti）：
    ```sql
    INSERT INTO blacklisted_token (id, token_jti, user_type, user_id, reason, expires_at, created_at)
    VALUES (UUID(), 'jti-here', 'user', 'user-id', 'revoked', '2025-12-31 23:59:59', NOW());
@@ -35,11 +35,11 @@
 
 3. **通過 API**（需要前端實現 UI）
 
-**Q3: 是不是加入數據庫數據就可以了？**
+**Q3: 是不是加入資料庫數據就可以了？**
 
 **A:** ✅ **是的！** 但需要注意：
 
-- ✅ 直接插入數據庫記錄**可以**讓 token 失效
+- ✅ 直接插入資料庫記錄**可以**讓 token 失效
 - ⚠️ 但需要提供**正確的數據**：
   - `token_jti`：token 的 jti（必須正確）
   - `user_type`：'user' 或 'member'
@@ -47,7 +47,7 @@
   - `expires_at`：token 的過期時間
   - `reason`：'logout', 'logout_all', 或 'revoked'
 
-- ⚠️ **不建議**直接操作數據庫，因為：
+- ⚠️ **不建議**直接操作資料庫，因為：
   - 容易出錯（需要手動計算時間、查找 jti 等）
   - 沒有驗證和錯誤處理
   - 生產環境風險較高
@@ -89,9 +89,9 @@ const logoutAll = async () => {
 }
 ```
 
-#### 方法 B：直接操作數據庫（緊急情況）
+#### 方法 B：直接操作資料庫（緊急情況）
 
-如果 API 不可用或需要批量操作，可以直接操作數據庫：
+如果 API 不可用或需要批量操作，可以直接操作資料庫：
 
 ```sql
 -- 1. 先查看用戶的所有 token（需要從日誌或其他方式獲取 jti）
@@ -178,7 +178,7 @@ def blacklist_token_by_token_string(token_string: str):
 
         expires_at = datetime.fromtimestamp(token_exp, tz=timezone.utc)
 
-        # 判斷是 user 還是 member（需要查詢數據庫確認）
+        # 判斷是 user 還是 member（需要查詢資料庫確認）
         # 這裡假設是 user，實際使用時需要確認
         with Session(engine) as session:
             blacklisted_token_crud.add_to_blacklist(
@@ -231,7 +231,7 @@ docker compose exec backend python scripts/blacklist_token.py \
   --expires-at "2025-12-31T23:59:59Z"
 ```
 
-#### 方法 B：直接操作數據庫
+#### 方法 B：直接操作資料庫
 
 **步驟 1：獲取 token 的 jti**
 
@@ -246,7 +246,7 @@ print(f"jti: {jti}")
 print(f"exp: {exp}")
 ```
 
-**步驟 2：插入數據庫**
+**步驟 2：插入資料庫**
 
 ```sql
 INSERT INTO blacklisted_token (
@@ -308,7 +308,7 @@ DELETE FROM blacklisted_token WHERE expires_at < NOW();
 
 1. **登出所有裝置**：使用 API `POST /api/v1/users/logout-all`
 2. **手動撤銷 token**：使用 Python 腳本 `backend/scripts/blacklist_token.py`
-3. **查看記錄**：使用腳本 `--list` 選項或直接查詢數據庫
+3. **查看記錄**：使用腳本 `--list` 選項或直接查詢資料庫
 
 ### 📝 快速操作指南
 
@@ -341,7 +341,7 @@ docker compose exec backend python scripts/blacklist_token.py --list
 docker compose exec backend python scripts/blacklist_token.py --list --user-id "user-id-here"
 ```
 
-#### 4. 直接操作數據庫（緊急情況）
+#### 4. 直接操作資料庫（緊急情況）
 ```sql
 -- 插入黑名單記錄
 INSERT INTO blacklisted_token (
@@ -359,7 +359,7 @@ INSERT INTO blacklisted_token (
 
 ### ⚠️ 注意事項
 
-1. **直接操作數據庫**：
+1. **直接操作資料庫**：
    - ✅ 可以，但需要知道 `jti`、`user_id`、`expires_at` 等資訊
    - ⚠️ 需要手動計算和輸入，容易出錯
    - ⚠️ 不建議在生產環境直接操作

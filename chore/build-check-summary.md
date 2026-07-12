@@ -25,7 +25,7 @@
 **修復**：
 - ✅ 已修復：添加了自動查找規則的邏輯
 - 優先使用客戶選擇的規則（如果提供）
-- 否則查找活動的默認規則（`company_id IS NULL`）
+- 否則查找活動的預設規則（`company_id IS NULL`）
 - 如果都沒有，查找任何有效的規則
 
 #### 問題 2：前端未傳遞 `calculation_rule_id`
@@ -72,7 +72,7 @@ if electricity_create.calculation_rule_id:
         calculation_rule_id = rule.id
 
 if not calculation_rule_id:
-    # 查找活動的默認規則（company_id IS NULL）
+    # 查找活動的預設規則（company_id IS NULL）
     # 如果沒有，查找任何有效的規則
     ...
 ```

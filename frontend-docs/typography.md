@@ -1265,7 +1265,7 @@ import '@fontsource/noto-sans-tc/700.css'
    - Noto Serif TC（宋體，對比黑體英文）
    - LXGW 文楷 TC（楷體，有人味）
 
-✅ 等寬（代碼、數字）：
+✅ 等寬（程式碼、數字）：
    - Geist Mono
    - JetBrains Mono
 ```

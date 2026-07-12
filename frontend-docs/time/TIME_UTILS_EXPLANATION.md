@@ -192,7 +192,7 @@ return formatter.format(date)  // 執行格式化，回傳字串
 
 ```typescript
 // 語法
-new Intl.DateTimeFormat(語言代碼, 格式選項)
+new Intl.DateTimeFormat(語言程式碼, 格式選項)
 
 // 範例
 new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei" })
@@ -201,9 +201,9 @@ new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei" })
 //                      影響：月份名稱、星期名稱、數字格式等
 ```
 
-### 語言代碼範例
+### 語言程式碼範例
 
-| 代碼 | 語言 | 日期顯示範例 |
+| 程式碼 | 語言 | 日期顯示範例 |
 |------|------|-------------|
 | `zh-TW` | 繁體中文（台灣） | 2025/12/26 |
 | `zh-CN` | 簡體中文（中國） | 2025/12/26 |
@@ -248,7 +248,7 @@ interface Intl.DateTimeFormatOptions {
 
 ### Q2: "Z" 是什麼意思？
 
-`Z` 代表 "Zulu time"，是 UTC 的軍事代碼，等同於 `+00:00`。
+`Z` 代表 "Zulu time"，是 UTC 的軍事程式碼，等同於 `+00:00`。
 
 ```
 2025-12-26T02:00:00Z     = UTC 時間 02:00

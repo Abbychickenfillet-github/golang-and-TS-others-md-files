@@ -86,7 +86,7 @@
 **創建電力需求時：**
 1. 根據 `event_id` + `company_id` 查找該公司的有效規則
 2. 如果找到，設置 `order_electricity.calculation_rule_id` 和 `order_electricity.company_id`
-3. 如果沒找到，使用 `event_id` 的默認規則（`company_id IS NULL`）
+3. 如果沒找到，使用 `event_id` 的預設規則（`company_id IS NULL`）
 
 **查詢規則的優先順序：**
 ```sql
@@ -98,7 +98,7 @@ WHERE event_id = ?
 ORDER BY created_at DESC
 LIMIT 1
 
--- 備選：活動默認規則（如果沒有公司特定規則）
+-- 備選：活動預設規則（如果沒有公司特定規則）
 SELECT * FROM electricity_calculation_rule
 WHERE event_id = ?
   AND company_id IS NULL
@@ -107,7 +107,7 @@ ORDER BY created_at DESC
 LIMIT 1
 ```
 
-## 數據庫約束建議
+## 資料庫約束建議
 
 ### 唯一約束（可選）
 ```sql
@@ -187,7 +187,7 @@ def get_electricity_rule(
 
     優先順序：
     1. event_id + company_id + status='active' 匹配的規則（最新）
-    2. event_id + company_id IS NULL + status='active' 的默認規則
+    2. event_id + company_id IS NULL + status='active' 的預設規則
     """
     # 如果有公司 ID，優先查找該公司的有效規則
     if company_id:
@@ -203,7 +203,7 @@ def get_electricity_rule(
         if rule:
             return rule
 
-    # 否則使用活動默認規則
+    # 否則使用活動預設規則
     return session.exec(
         select(ElectricityCalculationRule)
         .where(
@@ -279,7 +279,7 @@ def update_electricity_rule_price(
 ## 注意事項
 
 1. **遷移現有數據**：
-   - 如果現有規則沒有 `company_id`，它們會作為默認規則
+   - 如果現有規則沒有 `company_id`，它們會作為預設規則
    - 需要將現有 `order_electricity` 的 `company_id` 從 `order.seller_company_id` 遷移過來
 
 2. **規則創建**：

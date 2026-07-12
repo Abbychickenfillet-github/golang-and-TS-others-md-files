@@ -12,7 +12,7 @@
 
 ```bash
 # 基本格式
-docker run --rm mysql:8 mysqldump -h <主機> -P <端口> -u <使用者> -p<密碼> <資料庫名> > 備份檔案.sql
+docker run --rm mysql:8 mysqldump -h <主機> -P <連接埠> -u <使用者> -p<密碼> <資料庫名> > 備份檔案.sql
 
 # 實際範例：備份 Production 資料庫
 docker run --rm mysql:8 mysqldump \
@@ -32,7 +32,7 @@ docker run --rm mysql:8 mysqldump \
 |------|------|
 | `--rm` | 執行完自動刪除容器 |
 | `-h` | MySQL 主機位址 |
-| `-P` | MySQL 端口（注意是大寫 P） |
+| `-P` | MySQL 連接埠（注意是大寫 P） |
 | `-u` | 使用者名稱 |
 | `-p` | 密碼（注意：-p 和密碼之間**沒有空格**） |
 | `--single-transaction` | 確保備份一致性（InnoDB） |

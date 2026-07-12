@@ -12,7 +12,7 @@ Service 層是**業務邏輯層（Business Logic Layer）**，主要處理：
    - 例如：同一活動中不能有重複的攤位名稱
 
 2. **協調多個 CRUD 操作**
-   - 組合多個數據庫操作完成一個業務流程
+   - 組合多個資料庫操作完成一個業務流程
    - 例如：創建訂單時需要同時創建訂單、訂單項目、電力需求等
 
 3. **數據轉換和計算**
@@ -74,7 +74,7 @@ Routes (API 路由層)     → 類似 Controller，處理 HTTP 請求
   ↓
 Services (業務邏輯層)   → 處理業務邏輯（Business Logic）
   ↓
-CRUD (數據訪問層)       → 類似 Repository，處理數據庫操作
+CRUD (數據訪問層)       → 類似 Repository，處理資料庫操作
   ↓
 Models (模型層)         → 定義數據結構
 ```
@@ -85,7 +85,7 @@ Models (模型層)         → 定義數據結構
 |---------|-----------|------|
 | **Controller** | **Routes** | 接收 HTTP 請求，調用 Service |
 | **Service** | **Services** | 處理業務邏輯（Business Logic） |
-| **Repository** | **CRUD** | 數據庫操作（增刪改查） |
+| **Repository** | **CRUD** | 資料庫操作（增刪改查） |
 | **Model** | **Models** | 數據結構定義 |
 
 ### 完整流程範例
@@ -111,7 +111,7 @@ class BoothService:
 # 3. CRUD 層（類似 Repository）
 class BoothCRUD:
     def create(self, session, *, obj_in: BoothCreate):
-        # 純數據庫操作
+        # 純資料庫操作
         db_obj = self.model(**obj_in.model_dump())
         session.add(db_obj)
         session.commit()
@@ -150,12 +150,12 @@ class BoothCRUD(BaseCRUD):
 
 - **Routes**：只處理 HTTP 請求
 - **Services**：只處理業務邏輯
-- **CRUD**：只處理數據庫操作
+- **CRUD**：只處理資料庫操作
 - **Models**：只定義數據結構
 
 #### 2. **O - Open/Closed Principle（開放封閉原則）**
 
-可以擴展功能，但不修改現有代碼：
+可以擴展功能，但不修改現有程式碼：
 
 ```python
 # 可以擴展 BaseCRUD，添加新方法
@@ -213,12 +213,12 @@ some_function(booth_crud)  # ✅ 完全沒問題
 class BadBoothCRUD(BaseCRUD):
     def get(self, session, id):
         # 錯誤：改變了父類的行為（應該返回對象，但這裡返回 None）
-        return None  # 這會破壞所有依賴 get() 方法的代碼
+        return None  # 這會破壞所有依賴 get() 方法的程式碼
 ```
 
 **為什麼重要**：
 - 確保繼承關係的正確性
-- 讓代碼更可靠，減少意外錯誤
+- 讓程式碼更可靠，減少意外錯誤
 - 支持多態（Polymorphism）
 
 #### 4. **I - Interface Segregation Principle（接口隔離原則）**
@@ -235,7 +235,7 @@ class BadBoothCRUD(BaseCRUD):
 "不需要的方法"指的是：
 - 客戶端（使用接口的類）實際上不會用到的方法
 - 但因為接口定義了這些方法，客戶端被迫實現它們
-- 這會造成不必要的代碼和維護負擔
+- 這會造成不必要的程式碼和維護負擔
 
 **在本專案中的體現**：
 
@@ -303,8 +303,8 @@ class BoothCRUD(BadBaseCRUD):
 ```
 
 **為什麼重要**：
-- 減少不必要的代碼
-- 提高代碼的可維護性
+- 減少不必要的程式碼
+- 提高程式碼的可維護性
 - 讓接口更清晰、更專注
 
 #### 5. **D - Dependency Inversion Principle（依賴倒置原則）**
@@ -323,7 +323,7 @@ class BoothCRUD(BadBaseCRUD):
 **低層模組（Low-level Module）**：
 - 包含實現細節和基礎設施
 - 通常更接近系統底層
-- 例如：`BoothCRUD`（數據訪問層）、數據庫操作
+- 例如：`BoothCRUD`（數據訪問層）、資料庫操作
 
 **依賴方向**：
 ```
@@ -516,16 +516,16 @@ def get_current_user(token: TokenDep):
                   │
 ┌─────────────────▼───────────────────────┐
 │  CRUD (數據訪問層 / Repository)          │
-│  - 數據庫查詢                            │
-│  - 數據庫插入                            │
-│  - 數據庫更新                            │
-│  - 數據庫刪除                            │
+│  - 資料庫查詢                            │
+│  - 資料庫插入                            │
+│  - 資料庫更新                            │
+│  - 資料庫刪除                            │
 └─────────────────┬───────────────────────┘
                   │
 ┌─────────────────▼───────────────────────┐
 │  Models (模型層)                        │
 │  - 定義數據結構                          │
-│  - 定義數據庫表                          │
+│  - 定義資料庫表                          │
 └─────────────────────────────────────────┘
 ```
 
@@ -533,6 +533,6 @@ def get_current_user(token: TokenDep):
 
 1. **Service 層**：處理業務邏輯（Business Logic）
 2. **Routes = Controller**：處理 HTTP 請求
-3. **CRUD = Repository**：處理數據庫操作
+3. **CRUD = Repository**：處理資料庫操作
 4. **SOLID 原則**：通過分層架構實現
 5. **JWT jti 存儲**：數據表記錄的是**被撤銷的 token 的 jti**，不是當前有效的 token

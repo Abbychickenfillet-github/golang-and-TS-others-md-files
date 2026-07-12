@@ -1,6 +1,6 @@
 # 在 Docker 容器中生成密碼哈希
 
-如果本地環境的 bcrypt 版本不兼容，可以在 Docker 容器中執行腳本。
+如果本地環境的 bcrypt 版本不相容，可以在 Docker 容器中執行腳本。
 
 ## 方法 1：使用 Docker Compose（推薦）
 

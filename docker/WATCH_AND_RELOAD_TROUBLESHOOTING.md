@@ -18,7 +18,7 @@
    - ❌ 使用了 `docker compose up` 而不是 `docker compose watch`
    - ❌ watch 的 sync 沒有正確同步文件到容器
    - ❌ FastAPI 的 `--reload` 沒有檢測到文件變化
-   - ❌ 瀏覽器緩存了舊的 Swagger UI
+   - ❌ 瀏覽器快取了舊的 Swagger UI
 
 ### 解決方案
 
@@ -50,12 +50,12 @@ docker compose down backend
 docker compose watch backend
 ```
 
-#### 方案 3：清除瀏覽器緩存
+#### 方案 3：清除瀏覽器快取
 
-Swagger UI 可能緩存了舊的 OpenAPI 文檔：
+Swagger UI 可能快取了舊的 OpenAPI 文檔：
 
 1. 按 `Ctrl + Shift + R`（硬刷新）
-2. 或按 `F12` 打開開發者工具，右鍵刷新按鈕選擇"清空緩存並硬性重新加載"
+2. 或按 `F12` 打開開發者工具，右鍵刷新按鈕選擇"清空快取並硬性重新加載"
 3. 或訪問 `http://localhost:8003/docs?nocache=1`
 
 #### 方案 4：檢查文件是否同步到容器
@@ -122,7 +122,7 @@ INFO:     Application startup complete.
 
 **可能原因**：
 1. 沒有使用 `docker compose watch`
-2. 瀏覽器緩存了舊的文檔
+2. 瀏覽器快取了舊的文檔
 3. FastAPI 的 `--reload` 沒有檢測到變化（需要重啟）
 
 #### Q3: 如何確認 --reload 正在工作？
@@ -141,7 +141,7 @@ INFO:     Started reloader process [1] using WatchFiles
 # 1. 啟動 watch 模式
 docker compose watch backend
 
-# 2. 修改代碼（例如：修改 tags）
+# 2. 修改程式碼（例如：修改 tags）
 # 編輯 backend/app/api/main.py
 
 # 3. 等待自動重載（通常 1-3 秒）
@@ -158,7 +158,7 @@ docker compose logs backend -f
 - [ ] `docker-compose.yml` 中有 `develop.watch` 配置
 - [ ] 使用 `docker compose watch` 而不是 `docker compose up`
 - [ ] 文件路徑在 `watch` 的 `path` 配置中
-- [ ] 瀏覽器已清除緩存或硬刷新
+- [ ] 瀏覽器已清除快取或硬刷新
 
 ### 快速修復命令
 

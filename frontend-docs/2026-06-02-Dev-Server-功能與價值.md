@@ -37,7 +37,7 @@ tags: [gemini, vite, frontend, npm, react, vector-db, ai-memory]
 是 Create React App(CRA)的核心引擎,實現「零配置」開發體驗,把底層工具封裝起來:打包器 Webpack、轉譯器 Babel、Linter ESLint、測試 Jest。提供 `start`/`build`/`test`/`eject` 四個腳本(`eject` 會把所有封裝的配置暴露出來,單向不可逆)。對比 Vite:CRA 開發時必須先用 Webpack 全量打包(專案越大越慢);Vite 用瀏覽器原生 ESM,啟動與 HMR 不受專案規模影響(生產用 Rollup,依賴預打包用 esbuild)。
 
 **7. Encode(編碼)≠ Encryption(加密)**
-編碼是把資料從一種格式翻譯成另一種,目的是相容與傳輸,規則公開、誰都能 decode;加密是為了保密,需要金鑰。常見編碼:UTF-8(字元編碼)、URL/Percent-encoding(處理網址特殊字元,如中文→`%E4%BD%A0`)、Base64(二進位轉文字,常用於 Data URL 把圖塞進程式碼)、HTML Entity(`<`→`&lt;`,防 XSS 誤渲染)。
+編碼是把資料從一種格式翻譯成另一種,目的是相容與傳輸,規則公開、誰都能 decode;加密是為了保密,需要金鑰。常見編碼:UTF-8(字元編碼)、URL/Percent-encoding(處理網址特殊字元,如中文→`%E4%BD%A0`)、Base64(二進位轉文字,常用於 Data URL 把圖塞行程式碼)、HTML Entity(`<`→`&lt;`,防 XSS 誤渲染)。
 
 **8. Mem0 的五大工廠(Factory Pattern)**
 AI 記憶框架 Mem0 用五個工廠達到高擴充性/解耦:

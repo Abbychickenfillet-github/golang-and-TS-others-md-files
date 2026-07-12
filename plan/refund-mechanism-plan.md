@@ -45,7 +45,7 @@ CREATE TABLE refund_record (
 
     -- 狀態追蹤
     status ENUM('pending', 'processing', 'success', 'failed') DEFAULT 'pending',
-    ecpay_return_code VARCHAR(10),                 -- ECPay 回傳代碼
+    ecpay_return_code VARCHAR(10),                 -- ECPay 回傳程式碼
     ecpay_return_message VARCHAR(255),             -- ECPay 回傳訊息
 
     -- 申請資訊

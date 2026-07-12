@@ -113,7 +113,7 @@ $$
 d(A, B) = \sqrt{\sum_{i=1}^{n} (a_i - b_i)^2}
 $$
 
-> ⚠️ `$$ ... $$` 是 **Markdown / Obsidian 的 LaTeX 數學排版語法**（給人看的展示），**不是程式碼**，不能執行。雙錢字符是 block 模式、單錢字符 `$ ... $` 是 inline 模式。Obsidian、GitHub、Jupyter 都支援。
+> ⚠️ `$$ ... $$` 是 **Markdown / Obsidian 的 LaTeX 數學排版語法**（給人看的展示），**不是程式碼**，不能執行。雙錢字元是 block 模式、單錢字元 `$ ... $` 是 inline 模式。Obsidian、GitHub、Jupyter 都支援。
 
 白話：**對應位置相減 → 平方 → 加總 → 開根號**。
 

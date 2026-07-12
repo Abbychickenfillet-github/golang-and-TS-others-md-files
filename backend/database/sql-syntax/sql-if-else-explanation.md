@@ -4,7 +4,7 @@
 
 **答案：是的！** 這是 MySQL 的 `IF()` 函數，相當於編程語言中的 if...else。
 
-## SQL 代碼解析
+## SQL 程式碼解析
 
 ```sql
 SET @sql := IF(@col_exists = 0,
@@ -72,7 +72,7 @@ SET @sql := IF(@col_exists = 0,
     'SELECT ''Column calculation_rule_id already exists in order_electricity'' AS message'
 );
 
--- 步驟 3：執行選擇的 SQL（相當於執行 if 或 else 分支的代碼）
+-- 步驟 3：執行選擇的 SQL（相當於執行 if 或 else 分支的程式碼）
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
@@ -180,8 +180,8 @@ END IF;
 ```sql
 -- ✅ 使用 IF() 函數 + 動態 SQL
 SET @sql := IF(@col_exists = 0,
-    'ALTER TABLE ...',  -- SQL 語句作為字符串
-    'SELECT ...'         -- SQL 語句作為字符串
+    'ALTER TABLE ...',  -- SQL 語句作為字串
+    'SELECT ...'         -- SQL 語句作為字串
 );
 
 PREPARE stmt FROM @sql;  -- 準備執行
@@ -193,7 +193,7 @@ EXECUTE stmt;            -- 執行
 | 概念 | SQL 寫法 | 編程語言等價 |
 |------|---------|------------|
 | 條件判斷 | `IF(條件, 值1, 值2)` | `if (條件) { 值1 } else { 值2 }` |
-| 變量賦值 | `SET @var = ...` | `var = ...` |
+| 變數賦值 | `SET @var = ...` | `var = ...` |
 | 動態執行 | `PREPARE ... EXECUTE` | `eval()` 或類似 |
 
 **關鍵點**：

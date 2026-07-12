@@ -54,7 +54,7 @@ export const Route = createFileRoute("/_layout/orders")({
    - 用戶菜單（UserMenu）
    - 登錄驗證（beforeLoad）
 
-2. **代碼複用**：不需要在每個頁面重複寫佈局代碼
+2. **程式碼複用**：不需要在每個頁面重複寫佈局程式碼
 
 3. **路由嵌套**：TanStack Router 自動處理路由嵌套
    - `/orders` → 渲染 `_layout.tsx` + `_layout/orders.tsx`
@@ -82,7 +82,7 @@ export const Route = createFileRoute("/_layout/orders")({
 未報到 (not_checked_in)
 ```
 
-### 代碼邏輯
+### 程式碼邏輯
 
 ```tsx
 // 當前狀態
@@ -261,7 +261,7 @@ function OrderActionMenu({ order, onCheckIn, onCheckOut }) {
 **但這樣做的缺點：**
 - 無法在其他頁面複用
 - 每個頁面都需要寫自己的 ActionMenu
-- 代碼重複
+- 程式碼重複
 
 ## 總結
 

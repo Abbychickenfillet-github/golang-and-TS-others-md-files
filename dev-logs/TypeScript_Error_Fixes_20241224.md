@@ -4,7 +4,7 @@
 
 ---
 
-## 錯誤一：null 與 undefined 類型不兼容
+## 錯誤一：null 與 undefined 類型不相容
 
 ### 檔案位置
 `src/components/Events/TicketsSidebar.tsx:325`

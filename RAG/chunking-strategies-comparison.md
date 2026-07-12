@@ -289,7 +289,7 @@ chunk_size=1000 → overlap=100-200
 
 ## 4. 中文 Chunking 特殊考量
 
-### 4.1 字符級 vs Token 級
+### 4.1 字元級 vs Token 級
 
 中文一個字 ≈ 1.5-2 個 token（GPT 的 tokenizer 對中文不友善）：
 

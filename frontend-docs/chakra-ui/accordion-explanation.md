@@ -20,7 +20,7 @@ Accordion (最外層容器)
 - **位置**：包裹所有 AccordionItem
 - **主要屬性**：
   - `allowMultiple`: 是否允許多個同時展開
-  - `defaultIndex`: 默認展開的索引數組
+  - `defaultIndex`: 預設展開的索引陣列
   - `index`: 受控模式的展開索引
   - `onChange`: 展開/收合時的回調函數
   - `variant`: 樣式變體
@@ -45,7 +45,7 @@ Accordion (最外層容器)
   - `pb`, `px`: 內邊距
   - `bg`: 背景色
 
-## 代碼示例
+## 程式碼示例
 
 ```tsx
 <Accordion allowMultiple defaultIndex={[]}>
@@ -79,7 +79,7 @@ Accordion (最外層容器)
   - 例如：可以同時展開第 1、2、3 行的詳情
   - 展開新的項目時，不會自動收合之前展開的項目
 
-- **`allowMultiple={false}`**（或不設置，默認）：
+- **`allowMultiple={false}`**（或不設置，預設）：
   - ❌ 一次只能展開一個
   - 展開新的項目時，會自動收合之前展開的項目
 
@@ -89,32 +89,32 @@ Accordion (最外層容器)
 
 ### `defaultIndex`
 
-設置 Accordion 的默認展開項（初始狀態）。
+設置 Accordion 的預設展開項（初始狀態）。
 
-- **類型**：`number[]`（數字數組）
-- **說明**：數組中的數字代表要展開的項目索引（從 0 開始）
+- **類型**：`number[]`（數字陣列）
+- **說明**：陣列中的數字代表要展開的項目索引（從 0 開始）
 
 **示例**：
 
 ```tsx
-// 1. 默認全部收合（不展開任何項）
+// 1. 預設全部收合（不展開任何項）
 <Accordion allowMultiple defaultIndex={[]}>
-  {/* 所有項目默認收合 */}
+  {/* 所有項目預設收合 */}
 </Accordion>
 
-// 2. 默認展開第一項（索引 0）
+// 2. 預設展開第一項（索引 0）
 <Accordion allowMultiple defaultIndex={[0]}>
-  {/* 第一項默認展開 */}
+  {/* 第一項預設展開 */}
 </Accordion>
 
-// 3. 默認展開多項（需要 allowMultiple={true}）
+// 3. 預設展開多項（需要 allowMultiple={true}）
 <Accordion allowMultiple defaultIndex={[0, 2, 4]}>
-  {/* 第 1、3、5 項默認展開 */}
+  {/* 第 1、3、5 項預設展開 */}
 </Accordion>
 ```
 
 **注意**：
-- 如果 `allowMultiple={false}`，`defaultIndex` 數組只能包含一個數字
+- 如果 `allowMultiple={false}`，`defaultIndex` 陣列只能包含一個數字
 - 如果 `allowMultiple={true}`，`defaultIndex` 可以包含多個數字
 
 ### `variant`
@@ -123,7 +123,7 @@ Accordion (最外層容器)
 
 **常用值**：
 - `"enclosed"`: 封閉樣式（帶邊框，項目之間有分隔）
-- `"default"`: 默認樣式（無邊框）
+- `"default"`: 預設樣式（無邊框）
 - `"unstyled"`: 無樣式（完全自定義）
 
 **示例**：
@@ -180,7 +180,7 @@ const [expandedIndex, setExpandedIndex] = useState<number[]>([0])
 ```
 
 - **`allowMultiple`**: 允許多個發票同時展開
-- **無 `defaultIndex`**: 默認全部收合（等同於 `defaultIndex={[]}`）
+- **無 `defaultIndex`**: 預設全部收合（等同於 `defaultIndex={[]}`）
 
 ### 2. 公司管理頁面（companies.tsx）
 
@@ -200,26 +200,26 @@ const [expandedIndex, setExpandedIndex] = useState<number[]>([0])
 ```
 
 - **`allowMultiple`**: 允許多個公司同時展開
-- **`defaultIndex={[]}`**: 默認全部收合
+- **`defaultIndex={[]}`**: 預設全部收合
 - **`variant="enclosed"`**: 使用封閉樣式（帶邊框）
 
 ### 3. 電力需求管理（electricity-dashboard.tsx）
 
 ```tsx
 <Accordion allowMultiple defaultIndex={[0]}>
-  {/* 默認展開第一項 */}
+  {/* 預設展開第一項 */}
 </Accordion>
 ```
 
-- **`defaultIndex={[0]}`**: 默認展開第一項（索引 0）
+- **`defaultIndex={[0]}`**: 預設展開第一項（索引 0）
 
 ## 常見問題
 
 ### Q: `defaultIndex={[]}` 和 `defaultIndex={[0]}` 的區別？
 
 **A:**
-- `defaultIndex={[]}`: 空數組，表示默認不展開任何項
-- `defaultIndex={[0]}`: 包含 0 的數組，表示默認展開第一項（索引從 0 開始）
+- `defaultIndex={[]}`: 空陣列，表示預設不展開任何項
+- `defaultIndex={[0]}`: 包含 0 的陣列，表示預設展開第一項（索引從 0 開始）
 
 ### Q: `allowMultiple` 和 `defaultIndex` 的關係？
 
@@ -246,5 +246,5 @@ const [expandedIndex, setExpandedIndex] = useState<number[]>([0])
 - **AccordionButton** = 可點擊的標題行（用戶看到並點擊的部分）
 - **AccordionPanel** = 展開後的詳細內容區域
 - **allowMultiple** = 是否允許多個同時展開（true = 可以，false = 一次只能一個）
-- **defaultIndex** = 默認展開的索引數組（`[]` = 全部收合，`[0]` = 展開第一項）
+- **defaultIndex** = 預設展開的索引陣列（`[]` = 全部收合，`[0]` = 展開第一項）
 - **variant** = 樣式變體（`"enclosed"` = 帶邊框的封閉樣式）

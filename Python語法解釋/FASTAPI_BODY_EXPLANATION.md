@@ -23,7 +23,7 @@ def update_check_in_status(
 ```
 
 **FastAPI 期望的請求體：**
-- 直接是枚舉值：`"checked_in"`（字符串）
+- 直接是枚舉值：`"checked_in"`（字串）
 - 不是對象！
 
 ### 情況 B：對象（使用 Pydantic 模型）
@@ -201,7 +201,7 @@ openapi.json 文件
     ↓
 openapi-ts 工具生成 TypeScript 類型
     ↓
-前端 TypeScript 代碼使用
+前端 TypeScript 程式碼使用
 ```
 
 ## 6. 對比其他 API 端點的做法

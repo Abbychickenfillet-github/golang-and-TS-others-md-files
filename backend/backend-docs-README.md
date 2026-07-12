@@ -24,7 +24,7 @@
 
 ### 按文件分類
 - **[member_company.py 模型說明](./member_company.md)**
-  - 模組級文檔字符串和 Linter 警告
+  - 模組級文檔字串和 Linter 警告
   - TYPE_CHECKING 的作用和循環導入解決方案
   - Python 類型提示中的中括號語法
   - back_populates 雙向關係
@@ -43,7 +43,7 @@
 
 ### 2025-11-25
 - **[Docker Compose 使用指南](./2025-11-25_docker-compose-guide.md)** ⭐ 推薦閱讀
-  - 服務概覽和端口映射
+  - 服務概覽和連接埠映射
   - 只啟動後端服務（前端本地開發）
   - 常用 Docker Compose 命令
   - 開發工作流程（全棧/前端/後端）
@@ -94,7 +94,7 @@
 - 資料庫遷移腳本 → [2025-11-20 文檔](./2025-11-20_docker-typescript-email-verification-fixes.md#42-資料遷移腳本)
 
 #### Python/SQLModel 相關
-- 模組級文檔字符串 → [member_company.md](./member_company.md#1-模組級文檔字符串和-linter-警告)
+- 模組級文檔字串 → [member_company.md](./member_company.md#1-模組級文檔字串和-linter-警告)
 - TYPE_CHECKING 和循環導入 → [member_company.md](./member_company.md#2-type_checking-的作用)
 - Python 類型提示語法 → [member_company.md](./member_company.md#3-python-類型提示中的中括號)
 - SQLModel Relationship → [member_company.md](./member_company.md#4-back_populates-雙向關係)

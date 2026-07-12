@@ -46,7 +46,7 @@ backend:
 
 如果您希望 `--reload` 只在開發模式下使用，有以下幾種方案：
 
-### 方案 1：使用環境變量（推薦）
+### 方案 1：使用環境變數（推薦）
 
 ```yaml
 backend:
@@ -101,7 +101,7 @@ docker compose up backend
 
 ### 方案 3：使用 Dockerfile 的 CMD（當前方案）
 
-在 `Dockerfile` 中設置默認命令（生產模式）：
+在 `Dockerfile` 中設置預設命令（生產模式）：
 ```dockerfile
 CMD ["fastapi", "run", "--workers", "4", "app/main.py"]
 ```
@@ -129,11 +129,11 @@ backend:
 
 2. **生產環境通常使用不同的配置**：
    - 生產環境通常使用 `docker-compose.production.yml`
-   - 或通過環境變量控制
+   - 或通過環境變數控制
 
 3. **`--reload` 的安全性**：
    - 即使在生產環境，`--reload` 也不會造成嚴重問題
-   - 只是會消耗更多資源（單進程 + 文件監聽）
+   - 只是會消耗更多資源（單行程 + 文件監聽）
 
 ### 檢查當前配置
 
@@ -164,7 +164,7 @@ backend:
 
 ### 生產環境
 
-使用 `docker-compose.production.yml` 或環境變量：
+使用 `docker-compose.production.yml` 或環境變數：
 
 ```yaml
 # docker-compose.production.yml
@@ -176,5 +176,5 @@ backend:
 
 1. **`command` 不能放在 `develop` 下**：Docker Compose 不支持
 2. **當前配置是合理的**：開發時使用 `--reload` 是正確的
-3. **如果需要區分環境**：使用不同的 compose 文件或環境變量
+3. **如果需要區分環境**：使用不同的 compose 文件或環境變數
 4. **watch 模式會正常工作**：`command` 的位置不影響 watch 功能

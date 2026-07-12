@@ -233,7 +233,7 @@ git ls-files --eol  # 顯示所有檔案的換行符狀態
 file file.txt
 
 # 或使用
-cat -A file.txt  # 顯示所有字符（$ 表示 LF，^M$ 表示 CRLF）
+cat -A file.txt  # 顯示所有字元（$ 表示 LF，^M$ 表示 CRLF）
 ```
 
 ## 總結

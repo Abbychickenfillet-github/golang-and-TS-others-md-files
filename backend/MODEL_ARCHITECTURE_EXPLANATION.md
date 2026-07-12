@@ -2,8 +2,8 @@
 
 ## 為什麼不是一張表一個模型？
 
-### 1. 數據庫模型（Database Models）
-- **定義**：對應數據庫表的模型，使用 `table=True`
+### 1. 資料庫模型（Database Models）
+- **定義**：對應資料庫表的模型，使用 `table=True`
 - **命名**：直接使用表名，如 `Event`, `Booth`, `EventBoothType`
 - **用途**：用於 ORM 操作（查詢、插入、更新、刪除）
 - **位置**：`backend/app/models/` 目錄下
@@ -23,7 +23,7 @@ class Event(EventBase, table=True):
 - **用途**：
   - `Create`：創建時使用，必填字段多
   - `Update`：更新時使用，所有字段都是可選的
-- **特點**：不直接對應數據庫表，而是定義 API 輸入格式
+- **特點**：不直接對應資料庫表，而是定義 API 輸入格式
 
 **範例**：
 ```python
@@ -76,10 +76,10 @@ EventBase (基礎模型)
 │   └─ 用途：POST /events 創建活動
 │   └─ 特點：所有字段必填（沒有 default=None）
 │
-├─ Event (繼承 EventBase, table=True) ⭐ 數據庫模型
+├─ Event (繼承 EventBase, table=True) ⭐ 資料庫模型
 │   └─ 用途：對應 event 表
 │   └─ 特點：有 id, created_at, Relationships
-│   └─ 這是唯一真正對應數據庫表的模型
+│   └─ 這是唯一真正對應資料庫表的模型
 │
 └─ EventPublic (繼承 EventBase)
     └─ 用途：GET /events/{id} 返回活動詳情
@@ -95,12 +95,12 @@ EventUpdate (獨立，不繼承 EventBase)
 1. **EventBase**：避免重複定義共享字段
 2. **EventCreate**：創建時需要必填字段驗證
 3. **EventUpdate**：更新時所有字段都是可選的（部分更新）
-4. **Event**：真正的數據庫模型，包含 Relationships
+4. **Event**：真正的資料庫模型，包含 Relationships
 5. **EventPublic**：API 返回時隱藏敏感字段（如 deleted_by）
 
 ### Description 字段的一致性
 
-**原則**：相同字段名在不同模型中的 `description` 應該保持一致，因為它們都對應同一個數據庫字段。
+**原則**：相同字段名在不同模型中的 `description` 應該保持一致，因為它們都對應同一個資料庫字段。
 
 **範例**：
 ```python
@@ -113,7 +113,7 @@ member_id: str = Field(description="主辦會員 ID")  # ✅ 應該一致
 # EventUpdate
 member_id: str | None = Field(default=None, description="主辦會員 ID")  # ✅ 應該一致
 
-# Event (數據庫模型)
+# Event (資料庫模型)
 member_id: str = Field(description="主辦會員 ID")  # ✅ 應該一致
 ```
 
@@ -124,7 +124,7 @@ member_id: str = Field(description="主辦會員 ID")  # ✅ 應該一致
 
 ## 模型命名規範建議
 
-### 數據庫模型
+### 資料庫模型
 - 命名：直接使用表名（單數形式）
 - 範例：`Event`, `Booth`, `EventBoothType`
 - 特點：有 `table=True`
@@ -156,7 +156,7 @@ class BoothElectricityOptionsResponse(SQLModel):
     - electricity_calculation_rule 表：wattage_unit, voltage_options
     - 硬編碼值：max_wattage, outlet_count
 
-    注意：這不是數據庫模型，而是 API 響應模型
+    注意：這不是資料庫模型，而是 API 響應模型
     """
 ```
 
@@ -176,16 +176,16 @@ class BoothElectricityOptionsResponse(SQLModel):
 ### 服務層實現
 - 位置：`backend/app/services/event_service.py`
 - 函數：`event_service.get_registration_status()`
-- 用途：業務邏輯處理，查詢數據庫
+- 用途：業務邏輯處理，查詢資料庫
 
-### 數據庫模型
+### 資料庫模型
 - 位置：`backend/app/models/event.py`
 - 模型：`Event` (table=True)
 - 用途：對應 `event` 表
 
 ## 總結
 
-1. **一張表一個數據庫模型**：`Event`, `Booth` 等（有 `table=True`）
+1. **一張表一個資料庫模型**：`Event`, `Booth` 等（有 `table=True`）
 2. **多個用途多個模型**：`EventCreate`, `EventUpdate`, `EventPublic` 等
 3. **聚合數據用響應模型**：`BoothElectricityOptionsResponse` 等
 4. **命名要清晰**：在 docstring 中說明數據來源

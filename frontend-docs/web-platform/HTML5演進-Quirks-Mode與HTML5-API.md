@@ -65,7 +65,7 @@ updated: 2026-06-28
 | API | 做什麼 | 改變了什麼 |
 |---|---|---|
 | <mark style="background: #ADCCFFA6;">Canvas</mark> `<canvas>` | JS 直接繪製 2D 圖形／動畫（WebGL 可 3D） | <mark style="background: #BBFABBA6;">淘汰 Flash</mark> 做動畫與遊戲 |
-| <mark style="background: #ADCCFFA6;">Web Storage</mark>（local/session） | 瀏覽器內存 key-value 資料 | 取代容量小（~4KB）又每次隨請求送伺服器的 Cookie；本機可存 ~5MB |
+| <mark style="background: #ADCCFFA6;">Web Storage</mark>（local/session） | 瀏覽器記憶體 key-value 資料 | 取代容量小（~4KB）又每次隨請求送伺服器的 Cookie；本機可存 ~5MB |
 | <mark style="background: #ADCCFFA6;">Geolocation</mark> | `navigator.geolocation` 取經緯度（需同意） | 地圖／外送／叫車不必手動輸入地址 |
 | <mark style="background: #ADCCFFA6;">Audio/Video</mark> `<audio>`/`<video>` | 原生影音播放與 JS 控制 | 不必再裝 RealPlayer／Flash |
 

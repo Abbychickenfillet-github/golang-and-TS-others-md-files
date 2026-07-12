@@ -392,7 +392,7 @@ docker build --build-arg VITE_API_URL=https://api.example.com -t frontend .
 ```
 
 **重要**：
-- 只有 `VITE_` 前綴的變數會暴露給前端代碼
+- 只有 `VITE_` 前綴的變數會暴露給前端程式碼
 - Dockerfile 建構時，環境變數會被「烘焙」進靜態檔案，無法在 runtime 修改
 
 ---

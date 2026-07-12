@@ -1,6 +1,6 @@
 # JWT Token 和黑名單機制解釋
 
-## 1. 代碼解釋
+## 1. 程式碼解釋
 
 ### `response_model=LogoutResponse`
 - **作用**：FastAPI 的響應模型定義
@@ -68,7 +68,7 @@ def create_access_token(subject: str | Any, expires_delta: timedelta) -> str:
 2. **用戶登出** → 將 `jti` 存入黑名單表
 3. **後續請求** → 檢查 `jti` 是否在黑名單中
 
-### 代碼流程
+### 程式碼流程
 
 ```python
 # 1. 登出時，提取 jti 並加入黑名單
@@ -76,7 +76,7 @@ def logout(token: TokenDep):
     payload = jwt.decode(token, ...)
     token_jti = payload.get("jti")  # 獲取這個 token 的唯一 ID
 
-    # 將 jti 存入數據庫黑名單
+    # 將 jti 存入資料庫黑名單
     blacklisted_token_crud.add_to_blacklist(
         session,
         token_jti=token_jti,  # ⭐ 只撤銷這個特定的 token
@@ -105,7 +105,7 @@ def get_current_user(token: TokenDep):
 - 如果 token 被洩露，可以立即撤銷
 - 用戶重新登錄後，舊 token 失效，新 token 有效
 
-## 6. 數據庫黑名單表
+## 6. 資料庫黑名單表
 
 ```sql
 CREATE TABLE blacklisted_token (
@@ -198,7 +198,7 @@ FastAPI 提取 token
 
 ## 9. 驗證方法
 
-可以在代碼中添加日誌來驗證：
+可以在程式碼中添加日誌來驗證：
 
 ```python
 def create_access_token(subject: str, expires_delta: timedelta) -> str:

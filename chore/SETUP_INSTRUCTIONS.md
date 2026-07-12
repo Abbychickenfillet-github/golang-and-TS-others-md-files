@@ -18,7 +18,7 @@
 
 4. **執行設置腳本**
    ```bash
-   # 創建 feature 環境（使用不同的端口）
+   # 創建 feature 環境（使用不同的連接埠）
    bash scripts/setup-multi-clone.sh https://github.com/yutuo-tech/template.git /c/coding feature
 
    # 或者創建 main 環境
@@ -43,9 +43,9 @@ scripts\setup-multi-clone.bat https://github.com/yutuo-tech/template.git C:\codi
   - Git Bash: `/c/coding`
 
 - **env-name**: 環境名稱（可選，預設: `feature`）
-  - `main`: 主環境（端口 8003, 5003, 3000）
-  - `feature`: 功能環境（端口 8004, 5004, 3001）
-  - `test`: 測試環境（端口 8005, 5005, 3002）
+  - `main`: 主環境（連接埠 8003, 5003, 3000）
+  - `feature`: 功能環境（連接埠 8004, 5004, 3001）
+  - `test`: 測試環境（連接埠 8005, 5005, 3002）
 
 ## 執行範例
 
@@ -56,7 +56,7 @@ bash scripts/setup-multi-clone.sh https://github.com/yutuo-tech/template.git /c/
 
 這會：
 - 在 `/c/coding/template-feature` 創建新的 clone
-- 自動設置端口為 8004, 5004, 3001
+- 自動設置連接埠為 8004, 5004, 3001
 - 配置環境變數文件
 
 ### 創建 main 環境
@@ -66,13 +66,13 @@ bash scripts/setup-multi-clone.sh https://github.com/yutuo-tech/template.git /c/
 
 這會：
 - 在 `/c/coding/template-main` 創建新的 clone
-- 自動設置端口為 8003, 5003, 3000
+- 自動設置連接埠為 8003, 5003, 3000
 - 配置環境變數文件
 
 ## 執行後會發生什麼？
 
 1. ✅ Clone repository 到指定目錄
-2. ✅ 自動計算並設置端口（避免衝突）
+2. ✅ 自動計算並設置連接埠（避免衝突）
 3. ✅ 創建/更新 `.env` 文件
 4. ✅ 設置 Next.js 環境變數（`offcial_webiste/.env`）
 5. ✅ 顯示環境資訊和下一步指示

@@ -6,7 +6,7 @@
 
 專案包含以下 Docker Compose 服務：
 
-| 服務名稱 | 功能 | 端口映射 | 依賴 |
+| 服務名稱 | 功能 | 連接埠映射 | 依賴 |
 |---------|------|---------|------|
 | `prestart` | 初始化腳本（創建資料庫、superuser 等） | - | - |
 | `backend` | FastAPI 後端 API 服務 | `8003:8000` | prestart |
@@ -84,7 +84,7 @@ docker compose stop backend
 # 停止並移除所有容器
 docker compose down
 
-# 停止並移除容器、網絡、volumes（完全清理）
+# 停止並移除容器、網路、volumes（完全清理）
 docker compose down -v
 ```
 
@@ -123,7 +123,7 @@ docker compose build
 # 只構建特定服務
 docker compose build backend
 
-# 強制重新構建（不使用緩存）
+# 強制重新構建（不使用快取）
 docker compose build --no-cache backend
 ```
 
@@ -135,7 +135,7 @@ docker compose build --no-cache backend
 # 1. 啟動所有服務
 docker compose watch
 
-# 2. 服務會自動偵測代碼變更並重載
+# 2. 服務會自動偵測程式碼變更並重載
 # - backend/app 目錄變更 → 自動同步並重載
 # - frontend/src 目錄變更 → 自動同步並重建
 ```
@@ -146,7 +146,7 @@ docker compose watch
 # 1. 只啟動後端
 docker compose up -d --wait backend
 
-# 2. 在另一個終端啟動前端開發服務器
+# 2. 在另一個終端啟動前端開發伺服器
 cd frontend
 npm run dev
 # 訪問 http://localhost:5173
@@ -160,7 +160,7 @@ npm run dev
 # 1. 只啟動前端
 docker compose up -d frontend
 
-# 2. 在另一個終端啟動後端開發服務器
+# 2. 在另一個終端啟動後端開發伺服器
 cd backend
 uv sync
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
@@ -211,14 +211,14 @@ docker compose build --no-cache
 docker compose up -d
 ```
 
-### 端口衝突
+### 連接埠衝突
 
-如果遇到端口被佔用的錯誤，修改 `docker-compose.yml` 中的端口映射：
+如果遇到連接埠被佔用的錯誤，修改 `docker-compose.yml` 中的連接埠映射：
 
 ```yaml
 backend:
   ports:
-    - "8004:8000"  # 將 8003 改為其他端口
+    - "8004:8000"  # 將 8003 改為其他連接埠
 ```
 
 ### 環境變數問題

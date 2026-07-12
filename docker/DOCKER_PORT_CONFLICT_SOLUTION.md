@@ -191,7 +191,7 @@ on endpoint ...: Bind for 0.0.0.0:8003 failed: port is already allocated
 ### 錯誤：`address already in use`
 
 **解決方法**：
-1. 檢查是否有其他進程佔用埠號
+1. 檢查是否有其他行程佔用埠號
 2. 停止相關的 Docker 容器
 3. 或修改埠號配置
 

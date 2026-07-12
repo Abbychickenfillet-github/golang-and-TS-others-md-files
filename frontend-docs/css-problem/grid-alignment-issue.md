@@ -161,7 +161,7 @@ Chakra UI Badge 原始碼：
 
 ---
 
-## 調試工具
+## 除錯工具
 
 在 F12 DevTools 中檢查：
 1. 選取 Badge 元素

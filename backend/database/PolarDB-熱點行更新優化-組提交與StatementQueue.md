@@ -34,12 +34,12 @@ quiz: PolarDB-熱點行更新優化-組提交與StatementQueue.html
 
 **組提交流程：** 多筆更新先收集進記憶體（`Collect and Update Memory Record` / Row Cache 暫存），由 Leader 統一收集更新記憶體紀錄，再以群組方式一起提交（`Group Committing`）→ <mark style="background: #FFB8EBA6;">大幅減少磁碟 I/O 次數與鎖衝突</mark>。
 
-### 優化技術二：Statement Queue（語句隊列）
+### 優化技術二：Statement Queue（語句佇列）
 
 如果**沒有**開啟上面的熱點行優化，PolarDB 還提供另一種排隊機制。
 
 - 痛點：原生 MySQL 中，多條語句對同一行並發操作時，執行緒會在 InnoDB 行鎖上<mark style="background: #FF5582A6;">「硬碰硬」競爭</mark>，造成嚴重鎖等待與衝突，系統吞吐量暴跌。
-- 做法：透過 <mark style="background: #ADCCFFA6;">Hint 語法</mark>，把這些衝突語句在進入資料庫引擎前，先用 <mark style="background: #FFF3A3A6;">Hash 演算法路由到一個共享的「排隊桶（Bucket）」</mark>，讓語句在隊列中依序排隊，而不是直接去頻繁申請/釋放鎖 → <mark style="background: #BBFABBA6;">降低內核的鎖衝突開銷</mark>。
+- 做法：透過 <mark style="background: #ADCCFFA6;">Hint 語法</mark>，把這些衝突語句在進入資料庫引擎前，先用 <mark style="background: #FFF3A3A6;">Hash 演算法路由到一個共享的「排隊桶（Bucket）」</mark>，讓語句在佇列中依序排隊，而不是直接去頻繁申請/釋放鎖 → <mark style="background: #BBFABBA6;">降低核心的鎖衝突開銷</mark>。
 
 ### 它如何把高並發熱點行更新做到「並行處理」
 
@@ -66,8 +66,8 @@ quiz: PolarDB-熱點行更新優化-組提交與StatementQueue.html
 **使用者：** 給我鎖的機制、排隊的參考 document。
 
 **Gemini：** 在 PolarDB 架構中主要有兩種技術處理高並發排隊與行鎖等待：
-1.《熱點數據行 UPDATE 操作的性能優化》（Hot row optimization）— 核心是組提交與流水線：大量並發更新同一行時，內核自動按到達順序分組（Group Update）。「組內第一個更新操作為 Leader，其讀取目標數據行並且加鎖。後續更新操作為 Follower，其對目標數據行加鎖時，如果發現 Leader 已經持有行鎖，無需等待，直接獲得行鎖。」藉此減少行鎖的加鎖次數和時間開銷。
-2.《使用 Statement Queue 優化高並發性能》— 原生 MySQL 多語句針對相同行並發時，執行線程會在 InnoDB 行鎖上硬碰硬競爭，吞吐量暴跌。PolarDB 允許透過 Hint 把衝突語句在進入引擎前以 Hash 路由到共享排隊桶（Bucket）中依序排隊，降低鎖衝突開銷。
+1.《熱點數據行 UPDATE 操作的性能優化》（Hot row optimization）— 核心是組提交與流水線：大量並發更新同一行時，核心自動按到達順序分組（Group Update）。「組內第一個更新操作為 Leader，其讀取目標數據行並且加鎖。後續更新操作為 Follower，其對目標數據行加鎖時，如果發現 Leader 已經持有行鎖，無需等待，直接獲得行鎖。」藉此減少行鎖的加鎖次數和時間開銷。
+2.《使用 Statement Queue 優化高並發性能》— 原生 MySQL 多語句針對相同行並發時，執行執行緒會在 InnoDB 行鎖上硬碰硬競爭，吞吐量暴跌。PolarDB 允許透過 Hint 把衝突語句在進入引擎前以 Hash 路由到共享排隊桶（Bucket）中依序排隊，降低鎖衝突開銷。
 
 **使用者：** 這些是怎麼對高並發熱點行更新做到並行處理？
 
@@ -87,4 +87,4 @@ quiz: PolarDB-熱點行更新優化-組提交與StatementQueue.html
 
 **使用者：** PolarDB 不是阿里的嗎？（對 AI 語音誤判提問）
 
-**Gemini：** PolarDB 代表「雲原生數據庫」，是阿里雲自主研發的資料庫產品，並不是 Hulu 影集或 MySQL。
+**Gemini：** PolarDB 代表「雲原生資料庫」，是阿里雲自主研發的資料庫產品，並不是 Hulu 影集或 MySQL。

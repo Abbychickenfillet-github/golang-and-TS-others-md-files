@@ -837,7 +837,7 @@ Claude、GPT、Gemini 本身是**會說話的神經網路**，沒有讓你存東
 | 2 | **Mem0** | 目前 star 數最多的**記憶中間層** | 把記憶做成一條可插拔管線，提供 HTTP API 與多語 SDK，重實戰整合 | <https://github.com/mem0ai/mem0>（生產級、有商業公司撐）|
 | 3 | **Letta (前 MemGPT)** | 把**作業系統的虛擬記憶**概念搬進 Agent | 分層記憶 (working / archival)、context 換頁，像給 LLM 寫 OS | <https://github.com/letta-ai/letta> |
 | 4 | **ReMe** | 阿里 AgentScope 的**「檔案即記憶」**方案 | 用檔案系統而非 DB 當記憶後端，適合可讀可稽核的場景 | AgentScope 專案下 |
-| 5 | **memU** | 最激進：**記憶本身就是一個 24/7 Agent** | 記憶不再只是被讀寫的資料，而是主動在背景演化、整理、刪改的獨立進程 | 新興方案 |
+| 5 | **memU** | 最激進：**記憶本身就是一個 24/7 Agent** | 記憶不再只是被讀寫的資料，而是主動在背景演化、整理、刪改的獨立行程 | 新興方案 |
 
 ### 怎麼解讀這張表？
 

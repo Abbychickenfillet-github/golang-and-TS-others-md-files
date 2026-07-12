@@ -17,7 +17,7 @@ updated: 2026-06-14
 | 特性 | DigitalOcean | GCP |
 | :--- | :--- | :--- |
 | 計費模式 | <mark style="background: #BBFABBA6;">定額制（套餐 Droplets），每月固定扣款</mark>，超量才計費 | <mark style="background: #FF5582A6;">計量制（用多少算多少），流量/硬碟/CPU 分開算，帳單易暴增</mark> |
-| 學習曲線 | 極低，介面乾淨，幾分鐘開好機器 | 較高，IAM 權限、VPC 網絡複雜 |
+| 學習曲線 | 極低，介面乾淨，幾分鐘開好機器 | 較高，IAM 權限、VPC 網路複雜 |
 | 核心優勢 | 價格透明、CP 值高、適合個人/Side Project | 生態龐大、AI/大數據強、全球節點多 |
 | 適合對象 | 個人開發者、中小型網站、預算有限 | 企業級、需高度自動擴展、重度依賴 Google 生態 |
 

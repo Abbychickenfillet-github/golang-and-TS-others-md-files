@@ -2,7 +2,7 @@
 
 ## 快速檢查後端是否運行
 
-### 方法 1: 檢查端口占用
+### 方法 1: 檢查連接埠占用
 ```bash
 # Windows PowerShell
 netstat -ano | findstr :8003
@@ -30,7 +30,7 @@ docker ps -a
 
 ### 問題 1: 兩個後端同時運行
 **症狀：**
-- 端口被佔用
+- 連接埠被佔用
 - 請求失敗或回應不一致
 
 **解決方法：**
@@ -58,7 +58,7 @@ docker compose ps
 ### 問題 3: 環境變數不一致
 **檢查：**
 - `.env` 文件中的 `PORT` 設定
-- `docker-compose.yml` 中的端口映射
+- `docker-compose.yml` 中的連接埠映射
 - 確保都是 8003
 
 ## 建議的工作流程
@@ -88,5 +88,5 @@ docker compose down
 ### 同時運行（不推薦）
 如果必須同時運行，需要：
 - 開發模式使用 8003
-- Docker 使用其他端口（如 8004）
-- 修改前端 `VITE_API_URL` 指向正確的端口
+- Docker 使用其他連接埠（如 8004）
+- 修改前端 `VITE_API_URL` 指向正確的連接埠
