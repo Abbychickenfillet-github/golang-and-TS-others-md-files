@@ -1,0 +1,4 @@
+- [x] Explain Internal vs External Ports
+- [x] Explain API Gateway
+- [x] Explain Localhost vs LAN IP vs Docker IP
+- [/] Clarify Docker IP visibility (Can colleagues see my Docker IP?)

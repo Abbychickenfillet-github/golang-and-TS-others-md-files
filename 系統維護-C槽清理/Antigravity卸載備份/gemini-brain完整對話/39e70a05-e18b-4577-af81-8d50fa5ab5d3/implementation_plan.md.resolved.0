@@ -1,0 +1,31 @@
+# Restoration Plan: Company Table
+
+## Goal
+Restore the `company` table data in the Staging environment (`future_sign_stage`) which was accidentally truncated. Since no local backup contains this data, we will replicate the data from the Production environment (`future_sign_prod`).
+
+## User Review Required
+> [!IMPORTANT]
+> **Data Source**: Data will be copied from **Production** (`future_sign_prod`) to **Staging** (`future_sign_stage`).
+>
+> **Data Loss**: Any "Staging-only" companies created recently (that are not in Production) are permanently lost, as they are not in the discovered local backups. This operation only restores companies that exist in Production.
+
+## Proposed Changes
+
+### Backend Scripts
+
+#### [NEW] [restore_company_from_prod.py](file:///c:/coding/template/backend/scripts/restore_company_from_prod.py)
+- Connect to MySQL Server.
+- Read `future_sign_prod.company` data.
+- Insert into `future_sign_stage.company`.
+- **Preserve IDs**: Ensure `id` values are identical to maintain relationships with `member_company`.
+- **Foreign Keys**: Temporarily disable FK checks during insertion.
+
+## Verification Plan
+
+### Automated Verification
+- Run the script: `python backend/scripts/restore_company_from_prod.py`
+- Check row count in Staging: `SELECT COUNT(*) FROM future_sign_stage.company`
+- Compare with Production: `SELECT COUNT(*) FROM future_sign_prod.company`
+
+### Manual Verification
+- User to check the Staging App or Database to confirm companies are visible again.

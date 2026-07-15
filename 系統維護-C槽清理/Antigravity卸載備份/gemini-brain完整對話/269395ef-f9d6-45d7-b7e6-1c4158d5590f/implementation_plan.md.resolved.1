@@ -1,0 +1,39 @@
+# Add Electronic Invoice Fields to Order Model
+
+## Goal Description
+The goal is to support ECPay Electronic Invoice integration by storing necessary invoice parameters in the [Order](file:///c:/coding/template/backend/app/models/order.py#214-363) model. This allows the application to capture user preferences (Carrier Type, Donation, etc.) during order creation and pass them to ECPay.
+
+## User Review Required
+> [!IMPORTANT]
+> This change involves modifying the database schema. While SQLAlchemy models will be updated, **you (the user) are responsible for running the actual database migration SQL** (provided in [plans/綠界測試.md](file:///c:/coding/template/plans/%E7%B6%A0%E7%95%8C%E6%B8%AC%E8%A9%A6.md)) to apply these changes to your database. This plan only updates the Python code to match the new schema.
+
+## Proposed Changes
+
+### Backend
+
+#### [NEW] [order_invoice.py](file:///c:/coding/template/backend/app/models/order_invoice.py)
+- Create new model `OrderInvoice` with fields:
+    - [id](file:///c:/coding/template/backend/app/services/order_service.py#125-127) (UUID, PK)
+    - [order_id](file:///c:/coding/template/backend/app/utils/database/crud_helpers.py#510-517) (UUID, FK to `order.id`)
+    - `invoice_type` (String, default='2')
+    - `carrier_type` (String)
+    - `carrier_num` (String)
+    - `donation` (String, default='0')
+    - `love_code` (String)
+    - `print_mark` (String, default='0')
+    - `customer_identifier` (String)
+    - `customer_name`, `customer_addr`, `customer_phone`, `customer_email` (Optional fields for B2C/B2B info)
+    - `created_at`, `updated_at` timestamps
+
+#### [MODIFY] [order.py](file:///c:/coding/template/backend/app/models/order.py)
+- Add relationship to `OrderInvoice` (e.g., `invoice_details`).
+- No new columns added to [Order](file:///c:/coding/template/backend/app/models/order.py#214-363) table itself regarding invoice parameters (except the existing logs).
+
+## Verification Plan
+
+### Automated Tests
+- None planned as no test DB active.
+
+### Manual Verification
+1.  **Code Review**: Verify `OrderInvoice` model is correctly defined and linked to [Order](file:///c:/coding/template/backend/app/models/order.py#214-363).
+2.  **Logic Check**: Ensure schema matches the SQL provided in [plans/綠界測試.md](file:///c:/coding/template/plans/%E7%B6%A0%E7%95%8C%E6%B8%AC%E8%A9%A6.md).

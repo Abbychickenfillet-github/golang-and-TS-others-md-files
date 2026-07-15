@@ -1,0 +1,37 @@
+# Add Electronic Invoice Fields to Order Model
+
+## Goal Description
+The goal is to support ECPay Electronic Invoice integration by storing necessary invoice parameters in the [Order](file:///c:/coding/template/backend/app/models/order.py#214-363) model. This allows the application to capture user preferences (Carrier Type, Donation, etc.) during order creation and pass them to ECPay.
+
+## User Review Required
+> [!IMPORTANT]
+> This change involves modifying the database schema. While SQLAlchemy models will be updated, **you (the user) are responsible for running the actual database migration SQL** (provided in [plans/綠界測試.md](file:///c:/coding/template/plans/%E7%B6%A0%E7%95%8C%E6%B8%AC%E8%A9%A6.md)) to apply these changes to your database. This plan only updates the Python code to match the new schema.
+
+## Proposed Changes
+
+### Backend
+
+#### [MODIFY] [order.py](file:///c:/coding/template/backend/app/models/order.py)
+- Update [Order](file:///c:/coding/template/backend/app/models/order.py#214-363) class to include the following new fields (Scheme V2):
+    - `invoice_type` (String, default='2')
+    - `carrier_type` (String)
+    - `carrier_num` (String)
+    - `donation` (String, default='0')
+    - `love_code` (String)
+    - `print_mark` (String, default='0')
+    - `customer_identifier` (String)
+    - `customer_name` (String, Optional)
+    - `customer_addr` (String, Optional)
+    - `customer_phone` (String, Optional)
+    - `customer_email` (String, Optional)
+
+*Note: Documentation [plans/綠界測試.md](file:///c:/coding/template/plans/%E7%B6%A0%E7%95%8C%E6%B8%AC%E8%A9%A6.md) contains an alternative V3 (Split Table) design if requirements change.*
+
+## Verification Plan
+
+### Automated Tests
+- None planned as no test DB active.
+
+### Manual Verification
+1.  **Code Review**: Verify [backend/app/models/order.py](file:///c:/coding/template/backend/app/models/order.py) has the new fields defined.
+2.  **Logic Check**: Ensure the new fields map to the SQL provided in [plans/綠界測試.md](file:///c:/coding/template/plans/%E7%B6%A0%E7%95%8C%E6%B8%AC%E8%A9%A6.md).

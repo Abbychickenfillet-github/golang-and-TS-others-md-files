@@ -1,0 +1,3 @@
+- [ ] Investigate project structure to locate Go files <!-- id: 0 -->
+- [ ] Determine if the import path matches the local module name <!-- id: 1 -->
+- [ ] Explain the Go import mechanism to the user <!-- id: 2 -->

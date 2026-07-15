@@ -1,0 +1,40 @@
+# Fix Booth Price Display Issue
+
+## Goal Description
+The user reported that booths in a newly added area are not showing their default price, specifically for "A區" booths. The issue is caused by the `getCurrentPrice` function in `EventsCreateBoothSettingsPage.tsx`. When a Pricing Tier matches (e.g., a Global Tier), but ignores the specific Booth Type (returning `undefined` for that type's price), the current logic falls back to `0` instead of the Booth Type's `default_price`.
+
+This change ensures that if a Pricing Tier applies but doesn't explicitly set a price for a Booth Type, the system falls back to the Booth Type's default price.
+
+## User Review Required
+> [!NOTE]
+> This change assumes that if a price is missing in a matching Pricing Tier, the user intends to use the Booth Type's default price. If the user *intended* for the price to be 0/free but didn't explicitly set it to 0, they might see a price now. However, existing UI forces selecting a price, so "missing" usually means "not configured in this tier".
+
+## Proposed Changes
+
+### Frontend
+#### [MODIFY] [EventsCreateBoothSettingsPage.tsx](file:///c:/coding/futuresign/futuresign.official_website/src/pages/EventsCreateBoothSettingsPage.tsx)
+- Modify `getCurrentPrice` function.
+- Change loop up logic:
+```typescript
+// Old
+// return activeTier.prices[typeCode] || 0
+
+// New
+const price = activeTier.prices[typeCode]
+if (price !== undefined) {
+  return price
+}
+return boothType?.default_price || 0
+```
+
+## Verification Plan
+
+### Manual Verification
+1.  Open the "Booth Settings" page for an event.
+2.  Ensure there are Booth Types with a `default_price` > 0.
+3.  Ensure there is a Global Pricing Tier (or Area Pricing Tier) that *does not* include a price for a specific Booth Type (this might require manipulating state or finding such a case).
+    *   *Self-Correction*: It's hard to simulate "missing key" via UI if the UI always saves all keys. However, for *newly added* Booth Types on *old* Tiers, this happens.
+    *   Create a Global Pricing Tier.
+    *   Add a *new* Booth Type.
+    *   Check if the new Booth Type booths show the default price or "-".
+    *   With the fix, they should show the default price.

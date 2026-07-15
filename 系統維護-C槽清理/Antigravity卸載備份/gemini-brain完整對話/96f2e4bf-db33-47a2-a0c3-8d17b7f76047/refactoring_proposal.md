@@ -1,0 +1,128 @@
+# Backend Refactoring Proposal: Modularizing `main.go`
+
+## 1. Executive Summary
+This document proposes a structural refactoring of the `backend-go` service, specifically targeting the `cmd/server/main.go` file. The goal is to improve maintainability, readability, and testability by extracting routing and initialization logic into dedicated internal packages.
+
+## 2. Current State (The Problem)
+Currently, `cmd/server/main.go` has grown to over **2,000 lines**. It violates the **Single Responsibility Principle** by handling too many distinct concerns:
+
+1.  **Configuration Loading**: Reading `.env` and parsing config files.
+2.  **Infrastructure Initialization**: Connecting to MySQL, Redis, and running migrations.
+3.  **Dependency Injection**: Manually initializing dozens of Repositories, Services, and Handlers (Lines 412-530).
+4.  **Route Registration**: Defining all API routes directly in formatting functions within `main.go` (e.g., `setupUserRoutes`, `setupMemberRoutes`).
+5.  **Server Lifecycle**: Handling HTTP server starting and graceful shutdown.
+
+### Key Issues:
+-   **High Cognitive Load**: Developers often get lost navigating a huge file to find simple route definitions.
+-   **Merge Conflicts**: Since all wiring happens in one file, concurrent feature branches often conflict in `main.go`.
+-   **Testing Difficulty**: It is hard to test route configurations or dependency wiring in isolation.
+
+## 3. Proposed Solution
+
+We propose a **Package-based Architecture** to distribute these responsibilities.
+
+### 3.1 New Directory Structure
+
+We will introduce a new `internal/router` package and potentially an `internal/container` (or `app`) package.
+
+```text
+backend-go/
+├── cmd/
+│   └── server/
+│       └── main.go           (Refactored: < 100 lines)
+├── internal/
+│   ├── config/               (Existing)
+│   ├── container/            (New: Dependency Injection)
+│   │   └── container.go      (Initializes Repo/Service/Handlers)
+│   ├── router/               (New: Route Definitions)
+│   │   ├── router.go         (Main Router Setup)
+│   │   ├── user_routes.go    (User handlers wiring)
+│   │   ├── member_routes.go  (Member handlers wiring)
+│   │   ├── order_routes.go   (Order handlers wiring)
+│   │   └── ...
+│   ├── handler/              (Existing)
+│   ├── service/              (Existing)
+│   └── repository/           (Existing)
+```
+
+### 3.2 Before vs. After Code Comparison
+
+#### **Before (`main.go`)**
+```go
+// main.go (Truncated)
+func main() {
+    // ... 100 lines of config ...
+    userRepo := repository.NewUserRepository(db)
+    // ... 50 lines of repo init ...
+    userService := service.NewUserService(userRepo)
+    // ... 100 lines of service init ...
+    userHandler := handler.NewUserHandler(userService)
+
+    router := gin.New()
+    setupUserRoutes(router, userHandler) // Function defined at bottom of file
+    // ...
+}
+
+func setupUserRoutes(r *gin.Engine, h *handler.UserHandler) {
+    // ... route definitions ...
+}
+```
+
+#### **After (Refactored)**
+
+**`cmd/server/main.go`** (The Entrypoint)
+```go
+func main() {
+    cfg := config.Load()
+    logger.Init(cfg)
+
+    // 1. Initialize Dependencies (Container)
+    app := container.New(cfg)
+
+    // 2. Setup Router
+    r := router.New(app)
+
+    // 3. Start Server
+    server.Run(r, cfg)
+}
+```
+
+**`internal/router/user_routes.go`** (Dedicated Route File)
+```go
+package router
+
+func RegisterUserRoutes(g *gin.RouterGroup, h *handler.UserHandler) {
+    users := g.Group("/users")
+    {
+        users.POST("/signup", h.RegisterUser)
+        users.GET("/me", middleware.AuthRequired(), h.GetCurrentUser)
+    }
+}
+```
+
+## 4. Migration Plan
+
+To avoid disrupting ongoing development, we will migrate incrementally:
+
+1.  **Phase 1: Foundation**
+    -   Create `internal/router` directory.
+    -   Create `internal/container` (optional, or keep DI in `main.go` temporarily).
+2.  **Phase 2: Incremental Extraction**
+    -   Move `User` and `Member` routes to the new package first.
+    -   Verify functionality.
+3.  **Phase 3: Completion**
+    -   Move remaining routes (Company, Event, Order, etc.).
+    -   Clean up `main.go`.
+
+## 5. Benefits
+
+| Benefit | Description |
+| :--- | :--- |
+| **Readability** | `main.go` becomes a high-level overview of the application lifecycle. |
+| **Maintainability** | Routes are organized by domain (User, Order, Event) in separate files. |
+| **Collaboration** | Reduces merge conflicts as developers work in specific route files. |
+| **Standardization** | Aligns with standard Go project layouts (standard library + hexagonal/clean arch style). |
+
+---
+*Date: 2026-02-06*
+*Author: Antigravity Assistant*

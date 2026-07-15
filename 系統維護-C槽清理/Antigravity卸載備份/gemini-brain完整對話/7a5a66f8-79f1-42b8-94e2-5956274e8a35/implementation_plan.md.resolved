@@ -1,0 +1,30 @@
+# Strict Uniqueness Check for Event Booth Type Pricing
+
+## Goal Description
+Fix `Error 1062 (23000): Duplicate entry` when creating event booth type pricing. The error occurs because the application only checks for *active* existing pricings, while the database imposes a unique constraint on [(event_booth_type_id, price_type)](file:///c:/coding/futuresign/futuresign_monorepo/backend-go/internal/models/event_booth_type.go#66-86) regardless of status or deletion state.
+
+## User Review Required
+> [!IMPORTANT]
+> This change will prevent creating a new pricing with the same name as an existing *inactive* or *soft-deleted* pricing. Users will need to restore/reactivate the old pricing or permanently delete it to reuse the name.
+
+## Proposed Changes
+
+### Backend (Go)
+
+#### [MODIFY] [event_booth_type_repository.go](file:///c:/coding/futuresign/futuresign_monorepo/backend-go/internal/repository/event_booth_type_repository.go)
+- Add `GetByPriceTypeUnscoped` method to [EventBoothTypePricingRepository](file:///c:/coding/futuresign/futuresign_monorepo/backend-go/internal/repository/event_booth_type_repository.go#151-176) interface and implementation.
+- This method will use `r.db.Unscoped()` to find records even if they are soft-deleted or inactive.
+
+#### [MODIFY] [event_booth_type_service.go](file:///c:/coding/futuresign/futuresign_monorepo/backend-go/internal/service/event_booth_type_service.go)
+- In [CreatePricing](file:///c:/coding/futuresign/futuresign_monorepo/backend-go/internal/service/event_booth_type_service.go#315-381), replace the [GetByPriceType](file:///c:/coding/futuresign/futuresign_monorepo/backend-go/internal/repository/event_booth_type_repository.go#202-221) check with `GetByPriceTypeUnscoped`.
+- In [UpdatePricing](file:///c:/coding/futuresign/futuresign_monorepo/backend-go/internal/service/event_booth_type_service.go#425-497), replace the [GetByPriceType](file:///c:/coding/futuresign/futuresign_monorepo/backend-go/internal/repository/event_booth_type_repository.go#202-221) check with `GetByPriceTypeUnscoped`.
+- Ensure appropriate error `ErrPricingTypeExists` is returned if any record is found.
+
+## Verification Plan
+
+### Automated Tests
+- Create a new test case in [event_booth_type_service_test.go](file:///c:/coding/futuresign/futuresign_monorepo/backend-go/internal/service/event_booth_type_service_test.go) (or similar) that mocks the repository response to return a soft-deleted record, and asserts that [CreatePricing](file:///c:/coding/futuresign/futuresign_monorepo/backend-go/internal/service/event_booth_type_service.go#315-381) returns `ErrPricingTypeExists`.
+- Attempt to reproduce the original error scenario via unit test if possible (mocking).
+
+### Manual Verification
+- Since I cannot run the full app with DB locally easily, I will rely on unit/mock tests.

@@ -1,0 +1,30 @@
+# Implementation Plan - Refactor execution of Main.go
+
+Refactor `cmd/server/main.go` to improve maintainability by moving route configuration into a dedicated `internal/router` package.
+
+## Proposed Changes
+
+### [NEW] `internal/router/`
+Create a new package to handle all routing logic.
+
+#### [NEW] `internal/router/router.go`
+- Define a `Router` struct or function that accepts the Gin engine and necessary dependencies (mostly Handlers).
+- This file will act as the entry point for all route registrations.
+
+#### [NEW] `internal/router/user_routes.go`
+- Move `setupUserRoutes` from `main.go` to here.
+- Function signature: `func (r *Router) RegisterUserRoutes(v1 *gin.RouterGroup, userHandler *handler.UserHandler)` or similar.
+
+#### [NEW] `internal/router/member_routes.go`
+- Move `setupMemberRoutes` to here.
+
+### [MODIFY] `cmd/server/main.go`
+- Remove `setupUserRoutes`, `setupMemberRoutes`, etc.
+- Remove `setupRoutes` function body (replace with calls to `internal/router`).
+- Initialize the `router` package and call its setup methods.
+
+## Verification Plan
+
+### Manual Verification
+- Since I cannot run the server, I will verify that the code compiles (conceptually) by strictly checking imports and function signatures.
+- I will ask the user to verify by running the server if possible, but primarily I will rely on "Does it look right?" code review.

@@ -1,0 +1,16 @@
+# Issue: Date Formatting in Unpaid Order Dialog
+
+**Status**: Open
+**Created**: 2026-01-17
+**Labels**: bug, frontend, ui-polish
+
+## Description
+The "Unpaid Order" dialog currently displays the order creation time in a raw or incorrect format (e.g., `2026/1/17 上午5:19:54`).
+
+## Expected Behavior
+The date should be formatted using the standard `formatTaiwanTime` utility to ensure consistency across the application.
+
+## Tasks
+- [ ] Locate the component displaying "您有未完成的訂單"
+- [ ] Import `formatTaiwanTime` from `src/utils/date`
+- [ ] Apply formatting to the date string

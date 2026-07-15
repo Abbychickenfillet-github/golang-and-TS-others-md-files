@@ -1,0 +1,52 @@
+# Refactor Order Model (Table Splitting)
+
+## Goal Description
+To optimize the database schema and keep the [order](file:///c:/coding/template/backend/app/utils/database/crud_helpers.py#504-508) table lightweight (under 20 columns), we will split the potentially large [order](file:///c:/coding/template/backend/app/utils/database/crud_helpers.py#504-508) table into logical components: Core Order, Invoice, Check-in, and Audit Log. This improves performance and maintainability.
+
+## User Review Required
+> [!IMPORTANT]
+> This is a **BREAKING CHANGE** to the database schema.
+> 1.  You must migrate existing data from the [order](file:///c:/coding/template/backend/app/utils/database/crud_helpers.py#504-508) table to the new tables (`order_invoice`, `order_check_in`) before dropping the old columns.
+> 2.  The application logic in [order_service.py](file:///c:/coding/template/backend/app/services/order_service.py) and other services must be updated to read/write from the new tables.
+
+## Proposed Changes
+
+### Backend Models
+
+#### [MODIFY] [order.py](file:///c:/coding/template/backend/app/models/order.py)
+- **Remove** fields related to:
+    - Invoices: `invoice_number`, `invoice_status`, `invoice_issued_at`, `ecpay_...`
+    - Check-in details: `frontend_check_in_at`, `frontend_check_in_by_company_employee_id`, `frontend_check_in_by_member_id`, `backend_check_in_at`, `backend_check_in_by_user_id`, `backend_check_in_by_company_employee_id` (IMMEDIATELY DELETED from DB)
+    - Audit/Cancellation: `edited_by`, `cancelled_by`, `refund_reason` etc.
+- **Keep** only core fields (~15 columns):
+    - [id](file:///c:/coding/template/backend/app/services/order_service.py#125-127), [order_number](file:///c:/coding/template/backend/app/models/order.py#102-122), `order_type`, `event_id`, `buyer_id`, `buyer_company_id`, `seller_company_id`
+    - `total_amount`, `currency`
+    - [payment_status](file:///c:/coding/template/backend/app/services/order_service.py#132-143), [status](file:///c:/coding/template/backend/app/utils/database/crud_helpers.py#605-616)
+    - `created_at`, `updated_at`, `deleted_at`
+- **Add** relationships to new models.
+
+#### [NEW] [order_invoice.py](file:///c:/coding/template/backend/app/models/order_invoice.py)
+- Model `OrderInvoice` containing:
+    - Invoice details (`invoice_number`, `invoice_status`, etc.)
+    - ECPay logs (`ecpay_request_log`, `ecpay_response_log`)
+    - **New E-Invoice Fields**: `invoice_type`, `carrier_type`, `donation`, `customer_identifier`, etc.
+
+#### [NEW] [order_check_in.py](file:///c:/coding/template/backend/app/models/order_check_in.py)
+- **SKIPPED**: Check-in features are removed. No need to create this model.
+
+#### [NEW] [order_log.py](file:///c:/coding/template/backend/app/models/order_log.py)
+- Model `OrderLog` for auditing:
+    - `operator_id` (User who performed action)
+    - `action` (Enum: CREATE, EDIT, CANCEL, REFUND, CHECK_IN)
+    - `old_status`, `new_status`
+    - `reason` (e.g. cancellation reason)
+    - `details` (JSON dump of changes)
+
+## Verification Plan
+
+### Automated Tests
+- None planned as no test DB active.
+
+### Manual Verification
+1.  **Code Review**: Verify models are correctly split and relationships are defined.
+2.  **Schema Check**: Confirm [order](file:///c:/coding/template/backend/app/utils/database/crud_helpers.py#504-508) table definition has < 20 columns.

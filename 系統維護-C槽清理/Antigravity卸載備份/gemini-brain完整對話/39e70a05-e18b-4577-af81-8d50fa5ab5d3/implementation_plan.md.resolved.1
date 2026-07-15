@@ -1,0 +1,39 @@
+# Restoration Plan: Company Table
+
+## Goal
+Restore the `company` table data in the Staging environment (`future_sign_stage`) which was accidentally truncated. Since no local backup contains this data, we will replicate the data from the Production environment (`future_sign_prod`).
+
+## User Review Required
+> [!IMPORTANT]
+> **Data Source**: Data will be copied from **Production** (`future_sign_prod`) to **Staging** (`future_sign_stage`).
+>
+
+> **Data Loss**: Any "Staging-only" companies created recently (that are not in Production) are permanently lost, as they are not in the discovered local backups. This operation only restores companies that exist in Production.
+
+## Found Data Sources (SQL Files)
+The following SQL files in your codebase appear to contain `INSERT INTO company` statements. You may use these references to verify data or manually restore specific records:
+1.  [sql/first_db_migration_to_bao_account/future_sign_backup_20250129_full.sql](file:///c:/coding/template/sql/first_db_migration_to_bao_account/future_sign_backup_20250129_full.sql) (Most recent full backup found)
+2.  [sql/company_role_backup_20251215.sql](file:///c:/coding/template/sql/company_role_backup_20251215.sql) (Older backup)
+3.  [backend/sql/024_insert_sample_member_companies.sql](file:///c:/coding/template/backend/sql/024_insert_sample_member_companies.sql) (Sample data)
+4.  [backend/sql/003_create_company_tables.sql](file:///c:/coding/template/backend/sql/003_create_company_tables.sql) (Schema/Initial data)
+
+## Proposed Changes
+
+### Backend Scripts
+
+#### [NEW] [restore_company_from_prod.py](file:///c:/coding/template/backend/scripts/restore_company_from_prod.py)
+- Connect to MySQL Server.
+- Read `future_sign_prod.company` data.
+- Insert into `future_sign_stage.company`.
+- **Preserve IDs**: Ensure `id` values are identical to maintain relationships with `member_company`.
+- **Foreign Keys**: Temporarily disable FK checks during insertion.
+
+## Verification Plan
+
+### Automated Verification
+- Run the script: `python backend/scripts/restore_company_from_prod.py`
+- Check row count in Staging: `SELECT COUNT(*) FROM future_sign_stage.company`
+- Compare with Production: `SELECT COUNT(*) FROM future_sign_prod.company`
+
+### Manual Verification
+- User to check the Staging App or Database to confirm companies are visible again.

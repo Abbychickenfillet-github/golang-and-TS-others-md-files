@@ -1,0 +1,7 @@
+- [ ] Update `.env` files with new API URL <!-- id: 0 -->
+    - [ ] `frontend/.env`
+    - [ ] `official_website/.env`
+- [ ] Fix Date Formatting in Unpaid Order Dialog <!-- id: 1 -->
+    - [ ] Locate component (Search "未完成的訂單")
+    - [ ] Apply `formatDate` from `utils/date.ts`
+- [ ] Record "issue" to file system (simulating GitHub issue) <!-- id: 2 -->
