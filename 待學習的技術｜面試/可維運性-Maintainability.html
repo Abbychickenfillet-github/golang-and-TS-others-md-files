@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>可維運性 Maintainability vs 不可維運（Legacy）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;}
+.meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 3px;border-radius:3px;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">可維運性 Maintainability vs 不可維運（Legacy）</h1>
+  <div class="tags"><span class="tag">#gemini</span><span class="tag">#軟體工程</span><span class="tag">#面試</span><span class="tag">#maintainability</span><span class="tag">#legacy</span><span class="tag">#前端</span></div>
+  <div class="meta">更新於 2026-06-19　·　<a href="https://gemini.google.com/app/49eca5622129f96b" target="_blank">來源連結</a></div>
+</header>
+<h1>可維運性 Maintainability vs 不可維運（Legacy）</h1>
+<section class="card"><h2>重點整理</h2>
+<p><mark style="background: #ADCCFFA6;">可維運性（Maintainability）</mark>＝軟體上線後，被修改、修 bug、提效能、擴功能時的「容易程度」。</p>
+<h3>可維運的四大指標</h3>
+<ul>
+<li><mark style="background: #FFF3A3A6;">可理解性</mark>（Understandability）：新人能快速看懂架構與邏輯，不用通靈。</li>
+<li><mark style="background: #FFF3A3A6;">可測試性</mark>（Testability）：模組化、易寫單元測試，確保「改 A 不會壞 B」。</li>
+<li><mark style="background: #FFF3A3A6;">可擴充性</mark>（Extensibility）：加新功能像疊樂高，不破壞原架構。</li>
+<li><mark style="background: #FFF3A3A6;">易修正性</mark>（Correctability）：靠清晰 Log 快速定位並修復線上 Bug。</li>
+</ul>
+<h3>不可維運（Legacy / Unmaintainable）特徵</h3>
+<p>動到一處牽全身的失控狀態，常因時程壓力、人員離職累積而成：</p>
+<ul>
+<li><mark style="background: #FF5582A6;">麵條代碼（Spaghetti Code）</mark>：邏輯混亂、強耦合，改按鈕結果下單壞掉。</li>
+<li><mark style="background: #FF5582A6;">複製貼上架構</mark>：同邏輯複製五份，改的時候漏一個就變線上 Bug。</li>
+<li><mark style="background: #FF5582A6;">缺文件與測試</mark>：沒人知道為何存在、沒人敢動，即「祖傳代碼」。</li>
+<li><mark style="background: #FF5582A6;">黑盒子依賴</mark>：過度依賴外包或已停止維護的第三方套件，出事無法自救。</li>
+</ul>
+<h3>實務對比（前端視角）</h3>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>✅ 可維運</th>
+<th>❌ 不可維運</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>元件設計</td>
+<td>共用 UI 元件庫、高度複用</td>
+<td>各頁 hard-code 樣式、五花八門</td>
+</tr>
+<tr>
+<td>技術選型</td>
+<td>統一架構與撰寫慣例</td>
+<td>多框架混雜、依賴版本過期混亂</td>
+</tr>
+<tr>
+<td>程式碼審查</td>
+<td>落實 Code Review 把關</td>
+<td>各自盲目交付、品質無把關</td>
+</tr>
+<tr>
+<td>修改風險</td>
+<td>風險可評估、時程可控</td>
+<td>工時極長、改動心驚膽顫</td>
+</tr>
+</tbody>
+</table></section>
+<section class="card"><h2>各對話來源</h2>
+<h3>可維運性與不可維運的差異（2026-06）— https://gemini.google.com/app/49eca5622129f96b</h3>
+<p>使用者：何謂可維運性 何謂不可維運</p>
+<p>Gemini：可維運性＝上線後修改/修錯/擴充的容易程度，四大指標為可理解、可測試、可擴充、易修正。不可維運（Legacy）＝動一髮牽全身，特徵有麵條代碼、複製貼上架構、缺文件與測試（祖傳代碼）、黑盒子依賴。並給前端視角對比表（元件設計、技術選型、Code Review、修改風險）。</p></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-19</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{document.querySelectorAll('pre code').forEach(function(b){hljs.highlightElement(b);});}catch(e){}</script>
+</body>
+</html>
