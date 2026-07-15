@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PowerShell 啟動 venv:為什麼一定要加 .\(命令劫持防護)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;}
+.meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 3px;border-radius:3px;cursor:pointer;transition:color .12s,background .12s;}
+mark.quiz-hidden{color:transparent!important;background:#cbd2dc!important;border-radius:4px;box-shadow:inset 0 0 0 1px #aab3c0;user-select:none;}
+mark.quiz-hidden *{color:transparent!important;}
+.quiz-bar{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap;}
+.quiz-btn{cursor:pointer;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:.8rem;padding:5px 14px;border-radius:999px;}
+.quiz-btn:hover{background:var(--accent);color:#fff;}
+.quiz-hint{color:var(--muted);font-size:.76rem;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">PowerShell 啟動 venv:為什麼一定要加 .\(命令劫持防護)</h1>
+  <div class="tags"><span class="tag">#gemini</span><span class="tag">#powershell</span><span class="tag">#venv</span><span class="tag">#cli</span><span class="tag">#資安</span><span class="tag">#command-hijacking</span></div>
+  <div class="meta">更新於 2026-06-25　·　分類：技術　·　<a href="https://gemini.google.com/app/ef263c5a546e4926" target="_blank">來源連結</a></div>
+  <div class="quiz-bar">
+    <button class="quiz-btn" id="quizToggle" type="button">🙈 隱藏全部重點（自我測驗）</button>
+    <span class="quiz-hint">點任一螢光筆可單獨顯示／隱藏答案</span>
+  </div>
+</header>
+<h1>PowerShell 啟動 venv:為什麼一定要加 <code>.\</code>(命令劫持防護)</h1>
+
+<section class="card"><h2>重點整理</h2>
+<h3>症狀:venv 沒啟動成功</h3>
+<p>在 PowerShell 直接輸入 <code>Activate.ps1</code> 會跳紅字錯誤 <mark style="background: #FF5582A6;"><code>ObjectNotFound</code>(找不到物件)</mark>,代表 venv <mark style="background: #FF5582A6;">沒有成功啟動</mark>。</p>
+<h3>正解:加上 <code>.\</code></h3>
+<p>在 PowerShell 執行「目前目錄下」的檔案時,<mark style="background: #BBFABBA6;">不能只打檔名,必須在前面加 <code>.\</code></mark>:</p>
+<pre><code class="language-powershell"># 錯誤:會 ObjectNotFound
+Activate.ps1
+
+# 正確
+.\Activate.ps1
+# 常見完整路徑
+.\venv\Scripts\Activate.ps1
+</code></pre>
+<blockquote>
+<p>[!tip] PowerShell 出錯時,下方 <code>Suggestion [3,General]</code> 通常已經貼心提示正確寫法(就是叫你加 <code>.\</code>)。</p>
+</blockquote>
+<h3>為什麼人就在該目錄,PowerShell 還故意「裝看不到」?</h3>
+<p>這是<mark style="background: #ADCCFFA6;">「避免命令劫持(Command Hijacking)」</mark>的安全機制:<mark style="background: #FFF3A3A6;">PowerShell 預設不把「目前目錄」放進搜尋路徑(PATH)</mark>。</p>
+<p>原因:如果預設可直接執行當前目錄的檔案,當你下載了一個惡意專案,裡面藏著偽裝成常用指令的惡意腳本(例如 <code>cd.ps1</code>、<code>ls.ps1</code>),你<mark style="background: #FF5582A6;">習慣性打 <code>ls</code> 想看檔案時,就會誤觸惡意程式</mark>。強制要求 <code>.\</code> 等於要你「明確指定:我就是要跑這個目錄裡的這支檔案」,避免被劫持。</p>
+<blockquote>
+<p>[!note] 這跟 Unix/Linux 一樣:在 bash 跑當前目錄腳本也要 <code>./script.sh</code>,道理相同(當前目錄不在 PATH 是刻意的安全設計)。</p>
+</blockquote>
+</section>
+<section class="card"><h2>各對話來源</h2>
+<h3>PowerShell 虛擬環境啟動指南 (2026-06) — https://gemini.google.com/app/ef263c5a546e4926</h3>
+<blockquote>
+<p>註:本對話搭配使用者上傳的終端機錯誤截圖,Gemini 以「問答投影片」形式回答。</p>
+</blockquote>
+<p><strong>使用者:</strong> 我到底有沒有啟動到 venv?(附終端機截圖)</p>
+<p><strong>Gemini:</strong> 沒有成功啟動。終端機出現 <code>ObjectNotFound</code> 錯誤,因為在 PowerShell 執行目前目錄下的檔案不能直接輸入檔名,必須加上 <code>.\</code>。系統下方的 Suggestion 其實已給提示。(以投影片整理:錯誤原因、正確步驟、<code>.\</code> 的意義)</p>
+<p><strong>Gemini(安全機制說明):</strong> 為什麼人在現場(在該目錄下)PowerShell 還故意裝看不到?這叫「避免命令劫持(Command Hijacking)」機制。如果預設可執行當前目錄檔案,當你下載到惡意專案、裡面藏著偽裝成常用指令(如 <code>cd.ps1</code>、<code>ls.ps1</code>)的惡意腳本,你習慣性打 <code>ls</code> 就會誤觸惡意程式。所以要求加 <code>.\</code> 來明確指定執行路徑。</p></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-25</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{hljs.highlightAll();}catch(e){}
+(function(){
+  var marks=[].slice.call(document.querySelectorAll('mark'));
+  marks.forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('quiz-hidden');});});
+  var btn=document.getElementById('quizToggle'),hidden=false;
+  if(btn){btn.addEventListener('click',function(){
+    hidden=!hidden;
+    marks.forEach(function(m){m.classList.toggle('quiz-hidden',hidden);});
+    btn.textContent=hidden?'👀 顯示全部重點':'🙈 隱藏全部重點（自我測驗）';
+  });}
+})();</script>
+</body>
+</html>

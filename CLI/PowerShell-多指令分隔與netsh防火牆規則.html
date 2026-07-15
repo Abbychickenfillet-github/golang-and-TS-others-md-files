@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PowerShell 多指令分隔（分號）與 netsh 開防火牆埠</title>
+<style>
+:root{--bg:#fbfaf7;--card:#ffffff;--ink:#2b2b2b;--muted:#6b6b6b;--line:#e7e3da;--accent:#7c6f9b;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 22px 64px;}
+header.note-head{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:26px;}
+h1.title{font-family:Georgia,"Songti TC",serif;font-size:30px;margin:0 0 12px;line-height:1.3;}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0;}
+.pill{background:#efeaf7;color:#5b4f7a;border:1px solid #ded3f0;border-radius:999px;
+ padding:3px 11px;font-size:12.5px;}
+.meta{color:var(--muted);font-size:13px;margin-top:6px;}
+.meta a{color:var(--accent);}
+.toolbar{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap;}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+ padding:7px 14px;font-size:13.5px;color:#4a4458;box-shadow:0 1px 0 rgba(0,0,0,.02);}
+.btn:hover{background:#f4f1fb;}
+h2{font-size:21px;margin:34px 0 12px;padding-left:11px;border-left:5px solid var(--accent);}
+h3{font-size:17px;margin:22px 0 8px;color:#3b3550;}
+h4{font-size:15px;margin:16px 0 6px;color:#574f6b;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:16px 0;box-shadow:0 2px 10px rgba(60,50,90,.04);}
+p{margin:10px 0;}
+ul,ol{margin:8px 0 8px 4px;padding-left:22px;}
+li{margin:5px 0;}
+code{background:#f1eef8;border-radius:5px;padding:1px 6px;font-size:.92em;
+ font-family:"SFMono-Regular",Consolas,"Cascadia Code",monospace;}
+pre{background:#1f1b2e;color:#eee;border-radius:11px;padding:15px 16px;overflow-x:auto;
+ font-size:13.5px;line-height:1.6;}
+pre code{background:none;padding:0;color:inherit;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
+th{background:#f1ecf8;}
+tbody tr:nth-child(even){background:#faf8fd;}
+mark{padding:.5px 3px;border-radius:3px;}
+blockquote{margin:12px 0;padding:6px 14px;border-left:4px solid var(--line);color:var(--muted);background:#faf9f6;border-radius:6px;}
+.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #888;background:#faf9fc;
+ border-radius:10px;}
+.callout-title{font-weight:700;margin-bottom:4px;}
+.callout-body>:first-child{margin-top:0;}
+.callout-body>:last-child{margin-bottom:0;}
+.src-turn{margin:14px 0;}
+.src-user{background:#eef4ff;border-left:4px solid #ADCCFF;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.src-gem{background:#f4f1ec;border-left:4px solid #cdbfa6;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.role{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:#7a6f55;display:block;margin-bottom:3px;}
+.src-user .role{color:#3f63a8;}
+.spoiler{background:#3b3550;color:transparent;border-radius:5px;padding:1px 8px;cursor:pointer;
+ transition:.15s;user-select:none;box-shadow:inset 0 0 0 1px #ccc;}
+.spoiler::after{content:"　點此看答案　";color:#cdbfe8;font-size:.85em;}
+.spoiler.on{background:#e7ffe7;color:#1c5e1c;box-shadow:inset 0 0 0 1px #BBFABB;user-select:text;}
+.spoiler.on::after{content:"";}
+footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);
+ color:var(--muted);font-size:12.5px;text-align:center;}
+</style></head><body><div class="wrap">
+<header class="note-head"><h1 class="title">PowerShell 多指令分隔（分號）與 netsh 開防火牆埠</h1>
+<div class="pills"><span class="pill">#gemini</span><span class="pill">#powershell</span><span class="pill">#cli</span><span class="pill">#netsh</span><span class="pill">#firewall</span><span class="pill">#windows</span></div><div class="meta">更新：2026-06-25　· 來源：<a href="https://gemini.google.com/app/f8e466ade0f3c24f" target="_blank">來源1</a></div>
+<div class="toolbar"><span class="btn" onclick="toggleAll(false)">🙈 隱藏所有答案</span>
+<span class="btn" onclick="toggleAll(true)">👀 顯示所有答案</span></div>
+</header>
+<h1>PowerShell 多指令分隔（分號）與 netsh 開防火牆埠</h1>
+<div class="callout" style="border-left-color:#ADCCFF"><div class="callout-title">ℹ️ 這篇在講什麼</div><div class="callout-body"><p>對話標題是「PowerShell 指令錯誤修正」。最有學習價值、可重複使用的核心是 <strong>PowerShell 把兩條指令接在一起執行時要用分號分隔</strong>，以及 <strong>用 <code>netsh</code> 開放開發用的防火牆連接埠（5173 / 8080）</strong>。後半段是 OBS／YouTube 直播與生活雜事，僅摘要保留。</p></div></div>
+
+<h2>重點整理</h2>
+<h3>1. 為什麼出現「命令中至少有兩個相同名稱的引數」</h3>
+<div class="callout" style="border-left-color:#FF5582"><div class="callout-title">🚫 根本原因</div><div class="callout-body"><p>把兩條獨立指令<mark style="background: #FF5582A6;">直接接在一起、中間沒有任何分隔符號</mark>，PowerShell 會誤以為第二個 <code>netsh</code> 是前一條指令的參數，於是抱怨引數重複。</p></div></div>
+
+<h3>2. 正解：多指令要用分號 <code>;</code> 或換行</h3>
+<div class="callout" style="border-left-color:#BBFABB"><div class="callout-title">✅ 在 PowerShell 一行要跑多條指令，必須用換行或分號 `;` 隔開</div><div class="callout-body"></div></div>
+
+<pre><code class="language-powershell"># 方案 A：用分號隔開（推薦，可整行貼上）
+netsh advfirewall firewall add rule name=&quot;Dev Frontend 5173&quot; dir=in action=allow protocol=TCP localport=5173; netsh advfirewall firewall add rule name=&quot;Dev Backend 8080&quot; dir=in action=allow protocol=TCP localport=8080
+
+# 方案 B：分成兩行各自執行
+netsh advfirewall firewall add rule name=&quot;Dev Frontend 5173&quot; dir=in action=allow protocol=TCP localport=5173
+netsh advfirewall firewall add rule name=&quot;Dev Backend 8080&quot; dir=in action=allow protocol=TCP localport=8080
+</code></pre>
+<p><code>netsh advfirewall firewall add rule</code> 各參數：<code>name</code>（規則名）、<code>dir=in</code>（入站）、<code>action=allow</code>（允許）、<code>protocol=TCP</code>、<code>localport</code>（要開放的埠）。前端 Vite 預設 5173、後端 8080 是常見的本機開發埠。</p>
+<div class="callout" style="border-left-color:#BBFABB"><div class="callout-title">💡 為什麼要開這兩個埠</div><div class="callout-body"><p><mark style="background: #ADCCFFA6;">想讓同網段的手機／其他裝置連到本機開發伺服器（例如手機掃 QR Code 測試）</mark>，就要在 Windows 防火牆開放 5173 / 8080 的入站連線。</p></div></div>
+
+<h3>3. 順帶記下的小排錯（OBS / YouTube 直播）</h3>
+<div class="callout" style="border-left-color:#D2B3FF"><div class="callout-title">📝 這段屬生活雜項，僅留關鍵結論</div><div class="callout-body"><ul>
+<li><strong>OBS 看不到自己的臉</strong>：要手動在「來源」面板按 <code>+ → 影像擷取裝置</code>，選實體鏡頭（如 ACER QHD User Facing），<mark style="background: #FF5582A6;">不要選 OBS Virtual Camera</mark>。</li>
+<li><strong>鏡頭黑畫面</strong>：相機一次只能給一個程式用，先關掉占用的瀏覽器分頁／Zoom；再到 Windows「隱私權與安全性 → 相機」確認「讓傳統型應用程式存取相機」已開、OBS 在允許清單。必要時以系統管理員身分開 OBS。</li>
+<li><strong>直播到 YouTube 不需要開虛擬相機</strong>（虛擬相機反而可能占用實體鏡頭造成黑屏）。</li>
+<li><strong>YouTube「Scheduled start time must be in the future…」</strong>：預約時間和現在太接近會被 API 判定失效，<mark style="background: #BBFABBA6;">把預約時間往後延 10～15 分鐘</mark>即可建立成功（之後仍可隨時提早開播）。</li>
+</ul></div></div>
+
+<hr />
+<h2>自我測驗</h2>
+<ol>
+<li>（是非題）PowerShell 一行內把兩條 <code>netsh</code> 指令直接接著寫即可一次執行。
+   答案：<span class="spoiler">✗。中間沒有分隔符會被當成同一條指令的重複引數，要用分號 <code>;</code> 或換行分隔。</span></li>
+<li>（填空）要開放本機防火牆入站埠，<code>netsh advfirewall firewall add rule</code> 中設定埠號的參數是 <span class="spoiler">localport</span>，方向用 <span class="spoiler">dir=in</span>。</li>
+<li>（申論題）直播到 YouTube 為什麼不需要開 OBS 虛擬相機？
+   答案：<span class="spoiler">虛擬相機是把 OBS 畫面模擬成一個鏡頭，給 Zoom/Meet 之類軟體抓取用。直播是透過「串流金鑰」直接把 OBS 畫面送到 YouTube，與虛擬相機無關；反而開了虛擬相機可能占用實體鏡頭造成黑屏。</span></li>
+</ol>
+<hr />
+<h2>各對話來源</h2>
+<h3>PowerShell 指令錯誤修正（2026-06）— https://gemini.google.com/app/f8e466ade0f3c24f</h3>
+<div class="src-user"><span class="role">使用者</span>（貼上 PowerShell）<code>netsh advfirewall firewall add rule name="Dev Frontend 5173" ... localport=5173 netsh advfirewall firewall add rule name="Dev Backend 8080" ... localport=8080</code>，把這個指令改對。（錯誤：命令中至少有兩個相同名稱的引數。）</div>
+<div class="src-gem"><span class="role">Gemini</span>這是把兩條獨立指令接在一起但沒有分隔符，PowerShell 誤以為第二個 netsh 是前一條的參數。修正：用分號 <code>;</code> 隔開整行貼上，或分成兩行執行。</div>
+<div class="src-user"><span class="role">使用者</span>（後續）OBS 看不到自己的臉、鏡頭黑畫面、想直播讀書、YouTube 建立直播失敗 "Scheduled start time must be in the future..."、醬瓜算有纖維嗎。</div>
+<p>Gemini（摘要）：OBS 要手動在來源新增「影像擷取裝置」選實體鏡頭、別選 Virtual Camera；黑畫面多半是相機被別的程式占用或系統相機權限沒給；直播不需開虛擬相機；YouTube 排程時間太接近現在會失效，往後延 10～15 分鐘即可；醬瓜是醃漬加工蔬菜，有纖維但鈉與糖偏高，宜當配菜少量食用。（後段非技術，詳細從略。）</p>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-06-25</footer>
+</div><script>
+function toggleAll(show){document.querySelectorAll('.spoiler').forEach(function(s){
+ if(show){s.classList.add('on');}else{s.classList.remove('on');}});}
+document.addEventListener('click',function(e){
+ if(e.target.classList&&e.target.classList.contains('spoiler')){e.target.classList.toggle('on');}});
+(function(){var l=document.createElement('link');l.rel='stylesheet';
+ l.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
+ document.head.appendChild(l);var s=document.createElement('script');
+ s.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+ s.onload=function(){try{hljs.highlightAll();}catch(e){}};document.head.appendChild(s);})();
+</script></body></html>
