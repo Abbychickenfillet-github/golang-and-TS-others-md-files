@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>進制轉換與「除 2 取餘數法」原理</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;}
+.meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 3px;border-radius:3px;cursor:pointer;transition:color .12s,background .12s;}
+mark.quiz-hidden{color:transparent!important;background:#cbd2dc!important;border-radius:4px;box-shadow:inset 0 0 0 1px #aab3c0;user-select:none;}
+mark.quiz-hidden *{color:transparent!important;}
+.quiz-bar{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap;}
+.quiz-btn{cursor:pointer;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:.8rem;padding:5px 14px;border-radius:999px;}
+.quiz-btn:hover{background:var(--accent);color:#fff;}
+.quiz-hint{color:var(--muted);font-size:.76rem;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">進制轉換與「除 2 取餘數法」原理</h1>
+  <div class="tags"><span class="tag">#gemini</span><span class="tag">#計算機概論</span><span class="tag">#進制轉換</span><span class="tag">#二進制</span><span class="tag">#多項式除法</span></div>
+  <div class="meta">更新於 2026-06-25　·　分類：技術　·　<a href="https://gemini.google.com/app/e5e541dca6c5c80b" target="_blank">來源連結</a></div>
+  <div class="quiz-bar">
+    <button class="quiz-btn" id="quizToggle" type="button">🙈 隱藏全部重點（自我測驗）</button>
+    <span class="quiz-hint">點任一螢光筆可單獨顯示／隱藏答案</span>
+  </div>
+</header>
+<h1>進制轉換與「除 2 取餘數法」原理</h1>
+
+<section class="card"><h2>重點整理</h2>
+<h3>為什麼「一直除以 2、餘數倒過來」就是二進制?</h3>
+<p>把十進制數字 N 轉成二進制時,常用<mark style="background: #FFF3A3A6;">「除 2 取餘數法」</mark>:不斷除以 2、記下每次餘數,最後把餘數<mark style="background: #FF5582A6;">由下往上(從最後一個餘數讀回第一個)</mark>排列就是答案。</p>
+<p>關鍵疑問:為什麼<mark style="background: #ADCCFFA6;">第一個餘數是最低位元(LSB)、最後一個餘數是最高位元(MSB)</mark>?</p>
+<p>原理來自<mark style="background: #ADCCFFA6;">多項式除法(Polynomial Division)</mark>。任何十進制數字 N 都可以寫成以 2 為底的多項式:</p>
+<pre><code>N = aₙ·(2ⁿ) + … + a₂·(2²) + a₁·(2¹) + a₀·(2⁰)
+</code></pre>
+<p>其中每個係數 aᵢ 只會是 0 或 1,就是二進制的各個位元。</p>
+<p>當你把這個多項式<mark style="background: #BBFABBA6;">除以 2</mark> 時:</p>
+<ul>
+<li>含有 2¹、2²、…、2ⁿ 的項都能被 2 整除 → 變成商。</li>
+<li>只有<mark style="background: #FFF3A3A6;">最低次的 a₀·(2⁰) = a₀ 無法被整除 → 它就是餘數</mark>。</li>
+</ul>
+<p>所以<mark style="background: #BBFABBA6;">第一次相除的餘數,必定對應 2⁰ 這一項,也就是最低位元</mark>;接著對商繼續除 2,下一個餘數對應 2¹…依此類推。等除到商為 0,<mark style="background: #FF5582A6;">最後一個餘數對應最高次幂,就是最高位元</mark>。這就是「餘數要倒過來讀」的數學根據。</p>
+<h3>多項式除法基礎</h3>
+<p>不論整數或多項式除法,都符合同一個基本關係:</p>
+<pre><code>被除式 = 除式 × 商式 + 餘式
+f(x) = g(x)·q(x) + r(x)
+</code></pre>
+<p><mark style="background: #FF5582A6;">重要規則(次數限制):餘式 r(x) 的最高次數一定要小於除式 g(x) 的最高次數。</mark>例如除式是二次方(x²),餘式最多只能是一次方(ax+b)或常數;餘式為 0 代表「整除」。</p>
+<p>兩種主要計算法:</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>適用</th>
+<th>特點</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>長除法 Long Division</td>
+<td>任何多項式相除</td>
+<td>最通用、最直覺;降冪排列,缺項補 0,逐步消去最高次項</td>
+</tr>
+<tr>
+<td>綜合除法 Synthetic Division</td>
+<td>除式為一次式 (x − c)</td>
+<td>只抓係數做加減乘,計算量大幅減少,適合快速求因式或求值</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!tip] 一句話總結:十進制→二進制的「除 2 取餘」其實就是把 N 看成以 2 為底的多項式,反覆做多項式除法、一層層把係數(位元)從低位到高位剝出來。任何進制轉任何進制都是同理(除以目標底數即可)。</p>
+</blockquote>
+</section>
+<section class="card"><h2>各對話來源</h2>
+<h3>任何進制轉任何進制（除2取餘數法）(2026-06) — https://gemini.google.com/app/e5e541dca6c5c80b</h3>
+<blockquote>
+<p>註:本對話為語音輸入,原文有逐字斷字,以下摘錄關鍵問答(已略整理斷字)。</p>
+</blockquote>
+<p><strong>使用者:</strong> 從高位階一直除以 2 很簡單,但概念上越上面是 2 的次方越大,它卻是把每一步除下來的餘數當成最低位元、最後得到的是最高位元,這個原理是什麼?</p>
+<p><strong>Gemini:</strong> 這個原理是基於多項式除法。每次除以 2,都是在把數字的二進制表示中的冪次項一個一個提取出來。第一個餘數對應 2⁰ 這一項,所以是最低位元;最後的餘數對應最高次幂項,所以是最高位元。</p>
+<p><strong>使用者:</strong> 介紹多項式除法。</p>
+<p><strong>Gemini:</strong> 多項式除法的原理和整數長除法一模一樣,只是把數字換成含變數的多項式。核心關係:被除式 = 除式 × 商式 + 餘式,f(x)=g(x)·q(x)+r(x);餘式次數一定小於除式次數。方法有長除法(通用)與綜合除法(除式為一次式時的捷徑)。任一個十進制數 N 可寫成以 2 為底的多項式 N = aₙ(2ⁿ)+…+a₁(2¹)+a₀(2⁰),除以 2 時含 2 的項都被整除,只有 a₀ 留下當餘數,所以第一個餘數是最低位元。</p></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-25</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{hljs.highlightAll();}catch(e){}
+(function(){
+  var marks=[].slice.call(document.querySelectorAll('mark'));
+  marks.forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('quiz-hidden');});});
+  var btn=document.getElementById('quizToggle'),hidden=false;
+  if(btn){btn.addEventListener('click',function(){
+    hidden=!hidden;
+    marks.forEach(function(m){m.classList.toggle('quiz-hidden',hidden);});
+    btn.textContent=hidden?'👀 顯示全部重點':'🙈 隱藏全部重點（自我測驗）';
+  });}
+})();</script>
+</body>
+</html>
