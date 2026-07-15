@@ -38,7 +38,12 @@ updated: 2026-06-10
 
 **實作**:Node.js + Express 通常用 `express-session` 中介軟體來管理 Session。
 
+**Cookie 安全旗標(補)**:`HttpOnly`(JS 讀不到、防 XSS 偷 cookie)、`Secure`(只走 HTTPS)、`SameSite`(防 CSRF,搭配 [[CSRF-與-Antiforgery-Cookie]])、`Expires/Max-Age`(決定關機後是否還在)。查法:F12 → Application → Cookies。
+
+**Session(有狀態) vs JWT(無狀態)**:Session 把狀態存伺服器、登出刪那筆即可;JWT 無狀態、難主動撤銷,所以本專案才需要[[LOGOUT_AND_LOGIN_EXPLANATION|黑名單 jti]] 機制。詳見 [[JWT_TOKEN_EXPLANATION]]。
+
 > 補充:原對話的完整 Express 範例程式碼放在 Gemini 的 Canvas 檔(`web_auth_example.js`)裡,本筆記未含逐行程式碼;核心是用 `express-session` 設定 session,登入後把使用者資訊存進 `req.session`,後續請求由中介軟體依 cookie 裡的 session id 還原。
+> 延伸:[[OAuth與RESTful-Firebase登入-彈窗vs重定向]](OAuth 授權、登入狀態維持、「session」三種意思辨析)。
 
 ## 各對話來源
 

@@ -1,8 +1,10 @@
 # Google OAuth 登入設置指南
 
+> 相關概念對照：[[OAuth與RESTful-Firebase登入-彈窗vs重定向]]（OAuth vs REST 分工、前端 Firebase 流程 vs 本篇後端 Authorization Code 流程）、[[JWT_TOKEN_EXPLANATION]]、[[Cookie-與-Session]]
+
 ## 概述
 
-本系統已實現 Google OAuth2 登入功能，允許會員使用 Google 帳號登入或註冊。
+本系統已實現 Google OAuth2 登入功能，允許會員使用 Google 帳號登入或註冊。本指南描述的是**後端 Authorization Code 流程**（`fastapi-sso`：後端重定向到 Google → callback → 核發自家 JWT），與純前端 Firebase SDK 流程不同。
 
 ## 後端設置
 

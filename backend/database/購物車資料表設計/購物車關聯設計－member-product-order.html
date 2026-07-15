@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>購物車資料表關聯設計 — member · product · order</title>
+<style>
+  :root{
+    --bg:#0f1220;--panel:#171a2b;--panel2:#1e2236;--ink:#e8ebf5;--muted:#9aa3c0;
+    --line:#2b3050;--accent:#6ea8fe;--accent2:#7ee0c0;--warn:#ff5d6c;--warn-bg:#2a1620;
+    --ok:#34d399;--bad:#fb7185;--yellow:#f6c453;
+    --member:#9b8cff;--product:#5ad1ff;--order:#7ee0c0;--join:#f6a23a;--cart:#ff8ac0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,#1b2140 0,transparent 60%),var(--bg);
+    color:var(--ink);font-family:"Noto Sans TC","Segoe UI",system-ui,sans-serif;line-height:1.75;padding:0 0 80px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 22px}
+  header.hero{padding:54px 22px 30px;text-align:center;background:linear-gradient(180deg,rgba(110,168,254,.12),transparent);border-bottom:1px solid var(--line)}
+  header.hero h1{font-size:30px;margin:0 0 8px}
+  header.hero .sub{color:var(--muted);font-size:15px}
+  .crumbs{font-size:13px;color:var(--muted);margin-top:14px}
+  .crumbs code{background:var(--panel2);padding:2px 8px;border-radius:6px;color:var(--accent2)}
+  section{margin:38px 0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  h2{font-size:22px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  h2 .no{font-size:13px;font-weight:700;color:#0c1020;background:var(--accent);border-radius:8px;padding:3px 10px}
+  h3{font-size:17px;margin:22px 0 8px;color:var(--accent2)}
+  p{margin:10px 0}.lead{color:var(--muted);margin-top:2px}
+  code{font-family:"JetBrains Mono",Consolas,monospace;background:#0c1020;border:1px solid var(--line);padding:1px 6px;border-radius:6px;font-size:.9em;color:#ffd9a0}
+  pre{background:#0c1020;border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto;font-size:13px}
+  pre code{background:none;border:none;padding:0;color:#d9e2ff}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--accent2)}
+  .btn{cursor:pointer;border:none;border-radius:10px;padding:9px 15px;font-size:14px;font-weight:700;color:#0c1020;background:linear-gradient(180deg,#8fc0ff,#6ea8fe)}
+  .btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0}
+  .hint{font-size:13px;color:var(--muted)}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h4{margin:0 0 8px;font-size:15px}
+  .tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;display:inline-block;margin-bottom:8px}
+  .warn{background:var(--warn-bg);border:1px solid var(--warn);border-left:5px solid var(--warn);border-radius:12px;padding:16px;margin:14px 0}
+  .warn .lbl{display:inline-block;font-weight:800;color:#fff;background:var(--warn);border-radius:6px;padding:2px 10px;font-size:12px;margin-bottom:6px}
+  .small{font-size:12.5px;color:var(--muted)}
+  .blank{display:inline-block;min-width:80px;background:var(--yellow);color:#3a2c00;border-radius:6px;padding:1px 12px;font-weight:800;cursor:pointer;text-align:center;border:1px solid #d9a93a;user-select:none}
+  .blank.revealed{background:#1b3a2a;color:#7ee0c0;border-color:#2e6b4c}
+  .q{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0}
+  .q .qno{font-size:12px;font-weight:800;color:var(--muted)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:10px}
+  .legend span{display:flex;align-items:center;gap:6px}.dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .tabs{display:flex;gap:8px;margin:14px 0}
+  .tabs .btn{flex:0 0 auto}
+  footer{max-width:1000px;margin:30px auto 0;padding:18px 22px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+  @media(max-width:760px){.cards{grid-template-columns:1fr}}
+  .erbox rect{cursor:pointer;transition:opacity .2s}
+  .dim{opacity:.18}
+</style>
+</head>
+<body>
+<header class="hero">
+  <h1>購物車資料表關聯設計</h1>
+  <div class="sub">member · product · order · order_item · cart — 一次把多對多、價格快照、GORM 關聯講清楚</div>
+  <div class="crumbs">放在 <code>Abby-notes/Database/購物車資料表設計/</code> · 同資料夾另附 <code>schema.sql</code>、<code>models.go</code></div>
+</header>
+
+<div class="wrap">
+
+<!-- 01 -->
+<section id="s01">
+  <h2><span class="no">01</span> 核心觀念：order 和 product 是「多對多」</h2>
+  <p class="lead">先想清楚每對關係是 1 對多還是多對多，關聯怎麼建就出來了。</p>
+  <table>
+    <tr><th>關係</th><th>型態</th><th>白話</th><th>怎麼實作</th></tr>
+    <tr><td>member → order</td><td><strong>1 對多 (1:N)</strong></td><td>一個會員有很多張訂單；一張訂單只屬於一個會員</td><td>在 <code>order</code> 放 <code>member_id</code> 外鍵</td></tr>
+    <tr><td>order ↔ product</td><td><strong>多對多 (M:N)</strong></td><td>一張訂單有多個商品；一個商品出現在多張訂單</td><td><strong>開一張中間表 <code>order_item</code></strong></td></tr>
+    <tr><td>order_item → order</td><td>多對 1</td><td>每筆明細屬於一張訂單</td><td><code>order_item.order_id</code> 外鍵</td></tr>
+    <tr><td>order_item → product</td><td>多對 1</td><td>每筆明細指向一個商品</td><td><code>order_item.product_id</code> 外鍵</td></tr>
+  </table>
+  <div class="warn" style="--warn:#6ea8fe;--warn-bg:#10203a;border-color:#6ea8fe;border-left-color:#6ea8fe">
+    <span class="lbl" style="background:#6ea8fe;color:#06182e">關鍵原則</span>
+    <p style="margin:6px 0 0"><strong>關聯式資料庫沒辦法直接存「多對多」</strong>，一律要拆成一張<strong>中間表（join／junction table）</strong>，把 M:N 變成「兩個 1:N」。這裡的中間表就是 <code>order_item</code>（訂單明細），它一邊連 order、一邊連 product。</p>
+  </div>
+</section>
+
+<!-- 02 ER 圖 -->
+<section id="s02">
+  <h2><span class="no">02</span> ER 關聯圖（點表格高亮關係）</h2>
+  <div class="toolbar">
+    <button class="btn" onclick="erShow('all')">顯示全部</button>
+    <button class="btn ghost" onclick="erShow('order')">只看下單流程</button>
+    <button class="btn ghost" onclick="erShow('cart')">只看購物車流程</button>
+    <span class="hint" id="erMsg">點上面切換，或點圖中的表格看它連到誰。</span>
+  </div>
+  <svg id="er" class="erbox" viewBox="0 0 960 470" width="100%" style="background:#0c1020;border:1px solid var(--line);border-radius:12px">
+    <defs><marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#9aa3c0"/></marker></defs>
+    <!-- edges -->
+    <g id="edges" stroke="#5a6390" stroke-width="2" marker-end="url(#ar)" fill="none">
+      <path data-rel="order cart" d="M160,120 L160,210"/>            <!-- member->cart? actually member to order/cart -->
+      <path data-rel="order" d="M250,95 L470,95"/>                   <!-- member -> order -->
+      <path data-rel="order" d="M560,130 L560,210"/>                 <!-- order -> order_item -->
+      <path data-rel="order" d="M650,250 L760,250"/>                 <!-- order_item -> product -->
+      <path data-rel="cart" d="M160,250 L160,340"/>                  <!-- cart -> cart_item -->
+      <path data-rel="cart" d="M260,380 L760,290"/>                  <!-- cart_item -> product -->
+    </g>
+    <!-- member -->
+    <g><rect data-t="member" x="70" y="60" width="180" height="60" rx="10" fill="#241f4a" stroke="#9b8cff" stroke-width="2"/>
+      <text x="160" y="86" fill="#cfc6ff" font-size="14" text-anchor="middle" font-weight="bold">member 會員</text>
+      <text x="160" y="106" fill="#9b9" font-size="11" text-anchor="middle">id(PK) · name · email</text></g>
+    <!-- order -->
+    <g><rect data-t="order" x="470" y="60" width="180" height="70" rx="10" fill="#103029" stroke="#7ee0c0" stroke-width="2"/>
+      <text x="560" y="86" fill="#bff3e2" font-size="14" text-anchor="middle" font-weight="bold">order 訂單</text>
+      <text x="560" y="105" fill="#7c9" font-size="11" text-anchor="middle">id(PK) · member_id(FK)</text>
+      <text x="560" y="121" fill="#7c9" font-size="11" text-anchor="middle">status · total · created_at</text></g>
+    <!-- order_item -->
+    <g><rect data-t="order_item" x="470" y="210" width="180" height="78" rx="10" fill="#3a2810" stroke="#f6a23a" stroke-width="2"/>
+      <text x="560" y="234" fill="#ffd9a0" font-size="14" text-anchor="middle" font-weight="bold">order_item 明細</text>
+      <text x="560" y="252" fill="#caa" font-size="11" text-anchor="middle">id(PK) · order_id(FK)</text>
+      <text x="560" y="268" fill="#caa" font-size="11" text-anchor="middle">product_id(FK) · quantity</text>
+      <text x="560" y="284" fill="#ffd166" font-size="11" text-anchor="middle">unit_price（價格快照）</text></g>
+    <!-- product -->
+    <g><rect data-t="product" x="760" y="220" width="180" height="60" rx="10" fill="#0e2a3a" stroke="#5ad1ff" stroke-width="2"/>
+      <text x="850" y="246" fill="#bdeaff" font-size="14" text-anchor="middle" font-weight="bold">product 商品</text>
+      <text x="850" y="266" fill="#7ac" font-size="11" text-anchor="middle">id(PK) · name · price · stock</text></g>
+    <!-- cart -->
+    <g><rect data-t="cart" x="70" y="210" width="180" height="60" rx="10" fill="#3a1830" stroke="#ff8ac0" stroke-width="2"/>
+      <text x="160" y="236" fill="#ffc4e2" font-size="14" text-anchor="middle" font-weight="bold">cart 購物車</text>
+      <text x="160" y="256" fill="#c9a" font-size="11" text-anchor="middle">id(PK) · member_id(FK)</text></g>
+    <!-- cart_item -->
+    <g><rect data-t="cart_item" x="70" y="340" width="180" height="74" rx="10" fill="#3a1830" stroke="#ff8ac0" stroke-width="2"/>
+      <text x="160" y="364" fill="#ffc4e2" font-size="14" text-anchor="middle" font-weight="bold">cart_item</text>
+      <text x="160" y="382" fill="#c9a" font-size="11" text-anchor="middle">cart_id(FK) · product_id(FK)</text>
+      <text x="160" y="398" fill="#c9a" font-size="11" text-anchor="middle">quantity（不存價格）</text></g>
+    <!-- labels -->
+    <text x="360" y="86" fill="#9aa3c0" font-size="11" text-anchor="middle">1 ─&lt; N</text>
+    <text x="585" y="175" fill="#9aa3c0" font-size="11" text-anchor="middle">1 ─&lt; N</text>
+    <text x="705" y="240" fill="#9aa3c0" font-size="11" text-anchor="middle">N &gt;─ 1</text>
+    <text x="120" y="175" fill="#9aa3c0" font-size="11">1─&lt;1</text>
+    <text x="185" y="310" fill="#9aa3c0" font-size="11">1─&lt;N</text>
+  </svg>
+  <div class="legend">
+    <span><i class="dot" style="background:#9b8cff"></i>member</span>
+    <span><i class="dot" style="background:#ff8ac0"></i>cart / cart_item（結帳前）</span>
+    <span><i class="dot" style="background:#7ee0c0"></i>order（結帳後）</span>
+    <span><i class="dot" style="background:#f6a23a"></i>order_item（中間表）</span>
+    <span><i class="dot" style="background:#5ad1ff"></i>product</span>
+  </div>
+  <p class="small">讀法：<code>member</code> 有很多 <code>order</code>；每張 <code>order</code> 有很多 <code>order_item</code>；每個 <code>order_item</code> 指向一個 <code>product</code>。購物車這側用 <code>cart</code> / <code>cart_item</code> 平行對應，只是它是「結帳前」的暫存。</p>
+</section>
+
+<!-- 03 cart vs order -->
+<section id="s03">
+  <h2><span class="no">03</span> 購物車 vs 訂單：為什麼要分兩套？（價格快照）</h2>
+  <p class="lead">這是最多人忽略、面試也最愛問的點：<strong>cart_item 不存價格，order_item 一定要存價格。</strong></p>
+  <div class="cards">
+    <div class="card">
+      <span class="tag" style="background:#3a1830;color:#ffc4e2;border:1px solid #ff8ac0">cart_item（結帳前）</span>
+      <h4>用「即時價格」</h4>
+      <p class="small">購物車只是「想買的清單」，價格應該<strong>即時去 product 表撈現價</strong>顯示。商品改價、打折，購物車就跟著變——這是對的。所以 cart_item 只存 <code>product_id</code> + <code>quantity</code>，<strong>不存價格</strong>。</p>
+    </div>
+    <div class="card">
+      <span class="tag" style="background:#103029;color:#bff3e2;border:1px solid #7ee0c0">order_item（結帳後）</span>
+      <h4>用「凍結快照」</h4>
+      <p class="small">一旦下單，成交價就是<strong>當下那個價</strong>，必須<strong>把 <code>unit_price</code> 寫死進 order_item</strong>。日後商品漲價，舊訂單金額也不能變——這是帳務正確性與法律憑證。</p>
+    </div>
+    <div class="card">
+      <span class="tag" style="background:#2a1620;color:#ffb0a0;border:1px solid #ff5d6c">反例（錯誤設計）</span>
+      <h4>order_item 只存 product_id</h4>
+      <p class="small">如果訂單金額靠「即時 JOIN product.price 算」，那麼<strong>商品一改價，歷史訂單金額全變</strong>，對帳、退款、發票全爆。這是新手最常踩的雷。</p>
+    </div>
+  </div>
+  <div class="warn">
+    <span class="lbl">一句話記</span>
+    <p style="margin:6px 0 0"><strong>購物車跟著現價走（不存價）；訂單凍結成交價（存 unit_price）。</strong> 同樣的「明細」概念，因為「時間點」不同，設計就不同。</p>
+  </div>
+</section>
+
+<!-- 04 GORM -->
+<section id="s04">
+  <h2><span class="no">04</span> GORM 模型怎麼寫（Go）</h2>
+  <p>用 GORM 的關聯標籤把上面的關係翻成 struct。重點：<code>has many</code>、<code>belongs to</code> 靠「外鍵欄位 + 對應結構」自動接起來。</p>
+<pre><code>type Member struct {
+    ID     uint   `gorm:"primaryKey"`
+    Name   string
+    Email  string `gorm:"uniqueIndex"`
+    Orders []Order        // has many：一個會員多張訂單
+    Cart   Cart           // has one：一個會員一台購物車
+}
+
+type Product struct {
+    ID    uint   `gorm:"primaryKey"`
+    Name  string
+    Price int    // 現價（以「分」為單位避免浮點誤差）
+    Stock int
+}
+
+type Order struct {
+    ID        uint   `gorm:"primaryKey"`
+    MemberID  uint   `gorm:"index"`            // 外鍵 + 索引（查某會員的訂單）
+    Status    string `gorm:"index"`
+    Total     int                              // 下單當下總額快照
+    CreatedAt time.Time
+    Items     []OrderItem                      // has many
+}
+
+type OrderItem struct {
+    ID        uint `gorm:"primaryKey"`
+    OrderID   uint `gorm:"index"`              // 外鍵 → order
+    ProductID uint `gorm:"index"`              // 外鍵 → product
+    Quantity  int
+    UnitPrice int                              // ★ 價格快照：下單當下的單價
+}
+
+type Cart struct {
+    ID       uint `gorm:"primaryKey"`
+    MemberID uint `gorm:"uniqueIndex"`         // 一個會員一台車
+    Items    []CartItem
+}
+
+type CartItem struct {
+    ID        uint `gorm:"primaryKey"`
+    CartID    uint `gorm:"index"`
+    ProductID uint `gorm:"index"`
+    Quantity  int                             // 注意：沒有價格欄位，現價即時撈
+}</code></pre>
+  <p class="small">小細節：金額用<strong>整數（分/最小貨幣單位）</strong>存，別用 float，避免 0.1+0.2 那種浮點誤差。GORM 的 <code>index</code> 標籤就會幫你在那欄建 B+樹索引——正好對應你最近學的索引筆記。</p>
+
+  <h3>下單時把購物車「轉成」訂單（價格在這一刻凍結）</h3>
+<pre><code>// 結帳：讀 cart_item 的現價，寫進 order_item 當快照
+func Checkout(db *gorm.DB, memberID uint) error {
+  return db.Transaction(func(tx *gorm.DB) error {        // 包在交易裡，全成功或全失敗
+    var cart Cart
+    tx.Preload("Items").Where("member_id = ?", memberID).First(&cart)
+
+    order := Order{MemberID: memberID, Status: "pending"}
+    var total int
+    for _, ci := range cart.Items {
+      var p Product
+      tx.First(&p, ci.ProductID)                          // 撈現價
+      order.Items = append(order.Items, OrderItem{
+        ProductID: p.ID, Quantity: ci.Quantity,
+        UnitPrice: p.Price,                                // ★ 凍結這一刻的價格
+      })
+      total += p.Price * ci.Quantity
+    }
+    order.Total = total
+    if err := tx.Create(&order).Error; err != nil { return err }
+    return tx.Where("cart_id = ?", cart.ID).Delete(&CartItem{}).Error // 清空車
+  })
+}</code></pre>
+</section>
+
+<!-- 05 SQL -->
+<section id="s05">
+  <h2><span class="no">05</span> 對應的 SQL 結構（含外鍵與索引）</h2>
+<pre><code>CREATE TABLE member (
+  id     BIGINT PRIMARY KEY AUTO_INCREMENT,   -- 窄＋遞增主鍵（叢集索引友善）
+  name   VARCHAR(100),
+  email  VARCHAR(255) UNIQUE
+);
+
+CREATE TABLE product (
+  id    BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name  VARCHAR(200),
+  price INT,            -- 現價（以分為單位）
+  stock INT
+);
+
+CREATE TABLE `order` (
+  id         BIGINT PRIMARY KEY AUTO_INCREMENT,
+  member_id  BIGINT NOT NULL,
+  status     VARCHAR(20),
+  total      INT,
+  created_at DATETIME,
+  CONSTRAINT fk_order_member FOREIGN KEY (member_id) REFERENCES member(id),
+  INDEX idx_order_member (member_id)          -- 查「某會員的所有訂單」
+);
+
+CREATE TABLE order_item (
+  id         BIGINT PRIMARY KEY AUTO_INCREMENT,
+  order_id   BIGINT NOT NULL,
+  product_id BIGINT NOT NULL,
+  quantity   INT,
+  unit_price INT,                              -- ★ 價格快照
+  CONSTRAINT fk_oi_order   FOREIGN KEY (order_id)   REFERENCES `order`(id),
+  CONSTRAINT fk_oi_product FOREIGN KEY (product_id) REFERENCES product(id),
+  INDEX idx_oi_order (order_id),               -- 查「一張訂單的所有明細」
+  INDEX idx_oi_product (product_id)            -- 查「某商品被誰買過」
+);
+
+-- 購物車（結帳前）
+CREATE TABLE cart (
+  id        BIGINT PRIMARY KEY AUTO_INCREMENT,
+  member_id BIGINT NOT NULL UNIQUE,            -- 一個會員一台車
+  CONSTRAINT fk_cart_member FOREIGN KEY (member_id) REFERENCES member(id)
+);
+CREATE TABLE cart_item (
+  id         BIGINT PRIMARY KEY AUTO_INCREMENT,
+  cart_id    BIGINT NOT NULL,
+  product_id BIGINT NOT NULL,
+  quantity   INT,                              -- 沒有價格欄
+  CONSTRAINT fk_ci_cart    FOREIGN KEY (cart_id)    REFERENCES cart(id),
+  CONSTRAINT fk_ci_product FOREIGN KEY (product_id) REFERENCES product(id),
+  UNIQUE KEY uq_cart_product (cart_id, product_id) -- 同商品在同一台車只一列，加量改 quantity
+);</code></pre>
+  <p class="small">每個外鍵（<code>member_id</code>、<code>order_id</code>、<code>product_id</code>）都建索引——這跟你 event 表那堆 <code>fk_*</code>、<code>idx_*</code> 是同個道理：JOIN 和「依外鍵查子表」都靠它加速。<code>cart_item</code> 的 <code>UNIQUE(cart_id, product_id)</code> 確保同一台車同商品不會出現重複列，再加一件就是把 quantity +1。</p>
+</section>
+
+<!-- 06 quiz -->
+<section id="s06">
+  <h2><span class="no">06</span> 小測驗（點黃框看答案）</h2>
+  <div class="q"><span class="qno">填 1</span><p>order 和 product 是多對多，必須開一張
+    <span class="blank" onclick="flip(this)" data-a="中間表 order_item">點我</span> 來拆解。</p></div>
+  <div class="q"><span class="qno">填 2</span><p>member 和 order 是 1 對多，外鍵 <code>member_id</code> 要放在
+    <span class="blank" onclick="flip(this)" data-a="order 表（多的那一邊）">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 3</span><p>下單後即使商品改價、舊訂單金額也不能變，是因為 order_item 存了
+    <span class="blank" onclick="flip(this)" data-a="unit_price 價格快照">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 4</span><p>購物車的 cart_item 之所以不存價格，是因為它要顯示商品的
+    <span class="blank" onclick="flip(this)" data-a="即時現價">點我</span>。</p></div>
+  <div class="q"><span class="qno">填 5</span><p>結帳這個動作（讀車→建訂單→清空車）應該包在一個
+    <span class="blank" onclick="flip(this)" data-a="交易 Transaction">點我</span> 裡，確保全成功或全失敗。</p></div>
+  <div class="q"><span class="qno">申論</span><p>為什麼金額建議用整數（分）而不是 float 來存？試說明，並說出 order 表的 <code>total</code> 和 order_item 的 <code>unit_price×quantity</code> 加總應該相等的原因。</p></div>
+</section>
+
+</div>
+
+<footer>
+  <p>關聯筆記：<code>[[B+樹與索引結構－叢集索引vs非叢集索引]]</code>（外鍵索引）、<code>[[explain-query-analysis]]</code>、<code>[[database-sharding]]</code></p>
+  <p class="small">同資料夾檔案：<code>schema.sql</code>（可直接跑的 DDL）、<code>models.go</code>（GORM struct）。建議三個檔放一起，方便對照「圖 → struct → SQL」。</p>
+</footer>
+
+<script>
+function flip(el){
+  if(el.classList.contains('revealed')){el.classList.remove('revealed');el.textContent='點我';}
+  else{el.classList.add('revealed');el.textContent=el.dataset.a;}
+}
+const REL={
+  order:['order'],
+  cart:['cart'],
+  all:['order','cart']
+};
+function erShow(mode){
+  const msg=document.getElementById('erMsg');
+  const showOrder = mode==='all'||mode==='order';
+  const showCart  = mode==='all'||mode==='cart';
+  // tables
+  const tmap={member:true,product:true,order:showOrder,order_item:showOrder,cart:showCart,cart_item:showCart};
+  document.querySelectorAll('#er rect[data-t]').forEach(r=>{
+    r.parentNode.classList.toggle('dim', !tmap[r.dataset.t]);
+  });
+  // edges
+  document.querySelectorAll('#er #edges path').forEach(p=>{
+    const rel=p.dataset.rel||'';
+    const on=(showOrder&&rel.includes('order'))||(showCart&&rel.includes('cart'));
+    p.classList.toggle('dim',!on);
+  });
+  msg.textContent = mode==='order' ? '下單流程：member → order → order_item → product。'
+                  : mode==='cart'  ? '購物車流程：member → cart → cart_item → product（結帳前暫存）。'
+                  : '顯示全部：購物車（粉）結帳後轉成訂單（綠）。';
+}
+// click a table to highlight only its neighbors
+document.querySelectorAll('#er rect[data-t]').forEach(r=>{
+  r.addEventListener('click',()=>{
+    const t=r.dataset.t;
+    const neigh={
+      member:['member','order','cart'],
+      order:['order','member','order_item'],
+      order_item:['order_item','order','product'],
+      product:['product','order_item','cart_item'],
+      cart:['cart','member','cart_item'],
+      cart_item:['cart_item','cart','product']
+    }[t];
+    document.querySelectorAll('#er rect[data-t]').forEach(x=>{
+      x.parentNode.classList.toggle('dim',!neigh.includes(x.dataset.t));
+    });
+    document.querySelectorAll('#er #edges path').forEach(p=>p.classList.add('dim'));
+    document.getElementById('erMsg').textContent=t+' 連到：'+neigh.filter(n=>n!==t).join('、');
+  });
+});
+erShow('all');
+</script>
+</body>
+</html>
