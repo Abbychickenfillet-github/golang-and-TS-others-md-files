@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Embedding 模型訓練成本 與 Hugging Face 生態</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;}
+.meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 3px;border-radius:3px;cursor:pointer;transition:color .12s,background .12s;}
+mark.quiz-hidden{color:transparent!important;background:#cbd2dc!important;border-radius:4px;box-shadow:inset 0 0 0 1px #aab3c0;user-select:none;}
+mark.quiz-hidden *{color:transparent!important;}
+.quiz-bar{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap;}
+.quiz-btn{cursor:pointer;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:.8rem;padding:5px 14px;border-radius:999px;}
+.quiz-btn:hover{background:var(--accent);color:#fff;}
+.quiz-hint{color:var(--muted);font-size:.76rem;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">Embedding 模型訓練成本 與 Hugging Face 生態</h1>
+  <div class="tags"><span class="tag">#gemini</span><span class="tag">#RAG</span><span class="tag">#embedding</span><span class="tag">#HuggingFace</span><span class="tag">#成本評估</span></div>
+  <div class="meta">更新於 2026-06-20　·　<a href="https://gemini.google.com/app/6daeac7bedff2ae4" target="_blank">來源連結</a></div>
+  <div class="quiz-bar">
+    <button class="quiz-btn" id="quizToggle" type="button">🙈 隱藏全部重點（自我測驗）</button>
+    <span class="quiz-hint">點任一螢光筆可單獨顯示／隱藏答案</span>
+  </div>
+</header>
+<h1>Embedding 模型訓練成本 與 Hugging Face 生態</h1>
+
+<section class="card"><h2>重點整理</h2>
+<h3>1. 訓練成本：微調 vs 從零預訓練</h3>
+<p><mark style="background: #FFF3A3A6;">95% 的場景都選「微調(Fine-tune)現有開源模型」</mark>（如 BGE、MiniLM、E5），性價比最高。</p>
+<table>
+<thead>
+<tr>
+<th>方案類型</th>
+<th>適合場景</th>
+<th>預估算力成本(USD)</th>
+<th>工具/資源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>個人/小規模微調</td>
+<td>特定領域術語、RAG 準確度提升</td>
+<td><mark style="background: #BBFABBA6;">$0–$50</mark></td>
+<td><code>sentence-transformers</code> + 單張 4090 / Colab</td>
+</tr>
+<tr>
+<td>企業級大規模微調</td>
+<td>百萬量級專利/醫療數據</td>
+<td>$100–$1,000</td>
+<td>RunPod 租 GPU / OpenAI Fine-tuning API</td>
+</tr>
+<tr>
+<td>從零訓練小模型</td>
+<td>輕量私有化(~90M 參數)</td>
+<td>$1,000–$5,000</td>
+<td>HF Trainer + 8×A100</td>
+</tr>
+<tr>
+<td>從零訓練 SOTA 模型</td>
+<td>8K+ 長文本、多語言標竿</td>
+<td><mark style="background: #FF5582A6;">$20,000+</mark></td>
+<td>分散式訓練(DeepSpeed/Megatron-LM)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>微調小規模（幾千~上萬條）：用 <code>CosineSimilarityLoss</code> 或 <code>MultipleNegativesRankingLoss</code>，單張消費級顯卡幾小時跑完。</li>
+<li>從零預訓練輕量模型也要吃數十億~數百億 token 學語義基礎；現代頂級模型（Jina v3、Stella）為支援長 Context + 多語言需龐大叢集做多階段對比學習(Contrastive Learning)。</li>
+</ul>
+<h3>2. 真正的隱藏成本：資料品質，不是算力</h3>
+<p><mark style="background: #FF5582A6;">算力通常最便宜，貴的是人力時間與資料品質。</mark>Embedding 訓練高度依賴：<br />
+- 優質的<mark style="background: #ADCCFFA6;">問題-文本對(Query-Passage Pairs)</mark><br />
+- <mark style="background: #ADCCFFA6;">硬負樣本(Hard Negatives)</mark>：用 BM25 撈出「長得很像但其實是錯的」文本當負樣本，能用極低算力大幅提升模型分辨細微差異的能力。</p>
+<h3>3. 現代省錢打法：LLM 蒸餾(Distillation) 生資料</h3>
+<p><mark style="background: #BBFABBA6;">用 GPT-4o / Claude 對你的領域文檔「批量生成」高質量 Query → 拿這批合成資料(Synthetic Data) 微調小模型(如 BGE) → 再用 Cross-Encoder 篩掉低質量資料。</mark>這筆 LLM API 費用約 $100–$1,000，常是主要開銷。</p>
+<h3>4. Hugging Face 生態：你 import 的東西怎麼卡在一起</h3>
+<p>HF <code>transformers</code> 是高階封裝庫，底層依賴主流框架，旁邊還有一群「兄弟姊妹」：</p>
+<ul>
+<li><strong>底層框架</strong>：<code>torch</code>(PyTorch，90%+ HF 模型用它) 或 <code>tensorflow</code>（<code>TF</code> 開頭模型）。</li>
+<li><strong>HF 家族</strong>：<code>datasets</code>(載資料集)、<code>evaluate</code>(算 Accuracy/F1/BLEU/ROUGE)、<code>accelerate</code>(多 GPU 分散式 / FP16 混合精度)。</li>
+<li><strong>Embedding / RAG</strong>：<mark style="background: #FFF3A3A6;"><code>sentence_transformers</code></mark>（基於 HF transformers 二次開發，把 BERT 類模型變成輸出優質 Embedding 的模型，算相似度比原生好寫太多）、<code>numpy</code>/<code>scipy</code>（向量 <code>.numpy()</code> 化後算餘弦相似度）。</li>
+</ul>
+<pre><code class="language-python">import torch                                          # 底層算力與張量框架
+from transformers import AutoTokenizer                # HF 模型的文字轉換器
+from sentence_transformers import SentenceTransformer # 專門處理 Embedding 的 HF 衍生庫
+import numpy as np                                     # 拿到向量後做數學運算
+
+model = SentenceTransformer('BAAI/bge-large-zh-v1.5')  # 自動從 HF Hub 下載
+embeddings = model.encode([&quot;如何訓練模型&quot;, &quot;AI 成本評估&quot;])
+</code></pre>
+<blockquote>
+<p>比喻：Hugging Face＝AI 界的 App Store 與核心控制面板；PyTorch＝底層作業系統；NumPy/Datasets＝處理與運送資料的物流車。</p>
+<p>相關筆記：[[embedding-models-comparison]]、[[sentence-transformers-model-naming-and-huggingface]]、[[餘弦相似度與pgvector]]</p>
+</blockquote>
+</section>
+<section class="card"><h2>各對話來源</h2>
+<h3>Embedding 模型訓練成本分析（2026-06）— https://gemini.google.com/app/6daeac7bedff2ae4</h3>
+<p><strong>使用者：</strong> 訓練 embedding model 要多少成本？<br />
+<strong>Gemini：</strong> 看是「從零預訓練」還是「微調」。微調最常見：小規模 $0~幾十美元(單張 4090/Colab)、中大規模雲端微調 $100~$500、租 GPU $50~$300。從零預訓練：輕量模型 $1,000~$5,000、現代 SOTA $20,000~$100,000+。隱藏成本是資料清洗與標註；省錢打法是用 GPT-4o/Claude 生合成 Query 再微調小模型。附成本結構表與工程省錢策略（LLM 生資料、Hard Negatives 挖掘）。</p>
+<p><strong>使用者：</strong> Hugging Face 跟我 import 過的什麼有關係？<br />
+<strong>Gemini：</strong> 三大類：① 底層框架 <code>torch</code>/<code>tensorflow</code>；② HF 家族 <code>datasets</code>/<code>evaluate</code>/<code>accelerate</code>；③ NLP 與向量檢索 <code>sentence_transformers</code>、<code>numpy</code>/<code>scipy</code>。附一段標準程式碼示範它們如何協作，並用 App Store/作業系統/物流車比喻。</p></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-20</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{hljs.highlightAll();}catch(e){}
+(function(){
+  var marks=[].slice.call(document.querySelectorAll('mark'));
+  marks.forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('quiz-hidden');});});
+  var btn=document.getElementById('quizToggle'),hidden=false;
+  if(btn){btn.addEventListener('click',function(){
+    hidden=!hidden;
+    marks.forEach(function(m){m.classList.toggle('quiz-hidden',hidden);});
+    btn.textContent=hidden?'👀 顯示全部重點':'🙈 隱藏全部重點（自我測驗）';
+  });}
+})();</script>
+</body>
+</html>
