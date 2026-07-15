@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent 記憶框架安裝（pip vs clone）與 user.md / skill.md / memory.md 差異</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;} ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 4px;border-radius:3px;cursor:pointer;transition:filter .12s;position:relative;}
+mark:hover{filter:brightness(.94);}
+mark.masked{color:transparent !important;border-bottom:2px dashed #b3b3c2;border-radius:2px;}
+mark.masked *{color:transparent !important;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);} tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+details.quiz{background:#f6f8ff;border:1px solid #dfe5ff;border-left:4px solid var(--accent);border-radius:10px;padding:12px 16px;margin:14px 0;}
+details.quiz>summary{cursor:pointer;font-weight:600;color:#374151;list-style:none;}
+details.quiz>summary::before{content:"❓ ";}
+details.quiz[open]>summary::before{content:"✅ ";}
+details.quiz .ans{margin-top:10px;padding-top:10px;border-top:1px dashed #cdd6ff;}
+.srcline{border-left:3px solid var(--line);padding-left:12px;margin:.4em 0;}
+.u{color:#2563eb;font-weight:600;} .g{color:#7c3aed;font-weight:600;}
+.toolbar{position:fixed;top:14px;right:14px;z-index:50;display:flex;gap:8px;}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:8px 14px;font-size:.82rem;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(91,124,250,.35);}
+.toolbar button.sec{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.hint{font-size:.8rem;color:var(--muted);background:#eef1ff;border-radius:8px;padding:8px 12px;margin:6px 0 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+@media(max-width:600px){.toolbar{position:static;justify-content:flex-end;margin-bottom:10px;}}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button id="maskAll" class="sec" type="button">🙈 隱藏全部重點</button>
+</div>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">Agent 記憶框架安裝（pip vs clone）與 user.md / skill.md / memory.md 差異</h1>
+  <div class="tags"><span class="tag">#gemini</span><span class="tag">#llm</span><span class="tag">#agent</span><span class="tag">#memory</span><span class="tag">#letta</span><span class="tag">#mem0</span><span class="tag">#pip</span><span class="tag">#git-clone</span></div>
+  <div class="meta">更新於 2026-06-28　·　<a href="https://gemini.google.com/app/4dbb54723c5e97e4" target="_blank">來源連結</a></div>
+  <div class="hint">💡 點任一<mark>螢光重點</mark>可遮起來自我測驗，再點一下還原；或用右上角按鈕一次隱藏／顯示全部。問答題點開即顯示答案。</div>
+</header>
+<h1>Agent 記憶框架安裝與核心配置檔解析</h1>
+
+<section class="card"><h2>重點整理</h2>
+<h3>1. Agent 記憶框架（Letta / MemGPT、Mem0）怎麼裝？</h3>
+<ul>
+<li><mark style="background: #BBFABBA6;">90% 場景直接 <code>pip install</code></mark>：只是要在自己專案裡調用記憶功能、要穩定發佈版、方便在 <code>requirements.txt</code> 記版本。</li>
+<li><mark style="background: #FFF3A3A6;">只有這些情況才 <code>git clone</code></mark>：想貢獻代碼修 bug／發 PR、需要改框架核心邏輯（底層 memory 管理）、想跑 <code>tests</code>／<code>examples</code>（pip 包通常不含）。</li>
+</ul>
+<pre><code class="language-bash"># Mem0
+pip install mem0ai
+# Letta（原 MemGPT）
+pip install letta
+</code></pre>
+<blockquote>
+<p>[!warning] 開發提醒
+這些框架通常要<mark style="background: #FFB8EBA6;">搭配資料庫（PostgreSQL）或向量資料庫</mark>；本地開發前先確認 <mark style="background: #FF5582A6;">環境變數（API Keys）已正確配置</mark>。</p>
+</blockquote>
+<h3>2. <code>pip install</code> vs <code>git clone</code> 核心差異 ⭐</h3>
+<blockquote>
+<p>比喻：<mark style="background: #FFF3A3A6;"><code>pip install</code> 像從 App Store 下載 App（直接用）；<code>git clone</code> 是把原始碼整包搬回家（看怎麼寫、甚至改寫）。</mark></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th><code>pip install [package]</code></th>
+<th><code>git clone [url]</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>對象</td>
+<td>已發布的<mark style="background: #ADCCFFA6;">成品</mark>（Wheel/Source Dist）</td>
+<td>原始<mark style="background: #ADCCFFA6;">代碼倉庫</mark>（Repository）</td>
+</tr>
+<tr>
+<td>存放位置</td>
+<td>Python 的 <code>site-packages</code></td>
+<td>你指定的工作目錄</td>
+</tr>
+<tr>
+<td>修改權限</td>
+<td>不易修改，只當 Library 調用</td>
+<td>隨意改、可自行 commit</td>
+</tr>
+<tr>
+<td>版本控制</td>
+<td>用 pip 升降版本</td>
+<td>用 git 切分支／回溯</td>
+</tr>
+<tr>
+<td>包含內容</td>
+<td>僅執行所需檔案</td>
+<td>含開發文件、測試、Git 歷程</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>進階技巧：clone 後若想在專案中使用又能即時生效，用 <mark style="background: #BBFABBA6;"><code>pip install -e .</code>（可編輯模式）</mark>，改了 clone 的 code 專案會同步生效。</li>
+<li>對 Letta／Mem0 的建議：<mark style="background: #BBFABBA6;">先 <code>pip install</code> 跑通功能</mark>，要深入研究向量資料庫底層邏輯時再 clone。</li>
+</ul>
+<h3>3. <code>user.md</code> / <code>skill.md</code> / <code>memory.md</code> 差在哪 ⭐</h3>
+<blockquote>
+<p>一句話：<mark style="background: #FFF3A3A6;">user.md 是關於「你」，skill.md 是關於「能力」，memory.md 是關於「過去」。</mark>
+把 AI 想成新助理：user.md＝對老闆的觀察筆記、skill.md＝隨身工作手冊、memory.md＝發生過什麼事的日誌。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>核心問題</th>
+<th>變動頻率</th>
+<th>範例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><mark style="background: #ADCCFFA6;">user.md</mark>（用戶畫像）</td>
+<td>你是誰？喜歡什麼？</td>
+<td><mark style="background: #BBFABBA6;">低</mark>（換工作/改習慣才動）</td>
+<td>「全端工程師」「元件用 PascalCase」</td>
+</tr>
+<tr>
+<td><mark style="background: #ADCCFFA6;">skill.md</mark>（能力清單/SOP）</td>
+<td>怎麼做這件事？</td>
+<td>中（有新技術/流程優化）</td>
+<td>「部署 Next.js 步驟」「串 LINE Pay 流程」</td>
+</tr>
+<tr>
+<td><mark style="background: #ADCCFFA6;">memory.md</mark>（長期記憶/日誌）</td>
+<td>發生了什麼事？</td>
+<td><mark style="background: #FF5582A6;">高</mark>（隨對話自動更新）</td>
+<td>「專案 DB 已從 MySQL 換成 PostgreSQL」</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>作用對照：user.md 讓 AI 講話<mark style="background: #FFF3A3A6;">合你胃口、不必每次自我介紹</mark>；skill.md 讓 AI 面對複雜任務<mark style="background: #FFF3A3A6;">翻手冊照 SOP 走、不胡搞</mark>；memory.md <mark style="background: #FFF3A3A6;">解決 LLM「健忘」</mark>、避免重複問已講過的事。</li>
+<li>結合 Obsidian 習慣：user.md＝個人 Readme；skill.md＝你正在建的「程式問答筆記」；memory.md＝你的「開發日誌 Daily Logs」。</li>
+</ul>
+</section>
+<section class="card"><h2>自我測驗</h2>
+<details class="quiz">
+<summary>是非題：要在自己的專案裡呼叫 Mem0 的記憶功能，最推薦的方式是 <code>git clone</code> 整個倉庫。</summary>
+<div class="ans">
+
+<strong>✗ 錯。</strong> 只是調用功能應該 <mark style="background: #BBFABBA6;">`pip install`</mark>（穩定發佈版、好管版本）。`git clone` 留給要改核心、發 PR、或跑 examples/tests 的情況。
+
+</div>
+</details>
+
+<details class="quiz">
+<summary>填空：clone 下原始碼又想在專案即時生效，可用 <code>pip install ____</code> 進入可編輯模式。</summary>
+<div class="ans">
+
+`pip install <mark style="background: #BBFABBA6;">-e .</mark>`（editable mode），改 clone 的 code 專案會同步生效。
+
+</div>
+</details>
+
+<details class="quiz">
+<summary>申論題：「上次提到專案 DB 已從 MySQL 換成 PostgreSQL」這條資訊應該寫進哪個檔案？為什麼？</summary>
+<div class="ans">
+
+寫進 <mark style="background: #ADCCFFA6;">memory.md</mark>。它是<mark style="background: #FF5582A6;">隨對話動態更新</mark>的長期記憶/日誌，記錄過去發生的事與重要結論，解決 LLM 健忘問題；user.md（固定偏好）與 skill.md（SOP）變動頻率低，不適合放這種動態進度。
+
+</div>
+</details>
+
+</section>
+<section class="card"><h2>各對話來源</h2>
+<h3>Agent 記憶框架安裝指南（2026-06）— https://gemini.google.com/app/4dbb54723c5e97e4</h3>
+<div class="srcline"><span class="u">使用者：</span>（貼框架截圖）這個框架通常用下載的還是 clone？</div>
+<div class="srcline"><span class="g">Gemini：</span>Letta(MemGPT)/Mem0 這類記憶框架 90% 建議 `pip install`（快速集成、穩定發佈版、好記版本）；只有要貢獻代碼、深度改核心、跑 examples/tests 才 clone。附 `pip install mem0ai` / `pip install letta`，並提醒需搭配 DB／向量庫與設定 API Keys。</div>
+<div class="srcline"><span class="u">使用者：</span>所以 pip install 跟 clone 有什麼差異？</div>
+<div class="srcline"><span class="g">Gemini：</span>pip install＝下載成品直接用（進 site-packages、不易改、pip 控版本、僅執行檔）；git clone＝整包原始碼搬回（任意目錄、可改可 commit、git 控分支、含文件測試歷程）。進階用 `pip install -e .` 可編輯模式。建議先 pip 跑通，要研究底層再 clone。</div>
+<div class="srcline"><span class="u">使用者：</span>你知道 user.md skill.md memory.md 差在哪嗎？</div>
+<div class="srcline"><span class="g">Gemini：</span>user.md＝用戶畫像（你是誰/偏好，變動低）；skill.md＝能力清單/SOP（怎麼做，變動中）；memory.md＝長期記憶/日誌（發生什麼事，變動高、隨對話更新，解決 LLM 健忘）。並對照 Obsidian：user.md＝個人 Readme、skill.md＝程式問答筆記、memory.md＝開發日誌。</div></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-28</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try{document.querySelectorAll('pre code').forEach(function(b){hljs.highlightElement(b);});}catch(e){}
+document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('masked');});});
+(function(){var btn=document.getElementById('maskAll');var on=false;
+btn.addEventListener('click',function(){on=!on;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('masked',on);});btn.textContent=on?'👁 顯示全部重點':'🙈 隱藏全部重點';});})();
+</script>
+</body>
+</html>

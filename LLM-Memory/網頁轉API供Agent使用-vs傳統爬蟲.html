@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>把網頁轉成 API 給 AI Agent 用(vs 傳統爬蟲)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>把網頁轉成 API 給 AI Agent 用(vs 傳統爬蟲)</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#AI-Agent</span><span class="pill">#MCP</span><span class="pill">#爬蟲</span><span class="pill">#headless-browser</span><span class="pill">#網頁自動化</span></div><div class="meta">來源：Gemini · 分類：技術 · <a href="https://gemini.google.com/app/59a0724c9e3425f1" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><h2>重點整理</h2>
+<h3>這類工具在做什麼</h3>
+<p>像 <code>hermai-cli</code> 這類專案，核心定位是<mark style="background: #FFF3A3A6;">「把任何網頁轉換成供 AI Agent 使用的 API」</mark>。本質是進階的<mark style="background: #ADCCFFA6;">網頁自動化／操作引擎</mark>，透過 <mark style="background: #ADCCFFA6;">headless browser（無頭瀏覽器，如 Puppeteer / Playwright）</mark>模擬真人操作網頁。</p>
+<p>適用對象不限於授權商家：<br />
+- <mark style="background: #BBFABBA6;">公開網頁</mark>：一般人瀏覽器看得到的都能轉成 API（比價、抓新聞、監控公開資訊），免憑證。<br />
+- <mark style="background: #FFF3A3A6;">需登入的私有頁面</mark>（後台、信箱、個人帳戶）：也可以，但<mark style="background: #FF5582A6;">你得自己提供憑證（Cookie / Token / 帳密）</mark>，讓無頭瀏覽器模擬登入後行為。</p>
+<p>服務 Agent 的方式：①<mark style="background: #BBFABBA6;">結構化輸出</mark>——把文字/按鈕/表格轉成乾淨 JSON，AI 一目了然；②<mark style="background: #BBFABBA6;">動作執行 Action</mark>——Agent 發指令（點下一頁、在搜尋框輸入），引擎在後台代為操作。</p>
+<h3>一般爬蟲就能撈資料,為什麼還要特別寫?</h3>
+<p>直覺沒錯——單純「撈資料」用 BeautifulSoup / Scrapy / Playwright 就夠了。要特別寫，<mark style="background: #FF5582A6;">核心痛點不只是突破反爬蟲</mark>，更本質是「<mark style="background: #FFF3A3A6;">給人用的爬蟲」和「給 AI Agent 用的工具」設計邏輯完全不同</mark>：</p>
+<ol>
+<li><strong>為 Agent 設計的通用接口標準（常結合 <mark style="background: #ADCCFFA6;">MCP, Model Context Protocol</mark>）</strong>：傳統爬蟲是客製化、寫死 DOM 結構（<code>div.price</code>、<code>ul&gt;li</code>），<mark style="background: #FF5582A6;">網頁一改版代碼就斷</mark>。這類工具把網頁動態行為抽象化成 Schema/標準 API Endpoint，Agent 讀 Schema 就知道「要買票得先點 A、填 B、送 C」，像呼叫後端 API 一樣操控網頁，不必為每站手寫代碼。</li>
+<li><strong>處理狀態與雙向操作（Actions），不只唯讀</strong>：一般爬蟲多是<mark style="background: #FFF3A3A6;">唯讀（Read）</mark>；Agent 需要像真人連續互動：登入→選日期→選人數→過驗證→送出。這類專案在後台幫 AI 管理瀏覽器 Context（<mark style="background: #FFB8EBA6;">Session、Cookie、Token 簽章、重試機制</mark>），讓 Agent 能處理複雜的<mark style="background: #BBFABBA6;">寫入操作（Write Actions）</mark>。</li>
+<li><strong>動態適應與反爬蟲防禦</strong>：對付 Cloudflare / Datadome 等反機器人牆，底層整合逆向工程、模擬真人鼠標軌跡、處理 per-request-signed（每次請求動態加密簽章）與 bootstrap state——把「繞過防禦、拆動態加密」最髒最痛的活包起來。</li>
+</ol>
+<h3>一句話總結</h3>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>傳統一般爬蟲</th>
+<th>Hermai-cli 這類專案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>服務對象</td>
+<td>工程師（撈資料存庫/寫報表）</td>
+<td>AI Agent（當工具直接呼叫）</td>
+</tr>
+<tr>
+<td>主要功能</td>
+<td>唯讀為主</td>
+<td><mark style="background: #BBFABBA6;">雙向（讀＋寫）</mark>，含點擊/輸入/訂購</td>
+</tr>
+<tr>
+<td>網頁改版</td>
+<td>結構一變就要重寫</td>
+<td>自動生成 Schema，AI 靠語意彈性適應</td>
+</tr>
+<tr>
+<td>處理防禦</td>
+<td>自己手動解驗證碼/維護 Cookie</td>
+<td>底層內建處理動態簽章與 Session 阻擋</td>
+</tr>
+</tbody>
+</table>
+<p><mark style="background: #FFF3A3A6;">傳統爬蟲＝工程師寫給特定任務的「固定劇本」；這類專案＝寫給 AI Agent 的「通用網頁瀏覽控制器」。</mark></p>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>網頁轉 API 供 Agent 使用（2026-06）— https://gemini.google.com/app/59a0724c9e3425f1</h3>
+<p><strong>使用者：</strong> 你幫我看一下這個專案，它是把所有網頁變成一個 API 然後給其他 Agent 串聯嗎？是幫已授權過的商家應用，還是一般民眾那種？</p>
+<p><strong>Gemini：</strong> <code>hermai-cli</code> 核心定位是「把任何網頁轉成供 AI Agent 使用的 API」，本質是進階網頁自動化/爬蟲引擎，用 headless browser（Puppeteer/Playwright）模擬真人操作。公開網頁完全可以（免憑證）；需登入的商家/個人應用也可以，但要你提供 Cookie/Token/帳密。它幫 Agent 的方式：把網頁文字/按鈕/表格轉成乾淨 JSON（結構化輸出），並允許 Agent 發指令由引擎後台執行動作。不侷限特定授權商家，只要給對應存取權限就能變成 Agent 的眼睛和手。</p>
+<p><strong>使用者：</strong> 最主要是反爬（平鎮）的問題嗎？不然一般爬蟲都做得到，為什麼還要特別寫？</p>
+<p><strong>Gemini：</strong> 直覺敏銳——單純撈資料用 BeautifulSoup/Scrapy/Playwright 就夠。要特別寫的核心不只是突破反爬，而是「給人用的爬蟲」與「給 AI Agent 用的工具」設計邏輯不同：①為 Agent 設計的通用接口標準（常結合 MCP），把網頁抽象成 Schema/API Endpoint，網頁改版也能彈性適應，不必逐站寫死 DOM；②處理狀態與雙向操作（Action），後台幫 AI 管理 Session/Cookie/Token 簽章/重試，支援複雜寫入操作；③動態適應與反爬蟲防禦，底層整合逆向工程、模擬真人軌跡、處理 per-request-signed 動態簽章。總結：傳統爬蟲是工程師的「固定劇本」，這類專案是 Agent 的「通用網頁瀏覽控制器」。</p></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-06-26</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>
