@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>進位制 — 二進制 / 十六進制 / 十進制、Bytes 與 RGB 顏色</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;}
+.meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 3px;border-radius:3px;cursor:pointer;transition:color .12s,background .12s;}
+mark.quiz-hidden{color:transparent!important;background:#cbd2dc!important;border-radius:4px;box-shadow:inset 0 0 0 1px #aab3c0;user-select:none;}
+mark.quiz-hidden *{color:transparent!important;}
+.quiz-bar{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap;}
+.quiz-btn{cursor:pointer;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:.8rem;padding:5px 14px;border-radius:999px;}
+.quiz-btn:hover{background:var(--accent);color:#fff;}
+.quiz-hint{color:var(--muted);font-size:.76rem;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">進位制 — 二進制 / 十六進制 / 十進制、Bytes 與 RGB 顏色</h1>
+  <div class="tags"><span class="tag">#gemini</span><span class="tag">#計算機基礎</span><span class="tag">#進位制</span><span class="tag">#binary</span><span class="tag">#hex</span><span class="tag">#bytes</span></div>
+  <div class="meta">更新於 2026-06-20　·　<a href="https://gemini.google.com/app/d60ebf7c608541d8" target="_blank">來源連結</a></div>
+  <div class="quiz-bar">
+    <button class="quiz-btn" id="quizToggle" type="button">🙈 隱藏全部重點（自我測驗）</button>
+    <span class="quiz-hint">點任一螢光筆可單獨顯示／隱藏答案</span>
+  </div>
+</header>
+<h1>進位制 — 二進制 / 十六進制 / 十進制、Bytes 與 RGB 顏色</h1>
+
+<section class="card"><h2>重點整理</h2>
+<h3>1. 機器底層只吃二進制，十六進制是給人看的「漂亮外衣」</h3>
+<ul>
+<li>硬體核心（CPU、記憶體）由電晶體組成，最穩定只有兩種狀態：<mark style="background: #ADCCFFA6;">導通=1、截止=0</mark>。所有程式碼/影片/遊戲到 CPU 眼裡都是 <code>0101...</code>（機器碼 Machine Code）。</li>
+<li>工程師很少直接寫十六進制；現代多寫高階語言（JS/Python/Go），由<mark style="background: #FFF3A3A6;">編譯器/直譯器這個「翻譯官」</mark>翻成二進制機器碼。</li>
+<li>高階語言 ──編譯/解釋──&gt; 機器碼（二進制 0/1）。</li>
+</ul>
+<h3>2. 為什麼到處是十六進制？因為它是二進制的完美縮寫</h3>
+<p><mark style="background: #FFF3A3A6;">關鍵：因為 2⁴ = 16，每 4 個二進制位元(bits) 可以毫無誤差地縮寫成 1 個十六進制字元。</mark></p>
+<ul>
+<li>「4」指的是<mark style="background: #FF5582A6;">2 的「4 次方」</mark>（4 個開關有 2×2×2×2=16 種組合 → 對應 Hex 的 0~F），不是「4 倍」。連帶結果是字數長度縮短為 ¼（二進制字數是十六進制的 4 倍）。</li>
+<li>記憶體最小定址單位是 <mark style="background: #ADCCFFA6;">1 Byte = 8 bits</mark>，剛好切兩半（4+4 bits），所以 1 Byte 用 2 個十六進制字元就能完美表達（<code>00</code>~<code>FF</code>）。Debug 看記憶體、設硬體暫存器時都看 Hex，不會去數那串 0/1。</li>
+</ul>
+<h3>3. 16 進制 → 10 進制（位數權重 = 16 的次方）</h3>
+<p>範例 <code>3F8₁₆</code>（F=15）：</p>
+<pre><code>3F8 = (3×16²) + (15×16¹) + (8×16⁰)
+    = (3×256) + (15×16) + (8×1)
+    = 768 + 240 + 8 = 1016
+</code></pre>
+<p><mark style="background: #FFB8EBA6;">冷知識：<code>0x3F8</code> 正是早期 PC 架構中序列埠 COM1 的標準 I/O 基礎位址。</mark></p>
+<h3>4. 二進制 → 十六進制：用「8-4-2-1」法則直接秒換</h3>
+<p>4 位元權重從右到左是 8、4、2、1。每組把是 1 的位置加起來即可，<mark style="background: #BBFABBA6;">不必先轉十進制</mark>。</p>
+<table>
+<thead>
+<tr>
+<th>二進位(4bit)</th>
+<th>加總</th>
+<th>Hex</th>
+<th></th>
+<th>二進位</th>
+<th>加總</th>
+<th>Hex</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1001</td>
+<td>9</td>
+<td>9</td>
+<td></td>
+<td>1100</td>
+<td>12</td>
+<td>C</td>
+</tr>
+<tr>
+<td>1010</td>
+<td>10</td>
+<td>A</td>
+<td></td>
+<td>1101</td>
+<td>13</td>
+<td>D</td>
+</tr>
+<tr>
+<td>1011</td>
+<td>11</td>
+<td>B</td>
+<td></td>
+<td>1110</td>
+<td>14</td>
+<td>E</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1111</td>
+<td>15</td>
+<td>F</td>
+</tr>
+</tbody>
+</table>
+<p>步驟：①從<strong>最右邊</strong>每 4 個切一組，最左不滿 4 位就<strong>前面補 0</strong>；②每組用 8-4-2-1 換成 1 個 Hex 字元。</p>
+<ul>
+<li><code>11010111</code> → <code>1101</code>(D) <code>0111</code>(7) → <strong>0xD7</strong></li>
+<li><code>101110</code> → 補成 <code>0010</code>(2) <code>1110</code>(E) → <strong>0x2E</strong></li>
+</ul>
+<h3>5. 顏色不是只有 256 個 —— 全彩 = 3 Bytes</h3>
+<ul>
+<li>1 Byte = 8 bits，<mark style="background: #FFB8EBA6;">2⁸ = 256</mark> → 若只用 1 Byte 表示顏色就只有 256 色（早期 GIF / 復古遊戲的「256 色限制」，範圍 <code>00</code>~<code>FF</code>）。</li>
+<li>現代全彩(True Color, 24-bit) 用 <mark style="background: #ADCCFFA6;">RGB 三原色，各佔 1 Byte（256 種亮度）</mark>：</li>
+</ul>
+<pre><code>256 × 256 × 256 = 256³ = 16,777,216 種顏色（約 1680 萬色）
+</code></pre>
+<ul>
+<li>網頁 Hex 色碼就是把 3 Bytes 排一起 → 6 碼：<code>#FF5733</code> = R(FF) G(57) B(33)。<code>#FFFFFF</code> 三原色全開到最亮=白；<code>#000000</code> 全關=黑。</li>
+</ul>
+<h3>6. 四大進位英文簡寫（術語）</h3>
+<p><mark style="background: #ADCCFFA6;">Bin</mark>(Binary 二進位 0/1)、<mark style="background: #ADCCFFA6;">Oct</mark>(Octal 八進位 0~7，少用)、<mark style="background: #ADCCFFA6;">Dec</mark>(Decimal 十進位)、<mark style="background: #ADCCFFA6;">Hex</mark>(Hexadecimal 十六進位)。</p>
+</section>
+<section class="card"><h2>各對話來源</h2>
+<h3>16進制3F8轉10進制（2026-06）— https://gemini.google.com/app/d60ebf7c608541d8</h3>
+<p><strong>使用者：</strong> <code>3F8</code> 從 16 進制到 10 進制是 1016？<br />
+<strong>Gemini：</strong> 正確。驗算 <code>(3×256)+(15×16)+(8×1)=1016</code>；補充 <code>0x3F8</code> 是 COM1 序列埠 I/O 基礎位址。</p>
+<p><strong>使用者：</strong> 電腦科學中程式碼都是 16 進制嗎？但機器底層是 2 進制？<br />
+<strong>Gemini：</strong> 機器底層只吃二進制（電晶體導通/截止=1/0），十六進制是人類為了好讀的縮寫；現代寫高階語言由編譯器翻成機器碼。十六進制無所不在是因為它是二進制完美縮寫（2⁴=16，每 4 bits→1 Hex；1 Byte=8 bits→2 Hex）。</p>
+<p><strong>使用者：</strong> 「每四個二進制位元」是指 2 的 4 次方的 4，還是 4 倍的 4？<br />
+<strong>Gemini：</strong> 最直接源頭是「2 的 4 次方=16」；結果是長度縮短為 ¼ 倍。例：<code>1010 1111 0011 1000</code>(16字元) → <code>AF38</code>(4字元)。</p>
+<p><strong>使用者：</strong> 顏色只有 256 個嗎？（請把 bytes 關係合進去）<br />
+<strong>Gemini：</strong> 不只。1 Byte=256 種（早期 256 色）；現代全彩用 RGB 3 Bytes，256³=16,777,216 色。網頁 6 碼 Hex 即 R/G/B 各 1 Byte，<code>#FFFFFF</code>=白、<code>#000000</code>=黑。</p>
+<p><strong>使用者：</strong> 但二進制怎麼轉十六進制？Decimal 是十進位的意思嗎？<br />
+<strong>Gemini：</strong> Decimal=十進位(Dec)。用 8-4-2-1 法則：每 4 bits 一組（左側不足補 0），各組相加換成 Hex。範例 <code>11010111</code>→<code>0xD7</code>、<code>101110</code>→<code>0x2E</code>。並附 Bin/Oct/Dec/Hex 四大簡寫。</p></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-20</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{hljs.highlightAll();}catch(e){}
+(function(){
+  var marks=[].slice.call(document.querySelectorAll('mark'));
+  marks.forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('quiz-hidden');});});
+  var btn=document.getElementById('quizToggle'),hidden=false;
+  if(btn){btn.addEventListener('click',function(){
+    hidden=!hidden;
+    marks.forEach(function(m){m.classList.toggle('quiz-hidden',hidden);});
+    btn.textContent=hidden?'👀 顯示全部重點':'🙈 隱藏全部重點（自我測驗）';
+  });}
+})();</script>
+</body>
+</html>
