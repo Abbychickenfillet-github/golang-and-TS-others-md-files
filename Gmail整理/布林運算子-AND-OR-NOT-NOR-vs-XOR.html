@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>布林運算子筆記：AND / OR / NOT / NOR vs XOR（Gmail 實戰）</title>
+<style>
+  :root {
+    --yellow: #FFF3A3A6;
+    --green: #BBFABBA6;
+    --red: #FF8FA3A6;
+    --blue: #ADCCFFA6;
+    --purple: #D2B3FFA6;
+    --bg: #1e1e1e;
+    --card: #2a2a2a;
+    --text: #eaeaea;
+    --muted: #9a9a9a;
+    --border: #3a3a3a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Microsoft JhengHei", "Noto Sans TC", -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+  h1 { font-size: 1.6em; border-bottom: 3px solid var(--purple); padding-bottom: 12px; }
+  h2 { font-size: 1.25em; margin-top: 48px; padding: 8px 14px; background: var(--card); border-left: 5px solid var(--blue); border-radius: 4px; }
+  h3 { font-size: 1.05em; color: #c9c9ff; margin-top: 28px; }
+  p { color: var(--text); }
+  .meta { color: var(--muted); font-size: 0.9em; margin-bottom: 28px; }
+  mark { padding: 1px 5px; border-radius: 3px; color: #1a1a1a; }
+  code {
+    background: #111;
+    color: #9ddcff;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.92em;
+  }
+  pre {
+    background: #111;
+    color: #9ddcff;
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    font-family: "Cascadia Code", Consolas, monospace;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: center; }
+  th { background: #333; }
+  td.t { background: #1f3d1f; color: #b6ffb6; }
+  td.f { background: #3d1f1f; color: #ffb6b6; }
+
+  /* ---- 互動填空 ---- */
+  .blank {
+    display: inline-block;
+    min-width: 70px;
+    border-bottom: 2px dashed #888;
+    text-align: center;
+    cursor: pointer;
+    color: transparent;
+    background: #3a3a55;
+    border-radius: 4px;
+    padding: 1px 8px;
+    transition: all .15s;
+    font-weight: bold;
+  }
+  .blank.revealed {
+    color: #ffe27a;
+    background: transparent;
+    border-bottom: 2px solid #ffe27a;
+  }
+  .blank:hover { background: #4a4a70; }
+
+  /* ---- 是非題 ---- */
+  .tf-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 14px 0;
+  }
+  .tf-q { font-weight: bold; margin-bottom: 10px; }
+  .tf-btns button {
+    padding: 6px 18px;
+    margin-right: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #333;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.95em;
+  }
+  .tf-btns button:hover { background: #444; }
+  .tf-result {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    display: none;
+    font-size: 0.93em;
+  }
+  .tf-result.show { display: block; }
+  .tf-result.correct { background: #1f3d1f; color: #b6ffb6; }
+  .tf-result.wrong { background: #3d1f1f; color: #ffb6b6; }
+
+  /* ---- 申論題 ---- */
+  .essay-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 14px 0;
+  }
+  .essay-q { font-weight: bold; margin-bottom: 10px; }
+  .essay-toggle {
+    background: var(--purple);
+    color: #1a1a1a;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9em;
+  }
+  .essay-answer {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: #20202e;
+    border-left: 4px solid var(--purple);
+    border-radius: 6px;
+    display: none;
+  }
+  .essay-answer.show { display: block; }
+
+  .toggle-all {
+    position: sticky;
+    top: 12px;
+    float: right;
+    background: var(--blue);
+    color: #1a1a1a;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    z-index: 10;
+  }
+  .link-box {
+    background: #20202e;
+    border: 1px dashed var(--purple);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 0.92em;
+  }
+  .link-box a { color: #c9c9ff; }
+</style>
+</head>
+<body>
+
+<button class="toggle-all" onclick="toggleAllBlanks()">顯示／隱藏 全部填空答案</button>
+
+<h1>布林運算子筆記：AND / OR / NOT / NOR vs XOR</h1>
+<p class="meta">建立日期：2026-06-21　情境來源：Gmail 搜尋運算子實戰（信件批量篩選刪除）</p>
+
+<div class="link-box">
+🔗 關聯筆記：<a href="Gmail-促銷自動刪除-filter.md">Gmail-促銷自動刪除-filter.md</a>（同資料夾，講 Filter 實際操作步驟）
+</div>
+
+<h2>一、五種運算子總覽</h2>
+
+<table>
+<tr><th>運算子</th><th>白話意思</th><th>Gmail 寫法</th><th>幾項要符合才算 True</th></tr>
+<tr><td><mark style="background:var(--green)">AND</mark></td><td>都要符合</td><td><code>空格</code>（預設就是 AND）</td><td>全部</td></tr>
+<tr><td><mark style="background:var(--blue)">OR</mark></td><td>符合其中一個就好</td><td><code>OR</code> 或 <code>{ }</code></td><td>≥ 1 項</td></tr>
+<tr><td><mark style="background:var(--red)">NOT</mark></td><td>不要符合這個</td><td><code>-</code></td><td>該項必須是 False</td></tr>
+<tr><td><mark style="background:var(--purple)">NOR</mark></td><td>全部都不符合，才算數</td><td><code>-( A OR B OR C )</code></td><td>0 項</td></tr>
+<tr><td><mark style="background:var(--yellow)">XOR</mark></td><td>恰好符合一個，不能多也不能少</td><td>⚠️ Gmail 沒有對應運算子</td><td>剛好 1 項</td></tr>
+</table>
+
+<h3>填空練習①</h3>
+<p>
+Gmail 搜尋框裡，「空格」預設代表 <span class="blank" onclick="this.classList.toggle('revealed')">AND</span>，
+要表示「符合其中一個即可」要打 <span class="blank" onclick="this.classList.toggle('revealed')">OR</span>，
+要排除某項用 <span class="blank" onclick="this.classList.toggle('revealed')">-</span>（減號）。
+</p>
+
+<h2>二、真值表對照（拿你今天的條件當例子）</h2>
+
+<p>假設一封信只可能符合「A：寄件者是白名單」或「B：主旨含關鍵字」這兩個條件中的 0、1、或 2 項：</p>
+
+<table>
+<tr><th>A（白名單寄件者）</th><th>B（主旨關鍵字）</th><th>OR<br><small>A∨B</small></th><th>NOR<br><small>¬(A∨B)</small></th><th>XOR<br><small>A⊕B</small></th></tr>
+<tr><td class="f">False</td><td class="f">False</td><td class="f">False</td><td class="t">True</td><td class="f">False</td></tr>
+<tr><td class="t">True</td><td class="f">False</td><td class="t">True</td><td class="f">False</td><td class="t">True</td></tr>
+<tr><td class="f">False</td><td class="t">True</td><td class="t">True</td><td class="f">False</td><td class="t">True</td></tr>
+<tr><td class="t">True</td><td class="t">True</td><td class="t">True</td><td class="f">False</td><td class="f">False</td></tr>
+</table>
+
+<p>
+你的篩選條件 <code>-(from:(...) OR subject:(...))</code> 對應的就是 <mark style="background:var(--purple)">NOR</mark> 那一欄——
+只有「兩項都不符合」（第一列）才會是 <mark style="background:var(--green)">True</mark>（= 該信件會被列出來，準備刪除）。
+</p>
+
+<p>
+而 XOR 那一欄你會發現：<mark style="background:var(--yellow)">同時符合兩項時，XOR 反而是 False</mark>——
+這就是為什麼 XOR 跟你要的「以外、都排除」邏輯完全不同，不能拿來做你這次的篩選。
+</p>
+
+<h3>填空練習②</h3>
+<p>
+如果一封信「寄件者是白名單」且「主旨也含關鍵字」（兩項都 True），
+用 OR 運算的結果是 <span class="blank" onclick="this.classList.toggle('revealed')">True</span>，
+用 NOR 運算的結果是 <span class="blank" onclick="this.classList.toggle('revealed')">False</span>，
+用 XOR 運算的結果是 <span class="blank" onclick="this.classList.toggle('revealed')">False</span>。
+</p>
+
+<h2>三、今天實戰的條件逐字拆解</h2>
+
+<pre>-(from:(openai.com OR chatgpt OR anthropic.com OR Jane
+       OR service@oneboy.com.tw OR no-reply@x.ai
+       OR service@pxbillrc01.cathaybk.com.tw)
+  OR subject:(消費彙整通知 OR subscription OR AI大數據 OR 陳家弘))</pre>
+
+<table>
+<tr><th>片段</th><th>角色</th><th>說明</th></tr>
+<tr><td><code>from:(A OR B OR ...)</code></td><td>子條件①</td><td>寄件者符合清單中任一個（顯示名稱或 email 皆比對）</td></tr>
+<tr><td><code>subject:(D OR E OR ...)</code></td><td>子條件②</td><td>主旨包含清單中任一個關鍵字</td></tr>
+<tr><td><code>子條件① OR 子條件②</code></td><td>保留池</td><td>只要符合任一子條件，就算「該保留」</td></tr>
+<tr><td><code>-( 保留池 )</code></td><td>整體 NOR</td><td>保留池外的信件才會被列出（= 準備刪除的）</td></tr>
+</table>
+
+<h3>是非題練習</h3>
+
+<div class="tf-card">
+  <div class="tf-q">1. Gmail 的 <code>OR</code> 屬於互斥或（XOR），符合兩項時會被視為不符合。</div>
+  <div class="tf-btns">
+    <button onclick="checkTF(this, false)">○ 對</button>
+    <button onclick="checkTF(this, true)">✕ 錯</button>
+  </div>
+  <div class="tf-result"></div>
+</div>
+
+<div class="tf-card">
+  <div class="tf-q">2. <code>from:Jane</code> 同時會比對寄件者的顯示名稱跟 email 地址字串。</div>
+  <div class="tf-btns">
+    <button onclick="checkTF(this, true)">○ 對</button>
+    <button onclick="checkTF(this, false)">✕ 錯</button>
+  </div>
+  <div class="tf-result"></div>
+</div>
+
+<div class="tf-card">
+  <div class="tf-q">3. <code>-(from:(A OR B) OR subject:(C OR D))</code> 這個寫法，如果信件同時符合 A 跟 C 兩項，會被排除在「要刪除」名單之外（也就是會被保留）。</div>
+  <div class="tf-btns">
+    <button onclick="checkTF(this, true)">○ 對</button>
+    <button onclick="checkTF(this, false)">✕ 錯</button>
+  </div>
+  <div class="tf-result"></div>
+</div>
+
+<div class="tf-card">
+  <div class="tf-q">4. Gmail 搜尋語法裡有現成的 XOR 運算子可以直接使用。</div>
+  <div class="tf-btns">
+    <button onclick="checkTF(this, false)">○ 對</button>
+    <button onclick="checkTF(this, true)">✕ 錯</button>
+  </div>
+  <div class="tf-result"></div>
+</div>
+
+<h2>四、申論題練習</h2>
+
+<div class="essay-card">
+  <div class="essay-q">Q1：請解釋為什麼 <code>-(from:(...) OR subject:(...))</code> 是 NOR 邏輯而不是單純的 NOT？</div>
+  <button class="essay-toggle" onclick="this.nextElementSibling.classList.toggle('show')">顯示／隱藏答案</button>
+  <div class="essay-answer">
+    NOT 是針對單一條件取反（例如 <code>-subject:廣告</code>，只否定一個條件）。
+    但這裡括號內是 <code>A OR B</code> 兩個條件組合成一個「保留池」，
+    外面才加 <code>-</code> 把整個組合結果取反。
+    「先 OR 多個條件，再整體取反」這個動作，數學上正好等於
+    De Morgan 定律的 <code>¬(A∨B) = ¬A ∧ ¬B</code>，也就是 NOR——
+    必須兩個子條件都不成立，才會被列入結果。單純的 NOT 沒有「組合多個條件再取反」這層意義。
+  </div>
+</div>
+
+<div class="essay-card">
+  <div class="essay-q">Q2：如果之後要再加入第三個保留條件（例如「寄件者是 Anthropic」），應該改動哪個部分？為什麼不能整段重寫？</div>
+  <button class="essay-toggle" onclick="this.nextElementSibling.classList.toggle('show')">顯示／隱藏答案</button>
+  <div class="essay-answer">
+    只需要在 <code>from:(...)</code> 括號內，用 <code>OR</code> 接上新項目即可，
+    例如改成 <code>from:(openai.com OR chatgpt OR anthropic.com)</code>。
+    不需要整段重寫，因為外層的 NOR 結構（保留池 + 取反）不變，
+    只是「保留池」裡的子條件變多了一項。這也是為什麼設計篩選條件時，
+    建議把所有「白名單」集中寫在同一層 <code>from:(...)</code> 括號裡，
+    方便之後逐項增減，而不必每次重新設計整個邏輯結構。
+  </div>
+</div>
+
+<div class="essay-card">
+  <div class="essay-q">Q3：為什麼 XOR 邏輯不適合用在「批量刪除信件、只保留白名單」這種情境？</div>
+  <button class="essay-toggle" onclick="this.nextElementSibling.classList.toggle('show')">顯示／隱藏答案</button>
+  <div class="essay-answer">
+    XOR 的意思是「恰好符合一項，不能多也不能少」。
+    如果用 XOR 來判斷「保留信件」，會出現一個問題：
+    一封信如果同時符合兩個保留條件（例如寄件者是白名單，主旨也剛好含關鍵字），
+    XOR 反而會判定為 False（不保留）——這違反了你原本的意圖
+    （你想要的是「符合任一項就保留」，是 OR 邏輯，不是「只能符合一項」）。
+    所以批量篩選這種「滿足任一條件即視為例外」的情境，正確工具是 OR／NOR，
+    XOR 在這裡反而會誤刪你想保留的信。
+  </div>
+</div>
+
+<h2>五、快速複習卡</h2>
+<table>
+<tr><th>我想要…</th><th>該用</th><th>Gmail 寫法</th></tr>
+<tr><td>兩個條件都要符合</td><td>AND</td><td><code>from:A subject:B</code>（空格）</td></tr>
+<tr><td>符合任一個就好</td><td>OR</td><td><code>from:(A OR B)</code></td></tr>
+<tr><td>排除某一項</td><td>NOT</td><td><code>-subject:廣告</code></td></tr>
+<tr><td>排除一整組（都不符合才留下）</td><td>NOR</td><td><code>-(from:(A OR B) OR subject:(C OR D))</code></td></tr>
+<tr><td>恰好符合一項（很少用，Gmail 無原生支援）</td><td>XOR</td><td>無對應寫法，需自行用多組條件拼湊</td></tr>
+</table>
+
+<p class="meta">標記色卡對照：<mark style="background:var(--yellow)">黃＝定義</mark>　<mark style="background:var(--green)">綠＝結論</mark>　<mark style="background:var(--red)">紅＝警告</mark>　<mark style="background:var(--blue)">藍＝比較</mark>　<mark style="background:var(--purple)">橘紫＝步驟／申論重點</mark></p>
+
+<script>
+function toggleAllBlanks() {
+  document.querySelectorAll('.blank').forEach(b => b.classList.toggle('revealed'));
+}
+function checkTF(btn, isCorrectChoice) {
+  const card = btn.closest('.tf-card');
+  const result = card.querySelector('.tf-result');
+  result.classList.add('show');
+  if (isCorrectChoice) {
+    result.classList.remove('wrong');
+    result.classList.add('correct');
+    result.textContent = '✓ 答對了！';
+  } else {
+    result.classList.remove('correct');
+    result.classList.add('wrong');
+    result.textContent = '✕ 再想想看～可以對照上面的真值表跟拆解段落';
+  }
+}
+</script>
+
+</body>
+</html>
