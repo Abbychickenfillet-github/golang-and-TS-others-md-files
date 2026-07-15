@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>claude 指令跑不出來｜排查筆記</title>
+<style>
+  :root{
+    --bg:#0f1320; --card:#171c2e; --card2:#1d2236; --ink:#e7ebf5; --muted:#9aa4c0;
+    --accent:#7c8cff; --accent2:#43d6b5; --warn:#ffb454; --bad:#ff6b81; --good:#43d6a0;
+    --line:#2a3150; --code:#0b0e18;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0d1020,#11152a 60%,#0c1322);color:var(--ink);
+    font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.7;
+    padding:32px 18px 80px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:1.7rem;margin:0 0 4px;letter-spacing:.5px}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:.95rem}
+  h2{font-size:1.2rem;margin:34px 0 12px;padding-left:12px;border-left:4px solid var(--accent)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:14px 0;
+    box-shadow:0 6px 22px rgba(0,0,0,.25)}
+  code,kbd{font-family:"Cascadia Code",Consolas,monospace}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;
+    font-size:.9rem;position:relative}
+  pre code{color:#cfe3ff}
+  .tag{display:inline-block;font-size:.72rem;padding:2px 9px;border-radius:999px;border:1px solid var(--line);
+    color:var(--muted);margin-right:6px}
+  .pill{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:8px;
+    padding:1px 8px;font-family:monospace;font-size:.85rem;color:var(--accent2)}
+  /* decision tree */
+  .tree-q{font-weight:600;margin-bottom:10px}
+  .branch{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px}
+  .branch button{cursor:pointer;background:var(--card2);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:10px 14px;font-size:.9rem;transition:.15s;text-align:left;flex:1 1 200px}
+  .branch button:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .branch button.active{border-color:var(--accent);background:#222a47}
+  .fix{display:none;border-left:3px solid var(--accent2);padding:6px 0 6px 14px;margin-top:8px;
+    animation:fade .25s ease}
+  .fix.show{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+  /* quiz */
+  .blank{background:#222a47;border:1px dashed var(--accent);border-radius:6px;padding:1px 10px;color:transparent;
+    cursor:pointer;user-select:none;font-family:monospace;transition:.15s}
+  .blank.revealed{color:var(--accent2);border-style:solid;background:#1a2740}
+  .tf{display:flex;gap:10px;margin:8px 0}
+  .tf button{cursor:pointer;border:1px solid var(--line);background:var(--card2);color:var(--ink);
+    border-radius:8px;padding:6px 18px;font-size:.9rem}
+  .tf button:hover{border-color:var(--accent)}
+  .tf button.right{border-color:var(--good);background:#13301f;color:var(--good)}
+  .tf button.wrong{border-color:var(--bad);background:#321420;color:var(--bad)}
+  .tf-exp{display:none;color:var(--muted);font-size:.88rem;margin-top:4px}
+  .tf-exp.show{display:block}
+  .toggle-ans{cursor:pointer;color:var(--accent);font-size:.85rem;border:1px dashed var(--accent);
+    border-radius:8px;padding:4px 12px;display:inline-block;margin-top:6px;user-select:none}
+  .ans{display:none;background:var(--card2);border-radius:10px;padding:12px 16px;margin-top:8px;
+    border:1px solid var(--line)}
+  .ans.show{display:block}
+  .rel a{color:var(--accent);text-decoration:none}
+  .rel li{margin:4px 0}
+  .copy{position:absolute;top:8px;right:8px;font-size:.72rem;background:var(--card2);border:1px solid var(--line);
+    color:var(--muted);border-radius:6px;padding:2px 8px;cursor:pointer}
+  .copy:hover{color:var(--ink);border-color:var(--accent)}
+  .note{font-size:.85rem;color:var(--muted)}
+  .ok{color:var(--good)} .no{color:var(--bad)} .w{color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>🩺 <code>claude</code> 指令在終端機跑不出來 — 排查筆記</h1>
+  <p class="sub">Windows / PowerShell ｜ 建立日期 2026-06-21 ｜ 作者：Abby + Claude</p>
+
+  <div class="card">
+    <span class="tag">前情提要</span>
+    <p>你執行 <span class="pill">Get-Command claude</span> 得到的是：</p>
+    <pre><code>CommandType     Name          Source
+-----------     ----          ------
+ExternalScript  claude.ps1    C:\Users\...\claude.ps1</code></pre>
+    <p>解讀：<b class="ok">claude 有裝、而且在 PATH 裡</b>。npm 在 Windows 全域安裝 CLI 時會放三個「殼(shim)」：
+      <span class="pill">claude</span>（給 Git Bash）、<span class="pill">claude.cmd</span>（給 CMD）、
+      <span class="pill">claude.ps1</span>（給 PowerShell）。PowerShell 命中的就是那支 <code>.ps1</code>，
+      所以 <code>ExternalScript</code> 是正常的、不是壞掉。</p>
+    <p class="note">👉 結論：你的問題<b class="w">不是「找不到」</b>，而是「殼有了、但執行起來沒反應或報錯」。往下用決策樹定位。</p>
+  </div>
+
+  <h2>① 互動決策樹：先跑這行,看症狀點按鈕</h2>
+  <div class="card">
+    <pre><code>claude --version</code><button class="copy" onclick="cp(this)">複製</button></pre>
+    <p class="tree-q">你看到的是哪一種?(點選)</p>
+    <div class="branch" id="branchA">
+      <button onclick="pick('a1',this)">🚫 紅字：<br>「<i>因為這個系統上已停用指令碼執行</i>」<br>scripts is disabled</button>
+      <button onclick="pick('a2',this)">❓ 「<i>'node' 不是內部或外部命令</i>」<br>node not recognized</button>
+      <button onclick="pick('a3',this)">⏎ 什麼都沒印,<br>瞬間跳回提示字元</button>
+      <button onclick="pick('a4',this)">✅ 有印出版本號,<br>但打 <code>claude</code> 進去卡住/空白</button>
+    </div>
+
+    <div class="fix" id="a1">
+      <p><b>原因：PowerShell 執行原則(ExecutionPolicy)擋掉 .ps1 腳本。</b>這是 Windows 最常見的兇手。</p>
+      <pre><code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code><button class="copy" onclick="cp(this)">複製</button></pre>
+      <p>跳出確認按 <kbd>Y</kbd> → <kbd>Enter</kbd>。只改「目前使用者」範圍最安全,不需要系統管理員。改完重開終端機再試 <code>claude --version</code>。</p>
+      <p class="note">想看目前狀態：<span class="pill">Get-ExecutionPolicy -List</span>。<code>RemoteSigned</code> = 本機自己寫的腳本可跑、網路下載的要簽章。</p>
+    </div>
+
+    <div class="fix" id="a2">
+      <p><b>原因：Node.js 不見了或不在 PATH</b>(claude 是 Node 程式,殼會去呼叫 node)。</p>
+      <pre><code>node -v
+npm -v</code><button class="copy" onclick="cp(this)">複製</button></pre>
+      <p>若這兩行也報錯 → 重裝 Node(建議 LTS,或用 nvm-windows 管理),裝完重開終端機。Node 回來後 claude 通常就活了。</p>
+    </div>
+
+    <div class="fix" id="a3">
+      <p><b>原因：殼還在,但它指向的安裝內容被刪/壞了</b>(殼是空轉)。重裝即可。</p>
+      <pre><code>npm install -g @anthropic-ai/claude-code</code><button class="copy" onclick="cp(this)">複製</button></pre>
+      <p>裝完確認落點有在 PATH：</p>
+      <pre><code>npm config get prefix
+# 印出的資料夾(例 C:\Users\你\AppData\Roaming\npm)要在系統 PATH 裡</code><button class="copy" onclick="cp(this)">複製</button></pre>
+    </div>
+
+    <div class="fix" id="a4">
+      <p><b>版本印得出來 = 程式本體正常</b>,卡住多半是「終端機相容性」或「登入/設定」問題。</p>
+      <p>試試這幾招(由易到難)：</p>
+      <pre><code># 1) 換成 Windows Terminal 開 PowerShell(舊 conhost 對互動式 UI 支援差)
+# 2) 直接看它說什麼
+claude
+# 3) 設定/登入快取壞掉時,備份後清掉 .claude 再重登
+#    設定通常在 C:\Users\你\.claude</code><button class="copy" onclick="cp(this)">複製</button></pre>
+      <p class="note">若有 <span class="pill">claude doctor</span> 之類的自我檢查指令,也可先跑看看它的提示。</p>
+    </div>
+  </div>
+
+  <h2>② 一眼帶走的對照表</h2>
+  <div class="card">
+    <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+      <tr style="color:var(--muted);text-align:left">
+        <th style="padding:6px;border-bottom:1px solid var(--line)">症狀</th>
+        <th style="padding:6px;border-bottom:1px solid var(--line)">病因</th>
+        <th style="padding:6px;border-bottom:1px solid var(--line)">處方</th>
+      </tr>
+      <tr><td style="padding:6px">scripts is disabled</td><td style="padding:6px">ExecutionPolicy 擋</td><td style="padding:6px"><code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code></td></tr>
+      <tr><td style="padding:6px">node not recognized</td><td style="padding:6px">Node 不見/不在 PATH</td><td style="padding:6px">重裝 Node LTS</td></tr>
+      <tr><td style="padding:6px">秒跳回、無輸出</td><td style="padding:6px">殼空轉、安裝壞</td><td style="padding:6px"><code>npm install -g @anthropic-ai/claude-code</code></td></tr>
+      <tr><td style="padding:6px">有版本但互動卡住</td><td style="padding:6px">終端機相容/設定</td><td style="padding:6px">換 Windows Terminal、清 <code>.claude</code> 重登</td></tr>
+    </table>
+  </div>
+
+  <h2>③ 填空題（點灰框看答案）</h2>
+  <div class="card">
+    <p>1. npm 在 Windows 全域裝 CLI 時,給 PowerShell 用的殼副檔名是
+      <span class="blank" onclick="this.classList.toggle('revealed')">.ps1</span>。</p>
+    <p>2. 想知道某指令裝在哪個路徑,PowerShell 用
+      <span class="blank" onclick="this.classList.toggle('revealed')">Get-Command</span>,CMD 用
+      <span class="blank" onclick="this.classList.toggle('revealed')">where</span>。</p>
+    <p>3. 解除 .ps1 被擋、只改目前使用者範圍的指令是
+      <span class="blank" onclick="this.classList.toggle('revealed')">Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</span>。</p>
+    <p>4. 查 npm 全域安裝落在哪個資料夾:
+      <span class="blank" onclick="this.classList.toggle('revealed')">npm config get prefix</span>。</p>
+  </div>
+
+  <h2>④ 是非題（點選作答）</h2>
+  <div class="card">
+    <p>Q1. <code>Get-Command claude</code> 回 <code>ExternalScript claude.ps1</code> 代表 claude 沒有安裝成功。</p>
+    <div class="tf" data-ans="F" data-exp="錯。回得出 .ps1 殼代表「已安裝且在 PATH」,問題在執行階段不是安裝。">
+      <button onclick="tf(this,true)">是 (T)</button><button onclick="tf(this,false)">非 (F)</button>
+    </div>
+    <p class="tf-exp"></p>
+
+    <p>Q2. 「scripts is disabled」的紅字,跟 Node 有沒有裝沒關係,是 PowerShell 執行原則造成。</p>
+    <div class="tf" data-ans="T" data-exp="對。那是 ExecutionPolicy 擋 .ps1,跟 Node 無關;用 Set-ExecutionPolicy 解。">
+      <button onclick="tf(this,true)">是 (T)</button><button onclick="tf(this,false)">非 (F)</button>
+    </div>
+    <p class="tf-exp"></p>
+
+    <p>Q3. Cowork/桌面 App 的排程任務,就算把 Claude 桌面 App 關掉也照樣會在指定時間執行。</p>
+    <div class="tf" data-ans="F" data-exp="錯。排程靠桌面 App 觸發,App 關掉或電腦關機就不會跑。">
+      <button onclick="tf(this,true)">是 (T)</button><button onclick="tf(this,false)">非 (F)</button>
+    </div>
+    <p class="tf-exp"></p>
+  </div>
+
+  <h2>⑤ 申論題（先想,再展開參考答案）</h2>
+  <div class="card">
+    <p><b>Q：</b>為什麼同樣一支 <code>claude</code>,在 CMD 跑得動、在 PowerShell 卻說「停用指令碼執行」?請從「殼的種類」與「執行原則」兩個角度說明,並寫出你的解法。</p>
+    <span class="toggle-ans" onclick="toggleAns(this)">▸ 顯示參考答案</span>
+    <div class="ans">
+      <p>npm 全域安裝時對同一個指令產生多種殼:CMD 走 <code>claude.cmd</code>(批次檔)、PowerShell 走 <code>claude.ps1</code>(PowerShell 腳本)、Git Bash 走無副檔名的 <code>claude</code>。</p>
+      <p>CMD 執行 <code>.cmd</code> 不受 ExecutionPolicy 管,所以能跑;但 PowerShell 對 <code>.ps1</code> 有「執行原則」把關,預設常是 <code>Restricted</code>/受限,於是擋下腳本,丟出「停用指令碼執行」。</p>
+      <p>解法:把目前使用者的執行原則放寬到 <code>RemoteSigned</code>——
+        <code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code>,
+        本機自己的腳本就能跑,網路下載的仍需簽章,安全與方便兼顧。改完重開終端機即可。</p>
+    </div>
+  </div>
+
+  <h2>🔗 關聯筆記</h2>
+  <div class="card rel">
+    <ul>
+      <li>查指令在不在 PATH / 裝在哪 → <a>[[where-vs-get-command]]</a>(<code>command-line/</code>)</li>
+      <li>Claude Code 的 bash 環境(為何不是 PowerShell)→ <a>[[Claude-Code-Bash環境說明]]</a></li>
+      <li>PowerShell vs Bash 設計哲學 → <a>[[Bash-vs-PowerShell設計哲學差異]]</a>(<code>CLI/</code>)</li>
+      <li>claude 外掛 marketplace vs install → <a>[[plugin-marketplace-vs-install]]</a>(<code>claude CLI/</code>)</li>
+    </ul>
+    <p class="note">📌 桌面排程提醒:Cowork 的自動化排程由 Claude 桌面 App 觸發,需保持電腦開機 + App 開著(登入狀態)才會在指定時間執行。</p>
+  </div>
+
+</div>
+
+<script>
+function pick(id, btn){
+  document.querySelectorAll('#branchA button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.fix').forEach(f=>f.classList.remove('show'));
+  document.getElementById(id).classList.add('show');
+}
+function tf(btn, choice){
+  const box = btn.parentElement;
+  const ans = box.dataset.ans === 'T';
+  const exp = box.nextElementSibling;
+  box.querySelectorAll('button').forEach(b=>{b.classList.remove('right','wrong');});
+  if(choice === ans){ btn.classList.add('right'); }
+  else { btn.classList.add('wrong'); }
+  exp.textContent = (choice===ans ? '✔ 正確！ ' : '✘ 再想想。 ') + box.dataset.exp;
+  exp.classList.add('show');
+}
+function toggleAns(el){
+  const a = el.nextElementSibling;
+  a.classList.toggle('show');
+  el.textContent = a.classList.contains('show') ? '▾ 收合參考答案' : '▸ 顯示參考答案';
+}
+function cp(btn){
+  const code = btn.parentElement.querySelector('code').innerText;
+  navigator.clipboard && navigator.clipboard.writeText(code);
+  const t = btn.textContent; btn.textContent='已複製✓';
+  setTimeout(()=>btn.textContent=t,1200);
+}
+</script>
+</body>
+</html>
