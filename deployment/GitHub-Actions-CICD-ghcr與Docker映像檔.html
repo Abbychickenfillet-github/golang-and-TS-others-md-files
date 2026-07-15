@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub Actions CI/CD：ghcr、Runner 與 Docker 映像檔管理</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#ffffff; --ink:#24292f; --muted:#6b7280;
+    --line:#e5e7eb; --accent:#2563eb; --accent-soft:#eaf0ff;
+    --code-bg:#282c34;
+    --hl-yellow:#FFF3A3; --hl-red:#FF5582; --hl-green:#BBFABB;
+    --hl-blue:#ADCCFF; --hl-pink:#FFB8EB; --hl-purple:#D2B3FF; --hl-orange:#FFB86C;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+    line-height:1.75; font-size:16px;
+  }
+  .wrap{max-width:820px; margin:0 auto; padding:32px 20px 64px;}
+  header.page{
+    background:linear-gradient(135deg,#1f6feb,#2563eb); color:#fff;
+    border-radius:18px; padding:28px 30px; box-shadow:0 8px 24px rgba(37,99,235,.18);
+  }
+  header.page h1{margin:0 0 12px; font-size:1.55rem; line-height:1.4;
+    font-family:Georgia,"Noto Serif TC",serif;}
+  .pills{display:flex; flex-wrap:wrap; gap:7px; margin:10px 0;}
+  .pill{background:rgba(255,255,255,.2); color:#fff; font-size:.76rem;
+    padding:3px 11px; border-radius:999px; backdrop-filter:blur(2px);}
+  .meta{font-size:.82rem; opacity:.92; margin-top:10px;}
+  .meta a{color:#fff; text-decoration:underline; word-break:break-all;}
+  .hint{background:var(--accent-soft); border:1px dashed #b9ccff; color:#274690;
+    border-radius:12px; padding:12px 16px; font-size:.86rem; margin:22px 0;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:22px 26px; margin:20px 0; box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  h2{font-size:1.24rem; margin:.2em 0 .7em; padding-bottom:.35em;
+    border-bottom:2px solid var(--accent-soft); color:#1f2937;}
+  h3{font-size:1.05rem; margin:1.4em 0 .5em; color:#1f6feb;}
+  blockquote{margin:16px 0; padding:10px 16px; background:#f0f4ff;
+    border-left:4px solid var(--accent); border-radius:0 8px 8px 0; color:#374151; font-size:.94rem;}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:.9rem;}
+  th,td{border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top;}
+  th{background:#f1f5f9;}
+  tbody tr:nth-child(even){background:#fafbfc;}
+  code{background:#eef1f4; padding:1.5px 6px; border-radius:5px;
+    font-family:"JetBrains Mono",Consolas,monospace; font-size:.86em;}
+  pre{background:var(--code-bg); border-radius:12px; padding:16px 18px;
+    overflow-x:auto; margin:14px 0;}
+  pre code{background:none; padding:0; color:#e6e6e6; font-size:.85rem; line-height:1.6;}
+  mark{padding:1px 4px; border-radius:4px; cursor:pointer; transition:.18s;
+    box-decoration-break:clone; -webkit-box-decoration-break:clone;}
+  mark.y{background:var(--hl-yellow);} mark.r{background:var(--hl-red);}
+  mark.g{background:var(--hl-green);} mark.b{background:var(--hl-blue);}
+  mark.p{background:var(--hl-pink);} mark.pu{background:var(--hl-purple);}
+  mark.o{background:var(--hl-orange);}
+  mark.hidden{color:transparent; filter:saturate(.4); position:relative;}
+  mark.hidden::after{content:"？"; color:#8a8a8a; position:absolute; left:0; right:0; text-align:center;}
+  .qa li{margin:6px 0;}
+  footer{margin-top:34px; text-align:center; color:var(--muted); font-size:.8rem;}
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; margin:18px 0 4px;}
+  .btn{cursor:pointer; border:1px solid var(--accent); background:#fff; color:var(--accent);
+    border-radius:999px; padding:5px 14px; font-size:.82rem;}
+  .btn:hover{background:var(--accent); color:#fff;}
+  .src{background:#fbfbfc; border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin:12px 0;}
+  .src .u{color:#1f6feb; font-weight:600;} .src .a{color:#374151;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <h1>GitHub Actions CI/CD：ghcr、Runner 與 Docker 映像檔管理</h1>
+    <div class="pills">
+      <span class="pill">#github-actions</span><span class="pill">#ci-cd</span>
+      <span class="pill">#docker</span><span class="pill">#ghcr</span>
+      <span class="pill">#deployment</span><span class="pill">#面試</span>
+    </div>
+    <div class="meta">更新於 2026-07-12 · 來源：
+      <a href="https://gemini.google.com/app/6bc6044eac754f97" target="_blank">Gemini 對話</a>
+    </div>
+  </header>
+
+  <div class="hint">💡 這頁的<b>螢光筆重點可以點</b>：點一下把答案藏起來、再點一下顯示，方便自己考自己。下面按鈕可一次全部隱藏／顯示。</div>
+  <div class="toolbar">
+    <span class="btn" onclick="document.querySelectorAll('mark').forEach(m=>m.classList.add('hidden'))">🙈 全部隱藏</span>
+    <span class="btn" onclick="document.querySelectorAll('mark').forEach(m=>m.classList.remove('hidden'))">👁 全部顯示</span>
+  </div>
+
+  <div class="card">
+    <h2>重點整理</h2>
+
+    <h3>1. <code>shell: /usr/bin/bash -e {0}</code> 是「執行模板」不是命令</h3>
+    <p>常出現在 CI/CD 的 YAML、Makefile、VS Code <code>tasks.json</code>，告訴系統「用哪個 shell、加什麼選項、命令放哪」。</p>
+    <ul>
+      <li><code>shell:</code> — <mark class="b">標籤（key）</mark>，標明後面是 shell 路徑與參數，是設定檔語法。</li>
+      <li><code>/usr/bin/bash</code> — Bash 的<mark class="y">絕對路徑</mark>，避免依賴 <code>PATH</code>，行為一致。</li>
+      <li><code>-e</code> — <mark class="r">exit immediately（fail-fast）</mark>：任一命令失敗就立刻停止整個腳本。</li>
+      <li><code>{0}</code> — <mark class="p">預留位置</mark>，由父程式動態替換成實際命令。</li>
+    </ul>
+
+    <h3>2. <code>/usr/</code> 不是 user，是 Unix System Resources</h3>
+    <p><mark class="r">最常見誤解：<code>/usr/</code> 不是 user 的縮寫</mark>，而是 Unix System Resources。</p>
+    <table><thead><tr><th>目錄</th><th>意義</th><th>對應 Windows</th></tr></thead>
+    <tbody>
+      <tr><td><code>/usr</code></td><td>所有使用者共用的程式、函式庫</td><td><code>Program Files</code> + <code>System32</code></td></tr>
+      <tr><td><code>/home/&lt;user&gt;</code></td><td>你個人的家目錄</td><td><code>C:\Users\Abby</code></td></tr>
+    </tbody></table>
+
+    <h3>3. ghcr.io 與 OCI</h3>
+    <ul>
+      <li><mark class="b">ghcr.io</mark>：GitHub Container Registry，作用等同 Docker Hub，但與 Repo/Actions 緊密整合。</li>
+      <li><mark class="b">OCI（Open Container Initiative）</mark>：Docker/Google/Red Hat/AWS 共同制定的容器<b>標準</b>，含 Image Spec 與 Runtime Spec。</li>
+    </ul>
+
+    <h3>4. 陷阱：映像檔名稱必須全小寫</h3>
+    <pre><code>invalid reference format: repository name (Abbychickenfillet-github/...) must be lowercase</code></pre>
+    <p><mark class="r">這是 OCI Image Spec 的硬性規定</mark>：registry 路徑不允許大寫。問題來源是 GitHub 使用者名稱含大寫 <code>A</code>。</p>
+
+    <h3>5. <code>github.repository</code> ≠ <code>github.repository_owner</code></h3>
+    <table><thead><tr><th>變數</th><th>內容</th><th>範例</th></tr></thead>
+    <tbody>
+      <tr><td><code>github.repository_owner</code></td><td>只有擁有者</td><td>Abbychickenfillet-github</td></tr>
+      <tr><td><code>github.repository</code></td><td>擁有者/儲存庫全名</td><td>Abbychickenfillet-github/next-one-time-tracker</td></tr>
+    </tbody></table>
+    <p><mark class="y">兩者都可能含大寫，用在 ghcr 路徑前都要轉小寫。</mark></p>
+
+    <h3>6. 正解：用 <code>$GITHUB_ENV</code> 動態轉小寫，別改帳號</h3>
+    <pre><code class="language-yaml"># 【新增步驟】把 repository 名稱轉小寫，存進環境變數
+- name: Set repository name to lowercase
+  run: echo "REPO_LC=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" &gt;&gt; $GITHUB_ENV
+
+- name: Push to GitHub Container Registry
+  run: |
+    docker tag next-one-app ghcr.io/${{ env.REPO_LC }}/next-one-app:latest
+    docker push ghcr.io/${{ env.REPO_LC }}/next-one-app:latest</code></pre>
+    <ul>
+      <li><mark class="r"><code>name:</code> 和 <code>run:</code> 屬於同一個 step</mark>，別在 <code>run:</code> 前多加 <code>-</code>（會拆成兩步、語法錯）。</li>
+      <li><code>&gt;&gt; $GITHUB_ENV</code>：把 <code>KEY=value</code> 附加進特殊檔案，後續 step 用 <code>${{ env.KEY }}</code> 讀。</li>
+      <li><mark class="g">不需要</mark>去網頁 Settings 手動設變數；<code>run</code> 這行就是「動態產生」。</li>
+      <li><mark class="pu">不影響 Zeabur</mark>：<code>REPO_LC</code> 只活在臨時 runner，Job 結束就銷毀。</li>
+      <li><mark class="r">千萬別改 GitHub 使用者名稱</mark>：remote、ghcr 路徑、連結、依賴全失效。</li>
+    </ul>
+
+    <h3>7. <code>runs-on: ubuntu-latest</code>：雲端 runner，不是你的電腦</h3>
+    <p><mark class="y">跟你本機用 Windows 還是 Mac 無關</mark>——這是 GitHub 配的臨時虛擬機，Job 結束自動銷毀。偏好 Linux 因為：</p>
+    <ul>
+      <li><mark class="g">與生產環境一致</mark>（Docker base image、部署目標都是 Linux）。</li>
+      <li><mark class="p">成本低</mark>：免費額度中 macOS runner 分鐘數消耗是 Linux 的 <b>10 倍</b>。</li>
+      <li>速度快、工具相容。只有 build iOS/Windows 桌面程式才換 runner。</li>
+    </ul>
+
+    <h3>8. 映像檔容量爆炸（Image Accumulation）</h3>
+    <ul>
+      <li><b>策略一 少推冗餘 tag</b>：<code>latest</code> 被覆蓋後舊的變成 <mark class="b">dangling / untagged 映像檔</mark>，容量還在；<code>${{ github.sha }}</code> 永久唯一每次多一版。</li>
+      <li><b>策略二 遠端自動清理</b>：GHCR Package settings → Lifecycle rules，刪 untagged 或只留最近 N 版。</li>
+      <li><b>策略三 Multi-stage Build</b>：Next.js <code>output:'standalone'</code> 把體積從 ~1GB 縮到 ~150MB。</li>
+    </ul>
+    <pre><code class="language-dockerfile">FROM node:18-alpine AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build          # next.config.js 需設 output: 'standalone'
+
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV production
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+EXPOSE 3000
+CMD ["node", "server.js"]</code></pre>
+    <p>本機清理：<code>docker system prune -a --volumes</code>。</p>
+
+    <h3>快問快答（自我測驗）</h3>
+    <ul class="qa">
+      <li><code>-e</code> 的作用？ → <mark class="g">任一命令失敗就立刻停止（fail-fast）。</mark></li>
+      <li><code>/usr/</code> 是什麼縮寫？ → <mark class="g">Unix System Resources，不是 user。</mark></li>
+      <li>為什麼映像檔名稱錯誤？ → <mark class="g">OCI 規定必須全小寫，帳號含大寫 A。</mark></li>
+      <li>怎麼修最好？ → <mark class="g">用 tr 轉小寫寫入 $GITHUB_ENV，別改帳號名。</mark></li>
+      <li><code>latest</code> 被覆蓋後舊的去哪？ → <mark class="g">變 untagged/dangling，容量還在。</mark></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>各對話來源</h2>
+    <p style="font-size:.85rem;color:var(--muted)">Bash 命令模板與選項解析（2026-07）— <a href="https://gemini.google.com/app/6bc6044eac754f97" target="_blank">連結</a></p>
+    <div class="src"><span class="u">使用者：</span><span class="a"> <code>shell: /usr/bin/bash -e {0}</code> 這是什麼意思？</span></div>
+    <div class="src"><span class="u">使用者：</span><span class="a"> （貼上 GitHub Actions 錯誤）repository name must be lowercase？</span></div>
+    <div class="src"><span class="u">使用者：</span><span class="a"> ghcr 是啥？我沒有 github.repository_owner，會等於 github.repository 嗎？</span></div>
+    <div class="src"><span class="u">使用者：</span><span class="a"> 我又不是 Ubuntu，為什麼要在 ubuntu-latest 上跑？</span></div>
+    <div class="src"><span class="u">使用者：</span><span class="a"> /usr 跟 user 有關係嗎？OCI 是什麼縮寫？轉小寫會影響 Zeabur 嗎？改帳號名會怎樣？env.REPO_LC 要設環境變數嗎？</span></div>
+    <div class="src"><span class="u">使用者：</span><span class="a"> 每次 push 都新 image，容量爆炸，我才清掉 23.8GB！</span></div>
+    <div class="src"><span class="a" style="color:#6b7280">Gemini 回覆已整合進上方「重點整理」。</span></div>
+  </div>
+
+  <footer>由 Gemini 對話自動整理 · 更新於 2026-07-12</footer>
+</div>
+<script>
+  document.querySelectorAll('mark').forEach(m=>{
+    m.addEventListener('click',()=>m.classList.toggle('hidden'));
+  });
+  try{ if(window.hljs) hljs.highlightAll(); }catch(e){}
+</script>
+</body>
+</html>
