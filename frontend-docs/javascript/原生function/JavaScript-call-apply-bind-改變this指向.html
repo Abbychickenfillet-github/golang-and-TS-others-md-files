@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript call / apply / bind（改變 this 指向）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:30px;line-height:1.3;margin:.2em 0;}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:22px;margin:1.6em 0 .6em;
+ border-left:5px solid var(--accent);padding-left:12px;}
+h3{font-size:17px;margin:1.3em 0 .4em;color:#3a3a3a;}
+.meta{color:var(--muted);font-size:13px;margin-top:8px;}
+.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
+ padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+.src{display:block;font-size:12px;color:#2563eb;word-break:break-all;margin-top:3px;}
+.toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
+ border-bottom:1px solid var(--line);margin-bottom:10px;}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
+ padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
+.btn:hover{background:#f1eefe;}
+mark.hl{padding:1px 3px;border-radius:4px;}
+mark.tog{cursor:pointer;transition:.15s;}
+mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
+ user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;
+ line-height:1.55;}
+code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
+:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
+th{background:#f3f1fb;}
+tr:nth-child(even) td{background:#faf9fd;}
+blockquote{border-left:4px solid #ffd27d;background:#fff8ec;margin:1em 0;padding:8px 14px;
+ border-radius:0 8px 8px 0;color:#7a5a1e;}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);}
+footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
+ border-top:1px solid var(--line);padding-top:16px;}
+.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;
+ padding:7px 12px;margin:6px 0 14px;}
+</style></head>
+<body><div class="wrap">
+<header class="note">
+<h1>JavaScript call / apply / bind（改變 this 指向）</h1>
+<div><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#this</span><span class="pill">#call</span><span class="pill">#apply</span><span class="pill">#bind</span><span class="pill">#面試</span></div>
+<div class="meta">更新於 2026-07-12 · 來源:</div>
+<a class="src" href="https://gemini.google.com/app/f42284f776f921bb" target="_blank" rel="noopener">https://gemini.google.com/app/f42284f776f921bb</a>
+<a class="src" href="https://gemini.google.com/app/915c5a52efbf1ac0" target="_blank" rel="noopener">https://gemini.google.com/app/915c5a52efbf1ac0</a>
+</header>
+<div class="toolbar">
+<span class="btn" id="hideAll">🙈 全部隱藏重點</span>
+<span class="btn" id="showAll">👁️ 全部顯示</span>
+</div>
+<div class="hint">💡 點一下任何螢光標記可單獨遮住/顯示答案，方便自己考自己。</div>
+<div class="content">
+<h1>JavaScript call / apply / bind（改變 this 指向）</h1>
+<h2>this 綁定規則：預設綁定 vs 隱性綁定（回呼陷阱）</h2>
+<blockquote>先懂 <code>this</code> 的基本規則：<mark class="hl tog" style="background:#FFF3A3;"><code>this</code> 的值看「函式怎麼被呼叫」，不是看它寫在哪裡</mark>。</blockquote>
+<pre><code class="language-javascript">setTimeout(function () {
+  console.log("我是被偷偷拿出來執行的函式");
+  // 這裡的 this 是誰？
+}, 1000);</code></pre>
+<p>「匿名函式」＝ <code>function () { ... }</code> 整段沒有名字的函式；「它是獨立被呼叫的」的<mark class="hl tog" style="background:#ADCCFF;">「它」＝這個匿名函式</mark>（精確說是它執行時的 call-site 與 <code>this</code> 綁定）。</p>
+<table>
+<thead><tr><th>呼叫方式</th><th>寫法</th><th>內部 <code>this</code></th></tr></thead>
+<tbody>
+<tr><td><mark class="hl tog" style="background:#ADCCFF;">隱性綁定</mark></td><td><code>obj.myMethod()</code></td><td>指向 <code>obj</code></td></tr>
+<tr><td><mark class="hl tog" style="background:#FF5582;">預設綁定</mark></td><td><code>func()</code>（獨立呼叫）</td><td>非嚴格模式指向<mark class="hl tog" style="background:#FF5582;"><code>window</code></mark>；嚴格模式 <code>undefined</code></td></tr>
+</tbody>
+</table>
+<p><mark class="hl tog" style="background:#FFB8EB;">回呼陷阱</mark>：時間到時瀏覽器把匿名函式獨立拉出執行（等同 <code>anonymousFunc()</code>），前面沒有物件點它，<code>this</code> <mark class="hl tog" style="background:#FF5582;">脫鉤指向 <code>window</code></mark>，而非外層物件。解法：用<mark class="hl tog" style="background:#BBFABB;">箭頭函式</mark>（this 繼承外層）或 <code>bind</code> 顯性綁定。</p>
+<h2>重點整理</h2>
+<p><code>call</code>、<code>apply</code>、<code>bind</code> 都是用來<mark class="hl tog" style="background:#FFF3A3;">改變函式執行時 <code>this</code> 指向</mark>的方法，讓你靈活控制函式的上下文（context）。</p>
+<h3>1. call() — 立即執行，參數逐一傳入</h3>
+<p><mark class="hl tog" style="background:#BBFABB;">立即執行函式</mark>並手動指定 <code>this</code>，參數以<mark class="hl tog" style="background:#ADCCFF;">逗號分隔依序傳入</mark>。適合需要立即調用且參數數量明確時。</p>
+<pre><code class="language-javascript">const person = { name: 'Alice' };
+function greet(greeting, punctuation) {
+  console.log(`${greeting}, ${this.name}${punctuation}`);
+}
+greet.call(person, 'Hello', '!'); // Hello, Alice!
+</code></pre>
+<h3>2. apply() — 立即執行，參數用陣列</h3>
+<p>功能與 <code>call</code> 完全相同（立即執行 + 綁定 <code>this</code>），<mark class="hl tog" style="background:#FF5582;">唯一差別：參數以「陣列」傳入</mark>。當參數本來就在陣列中、或參數數量不固定時更方便。</p>
+<pre><code class="language-javascript">const person = { name: 'Bob' };
+function introduce(job, hobby) {
+  console.log(`${this.name} is a ${job} and likes ${hobby}.`);
+}
+const args = ['Engineer', 'coding'];
+introduce.apply(person, args); // Bob is a Engineer and likes coding.
+</code></pre>
+<h3>3. bind() — 不執行，回傳綁定後的新函式</h3>
+<p>與前兩者不同：<mark class="hl tog" style="background:#FF5582;"><code>bind</code> 不會立即執行</mark>，而是回傳一個<mark class="hl tog" style="background:#BBFABB;">把 <code>this</code> 永久綁定</mark>到指定物件的新函式。適合事件監聽或需要延遲執行的場景。</p>
+<pre><code class="language-javascript">const user = { name: 'Charlie' };
+function showName() { console.log(this.name); }
+const boundFunc = showName.bind(user);
+boundFunc(); // Charlie
+</code></pre>
+<h3>總結比較表</h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>是否立即執行</th>
+<th>參數傳遞方式</th>
+<th>主要用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>call</code></td>
+<td><mark class="hl tog" style="background:#BBFABB;">是</mark></td>
+<td>逐一傳入（參數清單）</td>
+<td>借用方法、立即改變上下文</td>
+</tr>
+<tr>
+<td><code>apply</code></td>
+<td><mark class="hl tog" style="background:#BBFABB;">是</mark></td>
+<td><mark class="hl tog" style="background:#ADCCFF;">陣列傳入</mark></td>
+<td>處理陣列參數、數學運算（如 <code>Math.max</code>）</td>
+</tr>
+<tr>
+<td><code>bind</code></td>
+<td><mark class="hl tog" style="background:#FF5582;">否</mark></td>
+<td>逐一傳入</td>
+<td>建立新的回呼函式、預設參數</td>
+</tr>
+</tbody>
+</table>
+<h3>快問快答（自我測驗）</h3>
+<ul>
+<li>call 可以延遲執行嗎？ → <mark class="hl tog" style="background:#FF5582;">不行，它會直接調用函式。</mark></li>
+<li>什麼時候最適合用 apply？ → <mark class="hl tog" style="background:#BBFABB;">當參數已在陣列中，或要用 <code>Math.max</code> 等需要多個參數的內建函式時。</mark></li>
+<li>bind 綁定後的函式 this 還能再變嗎？ → <mark class="hl tog" style="background:#FF5582;">不能，bind 建立的是強連結（永久綁定）。</mark></li>
+</ul>
+<h2>各對話來源</h2>
+<h3>JavaScript Call Apply Bind 詳解（2026-06）— https://gemini.google.com/app/f42284f776f921bb</h3>
+<p><strong>使用者：</strong> 各三段解釋 call bind apply，概念三句並每一個用一段程式碼帶出來</p>
+<p><strong>Gemini：</strong> （分別解說 call（立即執行、逗號參數）、apply（立即執行、陣列參數）、bind（回傳綁定新函式、不執行），各附程式碼範例、總結比較表與投影片式快問快答。內容已整合進上方「重點整理」。結尾詢問是否想深入應用場景或與箭頭函式的差異。）</p>
+<h3>JavaScript 匿名函式與 this 綁定（2026-07）— https://gemini.google.com/app/915c5a52efbf1ac0</h3>
+<p><strong>使用者：</strong> 幫我把匿名函式標出來，還有「它是獨立被呼叫的」的「它」是誰？</p>
+<p><strong>Gemini：</strong> 以 <code>setTimeout</code> 匿名回呼為例：匿名函式＝ <code>function(){...}</code>；「它」＝該匿名函式。<code>this</code> 看呼叫方式：<code>obj.method()</code> 隱性綁定、獨立呼叫 <code>func()</code> 預設綁定（非嚴格模式指向 window）。已整合進上方「this 綁定規則」。</p>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-12</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try{document.querySelectorAll('pre code').forEach(b=>{if(window.hljs)hljs.highlightElement(b);});}catch(e){}
+document.querySelectorAll('mark.tog').forEach(m=>m.addEventListener('click',()=>m.classList.toggle('hidden')));
+var ha=document.getElementById('hideAll'),sa=document.getElementById('showAll');
+ha.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.add('hidden'));
+sa.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.remove('hidden'));
+</script>
+</body></html>

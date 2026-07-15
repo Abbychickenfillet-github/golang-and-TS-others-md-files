@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript 閉包 Closure（私有變數、傳址陷阱、C++ 對比）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>JavaScript 閉包 Closure（私有變數、傳址陷阱、C++ 對比）</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#closure</span><span class="pill">#閉包</span><span class="pill">#作用域</span><span class="pill">#記憶體</span><span class="pill">#面試</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/82167bcb1c15c00c" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/86e4b6c70330327f" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/296e1a879bb61062" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/d54c36b18b457e25" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><h2>重點整理</h2>
+<p>一句話定義：<mark style="background: #FFF3A3A6;">閉包是一個內層函式，能「記憶」並存取外層函式的範疇（Scope），即使外層函式已經執行完畢、從 Call Stack 離開了。</mark> 在 JS 中閉包<mark style="background: #ADCCFFA6;">不是要特別開啟的功能</mark>，而是伴隨函式建立而自然誕生的底層機制。</p>
+<p>兩大基石：</p>
+<ul>
+<li><mark style="background: #ADCCFFA6;">詞法範疇 Lexical Scope</mark>：變數的存取權限在<mark style="background: #FFF3A3A6;">「程式碼被寫下來的那一刻（宣告位置）」</mark>就決定了，而不是函式被執行的那一刻。</li>
+<li><mark style="background: #ADCCFFA6;">垃圾回收 GC</mark>：一般函式執行完，局部變數會被釋放；但若該變數<mark style="background: #FFF3A3A6;">還被內層函式引用</mark>，瀏覽器就不敢釋放，會繼續留在記憶體（Heap）中。</li>
+</ul>
+<h3>應用：用閉包做私有變數</h3>
+<pre><code class="language-javascript">function createCounter() {
+  let count = 0; // 鎖在 createCounter 範疇內，外部摸不到
+  return {
+    increment: function() { count++; console.log(count); },
+    decrement: function() { count--; console.log(count); }
+  };
+}
+const counter = createCounter();
+counter.increment(); // 1
+counter.increment(); // 2
+// console.log(count); // ReferenceError: count is not defined
+</code></pre>
+<p><code>createCounter()</code> 執行完回傳物件後，因為回傳的方法仍引用 <code>count</code>，所以 <code>count</code> <mark style="background: #BBFABBA6;">活在閉包裡，成為這些方法的專屬私有變數</mark>。</p>
+<h3>經典面試題：var 迴圈 + setTimeout</h3>
+<pre><code class="language-javascript">for (var i = 1; i &lt;= 3; i++) {
+  setTimeout(() =&gt; { console.log(i); }, 1000);
+}
+</code></pre>
+<p>直覺以為 1,2,3；<mark style="background: #FF5582A6;">實際是 4, 4, 4</mark>。<br />
+因為 <code>var</code> 是<mark style="background: #FFF3A3A6;">函式作用域</mark>，迴圈裡沒有函式包裹時它幾乎等同全域變數；1 秒後回呼執行時迴圈早跑完，全域 <code>i</code> 已累加到 4，三個閉包指向同一個 <code>i</code>。<br />
+修正：把 <code>var</code> 改成 <mark style="background: #BBFABBA6;"><code>let</code>（區塊作用域）</mark>，每次迭代建立獨立範疇，三個閉包各自鎖定 1, 2, 3。</p>
+<h3>魔王題：閉包「漏水」（傳值 vs 傳址）</h3>
+<pre><code class="language-javascript">function createWallet(initialAmount) {
+  let money = initialAmount;
+  let history = [];
+  return {
+    checkBalance: () =&gt; money,
+    getHistory: () =&gt; history,         // 直接回傳陣列參照！
+    spend: (amount) =&gt; { if (amount &lt;= money) { money -= amount; history.push(`Spent ${amount}`); } }
+  };
+}
+const myWallet = createWallet(100);
+const record = myWallet.getHistory();  // record 與閉包內 history 指向同一陣列
+myWallet.spend(30);                     // money 70, history=['Spent 30']
+record.push('Found 100 on the street');// 直接竄改了閉包內部私有狀態！
+myWallet.spend(20);                     // money 50
+myWallet.checkBalance(); // 50
+myWallet.getHistory();   // ['Spent 30','Found 100 on the street','Spent 20']
+</code></pre>
+<p>核心反思：<mark style="background: #FF5582A6;">用閉包做私有變數時，若直接回傳物件或陣列，私有性就破功了</mark>——外部拿到參照就能繞過你的方法任意改內部資料。<br />
+正解：回傳時<mark style="background: #BBFABBA6;">切斷參照，回傳複本</mark>，例如 <code>getHistory: () =&gt; [...history]</code>（展開運算子產生新陣列）。</p>
+<h3>觀念釐清（是非題）</h3>
+<ul>
+<li><code>return money</code> 會不會讓 money 變成全域變數？ <mark style="background: #FF5582A6;">不會。</mark> money 既不在全域、也沒「回到」函式內部，而是被封裝在專屬 <code>myWallet</code> 的閉包環境裡。<code>return</code> 只是把值<mark style="background: #FFF3A3A6;">複印一份</mark>送給外面的變數，口袋裡的本體不會穿透到外面。</li>
+<li><code>money</code> 是 <code>checkBalance</code> 的區域變數嗎？ <mark style="background: #FF5582A6;">不是。</mark> <code>money</code> 是 <mark style="background: #ADCCFFA6;"><code>createWallet</code> 函式的區域變數</mark>，<code>checkBalance</code> 是<mark style="background: #FFF3A3A6;">透過閉包</mark>才能存取到外層 <code>createWallet</code> 裡的 <code>money</code>。（注意：判斷一個變數屬於誰，看的是它<mark style="background: #FFF3A3A6;">宣告在哪個函式</mark>，而不是被哪個函式用到。）</li>
+<li><code>myWallet</code> 是「函式物件變數」嗎？ <mark style="background: #FF5582A6;">不是。</mark> <code>createWallet</code> 本身才是<mark style="background: #ADCCFFA6;">函式物件（可被呼叫）</mark>；<code>myWallet</code> 是 <code>createWallet(100)</code> 回傳的<mark style="background: #ADCCFFA6;">普通物件（Plain Object）</mark>，<code>myWallet()</code> 會噴 <code>TypeError: myWallet is not a function</code>。物件裡的 <code>spend</code>、<code>checkBalance</code> 因綁在物件上，正名是<mark style="background: #ADCCFFA6;">方法（Method）</mark>。</li>
+</ul>
+<h3>C++ 也有閉包嗎？（對比）</h3>
+<p>有，C++11 起用 <mark style="background: #ADCCFFA6;">Lambda 表達式</mark>引入：<code>[捕捉列表](參數) { 函式本體 }</code>。最大差別：JS 閉包自動發生且靠 GC 保命；C++ 沒有 GC，<mark style="background: #FFF3A3A6;">必須明確寫出要捕捉哪些變數</mark>。</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>JavaScript 閉包</th>
+<th>C++ Lambda</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>觸發方式</td>
+<td>自動（內層引用外層即觸發）</td>
+<td>必須明寫在捕捉列表 <code>[...]</code></td>
+</tr>
+<tr>
+<td>記憶體管理</td>
+<td>靠 GC 自動保留</td>
+<td>開發者手動管理，注意 Stack 存活期</td>
+</tr>
+<tr>
+<td>底層實現</td>
+<td>範疇鏈 + 環境物件</td>
+<td>編譯器產生的匿名仿函式（Functor）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><mark style="background: #BBFABBA6;">傳值捕捉 <code>[count]</code></mark>：建立當下複製數值進閉包，外層銷毀也安全。</li>
+<li>引用捕捉 <code>[&amp;money]</code>：像 JS 一樣能改外部變數，但<mark style="background: #FF5582A6;">回傳引用捕捉的 Stack 變數會造成懸空引用（Dangling Reference），觸發未定義行為甚至 Crash</mark>。</li>
+</ul>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>JavaScript 事件循環核心觀念複習（2026-06-30）— https://gemini.google.com/app/82167bcb1c15c00c</h3>
+<p>（此對話自 Event Loop 後延伸到閉包，以下為閉包段落原文節錄）</p>
+<p>使用者：再一個 ／ 再出一題閉包概念題 ／ C++語言也有閉包嗎 ／ Return money會return到createWallet裡面最多吧？他不會變成全域變數對吧！／ CreateWallet 是放在 myWallet 這樣算一個函式物件變數嗎</p>
+<p>Gemini：（節錄）閉包＝內層函式能記憶並存取外層範疇，即使外層已執行完畢。兩大基石為詞法範疇與垃圾回收。可用閉包做私有變數（createCounter 範例）。經典題 <code>for(var i...)+setTimeout</code> 會輸出 4,4,4，改 <code>let</code> 修正。魔王題 createWallet 因 getHistory 直接回傳陣列參照，外部 record.push 會污染內部 history，正解是回傳 <code>[...history]</code> 切斷參照。<code>return money</code> 不會變全域，只是複印值送出。<code>myWallet</code> 是普通物件、不是函式物件；createWallet 才是函式物件，物件內的是方法。C++ 用 Lambda 實現閉包，需明確捕捉（傳值 <code>[count]</code> 安全、引用 <code>[&amp;money]</code> 注意懸空引用）。</p>
+<h3>JavaScript 閉包與傳址解析（2026-06-30）— https://gemini.google.com/app/86e4b6c70330327f</h3>
+<p>（Abby 以語音輸入逐步追問同一個 createWallet 範例，原文有語音辨識雜訊，以下為重點問答整理）</p>
+<p>使用者：money 是屬於 checkBalance 的區域變數嗎？可以這樣講嗎？但是它沒有 let。</p>
+<p>Gemini：不是喔。<code>money</code> 其實是 <code>createWallet</code> 函式的區域變數，而不是 <code>checkBalance</code> 的。透過閉包，<code>checkBalance</code> 才能存取 <code>createWallet</code> 裡面的 <code>money</code> 變數。</p>
+<p>使用者：（確認執行流程）100 傳入 → spend(30) 餘額 70、history 加入 "Spent 30" → record.push 直接污染內部 history 加入 "Found 100 on the street" → spend(20) 餘額變 50。所以 checkBalance() = 50，history 含全部三筆。</p>
+<p>Gemini：是的，最後餘額 50，history 包含全部三個事件。判斷變數歸屬看的是「宣告在哪個函式」，而非被誰使用。</p>
+<h3>重複複習對話（2026-07-02）— https://gemini.google.com/app/296e1a879bb61062 、 https://gemini.google.com/app/d54c36b18b457e25</h3>
+<p>（這兩筆與 82167bcb1c15c00c 為同一套「Event Loop → 閉包 → C++ 閉包 → 皮夾傳址 → 函式物件 vs 方法」複習流程的重複對話，閉包段落內容與上方完全一致，此處僅保留來源連結備查。）</p></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-02</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>

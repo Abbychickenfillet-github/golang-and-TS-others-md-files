@@ -8,7 +8,7 @@ sources:
 updated: 2026-06-20
 ---
 
-# JS 作用域 Scope（Global / Function / Block）必考重點
+# JS 作用域 Scope（Global / Function / Block）必考重點 額外補充Lexical Scope
 
 > 作用域決定變數「在哪裡可以被訪問，在哪裡會被關在門外」，是面試與實戰超高頻考點。
 
@@ -19,7 +19,7 @@ updated: 2026-06-20
 **1. Global Scope（全域作用域）** — 宣告在所有函式或區塊 `{}` 之外，任何地方都能存取。
 <mark style="background: #FF5582A6;">必考陷阱：</mark>瀏覽器環境下，`var` 宣告的全域變數會變成 `window` 的屬性（`var a=1` 等於 `window.a`）；<mark style="background: #FFF3A3A6;">但 `let`／`const` 的全域變數不會掛到 `window`</mark>。過多全域變數會造成「全域命名空間汙染」。
 
-**2. Local / Function Scope（區域 / 函式作用域）** — 宣告在函式內部，只能在該函式內存取。`var`、`let`、`const` 在函式內都被限制在此。
+**2. Local / Function Scope（區域 / 函式作用域）** — 宣告在函式內部，只能在該函式記憶體取。`var`、`let`、`const` 在函式內都被限制在此。
 
 **3. Block Scope（區塊作用域）** — 宣告在任何一對 `{}`（如 `if`、`for`、`while`）內。<mark style="background: #ADCCFFA6;">只有 `let` 與 `const` 支援 Block Scope；`var` 完全不支援</mark>（var 會無視大括號跑到外面）。
 

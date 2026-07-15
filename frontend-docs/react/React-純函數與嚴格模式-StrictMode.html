@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>React 純函數與嚴格模式 (StrictMode)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+  :root{
+    --bg:#faf9f7; --card:#ffffff; --ink:#2b2b2b; --muted:#6b6b6b;
+    --line:#e7e3dc; --accent:#4a6fa5; --accent-soft:#eaf0f8;
+    --code-bg:#282c34; --user:#f3ede2; --user-bar:#c9a24b; --gem-bar:#4a6fa5; --gem:#eef3fa;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    line-height:1.75;font-size:16.5px;}
+  .wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px;}
+  header.note-head{border-bottom:2px solid var(--line);padding-bottom:20px;margin-bottom:8px;}
+  h1.note-title{font-family:Georgia,"Noto Serif TC",serif;font-size:30px;line-height:1.3;margin:0 0 14px;}
+  .pills{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+  .pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e0f0;
+    border-radius:999px;padding:3px 12px;font-size:12.5px;font-weight:600;}
+  .meta{color:var(--muted);font-size:13.5px;margin-top:8px;}
+  .meta a{color:var(--accent);text-decoration:none;word-break:break-all;}
+  .meta a:hover{text-decoration:underline;}
+  .toolbar{position:sticky;top:0;z-index:5;background:var(--bg);
+    padding:10px 0;margin:6px 0 18px;border-bottom:1px dashed var(--line);}
+  .toolbar button{cursor:pointer;border:1px solid var(--line);background:var(--card);
+    color:var(--ink);border-radius:8px;padding:7px 14px;font-size:13.5px;font-weight:600;}
+  .toolbar button:hover{background:var(--accent-soft);border-color:var(--accent);}
+  .toolbar .hint{color:var(--muted);font-size:12.5px;margin-left:8px;}
+  section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:22px 24px;margin:18px 0;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+  section.card h2{font-size:21px;margin:0 0 14px;padding-bottom:8px;border-bottom:2px solid var(--accent-soft);}
+  h3{font-size:17px;margin:20px 0 8px;}
+  p{margin:10px 0;}
+  ul,ol{padding-left:22px;} li{margin:5px 0;}
+  code{background:#f0ece4;padding:1.5px 5px;border-radius:4px;font-size:14px;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;}
+  pre{background:var(--code-bg);border-radius:10px;padding:14px 16px;overflow-x:auto;margin:12px 0;}
+  pre code{background:none;color:#e6e6e6;padding:0;font-size:13.5px;line-height:1.6;}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14.5px;}
+  th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top;}
+  th{background:var(--accent-soft);}
+  tbody tr:nth-child(even){background:#faf8f4;}
+  blockquote{border-left:4px solid var(--user-bar);background:#fbf7ee;margin:12px 0;
+    padding:8px 16px;border-radius:0 8px 8px 0;color:#5b5b5b;}
+  /* highlightr marks */
+  mark{padding:1px 3px;border-radius:3px;cursor:pointer;transition:all .15s;}
+  mark.y{background:#FFF3A3;} mark.r{background:#FF5582;} mark.g{background:#BBFABB;}
+  mark.b{background:#ADCCFF;} mark.p{background:#FFB8EB;} mark.v{background:#D2B3FF;}
+  mark.hidden{color:transparent;background:#d8d3c9;border-radius:3px;user-select:none;}
+  mark.hidden *{color:transparent!important;}
+  /* source turns */
+  .turn{margin:12px 0;padding:11px 15px;border-radius:0 10px 10px 0;}
+  .turn.user{background:var(--user);border-left:4px solid var(--user-bar);}
+  .turn.gem{background:var(--gem);border-left:4px solid var(--gem-bar);}
+  .turn .role{font-weight:700;font-size:13px;display:block;margin-bottom:4px;color:var(--muted);letter-spacing:.5px;}
+  .callout{border-left:4px solid var(--accent);background:var(--accent-soft);
+    padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;}
+  .callout.warn{border-left-color:#e0556f;background:#fdeef1;}
+  img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+  footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:40px;
+    padding-top:18px;border-top:1px solid var(--line);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="note-head">
+    <h1 class="note-title">React 純函數與嚴格模式 (StrictMode)</h1>
+    <div class="pills"><span class="pill">gemini</span><span class="pill">react</span><span class="pill">純函數</span><span class="pill">StrictMode</span><span class="pill">副作用</span></div>
+    <div class="meta">更新於 2026-07-01　·　來源：<a href="https://gemini.google.com/app/7513ffa1facd9680" target="_blank">React 純函數與嚴格模式</a></div>
+  </header>
+  <div class="toolbar">
+    <button id="toggleAll">🙈 隱藏所有重點（自我測驗）</button>
+    <span class="hint">點單一螢光筆可個別遮住 / 顯示答案</span>
+  </div>
+  <section class="card"><h2>重點整理</h2>
+<h3>純函數 (Pure Function) 是什麼</h3>
+<p><mark class="b">純函數</mark>指的是：<mark class="y">給定相同的輸入，就一定會產生相同的輸出，而且不能有任何副作用 (side effect)</mark>。</p>
+<h3>為什麼 React 要求 render 是純的</h3>
+<p>React 在渲染元件時，把元件當成一個「輸入 props/state → 輸出 UI」的純函數。<mark class="r">如果你在渲染（或計算狀態更新）的過程中去修改外部變數、或直接發 API 請求，這些都算「副作用」，很容易導致元件狀態不穩定、畫面對不上資料。</mark></p>
+<p><mark class="g">正解：副作用要放在對的地方 —— 例如 <code>useEffect</code>、事件處理函式 (event handler) 裡，而不是寫在 render 主體中。</mark></p>
+<h3>嚴格模式 (StrictMode) 的角色</h3>
+<p><mark class="b">StrictMode</mark> 是 React 用來幫你抓出這些潛在問題的開發工具。它會<mark class="y">故意「重複執行」一段程式碼（例如把 render／某些函式呼叫兩次）</mark>，藉此放大「不純」的行為 —— 如果你的 render 有副作用，跑兩次結果就會不一致，問題馬上現形。</p>
+<p><mark class="v">補充：StrictMode 的雙重呼叫只發生在開發模式 (development)，正式上線 (production) 不會重複執行，所以不用擔心效能。</mark></p>
+</section>
+<section class="card"><h2>各對話來源</h2>
+<h3>React 純函數與嚴格模式（2026-06）</h3>
+<div class="meta"><a href="https://gemini.google.com/app/7513ffa1facd9680" target="_blank">https://gemini.google.com/app/7513ffa1facd9680</a></div>
+<div class="turn user"><span class="role">使用者</span><p>再多幫我延伸一些觀念嗎？（承接畫面上的「純函數」概念）</p></div>
+<div class="turn gem"><span class="role">Gemini</span><p>好的，沒問題！純函數概念在 React 開發裡非常重要。簡單來說，純函數是指給定相同的輸入，就一定會產生相同的輸出，而且不能有任何副作用。</p>
+<p>在 React 裡，如果你在渲染元件或是執行狀態更新的時候去修改了外部變數，或是發起了 API 請求等，這些都稱為有副作用，很容易導致元件狀態不穩定。</p>
+<p>畫面中提到的嚴格模式，就是 React 用來幫你抓出這些潛在問題的工具，它可以強制重複執行一段程式碼，幫助你確保程式碼是純淨的。</p></div>
+</section>
+  <footer>由 Gemini 對話自動整理 · 更新於 2026-07-01</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohljs=1"></script>
+<script>
+  if(!window.__nohljs && window.hljs){document.querySelectorAll('pre code').forEach(el=>{try{hljs.highlightElement(el);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(m=>{
+    m.addEventListener('click',()=>m.classList.toggle('hidden'));
+  });
+  var allHidden=false;
+  document.getElementById('toggleAll').addEventListener('click',function(){
+    allHidden=!allHidden;
+    document.querySelectorAll('mark').forEach(m=>m.classList.toggle('hidden',allHidden));
+    this.textContent = allHidden ? '👁 顯示所有重點' : '🙈 隱藏所有重點（自我測驗）';
+  });
+</script>
+</body>
+</html>
