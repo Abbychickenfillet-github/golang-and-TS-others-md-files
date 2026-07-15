@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ModuleNotFoundError: tiktoken｜venv 排查</title>
+<style>
+  :root{
+    --bg:#0f1320; --card:#171c2e; --card2:#1d2236; --ink:#e7ebf5; --muted:#9aa4c0;
+    --accent:#7c8cff; --accent2:#43d6b5; --warn:#ffb454; --bad:#ff6b81; --good:#43d6a0;
+    --line:#2a3150; --code:#0b0e18;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0d1020,#11152a 60%,#0c1322);color:var(--ink);
+    font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.7;
+    padding:32px 18px 80px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:1.6rem;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:.95rem}
+  h2{font-size:1.2rem;margin:34px 0 12px;padding-left:12px;border-left:4px solid var(--accent)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:14px 0;
+    box-shadow:0 6px 22px rgba(0,0,0,.25)}
+  code,kbd{font-family:"Cascadia Code",Consolas,monospace}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;
+    font-size:.9rem;position:relative}
+  pre code{color:#cfe3ff}
+  .pill{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:8px;
+    padding:1px 8px;font-family:monospace;font-size:.85rem;color:var(--accent2)}
+  .tag{display:inline-block;font-size:.72rem;padding:2px 9px;border-radius:999px;border:1px solid var(--line);
+    color:var(--muted);margin-right:6px}
+  .copy{position:absolute;top:8px;right:8px;font-size:.72rem;background:var(--card2);border:1px solid var(--line);
+    color:var(--muted);border-radius:6px;padding:2px 8px;cursor:pointer}
+  .copy:hover{color:var(--ink);border-color:var(--accent)}
+  .ok{color:var(--good)} .no{color:var(--bad)} .w{color:var(--warn)}
+  .note{font-size:.85rem;color:var(--muted)}
+  /* flow */
+  .flow{display:flex;flex-direction:column;gap:8px}
+  .step{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;position:relative}
+  .step b{color:var(--accent2)}
+  .arrow{text-align:center;color:var(--muted);font-size:1.1rem}
+  /* quiz */
+  .blank{background:#222a47;border:1px dashed var(--accent);border-radius:6px;padding:1px 10px;color:transparent;
+    cursor:pointer;user-select:none;font-family:monospace;transition:.15s}
+  .blank.revealed{color:var(--accent2);border-style:solid;background:#1a2740}
+  .tf{display:flex;gap:10px;margin:8px 0}
+  .tf button{cursor:pointer;border:1px solid var(--line);background:var(--card2);color:var(--ink);
+    border-radius:8px;padding:6px 18px;font-size:.9rem}
+  .tf button:hover{border-color:var(--accent)}
+  .tf button.right{border-color:var(--good);background:#13301f;color:var(--good)}
+  .tf button.wrong{border-color:var(--bad);background:#321420;color:var(--bad)}
+  .tf-exp{display:none;color:var(--muted);font-size:.88rem;margin-top:4px}
+  .tf-exp.show{display:block}
+  .toggle-ans{cursor:pointer;color:var(--accent);font-size:.85rem;border:1px dashed var(--accent);
+    border-radius:8px;padding:4px 12px;display:inline-block;margin-top:6px;user-select:none}
+  .ans{display:none;background:var(--card2);border-radius:10px;padding:12px 16px;margin-top:8px;border:1px solid var(--line)}
+  .ans.show{display:block}
+  .rel a{color:var(--accent);text-decoration:none}
+  .rel li{margin:4px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>🐍 <code>ModuleNotFoundError: No module named 'tiktoken'</code></h1>
+  <p class="sub">Abby-notes RAG ｜ venv 沒啟動的經典症狀 ｜ 2026-06-21 ｜ Abby + Claude</p>
+
+  <div class="card">
+    <span class="tag">錯誤訊息</span>
+    <pre><code>PS C:\coding\futuresign\abby-notes-rag&gt; python scripts/ingest.py --dry-run
+...
+  File "src\chunker.py", line 7, in &lt;module&gt;
+    import tiktoken
+ModuleNotFoundError: No module named 'tiktoken'</code></pre>
+    <p><b class="ok">tiktoken 沒有不見!</b> 它好好地裝在專案 venv 裡:
+      <span class="pill">venv\Lib\site-packages\tiktoken</span>(version 0.8.0,寫在 <code>requirements.txt</code>)。</p>
+    <p><b class="w">真正原因:你那個 PowerShell 沒有啟動 venv。</b>看提示字元 —
+      <code>PS C:\...abby-notes-rag&gt;</code> 前面<u>沒有</u> <span class="pill">(venv)</span>,
+      代表 <code>python</code> 用到的是<b>系統的 Python</b>,而不是專案 venv 的 Python。系統 Python 當然沒裝 tiktoken。</p>
+  </div>
+
+  <h2>① 為什麼會這樣（觀念圖）</h2>
+  <div class="card">
+    <div class="flow">
+      <div class="step">你打 <b>python</b> → Windows 沿 PATH 找到<b>第一個</b> python.exe</div>
+      <div class="arrow">▼</div>
+      <div class="step">沒啟動 venv 時 → 命中<b>系統/全域 Python</b>(它的 site-packages 沒有 tiktoken)</div>
+      <div class="arrow">▼</div>
+      <div class="step">啟動 venv 後 → PATH 最前面換成 <b>venv\Scripts</b> → 命中 venv 的 python(有 tiktoken)<b class="ok"> ✓</b></div>
+    </div>
+    <p class="note">venv = 專案專屬的隔離 Python 環境。套件裝進 venv,只有「啟動該 venv」或「直接呼叫 venv 的 python.exe」時才看得到。</p>
+  </div>
+
+  <h2>② 解法（擇一）</h2>
+  <div class="card">
+    <p><b>方法 A：啟動 venv 再跑（建議,跟 README 一致）</b></p>
+    <pre><code>.\venv\Scripts\Activate.ps1
+# 成功後提示字元會變成:  (venv) PS C:\...abby-notes-rag&gt;
+python scripts\ingest.py --dry-run</code><button class="copy" onclick="cp(this)">複製</button></pre>
+
+    <p style="margin-top:14px"><b>方法 B：不啟動,直接用 venv 的 python（一次性）</b></p>
+    <pre><code>.\venv\Scripts\python.exe scripts\ingest.py --dry-run</code><button class="copy" onclick="cp(this)">複製</button></pre>
+
+    <p style="margin-top:14px"><b>確認你現在用的是哪個 python：</b></p>
+    <pre><code>python -c "import sys; print(sys.executable)"
+# 有啟動 venv 應印出 ...\abby-notes-rag\venv\Scripts\python.exe</code><button class="copy" onclick="cp(this)">複製</button></pre>
+  </div>
+
+  <h2>⚠️ 若 <code>Activate.ps1</code> 也報紅字</h2>
+  <div class="card">
+    <p>如果 <code>.\venv\Scripts\Activate.ps1</code> 跳出
+      <i>「因為這個系統上已停用指令碼執行」</i> — 那跟你的
+      <a class="rel" href="#" onclick="return false" style="color:var(--accent)">claude.ps1 跑不出來</a>
+      <b>是同一個根因:PowerShell 執行原則擋 .ps1</b>。同一帖藥:</p>
+    <pre><code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code><button class="copy" onclick="cp(this)">複製</button></pre>
+    <p class="note">按 <kbd>Y</kbd> 確認,重開終端機再 Activate。👉 詳見關聯筆記 [[claude-指令跑不出來-排查筆記]]。</p>
+  </div>
+
+  <h2>③ 萬一 venv 真的壞了 / 套件缺一堆</h2>
+  <div class="card">
+    <pre><code># 重新安裝相依(在已啟動的 venv 內)
+pip install -r requirements.txt
+
+# 或整個 venv 重建
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt</code><button class="copy" onclick="cp(this)">複製</button></pre>
+  </div>
+
+  <h2>④ 填空題（點灰框看答案）</h2>
+  <div class="card">
+    <p>1. 提示字元前面出現 <span class="blank" onclick="this.classList.toggle('revealed')">(venv)</span> 才代表虛擬環境已啟動。</p>
+    <p>2. PowerShell 啟動 venv 的指令:<span class="blank" onclick="this.classList.toggle('revealed')">.\venv\Scripts\Activate.ps1</span>。</p>
+    <p>3. 查目前 python 執行檔在哪:<span class="blank" onclick="this.classList.toggle('revealed')">python -c "import sys; print(sys.executable)"</span>。</p>
+    <p>4. 不啟動也能用 venv 跑腳本,直接呼叫 <span class="blank" onclick="this.classList.toggle('revealed')">.\venv\Scripts\python.exe</span>。</p>
+  </div>
+
+  <h2>⑤ 是非題</h2>
+  <div class="card">
+    <p>Q1. 出現 <code>ModuleNotFoundError: tiktoken</code> 一定是因為 tiktoken 沒裝,要重新 pip install。</p>
+    <div class="tf" data-ans="F" data-exp="不一定。本案它已裝在 venv,只是沒啟動 venv 用到系統 python。先確認用對 python 再說。">
+      <button onclick="tf(this,true)">是 (T)</button><button onclick="tf(this,false)">非 (F)</button>
+    </div>
+    <p class="tf-exp"></p>
+
+    <p>Q2. <code>Activate.ps1</code> 報「停用指令碼執行」與 claude.ps1 跑不出來是同一個 ExecutionPolicy 根因。</p>
+    <div class="tf" data-ans="T" data-exp="對。兩者都是 PowerShell 擋 .ps1,解法都是 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned。">
+      <button onclick="tf(this,true)">是 (T)</button><button onclick="tf(this,false)">非 (F)</button>
+    </div>
+    <p class="tf-exp"></p>
+  </div>
+
+  <h2>⑥ 申論題</h2>
+  <div class="card">
+    <p><b>Q：</b>用「PATH 搜尋順序」解釋:為什麼啟動 venv 前後,同一句 <code>python</code> 會跑到不同的直譯器、進而決定看不看得到 tiktoken?</p>
+    <span class="toggle-ans" onclick="toggleAns(this)">▸ 顯示參考答案</span>
+    <div class="ans">
+      <p>輸入 <code>python</code> 時,系統會依 PATH 由前往後找第一個 <code>python.exe</code> 並執行。沒啟動 venv 時,PATH 最前面是系統/全域 Python,於是用到它的 site-packages(沒有 tiktoken)。</p>
+      <p><code>Activate.ps1</code> 做的事,本質上是把 <code>venv\Scripts</code> <b>插到 PATH 最前面</b>(並設 <code>VIRTUAL_ENV</code> 等變數),於是同一句 <code>python</code> 改命中 venv 的直譯器,看到的是 venv 的 site-packages(有 tiktoken)。</p>
+      <p>所以「套件在哪個環境」+「現在 python 是哪個環境」要對得上;對不上就 ModuleNotFound。直接呼叫 <code>venv\Scripts\python.exe</code> 等於略過 PATH、強制指定直譯器,同樣能解。</p>
+    </div>
+  </div>
+
+  <h2>🔗 關聯筆記</h2>
+  <div class="card rel">
+    <ul>
+      <li>同源(ExecutionPolicy 擋 .ps1)→ <a>[[claude-指令跑不出來-排查筆記]]</a></li>
+      <li>RAG 系統設計 → <a>[[2026-05-07-rag-system-design]]</a></li>
+      <li>RAG 指令啟用步驟與地點 → <a>[[RAG指令啟用步驟與地點]]</a></li>
+      <li>查指令裝在哪 → <a>[[where-vs-get-command]]</a></li>
+    </ul>
+  </div>
+
+</div>
+<script>
+function tf(btn, choice){
+  const box = btn.parentElement, ans = box.dataset.ans==='T', exp = box.nextElementSibling;
+  box.querySelectorAll('button').forEach(b=>b.classList.remove('right','wrong'));
+  btn.classList.add(choice===ans?'right':'wrong');
+  exp.textContent = (choice===ans?'✔ 正確！ ':'✘ 再想想。 ') + box.dataset.exp;
+  exp.classList.add('show');
+}
+function toggleAns(el){
+  const a = el.nextElementSibling; a.classList.toggle('show');
+  el.textContent = a.classList.contains('show')?'▾ 收合參考答案':'▸ 顯示參考答案';
+}
+function cp(btn){
+  const code = btn.parentElement.querySelector('code').innerText;
+  navigator.clipboard && navigator.clipboard.writeText(code);
+  const t = btn.textContent; btn.textContent='已複製✓'; setTimeout(()=>btn.textContent=t,1200);
+}
+</script>
+</body>
+</html>
