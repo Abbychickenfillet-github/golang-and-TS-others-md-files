@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>docker-引擎-context-image-container-觀念</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;}
+.meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 3px;border-radius:3px;cursor:pointer;transition:color .12s,background .12s;}
+mark.quiz-hidden{color:transparent!important;background:#cbd2dc!important;border-radius:4px;box-shadow:inset 0 0 0 1px #aab3c0;user-select:none;}
+mark.quiz-hidden *{color:transparent!important;}
+.quiz-bar{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap;}
+.quiz-btn{cursor:pointer;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:.8rem;padding:5px 14px;border-radius:999px;}
+.quiz-btn:hover{background:var(--accent);color:#fff;}
+.quiz-hint{color:var(--muted);font-size:.76rem;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">docker-引擎-context-image-container-觀念</h1>
+  <div class="tags"></div>
+  <div class="meta"></div>
+  <div class="quiz-bar">
+    <button class="quiz-btn" id="quizToggle" type="button">🙈 隱藏全部重點（自我測驗）</button>
+    <span class="quiz-hint">點任一螢光筆可單獨顯示／隱藏答案</span>
+  </div>
+</header>
+<h1>Docker 基礎觀念:引擎 / context / image vs container / dockerd</h1>
+<blockquote>
+<p>起點:「我要怎麼啟動 abby-notes-rag 的 docker?」<br />
+一路追問追出來的完整概念鏈。把這篇看完,Docker 在 Windows 上到底怎麼運作就通了。</p>
+</blockquote>
+<hr />
+
+<section class="card"><h2>0. 先講結論:abby-notes-rag 怎麼啟動</h2>
+<p><code>docker-compose.yml</code> 裡只有<strong>一個服務</strong>:PostgreSQL(含 pgvector 向量擴充),給 RAG 存 embedding 用。</p>
+<p>在專案根目錄 <code>C:\coding\futuresign\abby-notes-rag</code>:</p>
+<pre><code class="language-powershell">docker compose up -d        # 背景啟動(-d = detached)
+docker compose ps           # 等 STATUS 出現 (healthy)
+docker compose logs -f postgres   # 需要時看 log
+docker compose down         # 停掉(資料保留在 ./data,不會刪) 為何要停掉既然不會刪  docker會佔記憶體200MB左右是MiB嗎？1024的倍數？為何這邊的指令都沒有--FLAG? 要先移除容器才能停到
+</code></pre>
+<p>重點:<br />
+- <strong>資料持久化</strong>:<code>volumes: ./data:/var/lib/postgresql/data</code>,<code>down</code> 不刪資料,下次 <code>up</code> 接續用。<br />
+- <strong>前提</strong>:Docker Desktop 要先開(工作列鯨魚圖示)。<code>docker version</code> 報錯 = Desktop 沒啟動。<br />
+- <strong><code>.env</code> 必須存在</strong>:compose 用 <code>${POSTGRES_USER}</code> 等變數,從 <code>.env</code> 讀。<br />
+- <strong>埠是 5433 不是 5432</strong>:對外 <code>5433</code>,容器內才 <code>5432</code>。連線用 <code>localhost:5433</code>。</p>
+<hr />
+</section>
+<section class="card"><h2>1. 「CLI 看得到、Docker Desktop 桌面卻空白」是怎麼回事?</h2>
+<h3>docker context(上下文)是什麼</h3>
+<p><code>docker</code> 指令本身只是一支<strong>遙控器</strong>。它不存放容器,只是<strong>連線去某台「Docker 引擎」下指令</strong>。<br />
+<code>context</code> = 「這支遙控器現在對準哪一台引擎」。</p>
+<p>一台 Windows 可能同時有多個引擎,各自開不同的「門」(named pipe):</p>
+<table>
+<thead>
+<tr>
+<th>context 名稱</th>
+<th>DOCKER ENDPOINT(那扇門)</th>
+<th>對應引擎</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>default</code></td>
+<td><code>npipe:////./pipe/docker_engine</code></td>
+<td>純 CLI / 自己裝的</td>
+</tr>
+<tr>
+<td><code>desktop-linux</code> ← 星號=目前用的</td>
+<td><code>npipe:////./pipe/dockerDesktopLinuxEngine</code></td>
+<td>Docker Desktop</td>
+</tr>
+</tbody>
+</table>
+<p><strong>「context 不一致」</strong>:CLI 對準 A 引擎,但 GUI 顯示 B 引擎 → CLI 看得到的容器 GUI 看不到。</p>
+<pre><code class="language-powershell">docker context ls       # 看有哪些 context、目前用哪個(星號)
+docker context show     # 只印目前這個
+</code></pre>
+<h3>但本案不是 context 問題</h3>
+<p>查出來 <code>desktop-linux *</code> 就是 Docker Desktop,CLI 跟 GUI <strong>同一台引擎</strong>。<br />
+所以桌面空白其實是 <strong>GUI 顯示問題</strong>,依序排查:</p>
+<ol>
+<li><strong>Containers 分頁上方搜尋框有殘留文字</strong> → 清空(最常見元兇)。</li>
+<li>看錯分頁 → 要點左側 <strong>Containers</strong>。</li>
+<li>GUI 沒刷新 → 切分頁再切回 / 重整。</li>
+<li>還是空的 → 工作列鯨魚右鍵 <strong>Quit Docker Desktop</strong> 再開(不會動到容器,引擎和 GUI 是分開的)。</li>
+</ol>
+<h3>不靠 GUI 自己驗證</h3>
+<pre><code class="language-powershell">docker ps                                    # 整台引擎所有「正在跑」的容器
+docker ps -a                                 # 含已停止的
+docker exec -it abby-rag-postgres pg_isready # 直接戳 postgres
+</code></pre>
+<hr />
+</section>
+<section class="card"><h2>2. 「為什麼只在 RAG 資料夾看到那個容器?」</h2>
+<p>關鍵:<strong>容器掛在「引擎」上,不是掛在「資料夾」上。</strong> 差別在你用哪個指令:</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>範圍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docker compose ps</code></td>
+<td><strong>只看當前資料夾的 compose 專案</strong> → 在 RAG 資料夾就只看到 <code>abby-rag-postgres</code></td>
+</tr>
+<tr>
+<td><code>docker ps</code></td>
+<td><strong>整台引擎全部容器</strong> → 會看到 redis-local 等其他專案的</td>
+</tr>
+</tbody>
+</table>
+<p>你在哪個資料夾下指令,不影響容器在不在,只影響 <code>docker compose</code> 這類指令「願意顯示哪些」。</p>
+<hr />
+</section>
+<section class="card"><h2>3. IMAGE vs CONTAINER vs 專案分組(三層不同東西)</h2>
+<p><code>docker ps</code> 看到:<code>abby-rag-postgres</code> / image <code>pgvector/pgvector:pg17</code> / 埠 <code>5433</code> —— 跟 <code>docker-compose.yml</code> 完全對得上,<strong>它就是、也只需要這一個容器</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>名詞</th>
+<th>是什麼</th>
+<th>比喻</th>
+<th>本案的值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>IMAGE(映像)</strong></td>
+<td>做好的<strong>範本/藍圖</strong>,從 Docker Hub 下載</td>
+<td>遊戲光碟 / 安裝檔</td>
+<td><code>pgvector/pgvector:pg17</code></td>
+</tr>
+<tr>
+<td><strong>CONTAINER(容器)</strong></td>
+<td>用藍圖<strong>跑起來的執行實例</strong></td>
+<td>光碟裝好正在玩的那一局</td>
+<td><code>abby-rag-postgres</code></td>
+</tr>
+<tr>
+<td><strong>Compose 專案分組</strong></td>
+<td>GUI 按專案摺疊,專案名預設=<strong>資料夾名</strong></td>
+<td>外層資料夾標籤</td>
+<td><code>abby-notes-rag</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>GUI 看到「abby-notes-rag」其實是<strong>分組標籤(資料夾名)</strong>,不是容器。點開它,裡面的 <code>abby-rag-postgres</code> 才是真正的容器。三層指的是同一條 RAG 資料庫。</p>
+</blockquote>
+<h3>為什麼藍圖是 pgvector 不是普通 postgres?</h3>
+<p>RAG 要「把文字轉成向量(embedding)→ 用語意相似度找最接近的筆記」。普通 PostgreSQL <strong>不會做向量相似度搜尋</strong>。<br />
+<code>pgvector</code> 是 PostgreSQL 的<strong>外掛擴充</strong>,加上:<br />
+- 新欄位型別 <code>vector</code>(存 1024 維,對應 <code>.env</code> 的 <code>EMBEDDING_DIM=1024</code>)<br />
+- 向量相似度查詢</p>
+<p>image 名 <code>pgvector/pgvector:pg17</code> 的意思 = <strong>「一份預先裝好 pgvector 擴充的 PostgreSQL 17」</strong>:<br />
+- <code>pgvector/pgvector</code> = 發布者/映像名(Docker Hub 上的官方 pgvector image)<br />
+- <code>:pg17</code> = 標籤(tag),基底是 PostgreSQL 17</p>
+<p>開箱即有向量搜尋,不用自己進普通 postgres 手動裝擴充。</p>
+<hr />
+</section>
+<section class="card"><h2>4. 「引擎只是個背景程式」是什麼意思?名詞釐清</h2>
+<table>
+<thead>
+<tr>
+<th>詞</th>
+<th>白話</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>程式 / 軟體 (program)</strong></td>
+<td>寫好的指令,存成<strong>檔案</strong>躺硬碟,沒跑時只是個檔</td>
+<td><code>dockerd.exe</code></td>
+</tr>
+<tr>
+<td><strong>行程 (process)</strong></td>
+<td>程式被執行、載入記憶體、正在 CPU 上活著的實例。同程式可開多份</td>
+<td>記憶體裡正在跑的 dockerd</td>
+</tr>
+<tr>
+<td><strong>daemon(常駐程式/服務)</strong></td>
+<td>一種「開起來就一直待背景、不佔終端機、隨時等下指令」的行程</td>
+<td>Docker 引擎核心</td>
+</tr>
+<tr>
+<td><strong>引擎 (Docker Engine)</strong></td>
+<td>以 daemon 為核心的整套服務。講「引擎」≈ 講那個背景常駐 daemon</td>
+<td><code>desktop-linux</code> 後面那台</td>
+</tr>
+</tbody>
+</table>
+<h3>⭐ 最容易混淆:程式(program)vs 行程(process)</h3>
+<p>中文「程式」用得很鬆,有時指檔案、有時泛指「正在跑的東西」。英文分得很乾淨:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>程式 program</strong></th>
+<th><strong>行程 process</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>是什麼</td>
+<td>硬碟上的<strong>檔案</strong>(一堆指令)</td>
+<td>程式被<strong>執行後</strong>在記憶體裡<strong>活著跑</strong>的實例</td>
+</tr>
+<tr>
+<td>死的/活的</td>
+<td>死的(躺著不動)</td>
+<td>活的(佔 CPU/記憶體、會動)</td>
+</tr>
+<tr>
+<td>數量</td>
+<td>一份檔案</td>
+<td>同一程式可同時開<strong>多個</strong>行程</td>
+</tr>
+<tr>
+<td>編號</td>
+<td>沒有</td>
+<td>有 <strong>PID</strong></td>
+</tr>
+<tr>
+<td>生命週期</td>
+<td>永遠躺著直到刪除</td>
+<td>有開始→執行→結束</td>
+</tr>
+<tr>
+<td>例子</td>
+<td><code>dockerd.exe</code> 檔案</td>
+<td><code>ps</code> 抓到的 <code>PID 202 dockerd</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>比喻</strong>:食譜=程式(放抽屜不會動);照食譜煮菜=行程(動起來、有始有終);同一張食譜兩個廚師各煮一份=一個 program 多個 process。<br />
+→ <strong>程式是「劇本」,行程是「正在上演的那場戲」。</strong></p>
+<p><strong>daemon 是哪個?</strong> 嚴格講是<strong>行程(process)</strong>,因為它是「活的、正在跑」的。口語叫它「常駐程式」是把「程式」當「跑起來的程式」鬆散使用 —— 這就是容易混淆的點。精準說:</p>
+<blockquote>
+<p><strong>daemon = 一種「跑起來就不自己結束、常駐背景」的行程。</strong><br />
+它的特別不在「是程式還是行程」,而在<strong>行為</strong>:別的行程做完就結束,daemon 做完不下班、一直待命。</p>
+</blockquote>
+<pre><code>dockerd.exe(程式/檔案,死的)
+   │ 被執行
+   ▼
+正在跑的 dockerd(行程/process,活的,PID 202)
+   │ 而且它「不結束、常駐背景」
+   ▼
+這種常駐行程 = daemon   ← daemon 不是第三種東西,就是「一種行程」
+</code></pre>
+<h3>engine = daemon = detached?</h3>
+<ul>
+<li><strong>engine ≈ daemon</strong> ✅ 基本成立(嚴格說 Engine = daemon <code>dockerd</code> + API + CLI,但核心就是 daemon)。</li>
+<li><strong>daemon = detached?</strong> 概念相通<strong>但別劃等號</strong>:daemon 是「背景常駐服務」這個<strong>身分</strong>;detached 是「脫離終端機、在背景跑」這個<strong>狀態</strong>。</li>
+<li>⚠️ <code>detached</code> 在 Docker 出現在<strong>兩個層級</strong>,別混:</li>
+<li>daemon 在背景常駐 = <strong>引擎</strong> detached 在背景跑</li>
+<li><code>docker run -d</code>(-d=detached)= 讓<strong>容器</strong> detached 在背景跑</li>
+</ul>
+<h3>為什麼一台電腦能有多個引擎?</h3>
+<p><strong>「Docker 引擎」就是一種程式;同一種程式,一台電腦可以裝/跑好幾份 → 多個引擎。</strong></p>
+<pre><code>一台電腦(硬體)
+ └─ 程式 dockerd(檔案)── 執行 ──▶ 行程(daemon,背景常駐)= 一個「引擎」
+                                     └─ 同台可再跑第二份 dockerd = 第二個「引擎」
+                                          (各開不同的門;context 記住名字→哪扇門)
+</code></pre>
+<ul>
+<li><strong>「一個程式」≠「一台電腦」</strong>:電腦是硬體,程式是軟體;一台電腦能跑無數程式。</li>
+<li>類比:<strong>記事本是一個程式,你可以同時開 3 個視窗(3 個行程)</strong>。Docker 引擎也一樣。</li>
+<li>常見變多引擎的情境:裝 Docker Desktop 又在 WSL 的 Ubuntu 裡 <code>apt install docker</code>;用過 Minikube / Rancher Desktop / Podman;連遠端伺服器的 docker。</li>
+</ul>
+<hr />
+</section>
+<section class="card"><h2>5. Windows 上的 dockerd 檔案到底在哪?(實查結果)</h2>
+<p>這台機器上其實有<strong>兩個 dockerd</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>dockerd</th>
+<th>路徑</th>
+<th>角色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows 版</td>
+<td><code>C:\Program Files\Docker\Docker\resources\dockerd.exe</code>(約 74MB)</td>
+<td>Windows 容器用(目前沒在用)</td>
+</tr>
+<tr>
+<td><strong>Linux 版</strong></td>
+<td><code>/usr/local/bin/dockerd</code>(在 WSL2 的 <code>docker-desktop</code> distro 裡)</td>
+<td>✅ <strong>真正在跑、服務 abby-rag-postgres 的引擎</strong></td>
+</tr>
+</tbody>
+</table>
+<p>CLI 遙控器:<code>C:\Program Files\Docker\Docker\resources\bin\docker.exe</code>(約 43MB)</p>
+<h3>為什麼真正的引擎在 WSL2 裡?</h3>
+<p>Docker 引擎原生是 <strong>Linux 程式</strong>。Windows 沒 Linux 核心,所以靠 <strong>WSL2</strong>(Windows 裡的輕量 Linux 子系統)在背後跑一個 Linux,引擎裝在那個 Linux 裡。<br />
+Docker Desktop 偷偷開了一個叫 <code>docker-desktop</code> 的迷你 Linux distro,Linux 版 <code>dockerd</code> 在裡面常駐:</p>
+<pre><code class="language-powershell">wsl -l -v          # 看 WSL distro(會看到 docker-desktop Running)
+wsl -d docker-desktop sh -c 'ps aux | grep dockerd | grep -v grep'
+# → PID xxx /usr/local/bin/dockerd --config-file ... 這行就是引擎本尊
+</code></pre>
+<p>WSL2 可以有多個 distro,每個都能各裝一份引擎 —— 這就是「一台電腦多引擎」最常見的來源。</p>
+<hr />
+</section>
+<section class="card"><h2>6. 每個人的 dockerd.exe 內容都一樣嗎?</h2>
+<p><strong>同版本 + 同 CPU 架構 → 內容一模一樣(每個位元組都相同)。</strong> 它不是為你客製,是官方<strong>編譯好、公開發布的同一份檔</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>因素</th>
+<th>一樣嗎</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>同 Docker 版本、同 Windows x86-64</td>
+<td>✅ 位元組完全相同</td>
+</tr>
+<tr>
+<td>不同版本(4.30 vs 4.40)</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>不同 CPU 架構(x86-64 vs ARM64)</td>
+<td>❌(要編成不同機器碼)</td>
+</tr>
+</tbody>
+</table>
+<p>驗證 = 算<strong>檔案指紋(SHA256 hash)</strong>,同檔案指紋必相同;官網也會公佈讓你核對沒被竄改。</p>
+<pre><code class="language-powershell">Get-FileHash 'C:\Program Files\Docker\Docker\resources\dockerd.exe' -Algorithm SHA256
+docker version --format '{{.Server.Version}}'
+</code></pre>
+<p>本機實測(Docker Engine <strong>28.5.1</strong>):</p>
+<pre><code>SHA256: D5111085DBE2609250D53ED988C2A519295D29050724633C79D16ECC425CB39B
+</code></pre>
+<p>→ 任何人只要也是 Windows x64 + Engine 28.5.1,算出來會跟這串一字不差。</p>
+<h3>核心觀念:程式是共用的,你的資料是專屬的</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>人人相同?</th>
+<th>為什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>程式</strong>:<code>dockerd.exe</code> / <code>docker.exe</code> / pgvector image</td>
+<td>✅ 同版本人人相同</td>
+<td>官方量產、公開發布</td>
+</tr>
+<tr>
+<td><strong>你的資料</strong>:<code>./data</code>、<code>abby-rag-postgres</code> 容器、<code>.env</code></td>
+<td>❌ 獨一無二</td>
+<td>程式跑起來後裝進去的你個人內容</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>比喻:<code>dockerd.exe</code> 像<strong>量產微波爐</strong>(同型號內部都一樣);pgvector image 像<strong>食譜光碟</strong>(拷貝相同);但<strong>微波爐裡正在加熱的那盤菜(容器 + ./data 向量資料)是你專屬的</strong>。</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2>7. 為什麼打開 <code>dockerd.exe</code> 是 terminal(黑色主控台)的樣子?</h2>
+<p>核心:<strong>它是「主控台程式(console application)」,不是「視窗程式(GUI)」。</strong> 天生只有文字介面。</p>
+<h3>安全示範(不啟動 daemon,只印版本/說明)</h3>
+<blockquote>
+<p>⚠️ 不要直接雙擊執行 <code>dockerd.exe</code>!那會嘗試啟動第二個引擎,可能跟現有 Docker Desktop 衝突。<br />
+只印資訊用 <code>--version</code> / <code>--help</code> 才安全:</p>
+</blockquote>
+<pre><code class="language-text">&gt; &amp; 'C:\Program Files\Docker\Docker\resources\dockerd.exe' --version
+Docker version 28.5.1, build f8215cc
+
+&gt; &amp; 'C:\Program Files\Docker\Docker\resources\dockerd.exe' --help
+Usage:  dockerd [OPTIONS]
+
+A self-sufficient runtime for containers.    ← 「容器的執行時環境」= 背景伺服器
+
+Options:
+      --authorization-plugin list   Authorization plugins to load
+  -b, --bridge string               Attach containers to a virtual switch
+      --config-file string          Daemon configuration file
+      --containerd string           containerd grpc address
+      --data-root string            Root directory of persistent Docker state
+                                    (default &quot;C:\\ProgramData\\docker&quot;)
+  -D, --debug                       Enable debug mode
+  ...
+</code></pre>
+<p>↑ 這段文字就是 <code>dockerd.exe</code> 在 terminal 裡的真實長相(用文字代替截圖,因為不該真的啟動它)。</p>
+<h3>為什麼是文字主控台,不是視窗?</h3>
+<ol>
+<li><strong>它的身分是「伺服器 / daemon」</strong>:工作是背景常駐、聽指令、把運作過程當文字 log 印出來。對外靠「門」(named pipe)和 <code>docker</code> CLI 溝通,全程文字,不需要按鈕 → 沒做 GUI。</li>
+<li><strong>Windows 程式編譯時要選「子系統」</strong>:<br />
+   - GUI 子系統 → 有視窗、按鈕(例 <code>Docker Desktop.exe</code> 鯨魚儀表板)<br />
+   - Console 子系統 → 黑色文字主控台(<code>dockerd.exe</code> 是這種)</li>
+<li><strong>雙擊 console 程式時</strong>,Windows 自動配一個主控台宿主(conhost)黑視窗來顯示它的文字 → 那個「黑黑的 terminal」就是這樣來的。不是「terminal 裡的程式」,而是「它自己需要一個 terminal 來顯示」。</li>
+</ol>
+<h3>三個檔案對照</h3>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>子系統</th>
+<th>打開長相</th>
+<th>角色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dockerd.exe</code></td>
+<td>Console</td>
+<td>黑色文字主控台</td>
+<td>引擎本體(背景幹活、印 log)</td>
+</tr>
+<tr>
+<td><code>docker.exe</code></td>
+<td>Console</td>
+<td>文字(在你的 PowerShell 裡)</td>
+<td>遙控器 CLI</td>
+</tr>
+<tr>
+<td><code>Docker Desktop.exe</code></td>
+<td>GUI</td>
+<td>鯨魚儀表板視窗</td>
+<td>蓋在引擎上的友善介面</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>分工:<strong><code>dockerd.exe</code> 幹活(文字伺服器),<code>Docker Desktop.exe</code> 給你好看的畫面</strong>。<br />
+你點的鯨魚,背後是在替你對 dockerd 下文字指令。</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2>8. PowerShell:為什麼執行 exe 要用 <code>&amp;</code> 開頭?</h2>
+<h3>踩到的錯誤</h3>
+<pre><code class="language-powershell">'C:\Program Files\Docker\Docker\resources\dockerd.exe' --help
+# ParserError: 運算式或陳述式中有未預期的 'help' 語彙基元
+</code></pre>
+<p>原因:<strong>PowerShell 看到一行開頭是引號,會把它當「字串值(資料)」,不是「要執行的指令」。</strong><br />
+就像打 <code>'你好'</code> 只會把字串回給你。前面是字串,後面又冒出 <code>--help</code> → 看不懂 → 報錯。</p>
+<h3>解法:<code>&amp;</code> call operator(呼叫運算子)</h3>
+<p><code>&amp;</code> 的意思 =「把後面這個字串/變數,當成一支程式去<strong>執行</strong>」。</p>
+<pre><code class="language-powershell">&amp; 'C:\Program Files\Docker\Docker\resources\dockerd.exe' --help
+</code></pre>
+<p>為什麼路徑非得加引號?因為有<strong>空格</strong>(<code>Program Files</code>)。沒引號 PowerShell 會把空格當分隔,以為要跑 <code>C:\Program</code>。<br />
+而一加引號就變字串 → 所以要 <code>&amp;</code> 才會執行。兩件事綁一起:</p>
+<table>
+<thead>
+<tr>
+<th>情況</th>
+<th>要不要 <code>&amp;</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>路徑沒空格、不用引號</td>
+<td>不用:<code>C:\tools\dockerd.exe --help</code></td>
+</tr>
+<tr>
+<td>路徑有空格、要引號</td>
+<td><strong>要</strong>:<code>&amp; '...\dockerd.exe' --help</code></td>
+</tr>
+<tr>
+<td>路徑存在變數 <code>$app</code></td>
+<td><strong>要</strong>:<code>&amp; $app --help</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>記法:<strong>只要程式路徑是被「引號」或「變數」包起來的,前面就要加 <code>&amp;</code> 才會真的執行。</strong></p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2>9. 為什麼 dockerd 寫「A self-sufficient runtime for containers」?</h2>
+<p>這是 <strong>dockerd 開發者寫的「一句話自我介紹」</strong>,印在 <code>--help</code> 最上面。逐字拆:</p>
+<ul>
+<li><strong>runtime(執行時環境)</strong>:指「實際讓容器跑起來的那層環境/引擎」。容器要能動,需要有東西負責建立、啟動、管理 —— 那就是 runtime。dockerd 就是這角色。</li>
+<li><strong>self-sufficient(自給自足)</strong>:它本身就備齊跑容器需要的一切,不必再外掛一堆別的東西。跑起來自己就能完成「拉 image、建容器、管網路、管儲存」整套。</li>
+<li>合起來:<strong>「一個自給自足、能獨立把容器跑起來的執行環境」</strong> = dockerd 的自我定位。</li>
+</ul>
+<blockquote>
+<p>它是文案/描述字串,不是程式邏輯。每支軟體 <code>--help</code> 開頭都會有這種一句話簡介。</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2>10. <code>dockerd --help</code>(引擎開機設定)vs <code>docker --help</code>(你能用的指令)</h2>
+<p>跑 <code>dockerd --help</code> 看到的全是 <code>--開頭的 OPTIONS</code>(像 <code>--data-root</code>、<code>--log-level</code>),那是<strong>「啟動引擎那一刻,設定引擎怎麼跑」的旋鈕</strong>,不是你日常打的指令。Docker Desktop 已經幫你把引擎連同這些設定啟動好,平常<strong>幾乎用不到</strong>。</p>
+<p>想看「我 CLI 能用什麼」→ 改打 <strong><code>docker --help</code></strong>,它列的是 COMMAND(<code>ps</code>/<code>run</code>/<code>compose</code>/<code>exec</code>…),才是你天天用的。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>dockerd</code></th>
+<th><code>docker</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>身分</td>
+<td>引擎(伺服器)本體</td>
+<td>遙控器(CLI)</td>
+</tr>
+<tr>
+<td>用法格式</td>
+<td><code>dockerd [OPTIONS]</code></td>
+<td><code>docker [OPTIONS] **COMMAND**</code></td>
+</tr>
+<tr>
+<td>後面接什麼</td>
+<td>只接 <code>--旗標</code>(開機設定)</td>
+<td>接<strong>指令</strong>(<code>ps</code>/<code>run</code>/<code>compose</code>…)</td>
+</tr>
+<tr>
+<td>你會常打嗎</td>
+<td>❌ 幾乎不(Desktop 幫你開好)</td>
+<td>✅ 天天打</td>
+</tr>
+</tbody>
+</table>
+<p>詳細選項逐條白話翻譯 + 可畫螢光筆的版本見:[[dockerd-選項清單-我的困惑筆記]]</p>
+<h3>dockerd 的指令也能從 CLI 執行嗎?</h3>
+<p><strong>能執行 ≠ 該日常使用。</strong> dockerd 是支 <code>.exe</code>,你當然叫得動(<code>&amp; '...\dockerd.exe' --help</code> 就成功了),但它後面的旗標是「<strong>用這設定啟動引擎</strong>」,不是「做一件事就結束」:</p>
+<table>
+<thead>
+<tr>
+<th>打法</th>
+<th>結果</th>
+<th>安全?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dockerd --help</code> / <code>--version</code> / <code>--validate</code></td>
+<td>印完就退出</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>dockerd</code>(不加旗標)</td>
+<td>真的去啟動一個引擎 → 跟 Desktop 的引擎<strong>打架</strong></td>
+<td>❌</td>
+</tr>
+<tr>
+<td><code>dockerd --data-root ...</code> 等</td>
+<td>試圖用該設定啟動第二個引擎</td>
+<td>❌</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>dockerd 是「引擎啟動器」,不是「做事工具」。</strong> 在 Docker Desktop 環境下,引擎交給 Desktop 管;你做事一律用 <code>docker xxx</code> CLI 指令。</p>
+</blockquote>
+<hr />
+</section>
+<section class="card"><h2>問題紀錄(這串對話的提問清單)</h2>
+<p>依提問順序,方便日後回顧「我當初卡在哪」:</p>
+<ol>
+<li>我要怎麼啟動本地專案 abby-notes-rag 的 docker？ → §0</li>
+<li>我桌面的 Docker 容器是空的、沒有 container？ → §1(GUI 顯示問題,非容器不存在)</li>
+<li>什麼叫 docker context 不一致?為何只能在 RAG 看到? → §1、§2</li>
+<li>為何一台電腦可以對多個引擎? → §4</li>
+<li>pgvector 是不是我為 abby-notes-rag 要啟動的?為何有個 image 叫 <code>pgvector/pgvector:pg17</code>?為何 GUI 有個叫 abby-notes-rag 的? → §3</li>
+<li>「Docker 引擎只是背景跑的程式」是什麼意思?engine=daemon=detached?「一個程式」是什麼?一個程式=一台電腦嗎? → §4</li>
+<li>我電腦有 dockerd 檔案嗎?路徑?每個人的 dockerd.exe 內容都一樣嗎? → §5、§6</li>
+<li>為何打開 dockerd.exe 是 terminal 的樣子? → §7</li>
+<li>為什麼執行指令要用 <code>&amp;</code> 開頭?(PowerShell 報錯) → §8</li>
+<li>為什麼寫「A self-sufficient runtime for containers」? → §9</li>
+</ol>
+<hr />
+</section>
+<section class="card"><h2>速查表</h2>
+<pre><code class="language-powershell"># 引擎 / context
+docker context ls / docker context show     # 遙控器對準哪台引擎
+docker version                              # 引擎沒開會報錯
+
+# 看容器
+docker ps / docker ps -a                    # 整台引擎(全部 / 含停止)
+docker compose ps                           # 只看當前資料夾的 compose 專案
+
+# 啟動 abby-notes-rag
+docker compose up -d                        # 啟動
+docker compose down                         # 停(資料保留在 ./data)
+docker exec -it abby-rag-postgres pg_isready
+
+# 找 dockerd / 算指紋
+wsl -l -v                                   # WSL distro(引擎住的地方)
+Get-FileHash '...\dockerd.exe' -Algorithm SHA256
+</code></pre>
+<hr />
+</section>
+<section class="card"><h2>相關 Gemini 對話來源</h2>
+<ul>
+<li>「Docker 遙控器與多引擎概念」(2026-06,語音問答版,內容與本篇重疊) — https://gemini.google.com/app/84b4d10237c418e7</li>
+<li>重點同本篇:伺服器=實際跑 Docker 引擎的主機(遙控器對準的「電視」);下載 Docker 預設建立一個本機引擎,之後可用 context 連到遠端引擎;連遠端需網路(SSH / 加密 TCP);dockerd.exe 位於 <code>C:\Program Files\Docker\Docker\resources</code>。</li>
+</ul></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 </footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{hljs.highlightAll();}catch(e){}
+(function(){
+  var marks=[].slice.call(document.querySelectorAll('mark'));
+  marks.forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('quiz-hidden');});});
+  var btn=document.getElementById('quizToggle'),hidden=false;
+  if(btn){btn.addEventListener('click',function(){
+    hidden=!hidden;
+    marks.forEach(function(m){m.classList.toggle('quiz-hidden',hidden);});
+    btn.textContent=hidden?'👀 顯示全部重點':'🙈 隱藏全部重點（自我測驗）';
+  });}
+})();</script>
+</body>
+</html>
