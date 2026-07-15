@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript 事件循環與閉包（面試核心）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:30px;line-height:1.3;margin:.2em 0;}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:22px;margin:1.6em 0 .6em;
+ border-left:5px solid var(--accent);padding-left:12px;}
+h3{font-size:17px;margin:1.3em 0 .4em;color:#3a3a3a;}
+.meta{color:var(--muted);font-size:13px;margin-top:8px;}
+.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
+ padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+.src{display:block;font-size:12px;color:#2563eb;word-break:break-all;margin-top:3px;}
+.toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
+ border-bottom:1px solid var(--line);margin-bottom:10px;}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
+ padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
+.btn:hover{background:#f1eefe;}
+mark.hl{padding:1px 3px;border-radius:4px;}
+mark.tog{cursor:pointer;transition:.15s;}
+mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
+ user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;
+ line-height:1.55;}
+code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
+:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
+th{background:#f3f1fb;}
+tr:nth-child(even) td{background:#faf9fd;}
+blockquote{border-left:4px solid #ffd27d;background:#fff8ec;margin:1em 0;padding:8px 14px;
+ border-radius:0 8px 8px 0;color:#7a5a1e;}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);}
+footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
+ border-top:1px solid var(--line);padding-top:16px;}
+.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;
+ padding:7px 12px;margin:6px 0 14px;}
+</style></head>
+<body><div class="wrap">
+<header class="note">
+<h1>JavaScript 事件循環與閉包（面試核心）</h1>
+<div><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#event-loop</span><span class="pill">#closure</span><span class="pill">#面試</span><span class="pill">#scope</span></div>
+<div class="meta">更新於 2026-06-30 · 來源:</div>
+<a class="src" href="https://gemini.google.com/app/64769bd082d6dd2" target="_blank" rel="noopener">https://gemini.google.com/app/64769bd082d6dd2</a>
+</header>
+<div class="toolbar">
+<span class="btn" id="hideAll">🙈 全部隱藏重點</span>
+<span class="btn" id="showAll">👁️ 全部顯示</span>
+</div>
+<div class="hint">💡 點一下任何螢光標記可單獨遮住/顯示答案，方便自己考自己。</div>
+<div class="content">
+<h1>JavaScript 事件循環與閉包（面試核心）</h1>
+<h2>重點整理</h2>
+<h3>一、事件循環 Event Loop</h3>
+<p>JavaScript 是<mark class="hl tog" style="background:#ADCCFF;">單執行緒（Single Thread）</mark>語言，同一時間只有一個 Call Stack 在運作，一次只能做一件事。為了不讓頁面在等待（API、計時器、點擊）時凍結，瀏覽器用 Event Loop 達成<mark class="hl tog" style="background:#FFF3A3;">非阻塞（Non-blocking）的非同步行為</mark>。</p>
+<p>四個核心組成：</p>
+<ul>
+<li><mark class="hl tog" style="background:#ADCCFF;">呼叫堆疊 Call Stack</mark>：追蹤目前執行中的函式，遵循「後進先出（LIFO）」。</li>
+<li><mark class="hl tog" style="background:#ADCCFF;">Web APIs</mark>：瀏覽器提供的環境（非 JS 引擎本身），處理 <code>setTimeout</code>、<code>fetch</code>、DOM 事件等的倒數/等待。</li>
+<li><mark class="hl tog" style="background:#ADCCFF;">工作佇列 Callback / Task Queue</mark>：非同步任務完成後，其 callback 移到這裡排隊。</li>
+<li><mark class="hl tog" style="background:#ADCCFF;">事件循環 Event Loop</mark>：持續監控 Call Stack，當 Stack 清空時把佇列中第一個任務推入執行。</li>
+</ul>
+<p>微任務 vs 巨任務（決定執行先後）：</p>
+<table>
+<thead>
+<tr>
+<th>類型</th>
+<th>優先權</th>
+<th>常見來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><mark class="hl tog" style="background:#BBFABB;">微任務 Microtask</mark></td>
+<td>高</td>
+<td><code>Promise.then()</code>、<code>async/await</code>、<code>MutationObserver</code></td>
+</tr>
+<tr>
+<td><mark class="hl tog" style="background:#FFB8EB;">巨任務 Macrotask</mark></td>
+<td>低</td>
+<td><code>setTimeout</code>、<code>setInterval</code>、I/O、UI 渲染</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>面試守則：每當 Call Stack 清空，Event Loop 會<mark class="hl tog" style="background:#FF5582;">一次清空目前「所有」的微任務佇列，才會去執行下一個巨任務</mark>；執行下一個巨任務前，瀏覽器才視情況進行畫面渲染。</p>
+</blockquote>
+<p>隨堂考（輸出順序）：</p>
+<pre><code class="language-javascript">console.log('1');
+setTimeout(() =&gt; { console.log('2'); }, 0);
+Promise.resolve().then(() =&gt; { console.log('3'); });
+console.log('4');
+</code></pre>
+<p>正確順序：<mark class="hl tog" style="background:#BBFABB;">1 → 4 → 3 → 2</mark>。1、4 是同步先跑；3 是微任務，優先於巨任務 2。</p>
+<h3>二、閉包 Closure</h3>
+<p>一句話定義：<mark class="hl tog" style="background:#FFF3A3;">閉包是一個內層函式，能「記憶」並存取外層函式的範疇（Scope），即使外層函式已經執行完畢、離開 Call Stack。</mark>閉包不是要特別開啟的功能，而是函式建立時自然誕生的底層機制。</p>
+<p>兩大基石：</p>
+<ul>
+<li><mark class="hl tog" style="background:#ADCCFF;">詞法範疇 Lexical Scope</mark>：變數存取權限在「程式碼被寫下來那一刻（宣告位置）」就決定，不是執行時決定。</li>
+<li><mark class="hl tog" style="background:#ADCCFF;">垃圾回收 Garbage Collection</mark>：函式執行完局部變數本應釋放，但若仍被內層函式引用，瀏覽器就不敢釋放，會保留在記憶體（Heap）中。</li>
+</ul>
+<p>應用：用閉包建立<mark class="hl tog" style="background:#BBFABB;">私有變數（資料封裝）</mark>。</p>
+<pre><code class="language-javascript">function createCounter() {
+  let count = 0;               // 鎖在範疇內，外部摸不到
+  return {
+    increment() { count++; console.log(count); },
+    decrement() { count--; console.log(count); }
+  };
+}
+const counter = createCounter();
+counter.increment(); // 1
+counter.increment(); // 2
+// console.log(count); // ReferenceError: count is not defined
+</code></pre>
+<p>經典面試題（var vs let）：</p>
+<pre><code class="language-javascript">for (var i = 1; i &lt;= 3; i++) {
+  setTimeout(() =&gt; { console.log(i); }, 1000);
+}
+</code></pre>
+<ul>
+<li>直覺：依序 1, 2, 3</li>
+<li>實際：<mark class="hl tog" style="background:#FF5582;">同時輸出 4, 4, 4</mark></li>
+<li>原因：<code>var</code> 是<mark class="hl tog" style="background:#ADCCFF;">函式作用域</mark>，迴圈裡其實成了同一個（近乎全域的）<code>i</code>；callback 執行時迴圈早跑完，<code>i</code> 已是 4，三個閉包指向同一個 <code>i</code>。</li>
+<li>修正：把 <code>var</code> 改成 <mark class="hl tog" style="background:#BBFABB;"><code>let</code>（區塊作用域，每次迭代各建立獨立範疇）</mark>，輸出 1, 2, 3。</li>
+</ul>
+<h3>三、閉包 + 傳址陷阱（魔王題）</h3>
+<pre><code class="language-javascript">function createWallet(initialAmount) {
+  let money = initialAmount;
+  let history = [];
+  return {
+    checkBalance() { return money; },
+    getHistory()   { return history; },   // 回傳「同一個」陣列參照
+    spend(amount)  { if (amount &lt;= money) { money -= amount; history.push(`Spent ${amount}`); } }
+  };
+}
+const myWallet = createWallet(100);
+const record = myWallet.getHistory();
+myWallet.spend(30);
+record.push('Found 100 on the street');
+myWallet.spend(20);
+console.log(myWallet.checkBalance()); // 50
+console.log(myWallet.getHistory());   // ['Spent 30', 'Found 100 on the street', 'Spent 20']
+</code></pre>
+<p>關鍵：陣列/物件是<mark class="hl tog" style="background:#FF5582;">傳址（Pass by Reference）</mark>，<code>record</code> 與閉包內 <code>history</code> 指向同一塊記憶體，外部 <code>record.push</code> 直接污染了內部私有狀態（但 <code>money</code> 不受影響，仍是 70 → 50）。</p>
+<p>防漏修正：回傳時<mark class="hl tog" style="background:#BBFABB;">切斷參照，回傳複本</mark>：</p>
+<pre><code class="language-javascript">getHistory() { return [...history]; } // 展開運算子回傳新陣列
+</code></pre>
+<h3>四、觀念釐清</h3>
+<ul>
+<li><code>return money</code> 不會變成全域變數。<code>money</code> 既不在全域、也沒「回到」函式內部，而是<mark class="hl tog" style="background:#FFF3A3;">被封裝在專屬該實例的閉包環境裡</mark>；<code>return</code> 只是把值「複印」一份丟給外面，本體仍留在閉包口袋中。</li>
+<li><code>createWallet</code> 才是<mark class="hl tog" style="background:#D2B3FF;">函式物件（Function Object，可被呼叫）</mark>；<code>myWallet</code> 是<mark class="hl tog" style="background:#D2B3FF;">普通物件（Plain Object）</mark>，<code>myWallet()</code> 會 <code>TypeError</code>。物件裡綁定的 <code>spend</code>、<code>checkBalance</code> 稱為<mark class="hl tog" style="background:#ADCCFF;">方法（Method）</mark>。</li>
+<li>C++ 也有閉包（C++11 起的 <mark class="hl tog" style="background:#ADCCFF;">Lambda</mark>），但無 GC：須明確「捕捉」<code>[value]</code>（傳值複製，安全）或 <code>[&amp;ref]</code>（引用，類似 JS）。回傳引用捕捉了 Stack 區域變數會造成<mark class="hl tog" style="background:#FF5582;">懸空引用（Dangling Reference）→ 未定義行為</mark>。JS 靠 GC 自動把變數留在 Heap，不會有這問題。</li>
+</ul>
+<h2>各對話來源</h2>
+<h3>JavaScript 事件循環核心觀念複習（2026-06）— https://gemini.google.com/app/64769bd082d6dd2</h3>
+<p><strong>使用者：</strong> 前端工程師的觀念複習先給我一個</p>
+<p><strong>Gemini：</strong> （Event Loop 完整解說：單執行緒、Call Stack、Web APIs、Callback Queue、Event Loop；微任務 vs 巨任務；隨堂考 <code>1→4→3→2</code>。內容已整合進上方「一、事件循環」。）</p>
+<p><strong>使用者：</strong> 再一個</p>
+<p><strong>Gemini：</strong> （閉包定義、詞法範疇、GC、私有變數 <code>createCounter</code>、<code>var</code>/<code>let</code> 迴圈經典題輸出 4,4,4 與修正。整合進「二、閉包」。）</p>
+<p><strong>使用者：</strong> 再出一題閉包概念題</p>
+<p><strong>Gemini：</strong> （<code>createWallet</code> 傳址污染魔王題：<code>checkBalance()</code> 為 50、<code>getHistory()</code> 含外部插入的字串；修正用 <code>[...history]</code> 切斷參照。整合進「三、閉包+傳址陷阱」。）</p>
+<p><strong>使用者：</strong> C++語言也有閉包嗎</p>
+<p><strong>Gemini：</strong> （C++11 Lambda、<code>[value]</code> 傳值捕捉 vs <code>[&amp;ref]</code> 引用捕捉、懸空引用陷阱，與 JS GC 對比。整合進「四、觀念釐清」。）</p>
+<p><strong>使用者：</strong> Return money會return到createWallet裡面最多吧？他不會變成全域變數對吧！</p>
+<p><strong>Gemini：</strong> （確認不會變全域；<code>money</code> 活在閉包環境，<code>return</code> 只是複印值丟出。整合進「四、觀念釐清」。）</p>
+<p><strong>使用者：</strong> CreateWallet 是放在 myWallet 這樣算一個函式物件變數嗎</p>
+<p><strong>Gemini：</strong> （釐清 <code>createWallet</code>=函式物件、<code>myWallet</code>=普通物件、內部為方法 Method。整合進「四、觀念釐清」。）</p>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-06-30</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try{document.querySelectorAll('pre code').forEach(b=>{if(window.hljs)hljs.highlightElement(b);});}catch(e){}
+document.querySelectorAll('mark.tog').forEach(m=>m.addEventListener('click',()=>m.classList.toggle('hidden')));
+var ha=document.getElementById('hideAll'),sa=document.getElementById('showAll');
+ha.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.add('hidden'));
+sa.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.remove('hidden'));
+</script>
+</body></html>

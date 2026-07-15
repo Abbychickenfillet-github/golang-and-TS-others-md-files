@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deno：現代 JavaScript / TypeScript 執行環境</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;}
+.meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 3px;border-radius:3px;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">Deno：現代 JavaScript / TypeScript 執行環境</h1>
+  <div class="tags"><span class="tag">#gemini</span><span class="tag">#deno</span><span class="tag">#nodejs</span><span class="tag">#javascript</span><span class="tag">#typescript</span><span class="tag">#runtime</span></div>
+  <div class="meta">更新於 2026-06-19　·　<a href="https://gemini.google.com/app/885a007d1af5aae1" target="_blank">來源連結</a></div>
+</header>
+<h1>Deno：現代 JavaScript / TypeScript 執行環境</h1>
+<section class="card"><h2>重點整理</h2>
+<p><mark style="background: #ADCCFFA6;">Deno</mark> 是現代的 JavaScript / TypeScript / WebAssembly 執行環境（Runtime），可視為 <mark style="background: #FFF3A3A6;">Node.js 的現代升級版</mark>，用 Rust 打造、更安全更快、對 TS 極友好。</p>
+<blockquote>
+<p>[!info] 有趣的身世<br />
+Deno 創始人 Ryan Dahl 同時是 Node.js 原作者。他在 2018 演講「我對 Node.js 感到遺憾的十件事」指出 Node 在安全性、模組管理（巨大的 node_modules）、非同步支援上的設計缺陷，於是打造 Deno 來解決。</p>
+</blockquote>
+<p>核心特色：</p>
+<ul>
+<li><mark style="background: #BBFABBA6;">原生支援 TypeScript &amp; JSX</mark>：免設定 Babel/tsc 即可直接執行 TS；內部用 <mark style="background: #ADCCFFA6;">SWC</mark>（Speedy Web Compiler）大幅加快啟動與編譯。</li>
+<li><mark style="background: #FF5582A6;">預設安全（Secure by Default）</mark>：除非明確加參數（<code>--allow-net</code>、<code>--allow-read</code> 等），否則無法存取網路、檔案系統、環境變數，執行未知程式碼更安心。</li>
+<li><mark style="background: #BBFABBA6;">去中心化模組管理</mark>：拋棄 npm / package.json，沒有 node_modules，透過標準 URL 直接 import 模組。</li>
+<li><mark style="background: #BBFABBA6;">內建工具鏈</mark>：自帶格式化/Linter（<code>deno lint</code>）、測試執行器、打包工具，省去配置一堆前端工具。</li>
+<li><mark style="background: #ADCCFFA6;">相容 Web API</mark>：盡量貼近瀏覽器標準（<code>fetch</code>、<code>window</code> 等可直接用），讓前後端撰寫邏輯一致。</li>
+</ul></section>
+<section class="card"><h2>各對話來源</h2>
+<h3>Deno：現代 JavaScript 執行環境（2026-06）— https://gemini.google.com/app/885a007d1af5aae1</h3>
+<p>使用者：deno 是啥</p>
+<p>Gemini：Deno 是現代 JS/TS/WASM 執行環境，可視為 Node.js 升級版；創始人 Ryan Dahl 也是 Node 原作者，因 2018 演講指出 Node 缺陷而打造 Deno。特色：原生支援 TS/JSX（內部用 SWC 加速）、預設安全（要明確 --allow-* 才能存取網路/檔案/環境變數）、去中心化模組（用 URL import、無 node_modules）、內建工具鏈（lint/test/bundle）、相容 Web API（fetch/window）。用 Rust 打造、更安全更快、對 TS 友好。</p>
+<p>使用者：請問 Deno 是誰?</p>
+<p>Gemini：（重申）Deno 是 Node.js 創始人 Ryan Dahl 開發的現代 JavaScript 執行環境。</p></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-19</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{document.querySelectorAll('pre code').forEach(function(b){hljs.highlightElement(b);});}catch(e){}</script>
+</body>
+</html>
