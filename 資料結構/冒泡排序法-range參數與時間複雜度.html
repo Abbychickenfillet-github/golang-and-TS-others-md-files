@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>冒泡排序法、range() 參數與時間複雜度</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;}
+.meta a:hover{text-decoration:underline;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+mark{padding:1px 3px;border-radius:3px;}
+a{color:var(--accent);}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="note-head">
+  <h1 class="note-title">冒泡排序法、range() 參數與時間複雜度</h1>
+  <div class="tags"><span class="tag">#gemini</span><span class="tag">#資料結構</span><span class="tag">#演算法</span><span class="tag">#python</span><span class="tag">#bubble-sort</span><span class="tag">#big-o</span></div>
+  <div class="meta">更新於 2026-06-19　·　<a href="https://gemini.google.com/app/bf66117f227bc352" target="_blank">來源連結</a>　·　<a href="https://gemini.google.com/app/4c6ae95018c6e142" target="_blank">來源連結</a></div>
+</header>
+<h1>冒泡排序法、range() 參數與時間複雜度</h1>
+<section class="card"><h2>重點整理</h2>
+<p>冒泡排序法（Bubble Sort）的核心是<mark style="background: #FFF3A3A6;">「相鄰兩兩比較、較大的往後沉」</mark>。理解它的 <code>range()</code> 邊界與真正的執行次數，就能把演算法跟 Python 語法一次打通。</p>
+<h3>為什麼內層 <code>range()</code> 的 stop 要寫 <code>n-1</code>？</h3>
+<p>關鍵在於冒泡排序是<mark style="background: #ADCCFFA6;">兩兩比較</mark>，程式碼會同時存取 <code>arr[j]</code> 和 <code>arr[j+1]</code>。</p>
+<ul>
+<li>若寫 <code>range(0, n)</code>：最後 <code>j = n-1</code> 時會去比 <code>arr[n-1]</code> 與 <code>arr[n]</code> → <code>arr[n]</code> <mark style="background: #FF5582A6;">超出索引、IndexError</mark>。</li>
+<li>若寫 <code>range(0, n-1)</code>：因為 Python 的 <code>range(start, stop)</code> 是<mark style="background: #ADCCFFA6;">「包含起點、不包含終點」</mark>，索引最大只到 <code>n-2</code>，剛好拿 <code>arr[n-2]</code> 與 <code>arr[n-1]</code>（最後一項）比，完美覆蓋又不越界。</li>
+</ul>
+<blockquote>
+<p>[!example] 以 <code>arr = [50, 30, 40, 10, 20]</code>（n=5）為例<br />
+第一輪只需比 4 次：(0,1)(1,2)(2,3)(3,4)。<code>range(0, n-1)</code> = <code>range(0,4)</code> 產生 <code>0,1,2,3</code>，正好對應這 4 次比較。</p>
+</blockquote>
+<h3>對比：單純遍歷時為什麼「不用」 <code>-1</code>？</h3>
+<pre><code class="language-python">x = 'runoob'
+for i in range(len(x)):   # range(6) -&gt; 0,1,2,3,4,5
+    print(x[i])           # 只存取 x[i]，沒有 x[i+1]
+</code></pre>
+<p>差別在於這裡是<mark style="background: #BBFABBA6;">「單個元素獨立處理」</mark>，只寫了 <code>x[i]</code>、沒有 <code>x[i+1]</code>，所以索引必須完整走到最後一格。若誤加 <code>-1</code> 變成 <code>range(5)</code>，最後一個字元 <code>'b'</code>（索引 5）就會被漏掉。</p>
+<blockquote>
+<p>[!note] 口訣<br />
+兩兩比較、有寫到 <code>+1</code> ➡️ <code>range</code> 終點要 <code>-1</code>（防越界）。<br />
+單純巡邏、只寫 <code>[i]</code> ➡️ <code>range</code> 直接用 <code>len()</code>（確保每個都點到名）。</p>
+</blockquote>
+<h3><code>range()</code> 的本質：計數器</h3>
+<p><code>range()</code> 的核心任務是<mark style="background: #FFF3A3A6;">「數數 / 產生索引」</mark>，不是用來「跑函式」。三大用途：</p>
+<ol>
+<li>控制重複次數：<code>for i in range(3): say_hello()</code></li>
+<li>產生索引存取資料（最常見）：<code>for i in range(len(names)): print(names[i])</code></li>
+<li>產生規律數字：<code>range(2, 11, 2)</code> → <code>2,4,6,8,10</code></li>
+</ol>
+<blockquote>
+<p>[!tip] 更 Pythonic 的寫法<br />
+若只是想把每個元素丟進函式處理，直接 <code>for num in numbers: square(num)</code>（迭代 Iterable）比 <code>for i in range(len(...))</code> 更乾淨。</p>
+</blockquote>
+<h3>單一參數的 <code>range()</code> 代表什麼？</h3>
+<p><code>range()</code> 完整簽名是 <code>range(start, stop, step)</code>，其中 <mark style="background: #FFB8EBA6;">start 預設 0、step 預設 1</mark>。當只給一個參數時，Python 把它當作 <mark style="background: #ADCCFFA6;">stop</mark>（而非 start），所以 <code>range(10)</code> = <code>0,1,...,9</code> 共 10 個。這是 <code>range</code> 這個函式自己的參數設計，<mark style="background: #FF5582A6;">並非所有 Python 函式都這樣</mark>。</p>
+<h3>外層 <code>j</code> 為什麼跑 <code>range(n)</code>？真的是 N×N 次嗎？</h3>
+<p>每跑完一整輪內層，就有一個當前最大值被定位到最右端。理論上外層只要 <code>n-1</code> 輪就夠（最後一個自動歸位），但教學常直接寫 <code>range(n)</code>：直覺好懂，且最後一輪 <code>range(0, 0)</code> 是空迴圈、不會出錯。</p>
+<p><strong>實際比較次數不是 N×N</strong>。以 <code>arr=[80,50,44,50,70,11]</code>（n=6）為例：</p>
+<pre><code class="language-text">j=0 -&gt; range(0,5) -&gt; 5 次
+j=1 -&gt; range(0,4) -&gt; 4 次
+j=2 -&gt; range(0,3) -&gt; 3 次
+j=3 -&gt; range(0,2) -&gt; 2 次
+j=4 -&gt; range(0,1) -&gt; 1 次
+j=5 -&gt; range(0,0) -&gt; 0 次
+合計 5+4+3+2+1+0 = 15 次（而非 6×6 = 36 次）
+</code></pre>
+<blockquote>
+<p>[!warning] 大 O 為什麼還是 O(N²)？<br />
+精確次數是 N×(N-1)/2 = ½N² − ½N。當 N 很大時，後面的 ½N 與常數係數 ½ 都會被忽略，只看成長「等級」，所以統一記作 <mark style="background: #FFF3A3A6;">O(N²)</mark>。實際大約只做「一半」的次數，但等級不變。</p>
+<p>[!note] 小提醒：<code>print(arr)</code> 縮排<br />
+若把 <code>print(arr)</code> 縮排在 <code>if</code> 裡，代表<mark style="background: #FF5582A6;">「只有發生交換才印」</mark>，印出的次數是「交換次數」而非「比較次數」，會少於 15 次。</p>
+</blockquote>
+<h3>優化寫法</h3>
+<pre><code class="language-python">arr = [80, 50, 44, 50, 70, 11]
+n = len(arr)
+for j in range(n - 1):            # 只跑 n-1 輪，省掉沒意義的最後一輪
+    for i in range(0, n - j - 1):
+        if arr[i] &gt; arr[i + 1]:
+            arr[i], arr[i + 1] = arr[i + 1], arr[i]
+</code></pre>
+<h3>延伸：Brute Force（暴力法 / 蠻力法）</h3>
+<p><mark style="background: #ADCCFFA6;">Brute Force</mark> 的核心邏輯是：不做任何聰明的過濾或優化，單純<mark style="background: #FFF3A3A6;">窮舉所有可能、全部測一遍直到找到答案</mark>。</p>
+<ul>
+<li>在演算法中：冒泡排序就是一種暴力排序；找 3 位數密碼就從 000 試到 999。優點是「簡單、保證找到」，缺點是「資料量大時次數爆炸、很慢」（如冒泡的 O(N²)）。</li>
+<li>在資安中：暴力破解攻擊（Brute Force Attack）靠電腦每秒上百萬次猜密碼；變形是「字典攻擊」拿常見密碼清單狂試。<mark style="background: #BBFABBA6;">這就是為什麼網站要求密碼複雜、且「錯誤幾次就鎖定帳號」</mark>。</li>
+</ul>
+<p>口語：「我先用 Brute force 寫個能動的版本，再來優化」＝用時間與效能換取簡單邏輯。</p></section>
+<section class="card"><h2>各對話來源</h2>
+<h3>冒泡排序法 <code>range()</code> 參數解釋（2026-06）— https://gemini.google.com/app/bf66117f227bc352</h3>
+<p>使用者：為何解釋冒泡排序法演算法的 python range() stop 參數他用 n-1？不包含最後一項？這樣確實是 4 次（一輪中最多的移動次數）</p>
+<p>Gemini：（說明）因為氣泡排序是「兩兩比較」<code>arr[j]</code> 與 <code>arr[j+1]</code>。陣列長 n、索引 0~n-1。跑 <code>range(0,n)</code> 最後會存取 <code>arr[n]</code> 越界丟 IndexError；跑 <code>range(0,n-1)</code> 因「包含起點不含終點」，索引最大到 n-2，與 <code>arr[n-1]</code> 比剛好覆蓋全部又不越界。以 [50,30,40,10,20]（n=5）第一輪比 4 次，<code>range(0,4)</code>=0,1,2,3 對應 4 次。</p>
+<p>使用者：為啥這邊（單純遍歷字串）不用 -1</p>
+<p>Gemini：因為是「單個元素獨立處理」，只寫 <code>x[i]</code> 沒有 <code>x[i+1]</code>。<code>x='runoob'</code>、<code>range(len(x))</code>=<code>range(6)</code>=0~5 對應每個字元；若用 <code>range(len(x)-1)</code>=<code>range(5)</code> 會漏掉最後字元 'b'。口訣：有寫 +1 → 終點 -1；只寫 [i] → 用 len()。</p>
+<p>使用者：range 常用的作用是搭配迴圈來跑函式？</p>
+<p>Gemini：<code>range()</code> 本質是「計數器」，主要用來控制執行次數或產生索引，不是用來跑函式。三大用途：控制重複次數、產生索引存取資料、產生規律數字 <code>range(start,stop,step)</code>。若只是把元素丟進函式，直接 <code>for num in numbers</code> 更 Pythonic。</p>
+<p>使用者：為何 j 是跑 n 次</p>
+<p>Gemini：外層 j 控制「要把幾個大數沉到後面」，每輪定位一個最大值。理論上 n-1 輪就夠（最後一個自動歸位），但寫 <code>range(n)</code> 直覺好懂、且最後一輪 <code>range(0,0)</code> 是空迴圈不出錯。可優化成 <code>range(n-1)</code>。</p>
+<p>使用者：arr = [80, 50, 44, 50, 70, 11] … 阿這樣真的是做 N*N 次喔?</p>
+<p>Gemini：不是。內層隨 j 遞減：5+4+3+2+1+0 = 15 次，而非 6×6=36 次。</p>
+<p>使用者：（要求）不要用 Obsidian 的 LaTeX 解釋</p>
+<p>Gemini：（白話版）N=6 若真是 N×N 要 36 次，但實際內層越跑越少，加起來 15 次。說 O(N²) 是因為資料量大時，除以 2 的小節被忽略，只看「平方等級」。</p>
+<p>使用者：Brute force 是什麼</p>
+<p>Gemini：直譯「蠻力」。核心：不做聰明過濾、窮舉所有可能全測一遍。演算法中冒泡排序、試密碼 000→999 都是暴力解（簡單但慢，O(N²)）；資安中是暴力破解攻擊／字典攻擊，防範靠密碼複雜化與「錯幾次鎖帳號」。</p>
+<p>使用者：So brute force 的核心邏輯是 不做任何聰明的過濾或優化，單純用窮舉的方式，把所有可能的答案統統測試一遍，直到找到對的答案為止。</p>
+<p>Gemini：沒錯，這就是 Brute Force 的靈魂。簡單直覺，但遇到龐大資料常耗費太多時間，所以後來才需要學習優化演算法。</p>
+<h3>賀寶芙營養蛋白飲料介紹（標題誤植，實為 range 單一參數討論，語音輸入）（2026-06）— https://gemini.google.com/app/4c6ae95018c6e142</h3>
+<blockquote>
+<p>此對話標題由 Gemini 自動產生為「賀寶芙營養蛋白飲料介紹」，但實際內容是語音輸入、辨識品質較差的 <code>range()</code> 單一參數討論，故併入本主題。</p>
+</blockquote>
+<p>使用者：（語音，辨識雜訊）想確認 range 到底有沒有包含最後一個項目。</p>
+<p>Gemini：以 [50,30,40,10,20]（長度 5、索引 0~4）帶數值說明沒有漏掉任何元素。</p>
+<p>使用者：如果說 range 只有一個參數的話，它是代表 start 嗎？可是它這邊是 0 到 9，所以有 10 個項目，你可以解釋一下嗎？</p>
+<p>Gemini：當 <code>range()</code> 只有一個參數時，它代表的是結束值（stop），起始值會用預設 0。</p>
+<p>使用者：但如果只有一個參數，他不是照參數的順序嗎？那他怎麼會預設一個參數是 stop？其他 Python 函數也是這樣嗎？</p>
+<p>Gemini：這是 Python 的便利性設計。<code>range</code> 完整簽名 <code>range(start, stop, step)</code>，start 預設 0、step 預設 1。只給一個參數時就當作 stop，start/step 用預設值。這不是所有 Python 函數都一樣，要看函數本身如何定義參數與預設值。</p></section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-19</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>try{document.querySelectorAll('pre code').forEach(function(b){hljs.highlightElement(b);});}catch(e){}</script>
+</body>
+</html>

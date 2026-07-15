@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B+樹與索引結構：叢集索引 vs 非叢集索引</title>
+<style>
+  :root{
+    --bg: #0f1419;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: #2a3340;
+    --text: #e6edf3;
+    --text-dim: #8b98a5;
+    --accent: #e8a33d;
+    --accent-dim: #6b5128;
+
+    --hl-yellow-bg: rgba(255, 212, 59, 0.22);
+    --hl-yellow-bd: #d4a017;
+    --hl-green-bg: rgba(63, 185, 80, 0.20);
+    --hl-green-bd: #3fb950;
+    --hl-red-bg: rgba(248, 81, 73, 0.20);
+    --hl-red-bd: #f85149;
+    --hl-blue-bg: rgba(88, 166, 255, 0.20);
+    --hl-blue-bd: #58a6ff;
+    --hl-orange-bg: rgba(255, 148, 46, 0.20);
+    --hl-orange-bd: #ff942e;
+  }
+
+  *{ box-sizing: border-box; }
+
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page{
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ---------- header ---------- */
+  .eyebrow{
+    font-family: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  h1{
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 16px;
+    letter-spacing: 0.01em;
+  }
+  .thesis{
+    font-size: 16px;
+    color: var(--text-dim);
+    border-left: 3px solid var(--accent);
+    padding-left: 16px;
+    margin: 0 0 40px;
+  }
+
+  /* ---------- sections ---------- */
+  section{ margin-bottom: 56px; }
+  .sec-head{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    margin-bottom: 20px;
+  }
+  .sec-num{
+    font-family: ui-monospace, "Cascadia Code", monospace;
+    font-size: 13px;
+    color: var(--accent);
+    border: 1px solid var(--accent-dim);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  h2{ font-size: 19px; margin:0; font-weight: 700; }
+  p{ margin: 0 0 14px; }
+
+  /* ---------- highlight spans (Highlightr 對應色) ---------- */
+  .hl-yellow{ background: var(--hl-yellow-bg); border-bottom: 2px solid var(--hl-yellow-bd); padding: 1px 3px; border-radius: 2px; }
+  .hl-green{ background: var(--hl-green-bg); border-bottom: 2px solid var(--hl-green-bd); padding: 1px 3px; border-radius: 2px; }
+  .hl-red{ background: var(--hl-red-bg); border-bottom: 2px solid var(--hl-red-bd); padding: 1px 3px; border-radius: 2px; }
+  .hl-blue{ background: var(--hl-blue-bg); border-bottom: 2px solid var(--hl-blue-bd); padding: 1px 3px; border-radius: 2px; }
+  .hl-orange{ background: var(--hl-orange-bg); border-bottom: 2px solid var(--hl-orange-bd); padding: 1px 3px; border-radius: 2px; }
+
+  /* ---------- card / box ---------- */
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+  }
+  .callout{
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 18px 0;
+    border: 1px solid var(--border);
+  }
+  .callout.red{ background: var(--hl-red-bg); border-color: var(--hl-red-bd); }
+  .callout.green{ background: var(--hl-green-bg); border-color: var(--hl-green-bd); }
+  .callout-title{
+    font-weight: 700;
+    margin-bottom: 8px;
+    display:flex; align-items:center; gap:8px;
+  }
+
+  /* ---------- diagram 1: B+ tree skeleton ---------- */
+  .diagram-wrap{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  svg text{ font-family: ui-monospace, "Cascadia Code", monospace; }
+  .node-box{ fill: var(--surface-2); stroke: var(--border); stroke-width: 1.5; }
+  .node-root{ stroke: var(--accent); }
+  .leaf-box{ fill: var(--surface-2); stroke: #3a4456; stroke-width: 1.5; transition: fill 0.4s, stroke 0.4s; }
+  .leaf-box.scanning{ fill: var(--hl-orange-bg); stroke: var(--accent); stroke-width: 2.5; }
+  .tree-line{ stroke: #3a4456; stroke-width: 1.5; fill: none; }
+  .link-line{ stroke: #3a4456; stroke-width: 1.5; stroke-dasharray: 4 3; transition: stroke 0.4s, stroke-width 0.4s; }
+  .link-line.scanning{ stroke: var(--accent); stroke-width: 3; stroke-dasharray: none; }
+  .node-label{ fill: var(--text); font-size: 13px; text-anchor: middle; }
+  .leaf-label{ fill: var(--text-dim); font-size: 11px; text-anchor: middle; }
+
+  .scan-controls{
+    display:flex; gap:12px; align-items:center; margin-top: 16px; flex-wrap: wrap;
+  }
+  .btn{
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 16px;
+    border-radius: 7px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .btn:hover{ border-color: var(--accent); background: var(--surface); }
+  .btn.primary{ border-color: var(--accent); color: var(--accent); }
+  .scan-caption{
+    font-size: 13px;
+    color: var(--accent);
+    min-height: 18px;
+  }
+
+  /* ---------- diagram 2: 三欄對照 ---------- */
+  .compare-row{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 8px;
+  }
+  @media (max-width: 700px){
+    .compare-row{ grid-template-columns: 1fr; }
+  }
+  .compare-col{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    display:flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .compare-badge{
+    font-size: 12.5px;
+    font-weight: 700;
+    text-align: center;
+    padding: 6px 8px;
+    border-radius: 6px;
+    color: var(--bg);
+    background: var(--accent);
+  }
+  .compare-box{
+    border: 1.5px dashed #3a4456;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 13px;
+    text-align: center;
+    color: var(--text-dim);
+  }
+  .compare-box.blue{ border-color: var(--hl-blue-bd); color: var(--text); background: var(--hl-blue-bg); }
+  .compare-box.orange{ border-color: var(--hl-orange-bd); color: var(--text); background: var(--hl-orange-bg); font-size: 12px; }
+  .compare-box.green{ border-color: var(--hl-green-bd); color: var(--text); background: var(--hl-green-bg); }
+  .compare-arrow{ text-align:center; color: var(--text-dim); font-size: 18px; }
+
+  /* ---------- reason cards ---------- */
+  .reason-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 700px){ .reason-grid{ grid-template-columns: 1fr; } }
+  .reason-card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .reason-card h3{ margin: 0 0 8px; font-size: 15px; color: var(--accent); }
+  .reason-card p{ font-size: 13.5px; color: var(--text-dim); margin: 0; }
+
+  /* ---------- accordion ---------- */
+  details{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px 18px;
+    margin-bottom: 10px;
+  }
+  summary{
+    cursor: pointer;
+    padding: 12px 0;
+    font-weight: 700;
+    font-size: 14.5px;
+    color: var(--text);
+    list-style: none;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  summary::-webkit-details-marker{ display:none; }
+  summary::before{ content: "▸"; color: var(--accent); transition: transform 0.2s; }
+  details[open] summary::before{ transform: rotate(90deg); }
+  details p{ padding-bottom: 14px; font-size: 14px; color: var(--text-dim); }
+
+  /* ---------- quiz ---------- */
+  .quiz-block{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+  }
+  .quiz-q{ font-size: 14.5px; margin-bottom: 10px; }
+  .quiz-q .qn{ color: var(--accent); font-weight: 700; margin-right: 6px; }
+
+  .blank-btn{
+    background: var(--hl-yellow-bg);
+    border: 1px dashed var(--hl-yellow-bd);
+    color: var(--text);
+    padding: 2px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .blank-btn.revealed{
+    background: var(--hl-green-bg);
+    border: 1px solid var(--hl-green-bd);
+    cursor: default;
+  }
+
+  .tf-row{ display:flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; align-items:center; }
+  .tf-btn{
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    padding: 7px 18px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 13.5px;
+    font-family: inherit;
+  }
+  .tf-btn.correct{ background: var(--hl-green-bg); border-color: var(--hl-green-bd); }
+  .tf-btn.wrong{ background: var(--hl-red-bg); border-color: var(--hl-red-bd); }
+  .tf-explain{
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 10px;
+    display:none;
+    border-top: 1px dashed var(--border);
+    padding-top: 10px;
+  }
+
+  textarea{
+    width: 100%;
+    min-height: 70px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 13.5px;
+    margin-top: 8px;
+    resize: vertical;
+  }
+  .reveal-btn{
+    margin-top: 10px;
+    background: transparent;
+    border: 1px solid var(--accent-dim);
+    color: var(--accent);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .model-answer{
+    display:none;
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: var(--hl-green-bg);
+    border: 1px solid var(--hl-green-bd);
+    border-radius: 7px;
+    font-size: 13.5px;
+    color: var(--text);
+  }
+
+  footer{
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+  footer code{
+    background: var(--surface-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="eyebrow">DATA STRUCTURE NOTE　/　INDEXING</div>
+  <h1>B+樹與索引結構：叢集索引 vs 非叢集索引</h1>
+  <p class="thesis">
+    核心結論先講：不論是<span class="hl-yellow">叢集索引</span>還是<span class="hl-yellow">非叢集索引</span>，底層骨架都是同一棵 <span class="hl-blue">B+樹</span>。
+    兩者唯一的本質差異，發生在樹的最底層——<span class="hl-yellow">葉子節點（Leaf Node）裡到底放的是「資料本身」還是「指向資料的指標」</span>。
+  </p>
+
+  <!-- ============ 01 整體結構 ============ -->
+  <section id="sec01">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>B+樹的整體骨架</h2>
+    </div>
+    <p>
+      不管哪種索引，畫出來都是這個樣子：<span class="hl-blue">Root（根節點）</span>負責往下分流，
+      <span class="hl-blue">Internal Node（內部節點）</span>負責路由，真正的內容只會出現在最底層的
+      <span class="hl-yellow">Leaf Node（葉子節點）</span>。葉子節點之間還有一條<span class="hl-orange">雙向鏈結串列</span>互相串起來，
+      這就是範圍查詢可以飛快的關鍵。
+    </p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 760 300" width="100%" style="display:block;">
+        <!-- lines: root -> internal -->
+        <line class="tree-line" x1="380" y1="64" x2="210" y2="116"/>
+        <line class="tree-line" x1="380" y1="64" x2="550" y2="116"/>
+        <!-- lines: internal -> leaf -->
+        <line class="tree-line" x1="210" y1="160" x2="105" y2="208"/>
+        <line class="tree-line" x1="210" y1="160" x2="275" y2="208"/>
+        <line class="tree-line" x1="550" y1="160" x2="455" y2="208"/>
+        <line class="tree-line" x1="550" y1="160" x2="625" y2="208"/>
+
+        <!-- root -->
+        <rect class="node-box node-root" x="310" y="20" width="140" height="44" rx="8"/>
+        <text class="node-label" x="380" y="46">Root [ 50 ]</text>
+
+        <!-- internal nodes -->
+        <rect class="node-box" x="140" y="116" width="140" height="44" rx="8"/>
+        <text class="node-label" x="210" y="142">[ 10 | 30 ]</text>
+        <rect class="node-box" x="480" y="116" width="140" height="44" rx="8"/>
+        <text class="node-label" x="550" y="142">[ 70 | 90 ]</text>
+
+        <!-- leaves -->
+        <rect id="leaf1" class="leaf-box" x="30" y="208" width="150" height="56" rx="8"/>
+        <text class="leaf-label" x="105" y="232">key ≤ 10</text>
+        <text class="leaf-label" x="105" y="248" font-size="10">［葉子節點：放資料或指標］</text>
+
+        <rect id="leaf2" class="leaf-box" x="200" y="208" width="150" height="56" rx="8"/>
+        <text class="leaf-label" x="275" y="232">11 ≤ key ≤ 30</text>
+        <text class="leaf-label" x="275" y="248" font-size="10">［葉子節點：放資料或指標］</text>
+
+        <rect id="leaf3" class="leaf-box" x="380" y="208" width="150" height="56" rx="8"/>
+        <text class="leaf-label" x="455" y="232">31 ≤ key ≤ 70</text>
+        <text class="leaf-label" x="455" y="248" font-size="10">［葉子節點：放資料或指標］</text>
+
+        <rect id="leaf4" class="leaf-box" x="550" y="208" width="150" height="56" rx="8"/>
+        <text class="leaf-label" x="625" y="232">key ≥ 71</text>
+        <text class="leaf-label" x="625" y="248" font-size="10">［葉子節點：放資料或指標］</text>
+
+        <!-- linked list connectors -->
+        <line id="link12" class="link-line" x1="180" y1="236" x2="200" y2="236"/>
+        <line id="link23" class="link-line" x1="350" y1="236" x2="380" y2="236"/>
+        <line id="link34" class="link-line" x1="530" y1="236" x2="550" y2="236"/>
+      </svg>
+
+      <div class="scan-controls">
+        <button class="btn primary" id="scanBtn">▸ 示範範圍查詢：age BETWEEN 20 AND 60</button>
+        <span class="scan-caption" id="scanCaption"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 葉子節點對照 ============ -->
+  <section id="sec02">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>葉子節點裡到底放了什麼：三種情境對照</h2>
+    </div>
+    <p>
+      把上面那棵樹的<span class="hl-yellow">葉子節點放大來看</span>，三種情境的內容完全不一樣：
+    </p>
+
+    <div class="compare-row">
+      <div class="compare-col">
+        <div class="compare-badge">叢集索引</div>
+        <div class="compare-box blue">葉子節點 ＝<br><b>完整資料列</b><br><span style="font-size:11px;">（PK／Name／Email／…全部欄位）</span></div>
+        <div class="compare-arrow">↓</div>
+        <div class="compare-box green">✓ 直接拿到完整資料<br>不需要再查第二次</div>
+      </div>
+
+      <div class="compare-col">
+        <div class="compare-badge">非叢集索引<br><span style="font-weight:400;">（表有叢集索引）</span></div>
+        <div class="compare-box blue">葉子節點 ＝<br><b>叢集索引鍵值</b><br><span style="font-size:11px;">（例如 PK：Id = 87）</span></div>
+        <div class="compare-arrow">↓</div>
+        <div class="compare-box orange">再走一次叢集索引 B+樹<br>＝<span class="hl-orange" style="background:transparent;border:none;padding:0;">回表 / Bookmark Lookup</span></div>
+        <div class="compare-arrow">↓</div>
+        <div class="compare-box green">✓ 取得完整資料列</div>
+      </div>
+
+      <div class="compare-col">
+        <div class="compare-badge">非叢集索引<br><span style="font-weight:400;">（Heap Table，無叢集索引）</span></div>
+        <div class="compare-box blue">葉子節點 ＝<br><b>RID</b><br><span style="font-size:11px;">（檔案編號：分頁編號：列位移）</span></div>
+        <div class="compare-arrow">↓</div>
+        <div class="compare-box orange">直接定位磁碟上的實體位置</div>
+        <div class="compare-arrow">↓</div>
+        <div class="compare-box green">✓ 取得完整資料列</div>
+      </div>
+    </div>
+
+    <p style="margin-top:18px; font-size:13.5px; color:var(--text-dim);">
+      也因為叢集索引的葉子節點就是實體資料本身，<span class="hl-red">一張表只能有一個叢集索引</span>——資料在磁碟上物理排列方式只能有一種，不可能同時依兩種順序排好。
+    </p>
+  </section>
+
+  <!-- ============ 03 為什麼選 B+樹 ============ -->
+  <section id="sec03">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>為什麼是 B+樹，不是二元搜尋樹？</h2>
+    </div>
+    <div class="reason-grid">
+      <div class="reason-card">
+        <h3>① 樹高極低、極扁平</h3>
+        <p>B+樹 每個節點可以塞進成百上千個子節點指標，百萬、千萬筆資料的樹高通常只要 3～4 層。樹越扁，從 Root 走到 Leaf 需要的<span class="hl-yellow" style="background:transparent;border:none;padding:0;color:var(--text);">磁碟 I/O 次數</span>就越少——這是效能的關鍵，而不是單純的「比較次數」。</p>
+      </div>
+      <div class="reason-card">
+        <h3>② 葉子節點之間有鏈結串列</h3>
+        <p>所有葉子節點用<span class="hl-orange" style="background:transparent;border:none;padding:0;color:var(--text);">雙向鏈結串列</span>串起來。範圍查詢只要定位到起點，就能沿著串列往後讀，完全不必每次都回到 Root 重新搜尋一次——上面 01 的示範按鈕就是在演這個過程。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 PostgreSQL 警告 ============ -->
+  <section id="sec04">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>⚠️ 妳在用的 PostgreSQL，其實是特例</h2>
+    </div>
+    <div class="callout red">
+      <div class="callout-title">⚠️ 重要警告：上面整套說法，主要對應 MySQL（InnoDB）或 SQL Server</div>
+      <p style="margin-bottom:10px;">
+        PostgreSQL 的儲存機制<span class="hl-red">不一樣</span>，這點對正在用 Go + GORM + PostgreSQL 的妳特別重要：
+      </p>
+      <p style="margin-bottom:10px;">
+        ・PostgreSQL 的 <span class="hl-blue">Heap</span>（資料表的實體儲存區）<b>預設是無序的</b>，沒有「持續維護」的叢集索引這種東西。
+      </p>
+      <p style="margin-bottom:10px;">
+        ・所有索引（包含 Primary Key 用的 B-tree 索引）的葉子節點，存的都是
+        <span class="hl-blue">TID（Tuple Identifier，概念上等同於 RID：page + offset）</span>，
+        指向 heap 裡的實體資料列。也就是說，<b>PostgreSQL 裡每個索引在結構上其實都更接近「非叢集索引」</b>。
+      </p>
+      <p style="margin-bottom:0;">
+        ・PostgreSQL 有一個 <code style="background:var(--surface-2); padding:1px 6px; border-radius:4px; font-family:monospace;">CLUSTER</code> 指令，可以依某個索引<b>手動、一次性</b>把實體資料重新physically排序一次，效果類似叢集索引。
+        但這只是「當下整理一次」，<span class="hl-yellow">之後新插入或更新的資料不會自動維持那個排序</span>，要的話得自己重複手動執行。
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 05 進階延伸 ============ -->
+  <section id="sec05">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2>進階延伸（選讀）</h2>
+    </div>
+
+    <details>
+      <summary>涵蓋索引（Covering Index）怎麼避免回表？</summary>
+      <p>
+        回頭看 02 的第二欄：如果那個非叢集索引的葉子節點裡，<span class="hl-green" style="background:transparent;border:none;padding:0;color:var(--text);">本來就已經包含查詢需要的全部欄位</span>（不只 PK），
+        資料庫就完全不需要再回去走一次叢集索引——因為要的東西在葉子節點上就拿得到了。這就是涵蓋索引的核心原理：用「索引多放一點欄位」去換「省掉一次回表」。
+      </p>
+    </details>
+
+    <details>
+      <summary>B-Tree 跟 B+-Tree 差在哪？</summary>
+      <p>
+        傳統 B-Tree 的內部節點本身也能放資料，葉子節點之間也沒有鏈結串列。B+-Tree 把資料全部趕到葉子節點，內部節點只專心做路由——
+        節點更精簡，能塞進更多鍵值，樹更扁；加上葉子節點之間的鏈結串列，範圍查詢的效率明顯更好。這就是資料庫普遍選 B+-Tree 而不是 B-Tree 的原因。
+      </p>
+    </details>
+  </section>
+
+  <!-- ============ 06 自我測驗 ============ -->
+  <section id="sec06">
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2>自我測驗</h2>
+    </div>
+
+    <h3 style="font-size:14px; color:var(--text-dim); margin-bottom:10px;">填空題（點擊黃色框顯示答案，再點一次可收回）</h3>
+
+    <div class="quiz-block"><div class="quiz-q"><span class="qn">Q1.</span>叢集索引的 B+樹 中，葉子節點存放的是
+      <button class="blank-btn" data-answer="資料表的完整實體資料列（整列資料）">______</button>。</div></div>
+
+    <div class="quiz-block"><div class="quiz-q"><span class="qn">Q2.</span>非叢集索引的葉子節點存放的是指向實體資料的
+      <button class="blank-btn" data-answer="指標（鍵值或 RID／TID）">______</button>，而不是實際資料本身。</div></div>
+
+    <div class="quiz-block"><div class="quiz-q"><span class="qn">Q3.</span>當資料表「有」叢集索引時，非叢集索引葉子節點裡存放的指標內容其實是
+      <button class="blank-btn" data-answer="叢集索引的鍵值（例如 Primary Key 的值）">______</button>。</div></div>
+
+    <div class="quiz-block"><div class="quiz-q"><span class="qn">Q4.</span>當資料表是 Heap Table（沒有叢集索引）時，非叢集索引葉子節點存放的會是
+      <button class="blank-btn" data-answer="RID：實體資料在磁碟上的檔案編號與分頁編號">______</button>。</div></div>
+
+    <div class="quiz-block"><div class="quiz-q"><span class="qn">Q5.</span>透過非叢集索引找到鍵值後，還要再去走一次叢集索引 B+樹 才能拿到完整資料，這個動作叫做
+      <button class="blank-btn" data-answer="書籤查找（Bookmark Lookup），也稱「回表」">______</button>。</div></div>
+
+    <div class="quiz-block"><div class="quiz-q"><span class="qn">Q6.</span>B+樹 所有葉子節點之間都用
+      <button class="blank-btn" data-answer="雙向鏈結串列（Doubly Linked List）">______</button>相連，這讓範圍查詢不必每次都從樹根重新開始找。</div></div>
+
+    <h3 style="font-size:14px; color:var(--text-dim); margin:24px 0 10px;">是非題</h3>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="qn">T1.</span>一個資料表可以同時擁有兩個叢集索引。</div>
+      <div class="tf-row">
+        <button class="tf-btn" data-correct="false">✓ 對</button>
+        <button class="tf-btn" data-correct="true">✗ 錯</button>
+      </div>
+      <div class="tf-explain">錯。叢集索引的葉子節點就是實體資料本身，資料在磁碟上的物理排列只能有一種順序，所以一張表只能有一個叢集索引。</div>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="qn">T2.</span>非叢集索引一定比叢集索引查詢速度慢。</div>
+      <div class="tf-row">
+        <button class="tf-btn" data-correct="false">✓ 對</button>
+        <button class="tf-btn" data-correct="true">✗ 錯</button>
+      </div>
+      <div class="tf-explain">錯。如果非叢集索引已經是「涵蓋索引」——葉子節點本身就包含查詢需要的所有欄位——就不需要回表，反而可能比叢集索引掃描更快。</div>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="qn">T3.</span>B+樹 比二元樹更適合做資料庫索引的原因之一，是樹的高度較低、能減少磁碟 I/O 次數。</div>
+      <div class="tf-row">
+        <button class="tf-btn" data-correct="true">✓ 對</button>
+        <button class="tf-btn" data-correct="false">✗ 錯</button>
+      </div>
+      <div class="tf-explain">對。B+樹 每個節點能容納大量子節點，樹高通常只有 3～4 層，每多一層就多一次磁碟存取，扁平的樹能大幅減少 I/O。</div>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="qn">T4.</span>在 PostgreSQL 中，Primary Key 索引預設就是叢集索引，資料列會自動依照 Primary Key 物理排序儲存。</div>
+      <div class="tf-row">
+        <button class="tf-btn" data-correct="false">✓ 對</button>
+        <button class="tf-btn" data-correct="true">✗ 錯</button>
+      </div>
+      <div class="tf-explain">錯，這是常見誤解。PostgreSQL 的 Primary Key 索引在結構上其實是非叢集索引（葉子節點存的是 TID），heap 預設無序。要讓資料暫時依某索引重新排列一次，需要手動執行 CLUSTER 指令，而且之後新資料不會自動維持排序。</div>
+    </div>
+
+    <h3 style="font-size:14px; color:var(--text-dim); margin:24px 0 10px;">申論題（先自己寫，再點開參考答案對照）</h3>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="qn">E1.</span>請用自己的話解釋：「回表」為什麼會造成效能成本？在什麼情境下可以靠「涵蓋索引」避免回表？</div>
+      <textarea placeholder="先打打看自己的理解……"></textarea>
+      <button class="reveal-btn">顯示參考答案</button>
+      <div class="model-answer">
+        回表＝多走一次 B+樹（從非叢集索引的葉子節點拿到鍵值或 RID 後，還要再用這個鍵值去查一次叢集索引，或直接定位磁碟分頁）。
+        每一次「走一棵 B+樹」在最差情況下都可能是一次額外的磁碟 I/O，資料量越大、要回表的列數越多，這個成本就越明顯。
+        如果非叢集索引在建立時，把查詢實際需要的欄位都包含進去（不限於 PK），葉子節點本身就拿得到答案，就完全不用回表——這正是涵蓋索引的設計目的。
+      </div>
+    </div>
+
+    <div class="quiz-block">
+      <div class="quiz-q"><span class="qn">E2.</span>在妳目前 Go + GORM + PostgreSQL 的後端架構裡，PostgreSQL「所有索引結構上都更接近非叢集索引」這個特性，對妳設計查詢或索引時會有什麼實際影響？</div>
+      <textarea placeholder="可以想想：常用的高頻查詢欄位、要不要建涵蓋索引、要不要手動 CLUSTER……"></textarea>
+      <button class="reveal-btn">顯示參考答案</button>
+      <div class="model-answer">
+        因為 PostgreSQL 沒有「自動持續維護」的叢集索引，靠 Primary Key 查詢時，理論上每一次都隱含一次「鍵值 → TID」的查找（雖然 PK 本身常駐記憶體快取，實務上感受不明顯）。
+        實際影響：① 對高頻、效能敏感的查詢，可以考慮建立涵蓋索引（GORM 可透過自訂 migration 或 raw SQL 加 INCLUDE 欄位）來省掉回表；
+        ② 如果某張表有「幾乎只依某欄位範圍查詢」的明顯熱點模式（例如時間序資料表常依時間範圍掃描），可以評估手動執行 CLUSTER 搭配排程維護，但要清楚這不是自動持續的，新資料寫入後順序會慢慢「鬆散」，需要重新評估維護頻率。
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    本筆記建議存放路徑：<code>Abby-notes/資料庫/索引結構/</code>，搭配 Obsidian 的 <b>HTML Reader</b> 外掛嵌入顯示。<br><br>
+    因為 wikilink（<code>[[筆記名稱]]</code>）無法在這份 HTML 內部生效，建議另外建立一個同名 <code>.md</code> 包裝筆記，內容用
+    <code>![[B+樹與索引結構－叢集索引vs非叢集索引.html]]</code> 嵌入這份檔案，並在 .md 裡加上：<br>
+    <code>[[PostgreSQL遷移筆記]]</code> ・ <code>[[資料結構－B-Tree與B+-Tree]]</code> ・ <code>[[SQL查詢效能優化]]</code> 等關聯連結。
+  </footer>
+
+</div>
+
+<script>
+  // 填空題：點擊顯示／收回答案
+  document.querySelectorAll('.blank-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if (btn.classList.contains('revealed')){
+        btn.textContent = '______';
+        btn.classList.remove('revealed');
+      } else {
+        btn.textContent = btn.dataset.answer;
+        btn.classList.add('revealed');
+      }
+    });
+  });
+
+  // 是非題：點擊判斷對錯並顯示說明
+  document.querySelectorAll('.tf-row').forEach(function(row){
+    var buttons = row.querySelectorAll('.tf-btn');
+    var explain = row.parentElement.querySelector('.tf-explain');
+    buttons.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        buttons.forEach(function(b){ b.classList.remove('correct','wrong'); });
+        var isCorrectChoice = btn.dataset.correct === 'true';
+        btn.classList.add(isCorrectChoice ? 'correct' : 'wrong');
+        explain.style.display = 'block';
+      });
+    });
+  });
+
+  // 申論題：顯示／收回參考答案
+  document.querySelectorAll('.reveal-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var ans = btn.nextElementSibling;
+      var showing = ans.style.display === 'block';
+      ans.style.display = showing ? 'none' : 'block';
+      btn.textContent = showing ? '顯示參考答案' : '收回參考答案';
+    });
+  });
+
+  // 範圍查詢示範動畫
+  var scanned = false;
+  document.getElementById('scanBtn').addEventListener('click', function(){
+    var leaf2 = document.getElementById('leaf2');
+    var leaf3 = document.getElementById('leaf3');
+    var link23 = document.getElementById('link23');
+    var caption = document.getElementById('scanCaption');
+    scanned = !scanned;
+    if (scanned){
+      leaf2.classList.add('scanning');
+      leaf3.classList.add('scanning');
+      link23.classList.add('scanning');
+      caption.textContent = '✓ 從 leaf2 定位後，直接沿鏈結串列讀到 leaf3，完全不需要回到 Root 重新搜尋。';
+      this.textContent = '▸ 重設示範';
+    } else {
+      leaf2.classList.remove('scanning');
+      leaf3.classList.remove('scanning');
+      link23.classList.remove('scanning');
+      caption.textContent = '';
+      this.textContent = '▸ 示範範圍查詢：age BETWEEN 20 AND 60';
+    }
+  });
+</script>
+</body>
+</html>
