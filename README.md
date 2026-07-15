@@ -12,4 +12,5 @@
 | 後端 | [backend-notes.md](./backend-notes.md) | FastAPI、SQLModel、API 設計 |
 | 資料庫 | [database-notes.md](./database-notes.md) | SQL、Migration、資料表設計 |
 | Docker | [docker-notes.md](./docker-notes.md) | Docker Compose、容器管理 |
+| Docker | [docker/docker-引擎-context-image-container-觀念.md](./docker/docker-引擎-context-image-container-觀念.md) | 引擎/context/image vs container/daemon/dockerd、程式 vs 行程、PowerShell `&` |
 | 除錯 | [debug-notes.md](./debug-notes.md) | 常見錯誤與解決方法 |

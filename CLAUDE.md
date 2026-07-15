@@ -1,4 +1,3 @@
-# CLAUDE.md
 
 ## 📒 Abby-notes 筆記工作守則（Claude 每次回應都要遵守）
 每次 user 問問題，Claude 在回答的「同時」，要到 `C:\coding\futuresign\Abby-notes` 找一個最適合的位置把內容存下來：
@@ -158,3 +157,20 @@ API Routes 層
 切勿使用undefined做型別定義也不要宣告變數之後又不用它
 或者寫了TODO但沒有DO
 英文存進資料庫都要小寫喔!
+
+---
+
+## 🛠️ 疑難排解紀錄 (Troubleshooting Log)
+
+### 2026-06-22 — 終端機 `claude` 殼有了但跑不起來
+- **現象**：在 PowerShell 打 `claude` 沒反應 / 跑不出來。
+- **診斷**：`Get-Command claude` 回傳的是 `ExternalScript claude.ps1`(npm 全域安裝在 Windows 上會放 `claude`、`claude.cmd`、`claude.ps1` 三個殼)。代表**有裝、也在 PATH**,問題是「殼在但底層跑不起來」,不是「找不到」。
+- **可能病根**：① PowerShell ExecutionPolicy 擋 `.ps1`(同一個開關也會讓 venv 的 `Activate.ps1` 啟用失敗)；② Node 不在 PATH；③ 底層安裝損毀。
+- **✅ 最後解法**：重新安裝即修好。
+  ```powershell
+  npm install -g @anthropic-ai/claude-code
+  claude --version   # 確認版本有出來
+  ```
+- 若改 ExecutionPolicy 路線:`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` → `Y` → 重開終端機。
+- 相關筆記:[[where-vs-get-command]]、[[Claude-Code-Bash環境說明]]、[[plugin-marketplace-vs-install]]
+

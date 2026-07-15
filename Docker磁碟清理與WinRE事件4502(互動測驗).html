@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docker/WSL 磁碟清理 &amp; Windows 事件 4502</title>
+<style>
+  :root{
+    --bg:#0f1420; --card:#182234; --card2:#1e2b42; --line:#2c3b58;
+    --txt:#e7edf7; --muted:#9fb0cc; --accent:#4ea1ff; --accent2:#7ce7c4;
+    --warn:#ffcf6b; --danger:#ff8a8a; --ok:#7ce7a0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Noto Sans TC","Segoe UI",system-ui,sans-serif;
+    background:linear-gradient(160deg,#0c111c,#0f1420 40%,#111a2b);color:var(--txt);line-height:1.7;padding:32px 16px}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 6px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:16px 0;
+    box-shadow:0 6px 24px rgba(0,0,0,.25)}
+  h2{font-size:19px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  h2 .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+  .tag{display:inline-block;font-size:12px;color:var(--accent2);border:1px solid var(--accent2);
+    border-radius:20px;padding:1px 10px;margin-left:6px}
+  table{width:100%;border-collapse:collapse;margin:10px 0}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;font-size:14px}
+  th{background:var(--card2);color:var(--accent2)}
+  code{background:#0b1220;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--warn);font-size:13px}
+  pre{background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;font-size:13px}
+  .blank{border:none;border-bottom:2px dashed var(--accent);background:transparent;color:var(--ok);
+    font-size:15px;width:150px;text-align:center;outline:none}
+  .blank.correct{border-bottom-color:var(--ok)}
+  .blank.wrong{border-bottom-color:var(--danger)}
+  .reveal{cursor:pointer;color:var(--accent);border:1px solid var(--accent);background:transparent;
+    border-radius:8px;padding:4px 12px;font-size:13px;margin-top:8px}
+  .reveal:hover{background:rgba(78,161,255,.12)}
+  .answer{display:none;margin-top:10px;padding:12px 14px;border-left:3px solid var(--accent2);
+    background:var(--card2);border-radius:0 8px 8px 0;font-size:14px}
+  .answer.show{display:block;animation:fade .3s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1}}
+  .tf{display:flex;gap:10px;margin:8px 0;flex-wrap:wrap}
+  .tf button{cursor:pointer;border:1px solid var(--line);background:var(--card2);color:var(--txt);
+    border-radius:8px;padding:6px 16px;font-size:14px}
+  .tf button.pick-o{border-color:var(--ok);background:rgba(124,231,160,.15)}
+  .tf button.pick-x{border-color:var(--danger);background:rgba(255,138,138,.15)}
+  .verdict{font-size:13px;margin-left:8px}
+  .warnbox{border-left:3px solid var(--warn);background:rgba(255,207,107,.08);padding:10px 14px;border-radius:0 8px 8px 0;font-size:14px}
+  .rel{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .rel span{font-size:12px;background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:3px 12px;color:var(--accent)}
+  .q{font-weight:600;margin:14px 0 4px;color:var(--warn)}
+  .step{counter-reset:none}
+  footer{color:var(--muted);font-size:12px;text-align:center;margin-top:28px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Docker / WSL 磁碟清理 &amp; Windows 事件 4502</h1>
+  <p class="sub">建立日期 2026-07-11 · 主題:磁碟空間、虛擬磁碟、WSL 鎖定、Windows 修復環境 · 點擊可互動</p>
+
+  <!-- 關聯 -->
+  <div class="card">
+    <h2><span class="dot"></span>關聯筆記 <span class="tag">Obsidian links</span></h2>
+    <div class="rel">
+      <span>[[WSL2]]</span><span>[[NTFS]]</span><span>[[Registry NTUSER.DAT]]</span>
+      <span>[[虛擬磁碟 vhdx]]</span><span>[[diskpart]]</span><span>[[Docker 基礎]]</span>
+    </div>
+  </div>
+
+  <!-- 觀念1 -->
+  <div class="card">
+    <h2><span class="dot"></span>1. 核心觀念:vhdx「只長不縮」</h2>
+    <p>Docker 的資料存在虛擬磁碟檔 <code>docker_data.vhdx</code> 裡。它是<b>動態擴充</b>——用多少長多少,但<b>刪東西後不會自動縮小</b>。</p>
+    <p>比喻:vhdx 像吹大的<input class="blank" data-ans="氣球" placeholder="?"/>,把裡面的水倒掉(prune)後,它還是那麼大,要 compact 才會消氣。</p>
+    <p class="q">填空</p>
+    <p>清內部內容的指令是 <input class="blank" data-ans="prune" placeholder="?"/>;把檔案實體縮小的動作叫 <input class="blank" data-ans="compact" placeholder="?"/>。</p>
+    <button class="reveal">顯示 / 隱藏答案</button>
+    <div class="answer">氣球;prune 清水、compact 消氣。兩步都做完,Windows 才拿得回空間。</div>
+  </div>
+
+  <!-- 觀念2 -->
+  <div class="card">
+    <h2><span class="dot"></span>2. 清理兩步驟</h2>
+    <table>
+      <tr><th>步驟</th><th>指令</th><th>作用</th></tr>
+      <tr><td>① 清 Docker 內部</td><td><code>docker builder prune -a</code></td><td>刪掉沒在用(甚至有用)的建置快取</td></tr>
+      <tr><td>② 關 WSL</td><td><code>wsl --shutdown</code></td><td>停掉 WSL 虛擬機、放開 vhdx 檔案鎖</td></tr>
+      <tr><td>③ 壓縮 vhdx</td><td>diskpart → <code>compact vdisk</code></td><td>把空洞擠掉,空間真正還給 C 槽</td></tr>
+    </table>
+    <div class="warnbox">順序重點:先 <b>Quit Docker Desktop</b> → 再 <code>wsl --shutdown</code> → 再進 diskpart compact。Docker 開著會把 WSL 叫回來,vhdx 又被鎖住。</div>
+  </div>
+
+  <!-- 觀念3 -->
+  <div class="card">
+    <h2><span class="dot"></span>3. Docker 四大佔空間物件</h2>
+    <table>
+      <tr><th>名稱</th><th>是什麼</th><th>比喻</th></tr>
+      <tr><td>image</td><td>唯讀範本</td><td>App 安裝檔</td></tr>
+      <tr><td>container</td><td>從 image 跑起來的實例</td><td>正在跑的 App</td></tr>
+      <tr><td>volume</td><td>掛在 container 的持久資料</td><td>資料庫檔案</td></tr>
+      <tr><td>build cache</td><td>建 image 的中間層</td><td>編譯暫存</td></tr>
+    </table>
+    <p class="q">是非題</p>
+    <div data-tf="x">
+      <p>綠色「in use」的 image 應該優先刪掉來省空間。</p>
+      <div class="tf"><button data-v="o">○ 對</button><button data-v="x">✕ 錯</button><span class="verdict"></span></div>
+    </div>
+    <div data-tf="o">
+      <p>刪掉 volume 會連同裡面的資料庫資料一起消失。</p>
+      <div class="tf"><button data-v="o">○ 對</button><button data-v="x">✕ 錯</button><span class="verdict"></span></div>
+    </div>
+    <button class="reveal">顯示 / 隱藏解析</button>
+    <div class="answer">第一題「錯」:in use 代表有容器在用,那是你正在運作的專案(backend-go、mysql…),不該亂刪。真正肥的是 build cache。第二題「對」:volume 是持久資料,刪了不可逆。</div>
+  </div>
+
+  <!-- 觀念4 -->
+  <div class="card">
+    <h2><span class="dot"></span>4. 為什麼 vhdx 會被「鎖住」</h2>
+    <p><code>docker_data.vhdx</code> 就是 WSL2 那顆 Linux 虛擬機的硬碟。VM 運作時把它<b>獨佔掛載</b>(exclusive lock),同一時間只能一個程序用一顆磁碟。</p>
+    <div class="warnbox">盲點:工作管理員關掉的是 <b>Docker 程序</b>,但 WSL 的虛擬機(<code>Vmmem</code>)是<b>另一個獨立東西</b>,不會跟著停。只有 <code>wsl --shutdown</code> 才會優雅關掉它、放開鎖。用工作管理員硬殺 Vmmem 有讓檔案系統損毀的風險。</div>
+    <p class="q">申論題</p>
+    <p>用自己的話說明:為何 <code>wsl --shutdown</code> 比在工作管理員結束 <code>Vmmem</code> 更好?</p>
+    <button class="reveal">顯示參考答案</button>
+    <div class="answer"><code>wsl --shutdown</code> 是優雅關機,會通知 WSL 正常卸載檔案系統、把緩衝資料寫回磁碟再關;工作管理員結束 Vmmem 是硬拔電源,可能讓 vhdx 內的 ext4 停在未寫完狀態(雖有日誌通常能自救,但有風險)。兩者都能放開檔案鎖,但前者安全得多。</div>
+  </div>
+
+  <!-- 觀念5 -->
+  <div class="card">
+    <h2><span class="dot"></span>5. diskpart vs 磁碟管理</h2>
+    <p><code>diskpart</code> 是<b>磁碟分割管理工具</b>,能分割、格式化、compact vdisk…功能強大但<b>危險</b>(<code>clean</code> 會清空整顆磁碟、無法復原)。</p>
+    <div class="warnbox">一般分割 / 格式化 / 處理外接硬碟,改用圖形介面 <code>diskmgmt.msc</code>(磁碟管理),誤刪風險低很多。diskpart 動手前先 <code>list disk</code> 看清楚編號。</div>
+    <p class="q">填空</p>
+    <p>離開 diskpart 的指令是 <input class="blank" data-ans="exit" placeholder="?"/>;查看有哪些磁碟用 <input class="blank" data-ans="list disk" placeholder="?"/>。</p>
+    <button class="reveal">顯示 / 隱藏答案</button>
+    <div class="answer">exit;list disk。注意 wsl、docker 指令不能在 diskpart 裡跑,提示字元 <code>DISKPART&gt;</code> 代表你人還在 diskpart 內。</div>
+  </div>
+
+  <!-- 事件4502 -->
+  <div class="card">
+    <h2><span class="dot"></span>6. Windows 事件 4502 / WinREAgent <span class="tag">事件日誌</span></h2>
+    <p><b>WinREAgent = Windows Recovery Environment Agent</b>,負責維護/更新電腦裡的<b>修復磁碟分割</b>(重設此電腦、開機修復用的救援環境)。<b>跟 AI Agent 完全無關。</b></p>
+    <p>事件 <b>4502「Windows 修復環境服務失敗」</b>:某次 Windows Update 想更新救援分割區但失敗,最常見原因是<b>磁碟太滿 / 救援分割區空間不足</b>。</p>
+    <table>
+      <tr><th>日期時間</th><th>來源</th><th>事件 ID</th><th>層級</th></tr>
+      <tr><td>2026/7/9 21:24:03</td><td>WinREAgent</td><td>4502</td><td>重大</td></tr>
+      <tr><td>2026/7/9 16:04:07</td><td>WinREAgent</td><td>4502</td><td>重大</td></tr>
+      <tr><td>2026/7/3 10:06:24</td><td>WinREAgent</td><td>4502</td><td>重大</td></tr>
+      <tr><td>2026/6/28 20:09:37</td><td>WinREAgent</td><td>4502</td><td>重大</td></tr>
+    </table>
+    <div class="warnbox">7/3 那次失敗時 C 槽只剩約 1.5MB,完全對得上「磁碟太滿」。通常<b>不影響日常使用</b>,只是救援環境的更新沒套用。空間清出來後未來更新有機會自動補上;若持續失敗,可依微軟 KB 調整救援分割區大小。</div>
+    <p class="q">是非題</p>
+    <div data-tf="x">
+      <p>WinREAgent 是我電腦裡的 AI 代理程式出錯了。</p>
+      <div class="tf"><button data-v="o">○ 對</button><button data-v="x">✕ 錯</button><span class="verdict"></span></div>
+    </div>
+    <button class="reveal">顯示 / 隱藏解析</button>
+    <div class="answer">錯。WinREAgent 是 Windows 修復環境的維護元件,與 AI 無關;4502 多半肇因於磁碟/救援分割區空間不足。</div>
+  </div>
+
+  <!-- 觀念7 ETW -->
+  <div class="card">
+    <h2><span class="dot"></span>7. Kernel-EventTracing 警告(ETW) <span class="tag">事件日誌</span></h2>
+    <p>來源 <code>Kernel-EventTracing</code>、事件 ID 1、作業碼 Write Buffer 的一堆「警告」,訊息大意是:某個<b>即時追蹤工作階段</b>(例如 <code>intel.collector.lbr</code>)的<b>記錄檔達到大小上限</b>,在騰出空間前暫停寫入。</p>
+    <div class="warnbox">更精確的說法:這是 <b>ETW(Windows 事件追蹤 / Event Tracing for Windows)</b> 某個追蹤工作階段<b>自己的記錄檔</b>寫滿了,<b>不是整顆硬碟容量不足</b>。多半是背景追蹤器的雜訊,通常無害。跟 WinRE 4502「磁碟太滿」是兩回事。</div>
+    <p class="q">是非題</p>
+    <div data-tf="x">
+      <p>Kernel-EventTracing 的警告代表我的硬碟整體空間不足。</p>
+      <div class="tf"><button data-v="o">○ 對</button><button data-v="x">✕ 錯</button><span class="verdict"></span></div>
+    </div>
+    <button class="reveal">顯示 / 隱藏解析</button>
+    <div class="answer">錯。指的是「那個追蹤工作階段的記錄檔」達到它自己的大小上限,不是磁碟滿。屬雜訊等級警告。</div>
+  </div>
+
+  <!-- 觀念8 權限 -->
+  <div class="card">
+    <h2><span class="dot"></span>8. 權限:其實只有 2 個真概念</h2>
+    <p>「管理員身分」和「系統管理員身分」在中文<b>是同一個詞</b>(Administrator),不是兩層。真正的區別是:</p>
+    <table>
+      <tr><th>概念</th><th>意思</th></tr>
+      <tr><td>① 帳戶是不是管理員</td><td>帳戶類型(靜態身分)</td></tr>
+      <tr><td>② 以系統管理員身分執行</td><td>UAC 提權——把程式換成你帳戶的「完整權杖」。<b>不是</b>切換去內建 Administrator</td></tr>
+      <tr><td>③ 內建 Administrator 帳戶</td><td>另一個獨立、預設停用的超級帳戶</td></tr>
+    </table>
+    <div class="warnbox">「以系統管理員身分執行」提升到的是「<b>你自己帳戶的完整管理員權限</b>」,不是變成內建 Administrator。另外 <code>wsl --list --running</code> / <code>wsl --shutdown</code> 不需要管理員權限。</div>
+  </div>
+
+  <!-- 觀念9 環境變數 -->
+  <div class="card">
+    <h2><span class="dot"></span>9. 環境變數與兩個 vhdx</h2>
+    <p>Docker 在 WSL 裝了<b>兩個</b>發行版,各有各的虛擬磁碟:</p>
+    <table>
+      <tr><th>檔案</th><th>屬於</th><th>存什麼</th><th>大小</th></tr>
+      <tr><td><code>main\ext4.vhdx</code></td><td>docker-desktop(引擎)</td><td>Docker 的 Linux 系統</td><td>小</td></tr>
+      <tr><td><code>disk\docker_data.vhdx</code></td><td>docker-desktop-<b>data</b></td><td>images / containers / volumes / build cache</td><td><b>大(要 compact 這個)</b></td></tr>
+    </table>
+    <p><code>dir /s /b</code> 的參數:<code>/s</code> = 遞迴搜尋所有子資料夾;<code>/b</code> = 精簡格式,只印完整路徑。</p>
+    <table>
+      <tr><th>環境變數</th><th>指向</th><th>用途</th></tr>
+      <tr><td><code>%USERPROFILE%</code></td><td>C:\Users\User</td><td>家目錄本體</td></tr>
+      <tr><td><code>%LOCALAPPDATA%</code></td><td>C:\Users\User\AppData\Local</td><td>本機 App 資料(Docker vhdx 放這)</td></tr>
+      <tr><td><code>%APPDATA%</code></td><td>C:\Users\User\AppData\Roaming</td><td>可漫遊的 App 設定</td></tr>
+    </table>
+    <div class="warnbox">💡 <b>用變數的好處:不管使用者叫什麼名字,<code>%LOCALAPPDATA%</code> 都會自動指到對的地方。</b>寫腳本、貼指令時用變數,就不用管對方帳號是 User、Abby 還是別的——路徑永遠正確、可攜。</div>
+    <p class="q">填空</p>
+    <p>家目錄的環境變數是 <input class="blank" data-ans="%USERPROFILE%" placeholder="?"/>;要 compact 的大檔是 <input class="blank" data-ans="docker_data.vhdx" placeholder="?"/>。</p>
+    <button class="reveal">顯示 / 隱藏答案</button>
+    <div class="answer">%USERPROFILE%;docker_data.vhdx(docker-desktop-data 的虛擬磁碟)。</div>
+  </div>
+
+  <!-- 觀念10 diskpart 與 .msc -->
+  <div class="card">
+    <h2><span class="dot"></span>10. diskpart 是什麼 &amp; .msc 附檔名 <span class="tag">小教學</span></h2>
+    <p><b>diskpart</b> 不是 cmd、也不是 powershell,而是一支<b>獨立的命令列程式</b>(<code>diskpart.exe</code>)。你在 CMD 或 PowerShell <b>任一個</b>打 <code>diskpart</code> 都能叫起來,叫起來後就進入它<b>自己的介面</b>(提示字元 <code>DISKPART&gt;</code>)——這裡只吃 diskpart 的指令。需要系統管理員權限。</p>
+    <p>啟動與離開:</p>
+    <pre>diskpart          &lt;- 在 CMD/PowerShell 啟動(需管理員)
+list disk         &lt;- 先看清楚有哪些磁碟(重要!)
+exit              &lt;- 離開,回到原本的 shell</pre>
+    <div class="warnbox">危險提醒:<code>clean</code> / <code>delete</code> / <code>format</code> 會清空整顆磁碟且<b>無法復原</b>。動手前一定先 <code>list disk</code> 確認編號。一般分割/格式化改用圖形介面 <code>diskmgmt.msc</code> 更安全。</div>
+
+    <p class="q">.msc 附檔名是什麼?</p>
+    <p><code>.msc</code> = <b>Microsoft Management Console</b>(MMC)的主控台檔。雙擊它會用 MMC 開啟對應的「管理主控台」。常用的有:</p>
+    <table>
+      <tr><th>.msc 檔</th><th>開啟什麼</th></tr>
+      <tr><td><code>diskmgmt.msc</code></td><td>磁碟管理(圖形化分割/格式化)</td></tr>
+      <tr><td><code>eventvwr.msc</code></td><td>事件檢視器</td></tr>
+      <tr><td><code>services.msc</code></td><td>服務</td></tr>
+      <tr><td><code>devmgmt.msc</code></td><td>裝置管理員</td></tr>
+      <tr><td><code>compmgmt.msc</code></td><td>電腦管理(把上面幾個包在一起)</td></tr>
+      <tr><td><code>taskschd.msc</code></td><td>工作排程器</td></tr>
+    </table>
+    <p class="q">是非題</p>
+    <div data-tf="x">
+      <p>diskpart 是 PowerShell 內建的指令,只能在 PowerShell 裡用。</p>
+      <div class="tf"><button data-v="o">○ 對</button><button data-v="x">✕ 錯</button><span class="verdict"></span></div>
+    </div>
+    <button class="reveal">顯示 / 隱藏解析</button>
+    <div class="answer">錯。diskpart 是獨立程式,CMD 或 PowerShell 都能啟動,進去後是它自己的 <code>DISKPART&gt;</code> 介面。</div>
+
+    <p class="q">填空</p>
+    <p>圖形化磁碟管理的檔案是 <input class="blank" data-ans="diskmgmt.msc" placeholder="?"/>;事件檢視器是 <input class="blank" data-ans="eventvwr.msc" placeholder="?"/>。</p>
+    <button class="reveal">顯示 / 隱藏答案</button>
+    <div class="answer">diskmgmt.msc;eventvwr.msc。這兩個 .msc 都由 MMC 開啟。</div>
+
+    <p class="q">申論題</p>
+    <p>什麼時候該用 diskpart、什麼時候該用 diskmgmt.msc?</p>
+    <button class="reveal">顯示參考答案</button>
+    <div class="answer">日常的分割、格式化、指派磁碟機代號、處理外接硬碟 → 用圖形介面 <code>diskmgmt.msc</code>,看得到名稱容量、誤刪風險低。只有圖形介面做不到的特殊操作(例如 compact vdisk 壓縮虛擬磁碟、清除保護分割)才用 diskpart,且動手前先 <code>list disk</code>。</div>
+  </div>
+
+  <footer>本筆記可直接放入 Obsidian(建議搭配 HTML reader 外掛檢視)· 互動由純 JS 實作,無外部相依</footer>
+</div>
+
+<script>
+  // 填空
+  document.querySelectorAll('.blank').forEach(function(inp){
+    inp.addEventListener('input',function(){
+      var v=inp.value.trim().toLowerCase();
+      var a=inp.dataset.ans.toLowerCase();
+      inp.classList.remove('correct','wrong');
+      if(!v) return;
+      inp.classList.add(v===a?'correct':'wrong');
+    });
+  });
+  // 顯示/隱藏答案
+  document.querySelectorAll('.reveal').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var ans=btn.nextElementSibling;
+      if(ans&&ans.classList.contains('answer')) ans.classList.toggle('show');
+    });
+  });
+  // 是非題
+  document.querySelectorAll('[data-tf]').forEach(function(box){
+    var correct=box.dataset.tf;
+    box.querySelectorAll('button[data-v]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var v=b.dataset.v;
+        var verdict=box.querySelector('.verdict');
+        box.querySelectorAll('button[data-v]').forEach(function(x){x.classList.remove('pick-o','pick-x')});
+        b.classList.add(v==='o'?'pick-o':'pick-x');
+        if(v===correct){verdict.textContent='✓ 答對了';verdict.style.color='var(--ok)';}
+        else{verdict.textContent='✗ 再想想';verdict.style.color='var(--danger)';}
+      });
+    });
+  });
+</script>
+</body>
+</html>

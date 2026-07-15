@@ -18,6 +18,7 @@ ADD COLUMN column_name VARCHAR(255) NOT NULL DEFAULT '';
 -- 新增索引
 ALTER TABLE table_name
 ADD INDEX idx_name (column1, column2);
+-- 索引是什麼、跟外鍵命名的關係見 [[索引index與外鍵命名]]
 
 -- 查看表結構
 DESCRIBE table_name;
