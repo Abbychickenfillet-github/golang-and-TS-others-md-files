@@ -161,7 +161,7 @@ export VAR=hello       # 設成「環境變數」，子程序也看得到
 
 ### `PATH` 的特殊重要性
 
-**為什麼打 `ls` 就能執行？** 因為 `ls` 的可執行檔在 `/usr/bin/`，而 `/usr/bin/` 在 `PATH` 裡。
+**為什麼打 `ls` 就能執行？** 因為 `ls` 的可執行檔在 `/`[[usr-Unix系統資源|usr]]`/bin/`，而 `/usr/bin/` 在 `PATH` 裡。
 
 ```bash
 # 看 PATH

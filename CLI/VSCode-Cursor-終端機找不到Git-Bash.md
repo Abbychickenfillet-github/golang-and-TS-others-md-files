@@ -510,7 +510,7 @@ git.exe
 sh.exe
 ```
 
-同樣的慣例到處都是：`/usr/bin`、`node_modules/.bin`、Python venv 的 `Scripts/`（Windows 版把 bin 改叫 Scripts，見 [[PowerShell-啟動venv與點斜線安全機制]]）。
+同樣的慣例到處都是：`/`[[usr-Unix系統資源|usr]]`/bin`、`node_modules/.bin`、Python venv 的 `Scripts/`（Windows 版把 bin 改叫 Scripts，見 [[PowerShell-啟動venv與點斜線安全機制]]）。
 
 ### 「我不記得裝過 bash 啊？」——它是 Git 的附贈品
 

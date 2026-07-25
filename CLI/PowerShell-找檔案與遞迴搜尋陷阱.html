@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PowerShell 找檔案 &amp; Get-Command 物件互動</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;
+--term-bg:#0d1117;--term-ink:#c9d1d9;--green:#3fb950;--amber:#e3b341;--pink:#ff7b9c;--blue:#58a6ff;--purp:#bc8cff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:880px;margin:0 auto;padding:32px 20px 64px;}
+header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
+h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
+h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
+h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
+p{margin:.6em 0;}
+ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
+code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
+pre{background:#0d1117;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
+pre code{display:block;background:none;padding:16px 18px;color:#c9d1d9;font-size:.86rem;line-height:1.6;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;vertical-align:top;}
+th{background:var(--accent-soft);}
+tr:nth-child(even) td{background:#fafbfc;}
+blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
+.ok{color:#1a7f37;font-weight:700;} .no{color:#cf222e;font-weight:700;}
+footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+
+/* ============ 互動 playground ============ */
+.play{background:linear-gradient(180deg,#0d1117 0%,#111826 100%);border-radius:16px;padding:0;margin:20px 0;border:1px solid #223;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.25);}
+.play-head{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#161b22;border-bottom:1px solid #223;}
+.play-head .dot{width:12px;height:12px;border-radius:50%;}
+.d1{background:#ff5f56;}.d2{background:#ffbd2e;}.d3{background:#27c93f;}
+.play-head .ttl{color:#8b949e;font-size:.8rem;margin-left:6px;font-family:Consolas,monospace;}
+.play-body{padding:18px 18px 22px;}
+
+/* 指令晶片 */
+.chip-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px;}
+.chip-lbl{width:100%;color:#a4adba;font-size:.74rem;letter-spacing:.03em;margin:12px 0 2px;text-transform:uppercase;}
+.chip{cursor:pointer;background:#1c2330;border:1px solid #2d3646;padding:8px 13px;border-radius:8px;transition:all .15s;user-select:none;display:flex;flex-direction:column;gap:3px;}
+.chip .cx{font-family:"JetBrains Mono",Consolas,monospace;font-size:.8rem;color:#c9d1d9;}
+.chip .cn{font-size:.72rem;color:#8b949e;line-height:1.35;}
+.chip:hover{border-color:var(--blue);transform:translateY(-1px);}
+.chip:hover .cx{color:#fff;} .chip:hover .cn{color:#b7c2d0;}
+.chip.active{background:var(--blue);border-color:var(--blue);}
+.chip.active .cx{color:#04121f;font-weight:700;} .chip.active .cn{color:#0b2135;}
+.chip.trivia{border-color:#4a3a5c;}
+.chip.trivia .cx{color:#d9c9ff;}
+.chip.trivia:hover{border-color:var(--purp);}
+.chip.trivia.active{background:var(--purp);border-color:var(--purp);}
+.chip.trivia.active .cx{color:#150a20;font-weight:700;} .chip.trivia.active .cn{color:#2a1440;}
+.chip.all{border-color:#3a5c4a;}
+.chip.all .cx{color:#c9ffd9;}
+.chip.all:hover{border-color:var(--green);}
+.chip.all.active{background:var(--green);border-color:var(--green);}
+.chip.all.active .cx{color:#04120a;font-weight:700;} .chip.all.active .cn{color:#0a1f10;}
+
+/* 終端輸出列 */
+.term-out{font-family:"JetBrains Mono",Consolas,monospace;font-size:.85rem;margin:16px 0 10px;min-height:52px;padding:12px 14px;background:#05080d;border-radius:8px;border:1px solid #1b2430;line-height:1.7;}
+.term-out .ps{color:#58a6ff;} .term-out .cmd{color:#e6edf3;} .term-out .arrow{color:#8b949e;}
+.term-out .val{color:#3fb950;} .term-out .valpath{color:#e3b341;}
+.term-out .warn{color:#ff7b9c;}
+.term-out .placeholder{color:#4a5568;font-style:italic;}
+.cursor{display:inline-block;width:8px;height:1em;background:#3fb950;vertical-align:-2px;animation:blink 1s step-end infinite;}
+@keyframes blink{50%{opacity:0;}}
+
+/* 物件樹 */
+.tree{margin-top:14px;}
+.obj-node{margin:0 auto;max-width:340px;background:#161d2b;border:2px solid var(--blue);border-radius:12px;padding:12px 16px;text-align:center;box-shadow:0 0 0 4px rgba(88,166,255,.08);}
+.obj-node .var{color:var(--green);font-family:"JetBrains Mono",Consolas,monospace;font-size:.95rem;font-weight:700;}
+.obj-node .type{color:#8b949e;font-size:.76rem;margin-top:2px;}
+.obj-node .type b{color:var(--blue);}
+.trunk{width:2px;height:22px;background:#2d3646;margin:0 auto;}
+.bus{height:2px;background:#2d3646;margin:0 12px;border-radius:2px;}
+
+.leaves{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 14px;margin-top:0;padding-top:16px;}
+.leaf{position:relative;min-width:118px;flex:0 0 auto;cursor:pointer;background:#141a24;border:1px solid #2d3646;border-radius:10px;padding:9px 12px 10px;transition:all .18s;}
+.leaf::before{content:"";position:absolute;top:-16px;left:50%;width:2px;height:16px;background:#2d3646;transform:translateX(-50%);transition:background .18s;}
+.leaf .k{font-family:"JetBrains Mono",Consolas,monospace;font-size:.82rem;color:#c9d1d9;}
+.leaf .v{font-family:"JetBrains Mono",Consolas,monospace;font-size:.72rem;color:#4a5568;margin-top:3px;word-break:break-all;max-height:0;overflow:hidden;opacity:0;transition:all .28s ease;}
+.leaf:hover{border-color:#415066;transform:translateY(-2px);}
+.leaf.on{border-color:var(--green);background:#12241a;box-shadow:0 0 16px rgba(63,185,80,.22);}
+.leaf.on::before{background:var(--green);}
+.leaf.on .k{color:#7ee787;font-weight:700;}
+.leaf.on .v{color:#e3b341;max-height:80px;opacity:1;margin-top:6px;}
+.leaf.nested{border-style:dashed;}
+.leaf.on.warn{border-color:var(--pink);background:#241218;box-shadow:0 0 16px rgba(255,123,156,.22);}
+.leaf.on.warn::before{background:var(--pink);}
+.leaf.on.warn .k{color:#ff9db3;} .leaf.on.warn .v{color:#ff7b9c;}
+.leaf .tagmini{position:absolute;top:-9px;right:-6px;font-size:.6rem;background:#3a4658;color:#cdd6e2;padding:1px 6px;border-radius:6px;}
+
+.play-foot{display:flex;justify-content:space-between;align-items:center;margin-top:18px;flex-wrap:wrap;gap:10px;}
+.reset-btn{cursor:pointer;background:#21262d;color:#c9d1d9;border:1px solid #3d444d;padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:600;transition:all .15s;}
+.reset-btn:hover{background:#30363d;border-color:var(--pink);color:#fff;}
+.hint{color:#6e7681;font-size:.76rem;}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.72rem;color:#8b949e;margin-top:4px;}
+.legend span{display:inline-flex;align-items:center;gap:5px;}
+.sw{width:11px;height:11px;border-radius:3px;display:inline-block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="note-head">
+  <h1 class="note-title">PowerShell 找檔案 &amp; <code>Get-Command</code> 物件互動</h1>
+  <div class="tags"><span class="tag">#powershell</span><span class="tag">#cli</span><span class="tag">#get-command</span><span class="tag">#物件管線</span><span class="tag">#找檔案</span><span class="tag">#dir</span></div>
+  <div class="meta">更新於 2026-07-15　·　分類：CLI　·　互動筆記（點指令看屬性分支）</div>
+</header>
+
+<section class="card">
+<h2>🎮 互動：一個指令，如何長出屬性分支</h2>
+<p>中央是 <code>Get-Command git</code> 回傳的 <b>ApplicationInfo 物件</b>。點上方的指令晶片，對應的屬性分支會亮起來並吐出回傳值。<br>
+綠色是一般用法、<span style="color:#8a5cd0;font-weight:700">紫色是冷知識</span>（會反直覺！）、<span style="color:#2f8f57;font-weight:700">綠框那顆</span>一次點亮全部。點另一個指令會自動切換，不用清空。</p>
+
+<div class="play">
+  <div class="play-head"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><span class="ttl">Windows PowerShell — Get-Command 物件實驗室</span></div>
+  <div class="play-body">
+
+    <div class="chip-row">
+      <div class="chip-lbl">▸ 常見用法（點點看）</div>
+      <div class="chip" data-id="source"><span class="cx">(Get-Command git).Source</span><span class="cn">git 這個指令的執行檔「裝在哪」→ 完整路徑</span></div>
+      <div class="chip" data-id="name"><span class="cx">(Get-Command git).Name</span><span class="cn">指令的名字（含副檔名）</span></div>
+      <div class="chip" data-id="version"><span class="cx">(Get-Command git).Version</span><span class="cn">這支執行檔的版本號</span></div>
+      <div class="chip" data-id="ctype"><span class="cx">(Get-Command git).CommandType</span><span class="cn">它是哪一類指令：exe？別名？cmdlet？</span></div>
+      <div class="chip" data-id="path"><span class="cx">(Get-Command git).Path</span><span class="cn">同樣是路徑（exe 時 Path/Source/Definition 三者相同）</span></div>
+      <div class="chip" data-id="ext"><span class="cx">(Get-Command git).Extension</span><span class="cn">副檔名，例如 .exe</span></div>
+    </div>
+
+    <div class="chip-row">
+      <div class="chip-lbl">▸ 冷知識：一般人比較不知道的</div>
+      <div class="chip trivia" data-id="fvi"><span class="cx">(Get-Command git).FileVersionInfo.FileVersion</span><span class="cn">Source 那欄旁邊還藏一個「檔案版本資訊」物件，能再往下鑽出廠商/產品名/詳細版本</span></div>
+      <div class="chip trivia" data-id="alias"><span class="cx">(Get-Command dir).Source</span><span class="cn">陷阱：dir 是別名，Source 會是「空的」→ 要改用 .ResolvedCommand 找真身</span></div>
+      <div class="chip trivia" data-id="cmdlet"><span class="cx">(Get-Command Get-ChildItem).Source</span><span class="cn">陷阱：cmdlet 沒有 exe，Source 給的是「模組名稱」不是路徑</span></div>
+    </div>
+
+    <div class="chip-row">
+      <div class="chip-lbl">▸ 一次看全部</div>
+      <div class="chip all" data-id="all"><span class="cx">Get-Command git | Format-List *</span><span class="cn">把這個物件身上「每一欄屬性」全部攤開列出來（下面整棵樹都會亮）</span></div>
+    </div>
+
+    <div class="term-out" id="termOut">
+      <span class="ps">PS C:\Users\User&gt;</span> <span class="placeholder">點上面任一個指令晶片…</span><span class="cursor"></span>
+    </div>
+
+    <div class="tree">
+      <div class="obj-node">
+        <div class="var">$git</div>
+        <div class="type">型別：<b>System.Management.Automation.ApplicationInfo</b></div>
+      </div>
+      <div class="trunk"></div>
+      <div class="bus"></div>
+      <div class="leaves" id="leaves">
+        <div class="leaf" data-key="name"><div class="k">.Name</div><div class="v">git.exe</div></div>
+        <div class="leaf" data-key="ctype"><div class="k">.CommandType</div><div class="v">Application</div></div>
+        <div class="leaf" data-key="version"><div class="k">.Version</div><div class="v">2.46.0.1</div></div>
+        <div class="leaf" data-key="source"><div class="k">.Source</div><div class="v">C:\Program Files\Git\cmd\git.exe</div></div>
+        <div class="leaf" data-key="path"><div class="k">.Path</div><div class="v">C:\Program Files\Git\cmd\git.exe</div></div>
+        <div class="leaf" data-key="ext"><div class="k">.Extension</div><div class="v">.exe</div></div>
+        <div class="leaf" data-key="def"><div class="k">.Definition</div><div class="v">C:\Program Files\Git\cmd\git.exe</div></div>
+        <div class="leaf" data-key="vis"><div class="k">.Visibility</div><div class="v">Public</div></div>
+        <div class="leaf" data-key="otype"><div class="k">.OutputType</div><div class="v">{System.String}</div></div>
+        <div class="leaf nested" data-key="fvi"><span class="tagmini">巢狀物件</span><div class="k">.FileVersionInfo</div><div class="v">→ 本身又是一個物件</div></div>
+      </div>
+    </div>
+
+    <div class="play-foot">
+      <div>
+        <div class="hint">點物件下面的葉子也可以直接觸發；點另一個指令會自動切換。</div>
+        <div class="legend">
+          <span><i class="sw" style="background:#3fb950"></i>一般屬性</span>
+          <span><i class="sw" style="background:#ff7b9c"></i>反直覺/警告</span>
+          <span><i class="sw" style="background:#2d3646;border:1px dashed #6b7684"></i>巢狀物件</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<blockquote><b>一句話原理：</b>PowerShell 管線裡跑的是<b>物件</b>不是文字。<code>Get-Command git</code> 給你一個物件，外層 <code>( )</code> 先把它算出來，再用 <code>.屬性</code> 去讀身上掛的那一欄。所以同一個指令，換個 <code>.屬性</code> 就拿到不同東西。</blockquote>
+</section>
+
+<section class="card">
+<h2>一、<code>.Source</code> 為什麼不一定是路徑？（冷知識重點）</h2>
+<p><code>.Source</code> 的內容，完全取決於這個指令的 <code>CommandType</code>：</p>
+<table>
+<tr><th>CommandType</th><th><code>.Source</code> 是什麼</th><th>例子</th></tr>
+<tr><td><code>Application</code>（外部 exe）</td><td class="ok">✅ 執行檔完整路徑</td><td><code>git</code> / <code>node</code> / <code>python</code></td></tr>
+<tr><td><code>ExternalScript</code>（.ps1）</td><td class="ok">✅ 腳本完整路徑</td><td><code>claude.ps1</code></td></tr>
+<tr><td><code>Cmdlet</code></td><td class="no">❌ 是「模組名稱」不是路徑</td><td><code>Get-ChildItem</code> → <code>Microsoft.PowerShell.Management</code></td></tr>
+<tr><td><code>Alias</code></td><td class="no">❌ 空的！要用 <code>.ResolvedCommand</code> 追</td><td><code>dir</code> → <code>Get-ChildItem</code></td></tr>
+</table>
+<pre><code>(Get-Command dir).CommandType        # Alias
+(Get-Command dir).ResolvedCommand    # Get-ChildItem   ← 追到真身</code></pre>
+<p>這也是筆記 CLAUDE.md 裡那則「<code>claude</code> 殼有了但跑不起來」會看到 <code>ExternalScript claude.ps1</code> 的原因：npm 全域安裝在 Windows 上會放 <code>claude</code>、<code>claude.cmd</code>、<code>claude.ps1</code> 三個殼。</p>
+</section>
+
+<section class="card">
+<h2>二、為什麼 <code>dir /s /b</code> 找不到檔案？</h2>
+<pre><code>C:\Users\User&gt; dir /s /b "Claude對於push到遠端是會出錯的啊.md"
+找不到檔案</code></pre>
+<p>但檔案明明在 <code>C:\coding\futuresign\Abby-notes\claude CLI\...</code>，<b>同一顆 C 槽啊？</b></p>
+<h3>🔑 病根：<code>/s</code> 是「從目前目錄往下遞迴」，不是「掃整顆磁碟」</h3>
+<pre><code>C:\                          ← 根
+├── Users\User\              ← 你人在這裡（cwd），/s 只掃這棵子樹
+└── coding\...\claude CLI\
+        └── Claude對於push到遠端是會出錯的啊.md   ← 掃不到！</code></pre>
+<p><code>C:\Users\User</code> 和 <code>C:\coding</code> 只是<b>兄弟</b>，共同掛在 <code>C:\</code> 底下。<b>同一顆磁碟 ≠ 同一棵子樹。</b></p>
+<p>解法是把搜尋起點拉到根：<code>dir /s /b "C:\*push到遠端*"</code>（會很慢，因為要掃整顆 C）。</p>
+</section>
+
+<section class="card">
+<h2>三、PowerShell 裡正確的找檔案方式</h2>
+<p><span class="no">❌ 不要在 PowerShell 打 <code>dir /s /b</code></span>：這裡的 <code>dir</code> 是 <code>Get-ChildItem</code> 的別名，不吃 <code>/s</code> <code>/b</code> 這種 CMD 斜線參數，會把 <code>/s</code> 當路徑解析然後報錯。</p>
+<pre><code>Get-ChildItem -Path C:\coding -Recurse -Filter "*push到遠端*" -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty FullName</code></pre>
+<table>
+<tr><th>參數</th><th>為什麼要</th></tr>
+<tr><td><code>-Recurse</code></td><td>才會往子資料夾鑽（等同 CMD 的 <code>/s</code>）</td></tr>
+<tr><td><code>-Filter "*關鍵字*"</code></td><td><b>由檔案系統底層過濾，比 <code>-Include</code> 快很多</b>，找檔名優先用它</td></tr>
+<tr><td><code>-ErrorAction SilentlyContinue</code></td><td>掃到沒權限的資料夾會噴紅字，用這個吞掉</td></tr>
+</table>
+<h3>縮寫版（互動時打字用）</h3>
+<pre><code>gci C:\coding -r -fi "*push到遠端*" -ea 0 | % FullName</code></pre>
+<p><code>gci</code>=Get-ChildItem、<code>-r</code>=-Recurse、<code>-fi</code>=-Filter、<code>-ea 0</code>=-ErrorAction SilentlyContinue、<code>%</code>=ForEach-Object。</p>
+</section>
+
+<section class="card">
+<h2>四、快速對照表</h2>
+<table>
+<tr><th>我要做的事</th><th>CMD</th><th>PowerShell</th></tr>
+<tr><td>找「指令」裝在哪</td><td><code>where git</code></td><td><code>(Get-Command git).Source</code></td></tr>
+<tr><td>找「檔案」在哪（遞迴）</td><td><code>dir /s /b "C:\*關鍵字*"</code></td><td><code>gci C:\ -r -fi "*關鍵字*" -ea 0</code></td></tr>
+<tr><td>找「檔案內容」</td><td><code>findstr /s /i "關鍵字" *.md</code></td><td><code>Select-String -Pattern "關鍵字" -Path *.md -Recurse</code></td></tr>
+<tr><td>遞迴起點</td><td><b>目前所在目錄</b>（易踩雷）</td><td><code>-Path</code> 明確指定（不易踩雷）</td></tr>
+</table>
+<blockquote>裸 <code>where</code> 在 PowerShell 會被 <code>Where-Object</code> 的別名佔走，要寫 <code>where.exe /r C:\coding *關鍵字*</code>。</blockquote>
+</section>
+
+<section class="card">
+<h2>相關筆記</h2>
+<ul>
+<li><b>where-vs-get-command</b> — <code>Get-Command</code> vs <code>where</code>、批次檔 <code>%%</code> 陷阱</li>
+<li><b>powershell-vs-bash</b> / <b>Bash-vs-PowerShell設計哲學差異</b> — 「傳物件 vs 傳文字」的根源</li>
+<li><b>grep-options</b> / <b>ls-options</b> / <b>glob-pattern-guide</b></li>
+</ul>
+</section>
+
+<footer class="note-foot">Abby-notes · CLI · 互動筆記</footer>
+</div>
+
+<script>
+// 每個指令晶片 → 要點亮哪些葉子 + 終端輸出內容
+const MAP = {
+  source:  {keys:['source'],
+            out:`<span class="ps">PS C:\\Users\\User&gt;</span> <span class="cmd">(Get-Command git).Source</span><br><span class="valpath">C:\\Program Files\\Git\\cmd\\git.exe</span>`},
+  name:    {keys:['name'],
+            out:`<span class="ps">PS C:\\Users\\User&gt;</span> <span class="cmd">(Get-Command git).Name</span><br><span class="val">git.exe</span>`},
+  version: {keys:['version'],
+            out:`<span class="ps">PS C:\\Users\\User&gt;</span> <span class="cmd">(Get-Command git).Version</span><br><span class="val">2.46.0.1</span>`},
+  ctype:   {keys:['ctype'],
+            out:`<span class="ps">PS C:\\Users\\User&gt;</span> <span class="cmd">(Get-Command git).CommandType</span><br><span class="val">Application</span>`},
+  path:    {keys:['path','source','def'],
+            out:`<span class="ps">PS C:\\Users\\User&gt;</span> <span class="cmd">(Get-Command git).Path</span><br><span class="valpath">C:\\Program Files\\Git\\cmd\\git.exe</span>　<span class="arrow"># Path / Source / Definition 對 exe 剛好都一樣</span>`},
+  ext:     {keys:['ext'],
+            out:`<span class="ps">PS C:\\Users\\User&gt;</span> <span class="cmd">(Get-Command git).Extension</span><br><span class="val">.exe</span>`},
+
+  // 冷知識
+  fvi:     {keys:['fvi'], warnKeys:[],
+            out:`<span class="ps">PS C:\\Users\\User&gt;</span> <span class="cmd">(Get-Command git).FileVersionInfo.FileVersion</span><br><span class="val">2.46.0.windows.1</span>　<span class="warn"># FileVersionInfo 本身是物件，還能再往下 .FileVersion / .Product / .CompanyName</span>`},
+  alias:   {keys:[], warn:true,
+            out:`<span class="ps">PS C:\\Users\\User&gt;</span> <span class="cmd">(Get-Command dir).Source</span><br><span class="placeholder">(空白！dir 是 Alias，沒有 Source)</span><br><span class="warn"># 要改用 (Get-Command dir).ResolvedCommand → Get-ChildItem</span>`},
+  cmdlet:  {keys:[], warn:true,
+            out:`<span class="ps">PS C:\\Users\\User&gt;</span> <span class="cmd">(Get-Command Get-ChildItem).Source</span><br><span class="warn">Microsoft.PowerShell.Management　# 這是「模組名稱」不是路徑！cmdlet 沒有實體 exe 路徑</span>`},
+
+  all:     {keys:['name','ctype','version','source','path','ext','def','vis','otype','fvi'],
+            out:`<span class="ps">PS C:\\Users\\User&gt;</span> <span class="cmd">Get-Command git | Format-List *</span><br><span class="arrow"># 把物件身上「每一欄」屬性全部攤開列出 → 下面整棵樹都亮了</span>`}
+};
+
+const leaves = document.getElementById('leaves');
+const termOut = document.getElementById('termOut');
+const chips = document.querySelectorAll('.chip');
+
+function clearAll(){
+  document.querySelectorAll('.leaf').forEach(l=>l.classList.remove('on','warn'));
+  chips.forEach(c=>c.classList.remove('active'));
+}
+
+function fire(id, chipEl){
+  const m = MAP[id];
+  if(!m) return;
+  clearAll();
+  if(chipEl) chipEl.classList.add('active');
+  // 點亮葉子
+  m.keys.forEach(k=>{
+    const leaf = leaves.querySelector('.leaf[data-key="'+k+'"]');
+    if(leaf) leaf.classList.add('on');
+  });
+  // 警告色（alias/cmdlet 這種找不到 source 的情況，把 source 葉子標紅）
+  if(m.warn){
+    const s = leaves.querySelector('.leaf[data-key="source"]');
+    if(s) s.classList.add('on','warn');
+  }
+  if(id==='fvi'){
+    const f = leaves.querySelector('.leaf[data-key="fvi"]');
+    if(f) f.classList.add('warn'); // 巢狀物件用粉色點出「還能再往下」
+  }
+  termOut.innerHTML = m.out;
+}
+
+chips.forEach(c=> c.addEventListener('click', ()=> fire(c.dataset.id, c)));
+
+// 點葉子 → 反查對應指令
+leaves.querySelectorAll('.leaf').forEach(leaf=>{
+  leaf.addEventListener('click', ()=>{
+    const k = leaf.dataset.key;
+    // 找出 keys 陣列包含此 key 的第一個「非 all」指令
+    let hitId=null;
+    for(const id in MAP){
+      if(id==='all') continue;
+      if((MAP[id].keys||[]).includes(k)){ hitId=id; break; }
+    }
+    if(hitId){
+      const chip=document.querySelector('.chip[data-id="'+hitId+'"]');
+      fire(hitId, chip);
+    }
+  });
+});
+</script>
+</body>
+</html>

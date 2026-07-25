@@ -14,6 +14,20 @@ foreach ($c in 'python','python3','pip','conda') {
 - `.Source` 是執行檔完整路徑。
 - 同名指令只回**第一個**（PATH 中最先命中的）。
 
+### 為什麼 `(Get-Command git).Source` 拿得到路徑？
+因為 **PowerShell 傳的是「物件」不是文字**。`Get-Command git` 回傳一個 `ApplicationInfo` 物件，
+身上掛著 `Name` / `CommandType` / `Version` / `Source` 等屬性；外層 `( )` 先執行、再用 `.Source` 讀屬性。
+
+但 `.Source` **不一定是路徑**，要看 `CommandType`：
+
+| CommandType | `.Source` 是什麼 |
+|---|---|
+| `Application`（exe）、`ExternalScript`（.ps1） | ✅ 完整路徑 |
+| `Cmdlet` | ❌ 模組名稱 |
+| `Alias` | ❌ 要用 `.ResolvedCommand` 追真身 |
+
+→ 完整說明與「PowerShell 怎麼找檔案」見 [[PowerShell-找檔案與遞迴搜尋陷阱]]
+
 ## CMD：`where`
 
 CMD 沒有 `Get-Command`，對應工具是 `where`（功能類似 Linux 的 `which`）。
