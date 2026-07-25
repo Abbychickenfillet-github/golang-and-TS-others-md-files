@@ -2,7 +2,15 @@
 title: GitHub Actions CI/CD：ghcr、Runner 與 Docker 映像檔管理
 type: topic-note
 source: Gemini
-tags: [gemini, github-actions, ci-cd, docker, ghcr, deployment, 面試]
+tags:
+  - gemini
+  - github-actions
+  - ci-cd
+  - docker
+  - ghcr
+  - deployment
+  - 面試後端
+  - 還未熟稔
 sources:
   - https://gemini.google.com/app/6bc6044eac754f97
 updated: 2026-07-12
@@ -19,18 +27,18 @@ updated: 2026-07-12
 這行常出現在 CI/CD 的 YAML、Makefile、VS Code `tasks.json` 中，用來告訴系統「要用哪個 shell、附加什麼選項、命令放哪」。
 
 - `shell:` — <mark style="background: #ADCCFFA6;">標籤（key）</mark>，標明後面是 shell 的路徑與參數，是設定檔語法、不是命令的一部分。
-- `/usr/bin/bash` — Bash 執行檔的<mark style="background: #FFF3A3A6;">絕對路徑</mark>。寫全路徑（而非只寫 `bash`）可避免依賴 `PATH`，讓行為在不同環境一致。
+- `/`[[usr-Unix系統資源|usr]]`/bin/bash` — Bash 執行檔的<mark style="background: #FFF3A3A6;">絕對路徑</mark>。寫全路徑（而非只寫 `bash`）可避免依賴 `PATH`，讓行為在不同環境一致。
 - `-e` — <mark style="background: #FF5582A6;">exit immediately（fail-fast）</mark>：腳本中任一命令失敗（回傳非 0），整個腳本立刻停止，避免「build 失敗還硬跑 deploy」。
-- `{0}` — <mark style="background: #FFB8EBA6;">預留位置（placeholder）</mark>，由父程式（CI/CD、make、VS Code）動態替換成實際要執行的命令或腳本路徑。
+- `{0}` — <mark style="background: #FFB8EBA6;">預留位置（placeholder）</mark>，由父程式（CI/CD、make、VS Code）動態替換成實際要執行的命令或腳本路徑。（完整機制詳解：[[shell-執行模板與-0-placeholder]]）
 
 ### 2. `/usr/` 不是 user，是 Unix System Resources
 
-<mark style="background: #FF5582A6;">最常見的誤解：`/usr/` 不是 user 的縮寫</mark>，而是 **Unix System Resources**。
+<mark style="background: #FF5582A6;">最常見的誤解：`/usr/` 不是 user 的縮寫</mark>，而是 **Unix System Resources**。[[usr-Unix系統資源]]
 
-| 目錄 | 意義 | 對應 Windows |
-|---|---|---|
-| `/usr` | 所有使用者共用的程式、函式庫（如 `/usr/bin/bash`） | `C:\Program Files` + `System32` |
-| `/home/<username>` | 你個人的家目錄 | `C:\Users\Abby` |
+| 目錄                 | 意義                                | 對應 Windows                      |
+| ------------------ | --------------------------------- | ------------------------------- |
+| `/usr`             | 所有使用者共用的程式、函式庫（如 `/usr/bin/bash`） | `C:\Program Files` + `System32` |
+| `/home/<username>` | 你個人的家目錄                           | `C:\Users\Abby`                 |
 
 ### 3. `ghcr.io` = GitHub Container Registry；OCI = Open Container Initiative
 
