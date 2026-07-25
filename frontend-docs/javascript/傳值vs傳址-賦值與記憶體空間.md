@@ -5,7 +5,8 @@ source: Gemini
 tags: [gemini, javascript, 記憶體, 面試考點, TypeScript]
 sources:
   - https://gemini.google.com/app/cdde71fb17e6c546
-updated: 2026-06-20
+  - https://gemini.google.com/app/8b05cf4687f2ea6f
+updated: 2026-07-20
 ---
 
 # JS 傳值 vs 傳址、賦值與記憶體空間
@@ -78,7 +79,16 @@ var d: any = '我是字串';  // 告訴 TS：什麼都可以裝
 d = c;                    // ✅ 不報錯
 ```
 
+### 6. 追加 2026-07-20：基本型別預設放 Stack，但「逃逸分析」可能讓它跑進 Heap
+一般直覺基本型別（primitives）都放 Stack，這**大致正確但不是絕對**：基本型別通常放 Stack，因為生命週期短、存取速度快；但如果<mark style="background: #ADCCFFA6;">變數的生命週期超出原本作用範圍</mark>（例如被閉包捕獲、或被回傳到外部持續引用），編譯器/引擎會做<mark style="background: #ADCCFFA6;">逃逸分析（Escape Analysis）</mark>，判斷該值「逃出」了原本的函式範圍，進而改放到 Heap 裡。
+
+⚠️ 存疑/更正：這次 Gemini 的回答較簡短，「逃逸分析」是 V8 引擎等現代 JS 引擎確實會做的最佳化技術（也常見於 Go、Java），但它屬於引擎內部的效能優化細節，不是 ECMAScript 語言規範保證的行為，也不是所有情境都會發生；面試時仍應以「基本型別預設在 Stack、物件在 Heap」這個規範層級的說法為主要答案，逃逸分析可作為「進階/引擎優化」的加分補充，不要當成基本型別會被隨意搬進 Heap 的常態。
+
 ## 各對話來源
+
+### 變數存取：Stack 與 Heap（2026-07-20）— https://gemini.google.com/app/8b05cf4687f2ea6f
+使用者：忘記放在 heap 的是什麼樣的型別，是 primitives 基本型別嗎？
+Gemini：不是，基本型別通常放在 Stack（生命週期短、存取速度快）；但如果變數生命週期超出原本範圍，編譯器會做逃逸分析，決定把它放到 Heap。
 
 ### JavaScript 傳值與記憶體空間（2026-06）— https://gemini.google.com/app/cdde71fb17e6c546
 

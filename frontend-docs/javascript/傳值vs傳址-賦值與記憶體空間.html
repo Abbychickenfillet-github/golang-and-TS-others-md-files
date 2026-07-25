@@ -1,61 +1,46 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-<meta charset="utf-8">
+<html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JS 傳值 vs 傳址、賦值與記憶體空間</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
 <style>
-:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
 *{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
-.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
-header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
-h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
-.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
-.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
 .meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
-.meta a{color:var(--accent);text-decoration:none;}
-.meta a:hover{text-decoration:underline;}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
-h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
-h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
-h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
-p{margin:.6em 0;}
-ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
-mark{padding:1px 3px;border-radius:3px;cursor:pointer;transition:color .12s,background .12s;}
-mark.quiz-hidden{color:transparent!important;background:#cbd2dc!important;border-radius:4px;box-shadow:inset 0 0 0 1px #aab3c0;user-select:none;}
-mark.quiz-hidden *{color:transparent!important;}
-.quiz-bar{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap;}
-.quiz-btn{cursor:pointer;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:.8rem;padding:5px 14px;border-radius:999px;}
-.quiz-btn:hover{background:var(--accent);color:#fff;}
-.quiz-hint{color:var(--muted);font-size:.76rem;}
-a{color:var(--accent);}
-code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
-pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
-pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
 table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
-th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
-th{background:var(--accent-soft);}
-tr:nth-child(even) td{background:#fafbfc;}
-blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
-img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
-footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
-</style>
-</head>
-<body>
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
 <div class="wrap">
-<header class="note-head">
-  <h1 class="note-title">JS 傳值 vs 傳址、賦值與記憶體空間</h1>
-  <div class="tags"><span class="tag">#gemini</span><span class="tag">#javascript</span><span class="tag">#記憶體</span><span class="tag">#面試考點</span><span class="tag">#TypeScript</span></div>
-  <div class="meta">更新於 2026-06-20　·　<a href="https://gemini.google.com/app/cdde71fb17e6c546" target="_blank">來源連結</a></div>
-  <div class="quiz-bar">
-    <button class="quiz-btn" id="quizToggle" type="button">🙈 隱藏全部重點（自我測驗）</button>
-    <span class="quiz-hint">點任一螢光筆可單獨顯示／隱藏答案</span>
-  </div>
-</header>
-<h1>JS 傳值 vs 傳址、賦值與記憶體空間</h1>
-
+<header class="note"><h1>JS 傳值 vs 傳址、賦值與記憶體空間</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#記憶體</span><span class="pill">#面試考點</span><span class="pill">#TypeScript</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/cdde71fb17e6c546" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/8b05cf4687f2ea6f" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
 <section class="card"><h2>重點整理</h2>
 <h3>1. 基本型別「傳值」(Pass by Value)</h3>
 <p>把基本型別（Number、String、Boolean…）賦給新變數時，JS 會<mark style="background: #BBFABBA6;">開闢一塊全新、獨立的記憶體空間，把值複製一份過去</mark>。</p>
@@ -124,8 +109,13 @@ d = c;               // ❌ Type '{ hello: string }' is not assignable to type '
 <pre><code class="language-ts">var d: any = '我是字串';  // 告訴 TS：什麼都可以裝
 d = c;                    // ✅ 不報錯
 </code></pre>
-</section>
-<section class="card"><h2>各對話來源</h2>
+<h3>6. 追加 2026-07-20：基本型別預設放 Stack，但「逃逸分析」可能讓它跑進 Heap</h3>
+<p>一般直覺基本型別（primitives）都放 Stack，這<strong>大致正確但不是絕對</strong>：基本型別通常放 Stack，因為生命週期短、存取速度快；但如果<mark style="background: #ADCCFFA6;">變數的生命週期超出原本作用範圍</mark>（例如被閉包捕獲、或被回傳到外部持續引用），編譯器/引擎會做<mark style="background: #ADCCFFA6;">逃逸分析（Escape Analysis）</mark>，判斷該值「逃出」了原本的函式範圍，進而改放到 Heap 裡。</p>
+<p>⚠️ 存疑/更正：這次 Gemini 的回答較簡短，「逃逸分析」是 V8 引擎等現代 JS 引擎確實會做的最佳化技術（也常見於 Go、Java），但它屬於引擎內部的效能優化細節，不是 ECMAScript 語言規範保證的行為，也不是所有情境都會發生；面試時仍應以「基本型別預設在 Stack、物件在 Heap」這個規範層級的說法為主要答案，逃逸分析可作為「進階/引擎優化」的加分補充，不要當成基本型別會被隨意搬進 Heap 的常態。</p>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>變數存取：Stack 與 Heap（2026-07-20）— https://gemini.google.com/app/8b05cf4687f2ea6f</h3>
+<p>使用者：忘記放在 heap 的是什麼樣的型別，是 primitives 基本型別嗎？<br />
+Gemini：不是，基本型別通常放在 Stack（生命週期短、存取速度快）；但如果變數生命週期超出原本範圍，編譯器會做逃逸分析，決定把它放到 Heap。</p>
 <h3>JavaScript 傳值與記憶體空間（2026-06）— https://gemini.google.com/app/cdde71fb17e6c546</h3>
 <p><strong>使用者：</strong> JavaScript 傳值不同變數，他們會各在記憶體中創造不一樣的記憶體空間嗎？（我的說法）vs Joe 說「傳值是不是不會創造新的記憶體空間」，誰對？</p>
 <p><strong>Gemini：</strong> 你是對的，Joe 不準確。基本型別傳值會在記憶體開新空間並複製值（<code>let a=10; let b=a;</code> → b 改 20 不影響 a）。Joe 可能把基本型別的傳值跟物件的傳址搞混：物件 <code>let obj2=obj1</code> 指向同一空間，改 obj2 會連動 obj1，但 obj2 變數本身在 Stack 仍有自己的指標空間。</p>
@@ -135,19 +125,14 @@ d = c;                    // ✅ 不報錯
 <p><strong>Gemini：</strong> 完全相同。<code>d=c</code> 是重新賦值，d 指標斷開原本空物件改指向 A，原空物件被 GC 回收。兩者最後都印 <code>{hello:'你好'}</code>。</p>
 <p><strong>使用者：</strong> 那如果 TypeScript 一開始 <code>var d = 一個字串</code> 呢？</p>
 <p><strong>Gemini：</strong> 編譯期會報錯（型別不符），但強行轉 JS 執行結果相同。要允許用 <code>any</code> 或 Union Types。</p></section>
-<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-20</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-20</footer>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script>try{hljs.highlightAll();}catch(e){}
-(function(){
-  var marks=[].slice.call(document.querySelectorAll('mark'));
-  marks.forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('quiz-hidden');});});
-  var btn=document.getElementById('quizToggle'),hidden=false;
-  if(btn){btn.addEventListener('click',function(){
-    hidden=!hidden;
-    marks.forEach(function(m){m.classList.toggle('quiz-hidden',hidden);});
-    btn.textContent=hidden?'👀 顯示全部重點':'🙈 隱藏全部重點（自我測驗）';
-  });}
-})();</script>
-</body>
-</html>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>
