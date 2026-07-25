@@ -1,3 +1,14 @@
+---
+title: Docker 基礎觀念：引擎 / context / image vs container / dockerd
+type: topic-note
+source: Gemini
+tags: [gemini, docker, dockerd, context, image, container]
+sources:
+  - https://gemini.google.com/app/84b4d10237c418e7
+  - https://gemini.google.com/app/5ac504493c7589cd
+updated: 2026-07-21
+---
+
 # Docker 基礎觀念:引擎 / context / image vs container / dockerd
 
 > 起點:「我要怎麼啟動 abby-notes-rag 的 docker?」
@@ -166,8 +177,8 @@ dockerd.exe(程式/檔案,死的)
                                           (各開不同的門;context 記住名字→哪扇門)
 ```
 
-- **「一個程式」≠「一台電腦」**:電腦是硬體,程式是軟體;一台電腦能跑無數程式。
-- 類比:**記事本是一個程式,你可以同時開 3 個視窗(3 個行程)**。Docker 引擎也一樣。
+- **「一個程式」≠「一台電腦」**:電腦是硬體,程式是軟體；一台電腦能跑無數程式。
+- 類比:**記事本是一個程式,你可以同時開 3 個視窗(<mark style="background: #FFF3A3A6;">3 個行程</mark>)**。Docker 引擎也一樣。
 - 常見變多引擎的情境:裝 Docker Desktop 又在 WSL 的 Ubuntu 裡 `apt install docker`;用過 Minikube / Rancher Desktop / Podman;連遠端伺服器的 docker。
 
 ---
@@ -396,6 +407,39 @@ Get-FileHash '...\dockerd.exe' -Algorithm SHA256
 
 ---
 
+## 11. Image 刪不掉「in use」怎麼辦(2026-07-21 追加)
+
+**現象**:GUI 直接刪 image 時跳「image is being used by stopped container」/ in use 錯誤,常發生在 `docker build` 失敗之後。
+
+**原因**:Docker 的保護機制 —— <mark style="background: #FF5582A6;">image 只要還被任何容器(即使是已停止的容器)參照,就不能直接刪</mark>,必須先處理掉那個容器。`docker build` 失敗常會留下中斷但未清除的容器/中間 layer,讓系統誤判 image 仍在使用中。
+
+**解法(擇一)**:
+
+```powershell
+# 1. 先找出所有容器(含已停止),手動刪除佔用的那個
+docker ps -a
+docker rm <container_id>
+# 再重新刪 image
+
+# 2. 懶人法:一次清掉所有「未使用」的容器/網路/image
+docker system prune
+```
+
+> 對照 §3「IMAGE vs CONTAINER」:image 是藍圖、container 是藍圖跑起來的實例 —— 這條規則的白話版就是「藍圖還有人在用(哪怕那個人已經停機、只是還沒把角色卡收走),就不准燒掉藍圖」。
+
+---
+
 ## 相關 Gemini 對話來源
 - 「Docker 遙控器與多引擎概念」(2026-06,語音問答版,內容與本篇重疊) — https://gemini.google.com/app/84b4d10237c418e7
   - 重點同本篇:伺服器=實際跑 Docker 引擎的主機(遙控器對準的「電視」);下載 Docker 預設建立一個本機引擎,之後可用 context 連到遠端引擎;連遠端需網路(SSH / 加密 TCP);dockerd.exe 位於 `C:\Program Files\Docker\Docker\resources`。
+- 「Docker 容器與 Image 刪除機制」(2026-07-21) — https://gemini.google.com/app/5ac504493c7589cd
+  - 使用者:是容器,没有删掉就不能删image，我这样讲对吗？
+  - Gemini:確認正確,必須先停止並刪除相關容器,才能刪除對應 image,除非強制刪除。
+  - 使用者:因为docker build failed，我在GUI直接删除的时候会无法delete,提示in use，当容器正在被image使用时。
+  - Gemini:build 失敗常留下未清除的容器/layer,建議 `docker ps -a` + `docker rm` 或 `docker system prune`。
+
+## 資料來源(含查證時間)
+| 主題 | 連結 | 版本/時間 |
+|---|---|---|
+| Docker docs — Remove images | https://docs.docker.com/reference/cli/docker/image/rm/ | 與官方文件一致,2026-07-21 查證 |
+| Docker docs — system prune | https://docs.docker.com/reference/cli/docker/system/prune/ | 與官方文件一致,2026-07-21 查證 |
