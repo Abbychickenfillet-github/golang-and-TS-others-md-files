@@ -6,19 +6,49 @@
 - 寫入時要先觀察是否有相關的既有檔案可以互相補充，並用 Obsidian 的 `[[wikilink]]` 互相連結（之後可能整個放進 Obsidian）。
 - 範例：前端 JavaScript 的「日期物件」問題 → 開一個「日期物件」資料夾，裡面放重點筆記。
 - 目的：把跟 Claude 的問答沉澱成可長期累積、可互相連結的個人知識庫。
+- 表格比文字好，如果能用表格對照的觀念，用表格。不要列點。譬如Babel跟SWC的優缺用表格，除非段落很常那可以頭部先出現表格，用WIKILINK連接到下面Section的單一詞語的長解釋(介紹)
+- 不要過度再次重點整理，第二次重點整理其實不必要。
+
+### 📌 重點標號規則（a–z）
+- 每篇筆記的「重點」要用小寫字母 **(a) (b) (c) … 到 (z)** 做**全篇連續**標號（不是每個 section 各自從 a 開始）。
+- 用字母、**不要用 1234**：數字會給人「優先順序」的錯覺，很多重點其實只是並排、沒有先後；字母只表位置與數量。
+- 在標題或開頭放一行索引（例：「本篇重點 a–s，共 19 個」），讓 Abby 看任一 section 都能立刻知道「我在全篇的哪裡、總共有幾個重點」。
+- 若重點超過 26 個，代表該拆筆記或該精簡；優先精簡到 ≤ z。
+
+### 📌 表格內不要放 wikilink
+- Markdown 表格用 `|` 分欄；`[[筆記\|別名]]` 的別名 pipe 會被當成欄位分隔，**把表格拆壞**。所以**表格儲存格一律用純文字／純路徑**（如 `` `/usr/bin/bash` ``），要連結就寫在表格外的內文。（真的要在表格放 wikilink 時，只能用無別名的 `[[筆記]]` 或把 pipe 跳脫成 `\|`。）
+
+### 📌 來源引用規則（找資料必附出處）
+- **只要有查資料**（web 搜尋、抓網頁、從 Gemini/ChatGPT 對話萃取），就要在筆記裡附上**實際參考的網址**，並標出該來源的**版本／更新時間／查證日期**，讓 Abby 能判斷新舊、也能核對我沒有引用過時資料或憑空杜撰。
+- 格式：文末開「## 資料來源（含查證時間）」表格：主題 ｜ 連結 ｜ 版本／時間。
+- 從 Gemini/ChatGPT 用下來的內容：frontmatter `sources` 要放該對話 URL；若對話中引用外部事實，另補該事實的原始出處。
+- **查核**：若發現 AI（Gemini/ChatGPT）講錯或可疑，於筆記中標註「⚠️ 存疑／更正」並在回報時告知 Abby，不要照抄錯誤。
+- **來源寫在筆記「內」**：Sources 一定要落在 .md 檔裡（文末表格），不要只寫在對話裡——對話不一定會再翻回來。
+
+### 📌 個人偏好（從 Claude Desktop 設定同步過來，方便版本控管、也讓排程／各 session 都讀得到）
+> 注意：Claude Desktop「設定裡的記憶」是**全域、app 層級**的偏好，跟這個 vault 的 CLAUDE.md **不會自動同步**；以下是手動鏡射，兩邊若有衝突以 Abby 當下指示為準。
+- **回應精簡直接**：少廢話、能刪的字就刪。
+- **問問題就寫筆記**：回答的同時寫進 `Abby-notes` 最適合的位置，做**精美 JS 互動 HTML**（點擊填空、切換顯示/隱藏答案、是非題、申論題，方便自己考自己）。
+- **愛關聯**：多用 `[[wikilink]]` 互連；不要吝嗇**截圖**（例如問到 Cookie/Session 就去截 F12 的 Cookie），能用美麗圖表或截圖展示的就做。
+- **程式碼示範**：把 `.html/.js/.css/.go/.py` 這類檔案跟它的筆記 `.md` 放在**同一個資料夾**。
+- **要貼到 Obsidian**：善用外掛 HTML reader、highlightr（螢光筆配色）、excalidraw。
 
 ---
 
 每次修改前請先解釋使用什麼語法
-user資料表是後台系統方的管理員名單，member資料表才是真正註冊的主辦單位|攤販|消費者
-我們這次專案中是official_website是前台的前端系統，frontend是後台的前端畫面系統。backend是統一的
-請勿在協助COMMIT的時候直接把自己當成CO-AUTHOR，如："
-🤖 Generated with Claude Code
-- 如果要查詢資料庫就直接用docker exec db的方式查詢就好，我們是使用ZEABUR線上的DB Connection string在根目錄的.env中DATABASE_URL=mysql+pymysql://root:<MYSQL_PASSWORD>@hnd1.clusters.zeabur.com:32195/future_sign_prod
+## 作系統 人員資料表
+user資料表是後台系統方的管理員名單，
+member資料表才是真正註冊的主辦單位|攤販|消費者
+我們這次專案中是official_website是前台的前端系統，frontend是後台的前端畫面系統。
+backend是統一的
+
 
 ## commit
 commit前請先npm run lint + docker compose up --build確認無編譯錯誤以及lint風格問題
-
+### 請勿在協助COMMIT的時候直接把自己當成CO-AUTHOR，
+如："🤖 Generated with Claude Code"
+- 如果要查詢資料庫就直接用docker exec db的方式查詢就好，我們是使用ZEABUR線上的DB Connection string在根目錄的.env中DATABASE_URL=mysql+pymysql://root:<MYSQL_PASSWORD>@hnd1.clusters.zeabur.com:32195/future_sign_prod (目前已無參與這個專案供參而已)
+  ### 同一個分支如果已經開立PR切勿再PUSH以免增加CICD費用
 TEST:
 Commit以及PR前保持良好習慣前後端皆須建立單元測試
 前端用Vitest
