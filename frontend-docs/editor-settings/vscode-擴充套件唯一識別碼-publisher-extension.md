@@ -63,3 +63,7 @@ settings.json 裡有兩種「用點分隔」的字串，長得像但意義完全
 TODO Highlight 的**設定前綴**是 `todohighlight.*`，但它的**套件 ID** 其實是 `wayou.vscode-todo-highlight`（發行者 `wayou`）。設定前綴是套件自取的「功能短名」，跟 publisher.extension 常常**不一樣**，別把 key 前綴當發行者。
 
 > 收尾：`editor`＝設定的分類（冒號**左邊**）；`esbenp`＝套件的發行者（冒號**右邊**當值）。位置不同、用途不同，不能相提並論。
+
+## 相關案例
+
+實際踩到「多個套件搶同一功能」的案例：[[vscode-live-server-打不開-擴充套件衝突|VS Code Live Server 打不開 — 兩個 Live Server 類型擴充套件互相衝突]]。
