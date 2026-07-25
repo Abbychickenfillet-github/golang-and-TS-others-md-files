@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code 終端機無捲軸與 t / v 快捷鍵</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>Claude Code 終端機無捲軸與 t / v 快捷鍵</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#claude-code</span><span class="pill">#cli</span><span class="pill">#terminal</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/5f227d7d1e62bee4" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><h2>重點整理</h2>
+<p>(a) Claude Code 的全螢幕終端機介面（TUI 模式）<mark style="background: #FF5582A6;">預設沒有傳統圖形捲軸（Scroll bar）</mark>。原因是它執行時會切換到終端機的<mark style="background: #ADCCFFA6;">交替螢幕緩衝區（Alternate Screen Buffer）</mark>來渲染互動介面，這個機制會直接繞過原本終端機軟體（iTerm2、VS Code 內建終端機、Ghostty、Windows Terminal）自帶的常規捲動與捲動快取限制——這也是為什麼滑鼠滾輪往上滾有時會誤觸切換成瀏覽歷史指令，或滾到一定行數就碰到硬上限、看不到更早的 diff／工具執行結果。</p>
+<p>(b) 翻閱被截斷的歷史紀錄，內建兩個快捷鍵：<br />
+- <mark style="background: #BBFABBA6;">按 <code>t</code> 鍵（Transcript 檢視）</mark>：把整段對話完整內容「倒回」到原生終端機緩衝區，此時終端機原本的圖形捲軸恢復作用，可用滑鼠自由滾動或 <code>Cmd/Ctrl+F</code> 搜尋；閱讀完按 <code>q</code> 或 <code>Esc</code> 回到 Claude Code 互動介面。<br />
+- <mark style="background: #BBFABBA6;">按 <code>v</code> 鍵（外部編輯器開啟）</mark>：把目前對話紀錄寫入暫存檔，並自動用系統預設編輯器（VS Code、Vim 等）開啟，可用編輯器完整的捲軸與搜尋功能檢視全部歷史脈絡。</p>
+<p>(c) 日常聊天的微幅畫面移動，可直接用鍵盤 <code>Page Up</code> / <code>Page Down</code> 在 viewport 內上下滾動，不需要進到 Transcript 模式。</p>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>Claude Code 終端機捲軸問題與解決（2026-07-20）— https://gemini.google.com/app/5f227d7d1e62bee4</h3>
+<p>使用者：Claude code的終端機是不是沒有捲軸scroll bar<br />
+Gemini：是的，TUI 模式因切換到交替螢幕緩衝區（Alternate Screen Buffer）而繞過終端機原生捲軸；提供兩個解法快捷鍵：<code>t</code>（Transcript 檢視，倒回原生緩衝區用滑鼠/Cmd+F 檢視，<code>q</code>/<code>Esc</code> 退出）與 <code>v</code>（寫入暫存檔並用預設編輯器開啟）；日常微幅移動可用 Page Up/Down。</p>
+</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>對話原始出處</td>
+<td>https://gemini.google.com/app/5f227d7d1e62bee4</td>
+<td>2026-07-20 查證</td>
+</tr>
+</tbody>
+</table></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-20</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>
