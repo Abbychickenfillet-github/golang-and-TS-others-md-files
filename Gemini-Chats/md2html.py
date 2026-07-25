@@ -80,11 +80,54 @@ document.addEventListener('DOMContentLoaded',function(){{
 }});
 </script></body></html>'''
 
+def find_vault_root(start_dir):
+    d=os.path.abspath(start_dir)
+    while True:
+        if os.path.isdir(os.path.join(d,'.obsidian')):
+            return d
+        parent=os.path.dirname(d)
+        if parent==d: return None
+        d=parent
+
+def resolve_image(name, md_dir, vault_root):
+    candidates=[os.path.join(md_dir,name), os.path.join(md_dir,'images',name)]
+    if vault_root:
+        candidates+= [os.path.join(vault_root,'obsidian-attachment',name), os.path.join(vault_root,name)]
+    for c in candidates:
+        if os.path.isfile(c):
+            return os.path.relpath(c, md_dir).replace('\\','/')
+    return None
+
+WIKI_IMG_RE=re.compile(r'!\[\[([^\]|]+?)(?:\|(\d+))?\]\]')
+
+def convert_wikilink_images(body, md_dir, vault_root):
+    # Group consecutive (no whitespace between) wikilink image embeds -> side-by-side row
+    group_re=re.compile(r'(?:'+WIKI_IMG_RE.pattern+r')+')
+    def repl_group(gm):
+        embeds=WIKI_IMG_RE.findall(gm.group(0))
+        tags=[]
+        for name,width in embeds:
+            name=name.strip()
+            src=resolve_image(name, md_dir, vault_root)
+            style='max-width:100%;border-radius:8px;border:1px solid #e5e7eb;'
+            if width: style='width:'+width+'px;max-width:100%;border-radius:8px;border:1px solid #e5e7eb;'
+            if src:
+                tags.append('<img src="'+html.escape(src)+'" alt="'+html.escape(name)+'" style="'+style+'">')
+            else:
+                tags.append('<span style="color:#b91c1c;font-size:.85rem;">[圖片找不到: '+html.escape(name)+']</span>')
+        if len(tags)>1:
+            return '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;margin:.8em 0;">'+''.join(tags)+'</div>'
+        return tags[0] if tags else ''
+    return group_re.sub(repl_group, body)
+
 def build(md_path):
     text=open(md_path,encoding='utf-8').read()
     fm,body=parse_front(text)
     title=fm.get('title','筆記')
     body=re.sub(r'^#\s+'+re.escape(title)+r'\s*\n','',body,count=1)
+    md_dir=os.path.dirname(os.path.abspath(md_path))
+    vault_root=find_vault_root(md_dir)
+    body=convert_wikilink_images(body, md_dir, vault_root)
     md=markdown.Markdown(extensions=['fenced_code','tables','nl2br','sane_lists'])
     hb=md.convert(body)
     parts=re.split(r'(<h2[^>]*>.*?</h2>)',hb)
