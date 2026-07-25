@@ -10,7 +10,7 @@ updated: 2026-06-28
 # HTML 文件結構:DOCTYPE、骨架、lang 與 charset
 
 > 面試常考的「最基礎卻最少人講得出所以然」的一題。把每一行 boilerplate 的**為什麼**講清楚。
-
+![[Pasted image 20260715171107.png]]
 ---
 
 ## 🎯 面試常考題(速答區,詳解在對應章節)
@@ -20,7 +20,7 @@ updated: 2026-06-28
 | Q1 | `<!DOCTYPE html>` 是 HTML 標籤嗎? | 不是,是**文件類型宣告**,作用是叫瀏覽器進**標準模式** | §1 |
 | Q2 | 不寫 DOCTYPE 會怎樣? | 掉進**怪異模式 (quirks mode)**,CSS 盒模型行為跑掉 → 跑版 | §1 |
 | Q3 | 為何會有怪異模式? | **向後相容** 1990 年代照舊瀏覽器 bug 寫的舊網站 | §1 |
-| Q4 | 為何 HTML5 的 DOCTYPE 這麼短? | HTML5 **不再依賴 SGML/DTD**,舊版 `.dtd` 網址沒用了 | §2 |
+| Q4 | 為何 HTML5 的 DOCTYPE 這麼短? | HTML5 **不再依賴 [[SGML-標準通用標記語言\|SGML]]／[[DTD-文件類型定義\|DTD]]**,舊版 `.dtd` 網址沒用了 | §2 |
 | Q5 | `<head>` 和 `<body>` 差在哪? | head=給機器的**設定**(不顯示);body=給人看的**內容** | §3 |
 | Q6 | **`lang` 和 `charset` 是同一件事嗎?**(陷阱題) | **不是**。lang=哪種語言(語意);charset=bytes 怎麼解碼(編碼) | §4 |
 | Q7 | 為何能用 `lang="zh-TW"`?跟 UTF-8 有關嗎? | 無關。zh-TW 是 **BCP 47 合法標籤**;能顯示中文才靠 UTF-8 | §4 |
@@ -93,11 +93,11 @@ updated: 2026-06-28
 
 ### 為什麼舊版要那串東西?
 
-舊版 HTML/XHTML 是建立在 **SGML** 這套更早的標準之上。那串 `PUBLIC "..."` + 一個 `.dtd` 網址,是指向一份 <mark style="background: #ADCCFFA6;">DTD (Document Type Definition)</mark>——理論上用來「定義並驗證這份文件用了哪些合法標籤」。
+舊版 HTML/XHTML 是建立在 **[[SGML-標準通用標記語言|SGML]]** 這套更早的標準之上。那串 `PUBLIC "..."` + 一個 `.dtd` 網址,是指向一份 <mark style="background: #ADCCFFA6;">[[DTD-文件類型定義|DTD]] (Document Type Definition)</mark>——理論上用來「定義並驗證這份文件用了哪些合法標籤」。
 
 ### HTML5 的突破
 
-HTML5 **不再依賴 SGML / DTD** 了。所以那個指向 .dtd 的網址完全沒用,可以整個砍掉。
+HTML5 **不再依賴 [[SGML-標準通用標記語言|SGML]] / [[DTD-文件類型定義|DTD]]** 了。所以那個指向 .dtd 的網址完全沒用,可以整個砍掉。
 
 那為什麼還要留 `<!DOCTYPE html>` 這短短一句?<mark style="background: #BBFABBA6;">它存在的唯一理由,就是上面講的「讓瀏覽器進標準模式」這個開關功能。</mark>它已經是「為了觸發標準模式所需的最短字串」——短到不能再短,所以面試可以這樣總結:
 
@@ -260,7 +260,7 @@ HTML5 **不再依賴 SGML / DTD** 了。所以那個指向 .dtd 的網址完全�
 ## 重點回顧(面試速記)
 
 - **`<!DOCTYPE html>`** = 不是標籤,是「啟用**標準模式**」的開關;不寫會掉進**怪異模式 (quirks mode)**,CSS 盒模型等行為跑掉導致跑版。
-- **HTML5 為何這麼短** = 它不再依賴 SGML/DTD,舊版那串 `.dtd` 網址沒用了;只保留觸發標準模式的最短字串。
+- **HTML5 為何這麼短** = 它不再依賴 [[SGML-標準通用標記語言|SGML]]／[[DTD-文件類型定義|DTD]],舊版那串 `.dtd` 網址沒用了;只保留觸發標準模式的最短字串。
 - **骨架** = `<html>`(根、放 lang)→ `<head>`(給機器的設定,不顯示)→ `<body>`(給人看的內容)。
 - **`lang` vs `charset` 是兩件事**:`lang=zh-TW` 宣告「內容是台灣中文」(無障礙/SEO),`charset=UTF-8` 宣告「bytes 用 UTF-8 解碼」(防亂碼)。能用 zh-TW 跟 charset 無關;能顯示中文靠 UTF-8。
 - **charset 要放 head 最前面**:瀏覽器邊讀邊解碼,必須在讀到中文前就知道編碼。
@@ -268,6 +268,8 @@ HTML5 **不再依賴 SGML / DTD** 了。所以那個指向 .dtd 的網址完全�
 
 ## 相關筆記
 
+- [[SGML-標準通用標記語言]] — HTML 4／XML 的上層元語言，HTML5 已不再依賴
+- [[DTD-文件類型定義]] — 舊版 DOCTYPE 指向的那份規則檔（與 DOCTYPE 常被混淆）
 - [[Markdown-渲染為DOM的過程]] — 瀏覽器拿到 HTML 字串後怎麼解析成 DOM
 - [[進位制-二進制-十六進制-Bytes與RGB]] — charset 背後:文字終究是 bytes
 - 建置/編譯:`build-and-compilation/`
