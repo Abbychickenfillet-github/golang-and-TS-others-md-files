@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>選擇器（組合／後代／手足／相鄰／偽選擇器）互動練習</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;font-size:16px;}
+.wrap{max-width:860px;margin:0 auto;padding:32px 20px 64px;}
+header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:26px;line-height:1.3;margin:.2em 0;}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:20px;margin:1.8em 0 .6em;
+ border-left:5px solid var(--accent);padding-left:12px;}
+.meta{color:var(--muted);font-size:13px;margin-top:8px;}
+.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
+ padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+.toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
+ border-bottom:1px solid var(--line);margin-bottom:10px;}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
+ padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
+.btn:hover{background:#f1eefe;}
+mark.hl{padding:1px 3px;border-radius:4px;}
+mark.tog{cursor:pointer;transition:.15s;}
+mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
+ user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.55;}
+code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
+:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
+th{background:#f3f1fb;}
+.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;padding:7px 12px;margin:6px 0 14px;}
+.cloze{display:inline-block;min-width:2.4em;text-align:center;padding:1px 8px;border-radius:6px;
+ background:#eef0ff;border:1px dashed #9fa8ff;color:#3b3b3b;cursor:pointer;font-weight:600;}
+.cloze.revealed{background:#e3fbe3;border:1px solid #6bcB6b;color:#1c5f1c;}
+.qa-card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:14px 0;background:var(--card);}
+.qa-q{font-weight:700;margin-bottom:8px;}
+.tf-btns{display:flex;gap:8px;margin:8px 0;}
+.tf-btn{cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:5px 16px;background:#fff;font-size:14px;}
+.tf-btn.correct-picked{background:#dff5df;border-color:#4caf50;}
+.tf-btn.wrong-picked{background:#fbe1e1;border-color:#e05353;}
+.tf-explain{display:none;margin-top:8px;font-size:14px;background:#f6f6fb;border-radius:8px;padding:9px 12px;}
+.tf-explain.show{display:block;}
+.essay-toggle{cursor:pointer;color:#5b4bd6;font-size:13px;text-decoration:underline;user-select:none;}
+.essay-answer{display:none;margin-top:10px;background:#f6f6fb;border-radius:8px;padding:10px 14px;font-size:14.5px;}
+.essay-answer.show{display:block;}
+textarea{width:100%;min-height:60px;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:inherit;font-size:14px;margin-top:6px;}
+.demo{border:1px solid var(--line);border-radius:8px;padding:12px;margin:10px 0;background:#fbfbfd;}
+.demo-select{margin-bottom:8px;}
+.demo-select button{margin-right:6px;padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:13px;}
+.demo-select button.active{background:#7c6cff;color:#fff;border-color:#7c6cff;}
+.demo-box-outer{border:2px dashed #c9a227;padding:0;position:relative;}
+</style></head>
+<body><div class="wrap">
+<header class="note">
+<h1>選擇器（組合／後代／手足／相鄰／偽選擇器）互動練習</h1>
+<div><span class="pill">#css</span><span class="pill">#選擇器</span><span class="pill">#selectors</span><span class="pill">#前端</span><span class="pill">#面試</span></div>
+<div class="meta">更新於2026-07-19‧延伸自「01-1-選擇器-組合後代手足相鄰偽選擇器.md」（已依MDN官方Selector structure改版）</div>
+</header>
+<div class="toolbar">
+<span class="btn" id="hideAll">🙈 全部隱藏重點</span>
+<span class="btn" id="showAll">👁️ 全部顯示</span>
+</div>
+<div class="hint">💡 螢光標記可點擊切換顯示/隱藏；填空區塊（虛線框）點一下顯示答案；是非題點按鈕作答；申論題點連結展開參考答案；下面還有一個可互動的手足選擇器demo。</div>
+
+<h2>零‧先分清楚：Compound selector跟Combinator不是同一件事</h2>
+<p>官方分類（來源：<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Selectors/Selector_structure" target="_blank">CSS selector structure - MDN</a>，最後更新於2025-12-16）：<mark class="hl tog" style="background:#FFF3A3;">compound selector是好幾個simple selector黏在一起、中間沒有分隔符，同時作用在同一個元素上</mark>，例如<code>.image.active</code>；<mark class="hl tog" style="background:#BBFABB;">complex selector才是用combinator（空白、&gt;、+、~）分隔、代表兩個不同元素之間關係</mark>的選擇器，例如<code>.image .active</code>（中間有空白，變成後代組合器）。下面四種是complex selector裡會用到的combinator，先弄清楚這個前提再往下看。</p>
+
+<h2>一‧四種組合選擇器對照</h2>
+<table>
+<thead><tr><th>名稱</th><th>語法</th><th>範圍</th></tr></thead>
+<tbody>
+<tr><td>後代選擇器</td><td><code>A B</code></td><td><mark class="hl tog" style="background:#FFF3A3;">任意深度的子孫都算</mark></td></tr>
+<tr><td>子選擇器</td><td><code>A &gt; B</code></td><td><mark class="hl tog" style="background:#FFF3A3;">只算直接子層，隔一層就不算</mark></td></tr>
+<tr><td>相鄰兄弟選擇器（相鄰選擇器）</td><td><code>A + B</code></td><td><mark class="hl tog" style="background:#FFF3A3;">只選緊接在A後面的那一個B</mark></td></tr>
+<tr><td>一般手足選擇器（手足選擇器）</td><td><code>A ~ B</code></td><td><mark class="hl tog" style="background:#FFF3A3;">選A後面同層所有的B，不用緊接</mark></td></tr>
+</tbody>
+</table>
+
+<h2>二‧填空練習</h2>
+<p>後代選擇器的語法是一個
+<span class="cloze" data-answer="空白（space）">____</span>；
+子選擇器的語法是
+<span class="cloze" data-answer="大於符號 &gt;">____</span>；
+相鄰兄弟選擇器的語法是
+<span class="cloze" data-answer="加號 +">____</span>；
+一般手足選擇器的語法是
+<span class="cloze" data-answer="波浪號 ~">____</span>。</p>
+
+<p>偽類用
+<span class="cloze" data-answer="單冒號 :">____</span>
+冒號，選的是<span class="cloze" data-answer="DOM裡本來就存在的元素狀態">____</span>；
+偽元素用
+<span class="cloze" data-answer="雙冒號 ::">____</span>
+冒號，選的是<span class="cloze" data-answer="CSS虛擬生出來的節點，需搭配content屬性">____</span>。</p>
+
+<h2>三‧手足選擇器互動demo（點按鈕切換）</h2>
+<div class="demo">
+  <div class="demo-select">
+    <button data-mode="none" class="active">不加選擇器</button>
+    <button data-mode="adjacent">h2 + p</button>
+    <button data-mode="general">h2 ~ p</button>
+  </div>
+  <div class="demo-box-outer" id="demoArea" style="padding:12px;">
+    <h2 style="margin:4px 0;">標題 h2</h2>
+    <p data-label="p1" style="margin:4px 0;padding:2px 6px;">段落一 p（緊接在h2後面）</p>
+    <div style="margin:4px 0;padding:2px 6px;background:#eee;">分隔用的div（不是p）</div>
+    <p data-label="p2" style="margin:4px 0;padding:2px 6px;">段落二 p（隔了一個div）</p>
+  </div>
+  <div style="font-size:12.5px;color:var(--muted);margin-top:6px;">試試看：選「h2 + p」只會標記段落一；選「h2 ~ p」段落一跟段落二都會被標記。</div>
+</div>
+
+<h2>四‧是非題</h2>
+
+<div class="qa-card">
+  <div class="qa-q">1. <code>div > span</code>可以選到<code>&lt;div&gt;&lt;p&gt;&lt;span&gt;</code>裡面那個span。</div>
+  <div class="tf-btns">
+    <div class="tf-btn" data-correct="false">是</div>
+    <div class="tf-btn" data-correct="true">非</div>
+  </div>
+  <div class="tf-explain">答案：非。子選擇器<code>&gt;</code>只選直接子層，中間隔了一層<code>p</code>，這個span是div的孫層而不是子層，選不到。如果要選到它，要用後代選擇器<code>div span</code>。</div>
+</div>
+
+<div class="qa-card">
+  <div class="qa-q">2. <code>~</code>跟<code>+</code>都只能選「後面」的手足，CSS沒有辦法選「前一個」手足。</div>
+  <div class="tf-btns">
+    <div class="tf-btn" data-correct="true">是</div>
+    <div class="tf-btn" data-correct="false">非</div>
+  </div>
+  <div class="tf-explain">答案：是。純CSS選擇器沒有「往前選手足」的組合器，這是規格上的限制，要做到這件事只能靠JavaScript或調整HTML結構順序。</div>
+</div>
+
+<div class="qa-card">
+  <div class="qa-q">3. <code>::before</code>不需要寫<code>content</code>屬性也會顯示出來。</div>
+  <div class="tf-btns">
+    <div class="tf-btn" data-correct="false">是</div>
+    <div class="tf-btn" data-correct="true">非</div>
+  </div>
+  <div class="tf-explain">答案：非。<code>::before</code>／<code>::after</code>必須搭配<code>content</code>屬性（哪怕是空字串<code>content:""</code>）才會真正被渲染出來，沒寫content的話即使有其他樣式規則也不會顯示。</div>
+</div>
+
+<h2>五‧申論題</h2>
+
+<div class="qa-card">
+  <div class="qa-q">Q：為什麼OOCSS反對用<code>.sidebar h3</code>這種後代選擇器寫法？這跟這篇筆記的組合選擇器概念有什麼關係？</div>
+  <textarea placeholder="先自己想想再點下面展開參考答案……"></textarea>
+  <div class="essay-toggle" onclick="this.nextElementSibling.classList.toggle('show')">👉 展開參考答案</div>
+  <div class="essay-answer">因為後代選擇器<code>.sidebar h3</code>把樣式綁在「h3被放在哪個容器裡」，而不是綁在h3自己身上的class，這正是OOCSS反對的「位置依賴（location-dependent）樣式」；同一個h3只要被搬到別的容器，樣式就會直接跑掉。而且後代選擇器通常會讓選擇器鏈變長，容易疊高specificity，變成之後要覆蓋時得寫更長的選擇器或動用<code>!important</code>，這也是為什麼BEM、OOCSS都鼓勵直接把樣式寫在元素自己身上的單一class，而不是靠後代選擇器去間接命中。</div>
+</div>
+
+<footer style="margin-top:40px;color:var(--muted);font-size:12px;text-align:center;border-top:1px solid var(--line);padding-top:16px;">
+互動練習延伸自「01-1-選擇器-組合後代手足相鄰偽選擇器.md」‧更新於2026-07-19
+</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try{document.querySelectorAll('pre code').forEach(b=>{if(window.hljs)hljs.highlightElement(b);});}catch(e){}
+
+document.querySelectorAll('mark.tog').forEach(m=>m.addEventListener('click',()=>m.classList.toggle('hidden')));
+var ha=document.getElementById('hideAll'),sa=document.getElementById('showAll');
+ha.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.add('hidden'));
+sa.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.remove('hidden'));
+
+document.querySelectorAll('.cloze').forEach(function(c){
+  c.addEventListener('click',function(){
+    if(c.classList.contains('revealed')){
+      c.classList.remove('revealed');
+      c.textContent='____';
+    } else {
+      c.classList.add('revealed');
+      c.textContent=c.dataset.answer;
+    }
+  });
+});
+
+document.querySelectorAll('.qa-card').forEach(function(card){
+  var btns=card.querySelectorAll('.tf-btn');
+  if(!btns.length) return;
+  var explain=card.querySelector('.tf-explain');
+  btns.forEach(function(b){
+    b.addEventListener('click',function(){
+      btns.forEach(x=>x.classList.remove('correct-picked','wrong-picked'));
+      if(b.dataset.correct==='true'){ b.classList.add('correct-picked'); }
+      else { b.classList.add('wrong-picked'); }
+      explain.classList.add('show');
+    });
+  });
+});
+
+var demoButtons=document.querySelectorAll('.demo-select button');
+var p1=document.querySelector('[data-label="p1"]'), p2=document.querySelector('[data-label="p2"]');
+function resetDemo(){ p1.style.background='transparent'; p2.style.background='transparent'; }
+demoButtons.forEach(function(btn){
+  btn.addEventListener('click',function(){
+    demoButtons.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    resetDemo();
+    var mode=btn.dataset.mode;
+    if(mode==='adjacent'){ p1.style.background='#fff3a3'; }
+    else if(mode==='general'){ p1.style.background='#bbfabb'; p2.style.background='#bbfabb'; }
+  });
+});
+</script>
+</body></html>

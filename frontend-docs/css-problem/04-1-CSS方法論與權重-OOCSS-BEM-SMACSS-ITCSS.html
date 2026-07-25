@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04-1-CSS 方法論與權重（OOCSS / BEM / SMACSS / ITCSS / Specificity）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:30px;line-height:1.3;margin:.2em 0;}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:22px;margin:1.6em 0 .6em;
+ border-left:5px solid var(--accent);padding-left:12px;}
+h3{font-size:17px;margin:1.3em 0 .4em;color:#3a3a3a;}
+.meta{color:var(--muted);font-size:13px;margin-top:8px;}
+.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
+ padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+.src{display:block;font-size:12px;color:#2563eb;word-break:break-all;margin-top:3px;}
+.toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
+ border-bottom:1px solid var(--line);margin-bottom:10px;}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
+ padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
+.btn:hover{background:#f1eefe;}
+mark.hl{padding:1px 3px;border-radius:4px;}
+mark.tog{cursor:pointer;transition:.15s;}
+mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
+ user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;
+ line-height:1.55;}
+code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
+:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
+th{background:#f3f1fb;}
+tr:nth-child(even) td{background:#faf9fd;}
+blockquote{border-left:4px solid #ffd27d;background:#fff8ec;margin:1em 0;padding:8px 14px;
+ border-radius:0 8px 8px 0;color:#7a5a1e;}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);}
+footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
+ border-top:1px solid var(--line);padding-top:16px;}
+.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;
+ padding:7px 12px;margin:6px 0 14px;}
+</style></head>
+<body><div class="wrap">
+<header class="note">
+<h1>04-1-CSS 方法論與權重（OOCSS / BEM / SMACSS / ITCSS / Specificity）</h1>
+<div><span class="pill">#gemini</span><span class="pill">#css</span><span class="pill">#oocss</span><span class="pill">#bem</span><span class="pill">#方法論</span><span class="pill">#前端</span><span class="pill">#面試</span><span class="pill">#"#modular"</span><span class="pill">#"#scalable"</span></div>
+<div class="meta">更新於 2026-07-19 · 來源:</div>
+<a class="src" href="https://gemini.google.com/app/ca1ec9bb98e5fd41" target="_blank" rel="noopener">https://gemini.google.com/app/ca1ec9bb98e5fd41</a><a class="src" href="https://gemini.google.com/app/8fd5c5f9f6ce1754" target="_blank" rel="noopener">https://gemini.google.com/app/8fd5c5f9f6ce1754</a><a class="src" href="https://gemini.google.com/app/99e89ba6e17de585" target="_blank" rel="noopener">https://gemini.google.com/app/99e89ba6e17de585</a><a class="src" href="https://gemini.google.com/app/a4dd26d7630bf8a2" target="_blank" rel="noopener">https://gemini.google.com/app/a4dd26d7630bf8a2</a><a class="src" href="https://en.bem.info/methodology/history/" target="_blank" rel="noopener">https://en.bem.info/methodology/history/</a><a class="src" href="https://www.webdesignmuseum.org/web-design-history/bem-2009" target="_blank" rel="noopener">https://www.webdesignmuseum.org/web-design-history/bem-2009</a><a class="src" href="https://smacss.com/book/about/" target="_blank" rel="noopener">https://smacss.com/book/about/</a><a class="src" href="https://csswizardry.net/talks/2014/11/itcss-dafed.pdf" target="_blank" rel="noopener">https://csswizardry.net/talks/2014/11/itcss-dafed.pdf</a><a class="src" href="https://www.bennadel.com/blog/1633-object-oriented-css-oocss-by-nicole-sullivan.htm" target="_blank" rel="noopener">https://www.bennadel.com/blog/1633-object-oriented-css-oocss-by-nicole-sullivan.htm</a><a class="src" href="https://csswizardry.com/2015/08/bemit-taking-the-bem-naming-convention-a-step-further/" target="_blank" rel="noopener">https://csswizardry.com/2015/08/bemit-taking-the-bem-naming-convention-a-step-further/</a><a class="src" href="https://www.xfive.co/blog/itcss-scalable-maintainable-css-architecture" target="_blank" rel="noopener">https://www.xfive.co/blog/itcss-scalable-maintainable-css-architecture</a><a class="src" href="https://sass-lang.com/documentation/breaking-changes/import/" target="_blank" rel="noopener">https://sass-lang.com/documentation/breaking-changes/import/</a><a class="src" href="https://sass-lang.com/documentation/at-rules/use/" target="_blank" rel="noopener">https://sass-lang.com/documentation/at-rules/use/</a>
+</header>
+<div class="toolbar">
+<span class="btn" id="hideAll">🙈 全部隱藏重點</span>
+<span class="btn" id="showAll">👁️ 全部顯示</span>
+</div>
+<div class="hint">💡 點一下任何螢光標記可單獨遮住/顯示答案，方便自己考自己。</div>
+<div class="content">
+<h1>CSS 方法論與權重（OOCSS / BEM / SMACSS / ITCSS / Specificity）</h1>
+<h2>重點整理</h2>
+<p>兩者都是讓 CSS <mark class="hl tog" style="background:#FFF3A3;">模組化、可重複利用、好維護</mark>的方法論，目的都只有兩個：<mark class="hl tog" style="background:#FF5582;">讓 CSS 檔案變小</mark>（好重複利用）、讓程式碼好維護（不會改 A 壞 B 避免強烈耦合）。<br />
+[[https://share.gemini.google/KWRkJLUZ1AoY]]<br />
+<mark class="hl tog" style="background:#BBFABB;">它們不是敵對，而是可以搭配的「內功心法」與「招式套路」。</mark><br />
+書本作者認為雖然OOCSS有很多好的概念，但是它的實施可能每個人不盡相同。我認為它說的應該是只有的時候像我會讓為skeleton骨架跟皮膚是一種唯一的主題，可是有的人可能會分成骨架跟皮膚。<br />
+OOCSS比較有skin的概念，<br />
+我曾經認為React的組件是OOC我會舉一個比較誇張的例子做假設，但OOCSS是一種命名規範+拆職責</p>
+<hr />
+<h2>🎯 五種 CSS 架構方法論（面試速查小抄）</h2>
+<blockquote>
+<p>五種都在解同一題：<strong>讓 CSS 可重用、好維護、不互相污染</strong>。</p>
+</blockquote>
+<p><strong>先分成兩掛，就不會混：</strong><br />
+- <strong>「管 class 怎麼取／怎麼組職責」</strong>（大多數）→ <strong>OOCSS</strong>（拆職責：結構 vs 外觀）、<strong>BEM</strong>（純命名規範）、<strong>SMACSS</strong>（分類 + 前綴）、<strong>Atomic</strong>（一個 class 一個樣式）。<br />
+- <strong>「管檔案分層與載入順序」</strong>（唯一例外）→ <strong>ITCSS</strong>：不碰命名，管的是 <strong>stylesheet 分層 + <code>@import</code>/<code>@use</code> 的引入順序</strong>（特異性由低到高）。它是架構概念、不綁 Sass，但因為要拆很多 partial 分層載入，<strong>實務上幾乎都搭 Sass</strong>（<code>@use</code>／舊版 <code>@import</code>）。</p>
+<table>
+<thead>
+<tr>
+<th>方法論</th>
+<th>切入點（一句話）</th>
+<th>代表寫法</th>
+<th>解決的痛點</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>OOCSS</strong></td>
+<td>結構與外觀(Skin)<strong>分離</strong>，樣式當樂高積木組合<br>#Atomic #object-oriented<br>&gt; [!note]-OOCSS 為什麼不建議用後代選擇器？<br><br>後代選擇器（例如 <code>.a .b .c</code>）&gt;隱含了一個假設：<strong>「<code>c</code> 必須是 <code>b</code> 的兒子，且必須是 <code>a</code> 的孫子」</strong>。<br><br>- <code>.list</code> 是一個物件。<br>- <code>.list-header</code> 是一個物件。<br>- <code>.list-body</code> 是一個物件。<br><br>它們應該平起平坐，各自管理自己的樣式，而不是誰是誰的附屬品。</td>
+<td><code>.btn</code> + <code>.primary-skin</code></td>
+<td>重複樣式不用一寫再寫<br>是不是因為可以重用所以比較容易誤用<br><br>OOCSS 認為，<strong>每一個 Class 都應該是一個獨立的「物件（Object）」</strong>。</td>
+</tr>
+<tr>
+<td><strong>BEM</strong></td>
+<td><strong>嚴格命名</strong> <code>block__element--modifier</code> 表達隸屬</td>
+<td><code>.card__title--active</code></td>
+<td>class 一看就懂、不誤用</td>
+</tr>
+<tr>
+<td><strong>SMACSS</strong></td>
+<td>把規則<strong>分 5 類</strong>管理（↓ 展開）</td>
+<td><code>l-grid</code>、<code>is-active</code></td>
+<td>大專案 CSS 太亂、找不到</td>
+</tr>
+<tr>
+<td><strong>ITCSS</strong></td>
+<td>按<strong>特異性由低到高</strong>排檔案<strong>引入順序</strong>（↓ 展開）</td>
+<td>Settings→…→Utilities</td>
+<td>權重打架、被迫狂用 <code>!important</code></td>
+</tr>
+<tr>
+<td><strong>Atomic / Utility-First</strong></td>
+<td>一個 class 一個樣式，<strong>用組合取代命名</strong><br>#Atomic</td>
+<td>Tailwind <code>text-red-500 p-4</code></td>
+<td>懶得命名、想快速拼版</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>可混搭、不敵對</strong>：最常見是「OOCSS 心法（結構/外觀分離）＋ BEM 命名」。</li>
+<li><strong>一句話串起來</strong>：OOCSS 教你「拆」、BEM 教你「命名」、SMACSS 教你「分類」、ITCSS 教你「排順序」、Utility 教你「別命名、直接組」。</li>
+</ul>
+<blockquote>
+<p>[!note]- 📂 SMACSS 的 5 類（點開）<br />
+- <strong>Base</strong>：原生標籤預設（<code>body</code>, <code>a</code>）<br />
+- <strong>Layout</strong>：版面骨架，前綴 <code>l-</code>（<code>l-header</code>）<br />
+- <strong>Module</strong>：可重用模組（<code>.card</code>, <code>.btn</code>）<br />
+- <strong>State</strong>：狀態（<code>is-active</code>, <code>is-hidden</code>）<br />
+- <strong>Theme</strong>：主題換膚</p>
+<p>[!note]- 🔻 ITCSS 倒三角引入順序（點開）<br />
+範圍由廣→窄、特異性由低→高依序 import：<br />
+<strong>Settings</strong>(變數) → <strong>Tools</strong>(mixin) → <strong>Generic</strong>(reset) → <strong>Elements</strong>(原生標籤) → <strong>Objects</strong>(OOCSS 物件) → <strong>Components</strong>(元件) → <strong>Utilities</strong>(工具類，帶 <code>!important</code>)</p>
+<p>實務上就是一支 <code>main.scss</code> 由上到下照這個順序引入各層 partial：<br />
+<code>scss
+// main.scss —— 由「影響最廣、特異性最低」到「最窄、最高」
+@use 'settings';    // 1. 變數、設計 token（$color-primary…），不輸出 CSS
+@use 'tools';       // 2. mixin / function，不輸出 CSS
+@use 'generic';     // 3. reset / normalize、box-sizing
+@use 'elements';    // 4. 原生標籤預設（h1, a, ul…），無 class
+@use 'objects';     // 5. OOCSS 版面物件（.o-container, .o-media）
+@use 'components';  // 6. 具體元件（.c-btn, .c-card）← 平常寫最多
+@use 'utilities';   // 7. 工具類（.u-hidden），可帶 !important 收尾</code><br />
+- 越上面越抽象、影響越廣、特異性越低；越下面越具體、越能覆蓋前者。<br />
+- 因為順序天生「低→高」，後面自然蓋得過前面，<strong>不必亂灑 <code>!important</code></strong>（只留給最後的 Utilities）。<br />
+- 舊寫法是 <code>@import 'settings';</code>（Sass 已淘汰、改用 <code>@use</code>）；純 CSS 則用 <code>@import url(...)</code>，但無變數/mixin 能力。</p>
+</blockquote>
+<hr />
+<h2>四大方法論的時間順序（依出現年份排列）</h2>
+<blockquote>
+<p>上面的表格是「切入點比較」，這裡補的是「誰先誰後」，同一條時間線放在一起看，會更清楚它們是一波一波接力解決同一個問題。</p>
+</blockquote>
+<p>a. <strong>OOCSS（2009年）</strong>：Nicole Sullivan於2009年提出，公開演講與部落格文章集中在2009年（例如Ben Nadel於2009年7月8日的紀錄）。核心貢獻：把CSS拆成「結構與外觀分離」「容器與內容分離」兩條原則，是四者中最早出現的方法論。來源：<a href="https://www.bennadel.com/blog/1633-object-oriented-css-oocss-by-nicole-sullivan.htm">Ben Nadel - Object Oriented CSS (OOCSS) By Nicole Sullivan</a>（記錄於2009-07-08）、<a href="https://en.wikipedia.org/wiki/OOCSS">OOCSS - Wikipedia</a></p>
+<p>b. <strong>BEM（正式成形於2009年，根源可追溯至2005年）</strong>：Yandex團隊從2005年開始為了解決大型專案的class命名衝突而發展雛型，2007年秋天在ClientSide'2007會議正式提出Independent Block概念，直到2009年3月「Lego 2.0」發布才真正定型為BEM方法論，2010年才開源釋出（bem-bl、bem-tools）給社群使用。跟OOCSS幾乎同一年成熟，但根源起步更早。來源：<a href="https://en.bem.info/methodology/history/">History / Methodology / BEM</a>、<a href="https://www.webdesignmuseum.org/web-design-history/bem-2009">BEM - Web Design Museum</a></p>
+<p>c. <strong>SMACSS（2011年）</strong>：Jonathan Snook於2011年寫成，取材自他在Yahoo! Mail改版專案的實務經驗，是四者中第一個明確提出「把CSS規則分五類管理」架構層級思維的方法論。來源：<a href="https://smacss.com/book/about/">SMACSS - About</a></p>
+<p>d. <strong>ITCSS（2014年）</strong>：Harry Roberts於2014年11月在dafed研討會上以《Managing CSS Projects with ITCSS》為題首次公開發表投影片，隔年起才陸續被業界大量引用與撰文介紹。是四者中最晚出現，也是唯一不管命名、只管「檔案分層與載入順序」的方法論。來源：<a href="https://csswizardry.net/talks/2014/11/itcss-dafed.pdf">Csswizardry - ITCSS投影片（2014-11）</a></p>
+<ul>
+<li>時間軸看下來的重點：OOCSS與BEM幾乎同期（2009年）從不同公司獨立長出來，解決的都是「重複樣式、命名衝突」；SMACSS（2011）晚兩年出現，把視角拉高到「整個專案的CSS要分幾類資料夾管理」；ITCSS（2014）最晚，解決的是前三者都沒處理的「特異性打架、載入順序」問題，所以ITCSS常被拿來當作「容器」，內部的Objects層剛好用來放OOCSS的物件、Components層可以搭配BEM命名。</li>
+<li>換句話說，時間順序剛好也大致對應「解決問題的抽象層級」：先解決單一元件內部怎麼拆（OOCSS）與怎麼命名（BEM），再解決整個專案怎麼分類（SMACSS），最後解決檔案怎麼排序載入（ITCSS）。</li>
+</ul>
+<h2>重要補充：OOCSS到底只是命名規範，還是連CSS內部區塊都有影響</h2>
+<p>上面的表格容易讓人誤以為「OOCSS = 一種取class名字的方式」，但這樣理解並不完整。</p>
+<ul>
+<li><mark class="hl tog" style="background:#FFF3A3;">OOCSS的本質是「拆職責」的架構思維，命名只是這個思維的外顯結果</mark>。它有兩條核心原則（來源：<a href="https://www.bennadel.com/blog/1633-object-oriented-css-oocss-by-nicole-sullivan.htm">Ben Nadel文章</a>，2009-07-08）：<ol>
+<li><strong>結構與外觀分離（Separate Structure and Skin）</strong>：大小、間距、排版邏輯歸一組class；顏色、背景、外觀歸另一組class，兩組完全獨立、互不依賴。</li>
+<li><strong>容器與內容分離（Separate Container and Content）</strong>：一個元素的樣式不該因為「它被放在哪個容器裡」而改變（避免依賴後代選擇器如<code>.sidebar .btn</code>）；如果某個元素需要不同呈現，應該額外加一個class去描述差異，而不是靠巢狀結構去覆蓋。</li>
+</ol>
+</li>
+<li>所以OOCSS影響的不只是「class叫什麼名字」，而是<strong>CSS規則本身要怎麼切成幾個獨立區塊</strong>、以及<strong>HTML該怎麼組合套用這些class</strong>。跟BEM「單純規定命名格式、不規定要不要拆結構」是不同層次的事情。</li>
+<li>BEM可以套用在完全沒有做結構/外觀分離的CSS上（單純只是把class名字寫成規範格式）；但OOCSS如果沒有把規則拆開，就不能算真正實踐OOCSS，即使class名字取得再漂亮也一樣。</li>
+</ul>
+<h3>你的範例驗證</h3>
+<pre><code class="language-css">.btn-skeleton {
+  width: 2rem;
+  height: 1rem;
+}
+</code></pre>
+<ul>
+<li>這一段只處理<strong>尺寸大小</strong>（結構性質），完全沒有碰顏色、背景，<mark class="hl tog" style="background:#BBFABB;">算是把「骨架（structure）」獨立出來了，方向正確</mark>。</li>
+<li>但要注意，OOCSS所謂的structure通常不只是width/height，也包含padding、border-radius、display、cursor這類「跟外觀顏色無關的通用規則」；而skin則專指background-color、color、border-color這類純視覺外觀。只要保持這兩種性質分開寫成兩個獨立class，就符合OOCSS第一原則。</li>
+<li>換句話說，你只需要再補一個<code>.btn-color</code>（或任何名字）的class專門處理<code>background-color</code>/<code>color</code>，兩個class一起套用在同一個元素上，就是完整的OOCSS結構/外觀分離範例。</li>
+</ul>
+<h3><code>&lt;button class="btn btn--primary"&gt;主按鈕&lt;/button&gt;</code> 是BEM還是OOCSS</h3>
+<ul>
+<li><mark class="hl tog" style="background:#ADCCFF;">這是標準的BEM Modifier寫法</mark>：<code>.btn</code>是Block，<code>--primary</code>是Modifier，語意是「btn這個Block底下的primary變體」。<code>--</code>雙連字號是BEM獨有的命名規範，OOCSS本身沒有規定要用<code>--</code>。</li>
+<li>如果換成純OOCSS思路，通常<strong>不會</strong>寫成<code>.btn-skeleton</code> + <code>.btn-color</code>這種還是綁著<code>btn-</code>前綴的形式，而是兩個完全獨立、彼此沒有派生關係的class，例如<code>.btn-skeleton</code> + <code>.primary-skin</code>（或<code>.skin-primary</code>）。</li>
+<li>關鍵差異在於：<mark class="hl tog" style="background:#FF5582;">BEM的Modifier是「綁定在特定Block底下」的，只能給<code>.btn</code>用，<code>.card</code>若要同樣的紅色必須另外寫<code>.card--primary</code></mark>，即使樣式內容一模一樣也要重複寫一次；而<mark class="hl tog" style="background:#FF5582;">OOCSS的skin類則刻意設計成「跟元件無關、可以被btn、card、alert等任何元件共用」</mark>，所以命名上通常不會加上元件前綴，才能真正達到「重複利用」的目的。</li>
+<li>所以你提出的<code>.btn-skeleton</code> + <code>.btn-color</code>，拆分骨架與外觀的<strong>方向完全正確</strong>，只是<code>.btn-color</code>這個名字若拿掉<code>btn-</code>前綴（直接叫<code>.primary-skin</code>），會更貼近OOCSS「跨元件共用skin」的原始精神。</li>
+</ul>
+<blockquote>
+<p>[!note]- 🔗 這篇筆記跟哪些筆記有關聯（點開）<br />
+- 跟同資料夾的 [[04-2-OOCSS-vs-BEM-CSS命名方法論]] 互動筆記高度相關：那篇是OOCSS/BEM命名比較的第一版對話紀錄，這裡補的是「時間順序」與「OOCSS不只是命名規範」這兩個那篇沒講清楚的地方，建議兩篇對照著看。<br />
+- 之所以放在一起，是因為兩篇都在回答「OOCSS跟BEM差在哪」這個核心問題，只是切入角度不同（一個講命名範例、一個講歷史脈絡與結構本質）。</p>
+</blockquote>
+<hr />
+<h3>OOCSS（Object-Oriented CSS）用了skin這個字眼</h3>
+<p>核心思想：<mark class="hl tog" style="background:#FFF3A3;">結構（Structure）與外觀（Skin）分離</mark>，把元件當成獨立「物件」，像樂高積木一樣自由組合。#modular #scalable</p>
+<pre><code class="language-css">/* 結構 Structure：大小、邊距、字體 */
+.btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+/* 外觀 Skin：只負責顏色、背景 */
+.primary-skin   { background-color: blue; color: white; }
+.secondary-skin { background-color: gray; color: white; }
+</code></pre>
+<pre><code class="language-html">&lt;button class=&quot;btn primary-skin&quot;&gt;主按鈕&lt;/button&gt;
+&lt;button class=&quot;btn secondary-skin&quot;&gt;次要按鈕&lt;/button&gt;
+</code></pre>
+<ul>
+<li><mark class="hl tog" style="background:#BBFABB;">優點：重複利用性極高</mark>（卡片想用同藍色，直接套 <code>.primary-skin</code>）。</li>
+<li><mark class="hl tog" style="background:#FF5582;">缺點：HTML class 變很長，難一眼看出 class 寫給誰用</mark>；不同人實作差異大。</li>
+</ul>
+<h3>BEM（Block、Element、Modifier）[https://bem.info/en/methodology/quick-start/]</h3>
+<p>核心思想：<mark class="hl tog" style="background:#FFF3A3;">嚴格的命名規範</mark>，讓結構一目了然。</p>
+<ul>
+<li><mark class="hl tog" style="background:#ADCCFF;">B（Block）</mark>：獨立區塊，例如 <code>btn</code></li>
+<li><mark class="hl tog" style="background:#ADCCFF;">E（Element）</mark>：區塊內子元素，用 <code>__</code> 連接（例如 <code>btn__icon</code>）</li>
+<li><mark class="hl tog" style="background:#ADCCFF;">M（Modifier）</mark>：狀態或變體，用 <code>--</code> 連接（例如 <code>btn--primary</code>）</li>
+</ul>
+<pre><code class="language-css">.btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+.btn--primary { background-color: blue; color: white; }
+</code></pre>
+<pre><code class="language-html">&lt;button class=&quot;btn btn--primary&quot;&gt;主按鈕&lt;/button&gt;
+</code></pre>
+<ul>
+<li><mark class="hl tog" style="background:#BBFABB;">優點：命名嚴格有邏輯</mark>，看到 <code>btn--primary</code> 就知它依附在 <code>btn</code> 底下，不會誤用。</li>
+<li><mark class="hl tog" style="background:#FF5582;">缺點：名字常變很長</mark>（例如 <code>header__navigation-list--dark</code>）。</li>
+</ul>
+<h3>快速總結表</h3>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>OOCSS</th>
+<th>BEM</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>核心精神</td>
+<td>樣式抽成「樂高積木」自由組合</td>
+<td>用嚴格命名表達元件隸屬關係</td>
+</tr>
+<tr>
+<td>Class 命名</td>
+<td>通常很短（<code>btn</code>, <code>primary-skin</code>）</td>
+<td>較長但清晰（<code>btn</code>, <code>btn--primary</code>）</td>
+</tr>
+<tr>
+<td>適用場景</td>
+<td>減少 CSS 大小、重視重複利用</td>
+<td>團隊協作、好維護、不易改壞別人</td>
+</tr>
+</tbody>
+</table>
+<h3>混血（Hybrid）實務作法</h3>
+<p>很多前端會結合兩者：用 <mark class="hl tog" style="background:#BBFABB;">OOCSS 的「心法」（結構/外觀分離）+ BEM 的「規範」（命名）</mark>。把 OOCSS 的外觀（Skin）用 BEM 的 Modifier（<code>--</code>）命名：</p>
+<pre><code class="language-css">/* 結構（OOCSS 結構 + BEM Block 命名） */
+.box { padding: 20px; border-radius: 8px; display: flex; }
+/* 外觀（OOCSS 外觀 + BEM Modifier 命名）：獨立存在、可自由組合 */
+.theme--light   { background: #fff; }
+.theme--warning { background: #ffd; }
+</code></pre>
+<pre><code class="language-html">&lt;div class=&quot;box theme--warning&quot;&gt;…&lt;/div&gt;
+</code></pre>
+<h1>BEM避免多層巢狀元素</h1>
+<p>命名公式：Block__Element--Modifier<br />
+但是當單一個Element的元素嵌套太多之後，就會將Element獨立出來。絕不允許出現Block__Element__SubElement這種結構。或者一直用雙底線串下去，命名會變.product__nav__nav-list__nav-item__link--active<br />
+- 名字會長到無法閱讀<br />
+- 但是如果元素位子要改變。e.g. 將nav-item 搬到Header裡面用，因為名字綁死了.product，就必須重寫一遍CSS。</p>
+<h2><mark class="hl tog" style="background:#FFB8EB;"> 解決方案：把子元素獨立升格為新區塊Block</mark></h2>
+<ul>
+<li>可避免強烈耦合(乾淨)<ul>
+<li>product, product-nav</li>
+<li>若別的頁面也需要這個檔覽列，直接把整段HTML複製過去，樣式也完全不會壞掉。&lt;- 真的嗎</li>
+</ul>
+</li>
+<li>由Russian網路巨頭Yandex開發出來的。Yandex當年的野心非常大，不只把BEM當作CSS的命名規範，還開發了一整套完整的開發框架</li>
+</ul>
+<h3>重要延伸</h3>
+<ul>
+<li>React 開發中，<mark class="hl tog" style="background:#D2B3FF;">BEM 精神（或 CSS Modules）更常被使用</mark>，因為能確保樣式不互相污染。</li>
+<li><mark class="hl tog" style="background:#FFB8EB;">Utility-First（如 Tailwind CSS）</mark>本質上是把 OOCSS「結構與外觀分離、極大化重複利用」發揮到極致的演變。</li>
+<li>釐清：<mark class="hl tog" style="background:#FF5582;">React 組件 ≠ OOCSS</mark>。React 組件是「拆 UI 成可重用部件」；OOCSS 是「寫 CSS 的方法論」。可在 React 組件內套用 OOCSS / BEM 來組織樣式。<br />
+考量CSS的程式碼量</li>
+</ul>
+<h2>追加 2026-07-19：ITCSS 熱度趨勢、BEM 為何誕生（XSL 血淚史）、Sass <code>@use as *</code></h2>
+<blockquote>
+<p>本次追加重點 a–j，共 10 個。</p>
+</blockquote>
+<p>a. <mark class="hl tog" style="background:#FFF3A3;">ITCSS 部落格文章瀏覽量正緩慢下滑</mark>，與 2020 年 State of CSS 調查結果一致（前端開發者對 ITCSS 的興趣比例一年內從 40% 降到 37%）。但滿意度仍維持約 <mark class="hl tog" style="background:#BBFABB;">78%</mark>，落在「用的人少、但用過都滿意」的象限，不是被淘汰，而是進入穩定期。</p>
+<p>b. <mark class="hl tog" style="background:#FF5582;">ITCSS 未被廣泛普及的主因</mark>：部分核心概念仍屬原創者 Harry Roberts 的半專利財產，網路上缺乏完全開源的官方文件，限制了它像 Tailwind CSS 或 BEM 那樣被大規模推廣採用。</p>
+<p>c. <mark class="hl tog" style="background:#FFF3A3;">BEM 為什麼會誕生：2005 年 Web 開發的真實痛點</mark>。當時 CSS3 尚未被瀏覽器支援（<code>border-radius</code>、<code>box-shadow</code> 都畫不出來），又要相容 IE5/IE6，設計師必須把圓角、陰影這類視覺效果切成一張張小圖片（<code>.gif</code>/<code>.png</code>），用 <code>&lt;table&gt;</code> 或 <code>&lt;div&gt;</code> 拼湊出來——這正是「連做個圓角都要用圖片」的由來。圖片指的是<mark class="hl tog" style="background:#ADCCFF;">網頁切圖（UI 裝飾性圖片）</mark>，不是 CEO 照片這類內容圖片。</p>
+<p>d. <mark class="hl tog" style="background:#ADCCFF;">XSL（Extensible Stylesheet Language）</mark>是當時把 XML 資料轉成 HTML 的樣板引擎，外觀像 HTML 但充滿 <code>&lt;xsl:for-each&gt;</code>、<code>&lt;xsl:value-of&gt;</code> 這類自訂標籤。工程師會先寫好靜態 <code>index.html</code> 確認畫面，再手動複製貼上到 <code>.xsl</code>、把寫死文字改成動態標籤；<mark class="hl tog" style="background:#FF5582;">前端改了 HTML 要手動同步回 XSL，後端改了 XSL 範本也要手動同步回 HTML，雙向依賴人工複製貼上</mark>，這種災難正是後來 BEM 團隊決定把組件「獨立化（Blocks）」、邁向自動化生成的關鍵動機。</p>
+<pre><code class="language-xml">&lt;!-- 2005年代典型XSL片段：用table+圖片拼出圓角容器 --&gt;
+&lt;table class=&quot;b-rounded-box&quot;&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;top-left-corner&quot;&gt;&lt;img src=&quot;i/corner-tl.png&quot; /&gt;&lt;/td&gt;
+    &lt;td class=&quot;top-edge&quot;&gt;&lt;/td&gt;
+    &lt;td class=&quot;top-right-corner&quot;&gt;&lt;img src=&quot;i/corner-tr.png&quot; /&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td class=&quot;content-body&quot;&gt;
+      &lt;h1&gt;&lt;xsl:value-of select=&quot;page/user/name&quot;/&gt;&lt;/h1&gt;
+    &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+</code></pre>
+<p>e. <mark class="hl tog" style="background:#D2B3FF;">關聯：這段 XSL 血淚史補上了本篇「四大方法論時間順序」表格裡 BEM（2005 萌芽、2009 定型）為什麼要從 2005 年就開始發展的背景動機</mark>——不是憑空追求命名美感，而是為了終結「HTML 與樣板手動雙向同步」的維護地獄。</p>
+<p>f. <mark class="hl tog" style="background:#FFF3A3;">Sass <code>@use "路徑" as *</code></mark>：<code>*</code> 不是把檔案改名叫星號，路徑依然要寫完整；<code>*</code> 的作用是<mark class="hl tog" style="background:#ADCCFF;">省略掉這個模組的 Namespace（前綴）</mark>，讓你不用每次都寫 <code>corners.$radius</code>，直接寫 <code>$radius</code> 即可。</p>
+<pre><code class="language-scss">// 正常寫法：要加前綴 (namespace)
+@use &quot;src/corners&quot;;
+.button { padding: 5px + corners.$radius; }
+
+// as * 寫法：省略前綴，直接用
+@use &quot;src/corners&quot; as *;
+.button { padding: 5px + $radius; }   // 直接用 $radius
+</code></pre>
+<p>g. <mark class="hl tog" style="background:#FF5582;">官方為何建議「只對自己寫的檔案用 as *」</mark>：如果同時引用多個第三方套件都用 <code>as *</code>，一旦兩個套件剛好都定義了同名變數（例如都叫 <code>$radius</code>），Sass 會無法判斷你指的是哪一個，直接產生<mark class="hl tog" style="background:#FF5582;">命名衝突（Name Conflicts）</mark>。</p>
+<p>h. <code>as *</code> 只省略「前綴」，<mark class="hl tog" style="background:#ADCCFF;"><code>@include</code>、<code>@function</code> 等語法標籤本身都不能省</mark>：原本 <code>@include corners.rounded;</code> 用 <code>as *</code> 後變成 <code>@include rounded;</code>，<code>@include</code> 依然要寫，只是中間的 <code>corners.</code> 消失。</p>
+<p>i. 同一檔案可以載入無數個 <code>@use</code>，但<mark class="hl tog" style="background:#BBFABB;">不建議每個都用 <code>as *</code></mark>——通常只挑「一個」最核心、最常用、確定不會撞名的檔案（例如變數包）用 <code>as *</code>，其他外來套件仍保留原本的 namespace，兩全其美：</p>
+<pre><code class="language-scss">@use &quot;src/corners&quot; as *;   // 常用變數包，用 as * 省字
+@use &quot;src/colors&quot;;         // 保留前綴，避免撞名 → colors.xxx
+@use &quot;src/buttons&quot;;        // 保留前綴 → buttons.xxx
+</code></pre>
+<p>j. 來源版本查證：Sass <code>@use</code>／<code>as *</code> 語法出自 Sass 官方文件 <a href="https://sass-lang.com/documentation/at-rules/use/">Sass: @use</a>（查證日 2026-07-19）；ITCSS 熱度數據出自 State of CSS 2020 調查結果（經 Gemini 轉述）。</p>
+<h2>各對話來源</h2>
+<h3>ITCSS 關注度下滑與實務應用（2026-07）— https://gemini.google.com/app/8fd5c5f9f6ce1754</h3>
+<p>使用者：為何 ITCSS 的部落格文章緩慢減少他要表達什麼？</p>
+<p>Gemini：與 State of CSS 2020 調查一致，ITCSS 關注度比例一年內從 40% 降到 37%；但滿意度仍約 78%，屬於「低使用率、高滿意度」象限。未普及主因是核心概念半專利、缺乏完全開源文件，限制其像 Tailwind／BEM 那樣被大規模推廣。整合進上方追加第 a–b 點。</p>
+<h3>網頁開發早期技術解析（2026-07）— https://gemini.google.com/app/99e89ba6e17de585</h3>
+<p>使用者：Images were used for all sorts of design elements 是什麼意思？XSL 長怎樣？</p>
+<p>Gemini：2005 年代因 CSS3 未普及、要相容 IE5/6，圓角陰影等視覺效果得靠切圖拼湊；XSL 是把 XML 轉 HTML 的樣板引擎，HTML 改了要手動同步回 XSL，反之亦然，雙向人工複製貼上正是 BEM 團隊後來走向組件獨立化、自動化生成的關鍵動機。整合進上方追加第 c–e 點。</p>
+<h3>Sass @use as * 語法解析（2026-07）— https://gemini.google.com/app/a4dd26d7630bf8a2</h3>
+<p>使用者：<code>@use "&lt;url&gt;" as *</code> 是不是把檔案改名叫星號？@include 也不用寫嗎？這樣整個檔案只能載入一個 module 吧？</p>
+<p>Gemini：<code>*</code> 只是省略 namespace 前綴，路徑仍要寫完整；<code>@include</code>、<code>@function</code> 等語法都不能省；可以載入無數個 <code>@use</code>，但只建議挑一個最核心、確定不會撞名的檔案用 <code>as *</code>，避免多個套件同名變數造成命名衝突。整合進上方追加第 f–i 點。</p>
+<h3>OOCSS vs. BEM Comparison（2026-06）— https://gemini.google.com/app/ca1ec9bb98e5fd41</h3>
+<ul>
+<li>起點：上傳一張「比較 OOCSS 與 BEM 的書本照片」以語音提問。</li>
+<li>書的觀點：OOCSS 概念好但實作因人而異；BEM 標準明確、團隊較易一致。</li>
+<li>CSS = Cascading Style Sheets，設定網頁元素樣式的語言。</li>
+<li>OOCSS 核心：物件的「結構」與「外觀(skin)」分離 → 同一設計套到不同元素不必重寫。</li>
+<li>React 組件 ≠ OOCSS：組件是「拆 UI 成可重用部件」，OOCSS 是「寫 CSS 的方法論」（可在組件內套用）。</li>
+<li>結論：OOCSS 與 BEM 非敵對，可混搭（OOCSS 心法 + BEM 命名）；現代 React 多用 BEM 精神或 CSS Modules；Tailwind 的 Utility-First 是 OOCSS 思想的演變。</li>
+</ul>
+<hr />
+<h2>補充筆記（平板加註：CSS 權重、Tailwind 與繼承）</h2>
+<p>記住權重要怎講？說到內層會覆蓋到外層</p>
+<p>Tailwind的CSS跟傳統Inline Style一樣嗎？<br />
+不一樣。傳統的語法是用style="color: red;"非常難被覆蓋<br />
+Tailwind本質上還是類別選擇器, Tailwind只是預先在一個隱藏的CSS檔案裡寫好了</p>
+<p>當我們寫，</p>
+<pre><code class="language-html">&lt;div class=&quot;text-red-500'&gt;&lt;div&gt;
+</code></pre>
+<p>時其實只是在套用一個普通的class，權重就跟一般的.my-style一樣<br />
+另==直接命中標籤的權重比繼承來的還要大==。內層元素自己身上的樣式永遠會勝過外層傳下來的樣式。在CSS的世界裡，子元素會繼承父元素的一些文字屬性</p>
+<p>有哪些屬性是子元素不會繼承的？<br />
+1. 會繼承<br />
+    - 文字<br />
+        - color<br />
+        - font-family/font-size/font-wight/font-style<br />
+        - line-height/letter-spacing/word-spacing<br />
+        - text-align文字對齊方式<br />
+    - 只需寫一次在父元素</p>
+<ol start="2">
+<li>不會繼承：盒模型與空間尺寸（BoxModel&amp;Sizing)<ul>
+<li>盒模型空間尺寸（長相 大小 骨架）<ul>
+<li>width/height</li>
+<li>display flex不影響子元素也變成flex容器，依然是預設的block或inline</li>
+<li>border</li>
+<li>box-sizing</li>
+<li>margin/padding</li>
+</ul>
+</li>
+<li>外框邊距與佈局與排版模式<ul>
+<li>display</li>
+<li>position</li>
+<li>float/clear</li>
+</ul>
+</li>
+<li>背景與視覺特異性Backgrounds &amp; Effects<ul>
+<li>background(包括background-color,background-image)</li>
+<li>opacity</li>
+<li>box-shadow</li>
+<li>filter</li>
+</ul>
+</li>
+<li>如果想強迫子元素繼承可以用inherit</li>
+</ul>
+</li>
+</ol>
+<h3>🔑 <code>inherit</code>（搭配上面的繼承整理）</h3>
+<ul>
+<li>CSS 屬性值之一，意思是「<strong>強迫這個屬性去拿父元素的值</strong>」。</li>
+<li>專門用在上面列的那些「<strong>不會繼承</strong>」屬性上（<code>border</code>、<code>padding</code>、<code>width</code>…）——它們預設不繼承，寫 <code>inherit</code> 就強制沿用父層。</li>
+<li>同家族：<code>initial</code>（回規範預設值）、<code>unset</code>（會繼承的→當 inherit、不會的→當 initial）、<code>revert</code>（退回瀏覽器預設樣式表）。<br />
+靠北 要實際練習 但這邊怎麼實際練習？</li>
+</ul>
+<blockquote>
+<p>[!example]- 點開看範例：強制子元素繼承 border<br />
+<code>css
+.child {
+  border: inherit;   /* 強制沿用父層的 border（border 本來不會繼承） */
+}</code></p>
+</blockquote>
+<h2>CSS 權重（Specificity）速查 — 那「五個」層級</h2>
+<p>決定「<strong>同一個元素被多條規則命中時，誰勝出</strong>」。由高到低：</p>
+<table>
+<thead>
+<tr>
+<th>層級</th>
+<th>例子</th>
+<th>權重</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① <code>!important</code></td>
+<td><code>color: red !important;</code></td>
+<td>覆蓋一切（嚴格說不算 specificity，是最後的強制手段，濫用很痛）</td>
+</tr>
+<tr>
+<td>② Inline style（行內）</td>
+<td><code>&lt;div style="color:red"&gt;</code></td>
+<td>(1,0,0,0)</td>
+</tr>
+<tr>
+<td>③ ID</td>
+<td><code>#header</code></td>
+<td>(0,1,0,0)</td>
+</tr>
+<tr>
+<td>④ Class／屬性／偽類</td>
+<td><code>.btn</code>、<code>[type]</code>、<code>:hover</code></td>
+<td>(0,0,1,0)</td>
+</tr>
+<tr>
+<td>⑤ 元素／偽元素</td>
+<td><code>div</code>、<code>::before</code></td>
+<td>(0,0,0,1)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>比法</strong>：先比 ID 數量 → 一樣才比 class 數量 → 再比元素數量。<strong>高位永遠壓過低位、不會進位</strong>（256 個 class 也贏不過 1 個 ID）。</li>
+<li>通用選擇器 <code>*</code>、<code>:where()</code> <strong>不加權重</strong>（0）。</li>
+<li>呼應上面「內層覆蓋外層」：那其實是 <strong>「直接命中」 vs 「繼承而來」</strong> 的差別——元素身上只要有<strong>直接命中</strong>的規則，就贏過從父層繼承下來的值。這和 specificity 是<strong>兩個不同階段</strong>的比較（先看有沒有直接命中，再用 specificity 分勝負）。</li>
+</ul>
+<hr />
+<h2>補充問答（2026-07-19 第二輪）：ITCSS 命名前綴、Objects 層本質、@use 現況、container/content 分離範例</h2>
+<h3>1. ITCSS 的 Objects 為什麼要用<code>o-</code>開頭,是不是我多想了</h3>
+<p>不是多想,這是Harry Roberts自己明講的官方命名慣例,不是巧合。他在《BEMIT》這篇文章裡直接寫：<mark class="hl tog" style="background:#FFF3A3;"><code>c-</code>給Components、<code>o-</code>給Objects、<code>u-</code>給Utilities、<code>is-</code>或<code>has-</code>給狀態(State)</mark>,目的是讓人一看class名字前綴,就知道這個class「屬於哪一層、可以在哪裡重複使用」。來源：<a href="https://csswizardry.com/2015/08/bemit-taking-the-bem-naming-convention-a-step-further/">BEMIT: Taking the BEM Naming Convention a Step Further – CSS Wizardry</a>（發表於2015-08）</p>
+<h3>2. Objects是不是比Generic更高一層,還是我搞錯了</h3>
+<p>你的直覺是對的：<mark class="hl tog" style="background:#BBFABB;">Elements是元素(未加class的原生標籤,如h1、a)、Objects是格線/佈局(有加class但不含任何顏色外觀的純結構樣式,如media object、grid)</mark>,原本的說法不夠精確,以下更正：</p>
+<ul>
+<li>ITCSS七層由上到下排列,排序依據是<strong>特異性(specificity)由低到高</strong>、以及<strong>規則影響範圍由廣到窄</strong>,不是「誰比誰更大」。</li>
+<li><strong>Generic</strong>：不帶class,靠<code>*</code>或<code>html</code>/<code>body</code><mark class="hl tog" style="background:#D2B3FF;">這類極低特異性選擇器</mark>做reset/normalize,影響範圍最廣(幾乎整個頁面)。</li>
+<li><strong>Elements</strong>：一樣不帶class,只用原生標籤選擇器(<code>h1</code>、<code>a</code>、<code>ul</code>)去改寫瀏覽器預設樣式,範圍縮小到「特定標籤」。</li>
+<li><strong>Objects</strong>：<mark class="hl tog" style="background:#ADCCFF;">第一個開始用class選擇器的層</mark>,但這個class刻意「不含任何外觀顏色」,只處理排版結構(例如<code>.o-media</code>、<code>.o-layout</code>這種可以套在留言、文章、通知等任何地方的骨架樣式),來源：<a href="https://www.xfive.co/blog/itcss-scalable-maintainable-css-architecture">ITCSS: Scalable and Maintainable CSS Architecture - xfive</a>。</li>
+<li><strong>Components</strong>：也是class選擇器,但這裡才開始加上具體外觀(顏色、品牌樣式),是實務上寫最多的一層,通常搭配BEM命名。</li>
+<li>換句話說,Generic跟Elements管的是「沒加class的東西」,Objects跟Components才開始管「有加class的東西」;Objects因為刻意「不含外觀」,所以可以被更多不同的Components共用,這才是它被安排在Elements之後、Components之前的原因,而不是因為它「比較大」。</li>
+</ul>
+<h3>3. 為什麼你查到的範例用<code>@import</code>,我這篇用<code>@use</code></h3>
+<p>兩個都存在,原因是<strong>時間點不同</strong>：</p>
+<ul>
+<li><code>@use</code>／<code>@forward</code>是Sass在<mark class="hl tog" style="background:#FF5582;">2019年才推出</mark>的新模組系統,ITCSS這個方法論本身誕生於2014年,當年Sass根本還沒有<code>@use</code>,所以早期(尤其2019年以前)的ITCSS教學文章一定只會用<code>@import</code>,這不是錯,只是舊寫法。</li>
+<li>Sass官方從2020年起把<code>@import</code>標記為<strong>已淘汰(deprecated)</strong>,並公開建議「所有人改用<code>@use</code>」;但截至目前(2026-07)<code>@import</code><strong>還沒有被真正移除</strong>,官方文件明講要等到Dart Sass 3.0.0才會拿掉,而3.0.0「最早也要在Dart Sass 1.80.0發布之後兩年才會推出」(1.80.0是2023年10月發布的),所以<code>@import</code>目前還能用,只是每次編譯都會跳警告。來源：<a href="https://sass-lang.com/documentation/breaking-changes/import/">Sass: Breaking Change - @import</a></li>
+<li>這篇筆記用<code>@use</code>是因為那是官方<strong>目前建議、面向未來</strong>的寫法;你查到用<code>@import</code>的文章多半是2019年以前寫的、或作者還沒更新到新語法,兩者現階段都能跑,但新專案建議直接用<code>@use</code>。</li>
+</ul>
+<h3>4. 「一個元素的樣式不該因為它被放在哪個容器裡而改變」的具體範例</h3>
+<p>這句話指的是OOCSS反對的「<strong>位置依賴(location-dependent)樣式</strong>」,用範例來對比：</p>
+<p><mark class="hl tog" style="background:#FF5582;">❌ 違反容器/內容分離（樣式綁在容器上,元素被搬到別的容器就會跑掉）</mark></p>
+<pre><code class="language-css">.sidebar h3 { font-size: 14px; color: #666; }
+.header  h3 { font-size: 24px; color: #000; }
+</code></pre>
+<pre><code class="language-html">&lt;div class=&quot;header&quot;&gt;&lt;h3&gt;大標題&lt;/h3&gt;&lt;/div&gt;
+&lt;div class=&quot;sidebar&quot;&gt;&lt;h3&gt;小標題&lt;/h3&gt;&lt;/div&gt;
+</code></pre>
+<p>同一個<code>&lt;h3&gt;</code>標籤,樣式完全取決於它被塞進哪個容器,如果哪天把這個<code>h3</code>從sidebar搬到footer,樣式會直接跑掉、變成footer那組規則(或什麼都沒有),而且要改樣式得去猜它現在在哪個容器底下,很難維護。</p>
+<p><mark class="hl tog" style="background:#BBFABB;">✅ 符合容器/內容分離（樣式直接寫在元素自己身上的class,搬到哪裡都長一樣）</mark></p>
+<pre><code class="language-css">.title--large { font-size: 24px; color: #000; }
+.title--small { font-size: 14px; color: #666; }
+</code></pre>
+<pre><code class="language-html">&lt;div class=&quot;header&quot;&gt;&lt;h3 class=&quot;title--large&quot;&gt;大標題&lt;/h3&gt;&lt;/div&gt;
+&lt;div class=&quot;sidebar&quot;&gt;&lt;h3 class=&quot;title--small&quot;&gt;小標題&lt;/h3&gt;&lt;/div&gt;
+</code></pre>
+<p>現在<code>title--large</code>不管搬到header、footer還是任何容器裡,樣式都不會變,因為樣式來源是元素自己身上的class,而不是它剛好被放在哪個父層底下。</p>
+<h3>5. 骨架(structure)裡的width、height、padding、border-radius、display、cursor,通常會全部放同一個class嗎</h3>
+<p>通常會。<mark class="hl tog" style="background:#FFF3A3;">經典OOCSS的做法是把「這個物件所有跟外觀顏色無關的結構性宣告」合併寫進同一個structure class裡</mark>,像Nicole Sullivan原始教學裡的media object範例就是把display、overflow、margin這些結構屬性通通放在同一個<code>.media</code>class,不會刻意拆成好幾個更小的class。</p>
+<ul>
+<li>只有當你想要更細粒度的重複利用時(例如「這個padding也想單獨套到別的地方」),才會進一步拆成更小的原子class(例如<code>.p-16</code>、<code>.flex</code>這種)。這種做法已經不算傳統OOCSS,而是<strong>Utility-First(如Tailwind)</strong>的思路,是OOCSS「結構外觀分離」精神被推向極致後的演變,前面的筆記裡也提過這個關聯。</li>
+<li>所以答案是：傳統OOCSS結構層通常合併成一個class;想拆更細,是Utility-First在做的事,不是OOCSS原本的規範。</li>
+</ul>
+<h3>6. 除了skin(外觀)以外,通常還會有一個獨立的「skeleton」層級嗎</h3>
+<p>沒有正式的第三層。<mark class="hl tog" style="background:#ADCCFF;">經典OOCSS只定義兩個角色：structure（結構）與skin（外觀）</mark>,「skeleton」只是大家口語上拿來代替「structure」的說法而已,兩個字指的是同一件事,不是三層架構。如果你想要更細的第三層(例如再拆出「排版layout」跟「尺寸空間sizing」),那是你自己團隊為了更好維護而做的延伸慣例,不是OOCSS原始定義的一部分,建議如果要這樣拆,乾脆考慮直接採用Utility-First或搭配ITCSS的Objects/Components層去做區分,會比自創第三個OOCSS專有名詞更有共識。</p>
+<h3>7. <code>.btn-skeleton</code> + <code>.primary-skin</code>的完整範例(對照BEM會怎麼重複寫)</h3>
+<p><strong>OOCSS寫法（<code>primary-skin</code>可以被btn、card共用,只寫一次）</strong></p>
+<pre><code class="language-css">/* 結構/骨架：跟顏色外觀無關,每種元件各自一份 */
+.btn-skeleton {
+  display: inline-block;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.card-skeleton {
+  display: block;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+/* 外觀/膚色：跟元件無關,只寫一次,誰都能套 */
+.primary-skin {
+  background-color: #2f6fed;
+  color: #ffffff;
+}
+.warning-skin {
+  background-color: #ffcc00;
+  color: #333333;
+}
+</code></pre>
+<pre><code class="language-html">&lt;button class=&quot;btn-skeleton primary-skin&quot;&gt;主按鈕&lt;/button&gt;
+&lt;div class=&quot;card-skeleton primary-skin&quot;&gt;主色卡片&lt;/div&gt;
+&lt;div class=&quot;card-skeleton warning-skin&quot;&gt;警告卡片&lt;/div&gt;
+</code></pre>
+<p><strong>BEM寫法（同樣的顏色規則,<code>.btn</code>跟<code>.card</code>要各自重寫一次）</strong></p>
+<pre><code class="language-css">.btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+.btn--primary { background-color: #2f6fed; color: #ffffff; }
+
+.card { display: block; padding: 16px; border-radius: 8px; }
+.card--primary { background-color: #2f6fed; color: #ffffff; } /* 內容跟.btn--primary一模一樣,但BEM規定Modifier綁在自己Block底下,必須重寫 */
+</code></pre>
+<pre><code class="language-html">&lt;button class=&quot;btn btn--primary&quot;&gt;主按鈕&lt;/button&gt;
+&lt;div class=&quot;card card--primary&quot;&gt;主色卡片&lt;/div&gt;
+</code></pre>
+<ul>
+<li><mark class="hl tog" style="background:#FF5582;">關鍵對比：OOCSS的<code>.primary-skin</code>只寫一次規則、兩種元件共用；BEM的<code>.btn--primary</code>跟<code>.card--primary</code>內容完全相同,卻要各自宣告一次</mark>,這正是OOCSS「重複利用」跟BEM「命名清晰但較易重複程式碼」這兩種取捨的具體差異。</li>
+</ul>
+<h3>8. OOCSS比較需要「兩個class搭配」,BEM先決定命名就不需要搭配,對嗎</h3>
+<p>對,但要拆成兩件事情看：</p>
+<ul>
+<li><mark class="hl tog" style="background:#FFF3A3;">OOCSS靠疊加多個各自獨立、互不知情的class拼出最終樣子</mark>,<code>.btn-skeleton</code>跟<code>.primary-skin</code>彼此完全不知道對方存在,只是剛好一起套在同一個元素上。所以這是一種<strong>隱性契約</strong>：開發者得自己記得把對的structure跟對的skin同時套上,漏掉其中一個元素就會壞(少skin顏色不見,少structure版面跑掉)。</li>
+<li><mark class="hl tog" style="background:#BBFABB;">BEM則相反：Block命名空間先決定好,Element跟Modifier都是這個Block的附屬品</mark>,<code>.btn--primary</code>只有在<code>.btn</code>底下才有意義,不是一個能脫離<code>.btn</code>單獨存在、拿去跟別的Block自由搭配的獨立class。雖然HTML上一樣疊了兩個class(<code>btn btn--primary</code>),但這兩個class不是像OOCSS那樣「兩個各自獨立、可以任意排列組合」的關係,而是「一個主體加上它自己的變體」,是同一個決策脈絡下一次決定好的,不需要像OOCSS一樣去想「這個skin可以套用在哪些不同的structure上」。</li>
+<li>至於「行數」要看你指的是哪種：若是指CSS規則被拆成幾個獨立區塊(rule body),兩者其實都會拆成兩塊,行數上不見得差很多;若是指<strong>真正省下來的重複行數</strong>,這才是關鍵差異：OOCSS的skin被設計成可以跨btn、card、alert共用,理論上省下來的是跨元件的重複行數;而BEM的Modifier無法脫離自己的Block被別的Block重用,<code>.card</code>要同樣的紅色必須另外寫一次<code>.card--primary</code>,即使內容一模一樣,所以BEM在跨元件共用顏色的情境下反而比較容易產生重複程式碼。</li>
+<li>簡單說,兩邊定性都對：OOCSS的核心成本在於要記得搭配兩個獨立class,BEM的核心成本在於 Modifier綁死Block底下、跨元件重複利用時容易重複寫。</li>
+</ul>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-19</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try{document.querySelectorAll('pre code').forEach(b=>{if(window.hljs)hljs.highlightElement(b);});}catch(e){}
+document.querySelectorAll('mark.tog').forEach(m=>m.addEventListener('click',()=>m.classList.toggle('hidden')));
+var ha=document.getElementById('hideAll'),sa=document.getElementById('showAll');
+ha.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.add('hidden'));
+sa.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.remove('hidden'));
+</script>
+</body></html>

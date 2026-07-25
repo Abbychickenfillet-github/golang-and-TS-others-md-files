@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSS方法論時間軸與OOCSS結構觀念（互動練習）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;font-size:16px;}
+.wrap{max-width:860px;margin:0 auto;padding:32px 20px 64px;}
+header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:28px;line-height:1.3;margin:.2em 0;}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:21px;margin:1.8em 0 .6em;
+ border-left:5px solid var(--accent);padding-left:12px;}
+h3{font-size:16.5px;margin:1.3em 0 .4em;color:#3a3a3a;}
+.meta{color:var(--muted);font-size:13px;margin-top:8px;}
+.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
+ padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+.src{display:block;font-size:12px;color:#2563eb;word-break:break-all;margin-top:3px;}
+.toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
+ border-bottom:1px solid var(--line);margin-bottom:10px;}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
+ padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
+.btn:hover{background:#f1eefe;}
+mark.hl{padding:1px 3px;border-radius:4px;}
+mark.tog{cursor:pointer;transition:.15s;}
+mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
+ user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;
+ line-height:1.55;}
+code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
+:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
+th{background:#f3f1fb;}
+tr:nth-child(even) td{background:#faf9fd;}
+blockquote{border-left:4px solid #ffd27d;background:#fff8ec;margin:1em 0;padding:8px 14px;
+ border-radius:0 8px 8px 0;color:#7a5a1e;}
+footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
+ border-top:1px solid var(--line);padding-top:16px;}
+.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;
+ padding:7px 12px;margin:6px 0 14px;}
+
+.timeline{position:relative;margin:20px 0;padding-left:26px;border-left:3px solid var(--accent);}
+.tl-item{position:relative;margin-bottom:22px;}
+.tl-item::before{content:"";position:absolute;left:-33px;top:4px;width:12px;height:12px;
+ border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 2px var(--accent);}
+.tl-year{font-weight:700;color:var(--accent);font-size:14px;}
+.tl-title{font-weight:700;margin:2px 0 4px;}
+.tl-src{font-size:12px;color:var(--muted);}
+.tl-src a{color:#2563eb;}
+
+.cloze{display:inline-block;min-width:2.4em;text-align:center;padding:1px 8px;border-radius:6px;
+ background:#eef0ff;border:1px dashed #9fa8ff;color:#3b3b3b;cursor:pointer;font-weight:600;}
+.cloze.revealed{background:#e3fbe3;border:1px solid #6bcB6b;color:#1c5f1c;}
+.cloze .blank{letter-spacing:2px;}
+
+.qa-card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:14px 0;background:var(--card);}
+.qa-q{font-weight:700;margin-bottom:8px;}
+.tf-btns{display:flex;gap:8px;margin:8px 0;}
+.tf-btn{cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:5px 16px;background:#fff;font-size:14px;}
+.tf-btn.correct-picked{background:#dff5df;border-color:#4caf50;}
+.tf-btn.wrong-picked{background:#fbe1e1;border-color:#e05353;}
+.tf-explain{display:none;margin-top:8px;font-size:14px;background:#f6f6fb;border-radius:8px;padding:9px 12px;}
+.tf-explain.show{display:block;}
+
+.essay-toggle{cursor:pointer;color:#5b4bd6;font-size:13px;text-decoration:underline;user-select:none;}
+.essay-answer{display:none;margin-top:10px;background:#f6f6fb;border-radius:8px;padding:10px 14px;font-size:14.5px;}
+.essay-answer.show{display:block;}
+textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8px;padding:8px;
+ font-family:inherit;font-size:14px;margin-top:6px;}
+</style></head>
+<body><div class="wrap">
+<header class="note">
+<h1>CSS方法論時間軸與OOCSS結構觀念（互動練習）</h1>
+<div><span class="pill">#css</span><span class="pill">#oocss</span><span class="pill">#bem</span><span class="pill">#smacss</span><span class="pill">#itcss</span><span class="pill">#方法論</span><span class="pill">#前端</span><span class="pill">#面試</span></div>
+<div class="meta">更新於2026-07-19‧本篇延伸自「CSS方法論與權重-OOCSS-BEM-SMACSS-ITCSS.md」的Q&A提問記錄</div>
+</header>
+<div class="toolbar">
+<span class="btn" id="hideAll">🙈 全部隱藏重點</span>
+<span class="btn" id="showAll">👁️ 全部顯示</span>
+</div>
+<div class="hint">💡 螢光標記可點擊切換顯示/隱藏；填空區塊（虛線框）點一下顯示答案；是非題點按鈕作答；申論題點連結展開參考答案。</div>
+
+<h2>一‧四大方法論時間軸</h2>
+<div class="timeline">
+  <div class="tl-item">
+    <div class="tl-year">2009年</div>
+    <div class="tl-title">OOCSS —— Nicole Sullivan</div>
+    <div>提出<mark class="hl tog" style="background:#FFF3A3;">結構與外觀分離、容器與內容分離</mark>兩大原則，四者中最早出現。</div>
+    <div class="tl-src">來源：<a href="https://www.bennadel.com/blog/1633-object-oriented-css-oocss-by-nicole-sullivan.htm" target="_blank">Ben Nadel（2009-07-08）</a>‧<a href="https://en.wikipedia.org/wiki/OOCSS" target="_blank">OOCSS - Wikipedia</a></div>
+  </div>
+  <div class="tl-item">
+    <div class="tl-year">2005起步‧2009正式成形</div>
+    <div class="tl-title">BEM —— Yandex團隊</div>
+    <div>2005年萌芽、2007年提出Independent Block、<mark class="hl tog" style="background:#FFF3A3;">2009年3月Lego 2.0發布正式定型為BEM</mark>、2010年開源。</div>
+    <div class="tl-src">來源：<a href="https://en.bem.info/methodology/history/" target="_blank">History / Methodology / BEM</a>‧<a href="https://www.webdesignmuseum.org/web-design-history/bem-2009" target="_blank">BEM - Web Design Museum</a></div>
+  </div>
+  <div class="tl-item">
+    <div class="tl-year">2011年</div>
+    <div class="tl-title">SMACSS —— Jonathan Snook</div>
+    <div>取材自Yahoo! Mail改版經驗，<mark class="hl tog" style="background:#FFF3A3;">把CSS規則分五類管理</mark>的架構思維。</div>
+    <div class="tl-src">來源：<a href="https://smacss.com/book/about/" target="_blank">SMACSS - About</a></div>
+  </div>
+  <div class="tl-item">
+    <div class="tl-year">2014年11月</div>
+    <div class="tl-title">ITCSS —— Harry Roberts</div>
+    <div>在dafed研討會首次公開發表《Managing CSS Projects with ITCSS》，四者中<mark class="hl tog" style="background:#FFF3A3;">最晚出現、唯一管檔案分層與載入順序</mark>。</div>
+    <div class="tl-src">來源：<a href="https://csswizardry.net/talks/2014/11/itcss-dafed.pdf" target="_blank">Csswizardry - ITCSS投影片（2014-11）</a></div>
+  </div>
+</div>
+<blockquote>時間順序大致對應「解決問題的抽象層級」：先解決單一元件內部怎麼拆與命名（OOCSS、BEM，2009年），再解決整個專案怎麼分類（SMACSS，2011年），最後解決檔案怎麼排序載入（ITCSS，2014年）。</blockquote>
+
+<h2>二‧填空練習（點擊虛線框看答案）</h2>
+<p>OOCSS的兩大核心原則分別是
+<span class="cloze" data-answer="結構（Structure）">結構<span class="blank">▢▢</span></span>
+與
+<span class="cloze" data-answer="外觀（Skin）">外觀<span class="blank">▢▢</span></span>
+分離，以及
+<span class="cloze" data-answer="容器（Container）">容器<span class="blank">▢▢</span></span>
+與
+<span class="cloze" data-answer="內容（Content）">內容<span class="blank">▢▢</span></span>
+分離。</p>
+
+<p>BEM的三個字母分別代表
+<span class="cloze" data-answer="Block（區塊）">B＝<span class="blank">▢▢</span></span>、
+<span class="cloze" data-answer="Element（元素，用__連接）">E＝<span class="blank">▢▢</span></span>、
+<span class="cloze" data-answer="Modifier（修飾詞，用--連接）">M＝<span class="blank">▢▢</span></span>。</p>
+
+<p>BEM是由俄羅斯搜尋引擎公司
+<span class="cloze" data-answer="Yandex">____</span>
+於<span class="cloze" data-answer="2009年（根源2005年）">____</span>年正式定型的方法論；
+ITCSS是由
+<span class="cloze" data-answer="Harry Roberts">____</span>
+於<span class="cloze" data-answer="2014年11月">____</span>首次公開發表的。</p>
+
+<h2>三‧是非題（點按鈕作答）</h2>
+
+<div class="qa-card">
+  <div class="qa-q">1. OOCSS只是一種class命名規範，跟CSS規則內部要怎麼寫沒有關係。</div>
+  <div class="tf-btns">
+    <div class="tf-btn" data-correct="false">是</div>
+    <div class="tf-btn" data-correct="true">非</div>
+  </div>
+  <div class="tf-explain">答案：非。OOCSS的本質是「拆職責」的架構思維——結構與外觀分離、容器與內容分離，這兩條原則要求的是CSS規則本身要被拆成獨立區塊，命名只是這個思維的外顯結果。BEM才是單純的命名規範，套用在完全沒拆結構的CSS上也成立；OOCSS若沒把規則拆開，就不算真正實踐。</div>
+</div>
+
+<div class="qa-card">
+  <div class="qa-q">2. <code>&lt;button class="btn btn--primary"&gt;</code> 是標準的BEM Modifier寫法。</div>
+  <div class="tf-btns">
+    <div class="tf-btn" data-correct="true">是</div>
+    <div class="tf-btn" data-correct="false">非</div>
+  </div>
+  <div class="tf-explain">答案：是。<code>.btn</code>是Block，<code>--primary</code>是Modifier，語意是「btn這個Block底下的primary變體」。雙連字號<code>--</code>是BEM獨有的命名規範。</div>
+</div>
+
+<div class="qa-card">
+  <div class="qa-q">3. 純OOCSS的skin類別通常會加上元件前綴，例如寫成<code>.btn-color</code>而不是<code>.primary-skin</code>。</div>
+  <div class="tf-btns">
+    <div class="tf-btn" data-correct="false">是</div>
+    <div class="tf-btn" data-correct="true">非</div>
+  </div>
+  <div class="tf-explain">答案：非。OOCSS的skin類刻意設計成「跟元件無關、可被btn、card、alert等任何元件共用」，命名上通常不加元件前綴（例如<code>.primary-skin</code>），這樣才能達到跨元件重複利用的目的；加了<code>btn-</code>前綴反而比較接近BEM「綁定在特定Block底下」的精神。</div>
+</div>
+
+<h2>四‧申論題（點連結展開參考答案）</h2>
+
+<div class="qa-card">
+  <div class="qa-q">Q：<code>.btn-skeleton { width: 2rem; height: 1rem; }</code> 這樣寫算不算把「骨架」與「顏色」分離了？请说明理由，並補上你認為缺少的另一半class。</div>
+  <textarea placeholder="先自己想想再點下面展開參考答案……"></textarea>
+  <div class="essay-toggle" onclick="this.nextElementSibling.classList.toggle('show')">👉 展開參考答案</div>
+  <div class="essay-answer">方向正確。<code>.btn-skeleton</code>只處理width/height這類尺寸大小（結構性質），完全沒有碰顏色、背景，符合OOCSS「結構與外觀分離」的第一原則。但要注意，OOCSS所謂的structure通常也包含padding、border-radius、display、cursor這類跟顏色無關的通用規則，不只是width/height。缺少的另一半，是一個專門處理<code>background-color</code>/<code>color</code>的skin類，例如<code>.primary-skin { background-color: blue; color: white; }</code>，兩個class一起套用在同一元素上，才是完整的OOCSS結構/外觀分離範例。</div>
+</div>
+
+<div class="qa-card">
+  <div class="qa-q">Q：如果要把<code>&lt;button class="btn btn--primary"&gt;</code>這個BEM寫法「翻譯」成純OOCSS風格，會是<code>.btn-skeleton</code> + <code>.btn-color</code>嗎？兩者在設計理念上差在哪裡？</div>
+  <textarea placeholder="先自己想想再點下面展開參考答案……"></textarea>
+  <div class="essay-toggle" onclick="this.nextElementSibling.classList.toggle('show')">👉 展開參考答案</div>
+  <div class="essay-answer">拆分骨架與外觀的方向完全正確，但<code>.btn-color</code>這個命名還綁著<code>btn-</code>前綴，比較接近BEM思路。真正的OOCSS寫法通常是兩個完全獨立、彼此沒有派生關係的class，例如<code>.btn-skeleton</code> + <code>.primary-skin</code>（拿掉元件前綴）。關鍵差異：BEM的Modifier綁定在特定Block底下，<code>.card</code>要同樣的紅色必須另外寫一次<code>.card--primary</code>；OOCSS的skin類則刻意設計成與元件無關、可被btn、card、alert等任何元件共用，才能真正達到重複利用的目的。</div>
+</div>
+
+<footer>
+互動練習由CSS方法論與權重-OOCSS-BEM-SMACSS-ITCSS.md延伸整理‧更新於2026-07-19‧與同資料夾「OOCSS-vs-BEM-CSS命名方法論.html」互為關聯筆記（那篇講命名範例，這篇補時間脈絡與結構本質辨析）
+</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try{document.querySelectorAll('pre code').forEach(b=>{if(window.hljs)hljs.highlightElement(b);});}catch(e){}
+
+document.querySelectorAll('mark.tog').forEach(m=>m.addEventListener('click',()=>m.classList.toggle('hidden')));
+var ha=document.getElementById('hideAll'),sa=document.getElementById('showAll');
+ha.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.add('hidden'));
+sa.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.remove('hidden'));
+
+document.querySelectorAll('.cloze').forEach(function(c){
+  c.addEventListener('click',function(){
+    if(c.classList.contains('revealed')){
+      c.classList.remove('revealed');
+      c.querySelector('.blank').textContent='▢▢';
+    } else {
+      c.classList.add('revealed');
+      c.querySelector('.blank').textContent=c.dataset.answer;
+    }
+  });
+});
+
+document.querySelectorAll('.qa-card').forEach(function(card){
+  var btns=card.querySelectorAll('.tf-btn');
+  if(!btns.length) return;
+  var explain=card.querySelector('.tf-explain');
+  btns.forEach(function(b){
+    b.addEventListener('click',function(){
+      btns.forEach(x=>x.classList.remove('correct-picked','wrong-picked'));
+      if(b.dataset.correct==='true'){ b.classList.add('correct-picked'); }
+      else { b.classList.add('wrong-picked'); }
+      explain.classList.add('show');
+    });
+  });
+});
+</script>
+</body></html>

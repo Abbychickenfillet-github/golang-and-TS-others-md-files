@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>盒模型與border-box互動練習</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;font-size:16px;}
+.wrap{max-width:860px;margin:0 auto;padding:32px 20px 64px;}
+header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:26px;line-height:1.3;margin:.2em 0;}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:20px;margin:1.8em 0 .6em;
+ border-left:5px solid var(--accent);padding-left:12px;}
+.meta{color:var(--muted);font-size:13px;margin-top:8px;}
+.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
+ padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+.toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
+ border-bottom:1px solid var(--line);margin-bottom:10px;}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
+ padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
+.btn:hover{background:#f1eefe;}
+mark.hl{padding:1px 3px;border-radius:4px;}
+mark.tog{cursor:pointer;transition:.15s;}
+mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
+ user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.55;}
+code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
+:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
+th{background:#f3f1fb;}
+.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;padding:7px 12px;margin:6px 0 14px;}
+.cloze{display:inline-block;min-width:2.4em;text-align:center;padding:1px 8px;border-radius:6px;
+ background:#eef0ff;border:1px dashed #9fa8ff;color:#3b3b3b;cursor:pointer;font-weight:600;}
+.cloze.revealed{background:#e3fbe3;border:1px solid #6bcB6b;color:#1c5f1c;}
+.qa-card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:14px 0;background:var(--card);}
+.qa-q{font-weight:700;margin-bottom:8px;}
+.tf-btns{display:flex;gap:8px;margin:8px 0;}
+.tf-btn{cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:5px 16px;background:#fff;font-size:14px;}
+.tf-btn.correct-picked{background:#dff5df;border-color:#4caf50;}
+.tf-btn.wrong-picked{background:#fbe1e1;border-color:#e05353;}
+.tf-explain{display:none;margin-top:8px;font-size:14px;background:#f6f6fb;border-radius:8px;padding:9px 12px;}
+.tf-explain.show{display:block;}
+.essay-toggle{cursor:pointer;color:#5b4bd6;font-size:13px;text-decoration:underline;user-select:none;}
+.essay-answer{display:none;margin-top:10px;background:#f6f6fb;border-radius:8px;padding:10px 14px;font-size:14.5px;}
+.essay-answer.show{display:block;}
+textarea{width:100%;min-height:60px;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:inherit;font-size:14px;margin-top:6px;}
+.demo{border:1px solid var(--line);border-radius:8px;padding:16px;margin:10px 0;background:#fbfbfd;}
+.demo-controls{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.demo-controls button{padding:5px 14px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:13px;}
+.demo-controls button.active{background:#7c6cff;color:#fff;border-color:#7c6cff;}
+.demo-stage{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;}
+.demo-visual{position:relative;}
+.box-margin{background:#fdf0d5;padding:24px;}
+.box-border{background:#f6c945;transition:all .25s;}
+.box-padding{background:#a7d8a0;transition:all .25s;}
+.box-content{background:#7fb6e8;display:flex;align-items:center;justify-content:center;color:#0b2e63;font-size:13px;font-weight:bold;transition:all .25s;}
+.demo-readout{font-size:13.5px;background:#f6f6fb;border-radius:8px;padding:10px 14px;min-width:220px;}
+.demo-readout div{margin:3px 0;}
+</style></head>
+<body><div class="wrap">
+<header class="note">
+<h1>盒模型與border-box互動練習</h1>
+<div><span class="pill">#css</span><span class="pill">#box-model</span><span class="pill">#border-box</span><span class="pill">#前端</span><span class="pill">#面試</span></div>
+<div class="meta">更新於2026-07-19‧延伸自「02-1-盒模型-BoxModel與border-box.md」</div>
+</header>
+<div class="toolbar">
+<span class="btn" id="hideAll">🙈 全部隱藏重點</span>
+<span class="btn" id="showAll">👁️ 全部顯示</span>
+</div>
+<div class="hint">💡 螢光標記可點擊切換顯示/隱藏；填空區塊點一下顯示答案；下面有一個可即時切換box-sizing的互動demo，數字會跟著變。</div>
+
+<h2>一‧盒模型四層</h2>
+<p>由內到外：<mark class="hl tog" style="background:#7fb6e8;">content內容</mark> → <mark class="hl tog" style="background:#a7d8a0;">padding內距</mark> → <mark class="hl tog" style="background:#f6c945;">border邊框</mark> → <mark class="hl tog" style="background:#fdf0d5;">margin外距</mark>。</p>
+
+<h2>二‧互動demo：content-box vs border-box（width固定160px、padding20px、border8px實心紅框示意）</h2>
+<div class="demo">
+  <div class="demo-controls">
+    <button data-mode="content" class="active">box-sizing: content-box</button>
+    <button data-mode="border">box-sizing: border-box</button>
+  </div>
+  <div class="demo-stage">
+    <div class="demo-visual">
+      <div class="box-margin">
+        <div class="box-border" id="borderBox" style="padding:8px;">
+          <div class="box-padding" id="paddingBox" style="padding:20px;">
+            <div class="box-content" id="contentBox" style="width:160px;height:60px;">content</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="demo-readout" id="readout"></div>
+  </div>
+</div>
+
+<h2>三‧填空練習</h2>
+<p><code>content-box</code>是CSS的<span class="cloze" data-answer="預設值">____</span>；`width`只算<span class="cloze" data-answer="content內容區">____</span>，padding跟border會<span class="cloze" data-answer="另外加總在外面">____</span>。</p>
+<p><code>border-box</code>的`width`已經<span class="cloze" data-answer="包含padding跟border">____</span>，content區會被自動<span class="cloze" data-answer="往內擠壓縮小">____</span>。</p>
+<p>不管哪種box-sizing，<span class="cloze" data-answer="margin外距">____</span>永遠不算進width的計算範圍裡。</p>
+
+<h2>四‧是非題</h2>
+
+<div class="qa-card">
+  <div class="qa-q">1. 設定<code>box-sizing:border-box</code>後，<code>margin</code>也會被算進width裡面。</div>
+  <div class="tf-btns">
+    <div class="tf-btn" data-correct="false">是</div>
+    <div class="tf-btn" data-correct="true">非</div>
+  </div>
+  <div class="tf-explain">答案：非。<code>box-sizing</code>只影響padding跟border算不算進width，margin不管哪種模式都在外面，永遠不算進width的計算範圍。</div>
+</div>
+
+<div class="qa-card">
+  <div class="qa-q">2. `<table>`、`<select>`、`<button>`這類表單相關元素，瀏覽器原生預設的box-sizing就是border-box。</div>
+  <div class="tf-btns">
+    <div class="tf-btn" data-correct="true">是</div>
+    <div class="tf-btn" data-correct="false">非</div>
+  </div>
+  <div class="tf-explain">答案：是。一般區塊元素預設是content-box，但`&lt;table&gt;`、`&lt;select&gt;`、`&lt;button&gt;`跟部分`&lt;input&gt;`類型（如radio、checkbox）瀏覽器原生預設就是border-box。</div>
+</div>
+
+<h2>五‧申論題</h2>
+<div class="qa-card">
+  <div class="qa-q">Q：為什麼業界幾乎都會全域重置`* { box-sizing: border-box; }`？如果不這樣做會發生什麼問題？</div>
+  <textarea placeholder="先自己想想再點下面展開參考答案……"></textarea>
+  <div class="essay-toggle" onclick="this.nextElementSibling.classList.toggle('show')">👉 展開參考答案</div>
+  <div class="essay-answer">因為預設的content-box會讓「寫在CSS裡的width數字」跟「畫面上實際看到的總寬度」不一致，只要加了padding或border，總寬度就會比width數字大，之後只要改一次padding就得重新心算一次width才能維持版面不跑掉，非常容易出錯也難維護。改成border-box後，width寫多少、畫面上就是多少，padding和border只會往內壓縮content區，不會撐大外層總尺寸，跟響應式版面（RWD）或Grid/Flex排版搭配時也更好預測，這是為什麼幾乎所有CSS reset（包括normalize.css的延伸寫法）都會加上這一行。</div>
+</div>
+
+<footer style="margin-top:40px;color:var(--muted);font-size:12px;text-align:center;border-top:1px solid var(--line);padding-top:16px;">
+互動練習延伸自「02-1-盒模型-BoxModel與border-box.md」‧更新於2026-07-19
+</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try{document.querySelectorAll('pre code').forEach(b=>{if(window.hljs)hljs.highlightElement(b);});}catch(e){}
+
+document.querySelectorAll('mark.tog').forEach(m=>m.addEventListener('click',()=>m.classList.toggle('hidden')));
+var ha=document.getElementById('hideAll'),sa=document.getElementById('showAll');
+ha.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.add('hidden'));
+sa.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.remove('hidden'));
+
+document.querySelectorAll('.cloze').forEach(function(c){
+  c.addEventListener('click',function(){
+    if(c.classList.contains('revealed')){
+      c.classList.remove('revealed');
+      c.textContent='____';
+    } else {
+      c.classList.add('revealed');
+      c.textContent=c.dataset.answer;
+    }
+  });
+});
+
+document.querySelectorAll('.qa-card').forEach(function(card){
+  var btns=card.querySelectorAll('.tf-btn');
+  if(!btns.length) return;
+  var explain=card.querySelector('.tf-explain');
+  btns.forEach(function(b){
+    b.addEventListener('click',function(){
+      btns.forEach(x=>x.classList.remove('correct-picked','wrong-picked'));
+      if(b.dataset.correct==='true'){ b.classList.add('correct-picked'); }
+      else { b.classList.add('wrong-picked'); }
+      explain.classList.add('show');
+    });
+  });
+});
+
+var modeButtons=document.querySelectorAll('.demo-controls button');
+var contentBox=document.getElementById('contentBox');
+var readout=document.getElementById('readout');
+var WIDTH=160, PADDING=20, BORDER=8;
+function render(mode){
+  if(mode==='content'){
+    contentBox.style.width=WIDTH+'px';
+    readout.innerHTML =
+      '<div><b>box-sizing: content-box</b></div>' +
+      '<div>width設定值：'+WIDTH+'px（只算content）</div>' +
+      '<div>實際總寬度：'+(WIDTH+PADDING*2+BORDER*2)+'px</div>' +
+      '<div style="color:#c0392b;">總寬度比設定值多出 '+(PADDING*2+BORDER*2)+'px</div>';
+  } else {
+    var innerWidth = WIDTH - PADDING*2 - BORDER*2;
+    contentBox.style.width = innerWidth+'px';
+    readout.innerHTML =
+      '<div><b>box-sizing: border-box</b></div>' +
+      '<div>width設定值：'+WIDTH+'px（含padding+border）</div>' +
+      '<div>實際總寬度：'+WIDTH+'px（跟設定值一致）</div>' +
+      '<div>content實際寬度縮小為：'+innerWidth+'px</div>';
+  }
+}
+modeButtons.forEach(function(btn){
+  btn.addEventListener('click',function(){
+    modeButtons.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    render(btn.dataset.mode);
+  });
+});
+render('content');
+</script>
+</body></html>
