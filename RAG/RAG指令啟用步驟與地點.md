@@ -352,7 +352,7 @@ which psql
 ```
 
 **不在 user home directory**——是 Linux **系統二進位檔目錄**：
-- `/usr/bin/psql` ← 最常見
+- `/`[[usr-Unix系統資源|usr]]`/bin/psql` ← 最常見
 - `/usr/lib/postgresql/17/bin/psql`
 - `/usr/local/bin/psql`
 
