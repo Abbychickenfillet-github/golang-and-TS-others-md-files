@@ -4,13 +4,7 @@
 > **GitHub Issue（含截圖）**：https://github.com/yutuo-tech/future_sign.official-website/issues/86
 
 ### 截圖
-
-**oklch 錯誤畫面**：
-
-![oklch error screenshot](https://github.com/user-attachments/assets/b8662f35-e5a7-4d37-8366-c623269068a8)
-
 **window.print() 方案成功畫面**：
-
 ![window.print success screenshot](https://github.com/user-attachments/assets/85e630f4-6fb0-4758-b94b-9f5e95368b42)
 
 ---
