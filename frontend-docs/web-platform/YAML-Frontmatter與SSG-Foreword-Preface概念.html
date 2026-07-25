@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YAML Frontmatter、SSG 概念與 Foreword/Preface/Introduction 辨析</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:30px;line-height:1.3;margin:.2em 0;}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:22px;margin:1.6em 0 .6em;
+ border-left:5px solid var(--accent);padding-left:12px;}
+h3{font-size:17px;margin:1.3em 0 .4em;color:#3a3a3a;}
+.meta{color:var(--muted);font-size:13px;margin-top:8px;}
+.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
+ padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+.src{display:block;font-size:12px;color:#2563eb;word-break:break-all;margin-top:3px;}
+.toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
+ border-bottom:1px solid var(--line);margin-bottom:10px;}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
+ padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
+.btn:hover{background:#f1eefe;}
+mark.hl{padding:1px 3px;border-radius:4px;}
+mark.tog{cursor:pointer;transition:.15s;}
+mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
+ user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;
+ line-height:1.55;}
+code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
+:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
+th{background:#f3f1fb;}
+tr:nth-child(even) td{background:#faf9fd;}
+blockquote{border-left:4px solid #ffd27d;background:#fff8ec;margin:1em 0;padding:8px 14px;
+ border-radius:0 8px 8px 0;color:#7a5a1e;}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);}
+footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
+ border-top:1px solid var(--line);padding-top:16px;}
+.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;
+ padding:7px 12px;margin:6px 0 14px;}
+</style></head>
+<body><div class="wrap">
+<header class="note">
+<h1>YAML Frontmatter、SSG 概念與 Foreword/Preface/Introduction 辨析</h1>
+<div><span class="pill">#gemini</span><span class="pill">#frontmatter</span><span class="pill">#yaml</span><span class="pill">#ssg</span><span class="pill">#markdown</span><span class="pill">#英文詞彙</span></div>
+<div class="meta">更新於 2026-07-23 · 來源:</div>
+<a class="src" href="https://gemini.google.com/app/325a079bd35b874b" target="_blank" rel="noopener">https://gemini.google.com/app/325a079bd35b874b</a>
+</header>
+<div class="toolbar">
+<span class="btn" id="hideAll">🙈 全部隱藏重點</span>
+<span class="btn" id="showAll">👁️ 全部顯示</span>
+</div>
+<div class="hint">💡 點一下任何螢光標記可單獨遮住/顯示答案，方便自己考自己。</div>
+<div class="content">
+<h1>YAML Frontmatter、SSG 概念與 Foreword/Preface/Introduction 辨析</h1>
+<p>本篇重點 a–e，共 5 個</p>
+<h2>重點整理</h2>
+<p>a. <mark class="hl tog" style="background:#ADCCFF;">SSG</mark>（Static Site Generation，靜態網站生成）指「先把 Markdown／CMS 資料 + 前端模板在 Build 階段編譯成純 HTML/CSS/JS，再部署到 CDN 或伺服器」的架構。流程為：</p>
+<pre><code>[Markdown 檔案 / CMS 資料] + [前端模板 (React/Vue/HTML)]
+                      ↓ (Build 構建階段)
+               [純 HTML / CSS / JS 檔案]
+                      ↓ (部署)
+                [CDN / 伺服器]
+</code></pre>
+<p>b. <mark class="hl tog" style="background:#BBFABB;">SSG 的三大優勢</mark>:速度極快（伺服器不用即時運算，直接吐現成 HTML，搭配 CDN 幾乎秒開）、安全性高（沒有後端伺服器與資料庫，減少 SQL 注入等攻擊面）、成本低廉(靜態檔案託管如 GitHub Pages、Cloudflare Pages、Vercel 通常免費或極便宜)。代表工具:Next.js(<code>output:'export'</code> 或 <code>getStaticProps</code>)、Astro、Hugo、Gatsby。</p>
+<p>c. <mark class="hl tog" style="background:#ADCCFF;">Foreword / Preface / Introduction 辨析</mark>(容易搞混的書籍前置頁面用詞):</p>
+<table>
+<thead>
+<tr>
+<th>詞彙</th>
+<th>中文譯名</th>
+<th>主要撰寫者</th>
+<th>核心內容與目的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Foreword</td>
+<td>推薦序</td>
+<td>第三方專家／名人</td>
+<td>替作者背書、推薦這本書、說明重要性</td>
+</tr>
+<tr>
+<td>Preface</td>
+<td>自序／前言</td>
+<td>作者本人</td>
+<td>說明為何寫這本書、寫作過程與致謝</td>
+</tr>
+<tr>
+<td>Introduction</td>
+<td>導論／引言</td>
+<td>作者／編者</td>
+<td>介紹書籍核心內容、背景知識，幫助讀者理解正文</td>
+</tr>
+</tbody>
+</table>
+<p>一秒記憶法:Foreword→他人寫的推薦序;Preface→作者自己的自序;Introduction→進入正文前的導讀。</p>
+<p>d. <mark class="hl tog" style="background:#FF5582;">YAML frontmatter 常見錯誤</mark>:</p>
+<ul>
+<li>frontmatter 區塊必須放在檔案「最上方」,並用 <code>---</code> 包覆(開頭與結尾各一行三個減號),否則系統(如 Obsidian、SSG 工具)無法正確解析。</li>
+<li>一般欄位(如 <code>tags</code>)直接寫成 <code>key: value</code> 形式,<code>:</code> 後面留一個空格;<code>-</code> 開頭的減號語法是用來表示「清單(list)中的項目」,不是每個欄位都要加減號 —— 誤把 <code>-</code> 加在單一欄位前面會造成解析錯誤。</li>
+</ul>
+<p>e. <mark class="hl tog" style="background:#FFB8EB;">Highlightr 螢光筆規則的一致性判斷</mark>:遇到「這算不算警告(紅色)還是補充(粉色)」的邊界案例時,依「規則本身在說什麼」判斷而非望文生義 —— 例如人眼視網膜對藍光敏感的機制說明,雖帶有「否定/限制」語氣,但本質是背景知識補充而非「不要做」的警告,因此仍應歸類為粉色(數據/補充),以維持個人筆記色碼系統的一致性。</p>
+<h2>各對話來源(原文，節錄)</h2>
+<h3>Frontmatter 的由來與演變 (2026-07-23) — https://gemini.google.com/app/325a079bd35b874b</h3>
+<p><strong>使用者:</strong> 你說了「SSG是static site generation嗎?」</p>
+<p><strong>Gemini:</strong> 是的，完全正確！SSG 就是 Static Site Generation...(見重點 a、b)</p>
+<p><strong>使用者:</strong> 你說了「"Foreword" 解釋」</p>
+<p><strong>Gemini:</strong> Foreword 指的是書籍或著作開頭的「推薦序」或「序言」...(見重點 c)</p>
+<p><strong>使用者:</strong> 你說了「帮我检查这边的front matter有没有问题?」</p>
+<p><strong>Gemini:</strong> 標籤設定寫成了 dash 接著中括號外層，開頭多了一個減號...(見重點 d)</p>
+<p><strong>使用者:</strong> 你說了「穿笔记应该用什么颜色的荧光笔...」(詢問人眼視網膜抗藍光理論該標紅色警告還是粉色補充)</p>
+<p><strong>Gemini:</strong> 我看到您在筆記規則中把粉色定義為數據與補充，所以...使用粉紅色是最合適的，這樣就能夠維持規則的一致性。</p>
+<h2>資料來源(含查證時間)</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/325a079bd35b874b</td>
+<td>2026-07-23(對話發生於本機使用當下)</td>
+</tr>
+<tr>
+<td>SSG/Foreword/YAML 為通用技術與出版慣例知識</td>
+<td>—</td>
+<td>無單一權威來源,內容經 Claude 覆核與 Gemini 回答一致,查證於 2026-07-23</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-07-23</p>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-23</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try{document.querySelectorAll('pre code').forEach(b=>{if(window.hljs)hljs.highlightElement(b);});}catch(e){}
+document.querySelectorAll('mark.tog').forEach(m=>m.addEventListener('click',()=>m.classList.toggle('hidden')));
+var ha=document.getElementById('hideAll'),sa=document.getElementById('showAll');
+ha.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.add('hidden'));
+sa.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.remove('hidden'));
+</script>
+</body></html>

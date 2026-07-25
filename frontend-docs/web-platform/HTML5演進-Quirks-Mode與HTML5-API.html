@@ -1,80 +1,76 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-<meta charset="utf-8">
+<html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HTML5 演進、Quirks Mode 與 HTML5 API（Web Platform vs Runtime）</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
 <style>
-:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
+:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
 *{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;font-size:16px;}
 .wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
-header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
-h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
-.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
-.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
-.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
-.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
-h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
-h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
-h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
-p{margin:.6em 0;} ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
-mark{padding:1px 4px;border-radius:3px;cursor:pointer;transition:filter .12s;position:relative;}
-mark:hover{filter:brightness(.94);}
-mark.masked{color:transparent !important;border-bottom:2px dashed #b3b3c2;border-radius:2px;}
-mark.masked *{color:transparent !important;}
-a{color:var(--accent);}
-code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
-pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
-pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
-th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
-th{background:var(--accent-soft);} tr:nth-child(even) td{background:#fafbfc;}
-blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
-img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
-details.quiz{background:#f6f8ff;border:1px solid #dfe5ff;border-left:4px solid var(--accent);border-radius:10px;padding:12px 16px;margin:14px 0;}
-details.quiz>summary{cursor:pointer;font-weight:600;color:#374151;list-style:none;}
-details.quiz>summary::before{content:"❓ ";}
-details.quiz[open]>summary::before{content:"✅ ";}
-details.quiz .ans{margin-top:10px;padding-top:10px;border-top:1px dashed #cdd6ff;}
-.srcline{border-left:3px solid var(--line);padding-left:12px;margin:.4em 0;}
-.u{color:#2563eb;font-weight:600;} .g{color:#7c3aed;font-weight:600;}
-.toolbar{position:fixed;top:14px;right:14px;z-index:50;display:flex;gap:8px;}
-.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:8px 14px;font-size:.82rem;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(91,124,250,.35);}
-.toolbar button.sec{background:#fff;color:var(--accent);border:1px solid var(--accent);}
-.hint{font-size:.8rem;color:var(--muted);background:#eef1ff;border-radius:8px;padding:8px 12px;margin:6px 0 0;}
-footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
-@media(max-width:600px){.toolbar{position:static;justify-content:flex-end;margin-bottom:10px;}}
-</style>
-</head>
-<body>
-<div class="toolbar">
-  <button id="maskAll" class="sec" type="button">🙈 隱藏全部重點</button>
-</div>
-<div class="wrap">
-<header class="note-head">
-  <h1 class="note-title">HTML5 演進、Quirks Mode 與 HTML5 API（Web Platform vs Runtime）</h1>
-  <div class="tags"><span class="tag">#gemini</span><span class="tag">#html</span><span class="tag">#web-platform</span><span class="tag">#doctype</span><span class="tag">#quirks-mode</span><span class="tag">#runtime</span><span class="tag">#html5-api</span></div>
-  <div class="meta">更新於 2026-06-28　·　<a href="https://gemini.google.com/app/1ac99b379fdf3193" target="_blank">來源連結</a></div>
-  <div class="hint">💡 點任一<mark>螢光重點</mark>可遮起來自我測驗，再點一下還原；或用右上角按鈕一次隱藏／顯示全部。問答題點開即顯示答案。</div>
-</header>
+header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:30px;line-height:1.3;margin:.2em 0;}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:22px;margin:1.6em 0 .6em;
+ border-left:5px solid var(--accent);padding-left:12px;}
+h3{font-size:17px;margin:1.3em 0 .4em;color:#3a3a3a;}
+.meta{color:var(--muted);font-size:13px;margin-top:8px;}
+.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
+ padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+.src{display:block;font-size:12px;color:#2563eb;word-break:break-all;margin-top:3px;}
+.toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
+ border-bottom:1px solid var(--line);margin-bottom:10px;}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
+ padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
+.btn:hover{background:#f1eefe;}
+mark.hl{padding:1px 3px;border-radius:4px;}
+mark.tog{cursor:pointer;transition:.15s;}
+mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
+ user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;
+ line-height:1.55;}
+code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
+:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
+th{background:#f3f1fb;}
+tr:nth-child(even) td{background:#faf9fd;}
+blockquote{border-left:4px solid #ffd27d;background:#fff8ec;margin:1em 0;padding:8px 14px;
+ border-radius:0 8px 8px 0;color:#7a5a1e;}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);}
+footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
+ border-top:1px solid var(--line);padding-top:16px;}
+.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;
+ padding:7px 12px;margin:6px 0 14px;}
+</style></head>
+<body><div class="wrap">
+<header class="note">
 <h1>HTML5 演進、Quirks Mode 與 HTML5 API（Web Platform vs Runtime）</h1>
-
-<section class="card"><h2>重點整理</h2>
+<div><span class="pill">#gemini</span><span class="pill">#html</span><span class="pill">#web-platform</span><span class="pill">#doctype</span><span class="pill">#quirks-mode</span><span class="pill">#runtime</span><span class="pill">#html5-api</span></div>
+<div class="meta">更新於 2026-07-19 · 來源:</div>
+<a class="src" href="https://gemini.google.com/app/1ac99b379fdf3193" target="_blank" rel="noopener">https://gemini.google.com/app/1ac99b379fdf3193</a>
+</header>
+<div class="toolbar">
+<span class="btn" id="hideAll">🙈 全部隱藏重點</span>
+<span class="btn" id="showAll">👁️ 全部顯示</span>
+</div>
+<div class="hint">💡 點一下任何螢光標記可單獨遮住/顯示答案，方便自己考自己。</div>
+<div class="content">
+<h1>HTML5 演進、Quirks Mode 與 HTML5 API（Web Platform vs Runtime）</h1>
+<h2>重點整理</h2>
 <h3>1. HTML 規範現況：版本號已被「Living Standard」取代</h3>
 <ul>
-<li>官方最新規範由 <mark style="background: #ADCCFFA6;">WHATWG</mark> 維護，稱為 <mark style="background: #FFF3A3A6;">HTML Living Standard</mark>，網址 <a href="https://html.spec.whatwg.org/">https://html.spec.whatwg.org/</a> 。</li>
-<li>W3C 在 <mark style="background: #FFB8EBA6;">2014</mark> 年發布 HTML5 正式推薦標準，後續更新到 5.1、5.2，<mark style="background: #FFB8EBA6;">最後一版在 2017 年</mark>。</li>
-<li>現在 <mark style="background: #FF5582A6;">已沒有固定版本號</mark>，標準隨時滾動更新。</li>
+<li>官方最新規範由 <mark class="hl tog" style="background:#ADCCFF;">WHATWG</mark> 維護，稱為 <mark class="hl tog" style="background:#FFF3A3;">HTML Living Standard</mark>，網址 <a href="https://html.spec.whatwg.org/">https://html.spec.whatwg.org/</a> 。</li>
+<li>W3C 在 <mark class="hl tog" style="background:#FFB8EB;">2014</mark> 年發布 HTML5 正式推薦標準，後續更新到 5.1、5.2，<mark class="hl tog" style="background:#FFB8EB;">最後一版在 2017 年</mark>。</li>
+<li>現在 <mark class="hl tog" style="background:#FF5582;">已沒有固定版本號</mark>，標準隨時滾動更新。</li>
 </ul>
 <h3>2. 新舊 <code>&lt;!DOCTYPE&gt;</code> 寫法差異</h3>
 <p>舊版（HTML 4.01 Strict）必須帶一長串 DTD 網址：</p>
 <pre><code class="language-html">&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.01//EN&quot; &quot;http://www.w3.org/TR/html4/strict.dtd&quot;&gt;
 </code></pre>
 <ul>
-<li>為什麼那麼長？因為舊 HTML 基於 <mark style="background: #ADCCFFA6;">SGML</mark>，瀏覽器要下載 DTD（Document Type Definition）才知道有哪些標籤、語法是否合法。</li>
+<li>為什麼那麼長？因為舊 HTML 基於 <mark class="hl tog" style="background:#ADCCFF;">SGML</mark>，瀏覽器要下載 DTD（Document Type Definition）才知道有哪些標籤、語法是否合法。</li>
 </ul>
 <p>現代 HTML5 不再基於 SGML，宣告大幅簡化：</p>
 <pre><code class="language-html">&lt;!DOCTYPE html&gt;
@@ -88,7 +84,7 @@ footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:
 &lt;/html&gt;
 </code></pre>
 <ul>
-<li>核心差異：<mark style="background: #BBFABBA6;">宣告簡化</mark>（只剩 <code>&lt;!DOCTYPE html&gt;</code>）＋ <mark style="background: #BBFABBA6;">語意化標籤</mark>（<code>&lt;header&gt;</code>/<code>&lt;footer&gt;</code>/<code>&lt;article&gt;</code> 取代滿滿的 <code>&lt;div id="header"&gt;</code>）。</li>
+<li>核心差異：<mark class="hl tog" style="background:#BBFABB;">宣告簡化</mark>（只剩 <code>&lt;!DOCTYPE html&gt;</code>）＋ <mark class="hl tog" style="background:#BBFABB;">語意化標籤</mark>（<code>&lt;header&gt;</code>/<code>&lt;footer&gt;</code>/<code>&lt;article&gt;</code> 取代滿滿的 <code>&lt;div id="header"&gt;</code>）。</li>
 </ul>
 <h3>3. DOCTYPE 是「排版開關」，不是裝飾 ⭐</h3>
 <p>標準統一後，舊網站是照舊行為寫的；若瀏覽器突然全照新標準跑，舊網站會全部跑版。瀏覽器靠 <code>DOCTYPE</code> 判斷該用哪種模式：</p>
@@ -102,29 +98,29 @@ footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:
 </thead>
 <tbody>
 <tr>
-<td><mark style="background: #BBFABBA6;">標準模式</mark></td>
+<td><mark class="hl tog" style="background:#BBFABB;">標準模式</mark></td>
 <td>有寫 <code>&lt;!DOCTYPE html&gt;</code></td>
 <td>照 W3C／WHATWG 標準解析 CSS 與排版</td>
 </tr>
 <tr>
-<td><mark style="background: #FF5582A6;">Quirks Mode（怪異模式）</mark></td>
+<td><mark class="hl tog" style="background:#FF5582;">Quirks Mode（怪異模式）</mark></td>
 <td>沒寫或寫錯 DOCTYPE</td>
 <td>模擬 1990 年代舊瀏覽器 bug 行為以向後相容</td>
 </tr>
 </tbody>
 </table>
 <ul>
-<li>最經典災情：<mark style="background: #FFF3A3A6;">box model 算法不一樣</mark>。舊 IE 的 <code>width</code> 會把 <code>padding</code>、<code>border</code> 算進去，標準模式不算 → <mark style="background: #FF5582A6;">版面寬度全部對不上、跑版</mark>。</li>
-<li>結論：<mark style="background: #FFF3A3A6;">DOCTYPE 是啟用正常排版的開關。</mark></li>
+<li>最經典災情：<mark class="hl tog" style="background:#FFF3A3;">box model 算法不一樣</mark>。舊 IE 的 <code>width</code> 會把 <code>padding</code>、<code>border</code> 算進去，標準模式不算 → <mark class="hl tog" style="background:#FF5582;">版面寬度全部對不上、跑版</mark>。</li>
+<li>結論：<mark class="hl tog" style="background:#FFF3A3;">DOCTYPE 是啟用正常排版的開關。</mark></li>
 </ul>
 <h3>4. Runtime vs Web Platform：為什麼是兩回事</h3>
 <ul>
-<li><mark style="background: #ADCCFFA6;">JavaScript Runtime</mark>（如 Deno、Node.js）：只負責「執行 JS 程式碼」，讓 JS 能在電腦／伺服器上跑。</li>
-<li><mark style="background: #ADCCFFA6;">Web Platform（瀏覽器環境）</mark>：除了有 JS 引擎，還額外提供大量 <mark style="background: #FFF3A3A6;">Web APIs</mark>（DOM、Fetch、Canvas…）。</li>
-<li>差別在「提供的 API 範圍」：<mark style="background: #FF5582A6;">把含 <code>window</code>／<code>localStorage</code>／DOM 的程式碼丟去 Node/Deno 執行，會直接報錯 <code>window is not defined</code>／<code>localStorage is not defined</code>。</mark></li>
+<li><mark class="hl tog" style="background:#ADCCFF;">JavaScript Runtime</mark>（如 Deno、Node.js）：只負責「執行 JS 程式碼」，讓 JS 能在電腦／伺服器上跑。</li>
+<li><mark class="hl tog" style="background:#ADCCFF;">Web Platform（瀏覽器環境）</mark>：除了有 JS 引擎，還額外提供大量 <mark class="hl tog" style="background:#FFF3A3;">Web APIs</mark>（DOM、Fetch、Canvas…）。</li>
+<li>差別在「提供的 API 範圍」：<mark class="hl tog" style="background:#FF5582;">把含 <code>window</code>／<code>localStorage</code>／DOM 的程式碼丟去 Node/Deno 執行，會直接報錯 <code>window is not defined</code>／<code>localStorage is not defined</code>。</mark></li>
 </ul>
 <blockquote>
-<p>[!note] Markdown → DOM 的流程印證三者關係
+<p>[!note] Markdown → DOM 的流程印證三者關係<br />
 Markdown 不能直接被渲染成 DOM，要先轉成 HTML：<strong>Runtime 負責轉換邏輯，Web Platform 提供渲染／操作 DOM 的 API</strong>，最後才把純文字變成可互動畫面。</p>
 </blockquote>
 <h3>5. HTML5 經典 API（瀏覽器的超能力）</h3>
@@ -138,22 +134,22 @@ Markdown 不能直接被渲染成 DOM，要先轉成 HTML：<strong>Runtime 負�
 </thead>
 <tbody>
 <tr>
-<td><mark style="background: #ADCCFFA6;">Canvas</mark> <code>&lt;canvas&gt;</code></td>
+<td><mark class="hl tog" style="background:#ADCCFF;">Canvas</mark> <code>&lt;canvas&gt;</code></td>
 <td>JS 直接繪製 2D 圖形／動畫（WebGL 可 3D）</td>
-<td><mark style="background: #BBFABBA6;">淘汰 Flash</mark> 做動畫與遊戲</td>
+<td><mark class="hl tog" style="background:#BBFABB;">淘汰 Flash</mark> 做動畫與遊戲</td>
 </tr>
 <tr>
-<td><mark style="background: #ADCCFFA6;">Web Storage</mark>（local/session）</td>
-<td>瀏覽器內存 key-value 資料</td>
+<td><mark class="hl tog" style="background:#ADCCFF;">Web Storage</mark>（local/session）</td>
+<td>瀏覽器記憶體 key-value 資料</td>
 <td>取代容量小（~4KB）又每次隨請求送伺服器的 Cookie；本機可存 ~5MB</td>
 </tr>
 <tr>
-<td><mark style="background: #ADCCFFA6;">Geolocation</mark></td>
+<td><mark class="hl tog" style="background:#ADCCFF;">Geolocation</mark></td>
 <td><code>navigator.geolocation</code> 取經緯度（需同意）</td>
 <td>地圖／外送／叫車不必手動輸入地址</td>
 </tr>
 <tr>
-<td><mark style="background: #ADCCFFA6;">Audio/Video</mark> <code>&lt;audio&gt;</code>/<code>&lt;video&gt;</code></td>
+<td><mark class="hl tog" style="background:#ADCCFF;">Audio/Video</mark> <code>&lt;audio&gt;</code>/<code>&lt;video&gt;</code></td>
 <td>原生影音播放與 JS 控制</td>
 <td>不必再裝 RealPlayer／Flash</td>
 </tr>
@@ -161,18 +157,119 @@ Markdown 不能直接被渲染成 DOM，要先轉成 HTML：<strong>Runtime 負�
 </table>
 <h3>6. 進階 API：讓網頁變身 App（PWA）</h3>
 <ul>
-<li><mark style="background: #ADCCFFA6;">History API</mark>：<code>pushState</code>/<code>replaceState</code> 改網址列但不重整 → <mark style="background: #FFF3A3A6;">React/Vue/Angular 的 SPA 路由基礎</mark>。</li>
-<li><mark style="background: #ADCCFFA6;">Drag and Drop API</mark>：把桌面檔案拖進網頁、用 JS 偵測讀取。</li>
-<li><mark style="background: #ADCCFFA6;">Web Workers</mark>：開背景執行緒處理耗時計算，避免單執行緒的 JS 卡死畫面。</li>
-<li><mark style="background: #ADCCFFA6;">Service Worker / Cache API</mark>：當瀏覽器與網路之間的代理，攔截請求並快取 → <mark style="background: #FFF3A3A6;">離線瀏覽＋推播通知</mark>的核心。</li>
+<li><mark class="hl tog" style="background:#ADCCFF;">History API</mark>：<code>pushState</code>/<code>replaceState</code> 改網址列但不重整 → <mark class="hl tog" style="background:#FFF3A3;">React/Vue/Angular 的 SPA 路由基礎</mark>。</li>
+<li><mark class="hl tog" style="background:#ADCCFF;">Drag and Drop API</mark>：把桌面檔案拖進網頁、用 JS 偵測讀取。</li>
+<li><mark class="hl tog" style="background:#ADCCFF;">Web Workers</mark>：開背景執行緒處理耗時計算，避免單執行緒的 JS 卡死畫面。</li>
+<li><mark class="hl tog" style="background:#ADCCFF;">Service Worker / Cache API</mark>：當瀏覽器與網路之間的代理，攔截請求並快取 → <mark class="hl tog" style="background:#FFF3A3;">離線瀏覽＋推播通知</mark>的核心。</li>
 </ul>
-</section>
-<section class="card"><h2>自我測驗</h2>
+<h3>追加 2026-07-19：Geolocation API、DOM 格子 vs Execution Context、渲染／排版／V8 三引擎</h3>
+<blockquote>
+<p>同一個 Gemini 對話（1ac99b379fdf3193）的後續回合，主題從 HTML5 API 清單延伸到「瀏覽器怎麼把標籤變成畫面的格子」與「JS 引擎怎麼執行程式碼」。本次追加重點 a–k，共 11 個。</p>
+</blockquote>
+<p>a. <mark class="hl tog" style="background:#ADCCFF;">Geolocation API</mark> 精準度優於 IP 定位：IP 只能定位到大概城市／區域，<code>navigator.geolocation</code> 能結合 GPS／Wi-Fi 基地台取得更精確的經緯度。IPv4 位址是分配給業者的伺服器或路由器，不是每台裝置，所以<mark class="hl tog" style="background:#FF5582;">IPv4 沒辦法精準定位到門牌號碼</mark>。</p>
+<p>b. 單次定位寫法：</p>
+<pre><code class="language-javascript">function getMyLocation() {
+  if (!navigator.geolocation) {
+    console.log(&quot;抱歉，您的瀏覽器不支援地理定位。&quot;);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
+}
+function successCallback(position) {
+  const lat = position.coords.latitude;
+  const lng = position.coords.longitude;
+  const accuracy = position.coords.accuracy; // 精準度（公尺）
+}
+function errorCallback(error) {
+  switch (error.code) {
+    case error.PERMISSION_DENIED: break;   // 使用者拒絕
+    case error.POSITION_UNAVAILABLE: break; // GPS 收不到訊號
+    case error.TIMEOUT: break;              // 逾時
+  }
+}
+</code></pre>
+<p>c. 持續追蹤位置用 <code>watchPosition()</code>（回傳 id，用 <code>clearWatch(id)</code> 關閉省電），第三參數可傳 <code>options</code>：<code>enableHighAccuracy</code>（強制開 GPS）、<code>timeout</code>、<code>maximumAge</code>（0 代表不接受快取舊位置）。<mark class="hl tog" style="background:#FF5582;">Geolocation API 只能在 HTTPS 環境下運作</mark>（<code>http://localhost</code> 例外），一般 <code>http://</code> 網址下 <code>navigator.geolocation</code> 會是 <code>undefined</code>。</p>
+<p>d. <mark class="hl tog" style="background:#FFF3A3;">觀念釐清：<code>&lt;video&gt;</code> 標籤被瀏覽器「挖出的格子」不是 Execution Context</mark>。挖格子屬於渲染引擎的 CSS Box Model 範疇（產生 DOM 節點／Layout Object），此時 JS 都還沒開始執行；Execution Context 是 JS 引擎在<strong>呼叫函式時</strong>才建立的記憶體環境盒子，管的是變數、Scope、<code>this</code> 指向，兩者是完全不同層次的機制。</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>DOM 節點（格子）</th>
+<th>Execution Context</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>誰負責</td>
+<td>渲染引擎（如 Blink）</td>
+<td>JS 引擎（如 V8）</td>
+</tr>
+<tr>
+<td>裝什麼</td>
+<td>HTML 結構、CSS 樣式、標籤屬性</td>
+<td>變數、<code>this</code>、Scope Chain</td>
+</tr>
+<tr>
+<td>何時建立</td>
+<td>瀏覽器解析 HTML 標籤時</td>
+<td>呼叫 JS 函式時</td>
+</tr>
+</tbody>
+</table>
+<p>e. <mark class="hl tog" style="background:#ADCCFF;">不只 <code>&lt;video&gt;</code>，幾乎所有會顯示在畫面上的元素都會被挖出格子</mark>，這套機制正式名稱是 <mark class="hl tog" style="background:#FFF3A3;">CSS 盒模型（CSS Box Model）</mark>，來自 W3C 於 1996 年 CSS Level 1、1998 年 CSS2 完全確立的規範。格子分三類：</p>
+<ul>
+<li><mark class="hl tog" style="background:#BBFABB;">區塊格子（Block Box）</mark>：<code>&lt;div&gt;</code>、<code>&lt;h1&gt;</code>、<code>&lt;video&gt;</code>，霸佔整行、可自由調寬高。</li>
+<li><mark class="hl tog" style="background:#BBFABB;">行內格子（Inline Box）</mark>：<code>&lt;span&gt;</code>、<code>&lt;a&gt;</code>、<code>&lt;strong&gt;</code>，大小由文字長度決定，不能直接設固定寬高。</li>
+<li><mark class="hl tog" style="background:#FF5582;">沒格子（No Box）</mark>：<code>&lt;script&gt;</code>、<code>&lt;style&gt;</code>、或 <code>display:none</code> 的元素，仍在 DOM 樹中，但排版引擎完全忽略、不留畫面空間。</li>
+</ul>
+<p>f. 排版引擎（Layout Engine）與渲染引擎（Rendering Engine）<strong>不是同一個東西，而是上下游關係</strong>：<mark class="hl tog" style="background:#ADCCFF;">渲染引擎是總框架</mark>（負責 HTML/CSS 到畫面的完整生命週期，如 Blink、WebKit），<mark class="hl tog" style="background:#ADCCFF;">排版引擎是渲染引擎內部的子模組</mark>，只負責計算 CSS Box Model 的幾何尺寸與座標，不拿畫筆、只算數字。</p>
+<p>g. 瀏覽器渲染流水線：解析（HTML→DOM 樹、CSS→CSSOM 樹）→ 結合成渲染樹 → <mark class="hl tog" style="background:#ADCCFF;">排版 Layout/Reflow</mark>（排版引擎算出格子的 XY 座標與寬高）→ <mark class="hl tog" style="background:#ADCCFF;">繪製 Paint</mark>（渲染引擎把顏色、文字、畫面畫成點陣圖）→ 合成 Composite（疊圖層交給 GPU）。改 <code>width</code> 會觸發 <mark class="hl tog" style="background:#FF5582;">Reflow（重排，較耗效能）</mark>；只改顏色只會 <mark class="hl tog" style="background:#BBFABB;">Repaint（重繪，效能較好）</mark>。</p>
+<p>h. 渲染引擎、排版引擎、V8 引擎三方對照：</p>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>渲染引擎</th>
+<th>排版引擎</th>
+<th>V8（JS 引擎）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>核心職責</td>
+<td>網頁視覺與畫面呈現</td>
+<td>計算格子的幾何尺寸與位置</td>
+<td>執行網頁的邏輯與程式碼</td>
+</tr>
+<tr>
+<td>主要處理</td>
+<td>HTML、CSS 樣式表</td>
+<td>CSSOM 樹、佈局規則</td>
+<td>JS 語法、記憶體管理</td>
+</tr>
+<tr>
+<td>最終產出</td>
+<td>螢幕點陣圖／像素畫面</td>
+<td>每個 DOM 元素的尺寸座標</td>
+<td>執行結果、修改 DOM 的指令</td>
+</tr>
+<tr>
+<td>存在關係</td>
+<td>大框架，包含排版引擎</td>
+<td>渲染引擎內部子階段</td>
+<td>獨立大腦，透過 DOM API 溝通</td>
+</tr>
+</tbody>
+</table>
+<p>i. 四大瀏覽器渲染引擎著名代表：<mark class="hl tog" style="background:#ADCCFF;">Blink</mark>（Google，Chrome／Edge／Opera／Brave，市佔最高，Blink 當年是從 WebKit fork 出來的）、<mark class="hl tog" style="background:#ADCCFF;">WebKit</mark>（Apple，Safari）、<mark class="hl tog" style="background:#ADCCFF;">Gecko</mark>（Mozilla，Firefox，少數堅持不加入 Chromium 陣營的獨立引擎）、<mark class="hl tog" style="background:#D2B3FF;">Trident／EdgeHTML</mark>（舊 IE／舊版 Edge，已被淘汰走入歷史）。</p>
+<p>j. 三大 JS 引擎著名代表：<mark class="hl tog" style="background:#ADCCFF;">V8</mark>（Google，內建 Chrome／Edge，也是 Node.js、Deno 的底層引擎）、<mark class="hl tog" style="background:#ADCCFF;">JavaScriptCore／JSC</mark>（Apple，內建 Safari；新興工具 Bun 也選用 JSC 而非 V8）、<mark class="hl tog" style="background:#ADCCFF;">SpiderMonkey</mark>（Mozilla，內建 Firefox，是 Brendan Eich 在網景寫出的世界第一款 JS 引擎的嫡系後代）。</p>
+<p>k. 三者合作流程：渲染引擎讀 HTML 蓋骨架 → 排版引擎算每個格子尺寸 → 使用者觸發 JS，<mark class="hl tog" style="background:#ADCCFF;">V8 在自己的 Execution Context 裡執行邏輯</mark> → V8 透過 DOM API 改了某元素的 <code>width</code> → 驚動排版引擎重新計算（Reflow）→ 渲染引擎重新畫面（Repaint）。一句話：渲染／排版引擎管「網頁長什麼樣」，V8 管「網頁怎麼運作」。</p>
+<h2>自我測驗</h2>
 <details class="quiz">
 <summary>是非題：沒有寫 <code>&lt;!DOCTYPE html&gt;</code> 的網頁，瀏覽器會用「標準模式」渲染。</summary>
 <div class="ans">
 
-<strong>✗ 錯。</strong> 沒寫或寫錯 DOCTYPE 會掉進 <mark style="background: #FF5582A6;">Quirks Mode（怪異模式）</mark>，模擬舊瀏覽器 bug 行為，最常見災情是 box model 算法不同造成跑版。
+<strong>✗ 錯。</strong> 沒寫或寫錯 DOCTYPE 會掉進 <mark class="hl tog" style="background:#FF5582;">Quirks Mode（怪異模式）</mark>，模擬舊瀏覽器 bug 行為，最常見災情是 box model 算法不同造成跑版。
 
 </div>
 </details>
@@ -181,7 +278,7 @@ Markdown 不能直接被渲染成 DOM，要先轉成 HTML：<strong>Runtime 負�
 <summary>填空：HTML5 之前的 DOCTYPE 之所以那麼長，是因為 HTML 基於 ____，瀏覽器要下載 ____ 才知道合法語法。</summary>
 <div class="ans">
 
-基於 <mark style="background: #ADCCFFA6;">SGML</mark>；要下載 <mark style="background: #ADCCFFA6;">DTD（Document Type Definition）</mark>。
+基於 <mark class="hl tog" style="background:#ADCCFF;">SGML</mark>；要下載 <mark class="hl tog" style="background:#ADCCFF;">DTD（Document Type Definition）</mark>。
 
 </div>
 </details>
@@ -190,13 +287,12 @@ Markdown 不能直接被渲染成 DOM，要先轉成 HTML：<strong>Runtime 負�
 <summary>申論題：為什麼 <code>localStorage</code> 與 <code>document</code> 在 Node.js 跑會報錯？請用 Runtime 與 Web Platform 的差異說明。</summary>
 <div class="ans">
 
-`localStorage`、`document`、`window` 都是 <mark style="background: #FFF3A3A6;">Web Platform（瀏覽器）</mark>提供的 API，不屬於 JS 語言本身。Node.js／Deno 是 <mark style="background: #ADCCFFA6;">Runtime</mark>，只內建 JS 引擎執行語言層的程式碼，不提供瀏覽器 Web APIs，所以存取這些物件會得到 `is not defined`。
+`localStorage`、`document`、`window` 都是 <mark class="hl tog" style="background:#FFF3A3;">Web Platform（瀏覽器）</mark>提供的 API，不屬於 JS 語言本身。Node.js／Deno 是 <mark class="hl tog" style="background:#ADCCFF;">Runtime</mark>，只內建 JS 引擎執行語言層的程式碼，不提供瀏覽器 Web APIs，所以存取這些物件會得到 `is not defined`。
 
 </div>
 </details>
 
-</section>
-<section class="card"><h2>各對話來源</h2>
+<h2>各對話來源</h2>
 <h3>JavaScript, CSS, React 互動測驗（標題自動命名，實為 HTML5／Web Platform 概念）（2026-06）— https://gemini.google.com/app/1ac99b379fdf3193</h3>
 <div class="srcline"><span class="u">使用者：</span>給我一個官方網址。</div>
 <div class="srcline"><span class="g">Gemini：</span>目前最新 HTML 規範是 WHATWG 維護的 HTML Living Standard，網址 https://html.spec.whatwg.org/ 。</div>
@@ -211,15 +307,62 @@ Markdown 不能直接被渲染成 DOM，要先轉成 HTML：<strong>Runtime 負�
 <div class="srcline"><span class="u">使用者：</span>不對，我有個主題是把 markdown 渲染為 DOM；markdown 不能直接渲染成 DOM，要先轉成 HTML，這三種東西…</div>
 <div class="srcline"><span class="g">Gemini：</span>正確，Markdown 要先轉 HTML，瀏覽器再解析建 DOM 樹。Runtime 負責轉換邏輯，Web Platform 提供渲染／操作 DOM 的 API。</div>
 <div class="srcline"><span class="u">使用者：</span>HTML5 API 有哪一些？</div>
-<div class="srcline"><span class="g">Gemini：</span>（投影片）經典四大：Canvas（淘汰 Flash）、Web Storage（取代 Cookie 做本機儲存）、Geolocation、Audio/Video；進階：History API（SPA 路由基礎）、Drag and Drop、Web Workers（背景執行緒）、Service Worker/Cache API（離線＋推播）。並提醒這些 API 拿到 Deno/Node 會噴 `window is not defined`／`localStorage is not defined`。</div></section>
-<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-28</footer>
+<div class="srcline"><span class="g">Gemini：</span>（投影片）經典四大：Canvas（淘汰 Flash）、Web Storage（取代 Cookie 做本機儲存）、Geolocation、Audio/Video；進階：History API（SPA 路由基礎）、Drag and Drop、Web Workers（背景執行緒）、Service Worker/Cache API（離線＋推播）。並提醒這些 API 拿到 Deno/Node 會噴 `window is not defined`／`localStorage is not defined`。</div>
+
+<h4>追加 2026-07-19 回合（同一對話）</h4>
+<div class="srcline"><span class="u">使用者：</span>GeoLocation API 会比 IP 位置还要精确吗？IPV4 最新可以到门牌吗？给我 gelocation 的写法。</div>
+<div class="srcline"><span class="g">Gemini：</span>Geolocation API 比 IP 精準（結合 GPS/Wi-Fi）；IPv4 定位不到門牌號碼。附上 `getCurrentPosition`／`watchPosition` 完整寫法與 HTTPS 限制。整合進上方「追加」第 a–c 點。</div>
+<div class="srcline"><span class="u">使用者：</span>&lt;video&gt; 挖好的格子是 execution context 嗎？這個格子概念是從哪裡來的？</div>
+<div class="srcline"><span class="g">Gemini：</span>不是。格子是 DOM 節點／CSS Box Model，屬於渲染引擎；Execution Context 是 JS 引擎呼叫函式時才建立的環境盒子。CSS 盒模型源自 1996 年 CSS1、1998 年 CSS2，W3C 規範。整合進第 d–e 點。</div>
+<div class="srcline"><span class="u">使用者：</span>排版引擎跟渲染引擎不同嗎？請比較渲染引擎、排版引擎跟 V8。這三個引擎有著名的工具名稱嗎？</div>
+<div class="srcline"><span class="g">Gemini：</span>渲染引擎是總框架，排版引擎是其內部子模組，V8 是獨立的 JS 引擎。附完整流水線（Parsing→Layout→Paint→Composite）與四大瀏覽器引擎（Blink/WebKit/Gecko/Trident）、三大 JS 引擎（V8/JSC/SpiderMonkey）對照。整合進第 f–k 點。</div>
+
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Geolocation API</td>
+<td>https://developer.mozilla.org/zh-TW/docs/Web/API/Geolocation_API</td>
+<td>Gemini 對話內回覆，查證日 2026-07-19</td>
+</tr>
+<tr>
+<td>CSS 盒模型（MDN 圖文指南）</td>
+<td>https://developer.mozilla.org/zh-TW/docs/Web/CSS/CSS_box_model/Introduction_to_the_CSS_box_model</td>
+<td>Gemini 引用，查證日 2026-07-19</td>
+</tr>
+<tr>
+<td>CSS 盒模型 W3C 最新規範</td>
+<td>https://www.w3.org/TR/css-box-3/</td>
+<td>Gemini 引用，查證日 2026-07-19</td>
+</tr>
+<tr>
+<td>CSS2 盒模型歷史文獻</td>
+<td>https://www.w3.org/TR/CSS2/box.html</td>
+<td>1998 年 CSS2 規範，Gemini 引用</td>
+</tr>
+<tr>
+<td>本篇對話來源</td>
+<td>https://gemini.google.com/app/1ac99b379fdf3193</td>
+<td>對話截至 2026-07-19</td>
+</tr>
+</tbody>
+</table>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-19</footer>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>
-try{document.querySelectorAll('pre code').forEach(function(b){hljs.highlightElement(b);});}catch(e){}
-document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('masked');});});
-(function(){var btn=document.getElementById('maskAll');var on=false;
-btn.addEventListener('click',function(){on=!on;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('masked',on);});btn.textContent=on?'👁 顯示全部重點':'🙈 隱藏全部重點';});})();
+try{document.querySelectorAll('pre code').forEach(b=>{if(window.hljs)hljs.highlightElement(b);});}catch(e){}
+document.querySelectorAll('mark.tog').forEach(m=>m.addEventListener('click',()=>m.classList.toggle('hidden')));
+var ha=document.getElementById('hideAll'),sa=document.getElementById('showAll');
+ha.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.add('hidden'));
+sa.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.remove('hidden'));
 </script>
-</body>
-</html>
+</body></html>
