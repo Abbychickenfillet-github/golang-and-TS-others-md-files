@@ -74,10 +74,10 @@ const queryClient = new QueryClient()
 
 `QueryClient` 是 React Query 的**核心管理員**，它負責：
 
-- 管理所有查詢的快取（cache）
+<mark style="background: #FFF3A3A6;">- 管理所有查詢的快取（cache）
 - 追蹤哪些資料過期了（stale）
 - 控制重新取得（refetch）的策略
-- 處理 mutation 的佇列
+- 處理 mutation 的佇列</mark>
 
 你需要一個「活的」管理員物件，不是一張設計圖。
 
