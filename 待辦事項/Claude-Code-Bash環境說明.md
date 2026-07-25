@@ -104,7 +104,7 @@ docker compose up
 | 環境 | Shell | 路徑 |
 |------|-------|------|
 | 你的 Windows 終端機 | PowerShell | `pwsh.exe` 或 `powershell.exe` |
-| Claude Code Bash 工具 | Bash (Unix) | `/usr/bin/bash` (透過 WSL) |
+| Claude Code Bash 工具 | Bash (Unix) | `/usr/bin/bash`（透過 WSL） |
 | macOS 終端機 | Bash 或 Zsh | `/bin/bash` 或 `/bin/zsh` |
 | Linux 終端機 | Bash | `/bin/bash` |
 
