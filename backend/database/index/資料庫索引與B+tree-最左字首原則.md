@@ -7,7 +7,8 @@ tags: [gemini, database, index, btree, postgresql, mysql, sql]
 sources:
   - https://gemini.google.com/app/f9fb4f2a231da48f
   - https://gemini.google.com/app/04b574c548a8bb2b
-updated: 2026-06-25
+  - https://gemini.google.com/app/4939ced11ac4e189
+updated: 2026-07-27
 ---
 
 # 資料庫索引與 B+tree、最左字首原則
@@ -138,6 +139,61 @@ CREATE TABLE order_product (
 
 > 進一步的資料表關係設計，見同層筆記資料夾 `購物車資料表設計`。
 
+### 11. 追加 2026-07-27：為什麼「走索引」是 O(log n)
+
+> [!info] O(log n) 是什麼
+> **O(n)（全表掃描）**：像看小說找情節，要從第一頁翻到最後一頁。
+> **O(log n)（走索引）**：像查字典，每次翻開中間那一頁，就能排除掉一半不需要看的內容。
+
+<mark style="background: #FF5582A6;">為什麼對欄位下函數會讓索引失效、退化成 O(n)</mark>：
+
+```sql
+-- ❌ 對欄位做函數運算 → 索引失效 → 全表掃描 O(n)
+WHERE order_number LIKE CONCAT(REPLACE(order_number, '-', ''), '%')
+```
+
+資料庫必須把每一列的 `order_number` 都先做一次 `REPLACE` 運算，才能跟目標字串比對，因此無法使用預先建好的索引。正確做法是把字串正規化（去掉 `-`）這件事搬到程式碼（Go/Python）先處理好，再丟給 SQL 做「精確匹配」，索引才會生效：
+
+```sql
+-- ✅ 精確值比對 → 索引生效 → O(log n)
+WHERE order_number = 'TKT2026XXXX'
+```
+
+<mark style="background: #ADCCFFA6;">索引背後的資料結構</mark>：B+ Tree 把資料由小到大排序並分層管理，每一層節點都像指路標籤，查詢時依大小決定往左還是往右跳（二分查找）。100 萬筆資料的 B+ Tree 通常只需 3～4 次跳轉（I/O 操作）就能找到目標。
+
+原寫法（計算型，對每列做運算）vs 新寫法（精確值，直接查索引樹）對比：
+
+| 特性 | 原寫法（計算型） | 新寫法（精確值） |
+|---|---|---|
+| 行為 | 對每一筆 row 做運算 | 直接在索引樹查找 |
+| 複雜度 | O(n) | O(log n) |
+| 10 萬筆資料 | 需要檢查 100,000 次 | 大約只需要 17 次比對 |
+| CPU 消耗 | 高（因為有運算） | 極低 |
+
+<mark style="background: #FFF3A3A6;">對數（Logarithm）最直覺的複習</mark>：對數是在問「底數的幾次方會等於這個數字」，例如 `2³=8`，以 2 為底 8 的對數就是 3（寫作 `log₂8=3`）。想像玩猜數字遊戲：範圍 1～8，每次只能回答「更大」或「更小」——第一次提問排除一半（剩 4 個）、第二次再排除一半（剩 2 個）、第三次抓到目標。這就是「8 要砍半幾次才變成 1，答案是 3 次」的物理意義。
+
+| 資料量 (n) | 對數次數 (log₂n) | 備註 |
+|---|---|---|
+| 8 | 3 | 很快 |
+| 1,024 | 10 | 1K 資料只要 10 次 |
+| 1,048,576 | 20 | 100 萬筆資料只要 20 次 |
+| 1,000,000,000 | 30 | 10 億筆資料也才 30 次 |
+
+快速記憶法：<mark style="background: #D2B3FFA6;">指數（2ⁿ）像細胞分裂，數量爆炸式增長；對數（log n）像砍半查找，次數極緩慢增加</mark>。常用公式（工程師版，預設底數 2）：`log(A×B) = logA + logB`、`log(A/B) = logA − logB`、`log(Aⁿ) = n·logA`（估算複雜度時好用）。
+
+<mark style="background: #ADCCFFA6;">哪些運算算「資料庫運算」、哪些該搬到程式碼</mark>：JOIN、子查詢（Subquery）、聚合函式（`SUM`/`AVG`/`COUNT`）都屬於資料庫運算，不是要搬離資料庫的對象。真正的判斷標準不是「這是不是 SQL 語法」，而是「這個計算會不會讓索引失效」：
+
+| 類型 | 範例 | 建議留在 SQL？ |
+|---|---|---|
+| 篩選 Filter | `WHERE status = 'paid'` | 一定要，否則會撈出全表再在程式裡篩 |
+| 關聯 Join | `JOIN users ON ...` | 通常要，資料庫對關聯有高度優化（Index Join） |
+| 排序 Sort | `ORDER BY created_at` | 通常要，有索引時排序近乎瞬間 |
+| 對欄位做函數運算 | `REPLACE(order_number, '-', '')` | ❌ 不要，索引失效、退化成全表掃描 |
+
+架構層級補充：單體架構（Monolith）大膽用 JOIN；微服務/分散式架構下可能避免跨資料庫 JOIN，改成程式碼分別呼叫 API 再手動拼接。
+
+> 與 [[backend/database/SQL-INSERT語法與菜單JSONB選項建模-Alias|SQL-INSERT語法與菜單JSONB選項建模-Alias]] 互相呼應：那篇的「（g）（h）」講的正是同一條「能搬到程式碼算的就不要在資料庫算」黃金準則，本節（11）補上了「為什麼」——因為函數運算會讓 B+Tree 索引失效，複雜度從 O(log n) 退化成 O(n)。
+
 ---
 
 ## 自我測驗
@@ -148,6 +204,10 @@ CREATE TABLE order_product (
    答案：||✗。跳過了最左欄 member_id，索引失效，只能全表掃描。||
 3. （申論題）說明在大量採用軟刪除（soft delete）的系統，為什麼 PostgreSQL 推薦用 Partial Index 取代「把 deleted_at 塞進每個複合索引」。
    答案：||因為傳統做法會讓每個索引都多存一個時間欄位，樹變大、寫入時要維護多棵 B+tree。Partial Index 把 `deleted_at IS NULL` 當成建索引的條件而非欄位，只索引「還活著」的資料，樹更小更淺、Key 只需要業務欄位，且查詢 `WHERE x=? AND deleted_at IS NULL` 仍能完美命中，兼顧空間與速度。||
+4. （填空題）100 萬筆資料的 B+ Tree 索引，查詢通常只需要約 ______ 次跳轉就能定位到目標；10 億筆資料也大約只要 ______ 次。
+   答案：||20 次；30 次（log₂1,048,576≈20，log₂1,000,000,000≈30）||
+5. （是非題）`WHERE order_number = REPLACE(input, '-', '')` 這種對常數做運算、欄位本身不變的寫法，也會讓索引失效。
+   答案：||✗。索引失效的關鍵是「對『索引欄位本身』做函數運算」，如 `WHERE REPLACE(order_number, '-', '') = input` 才會失效；如果只是對輸入的常數／變數做運算，欄位本身維持乾淨的等值比對，索引仍然有效。||
 
 ---
 
@@ -196,3 +256,28 @@ Gemini：複合索引就像一本依 `(姓氏, 名字)` 排序印刷的電話簿
 使用者：我如果要做一個購物車的資料表設計 order, product, member，product 如果要多個商品 order 要怎麼設計？
 
 Gemini：member→order 是一對多；order 與 product 是多對多，要用中間表 `order_item`/`order_product` 解開。四張表：member、product、order（只記總體資訊：誰買的、總金額、狀態），以及中間表 order_product（order_id、product_id、buy_price 歷史購買價快照、quantity）。中間表的 buy_price 一定要存當下價格快照，不能即時 join product，否則商品漲價或打折會讓歷史訂單金額對不起來。並幫外鍵 order_id、product_id 建索引，JOIN 才會快。
+
+### 索引 O(log n) 定位原理（2026-07）— https://gemini.google.com/app/4939ced11ac4e189
+
+使用者：走索引直接O(log n)定位到底什麼意思
+
+Gemini：O(log n) 是對數時間複雜度：資料量翻倍，查詢時間只增加一點點。全表掃描是 O(n)，像看小說要逐頁翻；走索引是 O(log n)，像查字典每次翻中間頁排除一半。原本寫法 `LIKE CONCAT(REPLACE(order_number,'-',''),'%')` 對欄位做函數運算，資料庫要對每列都運算過才能比對，索引失效退化成全表掃描；正確做法是先在程式碼把字串處理好，再用精確值比對，索引才會生效。資料庫索引通常用 B+ Tree，分層管理、每層節點指路，100 萬筆資料通常只需 3～4 次跳轉即可定位。
+
+使用者：幫我複習一下對數 最簡單的例子
+
+Gemini：對數是在問「底數的幾次方等於這個數字」，如 `2³=8` 則 `log₂8=3`。最直覺的例子是猜數字遊戲：範圍 1～8，每次問題只能排除一半，3 次就能鎖定目標，這就是 `log₂8=3` 的物理意義。對數函數增長極緩慢：100 萬筆資料只要 20 次、10 億筆也才 30 次，這正是工程師愛用 O(log n) 的原因。常用公式：`log(A×B)=logA+logB`、`log(A/B)=logA−logB`、`log(Aⁿ)=n·logA`。
+
+使用者：可以在程式碼運算的就不要再資料庫裡面算 🤔 什麼JOIN語法 子查詢算程式碼還是資料庫
+
+Gemini：JOIN、子查詢（Subquery）、聚合函式（SUM/AVG/COUNT）都屬於「資料庫運算」，只要寫在 SQL 或透過 ORM 產生的都是交給資料庫引擎執行。真正該搬到程式碼的，是「會讓索引失效」的計算，例如對欄位做 REPLACE 這類函數運算。權責分工：篩選、JOIN、排序建議留在 SQL；複雜的字串處理、需要複雜 IF/ELSE 邏輯的計算適合搬到 Go/Node 處理。單體架構大膽用 JOIN；微服務/分散式架構可能改為程式碼分別呼叫 API 再拼接資料。
+
+## 資料來源（含查證時間）
+
+| 主題 | 連結 | 版本/時間 |
+|---|---|---|
+| B-tree 與 B+tree 差異、叢集/非叢集索引 | https://gemini.google.com/app/f9fb4f2a231da48f | Gemini 對話，2026-06 |
+| CLUSTER、最左字首原則、索引健檢 | https://gemini.google.com/app/04b574c548a8bb2b | Gemini 對話，2026-06 |
+| O(log n) 索引定位原理、對數複習、SQL vs 程式碼運算 | https://gemini.google.com/app/4939ced11ac4e189 | Gemini 對話，2026-07 |
+| PostgreSQL Partial Index 官方文件 | https://www.postgresql.org/docs/current/indexes-partial.html | 查證時請以官方文件最新版為準 |
+
+⚠️ 存疑/更正：無明顯錯誤，B+Tree 索引查詢複雜度 O(log n) 的說明與資料庫理論一致。
