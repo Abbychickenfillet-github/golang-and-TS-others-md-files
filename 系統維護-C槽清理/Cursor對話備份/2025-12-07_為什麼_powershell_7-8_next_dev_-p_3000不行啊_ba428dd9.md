@@ -1,31 +1,40 @@
-# 為什麼 powershell 7-8 next dev -p 3000不行啊
+# 為什麼 @powershell (7-8) next dev -p 3000不行
 
-> Cursor · 2025-12-07 11:06 · `ba428dd9-02d2-48aa-94a7-9cd5acfcfdfd` · 93 則
+> Cursor · 2025-12-07 11:06 · `ba428dd9-02d2-48aa-94a7-9cd5acfcfdfd` · 94 則
 
 ## 你
 為什麼 @powershell (7-8) next dev -p 3000不行啊
 
 ## Cursor
+
 检查 `official_website` 目录的配置，确认 Next.js 的安装和运行方式。
 
+
 ## Cursor
+
 问题原因：`next` 不在全局 PATH，不能直接运行。项目使用 `pnpm` 作为包管理器。检查依赖是否已安装：
+
 
 ## 你
 I already executed `pnpm install`
 
 ## Cursor
+
 已安装依赖。问题是 `next` 不在全局 PATH，它位于项目的 `node_modules/.bin`。
 
 根据 `package.json`，项目已配置了 dev 脚本。使用以下任一方式运行：
+
 
 ## 你
 為什麼資料表有亞洲香水節official_website沒有顯示這個活動呀
 
 ## Cursor
+
 检查 official_website 中活动列表的获取和显示逻辑，查找可能过滤掉该活动的条件。
 
+
 ## Cursor
+
 在 `app/events/page.tsx` 中，第 71 行设置了过滤条件：
 
 ```69:74:official_website/app/events/page.tsx
@@ -39,28 +48,40 @@ I already executed `pnpm install`
 
 只显示 `approval_status` 为 `'approved'` 的活动。检查后端 API 的过滤逻辑，并确认数据库中"亞洲香水節"的 `approval_status` 值：
 
+
 ## Cursor
+
 检查 `event_service.get_events` 如何处理 `approval_status` 过滤：
 
+
 ## Cursor
+
 检查 `event_crud.get_multi` 如何处理 `approval_status` 过滤：
 
-## Cursor
-确认过滤逻辑：前端只显示 `approval_status` 为 `'approved'` 的活动。检查 Event 模型中 `approval_status` 的默认值：
 
 ## Cursor
+
+确认过滤逻辑：前端只显示 `approval_status` 为 `'approved'` 的活动。检查 Event 模型中 `approval_status` 的默认值：
+
+
+## Cursor
+
 问题原因：前端只显示 `approval_status` 为 `'approved'` 的活动。如果"亞洲香水節"的 `approval_status` 不是 `'approved'`（可能是 `'pending'` 或 `None`），就不会显示。
 
 检查数据库中该活动的 `approval_status` 值：
 
+
 ## Cursor
+
 解决方案：
 - 方案 1（推荐）：在数据库中更新该活动的 `approval_status` 为 `'approved'`。
 - 方案 2：暂时移除前端的过滤条件以查看所有活动（用于调试）。
 
 先检查数据库中该活动的状态，然后更新为 `'approved'`。
 
+
 ## Cursor
+
 总结：
 
 问题原因：
@@ -73,10 +94,14 @@ I already executed `pnpm install`
 
 检查数据库中该活动的 `approval_status` 值：
 
-## Cursor
-提供更新 SQL 语句：
 
 ## Cursor
+
+提供更新 SQL 语句：
+
+
+## Cursor
+
 已创建两个 SQL 文件：
 
 1. **`check_event_status.sql`** - 检查活动的当前状态
@@ -115,33 +140,52 @@ POST /events/{event_id}/approve
 幫我執行 POST /events/{event_id}/approve
 
 ## Cursor
+
 先查找"亞洲香水節"的 event_id，然后创建脚本调用 API 批准该活动。
 
+
 ## Cursor
+
 创建脚本：先查找"亞洲香水節"的 event_id，然后调用 API 批准该活动。
 
+
 ## Cursor
+
 创建脚本：先查找活动 ID，然后批准该活动。先检查 EventApprovalRequest 的结构：
 
+
 ## Cursor
+
 执行脚本以批准该活动：
 
+
 ## Cursor
+
 PowerShell 不支持 `&&`，改用分号分隔命令：
 
+
 ## Cursor
+
 检查是否在 Docker 环境中运行，或需要激活虚拟环境：
 
+
 ## Cursor
+
 在 Docker 容器内执行脚本：
 
+
 ## Cursor
+
 检查容器内的工作目录，并直接在容器内执行 Python 代码：
 
-## Cursor
-直接在容器内执行 Python 代码来批准活动：
 
 ## Cursor
+
+直接在容器内执行 Python 代码来批准活动：
+
+
+## Cursor
+
 活动已批准。
 
 **执行结果：**
@@ -163,12 +207,17 @@ PowerShell 不支持 `&&`，改用分号分隔命令：
 你幫我在official_website的資料夾檢查原因看看
 
 ## Cursor
+
 检查 `official_website` 中可能导致活动未显示的原因：
 
-## Cursor
-检查可能的问题：
 
 ## Cursor
+
+检查可能的问题：
+
+
+## Cursor
+
 问题原因：位置过滤导致活动被隐藏。
 
 - 活动地址：`高雄市鹽埕區大勇路1號`
@@ -179,8 +228,11 @@ PowerShell 不支持 `&&`，改用分号分隔命令：
 
 检查并修复：
 
+
 ## Cursor
+
 检查活动地址和位置过滤逻辑：
+
 
 ## 你
 為什麼要from sqlmodel import Session;
@@ -196,9 +248,12 @@ event = session.get(Event, '7eca865-143d-4d7f-af17-21acff827da9')
 為什麼event是從session.get?
 
 ## Cursor
+
 这是 ORM（对象关系映射）的工作方式。简要说明：
 
+
 ## Cursor
+
 这是 ORM（对象关系映射）的工作方式。简要说明：
 
 ## 为什么需要 Session？
@@ -278,18 +333,27 @@ with Session(engine) as session:
 會員管理為什麼現在沒有東西
 
 ## Cursor
+
 检查会员管理相关代码，查找可能的问题：
 
+
 ## Cursor
+
 检查会员管理页面的数据获取逻辑，查找可能的问题：
 
+
 ## Cursor
+
 检查后端 API 和权限设置：
 
-## Cursor
-检查后端 API 的权限设置和数据库中是否有会员数据：
 
 ## Cursor
+
+检查后端 API 的权限设置和数据库中是否有会员数据：
+
+
+## Cursor
+
 已确认：
 1. 数据库中有 16 个会员
 2. 后端 API 需要超级管理员权限（`get_current_active_superuser`）
@@ -300,19 +364,29 @@ with Session(engine) as session:
 
 检查前端错误处理和权限验证：
 
+
 ## Cursor
+
 检查错误处理，并创建一个诊断脚本：
 
+
 ## Cursor
+
 已创建诊断文档。最可能的原因是权限问题。检查前端错误处理，并添加错误显示：
 
+
 ## Cursor
+
 前端代码未处理 API 错误。添加错误处理以显示具体错误信息：
 
-## Cursor
-检查语法错误：
 
 ## Cursor
+
+检查语法错误：
+
+
+## Cursor
+
 已添加错误处理。现在会员管理页面会显示具体错误信息。
 
 ## 问题总结
@@ -356,9 +430,12 @@ with Session(engine) as session:
 給我刪除表的欄位的語法
 
 ## Cursor
+
 MySQL 删除表字段的语法：
 
+
 ## Cursor
+
 MySQL 删除表字段的语法：
 
 ## 基本语法
@@ -462,15 +539,22 @@ COMMIT;
     DROP COLUMN company_id, 幫我注意是mysql
 
 ## Cursor
+
 在 MySQL 中，`order` 是保留关键字，需要用反引号包裹表名。检查项目中的实际用法：
 
+
 ## Cursor
+
 在 MySQL 中，`order` 是保留关键字，需要用反引号包裹。检查是否有外键约束需要先删除：
 
-## Cursor
-正确的 MySQL 语法如下。`order` 是保留关键字，需要用反引号包裹；删除字段前需先删除外键约束。
 
 ## Cursor
+
+正确的 MySQL 语法如下。`order` 是保留关键字，需要用反引号包裹；删除字段前需先删除外键约束。
+
+
+## Cursor
+
 已创建完整的 SQL 脚本。问题与修正如下：
 
 ## 问题
@@ -545,12 +629,17 @@ token: TokenDep,是什麼
 可是每個人的token每次生成不都是一樣的嗎？
 
 ## Cursor
+
 解释 JWT token 和黑名单机制：
 
-## Cursor
-解释 JWT token 和黑名单机制：
 
 ## Cursor
+
+解释 JWT token 和黑名单机制：
+
+
+## Cursor
+
 ## 回答你的问题
 
 ### 1. `response_model=LogoutResponse` 和 `token: TokenDep` 是什么？
@@ -625,9 +714,12 @@ token: TokenDep,是什麼
 是因為我們有加上"jti":str(uuid.uuid4()),才讓每次都是新的uuid嗎?
 
 ## Cursor
+
 是的。正是因为每次调用 `uuid.uuid4()` 生成新的 UUID，所以每次的 `jti` 都不同。
 
+
 ## Cursor
+
 是的。正是因为每次调用 `uuid.uuid4()`，所以每次的 `jti` 都是新的 UUID。
 
 ## 关键代码
@@ -704,15 +796,22 @@ for i in range(3):
 @backend/app/core/security.py:26-34 這邊我看不懂請加註解 to_encode是python的語法還是js已有？algorithm=ALGORITHM到底是哪一個演算法
 
 ## Cursor
+
 回答两个问题，并添加详细注释：
 
-## Cursor
-回答两个问题，并添加详细注释：
 
 ## Cursor
+
+回答两个问题，并添加详细注释：
+
+
+## Cursor
+
 检查语法错误：
 
+
 ## Cursor
+
 已添加详细注释。回答你的两个问题：
 
 ## 问题 1：登出后还能正常登录吗？
@@ -780,18 +879,27 @@ return encoded_jwt  # 例如：eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 何時會觸發黑名單token機制也加入文檔
 
 ## Cursor
+
 查找所有触发黑名单机制的场景，并更新文档：
 
+
 ## Cursor
+
 更新文档，添加黑名单机制的触发时机：
 
+
 ## Cursor
+
 更新 JWT_TOKEN_EXPLANATION.md，添加黑名单机制的触发时机：
 
-## Cursor
-重新读取文件并更新：
 
 ## Cursor
+
+重新读取文件并更新：
+
+
+## Cursor
+
 已更新两个文档，添加了黑名单机制的触发时机说明。
 
 ## 已更新的文档
@@ -833,18 +941,27 @@ return encoded_jwt  # 例如：eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 後台管理員如何 後台管理員選擇"登出所有裝置"或增加某一個token到黑名單是加入資料庫數據就可以了嗎？
 
 ## Cursor
+
 检查后台管理界面和 API，确认如何操作：
 
+
 ## Cursor
+
 检查前端是否有登出所有装置的 UI，并创建操作指南：
 
+
 ## Cursor
+
 创建实用的脚本，并更新文档：
 
-## Cursor
-更新文档，明确回答你的问题：
 
 ## Cursor
+
+更新文档，明确回答你的问题：
+
+
+## Cursor
+
 已创建操作指南和脚本。总结：
 
 ## 回答你的问题
@@ -931,30 +1048,50 @@ INSERT INTO blacklisted_token (
 主要我想知道MEMBER_API_MIGRATION的文檔跟我現在CODE是否吻合還是他是舊資訊了？
 
 ## Cursor
+
 检查 `MEMBER_API_MIGRATION.md` 的提交历史，并对比文档与当前代码是否一致：
 
+
 ## Cursor
+
 使用更详细的 git 命令查看：
 
-## Cursor
-使用 PowerShell 兼容的命令：
 
 ## Cursor
+
+使用 PowerShell 兼容的命令：
+
+
+## Cursor
+
 对比文档与代码，并查看提交详情：
+
 
 ## 你
 @powershell (1005) 為何這邊的API docs: 寫 http://0.0.0.:8000/docs而非8003?
 
 ## Cursor
+
 检查端口配置，查找为什么显示 8000 而不是 8003：
 
+
 ## Cursor
+
 检查启动脚本和配置，确认端口设置：
 
-## Cursor
-这是正常行为。原因如下：
 
 ## Cursor
+
+
+
+
+## Cursor
+
+这是正常行为。原因如下：
+
+
+## Cursor
+
 ## 原因说明
 
 在 `docker-compose.yml` 中，端口映射配置如下：
@@ -987,17 +1124,24 @@ FastAPI 启动日志显示的是容器内的地址 `http://0.0.0.0:8000/docs`，
 @powershell (1-32) 從docker compose根本看不懂什麼屁耶只有一個html
 
 ## Cursor
+
 `curl` 返回的是 HTML，这是正常的。`/docs` 是一个网页，浏览器会渲染它。检查 OpenAPI JSON 端点，并说明如何查看文档：
 
+
 ## Cursor
+
 `curl` 返回 HTML 是正常的，因为 `/docs` 是一个网页，需要在浏览器中打开才能看到完整的 Swagger UI。
 
 查看 API 文档的正确方式：
 
-## Cursor
-改用更简单的方式展示：
 
 ## Cursor
+
+改用更简单的方式展示：
+
+
+## Cursor
+
 ## 总结
 
 `curl` 返回 HTML 是正常的，因为：

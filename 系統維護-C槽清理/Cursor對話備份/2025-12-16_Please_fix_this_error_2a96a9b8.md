@@ -1,6 +1,6 @@
-# Please fix this error
+# Please fix this error:
 
-> Cursor · 2025-12-16 19:07 · `2a96a9b8-0233-4426-9b3f-bc0148f61bd9` · 8 則
+> Cursor · 2025-12-16 19:07 · `2a96a9b8-0233-4426-9b3f-bc0148f61bd9` · 9 則
 
 ## 你
 Please fix this error:
@@ -10,27 +10,45 @@ Please fix this error:
 - **Severity:** Warning
 - **Code:** python:S1192
 
-Provide a solution that resolves this issue. @events.py
+Provide a solution that resolves this issue. @events.py 
 
 ## Cursor
+
 Reviewing `backend/app/api/routes/events.py` to locate the duplicated "Not authenticated" literal.
 
+
 ## Cursor
+
 Searching for all occurrences of "Not authenticated" to replace with a constant.
 
+
 ## Cursor
+
 Adding a constant for "Not authenticated" and replacing all occurrences:
 
+
 ## Cursor
+
 Fixing the remaining occurrence with more specific context:
 
+
 ## Cursor
+
+
+
+
+## Cursor
+
 Verifying all occurrences have been replaced:
 
-## Cursor
-All occurrences have been replaced. Checking for linter errors:
 
 ## Cursor
+
+All occurrences have been replaced. Checking for linter errors:
+
+
+## Cursor
+
 Fixed the linting error. Changes:
 
 1. **Added a constant** at the top of the file (line 87) with the other HTTP error message constants:

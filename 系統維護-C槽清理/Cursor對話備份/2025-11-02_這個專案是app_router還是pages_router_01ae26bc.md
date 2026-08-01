@@ -1,14 +1,17 @@
 # 這個專案是app router還是pages router
 
-> Cursor · 2025-11-02 19:15 · `01ae26bc-1692-4ac4-864c-6a64a39fb548` · 85 則
+> Cursor · 2025-11-02 19:15 · `01ae26bc-1692-4ac4-864c-6a64a39fb548` · 87 則
 
 ## 你
 這個專案是app router還是pages router
 
 ## Cursor
+
 檢查專案結構以確認是 App Router 還是 Pages Router。
 
+
 ## Cursor
+
 這是 **Pages Router** 專案。
 
 判斷依據：
@@ -29,9 +32,12 @@
 那我現在要去外層建立後端資料夾嗎？
 
 ## Cursor
+
 檢查現有的 API 路由檔案：
 
+
 ## Cursor
+
 是的，可以在 `pages/api` 中寫 API 路由檔案。
 
 你目前使用的是 Next.js Pages Router，`pages/api` 就是 API 路由的位置。例如 `pages/api/hello.js` 會對應到 `/api/hello`。
@@ -65,10 +71,14 @@
 
 那我要去哪裡看api/hello.js的結果
 
-## Cursor
-說明差異，並協助實作練習。先查看現有檔案：
 
 ## Cursor
+
+說明差異，並協助實作練習。先查看現有檔案：
+
+
+## Cursor
+
 說明差異：
 - `pages/api/hello.js` → API 路由，返回 JSON，用於後端 API（例如：`/api/hello`）
 - `pages/hello.js` → 頁面路由，返回 React 組件，用於前端頁面（例如：`/hello`）
@@ -78,16 +88,22 @@
 
 建立練習環境：
 
+
 ## Cursor
+
 安裝 axios，並在 `pages/index.js` 加入註冊表單與 fetch/axios 練習：
+
 
 ## 你
 雖然說rel="noopener noreferrer"是防止被追蹤可是我註解掉程式碼 點擊之後還是回不去上一頁呀
 
 ## Cursor
+
 查看 `index.js` 的內容：
 
+
 ## Cursor
+
 問題在於：`rel="noopener noreferrer"` 不是用來控制「能不能回到上一頁」的。
 
 說明：
@@ -98,10 +114,14 @@
 
 修正語法錯誤並說明差異：
 
-## Cursor
-修正語法錯誤，並加入說明註解：
 
 ## Cursor
+
+修正語法錯誤，並加入說明註解：
+
+
+## Cursor
+
 已修正語法錯誤並加入說明。重點：
 
 ## 重點說明：
@@ -131,12 +151,17 @@
 再詳細說明何謂 防止新頁面透過 window.opener 存取原頁面（安全性）跟target="_blank"的差異
 
 ## Cursor
+
 整理 rel 參數值與 window.opener 安全說明文件：
 
-## Cursor
-建立更簡潔的 Obsidian 格式版本，方便直接複製：
 
 ## Cursor
+
+建立更簡潔的 Obsidian 格式版本，方便直接複製：
+
+
+## Cursor
+
 已建立兩個文件：
 
 1. **`REL_ATTRIBUTE_GUIDE.md`** - 詳細版本
@@ -190,12 +215,17 @@
 也幫我把我的話加入md檔，因為我需要你的排版能力，我對標題跟縮排不是很有天分。你不要再敘述跟我重複的意思，但可以幫我補充說明
 
 ## Cursor
+
 更新 MD 文件，加入 Reverse Tabnabbing 的詳細說明，並整合你的總結：
 
-## Cursor
-更新 MD 文件，加入 Reverse Tabnabbing 的詳細說明，並整合你的總結：
 
 ## Cursor
+
+更新 MD 文件，加入 Reverse Tabnabbing 的詳細說明，並整合你的總結：
+
+
+## Cursor
+
 已更新 MD 文件，主要變更：
 
 ## 新增內容：
@@ -228,15 +258,22 @@ Reverse Tabnabbing那也要定向到的網站剛好是釣魚網站啊
 https://evil-site.com通常會導引使用者進站內吧？
 
 ## Cursor
+
 補充實際攻擊場景說明，更新 MD 文件：
 
+
 ## Cursor
+
 補充實際攻擊場景說明：
 
-## Cursor
-修正攻擊流程中的不一致：
 
 ## Cursor
+
+修正攻擊流程中的不一致：
+
+
+## Cursor
+
 已更新文件，加入實際攻擊場景說明。主要補充：
 
 ## 新增內容：
@@ -271,15 +308,22 @@ https://evil-site.com通常會導引使用者進站內吧？
 簡單來說就是惡意連結或網站他們設定了返回的路徑是跟我園網站很像然後引誘使用者再去點選其他惡意連結嗎
 
 ## Cursor
+
 補充一個更簡單的說明，並更新到 MD 文件：
 
+
 ## Cursor
+
 在文件開頭加入簡化說明：
 
-## Cursor
-補充一個更清楚的對比說明：
 
 ## Cursor
+
+補充一個更清楚的對比說明：
+
+
+## Cursor
+
 已更新文件，加入簡化說明。重點如下：
 
 ## 核心概念（簡化版）
@@ -321,12 +365,17 @@ window.opener是物件+成員運算子-method方法
 格式？
 
 ## Cursor
+
 補充 `window.opener` 的格式與語法說明：
 
-## Cursor
-補充 `window.opener` 的格式與語法說明：
 
 ## Cursor
+
+補充 `window.opener` 的格式與語法說明：
+
+
+## Cursor
+
 已更新文件，加入 `window.opener` 的格式與語法說明。重點如下：
 
 ## window.opener 格式說明
@@ -404,12 +453,17 @@ window.opener.location = 'https://example.com'
 所以window.opener是在接受方網站可以寫的？
 
 ## Cursor
+
 補充說明，讓概念更清楚：
 
-## Cursor
-補充說明，明確 `window.opener` 的使用位置：
 
 ## Cursor
+
+補充說明，明確 `window.opener` 的使用位置：
+
+
+## Cursor
+
 已更新文件，明確說明 `window.opener` 的使用位置。
 
 ## 重點說明：
@@ -465,15 +519,27 @@ window.opener.location = 'https://example.com'
 我要練習去抓API請問這裡哪裡寫錯
 
 ## Cursor
+
 檢查 `hello.js` 的內容：
 
-## Cursor
-修正 `hello.js`：React 組件不能直接在頂層使用 `await`，且 `fetch` 需要解析 JSON。改用 `useState` 和 `useEffect` 處理非同步請求：
 
 ## Cursor
+
 修正 `hello.js`：React 組件不能直接在頂層使用 `await`，且 `fetch` 需要解析 JSON。改用 `useState` 和 `useEffect` 處理非同步請求：
 
+
 ## Cursor
+
+修正 `hello.js`：React 組件不能直接在頂層使用 `await`，且 `fetch` 需要解析 JSON。改用 `useState` 和 `useEffect` 處理非同步請求：
+
+
+## Cursor
+
+
+
+
+## Cursor
+
 已修正。問題與修正如下：
 
 ## 原本的錯誤：
@@ -515,9 +581,12 @@ setName(data.name);                           // 3. 更新狀態
 一定要有useEffect處理非同步操作嗎？
 
 ## Cursor
+
 檢視目前的程式碼，並釐清這些觀念：
 
+
 ## Cursor
+
 以下是觀念釐清：
 
 ## 問題 1：為什麼不能直接用 `NameResponse`？
@@ -705,15 +774,27 @@ useEffect(() => {
 Pages Router Next.js API Routes幫我寫例子
 
 ## Cursor
+
 建立範例，展示如何在 Next.js Pages Router 的 API Routes 中處理 GET、POST、DELETE、PUT：
 
+
 ## Cursor
+
 建立完整的範例，展示所有 HTTP 方法：
 
-## Cursor
-修正 `hello.js`：
 
 ## Cursor
+
+修正 `hello.js`：
+
+
+## Cursor
+
+
+
+
+## Cursor
+
 已建立完整的範例。以下是已建立的檔案：
 
 ## 已建立的 API 範例
@@ -805,18 +886,27 @@ Any file inside the folder pages/api is mapped to /api/* and will be treated as 
 pages/中的檔名要一樣嗎？還是不一樣也可以？
 
 ## Cursor
+
 檢視現有檔案結構，並逐一說明：
 
+
 ## Cursor
+
 建立說明文件，詳細解釋這些概念：
 
+
 ## Cursor
+
 建立 `pageExtensions` 配置範例：
 
-## Cursor
-建立視覺化對應圖：
 
 ## Cursor
+
+建立視覺化對應圖：
+
+
+## Cursor
+
 已建立說明文件。以下是重點：
 
 ## 問題解答
@@ -907,12 +997,17 @@ pages/api/register.js   →  /api/register  ✅
 api/*解釋一下 aesterisk寫法
 
 ## Cursor
+
 說明 `api/*` 中的星號（asterisk）寫法：
 
-## Cursor
-說明 `api/*` 中的星號（asterisk）寫法，並建立範例：
 
 ## Cursor
+
+說明 `api/*` 中的星號（asterisk）寫法，並建立範例：
+
+
+## Cursor
+
 已建立說明文件與範例。重點如下：
 
 ## 星號（*）寫法說明
@@ -1025,16 +1120,24 @@ const { slug } = req.query;  // slug 可能是 undefined 或陣列
 幫我把md檔案都搬到根目錄下創建/next-pages-router-API-routes
 
 ## Cursor
+
 先找出所有 MD 檔案，然後移到根目錄的 `next-pages-router-API-routes`，並建立 slug 測試範例：
 
+
 ## Cursor
+
 讀取這些 MD 檔案，然後移動並建立測試範例：
 
-## Cursor
-移動這些 MD 檔案到新目錄，並建立 slug 測試頁面：
 
 ## Cursor
+
+移動這些 MD 檔案到新目錄，並建立 slug 測試頁面：
+
+
+## Cursor
+
 將這些檔案複製到新目錄，並建立 slug 測試頁面：
+
 
 ## 你
 那我這隻檔案要搭配動態路由 
@@ -1300,7 +1403,10 @@ pages/api/examples/optional/[[...slug]].js
 @c:\coding\create-useCallback/ 他怎麼知道傳入參數context?什麼叫做換成真正的fetch邏輯？
 
 ## Cursor
+
 檢視你的檔案，並解釋這兩個問題：
 
+
 ## Cursor
+
 說明這兩個問題：

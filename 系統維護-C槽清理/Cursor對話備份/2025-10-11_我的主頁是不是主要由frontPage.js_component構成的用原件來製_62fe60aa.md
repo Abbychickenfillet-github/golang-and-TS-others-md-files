@@ -1,12 +1,13 @@
-# 我的主頁是不是主要由frontPage.js component構成的用原件來製
+# 我的主頁是不是主要由@frontPage.js component構成的？用原件
 
-> Cursor · 2025-10-11 15:25 · `62fe60aa-d4ea-4c82-b897-dc0107ebb9a8` · 33 則
+> Cursor · 2025-10-11 15:25 · `62fe60aa-d4ea-4c82-b897-dc0107ebb9a8` · 34 則
 
 ## 你
 我的主頁是不是主要由@frontPage.js component構成的？用原件來製造整個頁面有什麼好處嗎？為什麼目前BackToTop元件沒有效果
 
 ## Cursor
 分析主頁結構與 BackToTop 元件問題。
+
 
 ## Cursor
 ## 主頁結構分析
@@ -87,6 +88,7 @@ window.scrollTo({
 ## Cursor
 修正 BackToTop 的顯示/隱藏邏輯與滾動行為。
 
+
 ## Cursor
 ## 修正完成
 
@@ -131,6 +133,11 @@ transform: translateY(20px)是指什麼的我看他並沒有一直再動
 請把我問的問題的答案用註解寫到程式碼附近
 
 ## Cursor
+
+
+
+
+## Cursor
 ## 回答
 
 ### 1. **關於 `.show` 和 `display: block`**
@@ -163,6 +170,7 @@ transform: translateY(20px)是指什麼的我看他並沒有一直再動
 
 ## Cursor
 澄清 `useEffect` 的執行時機：
+
 
 ## Cursor
 ## 澄清：useEffect 的執行時機
@@ -228,6 +236,8 @@ return ()=> window.removeEventListener('scroll',handleScroll)
 到底什麼時候會清除組件？？
 
 ## Cursor
+
+
 ## 你的理解正確
 
 ### 1. **你的描述**
@@ -311,6 +321,8 @@ useEffect(() => {
 就的事件監聽器不會被移除是它會有很多函式擠在程式碼中嗎
 
 ## Cursor
+
+
 ## 是的，會有多個函式擠在記憶體中
 
 ### 1. **具體情況**
@@ -393,6 +405,8 @@ window 的 scroll 事件監聽器列表：
 我以為只掛載一次是那個功能只能用一次，但其實是跟裡面宣告的函式有關係。它用的是裡面的函式。組件掛載跟卸載的問題只是怕程式碼會堆積
 
 ## Cursor
+
+
 ## 你的理解正確
 
 ### 1. **useEffect 只執行一次 ≠ 功能只能用一次**
@@ -468,6 +482,8 @@ useEffect(() => {
 什麼時候會觸發重新掛載？當我們reload 頁面的時候嗎？
 
 ## Cursor
+
+
 ## 會觸發重新掛載的情況
 
 ### 1. **頁面重新載入**
@@ -569,6 +585,8 @@ return (
 {isLoggedIn && <BackToTop />} 介紹一下這個&& operator
 
 ## Cursor
+
+
 ## && 運算符在 React 中的用法
 
 ### 1. **基本語法**
@@ -700,6 +718,8 @@ return (
 button一旦onClick 之後 會執行箭頭函式 setIsLoggedIn會將isLoggedIn變成相反的boolean value嗎？還是當isLoggedIn從false變成相反的true才會觸發箭頭函式 函式更新器setIsLoggedIn?
 
 ## Cursor
+
+
 ## onClick 事件處理器的執行順序
 
 ### 1. **執行順序**
@@ -817,6 +837,8 @@ const handleClick = () => {
 為什麼箭頭後面沒有大括號？
 
 ## Cursor
+
+
 ## 箭頭函式的兩種寫法
 
 ### 1. **簡潔寫法（沒有大括號）**
