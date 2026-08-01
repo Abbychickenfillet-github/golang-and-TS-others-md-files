@@ -115,6 +115,19 @@ eatBreakfast(); // 程式從這裡開始
 4. <mark style="background: #BBFABBA6;">UI 渲染</mark>：Style → Layout → Paint → Composite，畫面更新。
 5. <mark style="background: #D2B3FFA6;">Idle</mark>：有剩餘時間才跑 `requestIdleCallback`（零碎空閒做不緊急雜事）。
 
+### 追加（2026-07-29）：Stack Frame 跟 Event Loop 到底有什麼關係？
+
+<mark style="background: #FFF3A3A6;">Event Loop並不直接操作stack frame，但它的核心運作規則，本質上就是在監控「Call Stack上還剩下幾個stack frame」。</mark>上面講的「Call Stack完全清空」，精確地講就是：<mark style="background: #ADCCFFA6;">目前stack frame數量歸零</mark>——跟[[12-return-清理記憶體-stack-frame與閉包例外]]裡講的那個「return才會pop掉frame」是同一件事，只是這裡把角度拉到「整個Call Stack何時變空」來看。
+
+具體連起來是這樣：
+
+1. <mark style="background: #BBFABBA6;">Event Loop不斷監控Call Stack</mark>：只要Call Stack上還有任何一個stack frame（包括同步碼執行到一半、或是已經在跑的回呼函式未完成），Event Loop就不會動作，一直等到最後一個frame被pop掉、Stack真正變成空陣列。
+2. <mark style="background: #BBFABBA6;">只有Stack真的空了，Event Loop才去抬下一個任務</mark>：從微任務佇列或巨任務佇列拉一個回呼函式出來。
+3. <mark style="background: #BBFABBA6;">拉出來的那個回呼函式並不是特殊呼叫</mark>：它跟你自己寫的任何函式一樣，被呼叫的那一刻依照[[08-函式呼叫核心機制-Execution-Context-與-Parameter-Binding]]講的Creation Phase機制，建立自己的Execution Context與stack frame，被push進Call Stack。
+4. <mark style="background: #BBFABBA6;">這個新frame執行完、pop掉之後</mark>，Call Stack又回復空，Event Loop再次檢查佇列、決定下一輪要拉誰進來。
+
+一句話：<mark style="background: #FF5582A6;">Stack Frame是單次呼叫的「記帳單位」，Event Loop是「排班經理」，兩者不是同一層概念，但Event Loop的排班條件（Stack清空）完全是用stack frame數量來判斷的</mark>——這也是為什麼一個同步的死迴圈（一直不 return，永遠有frame卡在Stack上）會讓整個Event Loop永遠輪不到下一輪、畫面徹底凍住的原因。
+
 ### 工作佇列 vs 呼叫堆疊（Gemini 手繪示意圖重點）
 
 Abby 請 Gemini「畫給我看」，其產生的示意圖標題為 **「工作佇列與呼叫堆疊：他們是不同的系統！」**，核心對照（圖已轉成文字，未另存圖檔）：

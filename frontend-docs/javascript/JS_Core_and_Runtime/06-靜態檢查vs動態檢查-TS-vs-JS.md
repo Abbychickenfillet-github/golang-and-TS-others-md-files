@@ -1,4 +1,15 @@
+---
+title: 靜態檢查 vs 動態檢查（TS 型別 / JS TypeError）
+type: topic-note
+aliases: [靜態檢查vs動態檢查-TS-vs-JS]
+updated: 2026-07-29
+---
+
 # 靜態檢查 vs 動態檢查（TS 型別 / JS TypeError）
+
+> [!info]- 📍 承接05，銜接07（編譯期收尾）
+> <mark style="background: #ADCCFFA6;">承接</mark>：[[05-作用域-scope-global-function-block]]決定「看不看得到」，這篇的靜態型別檢查決定「型別對不對」，兩者都在程式**還沒執行**前就確定——這篇是編譯期這一群（01–06）的收尾。
+> <mark style="background: #BBFABBA6;">下一步</mark>：編譯期講完了，下一篇[[07-identifier-vs-property-var全域變數]]開始進入**執行期**，從`var`全域變數的具體例子切入。
 
 > 相關：[[陣列遍歷-forEach與callback]]（TypeError vs SyntaxError）、[[原生函式與js引擎-v8]]、[[常見錯誤-括號引號沒收尾]]
 
@@ -48,3 +59,8 @@ o.assign({});   // ❌ Uncaught TypeError: o.assign is not a function（執行�
 - 若是 TypeScript：你一打 `o.assign`，編輯器**立刻**畫紅線（靜態，根本不用執行）。
 
 > 記憶：**靜態＝不跑就抓（TS）；動態＝跑到才抓（JS 的 TypeError）。**
+
+---
+
+> [!info]- ➡️ 下一篇（開始進入執行期）
+> [[07-identifier-vs-property-var全域變數]]——`var`全域宣告在執行期被實作成`window`的property，是執行期的第一個具體例子。

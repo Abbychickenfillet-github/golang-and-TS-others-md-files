@@ -6,7 +6,8 @@ category: 技術
 tags: [gemini, javascript, for-in, 迴圈, 物件, MDN]
 sources:
   - https://gemini.google.com/app/545f2ab763a70138
-updated: 2026-06-11
+  - https://gemini.google.com/app/27894cd60071f406
+updated: 2026-07-25
 ---
 
 # for...in 迴圈迭代順序與特性
@@ -48,6 +49,14 @@ for (let key in myObj) console.log(key);
 - `show_props(obj, objName)` 是 MDN 為了示範自己寫的自訂函式。
 - 函式**無法**自動得知傳入變數在外部的名稱;範例是呼叫端手動把名稱硬寫成字串傳進去:`show_props(o, "o")`,函式內再用字串拼接 `objName + "." + prop + " = " + obj[prop]`。改傳 `"myAwesomeObject"` 輸出就變 `myAwesomeObject.a = 1`。
 
+### MDN「Baseline」標記是什麼意思
+
+在查 MDN 的 for...in 頁面時,常看到 <mark style="background: #ADCCFFA6;">「Baseline Widely available」</mark> 這個標記。
+
+- 中文最適合翻譯成<mark style="background: #ADCCFFA6;">「基準」或「基準線」</mark>,代表這項語法/API 已成為網頁開發的「廣泛可用基準」。
+- 意思是<mark style="background: #BBFABBA6;">目前所有主流瀏覽器都已支援並納入標準</mark>,開發者可以放心使用,不必額外擔心瀏覽器相容性問題。
+- 用途:快速判斷一個 MDN 頁面介紹的功能能不能直接上線用,不用另外查 caniuse。
+
 ### Mozilla 是什麼
 
 - 全球性開源社群 + 非營利組織(Mozilla 基金會與 Mozilla 公司),旗艦產品 Firefox(少數不用 Chromium 核心的瀏覽器)。
@@ -74,3 +83,17 @@ Gemini:不是,showProps 不是內建函式,是 MDN 介紹 for...in 時自己寫�
 使用者:這個 for(const x in Leo) 的 loop 跟一般的 for loop 差在哪?功能上
 
 Gemini:三大核心差異:(1) 遍歷對象不同——for...in 專門遍歷物件的屬性名稱(key,字串型態);傳統 for 是數字計數器,常用來存取陣列索引。(2) 運作機制——for...in 自動抓物件所有可列舉(Enumerable)屬性;傳統 for 無法直接遍歷物件(物件沒有 .length 和數字索引),要先 `Object.keys(Leo)` 轉陣列再用索引。(3) 特性與陷阱——for...in 會爬原型鏈(連原型上的自訂屬性一起抓)、不保證順序、控制彈性低;傳統 for 不爬原型鏈、絕對保證順序、彈性極高(可倒數、跳著數)。總結:想掃描物件所有屬性用 for...in 最方便;需要精確控制次數、順序或操作陣列,用傳統 for(或 for...of)。
+
+### MDN Baseline 標記翻譯(2026-07-25)— https://gemini.google.com/app/27894cd60071f406
+
+使用者:這個 baseline 怎麼翻譯成中文?
+
+Gemini:在 MDN 網頁的上下文中,「Baseline」最適合翻譯為「基準」或「基準線」。「Baseline Widely available」意思是這項功能(這裡指 for...in 語法)已成為網頁開發的「廣泛可用基準」,代表目前所有主流瀏覽器都已將其納入標準並完全支援,開發者可以安心在專案中使用,不需額外擔心瀏覽器相容性問題。
+
+## 資料來源(含查證時間)
+
+| 主題 | 連結 | 版本/時間 |
+|---|---|---|
+| for...in 迭代順序原始對話 | https://gemini.google.com/app/545f2ab763a70138 | 2026-06-11 查證 |
+| MDN Baseline 標記翻譯 | https://gemini.google.com/app/27894cd60071f406 | 2026-07-25 查證 |
+| MDN Baseline 概念(外部來源) | https://developer.mozilla.org/en-US/docs/Glossary/Baseline/Compatibility | Gemini 回覆未附版本號,建議日後自行核對 MDN 頁面更新時間 |

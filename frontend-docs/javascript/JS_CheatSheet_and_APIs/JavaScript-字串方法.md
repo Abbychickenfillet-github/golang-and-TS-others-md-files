@@ -1,4 +1,28 @@
+---
+title: JavaScript 字串方法筆記
+type: topic-note
+tags: [javascript, string, method, property, autoboxing, unicode]
+updated: 2026-07-26
+---
+
 # JavaScript 字串方法筆記
+
+## `.length` 是屬性(property)，不是方法(method)
+
+```js
+const str1 = "HelloWorld";
+console.log(str1.length); // 10
+```
+
+**`length` 是屬性，不是方法**——判斷依據很單純：**要不要加括號 `()`**。
+- 屬性：`str1.length`（沒有括號，直接讀值）
+- 方法：`str1.toUpperCase()`（有括號，代表這是一個要「呼叫」的函式）
+
+`length` 讀取的當下不是在「執行一段邏輯」，只是單純把「這個字串有幾個字元」這個數字讀出來，所以是屬性，不是方法。
+
+### 為什麼原始值（primitive）字串也能「戴上」`.length`？—— Autoboxing
+
+`"HelloWorld"` 本身是一個**原始值（primitive）**，理論上原始值不像物件一樣能掛屬性/方法。但 JS 引擎在你寫 `str1.length` 或呼叫 `str1.toUpperCase()` 的瞬間，會**暫時**把這個原始字串包成一個 `String` 包裝物件（跟 `new String("HelloWorld")` 產生的東西類似），這個臨時物件的 prototype 鏈上就有 `String.prototype.length` 這個屬性可以讀，讀完/呼叫完立刻把這個臨時包裝物件丟棄，`str1` 本身還是原始值不會被動到。這個「臨時包一層物件讓你能存取屬性/方法，用完就丟」的機制叫 **autoboxing（自動裝箱）**——不是「每個字串真的隨身戴著 `.length`」，而是每次存取時**現包現丟**。
 
 ## String.fromCharCode()
 

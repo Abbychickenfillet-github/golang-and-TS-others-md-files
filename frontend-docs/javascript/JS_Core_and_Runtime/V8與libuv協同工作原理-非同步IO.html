@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V8 與 libuv 協同工作原理——瀏覽器與 Node.js 的非同步 I/O</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>V8 與 libuv 協同工作原理——瀏覽器與 Node.js 的非同步 I/O</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#v8</span><span class="pill">#libuv</span><span class="pill">#nodejs</span><span class="pill">#event-loop</span><span class="pill">#JS_Core_and_Runtime</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/93d844f125b325f0" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><blockquote>
+<p>承接：[[Node-js底層架構-V8-libuv-Bindings與CSR澄清]] 已整理過 Node.js 分層架構，這篇是同主題的另一次 Gemini 追問，聚焦在「V8 跟 libuv 到底怎麼分工、怎麼互相交接」的具體流程，可對照著看。</p>
+</blockquote>
+</section><section class="card"><h2>重點整理</h2>
+<p>本篇重點 (a)–(e)，共 5 個。</p>
+<h3>(a) 一句話分工</h3>
+<p><mark style="background: #FFF3A3A6;">V8 是「大腦」</mark>：負責閱讀、編譯並執行 JavaScript 程式碼。<br />
+<mark style="background: #FFF3A3A6;">libuv 是「手腳與管家」</mark>：負責處理所有需要等待或跟作業系統打交道的非同步 I/O 任務（網路請求、檔案讀寫、計時器）。</p>
+<h3>(b) V8 引擎：JIT 編譯 + 單線程 + 自帶 GC</h3>
+<p>Google 開發、C++ 撰寫的高效能 JavaScript／WebAssembly 引擎。核心任務是透過 <mark style="background: #ADCCFFA6;">JIT (Just-In-Time)</mark> 編譯技術，把 JS 原始碼直接轉譯成 CPU 看得懂的機器碼並執行；內建 <mark style="background: #ADCCFFA6;">Garbage Collector</mark> 自動回收記憶體；執行 JS 程式碼時只有一條主線程（Single-threaded）。</p>
+<h3>(c) libuv：跨平台非同步 I/O 抽象層 + 線程池</h3>
+<p>最初為 Node.js 開發的跨平台 C 語言庫，專門實現事件循環（Event Loop）與非同步操作，解決「單線程被阻塞」的問題：</p>
+<ul>
+<li>當 JS 需要網路請求、讀寫檔案、啟動 <code>setTimeout</code> 時，V8 本身不處理，交給 libuv 向作業系統申請資源。</li>
+<li><mark style="background: #ADCCFFA6;">跨平台抽象化</mark>：不同 OS 的非同步機制不同（Linux 用 epoll、macOS 用 kqueue、Windows 用 IOCP），libuv 把這些差異封裝成統一 API。</li>
+<li><mark style="background: #ADCCFFA6;">線程池（Thread Pool）</mark>：對某些 OS 沒提供非同步 API 的操作（如部分檔案 I/O），libuv 會在背景開額外線程處理，完成後把結果送回主線程。</li>
+</ul>
+<h3>(d) 協同流程範例</h3>
+<pre><code class="language-javascript">console.log(&quot;開始&quot;);
+setTimeout(() =&gt; { console.log(&quot;計時器到期&quot;); }, 1000);
+console.log(&quot;結束&quot;);
+</code></pre>
+<ol>
+<li>V8 執行 <code>console.log("開始")</code>。</li>
+<li>V8 遇到 <code>setTimeout</code>，把計時任務註冊、交給 libuv 管理，自己繼續往下跑、不等待。</li>
+<li>V8 執行 <code>console.log("結束")</code>。</li>
+<li>libuv 在背景倒數 1000ms，時間到後把對應的 Callback 放進事件佇列（Event Queue）。</li>
+<li>V8 主線程清空、有空閒時，Event Loop 把佇列裡的 Callback 抓出來交給 V8 執行 <code>console.log("計時器到期")</code>。</li>
+</ol>
+<h3>(e) Chromium 瀏覽器的特別之處</h3>
+<p>Chromium 系列瀏覽器（Chrome/Edge/Brave）直接內嵌 V8，但瀏覽器的 DOM API、Fetch API 等 Web API 是由 <mark style="background: #ADCCFFA6;">Blink / Chromium</mark> 宿主環境提供的，不是 V8 自己會的。<mark style="background: #FF5582A6;">⚠️ 補充澄清：Node.js 直接使用 V8 + libuv 的組合；但 Chromium 內部其實有自己的多進程 Event Loop 架構與底層 I/O 處理機制（如 Mojo / net 模組），並非直接套用 libuv 本身</mark>——只是兩者「非同步 Event Loop」的設計思想是一脈相承的，回答時需區分「libuv 本體」與「libuv 式的設計思想」。</p>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>V8 與 libuv 協同工作原理（2026-07-29）— https://gemini.google.com/app/93d844f125b325f0</h3>
+<p>使用者：Chrome、Edge、Brave 等 Chromium 系列瀏覽器直接內嵌 V8，libuv 是什麼？</p>
+<p>Gemini：V8 是「大腦」負責讀取、編譯並執行 JS；libuv 是「手腳與管家」負責處理非同步 I/O。V8 是 C++ 開發、JIT 編譯、單線程、自帶 GC 的 JS 引擎。libuv 是跨平台 C 語言庫，實現事件循環，把不同 OS 的非同步機制（epoll/kqueue/IOCP）封裝成統一 API，並用線程池處理沒有原生非同步 API 的操作。以 <code>setTimeout</code> 為例說明兩者如何交接任務、事件佇列、Event Loop 執行順序。補充：Chromium 瀏覽器裡 DOM/Fetch 等 Web API 由 Blink/Chromium 提供而非 V8；Node.js 直接用 V8+libuv，Chromium 則有自己的多進程 Event Loop（Mojo/net），與 libuv 思想一脈相承但非同一套實作。</p>
+</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/93d844f125b325f0</td>
+<td>2026-07-29 查證</td>
+</tr>
+<tr>
+<td>libuv 官方文件（背景知識，供交叉核對）</td>
+<td>https://docs.libuv.org/</td>
+<td>查證時間 2026-07-29（Gemini 回答未附官方連結，建議 Abby 之後自行核對線程池與各平台 I/O 機制細節是否有更新）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ 存疑／更正提醒：Gemini 原句「Chromium 內部則有自己的多進程 Event Loop 架構與底層 I/O 處理機制…不過其運作邏輯與 libuv 的非同步 Event Loop 思想是一脈相承的」屬於概念性類比，並非指 Chromium 直接使用 libuv 原始碼，筆記中已在 (e) 標註澄清，避免誤解為「Chromium 也用 libuv」。</p>
+</blockquote></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-29</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>

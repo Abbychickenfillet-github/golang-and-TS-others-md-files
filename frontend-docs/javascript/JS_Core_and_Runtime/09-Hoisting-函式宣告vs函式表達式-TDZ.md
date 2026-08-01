@@ -3,12 +3,17 @@ title: Hoisting：函式宣告 vs 函式表達式（TDZ）與 toFixed 比較陷�
 type: topic-note
 source: Gemini
 tags: [gemini, javascript, hoisting, tdz, function, toFixed]
+aliases: [Hoisting-函式宣告vs函式表達式-TDZ]
 sources:
   - https://gemini.google.com/app/a8283484f401c280
-updated: 2026-06-19
+updated: 2026-07-29
 ---
 
 # Hoisting：函式宣告 vs 函式表達式（TDZ）與 toFixed 比較陷阱
+
+> [!info]- 📍 承接08，銜接10
+> <mark style="background: #ADCCFFA6;">承接</mark>：[[08-函式呼叫核心機制-Execution-Context-與-Parameter-Binding]]提到Creation Phase會先做Hoisting——先把`var`／`function`宣告在環境記錄裡佔好位置，這篇專門講這件事跟TDZ的關係。
+> <mark style="background: #BBFABBA6;">下一步</mark>：Creation Phase除了Hoisting，接著會用傳入的引數初始化參數位置，下一篇[[10-傳值vs傳址-賦值與記憶體空間]]講這一步真正發生的事。
 
 > 此對話標題被自動命名為「閉包」，但實際內容是 Hoisting／TDZ 與折扣計算，故依實質內容歸檔。
 
@@ -64,3 +69,8 @@ Gemini：沒有一鍵同步。ChatGPT：設定→資料控制→匯出資料（�
 使用者：Gemini 有匯出對話功能嗎？（並請協助記錄今天 1 點後做的事）
 
 Gemini：單一對話可「分享與匯出」到 Docs/Gmail 草稿；完整歷史用 Google Takeout →取消全選→「我的活動」勾「Gemini Apps」→建立匯出。並提供把系統變更紀錄整理成文字、以及 Google 行事曆「一鍵加入」連結／手動欄位（活動 13:00–14:00）。
+
+---
+
+> [!info]- ➡️ 下一篇
+> [[10-傳值vs傳址-賦值與記憶體空間]]——Creation Phase參數初始化這一步，傳值/傳址真正發生的時間點。

@@ -1,4 +1,15 @@
+---
+title: 變數宣告：let / const / var
+type: topic-note
+aliases: [變數宣告-let-const-var]
+updated: 2026-07-29
+---
+
 # 變數宣告：let / const / var
+
+> [!info]- 📍 承接03，銜接05
+> <mark style="background: #ADCCFFA6;">承接</mark>：[[03-陳述式-Statement-vs-表達式-Expression]]確定變數宣告是一種陳述式，這篇專門拆解let/const/var三種宣告方式的差異。
+> <mark style="background: #BBFABBA6;">下一步</mark>：宣告了變數之後，馬上會遇到「這個變數在哪裡看得到」的問題，下一篇[[05-作用域-scope-global-function-block]]講作用域。
 
 > 相關：[[loops-and-increment-operators]]、[[靜態檢查vs動態檢查-TS-vs-JS]]、[[記憶體模型-stack-heap-動態配置-GC]]
 > 行事曆練習主題（let vs var + 作用域）
@@ -114,3 +125,8 @@ for (let i = 0; i < 3; i++) setTimeout(() => console.log(i));   // 0 1 2
 - **能不能重新賦值** → 不能用 `const`、要就 `let`。
 - **const 鎖的是「綁定」不是「內容」** → 物件/陣列內容照樣可改。
 - **var 有函式作用域 + 提升 + 可重複宣告三個坑** → 現代別用。
+
+---
+
+> [!info]- ➡️ 下一篇
+> [[05-作用域-scope-global-function-block]]——變數在哪裡看得到、哪裡會被關在門外。
