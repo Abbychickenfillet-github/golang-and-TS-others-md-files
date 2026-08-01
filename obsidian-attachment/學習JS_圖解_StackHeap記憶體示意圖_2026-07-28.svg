@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2b5797"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="560" fill="#ffffff"/>
+
+  <text x="450" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#222">
+    Stack 與 Heap 記憶體示意圖
+  </text>
+  <text x="450" y="58" text-anchor="middle" font-size="13" fill="#666">
+    let a = 10; let b = a; b = 20;    let obj1 = { name: "Alice" }; let obj2 = obj1; obj2.name = "Bob";
+  </text>
+
+  <!-- Stack container -->
+  <rect x="40" y="90" width="380" height="430" rx="14" fill="#FFF8DC" stroke="#E0C341" stroke-width="2"/>
+  <text x="230" y="120" text-anchor="middle" font-size="18" font-weight="700" fill="#7A5C00">Stack</text>
+  <text x="230" y="140" text-anchor="middle" font-size="12" fill="#7A5C00">區域變數各自獨立的小空間，存取快、生命週期規律</text>
+
+  <!-- a box -->
+  <rect x="70" y="165" width="320" height="55" rx="8" fill="#ffffff" stroke="#E0C341" stroke-width="1.5"/>
+  <text x="90" y="188" font-size="14" font-weight="700" fill="#333">a</text>
+  <text x="90" y="208" font-size="13" fill="#333">值＝10（獨立副本）</text>
+
+  <!-- b box -->
+  <rect x="70" y="232" width="320" height="55" rx="8" fill="#ffffff" stroke="#E0C341" stroke-width="1.5"/>
+  <text x="90" y="255" font-size="14" font-weight="700" fill="#333">b</text>
+  <text x="90" y="275" font-size="13" fill="#333">值＝20（複製後各改各的，不影響a）</text>
+
+  <!-- obj1 box -->
+  <rect x="70" y="299" width="320" height="55" rx="8" fill="#EAF2FF" stroke="#2b5797" stroke-width="1.5"/>
+  <text x="90" y="322" font-size="14" font-weight="700" fill="#1b3a63">obj1</text>
+  <text x="90" y="342" font-size="13" fill="#1b3a63">存的是位址 0x1A2B（指標）</text>
+
+  <!-- obj2 box -->
+  <rect x="70" y="366" width="320" height="55" rx="8" fill="#EAF2FF" stroke="#2b5797" stroke-width="1.5"/>
+  <text x="90" y="389" font-size="14" font-weight="700" fill="#1b3a63">obj2</text>
+  <text x="90" y="409" font-size="13" fill="#1b3a63">存的也是位址 0x1A2B（同一份）</text>
+
+  <!-- escape analysis note -->
+  <rect x="70" y="433" width="320" height="70" rx="8" fill="#FDEEEE" stroke="#D65B5B" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="90" y="455" font-size="12" font-weight="700" fill="#8a1f1f">例外（逃逸分析）</text>
+  <text x="90" y="473" font-size="12" fill="#8a1f1f">若a、b被閉包捕獲或回傳到外部</text>
+  <text x="90" y="490" font-size="12" fill="#8a1f1f">V8可能改把它們配置到Heap</text>
+
+  <!-- Heap container -->
+  <rect x="480" y="90" width="380" height="430" rx="14" fill="#EAF2FF" stroke="#2b5797" stroke-width="2"/>
+  <text x="670" y="120" text-anchor="middle" font-size="18" font-weight="700" fill="#1b3a63">Heap</text>
+  <text x="670" y="140" text-anchor="middle" font-size="12" fill="#1b3a63">大小不固定、生命週期不規律，由GC動態回收</text>
+
+  <!-- heap object -->
+  <rect x="540" y="220" width="260" height="100" rx="10" fill="#ffffff" stroke="#2b5797" stroke-width="2"/>
+  <text x="560" y="248" font-size="13" font-weight="700" fill="#1b3a63">位址 0x1A2B</text>
+  <text x="560" y="272" font-size="13" fill="#333">{ name: "Bob" }</text>
+  <text x="560" y="294" font-size="12" fill="#666">obj1與obj2共同指向同一實體</text>
+
+  <!-- old object being GC'd -->
+  <rect x="540" y="360" width="260" height="90" rx="10" fill="#F2F2F2" stroke="#999" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="560" y="386" font-size="13" font-weight="700" fill="#555">舊空物件 {}</text>
+  <text x="560" y="406" font-size="12" fill="#555">重新賦值後無變數再指向它</text>
+  <text x="560" y="424" font-size="12" fill="#555">→ 判定不可達，被GC回收</text>
+
+  <!-- arrows obj1/obj2 -> heap object -->
+  <path d="M 390 326 C 460 300, 500 270, 538 262" fill="none" stroke="#2b5797" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M 390 393 C 460 360, 500 300, 538 275" fill="none" stroke="#2b5797" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- legend -->
+  <rect x="40" y="535" width="18" height="14" fill="#FFF8DC" stroke="#E0C341"/>
+  <text x="64" y="547" font-size="12" fill="#333">基本型別（primitive）：值直接存在Stack</text>
+  <rect x="420" y="535" width="18" height="14" fill="#EAF2FF" stroke="#2b5797"/>
+  <text x="444" y="547" font-size="12" fill="#333">物件（object）：Stack存位址，實體在Heap</text>
+</svg>

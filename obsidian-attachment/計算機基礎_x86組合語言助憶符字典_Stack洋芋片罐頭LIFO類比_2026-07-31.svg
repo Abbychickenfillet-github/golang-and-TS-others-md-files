@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="820" viewBox="0 0 760 820" font-family="Noto Sans TC, sans-serif">
+  <rect width="760" height="820" fill="#ffffff"/>
+
+  <text x="380" y="32" text-anchor="middle" font-size="21" font-weight="bold" fill="#222">call stack範例：main()呼叫add()時的洋芋片罐頭（對照0x0020~0x0036）</text>
+
+  <!-- 罐頭外框 -->
+  <path d="M 260 110 L 260 610 A 100 22 0 0 0 460 610 L 460 110" fill="#f2e2c4" stroke="#8a6d3b" stroke-width="4"/>
+  <ellipse cx="360" cy="110" rx="100" ry="22" fill="#fdf6e3" stroke="#8a6d3b" stroke-width="4"/>
+  <ellipse cx="360" cy="610" rx="100" ry="22" fill="#e6d3a3" stroke="#8a6d3b" stroke-width="4"/>
+
+  <!-- main()既有Stack內容區塊 -->
+  <rect x="270" y="500" width="180" height="100" rx="12" fill="#cfe3fb" stroke="#1565c0" stroke-width="2.5"/>
+  <text x="360" y="540" text-anchor="middle" font-size="18" font-weight="bold" fill="#0d3d75">main主函數</text>
+  <text x="360" y="562" text-anchor="middle" font-size="12" fill="#0d3d75">（呼叫add()之前</text>
+  <text x="360" y="578" text-anchor="middle" font-size="12" fill="#0d3d75">既有的Stack內容）</text>
+
+  <!-- 三片真正對應指令的洋芋片 -->
+  <ellipse cx="360" cy="460" rx="88" ry="16" fill="#f6c453" stroke="#b8860b" stroke-width="2.5"/>
+  <text x="470" y="465" font-size="14" fill="#333" font-weight="bold">返回位址 0x0013</text>
+  <text x="470" y="481" font-size="12" fill="#666">（call add／0x000E push）</text>
+
+  <ellipse cx="360" cy="425" rx="88" ry="16" fill="#f7ca63" stroke="#b8860b" stroke-width="2.5"/>
+  <text x="470" y="422" font-size="14" fill="#333" font-weight="bold">main() BP備份</text>
+  <text x="470" y="438" font-size="12" fill="#666">（push rbp／0x0020）</text>
+
+  <ellipse cx="360" cy="390" rx="88" ry="16" fill="#fbdd93" stroke="#d2691e" stroke-width="3.5"/>
+  <text x="470" y="387" font-size="14" fill="#c0392b" font-weight="bold">sum的空間</text>
+  <text x="470" y="403" font-size="12" fill="#666">（sub rsp,4／0x0024 保留</text>
+  <text x="470" y="418" font-size="12" fill="#666">mov[rbp-4],eax／0x002C 寫入</text>
+  <text x="470" y="433" font-size="12" fill="#666">mov eax,[rbp-4]／0x002F 讀出）</text>
+
+  <!-- add()的Stack Frame虛線框 -->
+  <rect x="255" y="373" width="210" height="105" rx="14" fill="none" stroke="#7b1fa2" stroke-width="2.5" stroke-dasharray="7,5"/>
+  <text x="600" y="392" font-size="15" fill="#7b1fa2" font-weight="bold">add()的Stack Frame</text>
+  <text x="600" y="410" font-size="13" fill="#7b1fa2">（add function）</text>
+
+  <!-- 不影響Stack深度的指令備註 -->
+  <text x="600" y="440" font-size="12" fill="#555">mov rbp,rsp／0x0021：</text>
+  <text x="600" y="455" font-size="12" fill="#555">把新BP設成目前SP，</text>
+  <text x="600" y="470" font-size="12" fill="#555">不新增洋芋片</text>
+
+  <text x="600" y="500" font-size="12" fill="#555">mov eax,edi／0x0028</text>
+  <text x="600" y="515" font-size="12" fill="#555">add eax,esi／0x002A：</text>
+  <text x="600" y="530" font-size="12" fill="#555">暫存器運算，也不影響</text>
+  <text x="600" y="545" font-size="12" fill="#555">Stack深度</text>
+
+  <!-- SP箭頭指向最上面那片 -->
+  <line x1="150" y1="390" x2="265" y2="390" stroke="#c0392b" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="60" y="385" font-size="16" fill="#c0392b" font-weight="bold">SP →</text>
+  <text x="30" y="405" font-size="12" fill="#c0392b">(Stack Pointer，</text>
+  <text x="30" y="420" font-size="12" fill="#c0392b">指著最上面那片)</text>
+
+  <!-- push 說明 -->
+  <path d="M 360 190 L 360 340" stroke="#2e7d32" stroke-width="3" stroke-dasharray="6,4" marker-end="url(#arrowGreen)"/>
+  <ellipse cx="360" cy="175" rx="88" ry="16" fill="#c8e6c9" stroke="#2e7d32" stroke-width="2.5" stroke-dasharray="4,3"/>
+  <text x="120" y="155" font-size="14" fill="#2e7d32" font-weight="bold">push：新片從罐口放進去</text>
+  <text x="150" y="270" font-size="12" fill="#2e7d32">（永遠疊在最上面）</text>
+
+  <!-- 收尾（逆序拿出）備註 -->
+  <rect x="30" y="470" width="190" height="130" rx="10" fill="#e3f2fd" stroke="#1565c0" stroke-width="2"/>
+  <text x="125" y="493" text-anchor="middle" font-size="14" fill="#0d3d75" font-weight="bold">收尾：依序反著拿出</text>
+  <text x="45" y="516" font-size="12" fill="#0d3d75">1. add rsp,4（0x0032）</text>
+  <text x="55" y="531" font-size="12" fill="#0d3d75">→ 釋放sum的空間</text>
+  <text x="45" y="551" font-size="12" fill="#0d3d75">2. pop rbp（0x0036）</text>
+  <text x="55" y="566" font-size="12" fill="#0d3d75">→ 拿出main() BP備份</text>
+  <text x="45" y="586" font-size="12" fill="#0d3d75">3. ret</text>
+  <text x="55" y="601" font-size="12" fill="#0d3d75">→ 拿出返回位址0x0013</text>
+
+  <!-- 位址方向 -->
+  <text x="30" y="650" font-size="14" fill="#555">地板（main主函數）：越晚放的洋芋片位址越小，往「上」疊成add()的Stack Frame</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#c0392b"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#2e7d32"/>
+    </marker>
+  </defs>
+</svg>

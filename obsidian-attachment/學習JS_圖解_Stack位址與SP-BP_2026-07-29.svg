@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="820" viewBox="0 0 920 820" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowY" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f5b301"/>
+    </marker>
+    <marker id="arrowO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f97316"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="920" height="820" fill="#14161c"/>
+  <text x="30" y="36" fill="#fff" font-size="19" font-weight="700">組合語言視角：Stack 的記憶體位址、Stack Pointer 與 Base Pointer</text>
+  <text x="30" y="58" fill="#9aa0ac" font-size="12">位址一律用 16 進位（hex）表示——每個 hex 位數剛好對應 4 個 bit，比又長又難讀的 binary 位址精簡許多，這是業界通用寫法，不是 JS 專屬的規則。</text>
+
+  <!-- code reference -->
+  <rect x="30" y="76" width="330" height="150" rx="8" fill="#1e2129" stroke="#333747"/>
+  <text x="46" y="98" fill="#7dd3fc" font-size="12" font-family="JetBrains Mono, Consolas, monospace">function add(a, b) {</text>
+  <text x="46" y="118" fill="#e5e7eb" font-size="12" font-family="JetBrains Mono, Consolas, monospace">  const sum = a + b;</text>
+  <text x="46" y="138" fill="#e5e7eb" font-size="12" font-family="JetBrains Mono, Consolas, monospace">  return sum;</text>
+  <text x="46" y="158" fill="#7dd3fc" font-size="12" font-family="JetBrains Mono, Consolas, monospace">}</text>
+  <text x="46" y="178" fill="#7dd3fc" font-size="12" font-family="JetBrains Mono, Consolas, monospace">add(3, 4);</text>
+  <text x="46" y="204" fill="#6b7280" font-size="11">右圖是呼叫 add(3,4)、正在執行到</text>
+  <text x="46" y="220" fill="#6b7280" font-size="11">「return sum;」那一刻的 Stack 快照。</text>
+
+  <!-- legend -->
+  <rect x="30" y="236" width="14" height="14" fill="#6b7280"/>
+  <text x="50" y="248" fill="#c7cad1" font-size="11">未使用（還沒被 push 過）</text>
+  <rect x="30" y="258" width="14" height="14" fill="#2563eb"/>
+  <text x="50" y="270" fill="#c7cad1" font-size="11">目前這個 add() frame 使用中</text>
+
+  <!-- memory column -->
+  <!-- rows: 0xFFF0 (top) .. 0xFFFF (bottom), each 28px tall, starting y=90 -->
+  <!-- unused rows 0xFFF0-0xFFF7 (8 rows), used rows 0xFFF8-0xFFFF (8 rows) -->
+
+  <text x="560" y="98" fill="#6b7280" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFF0</text>
+  <rect x="620" y="86" width="230" height="26" fill="#2a2e38" stroke="#3a3f4c"/>
+  <text x="630" y="103" fill="#6b7280" font-size="11">（未使用）</text>
+
+  <text x="560" y="124" fill="#6b7280" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFF1</text>
+  <rect x="620" y="112" width="230" height="26" fill="#2a2e38" stroke="#3a3f4c"/>
+
+  <text x="560" y="150" fill="#6b7280" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFF2</text>
+  <rect x="620" y="138" width="230" height="26" fill="#2a2e38" stroke="#3a3f4c"/>
+
+  <text x="560" y="176" fill="#6b7280" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFF3</text>
+  <rect x="620" y="164" width="230" height="26" fill="#2a2e38" stroke="#3a3f4c"/>
+
+  <text x="560" y="202" fill="#6b7280" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFF4</text>
+  <rect x="620" y="190" width="230" height="26" fill="#2a2e38" stroke="#3a3f4c"/>
+
+  <text x="560" y="228" fill="#6b7280" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFF5</text>
+  <rect x="620" y="216" width="230" height="26" fill="#2a2e38" stroke="#3a3f4c"/>
+
+  <text x="560" y="254" fill="#6b7280" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFF6</text>
+  <rect x="620" y="242" width="230" height="26" fill="#2a2e38" stroke="#3a3f4c"/>
+
+  <text x="560" y="280" fill="#6b7280" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFF7</text>
+  <rect x="620" y="268" width="230" height="26" fill="#2a2e38" stroke="#3a3f4c"/>
+
+  <!-- used region 0xFFF8-0xFFFF -->
+  <text x="560" y="306" fill="#dbeafe" font-size="11" font-weight="700" font-family="JetBrains Mono, Consolas, monospace">0xFFF8</text>
+  <rect x="620" y="294" width="230" height="26" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="630" y="311" fill="#eff6ff" font-size="11">sum = 7（正在寫入的區域變數）</text>
+
+  <text x="560" y="332" fill="#dbeafe" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFF9</text>
+  <rect x="620" y="320" width="230" height="26" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="630" y="337" fill="#eff6ff" font-size="11">b = 4（參數）</text>
+
+  <text x="560" y="358" fill="#dbeafe" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFFA</text>
+  <rect x="620" y="346" width="230" height="26" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="630" y="363" fill="#eff6ff" font-size="11">a = 3（參數）</text>
+
+  <text x="560" y="384" fill="#dbeafe" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFFB</text>
+  <rect x="620" y="372" width="230" height="26" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="630" y="389" fill="#eff6ff" font-size="11">返回位址（回到呼叫 add(3,4) 的下一行）</text>
+
+  <text x="560" y="410" fill="#dbeafe" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFFC</text>
+  <rect x="620" y="398" width="230" height="26" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="630" y="415" fill="#eff6ff" font-size="11">上一層（呼叫者）的 BP 備份</text>
+
+  <text x="560" y="436" fill="#dbeafe" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFFD</text>
+  <rect x="620" y="424" width="230" height="26" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="630" y="441" fill="#eff6ff" font-size="11">（保留／暫存用）</text>
+
+  <text x="560" y="462" fill="#dbeafe" font-size="11" font-family="JetBrains Mono, Consolas, monospace">0xFFFE</text>
+  <rect x="620" y="450" width="230" height="26" fill="#2563eb" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="630" y="467" fill="#eff6ff" font-size="11">（保留／暫存用）</text>
+
+  <text x="560" y="488" fill="#fde68a" font-size="11" font-weight="700" font-family="JetBrains Mono, Consolas, monospace">0xFFFF</text>
+  <rect x="620" y="476" width="230" height="26" fill="#1d4ed8" stroke="#fde68a" stroke-width="2"/>
+  <text x="630" y="493" fill="#fff7d6" font-size="11">此 frame 的起始位置（frame 的地基）</text>
+
+  <!-- SP arrow + label -->
+  <path d="M 560 302 C 500 300, 460 290, 430 250" fill="none" stroke="#f5b301" stroke-width="2.5" marker-end="url(#arrowY)"/>
+  <rect x="230" y="200" width="210" height="56" rx="8" fill="#2a2416" stroke="#f5b301" stroke-width="1.5"/>
+  <text x="244" y="222" fill="#fde68a" font-size="13" font-weight="700">🔝 Stack Pointer (SP)：0xFFF8</text>
+  <text x="244" y="240" fill="#fde68a" font-size="10.5">CPU 暫存器，永遠指向目前 Stack</text>
+  <text x="244" y="252" fill="#fde68a" font-size="10.5">最上面（最後 push 進去）的位址——「屋頂」</text>
+
+  <!-- BP arrow + label -->
+  <path d="M 560 484 C 500 486, 460 500, 430 528" fill="none" stroke="#f97316" stroke-width="2.5" marker-end="url(#arrowO)"/>
+  <rect x="230" y="500" width="210" height="70" rx="8" fill="#2a1d12" stroke="#f97316" stroke-width="1.5"/>
+  <text x="244" y="520" fill="#fed7aa" font-size="13" font-weight="700">🔻 Base Pointer (BP)：0xFFFF</text>
+  <text x="244" y="538" fill="#fed7aa" font-size="10.5">CPU 暫存器，記錄「這個函式 frame」</text>
+  <text x="244" y="552" fill="#fed7aa" font-size="10.5">一開始的位址，讓函式內部用固定 offset</text>
+  <text x="244" y="564" fill="#fed7aa" font-size="10.5">存取參數／區域變數——「地板」</text>
+
+  <!-- bottom note -->
+  <rect x="30" y="586" width="860" height="42" rx="8" fill="#1e2129" stroke="#333747"/>
+  <text x="46" y="603" fill="#c7cad1" font-size="11.5">⚠️ SP、BP 本身不是 Stack 裡的內容，是 CPU 內部一塊獨立的暫存器（register），只是它們「存的值」剛好是一個指向 Stack 記憶體的 hex 位址。</text>
+  <text x="46" y="619" fill="#c7cad1" font-size="11.5">呼叫愈多層函式，SP 會不斷往「數字更小」的方向移動（往上疊）；每進入一個新函式，BP 會被重新設成當時的 SP，標記這一層 frame 的地板。</text>
+
+  <!-- extra panel: why smaller addresses are drawn on top + temporal order -->
+  <rect x="30" y="644" width="860" height="156" rx="8" fill="#1e2129" stroke="#f5b301" stroke-width="1.5"/>
+  <text x="46" y="666" fill="#fde68a" font-size="13" font-weight="700">🔁 追問：為什麼位址「上面數字比較小」？是先決定上面還是先決定下面？</text>
+  <text x="46" y="686" fill="#c7cad1" font-size="11">這張圖刻意把「數字較小的位址」畫在上面、「數字較大的位址」畫在下面，是為了配合「SP＝屋頂」的直覺比喻：</text>
+  <text x="46" y="704" fill="#c7cad1" font-size="11">Stack實際上往「數字更小」的方向成長，把小位址畫在上方，push東西的視覺效果才會像疊盤子一樣「往上疊」。</text>
+  <text x="46" y="722" fill="#9aa0ac" font-size="11">這只是繪圖時的視覺選擇，不代表RAM實體位置真的有上下之分——位址本身只是數字，沒有物理方向。</text>
+  <text x="46" y="744" fill="#fde68a" font-size="11" font-weight="700">真正的時間順序，是「地板（BP）先決定，屋頂（SP）才逐步往上疊」，不是反過來：</text>
+  <text x="46" y="762" fill="#c7cad1" font-size="11">進入add()當下，「mov rbp,rsp」先把BP釘死在當時位址（這裡是0xFFFF，圖最下面）——這是這個frame最早確定、</text>
+  <text x="46" y="780" fill="#c7cad1" font-size="11">之後都不會變動的基準點；接著sub rsp,4、以及後續每一次push，才讓SP一步步往「數字更小」的方向移動（圖裡的往上）。</text>
+  <text x="46" y="798" fill="#fff7d6" font-size="11" font-weight="700">一句話：先有「地板被釘住」，才有「地板之上的空間逐格被使用」——下面（BP）先固定，上面（使用區）才依序長出來。</text>
+</svg>
