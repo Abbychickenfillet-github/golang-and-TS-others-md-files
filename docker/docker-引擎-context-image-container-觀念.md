@@ -161,7 +161,7 @@ dockerd.exe(程式/檔案,死的)
 ### engine = daemon = detached?
 
 - **engine ≈ daemon** ✅ 基本成立(嚴格說 Engine = daemon `dockerd` + API + CLI,但核心就是 daemon)。
-- **daemon = detached?** 概念相通**但別劃等號**:daemon 是「背景常駐服務」這個**身分**;detached 是「脫離終端機、在背景跑」這個**狀態**。
+- **daemon = detached?** 概念相通**但別劃等號**:daemon 是「<mark style="background: #ADCCFFA6;">背景常駐服務</mark>」這個**身分**;detached 是「脫離終端機、在背景跑」這個**狀態**。
 - ⚠️ `detached` 在 Docker 出現在**兩個層級**,別混:
   - daemon 在背景常駐 = **引擎** detached 在背景跑
   - `docker run -d`(-d=detached)= 讓**容器** detached 在背景跑
