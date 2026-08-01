@@ -134,6 +134,43 @@ CPU 執行
 
 ---
 
+## 6. V8 的實際管線：Parser → Ignition → TurboFan
+
+> 更詳細的完整版（含 Scanner、Scope Analysis、Profiling、Escape Analysis、Inline Caching、Type Specialization、Deoptimization）另開一篇：[[V8引擎完整管線-Parse到Deoptimization]]（放在 `frontend-docs/javascript/JS_Core_&_Runtime/`）。
+
+以瀏覽器裡最常見的 V8（Chrome、Node.js 用的 JS 引擎）為例，把上面「原始碼→bytecode→機器碼」這個通用模型套進 JS 的實際流程：
+
+```
+JS 原始碼
+   │  V8 的 Parser（獨立元件，不是 Ignition）
+   ▼
+AST（抽象語法樹）
+   │  Ignition 內建的 Bytecode Generator（編譯子模組，仍算 Ignition 的一部分）
+   ▼
+Bytecode
+   │  Ignition 的直譯器本體（逐條解釋執行 bytecode）
+   ▼
+程式開始真正跑起來
+```
+
+### 各角色分工
+
+| 角色 | 是什麼 | 做的事 |
+|---|---|---|
+| **Parser** | V8 的解析器，獨立於 Ignition 之外 | 原始碼文字 → AST，順便檢查語法對不對 |
+| **Ignition** | V8 的**直譯器（interpreter）**，但內部其實包了兩個子階段 | (1) 先把 AST **編譯**成 bytecode（這步常被稱作 Bytecode Generator）；(2) 再**直譯執行**這份 bytecode |
+| **TurboFan** | V8 的 **JIT（Just-In-Time）優化編譯器** | 在 Ignition 執行過程中**側錄哪些函式被呼叫得特別頻繁（hot function）**，把這些熱點程式碼進一步編譯成**高度最佳化的原生機器碼**，之後直接跑機器碼、跳過 bytecode 直譯的開銷 |
+
+### 常見誤解：「Ignition 是直譯器，怎麼還會做編譯？」
+
+**不矛盾。** Ignition 雖然整體被歸類叫「直譯器」，但它內部本來就包含「一個小型編譯器（AST→bytecode）+ 一個執行器（bytecode→跑起來）」兩個子部分，不是外面另外有一支獨立的編譯器程式。之所以要先把 AST 編成 bytecode 再執行，而不是直接一邊走訪 AST 一邊執行，是因為**直接走訪 AST 執行效能太差**；bytecode 是更精簡、更接近機器可以快速處理的中介格式，Ignition 先把 AST「編」成這種格式，再對這份 bytecode 做「直譯執行」。
+
+### 為什麼要有 Ignition（直譯）+ TurboFan（JIT）兩層，不是一開始就全部編成機器碼？
+
+- 如果一開始就把**所有**程式碼都用 TurboFan 編成最佳化機器碼，**編譯本身很花時間**，對「只執行一次」的程式碼（多數網頁程式碼其實跑沒幾次）反而是浪費——先用 Ignition 直譯執行，啟動快、省下不必要的編譯成本。
+- 只有真正被**重複、大量呼叫**的熱點函式，才值得花額外的編譯時間去換取後續的執行速度，這正是 TurboFan 只挑「hot function」下手的原因。
+- 這種「先直譯、熱點才 JIT」的策略，Java 的 JVM、PyPy 等其他語言的高效能虛擬機也是同樣的思路，呼應本篇「4. 實際例子」提到的 JIT 概念。
+
 ## 重點回顧
 
 - **機器碼**：CPU 的母語，二進位、最快、但綁死特定硬體架構（x86 / ARM…），不可攜。

@@ -5,7 +5,8 @@ source: Gemini
 tags: [gemini, 計算機基礎, 進位制, binary, hex, bytes]
 sources:
   - https://gemini.google.com/app/d60ebf7c608541d8
-updated: 2026-06-20
+  - https://gemini.google.com/app/fc0531d7047a3675
+updated: 2026-07-29
 ---
 
 # 進位制 — 二進制 / 十六進制 / 十進制、Bytes 與 RGB 顏色
@@ -62,6 +63,16 @@ updated: 2026-06-20
 ### 6. 四大進位英文簡寫（術語）
 <mark style="background: #ADCCFFA6;">Bin</mark>(Binary 二進位 0/1)、<mark style="background: #ADCCFFA6;">Oct</mark>(Octal 八進位 0~7，少用)、<mark style="background: #ADCCFFA6;">Dec</mark>(Decimal 十進位)、<mark style="background: #ADCCFFA6;">Hex</mark>(Hexadecimal 十六進位)。
 
+### 7. 複習驗證：0xFFFF 是幾個 bits？（推論鏈完整版）
+<mark style="background: #BBFABBA6;">推論鏈：1 bit＝二進位最小單位(0或1，共2種狀態) → 4 bits 綁一起＝2⁴＝16種變化(0000~1111) → 剛好對應 Hex 的16個符號(0-9,A-F) → 所以 1 個 Hex 位數＝4 bits。</mark>
+
+- `0xFFFF`：開頭 `0x` 只是「這是十六進位」的記號，不算進資料長度；後面 `FFFF` 共 4 個 Hex 位數。
+- 換算：<mark style="background: #FFF3A3A6;">4 個位數 × 4 bits ＝ 16 bits ＝ 2 bytes</mark>。
+- ⚠️ 常見誤解澄清：「每個 hex 位數對應 4 個 bit」的「4」是 2 的「4 次方」（2⁴=16 種組合），不是「4 倍」的 4——這點與第 2 節「為什麼到處是十六進制」的推論完全一致，屬於同一觀念的複習與自我驗證。
+- 🔍 補充：<mark style="background: #BBFABBA6;">`0x` 這個記號從哪來？
+  - ——`0x` 不是電腦硬體規定的東西，而是 C 語言（發明於1972年前後）發明的寫法慣例，用來告訴編譯器「後面這串数字要當十六進位解讀」</mark>；因為 <mark style="background: #FFB8EBA6;">C 語言後來影響力太大，這個寫法就被整個程式設計界（C++、Java、JavaScript、Python 等）沿用下來，變成事實上的標準記號。</mark>
+  - 同樣道理，記憶體位址（例如 `0x0004`）看起來「以 0 開頭」，也只是因為位址本身是用十六進位表示、又套用了這個 `0x` 記號，跟位址「必須從 0 這個數字開始」沒有關係——`0x` 只是「這是十六進位」的標籤，<mark style="background: #FF5582A6;">不是位址數值的一部分。</mark>（出處：[cppreference.com — Integer literal](https://en.cppreference.com/w/c/language/integer_constant)，查證日期 2026-07-30）
+
 ## 各對話來源
 
 ### 16進制3F8轉10進制（2026-06）— https://gemini.google.com/app/d60ebf7c608541d8
@@ -80,3 +91,8 @@ updated: 2026-06-20
 
 **使用者：** 但二進制怎麼轉十六進制？Decimal 是十進位的意思嗎？
 **Gemini：** Decimal=十進位(Dec)。用 8-4-2-1 法則：每 4 bits 一組（左側不足補 0），各組相加換成 Hex。範例 `11010111`→`0xD7`、`101110`→`0x2E`。並附 Bin/Oct/Dec/Hex 四大簡寫。
+
+### 位元/位元組與十六進位換算複習（2026-07-29）— https://gemini.google.com/app/fc0531d7047a3675
+
+**使用者：** 1 byte = 8 bits 對吧，那位元說每個 hex 位數剛好對應 4 個 bit，是因為 1 個 bit = 二進制嗎？那 `0xFFFF` 這樣算是 16 個 bits 嗎，因為 4 個 F × 每個位置 4 個 bit？我說的對嗎？
+**Gemini：** 完全正確。1 byte 固定等於 8 bits；1 bit 是二進位最小單位（0 或 1）；4 bits 綁一起有 2⁴=16 種變化，剛好對應 Hex 的 16 個符號，所以 1 個 hex 位數＝4 bits。`0xFFFF` 的 `0x` 只是十六進位記號不算長度，`FFFF` 有 4 個 hex 位數，4×4=16 bits＝2 bytes。推論完全正確。
