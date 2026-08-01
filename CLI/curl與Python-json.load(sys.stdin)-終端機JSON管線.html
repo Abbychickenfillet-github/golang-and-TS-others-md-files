@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>curl 與 Python 處理 API 資料（json.load(sys.stdin) 終端機管線）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__hljs_failed=true"></script>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --card-bg: #ffffff;
+    --text: #2b2b2b;
+    --text-soft: #6b6b6b;
+    --border: #e8e4dd;
+    --accent: #8a7bcc;
+    --user-bar: #ADCCFF;
+    --gemini-bar: #BBFABB;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 16px 80px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
+    line-height: 1.7;
+  }
+  .container { max-width: 820px; margin: 0 auto; }
+  header.page-header {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid var(--border);
+  }
+  h1.page-title {
+    font-family: Georgia, "Noto Serif TC", serif;
+    font-size: 1.85em;
+    margin: 0 0 12px;
+    color: #1f1f1f;
+  }
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .pill {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: #efe9fb;
+    color: var(--accent);
+    font-size: 0.78em;
+    font-weight: 600;
+  }
+  .meta-line { font-size: 0.85em; color: var(--text-soft); margin: 4px 0; }
+  .meta-line a { color: var(--accent); text-decoration: none; }
+  .meta-line a:hover { text-decoration: underline; }
+
+  section.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  section.card > h2 {
+    margin-top: 0;
+    font-size: 1.25em;
+    color: #1f1f1f;
+    border-left: 5px solid var(--accent);
+    padding-left: 12px;
+  }
+  section.card > h3 { font-size: 1.05em; color: #333; margin-top: 22px; }
+
+  mark { padding: 1px 3px; border-radius: 3px; }
+
+  pre {
+    background: #1e1e2e;
+    border-radius: 10px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 0.88em;
+  }
+  code { font-family: "SFMono-Regular", Consolas, "Courier New", monospace; }
+  :not(pre) > code {
+    background: #f1eefa;
+    color: #6a4fc0;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 0.92em; }
+  th, td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; }
+  th { background: #f3f1ec; }
+  tr:nth-child(even) td { background: #fafaf8; }
+
+  details.kp {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 10px 0;
+    padding: 10px 14px;
+    background: #fdfcfa;
+  }
+  details.kp > summary {
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  details.kp > summary::-webkit-details-marker { display: none; }
+  details.kp > summary::before {
+    content: "▶";
+    display: inline-block;
+    font-size: 0.7em;
+    color: var(--accent);
+    transition: transform 0.15s ease;
+  }
+  details.kp[open] > summary::before { transform: rotate(90deg); }
+  details.kp .kp-body { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); }
+
+  .quiz-item {
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    background: #fdfcfb;
+  }
+  .spoiler {
+    background: #2b2b2b;
+    color: #2b2b2b;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .spoiler.revealed {
+    background: #eafbea;
+    color: #1c6e1c;
+  }
+  .spoiler::before { content: "🔒 點擊顯示答案"; color: #ccc; }
+  .spoiler.revealed::before { content: "✅ 答案："; color: #1c6e1c; font-weight: 600; }
+
+  blockquote.source-card {
+    border-left: 4px solid var(--user-bar);
+    background: #f7f9ff;
+    margin: 14px 0;
+    padding: 10px 16px;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.93em;
+  }
+  .msg-user { border-left: 4px solid var(--user-bar); background: #f4f8ff; padding: 8px 14px; border-radius: 0 8px 8px 0; margin: 8px 0; }
+  .msg-gemini { border-left: 4px solid var(--gemini-bar); background: #f4fff4; padding: 8px 14px; border-radius: 0 8px 8px 0; margin: 8px 0; }
+  .msg-label { font-weight: 700; font-size: 0.8em; color: var(--text-soft); margin-bottom: 4px; }
+
+  .callout {
+    border-left: 4px solid #f5b342;
+    background: #fff8ea;
+    padding: 10px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 12px 0;
+  }
+  .callout-title { font-weight: 700; margin-bottom: 4px; }
+  .callout.warning, .callout.danger { border-left-color: #e05a5a; background: #fff2f2; }
+  .callout.tip, .callout.check { border-left-color: #4caf7d; background: #f0faf3; }
+  .callout.question { border-left-color: #ADCCFF; background: #f2f7ff; }
+  .callout.info { border-left-color: #8a7bcc; background: #f6f3ff; }
+
+  img { max-width: 100%; border-radius: 8px; margin: 10px 0; }
+
+  footer.page-footer {
+    text-align: center;
+    color: var(--text-soft);
+    font-size: 0.8em;
+    margin-top: 40px;
+  }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+<header class="page-header">
+  <h1 class="page-title">curl 與 Python 處理 API 資料（json.load(sys.stdin) 終端機管線）</h1>
+  <div class="pills"><span class="pill">gemini</span><span class="pill">curl</span><span class="pill">python</span><span class="pill">cli</span><span class="pill">json</span><span class="pill">api-debug</span></div>
+  <div class="meta-line">更新日期：2026-07-27</div>
+  <div class="meta-line">來源：<a href="https://gemini.google.com/app/0e09f9bbea8d6ad9" target="_blank">https://gemini.google.com/app/0e09f9bbea8d6ad9</a></div>
+</header>
+<section class="card"><p>本篇重點 a–e，共 5 個</p>
+</section>
+<section class="card"><h2>重點整理</h2>
+<details class="kp">
+<summary>a. 這是把 curl（資料獲取）與 Python 一行腳本（資料處理）用管線 | 串起來…</summary>
+<div class="kp-body">
+<p>a. 這是把 <mark style="background: #ADCCFFA6;">curl（資料獲取）</mark>與 <mark style="background: #ADCCFFA6;">Python 一行腳本（資料處理）</mark>用管線 <code>|</code> 串起來的組合技，用於快速從本地 API 拿 JSON、格式化印出特定欄位，常見於除錯（Debug）情境：</p>
+</div>
+</details>
+<pre><code class="language-bash">curl -s http://localhost:8010/api/v1/public/activities 2&gt;&amp;1 | python3 -c &quot;
+import sys,json
+data=json.load(sys.stdin)
+for a in data:
+    print(f\&quot;{a['slug']}: week_days={a.get('week_days',[])} \
+time_slots={a.get('time_slots',[])} \
+schedule={a.get('schedule_start','')}-{a.get('schedule_end','')}\&quot;)&quot;
+</code></pre>
+<details class="kp">
+<summary>b. curl -s</summary>
+<div class="kp-body">
+<p>b. <code>curl -s</code>：<code>-s</code>（silent）靜默模式，不顯示進度條或錯誤訊息；<code>2&gt;&amp;1</code> 把「標準錯誤 stderr」導向「標準輸出 stdout」，讓後面的程式也能接收到錯誤訊息（管線只會傳遞 stdout，不加這行的話 curl 的錯誤訊息就會被丟掉、看不到）。</p>
+</div>
+</details>
+<details class="kp">
+<summary>c. python3 -c &quot;...&quot;</summary>
+<div class="kp-body">
+<p>c. <code>python3 -c "..."</code>：直接在終端機執行一段小型腳本，不用寫成 <code>.py</code> 檔。核心是 <mark style="background: #FFF3A3A6;"><code>data = json.load(sys.stdin)</code></mark>：讀取從 curl 傳來的資料流（stdin），解析為 Python 的 list 或 dict。搭配 <code>a.get('week_days', [])</code> 這種寫法，欄位不存在時給預設值，避免 KeyError。</p>
+</div>
+</details>
+<details class="kp">
+<summary>d. 整體資料流</summary>
+<div class="kp-body">
+<p>d. 整體資料流：<mark style="background: #BBFABBA6;">發起請求（curl）→ 管線導向（<code>|</code>）→ 解析與格式化（python）→ 終端機顯示</mark>。這種方式常用於自動化測試或快速除錯，不需要寫完整 <code>.py</code> 檔就能用 Python 字典處理能力解析複雜 JSON 結構。</p>
+</div>
+</details>
+<details class="kp">
+<summary>e. 替代方案</summary>
+<div class="kp-body">
+<p>e. <mark style="background: #D2B3FFA6;">替代方案</mark>：如果系統有裝 <code>jq</code>，同樣的功能可以縮短成一行：</p>
+</div>
+</details>
+<pre><code class="language-bash">curl -s ... | jq -r '.[] | &quot;\(.slug): week_days=\(.week_days) time_slots=\(.time_slots)&quot;'
+</code></pre>
+<p><code>jq</code> 是專用 JSON 命令列處理器，比起呼叫整個 Python 直譯器更輕量，適合純粹的 JSON 篩選/格式化場景；但若後續要做更複雜的邏輯運算（迴圈、條件判斷、串接其他 Python 生態工具），Python 的彈性較高。</p>
+</section>
+<section class="card"><h2>自我測驗</h2>
+<ol>
+<li>（填空題）<code>curl -s ... 2&gt;&amp;1 | python3 -c "..."</code> 中，<code>2&gt;&amp;1</code> 的作用是把 <strong><em>_</em>_ 導向 </strong>____，讓錯誤訊息也能透過管線傳給後面的程式。<br />
+   答案：<span class="spoiler">標準錯誤（stderr）；標準輸出（stdout）</span></li>
+<li>（是非題）<code>json.load(sys.stdin)</code> 是把終端機輸入的文字指令解析成 JSON。<br />
+   答案：<span class="spoiler">✗。它是讀取「從 curl 傳來的資料流（stdin）」並解析成 Python 的 list 或 dict，不是解析終端機指令本身。</span></li>
+<li>（申論題）<code>jq</code> 和 <code>python3 -c</code> 都能處理 curl 回傳的 JSON，什麼情況下該選哪一個？<br />
+   答案：<span class="spoiler">純粹的 JSON 篩選/格式化場景，<code>jq</code> 更輕量、不需啟動整個 Python 直譯器；但若後續需要更複雜的邏輯運算（迴圈、條件判斷、串接其他 Python 生態工具如 pandas），用 python3 -c 彈性較高。</span></li>
+</ol>
+</section>
+<section class="card"><h2>與既有筆記的關聯</h2>
+<ul>
+<li>與 [[CLI/curl-是哪個系統的-與PowerShell的curl別名陷阱|curl-是哪個系統的-與PowerShell的curl別名陷阱]] 相關：那篇講的是 curl 本身在 Windows / PowerShell 環境下的「身分」問題（<code>curl.exe</code> vs <code>Invoke-WebRequest</code> 別名陷阱）；本篇則是 curl 在 macOS/Linux/WSL 環境下，如何跟 Python 串成資料處理管線，屬於「curl 的下游應用」而非「curl 本身是什麼」。</li>
+<li>與 futuresign 專案的後端除錯情境相關：範例中的 <code>localhost:8010/api/v1/public/activities</code> 與 <code>slug</code> 欄位是專案實際 API，顯示這種 curl+python 一行指令是 Abby 日常在確認 API 回傳格式是否正確時使用的手法。</li>
+</ul>
+</section>
+<section class="card"><h2>各對話來源（原文）</h2>
+<h3>cURL 與 Python 處理 API 資料（2026-07）— https://gemini.google.com/app/0e09f9bbea8d6ad9</h3>
+<div class="msg-user"><div class="msg-label">🙋 使用者</div><p><code>curl -s http://localhost:8010/api/v1/public/activities 2&gt;&amp;1 | python3 -c "import sys,json; data=json.load(sys.stdin); for a in data: print(f\"{a['slug']}: week_days={a.get('week_days',[])} time_slots={a.get('time_slots',[])} schedule={a.get('schedule_start','')}-{a.get('schedule_end','')}\")" 2&gt;&amp;1</code> 解釋這段語法</p></div>
+<div class="msg-gemini"><div class="msg-label">✨ Gemini</div><p>這是結合 curl 與 Python 腳本的單行指令，目的是從本地 API 獲取 JSON 資料，並將特定欄位格式化印出。<code>curl -s</code> 向指定 URL 發送請求，<code>-s</code> 靜默模式不顯示進度條或錯誤訊息；<code>2&gt;&amp;1</code> 把標準錯誤導向標準輸出，讓錯誤訊息也能經由管線傳給後面的程式處理。<code>python3 -c</code> 部分：<code>import sys, json</code> 載入模組；<code>data=json.load(sys.stdin)</code> 讀取從 curl 傳來的資料流並解析為 Python 的 list/dict；<code>for a in data</code> 遍歷每個活動物件；<code>a.get('week_days', [])</code> 欄位不存在時預設空列表。整體流程：發起請求 → 導向輸出 → 解析與格式化 → 終端機顯示。若系統有裝 <code>jq</code>，可以用更短的 <code>jq -r</code> 指令達到同樣效果；但 <code>python -c</code> 配合 <code>json.load(sys.stdin)</code> 的好處是不需要寫完整 <code>.py</code> 檔案就能用 Python 字典處理能力解析複雜資料結構。指令最後的 <code>2&gt;&amp;1</code> 會捕捉 Python 執行過程中的任何錯誤（例如 API 回傳的不是合法 JSON），這在偵錯時很有幫助。</p></div>
+</section>
+<section class="card"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>curl + python 一行指令解析</td>
+<td>https://gemini.google.com/app/0e09f9bbea8d6ad9</td>
+<td>Gemini 對話，2026-07</td>
+</tr>
+<tr>
+<td>Python json 模組官方文件</td>
+<td>https://docs.python.org/3/library/json.html</td>
+<td>查證時請以官方文件最新版為準</td>
+</tr>
+<tr>
+<td>jq 官方文件</td>
+<td>https://jqlang.org/</td>
+<td>查證時請以官方文件最新版為準</td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ 存疑/更正：無明顯錯誤。</p></section>
+<footer class="page-footer">由 Gemini 對話自動整理 · 更新於 2026-07-27</footer>
+</div>
+<script>
+  if (window.hljs && !window.__hljs_failed) {
+    try { document.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el)); } catch(e) {}
+  }
+  document.querySelectorAll('.spoiler').forEach(el => {
+    el.addEventListener('click', () => el.classList.toggle('revealed'));
+  });
+</script>
+</body>
+</html>
