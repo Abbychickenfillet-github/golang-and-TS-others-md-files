@@ -179,10 +179,13 @@ A → B (HEAD)
 三種模式移動 HEAD 之後，index／working tree**要不要跟著被覆寫成新 HEAD 的內容**：
 
 ```mermaid
+%%{init: {'flowchart': {'htmlLabels': true, 'nodeSpacing': 60, 'rankSpacing': 70, 'padding': 20}, 'themeVariables': {'fontSize': '15px'}}}%%
 flowchart TD
-    D["目標 commit 內容"] -->|"--soft：只搬 HEAD"| H1["HEAD 指到目標<br/>Index：維持原樣（不動）<br/>Working Tree：維持原樣（不動）"]
-    D -->|"--mixed：HEAD + Index 都搬"| H2["HEAD 指到目標<br/>Index：覆寫成目標內容<br/>Working Tree：維持原樣（不動）"]
-    D -->|"--hard：全部搬"| H3["HEAD 指到目標<br/>Index：覆寫成目標內容<br/>Working Tree：覆寫成目標內容"]
+    D["目標 commit 內容"] -->|"--soft：只搬 HEAD"| H1["HEAD 指到目標<br/><br/>Index：維持原樣（不動）<br/><br/>Working Tree：維持原樣（不動）"]
+    D -->|"--mixed：HEAD + Index 都搬"| H2["HEAD 指到目標<br/><br/>Index：覆寫成目標內容<br/><br/>Working Tree：維持原樣（不動）"]
+    D -->|"--hard：全部搬"| H3["HEAD 指到目標<br/><br/>Index：覆寫成目標內容<br/><br/>Working Tree：覆寫成目標內容"]
+    classDef box padding:20px
+    class H1,H2,H3 box
 ```
 
 ---
