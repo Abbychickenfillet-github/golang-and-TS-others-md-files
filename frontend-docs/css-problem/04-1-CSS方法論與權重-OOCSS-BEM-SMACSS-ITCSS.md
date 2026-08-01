@@ -19,6 +19,7 @@ sources:
   - https://gemini.google.com/app/8fd5c5f9f6ce1754
   - https://gemini.google.com/app/99e89ba6e17de585
   - https://gemini.google.com/app/a4dd26d7630bf8a2
+  - https://gemini.google.com/app/8ebe8b81ffdb5c95
   - https://en.bem.info/methodology/history/
   - https://www.webdesignmuseum.org/web-design-history/bem-2009
   - https://smacss.com/book/about/
@@ -28,7 +29,7 @@ sources:
   - https://www.xfive.co/blog/itcss-scalable-maintainable-css-architecture
   - https://sass-lang.com/documentation/breaking-changes/import/
   - https://sass-lang.com/documentation/at-rules/use/
-updated: 2026-07-19
+updated: 2026-07-31
 ---
 # CSS 方法論與權重（OOCSS / BEM / SMACSS / ITCSS / Specificity）
 
@@ -276,6 +277,27 @@ i. 同一檔案可以載入無數個 `@use`，但<mark style="background: #BBFAB
 
 j. 來源版本查證：Sass `@use`／`as *` 語法出自 Sass 官方文件 [Sass: @use](https://sass-lang.com/documentation/at-rules/use/)（查證日 2026-07-19）；ITCSS 熱度數據出自 State of CSS 2020 調查結果（經 Gemini 轉述）。
 
+## 追加 2026-07-31：BEM 在 2026 年的現況、Scoped CSS 與 CSS Modules 如何自動做到樣式隔離
+
+> 本次追加重點 k–m，共 3 個。起點：Abby 問「BEM 現在（2026）還流行嗎」以及「框架的樣式隔離具體是什麼意思」。
+
+k. <mark style="background: #FFF3A3A6;">BEM 沒有死，但已從「唯一主流」變成「大型專案／傳統架構下的基本素養」</mark>：在 React／Vue／Svelte 生態裡，CSS Modules 或 Scoped CSS 已是標準配備，框架本身就做到樣式隔離，不再需要 BEM 那種 `.button__icon--large` 長命名去防止衝突；Tailwind 這類 Utility-First 也分走大量採用率。但在<mark style="background: #ADCCFFA6;">不使用現代框架的大型專案（純 HTML/CSS/JS、WordPress、多頁面應用）</mark>與<mark style="background: #ADCCFFA6;">企業級設計系統</mark>裡，BEM（或其變體 SUIT CSS）依然是維持命名一致性的穩定基石。
+
+l. <mark style="background: #ADCCFFA6;">「樣式隔離」在框架裡具體是什麼機制</mark>——延續本篇最上方表格「BEM 靠人為命名防衝突」的概念，Scoped CSS 與 CSS Modules 則是把這件事交給編譯器自動處理：
+
+| 技術特性 | BEM 命名法 | Scoped CSS | CSS Modules |
+|---|---|---|---|
+| 代表框架 | 無框架限定 | Vue（`<style scoped>`）、Svelte | React（常見 `Button.module.css`） |
+| 隔離手段 | 人為開發規範，手工維護 | 編譯器自動加屬性選擇器 | 編譯器自動把 Class Name 雜湊化 |
+| 程式碼外觀 | `.card__title--active` | `.title[data-v-12345]` | `._Button_title_jsx82` |
+| 原理 | 靠命名長度表達隸屬關係 | 打包時幫該元件 HTML 加隨機屬性（如 `data-v-f3f3eg`），CSS 自動變成 `.title[data-v-f3f3eg]` | 直接把 class 名稱換成帶雜湊值的唯一名稱，HTML 與 CSS 一起替換 |
+| 自動化程度 | ❌ 完全靠腦力維護 | ✅ 自動處理 | ✅ 自動處理 |
+| 適合場景 | 傳統 MPA／WordPress／SCSS 專案 | Vue／Svelte 元件化開發 | React／Webpack 生態系 |
+
+<mark style="background: #BBFABBA6;">跟本篇「重要延伸」段落早先寫的「React 開發中，BEM 精神（或 CSS Modules）更常被使用」是同一個結論，這裡補上兩種自動化機制實際運作原理與程式碼外觀對比。</mark>
+
+m. 來源查證：BEM 2026 現況與 Scoped CSS／CSS Modules 原理為 Gemini 依訓練知識整理與推斷（無明確可查證單一權威來源網址，查證日 2026-07-31），Abby 使用時可留意此為 AI 綜合性說法而非單一規範引用。
+
 ## 各對話來源
 
 ### ITCSS 關注度下滑與實務應用（2026-07）— https://gemini.google.com/app/8fd5c5f9f6ce1754
@@ -295,6 +317,12 @@ Gemini：2005 年代因 CSS3 未普及、要相容 IE5/6，圓角陰影等視覺
 使用者：`@use "<url>" as *` 是不是把檔案改名叫星號？@include 也不用寫嗎？這樣整個檔案只能載入一個 module 吧？
 
 Gemini：`*` 只是省略 namespace 前綴，路徑仍要寫完整；`@include`、`@function` 等語法都不能省；可以載入無數個 `@use`，但只建議挑一個最核心、確定不會撞名的檔案用 `as *`，避免多個套件同名變數造成命名衝突。整合進上方追加第 f–i 點。
+
+### BEM 現況與 Scoped CSS／CSS Modules 樣式隔離（2026-07-31）— https://gemini.google.com/app/8ebe8b81ffdb5c95
+
+使用者：BEM 在現今 2026 還是一個流行的 CSS methodology 嗎？／框架本身就能做到「樣式隔離」是什麼意思？
+
+Gemini：BEM 依然實用但不再是唯一主流，React/Vue/Svelte 生態多用 CSS Modules／Scoped CSS，Tailwind 也分走採用率；大型傳統專案與企業設計系統仍常用 BEM。樣式隔離指 Scoped CSS 靠編譯器自動加屬性選擇器（如 `data-v-xxx`）、CSS Modules 靠編譯器把 class 名稱雜湊化，兩者都把「人工防衝突」變成「機器自動處理」。整合進上方追加第 k–l 點。（同一對話後段也問了 Obsidian 與 Google Docs 銜接方式，屬不同主題，已另存於 Obsidian 工具筆記。）
 
 ### OOCSS vs. BEM Comparison（2026-06）— https://gemini.google.com/app/ca1ec9bb98e5fd41
 

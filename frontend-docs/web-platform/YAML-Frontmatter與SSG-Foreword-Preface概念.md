@@ -5,12 +5,13 @@ source: Gemini
 tags: [gemini, frontmatter, yaml, ssg, markdown, 英文詞彙]
 sources:
   - https://gemini.google.com/app/325a079bd35b874b
-updated: 2026-07-23
+  - https://gemini.google.com/app/5c1d5067aa040b4b
+updated: 2026-07-27
 ---
 
 # YAML Frontmatter、SSG 概念與 Foreword/Preface/Introduction 辨析
 
-本篇重點 a–e，共 5 個
+本篇重點 a–f，共 6 個
 
 ## 重點整理
 
@@ -43,6 +44,8 @@ d. <mark style="background: #FF5582;">YAML frontmatter 常見錯誤</mark>:
 
 e. <mark style="background: #FFB8EB;">Highlightr 螢光筆規則的一致性判斷</mark>:遇到「這算不算警告(紅色)還是補充(粉色)」的邊界案例時,依「規則本身在說什麼」判斷而非望文生義 —— 例如人眼視網膜對藍光敏感的機制說明,雖帶有「否定/限制」語氣,但本質是背景知識補充而非「不要做」的警告,因此仍應歸類為粉色(數據/補充),以維持個人筆記色碼系統的一致性。
 
+f. <mark style="background: #FF5582;">YAML 冒號的另一個常見陷阱：全形冒號「：」混入</mark> —— 中文輸入法容易誤打成全形冒號「：」而非半形英文冒號「:」，肉眼在編輯器裡幾乎看不出差異，但 YAML 解析器只認半形 `:`，混入全形冒號會導致該欄位無法被正確解析。連同重點 d 的「`:` 後面要留一個空格」，這是檢查 frontmatter 錯誤時最常漏掉的兩個字元層級陷阱。
+
 ## 各對話來源(原文，節錄)
 
 ### Frontmatter 的由來與演變 (2026-07-23) — https://gemini.google.com/app/325a079bd35b874b
@@ -59,6 +62,16 @@ e. <mark style="background: #FFB8EB;">Highlightr 螢光筆規則的一致性判�
 
 **Gemini:** 標籤設定寫成了 dash 接著中括號外層，開頭多了一個減號...(見重點 d)
 
+### Front Matter Obsidian 處理建議（2026-07-27）— https://gemini.google.com/app/5c1d5067aa040b4b
+
+**使用者：** 請問這邊的 front matter 有什麼錯誤嗎？以左邊為主檢查右邊。
+
+**Gemini：** 一開始誤判成 description 值需要加引號；經 Abby 糾正後重新檢查，發現右邊 `name` 屬性後面用了中文全形冒號「：」，需改成英文半形冒號「:」。
+
+**使用者：** 沒有啊，是因為要再空一格對吧？
+
+**Gemini：** 沒錯，YAML 語法規定冒號後面需要空一格，這樣 front matter 才能被正確解析。(見重點 f)
+
 **使用者:** 你說了「穿笔记应该用什么颜色的荧光笔...」(詢問人眼視網膜抗藍光理論該標紅色警告還是粉色補充)
 
 **Gemini:** 我看到您在筆記規則中把粉色定義為數據與補充，所以...使用粉紅色是最合適的，這樣就能夠維持規則的一致性。
@@ -68,7 +81,8 @@ e. <mark style="background: #FFB8EB;">Highlightr 螢光筆規則的一致性判�
 | 主題 | 連結 | 版本/時間 |
 |---|---|---|
 | Gemini 對話原文 | https://gemini.google.com/app/325a079bd35b874b | 2026-07-23(對話發生於本機使用當下) |
+| Gemini 對話原文(冒號陷阱補充) | https://gemini.google.com/app/5c1d5067aa040b4b | 2026-07-27(對話發生於本機使用當下) |
 | SSG/Foreword/YAML 為通用技術與出版慣例知識 | — | 無單一權威來源,內容經 Claude 覆核與 Gemini 回答一致,查證於 2026-07-23 |
 
 ---
-由 Gemini 對話自動整理 · 更新於 2026-07-23
+由 Gemini 對話自動整理 · 更新於 2026-07-27
