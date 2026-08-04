@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1500" viewBox="0 0 1000 1500" font-family="Noto Sans CJK TC, Noto Sans TC, sans-serif">
+  <rect width="1000" height="1500" fill="#ffffff"/>
+
+  <text x="500" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#222">延伸妳手繪的圖：同一條位址軸，上半是Stack Segment，下半是Code Segment</text>
+  <text x="500" y="50" text-anchor="middle" font-size="13" fill="#666">高位址在上、低位址在下，對照妳畫的「數值大／數值小」跟「main()／add()」標記</text>
+
+  <!-- top/bottom labels -->
+  <text x="500" y="82" text-anchor="middle" font-size="16" font-weight="bold" fill="#222">數值大（高位址）</text>
+  <text x="500" y="1460" text-anchor="middle" font-size="16" font-weight="bold" fill="#222">數值小（低位址）</text>
+
+  <!-- main vertical axis -->
+  <line x1="500" y1="95" x2="500" y2="1440" stroke="#333" stroke-width="2.5"/>
+
+  <!-- ===================== STACK SEGMENT (top half) ===================== -->
+  <rect x="60" y="100" width="16" height="330" fill="none" stroke="#1565c0" stroke-width="2"/>
+  <text x="42" y="270" text-anchor="middle" font-size="15" font-weight="bold" fill="#1565c0" transform="rotate(-90 42 270)">Stack Segment（這一個thread的Stack）</text>
+
+  <!-- main() 既有內容 block -->
+  <rect x="520" y="105" width="380" height="80" rx="8" fill="#cfe3fb" stroke="#1565c0" stroke-width="2.5"/>
+  <text x="710" y="135" text-anchor="middle" font-size="15" font-weight="bold" fill="#0d3d75">main主函數既有內容</text>
+  <text x="710" y="155" text-anchor="middle" font-size="12" fill="#0d3d75">（呼叫add()之前就存在，高位址）</text>
+  <text x="710" y="173" text-anchor="middle" font-size="11" fill="#666">Stack位址無實際截圖可核對，僅示意</text>
+
+  <!-- three chips -->
+  <rect x="520" y="195" width="380" height="46" rx="8" fill="#f6c453" stroke="#b8860b" stroke-width="2"/>
+  <text x="535" y="215" font-size="13.5" font-weight="bold" fill="#333">Stack示意位址 0x7FFF0FF0</text>
+  <text x="535" y="232" font-size="12" fill="#555">返回位址0x0013的值（call add／0x000E push）</text>
+
+  <rect x="520" y="248" width="380" height="46" rx="8" fill="#f7ca63" stroke="#b8860b" stroke-width="2"/>
+  <text x="535" y="268" font-size="13.5" font-weight="bold" fill="#333">Stack示意位址 0x7FFF0FE0</text>
+  <text x="535" y="285" font-size="12" fill="#555">main() BP備份（push rbp／0x0020觸發）</text>
+
+  <rect x="520" y="301" width="380" height="46" rx="8" fill="#fbdd93" stroke="#d2691e" stroke-width="2.5"/>
+  <text x="535" y="321" font-size="13.5" font-weight="bold" fill="#c0392b">Stack示意位址 0x7FFF0FC0 ← SP</text>
+  <text x="535" y="338" font-size="12" fill="#555">sum的空間（sub rsp,4／0x0024觸發）</text>
+
+  <text x="710" y="370" text-anchor="middle" font-size="11.5" fill="#999">（0x7FFF...是Gemini提供、已核對過的示意數字，不是妳截圖裡逐byte確認過的真實數值——見追問十五b點）</text>
+
+  <!-- gap / process note -->
+  <rect x="200" y="450" width="600" height="150" rx="10" fill="#fff8e1" stroke="#e0c36a" stroke-width="2"/>
+  <text x="500" y="478" text-anchor="middle" font-size="14" font-weight="bold" fill="#8a6d00">中間省略：Heap／Data／BSS（不是這次問題重點，故省略）</text>
+  <text x="220" y="505" font-size="12.5" fill="#555">這整條位址軸，是同一個process的「單一虛擬位址空間」——process（行程）跟thread（線程）不是同一層級：</text>
+  <text x="220" y="524" font-size="12.5" fill="#555">Code Segment、Data、BSS、Heap是同一個process底下「所有thread共用」的；Stack才是「每個thread各自擁有一份」的。</text>
+  <text x="220" y="543" font-size="12.5" fill="#555">這支影片的main()／add()範例只有一個thread（可以想成main thread），所以圖上只畫一份Stack；如果同一個process</text>
+  <text x="220" y="562" font-size="12.5" fill="#555">開了第二個thread，會在這條軸的某處再多一份獨立的Stack，但共用同一份下面畫的Code Segment，不會多一份。</text>
+  <text x="220" y="583" font-size="11.5" fill="#999">來源：Cornell CS 3410課程講義（見下方資料來源）</text>
+
+  <!-- ===================== CODE SEGMENT (bottom half) ===================== -->
+  <rect x="60" y="640" width="16" height="760" fill="none" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="42" y="1020" text-anchor="middle" font-size="15" font-weight="bold" fill="#7b1fa2" transform="rotate(-90 42 1020)">Code Segment（main()跟add()共用，位址已從截圖核對過）</text>
+
+  <!-- add() block header -->
+  <text x="710" y="660" text-anchor="middle" font-size="14" font-weight="bold" fill="#7b1fa2">add()的指令（位址較高）</text>
+
+  <g font-size="13" fill="#333">
+    <rect x="520" y="672" width="450" height="30" fill="#e7d3f7" stroke="#7b1fa2"/>
+    <text x="530" y="692">0x0036  pop rbp            5d</text>
+
+    <rect x="520" y="702" width="450" height="30" fill="#e7d3f7" stroke="#7b1fa2"/>
+    <text x="530" y="722">0x0032  add rsp, 4          48 83 c4 04</text>
+
+    <rect x="520" y="732" width="450" height="30" fill="#e7d3f7" stroke="#7b1fa2"/>
+    <text x="530" y="752">0x002F  mov eax, [rbp-4]    8b 45 fc</text>
+
+    <rect x="520" y="762" width="450" height="30" fill="#e7d3f7" stroke="#7b1fa2"/>
+    <text x="530" y="782">0x002C  mov [rbp-4], eax    89 45 fc</text>
+
+    <rect x="520" y="792" width="450" height="30" fill="#e7d3f7" stroke="#7b1fa2"/>
+    <text x="530" y="812">0x002A  add eax, esi        01 f0</text>
+
+    <rect x="520" y="822" width="450" height="30" fill="#e7d3f7" stroke="#7b1fa2"/>
+    <text x="530" y="842">0x0028  mov eax, edi        89 f8</text>
+
+    <rect x="520" y="852" width="450" height="30" fill="#e7d3f7" stroke="#7b1fa2"/>
+    <text x="530" y="872">0x0024  sub rsp, 4          48 83 ec 04</text>
+
+    <rect x="520" y="882" width="450" height="30" fill="#e7d3f7" stroke="#7b1fa2"/>
+    <text x="530" y="902">0x0021  mov rbp, rsp        48 89 e5</text>
+
+    <rect x="520" y="912" width="450" height="30" fill="#e7d3f7" stroke="#7b1fa2"/>
+    <text x="530" y="932">0x0020  push rbp           55</text>
+  </g>
+
+  <!-- padding -->
+  <rect x="520" y="948" width="450" height="34" fill="#eeeeee" stroke="#aaa" stroke-dasharray="4,3"/>
+  <text x="530" y="970" font-size="11.5" fill="#888">0x001F~0x0018（推測padding，未核對，見追問十一d點）</text>
+
+  <!-- main() block -->
+  <text x="710" y="1005" text-anchor="middle" font-size="14" font-weight="bold" fill="#1565c0">main()的指令（位址較低）</text>
+
+  <g font-size="13" fill="#333">
+    <rect x="520" y="1017" width="450" height="30" fill="#cfe3fb" stroke="#1565c0"/>
+    <text x="530" y="1037">0x0013  mov [0x1234], eax  a3 34 12 00 00</text>
+
+    <rect x="520" y="1047" width="450" height="30" fill="#f6c453" stroke="#b8860b"/>
+    <text x="530" y="1067">0x000E  call add           e8 0d 00 00 00</text>
+
+    <rect x="520" y="1077" width="450" height="30" fill="#cfe3fb" stroke="#1565c0"/>
+    <text x="530" y="1097">0x0009  mov esi, 4          be 04 00 00 00</text>
+
+    <rect x="520" y="1107" width="450" height="30" fill="#cfe3fb" stroke="#1565c0"/>
+    <text x="530" y="1127">0x0004  mov edi, 3          bf 03 00 00 00</text>
+  </g>
+
+  <text x="520" y="1155" font-size="11.5" fill="#999">（0x0004~0x0036機器碼／助憶符全部已從截圖核對過，見(a)節表格；</text>
+  <text x="520" y="1170" font-size="11.5" fill="#999">`ret`推算為0x0037，尚未核對，見warning區塊）</text>
+
+  <!-- key takeaway box -->
+  <rect x="60" y="1210" width="880" height="200" rx="10" fill="#e3f2fd" stroke="#1565c0" stroke-width="2"/>
+  <text x="500" y="1238" text-anchor="middle" font-size="15" font-weight="bold" fill="#0d3d75">跟妳手繪的圖對照，兩個segment內部的高低關係都正確</text>
+  <text x="80" y="1263" font-size="13" fill="#0d3d75">✓ Stack Segment內：main()（高位址）在add()（低位址）上面——main()先被呼叫，先建立Frame，push方向往低位址走。</text>
+  <text x="80" y="1286" font-size="13" fill="#0d3d75">✓ Code Segment內：add()（高位址）在main()（低位址）上面——add()原始碼寫在main()後面，編譯器照順序往高位址排。</text>
+  <text x="80" y="1309" font-size="13" fill="#0d3d75">✓ Stack Segment整段在Code Segment上面（數值更大）——這是行程虛擬位址空間裡，stack本來就是最高、text/code本來就是最低的慣例。</text>
+  <text x="80" y="1332" font-size="13" fill="#0d3d75">△ 「process（線程）」這個標記建議拆開：Stack是「thread」各自擁有的，Code Segment是「process」底下所有thread共用的，</text>
+  <text x="80" y="1353" font-size="13" fill="#0d3d75">　這支影片範例只有一個thread，所以這次沒有差別，但概念上process跟thread不是同一層級，見上面黃色說明框。</text>
+  <text x="80" y="1382" font-size="13" fill="#c0392b">⚠ main()／add()在兩個segment裡順序完全相反（Stack:main&gt;add；Code:add&gt;main），這不是矛盾，是兩套獨立規則造成的，見追問十五g點。</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#333"/>
+    </marker>
+  </defs>
+</svg>

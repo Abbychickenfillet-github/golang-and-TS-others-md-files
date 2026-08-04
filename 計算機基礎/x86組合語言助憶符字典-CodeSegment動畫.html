@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>Code Segment（指令位址）動畫：main()呼叫add()的PC跳轉</title>
+<style>
+  body {
+    font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    background: #fafafa;
+    color: #222;
+    margin: 0;
+    padding: 24px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 20px; }
+  .layout {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .strip-wrap {
+    position: relative;
+    width: 260px;
+  }
+  .strip {
+    position: relative;
+    width: 220px;
+    border: 2px solid #444;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    border-bottom: 1px solid #ccc;
+    font-size: 12.5px;
+    padding: 0 8px;
+    box-sizing: border-box;
+    position: relative;
+  }
+  .row:last-child { border-bottom: none; }
+  .row.main { background: #cfe3fb; }
+  .row.add { background: #e7d3f7; }
+  .row.pad {
+    background: repeating-linear-gradient(45deg, #eee, #eee 6px, #ddd 6px, #ddd 12px);
+    color: #888;
+    font-size: 11px;
+    justify-content: center;
+  }
+  .addr { font-weight: bold; width: 66px; flex-shrink: 0; }
+  .mnem { flex: 1; }
+  .pc-marker {
+    position: absolute;
+    left: -34px;
+    width: 26px;
+    height: 26px;
+    transition: top 0.5s ease;
+    font-size: 18px;
+    text-align: center;
+    line-height: 26px;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+  }
+  .badge.main { background: #1565c0; color: #fff; }
+  .badge.add { background: #7b1fa2; color: #fff; }
+  .panel {
+    flex: 1;
+    min-width: 320px;
+    max-width: 560px;
+  }
+  .controls {
+    margin-bottom: 14px;
+  }
+  button {
+    font-size: 14px;
+    padding: 6px 14px;
+    margin-right: 8px;
+    border-radius: 6px;
+    border: 1px solid #888;
+    background: #fff;
+    cursor: pointer;
+  }
+  button:hover { background: #f0f0f0; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .log {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    font-family: "Consolas", monospace;
+    font-size: 13px;
+    padding: 12px;
+    border-radius: 8px;
+    height: 260px;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+  .log .cur { color: #ffd54f; font-weight: bold; }
+  .log .jump { color: #4fc3f7; }
+  .note {
+    margin-top: 14px;
+    font-size: 13px;
+    color: #444;
+    background: #fff8e1;
+    border: 1px solid #e0c36a;
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .legend { font-size: 12.5px; margin-top: 10px; color: #555; }
+  .legend span { display: inline-flex; align-items: center; margin-right: 14px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; margin-right: 5px; }
+</style>
+</head>
+<body>
+
+<h1>Code Segment（程式碼段／指令位址）動畫</h1>
+<div class="sub">這些位址是編譯時就固定排好的靜態位址，執行時不會改變位置——會動的只有下面這個PC（Program Counter，程式計數器）指標。</div>
+
+<div class="layout">
+
+  <div class="strip-wrap">
+    <div class="strip" id="strip"></div>
+  </div>
+
+  <div class="panel">
+    <div class="controls">
+      <button id="stepBtn">下一步 ▶</button>
+      <button id="playBtn">自動播放</button>
+      <button id="resetBtn">重來</button>
+    </div>
+    <div class="legend">
+      <span><span class="swatch" style="background:#cfe3fb;border:1px solid #1565c0;"></span>main()的指令（0x0004–0x0013）</span>
+      <span><span class="swatch" style="background:#e7d3f7;border:1px solid #7b1fa2;"></span>add()的指令（0x0020–0x0036）</span>
+      <span><span class="swatch" style="background:repeating-linear-gradient(45deg,#eee,#eee 3px,#ddd 3px,#ddd 6px);border:1px solid #aaa;"></span>推測的padding／函式對齊填充（0x0018–0x001F，未逐byte核對）</span>
+    </div>
+    <div class="log" id="log"></div>
+    <div class="note">
+      <b>重點：</b>這條指令帶（instruction strip）本身，從程式一啟動到結束都不會挪動——main()永遠在0x0004起、add()永遠在0x0020起。真正在「動」的，只有PC這個指標，它照著程式邏輯（一路往下、或因為call/ret而跳轉）在這條固定的帶子上移來移去。這跟下面Stack Segment動畫裡「位址本身在動態變化」是完全不同的兩件事。
+    </div>
+  </div>
+
+</div>
+
+<script>
+const instructions = [
+  {addr: 0x0004, mnem: "mov edi, 3", seg: "main"},
+  {addr: 0x0009, mnem: "mov esi, 4", seg: "main"},
+  {addr: 0x000E, mnem: "call add", seg: "main", jumpNote: "push返回位址0x0013，跳到0x0020"},
+  {addr: 0x0013, mnem: "mov [0x1234], eax", seg: "main", isReturnTarget: true},
+  {addr: 0x0018, mnem: "（推測：padding／函式對齊）", seg: "pad"},
+  {addr: 0x0020, mnem: "push rbp", seg: "add"},
+  {addr: 0x0021, mnem: "mov rbp, rsp", seg: "add"},
+  {addr: 0x0024, mnem: "sub rsp, 4", seg: "add"},
+  {addr: 0x0028, mnem: "mov eax, edi", seg: "add"},
+  {addr: 0x002A, mnem: "add eax, esi", seg: "add"},
+  {addr: 0x002C, mnem: "mov [rbp-4], eax", seg: "add"},
+  {addr: 0x002F, mnem: "mov eax, [rbp-4]", seg: "add"},
+  {addr: 0x0032, mnem: "add rsp, 4", seg: "add"},
+  {addr: 0x0036, mnem: "pop rbp", seg: "add", jumpNote: "ret：pop返回位址，跳回0x0013"},
+];
+
+// 真正的CPU執行順序（含call／ret造成的跳轉），index對應instructions陣列
+const execOrder = [0,1,2,5,6,7,8,9,10,11,12,13,"RET",3];
+
+const strip = document.getElementById("strip");
+const log = document.getElementById("log");
+const stepBtn = document.getElementById("stepBtn");
+const playBtn = document.getElementById("playBtn");
+const resetBtn = document.getElementById("resetBtn");
+
+function hex(n) { return "0x" + n.toString(16).toUpperCase().padStart(4, "0"); }
+
+function buildStrip() {
+  strip.innerHTML = "";
+  instructions.forEach((ins, i) => {
+    const row = document.createElement("div");
+    row.className = "row " + ins.seg;
+    row.id = "row-" + i;
+    const badge = ins.seg === "main" ? '<span class="badge main">main</span>'
+                : ins.seg === "add" ? '<span class="badge add">add</span>' : "";
+    if (ins.seg === "pad") {
+      row.innerHTML = `<span class="mnem">${hex(ins.addr)} ${ins.mnem}</span>`;
+    } else {
+      row.innerHTML = `<span class="addr">${hex(ins.addr)}</span><span class="mnem">${ins.mnem}${badge}</span>`;
+    }
+    strip.appendChild(row);
+  });
+  const marker = document.createElement("div");
+  marker.className = "pc-marker";
+  marker.id = "pcMarker";
+  marker.textContent = "➡";
+  strip.appendChild(marker);
+}
+
+let execIdx = -1;
+let playing = false;
+let timer = null;
+
+function movePC(insIndex) {
+  const row = document.getElementById("row-" + insIndex);
+  const marker = document.getElementById("pcMarker");
+  marker.style.top = row.offsetTop + (row.offsetHeight - 26) / 2 + "px";
+}
+
+function logLine(text, cls) {
+  const div = document.createElement("div");
+  if (cls) div.className = cls;
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function reset() {
+  execIdx = -1;
+  playing = false;
+  clearInterval(timer);
+  log.innerHTML = "";
+  logLine("點「下一步」或「自動播放」開始，觀察PC怎麼在main()和add()之間跳來跳去。");
+  document.getElementById("pcMarker").style.top = "-40px";
+  stepBtn.disabled = false;
+  playBtn.textContent = "自動播放";
+}
+
+function step() {
+  if (execIdx >= execOrder.length - 1) {
+    logLine("── 執行結束（已跳回main()的0x0013並繼續）──", "jump");
+    stepBtn.disabled = true;
+    clearInterval(timer);
+    playing = false;
+    playBtn.textContent = "自動播放";
+    return;
+  }
+  execIdx++;
+  const step = execOrder[execIdx];
+  if (step === "RET") {
+    logLine(`0x0036執行完的ret：pop出返回位址0x0013 → PC跳回main()`, "jump");
+    return;
+  }
+  const ins = instructions[step];
+  movePC(step);
+  let line = `PC = ${hex(ins.addr)}　${ins.mnem}`;
+  logLine(line, "cur");
+  if (ins.jumpNote) {
+    logLine("　　↳ " + ins.jumpNote, "jump");
+  }
+}
+
+stepBtn.addEventListener("click", step);
+resetBtn.addEventListener("click", reset);
+playBtn.addEventListener("click", () => {
+  if (playing) {
+    playing = false;
+    clearInterval(timer);
+    playBtn.textContent = "自動播放";
+  } else {
+    playing = true;
+    playBtn.textContent = "暫停";
+    timer = setInterval(() => {
+      if (execIdx >= execOrder.length - 1) {
+        clearInterval(timer);
+        playing = false;
+        playBtn.textContent = "自動播放";
+      }
+      step();
+    }, 1100);
+  }
+});
+
+buildStrip();
+reset();
+</script>
+
+</body>
+</html>

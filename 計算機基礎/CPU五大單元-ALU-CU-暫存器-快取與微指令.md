@@ -10,7 +10,7 @@ updated: 2026-07-20
 
 # CPU 五大單元、暫存器、快取與微指令
 
-相關筆記：[[CPU與主記憶體-為何加RAM會變快]]、[[../記憶體最小定址單位 (Byte Addressability)]]
+相關筆記：[[CPU與主記憶體-為何加RAM會變快]]、[[../記憶體最小定址單位 (Byte Addressability)]]、[[x86組合語言助憶符字典-How-Assembly-Functions-Work範例]]（那篇追問十七講的是CU怎麼把「指令本身」從記憶體抓進來的fetch cycle（PC→MAR→MDR→IR），本篇(c)點講的是CU拿到指令之後，為了執行比較／運算去抓「變數值」進暫存器的流程，一個講抓指令、一個講抓資料，是同一個CPU執行主題下互補的兩個環節）
 
 ## 重點整理
 

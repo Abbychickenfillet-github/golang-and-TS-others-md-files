@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>Stack Segment（Stack記憶體Runtime）動畫：main()呼叫add()的動態位址變化</title>
+<style>
+  body {
+    font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    background: #fafafa;
+    color: #222;
+    margin: 0;
+    padding: 24px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 20px; }
+  .layout {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .stack-wrap {
+    width: 300px;
+  }
+  .stack-col {
+    border: 2px solid #444;
+    border-radius: 8px;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    overflow: hidden;
+    background: #fff;
+  }
+  .frame-row {
+    display: flex;
+    align-items: center;
+    height: 46px;
+    border-bottom: 1px dashed #bbb;
+    font-size: 12.5px;
+    padding: 0 10px;
+    box-sizing: border-box;
+    transition: background 0.3s;
+  }
+  .frame-row.main-old { background: #cfe3fb; }
+  .frame-row.retaddr { background: #f6c453; }
+  .frame-row.oldbp { background: #f7ca63; }
+  .frame-row.sumspace { background: #fbdd93; border: 2px solid #d2691e; }
+  .frame-row .addr { font-weight: bold; width: 108px; flex-shrink: 0; }
+  .sp-tag {
+    display: inline-block;
+    background: #c0392b;
+    color: #fff;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+  }
+  .high-low {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: #888;
+    margin-top: 4px;
+    padding: 0 4px;
+  }
+  .panel {
+    flex: 1;
+    min-width: 320px;
+    max-width: 560px;
+  }
+  .controls { margin-bottom: 14px; }
+  button {
+    font-size: 14px;
+    padding: 6px 14px;
+    margin-right: 8px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    border: 1px solid #888;
+    background: #fff;
+    cursor: pointer;
+  }
+  button:hover { background: #f0f0f0; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .sp-display {
+    font-size: 15px;
+    font-weight: bold;
+    color: #c0392b;
+    margin-bottom: 10px;
+    background: #fdecea;
+    border: 1px solid #f5c6cb;
+    border-radius: 6px;
+    padding: 8px 12px;
+  }
+  .log {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    font-family: "Consolas", monospace;
+    font-size: 13px;
+    padding: 12px;
+    border-radius: 8px;
+    height: 220px;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+  .log .push { color: #81c784; }
+  .log .pop { color: #ef9a9a; }
+  .note {
+    margin-top: 14px;
+    font-size: 13px;
+    color: #444;
+    background: #fff8e1;
+    border: 1px solid #e0c36a;
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Stack Segment（Stack記憶體Runtime）動畫</h1>
+<div class="sub">位址是執行時才動態決定的——依實際呼叫順序，Stack往「數字變小」的方向長。範例位址沿用Gemini舉的示意數字：main()呼叫add()前SP＝0x7FFF1000，add()完整建好Stack Frame後SP＝0x7FFF0FC0（示意用的簡化遞減量，不是本筆記(a)節sub rsp,4那組精確byte數，重點是方向跟高低關係）。</div>
+
+<div class="layout">
+
+  <div class="stack-wrap">
+    <div class="high-low"><span>◤ 高位址（main()方向）</span></div>
+    <div class="stack-col" id="stackCol"></div>
+    <div class="high-low"><span>◢ 低位址（開口／push發生處）</span></div>
+  </div>
+
+  <div class="panel">
+    <div class="sp-display" id="spDisplay">SP（Stack Pointer）＝ 0x7FFF1000</div>
+    <div class="controls">
+      <button id="callBtn">執行 call add()（push一片）</button>
+      <button id="retBtn">執行 return（pop一片）</button>
+      <button id="autoBtn">自動跑完整流程</button>
+      <button id="resetBtn">重來</button>
+    </div>
+    <div class="log" id="log"></div>
+    <div class="note">
+      <b>重點：</b>這條Stack Segment上的每一個位址（0x7FFF1000、0x7FFF0FF0…），都是<b>程式執行到那一刻才被賦予</b>的，main()和add()這兩個函式在Stack上誰高誰低，完全由「誰先被呼叫」決定——main()先執行，天生佔住比較高的位址；main()呼叫add()之後，add()的Frame才建立，因為push讓SP往低位址方向走，所以疊在main()下面。這跟上面Code Segment動畫裡「main()指令位址0x0004比add()指令位址0x0020低」的規則<b>完全獨立、互不相關</b>——一個是原始碼寫的先後順序（靜態），一個是呼叫的先後順序（動態），兩者剛好相反不是巧合中的矛盾，而是本來就是兩套不同的規則。
+    </div>
+  </div>
+
+</div>
+
+<script>
+const BASE = 0x7FFF1000;
+
+// 每一步：{label, delta, cls, kind}
+const pushSteps = [
+  {label: "main()既有內容（呼叫add()之前，已經在Stack上）", cls: "main-old", delta: 0, kind: "base"},
+  {label: "返回位址 0x0013（call add的push）", cls: "retaddr", delta: 0x10, kind: "push"},
+  {label: "main() BP備份（push rbp）", cls: "oldbp", delta: 0x10, kind: "push"},
+  {label: "sum的空間（sub rsp預留）", cls: "sumspace", delta: 0x20, kind: "push"},
+];
+
+let frames = []; // 目前畫面上有的frame列（不含base），每個 {label, cls, addr}
+let sp = BASE;
+let pushIdx = 1; // 下一個要push的 pushSteps index（0是base，不是實際push動作，所以從1開始）
+let log = null;
+
+function hex(n) { return "0x" + n.toString(16).toUpperCase(); }
+
+function render() {
+  const col = document.getElementById("stackCol");
+  col.innerHTML = "";
+  // base row 一直都在最上面
+  const baseRow = document.createElement("div");
+  baseRow.className = "frame-row main-old";
+  baseRow.innerHTML = `<span>main主函數（既有內容，高位址）</span>`;
+  baseRow.style.flex = "1";
+  col.appendChild(baseRow);
+  frames.forEach((f, i) => {
+    const row = document.createElement("div");
+    row.className = "frame-row " + f.cls;
+    const isTop = i === frames.length - 1;
+    row.innerHTML = `<span class="addr">${hex(f.addr)}</span><span>${f.label}</span>${isTop ? '<span class="sp-tag">← SP</span>' : ""}`;
+    col.appendChild(row);
+  });
+  document.getElementById("spDisplay").textContent = `SP（Stack Pointer）＝ ${hex(sp)}`;
+}
+
+function logLine(text, cls) {
+  const div = document.createElement("div");
+  if (cls) div.className = cls;
+  div.textContent = text;
+  const logEl = document.getElementById("log");
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function doPush() {
+  if (pushIdx >= pushSteps.length) return false;
+  const step = pushSteps[pushIdx];
+  sp -= step.delta;
+  frames.push({label: step.label, cls: step.cls, addr: sp});
+  logLine(`push → SP從${hex(sp + step.delta)}遞減到${hex(sp)}：${step.label}`, "push");
+  pushIdx++;
+  render();
+  return true;
+}
+
+function doPop() {
+  if (frames.length === 0) return false;
+  const f = frames.pop();
+  const oldSp = sp;
+  sp += (pushIdx > 0 ? pushSteps[pushIdx - 1].delta : 0);
+  logLine(`pop ← SP從${hex(oldSp)}遞增回${hex(sp)}：拿出「${f.label}」`, "pop");
+  pushIdx--;
+  render();
+  return true;
+}
+
+const callBtn = document.getElementById("callBtn");
+const retBtn = document.getElementById("retBtn");
+const autoBtn = document.getElementById("autoBtn");
+const resetBtn = document.getElementById("resetBtn");
+
+callBtn.addEventListener("click", () => {
+  const ok = doPush();
+  if (!ok) logLine("── add()的Stack Frame已經完整建立，沒有更多可push的了 ──");
+  updateButtons();
+});
+retBtn.addEventListener("click", () => {
+  const ok = doPop();
+  if (!ok) logLine("── 已經全部pop完，回到main()呼叫add()之前的狀態 ──");
+  updateButtons();
+});
+autoBtn.addEventListener("click", () => {
+  reset(false);
+  let i = 0;
+  const total = pushSteps.length - 1;
+  const timer = setInterval(() => {
+    if (i < total) {
+      doPush();
+    } else if (i < total * 2) {
+      doPop();
+    } else {
+      clearInterval(timer);
+      logLine("── 完整流程跑完：push到add()的Frame建好，再依序pop回main()呼叫前的狀態 ──");
+    }
+    i++;
+    updateButtons();
+  }, 900);
+});
+resetBtn.addEventListener("click", () => reset(true));
+
+function updateButtons() {
+  callBtn.disabled = pushIdx >= pushSteps.length;
+  retBtn.disabled = frames.length === 0;
+}
+
+function reset(withLog) {
+  frames = [];
+  sp = BASE;
+  pushIdx = 1;
+  if (withLog) {
+    document.getElementById("log").innerHTML = "";
+    logLine("點「執行call add()」模擬push，點「執行return」模擬pop，或直接看「自動跑完整流程」。");
+  }
+  render();
+  updateButtons();
+}
+
+reset(true);
+</script>
+
+</body>
+</html>
