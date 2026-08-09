@@ -10,7 +10,8 @@ related:
 sources:
   - https://gemini.google.com/app/35f68098963fef1d
   - https://gemini.google.com/app/22e7959c0c3c36e4
-updated: 2026-07-31
+  - https://gemini.google.com/app/75aeb1c279e7c8f6
+updated: 2026-08-06
 ---
 
 # Node.js 底層架構：V8 + libuv + C++ Bindings
@@ -152,6 +153,78 @@ Abby 追問：Heap/Stack 不是應該屬於「記憶體的運行時」嗎，為�
 
 來源查證：V8 官方 Embedder's Guide（v8.dev）、TC39 ECMA-262 規範（Host environment／`HostEnqueuePromiseJob`）、MDN Concurrency model and the event loop、Node.js 官方 About／System Architecture 文件（經 Gemini 轉述，查證日 2026-07-31）。
 
+## 追加 2026-08-06：V8 的 C++ Binding 機制、Context 沙盒、與 d8 開發工具
+
+> 本次追加重點 (i)–(n)，共 6 個。起點：Abby 從「Blink 解析 HTML 建立 DOM Tree、V8 執行 JS」延伸追問「Chrome/Node.js 到底怎麼把功能注入 V8」「Context 是什麼」「能不能直接把 V8 當執行檔跑」，跟本篇 (a)–(h) 談的是同一層架構，但把「② Runtime Bridge／C++ Binding」這塊剖得更細。
+
+### (i) V8 提供的 C++ API：Isolate、Context、FunctionTemplate、ObjectTemplate
+
+V8 本身是<mark style="background: #ADCCFFA6;">已經編譯好的機器碼（Library）</mark>，不需要每次被重新編譯——是它去編譯並執行你寫的 JavaScript。V8 對外提供一套 C++ 類別／方法，讓宿主環境的 C++ 開發者能操控 JS 環境，常見的有：
+
+- `v8::Isolate`：代表一個獨立的 V8 虛擬機器實例，有自己的 Heap 記憶體與 GC。
+- `v8::Context`：代表一個獨立的 JS 全域執行環境（見 (k)）。
+- `v8::FunctionTemplate`：把一個 C++ 函式包裝成 JS 看得懂的 Function 物件。
+- `v8::ObjectTemplate`：用 C++ 定義一個 JS 物件的結構。
+
+### (j) Binding 的具體運作：不是「寫進 V8 一起編譯」，而是「執行期註冊」
+
+<mark style="background: #FF5582A6;">常見誤解：以為宿主環境是把自己的 C++ 功能「寫進 V8 原始碼裡一起編譯」</mark>。實際上 V8 在下載下來時就已經可以單獨編譯成軟體庫（`libv8.a`／`v8.dll`），不需要修改 V8 內部原始碼——如果每次新增功能都要改 V8 原始碼重編，專案會極度混亂難維護。
+
+正確做法是<mark style="background: #BBFABBA6;">執行期動態註冊／綁定（Binding）</mark>：宿主環境利用 V8 提供的 C++ API，在 runtime 把自己的 C++ 函式「暴露」給 V8 的 JS 環境，過程像開餐廳：
+
+1. V8 建立一個乾淨的 JS 執行環境（Context），裡面只有 JS 原生語法（`Object`、`Array`、`Math`）——像一張空菜單。
+2. 宿主環境（如 Node.js）用 C++ 寫好實體函式（例如 `CPP_ReadFile()`）——像準備好的廚師。
+3. 宿主環境呼叫 V8 API，在 JS 全域物件上掛一個屬性（例如 `fs.readFile`），指定呼叫時要轉去執行哪個 C++ 函式——動態綁定。
+4. JS 呼叫 `fs.readFile()` 時，V8 發現這個位置綁的是宿主的 C++ 函式，就把參數轉交給宿主的 C++ 執行。
+
+C++ 註冊給 JS 的簡化範例：
+
+```cpp
+// 1. 在 C++ 中定義一個函式
+void MyCppLog(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  std::cout << "Hello from C++!" << std::endl;
+}
+
+// 2. 用 V8 API 把它註冊到 JS 全域物件上，取名 "customLog"
+global_template->Set(
+  v8::String::NewFromUtf8(isolate, "customLog"),
+  v8::FunctionTemplate::New(isolate, MyCppLog)
+);
+```
+
+執行完這段 C++ 後，JS 就能直接呼叫 `customLog()`，背後執行的是 C++ 的 `MyCppLog`。<mark style="background: #D2B3FFA6;">這套「註冊/綁定」流程不是遊戲引擎特有的機制，而是任何宿主環境（Chrome／Node.js／嵌入 V8 的遊戲引擎）想讓 JS 擁有額外功能時必走的路。</mark>
+
+### (k) Context = 獨立沙盒：一個分頁／iframe 一個 Context
+
+<mark style="background: #ADCCFFA6;">Context 就是「執行上下文（Execution Context）」／全域執行環境</mark>，可以想像成一個完全隔離的沙盒——每個 Context 有自己獨立的全域物件。瀏覽器開 3 個分頁，或頁面裡有 `<iframe>`，每個分頁／iframe 都有自己獨立的 V8 Context，確保 Tab A 的 JS 變數不會污染 Tab B。Chrome 啟動一個分頁時，就會為它建立全新的 V8 Context，並把 DOM、Web API 註冊進這個 Context 的全域物件。
+
+### (l) window／document／DOM 節點的歸屬：屬性、物件、方法怎麼分
+
+| 項目 | 歸屬 | 說明 |
+|---|---|---|
+| `setTimeout` | `window` 的**方法（屬性）** | 你寫的 `setTimeout(...)` 其實是 `window.setTimeout(...)` 的簡寫，本質是 Blink 把 C++ 計時器函式註冊為 `window` 的屬性方法 |
+| `fetch` | `window` 的**方法（屬性）** | 同樣掛載在全域物件 `window` 上的 Web API 方法 |
+| `document` | `window` 的**屬性**，本身是一個**獨立物件（Instance）** | `window.document` 指向代表當前網頁 DOM 樹的 `Document` 物件實例；`getElementById` 等是 `document` 本身的方法，不是 `window` 直接的方法 |
+| DOM 節點（如 `<div>`） | **獨立物件本人** | Blink 解析 HTML 標籤時在 C++ 內建立對應物件，並透過 V8 Binding 在 JS 側產生對應的 JS DOM 物件（如 `HTMLDivElement` 實例），擁有自己的屬性（`innerHTML`、`style`） |
+
+<mark style="background: #BBFABBA6;">關係圖：`window`（V8 中的 Global Object）→ `setTimeout`／`fetch`（window 的方法，指向 Blink 的 C++ 實作）→ `document`（window 的屬性，指向 Document 物件本人）→ `getElementById`（document 的方法，指向 Blink 的 C++ DOM 搜尋）。</mark>V8 對這些 C++ 功能的角色像「轉接員／經手錢的人」：它知道呼叫對應到哪個 C++ 函式、也經手了傳遞的參數，但不關心該 C++ 功能內部具體怎麼實作。
+
+### (m) d8：純 V8 開發殼層，跟 Chrome／Node.js 差在哪
+
+<mark style="background: #ADCCFFA6;">`d8`</mark> 是 V8 開發團隊為了測試 JS 引擎而編譯出來的命令行工具（Developer Shell），只有純粹的 V8 引擎，沒有載入任何 DOM／Blink／Node.js API：
+
+- 啟動極快：沒有載入任何宿主 API，幾毫秒內啟動。
+- 能跑：`console.log`、`1+1`、`Math.random()` 等純 ECMAScript 語法。
+- <mark style="background: #FF5582A6;">不能跑</mark>：`document.getElementById`（瀏覽器 API）或 `require('fs')`／`fetch`（Node/Blink API）——會直接報 `ReferenceError`，因為它是沒注入任何外置 C++ 功能的裸引擎。
+- 取得方式：官方沒有一般安裝包，多透過開源工具 `jsvu`（`npm install -g jsvu` 後執行 `jsvu` 選 Windows x64 + v8）從 Google CI/CD 儲存庫抓取編譯好的 `d8.exe`。
+- 對照：`node script.js` 則是 Node.js（同樣嵌入 V8）在啟動時額外把 `fs`／`net`／`process` 等 C++ API 註冊進 Context，因此能操作系統層功能，但一樣不認得 `document`／`window`（那是 Blink 專屬的宿主功能）。
+
+### (n) 執行方式不限於 Terminal
+
+不論是 `d8` 還是一般 `.js` 檔，執行方式都不只 Terminal 一種：VS Code 等編輯器可用 Code Runner 套件或 `F5` 內建 Debugger 一鍵執行 Node.js；WebStorm 等 IDE 有內建 Play 按鈕；若程式用到 `document`／`window`／`fetch` 等瀏覽器 API，最簡單是直接在 Chrome DevTools 的 Console 貼上執行，或用 `<script src="script.js">` 引入 HTML 由瀏覽器載入。
+
+來源查證：本節內容為 Gemini 對談內容之整理與釐清（V8 C++ API、Binding 機制、Context、d8 工具用法），屬 V8/Chromium 公開架構知識，建議之後如需精確版本號可另查證 V8 官方 Embedder's Guide（v8.dev）。
+
 ## 各對話來源
 
 ### JavaScript Runtime 三層架構再確認（2026-07-31）— https://gemini.google.com/app/35f68098963fef1d （分支自 https://gemini.google.com/app/22e7959c0c3c36e4，後者僅有起頭提問、無新增回覆內容）
@@ -159,3 +232,9 @@ Abby 追問：Heap/Stack 不是應該屬於「記憶體的運行時」嗎，為�
 使用者：V8 宿主環境是 Node.js 跟 Chrome，兩個各提供 DOM/fetch/fs/http，中間夾帶了 runtime，這邊比較 confused，runtime 可翻譯成具體環境跟具體的執行時間？究竟是什麼／Heap+Stack 屬於引擎？他們不是屬於記憶體的運行時嗎？／ECMAScript 完全沒有寫 window 或 file system，但這兩者在 Chrome 這個宿主環境裡面有定義嗎？／如果沒有透過 ECMAScript 規範去定義，移植到任何宿主環境，是不是都有自己的 window 或 fs？這樣做有什麼意義？
 
 Gemini：Runtime 有「執行階段」與「執行環境」兩種意思；三層架構為 JS Engine（V8，只認 ECMA-262，不懂 DOM/fs）→ Runtime Bridge（Event Loop/libuv/C++ Binding）→ Host Environment APIs（Chrome 的 DOM/fetch、Node.js 的 fs/http）。Heap/Stack 是執行階段存在於 RAM 的記憶體空間，但「怎麼管理」由 V8 引擎的 C++ 資料結構定義，因此歸類在引擎職責。ECMAScript 規範沒有 window／fs，改用 Host Environment／Host Objects／Host Hooks 溝通；window 由 WHATWG HTML 規範定義、fs 由 Node.js API 規範定義；不寫進 ECMAScript 是為了安全沙盒（避免網站任意讀檔）、核心邏輯可跨平台（Isomorphic JS）、以及面向未來擴充性。整合進上方追加第 (f)–(h) 點。
+
+### V8/Blink 底層架構與 C++ Binding 機制（2026-08-05）— https://gemini.google.com/app/75aeb1c279e7c8f6
+
+使用者：（延續 V8/Blink 分工話題）V8 應該都是固定內容吧，那為什麼他不以執行檔的身分存在就好？還要每次被編譯／通常我們是寫JS可以用到V8來輔助，所以C++也可以用V8?／所以是宿主環境又把自己的C++功能寫到V8裡面讓他再一起編譯？／V8 的 API? For example?／JS的net模組現在還有再用嗎？／Node.js有自己用C++寫好的檔案處理函式喔你是說filesystem嗎?／Context是環境嗎？／DOM操作、fetch、setTimeout是document的屬性還是本人？／下載Google預先編譯好的V8二進位檔給我載點／運行d8 script.js跟node script.js分別會怎樣／所以一定要在terminal中執行嗎
+
+Gemini：V8 本身已編譯成機器碼（Library），不需重新編譯，是它去編譯執行 JS；它有獨立執行檔 `d8`，但更常被當作 Library 嵌入 Chrome／Node.js／遊戲引擎，讓宿主能注入自己的 C++ 功能。C++ 開發者本來就能把 V8 當一般 C++ 庫使用（`v8::Isolate`、`v8::Context`、`v8::FunctionTemplate` 等 API），執行一段 JS 字串並取回結果。宿主環境不是把 C++ 寫進 V8 一起編譯，而是用 V8 提供的 API 在 runtime「註冊/綁定」自己的 C++ 函式到 JS 全域物件（餐廳比喻：V8 給空菜單，宿主準備好 C++ 廚師，動態掛牌讓 JS 呼叫時轉去執行 C++）。不論有無遊戲引擎，只要用到 V8 就必走這套註冊流程。net 模組仍在大量使用（HTTP 框架底層都基於它）；Node.js 的檔案處理函式即 `fs` 模組，底層透過 C++ binding 呼叫 libuv 操作 OS 檔案系統。Context 即獨立沙盒執行環境，每個分頁/iframe 各自一個。setTimeout／fetch 是 window 的方法屬性；document 是 window 的屬性且本身是獨立物件；DOM 節點（如 div）是獨立物件本人。d8 可透過 `jsvu` 工具下載，是純 V8 殼層，能跑純 ECMAScript 但不認得 document／fs；node script.js 則會註冊好 fs/net/process 等 C++ API 但同樣不認得 document／window。執行方式不限 Terminal，VS Code Code Runner/F5、WebStorm Play 鍵、瀏覽器 DevTools Console、`<script src>` 引入 HTML 皆可執行。整合進上方追加第 (i)–(n) 點。

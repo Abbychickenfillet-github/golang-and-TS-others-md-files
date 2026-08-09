@@ -2,10 +2,12 @@
 title: React 純函數與嚴格模式 (StrictMode)
 type: topic-note
 source: Gemini
-tags: [gemini, react, 純函數, StrictMode, 副作用, fiber, hooks]
+tags: [gemini, react, 純函數, StrictMode, 副作用, fiber, hooks, diff演算法, reconciliation, virtual-dom]
 sources:
   - https://gemini.google.com/app/7513ffa1facd9680
-updated: 2026-08-01
+  - https://gemini.google.com/app/5dd44db988a4d19c
+  - https://gemini.google.com/app/f530229fbc172300
+updated: 2026-08-04
 ---
 
 # React 純函數與嚴格模式 (StrictMode)
@@ -44,6 +46,31 @@ React 在渲染元件時，把元件當成一個「輸入 props/state → 輸出
 在 React 裡，如果你在渲染元件或是執行狀態更新的時候去修改了外部變數，或是發起了 API 請求等，這些都稱為有副作用，很容易導致元件狀態不穩定。
 
 畫面中提到的嚴格模式，就是 React 用來幫你抓出這些潛在問題的工具，它可以強制重複執行一段程式碼，幫助你確保程式碼是純淨的。
+
+### 純 Render、Diff 演算法與 Reconciliation 的關係（Gemini，2026-08-01）— https://gemini.google.com/app/5dd44db988a4d19c
+
+**使用者：** 純render是什麼？把diff algorithm跟pure function帶進來一起說明 / Diff演算法就是reconciliation嗎 / 為什麼react要這樣設計雙渲染機制 / Diff演算法的O(n)是「有幾個就有幾次」的意思嗎 / 請解釋渲染引擎，Concurrent Mode是不是允許render去修改外部變數或發API請求 / 請簡述react的生命周期並完整解釋 / 所有元件都是本質上會有HTML的DOM tree嗎？
+
+**Gemini：**（重點已整理進下方「重點整理」小節，逐字原文因篇幅過長不完整複製，僅保留關鍵段落）
+
+<mark class="b">純 Render 就是把 Render 過程當成 Pure Function：`UI = f(State, Props)`，只回傳 UI 藍圖、不做任何副作用。</mark>不純範例：在 render 主體裡 `count++`（改外部變數）或直接 `fetchUserData(...)`（發 API 請求），會導致 StrictMode 雙重渲染時數值倍增、Bug 現形。
+
+<mark class="y">Diff 演算法 ≠ Reconciliation，是包含關係：</mark>Reconciliation 是「從 state 改變到畫面更新完成」的完整協調流程（觸發 render → diffing → 計算更新清單 → commit）；Diff 演算法只是 Reconciliation 流程中第 2、3 步所用的「核心比對演算法」。口語常混用，但層級不同。
+
+<mark class="g">為什麼 Diff 能是 O(n) 而不是傳統樹狀比對的 O(n³)：</mark>React 用啟發式（Heuristic）假設換取效能——① Tree Diff：只比對同層級節點，跨層移動直接銷毀重建；② Component Diff：元素類型不同（如 `<div>`→`<p>`）直接整棵子樹拆掉重建；③ Element Diff：靠開發者提供的 `key` 追蹤列表裡的兄弟節點，順序改變也能複用舊 DOM。O(n) 代表比對次數與節點數 n 成正比（1000 個節點≈1000 次比對），對比 O(n³) 的傳統演算法（1000 個節點需 10 億次）差距懸殊。
+
+<mark class="v">為什麼要設計「雙渲染」(StrictMode 開發模式)：</mark>① 抓出不純的 render（例如 render 主體裡 `list.push(item)`，雙渲染下資料會直接重複現形）；② 驗證 `useEffect` 的 cleanup 是否有正確處理（掛載→卸載→重新掛載，檢查事件監聽/timer/WebSocket 有沒有正確 remove／clear／close）；③ 為 Concurrent Mode 預先鋪路——讓開發者習慣「元件隨時可能被重新掛載」這件事。正式上線（production）不會觸發雙渲染，不影響效能。
+
+<mark class="r">Concurrent Mode 不是「允許」render 有副作用，而是反過來：正因為 render 必須保持純，React 才敢放心中斷/丟棄/重跑它。</mark>若 render 中直接發 API 請求，被丟棄的候選 render 已經真實發出去的請求收不回來，快速切換 `userId` 時會產生 race condition（新舊回應覆蓋順序錯亂）。副作用要放進 `useEffect`——只有真正被 commit 的那次更新才會觸發它，被丟棄的候選 render 完全不會觸發。
+
+<mark class="b">元件的本質不是 HTML DOM，而是 JS 物件（Virtual DOM / React Element）：</mark>
+
+```js
+// <button className="btn">Click me</button> 在 render 階段實際變成
+{ type: 'button', props: { className: 'btn', children: 'Click me' } }
+```
+
+樹裡有兩種節點：自訂組件（Composite Components，type 是函式/class，本身不對應真實 DOM，只負責回傳更多 JSX）、原生標籤組件（Host Components，type 是字串如 `'div'`，才是最終會被轉成真實 DOM 的基礎元素）。只有到最底層的 Host Component，React 才會在 Commit 階段呼叫 `document.createElement(...)` 變成真正的 HTML DOM。<mark class="g">一句話：React 元件是「設計藍圖」，HTML DOM 是「蓋好的房子」，只有 Commit 階段之後才會真正落地成 DOM 樹。</mark>
 
 ### useState 到底算不算「存取全域變數」？（2026-08-01）— Claude Code
 
@@ -365,3 +392,47 @@ FiberNode {
 - `useEffect`：存「這次的 callback + 依賴陣列」，排進一份等 commit 完才執行的 effect 清單，比較像「待執行的任務描述」而非單純資料值
 
 <mark class="g">更精確的講法：hook = fiber 上的一個儲存格，負責跨 render 保存「這個 hook 呼叫該記住的東西」，並且每種 hook 都搭配了自己的一套更新規則（什麼時候讀、什麼時候被覆蓋、要不要跟依賴陣列比對）。「for storing data」抓到了核心，只是還要加上「配套的更新規則」這一層。</mark>
+
+## 各對話來源（補充：語音對話原文）
+
+### Cup 元件 guest 變數不穩定（語音，2026-08-04）— https://gemini.google.com/app/f530229fbc172300
+
+**使用者：** guess的一直都是0,它也不是一個變數,那它為什麼會有不穩定的狀況?（語音辨識原文，guess 應為 guest）
+
+**Gemini：** 仔細看喔，雖然 guest 一開始被賦予 0，但它是宣告在 Cup 元件外面，而且在元件內部有 guest = guest + 1 的操作。這代表每次元件渲染時，都會改變這個全域變數的值，造成副作用，所以渲染同樣的元件會得到不同的結果，這就是不穩定的原因。
+
+**使用者：**（追問 useState 第二個變數的隱藏機制）
+
+**Gemini：** useState 回傳的第二個變數是一個函式，專門用來更新狀態。具體來說，當你呼叫這個函式時，React 會記錄這個新的狀態值，並且排程重新渲染元件，讓畫面能根據最新的狀態更新。
+
+**使用者：** 跟我說,純函式的定義就是相同的輸入應該要有相同的輸出。（語音辨識原文較破碎，已還原語意）
+
+**Gemini：** 沒錯，純函式的定義的確就是相同的輸入會產生相同的輸出，這也是 React 函式元件維持穩定的關鍵。
+
+## 資料來源（含查證時間）
+
+| 主題 | 連結 | 版本/時間 |
+| --- | --- | --- |
+| React 純函數與嚴格模式（原始對話） | https://gemini.google.com/app/7513ffa1facd9680 | Gemini 對話，2026-06 |
+| 純 Render / Diff 演算法 / Reconciliation / Concurrent Mode / 元件本質 | https://gemini.google.com/app/5dd44db988a4d19c | Gemini 對話，擷取存檔於 2026-08-01 |
+| Concurrent React 官方說明 | https://legacy.reactjs.org/blog/2022/03/29/react-v18.html | React Blog，2022-03-29 |
+| Claude Code 深挖對話（useState/fiber/hook 資料結構） | Claude Code 對話紀錄 | 2026-08-01 |
+| Cup 元件 guest 變數不穩定（語音對話，重申既有結論） | https://gemini.google.com/app/f530229fbc172300 | Gemini 語音對話，擷取存檔於 2026-08-04 |
+
+⚠️ 存疑/更正：無，本次擷取內容與既有 React 官方文件描述的 Fiber/Reconciliation 機制一致，未發現明顯錯誤。
+
+### 追問：Fiber tree 100 字內簡答（2026-08-03）— Claude Code
+
+<mark class="b">Fiber tree = React 內部描述整個元件樹的資料結構，每個元件/DOM 節點對應一個 Fiber 節點，節點間用 `return`（父）/`child`（子）/`sibling`（兄弟）三個指標串起來。意義：讓渲染工作可以拆成小塊，隨時暫停/恢復/丟棄，不像舊版 Stack Reconciler 必須一次跑完。名字借自電腦科學「輕量、可暫停執行單元」的 fiber 概念，跟紡織纖維無關。</mark>
+
+### 語音對話重申：Cup 元件的 guest 變數為何不穩定（2026-08-04）— Gemini
+
+<mark class="p">這是一則語音輸入的 Gemini 對話（Live 語音轉文字有斷句/誤字，原文較破碎，以下為整理後的問答重點；原始逐字稿見下方「各對話來源」）。</mark>核心範例換成一個具體元件：`Cup` 元件外部宣告 `let guest = 0`，元件內部執行 `guest = guest + 1`。
+
+<mark class="b">使用者關鍵提問：「guest 初始值一直是 0，它也不是元件的 state 變數，那為什麼會有不穩定的狀況？」</mark>
+
+<mark class="g">Gemini 的解釋（與本篇既有結論一致）：</mark>`guest` 宣告在 `Cup` 元件**外面**，屬於全域/模組層級變數；元件內部的 `guest = guest + 1` 每次渲染都會**修改這個外部共用變數**，這就是副作用。因為它不是每次渲染專屬的「快照」，而是所有呼叫共用、持續累積的箱子，所以同一個元件渲染兩次（例如 StrictMode 下）會得到不同結果（1、2⋯），這正是「不穩定」的來源。正確做法是改用 `useState` 管理這個計數，讓每次渲染只讀取當次快照、不 mutate 外部變數。
+
+<mark class="y">對話中也重新確認了純函式定義：</mark>「相同的輸入應該要有相同的輸出」，並追問 `useState` 回傳的第二個值（`setGuest`）背後機制——Gemini 說明它是一個函式，呼叫後 React 會記錄新狀態值並排程重新渲染，與本篇「深挖：useState 背後的資料結構」章節描述的 `dispatch` 機制一致。
+
+<mark class="v">與既有筆記的關聯：</mark>這則對話用 `Cup`/`guest` 的具體例子，重新驗證了本篇「useState 到底算不算『存取全域變數』？」一節已經建立的結論（模組層級可變變數 vs. render 專屬快照），可視為同一觀念的第二次獨立驗證，未發現新論點或衝突。

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>border-radius 互動練習</title>
+<style>
+  :root{
+    --y:#FFF3A3; --r:#FF5582; --g:#BBFABB; --b:#ADCCFF; --p:#FFB8EB; --v:#D2B3FF;
+    --ink:#2c3138; --muted:#6b7480; --line:#e3e7ec; --bg:#fbfcfd;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:32px 20px; background:var(--bg); color:var(--ink);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    line-height:1.7;
+  }
+  .wrap{max-width:820px;margin:0 auto}
+  h1{font-family:"Noto Serif TC",Georgia,serif;font-size:1.6rem;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:.9rem;margin-bottom:24px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:20px;
+        box-shadow:0 1px 3px rgba(20,30,50,.04)}
+  .card h2{font-size:1.05rem;margin:0 0 14px;padding-left:10px;border-left:4px solid var(--b)}
+  .stage{display:flex;gap:28px;flex-wrap:wrap;align-items:center}
+  #box{
+    width:200px;height:150px;flex:0 0 auto;
+    background:linear-gradient(135deg,#ADCCFF,#D2B3FF);
+    border:2px solid #7b8ea8;
+    transition:border-radius .18s ease;
+  }
+  .sliders{flex:1 1 300px;min-width:280px}
+  .row{display:grid;grid-template-columns:92px 1fr 54px;gap:10px;align-items:center;margin-bottom:8px}
+  .row label{font-size:.85rem;color:var(--muted)}
+  .row output{font-variant-numeric:tabular-nums;font-size:.85rem;text-align:right}
+  input[type=range]{width:100%}
+  pre{background:#1e2430;color:#e8edf5;border-radius:10px;padding:14px 16px;overflow-x:auto;
+      font-family:"JetBrains Mono",Consolas,monospace;font-size:.85rem;margin:14px 0 0}
+  .pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 14px;
+        font-size:.82rem;cursor:pointer;transition:.15s}
+  .pill:hover{background:#f0f4f9;border-color:#c9d3e0}
+  /* 自我測驗 */
+  .q{border-left:4px solid var(--y);background:#fffdf2;border-radius:0 10px 10px 0;
+     padding:12px 16px;margin-bottom:12px}
+  .q p{margin:0 0 8px;font-weight:600;font-size:.95rem}
+  .blank{background:var(--y);border-radius:4px;padding:1px 12px;cursor:pointer;
+         user-select:none;font-weight:600;color:transparent;transition:.15s}
+  .blank.show{color:var(--ink)}
+  .blank:not(.show)::after{content:"？";color:#8a7a2a}
+  .tf button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 16px;
+             margin-right:8px;cursor:pointer;font-size:.85rem}
+  .tf button.ok{background:var(--g);border-color:#8ad48a}
+  .tf button.no{background:var(--r);border-color:#e0446e;color:#fff}
+  .fb{color:var(--muted);font-size:.85rem;margin-top:6px;display:none}
+  .fb.on{display:block}
+  details{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:10px;background:#fff}
+  summary{cursor:pointer;font-weight:600;font-size:.93rem}
+  details p{color:var(--muted);font-size:.88rem;margin:8px 0 0}
+  .toolbar{margin-bottom:14px}
+  .toolbar button{border:1px solid var(--line);background:#fff;border-radius:8px;
+                  padding:6px 16px;cursor:pointer;font-size:.85rem}
+  footer{color:var(--muted);font-size:.8rem;text-align:center;padding:12px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>border-radius 互動練習</h1>
+<div class="sub">拖動滑桿看四個角怎麼變 · 對照下方自動產生的縮寫寫法 · 搭配筆記 05-1 一起看</div>
+
+<div class="card">
+  <h2>即時預覽</h2>
+  <div class="pills">
+    <span class="pill" data-v="0,20,40,20">原題 0 20 40（三值）</span>
+    <span class="pill" data-v="9999,9999,9999,9999">膠囊 pill</span>
+    <span class="pill" data-v="75,75,75,75">正圓 50%</span>
+    <span class="pill" data-v="0,60,0,60">葉子形</span>
+    <span class="pill" data-v="0,0,0,0">歸零</span>
+  </div>
+  <div class="stage">
+    <div id="box"></div>
+    <div class="sliders">
+      <div class="row"><label>左上 TL</label><input type="range" id="tl" min="0" max="100" value="0"><output id="otl">0</output></div>
+      <div class="row"><label>右上 TR</label><input type="range" id="tr" min="0" max="100" value="20"><output id="otr">20</output></div>
+      <div class="row"><label>右下 BR</label><input type="range" id="br" min="0" max="100" value="40"><output id="obr">40</output></div>
+      <div class="row"><label>左下 BL</label><input type="range" id="bl" min="0" max="100" value="20"><output id="obl">20</output></div>
+    </div>
+  </div>
+  <pre id="out"></pre>
+</div>
+
+<div class="card">
+  <h2>填空自測（點一下黃色方塊顯示答案，再點一下藏回去）</h2>
+  <div class="toolbar"><button id="toggleAll">全部顯示 / 全部隱藏</button></div>
+
+  <div class="q"><p>(1) 四值寫法從 <span class="blank">左上角</span> 開始，方向是 <span class="blank">順時鐘</span>。</p></div>
+  <div class="q"><p>(2) 三值時，中間那個值同時管 <span class="blank">右上角</span> 與 <span class="blank">左下角</span>。</p></div>
+  <div class="q"><p>(3) border-radius 省略時是補 <span class="blank">對角</span>，margin 省略時是補 <span class="blank">對邊</span>。</p></div>
+  <div class="q"><p>(4) 斜線 <code>/</code> 前面是 <span class="blank">水平半徑</span>，後面是 <span class="blank">垂直半徑</span>。</p></div>
+  <div class="q"><p>(5) <code>border-radius: 50%</code> 用在長方形上會得到 <span class="blank">橢圓</span>，因為水平看寬度、垂直看 <span class="blank">高度</span>。</p></div>
+</div>
+
+<div class="card">
+  <h2>是非題</h2>
+  <div class="q tf" data-ans="F">
+    <p>(1) border-radius 的縮寫順序跟 margin 一樣，都是上、右、下、左。</p>
+    <button data-p="T">是</button><button data-p="F">非</button>
+    <div class="fb">✕ 錯。margin 是四個「邊」繞圈，border-radius 是四個「角」順時鐘且以對角補值，兩者邏輯不同。</div>
+  </div>
+  <div class="q tf" data-ans="T">
+    <p>(2) <code>border-radius: 0px 20px 40px;</code> 的左下角是 20px。</p>
+    <button data-p="T">是</button><button data-p="F">非</button>
+    <div class="fb">✓ 對。第二個值同時管右上與左下這組對角。</div>
+  </div>
+  <div class="q tf" data-ans="F">
+    <p>(3) 半徑寫得比元素還大時，瀏覽器會拋出樣式錯誤並忽略整條宣告。</p>
+    <button data-p="T">是</button><button data-p="F">非</button>
+    <div class="fb">✕ 錯。瀏覽器會把所有半徑乘上同一個縮放係數直到塞得下，所以 9999px 可以安全做膠囊形。</div>
+  </div>
+  <div class="q tf" data-ans="T">
+    <p>(4) 不寫斜線時，每個角的垂直半徑預設等於水平半徑。</p>
+    <button data-p="T">是</button><button data-p="F">非</button>
+    <div class="fb">✓ 對。所以預設的圓角是正圓弧而不是橢圓弧。</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>申論題（先自己講一遍，再展開對照）</h2>
+  <details><summary>Q1 為什麼 border-radius 用「對角」補值，而 margin 用「對邊」補值？這樣設計的道理是什麼？</summary>
+    <p>參考方向：margin 描述的是四條「邊」的距離，視覺上對稱的是上下一組、左右一組，所以兩值寫法讓上下同值、左右同值最直覺。border-radius 描述的是四個「角」，一個矩形在視覺上的對稱軸是兩條對角線，讓對角同值才能得到常見的對稱造型（例如聊天泡泡、票券缺角）。兩者補值規則不同，是因為它們描述的幾何對象與常見對稱需求不同，不是規範不一致。</p></details>
+  <details><summary>Q2 團隊 code review 時，你會建議統一寫四值、還是允許用縮寫？請說出理由與取捨。</summary>
+    <p>參考方向：可主張「四值或長寫法」優先，理由是省略規則需要讀者在腦中還原，容易在維護時改錯角；縮寫的好處是行數短、diff 小。折衷做法是把常用圓角抽成 CSS 變數（--radius-sm/md/pill）由設計系統統一提供，一般元件只寫變數不寫數值，只有特殊造型才允許手寫四值並加註解。這樣兼顧可讀性與一致性。</p></details>
+  <details><summary>Q3 要做一個「左上與右下是直角、右上與左下是大圓角」的卡片，你會怎麼寫？為什麼三值寫法在這裡剛好夠用？</summary>
+    <p>參考方向：<code>border-radius: 0 40px;</code> 兩值就夠——第一值管左上＋右下（0），第二值管右上＋左下（40px），剛好對應題目的兩組對角。這正好是「對角補值」規則的最佳使用時機；若需求換成「上面兩角圓、下面兩角直」，對角規則就幫不上忙，必須寫成四值 <code>border-radius: 20px 20px 0 0;</code>。</p></details>
+</div>
+
+<footer>由 Gemini 對話自動整理 · 搭配筆記 05-1-border-radius-縮寫順序與橢圓圓角 · 更新於 2026-08-08</footer>
+</div>
+
+<script>
+(function(){
+  var ids=['tl','tr','br','bl'];
+  var box=document.getElementById('box'), out=document.getElementById('out');
+  function render(){
+    var v=ids.map(function(i){return +document.getElementById(i).value;});
+    ids.forEach(function(i,k){document.getElementById('o'+i).textContent=v[k];});
+    box.style.borderRadius=v.map(function(x){return x+'px';}).join(' ');
+    var short;
+    if(v[0]===v[1]&&v[1]===v[2]&&v[2]===v[3]) short=v[0]+'px';
+    else if(v[0]===v[2]&&v[1]===v[3]) short=v[0]+'px '+v[1]+'px';
+    else if(v[1]===v[3]) short=v[0]+'px '+v[1]+'px '+v[2]+'px';
+    else short=v.map(function(x){return x+'px';}).join(' ');
+    out.textContent =
+      '/* 最短縮寫 */\nborder-radius: '+short+';\n\n'+
+      '/* 四值完整寫法：左上 | 右上 | 右下 | 左下 */\n'+
+      'border-radius: '+v.map(function(x){return x+'px';}).join(' ')+';\n\n'+
+      '/* 長寫法 */\n'+
+      'border-top-left-radius: '+v[0]+'px;\n'+
+      'border-top-right-radius: '+v[1]+'px;\n'+
+      'border-bottom-right-radius: '+v[2]+'px;\n'+
+      'border-bottom-left-radius: '+v[3]+'px;';
+  }
+  ids.forEach(function(i){document.getElementById(i).addEventListener('input',render);});
+  document.querySelectorAll('.pill').forEach(function(p){
+    p.addEventListener('click',function(){
+      var a=p.dataset.v.split(',');
+      ids.forEach(function(i,k){document.getElementById(i).value=Math.min(100,+a[k]);});
+      render();
+    });
+  });
+  render();
+
+  document.querySelectorAll('.blank').forEach(function(b){
+    b.addEventListener('click',function(){b.classList.toggle('show');});
+  });
+  document.getElementById('toggleAll').addEventListener('click',function(){
+    var all=document.querySelectorAll('.blank');
+    var anyHidden=[].some.call(all,function(x){return !x.classList.contains('show');});
+    all.forEach(function(x){x.classList.toggle('show',anyHidden);});
+  });
+
+  document.querySelectorAll('.tf').forEach(function(q){
+    q.querySelectorAll('button').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var ok=btn.dataset.p===q.dataset.ans;
+        q.querySelectorAll('button').forEach(function(b){b.className='';});
+        btn.className=ok?'ok':'no';
+        q.querySelector('.fb').classList.add('on');
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

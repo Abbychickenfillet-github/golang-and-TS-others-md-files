@@ -8,7 +8,8 @@ sources:
   - https://gemini.google.com/app/b3a4ebdfa5b4754d
   - https://gemini.google.com/app/296e1a879bb61062
   - https://gemini.google.com/app/d54c36b18b457e25
-updated: 2026-07-02
+  - https://gemini.google.com/app/7461a8e128a56871
+updated: 2026-08-06
 ---
 
 # JavaScript 事件循環 Event Loop（微任務 vs 巨任務）
@@ -140,6 +141,38 @@ Abby 請 Gemini「畫給我看」，其產生的示意圖標題為 **「工作�
 
 > 延伸：本主題與「閉包」「執行緒 vs 非同步 vs 延遲」緊密相關，可一起複習。
 
+### 追加 2026-08-06：Callback（回呼函式）的精確定義與範例
+
+> 本次追加為獨立小節（(a)–(c) 局部標號，未併入本篇原有連續編號）。起點：在複習 Call Stack／Event Loop 時追問「Callback 的定義是什麼」。
+
+(a) <mark style="background: #ADCCFFA6;">定義</mark>：Callback（回呼函式）是把一個函式當作參數，傳遞給另一個函式，並在該外部函式內部被呼叫執行。核心價值是<mark style="background: #FFF3A3A6;">控制執行的時機</mark>——不是立刻執行這段程式碼，而是告訴系統「當特定動作發生或任務完成時，回頭呼叫並執行這段程式碼」。
+
+(b) 依執行時機分兩種：
+
+- **同步 Callback**：主程式碼執行當下立刻被執行，如 `numbers.map(num => num * 2)`，傳入的箭頭函式就是 Callback，`map` 會立刻依序執行它。
+- **非同步 Callback**：不會立刻執行，交由 Web APIs 背景處理，等特定條件達成（計時結束、使用者點擊、伺服器回傳資料）後才透過 Event Loop 送回 Call Stack 執行，如 `btn.addEventListener('click', function onClick(){...})`。
+
+(c) 自訂 Callback 結構範例：
+
+```javascript
+// 1. 建立一個接收 Callback 的外部函式
+function processUserInput(name, callbackFn) {
+  console.log("系統正在讀取資料...");
+  // 3. 在外部函式內部，執行剛才傳進來的 callbackFn
+  callbackFn(name);
+}
+
+// 2. 準備要被當作 Callback 傳遞的獨立函式
+function greet(userName) {
+  console.log("歡迎回來，" + userName);
+}
+
+// 4. 呼叫函式並傳入 Callback
+processUserInput("Abby", greet);
+```
+
+<mark style="background: #FF5582A6;">重點陷阱</mark>：傳遞 `greet` 時後方**不能加 `()`**，因為要「傳遞函式本身」，而不是「傳遞函式執行後的結果」——加了 `()` 會變成立刻呼叫 `greet()` 並把它的回傳值（`undefined`）當參數傳進去，而不是把函式本體交給 `processUserInput` 之後再呼叫。
+
 ## 各對話來源
 
 ### JavaScript 事件循環核心觀念複習（2026-06-30）— https://gemini.google.com/app/82167bcb1c15c00c
@@ -163,3 +196,9 @@ Gemini：（以示意圖回答，內容已轉錄於上方「工作佇列 vs 呼�
 ### JavaScript 事件循環核心觀念複習（2026-07-02）— https://gemini.google.com/app/296e1a879bb61062 、 https://gemini.google.com/app/d54c36b18b457e25
 
 （與 82167bcb1c15c00c 為同一套「Event Loop → 閉包 → C++ 閉包 → 皮夾傳址 → 函式物件 vs 方法」複習流程的重複對話，內容已整併於本篇與「閉包 Closure」筆記，此處僅保留來源連結。）
+
+### JavaScript 事件循環機制解析（2026-08-05）— https://gemini.google.com/app/7461a8e128a56871
+
+使用者：Callback的執行緒event loop, Call stack相關概念解說 ／ Callback的定義是什麼
+
+Gemini：JS 是單執行緒語言，結合 Call Stack、Web APIs、Callback Queue、Event Loop 達成非同步處理；以 `setTimeout` 範例逐步解析 Call Stack 進出、Web APIs 背景計時、Callback Queue 排隊、Event Loop 搬移任務六步驟；MicroTask（Promise.then 等）優先於 MacroTask（setTimeout 等）。Callback 定義為「把函式當參數傳給另一函式，在其內部被呼叫執行，用來控制執行時機」，分同步（如 `map`）與非同步（如 `addEventListener`）兩種，並給出 `processUserInput`/`greet` 自訂範例，強調傳遞函式時不可加 `()`。整合進上方「追加 2026-08-06」小節。

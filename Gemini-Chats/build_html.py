@@ -95,6 +95,10 @@ th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-ali
 th{background:#f1ecf8;}
 tbody tr:nth-child(even){background:#faf8fd;}
 mark{padding:.5px 3px;border-radius:3px;}
+mark.y{background:#FFF3A3;} mark.r{background:#FF5582;} mark.g{background:#BBFABB;}
+mark.b{background:#ADCCFF;} mark.p{background:#FFB8EB;} mark.v{background:#D2B3FF;}
+mark.hidden{color:transparent;background:#d8d3c9;border-radius:3px;user-select:none;}
+mark.hidden *{color:transparent!important;}
 blockquote{margin:12px 0;padding:6px 14px;border-left:4px solid var(--line);color:var(--muted);background:#faf9f6;border-radius:6px;}
 .callout{margin:14px 0;padding:12px 16px;border-left:6px solid #888;background:#faf9fc;
  border-radius:10px;}

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Test Harness 傳統測試框架與 AI Harness 差異</title>
+<style>
+:root{--bg:#fbfaf7;--card:#ffffff;--ink:#2b2b2b;--muted:#6b6b6b;--line:#e7e3da;--accent:#7c6f9b;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 22px 64px;}
+header.note-head{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:26px;}
+h1.title{font-family:Georgia,"Songti TC",serif;font-size:30px;margin:0 0 12px;line-height:1.3;}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0;}
+.pill{background:#efeaf7;color:#5b4f7a;border:1px solid #ded3f0;border-radius:999px;
+ padding:3px 11px;font-size:12.5px;}
+.meta{color:var(--muted);font-size:13px;margin-top:6px;}
+.meta a{color:var(--accent);}
+.toolbar{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap;}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+ padding:7px 14px;font-size:13.5px;color:#4a4458;box-shadow:0 1px 0 rgba(0,0,0,.02);}
+.btn:hover{background:#f4f1fb;}
+h2{font-size:21px;margin:34px 0 12px;padding-left:11px;border-left:5px solid var(--accent);}
+h3{font-size:17px;margin:22px 0 8px;color:#3b3550;}
+h4{font-size:15px;margin:16px 0 6px;color:#574f6b;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:16px 0;box-shadow:0 2px 10px rgba(60,50,90,.04);}
+p{margin:10px 0;}
+ul,ol{margin:8px 0 8px 4px;padding-left:22px;}
+li{margin:5px 0;}
+code{background:#f1eef8;border-radius:5px;padding:1px 6px;font-size:.92em;
+ font-family:"SFMono-Regular",Consolas,"Cascadia Code",monospace;}
+pre{background:#1f1b2e;color:#eee;border-radius:11px;padding:15px 16px;overflow-x:auto;
+ font-size:13.5px;line-height:1.6;}
+pre code{background:none;padding:0;color:inherit;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
+th{background:#f1ecf8;}
+tbody tr:nth-child(even){background:#faf8fd;}
+mark{padding:.5px 3px;border-radius:3px;}
+mark.y{background:#FFF3A3;} mark.r{background:#FF5582;} mark.g{background:#BBFABB;}
+mark.b{background:#ADCCFF;} mark.p{background:#FFB8EB;} mark.v{background:#D2B3FF;}
+mark.hidden{color:transparent;background:#d8d3c9;border-radius:3px;user-select:none;}
+mark.hidden *{color:transparent!important;}
+blockquote{margin:12px 0;padding:6px 14px;border-left:4px solid var(--line);color:var(--muted);background:#faf9f6;border-radius:6px;}
+.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #888;background:#faf9fc;
+ border-radius:10px;}
+.callout-title{font-weight:700;margin-bottom:4px;}
+.callout-body>:first-child{margin-top:0;}
+.callout-body>:last-child{margin-bottom:0;}
+.src-turn{margin:14px 0;}
+.src-user{background:#eef4ff;border-left:4px solid #ADCCFF;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.src-gem{background:#f4f1ec;border-left:4px solid #cdbfa6;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.role{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:#7a6f55;display:block;margin-bottom:3px;}
+.src-user .role{color:#3f63a8;}
+.spoiler{background:#3b3550;color:transparent;border-radius:5px;padding:1px 8px;cursor:pointer;
+ transition:.15s;user-select:none;box-shadow:inset 0 0 0 1px #ccc;}
+.spoiler::after{content:"　點此看答案　";color:#cdbfe8;font-size:.85em;}
+.spoiler.on{background:#e7ffe7;color:#1c5e1c;box-shadow:inset 0 0 0 1px #BBFABB;user-select:text;}
+.spoiler.on::after{content:"";}
+footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);
+ color:var(--muted);font-size:12.5px;text-align:center;}
+</style></head><body><div class="wrap">
+<header class="note-head"><h1 class="title">Test Harness 傳統測試框架與 AI Harness 差異</h1>
+<div class="pills"><span class="pill">#gemini</span><span class="pill">#test-harness</span><span class="pill">#ai-harness</span><span class="pill">#agent</span><span class="pill">#guardrails</span><span class="pill">#testcontainers</span><span class="pill">#evaluation</span></div><div class="meta">更新：2026-08-01　· 來源：<a href="https://gemini.google.com/app/fcf19c3919e8aeb7" target="_blank">來源1</a></div>
+<div class="toolbar"><span class="btn" onclick="toggleAll(false)">🙈 隱藏所有答案</span>
+<span class="btn" onclick="toggleAll(true)">👀 顯示所有答案</span></div>
+</header>
+<h1>Test Harness 傳統測試框架與 AI Harness 差異</h1>
+<p>本篇重點 a–n，共 14 個</p>
+<h2>重點整理</h2>
+<p>a. <mark class="b">Test Harness（測試框架/測試底層環境）定義：</mark>在單元測試或整合測試中，用來自動化執行測試、準備環境、注入依賴與模擬（Mock）輸入輸出的底層環境；在外部層級（API/服務整合測試/微服務）架設，目的是把被測系統（SUT）當黑盒，完全從外圍模擬真實相依服務。</p>
+<p>b. 外層 Harness 核心架構：Test Runner 透過 HTTP/RPC 呼叫 SUT，SUT 對外的呼叫則導向 Mock/WireMock/LocalStack/Testcontainers 等模擬服務層，讓 SUT 收到的外部回應完全可控可預測。</p>
+<p>c. <mark class="y">架設步驟：</mark>① 隔離外部依賴——REST API 用 WireMock/MSW 搭 Stub Server，資料庫/MQ/Redis 用 Testcontainers 或 Docker Compose 拉起乾淨隔離實例；② 設計 Harness 模組三個生命週期 <code>setup()</code>(啟動模擬容器)、<code>reset()</code>(每筆測試前清理狀態)、<code>teardown()</code>(釋放資源)；③ 測試案例透過統一 Harness 介面（<code>beforeAll</code>/<code>afterEach</code>/<code>afterAll</code>）專注在測試邏輯與斷言。</p>
+<p>d. <mark class="g">最佳實踐：</mark>環境變數注入（SUT 需支援用環境變數覆寫外部服務 URL，否則 Harness 無法導流到 Mock）、共享容器策略降低重建成本（每次測試前 TRUNCATE 或 reset 狀態）、Deterministic State（測試間絕不互相干擾，所有外部回應與資料庫狀態每次測試開頭重新設定）。</p>
+<p>e. <mark class="b">AI Harness 定義：</mark>包在 LLM 外層的一套控制與評測系統。因為 LLM 本質上是黑盒且具隨機性（non-deterministic），AI Harness 負責輸入處理（Prompt 模板/RAG/Guardrails）、流程控制與 Tool Call、輸出結構化與校正（JSON Schema 驗證/修復）、評估與監控（回答品質評分/Token 消耗/延遲）。</p>
+<p>f. AI Harness 架構：使用者輸入先經 Input Guardrails（安全檢查/防注入）與 Context/RAG Builder，進入 Harness Engine 與 LLM 模型（Gemini/Claude）往返，再經 Tool Call Manager（執行工具/重試）與 Output Parser（校正 JSON/Schema）、最後由 Evaluator &amp; Logger 記錄品質與 Token，才輸出最終結構化結果。</p>
+<p>g. <mark class="y">AI Harness 三大類型：</mark>① Agent Runtime Harness——控管 Agent 行動邏輯，限制思考輪數避免死迴圈、捕捉 tool_call 去執行實際 API/DB、JSON 格式錯誤時自動請 AI 修正；② Evaluation Harness（如 <code>lm-evaluation-harness</code>）——丟入 MMLU/GSM8K 等 Benchmark 題集自動計分，統計正確率與幻覺率；③ Guardrails &amp; Governance Harness——輸入過濾（Prompt Injection/PII）、輸出過濾（違規內容/JSON Schema 合規）。</p>
+<p>h. 傳統 Test Harness vs AI Harness 對照：主要對象「傳統程式碼/微服務(SUT)」vs「LLM/AI Agent」；核心挑戰「控制外部服務依賴與模擬環境」vs「控制不確定性(non-determinism)與幻覺」；主要任務「Setup DB、Mock API、執行 Assertion」vs「Guardrails、Prompt 注入、Tool 執行、格式校正、Eval 評分」。</p>
+<p>i. <mark class="g">正解：不需要為 AI 系統寫兩套業務邏輯——</mark>核心業務邏輯（結帳流程/計算折扣/抓資料庫）只寫在應用程式（Backend/API）裡；AI 負責思考、理解語言、決策與調用工具；AI Harness 是 AI 與原本系統之間的「守門員與接線生」，不是把 AI 思考邏輯重寫一遍。比喻：LLM 像能力強但偶爾犯錯的高薪顧問，AI Harness 像資深秘書——整理資料交給顧問（RAG/Context）、提醒顧問照公司格式講話（Output Validation）、顧問要做事時秘書幫忙操作內部系統（Tool Call）；業務系統才是公司真正的核心系統。</p>
+<p>j. Harness 程式碼實際在寫什麼（通常只有幾百行，或直接調用 LangChain/LlamaIndex/Vercel AI SDK）：① 結構化約束（Schema Enforcement，JSON 格式不符自動加警語重送）；② 安全防護門（Guardrails，攔截敏感詞/Prompt Injection 不送給 AI）；③ 工具橋接器（Tool Executor，AI 要呼叫某函式時 Harness 代為呼叫後端 Service，結果轉文字餵回 AI）。</p>
+<p>k. <mark class="p">業界常見 AI Harness 工具：</mark>評測類——<code>EleutherAI/lm-evaluation-harness</code>（<code>git clone</code> + <code>pip install -e .</code>，Hugging Face 排行榜背後的評測底層）、Promptfoo（<code>npx promptfoo@latest init</code>，CI/CD 用的 Prompt/RAG 測試工具）；Agent 控制類——LangChain/LangGraph（<code>npm install langchain @langchain/core</code> 或 <code>pip install langchain</code>）、Letta（前身 MemGPT，<code>pip install letta</code>，長期記憶 Agent 控制框架）；防護類——Guardrails AI（<code>pip install guardrails-ai</code>）。<mark class="r">AI Harness 不是單一叫這個名字的下載軟體，而是一種軟體設計架構/工具套件的統稱，沒有單一官網下載頁。</mark></p>
+<p>l. <mark class="r">Harness 沒有、也不可能達到 100% 準確率，</mark>原因：① LLM 底層是機率預測下一個 token，非確定性邏輯，即使 Temperature=0 仍可能在複雜語境產生幻覺或邏輯謬誤；② Prompt Injection 是無限博弈，攻擊者持續發明新越獄語法，Guardrail 規則不可能預測所有未知攻擊模式；③ 人類語言本身有歧義，語意不明時 Harness 難以 100% 判斷 AI 回答是否真正符合使用者意圖。</p>
+<p>m. 加上良好 Harness 後的量化改善（相對「無 Harness 純 LLM 直連」）：JSON 格式合法率從約 70~85% 提升到約 99.9%（自動重試修復）；幻覺控制（RAG 情境）從容易憑空捏造降至約 2~5% 以下（限定只依參考資料回答）；工具調用成功率提升到 95% 以上（型別檢查+Fallback 重試）；Prompt 攻擊防禦率可達 90~98% 以上。</p>
+<p>n. <mark class="v">業界因應「無法 100% 準確」的策略：</mark>Human-in-the-loop（高風險操作如轉帳/發正式信/改權限，Harness 只輸出「待確認動作」由人工點擊確認）、Graceful Degrade（重試 3 次仍失敗或低信心度時，直接切回傳統固定程式碼或回覆「系統繁忙」，不把壞答案丟給使用者）、持續監控與評測（用 Promptfoo/LangSmith 等每天跑幾千個邊界案例，確保更新 Prompt 或模型後準確率不下滑）。</p>
+<h2>各對話來源</h2>
+<h3>外層 Test Harness 架設指南（2026-08-01 擷取）— https://gemini.google.com/app/fcf19c3919e8aeb7</h3>
+<p><strong>使用者：</strong> 如何在外層架harness</p>
+<p><strong>Gemini：</strong> 在單元測試（Unit Test）或整合測試（Integration Test）中，Test Harness（測試架框/harness）指的是一種用來自動化執行測試、準備環境、注入依賴與模擬（Mock）輸入輸出的測試底層環境。在外部層級（例如 API、服務整合測試、或微服務架構）架設 Harness，通常是為了達成「把被測系統（SUT）當作黑盒，完全從外圍模擬真實相依服務」的目的。（架構圖、隔離外部依賴、<code>ExternalTestHarness</code> 的 <code>setup/resetState/teardown</code> TypeScript 範例、<code>describe/beforeAll/afterEach/afterAll</code> 測試案例範例，詳見「重點整理」a–d，程式碼略。）</p>
+<p><strong>使用者：</strong> Ai harness感覺跟你上面說的不太一樣</p>
+<p><strong>Gemini：</strong> 你說得完全沒錯！如果是「AI Harness」（例如 LLM Agent Harness、Evaluations Harness、或控制 LLM 輸出／行為的執行框架），概念跟傳統軟體測試的 Test Harness 確實大不相同。AI Harness 的重點不再只是「模擬外部 API」，而是為不可預測的 AI 模型建立一個「安全防護牆、輸入輸出管道與評價機制」。（架構圖、三大類型、<code>AiHarness.runWithSchema</code> 自我修正程式碼範例、傳統 vs AI Harness 對照表，詳見「重點整理」e–h，程式碼略。）</p>
+<p><strong>使用者：</strong> AI harness也是程式碼嗎？這樣不就要寫兩套？</p>
+<p><strong>Gemini：</strong> 是的，AI Harness 完全也是程式碼。至於「是不是要寫兩套」，簡短的答案是：不用寫兩套完全相同的商業邏輯，因為這兩者的角色完全不同。（角色分工說明、主管與秘書比喻，詳見「重點整理」i–j。）</p>
+<p><strong>使用者：</strong> 給我Ai harness的下載連結</p>
+<p><strong>Gemini：</strong> 理解你的困惑了！當大家在討論 AI Harness 時，它其實不是指某一個特定叫「AI Harness」的桌面軟體（所以沒有一個像 Chrome 那樣點擊下方的按鈕就能下載安裝檔的官網）。在科技界，「AI Harness」是指一種軟體設計架構（Scaffolding），或是用來包裝、評測、約束 LLM 的工具套件／開發框架（Frameworks &amp; SDKs）。（工具清單與安裝指令詳見「重點整理」k。）</p>
+<p><strong>使用者：</strong> Harness 已有100%準確率了嗎</p>
+<p><strong>Gemini：</strong> 沒有，目前完全沒有任何 AI Harness 可以達到 100% 的準確率，而且在理論與實務上都不可能達到 100%。這也是為什麼業界現在主流的說法是「降低風險（Mitigation）」，而不是「完全消除風險」。（三個不可能達 100% 的原因、量化改善對照表、業界因應策略，詳見「重點整理」l–n。）</p>
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>外層 Test Harness 架設指南對話</td>
+<td>https://gemini.google.com/app/fcf19c3919e8aeb7</td>
+<td>Gemini 對話，擷取存檔於 2026-08-01</td>
+</tr>
+<tr>
+<td>lm-evaluation-harness</td>
+<td>https://github.com/EleutherAI/lm-evaluation-harness</td>
+<td>GitHub 專案（Gemini 對話中提及，未逐一查證最新版本號）</td>
+</tr>
+<tr>
+<td>Promptfoo</td>
+<td>https://www.promptfoo.dev/</td>
+<td>官方工具（Gemini 對話中提及）</td>
+</tr>
+<tr>
+<td>Letta（前身 MemGPT）</td>
+<td>https://github.com/letta-ai/letta</td>
+<td>GitHub 專案（Gemini 對話中提及）</td>
+</tr>
+<tr>
+<td>Guardrails AI</td>
+<td>https://www.guardrailsai.com/</td>
+<td>官方工具（Gemini 對話中提及）</td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ 存疑/更正：Gemini 提到的量化數字（JSON 合法率 70~85%→99.9%、幻覺率 2~5%、工具調用成功率 95%+、Prompt 攻擊防禦率 90~98%）為業界概略經驗值，Gemini 未附出處，屬於「聽起來合理但沒有具體 benchmark 來源」的說法，Abby 若要引用建議自行查證原始研究或 vendor 文件，不宜直接當作精確數據引用。</p>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-01</footer>
+</div><script>
+function toggleAll(show){document.querySelectorAll('.spoiler').forEach(function(s){
+ if(show){s.classList.add('on');}else{s.classList.remove('on');}});}
+document.addEventListener('click',function(e){
+ if(e.target.classList&&e.target.classList.contains('spoiler')){e.target.classList.toggle('on');}});
+(function(){var l=document.createElement('link');l.rel='stylesheet';
+ l.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
+ document.head.appendChild(l);var s=document.createElement('script');
+ s.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+ s.onload=function(){try{hljs.highlightAll();}catch(e){}};document.head.appendChild(s);})();
+</script></body></html>

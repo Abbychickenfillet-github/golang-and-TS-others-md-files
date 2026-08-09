@@ -3,13 +3,17 @@ title: 進位制 — 二進制 / 十六進制 / 十進制、Bytes 與 RGB 顏色
 type: topic-note
 source: Gemini
 tags: [gemini, 計算機基礎, 進位制, binary, hex, bytes]
+related:
+  - "[[repr與物件記憶體位址的十六進位表示]]"
 sources:
   - https://gemini.google.com/app/d60ebf7c608541d8
   - https://gemini.google.com/app/fc0531d7047a3675
-updated: 2026-07-29
+updated: 2026-08-05
 ---
 
 # 進位制 — 二進制 / 十六進制 / 十進制、Bytes 與 RGB 顏色
+
+> 延伸應用：[[repr與物件記憶體位址的十六進位表示]] 把本篇第 2 節「1 個 16 進位字元＝4 bits」的換算規則，用在 Python `repr()` 印出物件記憶體位址（如 `0x1077f2f10`）的實際場景，兩篇對照看更完整。
 
 ## 重點整理
 

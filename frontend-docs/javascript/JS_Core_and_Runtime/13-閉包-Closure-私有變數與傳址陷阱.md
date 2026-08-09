@@ -6,6 +6,7 @@ tags: [gemini, javascript, closure, 閉包, 作用域, 記憶體, 面試, identi
 aliases: [閉包-Closure-私有變數與傳址陷阱]
 related:
   - "[[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]]"
+  - "[[14-詞法作用域-Lexical-Scope-面試四段式]]"
 sources:
   - https://gemini.google.com/app/82167bcb1c15c00c
   - https://gemini.google.com/app/86e4b6c70330327f
@@ -22,9 +23,9 @@ updated: 2026-07-31
 
 # JavaScript 閉包 Closure（私有變數、傳址陷阱、C++ 對比）
 
-> [!info]- 📍 承接12，目前是最後一篇
+> [!info]- 📍 承接12，銜接14
 > <mark style="background: #ADCCFFA6;">承接</mark>：[[12-return-清理記憶體-stack-frame與閉包例外]]點出「閉包會讓變數逃逸到Heap」這個現象，這篇是閉包的完整深入篇——私有變數、傳址陷阱、跟C++的對比。
-> <mark style="background: #FFF3A3A6;">目前進度</mark>：這是目前編號到13的最後一篇，14號開始接哪個主題還在跟Abby討論排法。
+> <mark style="background: #BBFABBA6;">下一步</mark>：[[14-詞法作用域-Lexical-Scope-面試四段式]]。<mark style="background: #FFF3A3A6;">關聯原因：這篇下面「兩大基石」的第一項「詞法範疇」只用一行帶過，14 把它展開成完整一篇</mark>——引擎的 `[[Environment]]` 內部欄位、outer 指標怎麼串成作用域鏈、用 node:inspector 把鏈實際印出來，並整理成面試四段式作答。簡單說：這篇是**結果與應用**，14 是它的**前提與機制**。本篇「實戰除錯：按鈕計數器」那段真實踩坑，也被 14 拿去當第四段的故事素材。
 
 ## 重點整理
 

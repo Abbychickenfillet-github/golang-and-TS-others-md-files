@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="760" viewBox="0 0 1040 760" font-family="'Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+    </marker>
+    <style>
+      .mono{font-family:'Cascadia Code','Consolas','Menlo',monospace}
+      .lbl{font-size:12px;fill:#64748b}
+      .box{fill:#ffffff;stroke:#cbd5e1}
+      .h{font-size:17px;font-weight:700;fill:#0f172a}
+    </style>
+  </defs>
+  <rect width="1040" height="760" fill="#fbfcfe"/>
+  <text x="34" y="44" font-size="24" font-weight="700" fill="#0f172a">傳值還是傳址？用「重新賦值」這一刀切開</text>
+  <text x="34" y="70" font-size="13.5" fill="#475569">關鍵：Stack 放的是「值」。物件的值是一個位址（reference）。傳進函式的是位址的複本，不是變數本身。</text>
+
+  <g transform="translate(34,96)">
+    <rect x="0" y="0" width="470" height="300" fill="#f0fdf4" stroke="#86efac" stroke-width="2" rx="12"/>
+    <text x="18" y="30" class="h" fill="#166534">情境一　改屬性 o.name = 'changed'</text>
+    <text x="18" y="54" class="mono" font-size="12.5" fill="#166534">function mutate(o){ o.name = 'changed'; }</text>
+    <text x="18" y="74" class="mono" font-size="12.5" fill="#166534">const a = { name:'origin' }; mutate(a);</text>
+
+    <text x="30" y="106" class="lbl">Stack（放值）</text>
+    <rect x="30" y="116" width="150" height="40" class="box" rx="6"/>
+    <text x="42" y="141" class="mono" font-size="13">a → 0x100</text>
+    <rect x="30" y="164" width="150" height="40" class="box" rx="6"/>
+    <text x="42" y="189" class="mono" font-size="13">o → 0x100</text>
+    <text x="30" y="224" font-size="11.5" fill="#16a34a">o 是 a 的「值的複本」</text>
+    <text x="30" y="242" font-size="11.5" fill="#16a34a">複本內容剛好也是 0x100</text>
+
+    <text x="270" y="106" class="lbl">Heap（放物件本體）</text>
+    <rect x="270" y="116" width="180" height="88" fill="#dcfce7" stroke="#22c55e" stroke-width="2" rx="6"/>
+    <text x="284" y="140" class="mono" font-size="12" fill="#166534">0x100</text>
+    <text x="284" y="164" class="mono" font-size="13">{ name: 'origin' }</text>
+    <text x="284" y="188" class="mono" font-size="13" fill="#15803d" font-weight="700">→ 'changed'</text>
+
+    <path d="M182,136 L268,146" stroke="#334155" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+    <path d="M182,184 L268,176" stroke="#334155" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+
+    <rect x="18" y="256" width="434" height="32" fill="#bbf7d0" rx="6"/>
+    <text x="30" y="277" font-size="13.5" font-weight="700" fill="#14532d">結果：a.name === 'changed'　呼叫端看得到</text>
+  </g>
+
+  <g transform="translate(534,96)">
+    <rect x="0" y="0" width="470" height="300" fill="#fef2f2" stroke="#fca5a5" stroke-width="2" rx="12"/>
+    <text x="18" y="30" class="h" fill="#991b1b">情境二　重新賦值 o = { ... }</text>
+    <text x="18" y="54" class="mono" font-size="12.5" fill="#991b1b">function reassign(o){ o = {name:'brandNew'}; }</text>
+    <text x="18" y="74" class="mono" font-size="12.5" fill="#991b1b">const b = { name:'origin' }; reassign(b);</text>
+
+    <text x="30" y="106" class="lbl">Stack（放值）</text>
+    <rect x="30" y="116" width="150" height="40" class="box" rx="6"/>
+    <text x="42" y="141" class="mono" font-size="13">b → 0x200</text>
+    <rect x="30" y="164" width="150" height="40" fill="#fee2e2" stroke="#ef4444" stroke-width="2" rx="6"/>
+    <text x="42" y="189" class="mono" font-size="13" fill="#b91c1c">o → 0x300</text>
+    <text x="30" y="224" font-size="11.5" fill="#dc2626">只有「複本」被改指向</text>
+    <text x="30" y="242" font-size="11.5" fill="#dc2626">b 這一格完全沒被動到</text>
+
+    <text x="270" y="106" class="lbl">Heap（放物件本體）</text>
+    <rect x="270" y="116" width="180" height="42" fill="#ffffff" stroke="#94a3b8" rx="6"/>
+    <text x="284" y="133" class="mono" font-size="11" fill="#64748b">0x200</text>
+    <text x="284" y="150" class="mono" font-size="12.5">{ name: 'origin' }</text>
+    <rect x="270" y="166" width="180" height="42" fill="#fee2e2" stroke="#ef4444" stroke-width="2" rx="6"/>
+    <text x="284" y="183" class="mono" font-size="11" fill="#b91c1c">0x300</text>
+    <text x="284" y="200" class="mono" font-size="12.5" fill="#b91c1c">{ name:'brandNew' }</text>
+
+    <path d="M182,136 L268,138" stroke="#334155" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+    <path d="M182,184 L268,187" stroke="#dc2626" stroke-width="1.8" fill="none" marker-end="url(#arR)"/>
+
+    <rect x="18" y="256" width="434" height="32" fill="#fecaca" rx="6"/>
+    <text x="30" y="277" font-size="13.5" font-weight="700" fill="#7f1d1d">結果：b.name 仍是 'origin'　呼叫端看不到</text>
+  </g>
+
+  <g transform="translate(34,418)">
+    <rect x="0" y="0" width="970" height="140" fill="#0f172a" rx="12"/>
+    <text x="26" y="38" font-size="18" font-weight="700" fill="#f8fafc">判定標準</text>
+    <text x="26" y="70" font-size="14" fill="#e2e8f0">真正的 pass by reference（例如 C++ 的 int&amp;、C# 的 ref），情境二會連呼叫端的變數一起改掉。</text>
+    <text x="26" y="96" font-size="14" fill="#e2e8f0">JavaScript 沒有任何語法做得到這件事，所以結論是：</text>
+    <text x="26" y="126" font-size="16" font-weight="700" fill="#4ade80">JavaScript 一律 pass by value；當值是物件時，被複製的是「位址」這個值。</text>
+  </g>
+
+  <g transform="translate(34,578)">
+    <rect x="0" y="0" width="970" height="118" fill="#eff6ff" stroke="#93c5fd" rx="12"/>
+    <text x="26" y="34" font-size="16" font-weight="700" fill="#1e40af">這個模式有正式名字：call by sharing（共享傳遞）</text>
+    <text x="26" y="62" font-size="13.5" fill="#1e3a8a">a. 由 Barbara Liskov 為 CLU 語言提出，用來描述 Python、Java、Ruby、JavaScript 這一類的傳遞方式</text>
+    <text x="26" y="86" font-size="13.5" fill="#1e3a8a">b. 面試時講「pass by value，物件傳的是 reference 這個值」就完全正確，補一句 call by sharing 是加分</text>
+    <text x="26" y="110" font-size="13.5" fill="#1e3a8a">c. 只講「物件是傳址」不算錯，但無法回答情境二，會被追問到卡住</text>
+  </g>
+
+  <text x="34" y="736" font-size="11.5" fill="#94a3b8">關聯圖：學習JS_圖解_StackHeap記憶體示意圖_2026-07-28.svg　繪製 2026-08-06　所有結論皆由 Node v22 實際執行驗證</text>
+</svg>

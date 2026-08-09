@@ -117,6 +117,32 @@ TurboFan 生成的優化機器碼，內部埋了「假設檢查點（deopt guard
 
 **這解釋了一個常見的效能建議「同一個函式盡量固定傳同一種型別」**：不是因為 JS 語言本身要求型別固定，而是因為型別一直變會不斷觸發 deoptimization，讓 V8 反覆優化又放棄，效能反而比一直用 Ignition 直譯還差。
 
+### 實例：拿掉 return 的無窮迴圈，OSR 實際發生的過程
+
+> 出處：`JavaScript-practicing/smallest-divisible-digit-product.js`，把 `return i;` 拿掉後實測（見 [[JavaScript-字串方法]] 的 `String(i)` 段落）
+
+```js
+var smallestNumber = function (n, t) {
+    for (let i = n; ; i++) {           // 沒有終止條件
+        const digits = String(i).split('');
+        const product = digits.reduce((acc, digit) => acc * Number(digit), 1);
+        if (product % t === 0) {
+            // 拿掉 return i; 之後，這裡什麼都不做
+        }
+    }
+};
+```
+
+實測跑起來 5 秒內沒結束，被系統丟到背景程序，之後手動強制終止才停下來。對照上面的管線：
+
+1. **Parse + Ignition 生成 Bytecode**：只做一次，不會每圈重做
+2. **Ignition 直譯執行**：逐行跑 `String(i)`→`.split()`→`.reduce()`→`i++`，同時收集 Feedback Vector（`i`、`product` 一直是 number）
+3. **迴圈 back-edge 計數超過門檻 → 觸發 OSR**：迴圈還沒結束（沒有 return 可以走出函式），V8 直接在「執行中的這一幀」把 Ignition Bytecode 換成 TurboFan 優化機器碼，不用等函式 return
+4. **TurboFan 型別特化**：假設 `i`/`product` 永遠是 number，生出跳過泛用檢查的機器碼——迴圈跑更快，但邏輯上還是同一個沒有終止條件的迴圈，不會自己停
+5. **GC 持續回收，但主執行緒被永久佔用**：`digits`/`product` 是短命值，Heap 不會爆掉，但單執行緒的 JS 沒有機會讓出控制權，process／分頁會整個卡死，只能靠外部強制終止（例如手動 kill 該 process）
+
+一句話：**OSR 讓迴圈「跑得更快」，但不會讓迴圈「知道該停」——終止條件永遠得靠程式邏輯自己（`return`／`break`）交代清楚，引擎不會幫你補上。**
+
 ## 編譯期 vs 執行期：Creation Phase／Hoisting 算哪一邊？
 
 快速結論（完整版見 [[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]] 的 (f)(g)(h) 三節）：

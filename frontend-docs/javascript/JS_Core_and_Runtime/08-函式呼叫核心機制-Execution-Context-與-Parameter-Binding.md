@@ -1,4 +1,4 @@
----
+﻿---
 title: 函式呼叫核心機制——Execution Context、Creation Phase 與參數綁定
 type: topic-note
 tags:
@@ -20,7 +20,7 @@ related:
   - "[[return-清理記憶體-stack-frame與閉包例外]]"
   - "[[傳值vs傳址-賦值與記憶體空間]]"
   - "[[陳述式-Statement-vs-表達式-Expression]]"
-updated: 2026-07-29
+updated: 2026-08-04
 ---
 
 # 函式呼叫核心機制：Execution Context、Creation Phase execution phase與參數綁定
@@ -49,7 +49,7 @@ const person = { name: 'Abby' };
 greet.call(person, 'Hello');
 ```
 
-`greet.call(person, 'Hello')` 本身也是一個函式呼叫——呼叫的是 `Function.prototype.call` 這個方法，所以 `person` 和 `'Hello'` **都是引數表達式沒錯**，都在呼叫當下被求值。但它們流向完全不同的地方：
+`greet.call(person, 'Hello')` 本身也是一個函式呼叫——呼叫的是 `Function.prototype.call` 這個方法，所以 `person` 和 `'Hello'` **都是引數表達式（Expression，見 [[陳述式-Statement-vs-表達式-Expression]]）沒錯**，都在呼叫當下被求值。但它們流向完全不同的地方：
 
 | 引數 | 流向 | 是不是 `greet` 的 FormalParameter？ |
 |---|---|---|
@@ -60,7 +60,7 @@ greet.call(person, 'Hello');
 
 ## (c) 參數綁定是不是「宣告」？——是，而且是每次呼叫都重新做一次的真宣告
 
-函式**被呼叫**的當下（不是定義的當下），引擎執行規格內部的 `FunctionDeclarationInstantiation`：建立一個新的 **Function Environment Record**，把每個參數名稱在裡面建立**綁定（binding）**，並用這次呼叫傳入的引數值去初始化它，這一步做完函式本體才開始執行。
+函式**被呼叫**的當下（不是定義的當下），引擎執行規格內部的 `FunctionDeclarationInstantiation`：建立一個新的 **Function Environment Record**，把每個參數名稱在裡面建立**綁定（binding）**，並用這次呼叫傳入的引數值去初始化它，這一步做完函式本體才開始執行（這一段跟 [[13-閉包-Closure-私有變數與傳址陷阱]] 最早討論 `createCounter(buttonId)` 時提到的 `FunctionDeclarationInstantiation` 是同一件事，這裡是延伸拆解）。
 
 **容易搞混的地方**：引數的「值」可能是呼叫者在別的 lexical scope 早就宣告好的變數（例如 (a) 例子裡的 `a`、`b`）——但這只是說**值的來源**在別處，不代表參數本身不是真宣告。參數這個「綁定」永遠是在**被呼叫函式自己全新的 scope** 裡重新配置出來的一個儲存位置，把呼叫者那個值**複製**（原始值）或**複製參照**（物件）進去，效果上跟 `let greeting = 傳入值` 完全等價，只是引擎自動做、不用你寫關鍵字。這跟 `let x = someOuterVar` 是同一種情況：右手邊的值來自外面，但 `x` 在這裡仍是全新宣告。
 
@@ -75,18 +75,73 @@ greet.call(person, 'Hello');
 
 ```mermaid
 flowchart TD
-  FPs["FormalParameters（最外層，含可能的 ...rest）"] --> FPL["FormalParameterList（逗號分隔的整份列表）"]
-  FPL --> FP["FormalParameter（列表裡的『一個』參數）"]
-  FP -.逗號接龍，可重複多個.-> FP
+  FPs["FormalParameters（最外層）<br/>空 / 只有 rest（`...x`，收集多餘引數，見(e)）/ 一份 FormalParameterList / list+逗號+rest"] --> FPL["FormalParameterList<br/>（逗號接龍『真正發生』的地方）"]
+  FPL -. "遞迴：FormalParameterList : FormalParameterList , FormalParameter<br/>（列表對自己展開，不是 FormalParameters 對它做的）" .-> FPL
+  FPL --> FP["FormalParameter<br/>（base case：列表『裡』的一個項目）"]
   FP --> BE["BindingElement"]
-  BE --> SNB["SingleNameBinding"]
+  BE -->|單純名稱| SNB["SingleNameBinding"]
+  BE -->|解構模式| BP["BindingPattern（{a,b} 或 [a,b]）<br/>Initializer(可選)"]
   SNB --> BI["BindingIdentifier"]
   SNB -.可選.-> INIT["Initializer（= 預設值，例如 = 1）"]
-  BI --> ID["Identifier"]
+  BI --> ID["Identifier<br/>（純文字名稱＋『這是 binding target』的角色標籤）"]
   ID --> RULE["同一套命名規則：開頭限英文字母/_/$、不可用保留字…"]
 ```
 
-這條文法路徑跟 [[字面量-關鍵字-識別碼基礎]] 裡 `let x` 的 `x` 是同一種節點（都是 `Identifier`），必須遵守一樣的規則。所以「參數位置不符合 Identifier 定義」的猜測是反的——它是正牌 Identifier，只是「誰來初始化、什麼時候初始化」跟一般變數宣告不同（由呼叫時的引數決定，而不是你手寫在等號右邊的值）。
+**逐一拆解：每個節點在做什麼（宣告 vs 初始化 vs 逗號分隔在哪一層）**
+
+| 你的問題 | 答案 |
+|---|---|
+| `FormalParameters → FormalParameterList` 中間是不是新增了逗號分隔？ | **不是**。`FormalParameters` 只是最外層包裝——內容可以是空、只有 rest 參數、一份 `FormalParameterList`，或 `FormalParameterList` 後面接逗號再接 rest。**逗號接龍是 `FormalParameterList` 對自己遞迴**：規格寫 `FormalParameterList : FormalParameter` 或 `FormalParameterList : FormalParameterList , FormalParameter`——是它自己展開自己，不是 `FormalParameters` 對它做的事。上一版圖把逗號迴圈畫在 `FormalParameter` 節點上，是簡化畫法，精確位置應該在 `FormalParameterList` 這一層。 |
+| `FormalParameterList → FormalParameter`，抓出一個是不是「開始一個一個作用」的意思？ | 這一步本身**只是語法樹的組成關係**（parse time：「整份列表是由一個個 `FormalParameter` 組成的」），不是動作。「一個一個作用」是**另一個獨立的執行期演算法**做的事——`FunctionDeclarationInstantiation` 呼叫 `IteratorBindingInitialization`，才會真的按順序走訪每個 `FormalParameter`，依序對應呼叫時傳入的引數。語法樹告訴你「有哪些節點」，執行期演算法才決定「怎麼、何時處理它們」，是兩層不同的東西。 |
+| `BindingElement` 是在初始化階段還是宣告階段？ | 兩者都不是它單獨負責，時間點在**宣告之後、初始化當下**。「宣告」（幫每個參數名稱建立空的 binding 槽位，規格叫 `CreateMutableBinding`）在 `FunctionDeclarationInstantiation` **更早的步驟就對全部參數名稱一次做完**；`BindingElement`／`SingleNameBinding` 對應的執行期演算法（`IteratorBindingInitialization`）做的才是**初始化**——把呼叫時傳入的值（或用 `Initializer` 算出的預設值）真正塞進剛剛已經宣告好的那個空槽位。 |
+| `SingleNameBinding` 在做什麼？跟底下的 `BindingIdentifier` + `Initializer` 差在哪？ | 兩者不是「差在哪」，是**同一件事的兩種寫法**：`SingleNameBinding` 是 production 的**名字**，`BindingIdentifier Initializer(可選)` 是它展開後的**內容**——規格寫 `SingleNameBinding : BindingIdentifier Initializer(opt)`。往上一層看，`SingleNameBinding` 是 `BindingElement` 底下「單純名稱」這條分支，跟旁邊「解構模式」的 `BindingPattern` 分支並列——`BindingElement` 是泛用容器（可能單純名稱、可能解構），`SingleNameBinding` 專指「就是一個名字，可能帶預設值」這種最簡單的情況。 |
+| `BindingIdentifier` 做完之後下一個是 `Identifier`，所以它對識別字做了什麼？ | **沒有做任何語意加工，純粹是文法角色標籤**。`BindingIdentifier` 展開後就是 `Identifier`（或 `yield`/`await` 這兩個特例），它唯一的作用是告訴 Parser：「這個 `Identifier` 在這裡的身分是**要被拿來當一個新的 binding 名稱使用**」——用來跟同樣是 `Identifier` 節點、但用途不同的其他角色區分開來，例如**參照既有變數的值**（`IdentifierReference`，如 `foo(a)` 裡的 `a`）或**物件屬性名稱**（`IdentifierName`，如 `obj.name` 的 `name`）。真正「宣告」「初始化」的動作發生在更上層 `BindingElement`／`SingleNameBinding` 對應的**執行期演算法**身上，`Identifier` 本身只提供「這是哪個名字（文字內容）」跟「這裡的角色標記」。 |
+
+同一個字「a」，三種角色，文字本身沒被動過手腳：
+
+```js
+function foo(a) {   // 這個 a：BindingIdentifier（角色＝binding target）
+  return a + 1;      // 這個 a：IdentifierReference（角色＝讀值）
+}
+foo(3);
+const obj = { a: 1 }; // 這個 a：IdentifierName（角色＝屬性名稱，連值都不用查）
+```
+三個 `a` 是同一個文法節點 `Identifier`，字面完全一樣——差別只在「Parser 當下把它歸進哪個角色」，不是對文字做了什麼轉換。
+
+**具體範例：`function foo(a, b, c) {}` 的逗號接龍長怎樣**
+
+```mermaid
+flowchart LR
+  L1["FormalParameterList<br/>『a』（base case，還沒有逗號）"] -- "," --> L2["FormalParameterList<br/>『a, b』"]
+  L2 -- "," --> L3["FormalParameterList<br/>『a, b, c』"]
+```
+
+一條線一個逗號：`a` 自己先算一份完整的 `FormalParameterList`（base case）；每接一個逗號＋一個新參數，就長出下一份更大的 `FormalParameterList`，直到 `a, b, c` 全部接完。
+
+這條文法路徑跟 [[字面量-關鍵字-識別碼基礎]] 裡 `let x` 的 `x` 是同一種節點（都是 `Identifier`），必須遵守一樣的規則。所以「參數位置不符合 Identifier 定義」的猜測是反的——它是正牌 Identifier，只是「誰來初始化、什麼時候初始化」跟一般變數宣告不同（由呼叫時的引數決定，而不是你手寫在等號右邊的值，細節見 [[13-閉包-Closure-私有變數與傳址陷阱]] 裡 `FunctionDeclarationInstantiation` 那段）。
+
+### 白話版：置物櫃比喻（講給不熟文法的人聽）
+
+把「Identifier」想成**置物櫃上合法的名字牌**，把「初始化」想成**把東西放進置物櫃裡**——這是兩件不同的事，(d) 整段在講的就是：名字牌合不合法是一套規則，東西什麼時候被放進去是另一套規則。
+
+- `let x = 5;`：你自己走到置物櫃前，貼好名字牌「x」，**同一時間**手把「5」放進去。名字牌合法、放東西這兩件事**一起做完**。
+- `function foo(x) { ... }`：定義函式的當下，置物櫃「x」的名字牌就已經貼好了（合法，跟 `let x` 的 `x` 是同一種名字牌）——**但櫃子是空的**，沒有東西放進去。
+- `foo(10);`：要等到**呼叫的人**把 `10` 這顆球丟過來，「x」這個櫃子才真正被裝滿。裝東西的動作，是呼叫者做的，不是你寫 `function foo(x)` 那一行做的。
+
+```mermaid
+flowchart LR
+  subgraph L["let x = 5　（一般宣告）"]
+    direction LR
+    L1["貼名字牌 x"] --> L2["同一步：放進 5"]
+  end
+
+  subgraph F["function foo(x) {}　（參數宣告）"]
+    direction LR
+    F1["貼名字牌 x<br/>（定義時就有）"] -.等呼叫.-> F2["foo(10) 呼叫時<br/>才被放進 10"]
+  end
+```
+
+一句話講給小學生聽：**名字牌什麼時候貼、貼的名字合不合規定，跟東西什麼時候放進去、誰放的，是兩件完全不同的事**——`let` 是自己貼牌子自己放東西；函式參數是你先貼好空牌子，東西要等別人（呼叫者）打電話給你、把東西送過來才會有。
 
 ### 附註：`FormalParameterList` 這個名字，我看得到它的「值」嗎？——看不到，它是規格文字，不是執行期物件
 
@@ -245,12 +300,12 @@ Parse（[[V8引擎完整管線-Parse到Deoptimization]] 裡 Scanner→Parser→A
 
 ```mermaid
 flowchart TD
-  A["原始碼 function greet(greeting) {...}"] --> B["Parse（只做一次／可能 lazy）\nScanner → Parser → AST\nScope Analysis：這個變數有沒有被閉包捕獲？"]
-  B --> C["編譯期產物：Bytecode\n（可重複使用，不用每次呼叫都重新解析）"]
-  C --> D{"每次呼叫 greet(...)\n都重新執行一次下面兩步"}
-  D --> E["① Creation Phase 建立執行環境\n建立 Function Environment Record\n建立參數綁定並用傳入值初始化\nvar / function 宣告 Hoisting"]
-  E --> F["② Execution Phase\n逐行真的執行函式本體"]
-  F --> G["return → Pop Stack Frame\n見 [[return-清理記憶體-stack-frame與閉包例外]]"]
+  A["原始碼 function greet(greeting) {...}"] --> B["Parse（只做一次／可能 lazy）<br/>Scanner → Parser → AST<br/>Scope Analysis：這個變數有沒有被閉包捕獲？"]
+  B --> C["編譯期產物：Bytecode<br/>（可重複使用，不用每次呼叫都重新解析）"]
+  C --> D{"每次呼叫 greet(...)<br/>都重新執行一次下面兩步"}
+  D --> E["① Creation Phase 建立執行環境<br/>建立 Function Environment Record<br/>建立參數綁定並用傳入值初始化<br/>var / function 宣告 Hoisting"]
+  E --> F["② Execution Phase<br/>逐行真的執行函式本體"]
+  F --> G["return → Pop Stack Frame<br/>見 [[return-清理記憶體-stack-frame與閉包例外]]"]
   G --> D
 ```
 

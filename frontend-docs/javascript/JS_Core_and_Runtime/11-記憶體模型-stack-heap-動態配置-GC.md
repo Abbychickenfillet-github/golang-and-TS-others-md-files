@@ -1,4 +1,4 @@
----
+﻿---
 title: 垃圾回收 GC 與記憶體模型——Stack／Heap／動態配置
 type: topic-note
 tags: [javascript, gc, garbage-collection, memory, v8, heap, stack, JS_Core_and_Runtime]
@@ -8,7 +8,7 @@ related:
   - "[[V8引擎完整管線-Parse到Deoptimization]]"
   - "[[閉包-Closure-私有變數與傳址陷阱]]"
   - "[[傳值vs傳址-賦值與記憶體空間]]"
-updated: 2026-07-29
+updated: 2026-08-04
 ---
 
 # 垃圾回收 GC 與記憶體模型：Stack／Heap／動態配置
@@ -57,9 +57,9 @@ V8 的 GC（Orinoco）盡量把工作丟到**背景執行緒**做，減少對主
 
 ```mermaid
 flowchart TD
-    A["Root 集合：全域變數、目前 Call Stack 上每個 Frame 的區域變數、\n閉包環境（Context）裡被引用的變數"] --> B["Mark 階段：從每個 Root 出發，\n順著引用關係走訪，把摸得到的物件都標記『活著』"]
+    A["Root 集合：全域變數、目前 Call Stack 上每個 Frame 的區域變數、<br/>閉包環境（Context）裡被引用的變數"] --> B["Mark 階段：從每個 Root 出發，<br/>順著引用關係走訪，把摸得到的物件都標記『活著』"]
     B --> C{"Heap 上還有沒被標記到的物件？"}
-    C -- 有 --> D["這些是『不可達（Unreachable）』的垃圾\n（沒有任何 Root 能經由引用鏈走到它們）"]
+    C -- 有 --> D["這些是『不可達（Unreachable）』的垃圾<br/>（沒有任何 Root 能經由引用鏈走到它們）"]
     D --> E["Sweep 階段：回收這些垃圾佔用的記憶體空間"]
     C -- 沒有 --> F["全部物件都活著，這輪不用清"]
 ```
@@ -78,6 +78,20 @@ V8 觀察到一個經驗法則（**世代假說 Generational Hypothesis**）：*
 ## (g) 什麼情況可以完全不驚動 GC？
 
 [[V8引擎完整管線-Parse到Deoptimization]] 裡 TurboFan 的 **Escape Analysis（逃逸分析）**：如果 TurboFan 能證明某個物件**完全不會逃出目前函式**（沒被回傳、沒被存到外部、沒被閉包捕獲），甚至可以**直接不把它配置在 Heap 上**，改成幾個獨立的暫存器純量值——這種物件從頭到尾沒進過 Heap，GC 根本不需要管它，是比「GC 清得快」更進一步的「乾脆不用 GC」。
+
+## 補充：怎麼避免物件「無法被 GC」（常見洩漏成因與對策）
+
+(e) 講過判準是**可達性**——只要 Root 還能順著引用鏈走到某物件，它就永遠不會被回收。所以「避免無法被 GC」＝**主動切斷不再需要的引用鏈**：
+
+| 常見成因 | 對策 |
+|---|---|
+| 忘記 `removeEventListener` | DOM 節點移除前先解除監聽器，否則監聽器閉包會一直抓著它 |
+| 忘記 `clearInterval`/`clearTimeout` | timer 的 callback closure 會一直被計時器引用，永遠可達 |
+| 閉包意外多抓了不需要的大變數 | 只留真正要用的變數；不需要的設 `null` 或搬到更小的 scope |
+| 全域變數／快取（Map、陣列）一直塞東西不清 | 用完 `delete`／`.splice()`／設 `null` 主動斷開；跟著物件生命週期存活的關聯資料改用 `WeakMap`/`WeakSet`（物件被回收時，弱引用的 entry 會自動消失，不會多一條可達路徑） |
+| React `useEffect` 忘記 cleanup（訂閱、監聽器） | `return () => { ... }` 裡對稱地解除訂閱／監聽 |
+
+一句話：GC 只看「還連不連得到」，不看「你用不用得到」——你要做的不是「叫它清掉」，是**讓它連不到**。
 
 ## (h) 對照總結
 

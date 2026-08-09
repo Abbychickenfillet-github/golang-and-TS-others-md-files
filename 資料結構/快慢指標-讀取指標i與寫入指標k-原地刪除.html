@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>快慢指標 — 讀取指標 i 與寫入指標 k（原地刪除）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>快慢指標 — 讀取指標 i 與寫入指標 k（原地刪除）</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#演算法</span><span class="pill">#two-pointers</span><span class="pill">#python</span><span class="pill">#leetcode</span><span class="pill">#面試</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/78e58415cd5e5c39" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><p>本篇重點 a–i，共 9 個</p>
+</section><section class="card"><h2>重點整理</h2>
+<p>(a) <mark style="background: #FF5582A6;">最初的誤解</mark>：Abby 以為寫在迴圈外的 <code>k = 0</code> 會「自己跟著陣列元素數量跑」。<mark style="background: #BBFABBA6;">實際上不會</mark>——<code>k = 0</code> 只是把一個變數初始化為 0，它的值<mark style="background: #FFF3A3A6;">只有在程式碼真的執行到 <code>k += 1</code> 那一行時才會改變</mark>。</p>
+<p>(b) <mark style="background: #ADCCFFA6;">真正控制跑動次數的是 <code>for i in range(0, len(nums)):</code></mark>，跟 <code>k</code> 完全無關。</p>
+<p>(c) <mark style="background: #ADCCFFA6;"><code>len(nums)</code></mark>：回傳陣列元素總個數。例如 <code>nums = [3, 2, 2, 3]</code> → <code>len(nums)</code> 是 <code>4</code>。</p>
+<p>(d) <mark style="background: #ADCCFFA6;"><code>range(0, len(nums))</code></mark>：產生整數序列，<mark style="background: #FFB8EBA6;">包含開頭、不包含結尾</mark>。長度 4 時 <code>range(0, 4)</code> 產生 <code>0, 1, 2, 3</code>，正好對應陣列每個位置的索引值（Index）。</p>
+<p>(e) <mark style="background: #ADCCFFA6;"><code>for i in ...</code></mark>：迴圈變數 <code>i</code> 每輪依序取得序列裡的值（0 → 1 → 2 → 3），直到所有索引都巡訪完畢。</p>
+<p>(f) <mark style="background: #FFF3A3A6;">i 與 k 的分工（本篇核心）</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>指標</th>
+<th>別名</th>
+<th>由誰推進</th>
+<th>職責</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>i</code></td>
+<td>讀取指標／<mark style="background: #ADCCFFA6;">快指標（Fast Pointer）</mark></td>
+<td><code>for</code> 迴圈自動推進，每輪 +1</td>
+<td>從頭到尾檢查陣列中每一個元素</td>
+</tr>
+<tr>
+<td><code>k</code></td>
+<td>寫入指標／<mark style="background: #ADCCFFA6;">慢指標（Slow Pointer）</mark></td>
+<td>我們手動 <code>k += 1</code></td>
+<td>只有當 <code>nums[i]</code> 通過條件時，才把值寫入 <code>nums[k]</code> 並前進</td>
+</tr>
+</tbody>
+</table>
+<p>(g) <mark style="background: #BBFABBA6;">典型寫法（LeetCode 27. Remove Element）</mark>：</p>
+<pre><code class="language-python">def removeElement(nums, val):
+    k = 0                              # 寫入指標，同時也是「保留下來的元素個數」
+    for i in range(0, len(nums)):      # 讀取指標，逐一掃過每個位置
+        if nums[i] != val:             # 通過條件才寫回去
+            nums[k] = nums[i]
+            k += 1                     # 只有寫入成功時才前進
+    return k                           # nums[:k] 就是答案
+</code></pre>
+<p>(h) <mark style="background: #FFF3A3A6;">為什麼 <code>k</code> 最後就是答案長度</mark>：因為 <code>k</code> 每次 <code>+= 1</code> 都代表「多保留了一個元素」，掃完整個陣列後 <code>k</code> 自然等於保留下來的元素個數。<mark style="background: #FFB8EBA6;">時間複雜度 O(n)、空間複雜度 O(1)</mark>，這就是「原地（In-place）」演算法的價值。</p>
+<p>(i) <mark style="background: #D2B3FFA6;">次要備註</mark>：<code>k</code> 永遠不會超過 <code>i</code>（<code>k &lt;= i</code> 恆成立），所以寫入 <code>nums[k]</code> 絕對不會覆蓋掉「還沒被 <code>i</code> 讀過」的資料——這是快慢指標能安全原地覆寫的關鍵前提，面試時常被追問。</p>
+</section><section class="card"><h2>相關筆記</h2>
+<ul>
+<li>[[冒泡排序法-range參數與時間複雜度]]（同樣在拆解 Python <code>range()</code> 的邊界與迴圈次數；該篇的兩層迴圈是 O(n²)，本篇的單層雙指標是 O(n)，正好對照「用兩個指標取代兩層迴圈」的優化思路）</li>
+<li>[[C-C++-的-node-與-void-寫法]]（同屬資料結構基礎；該篇談指標在 C／C++ 是真的記憶體位址，本篇的「指標」其實是索引值 index，名字一樣但概念不同，避免混淆）</li>
+<li>[[費米問題-Fermi-Estimation-面試估算技巧]]（同為面試準備素材；該篇練估算與拆解，本篇練白板演算法，都是技術面試常考題型）</li>
+</ul>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3><code>i</code> 與 <code>k</code> 指標的區別（2026-08-06）— https://gemini.google.com/app/78e58415cd5e5c39</h3>
+<p>使用者：這邊 <code>k=0</code> 會依照陣列元素數量來跑嗎？那 <code>for i in range(0, len(nums)):</code> 解釋一下。<br />
+Gemini：<code>k = 0</code> 不會依照陣列元素數量自動跑動，它只是把變數初始化為 0 的指標（或計數器），數值只有在執行到 <code>k += 1</code> 時才會改變。真正依照陣列元素數量控制跑動次數的是 <code>for i in range(0, len(nums)):</code>。接著逐層拆解 <code>len(nums)</code>（元素總個數）、<code>range(0, len(nums))</code>（含頭不含尾的索引序列）、<code>for i in ...</code>（每輪依序取值），最後說明 <code>i</code> 是由 for 迴圈自動推進的讀取指標／快指標，<code>k</code> 是手動控制的寫入指標／慢指標，只有當 <code>nums[i]</code> 滿足條件時才寫入 <code>nums[k]</code> 並 <code>k += 1</code>。</p>
+<blockquote>
+<p>⚠️ 補充說明：對話中只給了概念，沒有給完整可執行的程式碼；(g)、(h)、(i) 的完整範例、複雜度與 <code>k &lt;= i</code> 不變式是對照 LeetCode 27 官方題解後補上的，非 Gemini 原文。</p>
+</blockquote>
+</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>對話原始出處</td>
+<td>https://gemini.google.com/app/78e58415cd5e5c39</td>
+<td>2026-08-07 查證</td>
+</tr>
+<tr>
+<td>LeetCode 27. Remove Element</td>
+<td>https://leetcode.com/problems/remove-element/</td>
+<td>雙指標原地刪除標準題，2026-08-07 查證</td>
+</tr>
+<tr>
+<td>Python 官方文件 <code>range()</code></td>
+<td>https://docs.python.org/3/library/stdtypes.html#range</td>
+<td>含頭不含尾（half-open）行為，Python 3.13 文件，2026-08-07 查證</td>
+</tr>
+</tbody>
+</table></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-07</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>

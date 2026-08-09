@@ -2,7 +2,9 @@
 
 > 路徑：frontend-docs / javascript / 原生function / 原生函式與js引擎-v8
 > 相關：[[iife-是否算原生function]]
-> MDN parseInt：<https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/parseInt>
+> MDN parseInt：<https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Re89etCount(c => c+1) 呼叫時,實際發生什麼
+
+1. dispatch(也就是你拿到的 setCount)是一個 closure,在最初 useState() 建立時就已經用 bind 把 fiber 指標跟 queue 指標「綁死」在這個函式的閉包環境裡。所以之後不管在哪個 call stack 裡呼叫它(例如 onClick handler,此時原本 render 的 call stackference/Global_Objects/parseInt>
 
 ## 起點問題：「引擎內建的原生函式，是指 V8 嗎？」
 

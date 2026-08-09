@@ -14,6 +14,7 @@ updated: 2026-07-29
 > [!info]- 📍 承接04，銜接06
 > <mark style="background: #ADCCFFA6;">承接</mark>：[[04-變數宣告-let-const-var]]宣告了變數之後，變數能在哪裡被讀寫，是由作用域決定的——而且是**寫程式當下（編譯期）就決定**，不用等執行。
 > <mark style="background: #BBFABBA6;">下一步</mark>：作用域是JS原生就有的編譯期概念；下一篇[[06-靜態檢查vs動態檢查-TS-vs-JS]]看TypeScript怎麼在這之上再疊加一層型別的編譯期檢查。
+> <mark style="background: #FFF3A3A6;">深入篇</mark>：[[14-詞法作用域-Lexical-Scope-面試四段式]]。<mark style="background: #ADCCFFA6;">關聯原因：這篇是「有哪幾種作用域」的分類（Global／Function／Block，是名詞）；14 是「這些作用域憑什麼被串成一條鏈、什麼時候定案」的機制（是動詞）</mark>，並附上用 node:inspector 把真實 scope chain 印出來的實測、以及面試四段式作答結構。這篇文末補充的 Lexical Scope 段落就是在 14 展開的。
 
 > 作用域決定變數「在哪裡可以被訪問，在哪裡會被關在門外」，是面試與實戰超高頻考點。
 
@@ -76,6 +77,27 @@ bar();
 ```
 
 `foo()` 定義時上層作用域就是 Global；內部找不到 `name` 就往外層找，這個鏈結叫 <mark style="background: #FFF3A3A6;">Scope Chain</mark>。
+
+**考點三：Callback 函式的參數，作用域只在 callback 自己裡面**
+
+> 出處：`JavaScript-practicing/smallest-divisible-digit-product.js` 實測踩到的 `ReferenceError`
+
+```js
+const product = digits.reduce((acc, digit) => acc * Number(digit), 1);
+if (product % t === 0) {
+    console.log(acc, digit)   // ❌ ReferenceError: acc is not defined
+```
+
+`acc`、`digit` 是傳給 `.reduce()` 的**箭頭函式自己的參數**，屬於 **Function Scope**，作用域只涵蓋這個箭頭函式的函式主體本身。一旦跑到 `if` 區塊（跟這個箭頭函式是**平行、不相交的兩個 scope**，不是巢狀在裡面），`acc`/`digit` 根本沒被宣告過，不是「值不見了」，是這個名字在這個範圍內從未存在，所以直接噴 `ReferenceError`，連 TDZ 都輪不到（TDZ 是「宣告了但還沒初始化」，這裡是**根本沒宣告**）。
+
+要印出 `acc`、`digit`，必須把 `console.log` 搬進箭頭函式**裡面**，此時因為要多寫一行陳述式，箭頭函式要從「隱式 return」的簡潔寫法改成帶 `{}` 的區塊寫法，並手動加回 `return`：
+
+```js
+const product = digits.reduce((acc, digit) => {
+    console.log('acc=', acc, 'digit=', digit);  // ✅ 這裡才看得到
+    return acc * Number(digit);
+}, 1);
+```
 
 > **「parse」是指什麼階段？跟「解析 DOM」是同一件事嗎？——不是，完全是兩個不相關的東西。**
 > - **Parse HTML → DOM**：瀏覽器的 **HTML 解析器**把 `.html` 檔案文字，轉成瀏覽器拿來畫畫面用的 DOM 樹。這步驟**不歸 JS 引擎管**，是瀏覽器另一個模組的工作。

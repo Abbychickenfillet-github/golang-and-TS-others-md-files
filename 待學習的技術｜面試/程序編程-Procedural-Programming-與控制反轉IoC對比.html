@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>程序編程 Procedural Programming 與控制反轉 IoC 的呼叫方向對比</title>
+<style>
+:root{--bg:#fbfaf7;--card:#ffffff;--ink:#2b2b2b;--muted:#6b6b6b;--line:#e7e3da;--accent:#7c6f9b;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 22px 64px;}
+header.note-head{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:26px;}
+h1.title{font-family:Georgia,"Songti TC",serif;font-size:30px;margin:0 0 12px;line-height:1.3;}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0;}
+.pill{background:#efeaf7;color:#5b4f7a;border:1px solid #ded3f0;border-radius:999px;
+ padding:3px 11px;font-size:12.5px;}
+.meta{color:var(--muted);font-size:13px;margin-top:6px;}
+.meta a{color:var(--accent);}
+.toolbar{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap;}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+ padding:7px 14px;font-size:13.5px;color:#4a4458;box-shadow:0 1px 0 rgba(0,0,0,.02);}
+.btn:hover{background:#f4f1fb;}
+h2{font-size:21px;margin:34px 0 12px;padding-left:11px;border-left:5px solid var(--accent);}
+h3{font-size:17px;margin:22px 0 8px;color:#3b3550;}
+h4{font-size:15px;margin:16px 0 6px;color:#574f6b;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:16px 0;box-shadow:0 2px 10px rgba(60,50,90,.04);}
+p{margin:10px 0;}
+ul,ol{margin:8px 0 8px 4px;padding-left:22px;}
+li{margin:5px 0;}
+code{background:#f1eef8;border-radius:5px;padding:1px 6px;font-size:.92em;
+ font-family:"SFMono-Regular",Consolas,"Cascadia Code",monospace;}
+pre{background:#1f1b2e;color:#eee;border-radius:11px;padding:15px 16px;overflow-x:auto;
+ font-size:13.5px;line-height:1.6;}
+pre code{background:none;padding:0;color:inherit;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
+th{background:#f1ecf8;}
+tbody tr:nth-child(even){background:#faf8fd;}
+mark{padding:.5px 3px;border-radius:3px;}
+mark.y{background:#FFF3A3;} mark.r{background:#FF5582;} mark.g{background:#BBFABB;}
+mark.b{background:#ADCCFF;} mark.p{background:#FFB8EB;} mark.v{background:#D2B3FF;}
+mark.hidden{color:transparent;background:#d8d3c9;border-radius:3px;user-select:none;}
+mark.hidden *{color:transparent!important;}
+blockquote{margin:12px 0;padding:6px 14px;border-left:4px solid var(--line);color:var(--muted);background:#faf9f6;border-radius:6px;}
+.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #888;background:#faf9fc;
+ border-radius:10px;}
+.callout-title{font-weight:700;margin-bottom:4px;}
+.callout-body>:first-child{margin-top:0;}
+.callout-body>:last-child{margin-bottom:0;}
+.src-turn{margin:14px 0;}
+.src-user{background:#eef4ff;border-left:4px solid #ADCCFF;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.src-gem{background:#f4f1ec;border-left:4px solid #cdbfa6;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.role{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:#7a6f55;display:block;margin-bottom:3px;}
+.src-user .role{color:#3f63a8;}
+.spoiler{background:#3b3550;color:transparent;border-radius:5px;padding:1px 8px;cursor:pointer;
+ transition:.15s;user-select:none;box-shadow:inset 0 0 0 1px #ccc;}
+.spoiler::after{content:"　點此看答案　";color:#cdbfe8;font-size:.85em;}
+.spoiler.on{background:#e7ffe7;color:#1c5e1c;box-shadow:inset 0 0 0 1px #BBFABB;user-select:text;}
+.spoiler.on::after{content:"";}
+footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);
+ color:var(--muted);font-size:12.5px;text-align:center;}
+</style></head><body><div class="wrap">
+<header class="note-head"><h1 class="title">程序編程 Procedural Programming 與控制反轉 IoC 的呼叫方向對比</h1>
+<div class="pills"><span class="pill">#gemini</span><span class="pill">#程式設計範式</span><span class="pill">#procedural-programming</span><span class="pill">#ioc</span><span class="pill">#控制反轉</span><span class="pill">#好萊塢原則</span><span class="pill">#面試</span></div><div class="meta">更新：2026-08-06　· 來源：<a href="https://gemini.google.com/app/810b5871d90afef6" target="_blank">來源1</a></div>
+<div class="toolbar"><span class="btn" onclick="toggleAll(false)">🙈 隱藏所有答案</span>
+<span class="btn" onclick="toggleAll(true)">👀 顯示所有答案</span></div>
+</header>
+<h1>程序編程 Procedural Programming 與控制反轉 IoC 的呼叫方向對比</h1>
+<blockquote>
+<p>本篇重點 (a)–(g)，共 7 個。
+名詞先攤開：<strong>IoC（Inversion of Control，控制反轉）</strong>、<strong>API（Application Programming Interface，應用程式介面）</strong>、<strong>DI（Dependency Injection，依賴注入）</strong>、<strong>OOP（Object-Oriented Programming，物件導向程式設計）</strong>。</p>
+</blockquote>
+<div class="callout" style="border-left-color:#ADCCFF"><div class="callout-title">ℹ️ 這篇跟哪些筆記相關，以及為什麼</div><div class="callout-body"><ul>
+<li>[[框架-vs-函式庫-控制反轉IoC]]：那篇從「框架 vs 函式庫」這個結論往回推判準，這篇則是把<strong>被反轉的那一端</strong>（也就是程序編程原本的樣子）講清楚。要理解「反轉」，得先知道<strong>沒被反轉之前是什麼方向</strong>，兩篇合起來才是完整的一組因果。</li>
+<li>[[前端框架比較-Vue-React-Angular難易度與優缺點]]：Angular 之所以門檻高，正是因為它把 IoC 與 DI 做到最徹底，等於強迫你完全放棄程序式的主導權，本篇的 (e) 可以解釋那篇為什麼說 Angular 學習曲線最陡。</li>
+<li>[[SERVICE_LAYER_AND_ARCHITECTURE_EXPLANATION]]：自家專案裡 FastAPI 決定何時呼叫 service 函式，就是 (d) 呼叫方向翻轉在 codebase 裡的實例。</li>
+</ul></div></div>
+
+<h2>重點整理</h2>
+<h3>(a) 定義：什麼是程序編程</h3>
+<p><mark style="background: #ADCCFFA6;">程序編程（Procedural Programming，或譯程序式程式設計）</mark>是一種<mark style="background: #FFF3A3A6;">以「程序呼叫（Procedure Call）」為核心</mark>的程式設計範式（Paradigm）。程式的組成單位是一連串可被呼叫的程序、函數或子程序（Functions／Subroutines），而不是物件或宣告式的規則。</p>
+<p>代表語言：C、Pascal、Fortran、早期的 BASIC；JavaScript 與 Python 也完全可以用程序式風格來寫。</p>
+<h3>(b) 特徵一：命令式流程</h3>
+<p>程式碼由一系列<strong>依序執行的指令</strong>組成，明確地告訴電腦「步驟一做什麼、步驟二做什麼、步驟三做什麼」。這是 <mark style="background: #ADCCFFA6;">Imperative（命令式）</mark>的表現，跟 SQL、HTML 這類 <mark style="background: #ADCCFFA6;">Declarative（宣告式）</mark>只描述「我要什麼結果」形成對比。</p>
+<h3>(c) 特徵二：主導控制權在你手上（Main Loop Control）</h3>
+<p>由開發者撰寫的主程式（例如 <code>main()</code> 函數）<mark style="background: #FFF3A3A6;">主導整個執行流程</mark>。當需要執行通用任務（格式化字串、計算數據、繪圖）時，主程式<strong>主動呼叫</strong>外部函式庫，函式庫處理完畢並傳回結果後，主程式再繼續下一步。</p>
+<p><mark style="background: #BBFABBA6;">這一點就是判斷「有沒有發生控制反轉」的支點。</mark></p>
+<h3>(d) 特徵三：資料與邏輯分離</h3>
+<p>程序編程通常把<strong>資料結構（Data）</strong>與<strong>操作資料的函數（Functions）</strong>分開處理，透過把資料當作參數傳入函數運算。這跟 OOP 把「資料 + 操作」封裝在同一個物件裡的作法正好相反，也是為什麼 OOP 常被視為程序編程之後的下一個階段。</p>
+<h3>(e) 核心對比：呼叫方向翻轉</h3>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>程序編程 Procedural</th>
+<th>控制反轉 IoC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>呼叫方向</td>
+<td><mark style="background: #FFF3A3A6;">你的程式 → 呼叫 → 函式庫</mark></td>
+<td><mark style="background: #FFF3A3A6;">框架 → 呼叫 → 你的程式</mark></td>
+</tr>
+<tr>
+<td>誰握有 <code>main</code></td>
+<td>你</td>
+<td>框架的 CLI／runtime</td>
+</tr>
+<tr>
+<td>你寫的東西是</td>
+<td>主體</td>
+<td>被插進去的零件</td>
+</tr>
+<tr>
+<td>英文口訣</td>
+<td>Your code calls the library</td>
+<td>Framework calls your code</td>
+</tr>
+<tr>
+<td>介入時機</td>
+<td>你想呼叫就呼叫</td>
+<td>只能在框架允許的擴充點</td>
+</tr>
+</tbody>
+</table>
+<p><img alt="AngularJS 1.x 是不是框架：用控制反轉 IoC 這把尺量" src="../obsidian-attachment/AngularJS-是不是框架-IoC判準圖.png" /></p>
+<p>上圖左半就是 (c) 描述的程序式呼叫（jQuery：你的程式呼叫它、進入點 <code>main</code> 在你手上），右半則是控制反轉（AngularJS：你只是登記 controller，何時被呼叫由框架決定）。</p>
+<h3>(f) 好萊塢原則 Hollywood Principle</h3>
+<p><mark style="background: #BBFABBA6;">Don't call us, we'll call you（別打給我們，我們會打給你）。</mark>這是 IoC 的口語版本，也是最好背的一句面試答案：</p>
+<ul>
+<li>程序編程／函式庫 ＝ 你打電話給它。</li>
+<li>框架 ＝ 你留下電話（註冊 callback、實作介面、寫進指定檔名），它需要時打給你。</li>
+</ul>
+<h3>(g) 「歷史性」這個詞的意思</h3>
+<p>Wikipedia 對 IoC 的敘述提到「inversion 是歷史性的用詞」——意思是這個「反轉」是<mark style="background: #D2B3FFA6;">相對於當年主流的程序式寫法而言</mark>的反轉，不是絕對意義上的顛倒。在 1980 年代之前，程式碼呼叫函式庫是預設樣貌，所以框架出現時才被形容成「控制流被反轉了」。今天如果你是從 React／Angular 開始學程式，你甚至會覺得框架呼叫你才是常態，這時候「反轉」反而不直覺——理解這個詞的歷史背景可以避免混淆。</p>
+<hr />
+<h2>自我測驗</h2>
+<div class="callout" style="border-left-color:#FFB8EB"><div class="callout-title">❓ 是非題（點答案處可顯示／隱藏）</div><div class="callout-body"><ol>
+<li>程序編程中，<code>main()</code> 函數的控制權在框架手上。 → <span class="spoiler">✘ 錯。程序編程的 <code>main</code> 在開發者手上，框架接手才叫控制反轉。</span></li>
+<li>依賴注入 DI 就是控制反轉 IoC 的同義詞。 → <span class="spoiler">✘ 錯。DI 只是實現 IoC 的其中一種手法，IoC 的範圍更大。</span></li>
+<li>程序編程通常把資料與操作資料的函數分開處理。 → <span class="spoiler">✔ 對。這正是它跟 OOP 封裝作風最大的差異。</span></li>
+<li>「Don't call us, we'll call you」描述的是程序編程的呼叫方向。 → <span class="spoiler">✘ 錯。那是好萊塢原則，描述的是框架（IoC）的方向。</span></li>
+</ol></div></div>
+
+<div class="callout" style="border-left-color:#FFB8EB"><div class="callout-title">❓ 申論題</div><div class="callout-body"><p>請用「呼叫方向」這一個判準，解釋為什麼 Express 通常被歸類為輕量框架而不是函式庫。
+→ <span class="spoiler">因為 <code>app.get('/path', handler)</code> 這個寫法，你並沒有主動呼叫 Express 去處理請求，而是把 handler 註冊進去，等 HTTP 請求進來時由 Express 回頭呼叫你的 handler。呼叫方向是「Express → 你的程式」，符合控制反轉，因此歸類為框架。反觀 Axios 這類函式庫，是你在需要時主動 <code>axios.get()</code>，方向是「你的程式 → 函式庫」。</span></p></div></div>
+
+<hr />
+<h2>各對話來源</h2>
+<h3>控制反轉與程序編程比較（2026-08-06）— https://gemini.google.com/app/810b5871d90afef6</h3>
+<div class="src-user"><span class="role">使用者</span>在軟體設計中控制反轉是一個設計規則，也就是電腦程式客製化寫出來的部分接收控制流程從外部的來源，譬如一個框架。The term inversion is 歷史性的，一個有著反轉控制設計的軟體架構是被跟程序編程比較的。在程序編程，一個程式的客製程式碼會呼叫可重用的函式庫來照顧大部分的任務，但是控制反轉，它會是外部的程式碼或者架構在控制跟呼叫客製程式碼。what is procedural programming？</div>
+<div class="src-gem"><span class="role">Gemini</span>程序編程（Procedural Programming）是一種以程序呼叫（Procedure Call）為核心的程式設計範式。核心概念有三：一是命令式流程，程式碼由一系列依序執行的指令、函數或子程序組成，明確告訴電腦步驟一做什麼、步驟二做什麼；二是主導控制權（Main Loop Control），由開發者撰寫的主程式（例如 <code>main()</code> 函數）主導整個執行流程，需要執行通用任務時主動呼叫外部函式庫，待函式庫回傳結果後再繼續下一步；三是資料與邏輯分離，通常把資料結構與操作資料的函數分開處理，透過把資料作為參數傳入函數運算。與控制反轉的對比：程序編程是「你的程式碼主動呼叫函式庫」（Your code calls the library），控制反轉則是由框架掌控全局，變成「框架主動呼叫你的程式碼」（Framework calls your code），也就是俗稱的「好萊塢原則」（Don't call us, we'll call you）。</div>
+<hr />
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/810b5871d90afef6</td>
+<td>對話日期 2026-08-06</td>
+</tr>
+<tr>
+<td>Procedural programming 定義（範式、程序呼叫、與 OOP 的關係）</td>
+<td>https://en.wikipedia.org/wiki/Procedural_programming</td>
+<td>查證日 2026-08-06</td>
+</tr>
+<tr>
+<td>Inversion of Control 定義與「歷史性用詞」敘述</td>
+<td>https://en.wikipedia.org/wiki/Inversion_of_control</td>
+<td>查證日 2026-08-06</td>
+</tr>
+<tr>
+<td>Martin Fowler, InversionOfControl（經典出處，延伸閱讀）</td>
+<td>https://martinfowler.com/bliki/InversionOfControl.html</td>
+<td>未抓取原文，僅供自行查閱</td>
+</tr>
+</tbody>
+</table>
+<div class="callout" style="border-left-color:#BBFABB"><div class="callout-title">✅ 內容查核</div><div class="callout-body"><p>本次 Gemini 的回答與 Wikipedia 的定義一致，未發現錯誤或杜撰。唯一要留意的是 Gemini 把「好萊塢原則」寫成「俗稱」，嚴格說它是 Richard Sweet 於 1983 年在 Mesa 專案文件中提出、後由 John Vlissides 推廣的設計原則，不只是俗稱。</p></div></div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-06</footer>
+</div><script>
+function toggleAll(show){document.querySelectorAll('.spoiler').forEach(function(s){
+ if(show){s.classList.add('on');}else{s.classList.remove('on');}});}
+document.addEventListener('click',function(e){
+ if(e.target.classList&&e.target.classList.contains('spoiler')){e.target.classList.toggle('on');}});
+(function(){var l=document.createElement('link');l.rel='stylesheet';
+ l.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
+ document.head.appendChild(l);var s=document.createElement('script');
+ s.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+ s.onload=function(){try{hljs.highlightAll();}catch(e){}};document.head.appendChild(s);})();
+</script></body></html>

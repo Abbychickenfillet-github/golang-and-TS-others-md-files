@@ -9,6 +9,7 @@
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
 .wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
 header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
 .pills{margin:6px 0;}
 .pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
 .meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
@@ -36,28 +37,9 @@ footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
 .legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
 .legend span{display:inline-block;margin-right:10px;}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
-.stack-demo{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0 4px;}
-.stack-demo-code{flex:1 1 300px;min-width:0;}
-.stack-demo-code .stack-demo-pre{margin:0;height:100%;}
-.stack-demo-pre code{display:block;padding:14px 16px;}
-.stack-demo-pre .l{display:block;padding:1px 8px;border-left:3px solid transparent;border-radius:3px;white-space:pre;color:#abb2bf;}
-.stack-demo-pre .l.active{background:#ffdf5d2b;border-left-color:#ffdf5d;color:#fff;font-weight:600;}
-.stack-demo-visual{flex:1 1 220px;min-width:200px;display:flex;flex-direction:column;}
-.stack-demo-label{font-size:.78rem;color:var(--muted);margin-bottom:6px;}
-.stack-box{flex:1;min-height:170px;background:#fff;border:2px dashed var(--line);border-radius:10px;display:flex;flex-direction:column-reverse;align-items:stretch;justify-content:flex-start;gap:6px;padding:8px;}
-.stack-box .frame{background:#eef1ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 12px;font-size:.85rem;font-family:"JetBrains Mono",Consolas,monospace;color:#4338ca;text-align:center;transition:transform .25s ease,opacity .25s ease;animation:stackPush .25s ease;}
-.stack-box .frame.top{background:#4f46e5;color:#fff;border-color:#4f46e5;box-shadow:0 2px 8px rgba(79,70,229,.35);}
-.stack-box .frame-empty{color:var(--muted);font-size:.82rem;text-align:center;margin:auto;}
-@keyframes stackPush{from{transform:translateY(14px);opacity:0;}to{transform:translateY(0);opacity:1;}}
-.stack-demo-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 6px;}
-.stack-demo-controls button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 13px;font-size:.82rem;cursor:pointer;}
-.stack-demo-controls button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
-.stack-demo-controls button:disabled{opacity:.4;cursor:not-allowed;}
-.stack-step-num{font-size:.78rem;color:var(--muted);margin-left:4px;}
-.stack-demo-desc{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:.6em 1em;font-size:.92rem;min-height:1.6em;}
 </style></head><body>
 <div class="wrap">
-<header class="note"><h1>JavaScript 事件循環 Event Loop（微任務 vs 巨任務）</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#event-loop</span><span class="pill">#非同步</span><span class="pill">#面試</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/82167bcb1c15c00c" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/b3a4ebdfa5b4754d" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/296e1a879bb61062" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/d54c36b18b457e25" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<header class="note"><h1>JavaScript 事件循環 Event Loop（微任務 vs 巨任務）</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#event-loop</span><span class="pill">#非同步</span><span class="pill">#面試</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/82167bcb1c15c00c" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/b3a4ebdfa5b4754d" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/296e1a879bb61062" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/d54c36b18b457e25" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/7461a8e128a56871" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
 <div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
 <section class="card"><h2>重點整理</h2>
 <p>JavaScript 是<mark style="background: #ADCCFFA6;">單執行緒（Single Thread）</mark>的語言，同一時間只能執行一個任務（只有一個 Call Stack 在運作）。但網頁要處理大量非同步操作（API 請求、計時器、使用者點擊），為了不讓畫面在等待時「凍結」，瀏覽器用 <mark style="background: #FFF3A3A6;">Event Loop</mark> 機制達成「非同步、非阻塞（Non-blocking）」。</p>
@@ -111,31 +93,6 @@ function makeCoffee() {
 eatBreakfast(); // 程式從這裡開始
 </code></pre>
 <p>堆疊變化：<code>[eatBreakfast]</code> → 遇到 makeCoffee 變 <code>[makeCoffee, eatBreakfast]</code>（eatBreakfast 暫停等待）→ makeCoffee 印完被 Pop 回 <code>[eatBreakfast]</code> → eatBreakfast 印完 Pop → <code>[空]</code>。<mark style="background: #FFF3A3A6;">JS 只有一個罐子，所以叫單執行緒</mark>——最上面那片沒拿走，下面的只能死守等待。</p>
-<h4>🎬 互動動畫：自己按按看 Push / Pop</h4>
-<div class="stack-demo">
-  <div class="stack-demo-code">
-    <pre class="stack-demo-pre"><code id="stackDemoCode"><span class="l" data-l="1">function eatBreakfast() {</span>
-<span class="l" data-l="2">  makeCoffee();</span>
-<span class="l" data-l="3">  console.log("吃完早餐了！");</span>
-<span class="l" data-l="4">}</span>
-<span class="l" data-l="5">function makeCoffee() {</span>
-<span class="l" data-l="6">  console.log("咖啡泡好了！");</span>
-<span class="l" data-l="7">}</span>
-<span class="l" data-l="8">eatBreakfast(); // 程式從這裡開始</span></code></pre>
-  </div>
-  <div class="stack-demo-visual">
-    <div class="stack-demo-label">Call Stack（由下往上疊，最上面是目前執行中的那一格）</div>
-    <div id="stackDemoBox" class="stack-box"></div>
-  </div>
-</div>
-<div class="stack-demo-controls">
-  <button id="stackPrev" class="alt" type="button">← 上一步</button>
-  <button id="stackNext" type="button">下一步 →</button>
-  <button id="stackAuto" class="alt" type="button">▶ 自動播放</button>
-  <button id="stackReset" class="alt" type="button">重置</button>
-  <span id="stackStepNum" class="stack-step-num"></span>
-</div>
-<p id="stackDemoDesc" class="stack-demo-desc"></p>
 <h3>追加：單執行緒 vs 同步 vs 非同步（別再搞混）</h3>
 <p><mark style="background: #ADCCFFA6;">單執行緒</mark>講的是「廚房只有一個廚師」（資源限制）；<mark style="background: #ADCCFFA6;">同步/非同步</mark>講的是「廚師做事的模式」（流程設計）。</p>
 <table>
@@ -217,6 +174,16 @@ eatBreakfast(); // 程式從這裡開始
 <li><mark style="background: #BBFABBA6;">UI 渲染</mark>：Style → Layout → Paint → Composite，畫面更新。</li>
 <li><mark style="background: #D2B3FFA6;">Idle</mark>：有剩餘時間才跑 <code>requestIdleCallback</code>（零碎空閒做不緊急雜事）。</li>
 </ol>
+<h3>追加（2026-07-29）：Stack Frame 跟 Event Loop 到底有什麼關係？</h3>
+<p><mark style="background: #FFF3A3A6;">Event Loop並不直接操作stack frame，但它的核心運作規則，本質上就是在監控「Call Stack上還剩下幾個stack frame」。</mark>上面講的「Call Stack完全清空」，精確地講就是：<mark style="background: #ADCCFFA6;">目前stack frame數量歸零</mark>——跟[[12-return-清理記憶體-stack-frame與閉包例外]]裡講的那個「return才會pop掉frame」是同一件事，只是這裡把角度拉到「整個Call Stack何時變空」來看。</p>
+<p>具體連起來是這樣：</p>
+<ol>
+<li><mark style="background: #BBFABBA6;">Event Loop不斷監控Call Stack</mark>：只要Call Stack上還有任何一個stack frame（包括同步碼執行到一半、或是已經在跑的回呼函式未完成），Event Loop就不會動作，一直等到最後一個frame被pop掉、Stack真正變成空陣列。</li>
+<li><mark style="background: #BBFABBA6;">只有Stack真的空了，Event Loop才去抬下一個任務</mark>：從微任務佇列或巨任務佇列拉一個回呼函式出來。</li>
+<li><mark style="background: #BBFABBA6;">拉出來的那個回呼函式並不是特殊呼叫</mark>：它跟你自己寫的任何函式一樣，被呼叫的那一刻依照[[08-函式呼叫核心機制-Execution-Context-與-Parameter-Binding]]講的Creation Phase機制，建立自己的Execution Context與stack frame，被push進Call Stack。</li>
+<li><mark style="background: #BBFABBA6;">這個新frame執行完、pop掉之後</mark>，Call Stack又回復空，Event Loop再次檢查佇列、決定下一輪要拉誰進來。</li>
+</ol>
+<p>一句話：<mark style="background: #FF5582A6;">Stack Frame是單次呼叫的「記帳單位」，Event Loop是「排班經理」，兩者不是同一層概念，但Event Loop的排班條件（Stack清空）完全是用stack frame數量來判斷的</mark>——這也是為什麼一個同步的死迴圈（一直不 return，永遠有frame卡在Stack上）會讓整個Event Loop永遠輪不到下一輪、畫面徹底凍住的原因。</p>
 <h3>工作佇列 vs 呼叫堆疊（Gemini 手繪示意圖重點）</h3>
 <p>Abby 請 Gemini「畫給我看」，其產生的示意圖標題為 <strong>「工作佇列與呼叫堆疊：他們是不同的系統！」</strong>，核心對照（圖已轉成文字，未另存圖檔）：</p>
 <ul>
@@ -229,6 +196,33 @@ eatBreakfast(); // 程式從這裡開始
 <blockquote>
 <p>延伸：本主題與「閉包」「執行緒 vs 非同步 vs 延遲」緊密相關，可一起複習。</p>
 </blockquote>
+<h3>追加 2026-08-06：Callback（回呼函式）的精確定義與範例</h3>
+<blockquote>
+<p>本次追加為獨立小節（(a)–(c) 局部標號，未併入本篇原有連續編號）。起點：在複習 Call Stack／Event Loop 時追問「Callback 的定義是什麼」。</p>
+</blockquote>
+<p>(a) <mark style="background: #ADCCFFA6;">定義</mark>：Callback（回呼函式）是把一個函式當作參數，傳遞給另一個函式，並在該外部函式內部被呼叫執行。核心價值是<mark style="background: #FFF3A3A6;">控制執行的時機</mark>——不是立刻執行這段程式碼，而是告訴系統「當特定動作發生或任務完成時，回頭呼叫並執行這段程式碼」。</p>
+<p>(b) 依執行時機分兩種：</p>
+<ul>
+<li><strong>同步 Callback</strong>：主程式碼執行當下立刻被執行，如 <code>numbers.map(num =&gt; num * 2)</code>，傳入的箭頭函式就是 Callback，<code>map</code> 會立刻依序執行它。</li>
+<li><strong>非同步 Callback</strong>：不會立刻執行，交由 Web APIs 背景處理，等特定條件達成（計時結束、使用者點擊、伺服器回傳資料）後才透過 Event Loop 送回 Call Stack 執行，如 <code>btn.addEventListener('click', function onClick(){...})</code>。</li>
+</ul>
+<p>(c) 自訂 Callback 結構範例：</p>
+<pre><code class="language-javascript">// 1. 建立一個接收 Callback 的外部函式
+function processUserInput(name, callbackFn) {
+  console.log(&quot;系統正在讀取資料...&quot;);
+  // 3. 在外部函式內部，執行剛才傳進來的 callbackFn
+  callbackFn(name);
+}
+
+// 2. 準備要被當作 Callback 傳遞的獨立函式
+function greet(userName) {
+  console.log(&quot;歡迎回來，&quot; + userName);
+}
+
+// 4. 呼叫函式並傳入 Callback
+processUserInput(&quot;Abby&quot;, greet);
+</code></pre>
+<p><mark style="background: #FF5582A6;">重點陷阱</mark>：傳遞 <code>greet</code> 時後方<strong>不能加 <code>()</code></strong>，因為要「傳遞函式本身」，而不是「傳遞函式執行後的結果」——加了 <code>()</code> 會變成立刻呼叫 <code>greet()</code> 並把它的回傳值（<code>undefined</code>）當參數傳進去，而不是把函式本體交給 <code>processUserInput</code> 之後再呼叫。</p>
 </section><section class="card src"><h2>各對話來源</h2>
 <h3>JavaScript 事件循環核心觀念複習（2026-06-30）— https://gemini.google.com/app/82167bcb1c15c00c</h3>
 <p>使用者：前端工程師的觀念複習先給我一個</p>
@@ -240,8 +234,11 @@ eatBreakfast(); // 程式從這裡開始
 <p>使用者：工作佇列跟 Call Stack 是不同的？畫給我看。</p>
 <p>Gemini：（以示意圖回答，內容已轉錄於上方「工作佇列 vs 呼叫堆疊」段落）強調兩者是不同系統：Call Stack 是「現在」執行中的工作、Job Queue 是「未來」排隊的回呼，Event Loop 在 Stack 清空時才把 Queue 的 callback 送進 Stack。</p>
 <h3>JavaScript 事件循環核心觀念複習（2026-07-02）— https://gemini.google.com/app/296e1a879bb61062 、 https://gemini.google.com/app/d54c36b18b457e25</h3>
-<p>（與 82167bcb1c15c00c 為同一套「Event Loop → 閉包 → C++ 閉包 → 皮夾傳址 → 函式物件 vs 方法」複習流程的重複對話，內容已整併於本篇與「閉包 Closure」筆記，此處僅保留來源連結。）</p></section>
-<footer>由 Gemini 對話自動整理 · 更新於 2026-07-02</footer>
+<p>（與 82167bcb1c15c00c 為同一套「Event Loop → 閉包 → C++ 閉包 → 皮夾傳址 → 函式物件 vs 方法」複習流程的重複對話，內容已整併於本篇與「閉包 Closure」筆記，此處僅保留來源連結。）</p>
+<h3>JavaScript 事件循環機制解析（2026-08-05）— https://gemini.google.com/app/7461a8e128a56871</h3>
+<p>使用者：Callback的執行緒event loop, Call stack相關概念解說 ／ Callback的定義是什麼</p>
+<p>Gemini：JS 是單執行緒語言，結合 Call Stack、Web APIs、Callback Queue、Event Loop 達成非同步處理；以 <code>setTimeout</code> 範例逐步解析 Call Stack 進出、Web APIs 背景計時、Callback Queue 排隊、Event Loop 搬移任務六步驟；MicroTask（Promise.then 等）優先於 MacroTask（setTimeout 等）。Callback 定義為「把函式當參數傳給另一函式，在其內部被呼叫執行，用來控制執行時機」，分同步（如 <code>map</code>）與非同步（如 <code>addEventListener</code>）兩種，並給出 <code>processUserInput</code>/<code>greet</code> 自訂範例，強調傳遞函式時不可加 <code>()</code>。整合進上方「追加 2026-08-06」小節。</p></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-06</footer>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
 <script>
@@ -250,55 +247,5 @@ document.addEventListener('DOMContentLoaded',function(){
   document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
   var hidden=false;
   window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
-
-  var stackDemoSteps=[
-    {stack:[],line:8,desc:'① 最外層即將呼叫 eatBreakfast()。此刻 Call Stack 是空的（罐子見底）。'},
-    {stack:['eatBreakfast()'],line:2,desc:'② Push：eatBreakfast() 被呼叫，新 frame 疊上 Call Stack。開始執行函式本體，第一行要呼叫 makeCoffee()。'},
-    {stack:['eatBreakfast()','makeCoffee()'],line:6,desc:'③ Push：makeCoffee() 被呼叫，新 frame 疊在最上面。eatBreakfast 這一格「暫停」往下沉，乖乖等 makeCoffee 跑完——這就是單執行緒：最上面那片不拿走，下面的動不了。'},
-    {stack:['eatBreakfast()'],line:3,desc:'④ Pop：makeCoffee() 印完 log、函式結束 → 從頂端被拿掉。控制權交還給 eatBreakfast，繼續往下跑第 3 行。'},
-    {stack:[],line:0,desc:'⑤ Pop：eatBreakfast() 也印完 log、函式結束 → 被拿掉。Call Stack 清空，這輪同步任務全部跑完，換 Event Loop 檢查有沒有微任務／巨任務要推進來。'}
-  ];
-  var stackDemoIdx=0,stackAutoTimer=null;
-  var stackBox=document.getElementById('stackDemoBox');
-  var stackDesc=document.getElementById('stackDemoDesc');
-  var stackStepNum=document.getElementById('stackStepNum');
-  var stackPrevBtn=document.getElementById('stackPrev');
-  var stackNextBtn=document.getElementById('stackNext');
-  var stackAutoBtn=document.getElementById('stackAuto');
-  var stackResetBtn=document.getElementById('stackReset');
-  function renderStackDemo(){
-    if(!stackBox) return;
-    var step=stackDemoSteps[stackDemoIdx];
-    stackBox.innerHTML='';
-    if(step.stack.length===0){
-      var empty=document.createElement('div');empty.className='frame-empty';empty.textContent='（空）';stackBox.appendChild(empty);
-    }else{
-      step.stack.forEach(function(name,i){
-        var f=document.createElement('div');f.className='frame'+(i===step.stack.length-1?' top':'');f.textContent=name;stackBox.appendChild(f);
-      });
-    }
-    document.querySelectorAll('#stackDemoCode .l').forEach(function(l){
-      l.classList.toggle('active', Number(l.getAttribute('data-l'))===step.line);
-    });
-    stackDesc.textContent=step.desc;
-    stackStepNum.textContent='步驟 '+(stackDemoIdx+1)+' / '+stackDemoSteps.length;
-    stackPrevBtn.disabled=stackDemoIdx===0;
-    stackNextBtn.disabled=stackDemoIdx===stackDemoSteps.length-1;
-  }
-  function stopStackAuto(){if(stackAutoTimer){clearInterval(stackAutoTimer);stackAutoTimer=null;stackAutoBtn.textContent='▶ 自動播放';}}
-  if(stackNextBtn){
-    stackNextBtn.addEventListener('click',function(){stopStackAuto();if(stackDemoIdx<stackDemoSteps.length-1){stackDemoIdx++;renderStackDemo();}});
-    stackPrevBtn.addEventListener('click',function(){stopStackAuto();if(stackDemoIdx>0){stackDemoIdx--;renderStackDemo();}});
-    stackResetBtn.addEventListener('click',function(){stopStackAuto();stackDemoIdx=0;renderStackDemo();});
-    stackAutoBtn.addEventListener('click',function(){
-      if(stackAutoTimer){stopStackAuto();return;}
-      stackAutoBtn.textContent='⏸ 暫停';
-      stackAutoTimer=setInterval(function(){
-        if(stackDemoIdx>=stackDemoSteps.length-1){stopStackAuto();return;}
-        stackDemoIdx++;renderStackDemo();
-      },1400);
-    });
-    renderStackDemo();
-  }
 });
 </script></body></html>

@@ -5,12 +5,13 @@ source: Gemini
 tags: [gemini, git, revert, reset, version-control]
 sources:
   - https://gemini.google.com/app/b07320f45ea92dfa
-updated: 2026-07-18
+  - https://gemini.google.com/app/2a14a3f696582e59
+updated: 2026-08-08
 ---
 
 # Git Revert 與 Reset 混用—已 Push 後該選哪一個
 
-> 🔖 本篇重點索引：a–i，共 9 個。
+> 🔖 本篇重點索引：a–l，共 12 個。
 
 ## 重點整理
 
@@ -49,6 +50,32 @@ git push origin <你的分支名稱>
 
 **(i)** <mark style="background: #FF5582A6;">協作中的大忌與更安全的替代做法</mark>：不要對已 Push 的分支使用 `reset`——如果你 revert 之後已經 push 到遠端，接著又在本地 `reset` 掉那個 revert，會導致本地分支落後於遠端，下次 push 會被拒絕（除非強推 `-f`，但會讓同事的線圖爆炸）。<mark style="background: #BBFABBA6;">單純想取消剛剛的 revert</mark>：更安全的做法是再 `revert` 一次那個「撤銷提交」，這樣歷史紀錄最清晰，不需要動用 reset。
 
+### 追加 2026-08-08
+
+**(j)** <mark style="background: #BBFABBA6;">撤銷單一 Commit 的最小指令組</mark>：確認該提交已推上遠端後，只要兩行就能安全收工。
+
+```bash
+git revert <commit_id>
+git push origin <branch_name>
+```
+
+**(k)** <mark style="background: #FFF3A3A6;">一口氣撤銷「多個連續 Commit」</mark>：用區間語法 `<最舊>^..<最新>`，Git 會由新到舊逐一產生反向提交。注意最舊那顆後面要加 `^`（caret，插入符號），代表「從它的前一顆之後開始算」，漏掉的話最舊那一顆不會被撤銷。
+
+```bash
+# 撤銷從 A 到 B 之間的所有提交
+git revert <oldest_commit_id>^..<latest_commit_id>
+git push origin <branch_name>
+```
+
+**(l)** <mark style="background: #FF5582A6;">撤銷 Merge Commit（合併提交）必須指定 parent</mark>：Merge Commit 有兩個父提交，Git 不知道你想「保留哪一側」，直接 `git revert` 會報 `commit is a merge but no -m option was given`。要用 `-m`（mainline，主線編號）指定：`-m 1` 表示保留第一個父提交，也就是<mark style="background: #ADCCFFA6;">被合併進去的那條主線</mark>（通常是 main／develop），撤銷掉另一側帶進來的改動。
+
+```bash
+git revert -m 1 <merge_commit_id>
+```
+
+> [!warning] 撤銷 Merge 之後的陷阱
+> 一旦 revert 掉某個 merge，那條分支的內容在 Git 眼中「已經被合併過了」。之後若想把同一條分支重新合併回來，直接 `git merge` 會被視為無新內容而失效，必須先 <mark style="background: #FF5582A6;">revert 掉那個 revert</mark>（或改用 rebase／cherry-pick）才能重新帶進來。
+
 ## 各對話來源
 
 ### Git Revert 與 Reset 混用筆記（2026 年）— https://gemini.google.com/app/b07320f45ea92dfa
@@ -65,6 +92,12 @@ Gemini：（見上方重點 b–e）用「讀檔」比喻解釋 reset，列出 `
 
 Gemini：（見上方重點 f–g）確認並用圖解邏輯說明為什麼 push 後必須用 revert（避免歷史衝突與強推風險），附上已 push 後的實際救磚指令流程。
 
+### Git 撤銷已 Push 的 Commits（2026-08）— https://gemini.google.com/app/2a14a3f696582e59
+
+<mark style="background: #FFF3A3A6;">使用者：有沒有辦法把線上的 stage commits revert 已經 push</mark>
+
+Gemini：（見上方重點 j–l）確認已 Push 到遠端時應避免會改寫歷史的 `reset`，改用 `git revert` 建立反向提交。分三種情境給指令：撤銷單一 Commit、用 `<oldest>^..<latest>` 區間撤銷多個連續 Commit、以及撤銷 Merge Commit 需加 `-m 1` 指定保留的主線；最後附上 Revert 與 Reset 的優缺點對照表（安全性 vs 歷史乾淨度）。
+
 ## 資料來源（含查證時間）
 
 > 查證日期：2026-07-18（本篇為 Gemini 依 Git 官方行為原理生成的教學說明，核心指令與模式定義可對照 Git 官方文件核實）
@@ -74,6 +107,8 @@ Gemini：（見上方重點 f–g）確認並用圖解邏輯說明為什麼 push
 | `git-reset` 官方文件（--soft/--mixed/--hard） | [Git — git-reset Documentation](https://git-scm.com/docs/git-reset) | 官方文件，持續更新 |
 | `git-revert` 官方文件 | [Git — git-revert Documentation](https://git-scm.com/docs/git-revert) | 官方文件，持續更新 |
 | Force push 風險說明 | [Git — git-push Documentation（--force 段落）](https://git-scm.com/docs/git-push) | 官方文件，持續更新 |
+| `git revert` 區間語法與 `-m` mainline 參數（2026-08-08 追加查證） | [Git — git-revert Documentation](https://git-scm.com/docs/git-revert) | 官方文件，持續更新 |
+| 撤銷 Merge 後如何重新合併（官方 How-To） | [Git — How to revert a faulty merge](https://git-scm.com/docs/howto/revert-a-faulty-merge) | 官方 How-To 文件 |
 
 ## 相關筆記
 

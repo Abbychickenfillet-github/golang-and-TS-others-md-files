@@ -6,7 +6,7 @@ tags: [gemini, javascript, hoisting, tdz, function, toFixed]
 aliases: [Hoisting-函式宣告vs函式表達式-TDZ]
 sources:
   - https://gemini.google.com/app/a8283484f401c280
-updated: 2026-07-29
+updated: 2026-08-04
 ---
 
 # Hoisting：函式宣告 vs 函式表達式（TDZ）與 toFixed 比較陷阱
@@ -36,6 +36,9 @@ const processProducts = function(){ console.log("我想執行..."); };
 > [!note] 記憶法
 > `function foo(){}`（宣告）：連名帶身體一起提升，<mark style="background: #BBFABBA6;">沒有 TDZ，隨處可用</mark>。
 > `const foo = function(){}`（表達式）：變數雖提升但賦值前都在 TDZ，提早呼叫直接死。
+
+> [!tip] 跟參數初始化的對比
+> 這裡的「只提升名稱、不初始化」可以直接拿來對照 [[13-閉包-Closure-私有變數與傳址陷阱]]（以及 [[08-函式呼叫核心機制-Execution-Context-與-Parameter-Binding]] (c)）講的函式參數綁定：兩者都發生在 Creation Phase，差別只在「初始化」這一步有沒有被延後——`let`/`const` 是**先佔位、故意不給值**（TDZ 就是這段空窗期）；函式參數是**佔位的同一時間就被呼叫時傳入的引數值初始化**，沒有空窗期，所以參數名稱從來不會有 TDZ 問題。
 
 ### 補充：折扣計算與 `toFixed` 比較陷阱
 - 兩種折扣寫法數學等價：`price - price*discount/100` 與 `price*(1 - discount/100)`（discount=30、price=100 都得 70）。
