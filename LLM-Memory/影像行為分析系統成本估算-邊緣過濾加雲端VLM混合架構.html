@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用鏡頭記錄行為的 AI 系統要多少錢——邊緣過濾加雲端 VLM 混合架構</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{
+  --bg:#faf9f7; --card:#ffffff; --ink:#2f3337; --muted:#6b7280;
+  --line:#e6e3dd; --accent:#4f7cac; --accent-soft:#eaf1f8;
+  --user:#8a6fb0; --gem:#3f8f7a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+  line-height:1.75;font-size:16.5px;letter-spacing:.01em}
+.wrap{max-width:820px;margin:0 auto;padding:34px 22px 90px}
+header.pagehead{background:linear-gradient(160deg,#ffffff,#f3f1ec);border:1px solid var(--line);
+  border-radius:18px;padding:26px 28px;margin-bottom:26px;box-shadow:0 2px 14px rgba(0,0,0,.04)}
+header.pagehead h1{margin:0 0 12px;font-size:1.72rem;line-height:1.4;
+  font-family:"Noto Serif TC",Georgia,serif;font-weight:700}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.pill{background:var(--accent-soft);color:#33587e;border:1px solid #d6e3f0;border-radius:999px;
+  padding:3px 12px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.82rem;color:var(--muted);margin-top:10px}
+.meta a{color:var(--accent);word-break:break-all}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 8px}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:10px;
+  padding:8px 15px;font-size:.85rem;color:var(--ink);transition:.18s;font-family:inherit}
+.btn:hover{background:var(--accent-soft);border-color:#cbdcec}
+.btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:24px 28px;margin:20px 0;box-shadow:0 1px 8px rgba(0,0,0,.03)}
+h2{font-size:1.24rem;margin:1.7em 0 .7em;padding-bottom:.35em;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif}
+h2:first-child{margin-top:0}
+h3{font-size:1.06rem;margin:1.5em 0 .5em;color:#3c5a75}
+h4{font-size:.97rem;margin:1.2em 0 .4em;color:#4b5563}
+p{margin:.7em 0}
+ul,ol{padding-left:1.5em}
+li{margin:.35em 0}
+mark{padding:.08em .22em;border-radius:4px;transition:.2s;cursor:pointer}
+body.hide-marks mark{color:transparent!important;background:#dfe3e8!important;
+  border-radius:4px;text-shadow:none;user-select:none}
+mark.revealed{color:inherit!important;text-shadow:none}
+code{background:#f0eee9;padding:.13em .38em;border-radius:5px;font-size:.9em;
+  font-family:"JetBrains Mono","Consolas","Cascadia Mono",monospace}
+pre{background:#21262d;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow-x:auto;
+  font-size:.86rem;line-height:1.6}
+pre code{background:none;padding:0;color:inherit}
+table{border-collapse:collapse;width:100%;margin:1.1em 0;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:#f1efe9;font-weight:600}
+tbody tr:nth-child(even){background:#fbfaf8}
+blockquote{margin:1.1em 0;padding:12px 18px;border-left:4px solid var(--accent);
+  background:#f5f8fb;border-radius:0 10px 10px 0;color:#41505e}
+blockquote p:first-child{margin-top:0}
+blockquote p:last-child{margin-bottom:0}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);display:block;margin:1em auto}
+hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
+.quiz{background:#fdfcfa;border:1px solid var(--line);border-radius:16px;padding:22px 26px;margin:24px 0}
+.q{border-bottom:1px dashed var(--line);padding:14px 0}
+.q:last-child{border-bottom:0}
+.q .stem{font-weight:600;margin-bottom:9px}
+.q .tag{display:inline-block;font-size:.72rem;background:#efe7f5;color:#6b4d8a;
+  border-radius:6px;padding:2px 8px;margin-right:8px;vertical-align:middle}
+.opts{display:flex;gap:9px;flex-wrap:wrap;margin:8px 0}
+.opt{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+  padding:6px 16px;font-size:.86rem;font-family:inherit}
+.opt.right{background:#d9f2df;border-color:#8fce9f}
+.opt.wrong{background:#fbdde5;border-color:#e59cb0}
+.ans{display:none;margin-top:9px;padding:11px 14px;background:#f2f6fa;border-left:3px solid var(--accent);
+  border-radius:0 8px 8px 0;font-size:.9rem}
+.ans.show{display:block}
+.blank{border-bottom:2px dotted var(--accent);cursor:pointer;padding:0 .5em;color:transparent;
+  background:#e9ecf0;border-radius:3px;user-select:none}
+.blank.open{color:var(--ink);background:#e2f0e6;border-bottom-color:#79b98e;user-select:auto}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:46px;
+  padding-top:18px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="pagehead">
+  <h1>用鏡頭記錄行為的 AI 系統要多少錢——邊緣過濾加雲端 VLM 混合架構</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#LLM-Memory</span><span class="pill">#AIoT</span><span class="pill">#VLM</span><span class="pill">#多模態</span><span class="pill">#成本估算</span><span class="pill">#edge-ai</span><span class="pill">#架構設計</span></div>
+  <div class="meta">來源：Gemini ｜ 更新：2026-08-09 ｜ 原始對話：<a href="https://gemini.google.com/app/0cf6cbaca9fd9787" target="_blank" rel="noopener">0cf6cbaca9fd</a></div>
+</header>
+<div class="toolbar">
+  <button class="btn" id="tgl">🙈 隱藏所有重點（自我測驗）</button>
+  <button class="btn" id="tglAns">💡 展開／收合全部解答</button>
+</div>
+<div class="card">
+<blockquote>
+<p><strong>本篇重點 a–l，共 12 個。</strong>
+問題原文：「如果是用鏡頭記錄人什麼時候做了什麼事，搭配 AI 模型，這樣建置的電機跟程式碼 LLM 費用是多少」。
+<mark style="background: #FF5582A6;">重要前提：這篇的價值在「架構思路」與「估算方法」，不在「數字」。所有報價與費率請務必自行重新查證，理由見下方 ⚠️ 區塊。</mark></p>
+</blockquote>
+<hr />
+<h2 id="_1">費用要拆成兩塊看</h2>
+<p>(a) <mark style="background: #ADCCFFA6;">一次性的硬體成本</mark>（電機端）與<mark style="background: #ADCCFFA6;">持續性的 API 成本</mark>（模型端）。<mark style="background: #FFF3A3A6;">會把人燒死的是後者，不是前者</mark>——硬體是幾千塊一次付清，API 是每天都在扣。</p>
+<hr />
+<h2 id="_2">一、硬體端（一次性）</h2>
+<p>(b) 影像採集端三種選法：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>用途</th>
+<th>對話中的估價（NTD）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESP32-CAM</td>
+<td>極低成本、定時拍照上傳</td>
+<td>$250 – $400</td>
+</tr>
+<tr>
+<td>Raspberry Pi 5 + 鏡頭模組</td>
+<td><mark style="background: #BBFABBA6;">主流選擇</mark>，支援即時串流與初步過濾</td>
+<td>$3,000 – $4,500</td>
+</tr>
+<tr>
+<td>USB 網路攝影機 / IP Cam</td>
+<td>串接現成監視器</td>
+<td>$1,000 – $3,000</td>
+</tr>
+</tbody>
+</table>
+<p>(c) 周邊：3D 列印外殼、壁掛支架、Type-C 供電與變壓器，約 $300 – $800。</p>
+<p>(d) <mark style="background: #FFF3A3A6;">選配但關鍵</mark>：邊緣運算推論卡（Hailo-8、Google Coral 之類），約 $3,000 – $6,000。<mark style="background: #BBFABBA6;">它的投資報酬不在效能，在於幫你擋掉 90% 以上不需要送雲端的畫面</mark>。</p>
+<p>(e) 硬體小計：樹莓派＋一般鏡頭一台端點約 <mark style="background: #FFB8EBA6;">NT$4,000 – NT$6,000</mark>。</p>
+<hr />
+<h2 id="_3">二、模型端（持續性）——為什麼會爆</h2>
+<p>(f) <mark style="background: #FF5582A6;">影像消耗的 token 遠比文字多</mark>。一張圖通常折算 1,000 – 3,000 tokens，相當於一整頁文字。<mark style="background: #FF5582A6;">最致命的錯誤是把未過濾的影片串流直接往 LLM API 塞</mark>，那樣一天可以燒掉四位數。</p>
+<p>(g) 兩種觸發策略的試算對比（假設一張關鍵影格 2,000 input tokens，輸出行為紀錄約 100 tokens，以輕量多模態模型費率估）：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>觸發方式</th>
+<th>每日圖片數</th>
+<th>每日 API 費用</th>
+<th>每月估算</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A 定時觸發</td>
+<td>每 5 分鐘截一張</td>
+<td>288 張</td>
+<td>約 US$0.20 – 0.40</td>
+<td>約 NT$200 – 400</td>
+</tr>
+<tr>
+<td>B <mark style="background: #BBFABBA6;">動態偵測</mark></td>
+<td>邊緣端偵測到人動才送</td>
+<td>50 次</td>
+<td>約 US$0.05</td>
+<td><mark style="background: #BBFABBA6;">約 NT$50</mark></td>
+</tr>
+</tbody>
+</table>
+<p>(h) <mark style="background: #FFF3A3A6;">兩者差了 4 到 8 倍，而差別只在「有沒有在邊緣端先過濾」這一個設計決策</mark>。這就是本篇真正該記住的東西。</p>
+<hr />
+<h2 id="_4">三、省錢的三個關鍵做法</h2>
+<p>(i) <mark style="background: #FF5582A6;">絕對不要把未過濾的 video stream 無腦往 LLM API 塞</mark>。</p>
+<p>(j) <mark style="background: #BBFABBA6;">善用 Prompt Caching（提示詞快取）</mark>。「行為定義」那一大段 System Prompt 每次都一樣，快取起來後讀取成本可以降到原價的一小部分（各家折扣不同，Anthropic 的快取讀取約為輸入價的 10%）。<mark style="background: #FFB8EBA6;">這對本案特別有效，因為 system prompt 固定不變、只有圖片在換</mark>。</p>
+<p>(k) <mark style="background: #BBFABBA6;">地端／雲端混合架構（推薦）</mark>：</p>
+<pre><code class="language-text">鏡頭 ──► 樹莓派本地跑 YOLO（免費、離線）
+              │
+              ├─ 沒偵測到人 ──► 丟棄，不花任何錢
+              │
+              └─ 偵測到人在動 ──► 截當下影格（或前後 3 秒短片）
+                                      │
+                                      ▼
+                            多模態 VLM API 辨識詳細行為
+                                      │
+                                      ▼
+                              寫入資料庫（時間＋行為描述）
+</code></pre>
+<p><mark style="background: #FFF3A3A6;">分工原則：便宜的模型做「有沒有」，貴的模型做「是什麼」</mark>。YOLO 只回答「畫面裡有沒有人、有沒有在動」，這種二元判斷不需要語言模型；只有需要生成「14:30 陳小姐坐在書桌前開始翻閱書籍」這種語意描述時，才值得叫 VLM。</p>
+<p>(l) 用這種架構，單個鏡頭的模型運作成本可以壓在<mark style="background: #FFB8EBA6;">每月 NT$100 以內</mark>。</p>
+<hr />
+<h2 id="_5">⚠️ 存疑／更正</h2>
+<ul>
+<li><mark style="background: #FF5582A6;">對話中列出的「2026 主流多模態模型費率表」不可信，請勿直接引用</mark>。裡面出現了 <code>Gemini 3.5 Flash</code>、<code>Claude Sonnet 4.6</code> 這類<mark style="background: #FF5582A6;">名稱與版號可疑的型號</mark>，價格也沒有附任何出處。生成式模型在報價這種高度時效性的數字上很容易杜撰。</li>
+<li><mark style="background: #BBFABBA6;">正確做法</mark>：要報價時直接去各家官方定價頁抓當日數字（連結見下方來源表），並把「單張圖折算多少 token」也用各家官方的影像 token 計算規則重算。</li>
+<li>硬體報價（樹莓派、Hailo-8、Coral）也是浮動的，且台灣通路加價幅度不小，下單前請以實際賣場為準。</li>
+<li><mark style="background: #FFF3A3A6;">這篇該保留的是方法論</mark>：先拆成「一次性 vs 持續性」，再用「每日事件數 × 每次 token 數 × 單價」做費米估算，最後檢查「有沒有辦法在最前面就把量壓下來」。</li>
+</ul>
+<hr />
+<h2 id="_6">關聯筆記與關聯原因</h2>
+<ul>
+<li>費米問題-Fermi-Estimation-面試估算技巧：<mark style="background: #D2B3FFA6;">本篇 (g) 用的就是費米估算</mark>——把一個看不出答案的問題拆成「頻率 × 單位用量 × 單價」三個好估的因子。這是同一套方法在真實系統設計題上的應用範例。</li>
+<li>AIoT-概念與實習角色：<mark style="background: #D2B3FFA6;">這篇正好是那篇講的 AIoT 的完整實例</mark>——邊緣裝置採集、地端輕量推論、雲端重推論、資料回寫，四層都齊了。面試被問「你理解的 AIoT 架構長怎樣」可以直接講這個。</li>
+<li>llm-caching-layers：<mark style="background: #D2B3FFA6;">本篇 (j) 的展開版</mark>。這裡只說「用快取可以省錢」，那篇拆解快取到底發生在哪一層、命中條件是什麼。</li>
+</ul>
+<hr />
+<h2 id="_7">各對話來源（原文摘要）</h2>
+<h3 id="ai-2026-08-httpsgeminigooglecomapp0cf6cbaca9fd9787">AI 影像行為分析系統成本估算（2026-08）— https://gemini.google.com/app/0cf6cbaca9fd9787</h3>
+<blockquote>
+<p><strong>使用者：</strong> 如果是用鏡頭記錄人什麼時候做了什麼事，搭配 AI 模型，這樣建置的電機跟程式碼 LLM 費用是多少</p>
+<p><strong>Gemini：</strong> 費用通常會拆分成兩大區塊：硬體與硬體控制（電機端）以及軟體與大語言／多模態模型（LLM/VLM 費用）。</p>
+<p><strong>一、電機與硬體建置成本（一次性為主）</strong>：ESP32-CAM $250–400；Raspberry Pi 5 + 鏡頭模組 $3,000–4,500；USB 網路攝影機 / IP Cam $1,000–3,000；電機／外殼／供電 $300–800；邊緣硬體加速（Hailo-8 或 Coral）$3,000–6,000。硬體小計約 NT$4,000–6,000。</p>
+<p><strong>二、AI 模型與 LLM API 費用（持續性變動成本）</strong>：因為鏡頭記錄的是影像，一張圖通常折算為 1,000 到 3,000 個 Token。（⚠️ 此處原對話列出的費率表已判定不可信，故不轉錄。）</p>
+<p><strong>費用試算</strong>：方案 A 定時觸發（每 5 分鐘一張，一天 288 張）→ 每日約 US$0.20–0.40，每月約 NT$200–400。方案 B 動態偵測（一天 50 次）→ 每日約 US$0.05，每月約 NT$50。</p>
+<p><strong>三、省錢關鍵建議</strong>：絕對不要把未過濾的 Video Stream 直接無腦往 LLM API 塞。善用 Prompt Caching。地端／雲端混合架構：在樹莓派上跑輕量的 YOLO（免費）偵測「畫面中是否有人以及人在移動」，一旦觸發，截取當下那張圖（或前後 3 秒的小短片），再打 API 給多模態模型辨識詳細行為並寫入資料庫。單個鏡頭的 LLM 運作成本可以壓在每個月 NT$100 元以內。</p>
+</blockquote>
+<hr />
+<h2 id="_8">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始 Gemini 對話</td>
+<td>https://gemini.google.com/app/0cf6cbaca9fd9787</td>
+<td>2026-08（對話當下）</td>
+</tr>
+<tr>
+<td>Anthropic 官方定價（含 prompt caching 折扣）</td>
+<td>https://www.anthropic.com/pricing</td>
+<td><mark style="background: #FF5582A6;">報價請於使用當日重新查證</mark></td>
+</tr>
+<tr>
+<td>Google Gemini API 定價</td>
+<td>https://ai.google.dev/pricing</td>
+<td><mark style="background: #FF5582A6;">報價請於使用當日重新查證</mark></td>
+</tr>
+<tr>
+<td>OpenAI API 定價</td>
+<td>https://openai.com/api/pricing/</td>
+<td><mark style="background: #FF5582A6;">報價請於使用當日重新查證</mark></td>
+</tr>
+<tr>
+<td>Ultralytics YOLO 文件（邊緣端偵測）</td>
+<td>https://docs.ultralytics.com/</td>
+<td>查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>Hailo-8 邊緣推論加速器</td>
+<td>https://hailo.ai/products/hailo-8/</td>
+<td>查證於 2026-08-09</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="quiz"><h2>🧠 自我檢測（點選作答／點解答展開）</h2>
+<div class="q" data-a="F"><div class="stem"><span class="tag">是非題</span>這類系統的主要成本風險在硬體採購，而不是模型 API。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">❌ 非。硬體是一次性的幾千塊，<b>API 是每天都在扣的持續性成本</b>，而且影像 token 消耗量大（一張圖折算 1,000–3,000 tokens），未經過濾直接送串流一天可以燒掉四位數。</div></div>
+<div class="q" data-a="T"><div class="stem"><span class="tag">是非題</span>在邊緣端先用 YOLO 判斷「有沒有人在動」，可以把每月 API 成本從數百元降到數十元。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">⭕ 是。對話中的試算：定時觸發（每 5 分鐘一張，288 張/天）約每月 NT$200–400；動態偵測（50 次/天）約每月 NT$50。差 4 到 8 倍，差別只在「有沒有在邊緣端先過濾」這一個設計決策。</div></div>
+<div class="q" data-a="F"><div class="stem"><span class="tag">是非題</span>對話中列出的 2026 模型費率表（Gemini 3.5 Flash、Claude Sonnet 4.6 等）可以直接拿去做提案報價。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">❌ 非，這是本篇的重點警告。那份費率表出現<b>名稱與版號可疑的型號</b>且沒有附出處，生成式模型在報價這種時效性數字上很容易杜撰。要報價一定要當日去各家官方定價頁重抓。</div></div>
+<div class="q" data-a="T"><div class="stem"><span class="tag">是非題</span>Prompt Caching 對這個案子特別有效，因為 System Prompt 固定不變、只有圖片在換。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">⭕ 是。「行為定義」那一大段 System Prompt 每次請求都一樣，快取命中率極高，讀取成本可降到原輸入價的一小部分。</div></div>
+<div class="q"><div class="stem"><span class="tag">申論題</span>請畫出（或描述）這個系統的推薦架構，並說明「便宜的模型做什麼、貴的模型做什麼」。</div><button class="opt showans">📖 顯示參考答案</button><div class="ans">架構：<b>鏡頭 → 樹莓派本地跑 YOLO → 沒偵測到人就丟棄 → 偵測到人在動才截影格 → 送多模態 VLM API 辨識行為 → 寫入資料庫（時間＋行為描述）</b>。<br><br>分工原則：<b>便宜的模型做「有沒有」，貴的模型做「是什麼」</b>。<br>• YOLO（免費、離線）只回答二元問題：畫面裡有沒有人、有沒有在動。這種判斷不需要語言模型。<br>• VLM（按 token 計費）只在需要生成語意描述時才叫用，例如「14:30 陳小姐坐在書桌前開始翻閱書籍」。<br><br>邊緣推論卡（Hailo-8 / Coral，約 NT$3,000–6,000）的投資報酬不在效能，而在於幫你擋掉九成以上不需要送雲端的畫面。</div></div>
+<div class="q"><div class="stem"><span class="tag">申論題</span>這篇該長期保留的是什麼？該丟掉的是什麼？</div><button class="opt showans">📖 顯示參考答案</button><div class="ans"><b>保留方法論</b>：<br>(1) 先把成本拆成「一次性硬體」與「持續性 API」兩塊。<br>(2) 用費米估算：<b>每日事件數 × 每次 token 數 × 單價</b>。<br>(3) 最後檢查「有沒有辦法在最前面就把量壓下來」——這一步通常帶來最大的節省。<br><br><b>丟掉數字</b>：所有報價（模型費率、硬體價格）都是浮動且可能被杜撰的，使用當下一律重新查證官方定價頁。</div></div>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-09</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b)}catch(e){}})}
+var t=document.getElementById('tgl');
+t.addEventListener('click',function(){
+  document.body.classList.toggle('hide-marks');
+  var on=document.body.classList.contains('hide-marks');
+  t.classList.toggle('on',on);
+  t.textContent = on ? '👀 顯示所有重點' : '🙈 隱藏所有重點（自我測驗）';
+  if(!on){document.querySelectorAll('mark.revealed').forEach(function(m){m.classList.remove('revealed')})}
+});
+document.addEventListener('click',function(e){
+  var m=e.target.closest('mark');
+  if(m&&document.body.classList.contains('hide-marks')){m.classList.toggle('revealed');return}
+  var b=e.target.closest('.blank');
+  if(b){b.classList.toggle('open');return}
+  var o=e.target.closest('.opt');
+  if(o){
+    var q=o.closest('.q');
+    q.querySelectorAll('.opt').forEach(function(x){x.classList.remove('right','wrong')});
+    o.classList.add(o.dataset.v===q.dataset.a?'right':'wrong');
+    q.querySelector('.ans').classList.add('show');
+    return;
+  }
+  var s=e.target.closest('.showans');
+  if(s){s.closest('.q').querySelector('.ans').classList.toggle('show')}
+});
+var ta=document.getElementById('tglAns');
+ta.addEventListener('click',function(){
+  var any=[].some.call(document.querySelectorAll('.ans'),function(a){return !a.classList.contains('show')});
+  document.querySelectorAll('.ans').forEach(function(a){a.classList.toggle('show',any)});
+  ta.classList.toggle('on',any);
+});
+</script>
+</body>
+</html>

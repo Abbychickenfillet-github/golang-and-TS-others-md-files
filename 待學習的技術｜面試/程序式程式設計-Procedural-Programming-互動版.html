@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>程序式程式設計 Procedural Programming：IoC 的對照基準線</title>
+<style>
+  :root{
+    --bg:#0f1116; --panel:#171a22; --line:#252a36; --ink:#e8eaf0; --dim:#8b93a7;
+    --cyan:#4fc3d9; --amber:#f0b556; --green:#a9dc76; --purple:#c39bec; --red:#ff7b72;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+       line-height:1.85;padding:34px 20px 90px}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{font-size:28px;line-height:1.4;margin:0 0 8px}
+  .sub{color:var(--dim);font-size:14.5px;margin-bottom:8px}
+  .meta{color:#6f7689;font-size:13px;border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:28px}
+  h2{font-size:21px;margin:38px 0 14px;padding-left:12px;border-left:4px solid var(--cyan)}
+  h3{font-size:17px;margin:24px 0 8px;color:var(--ink)}
+  p{margin:10px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:20px 22px;margin:18px 0}
+  .quote{border-left:3px solid var(--amber);background:#1a1710;padding:14px 18px;border-radius:0 10px 10px 0;color:#f3e3c4}
+  table{width:100%;border-collapse:collapse;font-size:14.5px;margin:14px 0}
+  th,td{padding:10px 13px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:#141721;color:var(--dim);font-size:12.5px;letter-spacing:.5px}
+  code{background:#0c0e13;border:1px solid #232836;border-radius:5px;padding:1px 6px;
+       font-family:Consolas,"Cascadia Mono",monospace;font-size:13.5px;color:var(--cyan)}
+  pre{background:#0c0e13;border:1px solid #232836;border-radius:10px;padding:15px 17px;overflow:auto;
+      font-family:Consolas,"Cascadia Mono",monospace;font-size:13.6px;line-height:1.7;color:#cdd4e4}
+  img{max-width:100%;border-radius:11px;border:1px solid var(--line);display:block;margin:14px 0 6px}
+  figcaption{color:var(--dim);font-size:13px;text-align:center;margin-bottom:20px}
+  ol{padding-left:22px} ul{padding-left:22px}
+
+  /* 互動：填空 */
+  .blank{display:inline-block;min-width:110px;border-bottom:2px dashed var(--amber);
+         color:transparent;cursor:pointer;text-align:center;padding:0 8px;
+         background:#221c10;border-radius:4px 4px 0 0;transition:.18s;user-select:none}
+  .blank::after{content:"點我";color:var(--amber);font-size:13px}
+  .blank.show{color:var(--green);border-bottom-color:var(--green);background:#16200f;font-weight:700}
+  .blank.show::after{content:""}
+
+  /* 互動：是非題 */
+  .tf{border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin:12px 0;background:#141721}
+  .tf .q{font-weight:600;margin-bottom:10px}
+  .tf button{background:#1c2130;border:1px solid #2d3446;color:#cdd4e4;border-radius:8px;
+             padding:6px 18px;margin-right:9px;cursor:pointer;font-size:14.5px;font-family:inherit}
+  .tf button:hover{border-color:var(--cyan);color:var(--cyan)}
+  .tf .fb{margin-top:10px;font-size:14px;display:none;padding:10px 12px;border-radius:8px;line-height:1.75}
+  .fb.ok{background:#16200f;color:var(--green);border:1px solid #3b5c37}
+  .fb.no{background:#241416;color:#ff9b93;border:1px solid #5c3737}
+
+  /* 互動：申論題 */
+  .essay{border:1px solid var(--line);border-radius:11px;padding:16px 18px;margin:14px 0;background:#141721}
+  .essay .q{font-weight:600;color:var(--purple);margin-bottom:10px}
+  .essay textarea{width:100%;min-height:96px;background:#0c0e13;border:1px solid #232836;border-radius:8px;
+                  color:var(--ink);padding:11px 13px;font-family:inherit;font-size:14.5px;line-height:1.8;resize:vertical}
+  .toggle{background:#1c2130;border:1px solid #2d3446;color:var(--cyan);border-radius:8px;
+          padding:6px 16px;margin-top:11px;cursor:pointer;font-size:14px;font-family:inherit}
+  .toggle:hover{border-color:var(--cyan)}
+  .ans{display:none;margin-top:12px;background:#101a1e;border:1px solid #1c5b6e;border-radius:9px;padding:13px 16px;color:#cfe9f0;font-size:14.5px}
+  .ans.open{display:block}
+  .bar{position:fixed;bottom:0;left:0;right:0;background:#12141b;border-top:1px solid var(--line);
+       padding:11px 18px;text-align:center}
+  .bar button{background:#1c2130;border:1px solid #2d3446;color:#cdd4e4;border-radius:8px;
+              padding:7px 20px;margin:0 6px;cursor:pointer;font-size:14px;font-family:inherit}
+  .bar button:hover{border-color:var(--amber);color:var(--amber)}
+  .tag{display:inline-block;background:#1c2130;border:1px solid #2d3446;color:#9aa3b8;
+       border-radius:6px;padding:3px 10px;font-size:12.5px;margin:0 6px 6px 0}
+  a{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>程序式程式設計 Procedural Programming：IoC 的對照基準線</h1>
+<div class="sub">附帶回答：AngularJS 1.x 算不算框架</div>
+<div class="meta">
+  <span class="tag">重點 a–o 共 15 個</span>
+  <span class="tag">更新日 2026-08-08</span>
+  <span class="tag">來源 Claude（Cowork）</span><br>
+  名詞先攤開：<b>IoC</b>＝Inversion of Control 控制反轉　·　<b>OOP</b>＝Object-Oriented Programming 物件導向程式設計　·
+  <b>FP</b>＝Functional Programming 函數式程式設計　·　<b>BP</b>＝Base Pointer 基底指標　·　<b>SP</b>＝Stack Pointer 堆疊指標
+</div>
+
+<div class="card quote">
+  <b>一句話定義</b><br>
+  程序式程式設計是命令式程式設計的一種，把程式拆成一個個可重用的 procedure（程序），
+  由你的程式碼主動、依序地呼叫它們，<b>控制權從頭到尾不離開你的手</b>。
+  它在 IoC 條目裡被拿來當對照組，正因為它是「控制權完全沒有反轉」的最乾淨範例。
+</div>
+
+<figure>
+  <img src="../obsidian-attachment/程序式程式設計-Procedural-典範家族樹與IoC對照.png" alt="典範家族樹與 IoC 對照">
+  <figcaption>圖一　典範家族樹：程序式是命令式的子集，右半是控制權已讓渡的框架寫法</figcaption>
+</figure>
+
+<h2>我原本的兩個問題</h2>
+<ol>
+  <li>那如果我說是 AngularJS 也符合這邊的敘述嗎</li>
+  <li>把 IoC 條目翻成中文之後問：what is procedural programming</li>
+</ol>
+
+<h2>一、程序式程式設計的定義拆解</h2>
+
+<h3>(a) procedure 有四個同義詞</h3>
+<p>procedure（程序）＝ <span class="blank" data-a="routine 例程">routine 例程</span>
+＝ <span class="blank" data-a="subroutine 副程式">subroutine 副程式</span>
+＝ <span class="blank" data-a="function 函式">function 函式</span>。
+看到 subroutine 不用緊張，就是函式。</p>
+
+<h3>(b) 它是命令式 imperative 的子集合</h3>
+<ul>
+  <li><b>命令式 imperative</b>：告訴電腦「怎麼做」，靠一步步改變狀態推進程式。</li>
+  <li><b>程序式 procedural</b>：命令式之下的一支，額外要求用 procedure 組織程式。</li>
+  <li>所以關係是 <span class="blank" data-a="imperative ⊃ procedural">imperative ⊃ procedural</span>，不是並列。</li>
+</ul>
+
+<h3>(c) 與「非結構化命令式」的分野是 block 與 scope</h3>
+<p>早期非結構化命令式語言用 <code>goto</code> 與 branch table 跳來跳去。程序式語言引入
+<b>block 區塊</b> 與 <b>scope 作用域</b>，區域變數離開範圍就失效，控制流改用保留字
+<code>if</code> <code>while</code> <code>for</code> 表達，這是結構化程式設計運動的成果。</p>
+
+<h3>(d) 階層式呼叫結構就是呼叫堆疊</h3>
+<p><code>main</code> 呼叫 A，A 呼叫 B，執行期表現為 <b>call stack 呼叫堆疊</b>。每進入一層 procedure 就推一個
+<b>stack frame 堆疊框架</b>，由 <b>BP（Base Pointer，基底指標）</b> 標示這層的底、
+<b>SP（Stack Pointer，堆疊指標）</b> 標示目前堆疊頂端。
+這是「你呼叫別人」在硬體層的實體證據：<span class="blank" data-a="呼叫出去一定會 return 回來">呼叫出去一定會 return 回來</span>。</p>
+
+<h3>(e) 資料與行為分離，這是與 OOP 最硬的差別</h3>
+<table>
+  <tr><th>面向</th><th>程序式 Procedural</th><th>物件導向 OOP</th></tr>
+  <tr><td>程式被切成</td><td>變數＋資料結構，以及操作它們的子程序，兩堆分開</td><td>物件，資料與方法綁在一起</td></tr>
+  <tr><td>誰持有行為</td><td>獨立的函式，資料只是被傳進去的參數</td><td>物件自己</td></tr>
+  <tr><td>典型寫法</td><td><code>saveUser(user)</code></td><td><code>user.save()</code></td></tr>
+</table>
+<p>一句話記：程序式是「函式操作資料結構」，OOP 是「把兩者打包成一包」。</p>
+
+<h3>(f) 狀態可變，常見全域狀態</h3>
+<p>程序式靠改變變數的值推進程式，這點與 FP 強調純函式與不可變性正好相反，雖然兩者都源自結構化程式設計。</p>
+
+<h3>(g) 代表語言與年代</h3>
+<table>
+  <tr><th>年代</th><th>語言</th></tr>
+  <tr><td>1957–1964</td><td>Fortran、ALGOL、COBOL、PL/I、BASIC</td></tr>
+  <tr><td>1970–1972</td><td>Pascal、C</td></tr>
+</table>
+
+<h3>(h) 為什麼 IoC 條目要拿它當對照</h3>
+<ol>
+  <li>程序式寫法中，你的客製程式碼呼叫可重用的函式庫處理大部分任務，控制流由你主導。</li>
+  <li>有了框架以後，外部的框架程式碼在控制流程，回頭呼叫你寫的程式碼。</li>
+  <li>相對於第 1 條這條基準線，第 2 條的控制流方向被翻過來了，所以叫 inversion。</li>
+</ol>
+<p>所以 <b>inversion 這個字是歷史性的、相對性的</b>，不是說控制流本身倒著跑，
+而是相對於程序式那個年代的預設寫法，方向翻過來了。你原本的理解完全正確。</p>
+
+<h3>(i) 小修正：是 design principle 不是 design rule</h3>
+<p>原文用的是 design principle，中文慣譯<b>設計原則</b>而非設計規則。principle 是指導方針，rule 是硬性規定，IoC 屬前者。</p>
+
+<h2>二、AngularJS 1.x 算不算框架？算，而且是教科書等級</h2>
+
+<figure>
+  <img src="../obsidian-attachment/AngularJS-是不是框架-IoC判準圖.png" alt="AngularJS 與 jQuery 的控制反轉對照">
+  <figcaption>圖二　jQuery 是你呼叫它，AngularJS 是它呼叫你</figcaption>
+</figure>
+
+<h3>(j) 六項證據逐條對照</h3>
+<table>
+  <tr><th>框架特徵</th><th>AngularJS 1.x 的具體實作</th><th>成立與否</th></tr>
+  <tr><td>控制反轉 IoC</td><td>你寫 controller、directive、service 只是註冊，框架在 bootstrap 與 digest 時回頭呼叫你</td><td>成立</td></tr>
+  <tr><td>依賴注入 DI</td><td>內建 <code>$injector</code>，函式參數名寫 <code>$http</code> <code>$scope</code>，框架自己建好物件塞進來</td><td>成立，最經典的範例</td></tr>
+  <tr><td>誰擁有進入點 main</td><td><code>ng-app</code> 或 <code>angular.bootstrap()</code> 啟動整個 app，你沒寫 main</td><td>成立</td></tr>
+  <tr><td>生命週期只能在指定時機介入</td><td><code>$watch</code> <code>$digest</code> <code>$apply</code> <code>link</code> <code>compile</code>，全是框架開的洞</td><td>成立</td></tr>
+  <tr><td>慣例優於設定</td><td>module、controller、service、factory、provider、filter、directive 七種角色是強制分類</td><td>成立</td></tr>
+  <tr><td>核心不可改只能擴充</td><td>你不改 <code>angular.js</code>，只透過 provider 與 decorator 擴充</td><td>成立</td></tr>
+</table>
+
+<h3>(k) AngularJS 比 React 更「框架」的關鍵一點</h3>
+<p>React 官方自稱 library，因為它只管 view 層的 render。AngularJS 1.x 一次包了路由 <code>ngRoute</code>、
+HTTP <code>$http</code>、DI 容器 <code>$injector</code>、樣板引擎、表單驗證、雙向綁定，
+是一整條產品線，所以它在光譜上比 React 更靠近框架那一端。</p>
+
+<h3>(l) 雙向綁定是控制反轉最直觀的體感</h3>
+<ul>
+  <li>jQuery 時代：資料變了，你要自己寫一行把新值塞回 DOM。</li>
+  <li>AngularJS：資料變了，<code>$digest</code> 循環自己偵測到並更新畫面，你什麼都不用寫。</li>
+  <li>「你什麼都不用寫，它自己會做」就是控制權已經交出去的證據。</li>
+</ul>
+
+<h3>(m) AngularJS 與 Angular 2+ 是兩個東西</h3>
+<table>
+  <tr><th>項目</th><th>AngularJS</th><th>Angular</th></tr>
+  <tr><td>版本</td><td>1.x</td><td>2 以上</td></tr>
+  <tr><td>語言</td><td>JavaScript</td><td>TypeScript</td></tr>
+  <tr><td>架構</td><td><code>$scope</code> 與 digest 循環</td><td>元件樹與 Zone.js 變更偵測</td></tr>
+  <tr><td>兩者關係</td><td colspan="2">不相容，是重寫不是升級。講「AngularJS」專指 1.x，講「Angular」專指 2+</td></tr>
+</table>
+<p><b>面試講錯這一點會被抓</b>，所以一定要說清楚講的是哪一個。</p>
+
+<h3>(n) 生命週期狀態：AngularJS 已停止官方支援</h3>
+<ul>
+  <li>2010 年由 Google 發布。</li>
+  <li>1.8 是唯一的 LTS（Long Term Support，長期支援）版本，2020-06-04 發布。</li>
+  <li>最後一個版本 1.8.3，2022-04-07 釋出。</li>
+  <li>官方支援已於 <span class="blank" data-a="2021-12-31">2021-12-31</span> 結束，之後只剩 HeroDevs 與 OpenLogic 的商業延長支援。</li>
+</ul>
+
+<h3>(o) 面試一句話版本</h3>
+<div class="card quote">
+  程序式程式設計是把程式拆成一個個 procedure、由我的 main 主動依序呼叫，控制權全程在我手上，
+  它是 IoC 定義裡的對照基準線。AngularJS 1.x 則完全站在另一端：我只是註冊 controller 與 directive，
+  何時被呼叫由框架的 bootstrap 與 digest 循環決定，加上內建 <code>$injector</code> 做依賴注入，
+  所以它是教科書等級的框架，不是函式庫。
+</div>
+
+<h2>三、程式碼範例</h2>
+<p>同資料夾的 <code>程序式程式設計-demo.js</code> 可直接 <code>node 程序式程式設計-demo.js</code> 執行，看輸出順序就懂控制權在誰手上。核心對照：</p>
+<pre>// 程序式：main 在你手上，順序你決定
+function main() {
+  const u = readUser('Abby');   // 你呼叫
+  const v = validate(u);        // 你呼叫
+  saveToDb(v);                  // 你呼叫
+}
+main();
+
+// IoC：你只是登記，何時執行由框架決定
+miniFramework.on('init',   (ctx) =&gt; console.log('init 被呼叫'));
+miniFramework.on('render', (ctx) =&gt; console.log('render 被呼叫'));
+miniFramework.run();          // 這一行之後 main 就不是你的了</pre>
+
+<h2>四、是非題</h2>
+
+<div class="tf" data-ans="false" data-fb="錯。程序式與物件導向都屬於命令式 imperative，兩者是兄弟不是對立。真正跟命令式對立的是宣告式 declarative，例如 SQL 與 Prolog。">
+  <div class="q">1. 程序式程式設計與命令式程式設計是互相對立的兩種典範。</div>
+  <button onclick="tf(this,true)">是</button><button onclick="tf(this,false)">非</button>
+  <div class="fb"></div>
+</div>
+
+<div class="tf" data-ans="true" data-fb="對。Wikipedia 的 Procedural programming 條目明確指出 procedure 又稱 function、subroutine、routine，是同一件事的不同稱呼。">
+  <div class="q">2. subroutine、routine、function 講的都是同一件事，就是 procedure。</div>
+  <button onclick="tf(this,true)">是</button><button onclick="tf(this,false)">非</button>
+  <div class="fb"></div>
+</div>
+
+<div class="tf" data-ans="false" data-fb="錯。判準是控制權方向，不是體積。AngularJS 是框架不是因為它肥，而是因為 ng-app bootstrap 之後進入點在它手上，它回頭呼叫你的 controller。">
+  <div class="q">3. AngularJS 之所以是框架，是因為它的程式碼量比 jQuery 大很多。</div>
+  <button onclick="tf(this,true)">是</button><button onclick="tf(this,false)">非</button>
+  <div class="fb"></div>
+</div>
+
+<div class="tf" data-ans="true" data-fb="對。AngularJS 1.x 與 Angular 2+ 不相容，是整個重寫。1.x 用 $scope 與 digest 循環，2+ 用元件樹與 TypeScript，面試講混會被抓。">
+  <div class="q">4. AngularJS 1.x 與 Angular 2+ 之間是重寫關係，不是版本升級。</div>
+  <button onclick="tf(this,true)">是</button><button onclick="tf(this,false)">非</button>
+  <div class="fb"></div>
+</div>
+
+<div class="tf" data-ans="false" data-fb="錯。DI（Dependency Injection 依賴注入）只是實現 IoC 的其中一種手法，IoC 的範圍更大，還包含 callback、事件驅動、樣板方法等做法。">
+  <div class="q">5. 依賴注入 DI 就等於控制反轉 IoC，兩者可以互換使用。</div>
+  <button onclick="tf(this,true)">是</button><button onclick="tf(this,false)">非</button>
+  <div class="fb"></div>
+</div>
+
+<h2>五、申論題</h2>
+
+<div class="essay">
+  <div class="q">Q1　請說明 IoC 條目為什麼要拿程序式程式設計當對照，並解釋 inversion 一詞為何是「歷史性」的。</div>
+  <textarea placeholder="先寫自己的答案，再點下面按鈕對照"></textarea>
+  <button class="toggle" onclick="tg(this)">顯示參考答案</button>
+  <div class="ans">
+    在程序式的年代，預設寫法是「我的 main 主動呼叫函式庫」，控制流從頭到尾在自己手上，這是當時所有人共享的心智模型。
+    框架出現後，進入點被框架接管，變成「框架回頭呼叫我寫的程式碼」。<br><br>
+    inversion 之所以是歷史性的，是因為它描述的是<b>相對關係</b>而非絕對現象：控制流本身沒有倒著跑，
+    是相對於程序式那個年代的預設方向翻了過來。如果一開始大家就用框架寫程式，這件事根本不會被命名為「反轉」。
+    補充一點用詞：原文是 design principle 設計原則，屬指導方針，不是硬性規定。
+  </div>
+</div>
+
+<div class="essay">
+  <div class="q">Q2　面試官問你「AngularJS 是框架還是函式庫」，請用控制反轉當判準，給出三個具體證據。</div>
+  <textarea placeholder="先寫自己的答案，再點下面按鈕對照"></textarea>
+  <button class="toggle" onclick="tg(this)">顯示參考答案</button>
+  <div class="ans">
+    是框架，而且是教科書等級。三個證據：<br>
+    1. <b>進入點不在我手上</b>：<code>ng-app</code> 或 <code>angular.bootstrap()</code> 啟動整個 app，我從沒寫過 main。<br>
+    2. <b>我寫的只是註冊</b>：controller、directive、service 都是登記給框架，何時被呼叫由 bootstrap 與 digest 循環決定，
+       典型的好萊塢原則 Don't call us, we'll call you。<br>
+    3. <b>依賴由框架注入</b>：內建 <code>$injector</code>，我只要在函式參數寫 <code>$http</code> <code>$scope</code>，
+       物件就由框架建好塞進來，我不負責 new。<br><br>
+    可以再補一句差異化的話：AngularJS 1.x 與 Angular 2+ 是兩個不相容的東西，而且 AngularJS 官方支援已在 2021-12-31 結束，
+    現在多半是維護舊系統或評估遷移的情境。
+  </div>
+</div>
+
+<div class="essay">
+  <div class="q">Q3　程序式與物件導向都屬於命令式，那它們的分界線是什麼？請用一個具體例子說明。</div>
+  <textarea placeholder="先寫自己的答案，再點下面按鈕對照"></textarea>
+  <button class="toggle" onclick="tg(this)">顯示參考答案</button>
+  <div class="ans">
+    分界線是<b>資料與行為要不要綁在一起</b>。程序式把程式切成「變數與資料結構」以及「操作它們的子程序」兩堆，
+    OOP 則把兩者打包成物件。<br><br>
+    例子：同樣要存一個使用者，程序式寫 <code>saveUser(user)</code>，資料只是被傳進去的參數，函式住在別的地方；
+    OOP 寫 <code>user.save()</code>，行為就掛在資料自己身上。<br><br>
+    這個差別會直接影響維護成本：程序式改一個資料結構要追遍所有操作它的函式，OOP 的封裝就是在買這個維護紅利。
+  </div>
+</div>
+
+<h2>六、相關筆記與關聯理由</h2>
+<ul>
+  <li><b>框架-vs-函式庫-控制反轉IoC</b>：本篇是那一篇 (c) 控制反轉小節的<b>深挖版</b>。那篇給判準，這篇補上「被拿來對照的另一端到底是什麼」，兩篇合起來才完整。</li>
+  <li><b>可維運性-Maintainability</b>：程序式的 (e) 資料與行為分離，正是大型專案難維護的來源之一，因為改一個資料結構要追遍所有操作它的函式。</li>
+  <li><b>JS-相等性與傳值傳址</b>：本篇 (d) 的呼叫堆疊與 stack frame，正是理解 JavaScript 傳值傳址時「參數到底被複製了什麼」的底層機制，講的是同一個 call stack。</li>
+  <li><b>面試題庫與自我介紹優化-AI原生工程師模擬</b>：(o) 的一句話版本可直接收進回答庫，屬架構觀念題。</li>
+</ul>
+
+<h2>七、資料來源（含查證時間）</h2>
+<table>
+  <tr><th>主題</th><th>連結</th><th>時間</th></tr>
+  <tr><td>Procedural programming 定義與典範關係</td><td><a href="https://en.wikipedia.org/wiki/Procedural_programming">en.wikipedia.org/wiki/Procedural_programming</a></td><td>查證日 2026-08-08</td></tr>
+  <tr><td>Imperative programming 條目</td><td><a href="https://en.wikipedia.org/wiki/Imperative_programming">en.wikipedia.org/wiki/Imperative_programming</a></td><td>查證日 2026-08-08</td></tr>
+  <tr><td>Inversion of Control 定義與 inversion 的歷史性說明</td><td><a href="https://en.wikipedia.org/wiki/Inversion_of_control">en.wikipedia.org/wiki/Inversion_of_control</a></td><td>查證日 2026-08-06</td></tr>
+  <tr><td>AngularJS EOL 與 LTS 日期、最後版本 1.8.3</td><td><a href="https://endoflife.date/angularjs">endoflife.date/angularjs</a></td><td>查證日 2026-08-08</td></tr>
+  <tr><td>AngularJS LTS 結束新聞</td><td><a href="https://www.infoq.com/news/2022/01/angularjs-lts-end/">infoq.com/news/2022/01/angularjs-lts-end</a></td><td>2022-01</td></tr>
+</table>
+
+</div>
+
+<div class="bar">
+  <button onclick="all(true)">全部顯示答案</button>
+  <button onclick="all(false)">全部隱藏答案</button>
+  <button onclick="reset()">重置是非題</button>
+</div>
+
+<script>
+  document.querySelectorAll('.blank').forEach(function(el){
+    el.textContent = el.dataset.a;
+    el.addEventListener('click', function(){ el.classList.toggle('show'); });
+  });
+  function tf(btn, pick){
+    var box = btn.closest('.tf');
+    var correct = box.dataset.ans === 'true';
+    var fb = box.querySelector('.fb');
+    var ok = (pick === correct);
+    fb.className = 'fb ' + (ok ? 'ok' : 'no');
+    fb.textContent = (ok ? '答對　' : '答錯　') + box.dataset.fb;
+    fb.style.display = 'block';
+  }
+  function tg(btn){
+    var a = btn.parentElement.querySelector('.ans');
+    a.classList.toggle('open');
+    btn.textContent = a.classList.contains('open') ? '隱藏參考答案' : '顯示參考答案';
+  }
+  function all(show){
+    document.querySelectorAll('.blank').forEach(function(e){ e.classList.toggle('show', show); });
+    document.querySelectorAll('.ans').forEach(function(e){ e.classList.toggle('open', show); });
+    document.querySelectorAll('.toggle').forEach(function(b){ b.textContent = show ? '隱藏參考答案' : '顯示參考答案'; });
+  }
+  function reset(){
+    document.querySelectorAll('.tf .fb').forEach(function(e){ e.style.display='none'; });
+  }
+</script>
+<script src="../assets/wikilink.js" data-root="../"></script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSS Grid Garden 關卡解析 — 顯式/隱式網格、repeat() 語法與 Block Axis</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:30px;line-height:1.3;margin:.2em 0;}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:22px;margin:1.6em 0 .6em;
+ border-left:5px solid var(--accent);padding-left:12px;}
+h3{font-size:17px;margin:1.3em 0 .4em;color:#3a3a3a;}
+.meta{color:var(--muted);font-size:13px;margin-top:8px;}
+.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
+ padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+.src{display:block;font-size:12px;color:#2563eb;word-break:break-all;margin-top:3px;}
+.toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
+ border-bottom:1px solid var(--line);margin-bottom:10px;}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
+ padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
+.btn:hover{background:#f1eefe;}
+mark.hl{padding:1px 3px;border-radius:4px;}
+mark.tog{cursor:pointer;transition:.15s;}
+mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
+ user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;
+ line-height:1.55;}
+code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
+:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
+th{background:#f3f1fb;}
+tr:nth-child(even) td{background:#faf9fd;}
+blockquote{border-left:4px solid #ffd27d;background:#fff8ec;margin:1em 0;padding:8px 14px;
+ border-radius:0 8px 8px 0;color:#7a5a1e;}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);}
+footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
+ border-top:1px solid var(--line);padding-top:16px;}
+.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;
+ padding:7px 12px;margin:6px 0 14px;}
+</style></head>
+<body><div class="wrap">
+<header class="note">
+<h1>CSS Grid Garden 關卡解析 — 顯式/隱式網格、repeat() 語法與 Block Axis</h1>
+<div><span class="pill">#gemini</span><span class="pill">#css</span><span class="pill">#grid</span><span class="pill">#grid-garden</span><span class="pill">#block-axis</span></div>
+<div class="meta">更新於 2026-07-23 · 來源:</div>
+<a class="src" href="https://gemini.google.com/app/d52dcb56dc438f54" target="_blank" rel="noopener">https://gemini.google.com/app/d52dcb56dc438f54</a>
+</header>
+<div class="toolbar">
+<span class="btn" id="hideAll">🙈 全部隱藏重點</span>
+<span class="btn" id="showAll">👁️ 全部顯示</span>
+</div>
+<div class="hint">💡 點一下任何螢光標記可單獨遮住/顯示答案，方便自己考自己。</div>
+<div class="content">
+<h1>CSS Grid Garden 關卡解析 — 顯式/隱式網格、repeat() 語法與 Block Axis</h1>
+<p>本篇重點 a–f，共 6 個</p>
+<h2>重點整理</h2>
+<p>a. <mark class="hl tog" style="background:#FF5582;">顯式網格 vs 隱式網格(Explicit vs Implicit Grid)</mark>：<code>grid-template-rows</code> 定義的是顯式網格，數值的「數量」就是「列數」。若目標物件(例如 <code>#water</code>)被指定在 <code>grid-row: 5 / 6</code>，但顯式網格只定義了 2 列(如 <code>50px 4fr;</code>)，瀏覽器會為了容納它自動產生「隱式網格」，這些自動產生列的高度通常是 <code>auto</code>(依內容決定)，導致版面完全跑掉。結論：目標物件在第 N 列，<code>grid-template-rows</code> 就必須明確定義出至少 N 個值。</p>
+<p>b. <mark class="hl tog" style="background:#ADCCFF;">repeat(n, size) 的 n 代表列數，總列數要精確對齊</mark>：<code>repeat(4, 1fr)</code> = 4 列，<code>50px repeat(4, 1fr)</code> 總共是 1+4=5 列，剛好對應 <code>grid-row: 5/6</code>。但若多寫成 <code>50px repeat(4, 1fr) 1fr</code>，就變成 1+4+1=6 列，水仍會乖乖待在「第 5 列」，可是花園底部會多出第 6 列空地，水沒有真正「填滿最後一列」而判定失敗。</p>
+<p>c. <mark class="hl tog" style="background:#FF5582;">fr 是比例單位，前面必須帶數字</mark>：<code>repeat(4, fr)</code> 是無效語法（少了數字 1），瀏覽器無法判斷比例；正確寫法是 <code>repeat(4, 1fr)</code>。即使只要「1 份」也要寫成 <code>1fr</code>，不能只寫 <code>fr</code>。</p>
+<p>d. <mark class="hl tog" style="background:#D2B3FF;">語法邏輯正確仍不過關時的排查清單</mark>：①檢查輸入框是否已內建結尾分號，自己又多打一個變成 <code>;;</code>；②確認只需要寫 <code>grid-template-rows</code> 這一個屬性，別誤刪或覆蓋了 <code>grid-template-columns</code>；③拼字是否為複數 <code>rows</code>(不是 <code>row</code>)；④若懷疑判別器僅接受展開式寫法，可先試 <code>50px 1fr 1fr 1fr 1fr;</code> 這種不用 <code>repeat()</code> 的寫法排除語法相容性問題。</p>
+<p>e. <mark class="hl tog" style="background:#ADCCFF;">Block Axis(區塊軸) vs Inline Axis(行內軸)</mark>：Block Axis 是「內容堆疊、換行的方向」，在預設(由左至右、由上而下)書寫模式下等於「垂直方向」；Inline Axis 則是「同一行內文字排列的方向」，等於「水平方向」。<code>align-items</code>／<code>align-self</code> 控制物件在 Block Axis 上的對齊(start/center/end 對應頂/中/底)，<code>justify-items</code>／<code>justify-self</code> 控制 Inline Axis(水平)對齊。⚠️ 若書寫模式改為直書(如中文古籍、日文直書)，Block Axis 會變成水平方向 —— 但目前一般網頁開發只需記住「Block=垂直、Inline=水平」即可。記憶法：align 像尖塔上下對齊，justify 像鉤子橫向調整。</p>
+<p>f. <mark class="hl tog" style="background:#FFB8EB;">CSS Grid Garden 的進度保存方式(LocalStorage 排查衍生知識)</mark>：實測發現 Grid Garden 並未把關卡進度存進 LocalStorage(該網站 LocalStorage 只有一組隨機 <code>user</code> ID)，而是採用 <mark class="hl tog" style="background:#ADCCFF;">URL Hash(網址錨點)</mark> 保存進度，例如網址列的 <code>#26</code> 就代表第 26 關。特點：伺服器不會讀取 Hash，但頁面 JavaScript 會讀取它來決定顯示內容；只要網址的 <code>#數字</code> 不變，刷新頁面(F5)進度不會遺失；但無痕模式關閉分頁、或手動清除瀏覽器資料時進度才會真的消失。跳關/救援技巧：直接把網址改成 <code>https://cssgridgarden.com/#26</code> 即可手動回到指定關卡。</p>
+<h2>各對話來源(原文，節錄)</h2>
+<h3>CSS Grid Garden 關卡 26 解析 (2026-07-23) — https://gemini.google.com/app/d52dcb56dc438f54</h3>
+<p><strong>使用者:</strong> 那為什麼這邊沒有過關(使用 <code>50px 4fr;</code>)</p>
+<p><strong>Gemini:</strong> 這是經典的 CSS Grid 陷阱！你只定義了 2 列，而水被設定在第 5 列……(見重點 a)</p>
+<p><strong>使用者:</strong> grid-template-rows: 50px repeat(4, 1fr) 1fr; 換成這樣為什麼不過</p>
+<p><strong>Gemini:</strong> 你現在切出了 6 列，但水只需要待在第 5 列……(見重點 b)</p>
+<p><strong>使用者:</strong> grid-template-rows:50px repeat(4, fr); 沒讓我過關</p>
+<p><strong>Gemini:</strong> 少寫了一個「1」，fr 前面必須帶數字……(見重點 c)</p>
+<p><strong>使用者:</strong> grid-template-rows:50px repeat(4, 1fr); 她沒讓我過關</p>
+<p><strong>Gemini:</strong> 通常是分號重複、屬性寫錯或判別器相容性問題……(見重點 d)</p>
+<p><strong>使用者:</strong> https://cssgridgarden.com/ 這頁我如果刷新我玩的資料會都不見嗎／我剛剛看過localstorage了沒有欸／user1775962274143.gi1k8073pw8 只有這個 我的user</p>
+<p><strong>Gemini:</strong> 這款遊戲用 URL Hash 保存進度，不是 LocalStorage……(見重點 f)</p>
+<p><strong>使用者:</strong> align-items 在 grid layout 中控制 block axis，&gt; block axis 指的是什麼</p>
+<p><strong>Gemini:</strong> Block Axis 是內容堆疊的方向，預設書寫模式下等於垂直方向……(見重點 e)</p>
+<h2>資料來源(含查證時間)</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/d52dcb56dc438f54</td>
+<td>2026-07-23</td>
+</tr>
+<tr>
+<td>CSS Grid / repeat() / fr 單位為 CSS 規範標準行為</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout</td>
+<td>以 MDN CSS Grid 文件為準，查證於 2026-07-23</td>
+</tr>
+<tr>
+<td>Grid Garden 練習網站</td>
+<td>https://cssgridgarden.com/</td>
+<td>查證於 2026-07-23</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-07-23</p>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-23</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try{document.querySelectorAll('pre code').forEach(b=>{if(window.hljs)hljs.highlightElement(b);});}catch(e){}
+document.querySelectorAll('mark.tog').forEach(m=>m.addEventListener('click',()=>m.classList.toggle('hidden')));
+var ha=document.getElementById('hideAll'),sa=document.getElementById('showAll');
+ha.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.add('hidden'));
+sa.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.remove('hidden'));
+</script>
+<script src="../../assets/wikilink.js" data-root="../../"></script>
+</body></html>

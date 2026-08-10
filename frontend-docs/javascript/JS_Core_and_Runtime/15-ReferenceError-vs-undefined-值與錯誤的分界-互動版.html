@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ReferenceError 與 undefined—「值」與「錯誤」的分界</title>
+<style>
+:root{--bg:#fbfaf7;--card:#ffffff;--ink:#2b2b2b;--muted:#6b6b6b;--line:#e7e3da;--accent:#7c6f9b;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 22px 64px;}
+header.note-head{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:26px;}
+h1.title{font-family:Georgia,"Songti TC",serif;font-size:30px;margin:0 0 12px;line-height:1.3;}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0;}
+.pill{background:#efeaf7;color:#5b4f7a;border:1px solid #ded3f0;border-radius:999px;
+ padding:3px 11px;font-size:12.5px;}
+.meta{color:var(--muted);font-size:13px;margin-top:6px;}
+.meta a{color:var(--accent);}
+.toolbar{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap;}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+ padding:7px 14px;font-size:13.5px;color:#4a4458;box-shadow:0 1px 0 rgba(0,0,0,.02);}
+.btn:hover{background:#f4f1fb;}
+h2{font-size:21px;margin:34px 0 12px;padding-left:11px;border-left:5px solid var(--accent);}
+h3{font-size:17px;margin:22px 0 8px;color:#3b3550;}
+h4{font-size:15px;margin:16px 0 6px;color:#574f6b;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:16px 0;box-shadow:0 2px 10px rgba(60,50,90,.04);}
+p{margin:10px 0;}
+ul,ol{margin:8px 0 8px 4px;padding-left:22px;}
+li{margin:5px 0;}
+code{background:#f1eef8;border-radius:5px;padding:1px 6px;font-size:.92em;
+ font-family:"SFMono-Regular",Consolas,"Cascadia Code",monospace;}
+pre{background:#1f1b2e;color:#eee;border-radius:11px;padding:15px 16px;overflow-x:auto;
+ font-size:13.5px;line-height:1.6;}
+pre code{background:none;padding:0;color:inherit;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
+th{background:#f1ecf8;}
+tbody tr:nth-child(even){background:#faf8fd;}
+mark{padding:.5px 3px;border-radius:3px;}
+mark.y{background:#FFF3A3;} mark.r{background:#FF5582;} mark.g{background:#BBFABB;}
+mark.b{background:#ADCCFF;} mark.p{background:#FFB8EB;} mark.v{background:#D2B3FF;}
+mark.hidden{color:transparent;background:#d8d3c9;border-radius:3px;user-select:none;}
+mark.hidden *{color:transparent!important;}
+blockquote{margin:12px 0;padding:6px 14px;border-left:4px solid var(--line);color:var(--muted);background:#faf9f6;border-radius:6px;}
+.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #888;background:#faf9fc;
+ border-radius:10px;}
+.callout-title{font-weight:700;margin-bottom:4px;}
+.callout-body>:first-child{margin-top:0;}
+.callout-body>:last-child{margin-bottom:0;}
+.src-turn{margin:14px 0;}
+.src-user{background:#eef4ff;border-left:4px solid #ADCCFF;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.src-gem{background:#f4f1ec;border-left:4px solid #cdbfa6;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.role{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:#7a6f55;display:block;margin-bottom:3px;}
+.src-user .role{color:#3f63a8;}
+.spoiler{background:#3b3550;color:transparent;border-radius:5px;padding:1px 8px;cursor:pointer;
+ transition:.15s;user-select:none;box-shadow:inset 0 0 0 1px #ccc;}
+.spoiler::after{content:"　點此看答案　";color:#cdbfe8;font-size:.85em;}
+.spoiler.on{background:#e7ffe7;color:#1c5e1c;box-shadow:inset 0 0 0 1px #BBFABB;user-select:text;}
+.spoiler.on::after{content:"";}
+footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);
+ color:var(--muted);font-size:12.5px;text-align:center;}
+</style></head><body><div class="wrap">
+<header class="note-head"><h1 class="title">ReferenceError 與 undefined—「值」與「錯誤」的分界</h1>
+<div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#error</span><span class="pill">#undefined</span><span class="pill">#reference-error</span><span class="pill">#tdz</span><span class="pill">#typeof</span></div><div class="meta">更新：2026-08-08　· 來源：<a href="https://gemini.google.com/app/e4c3fe3d87ee0a0f" target="_blank">來源1</a></div>
+<div class="toolbar"><span class="btn" onclick="toggleAll(false)">🙈 隱藏所有答案</span>
+<span class="btn" onclick="toggleAll(true)">👀 顯示所有答案</span></div>
+</header>
+<h1>ReferenceError 與 undefined—「值」與「錯誤」的分界</h1>
+<blockquote>
+<p>🔖 本篇重點索引：a–j，共 10 個。</p>
+</blockquote>
+<h2>重點整理</h2>
+<p><strong>(a)</strong> <mark style="background: #ADCCFFA6;">一句話分界</mark>：<code>undefined</code> 是<mark style="background: #FFF3A3A6;">一個「值（Value）」</mark>，<code>ReferenceError</code> 是<mark style="background: #FF5582A6;">一個「錯誤（Error）」</mark>。兩者都跟「找不到東西」有關，但層級完全不同——前者程式照跑，後者程式當場中斷。</p>
+<p><strong>(b)</strong> <mark style="background: #BBFABBA6;">白話比喻</mark>：</p>
+<ul>
+<li><code>undefined</code>＝<mark style="background: #FFF3A3A6;">位子佔了，但位子上沒人</mark>。變數已經宣告，只是還沒被賦值。</li>
+<li><code>ReferenceError</code>＝<mark style="background: #FF5582A6;">你試圖叫一個根本不存在的人</mark>。引擎在目前的範疇（Scope，作用域）裡完全找不到這個識別碼的宣告。</li>
+</ul>
+<p><strong>(c)</strong> <mark style="background: #ADCCFFA6;">undefined 的產生時機</mark>：宣告變數卻沒給初始值時，JavaScript 會自動塞一個 <code>undefined</code> 當預設值。</p>
+<pre><code class="language-js">let a;
+console.log(a);        // undefined
+console.log(typeof a); // &quot;undefined&quot;
+</code></pre>
+<p><strong>(d)</strong> <mark style="background: #D2B3FFA6;">可以主動賦值 undefined，但實務上不建議</mark>：語法上 <code>x = undefined</code> 合法，不過表達「這裡刻意是空的」時，慣例會用 <code>null</code>——<code>null</code> 是「開發者主動放的空」，<code>undefined</code> 是「引擎自動給的空」，語意上要分開。</p>
+<p><strong>(e)</strong> <mark style="background: #FF5582A6;">ReferenceError 的產生時機</mark>：存取一個完全沒有用 <code>var</code>／<code>let</code>／<code>const</code> 宣告過的識別碼（Identifier，標識符）。</p>
+<pre><code class="language-js">console.log(b); // Uncaught ReferenceError: b is not defined
+</code></pre>
+<p><strong>(f)</strong> <mark style="background: #FFB8EBA6;">核心對比表</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th><code>undefined</code></th>
+<th><code>ReferenceError</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>性質</td>
+<td>原始型別（Primitive Type）的一個值</td>
+<td>執行期錯誤（Runtime Error）</td>
+</tr>
+<tr>
+<td>變數狀態</td>
+<td>已宣告，但未初始化</td>
+<td>未宣告，或處於暫時性死區（TDZ）</td>
+</tr>
+<tr>
+<td>白話</td>
+<td>「我知道這東西，但還不知道它是什麼」</td>
+<td>「我根本沒聽過這東西」</td>
+</tr>
+<tr>
+<td>對程式的影響</td>
+<td>程式繼續執行</td>
+<td>當場中斷，後面的程式碼不會跑</td>
+</tr>
+</tbody>
+</table>
+<p><strong>(g)</strong> <mark style="background: #FF5582A6;">陷阱—<code>typeof</code> 會吃掉未宣告變數的錯誤</mark>：對一個<mark style="background: #FFF3A3A6;">從未宣告</mark>的變數用 <code>typeof</code>，不但不會報錯，還會乖乖回傳字串 <code>"undefined"</code>。這是 JavaScript 為了向後相容保留的特例，除錯時很容易被它蓋掉真正的 <code>ReferenceError</code>。</p>
+<pre><code class="language-js">console.log(typeof notDeclaredVar); // &quot;undefined&quot;（不報錯！）
+console.log(notDeclaredVar);        // ReferenceError（這才會炸）
+</code></pre>
+<p><strong>(h)</strong> <mark style="background: #FF5582A6;">陷阱的陷阱—TDZ 不吃這一套</mark>：<code>typeof</code> 的保護<mark style="background: #FF5582A6;">只對「完全未宣告」有效</mark>。若變數是用 <code>let</code>／<code>const</code> 宣告、但還在暫時性死區（TDZ，Temporal Dead Zone）裡，<code>typeof</code> <mark style="background: #BBFABBA6;">照樣拋 ReferenceError</mark>。這點 Gemini 原始回答的對比表寫錯了，見下方「⚠️ 存疑／更正」。</p>
+<pre><code class="language-js">console.log(typeof c); // ❌ ReferenceError: Cannot access 'c' before initialization
+let c = 10;
+
+console.log(typeof d); // ✅ &quot;undefined&quot;（d 從頭到尾沒宣告過）
+</code></pre>
+<p><strong>(i)</strong> <mark style="background: #ADCCFFA6;">三種最常見的觸發情境</mark>：</p>
+<ul>
+<li>拼字錯誤：宣告了 <code>myVariable</code>，呼叫時打成 <code>myVarible</code>。</li>
+<li>作用域問題：在函式外部去存取函式內部宣告的變數。</li>
+<li>暫時性死區（TDZ）：在 <code>let</code>／<code>const</code> 宣告之前就先使用該變數。</li>
+</ul>
+<p><strong>(j)</strong> <mark style="background: #BBFABBA6;">為什麼 <code>var</code> 不會有 TDZ 問題</mark>：<code>var</code> 在提升（Hoisting）階段就會被<mark style="background: #FFF3A3A6;">初始化為 <code>undefined</code></mark>，所以提前存取只是拿到 <code>undefined</code>；<code>let</code>／<code>const</code> 雖然也會被提升，但<mark style="background: #FF5582A6;">不會初始化</mark>，在賦值那行之前存取一律是 ReferenceError。這正是 TDZ 的設計目的——把「用了還沒準備好的變數」從沉默的 bug 變成大聲的錯誤。</p>
+<pre><code class="language-js">console.log(v); // undefined（var 提升後已初始化）
+var v = 1;
+
+console.log(l); // ReferenceError（let 提升但未初始化 → TDZ）
+let l = 1;
+</code></pre>
+<h2>各對話來源</h2>
+<h3>ReferenceError 與 Undefined 差異（2026-08）— https://gemini.google.com/app/e4c3fe3d87ee0a0f</h3>
+<p><mark style="background: #FFF3A3A6;">使用者：referenceerror 跟 undefined 有什麼關係</mark></p>
+<div class="src-gem"><span class="role">Gemini</span>先給核心差異摘要——<code>undefined</code> 是「值」、<code>ReferenceError</code> 是「錯誤」（重點 a、b）；分別說明 <code>undefined</code> 的產生時機與 <code>null</code> 的使用慣例（重點 c、d）；說明 <code>ReferenceError</code> 來自存取未宣告的識別碼（重點 e）；附上四欄對比表（重點 f）；提出 <code>typeof</code> 對未宣告變數不報錯的陷阱（重點 g）；最後列出三種常見觸發情境與 TDZ 範例（重點 i）。</div>
+<h2>⚠️ 存疑／更正</h2>
+<p><mark style="background: #FF5582A6;">Gemini 對比表中「<code>typeof</code> 結果」那一列把 ReferenceError 情境一律寫成 <code>"undefined"</code>，這是不完整的說法。</mark>正確情況分兩種：</p>
+<table>
+<thead>
+<tr>
+<th>變數狀態</th>
+<th><code>typeof x</code> 的結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>從未宣告過（undeclared）</td>
+<td>回傳 <code>"undefined"</code>，<mark style="background: #BBFABBA6;">不報錯</mark></td>
+</tr>
+<tr>
+<td>用 <code>let</code>／<code>const</code> 宣告、仍在 TDZ 內</td>
+<td><mark style="background: #FF5582A6;">拋 ReferenceError</mark>，不會回傳字串</td>
+</tr>
+</tbody>
+</table>
+<p>也就是說，Gemini 自己在同一則回答裡先寫「TDZ 屬於 ReferenceError」、又在表格裡宣稱這類情況 <code>typeof</code> 會回 <code>"undefined"</code>，前後互相矛盾。本篇重點 (h) 已修正並補上可自行驗證的程式碼；此行為在 ECMA-262 規範中屬於 <code>GetValue</code> 對未初始化繫結（uninitialized binding）拋錯的規定，見下方資料來源。</p>
+<h2>資料來源（含查證時間）</h2>
+<blockquote>
+<p>查證日期：2026-08-08（Gemini 對話為 2026-08；表格的 <code>typeof</code> 描述已依 MDN 與 ECMA-262 更正）</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話原文</td>
+<td><a href="https://gemini.google.com/app/e4c3fe3d87ee0a0f">ReferenceError 與 Undefined 差異</a></td>
+<td>2026-08</td>
+</tr>
+<tr>
+<td><code>typeof</code> 運算子與 TDZ 例外說明</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof">MDN — typeof</a></td>
+<td>MDN，持續更新</td>
+</tr>
+<tr>
+<td>暫時性死區（TDZ）定義</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let">MDN — let（Temporal dead zone）</a></td>
+<td>MDN，持續更新</td>
+</tr>
+<tr>
+<td><code>undefined</code> 原始值定義</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined">MDN — undefined</a></td>
+<td>MDN，持續更新</td>
+</tr>
+<tr>
+<td><code>ReferenceError</code> 物件</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ReferenceError">MDN — ReferenceError</a></td>
+<td>MDN，持續更新</td>
+</tr>
+<tr>
+<td>規範層級：未初始化繫結拋錯</td>
+<td><a href="https://tc39.es/ecma262/">ECMA-262 — ResolveBinding / GetValue</a></td>
+<td>TC39 最新草案</td>
+</tr>
+</tbody>
+</table>
+<h2>相關筆記</h2>
+<ul>
+<li>[[09-Hoisting-函式宣告vs函式表達式-TDZ]]——關聯原因：本篇 (h)(j) 的 TDZ 行為，根源就是提升階段「有沒有順便初始化」的差異；那篇講機制，本篇講機制造成的錯誤訊息長什麼樣。</li>
+<li>[[04-變數宣告-let-const-var]]——關聯原因：<code>var</code> 與 <code>let</code>／<code>const</code> 的宣告差異，直接決定你拿到的是 <code>undefined</code> 還是 <code>ReferenceError</code>，是本篇 (j) 的前置知識。</li>
+<li>[[05-作用域-scope-global-function-block]]——關聯原因：本篇 (i) 提到的「作用域問題」型 ReferenceError，要先懂 scope chain（作用域鏈）查找失敗才會拋錯這件事。</li>
+<li>[[07-identifier-vs-property-var全域變數]]——關聯原因：解釋為什麼 <code>window.notExist</code> 回傳 <code>undefined</code>，而裸寫 <code>notExist</code> 卻是 ReferenceError——存取「屬性」與存取「識別碼」走的是兩條完全不同的路徑，這是本篇 (g) 陷阱的底層成因。</li>
+<li>[[常見錯誤-串聯比較運算子-chained-comparison]]——關聯原因：同屬「JS 常見錯誤圖鑑」系列，一個是語意錯（不報錯但結果錯），一個是執行期錯（直接炸），適合放在一起對照複習。</li>
+</ul>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-08</footer>
+</div><script>
+function toggleAll(show){document.querySelectorAll('.spoiler').forEach(function(s){
+ if(show){s.classList.add('on');}else{s.classList.remove('on');}});}
+document.addEventListener('click',function(e){
+ if(e.target.classList&&e.target.classList.contains('spoiler')){e.target.classList.toggle('on');}});
+(function(){var l=document.createElement('link');l.rel='stylesheet';
+ l.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
+ document.head.appendChild(l);var s=document.createElement('script');
+ s.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+ s.onload=function(){try{hljs.highlightAll();}catch(e){}};document.head.appendChild(s);})();
+</script><script src="../../../assets/wikilink.js" data-root="../../../"></script>
+</body></html>

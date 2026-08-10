@@ -1,0 +1,8 @@
+[
+  {"type":"tf","q":"MCP 的 Resources（資源）跟 Tools（工具）一樣，都會產生副作用，所以都需要使用者逐次核准。","correct":false,"a":"❌ 非。Resources 是<b>唯讀</b>的上下文，用 URI 識別，類比於 REST 的 GET；Tools 才是會產生副作用的可呼叫函式，類比於 POST，需要 Host 取得使用者同意。"},
+  {"type":"tf","q":"2026-07-28 版 MCP 規格把協定核心改為無狀態（stateless），移除了 Mcp-Session-Id 標頭。","correct":true,"a":"⭕ 是。這是該版最重大的變動。實務意義是 MCP Server 可以直接放在一般 HTTP 負載平衡後面水平擴充，不需要黏性連線。"},
+  {"type":"tf","q":"stdio 傳輸方式是讓 Server 以本機子行程執行，透過標準輸入輸出交換訊息。","correct":true,"a":"⭕ 是。stdio 適合本機工具，是桌面型 Host 最常見的選擇；遠端則用 Streamable HTTP（單一端點、POST + GET、可選 SSE 串流）。"},
+  {"type":"tf","q":"MCP 主要是為了讓 AI 模型連接「硬體裝置」而設計的協定。","correct":false,"a":"❌ 非。這正是原始對話中被 Gemini 修正的一點：MCP 側重的是<b>應用軟體與資料的串接</b>，裝置只是眾多後端的其中一種可能。"},
+  {"type":"essay","q":"請說明 MCP 為什麼能把整合成本從 M×N 降到 M+N，並舉出 Server 的三大能力各自的角色。","a":"在 MCP 之前，每一個 AI 應用（M 個）要接每一個資料源（N 個）都得寫一套專屬整合，總工作量是 M×N。MCP 定義了一層共同協定之後，每個應用只要實作一次 Client（M），每個資料源只要實作一次 Server（N），總量降為 M+N。<br><br>三大能力：<br>• <b>Tools</b>：可被模型呼叫的函式，附 JSON Schema，是唯一有副作用的類型，需使用者核准。<br>• <b>Resources</b>：以 URI 識別的唯讀上下文，被讀進脈絡而不是被執行。<br>• <b>Prompts</b>：可重複使用的提示範本，通常由使用者主動選用。"},
+  {"type":"essay","q":"面試官問：「MCP 跟 RAG 是不是同一件事？」你會怎麼回答？","a":"不是，兩者是正交的。<b>MCP 是取得上下文的『管道』</b>，規範 AI 應用如何連上外部工具與資料源；<b>RAG 是挑選上下文的『策略』</b>，決定要把哪些片段放進提示裡。實務上常一起用：一個 MCP Server 對外提供 search 這個 Tool，內部實作就是跑 RAG 檢索。"}
+]

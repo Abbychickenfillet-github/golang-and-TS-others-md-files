@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swap（交換）是演算法還是 Python 方法？——暫存變數、XOR 與元組解包</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{
+  --bg:#faf9f7; --card:#ffffff; --ink:#2f3337; --muted:#6b7280;
+  --line:#e6e3dd; --accent:#4f7cac; --accent-soft:#eaf1f8;
+  --user:#8a6fb0; --gem:#3f8f7a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+  line-height:1.75;font-size:16.5px;letter-spacing:.01em}
+.wrap{max-width:820px;margin:0 auto;padding:34px 22px 90px}
+header.pagehead{background:linear-gradient(160deg,#ffffff,#f3f1ec);border:1px solid var(--line);
+  border-radius:18px;padding:26px 28px;margin-bottom:26px;box-shadow:0 2px 14px rgba(0,0,0,.04)}
+header.pagehead h1{margin:0 0 12px;font-size:1.72rem;line-height:1.4;
+  font-family:"Noto Serif TC",Georgia,serif;font-weight:700}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.pill{background:var(--accent-soft);color:#33587e;border:1px solid #d6e3f0;border-radius:999px;
+  padding:3px 12px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.82rem;color:var(--muted);margin-top:10px}
+.meta a{color:var(--accent);word-break:break-all}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 8px}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:10px;
+  padding:8px 15px;font-size:.85rem;color:var(--ink);transition:.18s;font-family:inherit}
+.btn:hover{background:var(--accent-soft);border-color:#cbdcec}
+.btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:24px 28px;margin:20px 0;box-shadow:0 1px 8px rgba(0,0,0,.03)}
+h2{font-size:1.24rem;margin:1.7em 0 .7em;padding-bottom:.35em;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif}
+h2:first-child{margin-top:0}
+h3{font-size:1.06rem;margin:1.5em 0 .5em;color:#3c5a75}
+h4{font-size:.97rem;margin:1.2em 0 .4em;color:#4b5563}
+p{margin:.7em 0}
+ul,ol{padding-left:1.5em}
+li{margin:.35em 0}
+mark{padding:.08em .22em;border-radius:4px;transition:.2s;cursor:pointer}
+body.hide-marks mark{color:transparent!important;background:#dfe3e8!important;
+  border-radius:4px;text-shadow:none;user-select:none}
+mark.revealed{color:inherit!important;text-shadow:none}
+code{background:#f0eee9;padding:.13em .38em;border-radius:5px;font-size:.9em;
+  font-family:"JetBrains Mono","Consolas","Cascadia Mono",monospace}
+pre{background:#21262d;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow-x:auto;
+  font-size:.86rem;line-height:1.6}
+pre code{background:none;padding:0;color:inherit}
+table{border-collapse:collapse;width:100%;margin:1.1em 0;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:#f1efe9;font-weight:600}
+tbody tr:nth-child(even){background:#fbfaf8}
+blockquote{margin:1.1em 0;padding:12px 18px;border-left:4px solid var(--accent);
+  background:#f5f8fb;border-radius:0 10px 10px 0;color:#41505e}
+blockquote p:first-child{margin-top:0}
+blockquote p:last-child{margin-bottom:0}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);display:block;margin:1em auto}
+hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
+.quiz{background:#fdfcfa;border:1px solid var(--line);border-radius:16px;padding:22px 26px;margin:24px 0}
+.q{border-bottom:1px dashed var(--line);padding:14px 0}
+.q:last-child{border-bottom:0}
+.q .stem{font-weight:600;margin-bottom:9px}
+.q .tag{display:inline-block;font-size:.72rem;background:#efe7f5;color:#6b4d8a;
+  border-radius:6px;padding:2px 8px;margin-right:8px;vertical-align:middle}
+.opts{display:flex;gap:9px;flex-wrap:wrap;margin:8px 0}
+.opt{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+  padding:6px 16px;font-size:.86rem;font-family:inherit}
+.opt.right{background:#d9f2df;border-color:#8fce9f}
+.opt.wrong{background:#fbdde5;border-color:#e59cb0}
+.ans{display:none;margin-top:9px;padding:11px 14px;background:#f2f6fa;border-left:3px solid var(--accent);
+  border-radius:0 8px 8px 0;font-size:.9rem}
+.ans.show{display:block}
+.blank{border-bottom:2px dotted var(--accent);cursor:pointer;padding:0 .5em;color:transparent;
+  background:#e9ecf0;border-radius:3px;user-select:none}
+.blank.open{color:var(--ink);background:#e2f0e6;border-bottom-color:#79b98e;user-select:auto}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:46px;
+  padding-top:18px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="pagehead">
+  <h1>Swap（交換）是演算法還是 Python 方法？——暫存變數、XOR 與元組解包</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#資料結構</span><span class="pill">#演算法</span><span class="pill">#swap</span><span class="pill">#python</span><span class="pill">#bytecode</span><span class="pill">#面試</span></div>
+  <div class="meta">來源：Gemini ｜ 更新：2026-08-09 ｜ 原始對話：<a href="https://gemini.google.com/app/85351f25c8f2b0df" target="_blank" rel="noopener">85351f25c8f2</a></div>
+</header>
+<div class="toolbar">
+  <button class="btn" id="tgl">🙈 隱藏所有重點（自我測驗）</button>
+  <button class="btn" id="tglAns">💡 展開／收合全部解答</button>
+</div>
+<div class="card">
+<blockquote>
+<p><strong>本篇重點 a–k，共 11 個。</strong></p>
+</blockquote>
+<hr />
+<h2 id="_1">先回答問題</h2>
+<p>(a) <mark style="background: #BBFABBA6;">Swap 是一個「基本操作」的概念，不是 Python 的內建方法</mark>。Python 沒有 <code>swap()</code> 這個函式，也沒有這個方法。</p>
+<p>(b) <mark style="background: #ADCCFFA6;">Swap 的定義</mark>：把兩個變數所持有的值（或參考）互相對調。它本身談不上是「演算法」等級的東西，比較精確的說法是<mark style="background: #FFF3A3A6;">它是排序、反轉、分割這類演算法內部反覆用到的原子操作</mark>。</p>
+<hr />
+<h2 id="_2">三種實作路線</h2>
+<h3 id="c-temporary-variable">(c) 路線一：暫存變數（Temporary Variable）</h3>
+<p>最基礎、任何語言都通用的寫法。</p>
+<pre><code class="language-python">temp = a
+a = b
+b = temp
+</code></pre>
+<p><mark style="background: #FFB8EBA6;">空間複雜度 O(1)、時間複雜度 O(1)</mark>，多用一格記憶體換取「絕對不會出錯」。</p>
+<h3 id="d-xor-xor-swap">(d) 路線二：XOR 位元交換（XOR Swap）</h3>
+<p>不需要額外變數。</p>
+<pre><code class="language-python">a = a ^ b
+b = b ^ a
+a = a ^ b
+</code></pre>
+<p>原理是 XOR 的自反性：<code>x ^ y ^ y == x</code>。</p>
+<p>(e) <mark style="background: #FF5582A6;">XOR swap 有一個致命陷阱：當 a 與 b 指向同一個記憶體位置（例如 <code>swap(arr[i], arr[i])</code>）時，結果會直接變成 0</mark>。而且它只適用於整數型別，浮點數與物件不能這樣做。</p>
+<p>(f) <mark style="background: #FF5582A6;">實務上不要用 XOR swap</mark>。現代編譯器對「暫存變數版」的最佳化已經比 XOR 版好，XOR 版還會破壞指令層級的平行性。它的價值只剩「面試時展示你懂位元運算」。</p>
+<h3 id="g-python-tuple-unpacking">(g) 路線三：Python 的元組解包（Tuple Unpacking）</h3>
+<pre><code class="language-python">a, b = b, a
+</code></pre>
+<p>這是 Python 的語法糖，也是<mark style="background: #BBFABBA6;">在 Python 裡唯一該用的寫法</mark>：不用暫存變數、不用擔心型別、一行講完意圖。</p>
+<hr />
+<h2 id="a-b-b-a">⚠️ 存疑／更正：<code>a, b = b, a</code> 到底有沒有建立元組？</h2>
+<p>(h) 原始對話中 Gemini 說：「右側的 <code>b, a</code> 會先在記憶體中建立一個隱式的元組 <code>(b, a)</code>，接著解包並分別賦予給左側」。</p>
+<p>(i) <mark style="background: #FF5582A6;">這個說法在「兩個變數」的情況下是不正確的</mark>。CPython 的窺孔最佳化器（peephole optimizer）會檢查右側序列長度：</p>
+<table>
+<thead>
+<tr>
+<th>右側元素數</th>
+<th>實際產生的位元組碼</th>
+<th>有沒有建立元組</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2 個</td>
+<td><code>ROT_TWO</code>（3.10 以前）／<code>SWAP 2</code>（3.11 起）</td>
+<td><mark style="background: #BBFABBA6;">沒有</mark></td>
+</tr>
+<tr>
+<td>3 個</td>
+<td><code>ROT_THREE</code> + <code>ROT_TWO</code></td>
+<td><mark style="background: #BBFABBA6;">沒有</mark></td>
+</tr>
+<tr>
+<td>4 個以上</td>
+<td><code>BUILD_TUPLE</code> + <code>UNPACK_SEQUENCE</code></td>
+<td><mark style="background: #FF5582A6;">有</mark></td>
+</tr>
+</tbody>
+</table>
+<p>(j) 也就是說，<code>a, b = b, a</code> <mark style="background: #FFF3A3A6;">只是把直譯器堆疊（stack）上最頂端的兩個參考換位置，沒有任何記憶體配置</mark>。Gemini 講的「比傳統變數對調更快」<mark style="background: #BBFABBA6;">結論是對的</mark>，但它給的理由（建立元組再解包）<mark style="background: #FF5582A6;">跟真正的原因剛好相反</mark>——正是因為「沒有建立元組」才快。</p>
+<p>(k) 想自己驗證，用內建的 <code>dis</code> 模組看位元組碼即可：</p>
+<pre><code class="language-python">import dis
+dis.dis(compile(&quot;a, b = b, a&quot;, &quot;&lt;s&gt;&quot;, &quot;exec&quot;))
+# 會看到 LOAD_NAME b / LOAD_NAME a / SWAP 2（或 ROT_TWO）/ STORE_NAME ...
+# 全程不會出現 BUILD_TUPLE
+
+dis.dis(compile(&quot;a, b, c, d = d, c, b, a&quot;, &quot;&lt;s&gt;&quot;, &quot;exec&quot;))
+# 這時候才會看到 BUILD_TUPLE 4 與 UNPACK_SEQUENCE 4
+</code></pre>
+<hr />
+<h2 id="_3">關聯筆記與關聯原因</h2>
+<ul>
+<li>冒泡排序法-range參數與時間複雜度：<mark style="background: #D2B3FFA6;">冒泡排序的內層迴圈每一次比較後做的就是這個 swap</mark>。這篇是那篇裡「交換」那一行的放大版。</li>
+<li>快慢指標-讀取指標i與寫入指標k-原地刪除：<mark style="background: #D2B3FFA6;">原地（in-place）演算法之所以能做到 O(1) 額外空間，靠的就是 swap 這種不配置新記憶體的操作</mark>。兩篇共用「原地」這個核心概念。</li>
+</ul>
+<hr />
+<h2 id="_4">各對話來源（原文）</h2>
+<h3 id="swap-python-2026-08-httpsgeminigooglecomapp85351f25c8f2b0df">Swap 演算法與 Python 實現（2026-08）— https://gemini.google.com/app/85351f25c8f2b0df</h3>
+<blockquote>
+<p><strong>使用者：</strong> Swap 是一個演算法還是 Python 方法</p>
+<p><strong>Gemini：</strong> Swap（交換）是一個演算法的概念與基本操作，並不是 Python 的內建方法（Method）或函數（Function）。</p>
+<p><strong>1. 演算法層面（Algorithmic Concept）</strong>
+在演算法與資料結構中，Swap 指的是將兩個變數的值或記憶體位置進行對調的操作。傳統程式語言主要有兩種實現概念：
+- 使用暫存變數（Temporary Variable）：最基礎且通用的演算法邏輯。<code>temp = a</code> / <code>a = b</code> / <code>b = temp</code>
+- 位元運算（XOR Swap）：不需額外記憶體空間即可完成交換。<code>a = a ^ b</code> / <code>b = b ^ a</code> / <code>a = a ^ b</code></p>
+<p><strong>2. Python 的語法實現</strong>
+Python 沒有提供名為 <code>swap()</code> 的內建方法，而是採用元組解包（Tuple Unpacking）的語法糖來實現交換：<code>a, b = b, a</code>
+底層運作原理：右側的 <code>b, a</code> 會先在記憶體中建立一個隱式的元組 <code>(b, a)</code>；接著將該元組的值解包並分別賦予給左側的 a 與 b。這種寫法不需宣告暫存變數，語法直覺，且在 CPython 直譯器優化下執行速度比傳統變數對調更快。</p>
+</blockquote>
+<p>（⚠️ 上述「先建立隱式元組」的說明對兩個變數的情況並不成立，更正見本篇 (h)–(k)。）</p>
+<hr />
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始 Gemini 對話</td>
+<td>https://gemini.google.com/app/85351f25c8f2b0df</td>
+<td>2026-08（對話當下）</td>
+</tr>
+<tr>
+<td>CPython 以 SWAP 取代 ROT_xxx 位元組碼的討論</td>
+<td>https://github.com/faster-cpython/ideas/discussions/228</td>
+<td>faster-cpython ideas，查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>平行賦值的最佳化拆解（含 dis 實測）</td>
+<td>https://ntietz.com/blog/parallel-assignment-optimized-idiom/</td>
+<td>查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>Python 位元組碼概觀</td>
+<td>https://www.blackduck.com/blog/understanding-python-bytecode.html</td>
+<td>查證於 2026-08-09</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="quiz"><h2>🧠 自我檢測（點選作答／點解答展開）</h2>
+<div class="q" data-a="F"><div class="stem"><span class="tag">是非題</span>Python 有內建的 swap() 方法可以直接交換兩個變數。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">❌ 非。Python <b>沒有</b> swap() 這個方法或函式，交換是靠語法糖 <code>a, b = b, a</code>（元組解包語法）達成的。</div></div>
+<div class="q" data-a="F"><div class="stem"><span class="tag">是非題</span>執行 a, b = b, a 時，CPython 會先在記憶體中建立一個隱式的元組 (b, a)，再解包賦值。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">❌ 非，這是本篇的重點更正。右側只有兩個元素時，窺孔最佳化器會直接產生 <code>ROT_TWO</code>（3.10 以前）或 <code>SWAP 2</code>（3.11 起），<b>完全不會建立元組</b>。要到四個元素以上才會出現 BUILD_TUPLE + UNPACK_SEQUENCE。</div></div>
+<div class="q" data-a="T"><div class="stem"><span class="tag">是非題</span>XOR swap 在 a 與 b 指向同一個記憶體位置時，會把該值變成 0。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">⭕ 是，這正是 XOR swap 的致命陷阱。x ^ x = 0，所以自我交換會直接歸零。加上它只適用整數型別，實務上不建議使用。</div></div>
+<div class="q" data-a="F"><div class="stem"><span class="tag">是非題</span>用暫存變數做交換的空間複雜度是 O(n)。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">❌ 非。不論資料量多大，暫存變數版只多用<b>固定一格</b>記憶體，空間複雜度是 O(1)，時間複雜度也是 O(1)。</div></div>
+<div class="q"><div class="stem"><span class="tag">申論題</span>要怎麼親手驗證 a, b = b, a 沒有建立元組？請寫出驗證方式並說明會看到什麼。</div><button class="opt showans">📖 顯示參考答案</button><div class="ans">用內建的 <code>dis</code> 模組反組譯：<br><pre>import dis
+dis.dis(compile("a, b = b, a", "&lt;s&gt;", "exec"))</pre>會看到 LOAD_NAME b、LOAD_NAME a、<b>SWAP 2</b>（或舊版的 ROT_TWO）、STORE_NAME，<b>全程沒有 BUILD_TUPLE</b>。<br><br>對照組改成四個變數 <code>a, b, c, d = d, c, b, a</code>，這時才會出現 <b>BUILD_TUPLE 4</b> 與 <b>UNPACK_SEQUENCE 4</b>。</div></div>
+<div class="q"><div class="stem"><span class="tag">申論題</span>面試官問：「為什麼現在不建議用 XOR swap？」請完整回答。</div><button class="opt showans">📖 顯示參考答案</button><div class="ans">三個理由：<br>(1) <b>正確性風險</b>：當兩個運算元是同一個記憶體位置時結果會歸零，而且只能用在整數型別。<br>(2) <b>效能已經輸了</b>：現代編譯器對暫存變數版的最佳化更好，XOR 版的三個相依指令會破壞指令層級平行性（ILP），反而更慢。<br>(3) <b>可讀性差</b>：省下的一格記憶體在任何現實情境都不值得換取這個維護成本。<br><br>它今天唯一的價值是面試時展示對位元運算與 XOR 自反性（x ^ y ^ y == x）的理解。</div></div>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-09</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b)}catch(e){}})}
+var t=document.getElementById('tgl');
+t.addEventListener('click',function(){
+  document.body.classList.toggle('hide-marks');
+  var on=document.body.classList.contains('hide-marks');
+  t.classList.toggle('on',on);
+  t.textContent = on ? '👀 顯示所有重點' : '🙈 隱藏所有重點（自我測驗）';
+  if(!on){document.querySelectorAll('mark.revealed').forEach(function(m){m.classList.remove('revealed')})}
+});
+document.addEventListener('click',function(e){
+  var m=e.target.closest('mark');
+  if(m&&document.body.classList.contains('hide-marks')){m.classList.toggle('revealed');return}
+  var b=e.target.closest('.blank');
+  if(b){b.classList.toggle('open');return}
+  var o=e.target.closest('.opt');
+  if(o){
+    var q=o.closest('.q');
+    q.querySelectorAll('.opt').forEach(function(x){x.classList.remove('right','wrong')});
+    o.classList.add(o.dataset.v===q.dataset.a?'right':'wrong');
+    q.querySelector('.ans').classList.add('show');
+    return;
+  }
+  var s=e.target.closest('.showans');
+  if(s){s.closest('.q').querySelector('.ans').classList.toggle('show')}
+});
+var ta=document.getElementById('tglAns');
+ta.addEventListener('click',function(){
+  var any=[].some.call(document.querySelectorAll('.ans'),function(a){return !a.classList.contains('show')});
+  document.querySelectorAll('.ans').forEach(function(a){a.classList.toggle('show',any)});
+  ta.classList.toggle('on',any);
+});
+</script>
+</body>
+</html>

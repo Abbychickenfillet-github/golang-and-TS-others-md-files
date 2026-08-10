@@ -16,6 +16,19 @@ updated: 2026-08-07
 
 (a) <mark style="background: #ADCCFFA6;">SSR（Server-Side Rendering，伺服器端渲染）</mark>：在伺服器上先把頁面產生成 HTML 字串再傳給瀏覽器，好處是<mark style="background: #BBFABBA6;">首屏更快看到內容、對 SEO 友善</mark>（爬蟲不必等 JS 執行完才看得到文字）。
 
+**Hydration 在完整渲染管線裡是第幾步？**——<mark style="background: #FF5582A6;">Reflow（重排/Layout）跟 Repaint（重繪/Paint）排在 Hydration 前面</mark>，順序是：
+
+1. 伺服器 `renderToString()` 產生 HTML 字串（此時沒有 DOM）
+2. 瀏覽器收到 HTML 字串
+3. Parse HTML → 建 DOM Tree
+4. Parse CSS → 建 CSSOM
+5. 合併成 Render Tree
+6. **Layout（重排/Reflow）**——計算每個元素的位置與大小
+7. **Paint（重繪/Repaint）**——把像素畫出來 → <mark style="background: #BBFABBA6;">此時畫面已經看得到，但完全不能互動</mark>
+8. JS bundle 下載完、執行，React 呼叫 `hydrateRoot()` → <mark style="background: #ADCCFFA6;">Hydration</mark>——走訪既有 DOM、掛上事件監聽 → <mark style="background: #BBFABBA6;">此時頁面才變成可以互動</mark>
+
+SSR 的核心賣點正是把「看得到（Paint 完成）」跟「能互動（Hydration 完成）」拆成兩個時間點，讓使用者先看到內容，互動性稍後才補上（詳細管線見 [[Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪]]）。
+
 (b) <mark style="background: #FFF3A3A6;">伺服器怎麼把元件變成 HTML</mark>：靠框架提供的特定函式，React 就是 `renderToString`（或串流版 `renderToPipeableStream`）。它把 React 元件樹轉成<mark style="background: #FFB8EBA6;">純字串</mark>，不是 DOM 節點。
 
 ```jsx

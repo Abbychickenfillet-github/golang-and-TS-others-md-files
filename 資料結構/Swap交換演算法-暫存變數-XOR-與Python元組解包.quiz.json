@@ -1,0 +1,8 @@
+[
+  {"type":"tf","q":"Python 有內建的 swap() 方法可以直接交換兩個變數。","correct":false,"a":"❌ 非。Python <b>沒有</b> swap() 這個方法或函式，交換是靠語法糖 <code>a, b = b, a</code>（元組解包語法）達成的。"},
+  {"type":"tf","q":"執行 a, b = b, a 時，CPython 會先在記憶體中建立一個隱式的元組 (b, a)，再解包賦值。","correct":false,"a":"❌ 非，這是本篇的重點更正。右側只有兩個元素時，窺孔最佳化器會直接產生 <code>ROT_TWO</code>（3.10 以前）或 <code>SWAP 2</code>（3.11 起），<b>完全不會建立元組</b>。要到四個元素以上才會出現 BUILD_TUPLE + UNPACK_SEQUENCE。"},
+  {"type":"tf","q":"XOR swap 在 a 與 b 指向同一個記憶體位置時，會把該值變成 0。","correct":true,"a":"⭕ 是，這正是 XOR swap 的致命陷阱。x ^ x = 0，所以自我交換會直接歸零。加上它只適用整數型別，實務上不建議使用。"},
+  {"type":"tf","q":"用暫存變數做交換的空間複雜度是 O(n)。","correct":false,"a":"❌ 非。不論資料量多大，暫存變數版只多用<b>固定一格</b>記憶體，空間複雜度是 O(1)，時間複雜度也是 O(1)。"},
+  {"type":"essay","q":"要怎麼親手驗證 a, b = b, a 沒有建立元組？請寫出驗證方式並說明會看到什麼。","a":"用內建的 <code>dis</code> 模組反組譯：<br><pre>import dis\ndis.dis(compile(\"a, b = b, a\", \"&lt;s&gt;\", \"exec\"))</pre>會看到 LOAD_NAME b、LOAD_NAME a、<b>SWAP 2</b>（或舊版的 ROT_TWO）、STORE_NAME，<b>全程沒有 BUILD_TUPLE</b>。<br><br>對照組改成四個變數 <code>a, b, c, d = d, c, b, a</code>，這時才會出現 <b>BUILD_TUPLE 4</b> 與 <b>UNPACK_SEQUENCE 4</b>。"},
+  {"type":"essay","q":"面試官問：「為什麼現在不建議用 XOR swap？」請完整回答。","a":"三個理由：<br>(1) <b>正確性風險</b>：當兩個運算元是同一個記憶體位置時結果會歸零，而且只能用在整數型別。<br>(2) <b>效能已經輸了</b>：現代編譯器對暫存變數版的最佳化更好，XOR 版的三個相依指令會破壞指令層級平行性（ILP），反而更慢。<br>(3) <b>可讀性差</b>：省下的一格記憶體在任何現實情境都不值得換取這個維護成本。<br><br>它今天唯一的價值是面試時展示對位元運算與 XOR 自反性（x ^ y ^ y == x）的理解。"}
+]

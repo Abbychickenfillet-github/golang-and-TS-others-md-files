@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obsidian 語音筆記功能與 Google Docs 銜接限制</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>Obsidian 語音筆記功能與 Google Docs 銜接限制</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#obsidian</span><span class="pill">#工具</span><span class="pill">#筆記系統</span><span class="pill">#google-docs</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/16f8d43997d56bb6" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/8ebe8b81ffdb5c95" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><h2>本篇重點 a–e，共 5 個</h2>
+</section><section class="card"><h2>重點整理</h2>
+<p>a. <mark style="background: #ADCCFFA6;">Obsidian 內建有語音筆記功能</mark>，但預設可能關閉，需手動開啟：進入「設定（Settings）」→「核心外掛程式（Core plugins）」→ 找到「錄音機（Audio recorder）」開啟。開啟後左側邊欄會出現麥克風圖示，點擊開始錄音、再點停止，會直接在筆記中插入一個音訊播放器（<code>.webm</code> 或 <code>.m4a</code>）。</p>
+<p>b. <mark style="background: #FF5582A6;">跟 GoodNotes 的差異</mark>：GoodNotes 的錄音能跟手寫筆記的書寫進度同步回放（點某一行字就跳到當時錄音時間點）；Obsidian 內建錄音<mark style="background: #FF5582A6;">做不到這種同步回放</mark>，只是單純嵌入筆記裡的錄音檔。</p>
+<p>c. <mark style="background: #BBFABBA6;">進階玩法：社群外掛做語音轉文字</mark>——在 Community Plugins 搜尋 <mark style="background: #ADCCFFA6;">Voice Notes / Whisper</mark> 相關外掛，可用 OpenAI Whisper 技術把講完的話直接轉成繁體中文文字寫進筆記；<mark style="background: #ADCCFFA6;">Audio Notes</mark> 外掛則適合聽講座/Podcast，可在特定時間點加時間戳記標籤。總結：想要「邊寫邊錄、事後點文字回放聲音」仍是 GoodNotes 強項；想要「錄音檔內嵌筆記」或「講話直接變文字、AI 整理摘要」則 Obsidian 外掛生產力更高。</p>
+<p>d. <mark style="background: #FF5582A6;">Google Docs 沒辦法跟 Obsidian「無痛」雙向同步</mark>，因為兩者本質不同：Google Docs 是雲端富文本協作工具，Obsidian 是本地端純文字 Markdown 檔案。三種折衷做法各有限制：<br />
+   - <strong>同步資料夾法</strong>：把 Obsidian Vault 放進 Google Drive 同步資料夾，但 Google Docs 在雲端本質不是 Markdown，同步到本地只會顯示成一個極小的 <code>.gdoc</code> 快捷連結（本質是 JSON 連結），沒有實際內容；社群有 GDocs 插件可用內嵌瀏覽器在 Obsidian 內開啟/內嵌檢視這些雲端文件，但兩者內容無法互相轉換。<br />
+   - <strong>自動化工作流（Make／Zapier）</strong>：可設定「Google Docs 新文件 → 自動轉 Markdown 存進 Obsidian」，但 Google Docs 的表格、特殊字型、圖片註解格式複雜，轉 Markdown 常跑掉或圖片遺失，難稱「無痛」。<br />
+   - <strong>手動橋樑</strong>：想把 Google Docs 草稿拉進 Obsidian 當知識庫收藏，目前最穩定的仍是手動複製或用 Markdown 轉換工具貼入。</p>
+<p>e. <mark style="background: #D2B3FFA6;">結論</mark>：如果只是想在 Obsidian 裡「直接開 Google Docs 來看或點連結」，透過插件可以做到；但若要兩軟體內容即時、無損雙向同步編輯，目前仍存在格式不相容的技術壁壘。</p>
+<blockquote>
+<p>[!tip] Obsidian 插件提醒<br />
+這兩個主題都屬於 Obsidian 外掛生態，若之後要實際安裝設定，記得可以搭配 highlightr（本篇螢光筆配色）或 Excalidraw（若想手繪同步流程圖）一起使用。</p>
+</blockquote>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>Obsidian 語音筆記功能（2026-07-31）— https://gemini.google.com/app/16f8d43997d56bb6</h3>
+<p>使用者：Obsidian 有語音筆記功能嗎？我記得 GoodNotes 有。</p>
+<p>Gemini：Obsidian 內建錄音功能（核心外掛「Audio recorder」，預設可能關閉），可插入音訊播放器，但無法像 GoodNotes 一樣同步書寫進度回放；社群外掛（Voice Notes/Whisper、Audio Notes）可做語音轉文字與時間戳記，生產力更高但功能取向不同。</p>
+<h3>BEM 現況與 Obsidian／Google Docs 整合（2026-07-31）— https://gemini.google.com/app/8ebe8b81ffdb5c95</h3>
+<p>（此對話前段為 BEM 2026 現況與 CSS 樣式隔離技術，已整理進 [[04-1-CSS方法論與權重-OOCSS-BEM-SMACSS-ITCSS]]，以下摘錄 Google Docs／Obsidian 銜接段落）</p>
+<p>使用者：Google Docs 還可以跟 Obsidian 無痛銜接嗎？</p>
+<p>Gemini：無法真正無痛雙向同步，三種折衷做法（同步資料夾看 .gdoc 捷徑、Make/Zapier 自動化易格式跑掉、手動複製貼上）各有限制；若只是想在 Obsidian 內開啟/內嵌檢視 Google 文件，插件可以做到，但雙向即時同步目前仍有技術壁壘。</p>
+</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Obsidian 核心外掛/社群外掛說明</td>
+<td>Gemini 依訓練知識整理，無單一官方連結</td>
+<td>查證日 2026-07-31</td>
+</tr>
+<tr>
+<td>Google Docs／Obsidian 同步限制</td>
+<td>Gemini 依訓練知識整理，無單一官方連結</td>
+<td>查證日 2026-07-31</td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ 存疑：以上內容為 Gemini 綜合性說法，未附上可直接查核的官方文件連結，若要實際安裝外掛建議先到 Obsidian 官方 Community Plugins 頁面搜尋核對外掛是否仍在維護。</p></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-31</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script><script src="./assets/wikilink.js" data-root="./"></script>
+</body></html>

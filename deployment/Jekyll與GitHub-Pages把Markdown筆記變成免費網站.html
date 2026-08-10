@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jekyll 與 GitHub Pages——把 Markdown 筆記變成免費網站</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{
+  --bg:#faf9f7; --card:#ffffff; --ink:#2f3337; --muted:#6b7280;
+  --line:#e6e3dd; --accent:#4f7cac; --accent-soft:#eaf1f8;
+  --user:#8a6fb0; --gem:#3f8f7a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+  line-height:1.75;font-size:16.5px;letter-spacing:.01em}
+.wrap{max-width:820px;margin:0 auto;padding:34px 22px 90px}
+header.pagehead{background:linear-gradient(160deg,#ffffff,#f3f1ec);border:1px solid var(--line);
+  border-radius:18px;padding:26px 28px;margin-bottom:26px;box-shadow:0 2px 14px rgba(0,0,0,.04)}
+header.pagehead h1{margin:0 0 12px;font-size:1.72rem;line-height:1.4;
+  font-family:"Noto Serif TC",Georgia,serif;font-weight:700}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.pill{background:var(--accent-soft);color:#33587e;border:1px solid #d6e3f0;border-radius:999px;
+  padding:3px 12px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.82rem;color:var(--muted);margin-top:10px}
+.meta a{color:var(--accent);word-break:break-all}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 8px}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:10px;
+  padding:8px 15px;font-size:.85rem;color:var(--ink);transition:.18s;font-family:inherit}
+.btn:hover{background:var(--accent-soft);border-color:#cbdcec}
+.btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:24px 28px;margin:20px 0;box-shadow:0 1px 8px rgba(0,0,0,.03)}
+h2{font-size:1.24rem;margin:1.7em 0 .7em;padding-bottom:.35em;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif}
+h2:first-child{margin-top:0}
+h3{font-size:1.06rem;margin:1.5em 0 .5em;color:#3c5a75}
+h4{font-size:.97rem;margin:1.2em 0 .4em;color:#4b5563}
+p{margin:.7em 0}
+ul,ol{padding-left:1.5em}
+li{margin:.35em 0}
+mark{padding:.08em .22em;border-radius:4px;transition:.2s;cursor:pointer}
+body.hide-marks mark{color:transparent!important;background:#dfe3e8!important;
+  border-radius:4px;text-shadow:none;user-select:none}
+mark.revealed{color:inherit!important;text-shadow:none}
+code{background:#f0eee9;padding:.13em .38em;border-radius:5px;font-size:.9em;
+  font-family:"JetBrains Mono","Consolas","Cascadia Mono",monospace}
+pre{background:#21262d;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow-x:auto;
+  font-size:.86rem;line-height:1.6}
+pre code{background:none;padding:0;color:inherit}
+table{border-collapse:collapse;width:100%;margin:1.1em 0;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:#f1efe9;font-weight:600}
+tbody tr:nth-child(even){background:#fbfaf8}
+blockquote{margin:1.1em 0;padding:12px 18px;border-left:4px solid var(--accent);
+  background:#f5f8fb;border-radius:0 10px 10px 0;color:#41505e}
+blockquote p:first-child{margin-top:0}
+blockquote p:last-child{margin-bottom:0}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);display:block;margin:1em auto}
+hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
+.quiz{background:#fdfcfa;border:1px solid var(--line);border-radius:16px;padding:22px 26px;margin:24px 0}
+.q{border-bottom:1px dashed var(--line);padding:14px 0}
+.q:last-child{border-bottom:0}
+.q .stem{font-weight:600;margin-bottom:9px}
+.q .tag{display:inline-block;font-size:.72rem;background:#efe7f5;color:#6b4d8a;
+  border-radius:6px;padding:2px 8px;margin-right:8px;vertical-align:middle}
+.opts{display:flex;gap:9px;flex-wrap:wrap;margin:8px 0}
+.opt{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+  padding:6px 16px;font-size:.86rem;font-family:inherit}
+.opt.right{background:#d9f2df;border-color:#8fce9f}
+.opt.wrong{background:#fbdde5;border-color:#e59cb0}
+.ans{display:none;margin-top:9px;padding:11px 14px;background:#f2f6fa;border-left:3px solid var(--accent);
+  border-radius:0 8px 8px 0;font-size:.9rem}
+.ans.show{display:block}
+.blank{border-bottom:2px dotted var(--accent);cursor:pointer;padding:0 .5em;color:transparent;
+  background:#e9ecf0;border-radius:3px;user-select:none}
+.blank.open{color:var(--ink);background:#e2f0e6;border-bottom-color:#79b98e;user-select:auto}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:46px;
+  padding-top:18px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="pagehead">
+  <h1>Jekyll 與 GitHub Pages——把 Markdown 筆記變成免費網站</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#deployment</span><span class="pill">#github-pages</span><span class="pill">#jekyll</span><span class="pill">#static-site-generator</span><span class="pill">#markdown</span></div>
+  <div class="meta">來源：Gemini ｜ 更新：2026-08-09 ｜ 原始對話：<a href="https://gemini.google.com/app/7fd6c5bc52ded55b" target="_blank" rel="noopener">7fd6c5bc52de</a></div>
+</header>
+<div class="toolbar">
+  <button class="btn" id="tgl">🙈 隱藏所有重點（自我測驗）</button>
+  <button class="btn" id="tglAns">💡 展開／收合全部解答</button>
+</div>
+<div class="card">
+<blockquote>
+<p><strong>本篇重點 a–m，共 13 個。</strong>
+起因：Abby 想把 <code>golang-and-TS-others-md-files</code> 這個滿是 <code>.md</code> 筆記的儲存庫變成公開網站，在 GitHub Pages 設定頁看到「Jekyll site」不知道是什麼。</p>
+</blockquote>
+<hr />
+<h2 id="jekyll">Jekyll 是什麼</h2>
+<p>(a) <mark style="background: #ADCCFFA6;">Jekyll 是一個用 Ruby 寫的靜態網站產生器（Static Site Generator，SSG）</mark>。你寫 Markdown，它幫你編譯成 HTML 靜態網頁。</p>
+<p>(b) <mark style="background: #FFF3A3A6;">它是 GitHub Pages 的內建預設引擎</mark>——這就是為什麼 GitHub 的設定頁面會直接跟你提 Jekyll，而不是 Hugo 或 Astro。你不用自己安裝 Ruby，GitHub 在背景幫你跑。</p>
+<p>(c) 適合的場景：<mark style="background: #BBFABBA6;">技術部落格、專案文件、履歷頁、筆記站</mark>。不適合的場景：需要登入、需要即時資料的應用（那要的是後端，不是 SSG）。</p>
+<hr />
+<h2 id="_1">要錢嗎</h2>
+<p>(d) <mark style="background: #BBFABBA6;">公開儲存庫（Public Repository）完全免費</mark>。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>費用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>網址 <code>https://&lt;帳號&gt;.github.io/&lt;專案名&gt;</code></td>
+<td>免費</td>
+</tr>
+<tr>
+<td>託管</td>
+<td>免費</td>
+</tr>
+<tr>
+<td>GitHub Actions 建置時間（公開專案）</td>
+<td>免費</td>
+</tr>
+<tr>
+<td>自訂網域（例如 <code>www.yourname.com</code>）</td>
+<td><mark style="background: #FFB8EBA6;">要錢，但錢是付給網域註冊商，不是付給 GitHub</mark></td>
+</tr>
+</tbody>
+</table>
+<p>(e) <mark style="background: #FF5582A6;">⚠️ 存疑／更正</mark>：原對話說「GitHub Actions 對公開專案提供<mark style="background: #FF5582A6;">無限量</mark>的免費執行時間」。<mark style="background: #BBFABBA6;">正確說法是：使用 GitHub 託管執行器（GitHub-hosted runners）的公開儲存庫不計費</mark>，但仍受並行數與單次工作流程時間上限等使用限制，而且私有儲存庫是有免費額度上限的（超過要付費）。「不計費」和「無限量」不是同一件事，請以下方官方文件為準。</p>
+<hr />
+<h2 id="source">兩種部署來源（Source）二選一</h2>
+<p>(f) GitHub Pages 的 <code>Settings → Pages → Build and deployment → Source</code> 有兩個選項：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>意思</th>
+<th>適合誰</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><mark style="background: #ADCCFFA6;">Deploy from a branch</mark></td>
+<td>指定某個分支＋資料夾，GitHub 自動用內建 Jekyll 建置</td>
+<td><mark style="background: #BBFABBA6;">純 Markdown 筆記站，最省事</mark></td>
+</tr>
+<tr>
+<td><mark style="background: #ADCCFFA6;">GitHub Actions</mark></td>
+<td>自己寫 workflow，想用什麼工具都行</td>
+<td>要用 Hugo / Astro / Next.js，或需要自訂建置步驟</td>
+</tr>
+</tbody>
+</table>
+<p>(g) 切回分支模式的實際步驟：</p>
+<ol>
+<li>進 <code>Settings</code> → 左側選 <code>Pages</code></li>
+<li><code>Build and deployment</code> 區塊，<code>Source</code> 下拉選單改成 <mark style="background: #BBFABBA6;"><code>Deploy from a branch</code></mark></li>
+<li>下方出現 <code>Branch</code> 設定，選 <mark style="background: #BBFABBA6;"><code>main</code></mark></li>
+<li>資料夾選 <mark style="background: #BBFABBA6;"><code>/ (root)</code></mark>（或把網頁內容集中在 <code>/docs</code> 就選 <code>/docs</code>）</li>
+<li>按 <code>Save</code></li>
+</ol>
+<p><img alt="GitHub Pages 設定頁：Source 選 Deploy from a branch，Branch 選 main，資料夾選 root" src="../obsidian-attachment/螢幕擷取畫面%202026-08-09%20174405.png" /></p>
+<p>(h) <mark style="background: #FFB8EBA6;">同一頁往下還有兩個東西值得留意</mark>：<code>Custom domain</code>（自訂網域，留空就用預設的 <code>&lt;帳號&gt;.github.io</code>）與 <code>Enforce HTTPS</code>（用預設網域時會強制勾選且不能取消，這是好事）。</p>
+<hr />
+<h2 id="_2">兩個一定會踩到的檔案</h2>
+<p>(i) <mark style="background: #FF5582A6;"><code>.nojekyll</code></mark>：在儲存庫根目錄放一個空的 <code>.nojekyll</code> 檔，代表<mark style="background: #FF5582A6;">「完全跳過 Jekyll，把檔案原封不動當靜態檔送出」</mark>。<mark style="background: #BBFABBA6;">什麼時候需要</mark>：你的資料夾或檔名以底線 <code>_</code> 開頭時（Jekyll 預設會忽略底線開頭的目錄），或你根本不想要 Jekyll 處理任何東西。</p>
+<p>(j) <mark style="background: #FF5582A6;"><code>_config.yml</code></mark>：Jekyll 的設定檔。Abby 的設定是：</p>
+<pre><code class="language-yaml">defaults:
+  - scope:
+      path: &quot;&quot;
+    values:
+      render_with_liquid: false
+</code></pre>
+<p><img alt="Obsidian 中的 _config.yml 與 .nojekyll" src="../obsidian-attachment/螢幕擷取畫面%202026-08-09%20180046.png" /></p>
+<p>(k) <mark style="background: #FFF3A3A6;">這段設定在解決一個很煩的問題</mark>：Jekyll 預設會用 Liquid 樣板引擎處理所有檔案，而 Liquid 把 <code>&#123;&#123; &#125;&#125;</code> 和 <code>&#123;% %&#125;</code> 當成語法。<mark style="background: #FF5582A6;">如果筆記裡有 Vue、Handlebars、Jinja 的雙大括號範例，或者 Obsidian 的 <code>&lt;span class="blank"&gt;date&lt;/span&gt;</code> 樣板，建置就會直接失敗或內容被吃掉</mark>。<code>render_with_liquid: false</code> 對所有路徑（<code>path: ""</code> 代表全站）關掉 Liquid 處理，Markdown 照樣會被轉成 HTML，但大括號會原樣保留。</p>
+<p>(l) <mark style="background: #D2B3FFA6;"><code>.nojekyll</code> 與 <code>render_with_liquid: false</code> 的差別</mark>：前者是「連 Markdown 都不轉了，全部當原始檔」；後者是「還是要 Jekyll 幫我轉 Markdown，只是不要碰我的大括號」。<mark style="background: #FF5582A6;">兩個同時放會互相矛盾</mark>——<code>.nojekyll</code> 一旦生效，<code>_config.yml</code> 就完全不會被讀。</p>
+<p>(m) <mark style="background: #FFF3A3A6;">給 Abby 的實務建議</mark>：既然目標是「把 <code>.md</code> 筆記變成可閱讀的網頁」，<mark style="background: #BBFABBA6;">應該要留著 Jekyll（不要 <code>.nojekyll</code>），只用 <code>render_with_liquid: false</code> 避開大括號問題</mark>。如果放了 <code>.nojekyll</code>，網站上點開會是一堆 Markdown 原始碼而不是排版好的網頁。</p>
+<hr />
+<h2 id="_3">關聯筆記與關聯原因</h2>
+<ul>
+<li>學習順序與免費部署作品集策略：<mark style="background: #D2B3FFA6;">同一個目標的兩塊拼圖</mark>——那篇談「要放什麼上去給面試官看」，這篇談「怎麼零成本放上去」。</li>
+<li>GitHub-Actions-CICD-ghcr與Docker映像檔：<mark style="background: #D2B3FFA6;">本篇 (f) 的另一個選項就是它</mark>。Deploy from a branch 是 GitHub 幫你跑好的黑盒子，GitHub Actions 是自己掌控整條建置流水線，那篇是後者的完整版。</li>
+<li>Zeabur-主機遷移-DeepSeek-API與費用比較：<mark style="background: #D2B3FFA6;">同屬「部署與費用」主題</mark>。差別在於靜態站可以完全免費，有後端就得付主機錢，選型時先問「這個東西需不需要伺服器」。</li>
+</ul>
+<hr />
+<h2 id="_4">各對話來源（原文）</h2>
+<h3 id="jekyll-2026-08-09-httpsgeminigooglecomapp7fd6c5bc52ded55b">Jekyll 靜態網站產生器介紹（2026-08-09）— https://gemini.google.com/app/7fd6c5bc52ded55b</h3>
+<blockquote>
+<p><strong>使用者：</strong> Jekyll site 這啥</p>
+<p><strong>Gemini：</strong> Jekyll 是一個用 Ruby 開發的靜態網站產生器（Static Site Generator）。在 GitHub Pages 中看到 Jekyll site，代表你可以透過寫 Markdown 檔案（.md）來直接產生網站，GitHub 會在背景自動將這些 Markdown 檔編譯成漂亮的 HTML 靜態網頁。主要特點與用途包含：寫 Markdown 變網頁、非常適合技術部落格與文件、與 GitHub Pages 深度整合。如果你目前的儲存庫（golang-and-TS-others-md-files）裡面主要都是 .md 筆記檔，選擇 GitHub Pages Jekyll 工作流（Workflow）就能直接把這些筆記轉換成公開的網頁網站。</p>
+<p><strong>使用者：</strong> 那要錢嗎？</p>
+<p><strong>Gemini：</strong> 不用錢，完全免費！GitHub Pages 以及 Jekyll 的編譯服務針對公開儲存庫（Public Repository）都是完全免費提供的：免費託管與網址（<code>https://&lt;你的帳號&gt;.github.io/&lt;專案名稱&gt;</code>）、免費自動化部署（GitHub Actions 對公開專案提供無限量的免費執行時間）、無隱藏費用（除非你需要自訂個人網域）。</p>
+<p><strong>使用者：</strong> 我要怎麼選 main 這個分支</p>
+<p><strong>Gemini：</strong> 要在目前 GitHub Pages 設定頁面選擇 main 分支部署，你需要將部署來源從 Actions 切換回分支模式。步驟如下：在 Build and deployment 區塊下，找到 Source 下拉選單（目前顯示為 GitHub Actions）。點擊該選單，改選為 Deploy from a branch。切換後下方會出現 Branch 的設定選項：選擇 main 分支，資料夾選擇 <code>/ (root)</code>（或依照你的需求選擇 <code>/docs</code>）。點擊 Save 儲存設定即可。</p>
+</blockquote>
+<p>（<code>.nojekyll</code>、<code>_config.yml</code> 與 <code>render_with_liquid</code> 的說明為截圖對照後補充，原對話沒有談到。）</p>
+<hr />
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始 Gemini 對話</td>
+<td>https://gemini.google.com/app/7fd6c5bc52ded55b</td>
+<td>2026-08-09（對話當下）</td>
+</tr>
+<tr>
+<td>GitHub Docs：設定 GitHub Pages 的發佈來源</td>
+<td>https://docs.github.com/articles/configuring-a-publishing-source-for-github-pages</td>
+<td>查證於 2026-08-09（截圖中的狀態列連結）</td>
+</tr>
+<tr>
+<td>GitHub Docs：Actions 計費（公開儲存庫使用 GitHub 託管執行器不計費）</td>
+<td>https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions</td>
+<td>查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>Jekyll 設定：<code>render_with_liquid</code> 與 front matter defaults</td>
+<td>https://jekyllrb.com/docs/configuration/front-matter-defaults/</td>
+<td>查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>Abby 的實機截圖</td>
+<td><code>obsidian-attachment/螢幕擷取畫面 2026-08-09 174405.png</code>、<code>螢幕擷取畫面 2026-08-09 180046.png</code></td>
+<td>擷取於 2026-08-09</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="quiz"><h2>🧠 自我檢測（點選作答／點解答展開）</h2>
+<div class="q" data-a="T"><div class="stem"><span class="tag">是非題</span>Jekyll 是 GitHub Pages 的內建預設引擎，所以不用自己安裝 Ruby 也能用。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">⭕ 是。這正是 GitHub 設定頁會直接跟你提 Jekyll 而不是 Hugo 或 Astro 的原因，建置在 GitHub 背景跑。</div></div>
+<div class="q" data-a="F"><div class="stem"><span class="tag">是非題</span>在根目錄放 .nojekyll，可以讓 Jekyll 只跳過大括號處理，但仍然幫你把 Markdown 轉成 HTML。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">❌ 非，這是最容易搞混的一組。<b>.nojekyll = 完全跳過 Jekyll</b>，Markdown 不會被轉成網頁，訪客會看到一堆原始碼。想保留 Markdown 轉換又不要大括號被吃掉，要用的是 <code>_config.yml</code> 裡的 <code>render_with_liquid: false</code>。</div></div>
+<div class="q" data-a="T"><div class="stem"><span class="tag">是非題</span>render_with_liquid: false 的用途是避免筆記裡的雙大括號被 Liquid 樣板引擎當成語法解析。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">⭕ 是。Jekyll 預設用 Liquid 處理所有檔案，會把 {{ }} 和 {% %} 當語法。筆記裡若有 Vue、Handlebars、Jinja 範例或 Obsidian 的 {{date}} 樣板，建置會失敗或內容被吃掉。</div></div>
+<div class="q" data-a="F"><div class="stem"><span class="tag">是非題</span>GitHub Actions 對公開儲存庫提供「無限量」的免費執行時間。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">❌ 非，這是原對話中需要更正的一點。正確說法是：<b>公開儲存庫使用 GitHub 託管執行器不計費</b>，但仍受並行數、單次工作流程時間上限等使用限制。「不計費」不等於「無限量」。</div></div>
+<div class="q"><div class="stem"><span class="tag">申論題</span>GitHub Pages 的 Source 有哪兩種？各適合什麼情況？</div><button class="opt showans">📖 顯示參考答案</button><div class="ans">(1) <b>Deploy from a branch</b>：指定分支＋資料夾（通常是 main + / (root)，或 /docs），GitHub 自動用內建 Jekyll 建置。適合純 Markdown 筆記站，最省事。<br>(2) <b>GitHub Actions</b>：自己寫 workflow，想用什麼建置工具都行。適合要用 Hugo / Astro / Next.js，或需要自訂建置步驟的情況。</div></div>
+<div class="q"><div class="stem"><span class="tag">申論題</span>Abby 想把滿是 .md 的筆記倉庫變成可閱讀的網站，該不該放 .nojekyll？為什麼？</div><button class="opt showans">📖 顯示參考答案</button><div class="ans"><b>不該放</b>。目標是「把 .md 變成排版好的網頁」，這正是 Jekyll 要做的事。一旦放了 .nojekyll，Jekyll 完全被跳過，<code>_config.yml</code> 也不會被讀，網站上點開會是 Markdown 原始碼。<br><br>正確做法是：<b>留著 Jekyll，只在 _config.yml 用 render_with_liquid: false</b> 避開大括號被 Liquid 解析的問題。<br><br>（例外：如果資料夾或檔名以底線開頭，Jekyll 預設會忽略，那時才需要考慮 .nojekyll，但那就得接受整站不做 Markdown 轉換。）</div></div>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-09</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b)}catch(e){}})}
+var t=document.getElementById('tgl');
+t.addEventListener('click',function(){
+  document.body.classList.toggle('hide-marks');
+  var on=document.body.classList.contains('hide-marks');
+  t.classList.toggle('on',on);
+  t.textContent = on ? '👀 顯示所有重點' : '🙈 隱藏所有重點（自我測驗）';
+  if(!on){document.querySelectorAll('mark.revealed').forEach(function(m){m.classList.remove('revealed')})}
+});
+document.addEventListener('click',function(e){
+  var m=e.target.closest('mark');
+  if(m&&document.body.classList.contains('hide-marks')){m.classList.toggle('revealed');return}
+  var b=e.target.closest('.blank');
+  if(b){b.classList.toggle('open');return}
+  var o=e.target.closest('.opt');
+  if(o){
+    var q=o.closest('.q');
+    q.querySelectorAll('.opt').forEach(function(x){x.classList.remove('right','wrong')});
+    o.classList.add(o.dataset.v===q.dataset.a?'right':'wrong');
+    q.querySelector('.ans').classList.add('show');
+    return;
+  }
+  var s=e.target.closest('.showans');
+  if(s){s.closest('.q').querySelector('.ans').classList.toggle('show')}
+});
+var ta=document.getElementById('tglAns');
+ta.addEventListener('click',function(){
+  var any=[].some.call(document.querySelectorAll('.ans'),function(a){return !a.classList.contains('show')});
+  document.querySelectorAll('.ans').forEach(function(a){a.classList.toggle('show',any)});
+  ta.classList.toggle('on',any);
+});
+</script>
+</body>
+</html>

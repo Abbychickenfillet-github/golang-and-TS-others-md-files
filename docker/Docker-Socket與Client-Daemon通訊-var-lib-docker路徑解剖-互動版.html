@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Docker Socket 與 Client-Daemon 通訊—順便解剖 /var/lib/docker 路徑</title>
+<style>
+:root{--bg:#fbfaf7;--card:#ffffff;--ink:#2b2b2b;--muted:#6b6b6b;--line:#e7e3da;--accent:#7c6f9b;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 22px 64px;}
+header.note-head{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:26px;}
+h1.title{font-family:Georgia,"Songti TC",serif;font-size:30px;margin:0 0 12px;line-height:1.3;}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0;}
+.pill{background:#efeaf7;color:#5b4f7a;border:1px solid #ded3f0;border-radius:999px;
+ padding:3px 11px;font-size:12.5px;}
+.meta{color:var(--muted);font-size:13px;margin-top:6px;}
+.meta a{color:var(--accent);}
+.toolbar{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap;}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+ padding:7px 14px;font-size:13.5px;color:#4a4458;box-shadow:0 1px 0 rgba(0,0,0,.02);}
+.btn:hover{background:#f4f1fb;}
+h2{font-size:21px;margin:34px 0 12px;padding-left:11px;border-left:5px solid var(--accent);}
+h3{font-size:17px;margin:22px 0 8px;color:#3b3550;}
+h4{font-size:15px;margin:16px 0 6px;color:#574f6b;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:16px 0;box-shadow:0 2px 10px rgba(60,50,90,.04);}
+p{margin:10px 0;}
+ul,ol{margin:8px 0 8px 4px;padding-left:22px;}
+li{margin:5px 0;}
+code{background:#f1eef8;border-radius:5px;padding:1px 6px;font-size:.92em;
+ font-family:"SFMono-Regular",Consolas,"Cascadia Code",monospace;}
+pre{background:#1f1b2e;color:#eee;border-radius:11px;padding:15px 16px;overflow-x:auto;
+ font-size:13.5px;line-height:1.6;}
+pre code{background:none;padding:0;color:inherit;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
+th{background:#f1ecf8;}
+tbody tr:nth-child(even){background:#faf8fd;}
+mark{padding:.5px 3px;border-radius:3px;}
+mark.y{background:#FFF3A3;} mark.r{background:#FF5582;} mark.g{background:#BBFABB;}
+mark.b{background:#ADCCFF;} mark.p{background:#FFB8EB;} mark.v{background:#D2B3FF;}
+mark.hidden{color:transparent;background:#d8d3c9;border-radius:3px;user-select:none;}
+mark.hidden *{color:transparent!important;}
+blockquote{margin:12px 0;padding:6px 14px;border-left:4px solid var(--line);color:var(--muted);background:#faf9f6;border-radius:6px;}
+.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #888;background:#faf9fc;
+ border-radius:10px;}
+.callout-title{font-weight:700;margin-bottom:4px;}
+.callout-body>:first-child{margin-top:0;}
+.callout-body>:last-child{margin-bottom:0;}
+.src-turn{margin:14px 0;}
+.src-user{background:#eef4ff;border-left:4px solid #ADCCFF;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.src-gem{background:#f4f1ec;border-left:4px solid #cdbfa6;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.role{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:#7a6f55;display:block;margin-bottom:3px;}
+.src-user .role{color:#3f63a8;}
+.spoiler{background:#3b3550;color:transparent;border-radius:5px;padding:1px 8px;cursor:pointer;
+ transition:.15s;user-select:none;box-shadow:inset 0 0 0 1px #ccc;}
+.spoiler::after{content:"　點此看答案　";color:#cdbfe8;font-size:.85em;}
+.spoiler.on{background:#e7ffe7;color:#1c5e1c;box-shadow:inset 0 0 0 1px #BBFABB;user-select:text;}
+.spoiler.on::after{content:"";}
+footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);
+ color:var(--muted);font-size:12.5px;text-align:center;}
+</style></head><body><div class="wrap">
+<header class="note-head"><h1 class="title">Docker Socket 與 Client-Daemon 通訊—順便解剖 /var/lib/docker 路徑</h1>
+<div class="pills"><span class="pill">#gemini</span><span class="pill">#docker</span><span class="pill">#socket</span><span class="pill">#unix-socket</span><span class="pill">#daemon</span><span class="pill">#dockerd</span><span class="pill">#fhs</span><span class="pill">#volume</span><span class="pill">#linux</span></div><div class="meta">更新：2026-08-08　· 來源：<a href="https://gemini.google.com/app/557471f26b6cf7d4" target="_blank">來源1</a></div>
+<div class="toolbar"><span class="btn" onclick="toggleAll(false)">🙈 隱藏所有答案</span>
+<span class="btn" onclick="toggleAll(true)">👀 顯示所有答案</span></div>
+</header>
+<h1>Docker Socket 與 Client-Daemon 通訊—順便解剖 /var/lib/docker 路徑</h1>
+<blockquote>
+<p>🔖 本篇重點索引：a–r，共 18 個。</p>
+</blockquote>
+<h2>重點整理</h2>
+<h3>一、Socket 是什麼</h3>
+<p><strong>(a)</strong> <mark style="background: #ADCCFFA6;">Socket（插座／通訊端點）定義</mark>：在電腦網路與<mark style="background: #FFF3A3A6;">行程間通訊（IPC，Inter-Process Communication）</mark>中，Socket 是應用程式之間進行雙向資料傳輸的「端點」。它是一個抽象的收發窗口，不是一段資料。</p>
+<p><strong>(b)</strong> <mark style="background: #BBFABBA6;">兩個好記的類比</mark>：</p>
+<ul>
+<li>硬體類比：牆上的插座與插頭——插上去，電力（資料）就能流動。</li>
+<li>軟體類比：一個檔案路徑，或一組 IP＋Port。程式 A 往這裡寫，程式 B 就能從這裡讀。</li>
+</ul>
+<p><strong>(c)</strong> <mark style="background: #ADCCFFA6;">Unix Domain Socket（UDS，Unix 網域通訊端）</mark>：Docker 在 Linux 上的<mark style="background: #FFF3A3A6;">預設</mark>通訊方式，路徑是 <code>/var/run/docker.sock</code>。三個關鍵特性——</p>
+<ul>
+<li>它<mark style="background: #FF5582A6;">不是網路協定，而是一個特殊的檔案</mark>（用 <code>ls -l</code> 看，檔案類型是 <code>s</code>）。</li>
+<li>僅限<mark style="background: #FFF3A3A6;">同一台機器</mark>上的不同行程（Process）互通。</li>
+<li>效能極高，因為不需要經過 TCP/IP 協定堆疊的封裝與解封裝。</li>
+</ul>
+<p><strong>(d)</strong> <mark style="background: #FF5582A6;">UDS 的安全模型＝檔案權限</mark>：因為它就是一個檔案，誰能存取 Docker 完全由這個檔案的擁有者與群組決定。<mark style="background: #FFF3A3A6;">這就是為什麼你要嘛加 <code>sudo</code>，要嘛把自己加進 <code>docker</code> 群組</mark>。</p>
+<p><strong>(e)</strong> <mark style="background: #FF5582A6;">⚠️ 把 docker.sock 掛進容器＝把 root 權限送出去</mark>：常見寫法 <code>-v /var/run/docker.sock:/var/run/docker.sock</code>（例如 Portainer、CI runner）等於讓容器內的程式可以任意操控主機的 Docker Daemon，包含起一個掛載主機根目錄的特權容器。<mark style="background: #BBFABBA6;">這在安全上等同交出主機 root，只在完全信任的映像檔上才這樣做</mark>。</p>
+<p><strong>(f)</strong> <mark style="background: #ADCCFFA6;">TCP Socket（Remote API）</mark>：需要<mark style="background: #FFF3A3A6;">遠端操控</mark>另一台伺服器的 Docker 時使用，形式是 <code>tcp://&lt;IP&gt;:2375</code>（未加密）或 <code>tcp://&lt;IP&gt;:2376</code>（TLS 加密）。資料會封裝進 TCP 封包經網路卡送出。<mark style="background: #FF5582A6;">2375 未加密埠絕對不可以曝露在公網</mark>，等於開放無密碼的 root shell。</p>
+<h3>二、Docker 到底是 Client 還是 Server</h3>
+<p><strong>(g)</strong> <mark style="background: #FFF3A3A6;">答案：Docker 是一個完整的 C/S（Client-Server，主從式）系統，兩部分都包含</mark>。</p>
+<table>
+<thead>
+<tr>
+<th>元件</th>
+<th>角色</th>
+<th>主要職責</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Docker Client（<code>docker</code> CLI）</td>
+<td><mark style="background: #ADCCFFA6;">發令者</mark></td>
+<td>我們在終端機打的 <code>docker build</code>／<code>pull</code>／<code>run</code>。它<mark style="background: #FF5582A6;">不負責執行容器</mark>，只把指令打包成 API 請求送給後端</td>
+</tr>
+<tr>
+<td>Docker Daemon（<code>dockerd</code>）</td>
+<td><mark style="background: #ADCCFFA6;">執行者（Server）</mark></td>
+<td>長駐後台的服務，管理映像檔、容器、網路與磁碟卷軸（Volume）。真正幹活的就是它</td>
+</tr>
+</tbody>
+</table>
+<p><strong>(h)</strong> <mark style="background: #BBFABBA6;">「Server 部分只有 Daemon 嗎？」嚴格來說是的</mark>：真正處理運算、存取資源、執行管理邏輯的伺服器端就是 <code>dockerd</code>，它對外提供一套 REST API。</p>
+<p><strong>(i)</strong> <mark style="background: #D2B3FFA6;">即使同機也要走 Socket</mark>：Client 與 Daemon 就算在同一台電腦上，Client <mark style="background: #FFF3A3A6;">仍然得透過 Socket 送請求</mark>，邏輯跟瀏覽器連到網頁伺服器一模一樣。這解釋了為什麼 Docker Desktop 沒開時 <code>docker ps</code> 會報「Cannot connect to the Docker daemon」——不是指令壞了，是<mark style="background: #FF5582A6;">電話那頭沒人接</mark>。</p>
+<p><strong>(j)</strong> <mark style="background: #ADCCFFA6;"><code>docker run</code> 的完整流向（六步）</mark>：</p>
+<ol>
+<li>使用者在終端機輸入 <code>docker run hello-world</code>。</li>
+<li>Docker Client 收到指令，轉換成一個 REST API 請求。</li>
+<li>請求被寫入 <code>/var/run/docker.sock</code>。</li>
+<li>Docker Daemon 監聽該 Socket，收到請求。</li>
+<li>Daemon 檢查本機有無映像檔、分配記憶體與 CPU、啟動容器。</li>
+<li>Daemon 把結果沿原路傳回 Client，顯示在終端機上。</li>
+</ol>
+<h3>三、路徑解剖—為什麼是 /var/run 與 /var/lib</h3>
+<p><strong>(k)</strong> <mark style="background: #ADCCFFA6;">Linux 路徑不是隨便取的</mark>：遵循 <mark style="background: #FFF3A3A6;">FHS（Filesystem Hierarchy Standard，檔案系統階層標準）</mark>。懂了 <code>var</code> 與 <code>lib</code>，就懂 Docker 為什麼把東西放那裡。</p>
+<p><strong>(l)</strong> <mark style="background: #ADCCFFA6;"><code>/var</code> ＝ Variable（會變動的）</mark>：專門存放系統運作過程中<mark style="background: #FFF3A3A6;">內容會不斷改變</mark>的檔案——日誌（Logs）、快取（Cache）、暫存檔，以及各種服務的執行資料。Docker 在這裡，是因為容器的狀態、日誌、暫存資料一直在變。</p>
+<p><strong>(m)</strong> <mark style="background: #ADCCFFA6;"><code>/lib</code> ＝ Library（函式庫／資料庫）</mark>：存放程式執行時需要的核心資料、共用函式庫或應用程式的內部資料。Docker 把最核心的「資產」（映像檔層、容器層資料）都放這。</p>
+<p><strong>(n)</strong> <mark style="background: #FFB8EBA6;"><code>/var/lib/docker</code> ＝ Docker 的倉庫總部</mark>（進去通常需要 root 權限）：</p>
+<table>
+<thead>
+<tr>
+<th>子目錄</th>
+<th>存放內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>image/</code></td>
+<td>映像檔（Images）的元資料與層級資訊</td>
+</tr>
+<tr>
+<td><code>containers/</code></td>
+<td>所有容器的組態與日誌</td>
+</tr>
+<tr>
+<td><code>volumes/</code></td>
+<td>你建立的 Docker Volumes（持久化資料）</td>
+</tr>
+<tr>
+<td><code>overlay2/</code></td>
+<td>實際的磁碟層資料，<mark style="background: #FF5582A6;">佔硬碟空間最大的地方</mark></td>
+</tr>
+</tbody>
+</table>
+<p><strong>(o)</strong> <mark style="background: #FFF3A3A6;"><code>/var/run</code> 與 <code>/var/lib</code> 的分工，一句話記住</mark>：</p>
+<ul>
+<li><mark style="background: #ADCCFFA6;"><code>/var/run/docker.sock</code></mark>＝通訊窗口，像<mark style="background: #FFF3A3A6;">電話線</mark>。存放「系統啟動後到現在」的資訊，特別是行程 ID（PID）與 Socket 檔案；Docker 沒跑就不存在，重開機後重建。</li>
+<li><mark style="background: #ADCCFFA6;"><code>/var/lib/docker</code></mark>＝資料倉庫，像<mark style="background: #FFF3A3A6;">倉庫</mark>。重開機後還在，刪掉等於刪光所有映像檔與容器。</li>
+</ul>
+<h3>四、匿名卷（Anonymous Volume）能不能持久化</h3>
+<p><strong>(p)</strong> <mark style="background: #BBFABBA6;">答案：可以持久化，但管理起來非常麻煩</mark>。只要是 Volume，不論具名或匿名，資料在實體上都存在主機的 <code>/var/lib/docker/volumes/</code>，<mark style="background: #FFF3A3A6;">只要不主動刪除那個卷，資料就不會消失</mark>。匿名卷的產生方式是 <code>docker run -v /data</code>（只給容器內路徑，沒給名稱或主機路徑），Docker 會自動配一串雜湊碼當名字。</p>
+<p><strong>(q)</strong> <mark style="background: #FFB8EBA6;">匿名卷 vs 具名卷</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>匿名卷（Anonymous）</th>
+<th>具名卷（Named）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>建立方式</td>
+<td><code>-v /container/path</code></td>
+<td><code>-v my_data:/container/path</code></td>
+</tr>
+<tr>
+<td>資料持久化</td>
+<td>會（重啟容器資料仍在）</td>
+<td>會</td>
+</tr>
+<tr>
+<td>容器刪除後</td>
+<td>卷變成<mark style="background: #FF5582A6;">「孤兒（dangling）」</mark>殘留在硬碟</td>
+<td>保留，名稱清晰好找</td>
+</tr>
+<tr>
+<td>可重複利用性</td>
+<td>極低，你記不住那串亂碼</td>
+<td>極高，隨時掛給新容器</td>
+</tr>
+</tbody>
+</table>
+<p><strong>(r)</strong> <mark style="background: #FF5582A6;">匿名卷的兩大痛點與實務建議</mark>：</p>
+<ul>
+<li><mark style="background: #FF5582A6;">難以識別</mark>：跑十個容器就有十個亂碼資料夾，根本分不出誰是誰。</li>
+<li><mark style="background: #FF5582A6;">生命週期陷阱</mark>：刪容器時若下 <code>docker rm -v</code>，Docker 會<mark style="background: #FF5582A6;">連匿名卷一起刪掉</mark>；具名卷通常會被保留。</li>
+<li>建議：開發測試圖方便可以用匿名卷；<mark style="background: #BBFABBA6;">正式環境與重要資料一律用具名卷或 Bind Mount</mark>，這樣升級容器版本時才能把舊資料輕鬆掛到新容器。</li>
+</ul>
+<pre><code class="language-bash"># 查看所有「孤兒」卷（沒被任何容器使用）
+docker volume ls -f dangling=true
+
+# 看某個卷實際落在主機哪個路徑
+docker volume inspect &lt;volume_name&gt;
+
+# ⚠️ 清掉所有孤兒卷（不可復原，執行前先 inspect 確認）
+docker volume prune
+</code></pre>
+<h2>補充—<code>docker pull</code> 的「完整句子」</h2>
+<p>對話最後 Abby 問 <code>docker pull</code> 的完整寫法。整理如下（本段依 Docker 官方文件補齊，原始回覆內容未完整擷取到）：</p>
+<pre><code class="language-bash"># 一般人打的簡寫
+docker pull nginx
+
+# 管理指令的完整形式（docker pull 是它的別名）
+docker image pull nginx
+
+# Docker 實際幫你補齊之後的完整座標
+docker pull docker.io/library/nginx:latest
+#            └─ registry ─┘└ namespace ┘└name┘└ tag ┘
+
+# 完整語法
+docker pull [OPTIONS] NAME[:TAG|@DIGEST]
+</code></pre>
+<p><mark style="background: #FFF3A3A6;">三個被省略的東西</mark>：<mark style="background: #ADCCFFA6;">registry（登錄機構）</mark>預設補 <code>docker.io</code>、<mark style="background: #ADCCFFA6;">namespace（命名空間）</mark>對官方映像檔預設補 <code>library</code>、<mark style="background: #ADCCFFA6;">tag（標籤）</mark>預設補 <code>latest</code>。<mark style="background: #FF5582A6;"><code>latest</code> 不代表「最新版」，它只是一個普通標籤名</mark>，正式環境請釘死版本號或用 <code>@sha256:</code> digest。</p>
+<h2>各對話來源</h2>
+<h3>Docker Socket: Client-Daemon 通訊（2026 年，共 6 個使用者回合）— https://gemini.google.com/app/557471f26b6cf7d4</h3>
+<p><mark style="background: #FFF3A3A6;">使用者：Client-Server 架構：Docker Client（如 docker CLI）透過 REST API 或 Unix Socket（預設 /var/run/docker.sock）與 Daemon 通訊。Socket 是什麼</mark></p>
+<div class="src-gem"><span class="role">Gemini</span>定義 Socket 為 IPC 中的雙向資料傳輸端點，給出插座與檔案路徑兩種類比（重點 a、b）；拆解 Unix Domain Socket 的路徑、非網路協定本質、同機限制與高效能理由，並說明其安全性由檔案權限控制（重點 c、d）；對照 TCP Socket 的遠端使用情境與埠號 2375／2376（重點 f）；最後給出 <code>docker run</code> 的完整 Client→Socket→Daemon 流向（重點 j）。</div>
+<p><mark style="background: #FFF3A3A6;">使用者：他是 client server application，他是算 Client 還是 Server 還是都有？還是 server 部分只有 daemon？</mark></p>
+<div class="src-gem"><span class="role">Gemini</span>回答 Docker 是一個完整的 C/S 系統、兩部分都包含；用表格拆解 CLI 是發令者、<code>dockerd</code> 是執行者（重點 g）；確認「Server 部分嚴格來說就是 Daemon」，因為真正處理運算與資源的是它（重點 h）；強調即使同機 Client 也要透過 Socket 送請求，邏輯等同瀏覽器連網頁伺服器（重點 i）。</div>
+<p><mark style="background: #FFF3A3A6;">使用者：裡面的 var 跟 lib 是什麼</mark></p>
+<div class="src-gem"><span class="role">Gemini</span>說明 Linux 路徑遵循 FHS 標準（重點 k）；<code>var</code> 是 Variable、放會變動的日誌與快取（重點 l）；<code>lib</code> 是 Library、放核心資產（重點 m）；列出 <code>/var/lib/docker</code> 底下 image／containers／volumes／overlay2 四個子目錄的用途，並指出 overlay2 最吃硬碟（重點 n）；最後對比 <code>/var/run</code> 與 <code>/var/lib</code> 的差異——電話線 vs 倉庫（重點 o）。</div>
+<p><mark style="background: #FFF3A3A6;">使用者：匿名卷還可以掛載可以持久化嗎</mark></p>
+<div class="src-gem"><span class="role">Gemini</span>回答「可以持久化，但管理非常麻煩」，說明不論匿名或具名，資料都在 <code>/var/lib/docker/volumes/</code>（重點 p）；用表格對比匿名卷與具名卷在建立方式、容器刪除後、可重複利用性上的差異（重點 q）；點出難以識別與 <code>docker rm -v</code> 連帶刪除兩大痛點，並給出開發 vs 正式環境的建議與 <code>docker volume ls -f dangling=true</code> 救援指令（重點 r）。</div>
+<p><mark style="background: #FFF3A3A6;">使用者：Docker pull 完整的句子是什麼</mark></p>
+<div class="src-gem"><span class="role">Gemini</span>回覆 <code>docker pull</code> 的完整寫法。<mark style="background: #D2B3FFA6;">（此回合內容因含登錄機構網址被擷取工具的隱私過濾擋下，本篇「補充」段落改依 Docker 官方 CLI 文件重新整理，語意等價。）</mark></div>
+<h2>⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 未提醒 <mark style="background: #FF5582A6;">把 <code>/var/run/docker.sock</code> 掛進容器等同交出主機 root 權限</mark>，這是實務上最常被忽略的重大風險，本篇重點 (e) 已補上（依 Docker 官方安全文件）。</li>
+<li>Gemini 未提醒 <mark style="background: #FF5582A6;">TCP 2375 埠未加密</mark>，曝露到公網等於開放無密碼 root shell，本篇重點 (f) 已補上。</li>
+<li>Gemini 說「<code>/var/run</code> 專門存放系統啟動後到現在的資訊」——這個描述正確，但現代 Linux 發行版<mark style="background: #FFB8EBA6;">實際目錄已改為 <code>/run</code>，<code>/var/run</code> 只是保留給舊程式的符號連結（symlink）</mark>。實務上兩個路徑都能用，但除錯時看到 <code>/run/docker.sock</code> 不要以為是不同東西。</li>
+</ul>
+<h2>資料來源（含查證時間）</h2>
+<blockquote>
+<p>查證日期：2026-08-08（Gemini 對話為 2026 年；安全性補充與 <code>docker pull</code> 完整語法另依下列官方文件核實）</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話原文</td>
+<td><a href="https://gemini.google.com/app/557471f26b6cf7d4">Docker Socket: Client-Daemon 通訊</a></td>
+<td>2026 年</td>
+</tr>
+<tr>
+<td>Docker 架構（Client／Daemon／REST API）</td>
+<td><a href="https://docs.docker.com/get-started/docker-overview/">Docker Docs — Docker overview: Architecture</a></td>
+<td>官方文件，持續更新</td>
+</tr>
+<tr>
+<td><code>dockerd</code> 與 <code>-H</code> Socket 設定（unix／tcp）</td>
+<td><a href="https://docs.docker.com/reference/cli/dockerd/">Docker Docs — dockerd CLI reference</a></td>
+<td>官方文件，持續更新</td>
+</tr>
+<tr>
+<td>掛載 docker.sock 的權限風險</td>
+<td><a href="https://docs.docker.com/engine/security/">Docker Docs — Docker daemon attack surface</a></td>
+<td>官方文件，持續更新</td>
+</tr>
+<tr>
+<td>Volume 的儲存位置與匿名卷行為</td>
+<td><a href="https://docs.docker.com/engine/storage/volumes/">Docker Docs — Volumes</a></td>
+<td>官方文件，持續更新</td>
+</tr>
+<tr>
+<td><code>docker pull</code> 完整語法與預設補齊規則</td>
+<td><a href="https://docs.docker.com/reference/cli/docker/image/pull/">Docker Docs — docker image pull</a></td>
+<td>官方文件，持續更新</td>
+</tr>
+<tr>
+<td>FHS 中 <code>/var</code>、<code>/var/lib</code>、<code>/run</code> 的定義</td>
+<td><a href="https://refspecs.linuxfoundation.org/FHS_3.0/fhs/index.html">Filesystem Hierarchy Standard 3.0</a></td>
+<td>FHS 3.0（2015 發布，仍為現行標準）</td>
+</tr>
+</tbody>
+</table>
+<h2>相關筆記</h2>
+<ul>
+<li>[[docker-引擎-context-image-container-觀念]]——關聯原因：那篇講「引擎（Engine）」這個詞涵蓋 CLI＋Daemon＋containerd，本篇 (g)(h) 正好把引擎內部的 C/S 角色切開；context 的切換本質就是換一個 Socket 位址（重點 c、f），兩篇是同一件事的內外視角。</li>
+<li>[[dockerd-選項清單-我的困惑筆記]]——關聯原因：<code>dockerd</code> 的 <code>-H unix://</code> 與 <code>-H tcp://</code> 選項，正是本篇 (c)(f) 兩種 Socket 的設定入口；看完本篇再回去看那份選項清單會突然合理。</li>
+<li>[[Docker問題prune+壓縮vhdx(虛擬磁碟)解決硬碟爆掉]]——關聯原因：本篇 (n) 指出 <code>overlay2/</code> 是最吃硬碟的目錄、(r) 的孤兒卷會默默殘留，這兩點正是那篇「C 槽爆掉」的根本成因；<code>docker volume prune</code> 是兩篇共用的解法。</li>
+<li>[[docker-compose-ps-and-unix-ps]]——關聯原因：<code>docker ps</code> 之所以要問 Daemon 才有答案、而 Unix <code>ps</code> 是直接讀 <code>/proc</code>，差別就在本篇 (i) 的「即使同機也要走 Socket」。</li>
+<li>[[Docker-Desktop-卡在starting或distro-stopped-排查]]——關聯原因：Docker Desktop 卡住時 <code>docker ps</code> 報「Cannot connect to the Docker daemon」，用本篇 (i) 的模型就能判斷是 Daemon 沒起來而非 CLI 壞掉，排查方向完全不同。</li>
+<li>[[windows-用-linux-的方式]]——關聯原因：Windows 上沒有真正的 <code>/var/run/docker.sock</code>，是透過 WSL2 或具名管道（Named Pipe，<code>npipe:////./pipe/docker_engine</code>）模擬；本篇 (c) 的 Linux 模型要對照那篇才知道在 Abby 的機器上實際長什麼樣。</li>
+</ul>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-08</footer>
+</div><script>
+function toggleAll(show){document.querySelectorAll('.spoiler').forEach(function(s){
+ if(show){s.classList.add('on');}else{s.classList.remove('on');}});}
+document.addEventListener('click',function(e){
+ if(e.target.classList&&e.target.classList.contains('spoiler')){e.target.classList.toggle('on');}});
+(function(){var l=document.createElement('link');l.rel='stylesheet';
+ l.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
+ document.head.appendChild(l);var s=document.createElement('script');
+ s.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+ s.onload=function(){try{hljs.highlightAll();}catch(e){}};document.head.appendChild(s);})();
+</script><script src="../assets/wikilink.js" data-root="../"></script>
+</body></html>

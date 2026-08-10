@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CPU 字長、TINYINT/SMALLINT 型別與 OpenAPI 資安雜記</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>CPU 字長、TINYINT/SMALLINT 型別與 OpenAPI 資安雜記</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#計算機組織</span><span class="pill">#sql</span><span class="pill">#openapi</span><span class="pill">#資安</span><span class="pill">#powershell</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/a44cb312be977314" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/bfb413c26f495c76" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/4998d3ccbe783c55" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><blockquote>
+<p>這個對話原始標題是「TypeScript 介面與類型別名比較」，但實際內容與 TypeScript 介面無關（可能是 Gemini 依對話中某段程式碼誤判標題），改以實際涵蓋的主題重新命名。內容橫跨多個子題，依「橫跨多主題歸到最主要的」原則，整體歸檔於此。</p>
+</blockquote>
+<p>相關筆記：[[../記憶體最小定址單位 (Byte Addressability)]]、[[CPU五大單元-ALU-CU-暫存器-快取與微指令]]、[[../command-line/sed-文字替換指令]]</p>
+<p>本篇重點 a–l，共 12 個。</p>
+</section><section class="card"><h2>重點整理</h2>
+<h3>CPU 字長（Word Size）</h3>
+<p>(a) <mark style="background: #ADCCFFA6;">CPU 字長</mark>＝CPU「一次能思考的寬度」／內部管道寬度。當說電腦是「64 位元」，這個 64 就是字長，決定三件事：暫存器容量（64 位元字長 → 每個暫存器可裝 8 Bytes）、資料匯流排寬度（一次能搬運的資料量）、記憶體定址能力（最大支援多少 RAM）。</p>
+<p>(b) 若 CPU 是 64 位元（字長 8 Bytes），即使程式只想讀 1 Byte 的 TINYINT，硬體管道通常還是會<mark style="background: #FFB8EBA6;">整組 8 Bytes 一起抓進來</mark>，再由內部邏輯把需要的那個 Byte 挑出來——這與另一篇 CPU 筆記中「Byte 是定址最小單位」的原則一脈相承，字長則是「一次搬運/處理的最大單位」。</p>
+<h3>TINYINT vs SMALLINT</h3>
+<p>(c) <mark style="background: #ADCCFFA6;">TINYINT</mark>＝1 Byte，範圍 <code>-128~127</code>（有號）或 <code>0~255</code>（無號），適合狀態碼、布林值、百分比。<mark style="background: #ADCCFFA6;">SMALLINT</mark>＝2 Bytes，範圍 <code>-32768~32767</code>（有號）或 <code>0~65535</code>（無號），適合數量、年齡、計數器。兩者是完全獨立的型別，同一張表可以混用，不會「打架」；只有寫入超出範圍的值才會出錯。設計原則：<mark style="background: #FFF3A3A6;">盡量選用能滿足需求的最小整數型別</mark>省空間，預期數字可能超過 65535 則該直接用 MEDIUMINT 或 INT。</p>
+<h3>sed 指令</h3>
+<p>(d) <mark style="background: #ADCCFFA6;">sed</mark> = Stream Editor（串流編輯器），命令列工具，逐行讀取輸入、對每行執行指定編輯操作後輸出，屬於非互動式、用於自動化/腳本化文字轉換的工具，最常見用途是查找替換：<code>sed 's/old_host/new_host/g' config.txt</code>（<code>s</code>=替換、<code>g</code>=全域替換一行中所有匹配）。</p>
+<h3>React useFormState 的 disabled 屬性</h3>
+<p>(e) <code>useFormState</code> 是一個「訂閱（Subscribe）」Hook，負責監聽表單狀態變化並在變化時觸發重新渲染。<code>disabled: true</code> 會讓 Hook <mark style="background: #ADCCFFA6;">停止訂閱表單狀態更新</mark>，適合用在組件被隱藏、使用者尚未開始操作等不需要即時渲染的情境，目的是效能優化、減少不必要的 re-render。</p>
+<h3>OpenAPI 定位與資安價值</h3>
+<p>(f) <mark style="background: #ADCCFFA6;">OpenAPI</mark>（前身 Swagger）是與語言無關的 API 規格描述格式，定位是前端與後端之間的「契約（Contract）」，不屬於前端也不屬於後端；表單（Form）是 UI 組件，OpenAPI 定義的是表單送出後、伺服器期望收到的資料結構（Schema），而非表單 UI 本身。TanStack Router 這類前端路由工具透過 OpenAPI 生成的 TypeScript 型別，讓 Loaders 抓取的資料具備類型安全。</p>
+<p>(g) 資料庫欄位限制（如 <code>VARCHAR(50)</code>）<mark style="background: #FF5582A6;">不會被 OpenAPI 自動實踐</mark>——必須在規格中明確寫入 <code>maxLength: 50</code>，且這個限制要靠前端表單驗證、後端 Middleware/Schema 驗證、資料庫層三道防線共同落實，資料庫的欄位型別限制永遠是最後一道防線。</p>
+<p>(h) <mark style="background: #ADCCFFA6;">OpenAPI 對資安的核心價值</mark>：不是取代密碼加密或防 SQL 注入，而是透過標準化＋自動化大幅降低人為疏漏（漏檢查輸入長度、意外洩漏敏感欄位）。關鍵資安觀念：<mark style="background: #FF5582A6;">絕不能只信任前端驗證（Never Trust the Client）</mark>——前端驗證只是提升 UX，攻擊者可用 Postman/curl/Burp Suite 等工具完全繞過前端 JS 邏輯直接打後端 API；真正的安全防線在後端伺服器對每個請求依 OpenAPI 規格（<code>maxLength</code>、<code>required</code>、型別）做強制驗證，不合規請求直接回 400 拒絕，不讓資料碰到業務邏輯或資料庫。</p>
+<h3>攤位號碼（如 h10）資料表欄位設計</h3>
+<p>(i) 儲存像 <code>h10</code> 這種「字母區域+數字編號」格式的攤位代碼，建議<mark style="background: #BBFABBA6;">拆成兩個欄位</mark>：<code>stall_area</code>（CHAR(1) 或 VARCHAR，存字母部分）+ <code>stall_number</code>（SMALLINT UNSIGNED，存數字部分），而非只用單一 <code>VARCHAR</code> 存整串。拆分的好處：可用 <code>ORDER BY stall_area, stall_number</code> 做精確排序（避免字串排序把 <code>h10</code> 排在 <code>h2</code> 前面的問題）、數字欄位有型別安全。</p>
+<p>(j) 若要讓 <code>stall_display</code>（如 <code>h10</code>）自動等於兩欄位合併結果，<mark style="background: #ADCCFFA6;">最推薦用資料庫的 Generated Column</mark>（MySQL 5.7+/PostgreSQL 12+）：<code>stall_display VARCHAR(10) AS (CONCAT(stall_area, stall_number)) STORED</code>，插入/更新基礎欄位時自動算好並實際落地儲存，查詢速度最快；不支援的舊資料庫版本則退而求其次用 VIEW，但寫入仍須對底層基礎表操作。</p>
+<h3>追加：為何 1 bit 就夠、TINYINT 仍要佔 1 Byte（2026-07-21）</h3>
+<p>(k) <mark style="background: #ADCCFFA6;">記憶體以 Byte 為最小可定址單位</mark>，CPU 無法對單一 bit 定址（無法要求記憶體「只給我這一個 bit」）；因此即使數值只需 2 位數二進位（如 <code>01</code>），系統仍必須配置最小可定址單位、也就是整個 1 Byte 空間給它，不存在「半個 Byte」的定址方式。這與 (b) 的「Byte 是定址最小單位、字長是一次搬運的最大單位」是同一原理的不同切角，Abby 前後兩次都問到同一個核心疑惑，值得留意這是她容易卡關的觀念。</p>
+<p>(l) <mark style="background: #D2B3FFA6;">「最小基本單位」vs「基本最小單位」</mark>：中文語意上前者強調「在一群基本單位裡，挑出規模最小的那個」；後者強調「那個被定義為系統基石的、本身就是最小尺度的單位」。落到 CPU/記憶體脈絡：Byte 是記憶體定址的「基本最小單位」（系統設計上就以它為定址基石，不可再切分定址），而在字長、快取行等不同「單位家族」裡各自的最小者則屬於「最小基本單位」的用法。⚠️ 存疑：Gemini 兩次針對這組詞義的回答用詞略有出入且偏抽象，本質上是中文構詞的語感辨析、非嚴謹計算機科學術語，Abby 若要在面試中引用建議直接用英文原詞（byte-addressable / word size）取代這組容易各自表述的中文措辭。</p>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>TypeScript 介面與類型別名比較（原始標題，實際為多主題雜談，2026-07-20）— https://gemini.google.com/app/a44cb312be977314</h3>
+<p>使用者：這邊不繼續訂閱是什麼意思 Option to disable the subscription（React useFormState 截圖）<br />
+Gemini：解釋 <code>disabled</code> 屬性會讓 useFormState 停止訂閱表單狀態更新，用於效能優化。</p>
+<p>使用者：openAPI是整個表單的嗎是前端的東西嗎跟tanstack router是什麼關係<br />
+Gemini：OpenAPI 是前後端之間的契約規格，非表單 UI 本身；TanStack Router 的 Loaders 透過 OpenAPI 生成的型別取得類型安全。</p>
+<p>使用者：那後端資料表寫的varchar(50)會在openapi嚴格實踐嗎<br />
+Gemini：不會自動實踐，需在規格中寫 <code>maxLength: 50</code>，並靠前端/後端/資料庫三層驗證共同落實。</p>
+<p>使用者：我覺得用他好麻煩喔他對資安真的有幫助嗎<br />
+Gemini：說明 OpenAPI 透過標準化輸入驗證降低人為疏漏，減少不當資料暴露，並促進跨團隊安全審查。</p>
+<p>使用者：是因為攻擊者有可能不透過我的前端頁面去請求我的後端伺服器嗎？<br />
+Gemini：確認正確，強調「Never Trust the Client」，攻擊者可用 Postman/curl 等工具繞過前端直接打 API，後端依 OpenAPI 規格驗證才是真正防線。</p>
+<p>使用者：tinyint跟smallint會打架媽他們差在哪<br />
+Gemini：比較兩者儲存空間、數值範圍與典型用途，並澄清不會「打架」（各自獨立型別）。</p>
+<p>使用者：sed是什麼，我要存攤位號碼h10這類的你會建議我資料表怎麼劃分欄位還有type<br />
+Gemini：解釋 sed 是 Stream Editor 指令；建議攤位號碼拆成 <code>stall_area</code>+<code>stall_number</code> 兩欄位以利排序查詢。</p>
+<p>使用者：但要怎麼讓stall_display是兩個的合併？<br />
+Gemini：建議用資料庫 Generated Column（<code>CONCAT(...) STORED</code>）自動合併，或退而求其次用 VIEW。</p>
+<p>使用者：為什麼要用1byte來儲存Tinyint? Tinyint 應該只需要1 bit啊<br />
+Gemini：解釋 Byte 是硬體定址最小單位，CPU 無法單獨定址 1 bit，即使只要 1 bit 仍要整個 Byte 讀寫；補充 MySQL <code>BIT(1)</code> 雖語意上只存 0/1，實務上仍常佔 1 Byte 對齊空間，除非連續多個 BIT 欄位被打包。</p>
+<p>使用者：CPU從記憶體或硬碟讀取資料的時候是一次抓取一個Byte or 四個Bytes 8 Bytes 我想問問他說是CPU字長而定什麼是CPU字長？ 你覺得最小基本單位跟基本最小單位意思有差嗎<br />
+Gemini：解釋 CPU 字長決定暫存器容量/匯流排寬度/定址能力；並拆解「最小基本單位」（在一群基本單位裡挑最小的）vs「基本最小單位」（系統的絕對最小基石，如 Byte 是記憶體定址的基本最小單位）兩者語意重心的差異。</p>
+<h3>我想请问tinyint它的存储空间是一个位元（2026-07-21）— https://gemini.google.com/app/bfb413c26f495c76</h3>
+<p>使用者：tinyint它的存储空间是一个位元。<br />
+Gemini：更正為 1 Byte（=8 bits），範圍 -128~127。</p>
+<p>使用者：为什么范围是0到255，这个范围有什么意义吗？<br />
+Gemini：8 bits = 2^8 = 256 種組合，無號整數即 0~255。</p>
+<p>使用者：但是tinyint明明就是表达0101，这样十进制的01也才两个位数，为什么他需要用到one byte？<br />
+Gemini：記憶體以 Byte 為最小定址單位，即使只需 1 bit 仍要分配整個 Byte。</p>
+<p>使用者：请帮我把答案写出来笔记，让我可以复制。<br />
+Gemini：整理成一段可複製筆記（內容同上）。</p>
+<h3>你觉得讲最小基本单位跟基本最小单位意思有差吗（2026-07-21，較短的先前討論，內容已由本篇 (l) 統整）— https://gemini.google.com/app/4998d3ccbe783c55</h3>
+<p>使用者：你觉得讲最小基本单位跟基本最小单位意思有差吗？<br />
+Gemini：初次回答較模糊，被 Abby 糾正「文不對題」後，第二次才給出「最小基本單位＝基本單位中最小者／基本最小單位＝被定義為基礎的最小尺度」的區分。</p>
+</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>對話原始出處</td>
+<td>https://gemini.google.com/app/a44cb312be977314</td>
+<td>2026-07-20 查證</td>
+</tr>
+<tr>
+<td>追加對話出處（TINYINT bit/byte、最小基本單位語意）</td>
+<td>https://gemini.google.com/app/bfb413c26f495c76 、 https://gemini.google.com/app/4998d3ccbe783c55</td>
+<td>2026-07-21 查證</td>
+</tr>
+<tr>
+<td>MySQL 整數型別範圍（TINYINT/SMALLINT）</td>
+<td>https://dev.mysql.com/doc/refman/8.0/en/integer-types.html</td>
+<td>與 MySQL 官方文件一致，2026-07-20 查證</td>
+</tr>
+<tr>
+<td>MySQL Generated Columns</td>
+<td>https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html</td>
+<td>與 MySQL 官方文件一致，2026-07-20 查證</td>
+</tr>
+</tbody>
+</table></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-21</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script><script src="../assets/wikilink.js" data-root="../"></script>
+</body></html>

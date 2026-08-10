@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SSR、renderToString 與 Hydration — 伺服器端渲染流程</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>SSR、renderToString 與 Hydration — 伺服器端渲染流程</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#react</span><span class="pill">#ssr</span><span class="pill">#hydration</span><span class="pill">#dom</span><span class="pill">#seo</span><span class="pill">#效能</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/0b96bab2bcf0369f" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><p>本篇重點 a–j，共 10 個</p>
+</section><section class="card"><h2>重點整理</h2>
+<p>(a) <mark style="background: #ADCCFFA6;">SSR（Server-Side Rendering，伺服器端渲染）</mark>：在伺服器上先把頁面產生成 HTML 字串再傳給瀏覽器，好處是<mark style="background: #BBFABBA6;">首屏更快看到內容、對 SEO 友善</mark>（爬蟲不必等 JS 執行完才看得到文字）。</p>
+<p>(b) <mark style="background: #FFF3A3A6;">伺服器怎麼把元件變成 HTML</mark>：靠框架提供的特定函式，React 就是 <code>renderToString</code>（或串流版 <code>renderToPipeableStream</code>）。它把 React 元件樹轉成<mark style="background: #FFB8EBA6;">純字串</mark>，不是 DOM 節點。</p>
+<pre><code class="language-jsx">// 伺服器端（Node.js）
+import { renderToString } from 'react-dom/server';
+const html = renderToString(&lt;App /&gt;);   // 純字串，例如 &quot;&lt;div id=\&quot;root\&quot;&gt;…&lt;/div&gt;&quot;
+res.send(`&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;body&gt;${html}&lt;/body&gt;&lt;/html&gt;`);
+</code></pre>
+<p>(c) <mark style="background: #FF5582A6;">關鍵釐清（Abby 當時的疑問）</mark>：「伺服器產生的 HTML 還會有 DOM Tree 嗎？」<mark style="background: #BBFABBA6;">伺服器端沒有 DOM Tree</mark>，Node.js 環境根本沒有 <code>window</code> 和 <code>document</code>；伺服器產出的只是一段字串。<mark style="background: #FFF3A3A6;">DOM Tree 是「瀏覽器收到 HTML 字串後，自己解析（Parse）建立出來的」</mark>。</p>
+<p>(d) <mark style="background: #ADCCFFA6;">render 函式做了什麼</mark>：React 的 render（函數型元件就是元件函式本身的回傳值）會根據當下的 state 和 props，回傳一段<mark style="background: #FFB8EBA6;">「UI 的描述」</mark>——也就是 JSX 編譯後的 React Element 物件樹，而不是直接操作畫面。真正的畫面更新由 React 之後比對再套用。</p>
+<p>(e) <mark style="background: #FFF3A3A6;">函數型元件裡的 JS 操作跑去哪裡（本篇核心問題）</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>階段</th>
+<th>在哪執行</th>
+<th>會執行什麼</th>
+<th>不會執行什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>伺服器端 SSR</td>
+<td>Node.js</td>
+<td>元件函式本體跑一次以產生 HTML 字串</td>
+<td><mark style="background: #FF5582A6;"><code>useEffect</code> 不會跑、事件處理器不會綁定</mark></td>
+</tr>
+<tr>
+<td>瀏覽器 Hydration</td>
+<td>瀏覽器</td>
+<td>同一份元件程式碼再跑一次，把事件處理器「接」到既有 DOM 上</td>
+<td>—</td>
+</tr>
+<tr>
+<td>之後的互動</td>
+<td>瀏覽器</td>
+<td>state 更新、事件、<code>useEffect</code> 全部正常運作</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>(f) <mark style="background: #ADCCFFA6;">Hydration（水合）</mark>：瀏覽器已經有伺服器送來的靜態 HTML，React 在客戶端用 <code>hydrateRoot</code> <mark style="background: #BBFABBA6;">不是重畫一次，而是「認領」既有的 DOM 節點並掛上事件監聽</mark>，讓死的 HTML 活過來變成可互動的頁面。</p>
+<pre><code class="language-jsx">// 客戶端
+import { hydrateRoot } from 'react-dom/client';
+hydrateRoot(document.getElementById('root'), &lt;App /&gt;);
+</code></pre>
+<p>(g) <mark style="background: #FF5582A6;">Hydration 陷阱</mark>：伺服器渲染結果與客戶端首次渲染結果必須一致，否則會出現 hydration mismatch 警告。<mark style="background: #FF5582A6;">最常見的地雷是在元件本體直接用 <code>Date.now()</code>、<code>Math.random()</code>、<code>window.xxx</code></mark>——這類值兩邊必然不同，要改放進 <code>useEffect</code>。</p>
+<p>(h) <mark style="background: #ADCCFFA6;">編譯型 vs 直譯型的效能（對話的起頭問題）</mark>：Gemini 的回答是「C++ 通常編譯成機器碼，執行速度通常比直譯型的 JavaScript 快，但實際表現仍取決於演算法與硬體環境」。</p>
+<p>(i) <mark style="background: #FF5582A6;">⚠️ 存疑／更正</mark>：把 JavaScript 一律說成「直譯型（Interpreted）」<mark style="background: #FF5582A6;">已經不精確</mark>。現代 V8 引擎採 <mark style="background: #ADCCFFA6;">JIT（Just-In-Time Compilation，即時編譯）</mark>——先由 Ignition 直譯器產生位元組碼，熱點程式碼再交給 TurboFan 編譯成最佳化機器碼。所以差距主因並非「有沒有編譯」，而是<mark style="background: #FFB8EBA6;">記憶體管理方式（手動 vs GC）、型別是否靜態已知、以及去最佳化（Deoptimization）風險</mark>。</p>
+<p>(j) <mark style="background: #D2B3FFA6;">次要備註</mark>：這串對話後半段其實跑題到「LeetCode 找位數乘積」的迴圈起始值問題（該從 <code>n</code> 開始而非 <code>1</code>、要轉字串的是迴圈變數 <code>i</code> 而不是固定的 <code>n</code>），與 SSR 主題無關，已另行歸入雙指標／迴圈相關筆記脈絡，本篇不重複收錄。</p>
+</section><section class="card"><h2>相關筆記</h2>
+<ul>
+<li>[[Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪]]（承接 (c) 的「瀏覽器拿到 HTML 字串後才建 DOM Tree」；該篇詳述 HTML → DOM → CSSOM → Render Tree → Layout → Paint 的完整管線，SSR 的價值正是讓這條管線更早開始跑）</li>
+<li>[[V8引擎完整管線-Parse到Deoptimization]]（直接支撐 (i) 的更正；該篇講 Ignition 直譯器、TurboFan 最佳化與 Deoptimization，說明為什麼「JS = 直譯語言」的說法已過時）</li>
+<li>[[JIT與useMemo-CPU記憶體取捨]]（同樣談 JIT 與效能取捨；該篇從 React 層看快取，本篇 (i) 從引擎層看編譯，兩篇是同一議題的上下游）</li>
+<li>[[Node-global與process物件屬性逐行解釋]]（實證 (c) 的「Node 沒有 window 和 document」；該篇實際在 Node REPL 印出 global 與 process，是本篇論點的操作證據）</li>
+<li>[[React-純函數與嚴格模式-StrictMode]]（呼應 (g) 的 hydration mismatch；元件本體必須是純函數、不能有隨機或時間副作用，正是兩邊渲染結果能一致的前提）</li>
+<li>[[前端框架比較-Vue-React-Angular難易度與優缺點]]（同批對話延伸；三大框架都各有 SSR 方案 Next.js／Nuxt／Angular Universal，可對照選型）</li>
+</ul>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>數字位數乘積的解釋（2026-08-06）— https://gemini.google.com/app/0b96bab2bcf0369f</h3>
+<p>使用者：所以 C++ 一定比 JavaScript 快嗎？<br />
+Gemini：C++ 通常編譯成機器碼，執行速度通常比直譯型的 JavaScript 快，但實際表現仍取決於演算法與硬體環境。（⚠️ 見重點 (i) 的更正）</p>
+<p>使用者：那 JavaScript 的 SSR 呢？<br />
+Gemini：SSR 是伺服器端渲染，把頁面在伺服器上先產生好 HTML 再傳給客戶端，可以讓頁面更快顯示出來，對 SEO 也很有幫助。</p>
+<p>使用者：伺服器端要怎麼轉成 HTML？那這樣子 HTML 還會有 DOM Tree 嗎？<br />
+Gemini：伺服器端是用特定的函式把 JavaScript 元件轉換成 HTML 字串，例如 React 的 <code>renderToString</code>。傳到瀏覽器後，瀏覽器解析這個 HTML 字串才會重新建立出 DOM 樹，讓網頁可以互動。</p>
+<p>使用者：然後 render 函數裡面做了些什麼？<br />
+Gemini：渲染函式會根據元件目前的狀態和屬性，回傳一段 UI 的描述，通常就是在 JSX 裡面寫好的畫面結構，用來決定 UI 呈現出來的樣子。</p>
+<p>使用者：那些 JavaScript 的操作，因為 React 是函數型元件，那些 JS 操作會跑去哪裡？<br />
+Gemini：在函數型元件裡，所有 JavaScript 操作（狀態管理、事件處理程式）在伺服器端渲染時會執行一次以產生 HTML，之後在客戶端瀏覽器上還會繼續在瀏覽器環境中運行，以維持網頁的互動性。</p>
+<p>（後續回合轉為討論 LeetCode 迴圈起始值 <code>n</code> vs <code>i</code> 與字串轉換，與本主題無關，見重點 (j)。）</p>
+</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>對話原始出處</td>
+<td>https://gemini.google.com/app/0b96bab2bcf0369f</td>
+<td>2026-08-07 查證</td>
+</tr>
+<tr>
+<td>React <code>renderToString</code> 官方文件</td>
+<td>https://react.dev/reference/react-dom/server/renderToString</td>
+<td>React 19 文件，2026-08-07 查證</td>
+</tr>
+<tr>
+<td>React <code>hydrateRoot</code> 官方文件</td>
+<td>https://react.dev/reference/react-dom/client/hydrateRoot</td>
+<td>含 hydration mismatch 說明，2026-08-07 查證</td>
+</tr>
+<tr>
+<td>V8 JIT 架構（Ignition／TurboFan）</td>
+<td>https://v8.dev/docs</td>
+<td>用於更正重點 (i)，2026-08-07 查證</td>
+</tr>
+</tbody>
+</table></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-07</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script><script src="../../assets/wikilink.js" data-root="../../"></script>
+</body></html>

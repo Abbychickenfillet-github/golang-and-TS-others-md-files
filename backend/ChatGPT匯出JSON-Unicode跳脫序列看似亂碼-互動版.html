@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChatGPT 匯出 JSON 顯示 Unicode 跳脫序列，其實不是亂碼</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>ChatGPT 匯出 JSON 顯示 Unicode 跳脫序列，其實不是亂碼</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#json</span><span class="pill">#unicode</span><span class="pill">#encoding</span><span class="pill">#chatgpt-export</span><span class="pill">#llm</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/ece94f44b8465e74" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><p>本篇重點 a–d，共 4 個</p>
+</section><section class="card"><h2>重點整理</h2>
+<p>(a) <mark style="background: #BBFABBA6;">資料沒有壞掉、也不是亂碼</mark>：把 ChatGPT 對話資料匯出後，用一般文字編輯器打開看到一堆看不懂的符號（例如 <code>你好</code> 這種格式），其實是 <mark style="background: #ADCCFFA6;">Unicode 跳脫序列（Unicode escape sequence）</mark>——JSON 格式為了讓檔案能安全跨平台傳輸、避免編碼衝突，會把非 ASCII 字元（如中文）轉成 <code>\uXXXX</code> 這種「用 ASCII 字元表示任意 Unicode 字元」的寫法儲存。</p>
+<p>(b) <mark style="background: #ADCCFFA6;">解法：用支援 Unicode 的工具開啟</mark>：只要用能正確解析 JSON／支援 Unicode 的軟體（例如 VS Code 開啟並用 JSON 格式檢視、或用程式語言的 JSON 解析器 <code>json.loads()</code> / <code>JSON.parse()</code> 讀取），<code>\uXXXX</code> 就會自動還原顯示成正常的中文字，不需要手動「反轉」或「解碼」。</p>
+<p>(c) <mark style="background: #FF5582A6;">常見誤解</mark>：使用者直覺會覺得「檔案裡都是英文字母跟數字，怎麼可能是我打的中文」，因而懷疑檔案壞掉或編碼跑掉；但這其實是 JSON 規格本身的正常行為（<code>\u</code> 跳脫是 JSON 標準允許的字元表示法之一），不是資料損毀，也不影響餵給其他 AI 使用——只要對方讀取時用的是標準 JSON 解析器，就能正確還原文字內容。</p>
+<p>(d) <mark style="background: #FFB8EBA6;">實務意義</mark>：這類匯出檔（如 ChatGPT/Gemini 對話紀錄的 <code>.json</code>）本質上仍是完整、可用的純文字資料，適合用來餵給其他 AI 工具做二次利用（例如整理成筆記、建置 RAG）；重點是用「解析 JSON 的方式」讀，而不是用純文字編輯器「肉眼直接讀」。</p>
+</section><section class="card"><h2>相關筆記</h2>
+<ul>
+<li>[[backend/MySQL外鍵與字元集問題筆記]]（同樣是「資料看起來亂碼」的疑惑，但成因不同：MySQL 是資料庫欄位字元集設定錯誤，這篇則是 JSON 標準的 Unicode 跳脫序列，兩者可對照理解「亂碼」的不同成因）</li>
+</ul>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>为什么我把ChatGPT的资料，对话资料给下载下来之后，它每一个file就是，这是乱码，我说的文字怎么可能是乱码？这样子我喂给其他的AI还有用吗？（2026-07-23）— https://gemini.google.com/app/ece94f44b8465e74</h3>
+<p>使用者：daily conversations 没有。<br />
+Gemini：說明對話資料沒有遺失，看到的是 Unicode 編碼，JSON 用這種方式儲存各語言文字，用支援 Unicode 的軟體打開就能正常顯示中文。</p>
+<p>使用者：可是他们都显示英文呐，他们自己也不是乱码，那我应该用什么（軟體開啟）<br />
+Gemini：釐清顯示的英文數字組合（<code>\uXXXX</code>）就是 Unicode 跳脫序列本身的樣子，建議用 VS Code 等支援 JSON 解析的工具開啟。</p>
+<p>使用者：（後續多輪追問「這些粉紅色的是中文字吧」「你把它反轉為中文字源」等，反覆確認 Gemini 是否真的看得懂内容）<br />
+Gemini：重申這是 JSON 標準的 Unicode 跳脫序列寫法，不是加密或亂碼，用支援 Unicode 的解析工具讀取即可正確還原，資料本身完整可用。</p>
+</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>對話原始出處</td>
+<td>https://gemini.google.com/app/ece94f44b8465e74</td>
+<td>2026-07-23 查證</td>
+</tr>
+<tr>
+<td>JSON 規格（RFC 8259，字串跳脫規則）</td>
+<td>https://www.rfc-editor.org/rfc/rfc8259</td>
+<td>IETF 標準文件，2026-07-23 查證</td>
+</tr>
+</tbody>
+</table></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-23</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script><script src="../assets/wikilink.js" data-root="../"></script>
+</body></html>

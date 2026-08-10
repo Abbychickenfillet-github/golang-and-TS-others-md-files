@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V8 引擎管線互動版：原生 JS vs React × Ignition/TurboFan</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" onerror="window.__nomermaid=1"></script>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:920px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.55rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.2rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1rem;margin:1em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+mark{padding:.05em .25em;border-radius:4px;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+
+.tabbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px;}
+.tabbar button{flex:1 1 190px;background:#fff;border:2px solid var(--line);border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;transition:all .15s;}
+.tabbar button:hover{border-color:#c7d2fe;}
+.tabbar button.active{border-color:var(--accent);background:#eef1ff;box-shadow:0 2px 8px rgba(91,124,250,.18);}
+.tabbar button .tab-num{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;width:20px;height:20px;line-height:20px;text-align:center;font-size:.72rem;margin-right:6px;}
+.tabbar button.active .tab-num{background:#4338ca;}
+.tabbar button .tab-title{font-weight:700;font-size:.92rem;color:#374151;}
+.tabbar button .tab-sub{display:block;font-size:.74rem;color:var(--muted);margin-top:2px;margin-left:26px;}
+
+.diagram-panel{background:#fff;border:1px dashed var(--line);border-radius:12px;padding:10px;overflow-x:auto;min-height:260px;display:flex;align-items:center;justify-content:center;}
+.diagram-panel .mermaid{width:100%;}
+
+.diff-panel{margin-top:16px;}
+.diff-panel h3{color:var(--accent);}
+.diff-list{list-style:none;margin:0;padding:0;}
+.diff-list li{background:#fafbfc;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:0 8px 8px 0;padding:9px 13px;margin:8px 0;font-size:.93rem;}
+.diff-list li b{color:#374151;}
+.badge{display:inline-block;font-size:.72rem;padding:2px 9px;border-radius:999px;margin-left:6px;font-weight:600;}
+.badge.cold{background:#dbeafe;color:#1d4ed8;}
+.badge.hot{background:#fee2e2;color:#b91c1c;}
+.badge.native{background:#dcfce7;color:#15803d;}
+.badge.react{background:#ede9fe;color:#6d28d9;}
+
+.summary-box{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 10px 10px 0;padding:14px 18px;margin-top:18px;font-size:.94rem;}
+.noscript-note{background:#fee2e2;color:#b91c1c;padding:10px 14px;border-radius:8px;font-size:.85rem;display:none;}
+</style></head><body>
+<div class="wrap">
+
+<header class="note">
+<h1>V8 引擎管線互動版：原生 JS vs React × Ignition／TurboFan（4 條路徑）</h1>
+<div class="pills"><span class="pill">#v8</span><span class="pill">#javascript</span><span class="pill">#ignition</span><span class="pill">#turbofan</span><span class="pill">#babel</span><span class="pill">#ssr</span></div>
+<div class="meta">靜態版與完整名詞解釋見同資料夾 <code>V8引擎完整管線-Parse到Deoptimization.md</code>（本頁是它的互動延伸，內容不重複贅述基礎名詞）</div>
+</header>
+
+<section class="card">
+<h2>為什麼要分 4 張圖？</h2>
+<p>程式碼進 V8 之前有兩種不同起點——<mark style="background:#dcfce7;">原生 JS</mark>（直接是標準 JS）vs <mark style="background:#ede9fe;">React／TSX</mark>（要先經過 Babel/<code>tsc</code> 轉譯）；進了 V8 之後，同一段程式碼在生命週期裡又會經歷<mark style="background:#dbeafe;">冷路徑（Ignition 直譯）</mark>跟<mark style="background:#fee2e2;">熱路徑（TurboFan 優化）</mark>兩種狀態。兩個維度交叉＝ 4 條路徑。點下面按鈕切換，右側會同步顯示「跟基準線（圖①）比起來，這條路徑多了 / 換了什麼」。</p>
+
+<div class="tabbar" id="tabBar">
+  <button class="tab active" data-tab="0"><span class="tab-num">①</span><span class="tab-title">原生 JS</span><span class="badge cold">冷 Ignition</span><span class="tab-sub">基準線，沒有轉譯步驟</span></button>
+  <button class="tab" data-tab="1"><span class="tab-num">②</span><span class="tab-title">原生 JS</span><span class="badge hot">熱 TurboFan</span><span class="tab-sub">同樣沒轉譯，但被判定為熱點</span></button>
+  <button class="tab" data-tab="2"><span class="tab-num">③</span><span class="tab-title">React／TSX</span><span class="badge cold">冷 Ignition</span><span class="tab-sub">多了建置期轉譯步驟</span></button>
+  <button class="tab" data-tab="3"><span class="tab-num">④</span><span class="tab-title">React／TSX</span><span class="badge hot">熱 TurboFan</span><span class="tab-sub">轉譯 + 被判定為熱點</span></button>
+</div>
+
+<div class="diagram-panel"><pre class="mermaid" id="mermaidTarget"></pre></div>
+<p class="noscript-note" id="noMermaidNote">⚠️ mermaid.js 從 CDN 載入失敗（可能離線）。靜態版流程圖請直接看同資料夾的 .md 檔。</p>
+
+<div class="diff-panel">
+  <h3 id="diffTitle">跟基準線比起來的差異</h3>
+  <ul class="diff-list" id="diffList"></ul>
+</div>
+
+<div class="summary-box">四張圖的關鍵差異，一句話總結：①②（原生 JS）跟③④（React）唯一的差別，是③④在 Parse 之前多了一段<strong>建置時、V8 管線之外</strong>的轉譯步驟；一旦進了 V8，①③（冷）跟②④（熱）就完全是同一套 Ignition/TurboFan 邏輯，跟程式碼原本是不是 React 完全無關——V8 分不出來、也不在乎。</div>
+</section>
+
+<footer>由 Abby × Claude 對話整理 · 更新於 2026-07-27</footer>
+</div>
+
+<script>
+var diagrams = [
+`flowchart LR
+    A["原生 JS 原始碼"] --> B["直接進 V8（沒有轉譯這一步）"]
+    B --> C["Parse：Scanner→Parser→AST→Scope Analysis"]
+    C --> D["Ignition：AST 編成 Bytecode，直譯執行 + 收集 Profiling"]
+    D --> E["呼叫次數還沒到門檻 → 一路用 Bytecode 直譯跑完"]`,
+`flowchart LR
+    A["原生 JS 原始碼"] --> B["直接進 V8"]
+    B --> C["Parse"]
+    C --> D["Ignition 直譯 + 收集 Profiling"]
+    D --> E{"呼叫/迴圈次數超過門檻？"}
+    E -- 是 --> F["TurboFan：Escape Analysis／Inline Caching／Type Specialization"]
+    F --> G["生成 Machine Code 執行（極快）"]
+    G -- 型別突然改變 --> H["Deoptimization：退回 Ignition"]`,
+`flowchart LR
+    A["JSX/TSX 原始碼"] --> BT["建置時：Babel／tsc／SWC 轉譯（JSX→_jsx(...)、TS→JS）"]
+    BT --> B["打包成標準 JS，部署上線（V8 完全看不到原本是 JSX/TSX）"]
+    B --> C["Parse（跟原生 JS 走一模一樣的路）"]
+    C --> D["Ignition 直譯 + 收集 Profiling"]
+    D --> E["呼叫次數還沒到門檻 → 一路用 Bytecode 直譯跑完"]`,
+`flowchart LR
+    A["JSX/TSX 原始碼"] --> BT["建置時 Babel／tsc／SWC 轉譯"]
+    BT --> B["打包成標準 JS"]
+    B --> C["Parse"]
+    C --> D["Ignition 直譯 + 收集 Profiling"]
+    D --> E{"呼叫/迴圈次數超過門檻？\n(例如頻繁 re-render 的元件函式)"}
+    E -- 是 --> F["TurboFan 優化"]
+    F --> G["Machine Code 執行"]
+    G -- "型別突然改變(例如 props 型別不穩定)" --> H["Deoptimization：退回 Ignition"]`
+];
+
+var diffs = [
+  { title: '① 原生 JS × 冷 Ignition（基準線）', items: [
+    '<b>起點：</b>標準 JS，沒有任何轉譯步驟，V8 收到的就是你寫的原始碼。',
+    '<b>V8 內部：</b>Parse 完直接進 Ignition 直譯執行，還沒被判定為熱點，全程用 Bytecode 跑。',
+    '<b>沒有：</b>TurboFan 優化、Deoptimization——這條路徑根本還沒觸發它們。'
+  ]},
+  { title: '② 原生 JS × 熱 TurboFan（跟①比：多了熱點優化）', items: [
+    '<b>起點跟①一樣：</b>沒有轉譯步驟。',
+    '<b>差異在 V8 內部：</b>Ignition 收集的 Profiling Data 顯示呼叫/迴圈次數超過門檻，觸發 TurboFan 做 Escape Analysis／Inline Caching／Type Specialization，生成 Machine Code。',
+    '<b>多了一個安全網：</b>Deoptimization——一旦型別假設被打破，會退回①的 Ignition 直譯狀態。'
+  ]},
+  { title: '③ React／TSX × 冷 Ignition（跟①比：起點多了轉譯）', items: [
+    '<b>起點跟①不同：</b>Parse 之前多了一段<b>建置時（build time）</b>的 Babel／tsc／SWC 轉譯，把 JSX/TSX 轉成標準 JS——這一步在 V8 管線之外、部署前就做完了。',
+    '<b>V8 內部跟①完全一樣：</b>一旦轉譯完成，V8 拿到的就是普通 JS，走一模一樣的 Parse→Ignition 流程，V8 不知道也不在乎原本是不是 JSX。',
+    '<b>沒有：</b>TurboFan／Deoptimization，跟①一樣還沒觸發熱點優化。'
+  ]},
+  { title: '④ React／TSX × 熱 TurboFan（跟①比：兩個差異疊加）', items: [
+    '<b>差異 1（跟③一樣）：</b>起點多了建置期轉譯步驟。',
+    '<b>差異 2（跟②一樣）：</b>V8 內部因為呼叫次數達標，觸發 TurboFan 優化（常見於頻繁 re-render 的元件函式）。',
+    '<b>典型情境：</b>React 元件裡一個被大量重複呼叫的 render 函式或 hook，最後被 V8 優化成 Machine Code；如果 props 型別不穩定，一樣會 Deopt 退回 Ignition。'
+  ]}
+];
+
+var tabButtons = document.querySelectorAll('#tabBar .tab');
+var mermaidReady = !!window.mermaid;
+if(mermaidReady){ mermaid.initialize({ startOnLoad:false, theme:'neutral' }); }
+
+function renderTab(idx){
+  tabButtons.forEach(function(b){ b.classList.toggle('active', Number(b.getAttribute('data-tab'))===idx); });
+  var target = document.getElementById('mermaidTarget');
+  var diffTitle = document.getElementById('diffTitle');
+  var diffList = document.getElementById('diffList');
+  diffTitle.textContent = diffs[idx].title;
+  diffList.innerHTML = diffs[idx].items.map(function(t){ return '<li>'+t+'</li>'; }).join('');
+  if(mermaidReady){
+    target.removeAttribute('data-processed');
+    target.textContent = diagrams[idx];
+    try{
+      mermaid.run({ nodes:[target] });
+    }catch(e){
+      try{ mermaid.init(undefined, target); }catch(e2){}
+    }
+  } else {
+    target.textContent = diagrams[idx];
+    document.getElementById('noMermaidNote').style.display = 'block';
+  }
+}
+
+tabButtons.forEach(function(btn){
+  btn.addEventListener('click', function(){ renderTab(Number(btn.getAttribute('data-tab'))); });
+});
+
+document.addEventListener('DOMContentLoaded', function(){ renderTab(0); });
+if(document.readyState === 'complete' || document.readyState === 'interactive'){ renderTab(0); }
+</script>
+<script src="../../../assets/wikilink.js" data-root="../../../"></script>
+</body></html>

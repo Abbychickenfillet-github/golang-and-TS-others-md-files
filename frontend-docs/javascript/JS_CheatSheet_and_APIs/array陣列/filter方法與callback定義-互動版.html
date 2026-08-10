@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>filter() 方法與 Callback 函式定義</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>filter() 方法與 Callback 函式定義</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#array</span><span class="pill">#callback</span><span class="pill">#closure</span><span class="pill">#memory</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/62a033a5c6e48ae3" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><p>本篇重點 a–f，共 6 個</p>
+</section><section class="card"><h2>重點整理</h2>
+<p>(a) <mark style="background: #ADCCFFA6;"><code>filter()</code> 一定會用到一個 callback function</mark>：<code>filter()</code> 遍歷陣列每個元素時都會呼叫這個 callback，callback 回傳 <code>true</code> 該元素就保留進新陣列、回傳 <code>false</code> 就被濾掉——callback 就像篩網，決定誰能通過。</p>
+<p>(b) <mark style="background: #ADCCFFA6;">MDN 對 Callback 的定義</mark>：「回呼函式（Callback function）是指被作為引數（Argument）傳入另一個函式的函式，並在該外部函式內部被呼叫，以完成某些任務或流程。」</p>
+<p>(c) <mark style="background: #FFF3A3A6;">Callback 既是寫法風格，也涉及記憶體機制</mark>，可從兩個角度理解：<br />
+　　① <strong>語法/設計角度</strong>：JS 函式是「一等公民（First-Class Functions）」，可賦值給變數、當引數傳遞、當回傳值——<code>fnA(fnB)</code> 時 <code>fnB</code> 就是 callback，意思是「這是我的邏輯，交給你（fnA），你在適當時機再呼叫回（call back）我」。<br />
+　　② <strong>記憶體角度</strong>：不只是文字寫法，底層涉及三個核心機制（見 d、e、f）。</p>
+<p>(d) <mark style="background: #ADCCFFA6;">記憶體位址傳遞（Reference Pass）</mark>：寫 <code>data.filter(checkId)</code> 時，傳的不是函式「執行後的結果」，而是該函式在記憶體堆積（Heap）中的記憶體位址（指標 Reference）；外部函式（如 filter）拿到這個位址後，在自己的執行過程中透過位址找到並執行該函式。</p>
+<p>(e) <mark style="background: #ADCCFFA6;">閉包（Closure）與變數生存週期</mark>：若 callback 存取了外層變數（例如 <code>data.filter(item =&gt; item.id !== targetId)</code> 用到外層的 <code>targetId</code>），callback 會保留對其詞法範疇（Lexical Scope）中變數的引用；即使 filter 正在自己的作用域運作，callback 依然能存取外部的 <code>targetId</code>，這就是閉包保留記憶體上下文的特性。</p>
+<p>(f) <mark style="background: #D2B3FFA6;">Call Stack 與 Event Loop 的分野</mark>：callback 可分同步／非同步。<strong>同步 callback</strong>（如 <code>Array.filter</code>）直接在當前執行上下文（Call Stack）中被呼叫、推入釋放記憶體；<strong>非同步 callback</strong>（如 <code>setTimeout</code>／API 請求）會先擺在記憶體空間中，等非同步任務完成後，經 Web APIs → Task Queue → Event Loop 才重新被推回 Call Stack 執行。</p>
+</section><section class="card"><h2>相關筆記</h2>
+<ul>
+<li>[[閉包vs參數鑽透-argument-drilling]]（同樣講閉包如何「記住」外層變數；該篇用工廠函式示範封裝折扣資料，本篇則從 filter callback 的記憶體位址/閉包角度補充「為什麼能記住」）</li>
+<li>[[陣列遍歷-forEach與callback]]（同為陣列方法 + callback 的組合；forEach 的 callback 用於「副作用」，filter 的 callback 用於「回傳布林值決定去留」，兩者可對照理解 callback 在不同陣列方法中角色如何不同）</li>
+</ul>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>Filter 方法的 Callback 函式（2026-07-23）— https://gemini.google.com/app/62a033a5c6e48ae3</h3>
+<p>使用者：所以filter一定會用到一個callback function嗎<br />
+Gemini：確認 filter() 一定會用到 callback，說明其作為「篩網」的運作方式，回傳 true 保留、false 濾掉。</p>
+<p>使用者：Callback的定義到底是什麼 mdn，他只是一種寫法的格式還是他有參雜到一些記憶體的概念？<br />
+Gemini：引用 MDN 定義，說明 callback 同時是設計模式（一等公民函式）也涉及記憶體機制，並拆解三層：記憶體位址傳遞（Reference Pass）、閉包與變數生存週期、Call Stack 與 Event Loop 的同步/非同步差異。</p>
+</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>對話原始出處</td>
+<td>https://gemini.google.com/app/62a033a5c6e48ae3</td>
+<td>2026-07-23 查證</td>
+</tr>
+<tr>
+<td>MDN Callback function 定義</td>
+<td>https://developer.mozilla.org/en-US/docs/Glossary/Callback_function</td>
+<td>與 MDN Glossary 說明一致，2026-07-23 查證</td>
+</tr>
+</tbody>
+</table></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-23</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script><script src="../../../../assets/wikilink.js" data-root="../../../../"></script>
+</body></html>

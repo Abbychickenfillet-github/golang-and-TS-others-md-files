@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>element.style 動態設定 vs className 切換——什麼時候用 inline style 才不算壞味道</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{
+  --bg:#faf9f7; --card:#ffffff; --ink:#2f3337; --muted:#6b7280;
+  --line:#e6e3dd; --accent:#4f7cac; --accent-soft:#eaf1f8;
+  --user:#8a6fb0; --gem:#3f8f7a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+  line-height:1.75;font-size:16.5px;letter-spacing:.01em}
+.wrap{max-width:820px;margin:0 auto;padding:34px 22px 90px}
+header.pagehead{background:linear-gradient(160deg,#ffffff,#f3f1ec);border:1px solid var(--line);
+  border-radius:18px;padding:26px 28px;margin-bottom:26px;box-shadow:0 2px 14px rgba(0,0,0,.04)}
+header.pagehead h1{margin:0 0 12px;font-size:1.72rem;line-height:1.4;
+  font-family:"Noto Serif TC",Georgia,serif;font-weight:700}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.pill{background:var(--accent-soft);color:#33587e;border:1px solid #d6e3f0;border-radius:999px;
+  padding:3px 12px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.82rem;color:var(--muted);margin-top:10px}
+.meta a{color:var(--accent);word-break:break-all}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 8px}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:10px;
+  padding:8px 15px;font-size:.85rem;color:var(--ink);transition:.18s;font-family:inherit}
+.btn:hover{background:var(--accent-soft);border-color:#cbdcec}
+.btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:24px 28px;margin:20px 0;box-shadow:0 1px 8px rgba(0,0,0,.03)}
+h2{font-size:1.24rem;margin:1.7em 0 .7em;padding-bottom:.35em;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif}
+h2:first-child{margin-top:0}
+h3{font-size:1.06rem;margin:1.5em 0 .5em;color:#3c5a75}
+h4{font-size:.97rem;margin:1.2em 0 .4em;color:#4b5563}
+p{margin:.7em 0}
+ul,ol{padding-left:1.5em}
+li{margin:.35em 0}
+mark{padding:.08em .22em;border-radius:4px;transition:.2s;cursor:pointer}
+body.hide-marks mark{color:transparent!important;background:#dfe3e8!important;
+  border-radius:4px;text-shadow:none;user-select:none}
+mark.revealed{color:inherit!important;text-shadow:none}
+code{background:#f0eee9;padding:.13em .38em;border-radius:5px;font-size:.9em;
+  font-family:"JetBrains Mono","Consolas","Cascadia Mono",monospace}
+pre{background:#21262d;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow-x:auto;
+  font-size:.86rem;line-height:1.6}
+pre code{background:none;padding:0;color:inherit}
+table{border-collapse:collapse;width:100%;margin:1.1em 0;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:#f1efe9;font-weight:600}
+tbody tr:nth-child(even){background:#fbfaf8}
+blockquote{margin:1.1em 0;padding:12px 18px;border-left:4px solid var(--accent);
+  background:#f5f8fb;border-radius:0 10px 10px 0;color:#41505e}
+blockquote p:first-child{margin-top:0}
+blockquote p:last-child{margin-bottom:0}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);display:block;margin:1em auto}
+hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
+.quiz{background:#fdfcfa;border:1px solid var(--line);border-radius:16px;padding:22px 26px;margin:24px 0}
+.q{border-bottom:1px dashed var(--line);padding:14px 0}
+.q:last-child{border-bottom:0}
+.q .stem{font-weight:600;margin-bottom:9px}
+.q .tag{display:inline-block;font-size:.72rem;background:#efe7f5;color:#6b4d8a;
+  border-radius:6px;padding:2px 8px;margin-right:8px;vertical-align:middle}
+.opts{display:flex;gap:9px;flex-wrap:wrap;margin:8px 0}
+.opt{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+  padding:6px 16px;font-size:.86rem;font-family:inherit}
+.opt.right{background:#d9f2df;border-color:#8fce9f}
+.opt.wrong{background:#fbdde5;border-color:#e59cb0}
+.ans{display:none;margin-top:9px;padding:11px 14px;background:#f2f6fa;border-left:3px solid var(--accent);
+  border-radius:0 8px 8px 0;font-size:.9rem}
+.ans.show{display:block}
+.blank{border-bottom:2px dotted var(--accent);cursor:pointer;padding:0 .5em;color:transparent;
+  background:#e9ecf0;border-radius:3px;user-select:none}
+.blank.open{color:var(--ink);background:#e2f0e6;border-bottom-color:#79b98e;user-select:auto}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:46px;
+  padding-top:18px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="pagehead">
+  <h1>element.style 動態設定 vs className 切換——什麼時候用 inline style 才不算壞味道</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#DOM</span><span class="pill">#inline-style</span><span class="pill">#className</span><span class="pill">#CSS</span><span class="pill">#var-let</span><span class="pill">#closure</span></div>
+  <div class="meta">來源：Gemini ｜ 更新：2026-08-09 ｜ 原始對話：<a href="https://gemini.google.com/app/f6838f7685a4fc80" target="_blank" rel="noopener">f6838f7685a4</a></div>
+</header>
+<div class="toolbar">
+  <button class="btn" id="tgl">🙈 隱藏所有重點（自我測驗）</button>
+  <button class="btn" id="tglAns">💡 展開／收合全部解答</button>
+</div>
+<div class="card">
+<blockquote>
+<p><strong>本篇重點 a–j，共 10 個。</strong>
+背景：Abby 寫了一個「JavaScript 作用域與閉包記憶體綁定動畫」，用 JS 動態設定方塊的 <code>style.left</code> 來畫連線與位移，然後問 Gemini：「這樣寫算 inline 樣式嗎？這樣會不好嗎？」</p>
+</blockquote>
+<p><img alt="Abby 做的 var 函式作用域動畫：三個按鈕的函式全部指向同一格記憶體，迴圈結束時 i 已經是 3" src="../../../../obsidian-attachment/螢幕擷取畫面%202026-08-09%20110946.png" /></p>
+<hr />
+<h2 id="js-style-inline-style">問題一：用 JS 設 <code>style</code> 算不算 inline style</h2>
+<p>(a) <mark style="background: #BBFABBA6;">算</mark>。<code>el.style.left = '120px'</code> 跟直接在 HTML 寫 <code>&lt;div style="left:120px"&gt;</code> <mark style="background: #ADCCFFA6;">結果完全一樣</mark>——它操作的就是元素的 inline style 屬性，會出現在 DOM 的 <code>style</code> attribute 上。</p>
+<p>(b) <mark style="background: #ADCCFFA6;">CSS 優先序（specificity）上，inline style 高於任何選擇器</mark>（只輸給 <code>!important</code>）。<mark style="background: #FF5582A6;">這正是它「好用」與「危險」的同一個原因</mark>：它一定蓋得過去，所以也一定不受樣式表管轄。</p>
+<hr />
+<h2 id="_1">問題二：這樣會不好嗎——分兩種情況</h2>
+<p>(c) <mark style="background: #FF5582A6;">會不好的情況：把「靜態的、事先就知道的」樣式寫進 JS</mark>。</p>
+<pre><code class="language-js">// ✗ 不好：這些值從頭到尾都不會變，卻散在 JS 裡
+box.style.backgroundColor = '#c0392b';
+box.style.borderRadius = '8px';
+box.style.padding = '12px';
+</code></pre>
+<p><mark style="background: #FF5582A6;">壞處</mark>：改配色要翻 JS、無法被 CSS 變數或主題切換影響、沒辦法用媒體查詢做 RWD、樣式散落兩處難維護。</p>
+<p>(d) <mark style="background: #BBFABBA6;">正解：抽成 class，用 <code>className</code> 或 <code>classList</code> 切換</mark>。</p>
+<pre><code class="language-js">// ✓ 好：狀態用 class 表達，長相交給 CSS 決定
+box.classList.add('is-active');
+box.classList.toggle('is-highlighted', shouldHighlight);
+</code></pre>
+<p>(e) <mark style="background: #BBFABBA6;">不會不好的情況：值是「執行期才算得出來的」</mark>——動畫座標、拖曳位置、依資料算出的長度或角度、跟著滑鼠跑的元素。</p>
+<pre><code class="language-js">// ✓ 好：這個數字 CSS 事先不可能知道
+line.style.left = `${btn.offsetLeft + btn.offsetWidth / 2}px`;
+bar.style.width = `${value / max * 100}%`;
+</code></pre>
+<p>(f) <mark style="background: #FFF3A3A6;">判準一句話：CSS 事先寫得出來的值就交給 CSS，只有執行期才算得出來的數字才寫進 <code>style</code></mark>。Abby 在對話中自己補的那句「那個應該算動態」，用的就是這個判準，方向是對的。</p>
+<p>(g) <mark style="background: #D2B3FFA6;">現代折衷做法</mark>：把動態的數字寫進 CSS 自訂屬性，長相仍然留在樣式表裡。<mark style="background: #BBFABBA6;">這樣既保留了動態性，又讓所有視覺規則集中在 CSS</mark>。</p>
+<pre><code class="language-js">el.style.setProperty('--x', `${x}px`);
+</code></pre>
+<pre><code class="language-css">.node { transform: translateX(var(--x)); transition: transform .3s; }
+</code></pre>
+<hr />
+<h2 id="_2">順帶複習：那支動畫在演什麼</h2>
+<p>(h) 截圖裡那支動畫演的是<mark style="background: #FFF3A3A6;">迴圈中 <code>var</code> 的經典陷阱</mark>：</p>
+<pre><code class="language-js">for (var i = 0; i &lt; 3; i++) {
+  btn[i].onclick = function () { console.log(i); };
+}
+// 三顆按鈕全部印出 3
+</code></pre>
+<p>(i) <mark style="background: #ADCCFFA6;">原因</mark>：<code>var</code> 是函式作用域，被 hoist 到迴圈外，<mark style="background: #FF5582A6;">從頭到尾只有「一格」記憶體</mark>。三個 onclick 函式的作用域鏈（scope chain）全部指向同一格，迴圈結束時那一格已經被累加到 3，所以誰讀都是 3。</p>
+<p>(j) <mark style="background: #BBFABBA6;">改成 <code>let</code> 就好了</mark>：<code>let</code> 是區塊作用域，<mark style="background: #BBFABBA6;">每一輪迭代都會建立一個新的綁定</mark>（規格上叫 per-iteration binding），三個函式各自捕捉到不同的那一格，所以會分別印出 0、1、2。</p>
+<hr />
+<h2 id="_3">關聯筆記與關聯原因</h2>
+<ul>
+<li>13-閉包-Closure-私有變數與傳址陷阱：<mark style="background: #D2B3FFA6;">(h)–(j) 就是那篇「傳址陷阱」在迴圈場景的具體案例</mark>。閉包捕捉的是「綁定」不是「值」，這支動畫把那句抽象的話畫成了畫面。</li>
+<li>05-作用域-scope-global-function-block：<mark style="background: #D2B3FFA6;">函式作用域 vs 區塊作用域的差別，決定了 (i) 與 (j) 的不同結果</mark>。那篇是理論，這裡是它造成的實際 bug。</li>
+<li>事件流與事件代理：<mark style="background: #D2B3FFA6;">同樣是「一個迴圈綁一堆事件」的場景</mark>。事件代理提供的是另一條解法——根本不要綁三次，綁在父層用一次。</li>
+</ul>
+<hr />
+<h2 id="_4">各對話來源（原文）</h2>
+<h3 id="2026-08-09-httpsgeminigooglecomappf6838f7685a4fc80">程式碼寫法與變數作用域（2026-08-09，語音對話）— https://gemini.google.com/app/f6838f7685a4fc80</h3>
+<blockquote>
+<p><strong>使用者：</strong> 你覺得寫法好嗎？</p>
+<p><strong>Gemini：</strong> 這段程式碼在處理變數作用域的差異和邏輯控制上都滿清楚的，特別是透過動態展示來呈現 var 和 let 在迴圈中的行為差異，滿有助於理解的。</p>
+<p><strong>使用者：</strong> one slot 的這個 class name 跟 style left 這樣子寫是算 inline 的樣式嗎？這樣會不好嗎？</p>
+<p><strong>Gemini：</strong> 沒錯，直接操作 style 物件設定樣式，確實等同於寫在 HTML 元素的 inline style 裡面。這樣做本身不算不好，對於需要透過 JavaScript 動態計算位置的場景，像是動畫或座標設定，是很常見的做法。不過，如果可以的話，把靜態的樣式抽離到 CSS 檔案或透過改 className 來統一管理，會讓程式碼更好維護。</p>
+<p><strong>使用者：</strong> 但那個應該算動態。</p>
+<p><strong>Gemini：</strong> 你說得沒錯，在程式碼裡有些地方的樣式確實是透過計算動態產生的，這種做法在需要根據資料變化的時候是很合理且必要的。</p>
+</blockquote>
+<p>（CSS 自訂屬性折衷做法、specificity 說明與 <code>let</code> per-iteration binding 為後續補充，原對話沒有談到。）</p>
+<hr />
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始 Gemini 對話</td>
+<td>https://gemini.google.com/app/f6838f7685a4fc80</td>
+<td>2026-08-09（對話當下）</td>
+</tr>
+<tr>
+<td>MDN：<code>HTMLElement.style</code></td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/style</td>
+<td>查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>MDN：CSS specificity（inline style 的權重）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_cascade/Specificity</td>
+<td>查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>MDN：使用 CSS 自訂屬性</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_cascading_variables/Using_CSS_custom_properties</td>
+<td>查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>MDN：<code>let</code> 的 per-iteration binding</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let</td>
+<td>查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>Abby 的實機截圖</td>
+<td><code>obsidian-attachment/螢幕擷取畫面 2026-08-09 110946.png</code></td>
+<td>擷取於 2026-08-09</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="quiz"><h2>🧠 自我檢測（點選作答／點解答展開）</h2>
+<div class="q" data-a="T"><div class="stem"><span class="tag">是非題</span>用 JavaScript 寫 el.style.left = '120px'，跟直接在 HTML 標籤上寫 style="left:120px" 效果是一樣的。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">⭕ 是。<code>el.style</code> 操作的就是元素的 inline style，會反映在 DOM 的 style attribute 上，CSS 優先序也一樣高（只輸給 !important）。</div></div>
+<div class="q" data-a="F"><div class="stem"><span class="tag">是非題</span>只要是用 JS 設定樣式就是壞味道，一律應該改用 className 切換。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">❌ 非。判準是<b>值是不是執行期才算得出來的</b>。動畫座標、拖曳位置、依資料算出的寬度，CSS 事先不可能知道，寫進 style 是合理且必要的。壞味道指的是把「靜態的、事先就知道的」樣式（配色、圓角、間距）散進 JS。</div></div>
+<div class="q" data-a="T"><div class="stem"><span class="tag">是非題</span>用 el.style.setProperty('--x', x + 'px') 搭配 CSS 的 var(--x)，可以同時保留動態性又讓視覺規則集中在 CSS。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">⭕ 是。這是現代的折衷做法：JS 只餵「數字」，CSS 決定這個數字要用在 transform、width 還是別的地方，並保有 transition、媒體查詢、主題切換的能力。</div></div>
+<div class="q" data-a="F"><div class="stem"><span class="tag">是非題</span>for (var i = 0; i < 3; i++) 裡綁的三個 onclick 各自捕捉到不同的 i，所以會分別印出 0、1、2。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">❌ 非。<code>var</code> 是函式作用域，被 hoist 到迴圈外，<b>從頭到尾只有一格記憶體</b>。三個函式的作用域鏈全指向同一格，迴圈結束時那格已是 3，所以三顆按鈕<b>全部印出 3</b>。改成 <code>let</code> 才會是 0、1、2。</div></div>
+<div class="q"><div class="stem"><span class="tag">申論題</span>請說出「什麼時候該用 inline style、什麼時候該用 class」的判準，並各舉一個例子。</div><button class="opt showans">📖 顯示參考答案</button><div class="ans">判準一句話：<b>CSS 事先寫得出來的值就交給 CSS，只有執行期才算得出來的數字才寫進 style</b>。<br><br>• <b>該用 class</b>：靜態、事先已知的樣式。例：<code>box.classList.toggle('is-active')</code>，長相（背景色、圓角、間距）全部由 CSS 決定。這樣改配色不用翻 JS，也能受 CSS 變數、主題、媒體查詢管轄。<br>• <b>該用 style</b>：執行期計算的數值。例：<code>line.style.left = `${btn.offsetLeft + btn.offsetWidth/2}px`</code>、<code>bar.style.width = `${value/max*100}%`</code>。<br><br>折衷解：<code>el.style.setProperty('--x', x+'px')</code>，CSS 端用 <code>transform: translateX(var(--x))</code>。</div></div>
+<div class="q"><div class="stem"><span class="tag">申論題</span>為什麼 var 在迴圈中綁事件會全部印出同一個值，而 let 不會？</div><button class="opt showans">📖 顯示參考答案</button><div class="ans"><b>var</b> 是函式作用域，會被 hoist 到迴圈外面，整個迴圈<b>只有一格記憶體</b>。每個 onclick 函式的作用域鏈都指向這同一格；迴圈結束時 i 已被累加到 3，所以之後不管點哪一顆，讀到的都是 3。<br><br><b>let</b> 是區塊作用域，規格規定<b>每一輪迭代都會建立一個新的綁定</b>（per-iteration binding），並把上一輪的值複製過來。三個函式各自捕捉到不同的那一格，所以分別印出 0、1、2。<br><br>核心觀念：<b>閉包捕捉的是「綁定」不是「值」</b>。</div></div>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-09</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b)}catch(e){}})}
+var t=document.getElementById('tgl');
+t.addEventListener('click',function(){
+  document.body.classList.toggle('hide-marks');
+  var on=document.body.classList.contains('hide-marks');
+  t.classList.toggle('on',on);
+  t.textContent = on ? '👀 顯示所有重點' : '🙈 隱藏所有重點（自我測驗）';
+  if(!on){document.querySelectorAll('mark.revealed').forEach(function(m){m.classList.remove('revealed')})}
+});
+document.addEventListener('click',function(e){
+  var m=e.target.closest('mark');
+  if(m&&document.body.classList.contains('hide-marks')){m.classList.toggle('revealed');return}
+  var b=e.target.closest('.blank');
+  if(b){b.classList.toggle('open');return}
+  var o=e.target.closest('.opt');
+  if(o){
+    var q=o.closest('.q');
+    q.querySelectorAll('.opt').forEach(function(x){x.classList.remove('right','wrong')});
+    o.classList.add(o.dataset.v===q.dataset.a?'right':'wrong');
+    q.querySelector('.ans').classList.add('show');
+    return;
+  }
+  var s=e.target.closest('.showans');
+  if(s){s.closest('.q').querySelector('.ans').classList.toggle('show')}
+});
+var ta=document.getElementById('tglAns');
+ta.addEventListener('click',function(){
+  var any=[].some.call(document.querySelectorAll('.ans'),function(a){return !a.classList.contains('show')});
+  document.querySelectorAll('.ans').forEach(function(a){a.classList.toggle('show',any)});
+  ta.classList.toggle('on',any);
+});
+</script>
+</body>
+</html>

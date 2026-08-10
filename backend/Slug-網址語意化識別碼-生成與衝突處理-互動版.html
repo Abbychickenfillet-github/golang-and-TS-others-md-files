@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slug—網址語意化識別碼的生成、衝突處理與中文陷阱</title>
+<style>
+:root{--bg:#fbfaf7;--card:#ffffff;--ink:#2b2b2b;--muted:#6b6b6b;--line:#e7e3da;--accent:#7c6f9b;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 22px 64px;}
+header.note-head{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:26px;}
+h1.title{font-family:Georgia,"Songti TC",serif;font-size:30px;margin:0 0 12px;line-height:1.3;}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0;}
+.pill{background:#efeaf7;color:#5b4f7a;border:1px solid #ded3f0;border-radius:999px;
+ padding:3px 11px;font-size:12.5px;}
+.meta{color:var(--muted);font-size:13px;margin-top:6px;}
+.meta a{color:var(--accent);}
+.toolbar{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap;}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+ padding:7px 14px;font-size:13.5px;color:#4a4458;box-shadow:0 1px 0 rgba(0,0,0,.02);}
+.btn:hover{background:#f4f1fb;}
+h2{font-size:21px;margin:34px 0 12px;padding-left:11px;border-left:5px solid var(--accent);}
+h3{font-size:17px;margin:22px 0 8px;color:#3b3550;}
+h4{font-size:15px;margin:16px 0 6px;color:#574f6b;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:16px 0;box-shadow:0 2px 10px rgba(60,50,90,.04);}
+p{margin:10px 0;}
+ul,ol{margin:8px 0 8px 4px;padding-left:22px;}
+li{margin:5px 0;}
+code{background:#f1eef8;border-radius:5px;padding:1px 6px;font-size:.92em;
+ font-family:"SFMono-Regular",Consolas,"Cascadia Code",monospace;}
+pre{background:#1f1b2e;color:#eee;border-radius:11px;padding:15px 16px;overflow-x:auto;
+ font-size:13.5px;line-height:1.6;}
+pre code{background:none;padding:0;color:inherit;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
+th{background:#f1ecf8;}
+tbody tr:nth-child(even){background:#faf8fd;}
+mark{padding:.5px 3px;border-radius:3px;}
+mark.y{background:#FFF3A3;} mark.r{background:#FF5582;} mark.g{background:#BBFABB;}
+mark.b{background:#ADCCFF;} mark.p{background:#FFB8EB;} mark.v{background:#D2B3FF;}
+mark.hidden{color:transparent;background:#d8d3c9;border-radius:3px;user-select:none;}
+mark.hidden *{color:transparent!important;}
+blockquote{margin:12px 0;padding:6px 14px;border-left:4px solid var(--line);color:var(--muted);background:#faf9f6;border-radius:6px;}
+.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #888;background:#faf9fc;
+ border-radius:10px;}
+.callout-title{font-weight:700;margin-bottom:4px;}
+.callout-body>:first-child{margin-top:0;}
+.callout-body>:last-child{margin-bottom:0;}
+.src-turn{margin:14px 0;}
+.src-user{background:#eef4ff;border-left:4px solid #ADCCFF;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.src-gem{background:#f4f1ec;border-left:4px solid #cdbfa6;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.role{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:#7a6f55;display:block;margin-bottom:3px;}
+.src-user .role{color:#3f63a8;}
+.spoiler{background:#3b3550;color:transparent;border-radius:5px;padding:1px 8px;cursor:pointer;
+ transition:.15s;user-select:none;box-shadow:inset 0 0 0 1px #ccc;}
+.spoiler::after{content:"　點此看答案　";color:#cdbfe8;font-size:.85em;}
+.spoiler.on{background:#e7ffe7;color:#1c5e1c;box-shadow:inset 0 0 0 1px #BBFABB;user-select:text;}
+.spoiler.on::after{content:"";}
+footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);
+ color:var(--muted);font-size:12.5px;text-align:center;}
+</style></head><body><div class="wrap">
+<header class="note-head"><h1 class="title">Slug—網址語意化識別碼的生成、衝突處理與中文陷阱</h1>
+<div class="pills"><span class="pill">#gemini</span><span class="pill">#backend</span><span class="pill">#slug</span><span class="pill">#url</span><span class="pill">#seo</span><span class="pill">#routing</span><span class="pill">#regex</span></div><div class="meta">更新：2026-08-08　· 來源：<a href="https://gemini.google.com/app/8ff8fd6b3ab708c9" target="_blank">來源1</a></div>
+<div class="toolbar"><span class="btn" onclick="toggleAll(false)">🙈 隱藏所有答案</span>
+<span class="btn" onclick="toggleAll(true)">👀 顯示所有答案</span></div>
+</header>
+<h1>Slug—網址語意化識別碼的生成、衝突處理與中文陷阱</h1>
+<blockquote>
+<p>🔖 本篇重點索引：a–l，共 12 個。</p>
+</blockquote>
+<h2>重點整理</h2>
+<p><strong>(a)</strong> <mark style="background: #ADCCFFA6;">Slug 定義</mark>：網址（URL）中用來辨識特定資源、且<mark style="background: #FFF3A3A6;">易於人類閱讀</mark>的那一段，通常是 URL 的最後一節。它是標題的變體——大寫轉小寫、用連字號 <code>-</code> 取代空白與特殊符號，目的是讓搜尋引擎（SEO）與使用者都能一眼看懂這頁在講什麼。</p>
+<p><strong>(b)</strong> <mark style="background: #FFB8EBA6;">ID vs Slug 對照</mark>：假設有一篇標題為「如何學習 JavaScript」的文章——</p>
+<table>
+<thead>
+<tr>
+<th>類型</th>
+<th>URL 範例</th>
+<th>優缺點</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>用 ID</td>
+<td><code>example.com/posts/12345</code></td>
+<td>對機器友善，但<mark style="background: #FF5582A6;">對人類不直觀，對 SEO 無助益</mark></td>
+</tr>
+<tr>
+<td>用 Slug</td>
+<td><code>example.com/posts/how-to-learn-javascript</code></td>
+<td><mark style="background: #BBFABBA6;">語意明確、有利搜尋排名，使用者也比較敢點</mark></td>
+</tr>
+</tbody>
+</table>
+<p><strong>(c)</strong> <mark style="background: #BBFABBA6;">Slug 的四個特徵</mark>：</p>
+<ul>
+<li><mark style="background: #FFF3A3A6;">全小寫</mark>：避免大小寫造成的連結混淆（部分伺服器路徑是區分大小寫的）。</li>
+<li><mark style="background: #FFF3A3A6;">連字號分隔</mark>：用 <code>-</code> 而不是底線 <code>_</code> 或空白——空白在 URL 中會被編碼成醜陋的 <code>%20</code>。</li>
+<li><mark style="background: #FFF3A3A6;">唯一性</mark>：在同一個路徑下必須唯一，資料庫通常會對這個欄位建<mark style="background: #ADCCFFA6;">唯一索引（Unique Index）</mark>。</li>
+<li><mark style="background: #FF5582A6;">不可變性</mark>：技術上可以改，但隨意改會讓舊連結全部 404，需要搭配 <mark style="background: #ADCCFFA6;">301 永久重導向</mark>。</li>
+</ul>
+<p><strong>(d)</strong> <mark style="background: #D2B3FFA6;">為什麼 <code>-</code> 比 <code>_</code> 好</mark>：Google 明確表示會把連字號視為<mark style="background: #FFF3A3A6;">分詞符號</mark>，底線則會被當成單字的一部分——<code>how_to_learn</code> 會被讀成一個詞，<code>how-to-learn</code> 才會被拆成三個詞。這是 SEO 上的實質差異，不只是慣例。</p>
+<p><strong>(e)</strong> <mark style="background: #ADCCFFA6;">後端處理 Slug 的三個階段</mark>：</p>
+<ol>
+<li><mark style="background: #FFF3A3A6;">生成</mark>：使用者輸入標題（如 <code>Hello World!</code>），程式轉成 <code>hello-world</code>。</li>
+<li><mark style="background: #FFF3A3A6;">處理衝突</mark>：若資料庫已有 <code>hello-world</code>，自動加後綴變成 <code>hello-world-1</code>。</li>
+<li><mark style="background: #FFF3A3A6;">查詢</mark>：改用 slug 欄位查，而不是主鍵。</li>
+</ol>
+<pre><code class="language-js">// 傳統用 ID 查詢
+const post = await db.posts.findOne({ id: 123 });
+
+// 使用 Slug 查詢（記得這欄要有索引，否則會全表掃描）
+const post = await db.posts.findOne({ slug: 'how-to-learn-javascript' });
+</code></pre>
+<p><strong>(f)</strong> <mark style="background: #FF5582A6;">⚠️ Gemini 給的產生器有中文陷阱</mark>：原始版本如下，它宣稱輸出會保留中文，<mark style="background: #FF5582A6;">但實際上不會</mark>。</p>
+<pre><code class="language-js">// ❌ Gemini 原版：中文會被整段吃掉
+function createSlug(text) {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')      // 空白換成 -
+    .replace(/[^\w-]+/g, '')   // 移除所有非字母、數字、連字號的字元
+    .replace(/--+/g, '-');     // 避免重複的 --
+}
+
+createSlug(&quot;Node.js 101: 快速上手指南！&quot;);
+// Gemini 宣稱輸出：&quot;nodejs-101-快速上手指南&quot;
+// 實際輸出：&quot;nodejs-101-&quot;   ← 中文全被 [^\w-] 刪光了
+</code></pre>
+<p>原因是 JavaScript 的 <mark style="background: #ADCCFFA6;"><code>\w</code> 等價於 <code>[A-Za-z0-9_]</code></mark>，只涵蓋 ASCII，任何中文、日文、重音字母都落在 <code>[^\w-]</code> 裡而被移除。</p>
+<p><strong>(g)</strong> <mark style="background: #BBFABBA6;">✅ 支援中文的正確寫法</mark>：改用 Unicode 屬性跳脫 <code>\p{L}</code>（任何語言的字母）與 <code>\p{N}</code>（任何數字），並加上 <code>u</code> 旗標。</p>
+<pre><code class="language-js">function createSlug(text) {
+  return String(text)
+    .normalize('NFKC')              // 全形轉半形、統一相容字元
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, '-')        // 空白與底線 → 連字號
+    .replace(/[^\p{L}\p{N}-]+/gu, '') // 只保留任意語言的字母、數字、連字號
+    .replace(/-+/g, '-')            // 收斂連續連字號
+    .replace(/^-|-$/g, '');         // 去掉頭尾的連字號
+}
+
+createSlug(&quot;Node.js 101: 快速上手指南！&quot;);
+// → &quot;nodejs-101-快速上手指南&quot;
+</code></pre>
+<p><strong>(h)</strong> <mark style="background: #FFB8EBA6;">中文 Slug 要不要用？兩派做法</mark>：</p>
+<ul>
+<li><mark style="background: #BBFABBA6;">保留中文</mark>：可讀性最好，現代瀏覽器網址列會正常顯示；但實際傳輸時會被<mark style="background: #ADCCFFA6;">百分比編碼（Percent-encoding）</mark>成一長串 <code>%E5%BF%AB...</code>，複製貼到純文字環境（如 Email、Slack）就很醜。</li>
+<li><mark style="background: #BBFABBA6;">轉拼音或改用英文標題</mark>：URL 乾淨、跨環境安全；代價是需要額外的轉換套件，且同音字會撞在一起。</li>
+<li>實務折衷：<mark style="background: #FFF3A3A6;"><code>/posts/12345-how-to-learn-javascript</code></mark>——前面放 ID 保證唯一與查詢效率，後面放 slug 給人與搜尋引擎看，改標題也不會壞連結（只認前面的 ID）。</li>
+</ul>
+<p><strong>(i)</strong> <mark style="background: #FF5582A6;">衝突處理不要只加流水號就收工</mark>：<code>hello-world-1</code>、<code>hello-world-2</code> 這種做法在高並發下會<mark style="background: #FF5582A6;">產生競爭條件（Race Condition）</mark>——兩個請求同時查到「沒有 hello-world-1」就都寫入。正確做法是<mark style="background: #BBFABBA6;">靠資料庫的唯一索引擋下重複，捕捉 unique violation 錯誤後重試</mark>，而不是先查再寫。</p>
+<p><strong>(j)</strong> <mark style="background: #FF5582A6;">Slug 改動時務必留下 301</mark>：把舊 slug 存進一張 <code>post_slug_history</code> 表，路由查不到現行 slug 時再去歷史表撈，撈到就 <mark style="background: #ADCCFFA6;">301 Moved Permanently</mark> 導到新網址。這樣既保住 SEO 權重，也不會讓別人分享出去的舊連結變 404。</p>
+<p><strong>(k)</strong> <mark style="background: #D2B3FFA6;">為什麼叫 Slug？</mark>這個詞源自<mark style="background: #FFF3A3A6;">新聞編採（Newsroom）</mark>。報紙排版時代，編輯會給每篇報導取一個簡短的「工作名稱」方便在排版流程中追蹤，那個短名就叫 slug；後來被引申到網頁開發。（更早則來自鉛字排版時代那塊叫 slug 的鉛條。）</p>
+<p><strong>(l)</strong> <mark style="background: #FF5582A6;">安全提醒</mark>：slug 來自使用者輸入，即使清洗過也<mark style="background: #FF5582A6;">不要直接串進 SQL 或檔案路徑</mark>。要特別擋掉 <code>..</code>、純數字（會跟 ID 路由撞車）以及保留字（<code>new</code>、<code>edit</code>、<code>admin</code>），否則 <code>/posts/new</code> 這種路由會被一篇標題叫「New」的文章劫走。</p>
+<h2>各對話來源</h2>
+<h3>後端 Slug 的意思與應用（2026 年）— https://gemini.google.com/app/8ff8fd6b3ab708c9</h3>
+<p><mark style="background: #FFF3A3A6;">使用者：後端的 slug 是啥意思</mark></p>
+<div class="src-gem"><span class="role">Gemini</span>定義 Slug 為 URL 中易於閱讀、用來辨識特定資源的那一段（重點 a）；用「如何學習 JavaScript」對比 ID 型與 Slug 型網址的優缺點（重點 b）；列出全小寫、連字號分隔、唯一性、不可變性四個特徵，並提到需建唯一索引與 301 重導向（重點 c）；說明後端處理的生成／衝突／查詢三階段並附查詢程式碼（重點 e）；給出一支 <code>createSlug</code> 產生器範例（重點 f，<mark style="background: #FF5582A6;">此處有錯，見下</mark>）；最後補充 slug 一詞源自新聞編採的工作名稱（重點 k）。</div>
+<blockquote>
+<p>註：重點 (d)(g)(h)(i)(j)(l) 為本次整理時補充，原對話未涵蓋。</p>
+</blockquote>
+<h2>⚠️ 存疑／更正</h2>
+<p><mark style="background: #FF5582A6;">Gemini 的 <code>createSlug</code> 範例輸出結果標錯了。</mark>它宣稱 <code>createSlug("Node.js 101: 快速上手指南！")</code> 會輸出 <code>"nodejs-101-快速上手指南"</code>，但 JavaScript 的 <code>\w</code> 只等於 <code>[A-Za-z0-9_]</code>，因此 <code>[^\w-]+</code> 會把所有中文字一併刪除，<mark style="background: #FF5582A6;">實際輸出是 <code>"nodejs-101-"</code></mark>。可自行在瀏覽器 Console 貼上驗證。本篇重點 (f)(g) 已標示錯誤並給出使用 <code>\p{L}</code>／<code>\p{N}</code> 加 <code>u</code> 旗標的正確版本。</p>
+<p>另外 Gemini 未提到衝突處理在並發下的競爭條件（重點 i）、slug 與保留字路由撞車的風險（重點 l），這兩點在實作時比「怎麼生 slug」更容易踩雷。</p>
+<h2>資料來源（含查證時間）</h2>
+<blockquote>
+<p>查證日期：2026-08-08（Gemini 對話為 2026 年，模型 Flash；正規表達式行為與 SEO 建議另依下列文件核實）</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話原文</td>
+<td><a href="https://gemini.google.com/app/8ff8fd6b3ab708c9">後端 Slug 的意思與應用</a></td>
+<td>2026 年</td>
+</tr>
+<tr>
+<td><code>\w</code> 的定義與 Unicode 屬性跳脫 <code>\p{L}</code></td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Unicode_character_class_escape">MDN — Regular expressions: Unicode character class escape</a></td>
+<td>MDN，持續更新</td>
+</tr>
+<tr>
+<td>Google 建議 URL 用連字號而非底線</td>
+<td><a href="https://developers.google.com/search/docs/crawling-indexing/url-structure">Google Search Central — URL structure best practices</a></td>
+<td>Google 官方文件，持續更新</td>
+</tr>
+<tr>
+<td>301 永久重導向的語意</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/301">MDN — 301 Moved Permanently</a></td>
+<td>MDN，持續更新</td>
+</tr>
+<tr>
+<td>URL 百分比編碼（中文網址的實際傳輸形式）</td>
+<td><a href="https://datatracker.ietf.org/doc/html/rfc3986#section-2.1">RFC 3986 — Uniform Resource Identifier: Percent-Encoding</a></td>
+<td>RFC 3986（2005 發布，現行標準）</td>
+</tr>
+<tr>
+<td><code>String.prototype.normalize</code>（NFKC 全形轉半形）</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize">MDN — String.prototype.normalize()</a></td>
+<td>MDN，持續更新</td>
+</tr>
+</tbody>
+</table>
+<h2>相關筆記</h2>
+<ul>
+<li>[[CRUD_ARCHITECTURE_EXPLANATION]]——關聯原因：本篇 (e) 的「改用 slug 查詢而非主鍵」直接影響 Repository 層的查詢方法設計，那篇的 CRUD 分層是落地位置。</li>
+<li>[[資料庫索引與B+tree-最左字首原則]]——關聯原因：(c) 說 slug 欄位要建唯一索引、(e) 說沒索引會全表掃描；那篇解釋為什麼字串欄位的索引成本與整數主鍵不同，是選擇「ID 路由 vs slug 路由」的效能依據。</li>
+<li>[[SQL-Join-Inner-Left-Right-主表判定與資料保留]]——關聯原因：(j) 提到的 <code>post_slug_history</code> 歷史表，查詢時就是拿 posts 對它做 LEFT JOIN；本篇給場景、那篇給語法。</li>
+<li>[[MySQL外鍵與字元集問題筆記]]——關聯原因：(h) 保留中文 slug 時，欄位若不是 <code>utf8mb4</code> 會直接存不進去或截斷；那篇的字元集與定序問題是中文 slug 的前置條件。</li>
+<li>[[glob-pattern-guide]]——關聯原因：同屬「正規表達式與樣式比對」主題，本篇 (f)(g) 的 <code>\w</code> vs <code>\p{L}</code> 陷阱，跟那篇 glob 與 regex 的範圍差異是同一類容易混淆的字元集問題。</li>
+<li>[[TANSTACK_ROUTER_ROUTE_GENERATION]]——關聯原因：(l) 提到的「slug 跟保留字路由撞車」在前端路由也一樣會發生；那篇的路由生成規則決定了 <code>/posts/new</code> 與 <code>/posts/$slug</code> 誰優先匹配。</li>
+</ul>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-08</footer>
+</div><script>
+function toggleAll(show){document.querySelectorAll('.spoiler').forEach(function(s){
+ if(show){s.classList.add('on');}else{s.classList.remove('on');}});}
+document.addEventListener('click',function(e){
+ if(e.target.classList&&e.target.classList.contains('spoiler')){e.target.classList.toggle('on');}});
+(function(){var l=document.createElement('link');l.rel='stylesheet';
+ l.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
+ document.head.appendChild(l);var s=document.createElement('script');
+ s.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+ s.onload=function(){try{hljs.highlightAll();}catch(e){}};document.head.appendChild(s);})();
+</script><script src="../assets/wikilink.js" data-root="../"></script>
+</body></html>

@@ -1,0 +1,8 @@
+[
+  {"type":"tf","q":"Execution Context 指的就是 Creation Phase，Execution Phase 是另一個獨立的東西。","correct":false,"a":"❌ 非。一個完整的 Execution Context <b>包含兩個階段</b>：先 Creation Phase 做環境設置，再 Execution Phase 逐行執行，兩者合起來才是一個完整的執行環境。"},
+  {"type":"tf","q":"引擎在 Environment Record 中為變數配置了記憶體空間，就代表這個變數已經完成初始化了。","correct":false,"a":"❌ 非，這是本篇最核心的一點。<b>配置記憶體屬於第 1 階段（宣告／建立）</b>，只是預留位置；<b>初始化是第 2 階段</b>，是第一次把具體的值綁上去。完成初始化後才能合法讀取。"},
+  {"type":"tf","q":"形式參數（Formal Parameter）在 Creation Phase 就會被配置記憶體並初始化為傳入的引數值。","correct":true,"a":"⭕ 是。形式參數跟 var 一樣，初始化時機被提前到 Creation Phase 一起做掉，所以不會有 TDZ。沒傳值時初始化為 undefined。"},
+  {"type":"tf","q":"let 與 const 之所以有 TDZ，是因為它們在 Creation Phase 完全沒有被 hoist。","correct":false,"a":"❌ 非。它們<b>有</b>被 hoist——Creation Phase 會建立綁定（第 1 階段）。差別在於<b>不做初始化</b>（第 2 階段）。TDZ 就是「已建立但未初始化」這段空隙。"},
+  {"type":"essay","q":"請用「三階段」解釋為什麼提前存取 var 會得到 undefined，而提前存取 let 會丟 ReferenceError。","a":"三階段是：<b>1. 宣告／建立</b>（在 Environment Record 建立名稱、配置記憶體）→ <b>2. 初始化</b>（第一次把值綁上去）→ <b>3. 賦值</b>。<br><br>• <b>var</b>：Creation Phase 一次做完第 1、2 階段，初始化的值是 <code>undefined</code>。所以提前存取讀得到一個合法的值 undefined。<br>• <b>let / const</b>：Creation Phase 只做第 1 階段，第 2 階段要等執行到那一行才做。提前存取時綁定存在但未初始化，屬於不合法狀態，引擎丟 <code>ReferenceError</code>。<br><br>一句話：<b>undefined 是一個值，ReferenceError 是一個狀態不合法的錯誤</b>，分界就在第 2 階段做了沒有。"},
+  {"type":"essay","q":"ECMAScript 規格中負責參數綁定與變數提升的那個內部作業叫什麼？它在 Creation Phase 做了哪四件事？","a":"叫做 <b>FunctionDeclarationInstantiation</b>。它在 Creation Phase 執行，工作包含：<br>(1) 建立環境紀錄（Environment Record）<br>(2) 綁定形式參數並初始化為引數值<br>(3) 處理函式內部的 var 宣告，初始化為 undefined<br>(4) 建立 let / const 的綁定但<b>不初始化</b><br><br>重點是第 (2)(3) 與第 (4) 的落差——前兩者建立＋初始化兩步到位，後者只走一步，剩下那一步留給 Execution Phase，中間的空隙就是 TDZ。"}
+]

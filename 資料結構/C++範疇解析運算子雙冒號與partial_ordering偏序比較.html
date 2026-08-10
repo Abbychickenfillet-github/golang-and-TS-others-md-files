@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C++ 雙冒號 :: 與 partial_ordering——範疇解析運算子與偏序比較</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{
+  --bg:#faf9f7; --card:#ffffff; --ink:#2f3337; --muted:#6b7280;
+  --line:#e6e3dd; --accent:#4f7cac; --accent-soft:#eaf1f8;
+  --user:#8a6fb0; --gem:#3f8f7a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+  line-height:1.75;font-size:16.5px;letter-spacing:.01em}
+.wrap{max-width:820px;margin:0 auto;padding:34px 22px 90px}
+header.pagehead{background:linear-gradient(160deg,#ffffff,#f3f1ec);border:1px solid var(--line);
+  border-radius:18px;padding:26px 28px;margin-bottom:26px;box-shadow:0 2px 14px rgba(0,0,0,.04)}
+header.pagehead h1{margin:0 0 12px;font-size:1.72rem;line-height:1.4;
+  font-family:"Noto Serif TC",Georgia,serif;font-weight:700}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.pill{background:var(--accent-soft);color:#33587e;border:1px solid #d6e3f0;border-radius:999px;
+  padding:3px 12px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.82rem;color:var(--muted);margin-top:10px}
+.meta a{color:var(--accent);word-break:break-all}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 8px}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:10px;
+  padding:8px 15px;font-size:.85rem;color:var(--ink);transition:.18s;font-family:inherit}
+.btn:hover{background:var(--accent-soft);border-color:#cbdcec}
+.btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:24px 28px;margin:20px 0;box-shadow:0 1px 8px rgba(0,0,0,.03)}
+h2{font-size:1.24rem;margin:1.7em 0 .7em;padding-bottom:.35em;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif}
+h2:first-child{margin-top:0}
+h3{font-size:1.06rem;margin:1.5em 0 .5em;color:#3c5a75}
+h4{font-size:.97rem;margin:1.2em 0 .4em;color:#4b5563}
+p{margin:.7em 0}
+ul,ol{padding-left:1.5em}
+li{margin:.35em 0}
+mark{padding:.08em .22em;border-radius:4px;transition:.2s;cursor:pointer}
+body.hide-marks mark{color:transparent!important;background:#dfe3e8!important;
+  border-radius:4px;text-shadow:none;user-select:none}
+mark.revealed{color:inherit!important;text-shadow:none}
+code{background:#f0eee9;padding:.13em .38em;border-radius:5px;font-size:.9em;
+  font-family:"JetBrains Mono","Consolas","Cascadia Mono",monospace}
+pre{background:#21262d;color:#e6edf3;border-radius:12px;padding:16px 18px;overflow-x:auto;
+  font-size:.86rem;line-height:1.6}
+pre code{background:none;padding:0;color:inherit}
+table{border-collapse:collapse;width:100%;margin:1.1em 0;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:#f1efe9;font-weight:600}
+tbody tr:nth-child(even){background:#fbfaf8}
+blockquote{margin:1.1em 0;padding:12px 18px;border-left:4px solid var(--accent);
+  background:#f5f8fb;border-radius:0 10px 10px 0;color:#41505e}
+blockquote p:first-child{margin-top:0}
+blockquote p:last-child{margin-bottom:0}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);display:block;margin:1em auto}
+hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
+.quiz{background:#fdfcfa;border:1px solid var(--line);border-radius:16px;padding:22px 26px;margin:24px 0}
+.q{border-bottom:1px dashed var(--line);padding:14px 0}
+.q:last-child{border-bottom:0}
+.q .stem{font-weight:600;margin-bottom:9px}
+.q .tag{display:inline-block;font-size:.72rem;background:#efe7f5;color:#6b4d8a;
+  border-radius:6px;padding:2px 8px;margin-right:8px;vertical-align:middle}
+.opts{display:flex;gap:9px;flex-wrap:wrap;margin:8px 0}
+.opt{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+  padding:6px 16px;font-size:.86rem;font-family:inherit}
+.opt.right{background:#d9f2df;border-color:#8fce9f}
+.opt.wrong{background:#fbdde5;border-color:#e59cb0}
+.ans{display:none;margin-top:9px;padding:11px 14px;background:#f2f6fa;border-left:3px solid var(--accent);
+  border-radius:0 8px 8px 0;font-size:.9rem}
+.ans.show{display:block}
+.blank{border-bottom:2px dotted var(--accent);cursor:pointer;padding:0 .5em;color:transparent;
+  background:#e9ecf0;border-radius:3px;user-select:none}
+.blank.open{color:var(--ink);background:#e2f0e6;border-bottom-color:#79b98e;user-select:auto}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:46px;
+  padding-top:18px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="pagehead">
+  <h1>C++ 雙冒號 :: 與 partial_ordering——範疇解析運算子與偏序比較</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#cpp</span><span class="pill">#資料結構</span><span class="pill">#scope-resolution</span><span class="pill">#spaceship-operator</span><span class="pill">#cpp20</span></div>
+  <div class="meta">來源：Gemini ｜ 更新：2026-08-09 ｜ 原始對話：<a href="https://gemini.google.com/app/2b66be0e684787b8" target="_blank" rel="noopener">2b66be0e6847</a></div>
+</header>
+<div class="toolbar">
+  <button class="btn" id="tgl">🙈 隱藏所有重點（自我測驗）</button>
+  <button class="btn" id="tglAns">💡 展開／收合全部解答</button>
+</div>
+<div class="card">
+<blockquote>
+<p><strong>本篇重點 a–j，共 10 個。</strong>
+這兩個問題是同一次對話問的，看起來無關，其實都在問同一件事：<mark style="background: #FFF3A3A6;">「這個名字／這個比較結果，到底屬於誰、代表什麼」</mark>。</p>
+</blockquote>
+<hr />
+<h2 id="scope-resolution-operator">第一部分：<code>::</code> 範疇解析運算子（Scope Resolution Operator）</h2>
+<p>(a) <mark style="background: #ADCCFFA6;"><code>::</code> 唸作 Scope Resolution Operator（範疇解析運算子）</mark>，作用是明確指出某個名稱（變數、函式、型別）屬於哪一個範疇（Scope）。</p>
+<p>(b) <mark style="background: #ADCCFFA6;">存取命名空間成員</mark>：<code>std::cout</code> 表示 <code>std</code> 命名空間裡的 <code>cout</code> 物件。這也是為什麼你會看到有人寫 <code>using namespace std;</code> 之後就可以只寫 <code>cout</code>。</p>
+<p>(c) <mark style="background: #ADCCFFA6;">存取類別的靜態成員或列舉</mark>：<code>MyClass::staticMethod()</code>、<code>Color::Red</code>。</p>
+<p>(d) <mark style="background: #ADCCFFA6;">在類別外部定義成員函式</mark>：</p>
+<pre><code class="language-cpp">class MyClass {
+public:
+    void myFunc();      // 宣告在標頭檔
+};
+
+void MyClass::myFunc() { /* ... */ }   // 定義在 .cpp，:: 說明它屬於 MyClass
+</code></pre>
+<p>(e) <mark style="background: #FFB8EBA6;">前面不接任何名稱時，代表全域範疇</mark>。當區域變數與全域變數同名時，<code>::x</code> 明確指定要取全域的那一個。</p>
+<pre><code class="language-cpp">int x = 10;          // 全域
+void f() {
+    int x = 20;      // 區域，遮蔽了全域的 x
+    std::cout &lt;&lt; x;  // 20
+    std::cout &lt;&lt; ::x;// 10  ← 這裡的 :: 前面是空的
+}
+</code></pre>
+<p>(f) <mark style="background: #FF5582A6;">常見混淆</mark>：<code>::</code> 與 <code>.</code>、<code>-&gt;</code> 完全不同。<code>::</code> 處理的是<mark style="background: #BBFABBA6;">編譯期的名稱歸屬</mark>；<code>.</code> 與 <code>-&gt;</code> 處理的是<mark style="background: #BBFABBA6;">執行期某個物件實例的成員存取</mark>。</p>
+<hr />
+<h2 id="partial_ordering-c20">第二部分：<code>partial_ordering</code> 偏序比較（C++20）</h2>
+<p>(g) 背景：C++20 引入<mark style="background: #ADCCFFA6;">三向比較運算子 <code>&lt;=&gt;</code>（俗稱太空船運算子，spaceship operator）</mark>，一次比較就同時得到「小於／等於／大於」的資訊，不必再分別寫 <code>&lt;</code>、<code>==</code>、<code>&gt;</code>。</p>
+<p>(h) <mark style="background: #ADCCFFA6;">偏序（Partial Order）的意思是：不保證任意兩個值都能比出大小</mark>。最經典的例子是浮點數的 <code>NaN</code>（Not a Number）——它<mark style="background: #FF5582A6;">既不小於、也不等於、也不大於</mark>任何浮點數，包括它自己。</p>
+<p>(i) <code>std::partial_ordering</code> 是 <code>x &lt;=&gt; y</code> 可能的回傳型別之一，它的四個值：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>意義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>less</code></td>
+<td>小於</td>
+</tr>
+<tr>
+<td><code>equivalent</code></td>
+<td>等價</td>
+</tr>
+<tr>
+<td><code>greater</code></td>
+<td>大於</td>
+</tr>
+<tr>
+<td><mark style="background: #FF5582A6;"><code>unordered</code></mark></td>
+<td>無法比較（例如與 NaN 比）</td>
+</tr>
+</tbody>
+</table>
+<p><mark style="background: #FFF3A3A6;"><code>unordered</code> 就是「偏序」跟另外兩種排序的分水嶺</mark>。三種比較類別的差別：</p>
+<table>
+<thead>
+<tr>
+<th>型別</th>
+<th>有 <code>unordered</code>？</th>
+<th>等價是否代表可互換</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>std::strong_ordering</code></td>
+<td>否</td>
+<td>是（完全相等）</td>
+<td>整數、字串</td>
+</tr>
+<tr>
+<td><code>std::weak_ordering</code></td>
+<td>否</td>
+<td>否（等價但可區分，例如忽略大小寫比字串）</td>
+<td>自訂排序鍵</td>
+</tr>
+<tr>
+<td><code>std::partial_ordering</code></td>
+<td><mark style="background: #FF5582A6;">是</mark></td>
+<td>否</td>
+<td>浮點數</td>
+</tr>
+</tbody>
+</table>
+<p><mark style="background: #FFB8EBA6;">轉換方向只有單向</mark>：<code>strong_ordering</code> → <code>weak_ordering</code> → <code>partial_ordering</code> 可以隱式轉換，反過來不行。也就是說<mark style="background: #BBFABBA6;">強的可以當弱的用，弱的不能冒充強的</mark>。</p>
+<p>(j) <code>std::partial_order</code> 則是 <code>&lt;compare&gt;</code> 標頭檔提供的<mark style="background: #ADCCFFA6;">自訂點物件（Customization Point Object，CPO）</mark>，也就是一個函式物件：呼叫 <code>std::partial_order(a, b)</code> 會回傳 <code>std::partial_ordering</code>。<mark style="background: #D2B3FFA6;">留意 <code>partial_order</code>（函式物件）與 <code>partial_ordering</code>（結果型別）差一個字尾，很容易看錯</mark>。</p>
+<pre><code class="language-cpp">#include &lt;compare&gt;
+#include &lt;cmath&gt;
+
+double a = 1.0, nan = std::nan(&quot;&quot;);
+auto r = a &lt;=&gt; nan;                    // std::partial_ordering::unordered
+bool ok = (r == std::partial_ordering::unordered);   // true
+</code></pre>
+<hr />
+<h2 id="_1">關聯筆記與關聯原因</h2>
+<ul>
+<li>C-C++-的-node-與-void-寫法：<mark style="background: #D2B3FFA6;">同屬 C/C++ 語法辨識這一組</mark>。那篇看的是型別與指標的寫法，這篇看的是「名稱歸屬」與「比較結果型別」，都是讀 C++ 原始碼時第一眼會卡住的符號。</li>
+</ul>
+<hr />
+<h2 id="_2">各對話來源（原文）</h2>
+<h3 id="c-partial_order2026-08-httpsgeminigooglecomapp2b66be0e684787b8">C++ 雙冒號與 partial_order（2026-08）— https://gemini.google.com/app/2b66be0e684787b8</h3>
+<blockquote>
+<p><strong>使用者：</strong> c++ 2 個冒號是什麼意思。partial_order 是什麼</p>
+<p><strong>Gemini：</strong>
+<strong>1. C++ 中的兩個冒號 <code>::</code></strong>
+兩個冒號 <code>::</code> 在 C++ 中稱為範疇解析運算子（Scope Resolution Operator），主要用於指定或明確指出名稱（變數、函數、類別等）所屬的範疇（Scope）。常見用途有以下幾種：
+- 存取命名空間（Namespace）中的成員：例如 <code>std::cout</code> 表示使用 <code>std</code> 命名空間裡面的 <code>cout</code> 物件。
+- 存取類別（Class/Struct）中的靜態成員或列舉：例如 <code>MyClass::staticMethod()</code> 或 <code>Color::Red</code>。
+- 在類別外部定義成員函數：例如 <code>void MyClass::myFunc() { ... }</code>，代表宣告在 <code>MyClass</code> 內的函數實作。
+- 存取全域變數（前面不加任何名稱）：當區域變數與全域變數同名時，可以在變數前加上 <code>::</code> 來明確指定要存取全域變數，如 <code>::x</code>。</p>
+<p><strong>2. 何謂 partial_order</strong>
+在 C++20 引進三向比較運算子（<code>&lt;=&gt;</code>，俗稱太空船運算子）後，<code>std::partial_order</code> 與 <code>std::partial_ordering</code> 用於處理偏序（Partial Ordering）比較：
+- 概念（Partial Order）：偏序意味著並非任意兩個值都能互相比較出大小。例如浮點數中的 NaN（Not a Number），它既不小於、不等於，也不大於任何浮點數。
+- <code>std::partial_ordering</code>（比較結果類別）：是 <code>x &lt;=&gt; y</code> 的傳回型態之一，可能的值包含 <code>less</code>、<code>equivalent</code>、<code>greater</code>、<code>unordered</code>。
+- <code>std::partial_order</code>（自訂點物件 / Customization Point Object）：是 <code>&lt;compare&gt;</code> 標頭檔中提供的函式物件，會對傳入的三向比較進行評估，並回傳 <code>std::partial_ordering</code> 的比較結果。</p>
+</blockquote>
+<p>（本篇補充了 <code>strong_ordering</code> / <code>weak_ordering</code> / <code>partial_ordering</code> 的三方對照，以及 <code>::</code> 與 <code>.</code>、<code>-&gt;</code> 的差異，原對話沒有提到。）</p>
+<hr />
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始 Gemini 對話</td>
+<td>https://gemini.google.com/app/2b66be0e684787b8</td>
+<td>2026-08（對話當下）</td>
+</tr>
+<tr>
+<td>cppreference：<code>std::partial_ordering</code></td>
+<td>https://en.cppreference.com/w/cpp/utility/compare/partial_ordering</td>
+<td>C++20，查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>cppreference：<code>std::weak_ordering</code></td>
+<td>https://en.cppreference.com/w/cpp/utility/compare/weak_ordering</td>
+<td>C++20，查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>cppreference：<code>std::strong_ordering</code></td>
+<td>https://en.cppreference.com/w/cpp/utility/compare/strong_ordering</td>
+<td>C++20，查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>cppreference：<code>std::partial_order</code>（CPO）</td>
+<td>https://en.cppreference.com/cpp/utility/compare/partial_order</td>
+<td>C++20，查證於 2026-08-09</td>
+</tr>
+<tr>
+<td>三種比較類別的差異與轉換方向</td>
+<td>https://simontoth.substack.com/p/daily-bite-of-c-stdstrong_ordering-5b3</td>
+<td>查證於 2026-08-09</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="quiz"><h2>🧠 自我檢測（點選作答／點解答展開）</h2>
+<div class="q" data-a="T"><div class="stem"><span class="tag">是非題</span>寫成 ::x（雙冒號前面沒有任何名稱）代表要存取的是全域範疇的 x。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">⭕ 是。當區域變數遮蔽了同名的全域變數時，<code>::x</code> 可以明確指定要取全域那一個。</div></div>
+<div class="q" data-a="F"><div class="stem"><span class="tag">是非題</span>:: 和 . 、-> 的功能其實一樣，都是存取成員，只是寫法不同。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">❌ 非。<code>::</code> 處理的是<b>編譯期的名稱歸屬</b>（這個名字屬於哪個命名空間或類別）；<code>.</code> 與 <code>-></code> 處理的是<b>執行期某個物件實例</b>的成員存取。層次完全不同。</div></div>
+<div class="q" data-a="T"><div class="stem"><span class="tag">是非題</span>std::partial_ordering 有一個 strong_ordering 和 weak_ordering 都沒有的值，叫做 unordered。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">⭕ 是。<code>unordered</code> 正是「偏序」的標記，代表兩個值根本無法比較大小，典型例子是浮點數的 NaN。</div></div>
+<div class="q" data-a="F"><div class="stem"><span class="tag">是非題</span>std::partial_order 和 std::partial_ordering 是同一個東西的兩種寫法。</div><div class="opts"><button class="opt" data-v="T">⭕ 是</button><button class="opt" data-v="F">❌ 非</button></div><div class="ans">❌ 非，只差一個字尾但意義完全不同。<code>std::partial_ordering</code> 是<b>結果型別</b>；<code>std::partial_order</code> 是 &lt;compare&gt; 提供的<b>自訂點物件（CPO）</b>，也就是一個函式物件，呼叫它會回傳 partial_ordering。</div></div>
+<div class="q"><div class="stem"><span class="tag">申論題</span>為什麼浮點數的比較需要用 partial_ordering，而不是 strong_ordering？</div><button class="opt showans">📖 顯示參考答案</button><div class="ans">因為浮點數有 <b>NaN（Not a Number）</b>。NaN 對任何值（包含它自己）都<b>既不小於、也不等於、也不大於</b>，所以「任兩個值都能比出大小」這個全序前提在浮點數上不成立。<br><br>partial_ordering 多提供一個 <code>unordered</code> 值來表達這種「無法比較」的狀態，這就是偏序（partial order）跟全序（total order）的分界。整數、字串沒有這種例外值，所以用 strong_ordering 就夠。</div></div>
+<div class="q"><div class="stem"><span class="tag">申論題</span>請說出 :: 的四種常見用途，各舉一個例子。</div><button class="opt showans">📖 顯示參考答案</button><div class="ans">(1) <b>存取命名空間成員</b>：<code>std::cout</code>。<br>(2) <b>存取類別的靜態成員或列舉</b>：<code>MyClass::staticMethod()</code>、<code>Color::Red</code>。<br>(3) <b>在類別外部定義成員函式</b>：<code>void MyClass::myFunc() { ... }</code>，用來說明這個實作屬於 MyClass。<br>(4) <b>存取全域範疇</b>：<code>::x</code>，前面不接任何名稱，用來穿透區域變數的遮蔽。</div></div>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-09</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b)}catch(e){}})}
+var t=document.getElementById('tgl');
+t.addEventListener('click',function(){
+  document.body.classList.toggle('hide-marks');
+  var on=document.body.classList.contains('hide-marks');
+  t.classList.toggle('on',on);
+  t.textContent = on ? '👀 顯示所有重點' : '🙈 隱藏所有重點（自我測驗）';
+  if(!on){document.querySelectorAll('mark.revealed').forEach(function(m){m.classList.remove('revealed')})}
+});
+document.addEventListener('click',function(e){
+  var m=e.target.closest('mark');
+  if(m&&document.body.classList.contains('hide-marks')){m.classList.toggle('revealed');return}
+  var b=e.target.closest('.blank');
+  if(b){b.classList.toggle('open');return}
+  var o=e.target.closest('.opt');
+  if(o){
+    var q=o.closest('.q');
+    q.querySelectorAll('.opt').forEach(function(x){x.classList.remove('right','wrong')});
+    o.classList.add(o.dataset.v===q.dataset.a?'right':'wrong');
+    q.querySelector('.ans').classList.add('show');
+    return;
+  }
+  var s=e.target.closest('.showans');
+  if(s){s.closest('.q').querySelector('.ans').classList.toggle('show')}
+});
+var ta=document.getElementById('tglAns');
+ta.addEventListener('click',function(){
+  var any=[].some.call(document.querySelectorAll('.ans'),function(a){return !a.classList.contains('show')});
+  document.querySelectorAll('.ans').forEach(function(a){a.classList.toggle('show',any)});
+  ta.classList.toggle('on',any);
+});
+</script>
+</body>
+</html>

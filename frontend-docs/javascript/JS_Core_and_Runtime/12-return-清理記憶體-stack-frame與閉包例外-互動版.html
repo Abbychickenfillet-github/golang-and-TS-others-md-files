@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>return 清理記憶體互動版：Stack Frame push/pop 與 GC Mark-and-Sweep 動畫</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:920px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.5rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.15rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:.98rem;margin:1em 0 .4em;color:#374151;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:10px 0;}
+pre code{display:block;padding:12px 14px;color:#abb2bf;font-size:.82rem;line-height:1.6;background:none;}
+pre code .l{display:block;padding:1px 6px;border-left:3px solid transparent;}
+pre code .l.active{background:#ffdf5d2b;border-left-color:#ffdf5d;color:#fff;font-weight:600;}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+
+.stage{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0;position:relative;}
+.zone{flex:1 1 260px;min-width:230px;border:2px dashed var(--line);border-radius:12px;padding:10px;}
+.zone-title{font-size:.78rem;color:var(--muted);margin-bottom:6px;font-weight:700;}
+.zone.stack-zone{background:#fafbff;}
+.zone.heap-zone{background:#fffaf5;}
+.frames{display:flex;flex-direction:column-reverse;gap:6px;min-height:140px;}
+.frame{background:#eef1ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 12px;font-size:.82rem;font-family:"JetBrains Mono",Consolas,monospace;color:#4338ca;animation:pop .25s ease;}
+.frame.top{background:#4f46e5;color:#fff;border-color:#4f46e5;}
+.frame .fr-name{font-weight:700;margin-bottom:3px;}
+.frame .fr-row{font-size:.74rem;opacity:.88;padding:1px 0;}
+.frame .fr-row.escaping{color:#fde68a;font-weight:700;}
+.sp-badge{display:inline-block;background:#facc15;color:#7c4a03;border-radius:5px;padding:0 5px;font-size:.68rem;font-weight:700;margin-right:5px;vertical-align:1px;}
+.frame-empty,.heap-empty{color:var(--muted);font-size:.82rem;text-align:center;margin:auto;padding:20px 0;}
+.heap-objs{display:flex;flex-direction:column;gap:8px;min-height:140px;}
+.hobj{border-radius:8px;padding:8px 12px;font-size:.82rem;font-family:"JetBrains Mono",Consolas,monospace;border:2px solid #fdba74;background:#fff7ed;color:#9a3412;transition:all .3s;animation:pop .25s ease;}
+.hobj .ho-name{font-weight:700;margin-bottom:3px;}
+.hobj .ho-row{font-size:.78rem;}
+.hobj.marked{border-color:#22c55e;background:#f0fdf4;color:#15803d;}
+.hobj.marked::before{content:'✅ marked ';font-weight:700;}
+.hobj.swept{opacity:.25;text-decoration:line-through;border-style:dashed;}
+.hobj.swept::before{content:'🗑️ swept ';font-weight:700;}
+.hobj.attract{animation:attractPulse 1s ease-out;}
+@keyframes attractPulse{0%{box-shadow:0 0 0 0 rgba(249,115,22,.65);}70%{box-shadow:0 0 0 16px rgba(249,115,22,0);}100%{box-shadow:0 0 0 0 rgba(249,115,22,0);}}
+.fly-chip{position:absolute;display:none;background:#fef3c7;border:2px solid #f59e0b;color:#92400e;border-radius:6px;padding:4px 10px;font-size:.76rem;font-family:"JetBrains Mono",Consolas,monospace;font-weight:700;transition:left .65s cubic-bezier(.3,.6,.3,1),top .65s cubic-bezier(.3,.6,.3,1),opacity .3s ease .5s;z-index:5;pointer-events:none;}
+@keyframes pop{from{transform:translateY(10px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+
+.controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 8px;}
+.controls button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 13px;font-size:.82rem;cursor:pointer;}
+.controls button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.controls button:disabled{opacity:.4;cursor:not-allowed;}
+.step-num{font-size:.78rem;color:var(--muted);margin-left:4px;}
+.desc{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:.6em 1em;font-size:.9rem;min-height:2.4em;}
+</style></head><body>
+<div class="wrap">
+
+<header class="note">
+<h1>return 清理記憶體互動版：Stack Frame push/pop 與 GC Mark-and-Sweep</h1>
+<div class="pills"><span class="pill">#javascript</span><span class="pill">#stack</span><span class="pill">#heap</span><span class="pill">#gc</span><span class="pill">#closure</span></div>
+<div class="meta">完整文字版見同資料夾 <code>return-清理記憶體-stack-frame與閉包例外.md</code>；本頁是它的互動延伸，兩組動畫分別對應 .md 裡「0. Stack 跟 Stack Frame 關係」與 [[記憶體模型-stack-heap-動態配置-GC]] 的 Mark-and-Sweep。</div>
+</header>
+
+<section class="card">
+<h2>① Stack Frame push/pop 動畫（counter() 閉包例子）</h2>
+<p class="desc" style="border-left-color:#5b7cfa;background:#eef2ff;">
+<strong>先釐清一個容易誤會的地方：</strong>下面方塊裡的「counter()」「(anonymous)()」，代表的是<strong>這次呼叫產生的 Stack Frame（呼叫紀錄）</strong>，不是把函式本體當成一個 primitive 值塞進 Stack。函式在 JS 裡本身是一種<strong>物件</strong>（Function 是 Object 的一種）：它的程式碼定義、之後可能形成的 closure 環境，實際存放位置是 <strong>Heap</strong>，不是 Stack。被呼叫的當下，Stack 上 push 的只是這次呼叫的執行紀錄——裡面裝的是這次呼叫的參數、區域變數（可能是 primitive 值，也可能是指向 Heap 物件的位址）、以及 return 要跳回哪一行的返回位址，跟「函式定義本身放在哪裡」是完全獨立的兩件事。
+</p>
+<pre><code id="sfCode"><span class="l" data-l="1">function counter() {</span>
+<span class="l" data-l="2">  let count = 0;</span>
+<span class="l" data-l="3">  return function () {</span>
+<span class="l" data-l="4">    return ++count;</span>
+<span class="l" data-l="5">  };</span>
+<span class="l" data-l="6">}</span>
+<span class="l" data-l="7">const next = counter();</span>
+<span class="l" data-l="8">next(); // 1</span></code></pre>
+<div class="stage">
+  <div class="zone stack-zone">
+    <div class="zone-title">📚 Stack</div>
+    <div class="frames" id="sfFrames"></div>
+  </div>
+  <div class="zone heap-zone">
+    <div class="zone-title">🗄️ Heap</div>
+    <div class="heap-objs" id="sfHeap"></div>
+  </div>
+  <div class="fly-chip" id="sfFlyChip"></div>
+</div>
+<div class="controls">
+  <button id="sfPrev" class="alt" type="button">← 上一步</button>
+  <button id="sfNext" type="button">下一步 →</button>
+  <button id="sfAuto" class="alt" type="button">▶ 自動播放</button>
+  <button id="sfReset" class="alt" type="button">重置</button>
+  <span class="step-num" id="sfStepNum"></span>
+</div>
+<p class="desc" id="sfDesc"></p>
+</section>
+
+<section class="card">
+<h2>② GC Mark-and-Sweep 動畫</h2>
+<pre><code id="gcCode"><span class="l" data-l="1">let x = { name: 'X' };</span>
+<span class="l" data-l="2">let y = { name: 'Y' };</span>
+<span class="l" data-l="3">y = null; // y 不再指向 objY</span></code></pre>
+<div class="stage">
+  <div class="zone stack-zone">
+    <div class="zone-title">🌱 Root（全域變數）</div>
+    <div class="frames" id="gcRoots"></div>
+  </div>
+  <div class="zone heap-zone">
+    <div class="zone-title">🗄️ Heap</div>
+    <div class="heap-objs" id="gcHeap"></div>
+  </div>
+</div>
+<div class="controls">
+  <button id="gcPrev" class="alt" type="button">← 上一步</button>
+  <button id="gcNext" type="button">下一步 →</button>
+  <button id="gcAuto" class="alt" type="button">▶ 自動播放</button>
+  <button id="gcReset" class="alt" type="button">重置</button>
+  <span class="step-num" id="gcStepNum"></span>
+</div>
+<p class="desc" id="gcDesc"></p>
+</section>
+
+<footer>由 Abby × Claude 對話整理 · 更新於 2026-07-28</footer>
+</div>
+
+<script>
+function makeStepper(cfg){
+  var idx = 0, timer = null;
+  var prevBtn = document.getElementById(cfg.prev);
+  var nextBtn = document.getElementById(cfg.next);
+  var autoBtn = document.getElementById(cfg.auto);
+  var resetBtn = document.getElementById(cfg.reset);
+  var stepNum = document.getElementById(cfg.stepNum);
+  var desc = document.getElementById(cfg.desc);
+  function render(){
+    var step = cfg.steps[idx];
+    cfg.render(step);
+    document.querySelectorAll('#'+cfg.codeId+' .l').forEach(function(l){
+      l.classList.toggle('active', Number(l.getAttribute('data-l'))===step.line);
+    });
+    desc.textContent = step.desc;
+    stepNum.textContent = '步驟 '+(idx+1)+' / '+cfg.steps.length;
+    prevBtn.disabled = idx===0;
+    nextBtn.disabled = idx===cfg.steps.length-1;
+  }
+  function stopAuto(){ if(timer){ clearInterval(timer); timer=null; autoBtn.textContent='▶ 自動播放'; } }
+  nextBtn.addEventListener('click', function(){ stopAuto(); if(idx<cfg.steps.length-1){ idx++; render(); } });
+  prevBtn.addEventListener('click', function(){ stopAuto(); if(idx>0){ idx--; render(); } });
+  resetBtn.addEventListener('click', function(){ stopAuto(); idx=0; render(); });
+  autoBtn.addEventListener('click', function(){
+    if(timer){ stopAuto(); return; }
+    autoBtn.textContent='⏸ 暫停';
+    timer = setInterval(function(){
+      if(idx>=cfg.steps.length-1){ stopAuto(); return; }
+      idx++; render();
+    }, 1600);
+  });
+  render();
+}
+
+// ---- ① Stack Frame push/pop ----
+var sfFrames = document.getElementById('sfFrames');
+var sfHeap = document.getElementById('sfHeap');
+var sfFlyChip = document.getElementById('sfFlyChip');
+var sfStageEl = sfFrames.closest('.stage');
+
+function frameHtml(f, isTop){
+  return '<div class="frame'+(isTop?' top':'')+'">'
+    + '<div class="fr-name">'+(isTop?'<span class="sp-badge">📍 SP</span>':'')+f.name+'</div>'
+    + '<div class="fr-row">返回位址：'+f.ret+'</div>'
+    + '<div class="fr-row">參數：'+f.params+'</div>'
+    + '<div class="fr-row'+(f.escaping?' escaping':'')+'" data-slot="locals">區域變數：'+f.locals+'</div>'
+    + '</div>';
+}
+function heapHtml(h){
+  return '<div class="hobj" data-heap="'+h.name+'">'
+    + '<div class="ho-name">🧲 '+h.name+'</div>'
+    + '<div class="ho-row">{ '+h.fields+' }</div>'
+    + '</div>';
+}
+
+var sfSteps = [
+  { line:7, stack:[], heap:[], desc:'① 準備呼叫 counter()。此刻 Stack 是空的，Heap 也還沒有任何東西。' },
+  { line:2, stack:[{name:'counter()', ret:'回到頂層呼叫的下一步', params:'（無）', locals:'count = 0'}], heap:[], desc:'② Push：counter() 被呼叫，V8 在 Stack 上疊一個新的 Stack Frame（📍 SP 目前指著它，代表這是「這次呼叫的呼叫紀錄」本身，不是函式本體被存成 primitive）。這個 frame 裡的「區域變數」欄位放著 count = 0——此時 count 還是個 primitive，直接把值寫在 frame 裡；函式 counter 本身是 Function 物件，程式碼定義位置在 Heap／Code Space，跟這個 frame 是兩回事。' },
+  { line:3, stack:[{name:'counter()', ret:'回到頂層呼叫的下一步', params:'（無）', locals:'count → 指向 Heap 的 Context', escaping:true}], heap:[{name:'Context', fields:'count: 0'}], desc:'③ counter 要 return 內層函式了——V8 偵測到內層函式引用了 count，提前把它「吸」去 Heap 建立一個 Context 物件（見 [[V8引擎完整管線-Parse到Deoptimization]] Scope Analysis）。原本 frame 裡「區域變數」那格，現在放的是指向這個 Context 的指標，不再是原始值。', escapeAnim:true, fromSlot:'locals', toHeap:'Context' },
+  { line:6, stack:[], heap:[{name:'Context', fields:'count: 0'}], desc:'④ Pop：counter() 執行完，它的 frame（連同 📍 SP）被清掉，Stack 變空。但 Heap 裡的 Context{count} 還活著——因為 next 變數還指著內層函式，內層函式還連著這個 Context。' },
+  { line:8, stack:[{name:'(anonymous)()', ret:'回到呼叫 next() 的地方', params:'（無）', locals:'（無，直接讀寫 Heap 的 Context）'}], heap:[{name:'Context', fields:'count: 0'}], desc:'⑤ 呼叫 next()：Push 一個全新的（匿名）frame，📍 SP 指向它。這次呼叫要去 Heap 的 Context 讀寫 count，不是去早就被 pop 掉的 counter frame。' },
+  { line:4, stack:[{name:'(anonymous)()', ret:'回到呼叫 next() 的地方', params:'（無）', locals:'（無，直接讀寫 Heap 的 Context）'}], heap:[{name:'Context', fields:'count: 1'}], desc:'⑥ ++count 執行：直接修改 Heap 裡 Context 物件的 count，變成 1。' },
+  { line:0, stack:[], heap:[{name:'Context', fields:'count: 1'}], desc:'⑦ Pop：next() 這次呼叫的 frame 也被清掉，Stack 再度變空。但 Context{count:1} 依然活著——只要 next 這個變數還在，Heap 上的 Context 就不會被 GC 回收。' }
+];
+makeStepper({
+  codeId:'sfCode', steps:sfSteps,
+  prev:'sfPrev', next:'sfNext', auto:'sfAuto', reset:'sfReset', stepNum:'sfStepNum', desc:'sfDesc',
+  render: function(step){
+    sfFrames.innerHTML = step.stack.length===0
+      ? '<div class="frame-empty">（空）</div>'
+      : step.stack.map(function(f,i){ return frameHtml(f, i===step.stack.length-1); }).join('');
+    sfHeap.innerHTML = step.heap.length===0
+      ? '<div class="heap-empty">（空）</div>'
+      : step.heap.map(heapHtml).join('');
+    sfFlyChip.style.display = 'none';
+    if(step.escapeAnim){
+      requestAnimationFrame(function(){
+        var slotEl = sfFrames.querySelector('[data-slot="'+step.fromSlot+'"]');
+        var heapEl = sfHeap.querySelector('[data-heap="'+step.toHeap+'"]');
+        if(!slotEl || !heapEl) return;
+        var stageRect = sfStageEl.getBoundingClientRect();
+        var startRect = slotEl.getBoundingClientRect();
+        var endRect = heapEl.getBoundingClientRect();
+        sfFlyChip.textContent = 'count: 0';
+        sfFlyChip.style.transition = 'none';
+        sfFlyChip.style.left = (startRect.left - stageRect.left) + 'px';
+        sfFlyChip.style.top = (startRect.top - stageRect.top) + 'px';
+        sfFlyChip.style.opacity = '1';
+        sfFlyChip.style.display = 'block';
+        void sfFlyChip.offsetWidth; // 強制 reflow，讓上面的起始位置先生效
+        sfFlyChip.style.transition = 'left .65s cubic-bezier(.3,.6,.3,1), top .65s cubic-bezier(.3,.6,.3,1), opacity .3s ease .5s';
+        sfFlyChip.style.left = (endRect.left - stageRect.left) + 'px';
+        sfFlyChip.style.top = (endRect.top - stageRect.top) + 'px';
+        sfFlyChip.style.opacity = '0';
+        heapEl.classList.add('attract');
+        setTimeout(function(){ sfFlyChip.style.display = 'none'; heapEl.classList.remove('attract'); }, 900);
+      });
+    }
+  }
+});
+
+// ---- ② GC Mark-and-Sweep ----
+var gcRoots = document.getElementById('gcRoots');
+var gcHeap = document.getElementById('gcHeap');
+var gcSteps = [
+  { line:1, roots:['x → objX'], heap:[{t:'objX { name: "X" }',c:''}], desc:'① let x = objX：Root（全域變數）x 指向 Heap 上新建的 objX。' },
+  { line:2, roots:['x → objX','y → objY'], heap:[{t:'objX { name: "X" }',c:''},{t:'objY { name: "Y" }',c:''}], desc:'② let y = objY：Root y 也指向另一個新建的 objY。此刻兩個物件都被 Root 指著，都活著。' },
+  { line:3, roots:['x → objX','y → null'], heap:[{t:'objX { name: "X" }',c:''},{t:'objY { name: "Y" }',c:''}], desc:'③ y = null：y 這個 Root 不再指向 objY 了。objY 現在沒有任何 Root 能經由引用鏈走到它，變成「不可達」，但 GC 還沒開始跑，物件還躺在 Heap 裡。' },
+  { line:0, roots:['x → objX','y → null'], heap:[{t:'objX { name: "X" }',c:'marked'},{t:'objY { name: "Y" }',c:''}], desc:'④ GC 啟動，Mark 階段：從每個 Root 出發走訪。從 x 出發摸得到 objX → 標記為「活著」。從 y 出發（null）什麼都摸不到。' },
+  { line:0, roots:['x → objX','y → null'], heap:[{t:'objX { name: "X" }',c:'marked'},{t:'objY { name: "Y" }',c:'swept'}], desc:'⑤ Sweep 階段：objX 被標記過 → 保留。objY 完全沒被標記到（不可達）→ 回收它佔用的記憶體空間。' }
+];
+makeStepper({
+  codeId:'gcCode', steps:gcSteps,
+  prev:'gcPrev', next:'gcNext', auto:'gcAuto', reset:'gcReset', stepNum:'gcStepNum', desc:'gcDesc',
+  render: function(step){
+    gcRoots.innerHTML = step.roots.map(function(r){ return '<div class="frame">'+r+'</div>'; }).join('');
+    gcHeap.innerHTML = step.heap.map(function(h){ return '<div class="hobj'+(h.c?' '+h.c:'')+'">'+h.t+'</div>'; }).join('');
+  }
+});
+</script>
+<script src="../../../assets/wikilink.js" data-root="../../../"></script>
+</body></html>

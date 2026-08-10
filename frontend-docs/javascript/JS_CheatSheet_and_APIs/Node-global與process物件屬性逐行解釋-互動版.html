@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Node.js global與process物件屬性逐行解釋</title>
+<style>
+:root{--bg:#fbfaf7;--card:#ffffff;--ink:#2b2b2b;--muted:#6b6b6b;--line:#e7e3da;--accent:#7c6f9b;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 22px 64px;}
+header.note-head{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:26px;}
+h1.title{font-family:Georgia,"Songti TC",serif;font-size:30px;margin:0 0 12px;line-height:1.3;}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0;}
+.pill{background:#efeaf7;color:#5b4f7a;border:1px solid #ded3f0;border-radius:999px;
+ padding:3px 11px;font-size:12.5px;}
+.meta{color:var(--muted);font-size:13px;margin-top:6px;}
+.meta a{color:var(--accent);}
+.toolbar{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap;}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+ padding:7px 14px;font-size:13.5px;color:#4a4458;box-shadow:0 1px 0 rgba(0,0,0,.02);}
+.btn:hover{background:#f4f1fb;}
+h2{font-size:21px;margin:34px 0 12px;padding-left:11px;border-left:5px solid var(--accent);}
+h3{font-size:17px;margin:22px 0 8px;color:#3b3550;}
+h4{font-size:15px;margin:16px 0 6px;color:#574f6b;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:16px 0;box-shadow:0 2px 10px rgba(60,50,90,.04);}
+p{margin:10px 0;}
+ul,ol{margin:8px 0 8px 4px;padding-left:22px;}
+li{margin:5px 0;}
+code{background:#f1eef8;border-radius:5px;padding:1px 6px;font-size:.92em;
+ font-family:"SFMono-Regular",Consolas,"Cascadia Code",monospace;}
+pre{background:#1f1b2e;color:#eee;border-radius:11px;padding:15px 16px;overflow-x:auto;
+ font-size:13.5px;line-height:1.6;}
+pre code{background:none;padding:0;color:inherit;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
+th{background:#f1ecf8;}
+tbody tr:nth-child(even){background:#faf8fd;}
+mark{padding:.5px 3px;border-radius:3px;}
+mark.y{background:#FFF3A3;} mark.r{background:#FF5582;} mark.g{background:#BBFABB;}
+mark.b{background:#ADCCFF;} mark.p{background:#FFB8EB;} mark.v{background:#D2B3FF;}
+mark.hidden{color:transparent;background:#d8d3c9;border-radius:3px;user-select:none;}
+mark.hidden *{color:transparent!important;}
+blockquote{margin:12px 0;padding:6px 14px;border-left:4px solid var(--line);color:var(--muted);background:#faf9f6;border-radius:6px;}
+.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #888;background:#faf9fc;
+ border-radius:10px;}
+.callout-title{font-weight:700;margin-bottom:4px;}
+.callout-body>:first-child{margin-top:0;}
+.callout-body>:last-child{margin-bottom:0;}
+.src-turn{margin:14px 0;}
+.src-user{background:#eef4ff;border-left:4px solid #ADCCFF;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.src-gem{background:#f4f1ec;border-left:4px solid #cdbfa6;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.role{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:#7a6f55;display:block;margin-bottom:3px;}
+.src-user .role{color:#3f63a8;}
+.spoiler{background:#3b3550;color:transparent;border-radius:5px;padding:1px 8px;cursor:pointer;
+ transition:.15s;user-select:none;box-shadow:inset 0 0 0 1px #ccc;}
+.spoiler::after{content:"　點此看答案　";color:#cdbfe8;font-size:.85em;}
+.spoiler.on{background:#e7ffe7;color:#1c5e1c;box-shadow:inset 0 0 0 1px #BBFABB;user-select:text;}
+.spoiler.on::after{content:"";}
+footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);
+ color:var(--muted);font-size:12.5px;text-align:center;}
+</style></head><body><div class="wrap">
+<header class="note-head"><h1 class="title">Node.js global與process物件屬性逐行解釋</h1>
+<div class="pills"><span class="pill">#nodejs</span><span class="pill">#v8</span><span class="pill">#process</span><span class="pill">#global</span><span class="pill">#JS_CheatSheet_and_APIs</span></div><div class="meta">更新：2026-08-06　· 來源：<a href="使用者本機Node.js REPL實測輸出，2026年8月5日，Node.js v24.14.0，Windows平台，V8版本13.6.233.17-node.41" target="_blank">來源1</a> · <a href="https://gemini.google.com/app/2aaa32d4d098781d" target="_blank">來源2</a></div>
+<div class="toolbar"><span class="btn" onclick="toggleAll(false)">🙈 隱藏所有答案</span>
+<span class="btn" onclick="toggleAll(true)">👀 顯示所有答案</span></div>
+</header>
+<h1>Node.js global與process物件屬性逐行解釋</h1>
+<div class="callout" style="border-left-color:#ADCCFF"><div class="callout-title">ℹ️ 📍 這篇是什麼</div><div class="callout-body"><p>這是你在PowerShell打<code>node</code>進REPL、依序打<code>window</code>、<code>document</code>、<code>global</code>、<code>process</code>之後，針對輸出結果逐行做的解釋筆記，直接驗證[[01-引擎-Engine-到底是什麼]]裡(c-7)(c-8)講的內容：<code>window</code>、<code>document</code>丟<code>ReferenceError</code>，證明V8本身不知道瀏覽器的東西；<code>global</code>跟<code>process</code>能正常列出一大包內容，證明這些是Node.js這個Host環境自己加上去的API。</p>
+<p>![[Node_REPL_window與document不存在_global與process_2026-08-05.png]]</p></div></div>
+
+<div class="callout" style="border-left-color:#FFB02E"><div class="callout-title">⚠️ ⚠️ 先講一個重要提醒，不是筆記內容，請優先看</div><div class="callout-body"><p><mark style="background: #FF5582A6;">你貼的<code>process.env</code>輸出裡，有一行<code>GOOGLE_GEMINI_API</code>直接把一組完整的API金鑰用明文列出來了。</mark>環境變數本身沒有錯，但這代表這組金鑰目前是用明文存在你系統的環境變數裡，只要有人（或任何跑在你電腦上的程式）打開<code>process.env</code>就看得到完整金鑰。建議你儘快到Google AI Studio或對應的Google Cloud專案後台，把這組金鑰註銷、重新產生一組新的，往後這類金鑰盡量放在<code>.env</code>檔案裡並加進<code>.gitignore</code>，不要讓它出現在會被截圖、貼到對話或commit進版本控制的地方。這篇筆記後面提到<code>process.env</code>時，我不會把實際的金鑰內容或你電腦上的個人路徑寫進去，只解釋每個變數名稱代表什麼概念。</p></div></div>
+
+<h2>(a) <code>global</code>物件底下的屬性，共14個</h2>
+<p><code>global</code>是Node.js提供的全域物件，角色類似瀏覽器裡的<code>window</code>，但內容完全不同——這裡列的每一個，都是Node.js（Host環境）自己加上去的，不是V8語言本身的東西：</p>
+<ol>
+<li><code>global</code>——指向自己的循環參照（Circular Reference），<code>Object [global] { global: [Circular *1], ... }</code>這種寫法就是Node.js的<code>console.log</code>在印一個「物件裡面有一個屬性指回自己」的結構時，用<code>[Circular *1]</code>表示，避免無限印下去</li>
+<li><code>clearImmediate</code>——取消一個之前用<code>setImmediate</code>排定、還沒執行的立即工作，見第3項</li>
+<li><code>setImmediate</code>——排一個函式，在目前這一輪Event Loop的I/O回呼階段結束後，盡快執行它，比<code>setTimeout(fn, 0)</code>更早輪到</li>
+<li><code>clearInterval</code>——取消一個用<code>setInterval</code>設定的重複計時器</li>
+<li><code>clearTimeout</code>——取消一個用<code>setTimeout</code>設定的延遲執行工作</li>
+<li><code>setInterval</code>——每隔固定時間重複執行一次某個函式，直到被<code>clearInterval</code>取消</li>
+<li><code>setTimeout</code>——延遲指定時間後執行一次某個函式</li>
+<li><code>queueMicrotask</code>——把一個函式排進微任務佇列（Microtask Queue），會比<code>setTimeout</code>更早執行，跟Promise的<code>.then()</code>用的是同一個佇列</li>
+<li><code>structuredClone</code>——對一個物件做深拷貝（Deep Copy），支援比<code>JSON.parse(JSON.stringify(x))</code>更多的資料型別（例如<code>Date</code>、<code>Map</code>、<code>Set</code>）</li>
+<li><code>atob</code>——把Base64編碼的字串解碼回原始的二進位字串（<code>ASCII to Binary</code>的縮寫）</li>
+<li><code>btoa</code>——把二進位字串編碼成Base64字串（<code>Binary to ASCII</code>的縮寫）</li>
+<li><code>performance</code>——效能量測用的API，可以拿到高精度的時間戳記，量測程式碼執行耗時</li>
+<li><code>fetch</code>——發送HTTP請求用的Fetch API，Node.js從18版開始內建，這正是<a href="c">[01-引擎-Engine-到底是什麼]</a>表格裡提到「fetch是少數兩邊都有的例外」</li>
+<li><code>crypto</code>——加密相關的API，可以產生亂數、做雜湊運算等</li>
+<li><code>navigator</code>——Node.js也加了一個簡化版的<code>navigator</code>物件（主要給跨環境套件判斷用），跟瀏覽器的<code>navigator</code>不是同一個東西，功能少很多</li>
+</ol>
+<p><mark style="background: #ADCCFFA6;">這14個全部是Node.js（Host環境）自己加的，V8本身不認得任何一個，這也是為什麼(c-7)講「純V8（<code>d8</code>）連<code>process</code>都不存在」——因為<code>global</code>底下這些東西也是Node.js加的，純V8同樣不會有。</mark></p>
+<h2>(b) <code>process</code>物件的頂層屬性，共70個</h2>
+<p><code>process</code>是Node.js另一個核心的Host物件，代表「目前這個Node.js執行程序（process）本身」，用來跟作業系統層級互動。裡面的屬性很多，我照你貼的輸出順序，依功能分組解釋：</p>
+<h3>b-1. 版本與平台資訊（5個）</h3>
+<ol>
+<li><code>version</code>——目前這個Node.js的版本號，例如<code>v24.14.0</code></li>
+<li><code>versions</code>——一整包所有內建元件的版本號清單，見下面(c)完整拆解</li>
+<li><code>arch</code>——CPU架構，你的是<code>x64</code></li>
+<li><code>platform</code>——作業系統平台，你的是<code>win32</code>（Windows）</li>
+<li><code>release</code>——這個Node.js版本的發行資訊，包含名稱、LTS代號（你這版代號<code>Krypton</code>）、原始碼下載連結</li>
+</ol>
+<h3>b-2. 底層綁定與事件機制（6個，多為Node內部使用）</h3>
+<ol start="6">
+<li><code>_rawDebug</code>——Node內部用的除錯輸出函式，開頭底線代表是內部API，不建議一般程式碼呼叫</li>
+<li><code>moduleLoadList</code>——記錄Node啟動過程中，內部依序載入了哪些原生模組（Internal Binding、NativeModule），你貼的輸出後面接了「... 76 more items」，代表清單被截斷顯示，實際還有更多</li>
+<li><code>binding</code>——載入Node內部C++綁定模組用的函式，屬於底層API</li>
+<li><code>_linkedBinding</code>——類似<code>binding</code>，但用於載入外部原生模組（Addon），一樣是內部API</li>
+<li><code>_events</code>——<code>process</code>物件自己也是一個EventEmitter，這裡存放目前註冊在<code>process</code>上的事件監聽器，例如<code>newListener</code>、<code>warning</code>、<code>SIGWINCH</code></li>
+<li><code>_eventsCount</code>——目前註冊的事件監聽器總數</li>
+</ol>
+<h3>b-3. 監聽器上限與狀態（4個）</h3>
+<ol start="12">
+<li><code>_maxListeners</code>——<code>process</code>這個EventEmitter最多允許掛幾個監聽器，<code>undefined</code>代表用預設值</li>
+<li><code>domain</code>——舊版Node.js的錯誤處理機制<code>domain</code>模組留下的相容屬性，新專案不建議使用</li>
+<li><code>_exiting</code>——布林值，標記目前Node是否正在結束執行的過程中</li>
+<li><code>exitCode</code>——設定Node程式結束時要回傳給作業系統的結束代碼（Exit Code），<code>0</code>通常代表成功，非<code>0</code>代表某種錯誤</li>
+</ol>
+<h3>b-4. 建置設定（1個，內容龐大另拆(d)）</h3>
+<ol start="16">
+<li><code>config</code>——記錄這支Node.js執行檔在編譯時的所有建置參數，內容非常龐大，完整拆解見下面(d)</li>
+</ol>
+<h3>b-5. 原生模組載入與資源監控（10個）</h3>
+<ol start="17">
+<li><code>dlopen</code>——動態載入一個原生的<code>.node</code>擴充模組（Addon），底層對應到作業系統的<code>dlopen</code>／<code>LoadLibrary</code></li>
+<li><code>uptime</code>——回傳目前這個Node程序已經執行了幾秒</li>
+<li><code>_getActiveRequests</code>——列出目前還在進行中的底層非同步請求（例如檔案讀寫），內部除錯用</li>
+<li><code>_getActiveHandles</code>——列出目前還開著的底層資源控制代碼（例如Timer、Socket），內部除錯用</li>
+<li><code>getActiveResourcesInfo</code>——上面兩個的公開版本，回傳目前有哪些資源正讓程式無法結束</li>
+<li><code>reallyExit</code>——立刻強制結束程序，跳過部分清理流程，內部使用</li>
+<li><code>_kill</code>——傳送作業系統訊號（Signal）給某個程序，內部API</li>
+<li><code>loadEnvFile</code>——讀取一份<code>.env</code>格式的環境變數檔並載入到<code>process.env</code>，Node 20.6版之後內建</li>
+<li><code>cpuUsage</code>——回傳目前程序使用了多少CPU時間（分使用者時間與系統時間）</li>
+<li><code>threadCpuUsage</code>——跟<code>cpuUsage</code>類似，但是針對目前這條執行緒（Thread）而非整個程序</li>
+</ol>
+<h3>b-6. 資源用量（4個）</h3>
+<ol start="27">
+<li><code>resourceUsage</code>——回傳更完整的系統資源使用報告（記憶體、I/O次數等）</li>
+<li><code>memoryUsage</code>——回傳目前程序的記憶體使用量，包含<code>rss</code>（Resident Set Size，程序實際佔用的實體記憶體）</li>
+<li><code>constrainedMemory</code>——如果程序有被容器或作業系統限制記憶體上限，回傳這個上限值</li>
+<li><code>availableMemory</code>——回傳目前系統還剩多少可用記憶體</li>
+</ol>
+<h3>b-7. 程序控制（8個）</h3>
+<ol start="31">
+<li><code>kill</code>——對指定的程序ID（PID）發送訊號，常見用法是結束另一個程序</li>
+<li><code>exit</code>——立刻結束目前的Node程序，可指定結束代碼</li>
+<li><code>execve</code>——（僅Unix系）用新的程式完全取代目前程序，Windows平台上這個功能受限</li>
+<li><code>ref</code>——把某個計時器或資源標記為「會讓程序保持運作」，只要還有被<code>ref</code>的資源，Node就不會自動結束</li>
+<li><code>unref</code>——跟<code>ref</code>相反，標記某個資源不會阻止程序結束</li>
+<li><code>finalization</code>——即將加入的終結器（Finalizer）相關API，用來在物件被垃圾回收時執行清理動作</li>
+<li><code>hrtime</code>——高解析度時間量測（High-Resolution Time），常用來精確計算程式碼執行耗時，<code>bigint</code>是它回傳<code>BigInt</code>格式的版本</li>
+<li><code>openStdin</code>——舊版API，開啟標準輸入（stdin）的可讀串流，新程式碼建議直接用<code>process.stdin</code></li>
+</ol>
+<h3>b-8. 環境旗標與功能開關（3個）</h3>
+<ol start="39">
+<li><code>allowedNodeEnvironmentFlags</code>——列出啟動Node時，<code>NODE_OPTIONS</code>環境變數允許使用哪些旗標</li>
+<li><code>features</code>——回報這支Node.js執行檔編譯時有沒有啟用某些功能，例如<code>inspector</code>（除錯器）、<code>tls</code>（傳輸層加密）、<code>ipv6</code></li>
+<li><code>_fatalException</code>——攔截未被捕捉的例外（Uncaught Exception）的內部處理函式</li>
+</ol>
+<h3>b-9. 例外處理與計時器佇列（8個）</h3>
+<ol start="42">
+<li><code>setUncaughtExceptionCaptureCallback</code>——設定一個回呼函式，統一攔截所有未被<code>catch</code>的例外</li>
+<li><code>hasUncaughtExceptionCaptureCallback</code>——回傳目前是否已經設定了上面那個回呼函式</li>
+<li><code>emitWarning</code>——手動觸發一個Node層級的警告訊息（會印在終端機的黃色警告字樣）</li>
+<li><code>nextTick</code>——把一個函式排到「目前這輪同步程式碼執行完、但在任何I/O或計時器之前」執行，是Node裡優先權最高的非同步排程方式</li>
+<li><code>_tickCallback</code>——<code>nextTick</code>底層實際執行佇列的內部函式</li>
+<li><code>sourceMapsEnabled</code>——回傳目前是否開啟了Source Map支援（讓錯誤堆疊訊息能對應回TypeScript等原始碼位置）</li>
+<li><code>setSourceMapsEnabled</code>——手動開關Source Map支援</li>
+<li><code>getBuiltinModule</code>——取得Node內建模組（例如<code>fs</code>、<code>path</code>）的參照，不用透過<code>require</code></li>
+</ol>
+<h3>b-10. 除錯與效能分析（4個）</h3>
+<ol start="50">
+<li><code>_debugProcess</code>——對指定PID的另一個Node程序啟用除錯模式，內部API</li>
+<li><code>_debugEnd</code>——結束上面那個除錯連線，內部API</li>
+<li><code>_startProfilerIdleNotifier</code>——啟動V8效能分析器的閒置通知，內部API，注意這裡出現的是V8的功能，透過Node綁定暴露出來</li>
+<li><code>_stopProfilerIdleNotifier</code>——停止上面那個閒置通知，內部API</li>
+</ol>
+<h3>b-11. 標準輸入輸出串流（3個）</h3>
+<ol start="54">
+<li><code>stdout</code>——標準輸出串流，<code>console.log</code>最終就是寫到這裡</li>
+<li><code>stdin</code>——標準輸入串流，讀取使用者在終端機打的內容</li>
+<li><code>stderr</code>——標準錯誤輸出串流，錯誤訊息、警告通常寫到這裡而不是<code>stdout</code></li>
+</ol>
+<h3>b-12. 程序資訊與環境變數（10個）</h3>
+<ol start="57">
+<li><code>abort</code>——立刻中止程序並產生一個核心傾印檔（Core Dump），比<code>exit</code>更粗暴</li>
+<li><code>umask</code>——設定或查詢新建立檔案的預設權限遮罩（Unix系概念，Windows上作用有限）</li>
+<li><code>chdir</code>——切換目前程序的工作目錄</li>
+<li><code>cwd</code>——回傳目前程序的工作目錄（Current Working Directory），例如你這裡是<code>C:\coding\JavaScript-practicing</code></li>
+<li><code>env</code>——目前程序拿到的所有環境變數，內容依你的系統而異，詳細拆解見下面(e)，<strong>這裡不會列出你的實際數值</strong></li>
+<li><code>title</code>——目前程序在工作管理員／<code>ps</code>裡顯示的標題，你這邊顯示的是啟動它的PowerShell路徑</li>
+<li><code>argv</code>——啟動這個Node程序時的完整命令列參數陣列，第一個固定是Node執行檔本身的路徑</li>
+<li><code>execArgv</code>——啟動Node時，傳給Node執行檔本身的選項（不是傳給你的腳本的參數）</li>
+<li><code>pid</code>——目前這個Node程序的行程識別碼（Process ID）</li>
+<li><code>ppid</code>——啟動這個Node程序的父行程（Parent Process，也就是你的PowerShell）的行程識別碼</li>
+</ol>
+<h3>b-13. 其餘系統資訊與內部狀態（4個）</h3>
+<ol start="67">
+<li><code>execPath</code>——目前執行的<code>node.exe</code>檔案在磁碟上的完整路徑</li>
+<li><code>debugPort</code>——除錯器預設監聽的Port號，通常是<code>9229</code></li>
+<li><code>argv0</code>——啟動命令實際打的第一個詞，通常跟<code>argv[0]</code>一樣</li>
+<li><code>_preload_modules</code>——用<code>--require</code>參數預先載入的模組清單，內部使用</li>
+</ol>
+<h3>b-14. 其餘（3個）</h3>
+<ul>
+<li><code>report</code>——診斷報告（Diagnostic Report）功能的存取點，可以在程序當機時自動產生一份包含堆疊、記憶體、系統資訊的報告檔</li>
+<li><code>Symbol(shapeMode)</code>——Node內部用Symbol當作隱藏屬性鍵值，避免跟一般字串屬性名稱衝突，屬於內部實作細節，不需要深究</li>
+<li><code>Symbol(kCapture)</code>——同上，內部用來標記EventEmitter是否啟用「補抓錯誤」模式的內部旗標</li>
+</ul>
+<h2>(c) <code>process.versions</code>：所有內建元件的版本號，共27個</h2>
+<p><mark style="background: #FFF3A3A6;">這一包完整印出Node.js這支執行檔裡「捆綁」了哪些第三方函式庫，每一個版本都是編譯Node.js當下鎖定的版本，你自己另外<code>npm install</code>的套件不會出現在這裡。</mark></p>
+<ol>
+<li><code>node</code>——Node.js本身的版本號</li>
+<li><code>acorn</code>——Node內部用來解析JavaScript語法的其中一個Parser（主要用在部分工具鏈，不是V8主要用的Parser）</li>
+<li><code>ada</code>——一套高效能的URL解析函式庫，Node的<code>URL</code>物件底層用它</li>
+<li><code>amaro</code>——Node內建用來去除TypeScript型別標註的工具，讓Node能直接執行<code>.ts</code>檔案裡的型別語法（不做型別檢查，只是移除）</li>
+<li><code>ares</code>（c-ares）——非同步DNS解析函式庫，[[Node-js底層架構-V8-libuv-Bindings與CSR澄清]]提過的那個c-ares</li>
+<li><code>brotli</code>——Google開發的資料壓縮演算法，比gzip壓縮率更高，常用在HTTP回應壓縮</li>
+<li><code>cldr</code>——Unicode的地區化資料庫（Common Locale Data Repository），提供各國日期、貨幣、數字格式規則</li>
+<li><code>icu</code>——國際化元件（International Components for Unicode），處理多語言文字排序、大小寫轉換等</li>
+<li><code>llhttp</code>——[[Node-js底層架構-V8-libuv-Bindings與CSR澄清]]提過的HTTP協定解析器</li>
+<li><code>merve</code>——Node內部使用的一個輔助函式庫（用途較內部化，官方文件說明較少）</li>
+<li><code>modules</code>——Node原生模組（Addon）的ABI（應用二進位介面，Application Binary Interface）版本號，用來判斷編譯好的原生模組跟目前Node版本相不相容</li>
+<li><code>napi</code>——Node-API的版本號，一套讓原生C++擴充模組不用跟著Node版本重新編譯的穩定介面</li>
+<li><code>nbytes</code>——處理位元組（byte）大小格式化的小型工具庫</li>
+<li><code>ncrypto</code>——Node內部用的加密輔助函式庫</li>
+<li><code>nghttp2</code>——HTTP/2協定的實作函式庫</li>
+<li><code>openssl</code>——處理TLS加密連線、雜湊、憑證的加密函式庫，<code>https</code>模組底層依賴它</li>
+<li><code>simdjson</code>——用SIMD（單一指令多資料，Single Instruction Multiple Data）加速的JSON解析函式庫</li>
+<li><code>simdutf</code>——用SIMD加速的Unicode編碼轉換函式庫</li>
+<li><code>sqlite</code>——Node 22版之後內建的SQLite資料庫引擎版本號</li>
+<li><code>tz</code>——時區資料庫（IANA Time Zone Database）版本，決定<code>Date</code>物件處理各地時區、日光節約時間的規則</li>
+<li><code>undici</code>——Node內建的HTTP用戶端函式庫，<code>fetch</code>底層實際上就是undici實作的</li>
+<li><code>unicode</code>——Node支援的Unicode標準版本</li>
+<li><code>uv</code>——libuv的版本號，見[[Node-js底層架構-V8-libuv-Bindings與CSR澄清]]</li>
+<li><code>uvwasi</code>——讓WASI（WebAssembly System Interface）程式能透過libuv存取系統資源的相容層</li>
+<li><code>v8</code>——<strong>V8引擎本身的版本號</strong>，注意版本號後面的<code>-node.41</code>代表這是Node.js團隊在官方V8基礎上額外patch過41次的版本，不是原封不動的Google V8，呼應<a href="b">[01-引擎-Engine-到底是什麼]</a>講的「同一顆V8」其實各家host會有自己的微調</li>
+<li><code>zlib</code>——經典的gzip/deflate壓縮函式庫</li>
+<li><code>zstd</code>——Meta開發的另一套壓縮演算法，壓縮率與速度的平衡通常優於zlib</li>
+</ol>
+<h2>(d) <code>process.config.variables</code>：編譯這支Node.js時鎖定的建置參數，共104個</h2>
+<p><mark style="background: #ADCCFFA6;">你要求全部列完，這裡逐一補齊，照你貼的原始順序編號：</mark></p>
+<ol>
+<li><code>use_ccache_win</code>——是否在Windows上使用ccache（編譯快取工具）加速重複編譯，這裡是<code>0</code>，沒開啟</li>
+<li><code>clang</code>——是否用Clang這套編譯器編譯，<code>1</code>代表有</li>
+<li><code>llvm_version</code>——Clang所屬的LLVM編譯器工具鏈版本號</li>
+<li><code>nasm_version</code>——NASM（組合語言組譯器，Netwide Assembler）版本，用來組譯某些函式庫裡的組合語言程式碼</li>
+<li><code>node_prefix</code>——Node.js預設的安裝路徑前綴，這是Unix慣例路徑，Windows上這個值通常不會真的被用到</li>
+<li><code>node_install_npm</code>——編譯時是否一併安裝npm，<code>true</code>代表有</li>
+<li><code>node_install_corepack</code>——是否一併安裝Corepack（管理pnpm、yarn等套件管理工具版本的工具）</li>
+<li><code>control_flow_guard</code>——是否開啟Windows的控制流程防護（Control Flow Guard，防止程式被劫持跳轉到惡意記憶體位址的資安機制），這裡沒開</li>
+<li><code>node_use_amaro</code>——是否啟用前面(c)提過的amaro（去除TypeScript型別標註用的工具）</li>
+<li><code>debug_node</code>——是否編譯成Node本身的除錯版本，<code>false</code>代表這是正式發行版</li>
+<li><code>error_on_warn</code>——編譯時是否把警告當成錯誤處理、中斷建置</li>
+<li><code>suppress_all_error_on_warn</code>——是否完全抑制「警告視為錯誤」這個機制</li>
+<li><code>use_prefix_to_find_headers</code>——是否用第5項的<code>node_prefix</code>路徑去尋找標頭檔</li>
+<li><code>host_arch</code>——執行建置動作那台機器本身的CPU架構</li>
+<li><code>target_arch</code>——這次建置的目標成品要跑在哪種CPU架構上，這裡跟<code>host_arch</code>一樣是<code>x64</code>，代表不是跨平台編譯</li>
+<li><code>node_byteorder</code>——目標平台的位元組順序（Byte Order），<code>little</code>代表小端序，x86／x64都是小端序</li>
+<li><code>want_separate_host_toolset</code>——跨平台編譯時是否需要另外準備一套跑在建置機器上的工具鏈，這裡不需要</li>
+<li><code>node_use_node_snapshot</code>——是否使用Node啟動快照（把啟動時該做的初始化工作預先做好存成快照檔），能加快每次啟動速度</li>
+<li><code>node_use_node_code_cache</code>——是否快取Node內建JS程式碼編譯後的Bytecode，加快啟動速度</li>
+<li><code>node_write_snapshot_as_array_literals</code>——產生快照檔時是否用陣列字面值格式寫出，屬於建置細節</li>
+<li><code>node_enable_v8_vtunejit</code>——是否開啟跟Intel VTune效能分析工具整合的V8 JIT除錯支援，這裡沒開</li>
+<li><code>enable_pgo_generate</code>——是否編譯成「產生PGO（設定檔導引最佳化，Profile-Guided Optimization）資料」用的版本</li>
+<li><code>enable_pgo_use</code>——是否使用先前收集好的PGO資料來最佳化這次編譯</li>
+<li><code>enable_lto</code>——是否啟用LTO（連結時最佳化，Link-Time Optimization），讓編譯器在連結階段跨檔案做進一步最佳化</li>
+<li><code>single_executable_application</code>——是否支援把Node腳本打包成單一執行檔的功能，這裡有支援</li>
+<li><code>node_with_ltcg</code>——Windows平台專屬，是否啟用LTCG（連結時程式碼產生），概念上跟上面的LTO類似</li>
+<li><code>node_tag</code>——版本標籤字串，用來標記正式版以外的特殊建置（例如候選版），這裡是空字串代表正式版</li>
+<li><code>node_release_urlbase</code>——官方發行版下載頁的網址前綴</li>
+<li><code>node_debug_lib</code>——是否連結除錯版的函式庫</li>
+<li><code>debug_nghttp2</code>——是否對nghttp2（HTTP/2函式庫）開啟除錯模式</li>
+<li><code>node_no_browser_globals</code>——是否要「移除」瀏覽器風格的全域物件（例如<code>fetch</code>這些後來才加進Node的Web API），<code>false</code>代表保留，這也解釋了為什麼你的Node環境裡<code>fetch</code>還在</li>
+<li><code>node_shared</code>——是否把Node本身也編譯成共用函式庫（Shared Library）讓別的程式呼叫，而不是獨立執行檔</li>
+<li><code>libdir</code>——函式庫檔案要安裝到哪個資料夾名稱</li>
+<li><code>node_module_version</code>——前面(c)提過的原生模組ABI版本號，跟<code>process.versions.modules</code>是同一個數字</li>
+<li><code>shlib_suffix</code>——共用函式庫檔名的副檔名格式</li>
+<li><code>asan</code>——是否啟用AddressSanitizer（記憶體錯誤偵測工具，能抓出緩衝區溢位、使用已釋放記憶體等問題），這裡沒開，是正式發行版的正常設定</li>
+<li><code>ubsan</code>——是否啟用UndefinedBehaviorSanitizer（偵測C++未定義行為的工具），一樣沒開</li>
+<li><code>coverage</code>——是否編譯成計算程式碼覆蓋率用的版本</li>
+<li><code>node_target_type</code>——這次建置產出的目標型態，<code>executable</code>代表是一支執行檔</li>
+<li><code>node_library_files</code>——建置時包含哪些Node核心JS函式庫檔案的清單，你貼的原始輸出因為內容太長被截斷顯示成<code>[Array]</code></li>
+<li><code>node_cctest_sources</code>——Node自己的C++單元測試（cctest）原始碼清單，同樣被截斷顯示</li>
+<li><code>napi_build_version</code>——前面(c)提過的Node-API版本號</li>
+<li><code>node_shared_zlib</code>——是否連結系統上既有的zlib，而不是用Node自己捆綁的版本，<code>false</code>代表用Node自己捆綁的</li>
+<li><code>node_shared_http_parser</code>——同上，針對HTTP解析器（新版Node已改用llhttp）</li>
+<li><code>node_shared_libuv</code>——同上，針對libuv</li>
+<li><code>node_shared_ada</code>——同上，針對(c)提過的URL解析函式庫ada</li>
+<li><code>node_shared_simdjson</code>——同上，針對simdjson</li>
+<li><code>node_shared_simdutf</code>——同上，針對simdutf</li>
+<li><code>node_shared_brotli</code>——同上，針對brotli壓縮函式庫</li>
+<li><code>node_shared_cares</code>——同上，針對c-ares（DNS解析）</li>
+<li><code>node_shared_gtest</code>——是否用系統上的Google Test框架，而非Node自己捆綁的版本</li>
+<li><code>node_shared_hdr_histogram</code>——同上，針對HdrHistogram（Node內部效能量測用的高精度直方圖統計函式庫）</li>
+<li><code>node_shared_merve</code>——同上，針對前面(c)提過的merve</li>
+<li><code>node_shared_nbytes</code>——同上，針對nbytes</li>
+<li><code>node_shared_nghttp2</code>——同上，針對nghttp2</li>
+<li><code>node_shared_nghttp3</code>——同上，針對nghttp3（HTTP/3函式庫）</li>
+<li><code>node_shared_ngtcp2</code>——同上，針對ngtcp2（QUIC通訊協定函式庫，HTTP/3底層用的傳輸協定）</li>
+<li><code>node_use_sqlite</code>——是否啟用Node內建的SQLite支援，這裡是<code>true</code></li>
+<li><code>node_shared_sqlite</code>——是否用系統既有的SQLite，而非Node捆綁的版本</li>
+<li><code>node_shared_uvwasi</code>——同上，針對uvwasi</li>
+<li><code>node_shared_zstd</code>——同上，針對zstd壓縮函式庫</li>
+<li><code>v8_enable_webassembly</code>——V8的WebAssembly支援，這裡有開啟，讓Node.js能執行<code>.wasm</code>檔案</li>
+<li><code>v8_enable_javascript_promise_hooks</code>——是否開放JS層級可以掛勾（Hook）進Promise的內部生命週期事件，供除錯／效能分析工具使用</li>
+<li><code>v8_enable_lite_mode</code>——是否編譯成V8的輕量模式（犧牲執行效能換取更小記憶體佔用，常用在嵌入式或行動裝置），這裡沒開</li>
+<li><code>v8_enable_gdbjit</code>——是否讓GDB（GNU除錯器）能識別V8即時編譯出來的機器碼，方便除錯，這裡沒開</li>
+<li><code>v8_optimized_debug</code>——除錯建置時是否仍套用最佳化，這裡設定為<code>1</code>，但因為第10項<code>debug_node</code>是<code>false</code>，這個選項在目前這支正式版上不會真正生效</li>
+<li><code>dcheck_always_on</code>——是否強制開啟V8的DCHECK（只在除錯情境才啟用的斷言檢查機制），這裡沒開，符合正式版身分</li>
+<li><code>v8_enable_object_print</code>——是否啟用可以把V8內部物件結構印出來看的除錯工具，這裡有開</li>
+<li><code>v8_random_seed</code>——V8內部雜湊等機制用的亂數種子設定，<code>0</code>通常代表用真正隨機、不是固定種子</li>
+<li><code>v8_promise_internal_field_count</code>——Promise物件內部保留給V8引擎自己使用的隱藏欄位數量，通常給(c-6)講的那些嵌入V8的C++宿主程式附加額外資訊用</li>
+<li><code>v8_use_siphash</code>——是否用SipHash這個雜湊演算法，設計上能抵抗雜湊碰撞攻擊</li>
+<li><code>v8_enable_maglev</code>——Maglev是V8繼Ignition、TurboFan之後新增的「中階」JIT編譯器，這裡有開啟，可以跟<a href="e-1">[01-引擎-Engine-到底是什麼]</a>講的JIT混合型架構對照</li>
+<li><code>v8_enable_pointer_compression</code>——V8的指標壓縮功能沒有開啟（值是<code>0</code>），開啟後能讓V8在64位元系統上用更小的記憶體位址表示法省記憶體</li>
+<li><code>v8_enable_sandbox</code>——V8的沙箱安全機制（限制V8內部記憶體存取範圍、防禦某些安全漏洞）沒有開啟</li>
+<li><code>v8_enable_pointer_compression_shared_cage</code>——指標壓縮底下更細的選項，決定是否讓多個V8 Isolate（(c-6)(c-7)提過的V8虛擬機器實例）共用同一塊記憶體「籠子」</li>
+<li><code>v8_enable_external_code_space</code>——是否把V8產生的機器碼放到獨立的記憶體空間，是指標壓縮相關的安全與效能設計</li>
+<li><code>v8_enable_31bit_smis_on_64bit_arch</code>——是否在64位元系統上仍用31位元表示SMI（小整數，V8內部對小整數的特殊優化表示法），通常跟指標壓縮搭配使用</li>
+<li><code>v8_enable_extensible_ro_snapshot</code>——是否讓V8的唯讀快照（啟動時預先建好、不會變動的內建物件資料）可以被擴充</li>
+<li><code>v8_trace_maps</code>——是否開啟V8的Map追蹤除錯功能（這裡的Map指V8內部描述物件結構、形狀的機制，不是JS的<code>Map</code>資料結構），這裡沒開</li>
+<li><code>node_use_v8_platform</code>——是否使用V8提供的Platform介面，讓V8能跟Node的Event Loop、Thread Pool協調，這裡是<code>true</code></li>
+<li><code>node_use_bundled_v8</code>——確認Node.js用的是自己捆綁打包的V8版本，不是去讀系統上其他地方安裝的V8</li>
+<li><code>force_dynamic_crt</code>——是否強制連結動態版的C執行期函式庫，Windows平台編譯選項</li>
+<li><mark style="background: #FF5582A6;"><code>node_enable_d8</code>——<strong>這個直接對到(c-7)的答案</strong>：<code>false</code>，代表你這支Node.js在編譯的時候，明確把V8內建的<code>d8</code>除錯殼層關掉了、沒有打包進來，這也是為什麼你沒辦法在Node.js裡面直接叫出<code>d8</code>，這正是(c-7)建議你另外用jsvu抓一份獨立<code>d8</code>／<code>v8</code>執行檔的原因</mark></li>
+<li><code>node_enable_v8windbg</code>——是否啟用V8跟WinDbg（Windows除錯工具）的整合擴充功能，這裡沒開</li>
+<li><code>v8_enable_hugepage</code>——是否讓V8使用作業系統的大分頁記憶體（減少記憶體管理開銷的機制），這裡沒開</li>
+<li><code>v8_enable_short_builtin_calls</code>——是否啟用「縮短內建函式呼叫指令」的最佳化，減少V8內部呼叫內建函式的機器碼體積，這裡有開</li>
+<li><code>v8_enable_wasm_simd256_revec</code>——是否啟用WebAssembly SIMD指令的256位元向量化重寫最佳化，這裡有開</li>
+<li><code>node_use_openssl</code>——是否啟用OpenSSL加密支援，這裡是<code>true</code></li>
+<li><code>node_shared_openssl</code>——是否用系統既有的OpenSSL，而非Node捆綁版本</li>
+<li><code>openssl_is_fips</code>——這份OpenSSL是否為FIPS（美國聯邦資訊處理標準）認證版本，這裡沒有</li>
+<li><code>node_quic</code>——是否啟用QUIC通訊協定支援（HTTP/3底層的傳輸協定），這裡沒開</li>
+<li><code>node_fipsinstall</code>——是否啟用FIPS模式的OpenSSL安裝流程</li>
+<li><code>node_without_node_options</code>——是否停用<code>NODE_OPTIONS</code>環境變數的讀取功能，這裡沒停用，也就是<code>NODE_OPTIONS</code>正常可用</li>
+<li><code>openssl_quic</code>——OpenSSL本身是否啟用QUIC相關功能</li>
+<li><code>icu_small</code>——<code>false</code>代表這支Node.js包的是完整版ICU國際化資料，不是精簡版，語系、時區資料比較齊全，但執行檔體積也比較大</li>
+<li><code>v8_enable_i18n_support</code>——是否啟用V8的國際化支援（例如<code>Intl</code>物件），這裡有開</li>
+<li><code>icu_gyp_path</code>——ICU函式庫建置設定檔在原始碼裡的路徑</li>
+<li><code>icu_path</code>——ICU資料檔案在原始碼裡的路徑</li>
+<li><code>icu_ver_major</code>——使用的ICU主版本號，跟<code>process.versions.icu</code>對應</li>
+<li><code>icu_endianness</code>——ICU資料檔案的位元組順序，<code>l</code>代表小端序</li>
+<li><code>icu_data_in</code>——實際的ICU資料檔案路徑</li>
+<li><code>v8_enable_inspector</code>——是否啟用V8的Inspector除錯協定支援，讓Chrome DevTools能連進來除錯Node程式，呼應(c-5)講的CDP協定</li>
+<li><code>node_builtin_shareable_builtins</code>——哪些Node內建模組允許在Worker Threads之間共用，同樣被截斷顯示成<code>[Array]</code></li>
+<li><code>ossfuzz</code>——是否為OSS-Fuzz（Google的開源模糊測試服務）產生特製的模糊測試建置版本</li>
+</ol>
+<p><mark style="background: #ADCCFFA6;">104項全部列完。整體來看，這包東西可以歸納成幾大類：a版本與工具鏈資訊（1到4、27到28）；b編譯選項與最佳化開關（8、21到26、36到38、65到79、85到87）；c要不要用系統既有函式庫還是Node自己捆綁的版本（43到61的<code>node_shared_*</code>系列）；d V8特定功能開關（62到83的<code>v8_*</code>系列，<code>node_enable_d8</code>就在這裡）；e國際化ICU設定（95到101）；f加密與網路協定（88到94）。</mark></p>
+<h2>(e) <code>process.env</code>：目前程序拿到的環境變數，只解釋變數名稱概念，不列出你的實際數值</h2>
+<p><mark style="background: #FF5582A6;">這一段你貼的原始輸出裡包含你的Windows使用者名稱、電腦名稱、大量本機資料夾路徑，還有前面警告區塊提到的那組API金鑰。這些都是只跟你這台電腦有關的個人資訊，不適合原封不動記進筆記或分享出去，下面只解釋「這個變數名稱通常代表什麼」，不重複你貼的實際內容。</mark></p>
+<p>a. <code>USERNAME</code>、<code>USERPROFILE</code>、<code>HOMEDRIVE</code>、<code>HOMEPATH</code>——目前登入的Windows使用者帳號名稱，以及這個使用者的家目錄路徑
+b. <code>COMPUTERNAME</code>、<code>USERDOMAIN</code>、<code>LOGONSERVER</code>——這台電腦在區域網路裡的名稱與登入驗證資訊
+c. <code>APPDATA</code>、<code>LOCALAPPDATA</code>、<code>TEMP</code>、<code>TMP</code>——Windows規定應用程式存放設定檔、暫存檔的標準資料夾位置
+d. <code>Path</code>——作業系統搜尋可執行檔的資料夾清單，只要某個程式的資料夾有列在這裡，就能在終端機直接打程式名稱執行，不用打完整路徑，你這份<code>Path</code>裡看得到Node.js、Git、Python、Docker等工具的安裝位置
+e. <code>PATHEXT</code>——Windows判斷「打這個檔名不用加副檔名也能執行」的副檔名清單，例如<code>.EXE</code>、<code>.BAT</code>、<code>.CMD</code>
+f. <code>PSModulePath</code>——PowerShell搜尋模組的資料夾清單
+g. <code>ChocolateyInstall</code>、<code>GOPATH</code>、<code>PNPM_HOME</code>——分別是Chocolatey（Windows套件管理工具）、Go語言、pnpm這幾個工具各自的安裝或資料目錄
+h. <code>NUMBER_OF_PROCESSORS</code>、<code>PROCESSOR_ARCHITECTURE</code>、<code>PROCESSOR_IDENTIFIER</code>——CPU的邏輯核心數量與型號資訊
+i. <code>ComSpec</code>——預設命令直譯器的路徑，Windows上通常指向<code>cmd.exe</code>
+j. <code>OS</code>、<code>SystemDrive</code>、<code>SystemRoot</code>、<code>windir</code>——作業系統類型跟系統資料夾位置
+k. <code>TERM_PROGRAM</code>、<code>TERM_PROGRAM_VERSION</code>、<code>COLORTERM</code>——目前這個終端機（你這裡是VS Code的整合終端機）的識別資訊
+l. <code>GIT_ASKPASS</code>、<code>VSCODE_GIT_ASKPASS_NODE</code>、<code>VSCODE_GIT_IPC_HANDLE</code>——VS Code跟Git整合時，處理帳密詢問跟程序間通訊用的內部設定
+m. <code>CLAUDE_CODE_SSE_PORT</code>、<code>CLAUDE_CODE_USE_POWERSHELL_TOOL</code>——你這個開發環境裡跟Claude Code相關的設定
+n. <code>GOOGLE_GEMINI_API</code>——一組Google Gemini的API金鑰，<strong>這組請依前面警告區塊的建議儘快更換</strong>
+o. 其餘像<code>ALLUSERSPROFILE</code>、<code>ProgramFiles</code>、<code>CommonProgramFiles</code>——都是Windows標準的系統資料夾位置變數，每台Windows電腦上這些變數名稱都一樣，只有實際路徑值依安裝位置而異</p>
+<h2>對照總結</h2>
+<table>
+<thead>
+<tr>
+<th>物件</th>
+<th>誰提供的</th>
+<th>這篇對應到01筆記的哪一節</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>window</code>／<code>document</code></td>
+<td>瀏覽器Host環境（Chrome），Node裡不存在</td>
+<td>(c)(c-4)(c-7)</td>
+</tr>
+<tr>
+<td><code>global</code></td>
+<td>Node.js這個Host環境自己加的全域物件</td>
+<td>(c-7)</td>
+</tr>
+<tr>
+<td><code>process</code></td>
+<td>Node.js這個Host環境的核心API，讓JS能碰到作業系統層級的東西</td>
+<td>(c-6)(c-8)</td>
+</tr>
+<tr>
+<td><code>process.versions.v8</code></td>
+<td>V8引擎本身的版本，證明Node內部真的嵌入了一整顆V8</td>
+<td>(c-6)</td>
+</tr>
+<tr>
+<td><code>process.config.variables.node_enable_d8</code></td>
+<td>直接證實這支Node.js建置時關掉了<code>d8</code></td>
+<td>(c-7)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>追加 2026-08-06：語音對談補充（setInterval 任務分類、<code>tz</code>、<code>zlib</code>）</h2>
+<blockquote>
+<p>重點編號延續為 (f)–(i)，共 4 個新增。來源：Gemini Live 語音對談 https://gemini.google.com/app/2aaa32d4d098781d ，語音辨識有多處錯字（例如「微任務」被辨識成「偽任務」、「宏任務」被辨識成「紅任務」），下面已還原為正確用詞。</p>
+</blockquote>
+<div class="callout" style="border-left-color:#ADCCFF"><div class="callout-title">ℹ️ 這段跟哪些筆記相關，以及為什麼</div><div class="callout-body"><ul>
+<li>[[事件循環-Event-Loop-微任務與巨任務]]：(f) 講的 <code>setInterval</code> 屬於哪一種任務、以及三段執行順序，完整版在那篇。本篇只補上「<code>global</code> 底下這幾個計時器函式各自落在哪個佇列」這一層對應，因為 (a) 已經列了 <code>setInterval</code>／<code>setImmediate</code>／<code>queueMicrotask</code>，正好可以把「名字」跟「佇列」接起來。</li>
+<li>[[Node-js底層架構-V8-libuv-Bindings與CSR澄清]]：(h) 的 <code>zlib</code> 就是那篇 (a) 分層圖裡「其他專門 C 函式庫」那一格點名的成員之一，這裡補上它實際是做什麼的。</li>
+</ul></div></div>
+
+<h3>(f) <code>setInterval</code> 是宏任務（Macrotask），不是微任務</h3>
+<p><mark style="background: #ADCCFFA6;"><code>setInterval</code> 與 <code>setImmediate</code> 同屬非同步機制</mark>，但兩者都<mark style="background: #FFF3A3A6;">歸類為宏任務（Macrotask／Task）</mark>——每次計時結束時被放進宏任務佇列等待執行。</p>
+<p>執行順序（<mark style="background: #BBFABBA6;">面試必背的三段式</mark>）：</p>
+<ol>
+<li>先執行完<strong>所有同步任務</strong>（呼叫堆疊清空）</li>
+<li>再清空<strong>微任務佇列（Microtask Queue）</strong>：<code>Promise.then</code>、<code>queueMicrotask</code>、<code>process.nextTick</code></li>
+<li>最後才輪到<strong>宏任務佇列（Macrotask Queue）</strong>：<code>setTimeout</code>、<code>setInterval</code>、<code>setImmediate</code>、I/O 回呼</li>
+</ol>
+<p>對應回本篇 (a) 的 <code>global</code> 屬性清單：</p>
+<table>
+<thead>
+<tr>
+<th><code>global</code> 上的函式</th>
+<th>落在哪個佇列</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>queueMicrotask</code></td>
+<td><mark style="background: #ADCCFFA6;">微任務</mark></td>
+</tr>
+<tr>
+<td><code>setTimeout</code> / <code>setInterval</code></td>
+<td><mark style="background: #D2B3FFA6;">宏任務</mark>（timers 階段）</td>
+</tr>
+<tr>
+<td><code>setImmediate</code></td>
+<td><mark style="background: #D2B3FFA6;">宏任務</mark>（check 階段，在同一輪 I/O 回呼之後）</td>
+</tr>
+</tbody>
+</table>
+<h3>(g) <code>process.platform</code> 顯示 <code>win32</code> 但 <code>process.arch</code> 是 <code>x64</code>——這不衝突</h3>
+<p><mark style="background: #FF5582A6;">⚠️ 這裡 Gemini 講錯了，我更正如下。</mark>Gemini 在對談中說「<code>win32</code> 通常代表它是 64 位元系統上的 32 位元模擬層」，<mark style="background: #FF5582A6;">這是錯的</mark>。</p>
+<p>正確說法：Node.js 的 <code>process.platform</code> 對 Windows <mark style="background: #BBFABBA6;">一律回傳字串 <code>'win32'</code>，不論實際是 32 位元還是 64 位元</mark>。這只是 Node.js 沿用歷史命名的<mark style="background: #FFF3A3A6;">平台識別字串</mark>，跟位元數完全無關（同理 macOS 一律回傳 <code>'darwin'</code>）。真正表示位元數／CPU 架構的是 <code>process.arch</code>，你的是 <code>x64</code>，所以你跑的就是道地的 64 位元 Node.js，沒有任何模擬層。</p>
+<h3>(h) <code>zlib</code> 是什麼</h3>
+<p><mark style="background: #ADCCFFA6;"><code>zlib</code></mark> 是 Node.js 內建的<mark style="background: #FFF3A3A6;">資料壓縮模組</mark>，提供 Gzip、Deflate、Brotli 等演算法的壓縮與解壓縮功能。常見用途：HTTP 回應內容壓縮（<code>Content-Encoding: gzip</code>）、讀寫 <code>.gz</code> 檔案、打包工具的產物壓縮。它是本篇 (c) <code>process.versions</code> 裡會列出版本號的內建 C 函式庫之一。</p>
+<h3>(i) <code>process.versions.tz</code>（或 <code>tz</code> 屬性）：IANA 時區資料庫版本</h3>
+<p><code>tz</code> 代表目前這支 Node.js 內建的 <mark style="background: #ADCCFFA6;">IANA 時區資料庫（IANA Time Zone Database，又稱 tz database／zoneinfo）</mark>版本，顯示 <code>2025c</code> 就是該資料庫的版次代號（格式為「年份＋流水字母」）。這個資料庫記錄全球各時區的時差與日光節約時間規則，各國政府改動時區政策時 IANA 就會發新版，所以它會隨 Node.js 版本更新而變動。<mark style="background: #FFB8EBA6;">若程式碼有跨時區換算需求，這個版號決定了你的日光節約規則新不新。</mark></p>
+<h3>自我測驗</h3>
+<div class="callout" style="border-left-color:#FFB8EB"><div class="callout-title">❓ 是非題（點答案可顯示／隱藏）</div><div class="callout-body"><ol>
+<li><code>setInterval</code> 的回呼會排進微任務佇列。 → <span class="spoiler">✘ 錯。<code>setInterval</code> 是宏任務，排在微任務全部清空之後。</span></li>
+<li><code>process.platform</code> 回傳 <code>win32</code> 代表你在跑 32 位元的 Node.js。 → <span class="spoiler">✘ 錯。Windows 一律回傳 <code>'win32'</code>，位元數要看 <code>process.arch</code>。</span></li>
+<li><code>zlib</code> 是 Node.js 內建模組，不用另外 <code>npm install</code>。 → <span class="spoiler">✔ 對。它跟 <code>fs</code>、<code>http</code> 一樣是內建核心模組。</span></li>
+</ol></div></div>
+
+<div class="callout" style="border-left-color:#FFB8EB"><div class="callout-title">❓ 申論題</div><div class="callout-body"><p>為什麼 <code>process.versions.tz</code> 這種版本號值得留意？
+→ <span class="spoiler">因為 IANA 時區資料庫記錄的是各國時區與日光節約時間的規則，而這些規則會被政府修改（例如某國宣布取消日光節約時間）。如果你的 Node.js 內建的 tz 版本太舊，做跨時區時間換算時就可能算出錯誤的當地時間。因此涉及國際化排程、會議時間換算的系統，需要確認 runtime 的 tz 版本夠新，或改用會自行更新時區資料的套件。</span></p></div></div>
+
+<hr />
+<h2>各對話來源（追加部分）</h2>
+<h3>解釋 Node.js 全域物件循環參考（2026-08-06，Gemini Live 語音）— https://gemini.google.com/app/2aaa32d4d098781d</h3>
+<div class="src-user"><span class="role">使用者</span>是像 setInterval 嗎？那 setInterval 是微任務還是宏任務呢？／它就是會先執行同步任務，才執行微任務，最後再執行宏任務。／（指著螢幕上 Node REPL 的輸出）我是說這個。／（指 <code>tz</code> 屬性）／我說 zlib 是什麼？／網路傳輸是什麼？</div>
+<div class="src-gem"><span class="role">Gemini</span>setInterval 和 setImmediate 一樣都屬於非同步機制，setInterval 屬於宏任務，每次計時結束時被放入宏任務佇列等待執行。使用者對執行順序的總結正確：先處理所有同步任務，接著執行微任務佇列，最後才執行宏任務。關於畫面上的 process 輸出，Gemini 表示顯示 <code>win32</code> 但硬體架構是 <code>x64</code>，實際運行在 64 位元環境（<mark style="background: #FF5582A6;">此處 Gemini 對 win32 的解釋有誤，已於上方 (g) 更正</mark>）。<code>tz</code> 屬性代表當前系統使用的 IANA 時區資料庫版本，畫面顯示 <code>2025c</code> 即目前版本名稱。zlib 是 Node.js 內建的資料壓縮函式庫，提供 Gzip 或 Deflate 演算法的壓縮解壓縮功能。最後使用者問「網格傳輸」，Gemini 解釋為網格計算（Grid Computing，把分散各地的電腦連成虛擬超級電腦協同運算）或網狀網路（Mesh Network，點對點分發不依賴單一中央伺服器）兩種可能語意。</div>
+<p><mark style="background: #D2B3FFA6;">備註：這是一段 Gemini Live 語音對談，逐字稿有大量語音辨識錯字（「微任務」→「偽任務」、「宏任務」→「紅任務」、「zlib」→「z lip」），中間還夾雜與主題無關的閒聊回合（例如問「z 的筆順」），已在整理時濾除。</mark></p>
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本機 Node.js REPL 實測輸出</td>
+<td>使用者電腦，Node.js v24.14.0，Windows x64</td>
+<td>2026-08-05 實測</td>
+</tr>
+<tr>
+<td>Gemini 語音對談原文</td>
+<td>https://gemini.google.com/app/2aaa32d4d098781d</td>
+<td>對話日期 2026-08-06</td>
+</tr>
+<tr>
+<td><code>process.platform</code> 對 Windows 一律回傳 <code>'win32'</code>（用於更正 Gemini 說法）</td>
+<td>https://nodejs.org/api/process.html#processplatform</td>
+<td>查證日 2026-08-06</td>
+</tr>
+<tr>
+<td><code>zlib</code> 模組（Gzip／Deflate／Brotli）</td>
+<td>https://nodejs.org/api/zlib.html</td>
+<td>查證日 2026-08-06</td>
+</tr>
+<tr>
+<td>IANA Time Zone Database 版本命名規則</td>
+<td>https://www.iana.org/time-zones</td>
+<td>查證日 2026-08-06</td>
+</tr>
+</tbody>
+</table>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-06</footer>
+</div><script>
+function toggleAll(show){document.querySelectorAll('.spoiler').forEach(function(s){
+ if(show){s.classList.add('on');}else{s.classList.remove('on');}});}
+document.addEventListener('click',function(e){
+ if(e.target.classList&&e.target.classList.contains('spoiler')){e.target.classList.toggle('on');}});
+(function(){var l=document.createElement('link');l.rel='stylesheet';
+ l.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
+ document.head.appendChild(l);var s=document.createElement('script');
+ s.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+ s.onload=function(){try{hljs.highlightAll();}catch(e){}};document.head.appendChild(s);})();
+</script><script src="../../../assets/wikilink.js" data-root="../../../"></script>
+</body></html>

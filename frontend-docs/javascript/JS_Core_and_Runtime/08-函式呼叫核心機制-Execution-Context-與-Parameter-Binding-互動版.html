@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>函式呼叫核心機制互動版：Execution Context、Creation Phase 與參數綁定</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:900px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.5rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.15rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1rem;margin:1em 0 .5em;color:#374151;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+mark{padding:.05em .25em;border-radius:4px;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.9rem;}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;}
+th{background:#f1f5f9;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;color:#abb2bf;font-size:.85rem;}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+
+.grammar-tree{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:18px 10px;justify-content:center;}
+.gt-node{position:relative;background:#eef1ff;border:2px solid #c7d2fe;border-radius:10px;padding:10px 14px;font-family:"JetBrains Mono",Consolas,monospace;font-size:.85rem;color:#4338ca;cursor:help;white-space:nowrap;}
+.gt-node.optional{background:#fff7ed;border-color:#fed7aa;color:#c2410c;font-size:.78rem;white-space:normal;max-width:180px;}
+.gt-node:hover{background:#4f46e5;color:#fff;border-color:#4f46e5;z-index:5;}
+.gt-node.optional:hover{background:#ea580c;border-color:#ea580c;color:#fff;}
+.gt-node[data-tip]::after{
+  content:attr(data-tip);
+  position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);
+  width:240px;white-space:normal;background:#1f2937;color:#f3f4f6;padding:9px 11px;border-radius:8px;
+  font-family:"Noto Sans TC",sans-serif;font-size:.78rem;line-height:1.5;
+  opacity:0;pointer-events:none;transition:opacity .15s;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:10;
+}
+.gt-node[data-tip]::before{
+  content:'';position:absolute;left:50%;bottom:calc(100% + 4px);transform:translateX(-50%);
+  border:6px solid transparent;border-top-color:#1f2937;opacity:0;transition:opacity .15s;z-index:10;
+}
+.gt-node[data-tip]:hover::after,.gt-node[data-tip]:hover::before{opacity:1;}
+.gt-arrow{color:var(--muted);font-size:1.1rem;margin:0 2px;}
+.gt-branch{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
+.gt-hint{text-align:center;font-size:.78rem;color:var(--muted);margin-top:-6px;margin-bottom:8px;}
+
+.paren-table td.role-yes{color:#15803d;font-weight:600;}
+.paren-table td.role-no{color:#b91c1c;}
+
+.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #7c6f9b;background:#faf9fc;border-radius:10px;}
+.callout-title{font-weight:700;margin-bottom:4px;}
+</style></head><body>
+<div class="wrap">
+
+<header class="note">
+<h1>函式呼叫核心機制互動版：Execution Context、Creation Phase 與參數綁定</h1>
+<div class="pills"><span class="pill">#javascript</span><span class="pill">#execution-context</span><span class="pill">#parameter-binding</span><span class="pill">#identifier</span></div>
+<div class="meta">完整逐點論述（(a)–(m) 共 13 點）見同資料夾 <code>函式呼叫核心機制-Execution-Context-與-Parameter-Binding.md</code>；本頁是它的互動延伸，重點放在 <strong>FormalParameterList 文法樹的 hover 解釋</strong>與 <strong>括號多重角色對照表</strong>，其餘小節請直接看 .md。</div>
+</header>
+
+<section class="card">
+<h2>(d) FormalParameterList 文法樹——滑鼠移到每個節點看解釋</h2>
+<p class="gt-hint">↓ 滑鼠移到下面每個方框上，會彈出這個文法節點的白話解釋（注意 FormalParameterList 是「整份列表」、FormalParameter 是「其中一個參數」，兩者不是同義詞）</p>
+<div class="grammar-tree">
+  <div class="gt-node" data-tip="整份參數列表本身，例如 function foo(a, b, c) 裡『a, b, c』這一整串。(e) 講的『簡單/非簡單參數列表』判定基準就是這整份 List——只要裡面任何一個參數帶 default/rest/解構，整份 List 就降級為非簡單。">FormalParameterList</div>
+  <div class="gt-arrow">→</div>
+  <div class="gt-node" data-tip="函式參數列表裡『一個』參數項目，是 FormalParameterList 用逗號分隔出來的其中一格，例如 function f(a, b) 裡的 a 或 b 各自是一個 FormalParameter（可以逗號接龍出現多次）。">FormalParameter</div>
+  <div class="gt-arrow">→</div>
+  <div class="gt-node" data-tip="這個參數項目的『繫結形式』：可以是單一名稱綁定，也可以是解構模式（{a,b} 或 [a,b]）。是不是解構模式，直接決定這份參數列表算不算『簡單參數列表』（見 (e)）。">BindingElement</div>
+  <div class="gt-arrow">→</div>
+  <div class="gt-node" data-tip="當這個參數不是解構模式、只是單純一個變數名稱時，走 SingleNameBinding 這條路——本篇 createCounter(buttonId)、greet(greeting) 這些範例全部都是這種情況。">SingleNameBinding</div>
+  <div class="gt-arrow">→</div>
+  <div class="gt-branch">
+    <div class="gt-node" data-tip="真正的識別碼節點，跟 let x 的 x 是同一種文法角色（都是廣義的 Identifier production），必須遵守相同命名規則：不能是保留字、不能數字開頭等，見 (d) 內文。">BindingIdentifier</div>
+    <div class="gt-node optional" data-tip="可選的 = 預設值表達式，例如 function f(a = 1) 的『= 1』這一段。一旦某個參數帶了 Initializer，整份參數列表就從『簡單』降級為『非簡單』——連帶影響重複參數名稱是否合法、arguments 物件是 mapped 還是 unmapped、能不能在函式體內寫 use strict，詳見 (e)。">Initializer（可選，= 預設值）</div>
+  </div>
+  <div class="gt-arrow">→</div>
+  <div class="gt-node" data-tip="文法樹最底層的終端節點：Identifier。跟 let/const 宣告的變數名稱是完全同一種 Identifier production，命名規則一致——這就是 (d) 的結論：參數名稱在文法上是正牌 Identifier，不是山寨版。">Identifier</div>
+</div>
+<p>延伸閱讀：<a href="https://tc39.es/ecma262/#sec-destructuring-binding-patterns" target="_blank" rel="noopener">ECMA-262：Destructuring Binding Patterns（FormalParameter/BindingElement 完整文法定義）</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters" target="_blank" rel="noopener">MDN：Default parameters（Initializer 的實際行為）</a></p>
+</section>
+
+<section class="card">
+<h2>(m) 只要是小括弧都是引數表達式嗎？——滑鼠移到每一列看對照</h2>
+<table class="paren-table">
+<thead><tr><th><code>()</code> 出現的地方</th><th>例子</th><th>屬於哪個文法產生式</th><th>裡面是引數表達式嗎？</th></tr></thead>
+<tbody>
+<tr><td>呼叫式</td><td><code>foo(a, b)</code></td><td><code>CallExpression → MemberExpression Arguments</code></td><td class="role-yes">✅ 是</td></tr>
+<tr><td>函式定義的參數列表</td><td><code>function foo(x, y) {}</code></td><td><code>FormalParameters</code>（見上方 (d) 文法樹）</td><td class="role-no">❌ 不是，是參數宣告</td></tr>
+<tr><td>純分組（提升優先權）</td><td><code>(1 + 2) * 3</code></td><td>Grouping Operator</td><td class="role-no">❌ 不是，只是分組</td></tr>
+<tr><td>控制流程關鍵字語法</td><td><code>if (x)</code>、<code>while (x)</code>、<code>for (...)</code></td><td>各自語句自己的產生式</td><td class="role-no">❌ 不是</td></tr>
+<tr><td>IIFE 雙層括號</td><td><code>(function(){})()</code></td><td>外層 Grouping／內層 <code>Arguments</code></td><td>外層 ❌／內層 ✅</td></tr>
+</tbody>
+</table>
+<div class="callout"><div class="callout-title">💡 一句話</div><p>只有緊跟在「被呼叫的東西」後面、屬於 <code>CallExpression</code>／<code>Arguments</code> 這個文法節點的括號，裡面才是引數表達式——判斷方式是看括號屬於哪個文法產生式，不是看有沒有括號。</p></div>
+</section>
+
+<footer>由 Abby × Claude 對話整理 · 更新於 2026-07-28</footer>
+</div>
+<script src="../../../assets/wikilink.js" data-root="../../../"></script>
+</body></html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AWS 登入要求 MFA PIN 但找不到設定 — 排查與 Google PIN／備用碼區分</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<style>
+:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:30px;line-height:1.3;margin:.2em 0;}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:22px;margin:1.6em 0 .6em;
+ border-left:5px solid var(--accent);padding-left:12px;}
+h3{font-size:17px;margin:1.3em 0 .4em;color:#3a3a3a;}
+.meta{color:var(--muted);font-size:13px;margin-top:8px;}
+.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
+ padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+.src{display:block;font-size:12px;color:#2563eb;word-break:break-all;margin-top:3px;}
+.toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
+ border-bottom:1px solid var(--line);margin-bottom:10px;}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
+ padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
+.btn:hover{background:#f1eefe;}
+mark.hl{padding:1px 3px;border-radius:4px;}
+mark.tog{cursor:pointer;transition:.15s;}
+mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
+ user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;
+ line-height:1.55;}
+code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
+:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
+th{background:#f3f1fb;}
+tr:nth-child(even) td{background:#faf9fd;}
+blockquote{border-left:4px solid #ffd27d;background:#fff8ec;margin:1em 0;padding:8px 14px;
+ border-radius:0 8px 8px 0;color:#7a5a1e;}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line);}
+footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
+ border-top:1px solid var(--line);padding-top:16px;}
+.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;
+ padding:7px 12px;margin:6px 0 14px;}
+</style></head>
+<body><div class="wrap">
+<header class="note">
+<h1>AWS 登入要求 MFA PIN 但找不到設定 — 排查與 Google PIN／備用碼區分</h1>
+<div><span class="pill">#gemini</span><span class="pill">#aws</span><span class="pill">#mfa</span><span class="pill">#google-account</span><span class="pill">#security</span></div>
+<div class="meta">更新於 2026-07-23 · 來源:</div>
+<a class="src" href="https://gemini.google.com/app/1c677e09518872e7" target="_blank" rel="noopener">https://gemini.google.com/app/1c677e09518872e7</a>
+</header>
+<div class="toolbar">
+<span class="btn" id="hideAll">🙈 全部隱藏重點</span>
+<span class="btn" id="showAll">👁️ 全部顯示</span>
+</div>
+<div class="hint">💡 點一下任何螢光標記可單獨遮住/顯示答案，方便自己考自己。</div>
+<div class="content">
+<h1>AWS 登入要求 MFA PIN 但找不到設定 — 排查與 Google PIN／備用碼區分</h1>
+<p>本篇重點 a–c，共 3 個</p>
+<h2>重點整理</h2>
+<p>a. <mark class="hl tog" style="background:#ADCCFF;">MFA(Multi-Factor Authentication，多因子驗證)</mark> 是在密碼之外要求第二種驗證因素的安全機制；即使自己不記得主動設定過，也可能是當初建立帳號(尤其是 Root 帳號)時順手開啟建議設定，或是公司 IAM 政策強制要求。</p>
+<p>b. <mark class="hl tog" style="background:#BBFABB;">找回 AWS 6 位數 MFA PIN 的排查順序</mark>：①先檢查手機上的驗證 App(Google Authenticator、Microsoft Authenticator、Authy、Duo Mobile)，搜尋是否有 "AWS" 或 "Amazon Web Services" 項目；②檢查是否有實體金鑰(如 YubiKey)或密碼管理員(1Password、Bitwarden、iCloud 密碼)是否內建自動產生 TOTP 動態碼；③若都找不到且無法登入，在輸入 MFA 頁面找 "Troubleshoot MFA" 連結，Root 使用者可透過驗證電子郵件＋註冊電話暫時跳過 MFA；IAM 使用者則需聯繫帳號管理員從後台重設。</p>
+<p>c. <mark class="hl tog" style="background:#FF5582;">容易搞混的三種「代碼」，位數與用途都不同</mark>，找 PIN 時務必分清楚:</p>
+<table>
+<thead>
+<tr>
+<th>代碼類型</th>
+<th>位數</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Google 備用驗證碼</td>
+<td>8 位(固定)</td>
+<td>無法收簡訊或沒有驗證 App 時，登入 Google 帳號的最後手段</td>
+</tr>
+<tr>
+<td>Google 密碼管理工具 PIN</td>
+<td>自訂(4–6 位)</td>
+<td>解鎖儲存在 Google 的密碼或 Passkey</td>
+</tr>
+<tr>
+<td>AWS MFA PIN</td>
+<td>6 位(每 30 秒動態變動)</td>
+<td>AWS 登入驗證，非固定值</td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ 若在 Chrome 密碼管理工具看到「輸入 PIN 解鎖」畫面，代表 AWS 的 MFA 金鑰(Passkey)很可能被存進了 Google 帳戶，此時應輸入平常用於 Windows／Android／Chrome 的自訂 PIN 來解鎖，而不是去找一組「6 位數固定密碼」。</p>
+<h2>各對話來源(原文，節錄)</h2>
+<h3>AWS 登入的時候要求我輸入MFA 六個pin 但我不記得我有設定過我要去哪裡找 (2026-07-23) — https://gemini.google.com/app/1c677e09518872e7</h3>
+<p><strong>使用者:</strong> AWS 登入的時候要求我輸入MFA 六個pin 但我不記得我有設定過我要去哪裡找</p>
+<p><strong>Gemini:</strong> 這是蠻常見的狀況……請照著幾個方向尋找這六位數的 PIN 碼(見重點 a、b)</p>
+<p><strong>使用者:</strong> 這個嗎 長度不同(附截圖)</p>
+<p><strong>Gemini:</strong> 這兩張圖顯示的內容與 AWS 登入要求的 MFA PIN 碼性質完全不同……(見重點 c，並提醒可能把 AWS Passkey 存進了 Google 帳戶)</p>
+<p><strong>使用者:</strong> 還是不是</p>
+<p><strong>Gemini:</strong> (延續排查建議，確認位數與來源後續追問)</p>
+<h2>資料來源(含查證時間)</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/1c677e09518872e7</td>
+<td>2026-07-23</td>
+</tr>
+<tr>
+<td>MFA／Passkey 概念為業界通用安全機制</td>
+<td>https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html</td>
+<td>以 AWS 官方 MFA 文件行為為準，查證於 2026-07-23</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-07-23</p>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-07-23</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try{document.querySelectorAll('pre code').forEach(b=>{if(window.hljs)hljs.highlightElement(b);});}catch(e){}
+document.querySelectorAll('mark.tog').forEach(m=>m.addEventListener('click',()=>m.classList.toggle('hidden')));
+var ha=document.getElementById('hideAll'),sa=document.getElementById('showAll');
+ha.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.add('hidden'));
+sa.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.remove('hidden'));
+</script>
+<script src="../assets/wikilink.js" data-root="../"></script>
+</body></html>
