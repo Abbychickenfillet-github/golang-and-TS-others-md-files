@@ -81,6 +81,7 @@ Now I understand the issue! Let me create a todo list to track the solution:
 
 **方案 2：如果確實需要 preload，可以添加正確的屬性**
 ```jsx
+{% raw %}
 <Image
   src="/7-Reasons-To-Keep-Jade-Plant-At-Your-Entrance.jpg"
   alt="背景圖片"
@@ -94,10 +95,12 @@ Now I understand the issue! Let me create a todo list to track the solution:
     minHeight: '100vh',
   }}
 />
+{% endraw %}
 ```
 
 **方案 3：使用 CSS 背景圖片替代**
 ```jsx
+{% raw %}
 <div 
   style={{
     backgroundImage: 'url(/7-Reasons-To-Keep-Jade-Plant-At-Your-Entrance.jpg)',
@@ -109,6 +112,7 @@ Now I understand the issue! Let me create a todo list to track the solution:
     minHeight: '100vh',
   }}
 />
+{% endraw %}
 ```
 
 現在重新啟動開發服務器，preload 警告應該就會消失了！

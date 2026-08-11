@@ -139,6 +139,7 @@ right: calc(100%-1140px)/2
 ```
 
 ```jsx
+{% raw %}
 // 在 React 組件中動態設定
 'use client'
 import { useEffect, useState } from 'react'
@@ -190,6 +191,7 @@ export default function DecorativeIcons() {
     </div>
   )
 }
+{% endraw %}
 ```
 
 方案 3：使用 CSS Grid 的 fr 單位

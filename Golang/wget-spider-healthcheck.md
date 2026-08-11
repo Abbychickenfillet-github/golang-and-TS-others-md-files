@@ -109,6 +109,7 @@ router.GET("/health", healthCheckHandler)
 ### Docker 容器顯示 unhealthy
 
 ```bash
+{% raw %}
 # 檢查容器健康狀態
 docker ps
 
@@ -118,6 +119,7 @@ docker inspect --format='{{json .State.Health}}' <container_id> | jq
 # 進入容器測試
 docker exec -it <container_id> sh
 wget -qO- http://localhost:8080/health
+{% endraw %}
 ```
 
 ---

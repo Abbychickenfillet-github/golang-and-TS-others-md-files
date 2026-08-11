@@ -1956,6 +1956,7 @@ docker system prune -a --volumes -f
 ### 4. 快速清理命令（Docker Desktop 恢复后）
 
 ```powershell
+{% raw %}
 # 只保留当前项目的容器，删除其他
 docker ps -a --filter "name=template" --format "{{.Names}}" | ForEach-Object { docker rm -f $_ }
 
@@ -1964,6 +1965,7 @@ docker image prune -a -f
 
 # 清理未使用的 volumes（小心，会删除数据）
 docker volume prune -f
+{% endraw %}
 ```
 
 ### 5. 检查系统内存
@@ -2527,7 +2529,7 @@ docker compose exec mysql ls -la /var/lib/mysql
 这样更简单，不需要记住完整的容器名称。
 
 ## 你
-1.docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"這句是使用powershell還是cmd
+{% raw %}1.docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"這句是使用powershell還是cmd{% endraw %}
 
 2.# 在 docker-compose.yml 所在目录，可以用服务名
 

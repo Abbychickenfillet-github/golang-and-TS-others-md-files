@@ -40,6 +40,7 @@
 ### 本次出現的完整指令原句
 
 ```powershell
+{% raw %}
 docker version --format '{{.Server.Version}}'
 docker --help
 docker context ls
@@ -52,6 +53,7 @@ docker compose up -d
 docker compose down
 docker compose logs -f postgres
 docker exec -it abby-rag-postgres pg_isready
+{% endraw %}
 ```
 
 ---
@@ -71,8 +73,8 @@ docker exec -it abby-rag-postgres pg_isready
 | `--help` | — | `Print usage` / `Show help` | 印說明 |
 | `--version` | — | `Print version information and quit` | 印版本 |
 
-> `--format '{{.Server.Version}}'` 裡的 `{{...}}` 是 **Go template** 語法,挑出物件的某個欄位來印。
-> `table {{.Names}}\t{{.Status}}` 的 `table` 開頭 = 排成表格,`\t` = 欄位間用 tab 分隔。
+{% raw %}> `--format '{{.Server.Version}}'` 裡的 `{{...}}` 是 **Go template** 語法,挑出物件的某個欄位來印。{% endraw %}
+{% raw %}> `table {{.Names}}\t{{.Status}}` 的 `table` 開頭 = 排成表格,`\t` = 欄位間用 tab 分隔。{% endraw %}
 
 ---
 

@@ -40,7 +40,7 @@ updated: 2026-07-25
 (i) 「iframe 是 Element 還是 Route」的釐清：從父頁面角度看，它是 DOM <mark style="background: #ADCCFFA6;">Element</mark>（可用 `document.querySelector('iframe')` 抓到、操控寬高，像一台電視機）；從 iframe 內部程式碼執行的角度看，它是一個獨立的 <mark style="background: #ADCCFFA6;">Window 執行環境</mark>，`window` 變數指的是 iframe 內部空間，而不是外面的大視窗。<mark style="background: #FFF3A3A6;">同源政策判斷的依據是 Route（網域），不是 Element 本身</mark>：Route 跟父頁面同網域才能透過 `window.parent` 互通資料，不同網域就會被鎖死在 iframe 這個「盒子」裡。
 
 ### 附帶主題：i18n 動態參數定義（interpolation）
-(j) 翻譯 JSON 用 <mark style="background: #ADCCFFA6;">`{{key}}`</mark> 佔位符預留變數位置，呼叫 `t('key', { name: value })` 時第二個參數把實際值帶入替換。三種進階用法各自的使用時機：<mark style="background: #FFB8EBA6;">複數（Plural）</mark>——依 `count` 自動切換單複數語法（英文 1 message / 5 messages）；<mark style="background: #FFB8EBA6;">數值格式化（Formatting）</mark>——同一數字依語系自動套用當地貨幣/日期寫法（不用自己手動拼字串）；<mark style="background: #FFB8EBA6;">HTML 嵌入（Trans component）</mark>——句子中間夾雜連結/粗體時，用 `<0></0>` 這類標籤佔位，避免拆句翻譯在日文/德文等語序不同的語言裡對不起來。純中文系統感覺不出差異，但要做英文版/多國語系時這三者是必備功能。
+{% raw %}(j) 翻譯 JSON 用 <mark style="background: #ADCCFFA6;">`{{key}}`</mark> 佔位符預留變數位置，呼叫 `t('key', { name: value })` 時第二個參數把實際值帶入替換。三種進階用法各自的使用時機：<mark style="background: #FFB8EBA6;">複數（Plural）</mark>——依 `count` 自動切換單複數語法（英文 1 message / 5 messages）；<mark style="background: #FFB8EBA6;">數值格式化（Formatting）</mark>——同一數字依語系自動套用當地貨幣/日期寫法（不用自己手動拼字串）；<mark style="background: #FFB8EBA6;">HTML 嵌入（Trans component）</mark>——句子中間夾雜連結/粗體時，用 `<0></0>` 這類標籤佔位，避免拆句翻譯在日文/德文等語序不同的語言裡對不起來。純中文系統感覺不出差異，但要做英文版/多國語系時這三者是必備功能。{% endraw %}
 
 > [!tip] 實務建議：CMS 預覽功能只需要「顯示」網址、不需要跳轉權限，保持 sandbox 限制、用自製 input 框純文字顯示網址即可，安全性最高。
 
@@ -70,7 +70,7 @@ updated: 2026-07-25
 
 **使用者:** i18n 的 use fn param def?
 
-**Gemini:** 解讀為 i18n 翻譯函式 `t()` 的參數定義方式，說明 `{{key}}` 佔位符 + 第二參數帶值的用法，並列出翻譯檔定義與程式碼呼叫範例。
+{% raw %}**Gemini:** 解讀為 i18n 翻譯函式 `t()` 的參數定義方式，說明 `{{key}}` 佔位符 + 第二參數帶值的用法，並列出翻譯檔定義與程式碼呼叫範例。{% endraw %}
 
 **使用者:** （追問）這3個啥時會用到
 

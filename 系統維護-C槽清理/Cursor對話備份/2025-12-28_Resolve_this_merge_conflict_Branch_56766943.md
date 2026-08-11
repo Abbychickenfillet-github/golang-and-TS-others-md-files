@@ -461,11 +461,13 @@ git push
 在 `official_website/src/main.tsx` 的 `BrowserRouter` 中添加了 `future` prop，启用 `v7_relativeSplatPath` flag：
 
 ```12:16:official_website/src/main.tsx
+{% raw %}
         <BrowserRouter
             future={{
                 v7_relativeSplatPath: true,
             }}
         >
+{% endraw %}
 ```
 
 ## 说明

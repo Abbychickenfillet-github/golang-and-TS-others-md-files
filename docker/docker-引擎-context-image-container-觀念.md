@@ -222,8 +222,10 @@ WSL2 可以有多個 distro,每個都能各裝一份引擎 —— 這就是「�
 驗證 = 算**檔案指紋(SHA256 hash)**,同檔案指紋必相同;官網也會公佈讓你核對沒被竄改。
 
 ```powershell
+{% raw %}
 Get-FileHash 'C:\Program Files\Docker\Docker\resources\dockerd.exe' -Algorithm SHA256
 docker version --format '{{.Server.Version}}'
+{% endraw %}
 ```
 
 本機實測(Docker Engine **28.5.1**):

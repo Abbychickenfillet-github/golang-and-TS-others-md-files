@@ -114,6 +114,7 @@ export class UserListComponent {
 ```
 
 ```html
+{% raw %}
 <!-- user-list.component.html -->
 <div class="container">
   <h1>{{ title }}</h1>                                <!-- 插值綁定 -->
@@ -144,13 +145,14 @@ export class UserListComponent {
     </div>
   }
 </div>
+{% endraw %}
 ```
 
 核心模板語法對照：
 
 | 語法類型 | 寫法範例 | 用途說明 |
 |---|---|---|
-| 資料渲染 | `{{ value }}` | 把 Component 的狀態輸出至 DOM |
+{% raw %}| 資料渲染 | `{{ value }}` | 把 Component 的狀態輸出至 DOM |{% endraw %}
 | 屬性綁定 | `[disabled]="isPending"` | 把 DOM 屬性綁定至 Component 變數 |
 | 事件綁定 | `(click)="handleClick()"` | 監聽 DOM 事件並執行 Component 方法 |
 | 條件渲染 | `@if (cond) { ... } @else { ... }` | 取代舊版 `*ngIf`，內建控制流 |

@@ -2751,7 +2751,7 @@ sa_column=Column(SQLEnum(TicketStatus, values_callable=lambda x: [e.value for e 
    - 欄位寬度調整（resize bar）功能保留
    - 藍色表頭背景（`bg={headerBg}`）
    - 所有欄位寬度設置保持一致
-   - Hover 效果（`_hover={{ bg: hoverBg }}`）
+{% raw %}   - Hover 效果（`_hover={{ bg: hoverBg }}`）{% endraw %}
 
 現在表格使用標準的 Chakra UI `Table` 組件，符合您的要求。表頭和表身會自動對齊，因為使用了相同的 `width` 和 `minW` 設置。
 

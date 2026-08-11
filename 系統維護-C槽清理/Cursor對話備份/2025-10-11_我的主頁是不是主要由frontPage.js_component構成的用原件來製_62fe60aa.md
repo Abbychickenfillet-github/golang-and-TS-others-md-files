@@ -1175,6 +1175,7 @@ useEffect(() => {
 
 **方式3：使用 Context**
 ```javascript
+{% raw %}
 // AuthContext.js
 const AuthContext = createContext()
 
@@ -1196,6 +1197,7 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   )
 }
+{% endraw %}
 ```
 
 ### 3. **正確的登入狀態流程**

@@ -55,11 +55,13 @@ async function Weather() {
 markdown 轉 HTML、程式碼上色等。伺服器處理完才送結果,**瀏覽器不用下載那包大套件**:
 
 ```tsx
+{% raw %}
 import { marked } from 'marked'      // 假設很肥
 async function Doc({ md }: { md: string }) {
   const html = marked(md)            // ✅ 在伺服器轉好
   return <div dangerouslySetInnerHTML={{ __html: html }} />
 }
+{% endraw %}
 ```
 
 ---

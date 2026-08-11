@@ -1599,6 +1599,7 @@ Purple-Lavender-PNG.jpg幫我把這張圖片加入倒左側歡迎區域的背景
 
 2. **添加 Purple Lavender 背景圖片**：
    ```jsx
+{% raw %}
    <Image
      src="/Purple-Lavender-PNG.jpg"
      alt="Purple Lavender 背景圖片"
@@ -1612,6 +1613,7 @@ Purple-Lavender-PNG.jpg幫我把這張圖片加入倒左側歡迎區域的背景
        maxHeight: '100vh',
      }}
    />
+{% endraw %}
    ```
 
 ### 🎯 **修改細節**：
@@ -1656,6 +1658,7 @@ Purple-Lavender-PNG.jpg幫我把這張圖片加入倒左側歡迎區域的背景
 ### 🎯 **現在的設定**：
 
 ```jsx
+{% raw %}
 <Image
   src="/7-Reasons-To-Keep-Jade-Plant-At-Your-Entrance.jpg"
   alt="背景圖片"
@@ -1669,6 +1672,7 @@ Purple-Lavender-PNG.jpg幫我把這張圖片加入倒左側歡迎區域的背景
     maxHeight: '100vh',
   }}
 />
+{% endraw %}
 ```
 
 ### 🌟 **效果**：
@@ -1749,6 +1753,7 @@ Purple-Lavender-PNG.jpg幫我把這張圖片加入倒左側歡迎區域的背景
 
 2. **修改註冊頁面使用 CSS 變數**：
    ```jsx
+{% raw %}
    <div
      className="position-absolute top-0 start-0 w-100 h-100"
      style={{
@@ -1761,6 +1766,7 @@ Purple-Lavender-PNG.jpg幫我把這張圖片加入倒左側歡迎區域的背景
        borderRadius: '15px',
      }}
    />
+{% endraw %}
    ```
 
 ### 🎯 **主題對應的背景圖片**：
@@ -1809,6 +1815,7 @@ Purple-Lavender-PNG.jpg幫我把這張圖片加入倒左側歡迎區域的背景
 ### 🎯 **修復內容**：
 
 ```jsx
+{% raw %}
 style={{
   backgroundImage: 'var(--welcome-bg-image, url("/7-Reasons-To-Keep-Jade-Plant-At-Your-Entrance.jpg"))',
   backgroundSize: 'cover',
@@ -1818,6 +1825,7 @@ style={{
   zIndex: -1,          // 確保背景在文字後面
   borderRadius: '15px',
 }}
+{% endraw %}
 ```
 
 ### 🌟 **現在的層級結構**：
@@ -1874,12 +1882,14 @@ style={{
 ### 🎯 **修復內容**：
 
 ```jsx
+{% raw %}
 style={{
   color: '#f2f2f2', // 固定為白色，不受主題影響
   cursor: !isAuth ? 'not-allowed' : 'pointer',
   opacity: !isAuth ? 0.5 : 1,
   transition: 'all 0.3s ease',
 }}
+{% endraw %}
 ```
 
 ```jsx

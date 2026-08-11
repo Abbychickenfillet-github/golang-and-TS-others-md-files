@@ -39,5 +39,7 @@
 - 或用 `flexWrap="wrap"` + 適當的 `minW` 確保換行時還能看到
 
 ```tsx
+{% raw %}
 <TabList overflowX="auto" flexWrap={{ base: "nowrap", md: "wrap" }}>
+{% endraw %}
 ```

@@ -97,9 +97,9 @@ ITCSS 倒三角原則：越上層越通用、特異性越低、影響範圍越�
 
 ## 五‧可改善點三：Objects 層空白 + inline style
 
-**(j)** `grep -rn "style={{" src --include=*.tsx | wc -l` → **61 處**。
+{% raw %}**(j)** `grep -rn "style={{" src --include=*.tsx | wc -l` → **61 處**。{% endraw %}
 
-版面（容器最大寬、區塊垂直間距）沒有抽象層，各元件自己刻。而 inline `style={{}}` 的**特異性最高（1000）**，
+{% raw %}版面（容器最大寬、區塊垂直間距）沒有抽象層，各元件自己刻。而 inline `style={{}}` 的**特異性最高（1000）**，{% endraw %}
 直接繞過整個倒三角，之後想用 class 覆蓋只能靠 `!important` —— 這正是 ITCSS 要避免的死亡螺旋。
 
 ---

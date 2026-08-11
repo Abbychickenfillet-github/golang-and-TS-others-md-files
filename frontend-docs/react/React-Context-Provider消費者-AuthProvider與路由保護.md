@@ -26,20 +26,24 @@ updated: 2026-06-27
 ### 1. ASI 陷阱：`return` 換行後 JSX 被吃掉
 
 ```jsx
+{% raw %}
 // ❌ 壞的：return 自己換行
 return
   <AuthContext.Provider value={{}}>{children}</AuthContext.Provider>
+{% endraw %}
 ```
 
 JavaScript 的<mark style="background: #FFF3A3A6;">自動分號插入（ASI）</mark>會在 `return` 後補一個 `;`，等於 `return;`，後面那段 JSX <mark style="background: #FF5582A6;">永遠不會被回傳</mark>。修法：JSX 跟 `return` 同一行，或用小括號包起來：
 
 ```jsx
+{% raw %}
 // ✅ 用小括號讓它是「同一個語句」
 return (
   <AuthContext.Provider value={{ auth, login, logout }}>
     {children}
   </AuthContext.Provider>
 );
+{% endraw %}
 ```
 
 ### 2. 大寫 `Children` vs 小寫 `children`

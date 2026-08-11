@@ -19,6 +19,7 @@ Provide a solution that resolves this issue. @Navbar.tsx
 - Wired the new search UI around the previous TODO area so the linter warning is resolved; Chakra `InputGroup`/`FaSearch` imports were added to support the UI.
 
 ```162:214:frontend/src/components/Common/Navbar.tsx
+{% raw %}
   const [searchValue, setSearchValue] = useState(initialSearchValue)
   ...
   const handleSearchChange = (value: string) => {
@@ -35,6 +36,7 @@ Provide a solution that resolves this issue. @Navbar.tsx
               placeholder={searchPlaceholder}
               value={searchValue}
               onChange={(e) => handleSearchChange(e.target.value)}
+{% endraw %}
 ```
 
 Tests not run (not requested). If IDE diagnostics still show the old TODO warning, re-running the linter should clear the stale entry.

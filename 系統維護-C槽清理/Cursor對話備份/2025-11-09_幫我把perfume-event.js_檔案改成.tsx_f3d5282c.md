@@ -1617,6 +1617,7 @@ HEADER註冊的文字根本看不到
 
 **修复**：在 `Header.tsx` 中为注册按钮添加：
 ```tsx
+{% raw %}
 <Button
   onClick={() => navigate('/register')}
   colorScheme="pink"
@@ -1626,6 +1627,7 @@ HEADER註冊的文字根本看不到
 >
   註冊
 </Button>
+{% endraw %}
 ```
 
 **原因**：

@@ -309,6 +309,7 @@ Image with src "/logo2.svg" is missing required "width" property.
 你可以將以下代碼複製到一個新的 `.js` 文件中：
 
 ```jsx
+{% raw %}
 import React, { useState, useEffect } from 'react'
 import styles from '@/styles/signUpForm.module.scss'
 import Swal from 'sweetalert2'
@@ -600,6 +601,7 @@ export default function LogIn() {
 }
 
 LogIn.getLayout = (page) => page
+{% endraw %}
 ```
 
 ## 使用說明

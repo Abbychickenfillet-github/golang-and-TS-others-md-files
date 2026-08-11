@@ -9,7 +9,7 @@
 | 想知道什麼 | 查什麼 |
 |---|---|
 | Ollama 有沒有抓模型 | `ollama list`（看清單）＋ 算 `~/.ollama` 資料夾實際大小（看有沒有真的下載） |
-| pgvector / Postgres 佔多少 | `docker images` 看 image 大小 + `docker inspect <container> --format "{{json .Mounts}}"` 找資料實際存在哪個路徑，再算那個路徑的大小 |
+{% raw %}| pgvector / Postgres 佔多少 | `docker images` 看 image 大小 + `docker inspect <container> --format "{{json .Mounts}}"` 找資料實際存在哪個路徑，再算那個路徑的大小 |{% endraw %}
 | Embedding 模型（bge-m3 等）佔多少 | 這些模型通常不經過 Ollama，而是存在 HuggingFace 快取：`~/.cache/huggingface/hub`，逐子資料夾算大小 |
 | Python 套件（torch 等）佔多少 | 專案的 `venv` 資料夾大小 + `requirements.txt` 看有沒有 `sentence-transformers` / `torch` |
 | CPU/RAM/GPU 規格 | `Get-CimInstance Win32_Processor` / `Win32_ComputerSystem` / `Win32_VideoController` |

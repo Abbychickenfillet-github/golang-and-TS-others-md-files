@@ -238,6 +238,7 @@ docker scout compare myimage:old myimage:new
 ### GitHub Actions 範例
 
 ```yaml
+{% raw %}
 - name: Docker Scout Scan
   uses: docker/scout-action@v1
   with:
@@ -245,6 +246,7 @@ docker scout compare myimage:old myimage:new
     image: ${{ env.IMAGE_NAME }}
     only-severities: critical,high
     exit-code: true  # 有漏洞時 CI 失敗
+{% endraw %}
 ```
 
 ---

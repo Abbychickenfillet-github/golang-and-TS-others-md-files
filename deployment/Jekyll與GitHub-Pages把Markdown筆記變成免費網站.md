@@ -91,7 +91,7 @@ defaults:
 
 ![Obsidian 中的 _config.yml 與 .nojekyll](../obsidian-attachment/螢幕擷取畫面%202026-08-09%20180046.png)
 
-(k) <mark style="background: #FFF3A3A6;">這段設定在解決一個很煩的問題</mark>：Jekyll 預設會用 Liquid 樣板引擎處理所有檔案，而 Liquid 把 <code>&#123;&#123; &#125;&#125;</code> 和 <code>&#123;% %&#125;</code> 當成語法。<mark style="background: #FF5582A6;">如果筆記裡有 Vue、Handlebars、Jinja 的雙大括號範例，或者 Obsidian 的 `{{date}}` 樣板，建置就會直接失敗或內容被吃掉</mark>。`render_with_liquid: false` 對所有路徑（`path: ""` 代表全站）關掉 Liquid 處理，Markdown 照樣會被轉成 HTML，但大括號會原樣保留。
+{% raw %}(k) <mark style="background: #FFF3A3A6;">這段設定在解決一個很煩的問題</mark>：Jekyll 預設會用 Liquid 樣板引擎處理所有檔案，而 Liquid 把 <code>&#123;&#123; &#125;&#125;</code> 和 <code>&#123;% %&#125;</code> 當成語法。<mark style="background: #FF5582A6;">如果筆記裡有 Vue、Handlebars、Jinja 的雙大括號範例，或者 Obsidian 的 `{{date}}` 樣板，建置就會直接失敗或內容被吃掉</mark>。`render_with_liquid: false` 對所有路徑（`path: ""` 代表全站）關掉 Liquid 處理，Markdown 照樣會被轉成 HTML，但大括號會原樣保留。{% endraw %}
 
 (l) <mark style="background: #D2B3FFA6;">`.nojekyll` 與 `render_with_liquid: false` 的差別</mark>：前者是「連 Markdown 都不轉了，全部當原始檔」；後者是「還是要 Jekyll 幫我轉 Markdown，只是不要碰我的大括號」。<mark style="background: #FF5582A6;">兩個同時放會互相矛盾</mark>——`.nojekyll` 一旦生效，`_config.yml` 就完全不會被讀。
 

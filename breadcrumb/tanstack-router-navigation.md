@@ -122,6 +122,7 @@ const search = routerState.location.search
 ## Link 元件 vs useNavigate
 
 ```tsx
+{% raw %}
 // Link 元件（宣告式，用於 JSX）
 import { Link } from "@tanstack/react-router"
 
@@ -139,6 +140,7 @@ const handleClick = () => {
     search: { edit: true },
   })
 }
+{% endraw %}
 ```
 
 ---

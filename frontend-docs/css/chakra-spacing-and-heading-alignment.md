@@ -48,6 +48,7 @@ Chakra 數字 × 4 = 對應的 px 值
 實際程式碼在 `src/components/Common/Sidebar.tsx`，結構如下：
 
 ```tsx
+{% raw %}
 {/* Desktop Sidebar（line 120~168）*/}
 <Box                                    {/* ← 第一層：外層 Box */}
   p={isCollapsed ? 1 : 3}              {/* ← 展開時 p=3 → 3×4 = 12px（上下左右都是 12px）*/}
@@ -68,6 +69,7 @@ Chakra 數字 × 4 = 對應的 px 值
     </Box>
   </Flex>
 </Box>
+{% endraw %}
 ```
 
 Logo `<Image>` 的上緣距離視窗頂部 = 第一層 padding-top + 第二層 padding-top：
@@ -83,7 +85,9 @@ lg 斷點：第一層 p=3 (12px) + 第二層 p=4 (16px) = Chakra 3+4 = 7 → 7×
 ### Step 2：讓 Heading 的 padding-top 匹配這個距離
 
 ```tsx
+{% raw %}
 <Heading pt={{ base: 8, md: 5, lg: 7 }}>
+{% endraw %}
 ```
 
 換算：
@@ -102,6 +106,7 @@ lg 斷點：第一層 p=3 (12px) + 第二層 p=4 (16px) = Chakra 3+4 = 7 → 7×
 **解法**：把 `<Navbar>` 移到 `<Heading>` 的下方。
 
 ```tsx
+{% raw %}
 {/* 正確寫法 */}
 <Container maxW="full" pb={4}>
   <Flex pt={{ base: 8, md: 5, lg: 7 }} mb={4}>
@@ -116,6 +121,7 @@ lg 斷點：第一層 p=3 (12px) + 第二層 p=4 (16px) = Chakra 3+4 = 7 → 7×
   <Navbar type="xxx" />       {/* Navbar 在 Heading 上面，Heading 被推下去 */}
   <Heading>頁面標題</Heading>
 </Container>
+{% endraw %}
 ```
 
 ---
@@ -125,5 +131,5 @@ lg 斷點：第一層 p=3 (12px) + 第二層 p=4 (16px) = Chakra 3+4 = 7 → 7×
 1. **Chakra 數字 × 4 = px**（前提：瀏覽器根字體 = 16px）
 2. **實際 CSS 單位是 rem**，不是 px
 3. Sidebar Logo 上緣位置：md = 20px, lg = 28px
-4. Heading 用 `pt={{ base: 8, md: 5, lg: 7 }}` 來匹配
+{% raw %}4. Heading 用 `pt={{ base: 8, md: 5, lg: 7 }}` 來匹配{% endraw %}
 5. `<Navbar>` 必須放在 `<Heading>` 下方，避免推擠

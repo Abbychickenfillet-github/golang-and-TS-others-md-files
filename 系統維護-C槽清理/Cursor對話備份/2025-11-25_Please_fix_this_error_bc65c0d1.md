@@ -28,9 +28,10 @@ Updated `frontend/src/routes/_layout/products.tsx` to import `ProductPublic` and
 我意思是<Container>文字被Sidebar.tsx蓋住了 @_layout.tsx (29-30) 
 
 ## Cursor
-Updated the shared layout so every page automatically reserves space for the fixed sidebar. The outer `Flex` now applies the sidebar offset as padding (`pl={{ base: 0, md: "80px", lg: "260px" }}`), and the child content boxes no longer rely on their own `ml`. This prevents the sidebar from covering `<Container>` content, including on the products page.
+{% raw %}Updated the shared layout so every page automatically reserves space for the fixed sidebar. The outer `Flex` now applies the sidebar offset as padding (`pl={{ base: 0, md: "80px", lg: "260px" }}`), and the child content boxes no longer rely on their own `ml`. This prevents the sidebar from covering `<Container>` content, including on the products page.{% endraw %}
 
 ```23:45:frontend/src/routes/_layout.tsx
+{% raw %}
 function Layout() {
   const { isLoading } = useAuth()
   const sidebarOffset = { base: 0, md: "80px", lg: "260px" }
@@ -51,6 +52,7 @@ function Layout() {
     </Flex>
   )
 }
+{% endraw %}
 ```
 
 No further build steps required; once refreshed, the main content stays fully visible next to the sidebar.
@@ -69,12 +71,12 @@ pl是什麼 這個數字怎麼看
 Chakra 會根據螢幕尺寸自動套用對應值，讓主內容永遠往右縮排，剛好避開固定在左側的 Sidebar。
 
 ## 你
-The outer Flex now applies the sidebar offset as padding (pl={{ base: 0, md: "80px", lg: "260px" }}), and the child content boxes no longer rely on their own ml. This prevents the sidebar from covering <Container> content, including on the products page.
+{% raw %}The outer Flex now applies the sidebar offset as padding (pl={{ base: 0, md: "80px", lg: "260px" }}), and the child content boxes no longer rely on their own ml. This prevents the sidebar from covering <Container> content, including on the products page.{% endraw %}
 
 用中文解釋
 
 ## Cursor
-外層的 `Flex` 現在用 `pl={{ base: 0, md: "80px", lg: "260px" }}` 來設定左側內距，也就是依不同螢幕尺寸預留與 Sidebar 相同寬度的空間。因為外層已經統一偏移量，裡面的內容區 (像是載有 `<Container>` 的 Box) 不再需要自己的 `ml`。這樣 Sidebar 就不會再遮住內容了，商品頁也能完整看到主要內容。
+{% raw %}外層的 `Flex` 現在用 `pl={{ base: 0, md: "80px", lg: "260px" }}` 來設定左側內距，也就是依不同螢幕尺寸預留與 Sidebar 相同寬度的空間。因為外層已經統一偏移量，裡面的內容區 (像是載有 `<Container>` 的 Box) 不再需要自己的 `ml`。這樣 Sidebar 就不會再遮住內容了，商品頁也能完整看到主要內容。{% endraw %}
 
 ## 你
 應該是不要固定內距吧 讓它自然一點 移除
@@ -99,7 +101,7 @@ Sidebar 是 `position: fixed`，會浮在內容上方。為右側內容加上對
 
 ## Cursor
 
-已更新 layout：在右側內容區加上 `ml={{ base: 0, md: "80px", lg: "260px" }}`，對應 Sidebar 的寬度：
+{% raw %}已更新 layout：在右側內容區加上 `ml={{ base: 0, md: "80px", lg: "260px" }}`，對應 Sidebar 的寬度：{% endraw %}
 
 - **手機版（base）**：`ml: 0`，因為 Sidebar 在手機版是隱藏的（使用 Drawer）
 - **中等螢幕（md）**：`ml: 80px`，對應 Sidebar 的精簡寬度
@@ -269,7 +271,7 @@ function Layout() {
 
           width="full"
 
-          ml={{ base: 0, md: "80px", lg: "260px" }}
+{% raw %}          ml={{ base: 0, md: "80px", lg: "260px" }}{% endraw %}
 
         >
 
@@ -281,7 +283,7 @@ function Layout() {
 
         <Box
 
-          pt={{ base: 10, md: 0 }}
+{% raw %}          pt={{ base: 10, md: 0 }}{% endraw %}
 
           w="full"
 
@@ -289,7 +291,7 @@ function Layout() {
 
           overflowX="hidden"
 
-          ml={{ base: 0, md: "80px", lg: "260px" }}
+{% raw %}          ml={{ base: 0, md: "80px", lg: "260px" }}{% endraw %}
 
         >
 
@@ -2191,7 +2193,7 @@ interface NavbarProps {
                   size="sm"
                   onClick={addModal.onOpen}
                   flex={showSearch ? 1 : undefined}
-                  minW={{ base: "150px", md: "250px" }}
+{% raw %}                  minW={{ base: "150px", md: "250px" }}{% endraw %}
                   maxW="100%"
                 >
                   <Icon as={FaPlus} /> 新增{getChineseTypeName(type)}
@@ -2215,7 +2217,7 @@ interface NavbarProps {
             <Button
               variant="primary"
               gap={1}
-              fontSize={{ base: "sm", md: "inherit" }}
+{% raw %}              fontSize={{ base: "sm", md: "inherit" }}{% endraw %}
               onClick={addModal.onOpen}
             >
               <Icon as={FaPlus} /> 新增{getChineseTypeName(type)}
@@ -3748,7 +3750,7 @@ const menuColor = useColorModeValue("gray.800", "white")
 const menuItemHoverBg = useColorModeValue("gray.100", "gray.700")
 
 <MenuList bg={menuBg} color={menuColor}>
-  <MenuItem _hover={{ bg: menuItemHoverBg }}>...</MenuItem>
+{% raw %}  <MenuItem _hover={{ bg: menuItemHoverBg }}>...</MenuItem>{% endraw %}
 </MenuList>
 ```
 
@@ -4548,6 +4550,7 @@ INSERT INTO `map` (
     NOW()
 );
 ```
+{% raw %}
 
 > 第二筆的 `map_url` 我指向 `public/assets/map/2025_FoodExhibitionMap.pdf`，等同於前端可透過 `https://{domain}/assets/map/2025_FoodExhibitionMap.pdf` 取得。若最後確認只能用 JPG，請把檔案轉或改連結為 `/assets/map/2025_FoodExhibitionMap.jpg`（同層既有的 JPG）後再執行即可。
 
@@ -4599,13 +4602,14 @@ INSERT INTO `map` (
 ## Cursor
 確實就是那段程式碼造成的。現在 `Thead` 只有前兩欄（「操作」、「公司名稱」）有手動指定 `bg="gray.50"` / `_dark={{ bg: "gray.800" }}`，後面的 `Th` 都沒有覆寫背景色，所以會落回 Chakra Table variant 的預設（白底），看起來就像只有前兩欄是淺灰。
 
+{% endraw %}
 ```293:312:frontend/src/routes/_layout/general-contractors.tsx
 <Th
   position="sticky"
   left={0}
   zIndex={2}
   bg="gray.50"
-  _dark={{ bg: "gray.800" }}
+{% raw %}  _dark={{ bg: "gray.800" }}{% endraw %}
   ...
 >
   操作
@@ -4615,7 +4619,7 @@ INSERT INTO `map` (
   left="80px"
   zIndex={2}
   bg="gray.50"
-  _dark={{ bg: "gray.800" }}
+{% raw %}  _dark={{ bg: "gray.800" }}{% endraw %}
   ...
 >
   公司名稱

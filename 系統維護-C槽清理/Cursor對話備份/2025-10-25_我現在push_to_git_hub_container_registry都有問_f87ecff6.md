@@ -26,7 +26,7 @@
 目錄已經存在，讓我檢查一下現有的工作流程文件：
 
 ## Cursor
-現在我找到了問題！在第 69-72 行，GitHub Container Registry 的推送命令使用了 `${{ github.repository }}` 變數，這個變數會包含你的 GitHub 用戶名，而你的用戶名 `Abbychickenfillet-github` 包含大寫字母。
+{% raw %}現在我找到了問題！在第 69-72 行，GitHub Container Registry 的推送命令使用了 `${{ github.repository }}` 變數，這個變數會包含你的 GitHub 用戶名，而你的用戶名 `Abbychickenfillet-github` 包含大寫字母。{% endraw %}
 
 GitHub Container Registry 要求倉庫名稱必須全部小寫。讓我修復這個問題：
 
@@ -50,6 +50,7 @@ GitHub Container Registry 要求倉庫名稱必須全部小寫。讓我修復這
 
 ## 修改內容
 ```yaml
+{% raw %}
 # 10. 推送到 GitHub Container Registry
 - name: Push to GitHub Container Registry
   run: |
@@ -58,6 +59,7 @@ GitHub Container Registry 要求倉庫名稱必須全部小寫。讓我修復這
     docker tag next-one-app ghcr.io/$REPO_NAME/next-one-app:${{ github.sha }}
     docker push ghcr.io/$REPO_NAME/next-one-app:latest
     docker push ghcr.io/$REPO_NAME/next-one-app:${{ github.sha }}
+{% endraw %}
 ```
 
 現在當你推送代碼到 GitHub 時，CI/CD 流程會：
@@ -100,10 +102,10 @@ tr '[:upper:] '[:lower:]'是什麼
 - **範例**：`Abbychickenfillet-github` → `abbychickenfillet-github`
 
 ### 3. GitHub 變數
-- `${{ github.repository }}`：完整的倉庫名稱 (用戶名/倉庫名)
-- `${{ github.actor }}`：觸發工作流程的 GitHub 用戶名
-- `${{ github.sha }}`：Git 提交的 SHA 值
-- `${{ secrets.GITHUB_TOKEN }}`：GitHub 自動提供的認證令牌
+{% raw %}- `${{ github.repository }}`：完整的倉庫名稱 (用戶名/倉庫名){% endraw %}
+{% raw %}- `${{ github.actor }}`：觸發工作流程的 GitHub 用戶名{% endraw %}
+{% raw %}- `${{ github.sha }}`：Git 提交的 SHA 值{% endraw %}
+{% raw %}- `${{ secrets.GITHUB_TOKEN }}`：GitHub 自動提供的認證令牌{% endraw %}
 
 ## 為什麼需要轉換為小寫？
 GitHub Container Registry 有嚴格的命名規則：
@@ -143,7 +145,7 @@ GitHub Actions 只會讀取 `.github/workflows/` 目錄下的 `.yml` 或 `.yaml`
 1. **位置錯誤**：應該在 `.github/workflows/` 目錄下
 2. **重複步驟**：第 70-84 行有重複的 "Push to GitHub Container Registry" 步驟
 3. **語法錯誤**：第 67-68 行的步驟定義不完整
-4. **仍然有大寫問題**：第 81-84 行仍然使用 `${{ github.repository }}` 沒有轉換為小寫
+{% raw %}4. **仍然有大寫問題**：第 81-84 行仍然使用 `${{ github.repository }}` 沒有轉換為小寫{% endraw %}
 
 ## 解決方案
 

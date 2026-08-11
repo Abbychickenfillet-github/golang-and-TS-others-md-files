@@ -42,7 +42,7 @@ updated: 2026-07-12
 
 ### 3. `ghcr.io` = GitHub Container Registry；OCI = Open Container Initiative
 
-- <mark style="background: #ADCCFFA6;">`ghcr.io`</mark>：GitHub 官方的 Docker 映像檔託管服務，作用等同 Docker Hub（`docker.io`），但與 Repo / Actions 緊密整合，登入時可用 `registry: ghcr.io` + `${{ secrets.GITHUB_TOKEN }}`。
+{% raw %}- <mark style="background: #ADCCFFA6;">`ghcr.io`</mark>：GitHub 官方的 Docker 映像檔託管服務，作用等同 Docker Hub（`docker.io`），但與 Repo / Actions 緊密整合，登入時可用 `registry: ghcr.io` + `${{ secrets.GITHUB_TOKEN }}`。{% endraw %}
 - <mark style="background: #ADCCFFA6;">OCI（Open Container Initiative）</mark>：由 Docker、Google、Red Hat、AWS 共同制定的**容器標準**（不是產品），定義 Image Spec（映像檔怎麼打包）與 Runtime Spec（容器怎麼執行）。
 
 ### 4. 陷阱：映像檔名稱必須全小寫
@@ -59,8 +59,8 @@ invalid reference format: repository name (Abbychickenfillet-github/...) must be
 
 | 變數 | 內容 | 範例 |
 |---|---|---|
-| `${{ github.repository_owner }}` | 只有擁有者名稱 | `Abbychickenfillet-github` |
-| `${{ github.repository }}` | 擁有者/儲存庫全名 | `Abbychickenfillet-github/next-one-time-tracker` |
+{% raw %}| `${{ github.repository_owner }}` | 只有擁有者名稱 | `Abbychickenfillet-github` |{% endraw %}
+{% raw %}| `${{ github.repository }}` | 擁有者/儲存庫全名 | `Abbychickenfillet-github/next-one-time-tracker` |{% endraw %}
 
 <mark style="background: #FFF3A3A6;">兩個都可能含大寫</mark>，用在 `ghcr.io` 路徑前都要先轉小寫。
 
@@ -69,6 +69,7 @@ invalid reference format: repository name (Abbychickenfillet-github/...) must be
 <mark style="background: #BBFABBA6;">推薦做法</mark>：在 push 步驟前新增一步，把名稱轉小寫寫入 `$GITHUB_ENV`：
 
 ```yaml
+{% raw %}
 # 【新增步驟】把 repository 名稱轉小寫，存進環境變數
 - name: Set repository name to lowercase
   run: echo "REPO_LC=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
@@ -78,12 +79,13 @@ invalid reference format: repository name (Abbychickenfillet-github/...) must be
   run: |
     docker tag next-one-app ghcr.io/${{ env.REPO_LC }}/next-one-app:latest
     docker push ghcr.io/${{ env.REPO_LC }}/next-one-app:latest
+{% endraw %}
 ```
 
 重點釐清：
 
 - <mark style="background: #FF5582A6;">`name:` 和 `run:` 屬於同一個 step</mark>，不要把 `run:` 前面多加一個 `-`（那會拆成兩個 step，語法錯誤）。
-- `>> $GITHUB_ENV` 是 Actions 的「魔法」：把 `KEY=value` 附加進特殊檔案，後續所有 step 都能用 `${{ env.KEY }}` 讀到。
+{% raw %}- `>> $GITHUB_ENV` 是 Actions 的「魔法」：把 `KEY=value` 附加進特殊檔案，後續所有 step 都能用 `${{ env.KEY }}` 讀到。{% endraw %}
 - <mark style="background: #BBFABBA6;">不需要</mark>去 GitHub 網頁 Settings → Variables 手動設定；那是「靜態寫死」，而 `run: ... >> $GITHUB_ENV` 是「動態產生」，帳號名變了也不用手動維護。
 - <mark style="background: #D2B3FFA6;">不影響 Zeabur</mark>：`REPO_LC` 只活在那台臨時 runner，Job 結束就銷毀，沒改程式碼、沒改 repo 名稱。
 - <mark style="background: #FF5582A6;">千萬別為此改 GitHub 使用者名稱</mark>：會導致所有 `git remote`、`ghcr.io` 路徑、外部連結、依賴全部失效。
@@ -104,7 +106,7 @@ invalid reference format: repository name (Abbychickenfillet-github/...) must be
 
 每次 push 都 build 新映像檔，幾週就塞爆數十 GB。三個方向解決：
 
-**策略一：少推冗餘 tag。** 同時推 `latest` 和 `${{ github.sha }}` 時——`latest` 是指針，被覆蓋後舊的會變成 `<none>`（<mark style="background: #ADCCFFA6;">dangling / untagged image，懸空映像檔</mark>），容量還霸佔著；`${{ github.sha }}` 則永久唯一、每次多一版。日常開發可只推 `latest`。
+{% raw %}**策略一：少推冗餘 tag。** 同時推 `latest` 和 `${{ github.sha }}` 時——`latest` 是指針，被覆蓋後舊的會變成 `<none>`（<mark style="background: #ADCCFFA6;">dangling / untagged image，懸空映像檔</mark>），容量還霸佔著；`${{ github.sha }}` 則永久唯一、每次多一版。日常開發可只推 `latest`。{% endraw %}
 
 **策略二：遠端設自動清理規則（終極大招）。** GHCR：Packages → 該映像檔 → Package settings → Lifecycle rules，設定「刪除 untagged 映像檔」或「只保留最近 N 版」。Docker Hub 免費版會自動清超過一個月沒被 pull/push 的映像檔。
 
