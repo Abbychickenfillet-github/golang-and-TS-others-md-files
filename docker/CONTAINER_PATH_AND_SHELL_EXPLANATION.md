@@ -1,3 +1,7 @@
+---
+title: "CONTAINER_PATH_AND_SHELL_EXPLANATION"
+---
+
 # 容器路徑結構和 Shell 命令說明
 
 ## 1. 為什麼是 `/app/app` 而不是 `/app`？

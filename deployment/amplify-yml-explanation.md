@@ -1,3 +1,7 @@
+---
+title: "amplify-yml-explanation"
+---
+
 # AWS Amplify 與 amplify.yml 解釋
 
 ## 什麼是 AWS Amplify？

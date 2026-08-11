@@ -1,3 +1,7 @@
+---
+title: "餘弦相似度與pgvector"
+---
+
 # 餘弦相似度與 pgvector
 
 > 主題：什麼是餘弦相似度、`<=>` 距離怎麼翻成相似度、SQL 裡 `%s::vector` 與 `AS similarity` 在做什麼。

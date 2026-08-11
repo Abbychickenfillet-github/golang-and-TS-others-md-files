@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Please_fix_this_error_cc72ffc7"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-28 00:06 · `cc72ffc7-c852-4aa9-a41a-7c8e1afb5373` · 5 則

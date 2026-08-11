@@ -1,3 +1,7 @@
+---
+title: "svg-basics-and-display"
+---
+
 # SVG 基礎與 display 行為
 
 ## SVG 是什麼

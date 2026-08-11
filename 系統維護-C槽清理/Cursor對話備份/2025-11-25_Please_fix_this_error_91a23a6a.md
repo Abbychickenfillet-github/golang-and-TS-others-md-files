@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_91a23a6a"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 15:37 · `91a23a6a-3bd6-4d3a-b144-27e6423b18b7` · 1 則

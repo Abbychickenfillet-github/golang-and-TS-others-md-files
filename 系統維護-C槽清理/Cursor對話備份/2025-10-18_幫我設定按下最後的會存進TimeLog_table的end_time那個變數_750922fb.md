@@ -1,3 +1,7 @@
+---
+title: "2025-10-18_幫我設定按下最後的會存進TimeLog_table的end_time那個變數_750922fb"
+---
+
 # 幫我設定按下最後的(會存進TimeLog table的end_time那個變數)
 
 > Cursor 對話 · 2025-10-18 23:41 · composerId `750922fb-7b7f-4ebd-acd4-07b15cbe8053` · 190 則訊息

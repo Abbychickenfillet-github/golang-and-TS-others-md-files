@@ -1,3 +1,7 @@
+---
+title: "Go路由註冊"
+---
+
 # Go 路由註冊 + Router Group + Logger 放哪裡
 
 ## Router Group（路由群組）

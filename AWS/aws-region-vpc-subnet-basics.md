@@ -1,3 +1,7 @@
+---
+title: "aws-region-vpc-subnet-basics"
+---
+
 # AWS 基礎：Region / AZ / VPC / Subnet / EC2 整合筆記
 
 > 這份筆記整理 AWS 最基礎的五個網路層概念——從最外層的「地理區域」一路切到最裡面的「虛擬機器」，以及它們組合起來怎麼達成高可用性（HA）。

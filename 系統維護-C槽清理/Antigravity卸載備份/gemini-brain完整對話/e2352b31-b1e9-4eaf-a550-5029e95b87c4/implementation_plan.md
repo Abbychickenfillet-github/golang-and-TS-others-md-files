@@ -1,3 +1,7 @@
+---
+title: "implementation_plan"
+---
+
 # Verifying Payment Integration Plan
 
 ## Goal Description

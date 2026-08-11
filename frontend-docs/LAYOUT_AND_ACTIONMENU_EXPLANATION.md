@@ -1,3 +1,7 @@
+---
+title: "LAYOUT_AND_ACTIONMENU_EXPLANATION"
+---
+
 # _layout 路由和 ActionMenu 組件詳解
 
 ## 1. 為什麼 `_layout` 屬於 routes？

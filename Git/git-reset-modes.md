@@ -1,3 +1,7 @@
+---
+title: "git-reset-modes"
+---
+
 # Git Reset 三種模式
 
 ## 前置：Index（暫存區）是什麼？

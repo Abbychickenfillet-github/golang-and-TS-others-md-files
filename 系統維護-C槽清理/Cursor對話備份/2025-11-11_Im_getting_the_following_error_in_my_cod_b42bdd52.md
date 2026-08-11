@@ -1,3 +1,7 @@
+---
+title: "2025-11-11_Im_getting_the_following_error_in_my_cod_b42bdd52"
+---
+
 # Im getting the following error in my cod
 
 > Cursor · 2025-11-11 02:30 · `b42bdd52-8b1a-4114-88d5-fa0e517ec710` · 6 則

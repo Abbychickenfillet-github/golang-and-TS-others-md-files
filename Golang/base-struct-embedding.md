@@ -1,3 +1,7 @@
+---
+title: "base-struct-embedding"
+---
+
 # Base Struct 與 Struct Embedding
 
 ## Base 不是 Go 語言自動的，是專案自己定義的

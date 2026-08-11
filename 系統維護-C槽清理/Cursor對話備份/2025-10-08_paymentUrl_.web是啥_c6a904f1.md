@@ -1,3 +1,7 @@
+---
+title: "2025-10-08_paymentUrl_.web是啥_c6a904f1"
+---
+
 # paymentUrl .web是啥
 
 > Cursor 對話 · 2025-10-08 13:58 · composerId `c6a904f1-b1d4-43e8-a9ac-6d78393f845c` · 20 則訊息

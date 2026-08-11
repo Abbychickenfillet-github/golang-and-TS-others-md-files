@@ -1,3 +1,7 @@
+---
+title: "cfg-config-explained"
+---
+
 # cfg 是什麼？
 
 ## 一句話解釋

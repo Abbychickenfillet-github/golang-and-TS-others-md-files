@@ -1,3 +1,7 @@
+---
+title: "refactor-booth-types-to-usequery"
+---
+
 # Refactor: loadBoothTypesAndPricing → useQuery + 後端聚合 API
 
 > **建立日期**: 2026/03/02

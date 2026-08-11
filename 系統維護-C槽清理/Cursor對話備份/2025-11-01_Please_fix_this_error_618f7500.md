@@ -1,3 +1,7 @@
+---
+title: "2025-11-01_Please_fix_this_error_618f7500"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-01 19:50 · `618f7500-1821-4510-abcb-faec34e836c1` · 43 則

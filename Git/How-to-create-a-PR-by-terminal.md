@@ -1,3 +1,7 @@
+---
+title: "How-to-create-a-PR-by-terminal"
+---
+
 # How to Create a PR by Terminal
 
 ## 基本指令

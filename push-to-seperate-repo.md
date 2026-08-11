@@ -1,3 +1,7 @@
+---
+title: "push-to-seperate-repo"
+---
+
 # 分離 Repo 同步指南
 
 本文件說明如何從 monorepo (clone2) 同步變更到分離出去的獨立 repo。

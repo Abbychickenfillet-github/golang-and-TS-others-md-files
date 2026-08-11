@@ -1,3 +1,7 @@
+---
+title: "walkthrough"
+---
+
 # 衝突修復總結
 
 我已經根據你的要求，在 `official_website/src/pages/EventRegisterPaymentPage.tsx` 中完成了衝突修復與邏輯調整。

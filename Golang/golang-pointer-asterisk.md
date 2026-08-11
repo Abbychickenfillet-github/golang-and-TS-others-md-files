@@ -1,3 +1,7 @@
+---
+title: "golang-pointer-asterisk"
+---
+
 # Go 指標（Pointer）與星號 `*` 解釋
 
 ## 什麼是指標？

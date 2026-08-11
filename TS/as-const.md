@@ -1,3 +1,7 @@
+---
+title: "as-const"
+---
+
 # `as const` — 叫 TypeScript 別偷懶，照原樣記
 
 ## 一句話解釋

@@ -1,5 +1,5 @@
 ---
-title: 磁碟機代號與軟碟：為什麼現在沒有 A: 槽、B: 槽？
+title: "磁碟機代號與軟碟：為什麼現在沒有 A: 槽、B: 槽？"
 type: concept-note
 tags: [windows, 硬體, 磁碟, 軟碟, floppy, cli]
 updated: 2026-07-17

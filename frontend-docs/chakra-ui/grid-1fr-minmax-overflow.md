@@ -1,3 +1,7 @@
+---
+title: "grid-1fr-minmax-overflow"
+---
+
 # CSS Grid 欄寬對齊問題：1fr、minmax、文字溢出
 
 ## 情境

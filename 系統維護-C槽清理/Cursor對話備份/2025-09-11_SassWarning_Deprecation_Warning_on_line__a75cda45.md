@@ -1,3 +1,7 @@
+---
+title: "2025-09-11_SassWarning_Deprecation_Warning_on_line__a75cda45"
+---
+
 # SassWarning Deprecation Warning on line 
 
 > Cursor · 2025-09-11 16:18 · `a75cda45-3121-4cdf-9f09-4b326e7baa5c` · 19 則

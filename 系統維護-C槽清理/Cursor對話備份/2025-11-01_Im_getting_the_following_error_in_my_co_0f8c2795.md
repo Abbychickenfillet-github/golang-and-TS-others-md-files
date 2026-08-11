@@ -1,3 +1,7 @@
+---
+title: "2025-11-01_Im_getting_the_following_error_in_my_co_0f8c2795"
+---
+
 # I'm getting the following error in my co
 
 > Cursor 對話 · 2025-11-01 19:48 · composerId `0f8c2795-8814-41e1-869e-92fdf010d936` · 4 則訊息

@@ -1,3 +1,7 @@
+---
+title: "pretrained-models-explained"
+---
+
 # 預訓練模型（Pre-trained Model）是什麼？
 
 > 觸發場景：寫 `Embedder` class 時 `SentenceTransformer("BAAI/bge-m3")` 載入了一個 2.3GB 的「東西」，這個東西到底是什麼？我們又沒訓練它，為何就能把句子變成 1024 維向量？

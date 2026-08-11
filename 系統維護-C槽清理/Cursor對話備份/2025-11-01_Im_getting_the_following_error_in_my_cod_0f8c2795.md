@@ -1,3 +1,7 @@
+---
+title: "2025-11-01_Im_getting_the_following_error_in_my_cod_0f8c2795"
+---
+
 # Im getting the following error in my cod
 
 > Cursor · 2025-11-01 19:48 · `0f8c2795-8814-41e1-869e-92fdf010d936` · 4 則

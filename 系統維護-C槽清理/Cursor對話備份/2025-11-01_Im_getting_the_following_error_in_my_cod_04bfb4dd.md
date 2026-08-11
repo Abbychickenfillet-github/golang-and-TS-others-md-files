@@ -1,3 +1,7 @@
+---
+title: "2025-11-01_Im_getting_the_following_error_in_my_cod_04bfb4dd"
+---
+
 # Im getting the following error in my cod
 
 > Cursor · 2025-11-01 19:14 · `04bfb4dd-f40d-44da-a8fb-eb3bfaec108d` · 8 則

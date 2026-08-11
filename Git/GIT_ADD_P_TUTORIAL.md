@@ -1,3 +1,7 @@
+---
+title: "GIT_ADD_P_TUTORIAL"
+---
+
 # Git Add -p 互動式暫存教學
 
 ## 什麼是 `git add -p`？

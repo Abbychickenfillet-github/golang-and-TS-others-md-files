@@ -1,3 +1,7 @@
+---
+title: "ecpay-aio-payment-methods"
+---
+
 # ECPay AIO 所有付款方式（ChoosePayment）及付款期限
 
 > 來源：ECPay 全方位金流 AIO 技術文件 (2026-03 SNAPSHOT)

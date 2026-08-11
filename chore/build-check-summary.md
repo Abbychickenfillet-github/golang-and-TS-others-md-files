@@ -1,3 +1,7 @@
+---
+title: "build-check-summary"
+---
+
 # 構建檢查和實現總結
 
 ## 1. 構建檢查結果

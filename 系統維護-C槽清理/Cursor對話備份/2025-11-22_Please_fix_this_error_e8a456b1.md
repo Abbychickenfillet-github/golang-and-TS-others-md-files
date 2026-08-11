@@ -1,3 +1,7 @@
+---
+title: "2025-11-22_Please_fix_this_error_e8a456b1"
+---
+
 # Please fix this error:
 
 > Cursor · 2025-11-22 12:19 · `e8a456b1-4140-4ab4-91ab-4f188fc0794e` · 463 則

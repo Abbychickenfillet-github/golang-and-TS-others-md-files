@@ -1,3 +1,7 @@
+---
+title: "2025-11-14_Im_getting_the_following_error_in_my_cod_dc2ac606"
+---
+
 # Im getting the following error in my cod
 
 > Cursor · 2025-11-14 22:24 · `dc2ac606-024f-4f0f-8c63-7d923e060520` · 7 則

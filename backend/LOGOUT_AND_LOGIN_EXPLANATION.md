@@ -1,3 +1,7 @@
+---
+title: "LOGOUT_AND_LOGIN_EXPLANATION"
+---
+
 # 登出後能否正常登入？詳細解釋
 
 ## 問題：登出時將 jti 存入黑名單表，下次還能正常登入嗎？

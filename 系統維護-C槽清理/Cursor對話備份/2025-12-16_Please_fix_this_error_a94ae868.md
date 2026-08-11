@@ -1,3 +1,7 @@
+---
+title: "2025-12-16_Please_fix_this_error_a94ae868"
+---
+
 # Please fix this error
 
 > Cursor · 2025-12-16 19:02 · `a94ae868-0d9a-4164-b597-3b49645c41eb` · 8 則

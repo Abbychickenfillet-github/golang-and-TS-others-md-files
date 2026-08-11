@@ -1,3 +1,7 @@
+---
+title: "string-slice-and-datetime-local"
+---
+
 # String.slice() 與 datetime-local 輸入框
 
 ## `.slice(0, 16)` 是什麼？

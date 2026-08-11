@@ -1,3 +1,7 @@
+---
+title: "menu-vs-accordion"
+---
+
 # Menu vs Accordion 組件對比
 
 ## 核心區別

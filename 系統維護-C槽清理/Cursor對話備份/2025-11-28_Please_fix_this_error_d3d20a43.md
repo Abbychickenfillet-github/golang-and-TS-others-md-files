@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Please_fix_this_error_d3d20a43"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-28 00:08 · `d3d20a43-e505-4794-9c3e-911a7a150f4d` · 8 則

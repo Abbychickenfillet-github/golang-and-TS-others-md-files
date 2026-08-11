@@ -1,3 +1,7 @@
+---
+title: "索引index與外鍵命名"
+---
+
 # 索引 (Index) 是什麼？外鍵與索引的命名
 
 > 起因：在 event 表看到 `fk_event_updated_by`，以為它是欄位，搞不清楚跟 `updated_by` 的關係。

@@ -1,3 +1,7 @@
+---
+title: "2025-10-13_For_the_code_present_we_get_this_error_b657072e"
+---
+
 # For the code present we get this error
 
 > Cursor · 2025-10-13 15:19 · `b657072e-fd24-4a94-96e2-e82064c30459` · 42 則

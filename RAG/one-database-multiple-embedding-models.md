@@ -1,3 +1,7 @@
+---
+title: "one-database-multiple-embedding-models"
+---
+
 # 同一個 Database 可以用多個 Embedding Model 嗎？
 
 > **這份筆記回答**：

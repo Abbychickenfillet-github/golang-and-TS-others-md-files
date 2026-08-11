@@ -1,3 +1,7 @@
+---
+title: "refactoring_proposal"
+---
+
 # Backend Refactoring Proposal: Modularizing `main.go`
 
 ## 1. Executive Summary

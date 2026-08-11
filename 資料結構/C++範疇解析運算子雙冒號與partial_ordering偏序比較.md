@@ -1,5 +1,5 @@
 ---
-title: C++ 雙冒號 :: 與 partial_ordering——範疇解析運算子與偏序比較
+title: "C++ 雙冒號 :: 與 partial_ordering——範疇解析運算子與偏序比較"
 type: topic-note
 source: Gemini
 category: 技術

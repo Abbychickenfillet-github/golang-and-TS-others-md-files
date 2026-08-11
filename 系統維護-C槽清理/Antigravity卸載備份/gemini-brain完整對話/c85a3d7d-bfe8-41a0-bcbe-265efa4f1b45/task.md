@@ -1,3 +1,7 @@
+---
+title: "task"
+---
+
 # Task: Debug Booth Price Display
 
 - [ ] Investigate `EventsCreateBoothSettingsPage.tsx` logic for price display <!-- id: 0 -->

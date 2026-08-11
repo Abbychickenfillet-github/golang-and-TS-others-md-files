@@ -23,6 +23,17 @@ updated: 2026-07-17
 
 <mark style="background: #FFF3A3A6;">共同點</mark>：都是「從外部把東西放進來」。<mark style="background: #FF5582A6;">差別</mark>：DI 是你**主動、可信**地注入（好事）；後兩者是**攻擊者把不可信輸入當成「會被執行的指令」跨越信任邊界**（壞事）。
 
+```mermaid
+flowchart TD
+    A["(a) inject 本身中性"] --> B["(b) 三者總表"]
+    B -->|良性・設計模式| C["(c) DI 依賴注入"]
+    B -->|惡意・AI 資安| D["(d) Prompt Injection"]
+    B -->|惡意・Web 資安| E["(e) SQL Injection"]
+    C --> F["(f) 共通心法：資料與指令分開"]
+    D --> F
+    E --> F
+```
+
 ## (c) Dependency Injection（DI）— 良性設計模式
 
 <mark style="background: #ADCCFFA6;">DI = 把元件需要的「依賴」從外部傳進來，而不是元件自己 new 出來。</mark>好處：<mark style="background: #BBFABBA6;">降低耦合、方便替換、方便測試（可注入 mock）</mark>。

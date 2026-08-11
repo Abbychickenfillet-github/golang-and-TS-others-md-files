@@ -1,3 +1,7 @@
+---
+title: "sql-if-else-explanation"
+---
+
 # SQL 中的 IF...ELSE 邏輯
 
 ## 問題：這是 IF...ELSE 嗎？

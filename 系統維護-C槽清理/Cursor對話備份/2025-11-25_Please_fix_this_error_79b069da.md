@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_79b069da"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 15:54 · `79b069da-1d4c-4e1f-b9bc-2beddf9f16f2` · 2 則

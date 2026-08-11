@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_d60126d5"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 15:38 · `d60126d5-b35b-4a6d-8668-21390e7e75e7` · 2 則

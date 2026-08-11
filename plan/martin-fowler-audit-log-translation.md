@@ -1,3 +1,7 @@
+---
+title: "martin-fowler-audit-log-translation"
+---
+
 # Martin Fowler — Audit Log Pattern 翻譯與解析
 
 > 原文：https://martinfowler.com/eaaDev/AuditLog.html

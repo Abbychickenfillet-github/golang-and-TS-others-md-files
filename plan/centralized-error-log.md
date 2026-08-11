@@ -1,3 +1,7 @@
+---
+title: "centralized-error-log"
+---
+
 # Centralized Error/System Log 設計參考
 
 > 從 [action-log-table-design.md](action-log-table-design.md) 獨立出來。

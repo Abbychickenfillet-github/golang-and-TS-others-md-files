@@ -1,3 +1,7 @@
+---
+title: "event-handbook-visibility"
+---
+
 # 活動手冊可見性（Visibility）欄位新增計畫
 
 > 建立日期：2026-03-05

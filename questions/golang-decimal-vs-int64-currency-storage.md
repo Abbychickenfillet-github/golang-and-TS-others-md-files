@@ -1,3 +1,7 @@
+---
+title: "golang-decimal-vs-int64-currency-storage"
+---
+
 # Go 貨幣儲存：decimal(12,2) vs int64 vs string vs float64
 
 > 核心問題：TWD 沒有小數，適合用 `decimal(12,2)` 嗎？用 `int64` 會不會比較好？Model 寫死 `int64` 以後就不能用小數了？乾脆都存 `string` 最安全？

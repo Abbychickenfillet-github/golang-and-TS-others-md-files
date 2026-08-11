@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Please_fix_this_error_a5edd829"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-28 16:12 · `a5edd829-4806-4b42-8b00-165ccfc1e99c` · 2 則

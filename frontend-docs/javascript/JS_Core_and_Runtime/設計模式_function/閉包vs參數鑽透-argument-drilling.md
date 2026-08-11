@@ -1,3 +1,7 @@
+---
+title: "閉包vs參數鑽透-argument-drilling"
+---
+
 # 閉包(Closure) vs 參數鑽透(Argument / Prop Drilling)
 
 ## 範例來源

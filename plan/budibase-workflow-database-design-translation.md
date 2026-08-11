@@ -1,3 +1,7 @@
+---
+title: "budibase-workflow-database-design-translation"
+---
+
 # Workflow Management Database Design（工作流程管理資料庫設計）
 
 原文：https://budibase.com/blog/data/workflow-management-database-design/

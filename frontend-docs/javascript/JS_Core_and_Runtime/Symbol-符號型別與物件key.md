@@ -1,3 +1,7 @@
+---
+title: "Symbol-符號型別與物件key"
+---
+
 # Symbol 符號型別 & 物件的 key 只能 string / symbol
 
 > 相關：[[查看plain-object的prototype]]、[[Object靜態方法速查]]、[[for...of]]

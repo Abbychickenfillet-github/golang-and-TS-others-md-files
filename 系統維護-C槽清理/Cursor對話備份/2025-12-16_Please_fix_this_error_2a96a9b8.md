@@ -1,3 +1,7 @@
+---
+title: "2025-12-16_Please_fix_this_error_2a96a9b8"
+---
+
 # Please fix this error:
 
 > Cursor · 2025-12-16 19:07 · `2a96a9b8-0233-4426-9b3f-bc0148f61bd9` · 9 則

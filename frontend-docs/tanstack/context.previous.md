@@ -1,3 +1,7 @@
+---
+title: "context.previous"
+---
+
 # context.previous — 樂觀更新的備份機制
 
 ## context.previous 是什麼？

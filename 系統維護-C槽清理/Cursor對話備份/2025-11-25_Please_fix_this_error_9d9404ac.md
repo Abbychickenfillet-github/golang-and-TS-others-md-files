@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_9d9404ac"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 16:00 · `9d9404ac-d30d-4abf-804c-0d40d4468936` · 2 則

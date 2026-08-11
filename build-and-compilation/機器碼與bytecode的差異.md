@@ -1,3 +1,7 @@
+---
+title: "機器碼與bytecode的差異"
+---
+
 # 機器碼 (Machine Code) 與位元組碼 (Bytecode) 的差異
 
 > 出發點：

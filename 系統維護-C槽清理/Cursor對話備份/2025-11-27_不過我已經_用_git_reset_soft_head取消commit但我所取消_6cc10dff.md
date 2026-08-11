@@ -1,3 +1,7 @@
+---
+title: "2025-11-27_不過我已經_用_git_reset_soft_head取消commit但我所取消_6cc10dff"
+---
+
 # 不過我已經 用 git reset soft head取消commit但我所取消
 
 > Cursor · 2025-11-27 14:20 · `6cc10dff-c68b-4e6a-abfe-e358ea309214` · 87 則

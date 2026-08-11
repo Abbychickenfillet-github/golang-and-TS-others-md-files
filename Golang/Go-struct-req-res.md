@@ -1,3 +1,7 @@
+---
+title: "Go-struct-req-res"
+---
+
 # Go Struct 與 Request/Response 資料流
 
 ## c.ShouldBindJSON vs c.JSON

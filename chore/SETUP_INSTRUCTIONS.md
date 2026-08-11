@@ -1,3 +1,7 @@
+---
+title: "SETUP_INSTRUCTIONS"
+---
+
 # 在 Git Bash 中執行設置腳本
 
 ## 方法 1: 直接在 Git Bash 中執行（推薦）

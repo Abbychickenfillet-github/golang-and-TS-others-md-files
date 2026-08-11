@@ -1,3 +1,7 @@
+---
+title: "2025-12-07_為什麼_powershell_7-8_next_dev_-p_3000不行啊_ba428dd9"
+---
+
 # 為什麼 @powershell (7-8) next dev -p 3000不行
 
 > Cursor · 2025-12-07 11:06 · `ba428dd9-02d2-48aa-94a7-9cd5acfcfdfd` · 94 則

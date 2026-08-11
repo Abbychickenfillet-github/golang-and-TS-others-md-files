@@ -1,3 +1,7 @@
+---
+title: "自我測驗-迴圈-switch-日期-forin"
+---
+
 # 自我測驗：迴圈 / switch / 日期 / for...in
 
 > 出題範圍：`JavaScript-practicing/while-loop.html` 練習中我搞混過的點

@@ -1,3 +1,7 @@
+---
+title: "2025-12-28_Resolve_this_merge_conflict_Branch_56766943"
+---
+
 # Resolve this merge conflict @Branch
 
 > Cursor · 2025-12-28 18:11 · `56766943-e257-436c-b52b-4d32b8d8fa46` · 141 則

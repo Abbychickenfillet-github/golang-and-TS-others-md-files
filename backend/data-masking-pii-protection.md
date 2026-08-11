@@ -1,3 +1,7 @@
+---
+title: "data-masking-pii-protection"
+---
+
 # Data Masking / PII 遮蔽 — 學習資源與技術筆記
 
 ## 什麼是 Data Masking？

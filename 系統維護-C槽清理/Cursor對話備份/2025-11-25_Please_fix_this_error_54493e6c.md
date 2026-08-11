@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_54493e6c"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 19:57 · `54493e6c-0c02-4ec5-b580-6ffa20739bb9` · 1 則

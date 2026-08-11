@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Please_fix_this_error_f0c6cd17"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-28 02:11 · `f0c6cd17-8faf-4d24-b3a0-c6207a445ef5` · 8 則

@@ -1,3 +1,7 @@
+---
+title: "docstring與__doc__"
+---
+
 # docstring 與 `__doc__` 是什麼？（從零講起）
 
 > 接續筆記：[[三引號字串-vs-docstring]]。這篇專門把 docstring 跟 `__doc__` 講清楚。

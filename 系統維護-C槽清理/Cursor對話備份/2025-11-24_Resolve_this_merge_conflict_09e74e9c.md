@@ -1,3 +1,7 @@
+---
+title: "2025-11-24_Resolve_this_merge_conflict_09e74e9c"
+---
+
 # Resolve this merge conflict
 
 > Cursor · 2025-11-24 09:35 · `09e74e9c-d146-4de4-848e-3d29ea89144d` · 41 則

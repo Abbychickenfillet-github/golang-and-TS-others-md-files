@@ -1,3 +1,7 @@
+---
+title: "def函式與型別註記-helper-function"
+---
+
 # `def` 函式定義、型別註記與 helper function 模式
 
 ## 來源情境

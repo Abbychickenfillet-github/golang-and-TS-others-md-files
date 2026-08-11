@@ -1,3 +1,7 @@
+---
+title: "numpy-linear-algebra-fourier"
+---
+
 # NumPy、線性代數與傅立葉轉換（白話版）
 
 ## 一、NumPy 是什麼？

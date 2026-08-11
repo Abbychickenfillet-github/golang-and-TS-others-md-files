@@ -1,3 +1,7 @@
+---
+title: "digital-book-implementation-plan"
+---
+
 # 電子書/活動手冊系統 (Digital Handbook/Bookshelf)
 
 ## Context

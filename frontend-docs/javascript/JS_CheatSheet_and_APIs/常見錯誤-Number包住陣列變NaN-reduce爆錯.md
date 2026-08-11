@@ -1,3 +1,7 @@
+---
+title: "常見錯誤-Number包住陣列變NaN-reduce爆錯"
+---
+
 # 常見錯誤：`Number(陣列)` 變成 `NaN` → `.reduce is not a function`
 
 > 來源練習：`JavaScript-practicing/smallest-divisible-digit-product-2.js`

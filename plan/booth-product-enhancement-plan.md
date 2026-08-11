@@ -1,3 +1,7 @@
+---
+title: "booth-product-enhancement-plan"
+---
+
 # 攤位商品系統強化計畫
 
 > 建立日期：2026-02-26

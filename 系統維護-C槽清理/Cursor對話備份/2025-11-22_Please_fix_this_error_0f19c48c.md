@@ -1,3 +1,7 @@
+---
+title: "2025-11-22_Please_fix_this_error_0f19c48c"
+---
+
 # Please fix this error:
 
 > Cursor · 2025-11-22 19:19 · `0f19c48c-44a2-4b8c-8110-2690fffee8a9` · 92 則

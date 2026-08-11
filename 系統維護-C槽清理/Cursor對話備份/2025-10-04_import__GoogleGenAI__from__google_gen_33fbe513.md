@@ -1,3 +1,7 @@
+---
+title: "2025-10-04_import__GoogleGenAI__from__google_gen_33fbe513"
+---
+
 # import { GoogleGenAI } from  @google gen
 
 > Cursor 對話 · 2025-10-04 16:01 · composerId `33fbe513-d802-44c6-a933-6d0799d49399` · 93 則訊息

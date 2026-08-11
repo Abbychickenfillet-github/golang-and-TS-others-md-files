@@ -1,3 +1,7 @@
+---
+title: "interface-dependency-injection"
+---
+
 # Go Interface 與依賴注入：Service 如何參照 Repository
 
 ## 問題

@@ -1,3 +1,7 @@
+---
+title: "2026-06-09_divgrandpa_e6ed24ad"
+---
+
 # divgrandpa
 
 > Cursor · 2026-06-09 18:43 · `e6ed24ad-d24d-4c9b-8fe6-8b02a265c386` · 1 則

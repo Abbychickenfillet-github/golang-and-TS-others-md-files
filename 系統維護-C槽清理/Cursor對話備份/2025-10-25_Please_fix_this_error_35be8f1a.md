@@ -1,3 +1,7 @@
+---
+title: "2025-10-25_Please_fix_this_error_35be8f1a"
+---
+
 # Please fix this error
 
 > Cursor · 2025-10-25 22:24 · `35be8f1a-36cd-4e3a-a450-cde940dfca45` · 20 則

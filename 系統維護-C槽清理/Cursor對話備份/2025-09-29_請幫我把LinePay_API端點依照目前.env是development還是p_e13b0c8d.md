@@ -1,3 +1,7 @@
+---
+title: "2025-09-29_請幫我把LinePay_API端點依照目前.env是development還是p_e13b0c8d"
+---
+
 # 請幫我把LinePay API端點依照目前.env是development還是p
 
 > Cursor · 2025-09-29 17:49 · `e13b0c8d-9914-46e6-8b7e-759dd6e35fa0` · 84 則

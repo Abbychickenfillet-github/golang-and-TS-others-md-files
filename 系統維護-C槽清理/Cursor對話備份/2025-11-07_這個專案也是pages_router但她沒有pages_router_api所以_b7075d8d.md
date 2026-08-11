@@ -1,3 +1,7 @@
+---
+title: "2025-11-07_這個專案也是pages_router但她沒有pages_router_api所以_b7075d8d"
+---
+
 # 這個專案也是pages router但她沒有pages router api所以
 
 > Cursor · 2025-11-07 17:07 · `b7075d8d-df4d-4355-850f-227a0e9b17b0` · 2 則

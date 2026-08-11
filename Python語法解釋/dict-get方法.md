@@ -1,3 +1,7 @@
+---
+title: "dict-get方法"
+---
+
 # Python `dict.get()` 方法
 
 ## 一句話說明

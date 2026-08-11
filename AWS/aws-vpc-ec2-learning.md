@@ -1,3 +1,7 @@
+---
+title: "aws-vpc-ec2-learning"
+---
+
 # AWS VPC 與 EC2 學習筆記
 
 > **建檔日期**：2026-04-24

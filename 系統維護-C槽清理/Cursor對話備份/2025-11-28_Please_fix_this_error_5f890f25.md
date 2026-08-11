@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Please_fix_this_error_5f890f25"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-28 02:10 · `5f890f25-d799-4367-ad4e-281c6607b6b7` · 5 則

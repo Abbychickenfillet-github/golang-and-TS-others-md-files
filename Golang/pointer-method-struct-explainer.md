@@ -1,3 +1,7 @@
+---
+title: "pointer-method-struct-explainer"
+---
+
 # Go 語言觀念解答：指標、Nil Method、Struct
 
 這份筆記整理了關於 Go 語言中指標符號、Nil Pointer Method 以及 Struct 的核心觀念，目標是讓 15 歲的國中生也能聽懂。

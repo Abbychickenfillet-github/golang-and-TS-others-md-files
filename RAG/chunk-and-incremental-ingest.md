@@ -1,3 +1,7 @@
+---
+title: "chunk-and-incremental-ingest"
+---
+
 # Chunk 與 Incremental Ingest — 改了 md 還要重 chunk 嗎？
 
 > **這份筆記回答**：

@@ -1,3 +1,7 @@
+---
+title: "database-notes"
+---
+
 # 資料庫筆記
 
 ## SQL 命名規則

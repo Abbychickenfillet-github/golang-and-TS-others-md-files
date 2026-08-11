@@ -1,3 +1,7 @@
+---
+title: "2025-09-25_DB_HOST應該是postgres還是postgresql_9e9005e8"
+---
+
 # DB_HOST應該是postgres還是postgresql
 
 > Cursor · 2025-09-25 11:59 · `9e9005e8-a311-4d80-a25e-8090cdee6860` · 53 則

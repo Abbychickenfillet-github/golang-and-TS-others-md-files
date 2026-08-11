@@ -1,3 +1,7 @@
+---
+title: "booth-settings-guide"
+---
+
 # 展場配置指南
 
 > 後台路徑：`/events/create/booth-settings?event_id=xxx`

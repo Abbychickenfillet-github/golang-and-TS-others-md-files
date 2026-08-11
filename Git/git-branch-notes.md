@@ -1,3 +1,7 @@
+---
+title: "git-branch-notes"
+---
+
 # Git 分支問題筆記
 
 ## 問題：為什麼新分支沒有舊分支的 commits？

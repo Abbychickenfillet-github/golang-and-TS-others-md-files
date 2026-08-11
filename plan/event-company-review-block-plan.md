@@ -1,3 +1,7 @@
+---
+title: "event-company-review-block-plan"
+---
+
 # 活動品牌商審核 + 封鎖功能 — 全端實作計畫（單表設計）
 
 ## Context

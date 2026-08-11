@@ -1,3 +1,7 @@
+---
+title: "permission-system-explanation"
+---
+
 # 權限管理系統說明
 
 ## 程式碼解釋

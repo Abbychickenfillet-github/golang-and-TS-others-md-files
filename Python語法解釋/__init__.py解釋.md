@@ -1,3 +1,7 @@
+---
+title: "__init__.py解釋"
+---
+
 # Python `__init__.py` 解釋
 
 ## 一句話說明

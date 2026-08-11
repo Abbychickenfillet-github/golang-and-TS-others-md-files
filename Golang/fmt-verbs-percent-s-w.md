@@ -1,3 +1,7 @@
+---
+title: "fmt-verbs-percent-s-w"
+---
+
 # Go 格式化動詞：%s vs %w
 
 ## %s — 格式化為字串

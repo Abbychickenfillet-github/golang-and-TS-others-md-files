@@ -1,3 +1,7 @@
+---
+title: "2025-12-01_Please_fix_this_error_0521386f"
+---
+
 # Please fix this error
 
 > Cursor · 2025-12-01 18:24 · `0521386f-0b00-487d-9664-4e09d4389446` · 1 則

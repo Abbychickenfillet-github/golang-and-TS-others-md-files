@@ -1,3 +1,7 @@
+---
+title: "batch_size"
+---
+
 # Epoch 與 Batch Size
 
 > 相關概念：[[超參數-hyperparameter]]（batch_size、epoch、learning rate 都屬於超參數）

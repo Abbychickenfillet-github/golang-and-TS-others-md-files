@@ -1,3 +1,7 @@
+---
+title: "mock-test-file-param"
+---
+
 # Go 函式語法筆記：為什麼有三組括弧？
 
 ## 起因

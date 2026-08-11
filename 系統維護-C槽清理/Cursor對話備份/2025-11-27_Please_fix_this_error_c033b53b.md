@@ -1,3 +1,7 @@
+---
+title: "2025-11-27_Please_fix_this_error_c033b53b"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-27 23:39 · `c033b53b-b3e4-4531-8ab4-3386635c35a7` · 2 則

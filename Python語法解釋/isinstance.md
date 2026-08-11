@@ -1,3 +1,7 @@
+---
+title: "isinstance"
+---
+
 # Python `isinstance()` 函式
 
 ## 一句話說明

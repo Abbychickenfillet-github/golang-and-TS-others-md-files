@@ -1,3 +1,7 @@
+---
+title: "2025-12-01_Please_fix_this_error_689c5a1b"
+---
+
 # Please fix this error
 
 > Cursor · 2025-12-01 18:47 · `689c5a1b-5de4-4a10-ac77-73fc9c524d2b` · 5 則

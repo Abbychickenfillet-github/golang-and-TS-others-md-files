@@ -1,3 +1,7 @@
+---
+title: "windows-用-linux-的方式"
+---
+
 # 在 Windows 上用 Linux 的 4 種方式 — Docker / WSL2 / VM / Dual boot
 
 > **這份筆記回答**：

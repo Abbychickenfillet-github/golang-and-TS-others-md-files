@@ -1,3 +1,7 @@
+---
+title: "response會再經過middleware嗎"
+---
+
 # Response 會再經過 Middleware 嗎？
 
 **會。Middleware 是雙向的，request 進來經過，response 出去也會經過。**

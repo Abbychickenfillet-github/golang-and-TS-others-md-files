@@ -1,3 +1,7 @@
+---
+title: "2025-12-07_買方資訊請勿使用id_應該使用order裡面的buyer_id去找到他在memb_b26964a7"
+---
+
 # 買方資訊請勿使用id, 應該使用order裡面的buyer_id去找到他在mem
 
 > Cursor · 2025-12-07 04:05 · `b26964a7-dc2e-4be1-9816-c110254deedb` · 304 則

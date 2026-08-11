@@ -1,3 +1,7 @@
+---
+title: "2025-10-04_import__GoogleGenAI__from_googlegenai_33fbe513"
+---
+
 # import  GoogleGenAI  from googlegenai
 
 > Cursor · 2025-10-04 16:01 · `33fbe513-d802-44c6-a933-6d0799d49399` · 93 則

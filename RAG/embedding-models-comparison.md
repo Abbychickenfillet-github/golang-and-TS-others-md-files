@@ -1,3 +1,7 @@
+---
+title: "embedding-models-comparison"
+---
+
 # Embedding 模型供應商完整對照 — OpenAI / Anthropic / Voyage / sentence-transformers / Cohere
 
 > **這份筆記回答**：

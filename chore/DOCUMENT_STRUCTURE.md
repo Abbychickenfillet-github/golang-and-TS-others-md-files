@@ -1,3 +1,7 @@
+---
+title: "DOCUMENT_STRUCTURE"
+---
+
 # 文檔結構說明
 
 ## 文檔組織原則

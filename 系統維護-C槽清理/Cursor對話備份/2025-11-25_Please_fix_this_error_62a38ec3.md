@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_62a38ec3"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 19:43 · `62a38ec3-98e2-4e1e-87a5-f37f3a53b9b2` · 2 則

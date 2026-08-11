@@ -1,3 +1,7 @@
+---
+title: "index.ts-intro"
+---
+
 # `frontend/src/client/models/index.ts` 說明
 
 ## 這個檔案是做什麼的？

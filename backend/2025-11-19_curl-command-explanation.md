@@ -1,3 +1,7 @@
+---
+title: "2025-11-19_curl-command-explanation"
+---
+
 # curl 命令和錯誤訊息解釋
 
 **日期**: 2025-11-20

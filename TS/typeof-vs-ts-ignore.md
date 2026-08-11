@@ -1,3 +1,7 @@
+---
+title: "typeof-vs-ts-ignore"
+---
+
 # TypeScript 型別檢查：typeof vs @ts-expect-error
 
 ## 問題場景

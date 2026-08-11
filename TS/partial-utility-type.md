@@ -1,3 +1,7 @@
+---
+title: "partial-utility-type"
+---
+
 # TypeScript `Partial<T>` 工具型別
 
 ## 什麼是 `Partial<T>`？

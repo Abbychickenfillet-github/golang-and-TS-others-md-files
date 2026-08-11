@@ -1,3 +1,7 @@
+---
+title: "2025-11-17_Please_fix_this_error_8ad49b18"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-17 22:06 · `8ad49b18-6f10-451e-a8a8-e5ce7c3aa14e` · 46 則

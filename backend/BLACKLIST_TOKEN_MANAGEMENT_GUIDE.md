@@ -1,3 +1,7 @@
+---
+title: "BLACKLIST_TOKEN_MANAGEMENT_GUIDE"
+---
+
 # 黑名單 Token 管理指南
 
 ## 問題：後台管理員如何操作黑名單？

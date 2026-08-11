@@ -1,3 +1,7 @@
+---
+title: "background-clip-text-文字鏤空"
+---
+
 # background-clip: text(文字鏤空 / 底圖透字）
 
 > 相關:[[for...in]](同樣是「觀念分層」的題)

@@ -1,3 +1,7 @@
+---
+title: "bash指令筆記"
+---
+
 # Bash 指令筆記
 
 ## head 和 tail 組合技

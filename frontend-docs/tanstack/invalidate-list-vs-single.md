@@ -1,3 +1,7 @@
+---
+title: "invalidate-list-vs-single"
+---
+
 # 為什麼 invalidate 列表不會覆蓋單筆？
 
 ## Abby 的問題

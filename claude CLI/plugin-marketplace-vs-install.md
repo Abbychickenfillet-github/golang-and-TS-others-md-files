@@ -1,3 +1,7 @@
+---
+title: "plugin-marketplace-vs-install"
+---
+
 # Claude Code Plugin：marketplace add vs plugin install 差異
 
 ## 一句話總結

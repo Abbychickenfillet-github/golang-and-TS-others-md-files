@@ -1,3 +1,7 @@
+---
+title: "python_class_tutorial"
+---
+
 # Python Class 完整教學
 
 > 用你自己的 `embedder.py` 當範例，從零搞懂 class。

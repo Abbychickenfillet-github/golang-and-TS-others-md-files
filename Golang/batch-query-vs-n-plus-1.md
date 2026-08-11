@@ -1,3 +1,7 @@
+---
+title: "batch-query-vs-n-plus-1"
+---
+
 # 批次查詢 vs N+1 問題
 
 ## 什麼是 N+1

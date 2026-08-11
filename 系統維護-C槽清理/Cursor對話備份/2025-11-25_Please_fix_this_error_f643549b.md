@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_f643549b"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 15:36 · `f643549b-c8e6-43c7-9849-eeaa4fb87906` · 2 則

@@ -1,3 +1,7 @@
+---
+title: "Golang make-array"
+---
+
 # Go 的 make 與 Slice（陣列）
 
 ## make 是什麼？

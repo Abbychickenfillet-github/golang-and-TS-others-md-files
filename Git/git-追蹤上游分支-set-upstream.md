@@ -1,3 +1,7 @@
+---
+title: "git-追蹤上游分支-set-upstream"
+---
+
 # git 追蹤上游分支（set-upstream / tracking branch）
 
 > 「上游分支（upstream / tracking branch）」= 本地分支要對應的遠端分支。設定好之後，`git push`、`git pull` 就不用每次都打 `origin 分支名`。

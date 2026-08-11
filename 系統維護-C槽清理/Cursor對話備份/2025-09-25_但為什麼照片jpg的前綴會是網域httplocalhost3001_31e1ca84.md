@@ -1,3 +1,7 @@
+---
+title: "2025-09-25_但為什麼照片jpg的前綴會是網域httplocalhost3001_31e1ca84"
+---
+
 # 但為什麼照片jpg的前綴會是網域httplocalhost3001
 
 > Cursor · 2025-09-25 13:28 · `31e1ca84-6371-469d-82e4-0d91eb2a00e6` · 10 則

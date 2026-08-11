@@ -1,3 +1,7 @@
+---
+title: "dist要加入gitignore嗎"
+---
+
 # dist/ 要加入 .gitignore 嗎？
 
 ## 問題

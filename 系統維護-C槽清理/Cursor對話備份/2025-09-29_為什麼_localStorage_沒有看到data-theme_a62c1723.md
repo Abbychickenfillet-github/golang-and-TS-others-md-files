@@ -1,3 +1,7 @@
+---
+title: "2025-09-29_為什麼_localStorage_沒有看到data-theme_a62c1723"
+---
+
 # 為什麼 localStorage 沒有看到data-theme
 
 > Cursor · 2025-09-29 17:08 · `a62c1723-8394-4556-b9c8-c1e01af92b5a` · 26 則

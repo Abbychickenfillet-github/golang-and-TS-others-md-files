@@ -1,3 +1,7 @@
+---
+title: "gitignore-notes"
+---
+
 # .gitignore 筆記
 
 ## 語法說明

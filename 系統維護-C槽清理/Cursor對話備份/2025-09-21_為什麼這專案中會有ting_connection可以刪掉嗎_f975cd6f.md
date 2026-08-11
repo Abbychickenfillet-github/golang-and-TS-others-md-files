@@ -1,3 +1,7 @@
+---
+title: "2025-09-21_為什麼這專案中會有ting_connection可以刪掉嗎_f975cd6f"
+---
+
 # 為什麼這專案中會有ting connection可以刪掉嗎
 
 > Cursor · 2025-09-21 18:00 · `f975cd6f-8600-4904-8fe7-48dbac3bb2af` · 33 則

@@ -1,3 +1,7 @@
+---
+title: "11-記憶體模型-stack-heap-動態配置-GC"
+---
+
 ﻿---
 title: 垃圾回收 GC 與記憶體模型——Stack／Heap／動態配置
 type: topic-note

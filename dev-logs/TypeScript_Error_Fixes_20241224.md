@@ -1,3 +1,7 @@
+---
+title: "TypeScript_Error_Fixes_20241224"
+---
+
 # TypeScript 錯誤修復學習筆記
 
 日期：2024-12-24

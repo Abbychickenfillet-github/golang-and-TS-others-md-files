@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Im_getting_the_following_error_in_my_cod_ec127ab5"
+---
+
 # I'm getting the following error in my co
 
 > Cursor · 2025-11-28 00:44 · `ec127ab5-2d94-473d-bcaf-e224cacb44c7` · 6 則

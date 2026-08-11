@@ -1,3 +1,7 @@
+---
+title: "2025-11-07_為什麼這邊環境是production還搭配domain_localhost_318df34f"
+---
+
 # 為什麼這邊環境是production還搭配domain localhost
 
 > Cursor · 2025-11-07 21:25 · `318df34f-7c61-46b6-8166-9955402f8e59` · 26 則

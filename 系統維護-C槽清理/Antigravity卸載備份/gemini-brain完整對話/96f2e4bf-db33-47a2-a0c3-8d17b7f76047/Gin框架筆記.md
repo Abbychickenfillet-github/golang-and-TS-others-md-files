@@ -1,3 +1,7 @@
+---
+title: "Gin框架筆記"
+---
+
 # Golang Gin 框架學習筆記
 
 ## 1. `gin.New()` vs `gin.Default()`

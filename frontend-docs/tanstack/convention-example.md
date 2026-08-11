@@ -1,3 +1,7 @@
+---
+title: "convention-example"
+---
+
 # RSC「慣例(convention)」程式碼範例
 
 > 搭配 [tree.md](tree.md) 第 5 段一起看。

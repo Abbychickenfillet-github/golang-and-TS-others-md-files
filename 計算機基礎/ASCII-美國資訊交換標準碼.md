@@ -1,3 +1,7 @@
+---
+title: "ASCII-美國資訊交換標準碼"
+---
+
 # ASCII — 美國資訊交換標準碼
 
 > **ASCII = American Standard Code for Information Interchange**

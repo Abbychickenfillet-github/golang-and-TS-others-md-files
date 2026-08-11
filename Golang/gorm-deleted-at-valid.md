@@ -1,3 +1,7 @@
+---
+title: "gorm-deleted-at-valid"
+---
+
 # GORM DeletedAt.Valid — 軟刪除判斷
 
 ## 什麼是 `DeletedAt.Valid`？

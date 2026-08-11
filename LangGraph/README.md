@@ -1,3 +1,7 @@
+---
+title: "README"
+---
+
 # LangChain / LangGraph 學習環境範本
 
 從零開始建立一個可跑的 LangChain + Anthropic Claude 環境，用來學習 model 與 tool 的基礎，為後續 LangGraph 鋪路。

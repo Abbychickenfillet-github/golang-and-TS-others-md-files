@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_6a0e084f"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 19:37 · `6a0e084f-aea3-4cc4-aafe-e9f2566faf86` · 2 則

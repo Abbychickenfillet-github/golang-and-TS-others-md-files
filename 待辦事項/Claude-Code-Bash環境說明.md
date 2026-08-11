@@ -1,3 +1,7 @@
+---
+title: "Claude-Code-Bash環境說明"
+---
+
 # Claude Code 的 Bash 環境說明
 
 ## 問題現象

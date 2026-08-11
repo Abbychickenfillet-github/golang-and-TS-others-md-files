@@ -1,3 +1,7 @@
+---
+title: "server-component-寫什麼"
+---
+
 # Server Component 通常寫什麼?
 
 > 回主筆記 → [tree.md](tree.md)

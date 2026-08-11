@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Please_fix_this_error_1a607d70"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-28 10:07 · `1a607d70-7d1f-4289-823a-bbe7ecbaccc0` · 20 則

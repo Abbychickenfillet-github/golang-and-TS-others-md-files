@@ -1,3 +1,7 @@
+---
+title: "2025-11-20_fastapi-dependency-injection-and-basics"
+---
+
 # FastAPI 依賴注入和基礎概念說明
 
 **日期**: 2025-11-20

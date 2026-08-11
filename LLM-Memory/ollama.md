@@ -1,3 +1,7 @@
+---
+title: "ollama"
+---
+
 # Ollama — 本地 LLM 的 Docker
 
 > Ollama **不是模型、也不是羊駝**——是一個讓你一行指令就跑起本地 LLM 的 **runtime**。

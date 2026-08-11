@@ -1,3 +1,7 @@
+---
+title: "i18n-browser-language-detection"
+---
+
 # 語系切換是否依照瀏覽器語言自動切換？
 
 ## 為什麼要調查這個？

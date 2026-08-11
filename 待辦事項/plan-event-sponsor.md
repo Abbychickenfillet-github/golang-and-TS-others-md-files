@@ -1,3 +1,7 @@
+---
+title: "plan-event-sponsor"
+---
+
 # 活動合作單位功能規格
 
 > **Issue 來源**：主辦方希望在活動頁面露出合作單位的 LOGO 及名稱

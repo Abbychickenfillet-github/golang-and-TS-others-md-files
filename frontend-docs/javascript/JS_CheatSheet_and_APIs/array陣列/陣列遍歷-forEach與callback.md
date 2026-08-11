@@ -1,3 +1,7 @@
+---
+title: "陣列遍歷-forEach與callback"
+---
+
 # 陣列遍歷：forEach 與 callback（回呼函式）
 
 > [!important] 🔑 全篇最重點

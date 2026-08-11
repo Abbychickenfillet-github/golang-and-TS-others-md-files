@@ -1,3 +1,7 @@
+---
+title: "product-image-ratio-research"
+---
+
 # 商品圖片比例研究報告
 
 > 研究日期：2026-02-25

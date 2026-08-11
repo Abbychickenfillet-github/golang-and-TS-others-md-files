@@ -1,3 +1,7 @@
+---
+title: "realtime-database-comparison"
+---
+
 # Realtime Database 比較 — 為什麼 Supabase 把這個當賣點？
 
 > 「資料庫變更即時推送到前端」這件事看起來是 Supabase / Firebase 的特殊功能。

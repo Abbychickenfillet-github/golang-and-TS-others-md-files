@@ -1,3 +1,7 @@
+---
+title: "Object靜態方法速查"
+---
+
 # Object 靜態方法速查（Object.xxx）
 
 > 可執行範例（同資料夾）：[[object-static-methods.html]]（開 F12 看 Console；原始檔也在 `JavaScript-practicing/`）

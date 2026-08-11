@@ -1,3 +1,7 @@
+---
+title: "2025-12-01_Please_fix_this_error_70aa99aa"
+---
+
 # Please fix this error:
 
 > Cursor · 2025-12-01 18:54 · `70aa99aa-9c47-4a04-ac36-8766ecdf54d2` · 123 則

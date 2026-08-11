@@ -1,3 +1,7 @@
+---
+title: "protocol-example"
+---
+
 # RSC「協定(protocol)」程式碼範例
 
 > 搭配 [tree.md](tree.md) 第 4 段一起看。

@@ -1,3 +1,7 @@
+---
+title: "how-backend-dto-pass-into-frontend"
+---
+
 # 後端的 Go DTO 如何交給前端？
 
 > 後端回傳資料是從哪一層？前端是用哪一隻檔案接住的？Go 的 struct 怎麼變成 TypeScript type？

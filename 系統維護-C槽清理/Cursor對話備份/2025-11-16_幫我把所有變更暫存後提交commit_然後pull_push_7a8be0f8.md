@@ -1,3 +1,7 @@
+---
+title: "2025-11-16_幫我把所有變更暫存後提交commit_然後pull_push_7a8be0f8"
+---
+
 # 幫我把所有變更暫存後提交commit 然後pull push
 
 > Cursor · 2025-11-16 11:26 · `7a8be0f8-eef6-44e3-a2a8-28c9206a09f7` · 11 則

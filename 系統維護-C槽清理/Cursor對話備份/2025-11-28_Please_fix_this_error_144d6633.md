@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Please_fix_this_error_144d6633"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-28 02:00 · `144d6633-2318-4c6d-ae9f-813cd9debbff` · 9 則

@@ -1,3 +1,7 @@
+---
+title: "AudioRelay與筆電音訊"
+---
+
 # AudioRelay 與筆電音訊問題
 
 > 背景：筆電內建音效裝置故障，原本想靠外接螢幕輸出聲音，但螢幕在音效設定裡沒有出現成輸出裝置。目前系統預設輸出是 **Virtual Speakers（AudioRelay 的虛擬裝置）**。

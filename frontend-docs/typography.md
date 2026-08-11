@@ -1,3 +1,7 @@
+---
+title: "typography"
+---
+
 # 前端字體完整筆記（從零開始）
 
 > 寫給自己看：弄懂 `@font-face`、`unicode-range`、`subsets` 在做什麼，以及字體授權的坑。

@@ -1,3 +1,7 @@
+---
+title: "redirect-stderr"
+---
+
 # 2>/dev/null 解釋
 
 ## 簡單說明

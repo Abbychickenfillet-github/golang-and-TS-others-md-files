@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_79c90a3b"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 15:54 · `79c90a3b-5f8f-4e0e-940b-d728380bdcae` · 1 則

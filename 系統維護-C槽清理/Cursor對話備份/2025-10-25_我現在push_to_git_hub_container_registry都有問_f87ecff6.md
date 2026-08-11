@@ -1,3 +1,7 @@
+---
+title: "2025-10-25_我現在push_to_git_hub_container_registry都有問_f87ecff6"
+---
+
 # 我現在push to git hub container registry都有問
 
 > Cursor · 2025-10-25 23:23 · `f87ecff6-bb4e-464f-96e6-553b81595f71` · 31 則

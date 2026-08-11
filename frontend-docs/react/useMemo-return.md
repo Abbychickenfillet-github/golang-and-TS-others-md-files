@@ -1,3 +1,7 @@
+---
+title: "useMemo-return"
+---
+
 # React Hooks 規則：useMemo 不能放在 conditional return 之後
 
 > 相關：[[React-Context-Provider消費者-AuthProvider與路由保護]]（Context value 變動造成的重渲染，常用 useMemo 包 value 來緩解）

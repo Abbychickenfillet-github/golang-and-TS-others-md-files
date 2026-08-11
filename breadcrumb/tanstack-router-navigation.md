@@ -1,3 +1,7 @@
+---
+title: "tanstack-router-navigation"
+---
+
 # TanStack Router 導航機制筆記
 
 ## 三個核心 API 的角色

@@ -1,3 +1,7 @@
+---
+title: "ts-ignore"
+---
+
 # @ts-ignore
 
 ## 是什麼？

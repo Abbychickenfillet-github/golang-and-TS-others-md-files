@@ -1,3 +1,7 @@
+---
+title: "for-in-vs-Object-keys-medium"
+---
+
 # 別再用 for...in 跑陣列了:從原型鏈看懂 for...in 與 Object.keys 的差別
 
 > JavaScript 初學者最容易踩的雷之一,就是用 `for...in` 去跑陣列。這篇用一張原型鏈圖,講清楚 `for...in` 到底走了什麼、為什麼會出包,以及什麼時候該改用 `Object.keys()`。

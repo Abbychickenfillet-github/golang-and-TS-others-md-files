@@ -1,3 +1,7 @@
+---
+title: "if-not"
+---
+
 # Python `if not` 語法解釋
 
 ## 基本概念

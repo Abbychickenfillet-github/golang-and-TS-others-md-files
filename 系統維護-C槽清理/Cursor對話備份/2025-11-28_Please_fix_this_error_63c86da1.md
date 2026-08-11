@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Please_fix_this_error_63c86da1"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-28 10:25 · `63c86da1-9e47-4a52-a8c5-43ee8c75921d` · 6 則

@@ -1,3 +1,7 @@
+---
+title: "VSCode-Cursor-終端機找不到Git-Bash"
+---
+
 
 > 現象：IDE 下方終端機的 `˅` 下拉選單裡只有 PowerShell（或 cmd），**沒有 Git Bash 可選**，但電腦明明裝了 Git。
 

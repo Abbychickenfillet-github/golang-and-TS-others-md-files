@@ -1,3 +1,7 @@
+---
+title: "2025-11-01_Please_fix_this_error_8e2e7b50"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-01 19:49 · `8e2e7b50-b0b2-4d28-b4ea-5f657abc9137` · 8 則

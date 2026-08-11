@@ -1,3 +1,7 @@
+---
+title: "TANSTACK_ROUTER_ROUTE_GENERATION"
+---
+
 # TanStack Router 路由生成問題紀錄
 
 ## 問題描述

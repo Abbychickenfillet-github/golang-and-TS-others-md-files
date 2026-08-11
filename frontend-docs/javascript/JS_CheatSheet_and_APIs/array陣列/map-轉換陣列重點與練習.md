@@ -1,3 +1,7 @@
+---
+title: "map-轉換陣列重點與練習"
+---
+
 # map：把陣列轉換成新陣列（重點 + 練習）
 
 > 來源練習：`JavaScript-practicing/while-loop.html`

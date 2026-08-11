@@ -1,3 +1,7 @@
+---
+title: "Redis介紹"
+---
+
 # Redis 介紹
 
 ## Redis 是什麼？

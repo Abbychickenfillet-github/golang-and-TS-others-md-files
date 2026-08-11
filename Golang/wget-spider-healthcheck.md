@@ -1,3 +1,7 @@
+---
+title: "wget-spider-healthcheck"
+---
+
 # wget --spider 說明
 
 ## 什麼是 wget?

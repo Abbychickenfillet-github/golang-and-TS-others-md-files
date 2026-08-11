@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_e4965e9e"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 15:45 · `e4965e9e-a60f-4301-971f-9a9e9346ff7c` · 7 則

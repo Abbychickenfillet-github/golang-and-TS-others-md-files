@@ -1,3 +1,7 @@
+---
+title: "2025-12-01_Please_fix_this_error_584e4780"
+---
+
 # Please fix this error
 
 > Cursor · 2025-12-01 18:50 · `584e4780-2b28-4a4b-bbc0-2a2d7fc6b173` · 10 則

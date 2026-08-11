@@ -1,3 +1,7 @@
+---
+title: "2025-10-11_我的主頁是不是主要由frontPage.js_component構成的用原件來製_62fe60aa"
+---
+
 # 我的主頁是不是主要由@frontPage.js component構成的？用原件
 
 > Cursor · 2025-10-11 15:25 · `62fe60aa-d4ea-4c82-b897-dc0107ebb9a8` · 34 則

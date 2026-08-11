@@ -1,3 +1,7 @@
+---
+title: "git-line-endings-notes"
+---
+
 # Git 換行符（Line Ending）說明
 
 ## 問題：LF vs CRLF

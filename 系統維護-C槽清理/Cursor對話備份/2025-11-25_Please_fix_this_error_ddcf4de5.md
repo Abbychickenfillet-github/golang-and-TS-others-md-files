@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_ddcf4de5"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 15:45 · `ddcf4de5-0cd3-4469-be87-dd4dd68a2c73` · 1 則

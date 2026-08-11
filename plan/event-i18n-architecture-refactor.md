@@ -1,3 +1,7 @@
+---
+title: "event-i18n-architecture-refactor"
+---
+
 # Event I18n 架構大重構計畫
 
 ## 核心改動

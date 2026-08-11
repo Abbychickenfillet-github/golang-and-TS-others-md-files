@@ -1,3 +1,7 @@
+---
+title: "order-sequence-number"
+---
+
 # 訂單報名序號功能
 
 ## 需求背景

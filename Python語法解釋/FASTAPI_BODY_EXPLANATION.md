@@ -1,3 +1,7 @@
+---
+title: "FASTAPI_BODY_EXPLANATION"
+---
+
 # FastAPI Body 參數詳解
 
 ## 1. 對象 vs 單個值的區別

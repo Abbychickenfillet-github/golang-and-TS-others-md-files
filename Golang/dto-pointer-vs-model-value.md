@@ -1,3 +1,7 @@
+---
+title: "dto-pointer-vs-model-value"
+---
+
 # 為什麼 DTO 用指標 `*bool`，Model 用一般 `bool`？
 
 > 相關：[解開指標（Dereference）](dereference-pointer.md) | [指標基礎](golang-pointer-asterisk.md) | [指標、Nil、Struct 觀念](pointer-method-struct-explainer.md)

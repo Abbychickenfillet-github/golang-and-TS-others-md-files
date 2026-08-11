@@ -1,3 +1,7 @@
+---
+title: "ingest-vs-chunk-vs-embed-naming"
+---
+
 # Ingest vs Chunk vs Embed — 動詞層級的誤解釐清
 
 > **這份筆記回答**：

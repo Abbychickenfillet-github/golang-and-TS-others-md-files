@@ -1,3 +1,7 @@
+---
+title: "llm-caching-layers"
+---
+
 # LLM 的三層快取 — Semantic Cache / Prompt Cache / KV Cache
 
 > 「cached query」不是正式術語。實務上 LLM 系統的快取**分成三層**，每層位置不同、解決的問題也不同。這份筆記逐層拆解，最後**特別展開 KV Cache**——它是三層裡最底層、最少人講、但**讓整個 LLM 推論能跑得動的關鍵**。

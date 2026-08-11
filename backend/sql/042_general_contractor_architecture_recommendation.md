@@ -1,3 +1,7 @@
+---
+title: "042_general_contractor_architecture_recommendation"
+---
+
 # 總承包商（GC）架構設計建議
 
 ## 問題分析

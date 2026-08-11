@@ -1,3 +1,7 @@
+---
+title: "task"
+---
+
 # Task: Debug Duplicate Entry Error
 
 - [x] Investigate `event_booth_type_pricing` schema and code <!-- id: 0 -->

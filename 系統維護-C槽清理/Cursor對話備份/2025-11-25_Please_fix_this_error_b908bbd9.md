@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_b908bbd9"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 19:41 · `b908bbd9-d6a3-477d-ab68-d40b216ddc31` · 2 則

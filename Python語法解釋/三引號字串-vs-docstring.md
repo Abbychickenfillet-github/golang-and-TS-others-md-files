@@ -1,3 +1,7 @@
+---
+title: "三引號字串-vs-docstring"
+---
+
 # 三引號字串 `"""..."""` vs docstring
 
 > 來源：abby-notes-rag 專案 `scripts/ask.py` 的 `SYSTEM_PROMPT = """..."""`

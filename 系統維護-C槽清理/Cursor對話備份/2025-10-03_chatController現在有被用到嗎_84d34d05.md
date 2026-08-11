@@ -1,3 +1,7 @@
+---
+title: "2025-10-03_chatController現在有被用到嗎_84d34d05"
+---
+
 # chatController現在有被用到嗎
 
 > Cursor · 2025-10-03 09:52 · `84d34d05-4a1e-4922-82d0-ef09e9afc759` · 18 則

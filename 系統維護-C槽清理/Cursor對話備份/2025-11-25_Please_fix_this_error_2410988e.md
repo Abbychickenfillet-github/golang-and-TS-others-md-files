@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_2410988e"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 19:58 · `2410988e-4300-48e6-9301-64ac33613486` · 2 則

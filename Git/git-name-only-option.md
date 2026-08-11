@@ -1,3 +1,7 @@
+---
+title: "git-name-only-option"
+---
+
 # Git --name-only 選項
 
 ## 什麼是 --name-only

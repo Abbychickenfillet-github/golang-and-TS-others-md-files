@@ -1,3 +1,7 @@
+---
+title: "js-date-comparison"
+---
+
 # JavaScript 日期比較語法說明
 
 ## `new Date("2026-02-10T17:00:00Z") <= new Date()`

@@ -1,3 +1,7 @@
+---
+title: "2025-11-08_controllers是放什麼_e6b57cea"
+---
+
 # controllers是放什麼
 
 > Cursor · 2025-11-08 10:42 · `e6b57cea-5e0e-4f15-93cf-c3069ca3bbad` · 85 則

@@ -1,3 +1,7 @@
+---
+title: "2025-10-11_我希望在不一樣的主題的時候我的glowing-text.module.scss__7a8fcc2b"
+---
+
 # 我希望在不一樣的主題的時候我的glowing-text.module.scss 
 
 > Cursor · 2025-10-11 19:52 · `7a8fcc2b-314e-4d78-9ced-65cd5a6b89cc` · 282 則

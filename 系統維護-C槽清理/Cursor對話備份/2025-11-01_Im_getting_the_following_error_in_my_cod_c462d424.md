@@ -1,3 +1,7 @@
+---
+title: "2025-11-01_Im_getting_the_following_error_in_my_cod_c462d424"
+---
+
 # Im getting the following error in my cod
 
 > Cursor · 2025-11-01 19:47 · `c462d424-659f-4ef4-bd4f-3ca9bad69ff0` · 6 則

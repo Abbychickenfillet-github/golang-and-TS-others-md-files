@@ -1,3 +1,7 @@
+---
+title: "sql-syntax-tree"
+---
+
 # SQL 語法結構（Syntax Tree）
 
 #sql #join #delete #insert #select #update

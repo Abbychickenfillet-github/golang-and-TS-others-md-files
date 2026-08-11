@@ -1,3 +1,7 @@
+---
+title: "DOCKER_COMPOSE_COMMAND_EXPLANATION架構"
+---
+
 # Docker Compose command 配置說明
 日期：2025-12-12
 ## 問題：為什麼 command 不放在 develop 下？

@@ -1,3 +1,7 @@
+---
+title: "2026-05-07-rag-build-commands"
+---
+
 # RAG 系統建置指令記錄
 
 **用途**：對應 `2026-05-07-rag-implementation-plan.md`，記錄每個 Task 實際跑過的指令、為什麼這樣跑、預期看到什麼。

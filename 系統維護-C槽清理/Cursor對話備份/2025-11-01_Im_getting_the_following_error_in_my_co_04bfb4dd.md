@@ -1,3 +1,7 @@
+---
+title: "2025-11-01_Im_getting_the_following_error_in_my_co_04bfb4dd"
+---
+
 # I'm getting the following error in my co
 
 > Cursor 對話 · 2025-11-01 19:14 · composerId `04bfb4dd-f40d-44da-a8fb-eb3bfaec108d` · 8 則訊息

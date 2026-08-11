@@ -1,3 +1,7 @@
+---
+title: "JS-native-function-check"
+---
+
 # 如何判斷一個 function 是不是原生（native）？
 
 ## 一句話

@@ -1,3 +1,7 @@
+---
+title: "ngrok-usage"
+---
+
 # Tunnel 使用指南（ngrok + cloudflared）
 
 本文件說明如何使用 ngrok / cloudflared 將本地服務暴露到公網，用於開發測試（如 ECPay 回調、手機測試 QR code）。

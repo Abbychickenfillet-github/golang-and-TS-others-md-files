@@ -1,3 +1,7 @@
+---
+title: "issue-308-brand-product"
+---
+
 # Issue #308：品牌商品頁功能 (Brand Product)
 
 > GitHub Issue: https://github.com/yutuo-tech/futuresign_backend/issues/308

@@ -1,3 +1,7 @@
+---
+title: "JOIN-basics"
+---
+
 # SQL JOIN 基礎觀念
 
 ## 用了別名之後，還能用原始表名嗎？

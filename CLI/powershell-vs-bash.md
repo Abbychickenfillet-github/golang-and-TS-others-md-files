@@ -1,3 +1,7 @@
+---
+title: "powershell-vs-bash"
+---
+
 # PowerShell vs Bash 指令差異
 
 ## 為什麼同一個指令在不同地方結果不同？

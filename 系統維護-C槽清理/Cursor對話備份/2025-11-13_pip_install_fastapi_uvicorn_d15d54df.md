@@ -1,3 +1,7 @@
+---
+title: "2025-11-13_pip_install_fastapi_uvicorn_d15d54df"
+---
+
 # pip install fastapi uvicorn
 
 > Cursor · 2025-11-13 17:50 · `d15d54df-f482-436d-b405-ac49449c6d0f` · 24 則

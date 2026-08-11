@@ -1,3 +1,7 @@
+---
+title: "lambda匿名函數"
+---
+
 # Lambda 匿名函數
 
 ## 什麼是 Lambda？

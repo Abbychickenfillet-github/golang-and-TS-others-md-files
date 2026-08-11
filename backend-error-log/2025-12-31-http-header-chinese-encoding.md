@@ -1,3 +1,7 @@
+---
+title: "2025-12-31-http-header-chinese-encoding"
+---
+
 # HTTP Header 中文編碼問題
 
 **日期：2025-12-31**

@@ -1,3 +1,7 @@
+---
+title: "environment-variables-basics"
+---
+
 # 環境變數 (Environment Variables) 基礎
 
 > **這份筆記回答**：

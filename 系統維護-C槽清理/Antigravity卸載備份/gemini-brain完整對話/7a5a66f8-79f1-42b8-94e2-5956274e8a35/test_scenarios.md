@@ -1,3 +1,7 @@
+---
+title: "test_scenarios"
+---
+
 # Coupon System Test Scenarios
 
 Based on the settings (Target Role, Trigger Type, Claim Method), here are the key permutations that require different UI flows or logic.

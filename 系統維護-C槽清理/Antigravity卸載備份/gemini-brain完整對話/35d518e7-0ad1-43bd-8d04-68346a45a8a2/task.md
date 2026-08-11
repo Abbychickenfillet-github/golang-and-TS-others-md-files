@@ -1,3 +1,7 @@
+---
+title: "task"
+---
+
 # Task: Investigate Booth Off-shelf & Pricing Consequences
 
 - [x] Analyze `Order` and `BoothOrderSubscription` models to see if price is snapshotted. <!-- id: 0 -->

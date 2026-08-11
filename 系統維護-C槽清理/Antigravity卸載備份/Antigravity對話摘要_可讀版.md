@@ -1,3 +1,7 @@
+---
+title: "Antigravity對話摘要_可讀版"
+---
+
 # Antigravity 對話摘要(從本機 trajectorySummaries 還原)
 
 > 來源:`AppData\Roaming\Antigravity\User\globalStorage\state.vscdb` 的 `trajectorySummaries`(base64+protobuf 解出)。

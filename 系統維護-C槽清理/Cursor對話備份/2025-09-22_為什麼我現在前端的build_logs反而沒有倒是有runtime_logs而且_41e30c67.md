@@ -1,3 +1,7 @@
+---
+title: "2025-09-22_為什麼我現在前端的build_logs反而沒有倒是有runtime_logs而且_41e30c67"
+---
+
 # 為什麼我現在前端的build logs反而沒有倒是有runtime logs而且
 
 > Cursor · 2025-09-22 13:59 · `41e30c67-6c21-4aba-960e-3ec08c721fdc` · 10 則

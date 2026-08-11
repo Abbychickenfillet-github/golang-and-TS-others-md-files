@@ -1,3 +1,7 @@
+---
+title: "pgvector-setup-guide"
+---
+
 # pgvector 安裝與第一個 RAG 實驗 — 完整步驟
 
 > **這份筆記記錄**：從零開始下載並使用 pgvector 向量資料庫的步驟。

@@ -1,3 +1,7 @@
+---
+title: "strconv-atoi"
+---
+
 # strconv.Atoi — 字串轉整數
 
 ## 用途

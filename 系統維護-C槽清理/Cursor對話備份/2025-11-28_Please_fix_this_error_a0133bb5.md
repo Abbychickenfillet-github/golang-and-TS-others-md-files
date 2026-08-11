@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Please_fix_this_error_a0133bb5"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-28 02:07 · `a0133bb5-8365-4697-a58d-1b2c1023a53c` · 8 則

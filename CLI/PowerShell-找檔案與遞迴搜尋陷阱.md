@@ -1,3 +1,7 @@
+---
+title: "PowerShell-找檔案與遞迴搜尋陷阱"
+---
+
 # PowerShell 找檔案 & 遞迴搜尋的陷阱
 
 > 情境：想在硬碟裡找一個檔案，用 CMD 的 `dir /s /b` 找不到；也想搞懂 `(Get-Command git).Source` 為什麼拿得到路徑。

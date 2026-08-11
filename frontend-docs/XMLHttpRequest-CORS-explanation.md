@@ -1,3 +1,7 @@
+---
+title: "XMLHttpRequest-CORS-explanation"
+---
+
 # XMLHttpRequest 和 CORS 解釋
 
 ## XMLHttpRequest 是什麼？

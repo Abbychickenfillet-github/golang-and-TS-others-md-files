@@ -1,3 +1,7 @@
+---
+title: "golang-syntax-guide"
+---
+
 # Go 語法筆記
 
 ## Method Receiver（方法接收者）

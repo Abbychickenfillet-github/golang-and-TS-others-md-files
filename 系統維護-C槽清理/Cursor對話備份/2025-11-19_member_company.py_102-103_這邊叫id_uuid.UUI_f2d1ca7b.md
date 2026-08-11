@@ -1,3 +1,7 @@
+---
+title: "2025-11-19_member_company.py_102-103_這邊叫id_uuid.UUI_f2d1ca7b"
+---
+
 # member_company.py 102-103 這邊叫id uuid.UUI
 
 > Cursor · 2025-11-19 23:16 · `f2d1ca7b-e78c-4b25-b37f-5df8da177793` · 181 則

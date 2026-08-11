@@ -1,3 +1,7 @@
+---
+title: "SQLMODEL_SA_COLUMN_EXPLANATION"
+---
+
 # SQLModel 的 sa_column 參數說明
 
 ## 什麼是 sa_column？

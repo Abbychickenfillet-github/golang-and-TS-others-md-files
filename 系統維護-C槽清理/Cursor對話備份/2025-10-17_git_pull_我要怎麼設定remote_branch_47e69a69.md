@@ -1,3 +1,7 @@
+---
+title: "2025-10-17_git_pull_我要怎麼設定remote_branch_47e69a69"
+---
+
 # git pull 我要怎麼設定remote branch
 
 > Cursor · 2025-10-17 12:40 · `47e69a69-724e-409b-84af-535e69b76068` · 47 則

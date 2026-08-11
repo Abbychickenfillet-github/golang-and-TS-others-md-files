@@ -1,3 +1,7 @@
+---
+title: "hashmap-概念與對照"
+---
+
 # HashMap（雜湊表）— JavaScript 與 Python 對照
 
 ## 一句話

@@ -1,3 +1,7 @@
+---
+title: "MODEL_ARCHITECTURE_EXPLANATION"
+---
+
 # 模型架構說明
 
 ## 為什麼不是一張表一個模型？

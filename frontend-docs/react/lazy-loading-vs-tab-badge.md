@@ -1,3 +1,7 @@
+---
+title: "lazy-loading-vs-tab-badge"
+---
+
 # 懶載入 vs Tab Badge 數字的矛盾
 
 ## 問題

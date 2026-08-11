@@ -1,3 +1,7 @@
+---
+title: "curl-是哪個系統的-與PowerShell的curl別名陷阱"
+---
+
 # curl 是哪個系統的？＋ PowerShell 裡 `curl` 的別名陷阱
 
 > 起點問題：`curl.exe -X POST -H "Content-Type: application/json" "http://127.0.0.1:8000/items?item=apple"` —— curl 算 Windows 的、Unix 的、還是通用的？順便更正「curl 是 cmdlet」這個誤會。

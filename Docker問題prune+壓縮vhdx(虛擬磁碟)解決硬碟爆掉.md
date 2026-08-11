@@ -1,3 +1,7 @@
+---
+title: "Docker問題prune+壓縮vhdx(虛擬磁碟)解決硬碟爆掉"
+---
+
 > 記錄「Docker images / volumes / build cache 不清 → C 槽爆掉 → 清理 + compact 把空間還給 Windows」一系列操作清出67.8GB 完整流程。
 
 ## 📑 大綱

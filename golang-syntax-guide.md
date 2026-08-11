@@ -1,3 +1,7 @@
+---
+title: "golang-syntax-guide"
+---
+
 # Go 語法筆記
 
 ## `s.memberRepo.GetByID(issuedBy, false)` 拆解

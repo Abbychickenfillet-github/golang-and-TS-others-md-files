@@ -1,3 +1,7 @@
+---
+title: "booth-map-status-inactive-impact"
+---
+
 # 攤位地圖 Status (Active/Inactive) 對品牌商購買的影響
 
 ## 日期

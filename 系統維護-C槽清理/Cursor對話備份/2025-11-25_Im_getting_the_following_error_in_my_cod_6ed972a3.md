@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Im_getting_the_following_error_in_my_cod_6ed972a3"
+---
+
 # Im getting the following error in my cod
 
 > Cursor · 2025-11-25 15:42 · `6ed972a3-afec-4c76-8645-8e9626874877` · 2 則

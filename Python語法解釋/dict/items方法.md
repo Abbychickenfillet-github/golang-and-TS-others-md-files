@@ -1,3 +1,7 @@
+---
+title: "items方法"
+---
+
 # dict.items() — 同時取出 key 和 value
 
 ## 用法

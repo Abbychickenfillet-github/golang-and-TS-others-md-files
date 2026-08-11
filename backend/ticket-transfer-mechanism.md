@@ -1,3 +1,7 @@
+---
+title: "ticket-transfer-mechanism"
+---
+
 ● 票券轉讓實作說明
 
   票券轉讓功能的實作架構如下：

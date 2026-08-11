@@ -1,3 +1,7 @@
+---
+title: "bash-claude"
+---
+
 # Bash 指令筆記（Claude 協作版）
 
 ## mysqldump - 匯出資料庫結構

@@ -1,3 +1,7 @@
+---
+title: "github-cli-pr-fields"
+---
+
 # GitHub CLI PR 查詢欄位筆記
 
 ## 指令格式

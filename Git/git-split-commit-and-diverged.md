@@ -1,3 +1,7 @@
+---
+title: "git-split-commit-and-diverged"
+---
+
 # 拆分 Commit 工作流 + 分支 Diverged 處理
 
 #git #reset #add-p #hunk #diverged #rebase #incoming #outgoing

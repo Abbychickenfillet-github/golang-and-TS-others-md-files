@@ -1,3 +1,7 @@
+---
+title: "invalidateQueries"
+---
+
 # invalidateQueries — 使快取失效，重新 fetch
 
 ## invalidate 是什麼意思？

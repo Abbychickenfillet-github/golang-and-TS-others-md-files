@@ -1,3 +1,7 @@
+---
+title: "go-interface-type-fix"
+---
+
 # Go 介面型別修正筆記
 
 ## 問題 1：介面名稱錯誤

@@ -1,3 +1,7 @@
+---
+title: "2026-06-02_bubble-sort.py19_console.log打了以後要怎麼讓.js檔_2c15adb5"
+---
+
 # bubble-sort.py19 console.log打了以後要怎麼讓.js檔
 
 > Cursor · 2026-06-02 11:17 · `2c15adb5-2289-461d-b1c2-2fb6e7adf864` · 3 則

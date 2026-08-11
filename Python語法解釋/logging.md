@@ -1,3 +1,7 @@
+---
+title: "logging"
+---
+
 # Python logging 模組
 
 ## 什麼是 logging？

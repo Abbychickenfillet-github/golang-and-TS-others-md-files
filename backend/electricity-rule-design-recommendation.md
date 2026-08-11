@@ -1,3 +1,7 @@
+---
+title: "electricity-rule-design-recommendation"
+---
+
 # 電力計算規則設計建議（修正版）
 
 ## 設計需求分析

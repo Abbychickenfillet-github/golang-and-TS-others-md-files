@@ -1,3 +1,7 @@
+---
+title: "Antigravity對話-完整可讀版"
+---
+
 # Antigravity 對話完整可讀版
 
 > 從 `.gemini\antigravity\brain` 整理,共 15 段有內容的對話。每段含 Antigravity 產出的任務/計畫/walkthrough。

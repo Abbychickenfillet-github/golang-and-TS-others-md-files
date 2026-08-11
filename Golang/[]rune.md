@@ -1,3 +1,7 @@
+---
+title: "[]rune"
+---
+
 # []rune — Go 的 Unicode 碼點切片
 
 ## 什麼是 []rune？

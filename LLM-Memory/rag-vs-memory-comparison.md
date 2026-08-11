@@ -1,3 +1,7 @@
+---
+title: "rag-vs-memory-comparison"
+---
+
 # RAG vs Memory — 兩個都在「餵資料給 LLM」，但根本目標不同
 
 > 這份筆記回答兩個問題：

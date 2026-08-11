@@ -1,3 +1,7 @@
+---
+title: "2025-11-20_docker-typescript-email-verification-fixes"
+---
+
 # 2025-11-20 開發問題修復記錄
 
 ## 概述

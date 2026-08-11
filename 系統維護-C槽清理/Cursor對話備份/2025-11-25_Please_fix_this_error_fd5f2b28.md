@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_fd5f2b28"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 19:53 · `fd5f2b28-f79d-412c-84c4-1a53b6c9fd28` · 2 則

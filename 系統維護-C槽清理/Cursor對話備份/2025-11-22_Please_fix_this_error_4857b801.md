@@ -1,3 +1,7 @@
+---
+title: "2025-11-22_Please_fix_this_error_4857b801"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-22 19:26 · `4857b801-d585-469c-a580-d09059d074ec` · 19 則

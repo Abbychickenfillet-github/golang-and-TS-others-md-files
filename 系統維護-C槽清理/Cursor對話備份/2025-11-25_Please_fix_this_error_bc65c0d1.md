@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_bc65c0d1"
+---
+
 # Please fix this error:
 
 > Cursor · 2025-11-25 19:58 · `bc65c0d1-2902-405c-a8b7-e709f30a3909` · 450 則

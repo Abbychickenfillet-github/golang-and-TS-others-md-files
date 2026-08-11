@@ -1,3 +1,7 @@
+---
+title: "C槽空間清理SOP"
+---
+
 # C 槽空間清理 SOP（Windows）
 
 > 觸發原因：C:\ 只剩 ~432MB，Adobe（Photoshop/Illustrator）跳出「暫存磁碟已滿」警告。

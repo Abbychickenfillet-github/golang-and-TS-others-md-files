@@ -1,3 +1,7 @@
+---
+title: "README"
+---
+
 # SQL Scripts Directory
 
 這個資料夾包含所有的資料庫 SQL 腳本，用於建立和維護資料庫結構。

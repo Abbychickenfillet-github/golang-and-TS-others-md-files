@@ -1,3 +1,7 @@
+---
+title: "event-unpublish-logic"
+---
+
 # 活動下架邏輯設計 (Event Unpublish / Toggle Valid)
 
 > 建立日期：2026-03-04

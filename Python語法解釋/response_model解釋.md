@@ -1,3 +1,7 @@
+---
+title: "response_model解釋"
+---
+
 # FastAPI response_model 解釋
 
 ## response_model 是什麼？

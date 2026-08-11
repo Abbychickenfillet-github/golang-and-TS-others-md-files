@@ -1,3 +1,7 @@
+---
+title: "refund-bypass-ecpay"
+---
+
 # BUG: 票券管理頁退款繞過綠界 ECPay API
 
 **日期**: 2026-03-20

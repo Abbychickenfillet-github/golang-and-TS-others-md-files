@@ -1,3 +1,7 @@
+---
+title: "go-byte-vs-string-scan"
+---
+
 # Go 的 []byte vs string + 型別斷言
 
 ## []byte 和 string 差在哪？

@@ -1,3 +1,7 @@
+---
+title: "2025-12-08_Please_fix_this_error_939edea3"
+---
+
 # Please fix this error:
 
 > Cursor · 2025-12-08 17:09 · `939edea3-1f0e-48ca-81e4-096a149ecb66` · 118 則

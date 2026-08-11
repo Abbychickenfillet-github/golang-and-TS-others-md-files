@@ -1,3 +1,7 @@
+---
+title: "BGE-M3-三種輸出向量"
+---
+
 # BGE-M3 與它的三種輸出向量（Dense / Sparse / Multi-Vector）
 
 > **這份筆記回答**：

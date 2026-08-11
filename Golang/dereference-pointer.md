@@ -1,3 +1,7 @@
+---
+title: "dereference-pointer"
+---
+
 # 解開指標（Dereference）
 
 > 相關：[指標基礎](golang-pointer-asterisk.md) | [指標、Nil、Struct 觀念](pointer-method-struct-explainer.md)

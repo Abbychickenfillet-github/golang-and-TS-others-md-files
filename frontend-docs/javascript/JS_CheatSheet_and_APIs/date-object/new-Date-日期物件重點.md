@@ -1,3 +1,7 @@
+---
+title: "new-Date-日期物件重點"
+---
+
 # 日期物件 `new Date()` 重點
 
 > 來源練習：`JavaScript-practicing/while-loop.html`

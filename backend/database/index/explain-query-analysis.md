@@ -1,3 +1,7 @@
+---
+title: "explain-query-analysis"
+---
+
 # EXPLAIN — 查詢分析語法
 
 ## 一句話定義

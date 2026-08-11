@@ -1,3 +1,7 @@
+---
+title: "2025-12-01_Please_fix_this_error_dee6f444"
+---
+
 # Please fix this error
 
 > Cursor · 2025-12-01 18:24 · `dee6f444-d4be-4063-9752-c64d41fea5b0` · 7 則

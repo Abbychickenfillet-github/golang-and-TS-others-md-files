@@ -1,3 +1,7 @@
+---
+title: "2025-11-frontend-import-errors-fix"
+---
+
 # 前端導入錯誤修復說明
 
 ## 問題概述

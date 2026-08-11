@@ -1,3 +1,7 @@
+---
+title: "Pydantic介紹"
+---
+
 # Pydantic 介紹
 
 ## Pydantic 是什麼？

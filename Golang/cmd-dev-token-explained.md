@@ -1,3 +1,7 @@
+---
+title: "cmd-dev-token-explained"
+---
+
 # cmd/dev-token/main.go 解釋
 
 ## 這是什麼？

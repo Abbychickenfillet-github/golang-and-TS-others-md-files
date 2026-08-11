@@ -1,3 +1,7 @@
+---
+title: "pgvector-with-openai-embedding"
+---
+
 # 接 OpenAI Embedding API 到 pgvector — 從手寫向量升級到真 1536-dim
 
 > **這份筆記回答**：

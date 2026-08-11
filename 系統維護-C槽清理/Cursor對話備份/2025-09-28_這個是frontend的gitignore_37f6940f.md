@@ -1,3 +1,7 @@
+---
+title: "2025-09-28_這個是frontend的gitignore_37f6940f"
+---
+
 # 這個是frontend的gitignore
 
 > Cursor · 2025-09-28 10:23 · `37f6940f-af88-484f-aac2-1134ff056a49` · 11 則

@@ -1,3 +1,7 @@
+---
+title: "event-review-organizer-self-apply-bug"
+---
+
 # Bug: 主辦方可以申請自己的活動
 
 ## 問題描述

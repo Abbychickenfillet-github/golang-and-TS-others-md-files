@@ -1,3 +1,7 @@
+---
+title: "2025-11-22_Please_fix_this_error_0b6c61c4"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-22 12:18 · `0b6c61c4-d7ea-46d2-9776-e8bdb3f4cef5` · 10 則

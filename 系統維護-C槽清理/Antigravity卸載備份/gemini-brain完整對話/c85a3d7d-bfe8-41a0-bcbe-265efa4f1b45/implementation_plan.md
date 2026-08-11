@@ -1,3 +1,7 @@
+---
+title: "implementation_plan"
+---
+
 # Fix Booth Price Display Issue
 
 ## Goal Description

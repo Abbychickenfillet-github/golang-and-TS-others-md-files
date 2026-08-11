@@ -1,3 +1,7 @@
+---
+title: "typing-optional"
+---
+
 # Python typing 模組 - Optional
 
 ## 一句話說明

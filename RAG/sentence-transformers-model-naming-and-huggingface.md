@@ -1,3 +1,7 @@
+---
+title: "sentence-transformers-model-naming-and-huggingface"
+---
+
 # sentence-transformers Model 命名解析 + Hugging Face 是什麼？
 
 > **這份筆記回答**：

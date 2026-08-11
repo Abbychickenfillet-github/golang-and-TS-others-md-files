@@ -1,3 +1,7 @@
+---
+title: "名詞-server與client翻譯"
+---
+
 # 速查:server side / client side 怎麼翻才不會搞混
 
 > 回主筆記 → [tree.md](tree.md)

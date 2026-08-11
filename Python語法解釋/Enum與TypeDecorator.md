@@ -1,3 +1,7 @@
+---
+title: "Enum與TypeDecorator"
+---
+
 # Python Enum 與 SQLAlchemy TypeDecorator
 
 ## Enum 基礎：name 與 value

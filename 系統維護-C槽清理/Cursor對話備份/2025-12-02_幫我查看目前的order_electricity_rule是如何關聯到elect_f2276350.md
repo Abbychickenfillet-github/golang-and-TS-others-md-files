@@ -1,3 +1,7 @@
+---
+title: "2025-12-02_幫我查看目前的order_electricity_rule是如何關聯到elect_f2276350"
+---
+
 # 幫我查看目前的order_electricity_rule是如何關聯到elect
 
 > Cursor · 2025-12-02 08:32 · `f2276350-0c79-4dd7-bea0-3f22b43168a8` · 67 則

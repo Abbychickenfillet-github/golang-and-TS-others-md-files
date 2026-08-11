@@ -1,3 +1,7 @@
+---
+title: "event-i18n-hard-delete"
+---
+
 # Event I18n 刪除策略分析
 
 ## 結論：event_i18n 應使用 Hard Delete

@@ -1,3 +1,7 @@
+---
+title: "ec2-instance-setup"
+---
+
 # AWS EC2 執行個體建立筆記
 
 ---

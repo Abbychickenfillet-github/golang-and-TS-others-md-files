@@ -1,3 +1,7 @@
+---
+title: "chakra-spacing-and-heading-alignment"
+---
+
 # Chakra UI Spacing 單位換算 & Heading 對齊計算
 
 ## Chakra UI 的數字間距系統

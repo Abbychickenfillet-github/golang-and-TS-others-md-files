@@ -1,3 +1,7 @@
+---
+title: "SERVICE_LAYER_AND_ARCHITECTURE_EXPLANATION"
+---
+
 # Service 層與架構說明
 
 ## 1. Service 層主要處理什麼？

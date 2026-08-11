@@ -1,3 +1,7 @@
+---
+title: "TIME_UTILS_EXPLANATION"
+---
+
 # 時間工具函數說明 (frontend/src/utils/date.ts)
 
 ## 目錄

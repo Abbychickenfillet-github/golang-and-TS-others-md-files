@@ -1,3 +1,7 @@
+---
+title: "self-instance-explanation"
+---
+
 # Python 中的 `self` 說明
 
 ## `self` 是什麼？

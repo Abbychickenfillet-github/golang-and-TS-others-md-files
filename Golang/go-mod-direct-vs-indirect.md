@@ -1,3 +1,7 @@
+---
+title: "go-mod-direct-vs-indirect"
+---
+
 # Go Modules: Direct vs Indirect 依賴
 
 ## 什麼是 Direct 和 Indirect

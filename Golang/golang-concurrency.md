@@ -1,3 +1,7 @@
+---
+title: "golang-concurrency"
+---
+
 # Go 併發（Concurrency）— 內建於語法的設計
 
 ## 為什麼 Go 特別？

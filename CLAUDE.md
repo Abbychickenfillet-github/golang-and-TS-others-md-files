@@ -1,3 +1,7 @@
+---
+title: "CLAUDE"
+---
+
 
 ## 📒 Abby-notes 筆記工作守則（Claude 每次回應都要遵守）
 每次 user 問問題，Claude 在回答的「同時」，要到 `C:\coding\futuresign\Abby-notes` 找一個最適合的位置把內容存下來：

@@ -1,3 +1,7 @@
+---
+title: "2025-12-19_export_function_useElectricityRules_43be39a9"
+---
+
 # export function useElectricityRules(
 
 > Cursor · 2025-12-19 13:59 · `43be39a9-da85-4d03-a2f6-32d152e1b0f6` · 150 則

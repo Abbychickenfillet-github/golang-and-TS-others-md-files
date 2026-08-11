@@ -1,3 +1,7 @@
+---
+title: "implementation_plan"
+---
+
 # Implementation Plan - Refactor execution of Main.go
 
 Refactor `cmd/server/main.go` to improve maintainability by moving route configuration into a dedicated `internal/router` package.

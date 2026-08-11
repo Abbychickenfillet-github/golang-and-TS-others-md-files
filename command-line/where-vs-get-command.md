@@ -1,3 +1,7 @@
+---
+title: "where-vs-get-command"
+---
+
 # 檢查指令是否存在：PowerShell vs CMD
 
 > 情境：想知道某個指令（python / pip / conda…）有沒有裝、裝在哪個路徑。

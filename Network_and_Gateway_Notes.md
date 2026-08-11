@@ -1,3 +1,7 @@
+---
+title: "Network_and_Gateway_Notes"
+---
+
 # 網路基礎概念筆記
 
 ## 1. 內部埠 vs 外部埠 (Internal vs External Ports)

@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Im_getting_the_following_error_in_my_cod_ba672173"
+---
+
 # Im getting the following error in my cod
 
 > Cursor · 2025-11-28 00:46 · `ba672173-f10a-4191-8751-8ec50e60397f` · 10 則

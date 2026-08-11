@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_1b64b754"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 15:37 · `1b64b754-8019-49ff-8fc1-e41c685f6623` · 2 則

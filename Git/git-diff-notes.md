@@ -1,3 +1,7 @@
+---
+title: "git-diff-notes"
+---
+
 # Git Diff 指令筆記
 
 ## `git diff` vs `git diff --cached` 的差別

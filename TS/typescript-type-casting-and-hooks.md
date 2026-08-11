@@ -1,3 +1,7 @@
+---
+title: "typescript-type-casting-and-hooks"
+---
+
 # TypeScript 型別轉換 (Type Casting) & Custom Hooks 筆記
 
 ## 什麼是 Cast 型別？

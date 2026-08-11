@@ -1,3 +1,7 @@
+---
+title: "implementation_plan"
+---
+
 # Strict Uniqueness Check for Event Booth Type Pricing
 
 ## Goal Description

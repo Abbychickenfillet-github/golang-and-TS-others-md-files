@@ -1,3 +1,7 @@
+---
+title: "2025-11-01_請通邊介紹這邊每一個function_api_例如map的用法他是如何做到切換_ca2e2f81"
+---
+
 # 請通邊介紹這邊每一個function api 例如map的用法他是如何做到切換？
 
 > Cursor 對話 · 2025-11-01 11:37 · composerId `ca2e2f81-d9a9-4d48-a7cc-2eed40256e35` · 5 則訊息

@@ -1,3 +1,7 @@
+---
+title: "2025-12-31-api-response-format-mismatch"
+---
+
 # API 回傳格式不一致問題
 
 **日期：2025-12-31**

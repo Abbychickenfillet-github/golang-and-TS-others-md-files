@@ -1,3 +1,7 @@
+---
+title: "2025-08-29_為什麼現在連pnpm_install都不行_f1e67a5a"
+---
+
 # 為什麼現在連pnpm install都不行
 
 > Cursor · 2025-08-29 01:29 · `f1e67a5a-89e5-4c7c-a91c-01de73b7356d` · 17 則

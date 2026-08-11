@@ -1,3 +1,7 @@
+---
+title: "pdf-download-html2pdf-to-window-print"
+---
+
 # PDF 下載功能 Debug 全記錄：從 html2pdf.js 到 window.print()
 
 > **關聯筆記**：[digital-book-implementation-plan.md](../plan/digital-book-implementation-plan.md) — Phase 8 踩坑紀錄

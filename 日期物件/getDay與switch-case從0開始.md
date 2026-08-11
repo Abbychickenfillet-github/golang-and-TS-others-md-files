@@ -1,3 +1,7 @@
+---
+title: "getDay與switch-case從0開始"
+---
+
 # 日期物件：getDay() 與 switch 的 case 0
 
 ## ❓ 問題：switch 通常都從 `case 0:` 開始嗎？

@@ -1,3 +1,7 @@
+---
+title: "ecommerce-db-design-references"
+---
+
 # 電商資料庫設計參考文獻
 
 > 相關 Issue：[Issue #308 — 品牌商品頁功能](issue-308-brand-product.md)

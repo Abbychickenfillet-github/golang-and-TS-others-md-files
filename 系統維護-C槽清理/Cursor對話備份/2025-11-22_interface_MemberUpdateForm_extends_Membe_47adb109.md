@@ -1,3 +1,7 @@
+---
+title: "2025-11-22_interface_MemberUpdateForm_extends_Membe_47adb109"
+---
+
 # interface MemberUpdateForm extends Membe
 
 > Cursor · 2025-11-22 10:57 · `47adb109-dd38-4f2a-9a61-5f2f061e9177` · 49 則

@@ -1,3 +1,7 @@
+---
+title: "electricity-rule-refactor-summary"
+---
+
 # 電力規則重構總結
 
 ## 變更概述

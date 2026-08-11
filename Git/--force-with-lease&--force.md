@@ -1,3 +1,7 @@
+---
+title: "--force-with-lease&--force"
+---
+
 # Git Push --force vs --force-with-lease
 
 ## 比較表

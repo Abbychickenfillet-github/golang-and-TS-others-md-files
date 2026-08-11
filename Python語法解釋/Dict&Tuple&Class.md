@@ -1,3 +1,7 @@
+---
+title: "Dict&Tuple&Class"
+---
+
 # Python Dict (字典)
 
 ## Dict 是什麼？

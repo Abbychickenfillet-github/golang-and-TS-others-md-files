@@ -1,3 +1,7 @@
+---
+title: "2025-10-13_這個若寫成const_getCurrentSideNav__1408fb25"
+---
+
 # 這個若寫成const getCurrentSideNav =
 
 > Cursor 對話 · 2025-10-13 15:19 · composerId `1408fb25-1e12-45df-bab6-c28ce435fe1b` · 4 則訊息

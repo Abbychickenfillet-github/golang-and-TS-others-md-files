@@ -1,3 +1,7 @@
+---
+title: "2025-10-08_help_me_fix_6b6b4d4e"
+---
+
 # help me fix
 
 > Cursor · 2025-10-08 17:53 · `6b6b4d4e-1d83-427f-90bd-2216beab6ab6` · 7 則

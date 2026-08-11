@@ -1,3 +1,7 @@
+---
+title: "2025-11-26_Please_fix_this_error_02f1f903"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-26 16:19 · `02f1f903-4796-4c33-83f3-9cbb570f62de` · 3 則

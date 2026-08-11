@@ -1,3 +1,7 @@
+---
+title: "indexeddb"
+---
+
 # IndexedDB — 瀏覽器內建的本地資料庫
 
 > 跟你做 RAG 用的 pgvector **完全不同類別**。

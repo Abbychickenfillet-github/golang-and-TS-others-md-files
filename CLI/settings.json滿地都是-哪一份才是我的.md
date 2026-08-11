@@ -1,3 +1,7 @@
+---
+title: "settings.json滿地都是-哪一份才是我的"
+---
+
 # `settings.json` 滿地都是——哪一份才是「我的」？
 
 > 起因：`dir /s /b settings.json` 從家目錄往下找，**噴出 37 份**。到底哪一份才是 IDE 真正在讀的？

@@ -1,3 +1,7 @@
+---
+title: "chunking-strategies-comparison"
+---
+
 # Chunking 策略對照 — 從 split('\n\n') 到 LangChain 到 semantic chunking
 
 > **這份筆記回答**：

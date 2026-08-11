@@ -1,3 +1,7 @@
+---
+title: "grep -E"
+---
+
 # grep -E 擴展正則表達式
 
 `-E` 參數啟用 **Extended Regular Expression（ERE，擴展正則表達式）**。

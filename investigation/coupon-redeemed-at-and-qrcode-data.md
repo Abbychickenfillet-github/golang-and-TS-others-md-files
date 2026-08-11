@@ -1,3 +1,7 @@
+---
+title: "coupon-redeemed-at-and-qrcode-data"
+---
+
 # ConsumerCouponStatusResponse 的 RedeemedAt 與 QRCodeData 筆記
 
 日期：2026-03-11

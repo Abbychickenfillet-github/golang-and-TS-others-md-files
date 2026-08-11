@@ -1,3 +1,7 @@
+---
+title: "invalidateQueries-with-optimistic-update"
+---
+
 # invalidateQueries 與樂觀更新的衝突
 
 ## 可以用 invalidateQueries 嗎？

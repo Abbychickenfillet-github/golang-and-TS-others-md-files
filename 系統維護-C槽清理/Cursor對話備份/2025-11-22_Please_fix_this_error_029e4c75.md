@@ -1,3 +1,7 @@
+---
+title: "2025-11-22_Please_fix_this_error_029e4c75"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-22 12:18 · `029e4c75-e49d-46c8-b438-3666b9913a52` · 11 則

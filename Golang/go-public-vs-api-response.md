@@ -1,3 +1,7 @@
+---
+title: "go-public-vs-api-response"
+---
+
 # Go 大寫（Public）≠ API Response
 
 ## 常見誤解

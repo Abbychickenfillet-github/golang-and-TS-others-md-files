@@ -1,3 +1,7 @@
+---
+title: "sed-文字替換指令"
+---
+
 # sed - 文字流編輯器（Stream Editor）
 
 ## 基本介紹

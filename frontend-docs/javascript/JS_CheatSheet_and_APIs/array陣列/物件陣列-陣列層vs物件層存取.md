@@ -1,3 +1,7 @@
+---
+title: "物件陣列-陣列層vs物件層存取"
+---
+
 # 物件陣列：陣列層 vs 物件層 存取
 
 > 可執行練習：`JavaScript-practicing/array-of-objects-存取練習.html`

@@ -1,3 +1,7 @@
+---
+title: "booth-map-scaling-explained"
+---
+
 # 攤位地圖縮放與定位 — 完整參數解釋
 
 > 檔案：`src/pages/EventBoothMapSection.tsx`

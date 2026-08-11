@@ -1,3 +1,7 @@
+---
+title: "2025-11-20_event-tickets-design"
+---
+
 # Event 和 Tickets 資料表設計說明
 
 **日期**: 2024-12-19

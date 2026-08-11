@@ -1,3 +1,7 @@
+---
+title: "2025-11-22_Please_fix_this_error_61c32622"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-22 19:28 · `61c32622-2244-4588-873e-de193f908587` · 19 則

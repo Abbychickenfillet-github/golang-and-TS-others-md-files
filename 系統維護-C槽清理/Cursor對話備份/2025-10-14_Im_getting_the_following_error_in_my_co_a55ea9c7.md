@@ -1,3 +1,7 @@
+---
+title: "2025-10-14_Im_getting_the_following_error_in_my_co_a55ea9c7"
+---
+
 # I'm getting the following error in my co
 
 > Cursor 對話 · 2025-10-14 12:43 · composerId `a55ea9c7-c4b3-4d6e-a100-03999d1bb92d` · 3 則訊息

@@ -1,3 +1,7 @@
+---
+title: "list-comprehension-rglob-in"
+---
+
 # 串列推導式 / rglob / in 運算子（讀懂 collect_md_files）
 
 > 來源：abby-notes-rag 專案 `scripts/ingest.py` 的 `collect_md_files()`

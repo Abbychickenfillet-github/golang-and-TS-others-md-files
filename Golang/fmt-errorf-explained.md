@@ -1,3 +1,7 @@
+---
+title: "fmt-errorf-explained"
+---
+
 # fmt.Errorf — 建立格式化的 Error
 
 ## 基本用法

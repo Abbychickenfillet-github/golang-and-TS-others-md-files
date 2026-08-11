@@ -1,3 +1,7 @@
+---
+title: "2025-11-28_Please_fix_this_error_00994925"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-28 02:09 · `00994925-ab03-4b97-a57f-1d76aef88f15` · 7 則

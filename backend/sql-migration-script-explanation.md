@@ -1,3 +1,7 @@
+---
+title: "sql-migration-script-explanation"
+---
+
 # SQL 遷移腳本邏輯說明
 
 ## 問題解答

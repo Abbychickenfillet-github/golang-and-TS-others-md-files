@@ -1,3 +1,7 @@
+---
+title: "CRUD_ARCHITECTURE_EXPLANATION"
+---
+
 # CRUD 架構說明
 
 ## `super().__init__(Booth)` 的作用

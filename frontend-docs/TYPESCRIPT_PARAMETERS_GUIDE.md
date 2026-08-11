@@ -1,3 +1,7 @@
+---
+title: "TYPESCRIPT_PARAMETERS_GUIDE"
+---
+
 # TypeScript 函數參數定義位置說明
 
 ## 📍 參數定義位置

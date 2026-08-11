@@ -1,3 +1,7 @@
+---
+title: "context-engineering-vs-prompt-engineering"
+---
+
 # Context Engineering vs Prompt Engineering
 
 > 日期：2026-04-29

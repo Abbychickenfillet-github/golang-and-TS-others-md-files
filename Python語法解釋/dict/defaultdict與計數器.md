@@ -1,3 +1,7 @@
+---
+title: "defaultdict與計數器"
+---
+
 # `defaultdict` 與計數器寫法
 
 ## 來源情境

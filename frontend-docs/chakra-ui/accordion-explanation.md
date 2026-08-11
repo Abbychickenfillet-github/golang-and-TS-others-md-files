@@ -1,3 +1,7 @@
+---
+title: "accordion-explanation"
+---
+
 # Chakra UI Accordion 組件說明
 
 ## 組件結構

@@ -1,3 +1,7 @@
+---
+title: "postgres-crash-recovery-explained"
+---
+
 # Postgres 當機與重啟：WAL、Checkpoint、Recovery Mode 全解
 
 > 觸發場景：跑 RAG ingest 時 Docker container 內的 Postgres crash 重啟，client 看到 `FATAL: the database system is in recovery mode`。本篇拆解整個機制。

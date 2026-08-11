@@ -1,3 +1,7 @@
+---
+title: "uuid"
+---
+
 # Python UUID 模組
 
 ## UUID 是什麼？

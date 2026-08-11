@@ -1,3 +1,7 @@
+---
+title: "import-type-vs-interface"
+---
+
 # TypeScript: import type vs type vs interface
 
 ## `import type` 語法

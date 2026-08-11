@@ -1,3 +1,7 @@
+---
+title: "原生函式與js引擎-v8"
+---
+
 # 原生（內建）函式 vs JS 引擎 V8
 
 > 路徑：frontend-docs / javascript / 原生function / 原生函式與js引擎-v8

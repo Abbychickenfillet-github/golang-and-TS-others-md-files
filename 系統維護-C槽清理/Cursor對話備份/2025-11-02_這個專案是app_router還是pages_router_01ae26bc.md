@@ -1,3 +1,7 @@
+---
+title: "2025-11-02_這個專案是app_router還是pages_router_01ae26bc"
+---
+
 # 這個專案是app router還是pages router
 
 > Cursor · 2025-11-02 19:15 · `01ae26bc-1692-4ac4-864c-6a64a39fb548` · 87 則

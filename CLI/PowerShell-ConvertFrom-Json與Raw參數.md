@@ -1,3 +1,7 @@
+---
+title: "PowerShell-ConvertFrom-Json與Raw參數"
+---
+
 # PowerShell：`ConvertFrom-Json` 與 `-Raw` 參數
 
 > 為什麼 `Get-Content 檔案 -Raw | ConvertFrom-Json` 一定要加 `-Raw`？

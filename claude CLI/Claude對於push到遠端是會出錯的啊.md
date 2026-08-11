@@ -1,3 +1,7 @@
+---
+title: "Claude對於push到遠端是會出錯的啊"
+---
+
 ![](https://cdn-images-1.medium.com/max/1100/1*24g8nTDxD1VeisGsNbMyPQ.png)
 
 他去找到一個完全不存在的account，甚至不是我本人的，也沒有先fetch確認過

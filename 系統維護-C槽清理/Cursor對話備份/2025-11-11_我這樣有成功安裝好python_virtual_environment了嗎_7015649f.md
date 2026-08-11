@@ -1,3 +1,7 @@
+---
+title: "2025-11-11_我這樣有成功安裝好python_virtual_environment了嗎_7015649f"
+---
+
 # 我這樣有成功安裝好python virtual environment了嗎
 
 > Cursor · 2025-11-11 08:52 · `7015649f-df9e-4b61-9eac-ebeaac37f554` · 8 則

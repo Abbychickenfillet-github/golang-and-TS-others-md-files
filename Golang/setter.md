@@ -1,3 +1,7 @@
+---
+title: "setter"
+---
+
 # Go Setter 模式 - 避免破壞現有建構
 
 ## 什麼是 Setter 模式？

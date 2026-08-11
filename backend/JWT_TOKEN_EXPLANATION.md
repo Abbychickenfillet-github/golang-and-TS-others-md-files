@@ -1,3 +1,7 @@
+---
+title: "JWT_TOKEN_EXPLANATION"
+---
+
 # JWT Token 和黑名單機制解釋
 
 ## 1. 程式碼解釋

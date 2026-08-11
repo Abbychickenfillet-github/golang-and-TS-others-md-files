@@ -1,3 +1,7 @@
+---
+title: "2025-09-13_我現在懷疑我用npm_run_dev是跑到npm_run_build_0754abff"
+---
+
 # 我現在懷疑我用npm run dev是跑到npm run build
 
 > Cursor · 2025-09-13 09:57 · `0754abff-0576-4b2a-b393-0c82ec8fbcaa` · 10 則

@@ -1,3 +1,7 @@
+---
+title: "concepts-chunking-vs-embedding-vs-llm-vs-pgvector"
+---
+
 # 概念釐清：chunking vs embedding vs LLM vs pgvector
 
 > **這份筆記回答**：

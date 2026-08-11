@@ -1,3 +1,7 @@
+---
+title: "iife-是否算原生function"
+---
+
 # IIFE 算原生 function 嗎？
 
 > 路徑：frontend-docs / javascript / 設計模式 function / iife-是否算原生function

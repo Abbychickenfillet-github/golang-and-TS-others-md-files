@@ -1,3 +1,7 @@
+---
+title: "text2mem-12-atomic-operations"
+---
+
 # text2mem — 12 個原子操作設計筆記
 
 > 整理針對 text2mem 記憶系統設計的學習問題與解答。

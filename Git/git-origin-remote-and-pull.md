@@ -1,3 +1,7 @@
+---
+title: "git-origin-remote-and-pull"
+---
+
 # Git Remote 與 Pull 語法
 
 ## git pull 正確語法

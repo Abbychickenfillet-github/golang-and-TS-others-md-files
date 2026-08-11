@@ -1,3 +1,7 @@
+---
+title: "the-need-of-encoding-json-for-marshal-and-unmarshal"
+---
+
 # 沒有 encoding/json 就不能用 Marshal / Unmarshal 嗎？
 
 **對，沒 import `encoding/json` 就不能直接用 `json.Marshal` / `json.Unmarshal`。**

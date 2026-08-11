@@ -1,3 +1,7 @@
+---
+title: "rag-hardware-and-disk-inventory"
+---
+
 # RAG 硬體與磁碟佔用盤點
 
 本篇重點 a–r，共 18 個。

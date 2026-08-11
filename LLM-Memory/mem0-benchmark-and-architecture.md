@@ -1,3 +1,7 @@
+---
+title: "mem0-benchmark-and-architecture"
+---
+
 # Mem0 — 為何比 OpenAI Memory 準 26%、快 91%、省 90% Token
 
 > 這份筆記專注回答一個問題：**Mem0 那三組亮眼數字到底怎麼來的？**

@@ -1,3 +1,7 @@
+---
+title: "2025-11-25_Please_fix_this_error_8146ffb2"
+---
+
 # Please fix this error
 
 > Cursor · 2025-11-25 15:34 · `8146ffb2-86ff-4f3b-8597-2fa69f42c06a` · 6 則

@@ -1,3 +1,7 @@
+---
+title: "task"
+---
+
 # Task: Resolve Conflicts and Update Brand Checkout Page
 
 - [ ] Resolve Git conflicts in remaining files
