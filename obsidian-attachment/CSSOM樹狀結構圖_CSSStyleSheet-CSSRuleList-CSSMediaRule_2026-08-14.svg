@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 720" font-family="'Noto Sans TC', 'Microsoft JhengHei', sans-serif">
+  <defs>
+    <marker id="arrowList" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3B5BDB"/>
+    </marker>
+    <marker id="arrowNest" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#E8590C"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="720" fill="#ffffff"/>
+
+  <text x="500" y="32" text-anchor="middle" font-size="21" font-weight="700" fill="#212529">CSSOM 樹狀結構 — CSSStyleSheet → CSSRuleList → CSSRule</text>
+  <text x="500" y="54" text-anchor="middle" font-size="12.5" fill="#868e96">來源 CSS：body 選字色、.container 用 flex、@media 覆寫、.container .item 設padding（依原始碼順序）</text>
+
+  <!-- Root: CSSStyleSheet -->
+  <rect x="380" y="76" width="240" height="52" rx="8" fill="#EDF2FF" stroke="#3B5BDB" stroke-width="2.5"/>
+  <text x="500" y="98" text-anchor="middle" font-size="15" font-weight="700" fill="#1c3fa8">CSSStyleSheet</text>
+  <text x="500" y="116" text-anchor="middle" font-size="10.5" fill="#4263EB">document.styleSheets[0]</text>
+
+  <!-- cssRules label -->
+  <text x="500" y="150" text-anchor="middle" font-size="11.5" fill="#495057" font-style="italic">.cssRules（CSSRuleList，依原始碼順序排列的清單，不是parent-child樹）</text>
+
+  <!-- list arrows from root down to a horizontal spine, then to each rule -->
+  <line x1="500" y1="128" x2="500" y2="165" stroke="#3B5BDB" stroke-width="2"/>
+  <line x1="120" y1="165" x2="880" y2="165" stroke="#3B5BDB" stroke-width="2"/>
+
+  <!-- connector down to each rule box + index label -->
+  <g stroke="#3B5BDB" stroke-width="2">
+    <line x1="120" y1="165" x2="120" y2="190" marker-end="url(#arrowList)"/>
+    <line x1="360" y1="165" x2="360" y2="190" marker-end="url(#arrowList)"/>
+    <line x1="620" y1="165" x2="620" y2="190" marker-end="url(#arrowList)"/>
+    <line x1="880" y1="165" x2="880" y2="190" marker-end="url(#arrowList)"/>
+  </g>
+
+  <!-- Rule 0: body -->
+  <g>
+    <rect x="40" y="192" width="160" height="92" rx="8" fill="#EBFBEE" stroke="#2F9E44" stroke-width="2"/>
+    <text x="120" y="212" text-anchor="middle" font-size="10" fill="#2b8a3e">[0] CSSStyleRule</text>
+    <text x="120" y="230" text-anchor="middle" font-size="13" font-weight="700" fill="#2b8a3e">selectorText</text>
+    <text x="120" y="246" text-anchor="middle" font-size="12" fill="#212529">"body"</text>
+    <line x1="55" y1="254" x2="185" y2="254" stroke="#c3e6cb"/>
+    <text x="120" y="270" text-anchor="middle" font-size="10.5" fill="#495057">.style（CSSStyleDeclaration）</text>
+    <text x="120" y="282" text-anchor="middle" font-size="10.5" fill="#212529">color: black</text>
+  </g>
+
+  <!-- Rule 1: .container -->
+  <g>
+    <rect x="280" y="192" width="160" height="92" rx="8" fill="#EBFBEE" stroke="#2F9E44" stroke-width="2"/>
+    <text x="360" y="212" text-anchor="middle" font-size="10" fill="#2b8a3e">[1] CSSStyleRule</text>
+    <text x="360" y="230" text-anchor="middle" font-size="13" font-weight="700" fill="#2b8a3e">selectorText</text>
+    <text x="360" y="246" text-anchor="middle" font-size="12" fill="#212529">".container"</text>
+    <line x1="295" y1="254" x2="425" y2="254" stroke="#c3e6cb"/>
+    <text x="360" y="270" text-anchor="middle" font-size="10.5" fill="#495057">.style</text>
+    <text x="360" y="282" text-anchor="middle" font-size="10.5" fill="#212529">display: flex</text>
+  </g>
+
+  <!-- Rule 2: @media (CSSMediaRule) -->
+  <g>
+    <rect x="540" y="192" width="160" height="92" rx="8" fill="#FFF9DB" stroke="#F08C00" stroke-width="2"/>
+    <text x="620" y="212" text-anchor="middle" font-size="10" fill="#996a00">[2] CSSMediaRule</text>
+    <text x="620" y="230" text-anchor="middle" font-size="13" font-weight="700" fill="#996a00">conditionText</text>
+    <text x="620" y="246" text-anchor="middle" font-size="11.5" fill="#212529">"(max-width: 600px)"</text>
+    <line x1="555" y1="254" x2="685" y2="254" stroke="#ffe08a"/>
+    <text x="620" y="270" text-anchor="middle" font-size="10.5" fill="#495057">.cssRules（自己也有一份）</text>
+    <text x="620" y="282" text-anchor="middle" font-size="10.5" fill="#e8590c" font-weight="700">↓ 往下看巢狀內容</text>
+  </g>
+
+  <!-- Rule 3: .container .item -->
+  <g>
+    <rect x="800" y="192" width="160" height="92" rx="8" fill="#EBFBEE" stroke="#2F9E44" stroke-width="2"/>
+    <text x="880" y="212" text-anchor="middle" font-size="10" fill="#2b8a3e">[3] CSSStyleRule</text>
+    <text x="880" y="230" text-anchor="middle" font-size="13" font-weight="700" fill="#2b8a3e">selectorText</text>
+    <text x="880" y="246" text-anchor="middle" font-size="11.5" fill="#212529">".container .item"</text>
+    <line x1="815" y1="254" x2="945" y2="254" stroke="#c3e6cb"/>
+    <text x="880" y="270" text-anchor="middle" font-size="10.5" fill="#495057">.style</text>
+    <text x="880" y="282" text-anchor="middle" font-size="10.5" fill="#212529">padding: 10px</text>
+  </g>
+
+  <!-- nested arrow from @media down to its nested rule (this is the ACTUAL tree depth) -->
+  <line x1="620" y1="284" x2="620" y2="330" stroke="#E8590C" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arrowNest)"/>
+  <text x="700" y="312" font-size="11" fill="#e8590c" font-weight="600">巢狀（唯一真正產生樹狀深度的地方）</text>
+
+  <!-- nested rule inside @media -->
+  <g>
+    <rect x="540" y="335" width="160" height="92" rx="8" fill="#FFF3F3" stroke="#E8590C" stroke-width="2" stroke-dasharray="4 3"/>
+    <text x="620" y="355" text-anchor="middle" font-size="10" fill="#c92a2a">[2][0] CSSStyleRule</text>
+    <text x="620" y="373" text-anchor="middle" font-size="13" font-weight="700" fill="#c92a2a">selectorText</text>
+    <text x="620" y="389" text-anchor="middle" font-size="11.5" fill="#212529">".container"（同名，但套用條件不同）</text>
+    <line x1="555" y1="397" x2="685" y2="397" stroke="#ffc9c9"/>
+    <text x="620" y="413" text-anchor="middle" font-size="10.5" fill="#495057">.style</text>
+    <text x="620" y="425" text-anchor="middle" font-size="10.5" fill="#212529">flex-direction: column</text>
+  </g>
+
+  <!-- Important distinction callout -->
+  <g transform="translate(40,460)">
+    <rect x="0" y="0" width="920" height="230" rx="10" fill="#F8F9FA" stroke="#DEE2E6"/>
+    <text x="20" y="28" font-size="14" font-weight="700" fill="#212529">⚠️ 容易搞混的地方：CSSOM 不是「每個 DOM 節點最終套用了什麼樣式」的那棵樹</text>
+    <text x="20" y="52" font-size="12" fill="#343a40">上面畫的這棵樹，結構跟著「CSS原始碼寫了幾條規則、規則之間有沒有巢狀（例如@media）」走，</text>
+    <text x="20" y="72" font-size="12" fill="#343a40">是 CSSStyleSheet → CSSRuleList → CSSRule（CSSStyleRule／CSSMediaRule…）這條物件模型，</text>
+    <text x="20" y="92" font-size="12" fill="#343a40">頂層基本上是「依原始碼順序排列的一份清單」，只有 @media／@supports 這類條件式規則會往下再包一層 CSSRuleList，</text>
+    <text x="20" y="112" font-size="12" fill="#343a40">是整棵 CSSOM 裡「唯一真正產生樹狀深度」的地方——絕大部分規則其實是平的，不是像 DOM 那樣一路往下長。</text>
+
+    <text x="20" y="144" font-size="12" fill="#343a40" font-weight="700">跟 CRP 流程裡「Style Calculation」算出來的東西是兩回事：</text>
+    <text x="20" y="164" font-size="12" fill="#343a40">Style Calculation 是拿這棵 CSSOM 去跟 DOM 樹做比對，才會產生「每一個 DOM 節點最終該套用哪些樣式」的結果，</text>
+    <text x="20" y="184" font-size="12" fill="#343a40">那份結果的形狀是跟著 DOM 樹走的（每個 DOM 節點一份 computed style），跟這裡畫的、跟著 CSS 原始碼規則走的 CSSOM 完全是兩棵不同的樹。</text>
+    <text x="20" y="210" font-size="12" fill="#e8590c" font-weight="600">見 Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪 筆記「Style Calculation對應到六大步驟裡的哪一步」那段。</text>
+  </g>
+</svg>
