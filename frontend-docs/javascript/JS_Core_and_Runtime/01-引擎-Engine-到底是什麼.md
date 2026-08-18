@@ -11,7 +11,7 @@ related:
   - "[[記憶體模型-stack-heap-動態配置-GC]]"
   - "[[傳值vs傳址-賦值與記憶體空間]]"
   - "[[Node-global與process物件屬性逐行解釋]]"
-updated: 2026-08-05
+updated: 2026-08-15
 ---
 
 # 引擎（Engine）到底是什麼
@@ -70,7 +70,7 @@ Unity 引擎本身不是一款遊戲，是被「某一款具體的遊戲」包�
 
 ## (c) <mark style="background: #FFF3A3A6;">JS 引擎具體</mark>是什麼？——<mark style="background: #FFF3A3A6;">一支用 C++ 寫的獨立程式</mark>
 
-- V8 本身是一支用 **C++** 寫成、可以「被」獨立編譯、獨立嵌入任何 C++ 專案的程式庫（library），
+- V8 本身是一支Google開發的，用 **C++** 寫成、可以「被」獨立編譯、獨立嵌入任何 C++ 專案的程式庫（library），
 		V8被編譯，是被動的那一層。V8自己的C++原始碼要先被一套C++編譯工具像Clang編譯成一隻獨立的函式庫/執行檔。
 	- 這個編譯過程跟Chrome自己的<mark style="background: #FFB8EBA6;">建置流程</mark>是分開的、獨立的，這樣V8才能被包進Chrome、也能被包進Node.js、Deno等不同的宿主。
 - 職責明確界定在：**讀懂 JS 原始碼 → 轉換成可執行的表示法 → 執行它 → 提供 ECMAScript 規格要求的所有語言核心功能**（閉包、Promise、陣列方法、`class`……）。
@@ -313,13 +313,13 @@ d. JIT混合型（Just-In-Time Compilation，即時編譯）——Interpreter跟
 ```mermaid
 flowchart TD
     subgraph L1["① 規格層 Specification Level"]
-        S["ECMA-262：定義 JS 的 Lexical Grammar（詞法文法）與 Syntactic Grammar（語法文法）\n只是文字規則，本身不執行任何東西\n例：Destructuring Binding Patterns"]
+        S["ECMA-262：定義 JS 的 Lexical Grammar（詞法文法）與 Syntactic Grammar（語法文法）<br/>只是文字規則，本身不執行任何東西<br/>例：Destructuring Binding Patterns"]
     end
     subgraph L2["② 引擎層 Engine Level"]
-        E["V8／SpiderMonkey／JavaScriptCore 讀懂這份規格文字\n實作 Parser 把原始碼轉成 AST\n再經 Ignition/TurboFan 轉成 Bytecode／機器碼"]
+        E["V8／SpiderMonkey／JavaScriptCore 讀懂這份規格文字<br/>實作 Parser 把原始碼轉成 AST<br/>再經 Ignition/TurboFan 轉成 Bytecode／機器碼"]
     end
     subgraph L3["③ 硬體層 Hardware Level"]
-        H["引擎編譯出來的機器碼真正執行時\n去操作 CPU 暫存器與 RAM 記憶體\n（Stack frame、Heap Context 物件都落在這層）"]
+        H["引擎編譯出來的機器碼真正執行時<br/>去操作 CPU 暫存器與 RAM 記憶體<br/>（Stack frame、Heap Context 物件都落在這層）"]
     end
     L1 --> L2 --> L3
 ```

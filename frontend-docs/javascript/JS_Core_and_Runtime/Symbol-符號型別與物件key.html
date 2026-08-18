@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>&quot;Symbol-符號型別與物件key&quot;</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>&quot;Symbol-符號型別與物件key&quot;</h1><div class="pills"><span class="pill">#javascript</span><span class="pill">#symbol</span><span class="pill">#物件</span><span class="pill">#key</span><span class="pill">#JS_Core_and_Runtime</span></div><div class="meta">來源：Gemini · <a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/64ba1028141e5c94" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><h1>Symbol 符號型別 &amp; 物件的 key 只能 string / symbol</h1>
+<blockquote>
+<p>相關：[[查看plain-object的prototype]]、[[Object靜態方法速查]]、[[for...of]]<br />
+MDN：<a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol">https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol</a></p>
+</blockquote>
+</section><section class="card"><h2>一句話</h2>
+<p><strong>物件(object)的屬性 key 只能是「字串 string」或「符號 Symbol」兩種型別。</strong> 其他型別當 key 都會被「自動轉成字串」。（想用任何型別當 key → 用 <code>Map</code>。）</p>
+<hr />
+</section><section class="card"><h2>1. key 只能 string / symbol —— 其他會被轉成字串</h2>
+<pre><code class="language-js">const obj = {};
+obj[1]   = &quot;a&quot;;   // 數字 1 → 被轉成字串 &quot;1&quot;
+obj[&quot;1&quot;];         // &quot;a&quot; ← 證據：用字串 &quot;1&quot; 拿得到，代表 key 本來就是 &quot;1&quot;
+obj[true] = &quot;b&quot;;  // → &quot;true&quot;
+obj[{}]   = &quot;c&quot;;  // → &quot;[object Object]&quot;（物件被Prototype.toString()硬轉成這串字！）
+console.log(Object.keys(obj));   // [&quot;1&quot;, &quot;true&quot;, &quot;[object Object]&quot;] 全是字串
+</code></pre>
+<p>→ 所以拿物件當 key 會全部撞在 <code>"[object Object]"</code>，這是用物件當字典的大坑。要任意型別 key 請用 <strong>Map</strong>。</p>
+<hr />
+</section><section class="card"><h2>2. Symbol 是什麼</h2>
+<p>ES6 新增的<strong>原始型別(primitive)</strong>，特色是「<strong>獨一無二</strong>」：每個 Symbol 都不相等。</p>
+<pre><code class="language-js">const s1 = Symbol(&quot;desc&quot;);   // 括號內只是「說明文字」，方便除錯，不影響唯一性
+const s2 = Symbol(&quot;desc&quot;);
+console.log(s1 === s2);      // false ← 即使說明一樣，也是兩個不同的 Symbol
+console.log(typeof s1);      // &quot;symbol&quot;
+</code></pre>
+</section><section class="card"><h2>3. 為什麼用 Symbol 當 key？</h2>
+<ul>
+<li><strong>不會撞名</strong>：給物件加 Symbol key，絕不會跟別人（或函式庫）的字串 key 衝突。</li>
+<li><strong>預設「隱身」</strong>：Symbol key 不會出現在 <code>for...in</code>、<code>Object.keys</code>、<code>JSON.stringify</code>。</li>
+</ul>
+<pre><code class="language-js">const id = Symbol(&quot;id&quot;);
+const user = { name: &quot;Abby&quot;, [id]: 123 };   // 用 [變數] 當 key（computed key）
+console.log(Object.keys(user));             // [&quot;name&quot;] ← Symbol key 沒出現
+console.log(user[id]);                      // 123 ← 要用同一個 Symbol 才取得到
+</code></pre>
+<p>要拿 Symbol key 得用專門的方法（見 [[Object靜態方法速查]]）：</p>
+<pre><code class="language-js">Object.getOwnPropertySymbols(user);   // [Symbol(id)]
+Reflect.ownKeys(user);                // [&quot;name&quot;, Symbol(id)] ← 字串+Symbol 全拿
+</code></pre>
+<h3>完整範例：把 Symbol 放進物件當 key</h3>
+<p>關鍵差別：<strong>字串 key 直接寫；Symbol key 一定要先存進變數，再用 <code>[變數]</code>。</strong></p>
+<pre><code class="language-js">// === 字串 key：直接寫，不用變數 ===
+const a = { name: &quot;Abby&quot; };     // name 自動變字串 key &quot;name&quot;
+console.log(a.name);            // &quot;Abby&quot;
+
+// === Symbol key：要先有變數，再用 [變數] ===
+const id = Symbol(&quot;id&quot;);        // ① 先建立 Symbol，存進變數 id（要保留它！）
+
+// 寫法 1：在物件字面值裡用「計算屬性鍵 [id]」
+const user = {
+  name: &quot;Abby&quot;,                 // 字串 key：直接寫
+  [id]: 123                     // Symbol key：一定要 [id]，不能寫 id
+};
+
+// 寫法 2：建完物件後再加
+const user2 = { name: &quot;Joe&quot; };
+user2[id] = 456;                // 用中括號 + 變數
+
+// === 讀回來：必須用「同一個」Symbol 變數，必須用中括號一組 ===
+console.log(user[id]);          // 123  ← 用 id 取得到
+console.log(user2[id]);         // 456
+
+// === 對照：為什麼不能直接寫 id ===
+const wrong = { id: 999 };      // 這個 id 是「字串 key &quot;id&quot;」，不是上面那個 Symbol！
+console.log(wrong[id]);         // undefined ← 此物件沒有「那個 Symbol」當 key
+console.log(wrong.id);          // 999       ← 它只有字串 key &quot;id&quot;
+console.log(wrong[&quot;id&quot;]);       // 999
+
+// === Symbol key 會「隱身」===
+console.log(Object.keys(user));               // [&quot;name&quot;] ← 看不到 Symbol key
+console.log(Object.getOwnPropertySymbols(user)); // [Symbol(id)] ← 要這樣才看得到
+</code></pre>
+<blockquote>
+<p>重點：<strong>Symbol 是獨一無二的，你沒留住 <code>id</code> 這個變數，就再也取不到那個值</strong>（因為無法重建「同一個」Symbol）。這跟字串 key 可以隨時用 <code>"name"</code> 字面值取得，很不一樣。</p>
+</blockquote>
+</section><section class="card"><h2>4. 內建的「知名 Symbol」(well-known symbols)</h2>
+<p>JS 內部用 Symbol 當「協定鉤子」，最常見的是 <strong><code>Symbol.iterator</code></strong>——物件有沒有它，決定能不能 <code>for...of</code>（即「可迭代 iterable」，見 [[查看plain-object的prototype]] 的 enumerable vs iterable）。</p>
+<pre><code class="language-js">const arr = [1, 2, 3];
+typeof arr[Symbol.iterator];   // &quot;function&quot; ← 陣列有，所以可 for...of
+const obj = {};
+obj[Symbol.iterator];          // undefined  ← plain object 沒有，不能 for...of
+</code></pre>
+<hr />
+</section><section class="card"><h2>5. Object key vs Map key（對照）</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Object 的 key</th>
+<th>Map 的 key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>可用型別</td>
+<td><strong>只有 string / symbol</strong></td>
+<td><strong>任何型別</strong>（數字、物件、函式…）</td>
+</tr>
+<tr>
+<td>其他型別</td>
+<td>自動轉成字串</td>
+<td>原樣保留</td>
+</tr>
+<tr>
+<td>適合</td>
+<td>固定結構的資料</td>
+<td>任意鍵值字典</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>記憶：<strong>物件 key 只認 string/symbol；要用物件或數字當 key 就改用 Map。</strong></p>
+</blockquote>
+<hr />
+</section><section class="card"><h2>追加 2026-08-14（Gemini 對話補充）</h2>
+<blockquote>
+<p>來源：<a href="https://gemini.google.com/app/64ba1028141e5c94">https://gemini.google.com/app/64ba1028141e5c94</a><br />
+補充重點 a–f，共 6 個。上面第 1–5 節維持原樣，以下是原本沒寫到的四件事：全域符號登錄檔、<code>new Symbol()</code> 為何被禁、弱封裝的正確定義、以及 Symbol 與資料庫的關係。</p>
+</blockquote>
+<h3>6. <code>Symbol.for()</code> 與全域符號登錄檔</h3>
+<p>a. <code>Symbol("desc")</code> 每次呼叫都產生一個<mark style="background: #FFF3A3A6;">全新、永不相等</mark>的 Symbol；<code>Symbol.for("key")</code> 則走<mark style="background: #ADCCFFA6;">全域符號登錄檔（Global Symbol Registry）</mark>——它是一個<mark style="background: #BBFABBA6;">單純的查表存取，不是迴圈</mark>：先在登錄檔裡找有沒有這個 key，找到就回傳<mark style="background: #FFF3A3A6;">同一個</mark> Symbol，沒找到才建立新的並登記進去。</p>
+<pre><code class="language-js">Symbol(&quot;id&quot;)     === Symbol(&quot;id&quot;);      // false ← 每次都是新的
+Symbol.for(&quot;id&quot;) === Symbol.for(&quot;id&quot;);  // true  ← 登錄檔裡是同一個
+Symbol.keyFor(Symbol.for(&quot;id&quot;));        // &quot;id&quot;  ← 反查登錄檔的 key
+Symbol.keyFor(Symbol(&quot;id&quot;));            // undefined ← 沒登記過，查不到
+</code></pre>
+<p>b. <mark style="background: #D2B3FFA6;">用途分界</mark>：要「絕對唯一、誰都撞不到」用 <code>Symbol()</code>；要「跨模組／跨 iframe 共用同一個 Symbol」用 <code>Symbol.for()</code>。</p>
+<h3>7. 為什麼不能寫 <code>new Symbol()</code></h3>
+<p>c. <code>new Symbol()</code> 會直接<mark style="background: #FF5582A6;">拋出 TypeError</mark>。其他原始型別（Number、String、Boolean）都允許 <code>new</code> 出一個<mark style="background: #ADCCFFA6;">包裝物件（wrapper object）</mark>，只有 Symbol 被規格明文禁止。原因是<mark style="background: #FFF3A3A6;">避免混淆</mark>：Symbol 的整個存在意義就是「一個獨一無二的原始值」，如果允許 <code>new Symbol()</code>，就會冒出「兩個包著同一個 Symbol 的不同物件」這種自相矛盾的結構。</p>
+<p>d. 真的需要包裝物件時，改用 <code>Object(sym)</code>。<mark style="background: #FF5582A6;">注意這不是「改變了 Symbol 的型別」</mark>，而是<mark style="background: #BBFABBA6;">另外造了一個物件把它包在裡面</mark>；原本那個 Symbol 仍然是 symbol 型別：</p>
+<pre><code class="language-js">const sym = Symbol(&quot;id&quot;);
+typeof sym;              // &quot;symbol&quot;  ← 原本的沒變
+const wrapped = Object(sym);
+typeof wrapped;          // &quot;object&quot;  ← 這是新造的包裝物件
+wrapped.valueOf() === sym;  // true   ← 裡面裝的還是同一個 Symbol
+new Symbol(&quot;id&quot;);        // TypeError: Symbol is not a constructor
+</code></pre>
+<h3>8. 「弱封裝」到底弱在哪裡</h3>
+<p>e. <mark style="background: #ADCCFFA6;">封裝（Encapsulation）</mark>是把資料與操作資料的方法包成一個獨立單位，外界只能透過它提供的介面存取。MDN 對 Symbol 的用詞是 <mark style="background: #ADCCFFA6;">weak encapsulation／weak form of information hiding</mark>（弱封裝／弱資訊隱藏），三個關鍵句的意思是：</p>
+<ul>
+<li><mark style="background: #FFF3A3A6;">hidden from any mechanism other code will typically use to access the object</mark>——Symbol key<mark style="background: #FFF3A3A6;">不會出現在</mark> <code>for...in</code>、<code>Object.keys()</code>、<code>JSON.stringify()</code> 這些「一般人會用的存取管道」裡。</li>
+<li><mark style="background: #FF5582A6;">但這只是「不顯眼」，不是「真的存取不到」</mark>：<code>Object.getOwnPropertySymbols(obj)</code> 與 <code>Reflect.ownKeys(obj)</code> 一樣撈得出來。<mark style="background: #FF5582A6;">所以絕對不能拿 Symbol 來藏密碼、token 這類真正的機密。</mark></li>
+<li>這就是為什麼叫「<mark style="background: #ADCCFFA6;">弱</mark>」封裝——真正的私有欄位請用 <mark style="background: #BBFABBA6;">class 的 <code>#privateField</code> 語法</mark>或閉包，那才是引擎層級擋掉的。</li>
+</ul>
+<h3>9. Symbol 與資料庫（實務上的分界）</h3>
+<p>f. <mark style="background: #FF5582A6;">資料庫沒有 Symbol 這個資料型別。</mark>PostgreSQL、MySQL 都不支援，主鍵（primary key）一律是整數、字串或 UUID。Symbol 是<mark style="background: #ADCCFFA6;">純執行期（runtime）</mark>的概念，一旦資料要序列化落地（<code>JSON.stringify</code> 也會直接忽略 Symbol key），它就消失了。</p>
+<blockquote>
+<p>[!tip] 實務結論<br />
+Symbol 解決的是<mark style="background: #FFF3A3A6;">「同一個 JS 執行環境裡，不同函式庫往同一個物件上掛屬性會不會撞名」</mark>的問題，跟資料庫的鍵值設計是兩個世界。用 UUID 當主鍵時，撞名問題本來就不存在，不需要也不可能改用 Symbol。</p>
+</blockquote>
+<hr />
+</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第 6–9 節原始對話</td>
+<td>https://gemini.google.com/app/64ba1028141e5c94</td>
+<td>Gemini 對話（語音輸入），整理於 2026-08-14</td>
+</tr>
+<tr>
+<td>Symbol 型別、<code>Symbol.for</code>、<code>new Symbol()</code> 拋錯、weak encapsulation 原文</td>
+<td>https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol</td>
+<td>MDN，查證於 2026-08-14</td>
+</tr>
+<tr>
+<td>class 私有欄位 <code>#</code>（真正的封裝）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_properties</td>
+<td>MDN，查證於 2026-08-14</td>
+</tr>
+</tbody>
+</table></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-14</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>

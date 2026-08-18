@@ -72,8 +72,8 @@ hydrateRoot(document.getElementById('root'), <App />);
 - [[V8引擎完整管線-Parse到Deoptimization]]（直接支撐 (i) 的更正；該篇講 Ignition 直譯器、TurboFan 最佳化與 Deoptimization，說明為什麼「JS = 直譯語言」的說法已過時）
 - [[JIT與useMemo-CPU記憶體取捨]]（同樣談 JIT 與效能取捨；該篇從 React 層看快取，本篇 (i) 從引擎層看編譯，兩篇是同一議題的上下游）
 - [[Node-global與process物件屬性逐行解釋]]（實證 (c) 的「Node 沒有 window 和 document」；該篇實際在 Node REPL 印出 global 與 process，是本篇論點的操作證據）
-- [[React-純函數與嚴格模式-StrictMode]]（呼應 (g) 的 hydration mismatch；元件本體必須是純函數、不能有隨機或時間副作用，正是兩邊渲染結果能一致的前提）
-- [[前端框架比較-Vue-React-Angular難易度與優缺點]]（同批對話延伸；三大框架都各有 SSR 方案 Next.js／Nuxt／Angular Universal，可對照選型）
+- [[01-React-純函數與嚴格模式-StrictMode]]（呼應 (g) 的 hydration mismatch；元件本體必須是純函數、不能有隨機或時間副作用，正是兩邊渲染結果能一致的前提）
+- [[00-前端框架比較-Vue-React-Angular難易度與優缺點]]（同批對話延伸；三大框架都各有 SSR 方案 Next.js／Nuxt／Angular Universal，可對照選型）
 
 ## 各對話來源
 

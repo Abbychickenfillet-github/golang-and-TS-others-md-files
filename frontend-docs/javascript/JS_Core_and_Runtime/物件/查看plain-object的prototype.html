@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>查看plain-object的prototype</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>查看plain-object的prototype</h1><div class="pills"><span class="pill">#javascript</span><span class="pill">#prototype</span><span class="pill">#prototype-chain</span><span class="pill">#object</span><span class="pill">#JS_Core_and_Runtime</span></div><div class="meta">來源：Gemini · <a href="https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Data_structures" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/d3c5f0e8c6e26eca" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><h1>查看 plain object 的 prototype——原型什麼時候會是 null</h1>
+<blockquote>
+<p>[!quote]- 📍 起點：MDN原文（中文版，查證於2026-08-14）<br />
+在 JavaScript 中，幾乎所有的<a href="https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Data_structures#object">物件</a>都是 <code>Object</code> 的實例；一個典型的物件從 <code>Object.prototype</code> 繼承屬性（包括方法），儘管這些屬性可能被覆蓋（或者說重寫）。唯一不從 <code>Object.prototype</code> 繼承的物件是那些 <code>null</code> 原型物件，或者是從其他 <code>null</code> 原型物件繼承而來的物件。</p>
+</blockquote>
+</section><section class="card"><h2>(a) 先回答核心問題：一個物件的原型要怎麼變成 null</h2>
+<p>有三種<strong>主動</strong>讓一個物件原型變成<code>null</code>的寫法，外加一種<strong>天生內建</strong>的情況：</p>
+<pre><code class="language-js">// 寫法一：建立當下就指定沒有原型（最常見、最推薦）
+const a = Object.create(null);
+Object.getPrototypeOf(a); // null
+
+// 寫法二：物件字面量裡直接寫 __proto__: null
+const b = { __proto__: null };
+Object.getPrototypeOf(b); // null
+
+// 寫法三：對一個已經存在的物件，事後砍掉它的原型
+const c = {};
+Object.setPrototypeOf(c, null);
+Object.getPrototypeOf(c); // null
+</code></pre>
+<p><mark style="background: #FFF3A3A6;">寫法二有個容易誤解的地方</mark>：<code>{ __proto__: null }</code>裡的<code>__proto__</code>只有<strong>在物件字面量裡、當作字面上寫出來的key</strong>時，才會被JS引擎特殊處理成「設定這個物件的原型」；如果是用變數或字串動態組出這個key（例如<code>{ [someVar]: null }</code>、或事後用<code>b['__proto__'] = null</code>去改一個已經存在的一般物件），那只是在建立/覆蓋一個名字剛好叫<code>__proto__</code>的<strong>普通屬性</strong>，不會真的改變原型。（這個「動態賦值不會觸發改原型」的行為，本身也跟(c)要講的null原型物件用途有關。）</p>
+</section><section class="card"><h2>(b) 引用文字裡「或者是從其他 null 原型物件繼承而來的物件」是什麼意思</h2>
+<p>這是在講<strong>鏈式繼承</strong>的情況——一個物件自己的直接原型不是<code>null</code>，而是<strong>另一個已經是null原型的物件</strong>：</p>
+<pre><code class="language-js">const base = Object.create(null);   // base 自己的原型是 null
+const child = Object.create(base);  // child 的原型是 base（不是 null）
+
+Object.getPrototypeOf(child); // base，不是 null
+Object.getPrototypeOf(base);  // null
+</code></pre>
+<p><code>child</code>本身的原型欄位指向的是<code>base</code>，不是<code>null</code>，但整條原型鏈往上走：<code>child → base → null</code>，走到底一樣是<code>null</code>收尾，中間完全不會經過<code>Object.prototype</code>。MDN原文用「或者是」把這種情況跟「直接是null原型」的物件並列，就是因為兩者的共同點是<strong>整條鏈都摸不到<code>Object.prototype</code></strong>，差別只在於是「自己直接是null」還是「往上走幾步才碰到null」。</p>
+</section><section class="card"><h2>(c) 為什麼要特地弄一個原型是 null 的物件——真正的用途</h2>
+<p>一般用<code>{}</code>或<code>new Object()</code>建立的物件，會自動繼承<code>Object.prototype</code>上的一大串東西：<code>hasOwnProperty</code>、<code>toString</code>、<code>valueOf</code>、<code>constructor</code>，還有一個特殊的存取器屬性（accessor property）<code>__proto__</code>本身（就是(a)裡能寫<code>obj.__proto__ = ...</code>去改原型的那個機制，這個setter是定義在<code>Object.prototype</code>上的）。</p>
+<p>如果把一般物件當成「純粹的字典／雜湊表」使用，key是外部輸入決定的（例如用使用者輸入的字串當key），就有風險：</p>
+<pre><code class="language-js">const dict = {};
+dict[userInput] = someValue;
+
+// 如果 userInput 剛好是 &quot;hasOwnProperty&quot; 或 &quot;toString&quot;
+dict.hasOwnProperty('x'); // 可能不再是原本 Object.prototype 上那個函式了，行為變得不可預期
+dict['__proto__'] = maliciousValue; // 這裡走的是 Object.prototype 上的 __proto__ setter，可能意外改掉 dict 的原型
+</code></pre>
+<p><mark style="background: #ADCCFFA6;">用<code>Object.create(null)</code>建的物件完全沒有這個問題</mark>——因為它整條原型鏈上根本沒有<code>Object.prototype</code>，也就沒有那個<code>hasOwnProperty</code>、<code>toString</code>、<code>__proto__</code> setter可以被意外撞名或觸發。這時候<code>dict['__proto__'] = maliciousValue</code>只會乖乖建立一個名字叫<code>__proto__</code>的<strong>普通own property</strong>，不會真的改到原型——這正好呼應(a)提到「動態賦值不會觸發改原型」的行為，因為那個特殊行為的setter本身就活在<code>Object.prototype</code>上，null原型物件沒有繼承到它。這也是為什麼Node.js的<code>Map</code>、還有一些函式庫在處理「當純字典用」的場景時，會刻意選<code>Object.create(null)</code>而不是<code>{}</code>。</p>
+</section><section class="card"><h2>(d) 更根本的一層：<code>Object.prototype</code>自己的原型也是 null</h2>
+<p><mark style="background: #FF5582A6;">這才是整段MDN引文為什麼要特別排除null原型物件的真正原因——原型鏈不能無限往上追，一定要有個終點，而這個終點本身就定義成null。</mark></p>
+<pre><code class="language-js">Object.getPrototypeOf(Object.prototype); // null
+</code></pre>
+<p>一般物件的原型鏈長這樣：<code>myObj → Object.prototype → null</code>。<code>Object.prototype</code>是這條鏈<strong>唯一保證存在</strong>的中繼點，而它自己的原型欄位，ECMAScript規格書直接定義成<code>null</code>——不是「找不到所以是null」，是規格明文寫死「這裡就是終點」。如果沒有這個明文規定的null終點，<code>Object.prototype</code>還要有自己的原型，那個原型又要有原型，會變成無限往上找、找不到底。</p>
+<p>一句話：<mark style="background: #FF5582A6;">一個物件的原型會是<code>null</code>，只有三種主動做法（<code>Object.create(null)</code>、物件字面量寫<code>{ __proto__: null }</code>、<code>Object.setPrototypeOf(obj, null)</code>），加上鏈式繼承時「往上走最後摸到的是另一個null原型物件」；而整個原型系統之所以需要處理「null原型」這個例外情況，根源是<code>Object.prototype</code>自己的原型就被規格定義成null，這是所有一般物件原型鏈最終、唯一保證的終點。</mark></p>
+<hr />
+</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>物件與原型鏈概念、null原型物件定義</td>
+<td><a href="https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Data_structures">MDN - JavaScript Data structures</a></td>
+<td>中文版，查證於2026-08-14</td>
+</tr>
+</tbody>
+</table></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-14</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>

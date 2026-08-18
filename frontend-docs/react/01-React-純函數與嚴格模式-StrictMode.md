@@ -7,7 +7,7 @@ sources:
   - https://gemini.google.com/app/7513ffa1facd9680
   - https://gemini.google.com/app/5dd44db988a4d19c
   - https://gemini.google.com/app/f530229fbc172300
-updated: 2026-08-04
+updated: 2026-08-14
 ---
 
 # React 純函數與嚴格模式 (StrictMode)
@@ -381,6 +381,10 @@ FiberNode {
 ```
 
 只靠 `return`/`child`/`sibling` 這三個指標就能把整棵樹串起來（不用陣列存 children），而且可以「走一步、停下來、之後再接著走」——這正是能被暫停/恢復的關鍵設計，也是本篇一直在講的 fiber tree 的具體長相。
+
+![[React_Fiber樹結構圖_return-child-sibling指標_2026-08-14.svg]]
+
+> 圖示說明（2026-08-14 手繪整理）：用 `App → [Header, Main → [Sidebar, Content], Footer]` 這棵元件樹示範三根指標的實際走法——`child`（藍色實線）只指向「第一個」子節點，例如 `App.child` 只指到 `Header`，不會同時指到 `Main`、`Footer`；同層的兄弟節點之間改靠 `sibling`（綠色虛線）串成單向鏈結串列，`Header.sibling → Main`、`Main.sibling → Footer`；每個節點還有 `return`（橘色點線）指回父節點。這種「不用陣列存 children，只靠三根指標」的設計，正是 Fiber 能被中斷、恢復、跟舊版 Stack Reconciler 最大的差異，跟 [[Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪#追問：React的Fiber有完全取代Blink的功能嗎]] 講的「Fiber 只活在 JS 層、不參與 CRP 流程」是同一組概念的兩個切面。
 
 **"hook is for storing data" 這個推論對嗎？**
 

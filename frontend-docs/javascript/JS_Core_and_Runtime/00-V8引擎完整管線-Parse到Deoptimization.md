@@ -7,7 +7,7 @@ related:
   - "[[機器碼與bytecode的差異]]"
   - "[[作用域-scope-global-function-block]]"
   - "[[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]]"
-updated: 2026-07-29
+updated: 2026-08-15
 note: 檔名前綴 00 代表本篇是 JS_Core_and_Runtime 資料夾裡「依編譯／執行順序」編號的第一篇（管線總覽）；aliases 保留舊檔名，讓其他筆記既有的 [[V8引擎完整管線-Parse到Deoptimization]] wikilink 不會失效。
 ---
 
@@ -411,10 +411,10 @@ const    a=1+2;
 
 ```mermaid
 flowchart LR
-    A["原生 JS 原始碼\n(例如 <script>const x=1</script>)"] --> B["直接進 V8\n（沒有轉譯這一步）"]
-    B --> C["Parse\nScanner→Parser→AST→Scope Analysis"]
-    C --> D["Ignition：AST 編成 Bytecode\n直譯執行 + 收集 Profiling"]
-    D --> E["呼叫次數還沒到門檻\n→ 就這樣一路用 Bytecode 直譯跑完"]
+    A["原生 JS 原始碼<br/>(例如 &lt;script&gt;const x=1&lt;/script&gt;)"] --> B["直接進 V8<br/>（沒有轉譯這一步）"]
+    B --> C["Parse<br/>Scanner→Parser→AST→Scope Analysis"]
+    C --> D["Ignition：AST 編成 Bytecode<br/>直譯執行 + 收集 Profiling"]
+    D --> E["呼叫次數還沒到門檻<br/>→ 就這樣一路用 Bytecode 直譯跑完"]
 ```
 
 ### 圖② 原生 JS ×（熱）TurboFan 優化
@@ -424,21 +424,21 @@ flowchart LR
     A["原生 JS 原始碼"] --> B["直接進 V8"]
     B --> C["Parse"]
     C --> D["Ignition 直譯 + 收集 Profiling"]
-    D --> E{"呼叫次數／迴圈次數\n超過門檻？"}
-    E -- 是 --> F["TurboFan：Escape Analysis／\nInline Caching／Type Specialization"]
+    D --> E{"呼叫次數／迴圈次數<br/>超過門檻？"}
+    E -- 是 --> F["TurboFan：Escape Analysis／<br/>Inline Caching／Type Specialization"]
     F --> G["生成 Machine Code 執行（極快）"]
-    G -- "型別突然改變" --> H["Deoptimization\n退回 Ignition"]
+    G -- "型別突然改變" --> H["Deoptimization<br/>退回 Ignition"]
 ```
 
 ### 圖③ React／TSX ×（冷）Ignition 直譯
 
 ```mermaid
 flowchart LR
-    A["JSX/TSX 原始碼\n(例如 <h1>{count}</h1>)"] --> BT["建置時（build time）\nBabel／tsc／SWC 轉譯\n(JSX→_jsx(...)、TS→JS)"]
-    BT --> B["打包成標準 JS，部署上線\n（V8 完全看不到原本是 JSX/TSX）"]
-    B --> C["Parse\n（跟原生 JS 走一模一樣的路）"]
+    A["JSX/TSX 原始碼<br/>(例如 <h1>{count}</h1>)"] --> BT["建置時（build time）<br/>Babel／tsc／SWC 轉譯<br/>(JSX→_jsx(...)、TS→JS)"]
+    BT --> B["打包成標準 JS，部署上線<br/>（V8 完全看不到原本是 JSX/TSX）"]
+    B --> C["Parse<br/>（跟原生 JS 走一模一樣的路）"]
     C --> D["Ignition 直譯 + 收集 Profiling"]
-    D --> E["呼叫次數還沒到門檻\n→ 一路用 Bytecode 直譯跑完"]
+    D --> E["呼叫次數還沒到門檻<br/>→ 一路用 Bytecode 直譯跑完"]
 ```
 
 ### 圖④ React／TSX ×（熱）TurboFan 優化
@@ -449,10 +449,10 @@ flowchart LR
     BT --> B["打包成標準 JS"]
     B --> C["Parse"]
     C --> D["Ignition 直譯 + 收集 Profiling"]
-    D --> E{"呼叫次數／迴圈次數\n超過門檻？\n(例如頻繁 re-render 的元件函式)"}
+    D --> E{"呼叫次數／迴圈次數<br/>超過門檻？<br/>(例如頻繁 re-render 的元件函式)"}
     E -- 是 --> F["TurboFan 優化"]
     F --> G["Machine Code 執行"]
-    G -- "型別突然改變\n(例如 props 型別不穩定)" --> H["Deoptimization\n退回 Ignition"]
+    G -- "型別突然改變<br/>(例如 props 型別不穩定)" --> H["Deoptimization<br/>退回 Ignition"]
 ```
 
 **四張圖的關鍵差異，一句話總結**：①②（原生 JS）跟③④（React）唯一的差別，是③④在 Parse 之前多了一段**建置時、V8 管線之外**的轉譯步驟；一旦進了 V8，①③（冷）跟②④（熱）就完全是同一套 Ignition/TurboFan 邏輯，跟程式碼原本是不是 React 完全無關——V8 分不出來、也不在乎。互動版（4 個按鈕切換 + 差異高亮）見同資料夾 `00-V8引擎完整管線-Parse到Deoptimization.html`。

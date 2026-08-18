@@ -7,16 +7,17 @@ related:
   - "[[前端開發工具-打包編譯Lint與Parser]]"
   - "[[事件循環-Event-Loop-微任務與巨任務]]"
   - "[[引擎-Engine-到底是什麼]]"
+  - "[[機器碼、位元組碼與機器指令是一樣的嗎]]"
 sources:
   - https://gemini.google.com/app/35f68098963fef1d
   - https://gemini.google.com/app/22e7959c0c3c36e4
   - https://gemini.google.com/app/75aeb1c279e7c8f6
-updated: 2026-08-06
+updated: 2026-08-15
 ---
 
 # Node.js 底層架構：V8 + libuv + C++ Bindings
 
-> 本篇重點 (a)–(h)，共 8 個。起點：[[V8引擎完整管線-Parse到Deoptimization]] 裡「Node.js 把 V8 抽出來，外面包一層 libuv」這句話的延伸追問。
+> 本篇重點 (a)–(h)，共 8 個。起點：[[00-V8引擎完整管線-Parse到Deoptimization]] 裡「Node.js 把 V8 抽出來，外面包一層 libuv」這句話的延伸追問。
 
 ## (a) Node.js 只有包一層 libuv 嗎？——不是，libuv 只是其中一層
 
@@ -24,13 +25,52 @@ updated: 2026-08-06
 
 ```mermaid
 flowchart TD
-    A["你寫的 JS：fs.readFile(...)、http.createServer(...)"] --> B["Node 核心 JS 函式庫\n(Node 原始碼裡 lib/fs.js、lib/http.js…\n本身也是用 JS 寫的)"]
-    B --> C["C++ Bindings 綁定層\n(src/node_file.cc 等，把 JS 呼叫轉成 C++ 呼叫，\n透過 V8 的 C++ API 溝通)"]
-    C --> D["libuv\n事件迴圈 + 跨平台非同步 I/O + Thread Pool"]
-    C --> E["其他專門 C 函式庫\nOpenSSL(加密/TLS)、zlib(壓縮)、\nc-ares(非同步 DNS)、llhttp(HTTP 解析)"]
-    D --> F["作業系統\nepoll(Linux) / kqueue(macOS) / IOCP(Windows)"]
-    A -.同時需要.-> G["V8 引擎\n負責執行你寫的 JS 本身\n見 [[V8引擎完整管線-Parse到Deoptimization]]"]
+    subgraph T1["① Node專屬API層（你直接呼叫的）"]
+        A["Node專屬API（fs、http）<br/>你寫的 JS：fs.readFile(...)、http.createServer(...)"]
+    end
+    subgraph T2["② Node核心JS標準庫層"]
+        B["Node 核心 JS 函式庫<br/>(Node 原始碼裡 lib/fs.js、lib/http.js…<br/>本身也是用 JS 寫的)"]
+    end
+    subgraph T3["③ C++ Bindings 綁定層（轉接站）"]
+        C["C++ Bindings 綁定層<br/>(src/node_file.cc 等，把 JS 呼叫轉成 C++ 呼叫，<br/>透過 V8 的 C++ API 溝通)"]
+    end
+    subgraph T4["④ 底層C函式庫層（libuv跟其他C函式庫彼此獨立、互不依賴，只是都被③個別呼叫）"]
+        D["libuv<br/>NodeJS的基礎設施<br/>事件迴圈 + 跨平台非同步 I/O + Thread Pool"]
+        E["其他專門 C 函式庫<br/>OpenSSL(加密/TLS)、zlib(壓縮)、<br/>c-ares(非同步 DNS)、llhttp(HTTP 解析)"]
+    end
+    subgraph T5["⑤ 作業系統層"]
+        F["作業系統<br/>epoll(Linux) / kqueue(macOS) / IOCP(Windows)"]
+    end
+
+    A ==>|"①發起呼叫"| B
+    B ==>|"②要真的存取硬體/系統資源，往下轉呼叫"| C
+    C ==>|"③轉呼叫，依賴libuv的跨平台非同步I/O能力"| D
+    C ==>|"③轉呼叫，依賴各自的專門功能（跟D互相獨立，不依賴彼此）"| E
+    D ==>|"④依賴作業系統系統呼叫"| F
+    A -.->|"間接依賴，不是直接呼叫，中間要經過②③兩層"| D
+
+    F -.->|"⑤I/O實際完成，通知"| D
+    D -.->|"⑥把完成結果放進事件迴圈佇列"| LOOP["事件迴圈 Event Loop<br/>（Runtime Bridge層，見(f)）"]
+    LOOP -.->|"⑦輪到這個任務時，V8執行對應的JS callback"| A
+
+    A -.->|"同時需要"| G["V8 引擎<br/>負責執行你寫的 JS 本身<br/>見 [[V8引擎完整管線-Parse到Deoptimization]]"]
 ```
+
+<mark style="background: #FF5582A6;">回答screenshot裡的追問：libuv不是跟②「Node核心JS函式庫」（`lib/fs.js`那層）同一層，中間還隔著③「C++ Bindings」——真正跟libuv同一層、都是被③呼叫的對象，是④裡的「其他專門C函式庫」（OpenSSL／zlib／c-ares／llhttp）。上面這版圖用subgraph把五個層級明確切開、標上①～⑤編號，就是要讓「誰跟誰同層」一眼能看出來，不用再靠顏色或框的形狀猜。</mark>
+
+### 追問：使用libuv一定會用到其他C函式庫嗎——D跟E到底是什麼關係
+
+<mark style="background: #FF5582A6;">不會，libuv不需要其他這幾個C函式庫就能自己運作，兩者是彼此獨立、互不依賴的關係，不是「左右互相依賴」，也不是「用了其中一個就一定要用另一個」。</mark>
+
+a. <mark style="background: #FFF3A3A6;">查證來源：Node.js官方原始碼倉庫的依賴維護文件</mark>——把libuv、c-ares、zlib、OpenSSL、llhttp都列為Node.js「各自獨立、分開打包」的第三方依賴，libuv被描述成「一個專注在非同步I/O的跨平台支援函式庫，主要是為了給Node.js用而開發的」，文件裡完全沒有提到libuv依賴或需要c-ares／zlib／OpenSSL／llhttp才能運作（查證於2026-08-15，[Node.js maintaining-dependencies.md](https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-dependencies.md)）。
+b. <mark style="background: #FFF3A3A6;">最能證明兩者互相獨立的實例：Node.js自己的DNS模組，同時用了libuv跟c-ares兩條完全不同的路，彼此不經過對方</mark>——`dns.lookup()`是透過libuv的Thread Pool去呼叫作業系統原生的`getaddrinfo`（不是DNS協定本身，可能讀`/etc/hosts`就解完，也可能完全不連網路）；`dns.resolve()`／`dns.resolve4()`這類函式則完全不經過libuv的這條路，是Node直接呼叫c-ares去對DNS伺服器發真正的DNS協定查詢（查證於2026-08-15，[Node.js dns官方文件](https://nodejs.org/api/dns.html)）。同一個「DNS查詢」的需求，Node分別用libuv跟c-ares兩套獨立機制去做，這正好證明libuv本身不需要c-ares、c-ares也不是靠libuv才能運作，兩者是被Node各自分開呼叫的平行依賴。
+c. <mark style="background: #ADCCFFA6;">回到圖上：D跟E之間沒有畫箭頭，就是要表達「彼此無關」</mark>——D（libuv）跟E（其他專門C函式庫）都只被③（C++ Bindings）個別呼叫，各自處理自己的專門任務（libuv管事件迴圈/非同步I/O/Thread Pool；OpenSSL管加密；zlib管壓縮；c-ares管DNS協定；llhttp管HTTP解析），彼此之間沒有呼叫關係。任何只想要「非同步I/O」能力、不需要TLS加密或HTTP解析的專案（例如其他語言的libuv綁定），可以只嵌入libuv，完全不用碰OpenSSL/zlib/c-ares/llhttp。
+
+### 追問：架構圖上下位置代表呼叫方向嗎——不是，箭頭才是，已補上資料回呼方向
+
+<mark style="background: #FF5582A6;">這個問法很準確：Mermaid裡的上下位置本身不保證代表呼叫方向，真正代表方向的是箭頭本身（箭頭指向誰，誰就是被呼叫/依賴的那一方）。</mark>`flowchart TD`只是Mermaid自動排版演算法選擇「把箭頭起點畫在上面、終點畫在下面」比較好讀，這是排版習慣，不是語法保證——如果圖裡出現多個節點互相指向、或有回頭的邊，同一張圖也可能出現「下面的節點呼叫上面的節點」這種畫面，一切都要看箭頭方向本身，不能只看節點物理位置。
+
+上面這版圖也回應了「加入資料流向」這個要求，補了一組原本沒畫出來的東西：<mark style="background: #FFF3A3A6;">粗實線（==>）代表「呼叫/發起請求」方向，是①到④由上往下發起的；虛線（-.->）是另外新增的「資料/結果實際怎麼流回來」方向，標了⑤到⑦</mark>——因為Node是非同步模型，結果不是像一般函式呼叫那樣「原路退回去」，而是：作業系統完成I/O後通知libuv（⑤），libuv把完成結果放進事件迴圈的佇列（⑥），輪到這個任務時，V8才執行妳原本傳進去的JS callback（⑦，這時候技術上通常會先經過②`lib/fs.js`裡包好的wrapper，再呼叫到妳寫在①的callback本人，圖上簡化畫成直接回到①）。這也是為什麼「呼叫」跟「結果回來」在非同步的世界裡，走的根本是兩條不同的路徑，不能只用一條線的方向去理解。</mark>
 
 也就是說 Node.js＝**V8（跑 JS）＋ libuv（事件迴圈/非同步 I/O）＋ C++ Bindings（連接兩者）＋ 其他專門函式庫（加密、壓縮、DNS、HTTP 解析）＋ 一層用 JS 寫的核心標準庫（`fs`、`http`… 這些你直接呼叫的 API）**——libuv 只負責其中「非同步 I/O 與事件迴圈」這一塊，不是全部。
 
@@ -63,10 +103,10 @@ flowchart LR
     subgraph Core["ECMAScript 語言核心（兩邊都一樣）"]
         L["語法、閉包、Promise、陣列方法…"]
     end
-    Core --> Browser["瀏覽器 host 環境\n提供：window、document、fetch、\nlocalStorage、DOM 事件…"]
-    Core --> Node["Node.js host 環境\n提供：fs、http、path、process、\nBuffer…"]
-    Browser -.没有.-> NodeAPI["✗ fs、http 這些 Node API\n（瀏覽器沒有，也不需要）"]
-    Node -.没有.-> BrowserAPI["✗ window、document\n（Node 沒有 DOM，也不需要）"]
+    Core --> Browser["瀏覽器 host 環境<br/>提供：window、document、fetch、<br/>localStorage、DOM 事件…"]
+    Core --> Node["Node.js host 環境<br/>提供：fs、http、path、process、<br/>Buffer…"]
+    Browser -.没有.-> NodeAPI["✗ fs、http 這些 Node API<br/>（瀏覽器沒有，也不需要）"]
+    Node -.没有.-> BrowserAPI["✗ window、document<br/>（Node 沒有 DOM，也不需要）"]
 ```
 
 所以如果你的程式碼是「純前端、跑在瀏覽器裡的 JS」——不管是原生 JS 還是 React（打包後一樣是標準 JS，見 [[V8引擎完整管線-Parse到Deoptimization]] 的圖③④）——你確實**用不到、也不應該用到** `fs`、`http` 這些 Node 專屬 API；你能用的是瀏覽器提供的 Web APIs（`fetch`、`localStorage`、DOM…）。你只有在寫**跑在 Node.js 裡**的程式碼時才會用到 Node API，常見情境：
@@ -224,6 +264,38 @@ global_template->Set(
 不論是 `d8` 還是一般 `.js` 檔，執行方式都不只 Terminal 一種：VS Code 等編輯器可用 Code Runner 套件或 `F5` 內建 Debugger 一鍵執行 Node.js；WebStorm 等 IDE 有內建 Play 按鈕；若程式用到 `document`／`window`／`fetch` 等瀏覽器 API，最簡單是直接在 Chrome DevTools 的 Console 貼上執行，或用 `<script src="script.js">` 引入 HTML 由瀏覽器載入。
 
 來源查證：本節內容為 Gemini 對談內容之整理與釐清（V8 C++ API、Binding 機制、Context、d8 工具用法），屬 V8/Chromium 公開架構知識，建議之後如需精確版本號可另查證 V8 官方 Embedder's Guide（v8.dev）。
+
+## 追加 2026-08-15：libuv／C++ Bindings／其他C函式庫分層再確認（Thread Pool、zlib歸屬、事件迴圈算不算Node專屬API）
+
+> 本次追加重點 (o)–(t)，共 6 個。起點：Abby針對本篇(a)那張分層圖，逐一確認「Thread Pool」「zlib」「事件迴圈」這幾個名詞各自該歸類到圖裡哪一層。
+
+### (o) libuv做的「跨平台非同步I/O」跟「Node專屬API」不是包含關係，是上下層關係
+
+<mark style="background: #FF5582A6;">問法裡「libuv的檔案I/O包含Node專屬API」這個方向反了</mark>——回頭看(a)的分層圖：`fs.readFile(...)`這種**Node專屬API**是最上層（JS開發者直接呼叫的），它往下呼叫**C++ Bindings**，C++ Bindings才再往下呼叫**libuv**去做實際的跨平台非同步I/O（TCP/UDP socket、檔案讀寫、DNS解析）。所以正確的說法是：Node專屬API（`fs`、`http`）**底層依賴**libuv做的跨平台非同步I/O，不是libuv「包含」Node專屬API——libuv根本不知道`fs`、`http`這些名字，它只提供更底層、不分語言的I/O能力，是C++ Bindings這層把libuv的能力包裝成`fs.readFile`這種好呼叫的JS介面。
+
+### (p) Thread Pool是libuv內部的機制，不是「專屬API」也不是「檔案I/O」本身
+
+<mark style="background: #FFF3A3A6;">Thread Pool（執行緒池）不屬於(a)圖裡C層「Node專屬API」，也不是「檔案I/O」這個I/O類型本身</mark>，它是libuv內部用來**達成**非阻塞檔案I/O效果的其中一種底層手段：某些系統呼叫（部分檔案系統操作、DNS查詢）本質上是阻塞的，libuv就丟一個背景執行緒去跑這個阻塞呼叫，跑完再把結果送回主執行緒的事件迴圈。跟(a)圖對照，libuv這一格底下實際上同時裝了三個彼此獨立的元件：事件迴圈、跨平台非同步I/O、Thread Pool——Thread Pool是三者之一，是「怎麼做到非阻塞」的實作手段，不是I/O的種類分類。
+
+### (q) 確認：`fs`、`http`是Node核心JS標準庫——沒錯
+
+<mark style="background: #ADCCFFA6;">這點的理解正確</mark>，對照(a)圖最上面兩層：妳寫的`fs.readFile(...)`、`http.createServer(...)`呼叫的，就是「Node核心JS函式庫」這一層——Node原始碼裡`lib/fs.js`、`lib/http.js`這些檔案，本身是用JS寫成的，暴露給開發者直接呼叫的API介面。
+
+### (r) `fs`確實是用JS寫的`lib/fs.js`，但那只是最上面這一層
+
+<mark style="background: #FFF3A3A6;">是，但要接著往下看</mark>：`lib/fs.js`負責的是JS這一側的邏輯——參數檢查、錯誤處理、把妳呼叫`fs.readFile(path, callback)`的方式轉換成正確的底層呼叫格式。它自己**不會**直接去碰硬碟，真正碰硬碟這件事，是`lib/fs.js`再往下呼叫C++ Bindings（Node原始碼裡`src/node_file.cc`這類檔案），由C++ Bindings轉呼叫libuv，libuv才去呼叫作業系統實際的檔案系統呼叫。一句話：`lib/fs.js`是「介面設計」那一層，不是「真的去存取硬碟」那一層。
+
+### (s) zlib算「其他專門C函式庫」，不是JS標準庫、也不是C++ Bindings本身
+
+<mark style="background: #FF5582A6;">zlib兩者都不是</mark>，回頭看(a)圖：C（C++ Bindings綁定層）往下同時接了兩條路——一條接D（libuv），一條接E（其他專門C函式庫：OpenSSL、zlib、c-ares、llhttp）。zlib跟libuv是**同一個層級、被C++ Bindings呼叫的對象**，只是各自負責不同的專門任務：libuv管事件迴圈／非同步I/O／Thread Pool，zlib專門管壓縮、OpenSSL專門管加密／TLS、c-ares專門管非同步DNS解析、llhttp專門管HTTP協定解析。C++ Bindings的角色是「轉接站」：JS呼叫進來之後，依照要做的事情，決定要轉去呼叫libuv還是這些專門函式庫裡的哪一個。
+
+### (t) 事件迴圈不是Node專屬API，是Runtime Bridge層的核心機制
+
+<mark style="background: #FFF3A3A6;">不是</mark>——對照本篇(f)那張三層架構表：①JS Engine（V8）、②Runtime Bridge（Event Loop、Task Queues、C++ Binding，Node這層的核心就是libuv）、③Host Environment APIs（`fs`、`http`、`path`這些Node專屬API）。事件迴圈屬於**第②層Runtime Bridge**，是讓非同步任務能運作的底層機制，開發者不會直接呼叫「事件迴圈」這個東西（沒有`eventLoop.doSomething()`這種API），跟妳會直接`import`或呼叫的`fs`、`http`（屬於第③層Host Environment APIs）是不同層級的兩件事。
+
+一句話（(o)–(t)總結）：<mark style="background: #BBFABBA6;">Node專屬API（`fs`、`http`）是妳直接呼叫的JS介面層；C++ Bindings是轉接站；libuv跟zlib／OpenSSL／c-ares／llhttp是被轉接站呼叫的底層工具，彼此同級但分工不同；Thread Pool是libuv內部達成非阻塞效果的手段；事件迴圈則是介於JS Engine跟Host API之間的Runtime Bridge機制，不是妳能直接呼叫的Node專屬API。</mark>
+
+跟[[機器碼、位元組碼與機器指令是一樣的嗎]]互相對照的原因：那篇講的是「CPU只認得自己ISA的機器碼」這種**硬體層**的排他性；這篇(o)–(t)講的是「JS呼叫最終要下探到哪一層才會真的觸碰作業系統／硬體」的**軟體分層**路徑，兩篇合起來能看出一次`fs.readFile()`從JS呼叫一路往下，最終還是要落到CPU認得的機器碼跟作業系統呼叫上執行。
 
 ## 各對話來源
 

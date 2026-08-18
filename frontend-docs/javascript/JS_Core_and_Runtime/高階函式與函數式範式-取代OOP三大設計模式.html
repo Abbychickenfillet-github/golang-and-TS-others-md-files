@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>高階函式與函數式範式-取代OOP三大設計模式</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>高階函式與函數式範式-取代OOP三大設計模式</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#高階函式</span><span class="pill">#函數式程式設計</span><span class="pill">#設計模式</span><span class="pill">#閉包</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-15</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/46ff8516d0a2c4c3" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">高階函式本身就是一種獨立的程式設計範式（Paradigm）。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是函數式程式設計（FP）範式底下最基礎的工具，不是獨立範式。</div></li><li><p class="qq">在 FP 中，函式被視為一等公民（First-Class Citizen），所以可以當參數傳遞、也可以當回傳值。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這正是高階函式能成立的前提。</div></li><li><p class="qq">只要用了 map 或 filter，就代表寫的是函數式程式設計。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">FP 還要求純函式與避免副作用，高階函式只是入場券。</div></li><li><p class="qq">Factory 工廠模式的高階函式寫法，靠的是閉包（Closure）記住外層變數。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">createRole 執行完了，回傳的小函式仍記得 roleType。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">把 for 迴圈換成 map／filter，程式碼風格會從命令式轉向 <input class="blank" data-a="宣告" placeholder="填答案" autocomplete="off"> 式（關注「要做什麼」而非「怎麼做」）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Declarative，宣告式。</div></li><li><p class="qq">接收一個函式、回傳一個包了新行為的新函式，這個模式在 React 叫做 <input class="blank" data-a="HOC" placeholder="填答案" autocomplete="off">（縮寫）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Higher-Order Component，跟 Decorator 裝飾者模式同一套骨架。</div></li><li><p class="qq">Strategy 策略模式的高階函式寫法，是直接把策略函式當成 <input class="blank" data-a="參數" placeholder="填答案" autocomplete="off"> 傳進去。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">不必定義介面與多個實作類別。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">用你自己的話說明：為什麼在支援高階函式的語言裡，Strategy、Decorator、Factory 這三個 OOP 設計模式可以被大幅簡化？並說明什麼情況下你仍會選擇用類別而不是閉包。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 這三個模式的本質都是「把一段可替換的行為包起來，讓呼叫端不必知道細節」。在 OOP 裡要達成這件事必須靠介面＋實作類別來製造多型；但當函式本身就是一等公民時，一個函式就已經是「可傳遞、可替換的行為單位」，多型自然成立，不需要類別骨架。(2) Strategy 用「函式當參數」、Decorator 用「函式當回傳值」、Factory 用「閉包客製產出新函式」。(3) 仍該用類別的情況：需要維護多個內部狀態且有明確生命週期（初始化、銷毀）、需要繼承樹或型別系統來約束契約、團隊慣例與既有程式碼是 OOP 風格、或狀態多到用一串閉包會難以除錯。兩者是互補而非取代。</div></li><li><p class="qq">面試官問「高階函式對效能有沒有壞處」，你會怎麼回答？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：有代價。map／filter 每一步都會產生新陣列，資料量大時記憶體配置與 GC 壓力會高於原地修改的 for 迴圈；鏈式呼叫多段會多次遍歷。但這通常不是瓶頸，可讀性與可維護性的收益更大。實務判斷：一般業務邏輯優先選高階函式；只有在效能敏感的熱路徑（大量資料、動畫每幀執行）經過量測確認是瓶頸後，才改回 for 或用 reduce 合併多段遍歷。重點是「先量測再優化」，不要憑感覺提早優化。</div></li></ol></section>
+
+<article class="card">
+<h1 id="oop">高階函式與函數式範式｜取代 OOP 三大設計模式</h1>
+<blockquote>
+<p>本篇重點 a–k，共 11 個</p>
+</blockquote>
+<p>相關筆記：<span class="wikilink" title="Obsidian 連結：Object.prototype屬性">Object.prototype屬性</span>、<span class="wikilink" title="Obsidian 連結：useMemo-and-render-optimization">useMemo-and-render-optimization</span>、<span class="wikilink" title="Obsidian 連結：JS-native-function-check">JS-native-function-check</span><br />
+關聯原因：高階函式是 <code>map</code>／<code>filter</code>／<code>useMemo</code> 這類 API 的共同底層機制，理解它才知道 React 的 memoize 與 HOC 為何長那樣。</p>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">一、高階函式到底「抽離」了什麼</h3>
+<p><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">高階函式（Higher-Order Function，HOF）</mark>指的是「<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">接收函式當參數</mark>，或<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">回傳一個函式</mark>」的函式。</p>
+<p>(a) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它的核心價值是把「底層控制流程」封裝掉</mark>。用傳統 <code>for</code> 迴圈時你得自己管索引 <code>i</code>、自己定邊界、自己建新陣列再 <code>push</code>；換成 <code>map</code>／<code>filter</code>，這些迭代與儲存細節都被包起來，你只需要交出「每個元素怎麼處理」。</p>
+<p>(b) 因此程式碼會從<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">命令式（Imperative，怎麼做）</mark>轉向<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">宣告式（Declarative，要做什麼）</mark>，可讀性與可維護性都提升。</p>
+<p>(c) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">高階函式本身不是一個獨立的程式範式</mark>，它是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">函數式程式設計（Functional Programming, FP）</mark>範式裡最基礎的工具。FP 的前提是函式為「<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一等公民（First-Class Citizen）</mark>」，也就是函式可以像數值一樣被傳遞與回傳。</p>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>傳統 for 迴圈</th>
+<th>高階函式 map／filter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>索引管理</td>
+<td>自己寫 <code>i++</code>、自己顧邊界</td>
+<td>引擎代管</td>
+</tr>
+<tr>
+<td>結果容器</td>
+<td>自己 <code>const out = []</code> 再 <code>push</code></td>
+<td>自動回傳新陣列</td>
+</tr>
+<tr>
+<td>風格</td>
+<td>命令式，關注「怎麼做」</td>
+<td>宣告式，關注「要做什麼」</td>
+</tr>
+<tr>
+<td>重複邏輯</td>
+<td>每次都要重抄</td>
+<td>抽成 HOF 一次寫完</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="_3">二、三大設計模式的高階函式寫法</h3>
+<p>(d) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在支援高階函式的語言裡，很多 OOP 設計模式可以用「函式傳參／函式回傳」取代，不需要建一整組類別與介面。</mark></p>
+<h4 id="strategy">Strategy 策略模式</h4>
+<p>把「不同的演算法」各自封裝，讓它們可以隨時互換而不影響呼叫端。</p>
+<pre><code class="language-javascript">// 策略本身就是一個簡單的函式
+const payByCreditCard = (amount) =&gt; `刷卡付款: ${amount}`;
+const payByPaypal     = (amount) =&gt; `Paypal 付款: ${amount}`;
+
+// 高階函式接收策略
+function checkout(amount, payStrategy) {
+  return payStrategy(amount);
+}
+
+checkout(100, payByCreditCard); // 隨時切換策略
+</code></pre>
+<p>(e) 傳統做法要先定義 <code>Strategy</code> 介面，底下再寫 <code>CreditCardPay</code>、<code>PaypalPay</code> 等實作類別；高階函式版本<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">直接把策略函式當參數傳進去就好</mark>。</p>
+<h4 id="decorator">Decorator 裝飾者模式</h4>
+<p>在不改動原函式結構的前提下，動態疊加額外功能。</p>
+<pre><code class="language-javascript">const logDecorator = (fn) =&gt; {
+  return (...args) =&gt; {
+    console.log(&quot;開始執行印出 Log...&quot;);
+    const result = fn(...args);
+    console.log(&quot;執行完畢！&quot;);
+    return result;
+  };
+};
+
+const add = (a, b) =&gt; a + b;
+const addWithLog = logDecorator(add); // 幫原本的 add 動態裝飾了 Log 功能
+</code></pre>
+<p>(f) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這就是 React 的 HOC（Higher-Order Component）與後端 Middleware 的同一套骨架</mark>：接收一個東西、回傳一個包了新行為的同型別東西。</p>
+<h4 id="factory">Factory 工廠模式</h4>
+<p>由「工廠」根據條件產出對應物件，呼叫者不必知道建立細節。</p>
+<pre><code class="language-javascript">function createRole(roleType) {
+  if (roleType === 'admin') {
+    return (user) =&gt; `${user} 擁有完全存取權限`;
+  }
+  return (user) =&gt; `${user} 僅有讀取權限`;
+}
+
+const getAdminPermission = createRole('admin');
+getAdminPermission('Alex'); // 生產出來專屬的管理員權限檢查函式
+</code></pre>
+<p>(g) 高階函式版本靠的是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">閉包（Closure）</mark>：<code>createRole</code> 執行完了，但回傳的那個小函式仍記得 <code>roleType</code>。</p>
+<table>
+<thead>
+<tr>
+<th>設計模式</th>
+<th>傳統 OOP 做法</th>
+<th>高階函式做法</th>
+<th>核心機制</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Strategy</td>
+<td>定義介面＋多個實作類別</td>
+<td>把策略函式當參數傳入</td>
+<td>函式當參數</td>
+</tr>
+<tr>
+<td>Decorator</td>
+<td>建繼承同介面的 Wrapper 類別</td>
+<td>接收函式、回傳包裝過的新函式</td>
+<td>函式當回傳值</td>
+</tr>
+<tr>
+<td>Factory</td>
+<td>Factory 類別內寫 if/else 去 new</td>
+<td>用閉包客製並產出新函式</td>
+<td>閉包</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="_4">三、面試可以怎麼說</h3>
+<p>(h) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「高階函式讓設計模式輕量化」</mark>：不需要滿滿的類別結構，用「函式即數值」就能達成同樣的彈性與擴充性。</p>
+<p>(i) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">常見的 HOF 例子</mark>：<code>map</code>、<code>filter</code>、<code>reduce</code>、<code>sort</code>、<code>memoize</code>、React 的 <code>useMemo</code>／<code>useCallback</code>、Express／Koa 的 middleware。</p>
+<p>(j) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">補充（Gemini 沒講但值得記）</mark>：函數式風格的代價是每次 <code>map</code>／<code>filter</code> 都產生新陣列，資料量極大時記憶體與 GC 壓力會比原地修改的 <code>for</code> 迴圈高；效能敏感的熱路徑仍可能選 <code>for</code>。</p>
+<p>(k) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">別誤會的地方</mark>：「用了 <code>map</code> 就是函數式程式設計」是錯的。FP 還要求純函式（Pure Function）與避免副作用，高階函式只是它的入場券。</p>
+<hr />
+<h2 id="_5">各對話來源（原文）</h2>
+<h3 id="2026-08-httpsgeminigooglecomapp46ff8516d0a2c4c3">高階函式：抽象與函數式範式（2026-08 前後）— https://gemini.google.com/app/46ff8516d0a2c4c3</h3>
+<p><strong>使用者：</strong> 高階函式是不是可以不用寫底層的東西？算設計范式嗎？</p>
+<p><strong>Gemini：</strong> 是的，這兩個理解方向都非常精準。高階函式的主要核心價值之一，正是「將底層細節抽離（Abstract Away）」。同時，它也是函數式程式設計（Functional Programming, FP）這套範式中的關鍵核心機制。<br />
+1. 高階函式與「隱藏底層細節」——不用重寫底層控制流程：以陣列操作為例，使用傳統 for 迴圈時，你需要手動管理索引值 i、定義邊界條件、手動建立新陣列並將結果 push 進去；而使用高階函式如 map 或 filter 時，底層如何迭代與儲存結果的細節都已被封裝，你只需要專注在傳入「每一個元素該如何被處理」的核心邏輯。提高程式碼可讀性與可維護性：將通用、重複的邏輯（如過濾、映射、記憶化快取 memoize）封裝在高階函式中，能大幅減少重複代碼，讓程式碼更具備宣告式（Declarative）風格——關注「要做什麼」而非「怎麼做」。<br />
+2. 高階函式算不算一種設計範式？——屬於函數式程式設計（FP）範式的核心：高階函式本身不是一個獨立的程式範式（Paradigm），而是 Functional Programming 範式中最基礎且強大的工具。在 FP 範式中，函式被視為「一等公民（First-Class Citizen）」，這使得函式可以作為參數傳遞或作為結果回傳。實踐多種設計模式：在傳統物件導向設計模式中，許多模式（如 Strategy 策略模式、Decorator 裝飾者模式、Factory 工廠模式）若在支援高階函式的語言中實作，可以用極為簡潔的高階函式直接替代，而不需建立複雜的類別結構。</p>
+<p><strong>使用者：</strong> Strategy 策略模式、Decorator 裝飾者模式、Factory 工廠模式 這邊是什麼？</p>
+<p><strong>Gemini：</strong> 這三個都是設計模式（Design Patterns），專門用來解決物件導向程式設計（OOP）中經常遇到的架構與彈性問題。在傳統物件導向（如 Java、C++）中，為了實踐這些模式，通常需要定義許多類別（Class）與介面（Interface）；但在支援高階函式的語言中，用簡潔的「函式傳參」或「函式回傳」就能輕鬆達成。<br />
+1. Strategy 策略模式——核心概念：將「不同的演算法／邏輯」個別封裝起來，讓它們可以隨時被互相替換，而不影響使用它的主體。傳統做法：定義一個 Strategy 介面，底下寫多個實作類別（例如 CreditCardPay、PaypalPay），再傳入主物件。高階函式寫法：直接將策略函式當作參數傳進去即可。（程式碼見上方「重點整理」）<br />
+2. Decorator 裝飾者模式——核心概念：在不改變原本物件或函式結構的前提下，動態地幫它疊加額外的功能（就像穿衣服一樣）。傳統做法：建立一個繼承相同介面的包裝類別（Wrapper），在呼叫原本方法的前後加上新功能。高階函式寫法：使用接收函式並回傳新函式的高階函式（例如常聽到的 HOC 或中間件 Middleware）。<br />
+3. Factory 工廠模式——核心概念：建立一個「工廠」，負責根據不同的條件來生產／建立對應的物件，呼叫者不需要知道內部繁瑣的建立細節。傳統做法：寫一個 Factory 類別，裡面寫 if/else 或 switch 來 new 出對應的 Class 實例。高階函式寫法：利用閉包（Closure）或高階函式來「客製化並產出新函式」。<br />
+簡單來說，高階函式讓這些設計模式變得更輕量化，不需要建立滿滿的類別結構，直接以「函式即數值」的方式操作就能達成同樣的彈性與擴充性。</p>
+<hr />
+<h2 id="_6">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇來源對話（Gemini Flash）</td>
+<td>https://gemini.google.com/app/46ff8516d0a2c4c3</td>
+<td>對話擷取於 2026-08-15</td>
+</tr>
+<tr>
+<td>MDN｜First-class Function 詞彙表</td>
+<td>https://developer.mozilla.org/en-US/docs/Glossary/First-class_Function</td>
+<td>查證於 2026-08-15</td>
+</tr>
+<tr>
+<td>MDN｜Array.prototype.map()</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map</td>
+<td>查證於 2026-08-15</td>
+</tr>
+<tr>
+<td>React 官方文件｜Higher-Order Components（Legacy 章節）</td>
+<td>https://legacy.reactjs.org/docs/higher-order-components.html</td>
+<td>查證於 2026-08-15</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ 存疑／更正：Gemini 原文把三大模式講得像「高階函式可以完全取代 OOP 設計模式」。實務上兩者是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">互補</mark>——當狀態多、生命週期複雜時，類別仍然比一串閉包好維護。這段是我補的，不在原對話中。</p>
+</blockquote>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-15</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>
