@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" font-family="'Noto Sans TC', 'Microsoft JhengHei', sans-serif">
+  <defs>
+    <marker id="arrowChild" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3B5BDB"/>
+    </marker>
+    <marker id="arrowSibling" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2F9E44"/>
+    </marker>
+    <marker id="arrowReturn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#E8590C"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="960" height="620" fill="#ffffff"/>
+
+  <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#212529">Fiber Tree — return / child / sibling 三指標結構</text>
+  <text x="480" y="56" text-anchor="middle" font-size="13" fill="#868e96">App → [Header, Main → [Sidebar, Content], Footer] 這棵元件樹的實際 Fiber 內部長相</text>
+
+  <!-- return arrows (curved, drawn first so they sit behind nodes) -->
+  <g fill="none" stroke="#E8590C" stroke-width="2" stroke-dasharray="2 5" opacity="0.9">
+    <path d="M 250,150 C 300,120 350,110 430,105" marker-end="url(#arrowReturn)"/>
+    <path d="M 480,150 C 480,130 480,115 480,105" marker-end="url(#arrowReturn)"/>
+    <path d="M 710,150 C 660,120 600,110 530,105" marker-end="url(#arrowReturn)"/>
+    <path d="M 390,330 C 420,310 440,300 470,290" marker-end="url(#arrowReturn)"/>
+    <path d="M 610,330 C 580,310 550,300 520,290" marker-end="url(#arrowReturn)"/>
+  </g>
+
+  <!-- child arrows (solid, App->Header first-child only; Main->Sidebar first-child only) -->
+  <g fill="none" stroke="#3B5BDB" stroke-width="3">
+    <path d="M 460,110 C 400,140 300,155 235,168" marker-end="url(#arrowChild)"/>
+    <path d="M 470,290 C 430,305 400,313 375,320" marker-end="url(#arrowChild)"/>
+  </g>
+
+  <!-- sibling arrows (dashed green, horizontal chain) -->
+  <g fill="none" stroke="#2F9E44" stroke-width="2.5" stroke-dasharray="8 5">
+    <path d="M 260,170 L 420,170" marker-end="url(#arrowSibling)"/>
+    <path d="M 540,170 L 680,170" marker-end="url(#arrowSibling)"/>
+    <path d="M 400,325 L 500,325" marker-end="url(#arrowSibling)"/>
+  </g>
+
+  <!-- Nodes -->
+  <!-- App -->
+  <g>
+    <rect x="405" y="70" width="150" height="46" rx="8" fill="#EDF2FF" stroke="#3B5BDB" stroke-width="2"/>
+    <text x="480" y="90" text-anchor="middle" font-size="14" font-weight="700" fill="#1c3fa8">App</text>
+    <text x="480" y="108" text-anchor="middle" font-size="10" fill="#4263EB">return: null</text>
+  </g>
+
+  <!-- Header -->
+  <g>
+    <rect x="140" y="150" width="130" height="46" rx="8" fill="#EBFBEE" stroke="#2F9E44" stroke-width="2"/>
+    <text x="205" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#2b8a3e">Header</text>
+    <text x="205" y="188" text-anchor="middle" font-size="10" fill="#37b24d">child: null</text>
+  </g>
+
+  <!-- Main -->
+  <g>
+    <rect x="415" y="150" width="130" height="46" rx="8" fill="#FFF9DB" stroke="#F08C00" stroke-width="2"/>
+    <text x="480" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#996a00">Main</text>
+    <text x="480" y="188" text-anchor="middle" font-size="10" fill="#e8590c">child: Sidebar</text>
+  </g>
+
+  <!-- Footer -->
+  <g>
+    <rect x="690" y="150" width="130" height="46" rx="8" fill="#EBFBEE" stroke="#2F9E44" stroke-width="2"/>
+    <text x="755" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#2b8a3e">Footer</text>
+    <text x="755" y="188" text-anchor="middle" font-size="10" fill="#37b24d">sibling: null</text>
+  </g>
+
+  <!-- Sidebar -->
+  <g>
+    <rect x="305" y="310" width="130" height="46" rx="8" fill="#F3F0FF" stroke="#7048E8" stroke-width="2"/>
+    <text x="370" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#5f3dc4">Sidebar</text>
+    <text x="370" y="348" text-anchor="middle" font-size="10" fill="#7048e8">child: null</text>
+  </g>
+
+  <!-- Content -->
+  <g>
+    <rect x="500" y="310" width="130" height="46" rx="8" fill="#F3F0FF" stroke="#7048E8" stroke-width="2"/>
+    <text x="565" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#5f3dc4">Content</text>
+    <text x="565" y="348" text-anchor="middle" font-size="10" fill="#7048e8">sibling: null</text>
+  </g>
+
+  <!-- annotation callouts -->
+  <text x="330" y="140" font-size="11" fill="#3B5BDB" font-weight="600">child（只指向第一個子節點）</text>
+  <text x="560" y="140" font-size="11" fill="#2F9E44" font-weight="600">sibling（往右指下一個兄弟）</text>
+  <text x="640" y="230" font-size="11" fill="#E8590C" font-weight="600" text-anchor="end">return（往上指回父節點）</text>
+
+  <!-- Legend -->
+  <g transform="translate(40,420)">
+    <rect x="0" y="0" width="880" height="150" rx="10" fill="#F8F9FA" stroke="#DEE2E6"/>
+    <text x="20" y="26" font-size="14" font-weight="700" fill="#212529">圖例：三個指標各自的意思（見 React-純函數與嚴格模式-StrictMode「Fiber 節點是什麼」）</text>
+
+    <line x1="20" y1="48" x2="70" y2="48" stroke="#3B5BDB" stroke-width="3" marker-end="url(#arrowChild)"/>
+    <text x="80" y="52" font-size="12" fill="#212529">child — 只指向「第一個」子節點，不是全部子節點（不像一般樹狀圖每個父節點連所有小孩）</text>
+
+    <line x1="20" y1="76" x2="70" y2="76" stroke="#2F9E44" stroke-width="2.5" stroke-dasharray="8 5" marker-end="url(#arrowSibling)"/>
+    <text x="80" y="80" font-size="12" fill="#212529">sibling — 同一層兄弟節點之間的「單向鏈結串列」，Header→Main→Footer 這樣串起來，不是陣列</text>
+
+    <line x1="20" y1="104" x2="70" y2="104" stroke="#E8590C" stroke-width="2" stroke-dasharray="2 5" marker-end="url(#arrowReturn)"/>
+    <text x="80" y="108" font-size="12" fill="#212529">return — 指回父節點，讓 React 算完一個節點後知道「該回到哪裡繼續走」，是可中斷／恢復的關鍵</text>
+
+    <text x="20" y="134" font-size="12" fill="#495057">白話：不用陣列存 children，只靠這三根指標，就能把整棵樹走完、走一半還能停下來、之後接著走——這正是 Fiber Reconciler 能被中斷/恢復、舊版 Stack Reconciler 做不到的核心設計。</text>
+  </g>
+</svg>
