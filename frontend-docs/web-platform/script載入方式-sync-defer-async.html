@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTML 解析與 script 六種載入模式 — 主軸互動圖</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#1a2233; --panel2:#141b29; --ink:#e8edf6; --muted:#9fb0c8;
+    --line:#2b3750; --accent:#5b9dff; --accent2:#ffd166; --green:#57d9a3; --red:#ff6b6b;
+    --purple:#b794f6; --thread:#ff8a5c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    line-height:1.7;padding:24px}
+  .wrap{max-width:920px;margin:0 auto}
+  h1{font-size:1.5rem;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:.9rem;margin:0 0 22px}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;margin:0 0 22px}
+  h2{font-size:1.15rem;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+  .tag{font-size:.72rem;color:var(--bg);background:var(--accent2);border-radius:999px;
+    padding:2px 9px;font-weight:700}
+  .note{color:var(--muted);font-size:.85rem;margin:2px 0 16px}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+  button{background:var(--accent);color:#06122b;border:0;border-radius:9px;
+    padding:8px 15px;font-weight:700;cursor:pointer;font-size:.9rem;transition:.15s}
+  button:hover{filter:brightness(1.1)}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button.on{background:var(--accent2);color:#06122b}
+
+  /* 主軸圖 pipeline */
+  .pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:0;margin:8px 0}
+  .stage{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:14px;
+    opacity:.35;transition:.4s;transform:translateY(6px)}
+  .stage.active{opacity:1;transform:translateY(0);border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(91,157,255,.18)}
+  .stage h3{margin:0 0 6px;font-size:.95rem}
+  .stage .desc{font-size:.8rem;color:var(--muted)}
+  .arrow{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1.4rem;padding:0 6px}
+  .codeline{font-family:"SF Mono",Consolas,monospace;font-size:.82rem;background:#0a0f1a;
+    border-radius:7px;padding:8px 10px;margin-top:8px;word-break:break-all;border:1px solid var(--line)}
+  .hl{background:rgba(255,209,102,.28);border-radius:3px;padding:0 2px}
+  .obj{font-family:"SF Mono",Consolas,monospace;font-size:.8rem;color:var(--green)}
+  .thread{margin-top:14px;font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:8px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--line);display:inline-block}
+  .dot.busy{background:var(--thread);box-shadow:0 0 8px var(--thread)}
+  .stepinfo{background:var(--panel2);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;
+    padding:10px 14px;margin-top:12px;font-size:.88rem;min-height:44px}
+  @media(max-width:760px){.pipe{grid-template-columns:1fr}.arrow{transform:rotate(90deg);padding:4px 0}}
+
+  /* ①b 編譯在哪 */
+  .c-badge{color:var(--red);font-weight:700;margin-left:6px}
+  .build{margin:6px 0}
+  .bt-box{background:var(--panel2);border:1px dashed var(--line);border-radius:12px;padding:14px}
+  .bt-box>b{font-size:.9rem}
+  .bt-box small,.line small{display:block;color:var(--muted);font-size:.78rem;margin-top:6px}
+  .split{text-align:center;color:var(--muted);font-size:.82rem;margin:12px 0}
+  .line{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0}
+  .ltag{display:inline-block;font-weight:700;font-size:.82rem;color:var(--accent);
+    background:rgba(91,157,255,.12);border-radius:6px;padding:2px 10px;margin-bottom:8px}
+  .chain{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:4px 0}
+  .node{background:#0a0f1a;border:1px solid var(--line);border-radius:8px;padding:8px 11px;
+    font-size:.8rem;text-align:center;font-family:monospace;line-height:1.35}
+  .node.good{border-color:var(--green);color:var(--green)}
+  .op{font-size:.72rem;color:var(--muted);text-align:center;padding:3px 8px;position:relative;line-height:1.25}
+  .op::before{content:"►";display:block;color:var(--line);font-size:.9rem;margin-bottom:2px}
+  .op.hot{color:var(--red);font-weight:700;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.4);border-radius:8px}
+  .op.hot::before{color:var(--red)}
+  @media(max-width:760px){.chain{flex-direction:column;align-items:stretch}.op::before{transform:rotate(90deg)}}
+
+  /* ①c 打包五步 */
+  .steps{display:flex;align-items:stretch;gap:4px;flex-wrap:wrap;margin:10px 0}
+  .step{flex:1;min-width:150px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .step .sn{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#06122b;
+    font-weight:800;font-size:.8rem;display:flex;align-items:center;justify-content:center;margin-bottom:6px}
+  .step b{font-size:.86rem;display:block;margin-bottom:4px}
+  .step small{color:var(--muted);font-size:.76rem;display:block}
+  .stepop{display:flex;align-items:center;color:var(--accent);font-weight:800}
+  .graph{margin-top:8px;display:flex;align-items:center;gap:5px;font-family:monospace;font-size:.68rem}
+  .gn{background:#0a0f1a;border:1px solid var(--line);border-radius:5px;padding:2px 5px;display:block;margin:2px 0}
+  .ga{color:var(--muted)}
+  .gcol{display:flex;flex-direction:column}
+  .ba{margin-top:8px;display:flex;flex-direction:column;gap:2px;font-size:.7rem}
+  .ba span{color:var(--accent2);text-align:center}
+  .ba code{font-size:.7rem;word-break:break-all}
+  @media(max-width:760px){.steps{flex-direction:column}.stepop{justify-content:center;transform:rotate(90deg)}}
+
+  /* 時間軸 */
+  .metaphor{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 18px}
+  .mcard{flex:1;min-width:150px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:10px;padding:12px 14px}
+  .mcard .emo{font-size:1.4rem}
+  .mcard b{display:block;margin:4px 0}
+  .mcard small{color:var(--muted)}
+  .timeline{margin:12px 0}
+  .trow{display:flex;align-items:center;gap:10px;margin:9px 0}
+  .tlabel{width:120px;font-family:monospace;font-size:.82rem;flex:none}
+  .track{flex:1;height:30px;background:#0a0f1a;border-radius:7px;position:relative;overflow:hidden;border:1px solid var(--line)}
+  .blk{position:absolute;top:0;height:100%;display:flex;align-items:center;justify-content:center;
+    font-size:.72rem;color:#06122b;font-weight:700;transition:width .8s ease, left .8s ease;white-space:nowrap;overflow:hidden}
+  .b-parse{background:var(--accent)}
+  .b-parse2{background:#3f6fb5}
+  .b-down{background:var(--purple);opacity:.85}
+  .b-exec{background:var(--accent2)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin-top:6px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .verdict{font-size:.85rem;margin-top:10px;padding:10px 14px;border-radius:8px;background:var(--panel2);border:1px solid var(--line)}
+
+  /* quiz */
+  .q{border-top:1px solid var(--line);padding:14px 0}
+  .q:first-of-type{border-top:0}
+  .q .ques{font-weight:600;margin-bottom:8px}
+  .ans{display:none;margin-top:8px;padding:10px 14px;border-radius:8px;background:var(--panel2);
+    border-left:3px solid var(--green);font-size:.88rem}
+  .ans.show{display:block}
+  .tf button{margin-right:8px}
+  .fb{font-size:.85rem;margin-top:8px;min-height:20px}
+  .ok{color:var(--green)} .no{color:var(--red)}
+  code{background:#0a0f1a;padding:1px 5px;border-radius:4px;font-size:.85em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>HTML 解析（Run-time）與 <code>&lt;script&gt;</code> 六種載入模式</h1>
+  <p class="sub">主軸互動圖 · 對應筆記 <code>script載入方式-sync-defer-async.md</code>（重點 a–p）</p>
+
+  <!-- ① 主軸圖 -->
+  <section>
+    <h2><span class="tag">主軸圖</span> 純文字字串 → HTML Parsing → DOM 樹</h2>
+    <p class="note">重點 (a)：瀏覽器拿到的只是純文字，看不懂、不能直接操作，必須在 Run-time 用「主執行緒」的 CPU 把 <code>&lt;div&gt;</code> 文字變成 <code>HTMLDivElement</code> 物件。按「下一步」走一遍。</p>
+
+    <div class="pipe">
+      <div class="stage" id="s0">
+        <h3>① 純文字字串</h3>
+        <div class="desc">伺服器丟來的 index.html，本質是一長串字元</div>
+        <div class="codeline"><span id="str">&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;body&gt;&lt;div id="root"&gt;&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;</span></div>
+      </div>
+      <div class="arrow">➜</div>
+      <div class="stage" id="s1">
+        <h3>② HTML Parsing</h3>
+        <div class="desc">主執行緒把字串一個字元讀過去（Run-time，用使用者 CPU）</div>
+        <div class="thread"><span class="dot" id="tdot"></span> Main Thread（唯一一條）</div>
+      </div>
+      <div class="arrow">➜</div>
+      <div class="stage" id="s2">
+        <h3>③ DOM 樹（記憶體物件）</h3>
+        <div class="desc"><span class="hl">&lt;div&gt;</span> 文字 → <span class="obj">new HTMLDivElement()</span></div>
+        <div class="codeline"><span class="obj">html → body → div#root</span><br>可被 CSS 選到、可被 JS 操作</div>
+      </div>
+    </div>
+
+    <div class="stepinfo" id="stepinfo">按「下一步」開始。</div>
+    <div class="btns">
+      <button onclick="step()">下一步 ▶</button>
+      <button class="ghost" onclick="resetPipe()">重播 ↺</button>
+    </div>
+  </section>
+
+  <!-- ①b 編譯在哪 -->
+  <section>
+    <h2><span class="tag">編譯在哪</span> HTML 線 vs JS 線：兩條平行管線</h2>
+    <p class="note">重點 (q)：上面那張主軸圖畫的是 <b>HTML→DOM 線</b>，那條<b>只有 Parse、沒有編譯</b>。「編譯」躲在下面標紅的三處。<span class="c-badge">🔴 ＝ 編譯/轉譯發生處</span></p>
+
+    <div class="build">
+      <div class="bt-box">
+        <b>🏗️ build-time（開發者/CI 機器，做一次）　＝「打包」這一格其實有兩步 👇</b>
+        <div class="chain">
+          <span class="node">React 原始碼<br>.jsx / .tsx</span>
+          <span class="op hot">① 轉譯 transpile<br>Babel/SWC/tsc 🔴</span>
+          <span class="node">純文字 JS<br>（一堆模組）</span>
+          <span class="op">② 打包 bundle<br>Webpack/Vite/Rollup 📦</span>
+          <span class="node">index.html<br>＋ main.js（幾支）</span>
+        </div>
+        <small>⚠️ 「打包」＝<b>① 轉譯（JSX/TS→JS，這步才是廣義的「編譯」🔴）</b>＋<b>② bundle（合併/tree-shake/minify）📦</b>。兩步的產物都還是<b>純文字 JS</b>，<b>不是機器碼</b>。</small>
+      </div>
+    </div>
+
+    <div class="split">↓ 伺服器把純文字丟給瀏覽器，run-time 分成兩條平行線 ↓</div>
+
+    <div class="line">
+      <div class="ltag">HTML 線</div>
+      <div class="chain">
+        <span class="node">HTML 字串</span>
+        <span class="op">Parse</span>
+        <span class="node good">DOM 樹</span>
+      </div>
+      <small>HTML 不是程式語言 → 只有 Parse，<b>無編譯</b>。</small>
+    </div>
+
+    <div class="line">
+      <div class="ltag">JS 線</div>
+      <div class="chain">
+        <span class="node">JS 字串</span>
+        <span class="op">Parse</span>
+        <span class="node">AST</span>
+        <span class="op hot">編譯<br>Ignition 🔴</span>
+        <span class="node">bytecode</span>
+        <span class="op hot">JIT<br>TurboFan 🔴</span>
+        <span class="node good">機器碼</span>
+      </div>
+      <small>編譯與機器碼都在這條（V8，run-time）。深入見筆記 <code>機器碼與bytecode的差異</code>。</small>
+    </div>
+  </section>
+
+  <!-- ①c 打包五步 -->
+  <section>
+    <h2><span class="tag">打包五步</span> build-time：從 React 原始碼到 dist 產物</h2>
+    <p class="note">由「建置機器」跑一次（你的筆電 <code>npm run build</code> 或 CI 伺服器），<b>不是使用者瀏覽器</b>。每步產物都還是純文字，不是機器碼。</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="sn">1</div>
+        <b>找入口、建相依圖</b>
+        <small>從 <code>main.tsx</code> 順著 <code>import</code> 遞迴，畫出「誰 import 誰」的圖</small>
+        <div class="graph">
+          <span class="gn">main.tsx</span>
+          <span class="ga">→</span>
+          <span class="gcol"><span class="gn">App.tsx</span><span class="gn">Home.tsx</span><span class="gn">react</span></span>
+        </div>
+      </div>
+      <div class="stepop">▶</div>
+      <div class="step">
+        <div class="sn">2</div>
+        <b>逐模組轉譯 transpile</b>
+        <small>TS 去型別、JSX→createElement、新語法→舊語法</small>
+        <div class="ba"><code>&lt;div&gt;Hi&lt;/div&gt;</code><span>→</span><code>React.createElement("div",null,"Hi")</code></div>
+      </div>
+      <div class="stepop">▶</div>
+      <div class="step">
+        <div class="sn">3</div>
+        <b>bundle 合併成 chunk</b>
+        <small>幾百支模組 → 少數幾支：tree-shaking 砍死碼、code splitting 切 vendor/lazy、scope hoisting</small>
+        <div class="ba"><code>模組 ×300</code><span>→</span><code>main.js + vendor.js + 路由 chunk</code></div>
+      </div>
+      <div class="stepop">▶</div>
+      <div class="step">
+        <div class="sn">4</div>
+        <b>minify 壓縮</b>
+        <small>區域變數改短名（mangle）＋去空白/註解</small>
+        <div class="ba"><code>calculateTotal(price,qty)</code><span>→</span><code>a(b,c)</code></div>
+      </div>
+      <div class="stepop">▶</div>
+      <div class="step">
+        <div class="sn">5</div>
+        <b>hash＋注入 index.html</b>
+        <small>帶內容 hash 的檔名（cache busting）寫進 index.html 的 script/link</small>
+        <div class="ba"><code>main-<b>a1b2c3</b>.js</code><span>→</span><code>&lt;script src="main-a1b2c3.js"&gt;</code></div>
+      </div>
+    </div>
+    <div class="verdict">產物＝ <code>dist/</code>：<b>index.html ＋ 幾支帶 hash 的 .js/.css</b>（＝「打包產物」）。伺服器把它發給瀏覽器後，Blink 才做 HTML Parsing、V8 才跑 JS。</div>
+  </section>
+
+  <!-- ② 時間軸 -->
+  <section>
+    <h2><span class="tag">比喻＋時間軸</span> 三種載入策略在搶「主執行緒」</h2>
+    <p class="note">重點 (c)(d)(e)(f)：差別只在「買說明書要不要打斷蓋房子」「看說明書插在哪個時間點」。點按鈕切換看時間軸怎麼變。</p>
+
+    <div class="metaphor">
+      <div class="mcard"><span class="emo">🏠</span><b>蓋房子</b><small>解析 HTML、蓋 DOM。占主執行緒。</small></div>
+      <div class="mcard"><span class="emo">📖</span><b>買說明書</b><small>下載 JS。走背景網路執行緒，不占主緒。</small></div>
+      <div class="mcard"><span class="emo">👓</span><b>看說明書</b><small>執行 JS。占主執行緒，會卡住蓋房子。</small></div>
+    </div>
+
+    <div class="btns">
+      <button class="mode on" data-m="normal" onclick="setMode('normal',this)">一般 &lt;script&gt;</button>
+      <button class="mode" data-m="async" onclick="setMode('async',this)">async</button>
+      <button class="mode" data-m="defer" onclick="setMode('defer',this)">defer</button>
+    </div>
+
+    <div class="timeline">
+      <div class="trow">
+        <div class="tlabel">🏠 主執行緒</div>
+        <div class="track" id="trackMain"></div>
+      </div>
+      <div class="trow">
+        <div class="tlabel">📖 網路執行緒</div>
+        <div class="track" id="trackNet"></div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="sw b-parse"></i>解析 HTML（蓋房子）</span>
+      <span><i class="sw b-down"></i>下載 JS（買說明書）</span>
+      <span><i class="sw b-exec"></i>執行 JS（看說明書）</span>
+    </div>
+    <div class="verdict" id="verdict"></div>
+  </section>
+
+  <!-- ③ 自我測驗 -->
+  <section>
+    <h2><span class="tag">自我測驗</span> 考考自己</h2>
+
+    <div class="q">
+      <div class="ques">Q1. 是非題：瀏覽器收到 index.html 時，<code>&lt;div&gt;</code> 已經是一個可以 <code>.addEventListener()</code> 的物件了。</div>
+      <div class="tf">
+        <button class="ghost" onclick="tf(this,false,'q1')">✅ 對</button>
+        <button class="ghost" onclick="tf(this,true,'q1')">❌ 錯</button>
+      </div>
+      <div class="fb" id="q1"></div>
+      <div class="ans-wrap"><button class="ghost" onclick="reveal('a1')">看詳解</button>
+        <div class="ans" id="a1">錯。收到的是<strong>純文字字串</strong>，<code>&lt;div&gt;</code> 只是 5 個字元。要等 HTML Parsing 把它 <code>new</code> 成 <code>HTMLDivElement</code>、掛上 DOM 樹之後，才有 <code>.addEventListener()</code> 這些方法。（重點 a）</div>
+      </div>
+    </div>
+
+    <div class="q">
+      <div class="ques">Q2. 哪一種載入方式「下載不中斷解析、且保證多支 script 按順序執行、最適合當操作 DOM 的主程式」？</div>
+      <div class="btns">
+        <button class="ghost" onclick="pick(this,false,'q2')">async</button>
+        <button class="ghost" onclick="pick(this,true,'q2')">defer</button>
+        <button class="ghost" onclick="pick(this,false,'q2')">一般 &lt;script&gt; 放 head</button>
+      </div>
+      <div class="fb" id="q2"></div>
+      <div class="ans-wrap"><button class="ghost" onclick="reveal('a2')">看詳解</button>
+        <div class="ans" id="a2"><code>defer</code>。背景平行下載（不中斷解析），等整份 HTML 解析完、DOM 蓋好後，<strong>依 HTML 出現順序</strong>執行。<code>async</code> 是「抓完立刻插隊、不保證順序」，適合 GA 這種獨立腳本。（重點 e、f）</div>
+      </div>
+    </div>
+
+    <div class="q">
+      <div class="ques">Q3. 是非題：「伺服器把 index.html 丟給瀏覽器」代表這一定是 SSR。</div>
+      <div class="tf">
+        <button class="ghost" onclick="tf(this,false,'q3')">✅ 對</button>
+        <button class="ghost" onclick="tf(this,true,'q3')">❌ 錯</button>
+      </div>
+      <div class="fb" id="q3"></div>
+      <div class="ans-wrap"><button class="ghost" onclick="reveal('a3')">看詳解</button>
+        <div class="ans" id="a3">錯。CSR/SPA 也會丟 index.html，只是那是<strong>靜態檔案伺服器</strong>發的<strong>空殼</strong>（<code>&lt;div id="root"&gt;&lt;/div&gt;</code>），內容由瀏覽器端 JS 補。SSR 是活著的 Node 程式<strong>每請求現場渲染</strong>、HTML 裡已經有內容。差在「誰渲染／HTML 裡有沒有內容」。（重點 o、p）</div>
+      </div>
+    </div>
+
+    <div class="q">
+      <div class="ques">Q4. 申論：為什麼 <code>&lt;script type="module"&gt;</code> 不用另外加 <code>defer</code>？</div>
+      <button class="ghost" onclick="reveal('a4')">看解答</button>
+      <div class="ans" id="a4">因為 ES Module <strong>預設就是 defer 行為</strong>：不中斷解析、等解析完才依相依圖與順序執行。這是 Vite／原生 ES Module 的預設，所以現代前端寫 <code>type="module"</code> 就已經延後執行了。（重點 h）</div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ① 主軸圖 stepper */
+const stages=['s0','s1','s2'];
+const info=[
+  '① 伺服器丟來的是一長串「純文字」。對電腦來說 <div> 只是 5 個字元，沒有任何方法可以呼叫。',
+  '② 主執行緒（唯一一條）在 Run-time 動用使用者的 CPU，把字串一個字元一個字元讀過去 —— 這一步叫 HTML Parsing。',
+  '③ 讀到 <div> 就 new 出一個 HTMLDivElement 物件、掛上 DOM 樹。到這裡 CSS 才選得到、JS 才操作得動。'
+];
+let cur=-1;
+function paint(){
+  stages.forEach((id,i)=>document.getElementById(id).classList.toggle('active',i<=cur&&cur>=0));
+  document.getElementById('tdot').classList.toggle('busy',cur===1);
+  document.getElementById('str').innerHTML = cur>=1
+    ? '&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;body&gt;<span class="hl">&lt;div id="root"&gt;</span>&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;'
+    : '&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;body&gt;&lt;div id="root"&gt;&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;';
+  document.getElementById('stepinfo').innerHTML = cur<0?'按「下一步」開始。':info[cur];
+}
+function step(){ if(cur<stages.length-1){cur++;paint();} }
+function resetPipe(){ cur=-1; paint(); }
+paint();
+
+/* ② 時間軸 */
+function bar(cls,left,width,label){
+  return `<div class="blk ${cls}" style="left:${left}%;width:${width}%">${label}</div>`;
+}
+const scenes={
+  normal:{
+    main:[['b-parse',0,30,'蓋房子'],['b-exec',30,25,'看說明書'],['b-parse2',55,45,'繼續蓋']],
+    net:[['b-down',30,0,'']], // 一般：讀到才抓，畫在主緒等待處
+    v:'一般 &lt;script&gt;：解析到它就<strong>整個暫停</strong>，主執行緒去下載＋執行 JS，跑完才繼續蓋房子。這段期間畫面卡住（Blocking）。'
+  },
+  async:{
+    main:[['b-parse',0,45,'蓋房子'],['b-exec',45,20,'看說明書'],['b-parse2',65,35,'繼續蓋']],
+    net:[['b-down',5,40,'背景下載 JS']],
+    v:'async：下載走<strong>背景網路執行緒</strong>、不打斷蓋房子；但 JS <strong>一抓完就立刻插隊</strong>搶主執行緒執行（打斷解析）。多支之間<strong>不保證順序</strong>。'
+  },
+  defer:{
+    main:[['b-parse',0,70,'蓋房子（一路蓋完）'],['b-exec',70,30,'看說明書']],
+    net:[['b-down',5,50,'背景下載 JS（先放著）']],
+    v:'defer：下載一樣走背景、不打斷；但<strong>等整份 HTML 解析完、DOM 蓋好</strong>才依序執行 JS。<strong>保證順序</strong>，最適合操作 DOM 的主程式。'
+  }
+};
+function setMode(m,btn){
+  document.querySelectorAll('.mode').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const s=scenes[m];
+  document.getElementById('trackMain').innerHTML=s.main.map(b=>bar(b[0],b[1],b[2],b[3])).join('');
+  document.getElementById('trackNet').innerHTML=s.net.map(b=>bar(b[0],b[1],b[2],b[3])).join('');
+  document.getElementById('verdict').innerHTML=s.v;
+}
+setMode('normal',document.querySelector('.mode'));
+
+/* ③ quiz */
+function tf(btn,userSaysWrong,id){
+  // 這裡的題目正解都是「錯」，userSaysWrong=true 代表選了「❌ 錯」
+  const correct = userSaysWrong; // Q1、Q3 正解皆為「錯」
+  const fb=document.getElementById(id);
+  fb.innerHTML = correct ? '<span class="ok">✔ 答對了！</span>' : '<span class="no">✗ 再想想，看詳解。</span>';
+}
+function pick(btn,isCorrect,id){
+  document.getElementById(id).innerHTML = isCorrect
+    ? '<span class="ok">✔ 正解！</span>' : '<span class="no">✗ 不是這個，看詳解。</span>';
+}
+function reveal(id){ document.getElementById(id).classList.toggle('show'); }
+</script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Round-Robin輪詢調度與負載平衡LB-L4對L7</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Round-Robin輪詢調度與負載平衡LB-L4對L7</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#演算法</span><span class="pill">#排程</span><span class="pill">#負載平衡</span><span class="pill">#load-balancer</span><span class="pill">#讀寫分離</span><span class="pill">#系統設計</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-15</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/a9c30355e0c95e3a" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Round Robin 的時間片（Time Quantum）設得越短越好，因為切換越快越公平。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">太短會讓 Context Switch 的成本吃掉效能；太長則退化成 FCFS。</div></li><li><p class="qq">Layer 4 負載平衡器可以根據網址路徑 /api 把流量導向不同的後端。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">L4 只看 IP 與 Port，認不得路由；那是 L7 的能力。</div></li><li><p class="qq">讀寫分離架構中，所有 SELECT 都輪流分給 Slave，所有寫入都導向 Master。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">讀取分流常用 Round Robin，寫入必須集中在主庫。</div></li><li><p class="qq">主庫同步到從庫是即時的，所以剛寫入馬上讀一定讀得到。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">有毫秒級 Replication Lag，關鍵讀取要改由主庫負責。</div></li><li><p class="qq">Sticky Session 雖然方便，但會讓 LB 分流不均，也讓機器難以隨意下線。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">現代做法更傾向把 Session 外部化到 Redis，讓後端保持無狀態。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">當伺服器效能不一致時，Round Robin 會演進成 <input class="blank" data-a="Weighted" placeholder="填答案" autocomplete="off"> Round Robin（加權輪詢）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">給效能好的機器更高權重。</div></li><li><p class="qq">LB 持續檢查後端伺服器是否存活的功能叫做 <input class="blank" data-a="Health" placeholder="填答案" autocomplete="off"> Check。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">掛掉的機器會自動被停止送流量。</div></li><li><p class="qq">讓同一個使用者總是連到同一台後端的演算法叫 IP <input class="blank" data-a="Hash" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">根據來源 IP 算出固定值，常用於維持 Session。</div></li><li><p class="qq">適合「處理時間長短不一」任務的演算法是 Least <input class="blank" data-a="Connections" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">優先送給目前連線數最少的機器。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請比較 Layer 4 與 Layer 7 負載平衡器，並各舉一個你會選它的實際場景。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：L4 只看 IP／Port 做轉發，不解密也不解析內容，因此延遲極低、吞吐極高，適合純 TCP／UDP 流量、遊戲伺服器、需要極致效能且不需要依內容分流的場景（AWS NLB）。L7 會做 SSL 卸載後讀取 HTTP 的 URL Path、Hostname、Header、Cookie，能做細緻路由（/api 導後端、/static 導 S3）、依 Host 分多專案、依 Cookie 做 Sticky Session，適合微服務與現代 Web 應用（Nginx、AWS ALB）。代價是要解密、要解析，延遲與 CPU 成本較高。實務上兩者常疊加：NLB 在外層扛量，ALB 或 Nginx 在內層做路由。</div></li><li><p class="qq">你的系統採用讀寫分離後，使用者回報「剛送出留言，重新整理卻看不到」。請說明成因與至少兩種解法。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：成因是 Replication Lag——寫入進了 Master，但同步到 Slave 有毫秒到數秒延遲，此時讀取被 LB 分到還沒同步的 Slave。解法：(1) Read-your-own-writes：寫入後的一小段時間內（例如該使用者的後續 N 秒請求），把讀取強制導向 Master。(2) 前端樂觀更新：送出成功後直接把該筆資料插進畫面，不等後端回讀。(3) 用 session／cookie 記錄該使用者最後寫入的複寫位置（GTID／LSN），讀取時挑選已追上該位置的 Slave。(4) 針對強一致性需求的查詢（金流、庫存）一律走 Master，不做讀寫分離。要在回答中點出「這是刻意用一致性換效能的取捨」，不是 bug。</div></li></ol></section>
+
+<article class="card">
+<h1 id="round-robin-lbl4-l7">Round Robin 輪詢調度與負載平衡（LB）｜L4 對 L7</h1>
+<blockquote>
+<p>本篇重點 a–s，共 19 個</p>
+</blockquote>
+<p>相關筆記：<span class="wikilink" title="Obsidian 連結：DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能">DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能</span>、<span class="wikilink" title="Obsidian 連結：CloudFront-CDN概念與快取失效Invalidation">CloudFront-CDN概念與快取失效Invalidation</span>、<span class="wikilink" title="Obsidian 連結：Cookie-與-Session">Cookie-與-Session</span>、<span class="wikilink" title="Obsidian 連結：冪等性Idempotence與冪運算的區別">冪等性Idempotence與冪運算的區別</span><br />
+關聯原因：Round Robin 是 LB 的預設演算法；LB 又直接決定 Session 能不能黏在同一台機器（Sticky Session），所以跟 Cookie／Session 筆記是同一條鏈。CDN 與 DNS 則是這條鏈更上游的一段。</p>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="round-robin">一、Round Robin 是什麼</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Round Robin（RR，輪詢調度）</mark>是一種基礎且公平的<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">調度演算法（Scheduling Algorithm）</mark>。核心原則是「輪流」：把待處理任務排成一個環狀佇列，每個任務給一個固定的<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">時間片（Time Quantum／Time Slice）</mark>，時間到就換下一個，沒做完的排到隊尾。</p>
+<p>(b) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">公平性是它最大的賣點</mark>：每個任務都有平等機會拿到資源，不會有任務被無限期擱置（不會 starvation）。</p>
+<p>(c) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">時間片的長度是關鍵陷阱</mark>：設太短，切換太頻繁，<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">上下文切換（Context Switch）</mark>的成本會吃掉效能；設太長，就退化成<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">先到先服務（FCFS，First-Come First-Served）</mark>。</p>
+<p>(d) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">三個常見應用場景</mark>：作業系統的多工排程、網路負載平衡（Server A→B→C→A）、讀寫分離架構下輪流向多個從庫讀資料。</p>
+<pre><code class="language-javascript">class RoundRobin {
+  constructor(servers) {
+    this.servers = servers;
+    this.currentIndex = 0;
+  }
+
+  getNextServer() {
+    const server = this.servers[this.currentIndex];
+    // 使用取餘數運算子來達成循環
+    this.currentIndex = (this.currentIndex + 1) % this.servers.length;
+    return server;
+  }
+}
+
+const lb = new RoundRobin(['Server-1', 'Server-2', 'Server-3']);
+lb.getNextServer(); // Server-1
+lb.getNextServer(); // Server-2
+lb.getNextServer(); // Server-3
+lb.getNextServer(); // Server-1（回到起點）
+</code></pre>
+<p>(e) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">RR 的先天限制</mark>：它假設所有任務或伺服器的「權重」相同。現實中有的機器效能較強、有的任務較耗時，所以會演進成 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Weighted Round Robin（加權輪詢）</mark>。</p>
+<hr />
+<h3 id="readwrite-splitting">二、讀寫分離架構（Read/Write Splitting）</h3>
+<p>(f) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">讀寫分離</mark>是把資料庫的「寫入／更新」與「讀取」分開處理的架構模式：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Master（主庫）</mark>負責 <code>INSERT</code>／<code>UPDATE</code>／<code>DELETE</code>，<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Slave（從庫）</mark>負責 <code>SELECT</code>，主庫資料透過 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Replication（複寫）</mark>同步到多個從庫。</p>
+<p>(g) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼要這樣做</mark>：多數應用「讀」遠多於「寫」（看文章的人多、發文章的人少），把讀取壓力分散到多個從庫能大幅提升回應速度；同時獲得高可用性（從庫掛一台還有別台，主庫掛了可把從庫升為新主庫）與水平擴展能力。</p>
+<p>(h) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">分流規則</mark>：所有寫入精確導向 Master；多個 Slave 之間就用 Round Robin 輪流分配讀取請求。</p>
+<pre><code class="language-javascript">const db = {
+  master: createConnection('master-db-url'),
+  slaves: [createConnection('slave-1-url'), createConnection('slave-2-url')],
+  slaveIndex: 0
+};
+
+function executeQuery(sql) {
+  if (sql.startsWith('SELECT')) {
+    // 讀取分流：使用 Round Robin 選擇 Slave
+    const slave = db.slaves[db.slaveIndex];
+    db.slaveIndex = (db.slaveIndex + 1) % db.slaves.length;
+    return slave.query(sql);
+  }
+  // 寫入請求：強制導向 Master
+  return db.master.query(sql);
+}
+</code></pre>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最大的技術挑戰是資料一致性</mark>：主庫同步到從庫有毫秒級延遲，會出現「剛寫入馬上讀卻讀不到」的情況（<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Replication Lag</mark>）。實務解法是把「寫入後立刻要讀」的關鍵查詢改由主庫負責（read-your-own-writes）。</p>
+<hr />
+<h3 id="load-balancerlb">三、Load Balancer（LB）</h3>
+<p>(j) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">LB = Load Balancer（負載平衡器）</mark>，位於使用者與後端伺服器群之間，把大量請求平衡地分發出去，避免任何一台過載崩潰。</p>
+<p>(k) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">LB 的四大功能</mark>：分流（Distributing）、健康檢查（Health Check，掛掉的機器自動停止送流量）、擴展性（Scalability，加機器不必改客戶端位址）、隱藏後端（使用者只看得到 LB 的 IP）。</p>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>Layer 4 LB（傳輸層）</th>
+<th>Layer 7 LB（應用層）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>判斷依據</td>
+<td>IP 與 Port</td>
+<td>HTTP／HTTPS 的內容</td>
+</tr>
+<tr>
+<td>看不看封包內容</td>
+<td>不看，速度極快</td>
+<td>會做 SSL 卸載後讀內容</td>
+</tr>
+<tr>
+<td>能不能依路由分流</td>
+<td>不行，不認得路徑</td>
+<td>可以依 URL Path、Hostname、Header、Cookie</td>
+</tr>
+<tr>
+<td>代表工具</td>
+<td>AWS NLB、LVS</td>
+<td>Nginx、AWS ALB、Google Cloud LB</td>
+</tr>
+</tbody>
+</table>
+<p>(l) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">L7「讀取內容」具體讀什麼</mark>：</p>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">URL 與 Path Routing</mark>：<code>/api/*</code> 導向後端伺服器群、<code>/static/*</code> 導向檔案伺服器、<code>/admin/*</code> 導向內部管理伺服器。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Hostname</mark>：同一個 IP 掛多個網域，靠 Host Header 判斷送給哪個專案。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HTTP Headers</mark>：例如檢查 <code>User-Agent</code>，手機版導向行動優化伺服器。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Cookie／Session Persistence</mark>：讀 Cookie 裡的 Session ID，確保同一使用者連到同一台後端，這叫 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Sticky Sessions</mark>，對需要登入狀態的系統很重要。</li>
+</ul>
+<pre><code class="language-nginx"># Nginx 路由分流範例（Layer 7）
+location /api/ {
+  proxy_pass http://backend_nodes;   # 只有 /api 開頭的去後端
+}
+
+location / {
+  root /var/www/frontend;            # 其他的直接讀取前端靜態檔案
+}
+</code></pre>
+<hr />
+<h3 id="_2">四、四種常見負載平衡演算法</h3>
+<p>(m) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Round Robin</mark>：純輪流，最簡單，假設每台機器一樣強。</p>
+<p>(n) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Weighted Round Robin</mark>：給效能好的機器更高權重，讓它接更多請求。</p>
+<p>(o) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Least Connections</mark>：優先送給目前連線數最少的機器，適合「處理時間長短不一」的任務。</p>
+<p>(p) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">IP Hash</mark>：用使用者 IP 算出固定值，讓同一使用者永遠連到同一台，常用於維持 Session 狀態。</p>
+<hr />
+<h3 id="_3">五、實務與存疑</h3>
+<p>(q) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">雲端環境（Zeabur、AWS）通常自動提供 LB</mark>，不必手動設 Nginx 也能應付高併發。</p>
+<p>(r) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">補充（Gemini 沒提）</mark>：Sticky Session 雖然方便，但會讓 LB 分流不均，也讓機器無法隨意下線（該機器上的 Session 會斷）。現代做法更傾向把 Session 外部化到 Redis，讓後端維持<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">無狀態（Stateless）</mark>，這樣任何機器都能接任何請求。可對照 <span class="wikilink" title="Obsidian 連結：Cookie-與-Session">Cookie-與-Session</span>。</p>
+<p>(s) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">名詞別搞混</mark>：Round Robin 在「作業系統排程」與「負載平衡」是同一個演算法概念，但前者切的是 CPU 時間、後者切的是請求；面試被問到要先確認對方在講哪一層。</p>
+<hr />
+<h2 id="_4">各對話來源（原文）</h2>
+<h3 id="round-robin-2026-08-httpsgeminigooglecomappa9c30355e0c95e3a">Round Robin 概念與應用（2026-08 前後）— https://gemini.google.com/app/a9c30355e0c95e3a</h3>
+<p><strong>使用者：</strong> Round robin 是什麼意思</p>
+<p><strong>Gemini：</strong> Round Robin（RR）是一種基礎且公平的調度演算法（Scheduling Algorithm）。核心原則是「輪流」：將所有待處理的任務排成一個環狀佇列（Queue），給予每個任務一個固定的執行時間片（Time Quantum），時間一到，無論任務是否完成，都會被排到隊伍末端，換下一個任務執行。核心機制：公平性——每個任務都有平等的機會獲得 CPU 或資源，不會有任務被無限期擱置；時間片（Time Slice/Quantum）——這是 RR 的關鍵，如果時間片設得太短，切換頻率過高會導致效能浪費（Context Switch），如果太長，則會退化成一般的「先到先服務」（FCFS）；循環運作——像玩遊戲輪流抽牌一樣，最後一個執行完後又會回到第一個。常見應用場景：作業系統（處理多工任務分配）、網路負載平衡（按順序將請求分發給 Server A → B → C，然後再回到 A）、資料庫分流（在讀寫分離的架構中，輪流向不同的從屬資料庫讀取資料）。缺點與限制：Round Robin 假設所有任務或伺服器的「權重」是一樣的，但現實中有些伺服器效能較強、有些任務較耗時，這種情況通常會演進為 Weighted Round Robin（加權輪詢）。</p>
+<p><strong>使用者：</strong> 資料庫分流在這邊是什麼意思。何謂讀寫分離的架構</p>
+<p><strong>Gemini：</strong> 讀寫分離（Read/Write Splitting）是一種將資料庫的「寫入／更新（Write）」與「讀取（Read）」動作分開處理的架構模式。Master（主庫）負責處理 INSERT、UPDATE、DELETE 等會變動資料的指令；Slave（從庫）負責處理 SELECT 查詢指令，主庫的資料會同步（Replication）到多個從庫中。為什麼需要這樣做：效能優化（在大多數應用中「讀」的次數遠大於「寫」，將讀取壓力分擔到多個從庫可大幅提升回應速度）、高可用性（其中一個從庫掛掉系統仍能從其他從庫讀取；主庫掛掉可將從庫提升為新主庫）、資源擴展（讀取壓力增加時只需水平增加從庫數量）。什麼是「資料庫分流」：寫入分流——所有寫入請求都精確導向 Master；讀取分流（Round Robin）——當有多個 Slave 時，系統會利用 Round Robin 演算法將查詢請求輪流分配給 Slave 1、Slave 2、Slave 3。技術挑戰：資料一致性——由於主庫同步到從庫需要一點時間（毫秒級同步延遲），有時會發生「剛寫入資料，馬上讀取卻讀不到」的情況，開發時需特別考慮（例如重要的讀取改由主庫負責）。</p>
+<p><strong>使用者：</strong> LB 是什麼</p>
+<p><strong>Gemini：</strong> 在網路技術中，LB 是 Load Balancer（負載平衡器）的縮寫。Load Balancer 是一台伺服器或軟體服務，位於使用者（Client）與後端伺服器群（Server Farm）之間，工作是將大量的網路請求「平衡地」分發到多個後端伺服器上。核心功能：分流（Distributing）、健康檢查（Health Check，持續檢查後端伺服器，若某台掛了會自動停止送流量給它直到恢復）、擴展性（Scalability，流量變大時只需多開幾台伺服器並加入 LB 清單，不需更改客戶端存取位址）、隱藏後端（Security，使用者只會看到 LB 的 IP，後端真實位址被隱藏在內網中）。常見的 LB 類型：Layer 4 LB（傳輸層，基於 IP 和 Port 進行轉發，速度極快，因為它不看封包內容）、Layer 7 LB（應用層，會讀取 HTTP/HTTPS 內容，可以根據網址路徑或 Cookie 來決定分流路徑，常見工具如 Nginx 或 AWS ALB）。負載平衡演算法：除了 Round Robin，還有 Least Connections（優先把請求送給目前連線數最少的伺服器，適合處理時間長短不一的任務）、IP Hash（根據使用者的 IP 算出固定值，讓同一個使用者總是連到同一台伺服器，常用於維持 Session 狀態）、Weighted Round Robin（給效能好的伺服器更高權重）。實務應用：在雲端環境中（例如 Zeabur 或 AWS）通常會自動提供 LB 功能，讓你不需要手動設定 Nginx 也能應付高併發流量。</p>
+<p><strong>使用者：</strong> 會讀取 HTTP/HTTPS 內容 是啥 讀路由嗎 還是網址</p>
+<p><strong>Gemini：</strong> Layer 7（應用層）的 LB 會「拆開信封」看裡面的內容，而不僅僅是看信封外的地址。在 Layer 4 時，LB 只看來源與目的地的 IP 和 Port（像快遞員只看門牌）；而 Layer 7 LB 會進行 SSL 卸載（解密 HTTPS），讀取 HTTP 協定內的具體資訊，包含網址（URL）、路由（Path）、標頭（Headers）、Cookie 甚至是表單內容（Body）。它具體讀取什麼：路由與網址（URL &amp; Path Routing）——可以根據路徑把流量導向不同的微服務，例如 example.com/api/<em> 導向後端伺服器群、example.com/static/</em> 導向檔案伺服器（S3/Nginx）、example.com/admin/* 導向內部管理伺服器；主機名稱（Hostname/Domain）——同一個 IP 可以掛載多個網域，LB 可根據 Host Header 判斷要把請求送給哪個專案；標頭（HTTP Headers）——可以檢查 User-Agent，例如手機版瀏覽器就導向行動版優化過的伺服器；會話保持（Session Persistence/Cookie）——透過讀取 Cookie 中的 Session ID，LB 可以確保同一個使用者在同一段時間內都會連到同一台後端伺服器，這叫 Sticky Sessions，對於需要登入狀態的系統非常重要。總結：Layer 4 只看 IP/Port，速度極快，但不認得「路由」；Layer 7 認得「網址」「路由」「Cookie」，可以做很細緻的流量調度，是現代微服務架構的標準配備。</p>
+<hr />
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇來源對話（Gemini Flash）</td>
+<td>https://gemini.google.com/app/a9c30355e0c95e3a</td>
+<td>對話擷取於 2026-08-15</td>
+</tr>
+<tr>
+<td>Nginx 官方｜HTTP Load Balancing</td>
+<td>https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/</td>
+<td>查證於 2026-08-15</td>
+</tr>
+<tr>
+<td>AWS 官方｜ALB 與 NLB 比較（Elastic Load Balancing 功能表）</td>
+<td>https://aws.amazon.com/elasticloadbalancing/features/</td>
+<td>查證於 2026-08-15</td>
+</tr>
+<tr>
+<td>MySQL 官方｜Replication 概觀</td>
+<td>https://dev.mysql.com/doc/refman/8.0/en/replication.html</td>
+<td>查證於 2026-08-15</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ 存疑／更正：Gemini 說「Layer 7 LB 會讀取表單內容（Body）」，技術上做得到但實務上 L7 LB 極少解析 Request Body（成本高、風險大），路由判斷通常只到 Header／Path／Cookie 為止。WAF 才會看 Body。這點原文講得太寬鬆。</p>
+</blockquote>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-15</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

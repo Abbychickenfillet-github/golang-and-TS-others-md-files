@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DNS 查詢、TCP 與 TLS 握手 RTT、邊緣節點與網頁效能</title>
+<style>
+:root{--bg:#fbfaf7;--card:#ffffff;--ink:#2b2b2b;--muted:#6b6b6b;--line:#e7e3da;--accent:#7c6f9b;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
+.wrap{max-width:820px;margin:0 auto;padding:32px 22px 64px;}
+header.note-head{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:26px;}
+h1.title{font-family:Georgia,"Songti TC",serif;font-size:30px;margin:0 0 12px;line-height:1.3;}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0;}
+.pill{background:#efeaf7;color:#5b4f7a;border:1px solid #ded3f0;border-radius:999px;
+ padding:3px 11px;font-size:12.5px;}
+.meta{color:var(--muted);font-size:13px;margin-top:6px;}
+.meta a{color:var(--accent);}
+.toolbar{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap;}
+.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
+ padding:7px 14px;font-size:13.5px;color:#4a4458;box-shadow:0 1px 0 rgba(0,0,0,.02);}
+.btn:hover{background:#f4f1fb;}
+h2{font-size:21px;margin:34px 0 12px;padding-left:11px;border-left:5px solid var(--accent);}
+h3{font-size:17px;margin:22px 0 8px;color:#3b3550;}
+h4{font-size:15px;margin:16px 0 6px;color:#574f6b;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:16px 0;box-shadow:0 2px 10px rgba(60,50,90,.04);}
+p{margin:10px 0;}
+ul,ol{margin:8px 0 8px 4px;padding-left:22px;}
+li{margin:5px 0;}
+code{background:#f1eef8;border-radius:5px;padding:1px 6px;font-size:.92em;
+ font-family:"SFMono-Regular",Consolas,"Cascadia Code",monospace;}
+pre{background:#1f1b2e;color:#eee;border-radius:11px;padding:15px 16px;overflow-x:auto;
+ font-size:13.5px;line-height:1.6;}
+pre code{background:none;padding:0;color:inherit;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
+th{background:#f1ecf8;}
+tbody tr:nth-child(even){background:#faf8fd;}
+mark{padding:.5px 3px;border-radius:3px;}
+mark.y{background:#FFF3A3;} mark.r{background:#FF5582;} mark.g{background:#BBFABB;}
+mark.b{background:#ADCCFF;} mark.p{background:#FFB8EB;} mark.v{background:#D2B3FF;}
+mark.hidden{color:transparent;background:#d8d3c9;border-radius:3px;user-select:none;}
+mark.hidden *{color:transparent!important;}
+blockquote{margin:12px 0;padding:6px 14px;border-left:4px solid var(--line);color:var(--muted);background:#faf9f6;border-radius:6px;}
+.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #888;background:#faf9fc;
+ border-radius:10px;}
+.callout-title{font-weight:700;margin-bottom:4px;}
+.callout-body>:first-child{margin-top:0;}
+.callout-body>:last-child{margin-bottom:0;}
+.src-turn{margin:14px 0;}
+.src-user{background:#eef4ff;border-left:4px solid #ADCCFF;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.src-gem{background:#f4f1ec;border-left:4px solid #cdbfa6;border-radius:8px;padding:9px 13px;margin:8px 0;}
+.role{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:#7a6f55;display:block;margin-bottom:3px;}
+.src-user .role{color:#3f63a8;}
+.spoiler{background:#3b3550;color:transparent;border-radius:5px;padding:1px 8px;cursor:pointer;
+ transition:.15s;user-select:none;box-shadow:inset 0 0 0 1px #ccc;}
+.spoiler::after{content:"　點此看答案　";color:#cdbfe8;font-size:.85em;}
+.spoiler.on{background:#e7ffe7;color:#1c5e1c;box-shadow:inset 0 0 0 1px #BBFABB;user-select:text;}
+.spoiler.on::after{content:"";}
+footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);
+ color:var(--muted);font-size:12.5px;text-align:center;}
+</style></head><body><div class="wrap">
+<header class="note-head"><h1 class="title">DNS 查詢、TCP 與 TLS 握手 RTT、邊緣節點與網頁效能</h1>
+<div class="pills"><span class="pill">#gemini</span><span class="pill">#backend</span><span class="pill">#network</span><span class="pill">#dns</span><span class="pill">#tcp</span><span class="pill">#tls</span><span class="pill">#https</span><span class="pill">#rtt</span><span class="pill">#cdn</span><span class="pill">#edge</span><span class="pill">#socket</span><span class="pill">#performance</span></div><div class="meta">更新：2026-08-14　· 來源：<a href="https://gemini.google.com/app/1f474e0298a19e6b" target="_blank">來源1</a></div>
+<div class="toolbar"><span class="btn" onclick="toggleAll(false)">🙈 隱藏所有答案</span>
+<span class="btn" onclick="toggleAll(true)">👀 顯示所有答案</span></div>
+</header>
+<h1>DNS 查詢、TCP 與 TLS 握手 RTT、邊緣節點與網頁效能</h1>
+<blockquote>
+<p>與 [[CloudFront-CDN概念與快取失效Invalidation]] 相關的原因：那篇談的是 CDN「快取內容」與「失效機制」的操作面，這篇補上它「為什麼會快」的物理層原因（光纖傳輸距離與 RTT），兩篇合看才會知道 CDN 省下的到底是什麼成本。
+與 [[Cookie-與-Session]] 相關的原因：那篇談 HTTP 之上的狀態管理，這篇談 HTTP 之下的連線建立（TCP＋TLS），是同一條請求路徑的上下兩層。</p>
+</blockquote>
+<p><strong>本篇重點 a–t，共 20 個。</strong></p>
+<h2>重點整理</h2>
+<h3>一、DNS 查詢（DNS Lookup）</h3>
+<div class="callout" style="border-left-color:#ADCCFF"><div class="callout-title">ℹ️ 一句話</div><div class="callout-body"><p>瀏覽器要先把<mark style="background: #ADCCFFA6;">網域名稱</mark>翻譯成<mark style="background: #ADCCFFA6;">IP 位址</mark>，才有辦法建立連線，這個翻譯動作就是 DNS 查詢。</p></div></div>
+
+<p>(a) 前往網頁的第一步，是找出該頁面的<mark style="background: #ADCCFFA6;">靜態資源（Assets）</mark>放在哪台伺服器上。Assets 指的是 HTML、CSS、JavaScript、字型、圖片等所有前端資源，<mark style="background: #FF5582A6;">不是只有圖片</mark>。</p>
+<p>(b) 瀏覽器發起 DNS 查詢後，由<mark style="background: #ADCCFFA6;">名稱伺服器（Name Server）</mark>接收並回傳 IP 位址。原文的 <code>fielded by a name server</code> 中，field 借自棒球的「接球、處理球」，是「接收並應答」的意思，<mark style="background: #FF5582A6;">不是「有名的伺服器」</mark>。</p>
+<p>(c) 首次查詢完成後，IP 會被<mark style="background: #BBFABBA6;">快取（Cache）</mark>一段時間，後續請求直接讀快取，不必再問名稱伺服器。</p>
+<p>(d) 每次載入網頁，<mark style="background: #FFF3A3A6;">每個主機名稱（Hostname）通常只需查一次</mark>；但頁面引用了幾個不同主機名稱，就要各查一次。字型、圖片、腳本、廣告、數據統計工具若分屬不同網域，就會產生多次 DNS 查詢。</p>
+<p>(e) 原文的 <code>metrics</code> 在 Web 領域指<mark style="background: #ADCCFFA6;">數據統計／分析追蹤工具</mark>（如 Google Analytics 追蹤碼），<mark style="background: #FF5582A6;">不是法律上的「舉證」</mark>。</p>
+<p>(f) 行動網路特別吃虧：請求要先到<mark style="background: #FFB8EBA6;">基地台</mark>，再到電信公司的<mark style="background: #FFB8EBA6;">中央機房核心網路（Core Network）</mark>，才送上網際網路，物理距離會明顯拉高延遲。</p>
+<p>(g) <code>add significant latency</code> 是「<mark style="background: #BBFABBA6;">增加顯著的延遲時間</mark>」，不是「讓每一個延遲都有顯著差異」。</p>
+<h3>二、這篇 2015 年前後的老文章現在還成立嗎</h3>
+<div class="callout" style="border-left-color:#BBFABB"><div class="callout-title">✅ 依然成立的部分</div><div class="callout-body"><p>DNS 解析仍是建立連線的必要前置；訊號往返的物理延遲（RTT）在行動裝置上仍是不可忽視的成本。</p></div></div>
+
+<div class="callout" style="border-left-color:#BBFABB"><div class="callout-title">💡 已被現代技術大幅緩解的部分</div><div class="callout-body"><p>(h) <mark style="background: #BBFABBA6;">Anycast DNS 與邊緣節點</mark>：權威 DNS 與 CDN 節點部署在離使用者極近的邊緣機房，縮短往返耗時。
+(i) <mark style="background: #BBFABBA6;">HTTP/2 與 HTTP/3 多路複用</mark>：HTTP/1.1 時代為了繞過「單一網域最多 6 條連線」的限制而流行 <mark style="background: #D2B3FFA6;">Domain Sharding（域名分片）</mark>，反而製造多次 DNS 查詢；HTTP/2 之後最佳實踐<mark style="background: #FF5582A6;">反轉</mark>成盡量維持單一網域。
+(j) <mark style="background: #BBFABBA6;">Resource Hints</mark>：<code>&lt;link rel="dns-prefetch"&gt;</code> 提前解析 DNS，<code>&lt;link rel="preconnect"&gt;</code> 連 TCP 與 TLS 都提前做完。
+(k) <mark style="background: #BBFABBA6;">5G 與 MEC（多存取邊緣運算）</mark>：把處理與快取下放到基地台旁，降低前往中央機房的延遲。</p></div></div>
+
+<pre><code class="language-html">&lt;!-- 提前幫瀏覽器把跨域圖床的 DNS 與 TLS 連線做完 --&gt;
+&lt;link rel=&quot;dns-prefetch&quot; href=&quot;https://other-image-cdn.com&quot; /&gt;
+&lt;link rel=&quot;preconnect&quot; href=&quot;https://other-image-cdn.com&quot; crossorigin /&gt;
+</code></pre>
+<h3>三、邊緣節點（Edge Nodes）的物理實體</h3>
+<p>(l) 邊緣節點確實是<mark style="background: #FFF3A3A6;">分布在世界各地城市的實體機房</mark>，術語叫 <mark style="background: #ADCCFFA6;">PoP（Point of Presence）</mark>，一個 PoP 可能有幾台到幾百台機架式伺服器，比起佔地數十萬平方公尺的 Hyper-scale Data Center 精簡許多。</p>
+<p>(m) 光在光纖玻璃介質中的速度約 <mark style="background: #FFB8EBA6;">2×10⁸ m/s</mark>（真空中約 3×10⁸ m/s）。台灣到美西來回約 20,000 公里，光單純在光纖裡飛一趟的<mark style="background: #FF5582A6;">硬性物理極限</mark>就要約 100 毫秒，加上沿路數十個路由器轉接，實際 RTT 常達 150～200 毫秒。走邊緣節點則傳輸距離從 10,000 公里降到 10 公里，實體傳輸時間從 100 ms 降到 1～5 ms。</p>
+<table>
+<thead>
+<tr>
+<th>架構</th>
+<th>使用者到伺服器距離</th>
+<th>純光纖傳輸時間</th>
+<th>實際 RTT 量級</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>集中式源站（美國俄勒岡）</td>
+<td>約 10,000 km</td>
+<td>約 50 ms 單程</td>
+<td>150～200 ms</td>
+</tr>
+<tr>
+<td>邊緣節點 PoP（台北）</td>
+<td>約 10 km</td>
+<td>可忽略</td>
+<td>1～5 ms</td>
+</tr>
+</tbody>
+</table>
+<p>(n) <code>Populating the page</code> 指<mark style="background: #BBFABBA6;">把資料填入頁面</mark>：先拿到空骨架 HTML（如 <code>&lt;div id="app"&gt;&lt;/div&gt;</code>）→ 透過 API 取得資料 → 把資料塞進 DOM 並繪製上畫面。First Contentful Paint 通常發生在頁面被「完全填滿」之前。</p>
+<h3>四、跨網域載入資源的成本</h3>
+<p>(o) <code>&lt;img src="https://other.com/a.jpg"&gt;</code> 這種<mark style="background: #FF5582A6;">跨域圖片</mark>在效能上的代價是：多一次 DNS 查詢、多一次 TCP＋TLS 握手、且<mark style="background: #FF5582A6;">無法共享既有的 HTTP/2 連線</mark>。</p>
+<p>(p) 但在<mark style="background: #BBFABBA6;">安全性（同源政策 SOP）上是預設允許的</mark>：瀏覽器允許 <code>&lt;img src&gt;</code>、<code>&lt;script src&gt;</code>、<code>&lt;link rel="stylesheet"&gt;</code> 嵌入跨域資源。風險在於對方刪圖或掛掉會連累你（Hotlinking 外連）。</p>
+<p>(q) <code>&lt;a href="https://other.com"&gt;</code> 這種<mark style="background: #BBFABBA6;">點擊才跳轉的超連結完全沒有效能成本</mark>，因為使用者按下去之前瀏覽器根本不會去連 other.com。</p>
+<div class="callout" style="border-left-color:#D2B3FF"><div class="callout-title">🧪 「無法共享 HTTP/2 多路複用」白話版（公路比喻）</div><div class="callout-body"><p>建立連線＝在你的電腦與某台伺服器之間<mark style="background: #FFF3A3A6;">蓋一條專屬公路</mark>（TCP 連線＋TLS 加密通道），蓋起來很花時間。
+HTTP/1.1＝一條車道一次跑一輛車，只好同時蓋 6 條公路。
+HTTP/2 多路複用＝<mark style="background: #BBFABBA6;">同一條公路切成無數個微型通道</mark>，CSS、JS、圖片同時併發傳送。
+但<mark style="background: #FF5582A6;">公路是建立在特定兩端之間的</mark>：通往 mywebsite.com 的公路 A 根本通不到 other.com，所以跨域圖片必須另外蓋公路 B。</p></div></div>
+
+<pre><code class="language-text">你的電腦 (瀏覽器)
+├──【公路 A (HTTP/2 通道)】────&gt; mywebsite.com   (CSS, JS, HTML 共享同一條管道)
+└──【公路 B (全新獨立通道)】───&gt; other.com       (圖片 a.jpg，需重做 DNS + TCP + TLS)
+</code></pre>
+<h3>五、TCP 三向握手與 TLS 握手各需幾個 RTT</h3>
+<div class="callout" style="border-left-color:#ADCCFF"><div class="callout-title">ℹ️ 什麼是 RTT</div><div class="callout-body"><p><mark style="background: #ADCCFFA6;">RTT（Round Trip Time，往返時間）</mark>＝封包從瀏覽器發出、到達伺服器、再傳回瀏覽器的一整趟來回時間。</p></div></div>
+
+<p>(r) <mark style="background: #FFF3A3A6;">TCP 三向握手固定 1 個 RTT</mark>（SYN → SYN-ACK → ACK），與 TLS 版本無關。</p>
+<pre><code class="language-text">Client (瀏覽器)                                Server (伺服器)
+   |─────── SYN ───────────────────────────────&gt;|
+   |&lt;────── SYN + ACK ──────────────────────────|   ──&gt; 累計 1 RTT
+   |─────── ACK ───────────────────────────────&gt;|   TCP 通道建立完成
+</code></pre>
+<p>(s) TLS 握手依版本而異：</p>
+<table>
+<thead>
+<tr>
+<th>階段與協定</th>
+<th>所需 RTT</th>
+<th>首次連線總計</th>
+<th>備註</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TCP 三向握手</td>
+<td>1 RTT</td>
+<td>—</td>
+<td>所有 TCP 連線的基本開銷</td>
+</tr>
+<tr>
+<td>TLS 1.2 握手</td>
+<td>2 RTT</td>
+<td><mark style="background: #FF5582A6;">3 RTT</mark></td>
+<td>傳統標準，需兩次完整往返</td>
+</tr>
+<tr>
+<td>TLS 1.3 握手</td>
+<td>1 RTT</td>
+<td><mark style="background: #BBFABBA6;">2 RTT</mark></td>
+<td>現代主流，把演算法協商與金鑰交換合併</td>
+</tr>
+<tr>
+<td>TLS 1.3 0-RTT Resumption</td>
+<td>0 RTT</td>
+<td><mark style="background: #BBFABBA6;">1 RTT</mark></td>
+<td>已有歷史 Session Key 時，可在 TCP 的 ACK 夾帶 Early Data</td>
+</tr>
+</tbody>
+</table>
+<div class="callout" style="border-left-color:#FFB02E"><div class="callout-title">⚠️ 跨域為什麼慢</div><div class="callout-body"><p>即使用 TLS 1.3，載入跨域資源仍要重付 2 個 RTT（TCP 1＋TLS 1）。跨國傳輸若 1 RTT＝150 ms，<mark style="background: #FF5582A6;">光是連線建立就白白浪費 300 ms</mark>。</p></div></div>
+
+<h3>六、封包（Packet）與 Socket 的差別</h3>
+<p>(t) 兩者<mark style="background: #FF5582A6;">不是同一個東西</mark>：封包是網路上流動的「資料包裹」，Socket 是作業系統開給程式的「通訊端點／API」。</p>
+<table>
+<thead>
+<tr>
+<th>比較項目</th>
+<th>封包（Packet）</th>
+<th>Socket（套接字）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>真實身分</td>
+<td>網路傳輸層級的<mark style="background: #ADCCFFA6;">資料單元</mark></td>
+<td>作業系統開給軟體的<mark style="background: #ADCCFFA6;">程式介面 API</mark></td>
+</tr>
+<tr>
+<td>生活比喻</td>
+<td>郵差在路上送的實體信件</td>
+<td>你家門口的郵筒／電話機</td>
+</tr>
+<tr>
+<td>存在位置</td>
+<td>在纜線、路由器、Wi-Fi 訊號中流動</td>
+<td>在電腦記憶體與作業系統核心中</td>
+</tr>
+<tr>
+<td>包含內容</td>
+<td>Header（來源 IP、目標 IP、Port）＋ Payload</td>
+<td>IP＋Port＋協定，在 Linux 中對應一個 File Descriptor</td>
+</tr>
+<tr>
+<td>程式員怎麼碰</td>
+<td>通常不直接處理，由 OS 自動切碎與組裝</td>
+<td>直接呼叫 <code>socket.connect()</code>、<code>socket.write()</code>、<code>socket.recv()</code></td>
+</tr>
+</tbody>
+</table>
+<p>Socket 的中文正式譯名是<mark style="background: #ADCCFFA6;">「套接字」</mark>，意譯可作「通訊端點」，但實務上工程師多半直接講英文 Socket。</p>
+<pre><code class="language-text">[ 你的應用程式 ]  ── socket.write(&quot;Hello World&quot;) ──▶
+[ Socket (OS 核心介面) ]  ── OS 加上 TCP/IP 標頭，切成封包 ──▶
+[ 封包 Packets ]  ── 經光纖／基地台飛越網路 ──▶
+[ 伺服器 OS ]  ── 拆標頭、重組、放進 Socket buffer ──▶
+[ 伺服器應用程式 ]  ── socket.read() 讀出 &quot;Hello World&quot;
+</code></pre>
+<h3>七、TLS 是什麼</h3>
+<p>TLS（<mark style="background: #ADCCFFA6;">Transport Layer Security，傳輸層安全性協定</mark>）是網路上用來防偷看、防竄改、防假冒的加密通訊標準。HTTP ＋ TLS ＝ HTTPS。</p>
+<ul>
+<li><mark style="background: #BBFABBA6;">機密性（Encryption）</mark>：把明文變密文，公用 Wi-Fi 被監聽也看不懂。</li>
+<li><mark style="background: #BBFABBA6;">完整性（Integrity）</mark>：透過雜湊與 MAC 確保途中沒被竄改。</li>
+<li><mark style="background: #BBFABBA6;">身分驗證（Authentication）</mark>：靠 CA（憑證頒發機構）簽發的憑證，確認連到的是真網站而非釣魚站。</li>
+</ul>
+<p>TLS 與 SSL 是新舊代關係：SSL 由 Netscape 於 1990 年代開發（1.0／2.0／3.0），<mark style="background: #FF5582A6;">因嚴重漏洞已全部廢棄</mark>；TLS 1.0 其實就是 SSL 3.1。現在網路上跑的全是 TLS 1.2 與 1.3，大家口中的「SSL 憑證」正式名稱其實是「TLS 憑證」。</p>
+<pre><code class="language-text">+------------------------------------+
+| 應用層 (HTTP, WebSocket, SMTP)     |  &lt;-- 業務資料
++------------------------------------+
+| TLS 加密層                          |  &lt;-- 加密／解密
++------------------------------------+
+| TCP 傳輸層                          |  &lt;-- Socket 連線與可靠傳輸
++------------------------------------+
+| IP 網路層                           |  &lt;-- 封包路由與定位
++------------------------------------+
+</code></pre>
+<h3>八、觀念釐清：「你的電腦」是誰的電腦</h3>
+<div class="callout" style="border-left-color:#FFB8EB"><div class="callout-title">❓ Abby 的疑問</div><div class="callout-body"><p>「我已經部署上去了，為什麼還說是『我的電腦』和伺服器之間搭公路？不就只剩伺服器嗎？」</p></div></div>
+
+<p>這裡的「你的電腦」指的是<mark style="background: #FFF3A3A6;">訪問網站的人（Client）的電腦</mark>，不是你寫程式、部署網站的那台開發機。</p>
+<ul>
+<li><mark style="background: #ADCCFFA6;">Server</mark>：24 小時開機、有固定 IP 的遠端主機，靜靜等待連線。</li>
+<li><mark style="background: #ADCCFFA6;">Client</mark>：任何打開瀏覽器輸入你網址的人，<mark style="background: #D2B3FFA6;">包括你自己用手機測試的時候</mark>。</li>
+<li>公路<mark style="background: #FF5582A6;">不是預先蓋好的</mark>：每一位訪客按下 Enter 的那一刻，才會與你的伺服器動態建立一條專屬於該次存取的加密通道。</li>
+</ul>
+<h2>自我測驗</h2>
+<h3>填空（點擊顯示答案）</h3>
+<ol>
+<li>TCP 三向握手固定需要 <span class="spoiler">1</span> 個 RTT。</li>
+<li>使用 TLS 1.3 首次連線，TCP 加 TLS 總共需要 <span class="spoiler">2</span> 個 RTT。</li>
+<li>光在光纖介質中的速度約為 <span class="spoiler">2×10⁸ m/s</span>。</li>
+<li>CDN 的邊緣機房術語縮寫是 <span class="spoiler">PoP（Point of Presence）</span>。</li>
+<li>提前完成跨域 DNS 與 TLS 連線的 HTML 標籤屬性是 <span class="spoiler">rel="preconnect"</span>。</li>
+<li>Socket 的中文正式譯名是 <span class="spoiler">套接字</span>。</li>
+</ol>
+<h3>是非題</h3>
+<ol>
+<li>跨域載入圖片會違反瀏覽器的同源政策而被擋下。 → <span class="spoiler">✗ 錯。SOP 預設允許 <code>&lt;img src&gt;</code> 等標籤嵌入跨域資源，跨域圖片的問題是「效能成本」與「外連風險」，不是被安全政策擋下。</span></li>
+<li>HTTP/2 時代仍建議把資源分散到多個子網域以增加並行下載。 → <span class="spoiler">✗ 錯。那是 HTTP/1.1 時代的 Domain Sharding。HTTP/2 之後最佳實踐反轉為盡量維持單一網域，靠多路複用併發。</span></li>
+<li>封包和 Socket 講的是同一件事。 → <span class="spoiler">✗ 錯。封包是在網路上流動的資料單元，Socket 是 OS 提供給程式的通訊端點介面。</span></li>
+<li>TLS 1.3 的 0-RTT 只在「曾經連過該伺服器、手上有 Session Key」時才能使用。 → <span class="spoiler">✓ 對。0-RTT 是 Resumption（恢復連線）機制，首次連線用不到。</span></li>
+</ol>
+<h3>申論題</h3>
+<ol>
+<li>你的網站首頁引用了 5 個不同網域的第三方資源（字型、圖床、廣告、GA、地圖）。假設使用者在台灣、這些網域都只有美國源站、1 RTT＝150 ms 且全部使用 TLS 1.3。請估算光是「建立連線」這件事就多花了多少時間，並提出兩種改善方向。</li>
+<li>為什麼說「雙向綁定裡的 Model 是前端記憶體，跟資料庫無關」與「TCP 公路是 Client 與 Server 之間建立」這兩件事，其實反映的是同一個觀念（前後端是兩個完全隔離的記憶體空間）？</li>
+</ol>
+<h2>各對話來源（原文摘要）</h2>
+<h3>DNS 查詢與網頁效能優化（2026-08）— https://gemini.google.com/app/1f474e0298a19e6b</h3>
+<div class="src-user"><span class="role">使用者</span>貼上一段英文原文（web.dev／MDN 風格的 Populating the page 章節），請求逐句翻譯校正，並問「現在的情形是否還是如此」。</div>
+<div class="src-gem"><span class="role">Gemini</span>逐段修正 assets（靜態資源非圖片）、name server（名稱伺服器非有名的伺服器）、fielded by（接收處理）、metrics（數據統計工具非舉證）、add significant latency（增加顯著延遲）等誤譯，並補充 Anycast DNS、HTTP/2 多路複用、Resource Hints、5G MEC 四項現代優化。整合進上方 (a)～(k)。</div>
+<div class="src-user"><span class="role">使用者</span>Edge nodes 是真的很多小主機在世界各地嗎？我想物理上理解邊緣伺服器。Populating the page 是什麼意思？</div>
+<div class="src-gem"><span class="role">Gemini</span>說明 PoP 的實體規模、光纖光速物理極限與距離換算，以及 populate 就是「把資料塞進 DOM 容器」的過程。整合進上方 (l)～(n)。</div>
+<div class="src-user"><span class="role">使用者</span>如果圖片超連結來自其他網站也算是沒做好 same origin 嗎？</div>
+<div class="src-gem"><span class="role">Gemini</span>區分 <code>&lt;img src&gt;</code>（有效能成本、無安全違規）與 <code>&lt;a href&gt;</code>（點擊前完全無成本），並給出 preconnect 的最佳實踐。整合進上方 (o)～(q)。</div>
+<div class="src-user"><span class="role">使用者</span>「無法共享 HTTP/2 多路複用」這邊我看不懂。</div>
+<div class="src-gem"><span class="role">Gemini</span>以「快遞公路」比喻拆解連線建立、HTTP/1.1 排隊、HTTP/2 多路複用與跨域必須另建公路。整合進上方第四節的 example callout。</div>
+<div class="src-user"><span class="role">使用者</span>請解釋建立 HTTPS 連線時，TCP 三向握手與 TLS 握手分別需要多少個 RTT？</div>
+<div class="src-gem"><span class="role">Gemini</span>給出 TCP 1 RTT、TLS 1.2 為 2 RTT、TLS 1.3 為 1 RTT、0-RTT Resumption 的完整對照表與 ASCII 時序圖。整合進上方 (r)～(s)。</div>
+<div class="src-user"><span class="role">使用者</span>封包是 socket 嗎？TLS 是啥？Socket 中文？</div>
+<div class="src-gem"><span class="role">Gemini</span>以「信件 vs 郵筒」比喻區分封包與 Socket，並說明 TLS 三大保護、TLS 與 SSL 的新舊代關係、在 OSI 模型中的位置，以及 Socket 的中文譯名。整合進上方 (t) 與第六、七節。</div>
+<div class="src-user"><span class="role">使用者</span>「在你的電腦和 mywebsite.com 的伺服器之間搭一條專屬公路」，這個我已經部署上去了，為什麼是我的電腦？</div>
+<div class="src-gem"><span class="role">Gemini</span>釐清 Client 與 Server 的角色分工，說明「你的電腦」指的是任一訪客的裝置，公路是每位訪客連線當下才動態建立的。整合進上方第八節。</div>
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/1f474e0298a19e6b</td>
+<td>對話日期 2026-08、整理日 2026-08-14</td>
+</tr>
+<tr>
+<td>TLS 1.3 規範（RFC 8446，含 1-RTT 握手與 0-RTT Early Data）</td>
+<td>https://www.rfc-editor.org/rfc/rfc8446</td>
+<td>RFC 發布 2018-08、查證日 2026-08-14</td>
+</tr>
+<tr>
+<td>TLS 1.2 規範（RFC 5246）</td>
+<td>https://www.rfc-editor.org/rfc/rfc5246</td>
+<td>RFC 發布 2008-08、查證日 2026-08-14</td>
+</tr>
+<tr>
+<td>Resource Hints（dns-prefetch／preconnect）規範</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/preconnect</td>
+<td>查證日 2026-08-14</td>
+</tr>
+<tr>
+<td>Populating the page 原文（web.dev／MDN 效能章節）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work</td>
+<td>查證日 2026-08-14</td>
+</tr>
+</tbody>
+</table>
+<div class="callout" style="border-left-color:#FFB02E"><div class="callout-title">⚠️ ⚠️ 存疑／提醒</div><div class="callout-body"><p>(1) Gemini 說「TLS 1.2 需要 2 個 RTT」是<mark style="background: #FFF3A3A6;">標準完整握手</mark>的情況；實務上 TLS 1.2 若使用 <mark style="background: #D2B3FFA6;">False Start</mark> 或 <mark style="background: #D2B3FFA6;">Session Resumption</mark>，可縮短到 1 個 RTT，這點對話中沒有提到。
+(2) 對話中提到的 IP 位址 93.184.216.34 是 example.com 的舊 IP，該網域已於 2025 年更換 IP 與託管方式，<mark style="background: #FFB8EBA6;">僅供理解範例，不要當現況引用</mark>。
+(3) 「1 RTT＝150 ms」是台美跨國的典型量級，實際值依線路與時段變動很大，不是固定常數。</p></div></div>
+
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-08-14</p>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-14</footer>
+</div><script>
+function toggleAll(show){document.querySelectorAll('.spoiler').forEach(function(s){
+ if(show){s.classList.add('on');}else{s.classList.remove('on');}});}
+document.addEventListener('click',function(e){
+ if(e.target.classList&&e.target.classList.contains('spoiler')){e.target.classList.toggle('on');}});
+(function(){var l=document.createElement('link');l.rel='stylesheet';
+ l.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
+ document.head.appendChild(l);var s=document.createElement('script');
+ s.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+ s.onload=function(){try{hljs.highlightAll();}catch(e){}};document.head.appendChild(s);})();
+</script></body></html>

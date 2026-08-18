@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chrome DevTools Performance 面板——渲染管線與 Repaint 判讀</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
+header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
+.pills{margin:6px 0;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar .hint{color:var(--muted);font-size:.78rem;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+p,li{font-size:1rem;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
+pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
+th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
+.src{background:#fafafa;} .src h3{color:var(--accent);}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-block;margin-right:10px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+</style></head><body>
+<div class="wrap">
+<header class="note"><h1>Chrome DevTools Performance 面板——渲染管線與 Repaint 判讀</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#devtools</span><span class="pill">#performance</span><span class="pill">#渲染</span><span class="pill">#repaint</span><span class="pill">#reflow</span><span class="pill">#前端效能</span><span class="pill">#面試</span></div><div class="meta">來源：Gemini · 分類：技術 · <a href="https://gemini.google.com/app/da229be2bf431601" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
+<section class="card"><blockquote>
+<p>本篇重點 a–n，共 14 個。</p>
+<p>[!info] 為什麼跟其他筆記有關聯<br />
+a. 與 [[事件循環-Event-Loop-微任務與巨任務]] 相關：Performance 面板上那條<mark style="background: #ADCCFFA6;">主線程（Main Thread）</mark>時間軸，畫的就是 Event Loop 實際跑出來的樣子——每一個色塊都是一個 Task，看得見「巨任務太長導致下一幀畫不出來」的具體證據。<br />
+b. 與 [[11-記憶體模型-stack-heap-動態配置-GC]] 相關：面板裡的 GC 尖峰與記憶體曲線，是那篇理論筆記在真實頁面上的<mark style="background: #FFF3A3A6;">可觀測對應物</mark>。</p>
+</blockquote>
+</section><section class="card"><h2>重點整理</h2>
+<h3>一、渲染（Rendering）到底在做什麼</h3>
+<p>c. <mark style="background: #ADCCFFA6;">渲染（Rendering）</mark>是瀏覽器把 HTML、CSS、JavaScript 這些<mark style="background: #FFF3A3A6;">靜態程式碼</mark>，轉換成螢幕上<mark style="background: #FFF3A3A6;">看得見、可互動的動態畫面</mark>的整個過程。方向是「靜態原始碼 → 動態畫面」，不是反過來。</p>
+<p>d. 這個過程內部依序包含：<mark style="background: #ADCCFFA6;">Style（樣式計算）→ Layout（版面配置）→ Paint（繪製）→ Composite（合成）</mark>。</p>
+<h3>二、Reflow 與 Repaint 的分界（面試常考）</h3>
+<p>e. <mark style="background: #ADCCFFA6;">Repaint（重繪）</mark>：元素的<mark style="background: #FFF3A3A6;">外觀</mark>改變，但<mark style="background: #FFF3A3A6;">大小與位置沒變</mark>時，瀏覽器只需要重新畫這個元素。例如改 <code>color</code>、<code>background-color</code>、<code>visibility</code>。</p>
+<p>f. <mark style="background: #ADCCFFA6;">Reflow／Layout（重排）</mark>：元素的<mark style="background: #FF5582A6;">尺寸或位置</mark>改變，瀏覽器必須重新計算版面。例如改 <code>width</code>、<code>height</code>、<code>margin</code>、<code>top</code>。</p>
+<p>g. <mark style="background: #FF5582A6;">成本關係：Reflow 一定會連帶觸發 Repaint，反過來不會。</mark>所以 Reflow 比 Repaint 貴，優化時優先消滅 Reflow。</p>
+<p>h. <mark style="background: #BBFABBA6;">正解做法</mark>：做動畫時改用 <mark style="background: #BBFABBA6;"><code>transform</code> 與 <code>opacity</code></mark>。這兩個屬性可以直接交給<mark style="background: #ADCCFFA6;">合成線程（Compositor Thread）</mark>處理，<mark style="background: #BBFABBA6;">跳過主線程的 Layout 與 Paint</mark>，主線程就不會被卡死。用 <code>left</code>／<code>top</code> 做位移則每一幀都要 Reflow。</p>
+<h3>三、面板上怎麼看</h3>
+<p>i. 在 Performance 面板錄製 Trace 之後，看<mark style="background: #FFF3A3A6;">主線程（Main Thread）</mark>那條火焰圖：<mark style="background: #FFB8EBA6;">紫色區塊代表 Layout 與 Style 計算</mark>，<mark style="background: #FFB8EBA6;">綠色區塊代表 Paint／Repaint 活動</mark>。</p>
+<p>j. <mark style="background: #ADCCFFA6;">Long Task（長任務）</mark>：單一任務佔用主線程<mark style="background: #FFB8EBA6;">超過 50 毫秒</mark>就被歸類為 Long Task，這段期間頁面無法回應輸入，使用者感受到的就是<mark style="background: #ADCCFFA6;">掉幀（Jank）</mark>。面板會在該區塊右上角標紅色三角形。</p>
+<p>k. 錄製結果可以存成 <code>.json.gz</code> 的 Trace 檔（勾選 include resource content 會一併帶上資源內容），之後匯入面板重新分析——適合把「當下重現的卡頓」留存下來慢慢查。</p>
+<h3>四、怎麼把這個技能講給別人聽</h3>
+<p>l. <mark style="background: #BBFABBA6;">對面試官（講底層邏輯）</mark>：「我會用 Chrome DevTools Performance 錄製 Trace，切分主線程的 Tasks，觀察點擊事件觸發後產生了多少次 Style 與 Layout（紫色區塊）。如果發現不必要的 Repaint（綠色區塊），我會檢查是哪個 CSS 屬性造成的，改用 <code>transform</code>／<code>opacity</code> 讓瀏覽器走合成線程，避免主線程卡死。我可以精準定位是哪一個 JS 函式讓主線程超過 50ms。」</p>
+<p>m. <mark style="background: #BBFABBA6;">對主管（講商業價值）</mark>：「過去複雜頁面滑起來會頓，我們只能猜。現在我可以錄製 Performance，直接找出掉幀的根本原因，指出是哪一行 JS 阻塞、或哪裡 DOM 節點太多。遇到效能瓶頸不用盲目改 code。」</p>
+<p>n. <mark style="background: #D2B3FFA6;">兩段話的差別</mark>：對工程師講<mark style="background: #ADCCFFA6;">機制與名詞</mark>，對主管講<mark style="background: #ADCCFFA6;">問題被解決了、而且不用亂猜</mark>。同一個技能包裝成兩種語言，這件事本身就是面試加分項。</p>
+<hr />
+</section><section class="card"><h2>⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 在對話中兩次宣稱「已經幫您把 Trace 檔案儲存到影片資料夾」並給了具體檔名 <code>Trace-20260618T164145_performance_track.json.gz</code>。<mark style="background: #FF5582A6;">Gemini 沒有寫入本機檔案系統的能力，這是幻覺（hallucination）</mark>。Trace 檔實際上要在 DevTools 面板左上角自己按下載箭頭匯出，請自行確認檔案是否真的存在。</li>
+<li>對話中 Gemini 只說「紫色是渲染、綠色是重繪」，並未區分 Reflow 與 Repaint 的成本差異。上面第 e–h 點的 Reflow／Repaint 分界與 <code>transform</code>／<code>opacity</code> 的合成線程機制，是我依 web.dev 官方文件補上的，非對話原文。</li>
+</ul>
+</section><section class="card src"><h2>各對話來源</h2>
+<h3>優先級數值大小與重要性（2026-08-14）— https://gemini.google.com/app/da229be2bf431601</h3>
+<blockquote>
+<p>[!note] 這場對話是語音輸入，使用者的提問有大量辨識雜訊，以下取語意可還原的部分。</p>
+</blockquote>
+<p><strong>使用者：</strong> Save the trace. Save performance trace include resource content.</p>
+<p><strong>Gemini：</strong> 這筆效能記錄已經儲存完成了，而且也包含了資源的內容。（⚠️ 見上方存疑）</p>
+<p><strong>使用者：</strong> 渲染這件事情講給我聽。</p>
+<p><strong>Gemini：</strong> 在瀏覽器中，渲染是指瀏覽器將 HTML、CSS 和 JavaScript 等程式碼轉換成螢幕上視覺畫面的過程。這包含計算頁面的佈局跟樣式，然後把這些內容繪製成使用者最終看到的圖像。在 Chrome DevTools 的 Performance 面板中，可以清楚看到渲染所花費的時間，這有助於找出並解決網頁效能的瓶頸。</p>
+<p><strong>使用者：</strong> 渲染就包含了……從 HTML 變成動態的過程嗎？還是說反了？</p>
+<p><strong>Gemini：</strong> 您的理解沒錯。渲染正是將 HTML、CSS 和 JavaScript 等靜態代碼，轉換為使用者在螢幕上看到、能夠互動的動態視覺畫面的過程。</p>
+<p><strong>使用者：</strong> render and repaint 在哪裡？</p>
+<p><strong>Gemini：</strong> 在 Performance 面板中，可以觀察主線程圖表來尋找渲染和重繪的活動。負責「渲染」的通常是紫色區塊，代表版面配置和樣式計算；代表「重繪」的活動則顯示為綠色區塊。</p>
+<p><strong>使用者：</strong> repaint、綠色，這詞彙是什麼？</p>
+<p><strong>Gemini：</strong> Repaint 或重繪是指當元素的外觀改變，但不影響其大小或版面時，瀏覽器重新繪製該元素的過程。在 Chrome DevTools 中，這些繪製活動通常會以綠色來表示。</p>
+<p><strong>使用者：</strong>（詢問如何把這個技能講給面試官與主管聽）</p>
+<p><strong>Gemini：</strong> 高階工程師不會只說「我覺得網頁有點卡」，他們會說「主線程被長任務阻塞了，導致掉幀」。（後續即上方第 l、m 點的兩段話術。）</p>
+<hr />
+</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇原始對話</td>
+<td>https://gemini.google.com/app/da229be2bf431601</td>
+<td>Gemini 對話，整理於 2026-08-14</td>
+</tr>
+<tr>
+<td>Performance 面板操作與 Trace 匯出</td>
+<td>https://developer.chrome.com/docs/devtools/performance</td>
+<td>Chrome DevTools 官方文件，查證於 2026-08-14</td>
+</tr>
+<tr>
+<td>Long Task 50ms 定義</td>
+<td>https://web.dev/articles/optimize-long-tasks</td>
+<td>web.dev，查證於 2026-08-14</td>
+</tr>
+<tr>
+<td>Reflow／Repaint 與 transform、opacity 走合成線程</td>
+<td>https://web.dev/articles/stick-to-compositor-only-properties-and-manage-layer-count</td>
+<td>web.dev，查證於 2026-08-14</td>
+</tr>
+</tbody>
+</table></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-14</footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  if(window.hljs){document.querySelectorAll('pre code').forEach(function(b){try{hljs.highlightElement(b);}catch(e){}});}
+  document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+  var hidden=false;
+  window.__toggleAll=function(){hidden=!hidden;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',hidden);});var b=document.getElementById('toggleAll');b.textContent=hidden?'顯示所有重點':'遮住所有重點(自我考試)';};
+});
+</script></body></html>

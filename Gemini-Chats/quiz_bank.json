@@ -1,0 +1,147 @@
+{
+  "frontend-docs/javascript/JS_Core_and_Runtime/高階函式與函數式範式-取代OOP三大設計模式.md": {
+    "tf": [
+      {"q": "高階函式本身就是一種獨立的程式設計範式（Paradigm）。", "a": false, "why": "它是函數式程式設計（FP）範式底下最基礎的工具，不是獨立範式。"},
+      {"q": "在 FP 中，函式被視為一等公民（First-Class Citizen），所以可以當參數傳遞、也可以當回傳值。", "a": true, "why": "這正是高階函式能成立的前提。"},
+      {"q": "只要用了 map 或 filter，就代表寫的是函數式程式設計。", "a": false, "why": "FP 還要求純函式與避免副作用，高階函式只是入場券。"},
+      {"q": "Factory 工廠模式的高階函式寫法，靠的是閉包（Closure）記住外層變數。", "a": true, "why": "createRole 執行完了，回傳的小函式仍記得 roleType。"}
+    ],
+    "cloze": [
+      {"q": "把 for 迴圈換成 map／filter，程式碼風格會從命令式轉向 ____ 式（關注「要做什麼」而非「怎麼做」）。", "a": "宣告", "why": "Declarative，宣告式。"},
+      {"q": "接收一個函式、回傳一個包了新行為的新函式，這個模式在 React 叫做 ____（縮寫）。", "a": "HOC", "why": "Higher-Order Component，跟 Decorator 裝飾者模式同一套骨架。"},
+      {"q": "Strategy 策略模式的高階函式寫法，是直接把策略函式當成 ____ 傳進去。", "a": "參數", "why": "不必定義介面與多個實作類別。"}
+    ],
+    "essay": [
+      {"q": "用你自己的話說明：為什麼在支援高階函式的語言裡，Strategy、Decorator、Factory 這三個 OOP 設計模式可以被大幅簡化？並說明什麼情況下你仍會選擇用類別而不是閉包。", "a": "參考方向：(1) 這三個模式的本質都是「把一段可替換的行為包起來，讓呼叫端不必知道細節」。在 OOP 裡要達成這件事必須靠介面＋實作類別來製造多型；但當函式本身就是一等公民時，一個函式就已經是「可傳遞、可替換的行為單位」，多型自然成立，不需要類別骨架。(2) Strategy 用「函式當參數」、Decorator 用「函式當回傳值」、Factory 用「閉包客製產出新函式」。(3) 仍該用類別的情況：需要維護多個內部狀態且有明確生命週期（初始化、銷毀）、需要繼承樹或型別系統來約束契約、團隊慣例與既有程式碼是 OOP 風格、或狀態多到用一串閉包會難以除錯。兩者是互補而非取代。"},
+      {"q": "面試官問「高階函式對效能有沒有壞處」，你會怎麼回答？", "a": "參考方向：有代價。map／filter 每一步都會產生新陣列，資料量大時記憶體配置與 GC 壓力會高於原地修改的 for 迴圈；鏈式呼叫多段會多次遍歷。但這通常不是瓶頸，可讀性與可維護性的收益更大。實務判斷：一般業務邏輯優先選高階函式；只有在效能敏感的熱路徑（大量資料、動畫每幀執行）經過量測確認是瓶頸後，才改回 for 或用 reduce 合併多段遍歷。重點是「先量測再優化」，不要憑感覺提早優化。"}
+    ]
+  },
+
+  "計算機基礎/Round-Robin輪詢調度與負載平衡LB-L4對L7.md": {
+    "tf": [
+      {"q": "Round Robin 的時間片（Time Quantum）設得越短越好，因為切換越快越公平。", "a": false, "why": "太短會讓 Context Switch 的成本吃掉效能；太長則退化成 FCFS。"},
+      {"q": "Layer 4 負載平衡器可以根據網址路徑 /api 把流量導向不同的後端。", "a": false, "why": "L4 只看 IP 與 Port，認不得路由；那是 L7 的能力。"},
+      {"q": "讀寫分離架構中，所有 SELECT 都輪流分給 Slave，所有寫入都導向 Master。", "a": true, "why": "讀取分流常用 Round Robin，寫入必須集中在主庫。"},
+      {"q": "主庫同步到從庫是即時的，所以剛寫入馬上讀一定讀得到。", "a": false, "why": "有毫秒級 Replication Lag，關鍵讀取要改由主庫負責。"},
+      {"q": "Sticky Session 雖然方便，但會讓 LB 分流不均，也讓機器難以隨意下線。", "a": true, "why": "現代做法更傾向把 Session 外部化到 Redis，讓後端保持無狀態。"}
+    ],
+    "cloze": [
+      {"q": "當伺服器效能不一致時，Round Robin 會演進成 ____ Round Robin（加權輪詢）。", "a": "Weighted", "why": "給效能好的機器更高權重。"},
+      {"q": "LB 持續檢查後端伺服器是否存活的功能叫做 ____ Check。", "a": "Health", "why": "掛掉的機器會自動被停止送流量。"},
+      {"q": "讓同一個使用者總是連到同一台後端的演算法叫 IP ____。", "a": "Hash", "why": "根據來源 IP 算出固定值，常用於維持 Session。"},
+      {"q": "適合「處理時間長短不一」任務的演算法是 Least ____。", "a": "Connections", "why": "優先送給目前連線數最少的機器。"}
+    ],
+    "essay": [
+      {"q": "請比較 Layer 4 與 Layer 7 負載平衡器，並各舉一個你會選它的實際場景。", "a": "參考方向：L4 只看 IP／Port 做轉發，不解密也不解析內容，因此延遲極低、吞吐極高，適合純 TCP／UDP 流量、遊戲伺服器、需要極致效能且不需要依內容分流的場景（AWS NLB）。L7 會做 SSL 卸載後讀取 HTTP 的 URL Path、Hostname、Header、Cookie，能做細緻路由（/api 導後端、/static 導 S3）、依 Host 分多專案、依 Cookie 做 Sticky Session，適合微服務與現代 Web 應用（Nginx、AWS ALB）。代價是要解密、要解析，延遲與 CPU 成本較高。實務上兩者常疊加：NLB 在外層扛量，ALB 或 Nginx 在內層做路由。"},
+      {"q": "你的系統採用讀寫分離後，使用者回報「剛送出留言，重新整理卻看不到」。請說明成因與至少兩種解法。", "a": "參考方向：成因是 Replication Lag——寫入進了 Master，但同步到 Slave 有毫秒到數秒延遲，此時讀取被 LB 分到還沒同步的 Slave。解法：(1) Read-your-own-writes：寫入後的一小段時間內（例如該使用者的後續 N 秒請求），把讀取強制導向 Master。(2) 前端樂觀更新：送出成功後直接把該筆資料插進畫面，不等後端回讀。(3) 用 session／cookie 記錄該使用者最後寫入的複寫位置（GTID／LSN），讀取時挑選已追上該位置的 Slave。(4) 針對強一致性需求的查詢（金流、庫存）一律走 Master，不做讀寫分離。要在回答中點出「這是刻意用一致性換效能的取捨」，不是 bug。"}
+    ]
+  },
+
+  "backend/冪等性Idempotence與冪運算的區別.md": {
+    "tf": [
+      {"q": "HTTP 的 POST 是冪等的。", "a": false, "why": "POST 每次都新建一筆資料，重送會產生重複；PUT 與 DELETE 才是冪等。"},
+      {"q": "DELETE 是冪等的，因為刪第二次的結果仍然是「這筆資料不存在」。", "a": true, "why": "結果狀態相同，即使回傳的 status code 可能不同。"},
+      {"q": "冪等的通用代數式是 a × a = a。", "a": false, "why": "那只有 a=0 或 a=1 成立；通則是 f(f(x)) = f(x)。"},
+      {"q": "PATCH 一定是冪等的。", "a": false, "why": "看內容：{\"count\": 5} 冪等，{\"count\": \"+1\"} 不冪等。"}
+    ],
+    "cloze": [
+      {"q": "為了讓付款 API 在重送時不會扣兩次款，前端會產生一個唯一的 ____ Key 隨請求送出，後端用它去重。", "a": "Idempotency", "why": "Stripe 的 Idempotency-Key header 就是這個做法。"},
+      {"q": "冪等的定義是：一個操作重複執行多次，結果與執行 ____ 次相同。", "a": "一", "why": "f(f(x)) = f(x)。"},
+      {"q": "冪運算的逆運算是 ____（用於計算底數要幾次方才能變成真數）。", "a": "對數", "why": "若 aˣ = N，則 x = log_a N。"}
+    ],
+    "essay": [
+      {"q": "設計一支「建立訂單」的 API，要如何確保使用者連點兩次送出鈕不會產生兩筆訂單？請說明完整機制。", "a": "參考方向：(1) POST 本質不冪等，所以要靠外加的冪等鍵。前端在進入結帳頁時就產生一個 UUID 當 Idempotency-Key，放在 header 隨請求送出；重試時沿用同一個 key（不是每次重新產生）。(2) 後端收到請求先用該 key 查一張 idempotency 表（或 Redis），若已存在且處理完成，直接回傳上次的結果與 status；若存在但處理中，回 409 或讓客戶端稍後重試。(3) 寫入時把 key 設成資料庫的 UNIQUE 約束，靠資料庫層級保證併發下也只成功一筆（唯一索引衝突 = 重複請求）。(4) key 設定合理 TTL（例如 24 小時）避免無限膨脹。(5) 前端仍要做按鈕 disable 與 loading 狀態，但那只是體驗優化，不能當成正確性保證——真正的防線在後端。"}
+    ]
+  },
+
+  "backend/支付系統架構-數位錢包載體與支付處理器的分工.md": {
+    "tf": [
+      {"q": "Apple Pay 會直接完成資金轉移，把錢從消費者帳戶搬到商家帳戶。", "a": false, "why": "它只是「載體」，把卡片資訊換成 Token 傳給商家；真正清算的是 Stripe 這類處理器。"},
+      {"q": "數位錢包與支付處理器是競爭關係，選一個用就好。", "a": false, "why": "兩者是協作關係，一個完整流程往往兩者同時存在。"},
+      {"q": "訂單狀態應該以前端跳轉回「付款成功頁」為準。", "a": false, "why": "使用者可能中途關掉分頁；真相來源是支付處理器打回來的 Webhook。"},
+      {"q": "為了縮小 PCI DSS 合規範圍，卡號不應該經過自己的伺服器。", "a": true, "why": "用 Stripe Elements／Checkout 讓卡號直送 Stripe，自己只拿 Token。"}
+    ],
+    "cloze": [
+      {"q": "數位錢包把實體信用卡資訊轉換成一組虛擬的 ____，感應時只傳這組資料給商家。", "a": "Token", "why": "Apple 稱為 Device Account Number。"},
+      {"q": "支付處理器主動打回商家後端、通知交易狀態的機制叫 ____。", "a": "Webhook", "why": "它可能重送，所以處理端必須冪等。"},
+      {"q": "支付產業針對卡片資料安全的合規標準縮寫是 PCI ____。", "a": "DSS", "why": "Payment Card Industry Data Security Standard。"}
+    ],
+    "essay": [
+      {"q": "請畫出（用文字描述）一次線上 Apple Pay 結帳的完整資料流，並指出每一段最容易出錯的地方。", "a": "參考方向：用戶層——使用者點 Apple Pay 按鈕，裝置用 FaceID／TouchID 驗證（易錯：裝置或瀏覽器不支援、未在 Apple 後台驗證網域）。傳輸層——Apple Pay 產生加密的 payment token 交給前端 JS（易錯：token 有時效，前端拖太久才送後端會失效）。處理層——前端把 token 送到自家後端，後端呼叫 Stripe API 建立 PaymentIntent（易錯：把卡號或 token 記進 log；沒帶 Idempotency-Key 導致重複扣款）。清算層——Stripe 向收單銀行與發卡銀行請款，可能觸發 3D Secure 需要使用者再驗證一次（易錯：後端把「API 呼叫成功」當成「付款成功」，忽略 requires_action 狀態）。回寫層——Stripe 透過 Webhook 通知最終結果，後端才把訂單標成已付款（易錯：沒驗簽、沒做冪等、Webhook 逾時導致 Stripe 重送而重複出貨）。"}
+    ]
+  },
+
+  "backend/IoT大範圍斷線-告警機制與重試策略-系統設計面試.md": {
+    "tf": [
+      {"q": "大範圍斷線時，應該對每一台離線設備都發送一則告警，才不會遺漏。", "a": false, "why": "那會造成告警疲勞（Alert Fatigue），真出事反而沒人看。要做窗口聚合與分級告警。"},
+      {"q": "只要做了指數退避（Exponential Backoff），就不會發生驚群效應。", "a": false, "why": "設備同時斷線，退避時間也會同時到期。必須再加隨機抖動（Jitter）。"},
+      {"q": "斷路器（Circuit Breaker）的作用是在後端過載時主動回 503／429，保護核心資源。", "a": true, "why": "犧牲部分請求換取整體不崩潰。"},
+      {"q": "把設備最後在線狀態存在 Redis，是為了節省資料庫的儲存空間。", "a": false, "why": "目的是避免頻繁查詢主資料庫造成的讀取壓力，是效能考量不是空間考量。"}
+    ],
+    "cloze": [
+      {"q": "數萬台設備在網路恢復瞬間同時重連，形成類 DDoS 的現象，稱為 ____ Herd（驚群效應）。", "a": "Thundering", "why": "解法是指數退避加抖動。"},
+      {"q": "在接入層與業務處理層之間加入 Kafka 來緩衝瞬間流量，這個手法叫流量 ____（Load Leveling）。", "a": "削峰", "why": "不讓突發流量直接打到最貴的資源。"},
+      {"q": "AWS 建議的抖動寫法是 Full Jitter，公式為 sleep = random(0, min(cap, base × 2 的 n 次方))，其中 n 代表 ____ 次數。", "a": "重試", "why": "attempt 次數，每失敗一次就往上加。"},
+      {"q": "監控 Kafka／RabbitMQ 積壓與寫入失敗率的告警，簡稱 ____ Monitoring（死信佇列偵測）。", "a": "DLQ", "why": "Dead Letter Queue。"}
+    ],
+    "essay": [
+      {"q": "面試官問：某地區車輛大範圍斷線，你會如何設計告警與重試？請用 3 分鐘的長度組織你的答案。", "a": "參考方向（分四段講）：一、先釐清問題邊界——問清楚設備規模、心跳頻率、可容忍的偵測延遲，並指出要先能區分「設備真的掉線」與「我們自己的 ingest 服務掛了」，做法是同時監控上行訊息總量：單一地區飆高多半是該地區網路，全網一起飆高先懷疑自家系統。二、告警設計——不對單台設備告警，改用窗口聚合（Flink 或 Redis TimeSeries 依地區開窗），規則是「T 分鐘內離線比例超過 X% 才觸發 Critical」；並做 L1 記錄日誌／L2 通知值班／L3 自動化應變的分級；另外監控 DLQ 積壓與寫入失敗率。三、重試設計——設備端用指數退避加 Full Jitter，避免恢復瞬間的驚群效應；後端加斷路器，過載時主動回 429／503 保護資料庫與認證服務。四、架構配套——Kafka 削峰、Redis 存最後在線狀態、優先級佇列讓行駛中的車輛先進來；並強調所有補傳的狀態更新必須冪等且帶時間戳，避免舊狀態覆蓋新狀態。最後主動說出取捨：這套設計犧牲了偵測即時性（窗口聚合會有延遲）來換取告警品質。"}
+    ]
+  },
+
+  "frontend-docs/css/CJK漢字復用與Noto字體選擇-i18n多語系與Docker打包.md": {
+    "tf": [
+      {"q": "「草」這個字在台灣與中國大陸的 Unicode 碼點是不同的。", "a": false, "why": "都是 U+8349。這就是 Han Unification：同碼不同形，字形差異由字體與語系決定。"},
+      {"q": "OTF 是比較老舊的字體格式，應該避免使用。", "a": false, "why": "OTF 是現代且標準的格式。要避開的是「All」開頭的巨無霸整合檔。"},
+      {"q": "Docker 容器會自動使用宿主機（你的電腦或 AWS 主機）已安裝的字體。", "a": false, "why": "容器是隔離的乾淨環境，字體必須放進專案、由 Dockerfile 的 COPY 帶進去。"},
+      {"q": "專案有超過兩種語言時，下載 Region Specific Subset 就夠用了。", "a": false, "why": "它只保留單一地區字形，其他語言會顯示錯誤，此時要用 All Static Language Specific OTFs。"},
+      {"q": "設定 <html lang=\"zh-TW\"> 可以影響瀏覽器選用哪一國的漢字字形。", "a": true, "why": "沒設或設錯，瀏覽器會依系統預設（英文系統常配 SC 優先），繁體字筆畫會怪怪的。"}
+    ],
+    "cloze": [
+      {"q": "Unicode 中把中日韓台港同源同義的漢字給予同一個碼點的規則，叫做漢字 ____（Han Unification）。", "a": "復用", "why": "同碼不同形。"},
+      {"q": "CJK Unified Ideographs 的碼點範圍是 U+4E00 到 U+____。", "a": "9FFF", "why": "收錄兩萬多個常用漢字。"},
+      {"q": "Google Fonts 能依語系只送需要的字元切片，靠的是 CSS 的 unicode-____ 屬性。", "a": "range", "why": "@font-face 的 unicode-range。"},
+      {"q": "把大字體切成小檔案的技術叫字體 ____（Subsetting），常用工具有 fontmin 與 pyftsubset。", "a": "抽稀", "why": "私有化部署不能連外網時的解法。"},
+      {"q": "Noto Sans CJK TC 是思源黑體，Noto ____ CJK TC 則是思源宋體（有勾、書卷氣）。", "a": "Serif", "why": "IDE 寫程式通常要 Sans 或 Mono。"}
+    ],
+    "essay": [
+      {"q": "你的 Next.js 專案要支援繁中、日文、英文三語，並用 Docker 部署到不能連外網的私有環境。請說明完整的字體處理方案。", "a": "參考方向：(1) 下載 All Static Language Specific OTFs，只挑 NotoSansCJKtc-Regular 與 NotoSansCJKjp-Regular（英文可另用 Inter 或 Inconsolata），不要拿 All 的巨無霸整合檔。(2) 因為不能連外網，next/font/google 不可用，必須自帶字體。先用 pyftsubset 或 fontmin 依實際翻譯 JSON 的字元集做抽稀，把每個語系切成獨立小檔，再轉成 woff2。(3) 用 @font-face 搭配 unicode-range 分別宣告各語系字體，讓瀏覽器只下載當前頁面用得到的切片。(4) 字體放在 app/fonts/ 或 public/fonts/ 並跟著 git commit，Dockerfile 的 COPY . . 會自動帶進映像檔——這就是「字體跟著 Docker 走」。不要用 npm 裝字體，會讓 node_modules 肥大、拖慢 build。(5) layout 用 <html lang={params.lang}> 動態帶語系，確保漢字字形依 TC／JP 各自正確渲染。(6) 驗證：在容器裡實際跑一次 SSR 並截圖比對，確認沒有 fallback 到系統預設字體。"}
+    ]
+  },
+
+  "AWS/EC2-vs-ECS-vs-Fargate-vs-VPS-容器部署選型.md": {
+    "tf": [
+      {"q": "Fargate 是一種 AI 服務，會自己學習如何分配資源。", "a": false, "why": "它只是無伺服器的容器執行環境，自動化管理硬體資源，沒有學習或推理能力。"},
+      {"q": "Fargate 是 AWS 專屬技術，GCP 沒有叫這個名字的服務。", "a": true, "why": "GCP 的對應品是 Cloud Run，Azure 是 Container Instances。"},
+      {"q": "用 Fargate 就完全不用碰網路設定。", "a": false, "why": "仍然要自己設 VPC、Subnet 與 Security Group。"},
+      {"q": "Fargate 的單位運算成本比同規格 EC2 便宜。", "a": false, "why": "通常較貴（約 1.2–2 倍）。它省的是人力維運時間，不是帳單金額。"},
+      {"q": "在一台 EC2 上用 Docker Compose 跑多個容器，最大的風險是資源互相干擾與單點故障。", "a": true, "why": "redis 記憶體爆衝會把整台機器吃滿，go-backend 也跟著崩潰。"}
+    ],
+    "cloze": [
+      {"q": "在 ECS 上，你用一個 ____ Definition 描述要跑哪個 Image、要多少 CPU 與 RAM。", "a": "Task", "why": "ECS 依此自動找機器排程。"},
+      {"q": "EC2 相對 VPS 最大的差異是具備 ____（Elastic），可隨流量變大變小並與 AWS 生態深度整合。", "a": "彈性", "why": "VPS 通常固定規格、升級要停機遷移。"},
+      {"q": "AWS 提供的託管 Redis 服務叫 Amazon ____。", "a": "ElastiCache", "why": "連備份與版本更新都不用自己管。"},
+      {"q": "只想跑一個 Next.js 而不想寫 Task Definition，AWS 上更省事的選擇是 App ____。", "a": "Runner", "why": "類似 Zeabur、Railway、Render 這類 PaaS。"}
+    ],
+    "essay": [
+      {"q": "你的專案目前用一台 EC2 跑 Docker Compose（go-backend、nginx、ghost、redis）。老闆問「要不要搬到 ECS Fargate」，你會怎麼分析並給建議？", "a": "參考方向：(1) 先問清楚痛點——是維運太累、是曾經整台掛掉、還是流量成長撐不住？不同痛點對應不同解法，不要為了架構而架構。(2) 現況的優點要誠實講：單機多容器成本最低、容器間走 Docker Network 溝通最單純、開發測試最方便。缺點是單點故障（EC2 掛掉全部服務一起死）、資源互相干擾（redis 爆記憶體會拖垮 go-backend）、無法針對單一服務水平擴展、每次改版都要 ssh 進去下 docker-compose restart。(3) 建議分階段而非一次全搬：先把有狀態的 redis 換成 ElastiCache（拿掉最容易爆的那顆，也順便解決備份問題），再把 go-backend 拆到 ECS Fargate 並掛 ALB 做健康檢查與自動重啟；nginx 的角色可由 ALB 取代；ghost 這類低流量服務可以留在 EC2 或用 App Runner。(4) 成本要講清楚：Fargate 每 vCPU-小時比 EC2 貴，搬完帳單很可能上升，換到的是可用性與維運時間，要讓老闆知道這是取捨不是純優化。(5) 若目前流量穩定、也沒發生過整機故障，我的建議會是「先加監控與自動重啟，暫時不搬」，把預算花在更有感的地方。"}
+    ]
+  },
+
+  "frontend-docs/css/SVG-viewBox座標系統-起算點與負值平移.md": {
+    "tf": [
+      {"q": "SVG 的原點 (0,0) 在畫布左下角，跟數學的笛卡兒座標系一樣。", "a": false, "why": "在左上角，而且 Y 軸往下增加，跟數學課的相反。"},
+      {"q": "把 viewBox 的 min-y 設成負值，Y 軸就會變成向上遞增。", "a": false, "why": "負值只是平移鏡頭，不是翻轉座標軸，Y 依然向下增加。"},
+      {"q": "viewBox=\"0 0 50 50\" 搭配 svg width=\"500\"，會產生放大（Zoom in）的效果。", "a": true, "why": "視野範圍變小、容器不變，等於把內容撐滿放大。"},
+      {"q": "viewBox 的起點改成 50 50，畫面中的物體看起來會往右下移動。", "a": false, "why": "相機往右下移，物體相對看起來是往左上移動。"}
+    ],
+    "cloze": [
+      {"q": "viewBox 的四個值依序是 min-x、min-y、width、____。", "a": "height", "why": "前兩個是起點，後兩個是視野範圍。"},
+      {"q": "要讓畫布正中央變成 (0,0) 以方便畫對稱圖形與旋轉動畫，200×200 的畫布可以寫 viewBox=\"-100 -100 200 ____\"。", "a": "200", "why": "左上角變 (−100,−100)，中央就是 (0,0)。"},
+      {"q": "當 svg 容器長寬比與 viewBox 長寬比不同時，實際縮放與對齊行為由 ____ 屬性決定（預設 xMidYMid meet）。", "a": "preserveAspectRatio", "why": "只看 viewBox 會算錯位置；要拉伸填滿要設成 none。"}
+    ],
+    "essay": [
+      {"q": "設計師給你一份 Figma 匯出的 SVG，路徑座標都從 x=500 起跳，導致圖形跑到畫面外。請說明至少兩種修法與各自的取捨。", "a": "參考方向：(1) 調整 viewBox 起點——把 min-x 改成 500（例如 viewBox=\"500 0 200 200\"），讓鏡頭直接對準那塊區域。優點是完全不用動路徑資料、最快；缺點是座標語意跟直覺不符，之後手動加新元素時要記得也用 500 起跳的座標。(2) 用 <g transform=\"translate(-500,0)\"> 把整組路徑平移回原點——優點是 viewBox 保持乾淨的 0 0 起點，後續維護直覺；缺點是多一層 group，且若要做動畫變形要注意 transform 疊加順序。(3) 用工具（SVGO、Figma 匯出設定調整畫板）從源頭修正路徑座標——最乾淨，但需要回頭找設計師或跑一次前處理流程。實務上如果這份 SVG 是一次性素材，用 (1) 最省事；如果會長期維護、還要接 CSS 動畫，選 (2) 或 (3)。另外要順便檢查 preserveAspectRatio，容器比例不同時它才是真正決定最終位置的那個設定。"}
+    ]
+  }
+}

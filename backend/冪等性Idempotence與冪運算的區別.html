@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>冪等性Idempotence與冪運算的區別</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>冪等性Idempotence與冪運算的區別</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#冪等</span><span class="pill">#idempotent</span><span class="pill">#api設計</span><span class="pill">#數學術語</span><span class="pill">#http</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-15</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/61104d07a838166d" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">HTTP 的 POST 是冪等的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">POST 每次都新建一筆資料，重送會產生重複；PUT 與 DELETE 才是冪等。</div></li><li><p class="qq">DELETE 是冪等的，因為刪第二次的結果仍然是「這筆資料不存在」。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">結果狀態相同，即使回傳的 status code 可能不同。</div></li><li><p class="qq">冪等的通用代數式是 a × a = a。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">那只有 a=0 或 a=1 成立；通則是 f(f(x)) = f(x)。</div></li><li><p class="qq">PATCH 一定是冪等的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">看內容：{&quot;count&quot;: 5} 冪等，{&quot;count&quot;: &quot;+1&quot;} 不冪等。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">為了讓付款 API 在重送時不會扣兩次款，前端會產生一個唯一的 <input class="blank" data-a="Idempotency" placeholder="填答案" autocomplete="off"> Key 隨請求送出，後端用它去重。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Stripe 的 Idempotency-Key header 就是這個做法。</div></li><li><p class="qq">冪等的定義是：一個操作重複執行多次，結果與執行 <input class="blank" data-a="一" placeholder="填答案" autocomplete="off"> 次相同。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">f(f(x)) = f(x)。</div></li><li><p class="qq">冪運算的逆運算是 <input class="blank" data-a="對數" placeholder="填答案" autocomplete="off">（用於計算底數要幾次方才能變成真數）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">若 aˣ = N，則 x = log_a N。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">設計一支「建立訂單」的 API，要如何確保使用者連點兩次送出鈕不會產生兩筆訂單？請說明完整機制。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) POST 本質不冪等，所以要靠外加的冪等鍵。前端在進入結帳頁時就產生一個 UUID 當 Idempotency-Key，放在 header 隨請求送出；重試時沿用同一個 key（不是每次重新產生）。(2) 後端收到請求先用該 key 查一張 idempotency 表（或 Redis），若已存在且處理完成，直接回傳上次的結果與 status；若存在但處理中，回 409 或讓客戶端稍後重試。(3) 寫入時把 key 設成資料庫的 UNIQUE 約束，靠資料庫層級保證併發下也只成功一筆（唯一索引衝突 = 重複請求）。(4) key 設定合理 TTL（例如 24 小時）避免無限膨脹。(5) 前端仍要做按鈕 disable 與 loading 狀態，但那只是體驗優化，不能當成正確性保證——真正的防線在後端。</div></li></ol></section>
+
+<article class="card">
+<h1 id="idempotence">冪等性（Idempotence）與冪運算的區別</h1>
+<blockquote>
+<p>本篇重點 a–i，共 9 個</p>
+</blockquote>
+<p>相關筆記：<span class="wikilink" title="Obsidian 連結：Round-Robin輪詢調度與負載平衡LB-L4對L7">Round-Robin輪詢調度與負載平衡LB-L4對L7</span>、<span class="wikilink" title="Obsidian 連結：IoT大範圍斷線-告警機制與重試策略-系統設計面試">IoT大範圍斷線-告警機制與重試策略-系統設計面試</span>、<span class="wikilink" title="Obsidian 連結：GraphQL-概念與REST對比">GraphQL-概念與REST對比</span><br />
+關聯原因：冪等性是「重試策略」能安全成立的前提——沒有冪等，指數退避重試就會製造重複訂單；也是 REST 動詞設計（GET／PUT 冪等、POST 不冪等）的判準。</p>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">一、兩個長得像但完全不同的詞</h3>
+<p>(a) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「冪等」不能當成「升冪」用</mark>，兩者在數學與資訊科學裡是完全不同的概念，中文只是剛好都有「冪」字。</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>冪等（Idempotent）</th>
+<th>升冪／冪運算（Exponentiation）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>核心概念</td>
+<td>重複操作，結果不變</td>
+<td>數值累乘，數值持續變化</td>
+</tr>
+<tr>
+<td>典型式子</td>
+<td>f(f(x)) = f(x)</td>
+<td>a × a × a = a³</td>
+</tr>
+<tr>
+<td>程式關聯</td>
+<td>API 設計、資料庫寫入邏輯、重試機制</td>
+<td>演算法複雜度、科學計算</td>
+</tr>
+<tr>
+<td>重複執行的後果</td>
+<td>穩定，沒有副作用累積</td>
+<td>數值爆炸或塌縮</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="idempotence_1">二、冪等（Idempotence）</h3>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">定義</mark>：一個操作重複執行多次，其結果與執行一次相同。代數寫法是 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">f(f(x)) = f(x)</mark>。</p>
+<p>(c) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">數學例子</mark>：乘以 1（1 × 1 = 1）、乘以 0。這些是「重複做也不會變」的特例。</p>
+<p>(d) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">程式例子</mark>：<code>toUpperCase()</code> 轉兩次還是大寫；HTTP <code>GET</code> 讀一百次結果都一樣。</p>
+<p>(e) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HTTP 動詞的冪等性是面試常考題</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>動詞</th>
+<th>安全（Safe）</th>
+<th>冪等（Idempotent）</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td>是</td>
+<td>是</td>
+<td>純讀取，不改變狀態</td>
+</tr>
+<tr>
+<td>HEAD</td>
+<td>是</td>
+<td>是</td>
+<td>同 GET 但只回 Header</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td>否</td>
+<td>是</td>
+<td>整筆覆蓋，做幾次結果一樣</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td>否</td>
+<td>是</td>
+<td>刪第二次仍是「不存在」這個結果</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>否</td>
+<td>否</td>
+<td>每次都新建一筆，會產生重複資料</td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td>否</td>
+<td>不一定</td>
+<td>看內容，<code>{"count": 5}</code> 冪等、<code>{"count": "+1"}</code> 不冪等</td>
+</tr>
+</tbody>
+</table>
+<p>(f) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">實務上最痛的場景</mark>：使用者連點兩次「付款」，或網路逾時後前端自動重送。解法是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">冪等鍵（Idempotency Key）</mark>——前端產生一個唯一 key 隨請求送出，後端用它去重，同一個 key 只真正執行一次。Stripe 的 <code>Idempotency-Key</code> header 就是這個做法。</p>
+<hr />
+<h3 id="exponentiation">三、升冪／冪運算（Exponentiation）</h3>
+<p>(g) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">定義</mark>：把一個數自乘若干次，也就是 aˣ = N。</p>
+<p>(h) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">對數（Logarithm）是冪運算的逆運算</mark>：若 aˣ = N（a &gt; 0 且 a ≠ 1），則 x = log_a N，其中 a 是底數、N 是真數。常見底數是 10（常用對數 log）與 e（自然對數 ln）。</p>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">與冪等剛好相反</mark>：除非底數是 1 或 0，否則重複執行會讓數值持續變化，這正是「冪等」所要求的穩定性的反面。</p>
+<hr />
+<h2 id="_3">各對話來源（原文）</h2>
+<h3 id="2026-08-httpsgeminigooglecomapp61104d07a838166d">冪等與升冪的區別（2026-08 前後）— https://gemini.google.com/app/61104d07a838166d</h3>
+<p><strong>使用者：</strong> 對數（logarithm，簡稱 log）是冪運算的逆運算，用於計算「底數」需要幾次方才能變成「真數」。定義為若 aˣ = N（a &gt; 0 且 a ≠ 1），則 x = log_a N，其中 a 為底數，N 為真數。常見底數有 10（常用對數 log）與 e（自然對數 ln）。冪等可以當成升冪嗎</p>
+<p><strong>Gemini：</strong> 在數學和資訊科學中，「冪等」（Idempotent）與「升冪」（Power／Exponentiation）是兩個完全不同的概念，它們並不能互換使用。<br />
+1. 冪等（Idempotence）——定義：指一個操作如果重複執行多次，其結果與執行一次的結果相同。代數公式：f(f(x)) = f(x) 或 a × a = a。常見例子：數學上是數字 1 的乘法（1×1=1）或數字 0 的乘法；程式／資安上，GET 請求通常被視為冪等的（讀取一百次結果都一樣），或是將資料轉換成大寫的函式 toUpperCase()（轉換兩次結果還是大寫）。<br />
+2. 升冪／冪運算（Exponentiation）——定義：指將一個數自乘若干次的運算，也就是 aˣ = N。特性：除非底數是 1 或 0，否則重複執行會導致數值持續變化（增加或減少），這與「冪等」的穩定性剛好相反。<br />
+總結對比：冪等的核心概念是「重複操作，結果不變」，典型公式 f(x) = f(f(x))，程式關聯是 API 設計與資料庫寫入邏輯；升冪的核心概念是「數值累乘，數值變化」，典型公式 a×a×a = a³，程式關聯是演算法複雜度與科學計算。所以在專業語境下，我們不會把冪等當成升冪。</p>
+<hr />
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇來源對話（Gemini Flash）</td>
+<td>https://gemini.google.com/app/61104d07a838166d</td>
+<td>對話擷取於 2026-08-15</td>
+</tr>
+<tr>
+<td>MDN｜Idempotent 詞彙表</td>
+<td>https://developer.mozilla.org/en-US/docs/Glossary/Idempotent</td>
+<td>查證於 2026-08-15</td>
+</tr>
+<tr>
+<td>RFC 9110｜HTTP Semantics 第 9.2.2 節 Idempotent Methods</td>
+<td>https://www.rfc-editor.org/rfc/rfc9110.html#name-idempotent-methods</td>
+<td>RFC 9110（2022-06 發布），查證於 2026-08-15</td>
+</tr>
+<tr>
+<td>Stripe 官方｜Idempotent requests</td>
+<td>https://docs.stripe.com/api/idempotent_requests</td>
+<td>查證於 2026-08-15</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ 存疑／更正：Gemini 把冪等的代數式寫成「a × a = a」，這只有 a = 0 或 a = 1 成立，講成通則會誤導；正確的通則是 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">f(f(x)) = f(x)</mark>。另外原文完全沒提 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Idempotency Key</mark> 與 HTTP 動詞冪等性對照表，這兩段是我補上的，因為面試最常問這裡。</p>
+</blockquote>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-15</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>
