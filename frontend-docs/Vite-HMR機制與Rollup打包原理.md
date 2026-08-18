@@ -11,7 +11,7 @@ sources:
 updated: 2026-08-06
 ---
 
-# Vite 開發模式的 HMR 機制與 Rollup 打包原理
+# Vite 開發模式的 ESM、HMR 機制與生產模式 Rollup 打包原理
 
 > 本篇重點 (a)–(h)，共 8 個。與 [[Vite環境變數與API-BaseURL連接前後端]]、[[前端開發工具-打包編譯Lint與Parser]] 互為延伸：前者談環境變數與跨服務串接，這篇談「為什麼開發階段不用打包」與「HMR 壞掉時為何整頁空白」的底層原理。
 

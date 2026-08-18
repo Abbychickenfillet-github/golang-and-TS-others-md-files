@@ -2,9 +2,9 @@
 title: "2025-10-01_我要設定斷點for_pixelIcons_bff8ab33"
 ---
 
-# 我要設定斷點for pixelIcons
+# 我要設定斷點forpixelIcons
 
-> Cursor · 2025-10-01 13:55 · `bff8ab33-b161-40a4-9cfa-c9529cbafbd2` · 42 則
+> Cursor · 2025-10-01 13:55 · `bff8ab33-b161-40a4-9cfa-c9529cbafbd2` · 43 則
 
 ## 你
 我要設定斷點for pixelIcons
@@ -143,7 +143,6 @@ right: calc(100%-1140px)/2
 ```
 
 ```jsx
-{% raw %}
 // 在 React 組件中動態設定
 'use client'
 import { useEffect, useState } from 'react'
@@ -195,7 +194,6 @@ export default function DecorativeIcons() {
     </div>
   )
 }
-{% endraw %}
 ```
 
 方案 3：使用 CSS Grid 的 fr 單位
@@ -1179,3 +1177,6 @@ app/page.js 首頁的紀錄時間點跟語音輸入有換行問題 button文字�
 
 ## Cursor
 修正按鈕文字換行：為按鈕加入 `white-space: nowrap`，並調整容器寬度與 flex 設定，確保「紀錄時間點」與「語音輸入」保持同一行。
+
+## Cursor
+在 TopNavbar 加入登出按鈕，並依登入狀態顯示。

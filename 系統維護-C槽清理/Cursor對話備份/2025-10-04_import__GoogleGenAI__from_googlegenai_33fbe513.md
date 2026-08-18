@@ -2,9 +2,9 @@
 title: "2025-10-04_import__GoogleGenAI__from_googlegenai_33fbe513"
 ---
 
-# import  GoogleGenAI  from googlegenai
+# import{GoogleGenAI}from@googlegenai
 
-> Cursor · 2025-10-04 16:01 · `33fbe513-d802-44c6-a933-6d0799d49399` · 93 則
+> Cursor · 2025-10-04 16:01 · `33fbe513-d802-44c6-a933-6d0799d49399` · 98 則
 
 ## 你
 import { GoogleGenAI } from "@google/genai";
@@ -2044,3 +2044,26 @@ npx prisma generate
 ```js
 const transactionId = String(searchParams.get('transactionId') || '')
 ```
+
+## 你
+成功了
+那這邊let parsed = null是什麼用途？有必要而且為什麼要if(isDev)？
+
+## 你
+/TimeLogClient的活動名稱輸入框在使用者已登入的狀態下應該要記憶也就是說提供下拉式選單提供使用者選擇他以前輸入過的活動名稱。
+當然input功能也是要保留
+這樣可以讓AI去辨別說同一個活動名稱像template連steps都可以提示一樣
+
+但之後數據不同 方便幫兩者做一個比較 但幫我讓使用者可以在活動加上備註
+所以timelog資料表幫我多一個memo欄位放字元
+我要讓使用者輸入一些反思
+你可以使用npx prisma generate npx prisma db push
+
+## Cursor
+我來幫你用 psql 直接修改資料庫，並解釋 Prisma schema 中問號的含義。
+
+## Cursor
+讓我用正確的 psql 語法：
+
+## Cursor
+讓我用另一種方式，直接執行 SQL 命令：

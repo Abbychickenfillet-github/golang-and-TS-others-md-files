@@ -14,6 +14,7 @@ title: "CLAUDE"
 - 不要過度再次重點整理，第二次重點整理其實不必要。
 
 ### 📌 重點標號規則（a–z）
+- 這仍然算是有序編號，我記得
 - 每篇筆記的「重點」要用小寫字母 **(a) (b) (c) … 到 (z)** 做**全篇連續**標號（不是每個 section 各自從 a 開始）。
 - 用字母、**不要用 1234**：數字會給人「優先順序」的錯覺，很多重點其實只是並排、沒有先後；字母只表位置與數量。
 - 在標題或開頭放一行索引（例：「本篇重點 a–s，共 19 個」），讓 Abby 看任一 section 都能立刻知道「我在全篇的哪裡、總共有幾個重點」。
@@ -208,4 +209,3 @@ API Routes 層
   ```
 - 若改 ExecutionPolicy 路線:`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` → `Y` → 重開終端機。
 - 相關筆記:[[where-vs-get-command]]、[[Claude-Code-Bash環境說明]]、[[plugin-marketplace-vs-install]]
-

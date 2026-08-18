@@ -1,6 +1,7 @@
 ---
 title: ref 與 reactive：響應式的兩種實作
 type: topic-note
+importance: ⭐⭐⭐⭐⭐
 source: Claude
 tags:
   - vue
@@ -11,6 +12,8 @@ tags:
   - 響應式
   - 設計模式
   - 面試
+  - 五星必懂
+  - accessor-property
 aliases:
   - ref vs reactive
   - Vue 響應式實作

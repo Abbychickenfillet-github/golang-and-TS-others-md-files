@@ -2,9 +2,9 @@
 title: "2025-12-01_volume_在docker-compose.yml是什麼意思跟用途_696a2788"
 ---
 
-# volume 在docker-compose.yml是什麼意思跟用途
+# volume在docker-compose.yml是什麼意思跟用途？
 
-> Cursor · 2025-12-01 09:34 · `696a2788-1482-4d20-8787-0cc17d4f9411` · 104 則
+> Cursor · 2025-12-01 09:34 · `696a2788-1482-4d20-8787-0cc17d4f9411` · 105 則
 
 ## 你
 volume 在docker-compose.yml是什麼意思跟用途？
@@ -1960,7 +1960,6 @@ docker system prune -a --volumes -f
 ### 4. 快速清理命令（Docker Desktop 恢复后）
 
 ```powershell
-{% raw %}
 # 只保留当前项目的容器，删除其他
 docker ps -a --filter "name=template" --format "{{.Names}}" | ForEach-Object { docker rm -f $_ }
 
@@ -1969,7 +1968,6 @@ docker image prune -a -f
 
 # 清理未使用的 volumes（小心，会删除数据）
 docker volume prune -f
-{% endraw %}
 ```
 
 ### 5. 检查系统内存
@@ -2533,7 +2531,7 @@ docker compose exec mysql ls -la /var/lib/mysql
 这样更简单，不需要记住完整的容器名称。
 
 ## 你
-{% raw %}1.docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"這句是使用powershell還是cmd{% endraw %}
+1.docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"這句是使用powershell還是cmd
 
 2.# 在 docker-compose.yml 所在目录，可以用服务名
 
@@ -2722,3 +2720,6 @@ DESCRIBE event;
 | `/var` 是什么 | Linux 目录，不是 variable |
 | `-la` 是什么 | `ls` 命令的参数（详细列表 + 显示隐藏文件） |
 | 为什么可以这样执行 | `docker compose exec` 在容器内执行命令，`-e` 参数直接执行 SQL |
+
+## 你
+Bind Mount 開發時掛載代碼請具象化一點

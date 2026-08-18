@@ -2,9 +2,9 @@
 title: "2025-09-29_請幫我把LinePay_API端點依照目前.env是development還是p_e13b0c8d"
 ---
 
-# 請幫我把LinePay API端點依照目前.env是development還是p
+# 請幫我把LinePayAPI端點依照目前.env是development還是pr
 
-> Cursor · 2025-09-29 17:49 · `e13b0c8d-9914-46e6-8b7e-759dd6e35fa0` · 84 則
+> Cursor · 2025-09-29 17:49 · `e13b0c8d-9914-46e6-8b7e-759dd6e35fa0` · 91 則
 
 ## 你
 請幫我把LinePay API端點依照目前.env是development還是production，分成這兩個不同的API Endpoint 
@@ -1045,3 +1045,56 @@ Cloud Name 通常格式像：`d1234567890` 或 `abc123def456`
    - 生產環境：使用固定的伺服器 IP
 
 現在你的代碼會根據運行環境自動切換到對應的 LINE Pay IP 白名單設置！
+
+## Cursor
+檢查 LINE Pay 設定與環境變數，準備依環境切換 API 端點。
+
+## Cursor
+搜尋 LINE Pay 服務與 API 路由檔案。
+
+## Cursor
+已確認 `services/line-pay.service.js` 已依環境切換 LINE Pay API 端點。建立初始待辦清單以驗證與優化。
+
+## Cursor
+在 `services/line-pay.service.js` 已依環境切換端點：
+- 開發：`https://sandbox-api-pay.line.me`
+- 正式：`https://api-pay.line.me`
+
+在 `config/server.config.js` 新增 `apiBaseUrl` 設定，集中管理端點。
+
+## Cursor
+更新 `services/line-pay.service.js`，改用 `server.config.js` 的 `apiBaseUrl`。
+
+## Cursor
+驗證環境變數設定是否正確。
+
+## Cursor
+## 完成
+
+已依環境切換 LINE Pay API 端點。
+
+### 修改內容
+
+1. **更新 `config/server.config.js`**：
+   - 在 `linePay` 設定中加入 `apiBaseUrl`
+   - 開發：`https://sandbox-api-pay.line.me`
+   - 正式：`https://api-pay.line.me`
+
+2. **更新 `services/line-pay.service.js`**：
+   - 將硬編碼的 API URL 改為讀取 `server.config.js` 的 `apiBaseUrl`
+
+### 環境切換邏輯
+
+```javascript
+// 根據 NODE_ENV 自動選擇對應的 API 端點
+const LINE_PAY_API_URL = isDev
+  ? serverConfig.linePay.development.apiBaseUrl    // 測試環境
+  : serverConfig.linePay.production.apiBaseUrl     // 正式環境
+```
+
+### 環境變數設定
+
+- **開發環境** (`.env.development`): `NODE_ENV=development` → 使用 `https://sandbox-api-pay.line.me`
+- **正式環境** (`.env.production`): `NODE_ENV=production` → 使用 `https://api-pay.line.me`
+
+系統會依 `NODE_ENV` 自動切換到對應的 LINE Pay API 端點。

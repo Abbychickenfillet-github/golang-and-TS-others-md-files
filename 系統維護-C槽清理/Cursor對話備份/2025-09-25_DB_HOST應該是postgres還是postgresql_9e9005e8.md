@@ -4,7 +4,7 @@ title: "2025-09-25_DB_HOST應該是postgres還是postgresql_9e9005e8"
 
 # DB_HOST應該是postgres還是postgresql
 
-> Cursor · 2025-09-25 11:59 · `9e9005e8-a311-4d80-a25e-8090cdee6860` · 53 則
+> Cursor · 2025-09-25 11:59 · `9e9005e8-a311-4d80-a25e-8090cdee6860` · 56 則
 
 ## 你
 DB_HOST應該是postgres還是postgresql?
@@ -631,3 +631,61 @@ LINE_PAY_CHANNEL_SECRET="9a2f9cbdf8058762307491a2da9ab15c"
 
 ### 現在可以測試
 重新測試 LINE Pay 功能，應可正常運作。
+
+## Cursor
+哈哈，我理解了！你要把整個專案從 MySQL 改成 PostgreSQL！讓我幫你確認 `DB_HOST` 的正確值。
+
+## Cursor
+讓我直接回答你的問題：
+
+## DB_HOST 應該是 `postgres`
+
+在 Docker 環境中，PostgreSQL 容器的預設服務名稱通常是 `postgres`，而不是 `postgresql`。
+
+這是因為：
+1. **Docker Compose 預設**：PostgreSQL 官方 Docker 映像檔的預設服務名稱是 `postgres`
+2. **常見慣例**：大多數 Docker Compose 範例都使用 `postgres` 作為服務名稱
+3. **簡潔性**：`postgres` 比 `postgresql` 更簡潔
+
+## 完整的 PostgreSQL 配置修正
+
+既然你要改成 PostgreSQL，讓我幫你修正整個 `.env.development` 檔案：
+
+## 你
+#9 60.89 error line-pay-merchant@0.9.0: The engine "node" is incompatible with this module. Expected version ">=10.12.0 <=17". Got "22.20.0"
+
+#9 60.90 error Found incompatible module.
+
+#9 60.90 info Visit https://yarnpkg.com/en/docs/cli/install for documentation about this command.
+
+#9 ERROR: process "/bin/sh -c yarn install" did not complete successfully: exit code: 1
+
+------
+
+> [5/6] RUN yarn install:
+
+6.865 warning bcrypt > @mapbox/node-pre-gyp > rimraf > glob > inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+
+7.487 warning crypto@1.0.1: This package is no longer supported. It's now a built-in Node module. If you've depended on crypto, you should switch to the one that's built-in.
+
+33.15 warning jest > jest-cli > jest-config > glob@7.2.3: Glob versions prior to v9 are no longer supported
+
+33.24 warning jest > @jest/core > @jest/reporters > glob@7.2.3: Glob versions prior to v9 are no longer supported
+
+33.25 warning jest > @jest/core > jest-runtime > glob@7.2.3: Glob versions prior to v9 are no longer supported
+
+33.72 warning jest > @jest/core > @jest/transform > babel-plugin-istanbul > test-exclude > glob@7.2.3: Glob versions prior to v9 are no longer supported
+
+37.54 [2/4] Fetching packages...
+
+60.89 error line-pay-merchant@0.9.0: The engine "node" is incompatible with this module. Expected version ">=10.12.0 <=17". Got "22.20.0"
+
+60.90 error Found incompatible module.
+
+60.90 info Visit https://yarnpkg.com/en/docs/cli/install for documentation about this command.
+
+------
+
+🔴 Build Failed. Reason: build image: build failed: failed to solve: process "/bin/sh -c yarn install" did not complete successfully: exit code: 1
+
+幫我解決這個問題

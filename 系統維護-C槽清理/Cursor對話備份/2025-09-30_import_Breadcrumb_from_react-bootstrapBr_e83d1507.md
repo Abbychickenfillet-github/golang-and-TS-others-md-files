@@ -2,9 +2,9 @@
 title: "2025-09-30_import_Breadcrumb_from_react-bootstrapBr_e83d1507"
 ---
 
-# import Breadcrumb from react-bootstrapBr
+# importBreadcrumbfrom'react-bootstrapBrea
 
-> Cursor · 2025-09-30 09:59 · `e83d1507-6776-4f31-be41-caaa019e7092` · 213 則
+> Cursor · 2025-09-30 09:59 · `e83d1507-6776-4f31-be41-caaa019e7092` · 217 則
 
 ## 你
 import Breadcrumb from 'react-bootstrap/Breadcrumb'
@@ -36,7 +36,7 @@ import Breadcrumb from 'react-bootstrap/Breadcrumb'
 1. **組件結構**
    - 導入 `Breadcrumb` 與 `Breadcrumb.Item`
    - 以 `Breadcrumb.Item` 取代 `<li>`
-{% raw %}   - 使用 `linkAs={Link}`、`linkProps={{ href: "/" }}` 整合 Next.js Link{% endraw %}
+   - 使用 `linkAs={Link}`、`linkProps={{ href: "/" }}` 整合 Next.js Link
    - 以 `active` 標示當前頁
 
 2. **CSS**
@@ -108,14 +108,12 @@ CSS 已改回使用 `<li>` 而非 Bootstrap 的 `.breadcrumb-item`，但 `compon
 ### 現在的結構
 
 ```jsx
-{% raw %}
 // JS 組件
 <Breadcrumb className={styles['breadcrumb']}>
   <Breadcrumb.Item linkAs={Link} linkProps={{ href: "/" }}>首頁</Breadcrumb.Item>
   <Breadcrumb.Item linkAs={Link} linkProps={{ href: "/product" }}>產品</Breadcrumb.Item>
   <Breadcrumb.Item active>當前頁面</Breadcrumb.Item>
 </Breadcrumb>
-{% endraw %}
 ```
 
 ```css
@@ -157,13 +155,12 @@ CSS 已改回使用 `<li>` 而非 Bootstrap 的 `.breadcrumb-item`，但 `compon
 已修正 `href` 為 `undefined` 的錯誤。
 
 ### 問題原因
-{% raw %}使用 `linkAs={Link}` 與 `linkProps={{ href: "/" }}` 時，`react-bootstrap` 的 `Breadcrumb.Item` 未正確傳遞 `href` 給 `Link`。{% endraw %}
+使用 `linkAs={Link}` 與 `linkProps={{ href: "/" }}` 時，`react-bootstrap` 的 `Breadcrumb.Item` 未正確傳遞 `href` 給 `Link`。
 
 ### 解決方案
 改為直接使用 `href` 屬性：
 
 ```jsx
-{% raw %}
 // 修改前（有問題）
 <Breadcrumb.Item linkAs={Link} linkProps={{ href: "/" }}>
   首頁
@@ -173,7 +170,6 @@ CSS 已改回使用 `<li>` 而非 Bootstrap 的 `.breadcrumb-item`，但 `compon
 <Breadcrumb.Item href="/">
   首頁
 </Breadcrumb.Item>
-{% endraw %}
 ```
 
 ### 修改內容
@@ -272,22 +268,19 @@ Record<string, any> | undefined
 
 1. **使用 `linkAs` 和 `linkProps`**：
    ```jsx
-{% raw %}
    <Breadcrumb.Item linkAs={Link} linkProps={{ href: "/" }}>
      首頁
    </Breadcrumb.Item>
-{% endraw %}
    ```
 
 2. **Next.js 客戶端路由**：
    - 使用 `linkAs={Link}` 指定自訂連結元件
-{% raw %}   - 透過 `linkProps={{ href: "/path" }}` 傳遞路徑{% endraw %}
+   - 透過 `linkProps={{ href: "/path" }}` 傳遞路徑
    - 避免整頁重新載入
 
 ### 現在的結構
 
 ```jsx
-{% raw %}
 <Breadcrumb className={styles['breadcrumb']}>
   <Breadcrumb.Item linkAs={Link} linkProps={{ href: "/" }}>
     首頁
@@ -299,7 +292,6 @@ Record<string, any> | undefined
     當前頁面
   </Breadcrumb.Item>
 </Breadcrumb>
-{% endraw %}
 ```
 
 ### 功能
@@ -2156,7 +2148,7 @@ about 頁的時鐘圖示已移除，目前僅在 breadcrumb 首頁圖示中使�
 
 2. **重構組件結構**
    - 由 `<ul><li>` 改為 `<Breadcrumb><Breadcrumb.Item>`
-{% raw %}   - 使用 `linkAs={Link}` 與 `linkProps={{ href: "/" }}` 整合 Next.js 路由{% endraw %}
+   - 使用 `linkAs={Link}` 與 `linkProps={{ href: "/" }}` 整合 Next.js 路由
    - 最後一項使用 `active` 標示當前頁
 
 3. **更新 CSS 選擇器**
@@ -2208,7 +2200,7 @@ NextBreadCrumb 已改用 react-bootstrap 的 Breadcrumb，並保留原有功能�
 ## 已修復
 
 ### 問題原因
-{% raw %}- 使用 `linkAs={Link}` 與 `linkProps={{ href: "/" }}` 時，`linkProps` 未正確傳遞 `href` 給 `Link`，導致 `href` 為 `undefined`。{% endraw %}
+- 使用 `linkAs={Link}` 與 `linkProps={{ href: "/" }}` 時，`linkProps` 未正確傳遞 `href` 給 `Link`，導致 `href` 為 `undefined`。
 
 ### 修復方式
 - 移除 `linkAs` 與 `linkProps`，改為在 `Breadcrumb.Item` 上直接使用 `href`。
@@ -2216,24 +2208,20 @@ NextBreadCrumb 已改用 react-bootstrap 的 Breadcrumb，並保留原有功能�
 ### 修改內容
 1. 首頁項目：
    ```jsx
-{% raw %}
    // 修改前
    <Breadcrumb.Item key="home" linkAs={Link} linkProps={{ href: "/" }}>
    
    // 修改後
    <Breadcrumb.Item key="home" href="/">
-{% endraw %}
    ```
 
 2. 中間項目：
    ```jsx
-{% raw %}
    // 修改前
    <Breadcrumb.Item key={i} linkAs={Link} linkProps={{ href: paths.slice(0, i + 1).join('/') }}>
    
    // 修改後
    <Breadcrumb.Item key={i} href={paths.slice(0, i + 1).join('/')}>
-{% endraw %}
    ```
 
 ### 結果
@@ -2918,3 +2906,54 @@ icon 不會寫入資料表。
 - 動畫已移除
 - 視覺效果穩定
 - 功能不受影響
+
+## Cursor
+調整左下角背景圖為非正方形，並加入黑色光暈。
+
+## Cursor
+調整 about 頁面各區塊的間距，讓版面更平均。
+
+## Cursor
+## 完成
+
+### 已調整的間距設計
+
+1. **主要區塊間距**
+   - 卡片：`margin-bottom: 2rem`
+   - 手風琴：`margin-bottom: 2rem`
+   - 列表群組：`margin-bottom: 2rem`
+
+2. **標題間距**
+   - 所有標題：`margin-bottom: 1.5rem`
+
+3. **內容間距**
+   - 段落：`margin-bottom: 1rem`
+   - 提示框：`margin-bottom: 1.5rem`
+
+4. **列表間距**
+   - 列表項目：`margin-bottom: 0.5rem`
+   - 手風琴項目：`margin-bottom: 0.5rem`
+   - 工具清單：`margin-bottom: 1rem`
+
+5. **視覺調整**
+   - 圓角：`border-radius: 8px`
+   - 統一間距系統
+
+### 間距層級
+
+- 大區塊：2rem
+- 中區塊：1.5rem
+- 小區塊：1rem
+- 微間距：0.5rem
+
+### 效果
+
+- 視覺層次更清楚
+- 閱讀更順暢
+- 版面更整齊
+- 響應式一致
+
+about 頁面各區塊間距已統一，版面更平均。
+
+## Cursor
+修正 SCSS 檔案路徑，並移除多餘的邊框。

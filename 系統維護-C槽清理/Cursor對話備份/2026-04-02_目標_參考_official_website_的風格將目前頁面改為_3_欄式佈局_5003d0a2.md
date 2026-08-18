@@ -2,9 +2,9 @@
 title: "2026-04-02_目標_參考_official_website_的風格將目前頁面改為_3_欄式佈局_5003d0a2"
 ---
 
-# 目標 參考 official_website 的風格將目前頁面改為 3 欄式佈局
+# 目標：參考official_website的風格將目前頁面改為3欄式佈局
 
-> Cursor · 2026-04-02 17:18 · `5003d0a2-d14e-4645-b383-62c8517a1758` · 15 則
+> Cursor · 2026-04-02 17:18 · `5003d0a2-d14e-4645-b383-62c8517a1758` · 30 則
 
 ## 你
 目標： 參考 official_website 的風格，將目前頁面改為 3 欄式佈局。
@@ -172,3 +172,142 @@ To-do's from the plan have already been created. Do not create them again. Mark 
 
 ## 你
 為什麼要有過期日
+
+## Cursor
+我先把目前「前台 `ReservationPage` 被動到哪些樣式」與「後台三欄編輯的資料結構」完整對照出來，找出是哪些 CSS 覆蓋了原本紅色風格、以及 preview 三欄為什麼壞掉。接著我會用最小改動方案：**保留原設計（含紅色）**、只把三欄資訊區塊做成你要的「每欄 6 個欄位（副標+敘述）」的資料/版型。
+
+## Cursor
+我看到了問題點：目前 `official_website/src/components/ReservationPage.css` 裡新增了一整段 `.reservation-info-*` 的「卡片白底」樣式（第 12 行開始），而且 `ReservationPage.tsx` 也把資訊區塊插在表單上方，這兩者都很容易把你原本「紅色系/官方設計」的視覺語彙蓋掉。  
+接下來我會先把前台改成 **不動原本色系** 的做法（沿用既有 class/紅色元件），並把資料結構改成你說的「每欄 6 個欄位（副標+敘述）」。在出完整計畫前，我需要你用兩題快速定義「紅色到底是哪些區塊」跟「6 欄位的 schema」。
+
+## Cursor
+了解，你要改的是 `MenuPage.tsx` 目前 `buildReservationInfo()`（你標的 90–119 附近）那段「title/label 寫死」的結構，並且 **title 跟每個 item 的 label 都要能從後台改**。
+
+我先給你一套 **中翻英的 settings key 命名規則**（會同時適用 `MenuPage.tsx`、`ReservationPage.tsx` 與後台 `seating-manage.tsx`），再用兩個關鍵選項確認你想要的資料形狀（平鋪 key 或 JSON、每欄幾個 item）。
+
+## Cursor
+好，我用你選的 **平鋪 keys** + **每欄固定 3 個 item（label+content）** 來設計命名。
+
+## 變數/Key 命名（中翻英）提案
+
+### 共同前綴（避免分散）
+- **區塊總前綴**：`reservation_info_`（三欄資訊區塊）
+- **欄位索引**：`col_1` / `col_2` / `col_3`
+- **項目索引**：`item_1` / `item_2` / `item_3`
+- **欄位屬性**：`title`（欄標題）、`label`（副標）、`content`（敘述）
+
+### 具體 keys（可後台全可編）
+- **第一欄（訂位說明）**
+  - `reservation_info_col_1_title`
+  - `reservation_info_col_1_item_1_label` / `reservation_info_col_1_item_1_content`
+  - `reservation_info_col_1_item_2_label` / `reservation_info_col_1_item_2_content`
+  - `reservation_info_col_1_item_3_label` / `reservation_info_col_1_item_3_content`
+- **第二欄（座位保留）**
+  - `reservation_info_col_2_title`
+  - `reservation_info_col_2_item_1_label` / `reservation_info_col_2_item_1_content`
+  - `reservation_info_col_2_item_2_label` / `reservation_info_col_2_item_2_content`
+  - `reservation_info_col_2_item_3_label` / `reservation_info_col_2_item_3_content`
+- **第三欄（報到流程）**
+  - `reservation_info_col_3_title`
+  - `reservation_info_col_3_item_1_label` / `reservation_info_col_3_item_1_content`
+  - `reservation_info_col_3_item_2_label` / `reservation_info_col_3_item_2_content`
+  - `reservation_info_col_3_item_3_label` / `reservation_info_col_3_item_3_content`
+
+### 與既有欄位（holdTime / phone 等）如何共存
+- 既有 `seat_hold_time`、`late_cancel_notice`、`phone` / `reservation_contact_phone` 可以**保留**，但三欄顯示文字來源改為上面 `reservation_info_*`（避免「內容一半從舊 key 一半寫死」）。
+- 若你希望仍保留「數值型」UX（例如後台用 `seat_hold_time` NumberInput），可以採 **雙軌**：
+  - 後台輸入 `seat_hold_time`
+  - 前台組字串時，若 `reservation_info_col_2_item_1_content` 空，就 fallback 用 `seat_hold_time` 組出預設句子（但 label/title 仍可覆蓋）
+
+## 前端 `MenuPage.tsx` 會怎麼用（方向）
+- `buildReservationInfo(settings)` 不再寫死 `{ title: '訂位說明', items: [...] }`
+- 改成依 `reservation_info_col_*` keys 組出 3 欄、每欄 3 個 item（label/content 都從 settings 讀）
+- 同一套函式可抽到共用（讓 `ReservationPage.tsx` 也吃同一規格），避免兩邊邏輯分裂
+
+如果你同意這套 key 命名，我下一步會在計畫裡把：
+- `seating-manage.tsx` 後台 editor 版型（每欄 3 組 label+content，第一欄可用 RichEditor）
+- `MenuPage.tsx`/`ReservationPage.tsx` 的組資料與 fallback 規則
+- `routeTree.gen.ts` 可能需要的路由/預覽串接點
+
+整理成可直接實作的變更清單。
+
+## Cursor
+好，我會直接把**前台兩頁 (`MenuPage.tsx`、`ReservationPage.tsx`) 一起改成吃同一套可編輯 title/label/content keys**，後台 `seating-manage.tsx` 也同步提供 3 欄 × 3 item（每 item = label+content）的編輯介面；同時把前台「覆蓋官方紅色風格」的 CSS 改成**不影響既有樣式**的最小版本（或乾脆移除，只保留 layout class）。接著我會把整個改動整理成一個可執行的計畫給你接受後就開始實作。
+
+## 你
+Implement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself.
+
+To-do's from the plan have already been created. Do not create them again. Mark them as in_progress as you work, starting with the first one. Don't stop until you have completed all the to-dos.
+
+## Cursor
+我開始照計畫實作：先把新的 `reservation_info_col_*` keys/預設與 fallback 規則定下來，接著同一套 builder 會同時給 `MenuPage.tsx`/`ReservationPage.tsx` 用，最後再把後台 `seating-manage.tsx` 的編輯 UI 換成 3 欄 × 3 組（label+content）並保留 iframe 即時預覽。
+
+## Cursor
+已經把「三欄資訊」抽成 `official_website/src/services/reservationInfo.ts` 共用 builder：只要後台開始寫入 `reservation_info_col_*` 任一 key，就會改吃新結構；否則完全沿用舊的寫死/legacy 行為，確保不會突然變空白。下一步我會把 `MenuPage.tsx` 與 `ReservationPage.tsx` 的舊 build 函式移除，改 import 這個 builder。
+
+## Cursor
+我先把目前「前台 `ReservationPage` 被動到哪些樣式」與「後台三欄編輯的資料結構」完整對照出來，找出是哪些 CSS 覆蓋了原本紅色風格、以及 preview 三欄為什麼壞掉。接著我會用最小改動方案：**保留原設計（含紅色）**、只把三欄資訊區塊做成你要的「每欄 6 個欄位（副標+敘述）」的資料/版型。
+
+## Cursor
+我看到了問題點：目前 `official_website/src/components/ReservationPage.css` 裡新增了一整段 `.reservation-info-*` 的「卡片白底」樣式（第 12 行開始），而且 `ReservationPage.tsx` 也把資訊區塊插在表單上方，這兩者都很容易把你原本「紅色系/官方設計」的視覺語彙蓋掉。  
+接下來我會先把前台改成 **不動原本色系** 的做法（沿用既有 class/紅色元件），並把資料結構改成你說的「每欄 6 個欄位（副標+敘述）」。在出完整計畫前，我需要你用兩題快速定義「紅色到底是哪些區塊」跟「6 欄位的 schema」。
+
+## Cursor
+了解，你要改的是 `MenuPage.tsx` 目前 `buildReservationInfo()`（你標的 90–119 附近）那段「title/label 寫死」的結構，並且 **title 跟每個 item 的 label 都要能從後台改**。
+
+我先給你一套 **中翻英的 settings key 命名規則**（會同時適用 `MenuPage.tsx`、`ReservationPage.tsx` 與後台 `seating-manage.tsx`），再用兩個關鍵選項確認你想要的資料形狀（平鋪 key 或 JSON、每欄幾個 item）。
+
+## Cursor
+好，我用你選的 **平鋪 keys** + **每欄固定 3 個 item（label+content）** 來設計命名。
+
+## 變數/Key 命名（中翻英）提案
+
+### 共同前綴（避免分散）
+- **區塊總前綴**：`reservation_info_`（三欄資訊區塊）
+- **欄位索引**：`col_1` / `col_2` / `col_3`
+- **項目索引**：`item_1` / `item_2` / `item_3`
+- **欄位屬性**：`title`（欄標題）、`label`（副標）、`content`（敘述）
+
+### 具體 keys（可後台全可編）
+- **第一欄（訂位說明）**
+  - `reservation_info_col_1_title`
+  - `reservation_info_col_1_item_1_label` / `reservation_info_col_1_item_1_content`
+  - `reservation_info_col_1_item_2_label` / `reservation_info_col_1_item_2_content`
+  - `reservation_info_col_1_item_3_label` / `reservation_info_col_1_item_3_content`
+- **第二欄（座位保留）**
+  - `reservation_info_col_2_title`
+  - `reservation_info_col_2_item_1_label` / `reservation_info_col_2_item_1_content`
+  - `reservation_info_col_2_item_2_label` / `reservation_info_col_2_item_2_content`
+  - `reservation_info_col_2_item_3_label` / `reservation_info_col_2_item_3_content`
+- **第三欄（報到流程）**
+  - `reservation_info_col_3_title`
+  - `reservation_info_col_3_item_1_label` / `reservation_info_col_3_item_1_content`
+  - `reservation_info_col_3_item_2_label` / `reservation_info_col_3_item_2_content`
+  - `reservation_info_col_3_item_3_label` / `reservation_info_col_3_item_3_content`
+
+### 與既有欄位（holdTime / phone 等）如何共存
+- 既有 `seat_hold_time`、`late_cancel_notice`、`phone` / `reservation_contact_phone` 可以**保留**，但三欄顯示文字來源改為上面 `reservation_info_*`（避免「內容一半從舊 key 一半寫死」）。
+- 若你希望仍保留「數值型」UX（例如後台用 `seat_hold_time` NumberInput），可以採 **雙軌**：
+  - 後台輸入 `seat_hold_time`
+  - 前台組字串時，若 `reservation_info_col_2_item_1_content` 空，就 fallback 用 `seat_hold_time` 組出預設句子（但 label/title 仍可覆蓋）
+
+## 前端 `MenuPage.tsx` 會怎麼用（方向）
+- `buildReservationInfo(settings)` 不再寫死 `{ title: '訂位說明', items: [...] }`
+- 改成依 `reservation_info_col_*` keys 組出 3 欄、每欄 3 個 item（label/content 都從 settings 讀）
+- 同一套函式可抽到共用（讓 `ReservationPage.tsx` 也吃同一規格），避免兩邊邏輯分裂
+
+如果你同意這套 key 命名，我下一步會在計畫裡把：
+- `seating-manage.tsx` 後台 editor 版型（每欄 3 組 label+content，第一欄可用 RichEditor）
+- `MenuPage.tsx`/`ReservationPage.tsx` 的組資料與 fallback 規則
+- `routeTree.gen.ts` 可能需要的路由/預覽串接點
+
+整理成可直接實作的變更清單。
+
+## Cursor
+好，我會直接把**前台兩頁 (`MenuPage.tsx`、`ReservationPage.tsx`) 一起改成吃同一套可編輯 title/label/content keys**，後台 `seating-manage.tsx` 也同步提供 3 欄 × 3 item（每 item = label+content）的編輯介面；同時把前台「覆蓋官方紅色風格」的 CSS 改成**不影響既有樣式**的最小版本（或乾脆移除，只保留 layout class）。接著我會把整個改動整理成一個可執行的計畫給你接受後就開始實作。
+
+## Cursor
+我開始照計畫實作：先把新的 `reservation_info_col_*` keys/預設與 fallback 規則定下來，接著同一套 builder 會同時給 `MenuPage.tsx`/`ReservationPage.tsx` 用，最後再把後台 `seating-manage.tsx` 的編輯 UI 換成 3 欄 × 3 組（label+content）並保留 iframe 即時預覽。
+
+## Cursor
+已經把「三欄資訊」抽成 `official_website/src/services/reservationInfo.ts` 共用 builder：只要後台開始寫入 `reservation_info_col_*` 任一 key，就會改吃新結構；否則完全沿用舊的寫死/legacy 行為，確保不會突然變空白。下一步我會把 `MenuPage.tsx` 與 `ReservationPage.tsx` 的舊 build 函式移除，改 import 這個 builder。

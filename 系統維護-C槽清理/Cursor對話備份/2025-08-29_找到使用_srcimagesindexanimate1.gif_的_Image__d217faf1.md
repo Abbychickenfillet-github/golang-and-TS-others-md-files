@@ -2,9 +2,9 @@
 title: "2025-08-29_找到使用_srcimagesindexanimate1.gif_的_Image__d217faf1"
 ---
 
-# 找到使用 srcimagesindexanimate1.gif 的 Image 
+# 找到使用src=imagesindexanimate1.gif的Image元件然
 
-> Cursor · 2025-08-29 22:30 · `d217faf1-4b9a-4c6b-909a-b176ddf7490f` · 344 則
+> Cursor · 2025-08-29 22:30 · `d217faf1-4b9a-4c6b-909a-b176ddf7490f` · 345 則
 
 ## 你
 找到使用 src="/images/index/animate1.gif" 的 <Image> 元件，然後為它加上適當的 width 和 height 屬性。
@@ -313,7 +313,6 @@ Image with src "/logo2.svg" is missing required "width" property.
 你可以將以下代碼複製到一個新的 `.js` 文件中：
 
 ```jsx
-{% raw %}
 import React, { useState, useEffect } from 'react'
 import styles from '@/styles/signUpForm.module.scss'
 import Swal from 'sweetalert2'
@@ -605,7 +604,6 @@ export default function LogIn() {
 }
 
 LogIn.getLayout = (page) => page
-{% endraw %}
 ```
 
 ## 使用說明
@@ -3050,3 +3048,6 @@ Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'pg' imported from /src/config
 完美！現在 `pg` 已經在 `dependencies` 中了。
 
 ### 3. 重新安裝依賴並測試
+
+## 你
+請在程式碼下方使用註解解釋您的行為以及教育我

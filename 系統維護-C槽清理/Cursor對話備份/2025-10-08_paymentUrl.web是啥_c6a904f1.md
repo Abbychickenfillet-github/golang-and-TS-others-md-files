@@ -4,7 +4,7 @@ title: "2025-10-08_paymentUrl.web是啥_c6a904f1"
 
 # paymentUrl.web是啥
 
-> Cursor · 2025-10-08 13:58 · `c6a904f1-b1d4-43e8-a9ac-6d78393f845c` · 20 則
+> Cursor · 2025-10-08 13:58 · `c6a904f1-b1d4-43e8-a9ac-6d78393f845c` · 21 則
 
 ## 你
 paymentUrl?.web是啥
@@ -386,3 +386,6 @@ http://localhost:5173/linepay
 ## 為什麼會是空白頁面？
 
 因為你訪問的 `/linepaypage` 路由不存在，React Router 沒有找到對應的組件，所以顯示空白頁面。
+
+## 你
+是怎麼知道要叫payment

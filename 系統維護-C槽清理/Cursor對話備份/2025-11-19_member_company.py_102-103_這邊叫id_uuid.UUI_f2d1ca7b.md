@@ -2,9 +2,9 @@
 title: "2025-11-19_member_company.py_102-103_這邊叫id_uuid.UUI_f2d1ca7b"
 ---
 
-# member_company.py 102-103 這邊叫id uuid.UUI
+# @member_company.py(102-103)這邊叫iduuid.UUI
 
-> Cursor · 2025-11-19 23:16 · `f2d1ca7b-e78c-4b25-b37f-5df8da177793` · 181 則
+> Cursor · 2025-11-19 23:16 · `f2d1ca7b-e78c-4b25-b37f-5df8da177793` · 193 則
 
 ## 你
 @member_company.py (102-103) 這邊叫id: uuid.UUID 
@@ -3197,3 +3197,157 @@ ALTER TABLE event
 ```
 
 一次執行就會把兩個欄位名稱更新為 `start_at`、`end_at`。
+
+## 你
+- user_in (UserCreate): 這是什麼東西
+
+## Cursor
+`user_in` 是 `create_user` API 對應的參數名稱，型別是 `UserCreate`。在 `backend/app/api/routes/users.py` 的 `create_user` 函式中，它代表一個用戶建立請求物件，裡面包含 email、password、full_name、role_id(可選)、is_active(可選) 等欄位，會由 FastAPI 自動把 request body 解析成這個 Pydantic 模型，然後傳給 `user_service.create_user` 來建立新帳號。
+
+```92:135:backend/app/api/routes/users.py
+@router.post(
+    "/", dependencies=[Depends(get_current_active_superuser)], response_model=UserPublic
+)
+def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
+    ...
+    user = user_service.create_user(session=session, user_create=user_in)
+```
+
+如果要呼叫這個 API，就需要在 JSON body 裡提供符合 `UserCreate` 定義的資料，FastAPI 才能把它轉成 `user_in`。
+
+## 你
+@member_companies.py (57-64) 那這@router.post("/",是根目錄的意思ㄇ response_model=MemberCompanyPublic是用這個會員公司??什麼意思這是junction table的model嗎)
+
+## Cursor
+這段的 `@router.post("/")` 只是指這個 FastAPI router 挂載後的根路徑下，再補上一個 `/` 來對應 POST 請求。也就是說，如果這個 router 是在主程式裡用 `app.include_router(member_companies_router, prefix="/member-companies")`，那實際的端點會是 `POST /member-companies/`，不是整個服務的根目錄。
+
+`response_model=MemberCompanyPublic` 是告訴 FastAPI：回傳時要用 `MemberCompanyPublic` 這個 Pydantic 模型（或 schema）來校驗/序列化資料，也決定文件裡的 schema。它描述的是「會員與公司關係」的公開資料格式，不一定是 junction table 本身，但通常這類 model 會對應到那個關聯（例如成員公司對應表）的一筆資料，只是可能有經過服務層整理或額外欄位。
+
+## Cursor
+我在專案裡搜尋 `booth` 與 `base_tiles` 都沒有任何檔案，表示目前倉庫裡沒有 `booth` 相關的 SQL 或模型。要幫你調整欄位，我需要知道：
+
+1. `booth` 表的 SQL 定義目前在哪裡？（或貼出原始 schema）
+2. 是否已經有對應的模型／CRUD／API 需要同步修改？
+
+麻煩提供這些資訊，我才能幫你把 `name` 註解、`base_tiles` 改名、`booking_status`／`booking_at` 和座標欄位加上去。
+
+## Cursor
+目前的情境牽涉兩件事：
+
+1. **同一個 vendor（member）可能需要一次租多個 booth**
+2. **vendor 本身就是 member，不想重複存人資訊**
+
+### 建議的資料模型
+
+1. **member（既有表）**  
+   保留會員主檔，不需要新增 vendor 表；只要在 member 上用欄位或 role 標記哪些會員具備 vendor 身分即可。  
+   - 例如：`member.role = 'vendor'` 或 `is_vendor = true`
+2. **booth（既有表）**  
+   繼續維持「event 1:N booth」的結構，booth 只是定義出在地圖上的一個攤位單位。
+3. **booth_booking（新表）**  
+   新增一個「攤位預訂/購買紀錄表」，用來連結 vendor 與 booth：  
+   ```sql
+   CREATE TABLE booth_booking (
+       id VARCHAR(36) PRIMARY KEY,
+       booth_id VARCHAR(36) NOT NULL,
+       vendor_id VARCHAR(36) NOT NULL, -- 對應 member.id
+       booking_status ENUM('pending','reserved','paid','cancelled') NOT NULL,
+       booking_expire_at DATETIME NULL, -- 預訂保留期限
+       booking_at DATETIME NULL,        -- 真正付款/完成時間
+       amount DECIMAL(12,2) NOT NULL,
+       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       UNIQUE(booth_id, booking_status) -- 視需求確保同一攤位只有一個有效預訂
+   );
+   ```
+   這樣一個 vendor 可以對多筆 booth_booking，達成「會員 : 多個攤位」的需求，同時可以追蹤付款狀態、過期時間等。
+
+4. **booth 只存靜態資訊**（位置、電量、價格），動態的「誰租了這個攤位」交給 `booth
+
+## 你
+語法有錯修好了我再執行一次
+
+## Cursor
+我新增event 2 筆 banner_img了請幫我把連結或圖片網址存到他應該去的cell中https://static.accupass.com/eventbanner/2510290227073816998140.jpg 以及https://static.accupass.com/eventbanner/2511181323071071152335.jpg 
+
+但是根本沒有event的 資料阿!目前
+
+幫我table event加一個欄位叫作活動簡介(short)原本好像沒有
+
+備用的圖片地端檔案我存到frontend/public/banner_example/banner-1.jpg跟frontend/public/banner_example/banner-1.jpg
+
+
+
+生成model層，再來是後端app/crud資料夾📂，再來service再來router
+
+## 你
+先幫我新增event 2 筆 banner_img幫我拿網路上免費的假圖就好或者
+
+## 你
+我新增event 2 筆 banner_img了請幫我把連結或圖片網址存到他應該去的cell中https://static.accupass.com/eventbanner/2510290227073816998140.jpg 以及https://static.accupass.com/eventbanner/2511181323071071152335.jpg 
+但是根本沒有event的 資料阿!目前
+幫我table event加一個欄位叫作活動簡介(short)原本好像沒有
+備用的圖片地端檔案我存到frontend/public/banner_example/banner-1.jpg跟frontend/public/banner_example/banner-1.jpg
+
+生成model層，再來是後端app/crud資料夾📂，再來service再來router
+
+## Cursor
+### 活動短介紹欄位
+- 新增 migration `backend/sql/014_add_event_short_description.sql`，在 `event` 表加入 `short_description` 欄位（`VARCHAR(500)`、不可為 NULL）。只要在 DB 跑這支 SQL（或執行所有 migrations）即可：
+```sql
+ALTER TABLE event
+    ADD COLUMN short_description VARCHAR(500) NOT NULL DEFAULT '' COMMENT '活動簡介 (短)' AFTER description;
+```
+- `EventBase / EventUpdate` 也同步加入 `short_description` 欄位，可在任何 API 寫入/更新該值。  
+```11:45:backend/app/models/event.py
+class EventBase(SQLModel):
+    ...
+    description: str = Field(description="活動描述")
+    short_description: str = Field(
+        default="",
+        max_length=500,
+        description="活動簡介 (短)",
+    )
+```
+
+### Banner 連結
+目前 repo 內沒有實際 `event` 資料，無法直接寫入。但你可以在建立兩筆活動後，用你知道的 `event.id` 來更新 `banner_image_url` 與 `short_description`。例如：
+
+```sql
+UPDATE event
+SET banner_image_url = 'https://static.accupass.com/eventbanner/2510290227073816998140.jpg',
+    short_description = '（自行填入 500 字內的活動簡介）'
+WHERE id = '<<第一筆 event 的 UUID>>';
+
+UPDATE event
+SET banner_image_url = 'https://static.accupass.com/eventbanner/2511181323071071152335.jpg',
+    short_description = '（自行填入第二筆活動的簡介）'
+WHERE id = '<<第二筆 event 的 UUID>>';
+```
+
+如果活動尚未插入，可以先手動建立（或透過 API `POST /events/`），再跑上述 UPDATE。若想在沒有遠端圖片時顯示備用圖，前端可指向你放在 `frontend/public/banner_example/banner-1.jpg` 的檔案（如 `http://localhost:3000/banner_example/banner-1.jpg`）。
+
+### 小提醒
+- 看到 `Unknown column 'general_contractor_id'` 代表還沒跑 `ALTER TABLE product ... general_contractor_id`，要先補欄位才能插基本配備資料。
+- 目前後台 API 和模型都已支援 `short_description`；若未來前端要顯示或編輯，也請一起更新表單欄位。
+
+## 你
+你直接幫我新增兩筆活動在執行這個啦寫一起
+
+UPDATE event
+
+SET banner_image_url = 'https://static.accupass.com/eventbanner/2510290227073816998140.jpg',
+
+    short_description = '（自行填入 500 字內的活動簡介）'
+
+WHERE id = '<<第一筆 event 的 UUID>>';
+
+
+
+UPDATE event
+
+SET banner_image_url = 'https://static.accupass.com/eventbanner/2511181323071071152335.jpg',
+
+    short_description = '（自行填入第二筆活動的簡介）'
+
+WHERE id = '<<第二筆 event 的 UUID>>';
