@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Epoch 時間起點 — 閏秒、UTC 與 GMT 的差別</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Epoch 時間起點 — 閏秒、UTC 與 GMT 的差別</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#計算機基礎</span><span class="pill">#epoch</span><span class="pill">#unix-time</span><span class="pill">#utc</span><span class="pill">#gmt</span><span class="pill">#閏秒</span><span class="pill">#timestamp</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-27</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/e26eeade9e115133" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Unix Epoch 的計算會把閏秒也算進去。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">POSIX 定義的 seconds since the Epoch 刻意忽略閏秒。</div></li><li><p class="qq">UTC 是一個時區。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是全球時間計算的基準尺度，各時區以 UTC 加減小時表示。</div></li><li><p class="qq">加入正閏秒的那一天，會出現 23:59:60 這個時刻。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">許多軟體預設每分鐘只有 00–59，因此可能崩潰。</div></li><li><p class="qq">Windows 的 FILETIME 也是從 1970-01-01 起算。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它從 1601-01-01 起算，單位是 100 奈秒。</div></li><li><p class="qq">Leap Smearing 是把閏秒拆成微秒均勻分散到 24 小時內的做法。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Google、Meta 用它避免系統遇到第 60 秒。</div></li><li><p class="qq">GMT 的依據是原子鐘，所以比 UTC 精準。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">GMT 依據地球自轉與太陽位置，UTC 才是原子鐘。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">時間戳 `0` 代表的時刻是 <input class="blank" data-a="1970" placeholder="填答案" autocomplete="off">-01-01 00:00:00 UTC。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這就是 Unix Epoch。</div></li><li><p class="qq">當原子時與世界時的累積誤差接近 <input class="blank" data-a="0.9" placeholder="填答案" autocomplete="off"> 秒時，IERS 就會宣布插入閏秒。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">門檻值。</div></li><li><p class="qq">國際度量衡大會已決定在 <input class="blank" data-a="2035" placeholder="填答案" autocomplete="off"> 年前取消閏秒機制。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">因為它對資訊與金融系統造成太多不穩定。</div></li><li><p class="qq">用極穩定的銫原子振動頻率計時的時間標準縮寫是 <input class="blank" data-a="TAI" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">International Atomic Time，國際原子時。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">為什麼電腦要用「距離某個起點過了幾秒」這種方式存時間，而不是直接存年月日時分秒？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 整數運算極快，兩個時間相減就是兩個數字相減，不必處理每月天數不同、閏年、時區、夏令時間；(2) 儲存與傳輸成本低，跨國系統只要送一個整數，接收端再依當地時區格式化；(3) 排序與比較天然正確，不會有字串比較的坑；(4) 代價是可讀性差，而且要小心不同系統的 Epoch 起點不同（1601、1970、1980、2001），以及 32 位元有號整數在 2038 年的溢位問題。</div></li><li><p class="qq">閏秒對資訊系統造成什麼麻煩？業界怎麼因應？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 麻煩來自於多數軟體假設每分鐘只有 60 秒，遇到 23:59:60 可能拋例外、進入無窮迴圈或讓時間倒退（2012 年 Reddit 與大量 Linux 伺服器當機就是例子）；(2) 對高頻交易、分散式系統的時序判斷影響更大，因為時間倒退會讓 timestamp 排序錯亂；(3) 因應方式是 Leap Smearing，在閏秒前後 24 小時把 1 秒拆成微秒均勻分散，系統看到的時間永遠單調遞增；(4) 長期解法是 CGPM 決議在 2035 年前取消閏秒。</div></li></ol></section>
+
+<article class="card">
+<h1 id="epoch-utc-gmt">Epoch 時間起點 — 閏秒、UTC 與 GMT 的差別</h1>
+<p>本篇重點 a–n，共 14 個</p>
+<h2 id="_1">重點整理</h2>
+<h3 id="epoch">一、Epoch 是什麼</h3>
+<p>a. <mark style="background: #ADCCFF;">Epoch（紀元／時間起點）</mark>在計算機科學裡指的是「時間計算的基準起點（Reference Point）」。</p>
+<p>b. <mark style="background: #FFF3A3;">電腦不是用「年/月/日 時:分:秒」來存時間</mark>，而是挑一個固定的歷史時刻當作第 0 秒，然後用「距離那個起點過了多少秒（或毫秒）」來記錄現在幾點。被選為起點的那個時刻就叫 Epoch。</p>
+<p>c. <mark style="background: #ADCCFF;">Unix Epoch</mark> 是目前資訊領域最標準的起點：</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>定義時刻</td>
+<td>1970 年 1 月 1 日 00:00:00 UTC</td>
+</tr>
+<tr>
+<td>計算方式</td>
+<td>從該時刻起累積的秒數，<mark style="background: #FF5582;">忽略閏秒</mark></td>
+</tr>
+<tr>
+<td>表示範例</td>
+<td><code>0</code> 代表 1970-01-01 00:00:00 UTC；<code>1700000000</code> 代表 2023-11-14 22:13:20 UTC</td>
+</tr>
+</tbody>
+</table>
+<p>d. <mark style="background: #BBFABB;">為什麼要這樣設計</mark>：<br />
+   - 跨平台運算簡單：比較與相減兩個整數（<code>1700000000 - 1600000000</code>）極快，不必處理月份天數、閏年、時區換算。<br />
+   - 統一儲存格式：跨國傳資料只要送一個整數，接收端再依當地時區轉成易讀格式。</p>
+<p>e. <mark style="background: #FFB8EB;">不是所有系統都用 1970 年</mark>：<br />
+   - Windows FILETIME：1601-01-01 00:00:00 UTC 起算，單位是 100 奈秒。<br />
+   - GPS 時間：1980-01-06 00:00:00 UTC 起算。<br />
+   - Apple Cocoa / Core Foundation：部分 API 用 2001-01-01 00:00:00 UTC 起算。<br />
+   <mark style="background: #FF5582;">跨系統搬資料時看到時間差了幾十年，通常就是 Epoch 起點不同</mark>。</p>
+<h3 id="leap-second">二、閏秒（Leap Second）</h3>
+<p>f. <mark style="background: #ADCCFF;">閏秒</mark>是為了讓「原子鐘定義的精準時間」與「地球自轉決定的天文時間」保持一致，而在 UTC 中人工加減的 1 秒，是時間系統裡的微調機制。</p>
+<p>g. 兩種時間標準的差異造成閏秒：<br />
+   - <mark style="background: #ADCCFF;">TAI（International Atomic Time，國際原子時）</mark>：用銫原子振動頻率計時，極穩定，幾百萬年才誤差一秒。<br />
+   - <mark style="background: #ADCCFF;">UT1（Universal Time 1，世界時）</mark>：以地球自轉一圈為一天。但地球自轉速度不均勻，會被月球潮汐摩擦、地核運動、冰河融化影響而變慢。</p>
+<p>h. 因為地球轉得越來越慢，原子時走得比地球自轉快。當累積誤差接近 <mark style="background: #FFB8EB;">0.9 秒</mark>時，IERS（International Earth Rotation and Reference Systems Service，國際地球自轉和參考系統服務）就宣佈插入 1 閏秒。</p>
+<p>i. 閏秒通常加在 6 月 30 日或 12 月 31 日的最後一秒。正常是 <code>23:59:58 → 23:59:59 → 00:00:00</code>；加入正閏秒時變成 <code>23:59:58 → 23:59:59 → 23:59:60 → 00:00:00</code>，會出現罕見的 <mark style="background: #FF5582;">23:59:60</mark>。</p>
+<p>j. <mark style="background: #FF5582;">對資訊系統是惡夢</mark>：很多軟體預設每分鐘只有 60 秒（00 到 59），遇到 <code>23:59:60</code> 可能崩潰或無窮迴圈（2012 年閏秒曾造成 Reddit 與大量 Linux 伺服器集體當機）。</p>
+<p>k. <mark style="background: #BBFABB;">Leap Smearing（時間塗抹）</mark>是 Google、Meta 等公司的因應做法：在閏秒前後 24 小時內把這 1 秒拆成微小的微秒，均勻分配貼進每一秒裡，讓系統平滑過渡而不會出現第 60 秒。</p>
+<p>l. <mark style="background: #FFB8EB;">閏秒的未來</mark>：CGPM（General Conference on Weights and Measures，國際度量衡大會）已決定在 2035 年前取消閏秒機制。</p>
+<h3 id="utc-gmt">三、UTC 與 GMT</h3>
+<p>m. <mark style="background: #ADCCFF;">UTC（Coordinated Universal Time，協調世界時）</mark><mark style="background: #FF5582;">不是一個時區</mark>，而是全球時間計算的基準尺度。特性有三：以原子時為基礎；本身位於本初子午線（經度 0 度），各地時區以 UTC 加減固定小時表示（台灣是 UTC+8、紐約 EST 是 UTC-5）；全年恆定不實施夏令時間。</p>
+<p>n. <mark style="background: #FFF3A3;">UTC 與 GMT 的本質差別</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>GMT（Greenwich Mean Time，格林威治標準時間）</th>
+<th>UTC（協調世界時）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>屬性</td>
+<td>天文時區</td>
+<td>物理／科學時間標準</td>
+</tr>
+<tr>
+<td>依據</td>
+<td>地球自轉與太陽位置</td>
+<td>原子鐘（必要時以閏秒微調）</td>
+</tr>
+<tr>
+<td>精準度</td>
+<td>較低，受自轉速度不均影響</td>
+<td>極高</td>
+</tr>
+<tr>
+<td>定位</td>
+<td>主要作為歷史時區名稱</td>
+<td>現代電腦、通訊與科學的統一標準</td>
+</tr>
+</tbody>
+</table>
+<h2 id="leetcodeneetcode">練習題（LeetCode／NeetCode 對應）</h2>
+<ul>
+<li>LeetCode 1185 — Day of the Week：https://leetcode.com/problems/day-of-the-week/ 　自己從一個基準日推算星期，正是 (b) 說的「以某個 Epoch 為起點做整數運算」的手算版。</li>
+<li>LeetCode 2224 — Minimum Number of Operations to Convert Time：https://leetcode.com/problems/minimum-number-of-operations-to-convert-time/ 　把時間轉成「距離某起點的分鐘數」再相減，是 timestamp 思維的最小練習。</li>
+<li>LeetCode 1360 — Number of Days Between Two Dates：https://leetcode.com/problems/number-of-days-between-two-dates/ 　需要自己處理閏年，體會 (d) 說的「用整數秒數就不必煩惱這些」。</li>
+</ul>
+<h2 id="_2">關聯筆記（附關聯原因）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：new-Date-日期物件重點">new-Date-日期物件重點</span> — JavaScript 的 <code>Date.now()</code> 回傳的就是本篇 (c) 的 Unix Epoch 毫秒數，那篇是本篇概念在 JS 裡的直接應用。</li>
+<li><span class="wikilink" title="Obsidian 連結：getDay與switch-case從0開始">getDay與switch-case從0開始</span> — 同屬日期主題，那篇談 JS 日期 API 從 0 起算的慣例，跟本篇「Epoch 從 0 開始」是同一種以零為起點的設計思維。</li>
+<li><span class="wikilink" title="Obsidian 連結：ASCII-美國資訊交換標準碼">ASCII-美國資訊交換標準碼</span> — 同樣是「人類可讀概念 ↔ 電腦整數編碼」的對照表設計，可對照理解。</li>
+<li><span class="wikilink" title="Obsidian 連結：CPU字長-TINYINT型別與OpenAPI資安雜記">CPU字長-TINYINT型別與OpenAPI資安雜記</span> — 32 位元有號整數存 Unix 時間會在 2038-01-19 溢位（Year 2038 Problem），本篇 (c) 的整數表示法與那篇的字長限制直接相關。</li>
+</ul>
+<h2 id="_3">各對話來源（原文）</h2>
+<h3 id="epoch-2026-08-27-httpsgeminigooglecomappe26eeade9e115133">解析 Epoch 時間的定義與由來（2026-08-27）— https://gemini.google.com/app/e26eeade9e115133</h3>
+<p>使用者：Epoch 時間中的 epoch 是什麼</p>
+<p>Gemini：Epoch 在計算機科學與時間系統中，指的是一個時間計算的基準起點（Reference Point）。在電腦的世界裡，系統並不是直接以「年/月/日 時:分:秒」的形式來儲存時間，而是選擇一個固定的歷史時刻作為第 0 秒，並以「距離該起點過了多少秒（或毫秒）」來記錄時間。這個被選為起點的特定時間點，就稱為 Epoch。最常見的 Unix Epoch：定義時刻為 1970 年 1 月 1 日 00:00:00 UTC；計算方式是從該時刻起累積的秒數，忽略閏秒；<code>0</code> 代表 1970-01-01 00:00:00 UTC，<code>1700000000</code> 則代表 2023-11-14 22:13:20 UTC。為什麼需要 Epoch 設計：跨平台運算簡單，電腦比較與計算兩個數字非常迅速，不需要處理複雜的月份天數、閏年或時區換算；統一儲存格式，跨國系統傳輸資料時只需傳送單一整數。其他系統的 Epoch 範例：Windows（FILETIME）以 1601 年 1 月 1 日為 Epoch（以 100 奈秒為單位）；GPS 時間以 1980 年 1 月 6 日為 Epoch；Apple（Cocoa / Core Foundation）部分系統使用 2001 年 1 月 1 日作為起點。</p>
+<p>使用者：閏秒是什麼</p>
+<p>Gemini：閏秒（Leap Second）是為了讓人類根據原子振動所定義的「精準時間」，能夠與地球自轉所決定的「天文時間」保持一致，而在協調世界時（UTC）中人工加減的 1 秒。主要原因在於兩種時間標準的差異：國際原子時（TAI）利用銫原子的振動頻率來計時，極度穩定且均勻，幾百萬年才會誤差一秒；世界時（UT1）以地球自轉一圈為一天來計時，但地球自轉速度並不均勻，會受到月球潮汐摩擦、地核運動、冰河融化等因素影響而逐漸變慢。因為地球自轉越來越慢，原子時走得比地球自轉還要快，當兩者的累積誤差接近 0.9 秒時，國際地球自轉和參考系統服務（IERS）就會宣佈插入 1 閏秒。閏秒通常會在 6 月 30 日或 12 月 31 日的最後一秒加入：正常時間順序是 23:59:58 → 23:59:59 → 00:00:00，加入正閏秒時是 23:59:58 → 23:59:59 → 23:59:60 → 00:00:00。對電腦與資訊系統的衝擊：系統當機，許多軟體設計時預設每分鐘只有 60 秒，遇到 23:59:60 時可能引發程式崩潰或無窮迴圈（如 2012 年閏秒曾導致 Reddit、Linux 伺服器集體當機）；時間塗抹技術（Leap Smearing），Google、Meta 等會在閏秒前後的 24 小時內，將這 1 秒拆成微小的微秒均勻分配。閏秒的未來：國際度量衡大會（CGPM）已決定在 2035 年前取消閏秒機制。</p>
+<p>使用者：UTC？</p>
+<p>Gemini：UTC（Coordinated Universal Time，協調世界時）是當今全球最主要的時間標準。它不是一個時區，而是全球時間計算的基準尺度。核心特性：基於原子時（TAI），使用極度精準的原子鐘作為計時基礎；零時區基準，UTC 本身位於本初子午線（經度 0 度，格林威治），全球各地時區皆以 UTC 加上或減去固定小時來表示（台灣／北京時間為 UTC+8，紐約標準時間 EST 為 UTC-5）；不實施夏令時間，UTC 時間全年維持恆定。UTC 與 GMT 有何不同：GMT 屬性是天文時區、依據地球自轉與太陽位置、精準度較低、主要作為歷史時區名稱；UTC 屬性是物理／科學時間標準、依據原子鐘（搭配必要時的閏秒微調）、精準度極高、是現代電腦通訊與科學的統一標準。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/e26eeade9e115133</td>
+<td>2026-08-27 擷取</td>
+</tr>
+<tr>
+<td>IERS — Bulletin C（閏秒公告權威來源）</td>
+<td>https://www.iers.org/IERS/EN/Publications/Bulletins/bulletins.html</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>BIPM — Resolution 4 of the 27th CGPM（2022，決議 2035 年前取消閏秒）</td>
+<td>https://www.bipm.org/en/cgpm-2022/resolution-4</td>
+<td>2022-11 決議，2026-08-27 查證</td>
+</tr>
+<tr>
+<td>Google Cloud — Leap Smear 說明</td>
+<td>https://developers.google.com/time/smear</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>The Open Group — POSIX 對 Seconds Since the Epoch 的定義</td>
+<td>https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_16</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>MDN — Date.now()</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now</td>
+<td>2026-08-27 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-27</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

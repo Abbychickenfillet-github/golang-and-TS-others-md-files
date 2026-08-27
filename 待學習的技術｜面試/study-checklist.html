@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>讀書自評 — Abby</title>
+<style>
+  :root{
+    --ink:#1b2a2f;
+    --paper:#eef1ea;
+    --paper-line:#c9cfc2;
+    --pencil:#3d5a52;
+    --mark:#b4652a;
+    --mark-soft:#e7c8a8;
+    --star-on:#c9962f;
+    --star-off:#d8d4c4;
+    --done:#5c7a5c;
+    --card:#ffffff;
+    --row-alt:#f6f7f2;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--paper);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    color:var(--ink);
+    padding:32px 16px 80px;
+  }
+  .wrap{max-width:880px;margin:0 auto}
+  header{margin-bottom:24px}
+  .eyebrow{font-size:12px;letter-spacing:.16em;color:var(--mark);font-weight:700;text-transform:uppercase}
+  h1{margin:6px 0 4px;font-size:26px;font-weight:900;border-bottom:3px solid var(--ink);display:inline-block;padding-bottom:4px}
+  .sub{font-size:13px;color:#5b6660;margin-top:8px;line-height:1.6}
+  .rule{
+    margin-top:14px;padding:10px 14px;background:var(--mark-soft);border-left:4px solid var(--mark);
+    border-radius:4px;font-size:12.5px;color:#5c3418;line-height:1.6;
+  }
+  .progress-bar{margin-top:16px;height:10px;border-radius:6px;background:#dde3d6;overflow:hidden;border:1px solid var(--paper-line)}
+  .progress-fill{height:100%;background:var(--done);width:0%;transition:width .3s}
+  .progress-label{font-size:12px;margin-top:6px;color:#5b6660}
+
+  .section-title{margin:28px 0 10px;font-size:13px;font-weight:800;color:var(--pencil);display:flex;align-items:center;gap:8px}
+  .section-title::after{content:"";flex:1;height:1px;background:var(--paper-line)}
+
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--paper-line);border-radius:6px;overflow:hidden}
+  thead th{
+    text-align:left;font-size:11px;color:#6b756e;font-weight:800;letter-spacing:.05em;
+    padding:8px 12px;border-bottom:2px solid var(--paper-line);background:#f2f4ee;
+  }
+  th.col-reps, td.col-reps{text-align:left}
+  th.col-star, td.col-star{text-align:left;white-space:nowrap}
+  tbody tr{border-bottom:1px solid var(--paper-line)}
+  tbody tr:nth-child(even){background:var(--row-alt)}
+  tbody tr.done{opacity:.7}
+  tbody tr.done .item-title{text-decoration:line-through;text-decoration-color:var(--done)}
+  td{padding:10px 12px;vertical-align:middle}
+  .item-title{font-size:14px;font-weight:700;margin:0 0 2px}
+  .item-note{font-size:11.5px;color:#7a837c;line-height:1.5;margin:0}
+  .item-note a{color:var(--mark)}
+
+  .reps{display:flex;gap:5px}
+  .rep-box{
+    width:22px;height:22px;border:2px solid var(--pencil);border-radius:5px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;flex:0 0 22px;
+  }
+  .rep-box svg{width:12px;height:12px;opacity:0;transition:opacity .15s}
+  .rep-box.checked{background:var(--done);border-color:var(--done)}
+  .rep-box.checked svg{opacity:1}
+  .rep-count{font-size:10.5px;color:#8a8f86;margin-top:4px}
+
+  .stars{display:flex;gap:2px;cursor:pointer}
+  .stars svg{width:16px;height:16px}
+  .stars svg path{fill:var(--star-off);transition:fill .15s}
+  .stars svg.on path{fill:var(--star-on)}
+
+  .reset-row{margin-top:32px;text-align:right}
+  .reset-btn{font-size:12px;color:#8a8f86;background:none;border:1px solid var(--paper-line);padding:6px 12px;border-radius:5px;cursor:pointer}
+  .reset-btn:hover{border-color:var(--mark);color:var(--mark)}
+  .loading{font-size:13px;color:#8a8f86;padding:20px 0}
+  .footer-reminder{
+    margin-top:20px;padding:12px 16px;background:var(--card);border:1px dashed var(--mark);
+    border-radius:6px;font-size:12px;color:#5c3418;line-height:1.7;text-align:center;
+  }
+  .footer-reminder a{color:var(--mark)}
+
+  @media (max-width:640px){
+    thead{display:none}
+    table, tbody, tr, td{display:block;width:100%}
+    tr{padding:10px 0;border-bottom:1px solid var(--paper-line)}
+    td{padding:4px 12px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">讀書自評 · Study Self-Check</div>
+    <h1>今日到九月底　複習清單</h1>
+    <div class="sub">順序已定案，由上往下照著走，不再更動。</div>
+    <div class="rule">嚴格標準：每個觀念至少打勾 5 次才算完成一輪複習。星等是妳當下的熟悉度，可隨時調整，不影響打勾進度。</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">載入中…</div>
+  </header>
+
+  <div id="app"><div class="loading">正在讀取自評資料…</div></div>
+
+  <div class="reset-row">
+    <button class="reset-btn" id="resetBtn">重設全部（清空打勾與星等）</button>
+  </div>
+
+  <div class="footer-reminder">
+    小白是輸在死記硬背回答，沒有拿檢核項目對照理解——星等打高不等於真的懂。<br>
+    驗證方式：闔上資料口說一次，還要能舉自己專案的真實例子。
+    （<a href="https://youtu.be/YGrctw-R30o?t=66" target="_blank" rel="noopener">https://youtu.be/YGrctw-R30o?si=D0dONDdz0RZE0qia&amp;t=66</a>）
+    <br><br>
+    每個觀念都要對技術棧深入思考，不只會講「怎麼做」：<br>
+    不這麼做的原因是什麼？（例如：不用純函式會發生什麼問題）<br>
+    專案中曾經踩過什麼坑？
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "study-checklist:v2";
+const REPS_TARGET = 5;
+
+const ITEMS = [
+  { id:"cookie-session-token", group:"1. Cookie ／ Session ／ Token",
+    title:"Cookie ＆ Session ＆ Token 原理",
+    note:"目標：講得出專案為什麼用 token，並對照 next-one-main 實作。" },
+  { id:"promise", group:"2. Promise",
+    title:"Promise 語法熟練＋練習",
+    note:"手感型知識，練到看到 callback 地獄能立刻反應可以怎麼改寫。" },
+  { id:"async-await", group:"3. Async / Await",
+    title:"Async / Await（Promise 的語法糖）",
+    note:"確認自己講得出它省了 Promise 的哪個部分。" },
+  { id:"array-prototype", group:"4. 原型鏈練習（MDN Playground）",
+    title:"Array.prototype 練習",
+    note:"" },
+  { id:"object-prototype", group:"4. 原型鏈練習（MDN Playground）",
+    title:"Object.prototype 練習",
+    note:"" },
+  { id:"map-prototype", group:"4. 原型鏈練習（MDN Playground）",
+    title:"Map.prototype 練習",
+    note:"" },
+  { id:"react-components", group:"5. React",
+    title:"React 類組件 vs 函式組件",
+    note:"影片約 5 年前，務必對照 React 官方文件（react.dev）確認現行寫法。" },
+  { id:"interview-oral", group:"6. 面試準備",
+    title:"面試常見題目口頭練習",
+    note:"先看表格抓重點 → 闔上表格口說一次 → 回頭補漏。" },
+  { id:"video-session", group:"7. 參考影片",
+    title:"Session/Cookie 相關影片",
+    note:"<a href='https://youtu.be/IIhVKpp37c0' target='_blank' rel='noopener'>youtu.be/IIhVKpp37c0</a>" },
+  { id:"video-2", group:"7. 參考影片",
+    title:"第二支參考影片",
+    note:"<a href='https://youtu.be/YGrctw-R30o' target='_blank' rel='noopener'>youtu.be/YGrctw-R30o</a>" },
+
+  { id:"angular-scaffold", group:"8. 框架腳手架（Angular／Vue）",
+    title:"Angular 腳手架建立方式",
+    note:"指令：<code>npm install -g @angular/cli</code> 後 <code>ng new my-app</code>。要講得出 ng new 背後用 schematics（藍圖樣板）產生檔案結構、自動裝依賴、初始化 git。同時要能講：編譯（TypeScript→JS）、HTML 檔頭（index.html 掛載點）、整個 parse 流程、打包（build）時 Angular CLI 用 esbuild/webpack 做了什麼、runtime 啟動時 bootstrapModule 做了什麼。" },
+  { id:"vue-scaffold", group:"8. 框架腳手架（Angular／Vue）",
+    title:"Vue 腳手架建立方式",
+    note:"指令：<code>npm create vue@latest</code>。背後是 create-vue 腳本，互動式詢問要不要 TypeScript／Router／Pinia 等，產生以 Vite 為底的專案。同樣要能講：Vite 編譯與 HMR、index.html 的角色、parse、build 時 Vite 打包做了什麼、runtime 掛載（createApp().mount）發生什麼事。" },
+
+  { id:"iq-hof", group:"9. 面試題庫：事件循環／Promise／Async 延伸",
+    title:"Higher-Order Function 是什麼",
+    note:"<a href='https://www.explainthis.io/zh-hant/swe/what-is-hof' target='_blank' rel='noopener'>explainthis：what-is-hof</a>" },
+  { id:"iq-event-loop", group:"9. 面試題庫：事件循環／Promise／Async 延伸",
+    title:"事件循環 Event Loop 說明",
+    note:"<a href='https://www.explainthis.io/zh-hant/swe/what-is-event-loop' target='_blank' rel='noopener'>explainthis：what-is-event-loop</a>" },
+  { id:"iq-promise-what", group:"9. 面試題庫：事件循環／Promise／Async 延伸",
+    title:"Promise 是什麼？用途？",
+    note:"<a href='https://www.explainthis.io/zh-hant/swe/what-is-promise' target='_blank' rel='noopener'>explainthis：what-is-promise</a>" },
+  { id:"iq-promise-race", group:"9. 面試題庫：事件循環／Promise／Async 延伸",
+    title:"Promise.race 原理與實作",
+    note:"<a href='https://www.explainthis.io/zh-hant/swe/javascript-whiteboard-promise-race' target='_blank' rel='noopener'>explainthis：promise-race</a>" },
+  { id:"iq-promise-all", group:"9. 面試題庫：事件循環／Promise／Async 延伸",
+    title:"Promise.all 原理與實作",
+    note:"<a href='https://www.explainthis.io/zh-hant/swe/javascript-whiteboard-promise-all' target='_blank' rel='noopener'>explainthis：promise-all</a>" },
+  { id:"iq-async-await", group:"9. 面試題庫：事件循環／Promise／Async 延伸",
+    title:"async/await 與 Promise 差別",
+    note:"<a href='https://www.explainthis.io/zh-hant/swe/async-await' target='_blank' rel='noopener'>explainthis：async-await</a>" },
+  { id:"iq-event-loop-qs", group:"9. 面試題庫：事件循環／Promise／Async 延伸",
+    title:"事件循環面試題彙整",
+    note:"<a href='https://www.explainthis.io/zh-hant/swe/js-event-loop-questions' target='_blank' rel='noopener'>explainthis：event-loop-questions</a>" },
+
+  { id:"state-tanstack", group:"10. 狀態管理工具（Zustand／TanStack）",
+    title:"TanStack Query 講解（主力）",
+    note:"要能講：跟 useState/useEffect 手動 fetch 的差別、cache 機制、staleTime 與 refetch 時機、query key 的設計原則。" },
+  { id:"state-zustand", group:"10. 狀態管理工具（Zustand／TanStack）",
+    title:"Zustand 講解",
+    note:"要能講：跟 Context API 的差別、為什麼不需要 Provider 包裹、跟 Redux 相比省了什麼。" },
+
+  { id:"timelog-bug-video-1", group:"11. TimeLog 專案除錯：Refresh 自動登出",
+    title:"【必看】影片一：access token / session / cookie",
+    note:"<a href='https://www.youtube.com/watch?v=fyTxwIa-1U0' target='_blank' rel='noopener'>https://www.youtube.com/watch?v=fyTxwIa-1U0</a>" },
+  { id:"timelog-bug-video-2", group:"11. TimeLog 專案除錯：Refresh 自動登出",
+    title:"【必看】影片二",
+    note:"<a href='https://youtu.be/JGs_iAuwbRI' target='_blank' rel='noopener'>https://youtu.be/JGs_iAuwbRI</a>" },
+  { id:"timelog-bug-diagnosis", group:"11. TimeLog 專案除錯：Refresh 自動登出",
+    title:"除錯流程：Cookie 都在，一 refresh 就被登出",
+    note:"問題：DevTools 裡 Cookies 看得到 ACCESS_TOKEN、HttpOnly 打勾，但重新整理仍被登出。next-one-main 是 SSR、沒有切前後端。<br><br>"
+      + "<b>檢查方向 1（Cookie／後端）：</b> lib/jwt-session.js 已設 httpOnly:true，官方文件參考 "
+      + "<a href='https://developer.mozilla.org/zh-TW/docs/Web/HTTP/Headers/Set-Cookie#httponly' target='_blank' rel='noopener'>MDN Set-Cookie: HttpOnly</a>；"
+      + "檢查 maxAge/expires 是否設太短、path 是否限定錯資料夾、secure 在 localhost http 下是否誤設為 true 導致瀏覽器直接丟棄整個 cookie。<br><br>"
+      + "<b>檢查方向 2（SSR 讀取端）：</b> middleware.js／middleware.ts 是否每次請求都重新驗證 token、驗證失敗就直接導回登入頁；"
+      + "app/layout.js 或任何 server component 在 request 進來時讀 cookie 的邏輯；API route／server action 裡驗證 token 簽章或過期時間的那段。<br><br>"
+      + "<b>檢查方向 3（State，妳今天的新猜測）：</b> 因為沒有切後端，state 死掉的懷疑可疑檔案：AuthContext／useAuth.js（登入狀態初始值是不是預設 false／null，refresh 當下 UI 先渲染成未登入）；"
+      + "若有用 zustand 存 auth 狀態，注意 persist middleware 的 rehydrate 時機是不是比畫面渲染慢；useEffect 裡驗證登入狀態的那段是否有 race condition（重新整理當下 fetch 還沒回來就先判定未登入並導頁）。<br><br>"
+      + "<b>今天的動作：</b> 確認今天 push 的 commit 有沒有動到上述任一檔案，先用 git diff 看今天改了什麼再開始排查，比較不會白費工夫。" }
+];
+
+let state = {};
+
+function render(){
+  const app = document.getElementById("app");
+  const groups = [...new Set(ITEMS.map(i => i.group))];
+  app.innerHTML = "";
+  groups.forEach(g => {
+    const h = document.createElement("div");
+    h.className = "section-title";
+    h.textContent = g;
+    app.appendChild(h);
+
+    const table = document.createElement("table");
+    table.innerHTML = `<thead><tr>
+        <th>名稱</th>
+        <th class="col-reps">打勾（5 次為一輪）</th>
+        <th class="col-star">星等</th>
+      </tr></thead>`;
+    const tbody = document.createElement("tbody");
+    ITEMS.filter(i => i.group === g).forEach(item => tbody.appendChild(renderRow(item)));
+    table.appendChild(tbody);
+    app.appendChild(table);
+  });
+  updateProgress();
+}
+
+function renderRow(item){
+  const s = state[item.id] || { reps:[false,false,false,false,false], stars:0 };
+  const repsDone = s.reps.filter(Boolean).length;
+  const tr = document.createElement("tr");
+  tr.className = repsDone >= REPS_TARGET ? "done" : "";
+
+  const tdName = document.createElement("td");
+  const title = document.createElement("p");
+  title.className = "item-title";
+  title.textContent = item.title;
+  tdName.appendChild(title);
+  if(item.note){
+    const note = document.createElement("p");
+    note.className = "item-note";
+    note.innerHTML = item.note;
+    tdName.appendChild(note);
+  }
+
+  const tdReps = document.createElement("td");
+  tdReps.className = "col-reps";
+  const repsWrap = document.createElement("div");
+  repsWrap.className = "reps";
+  for(let i=0;i<REPS_TARGET;i++){
+    const box = document.createElement("div");
+    box.className = "rep-box" + (s.reps[i] ? " checked" : "");
+    box.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    box.onclick = () => toggleRep(item.id, i);
+    repsWrap.appendChild(box);
+  }
+  tdReps.appendChild(repsWrap);
+  const count = document.createElement("div");
+  count.className = "rep-count";
+  count.textContent = `${repsDone} / ${REPS_TARGET} 次`;
+  tdReps.appendChild(count);
+
+  const tdStar = document.createElement("td");
+  tdStar.className = "col-star";
+  const stars = document.createElement("div");
+  stars.className = "stars";
+  for(let n=1;n<=5;n++){
+    const star = document.createElementNS("http://www.w3.org/2000/svg","svg");
+    star.setAttribute("viewBox","0 0 24 24");
+    if(n <= s.stars) star.classList.add("on");
+    star.innerHTML = '<path d="M12 2l2.9 6.5L22 9.3l-5 4.9 1.2 7.1L12 17.9l-6.2 3.4L7 14.2 2 9.3l7.1-.8L12 2z"/>';
+    star.onclick = () => setStars(item.id, n);
+    stars.appendChild(star);
+  }
+  tdStar.appendChild(stars);
+
+  tr.appendChild(tdName);
+  tr.appendChild(tdReps);
+  tr.appendChild(tdStar);
+  return tr;
+}
+
+function updateProgress(){
+  const total = ITEMS.length;
+  const done = ITEMS.filter(i => {
+    const s = state[i.id];
+    return s && s.reps.filter(Boolean).length >= REPS_TARGET;
+  }).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById("progressFill").style.width = pct + "%";
+  document.getElementById("progressLabel").textContent = `${done} / ${total} 項完成滿五輪（${pct}%）`;
+}
+
+async function persist(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
+  }catch(e){
+    console.error("儲存失敗", e);
+  }
+}
+
+async function toggleRep(id, idx){
+  const cur = state[id] || { reps:[false,false,false,false,false], stars:0 };
+  const reps = [...cur.reps];
+  reps[idx] = !reps[idx];
+  state[id] = { ...cur, reps };
+  render();
+  await persist();
+}
+
+async function setStars(id, n){
+  const cur = state[id] || { reps:[false,false,false,false,false], stars:0 };
+  state[id] = { ...cur, stars: n };
+  render();
+  await persist();
+}
+
+async function resetAll(){
+  state = {};
+  render();
+  await persist();
+}
+
+async function init(){
+  try{
+    const result = await window.storage.get(STORAGE_KEY, false);
+    if(result && result.value){
+      state = JSON.parse(result.value);
+    }
+  }catch(e){
+    state = {};
+  }
+  render();
+}
+
+document.getElementById("resetBtn").onclick = resetAll;
+init();
+</script>
+</body>
+</html>

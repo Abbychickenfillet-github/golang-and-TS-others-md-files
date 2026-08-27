@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TypeScript any 與 unknown｜型別逃生艙口與斷言時機</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>TypeScript any 與 unknown｜型別逃生艙口與斷言時機</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#typescript</span><span class="pill">#any</span><span class="pill">#unknown</span><span class="pill">#type-assertion</span><span class="pill">#型別系統</span><span class="pill">#逃生艙口</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-27</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/f00083e09ec02fa5" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">把變數標成 any 之後，TypeScript 仍然會檢查你有沒有呼叫不存在的方法。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">完全不會。any 就是「請關掉這個變數的型別檢查」，someValue.abc.def() 也照樣編譯通過。</div></li><li><p class="qq">unknown 跟 any 一樣，什麼值都可以塞進去。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">賦值這一端兩者相同。差別在「取出來用」那一端——unknown 必須先收窄才能動。</div></li><li><p class="qq">unknown 型別的變數可以直接賦值給 string 型別的變數。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">不行。unknown 只能賦值給 unknown 與 any，其他都要先斷言或收窄。</div></li><li><p class="qq">JSON.parse 的回傳型別在 TypeScript 內建定義裡就是 any。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">因為一段 JSON 解出來可能是物件、陣列、數字、布林、null 或字串，編譯期不可能預知。</div></li><li><p class="qq">只要專案有裝 TypeScript，就算全部標 any 也還是享有重構安全性。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">正好相反。改了欄位名稱，any 標註的地方不會報錯，錯誤會延到執行期才炸。</div></li><li><p class="qq">typeof u === &#x27;string&#x27; 這種判斷可以讓 TypeScript 自動把 unknown 收窄成 string。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這叫型別守衛（Type Guard），編譯器的控制流分析看得懂。</div></li><li><p class="qq">官方 Handbook 建議：不知道型別時優先用 any。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">官方推薦 unknown。Handbook 明說 unknown 是 any 的 type-safe counterpart。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">any 在 TypeScript 裡被稱為型別系統的「逃生艙口」，英文是 Escape <input class="blank" data-a="Hatch" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Handbook 也用 escape clause 這個說法。</div></li><li><p class="qq">比 any 安全、什麼都能塞但什麼都不能直接做的型別，叫做 <input class="blank" data-a="unknown" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">TypeScript 3.0 引入。</div></li><li><p class="qq">`const name = data as string` 這種寫法叫型別 <input class="blank" data-a="斷言" placeholder="填答案" autocomplete="off">（assertion）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">等於簽切結書：我負責，這傢伙就是字串。</div></li><li><p class="qq">函式回傳型別寫成 `v is { name: string }`，這種語法叫型別 <input class="blank" data-a="謂詞" placeholder="填答案" autocomplete="off">（Type Predicate）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">用來自訂型別守衛。</div></li><li><p class="qq">TypeScript 能在 if 區塊裡自動把型別變窄，這個機制叫控制流 <input class="blank" data-a="分析" placeholder="填答案" autocomplete="off">（Control Flow Analysis）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">型別守衛之所以有效就是靠它。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">你的同事說「反正 TypeScript 編譯完也是 JavaScript，型別標 any 比較快，之後有空再補」。請完整說明你會怎麼回應：any 具體讓你失去什麼、什麼情況下用 any 是合理的、以及 unknown 為什麼是更好的預設選擇（請一併說明它安全在哪、要怎麼把它變得可用）。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 失去什麼——IntelliSense 自動完成、重構安全性（改欄位名不報錯，錯誤延到執行期）、程式碼即文件三者一次消失，專案退化成「換副檔名的 JavaScript」。(2) 合理場景——JS 專案遷移過渡期、第三方套件沒提供型別定義、JSON.parse 這種編譯期不可能預知的外部資料。關鍵字是「你控制不了的資料」，不是「我懶得寫 interface」。(3) unknown 為何更好——賦值端跟 any 一樣寬鬆（什麼都能塞），但取用端被鎖死：不能存取屬性、不能賦值給其他型別。這強迫你在使用前先驗證。(4) 怎麼變得可用——用 typeof / instanceof / in 做型別守衛，或寫回傳 `v is T` 型別謂詞的自訂守衛函式，讓控制流分析在 if 區塊內自動收窄。(5) 加分：提 tsconfig 的 noImplicitAny，把「沒標型別就變隱含 any」這條後門也堵起來。</div></li></ol></section>
+
+<article class="card">
+<h1 id="typescript-any-unknown">TypeScript any 與 unknown｜型別逃生艙口與斷言時機</h1>
+<blockquote>
+<p>[!info] 本篇重點 a–n 共 14 個<br />
+一條線走完：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">any 是什麼</mark> → <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼不直接寫 string 就好</mark> → <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">unknown 憑什麼比較安全</mark>。</p>
+<p>[!info] 與其他筆記的關聯（附理由）<br />
+<strong>a.</strong> 承接 <span class="wikilink" title="Obsidian 連結：typescript-type-casting-and-hooks">typescript-type-casting-and-hooks</span>：那篇在講「怎麼把型別轉過去」，本篇補上前一步的「為什麼會需要轉」——因為手上拿到的是 <code>any</code> 或 <code>unknown</code>，編譯器不知道它是什麼，你才需要簽切結書。<br />
+<strong>b.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：ts-ignore">ts-ignore</span> 與 <span class="wikilink" title="Obsidian 連結：typeof-vs-ts-ignore">typeof-vs-ts-ignore</span>：<code>@ts-ignore</code> 是「這一行不要檢查」，<code>any</code> 是「這個變數一輩子不要檢查」，兩者都是關閉保護的手段，差別只在作用範圍，可以放在一起理解「TypeScript 有哪幾種投降方式」。<br />
+<strong>c.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：import-type-vs-interface">import-type-vs-interface</span>：本篇結論是「能定義結構就別用 any」，那篇正好給你定義結構的工具（<code>interface</code> 與 <code>type</code>）。<br />
+<strong>d.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain">build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain</span>：同一場 Gemini 對話的後半段，從「TS 型別」聊到「TS 誰來編譯、誰來執行」，是本篇的下游。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="any-eg">一、any 到底是什麼（e–g）</h3>
+<p><strong>e.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>any</code> 是 TypeScript 的「逃生艙口（Escape Hatch）」</mark>。當你把一個變數標註成 <code>any</code>，你等於在跟編譯器說：「這個變數以後別檢查了，我要像寫純 JavaScript 一樣自由。」</p>
+<p>一行一行拆解這句經典範例：</p>
+<pre><code class="language-ts">let someValue: any = &quot;this is a string&quot;;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>let</code></td>
+<td>宣告一個「可重新賦值」的變數（block scope，跟 <code>var</code> 的 function scope 不同）</td>
+</tr>
+<tr>
+<td><code>someValue</code></td>
+<td>變數名稱，你自己取的</td>
+</tr>
+<tr>
+<td><code>: any</code></td>
+<td>型別註解（Type Annotation）。冒號後面那個字就是「這個變數被允許裝什麼」。寫 <code>any</code> 代表「什麼都行，而且不要檢查」</td>
+</tr>
+<tr>
+<td><code>= "this is a string"</code></td>
+<td>初始值。此刻它「執行期的真實型別」是 string，但「編譯期的靜態型別」被你釘死成 any</td>
+</tr>
+</tbody>
+</table>
+<p><strong>f.</strong> 這代表下面這些明顯會爆炸的寫法，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">TypeScript 一句話都不會唸你</mark>：</p>
+<pre><code class="language-ts">let someValue: any = &quot;this is a string&quot;;
+
+someValue.toFixed();  // 執行時 TypeError（字串沒有 toFixed），但編譯時 TS 覺得 OK
+someValue = 123;      // 型別隨意漂移也 OK
+someValue.abc.def();  // 存取不存在的巢狀屬性也 OK
+</code></pre>
+<p><code>toFixed</code> 是 <code>Number.prototype</code> 上的方法（把數字轉成固定小數位的字串），字串身上沒有這個方法，所以執行期一定丟 <code>TypeError</code>。但因為靜態型別是 <code>any</code>，型別檢查器整個放行。</p>
+<p><strong>g.</strong> <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">滿滿 <code>any</code> 的專案，本質上就是「只是換了副檔名的 JavaScript」</mark>。你會一次失去三樣東西：</p>
+<table>
+<thead>
+<tr>
+<th>失去的東西</th>
+<th>為什麼會失去</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>自動完成（IntelliSense）</td>
+<td>編輯器不知道這變數是什麼，當然沒東西可提示</td>
+</tr>
+<tr>
+<td>重構安全性</td>
+<td>改了欄位名稱，被標成 any 的地方不會報錯，錯誤延到執行期才炸</td>
+</tr>
+<tr>
+<td>程式碼即文件</td>
+<td>三個月後的你看不出這變數該裝什麼</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="any-string-hj">二、那為什麼不直接把 any 換成 string 就好（h–j）</h3>
+<p>這是這場對話裡最好的一個追問。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">答案是：能直接寫 <code>string</code> 就一定要直接寫 <code>string</code></mark>。會出現「先 any 再斷言」，是因為遇到了「你控制不了的資料」。</p>
+<p><strong>h.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">資料來自外部世界（API 或 JSON）</mark>。</p>
+<pre><code class="language-ts">const data: any = JSON.parse(userInput);
+const name = data as string;
+</code></pre>
+<p><code>JSON.parse</code> 在 TypeScript 內建型別定義裡的回傳型別就是 <code>any</code>，因為一段 JSON 字串解出來可能是物件、陣列、數字、布林、null 或字串——編譯期根本不可能知道。所以你不能在宣告的當下就寫 <code>const data: string</code>，只能在「你自己確認過」之後用斷言告訴編譯器。</p>
+<p><strong>i.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">第三方套件的限制</mark>。老舊或寫得不嚴謹的 JavaScript 套件，回傳值本身就標 <code>any</code>。你改不動別人的原始碼，只能在接到結果後自己斷言回你要的型別。</p>
+<p><strong>j.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">型別收窄（Narrowing）的中繼站</mark>。一個變數可能是 <code>string</code> 也可能是 <code>null</code>，你得先經過判斷才能收窄。</p>
+<p>決策速查：</p>
+<table>
+<thead>
+<tr>
+<th>情境</th>
+<th>該怎麼寫</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>變數是你自己定義、自己賦值</td>
+<td><code>let name: string = "Tom"</code></td>
+<td>從一開始就上鎖，裝錯編譯器立刻罵人</td>
+</tr>
+<tr>
+<td>變數來自 API、檔案、資料庫、無型別的舊 JS</td>
+<td>先 <code>any</code> 或 <code>unknown</code>，再斷言或收窄</td>
+<td>編譯期不可能預知，只能事後補償</td>
+</tr>
+<tr>
+<td>只是懶得寫 interface</td>
+<td>不要用 any</td>
+<td>這是藉口，不是理由</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!tip] 兩者的心智模型<br />
+<strong>直接寫 <code>string</code></strong> ＝ 打預防針。一開始就規定只能裝字串。<br />
+<strong>用 <code>as string</code></strong> ＝ 簽切結書。資料已經進來了，你簽字保證「我負責，這傢伙就是字串」。</p>
+</blockquote>
+<hr />
+<h3 id="unknownkn">三、unknown：更安全的那個選擇（k–n）</h3>
+<p><strong>k.</strong> <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">現代 TypeScript 遇到「真的不知道型別」時，官方推薦 <code>unknown</code> 而不是 <code>any</code></mark>。官方 Handbook 的說法是：<code>unknown</code> 是 <code>any</code> 的「type-safe counterpart（型別安全的對應物）」。</p>
+<p><strong>l.</strong> 兩者的差別只有一句話：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">什麼都能塞進去這點兩者相同，但 <code>unknown</code> 不能被拿去做任何事，<code>any</code> 可以</mark>。</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th><code>any</code>（危險）</th>
+<th><code>unknown</code>（安全）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>允許被賦予任何值</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>允許直接存取屬性或方法</td>
+<td>✅ 完全不檢查</td>
+<td>❌ 必須先收窄型別</td>
+</tr>
+<tr>
+<td>可以被賦值給其他型別</td>
+<td>✅ 全部都行</td>
+<td>❌ 只能給 <code>unknown</code> 與 <code>any</code></td>
+</tr>
+<tr>
+<td>心智定位</td>
+<td>放棄型別檢查</td>
+<td>「我還不知道是什麼，等我檢查完再說」</td>
+</tr>
+</tbody>
+</table>
+<p><strong>m.</strong> 實際差別長這樣：</p>
+<pre><code class="language-ts">let a: any = getSomething();
+a.toUpperCase();          // 編譯過，執行期可能爆
+
+let u: unknown = getSomething();
+u.toUpperCase();          // ❌ 編譯就擋下來：Object is of type 'unknown'
+
+if (typeof u === &quot;string&quot;) {
+  u.toUpperCase();        // ✅ 收窄成 string 之後才准用
+}
+</code></pre>
+<p><code>typeof u === "string"</code> 這行叫 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">型別守衛（Type Guard）</mark>。TypeScript 看得懂 <code>typeof</code> 的比較結果，會在 <code>if</code> 區塊裡把 <code>u</code> 的型別從 <code>unknown</code> 自動收窄成 <code>string</code>，這叫「控制流分析（Control Flow Analysis）」。</p>
+<p><strong>n.</strong> 所以 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>JSON.parse</code> 的回傳你可以自己收成 <code>unknown</code></mark>，強迫自己在用之前先驗證：</p>
+<pre><code class="language-ts">const data: unknown = JSON.parse(userInput);
+
+function isUser(v: unknown): v is { name: string } {
+  return typeof v === &quot;object&quot; &amp;&amp; v !== null &amp;&amp; typeof (v as any).name === &quot;string&quot;;
+}
+
+if (isUser(data)) {
+  console.log(data.name);   // ✅ 這裡 data 已經是 { name: string }
+}
+</code></pre>
+<p><code>v is { name: string }</code> 是 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">型別謂詞（Type Predicate）</mark>——回傳 <code>true</code> 的時候，請把參數 <code>v</code> 當成那個型別。這是自訂型別守衛的寫法。</p>
+<hr />
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<table>
+<thead>
+<tr>
+<th>Gemini 說法</th>
+<th>查證後</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>「大家常說 Avoid any at all costs」</td>
+<td>基本正確但要補一句</td>
+<td>官方 Do's and Don'ts 的原文比較精準：除非你正在把 JavaScript 專案遷移成 TypeScript，否則不要用 <code>any</code>。編譯器對 <code>any</code> 的處理等同「請關掉這東西的型別檢查」</td>
+</tr>
+<tr>
+<td>只列了 <code>any</code> 與 <code>unknown</code></td>
+<td>少了一半</td>
+<td>對話裡沒有提到 <code>unknown</code> 之所以安全的關鍵機制——<strong>型別收窄</strong>與<strong>型別守衛</strong>。沒有這兩個工具，<code>unknown</code> 只會讓人覺得「什麼都不能做很煩」就換回 <code>any</code>。本篇 m、n 兩節補上</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_3">練習題（延伸）</h2>
+<p><code>any</code> 與 <code>unknown</code> 屬於型別系統議題，LeetCode 與 NeetCode 沒有對應題目（它們考演算法）。想練這一塊，社群公認的題庫是 <strong>type-challenges</strong>：</p>
+<ul>
+<li>type-challenges 題庫 — <a href="https://github.com/type-challenges/type-challenges">https://github.com/type-challenges/type-challenges</a></li>
+<li>建議從 warm-up 與 easy 的 <code>Pick</code>、<code>Readonly</code>、<code>Tuple to Object</code> 開始，這幾題會逼你放棄 <code>any</code>、改用泛型與 <code>keyof</code>。</li>
+</ul>
+<hr />
+<h2 id="_4">各對話來源（原文重點）</h2>
+<h3 id="laptop-architecture-detection-guide2026-httpsgeminigooglecomappf00083e09ec02fa5">〈Laptop Architecture Detection Guide〉（2026 年，前半段）— <a href="https://gemini.google.com/app/f00083e09ec02fa5">https://gemini.google.com/app/f00083e09ec02fa5</a></h3>
+<p><strong>使用者：</strong> <code>let someValue: any = "this is a string";</code> 這邊的 any 是？<br />
+<strong>Gemini：</strong> 在 TypeScript 的世界裡，any 被稱為「逃生艙口（Escape Hatch）」⋯⋯你是在告訴編譯器「放棄對這個變數進行任何型別檢查」。（後接 any 的本質、使用場景、any vs unknown 對照表）</p>
+<p><strong>使用者：</strong> 那為什麼不直接把 any 換成 string 就好<br />
+<strong>Gemini：</strong> 如果能直接用 string，當然應該直接用。之所以會出現「先用 any 再用斷言」，通常是因為遇到了無法預知或被迫接受的資料——資料來自外部世界（API 或 JSON）、第三方套件的限制、邏輯上的型別收窄。</p>
+<blockquote>
+<p>註：這場對話的標題是「Laptop Architecture Detection Guide」，但內容其實橫跨三個主題。後半段的「VS Code 為什麼不用另外裝 runtime」已另立為 <span class="wikilink" title="Obsidian 連結：build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain">build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain</span>，架構偵測的部分見 <span class="wikilink" title="Obsidian 連結：計算機基礎/CPU架構偵測-x64與ARM64">計算機基礎/CPU架構偵測-x64與ARM64</span>。</p>
+</blockquote>
+<hr />
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始對話（Gemini）</td>
+<td>https://gemini.google.com/app/f00083e09ec02fa5</td>
+<td>2026-08-27 讀取</td>
+</tr>
+<tr>
+<td>TypeScript Handbook — Everyday Types（any 的定義與 noImplicitAny）</td>
+<td>https://www.typescriptlang.org/docs/handbook/2/everyday-types.html</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>TypeScript 3.0 Release Notes — unknown 型別的正式定義</td>
+<td>https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>TypeScript Do's and Don'ts — 不要用 any 的官方說法</td>
+<td>https://www.typescriptlang.org/docs/handbook/declaration-files/do-s-and-don-ts.html</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>TypeScript Playground — Unknown and Never 範例</td>
+<td>https://www.typescriptlang.org/play/typescript/primitives/unknown-and-never.ts.html</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>type-challenges 型別練習題庫</td>
+<td>https://github.com/type-challenges/type-challenges</td>
+<td>2026-08-27 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-27</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

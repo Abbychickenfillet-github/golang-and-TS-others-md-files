@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vercel eve Agent 框架與 GitOps 零設定部署 — AI Gateway、Blackbox 與 GLM 5.2 的角色</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Vercel eve Agent 框架與 GitOps 零設定部署 — AI Gateway、Blackbox 與 GLM 5.2 的角色</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#deployment</span><span class="pill">#vercel</span><span class="pill">#ai-agent</span><span class="pill">#gitops</span><span class="pill">#cicd</span><span class="pill">#ai-gateway</span><span class="pill">#llm</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-27</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/c88d2e6e9602cab6" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">eve 是某一個特定 AI Agent 的名字。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是 Vercel 推出的 Agent 開發框架與 CLI 工具。</div></li><li><p class="qq">Blackbox AI 在這個情境中扮演的是模型託管與提供商的角色。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Vercel AI Gateway 整合它把 GLM 5.2 串進平台。</div></li><li><p class="qq">用了 eve 框架就必須放棄 Claude。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Claude 是模型（Brain），eve 是框架（Skeleton），隨時可在 agent.ts 切換模型。</div></li><li><p class="qq">用 Vercel 的 Clone Template 流程，需要自己先在 GitHub 手動建 repo 再貼上程式碼。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">流程本身就會替你在指定帳號下建立 repo 並推入模板程式碼。</div></li><li><p class="qq">GitOps 的核心主張之一是「版本控制即單一事實來源」。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">部署狀態由 Git 中的內容決定，可回溯可回滾。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">把多家模型供應商統一在同一個 API 後面的 Vercel 服務叫 <input class="blank" data-a="AI Gateway" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">換模型只要改設定字串。</div></li><li><p class="qq">「基礎設施即程式碼」的英文縮寫是 <input class="blank" data-a="IaC" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Infrastructure as Code。</div></li><li><p class="qq">用 CLI 建立 eve 專案的指令是 npx eve@latest <input class="blank" data-a="init" placeholder="填答案" autocomplete="off"> my-agent。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">my-agent 才是你自己 Agent 的名字。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">「Clone 模板到 GitHub 就能自動部署」這件事，跟自己寫一套 GitHub Actions CI/CD 相比，各省掉與各犧牲了什麼？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：省掉的是——不必自己寫 workflow yaml、不必管 runner 與快取、不必設定憑證與部署目標、不必處理預覽環境。犧牲的是——建置流程被平台封裝，客製空間小（例如要跑特殊的測試矩陣或多階段建置就綁手綁腳）、供應商鎖定（Vendor Lock-in）、成本模型不透明、以及對「到底發生了什麼」的理解變淺。實務判斷：MVP 與個人專案用平台的零設定，團隊產品線與需要合規稽核的專案自己掌握流水線。</div></li></ol></section>
+
+<article class="card">
+<h1 id="vercel-eve-agent-gitops-ai-gatewayblackbox-glm-52">Vercel eve Agent 框架與 GitOps 零設定部署 — AI Gateway、Blackbox 與 GLM 5.2 的角色</h1>
+<p>本篇重點 a–k，共 11 個</p>
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">一、名詞各自是什麼角色（最容易混在一起的三個）</h3>
+<p>a. <mark style="background: #ADCCFF;">eve</mark>：Vercel 推出的 <mark style="background: #FFF3A3;">AI Agent 開發框架與 CLI 工具</mark>，<mark style="background: #FF5582;">不是某個特定 Agent 的名字</mark>。可以用 <code>npx eve@latest init my-agent</code> 建立自己的 Agent 專案，用 <code>eve set --model zai/glm-5.2</code> 之類的指令設定模型。指令裡的 <code>my-agent</code> 才是你自己 Agent 的名字。</p>
+<p>b. <mark style="background: #ADCCFF;">Vercel AI Gateway</mark>：模型呼叫的統一入口（Gateway），把多家模型供應商串在同一個 API 後面，讓你在專案裡換模型只要改設定字串。</p>
+<p>c. <mark style="background: #ADCCFF;">Blackbox AI</mark>：在這件事裡扮演的是<mark style="background: #FFF3A3;">模型託管與提供商（Provider）</mark>的角色。Vercel 的 AI Gateway 整合了它的服務，把 GLM 5.2 等開放模型串進平台供開發者呼叫。</p>
+<p>d. <mark style="background: #ADCCFF;">Claude 與 eve 的關係</mark>：<mark style="background: #BBFABB;">兩者性質不同，不用二選一</mark>。Claude 是模型（Brain），eve 是 Agent 的開發框架與軟體架構（Skeleton／Environment）。在 <code>agent/agent.ts</code> 裡可以先把模型設成 GLM 5.2 享優惠，之後隨時切回 Claude 或其他 AI Gateway 支援的模型。</p>
+<p>e. 只要在既有專案中引入 eve 套件並建立 <code>agent/agent.ts</code> 寫入設定，該專案就具備 eve Agent 的基礎架構——<mark style="background: #FFF3A3;">這個設定檔就是讓應用程式變成 Agent 的關鍵核心</mark>。</p>
+<h3 id="clone-github">二、「Clone 模板到 GitHub 就能部署」背後的理念</h3>
+<p>f. 這套流程背後是 <mark style="background: #ADCCFF;">IaC（Infrastructure as Code，基礎設施即程式碼）</mark>與 <mark style="background: #ADCCFF;">GitOps</mark> 的整合，加上 Vercel 主打的 <mark style="background: #ADCCFF;">Zero-Configuration（零設定）</mark>開發體驗。</p>
+<p>g. <mark style="background: #FFF3A3;">版本控制即單一事實來源（Single Source of Truth）</mark>：專案原始碼與設定檔集中放在 GitHub，每次變更與部署狀態都有歷史紀錄可循，要回滾就是回到某個 commit。</p>
+<p>h. <mark style="background: #BBFABB;">自動化 CI/CD 流水線</mark>：GitHub 帳號連結 Vercel 之後，只要 Fork／Clone 該模板並推送到 GitHub，Vercel 就自動觸發 Build（打包）與 Deploy（部署），不必自己設定伺服器或寫部署腳本。</p>
+<p>i. <mark style="background: #FFB8EB;">快速驗證 MVP</mark>：讓開發者能在幾分鐘內，從一個想法變成線上有網址、具備串流（Streaming）與 AI 介面的完整應用。</p>
+<h3 id="_3">三、實際操作步驟</h3>
+<p>j. 官方模板路徑：點畫面上的 <mark style="background: #BBFABB;">Clone Template</mark> 按鈕 →「Create Git Repository」步驟中<mark style="background: #FFF3A3;">選擇你自己的 GitHub 帳號並填一個新的 repo 名稱</mark>（Vercel 會自動幫你在該帳號底下建立 repo 並推入模板程式碼，不需要你手動貼到 GitHub 任何地方）→ 填入所需環境變數（該模板要求 <code>EVE_CHAT_PASSWORD</code>）→ Deploy。部署完成後在 Vercel AI Gateway 把模型切換／設定為 GLM 5.2 即可。</p>
+<p>k. <mark style="background: #FF5582;">⚠️ 對話中的缺口</mark>：Abby 追問「Fork/Clone 之後到底要貼到 GitHub 的哪裡」時，Gemini 回覆失敗沒有答出來。上面 (j) 是補齊的答案：<mark style="background: #BBFABB;">Vercel 的 Clone Template 流程本身就會替你建立 repo，你不需要手動複製貼上任何程式碼</mark>；如果是用 CLI 起專案，才需要自己 <code>git init</code>、<code>git remote add origin &lt;你的 repo 網址&gt;</code>、<code>git push -u origin main</code>。</p>
+<h2 id="_4">關聯筆記（附關聯原因）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：GitHub-Actions-CICD-ghcr與Docker映像檔">GitHub-Actions-CICD-ghcr與Docker映像檔</span> — 那篇是自己動手寫 CI/CD 流水線，本篇 (h) 則是平台幫你全部包好的版本，兩篇對照最能看出 Zero-Configuration 省掉了哪些步驟。</li>
+<li><span class="wikilink" title="Obsidian 連結：Zeabur-主機遷移-DeepSeek-API與費用比較">Zeabur-主機遷移-DeepSeek-API與費用比較</span> — 同樣是「PaaS 平台 + 模型 API 費用」的選型比較，可與本篇 (c)(d) 的模型供應商角色一起看。</li>
+<li><span class="wikilink" title="Obsidian 連結：Jekyll與GitHub-Pages把Markdown筆記變成免費網站">Jekyll與GitHub-Pages把Markdown筆記變成免費網站</span> — 同屬「推上 GitHub 就自動部署」的 GitOps 體驗，是本篇 (g)(h) 概念的另一個實例。</li>
+<li><span class="wikilink" title="Obsidian 連結：LLM-Memory">LLM-Memory</span> 資料夾內的 Agent 相關筆記 — 本篇 (a)(e) 的 Agent 框架與那些筆記的 Agent／MCP 概念屬同一條學習線。</li>
+</ul>
+<h2 id="_5">各對話來源（原文）</h2>
+<h3 id="2026-08-27-httpsgeminigooglecomappc88d2e6e9602cab6">免費部署教學指南（2026-08-27）— https://gemini.google.com/app/c88d2e6e9602cab6</h3>
+<p>使用者：我現在要怎麼用這個免費部署</p>
+<p>Gemini：要使用畫面中提供的免費體驗（GLM 5.2），可以按照以下步驟操作：點擊畫面左下角提示框的 Learn More，或點擊中央 Start with the Eve Chat Template 區塊中的 Clone Template 按鈕；將模板複製（Clone）至您的 GitHub 帳號並部署到 Vercel；部署完成後，透過 Vercel AI Gateway 將模型切換／設定為 GLM 5.2 即可免費使用至 8 月 27 日。</p>
+<p>使用者：eve 是 agent 的名字嗎</p>
+<p>Gemini：eve 在這裡主要指的是 AI Agent 的開發框架與生態系統，而不是單一某個具體 Agent 的名字。開發框架／CLI 工具：它是 Vercel 推出的 Agent 框架，你可以透過 <code>npx eve@latest init my-agent</code> 建立自己的 Agent 專案，也可以透過 CLI 指令（如 <code>eve set --model zai/glm-5.2</code>）來設定與管理 Agent 的模型。預設模板／範例：頁面上的 eve Chat Template 並不是單一特定 Agent 的名字，而是 Vercel 推出的 Agent 開發框架與工具名稱。當你使用 CLI 指令建立專案時（例如執行 <code>npx eve@latest init my-agent</code>），<code>my-agent</code> 才代表你所建立的 Agent 名稱。</p>
+<p>使用者：blackbox 是什麼？那我原本有 claude，所以我在我專案建這個檔之後就有一個 vercel 的 eve agent 了嗎</p>
+<p>Gemini：Blackbox AI 在這裡扮演的是模型託管與提供商（Provider）的角色。Vercel 的 AI Gateway 透過整合 Blackbox AI 的服務，將 GLM 5.2 等開放模型串接到平台中供開發者免費或付費呼叫。關於 eve Agent 與專案檔案：不需要完全放棄 Claude，這兩者的性質不同。Claude 是你目前使用的 AI 模型（Brain）；eve 是 Vercel 的 Agent 開發框架與軟體架構（Skeleton／Environment）。若你在既有的專案中建立 <code>agent/agent.ts</code> 並寫入設定，這代表你正在使用 eve 框架來定義一個 Agent。建立專案／檔案：當你在專案中引入 eve 套件並建立 <code>agent/agent.ts</code> 後，該專案就具備了 eve Agent 的基礎架構。模型的選擇：你可以在 <code>agent.ts</code> 中將模型設定為 GLM 5.2，或者在之後切換回 Claude 或其他由 AI Gateway 支援的模型。簡單來說，這個設定檔就是讓你的應用程式具備 eve Agent 特性的關鍵核心。</p>
+<p>使用者：這是什麼理念啊？把這個模板放到 GitHub 帳戶就可以部署 vercel</p>
+<p>Gemini：這主要是「Infrastructure as Code (IaC) / 宣告式開發」與「GitOps 部署流程」的整合理念。Vercel 提倡的是 Zero-Configuration（零設定）與開箱即用的開發體驗。這種設計理念的核心在於：版本控制即 single source of truth，將專案原始碼與設定檔集中放在 GitHub，確保每次程式碼變更與部署狀態都有歷史紀錄可循；自動化 CI/CD 流水線，只要你的 GitHub 帳號連結了 Vercel，當你 Fork/Clone 該模板並推送到 GitHub，Vercel 就會自動觸發 Build（打包）與 Deploy（部署）流程，無須自己手動設定伺服器或編寫複雜的部署腳本；快速驗證 MVP，讓開發者能在幾分鐘內，從一個想法直接變成線上有網址、具備 Streaming 與 AI 介面能力的完整應用。</p>
+<p>使用者：當你 Fork/Clone 該模板並推送到 GitHub，到底要貼到 github 的哪，倒是講清楚啊</p>
+<p>Gemini：（此則回覆失敗，Gemini 表示沒有存取該內容的權限，未答出結果。補答見本篇重點 j 與 k。）</p>
+<h2 id="_6">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/c88d2e6e9602cab6</td>
+<td>2026-08-27 擷取</td>
+</tr>
+<tr>
+<td>Vercel 官方文件 — AI Gateway</td>
+<td>https://vercel.com/docs/ai-gateway</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>Vercel 官方文件 — Deploying Git repositories（Clone Template 建立 repo 流程）</td>
+<td>https://vercel.com/docs/deployments/git</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>Vercel — eve Agent 範例庫</td>
+<td>https://github.com/vercel/eve-examples</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>Weaveworks — GitOps 原始定義文章</td>
+<td>https://www.weave.works/technologies/gitops/</td>
+<td>2026-08-27 查證</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><mark style="background: #FF5582;">時效提醒</mark>：本篇提到的 GLM 5.2 免費額度截止日為 2026-08-27，之後請以 Vercel AI Gateway 當下的定價頁為準。</p>
+</blockquote>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-27</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

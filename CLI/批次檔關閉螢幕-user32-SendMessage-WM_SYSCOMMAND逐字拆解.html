@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>批次檔關閉螢幕逐字拆解｜@echo off、Add-Type、user32.dll、SendMessage 與 WM_SYSCOMMAND</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>批次檔關閉螢幕逐字拆解｜@echo off、Add-Type、user32.dll、SendMessage 與 WM_SYSCOMMAND</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#batch</span><span class="pill">#cmd</span><span class="pill">#powershell</span><span class="pill">#win32api</span><span class="pill">#user32</span><span class="pill">#dllimport</span><span class="pill">#pinvoke</span><span class="pill">#taskkill</span><span class="pill">#資安</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-27</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/c95ccb548d2e60b5" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">@echo off 前面那個 @ 的作用，是連 echo off 這一行自己都不要印出來。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">因為 echo off 這行是在 echo 還開著的時候執行的，不加 @ 會先印出 echo off 五個字才生效。</div></li><li><p class="qq">taskkill /f /im cmd.exe 只會關掉當前這個 CMD 視窗。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">/im 是依映像名稱比對，會殺掉所有叫 cmd.exe 的行程。你另外開的視窗會一起陪葬。想只關自己用 exit。</div></li><li><p class="qq">Add-Type 可以在執行期間即時編譯一段 C# 並把型別載入當前 PowerShell session。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">所以這一行做的事是「現場寫 C#、現場編譯、現場用」。</div></li><li><p class="qq">Add-Type 不加 -PassThru 也一樣可以接著用 :: 呼叫靜態方法。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">不行。-PassThru 才會把編譯出來的型別物件回傳出去，沒有它就接不到東西。</div></li><li><p class="qq">SendMessage 是非同步的，丟出去就馬上返回。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">SendMessage 會等對方的視窗程序處理完才返回（同步阻塞）。丟了就走的是 PostMessage。</div></li><li><p class="qq">SendMessage 的第一個參數傳 -1，代表廣播給系統中所有最上層視窗。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">-1 就是 HWND_BROADCAST。</div></li><li><p class="qq">lParam 傳 1 是關閉螢幕、傳 2 是進入低耗電。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">反了。1 是低耗電，2 才是關閉，-1 是開啟。這組最常記錯。</div></li><li><p class="qq">把這支腳本包成 Windows 服務，開機就能自動關螢幕。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">因為 Session 0 Isolation，服務沒有存取顯示器的權限，這招在服務裡會失效。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">負責視窗、訊息佇列、選單、滑鼠鍵盤輸入的 Windows 核心元件是 <input class="blank" data-a="user32" placeholder="填答案" autocomplete="off">.dll。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">另外兩支常見的是 kernel32.dll（記憶體與行程）與 gdi32.dll（繪圖）。</div></li><li><p class="qq">讓 .NET 受管理程式碼去呼叫原生 DLL 函式的機制，縮寫 P/Invoke，全名 Platform <input class="blank" data-a="Invocation" placeholder="填答案" autocomplete="off"> Services。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">靠 [DllImport] 屬性標註來宣告。</div></li><li><p class="qq">C# 裡宣告「這個方法沒有 body、實作在外部」的關鍵字是 <input class="blank" data-a="extern" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">配合 [DllImport] 一起用。</div></li><li><p class="qq">0x0112 這個訊息代碼的常數名稱是 WM<input class="blank" data-a="SYSCOMMAND" placeholder="填答案" autocomplete="off">_。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">代表這是一則系統指令訊息。</div></li><li><p class="qq">0xF170 這個子指令的常數名稱是 SC<input class="blank" data-a="MONITORPOWER" placeholder="填答案" autocomplete="off">_。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">WM_SYSCOMMAND 的子類別：顯示器電源管理。</div></li><li><p class="qq">微軟文件要求處理 WM_SYSCOMMAND 時，wParam 要先跟 0x<input class="blank" data-a="FFF0" placeholder="填答案" autocomplete="off"> 做 AND 遮罩才拿去比對常數。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">因為低 4 位元被系統保留給內部使用。</div></li><li><p class="qq">PowerShell 裡呼叫靜態成員的運算子是兩個冒號 <input class="blank" data-a="::" placeholder="填答案" autocomplete="off">，等同 C# 的點。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">例如 [Math]::Pow(2,10)。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">有人在論壇丟給你一支三行的 .bat 檔說「按一下就能關螢幕」。請完整說明：這三行分別在做什麼（逐個參數解釋 SendMessage 的四個魔術數字）、你會在執行前檢查哪些資安紅旗、原版有哪兩個實作缺陷、以及為什麼它在 Windows 服務裡不會生效。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 第一行 @echo off——echo off 關掉指令回顯，前綴 @ 讓這行自己也不顯示。(2) 第二行 powershell -windowstyle hidden -command &quot;...&quot;——啟動 PowerShell、隱藏視窗、執行單行指令；裡面的 \&quot; 是跳脫字元，因為整串已經被一對雙引號包住。核心是 Add-Type 即時編譯一段帶 [DllImport(&quot;user32.dll&quot;)] 的 C#（這是 P/Invoke，Platform Invocation Services），-Name a 命名、-PassThru 把型別回傳出來，再用 :: 呼叫靜態方法 SendMessage。(3) 四個參數——hWnd = -1 是 HWND_BROADCAST，廣播給所有最上層視窗；hMsg = 0x0112 是 WM_SYSCOMMAND，系統指令訊息；wParam = 0xF170 是 SC_MONITORPOWER，顯示器電源管理；lParam = 2 是關閉（-1 開啟、1 低耗電）。順帶一提官方要求處理時 wParam 要先 &amp; 0xFFF0，因為低 4 位元系統保留。(4) 第三行 taskkill /f /im cmd.exe——/f 強制、/im 依映像名稱。(5) 資安紅旗——-windowstyle hidden 隱藏視窗、一長串看不懂的內嵌程式碼、直接呼叫底層 API 這三點是惡意腳本的典型長相；ClickFix 那類社交工程攻擊就是誘騙使用者貼上執行看不懂的 PowerShell。執行任何來路不明的 .bat 前要先用記事本讀完。(6) 兩個缺陷——/im cmd.exe 會誤殺所有 CMD 視窗（該用 exit）；沒有先 sleep，你按 Enter 的殘留輸入會立刻把螢幕喚醒。另外 hWnd 宣告成 int 在 64 位元下不嚴謹，正式寫法應該用 IntPtr。(7) 服務失效的原因——Session 0 Isolation，Windows 服務跑在工作階段 0，沒有存取互動式桌面顯示器的權限。</div></li></ol></section>
+
+<article class="card">
+<h1 id="_1">批次檔關閉螢幕逐字拆解</h1>
+<blockquote>
+<p>[!info] 本篇重點 a–s 共 19 個<br />
+一支只有三行的 <code>.bat</code> 檔，卻同時用到 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Batch 語法</mark>、<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">PowerShell 語法</mark>、<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">C# 內嵌程式碼</mark> 與 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Win32 API 呼叫</mark>。把它拆完，等於把 Windows 的四層抽象走了一遍。</p>
+<p>[!info] 與其他筆記的關聯（附理由）<br />
+<strong>a.</strong> 承接 <span class="wikilink" title="Obsidian 連結：powershell-vs-bash">powershell-vs-bash</span>：本篇是「PowerShell 能直接呼叫 .NET 與 Win32 API」這個設計特色的極端案例——這是 Bash 做不到的事，Bash 得寫 C 再編譯。<br />
+<strong>b.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：查詢與刪除PID-netstat-taskkill-Stop-Process">查詢與刪除PID-netstat-taskkill-Stop-Process</span>：本篇第三行的 <code>taskkill /f /im cmd.exe</code> 就是那篇的指令，這裡是它的實戰用法（自我了結）。<br />
+<strong>c.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：PowerShell-多指令分隔與netsh防火牆規則">PowerShell-多指令分隔與netsh防火牆規則</span>：同樣是「PowerShell 一行指令做系統層級的事」，可以對照兩者的引號跳脫技巧。<br />
+<strong>d.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：backend/ClickFix社交工程攻擊-假驗證碼誘騙貼上PowerShell與網站被注入的處置">backend/ClickFix社交工程攻擊-假驗證碼誘騙貼上PowerShell與網站被注入的處置</span>：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">本篇這種語法正是 ClickFix 那類攻擊最愛用的載體</mark>——看不懂的一行 PowerShell 貼進去就執行，兩篇一起看能建立警覺。<br />
+<strong>e.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：計算機基礎/CPU五大單元-ALU-CU-暫存器-快取與微指令">計算機基礎/CPU五大單元-ALU-CU-暫存器-快取與微指令</span>：DLL 是「作業系統提供給應用程式的函式庫」，跟硬體層的分工可以對照著看抽象層次。</p>
+</blockquote>
+<hr />
+<h2 id="_2">原始碼</h2>
+<pre><code class="language-bat">@echo off
+powershell -windowstyle hidden -command &quot;(Add-Type '[DllImport(\&quot;user32.dll\&quot;)]public static extern int SendMessage(int hWnd, int hMsg, int wParam, int lParam);' -Name a -Passthru)::SendMessage(-1, 0x0112, 0xF170, 2)&quot;
+taskkill /f /im cmd.exe
+</code></pre>
+<p><strong>f.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">目的：關閉顯示器（讓螢幕進入省電狀態），然後把自己開出來的 CMD 視窗殺掉，做到「按一下就黑屏、不留視窗」</mark>。</p>
+<hr />
+<h2 id="_3">重點整理</h2>
+<h3 id="batch-gi">一、Batch 外層（g–i）</h3>
+<p><strong>g.</strong> <code>@echo off</code></p>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>echo on</code> / <code>echo off</code></td>
+<td>Batch 的內建開關。<code>on</code>（預設）會把每一行指令本身也印在畫面上；<code>off</code> 只印執行結果</td>
+</tr>
+<tr>
+<td>開頭的 <code>@</code></td>
+<td>「連這一行自己都不要印」。因為 <code>echo off</code> 這行本身是在 <code>echo</code> 還開著的時候執行的，不加 <code>@</code> 就會先印出 <code>echo off</code> 這五個字才生效</td>
+</tr>
+</tbody>
+</table>
+<p><strong>h.</strong> <code>taskkill /f /im cmd.exe</code></p>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>taskkill</code></td>
+<td>Windows 內建的行程終止工具（等同 PowerShell 的 <code>Stop-Process</code>、Linux 的 <code>kill</code>）</td>
+</tr>
+<tr>
+<td><code>/f</code></td>
+<td>force，強制終止。不給行程收尾的機會，等同 Linux 的 <code>kill -9</code>（SIGKILL）</td>
+</tr>
+<tr>
+<td><code>/im cmd.exe</code></td>
+<td>Image Name，用「執行檔名稱」指定目標，而不是用 PID</td>
+</tr>
+</tbody>
+</table>
+<p><strong>i.</strong> <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">陷阱：<code>/im cmd.exe</code> 是「殺掉所有叫做 cmd.exe 的行程」，不是「殺掉我自己」</mark>。如果你同時開了三個命令提示字元視窗，這一行會把三個都關掉。要只關自己，比較安全的寫法是 <code>exit</code>，或用 PID 精準指定。</p>
+<hr />
+<h3 id="powershell-jk">二、PowerShell 的外層參數（j–k）</h3>
+<p><strong>j.</strong> <code>powershell -windowstyle hidden -command "..."</code></p>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>powershell</code></td>
+<td>呼叫 Windows PowerShell 5.1（<code>powershell.exe</code>）。若是 PowerShell 7 則是 <code>pwsh</code></td>
+</tr>
+<tr>
+<td><code>-windowstyle hidden</code></td>
+<td>執行時不要顯示那個藍色視窗。使用者完全看不到有東西閃過</td>
+</tr>
+<tr>
+<td><code>-command "..."</code></td>
+<td>把引號裡的字串當成 PowerShell 指令執行完就退出</td>
+</tr>
+</tbody>
+</table>
+<p><strong>k.</strong> <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>-windowstyle hidden</code> 是資安上的紅旗</mark>。合法的自動化腳本會用它避免畫面閃爍，但惡意程式也用它藏住自己的動作。看到來路不明的腳本帶這個參數，先停下來讀完內容再說。</p>
+<p>裡面那些 <code>\"</code> 是 <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">跳脫字元</mark>：整個 PowerShell 指令已經被一對雙引號包住了，所以字串內部的雙引號必須寫成 <code>\"</code>，CMD 才不會提早把引號閉合掉。</p>
+<hr />
+<h3 id="add-type-pinvokelo">三、Add-Type 與 P/Invoke（l–o）</h3>
+<p><strong>l.</strong> <code>Add-Type</code> 是 PowerShell 的 cmdlet，作用是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在執行期間即時編譯一段 C# 程式碼，並把產生的 .NET 型別載入當前 session</mark>。換句話說，這一行做的事是「現場寫一個 C# class、現場編譯、現場用」。</p>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第一個位置參數（那段 C# 字串）</td>
+<td>要編譯的成員定義</td>
+</tr>
+<tr>
+<td><code>-Name a</code></td>
+<td>給這個臨時型別取名叫 <code>a</code></td>
+</tr>
+<tr>
+<td><code>-PassThru</code></td>
+<td>把編譯出來的型別物件「回傳出去」，這樣才能接著用 <code>::</code> 呼叫它的靜態方法。沒有這個參數的話 <code>Add-Type</code> 不回傳東西</td>
+</tr>
+</tbody>
+</table>
+<p><strong>m.</strong> <code>[DllImport("user32.dll")] public static extern int SendMessage(...)</code></p>
+<p>這是 .NET 的 <strong>P/Invoke（Platform Invocation Services，平台叫用服務）</strong> 寫法，讓受管理的 .NET 程式碼去呼叫非受管理的原生 DLL 函式。</p>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[DllImport("user32.dll")]</code></td>
+<td>屬性標註（Attribute），宣告「下面這個方法的實作在 user32.dll 裡面，不是我寫的」</td>
+</tr>
+<tr>
+<td><code>user32.dll</code></td>
+<td>Windows 的核心元件之一，負責使用者介面：視窗、訊息佇列、選單、滑鼠鍵盤輸入</td>
+</tr>
+<tr>
+<td><code>public static extern</code></td>
+<td><code>extern</code> 是關鍵字，意思是「這個方法沒有 body，實作在外部」。<code>static</code> 讓它可以不建立實例直接用 <code>::</code> 呼叫</td>
+</tr>
+<tr>
+<td><code>int SendMessage(int hWnd, int hMsg, int wParam, int lParam)</code></td>
+<td>對應原生 API 的簽章。四個參數的意義見下一節</td>
+</tr>
+</tbody>
+</table>
+<p><strong>n.</strong> <code>SendMessage</code> 是 Windows 訊息機制的核心函式，把一則訊息送進指定視窗的視窗程序（Window Procedure），<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">而且會等到對方處理完才回來（同步阻塞）</mark>。相對的 <code>PostMessage</code> 是丟進佇列就走人（非同步）。</p>
+<p><strong>o.</strong> <code>::SendMessage(...)</code> 裡的 <code>::</code> 是 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">PowerShell 的靜態成員存取運算子</mark>，等同 C# 的 <code>.</code>。<code>(Add-Type ... -PassThru)::SendMessage(...)</code> 就是「把剛編出來的型別接住，直接呼叫它的靜態方法」。</p>
+<hr />
+<h3 id="pr">四、四個魔術數字（p–r）</h3>
+<p><strong>p.</strong> <code>SendMessage(-1, 0x0112, 0xF170, 2)</code> 逐個參數解讀：</p>
+<table>
+<thead>
+<tr>
+<th>參數位置</th>
+<th>值</th>
+<th>常數名稱</th>
+<th>意義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hWnd</code>（目標視窗控制代碼）</td>
+<td><code>-1</code></td>
+<td><code>HWND_BROADCAST</code></td>
+<td>廣播給系統中所有的最上層視窗，而不是指定某一個</td>
+</tr>
+<tr>
+<td><code>hMsg</code>（訊息代碼）</td>
+<td><code>0x0112</code></td>
+<td><code>WM_SYSCOMMAND</code></td>
+<td>這是一則「系統指令」訊息</td>
+</tr>
+<tr>
+<td><code>wParam</code>（第一個參數）</td>
+<td><code>0xF170</code></td>
+<td><code>SC_MONITORPOWER</code></td>
+<td>系統指令的子類別：顯示器電源管理</td>
+</tr>
+<tr>
+<td><code>lParam</code>（第二個參數）</td>
+<td><code>2</code></td>
+<td>—</td>
+<td>電源狀態值</td>
+</tr>
+</tbody>
+</table>
+<p><strong>q.</strong> <code>lParam</code> 的三種值（<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這是最常記錯的一組</mark>）：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-1</code></td>
+<td>顯示器<strong>開啟</strong>（powering on）</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>顯示器進入<strong>低耗電</strong>狀態（low power）</td>
+</tr>
+<tr>
+<td><code>2</code></td>
+<td>顯示器<strong>關閉</strong>（shut off）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>r.</strong> <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼 <code>0xF170</code> 這麼奇怪</mark>：<code>WM_SYSCOMMAND</code> 的所有子指令都落在 <code>0xF000</code> 以上，而且低 4 位元被系統保留給內部使用。微軟文件明確要求：處理 <code>WM_SYSCOMMAND</code> 時要先把 <code>wParam</code> 跟 <code>0xFFF0</code> 做 AND 遮罩，才拿去比對常數。</p>
+<hr />
+<h3 id="s">五、⚠️ 安全與限制（s）</h3>
+<p><strong>s.</strong> 三件要知道的事：</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">惡意用途</mark></td>
+<td>這種「看不懂的一行 PowerShell」正是惡作劇程式與惡意軟體的典型長相。執行來源不明的 <code>.bat</code> 前，一定要先用記事本打開讀完</td>
+</tr>
+<tr>
+<td>只能在互動式桌面 session 跑</td>
+<td>因為 Session 0 Isolation（工作階段 0 隔離），Windows 服務無法用這招關螢幕。它必須從有存取顯示器權限的使用者 session 發出</td>
+</tr>
+<tr>
+<td>螢幕可能立刻自己亮回來</td>
+<td>只要有任何滑鼠移動或鍵盤輸入，Windows 就會重新喚醒顯示器。所以有些腳本會在發送訊息前先 <code>Start-Sleep -Seconds 1</code>，避開你按下 Enter 那一瞬間的殘留輸入</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">程式碼範例</h2>
+<p>同資料夾放了兩支可直接執行的範例（Batch 與 PowerShell 各一）：</p>
+<ul>
+<li><code>turn-off-monitor.bat</code> — 原始版本的加註解修正版（改掉會誤殺其他 CMD 視窗的那行）</li>
+<li><code>turn-off-monitor.ps1</code> — 純 PowerShell 版，比較好讀，也不用處理引號跳脫地獄</li>
+</ul>
+<hr />
+<h2 id="_5">⚠️ 存疑／更正</h2>
+<table>
+<thead>
+<tr>
+<th>Gemini 說法</th>
+<th>查證後</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>「<code>/im cmd.exe</code> 即關閉當前的 CMD 視窗」</td>
+<td>⚠️ 不精確</td>
+<td><code>/im</code> 是依映像名稱比對，會殺掉<strong>所有</strong>叫 cmd.exe 的行程，不只是當前這一個。想只關自己請用 <code>exit</code></td>
+</tr>
+<tr>
+<td>沒有提到 <code>0xFFF0</code> 遮罩</td>
+<td>補充</td>
+<td>微軟文件明確要求處理 <code>WM_SYSCOMMAND</code> 時 <code>wParam</code> 要先 <code>&amp; 0xFFF0</code>，因為低 4 位元系統保留</td>
+</tr>
+<tr>
+<td>沒有提到 Session 0 隔離</td>
+<td>補充</td>
+<td>這是實務上最常見的「為什麼包成 Windows 服務就失效」的原因</td>
+</tr>
+<tr>
+<td><code>SendMessage</code> 的 <code>hWnd</code> 型別寫成 <code>int</code></td>
+<td>在 64 位元下技術上不嚴謹</td>
+<td>原生 API 的 <code>HWND</code> 是指標，64 位元下是 8 bytes。正式程式應該用 <code>IntPtr</code>。這裡因為只傳常數 <code>-1</code> 廣播，實務上不會出錯，但抄去做別的事要注意</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_6">各對話來源（原文重點）</h2>
+<h3 id="powershell-2026-httpsgeminigooglecomappc95ccb548d2e60b5">〈批次檔 PowerShell 關閉螢幕指令〉（2026 年）— <a href="https://gemini.google.com/app/c95ccb548d2e60b5">https://gemini.google.com/app/c95ccb548d2e60b5</a></h3>
+<p><strong>使用者：</strong>（貼上上方三行原始碼）幫我解釋每個名詞意思<br />
+<strong>Gemini：</strong> 這是一段結合了 Batch 與 PowerShell 的進階指令，最終目的是透過 Windows API 直接控制硬體功能⋯⋯它透過 PowerShell 調用 Windows 系統底層的 user32.dll 函式庫，發送一個系統指令給所有視窗，要求螢幕進入省電狀態，最後自動關閉指令視窗。（後接 Batch 外層指令、PowerShell 與 .NET 互動、SendMessage 參數解析三段，以及安全提醒）</p>
+<hr />
+<h2 id="_7">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始對話（Gemini）</td>
+<td>https://gemini.google.com/app/c95ccb548d2e60b5</td>
+<td>2026-08-27 讀取</td>
+</tr>
+<tr>
+<td>WM_SYSCOMMAND message（Winuser.h）— SC_MONITORPOWER 與 lParam 三種值、0xFFF0 遮罩要求</td>
+<td>https://learn.microsoft.com/en-us/windows/win32/menurc/wm-syscommand</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>Microsoft Q&amp;A — 廣播關螢幕後的喚醒訊息與 Session 0 限制</td>
+<td>https://learn.microsoft.com/en-us/answers/questions/909846/when-sendmessage(hwnd-broadcast-wm-syscommand-wm-m</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>Microsoft Q&amp;A — 命令列關閉顯示器的做法討論</td>
+<td>https://learn.microsoft.com/en-us/answers/questions/2436135/how-can-i-turn-off-the-monitor-(i-e-put-it-to-slee?forum=windows-windows_7-desktop</td>
+<td>2026-08-27 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-27</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

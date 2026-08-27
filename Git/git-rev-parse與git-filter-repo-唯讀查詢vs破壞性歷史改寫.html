@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>git rev-parse 與 git filter-repo｜唯讀查詢 vs 破壞性歷史改寫</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>git rev-parse 與 git filter-repo｜唯讀查詢 vs 破壞性歷史改寫</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#git</span><span class="pill">#rev-parse</span><span class="pill">#filter-repo</span><span class="pill">#plumbing</span><span class="pill">#porcelain</span><span class="pill">#歷史改寫</span><span class="pill">#資安</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-25</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/f06f2551125baa3d" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">git rev-parse 會修改 repo 的內容。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">完全唯讀，跑一百次也不會動到任何東西。</div></li><li><p class="qq">git filter-repo 是 Git 內建指令。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是一支獨立的 Python 套件，需要另外安裝。git filter-repo 能這樣叫只是因為 Git 會把 git-xxx 的執行檔當子指令。</div></li><li><p class="qq">Plumbing 指令的輸出格式比 Porcelain 穩定，適合寫進 CI 腳本。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Porcelain 的輸出官方明講隨時可能改，寫腳本要用 plumbing。</div></li><li><p class="qq">git filter-repo --path passwords.txt 這樣寫就會把 passwords.txt 從歷史刪掉。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">少了 --invert-paths，意思會變成「只留這個檔案，其他全刪」，方向完全相反。</div></li><li><p class="qq">把金鑰用 filter-repo 從 Git 歷史刪掉之後，那把金鑰就安全了。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">只要曾經 push 過就要當作已外洩。正確順序是先去服務商後台作廢換新，再回來清歷史。</div></li><li><p class="qq">filter-repo 跑完之後 remote 會被移除，這是 bug。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是刻意設計，逼你重新確認要推去哪。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Git 把低階內部工具叫 Plumbing（水管），把包給人用的高階指令叫 <input class="blank" data-a="Porcelain" placeholder="填答案" autocomplete="off">（瓷器）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">官方拿馬桶做比喻：白瓷外殼看得到，水管藏在牆裡。</div></li><li><p class="qq">rev-parse 的 rev 是 revision 的縮寫，整個指令的本業是把人看得懂的名字翻譯成 <input class="blank" data-a="雜湊" placeholder="填答案" autocomplete="off"> 值。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">把 HEAD、main、v1.0、HEAD~3 翻成那個唯一的 40 字元 SHA-1。</div></li><li><p class="qq">想讓腳本不管從哪個子資料夾執行都找得到專案根目錄，用 git rev-parse --show-<input class="blank" data-a="toplevel" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">回傳 repo 根目錄的絕對路徑。</div></li><li><p class="qq">寫腳本時想先確認「我真的在 git repo 裡」，用 git rev-parse --is-inside-work-<input class="blank" data-a="tree" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">當作護欄，不在 repo 裡就中止。</div></li><li><p class="qq">git filter-repo 是官方推薦用來取代舊版 git filter-<input class="blank" data-a="branch" placeholder="填答案" autocomplete="off"> 的工具。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">filter-branch 官方文件開頭就寫著不建議使用，因為慢且容易做錯。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">你不小心把 .env 連同 AWS 金鑰 commit 並 push 到公司的 GitHub repo 了。請寫出完整處理流程，說明每一步的理由，並解釋 git rev-parse 在這整件事裡扮演什麼角色（或為什麼它幫不上忙）。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 第一步不是清歷史，是去 AWS Console 把那組 access key 立刻停用並產生新的。理由：只要 push 出去過就要當作已外洩，GitHub 上的公開 repo 幾秒內就會被爬蟲掃到，清歷史只是清掉紀錄不是清掉風險。順序反了整件事就沒意義。(2) 通知團隊與資安窗口，並檢查 AWS CloudTrail 有沒有異常呼叫。(3) 備份：先另外 clone 一份完整的 repo 放旁邊，因為接下來的操作不可逆。(4) 用 git filter-repo --path .env --invert-paths 把該檔案從整個歷史移除；--invert-paths 是關鍵，少了它意思會完全相反。(5) filter-repo 跑完會自己移除 remote，重新加回去，然後 git push --force 覆蓋遠端。(6) 通知所有協作者刪掉本機 repo 重新 clone，因為所有 commit SHA 都變了，他們的歷史對不上，硬 merge 會把舊 commit 又推回來。(7) 補上 .gitignore 與 pre-commit hook（例如 gitleaks），避免再犯。(8) rev-parse 的角色：它在這整件事裡完全幫不上忙，因為它是唯讀查詢工具，只能告訴你「現在 HEAD 是哪個 SHA」。但它在周邊很有用——寫檢查腳本時用 --is-inside-work-tree 當護欄、用 --show-toplevel 定位專案根目錄放 hook、清完之後用 rev-parse HEAD 記錄新的基準 commit 給團隊對照。這正好呈現 plumbing 與歷史改寫工具的分工。</div></li></ol></section>
+
+<article class="card">
+<h1 id="git-rev-parse-git-filter-repo-vs">git rev-parse 與 git filter-repo｜唯讀查詢 vs 破壞性歷史改寫</h1>
+<blockquote>
+<p>[!info] 本篇重點 a–k，共 11 個<br />
+這兩個指令唯一的共通點是名字裡都有「處理 commit」的味道，其他地方完全不同。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一個絕對不會改到你的東西，一個會把整個 repo 的歷史重寫一遍。</mark>會放在一起問，通常是因為在清理誤推的金鑰時同時遇到這兩個名詞。<br />
+關聯筆記：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：git-filter-repo">git-filter-repo</span></mark> 是實際操作步驟與踩坑紀錄，這篇補上「它跟查詢類指令的分界在哪」；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：Git-Graph-Outgoing-Changes與rev-parse-status-sb">Git-Graph-Outgoing-Changes與rev-parse-status-sb</span></mark> 講 <code>rev-parse</code> 在讀取分支狀態上的實際應用；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：git-ref-vs-branch-vs-head">git-ref-vs-branch-vs-head</span></mark> 講 <code>rev-parse</code> 要解析的那些「引用」到底是什麼。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="git">一. 先定義兩個 Git 世界的專有名詞</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Plumbing（水管）指令</mark>：Git 的低階內部工具，輸出格式穩定、適合寫進腳本，但不好給人看。<code>rev-parse</code>、<code>cat-file</code>、<code>hash-object</code>、<code>ls-tree</code> 都屬於這一類。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Porcelain（瓷器）指令</mark>：包給人用的高階指令，輸出漂亮但格式可能隨版本變動。<code>status</code>、<code>log</code>、<code>commit</code>、<code>checkout</code> 屬於這一類。</p>
+<blockquote>
+<p>[!note] 這個命名的由來<br />
+Git 官方把自己比喻成馬桶：Porcelain 是你看得到的白瓷外殼，Plumbing 是牆裡面那堆水管。<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">寫 CI script 時要用 plumbing，因為 porcelain 的輸出格式官方明講「隨時可能改」。</mark></p>
+</blockquote>
+<p>(c) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>rev-parse</code> 是 plumbing，<code>filter-repo</code> 兩者都不是——它根本不是 Git 內建指令，是一支獨立的 Python 套件。</mark></p>
+<h3 id="_2">二. 核心差異對照</h3>
+<p>(d)</p>
+<table>
+<thead>
+<tr>
+<th>比較項目</th>
+<th><code>git rev-parse</code></th>
+<th><code>git filter-repo</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主要功能</td>
+<td>解析 SHA-1 雜湊值、查詢 Git 內部狀態</td>
+<td>重寫專案 Git 歷史紀錄（History Rewriting）</td>
+</tr>
+<tr>
+<td>資料修改</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">唯讀，完全不修改資料</mark></td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">破壞性修改，所有 commit SHA 都會變</mark></td>
+</tr>
+<tr>
+<td>典型用途</td>
+<td>取得當前 commit ID、取得 <code>.git</code> 目錄路徑</td>
+<td>刪除誤推的金鑰／密碼、批次清理大檔</td>
+</tr>
+<tr>
+<td>工具類型</td>
+<td>Git 內建核心低階指令</td>
+<td>官方推薦的 Python 擴充套件，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">需額外安裝</mark></td>
+</tr>
+<tr>
+<td>執行速度</td>
+<td>毫秒級</td>
+<td>視 repo 大小，數秒到數十分鐘</td>
+</tr>
+<tr>
+<td>可逆嗎</td>
+<td>沒有東西可逆，它什麼都沒動</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不可逆，做之前一定要另外備份一份 clone</mark></td>
+</tr>
+</tbody>
+</table>
+<h3 id="git-rev-parse">三. <code>git rev-parse</code> 常用場景</h3>
+<p>(e)</p>
+<pre><code class="language-bash"># 取得目前 HEAD 的完整 40 字元 commit SHA
+git rev-parse HEAD
+
+# 只要前 7 碼（寫 log 或 tag 常用）
+git rev-parse --short HEAD
+
+# 檢查當前目錄是否在 Git 專案內（寫 script 的護欄）
+git rev-parse --is-inside-work-tree
+
+# 取得 repo 根目錄的絕對路徑（不管你 cd 到多深的子資料夾）
+git rev-parse --show-toplevel
+
+# 取得目前分支名稱
+git rev-parse --abbrev-ref HEAD
+</code></pre>
+<p>(f) 逐行拆解第一個：<code>HEAD</code> 是一個<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">引用（reference）</mark>，指向「你現在在哪個 commit」。<code>rev-parse</code> 的工作就是把這種人類看得懂的名字（<code>HEAD</code>、<code>main</code>、<code>v1.0</code>、<code>HEAD~3</code>、<code>main@{yesterday}</code>）翻譯成那個唯一的 40 字元雜湊值。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">rev = revision（版本），parse = 解析，合起來就是「版本名稱解析器」。</mark></p>
+<p>(g) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">實務用法：<code>--show-toplevel</code> 在寫專案腳本時特別好用</mark>，可以讓腳本不管從哪個子資料夾執行都找得到專案根目錄。</p>
+<h3 id="git-filter-repo">四. <code>git filter-repo</code> 常用場景</h3>
+<p>(h)</p>
+<pre><code class="language-bash"># 從整個 commit 歷史中徹底刪除 passwords.txt
+git filter-repo --path passwords.txt --invert-paths
+
+# 清除歷史中所有超過 50MB 的大型檔案
+git filter-repo --strip-blobs-bigger-than 50M
+</code></pre>
+<p>(i) 拆解第一個：<code>--path passwords.txt</code> 是「我關心這個路徑」，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>--invert-paths</code> 把選取反轉成「留下其他全部，把這個丟掉」</mark>。少了 <code>--invert-paths</code> 意思會變成「只留這個檔案，其他全刪」，方向完全相反。</p>
+<p>(j) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">三個一定要知道的陷阱：</mark></p>
+<ul>
+<li><strong>它是官方推薦用來取代 <code>git filter-branch</code> 的</strong>。<code>filter-branch</code> 官方文件現在開頭就寫著不建議使用，因為慢且容易做錯。</li>
+<li><strong><code>filter-repo</code> 預設會拒絕在有未推送變更或非新鮮 clone 的 repo 上跑</strong>，要加 <code>--force</code> 才會硬做。這個限制是保護你的，不要習慣性加 <code>--force</code>。</li>
+<li><strong>跑完之後 remote 會被移除</strong>，這是刻意設計，逼你重新確認要推去哪。之後要 <code>git push --force</code> 覆蓋遠端，並且<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">通知所有協作者重新 clone</mark>，因為他們本機的歷史已經對不上了。</li>
+</ul>
+<p>(k) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最重要的一點：把金鑰從 Git 歷史刪掉，不等於那把金鑰安全了。</mark>只要曾經 push 到遠端，就要當作已外洩，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">正確流程是先去服務商後台把那把金鑰作廢並換新，再回來清歷史</mark>。順序反了就沒有意義。</p>
+<hr />
+<h2 id="_3">程式碼範例</h2>
+<p>同層的 <code>rev-parse-cheatsheet.sh</code> 可以直接在任何 repo 裡跑，把 <code>rev-parse</code> 各種旗標的輸出一次印出來對照。</p>
+<hr />
+<h2 id="_4">練習題</h2>
+<p>Git 指令沒有 LeetCode 對應題，但 <code>rev-parse</code> 背後的物件模型（Git 是一棵 Merkle 樹）可以用這幾題練：</p>
+<table>
+<thead>
+<tr>
+<th>題號</th>
+<th>題名</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>236</td>
+<td><a href="https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree/">Lowest Common Ancestor of a Binary Tree</a></td>
+<td><code>git merge-base</code> 找共同祖先就是這件事</td>
+</tr>
+<tr>
+<td>1650</td>
+<td><a href="https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree-iii/">LCA of a Binary Tree III</a></td>
+<td>有 parent 指標的版本，更接近 commit 的資料結構</td>
+</tr>
+<tr>
+<td>210</td>
+<td><a href="https://leetcode.com/problems/course-schedule-ii/">Course Schedule II</a></td>
+<td>拓撲排序，<code>git log</code> 排列 commit 的底層邏輯</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_5">各對話來源（原文）</h2>
+<h3 id="git-rev-parse-filter-repo-2026-08-httpsgeminigooglecomappf06f2551125baa3d">Git rev-parse 與 filter-repo 差異（2026-08）— https://gemini.google.com/app/f06f2551125baa3d</h3>
+<p><strong>使用者：</strong> Git rev-parse 跟 git filter-repo 差在哪</p>
+<p><strong>Gemini：</strong> <code>git rev-parse</code> 與 <code>git filter-repo</code> 的定位與用途完全不同，兩者不能混為一談。<br />
+<code>git rev-parse</code> 是一個低階讀取工具（Plumbing Command）。它不會修改任何專案內容，專門用來解析與轉換 Git 的引用名稱、SHA-1 哈希值或查看 Repository 的狀態參數。<br />
+<code>git filter-repo</code> 是一個高階歷史改寫工具（Python 獨立擴充套件）。它會徹底重寫整個專案的 Commit 歷史紀錄，常用於移除敏感資料或刪除大型檔案（官方推薦用來替代舊版的 <code>git filter-branch</code>）。<br />
+（核心差異比較表與使用範例見上方「重點整理」二.、三.、四.，原文的表格與指令已完整收錄。）</p>
+<hr />
+<h2 id="_6">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本 / 查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/f06f2551125baa3d</td>
+<td>2026-08，本次歸檔 2026-08-25</td>
+</tr>
+<tr>
+<td>Git 官方文件 <code>git-rev-parse</code></td>
+<td>https://git-scm.com/docs/git-rev-parse</td>
+<td>查證 2026-08-25</td>
+</tr>
+<tr>
+<td><code>git-filter-repo</code> 官方 repo 與說明</td>
+<td>https://github.com/newren/git-filter-repo</td>
+<td>查證 2026-08-25</td>
+</tr>
+<tr>
+<td>Git 官方文件 <code>git-filter-branch</code>（含不建議使用的警語）</td>
+<td>https://git-scm.com/docs/git-filter-branch</td>
+<td>查證 2026-08-25</td>
+</tr>
+<tr>
+<td>Pro Git：Plumbing and Porcelain</td>
+<td>https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain</td>
+<td>查證 2026-08-25</td>
+</tr>
+<tr>
+<td>GitHub Docs：移除敏感資料</td>
+<td>https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository</td>
+<td>查證 2026-08-25</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!warning] ⚠️ 存疑 / 補充<br />
+Gemini 的分類與範例都正確，但<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">漏掉了 (j)(k) 這幾個實務上會咬人的部分</mark>：<code>filter-repo</code> 跑完會移除 remote、需要通知協作者重新 clone、以及「先作廢金鑰再清歷史」的順序。這些是本篇補上的，請以 GitHub 官方的移除敏感資料文件為準。<br />
+另外 Gemini 說 <code>filter-repo</code> 是「高階」工具，這個用詞容易跟 porcelain / plumbing 的分類混淆——<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它其實兩者都不是，它不是 Git 內建指令</mark>，<code>git filter-repo</code> 能這樣呼叫只是因為 Git 會把 <code>git-xxx</code> 這種名字的執行檔當成子指令。</p>
+</blockquote>
+<hr />
+<p><em>由 Gemini 對話自動整理 · 更新於 2026-08-25</em></p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-25</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

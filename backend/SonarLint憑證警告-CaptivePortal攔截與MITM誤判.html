@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SonarLint 憑證警告｜Captive Portal 攔截造成的 MITM 誤判</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>SonarLint 憑證警告｜Captive Portal 攔截造成的 MITM 誤判</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#資安</span><span class="pill">#security</span><span class="pill">#ssl</span><span class="pill">#tls</span><span class="pill">#mitm</span><span class="pill">#captive-portal</span><span class="pill">#sonarlint</span><span class="pill">#憑證</span><span class="pill">#網路</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-25</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/25e4d23461e5b89f" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Captive Portal 為了強制你看到登入頁而做的事，技術上就是中間人攻擊。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">它劫持你的請求、回傳自己的自簽憑證，這正是 MITM 的特徵。所以 SonarLint 才會誤判。</div></li><li><p class="qq">在咖啡廳遇到憑證警告時，點 Trust 比較省事而且沒什麼風險。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">絕對不要。點下去等於把攔截憑證存進信任庫，之後這條連線對持有私鑰的人就是明文。</div></li><li><p class="qq">登入 Wi-Fi 之後警告消失，是因為路由器把你的 MAC 加進允許名單、停止劫持了。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">流量直接放行到真正的網際網路，SonarLint 就拿得到正確憑證。</div></li><li><p class="qq">自簽憑證是由公信的憑證機構 CA 簽發的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">正好相反，是自己簽自己的，所以瀏覽器與程式預設不信任。</div></li><li><p class="qq">如果網路完全正常、也沒有 Captive Portal，憑證警告卻一直跳，可以先忽略它。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">這種情況要認真對待。換個網路再試，還是有的話就該查了。</div></li><li><p class="qq">作業系統本身有偵測 Captive Portal 的機制。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Windows 的 NCSI、Android 的 connectivitycheck.gstatic.com、Apple 的 captive.apple.com，靠打特定網址看回應對不對來判斷。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">公共 Wi-Fi 那個「同意條款才能上網」的登入頁，英文叫 <input class="blank" data-a="Captive" placeholder="填答案" autocomplete="off"> Portal。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">中文譯強制網路門戶或強制入口網頁。RFC 8952 定義其架構。</div></li><li><p class="qq">有人站在你和伺服器中間攔截竄改通訊，縮寫 MITM，全名 Man-In-The-<input class="blank" data-a="Middle" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">中間人攻擊。</div></li><li><p class="qq">由自己簽發、非公信 CA 簽發的憑證，叫做 <input class="blank" data-a="自簽" placeholder="填答案" autocomplete="off"> 憑證。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Self-signed Certificate，預設不被信任。</div></li><li><p class="qq">路由器停止劫持你的流量，是因為把你的 <input class="blank" data-a="MAC" placeholder="填答案" autocomplete="off"> 位址加進了允許名單。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Allowlist。</div></li><li><p class="qq">判斷法則：警告在完成 Wi-Fi 登入後就消失 → 誤判；網路正常卻持續出現 → 要 <input class="blank" data-a="認真對待" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這條是整篇最該記住的東西。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">在咖啡廳寫扣時 IDE 跳出「不可信的伺服器憑證」。請完整說明：這件事的技術成因、為什麼它跟真正的中間人攻擊在技術上難以區分、你會怎麼處理、以及你憑什麼判斷這次是誤判而不是真的被攻擊。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 成因——公共 Wi-Fi 的 Captive Portal 為了強制你看到登入頁，會把尚未認證的裝置所有請求劫持到自家認證頁。IDE 的外掛（如 SonarLint）在背景發 HTTPS 請求時被 AP 攔下，AP 回傳的是自己的自簽憑證（憑發者顯示為該設備廠商，例如 Ruckus Wireless Inc.），而不是外掛預期的伺服器憑證。憑證上的網域跟要連的網域對不上，TLS 驗證失敗，於是跳警告。(2) 為什麼難區分——因為它們做的是同一件事。真正的 MITM 也是插在中間、也是回傳自己的憑證。差別只在動機（一個是要你登入，一個是要偷資料），而動機在技術層面看不出來。這就是為什麼 TLS 的設計是「憑證對不上就一律報錯」，把判斷權交給人。(3) 處理——點 Don&#x27;t trust 或 Cancel，開瀏覽器把 Wi-Fi 登入流程走完，警告自然消失。絕對不在外部網路點 Trust，那等於把攔截憑證存進信任庫。實務習慣是連上公共 Wi-Fi 後先開瀏覽器完成登入，再開 IDE 或跑 npm install，可以避開一整批莫名其妙的連線錯誤。(4) 判斷依據——關鍵證據是「完成 Wi-Fi 登入後警告就消失」。若是真的攻擊，攻擊者沒有理由在你登入 Captive Portal 之後就收手。另外可以檢查憑證的簽發者是不是該場所的網路設備廠商、以及是否只在這個網路環境發生。反過來說，如果網路已經完全正常、也沒有 Captive Portal，警告卻持續出現，那就要換網路測試並認真調查。(5) 加分：提到唯一該點 Trust 的情境是公司內網做企業級 TLS inspection，那張憑證是公司自己的 CA，而且應該由 IT 事先公告。</div></li></ol></section>
+
+<article class="card">
+<h1 id="sonarlint-captive-portal-mitm">SonarLint 憑證警告｜Captive Portal 攔截造成的 MITM 誤判</h1>
+<blockquote>
+<p>[!info] 本篇重點 a–l，共 12 個<br />
+情境：在咖啡廳（路易莎）用 VS Code 寫扣，SonarLint 突然跳出「發現不可信的伺服器憑證」。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這是真的攻擊還是誤會？答案是誤會，但誤會的原因跟真正的中間人攻擊在技術上一模一樣。</mark><br />
+關聯筆記：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：ClickFix社交工程攻擊-假驗證碼誘騙貼上PowerShell與網站被注入的處置">ClickFix社交工程攻擊-假驗證碼誘騙貼上PowerShell與網站被注入的處置</span></mark> 講的是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">真的</mark>攻擊，這篇講的是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">誤判</mark>，兩篇對照著看才能練出「哪種警告該怕」的判斷力；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能">DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能</span></mark> 講 TLS 握手在做什麼，這篇是那個握手被第三方插隊時會發生的事。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">一. 先把名詞定義清楚</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">MITM（Man-In-The-Middle，中間人攻擊）</mark>：有人站在你和伺服器中間，攔截、竄改或偷看雙方的通訊。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Captive Portal（強制網路門戶）</mark>：公共 Wi-Fi 那個「同意條款才能上網」的登入頁。中文有時翻成「強制入口網頁」。</p>
+<p>(c) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">自簽憑證（Self-signed Certificate）</mark>：由自己簽發、而非由公信的憑證機構（CA，Certificate Authority）簽發的 SSL/TLS 憑證。瀏覽器與程式預設不信任。</p>
+<p>(d) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SonarLint</mark>：SonarSource 出的 IDE 靜態程式碼檢查外掛，會在背景連回 SonarQube / SonarCloud 伺服器抓規則。</p>
+<h3 id="_3">二. 為什麼會跳警告</h3>
+<p>(e) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關鍵：Captive Portal 為了強制你看到登入畫面，做的事情技術上就是中間人攻擊。</mark></p>
+<p>(f) 未登入前的流程：</p>
+<ol>
+<li>你的裝置連上 Wi-Fi，拿到 IP，但 AP（這台是 Ruckus 設備）還沒把你放行。</li>
+<li>VS Code 的 SonarLint 在背景發 HTTPS 請求回它自己的伺服器。</li>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Ruckus AP 把這個請求劫持（hijack）下來，回傳自己的自簽憑證（憑發者顯示為 Ruckus Wireless Inc.）</mark>，想把你導去登入頁。</li>
+<li>SonarLint 一看：我要連的是 <code>sonarcloud.io</code>，拿到的憑證卻是 Ruckus 簽的——<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">憑證跟網域對不上，這就是 MITM 的特徵</mark>，於是跳警告。</li>
+</ol>
+<p>(g) 登入成功後的流程：</p>
+<ol>
+<li>你在瀏覽器完成 Captive Portal 登入。</li>
+<li><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Ruckus 把你的 MAC 位址加進允許名單（Allowlist）。</mark></li>
+<li>路由器停止劫持，流量直接放行到真正的網際網路。</li>
+<li>SonarLint 拿到正確的憑證，警告自然消失。</li>
+</ol>
+<p>(h) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所以「登入之後就正常了」不是巧合，而是劫持行為結束了。</mark></p>
+<h3 id="_4">三. 該怎麼處理</h3>
+<p>(i) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">正解：點「Don't trust」或「Cancel」，然後去瀏覽器把 Wi-Fi 登入流程走完。</mark>登入後警告就不會再出現。</p>
+<p>(j) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">絕對不要在咖啡廳、機場、飯店這種外部網路點「Trust」。</mark>點下去等於把那張攔截憑證存進 SonarLint 的信任庫，之後這條連線上的所有流量對持有那把私鑰的人來說都是明文。</p>
+<p>(k) 唯一可以考慮點 Trust 的情境：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">你在公司內部網路，而且確認公司 IT 政策就是用閘道器做 SSL 檢查（企業 TLS inspection）</mark>。這種情況下該憑證是公司自己的 CA。SonarLint 信任庫的預設密碼是 <code>sonarlint</code>。</p>
+<p>(l) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">通用判斷法則，記這一條就好：</mark></p>
+<blockquote>
+<p>憑證警告 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在你完成 Wi-Fi 登入後就消失</mark> → 是 Captive Portal 造成的誤判，安全。<br />
+憑證警告 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在網路完全正常的情況下還一直出現</mark> → 認真對待，換網路再試，還是有的話就要查了。</p>
+<p>[!tip] 補充：Gemini 沒提但值得知道的<br />
+<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">現代作業系統其實有偵測 Captive Portal 的機制</mark>（Windows 的 NCSI、Android 的 <code>connectivitycheck.gstatic.com</code>、Apple 的 <code>captive.apple.com</code>），它們會去打一個特定的 HTTP 網址看回應對不對，藉此判斷「是否被攔截」，然後自動跳出登入視窗。這也是為什麼手機常常一連上就自動彈登入頁，而 VS Code 這種背景程式沒有這套機制，只能靠憑證錯誤來反應。<br />
+<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">另外實用小技巧：連上公共 Wi-Fi 後先開瀏覽器完成登入，再開 IDE 或跑 <code>npm install</code>，可以避開一整批莫名其妙的連線錯誤。</mark></p>
+</blockquote>
+<hr />
+<h2 id="_5">練習題</h2>
+<p>網路與憑證沒有 LeetCode 對應題。若要理解憑證鏈的驗證邏輯（一層層往上找到可信根），概念上最接近的是：</p>
+<table>
+<thead>
+<tr>
+<th>題號</th>
+<th>題名</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1584</td>
+<td><a href="https://leetcode.com/problems/min-cost-to-connect-all-points/">Min Cost to Connect All Points</a></td>
+<td>信任關係本質是圖，憑證鏈是其中一條路徑</td>
+</tr>
+<tr>
+<td>990</td>
+<td><a href="https://leetcode.com/problems/satisfiability-of-equality-equations/">Satisfiability of Equality Equations</a></td>
+<td>Union-Find 判斷「這兩個東西可不可信為同一群」，跟信任根的概念相通</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_6">各對話來源（原文）</h2>
+<h3 id="sonarlint-ssl-2026-08-httpsgeminigooglecomapp25e4d23461e5b89f">SonarLint SSL 憑證警告解析（2026-08）— https://gemini.google.com/app/25e4d23461e5b89f</h3>
+<p><strong>使用者：</strong>（附上 VS Code 憑證警告的截圖）這什麼問題</p>
+<p><strong>Gemini：</strong> 這個警告是 SonarQube / SonarLint 擴充功能偵測到網路連線被阻截或攔截（MITM）所跳出的 SSL 憑證信任提示。背景瀏覽器開著 Ruckus 的 Captive Portal（無線網路認證頁面），說明你目前連接的是公共或企業 Wi-Fi。SonarLint 在背景發送 HTTP/HTTPS 請求時，流量被 Ruckus AP 攔截，回傳了 Ruckus 設備本身的自簽憑證（Ruckus Wireless Inc.），導致 SonarLint 認為這是一個「不可信的伺服器憑證」。<br />
+解決方法與建議：直接點擊「Don't trust」或「Cancel」（這是最安全的做法，通常在你完成公共 Wi-Fi 的網頁登入後，網路恢復正常，警告就不會再出現）；完成 Wi-Fi 認證；如果連線正常但持續跳出，若你是在公司內部網路且公司確實使用 Ruckus 網關進行 SSL 通訊檢查，點擊 Trust 才會將該憑證存入 SonarLint 的信任庫（預設密碼為 <code>sonarlint</code>）。若在非信任的外部網路，請切勿點擊 Trust。</p>
+<p><strong>使用者：</strong> 為何登入以後就正常了，但我現在其實在路易莎欸</p>
+<p><strong>Gemini：</strong> 這是因為公共 Wi-Fi 的 Captive Portal（強制頁面門戶）運作機制。<br />
+未登入前的狀態（中間人攔截）：路易莎的 Wi-Fi 路由器（使用 Ruckus 設備）為了強制讓你看到登入畫面，會把你的所有網路請求強制劫持到他們的認證網頁。當 VS Code 的 SonarLint 插件嘗試連回伺服器時，請求被 Ruckus 攔截，Ruckus 回傳了自己的 SSL 憑證，而非 SonarLint 預期的憑證。SonarLint 發現憑證不對勁，以為遇到中間人攻擊，因此跳出警報。<br />
+登入成功後的狀態（放行流量）：當你在瀏覽器點擊同意並完成登入後，Ruckus 路由器會將你的 MAC 地址加入「允許名單（Allowlist）」，路由器停止劫持你的流量，直接將請求放行傳到真實的網際網路。SonarLint 終於能順利連到真正的伺服器、拿到正確的 SSL 憑證，警告自然就消失了。</p>
+<hr />
+<h2 id="_7">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本 / 查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/25e4d23461e5b89f</td>
+<td>2026-08，本次歸檔 2026-08-25</td>
+</tr>
+<tr>
+<td>RFC 6585（HTTP 511 Network Authentication Required，Captive Portal 專用狀態碼）</td>
+<td>https://datatracker.ietf.org/doc/html/rfc6585#section-6</td>
+<td>2012 發布，查證 2026-08-25</td>
+</tr>
+<tr>
+<td>RFC 8952（Captive Portal Architecture）</td>
+<td>https://datatracker.ietf.org/doc/html/rfc8952</td>
+<td>2020 發布，查證 2026-08-25</td>
+</tr>
+<tr>
+<td>MDN：Transport Layer Security</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/Security/Transport_Layer_Security</td>
+<td>查證 2026-08-25</td>
+</tr>
+<tr>
+<td>SonarQube for IDE（原 SonarLint）文件</td>
+<td>https://docs.sonarsource.com/sonarqube-for-ide/</td>
+<td>查證 2026-08-25</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!warning] ⚠️ 存疑 / 補充<br />
+Gemini 的技術解釋正確，但<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有給出「什麼時候該怕、什麼時候不用怕」的判斷準則</mark>，只描述現象。(l) 那條法則是本篇補上的，是這篇最該記住的東西。<br />
+另外 Gemini <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有提到作業系統本身有 Captive Portal 偵測機制</mark>，也沒有提到「先登入 Wi-Fi 再開 IDE」這個實務習慣，這兩點在上方補充區塊補上。</p>
+</blockquote>
+<hr />
+<p><em>由 Gemini 對話自動整理 · 更新於 2026-08-25</em></p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-25</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CPU 架構偵測｜x64 與 ARM64、AMD64 這個名字的由來、PowerShell 與 CMD 的變數語法差異</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>CPU 架構偵測｜x64 與 ARM64、AMD64 這個名字的由來、PowerShell 與 CMD 的變數語法差異</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#isa</span><span class="pill">#x86-64</span><span class="pill">#amd64</span><span class="pill">#arm64</span><span class="pill">#powershell</span><span class="pill">#cmd</span><span class="pill">#uname</span><span class="pill">#wow64</span><span class="pill">#計算機基礎</span><span class="pill">#環境變數</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-27</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/68acc28655502fa4" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/f00083e09ec02fa5" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">AMD64、x86-64、x64、Intel 64 講的是同一個指令集架構。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">四個名字一件事。叫 AMD64 是因為這套 64 位元延伸是 AMD 在 2000 年提出的，Intel 後來才跟進。</div></li><li><p class="qq">Intel 的 CPU 在 Windows 上查 PROCESSOR_ARCHITECTURE 會顯示 Intel64。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">會顯示 AMD64。Windows 沿用 AMD 的原始名稱，不管你的 CPU 是誰家的。</div></li><li><p class="qq">在 PowerShell 打 echo %PROCESSOR_ARCHITECTURE% 可以正確查到架構。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">%VAR% 是 CMD 語法，PowerShell 會原樣吐回字串。PowerShell 要用 $env:PROCESSOR_ARCHITECTURE。</div></li><li><p class="qq">PROCESSOR_ARCHITECTURE 回報的是這台機器的架構，跟目前行程是幾位元無關。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它回報的是「目前這個行程」的架構。32 位元 shell 會回 x86，ARM64 上的 x64 模擬行程會回 AMD64，都會騙你。</div></li><li><p class="qq">PROCESSOR_ARCHITEW6432 只有在「32 位元行程跑在 64 位元系統上」時才存在。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這是 WOW64 子系統替被建立的行程重寫環境變數的結果，內容是機器的真實架構。</div></li><li><p class="qq">x86-64 編譯出來的執行檔可以直接在 ARM64 的 CPU 上原生執行。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">兩個 ISA 的機器指令完全不相容。要嘛重編譯，要嘛靠模擬層（Windows on ARM 的 x64 模擬、macOS 的 Rosetta 2）。</div></li><li><p class="qq">Linux 的 uname -m 顯示 aarch64 代表這是 ARM 的 64 位元架構。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">AArch64 是 ARM 官方名稱，macOS 與 Windows 習慣顯示 arm64。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">ISA 的全名是 Instruction Set <input class="blank" data-a="Architecture" placeholder="填答案" autocomplete="off">，中文叫指令集架構。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">CPU 對外公開的合約：認得哪些指令、有哪些暫存器、怎麼定址。</div></li><li><p class="qq">ARM 架構 64 位元執行狀態的官方名稱是 <input class="blank" data-a="AArch64" placeholder="填答案" autocomplete="off">（ARMv8-A 起引入）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Linux 的 uname -m 就顯示這個。</div></li><li><p class="qq">PowerShell 讀環境變數要用 $<input class="blank" data-a="env" placeholder="填答案" autocomplete="off">:PROCESSOR_ARCHITECTURE 這個 provider 前綴。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">PowerShell 把環境變數當成像檔案系統的磁碟機，所以也可以 Get-ChildItem Env: 列全部。</div></li><li><p class="qq">讓 64 位元 Windows 能跑 32 位元程式的子系統，縮寫是 <input class="blank" data-a="WOW64" placeholder="填答案" autocomplete="off">，全名 Windows 32-bit On Windows 64-bit。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">它會替 32 位元行程重寫 PROCESSOR_ARCHITECTURE。</div></li><li><p class="qq">在程式裡最可靠的架構偵測 Win32 API 是 IsWow64Process<input class="blank" data-a="2" placeholder="填答案" autocomplete="off">，它會分別回傳行程架構與機器原生架構。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">IsWow64Process2 比舊版的 IsWow64Process 多回一個 nativeMachine。</div></li><li><p class="qq">Apple Silicon 上讓 x86-64 程式能執行的轉譯層叫 Rosetta <input class="blank" data-a="2" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">效能會打折，所以能裝原生 arm64 版就裝。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">你要幫同事的 Windows 筆電下載一個開發工具，官網同時提供 x64 與 ARM64 版。請完整說明：ISA 是什麼、為什麼選錯版本程式會完全打不開、你會用哪些指令去查、以及為什麼「查到 AMD64 就一定是 Intel/AMD 機器」這個推論其實有漏洞、該怎麼補。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) ISA（Instruction Set Architecture，指令集架構）是 CPU 對外公開的合約——認得哪些機器指令、有哪些暫存器、怎麼定址、位元組順序。同一 ISA 的二進位可互通，不同 ISA 完全不相容。(2) 選錯會怎樣——x86-64 與 ARM64 的機器碼互不相容，Windows 會直接彈「此應用程式無法在您的電腦上執行」。(3) 怎麼查——CMD 用 echo %PROCESSOR_ARCHITECTURE%；PowerShell 用 $env:PROCESSOR_ARCHITECTURE（%VAR% 在 PowerShell 會被當普通字串原樣吐回）；WSL 或 Git Bash 用 uname -m；Node 程式內用 os.arch()。(4) 漏洞——這些變數回報的是「目前這個行程」的架構而非機器。開到 SysWOW64 底下的 32 位元 PowerShell 會回 x86；更麻煩的是 Windows 11 on ARM 能模擬執行 x64 程式，所以一個 x64 行程在 ARM64 機器上會回 AMD64，讓你誤判成 Intel 機。(5) 怎麼補——同時檢查 PROCESSOR_ARCHITEW6432（只有 32 位元行程跑在 64 位元系統時才存在，內容是機器真實架構）；程式裡最可靠的是呼叫 IsWow64Process2，它分別回傳行程架構與機器原生架構。(6) 補充 AMD64 這個名字的由來：這套 64 位元延伸是 AMD 在 2000 年提出、2003 年隨 Opteron 出貨，Intel 後來跟進（官方叫 Intel 64），Windows 沿用 AMD 的原始名稱，所以 Intel 機器也顯示 AMD64。</div></li></ol></section>
+
+<article class="card">
+<h1 id="cpu-x64-arm64amd64">CPU 架構偵測｜x64 與 ARM64、AMD64 這個名字的由來</h1>
+<blockquote>
+<p>[!info] 本篇重點 a–r 共 18 個<br />
+起因是要更新一個軟體，不確定該下載 x64 還是 ARM64 版。順著查下去把 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">ISA 是什麼</mark>、<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">AMD64 為什麼叫 AMD</mark>、<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CMD 與 PowerShell 讀環境變數的語法為何不同</mark> 一次搞清楚。</p>
+<p>[!info] 與其他筆記的關聯（附理由）<br />
+<strong>a.</strong> 承接 <span class="wikilink" title="Obsidian 連結：WSL版本歷史與System-Call-RISC底層原理">WSL版本歷史與System-Call-RISC底層原理</span>：那篇講 RISC 與 CISC 的設計哲學差異，本篇是它的「實務面」——你桌上這台到底是哪一派，怎麼問出來。<br />
+<strong>b.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：x86通用暫存器與Register-in-Opcode編碼">x86通用暫存器與Register-in-Opcode編碼</span> 與 <span class="wikilink" title="Obsidian 連結：x86組合語言助憶符字典-How-Assembly-Functions-Work範例">x86組合語言助憶符字典-How-Assembly-Functions-Work範例</span>：那兩篇拆的是 x86 這個 ISA 的內部細節，本篇處理的是「x86 與 ARM 這兩個 ISA 怎麼分辨」，是它們的上層分類。<br />
+<strong>c.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：CPU字長-TINYINT型別與OpenAPI資安雜記">CPU字長-TINYINT型別與OpenAPI資安雜記</span>：「64 位元」這個詞在本篇跟那篇是同一個概念（字長 word size），可以互相對照。<br />
+<strong>d.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：CLI/powershell-vs-bash">CLI/powershell-vs-bash</span>：本篇 l–n 節那個 <code>%VAR%</code> vs <code>$env:VAR</code> 的踩坑，正是那篇「設計哲學不同」的具體案例。（另有一個 <code>CLI/Bash-vs-PowerShell設計哲學差異md</code> 檔案<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">漏打了副檔名的那一點</mark>，導致 Obsidian 認不得也連不到，建議改名成 <code>Bash-vs-PowerShell設計哲學差異.md</code>。）<br />
+<strong>e.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain">build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain</span>：知道架構之後才知道該下載哪個版本的 SDK 或 runtime，兩篇是同一條決策鏈。</p>
+</blockquote>
+<hr />
+<h2 id="fh">名詞先攤開（f–h）</h2>
+<blockquote>
+<p>[!info] 縮寫全名<br />
+<strong>f. ISA（Instruction Set Architecture，指令集架構）</strong>——CPU 對外公開的「合約」：它認得哪些機器指令、有哪些暫存器、記憶體怎麼定址、位元組順序是大端還小端。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">同一個 ISA 的程式碼可以在任何實作該 ISA 的 CPU 上跑，不同 ISA 之間的二進位檔完全不相容</mark>。x86-64 與 ARM64 就是兩個不同的 ISA。</p>
+<p><strong>g. x86-64 / x64 / AMD64 / Intel 64</strong>——<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這四個是同一件事的四個名字</mark>。它是 x86 這個 32 位元 ISA 的 64 位元延伸。之所以叫 <strong>AMD64</strong>，是因為這套 64 位元延伸是 <strong>AMD 在 2000 年提出、2003 年隨 Opteron 出貨的</strong>，Intel 後來才跟進實作（Intel 官方叫它 Intel 64）。Windows 沿用了 AMD 的原始名稱，所以你在 Windows 上查出來會看到 <code>AMD64</code>，即使你的 CPU 是 Intel 的也一樣。</p>
+<p><strong>h. ARM64 / AArch64</strong>——ARM 架構的 64 位元執行狀態，官方正式名稱是 <strong>AArch64</strong>（ARMv8-A 起引入）。Linux 的 <code>uname -m</code> 顯示 <code>aarch64</code>，macOS 與 Windows 習慣顯示 <code>arm64</code>。代表產品是 Apple M 系列與高通 Snapdragon X。</p>
+</blockquote>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關鍵：x86-64 與 ARM64 的機器指令二進位完全不相容。下載錯版本，Windows 會直接彈「此應用程式無法在您的電腦上執行」。</mark>就像插頭型號不對，硬插不會通電。</p>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="ik">一、怎麼問出來（i–k）</h3>
+<p><strong>i.</strong> 各系統的指令對照：</p>
+<table>
+<thead>
+<tr>
+<th>環境</th>
+<th>指令</th>
+<th>輸出範例與判讀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows CMD（命令提示字元）</td>
+<td><code>echo %PROCESSOR_ARCHITECTURE%</code></td>
+<td><code>AMD64</code> 代表 x64；<code>ARM64</code> 代表 ARM；<code>x86</code> 代表 32 位元</td>
+</tr>
+<tr>
+<td>Windows PowerShell</td>
+<td><code>$env:PROCESSOR_ARCHITECTURE</code></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>Windows PowerShell（另一招）</td>
+<td><code>[System.Environment]::Is64BitOperatingSystem</code></td>
+<td>回傳 <code>True</code> 代表作業系統是 64 位元</td>
+</tr>
+<tr>
+<td>macOS / Linux / WSL / Git Bash</td>
+<td><code>uname -m</code></td>
+<td><code>x86_64</code> 代表 x64；<code>arm64</code> 或 <code>aarch64</code> 代表 ARM</td>
+</tr>
+<tr>
+<td>Node.js 程式內</td>
+<td><code>require('os').arch()</code></td>
+<td>回傳 <code>'x64'</code> 或 <code>'arm64'</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>j.</strong> Node.js 那招一行一行拆：</p>
+<pre><code class="language-js">const os = require('os');
+console.log('當前架構為:', os.arch());
+// 在 AMD64 的機器上會輸出 'x64'
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>require('os')</code></td>
+<td>CommonJS 的模組載入語法，把 Node 內建的 <code>os</code> 模組抓進來。ESM 寫法是 <code>import os from 'node:os'</code></td>
+</tr>
+<tr>
+<td><code>os.arch()</code></td>
+<td>回傳「<strong>Node 這個行程</strong>被編譯成哪個架構」的字串。注意它回的是行程的架構，不見得等於作業系統的架構</td>
+</tr>
+</tbody>
+</table>
+<p><strong>k.</strong> <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼要區分架構</mark>：不同 ISA 決定軟體怎麼編譯。x86-64（Intel／AMD）是桌機與筆電的傳統主流；ARM64（Apple M 系列、Snapdragon X）以省電與效能比著稱。安裝 Node.js、Docker、VS Code 這類開發工具時選對版本，才不會被轉譯層（例如 Apple 的 Rosetta 2、Windows 的 x86 模擬層）吃掉效能。</p>
+<hr />
+<h3 id="powershell-varln">二、實際踩到的坑：PowerShell 不吃 <code>%VAR%</code>（l–n）</h3>
+<p><strong>l.</strong> 對話裡發生的實況：</p>
+<pre><code class="language-powershell">PS C:\Users\User&gt; echo %PROCESSOR_ARCHITECTURE%
+%PROCESSOR_ARCHITECTURE%
+PS C:\Users\User&gt;
+</code></pre>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">輸入什麼就吐回什麼，因為 PowerShell 根本沒把它當變數</mark>。</p>
+<p><strong>m.</strong> 原因：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>%變數名%</code> 是 CMD（cmd.exe，命令提示字元）的變數展開語法，PowerShell 不認得</mark>。在 PowerShell 眼裡，<code>%PROCESSOR_ARCHITECTURE%</code> 只是一串普通字元（<code>%</code> 在 PowerShell 裡是 <code>ForEach-Object</code> 的別名，但沒有跟著 script block 時就只是符號），<code>echo</code>（即 <code>Write-Output</code> 的別名）就照原樣印出來。</p>
+<p><strong>n.</strong> 正解：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">PowerShell 用 <code>$env:</code> 這個 provider 前綴讀環境變數</mark>。</p>
+<pre><code class="language-powershell">$env:PROCESSOR_ARCHITECTURE
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$</code></td>
+<td>PowerShell 的變數符號</td>
+</tr>
+<tr>
+<td><code>env:</code></td>
+<td>PowerShell 的 <strong>Environment Provider</strong>（環境變數提供者）。PowerShell 把環境變數當成一個像檔案系統的「磁碟機」來存取，所以你也可以打 <code>Get-ChildItem Env:</code> 列出全部</td>
+</tr>
+<tr>
+<td><code>PROCESSOR_ARCHITECTURE</code></td>
+<td>變數名稱</td>
+</tr>
+</tbody>
+</table>
+<p>三種 shell 的速查：</p>
+<table>
+<thead>
+<tr>
+<th>Shell</th>
+<th>讀環境變數的寫法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CMD</td>
+<td><code>echo %PROCESSOR_ARCHITECTURE%</code></td>
+</tr>
+<tr>
+<td>PowerShell</td>
+<td><code>$env:PROCESSOR_ARCHITECTURE</code></td>
+</tr>
+<tr>
+<td>Bash / WSL / Git Bash</td>
+<td><code>echo $PROCESSOR_ARCHITECTURE</code> 或直接 <code>uname -m</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="32-op">三、⚠️ 陷阱：32 位元行程會騙你（o–p）</h3>
+<p><strong>o.</strong> <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>PROCESSOR_ARCHITECTURE</code> 回報的是「目前這個行程」的架構，不是「這台機器」的架構</mark>。如果你在 64 位元 Windows 上開了一個 32 位元的 PowerShell（<code>C:\Windows\SysWOW64\WindowsPowerShell\v1.0\powershell.exe</code>），它會回 <code>x86</code>，而不是 <code>AMD64</code>。</p>
+<p>這是 <strong>WOW64（Windows 32-bit On Windows 64-bit）</strong> 子系統造成的：當 64 位元系統建立 32 位元行程時，WOW64 會替它重寫環境變數。</p>
+<p><strong>p.</strong> <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">正確的做法是同時看 <code>PROCESSOR_ARCHITEW6432</code></mark>：</p>
+<pre><code class="language-powershell"># 只有在「32 位元行程跑在 64 位元系統上」時，這個變數才存在，內容是機器的真實架構
+$env:PROCESSOR_ARCHITEW6432
+</code></pre>
+<p>判讀邏輯：</p>
+<table>
+<thead>
+<tr>
+<th><code>PROCESSOR_ARCHITEW6432</code></th>
+<th><code>PROCESSOR_ARCHITECTURE</code></th>
+<th>結論</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>不存在（空值）</td>
+<td><code>AMD64</code></td>
+<td>原生 64 位元行程，機器是 x64</td>
+</tr>
+<tr>
+<td>不存在（空值）</td>
+<td><code>ARM64</code></td>
+<td>原生 ARM64 行程，機器是 ARM64</td>
+</tr>
+<tr>
+<td><code>AMD64</code></td>
+<td><code>x86</code></td>
+<td>機器是 x64，但你開的是 32 位元 shell</td>
+</tr>
+<tr>
+<td><code>ARM64</code></td>
+<td><code>x86</code> 或 <code>AMD64</code></td>
+<td>機器是 ARM64，你的行程跑在模擬層裡</td>
+</tr>
+</tbody>
+</table>
+<p>最後那一列是 Windows on ARM 最容易踩的坑：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Windows 11 on ARM 可以模擬執行 x64 程式，所以一個 x64 行程在 ARM64 機器上問 <code>PROCESSOR_ARCHITECTURE</code> 會得到 <code>AMD64</code>，讓你誤以為機器是 Intel</mark>。</p>
+<p>在程式裡最可靠的是呼叫 Win32 API <code>IsWow64Process2</code>，它會分別回傳「行程的架構」與「機器的原生架構」。</p>
+<hr />
+<h3 id="x64-arm64qr">四、決策：該下載 x64 還是 ARM64（q–r）</h3>
+<p><strong>q.</strong> 對話當下的結論：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">既然 <code>$env:PROCESSOR_ARCHITECTURE</code> 輸出 <code>AMD64</code>，一律選標示為 x64、x86_64 或 64-bit 的安裝檔</mark>，避開 arm64 與 aarch64。</p>
+<p><strong>r.</strong> 一般性的下載決策表：</p>
+<table>
+<thead>
+<tr>
+<th>你查到的值</th>
+<th>該下載的版本</th>
+<th>備註</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AMD64</code> 或 <code>x86_64</code></td>
+<td>x64</td>
+<td>不需要任何轉譯層，原生執行效能最佳</td>
+</tr>
+<tr>
+<td><code>ARM64</code> 或 <code>aarch64</code></td>
+<td>ARM64</td>
+<td>若某軟體沒出 ARM64 版，Windows 11 on ARM 與 macOS 的 Rosetta 2 通常可模擬 x64，但會損失效能</td>
+</tr>
+<tr>
+<td><code>x86</code></td>
+<td>先確認是不是 WOW64 造成的假象</td>
+<td>真的是 32 位元機器的話，很多現代開發工具已不再提供 32 位元版</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<table>
+<thead>
+<tr>
+<th>Gemini 說法</th>
+<th>查證後</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>「<code>$env:PROCESSOR_ARCHITECTURE</code> 就能確定你的架構」</td>
+<td>⚠️ 不完整</td>
+<td>它回報的是<strong>行程</strong>架構。在 32 位元 shell 或 ARM64 上的 x64 模擬行程裡會給出誤導的答案。必須搭配 <code>PROCESSOR_ARCHITEW6432</code>（見 o、p 節）</td>
+</tr>
+<tr>
+<td>「ARM64 是給高通 Snapdragon X 晶片或 Apple M 系列轉 Windows 用的」</td>
+<td>表述不精確</td>
+<td>ARM64 版 Windows 軟體是給 <strong>Windows on ARM</strong> 用的，涵蓋 Snapdragon X 系列與在 Apple Silicon 上用虛擬機跑 Windows 的情境，並不限於「M 系列轉 Windows」</td>
+</tr>
+<tr>
+<td>「Antigravity 更新步驟：前往 antigravity.google/download」</td>
+<td>未查證</td>
+<td>這是產品端資訊、會隨版本改動，本篇不背書。真的要更新請直接開官網確認當下的下載選單</td>
+</tr>
+<tr>
+<td>對話最後岔題到「Threads 網頁版私訊連結」</td>
+<td>與本主題無關</td>
+<td>已捨棄不收錄，屬於生活雜項</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_3">練習題（延伸）</h2>
+<p>架構偵測是系統知識、不是演算法題，LeetCode 與 NeetCode 沒有直接對應題。真的要練「位元與字長」的手感，可以做這幾題：</p>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>191. Number of 1 Bits</td>
+<td>https://leetcode.com/problems/number-of-1-bits/</td>
+<td>逼你意識到「一個整數有幾個 bit」這件事，跟 32／64 位元字長直接相關</td>
+</tr>
+<tr>
+<td>190. Reverse Bits</td>
+<td>https://leetcode.com/problems/reverse-bits/</td>
+<td>練位元順序，順便理解大端與小端</td>
+</tr>
+<tr>
+<td>371. Sum of Two Integers</td>
+<td>https://leetcode.com/problems/sum-of-two-integers/</td>
+<td>用位元運算模擬加法器，等於手動走一遍 CPU 的 ALU</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">各對話來源（原文重點）</h2>
+<h3 id="2026-httpsgeminigooglecomapp68acc28655502fa4">〈查詢電腦架構指令〉（2026 年）— <a href="https://gemini.google.com/app/68acc28655502fa4">https://gemini.google.com/app/68acc28655502fa4</a></h3>
+<p><strong>使用者：</strong> 我要打什麼指令才會知道我的電腦是 x64 還是 arm64 的架構？<br />
+<strong>Gemini：</strong>（給出 CMD <code>echo %PROCESSOR_ARCHITECTURE%</code>、<code>uname -m</code>、<code>[System.Environment]::Is64BitOperatingSystem</code> 三種寫法的對照表）</p>
+<p><strong>使用者：</strong> <code>PS C:\Users\User&gt; echo %PROCESSOR_ARCHITECTURE%</code> → <code>%PROCESSOR_ARCHITECTURE%</code><br />
+<strong>Gemini：</strong> 看來你目前使用的是 PowerShell，而在 PowerShell 中直接輸入 <code>%PROCESSOR_ARCHITECTURE%</code>（這是 Command Prompt 的語法）會被當作普通字串處理，所以它直接原樣退回給你了。請改用 <code>$env:PROCESSOR_ARCHITECTURE</code>。</p>
+<p><strong>使用者：</strong> 我是 AMD64<br />
+<strong>Gemini：</strong> 這是由 AMD 最初研發、後來 Intel 也採用的 64 位元指令集架構，通常在 macOS/Linux 中會顯示為 x86_64。下載開發工具時優先選 x64／x86_64／64-bit，避免 arm64／aarch64。</p>
+<p><strong>使用者：</strong> 我意思是我要更新 ANTIGRAVITY 我應該要用 ARM64 or x64?<br />
+<strong>Gemini：</strong> 既然確認電腦架構是 AMD64，那麼絕對要選擇 x64 版本。若錯誤下載 ARM64 版本，啟動時通常會彈出「此應用程式無法在您的電腦上執行」的錯誤視窗。</p>
+<h3 id="laptop-architecture-detection-guide2026-httpsgeminigooglecomappf00083e09ec02fa5">〈Laptop Architecture Detection Guide〉（2026 年）— <a href="https://gemini.google.com/app/f00083e09ec02fa5">https://gemini.google.com/app/f00083e09ec02fa5</a></h3>
+<p>同一批問題的姊妹對話，內容已依主題拆分至 <span class="wikilink" title="Obsidian 連結：TS/TypeScript-any與unknown-型別逃生艙口與斷言時機">TS/TypeScript-any與unknown-型別逃生艙口與斷言時機</span> 與 <span class="wikilink" title="Obsidian 連結：build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain">build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain</span>，本篇僅收錄其中提到 <code>Intel Ultra 7</code>、<code>x64</code> 的架構脈絡。</p>
+<hr />
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始對話（Gemini）</td>
+<td>https://gemini.google.com/app/68acc28655502fa4</td>
+<td>2026-08-27 讀取</td>
+</tr>
+<tr>
+<td>原始對話（Gemini，姊妹篇）</td>
+<td>https://gemini.google.com/app/f00083e09ec02fa5</td>
+<td>2026-08-27 讀取</td>
+</tr>
+<tr>
+<td>WOW64 Implementation Details（環境變數被重寫的機制）</td>
+<td>https://learn.microsoft.com/en-gb/windows/win32/winprog64/wow64-implementation-details</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>IsWow64Process function</td>
+<td>https://learn.microsoft.com/en-us/windows/win32/api/wow64apiset/nf-wow64apiset-iswow64process</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>Detect x86_64 process on ARM64（Microsoft Q&amp;A，說明 ARM64 上的偵測陷阱）</td>
+<td>https://learn.microsoft.com/en-us/answers/questions/449019/detect-x86-64-process-on-arm64</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>Tell if process architecture is "ARM64 (x64 compatible)" or "x64" on Windows 11</td>
+<td>https://learn.microsoft.com/en-us/answers/questions/518344/tell-if-process-archtitecture-is-arm64-(x64-compat</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>SYSTEM_INFO 結構（wProcessorArchitecture 欄位定義）</td>
+<td>https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info</td>
+<td>2026-08-27 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-27</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

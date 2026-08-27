@@ -136,3 +136,45 @@ defaults:
 | GitHub Docs：Actions 計費（公開儲存庫使用 GitHub 託管執行器不計費） | https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions | 查證於 2026-08-09 |
 | Jekyll 設定：`render_with_liquid` 與 front matter defaults | https://jekyllrb.com/docs/configuration/front-matter-defaults/ | 查證於 2026-08-09 |
 | Abby 的實機截圖 | `obsidian-attachment/螢幕擷取畫面 2026-08-09 174405.png`、`螢幕擷取畫面 2026-08-09 180046.png` | 擷取於 2026-08-09 |
+
+---
+
+## 補充｜.js 這類靜態檔在 GitHub Pages 上會怎樣（2026-08-21）
+
+### 結論：會被原封不動發布，瀏覽器顯示成一坨純文字
+
+Jekyll 對「沒有 front matter 的檔案」的處理是**照抄到輸出目錄**，不做任何轉換。
+所以 vault 裡的 `.js` 練習檔全部都會上站，網址就是它在 repo 裡的路徑。
+
+點進去看到的是：**等寬字、沒有語法高亮、沒有導覽列、沒有主題樣式**，就是原始碼倒出來。
+它**不會被執行**（沒有頁面載入它），也**不會被 render 成網頁**。
+
+實測：`.../JS_Core_and_Runtime/lexical-scope-demo.js` 可以直接抓到完整原始碼。
+
+### 三個選擇
+
+| 做法 | 怎麼做 | 適合 |
+| --- | --- | --- |
+| **放著不管** | 什麼都不做 | 當「看原始碼」的連結用，讀者可以直接複製 |
+| **內嵌到 .md**（推薦） | 在筆記裡用 ` ```js ` 圍籬把重點片段貼進去 | 有語法高亮、有主題樣式、讀起來舒服 |
+| **從網站排除** | `_config.yml` 的 `exclude:` 加 `- "*.js"` | 不想讓練習檔公開 |
+
+> [!tip] 我的建議：內嵌 ＋ 保留檔案
+> **`.md` 是給人讀的，`.js` 是給你自己跑的。** 兩者各司其職：
+> 筆記裡貼重點片段（有高亮），檔案留著給 `node` 執行，筆記末尾註明檔名。
+> 這正是現在這些筆記的作法。
+
+### 順帶檢查兩個設定
+
+**a. `render_with_liquid: false` 是對的**
+
+`_config.yml` 裡設了這個，代表 Jekyll **不會**用 Liquid 處理你的筆記。
+沒有這行的話，筆記裡程式碼區塊中的 `{{ }}` 或 `{% %}` 會被 Jekyll 當成模板語法，輕則內容消失、重則整站建置失敗。
+
+**b. `exclude:` 是唯一的隱私閘門**
+
+> [!warning] 這條要記牢
+> **即使 repo 是 private，GitHub Pages 網站是公開的。** 沒被 `exclude` 排除的檔案都會被發布出去。
+> 目前排除的是 `private/`、`_to_delete/`、`系統維護-C槽清理/`、`Git/`、`*.sh`、`*.bak`。
+> 新增資料夾時要順手想一下「這個能不能公開」。
+

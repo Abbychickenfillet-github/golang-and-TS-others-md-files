@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>cloudflared 日誌讀懂 — ICMP Proxy、IPv6 Link-Local 位址與 Windows 根憑證</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>cloudflared 日誌讀懂 — ICMP Proxy、IPv6 Link-Local 位址與 Windows 根憑證</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#網路</span><span class="pill">#cloudflare</span><span class="pill">#cloudflared</span><span class="pill">#icmp</span><span class="pill">#ipv6</span><span class="pill">#tls</span><span class="pill">#憑證</span><span class="pill">#tunnel</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-27</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/45c17acc390ee1c5" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">看到 cloudflared 日誌出現 ICMP proxy 訊息，代表 Tunnel 出錯了。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">多半只是啟動時的資訊性日誌，代表已啟用 ICMP 代理功能。</div></li><li><p class="qq">fe80:: 開頭的 IPv6 位址可以從網際網路直接連到。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Link-Local 位址只在同一網段有效，路由器不會轉送它。</div></li><li><p class="qq">ICMP 是用來傳送控制與錯誤訊息的協定，ping 就是靠它。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">它不是拿來傳應用資料的。</div></li><li><p class="qq">Windows 的憑證存放區是走 Windows API 而非檔案，所以 Go 程式有機會讀不到系統根憑證。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">cloudflared 是 Go 寫的，這就是那則警告的成因。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">IPv6 Link-Local 位址固定落在 <input class="blank" data-a="fe80::" placeholder="填答案" autocomplete="off">/10 這個區段。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">看到開頭是 fe80: 幾乎就可以確定。</div></li><li><p class="qq">簽發並被系統信任的第三方憑證機構縮寫是 <input class="blank" data-a="CA" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Certificate Authority。</div></li><li><p class="qq">同一台機器有多張網卡時，引用 Link-Local 位址常要加上介面代號，例如 fe80::1<input class="blank" data-a="%" placeholder="填答案" autocomplete="off">eth0。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這個介面代號稱為 Zone ID。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">如果 Cloudflare Tunnel 後面的服務可以正常存取，但 ping 不到，你會怎麼判斷與處理？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 先確認 Tunnel 本身只轉發 TCP / UDP 應用流量，ping 走的是 ICMP，屬於不同層次的東西，服務正常但 ping 不通是預期行為；(2) 若確實需要 ping 診斷，檢查 cloudflared 是否啟用 ICMP Proxy（日誌會有相關訊息），以及作業系統是否允許程式送出 raw ICMP（Linux 需要 ping_group_range 或 CAP_NET_RAW）；(3) 不要把 ping 不通當成服務掛掉的判斷依據，改用實際的 HTTP 健康檢查端點。</div></li></ol></section>
+
+<article class="card">
+<h1 id="cloudflared-icmp-proxyipv6-link-local-windows">cloudflared 日誌讀懂 — ICMP Proxy、IPv6 Link-Local 位址與 Windows 根憑證</h1>
+<p>本篇重點 a–j，共 10 個</p>
+<h2 id="_1">重點整理</h2>
+<h3 id="icmp-proxy">一、ICMP Proxy</h3>
+<p>a. <mark style="background: #ADCCFF;">ICMP（Internet Control Message Protocol，網際網路控制訊息協定）</mark>是 TCP/IP 家族裡負責傳送「控制與錯誤訊息」的協定，不是拿來傳資料的，<code>ping</code> 與 <code>traceroute</code> 就是靠它。</p>
+<p>b. <mark style="background: #ADCCFF;">ICMP Proxy</mark>指的是「允許把 ICMP 封包透過代理伺服器或通道（Tunnel）轉發」的機制。在 <mark style="background: #ADCCFF;">cloudflared</mark>（Cloudflare Tunnel 的本機代理程式）的日誌中看到它，代表該工具正在啟用 ICMP 代理功能，好讓通道另一端也能對內網主機做連線測試或診斷。</p>
+<p>c. <mark style="background: #BBFABB;">實務意義</mark>：有了 ICMP Proxy，你才能從 Cloudflare 這一側 <code>ping</code> 到藏在 Tunnel 後面的私有主機，否則 Tunnel 只轉發 TCP / UDP 流量，<code>ping</code> 會不通但服務其實是好的。<mark style="background: #FF5582;">看到 ICMP 相關訊息不代表出錯</mark>，它多半只是啟動時的資訊性日誌。</p>
+<h3 id="fe80">二、fe80:: 開頭的那串是什麼</h3>
+<p>d. 日誌裡出現的 <code>fe80::...</code> 這種位址是 <mark style="background: #ADCCFF;">IPv6 的 Link-Local Address（連結本地位址）</mark>，具體用在 Wi-Fi 網路介面上進行 IPv6 通訊。</p>
+<p>e. <mark style="background: #FFB8EB;">辨識方法</mark>：IPv6 Link-Local 位址一律落在 <code>fe80::/10</code> 這個區段，也就是看到開頭是 <code>fe80:</code> 幾乎就可以確定。</p>
+<p>f. <mark style="background: #FFF3A3;">它的特性</mark>：只在「同一個網段（同一條實體連結）內」有效，不會被路由器轉送出去，所以不可能從網際網路連到它。每張網卡開機時都會自動產生一個，不需要 DHCP 也不需要手動設定。<mark style="background: #FF5582;">所以在日誌裡看到它不代表你的服務暴露在公網上</mark>。</p>
+<p>g. <mark style="background: #D2B3FF;">補充</mark>：因為同一台機器可能有多張網卡都有 <code>fe80::</code> 位址，實務上引用它時常需要加上介面代號（Zone ID），例如 <code>fe80::1%eth0</code>。</p>
+<h3 id="original-ca-for-part-to-specify">三、"original CA for part to specify" 那段警告</h3>
+<p>h. 那段訊息的意思是：<mark style="background: #FF5582;">在 Windows 系統上，cloudflared 無法自動載入系統內建的根憑證存放區（Root Certificate Store）</mark>。</p>
+<p>i. <mark style="background: #ADCCFF;">CA（Certificate Authority，憑證頒發機構）</mark>是簽發 TLS 憑證並被系統信任的第三方；<mark style="background: #ADCCFF;">Certificate Pool（憑證池）</mark>則是程式手上那一份「我信任哪些根憑證」的清單。Linux 上程式通常能直接讀系統的 CA 清單，但 Windows 的憑證存放區是走 Windows API 而不是檔案，Go 語言寫的程式（cloudflared 就是 Go 寫的）因此有機會讀不到。</p>
+<p>j. <mark style="background: #BBFABB;">處置方式</mark>：如果需要驗證自訂或企業內部 CA，就手動指定憑證檔案或路徑（cloudflared 常見做法是設定 <code>--origin-ca-pool</code> 參數或對應的環境變數，指向一個 PEM 格式的 CA 檔）。若你連的都是公開網站且服務運作正常，這則訊息可以視為警告而非錯誤。</p>
+<h2 id="_2">關聯筆記（附關聯原因）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：Network_and_Gateway_Notes">Network_and_Gateway_Notes</span> — 那篇整理網路與閘道基本概念，本篇的 ICMP 與 Link-Local 位址是同一層（網路層）的具體案例。</li>
+<li><span class="wikilink" title="Obsidian 連結：DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能">DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能</span> — 本篇 (i) 的 CA 與憑證池，正是那篇 TLS 握手階段用來驗證伺服器身分的東西。</li>
+<li><span class="wikilink" title="Obsidian 連結：SonarLint憑證警告-CaptivePortal攔截與MITM誤判">SonarLint憑證警告-CaptivePortal攔截與MITM誤判</span> — 同樣是「工具讀不到／不信任某張憑證」的排查情境，兩篇可以互相對照排除方向。</li>
+<li><span class="wikilink" title="Obsidian 連結：AWS-MFA登入PIN找回與Google-PIN區分">AWS-MFA登入PIN找回與Google-PIN區分</span> — 同屬「看到陌生安全性訊息時怎麼判斷是警告還是錯誤」的心法。</li>
+</ul>
+<h2 id="_3">各對話來源（原文）</h2>
+<h3 id="icmp-proxy-2026-08-27-httpsgeminigooglecomapp45c17acc390ee1c5">ICMP Proxy 概念解析（2026-08-27）— https://gemini.google.com/app/45c17acc390ee1c5</h3>
+<p>使用者：ICMP proxy 是什麼？</p>
+<p>Gemini：ICMP proxy 是允許將 ICMP 封包，也就是常用來測試網路連線的 ping 指令封包，透過代理伺服器或通道轉發。在 cloudflared 的日誌中，這表示該工具正使用 ICMP proxy 功能進行連線測試或診斷。</p>
+<p>使用者：fe80::...:BBD:...:30 是什麼？</p>
+<p>Gemini：這是一個 IPv6 的位址，具體來說，是 Link-Local Address，用在 Wi-Fi 網路介面上進行 IPv6 的通訊。</p>
+<p>使用者：他叫什麼用 original CA for part to specify，強調這個 part to the certificate pool 是什麼意思？</p>
+<p>Gemini：這段訊息的意思是，在 Windows 系統上，cloudflared 無法自動載入系統的根憑證。如果有需要，你必須手動指定憑證存放的路徑或檔案。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/45c17acc390ee1c5</td>
+<td>2026-08-27 擷取</td>
+</tr>
+<tr>
+<td>Cloudflare 官方文件 — Cloudflare Tunnel（cloudflared）</td>
+<td>https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>RFC 4291 — IP Version 6 Addressing Architecture（fe80::/10 Link-Local 定義）</td>
+<td>https://datatracker.ietf.org/doc/html/rfc4291#section-2.5.6</td>
+<td>2006-02 發布，2026-08-27 查證</td>
+</tr>
+<tr>
+<td>RFC 792 — Internet Control Message Protocol</td>
+<td>https://datatracker.ietf.org/doc/html/rfc792</td>
+<td>1981-09 發布，2026-08-27 查證</td>
+</tr>
+<tr>
+<td>Go 官方文件 — crypto/x509 SystemCertPool（Windows 行為說明）</td>
+<td>https://pkg.go.dev/crypto/x509#SystemCertPool</td>
+<td>2026-08-27 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-27</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>
