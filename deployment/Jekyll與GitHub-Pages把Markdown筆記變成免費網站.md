@@ -166,10 +166,10 @@ Jekyll 對「沒有 front matter 的檔案」的處理是**照抄到輸出目錄
 
 ### 順帶檢查兩個設定
 
-**a. `render_with_liquid: false` 是對的**
+**a. ⚠️ 存疑／更正（2026-08-27 實測）：`render_with_liquid: false` 沒有真的擋掉 Liquid**
 
-`_config.yml` 裡設了這個，代表 Jekyll **不會**用 Liquid 處理你的筆記。
-沒有這行的話，筆記裡程式碼區塊中的 `{{ }}` 或 `{% %}` 會被 Jekyll 當成模板語法，輕則內容消失、重則整站建置失敗。
+原本以為 `_config.yml` 設了這個，Jekyll 就**不會**用 Liquid 處理筆記——但 2026-08-27 那次建置失敗直接打臉：這篇筆記自己這一段（原本寫著範例用的裸 `{% raw %}{{ }}{% endraw %}` / `{% raw %}{% %}{% endraw %}`）沒包 `{% raw %}`，即使有 `render_with_liquid: false`，Jekyll 還是照樣把它當 Liquid 語法解析，直接炸掉整站建置。
+結論：這個設定**不可靠**，真正有效的防線是：① `exclude:` 整個資料夾排除、② 逐檔把裸的 `{% raw %}{{ }}{% endraw %}` / `{% raw %}{% %}{% endraw %}` 包上 `{% raw %}...{% endraw %}`（或改用 HTML 實體 `&#123;&#123;`）。這行設定可以留著當保險，但不能只靠它。
 
 **b. `exclude:` 是唯一的隱私閘門**
 
