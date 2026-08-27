@@ -10,9 +10,7 @@ updated: 2026-08-07
 
 # SSR、renderToString 與 Hydration — 伺服器端渲染流程
 
-本篇重點 a–j，共 10 個
-
-## 重點整理
+本篇重點 a–k，共 11 個
 
 (a) <mark style="background: #ADCCFFA6;">SSR（Server-Side Rendering，伺服器端渲染）</mark>：在伺服器上先把頁面產生成 HTML 字串再傳給瀏覽器，好處是<mark style="background: #BBFABBA6;">首屏更快看到內容、對 SEO 友善</mark>（爬蟲不必等 JS 執行完才看得到文字）。
 
@@ -65,6 +63,16 @@ hydrateRoot(document.getElementById('root'), <App />);
 (i) <mark style="background: #FF5582A6;">⚠️ 存疑／更正</mark>：把 JavaScript 一律說成「直譯型（Interpreted）」<mark style="background: #FF5582A6;">已經不精確</mark>。現代 V8 引擎採 <mark style="background: #ADCCFFA6;">JIT（Just-In-Time Compilation，即時編譯）</mark>——先由 Ignition 直譯器產生位元組碼，熱點程式碼再交給 TurboFan 編譯成最佳化機器碼。所以差距主因並非「有沒有編譯」，而是<mark style="background: #FFB8EBA6;">記憶體管理方式（手動 vs GC）、型別是否靜態已知、以及去最佳化（Deoptimization）風險</mark>。
 
 (j) <mark style="background: #D2B3FFA6;">次要備註</mark>：這串對話後半段其實跑題到「LeetCode 找位數乘積」的迴圈起始值問題（該從 `n` 開始而非 `1`、要轉字串的是迴圈變數 `i` 而不是固定的 `n`），與 SSR 主題無關，已另行歸入雙指標／迴圈相關筆記脈絡，本篇不重複收錄。
+
+(k) <mark style="background: #ADCCFFA6;">CSR / SSR / SSG 的 Hydration 狀態對照</mark>（用列表，SSR 與 SSG 幾乎相同）：
+
+- **CSR（純 SPA）**：**沒有 hydration**。伺服器只發**空殼** HTML（`<div id="root"></div>`），瀏覽器端用 `createRoot().render()` **從零 mount、現場建整棵 DOM**（這是「初次渲染」，不是 hydration）。
+- **SSR**：**有 hydration**。HTML＝伺服器**每次請求**現產（runtime 在伺服器跑 `renderToString`）→ 瀏覽器 `hydrateRoot()` **認領既有 DOM、掛事件**（不重畫）。
+- **SSG**：**有 hydration，跟 SSR 相同**。唯一差別在 HTML 的產生時機——**SSG 是 build-time 先把每頁 render 成現成的靜態 HTML 檔**（不是每請求現產），部署成靜態檔；到瀏覽器端一樣 `hydrateRoot()` 認領。
+
+> 一句話：**CSR 沒有 hydration（從零建）；SSR/SSG 都有 hydration（認領既有 DOM），差別只在「HTML 是每請求現產（SSR）還是 build-time 先產好（SSG）」。**
+>
+> 接效能指標：**FP（First Paint）**＝第一次畫出任何像素（可能只是背景色）；**FCP（First Contentful Paint）**＝第一次畫出「內容」（文字/圖片）。**SSR/SSG** 首屏 HTML 就有內容 → **FCP 快**；**CSR** 是空殼 → FP 可能快、但 **FCP 要等 JS 建好內容才發生**、較慢。這條管線（Parse→DOM→CSSOM→Render Tree→Layout→Paint）跑到「畫出內容」那刻＝FCP。詳見 [Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪](Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪.md)。
 
 ## 相關筆記
 

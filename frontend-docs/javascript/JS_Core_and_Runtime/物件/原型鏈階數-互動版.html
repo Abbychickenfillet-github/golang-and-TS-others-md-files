@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型鏈階數｜getPrototypeOf 只跳一階（互動版）</title>
+<style>
+  :root{--bg:#fbfbfd;--card:#fff;--line:#e5e7eb;--ink:#111827;--dim:#6b7280;
+        --g:#10b981;--y:#f59e0b;--b:#3b82f6;--p:#8b5cf6;--r:#dc2626}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC",system-ui,"Microsoft JhengHei",sans-serif;line-height:1.8}
+  .wrap{max-width:940px;margin:0 auto;padding:28px 20px 90px}
+  h1{font-size:1.5rem;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:.87rem;margin-bottom:26px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+          padding:20px 22px;margin-bottom:20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  h2{font-size:1.1rem;margin:0 0 4px;display:flex;align-items:center;gap:9px}
+  h2 .n{width:24px;height:24px;border-radius:7px;background:var(--p);color:#fff;
+        font-size:.78rem;display:grid;place-items:center;flex:none}
+  .hint{color:var(--dim);font-size:.84rem;margin:0 0 14px}
+  code{font-family:"Cascadia Code",Consolas,monospace;background:#f3f4f6;
+       padding:1px 5px;border-radius:4px;font-size:.88em}
+  pre{background:#0f1117;color:#e8eaf0;border-radius:9px;padding:13px 15px;
+      overflow-x:auto;font-size:.83rem;font-family:"Cascadia Code",Consolas,monospace}
+  table{border-collapse:collapse;width:100%;font-size:.86rem;margin-top:10px}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#f9fafb}
+  td.mono{font-family:"Cascadia Code",Consolas,monospace;font-size:.83rem}
+
+  /* stepper */
+  .lanes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:14px}
+  .lane{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fcfcfd}
+  .lane h3{margin:0 0 10px;font-size:.9rem;text-align:center}
+  .node{border-radius:9px;padding:9px 11px;margin-bottom:0;text-align:center;
+        border:1px solid var(--line);background:#fff;opacity:.32;transition:all .35s}
+  .node.on{opacity:1;transform:translateY(0)}
+  .node .t{font-family:"Cascadia Code",Consolas,monospace;font-size:.82rem}
+  .node .s{font-size:.72rem;color:var(--dim);margin-top:2px}
+  .arrow{height:34px;display:grid;place-items:center;color:#c7c9d1;font-size:.72rem;
+         opacity:.25;transition:opacity .35s}
+  .arrow.on{opacity:1;color:var(--p);font-weight:700}
+  .node.obj{background:#faf5ff;border-color:var(--p)}
+  .node.arr{background:#fff7ed;border-color:var(--y)}
+  .node.map{background:#eff6ff;border-color:var(--b)}
+  .node.nul{background:#111827;color:#f9fafb;border-color:#111827}
+  .node.nul .s{color:#9ca3af}
+  .stepbar{margin-top:16px;padding:12px 14px;border-radius:10px;background:#f9fafb;
+           border:1px solid var(--line);font-size:.88rem;min-height:56px}
+  .stepbar code{background:#eef0f4}
+
+  .anchor{background:#fef3c7;border-left:3px solid var(--y);padding:10px 14px;
+          border-radius:0 8px 8px 0;font-size:.87rem;color:#78350f;margin:14px 0}
+
+  .tf{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:11px}
+  .tf p{margin:0 0 9px;font-size:.92rem}
+  .tf .fb{display:none;margin-top:9px;font-size:.86rem;padding:9px 12px;border-radius:8px}
+  .tf .fb.show{display:block}
+  .fb.right{background:#ecfdf5;color:#065f46;border-left:3px solid var(--g)}
+  .fb.wrong{background:#fef2f2;color:#991b1b;border-left:3px solid var(--r)}
+
+  .blank{display:inline-block;min-width:120px;border:none;border-bottom:2px solid var(--p);
+         background:#faf5ff;font-family:"Cascadia Code",Consolas,monospace;font-size:.87rem;
+         text-align:center;padding:2px 6px;border-radius:4px 4px 0 0;color:var(--ink)}
+  .blank.ok{border-bottom-color:var(--g);background:#ecfdf5}
+  .blank.no{border-bottom-color:var(--r);background:#fef2f2}
+  .fillrow{margin:9px 0}
+
+  button{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 15px;
+         cursor:pointer;font-size:.85rem;font-family:inherit;color:var(--ink);margin-right:6px}
+  button:hover{border-color:var(--p);color:var(--p)}
+  .primary{background:var(--p);color:#fff;border-color:var(--p)}
+  .primary:hover{background:#7c3aed;color:#fff}
+
+  details{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:11px}
+  details summary{cursor:pointer;font-weight:600;font-size:.92rem}
+  details[open] summary{margin-bottom:10px;color:var(--p)}
+  details .ans{font-size:.87rem;color:#374151;border-top:1px dashed var(--line);padding-top:10px}
+  ul{padding-left:20px}li{margin:4px 0;font-size:.9rem}
+  .score{font-size:.9rem;color:var(--dim);margin-top:12px}
+  .src{font-size:.8rem;color:var(--dim);border-top:1px solid var(--line);padding-top:14px;margin-top:8px}
+  @media(max-width:720px){.lanes{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>getPrototypeOf 只跳一階，不是跳到頂</h1>
+<div class="sub">
+  這是 <em>Object建構子-plain-object的建立與存取</em> 主軸圖右側「原型鏈」那一格的展開版
+  ｜實測環境 Node.js v22 與瀏覽器 V8｜2026-08-19
+</div>
+
+<section>
+  <h2><span class="n">a</span>一句話先講</h2>
+  <p class="hint">你的疑問是「為什麼 <code>[]</code> 的答案不是 <code>Object.prototype</code>」。答案不是「陣列跟物件無關」，而是——</p>
+  <pre>Object.getPrototypeOf(x)  問的是「x 的<b>上一階</b>是誰」
+                          不是「x 的鏈<b>最上面</b>是誰」</pre>
+  <p style="font-size:.92rem;margin-top:12px">
+    <code>{}</code> 的上一階剛好就是 <code>Object.prototype</code>，所以看起來像是「跳到頂」。
+    <code>[]</code> 中間多插了一層 <code>Array.prototype</code>，所以第一次呼叫只走到那裡就停了。
+    再呼叫一次，才會走到 <code>Object.prototype</code>。
+  </p>
+</section>
+
+<section>
+  <h2><span class="n">b</span>逐階走一次給你看</h2>
+  <p class="hint">按「往上一階」，三條鏈會同時往上走一格。注意 <code>{}</code> 那條走兩步就到底，另外兩條要走三步。</p>
+
+  <div class="lanes" id="lanes"></div>
+
+  <div class="stepbar" id="stepbar">還沒開始。按下面的按鈕開始走。</div>
+
+  <p style="margin-top:12px">
+    <button class="primary" onclick="stepUp()">往上一階 ▲</button>
+    <button onclick="stepReset()">重來</button>
+    <button onclick="stepAll()">一次走完</button>
+  </p>
+</section>
+
+<section>
+  <h2><span class="n">c</span>三個容易誤會的地方</h2>
+  <table>
+    <tr><th>誤會</th><th>實際情況</th></tr>
+    <tr><td>陣列不是物件</td>
+        <td><code>typeof []</code> 是 <code>"object"</code>，<code>[] instanceof Object</code> 是 <code>true</code>。它就是物件</td></tr>
+    <tr><td>陣列繼承不到 <code>Object.prototype</code></td>
+        <td>繼承得到。<code>Object.prototype.isPrototypeOf([])</code> 是 <code>true</code>，<code>[].hasOwnProperty</code> 也存在。只是它不在<strong>第 1 階</strong></td></tr>
+    <tr><td><code>[].toString</code> 就是 <code>Object.prototype.toString</code></td>
+        <td>不是。<code>[].toString === Object.prototype.toString</code> 是 <code>false</code>，因為 <code>Array.prototype</code> 自己覆寫了一份。但 <code>({}).toString === Object.prototype.toString</code> 是 <code>true</code></td></tr>
+  </table>
+  <div class="anchor">
+    所以「是不是 plain object」的判準是<strong>「第 1 階是不是 <code>Object.prototype</code>」</strong>，
+    不是「鏈上有沒有 <code>Object.prototype</code>」。後者的話全部都算，那就沒有分類意義了。
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">d</span>那多出來的一層裝了什麼</h2>
+  <p class="hint">下表是本頁載入時即時算出來的，不是寫死的。</p>
+  <table id="layers"><thead><tr>
+    <th>原型層</th><th>自有屬性數</th><th>代表成員</th><th>plain object 有嗎</th>
+  </tr></thead><tbody></tbody></table>
+  <p style="font-size:.9rem;margin-top:10px">
+    這就是為什麼要拆檔：<code>Array.prototype</code> 那 40 個方法跟 <code>Map.prototype</code> 那 11 個方法，
+    plain object 一個都沒有。API 完全不同的東西放同一份筆記，之後查起來會互相干擾。
+  </p>
+</section>
+
+<section>
+  <h2><span class="n">e</span>填空題</h2>
+  <div class="fillrow">e-1. <code>Object.getPrototypeOf</code> 問的是「上一
+    <input class="blank" data-a="階|層|層級" size="7" placeholder="？">是誰」，不是「最上面是誰」。</div>
+  <div class="fillrow">e-2. <code>Object.getPrototypeOf([])</code> 的結果是
+    <input class="blank" data-a="Array.prototype" size="17" placeholder="？"> 。</div>
+  <div class="fillrow">e-3. 對上一題的結果再呼叫一次 <code>getPrototypeOf</code>，會得到
+    <input class="blank" data-a="Object.prototype" size="18" placeholder="？"> 。</div>
+  <div class="fillrow">e-4. <code>[] instanceof Object</code> 的結果是
+    <input class="blank" data-a="true" size="7" placeholder="？"> ，因為 <code>Object.prototype</code> 仍然在它的鏈上。</div>
+  <div class="fillrow">e-5. 判斷 plain object 的判準是「第
+    <input class="blank" data-a="1|一" size="5" placeholder="？"> 階是不是 <code>Object.prototype</code>」。</div>
+  <div class="fillrow">e-6. 三條鏈的終點都一樣，都是
+    <input class="blank" data-a="null" size="7" placeholder="？"> 。</div>
+
+  <p style="margin-top:14px">
+    <button class="primary" onclick="grade()">批改</button>
+    <button onclick="reveal()">顯示答案</button>
+    <button onclick="resetFill()">清空重做</button>
+  </p>
+  <div class="score" id="score"></div>
+</section>
+
+<section>
+  <h2><span class="n">f</span>是非題</h2>
+  <div id="tfbox"></div>
+</section>
+
+<section>
+  <h2><span class="n">g</span>申論題</h2>
+
+  <details>
+    <summary>g-1. 為什麼 JS 要在陣列跟 Object.prototype 之間多插一層 Array.prototype？</summary>
+    <div class="ans"><ul>
+      <li>因為陣列需要一整套 plain object 用不到的方法：<code>push</code>、<code>pop</code>、<code>map</code>、<code>filter</code>、<code>reduce</code>、<code>length</code> 共 40 個。</li>
+      <li>如果把這些直接塞進 <code>Object.prototype</code>，那每一個物件都會平白多出 40 個方法，連 <code>{name:"Abby"}</code> 都有 <code>push</code>，那是災難。</li>
+      <li>所以做法是：共用的東西（<code>toString</code>、<code>valueOf</code>、<code>hasOwnProperty</code>）放最上層的 <code>Object.prototype</code>，各自專屬的方法放各自的那一層。這就是原型鏈分層的意義。</li>
+      <li>同理 <code>Map.prototype</code> 放 <code>get</code>／<code>set</code>／<code>has</code>／<code>size</code>，<code>Date.prototype</code> 放日期方法，各管各的。</li>
+    </ul></div>
+  </details>
+
+  <details>
+    <summary>g-2. 既然陣列最終也繼承到 Object.prototype，為什麼還要說它「不是 plain object」？</summary>
+    <div class="ans"><ul>
+      <li>因為如果判準是「鏈上有沒有 <code>Object.prototype</code>」，那除了 <code>Object.create(null)</code> 以外全部都算，這個分類就沒有任何鑑別力了。</li>
+      <li>有用的判準是「第 1 階是不是 <code>Object.prototype</code>」，它精確對應到「這個東西有沒有額外的專屬 API」。</li>
+      <li>實務上的意義很直接：你能不能對它用 <code>Object.keys</code>、能不能 <code>JSON.stringify</code> 得到預期結果、能不能用展開運算子複製。plain object 這三件事都行，Map 三件事都不行。</li>
+    </ul></div>
+  </details>
+
+  <details>
+    <summary>g-3. <code>[].toString</code> 跟 <code>({}).toString</code> 為什麼不是同一個函式？</summary>
+    <div class="ans"><ul>
+      <li><code>Array.prototype</code> 自己定義了一份 <code>toString</code>，覆寫 override 掉繼承來的那份。</li>
+      <li>原型鏈查找是「由下往上找到第一個就停」，所以 <code>[].toString</code> 在第 1 階就找到 <code>Array.prototype.toString</code>，根本走不到 <code>Object.prototype</code> 那份。</li>
+      <li>效果差很多：<code>[1,2].toString()</code> 得到 <code>"1,2"</code>，而 <code>Object.prototype.toString.call([1,2])</code> 得到 <code>"[object Array]"</code>。後者就是型別偵測那招之所以要寫 <code>.call()</code> 的原因 —— 必須繞過覆寫，直接指定用原版那份。</li>
+    </ul></div>
+  </details>
+</section>
+
+<section>
+  <h2><span class="n">h</span>參考來源</h2>
+  <table>
+    <tr><th>來源</th><th>說明</th></tr>
+    <tr><td>MDN｜Object.getPrototypeOf()</td><td>確認它是 <strong>static method</strong>，且回傳的是「指定物件的原型」也就是上一階</td></tr>
+    <tr><td>MDN｜Inheritance and the prototype chain</td><td>原型鏈逐階查找的完整說明</td></tr>
+    <tr><td>MDN｜Object（2026-05-22 更新）</td><td>Object.prototype 與 null-prototype 物件</td></tr>
+  </table>
+  <p class="src">b 節與 d 節的數字由本頁 JavaScript 即時執行產生，另有可用 Node.js 執行的 <code>原型鏈階數-demo.js</code> 在同資料夾。</p>
+</section>
+
+<script>
+/* ---------- b 節：三條鏈的 stepper ---------- */
+var CHAINS = [
+  { title: '{}  plain object', cls: 'obj', nodes: [
+      { t: '{}', s: '你自己放的屬性', c: 'obj' },
+      { t: 'Object.prototype', s: '12 個成員', c: 'obj' },
+      { t: 'null', s: '鏈的終點', c: 'nul' }
+  ]},
+  { title: '[]  陣列', cls: 'arr', nodes: [
+      { t: '[]', s: '元素與 length', c: 'arr' },
+      { t: 'Array.prototype', s: '40 個｜push map filter', c: 'arr' },
+      { t: 'Object.prototype', s: '還是走得到', c: 'obj' },
+      { t: 'null', s: '鏈的終點', c: 'nul' }
+  ]},
+  { title: 'new Map()  Map 物件', cls: 'map', nodes: [
+      { t: 'new Map()', s: '內部插槽存資料', c: 'map' },
+      { t: 'Map.prototype', s: '11 個｜get set has size', c: 'map' },
+      { t: 'Object.prototype', s: '還是走得到', c: 'obj' },
+      { t: 'null', s: '鏈的終點', c: 'nul' }
+  ]}
+];
+
+var lanes = document.getElementById('lanes');
+CHAINS.forEach(function(ch, ci){
+  var d = document.createElement('div');
+  d.className = 'lane';
+  var html = '<h3>' + ch.title + '</h3>';
+  ch.nodes.forEach(function(n, ni){
+    if (ni > 0) html += '<div class="arrow" data-c="' + ci + '" data-i="' + ni + '">▲ 第 ' + ni + ' 階</div>';
+    html += '<div class="node ' + n.c + '" data-c="' + ci + '" data-i="' + ni + '">' +
+            '<div class="t">' + n.t + '</div><div class="s">' + n.s + '</div></div>';
+  });
+  d.innerHTML = html;
+  lanes.appendChild(d);
+});
+
+var step = 0;
+var MAXSTEP = 3;
+var NARRATION = [
+  '起點。三個都是「值」本身，還沒開始往上走。',
+  '<strong>第 1 次呼叫 <code>Object.getPrototypeOf(x)</code></strong>：<code>{}</code> 直接到 <code>Object.prototype</code>；' +
+    '但 <code>[]</code> 只到 <code>Array.prototype</code>，<code>new Map()</code> 只到 <code>Map.prototype</code>。' +
+    '<span style="color:#dc2626">←這一步就是你的疑問的答案，它只跳一階。</span>',
+  '<strong>第 2 次呼叫</strong>：<code>{}</code> 已經到 <code>null</code> 收工；' +
+    '另外兩條這時候才走到 <code>Object.prototype</code>。可見它們並不是「跟 Object 無關」。',
+  '<strong>第 3 次呼叫</strong>：三條鏈全部到 <code>null</code>。終點一樣，差別只在中間多不多一層。'
+];
+
+function render(){
+  document.querySelectorAll('.node').forEach(function(el){
+    el.classList.toggle('on', Number(el.dataset.i) <= step);
+  });
+  document.querySelectorAll('.arrow').forEach(function(el){
+    el.classList.toggle('on', Number(el.dataset.i) <= step);
+  });
+  document.getElementById('stepbar').innerHTML =
+    '<strong>步驟 ' + step + ' ／ ' + MAXSTEP + '</strong>　' + NARRATION[step];
+}
+function stepUp(){ if (step < MAXSTEP) step++; render(); }
+function stepReset(){ step = 0; render(); }
+function stepAll(){ step = MAXSTEP; render(); }
+render();
+
+/* ---------- d 節：即時算層數 ---------- */
+(function(){
+  var rows = [
+    ['Array.prototype', Object.getOwnPropertyNames(Array.prototype),
+     'push｜pop｜map｜filter｜reduce｜length', typeof ({}).push],
+    ['Map.prototype', Object.getOwnPropertyNames(Map.prototype),
+     'get｜set｜has｜delete｜size｜clear', typeof ({}).get],
+    ['Object.prototype', Object.getOwnPropertyNames(Object.prototype),
+     'toString｜valueOf｜hasOwnProperty', typeof ({}).hasOwnProperty]
+  ];
+  var tb = document.querySelector('#layers tbody');
+  rows.forEach(function(r){
+    var has = r[3] === 'function';
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td class="mono">' + r[0] + '</td>' +
+      '<td><strong>' + r[1].length + '</strong> 個</td>' +
+      '<td style="font-size:.82rem">' + r[2] + '</td>' +
+      '<td style="color:' + (has ? '#10b981' : '#dc2626') + ';font-weight:700">' +
+        (has ? '有（共用層）' : '沒有') + '</td>';
+    tb.appendChild(tr);
+  });
+})();
+
+/* ---------- 填空 ---------- */
+function norm(s){ return String(s).trim().toLowerCase().replace(/\s+/g,''); }
+function grade(){
+  var inputs = document.querySelectorAll('.blank'), ok = 0;
+  inputs.forEach(function(el){
+    var acc = el.dataset.a.split('|').map(norm);
+    if (acc.indexOf(norm(el.value)) > -1){ el.classList.add('ok'); el.classList.remove('no'); ok++; }
+    else { el.classList.add('no'); el.classList.remove('ok'); }
+  });
+  document.getElementById('score').textContent =
+    '答對 ' + ok + ' ／ ' + inputs.length + ' 題。' + (ok === inputs.length ? ' 全對。' : ' 紅色的再想一次。');
+}
+function reveal(){
+  document.querySelectorAll('.blank').forEach(function(el){
+    el.value = el.dataset.a.split('|')[0]; el.classList.add('ok'); el.classList.remove('no');
+  });
+  document.getElementById('score').textContent = '已顯示標準答案。';
+}
+function resetFill(){
+  document.querySelectorAll('.blank').forEach(function(el){ el.value=''; el.classList.remove('ok','no'); });
+  document.getElementById('score').textContent = '';
+}
+
+/* ---------- 是非題 ---------- */
+var TF = [
+  { q:'<code>Object.getPrototypeOf</code> 會一路走到原型鏈的頂端再回傳。', a:false,
+    why:'錯。它只往上走一階，回傳「直接原型」。要走到頂必須自己寫迴圈重複呼叫，直到拿到 null 為止。' },
+  { q:'陣列的原型鏈上沒有 <code>Object.prototype</code>。', a:false,
+    why:'錯。完整鏈是 [] → Array.prototype → Object.prototype → null，它在第 2 階。所以 Object.prototype.isPrototypeOf([]) 是 true，[].hasOwnProperty 也存在。' },
+  { q:'<code>{}</code> 與 <code>[]</code> 的原型鏈終點都是 <code>null</code>。', a:true,
+    why:'對。所有一般物件的鏈終點都是 null，這是規格明文寫死的。三條鏈的差別只在中間多不多插一層。' },
+  { q:'<code>[].toString === Object.prototype.toString</code> 的結果是 <code>true</code>。', a:false,
+    why:'錯，是 false。Array.prototype 自己定義了一份 toString 蓋掉繼承來的。原型鏈查找是由下往上找到第一個就停，所以根本走不到 Object.prototype 那份。這也是型別偵測要寫 Object.prototype.toString.call(x) 的原因。' },
+  { q:'判斷 plain object 應該看「鏈上有沒有 <code>Object.prototype</code>」。', a:false,
+    why:'錯。那樣幾乎所有東西都算，沒有鑑別力。正確判準是「第 1 階是不是 Object.prototype」，這才對應到「有沒有額外的專屬 API」。' },
+  { q:'<code>({}).push</code> 是 <code>undefined</code>。', a:true,
+    why:'對。push 住在 Array.prototype 那一層，plain object 的第 1 階直接就是 Object.prototype，中間沒有經過 Array.prototype，所以拿不到。' },
+  { q:'<code>Object.getPrototypeOf</code> 是掛在 <code>Object</code> 上的靜態方法。', a:true,
+    why:'對，MDN 分類就是 static method。寫法是 Object.getPrototypeOf(你的物件)，物件是當參數傳進去，不是 obj.getPrototypeOf()。' },
+  { q:'<code>new Date()</code> 也不是 plain object。', a:true,
+    why:'對。它的鏈是 new Date() → Date.prototype → Object.prototype → null，第 1 階是 Date.prototype，跟陣列與 Map 同樣的道理。函式也一樣，第 1 階是 Function.prototype。' }
+];
+var box = document.getElementById('tfbox');
+TF.forEach(function(item, i){
+  var d = document.createElement('div');
+  d.className = 'tf';
+  d.innerHTML = '<p>f-' + (i+1) + '. ' + item.q + '</p>' +
+    '<button data-v="true">O 正確</button><button data-v="false">X 錯誤</button><div class="fb"></div>';
+  d.querySelectorAll('button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var picked = btn.dataset.v === 'true', fb = d.querySelector('.fb'), right = picked === item.a;
+      fb.className = 'fb show ' + (right ? 'right' : 'wrong');
+      fb.innerHTML = (right ? '答對了。' : '再想一下。') +
+        '正確答案是 <strong>' + (item.a ? 'O 正確' : 'X 錯誤') + '</strong>。<br>' + item.why;
+    });
+  });
+  box.appendChild(d);
+});
+</script>
+</div>
+</body>
+</html>

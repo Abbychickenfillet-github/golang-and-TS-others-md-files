@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>動態路由與應用進入點｜Next.js 的 [slug] vs Vue Router 的冒號 vs Express 的 app.get</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>動態路由與應用進入點｜Next.js 的 [slug] vs Vue Router 的冒號 vs Express 的 app.get</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#react</span><span class="pill">#nextjs</span><span class="pill">#vue</span><span class="pill">#vue-router</span><span class="pill">#express</span><span class="pill">#路由</span><span class="pill">#進入點</span><span class="pill">#main-tsx</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-25</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/887f1aa2f9661bc7" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">在 Next.js 裡，[slug] 與 ({ params }) 是兩種不同的取值方式，選一種用就好。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是一組搭配：[slug] 是檔案系統層的宣告，({ params }) 是程式碼層的接收。</div></li><li><p class="qq">Express 的 app.get 跟 Next.js 的 App Router 是同一個概念的前後端版本。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">名字都有 app 但層次完全不同。前者接 HTTP 請求回資料，後者決定畫面顯示哪個組件。</div></li><li><p class="qq">Next.js 專案裡看不到 main.tsx 與 createRoot 是正常的。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Next.js 用檔案系統路由，初始化與掛載由框架自動完成，要塞 Provider 寫在 app/layout.tsx。</div></li><li><p class="qq">Vue Router 只能在啟動時定義好所有路由，不能在執行期間新增。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">支援 router.addRoute()，權限型後台常用來依權限動態生成導覽。</div></li><li><p class="qq">最底層的 Node http 模組本身就內建路由功能。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">沒有。要自己判斷 req.url 與 req.method，Express 才把那堆 if-else 包成語意化 API。</div></li><li><p class="qq">在 Next.js 15 之後，App Router 的 params 需要 await 才拿得到值。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">params 變成 Promise。Gemini 給的同步寫法是舊版，照抄會踩雷。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Next.js 用中括號 [id] 宣告動態路由，Vue Router 與 Express 則用 <input class="blank" data-a="冒" placeholder="填答案" autocomplete="off"> 號。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">因為冒號在多數作業系統的檔名裡是非法字元，靠檔名的 Next.js 只能改用中括號。</div></li><li><p class="qq">slug 在網頁開發中指的是「對人類閱讀 <input class="blank" data-a="友善" placeholder="填答案" autocomplete="off"> 的網址關鍵字」。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">例如 /posts/react-guide 裡的 react-guide。</div></li><li><p class="qq">function Post({ params }) 這種直接從 props 物件挖出屬性的語法，叫做 <input class="blank" data-a="解構" placeholder="填答案" autocomplete="off"> 賦值。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">destructuring，等同 function Post(props) { const params = props.params; }。</div></li><li><p class="qq">Express 取動態參數寫 req.<input class="blank" data-a="params" placeholder="填答案" autocomplete="off">.id，Next.js 組件裡寫 params.id。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">名字一樣但一個掛在 request 上、一個掛在 props 上。</div></li><li><p class="qq">main.tsx 裡的 createRoot(document.getElementById(&#x27;root&#x27;)) 是在指定應用的 <input class="blank" data-a="掛載" placeholder="填答案" autocomplete="off"> 點。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">mount point，對應 index.html 裡的 root 容器。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">有人跟你說「路由不就是路由，前後端有什麼差」。請用 Next.js 的 [slug]、Vue Router 的 :id、Express 的 app.get 三個例子，說明它們各自解決什麼問題、輸出的東西有什麼本質差異，以及為什麼 Next.js 非得用中括號不可。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 本質差異在「輸出什麼」。Express 的路由輸入是 HTTP 請求、輸出是資料（JSON、HTML 字串），它決定的是伺服器怎麼回應；Next.js 與 Vue Router 的路由輸入是網址、輸出是要渲染哪個組件，它決定的是使用者看到什麼畫面。全端框架 Next.js 兩件事都做（app/api 是前者，app/page 是後者），所以特別容易混淆。(2) 宣告位置不同。Express 與 Vue Router 把路由表寫在程式碼裡，是執行期資料結構，因此可以動態 addRoute；Next.js 把路由寫在檔案系統裡，是編譯期就決定的靜態結構，換來的是自動 code splitting 與更好的靜態分析。(3) 中括號 vs 冒號：冒號在 Windows 與多數 OS 的檔名中是非法字元，Next.js 既然選擇用檔名承載路由規則，就不可能用冒號，只好改用中括號。這是被檔名規則逼出來的設計，不是任意選的。(4) 延伸：main.tsx 的有無也是同一條線索——Vite/CRA 把進入點交給你寫，Next.js 收回去自己管，換取約定優於配置。</div></li></ol></section>
+
+<article class="card">
+<h1 id="nextjs-slug-vs-vue-router-vs-express-appget">動態路由與應用進入點｜Next.js 的 [slug] vs Vue Router 的冒號 vs Express 的 app.get</h1>
+<blockquote>
+<p>[!info] 本篇重點 a–m，共 13 個<br />
+這是一場語音問答，題目從「左邊那段 slug 範例在教什麼」一路岔到「Node.js 的 <code>app.get</code> 跟 React 的 App Router 是同一個 app 嗎」，再岔到「Next.js 為什麼看不到 <code>main.tsx</code>」，最後收在 Vue Router。四個看似無關的問題其實同一條主軸：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">誰負責把「網址」變成「畫面或回應」，以及那段邏輯被放在哪個檔案。</mark><br />
+關聯筆記：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：react-server-component-slug-動態路由參數">react-server-component-slug-動態路由參數</span></mark> 講 RSC 情境下 <code>params</code> 的取得方式，這篇補上「跨框架橫向對照」那一層；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：main-tsx進入點-與globals-css的關係">main-tsx進入點-與globals-css的關係</span></mark> 講 <code>main.tsx</code> 裡還會塞什麼，這篇補上「為什麼 Next.js 沒有這個檔案」。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="nextjs-slugparams">一. Next.js 的 <code>[slug]</code>：檔名決定規則，<code>params</code> 決定取值</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">slug 是「對人類閱讀友善的網址關鍵字」</mark>，例如 <code>/posts/react-guide</code> 裡的 <code>react-guide</code>。它不是 Next.js 專有名詞，是網頁界的通用術語。</p>
+<p>(b) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關鍵觀念：<code>[slug]</code> 與 <code>({ params })</code> 不是二選一，是一組搭配。</mark></p>
+<ul>
+<li><code>[slug]</code> 是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">檔案系統層</mark>的宣告。資料夾或檔名寫成中括號，就是在告訴 Next.js：「這一段網址是變數，不是固定字串。」</li>
+<li><code>({ params })</code> 是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">程式碼層</mark>的接收。Next.js 把網址上的實際字串打包成物件，透過 props 傳給組件。</li>
+</ul>
+<p>(c) 對照範例：</p>
+<table>
+<thead>
+<tr>
+<th>層級</th>
+<th>寫法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pages Router 檔案</td>
+<td><code>pages/posts/[slug].js</code></td>
+</tr>
+<tr>
+<td>App Router 檔案</td>
+<td><code>app/posts/[slug]/page.js</code></td>
+</tr>
+<tr>
+<td>使用者造訪</td>
+<td><code>/posts/react-guide</code></td>
+</tr>
+<tr>
+<td>組件內取值</td>
+<td><code>params.slug === "react-guide"</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-js">export default function Post({ params }) {
+  // 此時 params.slug 的值就是 &quot;react-guide&quot;
+  return &lt;h1&gt;目前文章 slug 是：{params.slug}&lt;/h1&gt;;
+}
+</code></pre>
+<p>(d) 逐段拆解這一行：<code>export default</code> 讓 Next.js 知道這是這個路由要渲染的組件；<code>function Post({ params })</code> 用<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">解構賦值（destructuring）</mark>直接從 props 物件裡把 <code>params</code> 挖出來，等同於寫 <code>function Post(props) { const params = props.params; ... }</code>；<code>{params.slug}</code> 是 JSX 的<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">插值表達式</mark>，大括號裡放的是 JavaScript 運算式，結果會被轉成文字節點。</p>
+<p>(e) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">版本陷阱：Next.js 15 之後 App Router 的 <code>params</code> 變成 Promise，必須 await。</mark>上面那段是 Next.js 14 以前的舊寫法。Gemini 沒有提到這件事，寫的時候務必對照你專案的 Next.js 版本。</p>
+<pre><code class="language-tsx">// Next.js 15 以後的正確寫法
+interface PageProps {
+  params: Promise&lt;{ slug: string }&gt;;
+}
+
+export default async function Page({ params }: PageProps) {
+  const { slug } = await params;
+  return &lt;h1&gt;slug 是：{slug}&lt;/h1&gt;;
+}
+</code></pre>
+<p><mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">改成 Promise 的理由是效能：Next.js 可以先把頁面能靜態渲染的部分渲染完，再去解析動態值，不必為了等一個 slug 卡住整頁。</mark>沒 await 時的典型錯誤訊息是 <code>Route "/blog/[slug]" used params.slug. params should be awaited before using its properties.</code> 或 TypeScript 的 <code>Type '{ params: { slug: string; }; }' does not satisfy the constraint 'PageProps'</code>。</p>
+<h3 id="vue-router">二. Vue Router 的冒號寫法</h3>
+<p>(f) Vue 不用檔案系統宣告，而是在路由表裡用<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">冒號</mark>標記動態參數：<code>/user/:id</code>。</p>
+<p>(g) 組件內用 <code>$route.params.id</code>（Options API）或 <code>useRoute().params.id</code>（Composition API）取值。</p>
+<p>(h) Vue Router 還支援<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">執行期動態加入路由</mark>（<code>router.addRoute()</code>），所以可以依照使用者權限動態生成導覽清單，這是權限型後台常見做法。</p>
+<h3 id="express-appget-app">三. Express 的 <code>app.get</code>：名字裡也有 app，但是完全不同層</h3>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最容易搞混的地方：Node/Express 的 <code>app.get</code> 跟 Next.js 的 App Router，兩個名字裡都有 app，但根本不是同一件事。</mark></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Express 的 <code>app</code></th>
+<th>Next.js 的 App Router</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>所在層</td>
+<td>後端伺服器</td>
+<td>前端 / 全端框架</td>
+</tr>
+<tr>
+<td>負責</td>
+<td>接收 HTTP 請求，回傳資料（JSON 等）</td>
+<td>決定畫面上顯示哪個組件</td>
+</tr>
+<tr>
+<td>寫法</td>
+<td><code>app.get('/users/:id', handler)</code></td>
+<td>資料夾 <code>app/users/[id]/page.tsx</code></td>
+</tr>
+<tr>
+<td>動態參數</td>
+<td><code>req.params.id</code></td>
+<td><code>params.id</code></td>
+</tr>
+</tbody>
+</table>
+<p>(j) 最底層的 Node <code>http</code> 模組其實沒有路由這回事，你得自己判斷 <code>req.url</code> 與 <code>req.method</code>。<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Express 的價值就是把那一堆 if-else 包成 <code>app.get</code> / <code>app.post</code> 這種語意化 API。</mark></p>
+<p>(k) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">記憶點：Express 用冒號 <code>:id</code>，跟 Vue Router 一樣；Next.js 用中括號 <code>[id]</code>，因為它靠的是檔案系統，而冒號在多數作業系統的檔名裡是非法字元。</mark>這不是巧合，是被檔名規則逼出來的設計。</p>
+<h3 id="maintsx-vitecra-nextjs">四. <code>main.tsx</code> 進入點：Vite/CRA 有，Next.js 沒有</h3>
+<p>(l) 傳統 React 專案（Vite、CRA）的 <code>main.tsx</code> 做三件事：</p>
+<pre><code class="language-tsx">import { createRoot } from 'react-dom/client';
+import App from './App';
+
+createRoot(document.getElementById('root')).render(&lt;App /&gt;);
+</code></pre>
+<ul>
+<li><code>createRoot(...)</code> 指定<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">掛載點（mount point）</mark>，通常是 <code>index.html</code> 裡那個 <code>&lt;div id="root"&gt;</code>。</li>
+<li><code>&lt;App /&gt;</code> 是最外層組件。</li>
+<li>如果用 React Router，<code>&lt;BrowserRouter&gt;</code> 這類 Provider 也會包在這一層。</li>
+</ul>
+<p>(m) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Next.js 裡看不到這段是正常的，你沒記錯。</mark>Next.js 採用<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">基於檔案系統的路由</mark>，初始化與掛載由框架自動完成，開發者只寫 <code>layout.tsx</code> 與 <code>page.tsx</code>。要塞 Provider 的話就寫在 <code>app/layout.tsx</code> 裡。</p>
+<hr />
+<h2 id="_2">程式碼範例</h2>
+<p>同層的 <code>routing-three-frameworks.js</code> 把三種寫法並排放在一個檔案裡對照。</p>
+<hr />
+<h2 id="_3">練習題</h2>
+<p>路由本身不是演算法題，LeetCode 沒有直接對應。若要練「把字串路徑解析成參數」這個底層動作，可以看：</p>
+<table>
+<thead>
+<tr>
+<th>題號</th>
+<th>題名</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>71</td>
+<td><a href="https://leetcode.com/problems/simplify-path/">Simplify Path</a></td>
+<td>手動切 <code>/</code> 分段、處理 <code>.</code> 與 <code>..</code>，就是路由解析的雛形</td>
+</tr>
+<tr>
+<td>208</td>
+<td><a href="https://leetcode.com/problems/implement-trie-prefix-tree/">Implement Trie (Prefix Tree)</a></td>
+<td>真實框架的路由表多半用 Trie 做前綴比對，Express 的 router 底層就是這類結構</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">各對話來源（原文）</h2>
+<h3 id="2026-08-httpsgeminigooglecomapp887f1aa2f9661bc7">單向與雙向資料綁定解析（2026-08）— https://gemini.google.com/app/887f1aa2f9661bc7</h3>
+<p><strong>使用者：</strong> 左邊這段範例程式碼是想教我什麼？就 slug？</p>
+<p><strong>Gemini：</strong> 左邊的範例主要是在介紹 Next.js 的動態路由（Dynamic Routes）機制，特別是 slug 參數（Route Parameters）的用法。抓取 URL 中的動態變數：在 Next.js（App Router）中，如果你把資料夾命名為 <code>[slug]</code>，網址上對應位置的字串就會被當作變數抓進來。處理傳入的 params：組件可以透過 <code>props.params</code> 取得這個動態值。實作動態頁面：當使用者存取 <code>/posts/hello-world</code>，<code>params.slug</code> 就會是 <code>"hello-world"</code>。</p>
+<p><strong>使用者：</strong> 所以是依照 <code>({slug})</code> 取網址名稱還是 <code>[slug].js</code>？</p>
+<p><strong>Gemini：</strong> 答案是兩者配合：<code>[slug]</code> 是檔案／資料夾名稱，<code>({ params })</code> 是程式碼內部拿取該名稱的方式。檔案系統命名用中括號宣告動態路由；程式碼元件用 <code>({ params })</code> 從 props 中把變數取出來使用。</p>
+<p><strong>使用者：</strong> 那個 Node.js 的路由會怎麼規劃？我記得 Node.js 好像也可以規劃路由。</p>
+<p><strong>Gemini：</strong> 如果使用最基本的 <code>http</code> 模組，你需要手動檢查 <code>req.url</code> 和 <code>req.method</code>。不過通常我們會使用像 Express.js 這類的框架，它提供了更直覺的方法，像是 <code>app.get</code> 或 <code>app.post</code>。</p>
+<p><strong>使用者：</strong> app 點什麼？它就是跟 app router，前端 react 的這個鼎鼎有名的 app router，它這個字是一樣的嘛？</p>
+<p><strong>Gemini：</strong> 雖然它們的名字裡都有「app」，但它們在架構上的角色可是大不相同。Node.js 裡的 <code>app.get</code> 或 <code>app.post</code> 是用來處理後端伺服器的路由，負責接收特定的 HTTP 請求然後送回資料。而 React 這裡的 App Router 則是前端或全端框架 Next.js 用來管理頁面和組件導航的機制。簡而言之，一個是處理後端 API，另一個是決定畫面上要顯示什麼內容。</p>
+<p><strong>使用者：</strong> 前端的 main.tsx 好像都會放一些什麼樣的東西？</p>
+<p><strong>Gemini：</strong> 在前端的 React 應用中，像 <code>main.tsx</code> 這樣的主要進入點，主要負責把整個 React 應用渲染到實際的網頁 DOM 裡面。在這個檔案中，通常會透過 <code>createRoot</code> 來指定應用的掛載點，像是 <code>document.getElementById('root')</code>。接著你會導入最外層的組件，通常是 <code>&lt;App /&gt;</code>。如果你的應用使用了路由系統，比如 React Router，相關的設定也會在這個階段被引入並包裝在組件的最外層。</p>
+<p><strong>使用者：</strong> 可是我記得我用 next 的時候，好像沒有看過這個寫法。還是我記錯了？</p>
+<p><strong>Gemini：</strong> 你並沒有記錯。在 Next.js 裡面，你確實不會手動去寫 <code>main.tsx</code> 和 <code>createRoot</code> 這一類的程式碼。在 Next.js 的架構下，它採用基於檔案系統的路由機制，會自動幫你處理應用的初始化與掛載。</p>
+<p><strong>使用者：</strong> vue 是怎麼做動態路由的？</p>
+<p><strong>Gemini：</strong> 在 Vue 裡面，動態路由是透過 Vue Router 實現的。核心做法是在定義路由規則時，使用冒號來標記動態參數。例如設定一個路徑為 <code>/user/:id</code>，這樣當使用者造訪不同的 ID 時，同一個組件就能夠動態載入。在組件內部，你可以透過 <code>$route.params.id</code> 來取得網址上的實際數值。Vue Router 還支援在執行期間動態添加路由。</p>
+<hr />
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本 / 查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/887f1aa2f9661bc7</td>
+<td>2026-08，本次歸檔 2026-08-25</td>
+</tr>
+<tr>
+<td>Next.js 官方文件：Dynamic Routes</td>
+<td>https://nextjs.org/docs/app/api-reference/file-conventions/dynamic-routes</td>
+<td>查證 2026-08-25</td>
+</tr>
+<tr>
+<td>Next.js 15 的 params 改為 Promise（破壞性變更說明與型別寫法）</td>
+<td>https://github.com/vercel/next.js/pull/74522</td>
+<td>Next.js 15 起生效，查證 2026-08-25</td>
+</tr>
+<tr>
+<td>Vue Router：Dynamic Route Matching</td>
+<td>https://router.vuejs.org/guide/essentials/dynamic-matching.html</td>
+<td>Vue Router 4，查證 2026-08-25</td>
+</tr>
+<tr>
+<td>Express Routing 指南</td>
+<td>https://expressjs.com/en/guide/routing.html</td>
+<td>查證 2026-08-25</td>
+</tr>
+<tr>
+<td>React <code>createRoot</code> API</td>
+<td>https://react.dev/reference/react-dom/client/createRoot</td>
+<td>查證 2026-08-25</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!warning] ⚠️ 存疑 / 更正<br />
+(e) 那一點很重要：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Gemini 給的 <code>params.slug</code> 同步寫法在 Next.js 15 以後已經不適用</mark>，App Router 的 <code>params</code> 改成 Promise，必須 <code>await</code>。Gemini 回答時沒有標注版本，照抄會踩雷。請務必以你專案的 <code>package.json</code> 裡的 Next.js 版本為準。<br />
+另外這場對話標題叫「單向與雙向資料綁定解析」，但實際內容<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全沒有講到單向／雙向綁定</mark>，標題是 Gemini 自動生成時抓錯重點。真正談綁定的內容請看 useRef 那一篇。</p>
+</blockquote>
+<hr />
+<p><em>由 Gemini 對話自動整理 · 更新於 2026-08-25</em></p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-25</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ECMA-262 標準編號與 ES 俗稱 — 為何規格書不寫「我是 ES 幾」</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>ECMA-262 標準編號與 ES 俗稱 — 為何規格書不寫「我是 ES 幾」</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#ecmascript</span><span class="pill">#ecma-262</span><span class="pill">#tc39</span><span class="pill">#規格</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-27</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/a073e38dcecad874" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">ECMA-262 是一個「版本名稱」，所以規格書封面上會寫 ES6。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是標準編號，官方用 Edition（第幾版）記錄版本，ES6 只是社群俗稱。</div></li><li><p class="qq">ECMAScript 是規格書裡定義的語言，JavaScript 是它的實作再加上 DOM、BOM 等宿主 API。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這是三者最精準的關係。</div></li><li><p class="qq">ES6 和 ECMAScript 2015 是兩份不同的規格。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">同一份文件的兩種叫法，前者是俗稱、後者是官方年份名稱。</div></li><li><p class="qq">TypeScript 也遵循 ECMAScript 語法規格，最後會轉譯回標準 ECMAScript。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">它是 JS 的超集，型別只存在於編譯階段。</div></li><li><p class="qq">ECMA-402 也是 ECMAScript 語言規格的一部分。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">ECMA-402 是國際化 API 標準，跟 ECMA-262 是不同編號的標準。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">負責制定與推進 ECMAScript 規格的技術委員會叫做 <input class="blank" data-a="TC39" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">ECMA 底下的第 39 號技術委員會。</div></li><li><p class="qq">官方在規格書中用來表示版本演進的量詞是 <input class="blank" data-a="Edition" placeholder="填答案" autocomplete="off">（中文為「第幾版」）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">例如 ECMA-262 5th Edition 就是俗稱的 ES5。</div></li><li><p class="qq">自 <input class="blank" data-a="2015" placeholder="填答案" autocomplete="off"> 年起，ECMAScript 改為每年定期發布並以年份命名。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">ES6 = ECMAScript 2015 是分水嶺。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">用你自己的話解釋 ECMA-262、ECMAScript 與 JavaScript 三者的關係，並說明為什麼「ECMA-262 就是 JavaScript」這句話不夠精準。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) ECMA-262 是 ECMA 組織給某份標準文件的編號，就像書的書號；(2) 那份文件裡定義的語言正式名稱是 ECMAScript，它只規範語法、型別、內建物件與抽象操作；(3) JavaScript 是實作 ECMAScript 並額外加上宿主環境 API（瀏覽器的 DOM、BOM，Node 的 fs、process）的語言。所以說「ECMA-262 就是 JavaScript」漏掉了中間的 ECMAScript 這一層，也忽略了 JavaScript 比 ECMAScript 多出來的那一大塊 API。</div></li><li><p class="qq">除了 JavaScript，還有哪些語言曾經實作 ECMAScript？它們現在的處境如何，這件事說明了什麼？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：ActionScript（Flash）、JScript / JScript .NET（早期 IE 與 Windows 腳本）、Qt Script（C++ 框架的腳本擴充）、TypeScript（超集）。前三者都隨著宿主平台（Flash、舊版 IE、Qt Script 模組）退場而淡出，說明一個語言實作的生死很大程度取決於它的宿主環境是否還有人用，而不是語言規格本身好不好；也說明 ECMAScript 之所以還活著，是因為瀏覽器這個宿主環境沒有被取代。</div></li></ol></section>
+
+<article class="card">
+<h1 id="ecma-262-es-es">ECMA-262 標準編號與 ES 俗稱 — 為何規格書不寫「我是 ES 幾」</h1>
+<p>本篇重點 a–i，共 9 個</p>
+<h2 id="_1">重點整理</h2>
+<p>a. <mark style="background: #ADCCFF;">ECMA-262</mark> 是一組「標準編號」而不是版本名稱。ECMA（European Computer Manufacturers Association，歐洲電腦製造商協會）用流水編號來區分它管轄的各種技術標準，例如 ECMA-402 是國際化 API（Internationalization API）標準，而 ECMA-262 專門用來記載 ECMAScript 這個語言的規格。</p>
+<p>b. <mark style="background: #ADCCFF;">ECMAScript</mark> 是 ECMA-262 規格書裡面所定義的那個「標準語言」本身，它只規範語法、型別、內建物件與抽象操作。</p>
+<p>c. <mark style="background: #ADCCFF;">JavaScript</mark> 則是「基於 ECMAScript 標準所做出來的實作與延伸」。瀏覽器裡的 JavaScript 除了實作 ECMAScript 核心語法之外，還多了 DOM（Document Object Model，文件物件模型）與 BOM（Browser Object Model，瀏覽器物件模型）這些規格書裡根本沒有的 API。</p>
+<p>d. <mark style="background: #FFF3A3;">三者的正確關係鏈</mark>：ECMA-262（規格書編號）→ 內容定義了 ECMAScript（標準語言）→ JavaScript（實作 ECMAScript 並加上宿主環境 API 的語言）。Abby 原本說「ECMA-262 就是 JavaScript 語言」大體正確但不夠精準，差在中間漏掉了 ECMAScript 這一層。</p>
+<p>e. <mark style="background: #FF5582;">規格書裡找不到「ES6」這種字眼是正常的</mark>，不要以為自己讀錯版本。官方在封面與內文用的量詞是 <mark style="background: #ADCCFF;">Edition（第幾版）</mark>，例如俗稱的 ES5，正式名稱是 ECMA-262 5th Edition。</p>
+<p>f. 2015 年起 <mark style="background: #ADCCFF;">TC39</mark>（Technical Committee 39，ECMA 底下負責 ECMAScript 的第 39 號技術委員會）把發布模式改成「每年定期發布」，官方名稱也改成按年份命名，例如 ECMAScript 2015、ECMAScript 2026。因此「ES＋數字」從此退化成開發者之間口語溝通用的俗稱，而不是標準文件上的正式標題。</p>
+<p>g. <mark style="background: #FFB8EB;">ES6 就是 ECMAScript 2015</mark>，這是同一份文件的兩種叫法，前者是社群俗稱、後者是官方年份名稱。</p>
+<p>h. 除了 JavaScript 之外，歷史上還有其他語言是照 ECMAScript 規格實作出來的：<br />
+   - ActionScript：Adobe（前身 Macromedia）開發，Flash 的核心語言，ActionScript 3.0 大量參考了當時還在草擬中的 ES4。<br />
+   - JScript / JScript .NET：微軟在 1990 年代為了對抗 Netscape 的 JavaScript 而推出的實作，用在早期 Internet Explorer 與 Windows 腳本環境。<br />
+   - TypeScript：嚴格說是 JavaScript 的超集（Superset），完整遵循 ECMAScript 語法規格，在編譯階段額外加上型別系統，最後仍轉譯回標準 ECMAScript。<br />
+   - Qt Script：嵌入式 C++ 框架 Qt 曾提供的腳本語言，直接實作 ECMA-262（ES3 / ES5），讓 C++ 應用具備腳本擴充能力。</p>
+<p>i. <mark style="background: #D2B3FF;">現況備註</mark>：ActionScript 與 JScript 已隨 Flash 和舊版 IE 淘汰而退場，目前實務上幾乎只剩 JavaScript 與 TypeScript 在實作這份規格。</p>
+<h2 id="_2">關聯筆記（附關聯原因）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：ECMA-262規範-TC39與MDN比較">ECMA-262規範-TC39與MDN比較</span> — 那篇講「要查語言行為時該看 TC39 規格還是 MDN 文件」，本篇補上「規格書編號本身怎麼命名」，兩篇合起來就是一條完整的查規格路徑。</li>
+<li><span class="wikilink" title="Obsidian 連結：ECMAScript版本沿革-ES1到ES2026">ECMAScript版本沿革-ES1到ES2026</span> — 那篇是版本時間軸，本篇解釋為什麼那條時間軸上 ES6 之後改用年份，是同一件事的因與果。</li>
+<li><span class="wikilink" title="Obsidian 連結：06-靜態檢查vs動態檢查-TS-vs-JS">06-靜態檢查vs動態檢查-TS-vs-JS</span> — 本篇 (h) 提到 TypeScript 是超集且會轉譯回 ECMAScript，那篇說明超集多出來的型別檢查發生在哪個時間點。</li>
+</ul>
+<h2 id="_3">各對話來源（原文）</h2>
+<h3 id="ecma-262-es-2026-08-27-httpsgeminigooglecomappa073e38dcecad874">為什麼 ECMA-262 未標註 ES 版本？（2026-08-27）— https://gemini.google.com/app/a073e38dcecad874</h3>
+<p>使用者：why ECMA-262 中沒有寫出它們是ES幾?</p>
+<p>Gemini：ECMA-262 是 JavaScript（ECMAScript）的官方標準規格書編號，而我們平時常聽到的 ES5、ES6、ES2015 則是社群與開發者為了方便溝通所使用的版本俗稱或發布年份簡稱。規格書中沒有寫「我是 ES 幾」的主要原因如下：（1）ECMA-262 是標準編號而非版本名稱：ECMA 以數字編號來區分不同的技術標準，例如 ECMA-402 是國際化 API 標準，而 ECMA-262 專門指代 ECMAScript 語言規範。（2）官方標題使用的是「Edition」：在規範的正式封面與內文中，官方採用的是 Edition（第幾版）來記錄版本演進。例如 ECMA-262 第 5 版的正式名稱為 ECMA-262 5th Edition（即俗稱的 ES5）。（3）發布模式改變（ES6 之後）：自 2015 年起，TC39 委員會將 ECMAScript 的更新機制改為每年定期發布，官方正式名稱也改為按年份命名（如 ECMAScript 2015、ECMAScript 2026）。因此，「ES + 數字」的簡稱漸漸退居為開發者之間的俗稱，而非標準文件的正式標題。</p>
+<p>使用者：ECMA-262 指的是官方標準規格書編號，也就是 Javascript 語言，我說的對嗎</p>
+<p>Gemini：你的說法大體正確，但稍微不夠精準。精準的關係如下：（1）ECMA-262 是標準規格書編號：這完全正確。ECMA 為了規範各種技術而編號，ECMA-262 專門用來記載 JavaScript 的底層標準。（2）ECMAScript 是標準語言：ECMA-262 規格書裡面所定義的語言，正式名稱叫做 ECMAScript。（3）JavaScript 是該標準的實作與延伸：JavaScript 是基於 ECMAScript 標準所實作出來的程式語言（除了實現 ECMAScript 的核心語法外，瀏覽器環境的 JavaScript 還包含了 DOM、BOM 等額外 API）。</p>
+<p>使用者：那還有其他語言是依照 ECMAScript 規格實作出來的嗎</p>
+<p>Gemini：除了 JavaScript 之外，歷史上與現今確實還有其他程式語言是基於 ECMAScript 規格實作的：ActionScript（Adobe／Macromedia，Flash 核心語言，AS 3.0 大量參考草擬中的 ES4）、JScript / JScript .NET（微軟 1990 年代為反制 Netscape 的實作，用於早期 IE 與 Windows 腳本環境）、TypeScript（JavaScript 的超集，完全遵循 ECMAScript 語法規格，編譯階段加入型別系統，最終轉譯成標準 ECMAScript）、Qt Script（Qt 框架曾提供的腳本語言，直接實作 ECMA-262 的 ES3 / ES5）。大部分非 JavaScript 的 ECMAScript 實作都已隨 Flash 與舊版 IE 淘汰而淡出市場。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/a073e38dcecad874</td>
+<td>2026-08-27 擷取</td>
+</tr>
+<tr>
+<td>ECMA-262 官方標準頁（各 Edition 一覽）</td>
+<td>https://ecma-international.org/publications-and-standards/standards/ecma-262/</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>TC39 官方網站（規格提案流程）</td>
+<td>https://tc39.es/</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>MDN — JavaScript 語言資源與規格對照</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/JavaScript_technologies_overview</td>
+<td>2026-08-27 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-27</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

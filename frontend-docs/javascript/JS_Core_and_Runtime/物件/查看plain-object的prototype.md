@@ -89,3 +89,14 @@ Object.getPrototypeOf(Object.prototype); // null
 | 主題 | 連結 | 版本／時間 |
 |---|---|---|
 | 物件與原型鏈概念、null原型物件定義 | [MDN - JavaScript Data structures](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Data_structures) | 中文版，查證於2026-08-14 |
+
+---
+
+## 關聯筆記
+
+| 筆記 | 關聯原因 |
+| --- | --- |
+| [[Object建構子-plain-object的建立與存取]] | 那篇是「怎麼把 plain object 建出來」，本篇是「建出來之後怎麼查它的原型」。那篇的主軸圖右側原型鏈就是本篇 (d) 節的圖解版，而那篇 f 節的 null-prototype 段落正好接在本篇最後一句結論之後 |
+
+> [!note] 補充於 2026-08-19
+> 新增 [[Object建構子-plain-object的建立與存取]] 之後補上雙向連結。

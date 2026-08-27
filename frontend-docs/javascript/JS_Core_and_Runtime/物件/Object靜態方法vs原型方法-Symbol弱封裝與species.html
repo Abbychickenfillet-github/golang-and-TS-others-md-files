@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Object 靜態方法 vs 原型方法｜Symbol 弱封裝與 Symbol.species</title><style>
+:root{
+  --bg:#ffffff; --fg:#22262b; --muted:#6b7280; --line:#e6e8eb;
+  --card:#fafbfc; --accent:#3b6ea5; --accent-soft:#eaf1f8;
+  --user:#7c5cbf; --gem:#2f8f6f;
+  --hl-yellow:#FFF3A3; --hl-red:#FF5582; --hl-green:#BBFABB;
+  --hl-blue:#ADCCFF; --hl-pink:#FFB8EB; --hl-purple:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16.5px;letter-spacing:.01em}
+.wrap{max-width:820px;margin:0 auto;padding:36px 22px 80px}
+header.pagehead{border-bottom:2px solid var(--line);padding-bottom:22px;margin-bottom:8px}
+h1{font-family:"Noto Serif TC","Songti TC",Georgia,serif;font-size:1.85rem;line-height:1.35;margin:.1em 0 .5em}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:1.3rem;margin:2.2em 0 .6em;padding-left:12px;border-left:5px solid var(--accent)}
+h3{font-size:1.06rem;margin:1.6em 0 .4em;color:#2c3e50}
+h4{font-size:.98rem;margin:1.2em 0 .3em;color:#44515f}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:.4em 0}
+.pill{background:var(--accent-soft);color:#2b5580;border-radius:999px;padding:3px 11px;font-size:.76rem;white-space:nowrap}
+.meta{color:var(--muted);font-size:.83rem;margin-top:.6em}
+.meta a{color:var(--accent);word-break:break-all}
+.toolbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line);padding:9px 0;margin:14px 0 6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button.tb{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 13px;font-size:.83rem;cursor:pointer;color:#33414f;font-family:inherit}
+button.tb:hover{background:var(--accent-soft);border-color:#b9cfe4}
+button.tb.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.hint{color:var(--muted);font-size:.78rem}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 24px 22px;margin:22px 0}
+mark{padding:.06em .22em;border-radius:3px;cursor:pointer;transition:background .15s,color .15s}
+mark.hidden-answer{background:#dfe3e8 !important;color:transparent !important;text-shadow:none;border-radius:3px;
+  box-shadow:inset 0 0 0 1px #c6ccd3}
+mark.hidden-answer::selection{background:#dfe3e8}
+code{background:#eef1f4;border-radius:4px;padding:.1em .35em;font-size:.9em;
+  font-family:ui-monospace,SFMono-Regular,"Cascadia Code",Consolas,monospace}
+pre{background:#1e242b;color:#e6edf3;border-radius:11px;padding:15px 17px;overflow-x:auto;font-size:.85rem;line-height:1.6}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.9rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2b5580}
+tbody tr:nth-child(even){background:#f6f8fa}
+blockquote{border-left:4px solid var(--hl-blue);background:#f3f7fd;margin:1.1em 0;padding:.7em 1em;border-radius:0 8px 8px 0;color:#3a4653}
+blockquote p{margin:.35em 0}
+img{max-width:100%;border-radius:9px;border:1px solid var(--line);display:block;margin:1em auto}
+ol,ul{padding-left:1.5em}
+li{margin:.32em 0}
+hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
+.src-turn{border-radius:0 9px 9px 0;padding:.55em .9em;margin:.55em 0;font-size:.92rem}
+.src-user{border-left:4px solid var(--user);background:#f6f3fc}
+.src-gem{border-left:4px solid var(--gem);background:#f1f9f5}
+.callout{border-radius:0 10px 10px 0;padding:.75em 1.05em;margin:1.1em 0;font-size:.93rem}
+.callout .ttl{font-weight:700;display:block;margin-bottom:.25em}
+.c-warn{border-left:5px solid var(--hl-red);background:#fff1f4}
+.c-tip{border-left:5px solid var(--hl-green);background:#f1fbf1}
+.c-info{border-left:5px solid var(--hl-blue);background:#f1f6fd}
+.quiz{border:1px solid var(--line);border-radius:12px;padding:14px 17px;margin:13px 0;background:#fff}
+.quiz .q{font-weight:600;margin-bottom:.45em}
+.quiz .opts{display:flex;gap:8px;flex-wrap:wrap;margin:.4em 0}
+.quiz .opts button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 15px;cursor:pointer;font-family:inherit;font-size:.86rem}
+.quiz .opts button.ok{background:#d8f5d8;border-color:#7ec97e}
+.quiz .opts button.no{background:#ffdde4;border-color:#f09aae}
+.quiz .ans{display:none;border-left:4px solid var(--hl-yellow);background:#fffdf0;padding:.6em .9em;border-radius:0 8px 8px 0;margin-top:.5em;font-size:.9rem}
+.quiz .ans.show{display:block}
+.blank{display:inline-block;min-width:5.5em;border-bottom:2px dashed var(--accent);cursor:pointer;text-align:center;color:transparent;user-select:none}
+.blank.revealed{color:var(--accent);font-weight:600;border-bottom-color:transparent;background:#eaf1f8;border-radius:4px}
+footer.pagefoot{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:.8rem;text-align:center}
+svg.fig{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:11px;margin:1.2em 0}
+@media(max-width:600px){.wrap{padding:22px 14px 60px}h1{font-size:1.45rem}}
+</style></head><body><div class="wrap">
+<header class="pagehead"><h1>Object 靜態方法 vs 原型方法｜Symbol 弱封裝與 Symbol.species</h1><div class="pills"><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">object</span><span class="pill">symbol</span><span class="pill">prototype</span><span class="pill">static-method</span><span class="pill">species</span><span class="pill">面試</span></div>
+<div class="meta">更新於 2026-08-25 ｜ 來源 Gemini 對話 <a href="https://gemini.google.com/app/6bb0c9d66af3d8b5" target="_blank" rel="noopener">來源 1</a> · <a href="https://gemini.google.com/app/1c3e2e899072c469" target="_blank" rel="noopener">來源 2</a> · <a href="https://gemini.google.com/app/7b6a8c3812ce011f" target="_blank" rel="noopener">來源 3</a> · <a href="https://gemini.google.com/app/06dbe8066324c728" target="_blank" rel="noopener">來源 4</a></div></header>
+<div class="toolbar">
+<button class="tb" onclick="toggleAll(this)">隱藏全部重點（自我測驗）</button>
+<button class="tb" onclick="toggleBlanks(this)">公布所有填空</button>
+<button class="tb" onclick="toggleSrc(this)">收合各對話原文</button>
+<span class="hint">小提醒：單獨點任何一段螢光筆也可以單獨遮蓋或掀開</span>
+</div>
+<section class="card"><div class="callout c-info"><span class="ttl">ℹ️ 本篇重點 a–t 共 20 個</span><p>
+這篇把四場 Gemini 對話併成一條主線：<mark style="background: #ADCCFFA6;">key 只能是 string 或 symbol</mark> → Symbol 為什麼「藏得住又藏不死」→ 藏不死的後門 API 是誰 → 為什麼這些後門 API 全都掛在 <code>Object</code> 這個「工具箱」上而不是掛在每個物件身上 → 最後延伸到 <code>Symbol.species</code> 這個 TC39 自己都後悔的設計。</p>
+</div><div class="callout c-info"><span class="ttl">ℹ️ 與其他筆記的關聯（附理由）</span><p>
+a. 承接 [[Symbol-符號型別與物件key]]：那篇講「key 的型別只有 string 與 symbol」，本篇接著回答「既然 Symbol 藏得住，那要怎麼把它挖出來，以及為什麼挖它的工具是 <code>Object.xxx()</code> 而不是 <code>myObj.xxx()</code>」。
+b. 呼應 [[存取器屬性三種定義方式-getter-setter與資料驗證]]：<code>Symbol.species</code> 本身就是一個「掛在類別上的存取器屬性（getter）」，是那篇 getter 概念在語言規格層級的真實案例。
+c. 呼應 [[函式的兩條線-prototype屬性與Prototype原型]]：本篇 p 節「靜態方法 vs 原型方法」就是那篇「兩條線」的實務版本，一條線走 <code>Object</code> 函式本身，另一條線走 <code>Object.prototype</code>。
+d. 呼應 [[原型與引擎最佳化-Shape-InlineCache-ValidityCell]]：<code>Symbol.species</code> 之所以被 TC39 後悔，理由正是「引擎難以最佳化」，跟那篇講的 Shape 與 Inline Cache 是同一個成本來源。
+e. 呼應 [[Object建構子-plain-object的建立與存取]]：本篇 q 節提到 <code>Object.create(null)</code> 造出的無原型物件，正是那篇的延伸情境。</p>
+</div>
+<hr />
+<h2>重點整理</h2>
+<h3>一、Symbol 本身是什麼（a–g）</h3>
+<p><strong>a.</strong> 在 JavaScript 的物件裡，屬性的 key <mark style="background: #FFF3A3A6;">只允許兩種型別：String 與 Symbol</mark>。其他型別（數字、布林、物件）拿來當 key 都會被自動轉成字串。這也是為什麼 <code>Reflect.ownKeys(obj)</code> 會把字串跟 Symbol 混在同一個陣列裡回傳。</p>
+<p><strong>b.</strong> <mark style="background: #ADCCFFA6;">Symbol 是「基本型態（Primitive Type）」</mark>，不是建構子。JavaScript 一共 8 種資料型態：String、Number、Boolean、Null、Undefined、BigInt、Symbol、Object，Symbol 是其中之一。因為它是基本型態，所以 <mark style="background: #FF5582A6;">寫 <code>new Symbol()</code> 會直接丟 TypeError</mark>。</p>
+<p><strong>c.</strong> 每呼叫一次 <code>Symbol()</code> 都會生出一個全世界獨一無二的值。就算傳入一模一樣的描述字串也一樣不相等：</p>
+<pre><code class="language-js">Symbol(&quot;foo&quot;) === Symbol(&quot;foo&quot;);   // false ← 描述字串只是給人看的標籤，不參與比較
+</code></pre>
+<p><strong>d.</strong> 因為 Symbol 值「印不出來也重建不了」，你<mark style="background: #BBFABBA6;">必須用一個變數把它記下來</mark>，否則之後再也存取不到用它當 key 的那個屬性。所以 <code>const sym1 = Symbol()</code> 這行的重點不是「示範怎麼存變數」，而是「這把鑰匙只有一把，弄丟就沒了」。</p>
+<p><img alt="Abby 截圖：F12 與編輯器對照 Symbol 資料型別與物件方法" src="../../../../obsidian-attachment/學習-JavaScript (2026-06)/JS_F12與編輯器_Symbol資料型別與物件方法_2026-06-15.png" />
+<em>Abby 自己的截圖（2026-06-15）：左邊 F12 Console 印出 Symbol 的 <code>typeof</code>，右邊編輯器對照寫法，正好對應 b、c 兩節。</em></p>
+<p><strong>e.</strong> 把 Symbol 設成 key 的語法是在 key 外面加中括號，這在 MDN 屬於 <mark style="background: #ADCCFFA6;">Computed property names（計算屬性名稱）</mark>。不加中括號的話 <code>{ a: 1 }</code> 裡的 <code>a</code> 會被當成字串 <code>"a"</code>，而不是變數 <code>a</code> 的值。</p>
+<pre><code class="language-js">const obj = {};
+obj[Symbol(&quot;a&quot;)] = &quot;a&quot;;              // 方式一：中括號賦值
+const b = Symbol.for(&quot;b&quot;);
+const object1 = { [b]: &quot;b&quot; };        // 方式二：物件字面值裡直接用中括號
+</code></pre>
+<p><strong>f.</strong> <code>Symbol.for("key")</code> 是<mark style="background: #FFB8EBA6;">向「全域 Symbol 註冊表（Global Registry）」索取或建立</mark>一個 Symbol。跟 <code>Symbol()</code> 的差別是：<code>Symbol.for</code> 拿得回同一個值，可以跨檔案共用；<code>Symbol()</code> 每次都是新的。</p>
+<p><strong>g.</strong> 大寫的 <code>Symbol</code> 與小寫的 <code>sym</code> 是兩件事。<mark style="background: #FFF3A3A6;">大寫 <code>Symbol</code> 是「工具箱與製造機」，小寫 <code>sym</code> 才是真正拿來當 key 的基本型態零件</mark>。大寫的 <code>Symbol</code> 扮演三個角色：（一）創建 Symbol 值的唯一進入點；（二）全域註冊表（<code>Symbol.for</code> 與 <code>Symbol.keyFor</code>）；（三）掛載 Well-known Symbols（例如 <code>Symbol.iterator</code>，<code>for...of</code> 底層就是去找物件上的這個 key）。</p>
+<hr />
+<h3>二、弱封裝：藏得住，但藏不死（h–l）</h3>
+<p><img alt="Abby 截圖：MDN Symbol 弱封裝原文與 AI 閃卡" src="../../../../obsidian-attachment/學習-JavaScript (2026-06)/學習JS_網頁_MDN-Symbol弱封裝WeakEncapsulation與AI閃卡_2026-08-21.png" />
+<em>Abby 自己的截圖（2026-08-21）：這就是本節在討論的 MDN 原文段落，也是這場 Gemini 對話的起點。</em></p>
+<p><img alt="Abby 截圖：MDN Symbol 頁面目錄與 Glasp 劃線側欄" src="../../../../obsidian-attachment/學習-JavaScript (2026-06)/學習JS_網頁_MDN-Symbol頁面目錄與Glasp劃線筆記側欄_2026-08-21.png" />
+<em>Abby 自己的截圖（2026-08-21）：右側 Glasp／Web Highlights 劃線側欄。對話中問到「能不能把 AI 的補充寫回劃線上」，答案是不行——側欄是擴充功能獨立渲染的介面，只能手動在該劃線下方的 Note 欄位貼上。</em></p>
+<p><strong>h.</strong> MDN 原文說 Symbol 帶來 <em>a form of weak encapsulation, or a weak form of information hiding</em>。所謂「藏起來」，是指<mark style="background: #BBFABBA6;">下面這些「日常機制」通通看不到 Symbol key</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>日常存取機制</th>
+<th>看得到 String key</th>
+<th>看得到 Symbol key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>for...in</code> 迴圈</td>
+<td>是</td>
+<td>否</td>
+</tr>
+<tr>
+<td><code>Object.keys(obj)</code></td>
+<td>是</td>
+<td>否</td>
+</tr>
+<tr>
+<td><code>JSON.stringify(obj)</code></td>
+<td>是</td>
+<td>否</td>
+</tr>
+<tr>
+<td><code>Object.getOwnPropertyNames(obj)</code></td>
+<td>是</td>
+<td>否</td>
+</tr>
+<tr>
+<td><code>Object.getOwnPropertySymbols(obj)</code></td>
+<td>否</td>
+<td>是</td>
+</tr>
+<tr>
+<td><code>Reflect.ownKeys(obj)</code></td>
+<td>是</td>
+<td>是</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-js">const secretKey = Symbol(&quot;id&quot;);
+const user = { name: &quot;Alice&quot;, [secretKey]: 9527 };
+
+for (let key in user) console.log(key);   // 只印出 &quot;name&quot;
+console.log(Object.keys(user));           // [&quot;name&quot;]
+console.log(JSON.stringify(user));        // '{&quot;name&quot;:&quot;Alice&quot;}'
+
+// 但專用 API 還是挖得到 → 所以叫「弱」封裝
+const symbols = Object.getOwnPropertySymbols(user);
+console.log(user[symbols[0]]);            // 9527
+</code></pre>
+<p><strong>i.</strong> 之所以叫「弱」，是因為 JS 留了後門：<mark style="background: #FF5582A6;"><code>Object.getOwnPropertySymbols(obj)</code> 與 <code>Reflect.ownKeys(obj)</code> 只要有人想硬挖就挖得到</mark>。它不像 <code>#privateField</code> 那樣是語法層級的真私有。一句話記法：Symbol 是<mark style="background: #FFF3A3A6;">防君子不防小人</mark>。</p>
+<p><strong>j.</strong> <code>Reflect.ownKeys</code> 的底層就是把兩種 key 合起來：</p>
+<pre><code>Reflect.ownKeys(obj) === Object.getOwnPropertyNames(obj) + Object.getOwnPropertySymbols(obj)
+</code></pre>
+<p><strong>k.</strong> <code>Object.getOwnPropertySymbols()</code> 的三個實務情境：</p>
+<ol>
+<li><strong>讀取私有或內部屬性</strong>：在 ES2022 的 <code>#</code> 私有欄位出現之前，大家用 Symbol 藏內部狀態。做單元測試、除錯或狀態備份時要靠這支 API 撈出來。</li>
+<li><strong>實作深拷貝與物件合併</strong>：只用 <code>Object.keys()</code> 會漏掉 Symbol 屬性。Lodash 的 <code>cloneDeep</code> 就是靠這支 API 把 Symbol 屬性一併複製。</li>
+<li><strong>檢查框架掛的元資料（Metadata / Hooks）</strong>：Redux、React、RxJS 這類函式庫會用 Well-known Symbol（<code>Symbol.iterator</code>、<code>Symbol.dispose</code>）或自訂 Symbol 掛元資料，避免跟使用者的字串 key 撞名。寫 DevTools 或外掛時會用這支 API 檢查物件上掛了什麼。</li>
+</ol>
+<p><strong>l.</strong> 要「真的」不給存取，有兩條路，強度不同：</p>
+<pre><code class="language-js">// 路線一：Symbol（弱私有）——鑰匙不 export 就進不來，但 getOwnPropertySymbols 挖得到
+const _status = Symbol(&quot;status&quot;);
+export class Task {
+  constructor(title) { this.title = title; this[_status] = &quot;In Progress&quot;; }
+  getStatus() { return this[_status]; }
+}
+const t1 = new Task(&quot;Fix Bug&quot;);
+console.log(t1.status);        // undefined
+console.log(t1[&quot;_status&quot;]);    // undefined ← 因為 key 是 Symbol，不是字串 &quot;_status&quot;
+
+// 路線二：ES2022 原生私有欄位（語法層真私有）
+class Task2 {
+  #status = &quot;In Progress&quot;;
+  getStatus() { return this.#status; }
+}
+const t2 = new Task2();
+// console.log(t2.#status);    // SyntaxError（這是早期錯誤，連跑都跑不起來）
+</code></pre>
+<div class="callout c-warn"><span class="ttl">⚠️ 陷阱</span><p>
+只在變數名前面加底線的 <code>_status</code> <mark style="background: #FF5582A6;">完全不是私有</mark>，那只是「拜託你不要碰」的命名慣例，技術上一點防護都沒有。</p>
+</div>
+<hr />
+<h3>三、順手釐清的 JSON 三題（m–o）</h3>
+<p><strong>m.</strong> <code>JSON.stringify()</code> 是把 JS 值序列化（Serialization）成 JSON 字串，三個最常見用途：（一）Fetch/AJAX 送 request body（HTTP body 只吃字串）；（二）寫進 <code>localStorage</code> 或 <code>sessionStorage</code>（只支援字串）；（三）除錯排版，第三個參數傳縮排數，例如 <code>JSON.stringify(data, null, 2)</code>。</p>
+<p><strong>n.</strong> <code>JSON.stringify()</code> 的三個坑：</p>
+<ul>
+<li>屬性值是 <code>undefined</code>、<code>Function</code> 或 <mark style="background: #FFB8EBA6;"><code>Symbol</code> 時會被直接丟棄</mark>。</li>
+<li>物件有循環引用（Circular Reference）時直接丟 TypeError。</li>
+<li>所以 <code>JSON.parse(JSON.stringify(obj))</code> 這種偷懶深拷貝<mark style="background: #FF5582A6;">會默默吃掉 Date、Map、Set、Function、Symbol</mark>，不是萬用解。</li>
+</ul>
+<p><strong>o.</strong> <code>JSON.parse(JSON.stringify(obj))</code> 裡誰在複製？<mark style="background: #BBFABBA6;">兩個一起才完成複製，但真正「建立新物件」的是 <code>JSON.parse</code></mark>。<code>stringify</code> 負責把物件壓成純文字，順手斬斷跟原本記憶體位址的引用關係（鋪路）；<code>parse</code> 才在記憶體裡重新蓋出一份全新的物件（執行）。</p>
+<hr />
+<h3>四、靜態方法 vs 原型方法（p–r）</h3>
+<p><strong>p.</strong> 兩者的差別在「掛在哪裡」：</p>
+<table>
+<thead>
+<tr>
+<th>類型</th>
+<th>定義位置</th>
+<th>呼叫方式</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>靜態方法 Static</td>
+<td>直接掛在 <code>Object</code> 這個<strong>函式本身</strong></td>
+<td><code>Object.方法(myObj)</code></td>
+<td><code>Object.assign()</code>、<code>Object.keys()</code>、<code>Object.freeze()</code>、<code>Object.create()</code>、<code>Object.hasOwn()</code></td>
+</tr>
+<tr>
+<td>原型方法 Instance/Prototype</td>
+<td>掛在 <code>Object.prototype</code> <strong>原型物件</strong>上</td>
+<td><code>myObj.方法()</code></td>
+<td><code>hasOwnProperty()</code>、<code>toString()</code>、<code>valueOf()</code></td>
+</tr>
+</tbody>
+</table>
+<p><mark style="background: #FFF3A3A6;">靜態方法無法被實例繼承</mark>，所以只能寫 <code>Object.keys(myFirstObject)</code>，不能寫 <code>myFirstObject.keys()</code>（會噴 <code>TypeError: myFirstObject.keys is not a function</code>）。</p>
+<p><img alt="Abby 截圖：DevTools 展開 Object 的原型方法列表" src="../../../../obsidian-attachment/學習-JavaScript (2026-06)/JS_DevTools_Object原型方法列表_2026-06-10.png" />
+<em>Abby 自己的截圖（2026-06-10）：DevTools 裡展開 <code>Object.prototype</code>，看到的是 <code>hasOwnProperty</code>、<code>toString</code>、<code>valueOf</code> 這條「實例走的路」。</em></p>
+<p><img alt="Abby 截圖：DevTools Console 印出 Object 靜態方法總覽" src="../../../../obsidian-attachment/學習-JavaScript (2026-06)/JS_DevTools_Object靜態方法總覽Console輸出-create與constructor_2026-06-12.png" />
+<em>Abby 自己的截圖（2026-06-12）：同一張 Console 裡對照 <code>Object.create</code> 與 <code>constructor</code>，剛好是「工具箱」與「椅子」兩條線的實測畫面。</em></p>
+<p><img alt="Abby 截圖：__proto__ 是存取器屬性而非靜態方法的驗證" src="../../../../obsidian-attachment/學習-JavaScript (2026-06)/學習JS_編輯器_Object-prototype的proto是存取器屬性非靜態方法驗證_2026-08-20.png" />
+<em>Abby 自己的截圖（2026-08-20）：親手驗證 <code>Object.prototype.__proto__</code> 是</em><em>存取器屬性</em><em>而不是靜態方法。這張圖同時串起本篇 p 節與 s 節——<code>Symbol.species</code> 也是同一種「掛在類別上的 getter」。</em></p>
+<div class="callout c-tip"><span class="ttl">✅ Gemini 給的比喻很好記</span><p>
+把 <code>Object</code> 想成一個<strong>工具箱</strong>，<code>myFirstObject</code> 是你「用工具箱做出來的一把椅子」。椅子自己有屬性（顏色、材質）跟行為（<code>toString()</code>）；但工具箱上的量測工具（<code>Object.keys()</code>）與複製工具（<code>Object.assign()</code>），<mark style="background: #ADCCFFA6;">你不能叫椅子自己去執行，你得拿著工具箱對著這把椅子用</mark>。</p>
+</div>
+<p><strong>q.</strong> 為什麼要特地分開？兩個理由：</p>
+<ol>
+<li><strong>命名污染與衝突</strong>：如果所有工具都掛在 <code>Object.prototype</code> 上，使用者自訂物件只要剛好也有一個叫 <code>assign</code> 的屬性，<code>myObj.assign()</code> 就會被覆蓋，程式默默壞掉。</li>
+<li><strong>無原型物件的問題</strong>：<mark style="background: #D2B3FFA6;"><code>Object.create(null)</code> 造出來的物件沒有原型</mark>，方法若都在 <code>Object.prototype</code> 上，這種物件就一個功能都用不到。而這種空原型物件在實務上常被拿來當 <code>Map</code> 的替代品，正因為它不會繼承 <code>Object.prototype</code> 的雜訊。</li>
+</ol>
+<p><img alt="Abby 截圖：Map 與 Object 比較，空物件原型屬性" src="../../../../obsidian-attachment/學習-JavaScript (2026-06)/JS_網頁_YouTube影片Map與Object比較-空物件原型屬性_2026-06-11.png" />
+<em>Abby 自己的截圖（2026-06-11）：這張影片截圖講的正是「為什麼要用 <code>Object.create(null)</code> 或 <code>Map</code> 取代一般物件當字典」，是本節第 2 點的視覺版。</em></p>
+<p><img alt="Abby 截圖：Object.freeze 與 seal 的錯誤輸出" src="../../../../obsidian-attachment/學習-JavaScript (2026-06)/JS_DevTools_Object靜態方法freeze與seal錯誤輸出_2026-06-12.png" />
+<em>Abby 自己的截圖（2026-06-12）：實測 <code>Object.freeze()</code> 與 <code>Object.seal()</code> 在嚴格模式下的報錯訊息，對應下一節 r 的凍結範例。</em></p>
+<p><strong>r.</strong> 常用靜態方法速查（都要寫 <code>Object.</code> 開頭）：</p>
+<pre><code class="language-js">const myFirstObject = { name: &quot;Abby&quot;, age: 25, role: &quot;developer&quot; };
+
+Object.keys(myFirstObject);      // [&quot;name&quot;, &quot;age&quot;, &quot;role&quot;]
+Object.values(myFirstObject);    // [&quot;Abby&quot;, 25, &quot;developer&quot;]
+Object.entries(myFirstObject);   // [[&quot;name&quot;,&quot;Abby&quot;], [&quot;age&quot;,25], [&quot;role&quot;,&quot;developer&quot;]]
+
+const user = { name: &quot;Yun-Xi&quot; };
+Object.freeze(user);             // 凍結：不能改、不能加、不能刪
+user.name = &quot;Change Name&quot;;
+console.log(user.name);          // 仍是 &quot;Yun-Xi&quot;（嚴格模式下會直接報錯）
+Object.isFrozen(user);           // true
+
+Object.hasOwn(user, &quot;name&quot;);     // true ← ES2022 推薦，比 user.hasOwnProperty() 安全
+
+const animal = { makeSound() { console.log(&quot;Some sound&quot;); } };
+const dog = Object.create(animal);   // 指定原型建立新物件
+dog.makeSound();                     // &quot;Some sound&quot;（走原型鏈繼承）
+</code></pre>
+<hr />
+<h3>五、<code>Symbol.species</code> 這個語言設計上的後悔（s–t）</h3>
+<p><strong>s.</strong> <code>Symbol.species</code> 是 ES6（ES2015）引進的 Well-known Symbol。它的原始用意是：<mark style="background: #ADCCFFA6;">當子類別（Subclass）的方法要回傳「新實例」時，用它來決定要用哪個建構子</mark>。例如 <code>Array.prototype.map()</code> 回傳新陣列時，規格上會先去讀 <code>[Symbol.species]</code>。ECMA-262 為了規格一致性，替所有內建集合類別（Array、Set、Map、Promise、RegExp、TypedArray）統一加上這個靜態存取器（Getter）。</p>
+<p><strong>t.</strong> 但 <code>Map[Symbol.species]</code> 目前是<mark style="background: #FFB8EBA6;">一個沒人呼叫的「死屬性」</mark>：Map 的內建方法（<code>set()</code>、<code>get()</code>、<code>forEach()</code>）通通不會建立並回傳新的 Map 實例，所以完全沒有東西會去讀它。它保留在規格裡純粹是為了向下相容。</p>
+<p>實測範例（這就是「species 沒被讀到」最直白的證據）：</p>
+<pre><code class="language-js">let setCalled = 0;
+class MySet extends Set {
+  static get [Symbol.species]() { setCalled++; return Set }
+}
+new MySet([1,2,3]).union(new Set([4])) instanceof MySet;   // false
+console.log(setCalled);                                     // 0
+</code></pre>
+<p><mark style="background: #FFF3A3A6;">整段翻成中文</mark>：我做一個叫 <code>MySet</code> 的類別，它 <code>extends</code>（繼承）<code>Set</code>，所以自動擁有 <code>Set</code> 的所有能力。在這個<strong>類別本身</strong>（不是它產出的實例）上，我用 <code>static get</code> 掛一個名字叫 <code>Symbol.species</code> 的存取器屬性——只要有人讀它，計數器就加一，然後回傳 <code>Set</code>。接著我用 <code>[1,2,3]</code> 建一個 <code>MySet</code>，對它呼叫 <code>union</code> 並傳入一個普通 <code>Set</code>。最後檢查 <code>union</code> 吐回來的東西是不是 <code>MySet</code> 的實例——答案是 <code>false</code>，而且計數器停在 <code>0</code>，代表 <mark style="background: #FF5582A6;"><code>union</code> 從頭到尾根本沒讀過 species</mark>。</p>
+<p>逐字拆解每個關鍵字：</p>
+<table>
+<thead>
+<tr>
+<th>關鍵字</th>
+<th>全名／意思</th>
+<th>在這行做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>class</code></td>
+<td>類別宣告</td>
+<td>ES6 語法糖，底層仍是建構函式加原型鏈，不是真正的 class-based OOP</td>
+</tr>
+<tr>
+<td><code>extends</code></td>
+<td>繼承</td>
+<td>把 <code>MySet.prototype.[[Prototype]]</code> 指向 <code>Set.prototype</code>，同時把 <code>MySet.[[Prototype]]</code> 指向 <code>Set</code>（所以靜態方法也會繼承）</td>
+</tr>
+<tr>
+<td><code>static</code></td>
+<td>靜態成員</td>
+<td>掛在<strong>建構函式本身</strong>上，不掛在 prototype 上，呼應本篇 p 節</td>
+</tr>
+<tr>
+<td><code>get</code></td>
+<td>存取器 getter</td>
+<td>讀取這個屬性時才執行函式，這就是「存取器屬性」，呼應 [[存取器屬性三種定義方式-getter-setter與資料驗證]]</td>
+</tr>
+<tr>
+<td><code>[Symbol.species]</code></td>
+<td>計算屬性名稱 + Well-known Symbol</td>
+<td>中括號代表「用變數的值當 key」，呼應本篇 e 節</td>
+</tr>
+<tr>
+<td><code>instanceof</code></td>
+<td>原型鏈檢查</td>
+<td>沿著左邊物件的原型鏈找，看有沒有等於右邊建構函式的 <code>.prototype</code></td>
+</tr>
+</tbody>
+</table>
+<div class="callout c-warn"><span class="ttl">⚠️ 存疑與更正（對照 TC39 一手資料）</span><p>
+Gemini 說「TC39 傾向未來可能逐漸廢棄（Deprecate）」——這個方向<mark style="background: #BBFABBA6;">大致正確，但講法要更精確</mark>。實際狀況是：
+1. <code>Symbol.species</code> <mark style="background: #FF5582A6;">並沒有被正式標記為 deprecated</mark>，舊有的 Array、RegExp、Promise、TypedArray 仍然照舊會讀它。
+2. TC39 的官方文件用詞是「committee has largely come to regret <code>Symbol.species</code>」（委員會大致上已經後悔了）。ES2025 新加的 Set 方法（<code>union</code>、<code>intersection</code>、<code>difference</code> 等）<mark style="background: #BBFABBA6;">刻意不使用 species，永遠直接建立基底 <code>Set</code> 型別的實例</mark>——這正是上面那段程式碼跑出 <code>false</code> 與 <code>0</code> 的規格依據。
+3. 委員會給的理由是：內建方法透過 <code>@@species</code> 建立子類別實例，被許多實作者視為「TC39 對這個語言犯下最大的錯誤之一」，因為它讓引擎最佳化變得極度複雜，並且<mark style="background: #FF5582A6;">直接導致過許多資安漏洞</mark>。
+4. 另有一份提案 <code>proposal-rm-builtin-subclassing</code>（移除內建型別的 subclassing）正在推動更徹底的清理。</p>
+</div>
+<hr />
+<h2>相關練習題（LeetCode JavaScript 專區）</h2>
+<p>因為這篇談的是「物件模型與 Symbol」，以下三題是最貼近本篇概念的實作練習：</p>
+<table>
+<thead>
+<tr>
+<th>題號與題目</th>
+<th>練到本篇哪一節</th>
+<th>連結</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2695. Array Wrapper</td>
+<td>s、t 節：用 <code>Symbol.toPrimitive</code> 這個 Well-known Symbol 客製化型別轉換，跟 <code>Symbol.species</code> 同屬「用 Symbol 當語言的掛鉤」</td>
+<td><a href="https://leetcode.com/problems/array-wrapper/">https://leetcode.com/problems/array-wrapper/</a></td>
+</tr>
+<tr>
+<td>2705. Compact Object</td>
+<td>h、m、n 節：遞迴走訪物件並過濾 falsy 值，會直接踩到 <code>Object.keys</code> 看不到 Symbol 的行為</td>
+<td><a href="https://leetcode.com/problems/compact-object/">https://leetcode.com/problems/compact-object/</a></td>
+</tr>
+<tr>
+<td>2727. Is Object Empty</td>
+<td>p、r 節：判斷空物件，最佳解正是用 <code>Object.keys(obj).length</code> 這個靜態方法</td>
+<td><a href="https://leetcode.com/problems/is-object-empty/">https://leetcode.com/problems/is-object-empty/</a></td>
+</tr>
+<tr>
+<td>2822. Inversion of Object</td>
+<td>q 節：翻轉 key 與 value 時會撞到「非字串 key 被自動轉字串」的坑</td>
+<td><a href="https://leetcode.com/problems/inversion-of-object/">https://leetcode.com/problems/inversion-of-object/</a></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>自我測驗</h2>
+<div class="quiz" markdown="0">
+<div class="q">填空題 1：物件的屬性 key 只允許兩種型別，分別是 <span class="blank">String</span> 與 <span class="blank">Symbol</span>。</div>
+<div class="q">填空題 2：能同時列出字串 key 與 Symbol key 的 API 是 <span class="blank">Reflect.ownKeys()</span>。</div>
+<div class="q">填空題 3：ES2022 提供語法層級真私有的寫法，是在欄位名稱前面加上 <span class="blank">#</span>。</div>
+</div>
+
+<div class="quiz" markdown="0">
+<div class="q">是非題 1：<code>new Symbol("foo")</code> 可以正常建立一個 Symbol。</div>
+<div class="opts"><button onclick="pick(this,false)">是</button><button onclick="pick(this,true)">非</button></div>
+<div class="ans">非。Symbol 是基本型態不是建構子，寫 <code>new Symbol()</code> 會丟 TypeError。要用 <code>Symbol("foo")</code>。（本篇 b 節）</div>
+</div>
+
+<div class="quiz" markdown="0">
+<div class="q">是非題 2：<code>JSON.stringify()</code> 會把物件上的 Symbol 屬性一併轉成字串。</div>
+<div class="opts"><button onclick="pick(this,false)">是</button><button onclick="pick(this,true)">非</button></div>
+<div class="ans">非。<code>JSON.stringify()</code> 會直接丟棄值為 undefined、Function、Symbol 的屬性，Symbol 當 key 的屬性也整個看不到。（本篇 h、n 節）</div>
+</div>
+
+<div class="quiz" markdown="0">
+<div class="q">是非題 3：<code>Object.assign()</code> 可以寫成 <code>myObj.assign(target, source)</code>。</div>
+<div class="opts"><button onclick="pick(this,false)">是</button><button onclick="pick(this,true)">非</button></div>
+<div class="ans">非。<code>assign</code> 是掛在 <code>Object</code> 建構函式上的靜態方法，不在 <code>Object.prototype</code> 上，所以實例繼承不到，只能寫 <code>Object.assign(target, source)</code>。（本篇 p 節）</div>
+</div>
+
+<div class="quiz" markdown="0">
+<div class="q">申論題 1：為什麼 JavaScript 要把 <code>keys</code>、<code>assign</code>、<code>freeze</code> 設計成 <code>Object</code> 的靜態方法，而不是放進 <code>Object.prototype</code> 讓每個物件直接呼叫？請至少講兩個理由。</div>
+<button class="tb" onclick="showAns(this)">顯示答案</button>
+<div class="ans">參考答案：<br>一、避免命名污染與覆蓋。若掛在 <code>Object.prototype</code>，使用者自訂物件只要剛好有同名屬性，就會遮蔽掉原型上的方法，導致行為不如預期。<br>二、支援無原型物件。<code>Object.create(null)</code> 造出的物件沒有原型鏈，若方法都掛在 <code>Object.prototype</code>，這類物件（常被拿來當乾淨的字典使用）就完全無法使用這些功能。<br>三、語意上這些是「對物件動手的工具函式」而非「物件自身的行為」，放在工具箱比較符合職責分離。（本篇 q 節）</div>
+</div>
+
+<div class="quiz" markdown="0">
+<div class="q">申論題 2：說明為什麼用 Symbol 做的封裝叫「弱封裝」，並舉出至少兩個可以突破它的 API。若要真正的私有應該怎麼寫？</div>
+<button class="tb" onclick="showAns(this)">顯示答案</button>
+<div class="ans">參考答案：<br>Symbol key 對日常存取機制（<code>for...in</code>、<code>Object.keys</code>、<code>JSON.stringify</code>、<code>Object.getOwnPropertyNames</code>）是隱形的，所以有「藏起來」的效果；但語言留了後門，<code>Object.getOwnPropertySymbols(obj)</code> 與 <code>Reflect.ownKeys(obj)</code> 都能把 Symbol key 撈出來，因此只能算「防君子不防小人」的弱封裝。要真正私有，應使用 ES2022 的 <code>#privateField</code>，從語法層級禁止外部存取（外部存取是 SyntaxError 早期錯誤）。（本篇 h、i、l 節）</div>
+</div>
+
+<div class="quiz" markdown="0">
+<div class="q">申論題 3：解釋 <code>class MySet extends Set { static get [Symbol.species]() { return Set } }</code> 這段程式碼中，<code>class</code>、<code>extends</code>、<code>static</code>、<code>get</code>、中括號各自的作用，並說明為什麼對 <code>MySet</code> 呼叫 <code>union()</code> 之後的結果不是 <code>MySet</code> 的實例。</div>
+<button class="tb" onclick="showAns(this)">顯示答案</button>
+<div class="ans">參考答案：<code>class</code> 宣告類別（底層仍是建構函式加原型鏈）；<code>extends</code> 讓 <code>MySet.prototype</code> 繼承 <code>Set.prototype</code>，同時讓 <code>MySet</code> 本身繼承 <code>Set</code> 的靜態成員；<code>static</code> 表示這個成員掛在建構函式本身而非 prototype 上；<code>get</code> 定義存取器屬性，被讀取時才執行；中括號是計算屬性名稱，讓 <code>Symbol.species</code> 這個 Symbol 值當作 key。<br>結果不是 <code>MySet</code> 的實例，是因為 ES2025 的 Set 方法（union、intersection、difference 等）在規格上刻意不讀 <code>Symbol.species</code>，一律直接建立基底 <code>Set</code> 型別的實例，所以計數器會停在 0。（本篇 t 節）</div>
+</div>
+
+<hr />
+<h2>各對話來源（原文精華）</h2>
+<blockquote>
+<p>註：為了節省本機磁碟空間（詳見文末說明），此區保留原始問答的關鍵段落而非完整逐字稿，語意未經改寫。</p>
+</blockquote>
+<h3>1. Symbol 的弱封裝與資訊隱藏（2026-08）— <a href="https://gemini.google.com/app/6bb0c9d66af3d8b5">https://gemini.google.com/app/6bb0c9d66af3d8b5</a></h3>
+<p><strong>使用者：</strong> 我看不懂 other code will typically use to access the object. That enables a form of weak encapsulation, or a weak form of information hiding 是什麼意思？</p>
+<p><strong>Gemini：</strong> Symbol 常被用來替物件新增「獨一無二的屬性鍵」，這些鍵不會與其他程式碼加入的鍵發生衝突，而且對於其他程式碼「通常用來存取物件的機制」來說，這些鍵是隱藏起來的。這實現了一種弱封裝或弱資訊隱藏……雖然用一般常見的機制抓不到，但 JavaScript 還是提供了「專用」的 API 來強制讀取：<code>Object.getOwnPropertySymbols(obj)</code>、<code>Reflect.ownKeys(obj)</code>。</p>
+<p><strong>使用者：</strong> Symbol 是被它的 Symbol.for 加入過的物件就會被稱作 symbol，還是說那個 key name 本人才是 symbol？</p>
+<p><strong>Gemini：</strong> Key Name 本人才是 Symbol。物件本身只是一個普通的 JavaScript 物件，它並不會因為加入了 Symbol key 就被稱為 Symbol……這也就是為什麼 <code>Reflect.ownKeys(obj)</code> 會把 String 與 Symbol 放在一起比較的原因。</p>
+<p><strong>使用者：</strong> ubiquitous 是什麼意思？全域物件主導創建了 Symbol 值本身跟工具箱還有進入點嗎？</p>
+<p><strong>Gemini：</strong> Ubiquitous 意思是「無所不在的」……全域物件 <code>Symbol</code>（大寫）扮演三個關鍵角色：創建 Symbol 值的進入點、全域 Symbol 註冊表、系統內建的標準通訊協定（Well-known Symbols）。一句話總結：<code>Symbol</code>（大寫）是 JS 系統提供給你的實體工具箱與製造機；你呼叫它之後拿到的 <code>sym</code>（小寫）才是真正拿來當作物件 Key 的基本型態零件。</p>
+<h3>2. Object.getOwnPropertySymbols 的應用情境（2026-08）— <a href="https://gemini.google.com/app/1c3e2e899072c469">https://gemini.google.com/app/1c3e2e899072c469</a></h3>
+<p><strong>使用者：</strong> 使用 Object.getOwnPropertySymbols 會用在什麼使用情境？</p>
+<p><strong>Gemini：</strong> 常出現的 3 個實際應用情境：一、存取物件的私有或隱藏屬性；二、實現深拷貝與物件合併（Lodash 的 <code>cloneDeep</code> 會利用此 API 確保連同 Symbol 屬性一併複製）；三、檢查與擴充套件或框架的元資料（Redux、React、RxJS 會用 Well-known Symbols 或自訂 Symbol 掛載元資料）。</p>
+<p><strong>使用者：</strong> 「JSON.parse(JSON.stringify(obj))」在這個語法中，JSON parse 跟 stringify 哪個部分是複製的動作？</p>
+<p><strong>Gemini：</strong> 兩個部分合在一起才完成了完整的「複製」動作，但發揮關鍵作用的是 <code>JSON.parse</code>。<code>stringify</code> 徹底切斷了與原本物件在記憶體中的引用關係；<code>parse</code> 解析字串並在記憶體中重新建構出一組全新的物件，產生這個新物件的時刻才是真正完成「複製」的動作。</p>
+<h3>3. Map 的 Symbol.species 探討（2026-08）— <a href="https://gemini.google.com/app/7b6a8c3812ce011f">https://gemini.google.com/app/7b6a8c3812ce011f</a></h3>
+<p><strong>使用者：</strong> 為何 Map 的 static properties 有 <code>[Symbol.species]</code>？</p>
+<p><strong>Gemini：</strong> 在 ES6 中引進了衍生物件的概念。<code>Symbol.species</code> 的核心目的在於讓子類別的方法在複製或返回新實例時，能指定要回傳「子類別的實例」還是「父類別（原生）的實例」……ECMA-262 為了保持所有內建集合與類別在 ES6 屬性設計上的一致性，統一為它們加上了 <code>[Symbol.species]</code> 靜態讀取器……在目前的 JavaScript 標準中，Map 的所有內建方法都不會建立並回傳新的 Map 實例，因此 <code>Map[Symbol.species]</code> 實際上是完全沒有被任何內建方法呼叫到的。</p>
+<h3>4. JavaScript 原型鏈與多型解釋（2026-08）— <a href="https://gemini.google.com/app/06dbe8066324c728">https://gemini.google.com/app/06dbe8066324c728</a></h3>
+<p><strong>使用者：</strong> Object 建構函式上的靜態方法，跟 Object.prototype 不同？</p>
+<p><strong>Gemini：</strong> 是的，這兩者有非常關鍵的差異……為什麼會有這個區分？防止屬性名稱衝突與安全性考量。如果把所有方法都掛在 <code>Object.prototype</code> 上，可能會產生兩個問題：命名污染與衝突、無原型物件的問題（透過 <code>Object.create(null)</code> 建立的物件是沒有原型的）。</p>
+<p><strong>使用者：</strong> 所以是只能寫 <code>Object.</code>？不能寫 <code>myFirstObject</code>？</p>
+<p><strong>Gemini：</strong> 完全正確！只能寫 <code>Object.方法名()</code>……你可以把 <code>Object</code> 想成一個「工具箱」，而 <code>myFirstObject</code> 是你「用工具箱做出來的一把椅子」。</p>
+<hr />
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：Symbol 的弱封裝與資訊隱藏</td>
+<td><a href="https://gemini.google.com/app/6bb0c9d66af3d8b5">https://gemini.google.com/app/6bb0c9d66af3d8b5</a></td>
+<td>對話時間 2026-08，擷取於 2026-08-25</td>
+</tr>
+<tr>
+<td>Gemini 對話：Object.getOwnPropertySymbols 的應用情境</td>
+<td><a href="https://gemini.google.com/app/1c3e2e899072c469">https://gemini.google.com/app/1c3e2e899072c469</a></td>
+<td>對話時間 2026-08，擷取於 2026-08-25</td>
+</tr>
+<tr>
+<td>Gemini 對話：Map 的 Symbol.species 探討</td>
+<td><a href="https://gemini.google.com/app/7b6a8c3812ce011f">https://gemini.google.com/app/7b6a8c3812ce011f</a></td>
+<td>對話時間 2026-08，擷取於 2026-08-25</td>
+</tr>
+<tr>
+<td>Gemini 對話：JavaScript 原型鏈與多型解釋</td>
+<td><a href="https://gemini.google.com/app/06dbe8066324c728">https://gemini.google.com/app/06dbe8066324c728</a></td>
+<td>對話時間 2026-08，擷取於 2026-08-25</td>
+</tr>
+<tr>
+<td>MDN：Symbol（弱封裝原文出處）</td>
+<td><a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol">https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol</a></td>
+<td>查證於 2026-08-25</td>
+</tr>
+<tr>
+<td>MDN：Symbol.species</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/species">https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/species</a></td>
+<td>查證於 2026-08-25</td>
+</tr>
+<tr>
+<td>MDN：Set.prototype.union（ES2025 新方法）</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set/union">https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set/union</a></td>
+<td>查證於 2026-08-25</td>
+</tr>
+<tr>
+<td>TC39 proposal-set-methods／details.md（「不使用 species」的一手依據）</td>
+<td><a href="https://github.com/tc39/proposal-set-methods/blob/main/details.md">https://github.com/tc39/proposal-set-methods/blob/main/details.md</a></td>
+<td>查證於 2026-08-25</td>
+</tr>
+<tr>
+<td>TC39 proposal-rm-builtin-subclassing（移除內建 subclassing 提案）</td>
+<td><a href="https://github.com/tc39/proposal-rm-builtin-subclassing">https://github.com/tc39/proposal-rm-builtin-subclassing</a></td>
+<td>查證於 2026-08-25</td>
+</tr>
+<tr>
+<td>ECMAScript 2025 Language Specification</td>
+<td><a href="https://tc39.es/ecma262/2025/">https://tc39.es/ecma262/2025/</a></td>
+<td>2025 版，查證於 2026-08-25</td>
+</tr>
+<tr>
+<td>ECMAScript 2025 定案報導（Set Methods 收錄）</td>
+<td><a href="https://socket.dev/blog/ecmascript-2025-finalized">https://socket.dev/blog/ecmascript-2025-finalized</a></td>
+<td>查證於 2026-08-25</td>
+</tr>
+</tbody>
+</table></section>
+<footer class="pagefoot">由 Gemini 對話自動整理 · 更新於 2026-08-25</footer>
+</div><script>
+document.addEventListener('click',function(e){
+  var m=e.target.closest('mark'); if(m){m.classList.toggle('hidden-answer');return;}
+  var b=e.target.closest('.blank'); if(b){b.classList.toggle('revealed');return;}
+});
+function toggleAll(btn){
+  var on=btn.classList.toggle('on');
+  document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-answer',on);});
+  btn.textContent=on?'顯示全部重點':'隱藏全部重點（自我測驗）';
+}
+function toggleBlanks(btn){
+  var on=btn.classList.toggle('on');
+  document.querySelectorAll('.blank').forEach(function(b){b.classList.toggle('revealed',on);});
+  btn.textContent=on?'蓋回填空':'公布所有填空';
+}
+function toggleSrc(btn){
+  var on=btn.classList.toggle('on');
+  var hs=[].slice.call(document.querySelectorAll('h2'));
+  var start=hs.filter(function(h){return h.textContent.indexOf('各對話來源')>=0;})[0];
+  if(start){
+    var n=start.nextElementSibling;
+    while(n && n.tagName!=='H2'){ n.style.display=on?'none':''; n=n.nextElementSibling; }
+  }
+  btn.textContent=on?'展開各對話原文':'收合各對話原文';
+}
+function pick(el,correct){
+  var box=el.closest('.quiz');
+  box.querySelectorAll('.opts button').forEach(function(b){b.classList.remove('ok','no');});
+  el.classList.add(correct?'ok':'no');
+  box.querySelector('.ans').classList.add('show');
+}
+function showAns(el){
+  var a=el.closest('.quiz').querySelector('.ans');
+  a.classList.toggle('show');
+  el.textContent=a.classList.contains('show')?'收合答案':'顯示答案';
+}
+</script></body></html>

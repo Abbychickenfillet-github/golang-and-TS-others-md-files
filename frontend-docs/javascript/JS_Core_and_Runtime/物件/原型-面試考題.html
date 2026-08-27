@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>原型 prototype 面試考題</title>
+<style>
+  :root{--bg:#fbfbfd;--card:#fff;--line:#e5e7eb;--ink:#111827;--dim:#6b7280;
+        --g:#10b981;--y:#f59e0b;--b:#3b82f6;--p:#8b5cf6;--r:#dc2626}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC",system-ui,"Microsoft JhengHei",sans-serif;line-height:1.8}
+  .wrap{max-width:920px;margin:0 auto;padding:28px 20px 90px}
+  h1{font-size:1.45rem;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:.87rem;margin-bottom:22px}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+  .tab{border:1px solid var(--line);border-radius:99px;padding:6px 16px;cursor:pointer;
+       background:#fff;font-size:.86rem;font-family:inherit;color:var(--ink);user-select:none}
+  .tab.on{background:var(--p);color:#fff;border-color:var(--p)}
+  .q{background:var(--card);border:1px solid var(--line);border-radius:14px;
+     padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .q.hide{display:none}
+  .qh{display:flex;align-items:flex-start;gap:10px;margin-bottom:6px}
+  .lvl{font-size:.7rem;padding:2px 9px;border-radius:99px;flex:none;margin-top:5px;font-weight:700}
+  .lvl.b{background:#ecfdf5;color:#065f46}
+  .lvl.m{background:#fff7ed;color:#92400e}
+  .lvl.h{background:#faf5ff;color:#5b21b6}
+  .qt{font-size:1rem;font-weight:600;margin:0}
+  code{font-family:"Cascadia Code",Consolas,monospace;background:#f3f4f6;
+       padding:1px 5px;border-radius:4px;font-size:.88em}
+  pre{background:#0f1117;color:#e8eaf0;border-radius:9px;padding:12px 14px;
+      overflow-x:auto;font-size:.82rem;font-family:"Cascadia Code",Consolas,monospace;line-height:1.65}
+  .cmt{color:#6b7280}
+  details{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+  summary{cursor:pointer;font-size:.88rem;font-weight:600;color:var(--p);user-select:none}
+  .ans{font-size:.9rem;color:#374151;margin-top:10px}
+  .ans ul{padding-left:20px;margin:6px 0}
+  .ans li{margin:5px 0}
+  .followup{background:#fef3c7;border-left:3px solid var(--y);padding:9px 13px;
+            border-radius:0 8px 8px 0;font-size:.85rem;color:#78350f;margin-top:10px}
+  .trap{background:#fef2f2;border-left:3px solid var(--r);padding:9px 13px;
+        border-radius:0 8px 8px 0;font-size:.85rem;color:#991b1b;margin-top:10px}
+  button.run{background:#232838;color:#e8eaf0;border:1px solid #2a2f3d;border-radius:8px;
+             padding:6px 14px;cursor:pointer;font-size:.82rem;font-family:inherit;margin-top:8px}
+  button.run:hover{border-color:var(--p);color:#c4b5fd}
+  .out{background:#080a0f;color:#86efac;border-radius:8px;padding:11px 14px;margin-top:8px;
+       font-family:"Cascadia Code",Consolas,monospace;font-size:.8rem;white-space:pre-wrap;display:none}
+  .out.show{display:block}
+  .out .w{color:#fcd34d}.out .d{color:#9ca3af}.out .e{color:#fca5a5}
+  .stat{color:var(--dim);font-size:.84rem;margin-bottom:14px}
+  .src{font-size:.8rem;color:var(--dim);border-top:1px solid var(--line);
+       padding-top:14px;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>原型 prototype 面試考題</h1>
+<div class="sub">
+  從基礎到底層共 16 題｜每題都有「參考答法」與「面試官可能追問」｜有 ▶ 的可以當場跑
+  ｜整理自本系列的 Object 主題筆記｜2026-08-19
+</div>
+
+<div class="tabs">
+  <button class="tab on" data-f="all">全部（16）</button>
+  <button class="tab" data-f="b">基礎（6）</button>
+  <button class="tab" data-f="m">進階（6）</button>
+  <button class="tab" data-f="h">底層（4）</button>
+</div>
+<div class="stat" id="stat"></div>
+
+<div id="list"></div>
+
+<div class="src">
+  出處：MDN Object／Object.prototype.__proto__（2026-05-22 更新）、
+  Mathias Bynens &amp; Benedikt Meurer《JavaScript engine fundamentals》（2018）、
+  React 原始碼 v19.2.8。所有可執行片段都在 Node.js v22 與 Chromium 驗證過。
+</div>
+</div>
+
+<script>
+var Q = [
+/* ---------- 基礎 ---------- */
+{
+  lvl:'b', t:'1. 什麼是原型鏈？請描述 <code>[]</code> 的完整原型鏈。',
+  a:['原型鏈是物件之間用 <code>[[Prototype]]</code> 內部插槽串起來的一條單向鏈。讀屬性時如果自己身上沒有，就往上一階找，找到第一個就停，一路找到 <code>null</code> 為止。',
+     '<code>[]</code> 的完整鏈是：<code>[]</code> → <code>Array.prototype</code> → <code>Object.prototype</code> → <code>null</code>，共 3 階。',
+     '所有一般物件的鏈終點都是 <code>null</code>，這是規格明文寫死的，不是「找不到所以是 null」。'],
+  f:'追問：那 <code>{}</code> 呢？答：只有 2 階，<code>{}</code> → <code>Object.prototype</code> → <code>null</code>。差別就是中間有沒有多插一層。'
+},
+{
+  lvl:'b', t:'2. <code>__proto__</code> 跟 <code>prototype</code> 差在哪？',
+  a:['<code>prototype</code> 是<strong>函式</strong>才有的屬性，它是「用這個函式 <code>new</code> 出來的實例，原型會是誰」。',
+     '<code>__proto__</code> 是<strong>每個物件</strong>都有的存取器屬性，它指向「我自己的原型是誰」。',
+     '關係式：<code>new Foo().__proto__ === Foo.prototype</code>。'],
+  code:"function Foo(){}\nconst f = new Foo();\nf.__proto__ === Foo.prototype;\nObject.getPrototypeOf(f) === Foo.prototype;\nFoo.__proto__ === Function.prototype;  // Foo 自己也是物件",
+  run:function(){
+    function Foo(){}
+    var f = new Foo();
+    return [
+      'f.__proto__ === Foo.prototype           → ' + (f.__proto__ === Foo.prototype),
+      'Object.getPrototypeOf(f) === Foo.prototype → ' + (Object.getPrototypeOf(f) === Foo.prototype),
+      'Foo.__proto__ === Function.prototype    → ' + (Foo.__proto__ === Function.prototype),
+      '<span class="d">← Foo 自己是函式也是物件，所以它也有 __proto__</span>'
+    ];
+  },
+  f:'追問：<code>Foo.prototype.__proto__</code> 是什麼？答：<code>Object.prototype</code>，因為 <code>Foo.prototype</code> 本身就是一個 plain object。'
+},
+{
+  lvl:'b', t:'3. <code>Object.getPrototypeOf()</code> 跟 <code>obj.__proto__</code> 有什麼不同？',
+  a:['功能一樣，都是拿第 1 階原型，但身分完全不同。',
+     '<code>Object.getPrototypeOf()</code> 是 <strong>ES5 的靜態方法</strong>，掛在 <code>Object</code> 建構函式上，物件當參數傳進去。',
+     '<code>obj.__proto__</code> 是 <strong>存取器屬性</strong>，掛在 <code>Object.prototype</code> 上，讀寫時 getter／setter 自動觸發。它是 ES2015 才進 Annex B 的遺留特性，MDN 標為 deprecated。'],
+  f:'追問：那 <code>Object.create(null)</code> 做出來的物件呢？答：它沒繼承 <code>Object.prototype</code>，所以 <code>np.__proto__</code> 是 <code>undefined</code>，只有 <code>Object.getPrototypeOf(np)</code> 才拿得到正確的 <code>null</code>。'
+},
+{
+  lvl:'b', t:'4. <code>Object.prototype</code> 上有哪些東西？<code>Object.keys(Object.prototype)</code> 是什麼？',
+  a:['總共 <strong>12 個</strong>自有屬性：<code>constructor</code>、<code>hasOwnProperty</code>、<code>isPrototypeOf</code>、<code>propertyIsEnumerable</code>、<code>toString</code>、<code>toLocaleString</code>、<code>valueOf</code>、<code>__proto__</code>，加上四個已廢棄的 <code>__defineGetter__</code> 系列。',
+     '<code>Object.keys(Object.prototype)</code> 是 <strong><code>[]</code> 空陣列</strong>，因為這 12 個的 <code>enumerable</code> 全部是 <code>false</code>。',
+     '這是刻意設計 —— 否則你每次寫 <code>for...in</code> 都會掃出一堆繼承來的方法名稱。',
+     '其中<strong>只有 <code>__proto__</code> 是存取器屬性</strong>，其他 11 個都是方法。'],
+  run:function(){
+    var n = Object.getOwnPropertyNames(Object.prototype);
+    return ['自有屬性共 ' + n.length + ' 個',
+      'Object.keys(Object.prototype) = <span class="w">' + JSON.stringify(Object.keys(Object.prototype)) + '</span>',
+      '<span class="d">' + n.join(', ') + '</span>'];
+  },
+  f:'追問：那怎麼看得到那 12 個？答：<code>Object.getOwnPropertyNames()</code>，它不管 <code>enumerable</code>。'
+},
+{
+  lvl:'b', t:'5. <code>Object.keys</code>、<code>for...in</code>、<code>getOwnPropertyNames</code>、<code>Reflect.ownKeys</code> 各看得到什麼？',
+  a:['把屬性用兩個維度切成四格：key 是字串或 Symbol × <code>enumerable</code> 是 true 或 false，再加上「繼承」一圈。',
+     '<code>Object.keys</code>／<code>values</code>／<code>entries</code>／<code>JSON.stringify</code>：只看第 1 格（自有＋字串＋可列舉）',
+     '<code>for...in</code>：第 1 格 <strong>＋ 繼承來的可列舉字串鍵</strong>，這是它唯一與眾不同的地方',
+     '<code>getOwnPropertyNames</code>：所有自有字串鍵，不管可不可列舉',
+     '<code>getOwnPropertySymbols</code>：所有自有 Symbol 鍵',
+     '<code>Reflect.ownKeys</code>：<strong>四格全包</strong>，是唯一「一個都不漏」的方法'],
+  f:'追問：<code>for...in</code> 有什麼風險？答：會掃到原型鏈上的東西，如果 <code>Object.prototype</code> 被污染就會掃進髒資料。實務上要配 <code>Object.hasOwn</code> 過濾。'
+},
+{
+  lvl:'b', t:'6. <code>obj.hasOwnProperty()</code> 跟 <code>Object.hasOwn()</code> 該用哪個？',
+  a:['一律用 <code>Object.hasOwn()</code>（ES2022）。',
+     '<code>hasOwnProperty</code> 是<strong>實例方法</strong>，靠原型鏈才拿得到，兩種情況會爆：物件是 <code>Object.create(null)</code> 做的（沒繼承到它），或物件自己有一個同名屬性把它蓋掉。',
+     '<code>Object.hasOwn</code> 是<strong>靜態方法</strong>，不走原型鏈，兩種情況都安全。'],
+  code:"const config = { hasOwnProperty: '我是字串', title: 'hi' };\nconfig.hasOwnProperty('title');   // TypeError\nObject.hasOwn(config, 'title');   // true",
+  run:function(){
+    var config = { hasOwnProperty: '我是字串', title: 'hi' };
+    var r = [];
+    try { config.hasOwnProperty('title'); }
+    catch(e){ r.push('config.hasOwnProperty("title") → <span class="e">' + e.constructor.name + ': ' + e.message + '</span>'); }
+    r.push('Object.hasOwn(config, "title")  → <span class="w">' + Object.hasOwn(config, 'title') + '</span>');
+    r.push('Object.prototype.hasOwnProperty.call(config, "title") → ' + Object.prototype.hasOwnProperty.call(config, 'title'));
+    return r;
+  },
+  f:'加分回答：React 原始碼 v19 裡就是這樣寫的 —— 先 <code>var hasOwnProperty = Object.prototype.hasOwnProperty</code>，再用 <code>hasOwnProperty.call(config, propName)</code> 借過來用，就是在防這兩種情況。'
+},
+
+/* ---------- 進階 ---------- */
+{
+  lvl:'m', t:'7. <code>new</code> 做了哪四件事？',
+  a:['a. 建立一個新的空物件',
+     'b. 把這個物件的 <code>[[Prototype]]</code> 指向<strong>建構函式的 <code>prototype</code></strong>',
+     'c. 以這個物件為 <code>this</code> 執行建構函式',
+     'd. 如果建構函式回傳的是<strong>物件</strong>就回傳那個，否則回傳步驟 a 的新物件'],
+  code:"function myNew(Ctor, ...args) {\n  const obj = Object.create(Ctor.prototype);   // a + b 一次做完\n  const ret = Ctor.apply(obj, args);          // c\n  return (ret !== null && typeof ret === 'object') ? ret : obj;   // d\n}",
+  run:function(){
+    function myNew(Ctor){
+      var args = [].slice.call(arguments, 1);
+      var obj = Object.create(Ctor.prototype);
+      var ret = Ctor.apply(obj, args);
+      return (ret !== null && typeof ret === 'object') ? ret : obj;
+    }
+    function Person(n){ this.name = n; }
+    Person.prototype.hi = function(){ return 'hi ' + this.name; };
+    var p = myNew(Person, 'Abby');
+    function Weird(){ this.a = 1; return { b: 2 }; }
+    return [
+      'myNew(Person, "Abby").hi() → <span class="w">' + p.hi() + '</span>',
+      'p instanceof Person        → ' + (p instanceof Person),
+      'myNew(Weird) 回傳 → <span class="w">' + JSON.stringify(myNew(Weird)) + '</span> <span class="d">← 建構函式回傳物件時會蓋掉</span>'
+    ];
+  },
+  f:'追問：為什麼用 <code>Object.create(Ctor.prototype)</code> 而不是 <code>new Ctor()</code>？答：那會無限遞迴。<code>Object.create</code> 剛好把 a 跟 b 一次做完。'
+},
+{
+  lvl:'m', t:'8. <code>instanceof</code> 是怎麼運作的？手寫一個。',
+  a:['它沿著左邊物件的<strong>整條原型鏈</strong>往上走，看看右邊函式的 <code>prototype</code> 有沒有出現在鏈上。',
+     '注意它量的是<strong>整條鏈</strong>，不是第 1 階，這點跟 <code>Object.getPrototypeOf</code> 不同。'],
+  code:"function myInstanceof(obj, Ctor) {\n  if (obj === null || (typeof obj !== 'object' && typeof obj !== 'function')) return false;\n  let proto = Object.getPrototypeOf(obj);\n  while (proto !== null) {\n    if (proto === Ctor.prototype) return true;\n    proto = Object.getPrototypeOf(proto);   // 一階一階往上\n  }\n  return false;\n}",
+  run:function(){
+    function myInstanceof(obj, Ctor){
+      if (obj === null || (typeof obj !== 'object' && typeof obj !== 'function')) return false;
+      var proto = Object.getPrototypeOf(obj);
+      while (proto !== null){
+        if (proto === Ctor.prototype) return true;
+        proto = Object.getPrototypeOf(proto);
+      }
+      return false;
+    }
+    return [
+      'myInstanceof([], Array)  → ' + myInstanceof([], Array) + '　(原生: ' + ([] instanceof Array) + ')',
+      'myInstanceof([], Object) → ' + myInstanceof([], Object) + '　(原生: ' + ([] instanceof Object) + ') <span class="d">← 因為量整條鏈</span>',
+      'myInstanceof(1, Number)  → ' + myInstanceof(1, Number) + '　(原生: ' + (1 instanceof Number) + ') <span class="d">← 原始值不是物件</span>'
+    ];
+  },
+  f:'追問：<code>instanceof</code> 有什麼坑？答：跨 iframe 或跨 realm 會失敗，因為兩邊的 <code>Array.prototype</code> 不是同一個。要判斷陣列請用 <code>Array.isArray()</code>。'
+},
+{
+  lvl:'m', t:'9. 為什麼 <code>[].toString !== Object.prototype.toString</code>？',
+  a:['因為 <code>Array.prototype</code> 自己定義了一份 <code>toString</code>，<strong>覆寫 override</strong> 掉繼承來的。',
+     '原型鏈查找是「由下往上找到第一個就停」，所以 <code>[].toString</code> 在第 1 階就命中 <code>Array.prototype.toString</code>，根本走不到 <code>Object.prototype</code> 那份。',
+     '這正是型別偵測要寫 <code>.call()</code> 的原因 —— 必須繞過覆寫，指定用原版那份。'],
+  run:function(){
+    return [
+      '[].toString === Object.prototype.toString    → <span class="e">' + ([].toString === Object.prototype.toString) + '</span>',
+      '({}).toString === Object.prototype.toString  → <span class="w">' + (({}).toString === Object.prototype.toString) + '</span>',
+      '',
+      '[1,2].toString()                       → "<span class="w">' + [1,2].toString() + '</span>"',
+      'Object.prototype.toString.call([1,2])  → "<span class="w">' + Object.prototype.toString.call([1,2]) + '</span>"',
+      'Object.prototype.toString.call(null)   → "<span class="w">' + Object.prototype.toString.call(null) + '</span>"'
+    ];
+  },
+  f:'追問：那怎麼精準判斷型別？答：<code>Object.prototype.toString.call(x).slice(8, -1)</code>，它連 <code>null</code>、<code>Date</code>、<code>RegExp</code> 都分得出來。'
+},
+{
+  lvl:'m', t:'10. 什麼是原型污染 prototype pollution？怎麼防？',
+  a:['攻擊者透過 <code>__proto__</code> 這個 key，把東西寫進 <code>Object.prototype</code>，結果<strong>程式裡每一個物件</strong>都繼承到那個屬性。',
+     '關鍵細節：<code>JSON.parse</code> 本身<strong>是安全的</strong>，它走「建立一般屬性」那條路。出事的是後面的<strong>合併</strong>動作 —— <code>target[k] = source[k]</code> 這種賦值會觸發 setter。',
+     '最陰險的是它<strong>看不出來</strong>：<code>Object.keys({})</code> 還是空陣列，<code>Object.hasOwn({}, key)</code> 也是 <code>false</code>，因為它是繼承來的。'],
+  code:"// 危險組合：for...in ＋ 直接賦值\nfor (const k in source) { target[k] = source[k]; }\n\n// 三種防法\n// 1. 用 Object.keys 過濾，別用 for...in\n// 2. 明確跳過 __proto__ / constructor / prototype\n// 3. 容器改用 Object.create(null)",
+  run:function(){
+    var payload = JSON.parse('{"__proto__":{"isAdmin":true}}');
+    var r = ['<span class="d">// JSON.parse 本身安全</span>',
+      'payload 的原型 → ' + (Object.getPrototypeOf(payload) === Object.prototype ? 'Object.prototype' : '?'),
+      'payload 的自有屬性 → ' + JSON.stringify(Object.getOwnPropertyNames(payload)),
+      '({}).isAdmin → ' + ({}).isAdmin + ' <span class="d">← 還沒事</span>', ''];
+    function badMerge(t, s){ for (var k in s){ if (typeof s[k]==='object'&&s[k]!==null){ t[k]=t[k]||{}; badMerge(t[k],s[k]); } else t[k]=s[k]; } }
+    badMerge({}, payload);
+    r.push('<span class="d">// badMerge 之後</span>');
+    r.push('({}).isAdmin → <span class="e">' + ({}).isAdmin + '　← 中招</span>');
+    r.push('Object.keys({}) → ' + JSON.stringify(Object.keys({})) + ' <span class="d">← 看起來還是空的，超難發現</span>');
+    r.push('Object.hasOwn({}, "isAdmin") → ' + Object.hasOwn({}, 'isAdmin') + ' <span class="d">← 因為是繼承的</span>');
+    delete Object.prototype.isAdmin;
+    r.push('');
+    r.push('<span class="d">// 已自動清除</span>　({}).isAdmin → <span class="w">' + ({}).isAdmin + '</span>');
+    return r;
+  },
+  f:'追問：為什麼 <code>Object.create(null)</code> 能擋？答：它沒繼承 <code>Object.prototype</code>，所以沒有那個 setter。攻擊者塞 <code>__proto__</code> 進來只會多一個普通屬性。'
+},
+{
+  lvl:'m', t:'11. <code>{ __proto__: X }</code>、<code>obj.__proto__ = X</code>、<code>{ ["__proto__"]: X }</code> 三個一樣嗎？',
+  a:['<strong>不一樣，而且其中一個根本沒在設原型。</strong>',
+     '<code>{ __proto__: X }</code>：在物件字面量裡，<code>__proto__:</code> 是<strong>特殊的語法形式</strong>，引擎在解析階段就認出它，建立當下就把原型定好。標準、被最佳化、快。',
+     '<code>obj.__proto__ = X</code>：走 <code>Object.prototype</code> 上的 setter，建立<strong>之後</strong>才突變原型。deprecated、慢。',
+     '<code>{ ["__proto__"]: X }</code>：<strong>計算屬性名</strong>，走「建立一般屬性」那條完全不同的路，<strong>完全不碰原型</strong>，只是多一個叫 <code>__proto__</code> 的普通屬性。'],
+  run:function(){
+    var P = { greet: function(){ return 'hi'; } };
+    function nm(o){ var p = Object.getPrototypeOf(o); return p===P?'P':(p===Object.prototype?'Object.prototype':String(p)); }
+    var s1 = { __proto__: P }, s2 = { "__proto__": P }, c = { ["__proto__"]: P };
+    return [
+      '{ __proto__: P }      原型=<span class="w">' + nm(s1) + '</span>  自有=' + JSON.stringify(Object.getOwnPropertyNames(s1)),
+      '{ "__proto__": P }    原型=<span class="w">' + nm(s2) + '</span>  自有=' + JSON.stringify(Object.getOwnPropertyNames(s2)) + ' <span class="d">← 加引號也算語法</span>',
+      '{ ["__proto__"]: P }  原型=<span class="e">' + nm(c) + '</span>  自有=<span class="e">' + JSON.stringify(Object.getOwnPropertyNames(c)) + '</span>',
+      'c.greet → <span class="e">' + typeof c.greet + '</span> <span class="d">← 沒繼承到，證明真的沒設原型</span>'
+    ];
+  },
+  f:'追問：既然字面量是標準的，為什麼 <code>__proto__</code> 還被說 deprecated？答：deprecated 的是 <strong><code>Object.prototype.__proto__</code> 這個存取器屬性</strong>，不是字面量語法。規範裡它們是兩個不同的東西。'
+},
+{
+  lvl:'m', t:'12. class 的方法掛在哪？跟 <code>prototype</code> 寫法一樣嗎？',
+  a:['<code>class</code> 是<strong>語法糖</strong>。實例方法掛在 <code>C.prototype</code> 上，<code>static</code> 方法掛在 <code>C</code> 本身，getter／setter 也掛在 <code>C.prototype</code> 上。',
+     '所以 <code>Object.hasOwn(C.prototype, "方法名")</code> 是 <code>true</code>，<code>Object.hasOwn(instance, "方法名")</code> 是 <code>false</code>。',
+     '差別在於 class 的方法<strong>預設是不可列舉的</strong>（<code>enumerable: false</code>），而手動寫 <code>C.prototype.m = fn</code> 做出來的是可列舉的。'],
+  run:function(){
+    class C { m(){} static s(){} get g(){ return 1; } }
+    function F(){}
+    F.prototype.m = function(){};
+    return [
+      'Object.hasOwn(C.prototype, "m")   → ' + Object.hasOwn(C.prototype, 'm'),
+      'Object.hasOwn(C, "s")             → ' + Object.hasOwn(C, 's') + ' <span class="d">← static 掛在類別本身</span>',
+      'Object.hasOwn(C.prototype, "g")   → ' + Object.hasOwn(C.prototype, 'g') + ' <span class="d">← getter 也在 prototype</span>',
+      '',
+      'class 的 m 是 enumerable？   → <span class="w">' + Object.getOwnPropertyDescriptor(C.prototype,'m').enumerable + '</span>',
+      '手寫 F.prototype.m 是？      → <span class="e">' + Object.getOwnPropertyDescriptor(F.prototype,'m').enumerable + '</span>',
+      '<span class="d">← 所以 for...in 掃得到手寫的，掃不到 class 的</span>'
+    ];
+  },
+  f:'加分回答：React 19 原始碼裡 <code>Component.prototype.setState = function(){...}</code> 就是手寫的實例方法 —— 掛 prototype 是為了讓所有實例共用一份，不是每個實例各存一份。'
+},
+
+/* ---------- 底層 ---------- */
+{
+  lvl:'h', t:'13. 為什麼改變物件的原型會傷效能？講到引擎層。',
+  a:['引擎會幫每個物件建立一個 <strong>Shape</strong>（V8 內部叫 <strong>Map</strong>、SpiderMonkey 叫 Shape、JSC 叫 Structure、學術界叫 Hidden Class），記錄「有哪些屬性」以及「每個屬性在記憶體第幾個 offset」。形狀相同的物件<strong>共用同一個 Shape</strong>。',
+     '有了 Shape，屬性存取就從「查雜湊表或沿鏈比對字串」變成「基底位址 ＋ offset」一步到位，這是 JS 逼近 C++ 速度的關鍵。',
+     '<strong>Inline Cache</strong> 再把「這個 Shape → 這個 offset」記在<strong>那一行程式碼</strong>上，下次形狀一樣就直接跳過查找。',
+     '原型是記在 <strong>Shape 裡</strong>的，而且 V8 額外給每個原型 Shape 一個 <strong>ValidityCell</strong>，用來標記「這條鏈有沒有被動過」。<strong>一旦你改動原型，ValidityCell 就作廢，而且會往下擴散</strong> —— 改 <code>Object.prototype</code> 會讓整條鏈底下所有快取一次歸零。'],
+  f:'加分回答：V8 團隊的原話是「Leave your prototypes alone!」。真的非改不可，要在其他程式碼跑起來之前改完。'
+},
+{
+  lvl:'h', t:'14. 那三種設原型的寫法，哪些會降低效率？',
+  a:['<strong>只有「建立之後才突變」的那兩種慢</strong>，不是三種都慢。',
+     '<code>{ __proto__: X }</code> 與 <code>Object.create(X)</code>：<strong>建立當下</strong>就把原型定好，Shape 一次成形，快。',
+     '<code>o.__proto__ = X</code> 與 <code>Object.setPrototypeOf(o, X)</code>：建立<strong>之後</strong>才改，撕掉 ValidityCell。實測約慢 <strong>5 倍</strong>。',
+     '重點：這兩者成本<strong>幾乎一模一樣</strong>（比值 0.99）。<strong>換成正規 API 並不會變快</strong>，因為貴的是「突變」這個動作本身，不是 <code>__proto__</code> 這個語法。'],
+  f:'追問：那為什麼還要換成 <code>Object.setPrototypeOf</code>？答：不是為了效能，是為了「不用 deprecated API」以及「意圖明確」。要效能就得改成建立時定原型。'
+},
+{
+  lvl:'h', t:'15. 屬性的<strong>寫入順序</strong>會影響效能嗎？',
+  a:['會。物件是逐步長大的，每加一個屬性就轉換到下一個 Shape，形成一條<strong>轉換鏈 transition chain</strong>。',
+     '所以<strong>內容一樣但寫入順序不同的兩個物件，在引擎眼中是兩個不同的 Shape</strong>，沒辦法共用 Inline Cache 的最佳化。',
+     'JS 層面看不到 Shape，但 <strong>key 的順序就是它的外顯證據</strong>。'],
+  code:"const a = {}; a.x = 1; a.y = 2;\nconst b = {}; b.y = 2; b.x = 1;\n\nObject.keys(a);   // [\"x\", \"y\"]\nObject.keys(b);   // [\"y\", \"x\"]   ← 內容一樣，形狀不同",
+  run:function(){
+    var a = {}; a.x = 1; a.y = 2;
+    var b = {}; b.y = 2; b.x = 1;
+    return ['Object.keys(a) = <span class="w">' + JSON.stringify(Object.keys(a)) + '</span>',
+            'Object.keys(b) = <span class="w">' + JSON.stringify(Object.keys(b)) + '</span>',
+            '<span class="d">內容一樣、順序不同 → 兩個不同的 Shape</span>'];
+  },
+  f:'實務建議：同一種資料，屬性初始化順序要一致，最好在建構子裡一次寫完，別東加一個西加一個。'
+},
+{
+  lvl:'h', t:'16. 為什麼說 <code>__proto__</code> 不符合「物件模型」？',
+  a:['規範裡每個物件有兩種東西：<strong>屬性 property</strong>（你放的資料）與<strong>內部插槽 internal slot</strong>（引擎自己用的結構，例如 <code>[[Prototype]]</code>），還有一組<strong>內部方法</strong>（例如 <code>[[GetPrototypeOf]]</code>、<code>[[SetPrototypeOf]]</code>）。這一整套就是「物件模型」。',
+     '設計上這兩層應該分開：資料歸資料，結構歸結構。<code>Object.getPrototypeOf()</code> 是規規矩矩的「呼叫內部方法」。',
+     '但 <code>__proto__</code> <strong>把內部結構偽裝成一個看起來很普通的屬性</strong>。於是任何走「一般屬性賦值」的路徑 —— <code>obj[k] = v</code>、合併設定、抄 JSON 欄位 —— 都有可能<strong>不小心改到原型</strong>。',
+     '這就是為什麼原型污染會存在：它不是實作 bug，是<strong>把兩層混在一起的設計後果</strong>。效能問題也是同一個根：一般屬性賦值本來很便宜，但這一個特例會撕掉 ValidityCell。'],
+  f:'一句話總結：<code>__proto__</code> 的問題不是「它慢」，而是「它讓內部結構長得像資料」，於是既不安全也難最佳化。'
+}
+];
+
+var list = document.getElementById('list');
+Q.forEach(function(q, i){
+  var d = document.createElement('div');
+  d.className = 'q';
+  d.dataset.lvl = q.lvl;
+  var html = '<div class="qh"><span class="lvl ' + q.lvl + '">' +
+    (q.lvl === 'b' ? '基礎' : q.lvl === 'm' ? '進階' : '底層') + '</span>' +
+    '<p class="qt">' + q.t + '</p></div>';
+  if (q.code) html += '<pre>' + q.code.replace(/</g,'&lt;') + '</pre>';
+  html += '<details><summary>▸ 參考答法</summary><div class="ans"><ul>' +
+    q.a.map(function(x){ return '<li>' + x + '</li>'; }).join('') + '</ul>';
+  if (q.f) html += '<div class="followup">' + q.f + '</div>';
+  html += '</div></details>';
+  if (q.run) html += '<button class="run" data-i="' + i + '">▶ 跑跑看</button><div class="out" id="out' + i + '"></div>';
+  d.innerHTML = html;
+  list.appendChild(d);
+});
+
+list.addEventListener('click', function(e){
+  var btn = e.target.closest('button.run');
+  if (!btn) return;
+  var i = Number(btn.dataset.i);
+  var out = document.getElementById('out' + i);
+  try { out.innerHTML = Q[i].run().join('\n'); }
+  catch (err) { out.innerHTML = '<span class="e">' + err + '</span>'; }
+  out.classList.add('show');
+});
+
+var COUNT = { all: Q.length, b: 0, m: 0, h: 0 };
+Q.forEach(function(q){ COUNT[q.lvl]++; });
+function filter(f){
+  document.querySelectorAll('.q').forEach(function(el){
+    el.classList.toggle('hide', f !== 'all' && el.dataset.lvl !== f);
+  });
+  document.getElementById('stat').textContent =
+    '目前顯示 ' + (f === 'all' ? Q.length : COUNT[f]) + ' 題' +
+    (f === 'all' ? '　基礎 ' + COUNT.b + '｜進階 ' + COUNT.m + '｜底層 ' + COUNT.h : '');
+}
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('on'); });
+    t.classList.add('on');
+    filter(t.dataset.f);
+  });
+});
+filter('all');
+</script>
+</body>
+</html>

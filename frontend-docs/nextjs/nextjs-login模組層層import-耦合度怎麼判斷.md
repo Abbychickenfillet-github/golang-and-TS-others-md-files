@@ -92,7 +92,7 @@ export * from './config'
 | 直接用 `document.cookie.includes('ACCESS_TOKEN')` 字串比對，散落在 5+ 個地方 | ❌ 沒有封裝成一個函式，每次都重寫一次判斷邏輯 |
 | 滿版 `console.log` debug 訊息 | ⚠️ 沒有用 `isDev` 包起來（`services/auth.service.js` 反而有做這件事） |
 
-**這正好呼應 (c) 的判準**：如果 `useTimeLogStore` 的程式碼壞掉，`use-auth.js` 會直接爆掉，連帶讓整個 App 的登入/登出都壞掉——**改一個看似不相關的模組，login 真的會壞**。這就是耦合度的活教材，先留給 Day19（低耦合）當真實案例。
+**這正好呼應 (c) 的判準**：如果 `useTimeLogStore` 的程式碼壞掉，`use-auth.js` 會直接爆掉，連帶讓整個 App 的登入/登出都壞掉——**改一個看似不相關的模組，login 真的會壞**。這是**高耦合**的活教材——示範的是低耦合原則被違反時會發生什麼事，不是低耦合本身的例子。先留給 Day19（低耦合）當反例（後來 Day19 已經用這個案例寫成文章，並示範了用 event bus／控制反轉解耦的修法）。
 
 另外還撿到一個命名問題：`use-auth.js` 引入的 axios 實例叫 `@/lib/line-pay-axios`，但拿來打所有 API（包含一般帳密登入），命名跟實際用途對不上，讀的人會誤以為這條線只跟 LINE Pay 有關。
 
@@ -113,6 +113,10 @@ cookieStore.set(cookieName, session, {
 ```
 
 `createSession()`（登入當下）的 cookie 有 `httpOnly` 保護，前端 JS 讀不到；但 `updateSession()`（session 更新）把 `httpOnly` 拿掉了，前端反而讀得到。如果這不是刻意設計，那就是**複製貼上註解時沒有跟著改**，而且這個註解的內容剛好跟旁邊的程式碼相反，比沒寫註解更危險——讀的人會相信註解，不會去重新驗證程式碼。留給 Day8（註解）當真實案例。
+
+**這不只是註解寫錯，`httpOnly` 的值本身也被降級了，是可以實際被利用的安全問題：**
+
+httpOnly 的作用是擋掉「瀏覽器端 JavaScript 讀 `document.cookie`」，防的是 XSS 之後攻擊者偷走 token 冒充登入；伺服器端不受影響，Cookie header 照樣會送。`createSession()` 設 `true` 是對的。但如果 `updateSession()`（滑動式過期常見會在使用者活躍時定期呼叫）把它設回 `false`，代表**登入當下安全，但 session 一更新，token 就變成前端 JS 讀得到的狀態**——等於自己把 `createSession()` 想擋住的 XSS 偷 token 破口重新打開。建議做法：`updateSession()` 的 httpOnly 應該跟 `createSession()` 保持一致（都設 `true`），除非有特別理由需要前端讀到 token（更常見的做法是後端額外發一個非 httpOnly 的旗標 cookie，而不是把 token 本身開放）。
 
 ## 關聯
 

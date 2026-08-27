@@ -37,7 +37,7 @@ quiz: script載入方式-sync-defer-async.html
 - **瀏覽器看不懂字串**：字串沒有父子關係、沒有屬性物件、沒有方法可呼叫，不能拿來排版/渲染/掛事件。所以一定要有一個**轉換步驟**＝ **HTML Parsing**。（同源觀念：[Markdown-渲染為DOM的過程](Markdown-渲染為DOM的過程.md)——`.md` 也要先轉成 HTML 字串才有戲。）
 - **發生在 Run-time、用使用者的 CPU**：這個解析不是在伺服器先做好，而是**使用者打開網頁那一刻，在他自己的裝置、用他的 CPU** 現場一個字元一個字元讀過去、蓋出結構。→ HTML 越長、節點越多，弱裝置首屏越卡。
 - **產物是記憶體裡的 DOM 樹**：解析器在主執行緒上把字串讀成一棵樹（`<html>` 為根，掛 `<head>`/`<body>`，再掛 `<div>`/`<p>`…）。
-- **最具體的一句**：解析器讀到 `<div>` 這段**文字**，就在記憶體 `new` 出一個 **`HTMLDivElement`** 物件（繼承鏈 `HTMLDivElement`→`HTMLElement`→`Element`→`Node`）。物件才有 `.style`、`.className`、`.appendChild()`、`.addEventListener()`。**字串裡的 `<div>` 選不到也操作不動；變成物件、掛上 DOM 樹後，CSS 才選得到、JS 才操作得動。**
+<mark style="background: #FFF3A3A6;">- **最具體的一句**：解析器讀到 `<div>` 這段**文字**，就在記憶體 `new` 出一個 **`HTMLDivElement`** 物件（繼承鏈 `HTMLDivElement`→`HTMLElement`→`Element`→`Node`）。物件才有 `.style`、`.className`、`.appendChild()`、`.addEventListener()`。**字串裡的 `<div>` 選不到也操作不動；變成物件、掛上 DOM 樹後，CSS 才選得到、JS 才操作得動。**</mark>
 - **⚠️ 做這件事的是誰？是瀏覽器的「HTML 解析器（渲染引擎，Chrome 是 Blink）」，不是 V8**：V8 是 **JavaScript 引擎、只處理 JS**。把 HTML 字串變 DOM 樹跟 V8 無關；V8 是**另一條線**（JS→AST→bytecode→機器碼，見 (q)）。**HTML 永遠不會進 V8、不會變成 AST／bytecode。** 兩者都在主執行緒上用 CPU，但是兩個不同元件。
 
 | 解析前（純文字） | 解析後（記憶體物件） | 差別 |
@@ -116,11 +116,11 @@ Vite／原生 ES Module 預設作法。特性：① **預設就是 defer 行為*
 
 ---
 
-## 🔄 四、完整流程：React → 打包 → 純文字 → 瀏覽器解析 → DOM 樹
+## 🔄 四、完整流程：React → 打包 → 純文字 → 瀏覽器解析 → DOM 樹(此為簡略流程)
 
 ### (k) build-time 做一次、run-time 每個使用者各做一次
 
-```text
+
 ① React 原始碼（.jsx/.tsx）
       │  build-time：Babel/SWC 轉譯 + bundle（在開發者/CI 機器上，做一次）
       ▼
@@ -130,10 +130,10 @@ Vite／原生 ES Module 預設作法。特性：① **預設就是 defer 行為*
 ③ 瀏覽器收到「一長串純文字字串」 <!DOCTYPE html><html>…
       │  ⚠️ 瀏覽器看不懂純文字（交給渲染引擎 Blink 的 HTML 解析器，不是 V8）
       ▼
-④ HTML Parsing（run-time，用使用者 CPU，在主執行緒上，由 Blink 做）
+<mark style="background: #FFB8EBA6;">④ HTML Parsing（run-time，用使用者 CPU，在主執行緒上，由 Blink 做）</mark>
       ▼
 ⑤ <div>（文字） ──► HTMLDivElement（記憶體物件）→ 掛上 DOM 樹 → CSS 選得到、JS 操作得動
-```
+
 
 瀏覽器不認得 JSX/TS，所以 **build-time** 先轉譯打包成純文字（見 [前端開發工具-打包編譯Lint與Parser](../../build-and-compilation/前端開發工具-打包編譯Lint與Parser.md)）；「變成可操作的東西」統統延到 **run-time**（HTML→DOM、JS→AST→bytecode）。**同一份打包產物，被幾百萬使用者的 CPU 各自解析一次。**
 
@@ -141,9 +141,13 @@ Vite／原生 ES Module 預設作法。特性：① **預設就是 defer 行為*
 
 **由誰跑？** build 這步是「建置機器」跑的——你的筆電（本地 `npm run build`）或 CI 伺服器（GitHub Actions／Vercel）。**不是使用者的瀏覽器**；跑一次產出靜態檔，之後所有訪客拿到同一份。實際執行的人是 **build tool**（Vite／Webpack／Rollup）。
 
-> Vite 的兩種模式別搞混：**`vite build`（生產）** 才做「建相依圖→bundle→最佳化」這整套，且**底層叫 Rollup 做 bundle**；**`vite dev`（開發）** 不做完整 bundle，改用 **esbuild** 預轉譯依賴＋**瀏覽器原生 ES Module** 直接載入原始碼（所以啟動快）。下面五步講的是**生產 build**。「打包」在此＝**bundle**（步驟③）。
+> Vite 的兩種模式別搞混：**`vite build`（生產）** 才做「建相依圖→bundle→最佳化」這整套，且**底層叫 Rollup 做 bundle**；
+> **`vite dev`（開發）** 不做完整 bundle，改用 **esbuild** 預轉譯依賴＋**瀏覽器原生 ES Module** 直接載入原始碼（所以啟動快）。vite dev的轉譯跟壓縮工具從esbuild/oxc正在往rolldown/oxc生態系遷移(複習到此時請重新查詢)
 
-**① 找入口、建相依圖（dependency graph）**
+ 
+下面五步講的是**生產 build**。「打包」在此＝**bundle**（步驟③）。
+
+<mark style="background: #FFB8EBA6;">**① 找入口、建相依圖（dependency graph）**</mark>
 從入口檔（webpack 預設 `./src/index.js`；Vite 是 `index.html` 指的 `main.tsx`）開始，讀它的 `import`，再打開每個被 import 的檔、讀它們的 import，一路**遞迴**，把「誰 import 誰」畫成一張圖（節點＝檔案/模組，連線＝import；圖片/字型/CSS 被 import 也是節點）。這張圖就是「到底要打包哪些檔」的依據。官方：入口點告訴 bundler「從哪開始建內部相依圖」，再遞迴收齊所有相依。
 
 ```text
@@ -154,7 +158,7 @@ main.tsx ──import──► App.tsx ──┬─import─► Header.tsx ─im
 
 > 💡 **hint：寫好入口檔（index.js／main.tsx）很重要。** bundler 從入口檔開始、順著 import 建圖，**沒被入口（直接或間接）import 到的檔，根本不會被打包**。入口與 import 關係要寫對，東西才會被帶進去。怎麼寫見 [如何寫入口檔-index-js-main-tsx](如何寫入口檔-index-js-main-tsx.md)。
 
-**② 逐模組轉譯（transpile，原始碼→原始碼，產物仍是純文字 JS）**
+<mark style="background: #FFF3A3A6;">**② 逐模組轉譯（transpile，原始碼→原始碼，產物仍是純文字 JS）**</mark>
 
 ```text
 TS 去型別：      const n: number = 5;        →  const n = 5;
@@ -164,7 +168,7 @@ JSX→createElement：<div className="a">Hi {name}</div>
 新語法→目標語法： const y = a ?? b;          →  const y = a != null ? a : b;
 ```
 
-各打包工具**用什麼做 transpile**（步驟②的實際執行者）：
+<mark style="background: #D2B3FFA6;">各打包工具**用什麼做 transpile**（步驟②的實際執行者）：</mark>
 
 | 打包工具 | transpile 用誰 |
 |---|---|
@@ -173,10 +177,14 @@ JSX→createElement：<div className="a">Hi {name}</div>
 | Next.js | SWC（內建預設） |
 | Rollup | plugin：@rollup/plugin-babel／-typescript／rollup-plugin-esbuild |
 
-- <mark style="background: #D2B3FFA6;">**為何 Webpack 可多選 loader**</mark>：Webpack 本身不轉譯，把轉譯**外包給 loader**、設計成可插拔，讓你依需求選——Babel（相容性/外掛生態最強）、ts-loader（完整型別檢查）、swc-loader／esbuild-loader（快）。取捨＝速度 vs 功能/型別檢查。
-- **為何 `@rollup/plugin-typescript` 有 dash**：只是 **npm 套件命名慣例（kebab-case 用連字號分詞）**；`@rollup/plugin-typescript` ＝ scope `@rollup` 底下叫 `plugin-typescript` 的套件，無特殊意義。
+- <mark style="background: #D2B3FFA6;">**為何 Webpack 可多選 loader**</mark>：Webpack 本身不轉譯，把轉譯**外包給 loader**、設計成可插拔，讓你依需求選——
+- Babel（相容性/外掛生態最強）、
+- <mark style="background: #ABF7F7A6;">ts-loader（完整型別檢查）</mark>、
+- <mark style="background: #ABF7F7A6;">swc-loader／esbuild-loader（快）</mark>。取捨＝速度 vs 功能/型別檢查。
+  可知loader是作轉譯。
+	- **為何 `@rollup/plugin-typescript` 有 dash**：只是 **npm 套件命名慣例（kebab-case 用連字號分詞）**；`@rollup/plugin-typescript` ＝ scope `@rollup` 底下叫 `plugin-typescript` 的套件，無特殊意義。
 
-**③ bundle 合併成 chunk（把幾百支原始模組 → 少數幾支輸出檔）**
+**③ bundle 合併成 chunk（<mark style="background: #FFB86CA6;">把幾百支原始模組 → 少數幾支輸出檔</mark>）**
 不是永遠變成 1 支——**大方向是「大幅變少」，但 code splitting 會故意切成好幾支**。三個子動作：
 
 | 子動作 | 做什麼 | 方向 | 限制／備註 |
@@ -185,19 +193,34 @@ JSX→createElement：<div className="a">Hi {name}</div>
 | code splitting | 切成多個 chunk 按需載入（vendor／各 route lazy chunk） | 切開 | 靠動態 import／React.lazy |
 | scope hoisting | 多個 ES 模組併進同一個函式作用域，省掉每模組包裹殼 | 合併 | 只對 ES module；靠改名避免衝突 |
 
-- **tree-shaking**：砍掉「沒被 import 用到的 export」（死碼）。
+- <mark style="background: #FFF3A3A6;">**tree-shaking**：砍掉「沒被 import 用到的 export」（死碼）。這一步其實分兩個階段，不是一次做完：  
+先是「標記」階段——打包工具靜態分析每個模組的 `import`／`export`，標記出哪些 export 根本沒人用到。  
+真正「物理刪除」那些被標記的死碼，其實是**在後面 minify 階段由 Terser 動手做的**，不是 tree-shaking 這一步自己刪掉。</mark>
 - **code splitting**：切多個 chunk 按需載入。
   **vendor chunk**＝第三方庫獨立一支（很少改、可長期快取）；**各路由 lazy chunk**＝每條路由的程式獨立一支、走到那頁才下載（靠動態 `import()`／`React.lazy`）。
-- **scope hoisting（＝module concatenation）**：平常每個模組被包在自己的函式（IIFE）裡；scope hoisting 把多個 ES 模組**併進同一個函式作用域**，少了每個模組的包裹殼 → 更小、也更好 tree-shake。只對 ES module 有效。
+- **scope hoisting（＝module concatenation）**：<mark style="background: #FFB8EBA6;">平常每個模組被包在自己的函式（IIFE）</mark>裡；scope hoisting 把多個 ES 模組**併進同一個函式作用域**，少了每個模組的包裹殼 → 更小、也更好 tree-shake。只對 ES module 有效。
 
 **④ minify（壓縮）**
 **誰做 minify**：由
 打包工具只是呼叫的壓縮器（minifier）」做，——
-**Webpack** 預設叫 **Terser**、
-**Vite 新版** 叫 **oxc**（舊版是 **esbuild**）、
-**Next.js** 叫 **SWC**、**Rollup** 靠 `@rollup/plugin-terser` 叫 Terser。
+
+|  打包工具   |  Webpack   | Vite | Next.js 
+| --- | --- | --- | --- 
+|   其minifier  | Terser    |oxc(舊版esbuild)  | SWC、Rollup靠@rollup/plugin-terser叫Terser 
+
+-**** 預設叫 ****、
+-**Vite 新版** 叫 **oxc**（舊版是 **esbuild**）、
+-**Next.js** 叫 **SWC**、**Rollup** 靠 `@rollup/plugin-terser` 叫 Terser。
+Terser 概念上的處理順序是：  
+parse（解析成語法樹）→ compress（做死碼消除、常數折疊等結構性優化）→ **mangle（重新命名變數／屬性，是第 3 步）** → generate（輸出最終字串，可選附上 source map）。
 **mangle 改名**：把**區域變數/函式名**改成超短名（`userName`→`a`，只能改區域的才安全）；再**去空白＋去註解**（Terser 預設保留 `@license`/`!` 法律註解、其餘砍掉，也可設全砍）。Terser：空白移除＋符號改名約佔壓縮量 95%。
 
+@license/! 開頭的法律註解：
+所有主流minifer(Terser, UglifyJS, esbuild)共同遵守的一個慣例
+只要一個註解是以 `@license` 開頭或是以驚嘆號開頭例如`/*! ... */`就會被視為法律授權聲明而強制保留
+預設雖然會把程式碼的註解清光
+因為很多開源套件的授權條款(MIT License)明文要求只要散布這份程式碼就必須保留原始的著作權聲明
+這是法律合規上的保護機制，不是技術限制。
 ```text
 function calculateTotal(price, qty) { // 加總
   return price * qty;
@@ -208,21 +231,27 @@ function a(b,c){return b*c}
 **⑤ hash＋產出＋注入**
 輸出到 `dist/`，檔名帶**內容 hash**：`main-a1b2c3.js`（內容一變、檔名就變 → 舊快取自動失效＝cache busting）。再把這些帶 hash 的檔名**寫進 index.html** 的 `<script src>`/`<link href>`（Vite 自動；webpack 用 html-webpack-plugin）。
 
+<mark style="background: #FFB86CA6;">一般用 webpack／Vite 手動設定的專案，預設輸出資料夾是 `dist/`。</mark>
+Next.js 因為是框架，把整個建置產物（包含伺服器端跟客戶端兩份）都收在 `.next/` 底下，這是 Next.js 自己的慣例路徑，概念上跟 `dist/` 是同一種東西。
+
 → 對照 (q)：「轉譯」是步驟 ②（廣義編譯，逐檔）；「tree-shake/minify」是 ③④（bundle 子步驟）；產物**全都還是純文字 JS/HTML，不是機器碼**。
 
 #### 每一步是「誰／哪個 plugin／子工具」做的（Webpack／Rollup／Vite）
 
 先講重點：**第①步「建相依圖」主要是 bundler 的「核心（core）」做的，不是某個 plugin**；只有「解析 node_modules 路徑」那段靠 resolver（webpack 的 enhanced-resolve、Rollup 的 @rollup/plugin-node-resolve）。
 
-| 步驟 | Webpack | Rollup | Vite（生產＝Rollup） |
+| 步驟 | Webpack 老舊了啦| Rollup | Vite（生產＝Rollup） |
 |---|---|---|---|
 | ① 找入口、建相依圖 | 核心＋解析器 enhanced-resolve＋用 acorn 解析找 import | 核心＋@rollup/plugin-node-resolve 解析 node_modules | Rollup 核心＋Vite 解析 plugin；開發期依賴預打包用 esbuild |
 | ② 逐模組轉譯 | Loaders（babel-loader／ts-loader／swc-loader／esbuild-loader） | transform 類 plugin（@rollup/plugin-babel／-typescript） | 預設 esbuild 轉 TS/JSX＋@vitejs/plugin-react（Babel 或 SWC） |
-| ③ bundle（tree-shake／code-split／scope-hoist） | 核心 bundling；code split＝SplitChunksPlugin（內建）；scope hoist＝ModuleConcatenationPlugin（內建） | 全在核心（Rollup 首創 tree-shaking、預設 scope hoist；code split 靠動態 import／manualChunks） | 交給 Rollup 核心 |
+| ③ bundle（tree-shake／code-split／scope-hoist） | 核心 bundling；code split＝SplitChunksPlugin（內建）；scope hoist＝ModuleConcatenationPlugin（內建） | 全在核心啥中文啦（Rollup 首創 tree-shaking、預設 scope hoist；code split 靠動態 import／manualChunks） | 交給 Rollup 核心 |
 | ④ minify | TerserWebpackPlugin（內建、production 預設）→ Terser | 不內建 → @rollup/plugin-terser → Terser | 預設 esbuild／新版 oxc／可選 terser |
 | ⑤ hash＋注入 index.html | 雜湊＝核心 output [contenthash]；注入 HTML＝html-webpack-plugin | 雜湊＝核心 [hash]；注入 HTML＝@rollup/plugin-html | Vite 原生處理 index.html＋資源雜湊 |
 
-一句話對比（主詞先）：**Webpack 靠一堆內建 plugin＋loaders 做；Rollup 把 bundle 相關全放核心、轉譯和 minify 靠外掛；Vite 生產底層用 Rollup，但轉譯/minify 自己選 esbuild/oxc。**
+Webpack 靠一堆內建 plugin＋loaders 做；
+Rollup 把 bundle 相關全放核心、轉譯和 minify 靠外掛；
+Vite 生產底層用 Rollup，但轉譯/minify 自己選 esbuild/oxc。
+
 補充（Q：Rollup 內建沒有 minify 嗎？）**對，Rollup 核心不含壓縮器**，要裝 `@rollup/plugin-terser`（官方 plugin）叫 Terser 做；這也是 Vite 要自己指定 minifier 的原因。
 
 #### 打包工具生態年表（由舊到新，附 2026 現況）
@@ -304,7 +333,13 @@ SPA 的 single 指「整個 app 只有一份 HTML 外殼，換頁（`/about`→`
 
 ⚠️ **別把 SPA 跟 CSR 畫等號**：「SPA/MPA」是路由模型、「CSR/SSR」是首屏渲染在哪，兩個是**獨立的軸**，可自由組合（Next.js 就是 SSR+SPA）。完整拆解見 [SPA架構-入口點-CSR客戶端效能與狀態-部署](SPA架構-入口點-CSR客戶端效能與狀態-部署.md)。
 
-### (p) CSR vs SSR：差在「HTML 裡有沒有內容」＋「誰渲染」
+### (p) CSR vs SSR vs Vanilla JS：差在「HTML 裡有沒有內容」＋「誰渲染」
+無框架沒有拿同一份元件邏輯重算一次因為這是React特有的設計，React元件本質上是用JS描述畫面長什麼樣子的函式。
+
+CSR跟SSR並非沒有差異：
+CSR只需針對瀏覽器打包出一份產物。整份程式碼從頭到尾都在瀏覽器執行，打包工具只要對著一個目標做tree-shaking, code-splitting, minify就結束了。
+SSR則需要針對伺服器跟瀏覽器兩個不同執行環境，各自打包出一份不同的產物（分別對應.next/server與.next/static/chunks）
+因為同一套元件邏輯要在兩種環境各跑一次⬅️跑什麼啦？
 
 | 維度 | CSR | SSR |
 |---|---|---|
@@ -314,23 +349,31 @@ SPA 的 single 指「整個 app 只有一份 HTML 外殼，換頁（`/about`→`
 | 首屏 | 等 JS 下載＋執行＋抓資料後 | HTML 一到就有，JS 後補互動（hydration） |
 | 代表 | CRA、Vite SPA（＝SPA+CSR） | Next.js、Nuxt（＝SPA+SSR） |
 
-SSR 兩個常見誤解要澄清：**(1) 不是「每次 re-render 都在伺服器」**——只有首屏那一次在伺服器產 HTML 字串（Node 的 V8 跑 `renderToString`，注意產**字串不是 DOM**）；hydration 之後，互動造成的 re-render 回到瀏覽器端，跟 CSR 一樣。**(2) SSR 的動機**：首屏速度（FCP）＋ SEO（爬蟲不跑 JS，直接給有內容的 HTML）＋ 社群預覽（Open Graph meta 要在 HTML 裡）。
+
+SSR 兩個常見誤解要澄清：
+**(1) 不是「每次 re-render 都在伺服器」**——
+只有首屏那一次在伺服器產 HTML 字串（Node 的 V8 跑 `renderToString`，注意產**字串不是 DOM**）
+hydration 之後，互動造成的 re-render 回到瀏覽器端，跟 CSR 一樣。
+**(2) SSR 的動機**：
+首屏速度（FCP）＋ SEO（爬蟲不跑 JS，直接給有內容的 HTML）＋ 社群預覽（Open Graph meta 要在 HTML 裡）。
 
 驗證小技巧：CSR 的「檢視原始碼（Ctrl+U）」幾乎空白、但「F12 Elements」滿滿元素——原始碼是伺服器發的空殼，Elements 是 JS 跑完的結果。呼應 (a)：CSR 的 DOM 節點有兩個來源——① 瀏覽器 Parse 那份空殼（節點很少）；② JS 用 `document.createElement`/React 在 run-time 現場建大部分節點塞進 `#root`。hydration 細節見 [SSR-renderToString與Hydration-伺服器端渲染流程](../react/SSR-renderToString與Hydration-伺服器端渲染流程.md)。更深入的 SPA 架構（入口點、客戶端效能、狀態存哪、CSR 用什麼伺服器發）見 [SPA架構-入口點-CSR客戶端效能與狀態-部署](SPA架構-入口點-CSR客戶端效能與狀態-部署.md)。
 
 ---
 
-## 🎁 七、框架幫我們做什麼？（Abby 的心得 ＋ 修正討論）
-
-> 依「先討論對錯、再謄錄」原則：先放 Abby 原話（引用），再附三點修正。
+## 🎁 七、框架幫我們做什麼？
 
 **Abby 原話：**
-> 「透過這一篇我了解到，框架對我們的幫助是什麼？可以幫我們處理打包工具（such as 找入口建相依圖、transpile、bundle、minify），並且處理好 script 載入的非同步順序，保證水合化。可是 Next.js 是 script async，這比較可惜吧？」
+> 「透過這一篇我了解到，框架對我們的幫助是什麼？可以幫我們處理打包工具（such as 找入口建相依圖、transpile、bundle、minify），<mark style="background: #FF5582A6;">並且處理好 script 載入的非同步順序，保證水合化。</mark>可是 Next.js 是 script async，這比較可惜吧？」
 
 **修正討論（三點）：**
 
 - **(1) 框架 vs 打包工具**：精確說，**框架是把打包工具「配置好、指揮好」**，實際做打包的還是 bundler——Next.js 底層用 Turbopack/Webpack、CRA 用 Webpack、Vite 系用 Vite。主詞：bundler 打包；框架＝「包好 bundler ＋加上路由/SSR/資料抓取/script 策略」。
 - **(2)「保證水合化」只在 SSR/SSG 框架**：Next.js/Nuxt 這類才有 hydration；**純 CSR（CRA、Vite SPA）沒有水合化**（因為沒 SSR，見 [SPA架構-入口點-CSR客戶端效能與狀態-部署](SPA架構-入口點-CSR客戶端效能與狀態-部署.md)）。所以這句要限定在 SSR 框架。
+- 水合化(Hydration)是伺服器先把 React 元件算成純 HTML 字串送到瀏覽器，讓使用者第一時間就看到畫面內容（這階段沒有互動性，按鈕點了沒反應）。接著瀏覽器載入 React 的 JS，React 拿著同一份元件邏輯在瀏覽器裡「重新算一次」，然後不是整個重畫，而是**接管**已經存在的那份 HTML，把事件監聽器（onClick 之類）一個個掛上去——這個「接管」的動作就叫水合。名字取得很貼切：伺服器給的 HTML 是乾的骨架，水合就是把它「泡發」成活的、能互動的頁面。
+
+	水合成立的前提是：伺服器算出的 HTML，要跟瀏覽器重新算一次的結果**長得一樣**，React 才能安心地說「這就是我要的骨架，我直接接管就好，不用重畫」。這就是為什麼一旦兩邊算出來不一樣，React 就會報 hydration mismatch——它發現自己以為能直接接管的骨架，其實跟它自己算出來的不同。
+	
 - **(3)「Next.js 是 script async 比較可惜」→ 其實不可惜**：Next.js 的 `<Script>` 策略（預設 `afterInteractive`、`lazyOnload`）是給**第三方 script**；Next 自己的框架 chunk 是**精心編排**的（`beforeInteractive` 給關鍵、主 bundle 有 manifest 保證順序）。**就算 script 標籤帶 async，Next 的框架 runtime 也保證執行順序與 hydration 正確**——等於「用 async 加速下載、又用框架 runtime 保證順序」，魚與熊掌兼得。
 
 補充：Next.js 其實**不只有 async**——它用 `<Script>` 的 `strategy` 屬性讓你自由調載入時機，共 **4 種策略**（官方導引：https://nextjs.org/docs/app/guides/scripts ）。對照你前面學的 script 概念：

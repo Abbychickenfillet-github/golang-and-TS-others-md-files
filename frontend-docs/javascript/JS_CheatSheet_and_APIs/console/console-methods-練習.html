@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Console 方法家族練習｜按按鈕看 F12</title>
+<style>
+  :root{--bg:#0f1117;--card:#171a23;--line:#2a2f3d;--ink:#e8eaf0;--dim:#9aa3b8;
+        --p:#c4b5fd;--g:#86efac;--y:#fcd34d;--r:#fca5a5;--b:#7dd3fc}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC",system-ui,"Microsoft JhengHei",sans-serif;line-height:1.7}
+  .wrap{max-width:900px;margin:0 auto;padding:26px 20px 70px}
+  h1{font-size:1.4rem;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:.87rem;margin-bottom:20px}
+  .banner{background:#1e1b2e;border:1px solid #4c3d8f;border-radius:12px;
+          padding:14px 18px;margin-bottom:22px;font-size:.92rem}
+  .banner strong{color:var(--p)}
+  kbd{background:#2b3040;border:1px solid #444b60;border-bottom-width:2px;border-radius:5px;
+      padding:1px 7px;font-family:monospace;font-size:.85em}
+  section{background:var(--card);border:1px solid var(--line);border-radius:12px;
+          padding:16px 20px;margin-bottom:16px}
+  h2{font-size:1.02rem;margin:0 0 6px;color:var(--p)}
+  p.d{color:var(--dim);font-size:.86rem;margin:0 0 10px}
+  code{font-family:"Cascadia Code",Consolas,monospace;background:#0b0d13;
+       padding:1px 5px;border-radius:4px;font-size:.88em}
+  pre{background:#0b0d13;border:1px solid var(--line);border-radius:8px;padding:11px 13px;
+      overflow-x:auto;font-size:.83rem;font-family:"Cascadia Code",Consolas,monospace;margin:8px 0}
+  button{background:#232838;color:var(--ink);border:1px solid var(--line);border-radius:8px;
+         padding:7px 14px;cursor:pointer;font-size:.85rem;margin:4px 6px 4px 0;font-family:inherit}
+  button:hover{border-color:var(--p);color:var(--p)}
+  .tip{border-left:3px solid var(--y);padding-left:12px;color:var(--dim);font-size:.85rem;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Console 方法家族練習</h1>
+<div class="sub">對應筆記 <em>Console方法家族-一次講完.md</em>｜資料來源 MDN console.table（2025-07-04 更新）與 MDN console（2025-02-13 更新）</div>
+
+<div class="banner">
+  <strong>使用方式</strong>：先按 <kbd>F12</kbd> 打開 DevTools 切到 <strong>Console</strong> 分頁，再回來按下面的按鈕。
+  所有輸出都印在主控台，這一頁本身不顯示結果 —— 因為重點就是要你去看 Console 長什麼樣。
+</div>
+
+<section>
+  <h2>a. table：三種輸入形狀</h2>
+  <p class="d">同樣的資料換三種包裝，表格的欄位就完全不同。</p>
+  <pre>console.table(["apples", "oranges", "bananas"]);              // 原始值陣列 → (index) + Values
+console.table([{firstName:"Tyrone"}, {firstName:"Janet"}]);   // 物件陣列 → 每個屬性一欄
+console.table({ abby:{age:20}, bob:{age:30} });               // 物件的物件 → 屬性名當列標題
+console.table(people, ["firstName"]);                         // 第二參數 → 只印指定欄</pre>
+  <button onclick="tPrimitive()">原始值陣列</button>
+  <button onclick="tObjects()">物件陣列</button>
+  <button onclick="tNested()">物件的物件</button>
+  <button onclick="tColumns()">只印指定欄</button>
+  <button onclick="tProto()">印 Object.prototype 的 12 個成員</button>
+</section>
+
+<section>
+  <h2>b. log 與 dir 的差別</h2>
+  <p class="d">傳 DOM 元素進去，兩者的輸出完全不一樣。這是最多人搞混的一組。</p>
+  <pre>console.log(document.body);   // 印成 HTML 標籤樣子，像 Elements 分頁
+console.dir(document.body);   // 印成可展開的屬性列表，看得到所有 JS 屬性</pre>
+  <button onclick="logVsDir()">同時印出來比較</button>
+  <div class="tip">要看「一個物件有哪些屬性與原型」用 dir，要看 DOM 結構用 log。</div>
+</section>
+
+<section>
+  <h2>c. 五種訊息等級</h2>
+  <p class="d">按完之後，去 DevTools 右上角的 <code>Levels</code> 下拉選單試著取消勾選，就懂為什麼要分等級了。</p>
+  <pre>console.log("一般")｜console.info("資訊")｜console.warn("警告")
+console.error("錯誤")｜console.debug("除錯，Chrome 預設隱藏")</pre>
+  <button onclick="levels()">印出五種等級</button>
+  <div class="tip">debug 預設看不到，要在 Levels 勾選 Verbose 才會出現。</div>
+</section>
+
+<section>
+  <h2>d. group：可摺疊的縮排群組</h2>
+  <pre>console.group("使用者資料");
+console.log("name: Abby");
+console.groupEnd();</pre>
+  <button onclick="groups()">印出巢狀群組</button>
+  <div class="tip">groupCollapsed 預設是收合的，資料多的時候用它比較不會洗版。</div>
+</section>
+
+<section>
+  <h2>e. time 與 count：計時與計次</h2>
+  <pre>console.time("排序");  bigArray.sort();  console.timeEnd("排序");
+console.count("按了幾次");   // 每按一次數字加一</pre>
+  <button onclick="timing()">計時 10 萬筆排序</button>
+  <button onclick="counting()">計次（多按幾下看看）</button>
+  <button onclick="console.countReset('按鈕被按了')">計數器歸零</button>
+</section>
+
+<section>
+  <h2>f. assert 與 trace</h2>
+  <p class="d"><code>assert</code> 的邏輯是反的：<strong>條件為 false 才印</strong>，為 true 時完全靜音。</p>
+  <pre>console.assert(user.age >= 18, "未成年", user);   // age < 18 才會印
+console.trace();                                  // 印出完整呼叫堆疊</pre>
+  <button onclick="asserts()">兩個 assert，只有一個會印</button>
+  <button onclick="outer()">trace 三層呼叫堆疊</button>
+</section>
+
+<section>
+  <h2>g. %c：把 log 加上 CSS 樣式</h2>
+  <pre>console.log("%c重點", "color:#8b5cf6; font-weight:bold; font-size:16px");
+console.log("%s 今年 %d 歲", "Abby", 20);</pre>
+  <button onclick="styled()">印出彩色標題與格式化字串</button>
+</section>
+
+<section>
+  <h2>h. 陷阱：log 印物件不是快照</h2>
+  <p class="d">Chrome 對物件是「展開時才求值」，所以你之後改了物件，點開看到的可能已經是新值。</p>
+  <pre>const o = { n: 1 };
+console.log("直接印", o);                              // 展開後可能看到 n: 2
+console.log("快照", JSON.parse(JSON.stringify(o)));    // 這個才是當下的值
+o.n = 2;</pre>
+  <button onclick="snapshot()">印出來然後立刻改值</button>
+  <div class="tip">按完把第一行的三角形點開，看 n 是 1 還是 2。</div>
+</section>
+
+<script>
+var people = [
+  { firstName: 'Tyrone', lastName: 'Jones',  age: 41 },
+  { firstName: 'Janet',  lastName: 'Smith',  age: 33 },
+  { firstName: 'Maria',  lastName: 'Cruz',   age: 28 }
+];
+
+function tPrimitive(){
+  console.log('%c【a-1】原始值陣列 → (index) + Values 兩欄', 'color:#86efac;font-weight:bold');
+  console.table(['apples', 'oranges', 'bananas']);
+}
+function tObjects(){
+  console.log('%c【a-2】物件陣列 → 每個屬性自成一欄', 'color:#86efac;font-weight:bold');
+  console.table(people);
+}
+function tNested(){
+  console.log('%c【a-3】物件的物件 → 屬性名取代數字索引', 'color:#86efac;font-weight:bold');
+  console.table({ abby: { age: 20, role: 'dev' }, bob: { age: 30, role: 'design' } });
+}
+function tColumns(){
+  console.log('%c【a-4】第二個參數限制欄位', 'color:#86efac;font-weight:bold');
+  console.table(people, ['firstName']);
+}
+function tProto(){
+  console.log('%c【a-5】Object.prototype 的 12 個成員', 'color:#c4b5fd;font-weight:bold;font-size:14px');
+  var names = Object.getOwnPropertyNames(Object.prototype);
+  console.table(names.map(function(n){
+    var d = Object.getOwnPropertyDescriptor(Object.prototype, n);
+    return {
+      成員: n,
+      種類: (d.get || d.set) ? 'accessor' : (typeof d.value === 'function' ? 'method' : 'value'),
+      enumerable: d.enumerable,
+      configurable: d.configurable
+    };
+  }));
+  console.log('Object.keys(Object.prototype) →', Object.keys(Object.prototype), '← 全部 enumerable:false 所以是空陣列');
+  console.dir(Object.prototype);
+}
+
+function logVsDir(){
+  console.log('%c【b】同一個 document.body，log 與 dir 的差別', 'color:#7dd3fc;font-weight:bold');
+  console.log('console.log →', document.body);
+  console.dir(document.body);
+}
+
+function levels(){
+  console.log('【c】這是 log，一般訊息');
+  console.info('【c】這是 info，資訊等級');
+  console.warn('【c】這是 warn，警告等級，可以在 Levels 過濾掉');
+  console.error('【c】這是 error，錯誤等級，會附上呼叫堆疊');
+  console.debug('【c】這是 debug，Chrome 預設隱藏，要勾 Verbose');
+}
+
+function groups(){
+  console.group('【d】使用者資料');
+  console.log('name: Abby');
+  console.groupCollapsed('巢狀群組（預設收合）');
+  console.log('這一層要點開才看得到');
+  console.log('資料多的時候用 groupCollapsed 比較不會洗版');
+  console.groupEnd();
+  console.log('age: 20');
+  console.groupEnd();
+}
+
+function timing(){
+  console.time('【e】排序 10 萬筆');
+  var arr = [];
+  for (var i = 0; i < 100000; i++) arr.push((i * 7919) % 100000);
+  console.timeLog('【e】排序 10 萬筆');   // 中途看一次，不停止
+  arr.sort(function(a, b){ return a - b; });
+  console.timeEnd('【e】排序 10 萬筆');
+}
+function counting(){ console.count('按鈕被按了'); }
+
+function asserts(){
+  var user = { name: 'Abby', age: 20 };
+  var kid  = { name: 'Kid',  age: 12 };
+  console.log('%c【f】兩個 assert，只有未成年那個會印', 'color:#fcd34d;font-weight:bold');
+  console.assert(user.age >= 18, '未成年', user);   // 靜音
+  console.assert(kid.age  >= 18, '未成年', kid);    // 會印
+}
+function inner(){ console.trace('【f】我在這裡'); }
+function middle(){ inner(); }
+function outer(){ middle(); }
+
+function styled(){
+  console.log('%c【g】這是加了 CSS 的標題', 'color:#c4b5fd;font-weight:bold;font-size:18px;background:#1e1b2e;padding:4px 10px;border-radius:4px');
+  console.log('%s 今年 %d 歲，身高 %f 公尺', 'Abby', 20, 1.62);
+  console.log('%c紅 %c黃 %c綠', 'color:#fca5a5', 'color:#fcd34d', 'color:#86efac');
+}
+
+function snapshot(){
+  var o = { n: 1 };
+  console.log('%c【h】把下面第一行的三角形點開，看 n 是 1 還是 2', 'color:#fca5a5;font-weight:bold');
+  console.log('直接印 o →', o);
+  console.log('快照     →', JSON.parse(JSON.stringify(o)));
+  o.n = 2;
+  console.log('（剛剛已經把 o.n 改成 2 了）');
+}
+</script>
+</div>
+</body>
+</html>

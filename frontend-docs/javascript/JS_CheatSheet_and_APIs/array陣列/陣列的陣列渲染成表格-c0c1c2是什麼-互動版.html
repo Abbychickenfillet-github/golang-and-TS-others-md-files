@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>c[0] c[1] c[2] 是什麼｜陣列的陣列渲染成表格</title>
+<style>
+  :root{--bg:#fbfbfd;--card:#fff;--line:#e5e7eb;--ink:#111827;--dim:#6b7280;
+        --c0:#10b981;--c1:#f59e0b;--c2:#3b82f6;--p:#8b5cf6;--r:#dc2626}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC",system-ui,"Microsoft JhengHei",sans-serif;line-height:1.8}
+  .wrap{max-width:920px;margin:0 auto;padding:28px 20px 90px}
+  h1{font-size:1.45rem;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:.87rem;margin-bottom:26px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+          padding:20px 22px;margin-bottom:20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  h2{font-size:1.08rem;margin:0 0 4px;display:flex;align-items:center;gap:9px}
+  h2 .n{width:24px;height:24px;border-radius:7px;background:var(--p);color:#fff;
+        font-size:.78rem;display:grid;place-items:center;flex:none}
+  .hint{color:var(--dim);font-size:.84rem;margin:0 0 14px}
+  code{font-family:"Cascadia Code",Consolas,monospace;background:#f3f4f6;
+       padding:1px 5px;border-radius:4px;font-size:.88em}
+  pre{background:#0f1117;color:#e8eaf0;border-radius:9px;padding:14px 16px;
+      overflow-x:auto;font-size:.84rem;font-family:"Cascadia Code",Consolas,monospace;
+      line-height:1.65}
+  .k0{color:#6ee7b7;font-weight:700}.k1{color:#fcd34d;font-weight:700}.k2{color:#93c5fd;font-weight:700}
+  .cmt{color:#6b7280}
+
+  table{border-collapse:collapse;width:100%;font-size:.85rem;margin-top:10px}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#f9fafb}
+  td.mono,th.mono{font-family:"Cascadia Code",Consolas,monospace;font-size:.8rem}
+  .col0{background:#ecfdf5}.col1{background:#fff7ed}.col2{background:#eff6ff}
+  th.h0{color:#065f46}th.h1{color:#92400e}th.h2{color:#1e40af}
+
+  .chips{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 4px}
+  .chip{border:2px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;
+        font-family:"Cascadia Code",Consolas,monospace;font-size:.88rem;background:#fff;
+        transition:all .2s;user-select:none}
+  .chip[data-i="0"]{border-color:var(--c0);color:#065f46}
+  .chip[data-i="1"]{border-color:var(--c1);color:#92400e}
+  .chip[data-i="2"]{border-color:var(--c2);color:#1e40af}
+  .chip.on[data-i="0"]{background:#ecfdf5}
+  .chip.on[data-i="1"]{background:#fff7ed}
+  .chip.on[data-i="2"]{background:#eff6ff}
+  .say{margin-top:12px;padding:11px 14px;border-radius:10px;background:#f9fafb;
+       border:1px solid var(--line);font-size:.88rem;min-height:48px}
+
+  .lvl{border-left:3px solid var(--p);padding-left:14px;margin:16px 0}
+  .lvl h3{margin:0 0 6px;font-size:.95rem}
+  .tag{display:inline-block;font-size:.72rem;padding:1px 9px;border-radius:99px;
+       border:1px solid var(--line);color:var(--dim);margin-left:6px}
+  .warn{background:#fef2f2;border-left:3px solid var(--r);padding:10px 14px;
+        border-radius:0 8px 8px 0;font-size:.87rem;color:#991b1b;margin:12px 0}
+  .ok{background:#ecfdf5;border-left:3px solid var(--c0);padding:10px 14px;
+      border-radius:0 8px 8px 0;font-size:.87rem;color:#065f46;margin:12px 0}
+  ul{padding-left:20px}li{margin:4px 0;font-size:.9rem}
+  .src{font-size:.8rem;color:var(--dim);border-top:1px solid var(--line);padding-top:14px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><code>c[0]</code> <code>c[1]</code> <code>c[2]</code> 到底代表什麼</h1>
+<div class="sub">拆解 <em>object-prototype-F12探測.html</em> 裡渲染表格的那七行｜2026-08-19</div>
+
+<section>
+  <h2><span class="n">a</span>先看資料長什麼樣</h2>
+  <p class="hint">關鍵在這裡：<code>checks</code> 是一個<strong>陣列的陣列</strong>，外層每一個元素<strong>自己也是一個陣列</strong>，裡面固定裝三樣東西。</p>
+<pre>var checks = [
+  [<span class="k0">'Object.getPrototypeOf(Object.prototype)'</span>, <span class="k1">'null'</span>, <span class="k2">'這是原型鏈的終點，規格明文寫死'</span>],
+  [<span class="k0">'Object.keys(Object.prototype)'</span>,           <span class="k1">'[]'</span>,   <span class="k2">'12 個成員全部 enumerable 為 false'</span>],
+  [<span class="k0">'typeof Object.prototype'</span>,                 <span class="k1">'object'</span>, <span class="k2">'它自己就是一個 plain object'</span>],
+];
+<span class="cmt">//   └──────── 位置 0 ────────┘  └─ 1 ─┘  └──────── 位置 2 ────────┘</span></pre>
+
+  <div class="chips">
+    <span class="chip on" data-i="0">c[0]</span>
+    <span class="chip on" data-i="1">c[1]</span>
+    <span class="chip on" data-i="2">c[2]</span>
+  </div>
+  <p class="hint" style="margin:6px 0 0">點上面的標籤，看它對應到表格的哪一欄。</p>
+  <div class="say" id="say">三欄都開著。點掉其中一個試試看。</div>
+
+  <table id="tb">
+    <thead><tr>
+      <th class="mono h0 col0" data-i="0">c[0]　指令</th>
+      <th class="mono h1 col1" data-i="1">c[1]　結果</th>
+      <th class="mono h2 col2" data-i="2">c[2]　說明</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2><span class="n">b</span>那七行在做什麼</h2>
+<pre>checks.forEach(function (c) {                 <span class="cmt">// c 是「其中一筆」，也就是一個長度 3 的陣列</span>
+  var tr = document.createElement('tr');      <span class="cmt">// 造一個空的 &lt;tr&gt;</span>
+  tr.innerHTML =                              <span class="cmt">// 用字串拼出三個 &lt;td&gt; 塞進去</span>
+    '&lt;td class="m"&gt;' + <span class="k0">c[0]</span> + '&lt;/td&gt;' +      <span class="cmt">// 第 1 欄 = 位置 0</span>
+    '&lt;td class="k"&gt;' + <span class="k1">c[1]</span> + '&lt;/td&gt;' +      <span class="cmt">// 第 2 欄 = 位置 1</span>
+    '&lt;td class="f"&gt;' + <span class="k2">c[2]</span> + '&lt;/td&gt;';       <span class="cmt">// 第 3 欄 = 位置 2</span>
+  cb.appendChild(tr);                         <span class="cmt">// 把這一列掛進 &lt;tbody&gt;</span>
+});</pre>
+  <p style="font-size:.92rem;margin-top:12px">
+    你的理解是對的：<strong>「把 checks 的內容塞進表格裡的每一列」</strong>。
+    <code>forEach</code> 跑三次，每次拿到一筆 <code>c</code>，就生出一個 <code>&lt;tr&gt;</code>。
+    <code>c[0]</code>、<code>c[1]</code>、<code>c[2]</code> 只是<strong>照位置</strong>把那三樣東西挖出來，
+    因為它們住在陣列裡，陣列沒有欄位名字，只能用索引。
+  </p>
+</section>
+
+<section>
+  <h2><span class="n">c</span>你貼的版本有個括號位置要修</h2>
+  <p class="hint">你重打的時候把 <code>}</code> 提前了，變成這樣：</p>
+<pre>checks.forEach(function(c){ var tr = document.createElement('tr'); <span style="color:#fca5a5;font-weight:700">}</span> tr.innerHTML = ... ; cb.appendChild(tr); <span style="color:#fca5a5;font-weight:700">}</span>);</pre>
+  <div class="warn">
+    <strong>兩個問題</strong>：<br>
+    1. 語法直接過不了 —— <code>SyntaxError: missing ) after argument list</code>，因為 <code>}</code> 提前關掉 callback 後，後面的東西不再是合法的參數。<br>
+    2. 就算把語法喬對，<code>var tr</code> 是宣告在 callback 這個函式作用域裡的，一離開大括號就存取不到，會變成 <code>ReferenceError: tr is not defined</code>。
+  </div>
+  <div class="ok">
+    正確的斷句是：<strong>從 <code>function(c){</code> 到 <code>}</code> 之間的三件事全部都在 callback 裡面</strong> ——
+    造 <code>tr</code>、填內容、掛進去，三步一組，每一筆資料都完整跑一遍。
+  </div>
+  <p style="font-size:.9rem">
+    這一題可以接回 <em>陣列遍歷-forEach與callback</em> 那篇的「逐句拆解」段落，是同一個觀念。
+  </p>
+</section>
+
+<section>
+  <h2><span class="n">d</span>老實說：我這裡用陣列的陣列，其實不是最好的寫法</h2>
+  <p class="hint">你會問 <code>c[0]</code> 代表什麼，正好證明了這個寫法的缺點 —— <strong>要記位置</strong>。三種寫法由差到好：</p>
+
+  <div class="lvl">
+    <h3>寫法一：陣列的陣列 <span class="tag">我原本寫的</span></h3>
+    <pre>checks.forEach(function (c) {
+  ... + <span class="k0">c[0]</span> + ... + <span class="k1">c[1]</span> + ... + <span class="k2">c[2]</span> + ...
+});</pre>
+    <p style="font-size:.88rem;color:var(--dim);margin-top:6px">
+      缺點：<code>c[1]</code> 是什麼？要滾回去看資料才知道。這就是你剛剛遇到的問題。
+    </p>
+  </div>
+
+  <div class="lvl">
+    <h3>寫法二：解構賦值 destructuring <span class="tag">改一行就好</span></h3>
+    <pre>checks.forEach(function (<span style="color:#c4b5fd">[指令, 結果, 說明]</span>) {
+  ... + <span class="k0">指令</span> + ... + <span class="k1">結果</span> + ... + <span class="k2">說明</span> + ...
+});</pre>
+    <p style="font-size:.88rem;color:var(--dim);margin-top:6px">
+      資料完全不用改，只在參數位置<strong>按位置拆名字</strong>，後面就能用有意義的名稱。CP 值最高的一招。
+    </p>
+  </div>
+
+  <div class="lvl">
+    <h3>寫法三：改成物件陣列 <span class="tag">最好讀</span></h3>
+    <pre>var checks = [
+  { <span class="k0">指令</span>: 'Object.keys(Object.prototype)', <span class="k1">結果</span>: '[]', <span class="k2">說明</span>: '全部 enumerable:false' },
+];
+checks.forEach(function (c) {
+  ... + <span class="k0">c.指令</span> + ... + <span class="k1">c.結果</span> + ... + <span class="k2">c.說明</span> + ...
+});</pre>
+    <p style="font-size:.88rem;color:var(--dim);margin-top:6px">
+      資料本身就自帶欄位名，之後要加第四欄也不會亂掉。缺點是資料寫起來比較長。
+    </p>
+  </div>
+
+  <table style="margin-top:16px">
+    <tr><th>寫法</th><th>內層怎麼讀</th><th>什麼時候用</th></tr>
+    <tr><td>陣列的陣列 <code>[[...]]</code></td><td class="mono">c[1]　靠位置</td><td>純位置對應的資料，例如座標、CSV 的一列、<code>Object.entries</code> 的結果</td></tr>
+    <tr><td>解構 <code>[a, b, c]</code></td><td class="mono">結果　有名字</td><td>資料是陣列的陣列但你想要好讀，改動最小</td></tr>
+    <tr><td>物件陣列 <code>[{...}]</code></td><td class="mono">c.結果　有欄位名</td><td>有語意欄位的資料，例如人、商品、API 清單</td></tr>
+  </table>
+  <p style="font-size:.9rem;margin-top:10px">
+    這張表跟 <em>物件陣列-陣列層vs物件層存取</em> 那篇的結論是同一件事，只是那篇講概念，這篇是你自己抓到的實例。
+  </p>
+</section>
+
+<section>
+  <h2><span class="n">e</span>順帶一提：forEach 的 c 其實有三個參數</h2>
+<pre>checks.forEach(function (<span class="k0">c</span>, <span class="k1">i</span>, <span class="k2">arr</span>) {
+  <span class="cmt">// c   = 目前這一筆（這裡是長度 3 的陣列）</span>
+  <span class="cmt">// i   = 目前的索引 0, 1, 2</span>
+  <span class="cmt">// arr = 整個 checks 陣列本身</span>
+});</pre>
+  <p style="font-size:.9rem;margin-top:10px">
+    我只寫了 <code>c</code>，因為後兩個用不到。<strong>不需要的參數可以直接不寫</strong>，
+    JavaScript 不會因為你少收參數就報錯。詳細在 <em>陣列遍歷-forEach與callback</em> 的「callback 會自動收到 3 個參數」那段。
+  </p>
+  <div id="threeargs" class="say" style="margin-top:12px"></div>
+</section>
+
+<section>
+  <h2><span class="n">f</span>參考來源</h2>
+  <table>
+    <tr><th>來源</th><th>說明</th></tr>
+    <tr><td>MDN｜Array.prototype.forEach()</td><td>callback 的三個參數與回傳 undefined 的行為</td></tr>
+    <tr><td>MDN｜Destructuring assignment</td><td>寫法二的解構賦值語法</td></tr>
+    <tr><td>本頁原始碼出處</td><td><code>C:\coding\JavaScript-practicing\object-prototype-F12探測.html</code></td></tr>
+  </table>
+  <p class="src">c 節的兩個錯誤訊息在 Node.js v22 實際觸發過，不是憑印象寫的。</p>
+</section>
+
+<script>
+var checks = [
+  ['Object.getPrototypeOf(Object.prototype)', 'null',   '這是原型鏈的終點，規格明文寫死'],
+  ['Object.keys(Object.prototype)',           '[]',     '12 個成員全部 enumerable 為 false'],
+  ['typeof Object.prototype',                 'object', '它自己就是一個 plain object'],
+  ['Object.prototype.constructor === Object', 'true',   'constructor 指回 Object 本身，形成一個環']
+];
+
+var cb = document.querySelector('#tb tbody');
+checks.forEach(function (c) {
+  var tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td class="mono col0" data-i="0">' + c[0] + '</td>' +
+    '<td class="mono col1" data-i="1">' + c[1] + '</td>' +
+    '<td class="col2" data-i="2">' + c[2] + '</td>';
+  cb.appendChild(tr);
+});
+
+var SAY = [
+  'c[0] 是每一筆的<strong>第 1 樣東西</strong>：那一行指令的原始碼字串。',
+  'c[1] 是每一筆的<strong>第 2 樣東西</strong>：那行指令跑出來的結果。',
+  'c[2] 是每一筆的<strong>第 3 樣東西</strong>：給人看的中文說明。'
+];
+var on = [true, true, true];
+document.querySelectorAll('.chip').forEach(function (chip) {
+  chip.addEventListener('click', function () {
+    var i = Number(chip.dataset.i);
+    on[i] = !on[i];
+    chip.classList.toggle('on', on[i]);
+    document.querySelectorAll('[data-i="' + i + '"]').forEach(function (cell) {
+      if (cell.classList.contains('chip')) return;
+      cell.style.opacity = on[i] ? '1' : '.15';
+    });
+    var offList = [];
+    on.forEach(function (v, idx) { if (!v) offList.push('c[' + idx + ']'); });
+    document.getElementById('say').innerHTML = offList.length
+      ? '關掉了 ' + offList.join('、') + '。剩下的欄位就是還開著的那幾個。<br>' +
+        SAY.filter(function (_, idx) { return !on[idx]; }).join('<br>')
+      : '三欄都開著。點掉其中一個試試看。';
+  });
+});
+
+/* e 節：把三個參數印出來 */
+(function () {
+  var lines = [];
+  checks.forEach(function (c, i, arr) {
+    lines.push('i = ' + i + '　｜　c 是陣列嗎 ' + Array.isArray(c) +
+               '　｜　c.length = ' + c.length + '　｜　arr.length = ' + arr.length);
+  });
+  document.getElementById('threeargs').innerHTML =
+    '<span style="font-family:Consolas,monospace;font-size:.82rem">' + lines.join('<br>') + '</span>';
+})();
+</script>
+</div>
+</body>
+</html>

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__proto__ 三種寫法差在哪（互動版）</title>
+<style>
+  :root{--bg:#fbfbfd;--card:#fff;--line:#e5e7eb;--ink:#111827;--dim:#6b7280;
+        --g:#10b981;--y:#f59e0b;--b:#3b82f6;--p:#8b5cf6;--r:#dc2626}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC",system-ui,"Microsoft JhengHei",sans-serif;line-height:1.8}
+  .wrap{max-width:940px;margin:0 auto;padding:28px 20px 90px}
+  h1{font-size:1.45rem;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:.87rem;margin-bottom:26px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+          padding:20px 22px;margin-bottom:20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  h2{font-size:1.08rem;margin:0 0 4px;display:flex;align-items:center;gap:9px}
+  h2 .n{width:24px;height:24px;border-radius:7px;background:var(--p);color:#fff;
+        font-size:.78rem;display:grid;place-items:center;flex:none}
+  .hint{color:var(--dim);font-size:.85rem;margin:0 0 14px}
+  code{font-family:"Cascadia Code",Consolas,monospace;background:#f3f4f6;
+       padding:1px 5px;border-radius:4px;font-size:.88em}
+  pre{background:#0f1117;color:#e8eaf0;border-radius:9px;padding:13px 15px;
+      overflow-x:auto;font-size:.83rem;font-family:"Cascadia Code",Consolas,monospace;line-height:1.7}
+  .kw{color:#c4b5fd;font-weight:700}.str{color:#fcd34d}.cmt{color:#6b7280}
+  .good{color:#6ee7b7}.bad{color:#fca5a5}
+  table{border-collapse:collapse;width:100%;font-size:.85rem;margin-top:10px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#f9fafb}
+  td.mono{font-family:"Cascadia Code",Consolas,monospace;font-size:.8rem}
+  .yes{color:var(--g);font-weight:700}.no{color:var(--r);font-weight:700}
+  .rw{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+  @media(max-width:700px){.rw{grid-template-columns:1fr}}
+  .box{border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .box h3{margin:0 0 8px;font-size:.92rem}
+  .box.read{background:#ecfdf5;border-color:var(--g)}
+  .box.write{background:#fff7ed;border-color:var(--y)}
+  .anchor{background:#fef3c7;border-left:3px solid var(--y);padding:11px 14px;
+          border-radius:0 8px 8px 0;font-size:.87rem;color:#78350f;margin:14px 0}
+  .danger{background:#fef2f2;border-left:3px solid var(--r);padding:11px 14px;
+          border-radius:0 8px 8px 0;font-size:.87rem;color:#991b1b;margin:14px 0}
+  button{background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 15px;
+         cursor:pointer;font-size:.85rem;font-family:inherit;color:var(--ink);margin:4px 6px 4px 0}
+  button:hover{border-color:var(--p);color:var(--p)}
+  .primary{background:var(--p);color:#fff;border-color:var(--p)}
+  .primary:hover{background:#7c3aed;color:#fff}
+  .danger-btn{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+  .danger-btn:hover{background:#fee2e2;border-color:var(--r);color:var(--r)}
+  .out{background:#0f1117;color:#86efac;border-radius:9px;padding:12px 15px;margin-top:12px;
+       font-family:"Cascadia Code",Consolas,monospace;font-size:.82rem;white-space:pre-wrap;min-height:60px}
+  .out .w{color:#fcd34d}.out .e{color:#fca5a5}.out .d{color:#9ca3af}
+  ul{padding-left:20px}li{margin:5px 0;font-size:.91rem}
+  .src{font-size:.8rem;color:var(--dim);border-top:1px solid var(--line);padding-top:14px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><code>__proto__</code> 的三種寫法差在哪</h1>
+<div class="sub">結論先講：<strong>它們不是同一件事的三種寫法，其中一個根本不設原型</strong>｜所有結果都是本頁即時執行出來的｜2026-08-19</div>
+
+<section>
+  <h2><span class="n">a</span>先解決「為什麼要等於 X」</h2>
+  <p class="hint">因為 <code>__proto__</code> 是<strong>存取器屬性</strong>，它有 getter 也有 setter，所以有「讀」跟「寫」兩種用法。我上次寫 <code>= X</code> 是在示範<strong>寫</strong>的那一半。</p>
+
+  <div class="rw">
+    <div class="box read">
+      <h3>讀 → getter 執行</h3>
+      <pre style="margin:0">obj.__proto__          <span class="cmt">// 沒有等號</span>
+<span class="cmt">// 回傳 obj 的原型是誰</span></pre>
+      <p style="font-size:.85rem;margin:8px 0 0;color:#065f46">
+        等價於 <code>Object.getPrototypeOf(obj)</code>
+      </p>
+    </div>
+    <div class="box write">
+      <h3>寫 → setter 執行</h3>
+      <pre style="margin:0">obj.__proto__ = X      <span class="cmt">// 有等號</span>
+<span class="cmt">// 把 X 設成 obj 的原型</span></pre>
+      <p style="font-size:.85rem;margin:8px 0 0;color:#92400e">
+        等價於 <code>Object.setPrototypeOf(obj, X)</code>
+      </p>
+    </div>
+  </div>
+
+  <div class="anchor">
+    <strong><code>X</code> 只是我隨手取的變數名</strong>，它代表「任何你想拿來當原型的物件」。
+    寫成 <code>obj.__proto__ = P</code>、<code>obj.__proto__ = animal</code> 都一樣，重點是等號右邊那個東西會變成 <code>obj</code> 的原型。
+  </div>
+  <button class="primary" onclick="demoRW()">跑一次讀與寫給我看</button>
+  <div class="out" id="oRW">按按鈕。</div>
+</section>
+
+<section>
+  <h2><span class="n">b</span>六種寫法，哪些真的會設原型</h2>
+  <p class="hint">下表是本頁載入時<strong>真的跑過</strong>的結果，不是我寫死的。<code>P</code> 是一個有 <code>greet()</code> 方法的物件。</p>
+  <div style="overflow-x:auto"><table id="tb"><thead><tr>
+    <th>寫法</th><th>原型變成什麼</th><th>自有屬性</th><th>拿得到 greet()</th><th>有設原型嗎</th>
+  </tr></thead><tbody></tbody></table></div>
+
+  <div class="anchor" style="margin-top:16px">
+    看第 3、4、5 列 —— <strong>計算屬性名、簡寫、方法簡寫都沒設原型</strong>，反而多出一個叫 <code>__proto__</code> 的普通屬性。
+    只有<strong>直接寫成 key 的那兩種</strong>（不加引號或加引號都算）才會真的設原型。
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">c</span>為什麼 <code>["__proto__"]</code> 就不算了？</h2>
+  <p class="hint">這是你最卡的地方。關鍵是：<strong>引擎是看「你怎麼寫」，不是看「字串長什麼樣」。</strong></p>
+
+  <p style="font-size:.93rem">
+    在物件字面量裡，<code>__proto__:</code> 這個寫法被規範當成一個<strong>特殊的語法形式</strong>，
+    引擎在<strong>解析程式碼的當下</strong>就認出它，然後走「設定原型」那條路。
+  </p>
+  <p style="font-size:.93rem">
+    但 <code>["__proto__"]</code> 是<strong>計算屬性名 computed property name</strong>，
+    它的意思是「先算出中括號裡的值，再拿那個值當 key」。引擎解析到這裡時只知道「這裡有個要算的 key」，
+    它走的是<strong>「建立一般屬性」</strong>那條完全不同的路 —— 這條路根本沒有「設原型」這個選項。
+  </p>
+
+  <div class="anchor">
+    <strong>用你熟的東西類比</strong>：<code>if</code> 是 JavaScript 的關鍵字，<code>"if"</code> 只是一個剛好長得像關鍵字的字串。
+    <br>同理：字面量裡的 <code>__proto__:</code> 是「語法」，<code>["__proto__"]</code> 算出來的是「一個剛好叫 __proto__ 的字串 key」。
+    <br>長得一樣，但**身分完全不同**，因為引擎在解析階段就分道揚鑣了。
+  </div>
+
+<pre><span class="cmt">// 路徑一：語法形式 → 設原型</span>
+{ <span class="kw">__proto__</span>: P }        <span class="good">→ 原型變成 P，自有屬性 []</span>
+{ <span class="kw">"__proto__"</span>: P }      <span class="good">→ 一樣！字串字面量也算語法形式</span>
+
+<span class="cmt">// 路徑二：一般屬性 → 不碰原型</span>
+{ [<span class="str">"__proto__"</span>]: P }    <span class="bad">→ 原型還是 Object.prototype，自有屬性 ["__proto__"]</span>
+{ <span class="kw">__proto__</span> }           <span class="bad">→ 簡寫也不算</span>
+{ <span class="kw">__proto__</span>() {} }      <span class="bad">→ 方法簡寫也不算</span>
+JSON.parse('{"__proto__":...}')  <span class="bad">→ 也不算，JSON 走的是一般屬性那條路</span></pre>
+
+  <button class="primary" onclick="demoPath()">實際跑一次證明給我看</button>
+  <div class="out" id="oPath">按按鈕。</div>
+</section>
+
+<section>
+  <h2><span class="n">d</span>那 <code>getPrototypeOf()</code> 是幹嘛的</h2>
+  <div class="anchor">
+    <strong>它不是「搭配」，它是尺。</strong><br>
+    <code>{ __proto__: P }</code> 是<strong>動作</strong> —— 我把原型設成 P。<br>
+    <code>Object.getPrototypeOf(o)</code> 是<strong>檢查</strong> —— 我來量量看原型到底變成什麼了。<br>
+    就像你貼壁紙之後拿尺量一下有沒有貼歪。尺不是壁紙的一部分。
+  </div>
+  <p style="font-size:.92rem">量原型的尺不只一把，都可以：</p>
+  <table>
+    <tr><th>工具</th><th>回答什麼</th><th>版本</th></tr>
+    <tr><td class="mono">Object.getPrototypeOf(o)</td><td>o 的第 1 階原型是誰</td><td>ES5</td></tr>
+    <tr><td class="mono">Reflect.getPrototypeOf(o)</td><td>同上，Proxy 場景用</td><td>ES2015</td></tr>
+    <tr><td class="mono">P.isPrototypeOf(o)</td><td>P 在不在 o 的原型鏈上（<strong>整條</strong>不只第 1 階）</td><td>ES3</td></tr>
+    <tr><td class="mono">o instanceof C</td><td>C.prototype 在不在 o 的原型鏈上</td><td>ES1</td></tr>
+    <tr><td class="mono">o.__proto__</td><td>同 getPrototypeOf，但 deprecated</td><td>ES2015 Annex B</td></tr>
+    <tr><td class="mono">F12 展開 [[Prototype]]</td><td>用眼睛看</td><td>—</td></tr>
+  </table>
+  <button class="primary" onclick="demoRulers()">六把尺量同一個物件</button>
+  <div class="out" id="oRulers">按按鈕。</div>
+</section>
+
+<section>
+  <h2><span class="n">e</span>所以這三個一樣嗎</h2>
+  <p class="hint" style="color:var(--r);font-weight:600">不一樣。而且不只「寫法不同」，是「做的事不同」。</p>
+  <table>
+    <tr><th>寫法</th><th>有設原型嗎</th><th>什麼時候發生</th><th>標準狀態</th><th>速度</th></tr>
+    <tr>
+      <td class="mono">obj.__proto__ = X</td>
+      <td class="yes">有</td><td>物件<strong>建立之後</strong></td>
+      <td class="no">deprecated</td><td>慢</td>
+    </tr>
+    <tr>
+      <td class="mono">{ __proto__: X }</td>
+      <td class="yes">有</td><td>物件<strong>建立的當下</strong></td>
+      <td class="yes">標準，且被引擎最佳化</td><td>快</td>
+    </tr>
+    <tr>
+      <td class="mono">{ ["__proto__"]: X }</td>
+      <td class="no">沒有</td><td>—</td>
+      <td>就是普通屬性</td><td>—</td>
+    </tr>
+  </table>
+  <p style="font-size:.92rem;margin-top:12px">
+    前兩個雖然都設了原型，但<strong>時機不同</strong>，這正是效能差距的來源，看下一節。
+  </p>
+</section>
+
+<section>
+  <h2><span class="n">f</span>為什麼 deprecated：理由一「慢」（但要誠實看數字）</h2>
+  <p class="hint">V8 會幫每個物件記一張「形狀表」（hidden class 隱藏類別）來加速屬性查找。<strong>建立之後才改原型 = 形狀變了 = 之前針對這個形狀做的最佳化全部作廢</strong>。</p>
+
+  <div class="anchor">
+    <strong>我先講一件老實話</strong>：MDN 說改動 <code>__proto__</code> 是「非常慢的操作」，
+    但我實測下來，<strong>單純建立物件的微型測試根本測不出明顯差距</strong> —— 現代 V8 已經把簡單情境最佳化掉了。
+    <br>真正的代價出現在<strong>「這個物件已經被用過了，你才去改它的原型」</strong>的時候：
+    原本累積的 inline cache 會全部失效，之後每次讀屬性都變慢。
+    <br>下面兩個測試你自己按按看。<strong>我在 Chromium 上兩個都測不出穩定差距</strong>，在 Node.js 上第二個有測到約 1.3 倍。
+    這代表微型測試本來就不可靠，也代表<strong>「慢」這個理由在現代引擎上已經被稀釋很多了</strong>。
+  </div>
+
+  <button class="primary" onclick="benchmark()">測試一：純建立 10 萬個物件</button>
+  <div class="out" id="oBench">按按鈕。這個測試多半看不出明顯差距，這才是誠實的結果。</div>
+
+  <button class="primary" onclick="benchmark2()" style="margin-top:12px">測試二：改過原型的物件，之後讀屬性</button>
+  <div class="out" id="oBench2">按按鈕。這個才是 hidden class 失效的代價。</div>
+
+  <p style="font-size:.9rem;color:var(--dim);margin-top:12px">
+    <strong>所以結論要修正</strong>：效能是真的，但它<strong>不是 deprecated 最強的理由</strong>。
+    真正致命的是下面 g 節的原型污染，那是資安漏洞不是效能問題。
+  </p>
+</section>
+
+<section>
+  <h2><span class="n">g</span>為什麼 deprecated：理由二「原型污染」</h2>
+  <p class="hint">這個比效能嚴重得多，是真實世界的資安漏洞類型。可以按按鈕實際製造一次，再清乾淨。</p>
+
+<pre><span class="cmt">// 攻擊者送進來的 JSON（看起來人畜無害）</span>
+{"__proto__": {"isAdmin": true}}
+
+<span class="cmt">// 你的後端／前端有一段很常見的「合併設定」函式</span>
+<span class="kw">for</span> (<span class="kw">const</span> k <span class="kw">in</span> source) {     <span class="cmt">// for...in ＋ 直接賦值 = 危險組合</span>
+  target[k] = source[k];
+}
+
+<span class="cmt">// 合併之後</span>
+({}).isAdmin  <span class="bad">// true ← 全世界的物件都變成 admin 了</span></pre>
+
+  <div class="danger">
+    <strong>關鍵細節</strong>：<code>JSON.parse</code> 本身<strong>是安全的</strong>，
+    它走的是「建立一般屬性」那條路，解析出來只是一個叫 <code>__proto__</code> 的普通 key。
+    <br>出事的是後面那個<strong>合併</strong>動作 —— <code>target[k] = ...</code> 這種<strong>賦值</strong>會觸發 setter，這才把原型污染掉。
+  </div>
+
+  <button class="danger-btn" onclick="pollute()">① 製造一次污染</button>
+  <button onclick="checkPollution()">② 檢查現在的狀況</button>
+  <button onclick="cleanup()">③ 清乾淨</button>
+  <button onclick="safeVersion()">④ 用安全寫法再跑一次</button>
+  <div class="out" id="oPollute">按 ① 開始。這個污染只影響這個分頁，重新整理就沒了。</div>
+
+  <p style="font-size:.92rem;margin-top:14px"><strong>三種防法：</strong></p>
+  <ul>
+    <li>合併時用 <code>Object.keys(source)</code> 或 <code>Object.hasOwn</code> 過濾掉繼承來的，別用 <code>for...in</code></li>
+    <li>明確跳過 <code>__proto__</code>、<code>constructor</code>、<code>prototype</code> 這三個 key</li>
+    <li>設定物件改用 <code>Object.create(null)</code> —— 它沒繼承那個 setter，攻擊者塞 <code>__proto__</code> 進來也只會多一個普通屬性</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="n">h</span>為什麼 deprecated：理由三「它是遺留特性」</h2>
+  <p style="font-size:.93rem">
+    <code>__proto__</code> 在瀏覽器裡存在很久了，但一直是<strong>各家自己實作的非標準功能</strong>。
+    到 ES2015 因為太多網站在用、拿掉會壞掉，才被寫進規範的 <strong>Annex B</strong> ——
+    那是專門收「為了網頁相容性不得不承認的遺留特性」的附錄。
+  </p>
+  <p style="font-size:.93rem">
+    換句話說，它進規範不是因為<strong>設計得好</strong>，是因為<strong>移不掉</strong>。
+    真正的正規做法是 ES5 的 <code>Object.getPrototypeOf()</code> 與 ES2015 的 <code>Object.setPrototypeOf()</code>。
+  </p>
+</section>
+
+<section>
+  <h2><span class="n">i</span>你該記什麼</h2>
+  <ul>
+    <li><strong>要讀原型</strong> → <code>Object.getPrototypeOf(o)</code></li>
+    <li><strong>建立時就要指定原型</strong> → <code>{ __proto__: P }</code> 或 <code>Object.create(P)</code>，這兩個都快</li>
+    <li><strong>建立之後才要改</strong> → <code>Object.setPrototypeOf(o, P)</code>，但先想想能不能避免，這動作很貴</li>
+    <li><strong>永遠不要寫</strong> → <code>o.__proto__ = P</code></li>
+    <li><strong>合併使用者資料</strong> → 用 <code>Object.keys</code> 過濾，或用 <code>Object.create(null)</code> 當容器</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="n">j</span>參考來源</h2>
+  <table>
+    <tr><th>來源</th><th>頁面最後更新</th></tr>
+    <tr><td>MDN｜Object.prototype.__proto__</td><td>2026-05-22</td></tr>
+    <tr><td>MDN｜Object initializer（物件字面量的 __proto__ 語法）</td><td>—</td></tr>
+    <tr><td>MDN｜Object.setPrototypeOf()</td><td>—</td></tr>
+  </table>
+  <p class="src">b、c、d、f、g 節的結果全部由本頁 JavaScript 即時執行產生，另有 Node.js 版腳本 <code>__proto__-三種身分-demo.js</code> 在同資料夾。</p>
+</section>
+
+<script>
+var P = { greet: function(){ return 'hi'; } };
+
+function protoName(o){
+  var p = Object.getPrototypeOf(o);
+  if (p === P) return 'P';
+  if (p === Object.prototype) return 'Object.prototype';
+  return String(p);
+}
+function paint(id, lines){
+  document.getElementById(id).innerHTML = lines.join('\n');
+}
+
+/* ---------- b 節：六種寫法即時比較 ---------- */
+(function(){
+  var __proto__ = P;                    // 給簡寫用
+  var rows = [
+    ['{ __proto__: P }',            { __proto__: P }],
+    ['{ "__proto__": P }',          { "__proto__": P }],
+    ['{ ["__proto__"]: P }',        { ["__proto__"]: P }],
+    ['{ __proto__ }　簡寫',          { __proto__ }],
+    ['{ __proto__(){} }　方法簡寫',  { __proto__: function(){} }],
+    ['obj.__proto__ = P',           (function(){ var o = {}; o.__proto__ = P; return o; })()],
+    ['Object.setPrototypeOf(o, P)', (function(){ var o = {}; Object.setPrototypeOf(o, P); return o; })()],
+    ['Object.create(P)',            Object.create(P)]
+  ];
+  // 方法簡寫要真的用簡寫語法才準
+  rows[4][1] = { __proto__(){ return 1; } };
+
+  var tb = document.querySelector('#tb tbody');
+  rows.forEach(function(r){
+    var o = r[1];
+    var set = Object.getPrototypeOf(o) === P;
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td class="mono">' + r[0] + '</td>' +
+      '<td class="mono">' + protoName(o) + '</td>' +
+      '<td class="mono">' + JSON.stringify(Object.getOwnPropertyNames(o)) + '</td>' +
+      '<td class="' + (typeof o.greet === 'function' ? 'yes">是' : 'no">否') + '</td>' +
+      '<td class="' + (set ? 'yes">有設原型' : 'no">沒有') + '</td>';
+    tb.appendChild(tr);
+  });
+})();
+
+/* ---------- a 節 ---------- */
+function demoRW(){
+  var o = {};
+  var lines = [];
+  lines.push('<span class="d">// 一開始</span>');
+  lines.push('Object.getPrototypeOf(o) → ' + protoName(o));
+  lines.push('o.greet → <span class="e">' + typeof o.greet + '</span>');
+  lines.push('');
+  lines.push('<span class="d">// 寫：setter 執行</span>');
+  lines.push('o.__proto__ = P');
+  o.__proto__ = P;
+  lines.push('');
+  lines.push('<span class="d">// 讀：getter 執行</span>');
+  lines.push('o.__proto__ === P → ' + (o.__proto__ === P));
+  lines.push('Object.getPrototypeOf(o) === P → ' + (Object.getPrototypeOf(o) === P) + '  <span class="d">← 兩個問的是同一件事</span>');
+  lines.push('o.greet() → <span class="w">' + o.greet() + '</span>  <span class="d">← 現在繼承得到了</span>');
+  paint('oRW', lines);
+}
+
+/* ---------- c 節 ---------- */
+function demoPath(){
+  var syntax1 = { __proto__: P };
+  var syntax2 = { "__proto__": P };
+  var computed = { ["__proto__"]: P };
+  var parsed = JSON.parse('{"__proto__":{"hacked":true},"name":"abby"}');
+  paint('oPath', [
+    '<span class="d">路徑一：語法形式 → 走「設原型」</span>',
+    '{ __proto__: P }        原型=' + protoName(syntax1) + '  自有屬性=' + JSON.stringify(Object.getOwnPropertyNames(syntax1)),
+    '{ "__proto__": P }      原型=' + protoName(syntax2) + '  自有屬性=' + JSON.stringify(Object.getOwnPropertyNames(syntax2)),
+    '',
+    '<span class="d">路徑二：一般屬性 → 完全不碰原型</span>',
+    '{ ["__proto__"]: P }    原型=<span class="e">' + protoName(computed) + '</span>  自有屬性=<span class="w">' + JSON.stringify(Object.getOwnPropertyNames(computed)) + '</span>',
+    'computed.greet → <span class="e">' + typeof computed.greet + '</span>  <span class="d">← 沒繼承到，證明真的沒設原型</span>',
+    'computed["__proto__"] === P → ' + (computed["__proto__"] === P) + '  <span class="d">← 但它是一個自有屬性，值就是 P</span>',
+    '',
+    '<span class="d">JSON.parse 也走路徑二</span>',
+    '原型=<span class="e">' + protoName(parsed) + '</span>  自有屬性=<span class="w">' + JSON.stringify(Object.getOwnPropertyNames(parsed)) + '</span>',
+    'parsed.hacked → <span class="e">' + parsed.hacked + '</span>  <span class="d">← 沒被污染</span>'
+  ]);
+}
+
+/* ---------- d 節 ---------- */
+function demoRulers(){
+  function Animal(){}
+  Animal.prototype.speak = function(){ return 'woo'; };
+  var dog = new Animal();
+  paint('oRulers', [
+    '<span class="d">// 受測物件：const dog = new Animal()</span>',
+    'Object.getPrototypeOf(dog) === Animal.prototype  → ' + (Object.getPrototypeOf(dog) === Animal.prototype),
+    'Reflect.getPrototypeOf(dog) === Animal.prototype → ' + (Reflect.getPrototypeOf(dog) === Animal.prototype),
+    'Animal.prototype.isPrototypeOf(dog)              → ' + Animal.prototype.isPrototypeOf(dog),
+    'Object.prototype.isPrototypeOf(dog)              → ' + Object.prototype.isPrototypeOf(dog) + '  <span class="d">← 量整條鏈，所以也是 true</span>',
+    'Object.getPrototypeOf(dog) === Object.prototype  → ' + (Object.getPrototypeOf(dog) === Object.prototype) + '  <span class="d">← 只量第 1 階，所以是 false</span>',
+    'dog instanceof Animal                            → ' + (dog instanceof Animal),
+    'dog.__proto__ === Animal.prototype               → ' + (dog.__proto__ === Animal.prototype) + '  <span class="d">← 一樣的答案，但 deprecated</span>'
+  ]);
+}
+
+/* ---------- f 節 ---------- */
+function benchmark(){
+  var N = 100000, Q = { greet: function(){ return 1; } }, t, r = [];
+  function run(label, fn){
+    fn(); // warmup
+    var t0 = performance.now(); fn(); var t1 = performance.now();
+    r.push(label.padEnd(40, '　').slice(0, 34) + (t1 - t0).toFixed(1) + ' ms');
+  }
+  run('Object.create(P)　建立時就定', function(){
+    for (var i = 0; i < N; i++){ var o = Object.create(Q); o.a = i; }
+  });
+  run('{ __proto__: P }　建立時就定', function(){
+    for (var i = 0; i < N; i++){ var o = { __proto__: Q, a: i }; }
+  });
+  run('o.__proto__ = P　建立後才改', function(){
+    for (var i = 0; i < N; i++){ var o = { a: i }; o.__proto__ = Q; }
+  });
+  run('Object.setPrototypeOf　建立後才改', function(){
+    for (var i = 0; i < N; i++){ var o = { a: i }; Object.setPrototypeOf(o, Q); }
+  });
+  paint('oBench', ['<span class="d">// 各建立 ' + N.toLocaleString() + ' 個物件</span>'].concat(r)
+    .concat(['', '<span class="w">上面兩個是「建立時就定原型」，下面兩個是「建立後才改」。</span>',
+      '<span class="d">多半看不出明顯差距，甚至順序會跳動 —— 這就是誠實的結果。</span>']));
+}
+
+function benchmark2(){
+  var M = 20000, Q = { greet: function(){ return 1; } };
+  var stable = [], mutated = [];
+  for (var i = 0; i < M; i++) stable.push(Object.create(Q));
+  for (var j = 0; j < M; j++){ var o = {}; Object.setPrototypeOf(o, Q); mutated.push(o); }
+
+  function readAll(arr){
+    var s = 0;
+    for (var r = 0; r < 50; r++) for (var k = 0; k < arr.length; k++) s += arr[k].greet();
+    return s;
+  }
+  function run(label, arr){
+    readAll(arr);                                  // warmup
+    var t0 = performance.now(); readAll(arr); var t1 = performance.now();
+    return { label: label, ms: t1 - t0 };
+  }
+  var a = run('建立時就定原型', stable);
+  var b = run('建立後才改原型', mutated);
+  var ratio = (b.ms / a.ms).toFixed(2);
+  paint('oBench2', [
+    '<span class="d">// 各 ' + M.toLocaleString() + ' 個物件，每個讀 50 次繼承來的方法（共 100 萬次呼叫）</span>',
+    a.label + '　' + a.ms.toFixed(1) + ' ms',
+    b.label + '　' + b.ms.toFixed(1) + ' ms',
+    '',
+    (b.ms > a.ms
+      ? '<span class="w">改過原型的慢了 ' + ratio + ' 倍。</span>'
+      : '<span class="w">這次沒測出來（' + ratio + ' 倍），多按幾次看看。</span>'),
+    '<span class="d">微型測試本來就不穩，但方向是：改過原型的物件，之後讀屬性會比較慢。</span>'
+  ]);
+}
+
+/* ---------- g 節 ---------- */
+function badMerge(target, source){
+  for (var k in source){
+    if (typeof source[k] === 'object' && source[k] !== null){
+      target[k] = target[k] || {};
+      badMerge(target[k], source[k]);
+    } else {
+      target[k] = source[k];
+    }
+  }
+  return target;
+}
+function pollute(){
+  var payload = JSON.parse('{"__proto__":{"isAdmin":true}}');
+  paint('oPollute', [
+    '<span class="d">// 步驟 1：JSON.parse 本身是安全的</span>',
+    'payload 的原型 = ' + protoName(payload),
+    'payload 的自有屬性 = ' + JSON.stringify(Object.getOwnPropertyNames(payload)),
+    '({}).isAdmin → <span class="w">' + ({}).isAdmin + '</span>  <span class="d">← 目前還沒事</span>',
+    '',
+    '<span class="d">// 步驟 2：執行 badMerge({}, payload)</span>'
+  ]);
+  badMerge({}, payload);
+  setTimeout(function(){
+    document.getElementById('oPollute').innerHTML +=
+      '\n<span class="e">({}).isAdmin → ' + ({}).isAdmin + '　← 中招了</span>' +
+      '\n<span class="d">現在這個分頁裡每一個物件都有 isAdmin。按 ② 檢查、按 ③ 清乾淨。</span>';
+  }, 60);
+}
+function checkPollution(){
+  var fresh = {};
+  paint('oPollute', [
+    '<span class="d">// 隨便造一個全新的空物件來檢查</span>',
+    'const fresh = {}',
+    'fresh.isAdmin → ' + (fresh.isAdmin === undefined
+        ? '<span class="w">undefined　← 乾淨的</span>'
+        : '<span class="e">' + fresh.isAdmin + '　← 被污染了</span>'),
+    '"isAdmin" in fresh → ' + ('isAdmin' in fresh),
+    'Object.hasOwn(fresh, "isAdmin") → ' + Object.hasOwn(fresh, 'isAdmin') +
+      '  <span class="d">← false，因為它是繼承來的不是自有的</span>',
+    'Object.keys(fresh) → ' + JSON.stringify(Object.keys(fresh)) + '  <span class="d">← 看起來還是空的，超難發現</span>',
+    '',
+    '<span class="w">這就是原型污染最麻煩的地方：物件看起來是空的，但它有東西。</span>'
+  ]);
+}
+function cleanup(){
+  delete Object.prototype.isAdmin;
+  paint('oPollute', [
+    'delete Object.prototype.isAdmin',
+    '',
+    '({}).isAdmin → <span class="w">' + ({}).isAdmin + '</span>  <span class="d">← 清乾淨了</span>'
+  ]);
+}
+function safeVersion(){
+  cleanup();
+  var payload = JSON.parse('{"__proto__":{"isAdmin":true},"theme":"dark"}');
+  var target = {};
+  Object.keys(payload).forEach(function(k){
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') return;
+    target[k] = payload[k];
+  });
+  paint('oPollute', [
+    '<span class="d">// 安全版：用 Object.keys + 黑名單過濾</span>',
+    'Object.keys(payload) → ' + JSON.stringify(Object.keys(payload)),
+    '跳過 __proto__ / constructor / prototype',
+    '',
+    'target = ' + JSON.stringify(target) + '  <span class="d">← 該搬的資料還是搬進來了</span>',
+    '({}).isAdmin → <span class="w">' + ({}).isAdmin + '</span>  <span class="d">← 沒被污染</span>',
+    '',
+    '<span class="d">// 更保險：用 Object.create(null) 當容器</span>',
+    'const safe = Object.create(null)',
+    'safe.__proto__ = { isAdmin: true }  <span class="d">← 它沒繼承那個 setter</span>',
+    (function(){
+      var safe = Object.create(null);
+      safe.__proto__ = { isAdmin: true };
+      return 'Object.getPrototypeOf(safe) → <span class="w">' + Object.getPrototypeOf(safe) +
+             '</span>  <span class="d">← 還是 null，只多了一個普通屬性</span>';
+    })()
+  ]);
+}
+</script>
+</div>
+</body>
+</html>

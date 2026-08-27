@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>useRef 與 Vue 的 ref.value｜可變值不觸發渲染的兩種設計</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>useRef 與 Vue 的 ref.value｜可變值不觸發渲染的兩種設計</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#react</span><span class="pill">#useRef</span><span class="pill">#vue</span><span class="pill">#reactivity</span><span class="pill">#響應式</span><span class="pill">#getter-setter</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-25</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/98af81d8878facae" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">useRef 只能存基本型別（primitive）或字串。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">物件、陣列、函式、DOM 元素、計時器 ID 都可以。「可變」講的不是型別，是「改了不會重畫」。</div></li><li><p class="qq">修改 ref.current 會觸發組件重新渲染。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">不會。這正是它跟 useState 的分水嶺。</div></li><li><p class="qq">React 的 useRef 與 Vue 的 ref 目的相反：一個是為了避開響應式，一個是為了建立響應式。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">名字像、.current 與 .value 也像，但設計目的正好相反。這是最容易搞混的一點。</div></li><li><p class="qq">在 Vue 的 template 裡也必須寫 count.value 才拿得到值。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">template 裡不用寫，Vue 編譯器看得出 count 是 ref 會自動補上。script 裡才要寫。</div></li><li><p class="qq">Vue 要把值包進物件用 .value，是因為 JavaScript 無法攔截「對一個變數重新賦值」。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">count = 5 引擎不會通知任何人，但物件的屬性賦值可以用 getter/setter 或 Proxy 攔截。</div></li><li><p class="qq">Vue 3 的響應式底層與 Vue 2 一樣都是 Object.defineProperty。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Vue 3 改用 Proxy，差別在 Proxy 能攔截新增／刪除屬性與陣列索引。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">useRef 回傳的物件身分永遠不變，你改的是它的 .<input class="blank" data-a="current" placeholder="填答案" autocomplete="off"> 屬性，所以跨渲染留得住。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">React 每次渲染都重跑組件函式，直接回傳值會消失，回傳容器才留得住。</div></li><li><p class="qq">處理中文注音輸入時，用來判斷「使用者正在組字中」的事件是 onComposition<input class="blank" data-a="Start" placeholder="填答案" autocomplete="off"> 與 onCompositionEnd。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">IME composition 組字事件，配合 useRef 存旗標可以少掉一整輪重新渲染。</div></li><li><p class="qq">Vue 的 ref 在讀 .value 時做依賴收集（track），寫 .value 時 <input class="blank" data-a="觸發" placeholder="填答案" autocomplete="off"> 更新（trigger）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這就是 getter/setter 在做的事。</div></li><li><p class="qq">讀取屬性時被呼叫的函式叫 <input class="blank" data-a="getter" placeholder="填答案" autocomplete="off">，寫入時被呼叫的叫 setter。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">讓你在讀寫的瞬間插入邏輯。</div></li><li><p class="qq">計時器 ID、上一次的值、DOM 節點這類「不想被畫面看見的東西」，應該用 useRef 而不是 use<input class="blank" data-a="State" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">用 State 會造成不必要的重新渲染。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">你的同事說「React 的 useRef 跟 Vue 的 ref 是同一個東西，只是 .current 和 .value 名字不同」。請說明他錯在哪，並解釋為什麼兩者都需要「包一層物件」這個共同設計。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 目的相反——React 的 useRef 是為了「避開」響應式，讓你有一個改了也不會觸發重新渲染的逃生口；Vue 的 ref 正好相反，是為了「建立」響應式，讀寫 .value 會分別做依賴收集與觸發更新。把 useRef 當 Vue ref 用，畫面永遠不會更新；把 Vue ref 當 useRef 用，會意外觸發一堆重繪。(2) 共同設計的理由卻是同一個——JavaScript 無法攔截也無法保存「對一個變數的重新賦值」。對 Vue 來說，count = 5 引擎不會通知任何人，所以必須把值裝進物件，才能用 getter/setter（Vue 2 的 defineProperty、Vue 3 的 Proxy）攔截 .value 的讀寫；對 React 來說，組件函式每次渲染都重跑一遍，區域變數一離開這次渲染就沒了，所以必須回傳一個身分永遠不變的物件，你改的是它的屬性（傳址），值才跨得過渲染。(3) 結論——兩者「包一層」的理由都是 JS 語言層面的限制，但包起來之後要做的事完全相反。可以補一句實際場景：中文注音輸入時用 useRef 存 isComposing 旗標，配合 onCompositionStart/End，就是典型「我要一個不觸發重繪的狀態」的需求。</div></li></ol></section>
+
+<article class="card">
+<h1 id="useref-vue-refvalue">useRef 與 Vue 的 ref.value｜可變值不觸發渲染的兩種設計</h1>
+<blockquote>
+<p>[!info] 本篇重點 a–j，共 10 個<br />
+這是一場語音對話，語音辨識把不少詞聽錯（「told a cigar rapper」其實是在念 <code>const count = ref(...)</code>，「Move it to center」被誤判成韓語），所以逐字稿讀起來很跳。但底下的問題串很清楚：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">React 的 <code>useRef</code> 與 Vue 的 <code>ref</code> 名字幾乎一樣，<code>.current</code> 與 <code>.value</code> 也長得像，但兩者的設計目的正好相反。</mark><br />
+關聯筆記：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：proxy-reactivity-demo.js">proxy-reactivity-demo.js</span></mark> 示範 Vue 響應式底層的 Proxy 攔截，這篇是它在 <code>ref</code> 這個 API 上的表層呈現；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：10-傳值vs傳址-賦值與記憶體空間">10-傳值vs傳址-賦值與記憶體空間</span></mark> 講「為什麼包一層物件才改得動」，正是 <code>.current</code> / <code>.value</code> 存在的根本理由。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="react-useref">一. React 的 <code>useRef</code></h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>useRef</code> 的兩個用途：儲存「不需要觸發重新渲染的可變值」，或直接存取 DOM 元素。</mark></p>
+<p>(b) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">澄清一個常見誤解：這裡的「可變值」不限於基本型別（primitive）或字串。</mark>物件、陣列、函式、DOM 元素、計時器 ID，幾乎什麼都可以塞。「可變」講的不是型別，是「你可以隨時改它，而 React 不會因此重畫」。</p>
+<p>(c) 改 <code>ref.current</code> 不會觸發重新渲染，這就是它跟 <code>useState</code> 的分水嶺：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>useState</code></th>
+<th><code>useRef</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>改值的方式</td>
+<td><code>setCount(1)</code></td>
+<td><code>ref.current = 1</code></td>
+</tr>
+<tr>
+<td>會重新渲染嗎</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">會</mark></td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不會</mark></td>
+</tr>
+<tr>
+<td>值存在哪</td>
+<td>React 內部的 fiber 上</td>
+<td>同一個永遠不變的物件的 <code>.current</code> 屬性上</td>
+</tr>
+<tr>
+<td>適合放</td>
+<td>要顯示在畫面上的東西</td>
+<td>計時器 ID、上一次的值、DOM 節點、不想被畫面看見的旗標</td>
+</tr>
+</tbody>
+</table>
+<p>(d) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼一定要 <code>.current</code> 這一層？</mark>因為 React 每次渲染都會重跑整個組件函式。如果 <code>useRef</code> 直接回傳一個值，那個值一離開這次渲染就沒了。回傳一個<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">身分永遠不變的物件</mark>，你改的是物件裡的屬性（傳址），跨渲染就留得住。這跟 Vue 的理由是同一個。</p>
+<h3 id="ime">二. 中文輸入法（注音／IME）的實際場景</h3>
+<p>(e) 對話裡提到「打注音時每打一個字都在變更」。這是 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">IME composition（組字）</mark>的經典題：使用者打注音時，<code>onChange</code> 會一直觸發，但那些中間狀態不是最終文字。</p>
+<p>(f) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">正解做法：用 <code>useRef</code> 存一個 <code>isComposing</code> 旗標，配合 <code>onCompositionStart</code> / <code>onCompositionEnd</code> 事件。</mark>組字進行中就跳過送出邏輯，組字結束才處理。這個旗標不需要出現在畫面上，所以用 <code>ref</code> 而不是 <code>state</code>，可以少掉一整輪重新渲染。</p>
+<h3 id="vue-ref-value">三. Vue 的 <code>ref</code> 與 <code>.value</code></h3>
+<p>(g) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>ref()</code> 建立的是一個包含 <code>.value</code> 屬性的物件。</mark><code>.value</code> 代表 ref 物件內真正儲存的值。</p>
+<p>(h) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼要包一層：JavaScript 沒辦法攔截「對一個變數重新賦值」這件事。</mark><code>count = 5</code> 這種事引擎不會通知任何人。但「對一個物件的屬性賦值」可以被攔截，所以 Vue 把值裝進物件，用 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">getter / setter</mark> 包住 <code>.value</code>：讀 <code>.value</code> 時做依賴收集（track），寫 <code>.value</code> 時觸發更新（trigger）。</p>
+<p>(i) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在 template 裡不用寫 <code>.value</code>，是因為 Vue 的編譯器看得出 <code>count</code> 是個 ref，編譯階段自動幫你補上。</mark>在 <code>&lt;script setup&gt;</code> 的 JS 邏輯裡沒有這個魔法，該寫還是要寫。</p>
+<p>(j) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最容易混淆的一句話，記起來：</mark></p>
+<blockquote>
+<p>React 的 <code>useRef</code> 是為了「<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">避開</mark>響應式」；Vue 的 <code>ref</code> 是為了「<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">建立</mark>響應式」。名字像，<code>.current</code> 與 <code>.value</code> 也像，目的完全相反。</p>
+</blockquote>
+<h3 id="getter-setter">四. 順帶釐清的 getter / setter</h3>
+<p>對話中途 Gemini 冒出 getter / setter 的定義（因為語音辨識誤判），但這個概念剛好就是 (h) 的核心，順手記下來：</p>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Getter</mark>：讀取屬性時被呼叫的函式，讓你在「讀」的瞬間插入邏輯。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Setter</mark>：寫入屬性時被呼叫的函式，讓你在「寫」的瞬間插入驗證或副作用。</li>
+<li>Vue 2 用 <code>Object.defineProperty</code> 做這件事，Vue 3 改用 <code>Proxy</code>，差別在 <code>Proxy</code> 能攔截新增／刪除屬性與陣列索引，<code>defineProperty</code> 不行。</li>
+</ul>
+<hr />
+<h2 id="_2">程式碼範例</h2>
+<p>同層的 <code>useref-vs-vue-ref.js</code> 把兩邊的寫法與行為差異並排寫出來，包含一個手刻的 mini ref 讓你看清楚 getter/setter 在做什麼。</p>
+<hr />
+<h2 id="_3">練習題</h2>
+<p>React Hooks 沒有直接的 LeetCode 題，但「包一層物件才留得住狀態」這個底層直覺可以用閉包題練：</p>
+<table>
+<thead>
+<tr>
+<th>題號</th>
+<th>題名</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2622</td>
+<td><a href="https://leetcode.com/problems/cache-with-time-limit/">Cache With Time Limit</a></td>
+<td>用閉包存 timer ID，跟 <code>useRef</code> 存計時器是同一個心智模型</td>
+</tr>
+<tr>
+<td>2623</td>
+<td><a href="https://leetcode.com/problems/memoize/">Memoize</a></td>
+<td>跨次呼叫留住資料，理解「身分不變的容器」</td>
+</tr>
+<tr>
+<td>2665</td>
+<td><a href="https://leetcode.com/problems/counter-ii/">Counter II</a></td>
+<td>回傳一組操作同一份私有狀態的方法，等於手刻一個 ref</td>
+</tr>
+<tr>
+<td>2637</td>
+<td><a href="https://leetcode.com/problems/promise-time-limit/">Promise Time Limit</a></td>
+<td>計時器的建立與清理，對應 <code>useRef</code> + <code>useEffect</code> cleanup</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">各對話來源（原文）</h2>
+<h3 id="useref-2026-08-httpsgeminigooglecomapp98af81d8878facae">useRef 的用途與應用（2026-08）— https://gemini.google.com/app/98af81d8878facae</h3>
+<blockquote>
+<p>[!note] 這是語音輸入對話，逐字稿有明顯的語音辨識錯誤，已保留原樣供回溯</p>
+</blockquote>
+<p><strong>使用者：</strong> 好像 react 的 useRef。</p>
+<p><strong>Gemini：</strong> 沒錯，<code>useRef</code> 在 React 裡主要用來儲存不需要觸發重新渲染的可變值，或者直接存取 DOM 元素。你是在考慮把它用在什麼樣的功能嗎？</p>
+<p><strong>使用者：</strong> 對，我記得它是可以用來處理這個中文字符，每打一個的注音就有變更的這個，有狀態變更，或是說可以說是觸發 setState 這個。這個問題嗎？那你說它用來儲存不需要觸發重新渲染的可變值，那這個可變值只是像 primitive value 中的這串嗎？還是什麼意思？不然不可變值是指什麼？物件中不能重新賦值的部分嗎？</p>
+<p><strong>Gemini：</strong> <code>useRef</code> 儲存的可變值不限於基本型別或字串，幾乎任何東西都可以，像是物件、陣列、函式，甚至是 DOM 元素。當你將值賦給 <code>ref.current</code> 時，你可以隨意修改它，而且不會觸發重新渲染，這就是所謂的不會觸發 <code>setState</code> 的狀態改變。</p>
+<p><strong>使用者：</strong>（語音辨識為「told a cigar rapper 算什麼？constant count 等於 referring」，實際應為 <code>const count = ref(...)</code>）</p>
+<p><strong>使用者：</strong> 我們說 template 是 Vue 編譯器處理的，他看得出 count 是個 ref，就在編譯時幫我補上 <code>.value</code>。為什麼要加 <code>.value</code>？<code>.value</code> 代表什麼？</p>
+<p><strong>Gemini：</strong> <code>.value</code> 代表的是 ref 物件內真正儲存的值。當你用 <code>ref()</code> 宣告時，Vue 會建立一個包含 <code>.value</code> 屬性的物件，這樣才能同時保有狀態的響應性並支援修改。</p>
+<p><strong>使用者：</strong>（語音辨識為「Move it to center. 翻譯成韓語」，Gemini 誤判為在問 getter/setter）</p>
+<p><strong>Gemini：</strong> Getter 和 setter 是物件導向程式設計中用來存取和修改物件屬性的方法。Getter 讓你讀取數值，而 Setter 讓你安全地更新數值。</p>
+<hr />
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本 / 查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/98af81d8878facae</td>
+<td>2026-08，本次歸檔 2026-08-25</td>
+</tr>
+<tr>
+<td>React 官方 <code>useRef</code></td>
+<td>https://react.dev/reference/react/useRef</td>
+<td>查證 2026-08-25</td>
+</tr>
+<tr>
+<td>React 官方：Referencing Values with Refs</td>
+<td>https://react.dev/learn/referencing-values-with-refs</td>
+<td>查證 2026-08-25</td>
+</tr>
+<tr>
+<td>Vue 官方：Reactivity Fundamentals（含 why <code>.value</code>）</td>
+<td>https://vuejs.org/guide/essentials/reactivity-fundamentals.html</td>
+<td>Vue 3，查證 2026-08-25</td>
+</tr>
+<tr>
+<td>Vue 官方：Reactivity in Depth</td>
+<td>https://vuejs.org/guide/extras/reactivity-in-depth.html</td>
+<td>Vue 3，查證 2026-08-25</td>
+</tr>
+<tr>
+<td>MDN：<code>Object.defineProperty</code> getter / setter</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/get</td>
+<td>查證 2026-08-25</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!warning] ⚠️ 存疑 / 補充<br />
+Gemini 的回答本身沒有錯，但<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全沒有指出 React <code>useRef</code> 與 Vue <code>ref</code> 的目的相反</mark>，一路混著講兩邊，很容易讓人以為它們是同一種東西的兩個名字。(j) 那一點是本篇補上的關鍵區分，請以兩邊官方文件為準。<br />
+另外對話中<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">語音辨識錯誤很嚴重</mark>，若日後回頭看逐字稿讀不通，是辨識問題不是內容問題。</p>
+</blockquote>
+<hr />
+<p><em>由 Gemini 對話自動整理 · 更新於 2026-08-25</em></p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-25</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

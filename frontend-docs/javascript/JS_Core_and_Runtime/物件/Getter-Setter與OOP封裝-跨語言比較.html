@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Getter / Setter 與 OOP 封裝｜JS、Java、Python、C# 跨語言比較</title><style>
+:root{
+  --bg:#ffffff; --fg:#22262b; --muted:#6b7280; --line:#e6e8eb;
+  --card:#fafbfc; --accent:#3b6ea5; --accent-soft:#eaf1f8;
+  --user:#7c5cbf; --gem:#2f8f6f;
+  --hl-yellow:#FFF3A3; --hl-red:#FF5582; --hl-green:#BBFABB;
+  --hl-blue:#ADCCFF; --hl-pink:#FFB8EB; --hl-purple:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16.5px;letter-spacing:.01em}
+.wrap{max-width:820px;margin:0 auto;padding:36px 22px 80px}
+header.pagehead{border-bottom:2px solid var(--line);padding-bottom:22px;margin-bottom:8px}
+h1{font-family:"Noto Serif TC","Songti TC",Georgia,serif;font-size:1.85rem;line-height:1.35;margin:.1em 0 .5em}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:1.3rem;margin:2.2em 0 .6em;padding-left:12px;border-left:5px solid var(--accent)}
+h3{font-size:1.06rem;margin:1.6em 0 .4em;color:#2c3e50}
+h4{font-size:.98rem;margin:1.2em 0 .3em;color:#44515f}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:.4em 0}
+.pill{background:var(--accent-soft);color:#2b5580;border-radius:999px;padding:3px 11px;font-size:.76rem;white-space:nowrap}
+.meta{color:var(--muted);font-size:.83rem;margin-top:.6em}
+.meta a{color:var(--accent);word-break:break-all}
+.toolbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line);padding:9px 0;margin:14px 0 6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button.tb{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 13px;font-size:.83rem;cursor:pointer;color:#33414f;font-family:inherit}
+button.tb:hover{background:var(--accent-soft);border-color:#b9cfe4}
+button.tb.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.hint{color:var(--muted);font-size:.78rem}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 24px 22px;margin:22px 0}
+mark{padding:.06em .22em;border-radius:3px;cursor:pointer;transition:background .15s,color .15s}
+mark.hidden-answer{background:#dfe3e8 !important;color:transparent !important;text-shadow:none;border-radius:3px;
+  box-shadow:inset 0 0 0 1px #c6ccd3}
+mark.hidden-answer::selection{background:#dfe3e8}
+code{background:#eef1f4;border-radius:4px;padding:.1em .35em;font-size:.9em;
+  font-family:ui-monospace,SFMono-Regular,"Cascadia Code",Consolas,monospace}
+pre{background:#1e242b;color:#e6edf3;border-radius:11px;padding:15px 17px;overflow-x:auto;font-size:.85rem;line-height:1.6}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.9rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2b5580}
+tbody tr:nth-child(even){background:#f6f8fa}
+blockquote{border-left:4px solid var(--hl-blue);background:#f3f7fd;margin:1.1em 0;padding:.7em 1em;border-radius:0 8px 8px 0;color:#3a4653}
+blockquote p{margin:.35em 0}
+img{max-width:100%;border-radius:9px;border:1px solid var(--line);display:block;margin:1em auto}
+ol,ul{padding-left:1.5em}
+li{margin:.32em 0}
+hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
+.src-turn{border-radius:0 9px 9px 0;padding:.55em .9em;margin:.55em 0;font-size:.92rem}
+.src-user{border-left:4px solid var(--user);background:#f6f3fc}
+.src-gem{border-left:4px solid var(--gem);background:#f1f9f5}
+.callout{border-radius:0 10px 10px 0;padding:.75em 1.05em;margin:1.1em 0;font-size:.93rem}
+.callout .ttl{font-weight:700;display:block;margin-bottom:.25em}
+.c-warn{border-left:5px solid var(--hl-red);background:#fff1f4}
+.c-tip{border-left:5px solid var(--hl-green);background:#f1fbf1}
+.c-info{border-left:5px solid var(--hl-blue);background:#f1f6fd}
+.quiz{border:1px solid var(--line);border-radius:12px;padding:14px 17px;margin:13px 0;background:#fff}
+.quiz .q{font-weight:600;margin-bottom:.45em}
+.quiz .opts{display:flex;gap:8px;flex-wrap:wrap;margin:.4em 0}
+.quiz .opts button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 15px;cursor:pointer;font-family:inherit;font-size:.86rem}
+.quiz .opts button.ok{background:#d8f5d8;border-color:#7ec97e}
+.quiz .opts button.no{background:#ffdde4;border-color:#f09aae}
+.quiz .ans{display:none;border-left:4px solid var(--hl-yellow);background:#fffdf0;padding:.6em .9em;border-radius:0 8px 8px 0;margin-top:.5em;font-size:.9rem}
+.quiz .ans.show{display:block}
+.blank{display:inline-block;min-width:5.5em;border-bottom:2px dashed var(--accent);cursor:pointer;text-align:center;color:transparent;user-select:none}
+.blank.revealed{color:var(--accent);font-weight:600;border-bottom-color:transparent;background:#eaf1f8;border-radius:4px}
+footer.pagefoot{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:.8rem;text-align:center}
+svg.fig{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:11px;margin:1.2em 0}
+@media(max-width:600px){.wrap{padding:22px 14px 60px}h1{font-size:1.45rem}}
+</style></head><body><div class="wrap">
+<header class="pagehead"><h1>Getter / Setter 與 OOP 封裝｜JS、Java、Python、C# 跨語言比較</h1><div class="pills"><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">java</span><span class="pill">python</span><span class="pill">csharp</span><span class="pill">oop</span><span class="pill">encapsulation</span><span class="pill">getter</span><span class="pill">setter</span><span class="pill">面試</span></div>
+<div class="meta">更新於 2026-08-25 ｜ 來源 Gemini 對話 <a href="https://gemini.google.com/app/2f8e0a32ed203a4b" target="_blank" rel="noopener">來源 1</a></div></header>
+<div class="toolbar">
+<button class="tb" onclick="toggleAll(this)">隱藏全部重點（自我測驗）</button>
+<button class="tb" onclick="toggleBlanks(this)">公布所有填空</button>
+<button class="tb" onclick="toggleSrc(this)">收合各對話原文</button>
+<span class="hint">小提醒：單獨點任何一段螢光筆也可以單獨遮蓋或掀開</span>
+</div>
+<section class="card"><div class="callout c-info"><span class="ttl">ℹ️ 本篇重點 a–g 共 7 個</span><p>
+一句話結論：<mark style="background: #FFF3A3A6;">Getter / Setter 是 OOP「封裝」的核心機制，但「一定要寫 class 才能用嗎」完全看語言設計</mark>。JavaScript 是這幾個語言裡唯一「不用 class 也能用」的。</p>
+</div><div class="callout c-info"><span class="ttl">ℹ️ 與其他筆記的關聯（附理由）</span><p>
+a. 這篇是 [[存取器屬性三種定義方式-getter-setter與資料驗證]] 的「語言比較版」。那篇講的是「在 JavaScript 裡怎麼做出存取器屬性」（物件字面值、<code>Object.defineProperty</code>、class），本篇補上「這件事在 Java、Python、C# 長什麼樣，以及為什麼 OOP 需要它」，避免只會 JS 寫法但答不出面試的觀念題。
+b. 呼應 [[Object靜態方法vs原型方法-Symbol弱封裝與species]] 的 l 節：那篇談「怎麼把屬性藏起來」（Symbol 弱私有 vs <code>#</code> 真私有），本篇談「藏起來之後要怎麼開一扇受控的門給外面用」，兩篇合起來才是完整的封裝故事。</p>
+</div>
+<hr />
+<h2>重點整理</h2>
+<p><strong>a.</strong> Getter / Setter <mark style="background: #ADCCFFA6;">不是 JavaScript 專屬的東西</mark>。它是物件導向程式設計（OOP，Object-Oriented Programming）實現「封裝（Encapsulation）」的通用機制，Java、Python、C# 都有。</p>
+<p><strong>b.</strong> 封裝要解決的第一件事是<mark style="background: #FFF3A3A6;">控制存取權限</mark>：把物件內部的欄位設為私有（private），只透過 Getter / Setter 暴露一個對外的存取介面，避免外部程式直接改動內部狀態。</p>
+<p><strong>c.</strong> 封裝要解決的第二件事是<mark style="background: #BBFABBA6;">邏輯驗證與保護</mark>：可以在 Setter 裡加資料合法性檢查（例如年齡不可為負數），或在 Getter 裡回傳資料副本，防止外部拿到參考後直接改到原始物件。</p>
+<p><strong>d.</strong> 各語言對 class 的依賴程度（這是本篇最該記住的表）：</p>
+<table>
+<thead>
+<tr>
+<th>語言</th>
+<th>是否必須寫出 class</th>
+<th>運作方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java</td>
+<td><mark style="background: #FF5582A6;">是</mark></td>
+<td>Java 是純 class-based 語言，所有方法（含 Getter / Setter）都必須定義在 <code>class</code> 或 <code>record</code> 內</td>
+</tr>
+<tr>
+<td>JavaScript</td>
+<td><mark style="background: #BBFABBA6;">否</mark></td>
+<td>除了 <code>class</code> 內可以寫，也可以直接寫在物件字面值 <code>const obj = { get x() {} }</code>，或用 <code>Object.defineProperty()</code> 定義</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>是（主要）</td>
+<td>通常用 <code>@property</code> 裝飾器定義在 class 內部</td>
+</tr>
+<tr>
+<td>C#</td>
+<td>是</td>
+<td>以屬性（Property）形式寫在 <code>class</code> 或 <code>struct</code> 內：<code>public string Name { get; set; }</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>e.</strong> JavaScript 之所以能「不用 class」，根本原因是它是<mark style="background: #D2B3FFA6;">基於原型（prototype-based）而不是基於類別（class-based）的語言</mark>。JS 的 <code>class</code> 只是語法糖，底層仍是建構函式加原型鏈，所以存取器屬性本來就可以直接定義在任何一個物件上，不必先有類別。</p>
+<p><strong>f.</strong> 三種 JavaScript 寫法對照（詳細版請看 [[存取器屬性三種定義方式-getter-setter與資料驗證]]）：</p>
+<pre><code class="language-js">// 寫法一：物件字面值（最輕量，不需要 class）
+const user1 = {
+  _age: 25,
+  get age() { return this._age; },
+  set age(v) {
+    if (v &lt; 0) throw new RangeError(&quot;年齡不可為負數&quot;);
+    this._age = v;
+  }
+};
+
+// 寫法二：Object.defineProperty（可額外控制 enumerable / configurable）
+const user2 = {};
+Object.defineProperty(user2, &quot;age&quot;, {
+  get() { return this._age; },
+  set(v) { this._age = v; },
+  enumerable: false          // 讓它不出現在 Object.keys 與 for...in
+});
+
+// 寫法三：class（最接近 Java / C# 的心智模型）
+class User {
+  #age = 0;                  // ES2022 真私有欄位
+  get age() { return this.#age; }
+  set age(v) {
+    if (v &lt; 0) throw new RangeError(&quot;年齡不可為負數&quot;);
+    this.#age = v;
+  }
+}
+</code></pre>
+<p><strong>g.</strong> Java 與 C# 的對照寫法，看一次就知道差別在哪：</p>
+<pre><code class="language-java">// Java：一定要在 class 裡，而且 getter / setter 是「方法」，呼叫要加括號
+public class User {
+    private int age;                              // 私有欄位
+    public int getAge() { return age; }           // Getter
+    public void setAge(int age) {                 // Setter（含驗證）
+        if (age &lt; 0) throw new IllegalArgumentException(&quot;年齡不可為負數&quot;);
+        this.age = age;
+    }
+}
+// 使用：user.setAge(25);  int a = user.getAge();
+</code></pre>
+<pre><code class="language-csharp">// C#：語言把 getter / setter 包成「屬性（Property）」，用起來像欄位不用加括號
+public class User {
+    private int _age;
+    public int Age {
+        get =&gt; _age;
+        set {
+            if (value &lt; 0) throw new ArgumentOutOfRangeException(nameof(value));
+            _age = value;
+        }
+    }
+}
+// 使用：user.Age = 25;  int a = user.Age;
+</code></pre>
+<pre><code class="language-python"># Python：用 @property 裝飾器，用起來也像欄位
+class User:
+    def __init__(self):
+        self._age = 0
+
+    @property
+    def age(self):
+        return self._age
+
+    @age.setter
+    def age(self, value):
+        if value &lt; 0:
+            raise ValueError(&quot;年齡不可為負數&quot;)
+        self._age = value
+# 使用：user.age = 25   a = user.age
+</code></pre>
+<div class="callout c-tip"><span class="ttl">✅ 面試一句話版本</span><p>
+「Getter / Setter 是封裝的實作手段：把欄位設 private，再開一個受控的入口做驗證。<mark style="background: #FFF3A3A6;">Java、Python、C# 都必須寫在 class 裡，只有 JavaScript 因為是原型導向，可以直接在物件字面值或用 <code>Object.defineProperty</code> 定義存取器屬性</mark>。C# 與 Python 的寫法在呼叫端看起來像存取欄位，Java 則是明確的 <code>getXxx()</code> / <code>setXxx()</code> 方法。」</p>
+</div><div class="callout c-warn"><span class="ttl">⚠️ 存疑與更正</span><p>
+Gemini 這場對話結尾主動提議「需要幫你在 Google Slides 建立一份簡報嗎」並被接受，但<mark style="background: #FF5582A6;">對話中沒有留下實際產出的簡報連結</mark>，因此本篇無法引用簡報內容。若 Abby 之後找到那份 Slides，可以把連結補進 frontmatter 的 sources。<br>另外 Gemini 表格中 Python 標「是（主要）」是正確的謹慎說法：Python 確實也能用 <code>property()</code> 函式或描述器（descriptor）在 class 外組裝，但實務上都還是掛回 class，所以理解成「要 class」即可。</p>
+</div>
+<hr />
+<h2>相關練習題（LeetCode JavaScript 專區）</h2>
+<table>
+<thead>
+<tr>
+<th>題號與題目</th>
+<th>練到本篇哪一節</th>
+<th>連結</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2695. Array Wrapper</td>
+<td>e、f 節：透過覆寫 <code>valueOf</code> 與 <code>toString</code> 客製化物件行為，是「存取器思維」的延伸</td>
+<td><a href="https://leetcode.com/problems/array-wrapper/">https://leetcode.com/problems/array-wrapper/</a></td>
+</tr>
+<tr>
+<td>2632. Curry</td>
+<td>b 節：函式層級的封裝與延遲求值，跟 Getter「被讀取時才執行」是同一種思路</td>
+<td><a href="https://leetcode.com/problems/curry/">https://leetcode.com/problems/curry/</a></td>
+</tr>
+<tr>
+<td>2725. Interval Cancellation</td>
+<td>c 節：把內部狀態藏在閉包裡只回傳受控介面，是不用 class 的封裝實作</td>
+<td><a href="https://leetcode.com/problems/interval-cancellation/">https://leetcode.com/problems/interval-cancellation/</a></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>自我測驗</h2>
+<div class="quiz" markdown="0">
+<div class="q">填空題 1：Getter / Setter 是 OOP 中實現 <span class="blank">封裝 Encapsulation</span> 的核心機制。</div>
+<div class="q">填空題 2：JavaScript 不寫 class 也能定義存取器屬性，另外兩種方式是物件字面值與 <span class="blank">Object.defineProperty()</span>。</div>
+<div class="q">填空題 3：Python 定義 getter 用的裝飾器是 <span class="blank">@property</span>。</div>
+</div>
+
+<div class="quiz" markdown="0">
+<div class="q">是非題 1：所有支援 OOP 的語言都必須寫出 class 才能使用 Getter / Setter。</div>
+<div class="opts"><button onclick="pick(this,false)">是</button><button onclick="pick(this,true)">非</button></div>
+<div class="ans">非。JavaScript 是原型導向語言，可以直接在物件字面值上寫 <code>get x() {}</code>，或用 <code>Object.defineProperty()</code> 定義，完全不需要 class。（本篇 d、e 節）</div>
+</div>
+
+<div class="quiz" markdown="0">
+<div class="q">是非題 2：C# 的 <code>public string Name { get; set; }</code> 在呼叫端要寫成 <code>user.Name()</code>。</div>
+<div class="opts"><button onclick="pick(this,false)">是</button><button onclick="pick(this,true)">非</button></div>
+<div class="ans">非。C# 把 getter / setter 包成「屬性 Property」，呼叫端寫起來跟存取欄位一樣是 <code>user.Name</code>，不加括號。Java 才是明確的 <code>getName()</code> 方法呼叫。（本篇 d、g 節）</div>
+</div>
+
+<div class="quiz" markdown="0">
+<div class="q">申論題：請說明封裝要解決的兩個問題，並用一段 JavaScript 程式示範「在 Setter 裡做資料驗證」。</div>
+<button class="tb" onclick="showAns(this)">顯示答案</button>
+<div class="ans">參考答案：<br>一、控制存取權限——把內部欄位設為私有，只留受控的對外介面，避免外部直接改動內部狀態造成不可預期的錯誤。<br>二、邏輯驗證與保護——在 Setter 內加合法性檢查（例如年齡不可為負），或在 Getter 內回傳副本避免外部改到原始資料。<br>示範：<code>class User { #age = 0; set age(v) { if (v &lt; 0) throw new RangeError("年齡不可為負數"); this.#age = v; } get age() { return this.#age; } }</code>（本篇 b、c、f 節）</div>
+</div>
+
+<hr />
+<h2>各對話來源（原文精華）</h2>
+<h3>Getter/Setter 與 OOP 封裝比較（2026-08）— <a href="https://gemini.google.com/app/2f8e0a32ed203a4b">https://gemini.google.com/app/2f8e0a32ed203a4b</a></h3>
+<p><strong>使用者：</strong> getter/setter 不是只指 JavaScript 的東西，Java 裡面也有，但是它跟 OOP 比較有關係，它是一個封裝在用的東西，而且必須要寫出 class 才能用？</p>
+<p><strong>Gemini：</strong> 你的理解非常準確。Getter/Setter 的確是物件導向編程（OOP）實現「封裝（Encapsulation）」的核心機制，但「是否一定要寫出 class 才能用」則取決於程式語言的設計。……控制存取權限：將物件內部的欄位設為私有（private），僅透過 Getter/Setter 暴露對外的存取介面……邏輯驗證與保護：可在 Setter 內加入資料合法性檢查（例如年齡不可為負數），或在 Getter 內傳回資料副本以防止外部改動原始物件。……Java：是，Java 為純以 Class 為基礎的語言；JavaScript：否，也可以直接在普通物件字面值或透過 <code>Object.defineProperty()</code> 定義；Python：是（主要），通常使用 <code>@property</code> 裝飾器；C#：是，以屬性（Property）的形式寫在 class 或 struct 內。</p>
+<hr />
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：Getter/Setter 與 OOP 封裝比較</td>
+<td><a href="https://gemini.google.com/app/2f8e0a32ed203a4b">https://gemini.google.com/app/2f8e0a32ed203a4b</a></td>
+<td>對話時間 2026-08，擷取於 2026-08-25</td>
+</tr>
+<tr>
+<td>MDN：get 語法</td>
+<td><a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Functions/get">https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Functions/get</a></td>
+<td>查證於 2026-08-25</td>
+</tr>
+<tr>
+<td>MDN：Object.defineProperty()</td>
+<td><a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty">https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty</a></td>
+<td>查證於 2026-08-25</td>
+</tr>
+<tr>
+<td>MDN：Private properties（<code>#</code> 私有欄位，ES2022）</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_properties">https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_properties</a></td>
+<td>查證於 2026-08-25</td>
+</tr>
+<tr>
+<td>Python 官方文件：property()</td>
+<td><a href="https://docs.python.org/3/library/functions.html#property">https://docs.python.org/3/library/functions.html#property</a></td>
+<td>查證於 2026-08-25</td>
+</tr>
+<tr>
+<td>Microsoft Learn：C# Properties</td>
+<td><a href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/properties">https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/properties</a></td>
+<td>查證於 2026-08-25</td>
+</tr>
+</tbody>
+</table></section>
+<footer class="pagefoot">由 Gemini 對話自動整理 · 更新於 2026-08-25</footer>
+</div><script>
+document.addEventListener('click',function(e){
+  var m=e.target.closest('mark'); if(m){m.classList.toggle('hidden-answer');return;}
+  var b=e.target.closest('.blank'); if(b){b.classList.toggle('revealed');return;}
+});
+function toggleAll(btn){
+  var on=btn.classList.toggle('on');
+  document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-answer',on);});
+  btn.textContent=on?'顯示全部重點':'隱藏全部重點（自我測驗）';
+}
+function toggleBlanks(btn){
+  var on=btn.classList.toggle('on');
+  document.querySelectorAll('.blank').forEach(function(b){b.classList.toggle('revealed',on);});
+  btn.textContent=on?'蓋回填空':'公布所有填空';
+}
+function toggleSrc(btn){
+  var on=btn.classList.toggle('on');
+  var hs=[].slice.call(document.querySelectorAll('h2'));
+  var start=hs.filter(function(h){return h.textContent.indexOf('各對話來源')>=0;})[0];
+  if(start){
+    var n=start.nextElementSibling;
+    while(n && n.tagName!=='H2'){ n.style.display=on?'none':''; n=n.nextElementSibling; }
+  }
+  btn.textContent=on?'展開各對話原文':'收合各對話原文';
+}
+function pick(el,correct){
+  var box=el.closest('.quiz');
+  box.querySelectorAll('.opts button').forEach(function(b){b.classList.remove('ok','no');});
+  el.classList.add(correct?'ok':'no');
+  box.querySelector('.ans').classList.add('show');
+}
+function showAns(el){
+  var a=el.closest('.quiz').querySelector('.ans');
+  a.classList.toggle('show');
+  el.textContent=a.classList.contains('show')?'收合答案':'顯示答案';
+}
+</script></body></html>

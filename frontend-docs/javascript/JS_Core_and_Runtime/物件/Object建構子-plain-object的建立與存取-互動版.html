@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Object() 建構子｜plain object 的建立與存取（互動版）</title>
+<style>
+  :root{
+    --bg:#fbfbfd; --card:#ffffff; --line:#e5e7eb; --ink:#111827; --dim:#6b7280;
+    --g:#10b981; --y:#f59e0b; --b:#3b82f6; --p:#8b5cf6; --r:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC",system-ui,"Microsoft JhengHei",sans-serif;line-height:1.8}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 20px 90px}
+  h1{font-size:1.55rem;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:.88rem;margin-bottom:26px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+          padding:20px 22px;margin-bottom:20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  h2{font-size:1.1rem;margin:0 0 4px;display:flex;align-items:center;gap:9px}
+  h2 .n{width:24px;height:24px;border-radius:7px;background:var(--p);color:#fff;
+        font-size:.78rem;display:grid;place-items:center;flex:none}
+  .hint{color:var(--dim);font-size:.84rem;margin:0 0 14px}
+  code{font-family:"Cascadia Code",Consolas,monospace;background:#f3f4f6;
+       padding:1px 5px;border-radius:4px;font-size:.88em}
+  pre{background:#0f1117;color:#e8eaf0;border-radius:9px;padding:13px 15px;
+      overflow-x:auto;font-size:.84rem;font-family:"Cascadia Code",Consolas,monospace}
+  .diagram{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px;overflow-x:auto}
+  .anchor{background:#fef3c7;border-left:3px solid var(--y);padding:9px 13px;
+          border-radius:0 8px 8px 0;font-size:.86rem;color:#78350f;margin:12px 0}
+
+  /* 填空 */
+  .blank{display:inline-block;min-width:110px;border:none;border-bottom:2px solid var(--p);
+         background:#faf5ff;font-family:"Cascadia Code",Consolas,monospace;font-size:.88rem;
+         text-align:center;padding:2px 6px;border-radius:4px 4px 0 0;color:var(--ink)}
+  .blank.ok{border-bottom-color:var(--g);background:#ecfdf5}
+  .blank.no{border-bottom-color:var(--r);background:#fef2f2}
+  .fillrow{margin:9px 0}
+
+  /* 是非 */
+  .tf{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:11px}
+  .tf p{margin:0 0 9px;font-size:.93rem}
+  .tf button{margin-right:7px}
+  .tf .fb{display:none;margin-top:9px;font-size:.87rem;padding:9px 12px;border-radius:8px}
+  .tf .fb.show{display:block}
+  .fb.right{background:#ecfdf5;color:#065f46;border-left:3px solid var(--g)}
+  .fb.wrong{background:#fef2f2;color:#991b1b;border-left:3px solid var(--r)}
+
+  button{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 15px;
+         cursor:pointer;font-size:.85rem;font-family:inherit;color:var(--ink)}
+  button:hover{border-color:var(--p);color:var(--p)}
+  .primary{background:var(--p);color:#fff;border-color:var(--p)}
+  .primary:hover{background:#7c3aed;color:#fff}
+
+  /* 申論 */
+  details{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:11px}
+  details summary{cursor:pointer;font-weight:600;font-size:.93rem}
+  details[open] summary{margin-bottom:10px;color:var(--p)}
+  details .ans{font-size:.88rem;color:#374151;border-top:1px dashed var(--line);padding-top:10px}
+  ul{padding-left:20px} li{margin:4px 0;font-size:.9rem}
+  .score{font-size:.9rem;color:var(--dim);margin-top:12px}
+  table{border-collapse:collapse;width:100%;font-size:.87rem;margin-top:10px}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#f9fafb}
+  .src{font-size:.8rem;color:var(--dim);border-top:1px solid var(--line);padding-top:14px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Object() 建構子｜plain object 的建立與存取</h1>
+<div class="sub">
+  互動練習版｜資料來源 MDN <em>Object() constructor</em>（頁面最後更新 2025-07-10）與 MDN <em>Object</em>（頁面最後更新 2026-05-22）｜筆記日期 2026-08-19
+</div>
+
+<section>
+  <h2><span class="n">圖</span>主軸圖：Object() 的四條分流</h2>
+  <p class="hint">之後所有 Object 的追問都回頭指這張圖的分流編號，不另開新章。</p>
+  <div class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 620" width="100%" font-family="Noto Sans TC, Microsoft JhengHei, sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#6b7280"/></marker>
+    <marker id="arp" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#8b5cf6"/></marker>
+  </defs>
+  <rect width="940" height="620" fill="#fbfbfd"/>
+  <text x="30" y="38" font-size="20" font-weight="700" fill="#111827">Object() 建構子的四條分流</text>
+  <text x="30" y="60" font-size="12.5" fill="#6b7280">主軸圖｜之後所有 Object 相關的問題都回頭指這張圖的編號</text>
+  <rect x="30" y="90" width="180" height="70" rx="10" fill="#111827"/>
+  <text x="120" y="118" font-size="14" fill="#f9fafb" text-anchor="middle" font-family="monospace">Object(value)</text>
+  <text x="120" y="140" font-size="11.5" fill="#9ca3af" text-anchor="middle">加不加 new 結果相同</text>
+  <path d="M210,125 C250,125 250,140 285,140" stroke="#6b7280" fill="none" marker-end="url(#ar)"/>
+  <path d="M210,125 C250,125 250,240 285,240" stroke="#6b7280" fill="none" marker-end="url(#ar)"/>
+  <path d="M210,125 C250,125 250,340 285,340" stroke="#6b7280" fill="none" marker-end="url(#ar)"/>
+  <path d="M210,125 C250,125 250,440 285,440" stroke="#6b7280" fill="none" marker-end="url(#ar)"/>
+  <rect x="290" y="108" width="250" height="64" rx="9" fill="#ecfdf5" stroke="#10b981"/>
+  <circle cx="308" cy="126" r="10" fill="#10b981"/><text x="308" y="130" font-size="11.5" fill="#fff" text-anchor="middle" font-weight="700">1</text>
+  <text x="326" y="130" font-size="13" fill="#065f46" font-weight="600">null｜undefined｜不傳</text>
+  <text x="304" y="152" font-size="12" fill="#047857" font-family="monospace">→ 全新空 plain object {}</text>
+  <text x="304" y="167" font-size="11" fill="#6b7280">原型是 Object.prototype</text>
+  <rect x="290" y="208" width="250" height="64" rx="9" fill="#fff7ed" stroke="#f59e0b"/>
+  <circle cx="308" cy="226" r="10" fill="#f59e0b"/><text x="308" y="230" font-size="11.5" fill="#fff" text-anchor="middle" font-weight="700">2</text>
+  <text x="326" y="230" font-size="13" fill="#92400e" font-weight="600">原始型別 primitive</text>
+  <text x="304" y="252" font-size="12" fill="#b45309" font-family="monospace">→ 包裹物件 wrapper object</text>
+  <text x="304" y="267" font-size="11" fill="#6b7280">Object(1) 是 Number 物件不是數字</text>
+  <rect x="290" y="308" width="250" height="64" rx="9" fill="#eff6ff" stroke="#3b82f6"/>
+  <circle cx="308" cy="326" r="10" fill="#3b82f6"/><text x="308" y="330" font-size="11.5" fill="#fff" text-anchor="middle" font-weight="700">3</text>
+  <text x="326" y="330" font-size="13" fill="#1e40af" font-weight="600">本來就是物件</text>
+  <text x="304" y="352" font-size="12" fill="#1d4ed8" font-family="monospace">→ 原封不動回傳同一個參考</text>
+  <text x="304" y="367" font-size="11" fill="#6b7280">不複製 Object(o) === o 為 true</text>
+  <rect x="290" y="408" width="250" height="70" rx="9" fill="#faf5ff" stroke="#8b5cf6"/>
+  <circle cx="308" cy="426" r="10" fill="#8b5cf6"/><text x="308" y="430" font-size="11.5" fill="#fff" text-anchor="middle" font-weight="700">4</text>
+  <text x="326" y="430" font-size="13" fill="#5b21b6" font-weight="600">super() 且 new.target 不是 Object</text>
+  <text x="304" y="452" font-size="12" fill="#6d28d9" font-family="monospace">→ 用 new.target.prototype 建物件</text>
+  <text x="304" y="468" font-size="11" fill="#6b7280">傳進去的參數會被完全忽略</text>
+  <rect x="600" y="90" width="310" height="290" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+  <text x="620" y="118" font-size="13.5" font-weight="700" fill="#111827">plain object 的原型鏈</text>
+  <rect x="640" y="136" width="230" height="42" rx="8" fill="#f3f4f6" stroke="#d1d5db"/>
+  <text x="755" y="154" font-size="12" text-anchor="middle" fill="#111827" font-family="monospace">const o = new Object()</text>
+  <text x="755" y="170" font-size="10.5" text-anchor="middle" fill="#6b7280">自己的屬性 own property</text>
+  <path d="M755,178 L755,212" stroke="#8b5cf6" marker-end="url(#arp)"/>
+  <text x="765" y="200" font-size="10.5" fill="#8b5cf6">[[Prototype]]</text>
+  <rect x="640" y="214" width="230" height="42" rx="8" fill="#faf5ff" stroke="#8b5cf6"/>
+  <text x="755" y="232" font-size="12" text-anchor="middle" fill="#5b21b6" font-family="monospace">Object.prototype</text>
+  <text x="755" y="248" font-size="10.5" text-anchor="middle" fill="#6b7280">toString｜hasOwnProperty｜valueOf</text>
+  <path d="M755,256 L755,290" stroke="#8b5cf6" marker-end="url(#arp)"/>
+  <rect x="640" y="292" width="230" height="34" rx="8" fill="#111827"/>
+  <text x="755" y="314" font-size="12" text-anchor="middle" fill="#f9fafb" font-family="monospace">null  ← 鏈的終點</text>
+  <text x="620" y="352" font-size="11" fill="#6b7280">Object.create(null) 直接從這裡開始，</text>
+  <text x="620" y="368" font-size="11" fill="#6b7280">所以連 toString 都沒有，樣板字串會爆 TypeError。</text>
+  <rect x="600" y="400" width="310" height="180" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+  <text x="620" y="428" font-size="13.5" font-weight="700" fill="#111827">三種寫法都是 plain object</text>
+  <text x="620" y="452" font-size="12" fill="#374151" font-family="monospace">new Object()</text>
+  <text x="620" y="472" font-size="12" fill="#374151" font-family="monospace">Object()</text>
+  <text x="620" y="492" font-size="12" fill="#374151" font-family="monospace">{}            ← MDN 建議日常用這個</text>
+  <line x1="620" y1="506" x2="890" y2="506" stroke="#e5e7eb"/>
+  <text x="620" y="528" font-size="11.5" fill="#dc2626">但三者互相 === 永遠是 false</text>
+  <text x="620" y="546" font-size="11.5" fill="#6b7280">因為物件比較的是參考位址不是內容</text>
+  <text x="620" y="566" font-size="11.5" fill="#6b7280">Object.is({}, {}) 一樣是 false</text>
+  <text x="30" y="600" font-size="10.5" fill="#9ca3af">資料來源 MDN Object() constructor（2025-07-10 更新）｜MDN Object（2026-05-22 更新）｜圖 2026-08-19</text>
+</svg>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">a</span>名詞先講清楚</h2>
+  <table>
+    <tr><th>縮寫或術語</th><th>全名與意思</th></tr>
+    <tr><td>plain object</td><td>普通物件。原型鏈接在 <code>Object.prototype</code> 上的物件，也就是 <code>{}</code> 或 <code>new Object()</code> 做出來的那種</td></tr>
+    <tr><td>wrapper object</td><td>包裹物件。把原始型別包成物件的外殼，例如 <code>Object(1)</code> 得到 <code>Number {1}</code></td></tr>
+    <tr><td>own property</td><td>自有屬性。直接寫在物件自己身上的鍵值，相對於從原型鏈繼承來的</td></tr>
+    <tr><td><code>[[Prototype]]</code></td><td>內部插槽。物件真正指向原型的那條線，用 <code>Object.getPrototypeOf()</code> 讀取</td></tr>
+    <tr><td>null-prototype object</td><td>空原型物件。用 <code>Object.create(null)</code> 建立，原型直接是 <code>null</code></td></tr>
+    <tr><td><code>new.target</code></td><td>中繼屬性。用 <code>new</code> 呼叫時等於那個建構子，一般呼叫時是 <code>undefined</code></td></tr>
+  </table>
+</section>
+
+<section>
+  <h2><span class="n">b</span>填空題：把主軸圖的四條分流補完</h2>
+  <p class="hint">直接在底線上打字，答案不分大小寫，寫完按下方按鈕批改。</p>
+
+  <div class="fillrow">b-1. 分流 1｜<code>new Object(null)</code> 會得到一個全新的空
+    <input class="blank" data-a="plain object|plain-object|普通物件" size="12" placeholder="？"> 。</div>
+
+  <div class="fillrow">b-2. 分流 2｜<code>typeof Object(1)</code> 的結果是
+    <input class="blank" data-a="object|\"object\"|'object'" size="10" placeholder="？"> ，不是 number。</div>
+
+  <div class="fillrow">b-3. 分流 3｜<code>const src = {a:1};</code> 則 <code>Object(src) === src</code> 是
+    <input class="blank" data-a="true" size="7" placeholder="？"> ，因為它回傳同一個
+    <input class="blank" data-a="參考|reference|參照|位址|記憶體位址" size="9" placeholder="？"> 。</div>
+
+  <div class="fillrow">b-4. 分流 4｜<code>class M extends Object {}</code> 時，傳給 <code>super()</code> 的參數會被
+    <input class="blank" data-a="忽略|ignore|ignored|忽視" size="8" placeholder="？"> 。</div>
+
+  <div class="fillrow">b-5. 原型鏈｜<code>Object.getPrototypeOf(Object.create(null))</code> 的結果是
+    <input class="blank" data-a="null" size="7" placeholder="？"> 。</div>
+
+  <div class="fillrow">b-6. 刪除屬性要用
+    <input class="blank" data-a="delete" size="8" placeholder="？"> 運算子，因為 Object 上根本沒有這個方法。</div>
+
+  <div class="fillrow">b-7. <code>Object(1) == 1</code> 是
+    <input class="blank" data-a="true" size="7" placeholder="？"> ，但 <code>Object(1) === 1</code> 是
+    <input class="blank" data-a="false" size="7" placeholder="？"> 。</div>
+
+  <div class="fillrow">b-8. MDN 建議日常建立空物件用
+    <input class="blank" data-a="{}|{ }|字面量|object literal" size="10" placeholder="？"> 這種寫法。</div>
+
+  <p style="margin-top:14px">
+    <button class="primary" onclick="grade()">批改</button>
+    <button onclick="reveal()">顯示答案</button>
+    <button onclick="resetFill()">清空重做</button>
+  </p>
+  <div class="score" id="score"></div>
+</section>
+
+<section>
+  <h2><span class="n">c</span>是非題</h2>
+  <p class="hint">按 O 或 X，會立刻告訴你為什麼。</p>
+  <div id="tfbox"></div>
+</section>
+
+<section>
+  <h2><span class="n">d</span>申論題</h2>
+  <p class="hint">先自己講一遍再點開，這幾題都是面試會追問的。</p>
+
+  <details>
+    <summary>d-1. 為什麼 <code>Object(1) == 1</code> 是 true 但 <code>Object(1) === 1</code> 是 false？</summary>
+    <div class="ans">
+      <ul>
+        <li>嚴格相等 <code>===</code> 第一步就比型別。左邊是 object 右邊是 number，型別不同直接回傳 false，不做任何轉換。</li>
+        <li>寬鬆相等 <code>==</code> 遇到「一邊物件一邊原始值」時，會先對物件做 ToPrimitive 抽象操作，把 <code>Number {1}</code> 透過 <code>valueOf()</code> 轉回原始值 <code>1</code>，接著才比較 <code>1 == 1</code>，所以是 true。</li>
+        <li>順帶一提 <code>Object(1) === Object(1)</code> 也是 false，因為每次呼叫都建立一個新物件，物件比的是參考位址不是內容。</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>d-2. <code>new Object()</code>、<code>Object()</code>、<code>{}</code> 三者差在哪？實務上該用哪個？</summary>
+    <div class="ans">
+      <ul>
+        <li>在「不傳參數」這個情境下三者行為完全一樣，原型都是 <code>Object.prototype</code>，但各自是不同的物件，互相 <code>===</code> 是 false。</li>
+        <li>差別只出現在傳參數的時候。<code>Object(value)</code> 是型別轉換，會依照四條分流做事；<code>{}</code> 永遠只做一件事就是建立空的 plain object。</li>
+        <li>實務上一律用 <code>{}</code>，MDN 也是這個建議。會用到 <code>Object()</code> 的時機只有兩個：把不確定型別的值強制轉成物件，或刻意要建立包裹物件。</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>d-3. null-prototype object 有什麼好處與代價？什麼場合會用？</summary>
+    <div class="ans">
+      <ul>
+        <li>好處是乾淨。它不繼承 <code>Object.prototype</code>，所以不會有 <code>constructor</code>、<code>toString</code>、<code>__proto__</code> 這些鍵混進來，可以安心當字典使用，也擋掉原型污染 prototype pollution 這類攻擊。</li>
+        <li>代價是所有繼承來的方法都不見了。<code>np.hasOwnProperty("p")</code> 會 TypeError，連 <code>`${np}`</code> 這種字串轉換都會爆掉，因為沒有 <code>toString</code> 可用。</li>
+        <li>因應方式是改用靜態方法 <code>Object.keys()</code>、<code>Object.hasOwn()</code>、<code>Object.getOwnPropertyNames()</code>，它們對 null-prototype 物件一樣安全。這也是 MDN 說 modern code 應該優先用靜態方法的理由。</li>
+        <li>常見場合是拿使用者輸入當 key 的查表結構，例如把 query string 或 JSON 解析結果存成字典。</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>d-4. 為什麼陣列跟 Map 不算 plain object？拆檔的判準是什麼？</summary>
+    <div class="ans">
+      <ul>
+        <li>判準就是原型鏈的第一層。<code>Object.getPrototypeOf([])</code> 是 <code>Array.prototype</code>，<code>Object.getPrototypeOf(new Map())</code> 是 <code>Map.prototype</code>，都不是 <code>Object.prototype</code>。</li>
+        <li>它們雖然最終還是接到 <code>Object.prototype</code> 再到 <code>null</code>，但中間多了一層自己的方法集合，所以 API 完全不同：陣列有 <code>map</code>／<code>filter</code>，Map 有 <code>get</code>／<code>set</code>／<code>size</code>，plain object 這些都沒有。</li>
+        <li>另一個快速檢查是 <code>Object.prototype.toString.call(x)</code>：plain object 得到 <code>[object Object]</code>，陣列得到 <code>[object Array]</code>，包裹物件 <code>Object(1)</code> 得到 <code>[object Number]</code>。</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>d-5. 物件的 key 到底能是什麼型別？<code>user[1] = "one"</code> 之後 <code>Object.keys()</code> 會看到什麼？</summary>
+    <div class="ans">
+      <ul>
+        <li>只有兩種：字串與 Symbol。其他任何值當 key 都會被隱式轉成字串。</li>
+        <li>所以 <code>user[1] = "one"</code> 實際上存的是 <code>user["1"]</code>，<code>Object.keys(user)</code> 會看到字串 <code>"1"</code> 而不是數字 1。</li>
+        <li>延伸陷阱：<code>obj[{}]</code> 會變成 <code>obj["[object Object]"]</code>，兩個不同的物件當 key 會互相蓋掉，這正是需要 Map 的理由，Map 的 key 可以是任意型別。</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section>
+  <h2><span class="n">e</span>回頭指主軸圖</h2>
+  <div class="anchor">
+    a. 分流 1 是你 99% 情況會用到的那一條，但你其實應該直接寫 <code>{}</code>。<br>
+    b. 分流 2 是所有「包裹物件」怪題的來源，它接到 valueOf 與 ToPrimitive 那兩篇。<br>
+    c. 分流 3 是傳址 pass by reference 的教科書案例。<br>
+    d. 分流 4 只在 <code>class X extends Object</code> 出現，記得它「參數會被忽略」就夠了。<br>
+    e. 右側原型鏈那條線，往下延伸就是 null-prototype object 的整個故事。
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">f</span>參考來源</h2>
+  <table>
+    <tr><th>來源</th><th>頁面最後更新</th></tr>
+    <tr><td>MDN｜Object() constructor<br><span style="font-size:.8rem;color:#6b7280">developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/Object</span></td><td>2025-07-10</td></tr>
+    <tr><td>MDN｜Object<br><span style="font-size:.8rem;color:#6b7280">developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object</span></td><td>2026-05-22</td></tr>
+  </table>
+  <p class="src">本頁所有輸出結果都在 Node.js 實際執行驗證過，可執行示範檔為 <code>C:\coding\JavaScript-practicing\plain-object-建立與存取.html</code>。</p>
+</section>
+
+<script>
+/* ---------- 填空 ---------- */
+function norm(s){ return String(s).trim().toLowerCase().replace(/\s+/g,''); }
+function grade(){
+  var inputs = document.querySelectorAll('.blank');
+  var ok = 0;
+  inputs.forEach(function(el){
+    var accepted = el.dataset.a.split('|').map(norm);
+    if (accepted.indexOf(norm(el.value)) > -1){ el.classList.add('ok'); el.classList.remove('no'); ok++; }
+    else { el.classList.add('no'); el.classList.remove('ok'); }
+  });
+  document.getElementById('score').textContent =
+    '答對 ' + ok + ' ／ ' + inputs.length + ' 題。' + (ok === inputs.length ? ' 全對，可以去寫是非題了。' : ' 紅色的再想一次，想不出來按顯示答案。');
+}
+function reveal(){
+  document.querySelectorAll('.blank').forEach(function(el){
+    el.value = el.dataset.a.split('|')[0];
+    el.classList.add('ok'); el.classList.remove('no');
+  });
+  document.getElementById('score').textContent = '已顯示標準答案，建議清空後再自己寫一次。';
+}
+function resetFill(){
+  document.querySelectorAll('.blank').forEach(function(el){
+    el.value=''; el.classList.remove('ok','no');
+  });
+  document.getElementById('score').textContent = '';
+}
+
+/* ---------- 是非題 ---------- */
+var TF = [
+  { q:'<code>Object()</code> 加不加 <code>new</code>，在一般用法下結果是一樣的。', a:true,
+    why:'對。MDN 明講 Object() 可以加 new 也可以不加。真正會出現差異的只有分流 4，也就是透過 super() 呼叫且 new.target 不是 Object 的情況。' },
+  { q:'<code>new Object(null)</code> 會做出一個原型是 <code>null</code> 的物件。', a:false,
+    why:'錯。它做出來的是一個普通的空物件，原型仍然是 Object.prototype。要做原型是 null 的物件必須用 Object.create(null) 或 { __proto__: null }。這兩者很容易搞混。' },
+  { q:'<code>const o = {a:1}; Object(o) === o</code> 的結果是 <code>true</code>。', a:true,
+    why:'對，這是分流 3。傳進去的值本來就是物件時，Object() 原封不動把同一個參考回傳，不做任何複製。' },
+  { q:'<code>typeof Object(1)</code> 的結果是 <code>"number"</code>。', a:false,
+    why:'錯，是 "object"。Object(1) 產出的是 Number 包裹物件，不是原始值。可以再用 Object(1) instanceof Number 驗證，結果是 true。' },
+  { q:'<code>Object.create(null)</code> 建立的物件仍然可以用 <code>Object.keys()</code> 取得自有屬性。', a:true,
+    why:'對。Object.keys 是掛在 Object 建構子上的靜態方法，不需要走物件自己的原型鏈，所以對 null-prototype 物件照樣有效。不能用的是 obj.hasOwnProperty() 這種實例方法。' },
+  { q:'<code>Object</code> 提供了 <code>delete()</code> 方法可以刪除屬性。', a:false,
+    why:'錯。MDN 在 Object 頁面特別註明沒有這種方法，刪除屬性請用 delete 運算子，寫成 delete obj.prop。' },
+  { q:'<code>user[1] = "one"</code> 之後，<code>Object.keys(user)</code> 會看到數字 <code>1</code>。', a:false,
+    why:'錯，會看到字串 "1"。plain object 的 key 只能是字串或 Symbol，其他型別一律被隱式轉成字串。需要任意型別當 key 的時候才用 Map。' },
+  { q:'<code>class M extends Object {}</code> 之後 <code>new M(123) instanceof Number</code> 是 <code>true</code>。', a:false,
+    why:'錯，是 false。這是分流 4：當 new.target 不是 Object 時，傳進去的參數會被完全忽略，只會用 new.target.prototype 建立物件。對照組 Object(123) instanceof Number 才是 true。' },
+  { q:'<code>Object.is({}, {})</code> 的結果是 <code>false</code>。', a:true,
+    why:'對。兩個 {} 是兩個不同的物件，內容一樣不代表是同一個參考。Object.is 只有在處理 NaN 與正負零時才跟 === 不同，物件比較上兩者一致。' },
+  { q:'陣列因為最終也接到 <code>Object.prototype</code>，所以算是 plain object。', a:false,
+    why:'錯。判準看的是原型鏈的第一層。Object.getPrototypeOf([]) 是 Array.prototype 不是 Object.prototype，所以陣列不是 plain object，這也是把 array-of-objects 跟 map-object 拆成不同檔案的理由。' }
+];
+
+var box = document.getElementById('tfbox');
+TF.forEach(function(item, i){
+  var d = document.createElement('div');
+  d.className = 'tf';
+  d.innerHTML =
+    '<p>c-' + (i+1) + '. ' + item.q + '</p>' +
+    '<button data-v="true">O 正確</button>' +
+    '<button data-v="false">X 錯誤</button>' +
+    '<div class="fb"></div>';
+  d.querySelectorAll('button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var picked = btn.dataset.v === 'true';
+      var fb = d.querySelector('.fb');
+      var right = picked === item.a;
+      fb.className = 'fb show ' + (right ? 'right' : 'wrong');
+      fb.innerHTML = (right ? '答對了。' : '再想一下。') +
+        '正確答案是 <strong>' + (item.a ? 'O 正確' : 'X 錯誤') + '</strong>。<br>' + item.why;
+    });
+  });
+  box.appendChild(d);
+});
+</script>
+</div>
+</body>
+</html>

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HOC 高階組件與渲染劫持｜反向繼承，以及 Vue / Angular 的對應機制</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>HOC 高階組件與渲染劫持｜反向繼承，以及 Vue / Angular 的對應機制</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#react</span><span class="pill">#hoc</span><span class="pill">#渲染劫持</span><span class="pill">#反向繼承</span><span class="pill">#vue</span><span class="pill">#angular</span><span class="pill">#設計模式</span><span class="pill">#面試</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-25</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/3b8ff7e2ed0d9bd4" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">渲染劫持是一個跟 HOC 平行、互相獨立的概念。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">渲染劫持是 HOC 的一項實作技巧，特別是反向繼承那一派，不是獨立概念。</div></li><li><p class="qq">反向繼承之所以叫「反向」，是因為包裝者反過來去 extends 被包裝的組件。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">包裝關係與繼承關係方向相反，所以叫 Inheritance Inversion。</div></li><li><p class="qq">super.render() 拿到元素樹之後，可以直接修改它的 props 屬性。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">React 元素是不可變的，必須用 React.cloneElement 複製一份並覆寫。</div></li><li><p class="qq">Vue 也常用反向繼承式的 HOC 來做渲染劫持。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Vue 的 template 編譯後由框架接管，拿不到中間結構，社群改用 Composables 與 Scoped Slots。</div></li><li><p class="qq">在現代 React 專案裡，反向繼承 HOC 仍是官方推薦的邏輯複用做法。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">React 16.8 之後推薦 Custom Hooks。反向繼承會破壞靜態方法繼承、ref 難傳遞、DevTools 難除錯。</div></li><li><p class="qq">Props Proxy 型的 HOC 拿得到被包組件的 state。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Props Proxy 只是把原組件包在裡面、動 props，拿不到它的內部 state。要拿到 state 才需要反向繼承。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">HOC 的兩種實作流派分別是反向繼承（Inheritance Inversion）與 <input class="blank" data-a="屬性" placeholder="填答案" autocomplete="off"> 代理（Props Proxy）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">PP 較常見也較安全，II 才有渲染劫持能力。</div></li><li><p class="qq">在 HOC 的 render 裡呼叫 <input class="blank" data-a="super" placeholder="填答案" autocomplete="off">.render() 就能取得原組件的 React 元素樹。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">super 指向父類別的原型，this 仍是自己，所以讀得到原組件的 state 與 props。</div></li><li><p class="qq">React 元素是不可變的，要改屬性只能用 React.<input class="blank" data-a="cloneElement" placeholder="填答案" autocomplete="off"> 複製一份。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">直接改會壞掉。</div></li><li><p class="qq">Angular 對應 React HOC 的機制是依賴注入與 <input class="blank" data-a="結構" placeholder="填答案" autocomplete="off"> 型指令（如 *ngIf）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Structural Directives，透過 ViewContainerRef 控制視圖。</div></li><li><p class="qq">React 16.8 之後，取代大部分 HOC 場景的官方推薦做法是 Custom <input class="blank" data-a="Hooks" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">把邏輯抽成 Hook，組件維持扁平，不多包一層。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">面試官問你「什麼是渲染劫持」。請完整回答：它是什麼、靠什麼機制做到、三個典型應用場景、為什麼這件事在 Vue 與 Angular 做不到，以及你會不會在新專案裡用它。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 定義——渲染劫持是在原組件真正被畫出來之前，攔截並修改它的渲染結果，是反向繼承型 HOC 的核心能力。(2) 機制——HOC 反過來 class HOC extends WrappedComponent，重寫 render()，在裡面呼叫 super.render() 拿到原組件產出的 React 元素樹（就是一棵普通的 JS 物件樹），接著讀取、cloneElement 修改或整段覆蓋。(3) 三個場景——條件式渲染（權限控制、Loading）、修改擴充元素（動態加 style/className、替換子元件、綁事件）、操縱 props（元素渲染前攔截替換）。(4) 為什麼只有 React 能——因為 JSX 本質上就是 JavaScript 函式呼叫與物件，super.render() 回傳的是可讀可改的普通物件；Vue 的 template 與 Angular 的 template 在編譯後由框架接管，開發者拿不到那個中間結構，所以改用 Composables／Scoped Slots 與 DI／結構型指令這些完全不同的路徑達成複用。(5) 新專案會不會用——不會。反向繼承會破壞靜態方法繼承（要手動 hoist-non-react-statics）、ref 難以傳遞、DevTools 上多一層匿名組件難除錯，而且對 function 組件根本無效。現代做法是把邏輯抽成 Custom Hook。知道它是為了讀懂舊 codebase 與應付面試。加分：順帶點出 HOC 就是設計模式裡的 Decorator 裝飾者模式在組件層的投影。</div></li></ol></section>
+
+<article class="card">
+<h1 id="hoc-vue-angular">HOC 高階組件與渲染劫持｜反向繼承，以及 Vue / Angular 的對應機制</h1>
+<blockquote>
+<p>[!info] 本篇重點 a–l，共 12 個<br />
+起因是在看《前端面試寶典之 React 篇》影片，冒出「渲染劫持」這個詞，追問下去發現它其實是 HOC 的一種實作技巧，而且是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">已經被 React 官方淡出的舊派做法</mark>。第二個問題問得很好：「render 又不是 React 專有的，你是不是要講三大框架？」——答案是三個框架各有自己的複用機制，名字完全不同。<br />
+關聯筆記：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：高階函式與函數式範式-取代OOP三大設計模式">高階函式與函數式範式-取代OOP三大設計模式</span></mark> 講「函式當參數與回傳值」這個底層骨架，HOC 就是它在組件層的投影，也就是 Decorator 裝飾者模式；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：00-前端框架比較-Vue-React-Angular難易度與優缺點">00-前端框架比較-Vue-React-Angular難易度與優缺點</span></mark> 講三框架的整體取捨，這篇聚焦在「邏輯複用」這一個切面。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">一. 三個詞先定義清楚</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HOC（Higher-Order Component，高階組件）</mark>：一個「接收組件、回傳新組件」的函式。名字借自數學的高階函式（Higher-Order Function），差別只在處理的單位從函式變成組件。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">渲染劫持（Render Hijacking）</mark>：在原組件真正被畫出來之前，攔截並修改它的渲染結果。這是 HOC 的一項技巧，不是另一個獨立概念。</p>
+<p>(c) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">反向繼承（Inheritance Inversion，II）</mark>：HOC 的兩種實作流派之一。另一種是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">屬性代理（Props Proxy，PP）</mark>。</p>
+<blockquote>
+<p>[!note] 為什麼叫「反向」<br />
+正常繼承是「子類別繼承父類別」。這裡 HOC 是包裝者，理應是外層，卻反過來去 <code>extends</code> 被包裝的組件，讓包裝者變成子類別，包裝關係跟繼承關係方向相反，所以叫反向繼承。</p>
+</blockquote>
+<h3 id="_3">二. 反向繼承的核心機制</h3>
+<p>(d) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關鍵：<code>class HOC extends WrappedComponent</code>。</mark>HOC 繼承了原組件，於是它拿得到原組件的 <code>render</code>、<code>state</code>、生命週期方法。</p>
+<p>(e) 在 HOC 自己的 <code>render()</code> 裡呼叫 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>super.render()</code></mark>，就能拿到原組件產出的 React 元素樹（Virtual DOM），接著讀取、修改或整個覆蓋掉。</p>
+<pre><code class="language-jsx">function withRenderHijack(WrappedComponent) {
+  return class extends WrappedComponent {
+    render() {
+      // super.render() 回傳原組件的 JSX 元素樹
+      const elementTree = super.render();
+
+      if (!this.props.isAllowed) {
+        return &lt;p&gt;沒有權限&lt;/p&gt;;      // 整個覆蓋
+      }
+      return React.cloneElement(elementTree, {
+        className: 'hijacked',        // 修改屬性
+      });
+    }
+  };
+}
+</code></pre>
+<p>(f) 逐行拆解：</p>
+<ul>
+<li><code>function withRenderHijack(WrappedComponent)</code>：慣例上 HOC 命名用 <code>with</code> 開頭，參數是「被包的組件」。</li>
+<li><code>return class extends WrappedComponent</code>：回傳一個匿名 class，<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>extends</code> 建立原型鏈（prototype chain）</mark>，讓這個新 class 的實例可以往上找到 <code>WrappedComponent.prototype</code> 上的方法。</li>
+<li><code>super.render()</code>：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>super</code> 指向父類別的原型</mark>，所以這句是「呼叫父類別版本的 render，但 <code>this</code> 仍然是我自己」，因此原組件的 <code>this.state</code> 與 <code>this.props</code> 都讀得到。</li>
+<li><code>React.cloneElement(elementTree, {...})</code>：React 元素是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不可變（immutable）</mark>的，不能直接改屬性，只能複製一份並覆寫。</li>
+</ul>
+<h3 id="_4">三. 三個主要應用場景</h3>
+<p>(g) <strong>條件式渲染</strong>：依 props 或 state 決定要不要渲染 <code>super.render()</code> 的內容。權限控制、Loading 狀態都屬於這一類。</p>
+<p>(h) <strong>修改／擴充元素樹</strong>：攔截回傳的 JSX，替換特定子元件、動態加 <code>style</code> / <code>className</code>、綁額外的事件監聽。</p>
+<p>(i) <strong>操縱 Props</strong>：在元素正式渲染前，攔截並替換子元件收到的 props。</p>
+<h3 id="react-render">四. 為什麼是「React 的 render 方法」，不是通用概念</h3>
+<p>(j) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「渲染」是所有框架的通用概念，但「渲染劫持」這個做法只在 React 成立</mark>，原因是 React 的 JSX 本質上就是 JavaScript 函式呼叫與物件，<code>super.render()</code> 回傳的是一個普通 JS 物件樹，你當然可以拿來讀跟改。Vue 的 template 與 Angular 的 template 在編譯後被框架接管，開發者拿不到那個中間結構。</p>
+<p>(k) 三框架對照：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>React</th>
+<th>Vue</th>
+<th>Angular</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主要複用機制</td>
+<td>HOC、Render Props、<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Custom Hooks（現代主流）</mark></td>
+<td>Composition API（Composables）、Mixins、Scoped Slots</td>
+<td>依賴注入（DI）、結構型指令（<code>*ngIf</code>）、裝飾器</td>
+</tr>
+<tr>
+<td>能不能改元素樹</td>
+<td>可以，JSX 就是 JS 物件</td>
+<td>一般不行，template 由編譯器接管（除非自己寫 Render Function）</td>
+<td>不直接改，改用 <code>ViewContainerRef</code> 操作視圖容器</td>
+</tr>
+<tr>
+<td>心智模型</td>
+<td>包一層函式</td>
+<td>抽一支組合函式</td>
+<td>注入一個服務或指令</td>
+</tr>
+</tbody>
+</table>
+<p>(l) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">面試提醒：如果被問到 HOC，記得補一句「React 16.8 之後官方推薦用 Custom Hooks 取代大部分 HOC 場景」。</mark>反向繼承因為會破壞組件的靜態方法繼承、讓 ref 難以傳遞、也不利於 React DevTools 除錯，實務上已經很少用。知道它是為了讀懂舊 codebase 與應付面試，不是為了拿來寫新專案。</p>
+<hr />
+<h2 id="_5">程式碼範例</h2>
+<p>同層的 <code>hoc-props-proxy-vs-inheritance-inversion.jsx</code> 把兩種 HOC 流派並排寫出來對照。</p>
+<hr />
+<h2 id="_6">練習題</h2>
+<table>
+<thead>
+<tr>
+<th>題號</th>
+<th>題名</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2666</td>
+<td><a href="https://leetcode.com/problems/allow-one-function-call/">Allow One Function Call</a></td>
+<td>最小的「包一層、加行為」練習，HOC 的骨架</td>
+</tr>
+<tr>
+<td>2623</td>
+<td><a href="https://leetcode.com/problems/memoize/">Memoize</a></td>
+<td>包一層並保留狀態，等同 HOC 快取 props 的心智模型</td>
+</tr>
+<tr>
+<td>2632</td>
+<td><a href="https://leetcode.com/problems/curry/">Curry</a></td>
+<td>函式回傳函式，理解高階函式的閉包基礎</td>
+</tr>
+<tr>
+<td>2704</td>
+<td><a href="https://leetcode.com/problems/to-be-or-not-to-be/">To Be Or Not To Be</a></td>
+<td>回傳一個帶方法的物件，練習包裝者思維</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_7">各對話來源（原文）</h2>
+<h3 id="2026-08-httpsgeminigooglecomapp3b8ff7e2ed0d9bd4">高階組件與渲染劫持（2026-08）— https://gemini.google.com/app/3b8ff7e2ed0d9bd4</h3>
+<p><strong>使用者：</strong> 高階組件與渲染劫持是有什麼相關內容</p>
+<p><strong>Gemini：</strong> 高階組件（Higher-Order Component，HOC）與渲染劫持（Render Highjacking）在 React 開發中是密不可分的概念。渲染劫持是高階組件（尤其是基於反向繼承 Inherited Inversion 的 HOC）的一項核心技巧與設計模式。<br />
+核心機制：當使用反向繼承（<code>class HOC extends WrappedComponent</code>）構建 HOC 時，HOC 繼承了原組件。在 HOC 的 <code>render</code> 方法中，透過呼叫 <code>super.render()</code> 即可獲取原組件的 React 元素樹（Virtual DOM），進而對其進行讀取、修改或覆蓋。<br />
+主要應用場景：條件式渲染（根據傳入的 props 或狀態決定是否渲染 <code>super.render()</code> 的內容，如權限控制、載入中 Loading 狀態處理）；修改／擴充 React 元素（攔截並修改 <code>super.render()</code> 返回的 JSX 元素樹，例如替換特定子元件、動態添加 <code>style</code> / <code>className</code> 或綁定額外的事件監聽）；操縱 Props（在元素被正式渲染前，攔截並替換／擴充子元件所接收到的 props）。<br />
+（Gemini 附註：使用者當時正在觀看《前端面試寶典之 React 篇》系列課程的「开篇词 如何拿下大厂前端面试」，來源標示為 Code Learning 编程教程，4,728 次觀看。）</p>
+<p><strong>使用者：</strong> 為什麼是 HOC 的 render 方法？Render 方法應該不是專屬 React 的，還是說你要表達的是 React、Angular 還有 Vue？</p>
+<p><strong>Gemini：</strong> 這裏提到的 <code>render</code> 方法與「渲染劫持」，確實是以 React 的組件模型為核心討論背景。<br />
+1. 為什麼是 HOC 的 render 方法：在 React 的 Class 組件中，<code>render()</code> 是核心的生命週期方法，負責返回描述 UI 的 Virtual DOM（JSX）。當使用反向繼承來實現 HOC 時，HOC 會繼承原組件，此時 HOC 重寫了 <code>render()</code> 方法，並可以在內部呼叫 <code>super.render()</code> 取得原組件的渲染結果。<br />
+2. 其他框架有類似的概念嗎：React 的 JSX 本質上就是 JavaScript 函數與物件，因此能在 <code>render()</code> 中直接讀取、操縱 Virtual DOM 結構。Vue 主要使用範本語法（Template），較少使用反向繼承式的 HOC，社群更傾向使用組合函數（Composables）或插槽。Angular 有強大的控制反轉與指令系統，透過指令就能直接操縱 DOM 或控制 <code>ViewContainerRef</code>，不需要透過 React 風格的 HOC 渲染劫持。</p>
+<hr />
+<h2 id="_8">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本 / 查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/3b8ff7e2ed0d9bd4</td>
+<td>2026-08，本次歸檔 2026-08-25</td>
+</tr>
+<tr>
+<td>React 官方文件（舊版）Higher-Order Components</td>
+<td>https://legacy.reactjs.org/docs/higher-order-components.html</td>
+<td>React 17 舊文件，官方已標示為 legacy，查證 2026-08-25</td>
+</tr>
+<tr>
+<td>React 官方：Reusing Logic with Custom Hooks</td>
+<td>https://react.dev/learn/reusing-logic-with-custom-hooks</td>
+<td>現行推薦做法，查證 2026-08-25</td>
+</tr>
+<tr>
+<td>React <code>cloneElement</code> API</td>
+<td>https://react.dev/reference/react/cloneElement</td>
+<td>查證 2026-08-25</td>
+</tr>
+<tr>
+<td>Vue：Composables</td>
+<td>https://vuejs.org/guide/reusability/composables.html</td>
+<td>Vue 3，查證 2026-08-25</td>
+</tr>
+<tr>
+<td>Angular：Structural Directives</td>
+<td>https://angular.dev/guide/directives/structural-directives</td>
+<td>查證 2026-08-25</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!warning] ⚠️ 存疑 / 更正<br />
+1. Gemini 把英文拼成 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「Render Highjacking」與「Inherited Inversion」，兩個都拼錯了</mark>。正確是 <strong>Render Hijacking</strong>（沒有 h）與 <strong>Inheritance Inversion</strong>（不是 Inherited）。查英文資料時拼錯會找不到。<br />
+2. Gemini <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全沒提到 HOC 已經被 Custom Hooks 取代</mark>，語氣像是在推薦現行做法。反向繼承在現代 React 幾乎不用，面試講的時候要自己補這一句，否則會顯得停留在 React 15 的時代。<br />
+3. 影片觀看數與課程名稱是 Gemini 從畫面抓的即時資訊，不保證正確，僅供回溯當時情境。</p>
+</blockquote>
+<hr />
+<p><em>由 Gemini 對話自動整理 · 更新於 2026-08-25</em></p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-25</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

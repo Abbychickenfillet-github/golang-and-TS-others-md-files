@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>屬性列舉決策矩陣（互動版）</title>
+<style>
+  :root{--bg:#fbfbfd;--card:#fff;--line:#e5e7eb;--ink:#111827;--dim:#6b7280;
+        --g:#10b981;--y:#f59e0b;--b:#3b82f6;--p:#8b5cf6;--r:#dc2626;--i:#6366f1}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC",system-ui,"Microsoft JhengHei",sans-serif;line-height:1.8}
+  .wrap{max-width:920px;margin:0 auto;padding:28px 20px 90px}
+  h1{font-size:1.5rem;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:.87rem;margin-bottom:26px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+          padding:20px 22px;margin-bottom:20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  h2{font-size:1.1rem;margin:0 0 4px;display:flex;align-items:center;gap:9px}
+  h2 .n{width:24px;height:24px;border-radius:7px;background:var(--p);color:#fff;
+        font-size:.78rem;display:grid;place-items:center;flex:none}
+  .hint{color:var(--dim);font-size:.84rem;margin:0 0 14px}
+  code{font-family:"Cascadia Code",Consolas,monospace;background:#f3f4f6;
+       padding:1px 5px;border-radius:4px;font-size:.88em}
+  pre{background:#0f1117;color:#e8eaf0;border-radius:9px;padding:13px 15px;
+      overflow-x:auto;font-size:.83rem;font-family:"Cascadia Code",Consolas,monospace}
+  .diagram{border:1px solid var(--line);border-radius:12px;padding:8px;overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:.86rem;margin-top:10px}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#f9fafb}
+  td.mono{font-family:"Cascadia Code",Consolas,monospace;font-size:.83rem}
+  .y{color:var(--g);font-weight:700}.n2{color:var(--r);font-weight:700}
+  .anchor{background:#fef3c7;border-left:3px solid var(--y);padding:9px 13px;
+          border-radius:0 8px 8px 0;font-size:.86rem;color:#78350f;margin:12px 0}
+
+  .blank{display:inline-block;min-width:110px;border:none;border-bottom:2px solid var(--p);
+         background:#faf5ff;font-family:"Cascadia Code",Consolas,monospace;font-size:.87rem;
+         text-align:center;padding:2px 6px;border-radius:4px 4px 0 0;color:var(--ink)}
+  .blank.ok{border-bottom-color:var(--g);background:#ecfdf5}
+  .blank.no{border-bottom-color:var(--r);background:#fef2f2}
+  .fillrow{margin:9px 0}
+
+  .tf{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:11px}
+  .tf p{margin:0 0 9px;font-size:.92rem}
+  .tf .fb{display:none;margin-top:9px;font-size:.86rem;padding:9px 12px;border-radius:8px}
+  .tf .fb.show{display:block}
+  .fb.right{background:#ecfdf5;color:#065f46;border-left:3px solid var(--g)}
+  .fb.wrong{background:#fef2f2;color:#991b1b;border-left:3px solid var(--r)}
+
+  button{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 15px;
+         cursor:pointer;font-size:.85rem;font-family:inherit;color:var(--ink);margin-right:6px}
+  button:hover{border-color:var(--p);color:var(--p)}
+  .primary{background:var(--p);color:#fff;border-color:var(--p)}
+  .primary:hover{background:#7c3aed;color:#fff}
+
+  details{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:11px}
+  details summary{cursor:pointer;font-weight:600;font-size:.92rem}
+  details[open] summary{margin-bottom:10px;color:var(--p)}
+  details .ans{font-size:.87rem;color:#374151;border-top:1px dashed var(--line);padding-top:10px}
+  ul{padding-left:20px}li{margin:4px 0;font-size:.9rem}
+  .score{font-size:.9rem;color:var(--dim);margin-top:12px}
+  .src{font-size:.8rem;color:var(--dim);border-top:1px solid var(--line);padding-top:14px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>屬性列舉決策矩陣</h1>
+<div class="sub">
+  <code>Object.keys</code>｜<code>getOwnPropertyNames</code>｜<code>getOwnPropertyDescriptor</code>｜<code>Reflect.ownKeys</code>
+  ｜資料來源 MDN Object（2026-05-22 更新）｜實測環境 Node.js v22 的 V8｜筆記日期 2026-08-19
+</div>
+
+<section>
+  <h2><span class="n">圖</span>主軸圖：四格加一圈</h2>
+  <p class="hint">屬性被兩個維度切成四格：key 是字串還是 Symbol，enumerable 是 true 還是 false。再加上「繼承」這一圈。看到任何列舉方法，只要問「它看得到哪幾格」。</p>
+  <div class="diagram" id="dia"></div>
+</section>
+
+<section>
+  <h2><span class="n">a</span>名詞先講清楚</h2>
+  <table>
+    <tr><th>術語</th><th>全名與意思</th></tr>
+    <tr><td>enumerable</td><td>可列舉。屬性描述器上的布林旗標，決定會不會被 <code>Object.keys()</code> 與 <code>for...in</code> 掃到</td></tr>
+    <tr><td>own property</td><td>自有屬性。直接寫在物件自己身上的，相對於從原型鏈繼承來的</td></tr>
+    <tr><td>property descriptor</td><td>屬性描述器。描述一個屬性「怎麼被定義」的設定物件，不是它的值</td></tr>
+    <tr><td>data descriptor</td><td>資料描述器。有 <code>value</code> 與 <code>writable</code> 的那種</td></tr>
+    <tr><td>accessor descriptor</td><td>存取器描述器。有 <code>get</code> 與 <code>set</code> 的那種，跟資料描述器互斥</td></tr>
+    <tr><td>Reflect</td><td>反射。ES6 新增的內建物件，把「操作物件的底層行為」整理成一組函式</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2><span class="n">b</span>實測結果表</h2>
+  <p class="hint">這一頁載入時就在你的瀏覽器裡跑過一次，下面的輸出是即時算出來的，不是寫死的。</p>
+  <div style="overflow-x:auto"><table id="res">
+    <thead><tr><th>方法</th><th>實際輸出</th><th>看得到哪幾格</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="n">c</span>填空題</h2>
+  <p class="hint">直接在底線上打字，不分大小寫。</p>
+
+  <div class="fillrow">c-1. 只拿得到「自有＋可列舉＋字串鍵」的方法是
+    <input class="blank" data-a="Object.keys|keys" size="12" placeholder="？"> 。</div>
+
+  <div class="fillrow">c-2. 連「不可列舉的字串鍵」也拿得到的是
+    <input class="blank" data-a="Object.getOwnPropertyNames|getOwnPropertyNames" size="22" placeholder="？"> 。</div>
+
+  <div class="fillrow">c-3. 四格全包、一個 key 都不漏的是
+    <input class="blank" data-a="Reflect.ownKeys|ownKeys" size="16" placeholder="？"> 。</div>
+
+  <div class="fillrow">c-4. <code>Object.keys(Object.prototype)</code> 回傳
+    <input class="blank" data-a="[]|空陣列|空的陣列" size="9" placeholder="？"> ，因為那 12 個成員的
+    <input class="blank" data-a="enumerable" size="11" placeholder="？"> 全部是 false。</div>
+
+  <div class="fillrow">c-5. 屬性描述器有兩種，一種是有 <code>value</code> 與 <code>writable</code> 的
+    <input class="blank" data-a="data descriptor|data|資料描述器" size="14" placeholder="？"> ，
+    另一種是有 <code>get</code> 與 <code>set</code> 的
+    <input class="blank" data-a="accessor descriptor|accessor|存取器描述器" size="16" placeholder="？"> 。</div>
+
+  <div class="fillrow">c-6. 唯一會把「繼承來的屬性」也掃進去的迴圈是
+    <input class="blank" data-a="for...in|for in|forin" size="10" placeholder="？"> 。</div>
+
+  <div class="fillrow">c-7. 想完整複製含 getter 的物件，要搭配
+    <input class="blank" data-a="Object.getOwnPropertyDescriptors|getOwnPropertyDescriptors" size="26" placeholder="？"> 與 <code>Object.create</code>。</div>
+
+  <div class="fillrow">c-8. 鍵的排序規則第一段是
+    <input class="blank" data-a="整數鍵|整數字串鍵|數字鍵|整數" size="11" placeholder="？"> 照數字由小到大，Symbol 排在最
+    <input class="blank" data-a="後|最後|後面" size="7" placeholder="？"> 。</div>
+
+  <p style="margin-top:14px">
+    <button class="primary" onclick="grade()">批改</button>
+    <button onclick="reveal()">顯示答案</button>
+    <button onclick="resetFill()">清空重做</button>
+  </p>
+  <div class="score" id="score"></div>
+</section>
+
+<section>
+  <h2><span class="n">d</span>是非題</h2>
+  <p class="hint">按 O 或 X，會立刻告訴你為什麼。</p>
+  <div id="tfbox"></div>
+</section>
+
+<section>
+  <h2><span class="n">e</span>申論題</h2>
+  <p class="hint">先自己講一遍再點開。</p>
+
+  <details>
+    <summary>e-1. <code>Object.keys</code> 與 <code>Object.getOwnPropertyNames</code> 差在哪？舉一個真實例子。</summary>
+    <div class="ans"><ul>
+      <li>兩者都只看自有屬性、都只回字串鍵，差別只有一個：<code>keys</code> 只回 <code>enumerable: true</code> 的，<code>getOwnPropertyNames</code> 不管這個旗標，全部都回。</li>
+      <li>集合關係是 <code>Object.keys(obj) ⊂ Object.getOwnPropertyNames(obj)</code>。</li>
+      <li>最有感的例子是 <code>Object.prototype</code>：<code>Object.keys</code> 回空陣列，<code>getOwnPropertyNames</code> 回 12 個成員。因為所有內建方法都被設成不可列舉，才不會污染你的 <code>for...in</code> 迴圈。</li>
+    </ul></div>
+  </details>
+
+  <details>
+    <summary>e-2. 屬性描述器的四個旗標分別控制什麼？設成 false 各會發生什麼事？</summary>
+    <div class="ans"><ul>
+      <li><code>value</code> 就是值本身，沒有 true false 的問題。</li>
+      <li><code>writable: false</code> → 賦值會失敗。非嚴格模式靜默失敗，嚴格模式丟 <code>TypeError</code> 並中斷程式。</li>
+      <li><code>enumerable: false</code> → 從主軸圖第 1 格掉到第 3 格，<code>Object.keys</code> 與 <code>for...in</code> 都看不到它，但 <code>getOwnPropertyNames</code> 還是找得到。</li>
+      <li><code>configurable: false</code> → <code>delete</code> 會失敗，也不能再用 <code>defineProperty</code> 把它改回來，等於封死。</li>
+      <li>補充：有 <code>get</code>／<code>set</code> 的存取器描述器就不會有 <code>value</code> 與 <code>writable</code>，兩種描述器互斥不能混寫。</li>
+    </ul></div>
+  </details>
+
+  <details>
+    <summary>e-3. 為什麼 <code>Object.assign</code> 不能拿來完整複製一個有 getter 的物件？</summary>
+    <div class="ans"><ul>
+      <li><code>Object.assign</code> 做的是「讀來源的值再寫進目標」，所以遇到 getter 時它會**先執行 getter**，把回傳的結果當成一個普通的死值抄過去。</li>
+      <li>結果就是複製品的那個屬性從 getter 變成固定值，之後你改了相依的欄位，它也不會跟著變。</li>
+      <li>正確做法是連描述器一起複製：<code>Object.create(Object.getPrototypeOf(o), Object.getOwnPropertyDescriptors(o))</code>，這樣 getter 還是 getter，原型也一起保留。</li>
+      <li>順帶一提 <code>Object.assign</code> 也不會複製不可列舉的屬性與 Symbol 以外的隱藏東西，它只搬主軸圖的第 1 格與第 2 格。</li>
+    </ul></div>
+  </details>
+
+  <details>
+    <summary>e-4. 物件的 key 排序規則是什麼？什麼情況下會被它坑？</summary>
+    <div class="ans"><ul>
+      <li>三段式：整數字串鍵照數字由小到大 → 其他字串鍵照寫入順序 → Symbol 鍵照寫入順序。</li>
+      <li><code>{ b:1, 2:1, a:1, 1:1, [Symbol("s")]:1, 10:1 }</code> 的 <code>Reflect.ownKeys</code> 是 <code>["1","2","10","b","a",Symbol(s)]</code>。注意是 1, 2, 10 而不是字串排序的 1, 10, 2。</li>
+      <li>會被坑的情況是拿使用者 ID、商品編號這種數字當 key，又期待輸出照插入順序。要保證順序請改用 <code>Map</code>，它的 key 順序永遠是插入順序，而且 key 可以是任意型別。</li>
+    </ul></div>
+  </details>
+
+  <details>
+    <summary>e-5. <code>Reflect</code> 跟 <code>Object</code> 靜態方法有什麼不同？日常需要用嗎？</summary>
+    <div class="ans"><ul>
+      <li>設計目的不同。<code>Object.xxx</code> 是給人日常寫程式用的，失敗時常常丟 <code>TypeError</code>，回傳值也常常是物件本身不好接。</li>
+      <li><code>Reflect.xxx</code> 是把「操作物件的底層行為」整理成函式，失敗時回傳 <code>false</code> 讓你自己判斷，回傳值都有意義，主要是配合 <code>Proxy</code> 寫攔截器時使用。</li>
+      <li>日常寫程式幾乎用不到，唯一的例外就是 <code>Reflect.ownKeys</code>：「我要一個物件所有的 key，一個都不能漏」這個需求只有它做得到，等價於 <code>getOwnPropertyNames</code> 加上 <code>getOwnPropertySymbols</code>。</li>
+    </ul></div>
+  </details>
+</section>
+
+<section>
+  <h2><span class="n">f</span>決策速查</h2>
+  <table>
+    <tr><th>我想做的事</th><th>用這個</th></tr>
+    <tr><td>拿我自己放進去的資料</td><td class="mono">Object.keys ／ Object.entries</td></tr>
+    <tr><td>想連原型鏈繼承的一起掃</td><td class="mono">for...in，配 Object.hasOwn 過濾</td></tr>
+    <tr><td>想看內建原型上有什麼方法</td><td class="mono">Object.getOwnPropertyNames</td></tr>
+    <tr><td>想知道某個屬性為什麼掃不到</td><td class="mono">Object.getOwnPropertyDescriptor 看 enumerable</td></tr>
+    <tr><td>想完整複製含 getter 的物件</td><td class="mono">Object.getOwnPropertyDescriptors ＋ Object.create</td></tr>
+    <tr><td>一個 key 都不能漏</td><td class="mono">Reflect.ownKeys</td></tr>
+    <tr><td>檢查某個 key 是不是自有的</td><td class="mono">Object.hasOwn（別再用 obj.hasOwnProperty）</td></tr>
+  </table>
+  <div class="anchor">
+    回頭指主軸圖：第 1 格是你平常寫的資料，第 3 格是所有內建方法住的地方，
+    第 2、4 格是 Symbol 的世界，最外圈是原型鏈。四格全包只有 <code>Reflect.ownKeys</code>。
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">g</span>參考來源</h2>
+  <table>
+    <tr><th>來源</th><th>頁面最後更新</th></tr>
+    <tr><td>MDN｜Object</td><td>2026-05-22</td></tr>
+    <tr><td>MDN｜Object.getOwnPropertyNames</td><td>—</td></tr>
+    <tr><td>MDN｜Reflect.ownKeys</td><td>—</td></tr>
+  </table>
+  <p class="src">b 節的實測結果由本頁 JavaScript 即時執行產生，另有可用 Node.js 執行的 <code>屬性列舉決策矩陣-demo.js</code> 在同資料夾。</p>
+</section>
+
+<script>
+/* ---------- 主軸圖：外部 SVG 內嵌 ---------- */
+document.getElementById('dia').innerHTML = '<img alt="屬性列舉方法涵蓋範圍矩陣" style="width:100%;display:block" src="學習JS_圖解_物件屬性列舉方法涵蓋範圍矩陣_2026-08-19.svg" onerror="this.parentNode.innerHTML=\'<p style=&quot;color:#6b7280;font-size:.85rem;padding:12px&quot;>主軸圖 SVG 在 obsidian-attachment 資料夾，Obsidian 內用 ![[學習JS_圖解_物件屬性列舉方法涵蓋範圍矩陣_2026-08-19.svg]] 嵌入。</p>\'">';
+
+/* ---------- b 節：即時實測 ---------- */
+(function(){
+  var sym = Symbol('symKey');
+  var hiddenSym = Symbol('hiddenSym');
+  var parent = { inherited: 'from parent' };
+  var obj = Object.create(parent);
+  obj.visible = 'V';
+  obj[sym] = 'S';
+  Object.defineProperty(obj, 'hidden', { value:'H', enumerable:false, writable:true, configurable:true });
+  Object.defineProperty(obj, hiddenSym, { value:'HS', enumerable:false });
+  obj[2] = 'two'; obj[1] = 'one';
+
+  var forIn = []; for (var k in obj) forIn.push(k);
+  var rows = [
+    ['Object.keys(obj)',                  JSON.stringify(Object.keys(obj)),                          '只有第 1 格'],
+    ['Object.values(obj)',                JSON.stringify(Object.values(obj)),                        '只有第 1 格'],
+    ['Object.entries(obj)',               JSON.stringify(Object.entries(obj)),                       '只有第 1 格'],
+    ['for...in',                          JSON.stringify(forIn),                                     '第 1 格＋繼承'],
+    ['Object.getOwnPropertyNames(obj)',   JSON.stringify(Object.getOwnPropertyNames(obj)),           '第 1＋3 格'],
+    ['Object.getOwnPropertySymbols(obj)', '[' + Object.getOwnPropertySymbols(obj).map(String) + ']', '第 2＋4 格'],
+    ['Reflect.ownKeys(obj)',              '[' + Reflect.ownKeys(obj).map(String) + ']',              '四格全包'],
+    ['JSON.stringify(obj)',               JSON.stringify(obj),                                       '只有第 1 格']
+  ];
+  var tb = document.querySelector('#res tbody');
+  rows.forEach(function(r){
+    var tr = document.createElement('tr');
+    var cls = r[2] === '四格全包' ? 'y' : (r[2] === '只有第 1 格' ? 'n2' : '');
+    tr.innerHTML = '<td class="mono">' + r[0] + '</td><td class="mono">' + r[1] +
+                   '</td><td class="' + cls + '">' + r[2] + '</td>';
+    tb.appendChild(tr);
+  });
+})();
+
+/* ---------- 填空 ---------- */
+function norm(s){ return String(s).trim().toLowerCase().replace(/\s+/g,''); }
+function grade(){
+  var inputs = document.querySelectorAll('.blank'), ok = 0;
+  inputs.forEach(function(el){
+    var acc = el.dataset.a.split('|').map(norm);
+    if (acc.indexOf(norm(el.value)) > -1){ el.classList.add('ok'); el.classList.remove('no'); ok++; }
+    else { el.classList.add('no'); el.classList.remove('ok'); }
+  });
+  document.getElementById('score').textContent =
+    '答對 ' + ok + ' ／ ' + inputs.length + ' 題。' +
+    (ok === inputs.length ? ' 全對，可以去寫是非題了。' : ' 紅色的再想一次。');
+}
+function reveal(){
+  document.querySelectorAll('.blank').forEach(function(el){
+    el.value = el.dataset.a.split('|')[0]; el.classList.add('ok'); el.classList.remove('no');
+  });
+  document.getElementById('score').textContent = '已顯示標準答案，建議清空後再自己寫一次。';
+}
+function resetFill(){
+  document.querySelectorAll('.blank').forEach(function(el){ el.value=''; el.classList.remove('ok','no'); });
+  document.getElementById('score').textContent = '';
+}
+
+/* ---------- 是非題 ---------- */
+var TF = [
+  { q:'<code>Object.keys</code> 拿得到物件身上所有的自有屬性。', a:false,
+    why:'錯。它只拿得到「可列舉的字串鍵」，也就是主軸圖第 1 格。不可列舉的、Symbol 的都拿不到。實測那個測試物件 keys 只有 3 個，Reflect.ownKeys 有 6 個。' },
+  { q:'<code>Object.getOwnPropertyNames</code> 會把 Symbol 鍵也列出來。', a:false,
+    why:'錯。名字裡的 Names 就是指字串鍵。Symbol 要另外用 Object.getOwnPropertySymbols 拿，或直接用 Reflect.ownKeys 一次拿完。' },
+  { q:'<code>Object.keys(Object.prototype)</code> 回傳空陣列。', a:true,
+    why:'對。Object.prototype 的 12 個成員 enumerable 全部是 false，所以 keys 看不到，但 getOwnPropertyNames 看得到全部 12 個。這正是「內建方法不會污染 for...in」的機制。' },
+  { q:'<code>Object.getOwnPropertyDescriptor</code> 連繼承來的屬性也拿得到描述器。', a:false,
+    why:'錯。方法名裡的 Own 就是關鍵，只看自有屬性。傳一個繼承來的 key 進去會回 undefined。要往上找得自己走原型鏈。' },
+  { q:'一個屬性可以同時有 <code>value</code> 和 <code>get</code>。', a:false,
+    why:'錯。資料描述器（value / writable）與存取器描述器（get / set）互斥，同時寫會丟 TypeError。這是規格明文規定的。' },
+  { q:'<code>for...in</code> 會掃到原型鏈上繼承來的可列舉屬性。', a:true,
+    why:'對，這是 for...in 跟其他所有方法最大的差別，也是它最容易出事的地方。實務上要配 Object.hasOwn 過濾，或改用 Object.keys。' },
+  { q:'<code>Reflect.ownKeys(obj)</code> 等價於 <code>getOwnPropertyNames</code> 加 <code>getOwnPropertySymbols</code>。', a:true,
+    why:'對。它把所有自有的字串鍵與 Symbol 鍵合起來回傳，不管 enumerable 是什麼，是四格全包的唯一方法。但它一樣不含繼承來的。' },
+  { q:'<code>Object.assign</code> 複製含 getter 的物件時，getter 會被完整保留。', a:false,
+    why:'錯。assign 會先執行 getter，把結果當死值抄過去，複製品的那個屬性就不再是 getter 了。要保留得用 Object.create 搭配 Object.getOwnPropertyDescriptors。' },
+  { q:'物件的 key 一律照寫入順序排列。', a:false,
+    why:'錯。規則是三段：整數字串鍵照數字由小到大 → 其他字串鍵照寫入順序 → Symbol 最後。所以 { b:1, 2:1, a:1, 1:1, 10:1 } 會排成 1, 2, 10, b, a。要保證插入順序請用 Map。' },
+  { q:'<code>JSON.stringify</code> 的涵蓋範圍跟 <code>Object.keys</code> 一樣。', a:true,
+    why:'對，兩者都只處理主軸圖第 1 格。不可列舉的、Symbol 鍵的、繼承來的，JSON.stringify 全部丟掉。這也是為什麼用 JSON 深拷貝會掉東西。' }
+];
+var box = document.getElementById('tfbox');
+TF.forEach(function(item, i){
+  var d = document.createElement('div');
+  d.className = 'tf';
+  d.innerHTML = '<p>d-' + (i+1) + '. ' + item.q + '</p>' +
+    '<button data-v="true">O 正確</button><button data-v="false">X 錯誤</button><div class="fb"></div>';
+  d.querySelectorAll('button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var picked = btn.dataset.v === 'true', fb = d.querySelector('.fb'), right = picked === item.a;
+      fb.className = 'fb show ' + (right ? 'right' : 'wrong');
+      fb.innerHTML = (right ? '答對了。' : '再想一下。') +
+        '正確答案是 <strong>' + (item.a ? 'O 正確' : 'X 錯誤') + '</strong>。<br>' + item.why;
+    });
+  });
+  box.appendChild(d);
+});
+</script>
+</div>
+</body>
+</html>

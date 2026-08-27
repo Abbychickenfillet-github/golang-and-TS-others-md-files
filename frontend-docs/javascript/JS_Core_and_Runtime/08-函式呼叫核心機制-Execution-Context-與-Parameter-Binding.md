@@ -61,8 +61,9 @@ greet.call(person, 'Hello');
 ## (c) 參數綁定是不是「宣告」？——是，而且是每次呼叫都重新做一次的真宣告
 
 函式**被呼叫**的當下（不是定義的當下），引擎執行規格內部的 `FunctionDeclarationInstantiation`：建立一個新的 **Function Environment Record**，把每個參數名稱在裡面建立**綁定（binding）**，並用這次呼叫傳入的引數值去初始化它，這一步做完函式本體才開始執行（這一段跟 [[13-閉包-Closure-私有變數與傳址陷阱]] 最早討論 `createCounter(buttonId)` 時提到的 `FunctionDeclarationInstantiation` 是同一件事，這裡是延伸拆解）。
+函式環境記錄（Function Environment Record）是 JavaScript 引擎（如 [V8 引擎](https://vocus.cc/article/663c7890fd89780001cab78a)）在執行函式時，用來管理與儲存該函式作用域內所有變數、參數與 `this` 繫結的內部資料結構。它是ECMAScript規範中詞法環境（Lexical Environment）的一種具體實作。
 
-**容易搞混的地方**：引數的「值」可能是呼叫者在別的 lexical scope 早就宣告好的變數（例如 (a) 例子裡的 `a`、`b`）——但這只是說**值的來源**在別處，不代表參數本身不是真宣告。參數這個「綁定」永遠是在**被呼叫函式自己全新的 scope** 裡重新配置出來的一個儲存位置，把呼叫者那個值**複製**（原始值）或**複製參照**（物件）進去，效果上跟 `let greeting = 傳入值` 完全等價，只是引擎自動做、不用你寫關鍵字。這跟 `let x = someOuterVar` 是同一種情況：右手邊的值來自外面，但 `x` 在這裡仍是全新宣告。
+**容易搞混的地方**：引數的「值」可能是呼叫者在別的 lexical scope 早就宣告好的變數（例如 (a) 例子裡的 `a`、`b`）——但這只是說**值的來源**在別處，不代表參數本身不是真宣告。<mark style="background: #FFF3A3A6;">參數這個「綁定」永遠是在**被呼叫函式自己全新的 scope** 裡重新配置出來的一個儲存位置，</mark>把呼叫者那個值**複製**（原始值）或**複製參照**（物件）進去，效果上跟 `let greeting = 傳入值` 完全等價，<mark style="background: #FFF3A3A6;">只是引擎自動做、不用你寫關鍵字。</mark>這跟 `let x = someOuterVar` 是同一種情況：右手邊的值來自外面，但 `x` 在這裡仍是全新宣告。
 
 ## (d) 參數名稱符不符合 Identifier 定義？——符合，文法上是正牌 BindingIdentifier
 

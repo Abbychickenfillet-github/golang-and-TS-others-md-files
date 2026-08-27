@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JSON 的設計由來 — Notation 的意思、reviver 函式與 Whitespace 規範</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>JSON 的設計由來 — Notation 的意思、reviver 函式與 Whitespace 規範</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#json</span><span class="pill">#json-parse</span><span class="pill">#reviver</span><span class="pill">#排版引擎</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-27</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/e3ae7e8de2295cab" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/52460f79bd7ab146" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">JSON 之所以叫 JavaScript Object Notation，是因為它 parse 之後會變成 JS 物件。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">因果相反，是因為它的「寫法」長得跟 JS 物件實字一樣才這樣命名。</div></li><li><p class="qq">Notation 指的是一種純文字的記號法，而不是程式物件。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這正是 (b) 的重點。</div></li><li><p class="qq">在 JSON 的 `{}` 與 `:` 周圍加空格或換行，會改變解析後的資料結構。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">whitespace 會被解析器忽略，結構與內容完全不變。</div></li><li><p class="qq">reviver 函式若回傳 undefined，該屬性會從結果中被刪除。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這就是 reviver 的「過濾」能力。</div></li><li><p class="qq">reviver 是由最外層物件開始往內處理。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">順序是由內而外，最後一次才是 key 為空字串的頂層物件。</div></li><li><p class="qq">Blink 是 Google 主導的排版引擎，源自 WebKit 的分支。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Chrome、Edge、Brave、Opera 都用它。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">JSON 的發明人是 <input class="blank" data-a="Douglas Crockford" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">他想找比 XML 更輕量的純文字格式。</div></li><li><p class="qq">JSON 只有六種結構：Object、Array、String、Number、Boolean 與 <input class="blank" data-a="Null" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">語法極簡才能跨語言。</div></li><li><p class="qq">reviver 處理最外層物件時，傳入的 key 是 <input class="blank" data-a="空字串" placeholder="填答案" autocomplete="off">（一個特殊值）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">以 &quot;&quot; 代表頂層物件本身。</div></li><li><p class="qq">Firefox 使用的排版引擎叫 <input class="blank" data-a="Gecko" placeholder="填答案" autocomplete="off">，搭配的 JS 引擎是 SpiderMonkey。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">MDN 上的「Gecko 相關」就是指 Firefox 的特殊行為。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">為什麼 Crockford 選擇「照抄 JavaScript 物件實字語法」來設計 JSON？這個決定帶來哪些好處？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 資料要跨語言傳輸必須先變成純文字，各語言的記憶體物件結構彼此不相容；(2) 如果純文字規範剛好等於 JS 的物件實字語法，那在 JS 環境裡解析它幾乎零成本，不必自己寫剖析器；(3) 語法極簡（只有六種結構）讓其他語言也能用很少的程式碼實作 parser，於是它成為事實上的跨語言交換格式；(4) 代價是 JSON 沒有註解、沒有日期型別、不能有尾隨逗號，這些後來都靠 reviver 或 JSON5 之類的方言補救。</div></li><li><p class="qq">舉一個實際情境說明 reviver 的用途，並寫出對應的程式碼骨架。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：最經典的是把後端回傳的 ISO 日期字串自動轉成 Date 物件。骨架：`JSON.parse(text, (k, v) =&gt; typeof v === &#x27;string&#x27; &amp;&amp; /^\d{4}-\d{2}-\d{2}T/.test(v) ? new Date(v) : v)`。另一個情境是過濾敏感欄位：`JSON.parse(text, (k, v) =&gt; k === &#x27;password&#x27; ? undefined : v)`。重點是要記得「不處理的情況一定要 return v」，忘了寫整個結構會變成 undefined。</div></li></ol></section>
+
+<article class="card">
+<h1 id="json-notation-reviver-whitespace">JSON 的設計由來 — Notation 的意思、reviver 函式與 Whitespace 規範</h1>
+<p>本篇重點 a–n，共 14 個</p>
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">一、名字的由來（因果順序常被弄反）</h3>
+<p>a. <mark style="background: #FF5582;">常見誤解</mark>：以為叫 JSON（JavaScript Object Notation）是因為「轉換出來的東西是 JS 物件」。<mark style="background: #BBFABB;">正確順序剛好相反</mark>：是因為這套資料格式的「寫法」長得跟 JavaScript 的物件實字（Object Literal）一模一樣，所以才用這個名字。</p>
+<p>b. <mark style="background: #ADCCFF;">Notation</mark> 的意思是「記號法／表示法」，它指的是一種純文字的記錄格式，而不是指轉換之後產生的那個程式物件。</p>
+<p>c. JSON 的發明人 <mark style="background: #FFB8EB;">Douglas Crockford</mark> 想找一種比 XML 更輕量好讀的純文字格式來傳資料，他發現 JavaScript 寫物件的方式（<code>{ "key": "value" }</code>）非常簡潔，就直接拿 JS 的物件語法當成資料格式標準。</p>
+<p>d. <mark style="background: #FFF3A3;">JSON 被創造出來的本質，就是一種「專為解析（Parsing）與傳送而生的資料交換標準格式」</mark>。核心痛點是：JavaScript 的記憶體物件、Python 的 dict、Java 的 Object 結構都不一樣，沒辦法直接經由網路互傳，資料必須先變成純文字（String）才能傳輸。</p>
+<p>e. Crockford 的巧思在於：既然這套純文字規範剛好等於 JavaScript 的物件實字語法，那在 JS 裡解析它就完全不必寫複雜的剖析器（Parser），直接 parse 就搞定。</p>
+<p>f. 因為語法極度簡化（只有 Object、Array、String、Number、Boolean、Null 六種結構），幾乎所有語言（Python、Java、C#、Go）都能用很少的程式碼把它轉成自己語言內部的資料結構。</p>
+<h3 id="whitespace-json">二、Whitespace（空白字元）在 JSON 規範裡的地位</h3>
+<p>g. <mark style="background: #ADCCFF;">Whitespace</mark> 在語法圖（Syntax Diagram）與 JSON／JavaScript 規範中指的是「空白字元」，用來分隔資料元素、提升可讀性。JSON 中認可的 whitespace 有四種：空格（Space）、製表符（Horizontal Tab，<code>\t</code>）、換行符（Line Feed，<code>\n</code>）、回車符（Carriage Return，<code>\r</code>）。</p>
+<p>h. <mark style="background: #BBFABB;">不影響解析</mark>：解析器讀取 JSON 的 value 時會自動忽略這些空白字元。</p>
+<p>i. <mark style="background: #BBFABB;">位置彈性</mark>：可以自由在 <code>{}</code>、<code>[]</code>、<code>:</code> 或逗號周圍加上空格或換行（例如美化縮排），資料的結構與內容完全不會改變。這就是為什麼 <code>JSON.stringify(obj, null, 2)</code> 加了縮排之後，<code>JSON.parse</code> 回來的結果一模一樣。</p>
+<h3 id="jsonparse-reviver">三、JSON.parse 的第二個參數 reviver</h3>
+<p>j. <mark style="background: #FFF3A3;"><code>JSON.parse(text, reviver)</code> 的 reviver 同時具備「過濾」與「修改」雙重功能</mark>。解析器會從最內層的屬性開始，逐一把每個屬性的鍵（key）與值（value）丟進 reviver 處理。</p>
+<p>k. 三種回傳行為：<br />
+   - <mark style="background: #FF5582;">過濾（刪除）</mark>：回傳 <code>undefined</code>（或沒寫回傳值），該屬性就會從最終結果中被刪掉。<br />
+   - <mark style="background: #BBFABB;">修改（轉換）</mark>：回傳其他值，該屬性就被新值覆蓋（例如把數字乘以 2，或把 ISO 字串轉成 Date 物件）。<br />
+   - <mark style="background: #BBFABB;">保留</mark>：不想動它就必須原封不動 <code>return v</code>。</p>
+<p>l. <mark style="background: #FF5582;">最容易搞混的一點</mark>：reviver 的參數是 <code>(k, v)</code>，<code>k</code> 是「鍵名稱」、<code>v</code> 是「值」，不是「檢查 key 是不是等於 k」。</p>
+<pre><code class="language-javascript">JSON.parse('{&quot;p&quot;: 5}', function (k, v) {
+  if (typeof v === &quot;number&quot;) {
+    return v * 2;   // 值是數字就乘以 2
+  }
+  return v;         // 其他狀況原封不動回傳
+});
+</code></pre>
+<p>m. <mark style="background: #FFB8EB;">執行順序（由內而外）</mark>：<br />
+   - 第一步（處理內部屬性）：<code>k</code> 傳入 <code>"p"</code>，<code>v</code> 傳入 <code>5</code>，<code>typeof 5 === "number"</code> 成立，回傳 <code>5 * 2 = 10</code>，此時屬性 <code>p</code> 的值變成 10。<br />
+   - 第二步（處理最外層物件本身）：<code>k</code> 傳入 <code>""</code>（空字串代表頂層物件），<code>v</code> 傳入已被修改過的物件 <code>{ p: 10 }</code>，<code>typeof</code> 是 <code>"object"</code> 不是 <code>"number"</code>，走 <code>return v</code> 原封不動回傳。<br />
+   - 最終結果是 <code>{ p: 10 }</code>。</p>
+<h3 id="geckoblinkwebkit">四、順帶釐清：Gecko、Blink、WebKit 是什麼</h3>
+<p>n. <mark style="background: #ADCCFF;">排版引擎（Layout Engine／Rendering Engine）</mark>負責把 HTML、CSS、JavaScript 的程式碼「畫」成螢幕上看到的畫面並處理互動。三大引擎：<br />
+   - <mark style="background: #ADCCFF;">Gecko</mark>：Mozilla 基金會開發，用於 Firefox，搭配的 JS 引擎是 SpiderMonkey。<br />
+   - <mark style="background: #ADCCFF;">Blink</mark>：Google 主導（源自 WebKit 的分支），用於 Chrome、Edge、Brave、Opera 等 Chromium 系瀏覽器。<br />
+   - <mark style="background: #ADCCFF;">WebKit</mark>：Apple 主導，用於 Safari；iOS 上所有瀏覽器底層也被限制使用它。<br />
+   在 MDN 文件上看到「Gecko 相關」的註記，代表那是 Firefox 核心團隊針對該功能所做的特殊實作或行為差異（例如更詳細的錯誤提示行數），不是所有瀏覽器都一樣。</p>
+<h2 id="leetcodeneetcode">練習題（LeetCode／NeetCode 對應）</h2>
+<ul>
+<li>LeetCode 385 — Mini Parser：https://leetcode.com/problems/mini-parser/ 　手刻一個巢狀結構的剖析器，正好體會 (e) 說的「如果格式不是 JS 語法，就得自己寫 parser」有多麻煩。</li>
+<li>LeetCode 736 — Parse Lisp Expression：https://leetcode.com/problems/parse-lisp-expression/ 　遞迴解析巢狀語法的進階版，對應 (m) 由內而外的處理順序。</li>
+<li>LeetCode 2727 — Is Object Empty：https://leetcode.com/problems/is-object-empty/ 　JS 物件與陣列的判別，練 (f) 提到的六種結構。</li>
+</ul>
+<h2 id="_3">關聯筆記（附關聯原因）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：JSON">JSON</span>（vault 根目錄 JSON.md）— 那篇是 Abby 手寫的 JSON 總覽與 ECMA Edition 3 淵源，本篇補上 reviver 的實際執行順序與 whitespace 規範細節，屬於同一主題的深入層。</li>
+<li><span class="wikilink" title="Obsidian 連結：JSON.parse-參數的ToString強制轉換">JSON.parse-參數的ToString強制轉換</span> — 那篇講 <code>JSON.parse</code> 的「第一個參數」會先被 ToString 抽象操作轉字串，本篇講「第二個參數」reviver，兩篇剛好把這個 API 的兩個參數補齊。</li>
+<li><span class="wikilink" title="Obsidian 連結：ECMA-262 標準編號與 ES 俗稱 — 為何規格書不寫「我是 ES 幾」">ECMA-262 標準編號與 ES 俗稱 — 為何規格書不寫「我是 ES 幾」</span> — Object Literal 與 Array Literal 在 ECMA-262 Edition 3 就存在，JSON 正是由這部分功能長出來的，本篇 (c) 的因果需要那篇的規格背景。</li>
+<li><span class="wikilink" title="Obsidian 連結：00-V8引擎完整管線-Parse到Deoptimization">00-V8引擎完整管線-Parse到Deoptimization</span> — 本篇 (n) 提到的 Blink 搭配的 JS 引擎就是 V8，那篇說明 V8 拿到原始碼之後的完整管線。</li>
+</ul>
+<h2 id="_4">各對話來源（原文）</h2>
+<h3 id="jsonparse-2026-08-27-httpsgeminigooglecomappe3ae7e8de2295cab">JSON.parse 解析字串迷思解析（2026-08-27）— https://gemini.google.com/app/e3ae7e8de2295cab</h3>
+<p>使用者：Gecko 是什麼</p>
+<p>Gemini：Gecko 是由 Mozilla 基金會開發的開源網頁排版引擎（Layout Engine／Rendering Engine）。它的作用是把網頁的 HTML、CSS、JavaScript 代碼「畫」成你在螢幕上看到的視覺畫面，並處理使用者的點擊與互動。最知名的應用就是 Mozilla Firefox 瀏覽器。主要任務：解析 HTML 與 CSS 來決定網頁元素的佈局與樣式；配合 JavaScript 引擎（SpiderMonkey）執行網頁上的程式邏輯。你在 MDN 文件看到的「Gecko 相關」，代表那是 Firefox 瀏覽器核心團隊針對該功能所做的特殊優化或額外實作細節。</p>
+<p>使用者：跟 chrome 的 blink 是一樣的嗎</p>
+<p>Gemini：是的，完全是一樣的概念，它們都是網頁排版引擎，只是隸屬於不同的瀏覽器陣營與公司。Blink：Google 主導開發（前身源自 WebKit），主要用於 Chrome、Edge、Brave、Opera 等 Chromium 系瀏覽器。Gecko：Mozilla 基金會主導開發，主要用於 Firefox。WebKit：Apple 主導開發，主要用於 Safari（iOS 上所有瀏覽器底層也都被限制使用它）。</p>
+<p>使用者：所以他會被叫做 JS Object Notation 是因為他轉換出來的東西是一個 JS Object Notation 嗎？</p>
+<p>Gemini：不完全是，其實順序剛好相反：是因為這套資料格式的寫法長得跟 JavaScript 的物件實字（Object Literal）一模一樣，所以才被命名為 JSON。Notation 的意思是「記號法」或「表示法」，這個名稱代表的是一種純文字的記錄格式，而不是指轉換出來的程式物件。設計初衷：Douglas Crockford 希望找到一種比 XML 更輕量、更好讀的純文字格式來傳遞資料，他發現 JavaScript 寫物件的方式非常簡潔，於是直接拿 JS 的物件語法作為資料格式的標準。實際運作：JSON 本身只是一個符合語法規則的純文字（String）；<code>JSON.parse()</code> 讀取這個純文字，把它轉換成真正的 JS 物件、陣列或基本型態。</p>
+<p>使用者：所以 JSON 它被創造的本質上就是在 parse？</p>
+<p>Gemini：本質上是的。JSON 創造的初衷，就是為了讓「不同程式語言之間交換資料」變得極度簡單且容易被解析（Parse）。核心痛點：JavaScript 的記憶體物件、Python 的 Dict、Java 的 Object 結構都不一樣，沒辦法直接經由網路傳給對方，資料必須先變成純文字（String）才能傳輸。Crockford 的神來一筆：訂一套純文字規範，而且這套規範剛好跟 JavaScript 的物件實字語法一模一樣，那麼在 JS 裡解析它就完全不需要寫複雜的剖析器。跨語言的共通語言：因為語法極度簡化（只有 Object、Array、String、Number、Boolean、Null 六種結構），幾乎所有程式語言都能用幾行程式碼輕鬆把它 Parse 成自己語言內部的資料結構。</p>
+<p>使用者：這個 reviver 函數有過濾的意思嗎？</p>
+<p>Gemini：是的，reviver 函式確實具備「過濾」與「修改」雙重功能。在使用 <code>JSON.parse(text, reviver)</code> 時，解析器會從最內層的屬性開始，逐一將每個屬性的鍵（Key）與值（Value）傳入 reviver 函式處理。過濾（刪除）：如果 reviver 回傳 undefined（或是沒有回傳值），該屬性就會直接被從最終結果中刪除。修改（轉換）：如果回傳其他值，該屬性就會被新回傳的值覆蓋。保留：如果不需要動它，就必須原封不動地回傳原值 v。</p>
+<p>使用者：第一段是傳入的值為 k？他就檢查 value 5 如果是物件的話他 double</p>
+<p>Gemini：不完全是，他的邏輯是這樣的。reviver 函式每次都會同時收到兩個參數：k（Key，屬性名稱）與 v（Value，屬性對應的值）。第一步（處理內部屬性）：k 傳入 "p"，v 傳入 5，程式檢查 <code>typeof 5 === "number"</code> 成立，所以回傳 <code>5 * 2 = 10</code>，此時屬性 "p" 的值變成了 10。第二步（處理最外層物件本身）：k 傳入 ""（空字串，代表頂層物件本身），v 傳入修改後的物件 <code>{ p: 10 }</code>，程式檢查 <code>typeof { p: 10 }</code> 是 "object"（非 "number"），所以走 <code>return v</code>，原封不動回傳整個物件。最終得到的結果就是 <code>{ p: 10 }</code>。所以不是檢查 key 是否為 k，而是把「鍵名稱」給 k、「值」給 v，然後檢查值（v）是不是數字。</p>
+<h3 id="json-whitespace-2026-08-27-httpsgeminigooglecomapp52460f79bd7ab146">JSON 規範中的 Whitespace 解析（2026-08-27）— https://gemini.google.com/app/52460f79bd7ab146</h3>
+<p>使用者：這邊的 whitespace 是指什麼</p>
+<p>Gemini：在語法圖（Syntax Diagram）與 JSON／JavaScript 規範中，whitespace 指的是空白字元，用來分隔程式碼或資料中的元素，提升可讀性。在 JSON 中，常見的 whitespace 包含：空格（Space）、製表符／Tab（Horizontal Tab，<code>\t</code>）、換行符（Line Feed，<code>\n</code>）、回車符（Carriage Return，<code>\r</code>）。重點特性：（1）不影響解析：解析器在讀取 JSON 資料的 Value 時，會自動忽略這些空白字元。（2）位置彈性：你可以自由在 <code>{}</code>、<code>[]</code>、<code>:</code> 或逗號周圍加上空格或換行（例如美化縮排），資料的結構與內容完全不會改變。</p>
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話（JSON.parse 迷思）</td>
+<td>https://gemini.google.com/app/e3ae7e8de2295cab</td>
+<td>2026-08-27 擷取</td>
+</tr>
+<tr>
+<td>本篇 Gemini 對話（Whitespace）</td>
+<td>https://gemini.google.com/app/52460f79bd7ab146</td>
+<td>2026-08-27 擷取</td>
+</tr>
+<tr>
+<td>MDN — JSON.parse（含 reviver 完整說明）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>json.org — Douglas Crockford 的 JSON 語法圖（含 whitespace 定義）</td>
+<td>https://www.json.org/json-en.html</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>RFC 8259 — The JavaScript Object Notation (JSON) Data Interchange Format</td>
+<td>https://datatracker.ietf.org/doc/html/rfc8259</td>
+<td>2017-12 發布，2026-08-27 查證</td>
+</tr>
+<tr>
+<td>MDN — Gecko 名詞解釋</td>
+<td>https://developer.mozilla.org/en-US/docs/Glossary/Gecko</td>
+<td>2026-08-27 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-27</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>
