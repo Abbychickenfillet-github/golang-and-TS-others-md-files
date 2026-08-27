@@ -1,147 +1,1832 @@
 {
-  "frontend-docs/javascript/JS_Core_and_Runtime/高階函式與函數式範式-取代OOP三大設計模式.md": {
-    "tf": [
-      {"q": "高階函式本身就是一種獨立的程式設計範式（Paradigm）。", "a": false, "why": "它是函數式程式設計（FP）範式底下最基礎的工具，不是獨立範式。"},
-      {"q": "在 FP 中，函式被視為一等公民（First-Class Citizen），所以可以當參數傳遞、也可以當回傳值。", "a": true, "why": "這正是高階函式能成立的前提。"},
-      {"q": "只要用了 map 或 filter，就代表寫的是函數式程式設計。", "a": false, "why": "FP 還要求純函式與避免副作用，高階函式只是入場券。"},
-      {"q": "Factory 工廠模式的高階函式寫法，靠的是閉包（Closure）記住外層變數。", "a": true, "why": "createRole 執行完了，回傳的小函式仍記得 roleType。"}
-    ],
-    "cloze": [
-      {"q": "把 for 迴圈換成 map／filter，程式碼風格會從命令式轉向 ____ 式（關注「要做什麼」而非「怎麼做」）。", "a": "宣告", "why": "Declarative，宣告式。"},
-      {"q": "接收一個函式、回傳一個包了新行為的新函式，這個模式在 React 叫做 ____（縮寫）。", "a": "HOC", "why": "Higher-Order Component，跟 Decorator 裝飾者模式同一套骨架。"},
-      {"q": "Strategy 策略模式的高階函式寫法，是直接把策略函式當成 ____ 傳進去。", "a": "參數", "why": "不必定義介面與多個實作類別。"}
-    ],
-    "essay": [
-      {"q": "用你自己的話說明：為什麼在支援高階函式的語言裡，Strategy、Decorator、Factory 這三個 OOP 設計模式可以被大幅簡化？並說明什麼情況下你仍會選擇用類別而不是閉包。", "a": "參考方向：(1) 這三個模式的本質都是「把一段可替換的行為包起來，讓呼叫端不必知道細節」。在 OOP 裡要達成這件事必須靠介面＋實作類別來製造多型；但當函式本身就是一等公民時，一個函式就已經是「可傳遞、可替換的行為單位」，多型自然成立，不需要類別骨架。(2) Strategy 用「函式當參數」、Decorator 用「函式當回傳值」、Factory 用「閉包客製產出新函式」。(3) 仍該用類別的情況：需要維護多個內部狀態且有明確生命週期（初始化、銷毀）、需要繼承樹或型別系統來約束契約、團隊慣例與既有程式碼是 OOP 風格、或狀態多到用一串閉包會難以除錯。兩者是互補而非取代。"},
-      {"q": "面試官問「高階函式對效能有沒有壞處」，你會怎麼回答？", "a": "參考方向：有代價。map／filter 每一步都會產生新陣列，資料量大時記憶體配置與 GC 壓力會高於原地修改的 for 迴圈；鏈式呼叫多段會多次遍歷。但這通常不是瓶頸，可讀性與可維護性的收益更大。實務判斷：一般業務邏輯優先選高階函式；只有在效能敏感的熱路徑（大量資料、動畫每幀執行）經過量測確認是瓶頸後，才改回 for 或用 reduce 合併多段遍歷。重點是「先量測再優化」，不要憑感覺提早優化。"}
-    ]
-  },
-
-  "計算機基礎/Round-Robin輪詢調度與負載平衡LB-L4對L7.md": {
-    "tf": [
-      {"q": "Round Robin 的時間片（Time Quantum）設得越短越好，因為切換越快越公平。", "a": false, "why": "太短會讓 Context Switch 的成本吃掉效能；太長則退化成 FCFS。"},
-      {"q": "Layer 4 負載平衡器可以根據網址路徑 /api 把流量導向不同的後端。", "a": false, "why": "L4 只看 IP 與 Port，認不得路由；那是 L7 的能力。"},
-      {"q": "讀寫分離架構中，所有 SELECT 都輪流分給 Slave，所有寫入都導向 Master。", "a": true, "why": "讀取分流常用 Round Robin，寫入必須集中在主庫。"},
-      {"q": "主庫同步到從庫是即時的，所以剛寫入馬上讀一定讀得到。", "a": false, "why": "有毫秒級 Replication Lag，關鍵讀取要改由主庫負責。"},
-      {"q": "Sticky Session 雖然方便，但會讓 LB 分流不均，也讓機器難以隨意下線。", "a": true, "why": "現代做法更傾向把 Session 外部化到 Redis，讓後端保持無狀態。"}
-    ],
-    "cloze": [
-      {"q": "當伺服器效能不一致時，Round Robin 會演進成 ____ Round Robin（加權輪詢）。", "a": "Weighted", "why": "給效能好的機器更高權重。"},
-      {"q": "LB 持續檢查後端伺服器是否存活的功能叫做 ____ Check。", "a": "Health", "why": "掛掉的機器會自動被停止送流量。"},
-      {"q": "讓同一個使用者總是連到同一台後端的演算法叫 IP ____。", "a": "Hash", "why": "根據來源 IP 算出固定值，常用於維持 Session。"},
-      {"q": "適合「處理時間長短不一」任務的演算法是 Least ____。", "a": "Connections", "why": "優先送給目前連線數最少的機器。"}
-    ],
-    "essay": [
-      {"q": "請比較 Layer 4 與 Layer 7 負載平衡器，並各舉一個你會選它的實際場景。", "a": "參考方向：L4 只看 IP／Port 做轉發，不解密也不解析內容，因此延遲極低、吞吐極高，適合純 TCP／UDP 流量、遊戲伺服器、需要極致效能且不需要依內容分流的場景（AWS NLB）。L7 會做 SSL 卸載後讀取 HTTP 的 URL Path、Hostname、Header、Cookie，能做細緻路由（/api 導後端、/static 導 S3）、依 Host 分多專案、依 Cookie 做 Sticky Session，適合微服務與現代 Web 應用（Nginx、AWS ALB）。代價是要解密、要解析，延遲與 CPU 成本較高。實務上兩者常疊加：NLB 在外層扛量，ALB 或 Nginx 在內層做路由。"},
-      {"q": "你的系統採用讀寫分離後，使用者回報「剛送出留言，重新整理卻看不到」。請說明成因與至少兩種解法。", "a": "參考方向：成因是 Replication Lag——寫入進了 Master，但同步到 Slave 有毫秒到數秒延遲，此時讀取被 LB 分到還沒同步的 Slave。解法：(1) Read-your-own-writes：寫入後的一小段時間內（例如該使用者的後續 N 秒請求），把讀取強制導向 Master。(2) 前端樂觀更新：送出成功後直接把該筆資料插進畫面，不等後端回讀。(3) 用 session／cookie 記錄該使用者最後寫入的複寫位置（GTID／LSN），讀取時挑選已追上該位置的 Slave。(4) 針對強一致性需求的查詢（金流、庫存）一律走 Master，不做讀寫分離。要在回答中點出「這是刻意用一致性換效能的取捨」，不是 bug。"}
-    ]
-  },
-
-  "backend/冪等性Idempotence與冪運算的區別.md": {
-    "tf": [
-      {"q": "HTTP 的 POST 是冪等的。", "a": false, "why": "POST 每次都新建一筆資料，重送會產生重複；PUT 與 DELETE 才是冪等。"},
-      {"q": "DELETE 是冪等的，因為刪第二次的結果仍然是「這筆資料不存在」。", "a": true, "why": "結果狀態相同，即使回傳的 status code 可能不同。"},
-      {"q": "冪等的通用代數式是 a × a = a。", "a": false, "why": "那只有 a=0 或 a=1 成立；通則是 f(f(x)) = f(x)。"},
-      {"q": "PATCH 一定是冪等的。", "a": false, "why": "看內容：{\"count\": 5} 冪等，{\"count\": \"+1\"} 不冪等。"}
-    ],
-    "cloze": [
-      {"q": "為了讓付款 API 在重送時不會扣兩次款，前端會產生一個唯一的 ____ Key 隨請求送出，後端用它去重。", "a": "Idempotency", "why": "Stripe 的 Idempotency-Key header 就是這個做法。"},
-      {"q": "冪等的定義是：一個操作重複執行多次，結果與執行 ____ 次相同。", "a": "一", "why": "f(f(x)) = f(x)。"},
-      {"q": "冪運算的逆運算是 ____（用於計算底數要幾次方才能變成真數）。", "a": "對數", "why": "若 aˣ = N，則 x = log_a N。"}
-    ],
-    "essay": [
-      {"q": "設計一支「建立訂單」的 API，要如何確保使用者連點兩次送出鈕不會產生兩筆訂單？請說明完整機制。", "a": "參考方向：(1) POST 本質不冪等，所以要靠外加的冪等鍵。前端在進入結帳頁時就產生一個 UUID 當 Idempotency-Key，放在 header 隨請求送出；重試時沿用同一個 key（不是每次重新產生）。(2) 後端收到請求先用該 key 查一張 idempotency 表（或 Redis），若已存在且處理完成，直接回傳上次的結果與 status；若存在但處理中，回 409 或讓客戶端稍後重試。(3) 寫入時把 key 設成資料庫的 UNIQUE 約束，靠資料庫層級保證併發下也只成功一筆（唯一索引衝突 = 重複請求）。(4) key 設定合理 TTL（例如 24 小時）避免無限膨脹。(5) 前端仍要做按鈕 disable 與 loading 狀態，但那只是體驗優化，不能當成正確性保證——真正的防線在後端。"}
-    ]
-  },
-
-  "backend/支付系統架構-數位錢包載體與支付處理器的分工.md": {
-    "tf": [
-      {"q": "Apple Pay 會直接完成資金轉移，把錢從消費者帳戶搬到商家帳戶。", "a": false, "why": "它只是「載體」，把卡片資訊換成 Token 傳給商家；真正清算的是 Stripe 這類處理器。"},
-      {"q": "數位錢包與支付處理器是競爭關係，選一個用就好。", "a": false, "why": "兩者是協作關係，一個完整流程往往兩者同時存在。"},
-      {"q": "訂單狀態應該以前端跳轉回「付款成功頁」為準。", "a": false, "why": "使用者可能中途關掉分頁；真相來源是支付處理器打回來的 Webhook。"},
-      {"q": "為了縮小 PCI DSS 合規範圍，卡號不應該經過自己的伺服器。", "a": true, "why": "用 Stripe Elements／Checkout 讓卡號直送 Stripe，自己只拿 Token。"}
-    ],
-    "cloze": [
-      {"q": "數位錢包把實體信用卡資訊轉換成一組虛擬的 ____，感應時只傳這組資料給商家。", "a": "Token", "why": "Apple 稱為 Device Account Number。"},
-      {"q": "支付處理器主動打回商家後端、通知交易狀態的機制叫 ____。", "a": "Webhook", "why": "它可能重送，所以處理端必須冪等。"},
-      {"q": "支付產業針對卡片資料安全的合規標準縮寫是 PCI ____。", "a": "DSS", "why": "Payment Card Industry Data Security Standard。"}
-    ],
-    "essay": [
-      {"q": "請畫出（用文字描述）一次線上 Apple Pay 結帳的完整資料流，並指出每一段最容易出錯的地方。", "a": "參考方向：用戶層——使用者點 Apple Pay 按鈕，裝置用 FaceID／TouchID 驗證（易錯：裝置或瀏覽器不支援、未在 Apple 後台驗證網域）。傳輸層——Apple Pay 產生加密的 payment token 交給前端 JS（易錯：token 有時效，前端拖太久才送後端會失效）。處理層——前端把 token 送到自家後端，後端呼叫 Stripe API 建立 PaymentIntent（易錯：把卡號或 token 記進 log；沒帶 Idempotency-Key 導致重複扣款）。清算層——Stripe 向收單銀行與發卡銀行請款，可能觸發 3D Secure 需要使用者再驗證一次（易錯：後端把「API 呼叫成功」當成「付款成功」，忽略 requires_action 狀態）。回寫層——Stripe 透過 Webhook 通知最終結果，後端才把訂單標成已付款（易錯：沒驗簽、沒做冪等、Webhook 逾時導致 Stripe 重送而重複出貨）。"}
-    ]
-  },
-
-  "backend/IoT大範圍斷線-告警機制與重試策略-系統設計面試.md": {
-    "tf": [
-      {"q": "大範圍斷線時，應該對每一台離線設備都發送一則告警，才不會遺漏。", "a": false, "why": "那會造成告警疲勞（Alert Fatigue），真出事反而沒人看。要做窗口聚合與分級告警。"},
-      {"q": "只要做了指數退避（Exponential Backoff），就不會發生驚群效應。", "a": false, "why": "設備同時斷線，退避時間也會同時到期。必須再加隨機抖動（Jitter）。"},
-      {"q": "斷路器（Circuit Breaker）的作用是在後端過載時主動回 503／429，保護核心資源。", "a": true, "why": "犧牲部分請求換取整體不崩潰。"},
-      {"q": "把設備最後在線狀態存在 Redis，是為了節省資料庫的儲存空間。", "a": false, "why": "目的是避免頻繁查詢主資料庫造成的讀取壓力，是效能考量不是空間考量。"}
-    ],
-    "cloze": [
-      {"q": "數萬台設備在網路恢復瞬間同時重連，形成類 DDoS 的現象，稱為 ____ Herd（驚群效應）。", "a": "Thundering", "why": "解法是指數退避加抖動。"},
-      {"q": "在接入層與業務處理層之間加入 Kafka 來緩衝瞬間流量，這個手法叫流量 ____（Load Leveling）。", "a": "削峰", "why": "不讓突發流量直接打到最貴的資源。"},
-      {"q": "AWS 建議的抖動寫法是 Full Jitter，公式為 sleep = random(0, min(cap, base × 2 的 n 次方))，其中 n 代表 ____ 次數。", "a": "重試", "why": "attempt 次數，每失敗一次就往上加。"},
-      {"q": "監控 Kafka／RabbitMQ 積壓與寫入失敗率的告警，簡稱 ____ Monitoring（死信佇列偵測）。", "a": "DLQ", "why": "Dead Letter Queue。"}
-    ],
-    "essay": [
-      {"q": "面試官問：某地區車輛大範圍斷線，你會如何設計告警與重試？請用 3 分鐘的長度組織你的答案。", "a": "參考方向（分四段講）：一、先釐清問題邊界——問清楚設備規模、心跳頻率、可容忍的偵測延遲，並指出要先能區分「設備真的掉線」與「我們自己的 ingest 服務掛了」，做法是同時監控上行訊息總量：單一地區飆高多半是該地區網路，全網一起飆高先懷疑自家系統。二、告警設計——不對單台設備告警，改用窗口聚合（Flink 或 Redis TimeSeries 依地區開窗），規則是「T 分鐘內離線比例超過 X% 才觸發 Critical」；並做 L1 記錄日誌／L2 通知值班／L3 自動化應變的分級；另外監控 DLQ 積壓與寫入失敗率。三、重試設計——設備端用指數退避加 Full Jitter，避免恢復瞬間的驚群效應；後端加斷路器，過載時主動回 429／503 保護資料庫與認證服務。四、架構配套——Kafka 削峰、Redis 存最後在線狀態、優先級佇列讓行駛中的車輛先進來；並強調所有補傳的狀態更新必須冪等且帶時間戳，避免舊狀態覆蓋新狀態。最後主動說出取捨：這套設計犧牲了偵測即時性（窗口聚合會有延遲）來換取告警品質。"}
-    ]
-  },
-
-  "frontend-docs/css/CJK漢字復用與Noto字體選擇-i18n多語系與Docker打包.md": {
-    "tf": [
-      {"q": "「草」這個字在台灣與中國大陸的 Unicode 碼點是不同的。", "a": false, "why": "都是 U+8349。這就是 Han Unification：同碼不同形，字形差異由字體與語系決定。"},
-      {"q": "OTF 是比較老舊的字體格式，應該避免使用。", "a": false, "why": "OTF 是現代且標準的格式。要避開的是「All」開頭的巨無霸整合檔。"},
-      {"q": "Docker 容器會自動使用宿主機（你的電腦或 AWS 主機）已安裝的字體。", "a": false, "why": "容器是隔離的乾淨環境，字體必須放進專案、由 Dockerfile 的 COPY 帶進去。"},
-      {"q": "專案有超過兩種語言時，下載 Region Specific Subset 就夠用了。", "a": false, "why": "它只保留單一地區字形，其他語言會顯示錯誤，此時要用 All Static Language Specific OTFs。"},
-      {"q": "設定 <html lang=\"zh-TW\"> 可以影響瀏覽器選用哪一國的漢字字形。", "a": true, "why": "沒設或設錯，瀏覽器會依系統預設（英文系統常配 SC 優先），繁體字筆畫會怪怪的。"}
-    ],
-    "cloze": [
-      {"q": "Unicode 中把中日韓台港同源同義的漢字給予同一個碼點的規則，叫做漢字 ____（Han Unification）。", "a": "復用", "why": "同碼不同形。"},
-      {"q": "CJK Unified Ideographs 的碼點範圍是 U+4E00 到 U+____。", "a": "9FFF", "why": "收錄兩萬多個常用漢字。"},
-      {"q": "Google Fonts 能依語系只送需要的字元切片，靠的是 CSS 的 unicode-____ 屬性。", "a": "range", "why": "@font-face 的 unicode-range。"},
-      {"q": "把大字體切成小檔案的技術叫字體 ____（Subsetting），常用工具有 fontmin 與 pyftsubset。", "a": "抽稀", "why": "私有化部署不能連外網時的解法。"},
-      {"q": "Noto Sans CJK TC 是思源黑體，Noto ____ CJK TC 則是思源宋體（有勾、書卷氣）。", "a": "Serif", "why": "IDE 寫程式通常要 Sans 或 Mono。"}
-    ],
-    "essay": [
-      {"q": "你的 Next.js 專案要支援繁中、日文、英文三語，並用 Docker 部署到不能連外網的私有環境。請說明完整的字體處理方案。", "a": "參考方向：(1) 下載 All Static Language Specific OTFs，只挑 NotoSansCJKtc-Regular 與 NotoSansCJKjp-Regular（英文可另用 Inter 或 Inconsolata），不要拿 All 的巨無霸整合檔。(2) 因為不能連外網，next/font/google 不可用，必須自帶字體。先用 pyftsubset 或 fontmin 依實際翻譯 JSON 的字元集做抽稀，把每個語系切成獨立小檔，再轉成 woff2。(3) 用 @font-face 搭配 unicode-range 分別宣告各語系字體，讓瀏覽器只下載當前頁面用得到的切片。(4) 字體放在 app/fonts/ 或 public/fonts/ 並跟著 git commit，Dockerfile 的 COPY . . 會自動帶進映像檔——這就是「字體跟著 Docker 走」。不要用 npm 裝字體，會讓 node_modules 肥大、拖慢 build。(5) layout 用 <html lang={params.lang}> 動態帶語系，確保漢字字形依 TC／JP 各自正確渲染。(6) 驗證：在容器裡實際跑一次 SSR 並截圖比對，確認沒有 fallback 到系統預設字體。"}
-    ]
-  },
-
-  "AWS/EC2-vs-ECS-vs-Fargate-vs-VPS-容器部署選型.md": {
-    "tf": [
-      {"q": "Fargate 是一種 AI 服務，會自己學習如何分配資源。", "a": false, "why": "它只是無伺服器的容器執行環境，自動化管理硬體資源，沒有學習或推理能力。"},
-      {"q": "Fargate 是 AWS 專屬技術，GCP 沒有叫這個名字的服務。", "a": true, "why": "GCP 的對應品是 Cloud Run，Azure 是 Container Instances。"},
-      {"q": "用 Fargate 就完全不用碰網路設定。", "a": false, "why": "仍然要自己設 VPC、Subnet 與 Security Group。"},
-      {"q": "Fargate 的單位運算成本比同規格 EC2 便宜。", "a": false, "why": "通常較貴（約 1.2–2 倍）。它省的是人力維運時間，不是帳單金額。"},
-      {"q": "在一台 EC2 上用 Docker Compose 跑多個容器，最大的風險是資源互相干擾與單點故障。", "a": true, "why": "redis 記憶體爆衝會把整台機器吃滿，go-backend 也跟著崩潰。"}
-    ],
-    "cloze": [
-      {"q": "在 ECS 上，你用一個 ____ Definition 描述要跑哪個 Image、要多少 CPU 與 RAM。", "a": "Task", "why": "ECS 依此自動找機器排程。"},
-      {"q": "EC2 相對 VPS 最大的差異是具備 ____（Elastic），可隨流量變大變小並與 AWS 生態深度整合。", "a": "彈性", "why": "VPS 通常固定規格、升級要停機遷移。"},
-      {"q": "AWS 提供的託管 Redis 服務叫 Amazon ____。", "a": "ElastiCache", "why": "連備份與版本更新都不用自己管。"},
-      {"q": "只想跑一個 Next.js 而不想寫 Task Definition，AWS 上更省事的選擇是 App ____。", "a": "Runner", "why": "類似 Zeabur、Railway、Render 這類 PaaS。"}
-    ],
-    "essay": [
-      {"q": "你的專案目前用一台 EC2 跑 Docker Compose（go-backend、nginx、ghost、redis）。老闆問「要不要搬到 ECS Fargate」，你會怎麼分析並給建議？", "a": "參考方向：(1) 先問清楚痛點——是維運太累、是曾經整台掛掉、還是流量成長撐不住？不同痛點對應不同解法，不要為了架構而架構。(2) 現況的優點要誠實講：單機多容器成本最低、容器間走 Docker Network 溝通最單純、開發測試最方便。缺點是單點故障（EC2 掛掉全部服務一起死）、資源互相干擾（redis 爆記憶體會拖垮 go-backend）、無法針對單一服務水平擴展、每次改版都要 ssh 進去下 docker-compose restart。(3) 建議分階段而非一次全搬：先把有狀態的 redis 換成 ElastiCache（拿掉最容易爆的那顆，也順便解決備份問題），再把 go-backend 拆到 ECS Fargate 並掛 ALB 做健康檢查與自動重啟；nginx 的角色可由 ALB 取代；ghost 這類低流量服務可以留在 EC2 或用 App Runner。(4) 成本要講清楚：Fargate 每 vCPU-小時比 EC2 貴，搬完帳單很可能上升，換到的是可用性與維運時間，要讓老闆知道這是取捨不是純優化。(5) 若目前流量穩定、也沒發生過整機故障，我的建議會是「先加監控與自動重啟，暫時不搬」，把預算花在更有感的地方。"}
-    ]
-  },
-
-  "frontend-docs/css/SVG-viewBox座標系統-起算點與負值平移.md": {
-    "tf": [
-      {"q": "SVG 的原點 (0,0) 在畫布左下角，跟數學的笛卡兒座標系一樣。", "a": false, "why": "在左上角，而且 Y 軸往下增加，跟數學課的相反。"},
-      {"q": "把 viewBox 的 min-y 設成負值，Y 軸就會變成向上遞增。", "a": false, "why": "負值只是平移鏡頭，不是翻轉座標軸，Y 依然向下增加。"},
-      {"q": "viewBox=\"0 0 50 50\" 搭配 svg width=\"500\"，會產生放大（Zoom in）的效果。", "a": true, "why": "視野範圍變小、容器不變，等於把內容撐滿放大。"},
-      {"q": "viewBox 的起點改成 50 50，畫面中的物體看起來會往右下移動。", "a": false, "why": "相機往右下移，物體相對看起來是往左上移動。"}
-    ],
-    "cloze": [
-      {"q": "viewBox 的四個值依序是 min-x、min-y、width、____。", "a": "height", "why": "前兩個是起點，後兩個是視野範圍。"},
-      {"q": "要讓畫布正中央變成 (0,0) 以方便畫對稱圖形與旋轉動畫，200×200 的畫布可以寫 viewBox=\"-100 -100 200 ____\"。", "a": "200", "why": "左上角變 (−100,−100)，中央就是 (0,0)。"},
-      {"q": "當 svg 容器長寬比與 viewBox 長寬比不同時，實際縮放與對齊行為由 ____ 屬性決定（預設 xMidYMid meet）。", "a": "preserveAspectRatio", "why": "只看 viewBox 會算錯位置；要拉伸填滿要設成 none。"}
-    ],
-    "essay": [
-      {"q": "設計師給你一份 Figma 匯出的 SVG，路徑座標都從 x=500 起跳，導致圖形跑到畫面外。請說明至少兩種修法與各自的取捨。", "a": "參考方向：(1) 調整 viewBox 起點——把 min-x 改成 500（例如 viewBox=\"500 0 200 200\"），讓鏡頭直接對準那塊區域。優點是完全不用動路徑資料、最快；缺點是座標語意跟直覺不符，之後手動加新元素時要記得也用 500 起跳的座標。(2) 用 <g transform=\"translate(-500,0)\"> 把整組路徑平移回原點——優點是 viewBox 保持乾淨的 0 0 起點，後續維護直覺；缺點是多一層 group，且若要做動畫變形要注意 transform 疊加順序。(3) 用工具（SVGO、Figma 匯出設定調整畫板）從源頭修正路徑座標——最乾淨，但需要回頭找設計師或跑一次前處理流程。實務上如果這份 SVG 是一次性素材，用 (1) 最省事；如果會長期維護、還要接 CSS 動畫，選 (2) 或 (3)。另外要順便檢查 preserveAspectRatio，容器比例不同時它才是真正決定最終位置的那個設定。"}
-    ]
-  }
+ "frontend-docs/javascript/JS_Core_and_Runtime/高階函式與函數式範式-取代OOP三大設計模式.md": {
+  "tf": [
+   {
+    "q": "高階函式本身就是一種獨立的程式設計範式（Paradigm）。",
+    "a": false,
+    "why": "它是函數式程式設計（FP）範式底下最基礎的工具，不是獨立範式。"
+   },
+   {
+    "q": "在 FP 中，函式被視為一等公民（First-Class Citizen），所以可以當參數傳遞、也可以當回傳值。",
+    "a": true,
+    "why": "這正是高階函式能成立的前提。"
+   },
+   {
+    "q": "只要用了 map 或 filter，就代表寫的是函數式程式設計。",
+    "a": false,
+    "why": "FP 還要求純函式與避免副作用，高階函式只是入場券。"
+   },
+   {
+    "q": "Factory 工廠模式的高階函式寫法，靠的是閉包（Closure）記住外層變數。",
+    "a": true,
+    "why": "createRole 執行完了，回傳的小函式仍記得 roleType。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "把 for 迴圈換成 map／filter，程式碼風格會從命令式轉向 ____ 式（關注「要做什麼」而非「怎麼做」）。",
+    "a": "宣告",
+    "why": "Declarative，宣告式。"
+   },
+   {
+    "q": "接收一個函式、回傳一個包了新行為的新函式，這個模式在 React 叫做 ____（縮寫）。",
+    "a": "HOC",
+    "why": "Higher-Order Component，跟 Decorator 裝飾者模式同一套骨架。"
+   },
+   {
+    "q": "Strategy 策略模式的高階函式寫法，是直接把策略函式當成 ____ 傳進去。",
+    "a": "參數",
+    "why": "不必定義介面與多個實作類別。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "用你自己的話說明：為什麼在支援高階函式的語言裡，Strategy、Decorator、Factory 這三個 OOP 設計模式可以被大幅簡化？並說明什麼情況下你仍會選擇用類別而不是閉包。",
+    "a": "參考方向：(1) 這三個模式的本質都是「把一段可替換的行為包起來，讓呼叫端不必知道細節」。在 OOP 裡要達成這件事必須靠介面＋實作類別來製造多型；但當函式本身就是一等公民時，一個函式就已經是「可傳遞、可替換的行為單位」，多型自然成立，不需要類別骨架。(2) Strategy 用「函式當參數」、Decorator 用「函式當回傳值」、Factory 用「閉包客製產出新函式」。(3) 仍該用類別的情況：需要維護多個內部狀態且有明確生命週期（初始化、銷毀）、需要繼承樹或型別系統來約束契約、團隊慣例與既有程式碼是 OOP 風格、或狀態多到用一串閉包會難以除錯。兩者是互補而非取代。"
+   },
+   {
+    "q": "面試官問「高階函式對效能有沒有壞處」，你會怎麼回答？",
+    "a": "參考方向：有代價。map／filter 每一步都會產生新陣列，資料量大時記憶體配置與 GC 壓力會高於原地修改的 for 迴圈；鏈式呼叫多段會多次遍歷。但這通常不是瓶頸，可讀性與可維護性的收益更大。實務判斷：一般業務邏輯優先選高階函式；只有在效能敏感的熱路徑（大量資料、動畫每幀執行）經過量測確認是瓶頸後，才改回 for 或用 reduce 合併多段遍歷。重點是「先量測再優化」，不要憑感覺提早優化。"
+   }
+  ]
+ },
+ "計算機基礎/Round-Robin輪詢調度與負載平衡LB-L4對L7.md": {
+  "tf": [
+   {
+    "q": "Round Robin 的時間片（Time Quantum）設得越短越好，因為切換越快越公平。",
+    "a": false,
+    "why": "太短會讓 Context Switch 的成本吃掉效能；太長則退化成 FCFS。"
+   },
+   {
+    "q": "Layer 4 負載平衡器可以根據網址路徑 /api 把流量導向不同的後端。",
+    "a": false,
+    "why": "L4 只看 IP 與 Port，認不得路由；那是 L7 的能力。"
+   },
+   {
+    "q": "讀寫分離架構中，所有 SELECT 都輪流分給 Slave，所有寫入都導向 Master。",
+    "a": true,
+    "why": "讀取分流常用 Round Robin，寫入必須集中在主庫。"
+   },
+   {
+    "q": "主庫同步到從庫是即時的，所以剛寫入馬上讀一定讀得到。",
+    "a": false,
+    "why": "有毫秒級 Replication Lag，關鍵讀取要改由主庫負責。"
+   },
+   {
+    "q": "Sticky Session 雖然方便，但會讓 LB 分流不均，也讓機器難以隨意下線。",
+    "a": true,
+    "why": "現代做法更傾向把 Session 外部化到 Redis，讓後端保持無狀態。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "當伺服器效能不一致時，Round Robin 會演進成 ____ Round Robin（加權輪詢）。",
+    "a": "Weighted",
+    "why": "給效能好的機器更高權重。"
+   },
+   {
+    "q": "LB 持續檢查後端伺服器是否存活的功能叫做 ____ Check。",
+    "a": "Health",
+    "why": "掛掉的機器會自動被停止送流量。"
+   },
+   {
+    "q": "讓同一個使用者總是連到同一台後端的演算法叫 IP ____。",
+    "a": "Hash",
+    "why": "根據來源 IP 算出固定值，常用於維持 Session。"
+   },
+   {
+    "q": "適合「處理時間長短不一」任務的演算法是 Least ____。",
+    "a": "Connections",
+    "why": "優先送給目前連線數最少的機器。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請比較 Layer 4 與 Layer 7 負載平衡器，並各舉一個你會選它的實際場景。",
+    "a": "參考方向：L4 只看 IP／Port 做轉發，不解密也不解析內容，因此延遲極低、吞吐極高，適合純 TCP／UDP 流量、遊戲伺服器、需要極致效能且不需要依內容分流的場景（AWS NLB）。L7 會做 SSL 卸載後讀取 HTTP 的 URL Path、Hostname、Header、Cookie，能做細緻路由（/api 導後端、/static 導 S3）、依 Host 分多專案、依 Cookie 做 Sticky Session，適合微服務與現代 Web 應用（Nginx、AWS ALB）。代價是要解密、要解析，延遲與 CPU 成本較高。實務上兩者常疊加：NLB 在外層扛量，ALB 或 Nginx 在內層做路由。"
+   },
+   {
+    "q": "你的系統採用讀寫分離後，使用者回報「剛送出留言，重新整理卻看不到」。請說明成因與至少兩種解法。",
+    "a": "參考方向：成因是 Replication Lag——寫入進了 Master，但同步到 Slave 有毫秒到數秒延遲，此時讀取被 LB 分到還沒同步的 Slave。解法：(1) Read-your-own-writes：寫入後的一小段時間內（例如該使用者的後續 N 秒請求），把讀取強制導向 Master。(2) 前端樂觀更新：送出成功後直接把該筆資料插進畫面，不等後端回讀。(3) 用 session／cookie 記錄該使用者最後寫入的複寫位置（GTID／LSN），讀取時挑選已追上該位置的 Slave。(4) 針對強一致性需求的查詢（金流、庫存）一律走 Master，不做讀寫分離。要在回答中點出「這是刻意用一致性換效能的取捨」，不是 bug。"
+   }
+  ]
+ },
+ "backend/冪等性Idempotence與冪運算的區別.md": {
+  "tf": [
+   {
+    "q": "HTTP 的 POST 是冪等的。",
+    "a": false,
+    "why": "POST 每次都新建一筆資料，重送會產生重複；PUT 與 DELETE 才是冪等。"
+   },
+   {
+    "q": "DELETE 是冪等的，因為刪第二次的結果仍然是「這筆資料不存在」。",
+    "a": true,
+    "why": "結果狀態相同，即使回傳的 status code 可能不同。"
+   },
+   {
+    "q": "冪等的通用代數式是 a × a = a。",
+    "a": false,
+    "why": "那只有 a=0 或 a=1 成立；通則是 f(f(x)) = f(x)。"
+   },
+   {
+    "q": "PATCH 一定是冪等的。",
+    "a": false,
+    "why": "看內容：{\"count\": 5} 冪等，{\"count\": \"+1\"} 不冪等。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "為了讓付款 API 在重送時不會扣兩次款，前端會產生一個唯一的 ____ Key 隨請求送出，後端用它去重。",
+    "a": "Idempotency",
+    "why": "Stripe 的 Idempotency-Key header 就是這個做法。"
+   },
+   {
+    "q": "冪等的定義是：一個操作重複執行多次，結果與執行 ____ 次相同。",
+    "a": "一",
+    "why": "f(f(x)) = f(x)。"
+   },
+   {
+    "q": "冪運算的逆運算是 ____（用於計算底數要幾次方才能變成真數）。",
+    "a": "對數",
+    "why": "若 aˣ = N，則 x = log_a N。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "設計一支「建立訂單」的 API，要如何確保使用者連點兩次送出鈕不會產生兩筆訂單？請說明完整機制。",
+    "a": "參考方向：(1) POST 本質不冪等，所以要靠外加的冪等鍵。前端在進入結帳頁時就產生一個 UUID 當 Idempotency-Key，放在 header 隨請求送出；重試時沿用同一個 key（不是每次重新產生）。(2) 後端收到請求先用該 key 查一張 idempotency 表（或 Redis），若已存在且處理完成，直接回傳上次的結果與 status；若存在但處理中，回 409 或讓客戶端稍後重試。(3) 寫入時把 key 設成資料庫的 UNIQUE 約束，靠資料庫層級保證併發下也只成功一筆（唯一索引衝突 = 重複請求）。(4) key 設定合理 TTL（例如 24 小時）避免無限膨脹。(5) 前端仍要做按鈕 disable 與 loading 狀態，但那只是體驗優化，不能當成正確性保證——真正的防線在後端。"
+   }
+  ]
+ },
+ "backend/支付系統架構-數位錢包載體與支付處理器的分工.md": {
+  "tf": [
+   {
+    "q": "Apple Pay 會直接完成資金轉移，把錢從消費者帳戶搬到商家帳戶。",
+    "a": false,
+    "why": "它只是「載體」，把卡片資訊換成 Token 傳給商家；真正清算的是 Stripe 這類處理器。"
+   },
+   {
+    "q": "數位錢包與支付處理器是競爭關係，選一個用就好。",
+    "a": false,
+    "why": "兩者是協作關係，一個完整流程往往兩者同時存在。"
+   },
+   {
+    "q": "訂單狀態應該以前端跳轉回「付款成功頁」為準。",
+    "a": false,
+    "why": "使用者可能中途關掉分頁；真相來源是支付處理器打回來的 Webhook。"
+   },
+   {
+    "q": "為了縮小 PCI DSS 合規範圍，卡號不應該經過自己的伺服器。",
+    "a": true,
+    "why": "用 Stripe Elements／Checkout 讓卡號直送 Stripe，自己只拿 Token。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "數位錢包把實體信用卡資訊轉換成一組虛擬的 ____，感應時只傳這組資料給商家。",
+    "a": "Token",
+    "why": "Apple 稱為 Device Account Number。"
+   },
+   {
+    "q": "支付處理器主動打回商家後端、通知交易狀態的機制叫 ____。",
+    "a": "Webhook",
+    "why": "它可能重送，所以處理端必須冪等。"
+   },
+   {
+    "q": "支付產業針對卡片資料安全的合規標準縮寫是 PCI ____。",
+    "a": "DSS",
+    "why": "Payment Card Industry Data Security Standard。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請畫出（用文字描述）一次線上 Apple Pay 結帳的完整資料流，並指出每一段最容易出錯的地方。",
+    "a": "參考方向：用戶層——使用者點 Apple Pay 按鈕，裝置用 FaceID／TouchID 驗證（易錯：裝置或瀏覽器不支援、未在 Apple 後台驗證網域）。傳輸層——Apple Pay 產生加密的 payment token 交給前端 JS（易錯：token 有時效，前端拖太久才送後端會失效）。處理層——前端把 token 送到自家後端，後端呼叫 Stripe API 建立 PaymentIntent（易錯：把卡號或 token 記進 log；沒帶 Idempotency-Key 導致重複扣款）。清算層——Stripe 向收單銀行與發卡銀行請款，可能觸發 3D Secure 需要使用者再驗證一次（易錯：後端把「API 呼叫成功」當成「付款成功」，忽略 requires_action 狀態）。回寫層——Stripe 透過 Webhook 通知最終結果，後端才把訂單標成已付款（易錯：沒驗簽、沒做冪等、Webhook 逾時導致 Stripe 重送而重複出貨）。"
+   }
+  ]
+ },
+ "backend/IoT大範圍斷線-告警機制與重試策略-系統設計面試.md": {
+  "tf": [
+   {
+    "q": "大範圍斷線時，應該對每一台離線設備都發送一則告警，才不會遺漏。",
+    "a": false,
+    "why": "那會造成告警疲勞（Alert Fatigue），真出事反而沒人看。要做窗口聚合與分級告警。"
+   },
+   {
+    "q": "只要做了指數退避（Exponential Backoff），就不會發生驚群效應。",
+    "a": false,
+    "why": "設備同時斷線，退避時間也會同時到期。必須再加隨機抖動（Jitter）。"
+   },
+   {
+    "q": "斷路器（Circuit Breaker）的作用是在後端過載時主動回 503／429，保護核心資源。",
+    "a": true,
+    "why": "犧牲部分請求換取整體不崩潰。"
+   },
+   {
+    "q": "把設備最後在線狀態存在 Redis，是為了節省資料庫的儲存空間。",
+    "a": false,
+    "why": "目的是避免頻繁查詢主資料庫造成的讀取壓力，是效能考量不是空間考量。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "數萬台設備在網路恢復瞬間同時重連，形成類 DDoS 的現象，稱為 ____ Herd（驚群效應）。",
+    "a": "Thundering",
+    "why": "解法是指數退避加抖動。"
+   },
+   {
+    "q": "在接入層與業務處理層之間加入 Kafka 來緩衝瞬間流量，這個手法叫流量 ____（Load Leveling）。",
+    "a": "削峰",
+    "why": "不讓突發流量直接打到最貴的資源。"
+   },
+   {
+    "q": "AWS 建議的抖動寫法是 Full Jitter，公式為 sleep = random(0, min(cap, base × 2 的 n 次方))，其中 n 代表 ____ 次數。",
+    "a": "重試",
+    "why": "attempt 次數，每失敗一次就往上加。"
+   },
+   {
+    "q": "監控 Kafka／RabbitMQ 積壓與寫入失敗率的告警，簡稱 ____ Monitoring（死信佇列偵測）。",
+    "a": "DLQ",
+    "why": "Dead Letter Queue。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "面試官問：某地區車輛大範圍斷線，你會如何設計告警與重試？請用 3 分鐘的長度組織你的答案。",
+    "a": "參考方向（分四段講）：一、先釐清問題邊界——問清楚設備規模、心跳頻率、可容忍的偵測延遲，並指出要先能區分「設備真的掉線」與「我們自己的 ingest 服務掛了」，做法是同時監控上行訊息總量：單一地區飆高多半是該地區網路，全網一起飆高先懷疑自家系統。二、告警設計——不對單台設備告警，改用窗口聚合（Flink 或 Redis TimeSeries 依地區開窗），規則是「T 分鐘內離線比例超過 X% 才觸發 Critical」；並做 L1 記錄日誌／L2 通知值班／L3 自動化應變的分級；另外監控 DLQ 積壓與寫入失敗率。三、重試設計——設備端用指數退避加 Full Jitter，避免恢復瞬間的驚群效應；後端加斷路器，過載時主動回 429／503 保護資料庫與認證服務。四、架構配套——Kafka 削峰、Redis 存最後在線狀態、優先級佇列讓行駛中的車輛先進來；並強調所有補傳的狀態更新必須冪等且帶時間戳，避免舊狀態覆蓋新狀態。最後主動說出取捨：這套設計犧牲了偵測即時性（窗口聚合會有延遲）來換取告警品質。"
+   }
+  ]
+ },
+ "frontend-docs/css/CJK漢字復用與Noto字體選擇-i18n多語系與Docker打包.md": {
+  "tf": [
+   {
+    "q": "「草」這個字在台灣與中國大陸的 Unicode 碼點是不同的。",
+    "a": false,
+    "why": "都是 U+8349。這就是 Han Unification：同碼不同形，字形差異由字體與語系決定。"
+   },
+   {
+    "q": "OTF 是比較老舊的字體格式，應該避免使用。",
+    "a": false,
+    "why": "OTF 是現代且標準的格式。要避開的是「All」開頭的巨無霸整合檔。"
+   },
+   {
+    "q": "Docker 容器會自動使用宿主機（你的電腦或 AWS 主機）已安裝的字體。",
+    "a": false,
+    "why": "容器是隔離的乾淨環境，字體必須放進專案、由 Dockerfile 的 COPY 帶進去。"
+   },
+   {
+    "q": "專案有超過兩種語言時，下載 Region Specific Subset 就夠用了。",
+    "a": false,
+    "why": "它只保留單一地區字形，其他語言會顯示錯誤，此時要用 All Static Language Specific OTFs。"
+   },
+   {
+    "q": "設定 <html lang=\"zh-TW\"> 可以影響瀏覽器選用哪一國的漢字字形。",
+    "a": true,
+    "why": "沒設或設錯，瀏覽器會依系統預設（英文系統常配 SC 優先），繁體字筆畫會怪怪的。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Unicode 中把中日韓台港同源同義的漢字給予同一個碼點的規則，叫做漢字 ____（Han Unification）。",
+    "a": "復用",
+    "why": "同碼不同形。"
+   },
+   {
+    "q": "CJK Unified Ideographs 的碼點範圍是 U+4E00 到 U+____。",
+    "a": "9FFF",
+    "why": "收錄兩萬多個常用漢字。"
+   },
+   {
+    "q": "Google Fonts 能依語系只送需要的字元切片，靠的是 CSS 的 unicode-____ 屬性。",
+    "a": "range",
+    "why": "@font-face 的 unicode-range。"
+   },
+   {
+    "q": "把大字體切成小檔案的技術叫字體 ____（Subsetting），常用工具有 fontmin 與 pyftsubset。",
+    "a": "抽稀",
+    "why": "私有化部署不能連外網時的解法。"
+   },
+   {
+    "q": "Noto Sans CJK TC 是思源黑體，Noto ____ CJK TC 則是思源宋體（有勾、書卷氣）。",
+    "a": "Serif",
+    "why": "IDE 寫程式通常要 Sans 或 Mono。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "你的 Next.js 專案要支援繁中、日文、英文三語，並用 Docker 部署到不能連外網的私有環境。請說明完整的字體處理方案。",
+    "a": "參考方向：(1) 下載 All Static Language Specific OTFs，只挑 NotoSansCJKtc-Regular 與 NotoSansCJKjp-Regular（英文可另用 Inter 或 Inconsolata），不要拿 All 的巨無霸整合檔。(2) 因為不能連外網，next/font/google 不可用，必須自帶字體。先用 pyftsubset 或 fontmin 依實際翻譯 JSON 的字元集做抽稀，把每個語系切成獨立小檔，再轉成 woff2。(3) 用 @font-face 搭配 unicode-range 分別宣告各語系字體，讓瀏覽器只下載當前頁面用得到的切片。(4) 字體放在 app/fonts/ 或 public/fonts/ 並跟著 git commit，Dockerfile 的 COPY . . 會自動帶進映像檔——這就是「字體跟著 Docker 走」。不要用 npm 裝字體，會讓 node_modules 肥大、拖慢 build。(5) layout 用 <html lang={params.lang}> 動態帶語系，確保漢字字形依 TC／JP 各自正確渲染。(6) 驗證：在容器裡實際跑一次 SSR 並截圖比對，確認沒有 fallback 到系統預設字體。"
+   }
+  ]
+ },
+ "AWS/EC2-vs-ECS-vs-Fargate-vs-VPS-容器部署選型.md": {
+  "tf": [
+   {
+    "q": "Fargate 是一種 AI 服務，會自己學習如何分配資源。",
+    "a": false,
+    "why": "它只是無伺服器的容器執行環境，自動化管理硬體資源，沒有學習或推理能力。"
+   },
+   {
+    "q": "Fargate 是 AWS 專屬技術，GCP 沒有叫這個名字的服務。",
+    "a": true,
+    "why": "GCP 的對應品是 Cloud Run，Azure 是 Container Instances。"
+   },
+   {
+    "q": "用 Fargate 就完全不用碰網路設定。",
+    "a": false,
+    "why": "仍然要自己設 VPC、Subnet 與 Security Group。"
+   },
+   {
+    "q": "Fargate 的單位運算成本比同規格 EC2 便宜。",
+    "a": false,
+    "why": "通常較貴（約 1.2–2 倍）。它省的是人力維運時間，不是帳單金額。"
+   },
+   {
+    "q": "在一台 EC2 上用 Docker Compose 跑多個容器，最大的風險是資源互相干擾與單點故障。",
+    "a": true,
+    "why": "redis 記憶體爆衝會把整台機器吃滿，go-backend 也跟著崩潰。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "在 ECS 上，你用一個 ____ Definition 描述要跑哪個 Image、要多少 CPU 與 RAM。",
+    "a": "Task",
+    "why": "ECS 依此自動找機器排程。"
+   },
+   {
+    "q": "EC2 相對 VPS 最大的差異是具備 ____（Elastic），可隨流量變大變小並與 AWS 生態深度整合。",
+    "a": "彈性",
+    "why": "VPS 通常固定規格、升級要停機遷移。"
+   },
+   {
+    "q": "AWS 提供的託管 Redis 服務叫 Amazon ____。",
+    "a": "ElastiCache",
+    "why": "連備份與版本更新都不用自己管。"
+   },
+   {
+    "q": "只想跑一個 Next.js 而不想寫 Task Definition，AWS 上更省事的選擇是 App ____。",
+    "a": "Runner",
+    "why": "類似 Zeabur、Railway、Render 這類 PaaS。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "你的專案目前用一台 EC2 跑 Docker Compose（go-backend、nginx、ghost、redis）。老闆問「要不要搬到 ECS Fargate」，你會怎麼分析並給建議？",
+    "a": "參考方向：(1) 先問清楚痛點——是維運太累、是曾經整台掛掉、還是流量成長撐不住？不同痛點對應不同解法，不要為了架構而架構。(2) 現況的優點要誠實講：單機多容器成本最低、容器間走 Docker Network 溝通最單純、開發測試最方便。缺點是單點故障（EC2 掛掉全部服務一起死）、資源互相干擾（redis 爆記憶體會拖垮 go-backend）、無法針對單一服務水平擴展、每次改版都要 ssh 進去下 docker-compose restart。(3) 建議分階段而非一次全搬：先把有狀態的 redis 換成 ElastiCache（拿掉最容易爆的那顆，也順便解決備份問題），再把 go-backend 拆到 ECS Fargate 並掛 ALB 做健康檢查與自動重啟；nginx 的角色可由 ALB 取代；ghost 這類低流量服務可以留在 EC2 或用 App Runner。(4) 成本要講清楚：Fargate 每 vCPU-小時比 EC2 貴，搬完帳單很可能上升，換到的是可用性與維運時間，要讓老闆知道這是取捨不是純優化。(5) 若目前流量穩定、也沒發生過整機故障，我的建議會是「先加監控與自動重啟，暫時不搬」，把預算花在更有感的地方。"
+   }
+  ]
+ },
+ "frontend-docs/css/SVG-viewBox座標系統-起算點與負值平移.md": {
+  "tf": [
+   {
+    "q": "SVG 的原點 (0,0) 在畫布左下角，跟數學的笛卡兒座標系一樣。",
+    "a": false,
+    "why": "在左上角，而且 Y 軸往下增加，跟數學課的相反。"
+   },
+   {
+    "q": "把 viewBox 的 min-y 設成負值，Y 軸就會變成向上遞增。",
+    "a": false,
+    "why": "負值只是平移鏡頭，不是翻轉座標軸，Y 依然向下增加。"
+   },
+   {
+    "q": "viewBox=\"0 0 50 50\" 搭配 svg width=\"500\"，會產生放大（Zoom in）的效果。",
+    "a": true,
+    "why": "視野範圍變小、容器不變，等於把內容撐滿放大。"
+   },
+   {
+    "q": "viewBox 的起點改成 50 50，畫面中的物體看起來會往右下移動。",
+    "a": false,
+    "why": "相機往右下移，物體相對看起來是往左上移動。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "viewBox 的四個值依序是 min-x、min-y、width、____。",
+    "a": "height",
+    "why": "前兩個是起點，後兩個是視野範圍。"
+   },
+   {
+    "q": "要讓畫布正中央變成 (0,0) 以方便畫對稱圖形與旋轉動畫，200×200 的畫布可以寫 viewBox=\"-100 -100 200 ____\"。",
+    "a": "200",
+    "why": "左上角變 (−100,−100)，中央就是 (0,0)。"
+   },
+   {
+    "q": "當 svg 容器長寬比與 viewBox 長寬比不同時，實際縮放與對齊行為由 ____ 屬性決定（預設 xMidYMid meet）。",
+    "a": "preserveAspectRatio",
+    "why": "只看 viewBox 會算錯位置；要拉伸填滿要設成 none。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "設計師給你一份 Figma 匯出的 SVG，路徑座標都從 x=500 起跳，導致圖形跑到畫面外。請說明至少兩種修法與各自的取捨。",
+    "a": "參考方向：(1) 調整 viewBox 起點——把 min-x 改成 500（例如 viewBox=\"500 0 200 200\"），讓鏡頭直接對準那塊區域。優點是完全不用動路徑資料、最快；缺點是座標語意跟直覺不符，之後手動加新元素時要記得也用 500 起跳的座標。(2) 用 <g transform=\"translate(-500,0)\"> 把整組路徑平移回原點——優點是 viewBox 保持乾淨的 0 0 起點，後續維護直覺；缺點是多一層 group，且若要做動畫變形要注意 transform 疊加順序。(3) 用工具（SVGO、Figma 匯出設定調整畫板）從源頭修正路徑座標——最乾淨，但需要回頭找設計師或跑一次前處理流程。實務上如果這份 SVG 是一次性素材，用 (1) 最省事；如果會長期維護、還要接 CSS 動畫，選 (2) 或 (3)。另外要順便檢查 preserveAspectRatio，容器比例不同時它才是真正決定最終位置的那個設定。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_CheatSheet_and_APIs/array陣列/every短路求值與初始長度快照-命令式重構為宣告式.md": {
+  "tf": [
+   {
+    "q": "every() 在執行過程中，如果 callback 往陣列 push 新元素，那些新元素也會被檢查。",
+    "a": false,
+    "why": "every() 一開始就把 length 拍了快照，圈數被凍結，push 進去的完全不會被存取。"
+   },
+   {
+    "q": "every() 遇到第一個回傳 false 的元素就會立刻停止，不會跑完整個陣列。",
+    "a": true,
+    "why": "這叫短路求值 short-circuiting，效能跟手寫 break 完全一樣。"
+   },
+   {
+    "q": "空陣列呼叫 [].every(fn) 會回傳 false。",
+    "a": false,
+    "why": "回傳 true，這叫 vacuous truth 空真。相對地 [].some(fn) 回傳 false。"
+   },
+   {
+    "q": "「不會存取超出初始長度的元素」代表整個陣列在 every() 執行期間被凍結，刪除也無效。",
+    "a": false,
+    "why": "只擋「往後長」，不擋「往前縮」。在 callback 裡 pop 或 splice 刪掉元素，走到那些索引會讀到 undefined。"
+   },
+   {
+    "q": "用 requests.every(isValid) 取代 for + break，效能會變差，只是可讀性比較好。",
+    "a": false,
+    "why": "every 本身就有短路求值，效能與手動 break 相同，可讀性還更好。"
+   },
+   {
+    "q": "箭頭函式沒有自己的 this，也不能當建構子 new。",
+    "a": true,
+    "why": "這正是它適合當 callback 的原因，那些東西 callback 都不需要。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "every() 遇到第一個 false 就停止的行為，英文術語叫 ____ 求值。",
+    "a": "短路",
+    "why": "short-circuiting。"
+   },
+   {
+    "q": "`(v) => v < 40` 這種箭頭後面直接接運算式、自動 return 的寫法，叫做 ____ 主體。",
+    "a": "簡潔",
+    "why": "concise body，等同於 { return v < 40; }。"
+   },
+   {
+    "q": "`!isValid(request)` 裡的 `!` 是邏輯 ____ 運算子，會把布林值反轉。",
+    "a": "非",
+    "why": "Logical NOT。無效時 isValid 回 false，加上 ! 變成 true，於是進 if。"
+   },
+   {
+    "q": "for + break 的寫法叫命令式（Imperative），requests.every(isValid) 這種直接表達意圖的叫 ____ 式。",
+    "a": "宣告",
+    "why": "Declarative，關注「要什麼」而非「怎麼做」。"
+   },
+   {
+    "q": "callback 的第三個參數 array 指向原陣列本體，所以 array.push 是傳 ____ 修改，真的會改到外面。",
+    "a": "址",
+    "why": "傳址 by reference。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "用你自己的話說明：為什麼講者建議把 `let everyRequestValid = true; for(...) { if(!isValid(r)) { ...; break; } }` 重構成 `requests.every(isValid)`？請至少講出四個角度，並說明有沒有哪種情況你反而不會這樣改。",
+    "a": "參考方向：(1) 語意化——宣告式直接說「是不是每個都有效」，命令式要讀者追變數狀態與迴圈流程。(2) 減少樣板——省掉暫存變數、for、if、break、最後那個 if，五段變一行。(3) 避免狀態污染——少一個可變的 let，就少一個被別處誤改的風險，也比較好做純函式化。(4) 效能不打折——every 自帶短路求值，遇到第一個 false 就停，跟手寫 break 是同一件事。反而不改的情況：(a) 迴圈裡除了判斷還要做別的副作用（例如同時要收集所有失敗的 request 做錯誤訊息），這時 every 只能回一個布林值，改用 filter 或 reduce 更合適；(b) 需要在中途拿到索引做複雜控制流（例如往回跳）；(c) 極端效能敏感的熱路徑，callback 的函式呼叫開銷在數千萬次迴圈下仍可能有差，但這種情況很少見，先量測再說。另外要注意空陣列的 vacuous truth：requests 為空時 every 回傳 true，要先確認「零筆算不算通過」符合商業邏輯。"
+   }
+  ]
+ },
+ "frontend-docs/react/動態路由與應用進入點-Nextjs的slug-VueRouter冒號-Express的appget.md": {
+  "tf": [
+   {
+    "q": "在 Next.js 裡，[slug] 與 ({ params }) 是兩種不同的取值方式，選一種用就好。",
+    "a": false,
+    "why": "是一組搭配：[slug] 是檔案系統層的宣告，({ params }) 是程式碼層的接收。"
+   },
+   {
+    "q": "Express 的 app.get 跟 Next.js 的 App Router 是同一個概念的前後端版本。",
+    "a": false,
+    "why": "名字都有 app 但層次完全不同。前者接 HTTP 請求回資料，後者決定畫面顯示哪個組件。"
+   },
+   {
+    "q": "Next.js 專案裡看不到 main.tsx 與 createRoot 是正常的。",
+    "a": true,
+    "why": "Next.js 用檔案系統路由，初始化與掛載由框架自動完成，要塞 Provider 寫在 app/layout.tsx。"
+   },
+   {
+    "q": "Vue Router 只能在啟動時定義好所有路由，不能在執行期間新增。",
+    "a": false,
+    "why": "支援 router.addRoute()，權限型後台常用來依權限動態生成導覽。"
+   },
+   {
+    "q": "最底層的 Node http 模組本身就內建路由功能。",
+    "a": false,
+    "why": "沒有。要自己判斷 req.url 與 req.method，Express 才把那堆 if-else 包成語意化 API。"
+   },
+   {
+    "q": "在 Next.js 15 之後，App Router 的 params 需要 await 才拿得到值。",
+    "a": true,
+    "why": "params 變成 Promise。Gemini 給的同步寫法是舊版，照抄會踩雷。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Next.js 用中括號 [id] 宣告動態路由，Vue Router 與 Express 則用 ____ 號。",
+    "a": "冒",
+    "why": "因為冒號在多數作業系統的檔名裡是非法字元，靠檔名的 Next.js 只能改用中括號。"
+   },
+   {
+    "q": "slug 在網頁開發中指的是「對人類閱讀 ____ 的網址關鍵字」。",
+    "a": "友善",
+    "why": "例如 /posts/react-guide 裡的 react-guide。"
+   },
+   {
+    "q": "function Post({ params }) 這種直接從 props 物件挖出屬性的語法，叫做 ____ 賦值。",
+    "a": "解構",
+    "why": "destructuring，等同 function Post(props) { const params = props.params; }。"
+   },
+   {
+    "q": "Express 取動態參數寫 req.____.id，Next.js 組件裡寫 params.id。",
+    "a": "params",
+    "why": "名字一樣但一個掛在 request 上、一個掛在 props 上。"
+   },
+   {
+    "q": "main.tsx 裡的 createRoot(document.getElementById('root')) 是在指定應用的 ____ 點。",
+    "a": "掛載",
+    "why": "mount point，對應 index.html 裡的 root 容器。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "有人跟你說「路由不就是路由，前後端有什麼差」。請用 Next.js 的 [slug]、Vue Router 的 :id、Express 的 app.get 三個例子，說明它們各自解決什麼問題、輸出的東西有什麼本質差異，以及為什麼 Next.js 非得用中括號不可。",
+    "a": "參考方向：(1) 本質差異在「輸出什麼」。Express 的路由輸入是 HTTP 請求、輸出是資料（JSON、HTML 字串），它決定的是伺服器怎麼回應；Next.js 與 Vue Router 的路由輸入是網址、輸出是要渲染哪個組件，它決定的是使用者看到什麼畫面。全端框架 Next.js 兩件事都做（app/api 是前者，app/page 是後者），所以特別容易混淆。(2) 宣告位置不同。Express 與 Vue Router 把路由表寫在程式碼裡，是執行期資料結構，因此可以動態 addRoute；Next.js 把路由寫在檔案系統裡，是編譯期就決定的靜態結構，換來的是自動 code splitting 與更好的靜態分析。(3) 中括號 vs 冒號：冒號在 Windows 與多數 OS 的檔名中是非法字元，Next.js 既然選擇用檔名承載路由規則，就不可能用冒號，只好改用中括號。這是被檔名規則逼出來的設計，不是任意選的。(4) 延伸：main.tsx 的有無也是同一條線索——Vite/CRA 把進入點交給你寫，Next.js 收回去自己管，換取約定優於配置。"
+   }
+  ]
+ },
+ "frontend-docs/react/HOC高階組件與渲染劫持-反向繼承與三框架複用機制對照.md": {
+  "tf": [
+   {
+    "q": "渲染劫持是一個跟 HOC 平行、互相獨立的概念。",
+    "a": false,
+    "why": "渲染劫持是 HOC 的一項實作技巧，特別是反向繼承那一派，不是獨立概念。"
+   },
+   {
+    "q": "反向繼承之所以叫「反向」，是因為包裝者反過來去 extends 被包裝的組件。",
+    "a": true,
+    "why": "包裝關係與繼承關係方向相反，所以叫 Inheritance Inversion。"
+   },
+   {
+    "q": "super.render() 拿到元素樹之後，可以直接修改它的 props 屬性。",
+    "a": false,
+    "why": "React 元素是不可變的，必須用 React.cloneElement 複製一份並覆寫。"
+   },
+   {
+    "q": "Vue 也常用反向繼承式的 HOC 來做渲染劫持。",
+    "a": false,
+    "why": "Vue 的 template 編譯後由框架接管，拿不到中間結構，社群改用 Composables 與 Scoped Slots。"
+   },
+   {
+    "q": "在現代 React 專案裡，反向繼承 HOC 仍是官方推薦的邏輯複用做法。",
+    "a": false,
+    "why": "React 16.8 之後推薦 Custom Hooks。反向繼承會破壞靜態方法繼承、ref 難傳遞、DevTools 難除錯。"
+   },
+   {
+    "q": "Props Proxy 型的 HOC 拿得到被包組件的 state。",
+    "a": false,
+    "why": "Props Proxy 只是把原組件包在裡面、動 props，拿不到它的內部 state。要拿到 state 才需要反向繼承。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "HOC 的兩種實作流派分別是反向繼承（Inheritance Inversion）與 ____ 代理（Props Proxy）。",
+    "a": "屬性",
+    "why": "PP 較常見也較安全，II 才有渲染劫持能力。"
+   },
+   {
+    "q": "在 HOC 的 render 裡呼叫 ____.render() 就能取得原組件的 React 元素樹。",
+    "a": "super",
+    "why": "super 指向父類別的原型，this 仍是自己，所以讀得到原組件的 state 與 props。"
+   },
+   {
+    "q": "React 元素是不可變的，要改屬性只能用 React.____ 複製一份。",
+    "a": "cloneElement",
+    "why": "直接改會壞掉。"
+   },
+   {
+    "q": "Angular 對應 React HOC 的機制是依賴注入與 ____ 型指令（如 *ngIf）。",
+    "a": "結構",
+    "why": "Structural Directives，透過 ViewContainerRef 控制視圖。"
+   },
+   {
+    "q": "React 16.8 之後，取代大部分 HOC 場景的官方推薦做法是 Custom ____。",
+    "a": "Hooks",
+    "why": "把邏輯抽成 Hook，組件維持扁平，不多包一層。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "面試官問你「什麼是渲染劫持」。請完整回答：它是什麼、靠什麼機制做到、三個典型應用場景、為什麼這件事在 Vue 與 Angular 做不到，以及你會不會在新專案裡用它。",
+    "a": "參考方向：(1) 定義——渲染劫持是在原組件真正被畫出來之前，攔截並修改它的渲染結果，是反向繼承型 HOC 的核心能力。(2) 機制——HOC 反過來 class HOC extends WrappedComponent，重寫 render()，在裡面呼叫 super.render() 拿到原組件產出的 React 元素樹（就是一棵普通的 JS 物件樹），接著讀取、cloneElement 修改或整段覆蓋。(3) 三個場景——條件式渲染（權限控制、Loading）、修改擴充元素（動態加 style/className、替換子元件、綁事件）、操縱 props（元素渲染前攔截替換）。(4) 為什麼只有 React 能——因為 JSX 本質上就是 JavaScript 函式呼叫與物件，super.render() 回傳的是可讀可改的普通物件；Vue 的 template 與 Angular 的 template 在編譯後由框架接管，開發者拿不到那個中間結構，所以改用 Composables／Scoped Slots 與 DI／結構型指令這些完全不同的路徑達成複用。(5) 新專案會不會用——不會。反向繼承會破壞靜態方法繼承（要手動 hoist-non-react-statics）、ref 難以傳遞、DevTools 上多一層匿名組件難除錯，而且對 function 組件根本無效。現代做法是把邏輯抽成 Custom Hook。知道它是為了讀懂舊 codebase 與應付面試。加分：順帶點出 HOC 就是設計模式裡的 Decorator 裝飾者模式在組件層的投影。"
+   }
+  ]
+ },
+ "frontend-docs/react/useRef與Vue的ref-value-可變值不觸發渲染的兩種設計.md": {
+  "tf": [
+   {
+    "q": "useRef 只能存基本型別（primitive）或字串。",
+    "a": false,
+    "why": "物件、陣列、函式、DOM 元素、計時器 ID 都可以。「可變」講的不是型別，是「改了不會重畫」。"
+   },
+   {
+    "q": "修改 ref.current 會觸發組件重新渲染。",
+    "a": false,
+    "why": "不會。這正是它跟 useState 的分水嶺。"
+   },
+   {
+    "q": "React 的 useRef 與 Vue 的 ref 目的相反：一個是為了避開響應式，一個是為了建立響應式。",
+    "a": true,
+    "why": "名字像、.current 與 .value 也像，但設計目的正好相反。這是最容易搞混的一點。"
+   },
+   {
+    "q": "在 Vue 的 template 裡也必須寫 count.value 才拿得到值。",
+    "a": false,
+    "why": "template 裡不用寫，Vue 編譯器看得出 count 是 ref 會自動補上。script 裡才要寫。"
+   },
+   {
+    "q": "Vue 要把值包進物件用 .value，是因為 JavaScript 無法攔截「對一個變數重新賦值」。",
+    "a": true,
+    "why": "count = 5 引擎不會通知任何人，但物件的屬性賦值可以用 getter/setter 或 Proxy 攔截。"
+   },
+   {
+    "q": "Vue 3 的響應式底層與 Vue 2 一樣都是 Object.defineProperty。",
+    "a": false,
+    "why": "Vue 3 改用 Proxy，差別在 Proxy 能攔截新增／刪除屬性與陣列索引。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "useRef 回傳的物件身分永遠不變，你改的是它的 .____ 屬性，所以跨渲染留得住。",
+    "a": "current",
+    "why": "React 每次渲染都重跑組件函式，直接回傳值會消失，回傳容器才留得住。"
+   },
+   {
+    "q": "處理中文注音輸入時，用來判斷「使用者正在組字中」的事件是 onComposition____ 與 onCompositionEnd。",
+    "a": "Start",
+    "why": "IME composition 組字事件，配合 useRef 存旗標可以少掉一整輪重新渲染。"
+   },
+   {
+    "q": "Vue 的 ref 在讀 .value 時做依賴收集（track），寫 .value 時 ____ 更新（trigger）。",
+    "a": "觸發",
+    "why": "這就是 getter/setter 在做的事。"
+   },
+   {
+    "q": "讀取屬性時被呼叫的函式叫 ____，寫入時被呼叫的叫 setter。",
+    "a": "getter",
+    "why": "讓你在讀寫的瞬間插入邏輯。"
+   },
+   {
+    "q": "計時器 ID、上一次的值、DOM 節點這類「不想被畫面看見的東西」，應該用 useRef 而不是 use____。",
+    "a": "State",
+    "why": "用 State 會造成不必要的重新渲染。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "你的同事說「React 的 useRef 跟 Vue 的 ref 是同一個東西，只是 .current 和 .value 名字不同」。請說明他錯在哪，並解釋為什麼兩者都需要「包一層物件」這個共同設計。",
+    "a": "參考方向：(1) 目的相反——React 的 useRef 是為了「避開」響應式，讓你有一個改了也不會觸發重新渲染的逃生口；Vue 的 ref 正好相反，是為了「建立」響應式，讀寫 .value 會分別做依賴收集與觸發更新。把 useRef 當 Vue ref 用，畫面永遠不會更新；把 Vue ref 當 useRef 用，會意外觸發一堆重繪。(2) 共同設計的理由卻是同一個——JavaScript 無法攔截也無法保存「對一個變數的重新賦值」。對 Vue 來說，count = 5 引擎不會通知任何人，所以必須把值裝進物件，才能用 getter/setter（Vue 2 的 defineProperty、Vue 3 的 Proxy）攔截 .value 的讀寫；對 React 來說，組件函式每次渲染都重跑一遍，區域變數一離開這次渲染就沒了，所以必須回傳一個身分永遠不變的物件，你改的是它的屬性（傳址），值才跨得過渲染。(3) 結論——兩者「包一層」的理由都是 JS 語言層面的限制，但包起來之後要做的事完全相反。可以補一句實際場景：中文注音輸入時用 useRef 存 isComposing 旗標，配合 onCompositionStart/End，就是典型「我要一個不觸發重繪的狀態」的需求。"
+   }
+  ]
+ },
+ "Git/git-rev-parse與git-filter-repo-唯讀查詢vs破壞性歷史改寫.md": {
+  "tf": [
+   {
+    "q": "git rev-parse 會修改 repo 的內容。",
+    "a": false,
+    "why": "完全唯讀，跑一百次也不會動到任何東西。"
+   },
+   {
+    "q": "git filter-repo 是 Git 內建指令。",
+    "a": false,
+    "why": "它是一支獨立的 Python 套件，需要另外安裝。git filter-repo 能這樣叫只是因為 Git 會把 git-xxx 的執行檔當子指令。"
+   },
+   {
+    "q": "Plumbing 指令的輸出格式比 Porcelain 穩定，適合寫進 CI 腳本。",
+    "a": true,
+    "why": "Porcelain 的輸出官方明講隨時可能改，寫腳本要用 plumbing。"
+   },
+   {
+    "q": "git filter-repo --path passwords.txt 這樣寫就會把 passwords.txt 從歷史刪掉。",
+    "a": false,
+    "why": "少了 --invert-paths，意思會變成「只留這個檔案，其他全刪」，方向完全相反。"
+   },
+   {
+    "q": "把金鑰用 filter-repo 從 Git 歷史刪掉之後，那把金鑰就安全了。",
+    "a": false,
+    "why": "只要曾經 push 過就要當作已外洩。正確順序是先去服務商後台作廢換新，再回來清歷史。"
+   },
+   {
+    "q": "filter-repo 跑完之後 remote 會被移除，這是 bug。",
+    "a": false,
+    "why": "是刻意設計，逼你重新確認要推去哪。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Git 把低階內部工具叫 Plumbing（水管），把包給人用的高階指令叫 ____（瓷器）。",
+    "a": "Porcelain",
+    "why": "官方拿馬桶做比喻：白瓷外殼看得到，水管藏在牆裡。"
+   },
+   {
+    "q": "rev-parse 的 rev 是 revision 的縮寫，整個指令的本業是把人看得懂的名字翻譯成 ____ 值。",
+    "a": "雜湊",
+    "why": "把 HEAD、main、v1.0、HEAD~3 翻成那個唯一的 40 字元 SHA-1。"
+   },
+   {
+    "q": "想讓腳本不管從哪個子資料夾執行都找得到專案根目錄，用 git rev-parse --show-____。",
+    "a": "toplevel",
+    "why": "回傳 repo 根目錄的絕對路徑。"
+   },
+   {
+    "q": "寫腳本時想先確認「我真的在 git repo 裡」，用 git rev-parse --is-inside-work-____。",
+    "a": "tree",
+    "why": "當作護欄，不在 repo 裡就中止。"
+   },
+   {
+    "q": "git filter-repo 是官方推薦用來取代舊版 git filter-____ 的工具。",
+    "a": "branch",
+    "why": "filter-branch 官方文件開頭就寫著不建議使用，因為慢且容易做錯。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "你不小心把 .env 連同 AWS 金鑰 commit 並 push 到公司的 GitHub repo 了。請寫出完整處理流程，說明每一步的理由，並解釋 git rev-parse 在這整件事裡扮演什麼角色（或為什麼它幫不上忙）。",
+    "a": "參考方向：(1) 第一步不是清歷史，是去 AWS Console 把那組 access key 立刻停用並產生新的。理由：只要 push 出去過就要當作已外洩，GitHub 上的公開 repo 幾秒內就會被爬蟲掃到，清歷史只是清掉紀錄不是清掉風險。順序反了整件事就沒意義。(2) 通知團隊與資安窗口，並檢查 AWS CloudTrail 有沒有異常呼叫。(3) 備份：先另外 clone 一份完整的 repo 放旁邊，因為接下來的操作不可逆。(4) 用 git filter-repo --path .env --invert-paths 把該檔案從整個歷史移除；--invert-paths 是關鍵，少了它意思會完全相反。(5) filter-repo 跑完會自己移除 remote，重新加回去，然後 git push --force 覆蓋遠端。(6) 通知所有協作者刪掉本機 repo 重新 clone，因為所有 commit SHA 都變了，他們的歷史對不上，硬 merge 會把舊 commit 又推回來。(7) 補上 .gitignore 與 pre-commit hook（例如 gitleaks），避免再犯。(8) rev-parse 的角色：它在這整件事裡完全幫不上忙，因為它是唯讀查詢工具，只能告訴你「現在 HEAD 是哪個 SHA」。但它在周邊很有用——寫檢查腳本時用 --is-inside-work-tree 當護欄、用 --show-toplevel 定位專案根目錄放 hook、清完之後用 rev-parse HEAD 記錄新的基準 commit 給團隊對照。這正好呈現 plumbing 與歷史改寫工具的分工。"
+   }
+  ]
+ },
+ "backend/ClickFix社交工程攻擊-假驗證碼誘騙貼上PowerShell與網站被注入的處置.md": {
+  "tf": [
+   {
+    "q": "正常的 reCAPTCHA 驗證有時候會需要你複製一段指令到終端機執行。",
+    "a": false,
+    "why": "絕對不會。任何叫你離開瀏覽器去貼指令的「驗證」一律是攻擊，沒有例外。"
+   },
+   {
+    "q": "看到 ClickFix 彈窗，就代表你自己的網站被駭了。",
+    "a": false,
+    "why": "也可能是你造訪了被植入的網站，或自己的瀏覽器擴充被劫持。要先分清楚是受害者還是加害者。"
+   },
+   {
+    "q": "ClickFix 之所以難防，是因為它繞過了技術防線——沒有下載檔案，是使用者自己手動執行的。",
+    "a": true,
+    "why": "防毒很難擋一個使用者主動輸入的指令。"
+   },
+   {
+    "q": "如果已經執行了惡意指令，應該立刻在那台電腦上修改所有帳號密碼。",
+    "a": false,
+    "why": "要在「另一台乾淨的裝置」上改。在已感染的機器上改等於直接送給對方。"
+   },
+   {
+    "q": "改完密碼就安全了，不需要做其他事。",
+    "a": false,
+    "why": "InfoStealer 也會偷 session cookie，要另外在各服務後台執行「登出所有裝置」把既有 session 作廢。"
+   },
+   {
+    "q": "CSP 設定 script-src 'self' 時，頁面內嵌的 <script> 也會被擋掉。",
+    "a": true,
+    "why": "因為沒寫 unsafe-inline。這正是它能防注入的原因，但專案得先清掉 inline script。"
+   },
+   {
+    "q": "自己的網站被注入時，最常見的入口是自己寫錯程式碼。",
+    "a": false,
+    "why": "近年最常見的是供應鏈攻擊——你一行沒改，但某個 npm 套件或第三方 script 被接管了。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "這種假驗證碼誘騙貼上指令的攻擊，通稱 ____（也叫 Fake CAPTCHA、Paste-and-Run）。",
+    "a": "ClickFix",
+    "why": "MITRE ATT&CK 編號 T1204.004。"
+   },
+   {
+    "q": "攻擊 payload 用 Base64 編碼加上 ____ 密碼（字母位移替換）做多層混淆，目的是規避防毒的靜態特徵比對。",
+    "a": "凱撒",
+    "why": "Caesar Cipher / Rot。"
+   },
+   {
+    "q": "下載回來竊取瀏覽器密碼、信用卡號、加密貨幣錢包的惡意程式，通稱 Info____。",
+    "a": "Stealer",
+    "why": "資訊竊取程式，還會在登錄檔留後門開機自動執行。"
+   },
+   {
+    "q": "PowerShell 參數 -WindowStyle Hidden 與 ____ 都是為了讓你看不到有東西在跑。",
+    "a": "CreateNoWindow",
+    "why": "背景隱蔽執行的特徵，看到就該警覺。"
+   },
+   {
+    "q": "限制頁面只能載入哪些來源腳本的 HTTP 回應標頭，縮寫是 ____。",
+    "a": "CSP",
+    "why": "Content-Security-Policy，內容安全政策。"
+   },
+   {
+    "q": "你一行程式沒改，但依賴的第三方套件被接管而導致的攻擊，叫做 ____ 攻擊。",
+    "a": "供應鏈",
+    "why": "Supply Chain Attack。"
+   },
+   {
+    "q": "上線 CSP 之前建議先用 Content-Security-Policy-____-Only 模式跑一陣子收報告。",
+    "a": "Report",
+    "why": "確認不會誤殺再切正式模式。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "你是 Future Sign 的開發者。使用者回報造訪你的網站時跳出「請按 Win+R 貼上以下指令完成驗證」的視窗。請寫出你從收到回報到收尾的完整處置流程，並說明每一步的理由。",
+    "a": "參考方向：(1) 先分流判斷——不要立刻假設被駭，也不要立刻假設沒事。請回報者提供截圖與網址，自己用乾淨環境（無痕、不同網路、不同裝置）重現。若只有特定使用者遇到，可能是他的瀏覽器擴充被劫持；若人人都遇到，才是自家站被注入。(2) 止血——確認是自家站之後，立刻設維護模式或把 DNS 切到備份頁，避免訪客繼續受騙。同時清 CDN 全站快取，否則被污染的靜態資源會繼續被讀。(3) 找感染源，分三層查：前端（DevTools 檢視原始碼，搜尋 Verification Steps、reCAPTCHA Verification ID、powershell、FromBase64String 這些關鍵字；檢查 index.html 或打包進入點有沒有外連的不可信 script）；依賴（檢查 npm lockfile 有沒有被改、Analytics／客服插件／廣告聯播網的 script 有沒有被串改——這是近年最常見的入口）；後端與資料庫（檢查有沒有 <script> 被寫進資料表，用 git status / git diff 比對伺服器上的檔案異動）。順手開 DevTools 的 Application 分頁比對 cookie 與 localStorage 有沒有自己沒設過的項目。(4) 輪換憑證——重產 SSH 部署金鑰、資料庫密碼、API Keys，檢查伺服器有無異常帳號，審查 CI/CD Secrets。理由是既然對方有注入權限，很可能也拿到了某把金鑰。(5) 強化——上 CSP，先用 Report-Only 收報告確認不誤殺再轉正式；把 inline script 清掉；第三方 script 加 SRI（Subresource Integrity）。(6) 對外——通知已造訪的使用者，明確告知「如果你照做貼上了指令，請斷網、全盤掃描、在另一台裝置改密碼並登出所有裝置」。這一步常被忽略但最重要，因為真正的受害者是他們。(7) 事後——寫 postmortem，加上 dependency 掃描（npm audit、Dependabot）與部署前的靜態檢查，避免再犯。"
+   }
+  ]
+ },
+ "backend/SonarLint憑證警告-CaptivePortal攔截與MITM誤判.md": {
+  "tf": [
+   {
+    "q": "Captive Portal 為了強制你看到登入頁而做的事，技術上就是中間人攻擊。",
+    "a": true,
+    "why": "它劫持你的請求、回傳自己的自簽憑證，這正是 MITM 的特徵。所以 SonarLint 才會誤判。"
+   },
+   {
+    "q": "在咖啡廳遇到憑證警告時，點 Trust 比較省事而且沒什麼風險。",
+    "a": false,
+    "why": "絕對不要。點下去等於把攔截憑證存進信任庫，之後這條連線對持有私鑰的人就是明文。"
+   },
+   {
+    "q": "登入 Wi-Fi 之後警告消失，是因為路由器把你的 MAC 加進允許名單、停止劫持了。",
+    "a": true,
+    "why": "流量直接放行到真正的網際網路，SonarLint 就拿得到正確憑證。"
+   },
+   {
+    "q": "自簽憑證是由公信的憑證機構 CA 簽發的。",
+    "a": false,
+    "why": "正好相反，是自己簽自己的，所以瀏覽器與程式預設不信任。"
+   },
+   {
+    "q": "如果網路完全正常、也沒有 Captive Portal，憑證警告卻一直跳，可以先忽略它。",
+    "a": false,
+    "why": "這種情況要認真對待。換個網路再試，還是有的話就該查了。"
+   },
+   {
+    "q": "作業系統本身有偵測 Captive Portal 的機制。",
+    "a": true,
+    "why": "Windows 的 NCSI、Android 的 connectivitycheck.gstatic.com、Apple 的 captive.apple.com，靠打特定網址看回應對不對來判斷。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "公共 Wi-Fi 那個「同意條款才能上網」的登入頁，英文叫 ____ Portal。",
+    "a": "Captive",
+    "why": "中文譯強制網路門戶或強制入口網頁。RFC 8952 定義其架構。"
+   },
+   {
+    "q": "有人站在你和伺服器中間攔截竄改通訊，縮寫 MITM，全名 Man-In-The-____。",
+    "a": "Middle",
+    "why": "中間人攻擊。"
+   },
+   {
+    "q": "由自己簽發、非公信 CA 簽發的憑證，叫做 ____ 憑證。",
+    "a": "自簽",
+    "why": "Self-signed Certificate，預設不被信任。"
+   },
+   {
+    "q": "路由器停止劫持你的流量，是因為把你的 ____ 位址加進了允許名單。",
+    "a": "MAC",
+    "why": "Allowlist。"
+   },
+   {
+    "q": "判斷法則：警告在完成 Wi-Fi 登入後就消失 → 誤判；網路正常卻持續出現 → 要 ____。",
+    "a": "認真對待",
+    "why": "這條是整篇最該記住的東西。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "在咖啡廳寫扣時 IDE 跳出「不可信的伺服器憑證」。請完整說明：這件事的技術成因、為什麼它跟真正的中間人攻擊在技術上難以區分、你會怎麼處理、以及你憑什麼判斷這次是誤判而不是真的被攻擊。",
+    "a": "參考方向：(1) 成因——公共 Wi-Fi 的 Captive Portal 為了強制你看到登入頁，會把尚未認證的裝置所有請求劫持到自家認證頁。IDE 的外掛（如 SonarLint）在背景發 HTTPS 請求時被 AP 攔下，AP 回傳的是自己的自簽憑證（憑發者顯示為該設備廠商，例如 Ruckus Wireless Inc.），而不是外掛預期的伺服器憑證。憑證上的網域跟要連的網域對不上，TLS 驗證失敗，於是跳警告。(2) 為什麼難區分——因為它們做的是同一件事。真正的 MITM 也是插在中間、也是回傳自己的憑證。差別只在動機（一個是要你登入，一個是要偷資料），而動機在技術層面看不出來。這就是為什麼 TLS 的設計是「憑證對不上就一律報錯」，把判斷權交給人。(3) 處理——點 Don't trust 或 Cancel，開瀏覽器把 Wi-Fi 登入流程走完，警告自然消失。絕對不在外部網路點 Trust，那等於把攔截憑證存進信任庫。實務習慣是連上公共 Wi-Fi 後先開瀏覽器完成登入，再開 IDE 或跑 npm install，可以避開一整批莫名其妙的連線錯誤。(4) 判斷依據——關鍵證據是「完成 Wi-Fi 登入後警告就消失」。若是真的攻擊，攻擊者沒有理由在你登入 Captive Portal 之後就收手。另外可以檢查憑證的簽發者是不是該場所的網路設備廠商、以及是否只在這個網路環境發生。反過來說，如果網路已經完全正常、也沒有 Captive Portal，警告卻持續出現，那就要換網路測試並認真調查。(5) 加分：提到唯一該點 Trust 的情境是公司內網做企業級 TLS inspection，那張憑證是公司自己的 CA，而且應該由 IT 事先公告。"
+   }
+  ]
+ },
+ "TS/TypeScript-any與unknown-型別逃生艙口與斷言時機.md": {
+  "tf": [
+   {
+    "q": "把變數標成 any 之後，TypeScript 仍然會檢查你有沒有呼叫不存在的方法。",
+    "a": false,
+    "why": "完全不會。any 就是「請關掉這個變數的型別檢查」，someValue.abc.def() 也照樣編譯通過。"
+   },
+   {
+    "q": "unknown 跟 any 一樣，什麼值都可以塞進去。",
+    "a": true,
+    "why": "賦值這一端兩者相同。差別在「取出來用」那一端——unknown 必須先收窄才能動。"
+   },
+   {
+    "q": "unknown 型別的變數可以直接賦值給 string 型別的變數。",
+    "a": false,
+    "why": "不行。unknown 只能賦值給 unknown 與 any，其他都要先斷言或收窄。"
+   },
+   {
+    "q": "JSON.parse 的回傳型別在 TypeScript 內建定義裡就是 any。",
+    "a": true,
+    "why": "因為一段 JSON 解出來可能是物件、陣列、數字、布林、null 或字串，編譯期不可能預知。"
+   },
+   {
+    "q": "只要專案有裝 TypeScript，就算全部標 any 也還是享有重構安全性。",
+    "a": false,
+    "why": "正好相反。改了欄位名稱，any 標註的地方不會報錯，錯誤會延到執行期才炸。"
+   },
+   {
+    "q": "typeof u === 'string' 這種判斷可以讓 TypeScript 自動把 unknown 收窄成 string。",
+    "a": true,
+    "why": "這叫型別守衛（Type Guard），編譯器的控制流分析看得懂。"
+   },
+   {
+    "q": "官方 Handbook 建議：不知道型別時優先用 any。",
+    "a": false,
+    "why": "官方推薦 unknown。Handbook 明說 unknown 是 any 的 type-safe counterpart。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "any 在 TypeScript 裡被稱為型別系統的「逃生艙口」，英文是 Escape ____。",
+    "a": "Hatch",
+    "why": "Handbook 也用 escape clause 這個說法。"
+   },
+   {
+    "q": "比 any 安全、什麼都能塞但什麼都不能直接做的型別，叫做 ____。",
+    "a": "unknown",
+    "why": "TypeScript 3.0 引入。"
+   },
+   {
+    "q": "`const name = data as string` 這種寫法叫型別 ____（assertion）。",
+    "a": "斷言",
+    "why": "等於簽切結書：我負責，這傢伙就是字串。"
+   },
+   {
+    "q": "函式回傳型別寫成 `v is { name: string }`，這種語法叫型別 ____（Type Predicate）。",
+    "a": "謂詞",
+    "why": "用來自訂型別守衛。"
+   },
+   {
+    "q": "TypeScript 能在 if 區塊裡自動把型別變窄，這個機制叫控制流 ____（Control Flow Analysis）。",
+    "a": "分析",
+    "why": "型別守衛之所以有效就是靠它。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "你的同事說「反正 TypeScript 編譯完也是 JavaScript，型別標 any 比較快，之後有空再補」。請完整說明你會怎麼回應：any 具體讓你失去什麼、什麼情況下用 any 是合理的、以及 unknown 為什麼是更好的預設選擇（請一併說明它安全在哪、要怎麼把它變得可用）。",
+    "a": "參考方向：(1) 失去什麼——IntelliSense 自動完成、重構安全性（改欄位名不報錯，錯誤延到執行期）、程式碼即文件三者一次消失，專案退化成「換副檔名的 JavaScript」。(2) 合理場景——JS 專案遷移過渡期、第三方套件沒提供型別定義、JSON.parse 這種編譯期不可能預知的外部資料。關鍵字是「你控制不了的資料」，不是「我懶得寫 interface」。(3) unknown 為何更好——賦值端跟 any 一樣寬鬆（什麼都能塞），但取用端被鎖死：不能存取屬性、不能賦值給其他型別。這強迫你在使用前先驗證。(4) 怎麼變得可用——用 typeof / instanceof / in 做型別守衛，或寫回傳 `v is T` 型別謂詞的自訂守衛函式，讓控制流分析在 if 區塊內自動收窄。(5) 加分：提 tsconfig 的 noImplicitAny，把「沒標型別就變隱含 any」這條後門也堵起來。"
+   }
+  ]
+ },
+ "build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain.md": {
+  "tf": [
+   {
+    "q": "VS Code 是用 Electron 做的，Electron 內含 Chromium 與 Node.js。",
+    "a": true,
+    "why": "所以說它骨子裡是一個去掉網址列的 Chrome，並不誇張。"
+   },
+   {
+    "q": "因為 VS Code 自帶 V8 引擎，所以你不用安裝 Node.js 也能在整合終端機打 node app.js。",
+    "a": false,
+    "why": "這是 Gemini 講得太滿的地方。VS Code 內建的 Node 是給它自己的擴充功能與 tsserver 用的，沒有對外開放。終端機的 node 走的是你系統 PATH 上的 Node.js。"
+   },
+   {
+    "q": "要在 VS Code 寫 C#，只裝擴充功能不裝 .NET SDK 就能編譯執行。",
+    "a": false,
+    "why": "擴充功能只是操作面板，SDK 才是編譯器與執行環境本體。"
+   },
+   {
+    "q": "Dockerfile 裡 FROM golang:1.23-alpine 的 Image 已經預裝好 Go toolchain。",
+    "a": true,
+    "why": "這就是「本機沒裝 Go 也能跑 Go」的真正原因。"
+   },
+   {
+    "q": "golang 這個 Docker 官方 Image 是微軟維護的。",
+    "a": false,
+    "why": "是 Docker Official Images 專案維護的，跟微軟無關。Gemini 在這裡講錯了。"
+   },
+   {
+    "q": "只用 docker build、不用 Dev Containers 的話，VS Code 的 Go 擴充功能會跳 Go command is not available。",
+    "a": true,
+    "why": "因為 VS Code 在 Windows 這一側找不到 toolchain，建不起語言服務，Go to Definition 也會失效。"
+   },
+   {
+    "q": "瀏覽器絕對不可能執行 C#。",
+    "a": false,
+    "why": "透過 WebAssembly，Blazor WebAssembly 可以在瀏覽器裡跑 C#。不過你仍然得先有 .NET SDK 才編得出 Wasm。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "VS Code 所使用的桌面應用框架，把 Chromium 與 Node.js 打包在一起，叫做 ____。",
+    "a": "Electron",
+    "why": "這也是 Slack、Discord 桌面版的基礎。"
+   },
+   {
+    "q": "SDK 的全名是 Software Development ____。",
+    "a": "Kit",
+    "why": "一整組工具：編譯器、連結器、標準函式庫、套件管理器。"
+   },
+   {
+    "q": "Java 的開發套件縮寫是 ____，全名 Java Development Kit。",
+    "a": "JDK",
+    "why": "只想執行不想開發的話是 JRE。"
+   },
+   {
+    "q": "讓 VS Code 直接連進容器內部、讀取容器裡 toolchain 的擴充功能叫 Dev ____。",
+    "a": "Containers",
+    "why": "裝了它，Go to Definition 與智慧提示才會恢復。"
+   },
+   {
+    "q": "golang:1.23-alpine 裡的 alpine 指的是一個極小的 Linux 發行版 Alpine ____。",
+    "a": "Linux",
+    "why": "約 5 MB，常拿來當精簡基底映像。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請完整說明「編輯器」「執行環境（Runtime）」「工具鏈（Toolchain / SDK）」三者的分工，並用它解釋這兩個現象：(1) 為什麼在 VS Code 寫 C# 一定要另外裝 .NET SDK；(2) 為什麼有人本機完全沒裝 Go，Go 程式卻跑得起來。最後說明第二種情況會帶來什麼開發體驗上的副作用、以及怎麼解。",
+    "a": "參考方向：(1) 三者分工——編輯器負責打字、上色、補全，本身不執行程式；Runtime 是真正跑起來的引擎（Node.js、JVM、CPython）；Toolchain/SDK 是編譯器加標準函式庫加套件管理器的整組工具。VS Code 是 Electron 做的編輯器，它內建的 Node 只服務自己的擴充功能與語言服務（tsserver），不對外開放。(2) C# 的情況——VS Code 對 C# 只是高級打字機，按下執行時它把原始碼交給後台的 .NET SDK 編譯執行，再把結果接回終端機顯示。沒有 SDK，程式碼就只是純文字。(3) Go 的情況——Dockerfile 的 FROM golang:1.23-alpine 拉的 Image 裡已經預裝完整 Go toolchain，編譯發生在容器內的 Linux，本機 Windows 完全不需要有 Go。好處是不污染本機環境、沒有版本衝突，刪掉容器就乾淨。(4) 副作用——VS Code 在 Windows 這側找不到 toolchain，Go 擴充功能會一直跳 Go command is not available，語言服務起不來，Go to Definition 跳轉失效，型別提示全無。(5) 解法——裝 Dev Containers 擴充功能，讓 VS Code 直接連進容器內執行語言服務，就讀得到容器裡的 toolchain。"
+   }
+  ]
+ },
+ "計算機基礎/CPU架構偵測-x64與ARM64.md": {
+  "tf": [
+   {
+    "q": "AMD64、x86-64、x64、Intel 64 講的是同一個指令集架構。",
+    "a": true,
+    "why": "四個名字一件事。叫 AMD64 是因為這套 64 位元延伸是 AMD 在 2000 年提出的，Intel 後來才跟進。"
+   },
+   {
+    "q": "Intel 的 CPU 在 Windows 上查 PROCESSOR_ARCHITECTURE 會顯示 Intel64。",
+    "a": false,
+    "why": "會顯示 AMD64。Windows 沿用 AMD 的原始名稱，不管你的 CPU 是誰家的。"
+   },
+   {
+    "q": "在 PowerShell 打 echo %PROCESSOR_ARCHITECTURE% 可以正確查到架構。",
+    "a": false,
+    "why": "%VAR% 是 CMD 語法，PowerShell 會原樣吐回字串。PowerShell 要用 $env:PROCESSOR_ARCHITECTURE。"
+   },
+   {
+    "q": "PROCESSOR_ARCHITECTURE 回報的是這台機器的架構，跟目前行程是幾位元無關。",
+    "a": false,
+    "why": "它回報的是「目前這個行程」的架構。32 位元 shell 會回 x86，ARM64 上的 x64 模擬行程會回 AMD64，都會騙你。"
+   },
+   {
+    "q": "PROCESSOR_ARCHITEW6432 只有在「32 位元行程跑在 64 位元系統上」時才存在。",
+    "a": true,
+    "why": "這是 WOW64 子系統替被建立的行程重寫環境變數的結果，內容是機器的真實架構。"
+   },
+   {
+    "q": "x86-64 編譯出來的執行檔可以直接在 ARM64 的 CPU 上原生執行。",
+    "a": false,
+    "why": "兩個 ISA 的機器指令完全不相容。要嘛重編譯，要嘛靠模擬層（Windows on ARM 的 x64 模擬、macOS 的 Rosetta 2）。"
+   },
+   {
+    "q": "Linux 的 uname -m 顯示 aarch64 代表這是 ARM 的 64 位元架構。",
+    "a": true,
+    "why": "AArch64 是 ARM 官方名稱，macOS 與 Windows 習慣顯示 arm64。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "ISA 的全名是 Instruction Set ____，中文叫指令集架構。",
+    "a": "Architecture",
+    "why": "CPU 對外公開的合約：認得哪些指令、有哪些暫存器、怎麼定址。"
+   },
+   {
+    "q": "ARM 架構 64 位元執行狀態的官方名稱是 ____（ARMv8-A 起引入）。",
+    "a": "AArch64",
+    "why": "Linux 的 uname -m 就顯示這個。"
+   },
+   {
+    "q": "PowerShell 讀環境變數要用 $____:PROCESSOR_ARCHITECTURE 這個 provider 前綴。",
+    "a": "env",
+    "why": "PowerShell 把環境變數當成像檔案系統的磁碟機，所以也可以 Get-ChildItem Env: 列全部。"
+   },
+   {
+    "q": "讓 64 位元 Windows 能跑 32 位元程式的子系統，縮寫是 ____，全名 Windows 32-bit On Windows 64-bit。",
+    "a": "WOW64",
+    "why": "它會替 32 位元行程重寫 PROCESSOR_ARCHITECTURE。"
+   },
+   {
+    "q": "在程式裡最可靠的架構偵測 Win32 API 是 IsWow64Process____，它會分別回傳行程架構與機器原生架構。",
+    "a": "2",
+    "why": "IsWow64Process2 比舊版的 IsWow64Process 多回一個 nativeMachine。"
+   },
+   {
+    "q": "Apple Silicon 上讓 x86-64 程式能執行的轉譯層叫 Rosetta ____。",
+    "a": "2",
+    "why": "效能會打折，所以能裝原生 arm64 版就裝。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "你要幫同事的 Windows 筆電下載一個開發工具，官網同時提供 x64 與 ARM64 版。請完整說明：ISA 是什麼、為什麼選錯版本程式會完全打不開、你會用哪些指令去查、以及為什麼「查到 AMD64 就一定是 Intel/AMD 機器」這個推論其實有漏洞、該怎麼補。",
+    "a": "參考方向：(1) ISA（Instruction Set Architecture，指令集架構）是 CPU 對外公開的合約——認得哪些機器指令、有哪些暫存器、怎麼定址、位元組順序。同一 ISA 的二進位可互通，不同 ISA 完全不相容。(2) 選錯會怎樣——x86-64 與 ARM64 的機器碼互不相容，Windows 會直接彈「此應用程式無法在您的電腦上執行」。(3) 怎麼查——CMD 用 echo %PROCESSOR_ARCHITECTURE%；PowerShell 用 $env:PROCESSOR_ARCHITECTURE（%VAR% 在 PowerShell 會被當普通字串原樣吐回）；WSL 或 Git Bash 用 uname -m；Node 程式內用 os.arch()。(4) 漏洞——這些變數回報的是「目前這個行程」的架構而非機器。開到 SysWOW64 底下的 32 位元 PowerShell 會回 x86；更麻煩的是 Windows 11 on ARM 能模擬執行 x64 程式，所以一個 x64 行程在 ARM64 機器上會回 AMD64，讓你誤判成 Intel 機。(5) 怎麼補——同時檢查 PROCESSOR_ARCHITEW6432（只有 32 位元行程跑在 64 位元系統時才存在，內容是機器真實架構）；程式裡最可靠的是呼叫 IsWow64Process2，它分別回傳行程架構與機器原生架構。(6) 補充 AMD64 這個名字的由來：這套 64 位元延伸是 AMD 在 2000 年提出、2003 年隨 Opteron 出貨，Intel 後來跟進（官方叫 Intel 64），Windows 沿用 AMD 的原始名稱，所以 Intel 機器也顯示 AMD64。"
+   }
+  ]
+ },
+ "CLI/批次檔關閉螢幕-user32-SendMessage-WM_SYSCOMMAND逐字拆解.md": {
+  "tf": [
+   {
+    "q": "@echo off 前面那個 @ 的作用，是連 echo off 這一行自己都不要印出來。",
+    "a": true,
+    "why": "因為 echo off 這行是在 echo 還開著的時候執行的，不加 @ 會先印出 echo off 五個字才生效。"
+   },
+   {
+    "q": "taskkill /f /im cmd.exe 只會關掉當前這個 CMD 視窗。",
+    "a": false,
+    "why": "/im 是依映像名稱比對，會殺掉所有叫 cmd.exe 的行程。你另外開的視窗會一起陪葬。想只關自己用 exit。"
+   },
+   {
+    "q": "Add-Type 可以在執行期間即時編譯一段 C# 並把型別載入當前 PowerShell session。",
+    "a": true,
+    "why": "所以這一行做的事是「現場寫 C#、現場編譯、現場用」。"
+   },
+   {
+    "q": "Add-Type 不加 -PassThru 也一樣可以接著用 :: 呼叫靜態方法。",
+    "a": false,
+    "why": "不行。-PassThru 才會把編譯出來的型別物件回傳出去，沒有它就接不到東西。"
+   },
+   {
+    "q": "SendMessage 是非同步的，丟出去就馬上返回。",
+    "a": false,
+    "why": "SendMessage 會等對方的視窗程序處理完才返回（同步阻塞）。丟了就走的是 PostMessage。"
+   },
+   {
+    "q": "SendMessage 的第一個參數傳 -1，代表廣播給系統中所有最上層視窗。",
+    "a": true,
+    "why": "-1 就是 HWND_BROADCAST。"
+   },
+   {
+    "q": "lParam 傳 1 是關閉螢幕、傳 2 是進入低耗電。",
+    "a": false,
+    "why": "反了。1 是低耗電，2 才是關閉，-1 是開啟。這組最常記錯。"
+   },
+   {
+    "q": "把這支腳本包成 Windows 服務，開機就能自動關螢幕。",
+    "a": false,
+    "why": "因為 Session 0 Isolation，服務沒有存取顯示器的權限，這招在服務裡會失效。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "負責視窗、訊息佇列、選單、滑鼠鍵盤輸入的 Windows 核心元件是 ____.dll。",
+    "a": "user32",
+    "why": "另外兩支常見的是 kernel32.dll（記憶體與行程）與 gdi32.dll（繪圖）。"
+   },
+   {
+    "q": "讓 .NET 受管理程式碼去呼叫原生 DLL 函式的機制，縮寫 P/Invoke，全名 Platform ____ Services。",
+    "a": "Invocation",
+    "why": "靠 [DllImport] 屬性標註來宣告。"
+   },
+   {
+    "q": "C# 裡宣告「這個方法沒有 body、實作在外部」的關鍵字是 ____。",
+    "a": "extern",
+    "why": "配合 [DllImport] 一起用。"
+   },
+   {
+    "q": "0x0112 這個訊息代碼的常數名稱是 WM_____。",
+    "a": "SYSCOMMAND",
+    "why": "代表這是一則系統指令訊息。"
+   },
+   {
+    "q": "0xF170 這個子指令的常數名稱是 SC_____。",
+    "a": "MONITORPOWER",
+    "why": "WM_SYSCOMMAND 的子類別：顯示器電源管理。"
+   },
+   {
+    "q": "微軟文件要求處理 WM_SYSCOMMAND 時，wParam 要先跟 0x____ 做 AND 遮罩才拿去比對常數。",
+    "a": "FFF0",
+    "why": "因為低 4 位元被系統保留給內部使用。"
+   },
+   {
+    "q": "PowerShell 裡呼叫靜態成員的運算子是兩個冒號 ____，等同 C# 的點。",
+    "a": "::",
+    "why": "例如 [Math]::Pow(2,10)。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "有人在論壇丟給你一支三行的 .bat 檔說「按一下就能關螢幕」。請完整說明：這三行分別在做什麼（逐個參數解釋 SendMessage 的四個魔術數字）、你會在執行前檢查哪些資安紅旗、原版有哪兩個實作缺陷、以及為什麼它在 Windows 服務裡不會生效。",
+    "a": "參考方向：(1) 第一行 @echo off——echo off 關掉指令回顯，前綴 @ 讓這行自己也不顯示。(2) 第二行 powershell -windowstyle hidden -command \"...\"——啟動 PowerShell、隱藏視窗、執行單行指令；裡面的 \\\" 是跳脫字元，因為整串已經被一對雙引號包住。核心是 Add-Type 即時編譯一段帶 [DllImport(\"user32.dll\")] 的 C#（這是 P/Invoke，Platform Invocation Services），-Name a 命名、-PassThru 把型別回傳出來，再用 :: 呼叫靜態方法 SendMessage。(3) 四個參數——hWnd = -1 是 HWND_BROADCAST，廣播給所有最上層視窗；hMsg = 0x0112 是 WM_SYSCOMMAND，系統指令訊息；wParam = 0xF170 是 SC_MONITORPOWER，顯示器電源管理；lParam = 2 是關閉（-1 開啟、1 低耗電）。順帶一提官方要求處理時 wParam 要先 & 0xFFF0，因為低 4 位元系統保留。(4) 第三行 taskkill /f /im cmd.exe——/f 強制、/im 依映像名稱。(5) 資安紅旗——-windowstyle hidden 隱藏視窗、一長串看不懂的內嵌程式碼、直接呼叫底層 API 這三點是惡意腳本的典型長相；ClickFix 那類社交工程攻擊就是誘騙使用者貼上執行看不懂的 PowerShell。執行任何來路不明的 .bat 前要先用記事本讀完。(6) 兩個缺陷——/im cmd.exe 會誤殺所有 CMD 視窗（該用 exit）；沒有先 sleep，你按 Enter 的殘留輸入會立刻把螢幕喚醒。另外 hWnd 宣告成 int 在 64 位元下不嚴謹，正式寫法應該用 IntPtr。(7) 服務失效的原因——Session 0 Isolation，Windows 服務跑在工作階段 0，沒有存取互動式桌面顯示器的權限。"
+   }
+  ]
+ },
+ "build-and-compilation/npm-scripts-pre-post-生命週期鉤子.md": {
+  "tf": [
+   {
+    "q": "pre / post 鉤子只對 start、test、stop、restart 這幾個保留字有效。",
+    "a": false,
+    "why": "對任意 script 名稱都有效。你自己取的 deploy、lint、report 一樣會找 predeploy、postdeploy。"
+   },
+   {
+    "q": "npm run build -- --mode staging 的 --mode staging 也會傳給 prebuild。",
+    "a": false,
+    "why": "官方文件明講：參數只傳給你指定的那支 script，不傳給 pre 或 post。"
+   },
+   {
+    "q": "build 失敗（非 0 退出碼）時，postbuild 不會執行。",
+    "a": true,
+    "why": "post 鉤子只在主 script 成功結束後才跑。"
+   },
+   {
+    "q": "不管你在哪個子資料夾打 npm run，script 執行時的工作目錄都是 package.json 所在那一層。",
+    "a": true,
+    "why": "所以 script 裡可以放心用相對路徑。"
+   },
+   {
+    "q": "環境變數 npm_lifecycle_event 會告訴你目前跑到哪一個階段。",
+    "a": true,
+    "why": "可以只寫一支腳本、內部依階段分支。"
+   },
+   {
+    "q": "postinstall 在資安上沒什麼風險，因為它只是安裝後的清理工作。",
+    "a": false,
+    "why": "它是供應鏈攻擊最愛的落腳點——npm install 一個被投毒的套件就會自動執行任意程式碼。新版 npm 已加入 npm-approve-scripts 這類審核機制。"
+   },
+   {
+    "q": "scripts 裡能直接寫 vite build 而不用寫完整路徑，是因為 npm 執行前會把 node_modules/.bin 塞進 PATH。",
+    "a": true,
+    "why": "這也是 npx 的第一順位查找位置。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "npm 的 pre/post 規則寫在官方文件的 using-npm/____ 章節。",
+    "a": "scripts",
+    "why": "網址是 docs.npmjs.com/cli/v11/using-npm/scripts/。"
+   },
+   {
+    "q": "告訴你目前跑到哪個生命週期階段的環境變數是 npm_lifecycle_____。",
+    "a": "event",
+    "why": "值就是 prebuild、build、postbuild 這類字串。"
+   },
+   {
+    "q": "husky 這類 git hook 工具通常掛在 npm 的 ____ 這個安裝期腳本上。",
+    "a": "prepare",
+    "why": "它在 npm install 後、npm publish 前，以及安裝 git 依賴時觸發。"
+   },
+   {
+    "q": "shell 慣例裡代表「參數結束、後面原封不動往下傳」的標記是兩個減號 ____。",
+    "a": "--",
+    "why": "npm run build -- --mode staging 就是靠它。"
+   },
+   {
+    "q": "跨平台版本的 rm -rf，常被寫在 prebuild 裡清理輸出資料夾的套件叫 ____。",
+    "a": "rimraf",
+    "why": "因為 Windows 沒有 rm -rf。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "你接手一個專案，package.json 裡有 prebuild、build、postbuild、predeploy、deploy 五個 script。請完整說明 npm 的 pre/post 生命週期規則、它跟安裝期生命週期腳本（preinstall/install/postinstall/prepare）的差別、有哪三個實務上最容易踩的細節、以及為什麼 postinstall 是供應鏈資安的高風險點。",
+    "a": "參考方向：(1) 規則——對任意 script 名稱 X，npm run X 會依序找並執行 preX → X → postX。這不限保留字，自訂名字一樣吃這套。所以打 npm run deploy 實際上會先跑 predeploy（通常裡面寫 npm run build），再跑 deploy。(2) 與安裝期腳本的差別——preinstall / install / postinstall / prepare 是 npm install 時自動觸發的，跟 npm run 無關；prepare 在 npm install 不帶參數後、npm publish 前，以及安裝 git 依賴時跑，husky 就掛在這裡。(3) 三個易踩細節——(甲) npm run X -- --flag 的參數只傳給 X，pre/post 收不到；(乙) 主 script 失敗（非 0 退出碼）時 post 不會執行，所以不能把「一定要做的清理」放 post；(丙) 工作目錄永遠是 package.json 那一層，不是你打指令的地方，所以相對路徑要以套件根目錄為準。另可提 npm_lifecycle_event 讓一支腳本共用於多階段。(4) postinstall 的風險——它會在依賴安裝完成時自動執行，使用者通常不會看內容。一個被投毒的套件（或它的間接依賴）只要在 postinstall 放一行下載執行的指令，npm install 就等於任意程式碼執行。防禦面可提 npm 的 --ignore-scripts、lockfile 鎖版本、npm-approve-scripts 審核機制、以及 CI 用 npm ci 而非 npm install。"
+   }
+  ]
+ },
+ "SQL/SQL-Syntax/PostgreSQL-資料庫大小查詢-pgAdmin與pg_database_size.md": {
+  "tf": [
+   {
+    "q": "在 pgAdmin 4 裡，資料庫的大小要看 Properties 分頁。",
+    "a": false,
+    "why": "Properties 是設定（Owner、Encoding、Tablespace），Statistics 分頁才有 Size。這場對話就是卡在這個分別。"
+   },
+   {
+    "q": "pg_size_pretty 會把位元組數字轉成 kB / MB / GB / TB 的字串。",
+    "a": true,
+    "why": "它是純粹的格式化工具，本身不查任何東西。"
+   },
+   {
+    "q": "ORDER BY pg_size_pretty(pg_database_size(datname)) DESC 可以正確排出最大的資料庫。",
+    "a": false,
+    "why": "pg_size_pretty 回傳的是字串，排序會變成字典序，出現「9 MB 比 10 GB 大」的笑話。排序要用原始 bigint。"
+   },
+   {
+    "q": "pg_total_relation_size 等於 pg_table_size 加 pg_indexes_size。",
+    "a": true,
+    "why": "官方文件明講。一張表的總佔用 = 表本身 + 所有索引。"
+   },
+   {
+    "q": "DELETE 掉大量資料之後，pg_database_size 查到的數字會立刻變小。",
+    "a": false,
+    "why": "因為 MVCC，DELETE 只把 tuple 標成 dead，autovacuum 回收成可再用空間但不還給作業系統。要縮檔案得 VACUUM FULL 或 pg_repack。"
+   },
+   {
+    "q": "pg_database_size 的結果包含 WAL（預寫式日誌）的體積。",
+    "a": false,
+    "why": "不含。它只算資料庫的資料檔。C 槽爆掉時 WAL 堆積往往才是主因。"
+   },
+   {
+    "q": "要用 pg_database_size 查某個資料庫，你必須對它有 CONNECT 權限。",
+    "a": true,
+    "why": "不過 CONNECT 預設就是授予的。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "查單一資料庫總磁碟佔用的內建函式是 pg_database_____。",
+    "a": "size",
+    "why": "吃資料庫名稱或 OID，回傳 bigint。"
+   },
+   {
+    "q": "pgAdmin 4 裡真正顯示 Size 的分頁叫 ____。",
+    "a": "Statistics",
+    "why": "Properties 只有設定，沒有大小。"
+   },
+   {
+    "q": "存放所有資料庫一列一筆的系統目錄表叫 pg_____。",
+    "a": "database",
+    "why": "欄位 datname 是名稱，datistemplate 標記是否為範本庫。"
+   },
+   {
+    "q": "只算某張表所有索引總和的函式是 pg_____ _size。",
+    "a": "indexes",
+    "why": "很多時候索引比資料本身還大。"
+   },
+   {
+    "q": "PostgreSQL 讓刪除的資料不立刻消失的並行控制機制縮寫是 MVCC，全名 Multi-Version Concurrency ____。",
+    "a": "Control",
+    "why": "這就是「刪了大小卻沒變小」的原因。"
+   },
+   {
+    "q": "要真正把檔案縮小、把空間還給作業系統，可以跑 VACUUM ____（會鎖表）。",
+    "a": "FULL",
+    "why": "或用不鎖表的 pg_repack 擴充套件。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "你的 C 槽快滿了，懷疑是跑在 Docker 裡的 PostgreSQL。請完整說明你的排查步驟：怎麼在 pgAdmin 界面看、怎麼下 SQL 一次看出哪個庫哪張表最肥（並說明排序時最容易犯的錯）、以及為什麼「刪了一堆資料但大小沒變」、還有為什麼 pg_database_size 的數字跟 Docker volume 的實際佔用經常對不起來。",
+    "a": "參考方向：(1) 界面路徑——pgAdmin 4 左側 Object Explorer 點資料庫節點，主面板切 Statistics 分頁看 Size。注意選 Server 節點看到的是連線與交易統計，選 Database 才有 Size；Properties 分頁沒有大小。(2) SQL——單庫用 SELECT pg_size_pretty(pg_database_size('庫名'))；全庫排行用 SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datistemplate = false ORDER BY pg_database_size(datname) DESC；找肥表用 pg_total_relation_size 搭配 pg_statio_user_tables，並分開列 pg_relation_size（資料）與 pg_indexes_size（索引）。(3) 排序陷阱——ORDER BY 一定要用原始 bigint，不能用 pg_size_pretty 的結果，否則是字串字典序，9 MB 會排在 10 GB 前面。(4) 刪了不變小——MVCC 的關係，DELETE 只把 tuple 標成 dead tuple，autovacuum 把它回收成「檔案內部可再用的空間」但不歸還作業系統。要真的縮檔案得 VACUUM FULL（鎖表、需要等量額外磁碟）或 pg_repack。(5) 數字對不起來——pg_database_size 只算該資料庫的資料檔，不含 WAL（Write-Ahead Log）、不含其他資料庫、不含 Docker 映像層與容器可寫層。可用 docker system df -v 對照 volume 實際佔用；C 槽爆掉時 WAL 堆積（例如 replication slot 卡住不推進）往往才是真兇。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_Core_and_Runtime/ECMA-262標準編號與ES俗稱-其他ECMAScript實作語言.md": {
+  "tf": [
+   {
+    "q": "ECMA-262 是一個「版本名稱」，所以規格書封面上會寫 ES6。",
+    "a": false,
+    "why": "它是標準編號，官方用 Edition（第幾版）記錄版本，ES6 只是社群俗稱。"
+   },
+   {
+    "q": "ECMAScript 是規格書裡定義的語言，JavaScript 是它的實作再加上 DOM、BOM 等宿主 API。",
+    "a": true,
+    "why": "這是三者最精準的關係。"
+   },
+   {
+    "q": "ES6 和 ECMAScript 2015 是兩份不同的規格。",
+    "a": false,
+    "why": "同一份文件的兩種叫法，前者是俗稱、後者是官方年份名稱。"
+   },
+   {
+    "q": "TypeScript 也遵循 ECMAScript 語法規格，最後會轉譯回標準 ECMAScript。",
+    "a": true,
+    "why": "它是 JS 的超集，型別只存在於編譯階段。"
+   },
+   {
+    "q": "ECMA-402 也是 ECMAScript 語言規格的一部分。",
+    "a": false,
+    "why": "ECMA-402 是國際化 API 標準，跟 ECMA-262 是不同編號的標準。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "負責制定與推進 ECMAScript 規格的技術委員會叫做 ____。",
+    "a": "TC39",
+    "why": "ECMA 底下的第 39 號技術委員會。"
+   },
+   {
+    "q": "官方在規格書中用來表示版本演進的量詞是 ____（中文為「第幾版」）。",
+    "a": "Edition",
+    "why": "例如 ECMA-262 5th Edition 就是俗稱的 ES5。"
+   },
+   {
+    "q": "自 ____ 年起，ECMAScript 改為每年定期發布並以年份命名。",
+    "a": "2015",
+    "why": "ES6 = ECMAScript 2015 是分水嶺。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "用你自己的話解釋 ECMA-262、ECMAScript 與 JavaScript 三者的關係，並說明為什麼「ECMA-262 就是 JavaScript」這句話不夠精準。",
+    "a": "參考方向：(1) ECMA-262 是 ECMA 組織給某份標準文件的編號，就像書的書號；(2) 那份文件裡定義的語言正式名稱是 ECMAScript，它只規範語法、型別、內建物件與抽象操作；(3) JavaScript 是實作 ECMAScript 並額外加上宿主環境 API（瀏覽器的 DOM、BOM，Node 的 fs、process）的語言。所以說「ECMA-262 就是 JavaScript」漏掉了中間的 ECMAScript 這一層，也忽略了 JavaScript 比 ECMAScript 多出來的那一大塊 API。"
+   },
+   {
+    "q": "除了 JavaScript，還有哪些語言曾經實作 ECMAScript？它們現在的處境如何，這件事說明了什麼？",
+    "a": "參考方向：ActionScript（Flash）、JScript / JScript .NET（早期 IE 與 Windows 腳本）、Qt Script（C++ 框架的腳本擴充）、TypeScript（超集）。前三者都隨著宿主平台（Flash、舊版 IE、Qt Script 模組）退場而淡出，說明一個語言實作的生死很大程度取決於它的宿主環境是否還有人用，而不是語言規格本身好不好；也說明 ECMAScript 之所以還活著，是因為瀏覽器這個宿主環境沒有被取代。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_CheatSheet_and_APIs/JSON/JSON設計由來-reviver函式與Whitespace規範.md": {
+  "tf": [
+   {
+    "q": "JSON 之所以叫 JavaScript Object Notation，是因為它 parse 之後會變成 JS 物件。",
+    "a": false,
+    "why": "因果相反，是因為它的「寫法」長得跟 JS 物件實字一樣才這樣命名。"
+   },
+   {
+    "q": "Notation 指的是一種純文字的記號法，而不是程式物件。",
+    "a": true,
+    "why": "這正是 (b) 的重點。"
+   },
+   {
+    "q": "在 JSON 的 `{}` 與 `:` 周圍加空格或換行，會改變解析後的資料結構。",
+    "a": false,
+    "why": "whitespace 會被解析器忽略，結構與內容完全不變。"
+   },
+   {
+    "q": "reviver 函式若回傳 undefined，該屬性會從結果中被刪除。",
+    "a": true,
+    "why": "這就是 reviver 的「過濾」能力。"
+   },
+   {
+    "q": "reviver 是由最外層物件開始往內處理。",
+    "a": false,
+    "why": "順序是由內而外，最後一次才是 key 為空字串的頂層物件。"
+   },
+   {
+    "q": "Blink 是 Google 主導的排版引擎，源自 WebKit 的分支。",
+    "a": true,
+    "why": "Chrome、Edge、Brave、Opera 都用它。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "JSON 的發明人是 ____。",
+    "a": "Douglas Crockford",
+    "why": "他想找比 XML 更輕量的純文字格式。"
+   },
+   {
+    "q": "JSON 只有六種結構：Object、Array、String、Number、Boolean 與 ____。",
+    "a": "Null",
+    "why": "語法極簡才能跨語言。"
+   },
+   {
+    "q": "reviver 處理最外層物件時，傳入的 key 是 ____（一個特殊值）。",
+    "a": "空字串",
+    "why": "以 \"\" 代表頂層物件本身。"
+   },
+   {
+    "q": "Firefox 使用的排版引擎叫 ____，搭配的 JS 引擎是 SpiderMonkey。",
+    "a": "Gecko",
+    "why": "MDN 上的「Gecko 相關」就是指 Firefox 的特殊行為。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "為什麼 Crockford 選擇「照抄 JavaScript 物件實字語法」來設計 JSON？這個決定帶來哪些好處？",
+    "a": "參考方向：(1) 資料要跨語言傳輸必須先變成純文字，各語言的記憶體物件結構彼此不相容；(2) 如果純文字規範剛好等於 JS 的物件實字語法，那在 JS 環境裡解析它幾乎零成本，不必自己寫剖析器；(3) 語法極簡（只有六種結構）讓其他語言也能用很少的程式碼實作 parser，於是它成為事實上的跨語言交換格式；(4) 代價是 JSON 沒有註解、沒有日期型別、不能有尾隨逗號，這些後來都靠 reviver 或 JSON5 之類的方言補救。"
+   },
+   {
+    "q": "舉一個實際情境說明 reviver 的用途，並寫出對應的程式碼骨架。",
+    "a": "參考方向：最經典的是把後端回傳的 ISO 日期字串自動轉成 Date 物件。骨架：`JSON.parse(text, (k, v) => typeof v === 'string' && /^\\d{4}-\\d{2}-\\d{2}T/.test(v) ? new Date(v) : v)`。另一個情境是過濾敏感欄位：`JSON.parse(text, (k, v) => k === 'password' ? undefined : v)`。重點是要記得「不處理的情況一定要 return v」，忘了寫整個結構會變成 undefined。"
+   }
+  ]
+ },
+ "backend/Refresh-Token與Token-Endpoint-雙Token機制與JWT關係.md": {
+  "tf": [
+   {
+    "q": "Refresh Token 是一個 API 網址，Token Endpoint 是一串憑證。",
+    "a": false,
+    "why": "剛好相反：Refresh Token 是憑證資料，Token Endpoint 是 API 網址。"
+   },
+   {
+    "q": "JWT 規範本身就內建了 Refresh Token 機制。",
+    "a": false,
+    "why": "JWT（RFC 7519）只是資料格式標準，更新邏輯要開發者自己設計。"
+   },
+   {
+    "q": "Access Token 過期時，前端通常會先收到 401 Unauthorized，再由攔截器去換新 token。",
+    "a": true,
+    "why": "這就是無感更新流程的觸發點。"
+   },
+   {
+    "q": "把 Refresh Token 放在 HttpOnly Cookie 比放在 localStorage 更能抵抗 XSS 竊取。",
+    "a": true,
+    "why": "HttpOnly 讓 JavaScript 讀不到該 Cookie。"
+   },
+   {
+    "q": "如果專案只有一串長效 JWT，代表一定漏掉了什麼隱藏功能。",
+    "a": false,
+    "why": "那是標準的單一 JWT 架構，只是安全性取捨不同。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "回應中的 `expires_in: 900` 代表這張 Access Token 的壽命是 ____ 分鐘。",
+    "a": "15",
+    "why": "900 秒 = 15 分鐘。"
+   },
+   {
+    "q": "定義 JWT 格式的 RFC 編號是 ____。",
+    "a": "7519",
+    "why": "OAuth 2.0 則是 RFC 6749。"
+   },
+   {
+    "q": "雙 Token 機制之所以比單一長效 token 安全，關鍵在於伺服器可以用 ____ 主動讓某張 Refresh Token 失效。",
+    "a": "黑名單",
+    "why": "因為 Refresh Token 的狀態被記在資料庫裡。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "面試官問「為什麼不乾脆把 Access Token 效期設成 30 天就好」，請完整回答。",
+    "a": "參考方向：(1) 這是安全性與體驗的權衡；(2) 長效 token 一旦被竊取，攻擊者可長時間冒充使用者，而 JWT 是無狀態的，後端很難主動撤銷；(3) 雙 token 把風險拆開——Access Token 短效所以被攔截危害有限，Refresh Token 雖然長效但只在更新時才送出、曝露頻率低，而且它的狀態存在資料庫，可以隨時列黑名單強制登出；(4) 代價是要多實作儲存機制、發放邏輯、驗證與撤銷四件事，所以小專案常先不做。"
+   },
+   {
+    "q": "如果要檢查一個陌生專案有沒有 Refresh Token 機制，你會怎麼查？請列出檢查步驟。",
+    "a": "參考方向：(1) 把 token 貼到 jwt.io 解 Payload，看有沒有 type/scope 之類區分 access 與 refresh 的欄位，只有 sub/iat/exp 通常就是單一 token；(2) 搜尋後端路由有沒有 /auth/refresh、/token/refresh 這類端點，以及對應的 service 與資料表；(3) 開 DevTools 的 Application 頁籤，看登入後拿到幾個 token、有沒有 HttpOnly Cookie；(4) 看前端有沒有 Axios / fetch 攔截器在處理 401 重試。四個都沒有，就可以確定是單一 JWT 架構。"
+   }
+  ]
+ },
+ "計算機基礎/Epoch時間起點-閏秒與UTC-GMT差別.md": {
+  "tf": [
+   {
+    "q": "Unix Epoch 的計算會把閏秒也算進去。",
+    "a": false,
+    "why": "POSIX 定義的 seconds since the Epoch 刻意忽略閏秒。"
+   },
+   {
+    "q": "UTC 是一個時區。",
+    "a": false,
+    "why": "它是全球時間計算的基準尺度，各時區以 UTC 加減小時表示。"
+   },
+   {
+    "q": "加入正閏秒的那一天，會出現 23:59:60 這個時刻。",
+    "a": true,
+    "why": "許多軟體預設每分鐘只有 00–59，因此可能崩潰。"
+   },
+   {
+    "q": "Windows 的 FILETIME 也是從 1970-01-01 起算。",
+    "a": false,
+    "why": "它從 1601-01-01 起算，單位是 100 奈秒。"
+   },
+   {
+    "q": "Leap Smearing 是把閏秒拆成微秒均勻分散到 24 小時內的做法。",
+    "a": true,
+    "why": "Google、Meta 用它避免系統遇到第 60 秒。"
+   },
+   {
+    "q": "GMT 的依據是原子鐘，所以比 UTC 精準。",
+    "a": false,
+    "why": "GMT 依據地球自轉與太陽位置，UTC 才是原子鐘。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "時間戳 `0` 代表的時刻是 ____-01-01 00:00:00 UTC。",
+    "a": "1970",
+    "why": "這就是 Unix Epoch。"
+   },
+   {
+    "q": "當原子時與世界時的累積誤差接近 ____ 秒時，IERS 就會宣布插入閏秒。",
+    "a": "0.9",
+    "why": "門檻值。"
+   },
+   {
+    "q": "國際度量衡大會已決定在 ____ 年前取消閏秒機制。",
+    "a": "2035",
+    "why": "因為它對資訊與金融系統造成太多不穩定。"
+   },
+   {
+    "q": "用極穩定的銫原子振動頻率計時的時間標準縮寫是 ____。",
+    "a": "TAI",
+    "why": "International Atomic Time，國際原子時。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "為什麼電腦要用「距離某個起點過了幾秒」這種方式存時間，而不是直接存年月日時分秒？",
+    "a": "參考方向：(1) 整數運算極快，兩個時間相減就是兩個數字相減，不必處理每月天數不同、閏年、時區、夏令時間；(2) 儲存與傳輸成本低，跨國系統只要送一個整數，接收端再依當地時區格式化；(3) 排序與比較天然正確，不會有字串比較的坑；(4) 代價是可讀性差，而且要小心不同系統的 Epoch 起點不同（1601、1970、1980、2001），以及 32 位元有號整數在 2038 年的溢位問題。"
+   },
+   {
+    "q": "閏秒對資訊系統造成什麼麻煩？業界怎麼因應？",
+    "a": "參考方向：(1) 麻煩來自於多數軟體假設每分鐘只有 60 秒，遇到 23:59:60 可能拋例外、進入無窮迴圈或讓時間倒退（2012 年 Reddit 與大量 Linux 伺服器當機就是例子）；(2) 對高頻交易、分散式系統的時序判斷影響更大，因為時間倒退會讓 timestamp 排序錯亂；(3) 因應方式是 Leap Smearing，在閏秒前後 24 小時把 1 秒拆成微秒均勻分散，系統看到的時間永遠單調遞增；(4) 長期解法是 CGPM 決議在 2035 年前取消閏秒。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_Core_and_Runtime/物件/建構子函式vs工廠函式-避開this與React-Hook改寫.md": {
+  "tf": [
+   {
+    "q": "工廠函式必須搭配 new 才能正確運作。",
+    "a": false,
+    "why": "它就是普通函式，直接呼叫並回傳新物件，不需要 new。"
+   },
+   {
+    "q": "建構子函式把方法掛在 prototype 上，所有實例共用同一份函式物件。",
+    "a": true,
+    "why": "這是它相對省記憶體的原因。"
+   },
+   {
+    "q": "工廠函式不是模板，因為它沒有用 class 語法。",
+    "a": false,
+    "why": "模板是概念不是語法，兩者都是產生物件的藍圖。"
+   },
+   {
+    "q": "`checkAvailability() { return rooms - booked; }` 讀的是閉包參數，之後改物件屬性不會影響結果。",
+    "a": true,
+    "why": "這正是本篇標記的陷阱，要改讀物件屬性才會跟著變。"
+   },
+   {
+    "q": "React 的 Custom Hook 需要用 this 來存取狀態。",
+    "a": false,
+    "why": "用 useState，完全不需要 this。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "工廠函式能記住外層變數，靠的是 ____（一種函式與其詞法環境的組合）。",
+    "a": "閉包",
+    "why": "英文為 Closure。"
+   },
+   {
+    "q": "`setHotel((prev) => ({ ...prev, booked: prev.booked + count }))` 用的是 ____ 型更新，可避免讀到舊值。",
+    "a": "函式",
+    "why": "functional update。"
+   },
+   {
+    "q": "要讓 Custom Hook 回傳的函式參考在多次 render 間保持穩定，可以用 ____ 包起來。",
+    "a": "useCallback",
+    "why": "避免子元件不必要的重繪。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "比較建構子函式與工廠函式的優缺點，並說明各自適合什麼情境。",
+    "a": "參考方向：建構子＋prototype 的優點是方法共用、記憶體效率好、有 instanceof 可判型、符合多數團隊的 OOP 慣例；缺點是必須記得 new、this 容易在拆解方法或當 callback 時丟失指向。工廠函式優點是沒有 this 的坑、呼叫簡單、可用閉包做真正的私有變數；缺點是每個實例各有一份方法（實例量大時記憶體成本高）、無法用 instanceof 判型。情境：需要大量實例或明確繼承關係時選 class；需要私有狀態、要把方法當 callback 到處傳、或想避免 this 心智負擔時選工廠函式。"
+   },
+   {
+    "q": "把一個「物件模板」改寫成 React Custom Hook 時，有哪些概念是一對一對應的？哪些是 React 特有、原本的 JS 模板沒有的？",
+    "a": "參考方向：一對一的部分——建立實例對應呼叫 hook、物件屬性對應 useState 的 state、物件方法對應 hook 回傳的函式。React 特有的部分：(1) 狀態更新必須產生新物件（不可就地修改），因為 React 靠參考位址比較決定重繪；(2) 更新是非同步且會觸發重新渲染，所以要用函式型更新拿最新值；(3) 每次 render 都會重新執行 hook，函式參考會變，必要時要 useCallback / useMemo 穩定；(4) 有 Hooks 規則限制（只能在頂層呼叫、不能放在條件式裡），這是純 JS 模板沒有的約束。"
+   }
+  ]
+ },
+ "frontend-docs/FCP首次內容繪製-SEO爬蟲與打包五步驟.md": {
+  "tf": [
+   {
+    "q": "FCP 的 Good 門檻是 0.8 秒。",
+    "a": false,
+    "why": "0.8 秒是 TTFB 的門檻，FCP 的官方門檻是 1.8 秒 / 3.0 秒。"
+   },
+   {
+    "q": "`<iframe>` 內的內容不列入 FCP 的計算。",
+    "a": true,
+    "why": "白色空白畫面也不算。"
+   },
+   {
+    "q": "FCP 一定大於或等於 FP。",
+    "a": true,
+    "why": "要先畫出像素，才可能畫出具體內容。"
+   },
+   {
+    "q": "Googlebot 會在同一次請求裡站著等 JavaScript 執行完畢。",
+    "a": false,
+    "why": "官方機制是兩階段索引，需要渲染的頁面會進 Render Queue，可能延後數小時到數天。"
+   },
+   {
+    "q": "Code Splitting 對 FCP 幫助很大，因為首頁不必載入其他頁面的程式碼。",
+    "a": true,
+    "why": "首屏 JS 體積直接決定解析與執行時間。"
+   },
+   {
+    "q": "檔名加雜湊值的目的是讓瀏覽器每次都重新下載，確保拿到最新版。",
+    "a": false,
+    "why": "相反，是為了讓沒變的檔案能長期快取，變了才換檔名。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "伺服器直接回傳含完整內容 HTML 的渲染方式縮寫是 ____。",
+    "a": "SSR",
+    "why": "Server-Side Rendering，對 SEO 最友善的做法之一。"
+   },
+   {
+    "q": "字型載入期間文字不可見的現象縮寫是 ____，可用 font-display: swap 緩解。",
+    "a": "FOIT",
+    "why": "Flash Of Invisible Text。"
+   },
+   {
+    "q": "打包時把沒有被使用的 export 剃除的技術叫 ____。",
+    "a": "Tree Shaking",
+    "why": "直接減少傳輸體積。"
+   },
+   {
+    "q": "決定 FCP 起跑點的後端指標是 ____（首位元組時間）。",
+    "a": "TTFB",
+    "why": "Time To First Byte。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "用一段話向不懂前端的人解釋「為什麼 CSR 網站對 SEO 不利」。",
+    "a": "參考方向：搜尋引擎派爬蟲來讀你的網頁，就像請一個人來抄寫你店裡的菜單。SSR 是你直接把印好的菜單交給他，他 50 毫秒就抄完走人；CSR 是你只給他一張空白紙，跟他說「等一下我的員工會把菜色一項一項寫上去」，他得等好幾秒。Google 現在雖然願意等（實際上是把你排進另一個佇列稍後再來一次），但這對它是額外成本，而它手上有幾十億個網頁要抄。所以內容出現得越慢，被完整收錄的機會與爬取頻率就越低。"
+   },
+   {
+    "q": "請把打包的五個步驟與 FCP 的關係串成一條完整敘事。",
+    "a": "參考方向：(1) 解析與依賴圖建立決定「總共要打包多少東西」，沒做好 Tree Shaking 這裡就先胖了；(2) 轉換與編譯保證瀏覽器不會因為看不懂語法而卡住；(3) 程式碼分割決定「首屏真正需要下載多少」，這一步對 FCP 影響最大；(4) 最佳化與壓縮決定「同樣的內容佔多少位元組」，直接換算成網路傳輸時間與主執行緒開工時間；(5) 輸出與雜湊決定「回訪時還要不要重新下載」。串起來就是：前四步壓縮首次載入的成本，第五步消除重複載入的成本，而 FCP 量的正是使用者從發出請求到看見第一個內容之間，這條鏈路總共花了多久。"
+   }
+  ]
+ },
+ "計算機基礎/cloudflared日誌-ICMP-Proxy與IPv6-Link-Local位址與根憑證.md": {
+  "tf": [
+   {
+    "q": "看到 cloudflared 日誌出現 ICMP proxy 訊息，代表 Tunnel 出錯了。",
+    "a": false,
+    "why": "多半只是啟動時的資訊性日誌，代表已啟用 ICMP 代理功能。"
+   },
+   {
+    "q": "fe80:: 開頭的 IPv6 位址可以從網際網路直接連到。",
+    "a": false,
+    "why": "Link-Local 位址只在同一網段有效，路由器不會轉送它。"
+   },
+   {
+    "q": "ICMP 是用來傳送控制與錯誤訊息的協定，ping 就是靠它。",
+    "a": true,
+    "why": "它不是拿來傳應用資料的。"
+   },
+   {
+    "q": "Windows 的憑證存放區是走 Windows API 而非檔案，所以 Go 程式有機會讀不到系統根憑證。",
+    "a": true,
+    "why": "cloudflared 是 Go 寫的，這就是那則警告的成因。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "IPv6 Link-Local 位址固定落在 ____/10 這個區段。",
+    "a": "fe80::",
+    "why": "看到開頭是 fe80: 幾乎就可以確定。"
+   },
+   {
+    "q": "簽發並被系統信任的第三方憑證機構縮寫是 ____。",
+    "a": "CA",
+    "why": "Certificate Authority。"
+   },
+   {
+    "q": "同一台機器有多張網卡時，引用 Link-Local 位址常要加上介面代號，例如 fe80::1____eth0。",
+    "a": "%",
+    "why": "這個介面代號稱為 Zone ID。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "如果 Cloudflare Tunnel 後面的服務可以正常存取，但 ping 不到，你會怎麼判斷與處理？",
+    "a": "參考方向：(1) 先確認 Tunnel 本身只轉發 TCP / UDP 應用流量，ping 走的是 ICMP，屬於不同層次的東西，服務正常但 ping 不通是預期行為；(2) 若確實需要 ping 診斷，檢查 cloudflared 是否啟用 ICMP Proxy（日誌會有相關訊息），以及作業系統是否允許程式送出 raw ICMP（Linux 需要 ping_group_range 或 CAP_NET_RAW）；(3) 不要把 ping 不通當成服務掛掉的判斷依據，改用實際的 HTTP 健康檢查端點。"
+   }
+  ]
+ },
+ "deployment/Vercel-eve-Agent框架與GitOps零設定部署.md": {
+  "tf": [
+   {
+    "q": "eve 是某一個特定 AI Agent 的名字。",
+    "a": false,
+    "why": "它是 Vercel 推出的 Agent 開發框架與 CLI 工具。"
+   },
+   {
+    "q": "Blackbox AI 在這個情境中扮演的是模型託管與提供商的角色。",
+    "a": true,
+    "why": "Vercel AI Gateway 整合它把 GLM 5.2 串進平台。"
+   },
+   {
+    "q": "用了 eve 框架就必須放棄 Claude。",
+    "a": false,
+    "why": "Claude 是模型（Brain），eve 是框架（Skeleton），隨時可在 agent.ts 切換模型。"
+   },
+   {
+    "q": "用 Vercel 的 Clone Template 流程，需要自己先在 GitHub 手動建 repo 再貼上程式碼。",
+    "a": false,
+    "why": "流程本身就會替你在指定帳號下建立 repo 並推入模板程式碼。"
+   },
+   {
+    "q": "GitOps 的核心主張之一是「版本控制即單一事實來源」。",
+    "a": true,
+    "why": "部署狀態由 Git 中的內容決定，可回溯可回滾。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "把多家模型供應商統一在同一個 API 後面的 Vercel 服務叫 ____。",
+    "a": "AI Gateway",
+    "why": "換模型只要改設定字串。"
+   },
+   {
+    "q": "「基礎設施即程式碼」的英文縮寫是 ____。",
+    "a": "IaC",
+    "why": "Infrastructure as Code。"
+   },
+   {
+    "q": "用 CLI 建立 eve 專案的指令是 npx eve@latest ____ my-agent。",
+    "a": "init",
+    "why": "my-agent 才是你自己 Agent 的名字。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "「Clone 模板到 GitHub 就能自動部署」這件事，跟自己寫一套 GitHub Actions CI/CD 相比，各省掉與各犧牲了什麼？",
+    "a": "參考方向：省掉的是——不必自己寫 workflow yaml、不必管 runner 與快取、不必設定憑證與部署目標、不必處理預覽環境。犧牲的是——建置流程被平台封裝，客製空間小（例如要跑特殊的測試矩陣或多階段建置就綁手綁腳）、供應商鎖定（Vendor Lock-in）、成本模型不透明、以及對「到底發生了什麼」的理解變淺。實務判斷：MVP 與個人專案用平台的零設定，團隊產品線與需要合規稽核的專案自己掌握流水線。"
+   }
+  ]
+ }
 }

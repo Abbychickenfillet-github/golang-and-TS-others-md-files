@@ -66,6 +66,9 @@ def split_front_matter(text):
             elif v == "":
                 meta[key] = []
             else:
+                # 去掉 YAML 純量外層的引號,否則 title 會被渲染成 &quot;標題&quot;
+                if len(v) >= 2 and v[0] == v[-1] and v[0] in ('"', "'"):
+                    v = v[1:-1]
                 meta[key] = v
     return meta, body
 
