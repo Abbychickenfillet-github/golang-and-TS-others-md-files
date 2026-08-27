@@ -42,6 +42,8 @@ title: "README"
 
 - [[機器碼與bytecode的差異]] — machine code vs bytecode、JIT、解釋執行、Java/Python/C++ 流程
 - [[前端開發工具-打包編譯Lint與Parser]] — Parser/AST、Compiler、打包工具(Webpack/Vite/Turbopack)、ESLint vs Prettier、Acorn/Babel/SWC
+- [[next-turbopack-server-chunks-hash-comparison]] — 實際除錯案例:`.next/server/chunks/` 雜湊檔名規則、Turbopack dev server 熱更新沒生效的判斷證據
+- [[npm-run-script-mechanism]] — `npm run dev` 的 `run` 從哪來、`package.json` scripts 運作機制、start/test/stop/restart 保留字例外
 
 ## 之後可以補的主題
 

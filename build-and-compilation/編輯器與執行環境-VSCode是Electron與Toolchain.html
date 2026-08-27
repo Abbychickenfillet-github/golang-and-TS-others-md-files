@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>編輯器與執行環境｜VS Code 是 Electron、Toolchain 才是發動機、Docker 把發動機藏在貨櫃裡</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>編輯器與執行環境｜VS Code 是 Electron、Toolchain 才是發動機、Docker 把發動機藏在貨櫃裡</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#vscode</span><span class="pill">#electron</span><span class="pill">#runtime</span><span class="pill">#toolchain</span><span class="pill">#sdk</span><span class="pill">#docker</span><span class="pill">#nodejs</span><span class="pill">#golang</span><span class="pill">#dotnet</span><span class="pill">#開發環境</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-27</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/f00083e09ec02fa5" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">VS Code 是用 Electron 做的，Electron 內含 Chromium 與 Node.js。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">所以說它骨子裡是一個去掉網址列的 Chrome，並不誇張。</div></li><li><p class="qq">因為 VS Code 自帶 V8 引擎，所以你不用安裝 Node.js 也能在整合終端機打 node app.js。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">這是 Gemini 講得太滿的地方。VS Code 內建的 Node 是給它自己的擴充功能與 tsserver 用的，沒有對外開放。終端機的 node 走的是你系統 PATH 上的 Node.js。</div></li><li><p class="qq">要在 VS Code 寫 C#，只裝擴充功能不裝 .NET SDK 就能編譯執行。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">擴充功能只是操作面板，SDK 才是編譯器與執行環境本體。</div></li><li><p class="qq">Dockerfile 裡 FROM golang:1.23-alpine 的 Image 已經預裝好 Go toolchain。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這就是「本機沒裝 Go 也能跑 Go」的真正原因。</div></li><li><p class="qq">golang 這個 Docker 官方 Image 是微軟維護的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是 Docker Official Images 專案維護的，跟微軟無關。Gemini 在這裡講錯了。</div></li><li><p class="qq">只用 docker build、不用 Dev Containers 的話，VS Code 的 Go 擴充功能會跳 Go command is not available。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">因為 VS Code 在 Windows 這一側找不到 toolchain，建不起語言服務，Go to Definition 也會失效。</div></li><li><p class="qq">瀏覽器絕對不可能執行 C#。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">透過 WebAssembly，Blazor WebAssembly 可以在瀏覽器裡跑 C#。不過你仍然得先有 .NET SDK 才編得出 Wasm。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">VS Code 所使用的桌面應用框架，把 Chromium 與 Node.js 打包在一起，叫做 <input class="blank" data-a="Electron" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這也是 Slack、Discord 桌面版的基礎。</div></li><li><p class="qq">SDK 的全名是 Software Development <input class="blank" data-a="Kit" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">一整組工具：編譯器、連結器、標準函式庫、套件管理器。</div></li><li><p class="qq">Java 的開發套件縮寫是 <input class="blank" data-a="JDK" placeholder="填答案" autocomplete="off">，全名 Java Development Kit。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">只想執行不想開發的話是 JRE。</div></li><li><p class="qq">讓 VS Code 直接連進容器內部、讀取容器裡 toolchain 的擴充功能叫 Dev <input class="blank" data-a="Containers" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">裝了它，Go to Definition 與智慧提示才會恢復。</div></li><li><p class="qq">golang:1.23-alpine 裡的 alpine 指的是一個極小的 Linux 發行版 Alpine <input class="blank" data-a="Linux" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">約 5 MB，常拿來當精簡基底映像。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請完整說明「編輯器」「執行環境（Runtime）」「工具鏈（Toolchain / SDK）」三者的分工，並用它解釋這兩個現象：(1) 為什麼在 VS Code 寫 C# 一定要另外裝 .NET SDK；(2) 為什麼有人本機完全沒裝 Go，Go 程式卻跑得起來。最後說明第二種情況會帶來什麼開發體驗上的副作用、以及怎麼解。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 三者分工——編輯器負責打字、上色、補全，本身不執行程式；Runtime 是真正跑起來的引擎（Node.js、JVM、CPython）；Toolchain/SDK 是編譯器加標準函式庫加套件管理器的整組工具。VS Code 是 Electron 做的編輯器，它內建的 Node 只服務自己的擴充功能與語言服務（tsserver），不對外開放。(2) C# 的情況——VS Code 對 C# 只是高級打字機，按下執行時它把原始碼交給後台的 .NET SDK 編譯執行，再把結果接回終端機顯示。沒有 SDK，程式碼就只是純文字。(3) Go 的情況——Dockerfile 的 FROM golang:1.23-alpine 拉的 Image 裡已經預裝完整 Go toolchain，編譯發生在容器內的 Linux，本機 Windows 完全不需要有 Go。好處是不污染本機環境、沒有版本衝突，刪掉容器就乾淨。(4) 副作用——VS Code 在 Windows 這側找不到 toolchain，Go 擴充功能會一直跳 Go command is not available，語言服務起不來，Go to Definition 跳轉失效，型別提示全無。(5) 解法——裝 Dev Containers 擴充功能，讓 VS Code 直接連進容器內執行語言服務，就讀得到容器裡的 toolchain。</div></li></ol></section>
+
+<article class="card">
+<h1 id="vs-code-electrontoolchain-docker">編輯器與執行環境｜VS Code 是 Electron、Toolchain 才是發動機、Docker 把發動機藏在貨櫃裡</h1>
+<blockquote>
+<p>[!info] 本篇重點 a–m 共 13 個<br />
+一句話總結：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「寫程式的地方」和「跑程式的地方」是兩件事</mark>。搞混這兩件事，就會問出「為什麼寫 C# 要裝 .NET，寫 JS 卻不用」這種問題。</p>
+<p>[!info] 與其他筆記的關聯（附理由）<br />
+<strong>a.</strong> 承接 <span class="wikilink" title="Obsidian 連結：前端開發工具-打包編譯Lint與Parser">前端開發工具-打包編譯Lint與Parser</span>：那篇分工講的是「同一個 runtime 裡不同工具的角色」，本篇往下挖一層，講「runtime 本身從哪來、誰裝的」。<br />
+<strong>b.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：機器碼與bytecode的差異">機器碼與bytecode的差異</span> 與 <span class="wikilink" title="Obsidian 連結：機器碼、位元組碼與機器指令是一樣的嗎">機器碼、位元組碼與機器指令是一樣的嗎</span>：本篇講 toolchain 把原始碼變成什麼，那兩篇講「變出來的東西」到底是哪一層。<br />
+<strong>c.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：docker/docker-引擎-context-image-container-觀念">docker/docker-引擎-context-image-container-觀念</span>：本篇第三節說 Docker Image 裡預裝了 toolchain，那篇解釋 Image 與 Container 的關係，是本篇的機制底層。<br />
+<strong>d.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：docker/windows-用-linux-的方式">docker/windows-用-linux-的方式</span>：本篇提到「本機是 Windows、容器裡是 Linux」，那篇處理兩邊怎麼接。<br />
+<strong>e.</strong> 承接 <span class="wikilink" title="Obsidian 連結：TS/TypeScript-any與unknown-型別逃生艙口與斷言時機">TS/TypeScript-any與unknown-型別逃生艙口與斷言時機</span>：同一場 Gemini 對話的前半段。從「TS 的型別怎麼寫」自然滑到「TS 誰來編譯、誰來執行」。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="fh">一、名詞先講清楚（f–h）</h3>
+<p>先把三個常被混用的字釘死，後面才不會亂：</p>
+<table>
+<thead>
+<tr>
+<th>名詞</th>
+<th>全名</th>
+<th>白話</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Editor / IDE</td>
+<td>Integrated Development Environment（整合開發環境）</td>
+<td>你打字的地方。負責上色、自動補全、跳轉定義</td>
+</tr>
+<tr>
+<td>Runtime</td>
+<td>Runtime Environment（執行環境）</td>
+<td>真正把你的程式跑起來的引擎。例如 Node.js、JVM、CPython</td>
+</tr>
+<tr>
+<td>Toolchain / SDK</td>
+<td>Software Development Kit（軟體開發套件）</td>
+<td>一整組工具：編譯器、連結器、標準函式庫、套件管理器。例如 Go toolchain、.NET SDK、JDK</td>
+</tr>
+</tbody>
+</table>
+<p><strong>f.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">VS Code 是用 Electron 做的</mark>。Electron 是把 Chromium（瀏覽器核心）加上 Node.js 打包成桌面 App 的框架。所以 VS Code 骨子裡確實是「一個去掉網址列、專門用來改程式碼的 Chrome」。</p>
+<p><strong>g.</strong> 因為 Electron 內含 Node.js，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">VS Code 自帶了一份 Node 與 V8 引擎，用來跑它自己的擴充功能與語言服務（Language Server）</mark>。TypeScript 的型別檢查、JS 的 IntelliSense，就是靠這份內建的 Node 在背後跑 <code>tsserver</code>。</p>
+<p><strong>h.</strong> 但 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「VS Code 自帶 V8」不等於「你可以不裝 Node.js 就跑 JS」</mark>——這是 Gemini 在對話裡講得不夠精確的地方，見下方「⚠️ 存疑／更正」。</p>
+<hr />
+<h3 id="c-net-sdkij">二、為什麼寫 C# 要下載 .NET SDK（i–j）</h3>
+<p><strong>i.</strong> VS Code 對 C#、Java、Go、Python 這些語言而言，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只是一台高級打字機</mark>。它沒有能力執行這些語言，它做的事是：把你的原始碼丟給後台真正的 SDK，SDK 編譯並執行完，再把結果接回來顯示在整合終端機裡。</p>
+<pre><code>[ 你在 VS Code 寫 C# ] ──(把程式碼丟過去)──&gt; [ 後台的 .NET SDK ]
+                                                     │ (編譯並執行)
+[   看到輸出結果      ] &lt;──(把結果傳回來)──────── [ 電腦 CPU (x64) ]
+</code></pre>
+<p><strong>j.</strong> 跨語言對照表：</p>
+<table>
+<thead>
+<tr>
+<th>你想寫的語言</th>
+<th>VS Code 本身能做什麼</th>
+<th>你必須另外下載的「發動機」</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JavaScript / TypeScript</td>
+<td>語法上色、IntelliSense、型別檢查（靠內建 Node 跑 tsserver）</td>
+<td>要在終端機 <code>node app.js</code> 執行，仍需自行安裝 Node.js</td>
+</tr>
+<tr>
+<td>C#</td>
+<td>只提供文字打字與擴充功能</td>
+<td>.NET SDK</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>只提供文字打字與擴充功能</td>
+<td>CPython Interpreter</td>
+</tr>
+<tr>
+<td>Java</td>
+<td>只提供文字打字與擴充功能</td>
+<td>JDK（Java Development Kit）</td>
+</tr>
+<tr>
+<td>Go</td>
+<td>只提供文字打字與擴充功能</td>
+<td>Go toolchain</td>
+</tr>
+</tbody>
+</table>
+<p><mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">補充：所有語言都還需要對應的 VS Code Extension（C# Dev Kit、Python、Go、Extension Pack for Java）才會有智慧提示。Extension 只是「翻譯機的操作面板」，SDK 才是翻譯機本體。</mark></p>
+<hr />
+<h3 id="go-toolchain-km">三、那我寫 Go 沒裝 toolchain 也能跑，是怎麼回事（k–m）</h3>
+<p>這是這場對話裡最好的一次質疑。答案是：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Docker 把 Go toolchain 藏在容器裡幫你裝好了</mark>。</p>
+<p><strong>k.</strong> Dockerfile 的第一行就洩漏了答案：</p>
+<pre><code class="language-dockerfile">FROM golang:1.23-alpine
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FROM</code></td>
+<td>Dockerfile 指令，宣告「這個 Image 要以哪個既有 Image 為基底」</td>
+</tr>
+<tr>
+<td><code>golang</code></td>
+<td>Docker Hub 上的官方 Image 名稱。由 Docker Official Images 團隊維護</td>
+</tr>
+<tr>
+<td><code>1.23</code></td>
+<td>Go 的版本 tag</td>
+</tr>
+<tr>
+<td><code>alpine</code></td>
+<td>基底作業系統是 Alpine Linux（極小、約 5 MB 的 Linux 發行版）</td>
+</tr>
+</tbody>
+</table>
+<p><mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這個 Image 裡面已經預先裝好完整的 Go toolchain（<code>go build</code>、<code>go run</code>、<code>gofmt</code>、標準函式庫）</mark>，所以容器裡打 <code>go build</code> 當然跑得動。</p>
+<p><strong>l.</strong> 兩種模式的路徑對照：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>傳統本機開發</th>
+<th>Docker 容器開發</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>toolchain 在哪</td>
+<td>裝在你的 Windows 上</td>
+<td>裝在 Image 裡的 Linux 環境</td>
+</tr>
+<tr>
+<td>編譯發生在哪</td>
+<td>Windows 本機</td>
+<td>容器內部的 Linux</td>
+</tr>
+<tr>
+<td>沒裝會怎樣</td>
+<td><code>go: command not found</code>，完全動不了</td>
+<td>不影響，因為根本不需要本機有</td>
+</tr>
+<tr>
+<td>對本機環境的污染</td>
+<td>有：PATH、GOPATH、版本衝突</td>
+<td>幾乎沒有，刪掉容器就乾淨了</td>
+</tr>
+</tbody>
+</table>
+<pre><code>[ 你的 Windows 本機 ] ── (完全沒裝 Go)
+          │
+          ▼ (啟動容器)
+[ Docker 容器 (Linux) ] ── (內部預裝 Go toolchain，在這裡完成編譯)
+          │
+          ▼ (執行)
+[   你的 x64 CPU     ]
+</code></pre>
+<p><strong>m.</strong> <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">後遺症：如果你完全不用 Dev Containers、只是 <code>docker build</code> 而已，VS Code 的 Go 擴充功能會一直跳 "Go command is not available"</mark>，而且沒辦法「Go to Definition」跳轉函式定義——因為 VS Code 在 Windows 這一側找不到 toolchain，無法建立語言服務。</p>
+<p>解法是用 <strong>Dev Containers</strong> 擴充功能，讓 VS Code 直接「連進容器裡面」執行語言服務，這樣它就讀得到容器內的 Go toolchain，提示與跳轉就會恢復正常。</p>
+<hr />
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<table>
+<thead>
+<tr>
+<th>Gemini 說法</th>
+<th>查證後</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>「VS Code 自帶 V8 引擎，所以寫 JS 不需要另外下載」</td>
+<td>⚠️ 講得太滿</td>
+<td>正確的是：VS Code 內建的 Node 是給<strong>它自己</strong>（擴充功能、tsserver、Language Server）用的，並沒有對外開放給你的專案。你在整合終端機打 <code>node app.js</code>，用的是<strong>你自己安裝在系統 PATH 上的 Node.js</strong>。沒裝 Node 的機器打 <code>node</code> 一樣會 command not found。所以「JS 完全不用裝發動機」是錯的，只是「型別檢查與語法提示不用裝」而已</td>
+</tr>
+<tr>
+<td>「微軟或 Go 官方已經把 Go Toolchain 安裝在這個毛胚屋裡面」</td>
+<td>⚠️ 主體弄錯</td>
+<td><code>golang</code> 這個 Image 是 <strong>Docker Official Images</strong> 專案維護的，跟微軟無關</td>
+</tr>
+<tr>
+<td>「瀏覽器天生看不懂 C# / Java」</td>
+<td>基本正確但有例外</td>
+<td>透過 <strong>WebAssembly（Wasm）</strong>，Blazor WebAssembly 確實可以在瀏覽器裡跑 C#。這不影響本篇結論（你還是得先有 .NET SDK 才編得出 Wasm），但講「絕對看不懂」不夠精確</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_3">各對話來源（原文重點）</h2>
+<h3 id="laptop-architecture-detection-guide2026-httpsgeminigooglecomappf00083e09ec02fa5">〈Laptop Architecture Detection Guide〉（2026 年，後半段）— <a href="https://gemini.google.com/app/f00083e09ec02fa5">https://gemini.google.com/app/f00083e09ec02fa5</a></h3>
+<p><strong>使用者：</strong> 那為什麼我用 VSCODE 就不用下載 .net？<br />
+<strong>Gemini：</strong> 因為 VS Code 骨子裡其實就是一個網頁瀏覽器，它早就偷偷內建好 JS/TS 的執行引擎了⋯⋯VS Code 是用 Electron 開發的，本質上就是一個去掉了網址列、專門用來改程式碼的 Google Chrome 瀏覽器。（後接「文字編輯器 vs 執行環境」與跨語言對照表）</p>
+<p><strong>使用者：</strong> 你說的話有根據嗎，我在用 Go 就沒有下載 toolchain 吧，還是說用 docker 沒差？<br />
+<strong>Gemini：</strong> 你的 Go 程式之所以能跑，正是因為 Docker 幫你把 Go Toolchain 偷偷藏在裡面了⋯⋯你雖然沒有在 Windows 主機下載 Go，但你下載的 Docker Image 裡面有。（後接 Dockerfile <code>FROM golang:1.23-alpine</code> 拆解、兩種開發模式對比、Dev Containers 提示）</p>
+<hr />
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始對話（Gemini）</td>
+<td>https://gemini.google.com/app/f00083e09ec02fa5</td>
+<td>2026-08-27 讀取</td>
+</tr>
+<tr>
+<td>Docker Official Images — golang</td>
+<td>https://hub.docker.com/_/golang</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>Electron 官方說明（Chromium + Node.js）</td>
+<td>https://www.electronjs.org/docs/latest</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>VS Code Dev Containers 文件</td>
+<td>https://code.visualstudio.com/docs/devcontainers/containers</td>
+<td>2026-08-27 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-27</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

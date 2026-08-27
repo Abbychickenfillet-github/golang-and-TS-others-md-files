@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>npm scripts 的 pre / post 生命週期鉤子｜規則寫在哪、什麼時候不會觸發</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>npm scripts 的 pre / post 生命週期鉤子｜規則寫在哪、什麼時候不會觸發</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#npm</span><span class="pill">#package-json</span><span class="pill">#scripts</span><span class="pill">#lifecycle</span><span class="pill">#prebuild</span><span class="pill">#postbuild</span><span class="pill">#工具鏈</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-27</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/2c2db4960c317082" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">pre / post 鉤子只對 start、test、stop、restart 這幾個保留字有效。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">對任意 script 名稱都有效。你自己取的 deploy、lint、report 一樣會找 predeploy、postdeploy。</div></li><li><p class="qq">npm run build -- --mode staging 的 --mode staging 也會傳給 prebuild。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">官方文件明講：參數只傳給你指定的那支 script，不傳給 pre 或 post。</div></li><li><p class="qq">build 失敗（非 0 退出碼）時，postbuild 不會執行。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">post 鉤子只在主 script 成功結束後才跑。</div></li><li><p class="qq">不管你在哪個子資料夾打 npm run，script 執行時的工作目錄都是 package.json 所在那一層。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">所以 script 裡可以放心用相對路徑。</div></li><li><p class="qq">環境變數 npm_lifecycle_event 會告訴你目前跑到哪一個階段。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">可以只寫一支腳本、內部依階段分支。</div></li><li><p class="qq">postinstall 在資安上沒什麼風險，因為它只是安裝後的清理工作。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是供應鏈攻擊最愛的落腳點——npm install 一個被投毒的套件就會自動執行任意程式碼。新版 npm 已加入 npm-approve-scripts 這類審核機制。</div></li><li><p class="qq">scripts 裡能直接寫 vite build 而不用寫完整路徑，是因為 npm 執行前會把 node_modules/.bin 塞進 PATH。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這也是 npx 的第一順位查找位置。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">npm 的 pre/post 規則寫在官方文件的 using-npm/<input class="blank" data-a="scripts" placeholder="填答案" autocomplete="off"> 章節。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">網址是 docs.npmjs.com/cli/v11/using-npm/scripts/。</div></li><li><p class="qq">告訴你目前跑到哪個生命週期階段的環境變數是 npm_lifecycle<input class="blank" data-a="event" placeholder="填答案" autocomplete="off">_。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">值就是 prebuild、build、postbuild 這類字串。</div></li><li><p class="qq">husky 這類 git hook 工具通常掛在 npm 的 <input class="blank" data-a="prepare" placeholder="填答案" autocomplete="off"> 這個安裝期腳本上。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">它在 npm install 後、npm publish 前，以及安裝 git 依賴時觸發。</div></li><li><p class="qq">shell 慣例裡代表「參數結束、後面原封不動往下傳」的標記是兩個減號 <input class="blank" data-a="--" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">npm run build -- --mode staging 就是靠它。</div></li><li><p class="qq">跨平台版本的 rm -rf，常被寫在 prebuild 裡清理輸出資料夾的套件叫 <input class="blank" data-a="rimraf" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">因為 Windows 沒有 rm -rf。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">你接手一個專案，package.json 裡有 prebuild、build、postbuild、predeploy、deploy 五個 script。請完整說明 npm 的 pre/post 生命週期規則、它跟安裝期生命週期腳本（preinstall/install/postinstall/prepare）的差別、有哪三個實務上最容易踩的細節、以及為什麼 postinstall 是供應鏈資安的高風險點。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 規則——對任意 script 名稱 X，npm run X 會依序找並執行 preX → X → postX。這不限保留字，自訂名字一樣吃這套。所以打 npm run deploy 實際上會先跑 predeploy（通常裡面寫 npm run build），再跑 deploy。(2) 與安裝期腳本的差別——preinstall / install / postinstall / prepare 是 npm install 時自動觸發的，跟 npm run 無關；prepare 在 npm install 不帶參數後、npm publish 前，以及安裝 git 依賴時跑，husky 就掛在這裡。(3) 三個易踩細節——(甲) npm run X -- --flag 的參數只傳給 X，pre/post 收不到；(乙) 主 script 失敗（非 0 退出碼）時 post 不會執行，所以不能把「一定要做的清理」放 post；(丙) 工作目錄永遠是 package.json 那一層，不是你打指令的地方，所以相對路徑要以套件根目錄為準。另可提 npm_lifecycle_event 讓一支腳本共用於多階段。(4) postinstall 的風險——它會在依賴安裝完成時自動執行，使用者通常不會看內容。一個被投毒的套件（或它的間接依賴）只要在 postinstall 放一行下載執行的指令，npm install 就等於任意程式碼執行。防禦面可提 npm 的 --ignore-scripts、lockfile 鎖版本、npm-approve-scripts 審核機制、以及 CI 用 npm ci 而非 npm install。</div></li></ol></section>
+
+<article class="card">
+<h1 id="npm-scripts-pre-post">npm scripts 的 pre / post 生命週期鉤子</h1>
+<blockquote>
+<p>[!info] 本篇重點 a–l 共 12 個<br />
+起因是一個很單純的疑問：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「<code>npm run build</code> 會自動先跑 <code>prebuild</code>、再跑 <code>postbuild</code>，這條規則到底寫在哪？」</mark>答案是 npm 官方文件的 Scripts 章節。</p>
+<p>[!info] 與其他筆記的關聯（附理由）<br />
+<strong>a.</strong> 直接承接 <span class="wikilink" title="Obsidian 連結：npm-run-script-mechanism">npm-run-script-mechanism</span>：那篇回答「<code>npm run dev</code> 的 <code>run</code> 是誰加的」以及 <code>start</code> / <code>test</code> / <code>stop</code> / <code>restart</code> 這幾個可省略 <code>run</code> 的保留字。本篇是它的下一層——<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>run</code> 找到 script 之後，npm 在它前後還偷偷做了什麼</mark>。兩篇合起來才是 npm script 的完整執行流程。<br />
+<strong>b.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：前端專案建立與打包選型-Vite與createVue與NextJS與npm鎖版本">前端專案建立與打包選型-Vite與createVue與NextJS與npm鎖版本</span>：那篇處理 <code>package.json</code> 的版本語意，本篇處理 <code>package.json</code> 的 <code>scripts</code> 欄位語意，是同一個檔案的兩個面向。<br />
+<strong>c.</strong> 呼應 <span class="wikilink" title="Obsidian 連結：前端開發工具-打包編譯Lint與Parser">前端開發工具-打包編譯Lint與Parser</span>：pre / post 鉤子最典型的用途就是「build 前先 lint、build 後先跑 type check」，那篇說明這些工具各自負責什麼。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="df">一、規則本身（d–f）</h3>
+<p><strong>d.</strong> <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">規則寫在 npm 官方文件的 <code>using-npm/scripts</code> 章節</mark>，不是社群慣例、也不是某個套件的功能，是 npm CLI 本身的行為。</p>
+<p><strong>e.</strong> 規則一句話：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">對任意 script 名稱 <code>X</code>，執行 <code>npm run X</code> 時，npm 會依序尋找並執行 <code>preX</code> → <code>X</code> → <code>postX</code></mark>。</p>
+<pre><code>npm run build   →   prebuild  →  build  →  postbuild
+npm run test    →   pretest   →  test   →  posttest
+npm run 隨便取   →   pre隨便取  →  隨便取  →  post隨便取
+</code></pre>
+<p><strong>f.</strong> 這不限於保留字。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">你自己取的任何名字都吃這套規則</mark>：</p>
+<pre><code class="language-json">{
+  &quot;scripts&quot;: {
+    &quot;prebuild&quot;: &quot;rimraf dist&quot;,
+    &quot;build&quot;: &quot;vite build&quot;,
+    &quot;postbuild&quot;: &quot;node scripts/report-size.js&quot;,
+
+    &quot;predeploy&quot;: &quot;npm run build&quot;,
+    &quot;deploy&quot;: &quot;gh-pages -d dist&quot;
+  }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"scripts"</code></td>
+<td><code>package.json</code> 裡的欄位，值是一個物件。key 是你取的 script 名字，value 是要丟給系統 shell 執行的字串</td>
+</tr>
+<tr>
+<td><code>"prebuild": "rimraf dist"</code></td>
+<td>因為名字是 <code>pre</code> + <code>build</code>，npm 在跑 <code>build</code> 之前會自動先跑這行。<code>rimraf</code> 是跨平台的 <code>rm -rf</code></td>
+</tr>
+<tr>
+<td><code>"postbuild"</code></td>
+<td><code>build</code> 成功結束後自動跑。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">build 失敗（非 0 退出碼）的話 postbuild 不會執行</mark></td>
+</tr>
+<tr>
+<td><code>"predeploy": "npm run build"</code></td>
+<td>很常見的組合技：部署前自動打包，不用記得手動先 build</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="gj">二、幾個容易踩的細節（g–j）</h3>
+<p><strong>g.</strong> <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">參數不會傳給 pre / post</mark>。官方文件明講：<code>npm run</code> 後面接的參數只會傳給你指定的那支 script，不會傳給 pre 或 post。</p>
+<pre><code class="language-bash">npm run build -- --mode staging
+# --mode staging 只會進到 build,prebuild 與 postbuild 收不到
+</code></pre>
+<p>（<code>--</code> 是 shell 慣例的「參數結束標記」，後面的東西原封不動往下傳。）</p>
+<p><strong>h.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">script 的工作目錄永遠是套件根目錄</mark>。不管你在哪個子資料夾打 <code>npm run</code>，script 執行時的 cwd 都是 <code>package.json</code> 所在的那一層。所以 script 裡可以放心用相對路徑。</p>
+<p><strong>i.</strong> <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">環境變數 <code>npm_lifecycle_event</code> 會告訴你「現在跑到哪一階段」</mark>。這讓你可以只寫一支腳本、內部依階段分支：</p>
+<pre><code class="language-js">// scripts/hook.js
+switch (process.env.npm_lifecycle_event) {
+  case 'prebuild':  /* 清理 */ break;
+  case 'postbuild': /* 產報表 */ break;
+}
+</code></pre>
+<p><strong>j.</strong> 除了你自己取的名字，npm 還有一組<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">安裝期的生命週期腳本</mark>，是 <code>npm install</code> 時自動觸發的，跟 <code>npm run</code> 無關：</p>
+<table>
+<thead>
+<tr>
+<th>階段</th>
+<th>觸發時機</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>preinstall</code></td>
+<td>套件被安裝前</td>
+</tr>
+<tr>
+<td><code>install</code> / <code>postinstall</code></td>
+<td>套件安裝後（原生模組編譯常掛在這裡）</td>
+</tr>
+<tr>
+<td><code>prepare</code></td>
+<td><code>npm install</code>（不帶參數）後、<code>npm publish</code> 前，以及安裝 git 依賴時。husky 就是掛在這裡</td>
+</tr>
+</tbody>
+</table>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">資安提醒：<code>postinstall</code> 是供應鏈攻擊最愛的落腳點——只要 <code>npm install</code> 一個被投毒的套件就會自動執行任意程式碼。</mark>新版 npm 已加入 <code>npm-approve-scripts</code> 這類機制讓你先審核再放行。</p>
+<hr />
+<h3 id="kl">三、對話裡沒答完的那半題（k–l）</h3>
+<p><strong>k.</strong> 對話最後問到「<code>npx es link</code> 嗎？」，Gemini 的回覆被截斷成「好的，這是 npm —」就沒了。<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">推測原意是 <code>npm link</code> 與 <code>npx</code></mark>，補充如下：</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>npm link</code></td>
+<td>在本機建立套件的符號連結（symlink），讓你在 A 專案改的套件原始碼，B 專案立刻吃得到，不用每次發版重裝</td>
+</tr>
+<tr>
+<td><code>npx &lt;套件&gt;</code></td>
+<td>執行套件的 CLI。本機 <code>node_modules/.bin</code> 有就用本機的，沒有就臨時下載執行完丟掉</td>
+</tr>
+</tbody>
+</table>
+<p><strong>l.</strong> 兩者跟本篇的關係：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>scripts</code> 裡的指令能直接打套件名（例如 <code>"build": "vite build"</code>）而不用寫完整路徑，是因為 npm 執行 script 前會把 <code>node_modules/.bin</code> 塞進 <code>PATH</code></mark>。這也是 <code>npx</code> 的第一順位查找位置。</p>
+<hr />
+<h2 id="_2">練習題（延伸）</h2>
+<p>npm 生命週期是工具鏈知識，LeetCode 與 NeetCode 沒有對應題目。想驗證有沒有懂，做這個小實驗比刷題有效：</p>
+<ol>
+<li>建一個空資料夾，<code>npm init -y</code></li>
+<li>在 <code>scripts</code> 加三行：<code>"prehello": "echo A"</code>、<code>"hello": "echo B"</code>、<code>"posthello": "echo C"</code></li>
+<li>打 <code>npm run hello</code>，確認輸出順序是 A B C</li>
+<li>把 <code>"hello"</code> 改成 <code>"exit 1"</code>，再跑一次——確認 <code>posthello</code> 這次不會執行</li>
+</ol>
+<hr />
+<h2 id="_3">各對話來源（原文）</h2>
+<h3 id="npm-2026-httpsgeminigooglecomapp2c2db4960c317082">〈NPM 生命週期鉤子規則〉（2026 年）— <a href="https://gemini.google.com/app/2c2db4960c317082">https://gemini.google.com/app/2c2db4960c317082</a></h3>
+<p><strong>使用者：</strong> 因為有一個 npm 啦，有一組生命週期鉤子的自動規則，比如我打 <code>npm run build</code>，npm 實際執行順序是 prebuild 到 build 到 postbuild，這個在哪裡有寫啊？是在 npm 嗎？然後 <code>npm run test</code>，實際執行的順序是 pretest test posttest。<code>npm run</code> 任何名字都有 pre 任何名字、任何名字到 post 任何名字⋯⋯然後 prebuild 的是 scripts 裡面的 prebuild build link。next。<code>npx es link</code> 嗎？</p>
+<p><strong>Gemini：</strong> 這項規則寫在 npm 的官方文件裡。當您執行 <code>npm run build</code> 時，npm 會自動依序尋找並執行 <code>prebuild</code>、<code>build</code> 和 <code>postbuild</code>。只要在 <code>package.json</code> 檔案的 <code>scripts</code> 裡設定這些腳本，它們就會自動觸發。需要我提供一個範例檔案嗎？</p>
+<p><strong>使用者：</strong> 給我網址。給我官網網址就好。</p>
+<p><strong>Gemini：</strong> 好的，這是 npm —</p>
+<blockquote>
+<p>⚠️ Gemini 的回覆在這裡被截斷，網址沒給完。本篇已補上正確網址：<a href="https://docs.npmjs.com/cli/v11/using-npm/scripts/">https://docs.npmjs.com/cli/v11/using-npm/scripts/</a></p>
+</blockquote>
+<hr />
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始對話（Gemini）</td>
+<td>https://gemini.google.com/app/2c2db4960c317082</td>
+<td>2026-08-27 讀取</td>
+</tr>
+<tr>
+<td>npm Docs — Scripts（pre/post 規則、參數不傳給 pre/post、cwd 在套件根目錄、npm_lifecycle_event）</td>
+<td>https://docs.npmjs.com/cli/v11/using-npm/scripts/</td>
+<td>npm CLI v11，2026-08-27 查證</td>
+</tr>
+<tr>
+<td>npm Docs — npm-run-script</td>
+<td>https://docs.npmjs.com/cli/v8/commands/npm-run-script/</td>
+<td>2026-08-27 查證</td>
+</tr>
+<tr>
+<td>npm Docs — npm-approve-scripts（安裝期腳本的審核機制）</td>
+<td>https://docs.npmjs.com/cli/v11/commands/npm-approve-scripts/</td>
+<td>npm CLI v11，2026-08-27 查證</td>
+</tr>
+<tr>
+<td>npm Docs — npm-install-scripts</td>
+<td>https://docs.npmjs.com/cli/v12/commands/npm-install-scripts/</td>
+<td>2026-08-27 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-27</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>
