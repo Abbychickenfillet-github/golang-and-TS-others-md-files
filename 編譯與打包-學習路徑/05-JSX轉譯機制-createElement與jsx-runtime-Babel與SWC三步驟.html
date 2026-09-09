@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JSX 轉譯機制 — createElement、jsx-runtime 與 Babel／SWC 的三個步驟</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>JSX 轉譯機制 — createElement、jsx-runtime 與 Babel／SWC 的三個步驟</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#react</span><span class="pill">#jsx</span><span class="pill">#babel</span><span class="pill">#swc</span><span class="pill">#transpile</span><span class="pill">#ast</span><span class="pill">#ecmascript</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-29</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/91b54d891b833be2" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/599804dd5ba114af" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">JSX 是 ECMAScript 規範的一部分。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">JSX 是非標準的語法擴充，引擎直接看到會丟 SyntaxError。</div></li><li><p class="qq">轉譯（Transpile）是 JavaScript 引擎在執行時做的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是 Babel／SWC／esbuild 這類建置工具在送進瀏覽器之前做的。</div></li><li><p class="qq">React 17 起的 Automatic Runtime 讓你不必再手動 import React。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">轉譯器會自動注入 react/jsx-runtime 的 jsx()／jsxs()。</div></li><li><p class="qq">用了新版 JSX Transform 之後，useState 也不用 import 了。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Hook 是你程式碼真正用到的識別碼，轉譯器不會幫你補。</div></li><li><p class="qq">React Element 是一個 DOM 節點。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它只是一個普通 JavaScript 物件 { $$typeof, type, props }。</div></li><li><p class="qq">SWC 的全稱是 Speedy Web Compiler，用 Rust 寫的。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Next.js 從 12 起預設用它取代 Babel。</div></li><li><p class="qq">Vite 預設的 JSX／TS 轉換器是 SWC。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Vite 預設用 esbuild；SWC 要另外裝 @vitejs/plugin-react-swc 才會用到。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">轉譯第一步把程式碼文字拆成的樹狀結構縮寫叫 <input class="blank" data-a="AST" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Abstract Syntax Tree，抽象語法樹。</div></li><li><p class="qq">舊版轉譯機制的名字叫 <input class="blank" data-a="Classic" placeholder="填答案" autocomplete="off"> Runtime。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">輸出 React.createElement，必須手動 import React。</div></li><li><p class="qq">React Element 用來防止偽造的那個 Symbol 屬性叫 <input class="blank" data-a="$$typeof" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Symbol 無法由 JSON.parse 產生，因此可擋下注入的假 Element。</div></li><li><p class="qq">轉譯三步驟是 Parsing → <input class="blank" data-a="Transformation" placeholder="填答案" autocomplete="off"> → Code Generation。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">外掛在這一步把 JSXElement 節點改寫成 CallExpression。</div></li><li><p class="qq">新版轉譯中，多個子節點會轉成 <input class="blank" data-a="jsxs" placeholder="填答案" autocomplete="off">() 而不是 jsx()。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">s 代表 static children，事先知道是陣列可省掉執行期判斷。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">有人說「ECMA 又沒有定義 JSX，那 React 怎麼跑得起來」，請完整回答他。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：兩件事發生在不同層。轉譯器層（Babel／SWC／esbuild）在建置階段把程式碼當成文字讀進來，剖析成 AST，把 JSXElement 節點改寫成 CallExpression，再重新生成標準 .js 輸出——這一層不執行程式碼，也不受 ECMA 規範限制，因為它只是文字工具。執行階段層（V8 等引擎）看到的已經是 React.createElement(&#x27;button&#x27;, {...}, ...) 或 _jsx(...)，那是 100% 合乎 ECMA 的物件屬性存取與函式呼叫。所以「ECMA 沒定義 JSX」跟「JSX 最後變成合法 JS」完全不衝突。想親眼驗證可以開 Babel REPL 勾選 react preset。</div></li><li><p class="qq">為什麼 React Element 要用 Symbol 當 $$typeof，而不是用一個普通字串？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：安全性。React 渲染時會檢查物件的 $$typeof 是不是它認得的 Symbol，才把它當成合法 Element。Symbol 是唯一且無法被序列化的原始型別，JSON.parse 不可能產出一個 Symbol。假設後端 API 回傳的 JSON 被直接塞進 JSX 渲染，攻擊者最多只能偽造 { type: &#x27;div&#x27;, props: {...}, $$typeof: &#x27;react.element&#x27; } 這種字串版本，過不了檢查，因此無法透過 dangerouslySetInnerHTML 之外的路徑注入任意元素。這是 React 對 XSS 的一道縱深防禦。</div></li></ol></section>
+
+<article class="card">
+<h1 id="jsx-createelementjsx-runtime-babelswc">JSX 轉譯機制 — createElement、jsx-runtime 與 Babel／SWC 的三個步驟</h1>
+<blockquote>
+<p>本篇重點 a–n，共 14 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="jsx-javascript">一、JSX 不是 JavaScript</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Transpile（轉譯）</mark>是「同一個抽象層級的語言之間互轉」，跟 Compile（編譯成低階碼）不同。JSX 是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">非標準的語法擴充</mark>，ECMAScript 規範裡完全沒有它，JavaScript 引擎（例如 Chrome 的 V8）直接看到 <code>&lt;MyComponent/&gt;</code> 只會丟 <code>SyntaxError</code>。</p>
+<p>(b) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">轉譯不是引擎做的，是打包建置工具在你的程式碼送進瀏覽器之前做的</mark>。Babel、SWC、esbuild、Vite 這些工具不執行你的程式碼，它們把程式碼當成「文字」來剖析與重組。</p>
+<p>(c) 轉譯完之後，引擎看到的只是一段 100% 合乎 ECMAScript 規範的普通程式碼：<code>React</code> 是一個匯入的物件，<code>.createElement</code> 是它的一個方法，回傳值是一個普通物件。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所以「ECMA 沒有定義 JSX」跟「JSX 最終變成合法 JS」這兩件事完全不衝突。</mark></p>
+<h3 id="classic-vs-automatic">二、兩套轉譯機制：Classic vs Automatic</h3>
+<p>(d) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Classic Runtime（舊版轉譯，React 16 及以前）</mark>：</p>
+<pre><code class="language-jsx">// 輸入
+&lt;MyComponent color=&quot;blue&quot;&gt;Hello&lt;/MyComponent&gt;
+
+// 輸出
+React.createElement(MyComponent, { color: 'blue' }, 'Hello');
+</code></pre>
+<p>因為輸出直接用到 <code>React</code> 這個識別碼，所以<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">檔案頂部必須手動 <code>import React from 'react'</code>，否則會 ReferenceError</mark>。</p>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Automatic Runtime（新版轉譯，React 17 起預設）</mark>：</p>
+<pre><code class="language-jsx">// 輸入
+&lt;MyComponent color=&quot;blue&quot;&gt;Hello&lt;/MyComponent&gt;
+
+// 輸出（引入檔由建置工具自動注入）
+import { jsx as _jsx } from 'react/jsx-runtime';
+_jsx(MyComponent, { color: 'blue', children: 'Hello' });
+</code></pre>
+<p>單一子節點用 <code>jsx()</code>，多個子節點用 <code>jsxs()</code>（<code>s</code> 是 static children 的意思，事先知道 children 是陣列可省掉執行期判斷）。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">好處是不用再手動 import React，打包體積與效能也略有優化。</mark></p>
+<p>(f) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但注意：不用 import React ≠ 不用 import Hook。</mark><code>useState</code>、<code>useEffect</code> 這些具名匯出仍然必須自己寫 <code>import { useState } from 'react'</code>，因為它們是你程式碼裡真的用到的識別碼，轉譯器不會幫你補。</p>
+<h3 id="createelement">三、createElement 到底做了什麼</h3>
+<p>(g) <code>React.createElement</code> 就是 React 團隊用標準 JavaScript 寫的一個普通函式，躺在 <code>node_modules/react</code> 裡（原始碼位置 <code>packages/react/src/ReactElement.js</code>）。它的工作只有三件事：整理 props、整理 children、回傳一個普通物件。</p>
+<pre><code class="language-js">// 簡化示意（非可執行的官方碼）
+function createElement(type, config, children) {
+  const props = {};
+  for (const propName in config) {
+    if (hasOwnProperty.call(config, propName)) props[propName] = config[propName];
+  }
+  const childrenLength = arguments.length - 2;
+  if (childrenLength === 1) props.children = children;
+  else if (childrenLength &gt; 1) props.children = Array.prototype.slice.call(arguments, 2);
+
+  return {
+    $$typeof: REACT_ELEMENT_TYPE,   // 一個 Symbol，用來標示這是真的 React Element
+    type: type,
+    props: props,
+  };
+}
+</code></pre>
+<p>(h) 最終產物長這樣，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所謂 React Element 就是一個普通的 JavaScript 物件，不是 DOM 節點</mark>：</p>
+<pre><code class="language-js">{
+  $$typeof: Symbol(react.element),
+  type: 'button',
+  props: { color: 'red', children: 'Click me' }
+}
+</code></pre>
+<p>(i) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>$$typeof</code> 為什麼要用 Symbol？</mark>因為 Symbol 沒辦法被 <code>JSON.parse</code> 產生出來。如果伺服器回傳的 JSON 被直接塞進 JSX 渲染，攻擊者無法偽造一個帶有正確 <code>$$typeof</code> 的假 Element，這是 React 防 XSS 的一道防線。這也是 (g) 那段簡化碼<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不能直接貼進專案當成 React 用</mark>的原因之一——它省略了 <code>key</code>、<code>ref</code>、<code>__self</code>、<code>__source</code> 的處理與開發環境警告。</p>
+<p>(j) 如果只是想自己實驗一個微型 Virtual DOM，這段是可獨立執行的：</p>
+<pre><code class="language-js">function myCreateElement(type, props, ...children) {
+  return {
+    $$typeof: Symbol.for('react.element'),
+    type,
+    props: { ...props, children: children.length === 1 ? children[0] : children },
+  };
+}
+console.log(myCreateElement('h1', { id: 'title' }, 'Hello World'));
+</code></pre>
+<h3 id="transpilation">四、Transpilation 的三個步驟</h3>
+<p>(k) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">第一步 Parsing（語法剖析）</mark>：讀進 <code>.jsx</code> 文字，拆成 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">AST（Abstract Syntax Tree，抽象語法樹）</mark>。<code>&lt;button color="red"&gt;Click&lt;/button&gt;</code> 會變成一個 <code>JSXElement</code> 節點，底下掛著 OpeningElement <code>button</code>、Attributes <code>color="red"</code>、Children <code>"Click"</code>。</p>
+<p>(l) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">第二步 Transformation（語法樹轉換）</mark>：外掛（例如 <code>@babel/plugin-transform-react-jsx</code>）掃描 AST，遇到 <code>JSXElement</code> 就把它改寫成 <code>CallExpression</code>（函數呼叫節點）——函式名 <code>React.createElement</code>，第一參數標籤名字串，第二參數把 Attributes 組成物件，第三參數之後放 children。</p>
+<p>(m) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">第三步 Code Generation（程式碼生成）</mark>：把改寫後的 AST 重新組裝成標準 <code>.js</code> 文字輸出。</p>
+<pre><code class="language-js">// 輸入
+const button = &lt;button color=&quot;red&quot;&gt;Click&lt;/button&gt;;
+// 輸出
+const button = React.createElement(&quot;button&quot;, { color: &quot;red&quot; }, &quot;Click&quot;);
+</code></pre>
+<p>(n) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">動手驗證的最快方式</mark>：打開 Babel 官方線上工具 REPL（https://babeljs.io/repl），左側 Presets 勾選 <code>react</code>，貼上 JSX，右邊即時看到轉譯結果。想看新版轉譯就把 Runtime 設為 <code>automatic</code>。</p>
+<h3 id="_2">五、名詞補全</h3>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SWC = Speedy Web Compiler</mark>，用 Rust 寫的高效能 JavaScript／TypeScript 轉譯器與打包工具。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">AST = Abstract Syntax Tree</mark>，抽象語法樹。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">REPL = Read–Eval–Print Loop</mark>，讀取－求值－印出的互動式環境。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JSX</mark> 官方全稱沒有正式展開，一般理解為 JavaScript XML（XML-like syntax extension to JavaScript）。</li>
+</ul>
+<h2 id="_3">⚠️ 存疑／更正</h2>
+<ul>
+<li><strong>Gemini 說「SWC 目前廣泛應用於 Next.js、Vite 等現代前端工具鏈中」</strong>：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Vite 這一半不精確。</mark>Next.js 從 12 起確實預設用 SWC 取代 Babel；但 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Vite 預設的 JSX／TS 轉換器是 esbuild（Go 寫的），SWC 在 Vite 是可選方案</mark>，要自己裝 <code>@vitejs/plugin-react-swc</code> 才會用到。預設的 <code>@vitejs/plugin-react</code> 走的是 Babel。</li>
+<li><strong>另一段語音對話中 Gemini 說「React 18 之後不用 import React」</strong>：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">版本講錯。</mark>新版 JSX Transform 是 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">React 17（2020 年 10 月）</mark>引進的，並且官方有回移（backport）到 16.14、15.7、0.14.10。React 18 沒有再改這件事。</li>
+</ul>
+<h2 id="_4">相關題目練習</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeetCode 2694. Event Emitter</td>
+<td>https://leetcode.com/problems/event-emitter/</td>
+<td>練習用普通物件與函式表達「宣告一份結構、稍後才執行」的設計，跟 Element 是描述而非動作同一組思維</td>
+</tr>
+<tr>
+<td>LeetCode 2727. Is Object Empty</td>
+<td>https://leetcode.com/problems/is-object-empty/</td>
+<td>直接操作 plain object，體會 (h) 的 React Element 就只是普通物件</td>
+</tr>
+<tr>
+<td>LeetCode 2727 之外無直接對應題</td>
+<td>—</td>
+<td>JSX 轉譯屬於工具鏈知識，LeetCode 沒有對應題型，建議改用 Babel REPL 手動驗證</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">關聯筆記</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：useState底層-Fiber-Tree-memoizedState與過期閉包">useState底層-Fiber-Tree-memoizedState與過期閉包</span> — 本篇講「JSX 怎麼變成 Element 物件」，那篇講「Element 物件之後怎麼被 Fiber 管理」，接起來就是一條完整的渲染前段管線。</li>
+<li><span class="wikilink" title="Obsidian 連結：00-V8引擎完整管線-Parse到Deoptimization">00-V8引擎完整管線-Parse到Deoptimization</span> — 對照 (k)–(m)：Babel 的 Parse→Transform→Generate 與 V8 的 Parse→AST→Bytecode 是同一套編譯器骨架，只是輸出目標不同。</li>
+<li><span class="wikilink" title="Obsidian 連結：ECMA-262規範-TC39與MDN比較">ECMA-262規範-TC39與MDN比較</span> — 呼應 (a)(c)：什麼算標準、什麼是廠商擴充，這篇是判準來源。</li>
+<li><span class="wikilink" title="Obsidian 連結：FCP首次內容繪製-SEO爬蟲與打包五步驟">FCP首次內容繪製-SEO爬蟲與打包五步驟</span> — 轉譯只是打包五步驟的其中一步，那篇提供全景。</li>
+<li><span class="wikilink" title="Obsidian 連結：Vite-HMR機制與Rollup打包原理">Vite-HMR機制與Rollup打包原理</span> — 補充 ⚠️ 那條更正：Vite 預設用 esbuild 而非 SWC 的來龍去脈。</li>
+<li><span class="wikilink" title="Obsidian 連結：React-130錯誤-transpilePackages與SWC">React-130錯誤-transpilePackages與SWC</span> — 實戰踩坑版：轉譯設定沒對好時會噴什麼錯。</li>
+<li><span class="wikilink" title="Obsidian 連結：SSR-renderToString與Hydration-伺服器端渲染流程">SSR-renderToString與Hydration-伺服器端渲染流程</span> — Element 物件在伺服器端會被 <code>renderToString</code> 轉成 HTML 字串，是本篇的下游。</li>
+</ul>
+<h2 id="_6">各對話來源（原文）</h2>
+<h3 id="react-2026-08-28-httpsgeminigooglecomapp91b54d891b833be2">React 元件轉譯機制解析（2026-08-28）— https://gemini.google.com/app/91b54d891b833be2</h3>
+<p><strong>使用者：</strong> Components 元件被轉譯過後會是 react.createElement() 方法，我這樣說對嗎</p>
+<p><strong>Gemini：</strong> 正確，但僅限於舊版的轉譯機制。JSX 語法並非 JavaScript 引擎能直接執行的語法，使用 Babel、SWC 或 Vite 轉譯時，舊版的 Classic Runtime 確實會轉成 <code>React.createElement(...)</code>。但從 React 17 開始導入了新的 JSX 轉譯器，現代建置工具會預設轉譯為從 <code>react/jsx-runtime</code> 自動引入的 <code>jsx()</code> 或 <code>jsxs()</code>，不再需要手動 import React。整體而言你的方向完全正確——Component 在 JSX 層面只是語法糖，最終都會被轉譯為創建 React Element 的函數呼叫。</p>
+<p><strong>使用者：</strong> 你說最終都會被轉譯為創建 React Element（JavaScript 物件）的函數呼叫。可是 ecma 裡面又沒有定義</p>
+<p><strong>Gemini：</strong> 這正是關鍵：轉譯不是 JavaScript 引擎做的，而是打包建置工具在編譯階段完成的。分兩層——轉譯器層（Babel／SWC／Vite）把看起來像 HTML 的 JSX 替換成符合 ECMA 標準語法的函數呼叫；執行階段層（ECMA 引擎）看到的只是一段標準 JS：React 是普通物件，createElement 是普通方法，回傳普通物件 <code>{ $$typeof, type, props }</code>。一句話總結：JSX 是非標準的語法擴充，轉譯器把它翻成合乎 ECMA 規範的函數呼叫，而 React.createElement 只是 React 團隊用標準 JS 寫的一個普通函數。</p>
+<p><strong>使用者：</strong> 所以 react 函式庫內部就有寫 react.createElement()?</p>
+<p><strong>Gemini：</strong> 是的，直接寫在原始碼裡（<code>packages/react/src/ReactElement.js</code>）。接著給出簡化版原始碼：處理 config 成 props、依 <code>arguments.length - 2</code> 判斷 children 數量、最後回傳 <code>{ $$typeof: REACT_ELEMENT_TYPE, type, props }</code>。完整軌跡是：你寫 <code>&lt;button color="red"&gt;Click me&lt;/button&gt;</code> → 打包工具轉成 <code>React.createElement("button", { color: "red" }, "Click me")</code> → 執行進到 React 函式庫內部 → 回傳一個普通 JS 物件。</p>
+<p><strong>使用者：</strong> 你這可以直接貼進專案輸出嗎</p>
+<p><strong>Gemini：</strong> 不可以。那是大幅簡化過的示意碼，缺少 REACT_ELEMENT_TYPE（防 XSS 的 Symbol 標記）以及 key、ref、__self、__source 等除錯屬性的處理，也沒有 React 完整的依賴與環境判斷。而且只要專案安裝了 react，這些程式碼早就在 node_modules 裡了。如果只是想自製一個微型 Virtual DOM 引擎，可以用 <code>myCreateElement</code> 那段獨立可執行的程式碼。</p>
+<p><strong>使用者：</strong> 我只是想要知道它是怎麼被 transpile 出來的嘛</p>
+<p><strong>Gemini：</strong> 轉譯就是文字替換與語法樹重構，分三步——第一步 Parsing：把 <code>.jsx</code> 文字拆成 AST，<code>&lt;button color="red"&gt;Click&lt;/button&gt;</code> 變成 JSXElement 節點（OpeningElement: button、Attributes: color="red"、Children: "Click"）。第二步 Transformation：<code>@babel/plugin-transform-react-jsx</code> 掃到 JSXElement 就改寫成 CallExpression。第三步 Code Generation：把改寫後的 AST 重新組裝輸出成標準 .js。建議用 Babel REPL 線上工具、左側 Presets 勾選 react 即時觀察。</p>
+<p><strong>使用者：</strong> SWC 全稱是什麼</p>
+<p><strong>Gemini：</strong> SWC 的全稱是 Speedy Web Compiler，以 Rust 語言編寫的高效能 JavaScript／TypeScript 轉譯器與打包工具，速度比傳統的 Babel 快上數十甚至數百倍，目前廣泛應用於 Next.js、Vite 等現代前端工具鏈中。</p>
+<h3 id="2026-08-28-httpsgeminigooglecomapp599804dd5ba114af">程式碼報錯原因解析（2026-08-28，語音模式片段）— https://gemini.google.com/app/599804dd5ba114af</h3>
+<p><strong>使用者：</strong> React 18 以後是不是已經不用 import React 跟 import { useState } from 'react' 了？</p>
+<p><strong>Gemini：</strong> React 18 之後，編譯工具已經改變，所以寫 JSX 時確實不需要再 import React 了。不過，像 useState 這類 Hook 仍然必須從 React import 進來喔。</p>
+<p><strong>使用者：</strong> 在剛才那個命令裡面我需要，怎麼寫？</p>
+<p><strong>Gemini：</strong> 在你的 React 元件檔案最上方，還是需要寫 <code>import { useState } from 'react';</code> 喔。</p>
+<p><strong>使用者：</strong> 我是說如果我用 Next.js 起了這個專案，我還是想要用 SSR 是可以做到的嗎？</p>
+<p><strong>Gemini：</strong> 沒問題，Next.js 本身就是以支援 SSR 聞名的。只要在檔案中使用 <code>getServerSideProps</code>，就能在每次請求時進行伺服器渲染。</p>
+<blockquote>
+<p>⚠️ 補充：<code>getServerSideProps</code> 是 Pages Router 的寫法。若專案用的是 App Router（Next.js 13 之後的預設），對應做法改為在 Server Component 內直接 <code>await</code> 取資料，或用 <code>fetch</code> 搭配 <code>{ cache: 'no-store' }</code>。</p>
+</blockquote>
+<h2 id="_7">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇對話（React 元件轉譯機制解析）</td>
+<td>https://gemini.google.com/app/91b54d891b833be2</td>
+<td>Gemini Flash，2026-08-28</td>
+</tr>
+<tr>
+<td>本篇對話（程式碼報錯原因解析，語音片段）</td>
+<td>https://gemini.google.com/app/599804dd5ba114af</td>
+<td>Gemini Flash，2026-08-28</td>
+</tr>
+<tr>
+<td>React 官方部落格 — Introducing the New JSX Transform（確認是 17 不是 18）</td>
+<td>https://legacy.reactjs.org/blog/2020/09/22/introducing-the-new-jsx-transform.html</td>
+<td>2020-09-22 發布，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>React 原始碼 — ReactElement.js</td>
+<td>https://github.com/facebook/react/blob/main/packages/react/src/ReactElement.js</td>
+<td>main 分支，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>Babel — @babel/plugin-transform-react-jsx</td>
+<td>https://babeljs.io/docs/babel-plugin-transform-react-jsx</td>
+<td>Babel 現行文件，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>Babel REPL 線上轉譯工具</td>
+<td>https://babeljs.io/repl</td>
+<td>2026-08-29 查證</td>
+</tr>
+<tr>
+<td>SWC 官方（確認全稱 Speedy Web Compiler）</td>
+<td>https://swc.rs/</td>
+<td>2026-08-29 查證</td>
+</tr>
+<tr>
+<td>Vite 官方 — 預設用 esbuild 轉換 TS／JSX</td>
+<td>https://vite.dev/guide/features#typescript</td>
+<td>Vite 現行文件，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>@vitejs/plugin-react-swc（SWC 在 Vite 是可選方案）</td>
+<td>https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react-swc</td>
+<td>2026-08-29 查證</td>
+</tr>
+<tr>
+<td>Next.js — 為什麼用 SWC</td>
+<td>https://nextjs.org/docs/architecture/nextjs-compiler</td>
+<td>Next.js 現行文件，2026-08-29 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-08-29</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-29</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

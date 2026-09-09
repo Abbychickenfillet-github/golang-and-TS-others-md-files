@@ -3,12 +3,21 @@ title: 前端開發工具總覽:打包、編譯、Lint 與 Parser
 type: topic-note
 source: Gemini
 category: 技術
-tags: [gemini, frontend, 打包工具, webpack, vite, eslint, prettier, parser, compiler]
+tags:
+  - gemini
+  - frontend
+  - 打包工具
+  - webpack
+  - vite
+  - eslint
+  - prettier
+  - parser
+  - compiler
 sources:
   - https://gemini.google.com/app/60eb0e34d9fc653b
   - https://gemini.google.com/app/0211c80a1b2bcc92
 related:
-  - "[[V8引擎完整管線-Parse到Deoptimization]]"
+  - 04-V8引擎完整管線-Parse到Deoptimization
 updated: 2026-07-27
 ---
 

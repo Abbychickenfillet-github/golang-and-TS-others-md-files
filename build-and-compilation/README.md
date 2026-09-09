@@ -40,10 +40,9 @@ title: "README"
 
 ## 本資料夾內容
 
-- [[機器碼與bytecode的差異]] — machine code vs bytecode、JIT、解釋執行、Java/Python/C++ 流程
-- [[前端開發工具-打包編譯Lint與Parser]] — Parser/AST、Compiler、打包工具(Webpack/Vite/Turbopack)、ESLint vs Prettier、Acorn/Babel/SWC
-- [[next-turbopack-server-chunks-hash-comparison]] — 實際除錯案例:`.next/server/chunks/` 雜湊檔名規則、Turbopack dev server 熱更新沒生效的判斷證據
-- [[npm-run-script-mechanism]] — `npm run dev` 的 `run` 從哪來、`package.json` scripts 運作機制、start/test/stop/restart 保留字例外
+- [[編輯器與執行環境-VSCode是Electron與Toolchain]] — VSCode 本身是 Electron App、編輯器跟執行環境的關係
+
+> **2026-08-30 更新**：原本放在這裡的編譯/打包主題筆記（機器碼與bytecode、Parser/AST、V8引擎管線、JSX轉譯、npm scripts、Turbopack 除錯案例…），連同散在 `frontend-docs/javascript/`、`frontend-docs/react/`、`計算機基礎/` 的相關筆記，已經依學習順序集中整理到 **[[../編譯與打包-學習路徑/README|編譯與打包-學習路徑]]**，不會在兩邊各放一份。這裡繼續放「編譯」主題以外、但仍屬於建置工具鏈脈絡的筆記（例如編輯器本身的執行環境）。
 
 ## 之後可以補的主題
 
