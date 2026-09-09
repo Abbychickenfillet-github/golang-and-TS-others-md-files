@@ -15,6 +15,99 @@ updated: 2026-08-09
 > <mark style="background: #ADCCFFA6;">起點</mark>：`JavaScript-practicing/smallest-divisible-digit-product.js` 裡誤寫成 `Number(digits).reduce(...)`（對整個陣列做 `Number()`），追查「為什麼 `Number(陣列)` 會變成 `NaN`」一路查到 JS 語言底層統一的型別轉換機制。
 > <mark style="background: #BBFABBA6;">跟 [[JavaScript-字串方法]] 的分工</mark>：那篇講「`toString()`/`String()` 實際用起來會怎樣」（現象）；這篇講「底層那套規則到底怎麼運作」（機制）。
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事：<mark style="background: #FF5582A6;">以為 `Number(陣列)` 是 `NaN`，是因為「JS 不會轉陣列」</mark>
+> a. 真正的原因是：<mark style="background: #FFF3A3A6;">陣列**沒有覆寫** `valueOf()`</mark>，繼承到的是 `Object.prototype.valueOf()` 那個「回傳物件自己」的無用版本 —— 交不出原始值就算**失敗**，只好退去試 `toString()`，得到 `"8,6"` 這種帶逗號的字串，再丟給 `ToNumber` 才變成 `NaN`。整條路是走完的，不是「不會轉」。
+> b. 第二個常見誤解：以為 `+` 的 hint 是 `"string"`。<mark style="background: #ADCCFFA6;">`+` 的 hint 其實是 `"default"`，順序跟 `"number"` 一樣是 valueOf 先</mark>；它之所以常常變成字串接尾，是因為兩邊都交不出原始值、被迫退到 `toString()`，不是因為它「偏好字串」。
+> c. 第三個誤解：以為這是編譯期就算好的。<mark style="background: #BBFABBA6;">整套抽象操作是執行期、每次求值都重跑一次的事</mark>——Babel 與 webpack 不會幫你先把 `[1,2] + [3,4]` 算成 `"1,23,4"`，它們根本不看這件事。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | ToPrimitive／ToNumber／ToString 是什麼？ | ECMA-262 規範裡的**抽象操作（Abstract Operations）**——規範用來定義語言行為的內部步驟，你沒辦法直接呼叫，但每一行牽涉型別轉換的程式碼背後都在跑它 |
+| **When** 什麼時候 | 它在哪一格發生？ | <mark style="background: #FF5582A6;">執行期，而且是「每次求值都重跑一次」</mark>。同一行 `x + y` 跑在迴圈裡一百次，這套流程就完整跑一百次 |
+| **Who** 誰觸發 | 誰會叫到它？ | `Number(x)`、`String(x)`、`x + y`、`x == y`、樣板字面值、陣列 `join()`⋯⋯<mark style="background: #ADCCFFA6;">全部共用同一套底層規則</mark>，不是每個函式各寫一套 |
+| **Where** 在哪裡 | 它實際去找什麼？ | 去物件身上（沿原型鏈）找三個方法：`Symbol.toPrimitive` → `valueOf()` → `toString()`。找不到覆寫版本就用 `Object.prototype` 繼承來的那個無用版本 |
+| **Which** 哪一種 | hint 有哪幾種、順序差在哪？ | a. `"number"`（`Number(x)`、`x - y`、`x < y`）→ valueOf 先。b. `"string"`（`String(x)`、樣板字面值）→ toString 先。c. `"default"`（`x + y`、`x == y`）→ 跟 number 同順序。<mark style="background: #D2B3FFA6;">`Date` 例外，它自訂 `Symbol.toPrimitive` 把 default 當字串處理</mark> |
+| **How** 怎麼判定失敗 | 什麼叫「失敗」？失敗之後呢？ | 「回傳的**還是物件**」就算失敗，跳去試下一個方法；<mark style="background: #FF5582A6;">兩個都交不出原始值 → 直接丟 `TypeError`</mark> |
+| **Why** 為什麼 | 為什麼 `Number(['8','6'])` 是 `NaN`？ | 陣列沒覆寫 `valueOf()` → 回傳自己（失敗）→ 退去 `toString()` → 得到 `"8,6"` → `ToNumber("8,6")` 不是合法數字字面值格式 → `NaN` |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄────────── buildtime 建置期 ──────────►◄────────── runtime 執行期 ──────────►
+      （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本後）
+
+ ①轉譯        ②打包         ③Parse        ④Bytecode      ⑤每次求值都重來
+ transpile    bundle        解析／AST      Ignition       求值幾次做幾次
+ ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐   ┌──────────────────┐
+ │Babel   │   │webpack │   │Scanner │   │AST →   │   │ ★ ToPrimitive     │
+ │tsc     │──►│Vite    │──►│Parser  │──►│Bytecode│──►│ ★ ToNumber        │
+ │SWC     │   │Rollup  │   │只知道這 │   │        │   │ ★ ToString        │
+ └────────┘   └────────┘   │是個 +   │   └────────┘   │ ★ 可能丟 TypeError│
+  不會幫你算    不會幫你算    └────────┘                └──────────────────┘
+  [1,2]+[3,4]  [1,2]+[3,4]  每個函式只做一次            同一行跑 100 次
+                            不知道兩邊是什麼型別         就整套跑 100 次
+
+ ★ 型別轉換整套落在第 ⑤ 格：它需要「值」，而值只有執行期才存在。
+ ★ 第 ③ 格只看得到「這裡有一個 + 運算子」，看不到兩邊會是陣列還是數字。
+```
+
+同一件事，換成 ToPrimitive 自己的抽象操作順序再看一次：
+
+```text
+ 求值 x + y（每次執行到這一行都重跑）
+        │
+        ▼
+ x 已經是原始值？ ──是──► 直接用，不進 ToPrimitive
+        │否
+        ▼
+ ToPrimitive(x, hint)
+        │
+        ├─ 步驟 1：物件有 Symbol.toPrimitive 嗎？
+        │      └─是─► ★ 插隊接管，hint 直接交給它自己判斷（Date 走這條）
+        │
+        ├─ 步驟 2：hint = "string"  ──► toString() ──失敗──► valueOf()
+        │          hint = "number"  ──► valueOf()  ──失敗──► toString()
+        │          hint = "default" ──► 同 number 順序（+ 與 == 走這條）
+        │
+        ├─ 步驟 3：拿到原始值 ──────► 交給 ToNumber／ToString 做最後一段
+        │
+        └─ 步驟 3'：兩個都回傳物件 ─► ★ TypeError（整條流程到此中斷）
+```
+
+同一條時間軸用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（完全不參與型別轉換）"]
+        T["① 轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["② 打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 每個函式只做一次"]
+        P["③ Parse／AST<br/>只知道這裡有一個 + 運算子<br/>不知道兩邊是什麼型別"] --> BC["④ Ignition 產生 Bytecode"]
+    end
+    subgraph RT2["runtime 執行期 · 每次求值都重來"]
+        S0{"運算元已經是原始值嗎"} -->|"是"| DONE["直接用，不進 ToPrimitive"]
+        S0 -->|"否，是物件"| S1{"有 Symbol.toPrimitive 嗎"}
+        S1 -->|"有"| SP["★ 插隊接管<br/>hint 交給它自己判斷<br/>Date 走這條"]
+        S1 -->|"沒有"| S2{"hint 是哪一種"}
+        S2 -->|"string：String(x)、樣板字面值"| A1["toString() 先<br/>失敗才 valueOf()"]
+        S2 -->|"number：Number(x)、減、小於"| A2["valueOf() 先<br/>失敗才 toString()"]
+        S2 -->|"default：加號、雙等號"| A2
+        A1 --> R{"拿到原始值了嗎"}
+        A2 --> R
+        SP --> R
+        R -->|"拿到了"| N["交給 ToNumber／ToString<br/>做最後一段轉換"]
+        R -->|"兩個都回傳物件"| TE["★ TypeError<br/>流程中斷"]
+    end
+    BU --> P
+    BC --> S0
+```
+
+---
+
 ## (a) 為什麼需要一套統一的轉換機制？
 
 JS 到處都在「隱式」把值轉成別的型別：`Number(x)`、`String(x)`、`x + y`、`x == y`、樣板字面值 `` `${x}` ``、陣列 `join()`……這些場景**全部共用同一套底層規則**，不是每個函式各自寫一套轉換邏輯。這套規則在 ECMA-262 規範裡叫**抽象操作（Abstract Operations）**，跟你平常寫的函式一樣有輸入輸出，只是它是**規範用來定義語言行為的內部操作**，你沒辦法直接呼叫它，但每一行牽涉到型別轉換的程式碼背後都在跑它。

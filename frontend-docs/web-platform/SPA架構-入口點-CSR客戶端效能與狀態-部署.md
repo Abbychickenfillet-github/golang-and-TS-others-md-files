@@ -16,7 +16,7 @@ tags:
   - deploy
   - web-platform
 related:
-  - "[[script載入方式]]"
+  - "[[script載入方式+前因後果]]"
   - "[[SSR-renderToString與Hydration-伺服器端渲染流程]]"
   - "[[11-記憶體模型-stack-heap-動態配置-GC]]"
   - "[[Cookie-與-Session]]"
@@ -25,7 +25,7 @@ updated: 2026-08-11
 
 # SPA 架構：SPA≠CSR（兩個獨立的軸）／入口點／狀態／部署
 
-> 承接 [script載入方式](script載入方式.md) 第六節。
+> 承接 [script載入方式+前因後果](script載入方式+前因後果.md) 第六節。
 > **本篇最重要的一件事：SPA 不等於 CSR。**「SPA/MPA」跟「CSR/SSR」是**兩個獨立的軸**，可以自由組合，一定要分開講。
 >
 > **本篇重點 (a)–(e)，共 5 個。**
@@ -126,7 +126,7 @@ CSR 這邊，判準是那台伺服器**扮演的角色**：只要做「發靜態
 ---
 
 ## 相關筆記
-- [script載入方式](script載入方式.md) —— 母篇：HTML Parsing（由 Blink 做、非 V8）、六種 script 載入模式、CSR vs SSR 的 index.html 長相
+- [script載入方式+前因後果](script載入方式+前因後果.md) —— 母篇：HTML Parsing（由 Blink 做、非 V8）、六種 script 載入模式、CSR vs SSR 的 index.html 長相
 - [SSR-renderToString與Hydration-伺服器端渲染流程](../react/SSR-renderToString與Hydration-伺服器端渲染流程.md) —— SSR 與 hydration 的深入版
 - [11-記憶體模型-stack-heap-動態配置-GC](../javascript/JS_Core_and_Runtime/11-記憶體模型-stack-heap-動態配置-GC.md) —— state 存在 JS heap 的記憶體基礎
 - [Cookie-與-Session](../../backend/Cookie-與-Session.md) —— 跨重載保存登入狀態的其中一條路
@@ -135,6 +135,6 @@ CSR 這邊，判準是那台伺服器**扮演的角色**：只要做「發靜態
 
 | 主題 | 連結 | 版本／時間 |
 |---|---|---|
-| 本篇為 Abby↔Claude 問答延伸（承接母篇 Gemini 素材），未另做外部查資料 | 母篇：[script載入方式](script載入方式.md) | 2026-08-11 |
+| 本篇為 Abby↔Claude 問答延伸（承接母篇 Gemini 素材），未另做外部查資料 | 母篇：[script載入方式+前因後果](script載入方式+前因後果.md) | 2026-08-11 |
 
 > 註記：本篇屬既有前端架構知識整理（SPA/MPA、CSR/SSR/SSG、hydration、預設首頁 index.html、瀏覽器儲存 API 等），非引用特定網頁；要對照官方定義可查 MDN 的 SPA／Client-side rendering、Next.js 的 Rendering 文件再回補。

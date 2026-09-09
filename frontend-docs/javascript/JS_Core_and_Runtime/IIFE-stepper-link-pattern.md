@@ -4,6 +4,87 @@ title: "IIFE-stepper-link-pattern"
 
 # IIFE Stepper + Link 可點擊步驟導航模式
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事：<mark style="background: #FF5582A6;">IIFE 的「立即」不等於「只跑一次」</mark>
+> 「立即」指的是<mark style="background: #FFF3A3A6;">定義完的那一瞬間就呼叫它</mark>，不是「整支程式只執行一次」。本篇的 IIFE 寫在元件 `return` 出去的 JSX 裡面，所以它是<mark style="background: #FF5582A6;">每一次 render 都重新建立一個新的函式物件、重新呼叫一次</mark>——`stepUrls` 與 `steps` 這兩個綁定，每一次 render 都是全新的一組，上一次的那組早就跟著 Stack Frame 被拆掉了。真正「只做一次」的是 Parse（把這段語法解析成 AST），那是另外一格的事。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | IIFE 到底是什麼？ | Immediately Invoked Function Expression，立即執行函式表達式：把函式擺到**表達式的位置**，定義完馬上補一對 `()` 呼叫它。本篇拿它在 JSX 的 `{}` 裡開一小塊「可以寫 `const` 的空間」 |
+| **When** 什麼時候 | 它在哪一格發生？ | <mark style="background: #FF5582A6;">runtime 執行期</mark>，而且是「程式碼執行到那一行」的那一瞬間才發生。在 JSX 裡就等於<mark style="background: #FFF3A3A6;">每一次 render 都整條重來</mark> |
+| **Who** 誰做的 | 是誰讓它可以「立即」被呼叫？ | 外面那對括號。它把 `function` ／箭頭函式從**陳述式位置**搬到**表達式位置**，引擎才准你在後面接 `()`。真正建立 Execution Context 的還是 JS 引擎（V8） |
+| **Where** 在哪裡 | 它建立的東西住在哪？ | 都在 RAM。函式物件在 **Heap**；這一次呼叫的 `stepUrls`、`steps` 在 **Stack Frame** 裡，沒有被閉包捕獲，所以 `return` 完就跟著 Stack Frame 一起消失 |
+| **Which** 哪一種 | 哪些寫法才算 IIFE？ | `(function () {})()`、`(() => {})()`、`(function () {}())`、`!function () {}()` 都算。<mark style="background: #FF5582A6;">`function foo() {}()` 不算</mark>——那是函式**宣告**，後面那對 `()` 會被當成另一段程式碼而語法錯誤 |
+| **How** 怎麼做到 | 一次 IIFE 的完整流程？ | 求值出函式物件 → 立即呼叫 → 建立 Execution Context（Creation Phase 建 `stepUrls`／`steps` 的綁定）→ Execution Phase 逐行執行 → `return` 出陣列 → 彈出 Stack Frame，舞台拆掉 |
+| **Why** 為什麼 | 為什麼 JSX 裡非得這樣寫？ | 因為 JSX 的 `{}` 只吃**表達式**，而 `const stepUrls = […]` 是**陳述式**。IIFE 把陳述式包進一個「會回傳值的表達式」，順便讓變數定義待在使用處旁邊，不用被推到元件最上面 |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
+        （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤執行到那一行才發生
+ transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
+ ┌────────┐   ┌────────┐     ┌───────────┐   ┌──────────┐   ┌───────────────────┐
+ │Babel   │   │webpack │     │Scanner    │   │Ignition  │   │ 求值出函式物件      │
+ │tsc     │──►│Vite    │────►│Parser     │──►│把 AST 編成│──►│ ★ 立即呼叫那對 ()  │
+ │SWC     │   │Rollup  │     │AST        │   │Bytecode  │   │ ★ 建 Execution     │
+ │JSX→JS  │   │合併壓縮│     │Scope      │   │          │   │   Context          │
+ └────────┘   └────────┘     │Analysis   │   └──────────┘   │ ★ 執行完立刻彈出    │
+                             └───────────┘                  └───────────────────┘
+                             每個函式只做一次                 每一次 render 都重來一遍
+
+ ★ IIFE 站在第 ⑤ 格，不是第 ③ 格。括號在第 ③ 格只是讓 Parser「判定它是表達式」，
+   真正呼叫、真正在 RAM 裡挖格子，是第 ⑤ 格的事。
+```
+
+再看 IIFE 自己的一生——<mark style="background: #BBFABBA6;">四件事全部擠在執行期的同一瞬間</mark>：
+
+```text
+ ①函式定義          ②立即呼叫         ③建立 Execution    ④Execution Phase  ⑤return 彈出
+  (() => { … })      後面那對 ()        Context            逐行真的執行       Stack Frame
+      ↓                  ↓                  ↓                   ↓                ↓
+ ┌───────────┐    ┌───────────┐    ┌─────────────┐    ┌───────────┐    ┌────────────┐
+ │外層括號把它│    │不用取名字、│    │Creation      │    │算出       │    │舞台拆掉     │
+ │放到表達式  │───►│不用先存進  │───►│Phase：建立   │───►│steps.map()│───►│stepUrls 與  │
+ │的位置，引擎│    │變數，當場就│    │stepUrls 與   │    │的結果，    │    │steps 一起消 │
+ │才准接 ()   │    │呼叫       │    │steps 的綁定  │    │return 出去 │    │失（沒被閉包 │
+ └───────────┘    └───────────┘    └─────────────┘    └───────────┘    │捕獲）       │
+                                                                        └──────┬─────┘
+                                                                               │
+                       React 下一次 render ◄──────────────────────────────────┘
+                       整條時間軸從 ① 原封不動再跑一次，拿到全新的一組綁定
+```
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（部署前跑完，V8 還沒看到程式碼）"]
+        T["轉譯 transpile<br/>Babel／tsc／SWC<br/>JSX 變成 React.createElement"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 只做一次的部分"]
+        P["Parse 解析<br/>Scanner → Parser → AST<br/>括號讓 Parser 判定：<br/>這是函式表達式，不是宣告"] --> BC["Ignition 產生 Bytecode<br/>可重複使用"]
+    end
+    subgraph RT2["runtime 執行期 · 每一次 render 都重來"]
+        D["① 函式定義<br/>求值出一個全新的函式物件"] --> C["② 立即呼叫<br/>後面那對 ()"]
+        C --> EC["③ 建立 Execution Context<br/>Creation Phase：<br/>建 stepUrls／steps 的綁定"]
+        EC --> EP["④ Execution Phase<br/>逐行執行，算出 steps.map 的結果"]
+        EP --> R["⑤ return → 彈出 Stack Frame<br/>stepUrls／steps 一起消失"]
+    end
+    BU --> P
+    BC --> D
+    R -.->|"React 下一次 render 就整條重來"| D
+```
+
+> [!info]- 為什麼「每次 render 重建一次函式」在這裡不是問題？
+> a. <mark style="background: #BBFABBA6;">建立一個函式物件非常便宜</mark>：這裡只是在 Heap 上做一個小物件，跟整棵 Virtual DOM 的比對相比可以忽略。
+> b. <mark style="background: #ADCCFFA6;">它沒有被當成 props 傳下去</mark>：會造成子元件重新渲染的是「傳給子元件的函式每次都是新的」，而這個 IIFE 定義完立刻就被呼叫掉了，沒有人拿著它的參考。
+> c. <mark style="background: #FFF3A3A6;">這正是本篇不用 `useMemo` 的理由</mark>：`useMemo` 要花記憶體存快取、還要比對依賴陣列，對一組靜態的 stepper 資料來說反而更貴。
+
+
 ## 背景
 
 在品牌商攤位註冊流程中，有一個 5 步驟的 stepper（步驟進度條）：

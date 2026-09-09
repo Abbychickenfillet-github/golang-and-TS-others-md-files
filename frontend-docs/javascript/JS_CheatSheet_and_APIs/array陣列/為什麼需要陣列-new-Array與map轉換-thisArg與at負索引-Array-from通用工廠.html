@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>為什麼需要陣列 — new Array 建立、map 轉換、thisArg 與 at 負索引、Array.from 通用工廠</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>為什麼需要陣列 — new Array 建立、map 轉換、thisArg 與 at 負索引、Array.from 通用工廠</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#array</span><span class="pill">#map</span><span class="pill">#array-from</span><span class="pill">#at</span><span class="pill">#thisArg</span><span class="pill">#symbol</span><span class="pill">#weakmap</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/8bb318387dd5c73d" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/bd15f46160f3c7ac" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">new Array(5) 建立出來的是 5 個 undefined，可以直接用 map 產生 5 個元件。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是 5 個 empty slot（孔洞），map 會直接跳過。必須先 .fill(0) 才有真正的元素。</div></li><li><p class="qq">箭頭函式用了大括號 {} 卻沒寫 return，回傳值會是 undefined。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這就是 map 出來一整排 undefined、React 畫面全白的原因。</div></li><li><p class="qq">arr[-1] 可以拿到陣列的最後一個元素。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">方括號會把 -1 當成字串 key，找不到就回 undefined。要用 arr.at(-1)。</div></li><li><p class="qq">map 的第二個參數 thisArg 對箭頭函式也有效。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">箭頭函式的 this 在定義時就由詞法作用域綁死了，thisArg 對它完全沒作用。</div></li><li><p class="qq">全域 Symbol（Symbol.for(&quot;foo&quot;)）不能拿來當 WeakMap 的 key。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">它被全域註冊表永久引用，不是 garbage-collectable value。</div></li><li><p class="qq">用 Symbol 當 Object 的 key 時，Object.keys() 抓得到它。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">抓不到，必須用 Object.getOwnPropertySymbols()。Map 才會一視同仁。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">要取陣列最後一個元素，現代寫法是 arr.<input class="blank" data-a="at" placeholder="填答案" autocomplete="off">(-1)。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">at() 支援負索引，slice(-2) 早就是同樣的慣例。</div></li><li><p class="qq">map() 是一個「1 對 <input class="blank" data-a="1" placeholder="填答案" autocomplete="off"> 的陣列轉換器」，原陣列有幾個元素，新陣列就有幾個。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">等長轉換是 map 的第一大特性。</div></li><li><p class="qq">Array.from 是一個通用<input class="blank" data-a="工廠" placeholder="填答案" autocomplete="off">方法，建立結果時會呼叫當下的 this 建構函式。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Generic Factory Method，所以 Array.from.call(NotArray, ...) 會產出 NotArray 實體。</div></li><li><p class="qq">WeakMap 規定 key 必須是 garbage-<input class="blank" data-a="collectable" placeholder="填答案" autocomplete="off"> value。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">能被引擎追蹤引用、沒人用時會被自動清掉的值。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">面試官問「map 和 forEach 差在哪」，你會怎麼答才不會被追打？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 先講回傳值——forEach 回傳 undefined、map 回傳一個長度相同的新陣列，這是規格層的硬差別。(2) 再講意圖——forEach 表達「我只是要做副作用」（送 API、印 log），map 表達「我要一份加工過的新資料」，讀 code 的人看到 map 就會預期有回傳值被接住。(3) 補三個特性：等長、不改原陣列、跳過 sparse array 的孔洞。(4) 加分點：如果 map 的回傳值沒有被使用，那就是誤用，應該改成 forEach——很多 lint 規則會直接報這個錯。</div></li><li><p class="qq">為什麼 primitive（Number、String）不能當 WeakMap 的 key，但物件和非全域 Symbol 可以？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) WeakMap 的核心是「弱引用」——當 key 沒有其他人持有時，整筆資料要能被 GC 回收。這要求 key 必須有「身分（identity）」，引擎才能追蹤「還有沒有人指著它」。(2) 物件天生有身分（同樣內容的兩個 {} 是不同的東西）。非全域 Symbol 也有身分且獨一無二，所以 ES2023 起被允許。(3) primitive 沒有身分——42 就是 42，無所謂「這個 42 還有沒有人用」，追蹤不了引用狀態，也就無法決定何時回收，所以規格直接禁止。(4) 全域 Symbol 雖然是 Symbol，但被全域註冊表永久持有，永遠不會被回收，放進 WeakMap 等於製造記憶體洩漏，所以也被禁止。</div></li></ol></section>
+
+<article class="card">
+<h1 id="new-array-map-thisarg-at-arrayfrom">為什麼需要陣列 — new Array 建立、map 轉換、thisArg 與 at 負索引、Array.from 通用工廠</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+本篇把兩串 Gemini 對話合併：一串是「陣列存在的理由」（很基礎但是面試會被問到「為什麼不用一堆變數」），一串是「new Array 到 map 到 Array.from 的一整條轉換鏈」。<br />
+關聯理由如下：<br />
+(1) <span class="wikilink" title="Obsidian 連結：map-轉換陣列重點與練習">map-轉換陣列重點與練習</span> 已有 map 的練習題，本篇補的是 map 規格層的兩個細節——第二參數 <code>thisArg</code> 與稀疏陣列跳過，兩篇互為表裡。<br />
+(2) <span class="wikilink" title="Obsidian 連結：陣列遍歷-forEach與callback">陣列遍歷-forEach與callback</span> 講 forEach，本篇第三節正好是「map 與 forEach 的目的差異」，讀完兩篇才不會混用。<br />
+(3) <span class="wikilink" title="Obsidian 連結：Object-keys與Array-keys-稀疏陣列孔洞的差異">Object-keys與Array-keys-稀疏陣列孔洞的差異</span> 講孔洞，本篇 (l) 點的「map 跳過 empty slot」是同一個底層現象的另一個切面。<br />
+(4) 最後一節的 Symbol 與 WeakMap 屬於 <span class="wikilink" title="Obsidian 連結：Symbol-符號型別與物件key">Symbol-符號型別與物件key</span> 的延伸，因為對話是從「陣列與 Map 的 key 可以放什麼」延伸出去的，故收在本篇並雙向連結。</p>
+<p>本篇重點 a–v，共 22 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="ad">一、陣列存在的理由（a–d）</h3>
+<p>(a) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">陣列的核心價值是「一個變數名稱，裝一整串相關的值」</mark>。不用陣列的笨方法是替每個項目各宣告一個變數。</p>
+<pre><code class="language-js">// 笨方法：不使用陣列
+let item1 = &quot;蘋果&quot;;
+let item2 = &quot;牛奶&quot;;
+let item3 = &quot;麵包&quot;;
+// 如果有 50 個東西，你就得寫 50 行宣告...
+
+// 好方法：使用陣列
+let shoppingList = [&quot;蘋果&quot;, &quot;牛奶&quot;, &quot;麵包&quot;];
+</code></pre>
+<p>(b) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只要一個變數</mark>：不需要為每一個項目分別取名字，也不必事先「盲猜」到底會有幾筆資料。</p>
+<p>(c) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">長度彈性</mark>：要加第四個項目直接 <code>shoppingList.push("雞蛋")</code>，不必回頭去多宣告一個 <code>item4</code>。</p>
+<p>(d) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">方便處理</mark>：要對全部資料做同一件事時，只要一個迴圈跑這一個變數即可，不必寫幾十個 <code>if</code> 或重複的程式碼。</p>
+<blockquote>
+<p>[!tip] 面試一句話<br />
+陣列解決的不是「存得下」，而是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「數量未知」與「批次處理」</mark>這兩件事。</p>
+</blockquote>
+<h3 id="new-array5fill0map-eh">二、new Array(5).fill(0).map() 的星星陷阱（e–h）</h3>
+<p>(e) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">下面這段程式碼會讓畫面一片空白</mark>，因為箭頭函式一旦用了大括號 <code>{}</code>，就必須自己寫 <code>return</code>；沒寫 <code>return</code> 的函式預設回傳 <code>undefined</code>，<code>.map()</code> 就產出一個全是 <code>undefined</code> 的陣列。</p>
+<pre><code class="language-jsx">// ❌ 有 Bug：大括號卻沒有 return
+{new Array(5).fill(0).map((_, index) =&gt; {
+  &lt;Star key={index} /&gt;
+})}
+</code></pre>
+<p>(f) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩種正確寫法</mark>：</p>
+<pre><code class="language-jsx">// 寫法 A：補上 return
+{new Array(5).fill(0).map((_, index) =&gt; {
+  return &lt;Star key={index} /&gt;;
+})}
+
+// 寫法 B：改用小括號直接回傳（最推薦）
+{new Array(5).fill(0).map((_, index) =&gt; (
+  &lt;Star key={index} /&gt;
+))}
+</code></pre>
+<p>(g) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>new Array(5)</code> 只是「長度 5 的空洞陣列」，必須 <code>.fill(0)</code> 才會變成真正有 5 個元素的 <code>[0,0,0,0,0]</code></mark>。沒有 fill 的話裡面全是 empty slot，<code>.map()</code> 會直接跳過、什麼都不產生。</p>
+<p>(h) 它不是「把 Star 填進原陣列」，而是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">根據原陣列產生一個全新的 JSX 陣列</mark>：<code>[&lt;Star key="0"/&gt;, &lt;Star key="1"/&gt;, ...]</code>，React 收到這個陣列後就渲染出 5 顆星星。</p>
+<h3 id="mapil">三、怎麼精準解釋 map（i–l）</h3>
+<p>(i) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一句話定義：<code>map()</code> 是一個「1 對 1 的陣列轉換器」</mark>。它巡訪原陣列每個元素、對每個元素做處理，回傳一個長度相同的新陣列，且完全不破壞原陣列。</p>
+<p>(j) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只說「對每個元素做事情」不夠精準</mark>，會跟 <code>forEach()</code> 搞混。差別在「目的與回傳值」：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>目的</th>
+<th>回傳值</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>forEach()</code></td>
+<td>純粹做事情</td>
+<td><code>undefined</code></td>
+<td>印 log、送 API、改外部變數</td>
+</tr>
+<tr>
+<td><code>map()</code></td>
+<td>做事情並加工成新資料</td>
+<td>長度相同的新陣列</td>
+<td>資料轉換、渲染列表</td>
+</tr>
+</tbody>
+</table>
+<p>(k) 口語比喻：<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">傳一籃蘋果進削皮機（callback），出來一定是數量一模一樣的一籃削皮蘋果</mark>。</p>
+<p>(l) 三大特性：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">等長轉換</mark>、<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不改變原陣列（Immutable）</mark>、<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">跳過空位（sparse array 的 empty slot 不執行 callback）</mark>。</p>
+<pre><code class="language-js">const numbers = [1, 2, 3];
+
+const doubled = numbers.map((num) =&gt; num * 2);
+console.log(doubled);  // [2, 4, 6]  新陣列
+console.log(numbers);  // [1, 2, 3]  原陣列不受影響
+</code></pre>
+<h3 id="map-thisargmn">四、map 的第二個參數 thisArg（m–n）</h3>
+<p>(m) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>array.map(callback, thisArg)</code> 的 <code>thisArg</code> 用來指定 callback 內部的 <code>this</code> 指向誰</mark>。</p>
+<pre><code class="language-js">const multiplier = {
+  factor: 3,
+  multiply(num) {
+    return num * this.factor;   // 這裡的 this 會指向 multiplier
+  }
+};
+
+const numbers = [1, 2, 3];
+const tripled = numbers.map(function (num) {
+  return this.multiply(num);    // this 就是 multiplier
+}, multiplier);
+
+console.log(tripled);  // [3, 6, 9]
+</code></pre>
+<p>(n) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只有傳統 <code>function()</code> 會受 thisArg 影響，箭頭函式完全不吃這一套</mark>，因為箭頭函式的 <code>this</code> 在定義時就由詞法作用域綁死了。現代寫法幾乎不再用 thisArg，屬於「看得懂就好」的規格知識。</p>
+<h3 id="at-1oq">五、最後一個元素與負索引 at(-1)（o–q）</h3>
+<p>(o) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>arr[-1]</code> 不會拿到最後一個元素</mark>。方括號會把 <code>-1</code> 當成字串 key，去找名為 <code>"-1"</code> 的屬性，結果是 <code>undefined</code>。</p>
+<p>(p) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>arr.at(-1)</code> 才可以</mark>，<code>at()</code> 支援負數索引，<code>-1</code> 就是最後一個。舊寫法只能 <code>arr[arr.length - 1]</code>。</p>
+<pre><code class="language-js">const colors = ['red', 'green', 'blue'];
+console.log(colors[colors.length - 1]);  // 'blue'
+console.log(colors.at(-1));              // 'blue'
+console.log(colors[-1]);                 // undefined ← 陷阱
+</code></pre>
+<p>(q) 為什麼需要負索引？<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不必計算長度、不必重複寫變數名稱</mark>。舊寫法 <code>getListOfItems()[getListOfItems().length - 1]</code> 會把函式執行兩次，<code>getListOfItems().at(-1)</code> 只執行一次。<code>slice(-2)</code> 早就支援負數，<code>at()</code> 只是把這個慣例補齊。</p>
+<h3 id="arrayfrom-rs">六、Array.from 是「通用工廠」（r–s）</h3>
+<p>(r) 這一串組合拳的白話翻譯：</p>
+<pre><code class="language-js">console.log(Array.from.call(NotArray, new Set([&quot;foo&quot;, &quot;bar&quot;, &quot;baz&quot;])));
+</code></pre>
+<p><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「呼叫 <code>Array.from</code> 這個靜態方法，但強制把它的 <code>this</code> 指向 <code>NotArray</code>，並把 Set 的內容交給 <code>NotArray</code> 去實體化出一個新物件。」</mark></p>
+<p>(s) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Array.from</code> 是通用工廠方法（Generic Factory Method）</mark>：它建立結果時會去呼叫「當下的 <code>this</code> 建構函式」，預設 <code>this</code> 就是 <code>Array</code>；用 <code>.call(NotArray)</code> 換掉 <code>this</code> 之後，產出的就不是原生陣列而是 <code>NotArray</code> 的實體。</p>
+<pre><code class="language-js">function NotArray(len) {}
+
+console.log(Array.from.call(NotArray, new Set([&quot;foo&quot;, &quot;bar&quot;, &quot;baz&quot;])));
+// NotArray { '0': 'foo', '1': 'bar', '2': 'baz', length: 3 }
+</code></pre>
+<blockquote>
+<p>[!note] 這是 MDN 的極端示範<br />
+它想證明的是「<code>Array.from</code> 不綁死在 Array 上」，實務上幾乎不會這樣寫，但它是理解 <code>.call()</code> 改變 <code>this</code> 的最好教材。</p>
+</blockquote>
+<h3 id="symbol-map-weakmap-keytv">七、延伸：Symbol 當 Map / WeakMap 的 key（t–v）</h3>
+<p>(t) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Symbol 可以當 Object 的 key，也可以當 Map 的 key 與 value</mark>。差別是：Object 用 Symbol 當 key 時，<code>Object.keys()</code> 與 <code>JSON.stringify()</code> 抓不到，必須用 <code>Object.getOwnPropertySymbols()</code>；<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Map 則一視同仁，<code>myMap.keys()</code> 或 forEach 都能正常遍歷到 Symbol key</mark>。</p>
+<pre><code class="language-js">// 貼到 F12 Console 練習
+const symKey1 = Symbol(&quot;id&quot;);
+const symKey2 = Symbol(&quot;id&quot;);   // 描述一樣但完全是不同的 Symbol
+
+const myMap = new Map();
+myMap.set(symKey1, &quot;User_001&quot;);
+myMap.set(symKey2, &quot;User_002&quot;);
+
+console.log(myMap.get(symKey1));  // &quot;User_001&quot;
+console.log(myMap.size);          // 2
+</code></pre>
+<p>(u) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">garbage-collectable values（可被垃圾回收的值）</mark>指的是「能被引擎追蹤引用狀態、沒人使用時會自動從記憶體清掉」的值。<code>WeakMap</code> / <code>WeakSet</code> 規定 key 必須是這種值。</p>
+<table>
+<thead>
+<tr>
+<th>型別</th>
+<th>是不是 garbage-collectable</th>
+<th>能不能當 WeakMap 的 key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>物件 Object</td>
+<td>是</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>非全域 Symbol（<code>Symbol("foo")</code>）</td>
+<td>是（ES2023 起）</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>全域 Symbol（<code>Symbol.for("foo")</code>）</td>
+<td>否，被全域註冊表永久引用</td>
+<td>不可以</td>
+</tr>
+<tr>
+<td>基礎型別 Number / String / Boolean</td>
+<td>否</td>
+<td>不可以，丟 TypeError</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-js">const wm = new WeakMap();
+const objKey = { name: &quot;test&quot; };
+const symKey = Symbol(&quot;weakKey&quot;);
+
+wm.set(objKey, &quot;value1&quot;);     // ✅
+wm.set(symKey, &quot;value2&quot;);     // ✅ 非全域 Symbol 可以
+console.log(wm.get(symKey));  // &quot;value2&quot;
+
+try {
+  wm.set(123, &quot;value3&quot;);      // ❌
+} catch (e) {
+  console.error(&quot;報錯：&quot;, e.message);
+  // TypeError: Invalid value used as weak map key
+}
+</code></pre>
+<p>(v) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">怎麼分辨 Symbol 是不是全域？看你怎麼建立它</mark>。<code>Symbol("foo")</code> 是非全域、獨一無二（<code>Symbol("foo") === Symbol("foo")</code> 為 <code>false</code>）；<code>Symbol.for("foo")</code> 會註冊進全域 Symbol Registry，同名就是同一個實體。判斷語法用 <code>Symbol.keyFor(sym)</code>：非全域回傳 <code>undefined</code>，全域回傳描述字串。</p>
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 說「基礎型別通常直接存放在記憶體棧（Stack）」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這是常見的教學簡化，不是 ECMAScript 規格保證</mark>。規格只定義語意，值放 stack 還是 heap 是 V8 等引擎的實作選擇（V8 的 Smi 小整數確實內嵌，但字串是放在 heap 的）。真正的規格理由是：primitive 沒有「身分（identity）」，無法被追蹤引用，所以不能當 WeakMap 的 key。</li>
+<li>Gemini 說 <code>Map</code> 是「Object 的一種子類型（Subtype）」，這在概念上可以接受（<code>new Map() instanceof Object</code> 為 <code>true</code>），但嚴格講 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Map 不是 Object 的 subclass</mark>，它是獨立的內建型別，只是同屬「引用資料型別」且原型鏈最終指向 <code>Object.prototype</code>。</li>
+</ul>
+<h2 id="leetcode-javascript">🔗 相關練習題（LeetCode JavaScript 專區）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>題目</th>
+<th>連結</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>map 轉換</td>
+<td>2635. Apply Transform Over Each Element in Array</td>
+<td>https://leetcode.com/problems/apply-transform-over-each-element-in-array/</td>
+</tr>
+<tr>
+<td>filter 與 callback</td>
+<td>2634. Filter Elements from Array</td>
+<td>https://leetcode.com/problems/filter-elements-from-array/</td>
+</tr>
+<tr>
+<td>reduce 累加</td>
+<td>2626. Array Reduce Transformation</td>
+<td>https://leetcode.com/problems/array-reduce-transformation/</td>
+</tr>
+<tr>
+<td>陣列切塊與長度計算</td>
+<td>2677. Chunk Array</td>
+<td>https://leetcode.com/problems/chunk-array/</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">各對話來源</h2>
+<h3 id="2026-09-httpsgeminigooglecomapp8bb318387dd5c73d">為什麼我們需要陣列（2026-09）— https://gemini.google.com/app/8bb318387dd5c73d</h3>
+<p><strong>使用者：</strong>（附上書本照片）誰會為整個資料串列來建立足夠的變數</p>
+<p><strong>Gemini：</strong> 沒有人會這麼做。這段話的意思是「如果你不使用陣列」，手動為每個項目逐一宣告變數（例如 <code>item1</code>、<code>item2</code>、<code>item3</code>）是一個非常笨重且不切實際的做法。書中的邏輯是透過反例比較來強調陣列的好處：笨方法要手動建立 100 個變數，且不知道數量時只能盲猜；好方法只要建一個陣列變數就能動態儲存任意數量的資料。</p>
+<p><strong>使用者：</strong> 使用陣列就是一個陣列變數然後一串值直接存入不是嗎</p>
+<p><strong>Gemini：</strong> 沒錯，概念完全就是這樣。使用陣列就是只宣告一個變數名稱，然後把一整串相關的值直接打包塞進去。核心優勢有三：只要一個變數、長度彈性（<code>push</code> 即可）、方便處理（一個迴圈跑完）。</p>
+<h3 id="javascript-new-array-2026-09-httpsgeminigooglecomappbd15f46160f3c7ac">JavaScript new Array 用法與解析（2026-09）— https://gemini.google.com/app/bd15f46160f3c7ac</h3>
+<p><strong>使用者：</strong> 「這個 scope 物件會在 heap 中繼續存活因為內層函式一直持有指向它的引用」，這個引用翻成 ref 嗎？scope chain 節點＝scope 物件？</p>
+<p><strong>Gemini：</strong> 是的。Reference 中文即「引用／參考」，口語常直接講 ref。Scope 物件（Environment Record）是單一作用域實體，Scope Chain 是由多個 Scope 物件透過指標鏈結起來的單向鏈結串列（Linked List），鏈上的每個節點就是一個 Scope 物件。</p>
+<p><strong>使用者：</strong> <code>{new Array(5).fill(0).map((_, index)=&gt;{ &lt;Star key={index} /&gt; })}</code> 是把 Star 填入 array 嗎</p>
+<p><strong>Gemini：</strong> 不是把 <code>&lt;Star/&gt;</code> 填入原陣列，而是根據原陣列產生一個全新的 JSX 陣列。而且這段程式碼有 Bug、畫面會一片空白——箭頭函式用了大括號就必須加 <code>return</code>，否則回傳 <code>undefined</code>。正確寫法是補 <code>return</code>，或改用小括號直接回傳。運作三步：<code>new Array(5).fill(0)</code> 建立 <code>[0,0,0,0,0]</code>、<code>.map()</code> 轉換出新陣列（不改原陣列）、React 收到 5 個 <code>&lt;Star/&gt;</code> 就渲染 5 顆星星。</p>
+<p><strong>使用者：</strong> 我要如何解釋 map function？是可以對每個元素做事情嗎？</p>
+<p><strong>Gemini：</strong> 可以，但不夠精準，容易跟 <code>forEach()</code> 搞混。精準說法是「map() 是一個 1 對 1 的陣列轉換器，巡訪每個元素、對每個元素做處理，回傳一個長度相同的新陣列，且完全不破壞原陣列」。forEach 是純粹做事情、沒有回傳值；map 是做事情並加工成新資料。三大特性：等長轉換、不改變原陣列、跳過空位。</p>
+<p><strong>使用者：</strong> map function 有第二個參數 thisArg 是什麼時候？最末個 element 是 -1 的 index 嗎？為什麼會需要負數索引？</p>
+<p><strong>Gemini：</strong> <code>thisArg</code> 指定 callback 內部的 <code>this</code> 指向誰，只有傳統函式會受影響，箭頭函式不適用；現代 JS 已經非常少用。<code>arr[-1]</code> 不行（方括號會把 -1 當字串 key，拿到 <code>undefined</code>），標準寫法是 <code>arr[arr.length - 1]</code>，現代方法是 <code>arr.at(-1)</code>。需要負索引的理由是語意簡潔：不必計算長度、不必重複執行取陣列的表達式，也跟 <code>slice(-2)</code> 的慣例一致。</p>
+<p><strong>使用者：</strong> <code>console.log(Array.from.call(NotArray, new Set(["foo","bar","baz"])));</code> 這個組合拳一下 .from 一下 call 是什麼意思，翻譯一下</p>
+<p><strong>Gemini：</strong> 白話是「呼叫 <code>Array.from</code>，但強制把它的 <code>this</code> 指向 <code>NotArray</code>，並把 Set 轉化後傳給 <code>NotArray</code> 去實體化出一個新物件」。<code>Array.from</code> 是通用工廠方法，建立結果時會呼叫傳進去的 <code>this</code> 建構函式，預設是 <code>Array</code>；<code>.call(NotArray)</code> 把它換掉後，輸出就變成 <code>NotArray { '0':'foo', '1':'bar', '2':'baz', length: 3 }</code>。這是 MDN 用來展示 <code>Array.from()</code> 是 Generic 方法的極端示範。</p>
+<p><strong>使用者：</strong> Symbol 可以插在物件裡，那 Symbol 插在 Map 裡面呢？給我例子我要在 F12 console 練習。何謂 garbage-collectable values？是跟垃圾回收有關係嗎？</p>
+<p><strong>Gemini：</strong> Symbol 完全可以作為 Map 的 key 與 value，Map 的 key 可以是任何型別。Object 用 Symbol 當 key 時 <code>Object.keys()</code> 與 <code>JSON.stringify()</code> 抓不到，要用 <code>Object.getOwnPropertySymbols()</code>；Map 則可以直接遍歷到。garbage-collectable values 就是跟垃圾回收（GC）有關——指能被引擎追蹤引用狀態、沒人使用時自動清除的值。<code>WeakMap</code>/<code>WeakSet</code> 要求 key 必須是這種值：物件可以、非全域 Symbol（ES2023 新增）可以、基礎型別不行（會丟 <code>TypeError: Invalid value used as weak map key</code>）。</p>
+<p><strong>使用者：</strong> 所以 object 的 key 不能是 symbol 嗎？簡答就好。那 Map 會被歸類在 object 但是是 subtype 對嗎？非全域的 Symbol 這樣我哪知道他是 global？</p>
+<p><strong>Gemini：</strong> 可以，Object 的 key 完全可以是 Symbol，只是傳統列舉方法抓不到。Map 屬於引用資料型別（Object），概念上可視為 Object 的一種子類型。分辨全域與否看建立方式：<code>Symbol("foo")</code> 是非全域、獨一無二、可被 GC、能當 WeakMap key；<code>Symbol.for("foo")</code> 會註冊在全域 Symbol Registry、同名即同一實體、不可被 GC、不能當 WeakMap key。也可以用 <code>Symbol.keyFor(sym)</code> 檢查，非全域回傳 <code>undefined</code>。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>為什麼我們需要陣列（Gemini 對話）</td>
+<td>https://gemini.google.com/app/8bb318387dd5c73d</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>JavaScript new Array 用法與解析（Gemini 對話）</td>
+<td>https://gemini.google.com/app/bd15f46160f3c7ac</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>MDN — Array.prototype.map（含 thisArg 與 sparse array 行為）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — Array.prototype.at（負索引）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/at</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — Array.from（Generic factory 與 Array.from.call 範例）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/from</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — WeakMap（key 必須為 garbage-collectable value）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>TC39 提案 — Symbols as WeakMap keys（ES2023）</td>
+<td>https://github.com/tc39/proposal-symbols-as-weakmap-keys</td>
+<td>Stage 4，2023 納入 ES2023，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — Symbol.for 與 Symbol.keyFor（全域註冊表）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

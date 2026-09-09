@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>編譯期 vs 執行期的三條分界線——AST 與 CSSOM、編譯與打包、前端與後端記憶體</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>編譯期 vs 執行期的三條分界線——AST 與 CSSOM、編譯與打包、前端與後端記憶體</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#前端建構</span><span class="pill">#ast</span><span class="pill">#cssom</span><span class="pill">#postcss</span><span class="pill">#vite</span><span class="pill">#webpack</span><span class="pill">#vue</span><span class="pill">#scoped-css</span><span class="pill">#shadow-dom</span><span class="pill">#xss</span><span class="pill">#記憶體</span><span class="pill">#面試</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-09</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/d2896b718a5f3c00" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">PostCSS 產生的 AST 和瀏覽器產生的 CSSOM 是同一棵樹的不同名字。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">AST 在建構期由 Node.js 工具產生用來改程式碼；CSSOM 在執行期由瀏覽器產生用來畫畫面，兩者從不相遇。</div></li><li><p class="qq">Vite 或 Webpack 本身認得 .vue 檔的語法。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">建置工具只是排程器，是外掛（@vitejs/plugin-vue / vue-loader）裡的 @vue/compiler-sfc 才認得。</div></li><li><p class="qq">HTML5 原生的 &lt;style scoped&gt; 屬性目前仍是主流瀏覽器支援的標準。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">因渲染效能與 Reflow 開銷過大被廢棄，改由 Shadow DOM 或編譯期方案（Vue Scoped CSS、CSS Modules）取代。</div></li><li><p class="qq">單向綁定中的「Model」指的是後端資料庫的資料表。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Model 指前端 JS 記憶體裡的 state 變數，跟 API 與資料庫完全無關。</div></li><li><p class="qq">前端記憶體與後端記憶體可以直接互相讀寫變數。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">兩者實體隔絕，唯一通道是網路（HTTP／WebSocket）。</div></li><li><p class="qq">後端記憶體是所有使用者共享同一個進程，前端記憶體則是每個使用者獨享。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這也是後端寫全域變數要特別小心的原因。</div></li><li><p class="qq">用 textContent 賦值時，字串裡的 &lt;img onerror=...&gt; 會被瀏覽器執行。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">textContent 會強制轉義成純文字，這正是它比 innerHTML 安全的地方。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">AST 的全名是 Abstract <input class="blank" data-a="Syntax" placeholder="填答案" autocomplete="off"> Tree，中文叫抽象語法樹，產生於建構期。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">由 PostCSS／Babel／ESLint 這類工具產生，目的是修改程式碼。</div></li><li><p class="qq">CSSOM 的全名是 CSS <input class="blank" data-a="Object" placeholder="填答案" autocomplete="off"> Model，產生於執行期，會與 DOM 樹合併成 Render Tree。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">CSS 物件模型，由瀏覽器渲染引擎建立。</div></li><li><p class="qq">把 &lt;template&gt; 轉成 JS 渲染函式屬於「<input class="blank" data-a="編譯" placeholder="填答案" autocomplete="off">」這道工序；把數百個檔案依 import 關係合併成 index.js 屬於「打包」。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Compilation／Transpilation 是碼轉碼，Bundling 是多檔合併。</div></li><li><p class="qq">Vue 外掛的核心編譯器叫 @vue/compiler-<input class="blank" data-a="sfc" placeholder="填答案" autocomplete="off">，負責把 .vue 拆成 template／script／style 三塊。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Single File Component 單檔案元件編譯器。</div></li><li><p class="qq">Vue Scoped CSS 的做法是在編譯期產生一個 hash，把選擇器改寫成 .title[data-v-<input class="blank" data-a="7ba5bd90" placeholder="填答案" autocomplete="off">] 這種形式。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">實際值是隨機 hash，重點是「用屬性選擇器把作用域鎖住」。</div></li><li><p class="qq">原生 &lt;style scoped&gt; 被廢棄後，執行期的替代方案是 <input class="blank" data-a="Shadow" placeholder="填答案" autocomplete="off"> DOM，編譯期的替代方案是 Vue Scoped CSS 與 CSS Modules。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Shadow DOM 提供瀏覽器原生的樣式隔離。</div></li><li><p class="qq">單向綁定的精確定義是：<input class="blank" data-a="View" placeholder="填答案" autocomplete="off"> 的變動不會自動同步回 JS 的 Model 變數。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">所以 React 必須顯式寫 onChange 去 setState。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">面試官問：「CSS 到底是變成 AST 還是 CSSOM？」請完整回答。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 兩個都會發生，但分屬不同階段。(2) 建構期：PostCSS／Babel 這類 Node.js 工具把 CSS 文字解析成 AST（抽象語法樹），目的是用程式去尋找並改寫程式碼，例如替 .title 補上 [data-v-xxxx]，處理完再 Stringify 回一份新的 .css 檔。(3) 執行期：瀏覽器下載到那份「已經被改寫完的最終 CSS」，才把它解析成 CSSOM，與 DOM 樹合併成 Render Tree，最後 Paint 出像素。(4) 關鍵是瀏覽器完全不知道 PostCSS 存在，它拿到的就只是普通 CSS。(5) 一句話收尾：AST 是為了改程式碼而生的樹，CSSOM 是為了畫畫面而生的樹。</div></li><li><p class="qq">請說明 Vite/Webpack 是怎麼「知道」一個 .vue 檔該怎麼處理的，並用這個例子說明前端工具鏈的分層設計。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 建置工具本身不認識 Vue，它只是任務排程器，靠副檔名觸發設定好的外掛。(2) 讀到 .vue 時觸發 @vitejs/plugin-vue 或 vue-loader，外掛核心是 @vue/compiler-sfc。(3) 這支編譯器做 SFC Block Parsing，把檔案拆成 template（轉 JS Render Function）、script、style scoped（產生唯一 hash）。(4) 再把 CSS 與 hash 一起交給 PostCSS，由 PostCSS 的插件把選擇器改寫成 .title[data-v-7ba5bd90]。(5) 分層設計的精神：核心保持通用，語言與框架知識全部下放到外掛；每一層只認識自己那一小塊——PostCSS 也不知道 Vue 是什麼，它只收到「一段 CSS 加一個 hash 字串」。</div></li><li><p class="qq">用「修改使用者名字」這個情境，說明資料從前端記憶體一路到資料庫的完整流程，並指出最常見的觀念誤區。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 前端記憶體：使用者在 input 打字，透過 onChange 呼叫 setName，name 從 &#x27;Abby&#x27; 變成 &#x27;Alex&#x27;。注意如果只綁 value 不寫 onChange，變數根本不會變（單向綁定）。(2) 網路傳輸：按下儲存按鈕，前端 JSON.stringify 後發 HTTP POST /api/user。(3) 後端記憶體：Node.js／FastAPI／Go 進程收到 request，解析成 req.body.name 這個伺服器記憶體裡的變數。(4) 永久儲存：後端執行 UPDATE users SET name = &#x27;Alex&#x27; 寫入硬碟上的資料庫。(5) 最常見誤區：以為 setState 就等於存好了。前端記憶體非常短命，重新整理就清空；沒有發 API 的話，後端與資料庫根本不知道這件事發生過。(6) 可補充兩塊記憶體的隔離性差異：前端每個使用者獨享，後端所有使用者共享同一進程。</div></li></ol></section>
+
+<article class="card">
+<h1 id="vs">編譯期 vs 執行期的三條分界線</h1>
+<blockquote>
+<p>[!info]- 📍 這篇在整條學習線的哪裡<br />
+<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">承接</mark>：<span class="wikilink" title="Obsidian 連結：00-前端建構到執行全景地圖">00-前端建構到執行全景地圖</span> 把整條路畫成一張圖，這篇專門攻其中<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最容易混淆的三個交界處</mark>——每一個都是「名字很像、實際上分屬兩個世界」。<br />
+<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">延伸</mark>：Scoped CSS 的 Vue 實作細節見 <span class="wikilink" title="Obsidian 連結：Vue-SFC實務-styles資料夾與scoped編譯原理-lang與src屬性-CSS預處理器-JSX支援">Vue-SFC實務-styles資料夾與scoped編譯原理-lang與src屬性-CSS預處理器-JSX支援</span>；瀏覽器端的 CSSOM → Render Tree 見 <span class="wikilink" title="Obsidian 連結：Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪">Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪</span>。</p>
+<p>本篇重點 (a)–(p)，共 16 個。三條分界線：一、AST／CSSOM　二、編譯／打包　三、前端記憶體／後端記憶體。</p>
+</blockquote>
+<hr />
+<h2 id="ast-cssom-css">分界線一：AST 與 CSSOM——同樣是「把 CSS 變成樹」，卻是兩個世界</h2>
+<blockquote>
+<p>[!question]+ 原本的疑問<br />
+「PostCSS 的工作是把 CSS 解析成語法樹（AST）」——<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSS 不是應該轉成 CSSOM 嗎，怎麼會是 AST？</mark></p>
+</blockquote>
+<p>a. 兩個都對，只是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">發生的時間與地點完全不同</mark>，它們從來不會在同一個場景相遇。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>AST（抽象語法樹）</th>
+<th>CSSOM（CSS 物件模型）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>全名</td>
+<td>Abstract Syntax Tree</td>
+<td>CSS Object Model</td>
+</tr>
+<tr>
+<td>發生時間</td>
+<td>建構期／編譯期（Build Time）</td>
+<td>執行期（Runtime）</td>
+</tr>
+<tr>
+<td>發生地點</td>
+<td>你的電腦或 CI 上的 Node.js 環境</td>
+<td>使用者瀏覽器的渲染引擎（Blink、Gecko）</td>
+</tr>
+<tr>
+<td>誰在用</td>
+<td>PostCSS、Babel、ESLint 這些程式碼處理工具</td>
+<td>瀏覽器渲染引擎</td>
+</tr>
+<tr>
+<td>目的</td>
+<td>為了<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">修改與重寫程式碼</mark></td>
+<td>為了<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">計算樣式並畫出畫面</mark></td>
+</tr>
+<tr>
+<td>產物</td>
+<td>一份新的 <code>.css</code> 文字檔</td>
+<td>與 DOM 樹合併成 Render Tree，然後 Paint 出像素</td>
+</tr>
+</tbody>
+</table>
+<p>b. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">AST</mark>：PostCSS 把 <code>.title { color: red; }</code> 這串<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">純文字</mark>解析成 JS 物件結構，這樣程式才有辦法「找到 <code>.title</code> 這個選擇器，然後在它後面補上 <code>[data-v-xxxx]</code>」。處理完再<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">字串化（Stringify）</mark>還原成新的 CSS 檔。</p>
+<p>c. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSSOM</mark>：瀏覽器下載到「最終那份已經被改寫完的 CSS」之後，才把它解析成 CSSOM 樹。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">瀏覽器從頭到尾不知道有 PostCSS 這回事</mark>——它拿到的就只是一份普通 CSS。</p>
+<p>d. 一句話記法：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">AST 是「為了改程式碼」而生的樹，CSSOM 是「為了畫畫面」而生的樹</mark>。前者活在你的硬碟上，後者活在使用者的瀏覽器裡。</p>
+<hr />
+<h2 id="vue">分界線二：編譯與打包——<code>.vue</code> 檔到底經歷了什麼</h2>
+<blockquote>
+<p>[!question]+ 原本的疑問<br />
+<code>.vue</code> 檔經過 Webpack 或 Vite，叫做<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">編譯還是打包</mark>？如果 <code>&lt;style scoped&gt;</code> 要在打包階段把樣式丟給 PostCSS 改寫屬性，那這個編譯器<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">怎麼知道它是 Vue</mark>？</p>
+</blockquote>
+<p>e. 答案是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩件事同時在發生，但是不同工序</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>工序</th>
+<th>定義</th>
+<th>在 <code>.vue</code> 上具體做了什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>編譯（Compilation／Transpilation）</td>
+<td>把某種程式碼轉換成另一種程式碼</td>
+<td>把 <code>&lt;template&gt;</code> 轉成 JS 渲染函式；把 <code>&lt;style scoped&gt;</code> 交給 PostCSS 轉成帶 hash 屬性的 CSS</td>
+</tr>
+<tr>
+<td>打包（Bundling）</td>
+<td>把多個獨立模組整理合併成少數幾個產出檔</td>
+<td>把數百個 <code>.js</code>／<code>.vue</code>／<code>.css</code> 依 import 依賴關係圖拼接、壓縮成 <code>index.js</code> 與 <code>index.css</code></td>
+</tr>
+</tbody>
+</table>
+<p>f. <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">建置工具本身完全不認識 Vue</mark>。Vite 與 Webpack 只是任務排程器，它們靠<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">外掛機制（Plugins／Loaders）</mark>來識別檔案類型。整條鏈是這樣接的：</p>
+<pre><code class="language-text">Vite / Webpack 讀到副檔名 .vue
+        │  觸發設定好的外掛
+        ▼
+@vitejs/plugin-vue  或  vue-loader
+        │  外掛的核心是這支編譯器
+        ▼
+@vue/compiler-sfc（Vue 單檔案元件編譯器）
+        │  做 SFC Block Parsing，把 .vue 拆三塊
+        ├── &lt;template&gt; ──► JS Render Function
+        ├── &lt;script&gt;   ──► JS 模組
+        └── &lt;style scoped&gt;
+                │  產生唯一 hash，例如 data-v-7ba5bd90
+                ▼
+            呼叫 PostCSS，把 CSS 與 hash 一起丟過去
+                │
+                ▼
+            選擇器被改寫成 .title[data-v-7ba5bd90]
+</code></pre>
+<p>g. 所以「編譯器知道它是 Vue 嗎」的正確答案是：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">通用的建置工具不知道，是外掛裡的專用編譯器 <code>@vue/compiler-sfc</code> 知道</mark>。這是前端工具鏈一貫的分層設計——核心保持通用，語言／框架知識全部下放到外掛。</p>
+<p>h. 同理可推：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">PostCSS 也不知道 Vue 是什麼</mark>。它只是收到「一段 CSS ＋ 一個 hash 字串」，然後照插件的規則做字串層級的選擇器改寫。每一層都只認識自己那一小塊。</p>
+<h3 id="style-scoped-html5"><code>&lt;style scoped&gt;</code> 的身世：一個被廢棄的 HTML5 提案</h3>
+<p>i. 在標準 HTML 裡，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSS 預設是全域生效的</mark>。頁面任何地方寫了 <code>p { color: red; }</code>，全頁所有 <code>&lt;p&gt;</code> 都會變紅。</p>
+<p>j. HTML5 曾有一個<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">原生的 <code>&lt;style scoped&gt;</code> 提案</mark>：<code>&lt;style&gt;</code> 若帶上 <code>scoped</code> 屬性，它的作用範圍就被限制在<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它的父元素及其內部子元素</mark>，不會外洩到全域 DOM。</p>
+<pre><code class="language-html">&lt;!-- 全域環境 --&gt;
+&lt;p&gt;我是黑色的字（不受影響）&lt;/p&gt;
+
+&lt;div class=&quot;card&quot;&gt;
+  &lt;!-- 這段樣式原本只該對 &lt;div class=&quot;card&quot;&gt; 及其內部生效 --&gt;
+  &lt;style scoped&gt;
+    p { color: red; }
+  &lt;/style&gt;
+  &lt;p&gt;我是紅色的字&lt;/p&gt;
+&lt;/div&gt;
+</code></pre>
+<p>k. <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼被廢棄</mark>：要瀏覽器在<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">動態解析 DOM 樹的當下</mark>即時計算並切斷樣式作用域，對渲染引擎的效能開銷極大，且容易觸發重複排版（Reflow）。主流瀏覽器最終放棄原生實作。</p>
+<p>l. <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">現在的替代方案分兩派</mark>：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">執行期派</mark>是 Shadow DOM（瀏覽器原生隔離）；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">編譯期派</mark>是 Vue Scoped CSS（建置階段改寫選擇器）與 CSS Modules（建置階段改寫 class 名）。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">社群主流走編譯期派，因為把成本挪到建置階段，執行期零開銷</mark>——這又回到了分界線一與分界線二。</p>
+<hr />
+<h2 id="model">分界線三：前端記憶體與後端記憶體——「Model」到底指哪裡</h2>
+<blockquote>
+<p>[!question]+ 原本的疑問<br />
+「單向綁定時使用者 input 不會直接寫入 Model」——這個 Model 是指<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不會直接打 API，還是不會直接寫到資料表</mark>？</p>
+</blockquote>
+<p>m. <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">都不是</mark>。這裡的 Model 指的是 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JavaScript 記憶體裡存的資料狀態（State／變數）</mark>，跟後端 API 與資料庫<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全無關</mark>。前端 MVVM／MVC 的分層是：</p>
+<table>
+<thead>
+<tr>
+<th>層</th>
+<th>是什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>View</td>
+<td>畫面上的 DOM 元素（<code>&lt;input&gt;</code>、<code>&lt;div&gt;</code>）</td>
+</tr>
+<tr>
+<td>Model</td>
+<td>前端 JS 記憶體裡的變數（React 的 <code>useState</code>、Vue 的 <code>ref</code>、或普通 JS 物件）</td>
+</tr>
+<tr>
+<td>API／資料庫</td>
+<td>後端伺服器與資料儲存層，是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全另外一回事</mark></td>
+</tr>
+</tbody>
+</table>
+<p>n. 所以<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">單向綁定（Unidirectional Data Binding）</mark>的精確意思是：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">View 的變動不會自動同步回 JS 的 Model 變數</mark>。使用者在輸入框打字時，畫面上會顯示（那是瀏覽器的原生行為），但變數<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全沒變</mark>。</p>
+<pre><code class="language-jsx">const [name, setName] = useState('Abby');
+
+// ❌ 只綁 value：Model 永遠停在 'Abby'，畫面甚至可能卡住不給你打字
+&lt;input value={name} /&gt;
+
+// ✅ 必須顯式監聽事件，Model 才會被改
+&lt;input value={name} onChange={(e) =&gt; setName(e.target.value)} /&gt;
+</code></pre>
+<p>o. 前端記憶體與後端記憶體<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在邏輯上獨立、在實體上也完全隔絕</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>前端記憶體（Client-side）</th>
+<th>後端記憶體（Server-side）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>存在位置</td>
+<td>使用者裝置上的瀏覽器進程內（例如 Chrome 的 V8）</td>
+<td>遠端伺服器（機房、AWS／GCP、Docker 容器內）</td>
+</tr>
+<tr>
+<td>儲存內容</td>
+<td>React／Vue 的 state、DOM 樹、當前分頁的 JS 變數</td>
+<td>伺服器進程變數、快取（Redis／node-cache）、資料庫連線池</td>
+</tr>
+<tr>
+<td>生命週期</td>
+<td>非常短命：重新整理或關閉分頁就<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">立刻清空</mark></td>
+<td>長期運行：伺服器沒重啟就一直保留</td>
+</tr>
+<tr>
+<td>隔離性</td>
+<td>每個使用者獨享，互不干擾</td>
+<td><mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所有使用者共享同一個進程</mark></td>
+</tr>
+</tbody>
+</table>
+<p>p. 兩塊記憶體<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">無法直接存取對方的變數</mark>，唯一通道是網路：</p>
+<pre><code class="language-text">[1. 前端記憶體 Browser RAM]  使用者打字，name 從 &quot;Abby&quot; 變成 &quot;Alex&quot;
+        ▼
+[2. 網路傳輸]  按下「儲存」→ JSON.stringify → HTTP POST /api/user
+        ▼
+[3. 後端記憶體 Server RAM]  Node.js / FastAPI / Go 收到 request，解析成 req.body.name
+        ▼
+[4. 永久儲存 Database Disk]  UPDATE users SET name = 'Alex'
+</code></pre>
+<blockquote>
+<p>[!danger]+ 最常見的觀念誤區<br />
+<code>setName('Alex')</code> <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只影響使用者自己電腦瀏覽器裡的記憶體</mark>。如果沒有透過 <code>fetch</code>／<code>axios</code> 把資料送給後端，重新整理頁面後前端記憶體被清空，資料就消失了——因為<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">後端記憶體與資料庫根本不知道發生過這件事</mark>。</p>
+</blockquote>
+<hr />
+<h2 id="vs-dom">附帶收穫：字串渲染 vs DOM 節點渲染的資安差異</h2>
+<p>同一段對話最後追問了程式碼範例，Gemini 用 Google Maps API 的新舊寫法示範，這其實是 <span class="wikilink" title="Obsidian 連結：textContent-innerText-innerHTML差異">textContent-innerText-innerHTML差異</span> 的實戰版：</p>
+<pre><code class="language-js">// ❌ 舊版 API：直接吃 HTML 字串 → XSS 漏洞
+const userInput = '&lt;img src=&quot;x&quot; onerror=&quot;alert(1)&quot;&gt;';
+new google.maps.InfoWindow({
+  content: `&lt;div&gt;使用者暱稱：${userInput}&lt;/div&gt;`   // 💥 onerror 會被執行
+});
+
+// ✅ 現代 API：先建 DOM 節點，用 textContent 賦值
+const markerContent = document.createElement('div');
+const titleNode = document.createElement('p');
+titleNode.textContent = `使用者暱稱：${userInput}`;   // 標籤被強制轉義成純文字
+markerContent.appendChild(titleNode);
+new google.maps.marker.AdvancedMarkerElement({
+  map: mapInstance,
+  position: { lat: 25.0330, lng: 121.5654 },
+  content: markerContent                              // 傳的是 DOM 物件，不是字串
+});
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>比較項目</th>
+<th>舊版字串渲染</th>
+<th>現代 DOM 架構</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>資料載入方式</td>
+<td>拼接 HTML 字串（<code>innerHTML</code>）</td>
+<td>建立 DOM 物件並賦值（<code>textContent</code>）</td>
+</tr>
+<tr>
+<td>XSS 防禦</td>
+<td>要開發者手動 sanitize，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">漏掉就出事</mark></td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">原生層級轉義</mark>，標籤一律當純文字</td>
+</tr>
+<tr>
+<td>CSS 與腳本隔離</td>
+<td>與全域樣式互相干擾</td>
+<td>可搭配 Shadow DOM 建立隔離壁壘</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!warning]+ ⚠️ 存疑／更正<br />
+1. 對話裡把 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HOC 誤稱為 High Order Class</mark>，正確是 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Higher-Order Component</mark>。完整的 HOC vs Custom Hook 對照已整理在 <span class="wikilink" title="Obsidian 連結：HOC高階組件與渲染劫持-反向繼承與三框架複用機制對照">HOC高階組件與渲染劫持-反向繼承與三框架複用機制對照</span> 的「追加 2026-09-09」段。<br />
+2. 最後那段 Google Maps 的回答其實<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有正面回應「舉例程式碼」這個提問</mark>（前文問的是記憶體，答案卻跳到地圖 API 資安），是 Gemini 接錯上下文。內容本身正確且有價值，所以保留，但要知道它跟前面的問題並不連貫。<br />
+3. <code>&lt;style scoped&gt;</code> 「已廢棄」的說法正確：它曾進入 HTML5 草案並在 Firefox 實作過，後來被移除，<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">從未成為正式標準</mark>。</p>
+</blockquote>
+<hr />
+<h2 id="_1">相關練習題</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>726. Number of Atoms</td>
+<td>https://leetcode.com/problems/number-of-atoms/</td>
+<td>手刻一個小型 parser 把字串解析成樹狀結構，體會 AST 是怎麼長出來的</td>
+</tr>
+<tr>
+<td>736. Parse Lisp Expression</td>
+<td>https://leetcode.com/problems/parse-lisp-expression/</td>
+<td>遞迴下降解析＋作用域（scope）處理，跟編譯器前端做的事同一套</td>
+</tr>
+<tr>
+<td>1106. Parsing A Boolean Expression</td>
+<td>https://leetcode.com/problems/parsing-a-boolean-expression/</td>
+<td>較好入門的表達式解析，練「文字 → 樹 → 求值」</td>
+</tr>
+<tr>
+<td>NeetCode 練習總表</td>
+<td>https://neetcode.io/practice</td>
+<td>依主題與難度排好的題單</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_2">各對話來源（原文重點）</h2>
+<h3 id="html-2026-09-httpsgeminigooglecomappd2896b718a5f3c00">HTML 標籤、模板與框架比較（2026-09）— https://gemini.google.com/app/d2896b718a5f3c00</h3>
+<blockquote>
+<p>[!quote]- 展開對話脈絡<br />
+<strong>使用者：</strong> PostCSS 把 CSS 解析成 AST，可是 CSS 不是轉成 CSSOM 嗎？<code>.vue</code> 經過 Webpack／Vite 叫編譯還是打包？Scoped 標記要在打包階段丟給 PostCSS 改寫屬性，那編譯器就會知道它是 Vue 了嗎？何謂讓 CSS 只作用於它的父元素？<br />
+<strong>Gemini：</strong>（1）CSSOM 是瀏覽器執行期產生的，AST 是構建工具編譯期產生的，用途分別是「渲染畫面」與「修改程式碼」。（2）編譯與打包同時發生但屬不同工序。（3）建置工具靠外掛識別 <code>.vue</code>，核心是 <code>@vue/compiler-sfc</code>，它拆解 SFC、產生 hash、呼叫 PostCSS 改寫選擇器。（4）原生 <code>&lt;style scoped&gt;</code> 提案因渲染效能與 Reflow 問題被廢棄，改由 Shadow DOM 或編譯期方案（Vue Scoped CSS、CSS Modules）取代。</p>
+<p><strong>使用者：</strong> 單向綁定說使用者 input 不會直接寫入 model，這是指不會直接打 API 還是不會直接寫到資料表？HOC 是 High Order Class？<br />
+<strong>Gemini：</strong> Model 指前端 JS 記憶體裡的狀態，與 API／資料庫無關；單向綁定是「View 變動不會自動同步回 Model 變數」。HOC 是 Higher-Order Component，不是 Class。</p>
+<p><strong>使用者：</strong> 那後端也有記憶體喔？分開的？<br />
+<strong>Gemini：</strong> 完全分開，邏輯與實體都隔絕。（附前端記憶體／後端記憶體對照表與四階段資料流圖）</p>
+<p><strong>使用者：</strong> 舉例程式碼<br />
+<strong>Gemini：</strong>（跳題）以 Google Maps API 新舊寫法示範 <code>innerHTML</code> 字串拼接的 XSS 風險與 <code>textContent</code> ＋ <code>AdvancedMarkerElement</code> 的安全做法，並補充 Shadow DOM 隔離。</p>
+</blockquote>
+<hr />
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：HTML 標籤、模板與框架比較</td>
+<td>https://gemini.google.com/app/d2896b718a5f3c00</td>
+<td>對話擷取於 2026-09-09</td>
+</tr>
+<tr>
+<td>CSSOM 定義與 Render Tree 生成</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/CSS_Object_Model</td>
+<td>MDN；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>PostCSS 官方（CSS → AST → plugins → CSS）</td>
+<td>https://postcss.org/</td>
+<td>官網；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Vue SFC Scoped CSS 編譯原理</td>
+<td>https://vuejs.org/api/sfc-css-features.html</td>
+<td>Vue 3 官方文件；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td><code>@vitejs/plugin-vue</code> 外掛機制</td>
+<td>https://github.com/vitejs/vite-plugin-vue</td>
+<td>查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Shadow DOM 樣式隔離</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM</td>
+<td>MDN；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td><code>textContent</code> 不會執行 HTML（XSS 防禦）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent</td>
+<td>MDN；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Google Maps AdvancedMarkerElement（傳 DOM 節點）</td>
+<td>https://developers.google.com/maps/documentation/javascript/advanced-markers/overview</td>
+<td>查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>React 官方：Reusing Logic with Custom Hooks</td>
+<td>https://react.dev/learn/reusing-logic-with-custom-hooks</td>
+<td>查證於 2026-09-09</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><sub>由 Gemini 對話自動整理 · 更新於 2026-09-09</sub></p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-09</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

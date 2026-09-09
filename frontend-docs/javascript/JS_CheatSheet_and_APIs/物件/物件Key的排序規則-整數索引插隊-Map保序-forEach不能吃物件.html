@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>物件 Key 的排序規則 — 整數索引會插隊、Map 才真正保序、forEach 不能吃物件</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>物件 Key 的排序規則 — 整數索引會插隊、Map 才真正保序、forEach 不能吃物件</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#object</span><span class="pill">#key</span><span class="pill">#ordering</span><span class="pill">#map</span><span class="pill">#for-in</span><span class="pill">#foreach</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/cd826fdfe895682b" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">物件的 key 順序完全等於你新增的順序。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">整數索引 key 會被強制排到最前面並依數值大小排序，只有非數字字串 key 才照新增順序。</div></li><li><p class="qq">Map 的 key 嚴格按照插入順序保存，不管 key 是數字還是字串。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這是 Map 相對於 Object 最實用的保證。</div></li><li><p class="qq">普通物件可以直接呼叫 obj.forEach()。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">forEach 掛在 Array.prototype 上，物件沒有，會丟 TypeError: obj.forEach is not a function。</div></li><li><p class="qq">Object 的 key 只能是字串或 Symbol，obj[2] 其實存的是 &quot;2&quot;。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這正是整數 key 會被特別排序的原因。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">ES6 起物件 key 的排序是三段式：整數索引 → 其他字串 → <input class="blank" data-a="Symbol" placeholder="填答案" autocomplete="off"> 鍵。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Symbol key 排最後，且依建立順序。</div></li><li><p class="qq">要走訪物件又想用 forEach，最常見的寫法是 Object.<input class="blank" data-a="keys" placeholder="填答案" autocomplete="off">(obj).forEach(...)。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">先把 key 轉成陣列。</div></li><li><p class="qq">for...in 會連<input class="blank" data-a="原型" placeholder="填答案" autocomplete="off">鏈上的可列舉屬性一起走訪，所以常要搭配 hasOwnProperty 過濾。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">prototype chain。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">有一份資料的 key 是使用者 ID（純數字），前端顯示時卻發現順序跑掉了。請說明原因與三種可行的修法。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 原因：純數字的 ID 被當成 array index，規格要求依數值由小到大排序，所以無論你怎麼組資料，Object.keys() 出來都會是排序過的。(2) 修法一：改用 Map，key 保持插入順序且可以是數字型別。(3) 修法二：把資料改成陣列 [{id, ...}]，順序由陣列本身保證，這也是最貼近後端 JSON 慣例的做法。(4) 修法三：仍用物件，但另外維護一個 orderedIds 陣列，渲染時依它走訪。(5) 修法四（治標）：把 key 加前綴變成非整數字串（如 &quot;u_1001&quot;），就會照新增順序排——但這只是繞過規格，不建議當主力方案。</div></li></ol></section>
+
+<article class="card">
+<h1 id="key-map-foreach">物件 Key 的排序規則 — 整數索引會插隊、Map 才真正保序、forEach 不能吃物件</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+(1) <span class="wikilink" title="Obsidian 連結：for-in-迴圈迭代順序與特性">for-in-迴圈迭代順序與特性</span> 已經記過 <code>for...in</code> 的迭代特性，本篇補的是「為什麼順序長那樣」的規格層原因——OrdinaryOwnPropertyKeys 的三段式排序，兩篇合看才完整。<br />
+(2) <span class="wikilink" title="Obsidian 連結：屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys">屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys</span> 講「哪個方法看得到哪些 key」，本篇講「看到的 key 會照什麼順序排」，一個是範圍、一個是順序。<br />
+(3) 最後一節「forEach 不能用在物件」直接連到 <span class="wikilink" title="Obsidian 連結：陣列遍歷-forEach與callback">陣列遍歷-forEach與callback</span>，因為錯誤訊息 <code>obj.forEach is not a function</code> 的根源就是 forEach 掛在 <code>Array.prototype</code> 上。</p>
+<p>本篇重點 a–k，共 11 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="ad">一、規格層的三段式排序（a–d）</h3>
+<p>(a) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">物件 key 的順序「有規範且固定」，但不完全等於你寫入或新增的順序</mark>。自 ES6（ES2015）起這件事被寫進規格，<code>Object.keys()</code>、<code>for...in</code>、<code>Reflect.ownKeys()</code> 都遵守。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">排序三段式</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>順位</th>
+<th>Key 類型</th>
+<th>排序方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>整數索引鍵（可轉為正整數的 key，如 <code>"0"</code>、<code>"42"</code>）</td>
+<td>依數值大小由小到大</td>
+</tr>
+<tr>
+<td>2</td>
+<td>其他字串鍵</td>
+<td>依建立／新增的先後順序</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Symbol 鍵</td>
+<td>依建立／新增的先後順序</td>
+</tr>
+</tbody>
+</table>
+<p>(c) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「新增的一定排在最下面」這個直覺是錯的</mark>。整數 key 會被強制插隊到最前面。</p>
+<pre><code class="language-js">const obj = {};
+obj[&quot;70&quot;] = true;       // 第 1 個新增
+obj[&quot;0&quot;] = true;        // 第 2 個新增
+obj[&quot;jessica&quot;] = true;  // 第 3 個新增
+obj[&quot;8&quot;] = true;        // 第 4 個新增
+obj[&quot;40&quot;] = true;       // 第 5 個新增
+obj[&quot;1&quot;] = true;        // 第 6 個新增
+
+console.log(Object.keys(obj));
+// 期待（新增順序）：[&quot;70&quot;, &quot;0&quot;, &quot;jessica&quot;, &quot;8&quot;, &quot;40&quot;, &quot;1&quot;]
+// 實際：           [&quot;0&quot;, &quot;1&quot;, &quot;8&quot;, &quot;40&quot;, &quot;70&quot;, &quot;jessica&quot;]
+</code></pre>
+<p>(d) 讀法：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>"0"</code> 和 <code>"1"</code> 明明後來才加，卻被硬塞到最前面；<code>"70"</code> 明明第一個加，卻被排到數字區的最後面；只有非數字的 <code>"jessica"</code> 乖乖留在最後保持新增順序。</mark></p>
+<h3 id="eg">二、真的要保序怎麼辦（e–g）</h3>
+<p>(e) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最推薦：改用 <code>Map</code></mark>。Map 的 key 嚴格按插入順序（Insertion Order）保存，不管 key 是數字、字串還是其他型別。</p>
+<pre><code class="language-js">const myMap = new Map();
+myMap.set(&quot;b&quot;, &quot;字串b&quot;);
+myMap.set(2, &quot;整數2&quot;);
+myMap.set(&quot;a&quot;, &quot;字串a&quot;);
+myMap.set(1, &quot;整數1&quot;);
+
+for (const [key, value] of myMap) {
+  console.log(key, value);   // b → 2 → a → 1，完全保留插入順序
+}
+</code></pre>
+<p>(f) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">次要解法：另外開一個陣列紀錄 key 的順序</mark>，走訪時依陣列跑，物件只負責存值。</p>
+<pre><code class="language-js">const order = [&quot;b&quot;, 2, &quot;a&quot;, 1];
+const obj = { b: &quot;字串b&quot;, 2: &quot;整數2&quot;, a: &quot;字串a&quot;, 1: &quot;整數1&quot; };
+
+order.forEach(key =&gt; {
+  console.log(key, obj[key]);
+});
+</code></pre>
+<p>(g) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Map 還有一個關鍵差異：Map 的 key 可以是任何型別（物件、函式、Symbol、數字），Object 的 key 只能是字串或 Symbol</mark>——<code>obj[2]</code> 其實存的是 <code>"2"</code>，這正是整數 key 會被特別排序的原因。</p>
+<h3 id="orderforeachkey-key-hi">三、<code>order.forEach(key =&gt; ...)</code> 裡的 key 是哪來的（h–i）</h3>
+<p>(h) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>key</code> 是你自己命名的參數（Parameter），用來接收 forEach 每一輪傳進來的元素</mark>，不需要另外 <code>const</code> 或 <code>let</code> 宣告，因為參數本身就是一個綁定。</p>
+<pre><code class="language-js">// forEach 寫法
+order.forEach(key =&gt; {
+  console.log(key, obj[key]);
+});
+
+// 等價的 for 迴圈寫法
+for (let i = 0; i &lt; order.length; i++) {
+  const key = order[i];       // 這裡才需要自己宣告
+  console.log(key, obj[key]);
+}
+</code></pre>
+<p>(i) 名字可以隨便取，<code>item</code>、<code>k</code> 都一樣：<code>order.forEach(item =&gt; console.log(item, obj[item]))</code> 效果完全相同。</p>
+<h3 id="foreach-jk">四、forEach 不能直接吃物件（j–k）</h3>
+<p>(j) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Array.prototype.forEach</code> 只掛在陣列的原型上，普通物件沒有這個方法</mark>。</p>
+<pre><code class="language-js">const obj = { b: &quot;字串b&quot;, 2: &quot;整數2&quot; };
+obj.forEach(key =&gt; { });
+// ❌ Uncaught TypeError: obj.forEach is not a function
+</code></pre>
+<p>(k) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要走訪物件的兩條正路</mark>：</p>
+<pre><code class="language-js">// 1. 先把 key 轉成陣列（最常用）
+Object.keys(obj).forEach(key =&gt; {
+  console.log(key, obj[key]);
+});
+
+// 2. 直接用 for...in（原生專門走訪物件 key，但會往上找到原型鏈上的可列舉屬性）
+for (const key in obj) {
+  console.log(key, obj[key]);
+}
+</code></pre>
+<blockquote>
+<p>[!warning] for...in 的補充陷阱<br />
+<code>for...in</code> 會連原型鏈上的可列舉屬性一起走訪，所以正式程式碼常要搭配 <code>Object.prototype.hasOwnProperty.call(obj, key)</code> 過濾，或直接改用 <code>Object.keys()</code> / <code>Object.entries()</code>。詳見 <span class="wikilink" title="Obsidian 連結：for-in-迴圈迭代順序與特性">for-in-迴圈迭代順序與特性</span>。</p>
+</blockquote>
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 說「整數索引鍵（如 <code>"0"</code>, <code>"1"</code>, <code>"42"</code>）」，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">規格用的詞是 array index，範圍是 0 到 2^32 − 2 的正整數字串</mark>。超過這個範圍的數字字串（例如 <code>"4294967296"</code>）不算 array index，會被當成一般字串 key、依新增順序排。這個邊界 Gemini 沒有提到。</li>
+<li>「負數與小數不算整數索引」也沒提到：<code>obj[-1]</code>、<code>obj[1.5]</code> 都會被當普通字串 key。</li>
+</ul>
+<h2 id="leetcode-javascript">🔗 相關練習題（LeetCode JavaScript 專區）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>題目</th>
+<th>連結</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Object.keys 判斷空物件</td>
+<td>2727. Is Object Empty</td>
+<td>https://leetcode.com/problems/is-object-empty/</td>
+</tr>
+<tr>
+<td>用物件／Map 當快取 key</td>
+<td>2623. Memoize</td>
+<td>https://leetcode.com/problems/memoize/</td>
+</tr>
+<tr>
+<td>遞迴走訪物件與陣列</td>
+<td>2705. Compact Object</td>
+<td>https://leetcode.com/problems/compact-object/</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">各對話來源</h2>
+<h3 id="javascript-key-2026-09-httpsgeminigooglecomappcd826fdfe895682b">JavaScript 物件 Key 的排序規則與解法（2026-09）— https://gemini.google.com/app/cd826fdfe895682b</h3>
+<p><strong>使用者：</strong> 物件的 key 在印出來的時候到底有沒有按照順序？沒有的話要怎麼達成？</p>
+<p><strong>Gemini：</strong> 順序是有規範且固定的，但不完全等於寫入或新增的順序。自 ES6 起規範要求：整數索引鍵按數值由小到大 → 非整數字串鍵按新增順序 → Symbol 鍵按新增順序。要完全按插入順序，最推薦用 <code>Map</code>（key 嚴格按 Insertion Order 保存，且 key 可以是任何型別）；或用一個陣列另外紀錄 key 的順序再依序走訪。</p>
+<p><strong>使用者：</strong> 可是新增的是不是一定會在物件的最下排？那你是在說什麼哪裡有不等於？<code>{70, 0, jessica, 8, 40, 1}</code> 所以 <code>Object.keys(obj)</code> 會變成 <code>["0","1","8","40","70","jessica"]</code>？</p>
+<p><strong>Gemini：</strong> 是的，完全正確。「新增的一定在最下排」在 JavaScript 物件中並不成立。若照 <code>70 → 0 → jessica → 8 → 40 → 1</code> 的順序新增，按新增順序應該印出 <code>["70","0","jessica","8","40","1"]</code>，但整數 key 會被自動強制按數值排序，所以變成 <code>["0","1","8","40","70","jessica"]</code>。<code>"0"</code>、<code>"1"</code> 後加卻被塞到最前面，<code>"70"</code> 先加卻排到數字區最後，只有 <code>"jessica"</code> 保持新增順序。</p>
+<p><strong>使用者：</strong> 為什麼這邊有 key 可以直接使用變數？（指 <code>order.forEach(key =&gt; { console.log(key, obj[key]) })</code>）</p>
+<p><strong>Gemini：</strong> 因為在箭頭函式 <code>key =&gt; {...}</code> 裡，<code>key</code> 是你自己定義的參數名稱，用來接收 <code>order</code> 每次傳進來的元素。第一輪 <code>key = "b"</code>、第二輪 <code>key = 2</code>、第三輪 <code>key = "a"</code>、第四輪 <code>key = 1</code>。改寫成一般 for 迴圈就是 <code>const key = order[i]</code>。在 forEach 裡它寫在括號內作為參數，不需要再用 <code>const</code> 或 <code>let</code> 宣告，名字可以取成 <code>k</code> 或 <code>item</code>。</p>
+<p><strong>使用者：</strong> forEach 可以處理物件就對了？</p>
+<p><strong>Gemini：</strong> 不行，<code>Array.prototype.forEach</code> 不能直接用在物件上。上一段能用是因為 <code>order</code> 是陣列。對普通物件用會直接報錯 <code>Uncaught TypeError: obj.forEach is not a function</code>。要走訪物件請用 <code>Object.keys(obj).forEach(...)</code>（最常用），或用原生的 <code>for...in</code> 迴圈。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/cd826fdfe895682b</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>ECMA-262 — OrdinaryOwnPropertyKeys（三段式排序規格）</td>
+<td>https://tc39.es/ecma262/#sec-ordinaryownpropertykeys</td>
+<td>ECMAScript 現行草案，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>ECMA-262 — Array Index 定義（0 到 2^32 − 2）</td>
+<td>https://tc39.es/ecma262/#array-index</td>
+<td>ECMAScript 現行草案，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — Object.keys()</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — Map（key 保持插入順序、key 可為任何型別）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — for...in（會走訪原型鏈上的可列舉屬性）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/for...in</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

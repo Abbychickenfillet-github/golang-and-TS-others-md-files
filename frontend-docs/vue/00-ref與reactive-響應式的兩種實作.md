@@ -132,6 +132,24 @@ function ref(value) {
 > - b. <mark style="background: #FFF3A3A6;">為什麼 primitive 需要 `ref()` 而不能用 `reactive()`？</mark>因為 `Proxy` 的 target 必須是物件，`reactive(0)` 沒有東西可以代理。Vue 的解法是把純值裝進一個有 `value` 屬性的盒子，再用 getter／setter 攔那個屬性。
 > - c. <mark style="background: #FFF3A3A6;">為什麼 `count` 印出來是 `RefImpl { value: 0 }` 而不是 `0`？</mark>因為 `ref()` 回傳的是這個 class 的實例，不是數字本身。它是盒子。
 
+> [!bug]+ 實戰案例：自己手打這段骨架時真的犯的兩個錯（2026-09-03）
+> 在 `happy-vue-playground/src/App.vue` 裡照著上面骨架手打時，出現這兩個錯：
+>
+> ```javascript
+> class RefImpl{
+>   constructor(vlaue){this._value = value}          // ← 錯誤 1
+>   get value() {track(this.'value');return this._value}  // ← 錯誤 2
+>   set value(v){this._value = v; trigger(this, 'value')}
+> }
+> ```
+>
+> - <mark style="background: #FF5582A6;">錯誤 1：參數名稱打錯字</mark>。`constructor(vlaue)` 宣告的參數是 `vlaue`，但主體裡用的是 `value`——這個 `value` 在這個作用域不存在，會丟 `ReferenceError: value is not defined`。純粹是手速打錯字母順序，不是觀念錯。
+> - <mark style="background: #FF5582A6;">錯誤 2：把「傳兩個參數」誤打成「存取屬性」</mark>。`track(this.'value')` 想表達的是「把 `this` 跟 `'value'` 一起傳給 `track`」，但寫成了 `this.'value'`——`.` 後面只能接識別字（像 `this.foo`），不能直接接字串字面值，這是語法錯誤（SyntaxError），編輯器會在 `.` 那個點報紅字。<mark style="background: #BBFABBA6;">正確寫法要學下一行自己寫的 `trigger(this, 'value')`：兩個參數用逗號分開，不是用 `.` 串起來。</mark>
+>
+> <mark style="background: #FFF3A3A6;">共通教訓：`track(target, key)` 和 `trigger(target, key)` 是「兩個獨立參數」，不是「target 身上的一個屬性」。這跟本篇一直在強調的 getter／setter 只攔「具名屬性」是兩件事——`track`／`trigger` 只是普通函式呼叫，不涉及攔截機制本身。</mark>
+>
+> 另外同一個檔案裡還連帶踩到 `reactive()` 忘記 import 的問題（只 `import { ref }`，沒有 `import { reactive }`），跟這兩個錯不是同一類但值得一起記：<mark style="background: #ADCCFFA6;">一用到就要檢查 import 清單有沒有一起加。</mark>
+
 ### `Ref<number>` 這個 TypeScript 型別在說什麼
 
 ```typescript
@@ -162,6 +180,30 @@ function reactive(target) {
   });
 }
 ```
+
+### 畫出來：`state` 到底裝的是誰（2026-09-03，對照 `App.vue:10` 實測）
+
+```javascript
+const state = reactive({ count: 0 })   // App.vue:10
+```
+
+`state` 這個變數裝的**不是**你傳進去的那個原始物件字面量 `{ count: 0 }`，而是 `reactive()` 內部用 `new Proxy(原始物件, {...})` 包出來的**代理物件**。兩者是不同的東西，只是 Proxy 會把讀寫都轉發到原始物件上，用起來感覺像同一個：
+
+```mermaid
+flowchart LR
+    Target["原始物件 target<br/>{ count: 0 }<br/>（寫完 reactive() 這行，<br/>你已經拿不到它本人了）"]
+    Proxy["Proxy 攔截層<br/>get(t,key) → track(...) 再轉發<br/>set(t,key,v) → 轉發再 trigger(...)"]
+    State["state<br/>（你手上唯一能操作的變數）"]
+
+    State -- "讀/寫 state.count" --> Proxy
+    Proxy -- "get/set trap<br/>攔下來記錄依賴、觸發更新" --> Target
+
+    style Target fill:#FF5582,color:#000
+    style Proxy fill:#ADCCFF,color:#000
+    style State fill:#BBFABB,color:#000
+```
+
+第 11 行 `state.count = 1` 寫入時，攔截的是 **`state`（Proxy）** 身上的 `set` trap，不是原始物件本人——這就是為什麼上面對照表會寫「`reactive(o) === o` 是 `false`」：`state` 跟原始那個 `{ count: 0 }` 是**兩個不同的物件**，只是 Proxy 會把操作都轉發過去，行為上看起來像同一個。想拿回原始物件本人要用 `toRaw(state)`。
 
 ### 兩者對照表
 
@@ -203,7 +245,7 @@ console.log(count.value)  // 0                      ← 自己開盒子
 </script>
 
 <template>
-  {{ count }}             <!-- 顯示 0，Vue 幫你開盒子 -->
+  {% raw %}{{ count }}{% endraw %}             <!-- 顯示 0，Vue 幫你開盒子 -->
 </template>
 ```
 
@@ -229,6 +271,9 @@ console.log(count.value)  // 0                      ← 自己開盒子
 
 > [!info] 這就是「模板 DSL」與「Everything is JavaScript」的具體證據
 > [[00-前端框架比較-Vue-React-Angular難易度與優缺點]] 的 (m) 提醒過「Vue 的模板讓組件化沒 React 好用」這種說法太強。這裡是比較公允的版本：<mark style="background: #FFF3A3A6;">模板 DSL 讓簡單情境更短（`count++` 對上 `() => setCount(c => c + 1)`），代價是你學到的是 Vue 的語法而不是 JavaScript 的語法。</mark>兩邊各有得失，這是取捨不是優劣。
+
+## 相關筆記
+- [[00-前端建構到執行全景地圖]] —— HTML/CSS/JS/React/Vue 各自 build-time→runtime 的總地圖，本篇是 Vue run-time（響應式追蹤）那一列的來源篇；build-time 的 SFC 編譯目前還沒有對應筆記
 
 ## 自我測驗
 

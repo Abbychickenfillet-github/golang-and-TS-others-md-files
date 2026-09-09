@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 470" font-family="system-ui, -apple-system, 'Noto Sans TC', sans-serif">
+  <rect width="900" height="470" fill="#fbfbfd"/>
+  <text x="450" y="30" text-anchor="middle" font-size="19" font-weight="700" fill="#1f2430">for 迴圈 ＋ setTimeout 的時間軸：var 共享一個 i，let 每輪新綁定</text>
+
+  <!-- 主執行緒軸 -->
+  <line x1="70" y1="105" x2="830" y2="105" stroke="#9aa4b2" stroke-width="2"/>
+  <text x="70" y="88" font-size="13" font-weight="600" fill="#5a6472">主執行緒（同步，0 ~ 0.3ms 就跑完）</text>
+  <text x="845" y="110" font-size="12" fill="#9aa4b2">時間</text>
+
+  <g font-size="12" fill="#1f2430">
+    <circle cx="140" cy="105" r="6" fill="#4a7fd0"/><text x="140" y="132" text-anchor="middle">i = 1</text>
+    <circle cx="240" cy="105" r="6" fill="#4a7fd0"/><text x="240" y="132" text-anchor="middle">i = 2</text>
+    <circle cx="340" cy="105" r="6" fill="#4a7fd0"/><text x="340" y="132" text-anchor="middle">i = 3</text>
+    <circle cx="440" cy="105" r="6" fill="#d05a5a"/><text x="440" y="132" text-anchor="middle" fill="#c0392b">i++ → 4，跳出</text>
+  </g>
+
+  <!-- 排程 -->
+  <text x="70" y="178" font-size="13" font-weight="600" fill="#5a6472">Web APIs 計時器佇列（各自登記 1000ms 後執行）</text>
+  <g>
+    <rect x="110" y="190" width="140" height="30" rx="6" fill="#eef4ff" stroke="#7ba0e0"/>
+    <text x="180" y="210" text-anchor="middle" font-size="11.5" fill="#1f2430">callback ①  ()=&gt;log(i)</text>
+    <rect x="270" y="190" width="140" height="30" rx="6" fill="#eef4ff" stroke="#7ba0e0"/>
+    <text x="340" y="210" text-anchor="middle" font-size="11.5" fill="#1f2430">callback ②  ()=&gt;log(i)</text>
+    <rect x="430" y="190" width="140" height="30" rx="6" fill="#eef4ff" stroke="#7ba0e0"/>
+    <text x="500" y="210" text-anchor="middle" font-size="11.5" fill="#1f2430">callback ③  ()=&gt;log(i)</text>
+  </g>
+  <line x1="140" y1="112" x2="150" y2="188" stroke="#7ba0e0" stroke-dasharray="3 3"/>
+  <line x1="240" y1="112" x2="310" y2="188" stroke="#7ba0e0" stroke-dasharray="3 3"/>
+  <line x1="340" y1="112" x2="470" y2="188" stroke="#7ba0e0" stroke-dasharray="3 3"/>
+
+  <!-- 1000ms 分界 -->
+  <line x1="640" y1="70" x2="640" y2="440" stroke="#c9ced6" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="648" y="82" font-size="12.5" font-weight="600" fill="#8a94a3">1000ms 到期，callback 才進主執行緒</text>
+
+  <!-- var 分支 -->
+  <rect x="60" y="255" width="360" height="160" rx="10" fill="#fff1f4" stroke="#f0a5b6"/>
+  <text x="80" y="281" font-size="14" font-weight="700" fill="#c0392b">var i：整段只有「一個」i</text>
+  <rect x="80" y="295" width="120" height="34" rx="6" fill="#fff" stroke="#f0a5b6"/>
+  <text x="140" y="317" text-anchor="middle" font-size="13" fill="#1f2430">i（共享）= 4</text>
+  <text x="215" y="311" font-size="12" fill="#5a6472">三個 callback</text>
+  <text x="215" y="327" font-size="12" fill="#5a6472">都指向同一格</text>
+  <text x="80" y="356" font-size="12.5" fill="#1f2430">1 秒後才問「現在 i 是多少」→ 早就變 4</text>
+  <text x="80" y="380" font-size="13" font-weight="700" fill="#c0392b">輸出：4  4  4  （DevTools 顯示 (3) 4）</text>
+  <text x="80" y="402" font-size="11.5" fill="#8a94a3">補救：用 IIFE 把當下的 i 複製一份傳進去</text>
+
+  <!-- let 分支 -->
+  <rect x="470" y="255" width="380" height="160" rx="10" fill="#f0fbf1" stroke="#96d69d"/>
+  <text x="490" y="281" font-size="14" font-weight="700" fill="#2e7d43">let i：每一輪迭代都新綁定一個 i</text>
+  <g font-size="12.5" fill="#1f2430">
+    <rect x="490" y="295" width="86" height="30" rx="6" fill="#fff" stroke="#96d69d"/><text x="533" y="315" text-anchor="middle">i = 1</text>
+    <rect x="586" y="295" width="86" height="30" rx="6" fill="#fff" stroke="#96d69d"/><text x="629" y="315" text-anchor="middle">i = 2</text>
+    <rect x="682" y="295" width="86" height="30" rx="6" fill="#fff" stroke="#96d69d"/><text x="725" y="315" text-anchor="middle">i = 3</text>
+  </g>
+  <text x="490" y="352" font-size="12.5" fill="#1f2430">每個 callback 各自閉包住自己那一格</text>
+  <text x="490" y="380" font-size="13" font-weight="700" fill="#2e7d43">輸出：1  2  3</text>
+  <text x="490" y="402" font-size="11.5" fill="#8a94a3">規格依據：ECMA-262 CreatePerIterationEnvironment</text>
+
+  <text x="450" y="450" text-anchor="middle" font-size="12" fill="#8a94a3">關鍵不是「非同步很慢」，而是「callback 執行時去讀哪一格記憶體」</text>
+</svg>

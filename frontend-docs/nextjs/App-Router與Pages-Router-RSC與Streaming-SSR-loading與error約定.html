@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>App Router 與 Pages Router — RSC、Streaming SSR、loading.js 與 error.js 的檔案約定</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>App Router 與 Pages Router — RSC、Streaming SSR、loading.js 與 error.js 的檔案約定</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#nextjs</span><span class="pill">#app-router</span><span class="pill">#pages-router</span><span class="pill">#rsc</span><span class="pill">#streaming</span><span class="pill">#ssr</span><span class="pill">#suspense</span><span class="pill">#seo</span><span class="pill">#面試</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/9495dffc9a8507ba" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Streaming SSR 其實已經不算 SSR，而是一種新的客戶端渲染模式。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。Streaming 的資料抓取與渲染都還在伺服器端，本質仍是 SSR，只是從「一次給齊」變成「分段給予」。</div></li><li><p class="qq">只要在 App Router 寫了 async 元件，就一定會有骨架屏與區塊補全的效果。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。沒有 &lt;Suspense&gt; 也沒有 loading.js 時會退回傳統 SSR，伺服器會等 await 跑完才送 HTML。</div></li><li><p class="qq">路由分組資料夾 (rsc) 的名稱會出現在 URL 路徑裡。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。帶括號的資料夾名稱不影響 URL，造訪 /rsc 不會變成 /rsc/rsc。</div></li><li><p class="qq">App Router 裡的 fetch 是被 Next.js 擴充過的，可以帶 next.revalidate 設定快取。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">對。Next.js 在伺服器端對原生 fetch 做了擴充，加上 next 與 cache 參數處理快取、去重與按需更新。</div></li><li><p class="qq">SEO 要好就一定要換成 App Router。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。兩者都能做到頂級 SEO，只要頁面輸出完整 HTML。App Router 只是比較容易達到極致。</div></li><li><p class="qq">使用 src/ 資料夾會讓 Next.js 的執行效能變差。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。有沒有 src/ 對功能與效能完全沒有影響，只是專案組織上的差別。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">App Router 的元件預設是 <input class="blank" data-a="Server" placeholder="填答案" autocomplete="off"> Component，要用 Hook 才加 &#x27;use client&#x27;。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">React Server Component（RSC），預設在伺服器執行、不送 JS 到前端。</div></li><li><p class="qq">Pages Router 附在 HTML 後面那包初始狀態 JSON 叫 <input class="blank" data-a="__NEXT_DATA__" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">傳統 SSR 用它把伺服器端的資料交棒給前端做 hydration。</div></li><li><p class="qq">Streaming 依賴 HTTP 的 Transfer-Encoding: <input class="blank" data-a="chunked" placeholder="填答案" autocomplete="off"> 機制分批傳送。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這就是「分段漸進式給予」在協定層的實作基礎。</div></li><li><p class="qq">error.js 底層用的是 React 的 <input class="blank" data-a="Error" placeholder="填答案" autocomplete="off"> Boundary 機制。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">錯誤邊界，只在出錯那一層顯示 fallback，不會整頁白屏。</div></li><li><p class="qq">App Router 的根佈局 app/layout.js 裡面必須包含 &lt;html&gt; 與 <input class="blank" data-a="&lt;body&gt;" placeholder="填答案" autocomplete="off"> 標籤。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這是 Root Layout 的硬性要求，巢狀 layout 則不需要。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">為什麼 App Router 切換頁面時 layout 的狀態不會被清掉，Pages Router 卻會？請從底層機制解釋。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) App Router 的路由是資料夾樹，Next.js 的 Router 能辨識這次切換只有 page 子樹變了、layout 沒變，因此只向伺服器要變動的 page 子樹 RSC Payload，layout 的 React 元件從頭到尾沒有被 unmount，裡面的輸入框內容、捲動位置、側邊欄展開狀態自然保留。(2) Pages Router 沒有原生的路由樹結構來標示哪一段是 shared layout，Next.js 在底層把 pages/dashboard.js 與 pages/dashboard/settings.js 視為兩個完全獨立的頁面元件，切換時舊頁面整個 Unmount、新頁面整個 Mount，連 Header 與 Sidebar 都被銷毀重建。(3) Pages Router 想要類似效果只能在 _app.js 手寫 Page.getLayout = ... 的社群變通方案，不是框架原生機制。(4) 所以「不支援 layout」精準的說法是「缺乏原生（first-class）的巢狀 layout 支援」，兩句語意相等。</div></li><li><p class="qq">「App Router 廢除了舊 API，卻還在用原生 fetch」，這句話矛盾嗎？請說明設計意圖。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 不矛盾。這裡的『原生 fetch』是 Next.js 在伺服器端擴充過的 fetch，不是純瀏覽器的那個。(2) 在 Async Server Component 裡寫 await fetch(...)，這段程式碼在 Node.js／Edge 伺服器端執行，不會進前端 bundle。(3) Next.js 為它加上 next 與 cache 設定（如 { next: { revalidate: 3600 } }），底層自動處理快取、自動去重與按需更新。(4) 設計意圖是統一心智模型：不用再背 getStaticProps / getServerSideProps 這些框架專屬 API，Server 與 Client 都寫同一套 Web 標準，框架能力藏在底層。(5) 這是刻意的設計選擇，不是偷懶。</div></li></ol></section>
+
+<article class="card">
+<h1 id="app-router-pages-router-rscstreaming-ssrloadingjs-errorjs">App Router 與 Pages Router — RSC、Streaming SSR、loading.js 與 error.js 的檔案約定</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+(1) <span class="wikilink" title="Obsidian 連結：SSR-renderToString與Hydration-伺服器端渲染流程">SSR-renderToString與Hydration-伺服器端渲染流程</span> 講的是「一次性把整棵樹轉成 HTML 字串再 hydrate」，那正好就是本篇說的 Pages Router 式 SSR。本篇是它的下一集：Streaming SSR 怎麼把那個「一次性」拆成「分批」。<br />
+(2) <span class="wikilink" title="Obsidian 連結：react-server-component-slug-動態路由參數">react-server-component-slug-動態路由參數</span> 已經記過 RSC 在動態路由上的寫法，本篇補的是 RSC 在「路由架構層」為什麼會長成資料夾樹、以及它跟 layout 狀態保留的因果關係。<br />
+(3) <span class="wikilink" title="Obsidian 連結：FCP首次內容繪製-SEO爬蟲與打包五步驟">FCP首次內容繪製-SEO爬蟲與打包五步驟</span> 講 FCP 與爬蟲，本篇第五節的 SEO 段落是那篇在框架選型上的延伸：Streaming 改善的是 TTFB 與 FCP，不是 SEO 本身。<br />
+(4) <span class="wikilink" title="Obsidian 連結：動態路由與應用進入點-Nextjs的slug-VueRouter冒號-Express的appget">動態路由與應用進入點-Nextjs的slug-VueRouter冒號-Express的appget</span> 記的是三個框架的路由語法對照，本篇補 Next.js 兩套路由「架構層級」的差異。</p>
+<p>本篇重點 a–u，共 21 個。</p>
+</blockquote>
+<p><img alt="Streaming SSR 與傳統 SSR 的時間軸對照" src="images/StreamingSSR-vs-傳統SSR-時間軸.svg" /></p>
+<h2 id="_1">重點整理</h2>
+<h3 id="ae">一、兩套路由的表層差異（a–e）</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Pages Router 是「檔名即路由」</mark>，<code>pages/about.js</code> 自動對應 <code>/about</code>。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">App Router 是「資料夾即路由」</mark>，資料夾名稱是路徑，頁面本身<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一定要叫 <code>page.js</code> / <code>page.tsx</code></mark>，不能沿用舊習慣隨便命名。</p>
+<p>(b) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">元件預設身分不同</mark>：App Router 的元件<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">預設是 React Server Component（RSC，伺服器元件）</mark>，要用 Hook 或事件處理才加 <code>'use client'</code>；Pages Router 所有元件<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">預設都是 Client Component（客戶端元件）</mark>。</p>
+<p>(c) 資料取得的入口不同。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>Pages Router</th>
+<th>App Router</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>取資料方式</td>
+<td><code>getServerSideProps</code> / <code>getStaticProps</code> / <code>getInitialProps</code></td>
+<td>在 Async Server Component 裡直接 <code>await fetch()</code> 或直接打 DB</td>
+</tr>
+<tr>
+<td>這段程式在哪執行</td>
+<td>伺服器（頁面級別）</td>
+<td>伺服器（元件級別）</td>
+</tr>
+<tr>
+<td>需不需要學框架專屬 API</td>
+<td>要</td>
+<td>不用，寫 Web 標準的 <code>fetch</code></td>
+</tr>
+<tr>
+<td>共用佈局</td>
+<td><code>_app.js</code> 或社群的 <code>getLayout</code> 變通寫法</td>
+<td>原生 <code>layout.js</code>，可多層巢狀</td>
+</tr>
+<tr>
+<td>載入中的 UI</td>
+<td>自己寫 loading state</td>
+<td>放一個 <code>loading.js</code> 就好</td>
+</tr>
+<tr>
+<td>錯誤邊界</td>
+<td>自己接 Error Boundary</td>
+<td>放一個 <code>error.js</code> 就好</td>
+</tr>
+</tbody>
+</table>
+<p>(d) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>layout.js</code> 可以有很多個而且應該有很多個</mark>。<code>app/layout.js</code> 是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">根佈局（Root Layout）</mark>，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">裡面必須包含 <code>&lt;html&gt;</code> 與 <code>&lt;body&gt;</code></mark>；<code>app/(rsc)/rsc/layout.js</code> 是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">巢狀佈局（Nested Layout）</mark>，只作用在那個子樹。造訪 <code>/rsc</code> 時渲染結構會自動疊成 Root Layout ➔ Sub Layout ➔ Page。</p>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">括號資料夾 <code>(rsc)</code> 叫路由分組（Route Group）</mark>，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">名稱不會出現在 URL</mark>，所以造訪 <code>/rsc</code> 不會變成 <code>/rsc/rsc</code>。它純粹是拿來「分組套用不同 layout」用的。</p>
+<h3 id="fj">二、底層機制：兩者到底差在哪（f–j）</h3>
+<p>(f) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Pages Router 的底層是「整棵樹轉字串 + 一包 JSON」</mark>。伺服器跑完 <code>getServerSideProps</code>，把整頁 React 樹渲染成完整 HTML 字串，再附一份 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>__NEXT_DATA__</code></mark>（頁面初始狀態的 JSON）。瀏覽器收到後做<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">水合（Hydration）</mark>。</p>
+<p>(g) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">App Router 的底層是 RSC Payload（又稱 React Flight 流）</mark>——Server Component 在伺服器上執行後，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不送 JavaScript 程式碼到瀏覽器</mark>，而是把元件樹轉成一種類 JSON 的串流格式送過去。</p>
+<p>(h) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">水合成本因此變成「細粒度」的</mark>：只有標了 <code>'use client'</code> 的元件才會產生前端 bundle 並被 hydrate，Server Component 在前端只負責畫 DOM，不佔水合時間也不佔前端記憶體。</p>
+<p>(i) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「切頁面時 layout 狀態會不會被清掉」的答案就藏在路由樹裡</mark>。App Router 因為路由是資料夾樹，Router 知道 layout 沒變、只有 page 變，所以<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只傳變動的 page 子樹 RSC Payload</mark>，layout 裡的輸入框內容、捲動位置、側邊欄展開狀態都留著。</p>
+<p>(j) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Pages Router 切頁面預設是整個視圖區清空重繪</mark>：舊頁面元件整個 Unmount、新頁面整個 Mount，連 Header 與 Sidebar 都會被銷毀重建。要避免只能在 <code>_app.js</code> 手寫 <code>Page.getLayout = ...</code>，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">那是社群變通方案（Workaround），不是框架原生機制</mark>。所以「Pages Router 不支援 layout」＝「缺乏原生（first-class）的巢狀 layout 支援」，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩句話語意上是相等的</mark>。</p>
+<h3 id="fetchkm">三、為什麼「新一代」還在用原生 fetch（k–m）</h3>
+<p>(k) 這是 Abby 當下最直覺的疑問：都出新的 Router 了怎麼還用舊的 <code>fetch</code>？<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關鍵是那個 <code>fetch</code> 已經被 Next.js 在伺服器端「改造」過了（Monkey-patching／擴充）</mark>。</p>
+<p>(l) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Next.js 幫原生 <code>fetch</code> 加上 <code>next</code> 與 <code>cache</code> 設定</mark>，例如 <code>fetch(url, { next: { revalidate: 3600 } })</code>，底層就會自動處理快取、<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">自動去重（Deduplication）</mark>與<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">按需更新（On-demand Revalidation）</mark>。</p>
+<p>(m) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">設計動機是「統一心智模型」</mark>：以前要背 Next.js 專屬的 <code>getStaticProps</code> / <code>getServerSideProps</code>，現在不論 Server 還是 Client 都寫同一套 Web 標準 API，框架能力藏在底層。<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">換句話說，「用原生 API」在這裡是刻意的設計選擇，不是偷懶。</mark></p>
+<h3 id="streamingsuspenseloadingjs-errorjsnr">四、Streaming、Suspense、loading.js 與 error.js（n–r）</h3>
+<p>(n) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SSR 在 Pages Router 一直都支援</mark>，只要匯出 <code>getServerSideProps</code> 就是 SSR。</p>
+<pre><code class="language-js">// pages/example.js
+export async function getServerSideProps(context) {
+  const res = await fetch('https://api.example.com/data');
+  const data = await res.json();
+  return { props: { data } };
+}
+</code></pre>
+<p>(o) 兩種 SSR 的差別在「顆粒度」與「要不要等齊」。</p>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>Pages Router 的 SSR</th>
+<th>App Router 的 SSR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>顆粒度</td>
+<td>頁面級別（Page-level）</td>
+<td>元件級別（Component-level）</td>
+</tr>
+<tr>
+<td>回應方式</td>
+<td>阻塞式，全部備好才回第一個位元組</td>
+<td>串流，分批推送</td>
+</tr>
+<tr>
+<td>俗稱</td>
+<td>All-or-Nothing SSR</td>
+<td>Streaming SSR</td>
+</tr>
+<tr>
+<td>TTFB</td>
+<td>被最慢的那支 API 拖住</td>
+<td>幾乎立刻回應</td>
+</tr>
+<tr>
+<td>靠什麼實現</td>
+<td>無</td>
+<td>HTTP <code>Transfer-Encoding: chunked</code></td>
+</tr>
+</tbody>
+</table>
+<p>(p) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Streaming 的本質仍然是 SSR</mark>，資料抓取與渲染都還在伺服器端，只是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">從「一次性給齊」變成「分段漸進式給予」</mark>。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不要把 Streaming 誤會成 CSR 或某種新的渲染模式。</mark></p>
+<p>(q) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">三種行為（即時回應 Instant Loading UI、流式 HTML 傳輸、區塊補全 Out-of-order Streaming）完全仰賴 React 18+ 的 <code>&lt;Suspense&gt;</code></mark>。觸發方式有兩種，本質是同一件事：</p>
+<pre><code class="language-tsx">// ① 顯式：自己包 Suspense
+&lt;Suspense fallback={&lt;p&gt;資料載入中...&lt;/p&gt;}&gt;
+  &lt;SlowComponent /&gt;
+&lt;/Suspense&gt;
+
+// ② 隱式：資料夾下放一個 loading.js，Next.js 底層自動包成
+&lt;Layout&gt;
+  &lt;Suspense fallback={&lt;Loading /&gt;}&gt;
+    &lt;Page /&gt;
+  &lt;/Suspense&gt;
+&lt;/Layout&gt;
+</code></pre>
+<p>(r) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有 <code>&lt;Suspense&gt;</code> 也沒有 <code>loading.js</code> 時，會退回傳統 SSR 行為</mark>：伺服器停下來等 <code>await</code> 跑完才送出完整 HTML，骨架屏與區塊補全都不會發生。至於 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>error.js</code> 走的是 React 的 Error Boundary（錯誤邊界）</mark>，只在出錯的那一層顯示 fallback UI，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Header、Sidebar、Parent Layout 照常運作不會整頁白屏</mark>，而且會自動提供 <code>reset()</code> 讓使用者重試。</p>
+<h3 id="seo-src-su">五、SEO 與 src/ 目錄（s–u）</h3>
+<p>(s) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「SEO 要好就一定要用 App Router」是錯的說法</mark>。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩者都能做到頂級 SEO</mark>，只要頁面有輸出完整 HTML（SSG 或 SSR）。App Router 的優勢是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">比較容易達到極致</mark>——RSC 讓 bundle 更小（Core Web Vitals 的 LCP／INP 較好看）、Streaming 讓 TTFB 與 FCP 更快、Metadata API 更完整。</p>
+<p>(t) App Router 在 SEO 上真正「省事」的地方是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">檔案約定（File Conventions）</mark>：<code>sitemap.ts</code>、<code>robots.ts</code>、<code>opengraph-image.tsx</code> 直接放在 <code>app/</code> 下就會自動生成；Pages Router 這些通常要寫死在 <code>public/</code> 或手刻 API Route。Metadata 方面 App Router 用 <code>generateMetadata</code> 函式（支援型別檢查與 Layout／Page 疊加合併），Pages Router 用 <code>next/head</code> 的 <code>&lt;Head&gt;</code>，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">巢狀頁面容易出現重複標籤或渲染順序問題</mark>。</p>
+<p>(u) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">有沒有 <code>src/</code> 資料夾對功能與效能完全沒有影響</mark>，Next.js 會自動識別。差別只是專案組織：<code>src/</code> 把原始碼與根目錄的設定檔（<code>package.json</code>、<code>next.config.js</code>、<code>tsconfig.json</code>、<code>.env</code>）隔開，大型專案較好維護。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但 <code>public/</code> 永遠必須在最外層根目錄，不能搬進 <code>src/</code>。</mark></p>
+<h2 id="_2">⚠️ 存疑／需要留意</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>對話中的說法</th>
+<th>需要留意的地方</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>React 版本</td>
+<td>「App Router 完整整合 React 19 / Canary 的最新特性」</td>
+<td>實際支援的 React 版本綁定於你安裝的 Next.js 版本，升級前請以該版 release note 為準，不要照抄這句話</td>
+</tr>
+<tr>
+<td>Server Actions</td>
+<td>被列為 App Router 專屬</td>
+<td>概念正確，但功能穩定度隨版本變動，實作前查當版文件</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">各對話來源（原文摘要）</h2>
+<h3 id="nextjs-app-router-pages-router-2026-09-05-httpsgeminigooglecomapp9495dffc9a8507ba">Next.js App Router 與 Pages Router 差異比較（2026-09-05）— https://gemini.google.com/app/9495dffc9a8507ba</h3>
+<p>依序問了六輪：(1) 兩者差異總覽 →(2)「這很表象，底層怎麼做的」＋「為什麼還用原生 fetch」＋「SSR 也能用在 Pages Router 嗎」＋「loading.js 預設 Streaming 是什麼意思」→(3)「Streaming 代表是 SSR 嗎」「一定要包在 Suspense 內嗎」→(4)「app 跟 app/(rsc)/rsc 都有 layout.js 正常嗎」「_app.js 跟前後端分離的關係」「無支援＝缺乏原生巢狀 layout 嗎」「為何切頁重渲染較頻繁」→(5) 專案要不要用 <code>src/</code> 資料夾 →(6)「SEO 要好是要用 App Router 嗎」。原文已整併進上方重點整理，不再重複貼一次。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/9495dffc9a8507ba</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>Next.js — App Router 官方文件</td>
+<td>https://nextjs.org/docs/app</td>
+<td>Next.js 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Next.js — loading.js 檔案約定</td>
+<td>https://nextjs.org/docs/app/api-reference/file-conventions/loading</td>
+<td>Next.js 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Next.js — error.js 檔案約定</td>
+<td>https://nextjs.org/docs/app/api-reference/file-conventions/error</td>
+<td>Next.js 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Next.js — Route Groups</td>
+<td>https://nextjs.org/docs/app/building-your-application/routing/route-groups</td>
+<td>Next.js 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>React — <code>&lt;Suspense&gt;</code></td>
+<td>https://react.dev/reference/react/Suspense</td>
+<td>React 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — Transfer-Encoding</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Transfer-Encoding</td>
+<td>MDN，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<h2 id="leetcodeneetcode">練習題（LeetCode／NeetCode 對照）</h2>
+<p>本篇屬於框架架構題，LeetCode 與 NeetCode 沒有對應題型。想練「串流分批輸出」的心智模型，可以看 <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">LeetCode 1188. Design Bounded Blocking Queue</mark>（https://leetcode.com/problems/design-bounded-blocking-queue/ ，需 Premium）——生產者一段一段丟、消費者一段一段拿，跟 chunked streaming 的節奏是同一個直覺。</p>
+<h2 id="_5">關聯筆記</h2>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>關聯原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SSR-renderToString與Hydration-伺服器端渲染流程</td>
+<td>那篇是本篇說的「All-or-Nothing SSR」的完整流程</td>
+</tr>
+<tr>
+<td>react-server-component-slug-動態路由參數</td>
+<td>RSC 在動態路由上的實際寫法</td>
+</tr>
+<tr>
+<td>FCP首次內容繪製-SEO爬蟲與打包五步驟</td>
+<td>Streaming 改善的 TTFB 與 FCP 在那篇有量化說明</td>
+</tr>
+<tr>
+<td>動態路由與應用進入點-Nextjs的slug-VueRouter冒號-Express的appget</td>
+<td>三框架路由語法對照</td>
+</tr>
+<tr>
+<td>nextjs-login模組層層import-耦合度怎麼判斷</td>
+<td>同一個 Next.js 專案的模組組織問題</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -10,6 +10,81 @@ title: "自我測驗-迴圈-switch-日期-forin"
 
 ---
 
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事：<mark style="background: #FF5582A6;">「靜態」的相反是「動態（執行期）」，不是「編譯後」</mark>
+> 這正是 Q3 想抓的那個誤區。很多人以為 SonarQube／SonarLint 這種靜態分析工具「一定要先編譯完才會跑出錯誤」，其實它<mark style="background: #ADCCFFA6;">不執行、不編譯，直接讀原始碼</mark>，所以你打字的當下它就能提示。把這條線畫清楚之後，Q2 的波浪線、Q12 的 ReferenceError、Q15 的「迴圈為什麼不自己跑」會一次全部歸位——它們分屬不同格，錯的原因完全不同。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | 這 15 題到底在考什麼？ | 表面上考 `do...while`、`switch`、`Date`、`for...in`；骨子裡考的是<mark style="background: #BBFABBA6;">「這件事發生在哪一格」</mark>的判斷力 |
+| **When** 什麼時候 | 每一題各發生在什麼時候？ | 只有三格：撰寫期的靜態檢查（Q1、Q3）、runtime 的解析（Q2）、runtime 的執行（其餘）。<mark style="background: #FFF3A3A6;">這份測驗沒有任何一題落在 buildtime</mark>，因為它是純瀏覽器手寫練習，沒有轉譯也沒有打包 |
+| **Who** 誰做的 | 是誰在對你報錯？ | 編輯器／SonarLint（不執行不編譯，讀原始碼即時提示）、引擎的 Parser（Q2 的波浪線位置由它決定）、執行期本身（Q12 真的跑到那一行才丟 ReferenceError） |
+| **Where** 在哪裡 | 錯誤訊息指的位置就是原因嗎？ | <mark style="background: #FF5582A6;">不是</mark>。Q2 是經典案例：波浪線標在 `Date` 上，真兇卻是前面那個大寫的 `New`——解析器把 `New` 當合法變數名先收下，看到下一個 `Date` 才卡住。<mark style="background: #FF5582A6;">報錯位置 ≠ 報錯原因</mark> |
+| **Which** 哪一種 | 哪幾題其實在考同一件事？ | Q8（宣告 vs 賦值）、Q12（`key`／`value` 根本沒宣告）、Q13（`Joe[i]` vs `Joe.i`）三題同源，都在考<mark style="background: #ADCCFFA6;">「識別碼 identifier 與屬性 property 是兩件事」</mark> |
+| **How** 怎麼做到 | Q6 這種 `do...while` 怎麼一眼算出來？ | 口訣：<mark style="background: #BBFABBA6;">結束值＝讓條件第一次變 false 的那個數</mark>。先做事後檢查，所以無論如何至少跑一次 |
+| **Why** 為什麼 | 為什麼「我寫了 for 迴圈它卻不跑」？ | 因為它包在 function 裡。<mark style="background: #FFF3A3A6;">只有最外層的程式碼會自己跑，函式內的要被呼叫才會執行</mark>。這是 Q15 的答案，也是整份測驗最容易一輩子卡住的一題 |
+
+### 時間軸：這 15 題各自站在哪一格
+
+```text
+◄──── 撰寫期 ────►◄─ buildtime ─►◄──────────── runtime 執行期 ────────────►
+  編輯器裡打字中     轉譯＋打包        瀏覽器載入腳本之後
+
+ ┌──────────────┐ ┌────────────┐ ┌──────────────┐ ┌────────────────────┐
+ │ 靜態分析      │ │ transpile  │ │ ③Parse 解析   │ │ ④真的逐行執行       │
+ │ 不執行不編譯   │ │ ＋ bundle  │ │ Scanner      │ │ Creation Phase ＋   │
+ │ 直接讀原始碼   │ │            │ │ → Parser     │ │ Execution Phase     │
+ │ 打字就提示     │ │            │ │ → AST        │ │                    │
+ ├──────────────┤ ├────────────┤ ├──────────────┤ ├────────────────────┤
+ │ Q1 註解語法    │ │            │ │ Q2 New Date()│ │ Q4  Date vs new Date│
+ │    // 才對    │ │ 本篇        │ │    波浪線標在 │ │ Q5  getDay 從 0 數   │
+ │ Q3 SonarLint  │ │ 沒有        │ │    Date 上，  │ │ Q6  do...while 收在 10│
+ │    的「靜態」  │ │ 任何        │ │    真兇是 New │ │ Q7  至少先做一次     │
+ │ Q11 英文用詞   │ │ 一題        │ │              │ │ Q8  宣告 vs 賦值     │
+ │    equivalent │ │ 落在        │ │              │ │ Q9  星期字串是人寫死的│
+ │ Q14(b) 死碼    │ │ 這一格      │ │              │ │ Q10 兩種組字串不等價 │
+ │    Lint 也抓  │ │            │ │              │ │ Q12 key/value 沒宣告 │
+ │    得到       │ │            │ │              │ │ Q13 Joe[i] vs Joe.i │
+ └──────────────┘ └────────────┘ └──────────────┘ │ Q14(a) 寫死 Joe      │
+                                                   │ Q15 函式要被呼叫才跑 │
+                                                   └────────────────────┘
+
+ ★ 一份純手寫的瀏覽器練習，buildtime 那一格是空的——
+   所以只要有錯，不是「打字時就該被提示」，就是「真的跑到那一行才爆」。
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph W["撰寫期 · 靜態檢查：不執行、不編譯"]
+        A["Q1 註解語法<br/>Q3 靜態分析的定義<br/>Q11 英文用詞<br/>Q14&#40;b&#41; return 之後的死碼"]
+    end
+    subgraph B["buildtime 建置期<br/>轉譯 transpile ＋ 打包 bundle"]
+        BX["本篇沒有任何一題<br/>落在這一格"]
+    end
+    subgraph R1["runtime · 解析階段"]
+        C["Q2 New Date&#40;&#41;<br/>波浪線標在 Date 上<br/>真兇是前面的 New<br/>報錯位置 ≠ 報錯原因"]
+    end
+    subgraph R2["runtime · 真的逐行執行"]
+        D["Q4 Q5 Q6 Q7<br/>Date 物件與迴圈行為"] --> E["Q8 Q12 Q13<br/>識別碼 vs 屬性<br/>宣告 vs 賦值"]
+        E --> F["Q9 Q10 Q14&#40;a&#41; Q15<br/>值是誰寫死的<br/>函式要被呼叫才跑"]
+    end
+    A --> BX
+    BX --> C
+    C --> D
+```
+
+> [!warning]- 對答案之前，先用這三個問題自我檢查
+> a. <mark style="background: #FFF3A3A6;">這題的錯，是打字當下就看得出來，還是要跑起來才知道？</mark>看得出來的屬於靜態那一格，跑起來才知道的屬於執行期。
+>
+> b. <mark style="background: #ADCCFFA6;">錯誤訊息指的那一行，真的是原因所在嗎？</mark>Q2 告訴你不一定。習慣性往前多看一個 token。
+>
+> c. <mark style="background: #BBFABBA6;">這段程式碼有沒有人呼叫它？</mark>Q14 與 Q15 都在這裡翻船——寫得再對，沒被呼叫就等於沒寫。
+
+---
+
 ## 一、選擇 / 判斷
 
 **Q1.** 在 `<script>` 裡，下面哪一個是「正確的 JavaScript 註解」？

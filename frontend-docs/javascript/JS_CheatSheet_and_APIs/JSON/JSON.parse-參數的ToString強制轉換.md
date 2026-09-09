@@ -5,6 +5,9 @@ created: 2026-08-21
 source:
   - MDN JSON.parse()
   - 實測環境 Node.js v22（V8）
+sources:
+  - https://gemini.google.com/app/473254bcb44db837
+updated: 2026-09-05
 ---
 
 # JSON.parse 的參數會被 ToString 強制轉換
@@ -134,6 +137,7 @@ safeJsonParse(123)         // 123 ← 隱式轉換讓它意外通過，所以型
 
 | 來源 | 說明 |
 | --- | --- |
+| Gemini 對話｜JSON.parse 的功用與疑問（2026-09-05） | https://gemini.google.com/app/473254bcb44db837 ；問「傳入參數必須要是 JSON 嗎」，結論與本篇 a 節一致。<mark style="background: #FF5582A6;">⚠️ 該對話說「非字串型別會隱式呼叫 `.toString()`」不夠精確</mark>——實際走的是規範的 ToString 抽象操作（先 ToPrimitive），所以 null-prototype 物件會丟 `TypeError` 而不是 `SyntaxError`，見本篇 c 節 |
 | MDN｜JSON.parse() | 第一個參數的 ToString 行為 |
 | MDN｜structuredClone() | 深拷貝的正解 |
 | 實測環境 Node.js v22（V8） | 2026-08-21 |

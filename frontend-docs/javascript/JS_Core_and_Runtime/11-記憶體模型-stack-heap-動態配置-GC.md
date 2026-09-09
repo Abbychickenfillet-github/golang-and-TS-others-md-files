@@ -23,6 +23,107 @@ updated: 2026-08-04
 
 > 本篇重點 (a)–(h)，共 8 個。起點：[[return-清理記憶體-stack-frame與閉包例外]] 裡一直提到 GC，卻從沒單獨解釋過它到底是什麼；這篇也補上其他筆記裡一直連過來、卻遲遲沒建立的 `[[記憶體模型-stack-heap-動態配置-GC]]` 這個檔案本身。
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一題先講：<mark style="background: #FF5582A6;">GC 看的是「還連不連得到」，不是「你還用不用得到」</mark>
+> a. 一個物件只要<mark style="background: #FFF3A3A6;">還有任何一條從 Root 出發的引用鏈能走到它</mark>，它就永遠不會被回收——哪怕你這輩子再也不會用到它。所謂記憶體洩漏，幾乎都是這種「用不到但連得到」的物件。
+> b. 所以 `obj = null` <mark style="background: #FF5582A6;">不是一道「回收指令」</mark>，它只是<mark style="background: #BBFABBA6;">剪斷其中一條路徑</mark>；剪完之後要不要回收、什麼時候回收，全由引擎自己決定，JS 沒有任何語法能命令 GC 立刻動手。
+> c. 順帶一提，<mark style="background: #ADCCFFA6;">Stack 根本不歸 GC 管</mark>——函式 `return` 時整個 Stack Frame 是被自動 pop 掉的，那是引擎內建的固定機制，跟 GC 是兩套完全不同的系統。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | GC 到底是什麼東西？ | 一段<mark style="background: #BBFABBA6;">跑在 CPU 上、管理 Heap 記憶體</mark>的 runtime 演算法（V8 裡叫 Orinoco）。它既不是記憶體本身，也不是 CPU 本身，是介於兩者之間的軟體邏輯 |
+| **When** 什麼時候 | GC 什麼時候跑？ | <mark style="background: #FF5582A6;">執行期</mark>，由引擎依 Heap 壓力與配置速率自己挑時機，<mark style="background: #ADCCFFA6;">你無法指定也無法預測</mark>。跟 buildtime 完全無關，也不是「函式一結束就跑一次」 |
+| **Who** 誰做的 | 誰在跑這件事？ | V8 的 GC 子系統 Orinoco。工作盡量丟到<mark style="background: #BBFABBA6;">背景執行緒</mark>（並行＋平行），但掃描 Root 的那一刻仍要短暫暫停主執行緒（Stop-The-World） |
+| **Where** 在哪裡 | GC 管哪一塊記憶體？ | <mark style="background: #FF5582A6;">只管 Heap</mark>。Stack 與 Stack Frame 靠 `return` 自動 pop，生命週期規律可預測，不需要任何演算法判斷 |
+| **Which** 哪一種 | 哪些東西歸 GC 管？ | 歸：Heap 上的物件、陣列、函式物件、被閉包捕獲的 Context 物件。不歸：a. 沒被捕獲的區域變數與參數（在 Stack／暫存器）；b. 被 TurboFan 逃逸分析拆成純量的物件（<mark style="background: #FFF3A3A6;">根本沒進過 Heap</mark>） |
+| **How** 怎麼做到 | 怎麼判斷誰是垃圾？ | 可達性 Reachability：從 Root（全域、每個 Stack Frame 的區域變數、閉包環境）出發走訪引用鏈 → 摸得到的標記活著 → 摸不到的清掉。V8 實作成<mark style="background: #ADCCFFA6;">分代式</mark>：新生代 Scavenge、老生代 Mark-Sweep-Compact |
+| **Why** 為什麼 | 為什麼 Heap 要 GC、Stack 不用？ | 因為 Stack 的生命週期<mark style="background: #BBFABBA6;">規律且可預測</mark>（呼叫就 push、`return` 就 pop）；Heap 上的物件可能被任意數量的變數與閉包引用，生命週期無從預測，<mark style="background: #FF5582A6;">只能靠演算法動態判斷</mark> |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
+        （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤執行＋GC 不定時介入
+ transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
+ ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
+ │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ 執行程式碼        │
+ │tsc     │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ 在 Heap 配置物件  │
+ │SWC     │   │Rollup  │      │AST       │   │Bytecode  │   ├──────────────────┤
+ └────────┘   └────────┘      │Scope     │   └──────────┘   │ ★ GC（Orinoco）   │
+                              │Analysis： │                  │   由引擎自己挑時機 │
+                              │誰被閉包   │                  │   背景執行緒為主   │
+                              │捕獲 →決定 │                  │   掃 Root 那刻要   │
+                              │Stack/Heap│                  │   短暫停主執行緒   │
+                              └──────────┘                  ├──────────────────┤
+                              每個函式只做一次                │ TurboFan 逃逸分析 │
+                              只做「決策」，不配置            │ 熱函式才做，也在   │
+                              任何記憶體                     │ 執行期，不是打包期 │
+                                                            └──────────────────┘
+
+ ★ GC 站在第 ⑤ 格，而且是「不定時、不可預測」地插進來，不是排好班的固定步驟。
+ ★ 注意：逃逸分析有兩層——第 ③ 格 Parse 的粗略決策，與第 ⑤ 格 TurboFan 的
+   最佳化決策，兩個都在 runtime，都跟 buildtime 的轉譯打包無關。
+```
+
+一個 Heap 物件自己也有一條由生到死的序列：
+
+```text
+ ①配置        ②活過幾輪      ③晉升          ④變成不可達     ⑤標記        ⑥清除
+ allocate     survive        promotion      unreachable    mark         sweep
+┌──────────┐ ┌──────────┐  ┌──────────┐   ┌──────────┐  ┌──────────┐ ┌──────────┐
+│在 New    │ │Scavenge  │  │搬進 Old  │   │最後一條  │  │從 Root   │ │回收空間  │
+│Space 生  │►│把存活的  │─►│Space     │──►│引用鏈被  │─►│走訪，走  │►│老生代還  │
+│出來      │ │複製到另  │  │改用      │   │剪斷      │  │不到的就  │ │要 Compact│
+│          │ │一半空間  │  │Mark-     │   │          │  │是垃圾    │ │整理碎片  │
+└──────────┘ └──────────┘  │Sweep-    │   └──────────┘  └──────────┘ └──────────┘
+                           │Compact   │
+  大多數物件走不完 ②        └──────────┘    ★ 卡在 ④ 走不到 ⑤ 的，就是記憶體洩漏
+  就變垃圾了（世代假說）                       ——「用不到，但還連得到」
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（部署前跑完，V8 還沒看到程式碼）"]
+        T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 只做一次的部分"]
+        P["Parse 解析<br/>Scope Analysis：<br/>誰被閉包捕獲 → 決定 Stack 或 Heap<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode"]
+    end
+    subgraph RT2["runtime 執行期 · 一邊執行一邊發生"]
+        EX["執行程式碼<br/>在 Heap 配置物件"] --> NS["New Space<br/>Scavenge 頻繁快清"]
+        NS -->|"撐過幾輪"| OS["Old Space<br/>Mark-Sweep-Compact"]
+        EX --> SF["Stack Frame<br/>return 時自動 pop<br/>★ 不歸 GC 管"]
+        NS --> GCP["★ GC Orinoco<br/>由引擎自己挑時機<br/>從 Root 走訪可達性"]
+        OS --> GCP
+        GCP --> LEAK["走得到但你用不到<br/>→ 永遠不回收<br/>＝ 記憶體洩漏"]
+        EX --> ESC["TurboFan 逃逸分析<br/>證明不逃逸 → 拆成暫存器純量<br/>★ 根本不進 Heap"]
+    end
+    BU --> P
+    BC --> EX
+```
+
+> [!warning]- 為什麼這麼多人以為「設成 null 就會馬上釋放」？三個原因
+> a. <mark style="background: #FFF3A3A6;">因為其他語言真的有手動釋放</mark>：C 的 `free()`、C++ 的 `delete` 是立即生效的指令，很多人把這個直覺帶進 JS。但 JS 沒有對應的東西，`= null` 只是<mark style="background: #BBFABBA6;">改寫一個綁定的值</mark>，順帶少了一條引用鏈而已。
+> b. <mark style="background: #ADCCFFA6;">因為 DevTools 的 Memory 快照看起來像即時的</mark>：其實你按下拍快照時，DevTools 會先強制觸發一次 GC，才讓你看到「乾淨」的結果——那是工具替你按的，不是你的 `null` 造成的。
+> c. <mark style="background: #FF5582A6;">因為「垃圾」這個詞會誤導</mark>：它聽起來像在講「沒用的東西」，但 GC 的定義嚴格得多——<mark style="background: #BBFABBA6;">垃圾 ＝ 不可達</mark>。你心裡覺得沒用，跟引擎判斷連不連得到，是兩回事。要讓它被回收，你要做的不是「叫它清掉」，是**讓它連不到**。
+
+### 一句話驗證法
+
+想確認某件事在哪一格，問自己：<mark style="background: #BBFABBA6;">「這件事對同一段程式碼做幾次？」</mark>
+
+1. 只做一次 → 屬於 Parse／編譯期（第 ③ ④ 格）
+
+2. 執行期間不定次數地發生 → 屬於執行期（第 ⑤ 格）
+
+GC 是最極端的後者：它連「幾次」都不固定，同一支程式跑兩遍，GC 介入的時機與次數可能完全不同——這正是為什麼<mark style="background: #FF5582A6;">任何依賴「GC 什麼時候跑」的程式邏輯都是錯的</mark>。
+
 ## (a) GC 是記憶體操作，還是 CPU 操作？——兩者都沾一點，但角色不同
 
 <mark style="background: #BBFABBA6;">精確講法：GC（Garbage Collector）是 JS 引擎裡的一段程式碼（一套演算法），這段程式碼本身要靠 CPU 執行才能跑起來，但它處理／管理的對象是記憶體（Heap）。</mark> 所以「GC 是記憶體操作還是 CPU 操作」這個問法本身，混合了兩個不同的問題：

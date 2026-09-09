@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JS 傳值 vs 傳址、賦值與記憶體空間</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>JS 傳值 vs 傳址、賦值與記憶體空間</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#記憶體</span><span class="pill">#面試考點</span><span class="pill">#TypeScript</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-31</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/cdde71fb17e6c546" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/8b05cf4687f2ea6f" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/ec341b6a35870fba" target="_blank" rel="noopener">原始對話 3</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">「原生值是不可變的」的意思，就是「每次賦值都會在記憶體開一塊新空間」。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">這是兩件事。不可變講的是值本身不能就地修改；記憶體開不開新空間取決於引擎最佳化（SMI 內嵌、字串池共用）。</div></li><li><p class="qq">str = &#x27;Hello&#x27;; str[0] = &#x27;h&#x27;; 之後 str 會變成 &#x27;hello&#x27;。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">字串是不可變的，這行修改無效，str 依然是 &#x27;Hello&#x27;（嚴格模式下會直接 TypeError）。</div></li><li><p class="qq">V8 對小整數（SMI）通常直接內嵌在 stack 或暫存器中，不會去 heap 配置物件。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這就是為什麼「傳值一定會開新記憶體」的說法不成立。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">引擎讓程式碼中重複出現的相同字串共用同一份記憶體位址，這個機制叫做字串 <input class="blank" data-a="駐留" placeholder="填答案" autocomplete="off">（也叫字串池）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">String Interning，直到沒有變數引用時才由 GC 回收。</div></li><li><p class="qq">原生值是「值不可變 ＋ 賦值時複製值」，物件則是「值可變 ＋ 賦值時複製 <input class="blank" data-a="位址" placeholder="填答案" autocomplete="off">」。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">也就是傳址（Pass by Reference／Sharing）。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請說明「不可變（Immutable）」與「傳值（Pass by Value）」的差別，並回答「原生值不可變是不是代表記憶體會一直開新的」。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">要點：不可變是「值的性質」——值本身無法被就地修改，例如 str[0]=&#x27;h&#x27; 對字串無效，你只能重新賦值讓變數指向另一個值。傳值是「賦值時的複製行為」——let b = a 會讓 b 拿到一份獨立的副本。原生值剛好兩個性質都成立，才容易被混為一談；物件則兩個都相反（可變＋傳址）。至於記憶體會不會一直開新的：不一定，V8 對小整數（SMI）會直接內嵌在 stack 或暫存器，字串則用字串池讓相同內容共用同一份位址。恰恰因為不可變，引擎才敢讓多個變數共用同一份唯讀資料。</div></li></ol></section>
+
+<article class="card">
+<h1 id="js-vs">JS 傳值 vs 傳址、賦值與記憶體空間</h1>
+<h2 id="_1">重點整理</h2>
+<h3 id="1-pass-by-value">1. 基本型別「傳值」(Pass by Value)</h3>
+<p>把基本型別（Number、String、Boolean…）賦給新變數時，JS 會<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">開闢一塊全新、獨立的記憶體空間，把值複製一份過去</mark>。</p>
+<pre><code class="language-js">let a = 10;
+let b = a;   // 傳值（複製）
+b = 20;
+// a 仍是 10，b 是 20 → 兩者各自獨立
+</code></pre>
+<p><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">傳值</mark>＝「複製一份全新的自己送到新家」，彼此在記憶體中各過各的。</p>
+<h3 id="2-pass-by-reference">2. 物件型別「傳址」(Pass by Reference)</h3>
+<p>物件（Object、Array、Function）賦值時複製的是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">記憶體參考地址（指標）</mark>，不是內容本身。</p>
+<pre><code class="language-js">let obj1 = { name: &quot;Alice&quot; };
+let obj2 = obj1;        // 傳址（複製地址）
+obj2.name = &quot;Bob&quot;;
+// obj1.name 也變成 &quot;Bob&quot; → 兩者指向同一個 Heap 物件
+</code></pre>
+<p><mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">補充：</mark>即使是傳址，<code>obj2</code> 這個變數本身在 Stack 仍有自己的微小空間存放「地址」，只是它們指向的 Heap 實體是同一個。</p>
+<h3 id="3-assignment-pass-by-value">3. 賦值(Assignment) ≠ 傳值(Pass by Value)</h3>
+<p>這是最容易混淆的點：</p>
+<table>
+<thead>
+<tr>
+<th>觀念</th>
+<th>賦值 (Assignment)</th>
+<th>傳值 (Pass by Value)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>定義</td>
+<td>程式語法中的「動作」（使用 <code>=</code> 運算子）</td>
+<td>JS 底層的「記憶體行為」</td>
+</tr>
+<tr>
+<td>關注點</td>
+<td>變數現在要綁定哪一個資料？</td>
+<td>傳過去時是複製獨立副本，還是共用地址？</td>
+</tr>
+<tr>
+<td>反例</td>
+<td>沒有反例，用 <code>=</code> 就是賦值</td>
+<td>對比的是傳址；物件賦值時底層跑傳址，不產生新副本</td>
+</tr>
+</tbody>
+</table>
+<p>一句話：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「賦值」是你寫程式時的動作（把東西塞給變數）；「傳值」是 JS 在底層默默執行的複製機制。</mark></p>
+<blockquote>
+<p>💡 影印機比喻（解釋給同事聽）：賦值＝「在筆記本上寫字」這個動作；傳值＝執行 <code>b = a</code> 時，底層影印機把 a 的內容影印一份全新的貼到 b。因為是影印本，之後在 b 亂塗，a 完全不受影響。</p>
+</blockquote>
+<h3 id="4-gc">4. 重新賦值會切斷舊指標 + 觸發 GC</h3>
+<p>不論 <code>d</code> 一開始是 <code>undefined</code> 還是空物件 <code>{}</code>，只要執行 <code>d = c</code>，結果相同：</p>
+<pre><code class="language-js">var c = { hello: '安安' };
+var d = {};   // d 原本指向獨立空物件 B
+d = c;        // d 指標斷開 B，改指向 c 的物件 A
+c.hello = '你好';
+console.log(c); // { hello: '你好' }
+console.log(d); // { hello: '你好' }
+</code></pre>
+<p>原本那個空物件 <code>{}</code> 沒有任何變數引用，會被<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">垃圾回收（Garbage Collection）</mark>自動清除釋放。</p>
+<h3 id="5-typescript">5. TypeScript 的差異：靜態型別檢查擋下來</h3>
+<p>若 <code>d</code> 先被推導為 <code>string</code>，再 <code>d = c</code>（物件），TS 編譯期就會報錯：</p>
+<pre><code class="language-ts">var d = '我是字串';  // TS 推導 d: string
+d = c;               // ❌ Type '{ hello: string }' is not assignable to type 'string'
+</code></pre>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">差別在編譯期，不在執行期：</mark>若強行編譯成 JS 執行，記憶體覆蓋邏輯跟前面完全一樣（型別限制在 JS 世界已消失）。要允許彈性，用 <code>any</code> 或聯合型別：</p>
+<blockquote>
+<p>🔗 這裡「編譯期 vs 執行期」的分法，跟 <span class="wikilink" title="Obsidian 連結：函式呼叫核心機制-Execution-Context-與-Parameter-Binding">函式呼叫核心機制-Execution-Context-與-Parameter-Binding</span> (g)(h) 節講的是同一組定義：TS 的型別檢查發生在編譯期（tsc 轉譯成 JS 之前），跟 JS 引擎自己的 Parse（編譯期，一次性）／Creation Phase＋Execution Phase（執行期，每次呼叫都重來）是兩層不同的「編譯」，但用的是同一組詞彙，容易混在一起，值得對照著看。</p>
+</blockquote>
+<pre><code class="language-ts">var d: any = '我是字串';  // 告訴 TS：什麼都可以裝
+d = c;                    // ✅ 不報錯
+</code></pre>
+<h3 id="6-2026-07-20-stack-heap">6. 追加 2026-07-20：基本型別預設放 Stack，但「逃逸分析」可能讓它跑進 Heap</h3>
+<p>一般直覺基本型別（primitives）都放 Stack，這<strong>大致正確但不是絕對</strong>：基本型別通常放 Stack，因為生命週期短、存取速度快；但如果<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">變數的生命週期超出原本作用範圍</mark>（例如被閉包捕獲、或被回傳到外部持續引用），編譯器/引擎會做<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">逃逸分析（Escape Analysis）</mark>，判斷該值「逃出」了原本的函式範圍，進而改放到 Heap 裡。</p>
+<p>⚠️ 存疑/更正：這次 Gemini 的回答較簡短，「逃逸分析」是 V8 引擎等現代 JS 引擎確實會做的最佳化技術（也常見於 Go、Java），但它屬於引擎內部的效能優化細節，不是 ECMAScript 語言規範保證的行為，也不是所有情境都會發生；面試時仍應以「基本型別預設在 Stack、物件在 Heap」這個規範層級的說法為主要答案，逃逸分析可作為「進階/引擎優化」的加分補充，不要當成基本型別會被隨意搬進 Heap 的常態。</p>
+<p>!<span class="wikilink" title="Obsidian 連結：學習JS_圖解_StackHeap記憶體示意圖_2026-07-28.svg">學習JS_圖解_StackHeap記憶體示意圖_2026-07-28.svg</span></p>
+<blockquote>
+<p>圖示說明：左側Stack裡a、b各自擁有獨立空間存放複製後的值；obj1、obj2存放的則是同一個位址（指標）。右側Heap只有一個物件實體，被obj1與obj2共同指向；虛線框分別對應「逃逸分析例外」與「舊物件被GC回收」兩種情境，呼應<span class="wikilink" title="Obsidian 連結：記憶體模型-stack-heap-動態配置-GC">記憶體模型-stack-heap-動態配置-GC</span>裡Mark-and-Sweep的可達性判斷。<br />
+來源：Claude手繪整理，用於視覺化本篇第6點與GC筆記的關聯，2026-07-28。</p>
+</blockquote>
+<h3 id="7-gobug">7. 真實踩坑案例：Go後端一個「共享參照沒清空」導致資料被悄悄覆蓋的bug</h3>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這不是JS，是同一套「傳址風險」在Go語言裡的真實翻版——用來證明這不是紙上談兵的面試考點，是真的會咬到production的東西。</mark>來源：<code>futuresign_backend</code>專案<code>backend-go/internal/service/map_service.go</code>，commit <code>7f76894a</code>，作者Abby，2026-03-10。</p>
+<p>a. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">問題現象</mark>——<code>UpdateMap</code>這個函式的流程是：先用<code>GetByID</code>把地圖資料<code>mapObj</code>（一個指標，指向記憶體裡的同一份struct）讀出來，裡面有一個欄位<code>mapObj.Areas</code>（該地圖底下所有攤位區域的關聯資料，是讀取當下的舊資料）。接著呼叫<code>parseAndSaveConfig</code>，這個函式會直接把「新的」map_area資料寫進資料庫——但注意，這是<strong>繞過<code>mapObj</code>直接寫DB</strong>，不是透過<code>mapObj.Areas</code>這個欄位去改。最後整個函式收尾時呼叫GORM的<code>Save(mapObj)</code>，GORM看到<code>mapObj.Areas</code>這個關聯欄位有值，會把它一併級聯寫回資料庫——問題是<code>mapObj.Areas</code>裡裝的還是最開始讀出來的「舊」資料，於是這個<code>Save()</code>就把剛剛才寫進去的新map_area資料<strong>整個蓋回舊的</strong>，導致像<code>isLocked</code>這種欄位怎麼存都存不進去，而且完全不會報錯，是那種「明明程式碼邏輯看起來都對，資料庫值就是不動」的最難查的一類bug。<br />
+a-1. <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">拆成時間軸一步一步看</mark>——先講清楚<code>GORM</code>是什麼：它是Go語言的物件關聯對映（Object-Relational Mapping，簡稱ORM）套件，讓你可以用Go的struct（結構體）去讀寫SQL資料庫，不用自己手寫SQL語法，<code>Save()</code>就是它提供、負責把一個struct存進資料庫的方法。接下來把整個<code>UpdateMap</code>函式按照實際執行的先後順序拆開看：</p>
+<ol>
+<li>呼叫<code>GetByID</code>，把資料庫裡這筆地圖資料讀進記憶體，存成<code>mapObj</code>這個指標。這個當下<code>mapObj.Areas</code>裡裝的是「讀取那一刻」資料庫裡的舊map_area資料——先記住這份資料的『版本』是舊的。</li>
+<li>程式接著把<code>mapUpdate</code>裡的一些欄位（例如<code>Name</code>、<code>Status</code>）直接寫進<code>mapObj</code>，這幾行沒有問題，因為改的就是<code>mapObj</code>自己，記憶體跟這些欄位是同步的。</li>
+<li>如果<code>Config</code>有變更，呼叫<code>parseAndSaveConfig</code>。這個函式做的事情是自己直接對資料庫下INSERT／UPDATE，把新的map_area資料寫進DB——注意這一步<strong>完全沒有經過<code>mapObj</code>這個變數</strong>，是另外開一條路徑直接動資料庫，所以<code>mapObj.Areas</code>這個欄位完全不知道資料庫剛剛被改了，它還停在步驟1讀到的那份舊資料。</li>
+<li>到這裡，資料庫裡的map_area已經是新的了，但<code>mapObj</code>這個記憶體裡的物件，它身上的<code>Areas</code>欄位還是舊的——資料庫跟記憶體，這兩邊已經『分岔』，不同步了。</li>
+<li>函式最後呼叫<code>Save(mapObj)</code>要把<code>mapObj</code>存回資料庫（目的其實只是想存步驟2那幾個欄位的更新）。但GORM的<code>Save()</code>預設行為是：只要struct上掛著關聯欄位（這裡就是<code>Areas</code>），它就會把這個關聯欄位的內容也「級聯」（cascade，意思是連帶處理、一併觸發）寫回資料庫。於是GORM看到<code>mapObj.Areas</code>有資料，就順手把這份<strong>舊資料</strong>也存回資料庫，直接蓋掉步驟3剛寫進去的新資料。</li>
+</ol>
+<p>這樣拆開看就會發現：問題不是「有人寫錯程式邏輯」，三段程式碼各自看起來都是對的，問題是<strong>沒有人在步驟4那個時間點，去處理『資料庫已經變了、但記憶體裡的副本沒有跟著變』這個落差</strong>，直到步驟5一個無關的存檔動作，意外把這個落差暴露出來，變成資料被覆蓋。</p>
+<p>a-2. <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">追問：<code>GetByID</code>是不是<code>map_service.go</code>裡唯一一個？為什麼不讓<code>parseAndSaveConfig</code>直接改資料庫就好，何必最後又呼叫一次存檔</mark>——</p>
+<p>一、<code>GetByID</code>不是只有這一處，整個<code>map_service.go</code>裡總共呼叫了8次（分散在<code>GetMap</code>、<code>DeleteMap</code>等不同函式裡），(a-1)步驟1指的是<code>UpdateMap</code>函式<strong>開頭那一次</strong>（第196行）：先把要更新的地圖從資料庫讀進記憶體，才有東西可以改。而<code>UpdateMap</code>函式本身其實呼叫了<strong>兩次</strong><code>GetByID</code>——開頭一次（讀取舊資料準備修改），結尾又一次（存檔完成後，重新讀一次「全新、含完整Areas」的資料，準備回傳給呼叫端）。這一頭一尾都是同一個<code>GetByID</code>方法，但用途完全不同：一個是「讀出來準備改」，一個是「改完後重新讀一次乾淨的版本」。</p>
+<p>二、為什麼不能只靠<code>parseAndSaveConfig</code>寫DB、乾脆跳過最後的存檔——因為<code>parseAndSaveConfig</code>的職責範圍很窄，它<strong>只負責</strong>解析<code>Config</code>欄位、寫入<code>Areas</code>（攤位區域）這一塊關聯資料，它完全不會去處理(a-1)步驟2那幾個欄位（<code>EventID</code>、<code>Name</code>、<code>MapURL</code>、<code>Status</code>、<code>BoothCount</code>）。這幾個欄位在步驟2的時候，只是被改在<code>mapObj</code>這個記憶體裡的struct上，<strong>還沒有寫進資料庫</strong>——真正把它們寫進資料庫的動作，就是最後那次<code>mapRepo.Update(mapObj)</code>（往下挖進去看，這個方法內部做的就是<code>db.Save(mapObj)</code>）。所以最後這次存檔完全不是多餘的，它是<code>Name</code>、<code>Status</code>這些欄位唯一的寫入路徑；問題從來不是「兩條寫入路徑重複了、應該砍掉一條」，而是這兩條路徑剛好都會碰到<code>Areas</code>這個欄位——一條（<code>parseAndSaveConfig</code>）直接寫新的進DB，另一條（<code>Save()</code>）因為看到<code>mapObj.Areas</code>還留著舊資料，會把它也一併級聯寫回去，兩條路徑在<code>Areas</code>這個欄位上打架，才會出事。(a-1)的修法是把<code>mapObj.Areas</code>清空，讓<code>Save()</code>的職責縮小回「只處理scalar欄位」，跟<code>parseAndSaveConfig</code>的職責（只處理<code>Areas</code>）徹底分開，不再互相打架。</p>
+<p>三、結尾那次<code>GetByID</code>也不是多餘的重複讀取——存檔的時候故意把<code>mapObj.Areas</code>清空了，這時候<code>mapObj</code>這個變數本身已經是「不完整」的（少了<code>Areas</code>），沒辦法直接拿去回傳給呼叫端；與其自己手動把清空前留著的舊<code>Areas</code>資料拼回去（那樣又會冒出跟(a-1)一樣的『拿舊資料充數』風險），不如乾脆重新呼叫一次<code>GetByID</code>，讓資料庫當唯一可信的來源，直接讀出一份『存檔完成後』最新、最完整的資料回傳，省得自己在記憶體裡手動維護兩份可能對不上的狀態。</p>
+<p>b. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼這正是傳址的風險</mark>——<code>mapObj</code>是指標（傳址），代表函式裡任何一段程式碼、任何時間點去讀<code>mapObj.Areas</code>，看到的都是「這個指標當下指向的那份記憶體內容」。<code>parseAndSaveConfig</code>寫DB這個動作，完全沒有義務、也沒有自動去同步更新<code>mapObj</code>這份記憶體裡的內容——兩邊各做各的，唯一的共同點是共用同一個指標。這跟本篇(2)講的<code>obj2.name='Bob'</code>會連動<code>obj1</code>是同一個道理的反面：<strong>不是「改了一邊、另一邊被連動」，而是「改了資料庫這個外部狀態，記憶體裡的副本卻沒有跟著變」</strong>——只要程式後面又拿這個過時的記憶體副本去做一次「全量覆蓋式」的操作（這裡是GORM的<code>Save()</code>），舊資料就會反過來把新資料蓋掉。<br />
+c. <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">修法</mark>——在<code>parseAndSaveConfig</code>成功寫入新map_area之後，手動把<code>mapObj.Areas = nil</code>清空，這樣後面<code>Save(mapObj)</code>級聯儲存的時候，因為這個欄位是空的，GORM就不會拿它去覆蓋資料庫裡剛寫入的新資料。本質上是「既然這份記憶體裡的資料已經跟資料庫脫鉤、不可信了，就乾脆清掉，不要讓後面的操作誤用它」。</p>
+<p>一句話：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">傳址不只會發生在「兩個變數同時指向同一份資料、改一個另一個也跟著變」這種直覺情境，也會發生在「一份共用的記憶體參照，被程式的另一條路徑繞過去直接改了外部狀態（這裡是資料庫），但這份記憶體參照本身沒被同步更新」——這種情況下，任何後續對這份過時參照做「全量寫回」的操作，都有可能把新資料蓋回舊的，而且通常不會報錯，只會發現資料莫名其妙存不進去。</mark>面試時可以拿這個案例延伸講：知道「傳址」不代表資料自動同步，只代表「大家看的是同一份記憶體位址」，資料什麼時候新、什麼時候舊，還是要自己在程式邏輯裡管理清楚。</p>
+<blockquote>
+<p>🔗 這個案例也被收進面試答題skill <code>js-interview-answer-framework</code>（見對話紀錄，2026-08-06），當作「個人踩坑小故事」的示範素材，因為是可驗證、有commit紀錄的真實經驗，不是杜撰的情境。</p>
+</blockquote>
+<h3 id="8-2026-08-31immutablepass-by-value">8. 追加 2026-08-31：「不可變（Immutable）」不等於「傳值（Pass by Value）」</h3>
+<blockquote>
+<p>本節重點 d–i，共 6 個。這是一個很容易把自己繞進去的問題：「原生值是不可變的，意思是他是傳值、所以在記憶體空間會一直開新的嗎？」答案是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不是</mark>，這是兩件被混在一起講的事。</p>
+</blockquote>
+<p>d. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不可變（Immutable）</mark>講的是「值本身無法被就地修改」，跟「變數指向哪個記憶體位址」完全是兩回事。以字串為例：</p>
+<pre><code class="language-js">let str = &quot;Hello&quot;;
+str[0] = &quot;h&quot;;          // 嘗試就地改掉第一個字元
+console.log(str);      // 依然是 &quot;Hello&quot;，這行修改是無效的（嚴格模式下會直接 TypeError）
+</code></pre>
+<p>e. <code>"Hello"</code> 這個 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">原始值（Primitive Value）</mark>在記憶體裡是唯讀的，你唯一能做的是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">重新賦值</mark>，讓變數改指向另一個全新的值：</p>
+<pre><code class="language-js">str = &quot;hello&quot;;         // 不是把原本的 &quot;Hello&quot; 改小寫，而是 str 這個綁定改指向新字串 &quot;hello&quot;
+</code></pre>
+<p>f. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">傳值（Pass by Value）</mark>講的則是「把值賦給另一個變數時，複製的是什麼」。<code>let b = a</code> 會讓 <code>b</code> 拿到一份獨立的 <code>100</code>，這才是傳值。</p>
+<pre><code class="language-js">let a = 100;
+let b = a;             // 傳值：把 100 這個「值」複製一份給 b，兩者從此互不影響
+</code></pre>
+<p>g. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所以「不可變」是值的性質，「傳值」是賦值時的複製行為</mark>。原生值剛好兩個都成立，才會讓人以為它們是同一件事；物件則兩個都相反（可變 + 傳址）。</p>
+<p>h. 那記憶體會不會「一直開新的」？<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不一定，這取決於引擎（例如 V8）的最佳化</mark>：</p>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SMI（Small Integer，小整數）</mark>：V8 會把小整數直接內嵌在變數的 stack 空間或暫存器裡（用指標低位元標記），根本不會去 heap 配置物件，所以談不上「開新空間」。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">字串駐留（String Interning／字串池）</mark>：程式碼裡重複出現的相同字面量字串，引擎通常讓它們指向同一份記憶體，直到沒有變數引用時才由 GC 回收。</li>
+</ul>
+<p>i. 一句話收尾對照本篇第 1、2 節：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">原生值＝值不可變 ＋ 賦值時複製值；物件＝值可變 ＋ 賦值時複製位址。</mark>「不可變」不是「每次都開新記憶體」的意思，恰恰相反，正因為不可變，引擎才敢放心地讓多個變數共用同一份唯讀資料。</p>
+<h2 id="_2">各對話來源</h2>
+<h3 id="2026-08-31-httpsgeminigooglecomappec341b6a35870fba">原生值的不可變與傳值解析（2026-08-31）— https://gemini.google.com/app/ec341b6a35870fba</h3>
+<p><strong>使用者：</strong> 原生值是不可變的意思是他是傳值所以在記憶體空間會一直開新的嗎？</p>
+<p><strong>Gemini：</strong> 並不完全是因為「傳值」或「一直開新的記憶體空間」，這是兩個經常被混淆的概念。（1）「不可變（Immutable）」指的是值本身無法被修改，而不是變數指向的記憶體位址如何改變；以 <code>let str = "Hello"; str[0] = "h";</code> 為例，結果依然是 <code>"Hello"</code>，因為 <code>"Hello"</code> 這個原始值在記憶體裡是唯讀的，你只能重新賦值 <code>str = "hello"</code> 讓變數指向新字串。（2）「傳值（Pass by Value）」是指 <code>let b = a</code> 時把值複製一份給 <code>b</code>。至於記憶體會不會一直開新的，不一定，取決於 V8 的最佳化：小整數（SMI）通常直接內嵌在 stack 或暫存器中，不需要去 heap 開空間；字串則常用字串池（String Interning）讓相同字串共用同一份位址，直到沒有引用時交給 GC。總結：原生值是值本身不可變、賦值時複製值；物件是值可變、賦值時複製記憶體位址。</p>
+<h3 id="stack-heap2026-07-20-httpsgeminigooglecomapp8b05cf4687f2ea6f">變數存取：Stack 與 Heap（2026-07-20）— https://gemini.google.com/app/8b05cf4687f2ea6f</h3>
+<p>使用者：忘記放在 heap 的是什麼樣的型別，是 primitives 基本型別嗎？<br />
+Gemini：不是，基本型別通常放在 Stack（生命週期短、存取速度快）；但如果變數生命週期超出原本範圍，編譯器會做逃逸分析，決定把它放到 Heap。</p>
+<h3 id="javascript-2026-06-httpsgeminigooglecomappcdde71fb17e6c546">JavaScript 傳值與記憶體空間（2026-06）— https://gemini.google.com/app/cdde71fb17e6c546</h3>
+<p><strong>使用者：</strong> JavaScript 傳值不同變數，他們會各在記憶體中創造不一樣的記憶體空間嗎？（我的說法）vs Joe 說「傳值是不是不會創造新的記憶體空間」，誰對？</p>
+<p><strong>Gemini：</strong> 你是對的，Joe 不準確。基本型別傳值會在記憶體開新空間並複製值（<code>let a=10; let b=a;</code> → b 改 20 不影響 a）。Joe 可能把基本型別的傳值跟物件的傳址搞混：物件 <code>let obj2=obj1</code> 指向同一空間，改 obj2 會連動 obj1，但 obj2 變數本身在 Stack 仍有自己的指標空間。</p>
+<p><strong>使用者：</strong> 要怎麼解釋給 Joe 聽「賦值跟傳值不同」？</p>
+<p><strong>Gemini：</strong> 用影印機比喻。賦值＝寫字/貼標籤的動作（只要用 <code>=</code>）；傳值＝底層影印機把值複製一份的記憶體機制（基本型別特有）。附對比表與對話範本。</p>
+<p><strong>使用者：</strong> <code>var c={hello:'安安'}; var d; d=c; c.hello='你好'</code>，如果先宣告 <code>var d={}</code> 結果會不同嗎？</p>
+<p><strong>Gemini：</strong> 完全相同。<code>d=c</code> 是重新賦值，d 指標斷開原本空物件改指向 A，原空物件被 GC 回收。兩者最後都印 <code>{hello:'你好'}</code>。</p>
+<p><strong>使用者：</strong> 那如果 TypeScript 一開始 <code>var d = 一個字串</code> 呢？</p>
+<p><strong>Gemini：</strong> 編譯期會報錯（型別不符），但強行轉 JS 執行結果相同。要允許用 <code>any</code> 或 Union Types。</p>
+<hr />
+<blockquote>
+<p>[!info]- ➡️ 下一篇<br />
+<span class="wikilink" title="Obsidian 連結：11-記憶體模型-stack-heap-動態配置-GC">11-記憶體模型-stack-heap-動態配置-GC</span>——完整的Stack／Heap／GC記憶體模型。</p>
+</blockquote>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-31</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

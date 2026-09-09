@@ -16,6 +16,78 @@ updated: 2026-08-05
 
 > 承接：[[引擎-Engine-到底是什麼]] 的 (g-1) 節已畫出「規格層／引擎層／硬體層」三層架構，這篇是同一次系列提問裡，針對「規格層」本身（ECMA-262 是誰寫的、跟 MDN 差在哪）的追問記錄，兩篇對照著看。
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事：<mark style="background: #FF5582A6;">很多人以為「官方規格走得慢、MDN 走得快」，事實剛好相反</mark>
+> <mark style="background: #ADCCFFA6;">ECMA-262 才是更新最快的那一份</mark>：它是滾動更新的官方草案，TC39 一旦讓某個提案進入 Stage 4，那段語法當天就併進主分支。MDN 屬於<mark style="background: #FFF3A3A6;">二次整理</mark>——要等提案接近完成、或瀏覽器開始實驗性實作，編輯團隊才寫成白話文，時間點永遠落在規格後面。會誤會是因為「MDN 讀起來比較新手友善」被錯當成「比較新」。對應本篇 (c)。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | 這兩份東西各是什麼？ | ECMA-262 是 <mark style="background: #ADCCFFA6;">ECMAScript Language Specification</mark>，語言的「法律條文」；MDN 是開發者的「實用手冊」，還額外涵蓋 HTML／CSS／Web API 這些規格不管的東西 |
+| **When** 什麼時候 | 誰先有、誰後有？ | 順序固定：Stage 4 併入 ECMA-262 → 引擎實驗性實作 → MDN 才寫成教學。<mark style="background: #FF5582A6;">MDN 永遠在後面</mark> |
+| **Who** 誰做的 | 分別是誰寫的？ | ECMA-262 由 Ecma International 底下的 <mark style="background: #ADCCFFA6;">TC39</mark> 委員會撰寫審查，歷代專案編輯包括 Allen Wirfs-Brock、Brian Terlson、Jordan Harband 等人；MDN 由 Mozilla 編輯團隊加開源社群撰寫 |
+| **Where** 在哪裡 | 這兩份東西站在哪一層？ | 都站在<mark style="background: #BBFABBA6;">規範層</mark>，是文字，不是 RAM 也不是 CPU。往下才是引擎層（V8／SpiderMonkey／JavaScriptCore 讀規格、實作 Parser）與硬體層（機器碼真的操作 CPU 暫存器與 RAM） |
+| **Which** 哪一種 | 我現在該查哪一份？ | 想弄懂底層執行邏輯、型別轉換演算法、語法解析邊界、最新 Stage 4 提案 → 查 ECMA-262；日常寫程式、查 API 用法與範例、確認瀏覽器支援度 → 查 MDN |
+| **How** 怎麼做到 | 規則怎麼變成一棵語法樹？ | `FormalParameters` → `FormalParameterList` → `BindingElement` → `SingleNameBinding` 這些<mark style="background: #ADCCFFA6;">名稱的定義權在 ECMA-262</mark>；把規則跑起來、在記憶體裡真的蓋出 AST 的是<mark style="background: #ADCCFFA6;">引擎裡的 Parser</mark>。見本篇 (e) |
+| **Why** 為什麼 | 為什麼不能只讀一份？ | 因為兩者受眾不同、不是誰取代誰。ECMA-262 極度形式化、沒有範例也沒有相容性資訊；MDN 有範例與相容表，卻不會告訴你抽象操作的每一個演算法步驟 |
+
+### 時間軸：一個語法從提案到你能查到它，中間經過哪幾格
+
+```text
+◄════════ 規格層：ECMA-262 的「文字」 ════════►
+   這一層是寫給引擎實作者看的文件，
+   發生在所有 buildtime 與 runtime 之前，本身不是執行期的任何東西。
+
+【TC39 提案流程】每個功能各走各的
+  Stage 0 ───► Stage 1 ───► Stage 2 ───► Stage 3 ───► Stage 4
+  Strawperson  Proposal     Draft        Candidate    Finished
+  隨口提案      有冠軍推動    寫成規格文字  引擎試作回饋  ★ 併入 ECMA-262
+                                    │                        │
+                                    │  ★ 這一刻起，ECMA-262   │
+                                    │    草案就是全世界最新的  │
+                                    │                        ▼
+                              ┌─────┴──────┐        ┌──────────────────┐
+                              │ 引擎開始實作 │◄──────│ ECMA-262 主分支   │
+                              │ V8／SpiderMonkey     │ 滾動更新，最快    │
+                              │ ／JavaScriptCore     └──────────────────┘
+                              └─────┬──────┘                 │
+                                    │                        ▼
+                                    │              ┌──────────────────┐
+                                    │              │ MDN 才動筆        │
+                                    │              │ 二次整理，稍慢    │
+                                    │              │ 白話文＋範例＋相容表│
+                                    │              └──────────────────┘
+                                    ▼
+   規格與實作都就緒之後，才輪到你的專案：
+      buildtime 建置期（轉譯 transpile ＋ 打包 bundle）
+        └─► runtime 執行期（Parse → AST → Bytecode → JIT → 執行）
+
+【年份對照】1997 第 1 版 → 1999 第 3 版 → 2009 第 5 版
+           → 2015 第 6 版（改制成每年 6 月發一版）→ 2026 第 17 版
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph SPEC["規格層 · 文字：發生在所有 buildtime／runtime 之前"]
+        S0["Stage 0～3<br/>TC39 提案流程<br/>Strawperson → Draft → Candidate"] --> S4["Stage 4 Finished<br/>當天併入 ECMA-262 主分支<br/>★ 更新最快的一份"]
+    end
+    S4 --> IMP["引擎實驗性實作<br/>V8／SpiderMonkey／JavaScriptCore<br/>Parser 照規格蓋出 AST"]
+    IMP --> MDN["MDN 才動筆<br/>二次整理，稍慢<br/>白話文＋範例＋相容性表格"]
+    S4 --> BT["你的 buildtime 建置期<br/>轉譯 transpile ＋ 打包 bundle"]
+    BT --> RT["runtime 執行期<br/>Parse → AST → Bytecode → JIT → 執行<br/>此時才真的碰 CPU 與 RAM"]
+```
+
+> [!warning]- 為什麼「MDN 比較新」這個直覺這麼頑強？三個原因
+> a. <mark style="background: #FFF3A3A6;">可讀性被誤當成即時性</mark>：MDN 有排版、有範例、有相容表，讀起來像一份「活的」文件；ECMA-262 是冷冰冰的演算法步驟，看起來像老東西，其實它每天都在動。
+> b. <mark style="background: #ADCCFFA6;">MDN 有 Experimental 標籤，看起來很前沿</mark>：但那個標籤的意思正好是「規格已經有了、瀏覽器還沒跟上」，反而證明規格走在前面。
+> c. <mark style="background: #BBFABBA6;">大家平常只查得到 MDN</mark>：日常寫程式九成問題查 MDN 就夠了，很少有機會踩到「規格有、MDN 還沒寫」的那一格，所以沒機會發現順序其實是反的。
+
+---
+
 ## 重點整理
 
 本篇重點 (a)–(e)，共 5 個。

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Object.keys 與 Array.prototype.keys — 稀疏陣列孔洞的差異</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Object.keys 與 Array.prototype.keys — 稀疏陣列孔洞的差異</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#array</span><span class="pill">#object</span><span class="pill">#keys</span><span class="pill">#iterator</span><span class="pill">#sparse-array</span><span class="pill">#稀疏陣列</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-29</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/9debb9f807b83330" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">[&quot;a&quot;, , &quot;c&quot;] 的索引 1 其值是 undefined。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">索引 1 這個屬性根本不存在，1 in arr 會得到 false，只是讀它會回傳 undefined。</div></li><li><p class="qq">Object.keys 回傳的是數字陣列。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">回傳字串陣列 string[]，是 &#x27;0&#x27;、&#x27;2&#x27; 不是 0、2。</div></li><li><p class="qq">arr.keys() 直接回傳一個陣列。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">回傳 Array Iterator，要用展開運算子或 Array.from 或 for...of 才拿得到值。</div></li><li><p class="qq">Object.keys 會跳過稀疏陣列的孔洞。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">孔洞沒有實體屬性，所以不會被列舉到。</div></li><li><p class="qq">[...Array(10).keys()] 可以得到 0 到 9。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Array(10) 是全孔洞陣列，正因為 keys() 依 length 生成、不跳孔洞，這招才成立。</div></li><li><p class="qq">Array(10).map((_, i) =&gt; i) 也能得到 0 到 9。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">map 會跳過孔洞，結果仍然是一個全孔洞的陣列。</div></li><li><p class="qq">如果寫了 arr.foo = 1，Object.keys(arr) 會列出 &#x27;foo&#x27;。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Object.keys 走的是屬性視角，連非索引的自有可枚舉屬性都會列出。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">長度大於實際元素個數的陣列叫「<input class="blank" data-a="稀疏" placeholder="填答案" autocomplete="off"> 陣列」。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">英文 Sparse Array，中間的空位叫孔洞（hole）。</div></li><li><p class="qq">arr.keys() 是依據陣列的 <input class="blank" data-a="length" placeholder="填答案" autocomplete="off"> 屬性生成連續索引。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">所以它完全不管某個索引存不存在。</div></li><li><p class="qq">檢查索引 1 這個屬性是否真的存在，可以用 1 <input class="blank" data-a="in" placeholder="填答案" autocomplete="off"> arr。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">孔洞會得到 false。</div></li><li><p class="qq">Object.keys 只收集「可<input class="blank" data-a="枚舉" placeholder="填答案" autocomplete="off">」且自有的屬性鍵名。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">英文 Enumerable，所以 Symbol key 與不可枚舉屬性都不會出現。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">面試官給你 const arr = [&#x27;a&#x27;, , &#x27;c&#x27;]，問你 Object.keys(arr) 與 [...arr.keys()] 差在哪、各自該用在什麼時候。請完整回答。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：先講結果——Object.keys 得到 [&#x27;0&#x27;,&#x27;2&#x27;]（字串、跳孔洞），[...arr.keys()] 得到 [0,1,2]（數字、不跳孔洞）。再講原因——兩者視角不同：Object.keys 是屬性視角，它列舉物件上實際存在且可枚舉的自有屬性鍵名，孔洞沒有對應屬性所以不出現，而且陣列本質是物件，連 arr.foo = 1 這種非索引屬性也會被列出；arr.keys() 是長度視角，它只看 length 生成 0 到 length-1 的連續數字迭代器，不查屬性存不存在。最後講用法——要「只處理真正有值的元素」用 Object.keys，要「保證覆蓋每一格索引」或「快速造連續數字陣列 [...Array(n).keys()]」用 arr.keys()。補一句陷阱：map／forEach／filter 都會跳過孔洞，所以 Array(10).map((_, i) =&gt; i) 不會work。</div></li></ol></section>
+
+<article class="card">
+<h1 id="objectkeys-arrayprototypekeys">Object.keys 與 Array.prototype.keys — 稀疏陣列孔洞的差異</h1>
+<blockquote>
+<p>本篇重點 a–k，共 11 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">一、一段程式碼看懂差別</h3>
+<p>(a) 起手式：</p>
+<pre><code class="language-js">const arr = [&quot;a&quot;, , &quot;c&quot;];              // 索引 1 是「孔洞（hole）」，不是 undefined
+const sparseKeys = Object.keys(arr);   // ['0', '2']   ← 字串，跳過孔洞
+const denseKeys  = [...arr.keys()];    // [0, 1, 2]    ← 數字，不跳孔洞
+</code></pre>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">稀疏陣列（Sparse Array）</mark>指的是「長度大於實際存在的元素個數」的陣列。<code>["a", , "c"]</code> 的 <code>length</code> 是 3，但索引 <code>1</code> 這個屬性<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">根本不存在於物件上</mark>，不是值為 <code>undefined</code>。用 <code>1 in arr</code> 檢查會得到 <code>false</code>。</p>
+<h3 id="objectkeysobj">二、Object.keys(obj)</h3>
+<p>(c) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">本質</mark>：收集物件上<strong>實際存在</strong>且<strong>可枚舉（Enumerable）</strong>的<strong>自有（own）</strong>屬性鍵名。陣列在 JavaScript 裡本來就是物件，索引就是它的屬性名。</p>
+<p>(d) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">回傳型別</mark>：字串陣列 <code>string[]</code>。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">注意是 <code>'0'</code>、<code>'2'</code> 這種字串，不是數字</mark>，拿去做算術會踩坑。</p>
+<p>(e) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">適用場合</mark>：只想處理真正有值的元素、走訪一般物件（Plain Object）的 key、避免對孔洞做無謂運算。</p>
+<h3 id="arrayprototypekeys">三、Array.prototype.keys()</h3>
+<p>(f) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">本質</mark>：依據陣列的 <code>length</code> 屬性，生成 <code>0</code> 到 <code>length - 1</code> 的<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">連續</mark>索引序列。它完全不管某個索引存不存在。</p>
+<p>(g) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">回傳的不是陣列，是 Array Iterator（迭代器物件）</mark>。所以直接 <code>console.log(arr.keys())</code> 只會看到 <code>Object [Array Iterator] {}</code>，要用展開運算子 <code>[...]</code> 或 <code>Array.from()</code> 或 <code>for...of</code> 才拿得到值。</p>
+<pre><code class="language-js">console.log(arr.keys());        // Object [Array Iterator] {}
+console.log([...arr.keys()]);   // [0, 1, 2]
+</code></pre>
+<p>(h) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">回傳值型別</mark>：數字 <code>number</code>。</p>
+<p>(i) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最常用的小技巧</mark>：快速產生連續數字陣列。</p>
+<pre><code class="language-js">const indices = [...Array(10).keys()];   // [0,1,2,3,4,5,6,7,8,9]
+</code></pre>
+<p>（<code>Array(10)</code> 造出一個 length 為 10 的<strong>全孔洞</strong>陣列，正因為 <code>keys()</code> 不跳孔洞，這招才成立。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">同樣的寫法換成 <code>Array(10).map((_, i) =&gt; i)</code> 就會失敗</mark>，因為 <code>map</code> 會跳過孔洞。）</p>
+<p>(j) 搭配 <code>for...of</code> 走訪完整索引範圍：</p>
+<pre><code class="language-js">for (const i of arr.keys()) {
+  console.log(i, arr[i]);
+  // 0 'a'
+  // 1 undefined   ← 孔洞被讀到會得到 undefined
+  // 2 'c'
+}
+</code></pre>
+<h3 id="_3">四、一句話判準</h3>
+<p>(k) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">問「這個位置真的有東西嗎」就用 <code>Object.keys</code>；問「這個長度範圍內的每一格」就用 <code>arr.keys()</code>。</mark>前者是<strong>屬性視角</strong>，後者是<strong>長度視角</strong>。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>Object.keys(arr)</code></th>
+<th><code>arr.keys()</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>回傳</td>
+<td>陣列</td>
+<td>迭代器</td>
+</tr>
+<tr>
+<td>元素型別</td>
+<td>string</td>
+<td>number</td>
+</tr>
+<tr>
+<td>稀疏孔洞</td>
+<td>跳過</td>
+<td>不跳過</td>
+</tr>
+<tr>
+<td>依據</td>
+<td>實際存在的屬性</td>
+<td><code>length</code> 屬性</td>
+</tr>
+<tr>
+<td>是否含非索引的自有屬性</td>
+<td>會含（例如 <code>arr.foo = 1</code> 也會出現）</td>
+<td>不會</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ 最後一列是 Gemini 沒提到但很重要的差異：<code>Object.keys</code> 連你手動掛上去的非索引屬性都會列出來。</p>
+</blockquote>
+<h2 id="_4">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 說 <code>Array.prototype.keys()</code> 「會無視稀疏陣列的孔洞，將不存在值的索引視為 undefined 處理」——<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">結論正確，但措辭要小心</mark>：<code>keys()</code> 本身只吐索引數字，它沒有把孔洞「視為 undefined」；是你拿那個索引回去讀 <code>arr[1]</code> 時，讀不到屬性才回傳 <code>undefined</code>。這兩件事在心裡分開比較不會混淆。</li>
+<li>Gemini 沒有提到 <code>Object.keys</code> 也會列出非索引的自有屬性，本篇表格已補。</li>
+</ul>
+<h2 id="_5">相關題目練習</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeetCode 2635. Apply Transform Over Each Element in Array</td>
+<td>https://leetcode.com/problems/apply-transform-over-each-element-in-array/</td>
+<td>手寫 map，會直接遇到「要不要跳過孔洞」的抉擇</td>
+</tr>
+<tr>
+<td>LeetCode 2634. Filter Elements from Array</td>
+<td>https://leetcode.com/problems/filter-elements-from-array/</td>
+<td>手寫 filter，同上，練 (i) 的陷阱</td>
+</tr>
+<tr>
+<td>LeetCode 2626. Array Reduce Transformation</td>
+<td>https://leetcode.com/problems/array-reduce-transformation/</td>
+<td>reduce 對空陣列與孔洞的行為是經典考點</td>
+</tr>
+<tr>
+<td>LeetCode 2727. Is Object Empty</td>
+<td>https://leetcode.com/problems/is-object-empty/</td>
+<td>直接考 <code>Object.keys</code> 的語意</td>
+</tr>
+<tr>
+<td>NeetCode — Arrays &amp; Hashing 入門</td>
+<td>https://neetcode.io/roadmap</td>
+<td>索引與雜湊表視角的差異，是 (k) 判準的更一般版本</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_6">關聯筆記</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：Object靜態方法速查">Object靜態方法速查</span> — <code>Object.keys</code> 屬於靜態方法，那篇有完整清單與同族的 <code>values</code> / <code>entries</code>。</li>
+<li><span class="wikilink" title="Obsidian 連結：屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys">屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys</span> — 本篇是「陣列版」的兩個 keys 對照，那篇是「物件版」的四種列舉方法涵蓋範圍矩陣，合起來才完整。</li>
+<li><span class="wikilink" title="Obsidian 連結：every短路求值與初始長度快照-命令式重構為宣告式">every短路求值與初始長度快照-命令式重構為宣告式</span> — 同樣是「陣列方法怎麼看待 length 與孔洞」的主題，那篇談 <code>every</code> 的初始長度快照。</li>
+<li><span class="wikilink" title="Obsidian 連結：陣列遍歷-forEach與callback">陣列遍歷-forEach與callback</span> — <code>forEach</code> 也會跳過孔洞，可與 (i) 的 <code>map</code> 陷阱一起記。</li>
+<li><span class="wikilink" title="Obsidian 連結：for-in-迴圈迭代順序與特性">for-in-迴圈迭代順序與特性</span> — <code>for...in</code> 走的是屬性視角（跟 <code>Object.keys</code> 同陣營），<code>for...of</code> 走的是迭代器視角（跟 <code>arr.keys()</code> 同陣營），對照 (k) 的判準。</li>
+<li><span class="wikilink" title="Obsidian 連結：物件陣列-陣列層vs物件層存取">物件陣列-陣列層vs物件層存取</span> — 補強「陣列本質上就是物件」這個前提。</li>
+<li><span class="wikilink" title="Obsidian 連結：Symbol-符號型別與物件key">Symbol-符號型別與物件key</span> — <code>Object.keys</code> 不會列出 Symbol key，是本篇 (c) 「可枚舉自有屬性」限定範圍的另一半。</li>
+</ul>
+<h2 id="_7">各對話來源（原文）</h2>
+<h3 id="keys-2026-08-28-httpsgeminigooglecomapp9debb9f807b83330">陣列與物件 Keys 方法差異解析（2026-08-28）— https://gemini.google.com/app/9debb9f807b83330</h3>
+<p><strong>使用者：</strong></p>
+<pre><code class="language-js">var arr = [&quot;a&quot;, , &quot;c&quot;];
+var sparseKeys = Object.keys(arr);
+var denseKeys = [...arr.keys()];
+console.log(sparseKeys); // ['0', '2']
+console.log(denseKeys);  // [0, 1, 2]
+</code></pre>
+<p>所以 array.keys 方法是用來對輸出 index 數字用的嗎？所以靜態建構子方法 Object 的 keys 他不會出現在哪些場合？denseKeys 出現在哪些場合？</p>
+<p><strong>Gemini：</strong> <code>Array.prototype.keys()</code> 的主要用途確實是按順序產生陣列的所有索引，包含陣列中的稀疏孔洞。</p>
+<ol>
+<li>
+<p>是的，但它輸出的是迭代器（Iterator），而不是直接回傳陣列。作用是產生從 <code>0</code> 到 <code>arr.length - 1</code> 的連續數字索引。重點特性是它會無視稀疏陣列的孔洞，將不存在值的索引視為 undefined 處理，因此能產生完整的索引序列（也就是你看到的 <code>[0, 1, 2]</code>，即 Dense Keys）。<code>console.log(arr.keys())</code> 會印出 <code>Object [Array Iterator] {}</code>，要 <code>[...arr.keys()]</code> 才轉成真正的陣列。</p>
+</li>
+<li>
+<p><code>Object.keys(obj)</code> 的本質是只收集物件／陣列上實際存在且可枚舉（Enumerable）的自有屬性鍵名，回傳字串陣列 <code>string[]</code>，對稀疏陣列會跳過孔洞（因為孔洞沒有實體屬性）。適用場合是只想處理真正有值或有定義的元素索引時、走訪一般物件的 key 時、避免對未賦值的稀疏孔洞做無謂的運算。</p>
+</li>
+</ol>
+<p><code>Array.prototype.keys()</code> 的本質是依據陣列的 <code>length</code> 屬性生成連續的索引序列，回傳 Array Iterator（數值 number），不會跳過孔洞，確保索引連續不間斷。適用場合是建立指定長度的連續數字陣列（<code>[...Array(10).keys()]</code> 得到 <code>[0..9]</code>）、搭配 <code>for...of</code> 走訪完整的索引範圍（包含孔洞）、需要確保演算法覆蓋全部索引位置時避免因為稀疏陣列導致某些索引漏掉未處理。</p>
+<h2 id="_8">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇對話（陣列與物件 Keys 方法差異解析）</td>
+<td>https://gemini.google.com/app/9debb9f807b83330</td>
+<td>Gemini Flash，2026-08-28</td>
+</tr>
+<tr>
+<td>MDN — Object.keys()</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys</td>
+<td>MDN 現行版本，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>MDN — Array.prototype.keys()</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/keys</td>
+<td>MDN 現行版本，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>MDN — 陣列的稀疏性（Sparse arrays，含各方法是否跳過孔洞的整理）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#array_methods_and_empty_slots</td>
+<td>MDN 現行版本，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>ECMA-262 — Array.prototype.keys</td>
+<td>https://tc39.es/ecma262/#sec-array.prototype.keys</td>
+<td>ECMAScript 現行草案，2026-08-29 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-08-29</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-29</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

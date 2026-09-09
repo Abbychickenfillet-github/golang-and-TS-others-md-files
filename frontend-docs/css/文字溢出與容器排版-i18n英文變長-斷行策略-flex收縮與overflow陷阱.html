@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>文字溢出與容器排版：i18n 英文變長、斷行策略、flex 收縮與 overflow 陷阱</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>文字溢出與容器排版：i18n 英文變長、斷行策略、flex 收縮與 overflow 陷阱</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#css</span><span class="pill">#i18n</span><span class="pill">#多語系</span><span class="pill">#文字溢出</span><span class="pill">#word-break</span><span class="pill">#overflow-wrap</span><span class="pill">#flexbox</span><span class="pill">#overflow</span><span class="pill">#futuresign</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-29</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/33a188966032d679" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/b6641c38914d433e" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">中文比英文更容易造成文字溢出容器。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">相反。中文每字等寬、可在任意兩字之間換行；英文是空白分隔的單字，瀏覽器預設不會把單字切斷，所以更容易撐破容器。</div></li><li><p class="qq">word-break: break-word 是目前規範建議的寫法。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它已被標示為 deprecated，現代規範建議用 overflow-wrap: break-word 或 overflow-wrap: anywhere。</div></li><li><p class="qq">overflow: hidden 會連 box-shadow 一起裁掉。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">它切掉所有超出邊界的繪製內容，陰影與溢出文字都會被吃掉，是排版除錯的常見兇手。</div></li><li><p class="qq">父層是 display: flex 時，子層寫 width: 100% 一定會生效。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">flex 子項預設 flex-shrink: 1，空間不夠時會被壓縮；交叉軸方向若父層設 align-items: center，子層還會縮成內容的最小尺寸。</div></li><li><p class="qq">max-width 搭配 width: 100% 一起寫，才能兼顧上限與可收縮。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">max-width 管上限、width: 100% 管空間不足時能縮，缺一都會在某個斷點出事。</div></li><li><p class="qq">用 &lt;label&gt; 包住整張卡片可以讓整張卡片都變成可點擊區。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">label 與內部 input 產生關聯，點 label 任一處都會觸發該 input，對螢幕閱讀器也更友善。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">排查文字溢出時，第一個要去 Computed 面板檢查的屬性是 white-space 是不是 <input class="blank" data-a="nowrap" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">它會讓文字完全不換行，一路往右衝，是頭號嫌疑犯。</div></li><li><p class="qq">只有在整行放不下時才把單字切開，應該用 <input class="blank" data-a="overflow-wrap" placeholder="填答案" autocomplete="off">: break-word。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">斷得最自然，是一般文案的首選。</div></li><li><p class="qq">網址或雜湊值這種無空白的長字串，可用 word-break: <input class="blank" data-a="break-all" placeholder="填答案" autocomplete="off"> 強制切斷。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">不管單字邊界，滿了就切。</div></li><li><p class="qq">多語系容器建議用 max-width 搭配 <input class="blank" data-a="ch" placeholder="填答案" autocomplete="off"> 單位，例如 34ch。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">ch 代表字元寬度，中英文都能自動適應，不必寫死 px。</div></li><li><p class="qq">i18n 的 i 與 n 中間有 <input class="blank" data-a="18" placeholder="填答案" autocomplete="off"> 個字母。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Internationalization 的縮寫由來。</div></li><li><p class="qq">讓 flex 子項不被壓縮，要設 flex-<input class="blank" data-a="shrink" placeholder="填答案" autocomplete="off">: 0。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">預設值是 1，代表空間不足時允許收縮。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">Future Sign 官網切到英文版時 footer 標語溢出容器。請說出你的完整排查順序與三種修法的取捨。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">排查順序：一、F12 選到溢出元素，看 Computed 的 white-space 是不是被設成 nowrap；二、往上找有沒有寫死的 width 或 max-width（本例是 .footer-tagline-container 的 max-width: 260px）；三、檢查父層是不是 display: flex、子層有沒有被 flex-shrink 壓縮；四、檢查有沒有 overflow: hidden 把內容切掉；五、最後才調字級與行高。三種修法：方案一放寬容器上限（max-width 從 260px 改 320px 並加 width: 100%），最推薦，因為它處理的是根因——容器對英文而言太窄，且 width: 100% 保住小螢幕的可收縮性；方案二讓文字自動斷行（white-space: normal 加 overflow-wrap: break-word），適合寬度不能動的情況，缺點是長單字被切開閱讀體驗較差；方案三調 font-size 與 line-height，只適合超出一點點的微調，缺點是動到字級會影響視覺層級的一致性。實務上最好的長期解是改用 max-width 搭配 ch 單位，讓中英文都自動適應。</div></li><li><p class="qq">同事說「我 flex 子層明明寫了 width: 100%，為什麼還是縮成一小塊？」請完整解釋原因並給出修法。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">因為 flex 子項的預設 flex-shrink 是 1，代表主軸空間不足時允許被壓縮，width: 100% 只是「期望值」而非「保證值」，flex 演算法會依照 flex-basis、flex-grow、flex-shrink 重新分配。另外若父層 flex-direction: row 且設了 align-items: center，交叉軸（此時是垂直方向）不再 stretch，子層會縮成內容的最小尺寸——要注意這影響的是交叉軸方向，不是寬度，很多人在這裡搞混。修法有三：一、對不該被壓縮的子項設 flex-shrink: 0；二、把 align-items 改回預設的 stretch，讓子項在交叉軸撐滿；三、若真正需要的是最小寬度保護，設 min-width（注意 flex 子項的 min-width 預設是 auto，有時要顯式設成 0 才能讓內容正常收縮）。排查時建議在 DevTools 把可疑的 overflow: hidden 暫時關掉，確認不是它造成的視覺誤判。</div></li></ol></section>
+
+<article class="card">
+<h1 id="i18n-flex-overflow">文字溢出與容器排版：i18n 英文變長、斷行策略、flex 收縮與 overflow 陷阱</h1>
+<blockquote>
+<p>本篇重點 a–n，共 14 個。兩段 Gemini 對話合併：Future Sign 官網切換英文版時 footer 標語溢出容器的修法，以及票券／掃描頁面卡片排版被 <code>+container</code> 那一層影響的除錯方向。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">一、為什麼切英文就爆版</h3>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">i18n ＝ Internationalization，國際化</mark>（i 與 n 中間有 18 個字母），指讓同一套介面支援多語系。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CJK ＝ Chinese、Japanese、Korean，中日韓文字</mark>。</li>
+</ul>
+<p>(a) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">同一句話翻成英文通常會變長 30% 到 50%</mark>，而中文每個字都是等寬方塊、可以在任意兩字之間換行；英文是由空白分隔的單字串，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">瀏覽器預設不會把一個單字從中間切斷</mark>，所以固定寬度的容器一旦裝不下最長的那個單字就會撐破或溢出。</p>
+<p>(b) 本例的元凶是 <code>.footer-tagline-container</code> 寫死了 <code>max-width: 260px</code>，中文標語剛好塞得下，英文版 "A story about home, time, and the beauty of imperfection." 就滿出來。</p>
+<h3 id="_3">二、三種修法（由推薦到微調）</h3>
+<p>(c) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">方案一：放寬容器上限（最推薦）</mark></p>
+<pre><code class="language-css">.footer-tagline-container {
+  max-width: 320px; /* 由 260px 放寬以容納英文 */
+  width: 100%;      /* 小螢幕時仍能收縮，不會硬撐 */
+}
+</code></pre>
+<p><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">重點是 <code>max-width</code> 搭配 <code>width: 100%</code> 一起寫</mark>：<code>max-width</code> 管上限、<code>width: 100%</code> 管「空間不夠時可以縮」，兩者缺一都會在某個斷點出事。</p>
+<p>(d) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">方案二：讓文字自動斷行</mark></p>
+<pre><code class="language-css">.footer-tagline {
+  white-space: normal;      /* 確保沒有被別的規則設成 nowrap */
+  word-break: break-word;   /* 遇到超長單字強制斷開 */
+  overflow-wrap: break-word;/* 標準寫法，優先讓字在單字邊界換行 */
+}
+</code></pre>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">三個屬性的差別要分清楚</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>屬性</th>
+<th>行為</th>
+<th>什麼時候用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>white-space: nowrap</code></td>
+<td>完全不換行，一路往右衝</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">溢出時的頭號嫌疑犯</mark>，先檢查有沒有被誰設成這個</td>
+</tr>
+<tr>
+<td><code>overflow-wrap: break-word</code></td>
+<td>只有在整行放不下時才把單字切開</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一般文案的首選</mark>，斷得最自然</td>
+</tr>
+<tr>
+<td><code>word-break: break-all</code></td>
+<td>不管三七二十一，滿了就切</td>
+<td>網址、雜湊值、無空白的長字串</td>
+</tr>
+</tbody>
+</table>
+<p>(f) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>word-break: break-word</code> 其實是已被規範標示為 deprecated 的舊寫法</mark>，現代規範建議用 <code>overflow-wrap: break-word</code> 或 <code>overflow-wrap: anywhere</code>。兩個一起寫是為了相容舊瀏覽器，不是必須。</p>
+<p>(g) 方案三：微調字級與行高（只差一點點時）</p>
+<pre><code class="language-css">.footer-tagline {
+  font-size: 14px;  /* 或 0.9rem */
+  line-height: 1.6;
+}
+</code></pre>
+<p>(h) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">實務建議</mark>：多語系網站不要對文字容器寫死 px 寬度，改用 <code>max-width</code> ＋ <code>ch</code> 單位（例如 <code>max-width: 34ch</code>，代表約 34 個字元寬），這樣中英文都能自動適應。</p>
+<hr />
+<h3 id="_4">三、卡片與掃描區的排版優化（票券頁）</h3>
+<p>(i) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">卡片間距</mark>：卡片之間留 <code>margin-bottom: 16px</code> 左右的垂直間距，增加呼吸感，比擠在一起好掃讀。</p>
+<p>(j) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">點選回饋範圍</mark>：右側是 radio 或 checkbox 時，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要讓整張卡片都是可點擊區（clickable area），而不是只有那個小圓圈</mark>。做法是用 <code>&lt;label&gt;</code> 包住整張卡片內容，這樣點卡片任一處都會觸發對應的 input，同時對螢幕閱讀器也更友善。</p>
+<p>(k) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">狀態區分</mark>：已被選中的卡片除了原本的黃色邊框，可再加上淡底色或輕微的 <code>box-shadow</code>，讓選取狀態有一致的視覺語彙。</p>
+<p>(l) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">相機掃描區（Scanner UI）</mark>：預覽框的 <code>border-radius</code> 要與上方卡片一致，維持圓角語彙統一；「相機準備中」時放一段簡單的掃描線動畫當佔位符（placeholder），提示使用者這裡即將出現畫面。</p>
+<h3 id="container">四、<code>+container</code> 那一層為什麼會影響排版</h3>
+<p>(m) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Flexbox 衝突</mark>：如果父層是 <code>display: flex</code>，子層寫 <code>width: 100%</code> 常常會失效。原因是 flex 子項的預設值是 <code>flex-shrink: 1</code>，空間不夠時會被壓縮；再加上父層若有 <code>align-items: center</code>（交叉軸置中），子層在交叉軸方向會縮成內容的最小寬度而不是撐滿。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">修法是視情況加 <code>flex-shrink: 0</code>，或把 <code>align-items</code> 改成 <code>stretch</code>（預設值）</mark>。</p>
+<p>(n) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Overflow 限制</mark>：檢查該層是否有 <code>overflow: hidden</code>。它會切掉超出邊界的內容，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">連 <code>box-shadow</code> 和溢出的文字都會被硬生生裁掉</mark>，看起來就像陰影消失或文字被吃掉。除錯時先在 DevTools 把這條暫時關掉，就能確認是不是它造成的。</p>
+<hr />
+<h2 id="_5">除錯順序（遇到文字溢出時照這個順序查）</h2>
+<ol>
+<li>開 F12 選到溢出的元素，看 Computed 面板的 <code>white-space</code> 是不是 <code>nowrap</code>。</li>
+<li>往上找有沒有寫死的 <code>width</code> 或 <code>max-width</code>（px 值）。</li>
+<li>檢查父層是不是 <code>display: flex</code>，子層有沒有被 <code>flex-shrink</code> 壓縮。</li>
+<li>檢查有沒有 <code>overflow: hidden</code> 把東西切掉。</li>
+<li>最後才調 <code>font-size</code> 或 <code>line-height</code>。</li>
+</ol>
+<hr />
+<h2 id="_6">關聯筆記（以及為什麼相關）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：frontend-docs/css/CJK漢字復用與Noto字體選擇-i18n多語系與Docker打包">frontend-docs/css/CJK漢字復用與Noto字體選擇-i18n多語系與Docker打包</span>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：同樣是 i18n 主題的另一面。那篇處理「字體檔怎麼選、怎麼打包」，本篇處理「換語系之後版面怎麼不爆」，兩篇合起來才是完整的多語系前端檢查清單。</li>
+<li><span class="wikilink" title="Obsidian 連結：frontend-docs/css/02-1-盒模型-BoxModel與border-box">frontend-docs/css/02-1-盒模型-BoxModel與border-box</span>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：<code>max-width</code> 到底含不含 padding 與 border，取決於 <code>box-sizing</code>。如果沒設 <code>border-box</code>，把 <code>max-width</code> 從 260px 調到 320px 的實際效果會跟預期差一截。</li>
+<li><span class="wikilink" title="Obsidian 連結：frontend-docs/css/圖形中間挖空-hollow-的CSS做法">frontend-docs/css/圖形中間挖空-hollow-的CSS做法</span>：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：那篇也大量依賴 <code>overflow</code> 的裁切行為，本篇 (n) 的 <code>overflow: hidden</code> 陷阱是同一個機制的反面案例。</li>
+<li><span class="wikilink" title="Obsidian 連結：frontend-docs/css/04-1-CSS方法論與權重-OOCSS-BEM-SMACSS-ITCSS">frontend-docs/css/04-1-CSS方法論與權重-OOCSS-BEM-SMACSS-ITCSS</span>：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：<code>.footer-tagline</code> 與 <code>.footer-tagline-container</code> 這種「容器負責尺寸、內容物負責排版」的拆法，正是 OOCSS 分離結構與外觀的實作。</li>
+</ul>
+<hr />
+<h2 id="css-leetcode">相關練習題（CSS 沒有 LeetCode，改列等效練習）</h2>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">LeetCode 與 NeetCode 沒有 CSS 排版題</mark>（LeetCode 的資料庫題是 SQL、其餘為演算法）。等效的刻意練習資源：</p>
+<ul>
+<li>CSS Battle — https://cssbattle.dev/ ：用最少字元復刻版面，逼你熟練盒模型與定位。</li>
+<li>Flexbox Froggy — https://flexboxfroggy.com/#zh-tw ：專練 <code>align-items</code>、<code>flex-shrink</code> 這些本篇 (m) 用到的屬性。</li>
+<li>CSS Grid Garden — https://cssgridgarden.com/#zh-tw ：與 vault 內既有筆記 <span class="wikilink" title="Obsidian 連結：frontend-docs/css/CSS-Grid-Garden-顯式網格vs隱式網格與repeat語法">frontend-docs/css/CSS-Grid-Garden-顯式網格vs隱式網格與repeat語法</span> 直接對應。</li>
+<li>Frontend Mentor — https://www.frontendmentor.io/challenges ：有多個含長英文文案的卡片版面挑戰，適合驗證本篇的斷行策略。</li>
+</ul>
+<hr />
+<h2 id="_7">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 建議 <code>word-break: break-word</code>，但<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這個值在 CSS 規範中已被標示為 deprecated（僅為相容舊內容而保留）</mark>，正解應以 <code>overflow-wrap: break-word</code> 為主，必要時用 <code>overflow-wrap: anywhere</code>。詳見 MDN 的 word-break 條目說明。</li>
+<li>Gemini 提到「父層 <code>align-items: center</code> 導致子層縮成最小寬度」，這個描述<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只在交叉軸方向成立</mark>（例如父層 <code>flex-direction: row</code> 時影響的是高度不是寬度），原文沒有講清楚方向，本篇 (m) 已補上限定條件。</li>
+</ul>
+<hr />
+<h2 id="_8">各對話來源</h2>
+<h3 id="2026-08-httpsgeminigooglecomapp33a188966032d679">解決英文版文字溢出問題（2026-08）— https://gemini.google.com/app/33a188966032d679</h3>
+<p>使用者：我不希望英文版的時候文字超出邊框我應該在哪一層標籤下什麼屬性跟值試試看？（附截圖）</p>
+<p>Gemini：從截圖看，切到英文版時文案 "A story about home, time, and the beauty of imperfection." 變長，撐破了設定寬度的容器。建議在 <code>.footer-tagline</code> 或 <code>.footer-tagline-container</code> 這一層調整。方案一（推薦）：<code>.footer-tagline-container</code> 目前是 <code>max-width: 260px</code>（第 646 行），英文單字較長，這個限制太死，改成 <code>max-width: 320px</code> 並加 <code>width: 100%</code>。方案二：<code>.footer-tagline</code> 加 <code>white-space: normal</code>、<code>word-break: break-word</code>、<code>overflow-wrap: break-word</code> 讓文字自動斷行。方案三：若只超出一點點，把 <code>font-size</code> 調成 14px、<code>line-height</code> 調成 1.6。</p>
+<h3 id="future-sign-2026-08-httpsgeminigooglecomappb6641c38914d433e">解決 Future Sign 排版問題（2026-08）— https://gemini.google.com/app/b6641c38914d433e</h3>
+<p>使用者：（附票券／掃描頁面截圖）排版怎麼調</p>
+<p>Gemini：卡片設計優化——間距方面卡片之間可加 <code>margin-bottom: 16px</code> 增加呼吸感；點選回饋方面因右側有 radio 或 checkbox，應確保整張卡片都是可點擊範圍，可用 <code>&lt;label&gt;</code> 包住整張卡片內容；狀態區分方面最上方「票券入場」已有黃色邊框，下方活動券被選中時也可加入類似邊框色或輕微陰影。相機掃描區——圓角一致性，讓相機預覽框的 <code>border-radius</code> 與上方卡片一致；佔位符優化，「相機準備中」時加入簡單的掃描線動畫。關於 <code>+container</code> 那層影響排版：可能是 Flexbox 衝突（父層 <code>display: flex</code> 時子層 <code>width: 100%</code> 有時失效，檢查 <code>flex-shrink: 0</code> 或父層 <code>align-items: center</code> 是否導致子層縮成最小寬度），或 Overflow 限制（該層若有 <code>overflow: hidden</code> 會切斷陰影或超出範圍的文字）。</p>
+<hr />
+<h2 id="_9">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：解決英文版文字溢出問題</td>
+<td>https://gemini.google.com/app/33a188966032d679</td>
+<td>對話 2026-08，整理於 2026-08-29</td>
+</tr>
+<tr>
+<td>Gemini 對話：解決 Future Sign 排版問題</td>
+<td>https://gemini.google.com/app/b6641c38914d433e</td>
+<td>對話 2026-08，整理於 2026-08-29</td>
+</tr>
+<tr>
+<td>MDN：overflow-wrap</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-wrap</td>
+<td>MDN 持續更新，查證於 2026-08-29</td>
+</tr>
+<tr>
+<td>MDN：word-break（含 break-word 已棄用說明）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/CSS/word-break</td>
+<td>MDN 持續更新，查證於 2026-08-29</td>
+</tr>
+<tr>
+<td>MDN：flex-shrink</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink</td>
+<td>MDN 持續更新，查證於 2026-08-29</td>
+</tr>
+<tr>
+<td>MDN：overflow</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/CSS/overflow</td>
+<td>MDN 持續更新，查證於 2026-08-29</td>
+</tr>
+<tr>
+<td>W3C CSS Text Module Level 3（規範原文）</td>
+<td>https://www.w3.org/TR/css-text-3/</td>
+<td>W3C 工作草案，持續修訂</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>註：本次執行因本機磁碟空間吃緊，未額外擷取新截圖，原對話中的截圖請直接開上方 Gemini 連結查看。</p>
+</blockquote>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-29</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

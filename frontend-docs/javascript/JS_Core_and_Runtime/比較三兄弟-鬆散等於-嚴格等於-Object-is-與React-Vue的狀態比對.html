@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>比較三兄弟 — == 、=== 、Object.is，以及 React／Vue 為何靠 Object.is 判斷要不要重繪</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>比較三兄弟 — == 、=== 、Object.is，以及 React／Vue 為何靠 Object.is 判斷要不要重繪</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#比較運算子</span><span class="pill">#object-is</span><span class="pill">#nan</span><span class="pill">#react</span><span class="pill">#vue</span><span class="pill">#shallowequal</span><span class="pill">#reactivity</span><span class="pill">#面試</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-06</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/8f6c417da3d7d31d" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/cf9f976d4245fde5" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/37f6337ba7e3988d" target="_blank" rel="noopener">原始對話 3</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">NaN === NaN 的結果是 false。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">NaN 是唯一不等於自己的值，這是 === 的第一個死角。</div></li><li><p class="qq">Object.is(+0, -0) 的結果是 true。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是 false。Object.is 分得出正負零，=== 分不出。</div></li><li><p class="qq">useState 在更新時會做欄位層級的淺比較。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">useState 只做 Object.is，完全不看物件內部。做淺比較的是 React.memo / PureComponent 用的 shallowEqual。</div></li><li><p class="qq">shallowCompare 是 React 現在推薦的比對工具。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是 v15 時代的 add-on，官方早已要求改用 React.memo 或 React.PureComponent。</div></li><li><p class="qq">Vue 3 的 hasChanged 實作就是 !Object.is(value, oldValue)。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">ref 的 setter 只有在 hasChanged 為真時才 triggerRefValue。</div></li><li><p class="qq">用 items.push(4) 之後再 setItems(items)，React 會重新渲染。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">push 是原地修改，陣列的記憶體位址沒變，Object.is 判定相同 → React 直接 bailout。要寫 setItems([...items, 4])。</div></li><li><p class="qq">直接改 user.address.city 之後再 setUser(user)，React 偵測不到更新。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">最外層 user 的參照沒變。必須逐層複製：setUser({...user, address:{...user.address, city:&#x27;Taipei&#x27;}})。</div></li><li><p class="qq">展開運算子 ... 會產生深拷貝。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是淺拷貝（Shallow Copy），只複製第一層；巢狀那一層仍指向同一個物件。</div></li><li><p class="qq">setCount(prev =&gt; prev + 1) 連寫三次，count 會加 3。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">函式更新每次都拿排隊時的最新值；寫成 setCount(count+1) 三次則因為批次更新讀到同一個過期值，只加 1。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Object.is 在規格中的相等演算法名稱叫 Same<input class="blank" data-a="Value" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">=== 叫 Strict Equality，== 叫 Loose Equality。</div></li><li><p class="qq">React polyfill 用 1 / x === 1 / y 來分辨 +0 與 <input class="blank" data-a="-" placeholder="填答案" autocomplete="off">0。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">1/+0 是 Infinity、1/-0 是 -Infinity。</div></li><li><p class="qq">React polyfill 用 x !== x &amp;&amp; y !== y 這個技巧來判斷兩邊都是 <input class="blank" data-a="NaN" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">只有 NaN 不等於自己。</div></li><li><p class="qq">Markdown 表格若要在同一儲存格內換行，必須使用 &lt;<input class="blank" data-a="br" placeholder="填答案" autocomplete="off">&gt; 標籤而不是按 Enter。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">直接換行會把整張表格拆壞。</div></li><li><p class="qq">「改到哪一層就從最外層一路複製到那一層」這條規則的正式名稱叫 <input class="blank" data-a="Immutable" placeholder="填答案" autocomplete="off">__ Update（不可變更新）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">React 官方文件 Updating Objects in State 的核心要求。</div></li><li><p class="qq">setState(prev =&gt; ...) 這種寫法叫做「<input class="blank" data-a="函式" placeholder="填答案" autocomplete="off">__更新」，它接收先前的狀態。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">英文是 Functional Update / Updater Function。</div></li><li><p class="qq">巢狀太深不想手寫展開運算子時，實務上常改用 <input class="blank" data-a="Immer" placeholder="填答案" autocomplete="off">__ 這個套件（useImmer）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">寫起來像直接改，底層自動產生新參照。</div></li><li><p class="qq">Shallow Copy 講的是「產生資料」，Shallow <input class="blank" data-a="Comparison" placeholder="填答案" autocomplete="off">__ 講的是「比對資料」，兩個 shallow 不同義。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">巢狀 bug 就是這兩個深度對不上造成的。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">為什麼 React 和 Vue 這兩套架構完全不同的框架，都選擇用 Object.is 當狀態比對的第一道防線？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 共同目標是「最小化無效計算」——只有真的變了才重繪。所以需要一個既不會誤判、成本又極低的比較。(2) 不能用 ==：自動型別轉換會製造不可預期的判斷（0 與 false、null 與 undefined），一個渲染引擎不能容忍這種模糊。(3) 不能只用 ===：NaN === NaN 為 false 會造成無效渲染（值沒變卻重繪），+0/-0 分不出來則在高精度數值場景會漏判。Object.is 剛好只補這兩個洞，其餘行為與 === 相同，成本是 O(1)。(4) 它同時定義了「不做什麼」：Object.is({},{}) 是 false，代表框架擺明不比內容、只比引用，這反過來推導出「不可變更新（immutable update）」這個開發慣例——你想讓框架知道資料變了，就要給它一個新引用。(5) 需要比內容時才往上疊一層 shallowEqual（React.memo）或用 Proxy 做細粒度追蹤（Vue 3），但第一層永遠是最便宜的 Object.is。</div></li><li><p class="qq">日常寫程式你會用 === 還是 Object.is？請給判準。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 業務邏輯一律用 ===，語法簡潔、涵蓋 99% 情境，而且團隊都看得懂。(2) 只有在寫「會被別人拿去用的通用工具」時才改用 Object.is——例如自訂的 useDeepCompareEffect、狀態管理庫的 diff 函式、快取的 key 比對。理由是這些程式碼面對的是任意輸入，NaN 一定會出現。(3) 反過來說，如果你確定值域裡不可能有 NaN 或 -0（例如比對字串 id），用 Object.is 只是增加閱讀成本，沒有好處。(4) == 只在一種情況值得用：x == null 同時判斷 null 與 undefined，這是社群公認的例外，其餘一律避免。</div></li><li><p class="qq">狀態是 { name, address: { city } }，只改 city 卻畫面不動。請說明底層原因，並給出兩種正確做法與各自的取捨。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 原因——useState 的 bailout 用 Object.is 比最外層參照；直接改內層時外層 user 仍是同一個位址，Object.is 回傳 true，React 直接跳過重繪。(2) 做法一：逐層展開 setUser({...user, address:{...user.address, city}})，零依賴、語意明確，但層數一多會很難讀也容易漏抄某一層。(3) 做法二：用 Immer 的 useImmer，寫成 draft.address.city = x，可讀性最好，代價是多一個相依套件與一層心智模型。(4) 附帶提醒：structuredClone 雖能深拷貝，但複製不了函式、DOM 節點與 class 原型，且整棵樹都換新參照會讓 React.memo 的優化全部失效，不建議當預設解。(5) 進階：也可以用扁平化 state（把巢狀拆成多個 useState 或用 useReducer）從源頭避開這個問題。</div></li></ol></section>
+
+<article class="card">
+<h1 id="objectis-reactvue-objectis">比較三兄弟 — <code>==</code>、<code>===</code>、<code>Object.is</code>，以及 React／Vue 為何靠 Object.is 判斷要不要重繪</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+(1) <span class="wikilink" title="Obsidian 連結：15-ToPrimitive-ToNumber-型別轉換抽象操作">15-ToPrimitive-ToNumber-型別轉換抽象操作</span> 是 <code>==</code> 會自動轉型的底層機制，本篇不重複那套抽象操作，只講「所以現代開發為什麼避開它」。<br />
+(2) <span class="wikilink" title="Obsidian 連結：useState底層-Fiber-Tree-memoizedState與過期閉包">useState底層-Fiber-Tree-memoizedState與過期閉包</span> 講 memoizedState 怎麼存，本篇補的是「存進去之前先用什麼比對」——兩篇接得上。<br />
+(3) <span class="wikilink" title="Obsidian 連結：00-ref與reactive-響應式的兩種實作">00-ref與reactive-響應式的兩種實作</span> 與 <span class="wikilink" title="Obsidian 連結：Proxy與Reflect-13個攔截器與框架響應式原理">Proxy與Reflect-13個攔截器與框架響應式原理</span> 講 Vue 響應式，本篇補的是 setter 裡那行 <code>hasChanged</code>，也就是 Proxy 攔截到之後「要不要真的 trigger」的判斷。<br />
+(4) <span class="wikilink" title="Obsidian 連結：10-傳值vs傳址-賦值與記憶體空間">10-傳值vs傳址-賦值與記憶體空間</span> 解釋為什麼 <code>Object.is({}, {})</code> 是 <code>false</code>——比的是記憶體位址不是內容。</p>
+<p>本篇重點 a–x，共 24 個（s–x 為 2026-09-06 追加：不可變更新與巢狀盲點）。</p>
+</blockquote>
+<hr />
+<h2 id="5w1h">5W1H 速查：讀本篇之前先把座標定好</h2>
+<blockquote>
+<p>[!important]+ 最常被搞錯的一件事：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">以為 <code>useState</code> 會幫你做「淺比較」</mark><br />
+a. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>useState</code>／<code>useReducer</code> 的 bailout 只做一件事：<code>Object.is(oldState, newState)</code>，也就是<strong>比引用</strong></mark>，完全不看欄位。所以 <code>setState({...oldObj})</code> 就算每個欄位都一樣，引用是新的就照樣重繪——這正是「保持 Immutable 更新」這個慣例的來源。<br />
+b. 做淺比較的是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>React.memo</code>／<code>PureComponent</code> 內部的 <code>shallowEqual</code></mark>：① 先比引用 → ② 比 key 數量 → ③ 逐一比第一層 value（每一步仍用 <code>is()</code>）。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩者是不同層級的東西，不要混講</mark>。本篇「⚠️ 存疑／更正」記的就是這個錯被抓出來的過程。<br />
+c. 第三個誤解：以為 <code>Object.is</code> 比較「聰明」所以會看內容。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不會</mark>——<code>Object.is(空物件, 空物件)</code> 依然是 <code>false</code>，它比的是記憶體位址；它跟 <code>===</code> 的差別只有 <code>NaN</code> 與 <code>±0</code> 這兩個洞而已。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>5W1H</th>
+<th>問題</th>
+<th>一句話答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>What</strong> 是什麼</td>
+<td>三兄弟到底差在哪？</td>
+<td>只差兩件事：a. 會不會自動轉型。b. 怎麼處理 <code>NaN</code> 與 <code>±0</code>。<code>==</code> 會轉型；<code>===</code> 不轉型但 <code>NaN === NaN</code> 是 false、<code>+0 === -0</code> 是 true；<code>Object.is</code> 不轉型並補上這兩個洞</td>
+</tr>
+<tr>
+<td><strong>When</strong> 什麼時候</td>
+<td>這個比較在哪一格發生？</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">執行期，而且每次都重跑</mark>。框架端更具體：<strong>每次 <code>setState</code></strong>、<strong>每次 Vue ref 的 setter 被觸發</strong>都完整跑一次判斷</td>
+</tr>
+<tr>
+<td><strong>Who</strong> 誰在用</td>
+<td>誰真的在呼叫它？</td>
+<td>a. React 的 <code>useState</code>／<code>useReducer</code> bailout 用自家 polyfill <code>is()</code>（<code>shared/objectIs.js</code>），不是全域 <code>Object.is</code>。b. <code>React.memo</code>／<code>PureComponent</code> 用 <code>shallowEqual</code>。c. Vue 3 的 <code>hasChanged</code> 就是 <code>!Object.is(...)</code></td>
+</tr>
+<tr>
+<td><strong>Where</strong> 在哪裡</td>
+<td>比的到底是什麼東西？</td>
+<td>對物件而言，比的是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><strong>記憶體位址</strong>，不是內容</mark>。這是所有框架比對機制的起點，也是它的限制</td>
+</tr>
+<tr>
+<td><strong>Which</strong> 哪一種</td>
+<td>什麼時候該用哪一個？</td>
+<td>a. 日常業務邏輯 → <code>===</code>。b. 底層封裝、狀態管理、通用工具函式、Custom Hook → <code>Object.is</code>（要面對別人傳進來的任意值，包含 <code>NaN</code>）。c. <code>==</code> → 現代開發基本不用</td>
+</tr>
+<tr>
+<td><strong>How</strong> 怎麼做到</td>
+<td>React 的 polyfill 憑什麼分得出來？</td>
+<td>兩個經典技巧：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>1 / x === 1 / y</code> 用 <code>Infinity</code> 與 <code>-Infinity</code> 分辨 <code>+0</code> 與 <code>-0</code></mark>；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>x !== x</code> 抓出唯一不等於自己的 <code>NaN</code></mark></td>
+</tr>
+<tr>
+<td><strong>Why</strong> 為什麼</td>
+<td>為什麼框架不能只用 <code>===</code>？</td>
+<td>因為兩個死角都會變成工程問題：<code>NaN</code> 前後相同卻判 false → <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">無效渲染（沒變卻重繪）</mark>；<code>±0</code> 分不出來 → 高精度圖表與數學運算庫會拿到錯的極限方向</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_1">時間軸：這件事發生在哪一格</h3>
+<pre><code class="language-text">◄────────── buildtime 建置期 ──────────►◄────────── runtime 執行期 ──────────►
+      （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本後）
+
+ ①轉譯        ②打包         ③Parse        ④Bytecode      ⑤每次比較都重來
+ transpile    bundle        解析／AST      Ignition       setState 幾次做幾次
+ ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐   ┌──────────────────┐
+ │Babel   │   │webpack │   │Scanner │   │AST →   │   │ ★ ===／Object.is  │
+ │tsc     │──►│Vite    │──►│Parser  │──►│Bytecode│──►│ ★ React 的 is()   │
+ │SWC     │   │Rollup  │   │只知道這 │   │        │   │ ★ shallowEqual    │
+ └────────┘   └────────┘   │是個 === │   └────────┘   │ ★ Vue hasChanged  │
+  不比較任何    不比較任何    └────────┘                └──────────────────┘
+  值            值            每個函式只做一次           每次 setState、
+                            不知道兩邊會是什麼            每次 setter 都重跑
+
+ ★ 三兄弟全部落在第 ⑤ 格：比較需要「值」，而值只有執行期才存在。
+ ★ 第 ③ 格只看得到「這裡有一個 === 運算子」，看不到兩邊會是 NaN 還是物件。
+ ★ 所以 Babel 與 webpack 不會、也不可能幫你先判斷「這次要不要重繪」。
+</code></pre>
+<p>同一件事，換成框架判斷路徑自己的序列再看一次：</p>
+<pre><code class="language-text">【React 的兩條路徑】每次 setState 都從頭跑一次
+
+ ① setState(newState) 被呼叫
+        │
+        ▼
+ ② is(oldState, newState)   ← 就是 Object.is 的 polyfill，只比引用
+        │
+        ├─ true（同一個引用）──► ★ bailout：直接放棄，不重繪
+        │
+        └─ false ─────────────► ③ 排程 re-render
+                                     │
+                                     ▼
+                          ④ 子元件有包 React.memo 嗎？
+                                     │
+                                     ├─否─► 子元件跟著重繪
+                                     │
+                                     └─是─► ⑤ shallowEqual(prevProps, nextProps)
+                                              ├─ ⓐ 先比引用（is）
+                                              ├─ ⓑ 比 key 數量
+                                              └─ ⓒ 逐一比第一層 value（仍用 is）
+                                                   │
+                                                   ├─ 全部相同 ─► ★ 跳過子元件
+                                                   └─ 有任一不同 ─► 子元件重繪
+
+【Vue 3 的單一路徑】每次 ref 的 setter 被觸發都從頭跑一次
+
+ ① ref.value = newValue 觸發 setter
+        │
+        ▼
+ ② hasChanged(newValue, oldValue) ＝ !Object.is(newValue, oldValue)
+        │
+        ├─ false（沒變）──► ★ 什麼都不做，effect 不會被觸發
+        │
+        └─ true（真的變了）► ③ 寫回 _value → ④ triggerRefValue → ⑤ 畫面更新
+</code></pre>
+<p>同一條時間軸用 Mermaid 再畫一次：</p>
+<pre><code class="language-mermaid">flowchart LR
+    subgraph BT[&quot;buildtime 建置期（不比較任何值）&quot;]
+        T[&quot;① 轉譯 transpile&lt;br/&gt;Babel／tsc／SWC&quot;] --&gt; BU[&quot;② 打包 bundle&lt;br/&gt;webpack／Vite／Rollup&quot;]
+    end
+    subgraph RT1[&quot;runtime 執行期 · 每個函式只做一次&quot;]
+        P[&quot;③ Parse／AST&lt;br/&gt;只知道這裡有一個 === 運算子&lt;br/&gt;不知道兩邊會是 NaN 還是物件&quot;] --&gt; BC[&quot;④ Ignition 產生 Bytecode&quot;]
+    end
+    subgraph RT2[&quot;runtime 執行期 · 每次比較都重來&quot;]
+        A[&quot;⑤ setState 被呼叫&quot;] --&gt; B{&quot;is 也就是 Object.is&lt;br/&gt;oldState 與 newState&lt;br/&gt;只比引用，不看欄位&quot;}
+        B --&gt;|&quot;true 同一個引用&quot;| BAIL[&quot;★ bailout&lt;br/&gt;直接放棄，不重繪&quot;]
+        B --&gt;|&quot;false&quot;| RE[&quot;排程 re-render&quot;]
+        RE --&gt; M{&quot;子元件有包 React.memo 嗎&quot;}
+        M --&gt;|&quot;沒有&quot;| CH[&quot;子元件跟著重繪&quot;]
+        M --&gt;|&quot;有&quot;| SE[&quot;★ shallowEqual&lt;br/&gt;ⓐ 先比引用&lt;br/&gt;ⓑ 比 key 數量&lt;br/&gt;ⓒ 逐一比第一層 value&quot;]
+        SE --&gt;|&quot;全部相同&quot;| SKIP[&quot;★ 跳過子元件&quot;]
+        SE --&gt;|&quot;有任一不同&quot;| CH
+        V1[&quot;⑤ Vue：ref 的 setter 被觸發&quot;] --&gt; V2{&quot;hasChanged&lt;br/&gt;也就是 not Object.is&quot;}
+        V2 --&gt;|&quot;false 沒變&quot;| V3[&quot;★ 什麼都不做&lt;br/&gt;effect 不會被觸發&quot;]
+        V2 --&gt;|&quot;true 真的變了&quot;| V4[&quot;寫回 _value&lt;br/&gt;triggerRefValue&lt;br/&gt;畫面更新&quot;]
+    end
+    BU --&gt; P
+    BC --&gt; A
+    BC --&gt; V1
+</code></pre>
+<hr />
+<h2 id="_2">重點整理</h2>
+<p class="fig"><img src="images/%E5%AD%B8%E7%BF%92JS_%E5%9C%96%E8%A7%A3_%E6%AF%94%E8%BC%83%E4%B8%89%E5%85%84%E5%BC%9F%E8%88%87React%E9%87%8D%E7%B9%AA%E5%88%A4%E6%96%B7%E8%B7%AF%E5%BE%91_2026-09-05.svg" alt="學習JS_圖解_比較三兄弟與React重繪判斷路徑_2026-09-05.svg" loading="lazy"></p>
+
+<blockquote>
+<p>本篇主軸圖：上半是三兄弟的嚴格度階梯，下半是 React 的兩條判斷路徑。後續追問請直接指回圖上的方框。</p>
+</blockquote>
+<h3 id="ad">一、三者的核心差異（a–d）</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">三者的差別只有兩件事：會不會自動轉型，以及怎麼處理 <code>NaN</code> 與 <code>±0</code> 這兩個特例。</mark></p>
+<table>
+<thead>
+<tr>
+<th>比較方式</th>
+<th>語法</th>
+<th>型別轉換</th>
+<th>特殊案例</th>
+<th>主要用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>鬆散比較</td>
+<td><code>a == b</code></td>
+<td>會自動轉換</td>
+<td><code>1 == "1"</code> 為 true；<code>null == undefined</code> 為 true</td>
+<td>現代開發極少使用（防禦性程式碼除外）</td>
+</tr>
+<tr>
+<td>嚴格比較</td>
+<td><code>a === b</code></td>
+<td>不轉換</td>
+<td><code>NaN === NaN</code> 為 false；<code>+0 === -0</code> 為 true</td>
+<td>日常業務邏輯的首選標準</td>
+</tr>
+<tr>
+<td>同值比較</td>
+<td><code>Object.is(a, b)</code></td>
+<td>不轉換</td>
+<td><code>Object.is(NaN, NaN)</code> 為 true；<code>Object.is(+0, -0)</code> 為 false</td>
+<td>精準判斷兩值是否完全相同</td>
+</tr>
+</tbody>
+</table>
+<p>(b) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>===</code> 的兩個死角</mark>：<code>NaN === NaN</code> 是 <code>false</code>（<code>NaN</code> 是唯一不等於自己的值），以及 <code>+0 === -0</code> 是 <code>true</code>（分不出正負零）。</p>
+<p>(c) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Object.is</code> 就是專門補這兩個洞的</mark>，其他情況跟 <code>===</code> 完全一樣。所以它的規格名稱叫 SameValue，<code>===</code> 叫 Strict Equality。</p>
+<p>(d) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Object.is({}, {})</code> 依然是 <code>false</code></mark>——它比的是「是不是同一個記憶體位址」，不會去比內容。這是後面所有框架比對機制的起點與限制。</p>
+<h3 id="eg">二、為什麼框架不能只用 ===（e–g）</h3>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">現代 UI 框架的核心機制是「資料變更 → 觸發重新渲染」</mark>，所以「狀態到底有沒有變」這個判斷必須無副作用而且極度準確。</p>
+<p>(f) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不用 <code>==</code> 的理由</mark>：自動型別轉換會引發不可預期的渲染 Bug（例如 <code>0</code> 變成 <code>false</code> 卻沒被偵測到）。</p>
+<p>(g) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不只用 <code>===</code> 的理由有兩個</mark>：<br />
+- <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>NaN</code> 死角</mark>：state 前後都是 <code>NaN</code> 時 <code>===</code> 判 false，框架誤以為資料改了，做一次無謂的重繪。<br />
+- <code>+0</code> 與 <code>-0</code>：在高精度圖表或數學運算庫中兩者代表不同的極限方向，<code>===</code> 分不出來。</p>
+<blockquote>
+<p>[!tip] 工程上的兩種錯誤<br />
+無效渲染（Over-rendering）＝沒變卻重繪，浪費效能；漏渲染（Under-rendering）＝變了卻沒偵測到，UI 不更新。比對機制不夠精準時兩種都會發生。</p>
+</blockquote>
+<h3 id="react-hl">三、React 的兩條路徑（h–l）</h3>
+<p>(h) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>useState</code> / <code>useReducer</code> 的 bailout 機制，底層預設就是 <code>Object.is(oldState, newState)</code></mark>。</p>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>useState</code> 本身完全沒有做任何欄位層面的淺比較</mark>。你傳入一個全新的物件引用（例如 <code>setState({...oldObj})</code>），即使欄位一模一樣，<code>Object.is</code> 仍回傳 <code>false</code>，就會觸發 re-render。這就是「保持 Immutable 更新」這個慣例的來源。</p>
+<p>(j) React 內部的 <code>is()</code> 是 <code>Object.is</code> 的 polyfill（<code>shared/objectIs.js</code>）：</p>
+<pre><code class="language-js">function is(x, y) {
+  return (
+    (x === y &amp;&amp; (x !== 0 || 1 / x === 1 / y)) ||   // 用 1/x 分辨 +0 與 -0
+    (x !== x &amp;&amp; y !== y)                            // 專門處理 NaN
+  );
+}
+export default typeof Object.is === 'function' ? Object.is : is;
+</code></pre>
+<p>(k) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>React.memo</code> / <code>React.PureComponent</code> 用的是內部的 <code>shallowEqual</code></mark>，邏輯是三步：</p>
+<pre><code class="language-js">function shallowEqual(objA, objB) {
+  if (is(objA, objB)) return true;                 // ① 先比引用
+
+  if (typeof objA !== 'object' || objA === null ||
+      typeof objB !== 'object' || objB === null) return false;
+
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+  if (keysA.length !== keysB.length) return false;  // ② 比 key 數量
+
+  for (let i = 0; i &lt; keysA.length; i++) {          // ③ 逐一比第一層 value
+    const key = keysA[i];
+    if (!Object.prototype.hasOwnProperty.call(objB, key) ||
+        !is(objA[key], objB[key])) return false;
+  }
+  return true;
+}
+</code></pre>
+<p>(l) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>shallowCompare</code> 是不同的東西而且已經廢棄</mark>。它是 React v15 時代 <code>react-addons-shallow-compare</code> 這個 package 裡的附加工具，手動寫在 class component 的 <code>shouldComponentUpdate</code> 裡；官方文件早就要求改用 <code>React.memo</code>（函式元件）或 <code>React.PureComponent</code>（class 元件）。</p>
+<table>
+<thead>
+<tr>
+<th>機制／工具</th>
+<th>底層邏輯</th>
+<th>現行官方建議</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>useState</code> / <code>useReducer</code></td>
+<td>直接執行 <code>Object.is(old, new)</code>，不比對內部 key</td>
+<td>保持 Immutable 更新，傳入新引用</td>
+</tr>
+<tr>
+<td><code>React.memo</code> / <code>PureComponent</code></td>
+<td>內部呼叫 <code>shallowEqual</code>，先比引用再比第一層屬性（仍用 <code>Object.is</code>）</td>
+<td>避免子元件不必要 re-render 的首選</td>
+</tr>
+<tr>
+<td><code>shallowCompare</code>（add-on）</td>
+<td>舊版生命週期輔助函式</td>
+<td>不要使用</td>
+</tr>
+</tbody>
+</table>
+<h3 id="vue-3-haschangedmn">四、Vue 3 的 hasChanged（m–n）</h3>
+<p>(m) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Vue 3 的 <code>ref</code> 在 setter 被觸發時，會先呼叫 <code>hasChanged</code>，而 <code>hasChanged</code> 就是 <code>!Object.is(...)</code></mark>。</p>
+<pre><code class="language-ts">// Vue 3 packages/shared/src/index.ts（極簡版）
+export const hasChanged = (value: any, oldValue: any): boolean =&gt;
+  !Object.is(value, oldValue);
+</code></pre>
+<pre><code class="language-ts">class RefImpl&lt;T&gt; {
+  private _value: T;
+  set value(newValue) {
+    if (hasChanged(newValue, this._value)) {
+      this._value = newValue;
+      triggerRefValue(this, newValue);   // 只有確定變更才觸發 effect 與畫面更新
+    }
+  }
+}
+</code></pre>
+<p>(n) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">React 與 Vue 是兩套完全不同的架構，卻不約而同把 <code>Object.is</code> 當成第一道防線</mark>——這正是「最小化無效計算」這個共同工程原則的體現。</p>
+<h3 id="op">五、給自己的結論（o–p）</h3>
+<p>(o) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">日常業務邏輯：優先用 <code>===</code></mark>，語法簡潔且涵蓋絕大多數情境。</p>
+<p>(p) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">寫底層封裝、狀態管理、通用工具函式或 Custom Hook 時：改用 <code>Object.is</code></mark>，因為那些程式碼要面對別人傳進來的任意值，包含 <code>NaN</code>。</p>
+<h3 id="markdown-qr">六、順手記下的 Markdown 表格陷阱（q–r）</h3>
+<p>(q) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Markdown 表格的每一列必須維持在同一行內</mark>。在儲存格內直接按 Enter 換行，表格就會被打斷、拆成碎片段落與純文字（Abby 那次的表格就是這樣爆掉的）。</p>
+<p>(r) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要在同一儲存格內換行請用 <code>&lt;br&gt;</code> 標籤</mark>，不要按 Enter。另外表頭下面一定要有 <code>| :--- | :--- |</code> 這一列分隔線。</p>
+<h3 id="sx2026-09-06">七、承上：不可變更新與巢狀物件的盲點（s–x，2026-09-06 追加）</h3>
+<p>(s) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Abby 自己在語音對話中先講出結論、Gemini 確認完全正確</mark>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">因為 React 底層是用 <code>Object.is</code> 在比，比的是「兩個陣列／物件是不是同一個記憶體位址」而不是內容</mark>，所以要更新陣列裡的某一筆資料時，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不能直接改原陣列</mark>，必須複製出一個新陣列、建立新的參照，狀態改變才會被偵測到。這條規則的正式名稱叫 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Immutable Update（不可變更新）</mark>。</p>
+<pre><code class="language-js">const [items, setItems] = useState([1, 2, 3]);
+
+// ❌ 位址沒變 → Object.is(old, new) 為 true → React 直接 bailout，畫面不動
+items.push(4);
+setItems(items);
+
+// ✅ 展開運算子產生新陣列 → 新位址 → Object.is 為 false → 觸發 re-render
+setItems([...items, 4]);
+</code></pre>
+<p>(t) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">展開運算子（Spread Operator，<code>...</code>）</mark>之所以成為標準做法，是因為它<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">用最短的語法產生一個「內容一樣但位址不同」的新容器</mark>，剛好滿足 (i) 那條「傳入全新引用就一定重繪」的規則。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但它只複製第一層</mark>——這正是下一點的陷阱來源。</p>
+<p>(u) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">巢狀物件的盲點（本次對話的核心）</mark>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">淺比較只檢查最外層物件的記憶體位置</mark>，所以直接改巢狀內部的屬性時，最外層參照沒變，React 偵測不到，畫面不會更新。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">正解是「改到哪一層，就從最外層一路複製到那一層」</mark>：</p>
+<pre><code class="language-js">const [user, setUser] = useState({
+  name: 'Abby',
+  address: { city: 'Taoyuan' }
+});
+
+// ❌ 直接改內層：user 的參照沒變，React 不會重新渲染
+user.address.city = 'Taipei';
+setUser(user);
+
+// ✅ 逐層建立新參照（外層 user 換新、內層 address 也換新）
+setUser({
+  ...user,
+  address: { ...user.address, city: 'Taipei' }
+});
+</code></pre>
+<p><mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">巢狀太深時的實務替代方案</mark>：改用 <a href="https://immerjs.github.io/immer/">Immer</a>（<code>useImmer</code> 讓你寫起來像直接改，底層自動幫你產生新參照），或先用 <code>structuredClone(user)</code> 深拷貝再改——<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但 <code>structuredClone</code> 無法複製函式、DOM 節點與 class 實例的原型</mark>，別當萬用解。</p>
+<p>(v) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">函式更新（Functional Update／Updater Function）</mark>：Abby 在對話裡把 <code>prev</code> 誤唸成「韓式蒸氣」，Gemini 給的正解是——<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>setState(prev =&gt; ...)</code> 這種寫法叫函式更新，它在更新函式中接收「先前的狀態」，確保這次更新是基於最新的數值</mark>。</p>
+<pre><code class="language-js">// ❌ 批次更新（batching）時三行讀到的都是同一個過期的 count，結果只加 1
+setCount(count + 1);
+setCount(count + 1);
+setCount(count + 1);
+
+// ✅ 每一次都拿 React 排隊時的最新值，結果加 3
+setCount(prev =&gt; prev + 1);
+setCount(prev =&gt; prev + 1);
+setCount(prev =&gt; prev + 1);
+</code></pre>
+<p><mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這一點與 <span class="wikilink" title="Obsidian 連結：useState底層-Fiber-Tree-memoizedState與過期閉包">useState底層-Fiber-Tree-memoizedState與過期閉包</span> 是同一個問題的兩面</mark>：那篇講「為什麼閉包會抓到過期的 state」，這裡講「用 updater function 繞過它」。</p>
+<p>(w) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ 存疑／更正（用詞精確度）</mark>：Gemini 回答「React 確實採用淺比較，也就是檢查記憶體位置是否相同」——<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這句把兩件事混成一句了</mark>。依本篇 (h)(i)(k) 已建立的區分：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>useState</code> 的 bailout 只做 <code>Object.is</code>，那是「比一層引用」不是「淺比較」；真正逐 key 比第一層的 <code>shallowEqual</code> 是 <code>React.memo</code> / <code>PureComponent</code> 在用的</mark>。結論方向沒錯（都是「不換新參照就不重繪」），但面試時把兩者講混會被追問。</p>
+<p>(x) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">順帶釐清兩個都叫 shallow 的東西</mark>：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Shallow Copy（淺拷貝）</mark>是「<code>...</code> 只複製第一層」，講的是<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">產生資料</mark>；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Shallow Comparison（淺比較）</mark>是「只比第一層」，講的是<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">比對資料</mark>。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">(u) 那個巢狀 bug 之所以出現，正是因為淺拷貝的深度與淺比較的深度剛好對不上你想改的那一層。</mark></p>
+<pre><code class="language-markdown">| 比較方式 | 語法 | 特殊案例處置 |
+| :--- | :--- | :--- |
+| **嚴格比較** | `a === b` | `NaN === NaN` (false)&lt;br&gt;`+0 === -0` (true) |
+</code></pre>
+<h2 id="_3">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 說 <code>useState</code> 底層「呼叫 <code>Object.is(oldState, newState)</code>」——<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">方向對，但 React 原始碼裡呼叫的是自己包的 <code>is()</code>（<code>shared/objectIs.js</code>），不是直接呼叫全域的 <code>Object.is</code></mark>，那是為了相容沒有 <code>Object.is</code> 的舊環境。Gemini 在後面的回合有補上這段原始碼，前面的說法是簡化。</li>
+<li>Gemini 一開始把 <code>shallowEqual</code> 講成「比對 useState」，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這是錯的，已在 (i) 更正</mark>：<code>useState</code> 只做 <code>Object.is</code>，<code>shallowEqual</code> 是 <code>React.memo</code> / <code>PureComponent</code> 在用的。Abby 自己在第二回合抓到這個錯誤並追問，Gemini 才修正——這一題也證明 Abby 的直覺是對的。</li>
+<li>Gemini 給的 React polyfill 程式碼寫法正確，<code>1 / x === 1 / y</code> 是分辨 <code>+0</code>（<code>Infinity</code>）與 <code>-0</code>（<code>-Infinity</code>）的經典技巧，<code>x !== x</code> 是判斷 <code>NaN</code> 的經典技巧，兩者都與 MDN 的 polyfill 一致。</li>
+</ul>
+<h2 id="leetcode-javascript">🔗 相關練習題（LeetCode JavaScript 專區）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>題目</th>
+<th>連結</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>嚴格相等與型別</td>
+<td>2704. To Be Or Not To Be</td>
+<td>https://leetcode.com/problems/to-be-or-not-to-be/</td>
+</tr>
+<tr>
+<td>valueOf 與 toString 的隱含轉換</td>
+<td>2695. Array Wrapper</td>
+<td>https://leetcode.com/problems/array-wrapper/</td>
+</tr>
+<tr>
+<td>用比對結果決定要不要重算（memoize）</td>
+<td>2623. Memoize</td>
+<td>https://leetcode.com/problems/memoize/</td>
+</tr>
+<tr>
+<td>不可變更新：回傳新陣列而非改原陣列（對應 (s)(t)）</td>
+<td>2634. Filter Elements from Array</td>
+<td>https://leetcode.com/problems/filter-elements-from-array/</td>
+</tr>
+<tr>
+<td>排序的 mutating vs non-mutating 差異（對應 (s)）</td>
+<td>2724. Sort By</td>
+<td>https://leetcode.com/problems/sort-by/</td>
+</tr>
+<tr>
+<td>巢狀物件逐層走訪與重建（對應 (u)）</td>
+<td>2705. Compact Object</td>
+<td>https://leetcode.com/problems/compact-object/</td>
+</tr>
+<tr>
+<td>深比較 vs 淺比較的實作差異（對應 (w)(x)）</td>
+<td>2628. JSON Deep Equal</td>
+<td>https://leetcode.com/problems/json-deep-equal/</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">各對話來源</h2>
+<h3 id="javascript-tostring-objectis2026-09-httpsgeminigooglecomapp8f6c417da3d7d31d">JavaScript 的 toString 運作原理（實際主題是 ==／===／Object.is，2026-09）— https://gemini.google.com/app/8f6c417da3d7d31d</h3>
+<p><strong>使用者：</strong> 在 JavaScript 當中 <code>==</code>、<code>===</code> 與 <code>Object.is()</code> 的區別、現代函式庫與 JavaScript 的關係，我要將前者改寫為後者的主題，你會建議我怎麼撰寫？</p>
+<p><strong>Gemini：</strong> 先用表格快速對比三者（型別轉換、特殊案例、主要用途），再過渡到「既然 <code>===</code> 已滿足 99% 需求，為什麼 React、Vue、Redux 卻大量依賴 <code>Object.is()</code>」。核心是現代 UI 框架的狀態變更偵測：不用 <code>==</code> 是因為自動型別轉換會引發不可預期的渲染 Bug；不只用 <code>===</code> 是因為 <code>NaN === NaN</code> 為 false 會導致無謂重繪，以及 <code>+0</code> 與 <code>-0</code> 在高精度計算中代表不同極限方向。實戰剖析可拆成 React 的 <code>useState</code> 與 <code>useMemo</code>、Vue 3 的 <code>hasChanged</code>、以及不可變資料與淺比對三塊。結論：業務邏輯用 <code>===</code>，底層封裝與狀態管理用 <code>Object.is()</code>。</p>
+<p><strong>使用者：</strong> 要（請給 React／Vue 原始碼的實作細節與淺比對範例程式碼）</p>
+<p><strong>Gemini：</strong> React 內部的 <code>is()</code>（<code>shared/objectIs.js</code>）用 <code>(x === y &amp;&amp; (x !== 0 || 1 / x === 1 / y)) || (x !== x &amp;&amp; y !== y)</code> 這個 polyfill 處理 <code>±0</code> 與 <code>NaN</code>，並在有原生 <code>Object.is</code> 時直接使用它。<code>React.memo</code> 用的 <code>shallowEqual</code> 先用 <code>is</code> 比引用、再比 key 數量、再逐一比第一層 value（每個 value 仍用 <code>is</code>）。Vue 3 的 <code>hasChanged</code> 是 <code>!Object.is(value, oldValue)</code>，<code>RefImpl</code> 的 setter 只有在 <code>hasChanged</code> 為真時才 <code>triggerRefValue</code> 觸發副作用與畫面更新。總結：現代框架的核心精神是最小化無效計算。</p>
+<h3 id="markdown-shallowequal-2026-09-httpsgeminigooglecomappcf9f976d4245fde5">Markdown 表格語法錯誤修正（含 shallowEqual 更正，2026-09）— https://gemini.google.com/app/cf9f976d4245fde5</h3>
+<p><strong>使用者：</strong> （貼上排版壞掉的表格）為什麼我這邊會長這樣？</p>
+<p><strong>Gemini：</strong> 因為 Markdown 的表格語法被換行與多餘的豎線 <code>|</code> 打斷了。表格的每一列必須維持在同一行內，且標題與內容之間需要有分隔線（<code>|---|---|</code>）。一旦在儲存格內直接換行，Markdown 就無法正確解析，原本成排的表格會被拆成碎片段落與純文字。若要在同一儲存格中換行，請使用 <code>&lt;br&gt;</code> 標籤，不要直接按 Enter。</p>
+<p><strong>使用者：</strong> 你跟我說 React 內部的 shallowEqual 演算法是比對 useState（我知道有一個 memoizedState）底層預設就是呼叫 <code>Object.is(oldState, newState)</code>，可是 shallowCompare 是一個舊的附加工具了，React 官方文件說用 <code>React.memo</code> 或 <code>React.PureComponent</code> instead。</p>
+<p><strong>Gemini：</strong> 你這個觀念完全正確，這裡有兩個容易混淆的概念要釐清。第一，<code>useState</code> 的底層更新機制（Fiber 架構的 bailout）預設就是 <code>Object.is(oldState, newState)</code>，傳入新的物件引用即使欄位相同也會觸發 re-render，<code>useState</code> 本身完全沒有做欄位層面的淺比較。第二，<code>shallowCompare</code> 是 React v15 時代 <code>react-addons-shallow-compare</code> 裡的附加工具，用於舊式 class component 的 <code>shouldComponentUpdate</code>，官方早已要求改用 <code>React.memo</code> 或 <code>React.PureComponent</code>；而 <code>shallowEqual</code> 是 React 內部在 <code>React.memo</code> / <code>PureComponent</code> 時使用的輔助函式，先用 <code>Object.is</code> 比引用、再比 key 數量與第一層 value。</p>
+<h3 id="2026-09-06react-gemini-live-httpsgeminigooglecomapp37f6337ba7e3988d">追加 2026-09-06｜React 淺比較、巢狀物件與函式更新（Gemini Live 語音對話）— https://gemini.google.com/app/37f6337ba7e3988d</h3>
+<blockquote>
+<p>註：Gemini Live 語音逐字稿誤差極大（「單向」被辨識成「安士」、「淺比較」被辨識成「錢比較」、「巢狀」被辨識成「槽狀」、「prev」被辨識成「韓式蒸氣」），以下依語意還原。</p>
+</blockquote>
+<p><strong>使用者：</strong> 它需要複製原始陣列，避免動到原本的陣列。如果要更新某個資料的話，通常會採用展開運算子。因為它的底層是用 <code>Object.is</code> 在做比較，它會比較兩個陣列的位置是否一樣。我說的對嗎？</p>
+<p><strong>Gemini：</strong> 完全正確。React 確實採用淺比較，也就是檢查記憶體位置是否相同，所以更新陣列內容時，必須複製並建立新的陣列參照，這樣狀態改變才能被偵測到。（⚠️ 見重點 (w) 的用詞更正）</p>
+<p><strong>使用者：</strong> 那如果是巢狀的物件結構，它用淺比較還是可以正常的更新與比較嗎？</p>
+<p><strong>Gemini：</strong> 淺比較只會檢查最外層物件的記憶體位置，所以若更新巢狀內部的屬性，最外層的參照沒有變，React 就無法偵測到狀態更新，必須建立每一層的新參照。</p>
+<p><strong>使用者：</strong> 什麼意思啊？舉個例子。</p>
+<p><strong>Gemini：</strong> 如果狀態是 <code>user = { name: 'Abby', address: { city: 'Taoyuan' } }</code>，你直接修改 <code>user.address.city = 'Taipei'</code>，React 會發現 <code>user</code> 的參照沒變，因此不會重新渲染。必須使用展開運算子建立新物件，例如 <code>setUser({ ...user, address: { ...user.address, city: 'Taipei' } })</code>。</p>
+<p><strong>使用者：</strong> 那 <code>prev</code> 這是叫什麼？</p>
+<p><strong>Gemini：</strong> 這個叫做函式更新。它在狀態更新函式中接收先前的狀態，確保更新是基於最新的數值。</p>
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>比較運算子與框架比對（Gemini 對話）</td>
+<td>https://gemini.google.com/app/8f6c417da3d7d31d</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>Markdown 表格與 shallowEqual 更正（Gemini 對話）</td>
+<td>https://gemini.google.com/app/cf9f976d4245fde5</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>MDN — Object.is（SameValue，含 polyfill 寫法）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — Equality comparisons and sameness（四種相等演算法比較）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Equality_comparisons_and_sameness</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>React 原始碼 — shared/objectIs.js</td>
+<td>https://github.com/facebook/react/blob/main/packages/shared/objectIs.js</td>
+<td>React main 分支，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>React 原始碼 — shared/shallowEqual.js</td>
+<td>https://github.com/facebook/react/blob/main/packages/shared/shallowEqual.js</td>
+<td>React main 分支，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>React 官方 — memo</td>
+<td>https://react.dev/reference/react/memo</td>
+<td>React 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>淺比較、巢狀物件與函式更新（Gemini Live 對話）</td>
+<td>https://gemini.google.com/app/37f6337ba7e3988d</td>
+<td>Gemini Live Flash-Lite，2026-09-06 查證</td>
+</tr>
+<tr>
+<td>React 官方 — Updating Objects in State（巢狀展開運算子與 Immer，支撐 (t)(u)）</td>
+<td>https://react.dev/learn/updating-objects-in-state</td>
+<td>React 現行文件，2026-09-06 查證</td>
+</tr>
+<tr>
+<td>React 官方 — Updating Arrays in State（不可變陣列操作對照表，支撐 (s)）</td>
+<td>https://react.dev/learn/updating-arrays-in-state</td>
+<td>React 現行文件，2026-09-06 查證</td>
+</tr>
+<tr>
+<td>React 官方 — Queueing a Series of State Updates（updater function 與 batching，支撐 (v)）</td>
+<td>https://react.dev/learn/queueing-a-series-of-state-updates</td>
+<td>React 現行文件，2026-09-06 查證</td>
+</tr>
+<tr>
+<td>MDN — structuredClone（深拷貝的限制，支撐 (u) 的備註）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone</td>
+<td>MDN 現行版本，2026-09-06 查證</td>
+</tr>
+<tr>
+<td>Vue 3 原始碼 — packages/shared/src/general.ts（hasChanged）</td>
+<td>https://github.com/vuejs/core/blob/main/packages/shared/src/general.ts</td>
+<td>Vue core main 分支，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>GitHub Flavored Markdown — Tables（每列必須同一行、用 br 換行）</td>
+<td>https://github.github.com/gfm/#tables-extension-</td>
+<td>GFM 規格，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-06</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

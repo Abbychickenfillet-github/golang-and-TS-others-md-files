@@ -14,6 +14,81 @@ updated: 2026-08-06
 
 # JavaScript 事件循環 Event Loop（微任務 vs 巨任務）
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事先講：<mark style="background: #FF5582A6;">微任務不是「一輪取一個」，是「一次清空」</mark>
+> 很多人把微任務佇列想成跟巨任務一樣「一輪拉一個出來跑」——<mark style="background: #FFF3A3A6;">不是</mark>。Call Stack 一清空，事件迴圈就會把<mark style="background: #BBFABBA6;">整個微任務佇列徹底清空</mark>才罷休，而且<mark style="background: #FF5582A6;">清空過程中新生出來的微任務也會被排進同一輪一起清掉</mark>。這也是為什麼在微任務裡寫無窮遞迴會直接餓死巨任務、畫面永遠不再更新——而巨任務相反，<mark style="background: #ADCCFFA6;">一輪只取一個</mark>，取完就先去清微任務。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | Event Loop 到底是什麼？ | 一個工作極單純的排班機制：持續監控 Call Stack，<mark style="background: #BBFABBA6;">一發現 Stack 清空</mark>就從佇列拉任務進來執行。它本身不執行任何 JS |
+| **When** 什麼時候 | 什麼時候輪到微任務？ | 每次 Call Stack 清空的那一刻——同步碼跑完、或一個巨任務跑完。<mark style="background: #FF5582A6;">清空微任務優先於下一個巨任務</mark> |
+| **Who** 誰做的 | 佇列排隊是誰在管？ | <mark style="background: #FF5582A6;">不是 V8</mark>。V8 只負責執行 JS。事件迴圈與佇列在宿主環境裡：瀏覽器端由 <mark style="background: #ADCCFFA6;">HTML 規格</mark>定義，Node.js 端在 <mark style="background: #ADCCFFA6;">libuv</mark> 裡 |
+| **Where** 在哪裡 | 這些任務各自排在哪？ | 至少三個不同的隊伍：<mark style="background: #BBFABBA6;">微任務佇列</mark>、<mark style="background: #BBFABBA6;">巨任務佇列</mark>、`requestAnimationFrame` 自己的隊伍。Call Stack 則是唯一的執行現場 |
+| **Which** 哪一種 | 哪些算微、哪些算巨？ | 微：`Promise.then`、`async/await`、`queueMicrotask`、`MutationObserver`。巨：`setTimeout`、`setInterval`、I/O、UI 事件。<mark style="background: #FF5582A6;">分類依據是「來源」，不是「執行時間長短」</mark> |
+| **How** 怎麼做到 | 一輪 tick 的完整順序？ | 同步碼跑完 → <mark style="background: #BBFABBA6;">清空微任務</mark> → rAF → UI 渲染 → 取<mark style="background: #ADCCFFA6;">一個</mark>巨任務 → <mark style="background: #BBFABBA6;">再清空微任務</mark> → 如此反覆 |
+| **Why** 為什麼 | 為什麼微任務要優先？ | 因為微任務是<mark style="background: #FFF3A3A6;">「當前這件事的收尾」</mark>（引擎內部的後續步驟），巨任務則是<mark style="background: #FFF3A3A6;">「來自外部的全新事件」</mark>。先把手上的事收乾淨，再接下一位客人 |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄─────────── buildtime 建置期 ───────────►◄─────────── runtime 執行期 ───────────►
+      （你的電腦／CI，部署前就跑完）                （瀏覽器載入腳本之後）
+
+ ①轉譯 transpile   ②打包 bundle        ③V8 編譯          ④執行＋事件迴圈
+ Babel／tsc／SWC    webpack／Vite       Parse→AST→Bytecode ★ 本篇主題
+ ┌─────────────┐  ┌─────────────┐    ┌──────────────┐  ┌───────────────────┐
+ │TS→JS        │─►│合併、壓縮    │───►│V8 內部的事    │─►│★ 事件迴圈的每一輪   │
+ └─────────────┘  └─────────────┘    └──────────────┘  └───────────────────┘
+
+  這兩格跟事件迴圈完全無關                                事件迴圈不在 V8 裡，
+  打包工具不會幫你決定 Promise 的執行順序                  在瀏覽器／libuv 裡
+
+ ★ 本篇主題整個落在 runtime 執行期，而且是最右邊那一格。
+```
+
+再把最關鍵的那一格放大：<mark style="background: #FFF3A3A6;">事件迴圈一輪 tick 的時間軸</mark>
+
+```text
+ t0 ─────────► t1 ─────────► t2 ─────────► t3 ─────────► t4 ─────────► t5
+ │             │             │             │             │             │
+ ①同步程式碼   ②清空微任務    ③rAF＋UI渲染  ④取「一個」    ⑤再清空微任務  ⑥下一輪
+ 從頭跑到尾    <全部清光>     Style→Layout  巨任務        <全部清光>      再取一個
+ Call Stack    連清空過程中   →Paint→       setTimeout    這個巨任務生    巨任務
+ 從有到空      新生的微任務   Composite     ／I/O／點擊    出來的微任務
+              也一起清掉                    只取一個！     也在這裡清掉
+
+ ★ 微任務是「清空」，巨任務是「一次一個」——這一格是整篇最關鍵的分界。
+ ★ 只要 Call Stack 沒清空（例如同步死迴圈），t1 以後永遠不會發生，畫面徹底凍住。
+
+ 對照隨堂考：console.log('1') → setTimeout('2') → Promise.then('3') → console.log('4')
+   t0 同步碼：印出 1、印出 4      （2 進巨任務佇列，3 進微任務佇列）
+   t1 清空微任務：印出 3
+   t4 取一個巨任務：印出 2
+   輸出順序 ＝ 1 → 4 → 3 → 2
+```
+
+同一條時間軸用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    A["① 同步程式碼<br/>從頭跑到尾<br/>Call Stack 從有到空"] --> B["② 清空微任務佇列<br/>Promise.then／queueMicrotask<br/>全部清光，不是只取一個"]
+    B --> C["③ rAF ＋ UI 渲染<br/>requestAnimationFrame<br/>Style → Layout → Paint → Composite"]
+    C --> D["④ 取出一個巨任務<br/>setTimeout／I/O／點擊事件<br/>一輪只取一個"]
+    D --> E["⑤ 再清空微任務佇列<br/>這個巨任務生出來的<br/>微任務在這裡被清掉"]
+    E -.->|"下一輪 tick"| C
+    B -.->|"清空過程中新生的微任務<br/>排進同一輪一起清掉"| B
+```
+
+> [!warning]- 三個很容易連帶搞錯的延伸點
+> a. <mark style="background: #FFF3A3A6;">`setTimeout(fn, 0)` 不是「立刻執行」</mark>：0 只代表「最短延遲」，callback 仍然要進巨任務佇列排隊，而且要等目前的同步碼跑完、微任務全部清空之後才輪得到。
+>
+> b. <mark style="background: #ADCCFFA6;">「Call Stack 清空」＝ stack frame 數量歸零</mark>：事件迴圈判斷的依據就是這個數字，跟 [[12-return-清理記憶體-stack-frame與閉包例外]] 講的「`return` 才會 pop 掉 frame」是同一件事的兩個角度。
+>
+> c. <mark style="background: #BBFABBA6;">非同步不等於多執行緒</mark>：JS 主執行緒從頭到尾只有一條，事件迴圈只是幫它排班，並沒有多開任何執行緒來跑你的 JS，詳見 [[執行緒-非同步-延遲的差異]]。
+
 ## 重點整理
 
 JavaScript 是<mark style="background: #ADCCFFA6;">單執行緒（Single Thread）</mark>的語言，同一時間只能執行一個任務（只有一個 Call Stack 在運作）。但網頁要處理大量非同步操作（API 請求、計時器、使用者點擊），為了不讓畫面在等待時「凍結」，瀏覽器用 <mark style="background: #FFF3A3A6;">Event Loop</mark> 機制達成「非同步、非阻塞（Non-blocking）」。

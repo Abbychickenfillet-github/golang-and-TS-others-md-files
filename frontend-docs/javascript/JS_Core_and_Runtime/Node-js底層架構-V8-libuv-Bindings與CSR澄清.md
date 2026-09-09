@@ -19,6 +19,81 @@ updated: 2026-08-15
 
 > 本篇重點 (a)–(h)，共 8 個。起點：[[00-V8引擎完整管線-Parse到Deoptimization]] 裡「Node.js 把 V8 抽出來，外面包一層 libuv」這句話的延伸追問。
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事先講：<mark style="background: #FF5582A6;">libuv 既不是 V8 的一部分，也不是跟 `lib/fs.js` 那層同一層</mark>
+> 「Node.js ＝ V8 外面包一層 libuv」是簡化說法。真實情況是：V8 跟 libuv 是<mark style="background: #FFF3A3A6;">兩個各自獨立、被 Node 一起嵌進來的東西</mark>，V8 只負責執行 JS，事件迴圈與非同步 I/O 完全在 libuv 這邊；而 libuv 跟 `lib/fs.js`（Node 核心 JS 標準庫）之間，中間還隔著<mark style="background: #ADCCFFA6;">③ C++ Bindings 這個轉接站</mark>。真正跟 libuv 平起平坐、同樣被 C++ Bindings 個別呼叫的，是 OpenSSL、zlib、c-ares、llhttp 這些專門 C 函式庫——而且它們跟 libuv <mark style="background: #BBFABBA6;">彼此獨立、互不依賴</mark>，不是誰包住誰。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | Node.js 底層到底由哪些東西組成？ | 五層：① Node 專屬 API（`fs`、`http`）→ ② Node 核心 JS 標準庫（`lib/fs.js`）→ ③ C++ Bindings（`src/node_file.cc`）→ ④ 底層 C 函式庫（libuv 與 OpenSSL／zlib／c-ares／llhttp，彼此獨立）→ ⑤ 作業系統（epoll／kqueue／IOCP） |
+| **When** 什麼時候 | 這整套分層在哪個時間點運作？ | 全部在 <mark style="background: #BBFABBA6;">runtime 執行期</mark>。buildtime 的轉譯 transpile 與打包 bundle 跑完就退場了，那時候 V8 跟 libuv 都還沒登場 |
+| **Who** 誰做的 | 「等待」這件事是誰在做？ | <mark style="background: #FF5582A6;">不是 V8</mark>。V8 只做一件事：執行 JS。等待、輪詢、Thread Pool 全是 libuv 的工作，真正的 I/O 動作則是作業系統做的 |
+| **Where** 在哪裡 | 這些東西住在哪？CSR 又在哪裡跑？ | libuv／OpenSSL／zlib 都是編進 `node` 這支執行檔裡的 C 函式庫，跟你的 JS 專案原始碼無關；至於 CSR 的渲染邏輯則<mark style="background: #ADCCFFA6;">全部在瀏覽器裡完成</mark>，那個環境裡沒有 libuv，也沒有 `fs` |
+| **Which** 哪一種 | 哪些 API 是 ECMAScript 給的、哪些是宿主給的？ | ECMAScript 規範裡<mark style="background: #FF5582A6;">既沒有 `window` 也沒有 `fs`</mark>。`fs`、`http` 由 Node 自己定義，`document`、`fetch` 由 WHATWG 定義——兩邊都是宿主環境（host environment）加上去的 |
+| **How** 怎麼做到 | 一次 `fs.readFile` 的完整路徑？ | ① JS 呼叫 → ② C++ Bindings 轉成 C++ 呼叫 → ③ libuv 丟進 Thread Pool 或交給作業系統 → ④ 作業系統真的去讀硬碟 → ⑤ libuv 把回呼推進佇列 → ⑥ 事件迴圈取出，交還給 V8 在主執行緒執行 |
+| **Why** 為什麼 | 為什麼要疊這麼多層？ | 因為 V8 只懂 JS 與記憶體，完全不懂檔案與網路；而且三大作業系統的非同步機制各不相同（epoll／kqueue／IOCP），要靠 libuv 抹平差異，Node 才能<mark style="background: #BBFABBA6;">一份程式碼跑在三個平台上</mark> |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄─────────── buildtime 建置期 ───────────►◄─────────── runtime 執行期 ───────────►
+      （你的電腦／CI，部署前就跑完）                （node app.js 之後才發生）
+
+ ①轉譯 transpile   ②打包 bundle        ③V8 編譯＋執行 JS    ④宿主環境接手非同步
+ Babel／tsc／SWC    webpack／Vite       Parse→AST→Bytecode   ★ 本篇整條分層鏈
+ ┌─────────────┐  ┌─────────────┐    ┌──────────────┐  ┌───────────────────┐
+ │TS→JS        │─►│合併、壓縮    │───►│V8 只做這一件事│─►│★ ①Node專屬API      │
+ │高階→高階     │  │             │    │執行 JS 本身   │  │★ ②lib/fs.js       │
+ └─────────────┘  └─────────────┘    └──────────────┘  │★ ③C++ Bindings    │
+                                                       │★ ④libuv／其他C函式庫│
+   這兩格跟本篇完全無關                                   │★ ⑤作業系統          │
+   V8 與 libuv 此時都還沒登場                             └───────────────────┘
+
+ ★ 本篇主題整個落在 runtime 執行期的最右邊那一格。
+```
+
+再把最關鍵的那一格放大：<mark style="background: #FFF3A3A6;">一次非同步 I/O 的交接時間軸</mark>（以 `fs.readFile` 為例）
+
+```text
+ t0 ─────────► t1 ─────────► t2 ─────────► t3 ─────────► t4 ─────────► t5
+ │             │             │             │             │             │
+ ①主執行緒     ②C++Bindings  ③libuv        ④作業系統      ⑤libuv        ⑥事件迴圈
+ V8 執行 JS    node_file.cc  丟進 Thread   epoll／kqueue  I/O 完成      Call Stack
+ 呼叫          把 JS 呼叫轉  Pool 或直接   ／IOCP 真的    把回呼推進    清空後取出
+ fs.readFile   成 C++ 呼叫   交給作業系統   去讀硬碟       佇列排隊      交還給 V8 執行
+ 立刻 return
+    │
+    └─► 主執行緒完全不等待，繼續往下跑同步程式碼 ─────────────────────────►
+        （t1～t5 這整段期間，主執行緒是空的，可以做別的事）
+
+ ★ 注意：★t2～t4 這段完全沒有 V8 的事，也不佔用 JS 主執行緒。
+```
+
+同一條時間軸用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    A["① 主執行緒 V8<br/>執行 JS：fs.readFile<br/>立刻 return，不等待"] --> B["② C++ Bindings<br/>src/node_file.cc<br/>把 JS 呼叫轉成 C++ 呼叫"]
+    B --> C["③ libuv<br/>丟進 Thread Pool<br/>或直接交給作業系統"]
+    C --> D["④ 作業系統<br/>epoll／kqueue／IOCP<br/>真的去讀硬碟、等網路"]
+    D --> E["⑤ libuv<br/>I/O 完成<br/>把回呼函式推進佇列排隊"]
+    E --> F["⑥ 事件迴圈 Event Loop<br/>等 Call Stack 清空<br/>取出回呼交還給 V8"]
+    F --> G["⑦ 主執行緒 V8<br/>執行 callback<br/>建立自己的 Execution Context"]
+    G -.->|"下一個非同步呼叫就整圈重來"| A
+```
+
+> [!info]+ 一句話驗證法：怎麼判斷某個東西該放在哪一層
+> a. 它是用 JS 寫的、你 `require` 得到嗎？→ 屬於 ② Node 核心 JS 標準庫（例如 `lib/fs.js`）。
+>
+> b. 它是 C／C++ 寫的，而且負責「跨平台非同步 I/O 與事件迴圈」嗎？→ 屬於 ④ 裡的 libuv。
+>
+> c. 它是 C 寫的，但負責的是加密、壓縮、DNS、HTTP 解析這類單一專門任務嗎？→ 屬於 ④ 裡的「其他專門 C 函式庫」，跟 libuv 同層但互不依賴。
+>
+> d. 它只是把 JS 呼叫翻譯成 C++ 呼叫的轉接程式碼嗎？→ 屬於 ③ C++ Bindings。
+
 ## (a) Node.js 只有包一層 libuv 嗎？——不是，libuv 只是其中一層
 
 「V8 外面包一層 libuv」是簡化說法，完整分層其實更多：

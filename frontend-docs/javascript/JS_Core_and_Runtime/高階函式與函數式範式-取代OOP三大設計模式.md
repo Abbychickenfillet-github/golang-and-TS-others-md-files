@@ -21,6 +21,109 @@ updated: 2026-08-18
 
 ---
 
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事：<mark style="background: #FF5582A6;">呼叫高階函式 ≠ 執行被包進去的那個函式</mark>
+> a. `const addWithLog = logDecorator(add)` 這一行跑完，<mark style="background: #FFF3A3A6;">`add` 一次都還沒被執行</mark>，`console.log('開始執行印出 Log...')` 也一次都還沒印。這一行只做了一件事：**生出一個新的函式物件**，並讓它閉包住 `fn`。真正跑起來要等到 `addWithLog(1, 2)` 被呼叫的那一刻。
+> b. 順帶把名字釐清：被「高階」修飾的是<mark style="background: #BBFABBA6;">外層那一個</mark>——`map` 是高階函式，<mark style="background: #FF5582A6;">你傳給 `map` 的那個箭頭函式不是</mark>；`logDecorator` 是高階函式，`add` 不是。方向剛好跟直覺相反。
+> c. 同一句話也適用 Factory：`createRole('admin')` 執行完，它的 Stack Frame 已經彈出了，但 `roleType` <mark style="background: #FFF3A3A6;">沒有跟著消失</mark>——因為它一開始就被配置在 Heap 上，不在 Stack 上。理由見下面的 **Who** 那一列。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | 高階函式的定義？ | 「<mark style="background: #ADCCFFA6;">接收函式當參數</mark>」或「<mark style="background: #ADCCFFA6;">回傳一個函式</mark>」的那一個函式。只要中一個就算，<mark style="background: #FF5582A6;">被傳進去的那個回呼不算</mark> |
+| **When** 什麼時候 | 這些函式各自在哪一刻才有值、才執行？ | a. `function checkout() {}` 是函式**宣告** → <mark style="background: #BBFABBA6;">Creation Phase 就連名帶身體整包就位</mark>；b. `const logDecorator = (fn) => {…}` 是函式**表達式** → <mark style="background: #FFF3A3A6;">Execution Phase 執行到那一行才拿到值</mark>；c. 被裝飾／被生產出來的新函式 → 要等它自己被呼叫，才建立 Execution Context |
+| **Who** 誰做的 | 是誰保住了 `roleType` 這個自由變數？ | JS 引擎（V8）。<mark style="background: #ADCCFFA6;">Parse 的 Scope Analysis 在只做一次的那一格就「決定」了</mark>：`roleType` 會被回傳的那個小函式捕獲 → 所以配置到 Heap 的 Context 物件，而不是 Stack Frame。`createRole` return 之後它照樣活著 |
+| **Where** 在哪裡 | 這些函式與變數住在哪？ | <mark style="background: #FFF3A3A6;">函式物件一律在 Heap</mark>，變數只是拿著位址。被閉包捕獲的自由變數（`fn`、`roleType`）在 **Heap 的 Context 物件**；沒被捕獲的參數在 **Stack Frame**，`return` 一到就跟著拆掉 |
+| **Which** 哪一種 | 三個模式各自靠哪一招？ | Strategy 靠「<mark style="background: #BBFABBA6;">函式當參數</mark>」、Decorator 靠「<mark style="background: #BBFABBA6;">函式當回傳值</mark>」、Factory 靠「<mark style="background: #BBFABBA6;">閉包</mark>」。三招都只是「函式是一等公民」這一條前提的三種用法 |
+| **How** 怎麼做到 | 怎麼一眼判斷是不是高階函式？ | 問兩個問題：a. 它的參數裡有沒有函式？b. 它 `return` 出去的是不是函式？<mark style="background: #ADCCFFA6;">其中一個成立就是</mark>。`map`／`filter`／`memoize`／`useMemo`／middleware 全部通過這個測試 |
+| **Why** 為什麼 | 為什麼 JS 不太需要那些類別階層？ | 因為 OOP 的那些模式，本來就是在「<mark style="background: #FF5582A6;">函式不能被當值傳遞</mark>」的語言裡，用一整組類別與介面去**模擬**「把一段行為傳進去」。JS 的函式本來就能傳、能回傳、能被閉包記住，所以那層腳手架可以整個拆掉 |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
+        （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤執行期（會重複發生）
+ transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
+ ┌────────┐   ┌────────┐     ┌───────────┐   ┌──────────┐   ┌────────────────────┐
+ │Babel   │   │webpack │     │Scanner    │   │Ignition  │   │ Creation Phase      │
+ │tsc     │──►│Vite    │────►│Parser     │──►│把 AST 編成│──►│ ★ 函式宣告 checkout │
+ │SWC     │   │Rollup  │     │AST        │   │Bytecode  │   │   連名帶身體整包就位 │
+ │        │   │合併壓縮│     │★Scope     │   │          │   │ ★ const 進 TDZ      │
+ └────────┘   └────────┘     │ Analysis  │   └──────────┘   ├────────────────────┤
+                             │ 決定誰會被 │                  │ Execution Phase     │
+                             │ 閉包捕獲   │                  │ ★ 執行到那一行，函式 │
+                             │ →Stack還是│                  │   表達式才拿到值     │
+                             │   Heap    │                  │ ★ 呼叫時才建立新的   │
+                             └───────────┘                  │   Execution Context │
+                             每個函式只做一次                 └────────────────────┘
+                             只做「決策」，不配置記憶體         呼叫幾次就做幾次
+
+ ★ 注意第 ③ 格那個 Scope Analysis：閉包能不能保住 roleType，是在這裡「決定」的；
+   但真正在 RAM 裡挖出那一格 Context，是第 ⑤ 格執行時才做。決策一次，執行每次都要。
+```
+
+再把本篇三段程式碼放進同一條軸，看誰在哪一格：
+
+```text
+ ── 執行期，時間往右 ──────────────────────────────────────────────────────────►
+
+ ① Creation Phase（還沒執行任何一行）
+    ┌──────────────────────────────────────────────────────────────┐
+    │ function checkout(amount, payStrategy) {…}                    │
+    │   → 函式宣告，連名帶身體整包就位，★ 現在就可以呼叫              │
+    │ const payByCreditCard / logDecorator / add / createRole …     │
+    │   → 只註冊名字，全部躺在 TDZ，★ 現在碰到就 ReferenceError      │
+    └──────────────────────────────────────────────────────────────┘
+                                  │
+ ② Execution Phase 逐行往下跑     ▼
+    ┌──────────────────────────────────────────────────────────────┐
+    │ 執行到 const logDecorator = (fn) => {…}                       │
+    │   → ★ 這一行才在 Heap 生出函式物件，logDecorator 這時才有值    │
+    │                                                              │
+    │ 執行到 const addWithLog = logDecorator(add)                   │
+    │   → 建立 logDecorator 的 Execution Context，執行它的本體       │
+    │   → 它 return 出一個**新的**函式物件，閉包住 fn                │
+    │   → ★ 到此為止，add 一次都還沒被執行，Log 一個字都還沒印        │
+    │   → logDecorator 的 Stack Frame 彈出，但 fn 留在 Heap Context │
+    └──────────────────────────────────────────────────────────────┘
+                                  │
+ ③ 真正呼叫的那一刻                ▼
+    ┌──────────────────────────────────────────────────────────────┐
+    │ addWithLog(1, 2)                                             │
+    │   → ★ 這時才建立 addWithLog 自己的 Execution Context           │
+    │   → 印「開始執行印出 Log…」→ 呼叫 fn（也就是 add）→ 印「執行完畢」│
+    │   → return 之後彈出 Stack Frame；閉包住的 fn 依然留在 Heap     │
+    │   → 再呼叫一次 addWithLog，從 ③ 整個重來                       │
+    └──────────────────────────────────────────────────────────────┘
+```
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（部署前跑完，V8 還沒看到程式碼）"]
+        T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 每個函式只做一次"]
+        P["Parse 解析<br/>Scanner → Parser → AST<br/>★ Scope Analysis 決定：<br/>roleType 會被閉包捕獲 → 放 Heap<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode<br/>可重複使用"]
+    end
+    subgraph RT2["runtime 執行期 · 每次進入作用域都重來"]
+        CP["① Creation Phase<br/>函式宣告 checkout 整包就位<br/>const 全部進 TDZ"] --> EP["② Execution Phase 逐行執行<br/>執行到那一行，logDecorator 才有值<br/>logDecorator 呼叫後回傳新函式<br/>★ 此時 add 還沒被執行"]
+        EP --> CALL["③ addWithLog 被呼叫的那一刻<br/>才建立它自己的 Execution Context<br/>才真的印 Log、才真的呼叫 add"]
+        CALL --> RET["return → 彈出 Stack Frame<br/>閉包住的 fn 留在 Heap Context"]
+    end
+    BU --> P
+    BC --> CP
+    RET -.->|"再呼叫一次就從 ③ 重來"| CALL
+```
+
+> [!info]- 三個延伸的辨異，一起放在這裡
+> a. <mark style="background: #ADCCFFA6;">高階函式不是一種範式</mark>：本篇 (c) 已經說了，它是函數式程式設計（FP）裡最基礎的一項工具，前提是「函式為一等公民」。範式是 FP，工具是 HOF，別把兩個詞當同義詞。
+> b. <mark style="background: #FFB8EBA6;">HOC 是 Higher-Order Component（高階元件），不是高階函數</mark>：它是 HOF 的特例，對應的是 Decorator 裝飾器模式，接收一個元件、回傳一個包好的新元件。
+> c. <mark style="background: #D2B3FFA6;">閉包不是免費的</mark>：被捕獲的變數住在 Heap，只要那個回傳的小函式還被誰拿著，它就回收不掉。這也是本篇 (j) 說的代價的另一面——`map`／`filter` 每次都生新陣列是 GC 壓力，長命的閉包則是持續佔用。
+
+---
+
 ## 重點整理
 
 ### 一、高階函式到底「抽離」了什麼

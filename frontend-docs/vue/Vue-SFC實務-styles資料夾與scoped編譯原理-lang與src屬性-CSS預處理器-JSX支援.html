@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vue SFC 實務 — styles 資料夾與 scoped 編譯原理、lang 與 src 屬性、CSS 預處理器、JSX 支援</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Vue SFC 實務 — styles 資料夾與 scoped 編譯原理、lang 與 src 屬性、CSS 預處理器、JSX 支援</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#vue</span><span class="pill">#sfc</span><span class="pill">#scoped</span><span class="pill">#scss</span><span class="pill">#sass</span><span class="pill">#postcss</span><span class="pill">#jsx</span><span class="pill">#vite</span><span class="pill">#css預處理器</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/7a7b2d9a3778cf0e" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/cfb51eb32772c1c5" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">&lt;style scoped&gt; 編譯出來的結果本質上是 inline style。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是一般的 CSS 規則加上 [data-v-xxx] 屬性選擇器，會被抽成獨立 CSS 檔或注入 head。</div></li><li><p class="qq">&lt;style lang=&quot;scss&quot;&gt; 的 lang 是用來指定外部檔案路徑的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">lang 指定預處理器；指定外部檔案路徑的是 src 屬性。</div></li><li><p class="qq">Vue 3 可以用 JSX，但大部分 v- 指令（v-if、v-for）在 JSX 裡不能用。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">要改寫成原生 JS 的三元運算與 map。v-model 則有外掛支援。</div></li><li><p class="qq">元件專屬樣式的常見做法是把每個元件的 CSS 拆到 src/styles 資料夾。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">styles 資料夾放的是全域樣式與變數；元件樣式寫在 .vue 底部的 &lt;style scoped&gt;。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">scoped 編譯後會給標籤加上唯一的屬性，長得像 data-v-<input class="blank" data-a="7ba5bd90" placeholder="填答案" autocomplete="off">（一串雜湊）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">hash 值每個元件不同，用來做屬性選擇器隔離。</div></li><li><p class="qq">Sass 官方現在建議用 @<input class="blank" data-a="use" placeholder="填答案" autocomplete="off"> 取代舊的 @import 來引入變數與 mixin。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">@import 正在被淘汰，@use / @forward 是新的模組系統。</div></li><li><p class="qq">在 Vite 專案啟用 Vue JSX 要安裝的官方外掛是 @vitejs/plugin-vue-<input class="blank" data-a="jsx" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">再到 vite.config.js 的 plugins 加上 vueJsx()。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">什麼情況你會在 Vue 專案裡改用 JSX 而不是 Template？請說明取捨。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 適合 JSX 的情境：要寫高度動態的元件（Table 的欄位設定、Tree 的遞迴節點、Dialog 的多種內容型態），這些用 Template 的 v-if/v-for 會層層巢狀難以維護，用 JS 的函式與遞迴反而更直觀；元件庫作者也常選 JSX，因為要對外暴露 render props 這類 API。(2) TypeScript 的型別推導在 JSX 裡通常比 Template 更完整，尤其是 slot 與 props 的泛型。(3) 代價：失去 Vue Template 編譯器的靜態優化（靜態提升、Block Tree、PatchFlag），這些是 Vue 效能的重要來源；大部分 v- 指令不能用；團隊裡熟 Template 的人看 JSX 會卡。(4) 結論：一般業務頁面留在 Template，只有需要極高動態性的少數元件才局部改用 JSX，兩者可以在同一個專案共存。</div></li></ol></section>
+
+<article class="card">
+<h1 id="vue-sfc-styles-scoped-lang-src-css-jsx">Vue SFC 實務 — styles 資料夾與 scoped 編譯原理、lang 與 src 屬性、CSS 預處理器、JSX 支援</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+(1) 兩串 Gemini 對話都在問「Vue 單檔元件（SFC）到底怎麼寫」，一串問樣式、一串問 JSX，合併成一篇 SFC 實務筆記，避免 vue 資料夾散成一堆小檔。<br />
+(2) <span class="wikilink" title="Obsidian 連結：element-style動態設定-vs-className-切換">element-style動態設定-vs-className-切換</span> 講原生 DOM 的 inline style 與 className 取捨，本篇第二節「scoped 不是 inline style」正好是同一組概念在 Vue 編譯器層的答案，兩篇互為對照。<br />
+(3) 第四節的 <code>@vitejs/plugin-vue-jsx</code> 走的是 Babel 轉譯，跟 <span class="wikilink" title="Obsidian 連結：瀏覽器相容性-Polyfill補API-Babel降語法-Browserslist一次設定全家套用">瀏覽器相容性-Polyfill補API-Babel降語法-Browserslist一次設定全家套用</span> 是同一套 toolchain。<br />
+(4) <span class="wikilink" title="Obsidian 連結：00-ref與reactive-響應式的兩種實作">00-ref與reactive-響應式的兩種實作</span> 是 vue 資料夾裡的既有筆記，本篇 JSX 範例用到 <code>ref</code>，可以互相對照。</p>
+<p>本篇重點 a–q，共 17 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="vue-styles-ac">一、Vue 專案的 styles 資料夾放什麼（a–c）</h3>
+<p>(a) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">會有 <code>src/styles</code> 或 <code>src/assets/styles</code> 資料夾，但它放的是「全域樣式」，不是每個元件的樣式</mark>。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">典型內容</mark>：<code>reset.css</code> / <code>normalize.css</code>（清除瀏覽器預設）、<code>variables.scss</code> / <code>theme.css</code>（顏色、字體尺寸變數）、<code>global.css</code>（全域通用排版）。</p>
+<p>(c) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">全域檔在 <code>main.js</code> 一次性載入</mark>（例如 <code>import './assets/styles/global.css'</code>），整個專案生效，不必在每個 <code>.vue</code> 重複 import。元件要用共用變數時才在元件內 <code>@use</code>。</p>
+<pre><code class="language-scss">&lt;style lang=&quot;scss&quot; scoped&gt;
+@use '@/styles/variables.scss' as *;
+
+.card {
+  color: $primary-color;
+}
+&lt;/style&gt;
+</code></pre>
+<h3 id="style-scoped-inline-styledh">二、<code>&lt;style scoped&gt;</code> 不是 inline style（d–h）</h3>
+<p>(d) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>&lt;style scoped&gt;</code> 完全不是 inline style</mark>。它編譯出來的本質是傳統的 CSS 類別選擇器，只是 Vue 編譯器在背後自動加了防衝突的屬性選擇器。</p>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">編譯器做兩件事</mark>：</p>
+<pre><code class="language-html">&lt;!-- 你寫的 --&gt;
+&lt;template&gt;&lt;button class=&quot;btn&quot;&gt;按鈕&lt;/button&gt;&lt;/template&gt;
+&lt;style scoped&gt;
+.btn { color: red; }
+&lt;/style&gt;
+
+&lt;!-- 編譯後：標籤被加上唯一的 hash 屬性 --&gt;
+&lt;button class=&quot;btn&quot; data-v-7ba5bd90&gt;按鈕&lt;/button&gt;
+
+&lt;!-- CSS 被改寫成帶屬性的限定選擇器 --&gt;
+.btn[data-v-7ba5bd90] { color: red; }
+</code></pre>
+<p>(f) 這些 CSS 最後會被抽離成獨立的 <code>.css</code> 靜態檔，或注入到頁面的 <code>&lt;head&gt;</code>——<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所以瀏覽器能統一繪製與快取，這是它效能比 inline style 好的原因</mark>。</p>
+<p>(g) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Inline style 的三個缺點</mark>：權重極高（1000）很難被覆蓋、無法寫 <code>:hover</code> <code>:focus</code> 與 <code>@media</code> 與偽元素、每個標籤都要重複寫一次沒有重用性。</p>
+<p>(h) 對照表：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Inline Style (<code>style="..."</code>)</th>
+<th><code>&lt;style scoped&gt;</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>運作原理</td>
+<td>直接寫在 DOM 屬性上</td>
+<td>獨立 CSS 規則 ＋ 屬性選擇器 <code>[data-v-xxx]</code></td>
+</tr>
+<tr>
+<td>CSS 權重</td>
+<td>極高（1000）</td>
+<td>一般類別權重（10 + 10 = 20）</td>
+</tr>
+<tr>
+<td>支援 <code>:hover</code> / 媒體查詢</td>
+<td>不支援</td>
+<td>完全支援</td>
+</tr>
+<tr>
+<td>渲染效能</td>
+<td>差（每個 DOM 都帶重複字串）</td>
+<td>佳（瀏覽器統一繪製與快取）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="langsrcscoped-ik">三、lang、src、scoped 三個屬性各管什麼（i–k）</h3>
+<p>(i) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>lang</code>（Language）＝告訴編譯器用哪種預處理器解析這個區塊</mark>。不寫預設就是 <code>css</code>。<code>&lt;script lang="ts"&gt;</code> 也是同一個機制，只是換成 TypeScript。</p>
+<p>(j) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>src</code>（Source）＝從外部引入獨立檔案</mark>，就像 <code>&lt;img src&gt;</code> 或 <code>&lt;script src&gt;</code>。實務上極少用，因為它會破壞 SFC 高度內聚的優勢。</p>
+<p>(k) 三者對照：</p>
+<table>
+<thead>
+<tr>
+<th>語法寫法</th>
+<th>屬性名稱</th>
+<th>作用說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;style lang="scss"&gt;</code></td>
+<td>lang</td>
+<td>指定程式語言／預處理器（CSS、SCSS、Less）</td>
+</tr>
+<tr>
+<td><code>&lt;style src="./btn.css"&gt;</code></td>
+<td>src</td>
+<td>指定外部檔案路徑，把外部 CSS 載進來</td>
+</tr>
+<tr>
+<td><code>&lt;style scoped&gt;</code></td>
+<td>scoped</td>
+<td>指定作用域隔離，樣式只作用於當前元件</td>
+</tr>
+</tbody>
+</table>
+<h3 id="css-ln">四、CSS 預處理器是什麼（l–n）</h3>
+<p>(l) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSS 預處理器（CSS Preprocessor）是一種擴充工具，讓你用變數、巢狀、函式、邏輯運算來寫樣式，最後編譯成瀏覽器看得懂的標準 CSS</mark>。瀏覽器只認識原生 CSS，預處理器就是翻譯官。</p>
+<p>(m) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它解決三個痛點</mark>：顏色與尺寸重複複製貼上、選擇器結構冗長（要一直重寫父層 class）、樣式難以拆成小檔再組裝。</p>
+<pre><code class="language-scss">// 1. 巢狀結構（Nesting）
+.nav {
+  background: #333;
+  a {
+    color: white;
+    &amp;:hover { color: yellow; }
+  }
+}
+// 編譯後：.nav{} .nav a{} .nav a:hover{}
+
+// 2. 變數（Variables）
+$primary-color: #42b983;
+.button { background-color: $primary-color; }
+
+// 3. Mixin（可重用的樣式組）
+@mixin flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.card-header { @include flex-center; }
+</code></pre>
+<p>(n) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">現況趨勢</mark>：原生 CSS 已支援 CSS Variables（<code>--primary-color</code>）與 Nesting（巢狀），所以許多專案改用 PostCSS 這類「後處理器」（Tailwind CSS 背後的技術）取代傳統預處理器的部分功能。主流仍是 Sass / SCSS，Less 已較少見，Stylus 更少。</p>
+<h3 id="vue-jsxoq">五、Vue 也可以用 JSX（o–q）</h3>
+<p>(o) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Vue 完全支援 JSX</mark>，最常見於 Vue 3 搭配 Vite，靠官方外掛 <code>@vitejs/plugin-vue-jsx</code> 實現。</p>
+<pre><code class="language-bash">npm install @vitejs/plugin-vue-jsx -D
+</code></pre>
+<pre><code class="language-js">// vite.config.js
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import vueJsx from '@vitejs/plugin-vue-jsx'
+
+export default defineConfig({
+  plugins: [vue(), vueJsx()],
+})
+</code></pre>
+<pre><code class="language-jsx">// 副檔名改成 .jsx 或 .tsx，用 setup 函式撰寫
+import { defineComponent, ref } from 'vue'
+
+export default defineComponent({
+  name: 'Counter',
+  setup() {
+    const count = ref(0)
+    const inc = () =&gt; count.value++
+
+    return () =&gt; (
+      &lt;div class=&quot;counter&quot;&gt;
+        &lt;p&gt;Count: {count.value}&lt;/p&gt;
+        &lt;button onClick={inc}&gt;+1&lt;/button&gt;
+      &lt;/div&gt;
+    )
+  },
+})
+</code></pre>
+<p>(p) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">跟 React JSX 最容易踩到的差異</mark>：Vue 的響應式值要寫 <code>{count.value}</code>（React 直接 <code>{count}</code>）；Vue JSX 支援 <code>v-model={text.value}</code>（React 要自己接 <code>value</code> 與 <code>onChange</code>）；<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">大部分 <code>v-</code> 指令（<code>v-if</code>、<code>v-for</code>）在 JSX 裡不能用，要改寫成原生 JS 的三元運算與 <code>map</code></mark>。</p>
+<p>(q) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">取捨</mark>：JSX 的優點是靈活度極高、重構與抽象化方便、TypeScript 型別推導有時比 Template 更直覺，很適合寫 Table / Tree / Dialog 這種高度動態的元件庫；缺點是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">會失去 Vue Template 編譯器的靜態優化（Block Tree、靜態提升）</mark>，一般業務頁面沒必要換。</p>
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 的 Vue JSX 對照表把插槽寫成 <code>&lt;MyComponent default: v-slots="{{"&gt; ...</code>，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這串語法是壞的、無法執行</mark>。正確寫法是把插槽當成物件傳給 <code>v-slots</code>：<code>&lt;MyComponent v-slots={{ default: () =&gt; &lt;p&gt;Content&lt;/p&gt; }} /&gt;</code>，或直接把函式當 children 傳。</li>
+<li>Gemini 說 scoped 的權重是「10 + 10 = 20」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSS 權重不是相加的十進位數字</mark>，正確的表示是三元組 <code>(id, class, type)</code>：<code>.btn[data-v-xxx]</code> 是 <code>(0, 2, 0)</code>，inline style 則不在這個三元組裡、優先權更高（只有 <code>!important</code> 蓋得過）。用「20 對 1000」來比大小是教學簡化，不是規格。</li>
+<li>Gemini 說「Sass/SCSS 目前最主流」是對的，但沒提到 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Sass 官方已宣布 <code>@import</code> 逐步淘汰、要改用 <code>@use</code> / <code>@forward</code></mark>——所以上面範例刻意寫 <code>@use</code> 而不是舊教學常見的 <code>@import</code>。</li>
+</ul>
+<h2 id="_3">各對話來源</h2>
+<h3 id="vue-2026-09-httpsgeminigooglecomapp7a7b2d9a3778cf0e">Vue 專案樣式架構與管理（2026-09）— https://gemini.google.com/app/7a7b2d9a3778cf0e</h3>
+<p><strong>使用者：</strong> 你們寫 Vue 的話，會有一個資料夾叫做 style 嗎？然後在 single file component 裡面去 import？</p>
+<p><strong>Gemini：</strong> 通常會建立樣式資料夾（常見命名 <code>src/styles</code> 或 <code>src/assets/styles</code>），但主要用來存放全域樣式、CSS 變數與共用工具類，而非把每個元件的樣式單獨拆檔放進去。全域檔案（reset、variables、global）通常在 <code>main.js</code> 一次性載入。元件專屬樣式最常見是直接寫在 <code>.vue</code> 底部的 <code>&lt;style scoped&gt;</code>；若要用 styles 資料夾裡的變數或 Mixin，會在元件內 <code>@use '@/styles/variables.scss' as *</code>。透過 <code>src</code> 屬性引入外部檔案在實務上極少使用，因為會破壞 SFC 高度內聚的優勢。</p>
+<p><strong>使用者：</strong> 所以 <code>&lt;style scoped&gt;</code> 這個不算 inline style？</p>
+<p><strong>Gemini：</strong> 不是，完全不是 inline style。<code>&lt;style scoped&gt;</code> 編譯出來的本質是傳統的 CSS 類別選擇器，只是 Vue 的 SFC Compiler 在背後自動加了防衝突的屬性選擇器。編譯時會做兩件事：給 HTML 標籤加上唯一的 hash 屬性（<code>data-v-7ba5bd90</code>），並把 CSS 轉成 <code>.btn[data-v-7ba5bd90]</code> 這種限定選擇器，最後統一抽離成 <code>.css</code> 靜態檔或注入 <code>&lt;head&gt;</code>。Inline style 的缺點是權重極高難覆蓋、無法寫偽類與媒體查詢、沒有重用性。</p>
+<p><strong>使用者：</strong> <code>&lt;style lang="css"&gt;</code> 這算 src 屬性嗎？</p>
+<p><strong>Gemini：</strong> 不算。<code>lang</code> 是「語言」屬性，用來告訴編譯器用哪種預處理器解析（<code>css</code> / <code>scss</code> / <code>sass</code> / <code>less</code> / <code>stylus</code>），<code>&lt;script lang="ts"&gt;</code> 同理。<code>src</code> 是「來源」屬性，用來從外部引入檔案，像 <code>&lt;img src&gt;</code> 一樣；在 Vue SFC 中只有真的要把樣式拆成獨立檔案時才會用到 <code>&lt;style scoped src="./MyButton.css"&gt;&lt;/style&gt;</code>。</p>
+<p><strong>使用者：</strong> 預處理器是什麼？</p>
+<p><strong>Gemini：</strong> CSS 預處理器是一種擴充工具，讓你用變數、巢狀、函式、邏輯運算撰寫樣式，最後編譯成標準 CSS。瀏覽器只認識原生 CSS，預處理器就像翻譯官。它解決三個痛點：程式碼重複性高、選擇器結構冗長、模組化困難。常用功能是巢狀結構、變數與主題管理、Mixin。主流是 Sass / SCSS，Less 較少見，Stylus 更少。現今原生 CSS 已支援 CSS Variables 與 Nesting，因此許多人改搭配 PostCSS（Tailwind 背後的技術）取代部分功能。</p>
+<h3 id="vue-jsx-2026-09-httpsgeminigooglecomappcfb51eb32772c1c5">Vue 支援 JSX 語法指南（2026-09）— https://gemini.google.com/app/cfb51eb32772c1c5</h3>
+<p><strong>使用者：</strong> Vue 也可以用 JSX 嗎？</p>
+<p><strong>Gemini：</strong> 可以，Vue 完全支援使用 JSX，最常見於 Vue 3 搭配 Vite 或 Vue CLI，透過官方 Babel/Vite 外掛實現。安裝 <code>@vitejs/plugin-vue-jsx -D</code>，在 <code>vite.config.js</code> 的 plugins 加上 <code>vueJsx()</code>，副檔名改成 <code>.jsx</code> 或 <code>.tsx</code>，用 <code>defineComponent</code> 的 <code>setup()</code> 回傳一個渲染函式。與 React JSX 的差異：資料綁定要 <code>{count.value}</code>、雙向綁定有 <code>v-model={text.value}</code>、插槽用 <code>v-slots</code>。優點是靈活性高、重構與抽象化方便、TS 型別推導直覺，適合 Table / Tree / Dialog 這種高度動態元件；缺點是失去 Vue Template 編譯器的靜態優化（Block Tree、靜態提升），且大部分 <code>v-</code> 指令無法使用。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vue 樣式架構對話</td>
+<td>https://gemini.google.com/app/7a7b2d9a3778cf0e</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>Vue JSX 對話</td>
+<td>https://gemini.google.com/app/cfb51eb32772c1c5</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>Vue 3 官方 — SFC CSS Features（scoped 與 data-v hash）</td>
+<td>https://vuejs.org/api/sfc-css-features.html</td>
+<td>Vue 3 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Vue 3 官方 — SFC Syntax Specification（lang / src 屬性）</td>
+<td>https://vuejs.org/api/sfc-spec.html</td>
+<td>Vue 3 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Vue 3 官方 — Render Function &amp; JSX（v-slots 正確寫法）</td>
+<td>https://vuejs.org/guide/extras/render-function.html</td>
+<td>Vue 3 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>@vitejs/plugin-vue-jsx</td>
+<td>https://github.com/vitejs/vite-plugin-vue/tree/main/packages/plugin-vue-jsx</td>
+<td>現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Sass 官方 — @use 取代 @import</td>
+<td>https://sass-lang.com/documentation/at-rules/use/</td>
+<td>Sass 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — CSS Specificity（三元組而非單一數字）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_cascade/Specificity</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

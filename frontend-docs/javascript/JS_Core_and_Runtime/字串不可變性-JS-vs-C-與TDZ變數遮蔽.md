@@ -11,7 +11,8 @@ related:
   - "[[11-記憶體模型-stack-heap-動態配置-GC]]"
 sources:
   - https://gemini.google.com/app/41d3c779dee10274
-updated: 2026-08-02
+  - https://gemini.google.com/app/f4da8ca9d6c67841
+updated: 2026-09-05
 ---
 
 # 字串不可變性（JS vs C）與 let 區塊變數遮蔽下的 TDZ
@@ -19,7 +20,106 @@ updated: 2026-08-02
 > [!info]- 🔗 與既有筆記的關聯
 > 本篇是 Gemini 來源的補充筆記。字串不可變性是全新主題（vault 尚無專篇），歸進 JS_Core_and_Runtime；TDZ 部分與 [[04-變數宣告-let-const-var]]（手寫，同層變數作用域坑）、[[09-Hoisting-函式宣告vs函式表達式-TDZ]]（Gemini 來源，函式宣告 vs 函式表達式的 TDZ）主題重疊但角度不同，本篇補的是「函式內部宣告同名 let 變數時，TDZ 如何跟作用域鏈的名稱遮蔽（shadowing）互動」這個更細的情境，兩篇既有筆記都是手寫或另一子主題，依筆記工作守則不直接編輯，改開新篇並互相 wikilink。與 [[10-傳值vs傳址-賦值與記憶體空間]] 的「變數是指標、值是記憶體實體資料」概念也直接相關。
 
-本篇重點 a–o，共 15 個
+本篇重點 a–s，共 19 個
+
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事：<mark style="background: #FF5582A6;">把「字串不可變」讀成「字串變數不能改」</mark>
+> a. 不可變的是<mark style="background: #FFF3A3A6;">**值**（記憶體裡那塊字串實體）</mark>，不是<mark style="background: #BBFABBA6;">**變數**（指向位址的標籤）</mark>。`greeting = "Hello"` 完全合法，它做的是「在新位址建一塊新字串，再把標籤改指過去」，位址 A 上的 `"Hi"` 從頭到尾一個位元都沒被改過。
+> b. 由此延伸：`str[0] = "J"` 之所以沒效果，不是「改失敗」，是<mark style="background: #ADCCFFA6;">語言根本不提供這條路</mark>——非嚴格模式靜默忽略、嚴格模式直接報錯。C 可以這樣寫，是因為 C 的字串本質是字元陣列，能原地覆寫同一塊位址。
+> c. 本篇第二主題也有一個對稱的誤解：以為 `let x` 報錯是<mark style="background: #FF5582A6;">「因為 `let` 不會 hoisting」</mark>。<mark style="background: #BBFABBA6;">剛好相反</mark>——正是因為它**有** hoisting，名稱被鎖在函式頂端遮蔽了外層的 `x`，才不會往外找到 `"global"`，只是還沒初始化，所以落在 TDZ。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | 到底什麼東西不可變？ | 不可變的是**值**，不是**變數**。變數只是一個指向記憶體位址的標籤，標籤永遠可以改指到別的地方；被指到的那塊字串實體，一旦建立就再也不會被改寫 |
+| **When** 什麼時候 | 新字串是什麼時候被建出來的？ | <mark style="background: #ADCCFFA6;">字串**字面值**在 Parse／編譯階段就進常數池（每個函式只做一次，還可能被駐留共用）</mark>；<mark style="background: #FFF3A3A6;">`concat`／`substring`／`+` 產生的新字串則是執行期、每次求值都新建一塊</mark> |
+| **Who** 誰做的 | 誰在管這些字串？ | JS 引擎（V8）。字串駐留（String Interning）是**引擎實作優化**、不是 ECMAScript 規格保證；沒人再指向的舊字串由 GC 自動回收 |
+| **Where** 在哪裡 | 新舊字串各放哪？ | 字串實體在 **Heap**；變數這個「標籤／指標」本身放在 Stack Frame 或環境紀錄裡。重新賦值改的只有標籤那一格，Heap 上的舊實體原封不動 |
+| **Which** 哪一種 | 哪些操作會改到原字串？ | <mark style="background: #BBFABBA6;">一個都沒有</mark>。`substring`／`concat`／`+`／`toUpperCase` 全部是「回傳新字串」；想更新變數就得自己**重新賦值**，方法不會幫你放回去 |
+| **How** 怎麼做到 | C 憑什麼可以原地改？ | C 的字串是**字元陣列**，位址 X 開一塊空間放字元，之後直接覆寫同一塊。代價是要人工管理記憶體、多個指標共享時容易產生 Side Effect；JS 用「每次新建」換掉這個風險 |
+| **Why** 為什麼 | 為什麼那個 `let x` 例子不是印出 `"global"`？ | 因為 `let` **也會** hoisting：`x` 被鎖定給內層版本、遮蔽了外層，作用域鏈不會再往外找；而程式是逐行執行的，`console.log(x)` 先跑到時 `x` 還在 TDZ，於是丟 `ReferenceError` |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄────────── buildtime 建置期 ──────────►◄────────── runtime 執行期 ──────────►
+      （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本後）
+
+ ①轉譯        ②打包         ③Parse        ④Bytecode      ⑤每次執行都重來
+ transpile    bundle        解析／AST      Ignition       執行幾次做幾次
+ ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐   ┌──────────────────┐
+ │Babel   │   │webpack │   │★字面值 │   │AST →   │   │ ★ concat／substr  │
+ │tsc     │──►│Vite    │──►│ 進常數池│──►│Bytecode│──►│   ／+ 新建字串    │
+ │SWC     │   │Rollup  │   │★TDZ 範圍│   │        │   │ ★ 改指標、GC 舊值 │
+ └────────┘   └────────┘   │ 靜態決定│   └────────┘   │ ★ TDZ 丟          │
+  只換寫法      只換位置     └────────┘                │   ReferenceError  │
+  不建字串      不建字串      每個函式只做一次           └──────────────────┘
+                            只做決策不新建             同一行跑 100 次
+                                                      就新建 100 塊字串
+
+ ★ 本篇兩個主題落在兩個不同的格子，這正是它們容易被搞混的原因：
+   ・字串「字面值」與 TDZ 的「範圍」在第 ③ 格定案（只做一次）。
+   ・字串的「新建／改指標／GC」與 TDZ 的「丟錯」在第 ⑤ 格（每次執行都重來）。
+```
+
+同一件事，換成這兩個主題自己的階段序列再看一次：
+
+```text
+【序列一】str = str.concat(" World") 在記憶體裡的四步（執行期，每次求值都重跑）
+
+ ① 位址 A：字串實體 "Hello"          ← str 這個標籤指向 A
+        │
+        ▼ ② 執行 concat：在位址 C 建立一塊全新的 "Hello World"
+          （A 與參數那塊 " World" 一個位元都沒被改動）
+        │
+        ▼ ③ 重新賦值：把 str 這個標籤從指向 A 改成指向 C
+        │
+        ▼ ④ 位址 A 沒有任何變數再指向它 ──► 等待 GC 回收
+
+ ★ 全程沒有任何一塊字串被「修改」過，只有「新建」與「改指向」。
+
+
+【序列二】function test 裡那個同名 let x 的執行序（每次呼叫都重來）
+
+ ① Creation Phase：把內層 let x 的名稱註冊到 test 頂端
+        │            ★ 名稱遮蔽成立，外層的 x 從此在函式內被擋住
+        ▼
+ ② TDZ 開始：名稱已存在，但還沒初始化
+        │
+        ▼ ③ Execution Phase 逐行跑到 console.log(x)
+        │    ★ 人在 TDZ 裡 → ReferenceError，程式當場中斷
+        │
+        ▼ ④ let x = "local" 這一行根本沒被執行到（所以也不會印出 local）
+```
+
+同一條時間軸用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（不建立任何字串，也不丟錯）"]
+        T["① 轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["② 打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 每個函式只做一次"]
+        P["③ Parse／Scope Analysis<br/>★ 字串字面值進常數池，可能被駐留<br/>★ TDZ 的範圍在這裡靜態劃出"] --> BC["④ Ignition 產生 Bytecode"]
+    end
+    subgraph RT2A["runtime 執行期 · 字串：每次求值都重來"]
+        S1["位址 A：字串實體 Hello<br/>str 這個標籤指向 A"] --> S2["★ concat／substring／加號<br/>在位址 C 新建一塊全新字串<br/>A 一個位元都沒被改"]
+        S2 --> S3["★ 重新賦值<br/>把 str 從指向 A 改成指向 C"]
+        S3 --> S4["位址 A 沒人再指向<br/>★ 等待 GC 回收"]
+    end
+    subgraph RT2B["runtime 執行期 · TDZ：每次呼叫都重來"]
+        D1["Creation Phase<br/>★ 內層 let x 註冊到函式頂端<br/>名稱遮蔽成立，外層 x 被擋住"] --> D2["★ TDZ 開始<br/>名稱已存在，但未初始化"]
+        D2 --> D3["Execution Phase 逐行執行<br/>跑到 console.log 這一行<br/>★ 丟 ReferenceError，當場中斷"]
+        D3 --> D4["let x 那一行沒被執行到<br/>所以永遠印不出 local"]
+    end
+    BU --> P
+    BC --> S1
+    BC --> D1
+```
+
+---
 
 ## 重點整理
 
@@ -65,6 +165,54 @@ n. <mark class="b">名稱遮蔽（Shadowing）加上逐行執行，才是報錯�
 
 o. <mark class="g">要印出 `"local"`，讀取動作必須寫在初始化之後：</mark>把 `let x = "local";` 搬到 `console.log(x);` 前面，執行順序才會先完成初始化與賦值，再讀取到 `"local"`；這也呼應 [[04-變數宣告-let-const-var]] 裡「TDZ 決定的是『時間軸』、作用域決定的是『空間軸』」的區分，這裡踩到的是時間軸（TDZ），不是空間軸（跑到作用域外）的問題。
 
+### 追加 2026-09-05：substring／concat 的示範，以及 `+` 串接的型別轉換
+
+(p) <mark style="background: #FFF3A3A6;">所有字串方法都是「回傳新字串」，原本的變數一動也不動</mark>。這就是不可變性在 API 層面的具體長相。
+
+```js
+let originalStr = "JavaScript";
+let newStr = originalStr.substring(0, 4);   // 取索引 0 到 4（不含 4）
+
+console.log(newStr);       // "Java"        ← 回傳的新字串
+console.log(originalStr);  // "JavaScript"  ← 原字串完全沒變
+```
+
+```js
+let str1 = "Hello";
+let str2 = " World";
+let combinedStr = str1.concat(str2);
+
+console.log(combinedStr);  // "Hello World"
+console.log(str1);         // "Hello"   ← 保持原樣
+console.log(str2);         // " World"  ← 保持原樣
+```
+
+(q) <mark style="background: #BBFABBA6;">要更新變數就必須「重新賦值」</mark>，因為方法只會把新字串交給你，不會幫你放回去。
+
+```js
+let str = "Hello";
+str = str.concat(" World");   // 重新賦值
+console.log(str);             // "Hello World"
+```
+
+(r) <mark style="background: #ADCCFFA6;">`+` 也是回傳新字串，但它多做了一件事：型別轉換</mark>。只要 `+` 兩邊有任何一邊是字串，另一邊就會被轉成字串再串接；兩邊都不是字串時才做數字加法。
+
+![[螢幕擷取畫面 2026-09-05 132900.png]]
+
+上圖 F12 Console 實測：`"con" + 78` 得到 `"con78"`，數字 78 被自動轉成 `"78"` 再串接。
+
+![[螢幕擷取畫面 2026-09-05 122243.png]]
+
+上圖是同一個規則的兩個變形：`7 + '7'` 得到 `"77"`（不是 14），因為右邊是字串；下半段 `let` 宣告只是宣告，Console 顯示 `undefined` 是「這段陳述式沒有回傳值」，不是變數的值是 undefined。
+
+(s) <mark style="background: #FF5582A6;">這是面試常考的陷阱</mark>：`+` 對字串是串接、對數字是加法，而 `-` 只有數字語意，所以 `'7' - 7` 會得到 `0`（字串被轉成數字），但 `'7' + 7` 得到 `"77"`。詳細的轉換規則見 [[15-ToPrimitive-ToNumber-型別轉換抽象操作]]。
+
+### 追加來源：JavaScript 字串的不可變性與操作（2026-09-05）— https://gemini.google.com/app/f4da8ca9d6c67841
+
+**使用者：** 當我們用 `substring()` 來擷取字串，或用 `concat()` 來把兩個字串合為一，這些都是會回傳另一個字串，而非改變原本的字串。示範
+
+**Gemini：** 這段文字在說明 JavaScript 中字串的原生值不可變性（Immutability）。對字串進行擷取或拼接時，原本的字串變數內容不會受到任何影響，方法只會回傳一個全新的字串。`substring(0, 4)` 會回傳 `"Java"` 而 `originalStr` 仍是 `"JavaScript"`；`str1.concat(str2)` 會回傳 `"Hello World"` 而 `str1`、`str2` 保持原樣。觀念小結：如果希望更新變數的值，必須明確地把回傳的新字串重新賦值給該變數（`str = str.concat(" World")`）。
+
 ## 各對話來源
 
 ### JS 字串不可變性與 C 差異（2026-08-02 擷取）— https://gemini.google.com/app/41d3c779dee10274
@@ -97,5 +245,6 @@ o. <mark class="g">要印出 `"local"`，讀取動作必須寫在初始化之後
 | var/let 作用域與 TDZ 基礎對照 | [[04-變數宣告-let-const-var]] | Abby-notes 既有筆記，updated 2026-07-29 |
 | 函式宣告 vs 函式表達式的 TDZ | [[09-Hoisting-函式宣告vs函式表達式-TDZ]] | Abby-notes 既有筆記，updated 2026-07-29 |
 | 傳值 vs 傳址記憶體模型 | [[10-傳值vs傳址-賦值與記憶體空間]] | Abby-notes 既有筆記，updated 2026-07-29 |
+| 字串不可變性的 substring／concat 示範（Gemini 對話） | https://gemini.google.com/app/f4da8ca9d6c67841 | Gemini Flash，2026-09-05 |
 
 本篇 Gemini 內容與 MDN《String》《let》《Hoisting》等標準文件描述一致，未發現需要標記存疑/更正之處；g 點的「字串駐留」屬引擎（如 V8）實作優化，非 ECMAScript 規格強制保證行為，已在該點註明。

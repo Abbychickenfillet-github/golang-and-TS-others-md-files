@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>存取器屬性的三種定義方式｜getter、setter 與資料驗證</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>存取器屬性的三種定義方式｜getter、setter 與資料驗證</h1>
+  <div class="pills"><span class="pill">#javascript</span><span class="pill">#accessor-property</span><span class="pill">#getter</span><span class="pill">#setter</span><span class="pill">#defineProperty</span><span class="pill">#class</span><span class="pill">#面試</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：[&#x27;MDN Object.defineProperty()&#x27;, &#x27;MDN get / set（Functions 章節）&#x27;, &#x27;MDN Object.prototype.__proto__（頁面最後更新 2026-05-22）&#x27;]</span>
+    <a href="https://gemini.google.com/app/ca2463a1acf1bdc6" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="_1">存取器屬性的三種定義方式</h1>
+<blockquote>
+<p>[!info] 承接與去向<br />
+a. 承接 <span class="wikilink" title="Obsidian 連結：Object建構子-plain-object的建立與存取">Object建構子-plain-object的建立與存取</span> 的 j 節與 k 節：那裡說 <code>__proto__</code> 是「定義在 <code>Object.prototype</code> 上的存取器屬性」，這篇把「存取器屬性到底怎麼做出來」講完。<br />
+b. 本篇的資料驗證段落，是 <span class="wikilink" title="Obsidian 連結：草稿-useState為什麼沒更新-從getter與Proxy看React的設計選擇">草稿-useState為什麼沒更新-從getter與Proxy看React的設計選擇</span> 的前置知識：Vue 用 getter／setter 攔截、React 沒有，差別就在這裡。<br />
+c. 本篇 defineProperty 的 <code>enumerable: false</code> 直接對應 <span class="wikilink" title="Obsidian 連結：屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys">屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys</span> 主軸圖的第 3 格。</p>
+</blockquote>
+<hr />
+<h2 id="a-getter-setter">a. 先修正一個觀念：getter 與 setter 是真的存在的函式</h2>
+<p>有一種誤解是「getter／setter 不是具體的東西，只是 <code>Object.getPrototypeOf()</code> 這種方法的統稱」。<strong>不是這樣。</strong></p>
+<p>它們是<strong>貨真價實的函式物件</strong>，你可以把它們挖出來自己呼叫：</p>
+<pre><code class="language-js">const d = Object.getOwnPropertyDescriptor(Object.prototype, '__proto__');
+
+typeof d.get        // &quot;function&quot;
+d.get.name          // &quot;get __proto__&quot;  ← 它連名字都有
+d.set.name          // &quot;set __proto__&quot;
+
+// 挖出來自己用
+d.get.call([]) === Array.prototype        // true
+d.set.call(myObj, someProto)              // 手動觸發 setter
+</code></pre>
+<p>那它跟 <code>Object.getPrototypeOf</code> 是同一個東西嗎？<strong>不是。</strong></p>
+<pre><code class="language-js">d.get === Object.getPrototypeOf           // false ← 兩個不同的函式物件
+d.get.call([]) === Object.getPrototypeOf([])   // true ← 但做同一件事
+</code></pre>
+<blockquote>
+<p>[!important] 正確的理解<br />
+「讀原型」這件事有<strong>兩條管道</strong>：<br />
+a. 存取器屬性 <code>obj.__proto__</code> —— 讀的時候那個叫 <code>get __proto__</code> 的函式被自動呼叫<br />
+b. 靜態方法 <code>Object.getPrototypeOf(obj)</code> —— 你自己明確呼叫<br />
+兩條管道通到同一個內部行為，但<strong>是兩個不同的函式</strong>，一個是遺留設計、一個是正規 API。</p>
+</blockquote>
+<hr />
+<h2 id="b">b. 三種定義方式</h2>
+<h3 id="b-1-get-set">b-1. 物件字面量的 <code>get</code> / <code>set</code></h3>
+<pre><code class="language-js">const user = {
+  _age: 0,
+
+  get age() {
+    return this._age;
+  },
+
+  set age(n) {
+    if (typeof n !== 'number' || Number.isNaN(n)) throw new TypeError('age 必須是數字');
+    if (!Number.isInteger(n)) throw new RangeError('age 必須是整數');
+    if (n &lt; 0 || n &gt; 150) throw new RangeError('age 要在 0 到 150 之間');
+    this._age = n;
+  },
+};
+
+user.age = 20;      // setter 跑驗證，通過才寫進 _age
+user.age;           // 20，getter 執行
+user.age = 'abc';   // TypeError: age 必須是數字
+user.age;           // 還是 20 ← 驗證失敗時舊值沒被弄髒
+</code></pre>
+<p><strong>這就是「在 setter 裡加資料合法性檢查」的做法</strong>：把驗證寫在 <code>set</code> 裡面，通過才真的寫進去。</p>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>掛在哪</td>
+<td><strong>物件自己身上</strong>，<code>Object.hasOwn(user, 'age')</code> 是 <code>true</code></td>
+</tr>
+<tr>
+<td>私有值</td>
+<td>靠 <code>_age</code> 這種底線慣例，但外面還是改得到，<strong>不是真的私有</strong></td>
+</tr>
+<tr>
+<td>適合</td>
+<td>一次性的物件、設定物件</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b-2-objectdefineproperty">b-2. <code>Object.defineProperty</code></h3>
+<pre><code class="language-js">const config = {};
+let _theme = 'light';                      // 真正的私有值，藏在閉包裡
+const ALLOWED = ['light', 'dark', 'auto'];
+
+Object.defineProperty(config, 'theme', {
+  get() { return _theme; },
+  set(v) {
+    if (!ALLOWED.includes(v)) throw new RangeError('theme 只能是 ' + ALLOWED.join('、'));
+    _theme = v;
+  },
+  enumerable: false,      // ← 只有這個寫法給你這個控制權
+  configurable: true,
+});
+
+config.theme = 'dark';    // OK
+config.theme = 'rainbow'; // RangeError
+</code></pre>
+<p>實測結果：</p>
+<pre><code class="language-js">Object.keys(config)                    // []        ← enumerable:false 掃不到
+Object.getOwnPropertyNames(config)     // [&quot;theme&quot;] ← 這個掃得到
+JSON.stringify(config)                 // {}        ← 序列化也拿不到
+</code></pre>
+<p><strong>這正好是 <span class="wikilink" title="Obsidian 連結：屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys">屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys</span> 主軸圖的第 3 格：字串鍵＋不可列舉。</strong></p>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>掛在哪</td>
+<td>你指定的任何物件，包括別人的 <code>prototype</code></td>
+</tr>
+<tr>
+<td>能控旗標</td>
+<td><strong>四個都能控</strong>：<code>enumerable</code>、<code>configurable</code>（存取器沒有 <code>value</code> 與 <code>writable</code>）</td>
+</tr>
+<tr>
+<td>私有值</td>
+<td>靠<strong>閉包</strong>，外面真的碰不到</td>
+</tr>
+<tr>
+<td>適合</td>
+<td>要隱藏屬性、要唯讀、要在既有物件上加東西</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!note] <code>__proto__</code> 就是用這種方式做出來的<br />
+<code>Object.getOwnPropertyDescriptor(Object.prototype, '__proto__')</code> 得到<br />
+<code>{ get, set, enumerable: false, configurable: true }</code> —— 跟上面 <code>config.theme</code> 的結構一模一樣。<br />
+差別只在於它的 setter 改的不是一個普通變數，而是物件的<strong>內部原型插槽</strong>。</p>
+</blockquote>
+<h3 id="b-3-class-get-set">b-3. <code>class</code> 的 <code>get</code> / <code>set</code> ＋ 私有欄位</h3>
+<pre><code class="language-js">class Temperature {
+  #celsius = 0;                    // # 開頭是真正的私有欄位，不是慣例
+
+  get celsius() { return this.#celsius; }
+
+  set celsius(v) {
+    if (typeof v !== 'number' || Number.isNaN(v)) throw new TypeError('溫度必須是數字');
+    if (v &lt; -273.15) throw new RangeError('低於絕對零度 -273.15°C，物理上不可能');
+    this.#celsius = v;
+  }
+
+  get fahrenheit() {               // 唯讀存取器：只有 get 沒有 set
+    return this.#celsius * 9 / 5 + 32;
+  }
+}
+
+const t = new Temperature();
+t.celsius = 25;
+t.fahrenheit;         // 77 ← 算出來的，沒有實際存這個值
+t.celsius = -300;     // RangeError
+</code></pre>
+<p><strong>唯讀存取器被寫入時的行為</strong>（跟 <code>writable: false</code> 一樣的規則）：</p>
+<pre><code class="language-js">t.fahrenheit = 100;                    // 非嚴格模式：靜默失敗
+(function(){ 'use strict';
+  t.fahrenheit = 100;                  // TypeError: Cannot set property fahrenheit
+                                       // of #&lt;Temperature&gt; which has only a getter
+})();
+</code></pre>
+<p><strong>最關鍵的一點：class 的存取器掛在 <code>prototype</code> 上，實例共用一份。</strong></p>
+<pre><code class="language-js">Object.hasOwn(Temperature.prototype, 'celsius')   // true
+Object.hasOwn(t, 'celsius')                       // false
+</code></pre>
+<p><strong>這跟 <code>__proto__</code> 掛在 <code>Object.prototype</code> 上是完全一樣的結構。</strong> 你懂了 <code>__proto__</code>，就懂了 class 的 getter 存在哪。</p>
+<p>私有欄位真的碰不到：</p>
+<pre><code class="language-js">Object.keys(t)                    // []
+Object.getOwnPropertyNames(t)     // []
+JSON.stringify(t)                 // {} ← 存取器不會被序列化
+</code></pre>
+<hr />
+<h2 id="c">c. 三種寫法對照表</h2>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>掛在哪</th>
+<th>能控旗標</th>
+<th>私有值靠</th>
+<th>適合</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>字面量 <code>{ get x(){} }</code></td>
+<td>物件自己身上</td>
+<td>不能</td>
+<td><code>_</code> 底線慣例或閉包</td>
+<td>一次性物件</td>
+</tr>
+<tr>
+<td><code>Object.defineProperty</code></td>
+<td>你指定的物件</td>
+<td><strong>四個都能</strong></td>
+<td>閉包</td>
+<td>要藏起來、要唯讀、要加到既有物件</td>
+</tr>
+<tr>
+<td><code>class get/set</code></td>
+<td><strong>prototype 共用</strong></td>
+<td>不能（預設不可列舉）</td>
+<td><code>#</code> 私有欄位</td>
+<td>有多個實例</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="d">d. 存取器屬性的四個實務用途</h2>
+<table>
+<thead>
+<tr>
+<th>用途</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>資料驗證</strong></td>
+<td>上面三個範例，寫入前先擋</td>
+</tr>
+<tr>
+<td><strong>計算屬性</strong></td>
+<td><code>get fahrenheit()</code> 從攝氏算出來，不佔記憶體、永遠同步</td>
+</tr>
+<tr>
+<td><strong>唯讀對外介面</strong></td>
+<td>只給 <code>get</code> 不給 <code>set</code>，內部值藏在閉包或 <code>#</code> 欄位</td>
+</tr>
+<tr>
+<td><strong>偷聽讀寫</strong></td>
+<td>在 getter／setter 裡記 log 或觸發更新 —— <strong>這就是 Vue 2 響應式的原理</strong></td>
+</tr>
+</tbody>
+</table>
+<p>最後一項是 <span class="wikilink" title="Obsidian 連結：草稿-useState為什麼沒更新-從getter與Proxy看React的設計選擇">草稿-useState為什麼沒更新-從getter與Proxy看React的設計選擇</span> 那篇的主軸：Vue 2 用 <code>Object.defineProperty</code> 把每個屬性換成存取器來攔截讀寫，Vue 3 換成 <code>Proxy</code>，而 React 選擇<strong>完全不攔截</strong>，改用「你必須給我一個新物件」的約定。三個框架在同一個岔路口做了三種選擇。</p>
+<hr />
+<h2 id="e">e. 常見陷阱</h2>
+<table>
+<thead>
+<tr>
+<th>陷阱</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>getter 裡面讀自己</td>
+<td><code>get age(){ return this.age; }</code> → 無限遞迴，<code>RangeError: Maximum call stack size exceeded</code></td>
+</tr>
+<tr>
+<td>忘記存取器不能有 <code>value</code></td>
+<td>資料描述器與存取器描述器<strong>互斥</strong>，同時寫 <code>value</code> 與 <code>get</code> 會 <code>TypeError</code></td>
+</tr>
+<tr>
+<td><code>Object.assign</code> 會執行 getter</td>
+<td>複製時 getter 被跑掉，結果變成死值。要保留得用 <code>Object.getOwnPropertyDescriptors</code></td>
+</tr>
+<tr>
+<td><code>JSON.stringify</code> 會執行 getter</td>
+<td>字面量與 class 的可列舉存取器會被序列化成計算後的值；<code>enumerable:false</code> 的則完全不出現</td>
+</tr>
+<tr>
+<td>唯讀在非嚴格模式靜默失敗</td>
+<td>寫了沒反應又不報錯，最難除錯。寫示範檔記得加 <code>'use strict'</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="f-2026-09-05getter">f. 追加 2026-09-05｜getter 的「名稱」可以寫成哪幾種</h2>
+<blockquote>
+<p>來源：Gemini 對話〈語法參數與性名稱〉https://gemini.google.com/app/ca2463a1acf1bdc6</p>
+</blockquote>
+<p>(f-1) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">MDN 文件裡寫的 <code>get prop()</code> 那個 <code>prop</code> 只是佔位符（placeholder）</mark>，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不是保留字，可以自由命名</mark>。這點很容易誤會成「一定要叫 prop」。</p>
+<p>(f-2) 名稱總共有四種合法寫法：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>範例</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>識別碼（Identifier）</td>
+<td><code>get latest()</code> <code>get fullName()</code></td>
+<td>最常見，符合一般變數命名規則即可</td>
+</tr>
+<tr>
+<td>字串字面量（String Literal）</td>
+<td><code>get "first-name"()</code></td>
+<td>名稱含空格或連字號等特殊字元時用</td>
+</tr>
+<tr>
+<td>數字字面量（Number Literal）</td>
+<td><code>get 123()</code></td>
+<td>合法但罕見，讀取時要寫 <code>obj[123]</code></td>
+</tr>
+<tr>
+<td>計算屬性名稱（Computed Property Name）</td>
+<td><code>get [expr]()</code></td>
+<td>ES2015 起支援，用中括號包表達式來動態決定名稱</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-js">const expr = &quot;foo&quot;;
+const obj = {
+  get [expr]() { return &quot;bar&quot;; }   // 名稱動態決定為 &quot;foo&quot;
+};
+obj.foo;   // &quot;bar&quot;
+</code></pre>
+<p>(f-3) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">順帶釐清一個名詞：Object Initializer（物件初始器）</mark>。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它不是程式碼裡的關鍵字，所以在範例裡是找不到 <code>initializer</code> 這個字的</mark>——它是規範層的語法概念名稱，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">指的就是用大括號直接建立並初始化物件的那整段 <code>{ ... }</code></mark>（也就是常說的 object literal 物件實字）。</p>
+<pre><code class="language-js">var obj = {                       // ← Initializer 從這個左大括號開始
+  log: [&quot;example&quot;, &quot;test&quot;],
+  get latest() {
+    if (this.log.length == 0) return undefined;
+    return this.log[this.log.length - 1];
+  },
+};                                // ← 到這個右大括號結束
+console.log(obj.latest);          // &quot;test&quot;
+</code></pre>
+<blockquote>
+<p>[!tip] 附帶收穫：Chrome 內建閱讀模式可以朗讀網頁<br />
+同一串對話中順便問到「怎麼讓頁面朗讀」。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不用裝擴充功能</mark>：在網址列右側點「進入閱讀模式」圖示（或在頁面空白處按右鍵選「在閱讀模式中開啟」），右側側邊欄頂部有播放鍵，可調語速與聲音。想要更自然的語音再考慮 Read Aloud（<code>Alt + P</code> 開始／暫停）或 NaturalReader。<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">對 Abby 讀 MDN 長文很實用。</mark></p>
+</blockquote>
+<hr />
+<h2 id="_2">參考來源</h2>
+<table>
+<thead>
+<tr>
+<th>來源</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話｜語法參數與性名稱（2026-09-05）</td>
+<td>f 節的 getter 命名四種寫法與 Object Initializer 名詞釐清</td>
+</tr>
+<tr>
+<td>MDN｜get（Functions 章節，語法區的 prop 與 expression）</td>
+<td>f 節的四種名稱寫法，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN｜Object initializer</td>
+<td>f 節的名詞定義，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN｜Object.defineProperty()</td>
+<td>描述器的四個旗標與存取器／資料描述器互斥</td>
+</tr>
+<tr>
+<td>MDN｜get / set</td>
+<td>字面量與 class 的存取器語法</td>
+</tr>
+<tr>
+<td>MDN｜Object.prototype.__proto__（2026-05-22 更新）</td>
+<td><code>__proto__</code> 的描述器結構</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!note] 驗證方式<br />
+本篇所有輸出都在 Node.js v22 的 V8 實跑過，腳本是同資料夾的 <code>存取器-三種定義方式-demo.js</code>。</p>
+</blockquote>
+<hr />
+<h2 id="_3">關聯筆記</h2>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>關聯原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="wikilink" title="Obsidian 連結：Object建構子-plain-object的建立與存取">Object建構子-plain-object的建立與存取</span></td>
+<td>j 節與 k 節說 <code>__proto__</code> 是存取器屬性，本篇說明存取器怎麼做出來</td>
+</tr>
+<tr>
+<td><span class="wikilink" title="Obsidian 連結：屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys">屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys</span></td>
+<td><code>enumerable:false</code> 的存取器就住在那張圖的第 3 格</td>
+</tr>
+<tr>
+<td><span class="wikilink" title="Obsidian 連結：草稿-useState為什麼沒更新-從getter與Proxy看React的設計選擇">草稿-useState為什麼沒更新-從getter與Proxy看React的設計選擇</span></td>
+<td>存取器攔截是 Vue 響應式的原理，本篇是那篇的語言層前置知識</td>
+</tr>
+<tr>
+<td><span class="wikilink" title="Obsidian 連結：Object靜態方法速查">Object靜態方法速查</span></td>
+<td><code>defineProperty</code> 與 <code>getOwnPropertyDescriptor</code> 的速查在那裡</td>
+</tr>
+<tr>
+<td><span class="wikilink" title="Obsidian 連結：原型與引擎最佳化-Shape-InlineCache-ValidityCell">原型與引擎最佳化-Shape-InlineCache-ValidityCell</span></td>
+<td>為什麼 <code>__proto__</code> 的 setter 特別貴，答案在那篇</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

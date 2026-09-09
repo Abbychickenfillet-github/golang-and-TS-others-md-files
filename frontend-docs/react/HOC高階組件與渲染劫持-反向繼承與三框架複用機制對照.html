@@ -16,7 +16,7 @@
 body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
   font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   font-size:16.5px;-webkit-font-smoothing:antialiased}
-.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
 header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
   border-radius:16px;padding:26px 28px;margin-bottom:22px}
 header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
@@ -57,6 +57,9 @@ th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-ali
 th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
 tbody tr:nth-child(even){background:#fafbfc}
 hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
 .wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
   border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
 /* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
@@ -114,9 +117,9 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <h1>HOC 高階組件與渲染劫持｜反向繼承，以及 Vue / Angular 的對應機制</h1>
   <div class="pills"><span class="pill">#gemini</span><span class="pill">#react</span><span class="pill">#hoc</span><span class="pill">#渲染劫持</span><span class="pill">#反向繼承</span><span class="pill">#vue</span><span class="pill">#angular</span><span class="pill">#設計模式</span><span class="pill">#面試</span></div>
   <div class="meta">
-    <span>更新於 2026-08-25</span>
+    <span>更新於 2026-09-09</span>
     <span>來源：Gemini</span>
-    <a href="https://gemini.google.com/app/3b8ff7e2ed0d9bd4" target="_blank" rel="noopener">原始對話 1</a>
+    <a href="https://gemini.google.com/app/3b8ff7e2ed0d9bd4" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/d2896b718a5f3c00" target="_blank" rel="noopener">原始對話 2</a>
   </div>
 </header>
 
@@ -267,6 +270,97 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 1. 為什麼是 HOC 的 render 方法：在 React 的 Class 組件中，<code>render()</code> 是核心的生命週期方法，負責返回描述 UI 的 Virtual DOM（JSX）。當使用反向繼承來實現 HOC 時，HOC 會繼承原組件，此時 HOC 重寫了 <code>render()</code> 方法，並可以在內部呼叫 <code>super.render()</code> 取得原組件的渲染結果。<br />
 2. 其他框架有類似的概念嗎：React 的 JSX 本質上就是 JavaScript 函數與物件，因此能在 <code>render()</code> 中直接讀取、操縱 Virtual DOM 結構。Vue 主要使用範本語法（Template），較少使用反向繼承式的 HOC，社群更傾向使用組合函數（Composables）或插槽。Angular 有強大的控制反轉與指令系統，透過指令就能直接操縱 DOM 或控制 <code>ViewContainerRef</code>，不需要透過 React 風格的 HOC 渲染劫持。</p>
 <hr />
+<h3 id="2026-09-09hoc-vs-custom-hook-2">追加 2026-09-09：HOC vs Custom Hook——上面那條「⚠️ 存疑 2」的正式補完</h3>
+<blockquote>
+<p>[!info]+ 為什麼補在這裡<br />
+上一版最後那條更正寫著「Gemini 完全沒提到 HOC 已經被 Custom Hooks 取代」。這次另一段對話正好把兩者的差異問完了，剛好補上這個缺口，所以併進本篇而不另開新檔。</p>
+</blockquote>
+<p>m. <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HOC 不是 High Order Class</mark>。全名是 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Higher-Order Component（高階元件／高階組件）</mark>，跟 class 完全無關。它的血統來自函數式程式設計的<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">高階函數（Higher-Order Function）</mark>——接受函式當參數、或回傳函式的函式（例如 <code>Array.prototype.map</code>）。HOC 就是把「函式」換成「元件」：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">接受一個元件、回傳一個新元件的函式</mark>。</p>
+<p>n. 兩者最根本的差別在<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「包什麼」與「吐什麼」</mark>：HOC 包住<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">整個元件</mark>並回傳一個加強版元件（<code>f(Component) → Component</code>）；Custom Hook 抽出的是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">帶狀態的邏輯</mark>，由元件在內部呼叫來取得資料或方法（<code>f(Args) → Data / Methods</code>）。</p>
+<table>
+<thead>
+<tr>
+<th>比較項目</th>
+<th>Higher-Order Component (HOC)</th>
+<th>Custom Hook</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主要目的</td>
+<td>元件轉換與條件式渲染</td>
+<td>邏輯與副作用的複用</td>
+</tr>
+<tr>
+<td>輸入 → 輸出</td>
+<td>元件 → 新的包裝元件</td>
+<td>參數 → 回傳值／函式</td>
+</tr>
+<tr>
+<td>React DevTools 樹</td>
+<td>多出一層層包裝節點（Wrapper Hell）</td>
+<td>不多出任何節點，樹是扁的</td>
+</tr>
+<tr>
+<td>資料流</td>
+<td>隱式：把 props 注入被包的元件</td>
+<td>顯式：呼叫端自己解構取值</td>
+</tr>
+<tr>
+<td>props 撞名風險</td>
+<td>高：外層 HOC 會靜默覆蓋既有 props</td>
+<td>零：變數名由呼叫端自己決定</td>
+</tr>
+<tr>
+<td>TypeScript 體驗</td>
+<td>複雜（要泛型＋props 交集型別）</td>
+<td>單純（就是一般函式的參數與回傳型別）</td>
+</tr>
+<tr>
+<td>典型場景</td>
+<td>舊函式庫（connect、withRouter）、版面包裝</td>
+<td>現代 React 九成以上的邏輯（fetch、表單、驗證）</td>
+</tr>
+<tr>
+<td>執行時機</td>
+<td>在目標元件<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">外部</mark>、export 當下運作</td>
+<td>在元件<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">內部</mark>、每次 render 都跟著跑</td>
+</tr>
+</tbody>
+</table>
+<p>o. 三個最痛的實務差異：</p>
+<ul>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Wrapper Hell</mark>：<code>withAuth(withRouter(withTheme(Dashboard)))</code> 疊起來，DevTools 會變成一團巢狀包裝；換成 <code>useAuth()</code>、<code>useTheme()</code>、<code>useParams()</code> 並排寫，一個節點都不會多。</li>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">隱式資料流</mark>：看到 <code>&lt;Dashboard/&gt;</code> 裡用了 <code>props.user</code>，你根本不知道它從哪個 HOC 來；兩個 HOC 都注入 <code>user</code> 時，其中一個會被<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">默默蓋掉</mark>。Custom Hook 回傳值可以就地改名（<code>const { user: currentUser } = useAuth()</code>），撞名問題直接消失。</li>
+<li><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">預設就用 Custom Hook</mark>（約 95% 的情況）。只有在「需要在很高的層級直接擋住整個元件不掛載」，或在<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">必須包元件的舊式 API</mark>（Redux 的 <code>connect()</code>、React Router 的 <code>withRouter()</code>）上才會用 HOC。</li>
+</ul>
+<pre><code class="language-jsx">// A. HOC 版：從外面攔截，隱式注入 user
+function withAuth(Wrapped) {
+  return function AuthProtected(props) {
+    const user = getCurrentUser();
+    if (!user) return &lt;p&gt;Access Denied. Please log in.&lt;/p&gt;;
+    return &lt;Wrapped {...props} user={user} /&gt;;   // user 是「憑空出現」的 prop
+  };
+}
+export default withAuth(Dashboard);
+
+// B. Custom Hook 版：元件自己開口要，資料來源一目了然
+function useAuth() {
+  const [user, setUser] = useState(null);
+  useEffect(() =&gt; { setUser(getCurrentUser()); }, []);
+  return { user, isAuthenticated: !!user };
+}
+export default function Dashboard() {
+  const { user, isAuthenticated } = useAuth();   // 看得到來源
+  if (!isAuthenticated) return &lt;p&gt;Access Denied. Please log in.&lt;/p&gt;;
+  return &lt;h1&gt;Welcome back, {user.name}&lt;/h1&gt;;
+}
+</code></pre>
+<blockquote>
+<p>[!tip]+ 面試怎麼答<br />
+先講公式差異（包元件 vs 抽邏輯），再講三個實務痛點（Wrapper Hell、隱式 props 撞名、TS 型別複雜度），最後補一句「所以現代 React 預設用 Custom Hook，HOC 主要出現在 legacy API 與版面包裝」。這樣就完整避開上面「⚠️ 存疑 2」提到的、停留在 React 15 時代的印象。</p>
+</blockquote>
+<hr />
 <h2 id="_8">資料來源（含查證時間）</h2>
 <table>
 <thead>
@@ -281,6 +375,11 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 <td>Gemini 對話原文</td>
 <td>https://gemini.google.com/app/3b8ff7e2ed0d9bd4</td>
 <td>2026-08，本次歸檔 2026-08-25</td>
+</tr>
+<tr>
+<td>追加段：HOC vs Custom Hook 對照、HOC 全名釐清</td>
+<td>https://gemini.google.com/app/d2896b718a5f3c00</td>
+<td>Gemini 對話，整理於 2026-09-09</td>
 </tr>
 <tr>
 <td>React 官方文件（舊版）Higher-Order Components</td>
@@ -319,7 +418,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 <p><em>由 Gemini 對話自動整理 · 更新於 2026-08-25</em></p>
 </article>
 
-<footer>由 Gemini 對話自動整理 · 更新於 2026-08-25</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-09</footer>
 </div>
 <script>
 (function(){

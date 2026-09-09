@@ -19,6 +19,93 @@ updated: 2026-07-29
 
 ---
 
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事先講：<mark style="background: #FF5582A6;">「`let` 與 `const` 不會 hoisting」是錯的</mark>
+> 三個關鍵字<mark style="background: #BBFABBA6;">全部都會被提升</mark>，差別不在「有沒有被提升」，而在<mark style="background: #FF5582A6;">被提升之後有沒有被初始化</mark>：
+> a. `var` → 在 Creation Phase 就<mark style="background: #ADCCFFA6;">登記＋初始化成 `undefined`</mark>，所以宣告前存取拿到 `undefined`。
+> b. `let` / `const` → 在 Creation Phase <mark style="background: #FFF3A3A6;">只登記、不初始化</mark>，這段「登記了但還沒初始化」的空窗就是 <mark style="background: #D2B3FFA6;">TDZ（Temporal Dead Zone）</mark>，碰它會丟 `ReferenceError`。
+>
+> 差別的關鍵在於：`ReferenceError: Cannot access 'x' before initialization` 這句話本身就在說「<mark style="background: #BBFABBA6;">這個名字我認得</mark>，只是還沒初始化」——如果真的沒被提升，訊息會是 `x is not defined`。<mark style="background: #FF5582A6;">兩句錯誤訊息不一樣，就是最好的證據。</mark>
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | 這三個關鍵字到底在做什麼？ | 都是「在某個作用域裡建立一個**綁定（binding）**」的宣告陳述式。綁定＝一個名字對應到一塊記憶體位置 |
+| **When** 什麼時候 | 綁定是什麼時候被建立的？ | 在<mark style="background: #ADCCFFA6;">執行期</mark>、進入那個作用域的 <mark style="background: #ADCCFFA6;">Creation Phase</mark>，三個都在這時登記完畢，<mark style="background: #FFF3A3A6;">每次進入該作用域都重來一次</mark>。Parse 階段只做決策（要放 Stack 還是 Heap），不配置記憶體 |
+| **Who** 誰做的 | 誰在建立這些綁定？ | 引擎（V8）建立 Environment Record 時做的。<mark style="background: #FF5582A6;">跟 Babel 無關</mark>——Babel 把 `let` 降級成 `var` 加改名是 buildtime 的另一回事，那時候還沒有任何綁定存在 |
+| **Where** 在哪裡 | 綁定被放進哪個作用域？ | a. `var` → 最近的**函式**作用域或全域，穿透 `{ }`；全域的 `var` 還會變成 `window` 的 property（見 [[07-identifier-vs-property-var全域變數]]）<br>b. `let` / `const` → 最近的**區塊** `{ }` |
+| **Which** 哪一種 | 該用哪一個？ | <mark style="background: #BBFABBA6;">預設一律 `const`</mark>；確定要重新賦值才 `let`；`var` 幾乎不用 |
+| **How** 怎麼做到 | `const` 到底鎖住了什麼？ | 鎖住的是<mark style="background: #FFF3A3A6;">綁定本身</mark>，不是值的內容。`arr.push(3)` ✅（改的是 Heap 上的物件）、`arr = [9]` ❌（改的是綁定指向誰） |
+| **Why** 為什麼 | ES6 為什麼要多這兩個？ | 為了補 `var` 的三個坑：<br>a. 沒有區塊作用域，會漏出去<br>b. 可以重複宣告而不報錯<br>c. 迴圈裡整輪共用同一個綁定，`setTimeout` 全印同一個值 |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄──────────── buildtime 建置期 ────────────►◄────────── runtime 執行期 ──────────►
+      （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤每次進入作用域
+ transpile      bundle           解析             產生            都重來
+ ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
+ │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ Creation Phase   │
+ │let→var │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ ★ 建立 var／let／ │
+ │加改名   │   │Rollup  │      │AST       │   │Bytecode  │   │   const 的綁定    │
+ └────────┘   └────────┘      │Scope     │   └──────────┘   │ ★ var 初始化成    │
+      ↑                       │Analysis  │                  │   undefined       │
+ Babel 只是把文字換掉，        └──────────┘                  │ ★ let／const 進   │
+ 這時候記憶體裡              每個函式只做一次                  │   TDZ，不初始化   │
+ 一個綁定都還沒有。          只做「決策」：                    ├──────────────────┤
+                            這個變數會不會被                  │ Execution Phase  │
+                            閉包捕獲？→ 決定                  │ 跑到宣告那一行，  │
+                            放 Stack 還是 Heap                │ 才初始化＋賦值    │
+                                                             └──────────────────┘
+ ★ 綁定的建立在第 ⑤ 格，不在第 ①③ 格。
+```
+
+變數本身還有自己的第二條時間軸——<mark style="background: #D2B3FFA6;">一個綁定的三個階段：宣告 → 初始化 → 賦值</mark>。四種宣告方式的差別，全部落在「第二步在什麼時候發生」：
+
+```text
+              ① 宣告 declaration     ② 初始化 initialization   ③ 賦值 assignment
+              （登記這個名字）        （給它第一個值）           （之後再改值）
+              ─────────────────      ─────────────────────     ─────────────────
+              Creation Phase          ↓ 時機因關鍵字而異 ↓       Execution Phase
+
+ function     ├─ 登記 ────────────────┤ 同時完成，整個函式      （可被重新指派）
+              │                       │ 都放進去了
+              │
+ var          ├─ 登記 ────────────────┤ 同時初始化成 undefined  ── 跑到那行才賦值
+              │                       │                            var x = 5
+              │
+ let          ├─ 登記 ─── ◄TDZ► ──────┤ 跑到宣告那行才初始化    ── 之後可重新賦值
+              │           碰到就       │
+              │           Reference-   │
+ const        ├─ 登記 ─── ◄TDZ► ──────┤ 跑到宣告那行才初始化    ── ❌ 不能重新賦值
+              │           Error        │ 而且一定要給初值            TypeError
+              │
+            進入作用域              執行到宣告那一行           之後的任何一行
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（還沒有任何綁定）"]
+        T["轉譯 transpile<br/>Babel 把 let／const<br/>降級成 var 加改名"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 每個函式只做一次"]
+        P["③ Parse<br/>Scope Analysis 只做決策：<br/>放 Stack 還是 Heap<br/>不配置記憶體"] --> BC["④ Ignition 產生 Bytecode"]
+    end
+    subgraph RT2["runtime 執行期 · 每次進入作用域都重來"]
+        CP["⑤-1 Creation Phase<br/>★ 宣告：三種都登記<br/>★ var 初始化成 undefined<br/>★ let／const 進 TDZ"] --> EP["⑤-2 Execution Phase<br/>★ 跑到宣告那一行<br/>let／const 才離開 TDZ<br/>完成初始化與賦值"]
+        EP --> AS["之後的賦值<br/>let ✅ 可重新賦值<br/>const ❌ TypeError"]
+    end
+    BU --> P
+    BC --> CP
+    AS -.->|"再次進入這個作用域<br/>整包重來一次"| CP
+```
+
+---
+
 ## let vs const（最常用，差別只有「能不能重新賦值」）
 
 | | `const` | `let` |
@@ -29,7 +116,7 @@ updated: 2026-07-29
 
 ```js
 const a = 1; a = 2;   // ❌ TypeError: Assignment to constant variable
-let b = 1;   b = 2;   // ✅
+let b = 1;   b = 2;   // ✅ 可以被重新賦值。但是不能重新宣告！不能寫let b = 2;
 const c;              // ❌ SyntaxError：const 一定要給初值
 let d;                // ✅ undefined
 ```

@@ -6,6 +6,9 @@ source:
   - MDN Object.defineProperty()
   - MDN get / set（Functions 章節）
   - MDN Object.prototype.__proto__（頁面最後更新 2026-05-22）
+sources:
+  - https://gemini.google.com/app/ca2463a1acf1bdc6
+updated: 2026-09-05
 ---
 
 # 存取器屬性的三種定義方式
@@ -216,10 +219,54 @@ JSON.stringify(t)                 // {} ← 存取器不會被序列化
 
 ---
 
+## f. 追加 2026-09-05｜getter 的「名稱」可以寫成哪幾種
+
+> 來源：Gemini 對話〈語法參數與性名稱〉https://gemini.google.com/app/ca2463a1acf1bdc6
+
+(f-1) <mark style="background: #FF5582A6;">MDN 文件裡寫的 `get prop()` 那個 `prop` 只是佔位符（placeholder）</mark>，<mark style="background: #BBFABBA6;">不是保留字，可以自由命名</mark>。這點很容易誤會成「一定要叫 prop」。
+
+(f-2) 名稱總共有四種合法寫法：
+
+| 寫法 | 範例 | 說明 |
+| --- | --- | --- |
+| 識別碼（Identifier） | `get latest()` `get fullName()` | 最常見，符合一般變數命名規則即可 |
+| 字串字面量（String Literal） | `get "first-name"()` | 名稱含空格或連字號等特殊字元時用 |
+| 數字字面量（Number Literal） | `get 123()` | 合法但罕見，讀取時要寫 `obj[123]` |
+| 計算屬性名稱（Computed Property Name） | `get [expr]()` | ES2015 起支援，用中括號包表達式來動態決定名稱 |
+
+```js
+const expr = "foo";
+const obj = {
+  get [expr]() { return "bar"; }   // 名稱動態決定為 "foo"
+};
+obj.foo;   // "bar"
+```
+
+(f-3) <mark style="background: #ADCCFFA6;">順帶釐清一個名詞：Object Initializer（物件初始器）</mark>。<mark style="background: #FF5582A6;">它不是程式碼裡的關鍵字，所以在範例裡是找不到 `initializer` 這個字的</mark>——它是規範層的語法概念名稱，<mark style="background: #BBFABBA6;">指的就是用大括號直接建立並初始化物件的那整段 `{ ... }`</mark>（也就是常說的 object literal 物件實字）。
+
+```js
+var obj = {                       // ← Initializer 從這個左大括號開始
+  log: ["example", "test"],
+  get latest() {
+    if (this.log.length == 0) return undefined;
+    return this.log[this.log.length - 1];
+  },
+};                                // ← 到這個右大括號結束
+console.log(obj.latest);          // "test"
+```
+
+> [!tip] 附帶收穫：Chrome 內建閱讀模式可以朗讀網頁
+> 同一串對話中順便問到「怎麼讓頁面朗讀」。<mark style="background: #BBFABBA6;">不用裝擴充功能</mark>：在網址列右側點「進入閱讀模式」圖示（或在頁面空白處按右鍵選「在閱讀模式中開啟」），右側側邊欄頂部有播放鍵，可調語速與聲音。想要更自然的語音再考慮 Read Aloud（`Alt + P` 開始／暫停）或 NaturalReader。<mark style="background: #D2B3FFA6;">對 Abby 讀 MDN 長文很實用。</mark>
+
+---
+
 ## 參考來源
 
 | 來源 | 說明 |
 | --- | --- |
+| Gemini 對話｜語法參數與性名稱（2026-09-05） | f 節的 getter 命名四種寫法與 Object Initializer 名詞釐清 |
+| MDN｜get（Functions 章節，語法區的 prop 與 expression） | f 節的四種名稱寫法，2026-09-05 查證 |
+| MDN｜Object initializer | f 節的名詞定義，2026-09-05 查證 |
 | MDN｜Object.defineProperty() | 描述器的四個旗標與存取器／資料描述器互斥 |
 | MDN｜get / set | 字面量與 class 的存取器語法 |
 | MDN｜Object.prototype.\_\_proto\_\_（2026-05-22 更新） | `__proto__` 的描述器結構 |

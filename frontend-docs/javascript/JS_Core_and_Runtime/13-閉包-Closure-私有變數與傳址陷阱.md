@@ -27,6 +27,109 @@ updated: 2026-07-31
 > <mark style="background: #ADCCFFA6;">承接</mark>：[[12-return-清理記憶體-stack-frame與閉包例外]]點出「閉包會讓變數逃逸到Heap」這個現象，這篇是閉包的完整深入篇——私有變數、傳址陷阱、跟C++的對比。
 > <mark style="background: #BBFABBA6;">下一步</mark>：[[14-詞法作用域-Lexical-Scope-面試四段式]]。<mark style="background: #FFF3A3A6;">關聯原因：這篇下面「兩大基石」的第一項「詞法範疇」只用一行帶過，14 把它展開成完整一篇</mark>——引擎的 `[[Environment]]` 內部欄位、outer 指標怎麼串成作用域鏈、用 node:inspector 把鏈實際印出來，並整理成面試四段式作答。簡單說：這篇是**結果與應用**，14 是它的**前提與機制**。本篇「實戰除錯：按鈕計數器」那段真實踩坑，也被 14 拿去當第四段的故事素材。
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一題先講：<mark style="background: #FF5582A6;">閉包捕獲的是「綁定」，不是「值的快照」</mark>
+> 很多人腦中的畫面是：內層函式出生時把外層變數<mark style="background: #FF5582A6;">複印一份</mark>收進口袋。<mark style="background: #BBFABBA6;">不是的</mark>——它抓住的是<mark style="background: #FFF3A3A6;">那一格記憶體本身</mark>，外面改、裡面就跟著變。本篇兩道最難的題目其實是同一個誤解的兩張臉：
+> a. <mark style="background: #ADCCFFA6;">經典面試題</mark>：`var` 迴圈 ＋ `setTimeout` 印出 `4, 4, 4`，正是因為三個閉包抓的是<mark style="background: #FF5582A6;">同一格 `i`</mark>，不是三份 1／2／3 的快照。換成 `let`，每輪迭代產生<mark style="background: #BBFABBA6;">新的綁定</mark>，才會是 1／2／3。
+> b. <mark style="background: #ADCCFFA6;">魔王題「閉包漏水」</mark>：`getHistory` 回傳陣列參照，外面拿到的就是<mark style="background: #FF5582A6;">同一個陣列</mark>，直接 `push` 就繞過你的方法改掉私有狀態。要真的私有，回傳時得切一刀：`[...history]`。
+> 一句話：閉包不是保險箱，是<mark style="background: #BBFABBA6;">一條指向同一格記憶體的線</mark>。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | 閉包到底是什麼？ | <mark style="background: #BBFABBA6;">函式物件 ＋ 它出生時就掛在 `[[Environment]]` 上的那份環境記錄</mark>。它不是要開啟的功能、不是語法，是每個函式被建立時自然就帶著的東西 |
+| **When** 什麼時候 | 閉包在哪一刻形成？ | <mark style="background: #FF5582A6;">執行期，函式物件被建立的那一刻</mark>——不是 `return` 的那一刻，更不是 buildtime。<mark style="background: #ADCCFFA6;">每執行到一次那行函式定義，就生出一個全新的閉包</mark>，所以 `createCounter()` 呼叫三次就有三份互不相干的狀態 |
+| **Who** 誰做的 | 是誰把環境掛上去的？ | V8。<mark style="background: #FFF3A3A6;">Parse 階段的 Scope Analysis 先決定</mark>哪些變數會被捕獲、該放 Heap；執行期才真的建立 Context 物件，並掛到函式物件的 `[[Environment]]` 內部欄位上 |
+| **Where** 在哪裡 | 被捕獲的變數住在哪？ | <mark style="background: #ADCCFFA6;">Heap 上的 Context 物件</mark>，而不是 Stack Frame。同一個作用域裡<mark style="background: #FF5582A6;">沒被捕獲的</mark>區域變數仍然留在 Stack／暫存器，`return` 時照樣被 pop 掉 |
+| **Which** 哪一種 | 抓到的是值還是綁定？ | <mark style="background: #FF5582A6;">是綁定</mark>——同一格記憶體。所以 `var` 迴圈的三個閉包共用一個 `i`；`let` 每輪產生新綁定，三個閉包才各自獨立。傳址陷阱、漏水問題，全部從這一條長出來 |
+| **How** 怎麼做到 | 怎麼做出真正私有的變數？ | a. 只暴露方法，不暴露內部參照；b. 回傳物件或陣列時<mark style="background: #BBFABBA6;">回傳複本</mark>（`[...history]`、`structuredClone`）；c. 記住 `return` 一個原始值是<mark style="background: #FFF3A3A6;">複印一份</mark>送出去，安全；`return` 一個物件是把鑰匙交出去 |
+| **Why** 為什麼 | 為什麼外層都 `return` 了它還活著？ | 因為<mark style="background: #BBFABBA6;">存活時間 ≠ 執行時間</mark>。外層呼叫早就離開 Call Stack，但只要還有活著的函式物件（監聽器、計時器、Vue／React 的事件系統）抓著那份環境，<mark style="background: #FF5582A6;">GC 就不敢清</mark>——這是可達性問題，不是「有沒有在跑」的問題 |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
+        （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤每次執行都重來
+ transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
+ ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
+ │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ 執行到函式定義那行│
+ │tsc     │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ ★ 生出一個函式物件│
+ │SWC     │   │Rollup  │      │AST       │   │Bytecode  │   │ ★ 掛上            │
+ └────────┘   └────────┘      │Scope     │   └──────────┘   │   [[Environment]] │
+                              │Analysis： │                  │   ＝閉包誕生      │
+  ★ 詞法範疇在「你寫下       │★ 決定誰會 │                  ├──────────────────┤
+    程式碼」的那一刻就       │  被捕獲、 │                  │ 外層 return：     │
+    定了，但那是「作者       │  該放 Heap│                  │ Frame pop，但 Heap│
+    決定結構」，不是         │  的 Context│                 │ 的 Context 不受影響│
+    buildtime 這一格         └──────────┘                  ├──────────────────┤
+    在做事                   每個函式只做一次                │ 只要還有人抓著它  │
+                             只做「決策」，                  │ → 活到參照被切斷  │
+                             不配置任何記憶體                │ → 才輪到 GC       │
+                                                            └────────┬─────────┘
+                                                                     └─► 再呼叫一次
+                                                                        又是全新一份
+
+ ★ 閉包的「形成」站在第 ⑤ 格。第 ③ 格只是決定「誰要住 Heap」，一個函式只決定一次；
+   閉包本身則是「執行到幾次就生幾份」——這就是為什麼每顆按鈕能有自己的計數器。
+```
+
+一個閉包自己也有一條由生到死的序列：
+
+```text
+ ①決策           ②誕生            ③外層退場        ④被持有          ⑤斷線 → 回收
+ Parse           create           caller pop       retained         unreachable
+┌──────────┐   ┌──────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐
+│Scope     │   │執行到函式定義│  │外層函式    │  │被監聽器／  │  │移除監聽器／│
+│Analysis  │──►│→ 函式物件 ＋ │─►│return，其  │─►│計時器／變數│─►│元件卸載／  │
+│看出 count│   │  Heap Context│  │Stack Frame │  │抓著 →      │  │設 null →   │
+│會被捕獲  │   │  ＝閉包誕生  │  │被 pop 掉   │  │一直活著    │  │GC 才回收   │
+└──────────┘   └──────────────┘  └────────────┘  └────────────┘  └────────────┘
+  只做一次        執行幾次生幾份     Context 不受影響   跟有沒有在跑無關    可達性說了算
+
+ ★ 第 ④ 格就是本篇「執行時間 ≠ 存活時間」在講的事：使用者晾在那十分鐘不動，
+   debounce 裡的 timer 依然活著，因為事件監聽器還抓著它。
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（部署前跑完，V8 還沒看到程式碼）"]
+        T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 只做一次的部分"]
+        P["Parse 解析<br/>Scope Analysis：<br/>★ 決定哪些變數會被捕獲<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode"]
+    end
+    subgraph RT2["runtime 執行期 · 執行幾次就生幾份"]
+        F["執行到函式定義那一行<br/>★ 生出函式物件<br/>★ 掛上 [[Environment]]<br/>＝ 閉包誕生"] --> RE["外層 return<br/>Stack Frame 被 pop<br/>Heap 的 Context 不受影響"]
+        RE --> HOLD["被監聽器／計時器／變數抓著<br/>存活時間 ≠ 執行時間<br/>跟有沒有在跑完全無關"]
+        HOLD --> CUT["移除監聽器／元件卸載／設 null<br/>→ 不可達 → GC 回收"]
+        HOLD --> SHARE["★ 抓的是綁定不是快照<br/>var 迴圈 → 三個閉包共用同一個 i<br/>回傳陣列參照 → 私有性破功"]
+    end
+    BU --> P
+    BC --> F
+    F -.->|"再呼叫一次外層<br/>又是全新一份 Context"| F
+```
+
+> [!warning]- 為什麼「閉包會把變數存起來」這句話會害人？三個原因
+> a. <mark style="background: #FFF3A3A6;">「存起來」聽起來像複製</mark>：於是 `var` 迴圈那題就變成無解之謎——如果每個閉包都存了一份，怎麼會全部印 4？真相是它們<mark style="background: #FF5582A6;">共用同一格 `i`</mark>，`let` 之所以有效，是因為它讓每一輪迭代真的生出一個新綁定。
+> b. <mark style="background: #ADCCFFA6;">「私有變數」聽起來像上鎖</mark>：閉包能擋住的只有「直接用名字存取」，擋不住「你自己把參照遞出去」。魔王題的 `getHistory` 就是自己把鑰匙交出去，還以為門是鎖著的。
+> c. <mark style="background: #FF5582A6;">「函式執行完就結束了」的直覺太強</mark>：外層呼叫的確在微秒內就離開 Call Stack 了，但那只是<mark style="background: #BBFABBA6;">執行時間</mark>結束。環境活多久看的是<mark style="background: #BBFABBA6;">還有沒有人指著它</mark>，兩件事必須分開想——這也是 [[11-記憶體模型-stack-heap-動態配置-GC]] 講的可達性判準。
+
+### 一句話驗證法
+
+想確認某件事在哪一格，問自己：<mark style="background: #BBFABBA6;">「這件事對同一個函式做幾次？」</mark>
+
+1. 只做一次 → 屬於 Parse／編譯期（第 ③ ④ 格），例如「決定 `count` 會被捕獲、要放 Heap」
+
+2. 執行到幾次就做幾次 → 屬於執行期（第 ⑤ 格），例如「生出一個函式物件並掛上環境」
+
+所以「每顆按鈕一個獨立計數器」能成立，靠的正是後者：`createCounter(buttonId)` 被呼叫幾次，就有<mark style="background: #FFF3A3A6;">幾份互不相干的 Context</mark>；如果閉包是在編譯期就定案的東西，這件事根本做不到。
+
 ## 重點整理
 
 一句話定義：<mark style="background: #FFF3A3A6;">閉包是一個內層函式，能「記憶」並存取外層函式的範疇（Scope），即使外層函式已經執行完畢、從 [[事件循環-Event-Loop-微任務與巨任務|Call Stack]] 離開了（機制細節見 [[return-清理記憶體-stack-frame與閉包例外]]；函式參數綁定與 Execution Context 完整整理見 [[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]]）。</mark> 在 JS 中閉包<mark style="background: #ADCCFFA6;">不是要特別開啟的功能</mark>，而是伴隨函式建立而自然誕生的底層機制。
@@ -53,6 +156,64 @@ counter.increment(); // 2
 ```
 
 `createCounter()` 執行完回傳物件後，因為回傳的方法仍引用 `count`，所以 `count` <mark style="background: #BBFABBA6;">活在閉包裡，成為這些方法的專屬私有變數</mark>。
+
+### 延伸提問：第一個範例裡，「閉包」指的就是 `increment` 這個函式嗎？（2026-09-03）
+
+<mark style="background: #BBFABBA6;">是，而且不只 `increment`——`increment` 和 `decrement` 兩個都是閉包，還是同一個閉包（共用同一份被捕捉的作用域）。</mark>拆成兩層講：
+
+- <mark style="background: #ADCCFFA6;">哪些是「閉包」？</mark>回傳物件裡 `increment: function() {...}` 和 `decrement: function() {...}` 這兩個函式值，各自都是閉包——因為它們都是**內層函式**，都引用了外層 `createCounter` 的 `count`。呼應本篇最上面那句一句話定義：<mark style="background: #FFF3A3A6;">「閉包是一個內層函式，能記憶並存取外層函式的範疇」</mark>——這裡的「內層函式」不是只能指一個，這個範例剛好有兩個內層函式，兩個都成立。
+- <mark style="background: #FF5582A6;">更精確的講法：閉包不是「函式」這個標籤本身，是「函式＋它捕捉到的外層作用域」這個組合。</mark>`increment` 和 `decrement` 是兩個**不同的函式物件**（記憶體位置不同），但因為它們是在**同一次** `createCounter()` 呼叫裡一起建立的，兩者背後指向的是**同一個** Function Environment Record（裝著 `count` 那個）。所以 `counter.increment()` 讓 `count` 變成 1 之後，`counter.decrement()` 讀到的也是同一個已經變成 1 的 `count`，不是各自獨立的複本。這就是為什麼「一個計數器物件裡的 increment/decrement 能互相影響同一個數字」。
+
+> [!tip] 判斷「這是不是閉包」的快速心法
+> 問自己：這個函式**有沒有引用到外層作用域的變數**？有 → 它就是閉包（不管它有沒有名字、是宣告式還是箭頭函式）。JS 裡每個函式其實都天生帶著自己定義時的作用域鏈結（[[Environment]] 內部欄位），但通常只有在「外層函式已經執行完、內層函式還活著並繼續存取那個變數」這種情境下，才會特別被拿出來討論、稱之為「閉包在作用」——這也是本篇「兩大基石」裡第二點「垃圾回收」在講的事：一般函式執行完局部變數會被清掉，但被內層函式（閉包）引用住的變數，GC 不敢清。
+
+### 進階範例：debounce（防抖）——閉包活多久的實測案例（2026-09-03）
+
+除了計數器，另一個很實用、也更能看出「閉包能活多久」的例子是 **debounce（防抖）**，常見情境是**輸入框打字**：
+
+```javascript
+function debounce(fn, delay) {
+  let timer = null;              // 被閉包鎖住的私有變數，記錄「目前排隊中的計時器」
+  return function (...args) {    // 這個回傳的函式才是真正的閉包
+    clearTimeout(timer);         // 每次呼叫都先取消上一次還沒到期的計時器
+    timer = setTimeout(() => {
+      fn.apply(this, args);      // 真正等到「安靜下來」才執行
+    }, delay);
+  };
+}
+
+const search = debounce((keyword) => console.log('查詢', keyword), 300);
+input.addEventListener('input', (e) => search(e.target.value)); // search 被綁在輸入框上
+```
+
+#### 為什麼需要 debounce：目的跟計時器本身無關，計時器只是「手段」
+
+<mark style="background: #FFF3A3A6;">要解決的問題是「操作觸發得太頻繁」——使用者打字時每敲一鍵就觸發一次 `input` 事件，如果每次都直接做昂貴操作（打 API、重渲染整個清單），會浪費資源、還可能出現競態問題（Race Condition：後發的請求先回來，畫面顯示對不上使用者當下打的字）。</mark>這個問題本質上跟「有沒有計時器」無關，就算不用 `setTimeout` 這個問題一樣存在。
+
+<mark style="background: #BBFABBA6;">`setTimeout`／`clearTimeout` 只是拿來實作「怎麼知道使用者已經停下來了」這件事的其中一種手段</mark>：每次新動作進來就把「安靜倒數」重新歸零（`clearTimeout` 舊的、`setTimeout` 一個新的），只有倒數真的跑到底、沒被打斷，才代表「已經安靜 `delay` 毫秒了」，這時才真正執行 `fn`。一句話：**debounce 要解決的問題是「目的」，計時器是達成這個目的的「手段」，兩者不要混為一談。**
+
+#### `let timer = null` 為什麼不能用空陣列 `[]`
+
+| | `timer`（debounce） | `history`（下面的魔王題） |
+|---|---|---|
+| 任何時刻代表 | **最多一個**排隊中的計時器，舊的直接取代/丟棄 | **持續累積**的完整交易紀錄，全部保留 |
+| 該用什麼當空狀態 | `null`（單一值的空狀態） | `[]`（集合的空狀態） |
+| 為什麼 | 語意上是「一個可能存在、也可能不存在的單一值」，不是集合 | 語意上是「一堆值的集合」，數量不固定、會持續增加 |
+
+<mark style="background: #FF5582A6;">用 `[]` 當 `timer` 的初始值雖然不會報錯（`clearTimeout([])` 會被靜默忽略），但語意上選錯資料結構，而且會踩到一個經典陷阱：`Boolean([])` 是 `true`（空陣列是 truthy！），如果之後想寫 `if (timer) {...}` 判斷「現在有沒有排隊中的計時器」，用 `[]` 當初始值這個判斷永遠是 true，用 `null`（falsy）才會正確。</mark>
+
+判斷準則：**只在乎「目前這一個」、舊的直接取代 → 用單一值（`null` 當空狀態）；資料本質上會持續累積、要保留全部 → 用陣列 `[]`。** 除了 `history` 之外，另一個同類型例子是 pub/sub 的訂閱者清單 `let listeners = []`——同一時間可能有 0 個、1 個、或 100 個訂閱者，數量不固定，一樣該用陣列。
+
+#### 閉包活多久：執行時間 ≠ 存活時間
+
+<mark style="background: #FFF3A3A6;">`debounce(...)` 這次「呼叫」本身，跟 `createCounter()` 一樣，執行完立刻結束、瞬間離開 Call Stack——這件事跟「裡面的變數活多久」是兩回事。</mark>
+
+- **執行時間**：這次呼叫佔用 Call Stack 的時間，通常真的很短（微秒等級）。
+- **存活時間**：只要還有活著的函式物件（例如被 `addEventListener` 抓著的 `search`）透過它的 `[[Environment]]` 內部欄位「抓著」那份環境記錄，GC 就不敢清掉，能活到分頁關掉、元件卸載、或參照被手動切斷為止——**跟這段程式碼有沒有被執行、執行了幾次完全無關**，是「有沒有人還參照著」的可達性（reachability）問題，不是「有沒有正在跑」的執行問題。
+
+<mark style="background: #ADCCFFA6;">容易誤解的地方</mark>：不是「使用者一直打字」讓 `timer` 活著，是「`input.addEventListener('input', ...)` 這一行執行完的那一刻，參照關係就已經成立了」——就算使用者打完字之後晾在那十分鐘不動，這個閉包（連同 `timer`）依然活著，因為事件監聽器還抓著它；真正會讓它死掉的是移除監聽器、輸入框被移除且無其他參照、或整個頁面關閉，跟有沒有持續觸發輸入完全無關。
+
+跟自己的 `App.vue` 對照：`add()`（`App.vue:6`）也是同一種情況——它捕捉了外層 `count`（`ref(0)`），從元件掛載那一刻就被 Vue 的事件系統參照著，只要元件沒被卸載，這個閉包就一直活著，跟按鈕有沒有被點擊無關。
 
 ### 經典面試題：var 迴圈 + setTimeout
 

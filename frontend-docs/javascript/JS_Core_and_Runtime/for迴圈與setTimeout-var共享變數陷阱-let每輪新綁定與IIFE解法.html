@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>for 迴圈 ＋ setTimeout 的經典陷阱 — var 共享一個變數、let 每輪新綁定、IIFE 舊解法</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>for 迴圈 ＋ setTimeout 的經典陷阱 — var 共享一個變數、let 每輪新綁定、IIFE 舊解法</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#settimeout</span><span class="pill">#closure</span><span class="pill">#var</span><span class="pill">#let</span><span class="pill">#event-loop</span><span class="pill">#iife</span><span class="pill">#block-scope</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/c9278af0bac7bc41" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">console 印出的 5280 是 setTimeout 回傳的 Timer ID。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">DevTools 會顯示最後一個表達式的回傳值，setTimeout 回傳的正整數 ID 是給 clearTimeout 用的。</div></li><li><p class="qq">用 var 時三個 callback 讀到的是三個不同的 i。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">var 只有一個共享的綁定，三個 callback 讀的是同一格記憶體，所以全都是 4。</div></li><li><p class="qq">改用 let 之所以有效，是因為 for 迴圈每一輪迭代都會建立一個新的環境並複製 i 進去。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">規格叫 CreatePerIterationEnvironment，不是單純「let 有區塊作用域」就能解釋。</div></li><li><p class="qq">這三次 setTimeout 會每隔一秒各印一次。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">三次都是在同一毫秒內登記、延遲都是 1000ms，所以是 1 秒後一次印三行。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">ES6 之前要救這題，經典做法是用立即執行函式 <input class="blank" data-a="IIFE" placeholder="填答案" autocomplete="off">（三個英文字母縮寫）把當下的 i 複製一份傳進去。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Immediately Invoked Function Expression，靠函式參數製造新的區域綁定。</div></li><li><p class="qq">DevTools 把連續三次相同的輸出合併顯示成 (<input class="blank" data-a="3" placeholder="填答案" autocomplete="off">) 4。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">括號裡的數字是重複次數，不是變數值。</div></li><li><p class="qq">要取消一個尚未觸發的計時器，要把 setTimeout 回傳的 ID 傳給 <input class="blank" data-a="clearTimeout" placeholder="填答案" autocomplete="off">()。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這就是 Timer ID 存在的理由。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請完整說明「for + var + setTimeout 印出 4 4 4」這題，並說明為什麼換成 let 就會印 1 2 3。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：三個層次都要講到才完整。(1) 作用域層：var 是函式／全域作用域，整段程式只有一個 i 的綁定，迴圈跑三次並不會產生三個 i。(2) 事件迴圈層：setTimeout 是把 callback 登記到計時器，主執行緒不等它、繼續跑完迴圈；0.3ms 時 i 已經因為 i++ 變成 4 並跳出迴圈，1000ms 後 callback 才被拉回主執行緒執行。(3) 閉包層：callback 記住的是「環境」不是「當下的值」，所以它執行時才去讀那一格，讀到的自然是 4。(4) 換成 let 為什麼有效：不能只答「let 有區塊作用域」——因為 for 的括號看起來只有一個區塊，照這個邏輯答案應該還是一樣。真正的原因是規格對 for 的 let 有特別處理（CreatePerIterationEnvironment），每一輪迭代結束時會建立新環境並把當前值複製過去，所以三個 callback 各自閉包住不同的綁定。(5) 加分：補充 IIFE 是 ES6 之前的等價解法，原理同樣是「用函式參數製造新綁定」。</div></li></ol></section>
+
+<article class="card">
+<h1 id="for-settimeout-var-let-iife">for 迴圈 ＋ setTimeout 的經典陷阱 — var 共享一個變數、let 每輪新綁定、IIFE 舊解法</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+這是把三篇既有筆記綁在一起的「綜合題」，所以獨立成篇而不是塞進任何一篇：<br />
+(1) <span class="wikilink" title="Obsidian 連結：04-變數宣告-let-const-var">04-變數宣告-let-const-var</span> 提供「var 是函式作用域、let 是區塊作用域」的前提。<br />
+(2) <span class="wikilink" title="Obsidian 連結：13-閉包-Closure-私有變數與傳址陷阱">13-閉包-Closure-私有變數與傳址陷阱</span> 提供「callback 記住的是環境不是值」的機制——本篇是那條規則最有名的翻車現場。<br />
+(3) <span class="wikilink" title="Obsidian 連結：事件循環-Event-Loop-微任務與巨任務">事件循環-Event-Loop-微任務與巨任務</span> 與 <span class="wikilink" title="Obsidian 連結：執行緒-非同步-延遲的差異">執行緒-非同步-延遲的差異</span> 提供「為什麼 callback 會晚 1 秒才讀變數」的時間軸。<br />
+三個觀念缺一個都答不出這題，這也是它成為經典面試題的原因。</p>
+<p>本篇重點 a–m，共 13 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<p class="fig"><img src="images/%E5%AD%B8%E7%BF%92JS_%E5%9C%96%E8%A7%A3_for%E8%BF%B4%E5%9C%88%E8%88%87setTimeout%E6%99%82%E9%96%93%E8%BB%B8-var%E5%85%B1%E4%BA%ABvs-let%E6%AF%8F%E8%BC%AA%E6%96%B0%E7%B6%81%E5%AE%9A_2026-09-05.svg" alt="學習JS_圖解_for迴圈與setTimeout時間軸-var共享vs-let每輪新綁定_2026-09-05.svg" loading="lazy"></p>
+
+<blockquote>
+<p>本篇主軸圖：左半邊是 <code>var</code> 的「一格記憶體被三個 callback 共用」，右半邊是 <code>let</code> 的「三格各自獨立」。後續追問請直接指回圖上的位置。</p>
+</blockquote>
+<h3 id="5280-ac">一、那個 5280 是什麼（a–c）</h3>
+<pre><code class="language-js">for (var i = 1; i &lt;= 3; i++) {
+  setTimeout(() =&gt; { console.log(i) }, 1000);
+}
+// 5280
+// (3) 4      ← VM2706:2
+</code></pre>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>5280</code> 是最後一次呼叫 <code>setTimeout</code> 回傳的「定時器編號（Timer ID）」</mark>。<code>setTimeout()</code> 會回傳一個正整數 ID，用途是交給 <code>clearTimeout(id)</code> 取消定時器。</p>
+<p>(b) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼會印出來？因為 DevTools Console 預設會顯示「最後一個運算式的回傳值」</mark>。整個 <code>for</code> 敘述句最後執行的表達式就是第三次 <code>setTimeout</code>，所以它的回傳值被印在主畫面上。</p>
+<p>(c) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這個數字是瀏覽器累加分配的，每次重跑或換頁都不一樣</mark>（可能是 <code>1</code>、<code>42</code> 或 <code>5280</code>），不要以為它有什麼意義。</p>
+<h3 id="4-4-4dg">二、為什麼印出的是 4 4 4（d–g）</h3>
+<p>(d) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>4</code> 是因為用 <code>var</code> 宣告 <code>i</code></mark>。<code>var</code> 是函式／全域作用域，整段程式碼<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只有一個共享的 <code>i</code> 記憶體空間</mark>，不會因為迴圈跑三次就產生三個 <code>i</code>。</p>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>setTimeout</code> 是非同步排程</mark>：它的意思是「先把這個任務登記到計時器，1 秒後再拉回主執行緒；現在繼續往下跑」。</p>
+<p>(f) 時間軸拆解（全部發生在毫秒等級）：</p>
+<table>
+<thead>
+<tr>
+<th>時間</th>
+<th>主執行緒在做什麼</th>
+<th><code>i</code> 的值</th>
+<th>計時器佇列</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0ms</td>
+<td>執行 i = 1 那輪</td>
+<td>1</td>
+<td>登記 1 秒後執行 <code>()=&gt;log(i)</code></td>
+</tr>
+<tr>
+<td>0.1ms</td>
+<td>執行 i = 2 那輪</td>
+<td>2</td>
+<td>登記第二個</td>
+</tr>
+<tr>
+<td>0.2ms</td>
+<td>執行 i = 3 那輪</td>
+<td>3</td>
+<td>登記第三個</td>
+</tr>
+<tr>
+<td>0.3ms</td>
+<td><code>i++</code> 變 4，不符合 <code>i &lt;= 3</code>，迴圈結束</td>
+<td>4</td>
+<td>等待中</td>
+</tr>
+<tr>
+<td>1000ms</td>
+<td>三個 callback 依序執行</td>
+<td>4</td>
+<td>印出 4、4、4</td>
+</tr>
+</tbody>
+</table>
+<p>(g) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關鍵句：<code>console.log(i)</code> 執行時才「抬頭去問現在 i 是多少」，而那時迴圈早就跑完、<code>i</code> 已經是 4</mark>。三個 callback 讀的是同一格記憶體，所以答案一致。</p>
+<blockquote>
+<p>[!note] 前面那個 <code>(3)</code> 與 <code>VM2706:2</code><br />
+<code>(3)</code> 是 DevTools 把連續三次相同輸出合併顯示；<code>VM2706:2</code> 是 DevTools 為 console 執行的程式碼自動產生的虛擬腳本檔名與行號（Virtual Machine Script），不是你的檔案。</p>
+</blockquote>
+<h3 id="hk">三、兩種解法（h–k）</h3>
+<p>(h) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">解法一：把 <code>var</code> 改成 <code>let</code>（最推薦）</mark>。<code>let</code> 是區塊作用域，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">規格規定 for 迴圈每一輪迭代都會建立一個新的環境並把 <code>i</code> 複製過去（CreatePerIterationEnvironment）</mark>，所以三個 callback 各自閉包住不同的 <code>i</code>。</p>
+<pre><code class="language-js">for (let i = 1; i &lt;= 3; i++) {
+  setTimeout(() =&gt; { console.log(i) }, 1000);  // 印出 1, 2, 3
+}
+</code></pre>
+<p>(i) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">解法二：IIFE（ES6 之前的做法）</mark>。用立即執行函式把「當下的 <code>i</code>」複製一份傳進函式的區域作用域，固定住它。</p>
+<pre><code class="language-js">for (var i = 1; i &lt;= 3; i++) {
+  (function (currentI) {
+    setTimeout(() =&gt; { console.log(currentI) }, 1000);
+  })(i);   // 把當下的 i 傳入，固定住 currentI
+}
+</code></pre>
+<p>(j) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩種解法的共同原理都是「製造三個不同的變數綁定」</mark>，<code>let</code> 是引擎幫你做，IIFE 是你自己用函式參數做。參數本來就是一個新的區域綁定，這是它能救場的原因。</p>
+<p>(k) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">補一個 Gemini 沒說的細節：三個 callback 幾乎同時到期，並不是每隔一秒印一次</mark>。因為三次 <code>setTimeout</code> 都是在同一毫秒內登記、延遲都是 1000ms，所以是 1 秒後「一次印三行」。要每隔一秒印一次得寫 <code>setTimeout(..., 1000 * i)</code>。</p>
+<h3 id="lm">四、面試怎麼答（l–m）</h3>
+<p>(l) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">三段式答法</mark>：先講「<code>var</code> 只有一個綁定」（作用域）→ 再講「callback 一秒後才執行，那時迴圈已結束」（事件迴圈）→ 最後講「callback 記住的是環境不是當下的值」（閉包）。三個層次都講到才算完整。</p>
+<p>(m) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">常見追問：那 <code>let</code> 為什麼可以？</mark> 標準答案不是「因為 let 有區塊作用域」就結束，而要補上「for 迴圈的 let 有一個特別規則，每輪迭代會複製出一個新綁定」——否則按「區塊作用域」的直覺，<code>for</code> 的括號只有一個區塊，答案應該還是 3 3 3。</p>
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 說「<code>5280</code> 是最後一次 <code>setTimeout</code> 的回傳值，所以被印在主畫面上」，這是對的，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但它把原因寫成「for 敘述句最後執行的表達式」，略有語病</mark>。實際規則是 DevTools 顯示「你輸入的整段程式碼的 completion value」；<code>for</code> 陳述式的 completion value 恰好是最後一輪迴圈主體的值，才等於最後一次 <code>setTimeout</code> 的回傳值。</li>
+<li>Gemini 說 Timer ID 是「瀏覽器隨機/累加分配」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HTML 規格規定它是同一個 global object 內遞增的正整數，不是隨機</mark>；看起來像亂數只是因為那個分頁先前已經跑過很多計時器。</li>
+<li>Gemini 沒有提到「三次輸出是同時發生」這個細節，容易讓人誤以為會每秒印一次，已在 (k) 補上。</li>
+</ul>
+<h2 id="leetcode-javascript">🔗 相關練習題（LeetCode JavaScript 專區）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>題目</th>
+<th>連結</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>setTimeout 包成 Promise</td>
+<td>2621. Sleep</td>
+<td>https://leetcode.com/problems/sleep/</td>
+</tr>
+<tr>
+<td>setTimeout ＋ clearTimeout 取消</td>
+<td>2715. Timeout Cancellation</td>
+<td>https://leetcode.com/problems/timeout-cancellation/</td>
+</tr>
+<tr>
+<td>計時器與快取過期</td>
+<td>2622. Cache With Time Limit</td>
+<td>https://leetcode.com/problems/cache-with-time-limit/</td>
+</tr>
+<tr>
+<td>閉包保存獨立變數</td>
+<td>2665. Counter II</td>
+<td>https://leetcode.com/problems/counter-ii/</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">各對話來源</h2>
+<h3 id="javascript-settimeout-2026-09-httpsgeminigooglecomappc9278af0bac7bc41">JavaScript 迴圈與 setTimeout 解析（2026-09）— https://gemini.google.com/app/c9278af0bac7bc41</h3>
+<p><strong>使用者：</strong> <code>for (var i =1; i&lt;=3; i++){ setTimeout(()=&gt;{console.log(i)},1000); }</code> 印出 <code>5280</code> 和 <code>3VM2706:2 4</code>，為何這會有 5280？</p>
+<p><strong>Gemini：</strong> <code>5280</code> 是最後一次呼叫 <code>setTimeout</code> 時回傳的定時器編號（Timer ID），用來提供給 <code>clearTimeout(id)</code> 取消定時器。你在 DevTools Console 執行程式碼時，除了程式印出的結果外，瀏覽器預設會把最後一行運算式的回傳值顯示出來。迴圈跑三次各產生一個 ID（5278、5279、5280），控制台把最後那個印出來。這個數字是瀏覽器累加分配的，每次重跑都不一樣。至於 <code>4</code>：因為使用 <code>var</code> 宣告 <code>i</code>，<code>var</code> 具有全域／函式作用域，3 次 <code>setTimeout</code> 的 callback 共享同一個 <code>i</code>；1 秒過去 callback 開始執行時，迴圈早就跑完，<code>i</code> 已經變成 4。前方的 <code>3</code> 是 DevTools 把連續 3 次的 <code>4</code> 合併顯示為 <code>(3) 4</code>；<code>VM2706:2</code> 是 DevTools 自動產生的虛擬腳本檔名與行號。把 <code>var</code> 改成 <code>let</code> 即可印出 1, 2, 3。</p>
+<p><strong>使用者：</strong> 為什麼 <code>console.log</code> 的 i 跟 <code>setTimeout</code> 的 i 值是不同的？</p>
+<p><strong>Gemini：</strong> 其實它們是同一個變數。之所以印出 4 而不是 1, 2, 3，是因為「迴圈執行的時間」與「<code>console.log</code> 執行的時間」存在時間差。核心原因有兩個：(1) <code>var i</code> 只會建立同一個共享的記憶體空間，不會因為跑三次就產生三個 <code>i</code>；(2) <code>setTimeout</code> 是非同步排程，意思是「先登記，1 秒後再拉回主執行緒，現在先繼續往後跑」。時間軸上 0ms 到 0.3ms 主執行緒就跑完迴圈、<code>i</code> 變成 4，1000ms 時三個 <code>console.log(i)</code> 才開始執行，抬頭去問 <code>i</code> 的值已經是 4。解法一是用 <code>let</code>（ES6 區塊作用域，每次迭代單獨綁定一個 <code>i</code>）；解法二是用閉包／IIFE，把當時的 <code>i</code> 複製一份傳進區域作用域固定住。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/c9278af0bac7bc41</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>ECMA-262 — CreatePerIterationEnvironment（let 每輪新綁定）</td>
+<td>https://tc39.es/ecma262/#sec-createperiterationenvironment</td>
+<td>ECMAScript 現行草案，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>HTML 規格 — setTimeout 回傳遞增的 timer handle</td>
+<td>https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-settimeout</td>
+<td>WHATWG HTML Living Standard，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — setTimeout（回傳值與 clearTimeout）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/Window/setTimeout</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — Closures（迴圈中建立閉包的經典問題）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Closures</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Chrome DevTools — Console 顯示 completion value</td>
+<td>https://developer.chrome.com/docs/devtools/console/</td>
+<td>現行文件，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

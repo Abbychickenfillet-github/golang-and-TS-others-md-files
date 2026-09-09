@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Promise 是物件、NaN 屬於 Number、以及 JS 編譯階段做了哪三件事</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Promise 是物件、NaN 屬於 Number、以及 JS 編譯階段做了哪三件事</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#promise</span><span class="pill">#NaN</span><span class="pill">#型別</span><span class="pill">#編譯階段</span><span class="pill">#hoisting</span><span class="pill">#V8</span><span class="pill">#面試考點</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-31</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/aa888bdb7c1bb036" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">typeof NaN 的結果是 &quot;undefined&quot;。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是 &quot;number&quot;。NaN 是 IEEE 754 定義在 Number 型別裡的特殊值。</div></li><li><p class="qq">NaN === NaN 的結果是 false。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">NaN 是 JavaScript 中唯一不等於自身的值，所以也可以用 x !== x 來判斷。</div></li><li><p class="qq">isNaN(&#x27;hello&#x27;) 與 Number.isNaN(&#x27;hello&#x27;) 會得到相同的結果。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">全域 isNaN 會先做 ToNumber 轉型所以是 true；Number.isNaN 不轉型所以是 false。ES2015 之後請一律用後者。</div></li><li><p class="qq">new Promise 的 executor（那個 (resolve, reject) =&gt; {...}）要等到 .then 被呼叫時才執行。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">executor 是同步、立刻執行的；被延後的是 .then 註冊的回呼。</div></li><li><p class="qq">JavaScript 的編譯階段會執行 var x = 10 這行的賦值動作。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">編譯階段只註冊宣告與配置記憶體，= 10 留到執行階段。</div></li><li><p class="qq">let 與 const 在編譯階段完全沒有被註冊，所以宣告前存取才會報 ReferenceError。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">有被註冊，只是不初始化、劃入 TDZ 暫時性死區；正因為有註冊，錯誤才是 ReferenceError 而不是「變數不存在」。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Promise 這個容器本身型別永遠是 <input class="blank" data-a="object" placeholder="填答案" autocomplete="off">，但它 resolve 出來的結果型別取決於你在 resolve() 裡傳什麼。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">typeof p 是 &quot;object&quot;，p instanceof Promise 是 true。</div></li><li><p class="qq">要正確判斷一個值是不是 NaN，應該用 <input class="blank" data-a="Number.isNaN" placeholder="填答案" autocomplete="off"> 這個 ES2015 之後的靜態方法。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">它不做任何型別轉換。</div></li><li><p class="qq">詞法分析把原始碼拆成 Token，語法分析再把 Token 組成 <input class="blank" data-a="AST" placeholder="填答案" autocomplete="off">（抽象語法樹）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Abstract Syntax Tree，語法錯誤就是在這一步拋 SyntaxError。</div></li><li><p class="qq">V8 的解譯器叫 Ignition，負責把 AST 轉成 Bytecode；最佳化編譯器叫 <input class="blank" data-a="TurboFan" placeholder="填答案" autocomplete="off">，負責把熱點程式碼編成機器碼。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這就是 JIT（Just-In-Time Compilation）在 V8 裡的實作。</div></li><li><p class="qq">let 與 const 在編譯階段被註冊但不初始化，這段「宣告了卻不能用」的區間叫做 <input class="blank" data-a="TDZ" placeholder="填答案" autocomplete="off">（縮寫三個字母）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Temporal Dead Zone，暫時性死區。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">為什麼一個叫「Not a Number」的東西，typeof 卻是 number？請從 IEEE 754 的角度回答，並說明它跟 undefined 的分界。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">要點：NaN 是 IEEE 754 浮點數標準定義的一個特殊位元樣式，它佔的是 Number 型別內部的一組編碼，所以型別當然是 number。它的語意是「這個運算算不出有意義的數值」，例如 0/0、&#x27;abc&#x27;*2、Math.sqrt(-1)；JavaScript 選擇回傳 NaN 而不是拋錯。跟 undefined 的分界：undefined 是「變數尚未被賦值或屬性不存在」，NaN 是「變數有值、而且是數值型別，但數值內容無效」。附帶特性：NaN 是唯一不等於自身的值，所以不能用 === 判斷，要用 Number.isNaN() 或 x !== x。</div></li><li><p class="qq">請說明 JS 引擎在「編譯階段」做的三件事，並解釋為什麼少打一個括號會讓整份檔案一行都不執行。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">要點：(1) 語法解析——詞法分析拆 Token，語法分析組成 AST；(2) 作用域建立與提升——掃描所有宣告建立作用域鏈，function 直接綁函式物件、var 註冊並給 undefined、let/const 註冊但不初始化劃入 TDZ，注意這一步完全不執行賦值；(3) 生成 Bytecode——Ignition 把 AST 轉成位元組碼，並為 TurboFan 的 JIT 最佳化做準備。至於少打括號：語法錯誤是在第 (1) 步的語法分析就被攔下並拋 SyntaxError，程式根本還沒進到執行階段，所以整份檔案一行都不會跑，而不是「跑到那一行才壞掉」。補充：V8 有 Lazy Parsing，函式主體要等真的被呼叫才完整解析，所以「執行前整份檔案都被完整編譯」的說法並不精確。</div></li></ol></section>
+
+<article class="card">
+<h1 id="promise-nan-number-js">Promise 是物件、NaN 屬於 Number、以及 JS 編譯階段做了哪三件事</h1>
+<blockquote>
+<p>本篇重點 a–n，共 14 個。三個看似無關的小問題，其實都指向同一件事：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「你以為的型別」跟「引擎眼中的型別」常常不一樣。</mark></p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="promise">一、Promise 本身永遠是一個物件</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Promise</code> 是一個建構函式（Constructor）</mark>，而建構函式在 JavaScript 裡本身就是函式物件。用 <code>new Promise(...)</code> 會實例化並回傳一個 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Promise 物件實例</mark>。</p>
+<pre><code class="language-js">const p = new Promise((resolve, reject) =&gt; {
+  resolve('完成')
+})
+
+console.log(typeof p)            // &quot;object&quot;
+console.log(p instanceof Promise) // true
+</code></pre>
+<p>(b) 逐行解釋 (a) 這段：<br />
+- <code>new Promise(...)</code> — <code>new</code> 這個運算子做四件事：建立一個空物件、把它的原型指向 <code>Promise.prototype</code>、把 <code>this</code> 綁到這個新物件上執行建構函式、最後回傳這個物件。<br />
+- <code>(resolve, reject) =&gt; {...}</code> — 這個叫 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">executor（執行器）</mark>，它會被<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">同步、立刻</mark>執行（不是等到 <code>.then</code> 才跑），<code>resolve</code> 與 <code>reject</code> 是 JS 引擎傳給你的兩個內建函式。<br />
+- <code>typeof p</code> — <code>typeof</code> 對所有非函式的物件都回傳 <code>"object"</code>，所以這裡是 <code>"object"</code>。<br />
+- <code>p instanceof Promise</code> — <code>instanceof</code> 是沿著 <code>p</code> 的原型鏈（Prototype Chain）往上找，看有沒有一個環節等於 <code>Promise.prototype</code>，有就是 <code>true</code>。</p>
+<p>(c) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要分清楚兩件事：Promise「這個容器」永遠是物件，Promise「解開之後的結果」是什麼型別完全取決於你在 <code>resolve()</code> 裡傳了什麼。</mark></p>
+<pre><code class="language-js">const a = Promise.resolve({ id: 1 })
+const b = Promise.resolve('hello')
+
+await a   // { id: 1 }  → 物件
+await b   // 'hello'    → 原始值（string）
+</code></pre>
+<p>(d) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">次要備註</mark>：這也是為什麼 <code>async function</code> 一定回傳 Promise ——即使你 <code>return 1</code>，引擎也會幫你包成 <code>Promise.resolve(1)</code>；<code>await</code> 做的事就是把這層容器拆掉，把裡面的值交給你。</p>
+<h3 id="nan-number-undefined">二、NaN 屬於 Number，不是 undefined</h3>
+<p>(e) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>NaN</code>（Not a Number）在 JavaScript 的型別系統中屬於 <code>Number</code></mark>，名字非常會誤導人。</p>
+<pre><code class="language-js">console.log(typeof NaN)   // &quot;number&quot;
+</code></pre>
+<p>(f) 為什麼叫「不是數字」卻是數字型別？因為 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>NaN</code> 是 IEEE 754 浮點數標準裡定義的一個特殊數值（Special Value）</mark>。當數學運算算不出有意義的結果（例如 <code>0 / 0</code>、<code>'abc' * 2</code>、<code>Math.sqrt(-1)</code>），JavaScript 不會拋錯，而是回傳 <code>NaN</code> 表示「這是一個無效的數值結果」。它佔的是 Number 型別裡的一組特殊位元樣式，所以型別當然還是 Number。</p>
+<p>(g) 跟 <code>undefined</code> 的分界：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>意思</th>
+<th><code>typeof</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>undefined</code></td>
+<td>變數尚未被賦值，或屬性不存在</td>
+<td><code>"undefined"</code></td>
+</tr>
+<tr>
+<td><code>NaN</code></td>
+<td>變數<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">有值、且是數值型別</mark>，但這個數值內容無效</td>
+<td><code>"number"</code></td>
+</tr>
+</tbody>
+</table>
+<p>(h) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>NaN</code> 是 JavaScript 中唯一不等於自己的值</mark>：<code>NaN === NaN</code> 是 <code>false</code>。所以不能用 <code>===</code> 去判斷。</p>
+<p>(i) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">正確的檢查方式是 <code>Number.isNaN()</code></mark>：</p>
+<pre><code class="language-js">Number.isNaN(NaN)       // true
+Number.isNaN('hello')   // false ← 正確：'hello' 本來就不是 number
+isNaN('hello')          // true  ← 陷阱：全域舊版 isNaN 會先做型別轉換
+</code></pre>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">全域的 <code>isNaN()</code>（沒有 <code>Number.</code> 前綴的那個舊 API）會先把參數 ToNumber 轉型再判斷</mark>，所以 <code>isNaN('hello')</code> 會是 <code>true</code>，這幾乎一定不是你要的。ES2015 之後請一律用 <code>Number.isNaN()</code>，它不做任何轉型。</p>
+<h3 id="js">三、JS 在編譯階段做了哪三件事</h3>
+<p>(j) JavaScript 雖然常被叫「腳本語言」，但執行前一樣會經過<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">編譯階段（Compilation Phase）</mark>。V8 這類引擎在這個階段做三件事：語法解析、作用域建立與記憶體配置、生成位元組碼。</p>
+<p>(k) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">① 語法解析（Parsing）</mark></p>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">詞法分析（Lexical Analysis／Tokenization）</mark>：把原始碼字串拆成最小單位的 Token。<code>let x = 10;</code> 會被拆成 <code>let</code>、<code>x</code>、<code>=</code>、<code>10</code>、<code>;</code>。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">語法分析（Syntactic Analysis）</mark>：把 Token 組成 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">AST（Abstract Syntax Tree，抽象語法樹）</mark>。</li>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">語法有誤在這一步就會拋 <code>SyntaxError</code>，而且整份程式碼一行都不會執行</mark>——這就是為什麼少打一個括號會讓整個檔案完全不動，而不是「跑到那一行才壞掉」。</li>
+</ul>
+<p>(l) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">② 作用域建立與提升（Scope &amp; Hoisting）</mark>——這是編譯階段最核心的操作。引擎掃描所有變數與函式宣告，建立 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">作用域鏈（Scope Chain）</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>宣告方式</th>
+<th>編譯階段做的事</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>function foo() {}</code></td>
+<td>在記憶體中建立函式物件，並把名稱直接綁到該物件</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">可以在宣告前呼叫</mark></td>
+</tr>
+<tr>
+<td><code>var a</code></td>
+<td>註冊變數名，預設賦值 <code>undefined</code></td>
+<td>宣告前存取得到 <code>undefined</code></td>
+</tr>
+<tr>
+<td><code>let</code> / <code>const</code></td>
+<td>註冊變數名，但<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不初始化</mark>，劃入 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">TDZ（Temporal Dead Zone，暫時性死區）</mark></td>
+<td>宣告前存取拋 <code>ReferenceError</code></td>
+</tr>
+</tbody>
+</table>
+<p><mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關鍵補充</mark>：編譯階段<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全不執行任何賦值</mark>。<code>var x = 10</code> 裡的 <code>= 10</code> 是留到執行階段才做的，所謂「提升」提升的只有「宣告」這件事。</p>
+<p>(m) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">③ 生成位元組碼（Bytecode Generation）</mark></p>
+<ul>
+<li>V8 的解譯器 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Ignition</mark> 把 AST 轉成中介語言 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Bytecode（位元組碼）</mark>。</li>
+<li>同時為 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JIT（Just-In-Time Compilation，即時編譯）</mark>做準備：執行階段若某段程式碼變成<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">熱點（Hot Code，被反覆執行）</mark>，最佳化編譯器 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">TurboFan</mark> 會把它進一步編成高效能的機器碼（Machine Code）。</li>
+</ul>
+<p>(n) 編譯階段與執行階段的分工：</p>
+<table>
+<thead>
+<tr>
+<th>階段</th>
+<th>主要任務</th>
+<th>處理的東西</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>編譯階段</td>
+<td>語法檢查、建立作用域、配置記憶體位置（提升）、生成位元組碼</td>
+<td><code>var a;</code>／<code>function foo() {}</code>／攔截語法錯誤</td>
+</tr>
+<tr>
+<td>執行階段</td>
+<td>依序執行、變數賦值、函式呼叫、JIT 最佳化</td>
+<td><code>a = 1;</code>／<code>foo()</code>／計算與邏輯運算</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 這段說明整體是正確的，但有兩處值得補上：<br />
+  1. <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它只提到 <code>Number.isNaN()</code>，沒有提醒全域 <code>isNaN()</code> 的轉型陷阱</mark>。這是面試很愛問的一題，本篇 (i) 已補齊。另外還有一招不靠 API 的寫法：<code>x !== x</code> 為 <code>true</code> 就代表是 <code>NaN</code>，因為 (h) 說的那個特性。<br />
+  2. <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「編譯階段」這個詞在 V8 的實際流程裡更精確的說法是「Parse ＋ Ignition 產生 Bytecode」</mark>，而且 V8 有 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Lazy Parsing（惰性解析）</mark>：函式主體不會在一開始就完整解析，要等到真的被呼叫才做完整 parse。所以「執行前整份檔案都被完整編譯過一次」的印象並不精確——只有頂層與預解析（Pre-parse）掃過的宣告是這樣。</li>
+<li>Gemini 說 executor 的執行時機這件事在本串對話中沒有提到，(b) 那條「executor 同步立刻執行」是本筆記補充的，出處見下方資料來源表的 MDN 連結。</li>
+</ul>
+<h2 id="_3">相關題目練習</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeetCode 2723. Add Two Promises</td>
+<td>https://leetcode.com/problems/add-two-promises/</td>
+<td>直接練「Promise 是容器、await 拆容器」這個心智模型</td>
+</tr>
+<tr>
+<td>LeetCode 2621. Sleep</td>
+<td>https://leetcode.com/problems/sleep/</td>
+<td>最小的自製 Promise，看清楚 executor 與 resolve 的關係</td>
+</tr>
+<tr>
+<td>LeetCode 2727. Is Object Empty</td>
+<td>https://leetcode.com/problems/is-object-empty/</td>
+<td>練 <code>typeof</code> 與物件判斷的邊界</td>
+</tr>
+<tr>
+<td>LeetCode 2703. Return Length of Arguments Passed</td>
+<td>https://leetcode.com/problems/return-length-of-arguments-passed/</td>
+<td>對照 (l)：形式參數也是在編譯階段就被綁定的</td>
+</tr>
+<tr>
+<td>NeetCode — JavaScript / Promise 系列</td>
+<td>https://neetcode.io/courses</td>
+<td>有影片講解非同步與事件迴圈，補足本篇沒展開的部分</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">關聯筆記</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：事件循環-Event-Loop-微任務與巨任務">事件循環-Event-Loop-微任務與巨任務</span> — 本篇 (c)(d) 只說 Promise 是容器，「容器什麼時候被打開」屬於微任務佇列的範疇，兩篇合看才完整。</li>
+<li><span class="wikilink" title="Obsidian 連結：15-ToPrimitive-ToNumber-型別轉換抽象操作">15-ToPrimitive-ToNumber-型別轉換抽象操作</span> — (i) 那個全域 <code>isNaN()</code> 的陷阱，底層跑的就是那篇講的 ToNumber 抽象操作。</li>
+<li><span class="wikilink" title="Obsidian 連結：09-Hoisting-函式宣告vs函式表達式-TDZ">09-Hoisting-函式宣告vs函式表達式-TDZ</span> — (l) 的表格是那篇的濃縮版，想細看 TDZ 的行為請看那篇。</li>
+<li><span class="wikilink" title="Obsidian 連結：04-變數宣告-let-const-var">04-變數宣告-let-const-var</span> — 同上，<code>var</code>／<code>let</code>／<code>const</code> 在編譯階段的差別是那篇的主題。</li>
+<li><span class="wikilink" title="Obsidian 連結：01-引擎-Engine-到底是什麼">01-引擎-Engine-到底是什麼</span> — (m) 提到的 Ignition 與 TurboFan 屬於引擎內部管線，那篇有完整說明。</li>
+<li><span class="wikilink" title="Obsidian 連結：V8引擎完整管線-Parse到Deoptimization">V8引擎完整管線-Parse到Deoptimization</span> — ⚠️ 那條 Lazy Parsing 的補充，細節在那篇。</li>
+<li><span class="wikilink" title="Obsidian 連結：15-ReferenceError-vs-undefined-值與錯誤的分界">15-ReferenceError-vs-undefined-值與錯誤的分界</span> — (g) 的 <code>undefined</code> 與 (l) 的 TDZ <code>ReferenceError</code>，那篇專門處理這條分界線。</li>
+<li><span class="wikilink" title="Obsidian 連結：JavaScript-函式類型總整理">JavaScript-函式類型總整理</span> — (a) 說「建構函式本身也是函式物件」，那篇有完整的函式分類。</li>
+</ul>
+<h2 id="_5">各對話來源（原文）</h2>
+<h3 id="javascript-promise-object-2026-08-31-httpsgeminigooglecomappaa888bdb7c1bb036">JavaScript Promise 是 Object 嗎？（2026-08-31）— https://gemini.google.com/app/aa888bdb7c1bb036</h3>
+<p><strong>使用者：</strong> promise 沒有回傳 object 嗎</p>
+<p><strong>Gemini：</strong> <code>Promise</code> 本身在 JavaScript 中就是一個 Object。具體來說：(1) <code>Promise</code> 是一個構造函數，使用 <code>new Promise(...)</code> 時會實例化並回傳一個 Promise 物件實例，<code>typeof p</code> 是 <code>"object"</code>、<code>p instanceof Promise</code> 是 <code>true</code>。(2) Promise 內部包裝的值（Resolution Value）：Promise 物件的核心作用是作為異步操作結果的容器，<code>resolve(x)</code> 傳入物件時 <code>.then(data =&gt; ...)</code> 或 <code>await</code> 拿到的就是那個物件；傳入字串、數字或布林值，拿到的就是對應的原生型別。簡單來說，Promise 結構本身永遠是一個物件，而它最終 resolve 出來的結果取決於你在 <code>resolve()</code> 裡傳入什麼資料。</p>
+<p><strong>使用者：</strong> not a number NaN 算是 undefined 還是 Number?</p>
+<p><strong>Gemini：</strong> <code>NaN</code> 在 JavaScript 的型別系統中屬於 <code>Number</code>，不是 <code>undefined</code>，可以用 <code>typeof NaN</code> 驗證會得到 <code>"number"</code>。為什麼叫「Not a Number」卻是 Number 型別：<code>NaN</code> 是 IEEE 754 浮點數標準中定義的一個特殊數值，當數學運算無法產生有意義的數字時（例如 <code>0 / 0</code> 或 <code>'abc' * 2</code>），JavaScript 不會拋出錯誤而是回傳 <code>NaN</code> 表示「無效或無法表達的數值結果」。與 <code>undefined</code> 的差異：<code>undefined</code> 代表變數尚未被賦值或屬性不存在，<code>NaN</code> 代表這個變數有值、是數值型別，但數值內容無效。注意事項：<code>NaN</code> 是 JavaScript 中唯一不等於自身的值（<code>NaN === NaN</code> 為 <code>false</code>），要判斷請用 <code>Number.isNaN()</code>。</p>
+<p><strong>使用者：</strong> JS 在編譯階段做了哪些事情</p>
+<p><strong>Gemini：</strong> JavaScript 引擎（例如 V8）在編譯階段主要進行三個步驟。(1) 語法解析（Parsing）：詞法分析把字串拆成 Token，語法分析把 Token 組成 AST，語法有誤在此階段就拋 <code>SyntaxError</code>，這也是為什麼語法錯誤發生時程式碼完全不會執行。(2) 作用域建立與提升（Scope &amp; Hoisting）：掃描所有變數與函式宣告建立作用域鏈；<code>function</code> 宣告在記憶體中建立函式物件並直接綁定名稱，<code>var</code> 註冊變數名並預設賦予 <code>undefined</code>，<code>let</code>／<code>const</code> 註冊變數名但劃分為 TDZ 不予初始化。注意編譯階段完全不執行任何賦值操作。(3) 生成位元組碼（Bytecode Generation）：解釋器（V8 的 Ignition）把 AST 轉譯成 Bytecode，同時為 JIT 做準備，執行階段由 TurboFan 把熱點程式碼進一步優化編譯為機器碼。最後附上編譯階段與執行階段的對比表。</p>
+<h2 id="_6">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇對話（JavaScript Promise 是 Object 嗎？）</td>
+<td>https://gemini.google.com/app/aa888bdb7c1bb036</td>
+<td>Gemini Flash，2026-08-31</td>
+</tr>
+<tr>
+<td>MDN — Promise（含 executor 同步執行的說明）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise</td>
+<td>MDN 現行版本，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>MDN — Number.isNaN() vs 全域 isNaN()</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN</td>
+<td>MDN 現行版本，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>ECMA-262 — The Number Type（NaN 的規範定義）</td>
+<td>https://tc39.es/ecma262/#sec-ecmascript-language-types-number-type</td>
+<td>TC39 現行草案，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>IEEE 754-2019 浮點數標準（NaN 的來源）</td>
+<td>https://standards.ieee.org/ieee/754/6210/</td>
+<td>IEEE 754-2019，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>V8 官方部落格 — Ignition 與 TurboFan 管線</td>
+<td>https://v8.dev/blog/launching-ignition-and-turbofan</td>
+<td>v8.dev，原文 2017-05，2026-08-31 查證仍為現行架構說明</td>
+</tr>
+<tr>
+<td>V8 官方部落格 — Lazy Parsing（惰性解析）</td>
+<td>https://v8.dev/blog/preparser</td>
+<td>v8.dev，原文 2019-04，2026-08-31 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-08-31</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-31</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

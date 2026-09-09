@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Markdown 裡的 LaTeX `\text{}` — 什麼時候該用反引號而不是數學模式</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Markdown 裡的 LaTeX `\text{}` — 什麼時候該用反引號而不是數學模式</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#markdown</span><span class="pill">#latex</span><span class="pill">#obsidian</span><span class="pill">#mathjax</span><span class="pill">#katex</span><span class="pill">#排版</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/4efd5d0f40993f0f" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">$...$ 是 Markdown 的原生語法。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">不是。是 Obsidian、GitHub、Jupyter 掛上 MathJax 或 KaTeX 之後才支援的第二套語法。</div></li><li><p class="qq">數學模式裡直接寫 true，會被排成斜體的變數相乘，所以才需要 \text{}。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">\text{} 讓文字維持正常直立字體，這是它存在的理由。</div></li><li><p class="qq">把 $(\text{true})$ 改成純文字時，連小括號也要一起刪掉。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">括號本來就是要呈現的內容，改成 (true) 就好。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">要在 Markdown 呈現程式碼或布林值，最簡單的做法是用<input class="blank" data-a="反引號" placeholder="填答案" autocomplete="off">（一種符號）包起來。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">backtick，也就是 ` 這個符號。</div></li><li><p class="qq">在數學式裡插入一段文字要用 \<input class="blank" data-a="text" placeholder="填答案" autocomplete="off">{} 指令。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">例如 $T_{\text{avg}}$。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">什麼時候該在筆記裡用數學模式、什麼時候不該？請給一個可以直接照著做的判準。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 判準一句話：只有在寫「真的需要數學排版」的東西時才進數學模式——分數、上下標、根號、求和符號、矩陣、希臘字母。(2) 程式碼、識別字、布林值、檔名一律用反引號，因為它們要的是等寬字體而不是數學斜體，而且反引號在任何 Markdown 環境都能正確渲染，數學模式則依賴外掛。(3) 純說明文字什麼都不用加。(4) 唯一需要 \text{} 的場合是「已經在數學式裡了，但要插一段人看的文字」，例如 $T_{\text{avg}} = n/2$。(5) 實務提醒：Obsidian 的 $ 對前後空白敏感，而且在表格裡容易跟 | 打架，所以表格儲存格盡量避免數學模式。</div></li></ol></section>
+
+<article class="card">
+<h1 id="markdown-latex-text">Markdown 裡的 LaTeX <code>\text{}</code> — 什麼時候該用反引號而不是數學模式</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+(1) <span class="wikilink" title="Obsidian 連結：Markdown-渲染為DOM的過程">Markdown-渲染為DOM的過程</span> 講 Markdown 怎麼被解析成 DOM，本篇是那條管線上的一個岔路：<code>$...$</code> 不是 Markdown 原生語法，而是被外掛（MathJax／KaTeX）接手的第二套語法。<br />
+(2) 這串對話的起因是 <span class="wikilink" title="Obsidian 連結：比較三兄弟-鬆散等於-嚴格等於-Object-is-與React-Vue的狀態比對">比較三兄弟-鬆散等於-嚴格等於-Object-is-與React-Vue的狀態比對</span> 那張表格裡被塞了一堆 <code>$(\text{true})$</code>，兩篇是同一次排版翻車的前因後果。表格換行的部分記在那一篇的第六節。</p>
+<p>本篇重點 a–f，共 6 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="ac">一、那串符號到底是什麼（a–c）</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>$</code> 是「進入數學模式」的開關</mark>。單個 <code>$...$</code> 是行內公式、<code>$$...$$</code> 是獨立成行的公式。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這不是 Markdown 原生語法</mark>，是 Obsidian、GitHub、Jupyter 等環境掛上 MathJax 或 KaTeX 之後才支援的。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>\text{}</code> 是 LaTeX 的專用指令，用來「在數學公式中顯示一般字型的文字」</mark>。因為數學模式預設會把字母當變數排成斜體（<code>true</code> 會被排成 $t\cdot r\cdot u\cdot e$ 四個變數相乘的樣子），<code>\text{true}</code> 才會讓它維持正常的直立字體。</p>
+<p>(c) 所以 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>$(\text{true})$</code> 的意思是「在數學模式裡放一個括號和一段正常字體的 true」</mark>——技術上沒有錯，但用在一份講程式碼的筆記裡是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">殺雞用牛刀而且反而變醜</mark>。</p>
+<h3 id="df">二、該怎麼改（d–f）</h3>
+<p>(d) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要呈現程式碼或布林值，直接用反引號</mark>：</p>
+<pre><code class="language-markdown">❌ `1 == &quot;1&quot;` $(\text{true})$
+✅ `1 == &quot;1&quot;`（`true`）
+✅ `1 == &quot;1&quot;` (true)
+</code></pre>
+<p>(e) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">括號要不要留？要留</mark>。改的時候是把 <code>$(\text{true})$</code> 整串換成 <code>(true)</code>，括號本來就是原本要呈現的內容，不要連括號一起刪掉。</p>
+<p>(f) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">判準一句話</mark>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只有真的在寫數學（分數、上下標、求和符號、矩陣）才進數學模式；其餘一律用反引號或純文字。</mark></p>
+<table>
+<thead>
+<tr>
+<th>情境</th>
+<th>該用什麼</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>程式碼、識別字、布林值</td>
+<td>反引號</td>
+<td><code>`Object.is`</code>、<code>`true`</code></td>
+</tr>
+<tr>
+<td>純粹的說明文字</td>
+<td>什麼都不用</td>
+<td>(true)</td>
+</tr>
+<tr>
+<td>真的在寫數學</td>
+<td>數學模式</td>
+<td><code>$O(n \log n)$</code>、<code>$\frac{a}{b}$</code></td>
+</tr>
+<tr>
+<td>數學式裡要插一段中文或英文單字</td>
+<td><code>\text{}</code></td>
+<td><code>$T_{\text{avg}} = \frac{n}{2}$</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!warning] Obsidian 的額外坑<br />
+Obsidian 的數學模式對 <code>$</code> 前後的空白很敏感，而且 <code>$</code> 在表格裡容易跟 <code>|</code> 打架。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在表格儲存格裡盡量不要用 <code>$...$</code></mark>，這也是 Abby 那張表格會炸開的原因之一。</p>
+</blockquote>
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<ul>
+<li>這串對話是用語音輸入的，Gemini 的回覆被斷句切得很碎、而且中途切換成簡體中文，內容本身沒有錯但幾乎沒有資訊量。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">本篇的 (a)(b)(f) 三點與對照表是查 MathJax／KaTeX／Obsidian 官方文件補上的，不是 Gemini 說的</mark>，來源見文末表格。</li>
+<li>Gemini 說「<code>\text{}</code> 用來在數學公式中顯示一般文本」是對的，但沒有說明<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼需要它（數學模式預設把字母排成斜體變數）</mark>，這才是真正該記的原因。</li>
+</ul>
+<h2 id="_3">各對話來源</h2>
+<h3 id="markdown-latex-2026-09-httpsgeminigooglecomapp4efd5d0f40993f0f">修改 Markdown 中的 LaTeX 語法（2026-09，語音輸入）— https://gemini.google.com/app/4efd5d0f40993f0f</h3>
+<p><strong>使用者：</strong> 我現在要怎麼樣去改這個？markdown 檔裡面的，因為我也看不懂他這個 latex 原本是要表達什麼？</p>
+<p><strong>Gemini：</strong> 這個 LaTeX 語法是想在表格中呈現文字排版。建議把 <code>$(\text{true})$</code> 改為 <code>(true)</code>、把 <code>$(\text{false})$</code> 改為 <code>(false)</code>，這樣 Markdown 檔案的內容就會簡單清楚很多。</p>
+<p><strong>使用者：</strong> 對，要包含小括號嗎？</p>
+<p><strong>Gemini：</strong> 是的，要包含括號。直接把 <code>($\text{true}$)</code> 改成 <code>(true)</code>、<code>($\text{false}$)</code> 改成 <code>(false)</code>，排版就會符合需求，在 Markdown 檔裡看起來也比較乾淨。</p>
+<p><strong>使用者：</strong> 為什麼他是個前世斜線 text？{括號} true {括號}，這是算什麼？樣本語法嗎？（語音輸入把「反斜線」聽成「前世斜線」）</p>
+<p><strong>Gemini：</strong> 這個 <code>\text{}</code> 是 LaTeX 語法，用來在數學模式中呈現一般字型的文字，而外面的 <code>$</code> 則表示進入數學模式。如果只是想顯示括號加文字，直接用普通文字會簡單清楚很多，也更容易閱讀。</p>
+<p><strong>使用者：</strong> 城市碼（語音輸入誤判，原意可能是「程式碼」）</p>
+<p><strong>Gemini：</strong> <code>\text{}</code> 是 LaTeX 的專用格式指令，用來在數學公式中顯示一般文本。如果現在想要在文章中呈現程式碼範例，通常直接在 Markdown 中使用反引號來包住程式碼，排版效果會更好。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/4efd5d0f40993f0f</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>KaTeX — 支援的函式列表（含 \text）</td>
+<td>https://katex.org/docs/supported.html</td>
+<td>KaTeX 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MathJax — TeX 與 LaTeX 支援（數學模式與 \text）</td>
+<td>https://docs.mathjax.org/en/latest/input/tex/index.html</td>
+<td>MathJax 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Obsidian 官方 — Basic formatting syntax（數學公式用 $ 與 $$）</td>
+<td>https://help.obsidian.md/syntax</td>
+<td>Obsidian 現行說明，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>GitHub Docs — 在 Markdown 中撰寫數學運算式</td>
+<td>https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions</td>
+<td>GitHub 現行文件，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

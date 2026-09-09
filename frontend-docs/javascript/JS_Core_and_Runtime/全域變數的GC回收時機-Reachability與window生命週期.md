@@ -20,6 +20,85 @@ updated: 2026-08-01
 
 本篇重點 a–h，共 8 個
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事先講：<mark style="background: #FF5582A6;">GC 看的是「還走得到嗎」，不是「還有沒有在用」</mark>
+> 「這個變數我很久沒用到了，應該被回收了吧？」——<mark style="background: #FFF3A3A6;">不會</mark>。GC 的唯一判斷依據是<mark style="background: #BBFABBA6;">可達性 Reachability</mark>：只要能從 GC Root（瀏覽器裡就是 `window`）沿著參照鏈走得到，它就是 reachable，GC 絕對不碰它，放著一百年也一樣。<mark style="background: #ADCCFFA6;">「沒被使用」與「不可達」是兩件完全不同的事</mark>。而且反過來也要小心：就算你寫了 `myGlobal = null` 切斷參照，那也<mark style="background: #FF5582A6;">不是當下就釋放記憶體</mark>——它只是變成「等下一次 GC 掃到才會被清掉」的狀態，而下一次是什麼時候，<mark style="background: #FFF3A3A6;">由引擎決定，規格不保證</mark>。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | GC 在回收什麼？依據什麼？ | 回收 Heap 上<mark style="background: #BBFABBA6;">不可達 unreachable</mark> 的記憶體。唯一依據是可達性，<mark style="background: #FF5582A6;">不是使用頻率、不是變數名稱、也不是作用域</mark> |
+| **When** 什麼時候 | 全域變數什麼時候被回收？ | 只要還掛在 `window` 上就<mark style="background: #FF5582A6;">永遠不會</mark>，一路活到分頁關閉／`process` 結束。除非你手動切斷參照，而且還要<mark style="background: #FFF3A3A6;">等引擎下一次觸發 GC</mark>——時間點不保證 |
+| **Who** 誰做的 | 誰在回收？我能叫它現在做嗎？ | JS 引擎（V8）內建的 Garbage Collector 自動做。<mark style="background: #ADCCFFA6;">開發者不能命令它「現在立刻回收」</mark>，你能做的只有「切斷參照」這一件事 |
+| **Where** 在哪裡 | 全域變數住在哪？ | <mark style="background: #ADCCFFA6;">Heap</mark>。它不屬於任何 stack frame，所以不像區域變數那樣會隨著函式 `return`、stack frame 被 pop 就自動釋放 |
+| **Which** 哪一種 | GC Root 是哪些東西？全域物件叫什麼？ | 瀏覽器是 `window`、Node.js 是 `global`、跨環境統一用 `globalThis`。從 Root 沿參照鏈走得到的，全部算 reachable |
+| **How** 怎麼做到 | 怎麼判斷可不可達？ | 概念版是<mark style="background: #BBFABBA6;">標記清除 Mark-and-Sweep</mark>：從 Root 出發標記所有走得到的，剩下沒被標記的清掉。<mark style="background: #FFF3A3A6;">但這是簡化說法</mark>，V8 實務上用分代式 GC（新生代 Scavenge ＋ 老生代 Mark-Sweep-Compact） |
+| **Why** 為什麼 | 為什麼 React 組件 unmount 不會回收它？ | 因為全域變數掛在 `window` 上，<mark style="background: #FF5582A6;">不屬於任何組件</mark>。unmount 只清理該組件自己的資源（例如 `useEffect` 的 cleanup），碰不到 `window` 上的東西 |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄─────────── buildtime 建置期 ───────────►◄─────────── runtime 執行期 ───────────►
+      （你的電腦／CI，部署前就跑完）                （瀏覽器載入腳本之後）
+
+ ①轉譯 transpile   ②打包 bundle        ③V8 編譯          ④執行＋記憶體管理
+ Babel／tsc／SWC    webpack／Vite       Parse→AST→Bytecode ★ 配置與 GC 都在這裡
+ ┌─────────────┐  ┌─────────────┐    ┌──────────────┐  ┌───────────────────┐
+ │TS→JS        │─►│合併、壓縮    │───►│只決定程式碼長 │─►│★ Heap 配置         │
+ │             │  │             │    │什麼樣，不配置 │  │★ 可達性判斷         │
+ └─────────────┘  └─────────────┘    │任何記憶體     │  │★ GC 回收           │
+                                     └──────────────┘  └───────────────────┘
+
+ ★ 記憶體從頭到尾都是 runtime 的事，buildtime 沒有 Heap、也沒有 GC。
+```
+
+再把最關鍵的那一格放大：<mark style="background: #FFF3A3A6;">一塊記憶體的一生</mark>
+
+```text
+ t0 ─────────► t1 ─────────► t2 ─────────► t3 ─────────► t4 ─────────► t5
+ │             │             │             │             │             │
+ ①配置         ②可達         ③失去引用      ④不可達        ⑤標記清除      ⑥記憶體釋放
+ Allocate      Reachable     myGlobal      Unreachable   Mark & Sweep  Free
+ 在 Heap 上     window ──►    = null       從 Root 已經   從 Root 出發   這塊空間才
+ 開一塊空間     myGlobal      參照鏈被剪斷   走不到它了     標記，沒被標   真的還給系統
+              這條鏈存在                                 記的就清掉
+              GC 絕不回收
+              （即使一整天沒用到）
+
+              │◄──── 只要沒到 t2，這段可以無限長 ────►│
+              （分頁不關、process 不結束，就一直待在 ② 這一格）
+
+ ★★ 最關鍵的一件事：t4「什麼時候發生」完全由引擎決定，規格不保證。
+    t2 切斷引用 ≠ t5 立刻釋放。你只負責讓它變成不可達，何時真的清掉不歸你管，
+    也沒有任何標準 API 可以強制觸發。
+
+ 另一條完全不同的結局：整份文件被關掉
+ t0 配置 ──► t2 一直可達 ──────────────► ★分頁／process 結束 ──► 整個 Heap 一次消失
+                                        （這時候根本輪不到 GC，是整塊記憶體被作業系統收回）
+```
+
+同一條時間軸用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    A["① 配置 Allocate<br/>在 Heap 上開一塊空間<br/>var myGlobal = 物件"] --> B["② 可達 Reachable<br/>window ──► myGlobal<br/>參照鏈存在，GC 絕不回收"]
+    B --> C["③ 失去引用<br/>myGlobal = null<br/>參照鏈被剪斷"]
+    C --> D["④ 不可達 Unreachable<br/>從 GC Root 已經走不到<br/>但記憶體還沒還回去"]
+    D --> E["⑤ 標記清除 Mark and Sweep<br/>引擎自己決定何時掃<br/>規格不保證時機"]
+    E --> F["⑥ 記憶體釋放 Free<br/>這塊空間真的還給系統"]
+    B -.->|"沒被切斷就永遠停在這格<br/>即使一整天沒用到"| B
+    B -.->|"另一種結局：分頁或 process 結束<br/>整個 Heap 一次消失，輪不到 GC"| G["整塊記憶體被作業系統收回"]
+```
+
+> [!warning]- 三個很容易連帶搞錯的延伸點
+> a. <mark style="background: #FFF3A3A6;">兩句看似矛盾的話其實在講不同情境</mark>：「全域變數要等應用程式結束才回收」講的是仍被 `window` 參照著的情況；「全域變數留在 heap 等垃圾回收」講的是已經被手動切斷參照、變成不可達之後的情況。
+>
+> b. <mark style="background: #ADCCFFA6;">區域變數與全域變數的回收路徑不同</mark>：函式內的區域變數隨 stack frame pop 就沒了；全域變數不在任何 stack frame 上，只能靠可達性判斷。
+>
+> c. <mark style="background: #BBFABBA6;">Mark-and-Sweep 是概念版不是 V8 的精確描述</mark>：理解「可達性」這個核心沒問題，但別把它當成 V8 的實作細節去回答面試，V8 用的是分代式 GC。
+
 ## 重點整理
 
 a. <mark class="b">JS 變數本質是抽象指標：</mark>JS 引擎自動處理記憶體配置與管理，開發者看不到、也不能像 C 語言那樣直接操作實體位址；「指標」在這裡是幫助理解的抽象概念，不是語言規格中可觀察的具體實作細節。

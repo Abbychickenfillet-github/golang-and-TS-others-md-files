@@ -5,7 +5,8 @@ source: Gemini
 tags: [gemini, react, hoc, 渲染劫持, 反向繼承, vue, angular, 設計模式, 面試]
 sources:
   - https://gemini.google.com/app/3b8ff7e2ed0d9bd4
-updated: 2026-08-25
+  - https://gemini.google.com/app/d2896b718a5f3c00
+updated: 2026-09-09
 ---
 
 # HOC 高階組件與渲染劫持｜反向繼承，以及 Vue / Angular 的對應機制
@@ -120,11 +121,67 @@ function withRenderHijack(WrappedComponent) {
 
 ---
 
+### 追加 2026-09-09：HOC vs Custom Hook——上面那條「⚠️ 存疑 2」的正式補完
+
+> [!info]+ 為什麼補在這裡
+> 上一版最後那條更正寫著「Gemini 完全沒提到 HOC 已經被 Custom Hooks 取代」。這次另一段對話正好把兩者的差異問完了，剛好補上這個缺口，所以併進本篇而不另開新檔。
+
+m. <mark style="background: #FF5582A6;">HOC 不是 High Order Class</mark>。全名是 <mark style="background: #ADCCFFA6;">Higher-Order Component（高階元件／高階組件）</mark>，跟 class 完全無關。它的血統來自函數式程式設計的<mark style="background: #ADCCFFA6;">高階函數（Higher-Order Function）</mark>——接受函式當參數、或回傳函式的函式（例如 `Array.prototype.map`）。HOC 就是把「函式」換成「元件」：<mark style="background: #FFF3A3A6;">接受一個元件、回傳一個新元件的函式</mark>。
+
+n. 兩者最根本的差別在<mark style="background: #FFF3A3A6;">「包什麼」與「吐什麼」</mark>：HOC 包住<mark style="background: #ADCCFFA6;">整個元件</mark>並回傳一個加強版元件（`f(Component) → Component`）；Custom Hook 抽出的是<mark style="background: #ADCCFFA6;">帶狀態的邏輯</mark>，由元件在內部呼叫來取得資料或方法（`f(Args) → Data / Methods`）。
+
+| 比較項目 | Higher-Order Component (HOC) | Custom Hook |
+|---|---|---|
+| 主要目的 | 元件轉換與條件式渲染 | 邏輯與副作用的複用 |
+| 輸入 → 輸出 | 元件 → 新的包裝元件 | 參數 → 回傳值／函式 |
+| React DevTools 樹 | 多出一層層包裝節點（Wrapper Hell） | 不多出任何節點，樹是扁的 |
+| 資料流 | 隱式：把 props 注入被包的元件 | 顯式：呼叫端自己解構取值 |
+| props 撞名風險 | 高：外層 HOC 會靜默覆蓋既有 props | 零：變數名由呼叫端自己決定 |
+| TypeScript 體驗 | 複雜（要泛型＋props 交集型別） | 單純（就是一般函式的參數與回傳型別） |
+| 典型場景 | 舊函式庫（connect、withRouter）、版面包裝 | 現代 React 九成以上的邏輯（fetch、表單、驗證） |
+| 執行時機 | 在目標元件<mark style="background: #ADCCFFA6;">外部</mark>、export 當下運作 | 在元件<mark style="background: #ADCCFFA6;">內部</mark>、每次 render 都跟著跑 |
+
+o. 三個最痛的實務差異：
+
+- <mark style="background: #FF5582A6;">Wrapper Hell</mark>：`withAuth(withRouter(withTheme(Dashboard)))` 疊起來，DevTools 會變成一團巢狀包裝；換成 `useAuth()`、`useTheme()`、`useParams()` 並排寫，一個節點都不會多。
+- <mark style="background: #FF5582A6;">隱式資料流</mark>：看到 `<Dashboard/>` 裡用了 `props.user`，你根本不知道它從哪個 HOC 來；兩個 HOC 都注入 `user` 時，其中一個會被<mark style="background: #FF5582A6;">默默蓋掉</mark>。Custom Hook 回傳值可以就地改名（`const { user: currentUser } = useAuth()`），撞名問題直接消失。
+- <mark style="background: #BBFABBA6;">預設就用 Custom Hook</mark>（約 95% 的情況）。只有在「需要在很高的層級直接擋住整個元件不掛載」，或在<mark style="background: #D2B3FFA6;">必須包元件的舊式 API</mark>（Redux 的 `connect()`、React Router 的 `withRouter()`）上才會用 HOC。
+
+```jsx
+// A. HOC 版：從外面攔截，隱式注入 user
+function withAuth(Wrapped) {
+  return function AuthProtected(props) {
+    const user = getCurrentUser();
+    if (!user) return <p>Access Denied. Please log in.</p>;
+    return <Wrapped {...props} user={user} />;   // user 是「憑空出現」的 prop
+  };
+}
+export default withAuth(Dashboard);
+
+// B. Custom Hook 版：元件自己開口要，資料來源一目了然
+function useAuth() {
+  const [user, setUser] = useState(null);
+  useEffect(() => { setUser(getCurrentUser()); }, []);
+  return { user, isAuthenticated: !!user };
+}
+export default function Dashboard() {
+  const { user, isAuthenticated } = useAuth();   // 看得到來源
+  if (!isAuthenticated) return <p>Access Denied. Please log in.</p>;
+  return <h1>Welcome back, {user.name}</h1>;
+}
+```
+
+> [!tip]+ 面試怎麼答
+> 先講公式差異（包元件 vs 抽邏輯），再講三個實務痛點（Wrapper Hell、隱式 props 撞名、TS 型別複雜度），最後補一句「所以現代 React 預設用 Custom Hook，HOC 主要出現在 legacy API 與版面包裝」。這樣就完整避開上面「⚠️ 存疑 2」提到的、停留在 React 15 時代的印象。
+
+---
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本 / 查證時間 |
 | --- | --- | --- |
 | Gemini 對話原文 | https://gemini.google.com/app/3b8ff7e2ed0d9bd4 | 2026-08，本次歸檔 2026-08-25 |
+| 追加段：HOC vs Custom Hook 對照、HOC 全名釐清 | https://gemini.google.com/app/d2896b718a5f3c00 | Gemini 對話，整理於 2026-09-09 |
 | React 官方文件（舊版）Higher-Order Components | https://legacy.reactjs.org/docs/higher-order-components.html | React 17 舊文件，官方已標示為 legacy，查證 2026-08-25 |
 | React 官方：Reusing Logic with Custom Hooks | https://react.dev/learn/reusing-logic-with-custom-hooks | 現行推薦做法，查證 2026-08-25 |
 | React `cloneElement` API | https://react.dev/reference/react/cloneElement | 查證 2026-08-25 |

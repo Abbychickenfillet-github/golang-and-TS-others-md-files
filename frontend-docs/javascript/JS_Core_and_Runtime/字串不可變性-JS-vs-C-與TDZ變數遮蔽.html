@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>字串不可變性（JS vs C）與 let 區塊變數遮蔽下的 TDZ</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>字串不可變性（JS vs C）與 let 區塊變數遮蔽下的 TDZ</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#string</span><span class="pill">#immutable</span><span class="pill">#tdz</span><span class="pill">#hoisting</span><span class="pill">#memory</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/41d3c779dee10274" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/f4da8ca9d6c67841" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="js-vs-c-let-tdz">字串不可變性（JS vs C）與 let 區塊變數遮蔽下的 TDZ</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+本篇是 Gemini 來源的補充筆記。字串不可變性是全新主題（vault 尚無專篇），歸進 JS_Core_and_Runtime；TDZ 部分與 <span class="wikilink" title="Obsidian 連結：04-變數宣告-let-const-var">04-變數宣告-let-const-var</span>（手寫，同層變數作用域坑）、<span class="wikilink" title="Obsidian 連結：09-Hoisting-函式宣告vs函式表達式-TDZ">09-Hoisting-函式宣告vs函式表達式-TDZ</span>（Gemini 來源，函式宣告 vs 函式表達式的 TDZ）主題重疊但角度不同，本篇補的是「函式內部宣告同名 let 變數時，TDZ 如何跟作用域鏈的名稱遮蔽（shadowing）互動」這個更細的情境，兩篇既有筆記都是手寫或另一子主題，依筆記工作守則不直接編輯，改開新篇並互相 wikilink。與 <span class="wikilink" title="Obsidian 連結：10-傳值vs傳址-賦值與記憶體空間">10-傳值vs傳址-賦值與記憶體空間</span> 的「變數是指標、值是記憶體實體資料」概念也直接相關。</p>
+</blockquote>
+<p>本篇重點 a–s，共 19 個</p>
+<h2 id="_1">重點整理</h2>
+<p>a. <mark class="b">變數（Variable）與值（Value）是兩件事：</mark>變數只是一個指向記憶體位址的「標籤/指標」，值才是真正存在記憶體裡的實體資料；理解「不可變 vs 可變」的關鍵就是分清楚這兩者。</p>
+<p>b. <mark class="y">JS 的 reassignment（重新賦值）改的是「指標指向」，不是「原本內容」：</mark><code>let greeting = "Hi"; greeting = "Hello";</code> 執行後，記憶體位址 A 上的 <code>"Hi"</code> 從頭到尾沒被修改過，JS 只是在新的位址 B 建立 <code>"Hello"</code>，再把 <code>greeting</code> 這個指標改指向 B。</p>
+<p>c. <mark class="p">舊值沒人參照就會被 GC 回收：</mark>位址 A 上的 <code>"Hi"</code> 若之後沒有任何變數再指向它，就會被 JavaScript 的垃圾回收機制自動清理掉（可與 <span class="wikilink" title="Obsidian 連結：11-記憶體模型-stack-heap-動態配置-GC">11-記憶體模型-stack-heap-動態配置-GC</span> 的 GC 概念對照）。</p>
+<p>d. <mark class="r">直接改字串的單一字元會被靜默忽略：</mark><code>let str = "Hello"; str[0] = "J";</code> 之後 <code>str</code> 仍是 <code>"Hello"</code>，一般模式下這個賦值會被忽略，嚴格模式下則會直接報錯，這就是「原生字串不可變」的具體表現。</p>
+<p>e. <mark class="b">C 語言字串本質是字元陣列（Character Array）：</mark><code>char greeting[] = "Hi";</code> 在記憶體位址 X 開闢空間存放 <code>['H','i','\0']</code>，之後可以直接 <code>greeting[0]='H'; greeting[1]='e';</code> 原地覆蓋位址 X 裡的內容，<code>greeting</code> 指向的位址從頭到尾不變，這就是「可變（Mutable）」。</p>
+<p>f. <mark class="v">C（可變）與 JS（不可變）的效能/安全權衡：</mark>C 原地修改、不必頻繁申請新記憶體，字串拼接效能高，但需要人工管理記憶體、且多個指標指向同一塊記憶體時一處修改會影響所有地方，容易有 Side Effect／Race Condition；JS 每次修改或拼接都建立新字串，記憶體負擔較大、增加 GC 負擔，但傳遞字串時完全不用擔心被其他函式意外修改，安全性與可預測性更高。</p>
+<p>g. <mark class="g">JS 選擇不可變字串的理由之一：字串駐留（String Interning）：</mark>因為字串不可變，V8 等引擎可以讓多個相同的字串字面值（例如程式裡所有的 <code>"Hello"</code>）共享同一塊記憶體位址，藉此節省記憶體，這是引擎實作優化，非 ECMAScript 規格保證的行為。</p>
+<p>h. <mark class="g">不可變字串也降低了 Bug 發生率：</mark>把字串當參數傳進函式時，呼叫者不用擔心字串內容被函式意外修改，資料流更可預測，是前端開發中降低隱藏 Bug 的重要設計。</p>
+<p>i. <mark class="b">轉入第二主題：ReferenceError 不是因為「不會 hoisting」：</mark><code>let</code>／<code>const</code>／<code>var</code> 三者在 JavaScript 中全部都會發生 Hoisting，差別在於 hoisting 之後「初始化」的處理方式不同，不是有沒有 hoisting 的問題。</p>
+<p>j. <mark class="y">var 的 hoisting：宣告＋初始化一起做：</mark>編譯階段就把 <code>var</code> 提升到作用域頂端並直接初始化為 <code>undefined</code>，所以宣告前讀取只會拿到 <code>undefined</code>、不會報錯，例如 <code>console.log(a); var a = 10;</code> 印出 <code>undefined</code>。</p>
+<p>k. <mark class="r">let／const 的 hoisting：只做宣告，初始化要等執行到那一行：</mark>編譯階段只把名稱註冊到作用域頂端，真正的「初始化（賦予預設值）」要等程式執行到宣告那一行才發生；從宣告到初始化之間的這段空窗期就是 <mark class="r">TDZ（暫時性死區，Temporal Dead Zone）</mark>，在 TDZ 內存取變數會丟出 <code>ReferenceError: Cannot access '...' before initialization</code>。</p>
+<p>l. <mark class="v">變數生命週期三步驟：</mark>①宣告（Declaration，在作用域註冊名稱）→②初始化（Initialization，分配記憶體並給預設值）→③賦值（Assignment，賦予實際值）；<code>var</code> 是 hoisting 時①②一起做，<code>let</code>/<code>const</code> 是 hoisting 時只做①，②要等執行到宣告那行。</p>
+<p>m. <mark class="p">驗證「let 真的有 hoisting」的實驗：</mark></p>
+<pre><code class="language-javascript">let x = &quot;global&quot;;
+function test() {
+  console.log(x);   // 猜猜看：印出 &quot;global&quot; 還是報錯？
+  let x = &quot;local&quot;;
+}
+test();
+// 結果：Uncaught ReferenceError: Cannot access 'x' before initialization
+</code></pre>
+<p>如果 <code>test()</code> 內部的 <code>let x</code> 完全沒有 hoisting，<code>console.log(x)</code> 應該會順著作用域鏈往外找到全域的 <code>"global"</code>；但它卻直接報錯，這證明了函式內部的 <code>let x</code> 確實被提升到了 <code>test()</code> 頂端並「鎖定」了 <code>x</code> 這個名稱，只是還沒初始化，所以落在 TDZ 內。</p>
+<p>n. <mark class="b">名稱遮蔽（Shadowing）加上逐行執行，才是報錯而非印出 "local" 的真正原因：</mark>一旦 <code>test()</code> 內部宣告了同名的 <code>let x</code>，<code>x</code> 這個名稱在整個函式作用域內就被「鎖定」給內層版本，JS 不會再往外層作用域鏈查找；接著程式是逐行執行的，<code>console.log(x)</code> 這一行先被執行到，此時內層 <code>x</code> 還在 TDZ（未初始化），於是拋出 <code>ReferenceError</code> 並中斷，程式根本還沒執行到下面 <code>let x = "local"</code> 那一行賦值。</p>
+<p>o. <mark class="g">要印出 <code>"local"</code>，讀取動作必須寫在初始化之後：</mark>把 <code>let x = "local";</code> 搬到 <code>console.log(x);</code> 前面，執行順序才會先完成初始化與賦值，再讀取到 <code>"local"</code>；這也呼應 <span class="wikilink" title="Obsidian 連結：04-變數宣告-let-const-var">04-變數宣告-let-const-var</span> 裡「TDZ 決定的是『時間軸』、作用域決定的是『空間軸』」的區分，這裡踩到的是時間軸（TDZ），不是空間軸（跑到作用域外）的問題。</p>
+<h3 id="2026-09-05substringconcat">追加 2026-09-05：substring／concat 的示範，以及 <code>+</code> 串接的型別轉換</h3>
+<p>(p) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所有字串方法都是「回傳新字串」，原本的變數一動也不動</mark>。這就是不可變性在 API 層面的具體長相。</p>
+<pre><code class="language-js">let originalStr = &quot;JavaScript&quot;;
+let newStr = originalStr.substring(0, 4);   // 取索引 0 到 4（不含 4）
+
+console.log(newStr);       // &quot;Java&quot;        ← 回傳的新字串
+console.log(originalStr);  // &quot;JavaScript&quot;  ← 原字串完全沒變
+</code></pre>
+<pre><code class="language-js">let str1 = &quot;Hello&quot;;
+let str2 = &quot; World&quot;;
+let combinedStr = str1.concat(str2);
+
+console.log(combinedStr);  // &quot;Hello World&quot;
+console.log(str1);         // &quot;Hello&quot;   ← 保持原樣
+console.log(str2);         // &quot; World&quot;  ← 保持原樣
+</code></pre>
+<p>(q) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要更新變數就必須「重新賦值」</mark>，因為方法只會把新字串交給你，不會幫你放回去。</p>
+<pre><code class="language-js">let str = &quot;Hello&quot;;
+str = str.concat(&quot; World&quot;);   // 重新賦值
+console.log(str);             // &quot;Hello World&quot;
+</code></pre>
+<p>(r) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>+</code> 也是回傳新字串，但它多做了一件事：型別轉換</mark>。只要 <code>+</code> 兩邊有任何一邊是字串，另一邊就會被轉成字串再串接；兩邊都不是字串時才做數字加法。</p>
+<p class="fig"><img src="../../../obsidian-attachment/%E8%9E%A2%E5%B9%95%E6%93%B7%E5%8F%96%E7%95%AB%E9%9D%A2%202026-09-05%20132900.png" alt="螢幕擷取畫面 2026-09-05 132900.png" loading="lazy"></p>
+
+<p>上圖 F12 Console 實測：<code>"con" + 78</code> 得到 <code>"con78"</code>，數字 78 被自動轉成 <code>"78"</code> 再串接。</p>
+<p class="fig"><img src="../../../obsidian-attachment/%E8%9E%A2%E5%B9%95%E6%93%B7%E5%8F%96%E7%95%AB%E9%9D%A2%202026-09-05%20122243.png" alt="螢幕擷取畫面 2026-09-05 122243.png" loading="lazy"></p>
+
+<p>上圖是同一個規則的兩個變形：<code>7 + '7'</code> 得到 <code>"77"</code>（不是 14），因為右邊是字串；下半段 <code>let</code> 宣告只是宣告，Console 顯示 <code>undefined</code> 是「這段陳述式沒有回傳值」，不是變數的值是 undefined。</p>
+<p>(s) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這是面試常考的陷阱</mark>：<code>+</code> 對字串是串接、對數字是加法，而 <code>-</code> 只有數字語意，所以 <code>'7' - 7</code> 會得到 <code>0</code>（字串被轉成數字），但 <code>'7' + 7</code> 得到 <code>"77"</code>。詳細的轉換規則見 <span class="wikilink" title="Obsidian 連結：15-ToPrimitive-ToNumber-型別轉換抽象操作">15-ToPrimitive-ToNumber-型別轉換抽象操作</span>。</p>
+<h3 id="javascript-2026-09-05-httpsgeminigooglecomappf4da8ca9d6c67841">追加來源：JavaScript 字串的不可變性與操作（2026-09-05）— https://gemini.google.com/app/f4da8ca9d6c67841</h3>
+<p><strong>使用者：</strong> 當我們用 <code>substring()</code> 來擷取字串，或用 <code>concat()</code> 來把兩個字串合為一，這些都是會回傳另一個字串，而非改變原本的字串。示範</p>
+<p><strong>Gemini：</strong> 這段文字在說明 JavaScript 中字串的原生值不可變性（Immutability）。對字串進行擷取或拼接時，原本的字串變數內容不會受到任何影響，方法只會回傳一個全新的字串。<code>substring(0, 4)</code> 會回傳 <code>"Java"</code> 而 <code>originalStr</code> 仍是 <code>"JavaScript"</code>；<code>str1.concat(str2)</code> 會回傳 <code>"Hello World"</code> 而 <code>str1</code>、<code>str2</code> 保持原樣。觀念小結：如果希望更新變數的值，必須明確地把回傳的新字串重新賦值給該變數（<code>str = str.concat(" World")</code>）。</p>
+<h2 id="_2">各對話來源</h2>
+<h3 id="js-c-2026-08-02-httpsgeminigooglecomapp41d3c779dee10274">JS 字串不可變性與 C 差異（2026-08-02 擷取）— https://gemini.google.com/app/41d3c779dee10274</h3>
+<p><strong>使用者：</strong> 原生值是不可變的（immutable），意思是我們不能改變那個值本身。舉例來說字串（string）是其中一個，這是在 explain this 的網站看到的前端面試考題，題目是如何知道變數的型別？答案之一在講到字串，他說 JavaScript 原生值，我們不能去改變 'Hi' 這一個字串（但在其他程式語言，字串有可能是可變的，例如在 C 就是可變的）。我們僅可以把某個變數，賦予另一個字串，例如：<code>let greeting = "Hi"; greeting = "Hello";</code>。那重新覆值呢？難道不是嗎，還是說是記憶體位址挖一個新的空格放字串，舊的等沒有用到就會被丟掉？C 就是可變的，那效能差在哪？</p>
+<p><strong>Gemini：</strong> 你的直覺非常敏銳！重新賦值（Reassignment）改變的是「變數綁定的記憶體指標」，而不是「原本的資料內容本身」。變數（如 <code>greeting</code>）只是標籤/指標，指向儲存資料的記憶體位址；值（如 <code>"Hi"</code>）才是真正存在記憶體裡的實體資料。<code>let greeting = "Hi"</code> 在位址 A 建立 <code>"Hi"</code>；<code>greeting = "Hello"</code> 在位址 B 建立全新的 <code>"Hello"</code>，再把指標改指向 B，位址 A 的 <code>"Hi"</code> 從頭到尾沒被修改過，這就是「不可變」；若再沒有變數指向它，之後會被 GC 清掉。若嘗試 <code>str[0] = "J"</code> 直接改字元，會被靜默忽略（嚴格模式報錯）。C 語言字串本質是字元陣列，可以原地修改（<code>greeting[0]='H'</code>），指向的記憶體位址不變，這就是「可變」。效能上：C 原地修改快、但需人工管理記憶體且多指標共享一塊記憶體容易有 Side Effect；JS 每次修改都建立新字串、GC 負擔較大，但因為字串不可變可以做字串駐留（String Interning）節省記憶體，且傳遞字串永遠不怕被意外修改，安全性更高。</p>
+<p><strong>使用者：</strong> 假如某個變數還沒被宣告，我們就先使用，在 JavaScript 會出現索引錯誤 ReferenceError，是因為 let var 宣告的變數不會 hoisting？</p>
+<p><strong>Gemini：</strong> 不是因為「不提升（Hoisting）」，而是因為 <code>let</code>/<code>const</code> 與 <code>var</code> 的 Hoisting 機制與宣告狀態不同！實際上 <code>var</code>、<code>let</code>、<code>const</code> 全部都會發生 Hoisting，只是提升後的處理方式不一樣。<code>var</code> 是宣告＋初始化一起做（初始化為 <code>undefined</code>），所以宣告前使用不報錯只回傳 <code>undefined</code>；<code>let</code>/<code>const</code> 是 hoisting 時只做宣告，要等執行到宣告那一行才做初始化，宣告到初始化之間的空窗期就是暫時性死區（TDZ），在 TDZ 內存取會拋出 <code>ReferenceError</code>。</p>
+<p><strong>使用者：</strong> 那為什麼 <code>let x = "global"; function test(){ console.log(x); let x = "local"; } test();</code> 結果不是印出 local？</p>
+<p><strong>Gemini：</strong> 因為程式碼是「由上到下、依序執行」的！第一階段（編譯階段/hoisting）：引擎掃描 <code>test()</code> 內部所有宣告，把 <code>x</code> 註冊到 <code>test()</code> 作用域頂端並鎖定這個名稱，此時 <code>x</code> 還沒初始化、處於 TDZ。第二階段（執行階段）：逐行執行到 <code>console.log(x)</code> 時，發現 <code>x</code> 還在 TDZ、還沒初始化，於是拋出 <code>ReferenceError</code> 並立刻中斷，根本還沒執行到下面 <code>let x = "local"</code> 那一行。若要印出 <code>"local"</code>，必須把 <code>let x = "local"</code> 搬到 <code>console.log(x)</code> 前面，讓執行順序先完成初始化。</p>
+<p><strong>使用者：</strong> 但可是會被鎖定在（原輸入為斷句形式：「但 可 是 會 被 鎖 定 在」）</p>
+<p><strong>Gemini：</strong> 沒錯，在這個區塊內，變數名稱就被鎖定給了這個函式的作用域。因為已經宣告了一個區域的 <code>x</code>，所以會優先指向這個內部的 <code>x</code>，而不是全域的 <code>x</code>；只是在這行宣告被執行到之前，這塊區間都處於暫時性死區，才會導致 <code>ReferenceError</code>。</p>
+<p><strong>使用者：</strong>（以斷字輸入複述理解）所以宣告的那個部分，因為一開始那個名單被提升了，那提升是這個名單會讓他鎖定，但是又先跑到 console log，那有 console log 就會造成 TDZ 裡面，它就會顯示 x 還在 TDZ 裡面，那還沒有初始化。只要知道還在 TDZ 裡面，就會有 reference error。是嗎？</p>
+<p><strong>Gemini：</strong> 完全正確！你的理解非常精準。宣告被提升鎖定了變數名稱，而執行到 <code>console.log(x)</code> 時，因為它還處在暫時性死區、也就是還沒初始化的狀態，所以才會立刻爆出 <code>ReferenceError</code>。</p>
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JS 字串不可變性與 C 差異對話</td>
+<td>https://gemini.google.com/app/41d3c779dee10274</td>
+<td>Gemini 對話，擷取存檔於 2026-08-02</td>
+</tr>
+<tr>
+<td>var/let 作用域與 TDZ 基礎對照</td>
+<td><span class="wikilink" title="Obsidian 連結：04-變數宣告-let-const-var">04-變數宣告-let-const-var</span></td>
+<td>Abby-notes 既有筆記，updated 2026-07-29</td>
+</tr>
+<tr>
+<td>函式宣告 vs 函式表達式的 TDZ</td>
+<td><span class="wikilink" title="Obsidian 連結：09-Hoisting-函式宣告vs函式表達式-TDZ">09-Hoisting-函式宣告vs函式表達式-TDZ</span></td>
+<td>Abby-notes 既有筆記，updated 2026-07-29</td>
+</tr>
+<tr>
+<td>傳值 vs 傳址記憶體模型</td>
+<td><span class="wikilink" title="Obsidian 連結：10-傳值vs傳址-賦值與記憶體空間">10-傳值vs傳址-賦值與記憶體空間</span></td>
+<td>Abby-notes 既有筆記，updated 2026-07-29</td>
+</tr>
+<tr>
+<td>字串不可變性的 substring／concat 示範（Gemini 對話）</td>
+<td>https://gemini.google.com/app/f4da8ca9d6c67841</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+</tbody>
+</table>
+<p>本篇 Gemini 內容與 MDN《String》《let》《Hoisting》等標準文件描述一致，未發現需要標記存疑/更正之處；g 點的「字串駐留」屬引擎（如 V8）實作優化，非 ECMAScript 規格強制保證行為，已在該點註明。</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

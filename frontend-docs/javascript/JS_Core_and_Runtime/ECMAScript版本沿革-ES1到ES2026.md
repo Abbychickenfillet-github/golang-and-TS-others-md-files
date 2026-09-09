@@ -16,6 +16,77 @@ source:
 
 ---
 
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事：<mark style="background: #FF5582A6;">「ES2026 已經通過了」不等於「我現在就能用」</mark>
+> 規格定案只是<mark style="background: #FFF3A3A6;">起點</mark>，不是終點。本篇 g 節的 `getOrInsert` 就是活生生的例子：規格上 2026 年 6 月 30 日已經通過，MDN 仍標 Experimental，Node.js v22.22.2 實測 `'getOrInsert' in Map.prototype` 還是 `false`。<mark style="background: #ADCCFFA6;">TC39 只負責把文字寫進 ECMA-262，接下來各家引擎要花時間實作、使用者要花時間升級</mark>。所以看到「ES20XX 新增了什麼」的文章，第一件事永遠是回到自己的執行環境測一下。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | 「ES2026」是什麼東西的版本？ | 是<mark style="background: #ADCCFFA6;">規格書 ECMA-262 的版本</mark>，不是 JavaScript 這個語言的版本。規格規定語言該長什麼樣，JavaScript 是照著做出來的實作 |
+| **When** 什麼時候 | 一版多久發一次？ | 2015 年改制之後<mark style="background: #BBFABBA6;">固定每年 6 月發一版</mark>。ES2026 是 2026 年 6 月 30 日通過的第 17 版，目前最新 |
+| **Who** 誰做的 | 誰寫規格、誰做實作？ | 規格：<mark style="background: #ADCCFFA6;">TC39</mark> 委員會（Ecma International 底下）；實作：V8、SpiderMonkey、JavaScriptCore 這些引擎。兩批完全不同的人 |
+| **Where** 在哪裡 | 「ES2026 已通過」這件事存在哪？ | 只存在<mark style="background: #FF5582A6;">規格文字裡</mark>。你的 Node 或瀏覽器裡到底有沒有那個方法是另一回事——`'方法名' in Map.prototype` 的結果才是你這台機器的真相 |
+| **Which** 哪一種 | 哪幾版是真正的分水嶺？ | ES5（2009）把 `Object` 靜態方法一次補齊，造成「兩個盒子」的歷史；ES2015 ＝ ES6 引進 `let`／`const`／`class`／`Promise`／`Symbol`，同時把版號改成年份 |
+| **How** 怎麼做到 | 怎麼判斷一個 API 現在能不能用？ | 看 MDN 頁面頂端有沒有 Experimental 或「Baseline 尚未廣泛可用」；直接測 `'方法名' in Map.prototype`；查 MDN 相容表或 caniuse。<mark style="background: #FF5582A6;">VS Code 補完得出來不算數</mark>，`lib.d.ts` 可能比你的執行環境還新 |
+| **Why** 為什麼 | 為什麼版號從 3 直接跳到 5？ | ES4 想一次塞進 class、模組與選擇性型別系統，微軟與 Yahoo 以向後相容為由反對，僵持數年後 2008 年正式放棄。這個教訓直接促成「不再攢大版本、每年發一版、每個功能各走提案流程」 |
+
+### 時間軸：規格制定的年份軸，以及它為什麼站在 buildtime／runtime 之前
+
+```text
+◄════════════ 規格層：ECMA-262 的「文字」 ════════════►
+   這一層是寫給引擎實作者看的文件，
+   發生在所有 buildtime 與 runtime 之前，本身不是執行期的任何東西。
+
+【TC39 提案流程】ES2015 之後，每個功能各走各的，不必等大版本
+  Stage 0 ───► Stage 1 ───► Stage 2 ───► Stage 3 ───► Stage 4
+  Strawperson  Proposal     Draft        Candidate    Finished
+  隨口提案      有冠軍推動    寫成規格文字  引擎試作回饋  併入 ECMA-262
+
+【ECMA-262 年份軸】
+ 1997  1998  1999      2008      2009  2011   2015 ─每年 6 月一版─► 2026
+ ES1   ES2   ES3      ✘ES4放棄   ES5   ES5.1  ES2015 … 2022 … 2024   ES2026
+ 第1版  第2版  第3版    （2008 年   第5版  第5.1  第6版                第17版
+ 基本   只有  RegExp   正式放棄）  Object 版    let／const／class     Math.sumPrecise
+ 語法   編輯  try/catch           靜態         Promise／Map／Set      Iterator.concat
+       修訂  hasOwn-             方法一        Symbol／Proxy          Map.getOrInsert
+             Property            次補齊        ★ 改成年份制
+                                  ★分水嶺
+ ├──────────── 大版本制，一拖就是好幾年 ────────────┤├─ 每年一版 ─┤
+
+  ▼ 規格通過之後，還有兩道關卡才輪到你
+  ① 引擎實作（V8／SpiderMonkey／JavaScriptCore）★ 這一格會落後好幾年
+       └─► ② 你的 buildtime 建置期（轉譯 transpile ＋ 打包 bundle）
+              └─► ③ runtime 執行期（Parse → AST → Bytecode → JIT → 執行）
+
+ ★ `getOrInsert`：規格在第 ①格前面就通過了，第 ①格還沒跟上，
+   所以 runtime 測 `'getOrInsert' in Map.prototype` 仍然是 false。
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph SPEC["規格層 · ECMA-262 文字：發生在所有 buildtime／runtime 之前"]
+        S0["Stage 0～3<br/>TC39 提案流程"] --> S4["Stage 4 Finished<br/>併入 ECMA-262"]
+        S4 --> Y1["1997 ES1 → 1999 ES3<br/>2009 ES5 Object 靜態方法分水嶺<br/>ES4 於 2008 年放棄"]
+        Y1 --> Y2["2015 ES2015 改年份制<br/>此後每年 6 月一版<br/>2026 ES2026 第 17 版"]
+    end
+    Y2 --> IMP["① 引擎實作<br/>V8／SpiderMonkey／JavaScriptCore<br/>★ 會落後規格好幾年"]
+    IMP --> BT["② buildtime 建置期<br/>轉譯 transpile ＋ 打包 bundle"]
+    BT --> RT["③ runtime 執行期<br/>Parse → AST → Bytecode → JIT → 執行<br/>此時測 in 運算子才知道真相"]
+    Y2 -.->|"規格有、實作還沒有<br/>就是 getOrInsert 的處境"| RT
+```
+
+> [!info]+ 一句話驗證法：這個「有」是哪一種有？
+> 1. 規格上有 → 查 ECMA-262 或本篇 b 節的版本表，這是 TC39 的文字。
+>
+> 2. 引擎上有 → 直接在 Node 或瀏覽器 console 測 `'方法名' in Map.prototype`，這是執行期的事實。
+>
+> 3. 型別定義上有 → VS Code 自動補完列得出來，這<mark style="background: #FF5582A6;">既不是規格也不是實作</mark>，只是 TypeScript 的 `lib.d.ts` 比你的環境新。
+
+---
+
 ## a. 先分清楚兩個詞
 
 | 詞 | 是什麼 | 誰負責 |

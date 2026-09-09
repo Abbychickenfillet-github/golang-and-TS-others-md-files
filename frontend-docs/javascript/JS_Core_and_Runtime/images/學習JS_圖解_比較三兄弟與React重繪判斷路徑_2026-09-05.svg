@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 430" font-family="system-ui, -apple-system, 'Noto Sans TC', sans-serif">
+  <rect width="900" height="430" fill="#fbfbfd"/>
+  <text x="450" y="30" text-anchor="middle" font-size="19" font-weight="700" fill="#1f2430">比較三兄弟的嚴格度，以及 React 判斷「要不要重繪」的兩條路徑</text>
+
+  <!-- 上半：三兄弟階梯 -->
+  <text x="60" y="66" font-size="13" font-weight="600" fill="#5a6472">一、嚴格度階梯（越右邊越嚴格）</text>
+  <g>
+    <rect x="60" y="80" width="240" height="86" rx="10" fill="#fff1f4" stroke="#f0a5b6"/>
+    <text x="180" y="104" text-anchor="middle" font-size="14" font-weight="700" fill="#c0392b">a == b　鬆散</text>
+    <text x="180" y="126" text-anchor="middle" font-size="11.5" fill="#1f2430">會自動型別轉換</text>
+    <text x="180" y="146" text-anchor="middle" font-size="11.5" fill="#5a6472">1 == "1" 為 true</text>
+
+    <rect x="330" y="80" width="240" height="86" rx="10" fill="#eef4ff" stroke="#7ba0e0"/>
+    <text x="450" y="104" text-anchor="middle" font-size="14" font-weight="700" fill="#2c5aa0">a === b　嚴格</text>
+    <text x="450" y="126" text-anchor="middle" font-size="11.5" fill="#1f2430">不轉型，但有兩個死角</text>
+    <text x="450" y="146" text-anchor="middle" font-size="11.5" fill="#c0392b">NaN===NaN 假 ／ +0===-0 真</text>
+
+    <rect x="600" y="80" width="240" height="86" rx="10" fill="#f0fbf1" stroke="#96d69d"/>
+    <text x="720" y="104" text-anchor="middle" font-size="14" font-weight="700" fill="#2e7d43">Object.is(a,b)　同值</text>
+    <text x="720" y="126" text-anchor="middle" font-size="11.5" fill="#1f2430">補掉那兩個死角</text>
+    <text x="720" y="146" text-anchor="middle" font-size="11.5" fill="#5a6472">NaN 為 true ／ +0 與 -0 為 false</text>
+  </g>
+  <path d="M300 123 L328 123" stroke="#9aa4b2" stroke-width="2" marker-end="url(#ar)"/>
+  <path d="M570 123 L598 123" stroke="#9aa4b2" stroke-width="2" marker-end="url(#ar)"/>
+  <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9aa4b2"/></marker></defs>
+
+  <!-- 下半：React 路徑 -->
+  <text x="60" y="208" font-size="13" font-weight="600" fill="#5a6472">二、React 的兩條判斷路徑（都以 Object.is 為第一道防線）</text>
+
+  <rect x="60" y="224" width="370" height="160" rx="10" fill="#f7f9fc" stroke="#c9d3e0"/>
+  <text x="80" y="250" font-size="13.5" font-weight="700" fill="#1f2430">useState / useReducer 的 bailout</text>
+  <text x="80" y="276" font-size="12" fill="#1f2430">setState(newState)</text>
+  <text x="80" y="300" font-size="12" fill="#2c5aa0">→ Object.is(oldState, newState)？</text>
+  <text x="96" y="322" font-size="12" fill="#2e7d43">true　→ 跳過重繪（bailout）</text>
+  <text x="96" y="342" font-size="12" fill="#c0392b">false →  重新渲染</text>
+  <text x="80" y="368" font-size="11.5" fill="#8a94a3">完全不看物件內部欄位，換新引用就一定重繪</text>
+
+  <rect x="470" y="224" width="370" height="160" rx="10" fill="#f7f9fc" stroke="#c9d3e0"/>
+  <text x="490" y="250" font-size="13.5" font-weight="700" fill="#1f2430">React.memo / PureComponent 的 shallowEqual</text>
+  <text x="490" y="276" font-size="12" fill="#2c5aa0">① Object.is(objA, objB)？true 就直接不重繪</text>
+  <text x="490" y="300" font-size="12" fill="#2c5aa0">② 都是物件？比 key 數量</text>
+  <text x="490" y="324" font-size="12" fill="#2c5aa0">③ 逐一比第一層 value，仍然用 Object.is</text>
+  <text x="490" y="352" font-size="11.5" fill="#c0392b">只比第一層，巢狀物件比不出來</text>
+  <text x="490" y="372" font-size="11.5" fill="#8a94a3">舊的 shallowCompare add-on 已廢棄，別再用</text>
+
+  <text x="450" y="412" text-anchor="middle" font-size="12" fill="#8a94a3">一句話：日常寫 === 就好，寫「通用工具與狀態比對」才需要 Object.is</text>
+</svg>

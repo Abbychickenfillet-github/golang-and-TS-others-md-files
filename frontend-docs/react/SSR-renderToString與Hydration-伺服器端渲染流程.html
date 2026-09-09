@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SSR、renderToString 與 Hydration — 伺服器端渲染流程</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>SSR、renderToString 與 Hydration — 伺服器端渲染流程</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#react</span><span class="pill">#ssr</span><span class="pill">#hydration</span><span class="pill">#dom</span><span class="pill">#seo</span><span class="pill">#效能</span><span class="pill">#build-time</span><span class="pill">#runtime</span><span class="pill">#ssg</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-06</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/0b96bab2bcf0369f" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/7a12e30998ccde0c" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/de0c03613eb15709" target="_blank" rel="noopener">原始對話 3</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">SSR 的 HTML 是在 build time 就預先產生好的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">那是 SSG。SSR 是 per-request——每個請求進來才在伺服器現算一份 HTML，所以才能顯示購物車這類即時資料。</div></li><li><p class="qq">CSR 在 build time 不會產生任何有內容的 HTML。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">打包器只吐出 JS bundle 和一個含 &lt;div id=&quot;root&quot;&gt;&lt;/div&gt; 的空 index.html。</div></li><li><p class="qq">SSR 的 build time 會產出兩份 bundle。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">伺服器端 bundle 給 Node.js 跑 renderToString，客戶端 bundle 給瀏覽器做 Hydration。</div></li><li><p class="qq">伺服器端執行 renderToString 時會建立 DOM Tree。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Node.js 沒有 window 和 document，產出的只是字串；DOM Tree 是瀏覽器 Parse 之後自己建的。</div></li><li><p class="qq">同一個 React 元件在 SSR 架構下會執行兩次。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">伺服器一次、客戶端 Hydration 一次——這也是 hydration mismatch 的根本成因。</div></li><li><p class="qq">Hydration 發生在 Layout（Reflow）與 Paint 之後。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">所以 SSR 才有「看得到但還不能點」的空窗期。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">React 把元件樹轉成 HTML 字串的伺服器端函式叫 render<input class="blank" data-a="ToString" placeholder="填答案" autocomplete="off">__()。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">串流版本是 renderToPipeableStream。</div></li><li><p class="qq">React 在客戶端認領既有 DOM、掛上事件監聽的函式叫 <input class="blank" data-a="hydrate" placeholder="填答案" autocomplete="off">__Root()。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">對照純 CSR 用的 createRoot()。</div></li><li><p class="qq">HTML 在 build time 就產生好的架構叫 <input class="blank" data-a="SSG" placeholder="填答案" autocomplete="off">__（三個英文字母）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Static Site Generation，靜態網站生成。</div></li><li><p class="qq">Next.js 中「先給靜態頁、過期後背景重產」的折衷方案叫 <input class="blank" data-a="ISR" placeholder="填答案" autocomplete="off">__（三個英文字母）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Incremental Static Regeneration，用 revalidate 設定秒數。</div></li><li><p class="qq">在元件本體直接呼叫 Date.now() 或 Math.<input class="blank" data-a="random" placeholder="填答案" autocomplete="off">__() 會導致 hydration mismatch。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">兩次執行結果必然不同，要改放進 useEffect。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">面試官問「CSR、SSR、SSG 差在哪」。請用「HTML 在哪一刻、由誰產生」這條主軸回答，並各給一個適合的產品情境。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 先立主軸——三者的 build time 做的事幾乎一樣（編譯＋打包），差別全在 HTML 是誰、在哪一刻拼出來的。(2) CSR：瀏覽器在 runtime 執行 JS 動態建 DOM；首屏最慢、SEO 最差，但伺服器成本最低。適合登入後的後台儀表板（不需要 SEO、使用者願意等一次）。(3) SSR：伺服器在每個請求當下抓資料並 renderToString；首屏快、SEO 好、資料最新，代價是每個請求都吃伺服器 CPU。適合電商商品頁、社群動態這類「內容要即時又要被 Google 收錄」的頁面。(4) SSG：建置機器在 build time 就把 HTML 產好；速度最快、可直接放 CDN、伺服器成本近乎零，但內容在部署後就固定。適合部落格、文件站、行銷官網。(5) 補一句 ISR 當折衷，並指出 SSR 與 SSG 兩者的瀏覽器端流程一樣都要 Hydration。(6) 加分：指出常見混淆——很多人把「build time 先產好、runtime 直接回傳」講成 SSR，那其實是 SSG。</div></li><li><p class="qq">為什麼 SSR 架構下不能在元件本體寫 Date.now()？請從「元件執行兩次」推導到 hydration mismatch。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) SSR 下元件會執行兩次——伺服器一次產生 HTML 字串，客戶端 hydrateRoot 時再一次。(2) Hydration 的前提是「React 客戶端首次渲染的結果，必須與伺服器送來的 HTML 完全一致」，React 才能安全地認領既有 DOM 節點而不重建。(3) Date.now()、Math.random()、window.xxx 這類值兩次執行必然不同，比對就會不一致，React 會發出 hydration mismatch 警告並可能整棵子樹改用客戶端重繪，SSR 的效能好處就白費了。(4) 正解是把這類副作用放進 useEffect——useEffect 只在客戶端跑，不參與伺服器渲染，自然不會造成兩邊不一致。(5) 這也呼應 React 要求元件本體必須是純函數（StrictMode 會刻意跑兩次來幫你抓這種問題）。</div></li></ol></section>
+
+<article class="card">
+<h1 id="ssrrendertostring-hydration">SSR、renderToString 與 Hydration — 伺服器端渲染流程</h1>
+<p>本篇重點 a–v，共 22 個（l–p 為 2026-09-01 追加；q–v 為 2026-09-06 追加）</p>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SSR（Server-Side Rendering，伺服器端渲染）</mark>：在伺服器上先把頁面產生成 HTML 字串再傳給瀏覽器，好處是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">首屏更快看到內容、對 SEO 友善</mark>（爬蟲不必等 JS 執行完才看得到文字）。</p>
+<p><strong>Hydration 在完整渲染管線裡是第幾步？</strong>——<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Reflow（重排/Layout）跟 Repaint（重繪/Paint）排在 Hydration 前面</mark>，順序是：</p>
+<ol>
+<li>伺服器 <code>renderToString()</code> 產生 HTML 字串（此時沒有 DOM）</li>
+<li>瀏覽器收到 HTML 字串</li>
+<li>Parse HTML → 建 DOM Tree</li>
+<li>Parse CSS → 建 CSSOM</li>
+<li>合併成 Render Tree</li>
+<li><strong>Layout（重排/Reflow）</strong>——計算每個元素的位置與大小</li>
+<li><strong>Paint（重繪/Repaint）</strong>——把像素畫出來 → <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">此時畫面已經看得到，但完全不能互動</mark></li>
+<li>JS bundle 下載完、執行，React 呼叫 <code>hydrateRoot()</code> → <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Hydration</mark>——走訪既有 DOM、掛上事件監聽 → <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">此時頁面才變成可以互動</mark></li>
+</ol>
+<p>SSR 的核心賣點正是把「看得到（Paint 完成）」跟「能互動（Hydration 完成）」拆成兩個時間點，讓使用者先看到內容，互動性稍後才補上（詳細管線見 <span class="wikilink" title="Obsidian 連結：Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪">Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪</span>）。</p>
+<p>(b) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">伺服器怎麼把元件變成 HTML</mark>：靠框架提供的特定函式，React 就是 <code>renderToString</code>（或串流版 <code>renderToPipeableStream</code>）。它把 React 元件樹轉成<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">純字串</mark>，不是 DOM 節點。</p>
+<pre><code class="language-jsx">// 伺服器端（Node.js）
+import { renderToString } from 'react-dom/server';
+const html = renderToString(&lt;App /&gt;);   // 純字串，例如 &quot;&lt;div id=\&quot;root\&quot;&gt;…&lt;/div&gt;&quot;
+res.send(`&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;body&gt;${html}&lt;/body&gt;&lt;/html&gt;`);
+</code></pre>
+<p>(c) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關鍵釐清（Abby 當時的疑問）</mark>：「伺服器產生的 HTML 還會有 DOM Tree 嗎？」<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">伺服器端沒有 DOM Tree</mark>，Node.js 環境根本沒有 <code>window</code> 和 <code>document</code>；伺服器產出的只是一段字串。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">DOM Tree 是「瀏覽器收到 HTML 字串後，自己解析（Parse）建立出來的」</mark>。</p>
+<p>(d) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">render 函式做了什麼</mark>：React 的 render（函數型元件就是元件函式本身的回傳值）會根據當下的 state 和 props，回傳一段<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「UI 的描述」</mark>——也就是 JSX 編譯後的 React Element 物件樹，而不是直接操作畫面。真正的畫面更新由 React 之後比對再套用。</p>
+<p>(e) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">函數型元件裡的 JS 操作跑去哪裡（本篇核心問題）</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>階段</th>
+<th>在哪執行</th>
+<th>會執行什麼</th>
+<th>不會執行什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>伺服器端 SSR</td>
+<td>Node.js</td>
+<td>元件函式本體跑一次以產生 HTML 字串</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>useEffect</code> 不會跑、事件處理器不會綁定</mark></td>
+</tr>
+<tr>
+<td>瀏覽器 Hydration</td>
+<td>瀏覽器</td>
+<td>同一份元件程式碼再跑一次，把事件處理器「接」到既有 DOM 上</td>
+<td>—</td>
+</tr>
+<tr>
+<td>之後的互動</td>
+<td>瀏覽器</td>
+<td>state 更新、事件、<code>useEffect</code> 全部正常運作</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>(f) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Hydration（水合）</mark>：瀏覽器已經有伺服器送來的靜態 HTML，React 在客戶端用 <code>hydrateRoot</code> <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不是重畫一次，而是「認領」既有的 DOM 節點並掛上事件監聽</mark>，讓死的 HTML 活過來變成可互動的頁面。</p>
+<pre><code class="language-jsx">// 客戶端
+import { hydrateRoot } from 'react-dom/client';
+hydrateRoot(document.getElementById('root'), &lt;App /&gt;);
+</code></pre>
+<p>(g) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Hydration 陷阱</mark>：伺服器渲染結果與客戶端首次渲染結果必須一致，否則會出現 hydration mismatch 警告。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最常見的地雷是在元件本體直接用 <code>Date.now()</code>、<code>Math.random()</code>、<code>window.xxx</code></mark>——這類值兩邊必然不同，要改放進 <code>useEffect</code>。</p>
+<p>(h) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">編譯型 vs 直譯型的效能（對話的起頭問題）</mark>：Gemini 的回答是「C++ 通常編譯成機器碼，執行速度通常比直譯型的 JavaScript 快，但實際表現仍取決於演算法與硬體環境」。</p>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ 存疑／更正</mark>：把 JavaScript 一律說成「直譯型（Interpreted）」<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">已經不精確</mark>。現代 V8 引擎採 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JIT（Just-In-Time Compilation，即時編譯）</mark>——先由 Ignition 直譯器產生位元組碼，熱點程式碼再交給 TurboFan 編譯成最佳化機器碼。所以差距主因並非「有沒有編譯」，而是<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">記憶體管理方式（手動 vs GC）、型別是否靜態已知、以及去最佳化（Deoptimization）風險</mark>。</p>
+<p>(j) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">次要備註</mark>：這串對話後半段其實跑題到「LeetCode 找位數乘積」的迴圈起始值問題（該從 <code>n</code> 開始而非 <code>1</code>、要轉字串的是迴圈變數 <code>i</code> 而不是固定的 <code>n</code>），與 SSR 主題無關，已另行歸入雙指標／迴圈相關筆記脈絡，本篇不重複收錄。</p>
+<p>(k) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSR / SSR / SSG 的 Hydration 狀態對照</mark>（用列表，SSR 與 SSG 幾乎相同）：</p>
+<ul>
+<li><strong>CSR（純 SPA）</strong>：<strong>沒有 hydration</strong>。伺服器只發<strong>空殼</strong> HTML（<code>&lt;div id="root"&gt;&lt;/div&gt;</code>），瀏覽器端用 <code>createRoot().render()</code> <strong>從零 mount、現場建整棵 DOM</strong>（這是「初次渲染」，不是 hydration）。</li>
+<li><strong>SSR</strong>：<strong>有 hydration</strong>。HTML＝伺服器<strong>每次請求</strong>現產（runtime 在伺服器跑 <code>renderToString</code>）→ 瀏覽器 <code>hydrateRoot()</code> <strong>認領既有 DOM、掛事件</strong>（不重畫）。</li>
+<li><strong>SSG</strong>：<strong>有 hydration，跟 SSR 相同</strong>。唯一差別在 HTML 的產生時機——<strong>SSG 是 build-time 先把每頁 render 成現成的靜態 HTML 檔</strong>（不是每請求現產），部署成靜態檔；到瀏覽器端一樣 <code>hydrateRoot()</code> 認領。</li>
+</ul>
+<blockquote>
+<p>一句話：<strong>CSR 沒有 hydration（從零建）；SSR/SSG 都有 hydration（認領既有 DOM），差別只在「HTML 是每請求現產（SSR）還是 build-time 先產好（SSG）」。</strong></p>
+<p>接效能指標：<strong>FP（First Paint）</strong>＝第一次畫出任何像素（可能只是背景色）；<strong>FCP（First Contentful Paint）</strong>＝第一次畫出「內容」（文字/圖片）。<strong>SSR/SSG</strong> 首屏 HTML 就有內容 → <strong>FCP 快</strong>；<strong>CSR</strong> 是空殼 → FP 可能快、但 <strong>FCP 要等 JS 建好內容才發生</strong>、較慢。這條管線（Parse→DOM→CSSOM→Render Tree→Layout→Paint）跑到「畫出內容」那刻＝FCP。詳見 <a href="Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪.md">Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪</a>。</p>
+</blockquote>
+<h3 id="2026-09-01">追加 2026-09-01：面試被問「渲染是什麼」該怎麼答</h3>
+<p>(l) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">面試被問到「渲染是什麼」時，只回答 Critical Rendering Path 的流程只答對一半。</mark>Critical Rendering Path 指的是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">瀏覽器把 HTML、CSS 和 JavaScript 轉換成螢幕上像素的過程</mark>，那是「瀏覽器內部」的那一層。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但在現代網頁開發的語境裡，「渲染」還包含架構層級的 SSR 與 CSR——也就是「這份 HTML 是誰產生的、在哪裡產生的」。</mark></p>
+<p>(m) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所以正確的答法是先反問或先分層</mark>：「渲染這個詞有兩層意思，一層是瀏覽器把 DOM 畫成像素的關鍵渲染路徑，另一層是架構上的 CSR／SSR／SSG。您想聽哪一層？」——這比直接背 CRP 流程更能顯示你知道詞彙的邊界。</p>
+<p>(n) 兩個縮寫的最短定義：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSR（Client-Side Rendering，客戶端渲染）</mark>是瀏覽器下載一個很小的 HTML 與 JavaScript 檔案，接著在客戶端的瀏覽器上執行 JavaScript 抓資料並動態產生網頁內容；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SSR（Server-Side Rendering，伺服器端渲染）</mark>是使用者請求頁面時，伺服器在後端抓資料並把整個 HTML 建立完成，再把完整網頁送給瀏覽器顯示。</p>
+<p>(o) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSR 下載的那個「很小的 HTML」就是 <code>index.html</code></mark>，裡面通常只有一個 <code>&lt;div id="root"&gt;&lt;/div&gt;</code> 的空白骨架。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">注意不要把它跟 lazy loading 混為一談</mark>：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">lazy loading（延遲載入）</mark>是效能手段，把網頁拆成多個區塊或元件、要顯示時才載入那段程式碼；<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">而「JavaScript 動態抓取資料」是資料層的事，兩者是不同概念，CSR 可以用 lazy loading 但不是非用不可。</mark></p>
+<p>(p) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">同一個 React 元件，在 CSR 執行一次，在 SSR 會執行兩次。</mark></p>
+<table>
+<thead>
+<tr>
+<th>架構</th>
+<th>元件執行次數</th>
+<th>分別發生在哪</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CSR</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">1 次</mark></td>
+<td>只在客戶端瀏覽器執行，直接建立 DOM</td>
+</tr>
+<tr>
+<td>SSR</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">2 次</mark></td>
+<td>第一次在伺服器端執行，把結果轉成 HTML 字串傳回；第二次在客戶端載入 JavaScript 時進行 Hydration，元件再次執行、建立虛擬 DOM 並綁定事件，讓畫面恢復互動性</td>
+</tr>
+</tbody>
+</table>
+<p><mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這正是 (g) 那個 hydration mismatch 陷阱的根本成因</mark>——「執行兩次」就意味著「兩次結果必須一致」，所以 <code>Date.now()</code>、<code>Math.random()</code>、<code>window.xxx</code> 才會爆炸。</p>
+<h3 id="2026-09-06build-time-runtime-csrssrssg">追加 2026-09-06：Build Time 與 Runtime 各做了什麼（CSR／SSR／SSG 分界）</h3>
+<p class="fig"><img src="../../obsidian-attachment/%E5%9C%96%E8%A7%A3_CSR-SSR-SSG%E7%9A%84HTML%E5%9C%A8%E5%93%AA%E4%B8%80%E5%88%BB%E9%95%B7%E5%87%BA%E4%BE%86_2026-09-06.svg" alt="圖解_CSR-SSR-SSG的HTML在哪一刻長出來_2026-09-06.svg" loading="lazy"></p>
+
+<p>(q) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Build Time（建置期）</mark>是「你在自己的電腦或 CI 上跑 <code>npm run build</code> 的那一次」，做的是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">編譯與打包</mark>——TypeScript／JSX 轉成瀏覽器看得懂的 JavaScript、Tree Shaking、Minify、切 chunk、產出雜湊檔名。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Runtime（執行期）</mark>則是「使用者真的送出請求、程式真的在跑」的時候。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩者的分界不是「快或慢」，而是「發生一次」還是「每個使用者都發生一次」</mark>。</p>
+<p>(r) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSR 的兩個階段</mark>：</p>
+<ul>
+<li><strong>Build Time</strong>：打包器（Vite／webpack）只把 React 與你的元件打包成 <code>.js</code> 檔，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">此時完全沒有任何頁面內容的 HTML</mark>，只有一個含 <code>&lt;div id="root"&gt;&lt;/div&gt;</code> 的空骨架 <code>index.html</code>。</li>
+<li><strong>Runtime</strong>：瀏覽器下載那個空 HTML → 下載並執行大包 JavaScript → JS 在客戶端動態建立 DOM → 畫面才出現。</li>
+</ul>
+<p>(s) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SSR 的兩個階段</mark>：</p>
+<ul>
+<li><strong>Build Time</strong>：一樣只做編譯打包，但會產出<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩份 bundle</mark>——伺服器端 bundle（給 Node.js 跑 <code>renderToString</code>）與客戶端 bundle（給瀏覽器做 Hydration）。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">此時同樣沒有任何頁面 HTML。</mark></li>
+<li><strong>Runtime</strong>：每一個請求進來，伺服器才即時抓資料、執行元件、<code>renderToString</code> 產生這一次專屬的 HTML 回傳；瀏覽器 Parse → Layout → Paint（看得到）→ 載入客戶端 bundle → <code>hydrateRoot</code>（能互動）。</li>
+</ul>
+<p>(t) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ 存疑／更正（本次對話最重要的一點）</mark>：Gemini 在語音回答中說「SSR 在 Build Time 時，編譯器會預先結合程式碼與後端資料庫請求，將頁面渲染成靜態 HTML；Runtime 時伺服器直接回傳預先準備好的靜態 HTML 檔案」——<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這段描述的其實是 SSG，不是 SSR</mark>。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SSR 的 HTML 是「每個請求當下」在伺服器產生的（per-request），不是建置時預先產生好的</mark>；正因為每次都重算，SSR 才能呈現即時資料（例如購物車、未讀通知），而 SSG 的頁面內容在部署後就固定了。</p>
+<p>(u) 三種架構的「HTML 在哪一刻長出來」一表看完：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">架構</th>
+<th style="text-align: left;">HTML 產生的時機</th>
+<th style="text-align: left;">誰產生</th>
+<th style="text-align: left;">資料新鮮度</th>
+<th style="text-align: left;">典型工具</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSR</mark></td>
+<td style="text-align: left;"><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Runtime（瀏覽器端）</mark></td>
+<td style="text-align: left;">使用者的瀏覽器執行 JS</td>
+<td style="text-align: left;">每次開頁都最新（但要等 JS）</td>
+<td style="text-align: left;">Vite + React、CRA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SSR</mark></td>
+<td style="text-align: left;"><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Runtime（伺服器端，每個請求一次）</mark></td>
+<td style="text-align: left;">Node.js 伺服器</td>
+<td style="text-align: left;">每個請求都最新</td>
+<td style="text-align: left;">Next.js（動態路由）、Remix</td>
+</tr>
+<tr>
+<td style="text-align: left;"><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SSG</mark></td>
+<td style="text-align: left;"><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Build Time</mark></td>
+<td style="text-align: left;">CI／建置機器</td>
+<td style="text-align: left;">部署當下的快照，之後不變</td>
+<td style="text-align: left;">Next.js <code>generateStaticParams</code>、Astro、Hugo</td>
+</tr>
+<tr>
+<td style="text-align: left;"><mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">ISR</mark>（折衷）</td>
+<td style="text-align: left;">Build Time 先產一份，Runtime 到期後背景重產</td>
+<td style="text-align: left;">建置機器 ＋ 伺服器</td>
+<td style="text-align: left;">可設定 <code>revalidate</code> 秒數</td>
+<td style="text-align: left;">Next.js ISR</td>
+</tr>
+</tbody>
+</table>
+<p>(v) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一句話記法</mark>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">問「HTML 是誰、在哪一刻拼出來的」就分得出三者</mark>——建置機器拼好的是 SSG，伺服器每次現拼的是 SSR，瀏覽器自己拼的是 CSR。<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">而 Build Time 這一格對三者其實做的事幾乎一樣（編譯＋打包），差別全在 Runtime。</mark></p>
+<h2 id="_1">相關筆記</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：00-前端建構到執行全景地圖">00-前端建構到執行全景地圖</span> —— HTML/CSS/JS/React/Vue 各自 build-time→runtime 的總地圖，本篇是 React run-time（SSR/hydration）那一列的來源篇</li>
+<li><span class="wikilink" title="Obsidian 連結：Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪">Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪</span>（承接 (c) 的「瀏覽器拿到 HTML 字串後才建 DOM Tree」；該篇詳述 HTML → DOM → CSSOM → Render Tree → Layout → Paint 的完整管線，SSR 的價值正是讓這條管線更早開始跑）</li>
+<li><span class="wikilink" title="Obsidian 連結：V8引擎完整管線-Parse到Deoptimization">V8引擎完整管線-Parse到Deoptimization</span>（直接支撐 (i) 的更正；該篇講 Ignition 直譯器、TurboFan 最佳化與 Deoptimization，說明為什麼「JS = 直譯語言」的說法已過時）</li>
+<li><span class="wikilink" title="Obsidian 連結：JIT與useMemo-CPU記憶體取捨">JIT與useMemo-CPU記憶體取捨</span>（同樣談 JIT 與效能取捨；該篇從 React 層看快取，本篇 (i) 從引擎層看編譯，兩篇是同一議題的上下游）</li>
+<li><span class="wikilink" title="Obsidian 連結：Node-global與process物件屬性逐行解釋">Node-global與process物件屬性逐行解釋</span>（實證 (c) 的「Node 沒有 window 和 document」；該篇實際在 Node REPL 印出 global 與 process，是本篇論點的操作證據）</li>
+<li><span class="wikilink" title="Obsidian 連結：01-React-純函數與嚴格模式-StrictMode">01-React-純函數與嚴格模式-StrictMode</span>（呼應 (g) 的 hydration mismatch；元件本體必須是純函數、不能有隨機或時間副作用，正是兩邊渲染結果能一致的前提）</li>
+<li><span class="wikilink" title="Obsidian 連結：00-前端框架比較-Vue-React-Angular難易度與優缺點">00-前端框架比較-Vue-React-Angular難易度與優缺點</span>（同批對話延伸；三大框架都各有 SSR 方案 Next.js／Nuxt／Angular Universal，可對照選型）</li>
+</ul>
+<h2 id="_2">各對話來源</h2>
+<h3 id="2026-08-06-httpsgeminigooglecomapp0b96bab2bcf0369f">數字位數乘積的解釋（2026-08-06）— https://gemini.google.com/app/0b96bab2bcf0369f</h3>
+<p>使用者：所以 C++ 一定比 JavaScript 快嗎？<br />
+Gemini：C++ 通常編譯成機器碼，執行速度通常比直譯型的 JavaScript 快，但實際表現仍取決於演算法與硬體環境。（⚠️ 見重點 (i) 的更正）</p>
+<p>使用者：那 JavaScript 的 SSR 呢？<br />
+Gemini：SSR 是伺服器端渲染，把頁面在伺服器上先產生好 HTML 再傳給客戶端，可以讓頁面更快顯示出來，對 SEO 也很有幫助。</p>
+<p>使用者：伺服器端要怎麼轉成 HTML？那這樣子 HTML 還會有 DOM Tree 嗎？<br />
+Gemini：伺服器端是用特定的函式把 JavaScript 元件轉換成 HTML 字串，例如 React 的 <code>renderToString</code>。傳到瀏覽器後，瀏覽器解析這個 HTML 字串才會重新建立出 DOM 樹，讓網頁可以互動。</p>
+<p>使用者：然後 render 函數裡面做了些什麼？<br />
+Gemini：渲染函式會根據元件目前的狀態和屬性，回傳一段 UI 的描述，通常就是在 JSX 裡面寫好的畫面結構，用來決定 UI 呈現出來的樣子。</p>
+<p>使用者：那些 JavaScript 的操作，因為 React 是函數型元件，那些 JS 操作會跑去哪裡？<br />
+Gemini：在函數型元件裡，所有 JavaScript 操作（狀態管理、事件處理程式）在伺服器端渲染時會執行一次以產生 HTML，之後在客戶端瀏覽器上還會繼續在瀏覽器環境中運行，以維持網頁的互動性。</p>
+<p>（後續回合轉為討論 LeetCode 迴圈起始值 <code>n</code> vs <code>i</code> 與字串轉換，與本主題無關，見重點 (j)。）</p>
+<h3 id="2026-09-01-httpsgeminigooglecomapp7a12e30998ccde0c">追加 2026-09-01｜網頁渲染的定義與範疇（語音模式對話）— https://gemini.google.com/app/7a12e30998ccde0c</h3>
+<p>使用者：以為問到渲染是什麼，我就回答 critical rendering path 的流程是對的嗎？<br />
+Gemini：這對，但也只是一部分。Critical rendering path 是指瀏覽器將 HTML、CSS 和 JavaScript 轉換成螢幕上像素的過程。但在現代網頁開發中，「渲染」還包含像是伺服器渲染（SSR）或客戶端渲染（CSR）等不同架構模式。你是想針對特定面向討論嗎？</p>
+<p>使用者：好，你先解釋 CSR 再解釋 SSR。<br />
+Gemini：CSR 是指客戶端渲染。瀏覽器會下載一個很小的 HTML 和 JavaScript 檔案，接著在客戶端的瀏覽器上運行 JavaScript 來抓取資料並動態產生網頁內容。SSR 則是伺服器渲染。當使用者請求頁面時，伺服器會在後端抓取資料並將整個 HTML 建立完成，再將完整的網頁傳送給瀏覽器顯示。</p>
+<p>使用者：我是想知道在 runtime 時期，你說 CSR 會下載一個很小的 HTML 文件，這個是指 index 嗎？還有一個是空白的 HTML 文件。然後你說它會在客戶端的瀏覽器上運行 JavaScript 來抓取並動態產生網頁內容，那它是有用到 lazy loading 嗎？<br />
+Gemini：沒錯，那個很小的 HTML 通常就是 <code>index.html</code>，裡面會有一個像是 root 的空白骨架。至於 lazy loading，在 CSR 裡是可以用到的，它主要是為了效能考量，把網頁分成多個區塊或組件，等到需要顯示時才載入，這跟 JavaScript 動態抓取資料是不同的概念。</p>
+<p>使用者：這個 render 的每次渲染 React 元件都會重新執行一次，在 CSR 跟 SSR 會有不同嗎？<br />
+Gemini：在 CSR 中，元件只會在客戶端的瀏覽器中執行一次，直接建立 DOM。而在 SSR 中，會有兩次執行。第一次是在伺服器端執行，將結果轉成 HTML 字串傳回；第二次是客戶端載入 JavaScript 時進行 Hydration，此時元件會再次執行，建立虛擬 DOM 並綁定事件，讓畫面恢復互動性。</p>
+<blockquote>
+<p>註：這是一串語音模式對話，逐字稿有若干辨識誤差（例如「SSR」被辨識成「SS2」、「動態產生」被辨識成「動態想象」），上方已依語意還原。</p>
+</blockquote>
+<h3 id="2026-09-06build-time-runtime-gemini-live-httpsgeminigooglecomappde0c03613eb15709">追加 2026-09-06｜Build Time 與 Runtime 的流程差異（Gemini Live 語音對話）— https://gemini.google.com/app/de0c03613eb15709</h3>
+<blockquote>
+<p>註：這是一串 Gemini Live 語音對話，逐字稿辨識誤差極多（標題被自動命名為「陣列索引翻譯與理解」但內容完全無關；「Build time」被辨識成「playtime」；「is are 的變異」是誤辨），以下依語意還原。</p>
+</blockquote>
+<p><strong>使用者：</strong> 這個都是在 run time 還是 build time？<br />
+<strong>Gemini：</strong> 這兩個過程都是在 Runtime 執行，Build time 主要是負責準備和打包程式碼。</p>
+<p><strong>使用者：</strong> 那他們的 build time 有不一樣嗎？<br />
+<strong>Gemini：</strong> 是的，Build time 的處理方式不同。SSR 會在建構時預先準備伺服器端要執行的程式，而 CSR 主要是將客戶端套件打包。</p>
+<p><strong>使用者：</strong> 可以詳細一點，畫出流程給我看嗎？SSR 跟 CSR 的 build time 流程是什麼？要畫出差異性，而且他們在 runtime 的流程是什麼？<br />
+<strong>Gemini：</strong> 先看 SSR。在 Build Time 時，編譯器會預先結合程式碼與後端資料庫請求，將頁面渲染成靜態 HTML。進入 Runtime 後，當使用者發送請求，伺服器端會直接回傳預先準備好的靜態 HTML 檔案，接著瀏覽器完成解析與繪製，最後掛載前端腳本完成 Hydration。（⚠️ 見重點 (t) 的更正：這段講的是 SSG 不是 SSR）<br />
+接著是 CSR。Build Time 時編譯器僅會將 React 或相關前端套件打包，生成 JavaScript 檔案，此時並沒有完整的 HTML。進入 Runtime 後，瀏覽器會先下載空的 HTML 與大量的 JavaScript，接著在客戶端由引擎解析並動態建立 DOM，最後完成頁面呈現。（✅ 這段正確）</p>
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>對話原始出處</td>
+<td>https://gemini.google.com/app/0b96bab2bcf0369f</td>
+<td>2026-08-07 查證</td>
+</tr>
+<tr>
+<td>React <code>renderToString</code> 官方文件</td>
+<td>https://react.dev/reference/react-dom/server/renderToString</td>
+<td>React 19 文件，2026-08-07 查證</td>
+</tr>
+<tr>
+<td>React <code>hydrateRoot</code> 官方文件</td>
+<td>https://react.dev/reference/react-dom/client/hydrateRoot</td>
+<td>含 hydration mismatch 說明，2026-08-07 查證</td>
+</tr>
+<tr>
+<td>V8 JIT 架構（Ignition／TurboFan）</td>
+<td>https://v8.dev/docs</td>
+<td>用於更正重點 (i)，2026-08-07 查證</td>
+</tr>
+<tr>
+<td>對話原始出處（追加）〈網頁渲染的定義與範疇〉</td>
+<td>https://gemini.google.com/app/7a12e30998ccde0c</td>
+<td>對話日期 2026-08-31，2026-09-01 查證</td>
+</tr>
+<tr>
+<td>MDN — Critical rendering path（用於重點 (l) 的定義界定）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/Critical_rendering_path</td>
+<td>MDN 文件，2026-09-01 查證</td>
+</tr>
+<tr>
+<td>React — <code>lazy</code> 官方文件（用於重點 (o) 區分 lazy loading 與資料抓取）</td>
+<td>https://react.dev/reference/react/lazy</td>
+<td>React 19 文件，2026-09-01 查證</td>
+</tr>
+<tr>
+<td>對話原始出處（追加）〈Build Time 與 Runtime 的流程差異〉</td>
+<td>https://gemini.google.com/app/de0c03613eb15709</td>
+<td>Gemini Live Flash-Lite，2026-09-06 查證</td>
+</tr>
+<tr>
+<td>Next.js — Static Rendering 與 Dynamic Rendering（用於更正重點 (t)：SSG 在 build time、SSR 在 request time）</td>
+<td>https://nextjs.org/docs/app/getting-started/partial-prerendering</td>
+<td>Next.js App Router 現行文件，2026-09-06 查證</td>
+</tr>
+<tr>
+<td>Next.js — Incremental Static Regeneration（ISR，用於重點 (u) 的第四列）</td>
+<td>https://nextjs.org/docs/app/guides/incremental-static-regeneration</td>
+<td>Next.js 現行文件，2026-09-06 查證</td>
+</tr>
+<tr>
+<td>MDN — Server-side vs client-side rendering（build/runtime 分界的中立說明）</td>
+<td>https://developer.mozilla.org/en-US/docs/Glossary/SSR</td>
+<td>MDN 現行版本，2026-09-06 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-06</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

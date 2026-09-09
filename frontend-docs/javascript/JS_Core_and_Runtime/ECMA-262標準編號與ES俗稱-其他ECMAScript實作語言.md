@@ -12,6 +12,71 @@ updated: 2026-08-27
 
 本篇重點 a–i，共 9 個
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事：<mark style="background: #FF5582A6;">「ECMA-262 就是 JavaScript」這句話中間漏了一層</mark>
+> 正確的鏈是 <mark style="background: #ADCCFFA6;">ECMA-262（標準編號）→ ECMAScript（規格書裡定義的標準語言）→ JavaScript（實作 ECMAScript 再加上 DOM／BOM 的語言）</mark>，三者不是同義詞，而是三個層次。連帶還有第二個誤會：翻遍規格書也找不到「ES6」這三個字——官方量詞是 <mark style="background: #FFF3A3A6;">Edition（第幾版）</mark>，2015 年之後改用年份，「ES ＋ 數字」從頭到尾都只是社群俗稱。對應本篇 (d)、(e)、(g)。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | ECMA-262 到底是什麼？ | 一組<mark style="background: #ADCCFFA6;">標準編號</mark>，不是版本名稱。ECMA 用流水號區分它管轄的各種標準，262 號這一本記載 ECMAScript 語言規格，402 號記載國際化 API |
+| **When** 什麼時候 | 什麼時候不再叫「ES 幾」？ | <mark style="background: #FFF3A3A6;">2015 年</mark>。TC39 改成每年定期發布，官方名稱同時改成年份（ECMAScript 2015、ECMAScript 2026）；在那之前官方一律寫 5th Edition 這種 Edition 制 |
+| **Who** 誰做的 | 誰寫規格、誰取俗稱？ | 規格文字由 <mark style="background: #ADCCFFA6;">TC39</mark>（Ecma International 底下第 39 號技術委員會）撰寫審查；「ES6」這個叫法是開發者社群自己叫出來的，沒有任何官方文件這樣寫 |
+| **Where** 在哪裡 | 這份東西「存在」在哪一層？ | 存在於<mark style="background: #BBFABBA6;">規格文字那一層</mark>，它是寫給引擎實作者看的文件，<mark style="background: #FF5582A6;">不是任何執行期物件</mark>。真正在 RAM 裡跑的是引擎照它做出來的實作 |
+| **Which** 哪一種 | 哪些語言算 ECMAScript 的實作？ | JavaScript、ActionScript（Flash）、JScript／JScript .NET（早期 IE）、TypeScript（超集，最後仍轉譯回標準 ECMAScript）、Qt Script。其中 ActionScript 與 JScript 已退場，<mark style="background: #BBFABBA6;">實務上只剩 JavaScript 與 TypeScript</mark> |
+| **How** 怎麼做到 | 俗稱怎麼對回官方名稱？ | ES5 ＝ ECMA-262 5th Edition；ES6 ＝ ECMAScript 2015；ES2026 ＝第 17 版。口訣：<mark style="background: #BBFABBA6;">ES6 之前查 Edition，ES6 之後查年份</mark> |
+| **Why** 為什麼 | 為什麼要放棄「ES ＋ 數字」？ | 因為大版本制被 ES4 拖垮了。改成每年發一版、版號用年份之後，每個功能各自走 TC39 提案流程，不必再為了湊一個大版號互相等待 |
+
+### 時間軸：規格的命名史，以及它站在 buildtime／runtime 之前
+
+```text
+◄════════════ 規格層：ECMA-262 的「文字」 ════════════►
+   這一層發生在所有 buildtime 與 runtime 之前。
+   它是寫給引擎實作者看的文件，不是執行期的任何東西。
+
+【TC39 提案流程】每個功能各走各的，走完才進規格書
+  Stage 0 ───► Stage 1 ───► Stage 2 ───► Stage 3 ───► Stage 4
+  Strawperson  Proposal     Draft        Candidate    Finished
+  隨口提案      有冠軍推動    寫成規格文字  引擎試作回饋  併入 ECMA-262
+                                                          │
+【ECMA-262 的命名史】◄─────────────────────────────────────┘
+  1997      1998   1999    2008      2009    2011    2015          2026
+  1st Ed.   2nd    3rd     ES4 放棄  5th     5.1     6th           17th
+  ＝ES1     ＝ES2  ＝ES3             ＝ES5           ＝ES2015 ★     ＝ES2026
+  ├────────── 官方量詞是 Edition ──────────┤├──── 官方量詞是年份 ────┤
+                                            ★ 命名制度轉折點：
+                                              從此官方用年份，
+                                              「ES ＋ 數字」退化成俗稱
+                                                          │
+  規格定案之後，才輪得到下面兩層 ◄────────────────────────┘
+      引擎實作（V8／SpiderMonkey／JavaScriptCore）
+        └─► 你的 buildtime 建置期（轉譯 transpile ＋ 打包 bundle）
+              └─► runtime 執行期（Parse → AST → Bytecode → JIT → 執行）
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph SPEC["規格層 · ECMA-262 的文字：發生在所有 buildtime／runtime 之前"]
+        S0["Stage 0～3<br/>TC39 提案流程<br/>每個功能各走各的"] --> S4["Stage 4 Finished<br/>併入 ECMA-262"]
+        S4 --> ED["1997～2011 官方量詞是 Edition<br/>1st／3rd／5th<br/>俗稱 ES1／ES3／ES5"]
+        ED --> YR["2015 起官方量詞改年份<br/>ECMAScript 2015 … 2026<br/>ES ＋ 數字退化為社群俗稱"]
+    end
+    YR --> IMP["引擎實作<br/>V8／SpiderMonkey／JavaScriptCore<br/>照著規格文字做出 JavaScript"]
+    IMP --> BT["buildtime 建置期<br/>轉譯 transpile ＋ 打包 bundle"]
+    BT --> RT["runtime 執行期<br/>Parse → AST → Bytecode → JIT → 執行"]
+```
+
+> [!info]+ 一句話驗證法：這個名字是「官方的」還是「口語的」？
+> a. 查得到對應的 Edition 或年份 → 官方名稱，例如 5th Edition、ECMAScript 2015。
+> b. 只在部落格、面試、社群聊天出現 → 俗稱，例如 ES6、ES7、ES8。
+> c. 兩者指的往往是<mark style="background: #BBFABBA6;">同一份文件</mark>，不是兩個版本，別被嚇到以為自己讀錯本。
+
+---
+
 ## 重點整理
 
 a. <mark style="background: #ADCCFF;">ECMA-262</mark> 是一組「標準編號」而不是版本名稱。ECMA（European Computer Manufacturers Association，歐洲電腦製造商協會）用流水編號來區分它管轄的各種技術標準，例如 ECMA-402 是國際化 API（Internationalization API）標準，而 ECMA-262 專門用來記載 ECMAScript 這個語言的規格。

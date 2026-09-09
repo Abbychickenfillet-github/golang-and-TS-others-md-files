@@ -19,6 +19,84 @@ updated: 2026-08-06
 
 > 本篇重點 (a)–(h)，共 8 個。起點：讀 [[V8引擎完整管線-Parse到Deoptimization]] 裡 AST 節點類型（`ExpressionStatement`、`VariableDeclaration`…）時發現一直沒有正式定義過這組最基礎的分類。
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事先講：<mark style="background: #FF5582A6;">「表達式 vs 陳述式」是文法層的分類，不是執行期的分類</mark>
+> 很多人把它讀成一個「風格建議」——好像 `if` 只是「比較不適合當值用」。<mark style="background: #FF5582A6;">不是。</mark>它是 ECMA-262 的**文法規則**，由 Parser 在讀到那一行時當場裁決，違反就丟 `SyntaxError`，<mark style="background: #FF5582A6;">程式一行都不會執行</mark>。
+> a. 所以 JSX 的 `{ }` 裡不能寫 `if`，不是 React 的限制，是那個位置的文法只收 <mark style="background: #ADCCFFA6;">AssignmentExpression</mark>——這件事在 Babel 把 JSX 轉成 `React.createElement(...)` 的引數位置時就決定了，引數位置本來就只能放表達式。
+> b. 這也是為什麼要改用 `&&` 與三元運算子：它們是<mark style="background: #BBFABBA6;">表達式</mark>，塞得進那個洞；`if` 是陳述式，塞不進去。
+> 一句話記法：<mark style="background: #BBFABBA6;">陳述式與表達式的差別，決定的是「能不能放在這個位置」，不是「跑起來會怎樣」。</mark>
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | 兩者分別在回答什麼問題？ | a. <mark style="background: #BBFABBA6;">表達式</mark>回答「這是什麼**值**？」——會求值出一個值<br>b. <mark style="background: #FFF3A3A6;">陳述式</mark>回答「這一步**做了什麼**？」——執行一個動作，不保證有值 |
+| **When** 什麼時候 | 這個區分在哪一格定案？ | 在 <mark style="background: #ADCCFFA6;">runtime 執行期的 Parse 那一格</mark>，Parser 依 Syntactic Grammar 決定，<mark style="background: #FFF3A3A6;">每個檔案只做一次</mark>。不是執行到那行才判斷——判斷失敗的話根本輪不到執行 |
+| **Who** 誰做的 | 誰在裁決？裁決失敗會怎樣？ | 引擎的 <mark style="background: #ADCCFFA6;">Parser</mark>。裁決失敗丟 `SyntaxError`，而且是**整支檔案都不執行**，不像 `TypeError` 那樣跑到才爆（對照 [[06-靜態檢查vs動態檢查-TS-vs-JS]]） |
+| **Where** 在哪裡 | 差別在哪裡看得見？ | a. 規範上：ECMA-262 的 Syntactic Grammar<br>b. 結構上：AST 節點名稱（`BinaryExpression` vs `IfStatement` vs `ExpressionStatement`）<br>c. 實務上：JSX 的 `{ }`、箭頭函式的 `ConciseBody`、`return` 後面 |
+| **Which** 哪一種 | 哪些位置「只收表達式」？ | a. 函式呼叫的引數：`foo(___)`<br>b. 賦值的等號右邊：`const x = ___`<br>c. JSX 的大括號：`<div>{___}</div>`<br>d. 三元運算子的三個位置<br>e. 箭頭函式 `=>` 後面沒加大括號時 |
+| **How** 怎麼做到 | 怎麼快速判斷是哪一種？ | 塞進 `console.log(___)` 或 `const x = ___` 的洞裡：<mark style="background: #BBFABBA6;">合法就是表達式</mark>，<mark style="background: #FF5582A6;">丟 SyntaxError 就是陳述式</mark> |
+| **Why** 為什麼 | 為什麼一定要分？ | 因為文法規定某些位置只能放其中一種。搞懂這件事，才知道 JSX 為什麼要用 `&&` 與三元、`return` 為什麼不能換行、`{ }` 為什麼有時是區塊有時是物件字面量 |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄──────────── buildtime 建置期 ────────────►◄────────── runtime 執行期 ──────────►
+      （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse                ④Bytecode      ⑤執行
+ transpile      bundle           解析                   產生            逐行跑
+ ┌────────┐   ┌────────┐      ┌──────────────────┐  ┌──────────┐  ┌──────────────┐
+ │Babel   │   │webpack │      │Scanner 切 Token   │  │Ignition  │  │真的算出值     │
+ │tsc     │──►│Vite    │─────►│★ Parser 依文法   │─►│把 AST 編成│─►│真的做出動作   │
+ │JSX→JS  │   │Rollup  │      │  裁決：這一段是   │  │Bytecode  │  │每次執行都重來 │
+ └────────┘   └────────┘      │  Expression 還是  │  └──────────┘  └──────────────┘
+      ↑                       │  Statement？      │
+ Babel 這裡也做一次            │  違反 → SyntaxErr │      ★ 分類的裁決在第 ③ 格，
+ 同樣的裁決（它自己的           └──────────────────┘        不在第 ⑤ 格。
+ Parser），但那是另一套          每個檔案只做一次            執行期只是「照著 AST 跑」
+ 工具，跟 V8 沒關係
+```
+
+這個主題還有自己的第二條時間軸——<mark style="background: #D2B3FFA6;">同一段字元怎麼一路被歸類</mark>，以 `x > 0` 這三個 Token 為例：
+
+```text
+ 寫在不同位置，Parser 給的節點就不同（同樣的字元，不同的歸類）
+ ────────────────────────────────────────────────────────────────
+ const m = x > 0;        → VariableDeclaration
+                            └─ init: BinaryExpression        ← 表達式
+ x > 0;                  → ExpressionStatement               ← 表達式外面套殼
+                            └─ expression: BinaryExpression
+ if (x > 0) { ... }      → IfStatement                       ← 陳述式
+                            └─ test: BinaryExpression        ← 括號裡仍是表達式
+ <div>{x > 0 && <A/>}</div>
+                         → 引數位置，只收 AssignmentExpression ← 只能放表達式
+
+ ★ 「x > 0」永遠是表達式；決定整句是什麼的，是它被放在哪個文法位置。
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期"]
+        T["轉譯 transpile<br/>Babel 把 JSX 變成<br/>React.createElement 呼叫<br/>（引數位置＝只收表達式）"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 每個檔案只做一次"]
+        SC["Scanner 切 Token"] --> PA["★ ③ Parser 依 Syntactic Grammar 裁決<br/>Expression 還是 Statement<br/>裁決失敗 → SyntaxError<br/>整支檔案一行都不跑"]
+        PA --> AST["AST 節點定案<br/>BinaryExpression／IfStatement<br/>／ExpressionStatement"]
+        AST --> BC["④ Ignition 產生 Bytecode"]
+    end
+    subgraph RT2["runtime 執行期 · 每次執行都重來"]
+        EX["⑤ 照著 AST 執行<br/>表達式 → 算出一個值<br/>陳述式 → 做出一個動作"]
+    end
+    BU --> SC
+    BC --> EX
+```
+
+---
+
 ## (a) 定義：先分清楚兩者在回答什麼問題
 
 - **表達式（Expression）**：一段**會產生（求值出）一個值**的程式碼片段。它的本質是「一個值」，可以被賦值、被當引數傳、被拿去做運算。

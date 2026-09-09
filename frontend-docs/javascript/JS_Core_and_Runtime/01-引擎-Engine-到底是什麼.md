@@ -23,6 +23,87 @@ updated: 2026-08-15
 
 > 本篇重點 (a)–(h)，共 8 個。這篇是壓軸的總覽筆記，把 [[V8引擎完整管線-Parse到Deoptimization]]、[[Node-js底層架構-V8-libuv-Bindings與CSR澄清]] 這些筆記裡一直出現的「引擎」這個詞，回頭做一次正式定義。
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事先講：<mark style="background: #FF5582A6;">引擎（Engine）不等於執行環境（Runtime）</mark>
+> `document`、`setTimeout`、`fetch`、`console`、`require` <mark style="background: #FF5582A6;">全部都不在 V8 裡面</mark>。它們是宿主環境（Host Environment）提供的：瀏覽器那邊由 Blink 與各種 Web API 提供，Node 那邊由 libuv 與 C++ Bindings 提供。
+> V8 只負責 ECMA-262 規範要求的那一份：把 JS 原始碼解析、編譯成 Bytecode 與機器碼、執行它，外加記憶體配置與 GC。
+> 所以 `[1, 2].map(...)` 到哪個環境都在（規範要求引擎自己實作），但 `setTimeout(...)` 換個宿主就可能不存在。
+> 一句話記法：<mark style="background: #BBFABBA6;">V8 是引擎，Chrome 與 Node 是車子。引擎不會自己上路。</mark>
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | 「引擎」到底是什麼東西？ | 一套可重複使用的核心處理元件：接收輸入、依固定規則處理、產出輸出。JS 引擎的輸入是<mark style="background: #FFF3A3A6;">你寫的 JS 原始碼</mark>，輸出是<mark style="background: #FFF3A3A6;">被真正執行掉的運算結果</mark> |
+| **When** 什麼時候 | 引擎是在哪一格工作？ | <mark style="background: #FF5582A6;">全部在 runtime 執行期</mark>。buildtime 的轉譯與打包（Babel／tsc／webpack／Vite）跑完時，V8 根本還沒被叫醒；要等瀏覽器或 Node 載入那支腳本，引擎才開始 Parse |
+| **Who** 誰做的 | 誰寫了引擎？誰在跑它？ | V8 由 Google 用 <mark style="background: #ADCCFFA6;">C++</mark> 寫成，被宿主（Chrome／Node）當成程式庫嵌進去一起編譯。跑 JS 的是 V8；提供 `document`、`setTimeout` 的是宿主 |
+| **Where** 在哪裡 | 引擎實體住在哪？ | 不是一支獨立的執行檔。它是<mark style="background: #ADCCFFA6;">被連結進 `chrome.exe` 或 `node` 執行檔裡的一大塊 C++ 機器碼</mark>，跟著宿主一起被安裝在使用者電腦上 |
+| **Which** 哪一種 | 有哪些 JS 引擎？可以換嗎？ | a. V8（Chrome／Edge／Node／Deno）<br>b. SpiderMonkey（Firefox）<br>c. JavaScriptCore（Safari）<br>d. Hermes（React Native）。可以抽換，因為它們都實作同一份 ECMA-262 |
+| **How** 怎麼做到 | 原始碼怎麼變成執行結果？ | Scanner 切 Token → Parser 組 AST → Ignition 產生 Bytecode → TurboFan JIT 編成機器碼 → 交給 CPU 跑，資料放 RAM，不用的由 GC 收 |
+| **Why** 為什麼 | 為什麼要把「引擎」單獨當一個詞？ | 因為責任要分兩層才講得通：<mark style="background: #BBFABBA6;">同一段 JS 在瀏覽器有 `document`、在 Node 沒有</mark>——這不是「JS 不一樣」，是宿主不一樣，引擎是同一顆 |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄──────────── buildtime 建置期 ────────────►◄────────── runtime 執行期 ──────────►
+      （你的電腦／CI，部署前就跑完）              （使用者的瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤執行
+ transpile      bundle           解析             產生            逐行跑
+ ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────┐
+ │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │每次呼叫都重來 │
+ │tsc     │──►│Vite    │─────►│Parser    │──►│TurboFan  │──►│Creation Phase│
+ │SWC     │   │Rollup  │      │AST       │   │JIT 機器碼 │   │Execution     │
+ └────────┘   └────────┘      └──────────┘   └──────────┘   └──────────────┘
+      │            │           ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+      │            │           ★  這一整段（③④⑤）就是「引擎」的工作範圍   ★
+      └────┬───────┘           ★  V8 從這裡才登場，做完 GC 也是它的事      ★
+           │                   ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+     引擎在這裡還沒登場。
+     這兩格做事的是 Node 上跑的工具鏈，
+     產出的是「另一份 JS 檔案」而已。          ↑ 這一格之外的 document／setTimeout
+                                              由宿主環境提供，不是 V8 提供
+```
+
+引擎主題還有自己的第二條時間軸——<mark style="background: #D2B3FFA6;">V8 這支 C++ 程式自己的一生</mark>，很容易跟上面那條混在一起：
+
+```text
+◄────────── V8 自己的建置期（Google／Chrome 團隊做，一年幾次）──────────►◄─ 你用的時候 ─►
+
+ ①V8 的 C++ 原始碼      ②被 C++ 編譯器編譯     ③連結進 chrome.exe    ④你開一個網頁
+ ┌───────────────┐    ┌────────────────┐   ┌────────────────┐   ┌──────────────┐
+ │src/*.cc *.h   │───►│clang／MSVC     │──►│Chrome／Node    │──►│★ V8 開始解析 │
+ │Ignition       │    │產出機器碼       │   │安裝到你電腦     │   │  你的 JS 檔案 │
+ │TurboFan       │    │                │   │                │   │              │
+ └───────────────┘    └────────────────┘   └────────────────┘   └──────────────┘
+      這裡的「編譯」編的是 V8 自己的 C++，                          這裡的「編譯」
+      不是你的 JS。只做一次，之後永遠是同一份。                      編的才是你的 JS，
+                                                                  每次開頁都重來。
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（引擎還沒登場）"]
+        T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT["runtime 執行期（★ 引擎的工作範圍就是這一整段）"]
+        P["③ Parse 解析<br/>Scanner → Parser → AST<br/>每個函式只做一次"] --> BC["④ Ignition 產生 Bytecode<br/>TurboFan JIT 編機器碼"]
+        BC --> EX["⑤ 執行<br/>Creation Phase → Execution Phase<br/>每次呼叫都重來"]
+        EX --> GC["GC 回收不再被參照的記憶體<br/>也是引擎的工作"]
+    end
+    subgraph HOST["宿主環境 Host（不是引擎，不要記錯）"]
+        H1["瀏覽器：document／DOM<br/>setTimeout／fetch"]
+        H2["Node：require／process<br/>fs／libuv 事件迴圈"]
+    end
+    BU --> P
+    EX -.->|"呼叫 Web API 時<br/>其實是走出引擎、進到宿主"| HOST
+```
+
+---
+
 ## (a) 先講廣義的「引擎」——軟體工程裡是什麼意思
 
 「引擎」不是 JS 專屬的詞，軟體工程裡泛指：<mark style="background: #FFF3A3A6;">**一套可重複使用的核心運算/處理系統，接收輸入、依照固定規則處理、產出輸出，通常被包在一個更大的應用程式或環境裡，當作可以抽換的核心元件**。</mark>同樣的概念在不同領域都有對應：

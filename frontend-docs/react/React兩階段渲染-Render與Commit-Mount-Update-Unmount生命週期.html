@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>React 兩階段渲染 — Render 與 Commit、Mount／Update／Unmount 生命週期</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>React 兩階段渲染 — Render 與 Commit、Mount／Update／Unmount 生命週期</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#react</span><span class="pill">#fiber</span><span class="pill">#useEffect</span><span class="pill">#useLayoutEffect</span><span class="pill">#生命週期</span><span class="pill">#commit-phase</span><span class="pill">#面試考點</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-31</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/5e2bbe55bbaf5dcd" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Commit Phase 屬於 Update，Mount 的時候不會經過 Commit Phase。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Commit 既不等於 Mount 也不等於 Update，Mount／Update／Unmount 三者都會走完 Render Phase → Commit Phase。</div></li><li><p class="qq">useLayoutEffect 的 callback 在瀏覽器 Paint 之前同步執行。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">它掛在 Commit 的 Layout 子階段，所以在這裡量 DOM、改樣式不會閃爍。</div></li><li><p class="qq">元件 Update 時，React 會先執行上一次 useEffect 回傳的 cleanup，再執行本次的 callback。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Update 的每一次 Effect 都是「先清理上一次、再建立這一次」；Unmount 則只清理不建立。</div></li><li><p class="qq">Render Phase 不可中斷，Commit Phase 可以中斷。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">剛好相反。Render Phase 是純計算所以可中斷、可丟棄重來；Commit Phase 要同步寫 DOM，不可中斷。</div></li><li><p class="qq">元件 Update 時，對應的 FiberNode 會被銷毀並重新建立。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Update 是零回收：React 只把 current 節點 Clone 一份當 workInProgress，更新 memoizedProps／memoizedState，再交替雙緩衝指標。</div></li><li><p class="qq">寫在元件函式外部的全域常數，也算是響應式數值（Reactive Value），必須放進依賴陣列。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">只有 props、state、以及元件本體算出來的衍生變數才算；全域常數不會隨 re-render 改變，不需要放。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">React 的渲染分成兩個大階段：純計算、可中斷的 <input class="blank" data-a="Render" placeholder="填答案" autocomplete="off"> Phase，以及同步寫入 DOM、不可中斷的 Commit Phase。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Render Phase 做 Diffing，Commit Phase 才動真實 DOM。</div></li><li><p class="qq">Commit Phase 內部依序是 Mutation → <input class="blank" data-a="Layout" placeholder="填答案" autocomplete="off"> → 瀏覽器 Paint → Passive 四個環節。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Layout 對應 useLayoutEffect，Passive 對應 useEffect。</div></li><li><p class="qq">Unmount 時 React 會把該 Fiber 標記為 <input class="blank" data-a="Deletion" placeholder="填答案" autocomplete="off">，斷開父節點的 child／sibling 指標與內部的 stateNode 指標，之後交給 GC 回收。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這就是 Unmount 與 Update 在記憶體上最大的差別。</div></li><li><p class="qq">React 官方維護的 ESLint 套件叫 eslint-plugin-react-hooks，其中檢查依賴陣列的規則是 react-hooks/<input class="blank" data-a="exhaustive-deps" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">涵蓋 useEffect、useCallback、useMemo。</div></li><li><p class="qq">依賴陣列傳空陣列 [] 代表：只在 Mount 執行一次，並在 <input class="blank" data-a="Unmount" placeholder="填答案" autocomplete="off"> 時執行 cleanup。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這是最常見的「訂閱／解除訂閱」寫法。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">面試官問：「commit 算 Mount 還是 Update？」請完整回答，並順便說明 useLayoutEffect 與 useEffect 的時序差異。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">要點：(1) 兩者都不是，Commit 是一個橫跨三種生命週期的機制；Mount／Update／Unmount 都會走 Render Phase → Commit Phase。(2) Render Phase 純計算、可中斷；Commit Phase 同步、不可中斷。(3) Commit 內部分成 Mutation（動 DOM）→ Layout（同步跑 useLayoutEffect，此時尚未 Paint）→ 瀏覽器 Paint → Passive（非同步跑 useEffect）。(4) 所以要避免畫面閃爍的 DOM 量測與修改要寫在 useLayoutEffect，一般的資料抓取、訂閱寫在 useEffect。</div></li><li><p class="qq">請從 Fiber 記憶體的角度說明「Update」跟「Unmount」差在哪，並解釋為什麼 Update 被稱為零回收。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">要點：Update 時真實 DOM 節點被保留只做屬性 Mutation，FiberNode 依然在 Heap 中（Clone 成 workInProgress、更新 memoizedProps 與 memoizedState、交替 alternate 指標），state 與 stateNode 都完好，所以是零回收。Unmount 時 React 呼叫 removeChild 移除真實 DOM，Fiber 被標記 Deletion，父節點的 child／sibling 指標與內部 stateNode 指標都被斷開，引用歸零之後 GC 會把 FiberNode 連同 memoizedState 一併清除。一句話：Update 是同一個元件換新資料，Unmount 是這個元件不存在了。</div></li><li><p class="qq">什麼是「響應式數值（Reactive Values）」？它跟「依賴陣列」是什麼關係？舉例說明漏填會發生什麼事。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">要點：響應式數值是「在元件本體內部宣告或讀取、且可能隨 re-render 改變」的數值，包含 props、state、以及元件本體算出來的衍生變數；元件函式外部的全域常數不算。依賴陣列是 useEffect 第二個參數那個容器。原則：Effect 內部讀到的每一個響應式數值都必須放進依賴陣列。漏填的後果是 Effect 抓到的是舊那一次渲染的閉包值（過期閉包），例如聊天室只依賴 [roomId] 卻在 Effect 裡讀了 serverUrl，換伺服器後仍然連到舊的 URL，而且不會報錯。react-hooks/exhaustive-deps 就是用來自動抓這件事。</div></li></ol></section>
+
+<article class="card">
+<h1 id="react-render-commitmountupdateunmount">React 兩階段渲染 — Render 與 Commit、Mount／Update／Unmount 生命週期</h1>
+<blockquote>
+<p>本篇重點 a–r，共 18 個。</p>
+<p>起點是一個很常見的困惑：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「commit 到底算 Mount 還是 Update？」</mark>答案是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩個都不是</mark>，它是一個橫跨三種生命週期的「機制」，把這件事釐清之後，<code>useEffect</code> 什麼時候跑、cleanup 什麼時候跑就都通了。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="react">一、React 的渲染分成兩個大階段</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Render Phase（渲染階段）</mark>：純計算，React 執行元件函式、產生新的 Virtual DOM、跟舊的做 Diffing，算出「哪裡要改」。這個階段<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">可以被中斷、暫停、丟棄重來</mark>（Concurrent Mode 的基礎），所以這個階段裡不能寫有副作用的程式碼。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Commit Phase（提交階段）</mark>：同步執行、<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不可中斷</mark>，把 Render Phase 算好的變更真正寫進真實 DOM，並依序觸發相關的生命週期與 Effects。</p>
+<p>(c) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所以 Commit 既不等於 Mount 也不等於 Update</mark>。Mount、Update、Unmount 三者都會走完「Render Phase → Commit Phase」，Commit 只是「把結果套用到畫面上」的那一段機制。</p>
+<p>(d) Commit Phase 內部還細分成三個子階段，這是搞懂 <code>useLayoutEffect</code> 與 <code>useEffect</code> 差別的關鍵：</p>
+<table>
+<thead>
+<tr>
+<th>子階段</th>
+<th>做的事</th>
+<th>對應的 Hook</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mutation</td>
+<td>真正動 DOM（<code>appendChild</code>／改屬性／<code>removeChild</code>）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Layout</td>
+<td>同步執行，此時<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">瀏覽器還沒 Paint</mark></td>
+<td><code>useLayoutEffect</code></td>
+</tr>
+<tr>
+<td>（瀏覽器 Paint）</td>
+<td>畫面真的被畫到螢幕上</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Passive</td>
+<td>非同步執行，Paint 之後才跑</td>
+<td><code>useEffect</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="mountupdateunmount">二、Mount／Update／Unmount 的完整流程</h3>
+<p>(e) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">① Mount（首次掛載）</mark></p>
+<ol>
+<li>Render Phase：React 呼叫元件函式，產生 Virtual DOM 樹。</li>
+<li>Commit / Mutation：把節點插入真實 DOM 樹。</li>
+<li>Commit / Layout：執行 <code>useLayoutEffect</code> 的 callback（此時尚未 Paint，所以在這裡量 DOM 尺寸、改樣式不會閃爍）。</li>
+<li>瀏覽器 Paint：畫面出現在螢幕上。</li>
+<li>Commit / Passive：非同步執行 <code>useEffect</code> 的 callback。</li>
+</ol>
+<p>(f) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">② Update（更新／Re-render）</mark></p>
+<ol>
+<li>Render Phase：重新執行元件函式，Diffing 前後 Virtual DOM。</li>
+<li>Commit / Mutation：把差異寫入真實 DOM。</li>
+<li>Commit / Layout：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">先跑上一次 <code>useLayoutEffect</code> 回傳的 cleanup，再跑本次的 callback</mark>。</li>
+<li>瀏覽器 Paint。</li>
+<li>Commit / Passive：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">先跑上一次 <code>useEffect</code> 回傳的 cleanup，再跑本次的 callback</mark>。</li>
+</ol>
+<p>(g) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">③ Unmount（卸載）</mark></p>
+<ol>
+<li>Render Phase：把該 Fiber 節點標記為 <code>Deletion</code>。</li>
+<li>Commit / Mutation：呼叫 <code>removeChild</code> 把真實 DOM 拿掉。</li>
+<li>Commit / Layout：同步執行 <code>useLayoutEffect</code> 的 cleanup。</li>
+<li>Commit / Passive：非同步執行 <code>useEffect</code> 的 cleanup。</li>
+</ol>
+<p>(h) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">記憶訣竅</mark>：Update 的每一次 Effect 都是「先清理上一次、再建立這一次」，Unmount 則是「只清理、不建立」。</p>
+<h3 id="_2">三、三個很容易被混在一起的詞</h3>
+<p>(i) 這三件事分別發生在不同的「維護層級」：</p>
+<table>
+<thead>
+<tr>
+<th>名詞</th>
+<th>概念層級</th>
+<th>實際發生什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>State／Props 變更</td>
+<td><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">資料（Data）</mark></td>
+<td>觸發 Render Phase，重新執行元件函式並 Diffing</td>
+</tr>
+<tr>
+<td>重繪 Paint</td>
+<td><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">視覺（Visual）</mark></td>
+<td>Commit 完成後瀏覽器把最新結果畫上螢幕；<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">元件本身還在記憶體與 DOM 樹中</mark></td>
+</tr>
+<tr>
+<td>Unmount</td>
+<td><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">結構（Structure）</mark></td>
+<td>元件從 DOM 樹移除，對應的 Fiber 節點與 state 記憶體被銷毀</td>
+</tr>
+</tbody>
+</table>
+<p>(j) 一句話：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Update 是「同一個元件換了新資料」，Unmount 是「這個元件不存在了」。</mark></p>
+<h3 id="fiber-update-unmount">四、對照 Fiber 記憶體：Update 與 Unmount 的差別</h3>
+<p>(k) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Update（僅更新／重繪）在記憶體裡是「零回收」</mark>：</p>
+<ul>
+<li><strong>DOM 樹</strong>：真實 DOM 節點被保留，React 只同步修改它的屬性或內文（Mutation）。</li>
+<li><strong>Fiber Tree</strong>：FiberNode 依然留在記憶體中。React 只是把 <code>current</code> 節點 Clone 一份當作 <code>workInProgress</code>，更新裡面的 <code>memoizedProps</code> 與 <code>memoizedState</code>，然後交替雙緩衝指標。</li>
+<li><strong>記憶體狀態</strong>：所有 state、對 DOM 的引用（<code>stateNode</code>）都完好地留在 Heap 中。</li>
+</ul>
+<p>(l) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Unmount 則是真的把記憶體還回去</mark>：</p>
+<ol>
+<li>Diffing 時發現該 Fiber 不在新的 Virtual DOM 樹中 → 標記為 <code>Deletion</code>。</li>
+<li>斷開父節點對它的 <code>child</code> 或 <code>sibling</code> 指標。</li>
+<li>斷開它內部對 DOM 的 <code>stateNode</code> 指標。</li>
+<li><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所有引用都被斷開之後，GC（Garbage Collector，垃圾回收器）會在下一次掃描時把這個 FiberNode 連同它的 state 記憶體一併清除。</mark></li>
+</ol>
+<p>(m) 記憶體比對表：</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>Update（更新／Re-render）</th>
+<th>Unmount（卸載／銷毀）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FiberNode</td>
+<td>保留在記憶體中（重複利用或當備份）</td>
+<td>斷開引用，等待 GC</td>
+</tr>
+<tr>
+<td><code>memoizedState</code>（State）</td>
+<td>持續保留，更新為新數值</td>
+<td>完全釋放</td>
+</tr>
+<tr>
+<td><code>stateNode</code>（DOM 指標）</td>
+<td>指向原有的真實 DOM 節點</td>
+<td>清空，DOM 被移除</td>
+</tr>
+<tr>
+<td>生命週期</td>
+<td>觸發 Effect 的 cleanup ＋ 重新執行</td>
+<td>只觸發 Effect 的 cleanup</td>
+</tr>
+</tbody>
+</table>
+<h3 id="effectuseeffect">五、Effect、useEffect 與依賴陣列</h3>
+<p>(n) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Effect（副作用）</mark>是概念，指「與 React 渲染狀態同步的外部系統行為」，例如訂閱 WebSocket 聊天室、操作 <code>&lt;video&gt;</code> 播放器、送埋點日誌。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>useEffect</code></mark> 是 React 提供給你實作這個概念的 Hook API。React 官方文件〈Lifecycle of Reactive Effects〉的立場是：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">元件有 Mount／Update／Unmount 三種生命週期，但 Effect 只有「開始同步」與「停止同步」兩種</mark>，用這個角度想依賴陣列會清楚很多。</p>
+<p>(o) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">響應式數值（Reactive Values）</mark>指的是「在元件本體內部宣告或讀取、且可能隨 re-render 改變的數值」：<code>props</code>、<code>state</code>、以及在元件本體算出來的衍生變數。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">定義在元件函式外部的全域常數不算</mark>（例如 <code>const SERVER_URL = 'https://...'</code> 寫在檔案最上層）。</p>
+<p>(p) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">依賴陣列（Dependencies Array）</mark>則是 <code>useEffect(fn, [deps])</code> 第二個參數那個容器。兩者的關係是一句原則：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Effect 內部讀到的每一個響應式數值，都必須放進依賴陣列。</mark></p>
+<pre><code class="language-jsx">function ChatRoom({ roomId }) {                              // prop 是響應式數值
+  const [serverUrl, setServerUrl] = useState('https://localhost:1234')  // state 也是
+
+  useEffect(() =&gt; {
+    const connection = createConnection(serverUrl, roomId)
+    connection.connect()
+    return () =&gt; connection.disconnect()                     // cleanup：停止同步
+  }, [roomId, serverUrl])                                    // 這兩個就是 dependencies
+}
+</code></pre>
+<p>(q) 依賴陣列三種寫法的語意：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>何時重新執行</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[roomId, serverUrl]</code></td>
+<td>任一個改變時，先跑上次的 cleanup（<code>disconnect</code>），再用新值執行（<code>connect</code>）</td>
+</tr>
+<tr>
+<td><code>[]</code>（空陣列）</td>
+<td>只在 Mount 執行一次，Unmount 時執行 cleanup</td>
+</tr>
+<tr>
+<td>不傳第二個參數</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">每一次 re-render 都重新執行</mark></td>
+</tr>
+</tbody>
+</table>
+<p>(r) React 官方維護的 ESLint 套件 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>eslint-plugin-react-hooks</code></mark>，其中的規則 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>react-hooks/exhaustive-deps</code></mark> 就是自動幫你檢查 (p) 這條原則，涵蓋 <code>useEffect</code>、<code>useCallback</code>、<code>useMemo</code>。<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">次要備註</mark>：這條規則預設是 warning 不是 error，很多專案會把它調成 error 以免有人習慣性地略過。</p>
+<h2 id="_3">⚠️ 存疑／更正</h2>
+<ul>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Gemini 在這串對話裡把 Fiber Tree 描述成「雙向鏈結串列（Doubly Linked List）」，這個說法不精確，而且跟它自己在另一串對話（<code>1f0cc8c21e6f88b5</code>）說的「單向鏈表」自相矛盾。</mark>正確的說法是：Fiber 用 <code>child</code>（第一個子節點）、<code>sibling</code>（右邊的兄弟）、<code>return</code>（父節點）三個指標把樹攤平；<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兄弟節點之間是單向的（只有 <code>sibling</code> 往右，沒有往左的指標）</mark>，<code>return</code> 是「往上回父節點」而不是「往左回前一個兄弟」，所以它是一棵帶有父指標的樹，不是教科書定義的雙向鏈結串列。React 原始碼 <code>ReactFiber.js</code> 也只有這三個結構指標。</li>
+<li>Gemini 說「元件卸載時 Commit / Layout 階段會同步執行 <code>useLayoutEffect</code> 的 cleanup」— 這點是對的，但要補充一個實務差異：<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>useEffect</code> 的 cleanup 在 Unmount 時雖然掛在 Passive 階段，React 18 之後在同步卸載的情境下實際上會被 flush 得很快</mark>，不要把「非同步」理解成「一定會延遲很久」。要保證在 DOM 被移除前跑完的清理（例如解除 <code>ResizeObserver</code>、還原 <code>document.body.style</code>），還是應該寫在 <code>useLayoutEffect</code> 裡。</li>
+<li>原文有一處錯字「完好無初地」，正確是「完好無缺地」，不影響理解。</li>
+</ul>
+<h2 id="_4">相關題目練習</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeetCode 2622. Cache With Time Limit</td>
+<td>https://leetcode.com/problems/cache-with-time-limit/</td>
+<td>手寫 <code>setTimeout</code> ＋ 清除計時器，就是 <code>useEffect</code> cleanup 的最小模型</td>
+</tr>
+<tr>
+<td>LeetCode 2725. Interval Cancellation</td>
+<td>https://leetcode.com/problems/interval-cancellation/</td>
+<td>回傳一個「取消函式」＝ Effect 回傳 cleanup 的同一個設計模式</td>
+</tr>
+<tr>
+<td>LeetCode 2721. Execute Asynchronous Functions in Parallel</td>
+<td>https://leetcode.com/problems/execute-asynchronous-functions-in-parallel/</td>
+<td>練 Promise 與非同步排程，對應 Passive 階段的非同步語意</td>
+</tr>
+<tr>
+<td>NeetCode — Design Browser History</td>
+<td>https://neetcode.io/problems/design-browser-history</td>
+<td>用雙向鏈表實作，正好可以跟 ⚠️ 那條「Fiber 不是雙向鏈表」做對照練習</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">關聯筆記</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：useState底層-Fiber-Tree-memoizedState與過期閉包">useState底層-Fiber-Tree-memoizedState與過期閉包</span> — 那篇講「狀態存在 FiberNode 的 <code>memoizedState</code> 裡」，本篇講「狀態改變之後怎麼被送上畫面」，(k)(l) 的記憶體比對正是那篇 FiberNode 六大類屬性的實際運作。</li>
+<li><span class="wikilink" title="Obsidian 連結：01-React-純函數與嚴格模式-StrictMode">01-React-純函數與嚴格模式-StrictMode</span> — StrictMode 在開發模式刻意跑兩次 Mount → Unmount → Mount，就是為了逼你把 (n)(q) 的 cleanup 寫正確。</li>
+<li><span class="wikilink" title="Obsidian 連結：Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪">Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪</span> — (i) 那個「重繪 Paint」屬於瀏覽器層級的事，跟 React 的 Commit 是兩個不同層級，兩篇對照看才不會混淆。</li>
+<li><span class="wikilink" title="Obsidian 連結：JIT與useMemo-CPU記憶體取捨">JIT與useMemo-CPU記憶體取捨</span> — <code>useMemo</code>／<code>useCallback</code> 同樣受 <code>exhaustive-deps</code> 規則管轄，(r) 的檢查對它們一樣適用。</li>
+<li><span class="wikilink" title="Obsidian 連結：11-記憶體模型-stack-heap-動態配置-GC">11-記憶體模型-stack-heap-動態配置-GC</span> — (l) 講的「斷開引用之後交給 GC」就是那篇可達性（Reachability）概念的實例。</li>
+<li><span class="wikilink" title="Obsidian 連結：SSR-renderToString與Hydration-伺服器端渲染流程">SSR-renderToString與Hydration-伺服器端渲染流程</span> — Hydration 是「Render Phase 在伺服器已經跑過、Commit Phase 才在瀏覽器補上」的特殊情況，理解本篇的兩階段切分之後那篇會好懂很多。</li>
+</ul>
+<h2 id="_6">各對話來源（原文）</h2>
+<h3 id="react-commit-2026-08-31-httpsgeminigooglecomapp5e2bbe55bbaf5dcd">React Commit 階段執行順序解析（2026-08-31）— https://gemini.google.com/app/5e2bbe55bbaf5dcd</h3>
+<p><strong>使用者：</strong> React provides a linter rule to check that you've specified your Effect's dependencies correctly. 他提供一個 linter rule 是 ESLint 嗎？我的 effect's dependencies 是什麼？幫我把所有的更新跟卸載的狀態講清楚。commit 算在 updates 還是 mount？</p>
+<p><strong>Gemini：</strong> commit 階段既不等於 Mount 也不等於 Update，它是 React 處理生命週期時的一個運作機制，無論首次掛載、元件更新還是卸載，最後都會進入 commit 階段把變更套用到真實 DOM 上。(1) 是的，是 ESLint，React 官方維護 <code>eslint-plugin-react-hooks</code>，核心規則是 <code>react-hooks/exhaustive-deps</code>，會檢查 <code>useEffect</code>、<code>useCallback</code>、<code>useMemo</code> 的依賴陣列。(2) 依賴陣列是傳給 <code>useEffect(fn, [deps])</code> 的第二個參數，所有在元件內部定義、且在 Effect 裡讀取到的響應式數值都要放進去；空陣列代表只在 Mount 執行一次、Unmount 執行 cleanup；不傳第二個參數則每次 re-render 都重新執行。(3) React 分成 Render Phase（純計算、可中斷）與 Commit Phase（同步執行、寫入 DOM、觸發 Effects）。接著逐一列出 Mount、Update、Unmount 三種情境下 Render Phase → Commit Mutation → Commit Layout（<code>useLayoutEffect</code>）→ Browser Paint → Commit Passive（<code>useEffect</code>）的完整順序。</p>
+<p><strong>使用者：</strong> 我分不清楚 update 的 state, props、重繪，跟 Unmount 的條件式渲染讓元件從 UI 上被移除差在哪？這邊的 EFFECT 跟 useEffect 有關係嗎？響應式數值（Reactive values）這邊都放在依賴陣列嗎，這兩個名詞有什麼不一樣？</p>
+<p><strong>Gemini：</strong> (1) 三者是不同維護層級：State／Props 變更是資料層，觸發 Render 階段重新計算；重繪 Paint 是視覺層，只是 UI 更新，元件本身依然存在於記憶體與 DOM 樹中；Unmount 是結構層，元件被完全從 DOM 樹移除，對應的 Fiber 節點與 State 記憶體也會被銷毀。(2) 有關係，是概念與語法實作的關係：Effect 是「與 React 渲染狀態同步的外部系統行為」這個程式設計概念，<code>useEffect</code> 是實作它的 Hook API；官方文件〈Lifecycle of Reactive Effects〉的重點是元件有三種生命週期，但 Effect 只有「開始同步」與「停止同步」。(3) 響應式數值是變數的性質（<code>props</code>、<code>state</code>、元件本體算出來的衍生變數；全域常數不算），依賴陣列是放置的位置；原則是 Effect 讀到響應式數值就必須填進依賴陣列，<code>react-hooks/exhaustive-deps</code> 會自動檢查。</p>
+<p><strong>使用者：</strong> 「元件本身依然存在於記憶體與 DOM 樹中。」Fibernode algorithm memory?</p>
+<p><strong>Gemini：</strong> 在 React 中，元件由 React 在 Heap Memory 中維護一個稱為 Fiber Tree 的雙向鏈結串列結構（⚠️ 此處說法不精確，見上方「存疑／更正」）。重點屬性：<code>stateNode</code> 指向真實 DOM 節點，DOM 樹與 Fiber 樹透過指標互相綁定；<code>memoizedState</code> 儲存該元件所有的 Hook 鏈表，只要 FiberNode 沒被銷毀 state 記憶體就不會釋放；Double Buffering 機制維護 <code>current</code> 與 <code>workInProgress</code> 兩棵樹，透過 <code>alternate</code> 互相引用。接著比較兩種情況：Update 時真實 DOM 被保留只做 Mutation，FiberNode 依然保留在記憶體中（Clone 一份當 <code>workInProgress</code>、更新 <code>memoizedProps</code> 與 <code>memoizedState</code>、交替雙緩衝指標），記憶體零回收；Unmount 時 Commit Mutation 階段呼叫 <code>removeChild</code>，Fiber 被標記為 <code>Deletion</code>、斷開父節點的 <code>child</code>／<code>sibling</code> 指標、斷開 <code>stateNode</code>，引用都斷開後由 GC 清除。</p>
+<p><strong>使用者：</strong> 所以在原生 JS，元件是一個物件嗎？</p>
+<p><strong>Gemini：</strong> 不是，原生 JS 中完全沒有「元件」這個概念，它是 React 等框架抽象出來的邏輯封裝單位。從原生 JS 的角度看：(1) 語法上元件就是一個普通的 JavaScript 函式（Function Object），經 Babel 編譯成 <code>React.createElement(Button, { text: "Click" })</code> 後回傳的是一個 Plain Object，也就是 React Element／Virtual DOM 節點，長得像 <code>{ $$typeof: Symbol(react.element), type: f Button(props), props: {...}, key: null, ref: null }</code>。(2) 運作機制上，元件在 Heap 中對應兩種物件：一是原生的 DOM 物件（例如 <code>HTMLButtonElement</code>，繼承鏈是 <code>EventTarget → Node → Element → HTMLElement</code>），二是 React 內部建立的 FiberNode 物件，透過 <code>stateNode</code> 指向前者。(3) 若要在純原生 JS 中做出元件機制，兩種做法：寫一個 ES6 Class 用 <code>document.createElement()</code> 建立 DOM 並把狀態綁在 <code>this</code> 上；或使用瀏覽器原生規範 Web Components 的 <code>customElements.define()</code> 繼承 <code>HTMLElement</code> 自訂標籤，這是原生 JS 中最接近 React 元件的標準做法。</p>
+<h2 id="_7">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇對話（React Commit 階段執行順序解析）</td>
+<td>https://gemini.google.com/app/5e2bbe55bbaf5dcd</td>
+<td>Gemini Flash，2026-08-31</td>
+</tr>
+<tr>
+<td>React 官方 — Lifecycle of Reactive Effects</td>
+<td>https://react.dev/learn/lifecycle-of-reactive-effects</td>
+<td>react.dev 現行文件，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>React 官方 — useLayoutEffect（與 useEffect 的時序差異）</td>
+<td>https://react.dev/reference/react/useLayoutEffect</td>
+<td>react.dev 現行文件，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>React 官方 — Removing Effect Dependencies</td>
+<td>https://react.dev/learn/removing-effect-dependencies</td>
+<td>react.dev 現行文件，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>eslint-plugin-react-hooks（exhaustive-deps 規則原始碼與說明）</td>
+<td>https://github.com/facebook/react/tree/main/packages/eslint-plugin-react-hooks</td>
+<td>main 分支，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>React 原始碼 — ReactFiberCommitWork.js（Commit 三個子階段）</td>
+<td>https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberCommitWork.js</td>
+<td>main 分支，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>MDN — Web Components / customElements.define</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/Web_components</td>
+<td>MDN 現行版本，2026-08-31 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-08-31</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-31</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

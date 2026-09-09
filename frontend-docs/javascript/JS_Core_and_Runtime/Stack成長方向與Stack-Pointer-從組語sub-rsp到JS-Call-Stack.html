@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stack 成長方向與 Stack Pointer——從組語 sub rsp 到 JS Call Stack</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Stack 成長方向與 Stack Pointer——從組語 sub rsp 到 JS Call Stack</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#memory</span><span class="pill">#stack</span><span class="pill">#heap</span><span class="pill">#assembly</span><span class="pill">#x86-64</span><span class="pill">#v8</span><span class="pill">#JS_Core_and_Runtime</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-09</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/f7617167b4e575f0" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/ee32b7031e14ab15" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/48e3fda16e0ce8ed" target="_blank" rel="noopener">原始對話 3</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">在 x86-64 上，`push` 指令會讓 rsp（Stack Pointer）的值變大。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Stack 往低位址成長，push 是減少 rsp、pop 才是增加 rsp。</div></li><li><p class="qq">反組譯畫面最左邊那一欄的位址，指的是 rsp 目前指到的堆疊位置。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">那是指令自己住的位址（Code Segment），跟 rsp 指的堆疊位址是兩條完全不同的軸。</div></li><li><p class="qq">0x7FFF0FC0 比 0x7FFF0FD0 小。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">十六進位 C=12、D=13，所以 FC0 &lt; FD0。</div></li><li><p class="qq">JS 裡 Call Stack 的 stack 和存放 primitive 區域變數的 stack 是同一塊記憶體。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">同一塊的兩種用途：既追蹤執行位置，也存當前 frame 的 primitive 值與 Heap 指標。</div></li><li><p class="qq">被閉包捕捉的變數會留在 Stack Frame 上，等 return 時一起被 pop。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">引擎會把它們搬到 Heap 的 Context 物件，這正是閉包能存活的原因。</div></li><li><p class="qq">Stack 上的記憶體是由 GC（垃圾回收）負責清理的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Stack Frame 在 return 時自動 pop，是引擎內建機制；GC 只管 Heap。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">SP 的全名是 Stack <input class="blank" data-a="Pointer" placeholder="填答案" autocomplete="off">，中文叫堆疊指標，x86-64 上的暫存器名稱是 rsp。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Stack Pointer，永遠指著堆疊頂端。</div></li><li><p class="qq">BP 的全名是 <input class="blank" data-a="Base" placeholder="填答案" autocomplete="off"> Pointer，又叫 Frame Pointer，x86-64 上叫 rbp，用來當區域變數偏移量的基準點。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Base Pointer／基底指標。</div></li><li><p class="qq">要在堆疊上配置區域變數，組語會下 `<input class="blank" data-a="sub" placeholder="填答案" autocomplete="off"> rsp, N`（因為 stack 往低位址成長）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">配置用 sub、歸還用 add 或 leave。</div></li><li><p class="qq">反組譯裡 0x0024 的下一行是 0x0028，差的 4 代表這道指令的機器碼長度是 4 <input class="blank" data-a="bytes" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">是指令長度，跟運算元那個 4 無關。</div></li><li><p class="qq">ISA 的全名是 Instruction Set <input class="blank" data-a="Architecture" placeholder="填答案" autocomplete="off">，是 CPU 對外公開「有哪些指令與暫存器」的合約。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">指令集架構，x86-64／ARM64／RISC-V 各是一種 ISA。</div></li><li><p class="qq">V8 的 Heap 中，剛建立、生命週期短的物件會先放在 <input class="blank" data-a="New" placeholder="填答案" autocomplete="off"> Space（新生代），用 Scavenge 演算法快速回收。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">熬過多次回收才會被搬到 Old Space。</div></li><li><p class="qq">V8 中存放 JIT 編譯器（Ignition／TurboFan）產出的機器碼的區域叫 <input class="blank" data-a="Code" placeholder="填答案" autocomplete="off"> Space。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">與 New／Old／Large Object Space 並列。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">用你自己的話解釋：為什麼「sub rsp, 4」明明是減法，反組譯的下一行位址卻從 0x0024 變成 0x0028？請把兩條位址軸講清楚。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 反組譯畫面上同時存在兩條位址軸。左邊那欄是「指令位址」，屬於 Code Segment，程式碼由上往下擺，所以往下讀位址一定遞增，相鄰兩行的差值等於上一道指令的機器碼長度。(2) rsp 指的是「堆疊位址」，屬於 Stack Segment，這條軸往低位址成長，所以配置空間要用 sub。(3) 0x0024 → 0x0028 差 4，是因為 sub 這道指令本身佔 4 bytes，跟運算元的那個 4 沒有任何關係——只是剛好兩個數字都是 4，才特別容易誤會。(4) 一句話：左邊那條軸在回答「下一道指令在哪」，rsp 那條軸在回答「我的區域變數放哪」，是兩件事、兩把尺。</div></li><li><p class="qq">面試官問：「JavaScript 的記憶體就只有 Call Stack 和 Heap 嗎？」你會怎麼回答？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 先給結論：應用層思考用 Call Stack + Heap 大致夠用，但 V8 底層遠不只兩塊。(2) Call Stack 存執行幀、primitive 區域變數與 Heap 指標，return 時自動 pop，不歸 GC 管。(3) Heap 內部細分：New Space（新生代，Scavenge 快速回收）、Old Space（老生代，Mark-Sweep-Compact）、Large Object Space（大物件獨立配置、GC 不搬動）、Code Space（存 JIT 產出的機器碼）。(4) 補一個反直覺的點加分：被閉包捕捉的變數會被搬到 Heap 的 Context 物件，所以閉包變數其實住在 Heap，不是 Stack。(5) 再補 Event Loop 相關的 Web APIs 與 MacroTask／MicroTask Queue，雖然不算純資料記憶體，但也是執行期存放與排隊的機制。</div></li><li><p class="qq">為什麼 x86-64 的 Stack 要設計成往低位址成長？這個設計對 Heap 有什麼好處？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 歷史與布局原因：讓 Stack 從記憶體高位址往下長、Heap 從低位址往上長，兩者相向成長。(2) 好處是中間那塊未使用的空白可以被兩邊彈性共用，不必在程式啟動時就把「Stack 佔多少、Heap 佔多少」切死。(3) 連帶的規則：push 減 rsp、pop 加 rsp、配置用 sub、歸還用 add 或 leave——這些全都是同一個成長方向推導出來的，記住方向就不必死背個別指令。(4) 可補充：這是 ISA 與 ABI 共同約定的，不是編譯器可以自由選擇的；ARM64 同樣是 full descending stack。</div></li></ol></section>
+
+<article class="card">
+<h1 id="stack-stack-pointer-sub-rsp-js-call-stack">Stack 成長方向與 Stack Pointer——從組語 sub rsp 到 JS Call Stack</h1>
+<blockquote>
+<p>[!info]- 📍 這篇在整條學習線的哪裡<br />
+<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">承接</mark>：<span class="wikilink" title="Obsidian 連結：11-記憶體模型-stack-heap-動態配置-GC">11-記憶體模型-stack-heap-動態配置-GC</span> 講完「Stack 歸引擎自動 pop、Heap 歸 GC」的分工，但沒有解釋 Stack 在實體記憶體裡「往哪個方向長」。<br />
+<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">承接</mark>：<span class="wikilink" title="Obsidian 連結：12-return-清理記憶體-stack-frame與閉包例外">12-return-清理記憶體-stack-frame與閉包例外</span> 裡那張 <p class="fig"><img src="../../../obsidian-attachment/%E5%AD%B8%E7%BF%92JS_%E5%9C%96%E8%A7%A3_Stack%E4%BD%8D%E5%9D%80%E8%88%87SP-BP_2026-07-29.svg" alt="學習JS_圖解_Stack位址與SP-BP_2026-07-29.svg" loading="lazy"></p> 已經畫出 SP／BP 的相對位置；這篇是「指回那張圖」再往下鑽一層，補上組語層的 <code>sub rsp</code>。<br />
+<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">下一步</mark>：知道 Stack Frame 怎麼配置之後，<span class="wikilink" title="Obsidian 連結：13-閉包-Closure-私有變數與傳址陷阱">13-閉包-Closure-私有變數與傳址陷阱</span> 講為什麼閉包變數逃得掉 pop。</p>
+<p>本篇重點 (a)–(r)，共 18 個。</p>
+</blockquote>
+<hr />
+<h2 id="spbprsprbp">縮寫先攤開：SP、BP、rsp、rbp 到底是什麼</h2>
+<blockquote>
+<p>[!important]+ 縮寫不先講清楚，後面全部會卡住<br />
+a. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SP＝Stack Pointer（堆疊指標）</mark>。一個 CPU 暫存器，永遠指著「堆疊目前的頂端在哪個記憶體位址」。x86-64 上它的名字叫 <code>rsp</code>（r＝register、s＝stack、p＝pointer；32 位元時代叫 <code>esp</code>）。<br />
+b. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">BP＝Base Pointer（基底指標，又叫 Frame Pointer 框架指標）</mark>。也是暫存器，指著「目前這個函式的 Stack Frame 從哪裡開始」。x86-64 上叫 <code>rbp</code>。有了固定的 BP，函式內部就能用 <code>[rbp-4]</code>、<code>[rbp-8]</code> 這種固定偏移量去存取自己的區域變數，不必管 SP 這段期間又動了幾次。<br />
+c. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">ISA＝Instruction Set Architecture（指令集架構）</mark>。CPU 對外公開的「你可以下哪些指令、有哪些暫存器」這份合約。x86-64（又稱 AMD64）、ARM64、RISC-V 都是不同的 ISA。本篇的 <code>rsp</code>／<code>rbp</code>／<code>sub</code> 都是 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">x86-64 這個 ISA 的東西</mark>，換到 ARM64 名字就不一樣了。<br />
+d. <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">ABI＝Application Binary Interface（應用程式二進位介面）</mark>。比 ISA 更上一層的約定：參數用哪些暫存器傳、堆疊要怎麼對齊、誰負責清理。Linux／macOS 用的是 System V AMD64 ABI，Windows 用的是另一套。</p>
+</blockquote>
+<hr />
+<h2 id="abby-4">一、Abby 原本的疑問：「減了 4，位址卻變大？」</h2>
+<p>這是三段對話裡最核心、也最值得記住的一次卡關。</p>
+<table>
+<thead>
+<tr>
+<th>你以為</th>
+<th>實際上</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sub rsp, 4</code> 讓位址減 4，所以下一行位址應該變小</td>
+<td>你在看的那一欄根本不是 rsp，是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">指令自己住的位址</mark></td>
+</tr>
+<tr>
+<td>0x0024 → 0x0028 是「堆疊往上長」</td>
+<td>0x0028 是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">下一道指令的位址</mark>，差 4 是因為 sub 這道指令的機器碼佔 4 bytes</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!warning]+ 關鍵：反組譯畫面上其實有「兩條互不相干的位址軸」<br />
+e. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">軸一是指令位址（Code Segment）</mark>——反組譯最左邊那一欄。程式碼是由上往下擺的，所以往下讀，位址一定<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">遞增</mark>。相鄰兩行的差值＝上一道指令的機器碼長度。<br />
+f. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">軸二是堆疊位址（Stack Segment）</mark>——<code>rsp</code> 指的地方。這條軸<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">往低位址成長</mark>，所以配置空間要用 <code>sub</code>。<br />
+g. 兩條軸都用十六進位、都叫「位址」，但一個在問「下一道指令在哪」，另一個在問「我的區域變數放哪」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">用同一把尺去量就必錯</mark>。<br />
+h. 這次的巧合特別壞心：運算元剛好是 4，指令長度也剛好是 4，兩個 4 一撞在一起就完全分不出誰是誰。</p>
+</blockquote>
+<p class="fig"><img src="../../../obsidian-attachment/%E5%AD%B8%E7%BF%92%E7%B5%84%E8%AA%9E_%E5%9C%96%E8%A7%A3_%E6%8C%87%E4%BB%A4%E4%BD%8D%E5%9D%80%E8%BB%B8vs%E5%A0%86%E7%96%8A%E4%BD%8D%E5%9D%80%E8%BB%B8-%E5%85%A9%E6%A2%9D%E4%B8%8D%E8%A6%81%E6%90%9E%E6%B7%B7%E7%9A%84%E8%BB%B8_2026-09-09.svg" alt="學習組語_圖解_指令位址軸vs堆疊位址軸-兩條不要搞混的軸_2026-09-09.svg" loading="lazy"></p>
+
+<hr />
+<h2 id="sub-add">二、為什麼是 sub 而不是 add</h2>
+<blockquote>
+<p>[!note]+ 因為 Stack 是「倒著長」的<br />
+i. 在 x86／x86-64 上，堆疊<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">從記憶體高位址往低位址成長（grows downward）</mark>。這是硬體與 ABI 一起定下的規則，不是編譯器可以自己選的。<br />
+j. 所以<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">配置</mark>區域變數＝把 SP 往下推＝<code>sub rsp, N</code>；<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">歸還</mark>＝把 SP 拉回來＝<code>add rsp, N</code>（或直接一道 <code>leave</code>）。<br />
+k. 同理，<code>push</code> 會<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">減少</mark> rsp，<code>pop</code> 會<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">增加</mark> rsp。這跟直覺剛好相反，是初學最常翻車的地方。<br />
+l. 為什麼要往下長？歷史原因是讓 Stack 與 Heap 從記憶體的兩端相向成長，中間那塊空白可以被兩邊彈性共用，不必事先切死誰佔多少。</p>
+</blockquote>
+<p>典型的函式開場白（prologue）長這樣：</p>
+<pre><code class="language-asm">push rbp            ; 先把呼叫者的 BP 存起來（rsp 減 8）
+mov  rbp, rsp       ; 用目前的 SP 當作本函式的 BP 基準點
+sub  rsp, 16        ; 往下挖 16 bytes 給區域變數用
+; ... 函式本體，用 [rbp-4]、[rbp-8] 存取區域變數 ...
+leave               ; 等同 mov rsp, rbp / pop rbp
+ret                 ; 跳回呼叫者
+</code></pre>
+<blockquote>
+<p>[!warning]+ ⚠️ 存疑／更正：對話裡的 <code>sub rsp, 4</code> 在真實 x86-64 幾乎不會出現<br />
+m. System V AMD64 ABI 要求 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>call</code> 之前堆疊必須 16-byte 對齊</mark>，所以編譯器實際產生的多半是 <code>sub rsp, 16</code>／<code>sub rsp, 32</code> 這種 16 的倍數，而不是 4。<br />
+n. <code>sub esp, 4</code> 這種寫法比較像 <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">32 位元的 x86（esp）或教科書的簡化範例</mark>。Gemini 沒有點出這件事，但概念方向（sub 是為了配置、stack 往下長）是對的。</p>
+</blockquote>
+<hr />
+<h2 id="_1">三、十六進位比大小的陷阱</h2>
+<p>第二段對話卡在這裡：「0x7FFF0FC0 明明數字比較大啊？」</p>
+<blockquote>
+<p>[!danger]+ C 和 D 是數字，不是字母<br />
+o. 十六進位裡 <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">A=10、B=11、C=12、D=13、E=14、F=15</mark>。<br />
+p. 所以 <code>FC0</code> 的中間那位是 12、<code>FD0</code> 的中間那位是 13 → <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">0x7FFF0FC0 &lt; 0x7FFF0FD0</mark>。<br />
+q. 對應到 Stack：<code>main()</code> 先被呼叫，住在較高的 0x7FFF0FD0；<code>main()</code> 呼叫 <code>add()</code> 時往下長，<code>add()</code> 的 frame 落在較低的 0x7FFF0FC0。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「後呼叫的函式位址比較小」</mark>，完全符合往下長的規則，沒有矛盾。</p>
+</blockquote>
+<pre><code class="language-plaintext">高位址 (High Address)
+  ▲
+  │   [ main() Stack Frame ]  → 0x7FFF0FD0   （先建立，位址較大）
+  │   [ add()  Stack Frame ]  → 0x7FFF0FC0   （後建立，位址較小）
+  │   ▼ Stack 成長方向（往低位址）
+  ▼
+低位址 (Low Address)
+</code></pre>
+<hr />
+<h2 id="jscall-stack-stack-primitive-stack">四、拉回 JS：Call Stack 的 Stack 跟放 primitive 的 Stack 是同一塊嗎</h2>
+<p>第三段對話問的是這題，答案是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">是的，同一塊</mark>。</p>
+<blockquote>
+<p>[!note]+ 一個 Stack Frame 裡到底裝了什麼<br />
+r. 呼叫函式時，引擎在 Call Stack 上推入一個 Stack Frame，裡面同時裝著三種東西：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">執行上下文與參數</mark>、<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">該函式內宣告的 primitive 變數（直接存值）</mark>、<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">物件／參考型別的記憶體位址（指標）</mark>——物件本體在 Heap。函式 <code>return</code> 時整個 frame 被 pop，這三樣一起消失。</p>
+</blockquote>
+<p>所以「Call Stack」和「存 primitive 的 Stack」不是兩塊記憶體，是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">同一塊的兩種用途</mark>：既追蹤「程式執行到哪」，也存「當前區塊的區域值與 Heap 指標」。</p>
+<h3 id="js-call-stack-heap">JS 的記憶體不是只有 Call Stack ＋ Heap</h3>
+<p>面試層級講 Call Stack ＋ Heap 大致夠用，但 V8 底層還細分：</p>
+<table>
+<thead>
+<tr>
+<th>區域</th>
+<th>放什麼</th>
+<th>回收方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Call Stack</td>
+<td>執行幀、primitive 區域變數、Heap 指標</td>
+<td><code>return</code> 時自動 pop，不歸 GC 管</td>
+</tr>
+<tr>
+<td>New Space（新生代）</td>
+<td>剛建立、生命週期短的物件</td>
+<td>Scavenger（Minor GC），快速複製式回收</td>
+</tr>
+<tr>
+<td>Old Space（老生代）</td>
+<td>在新生代熬過多次回收的物件</td>
+<td>Mark-Sweep-Compact（Major GC）</td>
+</tr>
+<tr>
+<td>Large Object Space</td>
+<td>超過尺寸上限的大物件</td>
+<td>各自獨立配置，GC 不搬動它</td>
+</tr>
+<tr>
+<td>Code Space</td>
+<td>JIT（Ignition／TurboFan）產出的機器碼</td>
+<td>隨程式碼快取失效而回收</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!tip]+ 閉包變數住在哪？答案會顛覆直覺<br />
+被閉包捕捉的變數<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不能</mark>隨 Stack Frame 一起被 pop 掉，所以引擎會把它們<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">搬到 Heap 上的 Context 物件</mark>裡。也就是說——<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">閉包變數其實住在 Heap</mark>，這也正是 <span class="wikilink" title="Obsidian 連結：12-return-清理記憶體-stack-frame與閉包例外">12-return-清理記憶體-stack-frame與閉包例外</span> 講的「例外」。</p>
+</blockquote>
+<p>另外 Event Loop 相關的 <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Web APIs／Node APIs</mark>、<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">MacroTask ／ MicroTask Queue</mark> 嚴格說不算資料記憶體，但也是執行期會排隊存放東西的地方，細節見 <span class="wikilink" title="Obsidian 連結：事件循環-Event-Loop-微任務與巨任務">事件循環-Event-Loop-微任務與巨任務</span>。</p>
+<hr />
+<h2 id="stack">五、相關練習題（Stack 資料結構）</h2>
+<p>這篇講的是「記憶體上的 Stack」，但 LIFO 的直覺跟「資料結構的 Stack」是同一套，練題可以互相強化：</p>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>20. Valid Parentheses</td>
+<td>https://leetcode.com/problems/valid-parentheses/</td>
+<td>最經典的 push／pop 配對，體會 LIFO</td>
+</tr>
+<tr>
+<td>155. Min Stack</td>
+<td>https://leetcode.com/problems/min-stack/</td>
+<td>自己維護一個 stack，理解 top 指標的意義（對應 SP）</td>
+</tr>
+<tr>
+<td>232. Implement Queue using Stacks</td>
+<td>https://leetcode.com/problems/implement-queue-using-stacks/</td>
+<td>用兩個 stack 反轉方向，加深成長方向的體感</td>
+</tr>
+<tr>
+<td>NeetCode Stack 專章</td>
+<td>https://neetcode.io/practice</td>
+<td>依難度排好的 Stack 題單</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_2">六、各對話來源（原文摘要）</h2>
+<h3 id="1-stack-pointer-adjustment-explanation-httpsgeminigooglecomappf7617167b4e575f0">1. Stack Pointer Adjustment Explanation（語音對話）— https://gemini.google.com/app/f7617167b4e575f0</h3>
+<blockquote>
+<p>[!quote]- 展開原文<br />
+<strong>使用者：</strong> （語音轉錄有破碎）……0x0024 寫 <code>sub rsp, 4</code>，減了 4 但接下來卻是 0x0028，為什麼往更高的地方走？<br />
+<strong>Gemini：</strong> That <code>sub rsp 4</code> instruction is simply adjusting the stack pointer to make space in memory. The instruction at that point is 4 bytes long, which is why the next address listed is 0x0028.</p>
+<p><strong>使用者：</strong> 為什麼是 sub 呢？<br />
+<strong>Gemini：</strong> Because the stack grows downward in memory, you subtract from the stack pointer to allocate to make room for local variables, which is why the instruction is <code>sub</code> instead of <code>add</code>.</p>
+<p>⚠️ 註：這段是語音對話，逐字稿被辨識得很破碎（例如「掛狗」「你們真旺家」都是誤辨），本節已改寫為可讀版本。</p>
+</blockquote>
+<h3 id="2-stack-pop-httpsgeminigooglecomappee32b7031e14ab15">2. Stack 記憶體增長方向與 Pop — https://gemini.google.com/app/ee32b7031e14ab15</h3>
+<blockquote>
+<p>[!quote]- 展開原文<br />
+<strong>使用者：</strong> 當 <code>main()</code> 呼叫 <code>add()</code> 時，建立 <code>add()</code> 的 stack frame → 位於較低的 Stack 位址（例如 0x7FFF0FC0），但很明顯數字比 <code>main()</code> 還要大。<br />
+<strong>Gemini：</strong> 這裡主要有一個關於十六進位數值比較的小誤會。在十六進位中 C 代表 12、D 代表 13，因此 0x7FFF0FC0 的數值其實比 0x7FFF0FD0 還要小（FC0 &lt; FD0），並沒有比 <code>main()</code> 的位址大。在常見的 x86／x86-64 架構下，Stack 是向下成長的：<code>main()</code> 優先建立，位於較高的位址；呼叫 <code>add()</code> 時 Stack 向下延伸，<code>add()</code> 的 frame 建立在較低的位址。（附記憶體示意圖）</p>
+</blockquote>
+<h3 id="3-js-call-stack-heap-httpsgeminigooglecomapp48e3fda16e0ce8ed">3. JS 記憶體：Call Stack 與 Heap — https://gemini.google.com/app/48e3fda16e0ce8ed</h3>
+<blockquote>
+<p>[!quote]- 展開原文<br />
+<strong>使用者：</strong> JS 跟記憶體有關的部分就是 Call stack、Stack、Heap？That's all？Call stack 的 stack 跟放 primitives 的 stack 是一樣的嗎？<br />
+<strong>Gemini：</strong> 這兩個問題的答案分別是「不是只有這樣」以及「是的，它們本質上是同一塊 Stack 空間」。<br />
+1. 執行函式時引擎會在 Call Stack 推入一個執行幀（Stack Frame），裡面包含執行上下文與參數、該函式內宣告的 primitive 變數（直接以值儲存）、以及物件／參考型別的記憶體位址（真正的資料在 Heap）。函式 return 時整個 frame 被 pop，裡面的 primitive 與 reference 一併釋放。<br />
+2. 從 V8 底層看遠不只兩塊：（A）閉包捕捉的變數會被搬到 Heap 中的 Context 物件；（B）Heap 內部細分為 New Space（Scavenge 快速回收）、Old Space（Mark-Sweep／Mark-Compact）、Large Object Space（不搬動）、Code Space（存 Ignition／TurboFan 產出的機器碼）；（C）Web APIs／Node APIs 與 MacroTask／MicroTask Queue。</p>
+</blockquote>
+<hr />
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：Stack Pointer Adjustment Explanation</td>
+<td>https://gemini.google.com/app/f7617167b4e575f0</td>
+<td>對話擷取於 2026-09-09</td>
+</tr>
+<tr>
+<td>Gemini 對話：Stack 記憶體增長方向與 Pop</td>
+<td>https://gemini.google.com/app/ee32b7031e14ab15</td>
+<td>對話擷取於 2026-09-09</td>
+</tr>
+<tr>
+<td>Gemini 對話：JS 記憶體：Call Stack 與 Heap</td>
+<td>https://gemini.google.com/app/48e3fda16e0ce8ed</td>
+<td>對話擷取於 2026-09-09</td>
+</tr>
+<tr>
+<td>System V AMD64 ABI（16-byte 對齊、參數傳遞暫存器）</td>
+<td>https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf</td>
+<td>規格 0.99；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>System V ABI 概覽</td>
+<td>https://wiki.osdev.org/System_V_ABI</td>
+<td>OSDev Wiki；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>x86-64 stack frame 版面配置與 prologue</td>
+<td>https://eli.thegreenplace.net/2011/09/06/stack-frame-layout-on-x86-64/</td>
+<td>2011-09-06；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Stack 往低位址成長、push 減 rsp／pop 加 rsp</td>
+<td>https://exercism.org/tracks/x86-64-assembly/concepts/stack</td>
+<td>查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>V8 Orinoco GC 與 New／Old Space</td>
+<td>https://v8.dev/blog/trash-talk</td>
+<td>V8 官方部落格；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Orinoco 平行 Scavenger（新生代回收）</td>
+<td>https://v8.dev/blog/orinoco-parallel-scavenger</td>
+<td>V8 官方部落格；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>V8 heap 分區視覺化說明（New／Old／Large Object／Code Space）</td>
+<td>https://deepu.tech/memory-management-in-v8/</td>
+<td>查證於 2026-09-09</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><sub>由 Gemini 對話自動整理 · 更新於 2026-09-09</sub></p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-09</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

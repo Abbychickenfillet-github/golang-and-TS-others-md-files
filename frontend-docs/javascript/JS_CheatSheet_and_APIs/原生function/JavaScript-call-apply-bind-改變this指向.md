@@ -47,6 +47,95 @@ setTimeout(function () {
 
 解法：用<mark style="background: #BBFABBA6;">箭頭函式</mark>（`this` 繼承外層、不會脫鉤），或用 `bind` 顯性綁定（見下方）。
 
+## 補充：完整優先順序（含 `new` 綁定與箭頭函式）——「怎麼知道 this 現在指向哪」的完整判斷法
+
+> 延伸自 `happy-vue-playground` 手打 Vue `RefImpl` 骨架時的提問（2026-09-03）：`constructor(value){this._value = value}` 裡的 `this` 怎麼知道指向誰？跟箭頭函式（含 `async` 箭頭）的 `this` 是不是同一套規則？
+
+上面「隱性綁定 vs 預設綁定」只列了兩種，完整判斷要照這個<mark style="background: #FFF3A3A6;">優先順序</mark>由高到低看函式**怎麼被呼叫**（call-site），不是看它寫在哪：
+
+| 優先序 | 綁定方式 | 怎麼觸發 | `this` 指向 |
+|---|---|---|---|
+| 1（最高） | <mark style="background: #FF5582A6;">`new` 綁定</mark> | `new Foo(...)` | 引擎當場生出的**全新空物件**（就是這次 `new` 建出來的實例） |
+| 2 | 顯性綁定 | `.call()` / `.apply()` / `.bind()` | 你手動指定的那個物件 |
+| 3 | 隱性綁定 | `obj.method()`（點號前有物件） | 呼叫當下點號前面的那個物件（receiver） |
+| 4（最低） | 預設綁定 | `func()` 獨立呼叫 | 嚴格模式 `undefined`；非嚴格模式全域物件 |
+| （不適用上表） | <mark style="background: #ADCCFFA6;">箭頭函式</mark> | 沒有「呼叫方式」這回事，箭頭函式**沒有自己的 `this`** | 定義當下，往外找**最近一層有自己 `this` 的作用域**直接繼承 |
+
+### 對應到 `RefImpl` 的兩個例子
+
+```javascript
+class RefImpl {
+  constructor(value) { this._value = value }   // ← 規則 1：new 綁定
+  get value() { track(this, 'value'); return this._value }  // ← 規則 3：隱性綁定
+  set value(v) { this._value = v; trigger(this, 'value') }
+}
+const r = new RefImpl(0);   // 觸發 constructor：this = 這次 new 出來的新物件
+r.value;                    // 觸發 getter：this = r（點號前面那個）
+```
+
+- `constructor` 裡的 `this` 之所以知道是「這個實例」，**不是因為程式碼寫在 class 裡面**，而是因為呼叫方式是 `new RefImpl(...)`——`new` 這個關鍵字本身的規範行為就是：先造一個空物件、把它的原型指到 `RefImpl.prototype`、然後用這個新物件當 `this` 去執行建構式本體。<mark style="background: #BBFABBA6;">只要看到 `new Xxx(...)`，`this` 一律是那個當場生出來的新物件</mark>，不用猜。
+- `get value()`／`set value()` 是**方法**，被呼叫的方式是 `r.value`（讀）／`r.value = x`（寫），前面有物件點著它 → 隱性綁定 → `this = r`。跟一般方法 `obj.method()` 是同一條規則，只是觸發方式包裝成「存取屬性」而非「呼叫函式」。
+
+> [!warning] 「定義」跟「觸發」是兩件事（2026-09-03 實測踩坑）
+> 在 `happy-vue-playground/src/App.vue` 裡發現：整份檔案**只有 `class RefImpl` 的定義，完全沒有任何一行 `new RefImpl(...)`**——這個 class 從沒被實例化過。這帶出一個容易搞混的地方：
+> <mark style="background: #FF5582A6;">單純「寫」一段 `constructor(value){...}` 只是**定義**，不會觸發任何 this 綁定。</mark>new 綁定是「**呼叫** `new RefImpl(x)` 那一刻」才會發生的事件——函式定義出來但從沒被呼叫過，`this` 根本無從談起，因為 `this` 綁定本來就是「函式被呼叫的當下」才決定的東西（呼應上面的核心原則：看**怎麼被呼叫**，不是看**寫在哪裡**）。
+> <mark style="background: #BBFABBA6;">同樣的邏輯也適用於這篇最上面的 call/apply/bind：`function greet(){...}` 這段定義本身也沒有任何 this 綁定，要等到 `greet.call(person, ...)` 這行真的執行，綁定才發生。</mark>「定義」只是把程式碼準備好放在那裡；「this 綁定」永遠發生在**呼叫的那一刻**。
+
+### 延伸提問：constructor 的 this 永遠都是這個實例嗎？那輸出永遠都是那個 class 的名字嗎？（2026-09-03）
+
+<mark style="background: #BBFABBA6;">「this 永遠是這次被 new 出來的實例」這句話對；但「輸出永遠是字面上寫的那個 class 名稱」不一定對——差別在有沒有繼承。</mark>
+
+只要沒有子類別，兩者確實會一致：
+
+```javascript
+const r = new RefImpl(10);
+console.log(r); // RefImpl { _value: 10 }
+```
+
+但一旦有子類別繼承它，`this` 綁的還是「這次被 new 出來的實例」，只是這個實例的真正身分變了：
+
+```javascript
+class SpecialRef extends RefImpl {
+  constructor(value) { super(value); this.tag = 'special' } // super(value) 執行的是 RefImpl 的 constructor 本體
+}
+const s = new SpecialRef(1);
+console.log(s); // SpecialRef { _value: 1, tag: 'special' }——不是 RefImpl！
+```
+
+`super(value)` 那一刻，程式碼確實在跑 `RefImpl` 的 constructor 本體（`this._value = value` 那一行），但當下 `this` 綁的是 `new SpecialRef(...)` 生出來的那個實例——引擎靠內部的 `new.target` 機制記得「這次真正被 new 的是誰」，所以就算執行的是父類別的 constructor 程式碼，實例的原型鏈起點、`console.log` 印出來的建構子名稱，仍然是子類別 `SpecialRef`。
+
+<mark style="background: #FFF3A3A6;">精確講法：`this` 永遠是「這次被 new 出來的那個實例」，而這個實例屬於哪個 class，取決於呼叫 `new` 時寫的是哪個 class 名稱——不是取決於「目前正在執行哪一段 constructor 程式碼」。</mark>只要程式碼裡沒有繼承，`new RefImpl(...)` 當然每次都印 `RefImpl`；一旦有子類別呼叫 `super()`，才會出現「執行的是父類別程式碼、印出來卻是子類別名字」這種看似矛盾的結果。
+
+延伸應用：`happy-vue-playground/src/App.vue` 裡目前的 `class RefImpl` 沒有任何子類別，所以 `new RefImpl(10)` 印出來會是 `RefImpl { _value: 10 }`，這題的「例外情況」暫時不會發生。
+
+### 箭頭函式（含 `async` 箭頭）的 `this`：跟「找最近的誰」有關，但不是「最外層」
+
+<mark style="background: #FF5582A6;">箭頭函式不是「往最外層找」，是「往最近的一層有自己 this 的作用域找」——跟閉包找變數的機制一模一樣，只是找的目標從「變數」換成「this 這個特殊綁定」。</mark>
+
+具體做法：從箭頭函式定義的位置開始，沿著詞法作用域鏈往外一層一層爬，**跳過所有箭頭函式**（因為箭頭函式自己沒有 `this`，只是繼續往外傳），一直爬到第一個滿足下面任一條件的地方就停：
+
+1. 遇到第一個**非箭頭函式**（一般 function 或方法）→ 用**那個函式被呼叫的方式**（上面優先序 1-4）決定的 `this`
+2. 遇到 class 欄位初始化器（class field）→ `this` = 該 class 的實例
+3. 一路爬到最外層（module 頂層／`<script setup>` 頂層）都沒遇到 → module 是嚴格模式，`this` = `undefined`
+
+```javascript
+const obj = {
+  name: 'Abby',
+  normal: function () {
+    setTimeout(function () { console.log(this) }, 0);   // 預設綁定 → undefined/window，脫鉤
+    setTimeout(() => { console.log(this) }, 0);          // 箭頭 → 往外找到 normal，normal 是 obj.normal() 呼叫 → this = obj
+  }
+};
+obj.normal();
+```
+
+<mark style="background: #ADCCFFA6;">`async` 完全不影響這條規則。</mark>`async` 只多做兩件事：函式回傳 Promise、函式體內能用 `await`。它不改變 `this` 的判斷方式——`async () => {...}` 的 `this` 判斷法跟同步箭頭函式 `() => {...}` 完全相同（往外找最近的非箭頭作用域），`async function () {...}` 的 `this` 判斷法也跟同步的一般函式完全相同（看呼叫方式）。很多人以為「非同步」會讓 `this` 變得特別，其實 `this` 綁定是**呼叫當下**就決定的靜態規則，跟這段程式碼**什麼時候**真正執行（同步／microtask／macrotask）是兩件事——跟 [[13-閉包-Closure-私有變數與傳址陷阱]] 那篇「閉包 vs 微任務」的分法是同一種思維：一個管「看得到誰」，一個管「什麼時候跑」。
+
+### Vue 的 `this`：Options API 有、Composition API 刻意不用
+
+- <mark style="background: #ADCCFFA6;">Options API</mark>（`methods: { add() { this.count++ } }`）：`methods` 裡的函式是 Vue **內部呼叫時用類似 `method.call(componentInstance)` 的方式**去執行，所以是**隱性/顯性綁定**，`this` = 元件實例。這也是為什麼 Options API 的 `methods` 裡**不能用箭頭函式**——箭頭函式沒有自己的 `this`，會往外抓到定義時的作用域（通常是 `undefined` 或 module scope），永遠抓不到元件實例。
+- <mark style="background: #ADCCFFA6;">Composition API</mark>（`<script setup>`、`setup()`）：Vue team 刻意設計成**完全不靠 `this`**，改用一般的 JS **閉包**機制——`ref()`／`reactive()` 回傳的變數本身就被 `<script setup>` 這個作用域「記住」了，函式要用哪個狀態直接引用區域變數即可（跟本篇最上面 `createWallet` 私有變數是同一套機制）。這就是為什麼 `<script setup>` 裡不管是不是箭頭函式，寫法完全一致，也不用煩惱 `this` 指向誰的問題。
+
 ## 面試考題參考資料
 
 - [MDN — Function.prototype.call()](https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Function/call)

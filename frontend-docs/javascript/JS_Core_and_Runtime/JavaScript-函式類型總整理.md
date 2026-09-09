@@ -13,6 +13,95 @@ updated: 2026-06-30
 
 > 來源為 ChatGPT 分享對話，Abby 指定的複習重點之一。
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事：<mark style="background: #FF5582A6;">「函式表達式不會 hoisting」這句話少講了半句</mark>
+> 完整版是：<mark style="background: #BBFABBA6;">**變數綁定本身還是被 hoist 了，沒被 hoist 的是「值」**</mark>。
+> a. `var foo = function () {}`：`foo` 在 Creation Phase 就已經存在、值是 `undefined`，所以提前呼叫拿到的是 <mark style="background: #FFF3A3A6;">`TypeError: foo is not a function`</mark>，**不是** `ReferenceError`——它找得到名字，只是那個值不能被呼叫。
+> b. `const foo = function () {}`：`foo` 同樣在 Creation Phase 就建立了，只是處在 TDZ，提前碰它才會是 <mark style="background: #FFF3A3A6;">`ReferenceError`</mark>。
+> c. 而 hoisting 本身也不是「程式碼真的被搬到最上面」，更不是 buildtime 做的事——它是 <mark style="background: #FF5582A6;">runtime 執行期、每一次進入這個作用域時的 Creation Phase 重做一次</mark>的結果。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | 這篇到底在整理什麼？ | 四條互相獨立的分類軸：宣告 vs 表達式、具名 vs 匿名、箭頭 vs 非箭頭、一般 vs Generator vs Constructor。<mark style="background: #BBFABBA6;">它們各管各的，不要混在一起記</mark> |
+| **When** 什麼時候 | 這些差別在哪一格才兌現？ | 宣告／表達式的差別在 <mark style="background: #FF5582A6;">runtime 執行期、每次進入作用域的 Creation Phase</mark> 兌現；箭頭函式的 `this` 在**定義的那一刻**就跟著外層定死；非箭頭函式的 `this` 每一次呼叫重新決定一次 |
+| **Who** 誰做的 | 是誰把函式宣告提上去的？ | JS 引擎（V8）。規格上對應 `FunctionDeclarationInstantiation`（函式內）與 `GlobalDeclarationInstantiation`（全域）。<mark style="background: #ADCCFFA6;">跟 Babel、跟打包工具都無關</mark> |
+| **Where** 在哪裡 | 名字跟函式本體分別住哪？ | 名字（綁定）住在 Environment Record 裡——沒被閉包捕獲就在 **Stack Frame**，被捕獲就在 **Heap 的 Context 物件**；函式物件本身<mark style="background: #FFF3A3A6;">一律在 Heap</mark>，變數只是拿著它的位址 |
+| **Which** 哪一種 | 哪一條軸才決定 `this`？ | <mark style="background: #BBFABBA6;">箭頭 vs 非箭頭</mark>。宣告 vs 表達式<mark style="background: #FF5582A6;">只決定 hoisting，完全不影響 `this`</mark>——這正是本篇第四節與是非題 T5 在講的事 |
+| **How** 怎麼做到 | 怎麼一眼分辨宣告還是表達式？ | 看 `function` 這個字出現在哪個位置。<mark style="background: #ADCCFFA6;">在陳述式位置</mark>（行首、可以自己獨立成一句）→ 函式宣告，連名帶身體整包被 hoist；<mark style="background: #ADCCFFA6;">在表達式位置</mark>（`=` 右邊、當引數、包在括號裡）→ 函式表達式，只有變數被 hoist |
+| **Why** 為什麼 | 為什麼要分這麼細？ | 因為這幾條軸各自決定一個會真的咬人的行為：a. 能不能提前呼叫；b. 出事時報 `TypeError` 還是 `ReferenceError`；c. `this` 是誰；d. 能不能被 `new`、能不能 `yield` |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
+        （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤每次進入作用域都重來
+ transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
+ ┌────────┐   ┌────────┐     ┌───────────┐   ┌──────────┐   ┌────────────────────┐
+ │Babel   │   │webpack │     │Scanner    │   │Ignition  │   │ Creation Phase      │
+ │tsc     │──►│Vite    │────►│Parser     │──►│把 AST 編成│──►│ ★ 函式宣告：連名帶  │
+ │SWC     │   │Rollup  │     │AST        │   │Bytecode  │   │   身體整包就位      │
+ │        │   │合併壓縮│     │Scope      │   │          │   │ ★ var：先給 undefined│
+ └────────┘   └────────┘     │Analysis   │   └──────────┘   │ ★ let／const：進 TDZ │
+                             └───────────┘                  ├────────────────────┤
+                             每個函式只做一次                 │ Execution Phase     │
+                             只做「決策」，不配置記憶體         │ ★ 執行到那一行，函式 │
+                                                             │   表達式的值才進去   │
+                                                             └────────────────────┘
+
+ ★ hoisting 站在第 ⑤ 格，不是第 ①② 格，也不是第 ③ 格。
+   Parse 在第 ③ 格只是「看到」有哪些宣告，真正在 RAM 裡建綁定是第 ⑤ 格的事。
+```
+
+再看同一段程式碼在一次「進入作用域」裡的三個時刻：
+
+```text
+ 進入作用域
+     │
+     ├─► ① Creation Phase（還沒執行任何一行）
+     │      ┌────────────────────────────────────────────┐
+     │      │ function decl(){}   → decl  ＝ 完整函式物件  │ ← 現在呼叫就能跑
+     │      │ var expr = fn       → expr  ＝ undefined     │ ← 現在呼叫 TypeError
+     │      │ const arrow = fn    → arrow ＝ TDZ           │ ← 現在碰它 ReferenceError
+     │      └────────────────────────────────────────────┘
+     │
+     ├─► ② Execution Phase（逐行往下跑）
+     │      執行到 var expr = function () {}   這一行 → expr 這時候才拿到值
+     │      執行到 const arrow = () => {}      這一行 → 離開 TDZ，同時把外層 this 定死
+     │
+     └─► ③ 呼叫的那一刻（decl() ／ expr() ／ arrow()）
+            每呼叫一次，就重新建立一個全新的 Execution Context
+            非箭頭函式的 this 在這一刻依「誰點它」決定
+            箭頭函式不管誰點它，用的都是 ② 那一刻繼承下來的 this
+```
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（部署前跑完，V8 還沒看到程式碼）"]
+        T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 只做一次的部分"]
+        P["Parse 解析<br/>Scanner → Parser → AST<br/>看出哪些是宣告、哪些是表達式<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode<br/>可重複使用"]
+    end
+    subgraph RT2["runtime 執行期 · 每次進入作用域都重來"]
+        CP["① Creation Phase<br/>函式宣告：連名帶身體整包就位<br/>var：先給 undefined<br/>let／const：進 TDZ"] --> EP["② Execution Phase 逐行執行<br/>執行到那一行，函式表達式才拿到值<br/>箭頭函式在這一刻把外層 this 定死"]
+        EP --> CALL["③ 呼叫的那一刻<br/>建立一個全新的 Execution Context<br/>非箭頭函式的 this 在這裡才決定"]
+    end
+    BU --> P
+    BC --> CP
+    CALL -.->|"再呼叫一次就整包重來"| CP
+```
+
+> [!warning]- 三個一起記會出錯的搭配，先在這裡拆開
+> a. <mark style="background: #FFF3A3A6;">「匿名」不是一條可以自由組合的軸</mark>：函式宣告的 `function` 後面**一定**要有名字，`function () {}` 單獨寫直接 SyntaxError。所以「匿名函式宣告」這個組合根本不存在，匿名只能長在函式表達式上。
+> b. <mark style="background: #ADCCFFA6;">箭頭函式沒有自己的 `this`，也沒有自己的 `arguments`</mark>，而且不能被 `new`。它連 `this` 的綁定槽都沒有，所以 `call`／`apply`／`bind` 對它是無效的。
+> c. <mark style="background: #BBFABBA6;">Generator 的 `*` 只改「怎麼被呼叫、回傳什麼」</mark>：`gen()` 不會執行任何一行函式本體，只回傳一個 iterator；第一次 `.next()` 才真的開始跑到第一個 `yield`。它跟 hoisting、跟 `this` 那兩條軸互不干涉。
+
+
 ## 重點整理
 
 ### 一、最關鍵的兩條軸：宣告 vs 表達式

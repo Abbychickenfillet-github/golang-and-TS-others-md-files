@@ -22,6 +22,111 @@ updated: 2026-07-31
 
 ---
 
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一題先講：<mark style="background: #FF5582A6;">閉包**不是**在 `return` 那一刻把變數「搶救」出來的</mark>
+> 常見的錯誤畫面是：`counter()` 執行完 → Frame 要被清掉 → 內層函式伸手把 `count` 撈出來搬到 Heap。<mark style="background: #BBFABBA6;">實際順序完全相反</mark>：
+> a. 決策發生在最早的 <mark style="background: #ADCCFFA6;">Parse 階段的 Scope Analysis</mark>——引擎那時就看出 `count` 會被內層函式引用。
+> b. 於是<mark style="background: #FFF3A3A6;">一進入 `counter()` 的作用域，Heap 上的 Context 物件就先建好了</mark>，`count` 從第一秒起就住在 Heap，Stack Frame 裡放的只是一個指向它的指標（見本篇開頭 mrale.ph 那條佐證）。
+> c. `return` 時 Frame 照樣被完整 pop 掉，<mark style="background: #FF5582A6;">什麼都沒被搶救</mark>——因為要留下來的東西，從頭到尾就不在 Stack 上。
+> 一句話：`return` 沒有「例外處理」，它每次都做同一件事；<mark style="background: #BBFABBA6;">是變數一開始就被放在不同的地方</mark>。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | `return` 到底清掉了什麼？ | <mark style="background: #BBFABBA6;">只有 Stack 上這一層 Stack Frame</mark>：返回位址、Saved Frame Pointer、參數、沒被捕獲的區域變數。<mark style="background: #FF5582A6;">Heap 一根寒毛都沒被動到</mark> |
+| **When** 什麼時候 | 什麼時候清？ | <mark style="background: #FF5582A6;">執行期</mark>，`return` 執行的那個當下，<mark style="background: #BBFABBA6;">立即、自動、同步</mark>。呼叫幾次就 push／pop 幾次，跟 GC 那種「不定時、不可預測」是兩套完全不同的節奏 |
+| **Who** 誰做的 | 誰負責清？ | 引擎與 CPU 的<mark style="background: #ADCCFFA6;">固定機制</mark>——把 Stack Pointer 移回去、還原 Base Pointer 就結束了（見本篇第 5 節組合語言視角）。<mark style="background: #FF5582A6;">不是 GC</mark>，GC 從頭到尾不管 Stack |
+| **Where** 在哪裡 | 東西各自住在哪？ | a. Stack Frame → Call Stack；b. 物件實體 → Heap；c. <mark style="background: #FFF3A3A6;">被閉包捕獲的綁定 → Heap 上的 Context 物件</mark>，掛在那個閉包函式（`JSFunction`）身上 |
+| **Which** 哪一種 | 哪些東西會跟著 Frame 一起消失？ | a. 沒被捕獲的參數與區域原始值 → <mark style="background: #BBFABBA6;">立即消失</mark>；b. 指向 Heap 的指標格子 → 格子消失，但 Heap 實體毫髮無傷；c. 被捕獲的綁定 → <mark style="background: #FF5582A6;">根本不在 Frame 裡</mark>，不受影響 |
+| **How** 怎麼做到 | `return` 的完整動作是什麼？ | 三件幾乎同時發生的事：① 算出回傳值 → ② 把值與控制權一起交還呼叫者 → ③ 這個 Frame 被 pop。呼叫者不是「收到後才醒來」，它<mark style="background: #ADCCFFA6;">本來就凍在那一行等著</mark>，`return` 是結束等待的那一刻 |
+| **Why** 為什麼 | 為什麼 Stack 可以清得這麼粗暴？ | 因為 <mark style="background: #BBFABBA6;">LIFO</mark>：最後 push 的一定最先 pop，生命週期規律到可以預測，<mark style="background: #ADCCFFA6;">把指標往回移一格就等於全部清空</mark>，完全不需要逐一判斷誰還活著。Heap 沒有這種規律，才需要 GC |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
+        （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤每次呼叫都重來
+ transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
+ ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
+ │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ push Stack Frame │
+ │tsc     │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ ＋（若有變數被捕  │
+ │SWC     │   │Rollup  │      │AST       │   │Bytecode  │   │   獲）建 Context   │
+ └────────┘   └────────┘      │Scope     │   └──────────┘   ├──────────────────┤
+                              │Analysis： │                  │ 執行函式本體      │
+                              │★ 決定誰   │                  ├──────────────────┤
+                              │  會被閉包 │                  │ ★ return         │
+                              │  捕獲 →   │                  │   pop 掉整個 Frame│
+                              │  該放     │                  │   Heap 完全沒動   │
+                              │  Stack 還 │                  ├──────────────────┤
+                              │  是 Heap  │                  │ Context 若沒人指  │
+                              └──────────┘                  │ → 等 GC（不定時） │
+                              每個函式只做一次                └────────┬─────────┘
+                              只做「決策」，不配置                      │
+                              任何記憶體                                └─► 再呼叫一次
+                                                                          整包重來
+
+ ★ 「該不該逃到 Heap」的決策在第 ③ 格；「真的配置與清除」在第 ⑤ 格。
+   兩者相隔很遠，卻常被壓縮成同一件事來想，這就是誤會的來源。
+```
+
+一次呼叫的 Stack Frame 自己也有一條由生到死的序列：
+
+```text
+ ①push        ②執行          ③return        ④pop           ⑤剩下的歸 GC
+┌──────────┐ ┌──────────┐  ┌──────────┐  ┌──────────┐   ┌──────────────┐
+│Frame 疊上│ │只有最上面│  │算出回傳值│  │SP 往回移 │   │Heap 上的物件 │
+│去，參數／│►│那片在跑，│─►│值＋控制權│─►│＝整片    │──►│與 Context：  │
+│區域變數  │ │下面全部  │  │交還呼叫者│  │Frame 立刻│   │沒人指才回收  │
+│各就各位  │ │凍結等待  │  │          │  │消失      │   │時機不可預測  │
+└──────────┘ └──────────┘  └──────────┘  └──────────┘   └──────────────┘
+     │                                                            ▲
+     └── 若 Scope Analysis 說「有變數被捕獲」，這一格同時在 Heap ───┘
+         建好 Context 物件，該變數從此就不住 Stack 了
+
+ ★ ①～④ 是自動、即時、次數固定的；⑤ 是不定時、不可預測的。混在一起想就會亂。
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（部署前跑完，V8 還沒看到程式碼）"]
+        T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 只做一次的部分"]
+        P["Parse 解析<br/>Scope Analysis：<br/>★ 決定誰會被閉包捕獲<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode"]
+    end
+    subgraph RT2["runtime 執行期 · 每次呼叫都重來"]
+        PU["① push Stack Frame<br/>返回位址、參數、區域變數"] --> CX["② 若有變數被捕獲<br/>同時在 Heap 建 Context 物件<br/>Frame 裡只放一個指標"]
+        CX --> EX["③ 執行函式本體<br/>下層 Frame 全部凍結等待"]
+        EX --> RE["④ return<br/>算值 → 交還控制權 → pop 整片 Frame<br/>★ Heap 完全沒被動到"]
+        RE --> GC["⑤ Heap 上的物件與 Context<br/>沒人指才由 GC 回收<br/>時機不可預測"]
+        RE --> KEEP["閉包還在 → Context 繼續活著<br/>這不是例外，是它本來就不在 Stack"]
+    end
+    BU --> P
+    BC --> PU
+    RE -.->|"再呼叫一次就整包重來"| PU
+```
+
+> [!warning]- 為什麼「`return` 會清理記憶體」這句話會把人帶偏？三個原因
+> a. <mark style="background: #FFF3A3A6;">「記憶體」三個字沒有分家</mark>：Stack 與 Heap 是兩套清理機制（自動 pop vs GC 判斷可達性），但「清理記憶體」這句話把它們糊成一團，於是很多人以為 `return` 也會順手處理 Heap。它不會。
+> b. <mark style="background: #ADCCFFA6;">「閉包例外」這個說法本身就有誤導性</mark>：聽起來像 `return` 在某些情況下會網開一面。實際上 `return` 每次都做完全一樣的事——<mark style="background: #BBFABBA6;">例外的不是清理動作，是那個變數一開始被放的位置</mark>。
+> c. <mark style="background: #FF5582A6;">因為決策與執行隔太遠</mark>：「這個變數要放 Heap」是 Parse 階段做的決定（每個函式只做一次），「真的配置一個 Context」是每次呼叫時做的動作。中間隔了整個 Bytecode 階段，很容易在腦中被壓縮成同一瞬間。
+
+### 一句話驗證法
+
+想確認某件事在哪一格，問自己：<mark style="background: #BBFABBA6;">「這件事對同一個函式做幾次？」</mark>
+
+1. 只做一次 → 屬於 Parse／編譯期（第 ③ ④ 格），例如「決定 `count` 要放 Heap」
+
+2. 呼叫幾次就做幾次 → 屬於執行期（第 ⑤ 格），例如「push／pop Frame」「建立一個新的 Context 物件」
+
+所以 `counter()` 被呼叫三次，就會有<mark style="background: #FFF3A3A6;">三個互不相干的 Context 物件、三個各自獨立的 `count`</mark>——但「`count` 該住 Heap」這個決定，從頭到尾只做過一次。
+
+---
+
 ## 一句話
 > **`return` 清掉的是 Stack 上那一層「呼叫框架(stack frame)」——區域變數、參數自動消失；但 Heap 上的物件要等 GC，而且被「閉包」抓住的變數不會被清。**
 

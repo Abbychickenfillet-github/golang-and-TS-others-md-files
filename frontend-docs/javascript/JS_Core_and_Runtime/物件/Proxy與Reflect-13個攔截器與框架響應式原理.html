@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Proxy 與 Reflect — 13 個攔截器（trap）與框架響應式原理</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Proxy 與 Reflect — 13 個攔截器（trap）與框架響應式原理</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#proxy</span><span class="pill">#reflect</span><span class="pill">#es6</span><span class="pill">#代理模式</span><span class="pill">#響應式</span><span class="pill">#vue</span><span class="pill">#meta-programming</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/e22cb4d641bd2431" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/6da30f0b0d9b148f" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Proxy 是 Vue 專屬的 API，React 專案不能用。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Proxy 是 ES6 原生標準語法，任何 JavaScript 環境都能用。</div></li><li><p class="qq">Reflect 可以用 new Reflect() 實例化。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Reflect 是內建物件不是建構子，只提供靜態方法，像 Math 一樣。</div></li><li><p class="qq">new Proxy(target, handler) 是在呼叫建構子。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Proxy 是標準建構子，不是靜態方法。</div></li><li><p class="qq">handler 裡最多可以定義 13 種攔截行為。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">get／set／has／deleteProperty／ownKeys／apply／construct 等共 13 個 trap。</div></li><li><p class="qq">set trap 不需要回傳值。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">必須回傳布林值，回傳 false 在嚴格模式下會丟 TypeError。</div></li><li><p class="qq">Proxy 可以用 ES5 polyfill 補上，所以能支援 IE11。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Proxy 的攔截能力 ES5 做不出來，這正是 Vue 3 放棄 IE11 的原因。</div></li><li><p class="qq">代理物件 state 與原始物件 raw 是同一個參考。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是兩個不同的物件，混用會出現「改了 raw 但畫面沒更新」的 bug。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Vue 3 響應式在 get 時做依賴收集，這個動作英文叫 <input class="blank" data-a="track" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">對應的 set 時觸發更新叫 trigger。</div></li><li><p class="qq">Proxy handler 中攔截 in 運算子的 trap 叫 <input class="blank" data-a="has" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">與 get、set 並列為最常用的三個 trap。</div></li><li><p class="qq">為了讓 getter 裡的 this 正確指向代理物件，Reflect.get 要傳入第三個參數 <input class="blank" data-a="receiver" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">少了它，繼承場景與 getter 內的依賴追蹤會漏掉。</div></li><li><p class="qq">Vue 2 用的是 Object.<input class="blank" data-a="defineProperty" placeholder="填答案" autocomplete="off"> 而不是 Proxy。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">那條路無法偵測新增屬性與陣列索引賦值。</div></li><li><p class="qq">Bash 中把指令輸出存進變數的語法 $( ) 叫「命令<input class="blank" data-a="替換" placeholder="填答案" autocomplete="off">」。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">英文是 Command Substitution。</div></li><li><p class="qq">grep 的 -o 選項全稱是 <input class="blank" data-a="only" placeholder="填答案" autocomplete="off">-matching，只印出符合的那一小段。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">不是印出整行。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請解釋為什麼在 Proxy 的 trap 裡要寫 return Reflect.set(target, key, value, receiver) 而不是 target[key] = value。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：兩個理由。(1) 回傳值：set trap 必須回傳布林值告知賦值成不成功，Reflect.set 剛好回傳布林；直接寫 target[key] = value 在非嚴格模式下失敗會靜默通過，嚴格模式下 trap 沒回傳 true 還會丟 TypeError。(2) receiver：Reflect.set 可以把 receiver 傳下去，讓原始物件上 setter 內部的 this 指向代理物件而不是原始物件。少了這個，若 target 上有 getter／setter 或有繼承關係，框架的依賴追蹤就會漏記，導致該更新的畫面沒更新。更一般的設計意圖是：Reflect 的方法名與 13 個 trap 一一對應，就是為了讓你在攔截之後能乾淨地「把原本該做的事照做一遍」。</div></li><li><p class="qq">用 Proxy 說明「不改動原始物件就能加入自訂邏輯」這句話的價值，並延伸到 Vue 3 的響應式。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：代理模式的核心是在存取路徑上插入一層攔截器，原始物件 raw 完全不用改寫、不用繼承、不用加裝飾器。範例裡插入的是 console.log 側錄；把它換成框架的邏輯，get 時記下「目前正在執行的那個 effect 依賴了這個屬性」（track），set 時查表找出所有依賴這個屬性的 effect 並重新執行（trigger），就得到了資料驅動畫面。相較 Vue 2 用 Object.defineProperty 逐個屬性改寫，Proxy 是攔截整個物件的存取行為，因此新增屬性、刪除屬性、陣列索引賦值都能被偵測到，這是 Vue 3 最實質的升級。代價是無法 polyfill，且代理物件與原始物件是兩個參考，混用容易出錯。</div></li></ol></section>
+
+<article class="card">
+<h1 id="proxy-reflect-13-trap">Proxy 與 Reflect — 13 個攔截器（trap）與框架響應式原理</h1>
+<blockquote>
+<p>本篇重點 a–v，共 22 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="proxy">一、Proxy 是誰的東西</h3>
+<p>(a) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Proxy</code> 是原生 JavaScript（ES6／ES2015）的標準語法</mark>，不是任何框架的專利。所以 React、Vue、Angular 的專案裡都可以直接使用，不用裝任何套件。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Vue 3 的響應式系統（Reactivity System）底層就是用 <code>Proxy</code> 實作的</mark>。Vue 2 用的是 <code>Object.defineProperty</code>，那條路無法偵測新增屬性與陣列索引賦值，換成 Proxy 才一次解決。</p>
+<p>(c) React 沒有內建響應式系統，它走的是「重跑函式 + 比對」的路線，所以 React 本身不用 Proxy；但 <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">MobX、Valtio 這類 React 狀態管理庫就是用 Proxy 做的</mark>，可見這是語言層能力而非框架能力。</p>
+<h3 id="handler-13">二、handler 的 13 個攔截行為</h3>
+<p>(d) <code>new Proxy(target, handler)</code> 的 <code>handler</code> 是一個物件，裡面可以定義<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最多 13 種攔截行為（trap，攔截器）</mark>。完整清單：</p>
+<table>
+<thead>
+<tr>
+<th>trap</th>
+<th>攔截什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get</code></td>
+<td>讀屬性 <code>obj.x</code></td>
+</tr>
+<tr>
+<td><code>set</code></td>
+<td>寫屬性 <code>obj.x = 1</code></td>
+</tr>
+<tr>
+<td><code>has</code></td>
+<td><code>in</code> 運算子</td>
+</tr>
+<tr>
+<td><code>deleteProperty</code></td>
+<td><code>delete obj.x</code></td>
+</tr>
+<tr>
+<td><code>ownKeys</code></td>
+<td><code>Object.keys</code> / <code>for...in</code> / <code>Object.getOwnPropertyNames</code></td>
+</tr>
+<tr>
+<td><code>getOwnPropertyDescriptor</code></td>
+<td><code>Object.getOwnPropertyDescriptor</code></td>
+</tr>
+<tr>
+<td><code>defineProperty</code></td>
+<td><code>Object.defineProperty</code></td>
+</tr>
+<tr>
+<td><code>preventExtensions</code></td>
+<td><code>Object.preventExtensions</code></td>
+</tr>
+<tr>
+<td><code>isExtensible</code></td>
+<td><code>Object.isExtensible</code></td>
+</tr>
+<tr>
+<td><code>getPrototypeOf</code></td>
+<td><code>Object.getPrototypeOf</code></td>
+</tr>
+<tr>
+<td><code>setPrototypeOf</code></td>
+<td><code>Object.setPrototypeOf</code></td>
+</tr>
+<tr>
+<td><code>apply</code></td>
+<td>呼叫函式 <code>fn()</code></td>
+</tr>
+<tr>
+<td><code>construct</code></td>
+<td><code>new fn()</code></td>
+</tr>
+</tbody>
+</table>
+<p><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">日常最常用的就是前三個：<code>get</code>、<code>set</code>、<code>has</code>。</mark></p>
+<h3 id="get-set">三、get 與 set 的參數逐一拆解</h3>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>get(target, key, receiver)</code></mark> — 讀取屬性時觸發：</p>
+<ul>
+<li><code>target</code>：被代理的<strong>原始物件</strong>（範例中的 <code>raw</code>）。</li>
+<li><code>key</code>：被讀取的屬性名稱，例如 <code>'count'</code>。<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">型別可能是 string 或 symbol。</mark></li>
+<li><code>receiver</code>：實際發起這次讀取的那個物件，通常就是代理物件本身（<code>state</code>），若有繼承關係則是繼承鏈上的那一個。</li>
+</ul>
+<p>(f) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>set(target, key, value, receiver)</code></mark> — 寫入屬性時觸發：</p>
+<ul>
+<li><code>target</code>、<code>key</code>、<code>receiver</code> 同上。</li>
+<li><code>value</code>：準備要寫進去的新數值。</li>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>set</code> 必須回傳布林值</mark>。回傳 <code>false</code> 在嚴格模式（strict mode）下會丟 <code>TypeError</code>。這就是為什麼要寫 <code>return Reflect.set(...)</code> 而不是只呼叫不回傳。</li>
+</ul>
+<p>(g) 逐行範例：</p>
+<pre><code class="language-js">const raw = { count: 0 }
+
+const state = new Proxy(raw, {
+  get(target, key, receiver) {
+    console.log(`讀取 ${String(key)}`)
+    return Reflect.get(target, key, receiver)   // 把讀取轉交給原始物件，回傳該屬性的值
+  },
+  set(target, key, value, receiver) {
+    console.log(`寫入 ${String(key)} = ${value}`)
+    return Reflect.set(target, key, value, receiver)  // 執行實際賦值，回傳 true 表示成功
+  },
+})
+
+state.count        // 印出「讀取 count」，得到 0
+state.count = 1    // 印出「寫入 count = 1」
+</code></pre>
+<h3 id="reflect">四、Reflect 是什麼</h3>
+<p>(h) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Reflect</code> 是一個內建物件（built-in object），不是函式，也不是建構子。</mark>不能 <code>new Reflect()</code>，也不能當函式呼叫。它只提供一堆<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">靜態方法（static method）</mark>，就像 <code>Math</code> 一樣。</p>
+<p>(i) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Reflect</code> 的方法名稱與 <code>Proxy</code> 的 13 個 trap 一一對應</mark>（<code>Reflect.get</code>、<code>Reflect.set</code>、<code>Reflect.has</code>、<code>Reflect.ownKeys</code>…）。這個設計是刻意的：你在 trap 裡想「照原本該做的做一遍」，就呼叫同名的 <code>Reflect</code> 方法，不用自己手刻。</p>
+<p>(j) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼不直接寫 <code>target[key] = value</code> 而要用 <code>Reflect.set</code>？</mark>兩個理由：</p>
+<ol>
+<li><code>Reflect.set</code> 會回傳布林值告訴你成不成功，<code>target[key] = value</code> 失敗時在非嚴格模式下會靜默失敗。</li>
+<li><code>Reflect.set</code> 可以傳 <code>receiver</code>，讓 getter／setter 裡的 <code>this</code> 正確指向代理物件。<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">少了這個，繼承場景與 getter 內部的依賴追蹤就會漏掉。</mark></li>
+</ol>
+<h3 id="new-proxy">五、new Proxy 的身分釐清</h3>
+<p>(k) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Proxy</code> 是標準建構子（Constructor），不是「靜態方法」。</mark><code>new Proxy(target, handler)</code> 是在呼叫建構子實例化出一個新的代理物件。這跟 <code>Object.keys()</code> 那種「掛在 Object 上的靜態方法」是兩回事。</p>
+<p>(l) 判準口訣：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要 <code>new</code> 的是建構子，直接 <code>X.method()</code> 呼叫的是靜態方法。</mark><code>Proxy</code> 要 new，<code>Reflect</code> 不能 new。</p>
+<h3 id="_2">六、這個範例到底在表達什麼</h3>
+<p>(m) 核心觀念是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">代理模式（Proxy Pattern）</mark>：用 <code>new Proxy</code> 把原始物件 <code>raw</code> 包成 <code>state</code>，之後所有對 <code>state</code> 的讀寫都會先經過 handler 攔截器。</p>
+<p>(n) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">價值在於「不改動原始物件」就能插入自訂邏輯</mark>——範例裡是 <code>console.log</code> 側錄，換成框架就是「記下誰依賴了這個屬性」與「這個屬性變了就通知誰重繪」。</p>
+<p>(o) 把 (n) 展開就是 Vue 3 響應式的兩個動作：<code>get</code> 時做 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">track（依賴收集）</mark>，<code>set</code> 時做 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">trigger（觸發更新）</mark>。這就是「資料驅動畫面」的底層真相。</p>
+<p>(p) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Proxy 的兩個限制要記住</mark>：一是 <code>Proxy</code> 無法被 polyfill（ES5 做不出來），所以只能在支援 ES6 的環境跑，這也是 Vue 3 放棄 IE11 的原因；二是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">代理物件與原始物件是兩個不同的參考</mark>，<code>state !== raw</code>，混用容易出現「改了 raw 但畫面沒更新」的 bug。</p>
+<p>(q) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">次要備註</mark>：<code>receiver</code> 這個參數名容易讓人以為是「接收者」很抽象，其實把它讀成「這次操作真正發起的那個物件」就好。多數簡單場景下 <code>receiver === proxy</code>。</p>
+<h2 id="bash">順帶記下的 Bash 小知識（同一段對話）</h2>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">命令替換（Command Substitution）</mark>：<code>RESULT=$(gh run list)</code> 的 <code>$( )</code> 會先執行裡面的指令，再把它的標準輸出當成字串塞進變數。</li>
+<li><code>STATUS=$(echo "$RESULT" | grep -o '"status":"[^"]*"')</code> 逐段讀法：<code>echo "$RESULT"</code> 把變數內容吐到標準輸出 → <code>|</code> 管線交給 <code>grep</code> → <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>grep -o</code> 的 <code>-o</code> 是 only-matching，只印出「符合的那一小段」而不是整行</mark> → 結果再存進 <code>STATUS</code>。</li>
+<li><code>[^"]*</code> 是「連續零個以上、不是雙引號的字元」，用來抓到下一個引號為止。</li>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這是 Bash 語法不是 Python</mark>，<code>sleep 20</code> 才是暫停 20 秒的寫法。</li>
+</ul>
+<h2 id="_3">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 對本題四個問題的回答經逐項核對後<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">全部正確</mark>（13 個 trap、Reflect 是內建物件不可 new、Proxy 是建構子、代理模式的用途）。</li>
+<li>唯一不足：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Gemini 沒有提到 <code>set</code> 必須回傳布林值否則嚴格模式會丟 TypeError</mark>，也沒說明 <code>receiver</code> 對 getter 中 <code>this</code> 的意義，本篇 (f)(j) 已補上。</li>
+</ul>
+<h2 id="_4">相關題目練習</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeetCode 2690. Infinite Method Object</td>
+<td>https://leetcode.com/problems/infinite-method-object/</td>
+<td>這題的標準解法就是 <code>new Proxy</code> + <code>get</code> trap，練完 (e)(g) 直接上手</td>
+</tr>
+<tr>
+<td>LeetCode 2695. Array Wrapper</td>
+<td>https://leetcode.com/problems/array-wrapper/</td>
+<td>練 <code>valueOf</code> / <code>toString</code> 這類「攔截語言內建行為」的思維，是 Proxy 的近親</td>
+</tr>
+<tr>
+<td>LeetCode 2705. Compact Object</td>
+<td>https://leetcode.com/problems/compact-object/</td>
+<td>遞迴走訪物件與陣列的 key，複習 <code>Object.keys</code> 與型別判斷</td>
+</tr>
+<tr>
+<td>LeetCode 2624. Snail Traversal</td>
+<td>https://leetcode.com/problems/snail-traversal/</td>
+<td>需要改動 <code>Array.prototype</code>，體會「擴充內建行為」的另一種做法與風險</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">關聯筆記</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：useRef與Vue的ref-value-可變值不觸發渲染的兩種設計">useRef與Vue的ref-value-可變值不觸發渲染的兩種設計</span> — Vue 的 <code>ref.value</code> 之所以要 <code>.value</code>，正是因為原始型別無法被 Proxy 包裹，只好包成物件；跟 (b)(p) 是同一個限制的兩面。</li>
+<li><span class="wikilink" title="Obsidian 連結：存取器屬性三種定義方式-getter-setter與資料驗證">存取器屬性三種定義方式-getter-setter與資料驗證</span> — <code>Object.defineProperty</code> 的 getter／setter 是 Vue 2 的做法，跟 Proxy 對照著看最能感受到 (b) 的升級在哪。</li>
+<li><span class="wikilink" title="Obsidian 連結：Object靜態方法vs原型方法-Symbol弱封裝與species">Object靜態方法vs原型方法-Symbol弱封裝與species</span> — 補充 (k)(l)：什麼叫靜態方法、什麼叫建構子，那篇有完整判準。</li>
+<li><span class="wikilink" title="Obsidian 連結：屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys">屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys</span> — <code>Reflect.ownKeys</code> 在那篇是列舉工具，在本篇是 trap 的對應方法，同一個 API 的兩種用途。</li>
+<li><span class="wikilink" title="Obsidian 連結：Object靜態方法速查">Object靜態方法速查</span> — <code>Reflect</code> 與 <code>Object</code> 有大量同名方法，差別在回傳布林值還是丟錯，可對照。</li>
+<li><span class="wikilink" title="Obsidian 連結：高階函式與函數式範式-取代OOP三大設計模式">高階函式與函數式範式-取代OOP三大設計模式</span> — 代理模式（Proxy Pattern）是 GoF 設計模式之一，那篇談 JS 如何用語言特性取代傳統 OOP 模式，本篇是「語言直接內建了這個模式」的極端例子。</li>
+<li><span class="wikilink" title="Obsidian 連結：grep-options">grep-options</span>（CLI 資料夾）— 對應本篇 Bash 小知識段，<code>-o</code> 選項的完整說明在那裡。</li>
+<li><span class="wikilink" title="Obsidian 連結：重定向與管道差異">重定向與管道差異</span>（CLI 資料夾）— <code>|</code> 管線與 <code>$( )</code> 命令替換的差異補完。</li>
+</ul>
+<h2 id="_6">各對話來源（原文）</h2>
+<h3 id="automated-script-error-explanation2026-08-28-httpsgeminigooglecomappe22cb4d641bd2431">Automated Script Error Explanation（2026-08-28）— https://gemini.google.com/app/e22cb4d641bd2431</h3>
+<blockquote>
+<p>前半段是語音輸入，辨識品質不佳，內容為詢問一段 GitHub Actions 檢查用的 Bash 腳本；後半段轉為文字輸入，是本篇主體。</p>
+</blockquote>
+<p><strong>使用者：</strong> （語音）python 語法做先暫停 20 秒，<code>RESULT</code> <code>gh run list</code> 他為什麼指令可以這樣子包？</p>
+<p><strong>Gemini：</strong> That's a Bash loop, not Python. It runs five times, pausing for 20 seconds between each check.</p>
+<p><strong>使用者：</strong> echo</p>
+<p><strong>Gemini：</strong> It uses command substitution to store the output of <code>gh run list</code> in the variable <code>$RESULT</code>, which is then echoed and piped into grep to parse the status.</p>
+<p><strong>使用者：</strong> status status echo result grep all 幫我翻一下，翻成中文。</p>
+<p><strong>Gemini：</strong> 這行 <code>STATUS=$(echo "$RESULT" | grep -o '"status":"[^"]*"')</code> 的意思是，將 <code>$RESULT</code> 變數的內容傳給 <code>grep</code> 指令來搜尋符合 <code>"status":"[^"]*"</code> 的字串，並只提取出這部分，最後把結果指定給 <code>STATUS</code> 變數。</p>
+<p><strong>使用者：</strong> grep 是什麼意思</p>
+<p><strong>Gemini：</strong> 在 Bash 指令碼中，<code>grep</code> 是一個強大的搜尋工具，用來尋找符合特定條件的字串。在這行指令中，它是用來從 <code>RESULT</code> 變數中提取出 <code>"status":"..."</code> 這段資訊。</p>
+<p><strong>使用者：</strong>（附上截圖）Handler 裡面可以定義最多 13 種攔截行為，最常用的是 get（讀屬性）、set（寫屬性）、has（in 運算子）。這是原生 JavaScript 裡面的，所以 Vue 裡面有代理模式。但我截圖這個地方是 React、Vue 跟 Angular 都可以有的寫法嗎？然後 <code>get(target, key, receiver)</code>、<code>set(target, key, value, receiver) { console.log(...); return Reflect.set(...) }</code>。請幫我解答以下四個問題：1. 請把 get 跟 set 這兩個內建函式、它們的每個參數值，以及陳述式地方的意思都寫給我。2. Reflect 是不是物件？3. new Proxy 是不是一個靜態的物件建構子方法？4. 請把這一串範例所要表達的東西跟我說。</p>
+<p><strong>Gemini：</strong> 截圖中的 <code>Proxy</code> 是原生 JavaScript（ES6）的標準語法，因此 React、Vue 與 Angular 專案中都可以直接使用。Vue 3 的響應式系統底層就是使用 Proxy 實現的。</p>
+<ol>
+<li><code>get(target, key, receiver)</code> 是讀取屬性時觸發的攔截函式——<code>target</code> 是被代理的原始物件（範例中的 <code>raw</code>）、<code>key</code> 是被讀取的屬性名稱（例如 <code>"count"</code>）、<code>receiver</code> 指向調用此屬性的代理物件本身（即 <code>state</code>）或繼承該代理的物件。陳述式部分：<code>console.log(...)</code> 印出讀取記錄，<code>return Reflect.get(target, key, receiver)</code> 透過 Reflect 將讀取操作轉交給原始物件並回傳該屬性的值。<br />
+<code>set(target, key, value, receiver)</code> 是寫入屬性時觸發的攔截函式——<code>value</code> 是準備要寫入的新數值，<code>receiver</code> 指向收到指派特性的物件（通常為代理物件 <code>state</code>）。陳述式部分：<code>console.log(...)</code> 印出寫入記錄，<code>return Reflect.set(target, key, value, receiver)</code> 透過 Reflect 執行實際的屬性賦值操作，並回傳一個布林值（true 表示成功）告知 JavaScript 寫入是否成功。</li>
+<li>是的，<code>Reflect</code> 是一個內建的 JavaScript 物件。它不是函式，不能用 <code>new</code> 實例化，主要提供各種操作 JavaScript 物件的靜態方法，且其方法名稱與 Proxy 的 handler traps 一一對應。</li>
+<li><code>Proxy</code> 是一個標準建構子（Constructor Function），但不是「靜態方法」。使用 <code>new Proxy(target, handler)</code> 是在調用 Proxy 的建構子來實例化並建立一個新的代理物件。</li>
+<li>這個範例展示了代理模式（Proxy Pattern）與資料監聽。透過 <code>new Proxy</code> 將原始物件 <code>raw</code> 包裹成 <code>state</code>，未來只要對 <code>state</code> 進行讀取或寫入操作，都會先經過 handler 攔截器。這樣就能在不改變原始物件的情況下，額外加入自訂邏輯，最後再用 Reflect 完成原本的讀寫行為。這正是現代前端框架（如 Vue 3）實現資料驅動畫面更新的核心原理。</li>
+</ol>
+<h3 id="2026-09-05-dog-new-proxydog-dog">追加 2026-09-05：為什麼 <code>dog = new Proxy(dog, {...})</code> 還叫 dog</h3>
+<p>(r) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>let</code> 允許變數被重新賦值，所以 <code>dog = new Proxy(dog, {...})</code> 是把識別字 <code>dog</code> 改指向新建立的 Proxy 實體</mark>，原本那個 <code>{ name: '來福', age: 6 }</code> 物件變成 Proxy 的 target，被包在裡面。</p>
+<pre><code class="language-js">let dog = { name: '來福', age: 6 };
+
+dog = new Proxy(dog, {
+  get(target, prop, receiver) { /* ... */ },
+  set(target, prop, value, receiver) { /* ... */ },
+});
+</code></pre>
+<p>(s) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這是很常見的寫法</mark>：當你想攔截「之後所有對 <code>dog</code> 的存取」時，直接覆寫同一個識別字，就不必再多一個 <code>proxyDog</code> 變數名稱，也避免有人不小心繞過代理直接動原始物件。</p>
+<p>(t) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但要注意：原始物件並沒有消失</mark>。如果別的地方還持有原本那個物件的引用（例如先 <code>const raw = dog</code> 再覆寫），透過 <code>raw</code> 的存取仍然完全繞過 Proxy。所以「覆寫同名變數」只是遮住這一個入口，不是真正的封裝。</p>
+<p>(u) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">handler 裡看到 <code>get</code> 和 <code>set</code> 兩個函式，並不代表 handler 只能有兩個</mark>。這是這段範例只定義了兩個 trap 而已，完整可用的 trap 有 13 個（見上面第二節）。</p>
+<p>(v) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有定義的 trap 會直接「穿透」到 target 上，行為完全不變</mark>。例如只寫了 <code>get</code> 沒寫 <code>set</code>，那麼 <code>dog.age = 7</code> 就會原封不動地作用在原始物件上，不會報錯也不會被攔截——這是 Proxy 設計上「預設無害」的性質。</p>
+<h2 id="_7">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇對話（Automated Script Error Explanation）</td>
+<td>https://gemini.google.com/app/e22cb4d641bd2431</td>
+<td>Gemini Flash，2026-08-28</td>
+</tr>
+<tr>
+<td>MDN — Proxy（含 13 個 handler trap 完整清單）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy</td>
+<td>MDN 現行版本，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>MDN — handler.set()（回傳布林值與嚴格模式 TypeError）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/Proxy/set</td>
+<td>MDN 現行版本，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>MDN — Reflect（內建物件、非建構子、不可 new）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect</td>
+<td>MDN 現行版本，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>ECMA-262 — Proxy Object Internal Methods and Internal Slots</td>
+<td>https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots</td>
+<td>ECMAScript 現行草案，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>Vue 3 官方 — 深入響應式系統（Proxy 與 track／trigger）</td>
+<td>https://vuejs.org/guide/extras/reactivity-in-depth.html</td>
+<td>Vue 3 現行文件，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>GNU grep 手冊（<code>-o</code> / <code>--only-matching</code>）</td>
+<td>https://www.gnu.org/software/grep/manual/grep.html</td>
+<td>GNU grep 現行手冊，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>Proxy 識別字覆寫與 handler trap 數量（Gemini 對話）</td>
+<td>https://gemini.google.com/app/6da30f0b0d9b148f</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-08-29</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

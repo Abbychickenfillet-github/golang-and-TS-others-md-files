@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>事件流與事件代理（Event Flow &amp; Delegation）</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>事件流與事件代理（Event Flow &amp; Delegation）</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#dom</span><span class="pill">#事件流</span><span class="pill">#事件代理</span><span class="pill">#event-delegation</span><span class="pill">#react</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/8a1e12a8c8001b14" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/daa0296d0558e0a4" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="event-flow-delegation">事件流與事件代理（Event Flow &amp; Delegation）</h1>
+<blockquote>
+<p>互動考題版：<span class="wikilink" title="Obsidian 連結：事件流與事件代理-互動考題.html">事件流與事件代理-互動考題.html</span>（點擊看答案／可輸入作答）</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">事件流三階段（單向一條龍，不是廣播擴散）</h3>
+<p>點擊一個 <code>&lt;li&gt;</code>，訊號的旅程是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">捕獲 → 目標 → 冒泡</mark>，是「單向旅行」不是「擴散給所有兄弟元素」：</p>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">捕獲（Capturing）</mark>：由外往內 <code>Window → Document → &lt;ul&gt; → &lt;li&gt;</code></li>
+<li>目標（Target）：抵達真正被點的 <code>&lt;li&gt;</code></li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">冒泡（Bubbling）</mark>：由內往外 <code>&lt;li&gt; → &lt;ul&gt; → Document → Window</code></li>
+</ul>
+<p>點第三個 <code>&lt;li&gt;</code>，過程<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全不會經過第一、第二個 <code>&lt;li&gt;</code></mark>，兄弟元素全程不知情。</p>
+<h3 id="etarget-vs-ecurrenttarget">e.target vs e.currentTarget</h3>
+<ul>
+<li><code>e.target</code>＝<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">真正被點擊的元素</mark>（信封上的「寄件人」，例如第三個 <code>&lt;li&gt;</code>）</li>
+<li><code>e.currentTarget</code>＝監聽器掛在誰身上（信封上的「收件地點」，例如 <code>&lt;ul&gt;</code>）</li>
+<li>點同一個 <code>&lt;li&gt;</code> 時，<code>e.target</code> 從頭到尾<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不變</mark>（都是被點的 li）；<code>e.currentTarget</code> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">每層都不同</mark>（li→ul→document，誰在經手就是誰）。</li>
+<li>直接綁在自己身上（點誰、綁誰是同一個）→ 兩者一樣；事件代理（綁父層）→ 兩者不同，這就是它存在的意義。</li>
+<li>一般 <code>function</code> 裡 <code>e.currentTarget === this</code>。</li>
+</ul>
+<h3 id="addeventlistener">addEventListener 第三個參數：決定在哪一階段被觸發</h3>
+<pre><code class="language-js">element.addEventListener('click', fn);        // 省略/false → 冒泡階段執行（預設、最常見）
+element.addEventListener('click', fn, true);  // true → 捕獲階段執行
+</code></pre>
+<blockquote>
+<p>瀏覽器的物理順序永遠是「先捕獲（下樓）→ 目標 →再冒泡（上樓）」；我們能選的只是要在下樓還是上樓時攔截。平常什麼都不寫＝冒泡時觸發。</p>
+</blockquote>
+<h3 id="w3c">為什麼需要「冒泡」？（W3C 的兩個傳播階段）</h3>
+<p>事件流＝<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">捕獲（由外往內，下樓）</mark>＋<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">冒泡（由內往外，上樓）</mark>這兩個 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">W3C 標準定義的「傳播階段」</mark>，中間夾著「目標（target）」抵達點。</p>
+<p>冒泡存在的價值：讓<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">外層（祖先）元素能在事件浮上來時，統一處理子元素的事件</mark>＝事件代理（省資源、動態新增元素自動生效）。</p>
+<p>驗證：把外層監聽器改成捕獲（<code>true</code>），點內層時外層會「先」執行（捕獲由外往內），順序翻轉成 <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">外→內</mark>——這證明<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">順序是由「階段」決定，不是由「誰被點」決定</mark>。</p>
+<h3 id="_3">事件監聽器與記憶體（重點）</h3>
+<blockquote>
+<p>[!warning] 每寫一個 <code>addEventListener</code>，瀏覽器就會在「記憶體」裡建立一筆監聽器<br />
+綁太多（例如 1000 個 <code>&lt;li&gt;</code> 各綁一個）會默默吃掉記憶體、效能差的手機會卡頓。這正是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">事件代理把監聽器集中綁在父層、只綁 1 個</mark>的根本原因。</p>
+</blockquote>
+<h3 id="addeventlistener-handler-e">addEventListener 常見錯誤（handler 要「傳函式」、e 自動傳入）</h3>
+<pre><code class="language-js">// ❌ 錯誤示範
+const grandpa = document.querySelectorbyId(&quot;grandpa&quot;);   // 沒有這個方法
+grandpa.addEventListener(click, console.log(&quot;阿公&quot;));     // click 沒引號、console.log 被立刻呼叫
+</code></pre>
+<p>三個關鍵錯誤：</p>
+<ol>
+<li><code>document.querySelectorbyId</code> <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不存在</mark>。用 <code>getElementById("grandpa")</code>（傳 id、不加 <code>#</code>）或 <code>querySelector("#grandpa")</code>（傳 CSS 選擇器、加 <code>#</code>）。</li>
+<li>事件類型要是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">字串</mark> <code>"click"</code>，不加引號會被當成變數（ReferenceError）。</li>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最關鍵</mark>：第二參數要傳「<strong>函式本身</strong>」，不是「呼叫函式的結果」。<code>console.log("阿公")</code> 會被立刻執行（印一次），把回傳值 <code>undefined</code> 當 handler → 點擊毫無反應、根本沒註冊到函式。</li>
+</ol>
+<blockquote>
+<p>[!tip] e 是瀏覽器「自動傳入」handler 的第一個參數<br />
+只要把 handler 寫成「會接收參數的函式」（<code>(e) =&gt; {...}</code> 或 <code>function(e){...}</code>），瀏覽器每次觸發就會自動把事件物件塞進 <code>e</code>，才能用 <code>e.target.id</code>。同理 <code>addEventListener("click", fn)</code> 傳參考（會帶入 e）；<code>addEventListener("click", fn())</code> 是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">立刻呼叫</mark>、把回傳值當 handler（除非 fn 會回傳另一個函式）。</p>
+</blockquote>
+<pre><code class="language-js">// ✅ 正解
+const grandpa = document.getElementById(&quot;grandpa&quot;);
+grandpa.addEventListener(&quot;click&quot;, (e) =&gt; {
+  console.log(&quot;阿公&quot;, e.target.id);
+});
+</code></pre>
+<h3 id="div2026-06-16">實戰踩坑：阿公／阿爸／兒子三層 div（2026-06-16）</h3>
+<p>寫三層巢狀 div 練事件流時，踩到三個錯，整理成對照表：</p>
+<table>
+<thead>
+<tr>
+<th>錯誤寫法</th>
+<th>報錯</th>
+<th>正確</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>e.current.id</code></td>
+<td><code>Cannot read properties of undefined (reading 'id')</code></td>
+<td>沒有 <code>e.current</code> 這個屬性，是 <code>undefined</code>，讀 <code>.id</code> 就爆。要用 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>e.currentTarget</code></mark>（綁在誰身上）或 <code>e.target</code>（被點的）</td>
+</tr>
+<tr>
+<td><code>getElementById("sonVar")</code>（HTML 裡 id 其實是 <code>son</code>）</td>
+<td>下一行 <code>sonVar.addEventListener</code> → <code>Cannot read properties of null</code></td>
+<td><code>getElementById</code> 找不到時<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">回傳 <code>null</code></mark>（不是報錯），對 <code>null</code> 呼叫方法才爆。id 要跟 HTML 完全一致</td>
+</tr>
+<tr>
+<td>CSS <code>#grandpa { text: red; }</code></td>
+<td>不報錯，但<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">顏色不生效</mark></td>
+<td><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有 <code>text</code> 這個 CSS 屬性</mark>，改文字顏色用 <code>color: red;</code>。瀏覽器遇到無效屬性會「無聲忽略」，所以最難察覺</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!tip] <code>undefined</code> vs <code>null</code> 的報錯差別<br />
+- 讀「不存在的屬性」（如 <code>e.current</code>）→ 拿到 <code>undefined</code>，再 <code>.id</code> → <code>Cannot read properties of **undefined**</code>。<br />
+- <code>getElementById</code> 沒找到 → 拿到 <code>null</code>，再 <code>.addEventListener</code> → <code>Cannot read properties of **null**</code>。<br />
+看報錯是 undefined 還是 null，能快速分辨是「打錯屬性名」還是「DOM 沒抓到」。</p>
+</blockquote>
+<h3 id="event-delegation">事件代理（Event Delegation）＝請家長代辦</h3>
+<p>把監聽器統一綁在共同父層（<code>&lt;ul&gt;</code> 或 <code>document</code>），利用冒泡，用 <code>e.target</code> 判斷是誰被點：</p>
+<pre><code class="language-js">const parentUl = document.querySelector('ul');
+parentUl.addEventListener('click', function (e) {
+  if (e.target.tagName === 'LI') {        // 確認點到的是 &lt;li&gt;
+    e.target.style.backgroundColor = 'gray';
+  }
+});
+</code></pre>
+<p>解決兩大痛點：</p>
+<ol>
+<li><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">效能／記憶體</mark>：1000 個 <code>&lt;li&gt;</code> 只需綁 <strong>1 個</strong>監聽器，不是 1000 個。（每個 <code>addEventListener</code> 都會在記憶體建立一筆監聽關係，大量綁定會吃記憶體。）</li>
+<li><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">動態新增元素自動生效</mark>：監聽器綁在「永遠存在的父層」，之後才生出來的新 <code>&lt;li&gt;</code> 不必再綁，被點時冒泡到父層一樣會觸發。</li>
+</ol>
+<h3 id="stoppropagation-vs-preventdefault">stopPropagation vs preventDefault（超級大魔王，常搞混）</h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>管的事</th>
+<th>經典場景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>e.stopPropagation()</code></td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">阻止「傳播」</mark>（事件流到我為止，不再傳給其他節點）</td>
+<td>事件代理防止冒泡亂觸發外層（如防跳窗亂關）</td>
+</tr>
+<tr>
+<td><code>e.preventDefault()</code></td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">阻止「瀏覽器內建預設行為」</mark></td>
+<td>阻止 <code>&lt;a&gt;</code> 跳轉、<code>&lt;form&gt;</code> 送出重整、右鍵選單</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>stopPropagation()</code> 裝在哪個階段就中斷哪個：裝捕獲階段就到不了目標；裝冒泡階段（最常見）就不再往上傳。</li>
+<li><mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩者都不會阻止 target 節點本身的 JS 程式碼（如 console.log）執行。</mark></li>
+<li><code>e.target</code> 與 <code>e.stopPropagation()</code> 不衝突：一個是「偵探」（指出是誰），一個是「保全」（阻止往外擴散），分工合作。</li>
+</ul>
+<h3 id="tagname">tagName 大寫陷阱</h3>
+<p><code>e.target.tagName</code> 回傳的標籤名<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">永遠大寫</mark>（<code>'LI'</code>、<code>'DIV'</code>、<code>'IMG'</code>）。寫 <code>'Li'</code> 會對不到。防呆：</p>
+<pre><code class="language-js">if (e.target.tagName.toLowerCase() === 'li') { /* ... */ }
+// 或更寬容、可丟 CSS 選擇器：
+if (e.target.matches('li')) { /* ... */ }
+</code></pre>
+<h3 id="tagname-camelcase">為什麼 <code>tagName</code> 是 camelCase？（別把三種大小寫搞混）</h3>
+<p><code>tagName</code> 是 <strong>JS 屬性</strong>，JS/DOM 的屬性與方法照慣例都用 camelCase（<code>innerHTML</code>、<code>textContent</code>、<code>className</code>、<code>querySelector</code>、<code>getElementById</code>、<code>parentNode</code>…）。這跟「值是大寫」無關，是兩件事：</p>
+<table>
+<thead>
+<tr>
+<th>東西</th>
+<th>大小寫</th>
+<th>例子</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HTML 標籤本身</td>
+<td>小寫（慣例）</td>
+<td><code>&lt;div&gt;</code> <code>&lt;li&gt;</code></td>
+<td>HTML 標籤名大小寫不敏感</td>
+</tr>
+<tr>
+<td>JS 屬性／方法名</td>
+<td><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">camelCase</mark></td>
+<td><code>tagName</code> <code>innerHTML</code></td>
+<td>JS/DOM API 命名慣例</td>
+</tr>
+<tr>
+<td><code>el.tagName</code> 回傳值</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">大寫</mark></td>
+<td><code>'LI'</code> <code>'DIV'</code></td>
+<td>DOM 規範：HTML 文件回傳大寫</td>
+</tr>
+</tbody>
+</table>
+<p>延伸：HTML 小寫/kebab 進 JS 會變 camelCase——HTML <code>class</code> → JS <code>el.className</code>（<code>class</code> 是 JS 保留字）；HTML <code>data-user-id</code> → JS <code>el.dataset.userId</code>。</p>
+<p>口訣：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HTML 小寫、JS 屬性 camelCase、tagName 的「值」大寫</mark>，三層別混。</p>
+<h3 id="document">綁在 document 的實戰用途</h3>
+<ul>
+<li>全網頁動態圖片燈箱：<code>document</code> 上判斷 <code>e.target.tagName === 'IMG'</code> 就放大（圖片是動態載入也通用）。</li>
+<li>點空白處關閉彈窗：<code>document</code> 上判斷 <code>e.target.id !== 'my-image'</code> 就關閉跳窗。</li>
+</ul>
+<h3 id="react">React 怎麼寫？</h3>
+<p>React 內部用 SyntheticEvent，預設也在冒泡階段處理。</p>
+<p><strong>作法一（最推薦，資料驅動）</strong>：用 state 記住被點的 index，<code>onClick</code> 綁在 map 出來的 <code>&lt;li&gt;</code>，不碰原生 DOM：</p>
+<pre><code class="language-jsx">{% raw %}
+const [activeIndex, setActiveIndex] = useState(null);
+// ...
+{items.map((item, index) =&gt; (
+  &lt;li key={index}
+      onClick={() =&gt; setActiveIndex(index)}
+      style={{ backgroundColor: activeIndex === index ? 'gray' : 'transparent' }}&gt;
+    {item}
+  &lt;/li&gt;
+))}
+{% endraw %}
+</code></pre>
+<p><strong>作法二（事件代理，綁在 <code>&lt;ul&gt;</code>）</strong>：仍要用 <code>e.target.tagName === 'LI'</code>（記得大寫）。</p>
+<blockquote>
+<p>一句話死背核心：記憶體很貴，別給每個小孩請保鏢；在大門口（document／父元素）裝一個監視器，只要有小孩開門（冒泡），警衛（e.target）就能認出是哪個小孩並幫他開燈。</p>
+</blockquote>
+<h3 id="2026-09-05">追加 2026-09-05：那句「事件流程真正會產生影響，只有當……」在講什麼</h3>
+<p>書上那句拗口的話——「事件流程真正會產生影響，只有當你的程式碼需要使用一個指定元件，和其祖先或後代元件的事件處理器」——白話翻譯是：</p>
+<blockquote>
+<p><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">事件冒泡與捕獲的順序會不會影響到你，只有在「同一條家族線上的多個元素都綁了事件」時才有差別。</mark></p>
+</blockquote>
+<p>拆解成兩種情況：</p>
+<pre><code class="language-html">&lt;ul id=&quot;parent&quot;&gt;          &lt;!-- 祖先（外套） --&gt;
+  &lt;li id=&quot;child&quot;&gt;         &lt;!-- 後代（內衣） --&gt;
+    &lt;a id=&quot;target&quot;&gt;點我&lt;/a&gt;  &lt;!-- 目標（最內層） --&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>情況</th>
+<th>綁定狀況</th>
+<th>事件流有沒有影響</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>只有 <code>&lt;a&gt;</code> 綁了 click</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有感覺</mark>。事件照樣會經過 <code>&lt;li&gt;</code> 與 <code>&lt;ul&gt;</code>，但那些元素沒寫 JS，什麼都不會發生</td>
+</tr>
+<tr>
+<td>B</td>
+<td><code>&lt;a&gt;</code> 與 <code>&lt;ul&gt;</code> 都綁了 click</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">有差別</mark>。冒泡＝先 <code>&lt;a&gt;</code> 再 <code>&lt;ul&gt;</code>（由內而外）；捕獲＝先 <code>&lt;ul&gt;</code> 再 <code>&lt;a&gt;</code>（由外而內）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!tip] 記憶點<br />
+<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">事件流永遠都在跑（捕獲 → 目標 → 冒泡），差別只在「有沒有人在路上設站攔截」。</mark>只有多層都設了站，順序才會被你感覺到。所以不用把事件流想得太複雜——它是「什麼時候你的兩個 handler 誰先跑」的問題，不是「事件會不會傳到」的問題。</p>
+</blockquote>
+<p>這一段跟本篇前面的 <span class="wikilink" title="Obsidian 連結：事件流與事件代理#stopPropagation vs preventDefault（超級大魔王，常搞混）">事件流與事件代理#stopPropagation vs preventDefault（超級大魔王，常搞混）</span> 直接相關：<code>stopPropagation</code> 之所以有用，前提就是「路上真的有第二個站」。</p>
+<h2 id="_4">各對話來源</h2>
+<h3 id="document-2026-06-httpsgeminigooglecomapp8a1e12a8c8001b14">事件流與 Document 的關係（2026-06）— https://gemini.google.com/app/8a1e12a8c8001b14</h3>
+<p>使用者：點第三個 li，事件會傳到 ul 再補獲給所有 li 嗎？該釋放給所有 li 吧？誰會知道是誰？ → Gemini：事件是單向旅行不是廣播；冒泡只走 li→ul→document，不經過其他 li；管理員（監聽器）寫在 ul 上，靠 e.target（寄件人）知道是第三個 li、e.currentTarget（收件地點）是 ul。</p>
+<p>使用者：屁啦點擊是事件捕捉剛剛在講個屁 → Gemini：拍謝講太快；點擊引發整個事件流（捕獲→目標→冒泡），但 addEventListener 預設不加第三參數時，function 只在「冒泡階段」被觸發；捕獲下樓時只是悄悄走過沒人理。</p>
+<p>使用者：所以要先捕捉，當有設定行為的時候就是冒泡？ → Gemini：對；物理順序一定先捕獲（無法改），第三參數 false/省略＝冒泡觸發、true＝捕獲觸發。</p>
+<p>使用者：我要讓 li 被點變灰色，都寫在 ul 上對嗎？ → Gemini：對，事件代理。<code>ul.addEventListener('click', e=&gt;{ if(e.target.tagName==='LI') e.target.style.backgroundColor='gray' })</code>。</p>
+<p>使用者：e.target.tagName==='Li' 在 React 怎麼寫？ → Gemini：React 推薦用 state（activeIndex）綁在 map 的 li；或事件代理綁 ul 用 e.target.tagName==='LI'（永遠大寫，'Li' 對不到）。</p>
+<p>使用者：要讓事件不擴散用 stopPropagation，又要 e.target 綁定，這兩個衝突嗎？stopPropagation 是冒泡還是捕獲？document 事件代理？stop 通常跟 target 同一元素？ → Gemini：不衝突（偵探 vs 保全）；stopPropagation 裝哪階段就中斷哪階段；document 代理很常見；沒代理時 target 與 stop 同一元素、有代理時不同（target 是 li，stop 阻斷的是 ul 往上的冒泡）。</p>
+<p>使用者：e.preventDefault() 才是在 target node 不作用的嗎？ → Gemini：不對；兩者都不阻止 target 本身 JS 執行。stopPropagation 管傳播、preventDefault 管瀏覽器內建行為（a 跳轉/form 送出/右鍵選單）。</p>
+<p>使用者：（tagName 大寫陷阱確認）→ Gemini：對，永遠大寫；防呆用 <code>.toLowerCase()</code> 或 <code>e.target.matches('li')</code>；React 最好走資料驅動避開。</p>
+<p>使用者：所以事件代理是幹嘛用的 → Gemini：請家長代辦；解決效能爆炸（1000 監聽器→1 個）與動態新增元素點了沒反應兩大痛點。</p>
+<p>使用者：事件監聽器會在記憶體建立！？幫我變成複習重點；冒泡時不是已綁在 target 為何父層也作用？不冒泡也能執行啊？為何綁 document？ → Gemini：每個 addEventListener 都吃記憶體；父層作用是冒泡的物理本質（訊號必經過）；冒泡的價值是讓外層幫忙處理動態新元素；綁 document 用於動態圖片燈箱與點空白關彈窗。</p>
+<h3 id="2026-09-05-httpsgeminigooglecomappdaa0296d0558e0a4">事件流程真正會產生影響的時機（2026-09-05）— https://gemini.google.com/app/daa0296d0558e0a4</h3>
+<p><strong>使用者：</strong>（附上書本照片）「事件流程真正會產生影響，只有當你的程式碼需要使用一個指定元件，和其祖先或後代元件的事件處理器。」這個是在講什麼？好難懂</p>
+<p><strong>Gemini：</strong> 這句話翻譯成白話文，意思是「事件冒泡與捕捉（事件流程）到底會不會影響到你，只有在『家族關係』中的多個元素都綁定了點擊等事件時才有差別」。如果只有單一元素有綁定事件，事件流程是怎麼傳遞的根本沒影響；但如果祖先和後代同時都綁定了事件，傳遞的順序（從外到內，還是從內到外）就會決定誰先被執行。以 <code>&lt;ul&gt;&lt;li&gt;&lt;a&gt;</code> 三層為例：情況 A 只有 <code>&lt;a&gt;</code> 綁事件時，即使事件會傳遞給 <code>&lt;li&gt;</code> 和 <code>&lt;ul&gt;</code>，那些外層元素沒寫 JavaScript 所以什麼都不會發生；情況 B <code>&lt;a&gt;</code> 和 <code>&lt;ul&gt;</code> 都綁了事件時，事件冒泡會先觸發 <code>&lt;a&gt;</code> 再觸發 <code>&lt;ul&gt;</code>（由內而外），事件捕捉則先觸發 <code>&lt;ul&gt;</code> 再觸發 <code>&lt;a&gt;</code>（由外而內）。這句話只是想告訴你：不用把事件流程想得太複雜，只有在多層嵌套元素都有事件監聽器時，事件產生的順序才會真正影響到程式碼執行的結果。</p>
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>事件流與 Document 的關係（Gemini 對話）</td>
+<td>https://gemini.google.com/app/8a1e12a8c8001b14</td>
+<td>Gemini Flash，2026-06-15</td>
+</tr>
+<tr>
+<td>事件流程真正會產生影響的時機（Gemini 對話）</td>
+<td>https://gemini.google.com/app/daa0296d0558e0a4</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>DOM 標準 — Event dispatch and DOM event flow（三階段）</td>
+<td>https://dom.spec.whatwg.org/#dispatching-events</td>
+<td>WHATWG DOM Living Standard，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — EventTarget.addEventListener（capture 參數）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — Event bubbling（事件代理）</td>
+<td>https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/Event_bubbling</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

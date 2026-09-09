@@ -12,7 +12,7 @@ tags:
   - react
   - 鐵人賽
 related:
-  - "[[script載入方式]]"
+  - "[[script載入方式+前因後果]]"
   - "[[前端開發工具-打包編譯Lint與Parser]]"
 updated: 2026-08-11
 線上版（github.io，路由依 Jekyll 設定，實際請以站上為準）: https://abbychickenfillet-github.github.io/golang-and-TS-others-md-files/frontend-docs/web-platform/如何寫入口檔-index-js-main-tsx.html
@@ -20,7 +20,7 @@ updated: 2026-08-11
 
 # 如何寫入口檔（index.js / main.tsx）
 
-> 承接 [script載入方式](script載入方式.md) 的打包五步「① 找入口、建相依圖」。這篇專講**入口檔**：它為什麼重要、怎麼寫、常見錯誤。（鐵人賽鋪路用，之後可再擴充。）
+> 承接 [script載入方式+前因後果](script載入方式+前因後果.md) 的打包五步「① 找入口、建相依圖」。這篇專講**入口檔**：它為什麼重要、怎麼寫、常見錯誤。（鐵人賽鋪路用，之後可再擴充。）
 >
 > **本篇重點 (a)–(f)，共 6 個。**
 
@@ -79,12 +79,12 @@ createRoot(document.getElementById("root")!).render(
 
 ## (f) 跟母篇的接點
 
-入口檔是打包五步的「第①步」的起點；它之後會經過 ②轉譯 ③bundle ④minify ⑤hash 注入，變成 `dist/` 的產物。完整五步見 [script載入方式](script載入方式.md)。
+入口檔是打包五步的「第①步」的起點；它之後會經過 ②轉譯 ③bundle ④minify ⑤hash 注入，變成 `dist/` 的產物。完整五步見 [script載入方式+前因後果](script載入方式+前因後果.md)。
 
 ---
 
 ## 相關筆記
-- [script載入方式](script載入方式.md) —— 打包五步、HTML Parsing、script 載入模式
+- [script載入方式+前因後果](script載入方式+前因後果.md) —— 打包五步、HTML Parsing、script 載入模式
 - [前端開發工具-打包編譯Lint與Parser](../../build-and-compilation/前端開發工具-打包編譯Lint與Parser.md) —— 打包/轉譯/Lint/Parser 的工具面
 
 ## 資料來源（含查證時間）

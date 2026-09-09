@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>useEffect 的 setup 與清理函式：return 的是一個函式，不是執行結果</title>
+<style>
+:root{
+  --bg:#f6f7fb; --card:#fff; --ink:#252932; --muted:#6b7280; --line:#e4e7ec;
+  --accent:#5b6ef5; --accent-soft:#eef0ff; --ok:#0f9d58; --bad:#e04a5f; --warn:#d98324;
+  --code:#f2f4f8;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  line-height:1.8;font-size:16px}
+.wrap{max-width:960px;margin:0 auto;padding:26px 18px 90px}
+header.note{background:linear-gradient(135deg,#eef1ff,#f6f0ff);border:1px solid var(--line);
+  border-radius:18px;padding:26px 28px;margin-bottom:20px}
+header.note h1{margin:0 0 10px;font-size:1.5rem;line-height:1.4;font-family:"Noto Serif TC",serif}
+.pill{display:inline-block;background:#fff;border:1px solid #c9d0ff;color:#4b57d6;
+  border-radius:999px;padding:3px 12px;font-size:.76rem;margin:3px 5px 3px 0}
+.meta{color:var(--muted);font-size:.84rem;margin-top:10px}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.035)}
+h2{font-size:1.18rem;border-left:5px solid var(--accent);padding-left:12px;margin:.1em 0 .8em}
+h3{font-size:1rem;margin:1.4em 0 .5em;color:#3a4150}
+p,li,td,th{font-size:.98rem}
+code{background:var(--code);padding:.1em .4em;border-radius:4px;
+  font-family:"JetBrains Mono",Consolas,monospace;font-size:.9em}
+pre{background:#1f2430;color:#e8ecf3;border-radius:10px;padding:14px 16px;overflow-x:auto;
+  font-family:"JetBrains Mono",Consolas,monospace;font-size:.86rem;line-height:1.65}
+pre code{background:none;padding:0;color:inherit}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#f1f4f9}
+.hl-g{background:#c8f2c8;padding:.05em .3em;border-radius:4px}
+.hl-b{background:#cfe0ff;padding:.05em .3em;border-radius:4px}
+.hl-y{background:#fdf0a8;padding:.05em .3em;border-radius:4px}
+.hl-r{background:#ffc0c9;padding:.05em .3em;border-radius:4px}
+
+/* 時間軸 */
+.tl{display:flex;gap:0;flex-wrap:nowrap;overflow-x:auto;padding:6px 0 14px}
+.tl .step{flex:0 0 168px;border:2px solid var(--line);border-radius:12px;padding:11px 13px;
+  background:#fbfcfe;position:relative;margin-right:26px}
+.tl .step:last-child{margin-right:0}
+.tl .step::after{content:"▶";position:absolute;right:-22px;top:50%;transform:translateY(-50%);
+  color:#b9c0cf;font-size:.9rem}
+.tl .step:last-child::after{content:""}
+.tl .step .k{font-size:.72rem;color:var(--muted);letter-spacing:.05em}
+.tl .step .t{font-weight:700;font-size:.9rem;margin:3px 0 5px}
+.tl .step .d{font-size:.78rem;color:#4b5261}
+.tl .step.star{border-color:var(--accent);background:var(--accent-soft)}
+.tl .step.star .t::before{content:"★ ";color:var(--accent)}
+.phase{display:flex;gap:10px;margin:4px 0 2px;font-size:.78rem;color:var(--muted)}
+.phase span{padding:2px 10px;border-radius:999px;background:#eceff5}
+.phase span.rt{background:#e6f4ec;color:#0f7a46}
+.phase span.bt{background:#fdf0e2;color:#a5601a}
+
+/* 互動元件 */
+.blank{display:inline-block;min-width:96px;border-bottom:2px dashed var(--accent);
+  text-align:center;cursor:pointer;color:var(--accent);font-weight:700;
+  padding:0 6px;transition:.15s;user-select:none}
+.blank:hover{background:var(--accent-soft)}
+.blank.done{border-bottom-style:solid;color:var(--ok);background:#eaf7ef;cursor:default}
+.tf{margin:14px 0;padding:13px 15px;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}
+.tf .q{font-weight:600;margin-bottom:9px}
+.tf button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 18px;
+  margin-right:8px;cursor:pointer;font-size:.9rem;font-family:inherit;transition:.15s}
+.tf button:hover{border-color:var(--accent);background:var(--accent-soft)}
+.tf .fb{margin-top:10px;font-size:.9rem;display:none;padding:9px 12px;border-radius:8px;line-height:1.75}
+.tf .fb.show{display:block}
+.fb.right{background:#eaf7ef;border-left:4px solid var(--ok)}
+.fb.wrong{background:#fdeef0;border-left:4px solid var(--bad)}
+.essay{margin:14px 0;padding:13px 15px;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}
+.essay .q{font-weight:600;margin-bottom:9px}
+.essay textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:8px;
+  padding:10px;font-family:inherit;font-size:.92rem;line-height:1.7;resize:vertical}
+.toggle{border:none;background:var(--accent);color:#fff;border-radius:8px;padding:7px 16px;
+  cursor:pointer;font-size:.88rem;font-family:inherit;margin-top:9px}
+.toggle:hover{filter:brightness(1.08)}
+.ans{display:none;margin-top:11px;padding:12px 14px;background:#f4f6ff;
+  border-left:4px solid var(--accent);border-radius:0 8px 8px 0;font-size:.93rem}
+.ans.show{display:block}
+.ans ol{margin:.4em 0 .2em;padding-left:1.3em}
+.ans li{margin:.35em 0}
+.note-box{border-left:4px solid var(--warn);background:#fff8ec;padding:11px 14px;
+  border-radius:0 8px 8px 0;margin:14px 0;font-size:.93rem}
+.note-box.imp{border-left-color:var(--bad);background:#fdeef0}
+.note-box.ok{border-left-color:var(--ok);background:#eef8f2}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:720px){.cols{grid-template-columns:1fr}}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:34px;line-height:1.9}
+footer a{color:var(--accent)}
+.score{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);
+  padding:9px 14px;font-size:.86rem;color:var(--muted);border-radius:10px 10px 0 0;
+  box-shadow:0 -2px 8px rgba(0,0,0,.05);margin-top:18px}
+.score b{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="note">
+  <h1>useEffect 的 setup 與清理函式：<code style="background:#fff">return</code> 的是一個函式，不是執行結果</h1>
+  <div>
+    <span class="pill">React</span><span class="pill">useEffect</span><span class="pill">cleanup</span>
+    <span class="pill">閉包</span><span class="pill">Execution Context</span><span class="pill">Fiber</span>
+  </div>
+  <div class="meta">
+    互動版筆記　·　點擊藍色虛線填空、作答是非題、寫完申論題再看參考答案<br>
+    對應 Markdown：<code>02-useEffect的setup清理函式-return一個函式而不是執行它.md</code>　·　更新：2026-09-07
+  </div>
+</header>
+
+<!-- ============ 核心結論 ============ -->
+<section class="card">
+  <h2>一、先把最容易講錯的一句話講對</h2>
+  <div class="note-box imp">
+    <b>結論</b>：<code>return () =&gt; clearInterval(id)</code> 這一行執行時，<span class="hl-r">clearInterval 一次都沒有被呼叫</span>。
+    它只是<b>建立</b>了一個函式物件並交還給 React。<code>clearInterval(id)</code> 要等到 React 決定該清理時、
+    真的去呼叫那個函式，才會被執行。
+  </div>
+
+  <p>判斷「某個函式有沒有被執行」，看的是<span class="hl-g">它後面有沒有一組緊貼著的呼叫括號</span>：</p>
+
+<pre><code>return () =&gt; clearInterval(id)
+//     └┬┘    └─────┬──────┘
+//      │           └── 這個括號在「箭頭函式的本體裡」，屬於未來才會跑的程式碼
+//      └── 這個括號是「參數列表」，代表這個箭頭函式不收任何參數</code></pre>
+
+  <h3>三種寫法，差一個箭頭天差地遠</h3>
+  <table>
+    <tr><th style="width:44%">寫法</th><th>發生什麼事</th></tr>
+    <tr>
+      <td><code>return clearInterval(id)</code></td>
+      <td><span class="hl-r">立刻執行</span>，回傳 <code>undefined</code>。計時器在 setup 當下就被關掉，而且 React 以為你沒有清理邏輯</td>
+    </tr>
+    <tr>
+      <td><code>return () =&gt; clearInterval(id)</code></td>
+      <td><span class="hl-g">正解</span>。只造一個函式交出去，等 React 之後決定何時呼叫</td>
+    </tr>
+    <tr>
+      <td><code>return () =&gt; { clearInterval(id) }</code></td>
+      <td>跟上一列等價，只是寫成區塊本體。上一列是「簡潔本體」，隱含一個 <code>return</code></td>
+    </tr>
+  </table>
+
+  <div class="note-box">
+    <b>用詞校正</b>：<code>return</code> 是<span class="hl-y">回傳／交還</span>，不是「丟出」。
+    JS 裡「丟出／拋出」專指 <code>throw</code>（丟例外）。面試時講「丟出」會被聽成 <code>throw</code>。
+  </div>
+</section>
+
+<!-- ============ 填空 ============ -->
+<section class="card">
+  <h2>二、填空：把口述版補完整（點擊虛線看答案）</h2>
+  <p style="font-size:.95rem">
+    「<code>useEffect</code> 的第一個參數是
+    <span class="blank" data-a="setup function（設定函式）">點我</span>。
+    我在它裡面開了一個 <code>setInterval</code>，它回傳一個
+    <span class="blank" data-a="計時器編號">點我</span>存進 <code>id</code>。
+    最後我用 <code>return</code> 把一個新建立的、不收參數的
+    <span class="blank" data-a="匿名箭頭函式">點我</span>交還給 React——注意這裡只是把函式交出去，
+    <code>clearInterval</code> <span class="blank" data-a="一次都還沒被呼叫">點我</span>。
+    這個函式因為引用了 <code>id</code>，形成
+    <span class="blank" data-a="閉包">點我</span>，<code>id</code> 被保留在
+    <span class="blank" data-a="Heap（堆積）上的 Context 物件">點我</span>。
+    React 會把這個函式存進 effect 的
+    <span class="blank" data-a="inst.destroy 欄位">點我</span>，
+    等到該清理的時機再呼叫它，那時候 <code>clearInterval(id)</code> 才真的執行。」
+  </p>
+</section>
+
+<!-- ============ 時間軸 ============ -->
+<section class="card">
+  <h2>三、時間軸：建立在哪一格，執行在哪一格</h2>
+
+  <div class="phase">
+    <span class="bt">buildtime 建置期（轉譯 ＋ 打包）</span>
+    <span class="rt">runtime 執行期（Parse → Bytecode → 每次 render）</span>
+  </div>
+  <div class="tl">
+    <div class="step"><div class="k">① buildtime</div><div class="t">轉譯 transpile</div>
+      <div class="d">Babel／SWC 把 JSX 轉成標準 JS。你的箭頭函式此時只是一段文字</div></div>
+    <div class="step"><div class="k">② buildtime</div><div class="t">打包 bundle</div>
+      <div class="d">webpack／Vite 合併壓縮。整段部署前就結束了</div></div>
+    <div class="step"><div class="k">③ runtime</div><div class="t">Parse</div>
+      <div class="d">Scanner → Parser → AST → Scope Analysis。每個函式只做一次</div></div>
+    <div class="step"><div class="k">④ runtime</div><div class="t">Bytecode</div>
+      <div class="d">Ignition 產生可重複使用的 Bytecode</div></div>
+    <div class="step star"><div class="k">⑤ runtime</div><div class="t">每次 render</div>
+      <div class="d">React 呼叫 <code>Counter()</code>，清理函式在這裡<b>被建立</b>，但還沒被執行</div></div>
+  </div>
+
+  <h3>放大第 ⑤ 格之後：setup 與 cleanup 的配對</h3>
+  <div class="tl">
+    <div class="step"><div class="k">t0 · render 階段</div><div class="t">建立函式物件</div>
+      <div class="d">純函式階段，不碰 DOM。setup 與 cleanup 都只是被造出來</div></div>
+    <div class="step star"><div class="k">t1 · commit 階段</div><div class="t">執行 setup ①</div>
+      <div class="d"><code>setInterval</code> 開始跑，<code>id</code> 被閉包抓住；回傳的 cleanup ① 存進 <code>inst.destroy</code></div></div>
+    <div class="step star"><div class="k">t2</div><div class="t">執行 cleanup ①</div>
+      <div class="d">依賴變了或要卸載。<span class="hl-r">clearInterval(id) 這時才真的跑</span></div></div>
+    <div class="step"><div class="k">t3</div><div class="t">執行 setup ②</div>
+      <div class="d">若是依賴變動：新的計時器、新的 id、新的 cleanup ②</div></div>
+    <div class="step"><div class="k">t4</div><div class="t">執行 cleanup ②</div>
+      <div class="d">元件卸載，收尾</div></div>
+  </div>
+
+  <div class="note-box ok">
+    <b>規律</b>：<code>setup① → cleanup① → setup② → cleanup② …</code>
+    永遠<span class="hl-g">成對且交錯</span>，不會有兩個 setup 同時活著。<br>
+    <b>StrictMode（僅開發模式）</b>在 t1 之後會多插一輪 <code>setup① → cleanup① → setup①'</code>，
+    故意檢查你的 cleanup 有沒有寫對。元件在 StrictMode 下行為異常（計時器變兩倍快、請求送兩次），
+    通常代表 cleanup 漏寫了。
+  </div>
+</section>
+
+<!-- ============ 為什麼 id 還在 ============ -->
+<section class="card">
+  <h2>四、<code>id</code> 為什麼還在？——閉包把它從 Stack 搬到 Heap</h2>
+  <div class="cols">
+    <div>
+      <h3>沒有被內層函式引用</h3>
+      <p style="font-size:.93rem">變數留在<span class="hl-b">快速的 Stack／CPU 暫存器</span>。
+      函式一 <code>return</code>，Stack Frame 彈掉，記憶體立刻釋放。</p>
+    </div>
+    <div>
+      <h3>被內層函式引用（本篇的情況）</h3>
+      <p style="font-size:.93rem">引擎在 Parse 階段的 Scope Analysis 就判定它會逃逸，改配置在
+      <span class="hl-g">Heap 上的 Context 物件</span>。setup 的 Execution Context 拆掉之後，
+      <code>id</code> 依然活著，直到沒人引用才被 GC 回收。</p>
+    </div>
+  </div>
+  <div class="note-box ok">
+    <b>一句話</b>：清理函式能關掉「當初那一個」計時器，靠的不是 React 記得，
+    而是 JS 閉包把 <code>id</code> 從 Stack 搬到了 Heap。
+  </div>
+</section>
+
+<!-- ============ React 原始碼 ============ -->
+<section class="card">
+  <h2>五、React 內部的證據（可以直接背）</h2>
+  <p>React 原始碼 <code>packages/react-reconciler/src/ReactFiberHooks.js</code>：</p>
+<pre><code>type Effect = {
+  tag: HookFlags,
+  inst: EffectInstance,
+  create: () =&gt; (() =&gt; void) | void,   // ← setup 函式：回傳「一個函式」或「什麼都不回傳」
+  deps: Array&lt;mixed&gt; | void | null,
+  next: Effect,
+};
+
+type EffectInstance = {
+  destroy: void | (() =&gt; void),        // ← 你 return 的那個清理函式，被存在這裡
+};</code></pre>
+  <p><code>create</code> 的型別簽章 <code>() =&gt; (() =&gt; void) | void</code> 白紙黑字寫著：
+  它<span class="hl-r">只能回傳「一個不收參數也不回傳值的函式」，或者什麼都不回傳</span>。這直接解釋了兩個常見錯誤：</p>
+  <ol>
+    <li><code>useEffect(async () =&gt; {...})</code> → async 函式回傳 <b>Promise</b>，不是函式，型別對不上，React 會警告</li>
+    <li><code>return clearInterval(id)</code> → 回傳 <code>undefined</code>，React 以為你沒有清理邏輯</li>
+  </ol>
+</section>
+
+<!-- ============ 是非題 ============ -->
+<section class="card">
+  <h2>六、是非題</h2>
+
+  <div class="tf" data-ans="false">
+    <div class="q">1. <code>return () =&gt; clearInterval(id)</code> 這一行會立刻呼叫 <code>clearInterval</code>。</div>
+    <button data-v="true">○ 是</button><button data-v="false">✗ 非</button>
+    <div class="fb"></div>
+    <div class="exp" hidden>錯。這一行只建立一個函式物件並回傳。<code>clearInterval(id)</code> 的括號在箭頭函式的<b>本體裡</b>，屬於未來才會跑的程式碼；整個箭頭函式後面也沒有再接一組 <code>()</code>，所以它自己也沒有被呼叫。</div>
+  </div>
+
+  <div class="tf" data-ans="true">
+    <div class="q">2. 清理函式能關掉「當初那一個」計時器，是因為 <code>id</code> 被閉包捕獲後配置在 Heap 上。</div>
+    <button data-v="true">○ 是</button><button data-v="false">✗ 非</button>
+    <div class="fb"></div>
+    <div class="exp" hidden>對。引擎在 Scope Analysis 就判定 <code>id</code> 會逃逸，把它放進 Heap 上的 Context 物件，所以 setup 函式的 Stack Frame 彈掉之後它依然存活。</div>
+  </div>
+
+  <div class="tf" data-ans="false">
+    <div class="q">3. 依賴陣列寫 <code>[]</code> 的意思是「我希望這個 effect 只跑一次」。</div>
+    <button data-v="true">○ 是</button><button data-v="false">✗ 非</button>
+    <div class="fb"></div>
+    <div class="exp" hidden>錯。依賴陣列不是「我希望它跑幾次」的開關，是<b>「這個 effect 讀了哪些外部值」的誠實申報</b>。明明讀了 <code>count</code> 卻寫 <code>[]</code>，就會產生 stale closure。</div>
+  </div>
+
+  <div class="tf" data-ans="true">
+    <div class="q">4. setup 與 cleanup 永遠成對交錯執行，不會有兩個 setup 同時活著。</div>
+    <button data-v="true">○ 是</button><button data-v="false">✗ 非</button>
+    <div class="fb"></div>
+    <div class="exp" hidden>對。順序永遠是 <code>setup① → cleanup① → setup② → cleanup② …</code>。依賴變動時 React 一定先跑舊的 cleanup、再跑新的 setup。</div>
+  </div>
+
+  <div class="tf" data-ans="false">
+    <div class="q">5. <code>useEffect(async () =&gt; {...})</code> 是合法寫法，因為 async 函式也是函式。</div>
+    <button data-v="true">○ 是</button><button data-v="false">✗ 非</button>
+    <div class="fb"></div>
+    <div class="exp" hidden>錯。問題不在 setup 本身是不是函式，而在它<b>回傳什麼</b>。async 函式一定回傳 Promise，而 <code>create</code> 的型別要求回傳「函式或 undefined」，所以 React 會警告。正解是在裡面另外定義一個 async 函式再呼叫它。</div>
+  </div>
+
+  <div class="tf" data-ans="true">
+    <div class="q">6. cleanup 讀到的是「它那一次 render 的值」，這是正確行為，不是 bug。</div>
+    <button data-v="true">○ 是</button><button data-v="false">✗ 非</button>
+    <div class="fb"></div>
+    <div class="exp" hidden>對。cleanup① 的任務就是收拾 setup① 建立的東西，它當然要用 setup① 當時的那組值。</div>
+  </div>
+
+  <div class="score">作答進度：<b><span id="done">0</span></b> / 6　·　答對 <b><span id="right">0</span></b> 題</div>
+</section>
+
+<!-- ============ 申論題 ============ -->
+<section class="card">
+  <h2>七、申論題（先自己寫，再看參考答案）</h2>
+
+  <div class="essay">
+    <div class="q">Q1. 請用「面試四段式」解釋 useEffect 的清理函式。</div>
+    <textarea placeholder="是什麼／為什麼需要／什麼時候被呼叫／底層原理…"></textarea>
+    <button class="toggle">顯示參考答案</button>
+    <div class="ans">
+      <ol>
+        <li><b>是什麼</b>：<code>useEffect</code> 的 setup 函式可以選擇性地回傳一個函式，React 官方稱它 cleanup function，存在該 effect 的 <code>inst.destroy</code> 欄位。</li>
+        <li><b>為什麼需要</b>：effect 常會建立「持續存在的東西」——計時器、事件監聽器、WebSocket 連線、訂閱。這些不會隨元件消失而自動消失，必須主動關掉，否則就是記憶體洩漏。</li>
+        <li><b>什麼時候被呼叫</b>：卸載前、每次重跑 setup 之前、以及 StrictMode 開發模式下掛載後多跑的那一輪。順序永遠成對交錯。</li>
+        <li><b>底層原理</b>：cleanup 靠閉包抓住 setup 當次的區域變數。這些變數因為被捕獲而配置在 Heap 的 Context 物件而非 Stack，所以 setup <code>return</code> 之後依然活著，直到 cleanup 被呼叫、effect 卸載、沒人引用，才被 GC 回收。</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="essay">
+    <div class="q">Q2. 開頭那段計時器為什麼永遠印出 0？請從「每次 render 是一次函式呼叫」推導。</div>
+    <textarea placeholder="從 Creation Phase、參數綁定、閉包捕獲三個角度推…"></textarea>
+    <button class="toggle">顯示參考答案</button>
+    <div class="ans">
+      <ol>
+        <li>第一次 render：React 呼叫 <code>Counter()</code>，Creation Phase 建立一組綁定，其中 <code>count</code> 的值是 0。</li>
+        <li>依賴陣列是 <code>[]</code>，所以 setup 只在第一次 render 的舞台上被執行一次。</li>
+        <li><code>setInterval</code> 的回呼抓住了<b>第一次 render 的 count 綁定</b>。因為被抓住，這個綁定被搬到 Heap 上活著。</li>
+        <li>第二、三次 render 時 React 確實再呼叫了 <code>Counter()</code>，也建立了全新的 <code>count</code> 綁定，但計時器回呼抓的是第一組，跟新的沒有任何關係。</li>
+        <li>所以它每秒忠實印出它抓著的那塊記憶體裡的值：0。而 <code>setCount(count + 1)</code> 永遠是 <code>setCount(0 + 1)</code>。這個現象叫 <b>stale closure（過期閉包）</b>，是 JS 閉包語意的必然結果，不是 React 的 bug。</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="essay">
+    <div class="q">Q3. 三種修法各自的代價是什麼？什麼情況下該選哪一種？</div>
+    <textarea placeholder="updater function／誠實申報依賴／useRef…"></textarea>
+    <button class="toggle">顯示參考答案</button>
+    <div class="ans">
+      <ol>
+        <li><b>updater function</b> <code>setCount(c =&gt; c + 1)</code>：不從閉包讀值，讓 React 把最新值餵進來。代價是只適用於「新值只依賴舊值」；要讀其他 state 或 prop 就救不了。</li>
+        <li><b>誠實申報依賴</b> <code>}, [count])</code>：<code>count</code> 一變就先跑 cleanup 關掉舊計時器，再用新舞台建一個。代價是計時器每秒被銷毀重建，時間精度會漂移。</li>
+        <li><b>useRef 長壽盒子</b>：<code>useRef</code> 回傳的物件在整個元件生命週期都是同一個參考，閉包抓的是盒子而非值，所以每次讀 <code>.current</code> 都最新。代價是 ref 變動不會觸發重渲染，不能拿來驅動畫面。</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="essay">
+    <div class="q">Q4. 為什麼說「for 迴圈的 var 陷阱」跟本篇的 stale closure 是同構問題？</div>
+    <textarea placeholder="兩者的共同結構是什麼…"></textarea>
+    <button class="toggle">顯示參考答案</button>
+    <div class="ans">
+      <p>兩者的共同結構是：<b>一個非同步回呼抓住了某個綁定，等它真的執行時，外面的世界已經前進了。</b></p>
+      <ol>
+        <li><code>for (var i = 0; i &lt; 3; i++) setTimeout(() =&gt; console.log(i))</code> 印出三個 3，因為 <code>var</code> 整個迴圈只有<b>一個</b>綁定，三個回呼抓的是同一塊記憶體，而同步迴圈早就跑完把它變成 3。</li>
+        <li>本篇的 <code>setInterval</code> 印出 0，因為 <code>[]</code> 讓 setup 只跑一次，回呼抓的是<b>第一次 render</b> 的那組綁定，而 React 後來又建立了新的好幾組。</li>
+        <li>差別只在一個是「迴圈的每一輪」、一個是「React 的每一次 render」。<code>let</code> 的修法（每一輪新綁定）在概念上對應 React 這邊「誠實申報依賴，每次 render 重建 effect」。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<footer>
+  對應 Markdown 筆記：<code>02-useEffect的setup清理函式-return一個函式而不是執行它.md</code>　·
+  程式碼範例：<code>02-useEffect-cleanup-demo.jsx</code><br>
+  資料來源：
+  <a href="https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberHooks.js">React 原始碼 ReactFiberHooks.js</a>　·
+  <a href="https://react.dev/reference/react/useEffect">react.dev useEffect</a>　·
+  <a href="https://react.dev/learn/synchronizing-with-effects">Synchronizing with Effects</a>　·
+  <a href="https://overreacted.io/a-complete-guide-to-useeffect/">A Complete Guide to useEffect</a>
+  <br>（皆為 2026-09-06 查證）
+</footer>
+
+</div>
+
+<script>
+// 填空
+document.querySelectorAll('.blank').forEach(function (el) {
+  el.addEventListener('click', function () {
+    if (el.classList.contains('done')) return;
+    el.textContent = el.dataset.a;
+    el.classList.add('done');
+  });
+});
+
+// 是非題
+var doneSet = new Set(), rightCount = 0;
+document.querySelectorAll('.tf').forEach(function (box, i) {
+  var fb = box.querySelector('.fb');
+  var exp = box.querySelector('.exp').innerHTML;
+  box.querySelectorAll('button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var ok = btn.dataset.v === box.dataset.ans;
+      fb.className = 'fb show ' + (ok ? 'right' : 'wrong');
+      fb.innerHTML = (ok ? '✅ 答對了。' : '❌ 再想一次。') + exp;
+      if (!doneSet.has(i)) {
+        doneSet.add(i);
+        if (ok) rightCount++;
+        document.getElementById('done').textContent = doneSet.size;
+        document.getElementById('right').textContent = rightCount;
+      }
+    });
+  });
+});
+
+// 申論題答案切換
+document.querySelectorAll('.essay .toggle').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var ans = btn.nextElementSibling;
+    var open = ans.classList.toggle('show');
+    btn.textContent = open ? '隱藏參考答案' : '顯示參考答案';
+  });
+});
+</script>
+</body>
+</html>

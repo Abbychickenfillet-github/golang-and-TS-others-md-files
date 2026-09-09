@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>網頁版座標點連線視覺化工具：GeoGebra、Plotly、Desmos 與自己用 Three.js／p5.js 做</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>網頁版座標點連線視覺化工具：GeoGebra、Plotly、Desmos 與自己用 Three.js／p5.js 做</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#視覺化</span><span class="pill">#幾何</span><span class="pill">#座標系統</span><span class="pill">#threejs</span><span class="pill">#p5js</span><span class="pill">#geogebra</span><span class="pill">#plotly</span><span class="pill">#desmos</span><span class="pill">#svg</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-29</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/0516ad3f4b4837b4" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Plotly 的 lines 模式會自動找出最合理的連線方式。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是依照「點在資料中的順序」連線，順序錯了圖形就錯。</div></li><li><p class="qq">THREE.Geometry 仍是 Three.js 目前建議使用的幾何體類別。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它在 r125 之後已從核心移除，現行做法是 THREE.BufferGeometry。</div></li><li><p class="qq">p5.js 的 endShape(CLOSE) 會把最後一點接回第一點。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">不加 CLOSE 就只會畫出開放折線。</div></li><li><p class="qq">2D 且點數不多時，用 SVG 的 &lt;polyline&gt; 就足夠，不需要任何函式庫。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">還能直接貼進 Obsidian 顯示，是最輕量的解。</div></li><li><p class="qq">把一堆散點連成最外圈輪廓，是繪圖工具內建的功能。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">那是凸包（Convex Hull）演算法要解的問題，繪圖工具只負責照順序連線。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Three.js 把座標陣列轉成線條模型的方法是 BufferGeometry 的 <input class="blank" data-a="setFromPoints" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">它會把頂點展平成 Float32Array 存進 GPU 緩衝區。</div></li><li><p class="qq">p5.js 要畫 3D 必須在 createCanvas 第三個參數指定 <input class="blank" data-a="WEBGL" placeholder="填答案" autocomplete="off"> 模式。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">預設是 2D 模式，vertex 的第三個座標不會生效。</div></li><li><p class="qq">GeoGebra 中建立多邊形連線的指令是 <input class="blank" data-a="Polygon" placeholder="填答案" autocomplete="off">(A, B, C, D)。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">建立線段則用 Line(A, B)。</div></li><li><p class="qq">WebGL 的全名是 Web <input class="blank" data-a="Graphics" placeholder="填答案" autocomplete="off"> Library。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">瀏覽器的硬體加速繪圖 API，Three.js 建構在它之上。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">客戶要一個「輸入座標點就自動連線成圖」的網頁功能。請說明你會怎麼在現成工具與自製之間做選擇，並解釋自製時 Three.js 與 SVG 的取捨。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">先問三個問題：一、是一次性看結果還是要嵌進產品？二、是 2D 還是 3D？三、資料點有多少？如果只是自己或教學要看一眼，直接用現成工具最快——要精確幾何與教學互動選 GeoGebra，手上是 CSV 大量資料選 Plotly，只想快速視覺化選 Desmos，要做成實體選 Tinkercad。如果要嵌進產品就得自製。自製時，2D 且點數在數百以內優先用 SVG 的 &lt;polyline&gt;：零相依、可被 CSS 樣式化、每個點都是 DOM 節點方便綁事件、對 SEO 與無障礙友善，缺點是點數上萬後 DOM 會爆炸。3D 或需要旋轉縮放、點數龐大就用 Three.js：用 BufferGeometry.setFromPoints 把頂點送進 GPU，渲染成本由顯卡吃下，缺點是引入約數百 KB 的函式庫、要自己處理相機與光照、DOM 事件要改用射線偵測（Raycaster）。p5.js 介於兩者之間，API 最簡單，適合原型與創意實驗。共通的地雷是所有工具都只照順序連線，如果需求其實是「求外框」，那要先跑凸包演算法而不是換繪圖工具。</div></li></ol></section>
+
+<article class="card">
+<h1 id="geogebraplotlydesmos-threejsp5js">網頁版座標點連線視覺化工具：GeoGebra、Plotly、Desmos 與自己用 Three.js／p5.js 做</h1>
+<blockquote>
+<p>本篇重點 a–i，共 9 個。需求是「在網頁上輸入一組座標點，讓它自動連線成幾何模型」，分成「現成工具」與「自己寫」兩條路。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">一、四個現成的網頁工具</h3>
+<p>(a) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">GeoGebra（幾何數學工具）</mark> — https://www.geogebra.org/3d ：目前功能最完整且免費的網頁數學工具。輸入座標點如 <code>A=(1,2,3)</code>，再用指令 <code>Polygon(A, B, C, D)</code> 或 <code>Line(A, B)</code> 建立連線模型。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">支援 3D 空間與參數方程並可即時預覽</mark>，適合數學建模與精確幾何構圖。</p>
+<p>(b) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Plotly Chart Studio</mark> — https://chart-studio.plotly.com/ ：手上已有大量資料點（CSV 或 Excel）時最順手。支援 3D Scatter Plot，匯入座標後在設定選 <code>lines</code> 或 <code>lines+markers</code> 模式，它就會<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">依照「點的順序」連線</mark>。適合資料科學、路徑追蹤、科研繪圖。</p>
+<p>(c) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Tinkercad Codeblocks</mark> — https://www.tinkercad.com/codeblocks ：Autodesk 旗下線上建模工具，用邏輯積木或座標點生成 3D 模型。偏向實體建模，適合 3D 列印前置設計。</p>
+<p>(d) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Desmos 3D Graphing Calculator</mark> — https://www.desmos.com/3d ：操作最直覺。列一個點清單 <code>L=[(0,0,0),(1,2,3),...]</code> 再用連線功能觀察空間形狀，適合快速視覺化與輕量測試。</p>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">選擇原則</mark>：要「精確幾何與教學」選 GeoGebra；要「大量資料點與圖表輸出」選 Plotly；要「快速看一眼」選 Desmos；要「做成實體」選 Tinkercad。</p>
+<h3 id="threejs-p5js">二、自己寫：Three.js 與 p5.js</h3>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Three.js ＝ 建構在 WebGL 之上的 3D 函式庫</mark>，WebGL ＝ Web Graphics Library，瀏覽器的硬體加速繪圖 API。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">p5.js ＝ Processing 的 JavaScript 版</mark>，主打創意編碼（creative coding），API 比 Three.js 簡單很多。</li>
+</ul>
+<p>(f) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Three.js 做法</mark>：用 <code>THREE.BufferGeometry</code> 的 <code>setFromPoints</code> 把座標陣列直接轉成線條模型。</p>
+<pre><code class="language-js">// points 是一組 THREE.Vector3
+const points = [
+  new THREE.Vector3(0, 0, 0),
+  new THREE.Vector3(1, 2, 3),
+  new THREE.Vector3(2, 0, 1),
+];
+
+// BufferGeometry 是把頂點資料塞進 GPU 緩衝區的幾何體
+const geometry = new THREE.BufferGeometry().setFromPoints(points);
+
+// LineBasicMaterial 是「線」專用的材質，不受光照影響
+const material = new THREE.LineBasicMaterial({ color: 0x3355ff });
+
+// THREE.Line 會依照 points 的「陣列順序」依序連接
+const line = new THREE.Line(geometry, material);
+scene.add(line);
+</code></pre>
+<p><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一行一行的意思</mark>：先準備一組三維向量當頂點；<code>setFromPoints</code> 把它們展平成一個 Float32Array 存進 GPU 緩衝區（這就是 Buffer 的由來，比舊的 <code>Geometry</code> 省記憶體）；材質決定線的顏色；<code>THREE.Line</code> 這個物件負責「依序把相鄰兩點連起來」，所以<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">陣列順序錯了，圖形就會錯</mark>；最後把它加進場景才會被渲染。</p>
+<p>(g) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">p5.js 做法</mark>：在 <code>draw()</code> 裡用 <code>beginShape()</code>、<code>vertex(x, y, z)</code>、<code>endShape(CLOSE)</code>。</p>
+<pre><code class="language-js">function draw() {
+  background(240);
+  beginShape();              // 開始收集頂點
+  vertex(0, 0, 0);           // 逐點餵入座標
+  vertex(100, 50, 0);
+  vertex(50, 120, 0);
+  endShape(CLOSE);           // CLOSE 代表把最後一點接回第一點，形成封閉多邊形
+}
+</code></pre>
+<p><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>endShape(CLOSE)</code> 的 CLOSE 是關鍵字</mark>，不加就只會畫出開放折線；要畫 3D 需先在 <code>createCanvas(w, h, WEBGL)</code> 指定 WEBGL 模式。</p>
+<p>(h) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">如果只是 2D 而且點數不多，其實用純 SVG 的 <code>&lt;polyline points="0,0 100,50 50,120"&gt;</code> 就夠了</mark>，不需要引入任何函式庫，檔案還能直接貼進 Obsidian 顯示。</p>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">共通陷阱</mark>：所有這些工具都是「依照你給的順序連線」，不會自動幫你算出最合理的連法。如果要的是「把一堆散點連成外框」，那是凸包（Convex Hull）演算法的問題，不是繪圖工具的問題。</p>
+<hr />
+<h2 id="_3">關聯筆記（以及為什麼相關）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：frontend-docs/css/SVG-viewBox座標系統-起算點與負值平移">frontend-docs/css/SVG-viewBox座標系統-起算點與負值平移</span>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：本篇 (h) 提到 SVG <code>&lt;polyline&gt;</code> 是最輕量的解，但要畫對就必須先理解 viewBox 的座標起算點與 y 軸方向（SVG 的 y 往下為正，數學課本往上為正，這是最常見的翻轉錯誤）。</li>
+<li><span class="wikilink" title="Obsidian 連結：frontend-docs/svg-tags-guide">frontend-docs/svg-tags-guide</span>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：<code>&lt;polyline&gt;</code>、<code>&lt;polygon&gt;</code>、<code>&lt;path&gt;</code> 的差別直接決定 (h) 該用哪個標籤。</li>
+<li><span class="wikilink" title="Obsidian 連結：frontend-docs/booth-map-scaling-explained">frontend-docs/booth-map-scaling-explained</span>：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：展位圖也是「把座標資料畫成圖」，縮放與座標換算的邏輯與本篇同源。</li>
+<li><span class="wikilink" title="Obsidian 連結：資料結構">資料結構</span> 資料夾：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：(i) 的凸包問題屬於計算幾何，是資料結構與演算法的延伸。</li>
+</ul>
+<hr />
+<h2 id="leetcodeneetcode">相關練習題（LeetCode／NeetCode）</h2>
+<p>(i) 提到的凸包與座標幾何在演算法題庫裡有直接對應：</p>
+<ul>
+<li>LeetCode 587. Erect the Fence（Convex Hull，凸包）— https://leetcode.com/problems/erect-the-fence/ ：正是「給一堆座標點，求最外圈連線」。</li>
+<li>LeetCode 149. Max Points on a Line — https://leetcode.com/problems/max-points-on-a-line/ ：判斷共線，練座標與斜率的浮點陷阱。</li>
+<li>LeetCode 1030. Matrix Cells in Distance Order — https://leetcode.com/problems/matrix-cells-in-distance-order/ ：座標排序入門。</li>
+<li>NeetCode 練習總表 — https://neetcode.io/practice ：Math &amp; Geometry 分類可一併掃過。</li>
+</ul>
+<hr />
+<h2 id="_4">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 提到 Three.js 用 <code>THREE.BufferGeometry</code> 的 <code>setFromPoints</code>，這是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">正確且為現行做法</mark>；補充說明：舊教學裡的 <code>THREE.Geometry</code> 已於 r125 版之後從核心移除，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">網路上舊範例直接複製會報錯</mark>，這點原對話沒有提醒。</li>
+<li>Gemini 說 Desmos「最近推出 3D 版」，Desmos 3D 計算機自 2024 年起即已公開，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「最近」的說法以 2026-08 的時間點來看已不準確</mark>。</li>
+</ul>
+<hr />
+<h2 id="_5">各對話來源</h2>
+<h3 id="2026-08-httpsgeminigooglecomapp0516ad3f4b4837b4">網頁座標點連線模型工具（2026-08）— https://gemini.google.com/app/0516ad3f4b4837b4</h3>
+<p>使用者：有沒有網頁版的座標點輸入連線模型</p>
+<p>Gemini：推薦四種工具。1. GeoGebra（幾何數學工具）：免費且功能最強，輸入 <code>A=(1,2,3)</code> 後用 <code>Polygon(A, B, C, D)</code> 或 <code>Line(A, B)</code> 建立連線模型，支援 3D 空間與參數方程並可即時預覽，適合數學建模與精確幾何構圖。2. Plotly Chart Studio：適合已有大量資料點（CSV 或 Excel），支援 3D Scatter Plot，匯入座標後選 <code>lines</code> 或 <code>lines+markers</code> 模式即依點的順序連線，適合資料科學、路徑追蹤、科研繪圖。3. Tinkercad Codeblocks：Autodesk 線上建模工具，Codeblocks 模式可用邏輯積木或座標點生成 3D 模型，適合 3D 列印前置設計。4. Desmos 3D Graphing Calculator：操作直覺，列出點清單 <code>L=[(0,0,0),(1,2,3),...]</code> 並用連線功能觀察空間形狀，適合快速視覺化。程式開發建議：Three.js 用 <code>THREE.BufferGeometry</code> 的 <code>setFromPoints</code> 把座標陣列轉成線條模型；p5.js 在 <code>draw()</code> 中用 <code>beginShape()</code>、<code>vertex(x, y, z)</code>、<code>endShape(CLOSE)</code> 即可完成。</p>
+<hr />
+<h2 id="_6">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：網頁座標點連線模型工具</td>
+<td>https://gemini.google.com/app/0516ad3f4b4837b4</td>
+<td>對話 2026-08，整理於 2026-08-29</td>
+</tr>
+<tr>
+<td>GeoGebra 3D 繪圖計算機</td>
+<td>https://www.geogebra.org/3d</td>
+<td>線上服務，查證於 2026-08-29</td>
+</tr>
+<tr>
+<td>Desmos 3D 繪圖計算機</td>
+<td>https://www.desmos.com/3d</td>
+<td>線上服務，查證於 2026-08-29</td>
+</tr>
+<tr>
+<td>Plotly Chart Studio</td>
+<td>https://chart-studio.plotly.com/</td>
+<td>線上服務，查證於 2026-08-29</td>
+</tr>
+<tr>
+<td>Three.js BufferGeometry 官方文件</td>
+<td>https://threejs.org/docs/#api/en/core/BufferGeometry</td>
+<td>官方文件隨版本更新</td>
+</tr>
+<tr>
+<td>Three.js Line 官方文件</td>
+<td>https://threejs.org/docs/#api/en/objects/Line</td>
+<td>官方文件隨版本更新</td>
+</tr>
+<tr>
+<td>p5.js beginShape 參考</td>
+<td>https://p5js.org/reference/p5/beginShape/</td>
+<td>官方文件隨版本更新</td>
+</tr>
+<tr>
+<td>MDN：SVG polyline</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/SVG/Element/polyline</td>
+<td>MDN 持續更新，查證於 2026-08-29</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>註：本次執行因本機磁碟空間吃緊，未額外擷取新截圖。</p>
+</blockquote>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-29</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

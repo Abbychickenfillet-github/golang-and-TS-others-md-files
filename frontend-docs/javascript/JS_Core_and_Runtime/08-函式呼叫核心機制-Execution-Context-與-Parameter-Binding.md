@@ -31,6 +31,87 @@ updated: 2026-08-04
 
 > 本篇重點 (a)–(m)，共 13 個。起點：從 [[閉包-Closure-私有變數與傳址陷阱]] 裡 `createCounter(buttonId)` 的參數討論延伸出來的一連串追問。
 
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被問錯的一題先講：<mark style="background: #FF5582A6;">參數綁定**不是**在 buildtime 的 Parse 階段發生</mark>
+> 它發生在 **runtime（執行期）的 Creation Phase**，而且**每次呼叫都重來一次**。Parse 只做一次、而且只做「決策」，真正在記憶體裡挖格子寫值的是 Creation Phase。下面的時間軸把這條界線畫出來。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | Execution Context 是什麼？參數綁定是什麼？ | Execution Context 是引擎每次呼叫函式時在記憶體裡搭起來的一座臨時舞台；參數綁定是「參數名字」與「一塊記憶體位置」的對應關係 |
+| **When** 什麼時候 | 是 buildtime 的 Parse 階段嗎？ | <mark style="background: #FF5582A6;">不是</mark>。Parse 屬於編譯期、每個函式只做一次；參數綁定屬於**執行期的 Creation Phase**，呼叫幾次就做幾次 |
+| **Who** 誰做的 | 是誰建立這些綁定？ | JS 引擎（V8）自動做的。規格上對應的抽象操作叫 `FunctionDeclarationInstantiation`。<mark style="background: #ADCCFFA6;">跟打包工具、跟 React 都無關</mark> |
+| **Where** 在哪裡 | 綁定實際存在哪？ | 在 RAM 裡。沒被閉包捕獲 → **Stack Frame／CPU 暫存器**；被捕獲 → **Heap 上的 Context 物件** |
+| **Which** 哪一種 | 括號裡的東西哪些算參數？ | 只有走 `FormalParameterList` 的才算。`this`（`.call` 的第一引數）**不算**；`if (x)` 與 `(a+b)` 的括號也不是引數表達式 |
+| **How** 怎麼做到 | 一次呼叫的完整流程？ | 建立 Execution Context → Creation Phase（建 Environment Record、建參數綁定並初始化、hoisting）→ Execution Phase（逐行執行）→ `return` 彈出 Stack Frame |
+| **Why** 為什麼 | 為什麼要每次呼叫都重建？ | 因為要讓同一段程式碼被呼叫無數次而互不干擾。遞迴、閉包、React 每次 render 拿到獨立的 props，全部靠這件事 |
+
+### 時間軸：從 buildtime 到 runtime，參數綁定站在哪一格
+
+```text
+◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
+        （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤每次呼叫都重來
+ transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
+ ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
+ │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ Creation Phase   │
+ │tsc     │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ ★ 建立參數綁定    │
+ │SWC     │   │Rollup  │      │AST       │   │Bytecode  │   │ ★ 用引數值初始化   │
+ │TSX→JS  │   │合併壓縮 │      │Scope     │   │          │   │ ★ var/function    │
+ └────────┘   └────────┘      │Analysis  │   └──────────┘   │   hoisting        │
+                              └──────────┘                  ├──────────────────┤
+                              每個函式只做一次                │ Execution Phase  │
+                              （V8 還可能 lazy parse）        │   逐行真的執行    │
+                                    │                        ├──────────────────┤
+                                    │                        │ return → 彈 Stack │
+                              只做「決策」：                   │ Frame，舞台拆掉   │
+                              這個變數會不會被                 └────────┬─────────┘
+                              閉包捕獲？→ 決定                          │
+                              要配置在 Stack 還是 Heap                  └─► 再呼叫一次
+                                                                          就整包重來
+
+ ★ 參數綁定站在第 ⑤ 格，不是第 ③ 格。
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（部署前跑完，V8 還沒看到程式碼）"]
+        T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 只做一次的部分"]
+        P["Parse 解析<br/>Scanner → Parser → AST<br/>Scope Analysis：<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode<br/>可重複使用"]
+    end
+    subgraph RT2["runtime 執行期 · 每次呼叫都重來"]
+        CP["① Creation Phase<br/>★ 建立參數綁定並用引數值初始化<br/>★ var／function hoisting<br/>★ 綁定 this"] --> EP["② Execution Phase<br/>逐行真的執行函式本體"]
+        EP --> R["③ return<br/>彈出 Stack Frame，舞台拆掉<br/>被閉包捕獲的留在 Heap"]
+    end
+    BU --> P
+    BC --> CP
+    R -.->|"再呼叫一次就整包重來"| CP
+```
+
+> [!warning]- 為什麼這麼多人會誤以為參數綁定在 Parse 階段？三個原因
+> a. <mark style="background: #FFF3A3A6;">V8 的 lazy parsing 讓兩者在時間上黏得很近</mark>：內層函式的完整 Parse 可能被延到「第一次被呼叫前」才做，於是「編譯」跟「第一次執行」幾乎同時發生，看起來像同一件事。但規格上它們是兩個獨立步驟：Parse 只做一次，Creation Phase 每次呼叫都重做。
+> b. <mark style="background: #ADCCFFA6;">Scope Analysis 確實在 Parse 階段就「看到」了參數</mark>，容易被誤讀成「已經建立好了」。但它做的是**決策**（這個變數會不會被閉包捕獲？該放 Stack 還是 Heap？），不是**執行**（真的在 RAM 挖一塊位置、把值寫進去）。決策一次就夠，執行每次都要。
+> c. <mark style="background: #BBFABBA6;">「編譯」這個詞被兩邊共用</mark>：buildtime 的 Babel／tsc 做的是**轉譯 transpile**（高階→高階），runtime 的 V8 做的才是**編譯 compile**（AST→Bytecode→機器碼）。用詞約定見 [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】|03-前端開發工具（打包 buildtime）]]，完整管線見 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】|04-V8引擎完整管線（編譯 runtime）]]。
+
+### 一句話驗證法
+
+想確認某件事在哪一格，問自己：<mark style="background: #BBFABBA6;">「這件事對同一個函式做幾次？」</mark>
+
+1. 只做一次 → 屬於 Parse／編譯期（第 ③ ④ 格）
+
+2. 呼叫幾次就做幾次 → 屬於執行期（第 ⑤ 格）
+
+參數綁定顯然是後者：`greet('Hi')` 呼叫三次，就有三組互不相干的 `greeting` 綁定。
+
+---
+
 ## (a) 一般呼叫：括號裡的都是「引數表達式」
 
 ```js
@@ -38,6 +119,109 @@ foo(a, b);       // a, b 是引數表達式（argument expressions），在呼�
 ```
 
 `foo` 定義時括號裡的 `function foo(x, y)` 的 `x`、`y` 是**參數（parameter）**；呼叫時 `foo(a, b)` 括號裡的 `a`、`b` 是**引數（argument）**——引數是表達式（Expression，見 [[陳述式-Statement-vs-表達式-Expression]]），會先在呼叫者的 scope 求值出一個值，再拿這個值去初始化被呼叫函式裡全新的參數綁定。
+
+### (a-1) 「呼叫者的 scope」到底是指哪一段？
+
+先給定義：<mark style="background: #BBFABBA6;">**呼叫者的 scope（caller scope）＝ 寫出「呼叫這一行」的那段程式碼所在的作用域**</mark>。引數表達式在這裡被求值，而且求值時機在<mark style="background: #FF5582A6;">被呼叫函式的 Execution Context 還沒建立之前</mark>——換句話說，引數的值是「外面算好了才送進去」，不是「進去以後才算」。
+
+#### 例一：故意用同名變數，一眼看出是誰的 scope
+
+```js
+const label = '模組頂層的 label';
+
+function greet(label) {          // ← 這個 label 是「被呼叫函式」自己的參數綁定
+  console.log(label);
+}
+
+function caller() {
+  const label = '呼叫者的 label'; // ← caller 函式自己的區域變數
+  greet(label);                  // ← 這個 label 在「caller 的 scope」求值
+}
+
+caller();   // 印出：呼叫者的 label
+```
+
+整段翻成中文：
+
+「我在模組最外層宣告一個叫 `label` 的常數。接著宣告函式 `greet`，它有一個同樣叫 `label` 的參數——這個 `label` 屬於 `greet` 自己，跟外面那個毫無關係。再宣告一個函式 `caller`，裡面又宣告一個區域的 `label`。`caller` 裡呼叫 `greet(label)` 時，括號裡那個 `label` 要用哪一個？答案是**沿著 `caller` 自己的作用域鏈往上找**，第一個找到的就是 `caller` 內部那個，所以求值結果是字串 `'呼叫者的 label'`。這個字串被送進 `greet`，初始化 `greet` 的參數綁定。」
+
+<mark style="background: #FFF3A3A6;">關鍵：判斷「呼叫者的 scope」是誰，看的是**這一行呼叫寫在哪裡**，不是被呼叫的函式定義在哪裡</mark>。這裡呼叫寫在 `caller` 裡，所以呼叫者的 scope 就是 `caller` 的作用域。
+
+#### 例二：用 (b) 節的 `greet.call(person, 'Hello')` 標出兩段
+
+```js
+function greet(greeting) {                     // ─┐ 被呼叫函式（callee）的 scope
+  console.log(greeting + ', ' + this.name);    //  │ greeting 與 this 都住在這裡
+}                                              // ─┘
+
+const person = { name: 'Abby' };               // ─┐ 呼叫者的 scope（這裡是模組頂層）
+greet.call(person, 'Hello');                   // ─┘ person 與 'Hello' 都在這一層求值
+```
+
+用箭頭把「誰在哪裡被求值、被送到哪裡」畫出來：
+
+```text
+                        【 呼叫者的 scope 】＝ 模組頂層（寫出呼叫那一行的地方）
+                        ┌──────────────────────────────────────────────┐
+                        │  const person = { name: 'Abby' };            │
+                        │                                              │
+                        │  greet.call( person , 'Hello' );              │
+                        └──────────────┬──────────┬────────────────────┘
+                                       │          │
+              兩個引數都在這一層先求值   │          │
+              （此時 greet 的舞台還沒搭）│          │
+                                       │          │
+                    求值成 { name:'Abby' }      求值成 'Hello'
+                                       │          │
+                                       ▼          ▼
+                        ┌──────────────────────────────────────────────┐
+                        │  【 被呼叫函式 greet 的 Execution Context 】   │
+                        │                                              │
+                        │   this  ◄────────────┘（走 OrdinaryCallBindThis，
+                        │                        不是 FormalParameterList）
+                        │                                              │
+                        │   greeting  ◄─────────┘（走正常參數綁定）      │
+                        │                                              │
+                        │   函式本體開始執行：console.log(...)           │
+                        └──────────────────────────────────────────────┘
+```
+
+同一件事用 Mermaid 再畫一次（可 hover、可縮放）：
+
+```mermaid
+flowchart TD
+    subgraph Caller["【呼叫者的 scope】模組頂層"]
+        P["const person = { name: 'Abby' }<br/>求值結果：物件參考"]
+        S["字面量 'Hello'<br/>求值結果：字串"]
+        C["greet.call(person, 'Hello')<br/>← 呼叫寫在這一層，所以這層就是呼叫者的 scope"]
+    end
+    P --> C
+    S --> C
+    C -->|"第 1 個引數，走 OrdinaryCallBindThis"| T
+    C -->|"第 2 個引數起，走 FormalParameterList"| G
+    subgraph Callee["【被呼叫函式 greet 的 Execution Context】呼叫當下才建立"]
+        T["this 綁定 = person<br/>不是參數，是規格另訂的獨立欄位"]
+        G["參數綁定 greeting = 'Hello'<br/>每次呼叫都重新建立一份"]
+        B["Execution Phase：<br/>console.log(greeting + ', ' + this.name)"]
+    end
+    T --> B
+    G --> B
+```
+
+#### 時間順序（這是最容易被跳過的一段）
+
+a. 引擎讀到 `greet.call(person, 'Hello')` 這一行時，**還在呼叫者的 Execution Context 裡**。
+
+b. 在這裡把 `person` 這個識別碼沿著作用域鏈解析出來，拿到那個物件的參考；把 `'Hello'` 這個字面量求值成字串。
+
+c. <mark style="background: #ADCCFFA6;">到這一步為止，`greet` 的 Execution Context **完全還不存在**</mark>。
+
+d. 引數都備妥之後，引擎才建立 `greet` 的 Execution Context，進入 Creation Phase（見 (g)）：建立 `greeting` 的綁定並用 `'Hello'` 初始化、把 `this` 綁定設成 `person`。
+
+e. 然後才進入 Execution Phase，真的跑函式本體。
+
+<mark style="background: #FF5582A6;">所以「引數在呼叫者的 scope 求值」不是文縐縐的說法，它是有實際後果的</mark>：如果引數表達式裡用到某個變數，那個變數必須在**呼叫的那一行看得到**才行；被呼叫函式內部有沒有同名變數，完全不影響。這也是為什麼 `greet(x)` 傳的是「`x` 現在的值」，而不是「`x` 這個變數本身」——對照 [[傳值vs傳址-賦值與記憶體空間]]。
+
 
 ## (b) `greet.call(person, 'Hello')` 算不算引數表達式？——分兩層看
 
@@ -57,6 +241,119 @@ greet.call(person, 'Hello');
 | `'Hello'`（第二個引數起） | 依序對應到 `greet` 自己宣告的參數（這裡是 `greeting`） | **是**——正常走 (c)(d) 講的參數綁定流程 |
 
 一句話：`call`/`apply`/`bind` 存在的理由，就是因為 `this` **沒有辦法**像一般參數那樣直接在呼叫時用一般語法傳進去（`greet(person, 'Hello')` 沒有意義，`this` 不是 `greet` 參數列表的一員），所以才需要這三個方法提供「手動指定 `this`」的後門。
+
+### (b-1) React 裡的 `this`：函式元件其實沒有 `this`，但有一個東西在扮演它
+
+先直球處理一個很常見的記憶偏差：<mark style="background: #FF5582A6;">「React 已經有 `this`，只是被隱藏起來了」——方向對，但名字不對</mark>。確實有一個「代表這次是哪個元件實例」的東西被藏在背後，但它不是語言層的 `this` 綁定，而是 React 自己的資料結構 fiber。分三種情況講清楚。
+
+#### 一、Class component：`this` 是真的存在，而且很明目張膽
+
+React 用 `new YourComponent(props, context)` 建立實例，之後呼叫 `instance.render()`。<mark style="background: #BBFABBA6;">這是**方法呼叫**（method call），所以引擎自動把 `this` 綁定成那個實例</mark>，`this.props`、`this.state`、`this.setState` 全部從這裡來。
+
+但正因為 `this` 是「呼叫當下才決定」（這就是 (b) 節「`this` 不走 `FormalParameterList`」的直接後果），一旦你把方法**當成值傳出去**：
+
+```jsx
+<button onClick={this.handleClick}>切換</button>
+```
+
+翻成中文：「我把 `this.handleClick` 這個**函式物件本身**取出來，當成 `onClick` 這個 prop 的值傳給 `button`。取出來的瞬間，它跟 `this` 的關係就斷了——之後 React 呼叫它時是一般函式呼叫，不是方法呼叫，`this` 會是 `undefined`。」
+
+所以才要在 constructor 寫 `this.handleClick = this.handleClick.bind(this)`，或改用 class field 箭頭函式（箭頭函式沒有自己的 `this`，會沿用定義當下的詞法 `this`）。
+
+補一個 Dan Abramov 的重點：<mark style="background: #FFF3A3A6;">class 的 `this.props` 是**同一個實例上會被 React 改寫的欄位**</mark>，所以非同步回呼裡讀 `this.props` 讀到的永遠是最新值；函式元件讀的則是被閉包捕獲的「那一次 render 的 props」，是快照。這是兩者行為差異的根源。
+
+#### 二、函式元件：`this` 是 `undefined`，不是被藏起來
+
+React 原始碼 `packages/react-reconciler/src/ReactFiberHooks.js` 的 `renderWithHooks` 裡，真正呼叫你元件的那一行是：
+
+```js
+children = __DEV__
+  ? callComponentInDEV(Component, props, secondArg)
+  : Component(props, secondArg);
+```
+
+翻成中文：「開發模式下走一個包了一層除錯資訊的 `callComponentInDEV`，正式版就直接 `Component(props, secondArg)`。」
+
+重點在後面那個寫法：<mark style="background: #ADCCFFA6;">它是**一般函式呼叫**——沒有接收者（沒有 `obj.method()` 的那個 `obj`）、也沒有 `.call()` 指定</mark>。而 ES Module 的程式碼一律是 strict mode，strict mode 下一般函式呼叫的 `this` 是 `undefined`（非 strict 才會被塞成 `globalThis`）。所以函式元件本體裡的 `this` 就是 `undefined`。
+
+JSX 也幫不上忙：`<Foo bar={1} />` 會被轉譯成 `_jsx(Foo, { bar: 1 })`，`Foo` 是被當成**值**傳進去的，從頭到尾沒有「`Foo` 是誰的方法」這件事，自然沒有接收者可以當 `this`。
+
+#### `secondArg` 到底是什麼？為什麼不直接叫 `ref`？
+
+<mark style="background: #FFF3A3A6;">這個參數之所以取一個這麼含糊的名字，是因為它**在不同的呼叫情境下是不同的東西**</mark>——`renderWithHooks` 這支函式被好幾種元件型別共用，如果把參數命名成 `ref`，對其他呼叫者來說就是錯的名字。
+
+| 呼叫 `renderWithHooks` 的地方 | 傳進去的第 5 個引數（`secondArg`） | 你在元件裡看到的樣子 |
+|---|---|---|
+| `updateForwardRef`（`forwardRef` 包起來的元件） | 那個 **`ref`** | `forwardRef((props, ref) => ...)` 的第二個參數 |
+| `updateFunctionComponent`（一般函式元件） | 歷史上是 **legacy context**（`contextTypes` 那套舊 API）；<mark style="background: #ADCCFFA6;">React 19 已經把 legacy context 移除，所以現在實際上是 `undefined`</mark> | 拿不到，也不該去拿 |
+| `updateSimpleMemoComponent`（`memo` 包一般函式元件） | 走的是 `updateFunctionComponent` 那條路，同上 | 同上 |
+
+所以精確的說法是：
+
+a. <mark style="background: #BBFABBA6;">`secondArg` 是一個**位置**，不是一個固定的東西</mark>。它的型別在原始碼裡是泛型參數 `SecondArg`，正是因為它會變。
+
+b. **只有 `forwardRef` 的 render function，這個位置才是 `ref`。** 你自己寫的一般函式元件，這個位置是 `undefined`。
+
+c. 因此「函式元件有第二個參數」這句話要加但書：<mark style="background: #FF5582A6;">語法上位置永遠在，但只有 `forwardRef` 的情況下才有值</mark>。
+
+d. 補一個時代背景：React 19 起 `ref` 可以直接當一般 prop 傳給函式元件（`function Input({ ref })`），`forwardRef` 已被標記為不建議使用。所以未來這個位置會愈來愈少被用到。
+
+e. 不論它是 `ref` 還是 `undefined`，重點都一樣：<mark style="background: #FFF3A3A6;">它是**參數**，走的是正常的 `FormalParameterList`，不是 `this`</mark>。這很可能就是「有東西被偷偷傳進來」這個印象的真正來源。
+
+
+#### 三、真正在扮演 `this` 角色的東西：fiber
+
+函式元件沒有 `this`，可是 `useState` 又必須知道「這次是哪一個元件實例在呼叫我」。React 的解法是在**模組層級**放一個變數：
+
+```js
+let currentlyRenderingFiber: Fiber = null as any;
+```
+
+`renderWithHooks` 在呼叫你的函式**之前**先把它設成目前這個 fiber，呼叫結束再清掉。hook 就靠讀這個變數找到自己的家：
+
+```js
+if (workInProgressHook === null) {
+  // 這是這個元件的第一個 hook
+  currentlyRenderingFiber.memoizedState = workInProgressHook = hook;
+}
+```
+
+翻成中文：「如果目前還沒有任何 hook 節點，就把這個新建的 hook 同時掛到 `currentlyRenderingFiber.memoizedState` 上，並記成目前的 workInProgressHook。」後續每個 hook 再用 `next` 串下去，形成一條**單向鏈結串列**。
+
+> [!warning]+ 一個很容易混在一起的分辨：`renderWithHooks` 是**函式**，`currentlyRenderingFiber` 是**變數**
+> a. <mark style="background: #ADCCFFA6;">`renderWithHooks` 是一支函式（動作）</mark>：它是 React 呼叫你元件的那個「外殼流程」。它做的事依序是——把 `currentlyRenderingFiber` 設成這次要 render 的 fiber、換上對應的 dispatcher、然後才 `Component(props, secondArg)` 呼叫你的函式、你的函式回傳之後再把這些全域狀態清乾淨。
+> b. <mark style="background: #BBFABBA6;">`currentlyRenderingFiber` 是一個模組層級的變數（一塊狀態）</mark>：它只是一個 `let`，值是「現在正在 render 哪一個 fiber」。
+> c. 所以問「hooks 靠哪一個找到自己的家？」——<mark style="background: #FF5582A6;">答案是 `currentlyRenderingFiber` 這個**變數**</mark>。`useState` 內部要掛 hook 節點時，讀的是這個變數。`renderWithHooks` 只是**負責在正確時機把這個變數設好與清掉**的那支函式。
+> d. 比喻：`renderWithHooks` 是掛號櫃檯的整套流程，`currentlyRenderingFiber` 是櫃檯桌上那塊「現在輪到幾號」的牌子。護士（hook）看的是牌子，不是看流程本身；但牌子是流程換上去的。
+> e. 補一個常被漏掉的第二根隱含變數：**dispatcher**。你在元件裡寫的 `useState` 其實來自 `react` 套件，它只是把呼叫轉發給「當前的 dispatcher」。`renderWithHooks` 會依照這次是**首次掛載**還是**更新**，換上 `HooksDispatcherOnMount` 或 `HooksDispatcherOnUpdate`，所以同一個 `useState` 第一次跑的是 `mountState`（建立新 hook 節點）、之後跑的是 `updateState`（沿著鏈結串列往下走）。<mark style="background: #FFF3A3A6;">dispatcher 決定「這次要用哪一套行為」，`currentlyRenderingFiber` 決定「這次是誰的狀態」</mark>，兩根一起才夠。
+> f. 這也是為什麼在元件外面呼叫 hook 會噴 `Invalid hook call`：那時候 dispatcher 是 null、`currentlyRenderingFiber` 也是 null，兩個問題同時發生。
+
+
+所以精確的說法是：<mark style="background: #BBFABBA6;">React 用一個「模組層級的隱含環境變數（ambient context）」取代了語言層的 `this` 綁定</mark>。兩者在解決同一個問題——「這次呼叫是為誰服務的？」——但實作層次完全不同：
+
+| 比較項目 | Class component | 函式元件 |
+|---|---|---|
+| 誰保存實例狀態 | `this`（語言層的綁定） | fiber（React 自己的資料結構） |
+| 怎麼傳進去 | 方法呼叫時由 JS 引擎自動綁定 | React 在呼叫前先設好模組層級變數 `currentlyRenderingFiber` |
+| 函式體內 `this` 的值 | 該實例 | `undefined` |
+| 可以用 `call` / `bind` 改嗎 | 可以，而且常常必須 | 沒有意義，因為根本沒用到 |
+| 靠什麼對應到上一次的值 | 實例上的欄位名稱（`this.state.x`） | hook 的**呼叫順序**（鏈結串列的索引） |
+| 跨呼叫存活的位置 | 實例物件（Heap） | fiber 節點（Heap） |
+
+<mark style="background: #ADCCFFA6;">兩欄的共通點就是 (i) 節那句話：要跨越「函式呼叫」這道邊界活下來，值就必須住在 Heap</mark>。class 用實例物件、函式元件用 fiber，而 Execution Context 本身兩邊都留不住東西——它每次呼叫都重建、每次 `return` 都拆掉。
+
+也順便解釋了 Rules of Hooks：<mark style="background: #FF5582A6;">因為函式元件沒有 `this` 可以用「名字」定位狀態，只能用「第幾個被呼叫」當索引</mark>，所以 hook 一旦寫在 `if` 裡而某次 render 少呼叫一個，後面全部錯位。這條規則的根據是 React 的資料結構，不是 JS 的語言規格。
+
+**本節資料來源**：
+
+a. React 原始碼 `ReactFiberHooks.js`（`currentlyRenderingFiber` 宣告、`renderWithHooks` 的呼叫點、hook 鏈結串列）——<https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberHooks.js>，2026-09-06 查證
+
+b. Dan Abramov〈How Are Function Components Different from Classes?〉——<https://overreacted.io/how-are-function-components-different-from-classes/>，原文 2018-12，2026-09-06 重讀
+
+c. React 官方文件〈State as a Snapshot〉——<https://react.dev/learn/state-as-a-snapshot>，2026-09-06 查證
+
+d. React 官方文件 Rules of Hooks 警告頁——<https://react.dev/warnings/invalid-hook-call-warning>，2026-09-06 查證
+
 
 ## (c) 參數綁定是不是「宣告」？——是，而且是每次呼叫都重新做一次的真宣告
 
@@ -393,6 +690,8 @@ FormalParameterList 文法樹見上面 (d)；Execution Context 的 Creation/Exec
 | Creation Phase 是編譯期還是執行期？ | 執行期，每次呼叫都重來；Parse 才是只做一次的編譯期 |
 | 是不是靠 RAM 實現？ | 是，Stack（快、無閉包）或 Heap Context（有閉包捕獲） |
 | `this`（如 `.call` 第一引數）算不算參數？ | 不算，`this` 不走 FormalParameterList，是規格另外的特殊綁定 |
+| React 函式元件裡有 `this` 嗎？ | 沒有，是 `undefined`；React 改用模組層級的 `currentlyRenderingFiber` 扮演這個角色，見 (b-1) |
+| 「引數在呼叫者的 scope 求值」是什麼意思？ | 寫出呼叫那一行的作用域就是呼叫者的 scope，引數在被呼叫函式的 Execution Context 建立**之前**就已求值完畢，見 (a-1) |
 | 只要是小括弧都是引數表達式嗎？ | 不是，只有 `CallExpression`／`Arguments` 產生式裡的括號才是；參數宣告、分組運算子、`if`/`while`/`for` 等控制流程語法的括號都不是 |
 
 ---

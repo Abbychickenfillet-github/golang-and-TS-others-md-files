@@ -25,6 +25,85 @@ updated: 2026-08-06
 
 ---
 
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事：<mark style="background: #FF5582A6;">「寫下來就決定」**不等於**「在 buildtime 決定」</mark>
+> a. 詞法作用域的巢狀關係確實是**靜態**的，但真正做這個決定的是 <mark style="background: #ADCCFFA6;">runtime 執行期裡的 Parse／Scope Analysis</mark>——V8 讀到原始碼之後才做。Babel、webpack 那一段只做轉譯與打包，**不看作用域語意**，也不會幫你決定誰是誰的 outer。
+> b. 再細一層看，這其實是<mark style="background: #FFF3A3A6;">三個不同時刻</mark>：巢狀關係定案（Parse，每個函式只做一次）→ `[[Environment]]` 被掛上（**函式物件被建立**的那一刻，不是被呼叫的時候）→ 沿著鏈往外查找、找不到才丟 `ReferenceError`（**每次執行都重走一次**）。
+> c. 附帶一個最常見的混線：<mark style="background: #BBFABBA6;">變數查找是詞法的（寫下來就決定），`this` 是動態的（呼叫時才決定）</mark>。兩者常被當成同一件事，能主動切開講就是加分題。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | 詞法作用域是什麼？作用域鏈又是什麼？ | 一個識別碼會對應到哪個變數，由它**寫在原始碼的哪個巢狀位置**決定；把每層環境紀錄的 `[[OuterEnv]]` 一路走到底所畫出的**路徑**，就是作用域鏈 |
+| **When** 什麼時候 | 這件事是在 buildtime 定案的嗎？ | <mark style="background: #FF5582A6;">不是</mark>。巢狀關係在 **runtime 的 Parse／Scope Analysis** 定案（每個函式只做一次）；`[[Environment]]` 在**函式物件被建立**時掛上；**查找**則是每次執行都重走 |
+| **Who** 誰做的 | 誰負責把這條鏈接起來？ | JS 引擎（V8）。規範對應 `OrdinaryFunctionCreate`（§10.2.3）記下 `[[Environment]]`，Environment Record（§9.1）提供 `[[OuterEnv]]` 欄位。<mark style="background: #ADCCFFA6;">跟打包工具無關</mark> |
+| **Where** 在哪裡 | 這些環境紀錄實際存在哪？ | 在 RAM 裡。沒被內層引用的變數留在 **Stack Frame**；被內層真的用到而捕獲的才進 **Heap 的 closure 那一層**——DevTools 的 Scope 面板 `Local`／`Closure`／`Script`／`Global` 就是這條鏈 |
+| **Which** 哪一種 | 哪些東西是詞法的，哪些不是？ | **變數查找**是詞法的；<mark style="background: #FF5582A6;">`this` 不是</mark>，它是動態的、看呼叫方式。另外 V8 只把「內層真的有引用到」的變數放進 closure 層，沒用到的不會被捕獲 |
+| **How** 怎麼做到 | 查找的實際步驟？ | 由內往外**單向**走：本層 Environment Record 找不到 → 沿 `[[OuterEnv]]` 走一格 → 再找不到再走一格 → 走到 Global（`[[OuterEnv]]` 是 `null`）仍找不到，就丟 `ReferenceError` |
+| **Why** 為什麼 | 為什麼要用詞法而不是動態？ | 因為「寫在哪就是哪」才能**靜態分析**：編輯器能「跳到定義」、V8 能在 Parse 就決定變數該放 Stack 還是 Heap、閉包才有穩定可預測的語意 |
+
+### 時間軸：這件事發生在哪一格
+
+```text
+◄────────── buildtime 建置期 ──────────►◄────────── runtime 執行期 ──────────►
+      （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本後）
+
+ ①轉譯        ②打包         ③Parse        ④Bytecode      ⑤每次呼叫／每次執行
+ transpile    bundle        解析／AST      Ignition       呼叫幾次做幾次
+ ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐   ┌──────────────────┐
+ │Babel   │   │webpack │   │Scanner │   │AST →   │   │ ★ 建函式物件時    │
+ │tsc     │──►│Vite    │──►│Parser  │──►│Bytecode│──►│   掛[[Environment]]│
+ │SWC     │   │Rollup  │   │★Scope  │   │        │   │ ★ 沿 outer 逐格查 │
+ └────────┘   └────────┘   │ Analysis│  └────────┘   │ ★ 找不到才丟      │
+  只換寫法      只換位置     └────────┘                │   ReferenceError  │
+  巢狀不變      巢狀不變      每個函式只做一次           └──────────────────┘
+                            只做「決策」不配置記憶體
+
+ ★ 本篇主題橫跨第 ③ 格與第 ⑤ 格：巢狀關係在 ③ 定案（只做一次），
+   實際查找與 ReferenceError 在 ⑤ 發生（每次執行都重來）。
+ ★ 第 ① ② 格完全不參與——打包只是搬檔案，不會改變誰包在誰裡面。
+```
+
+同一件事，換成詞法作用域自己的階段序列再看一次：
+
+```text
+ 寫在哪裡（原始碼巢狀位置）
+        │
+        ▼
+ ③ Parse／Scope Analysis：決定誰是誰的 outer（每個函式只做一次）
+        │
+        ▼
+ ⑤-1 函式物件被「建立」：在函式物件上記下 [[Environment]]（掛鉤接上）
+        │
+        ▼
+ ⑤-2 函式被「呼叫」：建立新的 Environment Record，[[OuterEnv]] 指向上一格
+        │
+        ▼
+ ⑤-3 執行到某個識別碼：沿鏈由內往外找 → 找到就停；走到 null 就丟 ReferenceError
+```
+
+同一條時間軸用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期（部署前跑完，V8 還沒看到程式碼）"]
+        T["① 轉譯 transpile<br/>Babel／tsc／SWC<br/>只換寫法，巢狀不變"] --> BU["② 打包 bundle<br/>webpack／Vite／Rollup<br/>只換位置，巢狀不變"]
+    end
+    subgraph RT1["runtime 執行期 · 每個函式只做一次"]
+        P["③ Parse／Scope Analysis<br/>★ 巢狀關係在這裡定案<br/>★ 決定誰是誰的 outer<br/>只做決策，不配置記憶體"] --> BC["④ Ignition 產生 Bytecode<br/>可重複使用"]
+    end
+    subgraph RT2["runtime 執行期 · 每次呼叫／每次執行都重來"]
+        C["⑤-1 函式物件被建立<br/>★ 掛上 &#91;&#91;Environment&#93;&#93;<br/>指向誕生當下的環境紀錄"] --> D["⑤-2 函式被呼叫<br/>新 Environment Record<br/>&#91;&#91;OuterEnv&#93;&#93; 接上上一層"]
+        D --> E["⑤-3 執行到某個識別碼<br/>★ 沿鏈由內往外查找<br/>找到就停"]
+        E --> F["走到 Global 仍找不到<br/>&#91;&#91;OuterEnv&#93;&#93; = null<br/>★ 丟 ReferenceError"]
+    end
+    BU --> P
+    BC --> C
+    E -.->|"再呼叫一次就整包重來"| D
+```
+
+---
+
 ## 本篇主軸圖：作用域鏈 Scope Chain
 
 ![[詞法作用域-scope-chain主軸圖-20260806.png]]
@@ -65,6 +144,43 @@ updated: 2026-08-06
 **(g)** 查找是<mark style="background: #BBFABBA6;">單向、由內往外</mark>：本層找不到才往 outer 找，一路到最上層還找不到就丟 `ReferenceError`。
 
 **(h)** 所以<mark style="background: #ADCCFFA6;">內層看得到外層，外層看不到內層</mark>——鏈上沒有往下的箭頭。
+
+### 延伸提問：outer 指標固定叫這個名字嗎？outer 指標＝作用域鏈嗎？（2026-09-03）
+
+<mark style="background: #BBFABBA6;">「outer」不是隨口取的暱稱，是 ECMA-262 規範裡真的這樣命名的內部欄位——§9.1 Environment Records 明文規定：「每個 Environment Record 都有一個 `[[OuterEnv]]` 欄位，值是 `null` 或指向外層 Environment Record 的參照。」</mark>所以「outer 指標」這個講法是有規範依據的，不是筆記自己發明的簡稱。
+
+但<mark style="background: #FF5582A6;">「outer 指標」跟「作用域鏈」不是同一個東西，是「一條邊」跟「整條路徑」的關係</mark>：
+
+| | outer 指標（`[[OuterEnv]]`） | 作用域鏈（Scope Chain） |
+|---|---|---|
+| 是什麼 | **單一個**環境記錄身上的**一個欄位**，只指向**緊鄰**的外一層 | 從內層開始，**反覆跟著** outer 指標一路走到底（`null`）所形成的**整條路徑** |
+| 數量 | 每層環境記錄各自只有**一個** | 是把多個 outer 指標**串起來**的結果，不是額外存在的東西 |
+| 比喻 | 一節火車車廂跟下一節車廂之間的**掛鉤** | 從車尾走到車頭，把所有掛鉤**依序走過一遍**的那趟路 |
+
+一句話：<mark style="background: #FFF3A3A6;">「作用域鏈」不是一個額外儲存的資料結構，它只是「不斷跟著 outer 指標往外走」這個查找動作所畫出來的路徑</mark>——outer 指標是磚塊，作用域鏈是把磚塊疊起來看到的那道牆。
+
+#### 畫出來：對照本篇最上面的 scope-chain-inspector 實測輸出
+
+```mermaid
+flowchart BT
+    G["Global Environment Record<br/>[[OuterEnv]] = null（鏈的終點）<br/>內建：setTimeout, console…"]
+    C2["closure 環境記錄（session, post, captured 那一層）"]
+    C1["closure 環境記錄（makeCounter）<br/>bindings: label, count"]
+    L["local 環境記錄（tick 執行中）<br/>bindings: step"]
+
+    L -- "[[OuterEnv]]" --> C1
+    C1 -- "[[OuterEnv]]" --> C2
+    C2 -- "[[OuterEnv]]" --> G
+
+    style L fill:#ADCCFF,color:#000
+    style C1 fill:#BBFABB,color:#000
+    style C2 fill:#BBFABB,color:#000
+    style G fill:#FFF3A3,color:#000
+```
+
+查 `count` 的路徑（對應本篇最上面那張「查找路徑」截圖）：`tick` 的 **local** 層沒有 `count` → 沿 `[[OuterEnv]]` 走一格到 **closure(makeCounter)** 這層 → 找到 `count`，停在這裡，不會再往下走到 `C2` 或 `G`。這條「L → C1」的**單步移動**就是 outer 指標；而「L → C1 → C2 → G」這一整條**可能的路徑**，才是作用域鏈。
+
+查一個鏈上沒有的名字（例如 `ghost`）：`L → C1 → C2 → G`，四層全部走完、`G` 的 `[[OuterEnv]]` 是 `null`，無路可走，丟 `ReferenceError: ghost is not defined`——對應本篇上面第二張截圖。
 
 ### 1-3 實測證據：真的可以把鏈印出來
 

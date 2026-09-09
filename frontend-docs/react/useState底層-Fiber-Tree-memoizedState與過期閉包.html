@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>useState 底層 — Fiber Tree、memoizedState 鏈表與過期閉包</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>useState 底層 — Fiber Tree、memoizedState 鏈表與過期閉包</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#react</span><span class="pill">#hooks</span><span class="pill">#useState</span><span class="pill">#fiber</span><span class="pill">#closure</span><span class="pill">#lexical-scope</span><span class="pill">#記憶體</span><span class="pill">#scheduler</span><span class="pill">#key</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-01</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/92bd0f70e642fe50" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/599804dd5ba114af" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/1f0cc8c21e6f88b5" target="_blank" rel="noopener">原始對話 3</a><a href="https://gemini.google.com/app/76cde95192586aa7" target="_blank" rel="noopener">原始對話 4</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">useState 的值是存在函式元件內部的區域變數裡。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">存在 React Fiber 節點的 memoizedState 鏈表中，區域變數每次 re-render 就被重置。</div></li><li><p class="qq">第二次渲染時，原始碼會自動變成 useState(1)。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">原始碼永遠是 useState(0)，是 useState 內部去 Fiber 讀最新值後回傳 1。</div></li><li><p class="qq">() =&gt; setCount(count + 1) 是一個 IIFE。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它只是回呼函式，尾巴沒有立刻呼叫的 ()，點擊時才執行。</div></li><li><p class="qq">Fiber Tree 存在瀏覽器 JavaScript 引擎的 Heap Memory 中。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">它就是一堆互相引用的普通 JS 物件，被 HostRoot 長期引用所以不會被 GC。</div></li><li><p class="qq">元件重新渲染時，舊的 setTimeout 回呼會自動拿到新的 count。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">這正是過期閉包（Stale Closure），舊閉包鎖住的是當次渲染那一組變數。</div></li><li><p class="qq">若元件完全沒有呼叫任何 Hook，fiberNode.memoizedState 會是 null。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">沒有 Hook 就沒有鏈表節點可掛。</div></li><li><p class="qq">React 官方原始碼是用物件文字量 {} 直接建立 Fiber 節點的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">官方用建構函式 FiberNode 搭配 new 實例化，物件文字量只是教學示意。</div></li><li><p class="qq">Function Component 的 FiberNode，它的 stateNode 屬性存的是該元件的實例（Instance）。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Function Component 沒有實例，stateNode 永遠是 null；有實例的是 Class Component。</div></li><li><p class="qq">React 之所以把 children 陣列改成 child／sibling／return 鏈表，主要動機是讓走訪可以隨時中斷再恢復。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">遞迴走訪無法中途讓出主執行緒，改成 while 迴圈後只要記住 workInProgress 指標就能暫停與續跑。</div></li><li><p class="qq">某個 Fiber 節點的 childLanes 為 0，代表這棵子樹沒有待處理任務，React 可以整棵跳過。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這是 Lanes 位元遮罩最主要的剪枝用途。</div></li><li><p class="qq">列表項目的 key 從 id 換成另一個值時，React 只會更新 props，不會重置內部 state。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">key 改變會判定為不同元件，舊的完整 Unmount（跑 cleanup）、新的重新 Mount，所有 useState 歸零。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Fiber 節點上存放 Hook 鏈表頭的屬性叫 <input class="blank" data-a="memoizedState" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Hook 結構內部也有同名屬性，那層才存實際數值。</div></li><li><p class="qq">React 同時維持 Current Tree 與 WorkInProgress Tree，這個機制叫 <input class="blank" data-a="雙重緩衝" placeholder="填答案" autocomplete="off">（中文四個字）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">英文是 Double Buffering，算完把指標一指就完成切換。</div></li><li><p class="qq">setTimeout 回呼讀到舊 state 的現象叫「<input class="blank" data-a="過期" placeholder="填答案" autocomplete="off"> 閉包」。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">英文 Stale Closure。</div></li><li><p class="qq">Fiber 節點上指向你所寫元件函式本身的屬性是 <input class="blank" data-a="type" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">因為函式也是物件，React 重新渲染時直接執行 fiberNode.type()。</div></li><li><p class="qq">讓 Render 階段可以中斷、暫停、丟棄重來的模式叫 <input class="blank" data-a="Concurrent" placeholder="填答案" autocomplete="off"> Mode。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">靠的正是 Fiber 這個可拆成小工作單元的鏈表結構。</div></li><li><p class="qq">FiberNode 上指向「真實 DOM 元素或 Class 實例」的屬性叫做 <input class="blank" data-a="stateNode" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">HostComponent 指向 DOM 物件，ClassComponent 指向實例，FunctionComponent 是 null。</div></li><li><p class="qq">React 的獨立排程套件 Scheduler，內部使用 <input class="blank" data-a="最小堆積" placeholder="填答案" autocomplete="off"> 這種資料結構管理 Task，確保最急的先執行。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Min-Heap，依 expirationTime 排序。</div></li><li><p class="qq">想要在 userId 改變時把整個表單的 state 全部重置，最乾淨的做法是傳入 <input class="blank" data-a="key" placeholder="填答案" autocomplete="off"> 這個特殊 prop。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">key 改變會強制 Unmount + Mount，等同重置。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">用你自己的話解釋：為什麼「函式元件本身是無狀態的，真正有狀態的是 Fiber Tree」？請把區域變數的生命週期一起講進去。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：元件只是一個每次渲染都被重新執行一遍的普通函式，函式內的區域變數建立在 Stack 或短暫的 Heap，執行完若沒有被閉包引用就會被 GC 回收，所以它無法跨渲染保存資料。React 另外在 Heap 中維護一棵被 HostRoot 長期引用的 Fiber Tree，每個元件對應一個 FiberNode，Hook 的值掛在 memoizedState 鏈表上。useState 只是一個介面：執行時去問 Fiber 這個節點存不存在，存在就忽略初始值直接回傳鏈表中的最新值。所以狀態的「所有權」在 Fiber，不在你的函式。</div></li><li><p class="qq">面試官問：「過期閉包要怎麼解決？」請至少給出兩種方向並說明各自的取捨。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 函式式更新 setCount(prev =&gt; prev + 1)——讓 React 把「怎麼算」而不是「算好的值」排進佇列，不依賴閉包裡的舊值，成本最低、最推薦。(2) 用 useRef 存一份可變的最新值，在非同步回呼裡讀 ref.current——能拿到最新值但改 ref 不會觸發 re-render，適合只讀不渲染的場景。(3) 把變數放進 useEffect 的依賴陣列讓回呼重新建立——語意最正確但會頻繁重建訂閱與計時器。取捨核心：函式式更新解決「基於舊值算新值」，useRef 解決「非同步時需要當下最新值」，依賴陣列解決「訂閱要跟著變」，三者情境不同不可互相取代。</div></li><li><p class="qq">面試官問：「為什麼 React 要把樹狀結構改寫成鏈表？直接用陣列不是更直覺嗎？」請用『遞迴 vs 迴圈』『可中斷性』『GC 壓力』三個角度回答。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">要點：(1) 傳統 Stack Reconciler 用遞迴走訪，Call Stack 一路疊到底，開始了就無法讓出主執行緒；(2) Fiber 用 child/sibling/return 把樹攤平成鏈表，整棵樹用一個 while 迴圈 workLoop 就能走完，目前位置只是一個指標變數 workInProgress，可以隨時記住位置、釋放執行緒、之後接著跑，這才是 Concurrent Mode 的基礎；(3) 陣列需要連續記憶體、頻繁重建會增加 GC 壓力，鏈表沒有這個問題。補一句：childLanes 讓 React 能整棵子樹跳過，進一步剪枝。</div></li><li><p class="qq">用 index 當 key 除了效能問題之外，還會造成什麼「不會報錯但資料錯亂」的 bug？請舉一個具體情境。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">要點：列表項目內含 &lt;input&gt; 或內部 useState 時，刪掉第一筆後第二筆的 index 會遞補為 0，React 看到 key=&quot;0&quot; 依然存在就保留舊 DOM 與舊 state、只替換 props，結果畫面上殘留你輸入給第一筆的內容。這種 bug 不會拋錯，只會讓資料看起來莫名其妙錯亂，比效能問題嚴重得多。</div></li></ol></section>
+
+<article class="card">
+<h1 id="usestate-fiber-treememoizedstate">useState 底層 — Fiber Tree、memoizedState 鏈表與過期閉包</h1>
+<blockquote>
+<p>本篇重點 a–z，共 26 個（u–z 為 2026-08-31 追加）。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">一、先釐清：函式怎麼把值交給外面</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">副作用（Side Effect）</mark> 指的是函式去改動了自己作用域以外的東西。Vue 官方文件那段 <code>let A2</code> 先在外層宣告、再由 <code>update()</code> 去寫入，並不是因為「只有這樣外面才拿得到」，而是為了示範響應式系統如何追蹤一個已存在的狀態。</p>
+<pre><code class="language-js">let A0 = 1
+let A1 = 2
+let A2                 // 外層宣告的共享狀態
+function update() {
+  A2 = A0 + A1         // 有副作用：直接改寫外層變數
+}
+</code></pre>
+<p>(b) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要把值交給外部，最乾淨的方式就是 <code>return</code></mark>，完全不需要事先在外層 <code>let</code> 一個變數。</p>
+<pre><code class="language-js">function add(a, b) { return a + b }   // 純函式（Pure Function），無副作用
+const result = add(1, 2)              // 外部直接接住，資料流一目瞭然
+</code></pre>
+<p>(c) 兩種寫法的定位對照：改寫外層變數 ≈ Vue 的 <code>watchEffect</code>／DOM 渲染（重點在「依賴變了就自動去做某件事」）；<code>return</code> 回傳值 ≈ Vue 的 <code>computed</code>（重點在「算完給你一個值」）。</p>
+<h3 id="react">二、React 的「私有記憶體」到底在哪</h3>
+<p>(d) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Fiber Tree（Fiber 樹）</mark>是 React 內部維護的資料結構，完整存在於瀏覽器 JavaScript 引擎（例如 Chrome 的 V8）的 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Heap Memory（堆積記憶體）</mark>裡。它不是什麼特殊硬體結構，本質就是一堆互相用指標引用的普通 JavaScript 物件。</p>
+<p>(e) 每個元件對應一個 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">FiberNode</mark>，關鍵欄位如下：</p>
+<pre><code class="language-js">const fiberNode = {
+  type: Counter,          // 指向你寫的元件函式本身（函式也是物件）
+  memoizedState: {...},   // Hook 鏈表的頭，存 useState / useEffect 的資料
+  updateQueue: null,      // 待處理的 setState 佇列
+  child: childFiber,      // 第一個子節點
+  sibling: siblingFiber,  // 下一個兄弟節點
+  return: parentFiber,    // 父節點（名字叫 return 但意思是「往上回去」）
+  alternate: null,        // 指向另一棵樹上的對應節點（雙重緩衝用）
+}
+</code></pre>
+<p>(f) <code>type: Counter</code> 的 <code>Counter</code> 就是你 <code>export default function Counter()</code> 的那個元件函式。因為在 JavaScript 裡<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">函式也是一種可被呼叫的物件（Callable Object）</mark>，所以可以直接把它塞進 <code>type</code> 欄位；React 要重新渲染時就去執行 <code>fiberNode.type()</code>。</p>
+<p>(g) 為什麼 Fiber 節點不會被垃圾回收（Garbage Collection）掉？因為 React 初始化時建立了一個長久存活的根物件 <code>HostRoot</code>，整棵樹一直被 React 內部核心引用著。反觀元件函式裡的區域變數，函式一跑完沒人引用就會被 GC 清掉。</p>
+<p>(h) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">雙重緩衝（Double Buffering）</mark>：記憶體裡同時存在 <code>Current Tree</code>（畫面上正在顯示的）與 <code>WorkInProgress Tree</code>（背景正在算的新狀態樹）。算完只要把指標一指就完成切換，舊樹交給 GC。</p>
+<h3 id="memoizedstate">三、memoizedState 是一條單向鏈表</h3>
+<p>(i) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">有幾個 Hook 就有幾個節點</mark>，<code>useState</code>、<code>useEffect</code>、<code>useRef</code> 都算。容易搞混的是「同一個名字用在兩層」：</p>
+<ul>
+<li>外層的 <code>fiberNode.memoizedState</code> 是 Fiber 節點上的<strong>屬性名稱</strong>，指向第一個 Hook 結構。</li>
+<li>每個 Hook 結構<strong>內部</strong>也有一個叫 <code>memoizedState</code> 的屬性，那個才是存實際數值的地方。</li>
+</ul>
+<pre><code class="language-js">// 元件裡寫了兩個 Hook：useState(0) 與 useState('Alice')
+fiberNode = {
+  type: Counter,
+  memoizedState: {          // 第一個 Hook（count）
+    memoizedState: 1,       // count 當前的值
+    next: {                 // 指向下一個 Hook
+      memoizedState: 'Alice',
+      next: null,
+    },
+  },
+}
+</code></pre>
+<p>(j) 若元件完全沒呼叫任何 Hook，<code>fiberNode.memoizedState</code> 就是 <code>null</code>。</p>
+<p>(k) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">常見誤解：第二次渲染時程式碼會變成 <code>useState(1)</code>。不會。</mark>原始碼永遠寫死 <code>useState(0)</code>，每次 re-render 都照樣執行到這一行、照樣把 <code>0</code> 傳進去。差別在於 <code>useState</code> 內部會問 Fiber：「這個節點已經存在了嗎」，存在就<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">忽略你傳的初始值</mark>，直接回傳鏈表裡的最新值。所以 <code>0</code> 只在第一次掛載（Mount）時有意義。</p>
+<p>(l) 一句話收尾：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">你的函式元件本身是無狀態的，真正有狀態的是背後的 Fiber Tree；<code>useState</code> 只是向 Fiber 借取與更新資料的介面。</mark></p>
+<h3 id="stale-closure">四、過期閉包（Stale Closure）</h3>
+<p>(m) React 完全遵守 JavaScript 的 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Lexical Scope（詞法作用域）</mark>與閉包（Closure），這正是經典陷阱的來源。</p>
+<pre><code class="language-jsx">function Counter() {
+  const [count, setCount] = useState(0)
+
+  const handleDelayLog = () =&gt; {
+    setTimeout(() =&gt; {
+      console.log('3 秒後印出的 count：', count)   // 抓的是「當次渲染」的 count
+    }, 3000)
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;h2&gt;當前 Count: {count}&lt;/h2&gt;
+      &lt;button onClick={() =&gt; setCount(count + 1)}&gt;加 1&lt;/button&gt;
+      &lt;button onClick={handleDelayLog}&gt;點擊後等待 3 秒印出&lt;/button&gt;
+    &lt;/div&gt;
+  )
+}
+</code></pre>
+<p>(n) 時間軸拆解：</p>
+<ol>
+<li>第 0 秒點「延遲印出」，<code>setTimeout</code> 收下的回呼函式此刻對 <code>count = 0</code> 拍了一張<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">快照（Snapshot）</mark>。</li>
+<li>第 1–2 秒連按三次「加 1」，React 重新執行元件三次，每次都產生<strong>全新</strong>的 <code>count</code> 變數（1、2、3）與<strong>全新</strong>的作用域，畫面顯示 3。</li>
+<li>第 3 秒計時到，執行的是當初那個回呼，它讀的是第 0 秒鎖住的作用域，所以 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">console 印出 0 而不是 3</mark>。</li>
+</ol>
+<p>(o) 關鍵理解：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">舊作用域裡的函式不會自動拿到新作用域裡的變數。</mark>每次 re-render 都是一組新變數，舊閉包鎖住的是舊的那一組。</p>
+<p>(p) <code>setTimeout(fn, 3000)</code> 的語意是「3 秒後才執行 fn」，但<strong>參數是在呼叫當下就綁定完成</strong>的，這兩件事分開想就不會混淆。</p>
+<h3 id="_3">五、順手釐清的兩個小坑</h3>
+<p>(q) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>() =&gt; setCount(count + 1)</code> 不是 IIFE。</mark>IIFE（Immediately Invoked Function Expression，立即調用函式表達式）的定義是「定義完當下就立刻呼叫」，語法尾巴一定有一對呼叫用的 <code>()</code>：</p>
+<pre><code class="language-js">;(() =&gt; { console.log('我被定義完就立刻執行了') })()   // 這才是 IIFE
+</code></pre>
+<p>(r) <code>onClick={() =&gt; setCount(count + 1)}</code> 只是建立一個匿名箭頭函式當回呼（Callback），交給按鈕的 <code>onClick</code> 保管；使用者真的點下去才會被呼叫。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">如果寫成 <code>onClick={setCount(count + 1)}</code>（少了 <code>() =&gt;</code>），渲染到那一行就會立刻執行 <code>setCount</code>，觸發 re-render，再執行，再 re-render，陷入無限迴圈。</mark></p>
+<p>(s) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Concurrent Mode（並行模式）</mark>之所以能在 Render 階段中斷、暫停、丟棄重來，靠的就是 Fiber Tree 這個可拆解成一個個小工作單元的鏈表結構。傳統遞迴的 Stack Reconciler 一旦開始就無法中斷，Fiber 把它改寫成可中斷的迴圈，這是 React 16 之後架構重寫的核心動機。</p>
+<p>(t) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">次要備註</mark>：Gemini 用 <code>{ type: ..., memoizedState: ... }</code> 這種物件文字量（Object Literal）畫的示意圖是簡化模型，方便看清楚記憶體裡的指向關係。React 官方原始碼（<code>packages/react-reconciler/src/ReactFiber.js</code>）實際上是用建構函式 <code>function FiberNode(tag, pendingProps, key, mode)</code> 搭配 <code>new FiberNode(...)</code> 實例化的。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但兩者在 Heap 裡產生的實體都是 JavaScript 物件，本質完全一樣</mark>，這就是為什麼你用 Python 的 <code>class Node: def __init__(self, val, next)</code> 也能表達同一個鏈表結構。</p>
+<h3 id="2026-08-31fibernode-key">六、追加 2026-08-31：FiberNode 的完整屬性、鏈表為何比陣列快、以及 key 的真正作用</h3>
+<p>(u) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">FiberNode 的屬性可以分成六大類</mark>，把這張表背起來，Fiber 的整套設計動機就串起來了：</p>
+<table>
+<thead>
+<tr>
+<th>分類</th>
+<th>屬性</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. 樹狀結構指標</td>
+<td><code>child</code> / <code>sibling</code> / <code>return</code></td>
+<td>第一個子節點／右邊的兄弟節點／父節點。React 用這三個指標把樹「攤平成鏈表」</td>
+</tr>
+<tr>
+<td>2. 類型與身分</td>
+<td><code>tag</code> / <code>key</code> / <code>elementType</code> / <code>type</code></td>
+<td><code>tag</code> 是數字列舉（FunctionComponent=0、ClassComponent=1、HostComponent=5…）；<code>type</code> 指向元件函式或 DOM 標籤字串</td>
+</tr>
+<tr>
+<td>3. 狀態與屬性</td>
+<td><code>pendingProps</code> / <code>memoizedProps</code> / <code>memoizedState</code> / <code>updateQueue</code></td>
+<td>本次要進來的新 props／上次用過的舊 props／Hook 鏈表頭（Class 則是 <code>this.state</code>）／待處理的更新佇列</td>
+</tr>
+<tr>
+<td>4. 真實 DOM 連結</td>
+<td><code>stateNode</code></td>
+<td>指向對應的「實體」，見 (w)</td>
+</tr>
+<tr>
+<td>5. 優先級與排程</td>
+<td><code>lanes</code> / <code>childLanes</code></td>
+<td>位元遮罩（Bitmask），見 (x)</td>
+</tr>
+<tr>
+<td>6. 雙重緩衝</td>
+<td><code>alternate</code></td>
+<td>指向另一棵樹上的對應節點</td>
+</tr>
+</tbody>
+</table>
+<p>(v) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼用單向鏈表取代 <code>children: []</code> 陣列？</mark>關鍵不是「陣列很慢」，而是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">遞迴無法中斷、迴圈可以</mark>：</p>
+<ul>
+<li>傳統 Stack Reconciler 用遞迴走訪樹，一旦開始，Call Stack 就一路疊到底，中途沒辦法讓出主執行緒去處理使用者輸入。</li>
+<li>Fiber 把樹改寫成 <code>child → sibling → return</code> 的走訪規則，整棵樹用一個 <code>while</code> 迴圈（也就是原始碼裡的 <code>workLoop</code>）就能遍歷完：先往下走 <code>child</code>，沒有子節點就往右走 <code>sibling</code>，沒有兄弟就往上 <code>return</code>。</li>
+<li><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">因為「目前走到哪」只是一個指標變數 <code>workInProgress</code></mark>，React 隨時可以把它記下來、釋放主執行緒，等瀏覽器空閒再從那個指標接著跑，完全不必維護遞迴堆疊。</li>
+<li>附帶好處：陣列需要連續記憶體、頻繁重建會增加 GC 壓力，鏈表沒有這個問題。</li>
+</ul>
+<p>(w) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>stateNode</code> 存的是「實體（Instance）」</mark>，三種情況三種值：</p>
+<table>
+<thead>
+<tr>
+<th>元件種類</th>
+<th><code>stateNode</code> 內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HostComponent（<code>div</code>、<code>button</code> 等原生標籤）</td>
+<td>真實的 DOM 元素物件</td>
+</tr>
+<tr>
+<td>ClassComponent</td>
+<td><code>new MyClassComponent(props)</code> 產生的實例，裡面有 <code>this.props</code>、<code>this.state</code>、<code>this.setState</code> 與你定義的方法</td>
+</tr>
+<tr>
+<td>FunctionComponent</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">永遠是 <code>null</code></mark>，因為 React 只是執行 <code>Counter(props)</code> 拿回 JSX，沒有 <code>new</code>、也沒有 <code>this</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-js">// Class Component 對應的 FiberNode（簡化）
+fiberNode = {
+  tag: 1,                    // 1 代表 ClassComponent
+  type: MyClassComponent,    // 類別本身
+  stateNode: {               // 真正的 Class 實例
+    props: { count: 0 },
+    state: { name: 'Alice' },
+    render() { /* ... */ },
+  },
+}
+</code></pre>
+<p>(x) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">排程（Scheduling）分成兩層</mark>，很多人只記得其中一層：</p>
+<ol>
+<li><strong>FiberNode 上的標記</strong>：<code>lanes</code> 記錄「這個節點自己」有哪些優先級的待處理任務，<code>childLanes</code> 記錄「整棵子樹」有哪些。兩者都是位元遮罩。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>childLanes === 0</code> 就代表整棵子樹沒事做，React 直接跳過（Skip），不必往下走。</mark>這就是 (v) 那個 <code>while</code> 迴圈能大幅剪枝的原因。</li>
+<li><strong>獨立的 <code>scheduler</code> 套件</strong>：React 會向它註冊一個 Task，Task 內含 <code>expirationTime</code>（越急的過期時間越短）、<code>callback</code>（實際的渲染工作）、<code>priorityLevel</code>。<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>scheduler</code> 內部用最小堆積（Min-Heap）管理這些 Task</mark>，永遠讓最急的先執行。</li>
+<li>Lanes 的比喻是「賽道」：使用者點擊（Sync Lane）優先級極高，動畫或 <code>startTransition</code>（Transition Lane）優先級較低。</li>
+</ol>
+<p>(y) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">列表的 <code>key</code> 要用資料的 <code>id</code>，不要用陣列索引 <code>index</code></mark>，理由有兩個層級：</p>
+<ul>
+<li><strong>效能層級</strong>：<code>['A','B']</code> 前面插入 <code>'NEW'</code> 之後，用 index 當 key 會讓 React 認為 <code>key="0"</code> 從 <code>'A'</code> 變成 <code>'NEW'</code>、<code>key="1"</code> 從 <code>'B'</code> 變成 <code>'A'</code>，於是三個 DOM 全部被改寫；用 id 當 key 則只會單純插入一個新節點。</li>
+<li><strong>正確性層級（更嚴重）</strong>：如果列表項目裡有 <code>&lt;input&gt;</code> 或內部 state，刪掉第一筆之後第二筆的 index 會遞補成 <code>0</code>，React 看到 <code>key="0"</code> 還在就<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">保留舊 DOM 與舊 state、只換 props</mark>，結果畫面上留下的是「你原本輸入給第一筆的內容」。這種 bug 不會報錯，只會讓資料看起來錯亂。</li>
+<li>只有在「純顯示、絕不重排、不會增刪、且沒有內部 state」的列表，用 index 才勉強安全。</li>
+</ul>
+<p>(z) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>key</code> 一改變，React 就會 Unmount 舊元件再 Mount 新元件</mark>。判定規則是：同層級 ＋ 同元件類型 ＋ 同 <code>key</code> → 視為同一個實體，只更新 props；<code>key</code> 不同 → 舊的完整卸載（銷毀 DOM、跑 <code>useEffect</code> 的 cleanup），新的重新掛載（所有 <code>useState</code> 重置）。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這個特性可以反過來當作「重置元件狀態」的乾淨手法</mark>：</p>
+<pre><code class="language-jsx">// userId 一變，整個表單自動卸載重建，內部所有 useState 全部歸零
+// 比在 useEffect 裡一個一個手動 setXxx(初始值) 乾淨太多
+&lt;UserProfileForm key={userId} userId={userId} /&gt;
+</code></pre>
+<h2 id="_4">⚠️ 存疑／更正</h2>
+<ul>
+<li><strong>Gemini 說「已為你在今天的 Google Calendar 上新增這個研讀事項」</strong>：這句話請不要當真。Gemini 在該對話中並未附上任何可驗證的事件連結，語氣也是「已嘗試為你安排」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">建議自己去日曆確認是否真的有這筆事件</mark>，不要以為排程已完成。</li>
+<li><strong>另一段對話（<code>599804dd5ba114af</code>）中 Gemini 說「React 18 之後編譯工具已經改變，寫 JSX 不需要再 import React」</strong>：時間點講錯了。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">新版 JSX Transform 是 React 17（2020-10）引進的，不是 18。</mark>但後半句「<code>useState</code> 這類 Hook 仍然必須 import」是正確的。詳見同批筆記〈JSX 轉譯機制〉。</li>
+</ul>
+<h2 id="_5">相關題目練習</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeetCode 2665. Counter II</td>
+<td>https://leetcode.com/problems/counter-ii/</td>
+<td>用閉包把狀態留在函式外，正是 useState 概念的最小可執行版本</td>
+</tr>
+<tr>
+<td>LeetCode 2622. Cache With Time Limit</td>
+<td>https://leetcode.com/problems/cache-with-time-limit/</td>
+<td><code>setTimeout</code> 搭配閉包捕捉變數，跟過期閉包同一組肌肉</td>
+</tr>
+<tr>
+<td>LeetCode 2623. Memoize</td>
+<td>https://leetcode.com/problems/memoize/</td>
+<td>手寫記憶化，直接對應 <code>memoizedState</code> 的命名由來</td>
+</tr>
+<tr>
+<td>LeetCode 206. Reverse Linked List</td>
+<td>https://leetcode.com/problems/reverse-linked-list/</td>
+<td>Hook 鏈表就是單向鏈表，練熟指標操作再看 React 原始碼會輕鬆很多</td>
+</tr>
+<tr>
+<td>NeetCode Reverse a Linked List</td>
+<td>https://neetcode.io/problems/reverse-a-linked-list</td>
+<td>同上，有影片講解</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_6">關聯筆記</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：13-閉包-Closure-私有變數與傳址陷阱">13-閉包-Closure-私有變數與傳址陷阱</span> — 過期閉包不是 React 特有的 bug，而是閉包捕捉「綁定」而非「值」的必然結果，先看懂這篇再回來看 (m)–(o) 會更順。</li>
+<li><span class="wikilink" title="Obsidian 連結：14-詞法作用域-Lexical-Scope-面試四段式">14-詞法作用域-Lexical-Scope-面試四段式</span> — 每次 re-render 產生一組新作用域，正是詞法作用域的直接應用。</li>
+<li><span class="wikilink" title="Obsidian 連結：11-記憶體模型-stack-heap-動態配置-GC">11-記憶體模型-stack-heap-動態配置-GC</span> — 對照 (d) 與 (g)：區域變數壽命短、Fiber Tree 常駐 Heap，兩者差在有沒有被引用。</li>
+<li><span class="wikilink" title="Obsidian 連結：12-return-清理記憶體-stack-frame與閉包例外">12-return-清理記憶體-stack-frame與閉包例外</span> — 解釋為什麼「被閉包引用的變數」是 stack frame 清理的例外，補完 (o)。</li>
+<li><span class="wikilink" title="Obsidian 連結：01-React-純函數與嚴格模式-StrictMode">01-React-純函數與嚴格模式-StrictMode</span> — StrictMode 刻意重複執行元件來抓副作用，跟 (a)(b) 的純函式觀念是一組。</li>
+<li><span class="wikilink" title="Obsidian 連結：useRef與Vue的ref-value-可變值不觸發渲染的兩種設計">useRef與Vue的ref-value-可變值不觸發渲染的兩種設計</span> — <code>useRef</code> 同樣掛在 memoizedState 鏈表上，差別只在改值不排程 re-render。</li>
+<li><span class="wikilink" title="Obsidian 連結：JIT與useMemo-CPU記憶體取捨">JIT與useMemo-CPU記憶體取捨</span> — <code>useMemo</code> 也是鏈表上的一個節點，理解 (i) 之後就懂它為什麼不能寫在條件式裡。</li>
+<li><span class="wikilink" title="Obsidian 連結：React兩階段渲染-Render與Commit-Mount-Update-Unmount生命週期">React兩階段渲染-Render與Commit-Mount-Update-Unmount生命週期</span> — 本篇講「狀態存在哪」，那篇講「狀態改變之後 React 怎麼把它送上畫面」，兩篇是同一條流程的前後段；(z) 說 key 改變會 Unmount，Unmount 在記憶體與 DOM 上具體發生什麼事就在那篇的第四節。</li>
+</ul>
+<h2 id="_7">各對話來源（原文）</h2>
+<h3 id="return-2026-08-28-httpsgeminigooglecomapp92bd0f70e642fe50">變數宣告與 Return 的差異（2026-08-28）— https://gemini.google.com/app/92bd0f70e642fe50</h3>
+<p><strong>使用者：</strong> 前面的例子在講宣告式跟命令式的不同，但除此之外，又講到原生的 JavaScript 必須要把外部變數定義好，然後再讓函式內部使用。是否是因為這樣子，才能給外部作用域使用？還是說其實我外部不用 let 宣告一個變數，但我內部宣告的變數或是參數寫了 return，一樣可以給外部使用呢？</p>
+<p><strong>Gemini：</strong> 核心答案是你的理解非常準確，不需要在外部先用 let 宣告變數，只要函式內部有 return，外部就可以接收並使用這個結果。Vue 官方文件那個範例先宣告 <code>let A2</code> 的原因不是「唯有這樣外部才能用」，而是為了演示副作用與狀態變更——<code>update()</code> 沒有返回值，它的目的就是去改變外部狀態 A2，Vue 的響應式系統核心就在於追蹤狀態變化並自動觸發更新。使用 return 則是純函式：資料流明確、無副作用、方便重複呼叫。對照表：外部宣告變數對應 <code>watchEffect</code> 或 DOM 渲染，使用 return 對應 <code>computed</code>。</p>
+<p><strong>使用者：</strong> 是否對 React 的 useState hook 來說，這個都是在函式元件內部的變數，所以它完全沒有所謂的 lexical scope 的外部變數？</p>
+<p><strong>Gemini：</strong> 不完全是這樣。useState 雖然在函式元件內部呼叫並宣告狀態，但它之所以能運作，背後完全依賴 JavaScript 的 Lexical Scope 與閉包機制。元件本質上只是一個每次渲染都會重新執行的普通函式，如果 state 單純只是區域變數，每次重新執行就會被重置。useState 能在多次渲染之間記住舊值，是因為 React 在元件外部（React 內部的 Fiber 節點／記憶體）維護了一個狀態鏈表。接著 Gemini 舉了 <code>setTimeout</code> 印出舊 count 的過期閉包範例。</p>
+<p><strong>使用者：</strong> 1. react 有一個自己私有的記憶體嗎 2. 幫我去我今天的行事曆寫上我需要實作過期閉包 3. 我還沒有真正了解剛剛延遲印出 count 是 0 這件事，我應該直接貼到我的專案中測試嗎？setTimeout() 應該是點擊的 3 秒後才觸發函式的意思嗎？</p>
+<p><strong>Gemini：</strong> 是的，React 內部有 Fiber Tree，狀態存在 Fiber 節點記憶體而非你的函式內部。行事曆部分回覆「已為你在今天的 Google Calendar 上新增這個研讀事項，標題：實作過期閉包原因：尚未真正了解延遲印出 count 為 0」。並強烈建議直接貼到專案中實作測試，附上 <code>ClosureTest</code> 元件範例。最後拆解時間軸：第 0 秒拍照、第 1–2 秒連點加 1、第 3 秒印出當初那張照片所以是 0。</p>
+<p><strong>使用者：</strong> 資料結構稱為 Fiber Tree（Fiber 樹）。是在記憶體嗎</p>
+<p><strong>Gemini：</strong> 是的，完全存在於瀏覽器的 JavaScript 堆積記憶體（Heap Memory）中。它本質上是一堆互相引用的普通 JavaScript 物件，透過指標彼此連結，駐留在 V8 分配的 Heap 中。之所以能在元件執行完後繼續存活，是因為 React 初始化時建立了一個長久存活的根物件 HostRoot。另外 React 在記憶體中同時維持 Current Tree 與 WorkInProgress Tree 兩棵樹，這就是雙重緩衝機制。</p>
+<p><strong>使用者：</strong> <code>() =&gt; setCount(count + 1)</code> 為啥要這樣寫算 IIFE?</p>
+<p><strong>Gemini：</strong> 它絕對不是 IIFE，只是一個普通的箭頭函式／回呼函式。IIFE 的核心定義是函式定義出來的當下就立刻執行，語法尾巴有一對 <code>()</code>。而 <code>onClick={() =&gt; setCount(count + 1)}</code> 在 React 渲染時只是建立了一個匿名函式交給 onClick，使用者真的點擊才會被呼叫。如果少了 <code>() =&gt;</code> 直接寫 <code>onClick={setCount(count + 1)}</code>，渲染到這一行就會立刻觸發，導致無限迴圈崩潰。</p>
+<p><strong>使用者：</strong> 所以他上次紀錄的值是放在 react fiber tree 裡面嗎？</p>
+<p><strong>Gemini：</strong> 是的。每個元件對應一個 FiberNode，節點物件內部有一個屬性叫 memoizedState，React 會在上面建立一個單向鏈表。第一次渲染時放入第一個節點值為 0；呼叫 setCount(1) 時 React 把更新請求掛到該節點的更新佇列並排定重新渲染；第二次渲染時 useState 檢查節點是否已存在，存在就忽略初始值 0，直接回傳 memoizedState 計算後的最新值 1。</p>
+<p><strong>使用者：</strong> 我不太懂我的元件寫在 type: Counter 是什麼意思，這邊的 Counter 是模仿 export default function 的元件名稱嗎？所以是有幾個 useState 就會有幾個 memoizedState 嗎？所有的 memoizedState 都會由一個 memoizedState 屬性包裹？第二次渲染不是已經到 useState(1) 了嗎？函式元件本身是無狀態的，你說在區域變數是一般的記憶體裡面嗎？</p>
+<p><strong>Gemini：</strong> 逐點回覆——(1) Counter 就是你定義的函式元件，函式也是物件，React 把它的引用存在 Fiber 的 type 屬性。(2) 每一個 Hook 對應鏈表中的一個節點，外層 <code>fiberNode.memoizedState</code> 是屬性名稱指向第一個 Hook，Hook 結構內部也有同名屬性存實際數值；沒有任何 Hook 時外層為 null。(3) 第二次渲染仍走到 useState(0) 是因為原始碼沒有改變，1 是 Fiber 查鏈表後回傳的。(4) 不管第幾次渲染都會檢查 Fiber 節點是否存在。(5) 區域變數存在 Stack 或短暫的 Heap，函式執行完若沒被閉包引用就會被 GC 銷毀；Fiber Tree 則長期駐留。</p>
+<p><strong>使用者：</strong> 我要介紹 useState 是要怎麼運作的，他是透過 fiberNode。你畫的是一個物件的結構，我也可以寫成 <code>class Node: def __init__(self, val, next)</code>。為什麼要寫成類別，有的又是寫成物件的方式？在 JS 中函式也是一種物件，那在 REACT 中函式也是一種物件嗎？</p>
+<p><strong>Gemini：</strong> 無論用 Class 還是 Plain Object，在記憶體中建立出來的本質都是物件，差別在抽象層級與設計習慣。Class 適合當藍圖、可封裝方法、支援強型別檢查；Plain Object 語法簡潔、適合純資料結構。至於函式，JavaScript 中函式是一等公民且本身就是可呼叫物件，React 是用 JavaScript 寫的所以完全適用，Fiber 的 <code>type</code> 存的就是 Counter 這個函式物件本身。</p>
+<p><strong>使用者：</strong> 所以你只是用一個物件去表現 FiberNode，並非 react 官方真的就是這樣寫的嗎？</p>
+<p><strong>Gemini：</strong> 是的，我寫的是極度簡化的示意模型。React 官方原始碼（<code>packages/react-reconciler/src/ReactFiber.js</code>）確實定義了一個 <code>function FiberNode(tag, pendingProps, key, mode)</code> 建構函式，裡面設定 tag、key、elementType、type、return、child、sibling、memoizedState、updateQueue、alternate 等欄位，運作時透過 <code>new FiberNode(...)</code> 實例化。不管寫成 class 還是物件文字量，在 Heap 裡產生的實體都是 JavaScript 物件。</p>
+<h3 id="2026-08-28-httpsgeminigooglecomapp599804dd5ba114af">程式碼報錯原因解析（2026-08-28，語音模式片段）— https://gemini.google.com/app/599804dd5ba114af</h3>
+<blockquote>
+<p>這是一段語音輸入的對話，語音辨識品質很差，以下只擷取有技術內容的段落。</p>
+</blockquote>
+<p><strong>使用者：</strong> React is about concurrent mode. 但是它是可以在 render 階段就是中斷暫停，丟棄重來的。</p>
+<p><strong>Gemini：</strong> 是的，React 的 Concurrent Mode 確實允許在 Render 階段中斷工作、暫停，甚至在必要時放棄重來，以維持 UI 的流暢性。</p>
+<p><strong>使用者：</strong> 他的 fiber tree 有關係喔！（語音辨識為「他的飛機和 fiber tree」）</p>
+<p><strong>Gemini：</strong> 是的，React 的 Fiber tree 是 Concurrent Mode 的核心，它讓引擎能夠在背景運算並追蹤各個組件的狀態與更新順序。</p>
+<h3 id="2026-08-31-return-httpsgeminigooglecomapp1f0cc8c21e6f88b5">追加 2026-08-31｜變數宣告與 Return 的差異（第二串同名對話）— https://gemini.google.com/app/1f0cc8c21e6f88b5</h3>
+<blockquote>
+<p>側欄有兩串同名對話，這一串是延續前一串往下追問 Fiber 內部細節的部分。前半段（Fiber Tree 在哪、IIFE、memoizedState 鏈表、type: Counter、官方原始碼寫法）與上一串重複，已合併在上方重點整理，此處只保留新增的問答。</p>
+</blockquote>
+<p><strong>使用者：</strong> Fiber node 還有哪些屬性？</p>
+<p><strong>Gemini：</strong> 分成六大類——(1) 結構指標 <code>child</code>／<code>sibling</code>／<code>return</code>，React 拋棄傳統的 <code>children</code> 陣列改用單向鏈表。(2) 元件類型與標記 <code>tag</code>（FunctionComponent=0、ClassComponent=1、HostComponent=5）、<code>key</code>、<code>elementType</code>、<code>type</code>。(3) 狀態與屬性 <code>pendingProps</code>、<code>memoizedProps</code>、<code>memoizedState</code>、<code>updateQueue</code>。(4) 畫面真實 DOM 連結 <code>stateNode</code>。(5) 優先級與排程 <code>lanes</code>、<code>childLanes</code>，React 18 Concurrent Mode 的核心。(6) 雙重緩衝 <code>alternate</code>。</p>
+<p><strong>使用者：</strong> 單向 linked list 比較快？Function component 沒有實例那 class component 就有喔？他長怎樣？那 fibernode 沒有 scheduling 屬性嗎？</p>
+<p><strong>Gemini：</strong> (1) 是的。陣列需要連續記憶體、頻繁建立會增加 GC 壓力；更關鍵的是傳統遞迴走訪樹會把 Call Stack 疊很高，一旦開始就無法中途暫停去處理高優先級任務。改用 <code>child</code>／<code>sibling</code>／<code>return</code> 之後，React 可以用一個 <code>while</code> 迴圈（<code>workLoop</code>）遍歷整棵樹，目前位置只是一個指標變數 <code>workInProgress</code>，隨時可以記住位置、釋放主執行緒、之後接著跑。(2) Class Component 確實有實例，React 底層會 <code>new MyClassComponent(props)</code>，這個實例存在 FiberNode 的 <code>stateNode</code> 屬性中，包含 <code>this.props</code>、<code>this.state</code>、<code>this.setState</code> 與你定義的方法；Function Component 只是純函式，執行完就結束，所以 <code>stateNode</code> 永遠是 <code>null</code>。(3) 有，排程屬性就是 <code>lanes</code> 與 <code>childLanes</code>（位元遮罩）；<code>childLanes</code> 為 0 代表整棵子樹沒有待處理任務可以直接跳過。除此之外 React 還有一個獨立的 <code>Scheduler</code> 套件，Task 內含 <code>expirationTime</code>、<code>callback</code>、<code>priorityLevel</code>，內部用最小堆積（Min-Heap）管理，確保最急的任務先執行。</p>
+<p><strong>使用者：</strong> 最好用資料的 id 而非索引值來當 key？Key 有變的話會 unmount 嗎？</p>
+<p><strong>Gemini：</strong> (1) 是的。用 index 當 key，在「順序改變、中間插入、刪除項目」時會讓 Diff 演算法誤判。以 <code>['A','B']</code> 前面插入 <code>'NEW'</code> 為例，用 index 會導致三個 DOM 全部被重新修改，用 id 則只會插入一個新節點。更嚴重的是列表項帶有內部 state 或 <code>&lt;input&gt;</code> 時，刪掉第一筆後第二筆 index 遞補為 0，React 會保留舊 DOM 與內部狀態只替換 props，畫面上就會殘留你輸入給前一筆的內容。(2) 會，完全會。同層級＋同元件類型＋同 key 才視為同一個元件實體；key 改變 React 就會把舊元件完全 Unmount（銷毀 DOM、觸發 useEffect cleanup）並重新 Mount 新元件（重置所有 useState）。這個特性可以反過來當作重置狀態的乾淨做法，例如 <code>&lt;UserProfileForm key={userId} userId={userId} /&gt;</code>。</p>
+<h3 id="2026-09-01-return-httpsgeminigooglecomapp76cde95192586aa7">追加 2026-09-01｜變數宣告與 Return 的差異（第三串同名對話）— https://gemini.google.com/app/76cde95192586aa7</h3>
+<blockquote>
+<p><mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這是側欄第三串同名對話，內容與前兩串<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">高度重複</mark>，逐字比對後<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有任何新增知識點</mark>：Fiber Tree 在 Heap Memory、<code>() =&gt; setCount(count+1)</code> 不是 IIFE、<code>memoizedState</code> 單向鏈表、<code>type: Counter</code> 的意義、為什麼第二次渲染仍走到 <code>useState(0)</code>、區域變數 vs Fiber Tree 的壽命、Class 與 Plain Object 表示法等價、官方原始碼的 <code>function FiberNode(tag, pendingProps, key, mode)</code> 建構函式、FiberNode 六大類屬性、單向鏈表為何優於陣列、Class 實例存在 <code>stateNode</code>、Lanes 與 Scheduler 的 Min-Heap、<code>key</code> 用 id 而非 index、<code>key</code> 改變會 Unmount——以上全部已收錄在本篇 (d)–(z)。</mark></p>
+<p>為節省磁碟空間<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不重複收錄原文</mark>，僅把對話 ID 登記進 frontmatter 的 <code>sources</code>，避免下次增量掃描又把它當成待處理項目。若日後需要原文，直接點上方連結即可。</p>
+</blockquote>
+<h2 id="_8">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇對話（變數宣告與 Return 的差異，第二串）</td>
+<td>https://gemini.google.com/app/1f0cc8c21e6f88b5</td>
+<td>Gemini Flash，2026-08-31</td>
+</tr>
+<tr>
+<td>本篇對話（變數宣告與 Return 的差異，第三串，內容重複未另收錄）</td>
+<td>https://gemini.google.com/app/76cde95192586aa7</td>
+<td>Gemini Flash，2026-09-01 查證</td>
+</tr>
+<tr>
+<td>React 原始碼 — ReactFiberWorkLoop.js（<code>workLoop</code> 與可中斷渲染）</td>
+<td>https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js</td>
+<td>main 分支，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>React 原始碼 — ReactFiberLane.js（Lanes 位元遮罩定義）</td>
+<td>https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberLane.js</td>
+<td>main 分支，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>React 官方 — Rendering Lists（為什麼要用穩定的 key）</td>
+<td>https://react.dev/learn/rendering-lists#why-does-react-need-keys</td>
+<td>react.dev 現行文件，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>React 官方 — Preserving and Resetting State（用 key 重置狀態）</td>
+<td>https://react.dev/learn/preserving-and-resetting-state</td>
+<td>react.dev 現行文件，2026-08-31 查證</td>
+</tr>
+<tr>
+<td>本篇對話（變數宣告與 Return 的差異）</td>
+<td>https://gemini.google.com/app/92bd0f70e642fe50</td>
+<td>Gemini Flash，2026-08-28</td>
+</tr>
+<tr>
+<td>本篇對話（程式碼報錯原因解析，語音片段）</td>
+<td>https://gemini.google.com/app/599804dd5ba114af</td>
+<td>Gemini Flash，2026-08-28</td>
+</tr>
+<tr>
+<td>React 官方 — State as a Snapshot（過期閉包的官方說法）</td>
+<td>https://react.dev/learn/state-as-a-snapshot</td>
+<td>react.dev 現行文件，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>React 官方 — Queueing a Series of State Updates</td>
+<td>https://react.dev/learn/queueing-a-series-of-state-updates</td>
+<td>react.dev 現行文件，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>React 原始碼 — ReactFiber.js（FiberNode 建構函式）</td>
+<td>https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiber.js</td>
+<td>main 分支，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>Vue 官方 — 深入響應式系統（(a) 的 A0/A1/A2 範例出處）</td>
+<td>https://vuejs.org/guide/extras/reactivity-in-depth.html</td>
+<td>Vue 3 現行文件，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>MDN — Closures</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Closures</td>
+<td>MDN 現行版本，2026-08-29 查證</td>
+</tr>
+<tr>
+<td>MDN — IIFE 詞彙表</td>
+<td>https://developer.mozilla.org/en-US/docs/Glossary/IIFE</td>
+<td>MDN 現行版本，2026-08-29 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-08-31</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-01</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

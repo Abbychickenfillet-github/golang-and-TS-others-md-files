@@ -5,13 +5,93 @@ tags: [javascript, symbol, 物件, key, JS_Core_and_Runtime]
 sources:
   - https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol
   - https://gemini.google.com/app/64ba1028141e5c94
-updated: 2026-08-14
+  - https://gemini.google.com/app/d703923c0ccc127d
+updated: 2026-09-09
 ---
 
 # Symbol 符號型別 & 物件的 key 只能 string / symbol
 
 > 相關：[[查看plain-object的prototype]]、[[Object靜態方法速查]]、[[for...of]]
 > MDN：<https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol>
+
+---
+
+## 5W1H 速查：讀本篇之前先把座標定好
+
+> [!important]+ 最常被搞錯的一件事：<mark style="background: #FF5582A6;">原始碼裡的 `Symbol("id")` 不是一個常數，它是一道「每次執行都造一個新值」的指令</mark>
+> 很多人把 `Symbol("id")` 看成像 `"id"` 那樣的字面值，以為寫兩次就是同一個東西——所以看到 `Symbol("id") === Symbol("id")` 竟然是 `false` 會傻住。<mark style="background: #ADCCFFA6;">括號裡那串字只是給人看的說明文字，跟身分無關</mark>；真正的身分是<mark style="background: #FFF3A3A6;">執行期執行到那一行的當下，引擎替你造出來的那一個值</mark>。這也是為什麼「你沒留住變數就再也取不到那個值」——你沒辦法重建同一個 Symbol。要「同一個」請改用走全域符號登錄檔的 `Symbol.for("id")`。
+
+| 5W1H | 問題 | 一句話答案 |
+|---|---|---|
+| **What** 是什麼 | Symbol 是什麼？ | ES6 新增的<mark style="background: #ADCCFFA6;">原始型別（primitive）</mark>，特色是「獨一無二」，每個 Symbol 都不相等。`typeof` 出來是 `"symbol"` |
+| **When** 什麼時候 | 一個 Symbol 值是何時被建立的？ | <mark style="background: #FF5582A6;">runtime 執行期</mark>，而且是「執行到那一行」的當下。buildtime 的轉譯與打包只是把這行字搬來搬去，<mark style="background: #FF5582A6;">不會產生任何 Symbol 值</mark> |
+| **Who** 誰做的 | 誰建立它？ | JS 引擎。`Symbol()` 每次呼叫都造一個新的；`Symbol.for()` 先去<mark style="background: #ADCCFFA6;">全域符號登錄檔</mark>查表（單純查表，不是迴圈），找到就回傳同一個，沒找到才建立並登記 |
+| **Where** 在哪裡 | 它存在哪裡？ | 只存在<mark style="background: #BBFABBA6;">執行期的記憶體</mark>裡。資料庫沒有 Symbol 這個型別，`JSON.stringify` 也直接忽略 Symbol key，<mark style="background: #FF5582A6;">一旦要序列化落地，它就消失了</mark> |
+| **Which** 哪一種 | 物件的 key 可以是哪些型別？ | 只有 <mark style="background: #BBFABBA6;">string 與 symbol</mark> 兩種。其他型別都會被自動轉成字串，物件當 key 會全部撞在 `"[object Object]"`。要任意型別當 key 請改用 `Map` |
+| **How** 怎麼做到 | 怎麼把 Symbol 當 key？ | 先把它存進變數，再用 `[變數]` 這個計算屬性鍵寫進物件；讀回來也必須用同一個變數加中括號。直接寫 `{ id: 1 }` 得到的是字串 key `"id"`，跟那個 Symbol 完全無關 |
+| **Why** 為什麼 | 為什麼需要這種型別？ | 為了解決<mark style="background: #FFF3A3A6;">「同一個 JS 執行環境裡，不同函式庫往同一個物件掛屬性會不會撞名」</mark>。它提供的是<mark style="background: #FF5582A6;">弱封裝（weak encapsulation）</mark>——只是不顯眼，`Object.getOwnPropertySymbols` 與 `Reflect.ownKeys` 照樣撈得到，<mark style="background: #FF5582A6;">絕對不能拿來藏密碼或 token</mark> |
+
+### 時間軸：從 buildtime 到 runtime，Symbol 值站在哪一格
+
+```text
+◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
+      （你的電腦或 CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤真的執行到那一行
+ transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
+ ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
+ │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ ★ 執行 Symbol()   │
+ │tsc     │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│   造出一個全新、   │
+ │SWC     │   │Rollup  │      │AST       │   │Bytecode  │   │   永不相等的值     │
+ └────────┘   └────────┘      └──────────┘   └──────────┘   ├──────────────────┤
+      │             │              │                        │ ★ Symbol.for()   │
+      ▼             ▼              ▼                        │   查全域登錄檔     │
+ 這三格看到的都只是                                          │   有就拿舊的       │
+「Symbol("id") 這幾個字元」，                                 ├──────────────────┤
+ 沒有任何 Symbol 值被建立。                                   │ ★ 存進物件當 key  │
+ 打包工具甚至可能把它搬位置、                                  │   讀取要用同一個   │
+ 改變數名，但值一個都沒生出來。                                │   變數＋中括號     │
+                                                            ├──────────────────┤
+                                                            │ ★ 序列化就消失    │
+                                                            │ JSON.stringify    │
+                                                            │ 忽略 Symbol key   │
+                                                            │ 資料庫沒這個型別   │
+                                                            └──────────────────┘
+
+ ★ Symbol 值站在第 ⑤ 格，而且「同一行程式碼跑幾次就造幾個」。
+   這就是 Symbol("id") === Symbol("id") 為 false 的全部原因。
+```
+
+同一件事用 Mermaid 再畫一次：
+
+```mermaid
+flowchart LR
+    subgraph BT["buildtime 建置期：只是字元，沒有任何 Symbol 值"]
+        T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+    end
+    subgraph RT1["runtime 執行期 · 只做一次的部分"]
+        P["Parse 解析<br/>Scanner → Parser → AST<br/>看到的仍只是語法節點"] --> BC["Ignition 產生 Bytecode"]
+    end
+    subgraph RT2["runtime 執行期 · 執行到那一行才發生"]
+        S1["★ Symbol&#40;'id'&#41;<br/>造出全新、永不相等的值<br/>跑幾次就造幾個"] --> S2["★ Symbol.for&#40;'id'&#41;<br/>查全域符號登錄檔<br/>有就回傳同一個"]
+        S2 --> S3["★ 當成物件 key 寫入<br/>用計算屬性鍵 中括號變數<br/>不會出現在 for...in／Object.keys"]
+        S3 --> S4["★ 序列化就消失<br/>JSON.stringify 忽略<br/>資料庫沒有 Symbol 型別"]
+    end
+    BU --> P
+    BC --> S1
+    S4 -.->|"再執行一次同一行<br/>就是另一個全新的 Symbol"| S1
+```
+
+> [!info]+ 一句話驗證法：這件事屬於哪一格？
+> 問自己：<mark style="background: #BBFABBA6;">「這件事對同一行程式碼做幾次？」</mark>
+>
+> 1. 只做一次、而且部署前就做完 → buildtime（第 ①②格），例如把 TypeScript 的型別註記拿掉。
+>
+> 2. 每個函式只做一次 → runtime 的解析與編譯（第 ③④格），例如 Parser 認出 `Symbol("id")` 是一個函式呼叫表達式。
+>
+> 3. 執行幾次就發生幾次 → runtime 的執行（第 ⑤格），<mark style="background: #FFF3A3A6;">Symbol 值的誕生就在這一格</mark>。
+
+---
 
 ## 一句話
 
@@ -176,10 +256,26 @@ f. <mark style="background: #FF5582A6;">資料庫沒有 Symbol 這個資料型�
 
 ---
 
+### 追加 2026-09-09：`Symbol.for` 與「一定要用變數接住」的再確認
+
+g. 又一次對話問到同樣兩件事，答案跟上面完全一致，這裡只做<mark style="background: #D2B3FFA6;">交叉確認</mark>、不重複展開：
+
+- <mark style="background: #BBFABBA6;">`Symbol.for("b")` 會先去全域符號登錄檔（global registry）找鍵為 `"b"` 的 Symbol，找到就回傳既有的，找不到才新建並註冊</mark>。這正是它跟 `Symbol("b")` 的分水嶺——後者每次執行都造一個新值。
+- <mark style="background: #FF5582A6;">為什麼一定要寫 `const a = Symbol("a")` 而不能每次現寫 `Symbol("a")`</mark>：因為沒把值接住就再也拿不到那個 Symbol 的參考，也就無法拿它當 key 去存取。（用 `Symbol.for` 則沒有這個問題，因為登錄檔幫你記住了。）
+
+> [!tip]+ 面試常考的 prototype 三題（同場加映）
+> 該次對話也順帶問了「面試會考的 Object.prototype 問題」，Gemini 給的三題是：<mark style="background: #FFF3A3A6;">解釋原型鏈的概念與運作</mark>、<mark style="background: #FFF3A3A6;">`__proto__` 與 `prototype` 的差別</mark>、<mark style="background: #FFF3A3A6;">`instanceof` 與 `Object.create` 怎麼用</mark>。這三題在 vault 裡都有完整答案：[[函式的兩條線-prototype屬性與Prototype原型]]、[[原型鏈階數-互動版]]、[[查看plain-object的prototype]]，以及整理好的 [[原型-面試考題]]。
+
+> [!warning]+ ⚠️ 該次對話品質備註
+> 這是一段<mark style="background: #FF5582A6;">語音輸入的對話，逐字稿辨識嚴重破碎</mark>（「新寶石」＝Symbol、「原信念」＝原型鏈、「full」＝`for`），中間還混進了完全無關的生活問題。技術內容<mark style="background: #D2B3FFA6;">全部與本篇既有段落重疊</mark>，因此不另開新筆記，只在此併入來源與交叉確認。<mark style="background: #ADCCFFA6;">`Object.getOwnPropertySymbols` 的使用情境</mark>那一問對方沒有回答完，若還想知道請見本篇第 8 節與 [[Object靜態方法vs原型方法-Symbol弱封裝與species]]。
+
+---
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／時間 |
 |---|---|---|
 | 第 6–9 節原始對話 | https://gemini.google.com/app/64ba1028141e5c94 | Gemini 對話（語音輸入），整理於 2026-08-14 |
+| 追加段：`Symbol.for` 登錄檔、變數接住、prototype 面試三題 | https://gemini.google.com/app/d703923c0ccc127d | Gemini 對話（語音輸入），整理於 2026-09-09 |
 | Symbol 型別、`Symbol.for`、`new Symbol()` 拋錯、weak encapsulation 原文 | https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol | MDN，查證於 2026-08-14 |
 | class 私有欄位 `#`（真正的封裝） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_properties | MDN，查證於 2026-08-14 |
