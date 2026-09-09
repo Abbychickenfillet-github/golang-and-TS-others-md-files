@@ -1,8 +1,21 @@
 ---
-title: "HTML 解析（Run-time）與 <script> 六種載入模式（同步／defer／async／body 結尾／module／Ajax）"
+title: HTML 解析（Run-time）與 <script> 六種載入模式（同步／defer／async／body 結尾／module／Ajax）
 type: topic-note
 source: Gemini
-tags: [html, html-parsing, dom-tree, script-loading, defer, async, es-module, ajax, 阻塞解析, parser-blocking, main-thread, runtime]
+tags:
+  - html
+  - html-parsing
+  - dom-tree
+  - script-loading
+  - defer
+  - async
+  - es-module
+  - ajax
+  - 阻塞解析
+  - parser-blocking
+  - main-thread
+  - runtime
+  - speculative-parsing
 related:
   - "[[作用域-scope-global-function-block]]"
   - "[[Markdown-渲染為DOM的過程]]"
@@ -15,15 +28,7 @@ sources:
 updated: 2026-08-11
 quiz: script載入方式-sync-defer-async.html
 ---
-
-# HTML 解析（Run-time）與 `<script>` 六種載入模式
-
-> 主軸互動圖：`script載入方式-sync-defer-async.html`（純文字→Parsing→DOM 動畫＋三種載入時間軸＋自我測驗）。後續追問優先指回那張圖的某個步驟。
->
-> 素材：(1) Gemini Flash「什麼是 HTML 解析（Run-time）」；(2) 手寫「script 載入模式大表格」（蓋房子／買說明書／看說明書）。
-
-**本篇重點 (a)–(q)，共 17 個。**
-字母只給「真正並排、彼此獨立」的重點；同一個重點底下的延伸說明**不另給字母**（例如「多個 async 不保證順序的例子」是 async 的延伸，跟著 (e)，不另立字母）。六種 script 模式是並排關係，所以 (d)–(i) 各佔一個。
+# <mark style="background: #FFB86CA6;">HTML 解析</mark>（<mark style="background: #FF5582A6;">Run-time</mark>）與 `<script>` 六種載入模式
 
 ---
 
@@ -33,9 +38,12 @@ quiz: script載入方式-sync-defer-async.html
 
 一條主線，底下都是它的延伸：
 
-- **收到的是純文字字串**：伺服器把 `index.html` 丟過來，瀏覽器當下拿到的不是「網頁」，而是一整條純文字 `<!DOCTYPE html><html>…<div id="root">…</div>…`。對電腦來說，`<div>` 一開始只是 5 個字元，不是「可設寬高、可掛事件的物件」。
+- **收到的是純文字字串**：伺服器把 `index.html` 丟過來，瀏覽器當下拿到的不是「網頁」，而是一整條純文字
+	   這邊不是CSR, SSR, SSG, 純靜態HTML, PHP, WordPress, Rails的專屬他們全一樣。這是HTML標準規定的解析流程。無例外。
+- `<!DOCTYPE html><html>…<div id="root">…</div>…`。對電腦來說，`<div>` 一開始只是 5 個字元，不是「可設寬高、可掛事件的物件」。
+	 舉的例子是React CSR因為有div id ="root"
 - **瀏覽器看不懂字串**：字串沒有父子關係、沒有屬性物件、沒有方法可呼叫，不能拿來排版/渲染/掛事件。所以一定要有一個**轉換步驟**＝ **HTML Parsing**。（同源觀念：[Markdown-渲染為DOM的過程](Markdown-渲染為DOM的過程.md)——`.md` 也要先轉成 HTML 字串才有戲。）
-- **發生在 Run-time、用使用者的 CPU**：這個解析不是在伺服器先做好，而是**使用者打開網頁那一刻，在他自己的裝置、用他的 CPU** 現場一個字元一個字元讀過去、蓋出結構。→ HTML 越長、節點越多，弱裝置首屏越卡。
+- **發生在 Run-time、<mark style="background: #FFB86CA6;">用使用者的 CPU</mark>**：<mark style="background: #FFF3A3A6;">這個解析不是在伺服器先做好，而是**使用者打開網頁那一刻，在他自己的裝置、用他的 CPU** 現場一個字元一個字元讀過去、蓋出結構。</mark>→ HTML 越長、節點越多，弱裝置首屏越卡。
 - **產物是記憶體裡的 DOM 樹**：解析器在主執行緒上把字串讀成一棵樹（`<html>` 為根，掛 `<head>`/`<body>`，再掛 `<div>`/`<p>`…）。
 <mark style="background: #FFF3A3A6;">- **最具體的一句**：解析器讀到 `<div>` 這段**文字**，就在記憶體 `new` 出一個 **`HTMLDivElement`** 物件（繼承鏈 `HTMLDivElement`→`HTMLElement`→`Element`→`Node`）。物件才有 `.style`、`.className`、`.appendChild()`、`.addEventListener()`。**字串裡的 `<div>` 選不到也操作不動；變成物件、掛上 DOM 樹後，CSS 才選得到、JS 才操作得動。**</mark>
 - **⚠️ 做這件事的是誰？是瀏覽器的「HTML 解析器（渲染引擎，Chrome 是 Blink）」，不是 V8**：V8 是 **JavaScript 引擎、只處理 JS**。把 HTML 字串變 DOM 樹跟 V8 無關；V8 是**另一條線**（JS→AST→bytecode→機器碼，見 (q)）。**HTML 永遠不會進 V8、不會變成 AST／bytecode。** 兩者都在主執行緒上用 CPU，但是兩個不同元件。
@@ -117,6 +125,40 @@ Vite／原生 ES Module 預設作法。特性：① **預設就是 defer 行為*
 ---
 
 ## 🔄 四、完整流程：React → 打包 → 純文字 → 瀏覽器解析 → DOM 樹(此為簡略流程)
+
+> ### 📌 這節為什麼在這裡（未來的我請先讀這段）
+>
+> **建構步驟不是離題，它是被 (a) 逼出來的。** 因果鏈如下：
+>
+> ```text
+> (a) 說：瀏覽器拿到的是「純文字」
+>         ↓ 讀者（也就是三個月後的你）立刻會問：
+>         ↓ 「那我寫的 JSX / TS 呢？瀏覽器看得懂 <div className="a"> 嗎？」
+> (k) 回答：看不懂。所以 build-time 要先轉譯打包成純文字
+>         ↓ 「那 build 到底做了哪些事？」
+> 五步詳解：建相依圖 → 轉譯 → bundle → 最佳化 → 產出
+>         ↓ 「那這算『編譯』嗎？前端 build 完是機器碼嗎？」
+> (q) 回答：不算。編譯躲在三處，build-time 那個是「轉譯」，產物仍是純文字 JS
+> ```
+>
+> **一句話：本節是在補「那串純文字是怎麼生出來的」這個洞。** 沒有它，(a) 的「瀏覽器拿到純文字」就會變成天上掉下來的前提。
+>
+> #### 更重要的：本節與 (b) 是一組對照
+>
+> | | (b) 主執行緒只有一條 | (k) build-time 做一次 |
+> |---|---|---|
+> | 講的時間軸 | **run-time** | **build-time** |
+> | 誰的 CPU | 每一個使用者的 | 開發者／CI 的 |
+> | 做幾次 | **幾百萬次**（每人各一次） | **一次** |
+> | 結論 | 這條線很擠，搶不得 | **所以能搬去 build 做的都先搬** |
+>
+> 本節那句「**同一份打包產物，被幾百萬使用者的 CPU 各自解析一次**」就是全篇的樞紐 ——
+> 後面的 `defer`、`async`、code splitting、tree-shaking，**全部是這一句的推論**。
+>
+> 📎 至於「純文字如何變成 DOM」那四個步驟（bytes → decode → tokenize → tree construction），
+> 見 [[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]] —— 那篇是本篇的**前傳**，
+> 把 (a) 一句話帶過的東西整條展開，並解釋 DOM 節點的原型繼承鏈為什麼讓它能掛事件。
+
 
 ### (k) build-time 做一次、run-time 每個使用者各做一次
 
@@ -397,6 +439,7 @@ hydration 之後，互動造成的 re-render 回到瀏覽器端，跟 CSR 一樣
 ---
 
 ## 相關筆記
+- [[00-前端建構到執行全景地圖]] —— HTML/CSS/JS/React/Vue 各自 build-time→runtime 的總地圖，本篇是其中 HTML/JS 那兩列的來源篇
 - [如何寫入口檔-index-js-main-tsx](如何寫入口檔-index-js-main-tsx.md) —— 打包第①步「入口/相依圖」的延伸：入口檔怎麼寫
 - [SPA架構-入口點-CSR客戶端效能與狀態-部署](SPA架構-入口點-CSR客戶端效能與狀態-部署.md) —— 承接五、六節的深入追問
 - [SSR-renderToString與Hydration-伺服器端渲染流程](../react/SSR-renderToString與Hydration-伺服器端渲染流程.md) —— SSR 與 hydration 的深入版

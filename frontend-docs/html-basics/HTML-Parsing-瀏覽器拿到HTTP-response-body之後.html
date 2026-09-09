@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HTML Parsing：瀏覽器拿到 HTTP response body 之後</title>
+<style>
+:root{
+  --pink:#FFC0CB; --deep:#C2185B; --wine:#4A0033; --bg:#FFF5F8; --card:#ffffff;
+  --line:#f3c9d8; --ink:#2b2b33; --muted:#6b7280; --code:#fdf1f6;
+  --ok:#0f8a5f; --bad:#c62828; --warn:#b26a00;
+  --s1:#E91E63; --s2:#9C27B0; --s3:#3F51B5; --s4:#00897B;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  line-height:1.85; font-size:16px;
+}
+.wrap{max-width:1340px;margin:0 auto;padding:28px 20px 90px}
+header.hero{
+  background:linear-gradient(135deg,#C2185B 0%,#E91E63 45%,#FF80AB 100%);
+  color:#fff;border-radius:20px;padding:34px 30px;margin-bottom:26px;
+  box-shadow:0 12px 30px rgba(194,24,91,.22);
+}
+header.hero h1{margin:0 0 10px;font-size:1.85rem;letter-spacing:.5px}
+header.hero p{margin:6px 0;opacity:.95;font-size:.95rem}
+.meta{font-size:.82rem;opacity:.9;margin-top:14px;border-top:1px solid rgba(255,255,255,.3);padding-top:12px}
+
+h2{
+  font-size:1.32rem;color:var(--wine);margin:44px 0 14px;padding:10px 0 10px 16px;
+  border-left:7px solid var(--deep);background:linear-gradient(90deg,#ffe4ee,transparent);
+  border-radius:0 10px 10px 0;
+}
+h3{font-size:1.08rem;color:var(--deep);margin:26px 0 10px}
+h4{font-size:.99rem;color:var(--wine);margin:18px 0 8px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:16px 0;box-shadow:0 3px 12px rgba(194,24,91,.06)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+
+code{background:var(--code);color:#a3185b;padding:2px 7px;border-radius:6px;font-family:"Cascadia Code",Consolas,Menlo,monospace;font-size:.9em}
+pre{background:#2b1b26;color:#ffe7f1;padding:16px 18px;border-radius:12px;overflow-x:auto;font-size:.87rem;line-height:1.7}
+pre code{background:none;color:inherit;padding:0}
+
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem;background:#fff;border-radius:12px;overflow:hidden;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#ffe4ee;color:var(--wine);font-weight:700;white-space:nowrap}
+tbody tr:nth-child(even){background:#fffafc}
+
+.note{border-left:5px solid var(--deep);background:#fff0f6;padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+.warn{border-left:5px solid var(--warn);background:#fff8e8;padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+.good{border-left:5px solid var(--ok);background:#eefaf4;padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+
+.stars{color:#FFB300;letter-spacing:3px;font-size:1.15rem}
+.badge{display:inline-block;background:var(--deep);color:#fff;border-radius:999px;padding:2px 12px;font-size:.76rem;margin-right:6px;vertical-align:middle}
+.badge.g{background:var(--ok)} .badge.b{background:#546e7a} .badge.p{background:#7B1FA2}
+
+/* 互動元件 */
+.blank{
+  display:inline-block;min-width:88px;background:#ffe0ec;border-bottom:2px dashed var(--deep);
+  color:transparent;cursor:pointer;border-radius:5px;padding:0 8px;user-select:none;transition:.2s;font-weight:700;
+}
+.blank:hover{background:#ffd0e2}
+.blank.on{color:var(--deep);background:#fff3f8;border-bottom:2px solid var(--ok)}
+.hint{font-size:.8rem;color:var(--muted)}
+
+button.toggle{
+  background:var(--deep);color:#fff;border:0;border-radius:999px;padding:7px 18px;
+  cursor:pointer;font-size:.87rem;font-family:inherit;transition:.18s;
+}
+button.toggle:hover{background:#8e1147;transform:translateY(-1px)}
+.answer{display:none;margin-top:12px;background:#f4fff9;border:1px solid #b6e6cf;border-radius:12px;padding:14px 16px}
+.answer.show{display:block;animation:fade .25s}
+@keyframes fade{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+
+.tf{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:12px 0}
+.tf .q{font-weight:600;margin-bottom:9px}
+.tf .btns{display:flex;gap:9px;flex-wrap:wrap}
+.tf button{border:1.5px solid var(--deep);background:#fff;color:var(--deep);border-radius:999px;padding:5px 20px;cursor:pointer;font-family:inherit;font-size:.87rem}
+.tf button:hover{background:#ffe4ee}
+.tf .fb{margin-top:10px;display:none;border-radius:10px;padding:11px 13px;font-size:.9rem}
+.tf .fb.show{display:block}
+.fb.right{background:#eefaf4;border-left:4px solid var(--ok)}
+.fb.wrong{background:#fdeeee;border-left:4px solid var(--bad)}
+
+.essay{background:#fbf6ff;border:1px solid #e3d4f2;border-radius:14px;padding:15px 17px;margin:13px 0}
+.essay textarea{width:100%;min-height:96px;border:1px solid #d9c4ec;border-radius:10px;padding:10px;font-family:inherit;font-size:.9rem;resize:vertical}
+
+.toc{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 22px}
+.toc ol{margin:6px 0 0;padding-left:22px}
+.toc li{margin:4px 0}
+.toc a{color:var(--deep);text-decoration:none}
+.toc a:hover{text-decoration:underline}
+
+.figwrap{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+@media(max-width:1100px){.figwrap{grid-template-columns:1fr;max-width:720px;margin:0 auto}}
+figure{margin:0;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px}
+figcaption{font-size:.88rem;color:var(--muted);margin-top:10px;text-align:center;line-height:1.7}
+svg{width:100%;height:auto;display:block}
+
+a{color:var(--deep)}
+.srcbox{font-size:.86rem}
+.kbd{background:#eceff1;border:1px solid #cfd8dc;border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-size:.83em}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>HTML Parsing：瀏覽器拿到 HTTP response body 之後</h1>
+  <p>從網路上的 <b>bytes</b>，到記憶體裡可以掛事件的 <b>DOM 物件</b>，中間到底發生了哪四件事。</p>
+  <p>附帶回答：HTML 也有 tokenizer 嗎？<code>in head</code> 那些字串是什麼？CSR 跟 PHP 在這條線上有差嗎？</p>
+  <div class="meta">
+    姊妹篇：<code>HTML文件結構-DOCTYPE與骨架.md</code>（同資料夾）｜<code>../web-platform/script載入方式+前因後果.md</code>｜<code>../web-platform/Markdown-渲染為DOM的過程.md</code><br>
+    建立 2026-09-08　｜　所有外部連結於 2026-09-08 查證
+  </div>
+</header>
+
+<nav class="toc">
+  <b>本篇章節（依步驟順序編號，共 10 節）</b>
+  <ol>
+    <li><a href="#s1">主軸圖：四步流水線 ＋ 原型繼承鏈</a></li>
+    <li><a href="#s2">步驟 1 — bytes：網路上流的到底是什麼</a></li>
+    <li><a href="#s3">步驟 2 — decoding：bytes 怎麼變成字元，以及那個雞生蛋問題</a></li>
+    <li><a href="#s4">步驟 3 — tokenization：HTML 也有 tokenizer；並回答「轉譯之後才能 parse 嗎」（4-b）</a></li>
+    <li><a href="#s5">步驟 4 — tree construction：<code>in head</code> 那些字串是什麼</a></li>
+    <li><a href="#s6">DOM 節點是「真正的 JS 物件」嗎 <span class="stars">★★★★★</span></a></li>
+    <li><a href="#s7">CSR / SSR / SSG / PHP / WordPress / Rails 在這條線上有差嗎</a></li>
+    <li><a href="#s8">Markdown → DOM 的兩條路（其中一條不經過 HTML Parsing）</a></li>
+    <li><a href="#s9">自我測驗：填空 ＋ 是非題 ＋ 申論題</a></li>
+    <li><a href="#s10">資料來源（含查證時間）</a></li>
+  </ol>
+</nav>
+
+<!-- ============ 1 ============ -->
+<h2 id="s1">1. 主軸圖：四步流水線 ＋ 原型繼承鏈</h2>
+
+<p>左圖是<b>時間軸</b>（一份 HTML 從網路到 DOM 走過的四步）；右圖是<b>身份鏈</b>（步驟 4 產出的那個物件，為什麼有能力可設寬高、可掛事件）。<br>
+兩張圖要合起來看：<b>左圖的第 4 步，產出的就是右圖最上面那個框。</b></p>
+
+<div class="figwrap">
+
+<figure>
+<svg viewBox="0 0 520 800" role="img" aria-label="HTML 解析四步流水線">
+  <defs>
+    <marker id="ar" markerWidth="11" markerHeight="11" refX="6" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#C2185B"/>
+    </marker>
+    <marker id="arG" markerWidth="11" markerHeight="11" refX="6" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00897B"/>
+    </marker>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#ffe9f2"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="504" height="782" rx="16" fill="#fffafc" stroke="#f3c9d8"/>
+
+  <!-- 括號：標示 HTML Parsing 範圍 -->
+  <path d="M20 254 q-8 0 -8 10 v292 q0 10 8 10" fill="none" stroke="#C2185B" stroke-width="2" opacity=".55"/>
+  <text x="16" y="416" font-size="11" fill="#C2185B" font-weight="700" transform="rotate(-90 16 416)" text-anchor="middle">HTML Parsing</text>
+
+  <!-- 0 網路 -->
+  <rect x="34" y="26" width="460" height="64" rx="12" fill="#eceff1" stroke="#b0bec5" stroke-width="1.6"/>
+  <text x="52" y="52" font-size="15" fill="#37474f" font-weight="700">網路層　HTTP response body</text>
+  <text x="52" y="76" font-size="12.5" fill="#546e7a">一串 0/1 的位元組，還不是「文字」，更不是「網頁」</text>
+
+  <line x1="264" y1="90" x2="264" y2="116" stroke="#C2185B" stroke-width="2.6" marker-end="url(#ar)"/>
+
+  <!-- 1 bytes -->
+  <rect x="34" y="120" width="460" height="104" rx="12" fill="url(#g1)" stroke="#E91E63" stroke-width="2.2"/>
+  <circle cx="60" cy="148" r="16" fill="#E91E63"/><text x="60" y="154" font-size="16" fill="#fff" text-anchor="middle" font-weight="700">1</text>
+  <text x="88" y="147" font-size="15" fill="#4A0033" font-weight="700">input byte stream（位元組流）</text>
+  <text x="88" y="170" font-size="12.5" fill="#6b7280">3C 21 44 4F 43 54 59 50 45 …　← 這是 bytes 的真面目</text>
+  <text x="88" y="191" font-size="12.5" fill="#6b7280">一段一段從網路來，不是一次到齊</text>
+  <text x="88" y="211" font-size="11.5" fill="#b26a00">Content-Length 的單位就是它</text>
+
+  <line x1="264" y1="224" x2="264" y2="250" stroke="#C2185B" stroke-width="2.6" marker-end="url(#ar)"/>
+
+  <!-- 2 decoding -->
+  <rect x="34" y="254" width="460" height="104" rx="12" fill="url(#g1)" stroke="#9C27B0" stroke-width="2.2"/>
+  <circle cx="60" cy="282" r="16" fill="#9C27B0"/><text x="60" y="288" font-size="16" fill="#fff" text-anchor="middle" font-weight="700">2</text>
+  <text x="88" y="281" font-size="15" fill="#4A0033" font-weight="700">decoding（解碼）→ input stream</text>
+  <text x="88" y="304" font-size="12.5" fill="#6b7280">依 charset 把 bytes 轉成 code points（碼點）</text>
+  <text x="88" y="325" font-size="12.5" fill="#6b7280">產物是「流」不是「字串」：可以中途變長</text>
+  <text x="88" y="345" font-size="11.5" fill="#b26a00">charset 從哪來？→ encoding sniffing（見第 3 節）</text>
+
+  <line x1="264" y1="358" x2="264" y2="384" stroke="#C2185B" stroke-width="2.6" marker-end="url(#ar)"/>
+
+  <!-- 3 tokenization -->
+  <rect x="34" y="388" width="460" height="124" rx="12" fill="url(#g1)" stroke="#3F51B5" stroke-width="2.2"/>
+  <circle cx="60" cy="416" r="16" fill="#3F51B5"/><text x="60" y="422" font-size="16" fill="#fff" text-anchor="middle" font-weight="700">3</text>
+  <text x="88" y="415" font-size="15" fill="#4A0033" font-weight="700">tokenization（標記化）</text>
+  <text x="88" y="438" font-size="12.5" fill="#6b7280">狀態機把碼點切成 token，只有 6 種：</text>
+  <text x="88" y="459" font-size="11.5" fill="#3F51B5">DOCTYPE｜start tag｜end tag｜comment｜character｜EOF</text>
+  <text x="88" y="480" font-size="12.5" fill="#6b7280">&lt;div id="root"&gt; → 一個 start tag token（還是資料）</text>
+  <text x="88" y="500" font-size="11.5" fill="#b26a00">執行者是 Blink，不是 V8</text>
+
+  <line x1="264" y1="512" x2="264" y2="538" stroke="#C2185B" stroke-width="2.6" marker-end="url(#ar)"/>
+
+  <!-- 4 tree construction -->
+  <rect x="34" y="542" width="460" height="124" rx="12" fill="url(#g1)" stroke="#00897B" stroke-width="2.2"/>
+  <circle cx="60" cy="570" r="16" fill="#00897B"/><text x="60" y="576" font-size="16" fill="#fff" text-anchor="middle" font-weight="700">4</text>
+  <text x="88" y="569" font-size="15" fill="#4A0033" font-weight="700">tree construction（樹建構）</text>
+  <text x="88" y="592" font-size="12.5" fill="#6b7280">第二台狀態機，狀態叫 insertion mode</text>
+  <text x="88" y="613" font-size="11.5" fill="#00897B">initial → before html → in head → in body → …（共 21 種）</text>
+  <text x="88" y="634" font-size="12.5" fill="#6b7280">在這裡才 new 出物件，並掛到樹上</text>
+  <text x="88" y="654" font-size="11.5" fill="#b26a00">← 資料變成物件的那一刻</text>
+
+  <line x1="264" y1="666" x2="264" y2="694" stroke="#00897B" stroke-width="3" marker-end="url(#arG)"/>
+
+  <!-- 產物 -->
+  <rect x="34" y="698" width="460" height="80" rx="12" fill="#e0f2f1" stroke="#00897B" stroke-width="2.6"/>
+  <text x="52" y="724" font-size="15" fill="#004d40" font-weight="700">產物：DOM 樹（不是第 5 步）</text>
+  <text x="52" y="747" font-size="12.5" fill="#00695c">HTMLDivElement 等物件，CSS 選得到、JS 抓得到 →</text>
+  <text x="52" y="768" font-size="12.5" fill="#00695c">接右圖，看它為什麼有那些能力</text>
+</svg>
+<figcaption><b>圖 A</b>　規範定義的 <b>HTML Parsing = 步驟 2 ＋ 3 ＋ 4</b>。步驟 1 是網路層，DOM 是產物不是步驟。</figcaption>
+
+<div style="margin-top:14px;background:#fff6fa;border:1px solid #f3c9d8;border-radius:12px;padding:12px 15px;font-size:.87rem;line-height:1.85">
+<b style="color:var(--wine)">配著圖 A 一起記的三個常見誤解</b>
+<div style="margin-top:6px">❌ <b>「HTML 是純文字，所以不是 bytes」</b><br>
+<span style="color:var(--muted);margin-left:1.4em">→ 純文字講的是內容語意，傳輸一律是 bytes（步驟 1）</span></div>
+<div style="margin-top:6px">❌ <b>「tokenization 是 JS 的東西」</b><br>
+<span style="color:var(--muted);margin-left:1.4em">→ HTML／CSS／JS 各有一套，執行者是 Blink／Blink／V8（步驟 3）</span></div>
+<div style="margin-top:6px">❌ <b>「DOM 是第 5 個步驟」</b><br>
+<span style="color:var(--muted);margin-left:1.4em">→ DOM 是步驟 4 的產物，是名詞不是動詞</span></div>
+<div style="margin-top:10px;padding-top:9px;border-top:1px dashed #f3c9d8">
+🔗 <b>接下來會被誰打斷？</b><br>
+<span style="color:var(--muted)">步驟 3、4 跑到一半遇到 <code>&lt;script&gt;</code> 就會停下來 —— 那是
+<code>../web-platform/script載入方式+前因後果.md</code> 整篇在講的事。<b>本篇是它的前傳。</b></span></div>
+</div>
+</figure>
+
+<figure>
+<svg viewBox="0 0 440 980" role="img" aria-label="DOM 節點的原型繼承鏈">
+  <defs>
+    <marker id="ar2" markerWidth="11" markerHeight="11" refX="6" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#7B1FA2"/>
+    </marker>
+  </defs>
+
+  <rect x="6" y="8" width="428" height="964" rx="16" fill="#faf5ff" stroke="#e3d4f2"/>
+  <text x="220" y="36" font-size="15" fill="#4A0033" text-anchor="middle" font-weight="700">原型繼承鏈（prototype chain）</text>
+  <text x="220" y="57" font-size="12" fill="#7B1FA2" text-anchor="middle">★★★★★ 五星重點：能力是「繼承來的」</text>
+
+  <!-- 方向圖例 -->
+  <rect x="26" y="68" width="388" height="52" rx="10" fill="#fff8e1" stroke="#FFB300" stroke-width="1.8"/>
+  <text x="40" y="90" font-size="11.5" fill="#8d6e00" font-weight="700">讀圖方向：上＝子（specific）　下＝父（通用）</text>
+  <text x="40" y="110" font-size="11.5" fill="#8d6e00">箭頭 ↓ 一律是「子 extends 父」</text>
+
+  <!-- HTMLDivElement -->
+  <rect x="26" y="130" width="388" height="80" rx="11" fill="#fff" stroke="#00897B" stroke-width="2.6"/>
+  <text x="44" y="156" font-size="14.5" fill="#004d40" font-weight="700">HTMLDivElement</text>
+  <rect x="316" y="138" width="84" height="22" rx="11" fill="#00897B"/>
+  <text x="358" y="153" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">最子層</text>
+  <text x="44" y="179" font-size="11.5" fill="#6b7280">← 圖 A 第 4 步 new 出來的就是它</text>
+  <text x="44" y="199" font-size="11.5" fill="#00897B">自己幾乎沒東西，能力全繼承自下面</text>
+
+  <line x1="150" y1="210" x2="150" y2="264" stroke="#7B1FA2" stroke-width="2.2" marker-end="url(#ar2)"/>
+  <text x="162" y="232" font-size="11" fill="#7B1FA2" font-weight="700">HTMLDivElement extends HTMLElement</text>
+  <text x="162" y="251" font-size="10.5" fill="#9575cd">Div 是子　　HTMLElement 是父</text>
+
+  <!-- HTMLElement -->
+  <rect x="26" y="268" width="388" height="98" rx="11" fill="#fff" stroke="#E91E63" stroke-width="2.2"/>
+  <text x="44" y="294" font-size="14" fill="#4A0033" font-weight="700">HTMLElement</text>
+  <rect x="318" y="276" width="82" height="22" rx="11" fill="#f8bbd0"/>
+  <text x="359" y="291" font-size="11" fill="#880e4f" text-anchor="middle" font-weight="700">Div 的父</text>
+  <text x="44" y="317" font-size="12" fill="#C2185B">style ← 可設寬高就是這一層給的</text>
+  <text x="44" y="337" font-size="11.5" fill="#6b7280">dataset｜innerText｜hidden｜click()</text>
+  <text x="44" y="356" font-size="11.5" fill="#6b7280">title｜lang｜contentEditable</text>
+
+  <line x1="150" y1="366" x2="150" y2="420" stroke="#7B1FA2" stroke-width="2.2" marker-end="url(#ar2)"/>
+  <text x="162" y="388" font-size="11" fill="#7B1FA2" font-weight="700">HTMLElement extends Element</text>
+  <text x="162" y="407" font-size="10.5" fill="#9575cd">HTMLElement 是子　Element 是父</text>
+
+  <!-- Element -->
+  <rect x="26" y="424" width="388" height="98" rx="11" fill="#fff" stroke="#3F51B5" stroke-width="2.2"/>
+  <text x="44" y="450" font-size="14" fill="#1a237e" font-weight="700">Element</text>
+  <rect x="272" y="432" width="128" height="22" rx="11" fill="#c5cae9"/>
+  <text x="336" y="447" font-size="10.5" fill="#1a237e" text-anchor="middle" font-weight="700">SVGElement 也繼承它</text>
+  <text x="44" y="473" font-size="11.5" fill="#3F51B5">classList｜id｜tagName｜innerHTML</text>
+  <text x="44" y="493" font-size="11.5" fill="#6b7280">getAttribute()｜setAttribute()</text>
+  <text x="44" y="512" font-size="11.5" fill="#6b7280">querySelector()｜getBoundingClientRect()</text>
+
+  <line x1="150" y1="522" x2="150" y2="576" stroke="#7B1FA2" stroke-width="2.2" marker-end="url(#ar2)"/>
+  <text x="162" y="544" font-size="11" fill="#7B1FA2" font-weight="700">Element extends Node</text>
+  <text x="162" y="563" font-size="10.5" fill="#9575cd">Element 是子　Node 是父</text>
+
+  <!-- Node -->
+  <rect x="26" y="580" width="388" height="98" rx="11" fill="#fff" stroke="#9C27B0" stroke-width="2.2"/>
+  <text x="44" y="606" font-size="14" fill="#4a148c" font-weight="700">Node</text>
+  <rect x="258" y="588" width="142" height="22" rx="11" fill="#e1bee7"/>
+  <text x="329" y="603" font-size="10.5" fill="#4a148c" text-anchor="middle" font-weight="700">Text / Comment 也繼承它</text>
+  <text x="44" y="629" font-size="11.5" fill="#7B1FA2">parentNode｜childNodes｜nodeType</text>
+  <text x="44" y="649" font-size="11.5" fill="#6b7280">appendChild()｜removeChild()</text>
+  <text x="44" y="668" font-size="11.5" fill="#6b7280">「能被掛成一棵樹」是這層給的</text>
+
+  <line x1="150" y1="678" x2="150" y2="732" stroke="#7B1FA2" stroke-width="3" marker-end="url(#ar2)"/>
+  <text x="162" y="700" font-size="11" fill="#7B1FA2" font-weight="700">Node extends EventTarget</text>
+  <text x="162" y="719" font-size="10.5" fill="#9575cd">Node 是子　EventTarget 是父</text>
+
+  <!-- EventTarget -->
+  <rect x="26" y="736" width="388" height="116" rx="11" fill="#fff3e0" stroke="#FF8F00" stroke-width="3.2"/>
+  <text x="44" y="763" font-size="14.5" fill="#e65100" font-weight="700">EventTarget　★★★★★</text>
+  <text x="44" y="789" font-size="12.5" fill="#e65100" font-weight="600">addEventListener()</text>
+  <text x="44" y="811" font-size="12.5" fill="#e65100" font-weight="600">removeEventListener()</text>
+  <text x="44" y="833" font-size="12.5" fill="#e65100" font-weight="600">dispatchEvent()</text>
+  <text x="238" y="791" font-size="11" fill="#b26a00">「可掛事件」的能力</text>
+  <text x="238" y="811" font-size="11" fill="#b26a00">來源只有這一層</text>
+  <text x="238" y="831" font-size="11" fill="#b26a00">window / XHR 也是它的子</text>
+
+  <line x1="150" y1="852" x2="150" y2="896" stroke="#7B1FA2" stroke-width="2.2" marker-end="url(#ar2)"/>
+  <text x="162" y="878" font-size="11" fill="#7B1FA2" font-weight="700">EventTarget extends Object</text>
+
+  <rect x="26" y="900" width="388" height="64" rx="11" fill="#eceff1" stroke="#b0bec5" stroke-width="1.6"/>
+  <text x="44" y="926" font-size="13" fill="#37474f" font-weight="700">Object.prototype → null</text>
+  <rect x="316" y="908" width="84" height="22" rx="11" fill="#b0bec5"/>
+  <text x="358" y="923" font-size="11" fill="#263238" text-anchor="middle" font-weight="700">最父層</text>
+  <text x="44" y="949" font-size="11.5" fill="#546e7a">鏈的終點（最父層），找不到屬性就回 undefined</text>
+</svg>
+<figcaption><b>圖 B</b>　純文字的 <code>&lt;div&gt;</code> 沒有這條鏈，所以什麼都不能做；變成物件才接上它。<br><b>箭頭永遠是「子 → 父」。</b></figcaption>
+</figure>
+
+</div>
+
+<div class="note">
+<b>一句話把兩張圖串起來：</b>
+「<code>&lt;div&gt;</code> 這 5 個字元」在圖 A 的第 3 步只是一個 <b>start tag token</b>（資料），到第 4 步才被 <code>new</code> 成物件並接上圖 B 那條鏈，於是它同時擁有了
+<span class="blank" data-a="style">style</span>（HTMLElement 給的）、
+<span class="blank" data-a="classList">classList</span>（Element 給的）、
+<span class="blank" data-a="appendChild">appendChild</span>（Node 給的）、
+<span class="blank" data-a="addEventListener">addEventListener</span>（EventTarget 給的）。
+<span class="hint">（點粉紅色方塊看答案）</span>
+</div>
+
+<h3>先講清楚：<code>extends</code> 到底是誰繼承誰</h3>
+
+<div class="warn">
+<b><code>class 子 extends 父</code>　—— <code>extends</code> 左邊是子類，右邊是父類。「子繼承父」，方向永遠是這樣。</b><br>
+所以 <code>class HTMLDivElement extends HTMLElement</code> 讀作「<b>HTMLDivElement 繼承 HTMLElement</b>」：Div 是<b>子</b>，HTMLElement 是<b>父</b>。
+</div>
+
+<table>
+<thead><tr><th>寫法</th><th>誰是子（繼承者）</th><th>誰是父（被繼承者）</th><th>白話</th></tr></thead>
+<tbody>
+<tr><td><code>HTMLDivElement extends HTMLElement</code></td><td>HTMLDivElement</td><td>HTMLElement</td><td>div 是一種 HTML 元素</td></tr>
+<tr><td><code>HTMLElement extends Element</code></td><td>HTMLElement</td><td>Element</td><td>HTML 元素是一種元素（SVG 元素也是）</td></tr>
+<tr><td><code>Element extends Node</code></td><td>Element</td><td>Node</td><td>元素是一種節點（文字節點、註解節點也是）</td></tr>
+<tr><td><code>Node extends EventTarget</code></td><td>Node</td><td>EventTarget</td><td>節點是一種「可以接收事件的東西」（window、XHR 也是）</td></tr>
+</tbody>
+</table>
+
+<div class="note">
+<b>三個記法，挑一個記住就好：</b>
+<ol style="margin:8px 0 0">
+<li><b>「is-a」造句法</b>：<code>A extends B</code> 讀成「<b>A is a B</b>」。「div is a HTMLElement」通順 ✅；反過來「HTMLElement is a div」不通 ❌ —— 通的那個方向就是對的。</li>
+<li><b>範圍大小法</b>：<b>父的範圍一定比子大</b>。EventTarget（所有能收事件的東西）＞ Node（所有節點）＞ Element（只有元素）＞ HTMLElement（只有 HTML 元素）＞ HTMLDivElement（只有 div）。<b>越往父走，成員越多、能力越通用。</b></li>
+<li><b>查找方向法</b>：JS 找屬性時是<b>從子往父一層層往上找</b>。你在 div 上呼叫 <code>addEventListener</code>，引擎先找 HTMLDivElement.prototype（沒有）→ HTMLElement.prototype（沒有）→ Element.prototype（沒有）→ Node.prototype（沒有）→ <b>EventTarget.prototype（找到了）</b>。圖 B 的箭頭方向就是這個查找方向。</li>
+</ol>
+</div>
+
+<pre><code>// 用程式碼證明方向：只有「子 instanceof 父」會是 true
+const d = document.createElement('div');
+
+d instanceof HTMLDivElement;   // true
+d instanceof HTMLElement;      // true  ← 子也算是父
+d instanceof Element;          // true
+d instanceof Node;             // true
+d instanceof EventTarget;      // true  ← 一路都算
+
+// 反過來就不成立：父的實例不算是子
+document.createTextNode('hi') instanceof Node;     // true
+document.createTextNode('hi') instanceof Element;  // false ← 文字節點不是 Element
+
+// 誰是誰的父，直接問
+Object.getPrototypeOf(HTMLDivElement) === HTMLElement;  // true ← Div 的父是 HTMLElement
+Object.getPrototypeOf(HTMLElement)    === Element;      // true
+Object.getPrototypeOf(Element)        === Node;         // true
+Object.getPrototypeOf(Node)           === EventTarget;  // true</code></pre>
+
+<div class="warn">
+⚠️ 注意：瀏覽器<b>不是真的用 <code>class ... extends ...</code> 這段 JS 寫出來的</b>（見第 6 節，它們是 C++ 物件）。<br>
+規範用的是 <b>WebIDL 的 <code>interface HTMLDivElement : HTMLElement</code></b> 語法，冒號左邊是子、右邊是父，跟 <code>extends</code> 同義。<br>
+我們用 <code>extends</code> 來描述，是因為它在 JS 這一側<b>表現得完全一樣</b>，比較好懂。
+</div>
+
+<h3>自己動手驗證這條鏈</h3>
+<pre><code>// 在任何頁面的 F12 Console 貼這段
+const d = document.createElement('div');
+
+let p = Object.getPrototypeOf(d), chain = [];
+while (p) { chain.push(p.constructor.name); p = Object.getPrototypeOf(p); }
+console.log(chain.join(' → '));
+// HTMLDivElement → HTMLElement → Element → Node → EventTarget → Object
+
+// 驗證 addEventListener 到底掛在哪一層
+console.log(Object.getOwnPropertyNames(EventTarget.prototype));
+// ['constructor', 'addEventListener', 'dispatchEvent', 'removeEventListener']
+
+// 驗證 style 掛在哪一層
+console.log('style' in HTMLElement.prototype);  // true
+console.log('style' in Element.prototype);      // false ← Element 沒有 style</code></pre>
+
+<!-- ============ 2 ============ -->
+<h2 id="s2">2. 步驟 1 — bytes：網路上流的到底是什麼</h2>
+
+<h3>bytes 是什麼</h3>
+<p><b>byte（位元組）＝ 8 個 bit ＝ 8 個 0 或 1。</b> 網路上、磁碟上，所有東西一律是 bytes，沒有例外。「文字」不是儲存格式，而是<b>解碼之後才存在的概念</b>。</p>
+
+<p>所以「HTML 是純文字檔」這句話要這樣理解：</p>
+
+<table>
+<thead><tr><th>說法</th><th>正確嗎</th><th>精確講法</th></tr></thead>
+<tbody>
+<tr><td>HTML 是純文字格式</td><td>✅ 對</td><td>指它的<b>內容語意</b>是給人讀的文字，相對於 JPG／MP4 那種二進位格式</td></tr>
+<tr><td>HTML 在網路上傳的時候不是 bytes</td><td>❌ 錯</td><td>一定是 bytes。純文字格式只是說「這些 bytes 用某個編碼表解出來會是有意義的字」</td></tr>
+<tr><td>拿到 response body 就是字串了</td><td>❌ 錯</td><td>拿到的是 byte stream，還要經過圖 A 的第 2 步才有「字元」</td></tr>
+</tbody>
+</table>
+
+<p>同一句 <code>&lt;!DOCTYPE html&gt;</code> 在網路上的樣子：</p>
+<pre><code>字元：  &lt;   !   D   O   C   T   Y   P   E  (空白) h   t   m   l   &gt;
+bytes： 3C  21  44  4F  43  54  59  50  45  20  68  74  6D  6C  3E   ← 十六進位
+bits：  00111100 00100001 01000100 …                                ← 真正在線上跑的</code></pre>
+
+<div class="good">
+<b>F12 實測（<span class="kbd">F12</span> → Network → 點那個 HTML 檔）：</b>
+<ol style="margin:8px 0 0">
+<li>Headers 分頁：<code>Content-Type: text/html; charset=utf-8</code> ← 這裡宣告了「用哪張表解碼」</li>
+<li>Headers 分頁：<code>Content-Length: 1834</code> ← 這個 1834 的<b>單位就是 bytes</b>，不是字數。中文一個字在 UTF-8 佔 3 bytes，所以中文網頁的 bytes 數會遠大於字數</li>
+<li>Response 分頁：看到的是已經<b>幫你解碼過</b>的文字。DevTools 貼心，但那不是原始資料</li>
+</ol>
+</div>
+
+<!-- ============ 3 ============ -->
+<h2 id="s3">3. 步驟 2 — decoding：bytes 怎麼變成字元，以及那個雞生蛋問題</h2>
+
+<h3>3-1. 產物叫 input stream，內容是 code points</h3>
+<p>規範裡這個東西<b>不叫「字串」</b>，叫 <b>input stream</b>，裡面裝的是 <b>code point（碼點，一個 Unicode 字元的編號）</b>。</p>
+
+<table>
+<thead><tr><th>比較項</th><th>字串 String</th><th>流 Stream</th></tr></thead>
+<tbody>
+<tr><td>長度</td><td>有 <code>.length</code>，一開始就知道</td><td>不知道，可能還在下載</td></tr>
+<tr><td>存取方式</td><td>可隨機索引 <code>s[5]</code>，可以回頭讀</td><td>只能依序消耗，讀過就過去了</td></tr>
+<tr><td>中途可以變長嗎</td><td>不行（字串不可變）</td><td>可以：網路 chunk 陸續進來，<code>document.write()</code> 也會插隊塞進來</td></tr>
+<tr><td>存在哪</td><td>完整存在記憶體</td><td>邊來邊處理，不必等到齊</td></tr>
+</tbody>
+</table>
+
+<div class="note">
+<b>這個差別為什麼重要：</b>因為它就是「HTML 可以邊下載邊顯示」的原理。如果規範定義成「字串」，就必須等整份下載完才能開始 parse，首屏會慢非常多。
+串流式 SSR（React 18 的 <code>renderToPipeableStream</code>）能分段送 HTML，靠的也是這個「流」的性質。
+</div>
+
+<h3>3-2. 雞生蛋問題：charset 寫在 bytes 裡面</h3>
+<p>你問「<code>&lt;meta charset&gt;</code> 應該是指 HTML 的標籤了吧」—— 是的，而這正是矛盾點：</p>
+
+<div class="warn">
+要讀 <code>&lt;meta charset&gt;</code> 這個標籤，得先<b>解碼</b>；要解碼，得先<b>知道 charset</b>。<br>
+→ 規範用 <b>encoding sniffing algorithm（編碼嗅探演算法）</b> 解決，優先序如下。
+</div>
+
+<table>
+<thead><tr><th>順序</th><th>依據</th><th>說明</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>BOM（Byte Order Mark）</td><td>檔案開頭的特殊 bytes（UTF-8 是 EF BB BF）。有就直接採信，信心值 certain</td></tr>
+<tr><td>2</td><td>使用者手動指定</td><td>瀏覽器選單裡強制指定編碼</td></tr>
+<tr><td>3</td><td>HTTP header</td><td><code>Content-Type: text/html; charset=utf-8</code>。<b>比 meta 優先</b></td></tr>
+<tr><td>4</td><td>prescan 前 1024 bytes</td><td>先粗掃開頭 1024 bytes 找 <code>&lt;meta charset&gt;</code>。<b>這就是為什麼 charset 必須放在 head 最前面</b></td></tr>
+<tr><td>5</td><td>父文件</td><td>iframe 且同源時，繼承父頁的編碼</td></tr>
+<tr><td>6</td><td>歷史紀錄</td><td>之前造訪過這頁時偵測到的編碼</td></tr>
+<tr><td>7</td><td>自動偵測</td><td>用統計特徵猜（規範不鼓勵）</td></tr>
+<tr><td>8</td><td>語系預設值</td><td>猜錯就是<b>亂碼（mojibake）</b>，例如「中文」變成 <code>ä¸­æ–‡</code></td></tr>
+</tbody>
+</table>
+
+<div class="note">
+這一段跟同資料夾的 <code>HTML文件結構-DOCTYPE與骨架.md</code> 的 <b>Q9「為何 <code>&lt;meta charset&gt;</code> 要放 head 最前面」</b> 是同一件事的兩個切面：<br>
+那篇回答「<b>要放哪裡</b>」，這篇回答「<b>在整條流水線的第幾步、為什麼一定要有這一步</b>」。
+</div>
+
+<button class="toggle" onclick="tg('a-mojibake')">為什麼猜錯會變成「ä¸­æ–‡」這種鬼東西？</button>
+<div class="answer" id="a-mojibake">
+「中」這個字在 UTF-8 是 3 個 bytes：<code>E4 B8 AD</code>。<br>
+如果瀏覽器誤以為是 Latin-1（每個 byte 就是一個字元），它會把這 3 個 bytes 各自當成一個字：<code>E4</code>→<code>ä</code>、<code>B8</code>→<code>¸</code>、<code>AD</code>→<code>­</code>，於是「中」變成「<code>ä¸­</code>」。<br>
+<b>bytes 完全沒錯，錯的是解碼用的那張表。</b>這就是圖 A 第 2 步存在的意義。
+</div>
+
+<!-- ============ 4 ============ -->
+<h2 id="s4">4. 步驟 3 — tokenization：HTML 也有 tokenizer</h2>
+
+<div class="good">
+<b>直接回答你的疑問：不是偷換成 JS。HTML、JS、CSS 各自有一套完全獨立的 tokenizer。</b>
+「tokenization」是編譯原理的<b>通用術語</b>，任何要被機器讀懂的語言都有這一步，不是 JS 的專利。
+</div>
+
+<table>
+<thead><tr><th>語言</th><th>誰執行 tokenize</th><th>token 長什麼樣</th><th>下一步產出</th></tr></thead>
+<tbody>
+<tr><td>HTML</td><td><b>Blink</b>（渲染引擎）</td><td>start tag / end tag / character / comment / DOCTYPE / EOF，共 6 種</td><td>DOM 樹</td></tr>
+<tr><td>CSS</td><td><b>Blink</b> 的 CSS parser</td><td>ident / hash / string / dimension / delim …</td><td>CSSOM 樹</td></tr>
+<tr><td>JavaScript</td><td><b>V8</b>（JS 引擎）</td><td>keyword / identifier / operator / literal / punctuator …</td><td>AST → bytecode</td></tr>
+</tbody>
+</table>
+
+<div class="warn">
+<b>⚠️ 最容易搞混的一點：HTML 永遠不會進 V8，也永遠不會變成 AST 或 bytecode。</b>
+三條線都在同一條主執行緒上用 CPU，但是三個不同元件。
+（這點與 <code>../web-platform/script載入方式+前因後果.md</code> 的 (q) 節一致。）
+</div>
+
+<h3>HTML tokenizer 眼中的 <code>&lt;div id="root"&gt;Hi&lt;/div&gt;</code></h3>
+<pre><code>輸入（碼點流）： &lt; d i v   i d = " r o o t " &gt; H i &lt; / d i v &gt;
+
+輸出（token 序列，只有 3 個）：
+  ① StartTagToken  { name: "div", attributes: { id: "root" }, selfClosing: false }
+  ② CharacterToken { data: "H" }
+  ③ CharacterToken { data: "i" }
+  ④ EndTagToken    { name: "div" }
+
+⚠️ 注意：token 還是「資料」，是一筆記錄，不是物件。
+   它沒有 .style、沒有 .addEventListener，還接不上圖 B 那條鏈。</code></pre>
+
+<p>tokenizer 自己也是一台狀態機，狀態約 80 個，例如 <code>data state</code>（一般文字）、<code>tag open state</code>（剛讀到 <code>&lt;</code>）、<code>attribute name state</code>（正在讀屬性名）。這些狀態<b>只管切字元</b>，完全不管樹長什麼樣。</p>
+
+<h3>4-b. 反過來問：轉譯之後才能做 HTML Parsing 嗎？</h3>
+
+<div class="good">
+<b>不是。兩者沒有任何依賴關係。</b>
+轉譯處理的是「你寫的 JS 長得不標準」；HTML Parsing 處理的是「文字要變成物件」。
+<b>對象不同、機器不同、時間不同。</b>
+</div>
+
+<p>會有這個錯覺，是因為建置流程圖通常由上往下畫，看起來像「① 轉譯 → ② 打包 → ③ 純文字 → ④ HTML Parsing」一條線。但那張圖<b>跨了兩台機器、兩個時間點</b>，中間是斷開的：</p>
+
+<pre><code>【機器 A：你的筆電 / CI】          build-time，做一次
+  .tsx → 轉譯 → bundle → 產出靜態檔
+                    │
+                    ▼
+              ✂️ 部署，斷開 ✂️
+              （中間可能隔了三天）
+                    │
+                    ▼
+【機器 B：使用者的瀏覽器】          run-time，每人各做一次
+  收到 bytes → decode → tokenize → tree construction → DOM</code></pre>
+
+<h4>兩個直接反證</h4>
+<ol>
+<li><b>純手寫的 <code>.html</code> 完全沒有轉譯，瀏覽器照樣 parse。</b> 你隨手存一個 <code>test.html</code> 雙擊打開 —— 沒有 build、沒有 Babel、沒有 bundler，本篇的四步照樣跑完。</li>
+<li><b>PHP、WordPress、Rails 前端根本沒有轉譯步驟。</b> HTML 是後端 template 引擎吐出來的字串，直接進瀏覽器解析。</li>
+</ol>
+<p>→ 所以<b>轉譯不是 HTML Parsing 的前置條件</b>。</p>
+
+<table>
+<thead><tr><th>比較項</th><th>轉譯 transpile</th><th>HTML Parsing</th></tr></thead>
+<tbody>
+<tr><td>處理對象</td><td><b>JS / TS / JSX</b></td><td><b>HTML 字串</b></td></tr>
+<tr><td>何時</td><td>build-time</td><td>run-time</td></tr>
+<tr><td>誰的 CPU</td><td>開發者／CI，做一次</td><td>每一個使用者，各做一次</td></tr>
+<tr><td>執行者</td><td>Babel / SWC / esbuild</td><td>Blink 的 HTML parser</td></tr>
+<tr><td>產物</td><td><b>還是純文字 JS</b></td><td><b>DOM 物件</b></td></tr>
+</tbody>
+</table>
+
+<div class="note">
+build tool 對 <code>index.html</code> 只做<b>文字層級處理</b> —— 注入 <code>&lt;script src&gt;</code>／<code>&lt;link&gt;</code> 標籤，加上 minify。<b>那不叫轉譯，那只是字串替換。</b><br>
+（<code>../web-platform/script載入方式+前因後果.md</code> (q) 節原文：「build 期間沒有瀏覽器、沒有 DOM，所以沒有『HTML Parsing → DOM 樹』那個過程。」）
+</div>
+
+<h4>混淆的真正來源：JSX 的 <code>&lt;div&gt;</code> 長得像 HTML</h4>
+
+<div class="warn">
+<b>它們是完全不同的兩個東西，走兩條互不相交的管線。</b>
+</div>
+
+<table>
+<thead><tr><th></th><th>JSX 裡的 <code>&lt;div&gt;</code></th><th><code>index.html</code> 裡的 <code>&lt;div&gt;</code></th></tr></thead>
+<tbody>
+<tr><td>本質</td><td><b>JavaScript 語法擴充</b></td><td><b>HTML 標籤</b></td></tr>
+<tr><td>誰處理</td><td>Babel / SWC（build-time）</td><td>Blink 的 HTML parser（run-time）</td></tr>
+<tr><td>處理後變成</td><td><code>_jsx("div", {...})</code> —— 一個<b>純 JS 函式呼叫</b></td><td><code>HTMLDivElement</code> 物件</td></tr>
+<tr><td>會進 HTML parser 嗎</td><td>❌ <b>永遠不會</b></td><td>✅ 會</td></tr>
+<tr><td>會進 V8 嗎</td><td>✅ 會（轉譯後就是 JS）</td><td>❌ <b>永遠不會</b></td></tr>
+</tbody>
+</table>
+
+<pre><code>// 你寫的
+&lt;div className="a"&gt;Hi&lt;/div&gt;
+
+// 轉譯後（這已經是純 JS，沒有任何 HTML）
+_jsx("div", { className: "a", children: "Hi" })
+
+// 瀏覽器執行它時，React 呼叫的是
+document.createElement("div")   ← 直接建物件，繞過 HTML parser</code></pre>
+
+<p><b>React 建 DOM 靠的是 <code>document.createElement</code>，不是 HTML parser。</b> 兩條線平行，不交會。</p>
+
+<h4>run-time 的真實順序：反而是 HTML Parsing 先</h4>
+<pre><code>1. HTML Parsing 開始（步驟 3、4 進行中）
+        ↓
+2. 讀到 &lt;script src="main.abc.js"&gt;    ← 這個 tag 是 build 時被注入的
+        ↓
+3. HTML Parsing 停住（無屬性）或繼續（defer）
+        ↓
+4. V8 執行那支 JS —— 它「早就」轉譯完了，在三天前的 CI 上
+        ↓
+5. React 跑起來，用 createElement 往 #root 塞東西
+
+⚠️ 在使用者的機器上，轉譯這件事早就結束了，不參與任何順序。</code></pre>
+
+<h4>唯一的關聯是間接的</h4>
+<p>轉譯 → bundle → 產出 <code>main.abc123.js</code> → build tool 把 <code>&lt;script src="main.abc123.js"&gt;</code> <b>注入到 index.html 的文字裡</b>。</p>
+<p>所以轉譯影響的是「<b>HTML 裡那個 <code>src</code> 字串寫什麼</b>」，不是「<b>HTML 能不能被 parse</b>」。就算 <code>src</code> 指向一個不存在的檔案，HTML Parsing 照樣跑完，只是那支 script 404 而已。</p>
+
+<h4>唯一一條「JSX 的 div 最後真的被 HTML parse」的路徑：SSR</h4>
+<pre><code>轉譯（build-time）
+   → 部署
+   → 使用者請求
+   → Node 上執行 renderToString()    ← ★ 執行，不是轉譯
+   → 產出 HTML 字串 "&lt;div class="a"&gt;Hi&lt;/div&gt;"
+   → HTTP 傳輸
+   → 瀏覽器 HTML Parsing（本篇步驟 2、3、4）</code></pre>
+<p>注意中間那一步是「<b>執行</b>」不是「<b>轉譯</b>」。轉譯早在 build 就做完了，SSR 是在 run-time（伺服器端的 run-time）<b>跑</b>那份已經轉譯好的 JS。</p>
+
+<div class="good">
+<b>一句話總結：</b>轉譯是 build-time 的<b>翻譯</b>工作，HTML Parsing 是 run-time 的<b>建構</b>工作，兩者沒有先後依賴。
+</div>
+
+<!-- ============ 5 ============ -->
+<h2 id="s5">5. 步驟 4 — tree construction：<code>in head</code> 那些字串是什麼</h2>
+
+<div class="good">
+<b>直接回答：<code>"initial"</code>、<code>"before html"</code>、<code>"in head"</code>、<code>"in body"</code> 叫做 insertion mode（插入模式）。</b><br>
+① 它<b>不是</b> HTML 標籤。<br>
+② 它<b>不是</b> 任何程式語言的語法或工具。<br>
+③ 它是 <b>WHATWG 規範文件裡的英文術語</b>——樹建構狀態機的<b>狀態名稱</b>。瀏覽器實作時通常變成 C++ 的 enum，例如 Blink 裡叫 <code>kInHeadMode</code>。
+</div>
+
+<h3>規範裡的 21 個 insertion mode（完整清單）</h3>
+<pre><code>initial            before html        before head        in head
+in head noscript   after head         in body            text
+in table           in table text      in caption         in column group
+in table body      in row             in cell            in template
+after body         in frameset        after frameset     after after body
+after after frameset</code></pre>
+
+<h3>解析一份最小 HTML 時，狀態怎麼跑</h3>
+<pre><code>&lt;!DOCTYPE html&gt;&lt;html&gt;&lt;head&gt;&lt;title&gt;A&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&lt;div&gt;&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;
+
+收到 token              目前 insertion mode      做了什麼
+─────────────────────────────────────────────────────────────────
+(開始)                  initial                  等 DOCTYPE
+DOCTYPE token       →   initial → before html    建 DocumentType 節點
+&lt;html&gt;              →   before html → before head 建 HTMLHtmlElement
+&lt;head&gt;              →   before head → in head    建 HTMLHeadElement
+&lt;title&gt;             →   in head → text           title 內容當純文字讀
+&lt;/title&gt;            →   text → in head           回來
+&lt;/head&gt;             →   in head → after head     head 收工
+&lt;body&gt;              →   after head → in body     建 HTMLBodyElement
+&lt;div&gt;               →   in body（不變）           ★ new 一個 HTMLDivElement 掛上去
+&lt;/div&gt;              →   in body（不變）           從 open elements stack 彈出
+&lt;/body&gt;             →   in body → after body
+&lt;/html&gt;             →   after body → after after body</code></pre>
+
+<div class="note">
+<b>為什麼要分這麼多狀態？</b>因為同一個 token 在不同位置意義不同。<br>
+例如一個 <code>&lt;td&gt;</code> token：在 <code>in row</code> 是合法的儲存格；在 <code>in body</code> 就是錯放，規範會直接<b>忽略它</b>。<br>
+HTML 之所以「寫錯也不會白屏」，就是因為每個 insertion mode 都明文寫了「遇到不該出現的 token 要怎麼補救」。這是與 XML 最大的差別——XML 錯一個字就整份不解析。
+</div>
+
+<h3>回答你的判斷題</h3>
+<div class="good">
+你問「<b>我看到 d 點是 DOM 結構的生成了，那 HTML Parsing 是指 a b c 三個步驟嗎</b>」——<b>你判斷對了。</b><br>
+規範第 13.2 章「Parsing HTML documents」涵蓋的正是 <b>decoding ＋ tokenization ＋ tree construction</b>（本篇的步驟 2、3、4）。<br>
+DOM 是第 4 步的<b>產物</b>，不是第 5 個步驟——它是名詞，不是動詞。
+</div>
+
+<!-- ============ 6 ============ -->
+<h2 id="s6">6. DOM 節點是「真正的 JS 物件」嗎 <span class="stars">★★★★★</span></h2>
+
+<p>你說：「<i>DOM 節點就是真正的 JS 物件，難怪都要變成 DOM 才能讓 JS 去抓他</i>」——<b>方向完全正確，但有兩個地方要修正。</b></p>
+
+<h3>修正一：它是「宿主物件」，不是用 JS 寫出來的物件</h3>
+
+<table>
+<thead><tr><th>層次</th><th>真相</th></tr></thead>
+<tbody>
+<tr><td>你在 JS 裡拿到的 <code>document.body</code></td><td>✅ 確實是一個 JS 物件，有原型鏈、可以 <code>.</code> 取屬性、可以傳來傳去</td></tr>
+<tr><td>它的資料實際住在哪</td><td>❌ 不在 JS 堆積裡。真正的節點是瀏覽器引擎的 <b>C++ 物件</b>（Chrome 是 Blink）</td></tr>
+<tr><td>那 JS 拿到的是什麼</td><td>一個透過 <b>WebIDL binding</b> 產生的<b>包裝物件（wrapper / platform object）</b>，也叫<b>宿主物件（host object）</b></td></tr>
+</tbody>
+</table>
+
+<h4>三行驗證</h4>
+<pre><code>// (1) 它自己身上一個屬性都沒有
+console.log(Object.keys(document.body));            // []
+console.log(document.body.hasOwnProperty('tagName')); // false
+
+// (2) tagName 其實是 prototype 上的 getter，背後轉呼叫 C++
+console.log(Object.getOwnPropertyDescriptor(Element.prototype, 'tagName'));
+// { get: ƒ, set: undefined, enumerable: true, configurable: true }
+
+// (3) 一般 JS 物件對照組
+const plain = { tagName: 'DIV' };
+console.log(Object.keys(plain));                     // ['tagName']  ← 有</code></pre>
+
+<div class="note">
+<b>這件事的實務價值（也是五星的原因）：</b><br>
+每次讀寫 DOM 屬性，都是一次 <b>JS ↔ C++ 的跨界呼叫</b>，比操作純 JS 物件貴得多。<br>
+→ 這就是<b>虛擬 DOM 存在的理由</b>：React 先在便宜的純 JS 物件上算差異，最後才一次跨界改真 DOM。<br>
+→ 也是為什麼「在迴圈裡讀 <code>offsetHeight</code>」會造成強制同步排版（layout thrashing）。
+</div>
+
+<h3>修正二：「都要變成 DOM 才能讓 JS 抓他」要加一個限定詞</h3>
+<p>精確講法是：<b>要用 DOM API 抓，就必須先有 DOM。</b> JS 其實也能直接處理 HTML 字串，只是那不叫「抓 DOM」：</p>
+<pre><code>const html = '&lt;div id="root"&gt;Hi&lt;/div&gt;';
+
+html.includes('root');                    // true   ← 純字串操作，不需要 DOM
+html.match(/id="(\w+)"/)[1];              // "root" ← 正則，不需要 DOM
+
+// 但這些就一定要有 DOM：
+document.getElementById('root');          // 需要 DOM
+el.addEventListener('click', fn);         // 需要 DOM（而且是 EventTarget 那層）
+el.getBoundingClientRect();               // 需要 DOM ＋ 已完成 Layout
+
+// 想在不上畫面的情況下把字串變成 DOM，用這個：
+const doc = new DOMParser().parseFromString(html, 'text/html');
+console.log(doc.getElementById('root').tagName);  // "DIV"
+// ↑ 這行等於手動觸發了圖 A 的第 3、4 步</code></pre>
+
+<!-- ============ 7 ============ -->
+<h2 id="s7">7. CSR / SSR / SSG / PHP / WordPress / Rails 在這條線上有差嗎</h2>
+
+<div class="good">
+<b>圖 A 那四步，這幾種一模一樣，零差別。</b>因為那是 HTML 標準規定的，跟誰產生 HTML 無關。<br>
+差別只在三個變數：<b>① 誰產生 HTML 字串　② 什麼時候產生　③ 第一個 response 裡面有沒有內容。</b>
+</div>
+
+<table>
+<thead><tr>
+<th>模式</th><th>HTML 字串誰產生</th><th>何時產生</th><th>首個 response 有內容嗎</th><th>圖 A 四步</th><th>第 4 步結束後還要做什麼</th>
+</tr></thead>
+<tbody>
+<tr><td>純靜態 HTML</td><td>人手寫</td><td>寫程式時</td><td>✅ 有</td><td>完全相同</td><td>沒事了，直接 paint</td></tr>
+<tr><td>SSG（Astro、Hugo、Jekyll、next export）</td><td>建置工具</td><td>build time，全站算一次</td><td>✅ 有</td><td>完全相同</td><td>若有互動，需 hydration</td></tr>
+<tr><td>SSR（Next.js、Nuxt、Remix）</td><td>Node 伺服器跑 <code>renderToString</code></td><td>每次 request</td><td>✅ 有</td><td>完全相同</td><td>hydration 掛事件</td></tr>
+<tr><td>PHP / WordPress</td><td>PHP 直譯器</td><td>每次 request</td><td>✅ 有</td><td>完全相同</td><td>沒事了（除非另有 JS）</td></tr>
+<tr><td>Rails / Django / Laravel</td><td>後端 template 引擎（ERB、Jinja、Blade）</td><td>每次 request</td><td>✅ 有</td><td>完全相同</td><td>同上</td></tr>
+<tr><td><b>CSR</b>（Vite ＋ React SPA）</td><td><b>瀏覽器裡的 JS</b></td><td>HTML 解析完、JS 執行時</td><td>❌ <code>#root</code> 是空的</td><td>完全相同</td><td><b>還要跑一整套 JS 才有內容</b></td></tr>
+<tr><td>Streaming SSR（React 18 <code>renderToPipeableStream</code>）</td><td>Node 伺服器，分段吐</td><td>每次 request，邊算邊送</td><td>✅ 有（陸續到）</td><td>完全相同，但吃滿了「流」的性質</td><td>分段 hydration</td></tr>
+</tbody>
+</table>
+
+<h3>真正的分歧點在時間軸的後半段</h3>
+<pre><code>【有內容的那幾種：靜態 / SSG / SSR / PHP / Rails】
+  bytes → decode → tokenize → tree construction → DOM 有內容 → paint 🎉
+                                                  ↑ 使用者這裡就看得到東西了
+
+【CSR】
+  bytes → decode → tokenize → tree construction → DOM 只有一個空 div → 白畫面 😐
+                                                       ↓
+                                        下載 JS → V8 parse → 執行
+                                                       ↓
+                              React createElement / appendChild（又一輪建 DOM）
+                                                       ↓
+                                                  paint 🎉</code></pre>
+
+<div class="warn">
+<b>所以你原本筆記那句「這邊不是 CSR、SSR、SSG⋯⋯的專屬，他們全一樣，無例外」是對的</b>，但可以再精確一點：<br>
+<b>「HTML Parsing 這四步無例外，但四步結束後畫面上有沒有東西，就完全不一樣了。」</b>
+</div>
+
+<h3>一分鐘驗證法</h3>
+<ol>
+<li><span class="kbd">Ctrl</span>＋<span class="kbd">U</span>（View Source）→ 這是<b>伺服器丟過來的原始字串</b>，JS 一行都還沒跑</li>
+<li><span class="kbd">F12</span> → Elements → 這是<b>現在這一刻的 DOM 樹</b>，JS 已經改造過</li>
+<li>兩者差很多、<code>#root</code> 在 View Source 裡是空的 → <b>CSR</b></li>
+<li>兩者幾乎一樣 → <b>SSR / SSG / PHP / Rails</b>（再看有沒有 hydration 用的 JS 才能細分）</li>
+</ol>
+
+<!-- ============ 8 ============ -->
+<h2 id="s8">8. Markdown → DOM 的兩條路（其中一條不經過 HTML Parsing）</h2>
+
+<p>你問「<i>Markdown 渲染為 DOM 也是要先轉換成 HTML 字串才有戲，這邊乾脆把流水線講完，還要被 HTML Parsing 吧</i>」——<b>你說的是路徑 A，那條確實要再走一次 HTML Parsing。但還有一條路徑 B 不用。</b></p>
+
+<h3>路徑 A：marked／markdown-it ＋ <code>innerHTML</code>（最常見）</h3>
+<pre><code>.md 檔（bytes）
+   ↓ 1. decode
+Markdown 字串
+   ↓ 2. Markdown 自己的 tokenizer（跟 HTML 的不同一套）
+Markdown token 序列 → AST（mdast）
+   ↓ 3. renderer 把 AST 印成字串
+★ HTML 字串 ★   ← 例如 "&lt;h1&gt;標題&lt;/h1&gt;&lt;p&gt;內文&lt;/p&gt;"
+   ↓ 4. el.innerHTML = htmlString
+★ 觸發 fragment parsing algorithm ★  ← 這就是圖 A 的第 3、4 步（片段版）
+   ↓
+DOM</code></pre>
+<p>所以路徑 A 一共 tokenize 了<b>兩次</b>：一次 Markdown 的、一次 HTML 的。<b>你的直覺完全正確。</b></p>
+
+<h3>路徑 B：react-markdown（remark ＋ rehype-react）——不經過 HTML 字串</h3>
+<pre><code>.md 檔（bytes）
+   ↓ decode
+Markdown 字串
+   ↓ remark 解析
+mdast（Markdown AST）
+   ↓ remark-rehype 轉換
+hast（HTML AST，但仍是 JS 物件，不是字串）
+   ↓ rehype-react
+React element（純 JS 物件）
+   ↓ React 呼叫 document.createElement / appendChild
+DOM
+
+❌ 全程沒有出現過 HTML 字串
+❌ 因此也完全沒有觸發 HTML Parsing</code></pre>
+
+<div class="warn">
+<b>⚠️ 這是要回頭修正 <code>../web-platform/Markdown-渲染為DOM的過程.md</code> 的地方：</b><br>
+「Markdown 不能直接被渲染成 DOM，一定要先轉成 HTML 字串」——這句話<b>對路徑 A 成立，對路徑 B 不成立</b>。<br>
+路徑 B 是繞過 HTML 字串直接建 DOM 的，而且這正是 react-markdown 比 <code>dangerouslySetInnerHTML</code> 安全的原因：<b>沒有字串可以被注入</b>。
+</div>
+
+<table>
+<thead><tr><th>比較</th><th>路徑 A（marked ＋ innerHTML）</th><th>路徑 B（react-markdown）</th></tr></thead>
+<tbody>
+<tr><td>中間有沒有 HTML 字串</td><td>有</td><td>沒有</td></tr>
+<tr><td>有沒有跑 HTML Parsing</td><td>有（fragment parsing）</td><td>沒有</td></tr>
+<tr><td>tokenize 幾次</td><td>2 次（Markdown ＋ HTML）</td><td>1 次（只有 Markdown）</td></tr>
+<tr><td>XSS 風險</td><td>高，要另外接 DOMPurify</td><td>低，天生擋掉大部分注入</td></tr>
+<tr><td>建 DOM 的人</td><td>Blink 的 HTML parser</td><td>React 呼叫 <code>document.createElement</code></td></tr>
+</tbody>
+</table>
+
+<!-- ============ 9 ============ -->
+<h2 id="s9">9. 自我測驗</h2>
+
+<h3>9-1. 填空（點方塊看答案）</h3>
+<div class="card">
+<p>a. 網路上傳輸的一切都是 <span class="blank" data-a="bytes（位元組）">bytes（位元組）</span>，「文字」是 <span class="blank" data-a="解碼之後">解碼之後</span> 才存在的概念。</p>
+<p>b. 圖 A 第 2 步的產物在規範裡叫 <span class="blank" data-a="input stream">input stream</span>，裡面裝的是 <span class="blank" data-a="code points（碼點）">code points（碼點）</span>，不是字串。</p>
+<p>c. HTML tokenizer 只吐 6 種 token：DOCTYPE、start tag、end tag、<span class="blank" data-a="comment">comment</span>、<span class="blank" data-a="character">character</span>、EOF。</p>
+<p>d. 樹建構那台狀態機的狀態叫 <span class="blank" data-a="insertion mode（插入模式）">insertion mode（插入模式）</span>，規範共 <span class="blank" data-a="21">21</span> 種。</p>
+<p>e. <code>addEventListener</code> 定義在原型鏈的 <span class="blank" data-a="EventTarget">EventTarget</span> 這一層；<code>style</code> 定義在 <span class="blank" data-a="HTMLElement">HTMLElement</span> 這一層。</p>
+<p>f. 執行 HTML tokenize 的是 <span class="blank" data-a="Blink（渲染引擎）">Blink（渲染引擎）</span>，不是 <span class="blank" data-a="V8">V8</span>。</p>
+<p>g. charset 的判定順序是 BOM ＞ 使用者指定 ＞ <span class="blank" data-a="HTTP header">HTTP header</span> ＞ prescan 前 <span class="blank" data-a="1024">1024</span> bytes 找 meta。</p>
+<p>h. DOM 節點在 JS 裡是 <span class="blank" data-a="包裝物件 / 宿主物件">包裝物件 / 宿主物件</span>，真正的資料住在瀏覽器引擎的 <span class="blank" data-a="C++ 物件">C++ 物件</span> 裡。</p>
+</div>
+
+<h3>9-2. 是非題</h3>
+
+<div class="tf" data-ans="F">
+  <div class="q">① HTML 是純文字格式，所以它在 HTTP response body 裡不是 bytes。</div>
+  <div class="btns"><button onclick="tf(this,'T')">✔ 對</button><button onclick="tf(this,'F')">✘ 錯</button></div>
+  <div class="fb"></div>
+  <div class="ex" hidden>錯。「純文字格式」講的是<b>內容語意</b>，不是儲存或傳輸形式。網路上一律是 bytes，沒有例外——包含 HTML、JSON、CSS、JS 全部。</div>
+</div>
+
+<div class="tf" data-ans="F">
+  <div class="q">② 講到 tokenization 一定是在講 JavaScript，HTML 沒有這個階段。</div>
+  <div class="btns"><button onclick="tf(this,'T')">✔ 對</button><button onclick="tf(this,'F')">✘ 錯</button></div>
+  <div class="fb"></div>
+  <div class="ex" hidden>錯。HTML、CSS、JS 各有一套獨立的 tokenizer。HTML 的由 Blink 執行、JS 的由 V8 執行，兩者互不相干，HTML 也永遠不會變成 AST 或 bytecode。</div>
+</div>
+
+<div class="tf" data-ans="T">
+  <div class="q">③ <code>"in head"</code>、<code>"in body"</code> 是規範裡樹建構狀態機的狀態名稱，不是 HTML 標籤。</div>
+  <div class="btns"><button onclick="tf(this,'T')">✔ 對</button><button onclick="tf(this,'F')">✘ 錯</button></div>
+  <div class="fb"></div>
+  <div class="ex" hidden>對。它們叫 insertion mode，是 WHATWG 規範的術語，共 21 個。瀏覽器實作時會變成 enum，例如 Blink 的 <code>kInHeadMode</code>。</div>
+</div>
+
+<div class="tf" data-ans="F">
+  <div class="q">④ CSR 的 HTML 解析流程跟 SSR、PHP 不一樣，因為它要等 JS。</div>
+  <div class="btns"><button onclick="tf(this,'T')">✔ 對</button><button onclick="tf(this,'F')">✘ 錯</button></div>
+  <div class="fb"></div>
+  <div class="ex" hidden>錯。<b>解析流程完全一樣</b>（圖 A 四步）。不一樣的是「四步結束後畫面上有沒有東西」：CSR 的 <code>#root</code> 是空的，還要跑 JS；其他幾種解析完就能 paint。</div>
+</div>
+
+<div class="tf" data-ans="F">
+  <div class="q">⑤ DOM 節點是用 JavaScript 實作的普通 JS 物件。</div>
+  <div class="btns"><button onclick="tf(this,'T')">✔ 對</button><button onclick="tf(this,'F')">✘ 錯</button></div>
+  <div class="fb"></div>
+  <div class="ex" hidden>錯（這題很細）。它<b>在 JS 裡表現得像</b> JS 物件，有原型鏈可以操作，但實體是瀏覽器引擎的 C++ 物件，JS 拿到的是透過 WebIDL binding 產生的包裝物件。<code>Object.keys(document.body)</code> 回傳 <code>[]</code> 就是證據。這也是虛擬 DOM 存在的理由。</div>
+</div>
+
+<div class="tf" data-ans="F">
+  <div class="q">⑥ Markdown 要變成 DOM，一定得先轉成 HTML 字串。</div>
+  <div class="btns"><button onclick="tf(this,'T')">✔ 對</button><button onclick="tf(this,'F')">✘ 錯</button></div>
+  <div class="fb"></div>
+  <div class="ex" hidden>錯（有例外）。marked／markdown-it ＋ <code>innerHTML</code> 這條路要；但 react-markdown（remark ＋ rehype-react）是 mdast → hast → React element → <code>document.createElement</code>，全程沒有 HTML 字串，也沒有 HTML Parsing。</div>
+</div>
+
+<div class="tf" data-ans="T">
+  <div class="q">⑦ <code>&lt;meta charset&gt;</code> 要放 <code>&lt;head&gt;</code> 最前面，是因為瀏覽器只 prescan 前 1024 bytes。</div>
+  <div class="btns"><button onclick="tf(this,'T')">✔ 對</button><button onclick="tf(this,'F')">✘ 錯</button></div>
+  <div class="fb"></div>
+  <div class="ex" hidden>對。而且要注意 HTTP header 的 charset <b>優先於</b> meta，所以伺服器設定錯的時候，改 meta 是沒用的。</div>
+</div>
+
+<div class="tf" data-ans="F">
+  <div class="q">⑧ 要先做完轉譯（transpile），瀏覽器才能開始做 HTML Parsing。</div>
+  <div class="btns"><button onclick="tf(this,'T')">✔ 對</button><button onclick="tf(this,'F')">✘ 錯</button></div>
+  <div class="fb"></div>
+  <div class="ex" hidden>錯。兩者沒有依賴：轉譯在 build-time、開發者機器上，處理的是 JS/TS/JSX；HTML Parsing 在 run-time、使用者瀏覽器上，處理的是 HTML 字串。純手寫 <code>.html</code> 與 PHP 完全沒有轉譯，照樣 parse。JSX 的 <code>&lt;div&gt;</code> 會被轉成 <code>_jsx("div", {...})</code>，<b>永遠不會經過 HTML parser</b>。見第 4-b 節。</div>
+</div>
+
+<h3>9-3. 申論題</h3>
+
+<div class="essay">
+<p><b>Q1.</b> 面試官說：「請描述在網址列按下 Enter 之後，瀏覽器怎麼把伺服器回來的東西變成畫面上可以點的按鈕。」請把 bytes、input stream、token、insertion mode、DOM、EventTarget 這六個詞都用上。</p>
+<textarea placeholder="寫下你的答案再看參考答案⋯⋯"></textarea>
+<div style="margin-top:9px"><button class="toggle" onclick="tg('e1')">看參考答案</button></div>
+<div class="answer" id="e1">
+伺服器回來的 response body 是一串 <b>bytes</b>，還不是文字。瀏覽器先用 encoding sniffing 決定編碼（BOM ＞ HTTP header ＞ 前 1024 bytes 的 meta），把 bytes 解碼成 <b>input stream</b>，內容是 code points；它是「流」不是字串，所以可以邊下載邊解析。<br><br>
+接著 tokenizer 這台狀態機把碼點切成 <b>token</b>，只有 DOCTYPE、start tag、end tag、comment、character、EOF 六種，此時仍是資料。<br><br>
+token 進入樹建構，狀態機依當下的 <b>insertion mode</b>（initial、before html、in head、in body⋯⋯共 21 種）決定怎麼處理。讀到 <code>&lt;button&gt;</code> 的 start tag token 時，在 <code>in body</code> 模式下 new 出一個 <code>HTMLButtonElement</code> 掛到樹上，這棵樹就是 <b>DOM</b>。<br><br>
+這個物件的原型鏈是 HTMLButtonElement → HTMLElement → Element → Node → <b>EventTarget</b>，最底層的 EventTarget 提供 <code>addEventListener</code>，所以 JS 才能替它掛 click 事件。字串形態的 <code>&lt;button&gt;</code> 沒有這條鏈，所以什麼都做不了。<br><br>
+最後 DOM 與 CSSOM 合成 Render Tree，經 Layout、Paint、Composite 才真的出現在螢幕上。
+</div>
+</div>
+
+<div class="essay">
+<p><b>Q2.</b> 同事說「CSR 慢是因為它的 HTML 解析比較慢」。請指出他錯在哪，並說明真正的原因。</p>
+<textarea placeholder="寫下你的答案再看參考答案⋯⋯"></textarea>
+<div style="margin-top:9px"><button class="toggle" onclick="tg('e2')">看參考答案</button></div>
+<div class="answer" id="e2">
+他錯在把「解析慢」跟「首屏慢」混為一談。<br><br>
+CSR 的 HTML 解析<b>反而更快</b>，因為它的 HTML 極短（通常就一個空的 <code>&lt;div id="root"&gt;&lt;/div&gt;</code>），token 少、要建的節點也少。圖 A 那四步 CSR 跑得比 SSR 快。<br><br>
+真正的原因是：<b>四步跑完之後，畫面上什麼都沒有</b>。使用者要等的是後面那一整段——下載 JS bundle、V8 tokenize ＋ parse ＋ 產 bytecode、執行 React、呼叫 <code>createElement</code> 再建一次 DOM，最後才 paint。<br><br>
+所以 CSR 的 FCP（First Contentful Paint）差，瓶頸在 <b>JS 的下載與執行</b>，不在 HTML Parsing。對應的優化手段也因此是 code splitting、preload、SSR/SSG，而不是「把 HTML 寫短一點」。
+</div>
+</div>
+
+<div class="essay">
+<p><b>Q3.</b> 為什麼虛擬 DOM 會比較快？請從「DOM 節點到底是什麼物件」這件事回答。</p>
+<textarea placeholder="寫下你的答案再看參考答案⋯⋯"></textarea>
+<div style="margin-top:9px"><button class="toggle" onclick="tg('e3')">看參考答案</button></div>
+<div class="answer" id="e3">
+因為 DOM 節點<b>不是純 JS 物件</b>。它的實體是瀏覽器引擎的 C++ 物件，JS 拿到的只是透過 WebIDL binding 產生的包裝物件；每次讀寫它的屬性，都是一次跨越 JS ↔ C++ 邊界的呼叫，成本遠高於操作純 JS 物件。<br><br>
+虛擬 DOM 的做法是：先在<b>便宜的純 JS 物件</b>上做完所有比對與計算，算出最小差異集合，最後才一次性跨界去改真 DOM。省的不是「計算」，而是<b>跨界次數</b>。<br><br>
+⚠️ 誠實補充：虛擬 DOM 不一定比「手寫最佳化的直接 DOM 操作」快，它換來的是<b>可維護性</b>——你可以用宣告式寫法，而不必自己手動追蹤該改哪幾個節點。Svelte 就選了另一條路：在 build time 編譯出精準的 DOM 操作，完全不用虛擬 DOM。
+</div>
+</div>
+
+<!-- ============ 10 ============ -->
+<h2 id="s10">10. 資料來源（含查證時間）</h2>
+<table class="srcbox">
+<thead><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr></thead>
+<tbody>
+<tr><td>解析總章、tokenization 與 tree construction 的切分</td><td><a href="https://html.spec.whatwg.org/multipage/parsing.html" target="_blank" rel="noopener">WHATWG HTML Standard §13.2 Parsing HTML documents</a></td><td>Living Standard，於 2026-09-08 查證</td></tr>
+<tr><td>encoding sniffing algorithm 的八個優先序</td><td><a href="https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding" target="_blank" rel="noopener">§13.2.3.2 Determining the character encoding</a></td><td>Living Standard，於 2026-09-08 查證</td></tr>
+<tr><td>21 個 insertion mode 的完整清單</td><td><a href="https://html.spec.whatwg.org/multipage/parsing.html#the-insertion-mode" target="_blank" rel="noopener">§13.2.4.1 The insertion mode</a></td><td>Living Standard，於 2026-09-08 查證</td></tr>
+<tr><td>input stream 由 code points 構成</td><td><a href="https://html.spec.whatwg.org/multipage/parsing.html#preprocessing-the-input-stream" target="_blank" rel="noopener">§13.2.3.5 Preprocessing the input stream</a></td><td>Living Standard，於 2026-09-08 查證</td></tr>
+<tr><td>EventTarget 提供的三個方法</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/EventTarget" target="_blank" rel="noopener">MDN — EventTarget</a></td><td>於 2026-09-08 查證</td></tr>
+<tr><td>Node / Element / HTMLElement 的能力分層</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/Node" target="_blank" rel="noopener">MDN — Node</a>｜<a href="https://developer.mozilla.org/en-US/docs/Web/API/Element" target="_blank" rel="noopener">Element</a>｜<a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement" target="_blank" rel="noopener">HTMLElement</a></td><td>於 2026-09-08 查證</td></tr>
+<tr><td>DOM 是 platform object、透過 WebIDL 綁定暴露給 JS</td><td><a href="https://webidl.spec.whatwg.org/#idl-interfaces" target="_blank" rel="noopener">WebIDL Standard — Interfaces</a></td><td>Living Standard，於 2026-09-08 查證</td></tr>
+<tr><td>speculative parsing（parser 被擋住時仍預先抓資源）</td><td><a href="https://developer.mozilla.org/en-US/docs/Glossary/Speculative_parsing" target="_blank" rel="noopener">MDN Glossary — Speculative parsing</a></td><td>於 2026-09-08 查證</td></tr>
+<tr><td>DOMParser：手動觸發第 3、4 步</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/DOMParser" target="_blank" rel="noopener">MDN — DOMParser</a></td><td>於 2026-09-08 查證</td></tr>
+</tbody>
+</table>
+
+<div class="note" style="margin-top:26px">
+<b>相關筆記（含關聯理由）</b>
+<ul style="margin:8px 0 0">
+<li><code>HTML文件結構-DOCTYPE與骨架.md</code>（同資料夾）—— 那篇講「骨架的每一行<b>要怎麼寫</b>」，本篇講「這些字元<b>怎麼被讀成物件</b>」。特別是它的 Q9、Q10（charset 要放最前面、不寫會亂碼）就是本篇第 3 節的結論。</li>
+<li><code>../web-platform/script載入方式+前因後果.md</code> —— 那篇的 (a) 節開頭那句「收到的是純文字字串」就是本篇整篇要展開的東西；那篇接著講 <code>&lt;script&gt;</code> 如何<b>打斷</b>本篇的第 3、4 步。<b>本篇是它的前傳。</b></li>
+<li><code>../web-platform/Markdown-渲染為DOM的過程.md</code> —— 本篇第 8 節補上了那篇缺的路徑 B（react-markdown 不經過 HTML 字串），並指出「一定要先轉成 HTML 字串」這句話的例外。</li>
+<li><code>../web-platform/SPA架構-入口點-CSR客戶端效能與狀態-部署.md</code> —— 本篇第 7 節的表格是那篇的上游：先懂解析流程一致，才懂 CSR 的慢不在解析。</li>
+<li><code>../../00-V8引擎完整管線-Parse到Deoptimization.md</code> —— 本篇第 4 節說「HTML 永遠不會進 V8」，那篇是 V8 那條平行線的完整管線。</li>
+</ul>
+</div>
+
+<p style="text-align:center;color:var(--muted);font-size:.85rem;margin-top:40px">
+建立於 2026-09-08　｜　Abby-notes / frontend-docs / html-basics
+</p>
+
+</div>
+
+<script>
+// 填空
+document.querySelectorAll('.blank').forEach(function(el){
+  el.textContent = el.dataset.a;
+  el.addEventListener('click', function(){ el.classList.toggle('on'); });
+});
+
+// 顯示/隱藏答案
+function tg(id){
+  var el = document.getElementById(id);
+  el.classList.toggle('show');
+}
+
+// 是非題
+function tf(btn, pick){
+  var box = btn.closest('.tf');
+  var ans = box.dataset.ans;
+  var fb  = box.querySelector('.fb');
+  var ex  = box.querySelector('.ex').innerHTML;
+  var ok  = (pick === ans);
+  fb.className = 'fb show ' + (ok ? 'right' : 'wrong');
+  fb.innerHTML = (ok ? '✅ 答對了　' : '❌ 再想想　') + ex;
+}
+</script>
+</body>
+</html>

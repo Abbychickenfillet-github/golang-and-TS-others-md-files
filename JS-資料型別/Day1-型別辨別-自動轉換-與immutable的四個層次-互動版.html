@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Day 1｜型別辨別、自動轉換的七個入口、immutable 的四個層次</title>
+<style>
+  :root{--bg:#fafafa;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;
+        --good:#059669;--goodbg:#d1fae5;--bad:#dc2626;--badbg:#fee2e2;
+        --warn:#d97706;--warnbg:#fef3c7;--info:#0284c7;--infobg:#e0f2fe;
+        --purple:#7c3aed;--purplebg:#ede9fe;--code:#1e293b}
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 16px 80px;background:var(--bg);color:var(--ink);
+       font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;line-height:1.85}
+  .wrap{max-width:920px;margin:0 auto}
+  h1{font-size:25px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 24px}
+  h2{font-size:19px;margin:36px 0 12px;padding-left:10px;border-left:4px solid var(--info)}
+  h3{font-size:16px;margin:22px 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+  .note{background:var(--infobg);border-left:4px solid var(--info);padding:12px 16px;border-radius:8px;
+        margin:14px 0;font-size:14px}
+  pre{background:var(--code);color:#e2e8f0;padding:14px 16px;border-radius:8px;overflow-x:auto;
+      font-family:'Cascadia Code',Consolas,monospace;font-size:13.5px;line-height:1.7}
+  .inline-code{background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:13px;
+               font-family:'Cascadia Code',Consolas,monospace}
+  ol,ul{padding-left:22px} li{margin:6px 0}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px}
+  th,td{padding:8px 10px;border:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:#f1f5f9}
+  .tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;margin-right:6px}
+  .tag-bad{background:var(--badbg);color:var(--bad)}
+  .tag-good{background:var(--goodbg);color:var(--good)}
+  .tag-warn{background:var(--warnbg);color:var(--warn)}
+  .tag-info{background:var(--infobg);color:var(--info)}
+  .tag-pp{background:var(--purplebg);color:var(--purple)}
+  .blank{border:none;border-bottom:2px dashed var(--info);background:transparent;
+         font-family:'Cascadia Code',Consolas,monospace;font-size:14px;color:var(--ink);
+         width:180px;text-align:center;padding:2px 4px;outline:none}
+  .blank:focus{border-bottom-color:var(--good);background:#f0fdf4}
+  .blank.ok{border-bottom:2px solid var(--good);color:var(--good);font-weight:600}
+  .blank.no{border-bottom:2px solid var(--bad);color:var(--bad)}
+  button{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;
+         padding:7px 14px;font-size:13.5px;font-family:inherit;transition:.15s}
+  button:hover{background:#f1f5f9}
+  .btn-primary{background:var(--info);color:#fff;border-color:var(--info)}
+  .btn-primary:hover{background:#0369a1}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  .answer{display:none;margin-top:12px;padding:14px 16px;border-radius:8px;
+          background:var(--goodbg);border-left:4px solid var(--good);font-size:14.5px}
+  .answer.show{display:block}
+  .tf-item{padding:12px 0;border-bottom:1px dashed var(--line)}
+  .tf-item:last-of-type{border-bottom:none}
+  .tf-q{font-weight:500}
+  .tf-btns{margin-top:8px;display:flex;gap:8px;align-items:center}
+  .tf-fb{font-size:13.5px;margin-left:6px}
+  .tf-fb.ok{color:var(--good)} .tf-fb.no{color:var(--bad)}
+  .tf-why{display:none;margin-top:8px;font-size:13.5px;color:var(--muted);
+          background:#f8fafc;padding:10px 12px;border-radius:6px}
+  .tf-why.show{display:block}
+  textarea{width:100%;min-height:100px;border:1px solid var(--line);border-radius:8px;
+           padding:10px 12px;font-family:inherit;font-size:14px;resize:vertical;line-height:1.7}
+  .score{font-weight:700;color:var(--info)}
+  figure{margin:16px 0}
+  figure img{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff}
+  figcaption{font-size:13px;color:var(--muted);margin-top:6px;text-align:center}
+  .src{font-size:13px;color:var(--muted)} .src a{color:var(--info)}
+  .live{background:#0f172a;color:#e2e8f0;border-radius:8px;padding:12px 14px;margin-top:10px;
+        font-family:'Cascadia Code',Consolas,monospace;font-size:12.5px;white-space:pre-wrap;
+        max-height:340px;overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Day 1｜型別辨別、自動轉換的七個入口、immutable 的四個層次</h1>
+<p class="sub">互動版　建立日期 2026-09-07　實測環境 Node v22.23.2　題目來源 explainthis.io 面試題庫</p>
+
+<div class="note">
+  <b>這篇是補充，不是重寫。</b><br>
+  「有哪些型別」「truthy／falsy」「<span class="inline-code">==</span> 的 IsLooselyEqual」「包裝物件」已經寫在
+  <b>JavaScript資料型別總覽</b> 與 <b>追問-BigInt取捨-不可變性-與包裝物件</b>。
+  這裡只補那兩篇沒展開的三個空缺。
+</div>
+
+<h2>一、有哪些資料型別：三個要修正的講法</h2>
+<div class="card">
+  <p>規格層叫 <b>language types（語言型別）</b>，一共 <b>8 種</b>：7 種 primitive ＋ 1 種 Object。</p>
+  <ol>
+    <li><b>Function 不是獨立型別。</b>它是 Object 的子型別，只因為有 <span class="inline-code">[[Call]]</span>
+      這個 internal method，<span class="inline-code">typeof</span> 才特別回傳 <span class="inline-code">"function"</span></li>
+    <li><b>Array 也不是獨立型別。</b>它是有 <span class="inline-code">[[ArrayLength]]</span> 這個 internal slot 的 Object</li>
+    <li><b>規格裡還有一整組你碰不到的型別</b>（specification types）：
+      <span class="inline-code">Reference Record</span>、<span class="inline-code">Completion Record</span>、
+      <span class="inline-code">Property Descriptor</span>、<span class="inline-code">Environment Record</span>⋯⋯
+      　←　第一個就是解釋 <span class="inline-code">obj.n++</span> 為何合法時用到的那個</li>
+  </ol>
+</div>
+
+<h2>二、如何辨別型別：五種工具與各自的破口</h2>
+<div class="card">
+  <table>
+    <tr><th>工具</th><th>分得出什麼</th><th>破口</th></tr>
+    <tr><td><span class="inline-code">typeof x</span></td><td>7 種 primitive ＋ function</td>
+        <td><span class="inline-code">typeof null === "object"</span>；陣列／Date／Map／RegExp 全是 <span class="inline-code">"object"</span></td></tr>
+    <tr><td><span class="inline-code">Object.prototype.toString.call(x)</span></td>
+        <td>連 null／undefined 都分得出</td>
+        <td>可被 <span class="inline-code">Symbol.toStringTag</span> <b>竄改</b>，只適合除錯</td></tr>
+    <tr><td><span class="inline-code">Array.isArray(x)</span></td><td>只判陣列，<b>跨 realm 也正確</b></td><td>只能判陣列</td></tr>
+    <tr><td><span class="inline-code">x instanceof C</span></td><td>自訂類別的實例</td>
+        <td><b>跨 realm 失效</b>（iframe、Worker、postMessage）</td></tr>
+    <tr><td><span class="inline-code">Object.is(a, b)</span></td><td>判「值有沒有變」</td><td>不是判型別，是判等值</td></tr>
+  </table>
+
+  <h3>三種等值語意</h3>
+  <table>
+    <tr><th>情境</th><th><span class="inline-code">==</span></th><th><span class="inline-code">===</span></th><th><span class="inline-code">Object.is</span></th></tr>
+    <tr><td>0 與 -0</td><td>true</td><td>true</td><td style="color:#dc2626"><b>false</b></td></tr>
+    <tr><td>NaN 與 NaN</td><td>false</td><td>false</td><td style="color:#059669"><b>true</b></td></tr>
+    <tr><td>1 與 "1"</td><td style="color:#d97706"><b>true</b></td><td>false</td><td>false</td></tr>
+    <tr><td>null 與 undefined</td><td style="color:#d97706"><b>true</b></td><td>false</td><td>false</td></tr>
+  </table>
+  <p style="margin-top:10px"><b>React 判斷 state 有沒有變，用的就是 <span class="inline-code">Object.is</span>。</b></p>
+
+  <div class="btn-row">
+    <button class="btn-primary" onclick="labTypeof()">現場跑：typeof 全表</button>
+    <button class="btn-primary" onclick="labTag()">toString tag 與偽裝</button>
+    <button class="btn-primary" onclick="labRealm()">跨 realm 用 iframe 實測</button>
+    <button class="btn-primary" onclick="labEquality()">三種等值語意</button>
+  </div>
+  <div class="live" id="lab1">（還沒按過）</div>
+  <p class="src" style="margin-top:8px">跨 realm 那顆按鈕會臨時建一個隱藏 iframe 來製造第二個 realm，測完立刻移除。</p>
+</div>
+
+<h2>三、自動轉換：七個觸發入口</h2>
+<div class="card">
+  <table>
+    <tr><th>入口</th><th>什麼時候被觸發</th><th>最常踩的坑</th></tr>
+    <tr><td><b>ToBoolean</b></td><td>if()、while()、!、&amp;&amp;、||、三元</td>
+        <td>只有 8 個 falsy；<span class="inline-code">"0"</span>、<span class="inline-code">[]</span>、<span class="inline-code">{}</span> 全是 truthy</td></tr>
+    <tr><td><b>ToNumeric</b></td><td>- * / % ** ++ --</td>
+        <td><span class="inline-code">null + 1</span> 是 1，<span class="inline-code">undefined + 1</span> 是 NaN</td></tr>
+    <tr><td><b>ToString</b></td><td>+ 的字串特例、${}、String()、join</td>
+        <td><span class="inline-code">1 + 2 + "3"</span> 是 "33"，<span class="inline-code">"1" + 2 + 3</span> 是 "123"</td></tr>
+    <tr><td><b>ToPrimitive</b></td><td>物件參與上面任何運算前的必經之路</td>
+        <td>Symbol.toPrimitive → valueOf → toString</td></tr>
+    <tr><td><b>ToPropertyKey</b></td><td>obj[任何東西]</td>
+        <td><span class="inline-code">obj[1]</span> 與 <span class="inline-code">obj["1"]</span> <b>是同一格</b></td></tr>
+    <tr><td><b>關係運算</b></td><td>&lt; &gt; &lt;= &gt;=</td><td>兩邊都是字串才比字典序，否則 ToNumber</td></tr>
+    <tr><td><b>IsLooselyEqual</b></td><td>== 專屬演算法</td><td>跟 truthy／falsy 是<b>兩回事</b></td></tr>
+  </table>
+
+  <div class="btn-row">
+    <button class="btn-primary" onclick="labFalsy()">8 個 falsy 與誤判的 truthy</button>
+    <button class="btn-primary" onclick="labArith()">算術與加號</button>
+    <button class="btn-primary" onclick="labHint()">ToPrimitive 的三種 hint</button>
+    <button class="btn-primary" onclick="labKey()">ToPropertyKey 撞格</button>
+    <button class="btn-primary" onclick="labEq()">== 的不遞移性</button>
+  </div>
+  <div class="live" id="lab2">（還沒按過）</div>
+</div>
+
+<h2>四、填空練習</h2>
+<div class="card">
+  <ol>
+    <li>判斷陣列要用
+      <input class="blank" data-a="Array.isArray|Array.isArray()" placeholder="方法名">
+      ，不要用 instanceof，因為後者跨
+      <input class="blank" data-a="realm|領域" placeholder="跨什麼" style="width:110px">
+      會失效
+    </li>
+    <li>物件要參與算術或字串運算前，一定先經過抽象操作
+      <input class="blank" data-a="ToPrimitive" placeholder="抽象操作名稱">
+    </li>
+    <li>React 判斷 state 有沒有變，用的是
+      <input class="blank" data-a="Object.is|Object.is()" placeholder="哪個 API">
+    </li>
+    <li>「不可變」的四個層次中，唯一<b>不會報任何錯</b>的是第
+      <input class="blank" data-a="4|四" placeholder="第幾層" style="width:80px">
+      層，也就是 React 的更新慣例
+    </li>
+    <li>Node 的 .js（CommonJS）預設<b>不是</b>
+      <input class="blank" data-a="嚴格模式|strict mode|strict" placeholder="哪種模式" style="width:150px">
+      ，所以改 primitive 會靜默失敗而不是丟 TypeError
+    </li>
+  </ol>
+  <div class="btn-row">
+    <button class="btn-primary" onclick="checkBlanks()">檢查填空</button>
+    <button onclick="revealBlanks()">直接看答案</button>
+    <button onclick="clearBlanks()">清空重來</button>
+    <span id="blankScore" class="score"></span>
+  </div>
+</div>
+
+<h2>五、為何 primitive 是 immutable：四個層次</h2>
+
+<figure>
+  <img src="../obsidian-attachment/學習JS_圖解_immutable的四個層次-鎖什麼由誰決定違反時怎樣_2026-09-07.svg" alt="immutable 的四個層次">
+  <figcaption>圖一　四個層次鎖的東西、由誰決定、違反時噴什麼錯完全不同</figcaption>
+</figure>
+
+<div class="card">
+  <table>
+    <tr><th>層次</th><th>鎖什麼</th><th>由誰決定</th><th>違反時會怎樣</th></tr>
+    <tr><td><span class="tag tag-pp">1</span>primitive 值</td><td>值本身</td>
+        <td><b>語言，無法選</b></td><td>嚴格 TypeError／非嚴格靜默失敗</td></tr>
+    <tr><td><span class="tag tag-bad">2</span><span class="inline-code">const</span> 綁定</td><td>名字指向誰</td>
+        <td>你，宣告時</td><td><span class="inline-code">Assignment to constant variable.</span></td></tr>
+    <tr><td><span class="tag tag-warn">3</span><span class="inline-code">Object.freeze</span></td>
+        <td>物件的屬性（<b>淺層</b>）</td><td>你，執行時</td>
+        <td><span class="inline-code">Cannot assign to read only property</span></td></tr>
+    <tr><td><span class="tag tag-info">4</span>React 更新慣例</td><td><b>什麼都沒鎖</b></td>
+        <td>你，寫 code 時</td><td>不報錯，畫面不動（最難 debug）</td></tr>
+  </table>
+
+  <div class="btn-row"><button onclick="toggle('why1')">切換顯示：層次 1 為什麼會這樣設計</button></div>
+  <div class="answer" id="why1">
+    <ol>
+      <li><b>規格層：primitive 身上根本沒有「可以寫」的門。</b>
+        所有 mutation 的入口都是 Object 的 internal method——<span class="inline-code">[[Set]]</span>、
+        <span class="inline-code">[[DefineOwnProperty]]</span>、<span class="inline-code">[[Delete]]</span>。
+        primitive 不是 Object，沒有 internal slot 可寫，也沒有這些 internal method。
+        <b>不是「被禁止」，是「沒有那扇門」。</b></li>
+      <li><b>primitive 沒有 identity（身分）。</b>兩個 5 就是同一個 5，語言不區分「哪一個 5」。
+        既然沒有身分，「改變某一個 5」這句話本身就沒有意義。物件相反，<span class="inline-code">{} !== {}</span>。</li>
+      <li><b>這是引擎最佳化的前提。</b>正因為不可變，V8 才敢做 string interning（內容相同的字串共用一份）
+        與 Smi（小整數直接編碼進指標，<b>根本不進堆積</b>）。
+        這正是「一千萬次 count = count + 1 只動了 0.02 MB」的原因。</li>
+      <li><b>值語意（value semantics）</b>：<span class="inline-code">a = b</span> 之後兩者互不影響，沒有 aliasing 問題。</li>
+      <li><b>讓 ===、property key、Map key 的語意穩定</b>：比的是值，不需要問「是不是同一個」。</li>
+    </ol>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-primary" onclick="labImmutable()">現場跑：四個層次各試一次</button>
+  </div>
+  <div class="live" id="lab3">（還沒按過）</div>
+
+  <div class="note" style="margin-top:16px">
+    <b>⚠️ 一個很多人不知道的前提</b><br>
+    Node 的 <span class="inline-code">.js</span>（CommonJS）<b>預設不是嚴格模式</b>。
+    只有 <span class="inline-code">.mjs</span>、標了 <span class="inline-code">"type":"module"</span> 的 ESM、
+    <span class="inline-code">class</span> 內部、以及自己寫 <span class="inline-code">'use strict'</span> 的地方才是。<br>
+    瀏覽器裡 <span class="inline-code">&lt;script type="module"&gt;</span> 是嚴格，一般 <span class="inline-code">&lt;script&gt;</span> 不是。<br>
+    這件事決定了「改不可變的東西」會<b>丟錯</b>還是<b>靜默失敗</b>。
+  </div>
+
+  <div class="btn-row"><button onclick="toggle('why2')">切換顯示：看錯誤訊息反推是哪一層</button></div>
+  <div class="answer" id="why2">
+    <ol>
+      <li><span class="inline-code">Assignment to constant variable.</span> → 層次 2，你動到了 const 綁定</li>
+      <li><span class="inline-code">Cannot assign to read only property 'x'</span> → 層次 1 或 3</li>
+      <li><b>沒有錯誤訊息但值沒變</b> → 層次 1 或 3 的非嚴格靜默失敗</li>
+      <li><b>沒有錯誤、值變了但畫面沒動</b> → 層次 4，React 的 Object.is 判定沒變</li>
+    </ol>
+  </div>
+</div>
+
+<h2>六、是非題</h2>
+<div class="card" id="tfBox">
+  <div class="tf-item" data-a="false" data-why="JavaScript 有 8 種語言型別：7 種 primitive 加 1 種 Object。Function 與 Array 都是 Object 的子型別，不是獨立型別。">
+    <div class="tf-q">1. Function 與 Array 是 JavaScript 的獨立資料型別</div>
+  </div>
+  <div class="tf-item" data-a="true" data-why="正確。另一個 realm（iframe、Worker、vm）有自己的 Array.prototype，兩條原型鏈不相交。Array.isArray 讀的是內部欄位，所以不受影響。">
+    <div class="tf-q">2. foreignArray instanceof Array 在 iframe 情境會回傳 false，但 Array.isArray 仍正確</div>
+  </div>
+  <div class="tf-item" data-a="false" data-why="可以被騙。Object.prototype.toString 讀的是「可寫的」Symbol.toStringTag，所以 { [Symbol.toStringTag]: 'Array' } 會回傳 [object Array]。它只適合除錯，不適合當安全判斷。">
+    <div class="tf-q">3. Object.prototype.toString.call 是最可靠的型別判斷，不會被騙</div>
+  </div>
+  <div class="tf-item" data-a="true" data-why="正確。ToPropertyKey 會把非 Symbol 的 key 壓成字串，所以 obj[1] 與 obj['1'] 是同一格。要保留型別必須用 Map，它的 key 用 SameValueZero 比對不轉型。">
+    <div class="tf-q">4. obj[1] 與 obj["1"] 存取的是同一格</div>
+  </div>
+  <div class="tf-item" data-a="false" data-why="Object.is(0, -0) 是 false，Object.is(NaN, NaN) 是 true。它是 SameValue 語意，跟 === 剛好在這兩個 case 相反。">
+    <div class="tf-q">5. Object.is 跟 === 在所有情況下結果都一樣</div>
+  </div>
+  <div class="tf-item" data-a="true" data-why="正確，而且這是最難 debug 的一層：資料真的改了、畫面沒動、console 一片乾淨。前三層至少在嚴格模式下會丟 TypeError。">
+    <div class="tf-q">6. immutable 的四個層次中，React 更新慣例那一層違反時完全不會報錯</div>
+  </div>
+  <div class="tf-item" data-a="false" data-why="Object.freeze 是淺層的。frozen.nested.m = 99 照樣成功，Object.isFrozen(frozen.nested) 是 false。要深層得自己遞迴 deepFreeze。">
+    <div class="tf-q">7. Object.freeze 會把整個巢狀物件都凍起來</div>
+  </div>
+  <div class="tf-item" data-a="true" data-why="正確。primitive 不是 Object，身上沒有 internal slot 可寫，也沒有 [[Set]] 這些 internal method。不是「被禁止修改」，是「根本沒有修改的入口」。">
+    <div class="tf-q">8. primitive 不可變的規格層原因是它沒有可供寫入的 internal method</div>
+  </div>
+  <div class="btn-row">
+    <button class="btn-primary" onclick="gradeTF()">批改是非題</button>
+    <button onclick="resetTF()">重做</button>
+    <span id="tfScore" class="score"></span>
+  </div>
+</div>
+
+<h2>七、申論題</h2>
+<div class="card">
+  <p><b>題目一</b>　同事說「用 <span class="inline-code">Object.prototype.toString.call</span> 判型別最保險」。請說明這句話對在哪、錯在哪，以及你會怎麼組一個判斷函式。</p>
+  <textarea id="e1" placeholder="寫下你的想法之後再看參考答案"></textarea>
+  <div class="btn-row"><button onclick="toggle('ea1')">切換顯示參考答案</button></div>
+  <div class="answer" id="ea1">
+    <ol>
+      <li><b>對的部分</b>　它比 typeof 分得細，連 null／undefined／Date／Map／RegExp 都分得出來，而且不受 realm 影響</li>
+      <li><b>錯的部分</b>　它讀的是可寫的 Symbol.toStringTag，任何物件都能偽裝成 [object Array]，所以只適合除錯不適合當安全判斷</li>
+      <li><b>而且它慢</b>　每次都要建字串再切片，熱路徑上不划算</li>
+      <li><b>我會這樣組</b>　先擋 null（因為 typeof null 是 "object"）→ 非物件直接用 typeof（最快）→
+        陣列用 Array.isArray（跨 realm 正確）→ 剩下的才用 toString tag 切細</li>
+      <li><b>再往上一層</b>　真正的解法是在邊界做 runtime validation（zod 或 type guard），
+        而不是在業務邏輯裡到處判型別</li>
+    </ol>
+  </div>
+</div>
+
+<div class="card">
+  <p><b>題目二</b>　請用「鎖什麼、由誰決定、違反時怎樣」三個維度，說明 <span class="inline-code">const</span>、
+    <span class="inline-code">Object.freeze</span>、primitive 不可變、React 更新慣例四者的差別，
+    並各舉一個會被混淆的實例。</p>
+  <textarea id="e2" placeholder="寫下你的想法之後再看參考答案"></textarea>
+  <div class="btn-row"><button onclick="toggle('ea2')">切換顯示參考答案</button></div>
+  <div class="answer" id="ea2">
+    <ol>
+      <li><b>primitive 值</b>　鎖值本身／語言強制無法選／嚴格 TypeError、非嚴格靜默失敗。
+        混淆實例：<span class="inline-code">s.toUpperCase()</span> 以為改了字串，其實是造了新字串</li>
+      <li><b>const 綁定</b>　鎖名字指向誰／你宣告時決定／Assignment to constant variable。
+        混淆實例：<span class="inline-code">const arr = []; arr.push(1)</span> 合法，很多人以為 const 陣列不能加東西</li>
+      <li><b>Object.freeze</b>　鎖物件屬性且是淺層／你執行時呼叫／Cannot assign to read only property。
+        混淆實例：以為 freeze 之後整棵樹都安全，結果內層照樣被改</li>
+      <li><b>React 更新慣例</b>　什麼都沒鎖／你寫 code 時決定／完全不報錯。
+        混淆實例：<span class="inline-code">todos[0].done = true; setTodos(todos)</span>，資料改了畫面不動</li>
+      <li><b>一句話串起來</b>　前三層是語言在管，第四層只有你在管，所以第四層才需要靠 code review、
+        ESLint 規則、或 Immer 這類函式庫來守</li>
+    </ol>
+  </div>
+</div>
+
+<h2>八、遇到實際 bug 時的分析手段</h2>
+<div class="card">
+  <p>面試時他們想看的是這一段，不是背誦定義。<b>先確認型別，再懷疑邏輯</b>——順序很重要，因為型別錯的 bug 看起來都像邏輯錯。</p>
+  <ol>
+    <li><b>用 <span class="inline-code">console.log({ x })</span> 而不是 <span class="inline-code">console.log(x)</span></b>
+      包成物件印，Console 會保留引號：<span class="inline-code">{x: "5"}</span> 一眼看出是字串</li>
+    <li><b>Console 直接敲 <span class="inline-code">Object.prototype.toString.call(x)</span></b>　一行定位</li>
+    <li><b>Sources 分頁下 conditional breakpoint</b>　條件寫 <span class="inline-code">typeof x !== 'number'</span>，
+      只在型別跑掉那一刻停下來</li>
+    <li><b>Network 分頁看 API 原始 JSON</b>　確認後端回的是 "123" 還是 123。很多事故的源頭在這裡</li>
+    <li><b>NaN 汙染往上游追</b>　NaN 會沿著算式一路傳染，用 Number.isNaN 插檢查找<b>第一個</b>變 NaN 的地方</li>
+    <li><b>懷疑跨 realm 時比對</b>　<span class="inline-code">Array.isArray(x)</span> true 但
+      <span class="inline-code">x instanceof Array</span> false，就確定跨了 realm</li>
+    <li><b>邊界做 runtime validation</b>　API 回應、表單輸入、localStorage 這三個地方的型別完全不受你控制</li>
+  </ol>
+  <p><b>面試時可以這樣講</b>：先說觀察到的現象，再說你怎麼縮小範圍（第 3、4 點），最後才說結論。過程比答案值錢。</p>
+</div>
+
+<h2>九、延伸練習</h2>
+<div class="card">
+  <ol>
+    <li><a href="https://leetcode.com/problems/array-wrapper/">LeetCode 2695. Array Wrapper</a>
+      　關聯原因：<b>這題就是在考 ToPrimitive</b>。要實作 valueOf 讓 + 走數字路徑、實作 toString 讓 ${} 走字串路徑</li>
+    <li><a href="https://leetcode.com/problems/compact-object/">LeetCode 2705. Compact Object</a>
+      　關聯原因：直接考 falsy 清單（ToBoolean 入口），而且要遞迴處理巢狀</li>
+    <li><a href="https://leetcode.com/problems/inversion-of-object/">LeetCode 2822. Inversion of Object</a>
+      　關聯原因：把 value 拿來當 key，直接撞上 ToPropertyKey 把非字串壓成字串</li>
+    <li><a href="https://leetcode.com/problems/is-object-empty/">LeetCode 2727. Is Object Empty</a>
+      　關聯原因：要同時處理物件與陣列，練 typeOf 的判斷順序</li>
+    <li><a href="https://leetcode.com/problems/return-length-of-arguments-passed/">LeetCode 2703. Return Length of Arguments Passed</a>
+      　關聯原因：順便確認 arguments 的 tag 是 [object Arguments] 不是 Array</li>
+  </ol>
+</div>
+
+<h2>十、參考來源</h2>
+<div class="card src">
+  <ol>
+    <li>MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Data_structures">JavaScript data types and data structures</a></li>
+    <li>MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof">typeof</a></li>
+    <li>MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/toStringTag">Symbol.toStringTag</a></li>
+    <li>MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray">Array.isArray()</a></li>
+    <li>MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is">Object.is()</a></li>
+    <li>MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN">Number.isNaN()</a></li>
+    <li>MDN — <a href="https://developer.mozilla.org/en-US/docs/Glossary/Type_coercion">Type coercion</a></li>
+    <li>MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze">Object.freeze()</a></li>
+    <li>MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode">Strict mode</a></li>
+    <li>ECMA-262 — <a href="https://tc39.es/ecma262/#sec-type-conversion">Type Conversion</a></li>
+    <li>ECMA-262 — <a href="https://tc39.es/ecma262/#sec-islooselyequal">IsLooselyEqual</a></li>
+    <li>ECMA-262 — <a href="https://tc39.es/ecma262/#sec-ecmascript-language-types">ECMAScript Language Types</a></li>
+    <li>Node.js — <a href="https://nodejs.org/api/vm.html">vm module</a>（跨 realm 實驗用）</li>
+  </ol>
+  <p>所有 URL 於 2026-09-07 查閱。實測環境 Node v22.23.2。</p>
+</div>
+
+</div>
+
+<script>
+  function toggle(id){ document.getElementById(id).classList.toggle('show'); }
+  function norm(s){ return String(s).trim().replace(/\s+/g,' ').toLowerCase(); }
+  const out1 = t => document.getElementById('lab1').textContent = t;
+  const out2 = t => document.getElementById('lab2').textContent = t;
+  const out3 = t => document.getElementById('lab3').textContent = t;
+  const pad = (s,n) => String(s).padEnd(n);
+
+  // ---------- 第二節實驗 ----------
+  function labTypeof(){
+    const items = [['"str"','str'],['1',1],['true',true],['Symbol()',Symbol('s')],
+                   ['null',null],['undefined',undefined],['10n',10n],
+                   ['{}',{}],['[]',[]],['function(){}',function(){}],
+                   ['new Map()',new Map()],['new Date()',new Date()],['/re/',/re/]];
+    const lines = items.map(([label,v]) => '  typeof ' + pad(label,14) + ' → ' + typeof v);
+    out1('typeof 全表\n' + lines.join('\n') +
+      '\n\n三個破口\n' +
+      '  a. typeof null 是 "object"（1995 年的 tagged pointer bug），判 null 只能用 === null\n' +
+      '  b. 陣列、Date、RegExp、Map 通通是 "object"，分不出來\n' +
+      '  c. function 被特別挑出來，但它其實是 Object 的子型別（有 [[Call]] 內部方法）');
+  }
+
+  function labTag(){
+    const tag = v => Object.prototype.toString.call(v);
+    const items = [['null',null],['undefined',undefined],['1',1],['"a"','a'],
+                   ['{}',{}],['[]',[]],['function(){}',function(){}],
+                   ['new Map()',new Map()],['new Date()',new Date()],['/re/',/re/],
+                   ['Promise',Promise.resolve()],['Math',Math],['JSON',JSON]];
+    const lines = items.map(([label,v]) => '  ' + pad(label,14) + ' → ' + tag(v));
+    const liar = { [Symbol.toStringTag]: 'Array' };
+    out1('Object.prototype.toString.call\n' + lines.join('\n') +
+      '\n\n但它可以被騙\n' +
+      '  const liar = { [Symbol.toStringTag]: "Array" }\n' +
+      '  toString.call(liar)  → ' + tag(liar) + '   ← 被騙了\n' +
+      '  Array.isArray(liar)  → ' + Array.isArray(liar) + '            ← 騙不過，它讀的是內部欄位\n\n' +
+      '結論：toString 讀的是可寫的 Symbol.toStringTag，只適合除錯，不適合當安全判斷');
+  }
+
+  function labRealm(){
+    const f = document.createElement('iframe');
+    f.style.display = 'none';
+    document.body.appendChild(f);
+    try {
+      const foreignArray = f.contentWindow.eval('[1,2,3]');
+      out1('跨 realm 實測（臨時建一個隱藏 iframe 當第二個 realm）\n\n' +
+        '  foreignArray 內容                → [' + foreignArray + ']\n' +
+        '  foreignArray instanceof Array    → ' + (foreignArray instanceof Array) + '   ← 失效\n' +
+        '  Array.isArray(foreignArray)      → ' + Array.isArray(foreignArray) + '    ← 正確\n' +
+        '  toString.call(foreignArray)      → ' + Object.prototype.toString.call(foreignArray) + '\n' +
+        '  foreignArray.constructor === Array → ' + (foreignArray.constructor === Array) + '   ← 也失效\n\n' +
+        '原因：instanceof 走原型鏈，iframe 有自己的 Array.prototype，兩條鏈不相交。\n' +
+        'Array.isArray 讀的是內部欄位，所以不受影響。\n\n' +
+        '前端最常撞到 realm 邊界的地方：iframe 傳進來的資料、Web Worker 的 postMessage、\n' +
+        '金流與第三方 SDK 嵌在 iframe 裡。');
+    } catch (e) {
+      out1('這個環境擋掉了 iframe 的 eval（' + e.name + '：' + e.message + '）。\n' +
+           '直接開 file:// 通常可以跑；被擋的話請看 demo-06 的 node 版，它用 node:vm 做同樣的事。');
+    } finally {
+      f.remove();
+    }
+  }
+
+  function labEquality(){
+    const rows = [['0 與 -0',0,-0],['NaN 與 NaN',NaN,NaN],
+                  ['1 與 "1"',1,'1'],['null 與 undefined',null,undefined],
+                  ['[] 與 ""',[],''],['"" 與 "0"','','0']];
+    let s = '  ' + pad('情境',20) + pad('==',9) + pad('===',9) + 'Object.is\n';
+    s += '  ' + '-'.repeat(50) + '\n';
+    rows.forEach(([l,a,b]) => {
+      s += '  ' + pad(l,20) + pad(a==b,9) + pad(a===b,9) + Object.is(a,b) + '\n';
+    });
+    out1('三種等值語意\n\n' + s +
+      '\n  a. ==  會做型別轉換（IsLooselyEqual）\n' +
+      '  b. === 不轉換，但 NaN 不等於自己、+0 等於 -0\n' +
+      '  c. Object.is 是 SameValue：NaN 相等、+0 與 -0 不相等\n' +
+      '  d. React 判斷 state 有沒有變，用的就是 Object.is\n\n' +
+      'NaN 專用\n' +
+      '  isNaN("hello")        → ' + isNaN('hello') + '   ← 先 ToNumber 才判，誤判\n' +
+      '  Number.isNaN("hello") → ' + Number.isNaN('hello') + '  ← 永遠用這個');
+  }
+
+  // ---------- 第三節實驗 ----------
+  function labFalsy(){
+    const falsy = [['false',false],['0',0],['-0',-0],['0n',0n],['""',''],
+                   ['null',null],['undefined',undefined],['NaN',NaN]];
+    const tricky = [['[]',[]],['{}',{}],['"0"','0'],['"false"','false'],
+                    ['" "',' '],['function(){}',function(){}],['-1',-1],['Infinity',Infinity]];
+    out2('8 個 falsy（就這 8 個，其他全是 truthy）\n' +
+      falsy.map(([l,v]) => '  ' + pad(l,14) + '→ ' + (v ? 'truthy' : 'falsy')).join('\n') +
+      '\n\n最容易誤判的 truthy\n' +
+      tricky.map(([l,v]) => '  ' + pad(l,14) + '→ ' + (v ? 'truthy' : 'falsy')).join('\n') +
+      '\n\n⚠ 表單輸入 "0" 是 truthy，但 Number("0") 是 falsy。\n' +
+      '   if (input.value) 對 "0" 會判成有值，這是最常見的判斷事故。');
+  }
+
+  function labArith(){
+    const arith = [['"5" - 2','5'-2],['"5" * "2"','5'*'2'],['true + 1',true+1],
+                   ['null + 1',null+1],['undefined + 1',undefined+1],
+                   ['[] * 2',[]*2],['[3] * 2',[3]*2],['[1,2] * 2',[1,2]*2],['"abc" - 1','abc'-1]];
+    const plus = [['1 + "2"',1+'2'],['1 + 2 + "3"',1+2+'3'],['"1" + 2 + 3','1'+2+3],
+                  ['[] + []',[]+[]],['[] + {}',[]+{}],['[1,2] + [3]',[1,2]+[3]],
+                  ['1 + null',1+null],['1 + undefined',1+undefined]];
+    out2('ToNumeric（- * / % ** 一律走這條，沒有字串特例）\n' +
+      arith.map(([e,v]) => '  ' + pad(e,16) + '→ ' + pad(String(v),10) + '(' + typeof v + ')').join('\n') +
+      '\n  ⚠ null → 0 但 undefined → NaN，這兩個很容易搞混\n\n' +
+      'ToString（+ 的字串特例）\n' +
+      plus.map(([e,v]) => '  ' + pad(e,16) + '→ ' + pad(JSON.stringify(v),16) + '(' + typeof v + ')').join('\n') +
+      '\n  ⚠ + 是左結合，順序決定一切：\n' +
+      '     1 + 2 + "3" 先算 1+2=3 再串接 → "33"\n' +
+      '     "1" + 2 + 3 先串接 "12" 再串接 → "123"');
+  }
+
+  function labHint(){
+    const log = [];
+    const spy = { [Symbol.toPrimitive](hint){ log.push('"' + hint + '"');
+      if (hint === 'number') return 42;
+      if (hint === 'string') return 'FORTY-TWO';
+      return 'default-42'; } };
+    const r1 = +spy, r2 = `${spy}`, r3 = spy + '';
+    const order = [];
+    const plain = { valueOf(){ order.push('valueOf'); return 7; },
+                    toString(){ order.push('toString'); return 'seven'; } };
+    const m1 = plain * 1; const o1 = order.slice(); order.length = 0;
+    const m2 = `${plain}`;  const o2 = order.slice();
+    out2('有 Symbol.toPrimitive 時，hint 決定回傳什麼\n' +
+      '  +spy        （hint = number ）→ ' + r1 + '\n' +
+      '  `${spy}`    （hint = string ）→ ' + r2 + '\n' +
+      '  spy + ""    （hint = default）→ ' + r3 + '\n' +
+      '  實際收到的 hint 依序：' + log.join('、') + '\n\n' +
+      '沒有 Symbol.toPrimitive 時的預設查找順序\n' +
+      '  plain * 1   → ' + m1 + '        呼叫順序 ' + JSON.stringify(o1) + '\n' +
+      '  `${plain}`  → ' + m2 + '    呼叫順序 ' + JSON.stringify(o2) + '\n\n' +
+      '結論：hint number/default 先試 valueOf，hint string 先試 toString。\n' +
+      '這就是為什麼 [] + {} 是 "[object Object]"：\n' +
+      '  陣列的 toString 給 ""，物件的給 "[object Object]"。');
+  }
+
+  function labKey(){
+    const obj = {};
+    obj[1] = 'number one';
+    obj['1'] = 'string one';
+    obj[true] = 'boolean';
+    obj[{a:1}] = 'object as key';
+    obj[[1,2]] = 'array as key';
+    const m = new Map([[1,'number one'],['1','string one']]);
+    out2('ToPropertyKey：一般物件的 key 永遠是字串或 Symbol\n\n' +
+      '  obj[1] = "number one"\n' +
+      '  obj["1"] = "string one"    ← 覆蓋掉上面那個\n' +
+      '  obj[true] / obj[{a:1}] / obj[[1,2]]\n\n' +
+      '  結果 → ' + JSON.stringify(obj, null, 2).split('\n').join('\n  ') + '\n\n' +
+      '  obj[1] === obj["1"] → ' + (obj[1] === obj['1']) + '   ← 同一格\n' +
+      '  Object.keys → ' + JSON.stringify(Object.keys(obj)) + '\n\n' +
+      '要保留 key 的型別必須用 Map（key 用 SameValueZero 比對，不轉型）\n' +
+      '  m.get(1)   → ' + m.get(1) + '\n' +
+      '  m.get("1") → ' + m.get('1') + '   ← 兩格\n\n' +
+      '順帶一提 sort 的預設行為也是走 ToString\n' +
+      '  [10,9,1].sort()             → [' + [10,9,1].sort() + ']\n' +
+      '  [10,9,1].sort((a,b) => a-b) → [' + [10,9,1].sort((a,b)=>a-b) + ']');
+  }
+
+  function labEq(){
+    const rows = [['0 == ""',0==''],['0 == "0"',0=='0'],['"" == "0"',''=='0'],
+                  ['null == undefined',null==undefined],['null == 0',null==0],
+                  ['null == false',null==false],['NaN == NaN',NaN==NaN],
+                  ['[] == false',[]==false],['[1,2] == "1,2"',[1,2]=='1,2']];
+    out2('== 的轉換結果（=== 完全不轉）\n' +
+      rows.map(([e,v]) => '  ' + pad(e,22) + '→ ' + v).join('\n') +
+      '\n\n⚠ 0 == "" 與 0 == "0" 都 true，但 "" == "0" 是 false\n' +
+      '   → == 不具遞移性，它不是一個等價關係\n\n' +
+      '⚠ null 與 undefined 在 == 的世界只跟彼此相等，\n' +
+      '   跟 0、""、false 都不相等（規格特例）\n\n' +
+      '實務結論：一律用 ===，唯一例外是 x == null 可以同時擋掉 null 與 undefined。');
+  }
+
+  // ---------- 第五節實驗 ----------
+  function labImmutable(){
+    const runStrict = code => new Function('"use strict";' + code)();
+    const runSloppy = code => new Function(code)();
+    const lines = [];
+
+    lines.push('層次 1　primitive 的「值」不可變（語言強制）');
+    try { runStrict('const s = "hello"; s[0] = "H"; return s;'); lines.push('  [嚴格] s[0]="H" 竟然沒出錯？'); }
+    catch(e){ lines.push('  [嚴格]   s[0] = "H"  → ' + e.name + '：' + e.message); }
+    lines.push('  [非嚴格] s[0] = "H"  → "' + runSloppy('const s = "hello"; s[0] = "H"; return s;') + '"　不報錯也沒改到');
+    lines.push('  [非嚴格] t.foo = 1 後讀 t.foo → ' + runSloppy('const t="hi"; t.foo=1; return t.foo;') + '　（auto-boxing 的臨時物件被丟棄）');
+    lines.push('');
+
+    lines.push('層次 2　const 的「綁定」不可變（你宣告時決定）');
+    try { runStrict('const c = 0; c++; return c;'); }
+    catch(e){ lines.push('  const c = 0; c++      → ' + e.name + '：' + e.message); }
+    const o = { n: 0 }; o.n++;
+    lines.push('  const o = {n:0}; o.n++ → 合法，o.n 現在是 ' + o.n + '　（改內容不是改綁定）');
+    lines.push('');
+
+    lines.push('層次 3　Object.freeze 的「內容」不可變，而且是淺層');
+    try { runStrict('const f = Object.freeze({n:0}); f.n++; return f.n;'); }
+    catch(e){ lines.push('  [嚴格] frozen.n++    → ' + e.name + '：' + e.message); }
+    const fz = Object.freeze({ n: 0, nested: { m: 0 } });
+    fz.nested.m = 99;
+    lines.push('  frozen.nested.m = 99 → 成功，值是 ' + fz.nested.m + '　← freeze 只凍第一層！');
+    lines.push('  Object.isFrozen(frozen)        → ' + Object.isFrozen(fz));
+    lines.push('  Object.isFrozen(frozen.nested) → ' + Object.isFrozen(fz.nested));
+    lines.push('');
+
+    lines.push('層次 4　React 的更新慣例（什麼都沒鎖，違反時完全不報錯）');
+    const todos = [{ id:1, done:false }];
+    const wrong = todos; wrong[0].done = true;
+    lines.push('  就地修改後 todos === wrong → ' + (todos === wrong) + '　← 參考相同，React 跳過重新渲染');
+    const base = [{id:1,done:false},{id:2,done:false}];
+    const right = base.map(t => t.id === 1 ? {...t, done:true} : t);
+    lines.push('  immutable 更新後：');
+    lines.push('    外殼   base === right       → ' + (base === right) + '　← 不同，React 比得出來');
+    lines.push('    被改的 base[0] === right[0] → ' + (base[0] === right[0]) + '　← 新物件');
+    lines.push('    沒改的 base[1] === right[1] → ' + (base[1] === right[1]) + '　← 共用（structural sharing）');
+
+    out3(lines.join('\n'));
+  }
+
+  // ---------- 填空 ----------
+  function checkBlanks(){
+    const inputs = document.querySelectorAll('.blank');
+    let ok = 0;
+    inputs.forEach(function(inp){
+      const answers = inp.dataset.a.split('|').map(norm);
+      if (answers.indexOf(norm(inp.value)) !== -1){ inp.classList.add('ok'); inp.classList.remove('no'); ok++; }
+      else { inp.classList.add('no'); inp.classList.remove('ok'); }
+    });
+    document.getElementById('blankScore').textContent = '答對 ' + ok + ' / ' + inputs.length;
+  }
+  function revealBlanks(){
+    document.querySelectorAll('.blank').forEach(function(inp){
+      inp.value = inp.dataset.a.split('|')[0];
+      inp.classList.add('ok'); inp.classList.remove('no');
+    });
+    document.getElementById('blankScore').textContent = '已顯示標準答案';
+  }
+  function clearBlanks(){
+    document.querySelectorAll('.blank').forEach(function(inp){
+      inp.value=''; inp.classList.remove('ok','no');
+    });
+    document.getElementById('blankScore').textContent = '';
+  }
+
+  // ---------- 是非題 ----------
+  document.querySelectorAll('#tfBox .tf-item').forEach(function(item){
+    const row = document.createElement('div');
+    row.className = 'tf-btns';
+    ['是','非'].forEach(function(label, idx){
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.dataset.val = idx === 0 ? 'true' : 'false';
+      b.onclick = function(){
+        item.querySelectorAll('.tf-btns button').forEach(function(x){ x.classList.remove('btn-primary'); });
+        b.classList.add('btn-primary');
+        item.dataset.picked = b.dataset.val;
+      };
+      row.appendChild(b);
+    });
+    const fb = document.createElement('span');
+    fb.className = 'tf-fb';
+    row.appendChild(fb);
+    item.appendChild(row);
+    const why = document.createElement('div');
+    why.className = 'tf-why';
+    why.textContent = '原因：' + item.dataset.why;
+    item.appendChild(why);
+  });
+
+  function gradeTF(){
+    const items = document.querySelectorAll('#tfBox .tf-item');
+    let ok = 0;
+    items.forEach(function(item){
+      const fb = item.querySelector('.tf-fb');
+      const why = item.querySelector('.tf-why');
+      if (!item.dataset.picked){ fb.textContent = '尚未作答'; fb.className = 'tf-fb'; return; }
+      if (item.dataset.picked === item.dataset.a){ fb.textContent = '答對'; fb.className = 'tf-fb ok'; ok++; }
+      else { fb.textContent = '答錯'; fb.className = 'tf-fb no'; }
+      why.classList.add('show');
+    });
+    document.getElementById('tfScore').textContent = '答對 ' + ok + ' / ' + items.length;
+  }
+  function resetTF(){
+    document.querySelectorAll('#tfBox .tf-item').forEach(function(item){
+      delete item.dataset.picked;
+      item.querySelector('.tf-fb').textContent = '';
+      item.querySelector('.tf-why').classList.remove('show');
+      item.querySelectorAll('.tf-btns button').forEach(function(b){ b.classList.remove('btn-primary'); });
+    });
+    document.getElementById('tfScore').textContent = '';
+  }
+</script>
+</body>
+</html>
