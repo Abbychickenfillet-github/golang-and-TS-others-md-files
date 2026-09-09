@@ -1,8 +1,8 @@
 ---
-title: V8 引擎完整管線 — Parse → Ignition → TurboFan → Deoptimization
+title: 【編譯 runtime】V8 引擎完整管線 — Parse → Ignition → TurboFan → Deoptimization
 type: topic-note
 tags: [v8, javascript, compiler, jit, ignition, turbofan, escape-analysis, inline-caching, deoptimization, JS_Core_and_Runtime]
-aliases: [V8引擎完整管線-Parse到Deoptimization]
+aliases: [V8引擎完整管線-Parse到Deoptimization, 04-V8引擎完整管線-Parse到Deoptimization]
 related:
   - "[[機器碼與bytecode的差異]]"
   - "[[作用域-scope-global-function-block]]"
@@ -11,7 +11,7 @@ updated: 2026-08-15
 note: 檔名前綴 00 代表本篇是 JS_Core_and_Runtime 資料夾裡「依編譯／執行順序」編號的第一篇（管線總覽）；aliases 保留舊檔名，讓其他筆記既有的 [[V8引擎完整管線-Parse到Deoptimization]] wikilink 不會失效。
 ---
 
-# V8 引擎完整管線：Parse → Ignition → TurboFan → Deoptimization
+# 【編譯 runtime】V8 引擎完整管線：Parse → Ignition → TurboFan → Deoptimization
 
 > [!info]- 📍 00號：整個編號序列的起點
 > <mark style="background: #BBFABBA6;">起點</mark>：這是`JS_Core_and_Runtime`資料夾照編譯到執行順序編號的第一篇，畫出Parse→Ignition→TurboFan→Deoptimization整條管線地圖。
@@ -31,7 +31,13 @@ note: 檔名前綴 00 代表本篇是 JS_Core_and_Runtime 資料夾裡「依編�
 
 Node.js 在一般前端「打包」流程裡的角色（跟 SSR 不是同一件事，容易搞混）另有詳細說明，見 [[前端開發工具-打包編譯Lint與Parser]] 第 7 節。
 
-## 完整流程圖
+## 完整流程圖【編譯 runtime，不是打包 buildtime】
+
+> [!warning]+ 這張圖到底在講哪個時間點？——全程都是「編譯 runtime（執行期）」
+> a. 下圖從「JavaScript 原始碼」一路到 Deoptimization 的每一站，都發生在**瀏覽器／Node.js 載入並執行這支腳本的當下**，由 V8 引擎自己完成。這裡的「編譯」指的是 JIT（Just-In-Time Compilation，即時編譯）——名字裡的 Just-In-Time 就是「執行到的那一刻才編譯」的意思。
+> b. **打包 buildtime（建置期）發生在這張圖的左邊界之外**：Babel／tsc／SWC 把 TSX/JSX 轉成標準 JS、bundler（webpack／Vite／Rollup／Turbopack）把多個模組合併壓縮，這些都是在你的電腦或 CI 上跑完、部署之前就結束的事。V8 拿到的永遠是「已經轉譯打包完的標準 JS」，它看不到你原本寫的 TSX。
+> c. <mark style="background: #FF5582A6;">用詞請跟著本資料夾的約定走：buildtime 那一段一律叫「轉譯（transpile）」與「打包（bundle）」，不要叫「編譯」</mark>；「編譯（compile）」這個詞只留給 V8 在執行期做的 AST → Bytecode → 機器碼。理由是方向不同——轉譯是高階語言 → 另一個同樣高階的語言（TSX → 標準 JS），編譯是高階 → 更低階的表示法。這組用詞的完整分辨與工具對照，主場在 [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】|03-前端開發工具（打包 buildtime）]]，本篇只放結論。
+> d. 想看 buildtime 那一段的完整流程，請改讀同資料夾的 [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】|03-前端開發工具（打包 buildtime）]]（那篇開頭有〈buildtime 全流程地圖〉表格，逐步對應到各篇）；至於這些步驟是**誰觸發、依什麼順序跑**，主場在 [[08-npm-run-script-mechanism]] 與 [[09-npm-scripts-pre-post-生命週期鉤子]]——`npm run build` 才是把所有 buildtime 工具串起來的那根線。打包工具選型另見 [[07-前端專案建立與打包選型-Vite與createVue與NextJS與npm鎖版本]]。
 
 ```mermaid
 flowchart TD
@@ -98,6 +104,11 @@ flowchart TD
 ### Hot Code 判定
 
 V8 監控函式的**呼叫次數**（以及迴圈的**執行次數**，這種情況叫 OSR／On-Stack Replacement），超過門檻就標記成「熱點程式碼」，送去給 TurboFan 優化。**沒達標的程式碼就繼續留在 Ignition 直譯執行**——多數程式碼其實只跑一兩次，直接省下 TurboFan 的編譯成本。
+
+> [!question]- 「超過一次呼叫」就算 Hot Code 嗎？——不是
+> <mark style="background: #FF5582A6;">門檻不是「呼叫次數 > 1」這種離散計數器</mark>，而是一個**額度（interrupt budget）**：Ignition 執行時依「跑了多少 bytecode／迴圈 back-edge 次數」持續扣掉這個額度，扣到 0 才觸發「該不該送去優化」的判斷——扣額度看的是**累積執行量**，不是單純數「第幾次呼叫」。也因此：一個函式**只呼叫一次**、但內部跑超大迴圈，一樣可能透過 OSR 變熱（見下面「實例：拿掉 return 的無窮迴圈」，就是只呼叫一次卻觸發 OSR 的案例）；反過來，呼叫兩三次但函式體很小，額度通常扣不完，還是留在 Ignition。
+>
+> 另外現代 V8 其實是**多層 tiering**，不是只有本篇簡化畫的 Ignition／TurboFan 兩層：Ignition（直譯）→ **Sparkplug**（baseline JIT，門檻很低，幾乎跑沒幾次就會編，但不做激進優化）→ **Maglev**（中階優化）→ **TurboFan**（最高階，門檻最高，要累積夠多 Profiling Data 才划算送進去）。門檻高低跟編譯成本成正比：越激進的優化器，門檻設越高。
 
 ### TurboFan（JIT 優化編譯器）階段
 
@@ -387,7 +398,7 @@ const    a=1+2;
 
 你的理解是對的：**Parser 拿到 Token 建出 AST 之後，如果原始碼是 TS 或 JSX，就會先被轉譯器處理，把「一種高階語言轉成另一種高階語言」**（TS→JS、JSX→純 JS 函式呼叫），這件事跟 Ignition／TurboFan 那種「高階語言→低階 Bytecode/機器碼」的**編譯（Compile）**是不同層次：
 
-| | 轉譯 Transpile | 編譯 Compile（本篇 Ignition/TurboFan 那段） |
+| | 轉譯 Transpile（buildtime 打包期） | 編譯 Compile（runtime 執行期，本篇 Ignition/TurboFan 那段） |
 |---|---|---|
 | 轉換方向 | 高階語言 → 另一個**同樣高階**的語言（TS→JS、JSX→JS） | 高階語言 → **更低階**的表示法（AST→Bytecode→機器碼） |
 | 誰來做 | Babel／`tsc`／SWC，在**建置時（build time）**、瀏覽器與 V8 都還沒看到程式碼之前 | V8 引擎自己，在**執行時（runtime）**，瀏覽器/Node 載入腳本當下 |
@@ -456,9 +467,10 @@ flowchart LR
     G -- "型別突然改變<br/>(例如 props 型別不穩定)" --> H["Deoptimization<br/>退回 Ignition"]
 ```
 
-**四張圖的關鍵差異，一句話總結**：①②（原生 JS）跟③④（React）唯一的差別，是③④在 Parse 之前多了一段**建置時、V8 管線之外**的轉譯步驟；一旦進了 V8，①③（冷）跟②④（熱）就完全是同一套 Ignition/TurboFan 邏輯，跟程式碼原本是不是 React 完全無關——V8 分不出來、也不在乎。互動版（4 個按鈕切換 + 差異高亮）見同資料夾 `00-V8引擎完整管線-Parse到Deoptimization.html`。
+**四張圖的關鍵差異，一句話總結**：①②（原生 JS）跟③④（React）唯一的差別，是③④在 Parse 之前多了一段**建置時、V8 管線之外**的轉譯步驟；一旦進了 V8，①③（冷）跟②④（熱）就完全是同一套 Ignition/TurboFan 邏輯，跟程式碼原本是不是 React 完全無關——V8 分不出來、也不在乎。互動版（4 個按鈕切換 + 差異高亮）見同資料夾 `04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】-互動版.html`。
 
 ## 相關筆記
+- [[00-前端建構到執行全景地圖]] —— HTML/CSS/JS/React/Vue 各自 build-time→runtime 的總地圖，本篇是 JS run-time 那一列的來源篇
 - [[機器碼與bytecode的差異]] —— bytecode／機器碼／JIT 的通用概念（Java/Python 對照）
 - [[作用域-scope-global-function-block]] —— Lexical Scope、Parse 階段的基礎討論
 - [[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]] —— Parse（編譯期，一次性）vs Creation/Execution Phase（執行期，每次呼叫都重來）的完整釐清，以及參數綁定如何用這裡的 Scope Analysis 決定放 Stack 還是 Heap Context

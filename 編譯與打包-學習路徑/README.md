@@ -12,8 +12,8 @@ title: "編譯與打包 - 學習路徑"
 |---|---|---|---|
 | 01 | [[01-CPU五大單元-ALU-CU-暫存器-快取與微指令]] | 最底層：CPU 到底怎麼把一條指令跑起來 | 起點 |
 | 02 | [[02-機器碼與bytecode的差異]] | machine code vs bytecode、JIT、解釋執行——把「編譯」這個詞的各種形態先分清楚 | 承接 01，從硬體轉到「程式怎麼變成硬體看得懂的東西」 |
-| 03 | [[03-前端開發工具-打包編譯Lint與Parser]] | Parser/AST/Compiler 的通用概念，以及打包工具（Webpack/Vite/Turbopack）、ESLint vs Prettier、Acorn/Babel/SWC 的全貌 | 承接 02，從「編譯的通用原理」進到「前端工具鏈長什麼樣子」 |
-| 04 | [[04-V8引擎完整管線-Parse到Deoptimization]] | JS 引擎（V8）實際的 Parse → Compile → JIT → Deoptimization 管線，把 03 的 Parser/Compiler 概念套到一個真實引擎上 | 承接 03，從通用概念到具體引擎 |
+| 03 | [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】|03-前端開發工具（打包 buildtime）]] | Parser/AST/Compiler 的通用概念，以及打包工具（Webpack/Vite/Turbopack）、ESLint vs Prettier、Acorn/Babel/SWC 的全貌 | 承接 02，從「編譯的通用原理」進到「前端工具鏈長什麼樣子」 |
+| 04 | [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】|04-V8引擎完整管線-Parse到Deoptimization（編譯 runtime）]] | JS 引擎（V8）實際的 Parse → Compile → JIT → Deoptimization 管線，把 03 的 Parser/Compiler 概念套到一個真實引擎上 | 承接 03，從通用概念到具體引擎 |
 | 05 | [[05-JSX轉譯機制-createElement與jsx-runtime-Babel與SWC三步驟]] | JSX 怎麼被 Babel/SWC 轉譯成 `createElement`／`jsx()` 呼叫——03 提到的轉譯器，這裡看它實際做了什麼 | 承接 03、04，具體到 React 生態 |
 | 06 | [[06-React-130錯誤-transpilePackages與SWC]] | 真實踩過的坑：Next.js `transpilePackages` 搭配 SWC 轉譯第三方套件失敗的除錯過程 | 承接 05，從「懂原理」到「原理沒套對時怎麼修」 |
 | 07 | [[07-前端專案建立與打包選型-Vite與createVue與NextJS與npm鎖版本]] | 從「懂編譯」轉向「怎麼選、怎麼建專案」：Vite / Create Vue / Next.js 打包選型比較 | 承接 04-06，從原理轉向實務選型 |

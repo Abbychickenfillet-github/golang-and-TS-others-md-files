@@ -10,13 +10,14 @@ updated: 2026-08-27
 
 # npm scripts 的 pre / post 生命週期鉤子
 
-> [!info] 本篇重點 a–l 共 12 個
+> [!info] 
 > 起因是一個很單純的疑問：<mark style="background: #FFF3A3A6;">「`npm run build` 會自動先跑 `prebuild`、再跑 `postbuild`，這條規則到底寫在哪？」</mark>答案是 npm 官方文件的 Scripts 章節。
 
 > [!info] 與其他筆記的關聯（附理由）
 > **a.** 直接承接 [[npm-run-script-mechanism]]：那篇回答「`npm run dev` 的 `run` 是誰加的」以及 `start` / `test` / `stop` / `restart` 這幾個可省略 `run` 的保留字。本篇是它的下一層——<mark style="background: #ADCCFFA6;">`run` 找到 script 之後，npm 在它前後還偷偷做了什麼</mark>。兩篇合起來才是 npm script 的完整執行流程。
 > **b.** 呼應 [[前端專案建立與打包選型-Vite與createVue與NextJS與npm鎖版本]]：那篇處理 `package.json` 的版本語意，本篇處理 `package.json` 的 `scripts` 欄位語意，是同一個檔案的兩個面向。
-> **c.** 呼應 [[前端開發工具-打包編譯Lint與Parser]]：pre / post 鉤子最典型的用途就是「build 前先 lint、build 後先跑 type check」，那篇說明這些工具各自負責什麼。
+> **c.** 呼應 [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】|03-前端開發工具（打包 buildtime）]]：pre / post 鉤子最典型的用途就是「build 前先 lint、build 後先跑 type check」，那篇說明這些工具各自負責什麼。<mark style="background: #FFF3A3A6;">兩篇的分工：本篇是「劇本」（誰在什麼順序被叫起來），那篇是「演員表」（每個工具實際做什麼）</mark>，那篇開頭的〈buildtime 全流程地圖〉表格把兩者逐步對起來了。
+> **d.** 邊界提醒：本篇與 c 提到的都屬於 <mark style="background: #BBFABBA6;">buildtime（建置期，轉譯＋打包）</mark>，`npm run build` 跑完就結束。瀏覽器拿到產物之後才發生的 <mark style="background: #ADCCFFA6;">runtime（執行期，V8 的編譯）</mark> 是另一條線，見 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】|04-V8引擎完整管線（編譯 runtime）]]。<mark style="background: #FF5582A6;">用詞約定：buildtime 只說「轉譯」，「編譯」留給 runtime</mark>。
 
 ---
 
