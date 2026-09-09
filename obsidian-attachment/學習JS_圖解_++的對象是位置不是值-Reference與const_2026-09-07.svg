@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 660" width="980" height="660" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="a1" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#64748b"/></marker>
+    <marker id="a2" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#dc2626"/></marker>
+    <marker id="a3" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#059669"/></marker>
+  </defs>
+  <rect width="980" height="660" fill="#fafafa"/>
+
+  <text x="490" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#0f172a">++ 的對象是「位置」，不是「值」也不是「名字」</text>
+  <text x="490" y="56" text-anchor="middle" font-size="13" fill="#64748b">規格第一步求值出的是 Reference Record（參考記錄），它有 Base 與 ReferencedName 兩格</text>
+
+  <!-- 規格五步 -->
+  <rect x="30" y="80" width="920" height="86" rx="9" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="48" y="104" font-size="13" font-weight="700" fill="#334155">ECMA-262 13.4.3　x++ 的五個步驟</text>
+  <text x="48" y="126" font-size="12" fill="#475569">1. 求值運算式 → 得到一個 Reference（只求值一次）　　2. oldValue = ToNumeric( GetValue(ref) )　← 讀</text>
+  <text x="48" y="146" font-size="12" fill="#475569">3. newValue = oldValue + 1　　4. PutValue(ref, newValue)　← 寫，const 擋在這一步　　5. 回傳 oldValue　← 所以拿到舊值</text>
+
+  <!-- 欄一 count++ -->
+  <rect x="30" y="190" width="290" height="280" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="1.6"/>
+  <text x="175" y="216" text-anchor="middle" font-size="16" font-weight="700" fill="#7f1d1d" font-family="monospace">count++</text>
+  <text x="175" y="238" text-anchor="middle" font-size="12" fill="#991b1b">identifier reference（識別字參考）</text>
+
+  <rect x="52" y="256" width="246" height="66" rx="7" fill="#fff" stroke="#f87171" stroke-width="1.2"/>
+  <text x="66" y="278" font-size="12" fill="#7f1d1d">Base　＝　作用域的</text>
+  <text x="66" y="296" font-size="12" font-weight="600" fill="#7f1d1d">Environment Record（環境紀錄）</text>
+  <text x="66" y="314" font-size="12" fill="#7f1d1d">ReferencedName ＝ "count"</text>
+
+  <path d="M175 322 L175 348" stroke="#dc2626" stroke-width="1.8" marker-end="url(#a2)"/>
+  <rect x="52" y="354" width="246" height="46" rx="7" fill="#fff" stroke="#f87171" stroke-width="1.2"/>
+  <text x="175" y="374" text-anchor="middle" font-size="12" fill="#991b1b">PutValue → SetMutableBinding</text>
+  <text x="175" y="392" text-anchor="middle" font-size="12" fill="#991b1b">綁定被 const 標成不可重寫</text>
+
+  <rect x="52" y="412" width="246" height="42" rx="7" fill="#dc2626"/>
+  <text x="175" y="430" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">TypeError</text>
+  <text x="175" y="446" text-anchor="middle" font-size="11" fill="#fecaca">Assignment to constant variable.</text>
+
+  <!-- 欄二 obj.n++ -->
+  <rect x="345" y="190" width="290" height="280" rx="10" fill="#d1fae5" stroke="#059669" stroke-width="1.6"/>
+  <text x="490" y="216" text-anchor="middle" font-size="16" font-weight="700" fill="#065f46" font-family="monospace">obj.n++</text>
+  <text x="490" y="238" text-anchor="middle" font-size="12" fill="#047857">property reference（屬性參考）</text>
+
+  <rect x="367" y="256" width="246" height="66" rx="7" fill="#fff" stroke="#34d399" stroke-width="1.2"/>
+  <text x="381" y="278" font-size="12" fill="#065f46">Base　＝　obj 這個物件本身</text>
+  <text x="381" y="296" font-size="12" font-weight="600" fill="#065f46">ReferencedName ＝ 字串 "n"</text>
+  <text x="381" y="314" font-size="11.5" fill="#047857">n 不是變數，作用域裡查不到它</text>
+
+  <path d="M490 322 L490 348" stroke="#059669" stroke-width="1.8" marker-end="url(#a3)"/>
+  <rect x="367" y="354" width="246" height="46" rx="7" fill="#fff" stroke="#34d399" stroke-width="1.2"/>
+  <text x="490" y="374" text-anchor="middle" font-size="12" fill="#047857">PutValue → 物件的 [[Set]]</text>
+  <text x="490" y="392" text-anchor="middle" font-size="12" fill="#047857">跟環境紀錄無關，const 管不到</text>
+
+  <rect x="367" y="412" width="246" height="42" rx="7" fill="#059669"/>
+  <text x="490" y="430" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">合法</text>
+  <text x="490" y="446" text-anchor="middle" font-size="11" fill="#a7f3d0">回傳舊值 0，obj.n 變成 1，obj 沒換</text>
+
+  <!-- 欄三 0++ -->
+  <rect x="660" y="190" width="290" height="280" rx="10" fill="#e2e8f0" stroke="#475569" stroke-width="1.6"/>
+  <text x="805" y="216" text-anchor="middle" font-size="16" font-weight="700" fill="#1e293b" font-family="monospace">0++</text>
+  <text x="805" y="238" text-anchor="middle" font-size="12" fill="#334155">根本不是 Reference</text>
+
+  <rect x="682" y="256" width="246" height="66" rx="7" fill="#fff" stroke="#94a3b8" stroke-width="1.2"/>
+  <text x="696" y="278" font-size="12" fill="#334155">Base　＝　沒有</text>
+  <text x="696" y="296" font-size="12" fill="#334155">ReferencedName ＝ 沒有</text>
+  <text x="696" y="314" font-size="11.5" font-weight="600" fill="#334155">0 是「值」，沒有格子可以寫回去</text>
+
+  <path d="M805 322 L805 348" stroke="#64748b" stroke-width="1.8" marker-end="url(#a1)"/>
+  <rect x="682" y="354" width="246" height="46" rx="7" fill="#fff" stroke="#94a3b8" stroke-width="1.2"/>
+  <text x="805" y="374" text-anchor="middle" font-size="12" fill="#334155">在 parse（解析）階段就被擋下</text>
+  <text x="805" y="392" text-anchor="middle" font-size="12" fill="#334155">連執行都沒開始</text>
+
+  <rect x="682" y="412" width="246" height="42" rx="7" fill="#334155"/>
+  <text x="805" y="430" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">SyntaxError</text>
+  <text x="805" y="446" text-anchor="middle" font-size="10.5" fill="#cbd5e1">Invalid left-hand side expression</text>
+
+  <!-- const vs freeze -->
+  <line x1="30" y1="492" x2="950" y2="492" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="30" y="520" font-size="15" font-weight="700" fill="#0f172a">最常被混在一起的兩件事</text>
+
+  <rect x="30" y="536" width="450" height="98" rx="9" fill="#fff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="48" y="560" font-size="13" font-weight="700" fill="#334155">const　→　鎖「名字」（binding，綁定）</text>
+  <text x="48" y="582" font-size="12" fill="#475569">管的是：這個名字還能不能指向別的東西</text>
+  <text x="48" y="602" font-size="12" fill="#475569">const obj = &#123;n:0&#125;;　obj.n++　→　合法</text>
+  <text x="48" y="622" font-size="12" fill="#475569">const obj = &#123;n:0&#125;;　obj = &#123;&#125;　→　TypeError</text>
+
+  <rect x="500" y="536" width="450" height="98" rx="9" fill="#fff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="518" y="560" font-size="13" font-weight="700" fill="#334155">Object.freeze　→　鎖「內容」（屬性）</text>
+  <text x="518" y="582" font-size="12" fill="#475569">管的是：這個物件裡的欄位還能不能被改</text>
+  <text x="518" y="602" font-size="12" fill="#475569">const f = Object.freeze(&#123;n:0&#125;);　f.n++</text>
+  <text x="518" y="622" font-size="12" fill="#475569">→ TypeError: Cannot assign to read only property 'n'</text>
+</svg>

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" width="900" height="560" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <rect width="900" height="560" fill="#fbfbfd"/>
+  <text x="450" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#1f2937">同一段程式碼裡有「兩條位址軸」，不要用同一把尺去量</text>
+  <text x="450" y="58" text-anchor="middle" font-size="13.5" fill="#6b7280">Abby 原本的疑問：「sub rsp, 4 明明是減 4，為什麼下一行位址卻變大變成 0x0028？」</text>
+
+  <!-- LEFT: instruction address axis -->
+  <rect x="34" y="82" width="386" height="418" rx="12" fill="#eef4ff" stroke="#adccff" stroke-width="2"/>
+  <text x="56" y="110" font-size="16" font-weight="700" fill="#1d4ed8">軸一・指令位址（Code Segment）</text>
+  <text x="56" y="132" font-size="12.5" fill="#4b5563">反組譯左邊那一欄。往下讀 = 位址變大</text>
+
+  <line x1="86" y1="152" x2="86" y2="470" stroke="#1d4ed8" stroke-width="2"/>
+  <polygon points="86,478 80,464 92,464" fill="#1d4ed8"/>
+  <text x="60" y="316" font-size="12" fill="#1d4ed8" transform="rotate(-90 60 316)" text-anchor="middle">位址遞增 →</text>
+
+  <g font-size="13.5" fill="#111827" font-family="'Consolas','Courier New',monospace">
+    <rect x="106" y="168" width="290" height="40" rx="7" fill="#ffffff" stroke="#c7d2fe"/>
+    <text x="120" y="194">0x0020  push rbp</text>
+    <rect x="106" y="216" width="290" height="40" rx="7" fill="#ffffff" stroke="#c7d2fe"/>
+    <text x="120" y="242">0x0021  mov  rbp, rsp</text>
+    <rect x="106" y="264" width="290" height="40" rx="7" fill="#fff9db" stroke="#f0c419" stroke-width="2"/>
+    <text x="120" y="290">0x0024  sub  rsp, 4</text>
+    <rect x="106" y="312" width="290" height="40" rx="7" fill="#ffffff" stroke="#c7d2fe"/>
+    <text x="120" y="338">0x0028  mov  [rbp-4], eax</text>
+  </g>
+  <text x="120" y="382" font-size="12.5" fill="#b45309">0x0024 → 0x0028 差 4</text>
+  <text x="120" y="402" font-size="12.5" fill="#b45309">＝ sub 這道指令「本身佔 4 bytes」</text>
+  <text x="120" y="430" font-size="12.5" fill="#374151">跟運算元的那個 4 完全無關，</text>
+  <text x="120" y="450" font-size="12.5" fill="#374151">只是剛好都是 4，所以特別容易誤會</text>
+
+  <!-- RIGHT: stack address axis -->
+  <rect x="480" y="82" width="386" height="418" rx="12" fill="#f0fdf4" stroke="#86efac" stroke-width="2"/>
+  <text x="502" y="110" font-size="16" font-weight="700" fill="#15803d">軸二・堆疊位址（Stack Segment）</text>
+  <text x="502" y="132" font-size="12.5" fill="#4b5563">rsp 指的地方。配置空間 = 位址變小</text>
+
+  <line x1="532" y1="470" x2="532" y2="152" stroke="#15803d" stroke-width="2"/>
+  <polygon points="532,144 526,158 538,158" fill="#15803d"/>
+  <text x="506" y="316" font-size="12" fill="#15803d" transform="rotate(-90 506 316)" text-anchor="middle">位址遞增 →</text>
+
+  <g font-size="13" fill="#111827">
+    <rect x="552" y="168" width="292" height="46" rx="7" fill="#ffffff" stroke="#bbf7d0"/>
+    <text x="566" y="190" font-family="'Consolas',monospace">0x7FFF0FD0</text>
+    <text x="700" y="190" fill="#374151">main() 的 frame</text>
+    <text x="566" y="207" font-size="11.5" fill="#6b7280">先被呼叫 → 住在比較高的位址</text>
+
+    <rect x="552" y="226" width="292" height="46" rx="7" fill="#ecfdf5" stroke="#86efac" stroke-width="2"/>
+    <text x="566" y="248" font-family="'Consolas',monospace">0x7FFF0FC0</text>
+    <text x="700" y="248" fill="#374151">add() 的 frame</text>
+    <text x="566" y="265" font-size="11.5" fill="#6b7280">後被呼叫 → 往下長，位址比較低</text>
+  </g>
+
+  <rect x="552" y="292" width="292" height="86" rx="8" fill="#fff1f2" stroke="#fda4af" stroke-width="2"/>
+  <text x="566" y="315" font-size="13" font-weight="700" fill="#be123c">十六進位比大小的陷阱</text>
+  <text x="566" y="337" font-size="12.5" fill="#374151">C = 12，D = 13，所以 FC0 &lt; FD0</text>
+  <text x="566" y="357" font-size="12.5" fill="#374151">0x7FFF0F<tspan font-weight="700">C</tspan>0 確實比 0x7FFF0F<tspan font-weight="700">D</tspan>0 小</text>
+  <text x="566" y="373" font-size="11.5" fill="#6b7280">「數字看起來比較大」是被 C／D 這兩個字母騙了</text>
+
+  <text x="552" y="404" font-size="12.5" fill="#15803d">配置區域變數 → <tspan font-family="'Consolas',monospace">sub rsp, N</tspan>（減，往下長）</text>
+  <text x="552" y="426" font-size="12.5" fill="#15803d">歸還區域變數 → <tspan font-family="'Consolas',monospace">add rsp, N</tspan> 或 <tspan font-family="'Consolas',monospace">leave</tspan></text>
+  <text x="552" y="450" font-size="12.5" fill="#374151">push 讓 rsp 變小，pop 讓 rsp 變大</text>
+
+  <rect x="34" y="514" width="832" height="34" rx="8" fill="#fef3c7" stroke="#fcd34d"/>
+  <text x="450" y="536" text-anchor="middle" font-size="13.5" fill="#92400e">一句話收尾：左邊那條軸在問「下一道指令在哪」，右邊那條軸在問「我的區域變數放哪」——兩件事，兩把尺</text>
+</svg>

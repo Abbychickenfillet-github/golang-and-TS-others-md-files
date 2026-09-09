@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" width="1000" height="700" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <rect width="1000" height="700" fill="#fafafa"/>
+  <text x="500" y="36" text-anchor="middle" font-size="21" font-weight="700" fill="#0f172a">「不可變 immutable」在 JavaScript 裡有四個層次</text>
+  <text x="500" y="58" text-anchor="middle" font-size="13" fill="#64748b">型別樹上那句「原始型別 ── 不可變」只講了第一層，四層鎖的東西完全不同</text>
+
+  <!-- 層次一 -->
+  <rect x="30" y="82" width="940" height="122" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.6"/>
+  <text x="52" y="108" font-size="15" font-weight="700" fill="#4c1d95">層次 1　primitive 的「值」不可變</text>
+  <rect x="740" y="92" width="212" height="26" rx="13" fill="#7c3aed"/>
+  <text x="846" y="110" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">語言強制，你無法選擇</text>
+  <text x="52" y="132" font-size="12.5" fill="#5b21b6">鎖什麼：值本身。字串、數字、boolean、symbol、bigint、null、undefined 都改不了</text>
+  <text x="52" y="152" font-size="12.5" fill="#5b21b6">為什麼：primitive 不是 Object，身上沒有 internal slot 可寫，也沒有 [[Set]] 這扇門；而且它沒有 identity（兩個 5 就是同一個 5）</text>
+  <text x="52" y="172" font-size="12.5" fill="#5b21b6">紅利：正因為不可變，V8 才敢做字串 interning 與 Smi（小整數不進堆積）——這就是 setCount(count + 1) 幾乎不花記憶體的原因</text>
+  <text x="52" y="192" font-size="12.5" font-weight="600" fill="#6d28d9">違反時：[嚴格] TypeError: Cannot assign to read only property '0' of string　／　[非嚴格] 靜默失敗</text>
+
+  <!-- 層次二 -->
+  <rect x="30" y="216" width="940" height="106" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="1.6"/>
+  <text x="52" y="242" font-size="15" font-weight="700" fill="#7f1d1d">層次 2　const 的「綁定」不可變</text>
+  <rect x="740" y="226" width="212" height="26" rx="13" fill="#dc2626"/>
+  <text x="846" y="244" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">你決定，宣告的那一刻</text>
+  <text x="52" y="266" font-size="12.5" fill="#991b1b">鎖什麼：名字還能不能指向別的東西。完全不管那個東西的內容</text>
+  <text x="52" y="286" font-size="12.5" fill="#991b1b">所以：const obj = &#123;n:0&#125;;　obj.n++　合法　／　obj = &#123;&#125;　TypeError</text>
+  <text x="52" y="310" font-size="12.5" font-weight="600" fill="#b91c1c">違反時：TypeError: Assignment to constant variable.</text>
+
+  <!-- 層次三 -->
+  <rect x="30" y="334" width="940" height="106" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="1.6"/>
+  <text x="52" y="360" font-size="15" font-weight="700" fill="#78350f">層次 3　Object.freeze 的「內容」不可變</text>
+  <rect x="740" y="344" width="212" height="26" rx="13" fill="#d97706"/>
+  <text x="846" y="362" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">你決定，執行時呼叫</text>
+  <text x="52" y="384" font-size="12.5" fill="#92400e">鎖什麼：這個物件的屬性。但它是「淺層」的——frozen.nested.m = 99 照樣成功</text>
+  <text x="52" y="404" font-size="12.5" fill="#92400e">要深層得自己遞迴 deepFreeze，或改用會回傳新結構的寫法</text>
+  <text x="52" y="428" font-size="12.5" font-weight="600" fill="#b45309">違反時：[嚴格] TypeError: Cannot assign to read only property 'n'　／　[非嚴格] 靜默失敗</text>
+
+  <!-- 層次四 -->
+  <rect x="30" y="452" width="940" height="112" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="52" y="478" font-size="15" font-weight="700" fill="#1e3a8a">層次 4　React 的 immutable update</text>
+  <rect x="740" y="462" width="212" height="26" rx="13" fill="#2563eb"/>
+  <text x="846" y="480" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">慣例，語言完全不強制</text>
+  <text x="52" y="502" font-size="12.5" fill="#1d4ed8">鎖什麼：什麼都沒鎖。沒有任何語言機制會擋你就地修改</text>
+  <text x="52" y="522" font-size="12.5" fill="#1d4ed8">要的是：每次更新產生新外殼，讓 React 的 Object.is 比得出差別；沒變的元素共用（structural sharing）</text>
+  <text x="52" y="546" font-size="12.5" font-weight="700" fill="#1e40af">違反時：不報錯，資料真的改了，但畫面不動、console 一片乾淨　←　四層裡最難 debug 的一層</text>
+
+  <!-- 診斷表 -->
+  <line x1="30" y1="586" x2="970" y2="586" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="30" y="614" font-size="15" font-weight="700" fill="#0f172a">最實用的辨認方式：看錯誤訊息反推是哪一層</text>
+
+  <rect x="30" y="628" width="940" height="56" rx="9" fill="#fff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="48" y="650" font-size="12" fill="#334155">a. "Assignment to constant variable."　→ 層次 2　　　b. "Cannot assign to read only property"　→ 層次 1 或 3</text>
+  <text x="48" y="672" font-size="12" fill="#334155">c. 沒有錯誤訊息但值沒變　→ 層次 1 或 3 的非嚴格靜默失敗　　　d. 沒有錯誤、值變了但畫面沒動　→ 層次 4</text>
+</svg>

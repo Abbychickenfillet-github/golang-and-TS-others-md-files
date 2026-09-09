@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <rect width="760" height="560" fill="#fdfdfb"/>
+  <text x="380" y="32" text-anchor="middle" font-size="20" font-weight="700" fill="#1f2937">CSRF 為什麼成立 以及 Cookie 自動夾帶 vs Bearer 手動夾帶</text>
+
+  <!-- upper: CSRF flow -->
+  <text x="40" y="66" font-size="15" font-weight="700" fill="#9d174d">上半 攻擊怎麼發生（Cookie 自動夾帶模式）</text>
+
+  <rect x="40" y="82" width="150" height="62" rx="10" fill="#ffeef5" stroke="#e884ac" stroke-width="1.5"/>
+  <text x="115" y="106" text-anchor="middle" font-size="13" font-weight="700" fill="#9d174d">evil.com</text>
+  <text x="115" y="126" text-anchor="middle" font-size="11.5" fill="#374151">藏一個自動送出的表單</text>
+
+  <rect x="300" y="82" width="160" height="62" rx="10" fill="#e8f2ff" stroke="#7ba7e8" stroke-width="1.5"/>
+  <text x="380" y="106" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">受害者的瀏覽器</text>
+  <text x="380" y="126" text-anchor="middle" font-size="11.5" fill="#374151">已存有 your-app 的 Cookie</text>
+
+  <rect x="570" y="82" width="150" height="62" rx="10" fill="#e6f7ea" stroke="#63b880" stroke-width="1.5"/>
+  <text x="645" y="106" text-anchor="middle" font-size="13" font-weight="700" fill="#166534">你的後端 API</text>
+  <text x="645" y="126" text-anchor="middle" font-size="11.5" fill="#374151">看到有效 Session 就照做</text>
+
+  <defs><marker id="a" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#6b7280"/></marker></defs>
+  <line x1="192" y1="113" x2="296" y2="113" stroke="#6b7280" stroke-width="2" marker-end="url(#a)"/>
+  <text x="244" y="106" text-anchor="middle" font-size="11" fill="#6b7280">① 觸發</text>
+  <line x1="462" y1="113" x2="566" y2="113" stroke="#6b7280" stroke-width="2" marker-end="url(#a)"/>
+  <text x="514" y="106" text-anchor="middle" font-size="11" fill="#6b7280">② 自動帶 Cookie</text>
+
+  <rect x="40" y="158" width="680" height="52" rx="8" fill="#fff8d6" stroke="#e3cf6a"/>
+  <text x="380" y="180" text-anchor="middle" font-size="12.5" fill="#78350f">關鍵 瀏覽器夾帶 Cookie 的唯一依據是「目標網域與路徑」跟「誰發起請求」完全無關</text>
+  <text x="380" y="200" text-anchor="middle" font-size="12.5" fill="#78350f">Endpoint 不是秘密 駭客自己註冊一個帳號打開 F12 看 Network 就抄得到完整 API 規格</text>
+
+  <!-- middle: SOP -->
+  <rect x="40" y="226" width="680" height="46" rx="8" fill="#f3edff" stroke="#b191e8"/>
+  <text x="380" y="248" text-anchor="middle" font-size="12.5" fill="#5b21b6">同源政策（SOP）擋得住的是「evil.com 的 JS 讀取你分頁裡的 DOM／F12／LocalStorage」</text>
+  <text x="380" y="266" text-anchor="middle" font-size="12.5" fill="#5b21b6">擋不住的是「evil.com 誘導瀏覽器對你的網域發出請求」 這兩件事要分清楚</text>
+
+  <!-- lower: comparison -->
+  <text x="40" y="308" font-size="15" font-weight="700" fill="#1f2937">下半 兩種攜帶身分的方式 風險完全相反</text>
+
+  <rect x="40" y="324" width="330" height="200" rx="12" fill="#ffffff" stroke="#e884ac" stroke-width="2"/>
+  <rect x="40" y="324" width="330" height="34" rx="12" fill="#ffeef5"/>
+  <text x="205" y="347" text-anchor="middle" font-size="14" font-weight="700" fill="#9d174d">Cookie（瀏覽器自動夾帶）</text>
+  <text x="58" y="380" font-size="12" fill="#374151">・登入後 Set-Cookie 瀏覽器自己存</text>
+  <text x="58" y="402" font-size="12" fill="#374151">・之後不用寫任何程式碼 自動附上</text>
+  <text x="58" y="424" font-size="12" fill="#374151">・跨站請求也照樣帶</text>
+  <text x="58" y="450" font-size="12" font-weight="700" fill="#9d174d">主要風險 CSRF</text>
+  <text x="58" y="472" font-size="12" fill="#166534">防線 SameSite Lax／Strict</text>
+  <text x="58" y="494" font-size="12" fill="#166534">　　　Anti-CSRF Token ／ CORS ／ Origin 校驗</text>
+  <text x="58" y="514" font-size="11.5" fill="#6b7280">比喻 護照上的印章 被推過關卡也會亮出來</text>
+
+  <rect x="390" y="324" width="330" height="200" rx="12" fill="#ffffff" stroke="#63b880" stroke-width="2"/>
+  <rect x="390" y="324" width="330" height="34" rx="12" fill="#e6f7ea"/>
+  <text x="555" y="347" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">Authorization Bearer（手動夾帶）</text>
+  <text x="408" y="380" font-size="12" fill="#374151">・登入後 Token 放在 Response Body</text>
+  <text x="408" y="402" font-size="12" fill="#374151">・前端自己存進記憶體或變數</text>
+  <text x="408" y="424" font-size="12" fill="#374151">・每次呼叫要寫程式碼組 Header</text>
+  <text x="408" y="450" font-size="12" font-weight="700" fill="#9d174d">主要風險 XSS（若存 LocalStorage）</text>
+  <text x="408" y="472" font-size="12" fill="#166534">防線 同源政策隔離了 JS 記憶體空間</text>
+  <text x="408" y="494" font-size="12" fill="#166534">　　　輸出跳脫 ／ CSP</text>
+  <text x="408" y="514" font-size="11.5" fill="#6b7280">比喻 自己裝進行李箱 別人摸不到</text>
+</svg>
