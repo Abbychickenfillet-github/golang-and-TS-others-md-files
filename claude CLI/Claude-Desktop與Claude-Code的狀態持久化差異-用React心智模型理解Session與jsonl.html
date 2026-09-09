@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Claude Desktop 與 Claude Code 的狀態持久化差異：用 React 心智模型理解 Session 與 jsonl</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Claude Desktop 與 Claude Code 的狀態持久化差異：用 React 心智模型理解 Session 與 jsonl</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#claude-code</span><span class="pill">#claude-desktop</span><span class="pill">#electron</span><span class="pill">#nodejs</span><span class="pill">#react</span><span class="pill">#狀態管理</span><span class="pill">#session</span><span class="pill">#jsonl</span><span class="pill">#持久化</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-29</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/0bca4ba4fd05f3fe" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/10f9c54f35984248" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">關掉 Terminal 之後，Claude Code 的對話狀態仍留在記憶體裡。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">作業系統送出 SIGINT 或 SIGHUP，Node.js 行程終止，RAM 中的 Context State 立刻消失。</div></li><li><p class="qq">Claude Code 的對話記錄存在 ~/.claude/session.json。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">這是 Gemini 給的示意路徑。真實位置是 ~/.claude/projects/&lt;專案路徑編碼&gt;/&lt;uuid&gt;.jsonl。</div></li><li><p class="qq">jsonl 檔名的 UUID 就是 session ID。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">一個 session 一個檔，內容是 JSON Lines，一行一筆訊息物件。</div></li><li><p class="qq">claude -c 與 claude -r 的行為完全相同。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">-c/--continue 接續當前目錄最近一次的對話，-r/--resume 是列出 session 讓你挑一個。</div></li><li><p class="qq">Electron 的 Main Process 跑的是 Node.js，Renderer Process 跑的是 Web UI。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">前者負責檔案系統與 OS API，後者負責 DOM、CSS 與 React／Vue。</div></li><li><p class="qq">更新 React 訊息陣列時可以直接用 messages.push(newMessage)。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">push 會改到原陣列、參照沒變，React 不會重繪，必須用 [...messages, newMessage] 產生新陣列。</div></li><li><p class="qq">Claude Desktop 換一台電腦登入後歷史對話仍在。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">它的記憶存在雲端資料庫，啟動時透過 API 重新 Fetch。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">關閉終端機時作業系統會向行程發送 SIGINT 或 <input class="blank" data-a="SIGHUP" placeholder="填答案" autocomplete="off"> 訊號。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Signal Hang Up，掛斷訊號。</div></li><li><p class="qq">把磁碟上的資料灌回記憶體狀態的前端術語叫 <input class="blank" data-a="Rehydration" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">中文譯作再水合，claude -c 做的就是這件事。</div></li><li><p class="qq">JSONL 的全名是 JSON <input class="blank" data-a="Lines" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">一行一筆完整 JSON 物件，適合逐行追加而不必重寫整份檔案。</div></li><li><p class="qq">讓 jsonl 不被定期清除，要在 settings.json 設 <input class="blank" data-a="cleanupPeriodDays" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">設成極大值如 999999，注意這是權宜寫法不是官方的永不刪除開關。</div></li><li><p class="qq">C:\coding\futuresign 這個專案在 .claude/projects 底下的資料夾名是 <input class="blank" data-a="C--coding-futuresign" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">把絕對路徑的分隔符換成連字號編碼而成。</div></li><li><p class="qq">Chromium 與 Node.js 都掛載了 Google 的 <input class="blank" data-a="V8" placeholder="填答案" autocomplete="off"> 引擎。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">所以最終對外暴露的全部都是 JavaScript Runtime。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請用 React 的心智模型完整解釋 Claude Desktop 與 Claude Code 在對話狀態上的差異，並說明各自的復原機制。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">Claude Desktop 像是一個接了後端 API 的 React App：Mount 時透過 useEffect 呼叫雲端 API 把帳號的歷史對話載入 state；對話中每次送訊息就用 [...messages, newMessage] 產生新陣列並打包整個 Context Window 送給模型；同時後端會把新訊息 persist 進雲端資料庫。所以視窗關掉等於 Unmount，但資料在 Server，下次啟動重新 Fetch 就完整復原，甚至換一台電腦也還在。Claude Code 像是一個沒有後端、只有 LocalStorage 的 React App：執行 claude 啟動一個 Node.js 行程，相當於初始化空白的 useState([])；state 只活在該行程的 RAM 裡；關閉 Shell 時作業系統送出 SIGINT 或 SIGHUP，行程終止、記憶體釋放，等同直接按 F5。它的復原靠 Rehydration：claude -c 或 claude -r 在啟動時從磁碟讀取 ~/.claude/projects/&lt;專案路徑編碼&gt;/&lt;uuid&gt;.jsonl，把 JSON Lines 逐行 parse 回記憶體。關鍵差異是儲存位置與作用範圍——雲端 vs 本機硬碟，帳號綁定 vs 專案路徑綁定，所以換個資料夾執行 claude 就找不到原本的對話。</div></li><li><p class="qq">你想把每天用 Claude Code 的提問整理成工作日誌。請說明資料在哪、格式是什麼、要先做什麼設定、以及你會怎麼實作。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">資料在 ~/.claude/projects/&lt;專案路徑編碼&gt;/&lt;uuid&gt;.jsonl，Windows 上例如 C:\Users\User\.claude\projects\C--coding-futuresign\&lt;uuid&gt;.jsonl。資料夾名是把專案絕對路徑的分隔符換成連字號編碼而成，所以同一台機器上不同專案分開存；檔名 UUID 就是 session ID；格式是 JSON Lines，一行一筆完整的 JSON 訊息物件。第一件事是先在 ~/.claude/settings.json 設 cleanupPeriodDays 為一個極大值（例如 999999），否則舊 log 會被定期清掉，日誌就斷了——同時要注意這會讓 log 一直長，得留意磁碟空間。實作上因為是 JSON Lines，可以逐行 parse 而不必把整份讀進記憶體：開檔後對每一行 json.loads，篩出 role 為 user 的訊息，取出 timestamp 與內容，按日期分組輸出成 Markdown。這正是 show-my-prompts.py 的做法，支援 &lt;session-id-prefix&gt; 抽單一 session 與 --date today|yesterday|YYYY-MM-DD 抽某一天所有 session。要自動化就再掛 Windows Task Scheduler 每天定時跑一次。若想要現成工具，claude-log-cli 也能瀏覽本機 session log，但它是 C# 寫的且沒有 Windows binary，要自己用 .NET SDK 編譯。</div></li></ol></section>
+
+<article class="card">
+<h1 id="claude-desktop-claude-code-react-session-jsonl">Claude Desktop 與 Claude Code 的狀態持久化差異：用 React 心智模型理解 Session 與 jsonl</h1>
+<blockquote>
+<p>本篇重點 a–r，共 18 個。兩段 Gemini 對話合併：為什麼關掉 Terminal 對話就不見、<code>claude -c</code> 與 <code>claude -r</code> 到底在做什麼、對話記錄實際存在哪個檔案、以及怎麼把自己的提問撈出來做成日誌。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">先把縮寫講清楚</h3>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CLI ＝ Command Line Interface，命令列介面</mark>，也就是在終端機打指令操作的程式。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">RAM ＝ Random Access Memory，隨機存取記憶體</mark>，斷電或行程結束就清空的揮發性記憶體。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Process ＝ 行程</mark>，作業系統執行中的一個程式實例。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SIGINT ＝ Signal Interrupt，中斷訊號</mark>（按 Ctrl+C 送出）；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SIGHUP ＝ Signal Hang Up，掛斷訊號</mark>（終端機關閉時送出）。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Hydration ＝ 水合／注水</mark>，前端術語，指把伺服器或磁碟上的資料灌回前端的記憶體狀態；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Rehydration ＝ 再水合</mark>，重新灌回。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JSONL ＝ JSON Lines</mark>，一行一筆完整 JSON 物件的純文字格式，適合逐行追加（append）而不必重寫整份檔案。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">UUID ＝ Universally Unique Identifier，通用唯一識別碼</mark>。</li>
+</ul>
+<hr />
+<h3 id="claude-desktop-react">一、Claude Desktop：像是對接遠端資料庫的 React 全域狀態</h3>
+<p>(a) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Mount（啟動）</mark>：打開 Desktop App 相當於 React Component 掛載，透過類似 <code>useEffect</code> 的初始化流程呼叫 Anthropic 雲端 API，把該帳號的歷史對話載入到 UI 狀態（React State 或 Redux）。</p>
+<p>(b) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Update（對話中）</mark>：每次送出訊息就更新狀態。</p>
+<pre><code class="language-ts">// 類似 React 內部維護的狀態變數
+const [messages, setMessages] = useState&lt;Message[]&gt;([]);
+
+// 每次發新訊息時打包完整的 Context Window 傳給 LLM
+const payload = [...messages, newMessage];
+</code></pre>
+<p><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一行一行的意思</mark>：<code>useState&lt;Message[]&gt;([])</code> 開一個訊息陣列的狀態容器，初始是空陣列；<code>[...messages, newMessage]</code> 用展開運算子（spread）做出「舊訊息＋新訊息」的新陣列——<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">注意這裡是產生新陣列而不是 <code>messages.push()</code></mark>，因為 React 靠參照是否改變來判斷要不要重繪，直接 push 會改到原陣列、參照沒變、畫面不更新。而<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Context Window（上下文視窗）</mark>就是每次都要整包送給模型的對話歷史，這也是為什麼對話越長越花 token。</p>
+<p>(c) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Persist（持久化）</mark>：後端 API 自動把 <code>newMessage</code> 寫進雲端資料庫。所以即使 Electron 視窗關掉（Unmount），下次啟動重新 Fetch，狀態完美復原。</p>
+<h3 id="claude-codecli-backend-localstorage-react-app">二、Claude Code（CLI）：像是沒有 Backend、只靠 LocalStorage 的 React App</h3>
+<p>(d) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Init（啟動）</mark>：執行 <code>claude</code>，Node.js 行程啟動，相當於 React 初始化了一個空白的 <code>const [messages, setMessages] = useState([])</code>。</p>
+<p>(e) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Unmount（關閉 Shell）</mark>：關閉 Terminal 相當於直接按 F5 重新整理網頁。因為 state 只存在 RAM 裡、沒有自動寫入全域 Server，記憶體內的 state 瞬間清空。</p>
+<p>(f) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Rehydrate（<code>claude -c</code> 或 <code>claude -r</code>）</mark>：等同在 <code>useEffect</code> 裡讀取本地檔案再把狀態灌回去。Gemini 給的示意碼是：</p>
+<pre><code class="language-ts">// 類似於 persisted State 的復原過程
+const savedContext = fs.readFileSync('~/.claude/session.json');
+setMessages(JSON.parse(savedContext));
+</code></pre>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這段是「示意碼」不是真實路徑</mark>，實際檔案位置見下方第四節與「存疑／更正」。</p>
+<h3 id="cli-nodejs">三、CLI 為什麼是靠 Node.js 行程存活</h3>
+<p>(g) 在 Terminal 輸入 <code>claude</code> 時，作業系統背後觸發的是一個 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Node.js 行程（Process）</mark>。</p>
+<p>(h) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">執行時</mark>：Node.js 行程啟動，把程式碼與當前對話的 Context 載入到系統記憶體（RAM）中。</p>
+<p>(i) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關閉 Terminal 或關閉 Shell 時</mark>：作業系統向該行程發送 <code>SIGINT</code> 或 <code>SIGHUP</code> 訊號，Node.js 行程隨即終止（相當於 <code>process.exit()</code>）。</p>
+<p>(j) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">記憶體釋放</mark>：行程結束後，記憶體中的 Context State 隨之消失。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這就是為什麼每次重新開機或關閉 Shell 後記憶體狀態就歸零</mark>，而 <code>claude -c</code> 的原理就是啟動時執行一段 Rehydration 邏輯，從磁碟（<code>~/.claude/</code> 底下）讀取 JSON、重新寫入 Node.js 的記憶體變數中。</p>
+<p>(k) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">補充：Electron 的底子的確可以說是 JavaScript</mark>。拆解來看——程式語言視角：撰寫 Electron 應用時 100% 使用 JavaScript／TypeScript；執行環境視角：內建 Chromium 渲染引擎（負責畫頁面）與 Node.js 執行環境（負責讀寫本地檔案與系統 API）；底層實作視角：Chromium 與 Node.js 本身是 C/C++ 寫的，但都掛載了 Google 的 V8 引擎，最終對外暴露的全部都是 JavaScript Runtime。</p>
+<pre><code class="language-text">+---------------------------------------------------+
+|                Electron Application               |
++-------------------------+-------------------------+
+|  Main Process (Node.js) | Renderer Process (Web UI)|
+|   檔案系統、OS API        |  DOM、CSS、React／Vue     |
++-------------------------+-------------------------+
+</code></pre>
+<p>(l) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">三者的概念對照表</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>React 概念</th>
+<th>Claude Desktop 的對應實作</th>
+<th>Claude Code（CLI）的對照實作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Component <code>useState</code></td>
+<td>RAM 中的 Session State：當前開啟視窗記憶體裡的對話陣列</td>
+<td>Node.js 行程記憶體 State：當前 Shell 執行時存在 RAM 裡的上下文</td>
+</tr>
+<tr>
+<td>Server State／API Hydration</td>
+<td>雲端資料庫（PostgreSQL／NoSQL）</td>
+<td>本地檔案系統（<code>~/.claude/*.jsonl</code>）</td>
+</tr>
+<tr>
+<td>初始化 <code>useEffect</code></td>
+<td>開機時從雲端 API 抓取歷史</td>
+<td>執行 <code>claude -c</code> 時從磁碟讀取</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="claudeprojects-jsonl">四、對話記錄實際存在哪裡：<code>~/.claude/projects/</code> 的 jsonl</h3>
+<p>(m) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">真實路徑是 <code>~/.claude/projects/&lt;專案路徑編碼&gt;/&lt;uuid&gt;.jsonl</code></mark>。Windows 上以 Abby 的專案為例是：</p>
+<pre><code class="language-text">C:\Users\User\.claude\projects\C--coding-futuresign\&lt;uuid&gt;.jsonl
+</code></pre>
+<p><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">專案資料夾名稱是把絕對路徑的分隔符換成連字號後編碼而成</mark>（<code>C:\coding\futuresign</code> → <code>C--coding-futuresign</code>），所以同一台機器上不同專案的記錄是分開存的。</p>
+<p>(n) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">檔名的 UUID 就是 session ID</mark>，檔案內容是 JSON Lines：一行一筆訊息物件。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">因為是逐行追加，所以可以用 <code>tail -f</code> 即時跟看，也可以用任何語言逐行 parse 而不必把整份讀進記憶體</mark>。</p>
+<p>(o) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">避免記錄被自動清掉</mark>：在 <code>~/.claude/settings.json</code> 加入 <code>"cleanupPeriodDays": 999999</code>，jsonl 就不會被定期清除。</p>
+<pre><code class="language-json">{
+  &quot;cleanupPeriodDays&quot;: 999999
+}
+</code></pre>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">注意這是把清理週期設成一個極大值，不是官方定義的「永不刪除」開關</mark>；改設定前建議先確認自己的磁碟空間，log 會一直長。</p>
+<p>(p) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">實用工具</mark>：<code>C:\coding\futuresign\claude-log-cli\show-my-prompts.py</code>（Abby 自己寫的），用途是把自己的提問撈出來：</p>
+<pre><code class="language-bash"># 抽單一 session 的 user 訊息（給 session id 前綴即可）
+python show-my-prompts.py e34a8787
+
+# 抽某一天所有 session 的 user 訊息
+python show-my-prompts.py --date today
+python show-my-prompts.py --date yesterday
+python show-my-prompts.py --date 2026-05-19
+</code></pre>
+<p>(q) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">相關工具備忘</mark>：<code>claude-log-cli</code> 是 C# 寫的 CLI，用來瀏覽本機 Claude Code session log，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有提供 Windows binary，要自己編譯</mark>（需要 .NET SDK）；<code>Symbiont</code> 是 Python daemon，讓 Claude 持續學習使用者偏好。</p>
+<p>(r) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">另一則對話的除錯情境</mark>：在 Antigravity 編輯器裡對話標題被設成 <code>futuresign / Locating Text Editor</code>、AI 回「雖然這裡沒有編輯器」，代表它把該對話當成純文字 Chat 視窗，底層的檔案系統連結（Language Server／Workspace）在建立對話時斷開了。修復步驟是回到正確的 Workspace（主選單 → Open Folder 選 <code>C:\coding\futuresign</code>），再點 New Conversation 重開一個對話，並確認底下的模型與 Agent 設定正確。</p>
+<hr />
+<h2 id="_3">一句話總結</h2>
+<p><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Claude Desktop 的記憶在雲端資料庫，Claude Code 的記憶在你自己的硬碟</mark>。前者換一台電腦也還在，後者換一個資料夾就找不到——因為 jsonl 是按專案路徑分開存的。</p>
+<hr />
+<h2 id="_4">關聯筆記（以及為什麼相關）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：claude CLI/Claude-Code終端機無捲軸與t-v快捷鍵">claude CLI/Claude-Code終端機無捲軸與t-v快捷鍵</span>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：那篇解釋 Claude Code 的終端機 UI 行為，本篇解釋它底下的行程與狀態模型，合起來就是「看得到的介面」與「看不到的狀態」兩層。</li>
+<li><span class="wikilink" title="Obsidian 連結：claude CLI/claude-指令跑不出來-排查筆記">claude CLI/claude-指令跑不出來-排查筆記</span>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：排查 <code>claude</code> 指令問題時，理解 (g) 到 (j) 的 Node.js 行程生命週期能快速判斷是「行程沒起來」還是「起來了但狀態沒讀到」。</li>
+<li><span class="wikilink" title="Obsidian 連結：LLM-Memory">LLM-Memory</span> 資料夾：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：(b) 的 Context Window 打包機制正是 LLM 記憶與計費的核心，與該資料夾的快取計費、記憶體策略筆記直接相關。</li>
+<li><span class="wikilink" title="Obsidian 連結：frontend-docs/react">frontend-docs/react</span> 資料夾：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：本篇整套比喻建立在 React 的 mount／unmount／state 生命週期上，(b) 提到的「不可變更新（immutable update）」是 React 筆記的核心概念，這裡等於用一個非前端的場景複習它。</li>
+<li><span class="wikilink" title="Obsidian 連結：副檔名圖鑑">副檔名圖鑑</span>：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：<code>.jsonl</code> 是本篇的主角副檔名，值得補進圖鑑。</li>
+</ul>
+<hr />
+<h2 id="leetcodeneetcode">相關練習題（LeetCode／NeetCode）</h2>
+<p>本篇是工具與架構理解，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有直接對應的 LeetCode 題目</mark>。但 (b) 的「不可變更新」與 (n) 的「逐行串流處理」在題庫裡有相通的練習：</p>
+<ul>
+<li>LeetCode 146. LRU Cache — https://leetcode.com/problems/lru-cache/ ：快取淘汰策略，與 Context Window 有限、舊訊息要不要留是同一類取捨。</li>
+<li>LeetCode 355. Design Twitter — https://leetcode.com/problems/design-twitter/ ：設計題，練「訊息串以什麼結構儲存與讀取」。</li>
+<li>LeetCode 1603. Design Parking System — https://leetcode.com/problems/design-parking-system/ ：最輕量的狀態設計題，適合暖身。</li>
+<li>NeetCode 練習總表 — https://neetcode.io/practice ：Design 分類可一併掃過。</li>
+</ul>
+<hr />
+<h2 id="_5">⚠️ 存疑／更正</h2>
+<ul>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Gemini 的示意碼寫 <code>fs.readFileSync('~/.claude/session.json')</code>，這個路徑不存在</mark>。真實的對話記錄是 <code>~/.claude/projects/&lt;專案路徑編碼&gt;/&lt;uuid&gt;.jsonl</code>，格式是 JSON Lines 不是單一 JSON 物件，而且是「一個專案一個資料夾、一個 session 一個檔」。另外 Node.js 的 <code>fs</code> 不會自動展開 <code>~</code>，要用 <code>os.homedir()</code> 組路徑，直接傳 <code>~/...</code> 會找不到檔案。這點在同一批的另一則對話（app/10f9c54f35984248）裡 Abby 自己已經驗證過正確結構。</li>
+<li><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>claude -c</code> 與 <code>claude -r</code> 不是同一件事</mark>：<code>-c</code>／<code>--continue</code> 是接續「當前目錄最近一次」的對話，<code>-r</code>／<code>--resume</code> 是列出 session 讓你挑一個。Gemini 在同一段裡混用了兩者，實際行為請以 <code>claude --help</code> 為準。</li>
+<li>「<code>cleanupPeriodDays: 999999</code> ＝ 永不刪除」<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">是把數字設得夠大的權宜寫法</mark>，並非官方的永久保留開關，語意上要區分清楚。</li>
+</ul>
+<hr />
+<h2 id="_6">各對話來源</h2>
+<h3 id="claude-desktop-code-2026-08-httpsgeminigooglecomapp0bca4ba4fd05f3fe">Claude Desktop 與 Code 差異（2026-08）— https://gemini.google.com/app/0bca4ba4fd05f3fe</h3>
+<p>使用者：（詢問 Claude Desktop 與 Claude Code 的對話狀態差異，以及 CLI 是不是靠 Node.js 行程存活、Electron 底子是不是 JavaScript）</p>
+<p>Gemini：用 React 生命週期比喻。Claude Desktop 像是對接遠端 DB 的 React 全域狀態——Mount（啟動）時透過 <code>useEffect</code> 呼叫 Anthropic 雲端 API 把歷史對話載入 UI 狀態；Update（對話中）每次發訊息更新 <code>const [messages, setMessages] = useState&lt;Message[]&gt;([])</code>，並用 <code>const payload = [...messages, newMessage]</code> 打包完整 Context Window 傳給 LLM；Persist（持久化）由後端 API 把新訊息存進雲端資料庫，所以 Electron 關掉後下次啟動重新 Fetch 就能完美復原。Claude Code（CLI）像是沒有 Backend、僅靠 LocalStorage 的 React App——Init（啟動）執行 <code>claude</code> 時 Node.js 啟動，相當於初始化空白的 <code>useState([])</code>；Unmount（關閉 Shell）等同直接按 F5 重新整理網頁，因為 state 只存在 RAM 裡；Rehydrate（<code>claude -r</code>）就像在 <code>useEffect</code> 裡讀本地檔，示意碼為 <code>const savedContext = fs.readFileSync('~/.claude/session.json'); setMessages(JSON.parse(savedContext));</code>。</p>
+<p>Gemini（續，回答第 1 題「CLI 是靠 Node.js 行程存活的嗎」）：是的，完全正確。輸入 <code>claude</code> 時作業系統觸發一個 Node.js 行程；執行時把程式碼與當前對話 Context 載入 RAM；關閉 Terminal 或 Shell 時作業系統送出 SIGINT 或 SIGHUP，Node.js 行程終止（相當於 <code>process.exit()</code>）；行程結束後記憶體中的 Context State 消失。這就是每次重開機或關 Shell 後狀態歸零的原因，而 <code>claude -r</code> 的原理是啟動時執行 Rehydration 邏輯，從 Disk（<code>~/.claude/</code> 檔）讀取 JSON 重新寫入 Node.js 記憶體變數。</p>
+<p>Gemini（續，回答第 2 題「Electron 的底子可以說是 JavaScript 嗎」）：可以，從開發者與執行環境角度來看核心就是 JavaScript（Node.js + Web）。拆解架構為 Main Process（Node.js，負責檔案系統與 OS API）與 Renderer Process（Web UI，負責 DOM、CSS、React／Vue）。程式語言視角 100% 使用 JavaScript／TypeScript；執行環境視角內建 Chromium 渲染引擎與 Node.js 執行環境；底層實作視角 Chromium 與 Node.js 本身以 C/C++ 寫成但都掛載 Google V8 引擎，最終對外暴露的都是 JavaScript Runtime。</p>
+<p>Gemini（續，第 3 節 Claude Desktop 的 Context State 與 React 觀念對照）：提供對照表——React 的 Component <code>useState</code> 對應 Desktop 的「RAM 中的 Session State（當前開啟視窗記憶體裡的對話陣列）」與 CLI 的「Node.js 行程記憶體 State（當前 Shell 執行時存在 RAM 裡的上下文）」；React 的 Server State／API Hydration 對應 Desktop 的「雲端資料庫（PostgreSQL/NoSQL）」與 CLI 的「本地檔案系統（<code>~/.claude/*.jsonl</code>）」。</p>
+<p>使用者：support cross line selection in vscode settings' name? in claude code?（詢問跨行／區塊選取）</p>
+<p>Gemini：說明在 VS Code 與 Claude Code 中「跨行/區塊選取（Column / Multi-line Selection）」的運作層級不同。</p>
+<h3 id="claude-session-log-2026-05-2026-08-httpsgeminigooglecomapp10f9c54f35984248">Claude Session Log 筆記整理（2026-05 至 2026-08）— https://gemini.google.com/app/10f9c54f35984248</h3>
+<p>使用者：（貼上 <code>Test-Path "C:\Users\User\.claude\projects\C--coding-futuresign\&lt;uuid&gt;.jsonl"</code> 與一份對話進度摘要）</p>
+<p>進度摘要內容（2026-05-19）——已完成：下載並解釋 claude-log-cli（C# CLI，瀏覽本機 Claude Code session log，無 Windows binary 要自己編）；下載並解釋 Symbiont（Python daemon，自動讓 Claude 持續學習使用者偏好）；解釋 <code>~/.claude/projects/&lt;project&gt;/&lt;uuid&gt;.jsonl</code> 的結構（檔名 UUID ＝ session ID，內容是 JSON Lines 對話）；寫好 <code>C:\coding\futuresign\claude-log-cli\show-my-prompts.py</code>，支援 <code>python show-my-prompts.py &lt;session-id-prefix&gt;</code> 抽單一 session 的 user 訊息與 <code>python show-my-prompts.py --date today|yesterday|YYYY-MM-DD</code> 抽某一天所有 session；Task 1 完成，<code>~/.claude/settings.json</code> 加入 <code>"cleanupPeriodDays": 999999</code> 讓 jsonl 永不自動刪除。進行中：Task 2 的 <code>--date</code> 模式已加好，待辦是用 Windows Task Scheduler 排程每天自動跑；Task 3 的 .NET SDK 10.0.204 ZIP 相關作業。</p>
+<p>使用者：（另附 Antigravity 編輯器截圖，對話標題變成 <code>futuresign / Locating Text Editor</code>、右側專案檔案樹消失）</p>
+<p>Gemini：這是因為該對話不小心觸發了「純 Agent 聊天（無專案脈絡）」或「編輯器功能未成功掛載」的模式。AI 回應出現「雖然這裡沒有編輯器，但我可以直接當您的雙手」「手動在 VS Code 中打開」，代表 Antigravity 把這個對話視為純文字 Chat 視窗，底層的檔案系統連結（Language Server／Workspace）在建立對話時斷開了，導致無法渲染左側專案檔案樹，也無法直接開啟程式碼編輯區。修復步驟：一、回到正確的工作區（Workspace），點左上角 Antigravity 主選單看能不能重新選擇 Open Folder 並選取專案路徑 <code>C:\coding\futuresign</code>；二、點「New Conversation」重新開一個對話，因為有時單一對話的 Session 狀態會卡住（特別是標題變成特定主題後 System Prompt 可能跑偏），並確認底下顯示的模型與 Agent 設定正確。</p>
+<hr />
+<h2 id="_7">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：Claude Desktop 與 Code 差異</td>
+<td>https://gemini.google.com/app/0bca4ba4fd05f3fe</td>
+<td>對話 2026-08，整理於 2026-08-29</td>
+</tr>
+<tr>
+<td>Gemini 對話：Claude Session Log 筆記整理</td>
+<td>https://gemini.google.com/app/10f9c54f35984248</td>
+<td>對話起於 2026-05-19，整理於 2026-08-29</td>
+</tr>
+<tr>
+<td>Claude Code 官方文件（設定與 CLI 參數，權威來源）</td>
+<td>https://docs.claude.com/en/docs/claude-code/overview</td>
+<td>官方文件持續更新，實際參數請以 <code>claude --help</code> 為準</td>
+</tr>
+<tr>
+<td>JSON Lines 格式規範</td>
+<td>https://jsonlines.org/</td>
+<td>格式規範，查證於 2026-08-29</td>
+</tr>
+<tr>
+<td>Electron 官方架構文件（Main／Renderer Process）</td>
+<td>https://www.electronjs.org/docs/latest/tutorial/process-model</td>
+<td>官方文件持續更新</td>
+</tr>
+<tr>
+<td>Node.js Process 與訊號處理（SIGINT／SIGHUP）</td>
+<td>https://nodejs.org/api/process.html#signal-events</td>
+<td>官方文件隨 Node.js 版本更新</td>
+</tr>
+<tr>
+<td>React 官方：state 應以不可變方式更新</td>
+<td>https://react.dev/learn/updating-arrays-in-state</td>
+<td>官方文件持續更新</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>註：Gemini 給的 <code>~/.claude/session.json</code> 為示意路徑，真實路徑以本篇 (m) 為準，並以官方文件與 <code>claude --help</code> 實測結果為最終依據。本次執行因本機磁碟空間吃緊，未額外擷取新截圖。</p>
+</blockquote>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-29</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

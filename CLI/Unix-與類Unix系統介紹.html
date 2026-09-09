@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unix 與類 Unix 系統介紹</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Unix 與類 Unix 系統介紹</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#作業系統</span><span class="pill">#unix</span><span class="pill">#linux</span><span class="pill">#macos</span><span class="pill">#bsd</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-09</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/99bcb912540d69c8" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/954863faf2a234f5" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="unix-unix">Unix 與類 Unix 系統介紹</h1>
+<h2 id="_1">重點整理</h2>
+<p>Unix 家族可分成兩大類：經官方認證的<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「正統 Unix」</mark>，以及行為高度相似但法理上不能叫 Unix 的<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「類 Unix（Unix-like）」</mark>。個人電腦最常見的是 Windows，但伺服器、工程工作站與蘋果生態系都是 Unix 家族的天下。</p>
+<h3 id="1-applemacos-ios">1. 蘋果 Apple（macOS / iOS）該看鳥哥網站</h3>
+<p>鮮為人知：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Mac 是目前世上發行量最大的官方認證 Unix 系統</mark>。</p>
+<ul>
+<li>核心叫 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Darwin</mark>，以 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">BSD</mark>（著名 Unix 分支）＋ Mach 微核心為基礎。</li>
+<li>通過 The Open Group 的 UNIX 認證（UNIX 03 合規），所以 MacBook、iMac、Mac mini／Studio 本質上都是 Unix 電腦。</li>
+</ul>
+<h3 id="2-unix">2. 傳統企業級 Unix 工作站／伺服器</h3>
+<p>由科技巨頭為高效能運算或企業伺服器開發，多採非 x86 的專屬處理器：</p>
+<ul>
+<li><strong>IBM AIX</strong>：跑在 IBM Power 系統上，廣用於銀行、金融、大型企業核心系統。</li>
+<li><strong>Oracle Solaris</strong>（原 Sun Microsystems）：學術界與大型網路伺服器名系統，跑在 SPARC 或 x86。</li>
+<li><strong>HP-UX</strong>：HP 為其專有伺服器開發的 Unix。</li>
+</ul>
+<h3 id="3-unixlinux">3. 類 Unix：Linux 家族</h3>
+<p>Linux 因商標與授權原因不能直接叫 Unix，但<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全模仿 Unix 的架構與哲學</mark>，現今絕大多數伺服器都跑 Linux。</p>
+<ul>
+<li>常見發行版：Ubuntu、Debian、CentOS、RHEL（Red Hat）、Alpine Linux 等。</li>
+<li>載體：雲端與企業伺服器、容器（Docker 映像常用 Alpine／Debian）、嵌入式裝置等。</li>
+</ul>
+<blockquote>
+<p>[!info] 一句話<br />
+macOS＝有認證的正統 Unix；Linux＝沒掛 Unix 商標但骨子裡是 Unix 的類 Unix；兩者都遵循 Unix 哲學，所以指令與操作手感相通。</p>
+</blockquote>
+<hr />
+<h2 id="2026-09-09usr">追加 2026-09-09：<code>/usr</code> 到底是什麼——它不是「使用者資料夾」</h2>
+<blockquote>
+<p>[!danger]+ 最大的誤會先破除<br />
+<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>/usr</code> 不是 Windows 的「使用者」資料夾</mark>。名字長得像，內容卻剛好相反。Unix 上真正對應 Windows <code>C:\Users\你的帳號</code> 的是 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>/home/你的帳號</code></mark>（macOS 上是 <code>/Users/你的帳號</code>）。</p>
+</blockquote>
+<h3 id="usr"><code>/usr</code> 的名字由來與定位</h3>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">FHS＝Filesystem Hierarchy Standard（檔案系統階層標準）</mark>，由 Linux Foundation 維護，規定 Linux／類 Unix 系統上每個頂層目錄該放什麼。現行版本是 FHS 3.0。</li>
+<li><code>/usr</code> 這個名字在歷史上有兩種解釋：<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">UNIX Source Repository（Unix 原始碼倉庫）</mark>與 <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">UNIX System Resources（Unix 系統資源）</mark>。早期它確實曾是放使用者家目錄的地方，後來家目錄被搬到 <code>/home</code>，<code>/usr</code> 就轉型成「系統資源」。</li>
+<li>FHS 對 <code>/usr</code> 的定義是 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">shareable, read-only data（可共享、唯讀的資料）</mark>——放的是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">系統上所有使用者共用</mark>的程式、函式庫與文件，例如 <code>curl</code>、<code>git</code> 這些工具。</li>
+<li>為什麼是唯讀？因為 FHS 刻意把<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">靜態檔案</mark>與<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">會變動的檔案</mark>分開：會變動的全部搬去 <code>/var</code>，剩下的 <code>/usr</code> 就可以掛成唯讀、甚至放在唯讀媒體上，也不必跟著變動資料一起備份。開機不需要的東西才放這裡（開機必需的在 <code>/bin</code>、<code>/sbin</code>、<code>/lib</code>）。</li>
+</ul>
+<h3 id="usr-vs-windows">對照表：<code>/usr</code> vs Windows 使用者目錄</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Unix <code>/usr</code></th>
+<th>Windows <code>C:\Users\&lt;帳號&gt;</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>屬於誰</td>
+<td><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">全系統所有使用者共用</mark></td>
+<td><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">特定單一使用者專屬</mark></td>
+</tr>
+<tr>
+<td>放什麼</td>
+<td>共用程式、函式庫、標頭檔、說明文件</td>
+<td>個人文件、下載檔案、應用程式的個人設定</td>
+</tr>
+<tr>
+<td>可寫性</td>
+<td>FHS 規定為唯讀（安裝套件時才由套件管理員寫入）</td>
+<td>該使用者可自由讀寫</td>
+</tr>
+<tr>
+<td>真正的對應者</td>
+<td>對應 Windows 的 <code>C:\Program Files</code> 與 <code>C:\Windows\System32</code></td>
+<td>對應 Unix 的 <code>/home/&lt;帳號&gt;</code>（macOS 為 <code>/Users/&lt;帳號&gt;</code>）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="usr_1"><code>/usr</code> 底下的常見子目錄</h3>
+<table>
+<thead>
+<tr>
+<th>路徑</th>
+<th>放什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/usr/bin</code></td>
+<td>一般使用者可執行的指令（<code>git</code>、<code>curl</code>、<code>python3</code>）</td>
+</tr>
+<tr>
+<td><code>/usr/sbin</code></td>
+<td>系統管理用的指令</td>
+</tr>
+<tr>
+<td><code>/usr/lib</code></td>
+<td>程式用到的函式庫</td>
+</tr>
+<tr>
+<td><code>/usr/share</code></td>
+<td>與架構無關的共用資料（說明文件、圖示、語系檔）</td>
+</tr>
+<tr>
+<td><code>/usr/include</code></td>
+<td>C／C++ 的標頭檔</td>
+</tr>
+<tr>
+<td><code>/usr/local</code></td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">你自己手動編譯安裝</mark>的軟體，跟套件管理員裝的分開放，避免升級時被覆蓋</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!tip]+ 在 WSL 與 macOS 上的實際體感<br />
+在 WSL（Windows Subsystem for Linux）裡 <code>ls /usr/bin</code> 看到的是 Linux 那套工具，跟 Windows 的 <code>C:\Windows\System32</code> 是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩套完全獨立</mark>的東西——WSL 有自己的完整 Linux 檔案系統。要從 Linux 側去呼叫 Windows 程式，走的是 interop 機制，見 <span class="wikilink" title="Obsidian 連結：WSL-interop-從Linux叫Windows程式">WSL-interop-從Linux叫Windows程式</span>。macOS 因為是正統 Unix，<code>/usr</code> 的結構與 Linux 幾乎一致，但蘋果自己的東西放在 <code>/System</code> 與 <code>/Library</code>。</p>
+<p>[!warning]+ ⚠️ 該次對話品質備註<br />
+這是一段<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">語音對話，只有一問一答，內容非常精簡</mark>。Gemini 講的方向正確（<code>/usr</code> 是全使用者共用、Windows 使用者目錄是個人專屬），但<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有提到 FHS 標準、沒有提到 <code>/home</code> 才是真正的對應者、也沒說 <code>/usr</code> 是唯讀</mark>。以上補充是查 FHS 官方規格後另外補的，來源見文末表格。</p>
+</blockquote>
+<hr />
+<h2 id="_2">各對話來源</h2>
+<h3 id="usr-mac-wsl2026-09-httpsgeminigooglecomapp954863faf2a234f5">/usr 目錄在 Mac 與 WSL（2026-09）— https://gemini.google.com/app/954863faf2a234f5</h3>
+<p>使用者：在 Unix system resources 裡面會放的東西，跟在 Windows user 裡面放的東西有什麼差異，直接講。</p>
+<p>Gemini：Unix 系統資源目錄也就是 <code>/usr</code>，主要存放系統內所有使用者共用的程式、函式庫與文件，例如 <code>curl</code> 或 <code>git</code> 等等工具。而 Windows 使用者目錄則是專屬於特定使用者的個人空間，用來存放個人文件、下載的檔案以及特定應用程式的設定檔。</p>
+<h3 id="unix-unix-2026-06-httpsgeminigooglecomapp99bcb912540d69c8">Unix 與類 Unix 電腦介紹（2026-06）— https://gemini.google.com/app/99bcb912540d69c8</h3>
+<p>使用者：Unix 系統的電腦有哪些</p>
+<p>Gemini：分兩大類——正統 Unix（Commercial Unix）與類 Unix（Unix-like）。①蘋果 macOS/iOS：核心 Darwin（BSD＋Mach），通過 The Open Group UNIX 認證，是發行量最大的正統 Unix，Mac 全系列皆屬之。②企業級：IBM AIX（Power）、Oracle Solaris（SPARC/x86）、HP-UX。③類 Unix Linux 家族：Ubuntu/Debian/CentOS/RHEL/Alpine，因商標授權不能叫 Unix 但完全模仿其架構與哲學，絕大多數伺服器都跑 Linux。</p>
+<p>去看完<br />
+https://linux.vbird.org/linux_basic/centos7/</p>
+<hr />
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：Unix 與類 Unix 電腦介紹</td>
+<td>https://gemini.google.com/app/99bcb912540d69c8</td>
+<td>對話整理於 2026-06-19</td>
+</tr>
+<tr>
+<td>Gemini 對話：/usr 目錄在 Mac 與 WSL</td>
+<td>https://gemini.google.com/app/954863faf2a234f5</td>
+<td>對話擷取於 2026-09-09</td>
+</tr>
+<tr>
+<td>FHS 3.0 規格書（<code>/usr</code> 為 shareable、read-only）</td>
+<td>https://refspecs.linuxfoundation.org/FHS_3.0/fhs-3.0.pdf</td>
+<td>FHS 3.0，2015-06-03 發布；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>FHS：The /usr Hierarchy（子目錄逐項定義）</td>
+<td>https://specifications.freedesktop.org/fhs/latest/usrHierarchy.html</td>
+<td>現行版本；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Red Hat：FHS 概覽（靜態／變動檔案分離的理由）</td>
+<td>https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/5/html/deployment_guide/s1-filesystem-fhs</td>
+<td>查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Ubuntu：Filesystem Hierarchy Standard 說明</td>
+<td>https://ubuntu.com/project/docs/how-ubuntu-is-made/concepts/filesystem-hierarchy-standard/</td>
+<td>查證於 2026-09-09</td>
+</tr>
+<tr>
+<td><code>/usr</code> 名稱由來（UNIX Source Repository／System Resources）</td>
+<td>https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard</td>
+<td>查證於 2026-09-09</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-09</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

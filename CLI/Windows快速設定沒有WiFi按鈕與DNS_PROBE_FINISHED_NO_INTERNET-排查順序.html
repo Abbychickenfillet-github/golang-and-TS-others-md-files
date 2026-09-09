@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Windows 快速設定沒有 Wi-Fi 按鈕、搜尋不到網路、DNS_PROBE_FINISHED_NO_INTERNET 的排查順序</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Windows 快速設定沒有 Wi-Fi 按鈕、搜尋不到網路、DNS_PROBE_FINISHED_NO_INTERNET 的排查順序</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#windows</span><span class="pill">#wifi</span><span class="pill">#dns</span><span class="pill">#網路排錯</span><span class="pill">#ipconfig</span><span class="pill">#services</span><span class="pill">#裝置管理員</span><span class="pill">#captive-portal</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/5c6a4d8604f06bbb" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">DNS_PROBE_FINISHED_NO_INTERNET 通常代表 DNS 伺服器壞掉了。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它多半代表底層根本沒連上網，先修連線再談 DNS。</div></li><li><p class="qq">按「關機」再開機，跟按「重新啟動」對驅動程式的效果是一樣的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Windows 快速啟動會把核心狀態寫進休眠檔並還原，連當機的驅動一起還原；只有「重新啟動」會真正重載。</div></li><li><p class="qq">公共 Wi-Fi 要觸發登入頁時，開一個 HTTPS 網址比較容易成功。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">反過來。HTTPS 有憑證驗證，劫持會被擋下；要開非 HTTPS 的網址（例如 http://neverssl.com）。</div></li><li><p class="qq">WLAN AutoConfig 服務卡住會導致電腦搜尋不到任何 Wi-Fi。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這個服務負責掃描、選擇與連線無線網路。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">清除本機 DNS 解析快取的指令是 ipconfig /<input class="blank" data-a="flushdns" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">打在 cmd 或 PowerShell。</div></li><li><p class="qq">Win + R 輸入 <input class="blank" data-a="ncpa" placeholder="填答案" autocomplete="off">.cpl 可以直接開「網路連線」停用或啟用網卡。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Network Connections Properties Applet。</div></li><li><p class="qq">Win + R 輸入 <input class="blank" data-a="services" placeholder="填答案" autocomplete="off">.msc 可以開「服務」，用來重啟 WLAN AutoConfig。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Microsoft Management Console 的服務嵌入式管理單元。</div></li><li><p class="qq">PowerShell 一行重啟 Wi-Fi 網卡的指令是 Restart-<input class="blank" data-a="NetAdapter" placeholder="填答案" autocomplete="off"> -Name &quot;Wi-Fi&quot;。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">比在裝置管理員點兩次快得多，需要系統管理員權限。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">電腦突然連不上網，請說出你的排查順序與每一步在驗證什麼。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：由下往上一層一層排除。(1) 實體與驅動層：先看快速設定裡還有沒有 Wi-Fi 按鈕、能不能搜尋到網路。看不到就是網卡或驅動的問題——檢查鍵盤的飛航模式鍵、切換一次飛航模式、ncpa.cpl 停用再啟用網卡、services.msc 重啟 WLAN AutoConfig、裝置管理員停用再啟用，都不行就選「重新啟動」（不要「關機」）。(2) 連線層：搜尋得到也連上了，就看有沒有取得 IP 與閘道（ipconfig /all）。是公共 Wi-Fi 就開一個 http 網址觸發 Captive Portal 登入頁。懷疑設定髒掉就「忘記網路」重連。(3) 名稱解析層：連線正常但網址打不開，先 ping 一個 IP（例如 1.1.1.1）確認出得去，再 ipconfig /flushdns 清快取，還是不行就換 DNS 伺服器測試。(4) 應用層：只有某個網站不行，那是網站或防火牆規則的問題，不是你的網路。(5) 心法：每一步都在回答「問題出在哪一層」，不要一開始就亂試 flushdns。</div></li></ol></section>
+
+<article class="card">
+<h1 id="windows-wi-fi-dns_probe_finished_no_internet">Windows 快速設定沒有 Wi-Fi 按鈕、搜尋不到網路、DNS_PROBE_FINISHED_NO_INTERNET 的排查順序</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+(1) 歸進 <code>CLI/</code> 而不是 <code>command-line/</code>，因為 <code>CLI/</code> 已經是 Windows／PowerShell 系指令與系統排錯的主資料夾（<code>netsh</code> 防火牆、<code>netstat</code>、磁碟機代號都在那），本篇同屬「用指令救系統」這一族。<br />
+(2) <span class="wikilink" title="Obsidian 連結：查詢與刪除PID-netstat-taskkill-Stop-Process">查詢與刪除PID-netstat-taskkill-Stop-Process</span> 與 <span class="wikilink" title="Obsidian 連結：PowerShell-多指令分隔與netsh防火牆規則">PowerShell-多指令分隔與netsh防火牆規則</span> 是同一組「網路相關的 Windows 指令」，本篇補的是「連不上網」這個更前面的階段。<br />
+(3) <span class="wikilink" title="Obsidian 連結：Network_and_Gateway_Notes">Network_and_Gateway_Notes</span> 講的是 DNS 與 gateway 的原理，本篇是那套原理壞掉時的操作手冊，一個是為什麼、一個是怎麼修。</p>
+<p>本篇重點 a–l，共 12 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="ac">一、先分清楚是哪一層壞了（a–c）</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>DNS_PROBE_FINISHED_NO_INTERNET</code> 是 Chrome 的錯誤碼</mark>，意思是「瀏覽器要把網域名稱換成 IP 時，DNS 查詢徹底失敗，而且偵測到根本沒有網際網路連線」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它通常不是 DNS 伺服器壞掉，而是底層根本沒連上網</mark>。</p>
+<p>(b) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">三層要分開判斷</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>層級</th>
+<th>症狀</th>
+<th>對應處理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>硬體／驅動層</td>
+<td>快速設定裡連 Wi-Fi 按鈕都不見了、搜尋不到任何網路</td>
+<td>飛航模式切換、重啟網卡、重啟 WLAN AutoConfig</td>
+</tr>
+<tr>
+<td>連線層</td>
+<td>有連上 Wi-Fi 但顯示無網際網路</td>
+<td>忘記網路重連、檢查是否需要登入驗證頁</td>
+</tr>
+<tr>
+<td>名稱解析層</td>
+<td>連上了但網址打不開</td>
+<td><code>ipconfig /flushdns</code> 清 DNS 快取</td>
+</tr>
+</tbody>
+</table>
+<p>(c) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Abby 那次是兩個問題疊在一起</mark>：快速設定選單開啟的是藍芽（按鈕呈現粉紅色、名稱顯示成手機名稱），同時瀏覽器報 DNS 錯誤——也就是「以為連著網路、其實走的是沒通的藍芽個人熱點」。</p>
+<h3 id="wi-fi-dg">二、Wi-Fi 按鈕不見了怎麼救（d–g）</h3>
+<p>(d) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">先檢查實體按鍵</mark>：鍵盤 F1~F12 上有沒有無線網路／飛航模式圖示（常見 <code>Fn + F2</code> 或 <code>F12</code>），確認沒有誤觸關閉無線網卡。</p>
+<p>(e) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">重新啟用 Wi-Fi 網卡</mark>：<code>Win + R</code> 輸入 <code>ncpa.cpl</code> 開啟「網路連線」，找到 Wi-Fi，若顯示「已停用」就右鍵「啟用」；若已啟用，先「停用」等 5 秒再「啟用」。</p>
+<p>(f) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">重啟檔案總管介面</mark>：<code>Ctrl + Shift + Esc</code> 開工作管理員，找到「Windows 檔案總管（Windows Explorer）」按「重新啟動」，讓工作列與快速設定選單重新載入。<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">很多時候按鈕不是不見，是那個 UI 元件當掉了</mark>。</p>
+<p>(g) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">檢查快速設定有沒有被誤刪</mark>：點開右下角選單，按右下角的筆狀圖示（編輯快速設定），看 Wi-Fi 是不是被移除了，是的話按「新增」加回來。</p>
+<h3 id="hj">三、搜尋不到任何網路（h–j）</h3>
+<p>(h) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">切換一次飛航模式</mark>：開啟等 5 秒再關閉，強制讓網卡重新搜尋訊號。</p>
+<p>(i) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">重啟 WLAN AutoConfig 服務</mark>：<code>Win + R</code> 輸入 <code>services.msc</code>，找到「WLAN AutoConfig（無線區域網路自動設定）」，右鍵「重新啟動」。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這個服務負責掃描、選擇與連線無線網路，它卡住就等於整台電腦看不見任何 Wi-Fi</mark>。</p>
+<p>(j) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在裝置管理員停用再啟用網卡</mark>：<code>Win + X</code> 選「裝置管理員」→ 展開「網路介面卡」→ 找到 Wi-Fi 網卡（通常帶 Intel、Realtek 或 Wi-Fi 6 字樣）→ 右鍵「停用裝置」，等 5 秒再「啟用裝置」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">做完還是搜尋不到，就是典型的硬體控制層卡死，直接選「重新啟動」（不要選「關機」）</mark>。</p>
+<blockquote>
+<p>[!warning] 為什麼要選「重新啟動」不要選「關機」<br />
+Windows 預設開啟「快速啟動（Fast Startup）」，按「關機」其實是把核心狀態寫進 <code>hiberfil.sys</code> 的休眠檔，下次開機直接還原——連驅動程式的當機狀態一起還原。只有「重新啟動」會真正走完整的關閉與重新載入流程。這點 Gemini 沒解釋，但它是「為什麼重開機有用、關機沒用」的真正原因。</p>
+</blockquote>
+<h3 id="kl">四、連上了但網址打不開（k–l）</h3>
+<p>(k) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">忘記網路並重新連線</mark>：「設定」→「網路和 Internet」→「Wi-Fi」→「管理已知的網路」，找到該 Wi-Fi 點「忘記」，再重新輸入密碼。</p>
+<p>(l) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">清 DNS 快取</mark>：<code>Win + R</code> 輸入 <code>cmd</code>，然後執行</p>
+<pre><code class="language-bat">ipconfig /flushdns
+</code></pre>
+<blockquote>
+<p>[!tip] 公共 Wi-Fi 的登入驗證頁（Captive Portal）<br />
+咖啡廳或公共場所的 Wi-Fi 常需要先在瀏覽器登入。連上之後開新分頁，隨意開一個「非 HTTPS」的網址（例如 <code>http://neverssl.com</code>）就能強制觸發登入頁。<br />
+<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼一定要非 HTTPS？</mark>因為 Captive Portal 的做法是把你的 HTTP 請求「劫持」轉址到登入頁；HTTPS 有憑證驗證，劫持會被瀏覽器擋下並顯示憑證錯誤，反而看不到登入頁。</p>
+</blockquote>
+<h2 id="_2">補充：常用指令一覽</h2>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>打在哪</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ncpa.cpl</code></td>
+<td>Win + R</td>
+<td>開「網路連線」，可停用／啟用網卡</td>
+</tr>
+<tr>
+<td><code>services.msc</code></td>
+<td>Win + R</td>
+<td>開「服務」，可重啟 WLAN AutoConfig</td>
+</tr>
+<tr>
+<td><code>ipconfig /flushdns</code></td>
+<td>cmd 或 PowerShell</td>
+<td>清除本機 DNS 解析快取</td>
+</tr>
+<tr>
+<td><code>ipconfig /all</code></td>
+<td>cmd 或 PowerShell</td>
+<td>看目前的 IP、閘道、DNS 伺服器</td>
+</tr>
+<tr>
+<td><code>Get-NetAdapter</code></td>
+<td>PowerShell</td>
+<td>列出所有網路介面卡與狀態</td>
+</tr>
+<tr>
+<td><code>Restart-NetAdapter -Name "Wi-Fi"</code></td>
+<td>PowerShell（系統管理員）</td>
+<td>一行重啟 Wi-Fi 網卡，取代裝置管理員點兩次</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 說「重新啟動電腦，90% 的情況重啟後網卡圖示就會恢復正常」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這個 90% 是它自己編的數字，沒有來源</mark>，當作「通常有效」的口語即可，不要引用。</li>
+<li>Gemini 沒有提到 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Windows 快速啟動會讓「關機」無法真正重載驅動</mark>，這是為什麼要選「重新啟動」的關鍵理由，已在上面補上。</li>
+<li>Gemini 建議的步驟都沒有用到 PowerShell 的 <code>Restart-NetAdapter</code>，那其實比在裝置管理員點兩次快得多，已補進指令表。</li>
+</ul>
+<h2 id="_4">各對話來源</h2>
+<h3 id="windows-wi-fi-dns-2026-09-httpsgeminigooglecomapp5c6a4d8604f06bbb">Windows Wi-Fi 連線與 DNS 故障排除（2026-09）— https://gemini.google.com/app/5c6a4d8604f06bbb</h3>
+<p><strong>使用者：</strong> 這邊不能連 Wi-Fi 現在是什麼情形？介面看起來怪怪的</p>
+<p><strong>Gemini：</strong> 有兩個問題疊在一起：藍芽熱點／個人熱點被開啟，以及瀏覽器無法解析網址（DNS 錯誤）。介面看起來怪怪的是因為 Windows 快速設定選單中開啟的是藍芽（按鈕呈粉紅色、名稱顯示為手機名稱），同時瀏覽器提示 <code>DNS_PROBE_FINISHED_NO_INTERNET</code>，代表電腦沒有成功透過正常的 Wi-Fi 取得網際網路連線。排查三步：關閉藍芽切換回 Wi-Fi、忘記網路並重新連線、清理 DNS 快取（<code>Win + R</code> → <code>cmd</code> → <code>ipconfig /flushdns</code>）。若是公共場所的 Wi-Fi，連線後開新分頁開一個非 HTTPS 網址（例如 <code>http://neverssl.com</code>）強制觸發登入驗證頁（Captive Portal）。</p>
+<p><strong>使用者：</strong> 這邊不是正常應該會有一個設定網路連線選取的嗎</p>
+<p><strong>Gemini：</strong> 右下角快速設定選單原本應該有 Wi-Fi 開關與網路清單按鈕，現在完全消失、被藍芽取代，通常是 Wi-Fi 網卡暫時卡住／被停用，或飛航模式觸發介面異常。四步：檢查鍵盤 F1~F12 的無線網路／飛航模式按鍵是否誤觸；<code>Win + R</code> 輸入 <code>ncpa.cpl</code> 找到 Wi-Fi 右鍵停用再啟用；<code>Ctrl + Shift + Esc</code> 開工作管理員重新啟動「Windows 檔案總管」讓工作列與快速設定重載；點快速設定的筆狀圖示檢查 Wi-Fi 是否被移除、有的話加回來。若都無效通常是網卡驅動當機，直接重新啟動電腦。</p>
+<p><strong>使用者：</strong> 他找不到任何可用網路</p>
+<p><strong>Gemini：</strong> 通常是 Wi-Fi 網卡驅動當機，或 WLAN AutoConfig 服務卡住，導致系統無法搜尋訊號。三步：切換一次飛航模式（開啟等 5 秒再關閉）強制重新搜尋；<code>Win + R</code> 輸入 <code>services.msc</code> 找到 WLAN AutoConfig 右鍵「重新啟動」；<code>Win + X</code> 開裝置管理員，展開「網路介面卡」找到 Wi-Fi 網卡（Intel／Realtek／Wi-Fi 6 字樣）右鍵「停用裝置」等 5 秒再「啟用裝置」。若還是搜尋不到，屬於系統硬體控制層卡死，請選「重新啟動」而不是「關機」。</p>
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/5c6a4d8604f06bbb</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>Microsoft Learn — ipconfig 指令參考（/flushdns）</td>
+<td>https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig</td>
+<td>現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Microsoft Learn — Restart-NetAdapter</td>
+<td>https://learn.microsoft.com/en-us/powershell/module/netadapter/restart-netadapter</td>
+<td>現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Microsoft 支援 — 修復 Windows 中的 Wi-Fi 連線問題</td>
+<td>https://support.microsoft.com/en-us/windows/fix-wi-fi-connection-issues-in-windows-9424a1f7-6a3b-65a6-4d78-7f07eee84d2c</td>
+<td>現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Microsoft — 快速啟動（Fast Startup）與關機的差異</td>
+<td>https://learn.microsoft.com/en-us/windows-hardware/design/device-experiences/oem-boot-and-shutdown</td>
+<td>現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Chrome 說明 — 網頁載入錯誤代碼列表（含 DNS_PROBE_FINISHED_NO_INTERNET）</td>
+<td>https://support.google.com/chrome/answer/6098869</td>
+<td>現行文件，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

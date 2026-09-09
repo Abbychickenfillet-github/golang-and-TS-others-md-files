@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>訊號與電路基礎：連續／離散頻率、RLC 諧振頻寬、VCVS、CD4007 偏壓量測</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>訊號與電路基礎：連續／離散頻率、RLC 諧振頻寬、VCVS、CD4007 偏壓量測</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#電子電路</span><span class="pill">#訊號處理</span><span class="pill">#取樣</span><span class="pill">#諧振</span><span class="pill">#頻寬</span><span class="pill">#相依電源</span><span class="pill">#VCVS</span><span class="pill">#CD4007</span><span class="pill">#量測</span></div>
+  <div class="meta">
+    <span>更新於 2026-08-29</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/96905190801f0291" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/7eaa6ea4a9438ea7" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/81db2c8dd65f08fe" target="_blank" rel="noopener">原始對話 3</a><a href="https://gemini.google.com/app/c55344ee2b9a9e22" target="_blank" rel="noopener">原始對話 4</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">大寫 Ω 代表離散時間的數位角頻率。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">相反，大寫 Ω 是類比角頻率（rad/s），小寫 ω 才是數位角頻率（rad/sample）。</div></li><li><p class="qq">離散頻率 ω 具有 2π 的週期性。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">離散序列只在整數取樣點有值，e^(jωn) 在 ω 與 ω+2π 時完全等價。</div></li><li><p class="qq">半功率點的電流是最大電流的 0.5 倍。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">功率正比於電流平方，功率減半代表電流降到 1/√2 ≈ 0.707 倍。</div></li><li><p class="qq">理想 VCVS 的輸入阻抗為零、輸出阻抗為無限大。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">完全相反：輸入阻抗無限大（不抽電流）、輸出阻抗為零（不隨負載改變）。</div></li><li><p class="qq">量 CD4007 的 I_B 時，串聯電流表比壓降法更精準。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">電流僅約 0.5 mA，電表內阻造成的 Burden Voltage 會產生明顯誤差，壓降法才是首選。</div></li><li><p class="qq">演算法複雜度的 Ω(n) 與訊號處理的角頻率 Ω 是同一個概念。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">完全無關，前者是漸進分析的下界（Lower Bound），只是剛好共用同一個希臘字母。</div></li><li><p class="qq">一個理想運算放大器本質上就是一個高增益的 VCVS。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這正是相依電源在主動元件等效模型中的核心用途。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">離散頻率的上限是 <input class="blank" data-a="π" placeholder="填答案" autocomplete="off">，超過就會發生頻譜混疊。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">ω = π 對應 f_s/2，也就是 Nyquist 頻率。</div></li><li><p class="qq">連續與離散角頻率的換算式為 ω ＝ Ω × <input class="blank" data-a="T_s" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">T_s 是取樣週期，也可以寫成 ω ＝ Ω / f_s。</div></li><li><p class="qq">半功率頻率又稱為 <input class="blank" data-a="-3" placeholder="填答案" autocomplete="off"> dB 頻率。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">20·log10(1/√2) ≈ −3.01 dB。</div></li><li><p class="qq">RLC 串聯電路的頻寬 B ＝ ω₂ − ω₁，化簡後等於 R / <input class="blank" data-a="L" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">把兩個半功率點的一般式相減即可得到，電阻越大頻寬越寬。</div></li><li><p class="qq">電路圖中相依電源畫成 <input class="blank" data-a="菱" placeholder="填答案" autocomplete="off"> 形，獨立電源畫成圓形。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">英文為 Diamond shape，是快速辨識的視覺線索。</div></li><li><p class="qq">量 I_B 的間接法依據的是基爾霍夫 <input class="blank" data-a="電流" placeholder="填答案" autocomplete="off"> 定律。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">KCL，Kirchhoff&#x27;s Current Law，I_B ＝ i_D1 + i_D2。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請說明為什麼離散時間頻率有上限而連續時間頻率沒有，並解釋這個上限與取樣頻率的關係，以及超過會發生什麼事。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">連續訊號在時間軸上處處有定義，頻率可以無限高；離散訊號只在整數取樣點上有值，e^(jωn) 在 ω 與 ω+2π 時對所有整數 n 完全相同，所以離散頻率天生具有 2π 週期性，只需要 [−π, π] 就能表達全部資訊。ω ＝ Ω·T_s ＝ Ω/f_s，因此 ω ＝ π 對應到 Ω ＝ π·f_s，也就是 f_s/2 這個 Nyquist 頻率。超過 f_s/2 的成分在取樣後無法與某個低頻成分區分，會被誤判成低頻，這就是頻譜混疊（Aliasing），實務上必須在取樣前用抗混疊低通濾波器先濾掉。</div></li><li><p class="qq">你在實驗課要把 CD4007 差動對的 I_B 調到 0.5 mA，R_D1 ＝ R_D2 ＝ 10 kΩ、V_DD ＝ 10 V。請完整說明你會怎麼做以及為什麼不直接串電流表。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">電路平衡時 i_D1 ＝ i_D2 ＝ 0.25 mA，R_D 上的壓降為 0.25 mA × 10 kΩ ＝ 2.5 V，所以輸出點電壓應為 10 − 2.5 ＝ 7.5 V。做法是一邊轉可變電阻、一邊用電表量 V_O1 或 V_O2，調到 7.5 V 即可，全程不必量電流。不直接串電流表的原因有二：一是必須把電路斷開（斷 MB 的 Source 對 V_SS，或斷 M1、M2 的 Source 對 MB 的 Drain），破壞原電路且容易接錯；二是電表在 mA 檔有內阻，會產生 Burden Voltage，在只有 0.5 mA 的量級下造成的相對誤差不可忽略。壓降法只量電壓（電表視為高阻抗、幾乎不擾動電路），再用歐姆定律換算，兼顧精確與便利。</div></li></ol></section>
+
+<article class="card">
+<h1 id="rlc-vcvscd4007">訊號與電路基礎：連續／離散頻率、RLC 諧振頻寬、VCVS、CD4007 偏壓量測</h1>
+<blockquote>
+<p>本篇重點 a–s，共 19 個。四段 Gemini 對話合併：頻率符號 Ω 與 ω 的差別、RLC 串聯諧振與半功率頻寬、相依電源 VCVS、CD4007 差動對偏壓電流 I_B 的實務量測法。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="vs">一、Ω 與 ω：連續時間頻率 vs 離散時間頻率</h3>
+<p>先把縮寫講清楚，避免只丟符號：</p>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Ω（大寫 Omega）＝ Analog Angular Frequency，類比角頻率</mark>，單位 rad/s（每秒轉過的弧度）。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">ω（小寫 omega）＝ Digital Angular Frequency，數位角頻率</mark>，單位 rad/sample（每一個取樣點之間轉過的弧度）。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">DSP ＝ Digital Signal Processing，數位訊號處理</mark>。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Nyquist Theorem ＝ 奈奎斯特取樣定理</mark>，說明取樣率必須至少是訊號最高頻率的兩倍。</li>
+</ul>
+<p>(a) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩者的差別不在「符號長得不一樣」，而在定義域</mark>：Ω 的定義域是 (−∞, ∞)，ω 的定義域被壓縮在 [−π, π]（或 [0, 2π]）。</p>
+<p>(b) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">離散頻率 ω 具有 2π 的週期性</mark>，連續頻率 Ω 則不具週期性。這是因為離散序列只在整數取樣點上有值，e^(jωn) 在 ω 與 ω+2π 時完全等價，取樣點看不出差別。</p>
+<p>(c) 兩者的轉換關係為 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">ω ＝ Ω · T_s ＝ Ω / f_s</mark>，其中 T_s 是取樣週期、f_s 是取樣頻率。所以離散頻率是被「歸一化（normalized）」過的量。</p>
+<p>(d) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">離散頻率有上限，超過 π 就發生頻譜混疊（Aliasing）</mark>：ω ＝ π 對應到 f_s / 2，也就是 Nyquist 頻率。超過之後高頻訊號會被誤判成低頻，波形看起來像另一個訊號。</p>
+<p>(e) 對照表整理如下：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>連續時間 Ω</th>
+<th>離散時間 ω</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>訊號類型</td>
+<td>類比訊號 Analog</td>
+<td>離散／數位訊號 Discrete／Digital</td>
+</tr>
+<tr>
+<td>定義域</td>
+<td>(−∞, ∞)</td>
+<td>[−π, π] 或 [0, 2π]</td>
+</tr>
+<tr>
+<td>週期性</td>
+<td>不具週期性</td>
+<td>具 2π 週期性</td>
+</tr>
+<tr>
+<td>物理意義</td>
+<td>每秒轉過的弧度</td>
+<td>每個取樣點之間轉過的弧度</td>
+</tr>
+<tr>
+<td>單位</td>
+<td>rad/s</td>
+<td>rad/sample</td>
+</tr>
+</tbody>
+</table>
+<p>(f) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">補充易混淆點</mark>：演算法複雜度裡的 Ω(n) 是完全不同的東西，那是漸進分析的 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Lower Bound，下界</mark>，代表「至少需要多少時間」，跟訊號處理的角頻率毫無關係。看到 Ω 要先確認上下文是訊號處理還是演算法。</p>
+<hr />
+<h3 id="rlc">二、RLC 串聯電路：諧振、半功率點與頻寬</h3>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">RLC ＝ Resistor（電阻）、Inductor（電感）、Capacitor（電容）三種被動元件組成的電路</mark>。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Resonance ＝ 諧振</mark>，指電感抗與電容抗互相抵消、電路呈純電阻性的那個頻率點。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Bandwidth ＝ 頻寬</mark>，兩個半功率點之間的頻率差。</li>
+</ul>
+<p>(g) 串聯 RLC 的平均功率為 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">P(ω) ＝ ½ · I² · R</mark>。當發生諧振（頻率為 ω₀）時電流達到最大值 I_m ＝ V_m / R，此時功率也最大：P(ω₀) ＝ ½ · V_m² / R。</p>
+<p>(h) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">半功率頻率（Half-Power Frequency）ω₁ 與 ω₂ 定義為功率降到最大值一半的兩個頻率點</mark>，即 P(ω₁) ＝ P(ω₂) ＝ P(ω₀) / 2。</p>
+<p>(i) 因為功率正比於電流平方，功率減半代表<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">電流降到最大值的 1/√2 ≈ 0.707 倍</mark>。這就是圖表縱軸常標 0.707 · V_m / R 的由來。</p>
+<p>(j) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">頻寬 B ＝ ω₂ − ω₁</mark>。半功率點的一般式為：</p>
+<pre><code class="language-text">ω₁ = −R/(2L) + sqrt( (R/(2L))² + 1/(LC) )
+ω₂ =  R/(2L) + sqrt( (R/(2L))² + 1/(LC) )
+</code></pre>
+<p>兩式相減可得 B ＝ R / L，這也是為什麼<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">電阻越大、頻寬越寬、選擇性（Q 值）越差</mark>。</p>
+<p>(k) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">dB ＝ decibel，分貝</mark>。電壓增益轉分貝的算式是 20·log₁₀(比值)，20·log₁₀(1/√2) ≈ −3.01 dB。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所以半功率頻率又叫 −3 dB 頻率或截止頻率（Cutoff Frequency）</mark>，前端工程師在調濾波器、音訊 EQ 時看到的 −3dB 就是這個意思。</p>
+<hr />
+<h3 id="vcvs">三、VCVS：電壓控制電壓源</h3>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">VCVS ＝ Voltage-Controlled Voltage Source，電壓控制電壓源</mark>。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Dependent Source ＝ 相依電源</mark>，輸出值取決於電路中另一處的電壓或電流，共有四種（VCVS、VCCS、CCVS、CCCS）。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Op-Amp ＝ Operational Amplifier，運算放大器</mark>。</li>
+</ul>
+<p>(l) VCVS 的核心式子是 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">V_out ＝ μ · V_in</mark>，μ 是無單位的電壓增益常數。</p>
+<p>(m) 理想特性：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">輸入阻抗 R_in ＝ ∞（不從控制端抽電流）、輸出阻抗 R_out ＝ 0（輸出電壓不隨負載改變）</mark>。這兩個條件合起來就是「完美的緩衝器」。</p>
+<p>(n) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一個理想運算放大器本質上就是一個增益極高的 VCVS</mark>。主動濾波器（例如 Sallen-Key 拓撲）也用 VCVS 提供穩定增益並隔離前後級。</p>
+<p>(o) 為什麼要學：做節點電壓法（Node Voltage）或網目電流法（Mesh Current）分析時，相依電源是模擬電晶體、Op-Amp 這類主動元件的核心等效模型；<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">高輸入阻抗＋低輸出阻抗的組合可以防止訊號源被負載拉低（Loading Effect，負載效應）</mark>。</p>
+<p>(p) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">畫法備註</mark>：電路圖中獨立電源畫成圓形，相依電源（含 VCVS）畫成菱形（Diamond），這是快速辨識的視覺線索。</p>
+<hr />
+<h3 id="cd4007-i_b">四、CD4007 差動對：I_B 偏壓電流怎麼量</h3>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CD4007 ＝ CMOS 積體電路，內含三對 NMOS／PMOS 電晶體，實驗課常用來自行接差動對</mark>。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">I_B ＝ Bias Current，偏壓電流</mark>，這裡指流過 MB 電晶體、供應差動對的尾電流。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">KCL ＝ Kirchhoff's Current Law，基爾霍夫電流定律</mark>，流入節點的電流總和等於流出的總和。</li>
+</ul>
+<p>(q) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最推薦：間接量測法（壓降法）</mark>。依 KCL，I_B ＝ i_D1 + i_D2，操作步驟：</p>
+<ol>
+<li>用電表量 R_D1 兩端的電壓降，即 V_DD − V_O1。</li>
+<li>算第一路電流 i_D1 ＝ (V_DD − V_O1) / R_D1。</li>
+<li>同理算 i_D2 ＝ (V_DD − V_O2) / R_D2。</li>
+<li>兩者相加即為 I_B。</li>
+</ol>
+<p><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">優點是不必拆電路，也不會受電表內阻造成的 Burden Voltage（負擔電壓）影響精確度</mark>。</p>
+<p>(r) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">直接串聯電流表是次選</mark>：必須把 MB 的 Source 與 V_SS 之間斷開（或把 M1、M2 的 Source 與 MB 的 Drain 節點斷開），電表切 mA 檔紅棒接近 Drain 側。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CD4007 的電流通常只有 0.5 mA 左右，電表內阻會造成明顯誤差</mark>。</p>
+<p>(s) 調可變電阻到 I_B ＝ 0.5 mA 的技巧：若 R_D1 ＝ R_D2 ＝ 10 kΩ 且電路平衡，則 i_D1 ＝ i_D2 ＝ 0.25 mA，R_D 上的壓降為 0.25 mA × 10 kΩ ＝ <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">2.5 V</mark>。所以<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只要一邊轉可變電阻、一邊量 V_O1 或 V_O2，調到等於 10 V − 2.5 V ＝ 7.5 V 即可</mark>，不需要真的去量電流。</p>
+<hr />
+<h2 id="_2">關聯筆記（以及為什麼相關）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：LTspice-模擬卡死與漣波觀察">LTspice-模擬卡死與漣波觀察</span>：同一個電子電路資料夾。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：那篇在講 Op-Amp 電源腳沒接好導致模擬不收斂，本篇 (n) 說明「Op-Amp 就是一個高增益 VCVS」，正好補上那篇缺的等效模型觀念；另外那篇的「漣波要跑滿 16.67 ms 才看得到」與本篇 (a)(c) 的時間／頻率換算是同一組直覺。</li>
+<li><span class="wikilink" title="Obsidian 連結：frontend-docs/css/CSS色彩空間-色相色度明度與Oklab-Oklch">frontend-docs/css/CSS色彩空間-色相色度明度與Oklab-Oklch</span>：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：色彩空間的「色相角度」與本篇的角頻率都是用弧度／角度描述週期性量，理解 2π 週期性有助於理解 hue 為什麼是 0–360 度繞一圈。</li>
+<li><span class="wikilink" title="Obsidian 連結：計算機基礎">計算機基礎</span> 資料夾：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關聯原因</mark>：(f) 提到的 Ω(n) 下界屬於演算法複雜度分析，同一個符號在兩個領域意義完全不同，是很典型的「縮寫撞名」陷阱。</li>
+</ul>
+<hr />
+<h2 id="leetcodeneetcode">相關練習題（LeetCode／NeetCode）</h2>
+<p>本篇屬電子電路與訊號處理，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">LeetCode／NeetCode 沒有直接對應的題目</mark>。最接近的是與「頻率、週期、視窗」概念相通的題型，可當作演算法面試的延伸練習：</p>
+<ul>
+<li>LeetCode 424. Longest Repeating Character Replacement — https://leetcode.com/problems/longest-repeating-character-replacement/ ：滑動視窗（Sliding Window），概念上等同訊號處理的「加窗分析」。</li>
+<li>LeetCode 239. Sliding Window Maximum — https://leetcode.com/problems/sliding-window-maximum/ ：固定視窗長度掃描序列，跟離散取樣序列的處理直覺一致。</li>
+<li>NeetCode Sliding Window 專區 — https://neetcode.io/practice ：整套視窗類題目的系統性練習。</li>
+</ul>
+<p>至於 (f) 的 Big-O／Ω 下界觀念，建議搭配 NeetCode 的複雜度分析章節一起複習。</p>
+<hr />
+<h2 id="_3">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 在 VCVS 那段輸出了未渲染的 LaTeX 殘留「零 (0 \Omega)」，正確寫法是 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">0 Ω</mark>。內容本身正確，只是排版錯誤。</li>
+<li>Gemini 給的半功率點公式正確，但<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有點出相減後 B ＝ R / L 這個更好記的結論</mark>，本篇 (j) 已補上。</li>
+<li>對話標題「HSPICE」的那則（app/aabe85329142254a）實際內容是 Hospice 安寧療護，與電子電路無關，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">屬語音輸入誤判造成的標題錯誤</mark>，已列入 skipped 不建檔。</li>
+</ul>
+<hr />
+<h2 id="_4">各對話來源</h2>
+<h3 id="2026-08-httpsgeminigooglecomapp96905190801f0291">連續與離散頻率符號差異（2026-08）— https://gemini.google.com/app/96905190801f0291</h3>
+<p>使用者：左邊的是連續的嗎右邊的是離散的？ 差在哪</p>
+<p>Gemini：兩個都是希臘字母 Omega，大寫 Ω 是類比角頻率（rad/s，對應連續時間訊號），小寫 ω 是數位角頻率（rad/sample，對應取樣後的離散序列）。列出對照表：訊號類型、定義域（Ω 為 (−∞,∞)、ω 為 [−π,π]）、週期性（ω 具 2π 週期）、物理意義。說明離散頻率有上限是因為取樣頻率限制，依奈奎斯特理論最高只到 π（對應 f_s/2），超過會發生頻譜混疊。轉換式為 ω ＝ Ω·T_s ＝ Ω/f_s。補充：演算法複雜度中的 Ω(n) 是下界（Lower Bound），與角頻率無關。</p>
+<h3 id="rlc-2026-08-httpsgeminigooglecomapp7eaa6ea4a9438ea7">RLC 串聯電路諧振與頻寬（2026-08）— https://gemini.google.com/app/7eaa6ea4a9438ea7</h3>
+<p>使用者：（貼上投影片照片）解釋</p>
+<p>Gemini：說明 RLC 串聯電路的諧振與頻寬。平均功率 P(ω) ＝ ½I²R，諧振時電流最大 I_m ＝ V_m/R，功率最大 P(ω₀) ＝ ½·V_m²/R。ω₁、ω₂ 為半功率點（截止頻率），功率為最大值的一半、電流為最大值的 1/√2 ≈ 0.707 倍。頻寬 B ＝ ω₂ − ω₁。給出半功率點一般式 ω₁ ＝ −R/(2L) + sqrt((R/(2L))² + 1/(LC))、ω₂ ＝ R/(2L) + sqrt((R/(2L))² + 1/(LC))。補充投影片手寫的 20·log(1/√2) 就是 −3 dB，故半功率頻率又稱 −3dB 頻率。</p>
+<p>使用者：教我算術平均數的公式幫我複習（此段偏基礎統計複習，與電路主題無關，未納入重點整理）</p>
+<h3 id="vcvs-2026-08-httpsgeminigooglecomapp81db2c8dd65f08fe">電壓控制電壓源 VCVS 介紹（2026-08）— https://gemini.google.com/app/81db2c8dd65f08fe</h3>
+<p>使用者：電子學的 VCVS 是什麼意思</p>
+<p>Gemini：VCVS ＝ Voltage-Controlled Voltage Source，中文「電壓控制電壓源」，是四種理想相依電源之一。輸出電壓與控制電壓成正比：V_out ＝ μ·V_in，μ 為無單位增益常數。理想輸入阻抗無限大、輸出阻抗為零。應用：理想運算放大器本質上就是高增益 VCVS；主動濾波器的 Sallen-Key 拓撲用它提供穩定增益並隔離前後級；高輸入低輸出阻抗可避免負載效應。學習價值：節點電壓法／網目電流法分析時，相依電源是模擬電晶體與 Op-Amp 的核心等效模型。</p>
+<p>使用者：他的圖形長怎樣</p>
+<p>Gemini：電路圖中 VCVS 用菱形（Diamond）表示，與獨立電源的圓形不同，代表它是相依電源。</p>
+<h3 id="cd4007-i_b-2026-08-httpsgeminigooglecomappc55344ee2b9a9e22">CD4007 I_B 量測方法（2026-08）— https://gemini.google.com/app/c55344ee2b9a9e22</h3>
+<p>使用者：（附電路圖）這個 cd4007，ib 怎麼量</p>
+<p>Gemini：最直接且精準的方法不是串聯三用電表，而是壓降法。方法一（推薦，間接量測）：依 KCL，I_B ＝ i_D1 + i_D2；量 R_D1 兩端壓降 V_DD − V_O1，算 i_D1 ＝ (V_DD − V_O1)/R_D1，同理算 i_D2，相加即得；優點是不必拆電路、不受電表內阻（Burden Voltage）影響。方法二（直接量測）：把 MB 的 Source 與 V_SS 斷開，或斷開 M1、M2 的 Source 與 MB 的 Drain 節點，電表切 mA 檔；但 CD4007 電流僅約 0.5 mA，內阻易造成誤差。方法三（調可變電阻技巧）：若 R_D1 ＝ R_D2 ＝ 10 kΩ、電路平衡，I_B ＝ 0.5 mA 時 i_D1 ＝ i_D2 ＝ 0.25 mA，R_D 壓降 2.5 V，因此只要調到 V_O1 或 V_O2 ＝ 7.5 V（＝ 10 V − 2.5 V）即可。</p>
+<hr />
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：連續與離散頻率符號差異</td>
+<td>https://gemini.google.com/app/96905190801f0291</td>
+<td>對話 2026-08，整理於 2026-08-29</td>
+</tr>
+<tr>
+<td>Gemini 對話：RLC 串聯電路諧振與頻寬</td>
+<td>https://gemini.google.com/app/7eaa6ea4a9438ea7</td>
+<td>對話 2026-08，整理於 2026-08-29</td>
+</tr>
+<tr>
+<td>Gemini 對話：電壓控制電壓源 VCVS 介紹</td>
+<td>https://gemini.google.com/app/81db2c8dd65f08fe</td>
+<td>對話 2026-08，整理於 2026-08-29</td>
+</tr>
+<tr>
+<td>Gemini 對話：CD4007 I_B 量測方法</td>
+<td>https://gemini.google.com/app/c55344ee2b9a9e22</td>
+<td>對話 2026-08，整理於 2026-08-29</td>
+</tr>
+<tr>
+<td>Nyquist–Shannon 取樣定理（外部佐證）</td>
+<td>https://en.wikipedia.org/wiki/Nyquist%E2%80%93Shannon_sampling_theorem</td>
+<td>定理本身為 1949 年成果，條目持續更新</td>
+</tr>
+<tr>
+<td>Dependent source 相依電源（外部佐證）</td>
+<td>https://en.wikipedia.org/wiki/Dependent_source</td>
+<td>條目持續更新</td>
+</tr>
+<tr>
+<td>CD4007 資料手冊（Texas Instruments，外部佐證）</td>
+<td>https://www.ti.com/product/CD4007</td>
+<td>TI 官方產品頁，規格以官網為準</td>
+</tr>
+<tr>
+<td>RLC 電路與 Q 值、頻寬（外部佐證）</td>
+<td>https://en.wikipedia.org/wiki/RLC_circuit</td>
+<td>條目持續更新</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>註：外部連結為概念佐證用，實際數值請以課本、實驗講義與原廠 datasheet 為準。本次執行因本機磁碟空間吃緊，未額外擷取新截圖。</p>
+</blockquote>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-08-29</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

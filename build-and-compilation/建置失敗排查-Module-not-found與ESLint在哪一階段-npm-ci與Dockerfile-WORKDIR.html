@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>建置失敗排查 — Module not found、ESLint 在哪一階段、npm ci 與 Dockerfile WORKDIR</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>建置失敗排查 — Module not found、ESLint 在哪一階段、npm ci 與 Dockerfile WORKDIR</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#build</span><span class="pill">#eslint</span><span class="pill">#npm</span><span class="pill">#npm-ci</span><span class="pill">#docker</span><span class="pill">#dockerfile</span><span class="pill">#workdir</span><span class="pill">#打包</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/8303704f3c9ff9fa" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">npm ci 會在必要時更新 package-lock.json。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。npm ci 嚴格照 lock 檔安裝且不會改它，會改 lock 檔的是 npm install。</div></li><li><p class="qq">Dockerfile 的 WORKDIR /app 中的 /app 是 Docker 規定的目錄名稱。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。只是社群慣例，叫 /project、/code、/usr/src/app 都可以。</div></li><li><p class="qq">ESLint 的 warning 一定不會讓建置失敗。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。CI 常設 --max-warnings 0，那時候 warning 也會擋建置。</div></li><li><p class="qq">WORKDIR 指定的目錄若不存在會自動建立。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">對，所以不用先 RUN mkdir。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">「can&#x27;t resolve ./intro.module.scss」這種錯誤發生在打包工具的 <input class="blank" data-a="模組" placeholder="填答案" autocomplete="off"> 解析階段。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">module resolution，找不到 import 指向的檔案。</div></li><li><p class="qq">npm ci 存在的理由是為了達成可 <input class="blank" data-a="重現" placeholder="填答案" autocomplete="off"> 的建置。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">reproducible build，同一份 lock 檔在任何機器裝出一樣的版本。</div></li><li><p class="qq">ESLint 在建置流程中屬於 <input class="blank" data-a="Linting" placeholder="填答案" autocomplete="off"> 這一格。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">順序大致是 Linting → Formatting → Transpiling → Bundling。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">CI 上建置失敗但本機一切正常，你會怎麼查？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 先看失敗訊息落在哪一格：Linting（ESLint 規則或 --max-warnings 0）、Transpiling（Babel／tsc 型別或語法）、還是 Bundling（模組解析找不到檔）。(2) 模組解析失敗最常見的兩個原因是路徑寫錯，以及 _backup 之類的備份檔留在 src/ 底下被一起掃到——後者直接刪掉或搬出 src/。(3) 「本機好、CI 壞」的經典成因是依賴版本不一致：本機用 npm install 裝到了較新的版本，CI 用 npm ci 嚴格照 lock 檔。對策是把 lock 檔納入版控並在本機也跑一次 npm ci 復現。(4) 另一個常見差異是大小寫：本機 Windows/macOS 檔名不分大小寫，CI 的 Linux 分，import 路徑大小寫錯了只有 CI 會爆。(5) Docker build 時再確認 WORKDIR 與 COPY 的相對路徑是否一致。</div></li></ol></section>
+
+<article class="card">
+<h1 id="module-not-foundeslint-npm-ci-dockerfile-workdir">建置失敗排查 — Module not found、ESLint 在哪一階段、npm ci 與 Dockerfile WORKDIR</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+(1) <span class="wikilink" title="Obsidian 連結：00-前端建構到執行全景地圖">00-前端建構到執行全景地圖</span> 是整條建置管線的地圖，本篇是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「管線某一格出錯時，怎麼定位是哪一格」</mark>的實戰版，可以直接對著那張圖指位置。<br />
+(2) <span class="wikilink" title="Obsidian 連結：瀏覽器相容性-Polyfill補API-Babel降語法-Browserslist一次設定全家套用">瀏覽器相容性-Polyfill補API-Babel降語法-Browserslist一次設定全家套用</span> 講轉譯（transpiling）那一格在做什麼，本篇補的是它前後的 linting 與 bundling。<br />
+(3) <span class="wikilink" title="Obsidian 連結：GitHub-Actions-CICD-ghcr與Docker映像檔">GitHub-Actions-CICD-ghcr與Docker映像檔</span> 用到的正是本篇的 <code>npm ci</code> 與 <code>WORKDIR</code>，那篇是實作、本篇是為什麼。</p>
+<p>本篇重點 a–i，共 9 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="module-not-foundab">一、Module not found：路徑解析失敗（a–b）</h3>
+<p>(a) 錯誤訊息類似 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「can't resolve <code>./intro.module.scss</code> in <code>intro-page_backup.js</code>」</mark>，意思是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">打包工具在做「模組解析（module resolution）」時找不到那個檔</mark>。</p>
+<p>(b) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩個處置方向</mark>：修正 <code>import</code> 路徑，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">或者——如果那是像 <code>_backup</code> 這種備份檔——直接刪掉它</mark>。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">備份檔留在 <code>src/</code> 底下會被打包工具一起掃到，是很常見的建置失敗來源</mark>；要留就搬到 <code>src/</code> 外面或加進忽略設定。</p>
+<h3 id="eslint-cd">二、ESLint 落在建置流程的哪一格（c–d）</h3>
+<p>(c) 現代前端建置流程大致是這幾步，<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">ESLint 屬於 linting 這一格</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>階段</th>
+<th>做的事</th>
+<th>代表工具</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linting</td>
+<td>檢查程式碼品質與潛在錯誤</td>
+<td>ESLint</td>
+</tr>
+<tr>
+<td>Formatting</td>
+<td>統一排版</td>
+<td>Prettier</td>
+</tr>
+<tr>
+<td>Transpiling</td>
+<td>把新語法降級成目標環境看得懂的</td>
+<td>Babel、SWC、tsc</td>
+</tr>
+<tr>
+<td>Bundling</td>
+<td>解析模組相依、打成少數幾包</td>
+<td>Vite／Rollup、webpack</td>
+</tr>
+</tbody>
+</table>
+<p>(d) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">ESLint 報的是 warning 還是 error 決定會不會擋建置</mark>。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">warning 通常不擋，error 才擋</mark>；<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但 CI 常設 <code>--max-warnings 0</code>，那時候 warning 也會讓建置失敗</mark>，看到一堆 warning 就掛掉先去確認這個設定。</p>
+<h3 id="npm-ci-npm-installeg">三、npm ci 為什麼能取代 npm install（e–g）</h3>
+<p>(e) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>npm ci</code> 嚴格照著 <code>package-lock.json</code> 安裝，而且不會去更新它</mark>；<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>npm install</code> 會在必要時改寫 lock 檔</mark>。</p>
+<p>(f) 差別整理：</p>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th><code>npm install</code></th>
+<th><code>npm ci</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>依據</td>
+<td><code>package.json</code>（必要時改 lock）</td>
+<td>只認 <code>package-lock.json</code></td>
+</tr>
+<tr>
+<td>會不會改 lock 檔</td>
+<td>會</td>
+<td>不會</td>
+</tr>
+<tr>
+<td><code>node_modules</code></td>
+<td>增量更新</td>
+<td>先整個刪掉再重裝</td>
+</tr>
+<tr>
+<td>速度（CI 環境）</td>
+<td>較慢</td>
+<td>較快</td>
+</tr>
+<tr>
+<td>沒有 lock 檔時</td>
+<td>照樣裝</td>
+<td>直接報錯</td>
+</tr>
+<tr>
+<td>適用</td>
+<td>本機開發、加新套件</td>
+<td>CI／CD、Docker build</td>
+</tr>
+</tbody>
+</table>
+<p>(g) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「可重現的建置（reproducible build）」是 <code>npm ci</code> 存在的理由</mark>：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">同一份 lock 檔在任何機器上裝出完全一樣的版本</mark>，才不會出現「我本機好好的，CI 就掛」這種事。</p>
+<h3 id="dockerfile-workdirhi">四、Dockerfile 的 WORKDIR（h–i）</h3>
+<p>(h) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>WORKDIR /app</code> 是把容器內的工作目錄設成 <code>/app</code></mark>，之後的 <code>COPY</code>、<code>RUN</code>、<code>CMD</code> 都以這個目錄為基準。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它還有一個常被忽略的好處：目錄不存在時會自動建立</mark>，不用先 <code>RUN mkdir</code>。</p>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>/app</code> 不是 Docker 規定的名稱</mark>，只是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">社群慣例</mark>。叫 <code>/project</code>、<code>/code</code>、<code>/usr/src/app</code> 都可以，<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">重點是整份 Dockerfile 前後一致</mark>。</p>
+<h2 id="_2">⚠️ 存疑／需要留意</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>對話中的說法</th>
+<th>需要留意的地方</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>對話品質</td>
+<td>這串是語音輸入，中間夾雜大量辨識錯誤與離題內容（「59 減 38」「被子的味道」）</td>
+<td>本篇只萃取了技術上正確的部分，其餘已捨棄</td>
+</tr>
+<tr>
+<td><code>npm ci</code> 描述</td>
+<td>「Faster and more reliable for automated environments」</td>
+<td>正確，但補充：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>npm ci</code> 會先刪掉整個 <code>node_modules</code></mark>，本機開發時用它反而慢</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">各對話來源（原文摘要）</h2>
+<h3 id="build-failure-issue2026-09-05-httpsgeminigooglecomapp8303704f3c9ff9fa">Build Failure Issue（2026-09-05）— https://gemini.google.com/app/8303704f3c9ff9fa</h3>
+<p>語音輸入對話，可用的技術問答有四段：(1) 建置失敗訊息的解讀與 ESLint 屬於哪個階段；(2) <code>WORKDIR /app</code> 是什麼意思；(3) 容器裡是不是一定要用 <code>/app</code>；(4) <code>npm ci</code> 為什麼可以取代 <code>npm install</code>。其餘輪次為辨識錯誤與離題內容，未收錄。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/8303704f3c9ff9fa</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>npm Docs — <code>npm ci</code></td>
+<td>https://docs.npmjs.com/cli/v10/commands/npm-ci</td>
+<td>npm CLI v10 文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>npm Docs — <code>npm install</code></td>
+<td>https://docs.npmjs.com/cli/v10/commands/npm-install</td>
+<td>npm CLI v10 文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Docker Docs — WORKDIR</td>
+<td>https://docs.docker.com/reference/dockerfile/#workdir</td>
+<td>Docker 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>ESLint — Command Line Interface（<code>--max-warnings</code>）</td>
+<td>https://eslint.org/docs/latest/use/command-line-interface</td>
+<td>ESLint 現行文件，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<h2 id="leetcodeneetcode">練習題（LeetCode／NeetCode 對照）</h2>
+<p>本篇是工具鏈與維運題，LeetCode／NeetCode 沒有直接對應。想練「相依關係解析」的底層直覺——也就是打包工具在做的事——可以做：</p>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>207. Course Schedule</td>
+<td>https://leetcode.com/problems/course-schedule/</td>
+<td>模組相依圖有沒有循環相依，就是這題的偵測環</td>
+</tr>
+<tr>
+<td>210. Course Schedule II</td>
+<td>https://leetcode.com/problems/course-schedule-ii/</td>
+<td>拓撲排序＝決定模組的打包順序</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">關聯筆記</h2>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>關聯原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>00-前端建構到執行全景地圖</td>
+<td>本篇的四個階段可以直接對到那張全景圖</td>
+</tr>
+<tr>
+<td>瀏覽器相容性-Polyfill補API-Babel降語法-Browserslist一次設定全家套用</td>
+<td>Transpiling 那一格的細節</td>
+</tr>
+<tr>
+<td>GitHub-Actions-CICD-ghcr與Docker映像檔</td>
+<td>CI 裡實際用到 npm ci 與 WORKDIR 的地方</td>
+</tr>
+<tr>
+<td>Dev-Server在Node環境-devServer-proxy繞過CORS-HMR用WebSocket-與原生語言打包工具</td>
+<td>開發期與建置期的工具差異</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>傅立葉轉換、Sine/Cosine 與 DCT、JPEG 壓縮原理</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>傅立葉轉換、Sine/Cosine 與 DCT、JPEG 壓縮原理</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#計算機概論</span><span class="pill">#訊號處理</span><span class="pill">#DCT</span><span class="pill">#JPEG</span><span class="pill">#複雜度</span><span class="pill">#演算法</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-07</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/e7b91ee6801bc36d" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/edd4261917950b95" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">兩支影片解析度都是 1280x720，就代表畫質一樣。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。解析度只說明有幾個像素格子，位元速率才決定每個格子被描述得多細。</div></li><li><p class="qq">在頻寬固定的情況下，把解析度從 720p 拉到 1080p 一定更清楚。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。總 bit 數沒變、像素變多，每個像素分到的 bit 更少，反而會出現方塊狀壓縮痕跡。</div></li><li><p class="qq">總位元速率會被影像與音訊兩邊瓜分，所以只看總數可能判斷錯誤。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">對。Abby 那兩個檔案就是 B 的總 bitrate 較高，但音訊被砍了 80 kbps。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">位元速率的單位 kbps 全名是 kilobits per <input class="blank" data-a="second" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">每秒鐘用掉多少千位元來描述這段影音。</div></li><li><p class="qq">720p 常見的合理位元速率區間大約是 1500～<input class="blank" data-a="4000" placeholder="填答案" autocomplete="off"> kbps。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">畫面越動態、細節越多，需要的位元速率越高。</div></li><li><p class="qq">位元速率不足時，畫面會出現 8x8 區塊被抹平造成的 <input class="blank" data-a="方塊" placeholder="填答案" autocomplete="off"> 狀色塊（中文常叫馬賽克）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這是 DCT 量化得太粗的直接後果，對應本篇 (j) 講的高頻被丟掉。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">檔案 A（影像 1154／音訊 251 kbps）與檔案 B（影像 1285／音訊 171 kbps），你會留哪一個？請說明理由。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：留 A。影像端 B 只高約 11%，在 720p 下屬於人眼幾乎分辨不出的邊際差距（畫質對 bitrate 的感受遞減得很快）；音訊端 A 的 251 kbps 對 B 的 171 kbps 是將近 47% 的差距，立體聲的高頻與空間感聽得出來。所以 A 是「同樣的總預算分配得比較均衡」。但要誠實補一句：兩者影像 bitrate 都低於 720p 建議區間的下緣（1500 kbps），所以正確結論是「A 的取捨較好」而不是「A 畫質很好」。</div></li></ol></section>
+
+<article class="card">
+<h1 id="sinecosine-dctjpeg">傅立葉轉換、Sine/Cosine 與 DCT、JPEG 壓縮原理</h1>
+<p>相關筆記：<span class="wikilink" title="Obsidian 連結：../資料結構/冒泡排序法-range參數與時間複雜度">../資料結構/冒泡排序法-range參數與時間複雜度</span></p>
+<p>本篇重點 a–r，共 18 個。（a–l：傅立葉與 DCT／JPEG；m–r：2026-09-07 追加的「位元速率怎麼看」）</p>
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">傅立葉轉換是什麼</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">傅立葉轉換（Fourier Transform）核心概念</mark>：任何週期性訊號，都可以拆解成無數個不同頻率的正弦波（sine）與餘弦波（cosine）疊加而成——像把混合好的果昔還原回香蕉、草莓、牛奶等原始食材。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">時間域 vs 頻率域</mark>：時間域（Time Domain）是最常見的訊號觀察方式，橫軸時間、縱軸隨時間變化的振幅；頻率域（Frequency Domain）是傅立葉轉換後的結果，橫軸變成頻率，告訴你原始訊號中各種頻率成分各佔多少比例。</p>
+<p>(c) 數學定義 <code>F(ω) = ∫₋∞^∞ f(t)·e^(−iωt) dt</code>：<code>f(t)</code> 是原始時間域訊號；<code>e^(−iωt)</code> 依歐拉公式代表一個旋轉的複數向量，用來偵測訊號中是否存在頻率為 ω 的成分；整個積分就是把訊號跟特定頻率做「內積比對」，結果即該頻率在原訊號中的強度。</p>
+<p>(d) 實際應用：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">MP3</mark> 用傅立葉分析聲音、刪掉人耳聽不到的高頻部分來減少檔案大小；<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JPEG</mark> 用離散餘弦轉換過濾高頻雜訊來壓縮影像；<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">5G / Wi-Fi 的 OFDM</mark> 把資料分配到不同頻率載波，全部依賴快速傅立葉轉換（FFT）。</p>
+<h3 id="sine-cosine">Sine / Cosine 的直覺理解</h3>
+<p>(e) 想像一個半徑為 1 的單位圓，指針從 3 點鐘方向（角度 0）逆時針旋轉：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">cos(θ) 是指針尖端的水平座標（左右位置）</mark>，<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">sin(θ) 是指針尖端的垂直座標（上下高度）</mark>。把 sin 值隨時間畫出來就是正弦波；cosine 波形狀跟 sine 一樣，只是相位提前 90°（從最高點開始）。牆上插座的 60Hz 交流電、盪鞦韆離開中心點的距離，都是這種週期性 sine 運動。</p>
+<h3 id="dct-jpeg">DCT 與 JPEG 壓縮</h3>
+<p>(f) JPEG 用的是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">離散餘弦轉換（Discrete Cosine Transform, DCT）</mark>，原理和傅立葉轉換幾乎一樣，但只用 cosine。做法：把影像切成 8×8 像素方塊（空間域），透過 DCT 把方塊裡 64 個像素轉成 64 個不同頻率的係數（頻率域）；人眼對高頻細節（雜訊、細紋）不敏感，所以把高頻係數大幅縮減甚至歸零（量化），達成壓縮；解碼時再逆轉換還原像素，這就是為什麼 JPEG 是「破壞性壓縮」。</p>
+<p>(g) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼用 DCT 而不是完整的傅立葉轉換</mark>：傅立葉轉換同時包含 sine 和 cosine，運算結果是複數（有實部虛部），電腦處理較複雜；DCT 只用 cosine，結果全是實數，速度更快，且在影像邊界不連續處產生的偽影（artifacts）比傅立葉轉換少。</p>
+<p>(h) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">8×8 方塊不是鐵律</mark>：傳統 baseline JPEG 固定切 8×8，是 1990 年代硬體效能與壓縮品質之間的工程折衷（太小抓不出頻率規律、太大當年電腦跑不動且容易糊）；影像尺寸非 8 的倍數時會用邊緣像素做填充（padding），解碼後再裁掉多餘部分；壓縮過頭出現的「格子感」（blocking artifacts）就是因為每個 8×8 塊各自量化不一致、邊緣接不起來。現代格式已經進化：JPEG 2000 改用小波轉換（wavelet），不再切固定方塊；HEIC / WebP 等用「動態區塊大小」，平坦區域用大方塊（32×32甚至64×64）省空間，細節複雜處切更細（4×4）。</p>
+<h3 id="discrete">離散（Discrete）與資訊熵</h3>
+<p>(i) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">離散的定義</mark>：數值與數值之間存在明確間隙，是獨立分離的「點」而非平滑的「線」——像樓梯（只能站第 1 階或第 2 階，沒有 1.5 階）相對於滑水道（連續，中間有無窮多可能值）。電腦本質上只能處理離散資料（有限的 0 與 1），所以數位照片的像素、MP3 的取樣值、程式的陣列索引，全部都是離散的。JPEG 之所以要用「離散」餘弦轉換，是因為影像由有限數量的像素格點組成，只能用離散版本的數學公式計算，無法處理無限小的連續細節。</p>
+<p>(j) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">PlogP（夏農熵 Shannon Entropy）</mark>：常見前面帶負號 <code>−PlogP</code>，<code>P</code> 代表某訊號/像素值出現的機率，用來衡量資料的「混亂度」——熵低代表資料規律（如全白圖片，各像素機率集中），容易壓縮；熵高代表資料混亂（隨機雜訊，機率分散），難以壓縮。JPEG 在 DCT 轉換後會統計剩餘數值出現的機率，再用霍夫曼編碼等方式依熵的原理做最終壓縮。⚠️ 注意 PlogP 在不同語境下有兩種完全不同的意思，容易混淆：一是資訊理論的「熵」，二是下面 (k) 的演算法複雜度 <code>O(N log N)</code>，兩者只是形式相似，概念並不相同。</p>
+<h3 id="on2-vs-on-log-n">複雜度：O(N²) vs O(N log N)</h3>
+<p>(k) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">FFT（快速傅立葉轉換）</mark>：原始傅立葉轉換運算量是 <code>O(N²)</code>，資料量一大電腦會跑不動；FFT 用「分治法」把複雜度降到 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>O(N log N)</code></mark>，這個進步是 MP3、JPEG、行動通訊得以即時運算的關鍵（N=100萬時，O(N²) 約需 1 兆次運算、跑好幾小時；O(N log N) 幾秒內完成）。</p>
+<p>(l) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼 O(N²) 要「每個都跟其他所有比對一遍」</mark>：以找最小值排序為例，第一輪要確定全域最小值，必須把第 1 張跟第 2、3…N 張全部比過一輪（N−1 次比較）；第二輪找剩下最小值再比對 N−2 次⋯依此類推，總比較次數約 <code>N(N−1)/2</code>，當 N 很大時主導項就是 <code>N²</code>。這種寫法通常對應程式碼裡的「雙重巢狀迴圈」，且<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「沒有記憶力」</mark>——每一輪比對都沒利用前面比對過的資訊。改善方式是像快速排序那樣「分而治之」：先選一個基準點，把資料分成「比基準大」「比基準小」兩堆，兩堆彼此之間就永遠不用再比對，直接砍掉一半以上不必要的比較，複雜度因此降到 <code>O(N log N)</code>。開發時資料庫 Query 沒下索引、或前端對幾千筆資料用巢狀 <code>map</code>/<code>filter</code>，都容易不小心踩進這個 <code>O(N²)</code> 陷阱導致卡頓。</p>
+<blockquote>
+<p>[!tip] 這篇的 (k)(l) 跟 <span class="wikilink" title="Obsidian 連結：../資料結構/冒泡排序法-range參數與時間複雜度">../資料結構/冒泡排序法-range參數與時間複雜度</span> 是同一個「時間複雜度」主題的不同切角，一個從排序找最小值角度講 O(N²)，另一篇從 <code>range()</code> 參數與冒泡排序實作角度講，可以互相對照複習。</p>
+</blockquote>
+<h3 id="2026-09-07bitratemr">追加 2026-09-07｜位元速率（Bitrate）：把壓縮原理換算成看得懂的數字（m–r）</h3>
+<blockquote>
+<p>起因對話：〈影片畫質解析度與位元速率〉— <a href="https://gemini.google.com/app/edd4261917950b95">https://gemini.google.com/app/edd4261917950b95</a>。Abby 拿兩支同樣 720p 的影片檔問「哪個畫質比較好」。</p>
+</blockquote>
+<p>(m) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">位元速率（bitrate，中文也叫「資料速度」「碼率」）＝每秒鐘用掉多少 bit 來描述這段影音</mark>，單位 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">kbps（kilobits per second，每秒千位元）</mark>。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它就是前面 (d)(j) 講的「壓縮」在檔案上留下的可量測痕跡</mark>：DCT 丟掉越多高頻細節，bitrate 就越低、檔案越小、畫質也越糊。</p>
+<p>(n) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">解析度相同不代表畫質相同。</mark>解析度（1280×720）只說明「有幾個像素格子」，bitrate 才說明「每個格子被描述得多細」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">bitrate 不足的 1080p 會出現方塊狀色塊（blocking／馬賽克），實際上比乾淨的 720p 還難看</mark>，因為 DCT 量化得太粗，同一個 8×8 區塊裡的細節全被抹成一片。</p>
+<p>(o) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">總位元速率會被拆成「影像位元速率」與「音訊位元速率」兩塊</mark>，兩者相加大致等於總 bitrate。Abby 這兩支檔案的實際數字：</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>檔案 A</th>
+<th>檔案 B</th>
+<th>判讀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>解析度</td>
+<td>1280×720</td>
+<td>1280×720</td>
+<td>平手</td>
+</tr>
+<tr>
+<td>影像位元速率</td>
+<td>1154 kbps</td>
+<td>1285 kbps</td>
+<td>B 高約 11%</td>
+</tr>
+<tr>
+<td>音訊位元速率</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">251 kbps</mark></td>
+<td>171 kbps</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">A 明顯較好</mark></td>
+</tr>
+<tr>
+<td>總位元速率</td>
+<td>1406 kbps</td>
+<td>1456 kbps</td>
+<td>B 略高</td>
+</tr>
+</tbody>
+</table>
+<p>(p) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">結論是留檔案 A</mark>。理由：影像端 11% 的差距在 720p 下<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">人眼幾乎分辨不出來</mark>（畫質對 bitrate 的感受是明顯的邊際遞減，越往上加越沒感覺）；但音訊端 251 kbps 對 171 kbps 是<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">將近 47% 的差距</mark>，立體聲下的高頻與空間感差別聽得出來。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">總 bitrate 是一個被兩邊瓜分的預算，看總數會被騙，要拆開看。</mark></p>
+<p>(q) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">720p 的合理參考區間</mark>：一般上傳／串流大致落在 <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">1500～4000 kbps</mark>（畫面越動態、越多細節需要越高）。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩支檔案的影像 bitrate 都只有 1100～1300 kbps，其實都低於這個區間下緣</mark>，所以「A 比 B 好」的正確理解是「A 的取捨比較均衡」，不是「A 畫質很好」。</p>
+<p>(r) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">實務判斷順序</mark>：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">先看 bitrate 夠不夠撐得起這個解析度，再談要不要拉解析度</mark>。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在頻寬固定的前提下，硬拉解析度只會讓每個像素分到更少的 bit，反而更糊</mark>——這跟 (k) 說的「演算法再快也要先有合理的資料量」是同一種取捨思維。</p>
+<blockquote>
+<p>[!tip] 練習題（延伸）<br />
+位元速率屬於系統／多媒體知識，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">LeetCode 與 NeetCode 沒有直接對應的題目</mark>。想練「用有限預算描述資訊」的手感，最接近的是這兩題：</p>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>443. String Compression</td>
+<td>https://leetcode.com/problems/string-compression/</td>
+<td>就地壓縮，直接體會「壓縮率」是怎麼來的</td>
+</tr>
+<tr>
+<td>271. Encode and Decode Strings</td>
+<td>https://leetcode.com/problems/encode-and-decode-strings/</td>
+<td>自訂編碼格式，體會「要幾個 byte 才能無歧義地還原資料」</td>
+</tr>
+</tbody>
+</table>
+</blockquote>
+<h2 id="_3">各對話來源</h2>
+<h3 id="2026-07-25-httpsgeminigooglecomappe7b91ee6801bc36d">傅立葉轉換：時間與頻率的橋樑（2026-07-25）— https://gemini.google.com/app/e7b91ee6801bc36d</h3>
+<p><strong>使用者:</strong> 請解釋傅立葉轉換</p>
+<p><strong>Gemini:</strong> 說明核心概念（週期訊號可拆解成無數 sine/cosine 疊加）、時間域 vs 頻率域、數學定義 <code>F(ω)=∫f(t)e^(-iωt)dt</code>，以及在音訊壓縮（MP3）、影像處理（JPEG）、無線通訊（5G/Wi-Fi OFDM）、雜訊濾波上的應用。</p>
+<p><strong>使用者:</strong> 請簡單的讓我明白sine cosine是什麼</p>
+<p><strong>Gemini:</strong> 用單位圓上旋轉指針類比：cos=水平座標、sin=垂直座標，說明正弦波/餘弦波的產生方式與相位差（cosine 比 sine 早 90°），並舉盪鞦韆、聲音、交流電為生活例子。</p>
+<p><strong>使用者:</strong> JPEG的轉換跟他有什麼關係</p>
+<p><strong>Gemini:</strong> 說明 JPEG 用離散餘弦轉換（DCT），把影像切成 8×8 方塊、轉成頻率域後丟棄人眼不敏感的高頻細節（量化）達成壓縮；並解釋為何用 DCT（只用 cosine、結果為實數、運算快、邊界偽影少）而非完整傅立葉轉換。</p>
+<p><strong>使用者:</strong> 離散是什麼</p>
+<p><strong>Gemini:</strong> 用「滑水道 vs 樓梯」類比連續與離散的差異，說明電腦本質上只能處理離散資料，並解釋為何 JPEG 要用「離散」版本的餘弦轉換（影像由有限像素格點組成）。</p>
+<p><strong>使用者:</strong> JPEG 會把影像切成 8×8 的小方塊。是固定的嗎</p>
+<p><strong>Gemini:</strong> 說明 8×8 是傳統 baseline JPEG 的工程折衷（效率與品質平衡），非 8 倍數時會 padding 填充；並介紹 JPEG 2000（小波轉換）、HEIC/WebP（動態區塊大小）等現代演進，以及「格子感」偽影的成因。</p>
+<p><strong>使用者:</strong> （追問）離散的定義是說數值之間是分離的不連續的嗎?</p>
+<p><strong>Gemini:</strong> 確認理解正確，進一步用「人數 vs 長度」對比離散與連續的分離性，並連結到影像處理中「位置離散化」與「數值離散化（量化）」兩種離散化方式，以及程式開發中 array index、loop、database ID 都是離散的例子。</p>
+<p><strong>使用者:</strong> P log p是什麼</p>
+<p><strong>Gemini:</strong> 區分兩種語境：資訊理論中的 <code>−PlogP</code>（夏農熵，衡量資料混亂度，與 JPEG 壓縮後的霍夫曼編碼相關）、演算法複雜度中的 <code>O(N log N)</code>（FFT 把傅立葉轉換從 O(N²) 降到 O(N log N) 的效率標準）。</p>
+<p><strong>使用者:</strong> O(N²)：每一張都跟其他所有卡片比對一遍（慢爆了）。為什麼每一張都要跟其他所有卡片比對一遍？</p>
+<p><strong>Gemini:</strong> 用找最小值排序為例逐輪拆解比對次數（N−1, N−2, …），推導出總比較次數約 <code>N(N-1)/2</code>、主導項為 <code>N²</code>；並說明「分而治之」（如快速排序選基準點分堆）如何砍掉不必要比較、把複雜度降到 O(N log N)，附上典型雙重迴圈 <code>O(N²)</code> 程式碼範例，並提醒資料庫沒下索引、前端巢狀 map/filter 容易誤踩這個陷阱。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>對話原始出處</td>
+<td>https://gemini.google.com/app/e7b91ee6801bc36d</td>
+<td>2026-07-25 查證</td>
+</tr>
+<tr>
+<td>傅立葉轉換數學定義、DCT/JPEG 壓縮原理</td>
+<td>Gemini 回答內容，屬通用訊號處理/影像壓縮教科書共識，未附外部連結，建議日後對照 MDN/教科書原文查證</td>
+<td>2026-07-25 對話當下</td>
+</tr>
+<tr>
+<td>追加對話（位元速率判讀，m–r 節）</td>
+<td>https://gemini.google.com/app/edd4261917950b95</td>
+<td>2026-09-07 讀取</td>
+</tr>
+<tr>
+<td>720p 建議位元速率區間、「bitrate 比 resolution 更決定觀感」</td>
+<td>https://bitratecalculator.org/blog/bitrate-vs-resolution</td>
+<td>2026-09-07 查證</td>
+</tr>
+<tr>
+<td>YouTube 各解析度建議上傳位元速率</td>
+<td>https://castr.com/blog/best-bitrate-for-youtube/</td>
+<td>2026-09-07 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-07</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

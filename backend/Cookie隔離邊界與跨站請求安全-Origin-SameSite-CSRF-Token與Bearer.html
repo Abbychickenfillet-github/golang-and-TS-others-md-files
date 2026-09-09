@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cookie 的隔離邊界與跨站請求安全 — Origin、SameSite、CSRF Token 與 Bearer 的分工</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Cookie 的隔離邊界與跨站請求安全 — Origin、SameSite、CSRF Token 與 Bearer 的分工</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#backend</span><span class="pill">#資安</span><span class="pill">#cookie</span><span class="pill">#samesite</span><span class="pill">#csrf</span><span class="pill">#cors</span><span class="pill">#jwt</span><span class="pill">#devtools</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-01</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/e0228a3107b0433a" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/3d4429ab61f43591" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">a.com 設一支叫 token 的 Cookie，b.com 也設一支叫 token，兩者會互相覆蓋。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">瀏覽器以 Origin（Protocol＋Domain＋Port）為邊界分桶儲存，同名不會衝突，a.com 也讀不到 b.com 的 Cookie。</div></li><li><p class="qq">SameSite 屬性的用途是劃分網域，避免不同網站的 Cookie 同名打架。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">劃分作用域的是 Domain 與 Path。SameSite 管的是「跨站請求時要不要自動夾帶」，目的是防 CSRF 與保護隱私。</div></li><li><p class="qq">只要把 API Endpoint 取得夠隱密，就能有效防止 CSRF。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Security through obscurity 是無效的。駭客自己註冊一個帳號、打開 F12 看 Network 就抄得到完整 API 規格。</div></li><li><p class="qq">evil.com 頁面裡的 JavaScript 可以讀取你另一個分頁中 your-app.com 的 LocalStorage。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">同源政策擋得住「讀取」。但它擋不住「發送」——evil.com 仍可誘導瀏覽器對 your-app.com 發出請求。</div></li><li><p class="qq">瀏覽器決定要不要夾帶 Cookie，是看「誰發起這個請求」。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">唯一依據是目標網址的 Domain 與 Path，跟發起者完全無關。這正是 CSRF 成立的原因。</div></li><li><p class="qq">改用 Authorization: Bearer 之後就完全安全了，不必再擔心任何攻擊。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">風險只是換了一種：Cookie 怕 CSRF，Bearer 若把 Token 存 LocalStorage 就怕 XSS。兩邊都要防。</div></li><li><p class="qq">在 F12 的 Application 分頁看不到登入 Cookie，就一定代表沒有登入。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">現代 SPA 常把 JWT 放在 Local Storage 或 Session Storage，不走 Cookie。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">瀏覽器安全模型的邊界單位叫 <input class="blank" data-a="Origin" placeholder="填答案" autocomplete="off">，由 Protocol ＋ Domain ＋ Port 三者組成。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">三者全部相同才算同源。</div></li><li><p class="qq">決定一支 Cookie 作用域的兩個屬性是 Domain 與 <input class="blank" data-a="Path" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">跟 SameSite 無關，SameSite 管的是跨站時要不要送。</div></li><li><p class="qq">後端產生一串不可預測的隨機字串放在頁面裡，變更資料時必須一起送回驗證，這個機制叫 Anti-<input class="blank" data-a="CSRF" placeholder="填答案" autocomplete="off"> Token。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">靠的是同源政策讓 evil.com 讀不到那串字串。</div></li><li><p class="qq">「靠隱藏資訊來達成安全」這種無效做法，英文叫 Security through <input class="blank" data-a="obscurity" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">網域與 Endpoint 在前端本來就是公開資訊。</div></li><li><p class="qq">把 Token 放在 Authorization Header 手動送出時，用的前綴關鍵字是 <input class="blank" data-a="Bearer" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">格式是 Authorization: Bearer &lt;token&gt;。</div></li><li><p class="qq">Cookie 自動夾帶的主要風險是 CSRF；把 JWT 存在 LocalStorage 的主要風險則是 <input class="blank" data-a="XSS" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">被注入的 JS 可以直接讀走 LocalStorage 裡的 Token。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">用你自己的話解釋：同源政策既然這麼嚴格，為什麼 CSRF 還是能成功？請把「讀取」與「發送」分開講。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：同源政策限制的是跨來源的「讀取」——evil.com 的 JS 讀不到 your-app.com 的 DOM、Console、LocalStorage，也讀不到回應內容。但它完全不限制「發送」：evil.com 可以放一個 form 或 img 指向 your-app.com 的 Endpoint，瀏覽器依照「Domain 與 Path 匹配就夾帶 Cookie」的規則照樣把 Session 送出去。攻擊者看不到結果，但變更資料的動作已經被執行了。所以防線必須放在後端能不能分辨「這個請求是不是從我認可的頁面發起的」，也就是 SameSite、CSRF Token 與 Origin 校驗。</div></li><li><p class="qq">面試官問「Cookie 跟 JWT 你會選哪個」，請給一個不落入二選一陷阱的回答。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：先指出兩者的風險是互補而非高下——Cookie 自動夾帶所以怕 CSRF，Bearer 需手動夾帶所以跨站帶不上、但存 LocalStorage 就怕 XSS。接著給實務折衷：Access Token 放記憶體（頁面重整就沒了，XSS 也難撈）、Refresh Token 放 HttpOnly ＋ SameSite=Strict ＋ Secure 的 Cookie（JS 讀不到、跨站不會送）。最後補防線清單：SameSite、CSRF Token、CORS 與 Origin 校驗、輸出跳脫與 CSP。</div></li></ol></section>
+
+<article class="card">
+<h1 id="cookie-originsamesitecsrf-token-bearer">Cookie 的隔離邊界與跨站請求安全 — Origin、SameSite、CSRF Token 與 Bearer 的分工</h1>
+<blockquote>
+<p>本篇重點 a–s，共 19 個。</p>
+<p>這篇要回答的是四個很容易混在一起的問題：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不同網站的 Cookie 同名會不會打架</mark>、<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SameSite 到底在管什麼</mark>、<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼「藏起 Endpoint」不算防禦</mark>、以及 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Cookie 自動夾帶跟 Bearer 手動夾帶的風險為什麼是相反的</mark>。</p>
+</blockquote>
+<p><img alt="CSRF 攻擊流程與兩種攜帶身分方式的風險對照圖：上半說明 evil.com 如何借用受害者瀏覽器自動夾帶的 Cookie 發動請求，下半對照 Cookie 自動夾帶（主要風險 CSRF）與 Authorization Bearer 手動夾帶（主要風險 XSS）" src="../obsidian-attachment/學習資安_圖解_CSRF流程-Cookie自動夾帶vs-Bearer手動夾帶_2026-09-01.svg" /></p>
+<h2 id="_1">重點整理</h2>
+<h3 id="cookie-origin">一、Cookie 的儲存邊界：Origin 而不是名稱</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Origin（來源）</mark>是瀏覽器安全模型的基本單位，由三件事組成：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Protocol（協定，如 <code>https</code>）＋ Domain（網域）＋ Port（連接埠）</mark>。三者全部相同才算同源。</p>
+<p>(b) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不同網站的 Cookie 同名完全不會衝突。</mark><code>a.com</code> 設一支叫 <code>token</code> 的 Cookie，<code>b.com</code> 也設一支叫 <code>token</code>，瀏覽器內部會把它們分別放進各自的 Domain 桶子裡。<code>a.com</code> 讀不到也蓋不掉 <code>b.com</code> 的那一支。</p>
+<p>(c) 決定一支 Cookie「存到哪、要不要送出去」的是它的 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Domain</code></mark> 與 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Path</code></mark> 兩個屬性，跟名稱撞不撞沒有關係。</p>
+<p>(d) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SameSite 不是用來劃分網域、也不是用來解決同名衝突的。</mark>這是最常見的誤解。<code>SameSite</code>（<code>Strict</code> ／ <code>Lax</code> ／ <code>None</code>）管的是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「當這個請求是從別的站發起的時候，瀏覽器要不要幫忙把這支 Cookie 塞進 Header」</mark>，目的是防 CSRF 與保護隱私。</p>
+<h3 id="f12-cookie">二、在 F12 判讀一支 Cookie 是不是登入用的</h3>
+<p>(e) 實務判讀順序：F12 →「Application（應用程式）」分頁 → 左側 Storage 樹的 Cookies → 看每一支的 <code>Name</code>、<code>Domain</code>、<code>HttpOnly</code>、<code>SameSite</code>。</p>
+<p>(f) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">常見的「不是登入資訊」的 Cookie 名稱</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>Cookie 名稱</th>
+<th>真正用途</th>
+<th>怎麼認出來</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_fbp</code></td>
+<td>Meta（Facebook）Pixel 廣告追蹤，記錄站上行為做再行銷</td>
+<td><code>_fb</code> 開頭幾乎都是 Meta 系</td>
+</tr>
+<tr>
+<td><code>_ybar_latest_match</code></td>
+<td>第三方元件或分析模組的狀態紀錄</td>
+<td>帶 <code>bar</code>、<code>match</code>、<code>latest</code> 這類字眼多半是 UI 或分析狀態</td>
+</tr>
+<tr>
+<td><code>.AspNetCore.Antiforgery</code></td>
+<td>CSRF 防護 token（見 <span class="wikilink" title="Obsidian 連結：CSRF-與-Antiforgery-Cookie">CSRF-與-Antiforgery-Cookie</span>）</td>
+<td>出現 <code>Antiforgery</code>、<code>XSRF</code>、<code>csrf</code> 就是防護用</td>
+</tr>
+<tr>
+<td><code>LOGIN_INFO</code></td>
+<td>YouTube／Google 系的登入狀態</td>
+<td>Domain 會是 <code>.youtube.com</code> 而不是你正在看的站</td>
+</tr>
+</tbody>
+</table>
+<p>(g) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">看不到登入 Cookie 不代表沒登入。</mark>兩種常見原因：一是 Token 已被清除或自然過期（伺服器發 <code>Set-Cookie</code> 把到期時間設成過去，或瀏覽器依 <code>Expires</code>／<code>Max-Age</code> 自動刪掉）；二是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">現代 SPA 根本不用 Cookie 存驗證權杖，而是把 JWT 放在 Application → Local Storage 或 Session Storage</mark>，所以要換一個地方找。</p>
+<h3 id="cookie">三、瀏覽器什麼時候會自動夾帶 Cookie</h3>
+<p>(h) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">瀏覽器夾帶 Cookie 的唯一依據是「目標網址的 Domain 與 Path」，跟「誰發起這個請求」完全無關。</mark>使用者自己點連結、頁面裡的 <code>&lt;img&gt;</code>、第三方網站的 <code>fetch</code>、隱藏表單的自動送出，全部一視同仁。</p>
+<p>(i) 比喻：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Cookie 像是護照上的印章。只要你走過那道通關門（請求送到那個 Domain），警察（瀏覽器）就會自動把護照亮出來——哪怕是歹徒推你過門的，護照還是會被亮出來。</mark></p>
+<h3 id="endpoint">四、為什麼「別人不知道我的 Endpoint」不算防禦</h3>
+<p>(j) 攻擊者確實必須知道完整的 URL（Domain ＋ Path），瀏覽器才知道要把請求跟 Cookie 送去哪裡。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但「知道 Endpoint」在實務上極度容易，所以絕對不能當成安全防線。</mark></p>
+<p>(k) 取得 Endpoint 的三條路：</p>
+<ul>
+<li><strong>命名慣例太好猜</strong>：<code>/api/v1/user/delete</code>、<code>/api/logout</code>、<code>/cart/checkout</code> 這種路徑用列舉就能撞出來。</li>
+<li><strong>前端程式碼本來就公開</strong>：只要網頁有呼叫這些 API，任何人開 F12 的 Network 分頁就看得到。</li>
+<li><strong>駭客自己註冊一個帳號</strong>：這是最省事的一條。他到 <code>your-app.com</code> 註冊、自己操作一次轉帳或刪除，然後在自己的 F12 看 Network，就完整抄到 <code>Domain</code>、<code>Endpoint</code>、<code>Method</code>、<code>Body</code> 格式。</li>
+</ul>
+<p>(l) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">正解：Security through obscurity（靠隱藏來求安全）是無效的。</mark>網域與 Endpoint 在前端本來就是公開資訊，防線必須建立在 SameSite、CSRF Token、CORS／Origin 校驗這些機制上。</p>
+<h3 id="sop">五、同源政策（SOP）擋得住什麼、擋不住什麼</h3>
+<p>(m) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">同源政策（Same-Origin Policy, SOP）</mark>擋得住的是「讀取」：<code>evil.com</code> 頁面裡的 JavaScript <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">無法讀取</mark>你另一個分頁裡 <code>your-app.com</code> 的 DOM、Console、開發者工具內容或 LocalStorage。駭客沒辦法遠端窺視你當下正在瀏覽的其他網站。</p>
+<p>(n) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SOP 擋不住的是「發送」：evil.com 依然可以誘導你的瀏覽器對 your-app.com 發出請求，而瀏覽器依然會自動附上你的 Cookie。</mark>這就是 CSRF 的全部原理——攻擊者看不到結果，但動作已經被執行了。</p>
+<pre><code class="language-html">&lt;!-- evil.com 頁面裡的隱藏程式碼：受害者一造訪就自動送出 --&gt;
+&lt;form action=&quot;https://api.your-app.com/v1/user/delete&quot; method=&quot;POST&quot;&gt;
+  &lt;input type=&quot;hidden&quot; name=&quot;account&quot; value=&quot;attacker&quot; /&gt;
+&lt;/form&gt;
+&lt;script&gt;document.forms[0].submit();&lt;/script&gt;
+</code></pre>
+<h3 id="anti-csrf-token">六、Anti-CSRF Token 為什麼有效</h3>
+<p>(o) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Anti-CSRF Token</mark> 是後端產生的一串不可預測的隨機字串（例如 <code>csrf_x9f8a7b6...</code>），放在前端頁面的 HTML 或 JavaScript 變數裡。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所有「會變更資料」的請求（POST／PUT／DELETE）都必須把它放進 Body 或 Header 一起送出，後端驗證通過才執行。</mark></p>
+<p>(p) 它能防禦的邏輯是三段扣在一起的：</p>
+<ol>
+<li><strong>SOP 阻擋讀取</strong>：<code>evil.com</code> 可以發起請求，但依照 (m)，它讀不到 <code>your-app.com</code> 頁面裡的 JS 變數或 HTML 內容。</li>
+<li><strong>所以無法偽造</strong>：它猜不到那串 Token 是什麼。</li>
+<li><strong>後端校驗</strong>：後端收到「有 Session Cookie 但沒有正確 CSRF Token」的請求，直接拒絕。</li>
+</ol>
+<h3 id="vs">七、自動夾帶 vs 手動夾帶：風險是相反的</h3>
+<p>(q) 「手動」的意思是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">由前端工程師寫 JavaScript 主動把 Token 塞進 HTTP Header</mark>，而不是由瀏覽器底層自動完成。</p>
+<pre><code class="language-js">// A. 傳統 Cookie（自動模式）——開發者一行程式碼都不用寫
+// 登入成功 → 後端回 Set-Cookie: session_id=abc123
+// 之後每個請求瀏覽器自動帶上 Cookie: session_id=abc123
+
+// B. JWT + Authorization Header（手動模式）——每次都要自己組
+fetch('https://api.your-app.com/v1/user/profile', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${userToken}`,   // 這裡就是手動夾帶
+  },
+  body: JSON.stringify({ name: 'New Name' }),
+})
+</code></pre>
+<p>(r) 兩者的風險面完全相反，這是面試很愛問的對照：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Cookie（自動夾帶）</th>
+<th><code>Authorization: Bearer</code>（手動夾帶）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>發送機制</td>
+<td>瀏覽器自動處理，Domain 匹配就塞進 Header</td>
+<td>由 JavaScript 程式碼控制，前端要主動加</td>
+</tr>
+<tr>
+<td>惡意網站發起請求時</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">依然會自動帶上</mark></td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">拿不到受害者記憶體中的 Token，帶不上</mark></td>
+</tr>
+<tr>
+<td>主要風險</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSRF</mark></td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">XSS</mark>（若 Token 存在 LocalStorage，被注入的 JS 讀走就完蛋）</td>
+</tr>
+<tr>
+<td>主要防線</td>
+<td><code>SameSite</code> Lax／Strict、Anti-CSRF Token、CORS／Origin 校驗</td>
+<td>同源政策隔離了 JS 記憶體空間；再加輸出跳脫與 CSP</td>
+</tr>
+</tbody>
+</table>
+<p>(s) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一句話記法</mark>：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Cookie 是瀏覽器的親生兒子，到哪都自動跟著；Authorization Header 是前端手動裝進行李箱的東西，惡意網站摸不到你的行李箱。</mark>所以選哪一種不是「哪個比較安全」，而是「你要防的是 CSRF 還是 XSS」——兩邊都要做。</p>
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 在對話裡把 <code>_ybar_latest_match</code> 說成「第三方元件或分析模組的狀態紀錄」，語氣是推測而非確認。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">實際判定請以該 Cookie 的 Domain 與該站的隱私權政策為準</mark>，不要把 AI 的猜測當成定論。可靠的做法是查該站的 Cookie 政策頁，或用 Cookiepedia 這類資料庫反查。</li>
+<li>對話中提到「改用 Authorization Header 就不會被自動夾帶」是正確的，但<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Gemini 沒有提醒的是：把 JWT 放進 LocalStorage 會把風險從 CSRF 換成 XSS，並不是無腦升級。</mark>業界目前較推薦的折衷是「Access Token 放記憶體 ＋ Refresh Token 放 <code>HttpOnly</code> ＋ <code>SameSite=Strict</code> 的 Cookie」，見 <span class="wikilink" title="Obsidian 連結：Refresh-Token與Token-Endpoint-雙Token機制與JWT關係">Refresh-Token與Token-Endpoint-雙Token機制與JWT關係</span>。</li>
+</ul>
+<h2 id="_3">相關題目練習</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeetCode 2622. Cache With Time Limit</td>
+<td>https://leetcode.com/problems/cache-with-time-limit/</td>
+<td>Cookie 的 <code>Expires</code>／<code>Max-Age</code> 就是一個帶時限的快取，手寫一次會對「過期」這件事有體感</td>
+</tr>
+<tr>
+<td>LeetCode 2725. Interval Cancellation</td>
+<td>https://leetcode.com/problems/interval-cancellation/</td>
+<td>Token 續期與撤銷的最小模型，對應 Refresh Token 的生命週期</td>
+</tr>
+<tr>
+<td>LeetCode 2721. Execute Asynchronous Functions in Parallel</td>
+<td>https://leetcode.com/problems/execute-asynchronous-functions-in-parallel/</td>
+<td>練 <code>fetch</code> 與 Header 組裝的非同步流程，對應 (q) 的手動夾帶寫法</td>
+</tr>
+<tr>
+<td>NeetCode — Design HashMap</td>
+<td>https://neetcode.io/problems/design-hashmap</td>
+<td>(b) 說的「各自的 Domain 桶子」本質就是以 Origin 為 key 的雜湊分桶</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">關聯筆記</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：Cookie-與-Session">Cookie-與-Session</span> — 那篇講「為什麼需要 Cookie／Session」這個更前面的問題（HTTP 是無狀態的），本篇則是接著問「有了之後，邊界跟風險在哪」。先看那篇再看這篇順序才對。</li>
+<li><span class="wikilink" title="Obsidian 連結：CSRF-與-Antiforgery-Cookie">CSRF-與-Antiforgery-Cookie</span> — 那篇是從一支實際的 <code>.AspNetCore.Antiforgery</code> Cookie 反推它的用途，是本篇 (o)(p) 的實機案例版；(f) 的判讀表也直接沿用了那篇的除錯手法。</li>
+<li><span class="wikilink" title="Obsidian 連結：Refresh-Token與Token-Endpoint-雙Token機制與JWT關係">Refresh-Token與Token-Endpoint-雙Token機制與JWT關係</span> — 補完 (r) 那張表沒展開的部分：實務上不會純選一邊，而是雙 Token 各放一處。</li>
+<li><span class="wikilink" title="Obsidian 連結：剪貼簿劫持攻擊-ClickFix與網站惡意注入排查">剪貼簿劫持攻擊-ClickFix與網站惡意注入排查</span> — (r) 提到的 XSS 風險在真實世界怎麼發生，那篇有完整的注入排查流程。</li>
+<li><span class="wikilink" title="Obsidian 連結：ClickFix社交工程攻擊-假驗證碼誘騙貼上PowerShell與網站被注入的處置">ClickFix社交工程攻擊-假驗證碼誘騙貼上PowerShell與網站被注入的處置</span> — 同上，並且那篇有 F12 Application 分頁的實機截圖，可以搭配本篇 (e) 一起看。</li>
+<li><span class="wikilink" title="Obsidian 連結：XMLHttpRequest-CORS-explanation">XMLHttpRequest-CORS-explanation</span> — (l) 提到 CORS 是防線之一，那篇解釋 CORS 的預檢請求與同源判定細節。</li>
+<li><span class="wikilink" title="Obsidian 連結：JWT_TOKEN_EXPLANATION">JWT_TOKEN_EXPLANATION</span> — (q) 的 <code>Bearer ${userToken}</code> 裡那串東西的內部結構（Header／Payload／Signature）在那篇。</li>
+</ul>
+<h2 id="_5">各對話來源（原文）</h2>
+<h3 id="cookie-2026-08-31-httpsgeminigooglecomappe0228a3107b0433a">Cookie 隔離與登入狀態解析（2026-08-31）— https://gemini.google.com/app/e0228a3107b0433a</h3>
+<p><strong>使用者：</strong> 登入請求過期了。但是這邊如果 token 名稱跟其他網站登入名稱撞到，那不是會有問題嗎？有什麼方法解決嗎？是網域控制嗎？控制網域的屬性，是這樣分 SameSite 嗎？我看到關於 104 的 cookies 只有兩個，說我的登入已經過期了。你覺得 <code>_ybar_latest_match</code> 還是 <code>_fbp</code> 是登入相關的資訊呢？請幫我好好解析。（附 DevTools 截圖）</p>
+<p><strong>Gemini：</strong></p>
+<ul>
+<li><strong>Cookie 隔離與命名衝突</strong>：不同網站的 Token 同名完全不會有衝突。瀏覽器的安全模型以 Origin（Protocol ＋ Domain ＋ Port）作為邊界進行儲存隔離。</li>
+<li>網域控制（Domain Attribute）：Cookie 的儲存與發送由 <code>Domain</code> 與 <code>Path</code> 屬性決定作用域。<code>a.com</code> 設定名為 <code>token</code> 的 Cookie 與 <code>b.com</code> 設定名為 <code>token</code> 的 Cookie，在瀏覽器內部分別存放於各自的 Domain 桶子中，<code>a.com</code> 無法讀取或覆蓋 <code>b.com</code> 的 Cookie。</li>
+<li>SameSite 的真正作用：<code>SameSite</code>（<code>Strict</code>／<code>Lax</code>／<code>None</code>）不是用來劃分網域或解決同名衝突的。它的作用是控制跨站請求（Cross-Site Request，如從外部網站點擊連結或發送 fetch）時，瀏覽器是否要在 HTTP 請求標頭中自動帶上該 Cookie，主要用途為防範 CSRF 攻擊與保護使用者隱私。</li>
+<li><strong>截圖中的 Cookies 解析</strong>：</li>
+<li><code>_fbp</code> 不是登入資訊。這是 Meta（Facebook）Pixel 廣告追蹤 Cookie，用於記錄使用者在網站上的行為以進行廣告再行銷。Domain 是 <code>.104.com.tw</code>。</li>
+<li><code>_ybar_latest_match</code> 不是登入資訊。這類名稱通常屬於第三方元件或分析模組的狀態紀錄，非驗證身分的 Session Token。</li>
+<li>截圖中的 <code>LOGIN_INFO</code> 是 YouTube 的。</li>
+<li><strong>為什麼看不到登入 Token</strong>：一是 Token 已被清除或自然過期——當伺服器判斷驗證過期，或觸發登出，伺服器會發送 <code>Set-Cookie</code> 把該 Token Cookie 的到期時間設為過去時間（或瀏覽器已依 <code>Expires</code>／<code>Max-Age</code> 自動刪除）。二是存放於 Web Storage——許多現代單頁應用（SPA）不使用 Cookie 儲存身份驗證權杖，而是把 JWT 放在 Application → Local Storage 或 Session Storage 中。</li>
+</ul>
+<h3 id="cookie-2026-08-31-httpsgeminigooglecomapp3d4429ab61f43591">瀏覽器 Cookie 與請求安全解析（2026-08-31）— https://gemini.google.com/app/3d4429ab61f43591</h3>
+<p><strong>使用者：</strong> 瀏覽器對我的伺服器發出一個帶 cookie 的請求⋯是誰都可以對我的伺服器發出帶 cookie 的請求，還是只有他知道我的後端 endpoint 的時候才可以？</p>
+<p><strong>Gemini：</strong> 是的，對方必須知道你的 API 路徑（Endpoint）才能發出請求，但「知道 Endpoint」這件事在實務上極度容易被猜到或取得，因此不能當作安全防線。</p>
+<ol>
+<li><strong>瀏覽器發送 Cookie 的機制</strong>：瀏覽器自動夾帶 Cookie 的唯一依據是目標網域（Domain）與路徑（Path），與「誰發起請求」無關。只要滿足兩個條件就會自動附帶：使用者的瀏覽器裡已經存有你網站的 Cookie；第三方惡意網站（例如 <code>evil.com</code>）執行了一段 JavaScript，或放了一個表單／圖片，目標指向你的 API 路徑。</li>
+<li><strong>「知道 Endpoint」有多容易</strong>：常見慣例如 <code>/api/v1/user/delete</code>、<code>/api/logout</code>、<code>/cart/checkout</code> 非常容易被暴力列舉或猜測；前端程式碼暴露——任何人開 F12 就能直接看到所有 API 路徑；CSRF——只要猜中或得知 Endpoint，就能在他們的網站建構一個隱藏表單自動提交，因為是受害者的瀏覽器發出的，瀏覽器會自動帶上受害者的 Session Cookie。</li>
+<li><strong>如何防止</strong>：設定 Cookie 的 <code>SameSite</code> 屬性；CSRF Token；CORS 與 Origin Header 校驗（後端校驗請求來源的 Domain 是否為信任的網域）；改用 Authorization Header（如 JWT）——不依賴瀏覽器自動夾帶的 Cookie，將 Token 存於記憶體中並透過 <code>Authorization: Bearer &lt;token&gt;</code> 手動發送，瀏覽器不會自動幫跨站請求帶上此 Header。</li>
+</ol>
+<p><strong>使用者：</strong> 他會需要知道我後端的 domain name 嗎？<code>evil.com</code> 他可以從我的 F12 知道其他網站例如我的網域跟 endpoint？</p>
+<p><strong>Gemini：</strong> 是的，他一定要知道你的 Domain Name，因為瀏覽器發送請求時必須有完整的 URL（Domain ＋ Path）。至於能不能透過 F12 拿到你的資訊，要分兩種情況：</p>
+<ol>
+<li><strong><code>evil.com</code> 頁面上的程式碼，不能直接翻開你電腦裡別分頁的 F12</strong>：同源政策（SOP）會嚴格隔離不同網域。當使用者開啟 <code>evil.com</code> 時，其頁面裡的 JavaScript 無法讀取使用者在另一個分頁打開的 <code>your-app.com</code> 的 DOM、Console、開發者工具或 LocalStorage。駭客無法遠端透過開發者工具窺視使用者當前正在瀏覽的其他網站。</li>
+<li><strong>那駭客是怎麼知道的</strong>：他不需要窺視個別使用者的 F12。他自己先到 <code>your-app.com</code> 註冊一個帳號，打開他自己的 F12，操作一次轉帳、刪除資料或變更密碼，在 Network 頁籤中就能直接看到完整的請求：Domain <code>api.your-app.com</code>、Endpoint <code>/v1/user/delete</code>、Method <code>POST</code>、Body 格式 <code>{"userId": 123}</code>。知道之後就在 <code>evil.com</code> 放上隱藏表單並自動 submit。</li>
+</ol>
+<p><strong>總結（Gemini 原文）：</strong> Domain Name 必須知道；<code>evil.com</code> 拿不到「受害者瀏覽器」裡的 F12 資料，但駭客可以透過「自己去你的網站打開 F12」來收集你的 API 規格。防禦重點：網域和 Endpoint 在前端都是公開資訊，無法靠隱藏來確保安全（Security through obscurity 是無效的），必須透過 SameSite Lax／Strict、CSRF Token 或 CORS 嚴格設定來確保只有你認可的前端源（Origin）才能發動有效的請求。</p>
+<p><strong>使用者：</strong> 你說 Anti-CSRF Token 必須在變更的時候帶上這個才能申請變更的意思嗎？何謂瀏覽器自動夾帶的 cookie？What's the difference？所以 JWT 都有經過驗證？何謂透過 authorization bearer「手動」發送？</p>
+<p><strong>Gemini：</strong></p>
+<ol>
+<li><strong>什麼是「瀏覽器自動夾帶」的 Cookie</strong>：只要發出的請求 Target URL 符合 Cookie 設定的 Domain 與 Path，無論這個請求是由誰發起的（使用者點連結、還是 <code>evil.com</code> 的腳本觸發），瀏覽器都會在背景默默把對應的 Cookie 塞進 HTTP Request Header 送出。比喻：Cookie 就像印在你護照上的印章，只要你走過通關門，警察（瀏覽器）就會自動把護照亮給對方看，即使是歹徒推你過門的。</li>
+<li><strong>何謂 Anti-CSRF Token</strong>：是的，變更資料的請求必須額外附帶這個 Token，後端驗證通過才允許執行。CSRF Token 是後端產生的一串不可預測的隨機字串，放在前端頁面的 HTML 或 JavaScript 變數中。能防禦的原因：SOP 阻擋——<code>evil.com</code> 無法讀取 <code>your-app.com</code> 頁面裡的 JS 變數或 HTML 內容；無法偽造——猜不到 Token；後端校驗——發現有 Session Cookie 但沒有正確 CSRF Token 就直接拒絕。</li>
+<li><strong>何謂「透過 Authorization: Bearer 手動發送」</strong>：「手動」指的是由前端工程師寫 JavaScript 程式碼主動將 Token 放入 HTTP Header，而不是由瀏覽器底層自動完成。傳統 Cookie 是自動模式（登入成功後端回 <code>Set-Cookie</code>，之後開發者不用寫任何程式碼）；JWT ＋ Authorization Header 是手動模式（登入成功後端在 Response Body 回傳 JSON，前端把 Token 存在記憶體或變數中，之後每次呼叫 API 都要手動組裝 Header）。</li>
+<li><strong>差異總整理</strong>：見本篇 (r) 的表格（原文為同一份對照表）。Gemini 的結語是：「Cookie 是瀏覽器預設的親生兒子，到哪都自動跟著；Authorization Header 是前端程式碼手動裝進行李箱的物品，惡意網站摸不到受害者的行李箱，自然就發不出帶有 JWT 的合法請求。」</li>
+</ol>
+<h2 id="_6">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話〈Cookie 隔離與登入狀態解析〉</td>
+<td>https://gemini.google.com/app/e0228a3107b0433a</td>
+<td>對話日期 2026-08-31，擷取於 2026-09-01</td>
+</tr>
+<tr>
+<td>Gemini 對話〈瀏覽器 Cookie 與請求安全解析〉</td>
+<td>https://gemini.google.com/app/3d4429ab61f43591</td>
+<td>對話日期 2026-08-31，擷取於 2026-09-01</td>
+</tr>
+<tr>
+<td>MDN — Using HTTP cookies（<code>Domain</code>、<code>Path</code>、<code>SameSite</code> 屬性定義）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies</td>
+<td>MDN 文件，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>MDN — Set-Cookie <code>SameSite</code> 指令</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie</td>
+<td>MDN 文件，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>MDN — Same-origin policy（Origin ＝ Protocol ＋ Domain ＋ Port）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy</td>
+<td>MDN 文件，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>OWASP — Cross-Site Request Forgery Prevention Cheat Sheet</td>
+<td>https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html</td>
+<td>OWASP Cheat Sheet Series，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>RFC 6265bis — Cookies: HTTP State Management Mechanism（<code>SameSite</code> 規範來源）</td>
+<td>https://datatracker.ietf.org/doc/draft-ietf-httpbis-rfc6265bis/</td>
+<td>IETF 草案，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>本篇圖解</td>
+<td><code>obsidian-attachment/學習資安_圖解_CSRF流程-Cookie自動夾帶vs-Bearer手動夾帶_2026-09-01.svg</code></td>
+<td>繪製於 2026-09-01</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>由 Gemini 對話自動整理 · 更新於 2026-09-01</em></p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-01</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -2,12 +2,27 @@
 title: DNS 查詢、TCP 與 TLS 握手 RTT、邊緣節點與網頁效能
 type: topic-note
 source: Gemini
-tags: [gemini, backend, network, dns, tcp, tls, https, rtt, cdn, edge, socket, performance]
-aliases: [DNS查詢與網頁效能, TLS握手RTT, 邊緣節點Edge-Nodes]
+tags:
+  - gemini
+  - backend
+  - network
+  - dns
+  - tcp
+  - tls
+  - https
+  - rtt
+  - cdn
+  - edge
+  - socket
+  - performance
+aliases:
+  - DNS查詢與網頁效能
+  - TLS握手RTT
+  - 邊緣節點Edge-Nodes
 related:
   - "[[CloudFront-CDN概念與快取失效Invalidation]]"
   - "[[Cookie-與-Session]]"
-  - "[[script載入方式]]"
+  - "[[script載入方式+前因後果]]"
 sources:
   - https://gemini.google.com/app/1f474e0298a19e6b
 updated: 2026-08-14

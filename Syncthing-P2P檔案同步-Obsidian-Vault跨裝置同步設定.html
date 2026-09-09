@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Syncthing P2P 檔案同步——Obsidian Vault 跨裝置同步設定</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Syncthing P2P 檔案同步——Obsidian Vault 跨裝置同步設定</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#syncthing</span><span class="pill">#p2p</span><span class="pill">#obsidian</span><span class="pill">#同步</span><span class="pill">#android</span><span class="pill">#ios</span><span class="pill">#工具</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-09</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/a6870dde43fd81ec" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/ee0ee352fc1402cf" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Syncthing 會把檔案先上傳到 Syncthing 官方的雲端伺服器，再下載到另一台裝置。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是 P2P 點對點，檔案直接在你自己的裝置之間傳輸，不提供也不經過任何雲端空間。</div></li><li><p class="qq">Android 上使用 Syncthing 需要付費才能解除容量限制。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Android 版免費且無容量上限；20MB 限制是 iOS 的 Möbius Sync 才有。</div></li><li><p class="qq">Sync.com 是 Syncthing 的官方雲端服務。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">兩者完全無關，Sync.com 是另一家賣雲端空間的廠商，別買錯。</div></li><li><p class="qq">在另一台裝置上必須先手動建好同名資料夾，Syncthing 才能同步。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">不需要，一邊設定分享、另一邊按接受，Syncthing 會自動建立同名資料夾。</div></li><li><p class="qq">配對時要在電腦的 Syncthing 裡輸入電腦自己的 Device ID。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">要輸入「對方」的 ID，也就是在電腦上貼手機的 ID。</div></li><li><p class="qq">手機顯示 Offline 最常見的原因是被 Android 的電池最佳化機制關掉了背景程序。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">停用電池最佳化是最關鍵的一步，不改的話其他設定都白搭。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Syncthing 屬於 <input class="blank" data-a="P2P" placeholder="填答案" autocomplete="off">（點對點）架構的同步工具，檔案不經過第三方伺服器。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Peer-to-Peer。</div></li><li><p class="qq">Android 上現在實際該安裝的是社群維護的 Syncthing-<input class="blank" data-a="Fork" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">官方 Android 版已下架封存。</div></li><li><p class="qq">iOS 上的 Syncthing 客戶端叫 <input class="blank" data-a="Möbius" placeholder="填答案" autocomplete="off"> Sync，免費版只有 20MB 且僅限自己的沙盒。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">因為 Apple 的沙盒機制限制，才需要額外的付費解鎖。</div></li><li><p class="qq">Syncthing 的裝置 ID 是一長串大寫英數字，每 <input class="blank" data-a="7" placeholder="填答案" autocomplete="off"> 碼用一個橫槓隔開。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">格式不對系統會直接擋下來。</div></li><li><p class="qq">Obsidian vault 同步後，手機端只要用「開啟現有 <input class="blank" data-a="vault" placeholder="填答案" autocomplete="off">」指向那個同步資料夾就能直接編輯。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">vault 本質就是一個放 .md 的資料夾。</div></li><li><p class="qq">為了避免兩台一直互相覆蓋，建議在 Syncthing 裡忽略 .obsidian/<input class="blank" data-a="workspace" placeholder="填答案" autocomplete="off">.json 這個介面狀態檔。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">它會頻繁變動，同步它沒有意義還會製造衝突。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">比較用 Syncthing 同步 Obsidian vault 與用 Google Drive／Obsidian Sync 的優缺點，並說明你會怎麼選。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) Syncthing 優點：完全免費（除 iOS 客戶端）、沒有容量上限、端對端加密且檔案只存在自己裝置上、隱私最好。(2) Syncthing 缺點：兩台裝置必須「同時在線」才會同步，手機容易被省電機制殺掉背景程序；沒有雲端當中介，所以裝置都關機時就完全不會同步；多裝置同時編輯會產生 sync-conflict 副本。(3) 雲端方案優點：非同步、隨時可同步、有版本歷史、設定簡單。缺點：要錢、廠商技術上讀得到內容。(4) 選擇建議：重視隱私與成本、裝置常一起開機就選 Syncthing；需要跨時區、裝置很少同時開機、或不想處理衝突就選雲端方案。(5) 可補充風險控管：開啟 File Versioning、忽略 .obsidian/workspace.json、養成「編輯前先確認另一台同步完成」的習慣。</div></li><li><p class="qq">一位朋友說「我在 Android 平板上找不到 Möbius Sync 的付費選項」，請說明他的觀念哪裡錯了，並給出正確做法。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 觀念錯誤：Möbius Sync 是 iOS／iPadOS 專屬的客戶端，Android 上根本沒有這個 App，所以找不到是正常的。(2) 為什麼 iOS 才需要它：Apple 的沙盒機制不允許 App 隨意讀寫其他 App 的資料夾，所以要有專門開發的客戶端，並用一次性內購解鎖「存取其他 App 沙盒」的能力。(3) Android 的正確做法：直接從 Google Play 安裝 Syncthing-Fork，免費、開源、沒有任何容量限制。(4) 順帶提醒：不要跟 Sync.com 搞混，那是另一家賣雲端空間的廠商。(5) 若對方確實是在 iOS 上找不到付費按鈕：那是因為解鎖流程要「觸發限制」才會跳出，可以試著 Add Folder 選一個外部資料夾，或直接下載獨立的 Möbius Sync Pro。</div></li></ol></section>
+
+<article class="card">
+<h1 id="syncthing-p2p-obsidian-vault">Syncthing P2P 檔案同步——Obsidian Vault 跨裝置同步設定</h1>
+<blockquote>
+<p>[!info]- 📍 為什麼要記這個<br />
+Obsidian 官方的 Obsidian Sync 要訂閱費，而 vault 本質上只是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一堆 <code>.md</code> 純文字檔加附件</mark>——只要能把資料夾同步過去，手機上的 Obsidian 就能直接打開。Syncthing 正好解決這件事，而且<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不經過任何雲端</mark>。<br />
+關聯：<span class="wikilink" title="Obsidian 連結：Obsidian-語音筆記與GoogleDocs銜接限制">Obsidian-語音筆記與GoogleDocs銜接限制</span> 講的是「內容怎麼進 vault」，這篇講的是「vault 怎麼在裝置之間流動」。</p>
+<p>本篇重點 (a)–(l)，共 12 個。</p>
+</blockquote>
+<hr />
+<h2 id="syncthing">一、Syncthing 是什麼，跟雲端硬碟差在哪</h2>
+<p>a. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Syncthing 是開源的 P2P（Peer-to-Peer，點對點）檔案同步工具</mark>。它<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不提供任何雲端空間</mark>，檔案是從你的電腦「直接」傳到你的手機，中間不落地到第三方伺服器。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Syncthing</th>
+<th>Google Drive／Dropbox 這類雲端</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>檔案存在哪</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只存在你自己的裝置上</mark></td>
+<td>存在廠商的伺服器</td>
+</tr>
+<tr>
+<td>容量上限</td>
+<td>你的硬碟有多大就多大</td>
+<td>依方案付費</td>
+</tr>
+<tr>
+<td>需要裝置同時開機嗎</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">需要，兩台都要在線才會同步</mark></td>
+<td>不需要，雲端隨時在</td>
+</tr>
+<tr>
+<td>隱私</td>
+<td>端對端加密，廠商看不到內容</td>
+<td>廠商技術上讀得到</td>
+</tr>
+<tr>
+<td>費用</td>
+<td>免費開源（iOS 客戶端除外）</td>
+<td>超過免費額度要付費</td>
+</tr>
+</tbody>
+</table>
+<p>b. <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最容易搞混的一點</mark>：搜尋時會看到 <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「Sync.com」</mark>（賣 1TB／2TB／10TB 雲端空間的廠商），那跟 Syncthing、跟 Möbius Sync <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">是完全不同的服務</mark>，別買錯。</p>
+<hr />
+<h2 id="_1">二、各平台該裝哪一個</h2>
+<p>c. 這是最花錢也最容易踩雷的一格：</p>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>該裝什麼</th>
+<th>費用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows／macOS／Linux</td>
+<td>Syncthing 官方版（網頁介面操作）</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全免費</mark></td>
+</tr>
+<tr>
+<td>Android（含紅米平板）</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Syncthing-Fork</mark>（Google Play 上的社群維護版）</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全免費、無容量上限</mark></td>
+</tr>
+<tr>
+<td>iOS／iPadOS</td>
+<td>Möbius Sync（第三方客戶端，內部用 Syncthing 引擎）</td>
+<td>免費版<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只有 20MB 且僅限 App 自己的沙盒</mark>，需一次性內購解鎖</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!danger]+ 別在 Android 上找付費選項<br />
+d. <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Android 完全不需要付費</mark>。Android 版 Syncthing 沒有容量限制，本身就是免費開源的完整軟體。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Möbius Sync 是 iOS 專屬的客戶端</mark>，因為 Apple 的沙盒（sandbox）機制不允許 App 隨意讀寫其他 App 的資料夾，才需要額外開發與付費解鎖。</p>
+<p>[!question]+ 「Möbius Sync 沒有跳出付費按鈕」怎麼辦<br />
+e. Möbius Sync 的解鎖<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不是一個獨立按鈕，而是「觸發限制時才跳出」</mark>。原因有二：（1）免費額度還沒用完——只要沙盒內檔案總量沒超過 20MB，系統不會催你付費；（2）還沒去碰受限功能——要解鎖「存取其他 App 的沙盒」（例如同步 Obsidian 的外部資料夾），得<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">實際去點 Add Folder 並選一個外部資料夾</mark>，權限被擋下時購買流程才會啟動。<br />
+f. 另一條路是直接下載獨立的 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Möbius Sync Pro</mark>（另一個 App），功能與內購解鎖後完全相同。</p>
+</blockquote>
+<hr />
+<h2 id="id">三、配對流程：ID 不要貼成自己的</h2>
+<p>g. <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最常見的失敗原因</mark>：把自己裝置的 ID 貼進自己的設定裡。正確方向是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">交換</mark>——在電腦上輸入「手機的 ID」，在手機上接受「電腦的邀請」。</p>
+<p>h. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">裝置 ID（Device ID）</mark>長這樣：一長串大寫英數字，每 7 碼用一個橫槓隔開，例如 <code>3PXANYP-M6L7EHF-Z4L9AHD-2P6J3E4-G3H7K4J-F5R6D7A-L2G9Y4P-B3H6N2D</code>。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">格式不對系統會直接擋下來</mark>，所以貼錯不會靜默失敗，這點還算友善。</p>
+<pre><code class="language-text">[手機] 複製自己的 Device ID
+   │
+   ▼
+[電腦] Syncthing 網頁介面 → 新增遠端裝置 → 貼上「手機的」ID
+   │
+   ▼
+[手機] 跳出通知 → 接受
+   │
+   ▼
+兩台裝置互相看得見了（狀態顯示 Connected）
+</code></pre>
+<hr />
+<h2 id="_2">四、加入資料夾：不用先手動建好</h2>
+<p>i. <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不需要事先在另一台建好同名資料夾</mark>。Syncthing 會自動建。只要在其中一邊設定、另一邊按「接受」即可：</p>
+<ul>
+<li><strong>從電腦推出去</strong>：電腦 → Add Folder → 選現有資料夾（例如 Obsidian vault）→ Sharing 分頁勾選手機 → 手機收到通知按接受 → 手機自動長出同名資料夾。</li>
+<li><strong>從手機推出去</strong>：手機 Syncthing-Fork → Add Folder → 選資料夾 → 分享給電腦 → 電腦按接受。</li>
+</ul>
+<p>j. 把 Obsidian vault 加進來之後，手機端的 Obsidian 只要<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">用「開啟現有 vault」指向那個同步資料夾</mark>，就能直接編輯，改動會自動流回電腦。</p>
+<blockquote>
+<p>[!warning]+ ⚠️ Obsidian ＋ Syncthing 的已知風險（對話沒提到，但很重要）<br />
+- <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩台同時編輯同一個檔案會產生衝突副本</mark>（檔名會多出 <code>sync-conflict</code> 字樣）。習慣是「編輯前先確認另一台已同步完成」。<br />
+- 建議在 Syncthing 的資料夾設定裡<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">忽略 <code>.obsidian/workspace.json</code></mark> 這類會頻繁變動的介面狀態檔，否則兩台會一直互相覆蓋。<br />
+- 開啟<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">檔案版本控制（File Versioning）</mark>，誤刪時還救得回來。</p>
+</blockquote>
+<hr />
+<h2 id="offline">五、手機老是顯示「斷線 Offline」</h2>
+<p>k. Syncthing 要同步必須<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">同時滿足三件事</mark>：兩台都開著 App、兩台都連著網路、兩台找得到彼此。手機顯示 Offline 通常是被系統省電機制殺掉了背景程序。</p>
+<p>l. Android 上的三個設定（依重要性排序）：</p>
+<table>
+<thead>
+<tr>
+<th>設定</th>
+<th>位置</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">停用電池最佳化</mark></td>
+<td>系統設定 → 應用程式 → Syncthing-Fork → 電池 → 選「不受限制／不最佳化」</td>
+<td>最關鍵。Android 為了省電會自動關掉背景 App，這一項不改其他都白搭</td>
+</tr>
+<tr>
+<td>開啟背景同步</td>
+<td>Syncthing-Fork App 內 → 設定 → Background Sync</td>
+<td>讓它常駐在背景</td>
+</tr>
+<tr>
+<td>允許行動網路</td>
+<td>Syncthing-Fork → 設定 → 連線／資料用量 → Use Mobile Data</td>
+<td>不在同一個 Wi-Fi 也想同步時才需要開；同一個 Wi-Fi 下連線品質最好</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!warning]+ ⚠️ 存疑／更正<br />
+- Gemini 在對話中把 <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Android 版建議成「Syncthing 官方版」</mark>，但官方版早已從 Google Play 下架、專案也已封存；<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">現在 Android 上實際該裝的是社群維護的 Syncthing-Fork</mark>（對話後段自己也改口用 Syncthing-Fork 了，前後不一致）。<br />
+- 這兩段都是<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">邊操作邊問的語音／截圖對話</mark>，中間夾雜了英文文法、影片鼓勵等完全無關的問題，本篇只抽出 Syncthing 相關內容。<br />
+- 20MB 與一次性內購的價格會隨時間變動，<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">查證當下（2026-09-09）官方 FAQ 記載為 20MB 沙盒上限、一次性內購解鎖無限同步</mark>，實際金額以 App Store 顯示為準。</p>
+</blockquote>
+<hr />
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：Syncthing 安裝與設定指南</td>
+<td>https://gemini.google.com/app/a6870dde43fd81ec</td>
+<td>對話擷取於 2026-09-09</td>
+</tr>
+<tr>
+<td>Gemini 對話：Syncthing 手機下載與替代方案</td>
+<td>https://gemini.google.com/app/ee0ee352fc1402cf</td>
+<td>對話擷取於 2026-09-09</td>
+</tr>
+<tr>
+<td>Syncthing 官方網站（P2P、開源、端對端加密）</td>
+<td>https://syncthing.net/</td>
+<td>查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Syncthing 官方文件（Device ID 格式、資料夾分享流程）</td>
+<td>https://docs.syncthing.net/</td>
+<td>查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Möbius Sync FAQ（20MB 沙盒上限、一次性內購解鎖）</td>
+<td>https://mobiussync.com/faq/</td>
+<td>官方 FAQ；查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Möbius Sync App Store 頁面</td>
+<td>https://apps.apple.com/us/app/m%C3%B6bius-sync/id1539203216</td>
+<td>查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Möbius Sync Pro（獨立付費版）</td>
+<td>https://apps.apple.com/us/app/m%C3%B6bius-sync-pro/id1671184333</td>
+<td>查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Syncthing-Fork（Android 社群維護版）</td>
+<td>https://github.com/Catfriend1/syncthing-android</td>
+<td>查證於 2026-09-09</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><sub>由 Gemini 對話自動整理 · 更新於 2026-09-09</sub></p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-09</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

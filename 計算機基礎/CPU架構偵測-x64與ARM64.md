@@ -6,12 +6,13 @@ tags: [gemini, isa, x86-64, amd64, arm64, powershell, cmd, uname, wow64, 計算�
 sources:
   - https://gemini.google.com/app/68acc28655502fa4
   - https://gemini.google.com/app/f00083e09ec02fa5
-updated: 2026-08-27
+  - https://gemini.google.com/app/6ecdf62c2ff52863
+updated: 2026-09-07
 ---
 
 # CPU 架構偵測｜x64 與 ARM64、AMD64 這個名字的由來
 
-> [!info] 本篇重點 a–r 共 18 個
+> [!info] 本篇重點 a–v 共 22 個
 > 起因是要更新一個軟體，不確定該下載 x64 還是 ARM64 版。順著查下去把 <mark style="background: #FFF3A3A6;">ISA 是什麼</mark>、<mark style="background: #FFF3A3A6;">AMD64 為什麼叫 AMD</mark>、<mark style="background: #FFF3A3A6;">CMD 與 PowerShell 讀環境變數的語法為何不同</mark> 一次搞清楚。
 
 > [!info] 與其他筆記的關聯（附理由）
@@ -145,6 +146,23 @@ $env:PROCESSOR_ARCHITEW6432
 
 ---
 
+### 五、追加 2026-09-07｜x86-64 到底「擴充」了什麼（s–v）
+
+> 來源：Gemini 對話〈Cursor 备份文件说明〉（標題與內容不符，實際問的是「Windows x64 架構」）— <https://gemini.google.com/app/6ecdf62c2ff52863>
+
+**s.** <mark style="background: #ADCCFFA6;">x86-64（又叫 x64、AMD64、Intel 64）不是一套全新的 ISA（Instruction Set Architecture，指令集架構，也就是「CPU 看得懂哪些指令」的規格書），而是舊有 x86 這套 ISA 的 64 位元「延伸（extension）」</mark>。延伸的意思是：原本 x86 的指令一條都沒被刪掉，只是額外加上 64 位元的暫存器（`RAX`／`RBX`⋯，比原本的 `EAX`／`EBX` 多一倍寬）與定址能力。<mark style="background: #D2B3FFA6;">這正是它能向下相容的技術原因，不是「特別做了一個相容模式」，而是它本來就把舊指令集整個包在裡面。</mark>
+
+**t.** <mark style="background: #FFF3A3A6;">「64 位元最大的實際好處是記憶體定址空間」</mark>。32 位元的指標只有 32 個 bit，能指到的位址數量是 2³² = 4,294,967,296 個，一個位址對應一個 byte，所以上限就是 <mark style="background: #FFB8EBA6;">4 GB</mark>。<mark style="background: #FF5582A6;">注意這 4 GB 還要跟顯示卡、BIOS 等硬體保留位址共用，所以 32 位元 Windows 實際可用的往往只有 3.2～3.5 GB。</mark> 換成 64 位元指標後，理論上限是 2⁶⁴（16 EB，艾位元組），現行 x86-64 硬體只實作其中 48 位元或 57 位元的線性位址，但對桌機來說已等同「沒有上限」。
+
+**u.** <mark style="background: #D2B3FFA6;">補充一個常被誤解的點</mark>：32 位元系統其實可以靠 <mark style="background: #ADCCFFA6;">PAE（Physical Address Extension，實體位址擴充）</mark> 讓「作業系統整體」用超過 4 GB 的實體記憶體，但<mark style="background: #FF5582A6;">單一行程（process）的虛擬位址空間仍被 32 位元指標卡在 4 GB</mark>。所以 PAE 解的是「機器裝得下多少 RAM」，解不了「一個程式能用多少」——這才是影片剪輯、資料庫、跑本地模型這類工作一定要 64 位元的原因。
+
+**v.** <mark style="background: #BBFABBA6;">向下相容的實作在 Windows 上叫 WOW64（Windows 32-bit On Windows 64-bit）</mark>，它讓 32 位元的 `.exe` 在 64 位元 Windows 上原封不動執行。<mark style="background: #FF5582A6;">但相容不是零成本</mark>：32 位元行程看到的環境變數與登錄檔會被 WOW64 重導（就是本篇 o、p 節那個「行程會騙你」的坑），而且 <mark style="background: #FF5582A6;">64 位元行程不能載入 32 位元的 DLL、反之亦然</mark>，混用外掛時最常在這裡炸。
+
+> [!warning] ⚠️ 這則對話的品質提醒
+> 這是一則 Gemini Live 語音對話，Gemini 的回答只有短短三句英文（「64-bit extension of x86 / 突破 4 GB / 向下相容」），s–v 的細節是本次整理時另外查證 Microsoft Learn 與 SUSE 文件補上的，<mark style="background: #FF5582A6;">不是 Gemini 原話</mark>。另外 Gemini 說的「fully backward compatible」用詞過寬，實際上 <mark style="background: #FF5582A6;">16 位元程式在 64 位元 Windows 上完全不能跑</mark>（WOW64 只涵蓋 32 位元），這點見下方存疑表。
+
+---
+
 ## ⚠️ 存疑／更正
 
 | Gemini 說法 | 查證後 | 說明 |
@@ -153,6 +171,8 @@ $env:PROCESSOR_ARCHITEW6432
 | 「ARM64 是給高通 Snapdragon X 晶片或 Apple M 系列轉 Windows 用的」 | 表述不精確 | ARM64 版 Windows 軟體是給 **Windows on ARM** 用的，涵蓋 Snapdragon X 系列與在 Apple Silicon 上用虛擬機跑 Windows 的情境，並不限於「M 系列轉 Windows」 |
 | 「Antigravity 更新步驟：前往 antigravity.google/download」 | 未查證 | 這是產品端資訊、會隨版本改動，本篇不背書。真的要更新請直接開官網確認當下的下載選單 |
 | 對話最後岔題到「Threads 網頁版私訊連結」 | 與本主題無關 | 已捨棄不收錄，屬於生活雜項 |
+| 「x86-64 fully backward compatible，可以跑大部分舊的 32 位元程式」（2026-09-07 追加對話） | ⚠️ 用詞過寬 | 32 位元程式確實可透過 WOW64 執行，但 <mark style="background: #FF5582A6;">16 位元程式（舊 DOS／Win3.x）在 64 位元 Windows 上完全無法執行</mark>，NTVDM 只存在於 32 位元版 Windows。說「fully」會誤導 |
+| 「32 位元系統的記憶體上限就是 4 GB」（2026-09-07 追加對話） | 不完整 | 精確的說法是「單一行程的虛擬位址空間上限 4 GB」；作業系統整體可透過 PAE 定址超過 4 GB 實體記憶體。見 u 節 |
 
 ---
 
@@ -188,6 +208,13 @@ $env:PROCESSOR_ARCHITEW6432
 
 同一批問題的姊妹對話，內容已依主題拆分至 [[TS/TypeScript-any與unknown-型別逃生艙口與斷言時機]] 與 [[build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain]]，本篇僅收錄其中提到 `Intel Ultra 7`、`x64` 的架構脈絡。
 
+### 〈Cursor 备份文件说明〉（2026-09-07 讀取）— <https://gemini.google.com/app/6ecdf62c2ff52863>
+
+<mark style="background: #D2B3FFA6;">標題是 Gemini 自動命名的，與內容不符</mark>，實際只有一個回合：
+
+**使用者：** Windows x64 架构你解释一下，我记得我以前有问过。
+**Gemini：** Windows x64 architecture is a 64-bit extension of the older x86 architecture. It's designed to handle larger amounts of memory, way beyond the 4 GB limit of 32-bit systems, which makes it much faster and more efficient for modern, resource-intensive applications. It's also fully backward compatible, so you can still run most older 32-bit programs without any issues.
+
 ---
 
 ## 資料來源（含查證時間）
@@ -201,3 +228,6 @@ $env:PROCESSOR_ARCHITEW6432
 | Detect x86_64 process on ARM64（Microsoft Q&A，說明 ARM64 上的偵測陷阱） | https://learn.microsoft.com/en-us/answers/questions/449019/detect-x86-64-process-on-arm64 | 2026-08-27 查證 |
 | Tell if process architecture is "ARM64 (x64 compatible)" or "x64" on Windows 11 | https://learn.microsoft.com/en-us/answers/questions/518344/tell-if-process-archtitecture-is-arm64-(x64-compat | 2026-08-27 查證 |
 | SYSTEM_INFO 結構（wProcessorArchitecture 欄位定義） | https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info | 2026-08-27 查證 |
+| 原始對話（Gemini，x86-64 延伸與 4 GB 上限，s–v 節） | https://gemini.google.com/app/6ecdf62c2ff52863 | 2026-09-07 讀取 |
+| Memory Limits for Windows and Windows Server Releases（4 GB 上限與 PAE 的官方定義） | https://learn.microsoft.com/en-us/windows/win32/memory/memory-limits-for-windows-releases | 2026-09-07 查證 |
+| SUSE — What is x86-64（x86-64 是 x86 的 64 位元延伸、向下相容說明） | https://www.suse.com/topics/definition/x86-64/ | 2026-09-07 查證 |

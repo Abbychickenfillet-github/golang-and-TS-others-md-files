@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HITL 介面（Human-in-the-Loop）— AI 審核修正與 RLHF 回饋迴路，以及前端要做什麼</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>HITL 介面（Human-in-the-Loop）— AI 審核修正與 RLHF 回饋迴路，以及前端要做什麼</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#hitl</span><span class="pill">#human-in-the-loop</span><span class="pill">#rlhf</span><span class="pill">#ai</span><span class="pill">#前端</span><span class="pill">#react</span><span class="pill">#面試</span><span class="pill">#職缺名詞</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/0ed84d3d67f436e2" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">HITL 的全名是 Human-in-the-Loop。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">中文常譯人機協作或人類在環，loop 指的是「推論 → 審核 → 回饋 → 再訓練」的閉環。</div></li><li><p class="qq">HITL 介面的目的是讓人取代 AI 做所有判斷。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是讓人只處理「信心度低的那一小撮」，這是成本與正確率的取捨。</div></li><li><p class="qq">只要把人工修正後的答案餵回模型，就叫做 RLHF。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">RLHF 是「偏好排序 → 訓練 reward model → 強化學習調策略」；直接餵正確答案比較接近監督式微調或主動學習。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">RLHF 的全名是 Reinforcement Learning from Human <input class="blank" data-a="Feedback" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">基於人類回饋的強化學習。</div></li><li><p class="qq">HITL 介面上要清楚呈現 AI 對每個欄位的信心度，英文叫 Confidence <input class="blank" data-a="Score" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">低分的欄位才需要人工介入。</div></li><li><p class="qq">HITL 介面常見的效能瓶頸是一次渲染上千筆待審資料，解法是虛擬捲動（<input class="blank" data-a="virtual" placeholder="填答案" autocomplete="off">ization）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">例如 TanStack Virtual，只渲染可視範圍內的列。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">面試時被問「你會怎麼設計一個文件審核的 HITL 介面」，請給一個完整回答。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 先問清楚領域與風險等級——醫療與發票的錯誤成本天差地遠，決定要人工複核多少比例。(2) 資訊架構：左邊放原始文件（PDF 或影像），右邊放 AI 抽出的欄位，兩邊要能雙向高亮（點欄位就跳到文件對應位置），這是審核速度的關鍵。(3) 排序與過濾：預設把信心度最低、或規則檢核失敗的排最前面，讓人先看最需要看的。(4) 互動效率：全鍵盤操作（Tab 移動、Enter 確認、快捷鍵標記可疑）、批次核准、可以只審一個欄位而不用開整份文件。(5) 資料流：樂觀更新讓 UI 立即反應，背景送出並處理失敗回滾；每一次人工修正都要記錄「原值、新值、修改者、時間」，這既是稽核軌跡也是再訓練的資料。(6) 效能：待審清單用虛擬捲動；文件影像用漸進式載入與縮圖預載。(7) 最後補一句取捨：介面的每一個設計決策都是在換「人每小時能審幾件」，這是這類產品唯一真正的 KPI。</div></li></ol></section>
+
+<article class="card">
+<h1 id="hitl-human-in-the-loop-ai-rlhf">HITL 介面（Human-in-the-Loop）— AI 審核修正與 RLHF 回饋迴路，以及前端要做什麼</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+(1) 這是 Abby 在看 104 職缺（Data Munger 平台）時遇到的名詞，屬於「AI 產品的人機協作層」，所以歸進 <code>LLM-Memory/</code>。<br />
+(2) <span class="wikilink" title="Obsidian 連結：影像行為分析系統成本估算-邊緣過濾加雲端VLM混合架構">影像行為分析系統成本估算-邊緣過濾加雲端VLM混合架構</span> 那篇的「邊緣先過濾、可疑的才送雲端」在架構上就是 HITL 的機器版本——把「不確定的丟給更貴的判斷者」，只是這裡的判斷者換成人。<br />
+(3) <span class="wikilink" title="Obsidian 連結：Test-Harness傳統測試框架與AI-Harness差異">Test-Harness傳統測試框架與AI-Harness差異</span> 講的是「怎麼自動評估 AI 輸出」，HITL 講的是「自動評估不了的時候由誰接手」，兩篇是同一條品質防線的前後段。</p>
+<p>本篇重點 a–j，共 10 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="ab">一、名詞先拆開（a–b）</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HITL ＝ Human-in-the-Loop，中文常譯「人機協作」或「人類在環」</mark>。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不要只記縮寫</mark>——「in the loop」的 loop 指的是「AI 推論 → 人工審核 → 回饋修正 → 再訓練」這個閉環，人是被放進這個迴圈裡的一個節點。</p>
+<p>(b) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HITL 介面（Human-in-the-Loop Interface）＝專為「人類與 AI 系統協作、審核與修正」設計的使用者介面</mark>。白話就是給 AI 產出加一道「關卡」或「儀表板」。</p>
+<h3 id="ce">二、它在做的三件事（c–e）</h3>
+<p>(c) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">審核與驗證（Review &amp; Validate）</mark>：查看 AI 產出的結果或預測，例如 AI 自動辨識出來的表單資料、自動生成的報告。</p>
+<p>(d) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">手動修正（Human Intervention / Correction）</mark>：當 AI 判定不確定、信心度過低或明顯出錯時，由人工補充或修正資料。</p>
+<p>(e) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">標註與回饋（Feedback &amp; Training）</mark>：把人類修正後的正確結果再送回模型當訓練資料。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">RLHF ＝ Reinforcement Learning from Human Feedback，基於人類回饋的強化學習</mark>，就是這一步最常被提到的做法。</p>
+<blockquote>
+<p>[!tip] 為什麼需要這一關<br />
+因為 AI 的輸出不保證 100% 精準。把「信心度低的那一小撮」交給人，比「全部交給人」或「全部交給 AI」都划算——這是成本與正確率的取捨，不是技術不夠好。</p>
+</blockquote>
+<h3 id="fh">三、常見應用場景（f–h）</h3>
+<p>(f) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">企業文件處理與審核</mark>（Abby 看到的 Data Munger 平台就屬於這類）：AI 先從 PDF、發票、合約抽取欄位，HITL 介面把高風險或低信心度的欄位標示出來，由人員快速確認與更正。</p>
+<p>(g) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">醫療影像輔助</mark>：AI 先圈出可能的病灶，醫師在介面上做最終確認與標記。</p>
+<p>(h) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">內容審查與客服</mark>：AI 自動過濾明顯的敏感言論，模稜兩可的轉交人工審核決策。</p>
+<h3 id="reactij">四、前端工程師（React）要注意什麼（i–j）</h3>
+<p>(i) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">三個開發重點</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>具體要做的事</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>高效率互動設計</td>
+<td>快捷鍵、批次處理、標註工具，讓審核人員能快速對大量資料下判斷</td>
+</tr>
+<tr>
+<td>前後對比與高亮提示</td>
+<td>把 AI 的信心度（Confidence Score）、欄位差異清楚呈現出來</td>
+</tr>
+<tr>
+<td>狀態管理與非同步同步</td>
+<td>資料標記、手動修改儲存、送回後端重新訓練的完整資料流</td>
+</tr>
+</tbody>
+</table>
+<p>(j) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">補一個 Gemini 沒講、但面試會加分的點</mark>：HITL 介面的效能瓶頸幾乎都在「一次要渲染上千筆待審資料」，所以虛擬捲動（virtualization，例如 TanStack Virtual）、樂觀更新（optimistic update）與批次送出，是這類介面最常見的技術選型理由。Abby 的 vault 裡已有 tanstack 資料夾，可以往那個方向準備。</p>
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 把 RLHF 直接等同於「把人類修正結果餵回模型」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這個講法太寬鬆</mark>：RLHF 的標準流程是「人類對多個候選輸出做偏好排序 → 訓練 reward model → 用 PPO 之類的強化學習演算法調整策略」，而一般 HITL 平台收集到的「修正後的正確答案」比較接近監督式微調（SFT）或主動學習（active learning）的資料，不一定會走 RLHF。面試被追問時要分得清楚。</li>
+</ul>
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/0ed84d3d67f436e2</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>Google Cloud — Human-in-the-Loop 說明</td>
+<td>https://cloud.google.com/document-ai/docs/hitl</td>
+<td>Google Cloud 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>OpenAI — Learning from human preferences（RLHF 原始說明）</td>
+<td>https://openai.com/index/learning-from-human-preferences/</td>
+<td>2017 發表，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Anthropic — Constitutional AI（RLHF 的替代路線 RLAIF）</td>
+<td>https://www.anthropic.com/news/claudes-constitution</td>
+<td>Anthropic 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>AWS — What is RLHF</td>
+<td>https://aws.amazon.com/what-is/reinforcement-learning-from-human-feedback/</td>
+<td>AWS 現行文件，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">各對話來源</h2>
+<h3 id="hitl-2026-09-httpsgeminigooglecomapp0ed84d3d67f436e2">HITL 介面意義與解析（2026-09）— https://gemini.google.com/app/0ed84d3d67f436e2</h3>
+<p><strong>使用者：</strong> HITL 介面是什麼意思？</p>
+<p><strong>Gemini：</strong> 在 AI 與軟體開發領域中，HITL 代表 Human-in-the-Loop（人機協作／人類在環）。HITL 介面指的是專為人類與 AI 系統進行協作、審核與修正所設計的使用者介面。因為 AI 的輸出不一定 100% 精準，HITL 介面就是提供一個「關卡」或「儀表板」，讓專業人員可以做三件事：審核與驗證（查看 AI 產出的結果或預測）、手動修正（AI 判定不確定、信心度過低或出錯時人工補充修正）、標註與回饋（把人類修正後的正確結果反饋給模型作為持續訓練的數據，即 RLHF）。常見場景包括企業數據處理與審核（如職缺中提到的 Data Munger 平台，AI 抽取 PDF／發票／合約後由人員確認高風險欄位）、醫療影像輔助（AI 圈病灶、醫師確認）、內容審查與客服（AI 過濾敏感言論、模稜兩可轉人工）。對前端工程師（React）的開發重點是：高效率的互動設計（快捷鍵、批次處理、標註工具）、前後對比與高亮提示（呈現信心度與欄位差異）、狀態管理與非同步同步（資料標記、儲存、送回後端重新訓練的資料流）。</p>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>使用者線上狀態怎麼做 — WebSocket 心跳與 Redis、Page Visibility 與 Idle 偵測</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>使用者線上狀態怎麼做 — WebSocket 心跳與 Redis、Page Visibility 與 Idle 偵測</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#websocket</span><span class="pill">#redis</span><span class="pill">#presence</span><span class="pill">#heartbeat</span><span class="pill">#page-visibility</span><span class="pill">#系統設計</span><span class="pill">#面試</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/d9c81309bc44e965" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">只要 Token 還沒過期，就可以判定使用者目前在線上。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。Token 只能證明通過身分驗證，證明不了人現在在不在、視窗開著還是已經斷線。</div></li><li><p class="qq">使用者拔掉網路線時，前端會送一個下線通知給伺服器。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。異常斷線不會有任何通知，只能靠伺服器端的心跳逾時判定。</div></li><li><p class="qq">手動設定的「請勿打擾」應該壓過自動偵測的結果。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">對。手動狀態優先權最高，否則使用者一動滑鼠就被改回 online。</div></li><li><p class="qq">線上狀態應該直接寫進主資料庫以確保一致性。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。狀態變動非常頻繁，會把主 DB 打爆，實務上用 Redis 承接並用 Pub/Sub 廣播。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">偵測「使用者切分頁或縮小視窗」要用瀏覽器的 <input class="blank" data-a="Page Visibility" placeholder="填答案" autocomplete="off"> API。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">監聽 visibilitychange 事件，用 document.hidden 判斷。</div></li><li><p class="qq">輪詢作法中，伺服器在 Redis 裡更新的欄位通常叫 <input class="blank" data-a="last_active_time" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">再用 Key 的 TTL 或背景 Task 判斷是否逾時。</div></li><li><p class="qq">Redis 做跨伺服器狀態廣播時用的機制叫 <input class="blank" data-a="Pub/Sub" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">發布訂閱，讓多台伺服器都能收到狀態變更。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請設計一個「好友上線狀態」功能，說明前端與後端各自負責什麼。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 先把問題拆兩層——連線層決定 online/offline，行為層決定 idle/away/busy。(2) 連線層：登入後建立 WebSocket 長連線，連上就把 Redis 中該 user 標為 online 並廣播給好友；正常登出時前端主動通知（用 navigator.sendBeacon 較可靠）；異常斷線靠伺服器端 Ping-Pong 心跳逾時自動判定 offline。即時性要求不高時可退成每 30～60 秒的輪詢，用 last_active_time 加 TTL。(3) 行為層（純前端）：用 Page Visibility API 監聽 visibilitychange 決定 away；用 mousemove/keydown/scroll/click 重置 Timer，5～10 分鐘無動作切 idle；手動的「請勿打擾」存 DB 且優先權最高。(4) 後端只負責儲存與廣播，用 Redis Key-Value 存當前狀態、Pub/Sub 做跨機器廣播，避免高頻寫入主資料庫。(5) 補一句取捨：逾時秒數是產品決策不是規範，要看對「延遲多久算離線」的容忍度。</div></li></ol></section>
+
+<article class="card">
+<h1 id="websocket-redispage-visibility-idle">使用者線上狀態怎麼做 — WebSocket 心跳與 Redis、Page Visibility 與 Idle 偵測</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+(1) <span class="wikilink" title="Obsidian 連結：JWT_TOKEN_EXPLANATION">JWT_TOKEN_EXPLANATION</span> 講 Token 能證明什麼，本篇正好是它的邊界說明：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Token 只能證明「驗證過」，證明不了「現在人在不在」</mark>。這兩篇要一起看才不會把「有 Token」誤當成「在線上」。<br />
+(2) <span class="wikilink" title="Obsidian 連結：IoT大範圍斷線-告警機制與重試策略-系統設計面試">IoT大範圍斷線-告警機制與重試策略-系統設計面試</span> 討論的是裝置端大量斷線時的重試與告警，本篇的心跳逾時判定是同一套機制用在「人」身上。<br />
+(3) <span class="wikilink" title="Obsidian 連結：WebTransport-雙向傳輸機制與三種模式">WebTransport-雙向傳輸機制與三種模式</span> 記的是新一代雙向傳輸，本篇的作法 A 用的是它的前輩 WebSocket，可以對照兩者的取捨。<br />
+(4) <span class="wikilink" title="Obsidian 連結：Cookie-與-Session">Cookie-與-Session</span> 講的是「身分怎麼被記住」，本篇講的是「狀態怎麼被即時同步」，兩件不同的事常被混為一談。</p>
+<p>本篇重點 a–j，共 10 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="tokenab">一、為什麼不能只看 Token（a–b）</h3>
+<p>(a) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">實務上絕對不會單靠 Token 判斷線上狀態</mark>。JWT 這類 Token 只能證明<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「使用者通過了身分驗證」</mark>，它<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">無法反映使用者當下在不在、視窗開著還是縮小、或是已經斷線</mark>。</p>
+<p>(b) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">正確作法是把問題拆成兩層</mark>：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「連線層」決定 online／offline</mark>（WebSocket 或輪詢），<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「行為層」決定 idle／away／busy</mark>（瀏覽器事件）。<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">面試被問到這題，先講這個拆分再講細節，會比直接背 API 好很多。</mark></p>
+<h3 id="ce">二、線上／離線：兩種作法（c–e）</h3>
+<p>(c) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">作法 A：WebSocket／Socket.io 長連線（主流，即時性高）</mark></p>
+<table>
+<thead>
+<tr>
+<th>事件</th>
+<th>發生什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>上線</td>
+<td>登入後建立 WebSocket 長連線；連線成功即把 Redis／DB 中該 user 狀態改為 <code>online</code>，並廣播給好友</td>
+</tr>
+<tr>
+<td>正常下線</td>
+<td>使用者點登出或關分頁，前端主動送斷線通知</td>
+</tr>
+<tr>
+<td>異常斷線</td>
+<td>伺服器在時限內收不到 Heartbeat／Ping-Pong 封包，自動觸發 <code>disconnect</code> 事件改為 <code>offline</code></td>
+</tr>
+</tbody>
+</table>
+<p>(d) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">作法 B：Heartbeat／Polling 輪詢（即時性要求不高時）</mark>。前端每 30 秒到 1 分鐘打一次 Ping API，伺服器收到就更新 Redis 裡的 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>last_active_time</code></mark>；<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">若超過 2～3 分鐘沒更新就判定離線</mark>，靠 Redis Key 的 TTL 或背景 Task 掃描。</p>
+<p>(e) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩種作法的差別只在「誰主動」</mark>：WebSocket 是伺服器發現連線斷掉，輪詢是伺服器發現時間戳過期。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但兩者都需要逾時判定，因為「使用者拔網路線」不會有任何通知送到伺服器。</mark></p>
+<h3 id="fh">三、閒置／離開／忙碌：純前端偵測（f–h）</h3>
+<p>(f) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Page Visibility API</mark> 負責「切分頁／視窗縮小」：</p>
+<pre><code class="language-js">document.addEventListener('visibilitychange', () =&gt; {
+  if (document.hidden) {
+    // 切走了 → 送出「離開 (Away)」
+  } else {
+    // 回來了 → 送出「線上 (Online)」
+  }
+});
+</code></pre>
+<p>(g) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Idle Detection 靠自己起一個 Timer</mark>：監聽 <code>mousemove</code>、<code>keydown</code>、<code>scroll</code>、<code>click</code>，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">有動作就重置計時器</mark>；<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">5～10 分鐘沒動作就切成「閒置 (Idle)」</mark>。</p>
+<p>(h) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">手動狀態的優先權最高</mark>。像 Slack、Discord 的「請勿打擾 (Do Not Disturb)」是使用者自己選的，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">存進資料庫後必須壓過所有自動偵測結果</mark>，否則使用者一動滑鼠就被系統改回 online，體驗會很糟。</p>
+<h3 id="ij">四、業界常見組合（i–j）</h3>
+<p>(i) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">前端負責「判斷」，後端負責「儲存與廣播」</mark>：前端用 Page Visibility ＋ 滑鼠鍵盤 idle 事件決定當下狀態，透過 WebSocket 把狀態變更事件送出。</p>
+<p>(j) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">後端用 Redis 而不是主資料庫</mark>。狀態變動非常頻繁，寫進主 DB 會把它打爆；Redis 的 Key-Value 讀寫快，還能用 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Pub/Sub</mark> 做跨伺服器廣播。<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這也是為什麼 presence 幾乎是 Redis 的教科書級使用情境。</mark></p>
+<h2 id="_2">⚠️ 存疑／需要留意</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>對話中的說法</th>
+<th>需要留意的地方</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>正常下線</td>
+<td>「關閉分頁，前端發送斷線通知」</td>
+<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關分頁時送請求並不可靠</mark>。<code>beforeunload</code> 裡的一般 <code>fetch</code> 常來不及送出，要用 <code>navigator.sendBeacon()</code>；即使如此仍應以伺服器端心跳逾時為最終依據</td>
+</tr>
+<tr>
+<td>逾時秒數</td>
+<td>2～3 分鐘、5～10 分鐘</td>
+<td>這是慣例值不是規範，實際要依產品對「延遲多久算離線」的容忍度調整</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">各對話來源（原文摘要）</h2>
+<h3 id="2026-09-05-httpsgeminigooglecomappd9c81309bc44e965">使用者狀態偵測與同步架構（2026-09-05）— https://gemini.google.com/app/d9c81309bc44e965</h3>
+<p><strong>使用者：</strong> 大家做登入（上線、下線、忙碌）的顯示是會用有登入的 token 還是其他偵測 method，譬如視窗打開的話。</p>
+<p><strong>Gemini：</strong> 回答如上方重點整理，分成連線層（WebSocket／輪詢）與行為層（Page Visibility／Idle）兩部分，並建議後端用 Redis 承接高頻狀態寫入。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/d9c81309bc44e965</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>MDN — Page Visibility API</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API</td>
+<td>MDN，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — Navigator.sendBeacon()</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/Navigator/sendBeacon</td>
+<td>MDN，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Socket.IO — 連線狀態管理與 Ping/Pong</td>
+<td>https://socket.io/docs/v4/how-it-works/</td>
+<td>Socket.IO v4 文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Redis — Key 過期（TTL）</td>
+<td>https://redis.io/docs/latest/develop/use/keyspace/#key-expiration</td>
+<td>Redis 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Redis — Pub/Sub</td>
+<td>https://redis.io/docs/latest/develop/interact/pubsub/</td>
+<td>Redis 現行文件，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<h2 id="leetcodeneetcode">練習題（LeetCode／NeetCode 對照）</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>362. Design Hit Counter</td>
+<td>https://leetcode.com/problems/design-hit-counter/</td>
+<td>時間窗內的活動計數，就是 <code>last_active_time</code> 逾時判定的抽象版（Premium）</td>
+</tr>
+<tr>
+<td>359. Logger Rate Limiter</td>
+<td>https://leetcode.com/problems/logger-rate-limiter/</td>
+<td>「幾秒內只算一次」的節流，對應心跳頻率控制（Premium）</td>
+</tr>
+<tr>
+<td>146. LRU Cache</td>
+<td>https://leetcode.com/problems/lru-cache/</td>
+<td>理解 Redis 這類記憶體快取為什麼要淘汰、怎麼淘汰</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">關聯筆記</h2>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>關聯原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JWT_TOKEN_EXPLANATION</td>
+<td>Token 能證明身分但證明不了在線，本篇是那篇的邊界補充</td>
+</tr>
+<tr>
+<td>IoT大範圍斷線-告警機制與重試策略-系統設計面試</td>
+<td>心跳逾時與重試策略是同一套機制用在裝置上</td>
+</tr>
+<tr>
+<td>WebTransport-雙向傳輸機制與三種模式</td>
+<td>WebSocket 的下一代方案，可對照選型</td>
+</tr>
+<tr>
+<td>Cookie-與-Session</td>
+<td>「身分被記住」與「狀態被同步」是兩件事</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

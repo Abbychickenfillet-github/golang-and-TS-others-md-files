@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>瀏覽器相容性 — Polyfill 補 API、Babel 降語法、Browserslist 一次設定全家套用</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>瀏覽器相容性 — Polyfill 補 API、Babel 降語法、Browserslist 一次設定全家套用</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#瀏覽器相容性</span><span class="pill">#polyfill</span><span class="pill">#babel</span><span class="pill">#browserslist</span><span class="pill">#core-js</span><span class="pill">#autoprefixer</span><span class="pill">#閉包</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/a1a14102e2207433" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Babel 可以把舊瀏覽器缺少的 Promise 補回來。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Babel 管語法，Promise 是執行期的 API，要靠 core-js 這類 Polyfill 補。</div></li><li><p class="qq">Browserslist 是一個瀏覽器外掛（Extension）。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是一個設定規格加上一個 npm 套件，被 Babel、Autoprefixer、Vite、Webpack 共用。</div></li><li><p class="qq">.browserslistrc 裡的多行條件之間是 OR（聯集）關係。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">所以 &gt; 0.5% 一行就涵蓋所有市佔達標的瀏覽器，不必逐一列舉。</div></li><li><p class="qq">把事件處理包成 el.addEventListener(&#x27;blur&#x27;, function(){ checkUsername(5) }) 這件事，核心概念是閉包。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">詞法作用域是規則，閉包是「函式連同定義時的環境一起被保存下來等待觸發」這個現象。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">自動補上舊瀏覽器缺少的 API，這種墊片庫叫做 <input class="blank" data-a="Polyfill" placeholder="填答案" autocomplete="off">，代表套件是 core-js。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">跟 Transpiler 分工：一個補 API、一個降語法。</div></li><li><p class="qq">Browserslist 條件 not <input class="blank" data-a="dead" placeholder="填答案" autocomplete="off"> 用來排除官方已停止維護的廢棄瀏覽器。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">超過 24 個月沒更新且沒市佔的會被排掉。</div></li><li><p class="qq">寫在 package.json 時，欄位名稱是 &quot;<input class="blank" data-a="browserslist" placeholder="填答案" autocomplete="off">&quot;，值是字串陣列或分環境的物件。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">好處是少維護一個獨立設定檔。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">同事說「我們專案有裝 Babel，所以不用管舊瀏覽器了」。你會怎麼補充？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 先肯定一半——Babel 確實會把 ES6+ 語法降級成 ES5，箭頭函式、class、async/await 都能處理。(2) 但 Babel 只翻語法，翻不出「執行期才存在的東西」：Promise、Array.prototype.includes、Object.assign、fetch 這些是 API，舊瀏覽器根本沒有這些物件與方法，必須靠 core-js 之類的 Polyfill 在執行時掛上去。(3) 兩者要一起設定，而且都應該讀同一份 Browserslist 目標，否則會出現「語法降到 ES5 但用了 IE 沒有的 API」這種只在正式環境炸掉的狀況。(4) 另外要提醒定期跑 npx update-browserslist-db@latest，否則 caniuse-lite 資料過期會讓 &gt; 0.5% 的判斷失準，建置時也會一直跳警告。</div></li></ol></section>
+
+<article class="card">
+<h1 id="polyfill-apibabel-browserslist">瀏覽器相容性 — Polyfill 補 API、Babel 降語法、Browserslist 一次設定全家套用</h1>
+<blockquote>
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+(1) 本篇歸在 <code>build-and-compilation/</code>，因為 Polyfill 與 Babel 都是「建置階段」的事，跟 <span class="wikilink" title="Obsidian 連結：Dev-Server在Node環境-devServer-proxy繞過CORS-HMR用WebSocket-與原生語言打包工具">Dev-Server在Node環境-devServer-proxy繞過CORS-HMR用WebSocket-與原生語言打包工具</span> 同屬前端 toolchain 的一環——那篇講開發期的 dev server，本篇講產出期的降級與補丁。<br />
+(2) 開頭那段 <code>addEventListener</code> 的匿名函式屬於閉包主題，與 <span class="wikilink" title="Obsidian 連結：13-閉包-Closure-私有變數與傳址陷阱">13-閉包-Closure-私有變數與傳址陷阱</span>、<span class="wikilink" title="Obsidian 連結：事件流與事件代理">事件流與事件代理</span> 直接相關，本篇只保留「為什麼要包一層匿名函式」這個切面，細節請看那兩篇。</p>
+<p>本篇重點 a–n，共 14 個。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<h3 id="ac">一、事件監聽為什麼要包一層匿名函式（a–c）</h3>
+<p>(a) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不能寫 <code>el.addEventListener('blur', checkUsername(5))</code></mark>。這樣寫會在執行到這一行時「立刻執行」<code>checkUsername(5)</code>，再把它的回傳值交給監聽器，達不到「等 blur 發生才執行」的目的。</p>
+<pre><code class="language-js">// ✅ 包一層匿名函式，事件發生時才執行內部呼叫
+el.addEventListener('blur', function () {
+  checkUsername(5);
+}, false);
+</code></pre>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">詞法作用域（Lexical Scope）是規則</mark>：這個匿名函式在「定義的位置」就決定了它能存取外層的 <code>checkUsername</code> 與數字 <code>5</code>。</p>
+<p>(c) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">閉包（Closure）是現象與機制</mark>：匿名函式被註冊給 DOM 元素之後，主程式跑完它仍留在記憶體裡等待觸發；blur 發生時它在全新的執行環境中被呼叫，卻依然能存取當初定義時捕獲的環境。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所以這題的核心答案是「閉包」，詞法作用域只是它成立的前提。</mark></p>
+<h3 id="dg">二、相容性程式碼不用手寫（d–g）</h3>
+<p>(d) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">全部手寫 <code>if...else</code> 檢查瀏覽器能力，程式碼會很髒且難以維護</mark>。現代前端早就交給自動化編譯工具處理。</p>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Polyfill（墊片庫）＝補「缺失的 API」</mark>，代表套件是 <code>core-js</code>。你正常寫 <code>el.addEventListener(...)</code>，Polyfill 會在載入時偵測環境，發現舊瀏覽器不支援就自動掛上模擬的 API。</p>
+<p>(f) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Transpiler（語法轉譯器）＝把「新語法」翻成「舊語法」</mark>，代表工具是 <code>Babel</code>（現代專案大多已整合在 Vite、Next.js、Webpack 底層）。箭頭函式、<code>async/await</code>、<code>const</code>/<code>let</code> 都會被翻成 ES5 的 <code>var</code> 與 <code>function</code>。</p>
+<p>(g) 兩者的分工一句話記：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Babel 管「語法（syntax）」，Polyfill 管「內建物件與方法（API）」</mark>。<code>Promise</code>、<code>Array.prototype.includes</code> 這些是 API，Babel 翻不出來，只能靠 Polyfill 補。</p>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>補的東西</th>
+<th>代表套件</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Transpiler</td>
+<td>語法</td>
+<td>Babel / SWC / esbuild</td>
+<td><code>() =&gt; {}</code> 轉成 <code>function(){}</code></td>
+</tr>
+<tr>
+<td>Polyfill</td>
+<td>執行期的 API</td>
+<td>core-js / regenerator-runtime</td>
+<td>舊瀏覽器沒有的 <code>Promise</code>、<code>Object.assign</code></td>
+</tr>
+<tr>
+<td>後處理器</td>
+<td>CSS 前綴與新語法</td>
+<td>PostCSS / Autoprefixer</td>
+<td>自動補 <code>-webkit-</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="browserslist-hk">三、Browserslist 是什麼（h–k）</h3>
+<p>(h) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Browserslist 不是瀏覽器外掛（Extension）</mark>，而是前端工具生態系的「共用設定規格＋一個 npm 套件」。</p>
+<p>(i) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它的核心工作是把「人類語言的條件」轉成「確切的瀏覽器與版本號清單」</mark>。</p>
+<pre><code>你寫的條件：
+&gt; 0.5%, last 2 versions, not dead
+
+Browserslist 解析出來的結果：
+chrome 124, chrome 123, safari 17.4, safari 17.3, edge 124, firefox 125...
+</code></pre>
+<p>(j) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它是前端建置流程的「中央指令中心」：一次設定，Babel、Autoprefixer、PostCSS、SWC 全家套用</mark>，不必在每個工具的設定檔各寫一次相容目標。</p>
+<pre><code>                   ┌──&gt; Babel        （決定語法要降到哪個 ES 版本）
+                   │
+.browserslistrc ───┼──&gt; Autoprefixer （決定 CSS 要加哪些 -webkit- / -moz- 前綴）
+                   │
+                   └──&gt; PostCSS / SWC（決定要打包哪些 Polyfill）
+</code></pre>
+<p>(k) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不需要把每個瀏覽器都列出來</mark>，這些條件之間是 OR（聯集）關係：</p>
+<table>
+<thead>
+<tr>
+<th>條件</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&gt; 0.5%</code></td>
+<td>全球市佔率超過 0.5% 的所有瀏覽器版本，一行就涵蓋 Chrome、Safari、Edge、Firefox、Samsung Internet、Opera</td>
+</tr>
+<tr>
+<td><code>last 2 versions</code></td>
+<td>所有主流瀏覽器的最新 2 個版本</td>
+</tr>
+<tr>
+<td><code>Firefox ESR</code></td>
+<td>Firefox 企業長期支援版，更新慢、市佔常不到 0.5%，但企業還在用，所以單獨列出</td>
+</tr>
+<tr>
+<td><code>not dead</code></td>
+<td>排除官方停止維護、或超過 24 個月沒更新的廢棄瀏覽器</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[!tip] 要指定特定瀏覽器才需要寫死<br />
+<code>Chrome &gt;= 80</code>、<code>iOS &gt;= 12</code>、<code>ie 11</code>、<code>last 2 Chrome versions</code>。大部分現代專案只要 <code>&gt; 0.5%</code> / <code>last 2 versions</code> / <code>not dead</code> 三行。</p>
+</blockquote>
+<h3 id="packagejson-ln">四、寫在 package.json 的兩種格式（l–n）</h3>
+<p>(l) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">陣列格式（一般專案）</mark>：在根層級加一個 <code>"browserslist"</code> 欄位，值是字串陣列，元素之間同樣是 OR 關係。</p>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;my-project&quot;,
+  &quot;version&quot;: &quot;1.0.0&quot;,
+  &quot;scripts&quot;: { &quot;build&quot;: &quot;vite build&quot; },
+  &quot;browserslist&quot;: [
+    &quot;&gt; 0.5%&quot;,
+    &quot;last 2 versions&quot;,
+    &quot;Firefox ESR&quot;,
+    &quot;not dead&quot;
+  ]
+}
+</code></pre>
+<p>(m) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">物件格式（分環境）</mark>：開發環境只支援最新瀏覽器以換取編譯速度，正式環境才追求相容性。</p>
+<pre><code class="language-json">{
+  &quot;browserslist&quot;: {
+    &quot;production&quot;: [&quot;&gt; 0.5%&quot;, &quot;last 2 versions&quot;, &quot;not dead&quot;],
+    &quot;development&quot;: [
+      &quot;last 1 chrome version&quot;,
+      &quot;last 1 firefox version&quot;,
+      &quot;last 1 safari version&quot;
+    ]
+  }
+}
+</code></pre>
+<p>(n) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">寫在 <code>package.json</code> 的好處是少維護一個 <code>.browserslistrc</code> 檔案</mark>，中小型專案更乾淨；大型專案或需要註解時才拆成獨立檔（<code>.browserslistrc</code> 支援 <code>#</code> 註解，JSON 不支援）。</p>
+<h2 id="_2">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 說 Browserslist 的資料「來自 Can I Use」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">更精確的說法是：版本與支援度資料來自 <code>caniuse-lite</code>，但市佔率統計來自 StatCounter GlobalStats</mark>，兩者是不同來源。這也代表 <code>&gt; 0.5%</code> 的結果會隨 <code>caniuse-lite</code> 版本更新而變動，所以官方建議定期執行 <code>npx update-browserslist-db@latest</code>——這點 Gemini 完全沒提，卻是實務上最常出現的建置警告。</li>
+<li>Gemini 舉的解析結果（chrome 124 / safari 17.4）是 2024 年前後的版本號，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">當作示意即可，不要當成現在的實際輸出</mark>。</li>
+<li>Gemini 提到「Vue CLI」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Vue CLI 已於 2024 年進入維護模式</mark>，新專案官方建議改用 <code>create-vue</code> + Vite。</li>
+</ul>
+<h2 id="_3">各對話來源</h2>
+<h3 id="2026-09-httpsgeminigooglecomappa1a14102e2207433">瀏覽器相容性處理的原理與原因（2026-09）— https://gemini.google.com/app/a1a14102e2207433</h3>
+<p><strong>使用者：</strong> 在我剛剛給你的這個例子，第二個參數是一個 function 裡面呼叫 checkUsername 傳入參數是 5，你覺得這是跟詞法作用域有關係而已，還是跟閉包有關係？可是開發者會需要寫很多的相容性的程式碼，這樣不會變得很混亂嗎？有沒有什麼套件可以一次轉換？</p>
+<p><strong>Gemini：</strong> 第一是「閉包」，第二是「現代前端開發早就不用手寫這些相容性程式碼了」。不能直接寫 <code>el.addEventListener('blur', checkUsername(5))</code>，因為那樣會立即執行並把回傳值傳給監聽器。詞法作用域是規則（決定匿名函式在定義時能存取哪些外層變數），閉包是現象與機制（函式被註冊給 DOM 後仍留在記憶體，觸發時仍能存取當初捕獲的環境），所以核心本質是閉包。相容性方面有三層工具：Polyfill（core-js，自動補缺失 API）、Transpiler（Babel，把 ES6+ 語法降級成 ES5）、以及 Babel + Polyfill + Browserslist 的專案自動化整合。</p>
+<p><strong>使用者：</strong> <code>&gt; 0.5% / last 2 versions / Firefox ESR / not dead</code>，那如果不是 Firefox 也要一一寫出來嗎？</p>
+<p><strong>Gemini：</strong> 不用。Browserslist 是查詢語法、是篩選條件組合，條件之間是 OR（聯集）關係。<code>&gt; 0.5%</code> 一行就涵蓋所有市佔超過 0.5% 的瀏覽器；<code>last 2 versions</code> 涵蓋主流瀏覽器最新兩版；<code>Firefox ESR</code> 單獨列出是因為企業長期支援版更新慢、市佔常不到 0.5%；<code>not dead</code> 排除已停止維護的廢棄瀏覽器。要針對特定瀏覽器才需要寫 <code>Chrome &gt;= 80</code>、<code>iOS &gt;= 12</code>、<code>ie 11</code> 這種。現代專案大多只要三行 <code>&gt; 0.5%</code> / <code>last 2 versions</code> / <code>not dead</code>。</p>
+<p><strong>使用者：</strong> Browserslist 是一個插件嗎？</p>
+<p><strong>Gemini：</strong> 不是獨立執行的瀏覽器外掛，而是前端工具生態系的共用設定規格與庫。它同時是一個放在專案根目錄的設定檔（<code>.browserslistrc</code> 或 <code>package.json</code> 的 <code>browserslist</code> 欄位），也是一個 Node.js 的 npm 套件；Babel、Autoprefixer、ESBuild、SWC、Vite、Webpack 底層都引入了它。核心功能是把人類語言條件轉成確切的瀏覽器版本清單，扮演建置流程的「中央指令中心」，一次設定全家套用。</p>
+<p><strong>使用者：</strong> 「或直接寫在 package.json 裡的 browserslist 欄位」這邊怎麼寫？</p>
+<p><strong>Gemini：</strong> 在根層級新增 <code>"browserslist"</code> 欄位，值用字串陣列（條件之間同樣是 OR）。也可以改寫成物件格式做分環境設定，<code>production</code> 注重相容性、<code>development</code> 只支援最新瀏覽器以追求編譯速度。寫在 <code>package.json</code> 的優點是少維護一個獨立的 <code>.browserslistrc</code> 檔案。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/a1a14102e2207433</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>Browserslist 官方 README（查詢語法與 package.json 設定）</td>
+<td>https://github.com/browserslist/browserslist</td>
+<td>現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Browserslist — update-browserslist-db（定期更新資料庫）</td>
+<td>https://github.com/browserslist/update-db</td>
+<td>現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Babel 官方 — @babel/preset-env（targets 讀 browserslist）</td>
+<td>https://babeljs.io/docs/babel-preset-env</td>
+<td>現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>core-js 官方 README（Polyfill 範圍）</td>
+<td>https://github.com/zloirock/core-js</td>
+<td>現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>MDN — Polyfill 名詞解釋</td>
+<td>https://developer.mozilla.org/en-US/docs/Glossary/Polyfill</td>
+<td>MDN 現行版本，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Vue CLI 官方 — 已進入維護模式、建議改用 create-vue</td>
+<td>https://cli.vuejs.org/</td>
+<td>官方公告，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

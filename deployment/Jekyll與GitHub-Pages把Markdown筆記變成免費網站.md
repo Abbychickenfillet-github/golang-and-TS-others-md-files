@@ -17,7 +17,8 @@ related:
   - "[[Zeabur-主機遷移-DeepSeek-API與費用比較]]"
 sources:
   - https://gemini.google.com/app/7fd6c5bc52ded55b
-updated: 2026-08-09
+  - https://gemini.google.com/app/f3a872c3ffc14c05
+updated: 2026-08-29
 ---
 
 # Jekyll 與 GitHub Pages：把 Markdown 筆記變成免費網站
@@ -178,3 +179,31 @@ Jekyll 對「沒有 front matter 的檔案」的處理是**照抄到輸出目錄
 > 目前排除的是 `private/`、`_to_delete/`、`系統維護-C槽清理/`、`Git/`、`*.sh`、`*.bak`。
 > 新增資料夾時要順手想一下「這個能不能公開」。
 
+
+---
+
+### 追加 2026-08-29：私有 repo 的 Pages 在免費方案是關著的
+
+來源對話：[GitHub 專案配置入口尋找](https://gemini.google.com/app/f3a872c3ffc14c05)（Gemini Flash，2026-08-28，語音模式）
+
+**(x) 一句話結論**：<mark style="background: #FF5582A6;">GitHub Free 方案的私有（private）儲存庫無法啟用 GitHub Pages。</mark>要嘛把 repo 設為公開（Public），要嘛升級到 <mark style="background: #ADCCFF A6;">GitHub Pro／Team／Enterprise Cloud</mark>。
+
+**(y) 這跟上面那條「即使 repo 是 private，Pages 網站是公開的」不衝突，兩件事要分開記**：
+
+| 問題 | 答案 |
+| --- | --- |
+| 私有 repo 能不能**開得起來** Pages？ | 免費方案不行，付費方案可以 |
+| 開起來之後網站**看得到嗎**？ | 預設任何人都看得到；要限制存取得用付費方案的 Access Control |
+| 沒被 `exclude:` 排除的檔案會不會被發布？ | 會，這是唯一的隱私閘門 |
+
+**(z) 排查順序**：在 Settings → Pages 找不到自己的網址時，先確認<mark style="background: #FFF3A3A6;">你人在哪一個 repo 的設定頁</mark>。多個專案很容易切錯——例如以為在看作品集 repo，其實停在 `next-one-time-tracker` 的設定頁，那當然看不到別的專案的 `*.github.io` 網址。
+
+> ⚠️ **存疑／更正**：這段對話裡 Gemini 前後反覆——先斷言「儲存庫是私有的所以不能用 Pages」，被追問後又改口「你畫面上的連結確實是 GitHub Pages 網址，表示已經啟用了」，最後幾輪直接回「I'm just a language model and can't help with that」。<mark style="background: #FF5582A6;">Gemini 當下並沒有真的看到畫面，它的判斷不可信</mark>。上表的規則是回查 GitHub 官方文件後確認的，以官方為準。
+
+**資料來源（含查證時間）**
+
+| 主題 | 連結 | 版本／查證時間 |
+| --- | --- | --- |
+| GitHub Docs — About GitHub Pages（各方案可用性） | https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages | GitHub Docs 現行版本，2026-08-29 查證 |
+| GitHub Docs — Changing the visibility of your GitHub Pages site | https://docs.github.com/en/pages/getting-started-with-github-pages/changing-the-visibility-of-your-github-pages-site | GitHub Docs 現行版本，2026-08-29 查證 |
+| 本次來源對話 | https://gemini.google.com/app/f3a872c3ffc14c05 | Gemini Flash，2026-08-28 |

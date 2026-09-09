@@ -6,14 +6,15 @@ category: 技術
 tags: [gemini, 計算機概論, 訊號處理, DCT, JPEG, 複雜度, 演算法]
 sources:
   - https://gemini.google.com/app/e7b91ee6801bc36d
-updated: 2026-07-25
+  - https://gemini.google.com/app/edd4261917950b95
+updated: 2026-09-07
 ---
 
 # 傅立葉轉換、Sine/Cosine 與 DCT、JPEG 壓縮原理
 
 相關筆記：[[../資料結構/冒泡排序法-range參數與時間複雜度]]
 
-本篇重點 a–l，共 12 個。
+本篇重點 a–r，共 18 個。（a–l：傅立葉與 DCT／JPEG；m–r：2026-09-07 追加的「位元速率怎麼看」）
 
 ## 重點整理
 
@@ -47,6 +48,37 @@ updated: 2026-07-25
 (l) <mark style="background: #FF5582A6;">為什麼 O(N²) 要「每個都跟其他所有比對一遍」</mark>：以找最小值排序為例，第一輪要確定全域最小值，必須把第 1 張跟第 2、3…N 張全部比過一輪（N−1 次比較）；第二輪找剩下最小值再比對 N−2 次⋯依此類推，總比較次數約 `N(N−1)/2`，當 N 很大時主導項就是 `N²`。這種寫法通常對應程式碼裡的「雙重巢狀迴圈」，且<mark style="background: #FF5582A6;">「沒有記憶力」</mark>——每一輪比對都沒利用前面比對過的資訊。改善方式是像快速排序那樣「分而治之」：先選一個基準點，把資料分成「比基準大」「比基準小」兩堆，兩堆彼此之間就永遠不用再比對，直接砍掉一半以上不必要的比較，複雜度因此降到 `O(N log N)`。開發時資料庫 Query 沒下索引、或前端對幾千筆資料用巢狀 `map`/`filter`，都容易不小心踩進這個 `O(N²)` 陷阱導致卡頓。
 
 > [!tip] 這篇的 (k)(l) 跟 [[../資料結構/冒泡排序法-range參數與時間複雜度]] 是同一個「時間複雜度」主題的不同切角，一個從排序找最小值角度講 O(N²)，另一篇從 `range()` 參數與冒泡排序實作角度講，可以互相對照複習。
+
+### 追加 2026-09-07｜位元速率（Bitrate）：把壓縮原理換算成看得懂的數字（m–r）
+
+> 起因對話：〈影片畫質解析度與位元速率〉— <https://gemini.google.com/app/edd4261917950b95>。Abby 拿兩支同樣 720p 的影片檔問「哪個畫質比較好」。
+
+(m) <mark style="background: #ADCCFFA6;">位元速率（bitrate，中文也叫「資料速度」「碼率」）＝每秒鐘用掉多少 bit 來描述這段影音</mark>，單位 <mark style="background: #ADCCFFA6;">kbps（kilobits per second，每秒千位元）</mark>。<mark style="background: #FFF3A3A6;">它就是前面 (d)(j) 講的「壓縮」在檔案上留下的可量測痕跡</mark>：DCT 丟掉越多高頻細節，bitrate 就越低、檔案越小、畫質也越糊。
+
+(n) <mark style="background: #FF5582A6;">解析度相同不代表畫質相同。</mark>解析度（1280×720）只說明「有幾個像素格子」，bitrate 才說明「每個格子被描述得多細」。<mark style="background: #FF5582A6;">bitrate 不足的 1080p 會出現方塊狀色塊（blocking／馬賽克），實際上比乾淨的 720p 還難看</mark>，因為 DCT 量化得太粗，同一個 8×8 區塊裡的細節全被抹成一片。
+
+(o) <mark style="background: #ADCCFFA6;">總位元速率會被拆成「影像位元速率」與「音訊位元速率」兩塊</mark>，兩者相加大致等於總 bitrate。Abby 這兩支檔案的實際數字：
+
+| 項目 | 檔案 A | 檔案 B | 判讀 |
+|---|---|---|---|
+| 解析度 | 1280×720 | 1280×720 | 平手 |
+| 影像位元速率 | 1154 kbps | 1285 kbps | B 高約 11% |
+| 音訊位元速率 | <mark style="background: #BBFABBA6;">251 kbps</mark> | 171 kbps | <mark style="background: #BBFABBA6;">A 明顯較好</mark> |
+| 總位元速率 | 1406 kbps | 1456 kbps | B 略高 |
+
+(p) <mark style="background: #BBFABBA6;">結論是留檔案 A</mark>。理由：影像端 11% 的差距在 720p 下<mark style="background: #D2B3FFA6;">人眼幾乎分辨不出來</mark>（畫質對 bitrate 的感受是明顯的邊際遞減，越往上加越沒感覺）；但音訊端 251 kbps 對 171 kbps 是<mark style="background: #FFB8EBA6;">將近 47% 的差距</mark>，立體聲下的高頻與空間感差別聽得出來。<mark style="background: #FFF3A3A6;">總 bitrate 是一個被兩邊瓜分的預算，看總數會被騙，要拆開看。</mark>
+
+(q) <mark style="background: #FFB8EBA6;">720p 的合理參考區間</mark>：一般上傳／串流大致落在 <mark style="background: #FFB8EBA6;">1500～4000 kbps</mark>（畫面越動態、越多細節需要越高）。<mark style="background: #FF5582A6;">兩支檔案的影像 bitrate 都只有 1100～1300 kbps，其實都低於這個區間下緣</mark>，所以「A 比 B 好」的正確理解是「A 的取捨比較均衡」，不是「A 畫質很好」。
+
+(r) <mark style="background: #D2B3FFA6;">實務判斷順序</mark>：<mark style="background: #BBFABBA6;">先看 bitrate 夠不夠撐得起這個解析度，再談要不要拉解析度</mark>。<mark style="background: #FF5582A6;">在頻寬固定的前提下，硬拉解析度只會讓每個像素分到更少的 bit，反而更糊</mark>——這跟 (k) 說的「演算法再快也要先有合理的資料量」是同一種取捨思維。
+
+> [!tip] 練習題（延伸）
+> 位元速率屬於系統／多媒體知識，<mark style="background: #FF5582A6;">LeetCode 與 NeetCode 沒有直接對應的題目</mark>。想練「用有限預算描述資訊」的手感，最接近的是這兩題：
+>
+> | 題目 | 連結 | 為什麼相關 |
+> |---|---|---|
+> | 443. String Compression | https://leetcode.com/problems/string-compression/ | 就地壓縮，直接體會「壓縮率」是怎麼來的 |
+> | 271. Encode and Decode Strings | https://leetcode.com/problems/encode-and-decode-strings/ | 自訂編碼格式，體會「要幾個 byte 才能無歧義地還原資料」 |
 
 ## 各對話來源
 
@@ -89,3 +121,6 @@ updated: 2026-07-25
 |---|---|---|
 | 對話原始出處 | https://gemini.google.com/app/e7b91ee6801bc36d | 2026-07-25 查證 |
 | 傅立葉轉換數學定義、DCT/JPEG 壓縮原理 | Gemini 回答內容，屬通用訊號處理/影像壓縮教科書共識，未附外部連結，建議日後對照 MDN/教科書原文查證 | 2026-07-25 對話當下 |
+| 追加對話（位元速率判讀，m–r 節） | https://gemini.google.com/app/edd4261917950b95 | 2026-09-07 讀取 |
+| 720p 建議位元速率區間、「bitrate 比 resolution 更決定觀感」 | https://bitratecalculator.org/blog/bitrate-vs-resolution | 2026-09-07 查證 |
+| YouTube 各解析度建議上傳位元速率 | https://castr.com/blog/best-bitrate-for-youtube/ | 2026-09-07 查證 |

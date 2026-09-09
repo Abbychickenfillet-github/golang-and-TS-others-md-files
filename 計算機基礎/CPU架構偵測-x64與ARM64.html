@@ -16,7 +16,7 @@
 body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
   font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   font-size:16.5px;-webkit-font-smoothing:antialiased}
-.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
 header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
   border-radius:16px;padding:26px 28px;margin-bottom:22px}
 header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
@@ -57,6 +57,9 @@ th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-ali
 th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
 tbody tr:nth-child(even){background:#fafbfc}
 hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
 .wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
   border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
 /* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
@@ -114,9 +117,9 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <h1>CPU 架構偵測｜x64 與 ARM64、AMD64 這個名字的由來、PowerShell 與 CMD 的變數語法差異</h1>
   <div class="pills"><span class="pill">#gemini</span><span class="pill">#isa</span><span class="pill">#x86-64</span><span class="pill">#amd64</span><span class="pill">#arm64</span><span class="pill">#powershell</span><span class="pill">#cmd</span><span class="pill">#uname</span><span class="pill">#wow64</span><span class="pill">#計算機基礎</span><span class="pill">#環境變數</span></div>
   <div class="meta">
-    <span>更新於 2026-08-27</span>
+    <span>更新於 2026-09-07</span>
     <span>來源：Gemini</span>
-    <a href="https://gemini.google.com/app/68acc28655502fa4" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/f00083e09ec02fa5" target="_blank" rel="noopener">原始對話 2</a>
+    <a href="https://gemini.google.com/app/68acc28655502fa4" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/f00083e09ec02fa5" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/6ecdf62c2ff52863" target="_blank" rel="noopener">原始對話 3</a>
   </div>
 </header>
 
@@ -135,12 +138,12 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <span>　←　點任一個螢光筆可以把它遮起來</span>
 </div>
 
-<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">AMD64、x86-64、x64、Intel 64 講的是同一個指令集架構。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">四個名字一件事。叫 AMD64 是因為這套 64 位元延伸是 AMD 在 2000 年提出的，Intel 後來才跟進。</div></li><li><p class="qq">Intel 的 CPU 在 Windows 上查 PROCESSOR_ARCHITECTURE 會顯示 Intel64。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">會顯示 AMD64。Windows 沿用 AMD 的原始名稱，不管你的 CPU 是誰家的。</div></li><li><p class="qq">在 PowerShell 打 echo %PROCESSOR_ARCHITECTURE% 可以正確查到架構。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">%VAR% 是 CMD 語法，PowerShell 會原樣吐回字串。PowerShell 要用 $env:PROCESSOR_ARCHITECTURE。</div></li><li><p class="qq">PROCESSOR_ARCHITECTURE 回報的是這台機器的架構，跟目前行程是幾位元無關。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它回報的是「目前這個行程」的架構。32 位元 shell 會回 x86，ARM64 上的 x64 模擬行程會回 AMD64，都會騙你。</div></li><li><p class="qq">PROCESSOR_ARCHITEW6432 只有在「32 位元行程跑在 64 位元系統上」時才存在。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這是 WOW64 子系統替被建立的行程重寫環境變數的結果，內容是機器的真實架構。</div></li><li><p class="qq">x86-64 編譯出來的執行檔可以直接在 ARM64 的 CPU 上原生執行。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">兩個 ISA 的機器指令完全不相容。要嘛重編譯，要嘛靠模擬層（Windows on ARM 的 x64 模擬、macOS 的 Rosetta 2）。</div></li><li><p class="qq">Linux 的 uname -m 顯示 aarch64 代表這是 ARM 的 64 位元架構。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">AArch64 是 ARM 官方名稱，macOS 與 Windows 習慣顯示 arm64。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">ISA 的全名是 Instruction Set <input class="blank" data-a="Architecture" placeholder="填答案" autocomplete="off">，中文叫指令集架構。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">CPU 對外公開的合約：認得哪些指令、有哪些暫存器、怎麼定址。</div></li><li><p class="qq">ARM 架構 64 位元執行狀態的官方名稱是 <input class="blank" data-a="AArch64" placeholder="填答案" autocomplete="off">（ARMv8-A 起引入）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Linux 的 uname -m 就顯示這個。</div></li><li><p class="qq">PowerShell 讀環境變數要用 $<input class="blank" data-a="env" placeholder="填答案" autocomplete="off">:PROCESSOR_ARCHITECTURE 這個 provider 前綴。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">PowerShell 把環境變數當成像檔案系統的磁碟機，所以也可以 Get-ChildItem Env: 列全部。</div></li><li><p class="qq">讓 64 位元 Windows 能跑 32 位元程式的子系統，縮寫是 <input class="blank" data-a="WOW64" placeholder="填答案" autocomplete="off">，全名 Windows 32-bit On Windows 64-bit。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">它會替 32 位元行程重寫 PROCESSOR_ARCHITECTURE。</div></li><li><p class="qq">在程式裡最可靠的架構偵測 Win32 API 是 IsWow64Process<input class="blank" data-a="2" placeholder="填答案" autocomplete="off">，它會分別回傳行程架構與機器原生架構。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">IsWow64Process2 比舊版的 IsWow64Process 多回一個 nativeMachine。</div></li><li><p class="qq">Apple Silicon 上讓 x86-64 程式能執行的轉譯層叫 Rosetta <input class="blank" data-a="2" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">效能會打折，所以能裝原生 arm64 版就裝。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">你要幫同事的 Windows 筆電下載一個開發工具，官網同時提供 x64 與 ARM64 版。請完整說明：ISA 是什麼、為什麼選錯版本程式會完全打不開、你會用哪些指令去查、以及為什麼「查到 AMD64 就一定是 Intel/AMD 機器」這個推論其實有漏洞、該怎麼補。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) ISA（Instruction Set Architecture，指令集架構）是 CPU 對外公開的合約——認得哪些機器指令、有哪些暫存器、怎麼定址、位元組順序。同一 ISA 的二進位可互通，不同 ISA 完全不相容。(2) 選錯會怎樣——x86-64 與 ARM64 的機器碼互不相容，Windows 會直接彈「此應用程式無法在您的電腦上執行」。(3) 怎麼查——CMD 用 echo %PROCESSOR_ARCHITECTURE%；PowerShell 用 $env:PROCESSOR_ARCHITECTURE（%VAR% 在 PowerShell 會被當普通字串原樣吐回）；WSL 或 Git Bash 用 uname -m；Node 程式內用 os.arch()。(4) 漏洞——這些變數回報的是「目前這個行程」的架構而非機器。開到 SysWOW64 底下的 32 位元 PowerShell 會回 x86；更麻煩的是 Windows 11 on ARM 能模擬執行 x64 程式，所以一個 x64 行程在 ARM64 機器上會回 AMD64，讓你誤判成 Intel 機。(5) 怎麼補——同時檢查 PROCESSOR_ARCHITEW6432（只有 32 位元行程跑在 64 位元系統時才存在，內容是機器真實架構）；程式裡最可靠的是呼叫 IsWow64Process2，它分別回傳行程架構與機器原生架構。(6) 補充 AMD64 這個名字的由來：這套 64 位元延伸是 AMD 在 2000 年提出、2003 年隨 Opteron 出貨，Intel 後來跟進（官方叫 Intel 64），Windows 沿用 AMD 的原始名稱，所以 Intel 機器也顯示 AMD64。</div></li></ol></section>
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">AMD64、x86-64、x64、Intel 64 講的是同一個指令集架構。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">四個名字一件事。叫 AMD64 是因為這套 64 位元延伸是 AMD 在 2000 年提出的，Intel 後來才跟進。</div></li><li><p class="qq">Intel 的 CPU 在 Windows 上查 PROCESSOR_ARCHITECTURE 會顯示 Intel64。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">會顯示 AMD64。Windows 沿用 AMD 的原始名稱，不管你的 CPU 是誰家的。</div></li><li><p class="qq">在 PowerShell 打 echo %PROCESSOR_ARCHITECTURE% 可以正確查到架構。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">%VAR% 是 CMD 語法，PowerShell 會原樣吐回字串。PowerShell 要用 $env:PROCESSOR_ARCHITECTURE。</div></li><li><p class="qq">PROCESSOR_ARCHITECTURE 回報的是這台機器的架構，跟目前行程是幾位元無關。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它回報的是「目前這個行程」的架構。32 位元 shell 會回 x86，ARM64 上的 x64 模擬行程會回 AMD64，都會騙你。</div></li><li><p class="qq">PROCESSOR_ARCHITEW6432 只有在「32 位元行程跑在 64 位元系統上」時才存在。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這是 WOW64 子系統替被建立的行程重寫環境變數的結果，內容是機器的真實架構。</div></li><li><p class="qq">x86-64 編譯出來的執行檔可以直接在 ARM64 的 CPU 上原生執行。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">兩個 ISA 的機器指令完全不相容。要嘛重編譯，要嘛靠模擬層（Windows on ARM 的 x64 模擬、macOS 的 Rosetta 2）。</div></li><li><p class="qq">Linux 的 uname -m 顯示 aarch64 代表這是 ARM 的 64 位元架構。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">AArch64 是 ARM 官方名稱，macOS 與 Windows 習慣顯示 arm64。</div></li><li><p class="qq">x86-64 是一套與 x86 無關的全新指令集架構（ISA）。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。它是 x86 這套 ISA 的 64 位元延伸，舊指令整個被包在裡面，這才是它能向下相容的原因。</div></li><li><p class="qq">32 位元系統完全無法定址超過 4 GB 的實體記憶體。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。透過 PAE（Physical Address Extension）作業系統整體可以定址超過 4 GB，卡住的是「單一行程」的 4 GB 虛擬位址空間。</div></li><li><p class="qq">64 位元 Windows 可以執行舊的 16 位元 DOS 程式。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。WOW64 只涵蓋 32 位元，16 位元程式在 64 位元 Windows 上完全不能跑。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">ISA 的全名是 Instruction Set <input class="blank" data-a="Architecture" placeholder="填答案" autocomplete="off">，中文叫指令集架構。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">CPU 對外公開的合約：認得哪些指令、有哪些暫存器、怎麼定址。</div></li><li><p class="qq">ARM 架構 64 位元執行狀態的官方名稱是 <input class="blank" data-a="AArch64" placeholder="填答案" autocomplete="off">（ARMv8-A 起引入）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Linux 的 uname -m 就顯示這個。</div></li><li><p class="qq">PowerShell 讀環境變數要用 $<input class="blank" data-a="env" placeholder="填答案" autocomplete="off">:PROCESSOR_ARCHITECTURE 這個 provider 前綴。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">PowerShell 把環境變數當成像檔案系統的磁碟機，所以也可以 Get-ChildItem Env: 列全部。</div></li><li><p class="qq">讓 64 位元 Windows 能跑 32 位元程式的子系統，縮寫是 <input class="blank" data-a="WOW64" placeholder="填答案" autocomplete="off">，全名 Windows 32-bit On Windows 64-bit。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">它會替 32 位元行程重寫 PROCESSOR_ARCHITECTURE。</div></li><li><p class="qq">在程式裡最可靠的架構偵測 Win32 API 是 IsWow64Process<input class="blank" data-a="2" placeholder="填答案" autocomplete="off">，它會分別回傳行程架構與機器原生架構。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">IsWow64Process2 比舊版的 IsWow64Process 多回一個 nativeMachine。</div></li><li><p class="qq">Apple Silicon 上讓 x86-64 程式能執行的轉譯層叫 Rosetta <input class="blank" data-a="2" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">效能會打折，所以能裝原生 arm64 版就裝。</div></li><li><p class="qq">32 位元指標能定址 2^32 個位址，換算上限正好是 <input class="blank" data-a="4" placeholder="填答案" autocomplete="off"> GB。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">一個位址對應一個 byte，扣掉硬體保留位址後實際可用往往只有 3.2～3.5 GB。</div></li><li><p class="qq">讓 32 位元程式在 64 位元 Windows 上執行的相容層叫 <input class="blank" data-a="WOW64" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Windows 32-bit On Windows 64-bit，它同時會重導環境變數與登錄檔。</div></li><li><p class="qq">ISA 的全名是 Instruction Set <input class="blank" data-a="Architecture" placeholder="填答案" autocomplete="off">，也就是「CPU 看得懂哪些指令」的規格書。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">中文譯為指令集架構。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">你要幫同事的 Windows 筆電下載一個開發工具，官網同時提供 x64 與 ARM64 版。請完整說明：ISA 是什麼、為什麼選錯版本程式會完全打不開、你會用哪些指令去查、以及為什麼「查到 AMD64 就一定是 Intel/AMD 機器」這個推論其實有漏洞、該怎麼補。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) ISA（Instruction Set Architecture，指令集架構）是 CPU 對外公開的合約——認得哪些機器指令、有哪些暫存器、怎麼定址、位元組順序。同一 ISA 的二進位可互通，不同 ISA 完全不相容。(2) 選錯會怎樣——x86-64 與 ARM64 的機器碼互不相容，Windows 會直接彈「此應用程式無法在您的電腦上執行」。(3) 怎麼查——CMD 用 echo %PROCESSOR_ARCHITECTURE%；PowerShell 用 $env:PROCESSOR_ARCHITECTURE（%VAR% 在 PowerShell 會被當普通字串原樣吐回）；WSL 或 Git Bash 用 uname -m；Node 程式內用 os.arch()。(4) 漏洞——這些變數回報的是「目前這個行程」的架構而非機器。開到 SysWOW64 底下的 32 位元 PowerShell 會回 x86；更麻煩的是 Windows 11 on ARM 能模擬執行 x64 程式，所以一個 x64 行程在 ARM64 機器上會回 AMD64，讓你誤判成 Intel 機。(5) 怎麼補——同時檢查 PROCESSOR_ARCHITEW6432（只有 32 位元行程跑在 64 位元系統時才存在，內容是機器真實架構）；程式裡最可靠的是呼叫 IsWow64Process2，它分別回傳行程架構與機器原生架構。(6) 補充 AMD64 這個名字的由來：這套 64 位元延伸是 AMD 在 2000 年提出、2003 年隨 Opteron 出貨，Intel 後來跟進（官方叫 Intel 64），Windows 沿用 AMD 的原始名稱，所以 Intel 機器也顯示 AMD64。</div></li><li><p class="qq">用你自己的話解釋：為什麼「64 位元」對跑本地 LLM 或影片剪輯是必要的？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：關鍵不在運算速度而在定址空間。32 位元指標最多指到 2^32 個位址＝4 GB，而且這是「單一行程」的天花板，PAE 也救不了。本地模型權重、影片時間軸快取這類工作動輒要十幾 GB 連續的虛擬位址，只有 64 位元指標（現行硬體實作 48 或 57 位元線性位址）才裝得下。順帶一提暫存器從 32 位元的 EAX 變成 64 位元的 RAX，一次搬更多資料也有幫助，但那是次要效益。</div></li></ol></section>
 
 <article class="card">
 <h1 id="cpu-x64-arm64amd64">CPU 架構偵測｜x64 與 ARM64、AMD64 這個名字的由來</h1>
 <blockquote>
-<p>[!info] 本篇重點 a–r 共 18 個<br />
+<p>[!info] 本篇重點 a–v 共 22 個<br />
 起因是要更新一個軟體，不確定該下載 x64 還是 ARM64 版。順著查下去把 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">ISA 是什麼</mark>、<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">AMD64 為什麼叫 AMD</mark>、<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CMD 與 PowerShell 讀環境變數的語法為何不同</mark> 一次搞清楚。</p>
 <p>[!info] 與其他筆記的關聯（附理由）<br />
 <strong>a.</strong> 承接 <span class="wikilink" title="Obsidian 連結：WSL版本歷史與System-Call-RISC底層原理">WSL版本歷史與System-Call-RISC底層原理</span>：那篇講 RISC 與 CISC 的設計哲學差異，本篇是它的「實務面」——你桌上這台到底是哪一派，怎麼問出來。<br />
@@ -352,6 +355,19 @@ $env:PROCESSOR_ARCHITEW6432
 </tbody>
 </table>
 <hr />
+<h3 id="2026-09-07x86-64-sv">五、追加 2026-09-07｜x86-64 到底「擴充」了什麼（s–v）</h3>
+<blockquote>
+<p>來源：Gemini 對話〈Cursor 备份文件说明〉（標題與內容不符，實際問的是「Windows x64 架構」）— <a href="https://gemini.google.com/app/6ecdf62c2ff52863">https://gemini.google.com/app/6ecdf62c2ff52863</a></p>
+</blockquote>
+<p><strong>s.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">x86-64（又叫 x64、AMD64、Intel 64）不是一套全新的 ISA（Instruction Set Architecture，指令集架構，也就是「CPU 看得懂哪些指令」的規格書），而是舊有 x86 這套 ISA 的 64 位元「延伸（extension）」</mark>。延伸的意思是：原本 x86 的指令一條都沒被刪掉，只是額外加上 64 位元的暫存器（<code>RAX</code>／<code>RBX</code>⋯，比原本的 <code>EAX</code>／<code>EBX</code> 多一倍寬）與定址能力。<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這正是它能向下相容的技術原因，不是「特別做了一個相容模式」，而是它本來就把舊指令集整個包在裡面。</mark></p>
+<p><strong>t.</strong> <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「64 位元最大的實際好處是記憶體定址空間」</mark>。32 位元的指標只有 32 個 bit，能指到的位址數量是 2³² = 4,294,967,296 個，一個位址對應一個 byte，所以上限就是 <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">4 GB</mark>。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">注意這 4 GB 還要跟顯示卡、BIOS 等硬體保留位址共用，所以 32 位元 Windows 實際可用的往往只有 3.2～3.5 GB。</mark> 換成 64 位元指標後，理論上限是 2⁶⁴（16 EB，艾位元組），現行 x86-64 硬體只實作其中 48 位元或 57 位元的線性位址，但對桌機來說已等同「沒有上限」。</p>
+<p><strong>u.</strong> <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">補充一個常被誤解的點</mark>：32 位元系統其實可以靠 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">PAE（Physical Address Extension，實體位址擴充）</mark> 讓「作業系統整體」用超過 4 GB 的實體記憶體，但<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">單一行程（process）的虛擬位址空間仍被 32 位元指標卡在 4 GB</mark>。所以 PAE 解的是「機器裝得下多少 RAM」，解不了「一個程式能用多少」——這才是影片剪輯、資料庫、跑本地模型這類工作一定要 64 位元的原因。</p>
+<p><strong>v.</strong> <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">向下相容的實作在 Windows 上叫 WOW64（Windows 32-bit On Windows 64-bit）</mark>，它讓 32 位元的 <code>.exe</code> 在 64 位元 Windows 上原封不動執行。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但相容不是零成本</mark>：32 位元行程看到的環境變數與登錄檔會被 WOW64 重導（就是本篇 o、p 節那個「行程會騙你」的坑），而且 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">64 位元行程不能載入 32 位元的 DLL、反之亦然</mark>，混用外掛時最常在這裡炸。</p>
+<blockquote>
+<p>[!warning] ⚠️ 這則對話的品質提醒<br />
+這是一則 Gemini Live 語音對話，Gemini 的回答只有短短三句英文（「64-bit extension of x86 / 突破 4 GB / 向下相容」），s–v 的細節是本次整理時另外查證 Microsoft Learn 與 SUSE 文件補上的，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不是 Gemini 原話</mark>。另外 Gemini 說的「fully backward compatible」用詞過寬，實際上 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">16 位元程式在 64 位元 Windows 上完全不能跑</mark>（WOW64 只涵蓋 32 位元），這點見下方存疑表。</p>
+</blockquote>
+<hr />
 <h2 id="_2">⚠️ 存疑／更正</h2>
 <table>
 <thead>
@@ -381,6 +397,16 @@ $env:PROCESSOR_ARCHITEW6432
 <td>對話最後岔題到「Threads 網頁版私訊連結」</td>
 <td>與本主題無關</td>
 <td>已捨棄不收錄，屬於生活雜項</td>
+</tr>
+<tr>
+<td>「x86-64 fully backward compatible，可以跑大部分舊的 32 位元程式」（2026-09-07 追加對話）</td>
+<td>⚠️ 用詞過寬</td>
+<td>32 位元程式確實可透過 WOW64 執行，但 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">16 位元程式（舊 DOS／Win3.x）在 64 位元 Windows 上完全無法執行</mark>，NTVDM 只存在於 32 位元版 Windows。說「fully」會誤導</td>
+</tr>
+<tr>
+<td>「32 位元系統的記憶體上限就是 4 GB」（2026-09-07 追加對話）</td>
+<td>不完整</td>
+<td>精確的說法是「單一行程的虛擬位址空間上限 4 GB」；作業系統整體可透過 PAE 定址超過 4 GB 實體記憶體。見 u 節</td>
 </tr>
 </tbody>
 </table>
@@ -426,6 +452,10 @@ $env:PROCESSOR_ARCHITEW6432
 <strong>Gemini：</strong> 既然確認電腦架構是 AMD64，那麼絕對要選擇 x64 版本。若錯誤下載 ARM64 版本，啟動時通常會彈出「此應用程式無法在您的電腦上執行」的錯誤視窗。</p>
 <h3 id="laptop-architecture-detection-guide2026-httpsgeminigooglecomappf00083e09ec02fa5">〈Laptop Architecture Detection Guide〉（2026 年）— <a href="https://gemini.google.com/app/f00083e09ec02fa5">https://gemini.google.com/app/f00083e09ec02fa5</a></h3>
 <p>同一批問題的姊妹對話，內容已依主題拆分至 <span class="wikilink" title="Obsidian 連結：TS/TypeScript-any與unknown-型別逃生艙口與斷言時機">TS/TypeScript-any與unknown-型別逃生艙口與斷言時機</span> 與 <span class="wikilink" title="Obsidian 連結：build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain">build-and-compilation/編輯器與執行環境-VSCode是Electron與Toolchain</span>，本篇僅收錄其中提到 <code>Intel Ultra 7</code>、<code>x64</code> 的架構脈絡。</p>
+<h3 id="cursor-2026-09-07-httpsgeminigooglecomapp6ecdf62c2ff52863">〈Cursor 备份文件说明〉（2026-09-07 讀取）— <a href="https://gemini.google.com/app/6ecdf62c2ff52863">https://gemini.google.com/app/6ecdf62c2ff52863</a></h3>
+<p><mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">標題是 Gemini 自動命名的，與內容不符</mark>，實際只有一個回合：</p>
+<p><strong>使用者：</strong> Windows x64 架构你解释一下，我记得我以前有问过。<br />
+<strong>Gemini：</strong> Windows x64 architecture is a 64-bit extension of the older x86 architecture. It's designed to handle larger amounts of memory, way beyond the 4 GB limit of 32-bit systems, which makes it much faster and more efficient for modern, resource-intensive applications. It's also fully backward compatible, so you can still run most older 32-bit programs without any issues.</p>
 <hr />
 <h2 id="_5">資料來源（含查證時間）</h2>
 <table>
@@ -472,11 +502,26 @@ $env:PROCESSOR_ARCHITEW6432
 <td>https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info</td>
 <td>2026-08-27 查證</td>
 </tr>
+<tr>
+<td>原始對話（Gemini，x86-64 延伸與 4 GB 上限，s–v 節）</td>
+<td>https://gemini.google.com/app/6ecdf62c2ff52863</td>
+<td>2026-09-07 讀取</td>
+</tr>
+<tr>
+<td>Memory Limits for Windows and Windows Server Releases（4 GB 上限與 PAE 的官方定義）</td>
+<td>https://learn.microsoft.com/en-us/windows/win32/memory/memory-limits-for-windows-releases</td>
+<td>2026-09-07 查證</td>
+</tr>
+<tr>
+<td>SUSE — What is x86-64（x86-64 是 x86 的 64 位元延伸、向下相容說明）</td>
+<td>https://www.suse.com/topics/definition/x86-64/</td>
+<td>2026-09-07 查證</td>
+</tr>
 </tbody>
 </table>
 </article>
 
-<footer>由 Gemini 對話自動整理 · 更新於 2026-08-27</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-07</footer>
 </div>
 <script>
 (function(){

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Syncthing 資料夾顯示 Paused — 三個原因與恢復同步</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Syncthing 資料夾顯示 Paused — 三個原因與恢復同步</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#syncthing</span><span class="pill">#同步</span><span class="pill">#obsidian</span><span class="pill">#vault</span><span class="pill">#排錯</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-07</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/d68ea1d4b9f82da8" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/c4cf33faea9066d9" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">資料夾顯示 Paused 代表同步發生錯誤。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。Paused 是暫停狀態不是錯誤，通常是手動暫停或運行條件未滿足。</div></li><li><p class="qq">只要有一端暫停，兩邊的資料就會停在原地不同步。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">對，所以也要檢查 Devices 分頁看遠端裝置狀態。</div></li><li><p class="qq">Syncthing 有開 File Versioning 之後，就算我在本機自己誤刪檔案也救得回來。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。File Versioning 只對「從其他裝置同步過來的變更」生效，本機自己刪的舊版本 Syncthing 不會歸檔。</div></li><li><p class="qq">中了勒索軟體時，Syncthing 會把被加密的檔案同步到其他裝置。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">對。雙向同步不分好壞，刪除與加密都會被忠實傳播，所以它不是備份。</div></li><li><p class="qq">Git 可以保護專案裡所有檔案，包含 .gitignore 掉的 .env 與本機資料庫。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">錯。Git 只保護「已 commit 且已 push」的內容，未追蹤檔案硬碟壞掉就沒了。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Android 版 Syncthing 的省電與網路限制設定在 Settings → <input class="blank" data-a="Run" placeholder="填答案" autocomplete="off"> Conditions。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">常見的是「僅在 Wi-Fi 下同步」與「僅在充電時同步」。</div></li><li><p class="qq">備份的業界檢查表是 <input class="blank" data-a="3-2-1" placeholder="填答案" autocomplete="off"> 原則：3 份副本、2 種媒體、1 份異地。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">CISA 也以此作為小型組織的基準建議。</div></li><li><p class="qq">Syncthing 把被覆蓋或刪除的舊檔放在資料夾內的 <input class="blank" data-a=".stversions" placeholder="填答案" autocomplete="off"> 目錄。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這是 File Versioning 的預設存放位置。</div></li><li><p class="qq">評估「多久救得回來」的指標縮寫是 <input class="blank" data-a="RTO" placeholder="填答案" autocomplete="off">（Recovery Time Objective，復原時間目標）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">資料沒丟不等於沒影響，重灌與重新同步的時間也是成本。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">為什麼 Paused 沒被發現會很麻煩？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：兩端會各自累積修改，之後再恢復同步就要處理衝突檔（sync-conflict）。對筆記 vault 特別痛，因為同一篇 .md 兩邊都改過時 Syncthing 只會保留兩份，得手動合併。所以看到 Paused 要當成待辦立刻處理，而不是等下次再說。</div></li><li><p class="qq">Abby 目前是「本機 + 手機 Syncthing + GitHub」，請說明這個組合合不合格，缺了什麼。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：以 3-2-1 來看，份數（3）、媒體種類（本機碟／手機／雲端，2 種以上）、異地（GitHub）都勉強湊得出來，結構上算合格。真正缺的是「不會即時同步的那一份」——因為 Syncthing 是雙向即時，誤刪或中毒會同時毀掉本機與手機；GitHub 雖有歷史，但只涵蓋有 commit 且 push 的內容，涵蓋不到 .env、AppData 設定、SSH 私鑰與本機資料庫。補法是加一份冷備份（平常拔掉的外接硬碟或每週手動封存上雲），並列一張「換新電腦要重建什麼」的清單以縮短 RTO。</div></li></ol></section>
+
+<article class="card">
+<h1 id="syncthing-paused">Syncthing 資料夾顯示 Paused — 三個原因與恢復同步</h1>
+<blockquote>
+<p>[!info]- 🔗 為什麼這篇值得留著<br />
+Abby 的 <code>Abby-notes</code> vault 是靠 Syncthing 在電腦與手機之間同步的。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一旦某端悄悄變成 Paused，兩邊筆記就會各自長大，之後合併很痛苦</mark>，所以「發現 Paused → 三步驟排查」值得記成固定 SOP。</p>
+<p>本篇重點 a–m，共 13 個。（a–d：Paused 排查；e–m：2026-09-07 追加的「同步不等於備份」）</p>
+<p>[!info] 與其他筆記的關聯（附理由）<br />
+<strong>·</strong> 呼應 <span class="wikilink" title="Obsidian 連結：../系統維護-C槽清理/C槽空間清理SOP">../系統維護-C槽清理/C槽空間清理SOP</span>：那篇處理「空間不夠」，本篇 e–m 處理「空間裡的東西會不會消失」，是同一台機器維運的一體兩面。<br />
+<strong>·</strong> 呼應 <span class="wikilink" title="Obsidian 連結：../Git/git-fetch只更新遠端追蹤分支-為何還要reset--hard">../Git/git-fetch只更新遠端追蹤分支-為何還要reset--hard</span>：本篇 f 節說明 Git 為什麼算「內容備份」，前提是你真的有 push 出去，那篇講的正是本地與遠端不同步時的心智模型。<br />
+<strong>·</strong> 呼應 <span class="wikilink" title="Obsidian 連結：../計算機概論/SSD-vs-HDD-儲存原理與資料復原">../計算機概論/SSD-vs-HDD-儲存原理與資料復原</span>：那篇講硬碟壞掉後「還救不救得回來」，本篇講的是「壞掉之前該先做什麼」，接在它前面讀最順。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">資料夾右側出現紫色 <code>Paused</code> 標籤</mark>，代表該資料夾處於<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">手動暫停或設定造成的暫停</mark>狀態，不是錯誤。</p>
+<p>(b) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">原因一：手動暫停過</mark>。點該資料夾展開詳細選單，找 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Resume（恢復）</mark> 按鈕點下去即可。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">大多數情況是這個。</mark></p>
+<p>(c) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">原因二：行動裝置的運行條件沒滿足</mark>。Android 版（尤其 Syncthing-Fork）有省電與網路限制，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">常見的是「僅在 Wi-Fi 下同步」與「僅在充電時同步」</mark>，條件不符就自動轉 Paused。到 App 的 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Settings → Run Conditions</mark> 檢查勾選項。</p>
+<p>(d) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">原因三：遠端裝置那頭暫停了</mark>。切到 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Devices（裝置）</mark> 分頁，確認對方裝置顯示為已連線且非 Paused。<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩端只要有一端暫停，資料就停在原地。</mark></p>
+<h2 id="2026-09-07-git-syncthingem">追加 2026-09-07｜「我有 Git 又有 Syncthing，硬碟壞掉是不是就沒差？」（e–m）</h2>
+<blockquote>
+<p>起因對話：〈電腦啟動自動開啟網頁設定〉（標題是 Gemini 亂命名的，內容其實在問備份策略）— <a href="https://gemini.google.com/app/c4cf33faea9066d9">https://gemini.google.com/app/c4cf33faea9066d9</a></p>
+</blockquote>
+<p>(e) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">先講結論：Git ＋ Syncthing 這個組合可以擋「硬碟壞掉」，但擋不了「誤刪」與「中毒」。</mark>兩者都不是備份工具，只是剛好有備份的副作用。</p>
+<p>(f) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Git 備的是「內容的歷史」</mark>。它保存每一次 commit 的完整快照，所以你可以回到任何一個過去的版本。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但它只保護「已經 commit 而且 push 出去」的東西</mark>——未追蹤的檔案（<code>.gitignore</code> 掉的 <code>.env</code>、<code>node_modules</code>、資料庫檔）、以及只在本地 commit 還沒 push 的內容，硬碟壞掉就一起走了。</p>
+<p>(g) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Syncthing 備的是「當下的狀態」</mark>。它做的是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">雙向即時同步（two-way sync）</mark>：A 裝置的檔案長什麼樣，B 裝置就跟著長什麼樣。</p>
+<p>(h) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這正是它最危險的地方：刪除也會被同步。</mark>你在電腦上手滑刪掉整個資料夾、或中了勒索軟體把檔案全加密，Syncthing 會盡責地把「刪除」與「加密後的檔案」推到手機與另一台電腦，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">幾秒之內所有副本一起陣亡</mark>。Syncthing 官方 FAQ 自己就寫得很直白：它不是一個好的備份程式，因為所有變更都會傳播到所有裝置。</p>
+<p>(i) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">緩解方式一：打開 Syncthing 的 File Versioning（檔案版本控制）</mark>。它會把被覆蓋或刪除的舊檔丟進資料夾內的 <code>.stversions/</code>。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但有一個關鍵限制：versioning 只對「從別台裝置同步過來的變更」生效</mark>——如果是你在<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">本機自己</mark>改壞或刪掉檔案，Syncthing 不會、也沒辦法幫你歸檔舊版本。所以它是安全網，不是備份。</p>
+<p>(j) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">緩解方式二：補一份「冷備份」（cold backup）</mark>，也就是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不常時連線、不會即時跟著變動的離線副本</mark>，例如平常拔掉的外接硬碟、或每週手動壓縮上傳的雲端封存。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">冷備份的價值就在「它不同步」——災難傳不過去。</mark></p>
+<p>(k) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">業界慣用的檢查表是 3-2-1 原則</mark>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">3 份副本、放在 2 種不同媒體、其中 1 份異地（offsite）</mark>。對照 Abby 現況：Abby-notes 有「本機 + 手機（Syncthing）+ GitHub（Git）」大致湊得出 3 份、2 種媒體、1 份異地，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">結構上其實是合格的</mark>；缺的是「有一份不會即時同步」的那一環。</p>
+<p>(l) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">RTO（Recovery Time Objective，復原時間目標）</mark>是備份策略裡另一個常被忽略的維度：資料沒丟不等於沒影響。硬碟壞掉後，重灌系統、<code>git clone</code>、重裝相依套件、等 Syncthing 把幾十 GB 重新同步回來，<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這段時間你是不能工作的</mark>。<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">評估備份時要同時問「救不救得回」與「多久救得回」。</mark></p>
+<p>(m) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最容易漏掉的是「不在任何備份範圍內的檔案」</mark>：瀏覽器設定檔、各種工具的 <code>AppData</code> 設定、SSH 私鑰、<code>.env</code>、本機資料庫。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">建議做法是列一張「換新電腦要重建什麼」的清單</mark>（vault 裡已有 <span class="wikilink" title="Obsidian 連結：../系統維護-C槽清理/本機應用程式用途清單">../系統維護-C槽清理/本機應用程式用途清單</span> 可以延伸），比事後才想起來好得多。</p>
+<blockquote>
+<p>[!warning] ⚠️ 存疑／更正<br />
+Gemini 在這則對話裡把 Syncthing 描述成「備份」的一種，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這個定位是錯的</mark>——Syncthing 官方文件明確說明自己不是備份程式。本篇 h、i 兩節已依官方 FAQ 與 File Versioning 文件更正。另外 Gemini 提到 versioning 可以救誤刪，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">也沒有說明「本機自己刪的救不到」這個關鍵限制</mark>，已於 (i) 補上。</p>
+</blockquote>
+<h2 id="_2">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/d68ea1d4b9f82da8</td>
+<td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>追加對話（Git／Syncthing 備份策略，e–m 節）</td>
+<td>https://gemini.google.com/app/c4cf33faea9066d9</td>
+<td>2026-09-07 讀取</td>
+</tr>
+<tr>
+<td>Syncthing FAQ — 「Syncthing 不是好的備份程式」原文</td>
+<td>https://docs.syncthing.net/users/faq.html</td>
+<td>Syncthing 現行文件，2026-09-07 查證</td>
+</tr>
+<tr>
+<td>Syncthing — File Versioning（含「只對遠端來的變更生效」的限制）</td>
+<td>https://docs.syncthing.net/users/versioning.html</td>
+<td>Syncthing 現行文件，2026-09-07 查證</td>
+</tr>
+<tr>
+<td>CISA — Back Up Business Data（3-2-1 原則的官方建議）</td>
+<td>https://www.cisa.gov/audiences/small-and-medium-businesses/secure-your-business/back-up-business-data</td>
+<td>2026-09-07 查證</td>
+</tr>
+<tr>
+<td>Syncthing — Folder Status 說明</td>
+<td>https://docs.syncthing.net/users/foldertypes.html</td>
+<td>Syncthing 現行文件，2026-09-05 查證</td>
+</tr>
+<tr>
+<td>Syncthing-Fork（Android）— Run Conditions</td>
+<td>https://github.com/Catfriend1/syncthing-android</td>
+<td>專案現行說明，2026-09-05 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-07</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

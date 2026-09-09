@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dev Server 跑在 Node 環境 — devServer.proxy 繞過 CORS、HMR 用 WebSocket、以及原生語言打包工具</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Dev Server 跑在 Node 環境 — devServer.proxy 繞過 CORS、HMR 用 WebSocket、以及原生語言打包工具</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#build</span><span class="pill">#dev-server</span><span class="pill">#nodejs</span><span class="pill">#vue-cli</span><span class="pill">#webpack</span><span class="pill">#vite</span><span class="pill">#cors</span><span class="pill">#proxy</span><span class="pill">#hmr</span><span class="pill">#websocket</span><span class="pill">#esbuild</span><span class="pill">#rust</span><span class="pill">#golang</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-01</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/78bcdf5f3bba396e" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">devServer.proxy 之所以能繞過 CORS，是因為它幫你加了 Access-Control-Allow-Origin 標頭。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是因為瀏覽器只看到同源的 localhost 請求，而 Node 對後端的轉發屬於伺服器對伺服器，本來就不受瀏覽器同源政策管轄。</div></li><li><p class="qq">npm run build 之後，devServer.proxy 的設定會一起被打包進靜態檔案。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Dev Server 與代理設定完全不會被打包。正式環境的反向代理必須改由 Nginx 這類 Web 伺服器處理。</div></li><li><p class="qq">Node.js 是一種打包工具。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Node.js 是執行環境（Runtime）。打包工具（Webpack、Vite、Rollup）是跑在它上面的應用軟體。</div></li><li><p class="qq">Node.js 核心內建了可以直接開箱即用的 WebSocket 伺服器模組。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">核心只有 http/https、net、dgram。伺服器端要用 WebSocket 得裝 ws 或 socket.io。</div></li><li><p class="qq">瀏覽器端使用 WebSocket 需要先安裝套件。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">現代瀏覽器原生自帶 WebSocket API，直接 new WebSocket(url) 就能用。</div></li><li><p class="qq">所有打包工具的底層都必須依賴 Node.js 才能執行。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">esbuild（Go）、SWC／Rspack／Rolldown（Rust）編譯成原生可執行檔，本身不需要 Node.js。</div></li><li><p class="qq">既然 esbuild 不需要 Node.js，前端專案就可以完全不裝 Node.js。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">設定檔（vite.config.js）與社群外掛仍是 JavaScript，需要 Node 當膠水層；而且要用 npm 才下載得到那些二進位檔。</div></li><li><p class="qq">HMR 讓畫面自動更新，靠的是瀏覽器每隔幾秒去輪詢伺服器。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">靠的是 WebSocket，由 Node 端主動推送通知給瀏覽器。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Vue CLI 的 devServer 底層是 webpack-dev-server，它內部用的 Node.js 框架是 <input class="blank" data-a="Express" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">再加上 http-proxy-middleware 這層膠水做轉發。</div></li><li><p class="qq">提供程式碼執行所需基礎能力（讀寫檔案、開網路連線）的角色叫 <input class="blank" data-a="Runtime" placeholder="填答案" autocomplete="off">（執行環境）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Node.js 就是讓 JavaScript 能在瀏覽器之外執行的 Runtime。</div></li><li><p class="qq">解析 import/export 依賴圖、把多檔案編譯合併成靜態檔的工具角色叫 <input class="blank" data-a="Bundler" placeholder="填答案" autocomplete="off">（打包工具）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Webpack、Vite、Rollup、esbuild 都屬於這一類。</div></li><li><p class="qq">用 Go 撰寫、編譯成獨立二進位檔的極速打包與轉譯器叫 <input class="blank" data-a="esbuild" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">效能約比 Node.js 系工具快 10~100 倍。</div></li><li><p class="qq">字節跳動用 Rust 重寫 webpack 核心架構的打包工具叫 <input class="blank" data-a="Rspack" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">同一波原生語言浪潮還有 SWC 與 Rolldown。</div></li><li><p class="qq">Vue／Vite 團隊正在用 Rust 開發、未來會取代 Vite 底層 Rollup 的打包器叫 <input class="blank" data-a="Rolldown" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">目前 Vite 生產環境用 Rollup、依賴預打包用 esbuild。</div></li><li><p class="qq">Node.js 生態中最輕量、直接實作 WebSocket 協定的套件叫 <input class="blank" data-a="ws" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">另一個選擇是功能更完整的 socket.io，多了 Rooms、自動重連與 Polling fallback。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">「我只寫前端，為什麼還要裝 Node.js？」請完整回答這個問題。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：因為 npm run serve 本身就是一個 Node.js 程式。Node 在開發階段扮演三個角色：(1) 開發 HTTP 伺服器——瀏覽器能透過 localhost:8080 看到網頁，是這個 Node 伺服器在提供檔案；(2) 檔案編譯與打包——瀏覽器只看得懂純 JS/HTML/CSS，你寫的 .vue、Sass、TypeScript 要靠 Node 在背景跑 compiler-sfc、Babel、PostCSS 轉譯；(3) 開發輔助——HMR 走 WebSocket 由 Node 主動推送，API 代理則是 Node 裡的中介軟體。重點是：正式部署時（除非用 SSR）根本不需要 Node.js，打包完剩下的就是純靜態檔，丟給 Nginx 或 Cloudflare 即可。</div></li><li><p class="qq">請說明 devServer.proxy 繞過 CORS 的原理，以及為什麼上線後 API 會全部炸掉。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：CORS 是瀏覽器實施的同源政策，不是伺服器之間的限制。瀏覽器對同源的 localhost:8080/api/... 發請求，從它的角度根本沒有跨來源；Node Dev Server 收到後在伺服器端轉發給真正的後端，這一段是 Server 對 Server，不受同源政策管，所以拿得到資料再交還給瀏覽器。上線炸掉的原因是：Dev Server 與 proxy 設定只存在於開發階段，npm run build 完全不會把它們打包進去，靜態檔上到 Nginx 之後那個 /api 前綴沒有人轉發，必須在 Nginx 設 location /api { proxy_pass ...; } 補回來。</div></li></ol></section>
+
+<article class="card">
+<h1 id="dev-server-node-devserverproxy-corshmr-websocket">Dev Server 跑在 Node 環境 — devServer.proxy 繞過 CORS、HMR 用 WebSocket、以及原生語言打包工具</h1>
+<blockquote>
+<p>本篇重點 a–r，共 18 個。</p>
+<p>這篇回答的是「我明明只寫前端，為什麼要裝 Node.js」這個每個前端新手都問過的問題，順便把三個常被搞混的角色分乾淨：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">執行環境（Runtime）／打包工具（Bundler）／套件管理器（Package Manager）</mark>。</p>
+</blockquote>
+<p><img alt="Node.js 執行環境與打包工具的層級關係圖：外層是作業系統，中層是 Node.js Runtime，內層是用 JS 寫的打包工具；右側是不需要 Node.js 的原生語言打包工具；下方是 npm run serve 啟動的 Dev Server 代理流程" src="../obsidian-attachment/學習前端工程_圖解_NodeJS執行環境與打包工具的層級關係_2026-09-01.svg" /></p>
+<h2 id="_1">重點整理</h2>
+<h3 id="_2">一、先釐清縮寫</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Runtime（執行環境）</mark>：提供程式碼「能跑起來」所需的一切基礎能力，例如讀寫檔案、開網路連線、存取環境變數。Node.js 就是讓 JavaScript 能在瀏覽器之外執行的 Runtime。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Bundler（打包工具）</mark>：讀取專案程式碼、解析 <code>import</code>／<code>export</code> 依賴圖，把多個 <code>.vue</code>／<code>.ts</code>／<code>.scss</code>／<code>.js</code> 檔案編譯、壓縮並合併成瀏覽器看得懂的靜態 Bundle。</p>
+<p>(c) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HMR（Hot Module Replacement，熱模組替換）</mark>：改完程式碼按下儲存，畫面自動更新且不用整頁重新整理、不丟失目前的狀態。</p>
+<p>(d) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CORS（Cross-Origin Resource Sharing，跨來源資源共享）</mark>：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這是瀏覽器實施的限制，不是伺服器之間的限制</mark>——這一句是本篇 (i) 的關鍵。</p>
+<h3 id="dev-server">二、Dev Server 到底在哪裡</h3>
+<p>(e) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">建構工具的開發伺服器（Dev Server）就跑在你自己的電腦上，是一個 Node.js 起的 HTTP 伺服器。</mark>執行 <code>npm run serve</code>（Vue CLI／webpack）或 <code>npm run dev</code>（Vite）時，它會掛在 <code>http://localhost:8080</code> 或 <code>http://localhost:5173</code>。</p>
+<p>(f) 底層組成：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Vue CLI 的 <code>devServer</code> 底層是 <code>webpack-dev-server</code>，它內部用的是 Node.js 的 Express 框架加上 <code>http-proxy-middleware</code> 這層膠水。</mark></p>
+<p>(g) 整體位置示意：</p>
+<pre><code>[ 瀏覽器（前端頁面） ]
+        │
+        │ ① 發送 API 請求（例如 /api/users）到同源的 localhost:8080
+        ▼
+[ 本機 Dev Server ]        ← 跑在 Node.js 環境（例如 localhost:8080）
+        │ 內部的 http-proxy-middleware
+        │ ② 匹配到 /api 規則，由 Node.js 端發起轉發
+        ▼
+[ 後端 API 伺服器 ]        ← 真正的後端服務（例如 api.example.com）
+</code></pre>
+<h3 id="devserverproxy-cors">三、devServer.proxy 為什麼能繞過 CORS</h3>
+<p>(h) 瀏覽器對「同源」的 <code>http://localhost:8080/api/...</code> 發起請求，所以<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">從瀏覽器的角度看根本沒有跨來源，不會觸發 CORS 檢查</mark>。</p>
+<p>(i) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">真正的關鍵：CORS 是瀏覽器為了安全實施的同源政策，「伺服器對伺服器」之間的 HTTP 請求並不受它管轄。</mark>所以 Node Dev Server 再去打真正的後端，可以順利拿到資料，再把結果交還給瀏覽器。</p>
+<p>(j) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ 這個開發伺服器只存在於開發階段。</mark>當專案執行 <code>npm run build</code> 打包成靜態檔案並部署到正式環境（Nginx、Apache、Cloudflare Pages 等）時，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Dev Server 與 <code>devServer.proxy</code> 設定完全不會被打包進去</mark>，正式環境的反向代理必須改由 Nginx 這類 Web 伺服器處理。這是很多人在本機好好的、一上線 API 就全炸的原因。</p>
+<h3 id="nodejs">四、只寫前端為什麼需要 Node.js</h3>
+<p>(k) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">因為 <code>npm run serve</code> 本身就是一個 Node.js 程式。</mark>你寫的是最後在瀏覽器執行的程式碼沒錯，但開發階段負責打包、熱重載、提供 HTTP 服務與反向代理的那些工具，全都是用 Node.js 寫出來的。Node.js 在開發階段扮演三個角色：</p>
+<ol>
+<li><strong>開發 HTTP 伺服器</strong>：瀏覽器之所以能透過 <code>localhost:8080</code> 看到網頁，就是這個 Node.js 伺服器（Express 或 Connect 構建）在提供檔案與回應。</li>
+<li><strong>檔案編譯與打包</strong>：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">瀏覽器只看得懂純粹的 JavaScript、HTML 和 CSS。</mark>你寫的 <code>.vue</code> 單檔案元件、Sass／Less、ES6+ 語法或 TypeScript，瀏覽器無法直接執行，Node.js 會在背景跑 <code>@vue/compiler-sfc</code>、Babel、PostCSS 把它們即時轉譯掉。</li>
+<li><strong>開發輔助功能</strong>：HMR 與 API 代理。</li>
+</ol>
+<p>(l) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">開發階段 vs 正式部署的角色對照</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>階段</th>
+<th>誰在執行 Node.js</th>
+<th>發生了什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>開發（<code>npm run serve</code>）</td>
+<td>你的本機電腦</td>
+<td>Node.js 作為開發工具與伺服器運作，即時編譯、提供 localhost 服務、代理 API</td>
+</tr>
+<tr>
+<td>正式部署（<code>npm run build</code>）</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不需要 Node.js</mark>（除非用 SSR）</td>
+<td>Node.js 把專案打包成純粹的 <code>index.html</code>、<code>.js</code>、<code>.css</code> 靜態檔，任務就結束了。這些檔案放到 Nginx 或 Cloudflare 上供使用者存取</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hmr-websocket-node-websocket">五、HMR 靠的是 WebSocket，而 Node 原生沒有 WebSocket</h3>
+<p>(m) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">WebSocket 不是 Node.js 自帶的原生工具。</mark>它是 HTTP 之外的獨立網路通訊協定（<code>ws://</code> 或 <code>wss://</code>）。Node.js 核心內建的網路模組只有 <code>http</code>／<code>https</code>（標準 HTTP）、<code>net</code>（底層 TCP）、<code>dgram</code>（底層 UDP）。</p>
+<p>(n) 要在 Node.js 伺服器端用 WebSocket，得裝第三方套件：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>ws</code></mark>（最常用、最輕量，直接實作協定）或 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>socket.io</code></mark>（在 WebSocket 之上封裝了房間 Rooms、自動重連、廣播與 Polling fallback）。</p>
+<p>(o) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">瀏覽器端則是原生自帶 WebSocket API，不用安裝任何套件</mark>：</p>
+<pre><code class="language-js">// 瀏覽器原生自帶
+const socket = new WebSocket('ws://localhost:8080')
+
+socket.onopen = () =&gt; {
+  socket.send('Hello Server!')
+}
+
+socket.onmessage = (event) =&gt; {
+  console.log('收到回應:', event.data)
+}
+</code></pre>
+<p>(p) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所以 Vue CLI 的 HMR 是怎麼來的？<code>webpack-dev-server</code> 在安裝時已經把 <code>ws</code> 或 <code>sockjs</code> 打包成它自己的相依套件（dependency）</mark>，所以你不用手動裝就自動具備即時通訊能力。這也是為什麼 <code>node_modules</code> 那麼肥。</p>
+<h3 id="nodejs-node">六、Node.js 不是打包工具，而且新一代打包工具根本不用 Node</h3>
+<p>(q) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Node.js 不算打包工具。</mark>它是執行環境，打包工具（Webpack、Vite、Rollup）是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">執行在這個引擎上的應用軟體</mark>。三個角色分清楚：</p>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>代表項目</th>
+<th>主要職責</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>執行環境（Runtime）</td>
+<td>Node.js</td>
+<td>提供在瀏覽器之外執行 JS 的能力（<code>fs</code> 讀寫檔案、網路 Socket、環境變數）</td>
+</tr>
+<tr>
+<td>打包工具（Bundler）</td>
+<td>Webpack, Vite, Rollup, Parcel, Esbuild</td>
+<td>解析依賴圖，把多檔案編譯壓縮合併成靜態 Bundle</td>
+</tr>
+<tr>
+<td>套件管理器（Package Manager）</td>
+<td>npm, yarn, pnpm</td>
+<td>下載並管理打包工具與其他第三方函式庫</td>
+</tr>
+</tbody>
+</table>
+<p>執行 <code>npm run build</code> 時底層發生的事：npm 讀 <code>package.json</code> 的 scripts → 啟動 Node.js 來執行打包工具的 JS 程式碼 → Webpack 利用 Node.js 提供的 <code>fs</code> 模組把檔案讀進來打包輸出。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">打包工作完全是 Webpack／Vite 做的，Node.js 只負責提供運行環境。</mark></p>
+<p>(r) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">並不是所有打包工具都需要 Node.js。</mark>新一代工具改用 Go、Rust 編寫，編譯出來是機器碼（可執行檔），<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">效能約快 10～100 倍</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>語言</th>
+<th>定位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>esbuild</td>
+<td>Go</td>
+<td>極速的 JS／TS 打包與轉譯器，是獨立的二進位檔，可直接在 command line 執行</td>
+</tr>
+<tr>
+<td>SWC</td>
+<td>Rust</td>
+<td>高性能轉譯器，用來取代 Babel</td>
+</tr>
+<tr>
+<td>Rspack</td>
+<td>Rust</td>
+<td>字節跳動（ByteDance）開發，用 Rust 重寫 Webpack 的核心架構</td>
+</tr>
+<tr>
+<td>Rolldown</td>
+<td>Rust</td>
+<td>Vue／Vite 團隊開發中，未來會取代 Vite 底層的 Rollup</td>
+</tr>
+</tbody>
+</table>
+<p><mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">那為什麼還是要裝 Node.js？</mark>兩個原因：<strong>膠水層與設定檔</strong>——核心演算法是 Go／Rust 寫的，但 <code>vite.config.js</code> 以及社群絕大多數外掛仍然是 JavaScript，Vite 會啟動 Node.js 讀這些設定再傳給底層核心；<strong>套件生態系</strong>——npm 是 Node.js 的套件管理器，你需要它來下載這些二進位工具（npm 會依你的作業系統抓對應的 esbuild 二進位檔）。</p>
+<h2 id="_3">⚠️ 存疑／更正</h2>
+<ul>
+<li>Gemini 說「Vue CLI 底層的 <code>webpack-dev-server</code> 已將 <code>ws</code> 或 <code>sockjs</code> 打包作為它的相依套件」——<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">方向正確但版本有差</mark>：<code>webpack-dev-server</code> v3 時期用的是 SockJS，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">v4 之後預設改用 <code>ws</code></mark>，SockJS 變成可選的 <code>webSocketServer</code> 設定。查自己專案時請以 <code>package-lock.json</code> 為準。</li>
+<li>Gemini 用「Node.js 想像成作業系統或引擎」這個比喻，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「作業系統」的說法不精確</mark>。Node.js 是跑在作業系統之上的執行環境（內含 V8 引擎 ＋ libuv），它自己並不管理硬體資源。本篇的圖解已經把作業系統另外畫成最外層。</li>
+<li>對話中提到「Vue CLI」——<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Vue CLI 官方已於 2026 年前進入維護模式（maintenance mode），Vue 官方文件現在一律推薦用 <code>create-vue</code> ／ Vite 建立新專案</mark>。這篇的原理仍然適用（Vite 的 <code>server.proxy</code> 概念完全一樣），但新專案不要再從 Vue CLI 起手。</li>
+</ul>
+<h2 id="_4">相關題目練習</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeetCode 2621. Sleep</td>
+<td>https://leetcode.com/problems/sleep/</td>
+<td>最小的非同步暖身，理解 Dev Server 的事件迴圈模型從這裡開始</td>
+</tr>
+<tr>
+<td>LeetCode 2622. Cache With Time Limit</td>
+<td>https://leetcode.com/problems/cache-with-time-limit/</td>
+<td>對應打包工具的快取機制（Webpack 的 <code>cache</code>、Vite 的 <code>node_modules/.vite</code> 預打包快取）</td>
+</tr>
+<tr>
+<td>LeetCode 207. Course Schedule</td>
+<td>https://leetcode.com/problems/course-schedule/</td>
+<td>(b) 說的「解析 <code>import</code>／<code>export</code> 依賴圖」本質就是有向圖的拓撲排序與環偵測</td>
+</tr>
+<tr>
+<td>LeetCode 210. Course Schedule II</td>
+<td>https://leetcode.com/problems/course-schedule-ii/</td>
+<td>同上，而且要輸出實際順序，等同打包工具決定模組的執行順序</td>
+</tr>
+<tr>
+<td>NeetCode — Course Schedule</td>
+<td>https://neetcode.io/problems/course-schedule</td>
+<td>同上，有影片講解拓撲排序</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">關聯筆記</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：Vite-HMR機制與Rollup打包原理">Vite-HMR機制與Rollup打包原理</span> — 那篇講「Vite 開發階段為什麼免打包」與「HMR 壞掉時為何整頁空白」，本篇 (m)–(p) 補的是「HMR 這條通道底下是什麼協定、Node 端靠哪個套件」，兩篇合起來才是完整的 HMR 故事。</li>
+<li><span class="wikilink" title="Obsidian 連結：2026-06-02-Dev-Server-功能與價值">2026-06-02-Dev-Server-功能與價值</span> — 那篇是從 Vite 腳手架初始化的角度紀錄的（<code>npm create vite</code>、<code>react-scripts</code> 對比），本篇則是同一個 Dev Server 的網路與執行環境剖面。</li>
+<li><span class="wikilink" title="Obsidian 連結：編輯器與執行環境-VSCode是Electron與Toolchain">編輯器與執行環境-VSCode是Electron與Toolchain</span> — 同樣是「這個工具其實跑在什麼環境上」的思路：VSCode 是 Electron，Dev Server 是 Node.js。</li>
+<li><span class="wikilink" title="Obsidian 連結：XMLHttpRequest-CORS-explanation">XMLHttpRequest-CORS-explanation</span> — (i) 說的「CORS 是瀏覽器實施的」在那篇有完整的預檢請求（Preflight）流程。</li>
+<li><span class="wikilink" title="Obsidian 連結：Cookie隔離邊界與跨站請求安全-Origin-SameSite-CSRF-Token與Bearer">Cookie隔離邊界與跨站請求安全-Origin-SameSite-CSRF-Token與Bearer</span> — 同源政策的另一面：那篇談的是「同源擋得住讀取但擋不住發送」，本篇談的是「代理如何合法地繞過同源」。</li>
+<li><span class="wikilink" title="Obsidian 連結：WebTransport-雙向傳輸-Streams與Datagrams-掉封包與FEC">WebTransport-雙向傳輸-Streams與Datagrams-掉封包與FEC</span> — (m) 提到的 WebSocket 跑在 TCP 上，那篇有它跟 QUIC／WebTransport 的協定層對照。</li>
+<li><span class="wikilink" title="Obsidian 連結：前端開發工具-打包編譯Lint與Parser">前端開發工具-打包編譯Lint與Parser</span> — (q) 那張三角色表格的延伸：Lint 與 Parser 又是另一組跑在 Node 上的工具。</li>
+</ul>
+<h2 id="_6">各對話來源（原文）</h2>
+<h3 id="vue-cli-2026-08-31-httpsgeminigooglecomapp78bcdf5f3bba396e">Vue CLI 開發伺服器運作解析（2026-08-31）— https://gemini.google.com/app/78bcdf5f3bba396e</h3>
+<p><strong>使用者：</strong> Vue CLI 的 <code>devServer.proxy</code> 是建構工具的開發伺服器反向代理，用途是把前端的 API 請求轉發到後端主機，解決本機開發的跨來源問題。它跟響應式、依賴收集、<code>ref()</code> 一點關係都沒有。建構工具的開發伺服器在哪？</p>
+<p><strong>Gemini：</strong> 開發伺服器（Dev Server）運行在你的本機開發環境（Node.js 環境）中。當你在開發階段執行 <code>npm run serve</code>（Vue CLI／webpack）或 <code>npm run dev</code>（Vite）時，建構工具會在你的電腦上啟動一個 Node.js HTTP 伺服器（通常掛在 <code>http://localhost:8080</code> 或 <code>http://localhost:5173</code>）。</p>
+<ul>
+<li><strong>底層核心</strong>：Vue CLI 的 <code>devServer</code> 底層是基於 <code>webpack-dev-server</code>，它內部使用的是 Node.js 的 Express 框架以及 <code>http-proxy-middleware</code> 膠水層。</li>
+<li><strong>請求轉接</strong>：瀏覽器對同源的 <code>http://localhost:8080/api/...</code> 發起請求，運行在 Node.js 的 Dev Server 接到後轉發給真正的後端，再把結果交還給瀏覽器。</li>
+<li><strong>跨域解決原理</strong>：CORS 限制是瀏覽器為了安全實施的同源策略。伺服器對伺服器（Node.js Dev Server → 後端 API）之間的 HTTP 請求並不受瀏覽器同源策略限制，因此可以順利拿到資料。</li>
+<li><strong>需要特別注意</strong>：這個開發伺服器僅存在於本機開發階段。當專案執行 <code>npm run build</code> 打包成靜態檔案並部署到正式環境（如 Nginx、Apache）時，Dev Server 與代理設定都不會被打包進去，正式環境的反向代理需改由 Nginx 等 Web 伺服器處理。</li>
+</ul>
+<p><strong>使用者：</strong> 如果只有前端 <code>npm run serve</code> 為何還有 Node.js？</p>
+<p><strong>Gemini：</strong> 因為 <code>npm run serve</code> 本身就是一個 Node.js 程式。雖然你寫的是「前端程式碼」，但在開發階段你需要一個工具來做打包、熱重載、提供 HTTP 服務與反向代理，而這些工具都是用 Node.js 寫出來的。Node.js 在開發階段扮演三個關鍵角色：</p>
+<ol>
+<li><strong>開發 HTTP 伺服器（Dev Server）</strong>：<code>npm run serve</code> 其實是呼叫 Vue CLI（或 Vite／webpack），它們在你的電腦上啟動一個 Node.js HTTP 伺服器（通常是 Express 或 Connect 構建的）。瀏覽器之所以能透過 <code>http://localhost:8080</code> 看到網頁，就是由這個伺服器在提供檔案與回應。</li>
+<li><strong>檔案編譯與打包（Build Tools）</strong>：瀏覽器只看得懂純粹的 JavaScript、HTML 和 CSS。你寫的 <code>.vue</code> 單檔案組件、Sass／Less 樣式、ES6+ 語法或 TypeScript，瀏覽器無法直接執行。Node.js 會在背景默默執行 Vue 模組編譯器（如 <code>@vue/compiler-sfc</code>）、Babel、PostCSS 等工具，即時轉譯成瀏覽器看得懂的格式。</li>
+<li><strong>開發輔助功能（代理與熱重載）</strong>：HMR——修改程式碼按下儲存時，Node.js 伺服器會透過 WebSocket 即時通知瀏覽器更新畫面；API 代理（<code>devServer.proxy</code>）——這是運行在 Node.js 裡的中介軟體（Middleware），瀏覽器發送 <code>/api</code> 請求給 localhost 時，是 Node.js 伺服器用 HTTP 客戶端幫你轉發到後端主機，繞過瀏覽器的 CORS 同源限制。</li>
+</ol>
+<p>Gemini 並附上「開發階段 vs 正式部署」對照表，內容即本篇 (l)。</p>
+<p><strong>使用者：</strong> WebSocket 是 Node.js 自帶的工具嗎？</p>
+<p><strong>Gemini：</strong> 不是。WebSocket 是 HTTP 之外的獨立網路通訊協定（<code>ws://</code> 或 <code>wss://</code>），並不是 Node.js 內建的原生工具。</p>
+<ol>
+<li><strong>Node.js 內建的網路模組</strong>：<code>http</code>／<code>https</code>（處理標準的 HTTP 請求與回應）、<code>net</code>（底層 TCP 連線）、<code>dgram</code>（底層 UDP 連線）。Node.js 原生沒有提供 <code>const ws = require('websocket')</code> 這種可以直接開箱即用的 API。</li>
+<li><strong>要如何使用</strong>：需透過 npm 安裝第三方套件——<code>ws</code>（最常用、最輕量，直接實作 WebSocket 協定，效能高）或 <code>socket.io</code>（在 WebSocket 之上封裝了房間 Rooms、自動重連、廣播機制以及 Polling fallback，適合複雜的即時應用）。</li>
+<li><strong>前端瀏覽器有內建嗎</strong>：有。現代瀏覽器（Chrome, Firefox, Safari, Edge）都原生自帶 WebSocket API，可以直接在前端 JS 使用（程式碼見本篇 (o)）。</li>
+<li><strong>補充：Vue CLI 裡的 WebSocket 是怎麼來的</strong>：Vue CLI 開發伺服器支援熱重載，這個機制就是透過 WebSocket 實作的。<code>webpack-dev-server</code> 在安裝時已經將 <code>ws</code> 或 <code>sockjs</code> 這類第三方套件打包作為它的相依套件（dependency），因此不需要手動安裝就能直接具備即時通訊的能力。</li>
+</ol>
+<p><strong>使用者：</strong> Node.js 算打包工具嗎？</p>
+<p><strong>Gemini：</strong> 不算。Node.js 是一個 JavaScript 執行環境（Runtime），而不是打包工具。你可以把 Node.js 想像成作業系統或引擎，而打包工具（如 Webpack、Vite、Rollup）是執行在這個引擎上的應用軟體。（附三角色對照表，內容即本篇 (q)。）</p>
+<p>為什麼容易產生誤解？執行 <code>npm run build</code> 時底層發生的事情是：npm 讀取 <code>package.json</code> 中的腳本設定 → Node.js 被啟動，用來執行打包工具（例如 Webpack 的 JS 程式碼）→ Webpack 利用 Node.js 提供的檔案讀寫能力（<code>fs</code> 模組），把專案裡的檔案讀進來打包輸出。因此打包的工作完全是由 Webpack／Vite 完成的，Node.js 只是負責提供它們運行所需的環境與資源。</p>
+<p><strong>使用者：</strong> 請問是所有的打包工具的底層環境都是需要 Node.js 的嗎？</p>
+<p><strong>Gemini：</strong> 不是所有打包工具的底層都需要 Node.js。雖然傳統上（Webpack、Rollup、Parcel）大多數打包工具都是用 JavaScript 寫的，因此必須依賴 Node.js 作為執行環境，但現代前端建構工具已經進入了「原生語言（Native Languages）」的時代。越來越多新型工具改用 Go、Rust 或 C++ 編寫，這些語言編譯出來的是機器碼（可執行檔），執行時完全不需要 Node.js 環境。</p>
+<ol>
+<li><strong>傳統／基於 Node.js 的打包工具</strong>：Webpack, Rollup, Parcel, Babel。執行方式如 <code>node node_modules/webpack/bin/webpack.js</code>。特點是生態系極度豐富、外掛多，但打包速度較慢。</li>
+<li><strong>新一代／基於原生語言的打包工具</strong>：直接編譯成原生可執行檔（Binary），直接調用作業系統核心與 CPU 多核心運算，效能通常比 Node.js 快 10～100 倍。esbuild（Go）、SWC（Rust，替代 Babel）、Rspack（Rust，字節跳動開發，重寫 Webpack 核心架構）、Rolldown（Rust，Vue／Vite 團隊開發中，未來會取代 Vite 底層的 Rollup）。</li>
+</ol>
+<p><strong>既然它們不用 Node.js，為什麼我們在前端專案還是需要安裝 Node.js？</strong> 兩個原因：一是膠水層與配置檔——雖然核心打包演算法是用 Go／Rust 寫的，但專案的配置檔（如 <code>vite.config.js</code>）以及社群大多數外掛仍然是用 JavaScript 寫的，Vite 會啟動 Node.js 來讀取這些 JS 設定，再傳給底層的 Go／Rust 核心去跑執行緒；二是套件生態系——npm 是 Node.js 的套件管理器，你需要 Node.js／npm 來下載安裝這些二進位打包工具（npm 會根據你的作業系統下載適當的 esbuild 二進位檔）。</p>
+<h2 id="_7">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話〈Vue CLI 開發伺服器運作解析〉</td>
+<td>https://gemini.google.com/app/78bcdf5f3bba396e</td>
+<td>對話日期 2026-08-31，擷取於 2026-09-01</td>
+</tr>
+<tr>
+<td>Vue CLI — <code>devServer.proxy</code> 設定文件</td>
+<td>https://cli.vuejs.org/zh/config/#devserver-proxy</td>
+<td>Vue CLI 官方文件（專案已進入維護模式），查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>webpack — DevServer 設定（<code>proxy</code>、<code>webSocketServer</code>）</td>
+<td>https://webpack.js.org/configuration/dev-server/</td>
+<td>webpack 官方文件，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>Vite — Server Options（<code>server.proxy</code>、<code>server.hmr</code>）</td>
+<td>https://vite.dev/config/server-options.html</td>
+<td>Vite 官方文件，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>Node.js — 內建模組清單（<code>http</code>／<code>net</code>／<code>dgram</code>，無原生 WebSocket 伺服器）</td>
+<td>https://nodejs.org/api/</td>
+<td>Node.js 官方 API 文件，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>MDN — WebSocket API（瀏覽器原生支援）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/WebSocket</td>
+<td>MDN 文件，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>esbuild — 官方網站（Go 撰寫、獨立二進位檔）</td>
+<td>https://esbuild.github.io/</td>
+<td>官方文件，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>Rspack — 官方網站（Rust 重寫 webpack）</td>
+<td>https://rspack.dev/</td>
+<td>官方文件，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>Rolldown — 官方網站（Rust，Vite 未來底層）</td>
+<td>https://rolldown.rs/</td>
+<td>官方文件，查證於 2026-09-01</td>
+</tr>
+<tr>
+<td>本篇圖解</td>
+<td><code>obsidian-attachment/學習前端工程_圖解_NodeJS執行環境與打包工具的層級關係_2026-09-01.svg</code></td>
+<td>繪製於 2026-09-01</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>由 Gemini 對話自動整理 · 更新於 2026-09-01</em></p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-01</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>
