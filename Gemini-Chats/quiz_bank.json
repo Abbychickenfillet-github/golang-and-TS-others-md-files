@@ -1087,6 +1087,21 @@
     "q": "Linux 的 uname -m 顯示 aarch64 代表這是 ARM 的 64 位元架構。",
     "a": true,
     "why": "AArch64 是 ARM 官方名稱，macOS 與 Windows 習慣顯示 arm64。"
+   },
+   {
+    "q": "x86-64 是一套與 x86 無關的全新指令集架構（ISA）。",
+    "a": false,
+    "why": "錯。它是 x86 這套 ISA 的 64 位元延伸，舊指令整個被包在裡面，這才是它能向下相容的原因。"
+   },
+   {
+    "q": "32 位元系統完全無法定址超過 4 GB 的實體記憶體。",
+    "a": false,
+    "why": "錯。透過 PAE（Physical Address Extension）作業系統整體可以定址超過 4 GB，卡住的是「單一行程」的 4 GB 虛擬位址空間。"
+   },
+   {
+    "q": "64 位元 Windows 可以執行舊的 16 位元 DOS 程式。",
+    "a": false,
+    "why": "錯。WOW64 只涵蓋 32 位元，16 位元程式在 64 位元 Windows 上完全不能跑。"
    }
   ],
   "cloze": [
@@ -1119,12 +1134,31 @@
     "q": "Apple Silicon 上讓 x86-64 程式能執行的轉譯層叫 Rosetta ____。",
     "a": "2",
     "why": "效能會打折，所以能裝原生 arm64 版就裝。"
+   },
+   {
+    "q": "32 位元指標能定址 2^32 個位址，換算上限正好是 ____ GB。",
+    "a": "4",
+    "why": "一個位址對應一個 byte，扣掉硬體保留位址後實際可用往往只有 3.2～3.5 GB。"
+   },
+   {
+    "q": "讓 32 位元程式在 64 位元 Windows 上執行的相容層叫 ____。",
+    "a": "WOW64",
+    "why": "Windows 32-bit On Windows 64-bit，它同時會重導環境變數與登錄檔。"
+   },
+   {
+    "q": "ISA 的全名是 Instruction Set ____，也就是「CPU 看得懂哪些指令」的規格書。",
+    "a": "Architecture",
+    "why": "中文譯為指令集架構。"
    }
   ],
   "essay": [
    {
     "q": "你要幫同事的 Windows 筆電下載一個開發工具，官網同時提供 x64 與 ARM64 版。請完整說明：ISA 是什麼、為什麼選錯版本程式會完全打不開、你會用哪些指令去查、以及為什麼「查到 AMD64 就一定是 Intel/AMD 機器」這個推論其實有漏洞、該怎麼補。",
     "a": "參考方向：(1) ISA（Instruction Set Architecture，指令集架構）是 CPU 對外公開的合約——認得哪些機器指令、有哪些暫存器、怎麼定址、位元組順序。同一 ISA 的二進位可互通，不同 ISA 完全不相容。(2) 選錯會怎樣——x86-64 與 ARM64 的機器碼互不相容，Windows 會直接彈「此應用程式無法在您的電腦上執行」。(3) 怎麼查——CMD 用 echo %PROCESSOR_ARCHITECTURE%；PowerShell 用 $env:PROCESSOR_ARCHITECTURE（%VAR% 在 PowerShell 會被當普通字串原樣吐回）；WSL 或 Git Bash 用 uname -m；Node 程式內用 os.arch()。(4) 漏洞——這些變數回報的是「目前這個行程」的架構而非機器。開到 SysWOW64 底下的 32 位元 PowerShell 會回 x86；更麻煩的是 Windows 11 on ARM 能模擬執行 x64 程式，所以一個 x64 行程在 ARM64 機器上會回 AMD64，讓你誤判成 Intel 機。(5) 怎麼補——同時檢查 PROCESSOR_ARCHITEW6432（只有 32 位元行程跑在 64 位元系統時才存在，內容是機器真實架構）；程式裡最可靠的是呼叫 IsWow64Process2，它分別回傳行程架構與機器原生架構。(6) 補充 AMD64 這個名字的由來：這套 64 位元延伸是 AMD 在 2000 年提出、2003 年隨 Opteron 出貨，Intel 後來跟進（官方叫 Intel 64），Windows 沿用 AMD 的原始名稱，所以 Intel 機器也顯示 AMD64。"
+   },
+   {
+    "q": "用你自己的話解釋：為什麼「64 位元」對跑本地 LLM 或影片剪輯是必要的？",
+    "a": "參考方向：關鍵不在運算速度而在定址空間。32 位元指標最多指到 2^32 個位址＝4 GB，而且這是「單一行程」的天花板，PAE 也救不了。本地模型權重、影片時間軸快取這類工作動輒要十幾 GB 連續的虛擬位址，只有 64 位元指標（現行硬體實作 48 或 57 位元線性位址）才裝得下。順帶一提暫存器從 32 位元的 EAX 變成 64 位元的 RAX，一次搬更多資料也有幫助，但那是次要效益。"
    }
   ]
  },
@@ -1826,6 +1860,2245 @@
    {
     "q": "「Clone 模板到 GitHub 就能自動部署」這件事，跟自己寫一套 GitHub Actions CI/CD 相比，各省掉與各犧牲了什麼？",
     "a": "參考方向：省掉的是——不必自己寫 workflow yaml、不必管 runner 與快取、不必設定憑證與部署目標、不必處理預覽環境。犧牲的是——建置流程被平台封裝，客製空間小（例如要跑特殊的測試矩陣或多階段建置就綁手綁腳）、供應商鎖定（Vendor Lock-in）、成本模型不透明、以及對「到底發生了什麼」的理解變淺。實務判斷：MVP 與個人專案用平台的零設定，團隊產品線與需要合規稽核的專案自己掌握流水線。"
+   }
+  ]
+ },
+ "frontend-docs/react/useState底層-Fiber-Tree-memoizedState與過期閉包.md": {
+  "tf": [
+   {
+    "q": "useState 的值是存在函式元件內部的區域變數裡。",
+    "a": false,
+    "why": "存在 React Fiber 節點的 memoizedState 鏈表中，區域變數每次 re-render 就被重置。"
+   },
+   {
+    "q": "第二次渲染時，原始碼會自動變成 useState(1)。",
+    "a": false,
+    "why": "原始碼永遠是 useState(0)，是 useState 內部去 Fiber 讀最新值後回傳 1。"
+   },
+   {
+    "q": "() => setCount(count + 1) 是一個 IIFE。",
+    "a": false,
+    "why": "它只是回呼函式，尾巴沒有立刻呼叫的 ()，點擊時才執行。"
+   },
+   {
+    "q": "Fiber Tree 存在瀏覽器 JavaScript 引擎的 Heap Memory 中。",
+    "a": true,
+    "why": "它就是一堆互相引用的普通 JS 物件，被 HostRoot 長期引用所以不會被 GC。"
+   },
+   {
+    "q": "元件重新渲染時，舊的 setTimeout 回呼會自動拿到新的 count。",
+    "a": false,
+    "why": "這正是過期閉包（Stale Closure），舊閉包鎖住的是當次渲染那一組變數。"
+   },
+   {
+    "q": "若元件完全沒有呼叫任何 Hook，fiberNode.memoizedState 會是 null。",
+    "a": true,
+    "why": "沒有 Hook 就沒有鏈表節點可掛。"
+   },
+   {
+    "q": "React 官方原始碼是用物件文字量 {} 直接建立 Fiber 節點的。",
+    "a": false,
+    "why": "官方用建構函式 FiberNode 搭配 new 實例化，物件文字量只是教學示意。"
+   },
+   {
+    "q": "Function Component 的 FiberNode，它的 stateNode 屬性存的是該元件的實例（Instance）。",
+    "a": false,
+    "why": "Function Component 沒有實例，stateNode 永遠是 null；有實例的是 Class Component。"
+   },
+   {
+    "q": "React 之所以把 children 陣列改成 child／sibling／return 鏈表，主要動機是讓走訪可以隨時中斷再恢復。",
+    "a": true,
+    "why": "遞迴走訪無法中途讓出主執行緒，改成 while 迴圈後只要記住 workInProgress 指標就能暫停與續跑。"
+   },
+   {
+    "q": "某個 Fiber 節點的 childLanes 為 0，代表這棵子樹沒有待處理任務，React 可以整棵跳過。",
+    "a": true,
+    "why": "這是 Lanes 位元遮罩最主要的剪枝用途。"
+   },
+   {
+    "q": "列表項目的 key 從 id 換成另一個值時，React 只會更新 props，不會重置內部 state。",
+    "a": false,
+    "why": "key 改變會判定為不同元件，舊的完整 Unmount（跑 cleanup）、新的重新 Mount，所有 useState 歸零。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Fiber 節點上存放 Hook 鏈表頭的屬性叫 ____。",
+    "a": "memoizedState",
+    "why": "Hook 結構內部也有同名屬性，那層才存實際數值。"
+   },
+   {
+    "q": "React 同時維持 Current Tree 與 WorkInProgress Tree，這個機制叫 ____（中文四個字）。",
+    "a": "雙重緩衝",
+    "why": "英文是 Double Buffering，算完把指標一指就完成切換。"
+   },
+   {
+    "q": "setTimeout 回呼讀到舊 state 的現象叫「____ 閉包」。",
+    "a": "過期",
+    "why": "英文 Stale Closure。"
+   },
+   {
+    "q": "Fiber 節點上指向你所寫元件函式本身的屬性是 ____。",
+    "a": "type",
+    "why": "因為函式也是物件，React 重新渲染時直接執行 fiberNode.type()。"
+   },
+   {
+    "q": "讓 Render 階段可以中斷、暫停、丟棄重來的模式叫 ____ Mode。",
+    "a": "Concurrent",
+    "why": "靠的正是 Fiber 這個可拆成小工作單元的鏈表結構。"
+   },
+   {
+    "q": "FiberNode 上指向「真實 DOM 元素或 Class 實例」的屬性叫做 ____。",
+    "a": "stateNode",
+    "why": "HostComponent 指向 DOM 物件，ClassComponent 指向實例，FunctionComponent 是 null。"
+   },
+   {
+    "q": "React 的獨立排程套件 Scheduler，內部使用 ____ 這種資料結構管理 Task，確保最急的先執行。",
+    "a": "最小堆積",
+    "why": "Min-Heap，依 expirationTime 排序。"
+   },
+   {
+    "q": "想要在 userId 改變時把整個表單的 state 全部重置，最乾淨的做法是傳入 ____ 這個特殊 prop。",
+    "a": "key",
+    "why": "key 改變會強制 Unmount + Mount，等同重置。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "用你自己的話解釋：為什麼「函式元件本身是無狀態的，真正有狀態的是 Fiber Tree」？請把區域變數的生命週期一起講進去。",
+    "a": "參考方向：元件只是一個每次渲染都被重新執行一遍的普通函式，函式內的區域變數建立在 Stack 或短暫的 Heap，執行完若沒有被閉包引用就會被 GC 回收，所以它無法跨渲染保存資料。React 另外在 Heap 中維護一棵被 HostRoot 長期引用的 Fiber Tree，每個元件對應一個 FiberNode，Hook 的值掛在 memoizedState 鏈表上。useState 只是一個介面：執行時去問 Fiber 這個節點存不存在，存在就忽略初始值直接回傳鏈表中的最新值。所以狀態的「所有權」在 Fiber，不在你的函式。"
+   },
+   {
+    "q": "面試官問：「過期閉包要怎麼解決？」請至少給出兩種方向並說明各自的取捨。",
+    "a": "參考方向：(1) 函式式更新 setCount(prev => prev + 1)——讓 React 把「怎麼算」而不是「算好的值」排進佇列，不依賴閉包裡的舊值，成本最低、最推薦。(2) 用 useRef 存一份可變的最新值，在非同步回呼裡讀 ref.current——能拿到最新值但改 ref 不會觸發 re-render，適合只讀不渲染的場景。(3) 把變數放進 useEffect 的依賴陣列讓回呼重新建立——語意最正確但會頻繁重建訂閱與計時器。取捨核心：函式式更新解決「基於舊值算新值」，useRef 解決「非同步時需要當下最新值」，依賴陣列解決「訂閱要跟著變」，三者情境不同不可互相取代。"
+   },
+   {
+    "q": "面試官問：「為什麼 React 要把樹狀結構改寫成鏈表？直接用陣列不是更直覺嗎？」請用『遞迴 vs 迴圈』『可中斷性』『GC 壓力』三個角度回答。",
+    "a": "要點：(1) 傳統 Stack Reconciler 用遞迴走訪，Call Stack 一路疊到底，開始了就無法讓出主執行緒；(2) Fiber 用 child/sibling/return 把樹攤平成鏈表，整棵樹用一個 while 迴圈 workLoop 就能走完，目前位置只是一個指標變數 workInProgress，可以隨時記住位置、釋放執行緒、之後接著跑，這才是 Concurrent Mode 的基礎；(3) 陣列需要連續記憶體、頻繁重建會增加 GC 壓力，鏈表沒有這個問題。補一句：childLanes 讓 React 能整棵子樹跳過，進一步剪枝。"
+   },
+   {
+    "q": "用 index 當 key 除了效能問題之外，還會造成什麼「不會報錯但資料錯亂」的 bug？請舉一個具體情境。",
+    "a": "要點：列表項目內含 <input> 或內部 useState 時，刪掉第一筆後第二筆的 index 會遞補為 0，React 看到 key=\"0\" 依然存在就保留舊 DOM 與舊 state、只替換 props，結果畫面上殘留你輸入給第一筆的內容。這種 bug 不會拋錯，只會讓資料看起來莫名其妙錯亂，比效能問題嚴重得多。"
+   }
+  ]
+ },
+ "frontend-docs/react/JSX轉譯機制-createElement與jsx-runtime-Babel與SWC三步驟.md": {
+  "tf": [
+   {
+    "q": "JSX 是 ECMAScript 規範的一部分。",
+    "a": false,
+    "why": "JSX 是非標準的語法擴充，引擎直接看到會丟 SyntaxError。"
+   },
+   {
+    "q": "轉譯（Transpile）是 JavaScript 引擎在執行時做的。",
+    "a": false,
+    "why": "是 Babel／SWC／esbuild 這類建置工具在送進瀏覽器之前做的。"
+   },
+   {
+    "q": "React 17 起的 Automatic Runtime 讓你不必再手動 import React。",
+    "a": true,
+    "why": "轉譯器會自動注入 react/jsx-runtime 的 jsx()／jsxs()。"
+   },
+   {
+    "q": "用了新版 JSX Transform 之後，useState 也不用 import 了。",
+    "a": false,
+    "why": "Hook 是你程式碼真正用到的識別碼，轉譯器不會幫你補。"
+   },
+   {
+    "q": "React Element 是一個 DOM 節點。",
+    "a": false,
+    "why": "它只是一個普通 JavaScript 物件 { $$typeof, type, props }。"
+   },
+   {
+    "q": "SWC 的全稱是 Speedy Web Compiler，用 Rust 寫的。",
+    "a": true,
+    "why": "Next.js 從 12 起預設用它取代 Babel。"
+   },
+   {
+    "q": "Vite 預設的 JSX／TS 轉換器是 SWC。",
+    "a": false,
+    "why": "Vite 預設用 esbuild；SWC 要另外裝 @vitejs/plugin-react-swc 才會用到。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "轉譯第一步把程式碼文字拆成的樹狀結構縮寫叫 ____。",
+    "a": "AST",
+    "why": "Abstract Syntax Tree，抽象語法樹。"
+   },
+   {
+    "q": "舊版轉譯機制的名字叫 ____ Runtime。",
+    "a": "Classic",
+    "why": "輸出 React.createElement，必須手動 import React。"
+   },
+   {
+    "q": "React Element 用來防止偽造的那個 Symbol 屬性叫 ____。",
+    "a": "$$typeof",
+    "why": "Symbol 無法由 JSON.parse 產生，因此可擋下注入的假 Element。"
+   },
+   {
+    "q": "轉譯三步驟是 Parsing → ____ → Code Generation。",
+    "a": "Transformation",
+    "why": "外掛在這一步把 JSXElement 節點改寫成 CallExpression。"
+   },
+   {
+    "q": "新版轉譯中，多個子節點會轉成 ____() 而不是 jsx()。",
+    "a": "jsxs",
+    "why": "s 代表 static children，事先知道是陣列可省掉執行期判斷。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "有人說「ECMA 又沒有定義 JSX，那 React 怎麼跑得起來」，請完整回答他。",
+    "a": "參考方向：兩件事發生在不同層。轉譯器層（Babel／SWC／esbuild）在建置階段把程式碼當成文字讀進來，剖析成 AST，把 JSXElement 節點改寫成 CallExpression，再重新生成標準 .js 輸出——這一層不執行程式碼，也不受 ECMA 規範限制，因為它只是文字工具。執行階段層（V8 等引擎）看到的已經是 React.createElement('button', {...}, ...) 或 _jsx(...)，那是 100% 合乎 ECMA 的物件屬性存取與函式呼叫。所以「ECMA 沒定義 JSX」跟「JSX 最後變成合法 JS」完全不衝突。想親眼驗證可以開 Babel REPL 勾選 react preset。"
+   },
+   {
+    "q": "為什麼 React Element 要用 Symbol 當 $$typeof，而不是用一個普通字串？",
+    "a": "參考方向：安全性。React 渲染時會檢查物件的 $$typeof 是不是它認得的 Symbol，才把它當成合法 Element。Symbol 是唯一且無法被序列化的原始型別，JSON.parse 不可能產出一個 Symbol。假設後端 API 回傳的 JSON 被直接塞進 JSX 渲染，攻擊者最多只能偽造 { type: 'div', props: {...}, $$typeof: 'react.element' } 這種字串版本，過不了檢查，因此無法透過 dangerouslySetInnerHTML 之外的路徑注入任意元素。這是 React 對 XSS 的一道縱深防禦。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_Core_and_Runtime/物件/Proxy與Reflect-13個攔截器與框架響應式原理.md": {
+  "tf": [
+   {
+    "q": "Proxy 是 Vue 專屬的 API，React 專案不能用。",
+    "a": false,
+    "why": "Proxy 是 ES6 原生標準語法，任何 JavaScript 環境都能用。"
+   },
+   {
+    "q": "Reflect 可以用 new Reflect() 實例化。",
+    "a": false,
+    "why": "Reflect 是內建物件不是建構子，只提供靜態方法，像 Math 一樣。"
+   },
+   {
+    "q": "new Proxy(target, handler) 是在呼叫建構子。",
+    "a": true,
+    "why": "Proxy 是標準建構子，不是靜態方法。"
+   },
+   {
+    "q": "handler 裡最多可以定義 13 種攔截行為。",
+    "a": true,
+    "why": "get／set／has／deleteProperty／ownKeys／apply／construct 等共 13 個 trap。"
+   },
+   {
+    "q": "set trap 不需要回傳值。",
+    "a": false,
+    "why": "必須回傳布林值，回傳 false 在嚴格模式下會丟 TypeError。"
+   },
+   {
+    "q": "Proxy 可以用 ES5 polyfill 補上，所以能支援 IE11。",
+    "a": false,
+    "why": "Proxy 的攔截能力 ES5 做不出來，這正是 Vue 3 放棄 IE11 的原因。"
+   },
+   {
+    "q": "代理物件 state 與原始物件 raw 是同一個參考。",
+    "a": false,
+    "why": "是兩個不同的物件，混用會出現「改了 raw 但畫面沒更新」的 bug。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Vue 3 響應式在 get 時做依賴收集，這個動作英文叫 ____。",
+    "a": "track",
+    "why": "對應的 set 時觸發更新叫 trigger。"
+   },
+   {
+    "q": "Proxy handler 中攔截 in 運算子的 trap 叫 ____。",
+    "a": "has",
+    "why": "與 get、set 並列為最常用的三個 trap。"
+   },
+   {
+    "q": "為了讓 getter 裡的 this 正確指向代理物件，Reflect.get 要傳入第三個參數 ____。",
+    "a": "receiver",
+    "why": "少了它，繼承場景與 getter 內的依賴追蹤會漏掉。"
+   },
+   {
+    "q": "Vue 2 用的是 Object.____ 而不是 Proxy。",
+    "a": "defineProperty",
+    "why": "那條路無法偵測新增屬性與陣列索引賦值。"
+   },
+   {
+    "q": "Bash 中把指令輸出存進變數的語法 $( ) 叫「命令____」。",
+    "a": "替換",
+    "why": "英文是 Command Substitution。"
+   },
+   {
+    "q": "grep 的 -o 選項全稱是 ____-matching，只印出符合的那一小段。",
+    "a": "only",
+    "why": "不是印出整行。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請解釋為什麼在 Proxy 的 trap 裡要寫 return Reflect.set(target, key, value, receiver) 而不是 target[key] = value。",
+    "a": "參考方向：兩個理由。(1) 回傳值：set trap 必須回傳布林值告知賦值成不成功，Reflect.set 剛好回傳布林；直接寫 target[key] = value 在非嚴格模式下失敗會靜默通過，嚴格模式下 trap 沒回傳 true 還會丟 TypeError。(2) receiver：Reflect.set 可以把 receiver 傳下去，讓原始物件上 setter 內部的 this 指向代理物件而不是原始物件。少了這個，若 target 上有 getter／setter 或有繼承關係，框架的依賴追蹤就會漏記，導致該更新的畫面沒更新。更一般的設計意圖是：Reflect 的方法名與 13 個 trap 一一對應，就是為了讓你在攔截之後能乾淨地「把原本該做的事照做一遍」。"
+   },
+   {
+    "q": "用 Proxy 說明「不改動原始物件就能加入自訂邏輯」這句話的價值，並延伸到 Vue 3 的響應式。",
+    "a": "參考方向：代理模式的核心是在存取路徑上插入一層攔截器，原始物件 raw 完全不用改寫、不用繼承、不用加裝飾器。範例裡插入的是 console.log 側錄；把它換成框架的邏輯，get 時記下「目前正在執行的那個 effect 依賴了這個屬性」（track），set 時查表找出所有依賴這個屬性的 effect 並重新執行（trigger），就得到了資料驅動畫面。相較 Vue 2 用 Object.defineProperty 逐個屬性改寫，Proxy 是攔截整個物件的存取行為，因此新增屬性、刪除屬性、陣列索引賦值都能被偵測到，這是 Vue 3 最實質的升級。代價是無法 polyfill，且代理物件與原始物件是兩個參考，混用容易出錯。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_CheatSheet_and_APIs/array陣列/Object-keys與Array-keys-稀疏陣列孔洞的差異.md": {
+  "tf": [
+   {
+    "q": "[\"a\", , \"c\"] 的索引 1 其值是 undefined。",
+    "a": false,
+    "why": "索引 1 這個屬性根本不存在，1 in arr 會得到 false，只是讀它會回傳 undefined。"
+   },
+   {
+    "q": "Object.keys 回傳的是數字陣列。",
+    "a": false,
+    "why": "回傳字串陣列 string[]，是 '0'、'2' 不是 0、2。"
+   },
+   {
+    "q": "arr.keys() 直接回傳一個陣列。",
+    "a": false,
+    "why": "回傳 Array Iterator，要用展開運算子或 Array.from 或 for...of 才拿得到值。"
+   },
+   {
+    "q": "Object.keys 會跳過稀疏陣列的孔洞。",
+    "a": true,
+    "why": "孔洞沒有實體屬性，所以不會被列舉到。"
+   },
+   {
+    "q": "[...Array(10).keys()] 可以得到 0 到 9。",
+    "a": true,
+    "why": "Array(10) 是全孔洞陣列，正因為 keys() 依 length 生成、不跳孔洞，這招才成立。"
+   },
+   {
+    "q": "Array(10).map((_, i) => i) 也能得到 0 到 9。",
+    "a": false,
+    "why": "map 會跳過孔洞，結果仍然是一個全孔洞的陣列。"
+   },
+   {
+    "q": "如果寫了 arr.foo = 1，Object.keys(arr) 會列出 'foo'。",
+    "a": true,
+    "why": "Object.keys 走的是屬性視角，連非索引的自有可枚舉屬性都會列出。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "長度大於實際元素個數的陣列叫「____ 陣列」。",
+    "a": "稀疏",
+    "why": "英文 Sparse Array，中間的空位叫孔洞（hole）。"
+   },
+   {
+    "q": "arr.keys() 是依據陣列的 ____ 屬性生成連續索引。",
+    "a": "length",
+    "why": "所以它完全不管某個索引存不存在。"
+   },
+   {
+    "q": "檢查索引 1 這個屬性是否真的存在，可以用 1 ____ arr。",
+    "a": "in",
+    "why": "孔洞會得到 false。"
+   },
+   {
+    "q": "Object.keys 只收集「可____」且自有的屬性鍵名。",
+    "a": "枚舉",
+    "why": "英文 Enumerable，所以 Symbol key 與不可枚舉屬性都不會出現。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "面試官給你 const arr = ['a', , 'c']，問你 Object.keys(arr) 與 [...arr.keys()] 差在哪、各自該用在什麼時候。請完整回答。",
+    "a": "參考方向：先講結果——Object.keys 得到 ['0','2']（字串、跳孔洞），[...arr.keys()] 得到 [0,1,2]（數字、不跳孔洞）。再講原因——兩者視角不同：Object.keys 是屬性視角，它列舉物件上實際存在且可枚舉的自有屬性鍵名，孔洞沒有對應屬性所以不出現，而且陣列本質是物件，連 arr.foo = 1 這種非索引屬性也會被列出；arr.keys() 是長度視角，它只看 length 生成 0 到 length-1 的連續數字迭代器，不查屬性存不存在。最後講用法——要「只處理真正有值的元素」用 Object.keys，要「保證覆蓋每一格索引」或「快速造連續數字陣列 [...Array(n).keys()]」用 arr.keys()。補一句陷阱：map／forEach／filter 都會跳過孔洞，所以 Array(10).map((_, i) => i) 不會work。"
+   }
+  ]
+ },
+ "電子電路/訊號與電路基礎-連續離散頻率-RLC諧振-VCVS-CD4007偏壓量測.md": {
+  "tf": [
+   {
+    "q": "大寫 Ω 代表離散時間的數位角頻率。",
+    "a": false,
+    "why": "相反，大寫 Ω 是類比角頻率（rad/s），小寫 ω 才是數位角頻率（rad/sample）。"
+   },
+   {
+    "q": "離散頻率 ω 具有 2π 的週期性。",
+    "a": true,
+    "why": "離散序列只在整數取樣點有值，e^(jωn) 在 ω 與 ω+2π 時完全等價。"
+   },
+   {
+    "q": "半功率點的電流是最大電流的 0.5 倍。",
+    "a": false,
+    "why": "功率正比於電流平方，功率減半代表電流降到 1/√2 ≈ 0.707 倍。"
+   },
+   {
+    "q": "理想 VCVS 的輸入阻抗為零、輸出阻抗為無限大。",
+    "a": false,
+    "why": "完全相反：輸入阻抗無限大（不抽電流）、輸出阻抗為零（不隨負載改變）。"
+   },
+   {
+    "q": "量 CD4007 的 I_B 時，串聯電流表比壓降法更精準。",
+    "a": false,
+    "why": "電流僅約 0.5 mA，電表內阻造成的 Burden Voltage 會產生明顯誤差，壓降法才是首選。"
+   },
+   {
+    "q": "演算法複雜度的 Ω(n) 與訊號處理的角頻率 Ω 是同一個概念。",
+    "a": false,
+    "why": "完全無關，前者是漸進分析的下界（Lower Bound），只是剛好共用同一個希臘字母。"
+   },
+   {
+    "q": "一個理想運算放大器本質上就是一個高增益的 VCVS。",
+    "a": true,
+    "why": "這正是相依電源在主動元件等效模型中的核心用途。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "離散頻率的上限是 ____，超過就會發生頻譜混疊。",
+    "a": "π",
+    "why": "ω = π 對應 f_s/2，也就是 Nyquist 頻率。"
+   },
+   {
+    "q": "連續與離散角頻率的換算式為 ω ＝ Ω × ____。",
+    "a": "T_s",
+    "why": "T_s 是取樣週期，也可以寫成 ω ＝ Ω / f_s。"
+   },
+   {
+    "q": "半功率頻率又稱為 ____ dB 頻率。",
+    "a": "-3",
+    "why": "20·log10(1/√2) ≈ −3.01 dB。"
+   },
+   {
+    "q": "RLC 串聯電路的頻寬 B ＝ ω₂ − ω₁，化簡後等於 R / ____。",
+    "a": "L",
+    "why": "把兩個半功率點的一般式相減即可得到，電阻越大頻寬越寬。"
+   },
+   {
+    "q": "電路圖中相依電源畫成 ____ 形，獨立電源畫成圓形。",
+    "a": "菱",
+    "why": "英文為 Diamond shape，是快速辨識的視覺線索。"
+   },
+   {
+    "q": "量 I_B 的間接法依據的是基爾霍夫 ____ 定律。",
+    "a": "電流",
+    "why": "KCL，Kirchhoff's Current Law，I_B ＝ i_D1 + i_D2。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請說明為什麼離散時間頻率有上限而連續時間頻率沒有，並解釋這個上限與取樣頻率的關係，以及超過會發生什麼事。",
+    "a": "連續訊號在時間軸上處處有定義，頻率可以無限高；離散訊號只在整數取樣點上有值，e^(jωn) 在 ω 與 ω+2π 時對所有整數 n 完全相同，所以離散頻率天生具有 2π 週期性，只需要 [−π, π] 就能表達全部資訊。ω ＝ Ω·T_s ＝ Ω/f_s，因此 ω ＝ π 對應到 Ω ＝ π·f_s，也就是 f_s/2 這個 Nyquist 頻率。超過 f_s/2 的成分在取樣後無法與某個低頻成分區分，會被誤判成低頻，這就是頻譜混疊（Aliasing），實務上必須在取樣前用抗混疊低通濾波器先濾掉。"
+   },
+   {
+    "q": "你在實驗課要把 CD4007 差動對的 I_B 調到 0.5 mA，R_D1 ＝ R_D2 ＝ 10 kΩ、V_DD ＝ 10 V。請完整說明你會怎麼做以及為什麼不直接串電流表。",
+    "a": "電路平衡時 i_D1 ＝ i_D2 ＝ 0.25 mA，R_D 上的壓降為 0.25 mA × 10 kΩ ＝ 2.5 V，所以輸出點電壓應為 10 − 2.5 ＝ 7.5 V。做法是一邊轉可變電阻、一邊用電表量 V_O1 或 V_O2，調到 7.5 V 即可，全程不必量電流。不直接串電流表的原因有二：一是必須把電路斷開（斷 MB 的 Source 對 V_SS，或斷 M1、M2 的 Source 對 MB 的 Drain），破壞原電路且容易接錯；二是電表在 mA 檔有內阻，會產生 Burden Voltage，在只有 0.5 mA 的量級下造成的相對誤差不可忽略。壓降法只量電壓（電表視為高阻抗、幾乎不擾動電路），再用歐姆定律換算，兼顧精確與便利。"
+   }
+  ]
+ },
+ "frontend-docs/css/文字溢出與容器排版-i18n英文變長-斷行策略-flex收縮與overflow陷阱.md": {
+  "tf": [
+   {
+    "q": "中文比英文更容易造成文字溢出容器。",
+    "a": false,
+    "why": "相反。中文每字等寬、可在任意兩字之間換行；英文是空白分隔的單字，瀏覽器預設不會把單字切斷，所以更容易撐破容器。"
+   },
+   {
+    "q": "word-break: break-word 是目前規範建議的寫法。",
+    "a": false,
+    "why": "它已被標示為 deprecated，現代規範建議用 overflow-wrap: break-word 或 overflow-wrap: anywhere。"
+   },
+   {
+    "q": "overflow: hidden 會連 box-shadow 一起裁掉。",
+    "a": true,
+    "why": "它切掉所有超出邊界的繪製內容，陰影與溢出文字都會被吃掉，是排版除錯的常見兇手。"
+   },
+   {
+    "q": "父層是 display: flex 時，子層寫 width: 100% 一定會生效。",
+    "a": false,
+    "why": "flex 子項預設 flex-shrink: 1，空間不夠時會被壓縮；交叉軸方向若父層設 align-items: center，子層還會縮成內容的最小尺寸。"
+   },
+   {
+    "q": "max-width 搭配 width: 100% 一起寫，才能兼顧上限與可收縮。",
+    "a": true,
+    "why": "max-width 管上限、width: 100% 管空間不足時能縮，缺一都會在某個斷點出事。"
+   },
+   {
+    "q": "用 <label> 包住整張卡片可以讓整張卡片都變成可點擊區。",
+    "a": true,
+    "why": "label 與內部 input 產生關聯，點 label 任一處都會觸發該 input，對螢幕閱讀器也更友善。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "排查文字溢出時，第一個要去 Computed 面板檢查的屬性是 white-space 是不是 ____。",
+    "a": "nowrap",
+    "why": "它會讓文字完全不換行，一路往右衝，是頭號嫌疑犯。"
+   },
+   {
+    "q": "只有在整行放不下時才把單字切開，應該用 ____: break-word。",
+    "a": "overflow-wrap",
+    "why": "斷得最自然，是一般文案的首選。"
+   },
+   {
+    "q": "網址或雜湊值這種無空白的長字串，可用 word-break: ____ 強制切斷。",
+    "a": "break-all",
+    "why": "不管單字邊界，滿了就切。"
+   },
+   {
+    "q": "多語系容器建議用 max-width 搭配 ____ 單位，例如 34ch。",
+    "a": "ch",
+    "why": "ch 代表字元寬度，中英文都能自動適應，不必寫死 px。"
+   },
+   {
+    "q": "i18n 的 i 與 n 中間有 ____ 個字母。",
+    "a": "18",
+    "why": "Internationalization 的縮寫由來。"
+   },
+   {
+    "q": "讓 flex 子項不被壓縮，要設 flex-____: 0。",
+    "a": "shrink",
+    "why": "預設值是 1，代表空間不足時允許收縮。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "Future Sign 官網切到英文版時 footer 標語溢出容器。請說出你的完整排查順序與三種修法的取捨。",
+    "a": "排查順序：一、F12 選到溢出元素，看 Computed 的 white-space 是不是被設成 nowrap；二、往上找有沒有寫死的 width 或 max-width（本例是 .footer-tagline-container 的 max-width: 260px）；三、檢查父層是不是 display: flex、子層有沒有被 flex-shrink 壓縮；四、檢查有沒有 overflow: hidden 把內容切掉；五、最後才調字級與行高。三種修法：方案一放寬容器上限（max-width 從 260px 改 320px 並加 width: 100%），最推薦，因為它處理的是根因——容器對英文而言太窄，且 width: 100% 保住小螢幕的可收縮性；方案二讓文字自動斷行（white-space: normal 加 overflow-wrap: break-word），適合寬度不能動的情況，缺點是長單字被切開閱讀體驗較差；方案三調 font-size 與 line-height，只適合超出一點點的微調，缺點是動到字級會影響視覺層級的一致性。實務上最好的長期解是改用 max-width 搭配 ch 單位，讓中英文都自動適應。"
+   },
+   {
+    "q": "同事說「我 flex 子層明明寫了 width: 100%，為什麼還是縮成一小塊？」請完整解釋原因並給出修法。",
+    "a": "因為 flex 子項的預設 flex-shrink 是 1，代表主軸空間不足時允許被壓縮，width: 100% 只是「期望值」而非「保證值」，flex 演算法會依照 flex-basis、flex-grow、flex-shrink 重新分配。另外若父層 flex-direction: row 且設了 align-items: center，交叉軸（此時是垂直方向）不再 stretch，子層會縮成內容的最小尺寸——要注意這影響的是交叉軸方向，不是寬度，很多人在這裡搞混。修法有三：一、對不該被壓縮的子項設 flex-shrink: 0；二、把 align-items 改回預設的 stretch，讓子項在交叉軸撐滿；三、若真正需要的是最小寬度保護，設 min-width（注意 flex 子項的 min-width 預設是 auto，有時要顯式設成 0 才能讓內容正常收縮）。排查時建議在 DevTools 把可疑的 overflow: hidden 暫時關掉，確認不是它造成的視覺誤判。"
+   }
+  ]
+ },
+ "frontend-docs/網頁座標點連線視覺化工具-GeoGebra-Plotly-Desmos與ThreeJS自製.md": {
+  "tf": [
+   {
+    "q": "Plotly 的 lines 模式會自動找出最合理的連線方式。",
+    "a": false,
+    "why": "它是依照「點在資料中的順序」連線，順序錯了圖形就錯。"
+   },
+   {
+    "q": "THREE.Geometry 仍是 Three.js 目前建議使用的幾何體類別。",
+    "a": false,
+    "why": "它在 r125 之後已從核心移除，現行做法是 THREE.BufferGeometry。"
+   },
+   {
+    "q": "p5.js 的 endShape(CLOSE) 會把最後一點接回第一點。",
+    "a": true,
+    "why": "不加 CLOSE 就只會畫出開放折線。"
+   },
+   {
+    "q": "2D 且點數不多時，用 SVG 的 <polyline> 就足夠，不需要任何函式庫。",
+    "a": true,
+    "why": "還能直接貼進 Obsidian 顯示，是最輕量的解。"
+   },
+   {
+    "q": "把一堆散點連成最外圈輪廓，是繪圖工具內建的功能。",
+    "a": false,
+    "why": "那是凸包（Convex Hull）演算法要解的問題，繪圖工具只負責照順序連線。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Three.js 把座標陣列轉成線條模型的方法是 BufferGeometry 的 ____。",
+    "a": "setFromPoints",
+    "why": "它會把頂點展平成 Float32Array 存進 GPU 緩衝區。"
+   },
+   {
+    "q": "p5.js 要畫 3D 必須在 createCanvas 第三個參數指定 ____ 模式。",
+    "a": "WEBGL",
+    "why": "預設是 2D 模式，vertex 的第三個座標不會生效。"
+   },
+   {
+    "q": "GeoGebra 中建立多邊形連線的指令是 ____(A, B, C, D)。",
+    "a": "Polygon",
+    "write": "",
+    "why": "建立線段則用 Line(A, B)。"
+   },
+   {
+    "q": "WebGL 的全名是 Web ____ Library。",
+    "a": "Graphics",
+    "why": "瀏覽器的硬體加速繪圖 API，Three.js 建構在它之上。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "客戶要一個「輸入座標點就自動連線成圖」的網頁功能。請說明你會怎麼在現成工具與自製之間做選擇，並解釋自製時 Three.js 與 SVG 的取捨。",
+    "a": "先問三個問題：一、是一次性看結果還是要嵌進產品？二、是 2D 還是 3D？三、資料點有多少？如果只是自己或教學要看一眼，直接用現成工具最快——要精確幾何與教學互動選 GeoGebra，手上是 CSV 大量資料選 Plotly，只想快速視覺化選 Desmos，要做成實體選 Tinkercad。如果要嵌進產品就得自製。自製時，2D 且點數在數百以內優先用 SVG 的 <polyline>：零相依、可被 CSS 樣式化、每個點都是 DOM 節點方便綁事件、對 SEO 與無障礙友善，缺點是點數上萬後 DOM 會爆炸。3D 或需要旋轉縮放、點數龐大就用 Three.js：用 BufferGeometry.setFromPoints 把頂點送進 GPU，渲染成本由顯卡吃下，缺點是引入約數百 KB 的函式庫、要自己處理相機與光照、DOM 事件要改用射線偵測（Raycaster）。p5.js 介於兩者之間，API 最簡單，適合原型與創意實驗。共通的地雷是所有工具都只照順序連線，如果需求其實是「求外框」，那要先跑凸包演算法而不是換繪圖工具。"
+   }
+  ]
+ },
+ "claude CLI/Claude-Desktop與Claude-Code的狀態持久化差異-用React心智模型理解Session與jsonl.md": {
+  "tf": [
+   {
+    "q": "關掉 Terminal 之後，Claude Code 的對話狀態仍留在記憶體裡。",
+    "a": false,
+    "why": "作業系統送出 SIGINT 或 SIGHUP，Node.js 行程終止，RAM 中的 Context State 立刻消失。"
+   },
+   {
+    "q": "Claude Code 的對話記錄存在 ~/.claude/session.json。",
+    "a": false,
+    "why": "這是 Gemini 給的示意路徑。真實位置是 ~/.claude/projects/<專案路徑編碼>/<uuid>.jsonl。"
+   },
+   {
+    "q": "jsonl 檔名的 UUID 就是 session ID。",
+    "a": true,
+    "why": "一個 session 一個檔，內容是 JSON Lines，一行一筆訊息物件。"
+   },
+   {
+    "q": "claude -c 與 claude -r 的行為完全相同。",
+    "a": false,
+    "why": "-c/--continue 接續當前目錄最近一次的對話，-r/--resume 是列出 session 讓你挑一個。"
+   },
+   {
+    "q": "Electron 的 Main Process 跑的是 Node.js，Renderer Process 跑的是 Web UI。",
+    "a": true,
+    "why": "前者負責檔案系統與 OS API，後者負責 DOM、CSS 與 React／Vue。"
+   },
+   {
+    "q": "更新 React 訊息陣列時可以直接用 messages.push(newMessage)。",
+    "a": false,
+    "why": "push 會改到原陣列、參照沒變，React 不會重繪，必須用 [...messages, newMessage] 產生新陣列。"
+   },
+   {
+    "q": "Claude Desktop 換一台電腦登入後歷史對話仍在。",
+    "a": true,
+    "why": "它的記憶存在雲端資料庫，啟動時透過 API 重新 Fetch。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "關閉終端機時作業系統會向行程發送 SIGINT 或 ____ 訊號。",
+    "a": "SIGHUP",
+    "why": "Signal Hang Up，掛斷訊號。"
+   },
+   {
+    "q": "把磁碟上的資料灌回記憶體狀態的前端術語叫 ____。",
+    "a": "Rehydration",
+    "why": "中文譯作再水合，claude -c 做的就是這件事。"
+   },
+   {
+    "q": "JSONL 的全名是 JSON ____。",
+    "a": "Lines",
+    "why": "一行一筆完整 JSON 物件，適合逐行追加而不必重寫整份檔案。"
+   },
+   {
+    "q": "讓 jsonl 不被定期清除，要在 settings.json 設 ____。",
+    "a": "cleanupPeriodDays",
+    "why": "設成極大值如 999999，注意這是權宜寫法不是官方的永不刪除開關。"
+   },
+   {
+    "q": "C:\\coding\\futuresign 這個專案在 .claude/projects 底下的資料夾名是 ____。",
+    "a": "C--coding-futuresign",
+    "why": "把絕對路徑的分隔符換成連字號編碼而成。"
+   },
+   {
+    "q": "Chromium 與 Node.js 都掛載了 Google 的 ____ 引擎。",
+    "a": "V8",
+    "why": "所以最終對外暴露的全部都是 JavaScript Runtime。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請用 React 的心智模型完整解釋 Claude Desktop 與 Claude Code 在對話狀態上的差異，並說明各自的復原機制。",
+    "a": "Claude Desktop 像是一個接了後端 API 的 React App：Mount 時透過 useEffect 呼叫雲端 API 把帳號的歷史對話載入 state；對話中每次送訊息就用 [...messages, newMessage] 產生新陣列並打包整個 Context Window 送給模型；同時後端會把新訊息 persist 進雲端資料庫。所以視窗關掉等於 Unmount，但資料在 Server，下次啟動重新 Fetch 就完整復原，甚至換一台電腦也還在。Claude Code 像是一個沒有後端、只有 LocalStorage 的 React App：執行 claude 啟動一個 Node.js 行程，相當於初始化空白的 useState([])；state 只活在該行程的 RAM 裡；關閉 Shell 時作業系統送出 SIGINT 或 SIGHUP，行程終止、記憶體釋放，等同直接按 F5。它的復原靠 Rehydration：claude -c 或 claude -r 在啟動時從磁碟讀取 ~/.claude/projects/<專案路徑編碼>/<uuid>.jsonl，把 JSON Lines 逐行 parse 回記憶體。關鍵差異是儲存位置與作用範圍——雲端 vs 本機硬碟，帳號綁定 vs 專案路徑綁定，所以換個資料夾執行 claude 就找不到原本的對話。"
+   },
+   {
+    "q": "你想把每天用 Claude Code 的提問整理成工作日誌。請說明資料在哪、格式是什麼、要先做什麼設定、以及你會怎麼實作。",
+    "a": "資料在 ~/.claude/projects/<專案路徑編碼>/<uuid>.jsonl，Windows 上例如 C:\\Users\\User\\.claude\\projects\\C--coding-futuresign\\<uuid>.jsonl。資料夾名是把專案絕對路徑的分隔符換成連字號編碼而成，所以同一台機器上不同專案分開存；檔名 UUID 就是 session ID；格式是 JSON Lines，一行一筆完整的 JSON 訊息物件。第一件事是先在 ~/.claude/settings.json 設 cleanupPeriodDays 為一個極大值（例如 999999），否則舊 log 會被定期清掉，日誌就斷了——同時要注意這會讓 log 一直長，得留意磁碟空間。實作上因為是 JSON Lines，可以逐行 parse 而不必把整份讀進記憶體：開檔後對每一行 json.loads，篩出 role 為 user 的訊息，取出 timestamp 與內容，按日期分組輸出成 Markdown。這正是 show-my-prompts.py 的做法，支援 <session-id-prefix> 抽單一 session 與 --date today|yesterday|YYYY-MM-DD 抽某一天所有 session。要自動化就再掛 Windows Task Scheduler 每天定時跑一次。若想要現成工具，claude-log-cli 也能瀏覽本機 session log，但它是 C# 寫的且沒有 Windows binary，要自己用 .NET SDK 編譯。"
+   }
+  ]
+ },
+ "frontend-docs/react/React兩階段渲染-Render與Commit-Mount-Update-Unmount生命週期.md": {
+  "tf": [
+   {
+    "q": "Commit Phase 屬於 Update，Mount 的時候不會經過 Commit Phase。",
+    "a": false,
+    "why": "Commit 既不等於 Mount 也不等於 Update，Mount／Update／Unmount 三者都會走完 Render Phase → Commit Phase。"
+   },
+   {
+    "q": "useLayoutEffect 的 callback 在瀏覽器 Paint 之前同步執行。",
+    "a": true,
+    "why": "它掛在 Commit 的 Layout 子階段，所以在這裡量 DOM、改樣式不會閃爍。"
+   },
+   {
+    "q": "元件 Update 時，React 會先執行上一次 useEffect 回傳的 cleanup，再執行本次的 callback。",
+    "a": true,
+    "why": "Update 的每一次 Effect 都是「先清理上一次、再建立這一次」；Unmount 則只清理不建立。"
+   },
+   {
+    "q": "Render Phase 不可中斷，Commit Phase 可以中斷。",
+    "a": false,
+    "why": "剛好相反。Render Phase 是純計算所以可中斷、可丟棄重來；Commit Phase 要同步寫 DOM，不可中斷。"
+   },
+   {
+    "q": "元件 Update 時，對應的 FiberNode 會被銷毀並重新建立。",
+    "a": false,
+    "why": "Update 是零回收：React 只把 current 節點 Clone 一份當 workInProgress，更新 memoizedProps／memoizedState，再交替雙緩衝指標。"
+   },
+   {
+    "q": "寫在元件函式外部的全域常數，也算是響應式數值（Reactive Value），必須放進依賴陣列。",
+    "a": false,
+    "why": "只有 props、state、以及元件本體算出來的衍生變數才算；全域常數不會隨 re-render 改變，不需要放。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "React 的渲染分成兩個大階段：純計算、可中斷的 ____ Phase，以及同步寫入 DOM、不可中斷的 Commit Phase。",
+    "a": "Render",
+    "why": "Render Phase 做 Diffing，Commit Phase 才動真實 DOM。"
+   },
+   {
+    "q": "Commit Phase 內部依序是 Mutation → ____ → 瀏覽器 Paint → Passive 四個環節。",
+    "a": "Layout",
+    "why": "Layout 對應 useLayoutEffect，Passive 對應 useEffect。"
+   },
+   {
+    "q": "Unmount 時 React 會把該 Fiber 標記為 ____，斷開父節點的 child／sibling 指標與內部的 stateNode 指標，之後交給 GC 回收。",
+    "a": "Deletion",
+    "why": "這就是 Unmount 與 Update 在記憶體上最大的差別。"
+   },
+   {
+    "q": "React 官方維護的 ESLint 套件叫 eslint-plugin-react-hooks，其中檢查依賴陣列的規則是 react-hooks/____。",
+    "a": "exhaustive-deps",
+    "why": "涵蓋 useEffect、useCallback、useMemo。"
+   },
+   {
+    "q": "依賴陣列傳空陣列 [] 代表：只在 Mount 執行一次，並在 ____ 時執行 cleanup。",
+    "a": "Unmount",
+    "why": "這是最常見的「訂閱／解除訂閱」寫法。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "面試官問：「commit 算 Mount 還是 Update？」請完整回答，並順便說明 useLayoutEffect 與 useEffect 的時序差異。",
+    "a": "要點：(1) 兩者都不是，Commit 是一個橫跨三種生命週期的機制；Mount／Update／Unmount 都會走 Render Phase → Commit Phase。(2) Render Phase 純計算、可中斷；Commit Phase 同步、不可中斷。(3) Commit 內部分成 Mutation（動 DOM）→ Layout（同步跑 useLayoutEffect，此時尚未 Paint）→ 瀏覽器 Paint → Passive（非同步跑 useEffect）。(4) 所以要避免畫面閃爍的 DOM 量測與修改要寫在 useLayoutEffect，一般的資料抓取、訂閱寫在 useEffect。"
+   },
+   {
+    "q": "請從 Fiber 記憶體的角度說明「Update」跟「Unmount」差在哪，並解釋為什麼 Update 被稱為零回收。",
+    "a": "要點：Update 時真實 DOM 節點被保留只做屬性 Mutation，FiberNode 依然在 Heap 中（Clone 成 workInProgress、更新 memoizedProps 與 memoizedState、交替 alternate 指標），state 與 stateNode 都完好，所以是零回收。Unmount 時 React 呼叫 removeChild 移除真實 DOM，Fiber 被標記 Deletion，父節點的 child／sibling 指標與內部 stateNode 指標都被斷開，引用歸零之後 GC 會把 FiberNode 連同 memoizedState 一併清除。一句話：Update 是同一個元件換新資料，Unmount 是這個元件不存在了。"
+   },
+   {
+    "q": "什麼是「響應式數值（Reactive Values）」？它跟「依賴陣列」是什麼關係？舉例說明漏填會發生什麼事。",
+    "a": "要點：響應式數值是「在元件本體內部宣告或讀取、且可能隨 re-render 改變」的數值，包含 props、state、以及元件本體算出來的衍生變數；元件函式外部的全域常數不算。依賴陣列是 useEffect 第二個參數那個容器。原則：Effect 內部讀到的每一個響應式數值都必須放進依賴陣列。漏填的後果是 Effect 抓到的是舊那一次渲染的閉包值（過期閉包），例如聊天室只依賴 [roomId] 卻在 Effect 裡讀了 serverUrl，換伺服器後仍然連到舊的 URL，而且不會報錯。react-hooks/exhaustive-deps 就是用來自動抓這件事。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_Core_and_Runtime/Promise是物件-NaN屬於Number-與JS編譯階段三件事.md": {
+  "tf": [
+   {
+    "q": "typeof NaN 的結果是 \"undefined\"。",
+    "a": false,
+    "why": "是 \"number\"。NaN 是 IEEE 754 定義在 Number 型別裡的特殊值。"
+   },
+   {
+    "q": "NaN === NaN 的結果是 false。",
+    "a": true,
+    "why": "NaN 是 JavaScript 中唯一不等於自身的值，所以也可以用 x !== x 來判斷。"
+   },
+   {
+    "q": "isNaN('hello') 與 Number.isNaN('hello') 會得到相同的結果。",
+    "a": false,
+    "why": "全域 isNaN 會先做 ToNumber 轉型所以是 true；Number.isNaN 不轉型所以是 false。ES2015 之後請一律用後者。"
+   },
+   {
+    "q": "new Promise 的 executor（那個 (resolve, reject) => {...}）要等到 .then 被呼叫時才執行。",
+    "a": false,
+    "why": "executor 是同步、立刻執行的；被延後的是 .then 註冊的回呼。"
+   },
+   {
+    "q": "JavaScript 的編譯階段會執行 var x = 10 這行的賦值動作。",
+    "a": false,
+    "why": "編譯階段只註冊宣告與配置記憶體，= 10 留到執行階段。"
+   },
+   {
+    "q": "let 與 const 在編譯階段完全沒有被註冊，所以宣告前存取才會報 ReferenceError。",
+    "a": false,
+    "why": "有被註冊，只是不初始化、劃入 TDZ 暫時性死區；正因為有註冊，錯誤才是 ReferenceError 而不是「變數不存在」。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Promise 這個容器本身型別永遠是 ____，但它 resolve 出來的結果型別取決於你在 resolve() 裡傳什麼。",
+    "a": "object",
+    "why": "typeof p 是 \"object\"，p instanceof Promise 是 true。"
+   },
+   {
+    "q": "要正確判斷一個值是不是 NaN，應該用 ____ 這個 ES2015 之後的靜態方法。",
+    "a": "Number.isNaN",
+    "why": "它不做任何型別轉換。"
+   },
+   {
+    "q": "詞法分析把原始碼拆成 Token，語法分析再把 Token 組成 ____（抽象語法樹）。",
+    "a": "AST",
+    "why": "Abstract Syntax Tree，語法錯誤就是在這一步拋 SyntaxError。"
+   },
+   {
+    "q": "V8 的解譯器叫 Ignition，負責把 AST 轉成 Bytecode；最佳化編譯器叫 ____，負責把熱點程式碼編成機器碼。",
+    "a": "TurboFan",
+    "why": "這就是 JIT（Just-In-Time Compilation）在 V8 裡的實作。"
+   },
+   {
+    "q": "let 與 const 在編譯階段被註冊但不初始化，這段「宣告了卻不能用」的區間叫做 ____（縮寫三個字母）。",
+    "a": "TDZ",
+    "why": "Temporal Dead Zone，暫時性死區。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "為什麼一個叫「Not a Number」的東西，typeof 卻是 number？請從 IEEE 754 的角度回答，並說明它跟 undefined 的分界。",
+    "a": "要點：NaN 是 IEEE 754 浮點數標準定義的一個特殊位元樣式，它佔的是 Number 型別內部的一組編碼，所以型別當然是 number。它的語意是「這個運算算不出有意義的數值」，例如 0/0、'abc'*2、Math.sqrt(-1)；JavaScript 選擇回傳 NaN 而不是拋錯。跟 undefined 的分界：undefined 是「變數尚未被賦值或屬性不存在」，NaN 是「變數有值、而且是數值型別，但數值內容無效」。附帶特性：NaN 是唯一不等於自身的值，所以不能用 === 判斷，要用 Number.isNaN() 或 x !== x。"
+   },
+   {
+    "q": "請說明 JS 引擎在「編譯階段」做的三件事，並解釋為什麼少打一個括號會讓整份檔案一行都不執行。",
+    "a": "要點：(1) 語法解析——詞法分析拆 Token，語法分析組成 AST；(2) 作用域建立與提升——掃描所有宣告建立作用域鏈，function 直接綁函式物件、var 註冊並給 undefined、let/const 註冊但不初始化劃入 TDZ，注意這一步完全不執行賦值；(3) 生成 Bytecode——Ignition 把 AST 轉成位元組碼，並為 TurboFan 的 JIT 最佳化做準備。至於少打括號：語法錯誤是在第 (1) 步的語法分析就被攔下並拋 SyntaxError，程式根本還沒進到執行階段，所以整份檔案一行都不會跑，而不是「跑到那一行才壞掉」。補充：V8 有 Lazy Parsing，函式主體要等真的被呼叫才完整解析，所以「執行前整份檔案都被完整編譯」的說法並不精確。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_Core_and_Runtime/10-傳值vs傳址-賦值與記憶體空間.md": {
+  "tf": [
+   {
+    "q": "「原生值是不可變的」的意思，就是「每次賦值都會在記憶體開一塊新空間」。",
+    "a": false,
+    "why": "這是兩件事。不可變講的是值本身不能就地修改；記憶體開不開新空間取決於引擎最佳化（SMI 內嵌、字串池共用）。"
+   },
+   {
+    "q": "str = 'Hello'; str[0] = 'h'; 之後 str 會變成 'hello'。",
+    "a": false,
+    "why": "字串是不可變的，這行修改無效，str 依然是 'Hello'（嚴格模式下會直接 TypeError）。"
+   },
+   {
+    "q": "V8 對小整數（SMI）通常直接內嵌在 stack 或暫存器中，不會去 heap 配置物件。",
+    "a": true,
+    "why": "這就是為什麼「傳值一定會開新記憶體」的說法不成立。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "引擎讓程式碼中重複出現的相同字串共用同一份記憶體位址，這個機制叫做字串 ____（也叫字串池）。",
+    "a": "駐留",
+    "why": "String Interning，直到沒有變數引用時才由 GC 回收。"
+   },
+   {
+    "q": "原生值是「值不可變 ＋ 賦值時複製值」，物件則是「值可變 ＋ 賦值時複製 ____」。",
+    "a": "位址",
+    "why": "也就是傳址（Pass by Reference／Sharing）。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請說明「不可變（Immutable）」與「傳值（Pass by Value）」的差別，並回答「原生值不可變是不是代表記憶體會一直開新的」。",
+    "a": "要點：不可變是「值的性質」——值本身無法被就地修改，例如 str[0]='h' 對字串無效，你只能重新賦值讓變數指向另一個值。傳值是「賦值時的複製行為」——let b = a 會讓 b 拿到一份獨立的副本。原生值剛好兩個性質都成立，才容易被混為一談；物件則兩個都相反（可變＋傳址）。至於記憶體會不會一直開新的：不一定，V8 對小整數（SMI）會直接內嵌在 stack 或暫存器，字串則用字串池讓相同內容共用同一份位址。恰恰因為不可變，引擎才敢讓多個變數共用同一份唯讀資料。"
+   }
+  ]
+ },
+ "backend/Cookie隔離邊界與跨站請求安全-Origin-SameSite-CSRF-Token與Bearer.md": {
+  "tf": [
+   {
+    "q": "a.com 設一支叫 token 的 Cookie，b.com 也設一支叫 token，兩者會互相覆蓋。",
+    "a": false,
+    "why": "瀏覽器以 Origin（Protocol＋Domain＋Port）為邊界分桶儲存，同名不會衝突，a.com 也讀不到 b.com 的 Cookie。"
+   },
+   {
+    "q": "SameSite 屬性的用途是劃分網域，避免不同網站的 Cookie 同名打架。",
+    "a": false,
+    "why": "劃分作用域的是 Domain 與 Path。SameSite 管的是「跨站請求時要不要自動夾帶」，目的是防 CSRF 與保護隱私。"
+   },
+   {
+    "q": "只要把 API Endpoint 取得夠隱密，就能有效防止 CSRF。",
+    "a": false,
+    "why": "Security through obscurity 是無效的。駭客自己註冊一個帳號、打開 F12 看 Network 就抄得到完整 API 規格。"
+   },
+   {
+    "q": "evil.com 頁面裡的 JavaScript 可以讀取你另一個分頁中 your-app.com 的 LocalStorage。",
+    "a": false,
+    "why": "同源政策擋得住「讀取」。但它擋不住「發送」——evil.com 仍可誘導瀏覽器對 your-app.com 發出請求。"
+   },
+   {
+    "q": "瀏覽器決定要不要夾帶 Cookie，是看「誰發起這個請求」。",
+    "a": false,
+    "why": "唯一依據是目標網址的 Domain 與 Path，跟發起者完全無關。這正是 CSRF 成立的原因。"
+   },
+   {
+    "q": "改用 Authorization: Bearer 之後就完全安全了，不必再擔心任何攻擊。",
+    "a": false,
+    "why": "風險只是換了一種：Cookie 怕 CSRF，Bearer 若把 Token 存 LocalStorage 就怕 XSS。兩邊都要防。"
+   },
+   {
+    "q": "在 F12 的 Application 分頁看不到登入 Cookie，就一定代表沒有登入。",
+    "a": false,
+    "why": "現代 SPA 常把 JWT 放在 Local Storage 或 Session Storage，不走 Cookie。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "瀏覽器安全模型的邊界單位叫 ____，由 Protocol ＋ Domain ＋ Port 三者組成。",
+    "a": "Origin",
+    "why": "三者全部相同才算同源。"
+   },
+   {
+    "q": "決定一支 Cookie 作用域的兩個屬性是 Domain 與 ____。",
+    "a": "Path",
+    "why": "跟 SameSite 無關，SameSite 管的是跨站時要不要送。"
+   },
+   {
+    "q": "後端產生一串不可預測的隨機字串放在頁面裡，變更資料時必須一起送回驗證，這個機制叫 Anti-____ Token。",
+    "a": "CSRF",
+    "why": "靠的是同源政策讓 evil.com 讀不到那串字串。"
+   },
+   {
+    "q": "「靠隱藏資訊來達成安全」這種無效做法，英文叫 Security through ____。",
+    "a": "obscurity",
+    "why": "網域與 Endpoint 在前端本來就是公開資訊。"
+   },
+   {
+    "q": "把 Token 放在 Authorization Header 手動送出時，用的前綴關鍵字是 ____。",
+    "a": "Bearer",
+    "why": "格式是 Authorization: Bearer <token>。"
+   },
+   {
+    "q": "Cookie 自動夾帶的主要風險是 CSRF；把 JWT 存在 LocalStorage 的主要風險則是 ____。",
+    "a": "XSS",
+    "why": "被注入的 JS 可以直接讀走 LocalStorage 裡的 Token。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "用你自己的話解釋：同源政策既然這麼嚴格，為什麼 CSRF 還是能成功？請把「讀取」與「發送」分開講。",
+    "a": "參考方向：同源政策限制的是跨來源的「讀取」——evil.com 的 JS 讀不到 your-app.com 的 DOM、Console、LocalStorage，也讀不到回應內容。但它完全不限制「發送」：evil.com 可以放一個 form 或 img 指向 your-app.com 的 Endpoint，瀏覽器依照「Domain 與 Path 匹配就夾帶 Cookie」的規則照樣把 Session 送出去。攻擊者看不到結果，但變更資料的動作已經被執行了。所以防線必須放在後端能不能分辨「這個請求是不是從我認可的頁面發起的」，也就是 SameSite、CSRF Token 與 Origin 校驗。"
+   },
+   {
+    "q": "面試官問「Cookie 跟 JWT 你會選哪個」，請給一個不落入二選一陷阱的回答。",
+    "a": "參考方向：先指出兩者的風險是互補而非高下——Cookie 自動夾帶所以怕 CSRF，Bearer 需手動夾帶所以跨站帶不上、但存 LocalStorage 就怕 XSS。接著給實務折衷：Access Token 放記憶體（頁面重整就沒了，XSS 也難撈）、Refresh Token 放 HttpOnly ＋ SameSite=Strict ＋ Secure 的 Cookie（JS 讀不到、跨站不會送）。最後補防線清單：SameSite、CSRF Token、CORS 與 Origin 校驗、輸出跳脫與 CSP。"
+   }
+  ]
+ },
+ "backend/WebTransport-雙向傳輸-Streams與Datagrams-掉封包與FEC.md": {
+  "tf": [
+   {
+    "q": "WebTransport 本身是單向傳輸協定，要靠 Bidirectional Streams 才能雙向。",
+    "a": false,
+    "why": "WebTransport 的連線本來就是雙向的，三種模式只是同一條連線上劃分出的傳輸管道。"
+   },
+   {
+    "q": "Unidirectional Stream 就是 Datagram，只是換個名字。",
+    "a": false,
+    "why": "方向性與可靠性是兩個獨立維度。Unidirectional Stream 是單向但 100% 可靠、保證順序；Datagram 則不可靠也不保證順序。"
+   },
+   {
+    "q": "要傳一個 10MB 的檔案，應該用 Datagrams 因為速度快。",
+    "a": false,
+    "why": "Datagram 受 MTU 限制約 1KB、掉包不重傳，用來傳檔案會破損。應該用 Unidirectional Stream。"
+   },
+   {
+    "q": "線上遊戲每秒 60 次的座標更新適合用 Datagrams。",
+    "a": true,
+    "why": "掉了不用重傳，16 毫秒後就有更新的座標；用 Stream 反而會卡住等重傳造成 Lag。"
+   },
+   {
+    "q": "掉封包一定會讓畫面直接黑屏。",
+    "a": false,
+    "why": "掉差異幀只會局部破圖或殘影，掉關鍵幀會凍結跳幀，只有連線徹底中斷或連續丟失大量關鍵幀才會黑屏。"
+   },
+   {
+    "q": "即時影音不用 TCP 的主因是 TCP 太耗頻寬。",
+    "a": false,
+    "why": "主因是 Head-of-Line Blocking——TCP 為了重傳會暫停後面所有資料的接收，畫面會硬生生卡住數百毫秒。"
+   },
+   {
+    "q": "FEC 是在掉包發生後請發送端重傳遺失的封包。",
+    "a": false,
+    "why": "FEC 是前向糾錯，事先附加冗餘封包讓接收端能用數學算回遺失資料，完全不需要重傳。事後請求重發關鍵幀的是 FIR／PLI。"
+   },
+   {
+    "q": "Datagrams 有背壓機制，接收端處理不過來會通知發送端減速。",
+    "a": false,
+    "why": "Datagram 沒有背壓，發太快接收端處理不及就直接丟棄。有背壓的是 Stream。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "WebTransport 建立在 HTTP/3 之上，而 HTTP/3 的傳輸層協定是 ____。",
+    "a": "QUIC",
+    "why": "全名 Quick UDP Internet Connections，跑在 UDP 上但自己實作可靠性與加密。"
+   },
+   {
+    "q": "限制單個 Datagram 大小約 1KB 的網路參數叫 ____（最大傳輸單元）。",
+    "a": "MTU",
+    "why": "Maximum Transmission Unit，一般以太網路約 1500 bytes。"
+   },
+   {
+    "q": "TCP 為了重傳而暫停後續資料接收，導致畫面卡住的現象叫 ____ Blocking。",
+    "a": "Head-of-Line",
+    "why": "中文常譯為隊頭阻塞，是 WebSocket 相對 WebTransport 的主要劣勢。"
+   },
+   {
+    "q": "發送端事先附加冗餘封包，讓接收端能算回遺失資料的技術叫 ____（前向糾錯）。",
+    "a": "FEC",
+    "why": "Forward Error Correction，掉 10~20% 也能還原。"
+   },
+   {
+    "q": "包含完整影像資料的畫格叫 ____ 幀，只記錄與上一格差異的叫 P 幀或 B 幀。",
+    "a": "I",
+    "why": "也叫 Keyframe 關鍵幀，掉了會導致畫面凍結直到下一個 I 幀抵達。"
+   },
+   {
+    "q": "接收端處理不過來時能通知發送端減速的機制叫 ____（背壓）。",
+    "a": "Backpressure",
+    "why": "Stream 有、Datagram 沒有。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "用兩個維度畫出 WebTransport 的三種傳輸模式，並各舉一個實際場景說明為什麼不能換成另一種。",
+    "a": "參考方向：橫軸是方向性（單向／雙向），縱軸是可靠性（可靠／不可靠）。Bidirectional Stream＝雙向可靠，像 TCP／WebSocket，適合一般請求回應。Unidirectional Stream＝單向可靠，適合 10MB 檔案上傳；不能換 Datagram 因為單包只有約 1KB 又不重傳，檔案會破損。Datagrams＝不可靠不保證順序，適合每秒 60 次的遊戲座標；不能換 Stream 因為 Stream 掉包會卡住等重傳，造成畫面 Lag，而舊座標重傳過來本來就沒有意義。"
+   },
+   {
+    "q": "面試官問「WebSocket 跟 WebTransport 差在哪」，請給一個能顯示你懂底層的回答。",
+    "a": "參考方向：WebSocket 跑在 TCP 上，所有訊息共用一條有序可靠的通道，一旦掉包就觸發 Head-of-Line Blocking，後面的資料全部得等。WebTransport 跑在 QUIC（UDP 之上），多條 Stream 彼此獨立，某一條掉包不會拖累其他條；而且它額外提供 Datagrams 這條明確放棄可靠性換低延遲的路，這是 WebSocket 完全沒有的選項。再補一句：WebTransport 的連線同樣是雙向的，單向串流只是管道層級的劃分，不要誤以為它比 WebSocket 弱。"
+   }
+  ]
+ },
+ "build-and-compilation/Dev-Server在Node環境-devServer-proxy繞過CORS-HMR用WebSocket-與原生語言打包工具.md": {
+  "tf": [
+   {
+    "q": "devServer.proxy 之所以能繞過 CORS，是因為它幫你加了 Access-Control-Allow-Origin 標頭。",
+    "a": false,
+    "why": "是因為瀏覽器只看到同源的 localhost 請求，而 Node 對後端的轉發屬於伺服器對伺服器，本來就不受瀏覽器同源政策管轄。"
+   },
+   {
+    "q": "npm run build 之後，devServer.proxy 的設定會一起被打包進靜態檔案。",
+    "a": false,
+    "why": "Dev Server 與代理設定完全不會被打包。正式環境的反向代理必須改由 Nginx 這類 Web 伺服器處理。"
+   },
+   {
+    "q": "Node.js 是一種打包工具。",
+    "a": false,
+    "why": "Node.js 是執行環境（Runtime）。打包工具（Webpack、Vite、Rollup）是跑在它上面的應用軟體。"
+   },
+   {
+    "q": "Node.js 核心內建了可以直接開箱即用的 WebSocket 伺服器模組。",
+    "a": false,
+    "why": "核心只有 http/https、net、dgram。伺服器端要用 WebSocket 得裝 ws 或 socket.io。"
+   },
+   {
+    "q": "瀏覽器端使用 WebSocket 需要先安裝套件。",
+    "a": false,
+    "why": "現代瀏覽器原生自帶 WebSocket API，直接 new WebSocket(url) 就能用。"
+   },
+   {
+    "q": "所有打包工具的底層都必須依賴 Node.js 才能執行。",
+    "a": false,
+    "why": "esbuild（Go）、SWC／Rspack／Rolldown（Rust）編譯成原生可執行檔，本身不需要 Node.js。"
+   },
+   {
+    "q": "既然 esbuild 不需要 Node.js，前端專案就可以完全不裝 Node.js。",
+    "a": false,
+    "why": "設定檔（vite.config.js）與社群外掛仍是 JavaScript，需要 Node 當膠水層；而且要用 npm 才下載得到那些二進位檔。"
+   },
+   {
+    "q": "HMR 讓畫面自動更新，靠的是瀏覽器每隔幾秒去輪詢伺服器。",
+    "a": false,
+    "why": "靠的是 WebSocket，由 Node 端主動推送通知給瀏覽器。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Vue CLI 的 devServer 底層是 webpack-dev-server，它內部用的 Node.js 框架是 ____。",
+    "a": "Express",
+    "why": "再加上 http-proxy-middleware 這層膠水做轉發。"
+   },
+   {
+    "q": "提供程式碼執行所需基礎能力（讀寫檔案、開網路連線）的角色叫 ____（執行環境）。",
+    "a": "Runtime",
+    "why": "Node.js 就是讓 JavaScript 能在瀏覽器之外執行的 Runtime。"
+   },
+   {
+    "q": "解析 import/export 依賴圖、把多檔案編譯合併成靜態檔的工具角色叫 ____（打包工具）。",
+    "a": "Bundler",
+    "why": "Webpack、Vite、Rollup、esbuild 都屬於這一類。"
+   },
+   {
+    "q": "用 Go 撰寫、編譯成獨立二進位檔的極速打包與轉譯器叫 ____。",
+    "a": "esbuild",
+    "why": "效能約比 Node.js 系工具快 10~100 倍。"
+   },
+   {
+    "q": "字節跳動用 Rust 重寫 webpack 核心架構的打包工具叫 ____。",
+    "a": "Rspack",
+    "why": "同一波原生語言浪潮還有 SWC 與 Rolldown。"
+   },
+   {
+    "q": "Vue／Vite 團隊正在用 Rust 開發、未來會取代 Vite 底層 Rollup 的打包器叫 ____。",
+    "a": "Rolldown",
+    "why": "目前 Vite 生產環境用 Rollup、依賴預打包用 esbuild。"
+   },
+   {
+    "q": "Node.js 生態中最輕量、直接實作 WebSocket 協定的套件叫 ____。",
+    "a": "ws",
+    "why": "另一個選擇是功能更完整的 socket.io，多了 Rooms、自動重連與 Polling fallback。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "「我只寫前端，為什麼還要裝 Node.js？」請完整回答這個問題。",
+    "a": "參考方向：因為 npm run serve 本身就是一個 Node.js 程式。Node 在開發階段扮演三個角色：(1) 開發 HTTP 伺服器——瀏覽器能透過 localhost:8080 看到網頁，是這個 Node 伺服器在提供檔案；(2) 檔案編譯與打包——瀏覽器只看得懂純 JS/HTML/CSS，你寫的 .vue、Sass、TypeScript 要靠 Node 在背景跑 compiler-sfc、Babel、PostCSS 轉譯；(3) 開發輔助——HMR 走 WebSocket 由 Node 主動推送，API 代理則是 Node 裡的中介軟體。重點是：正式部署時（除非用 SSR）根本不需要 Node.js，打包完剩下的就是純靜態檔，丟給 Nginx 或 Cloudflare 即可。"
+   },
+   {
+    "q": "請說明 devServer.proxy 繞過 CORS 的原理，以及為什麼上線後 API 會全部炸掉。",
+    "a": "參考方向：CORS 是瀏覽器實施的同源政策，不是伺服器之間的限制。瀏覽器對同源的 localhost:8080/api/... 發請求，從它的角度根本沒有跨來源；Node Dev Server 收到後在伺服器端轉發給真正的後端，這一段是 Server 對 Server，不受同源政策管，所以拿得到資料再交還給瀏覽器。上線炸掉的原因是：Dev Server 與 proxy 設定只存在於開發階段，npm run build 完全不會把它們打包進去，靜態檔上到 Nginx 之後那個 /api 前綴沒有人轉發，必須在 Nginx 設 location /api { proxy_pass ...; } 補回來。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_CheatSheet_and_APIs/array陣列/為什麼需要陣列-new-Array與map轉換-thisArg與at負索引-Array-from通用工廠.md": {
+  "tf": [
+   {
+    "q": "new Array(5) 建立出來的是 5 個 undefined，可以直接用 map 產生 5 個元件。",
+    "a": false,
+    "why": "它是 5 個 empty slot（孔洞），map 會直接跳過。必須先 .fill(0) 才有真正的元素。"
+   },
+   {
+    "q": "箭頭函式用了大括號 {} 卻沒寫 return，回傳值會是 undefined。",
+    "a": true,
+    "why": "這就是 map 出來一整排 undefined、React 畫面全白的原因。"
+   },
+   {
+    "q": "arr[-1] 可以拿到陣列的最後一個元素。",
+    "a": false,
+    "why": "方括號會把 -1 當成字串 key，找不到就回 undefined。要用 arr.at(-1)。"
+   },
+   {
+    "q": "map 的第二個參數 thisArg 對箭頭函式也有效。",
+    "a": false,
+    "why": "箭頭函式的 this 在定義時就由詞法作用域綁死了，thisArg 對它完全沒作用。"
+   },
+   {
+    "q": "全域 Symbol（Symbol.for(\"foo\")）不能拿來當 WeakMap 的 key。",
+    "a": true,
+    "why": "它被全域註冊表永久引用，不是 garbage-collectable value。"
+   },
+   {
+    "q": "用 Symbol 當 Object 的 key 時，Object.keys() 抓得到它。",
+    "a": false,
+    "why": "抓不到，必須用 Object.getOwnPropertySymbols()。Map 才會一視同仁。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "要取陣列最後一個元素，現代寫法是 arr.____(-1)。",
+    "a": "at",
+    "why": "at() 支援負索引，slice(-2) 早就是同樣的慣例。"
+   },
+   {
+    "q": "map() 是一個「1 對 ____ 的陣列轉換器」，原陣列有幾個元素，新陣列就有幾個。",
+    "a": "1",
+    "why": "等長轉換是 map 的第一大特性。"
+   },
+   {
+    "q": "Array.from 是一個通用____方法，建立結果時會呼叫當下的 this 建構函式。",
+    "a": "工廠",
+    "why": "Generic Factory Method，所以 Array.from.call(NotArray, ...) 會產出 NotArray 實體。"
+   },
+   {
+    "q": "WeakMap 規定 key 必須是 garbage-____ value。",
+    "a": "collectable",
+    "why": "能被引擎追蹤引用、沒人用時會被自動清掉的值。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "面試官問「map 和 forEach 差在哪」，你會怎麼答才不會被追打？",
+    "a": "參考方向：(1) 先講回傳值——forEach 回傳 undefined、map 回傳一個長度相同的新陣列，這是規格層的硬差別。(2) 再講意圖——forEach 表達「我只是要做副作用」（送 API、印 log），map 表達「我要一份加工過的新資料」，讀 code 的人看到 map 就會預期有回傳值被接住。(3) 補三個特性：等長、不改原陣列、跳過 sparse array 的孔洞。(4) 加分點：如果 map 的回傳值沒有被使用，那就是誤用，應該改成 forEach——很多 lint 規則會直接報這個錯。"
+   },
+   {
+    "q": "為什麼 primitive（Number、String）不能當 WeakMap 的 key，但物件和非全域 Symbol 可以？",
+    "a": "參考方向：(1) WeakMap 的核心是「弱引用」——當 key 沒有其他人持有時，整筆資料要能被 GC 回收。這要求 key 必須有「身分（identity）」，引擎才能追蹤「還有沒有人指著它」。(2) 物件天生有身分（同樣內容的兩個 {} 是不同的東西）。非全域 Symbol 也有身分且獨一無二，所以 ES2023 起被允許。(3) primitive 沒有身分——42 就是 42，無所謂「這個 42 還有沒有人用」，追蹤不了引用狀態，也就無法決定何時回收，所以規格直接禁止。(4) 全域 Symbol 雖然是 Symbol，但被全域註冊表永久持有，永遠不會被回收，放進 WeakMap 等於製造記憶體洩漏，所以也被禁止。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_CheatSheet_and_APIs/物件/物件Key的排序規則-整數索引插隊-Map保序-forEach不能吃物件.md": {
+  "tf": [
+   {
+    "q": "物件的 key 順序完全等於你新增的順序。",
+    "a": false,
+    "why": "整數索引 key 會被強制排到最前面並依數值大小排序，只有非數字字串 key 才照新增順序。"
+   },
+   {
+    "q": "Map 的 key 嚴格按照插入順序保存，不管 key 是數字還是字串。",
+    "a": true,
+    "why": "這是 Map 相對於 Object 最實用的保證。"
+   },
+   {
+    "q": "普通物件可以直接呼叫 obj.forEach()。",
+    "a": false,
+    "why": "forEach 掛在 Array.prototype 上，物件沒有，會丟 TypeError: obj.forEach is not a function。"
+   },
+   {
+    "q": "Object 的 key 只能是字串或 Symbol，obj[2] 其實存的是 \"2\"。",
+    "a": true,
+    "why": "這正是整數 key 會被特別排序的原因。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "ES6 起物件 key 的排序是三段式：整數索引 → 其他字串 → ____ 鍵。",
+    "a": "Symbol",
+    "why": "Symbol key 排最後，且依建立順序。"
+   },
+   {
+    "q": "要走訪物件又想用 forEach，最常見的寫法是 Object.____(obj).forEach(...)。",
+    "a": "keys",
+    "why": "先把 key 轉成陣列。"
+   },
+   {
+    "q": "for...in 會連____鏈上的可列舉屬性一起走訪，所以常要搭配 hasOwnProperty 過濾。",
+    "a": "原型",
+    "why": "prototype chain。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "有一份資料的 key 是使用者 ID（純數字），前端顯示時卻發現順序跑掉了。請說明原因與三種可行的修法。",
+    "a": "參考方向：(1) 原因：純數字的 ID 被當成 array index，規格要求依數值由小到大排序，所以無論你怎麼組資料，Object.keys() 出來都會是排序過的。(2) 修法一：改用 Map，key 保持插入順序且可以是數字型別。(3) 修法二：把資料改成陣列 [{id, ...}]，順序由陣列本身保證，這也是最貼近後端 JSON 慣例的做法。(4) 修法三：仍用物件，但另外維護一個 orderedIds 陣列，渲染時依它走訪。(5) 修法四（治標）：把 key 加前綴變成非整數字串（如 \"u_1001\"），就會照新增順序排——但這只是繞過規格，不建議當主力方案。"
+   }
+  ]
+ },
+ "build-and-compilation/瀏覽器相容性-Polyfill補API-Babel降語法-Browserslist一次設定全家套用.md": {
+  "tf": [
+   {
+    "q": "Babel 可以把舊瀏覽器缺少的 Promise 補回來。",
+    "a": false,
+    "why": "Babel 管語法，Promise 是執行期的 API，要靠 core-js 這類 Polyfill 補。"
+   },
+   {
+    "q": "Browserslist 是一個瀏覽器外掛（Extension）。",
+    "a": false,
+    "why": "它是一個設定規格加上一個 npm 套件，被 Babel、Autoprefixer、Vite、Webpack 共用。"
+   },
+   {
+    "q": ".browserslistrc 裡的多行條件之間是 OR（聯集）關係。",
+    "a": true,
+    "why": "所以 > 0.5% 一行就涵蓋所有市佔達標的瀏覽器，不必逐一列舉。"
+   },
+   {
+    "q": "把事件處理包成 el.addEventListener('blur', function(){ checkUsername(5) }) 這件事，核心概念是閉包。",
+    "a": true,
+    "why": "詞法作用域是規則，閉包是「函式連同定義時的環境一起被保存下來等待觸發」這個現象。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "自動補上舊瀏覽器缺少的 API，這種墊片庫叫做 ____，代表套件是 core-js。",
+    "a": "Polyfill",
+    "why": "跟 Transpiler 分工：一個補 API、一個降語法。"
+   },
+   {
+    "q": "Browserslist 條件 not ____ 用來排除官方已停止維護的廢棄瀏覽器。",
+    "a": "dead",
+    "why": "超過 24 個月沒更新且沒市佔的會被排掉。"
+   },
+   {
+    "q": "寫在 package.json 時，欄位名稱是 \"____\"，值是字串陣列或分環境的物件。",
+    "a": "browserslist",
+    "why": "好處是少維護一個獨立設定檔。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "同事說「我們專案有裝 Babel，所以不用管舊瀏覽器了」。你會怎麼補充？",
+    "a": "參考方向：(1) 先肯定一半——Babel 確實會把 ES6+ 語法降級成 ES5，箭頭函式、class、async/await 都能處理。(2) 但 Babel 只翻語法，翻不出「執行期才存在的東西」：Promise、Array.prototype.includes、Object.assign、fetch 這些是 API，舊瀏覽器根本沒有這些物件與方法，必須靠 core-js 之類的 Polyfill 在執行時掛上去。(3) 兩者要一起設定，而且都應該讀同一份 Browserslist 目標，否則會出現「語法降到 ES5 但用了 IE 沒有的 API」這種只在正式環境炸掉的狀況。(4) 另外要提醒定期跑 npx update-browserslist-db@latest，否則 caniuse-lite 資料過期會讓 > 0.5% 的判斷失準，建置時也會一直跳警告。"
+   }
+  ]
+ },
+ "frontend-docs/vue/Vue-SFC實務-styles資料夾與scoped編譯原理-lang與src屬性-CSS預處理器-JSX支援.md": {
+  "tf": [
+   {
+    "q": "<style scoped> 編譯出來的結果本質上是 inline style。",
+    "a": false,
+    "why": "它是一般的 CSS 規則加上 [data-v-xxx] 屬性選擇器，會被抽成獨立 CSS 檔或注入 head。"
+   },
+   {
+    "q": "<style lang=\"scss\"> 的 lang 是用來指定外部檔案路徑的。",
+    "a": false,
+    "why": "lang 指定預處理器；指定外部檔案路徑的是 src 屬性。"
+   },
+   {
+    "q": "Vue 3 可以用 JSX，但大部分 v- 指令（v-if、v-for）在 JSX 裡不能用。",
+    "a": true,
+    "why": "要改寫成原生 JS 的三元運算與 map。v-model 則有外掛支援。"
+   },
+   {
+    "q": "元件專屬樣式的常見做法是把每個元件的 CSS 拆到 src/styles 資料夾。",
+    "a": false,
+    "why": "styles 資料夾放的是全域樣式與變數；元件樣式寫在 .vue 底部的 <style scoped>。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "scoped 編譯後會給標籤加上唯一的屬性，長得像 data-v-____（一串雜湊）。",
+    "a": "7ba5bd90",
+    "why": "hash 值每個元件不同，用來做屬性選擇器隔離。"
+   },
+   {
+    "q": "Sass 官方現在建議用 @____ 取代舊的 @import 來引入變數與 mixin。",
+    "a": "use",
+    "why": "@import 正在被淘汰，@use / @forward 是新的模組系統。"
+   },
+   {
+    "q": "在 Vite 專案啟用 Vue JSX 要安裝的官方外掛是 @vitejs/plugin-vue-____。",
+    "a": "jsx",
+    "why": "再到 vite.config.js 的 plugins 加上 vueJsx()。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "什麼情況你會在 Vue 專案裡改用 JSX 而不是 Template？請說明取捨。",
+    "a": "參考方向：(1) 適合 JSX 的情境：要寫高度動態的元件（Table 的欄位設定、Tree 的遞迴節點、Dialog 的多種內容型態），這些用 Template 的 v-if/v-for 會層層巢狀難以維護，用 JS 的函式與遞迴反而更直觀；元件庫作者也常選 JSX，因為要對外暴露 render props 這類 API。(2) TypeScript 的型別推導在 JSX 裡通常比 Template 更完整，尤其是 slot 與 props 的泛型。(3) 代價：失去 Vue Template 編譯器的靜態優化（靜態提升、Block Tree、PatchFlag），這些是 Vue 效能的重要來源；大部分 v- 指令不能用；團隊裡熟 Template 的人看 JSX 會卡。(4) 結論：一般業務頁面留在 Template，只有需要極高動態性的少數元件才局部改用 JSX，兩者可以在同一個專案共存。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_Core_and_Runtime/for迴圈與setTimeout-var共享變數陷阱-let每輪新綁定與IIFE解法.md": {
+  "tf": [
+   {
+    "q": "console 印出的 5280 是 setTimeout 回傳的 Timer ID。",
+    "a": true,
+    "why": "DevTools 會顯示最後一個表達式的回傳值，setTimeout 回傳的正整數 ID 是給 clearTimeout 用的。"
+   },
+   {
+    "q": "用 var 時三個 callback 讀到的是三個不同的 i。",
+    "a": false,
+    "why": "var 只有一個共享的綁定，三個 callback 讀的是同一格記憶體，所以全都是 4。"
+   },
+   {
+    "q": "改用 let 之所以有效，是因為 for 迴圈每一輪迭代都會建立一個新的環境並複製 i 進去。",
+    "a": true,
+    "why": "規格叫 CreatePerIterationEnvironment，不是單純「let 有區塊作用域」就能解釋。"
+   },
+   {
+    "q": "這三次 setTimeout 會每隔一秒各印一次。",
+    "a": false,
+    "why": "三次都是在同一毫秒內登記、延遲都是 1000ms，所以是 1 秒後一次印三行。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "ES6 之前要救這題，經典做法是用立即執行函式 ____（三個英文字母縮寫）把當下的 i 複製一份傳進去。",
+    "a": "IIFE",
+    "why": "Immediately Invoked Function Expression，靠函式參數製造新的區域綁定。"
+   },
+   {
+    "q": "DevTools 把連續三次相同的輸出合併顯示成 (____) 4。",
+    "a": "3",
+    "why": "括號裡的數字是重複次數，不是變數值。"
+   },
+   {
+    "q": "要取消一個尚未觸發的計時器，要把 setTimeout 回傳的 ID 傳給 ____()。",
+    "a": "clearTimeout",
+    "why": "這就是 Timer ID 存在的理由。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請完整說明「for + var + setTimeout 印出 4 4 4」這題，並說明為什麼換成 let 就會印 1 2 3。",
+    "a": "參考方向：三個層次都要講到才完整。(1) 作用域層：var 是函式／全域作用域，整段程式只有一個 i 的綁定，迴圈跑三次並不會產生三個 i。(2) 事件迴圈層：setTimeout 是把 callback 登記到計時器，主執行緒不等它、繼續跑完迴圈；0.3ms 時 i 已經因為 i++ 變成 4 並跳出迴圈，1000ms 後 callback 才被拉回主執行緒執行。(3) 閉包層：callback 記住的是「環境」不是「當下的值」，所以它執行時才去讀那一格，讀到的自然是 4。(4) 換成 let 為什麼有效：不能只答「let 有區塊作用域」——因為 for 的括號看起來只有一個區塊，照這個邏輯答案應該還是一樣。真正的原因是規格對 for 的 let 有特別處理（CreatePerIterationEnvironment），每一輪迭代結束時會建立新環境並把當前值複製過去，所以三個 callback 各自閉包住不同的綁定。(5) 加分：補充 IIFE 是 ES6 之前的等價解法，原理同樣是「用函式參數製造新綁定」。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_Core_and_Runtime/比較三兄弟-鬆散等於-嚴格等於-Object-is-與React-Vue的狀態比對.md": {
+  "tf": [
+   {
+    "q": "NaN === NaN 的結果是 false。",
+    "a": true,
+    "why": "NaN 是唯一不等於自己的值，這是 === 的第一個死角。"
+   },
+   {
+    "q": "Object.is(+0, -0) 的結果是 true。",
+    "a": false,
+    "why": "是 false。Object.is 分得出正負零，=== 分不出。"
+   },
+   {
+    "q": "useState 在更新時會做欄位層級的淺比較。",
+    "a": false,
+    "why": "useState 只做 Object.is，完全不看物件內部。做淺比較的是 React.memo / PureComponent 用的 shallowEqual。"
+   },
+   {
+    "q": "shallowCompare 是 React 現在推薦的比對工具。",
+    "a": false,
+    "why": "它是 v15 時代的 add-on，官方早已要求改用 React.memo 或 React.PureComponent。"
+   },
+   {
+    "q": "Vue 3 的 hasChanged 實作就是 !Object.is(value, oldValue)。",
+    "a": true,
+    "why": "ref 的 setter 只有在 hasChanged 為真時才 triggerRefValue。"
+   },
+   {
+    "q": "用 items.push(4) 之後再 setItems(items)，React 會重新渲染。",
+    "a": false,
+    "why": "push 是原地修改，陣列的記憶體位址沒變，Object.is 判定相同 → React 直接 bailout。要寫 setItems([...items, 4])。"
+   },
+   {
+    "q": "直接改 user.address.city 之後再 setUser(user)，React 偵測不到更新。",
+    "a": true,
+    "why": "最外層 user 的參照沒變。必須逐層複製：setUser({...user, address:{...user.address, city:'Taipei'}})。"
+   },
+   {
+    "q": "展開運算子 ... 會產生深拷貝。",
+    "a": false,
+    "why": "它是淺拷貝（Shallow Copy），只複製第一層；巢狀那一層仍指向同一個物件。"
+   },
+   {
+    "q": "setCount(prev => prev + 1) 連寫三次，count 會加 3。",
+    "a": true,
+    "why": "函式更新每次都拿排隊時的最新值；寫成 setCount(count+1) 三次則因為批次更新讀到同一個過期值，只加 1。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Object.is 在規格中的相等演算法名稱叫 Same____。",
+    "a": "Value",
+    "why": "=== 叫 Strict Equality，== 叫 Loose Equality。"
+   },
+   {
+    "q": "React polyfill 用 1 / x === 1 / y 來分辨 +0 與 ____0。",
+    "a": "-",
+    "why": "1/+0 是 Infinity、1/-0 是 -Infinity。"
+   },
+   {
+    "q": "React polyfill 用 x !== x && y !== y 這個技巧來判斷兩邊都是 ____。",
+    "a": "NaN",
+    "why": "只有 NaN 不等於自己。"
+   },
+   {
+    "q": "Markdown 表格若要在同一儲存格內換行，必須使用 <____> 標籤而不是按 Enter。",
+    "a": "br",
+    "why": "直接換行會把整張表格拆壞。"
+   },
+   {
+    "q": "「改到哪一層就從最外層一路複製到那一層」這條規則的正式名稱叫 ______ Update（不可變更新）。",
+    "a": "Immutable",
+    "why": "React 官方文件 Updating Objects in State 的核心要求。"
+   },
+   {
+    "q": "setState(prev => ...) 這種寫法叫做「______更新」，它接收先前的狀態。",
+    "a": "函式",
+    "why": "英文是 Functional Update / Updater Function。"
+   },
+   {
+    "q": "巢狀太深不想手寫展開運算子時，實務上常改用 ______ 這個套件（useImmer）。",
+    "a": "Immer",
+    "why": "寫起來像直接改，底層自動產生新參照。"
+   },
+   {
+    "q": "Shallow Copy 講的是「產生資料」，Shallow ______ 講的是「比對資料」，兩個 shallow 不同義。",
+    "a": "Comparison",
+    "why": "巢狀 bug 就是這兩個深度對不上造成的。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "為什麼 React 和 Vue 這兩套架構完全不同的框架，都選擇用 Object.is 當狀態比對的第一道防線？",
+    "a": "參考方向：(1) 共同目標是「最小化無效計算」——只有真的變了才重繪。所以需要一個既不會誤判、成本又極低的比較。(2) 不能用 ==：自動型別轉換會製造不可預期的判斷（0 與 false、null 與 undefined），一個渲染引擎不能容忍這種模糊。(3) 不能只用 ===：NaN === NaN 為 false 會造成無效渲染（值沒變卻重繪），+0/-0 分不出來則在高精度數值場景會漏判。Object.is 剛好只補這兩個洞，其餘行為與 === 相同，成本是 O(1)。(4) 它同時定義了「不做什麼」：Object.is({},{}) 是 false，代表框架擺明不比內容、只比引用，這反過來推導出「不可變更新（immutable update）」這個開發慣例——你想讓框架知道資料變了，就要給它一個新引用。(5) 需要比內容時才往上疊一層 shallowEqual（React.memo）或用 Proxy 做細粒度追蹤（Vue 3），但第一層永遠是最便宜的 Object.is。"
+   },
+   {
+    "q": "日常寫程式你會用 === 還是 Object.is？請給判準。",
+    "a": "參考方向：(1) 業務邏輯一律用 ===，語法簡潔、涵蓋 99% 情境，而且團隊都看得懂。(2) 只有在寫「會被別人拿去用的通用工具」時才改用 Object.is——例如自訂的 useDeepCompareEffect、狀態管理庫的 diff 函式、快取的 key 比對。理由是這些程式碼面對的是任意輸入，NaN 一定會出現。(3) 反過來說，如果你確定值域裡不可能有 NaN 或 -0（例如比對字串 id），用 Object.is 只是增加閱讀成本，沒有好處。(4) == 只在一種情況值得用：x == null 同時判斷 null 與 undefined，這是社群公認的例外，其餘一律避免。"
+   },
+   {
+    "q": "狀態是 { name, address: { city } }，只改 city 卻畫面不動。請說明底層原因，並給出兩種正確做法與各自的取捨。",
+    "a": "參考方向：(1) 原因——useState 的 bailout 用 Object.is 比最外層參照；直接改內層時外層 user 仍是同一個位址，Object.is 回傳 true，React 直接跳過重繪。(2) 做法一：逐層展開 setUser({...user, address:{...user.address, city}})，零依賴、語意明確，但層數一多會很難讀也容易漏抄某一層。(3) 做法二：用 Immer 的 useImmer，寫成 draft.address.city = x，可讀性最好，代價是多一個相依套件與一層心智模型。(4) 附帶提醒：structuredClone 雖能深拷貝，但複製不了函式、DOM 節點與 class 原型，且整棵樹都換新參照會讓 React.memo 的優化全部失效，不建議當預設解。(5) 進階：也可以用扁平化 state（把巢狀拆成多個 useState 或用 useReducer）從源頭避開這個問題。"
+   }
+  ]
+ },
+ "LLM-Memory/HITL-Human-in-the-Loop介面-AI審核修正與RLHF回饋迴路.md": {
+  "tf": [
+   {
+    "q": "HITL 的全名是 Human-in-the-Loop。",
+    "a": true,
+    "why": "中文常譯人機協作或人類在環，loop 指的是「推論 → 審核 → 回饋 → 再訓練」的閉環。"
+   },
+   {
+    "q": "HITL 介面的目的是讓人取代 AI 做所有判斷。",
+    "a": false,
+    "why": "是讓人只處理「信心度低的那一小撮」，這是成本與正確率的取捨。"
+   },
+   {
+    "q": "只要把人工修正後的答案餵回模型，就叫做 RLHF。",
+    "a": false,
+    "why": "RLHF 是「偏好排序 → 訓練 reward model → 強化學習調策略」；直接餵正確答案比較接近監督式微調或主動學習。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "RLHF 的全名是 Reinforcement Learning from Human ____。",
+    "a": "Feedback",
+    "why": "基於人類回饋的強化學習。"
+   },
+   {
+    "q": "HITL 介面上要清楚呈現 AI 對每個欄位的信心度，英文叫 Confidence ____。",
+    "a": "Score",
+    "why": "低分的欄位才需要人工介入。"
+   },
+   {
+    "q": "HITL 介面常見的效能瓶頸是一次渲染上千筆待審資料，解法是虛擬捲動（____ization）。",
+    "a": "virtual",
+    "why": "例如 TanStack Virtual，只渲染可視範圍內的列。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "面試時被問「你會怎麼設計一個文件審核的 HITL 介面」，請給一個完整回答。",
+    "a": "參考方向：(1) 先問清楚領域與風險等級——醫療與發票的錯誤成本天差地遠，決定要人工複核多少比例。(2) 資訊架構：左邊放原始文件（PDF 或影像），右邊放 AI 抽出的欄位，兩邊要能雙向高亮（點欄位就跳到文件對應位置），這是審核速度的關鍵。(3) 排序與過濾：預設把信心度最低、或規則檢核失敗的排最前面，讓人先看最需要看的。(4) 互動效率：全鍵盤操作（Tab 移動、Enter 確認、快捷鍵標記可疑）、批次核准、可以只審一個欄位而不用開整份文件。(5) 資料流：樂觀更新讓 UI 立即反應，背景送出並處理失敗回滾；每一次人工修正都要記錄「原值、新值、修改者、時間」，這既是稽核軌跡也是再訓練的資料。(6) 效能：待審清單用虛擬捲動；文件影像用漸進式載入與縮圖預載。(7) 最後補一句取捨：介面的每一個設計決策都是在換「人每小時能審幾件」，這是這類產品唯一真正的 KPI。"
+   }
+  ]
+ },
+ "CLI/Windows快速設定沒有WiFi按鈕與DNS_PROBE_FINISHED_NO_INTERNET-排查順序.md": {
+  "tf": [
+   {
+    "q": "DNS_PROBE_FINISHED_NO_INTERNET 通常代表 DNS 伺服器壞掉了。",
+    "a": false,
+    "why": "它多半代表底層根本沒連上網，先修連線再談 DNS。"
+   },
+   {
+    "q": "按「關機」再開機，跟按「重新啟動」對驅動程式的效果是一樣的。",
+    "a": false,
+    "why": "Windows 快速啟動會把核心狀態寫進休眠檔並還原，連當機的驅動一起還原；只有「重新啟動」會真正重載。"
+   },
+   {
+    "q": "公共 Wi-Fi 要觸發登入頁時，開一個 HTTPS 網址比較容易成功。",
+    "a": false,
+    "why": "反過來。HTTPS 有憑證驗證，劫持會被擋下；要開非 HTTPS 的網址（例如 http://neverssl.com）。"
+   },
+   {
+    "q": "WLAN AutoConfig 服務卡住會導致電腦搜尋不到任何 Wi-Fi。",
+    "a": true,
+    "why": "這個服務負責掃描、選擇與連線無線網路。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "清除本機 DNS 解析快取的指令是 ipconfig /____。",
+    "a": "flushdns",
+    "why": "打在 cmd 或 PowerShell。"
+   },
+   {
+    "q": "Win + R 輸入 ____.cpl 可以直接開「網路連線」停用或啟用網卡。",
+    "a": "ncpa",
+    "why": "Network Connections Properties Applet。"
+   },
+   {
+    "q": "Win + R 輸入 ____.msc 可以開「服務」，用來重啟 WLAN AutoConfig。",
+    "a": "services",
+    "why": "Microsoft Management Console 的服務嵌入式管理單元。"
+   },
+   {
+    "q": "PowerShell 一行重啟 Wi-Fi 網卡的指令是 Restart-____ -Name \"Wi-Fi\"。",
+    "a": "NetAdapter",
+    "why": "比在裝置管理員點兩次快得多，需要系統管理員權限。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "電腦突然連不上網，請說出你的排查順序與每一步在驗證什麼。",
+    "a": "參考方向：由下往上一層一層排除。(1) 實體與驅動層：先看快速設定裡還有沒有 Wi-Fi 按鈕、能不能搜尋到網路。看不到就是網卡或驅動的問題——檢查鍵盤的飛航模式鍵、切換一次飛航模式、ncpa.cpl 停用再啟用網卡、services.msc 重啟 WLAN AutoConfig、裝置管理員停用再啟用，都不行就選「重新啟動」（不要「關機」）。(2) 連線層：搜尋得到也連上了，就看有沒有取得 IP 與閘道（ipconfig /all）。是公共 Wi-Fi 就開一個 http 網址觸發 Captive Portal 登入頁。懷疑設定髒掉就「忘記網路」重連。(3) 名稱解析層：連線正常但網址打不開，先 ping 一個 IP（例如 1.1.1.1）確認出得去，再 ipconfig /flushdns 清快取，還是不行就換 DNS 伺服器測試。(4) 應用層：只有某個網站不行，那是網站或防火牆規則的問題，不是你的網路。(5) 心法：每一步都在回答「問題出在哪一層」，不要一開始就亂試 flushdns。"
+   }
+  ]
+ },
+ "frontend-docs/web-platform/Markdown裡的LaTeX-text指令-什麼時候該用反引號而不是數學模式.md": {
+  "tf": [
+   {
+    "q": "$...$ 是 Markdown 的原生語法。",
+    "a": false,
+    "why": "不是。是 Obsidian、GitHub、Jupyter 掛上 MathJax 或 KaTeX 之後才支援的第二套語法。"
+   },
+   {
+    "q": "數學模式裡直接寫 true，會被排成斜體的變數相乘，所以才需要 \\text{}。",
+    "a": true,
+    "why": "\\text{} 讓文字維持正常直立字體，這是它存在的理由。"
+   },
+   {
+    "q": "把 $(\\text{true})$ 改成純文字時，連小括號也要一起刪掉。",
+    "a": false,
+    "why": "括號本來就是要呈現的內容，改成 (true) 就好。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "要在 Markdown 呈現程式碼或布林值，最簡單的做法是用____（一種符號）包起來。",
+    "a": "反引號",
+    "why": "backtick，也就是 ` 這個符號。"
+   },
+   {
+    "q": "在數學式裡插入一段文字要用 \\____{} 指令。",
+    "a": "text",
+    "why": "例如 $T_{\\text{avg}}$。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "什麼時候該在筆記裡用數學模式、什麼時候不該？請給一個可以直接照著做的判準。",
+    "a": "參考方向：(1) 判準一句話：只有在寫「真的需要數學排版」的東西時才進數學模式——分數、上下標、根號、求和符號、矩陣、希臘字母。(2) 程式碼、識別字、布林值、檔名一律用反引號，因為它們要的是等寬字體而不是數學斜體，而且反引號在任何 Markdown 環境都能正確渲染，數學模式則依賴外掛。(3) 純說明文字什麼都不用加。(4) 唯一需要 \\text{} 的場合是「已經在數學式裡了，但要插一段人看的文字」，例如 $T_{\\text{avg}} = n/2$。(5) 實務提醒：Obsidian 的 $ 對前後空白敏感，而且在表格裡容易跟 | 打架，所以表格儲存格盡量避免數學模式。"
+   }
+  ]
+ },
+ "frontend-docs/nextjs/App-Router與Pages-Router-RSC與Streaming-SSR-loading與error約定.md": {
+  "tf": [
+   {
+    "q": "Streaming SSR 其實已經不算 SSR，而是一種新的客戶端渲染模式。",
+    "a": false,
+    "why": "錯。Streaming 的資料抓取與渲染都還在伺服器端，本質仍是 SSR，只是從「一次給齊」變成「分段給予」。"
+   },
+   {
+    "q": "只要在 App Router 寫了 async 元件，就一定會有骨架屏與區塊補全的效果。",
+    "a": false,
+    "why": "錯。沒有 <Suspense> 也沒有 loading.js 時會退回傳統 SSR，伺服器會等 await 跑完才送 HTML。"
+   },
+   {
+    "q": "路由分組資料夾 (rsc) 的名稱會出現在 URL 路徑裡。",
+    "a": false,
+    "why": "錯。帶括號的資料夾名稱不影響 URL，造訪 /rsc 不會變成 /rsc/rsc。"
+   },
+   {
+    "q": "App Router 裡的 fetch 是被 Next.js 擴充過的，可以帶 next.revalidate 設定快取。",
+    "a": true,
+    "why": "對。Next.js 在伺服器端對原生 fetch 做了擴充，加上 next 與 cache 參數處理快取、去重與按需更新。"
+   },
+   {
+    "q": "SEO 要好就一定要換成 App Router。",
+    "a": false,
+    "why": "錯。兩者都能做到頂級 SEO，只要頁面輸出完整 HTML。App Router 只是比較容易達到極致。"
+   },
+   {
+    "q": "使用 src/ 資料夾會讓 Next.js 的執行效能變差。",
+    "a": false,
+    "why": "錯。有沒有 src/ 對功能與效能完全沒有影響，只是專案組織上的差別。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "App Router 的元件預設是 ____ Component，要用 Hook 才加 'use client'。",
+    "a": "Server",
+    "why": "React Server Component（RSC），預設在伺服器執行、不送 JS 到前端。"
+   },
+   {
+    "q": "Pages Router 附在 HTML 後面那包初始狀態 JSON 叫 ____。",
+    "a": "__NEXT_DATA__",
+    "why": "傳統 SSR 用它把伺服器端的資料交棒給前端做 hydration。"
+   },
+   {
+    "q": "Streaming 依賴 HTTP 的 Transfer-Encoding: ____ 機制分批傳送。",
+    "a": "chunked",
+    "why": "這就是「分段漸進式給予」在協定層的實作基礎。"
+   },
+   {
+    "q": "error.js 底層用的是 React 的 ____ Boundary 機制。",
+    "a": "Error",
+    "why": "錯誤邊界，只在出錯那一層顯示 fallback，不會整頁白屏。"
+   },
+   {
+    "q": "App Router 的根佈局 app/layout.js 裡面必須包含 <html> 與 ____ 標籤。",
+    "a": "<body>",
+    "why": "這是 Root Layout 的硬性要求，巢狀 layout 則不需要。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "為什麼 App Router 切換頁面時 layout 的狀態不會被清掉，Pages Router 卻會？請從底層機制解釋。",
+    "a": "參考方向：(1) App Router 的路由是資料夾樹，Next.js 的 Router 能辨識這次切換只有 page 子樹變了、layout 沒變，因此只向伺服器要變動的 page 子樹 RSC Payload，layout 的 React 元件從頭到尾沒有被 unmount，裡面的輸入框內容、捲動位置、側邊欄展開狀態自然保留。(2) Pages Router 沒有原生的路由樹結構來標示哪一段是 shared layout，Next.js 在底層把 pages/dashboard.js 與 pages/dashboard/settings.js 視為兩個完全獨立的頁面元件，切換時舊頁面整個 Unmount、新頁面整個 Mount，連 Header 與 Sidebar 都被銷毀重建。(3) Pages Router 想要類似效果只能在 _app.js 手寫 Page.getLayout = ... 的社群變通方案，不是框架原生機制。(4) 所以「不支援 layout」精準的說法是「缺乏原生（first-class）的巢狀 layout 支援」，兩句語意相等。"
+   },
+   {
+    "q": "「App Router 廢除了舊 API，卻還在用原生 fetch」，這句話矛盾嗎？請說明設計意圖。",
+    "a": "參考方向：(1) 不矛盾。這裡的『原生 fetch』是 Next.js 在伺服器端擴充過的 fetch，不是純瀏覽器的那個。(2) 在 Async Server Component 裡寫 await fetch(...)，這段程式碼在 Node.js／Edge 伺服器端執行，不會進前端 bundle。(3) Next.js 為它加上 next 與 cache 設定（如 { next: { revalidate: 3600 } }），底層自動處理快取、自動去重與按需更新。(4) 設計意圖是統一心智模型：不用再背 getStaticProps / getServerSideProps 這些框架專屬 API，Server 與 Client 都寫同一套 Web 標準，框架能力藏在底層。(5) 這是刻意的設計選擇，不是偷懶。"
+   }
+  ]
+ },
+ "backend/使用者線上狀態怎麼做-WebSocket心跳與Redis-PageVisibility與Idle偵測.md": {
+  "tf": [
+   {
+    "q": "只要 Token 還沒過期，就可以判定使用者目前在線上。",
+    "a": false,
+    "why": "錯。Token 只能證明通過身分驗證，證明不了人現在在不在、視窗開著還是已經斷線。"
+   },
+   {
+    "q": "使用者拔掉網路線時，前端會送一個下線通知給伺服器。",
+    "a": false,
+    "why": "錯。異常斷線不會有任何通知，只能靠伺服器端的心跳逾時判定。"
+   },
+   {
+    "q": "手動設定的「請勿打擾」應該壓過自動偵測的結果。",
+    "a": true,
+    "why": "對。手動狀態優先權最高，否則使用者一動滑鼠就被改回 online。"
+   },
+   {
+    "q": "線上狀態應該直接寫進主資料庫以確保一致性。",
+    "a": false,
+    "why": "錯。狀態變動非常頻繁，會把主 DB 打爆，實務上用 Redis 承接並用 Pub/Sub 廣播。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "偵測「使用者切分頁或縮小視窗」要用瀏覽器的 ____ API。",
+    "a": "Page Visibility",
+    "why": "監聽 visibilitychange 事件，用 document.hidden 判斷。"
+   },
+   {
+    "q": "輪詢作法中，伺服器在 Redis 裡更新的欄位通常叫 ____。",
+    "a": "last_active_time",
+    "why": "再用 Key 的 TTL 或背景 Task 判斷是否逾時。"
+   },
+   {
+    "q": "Redis 做跨伺服器狀態廣播時用的機制叫 ____。",
+    "a": "Pub/Sub",
+    "why": "發布訂閱，讓多台伺服器都能收到狀態變更。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請設計一個「好友上線狀態」功能，說明前端與後端各自負責什麼。",
+    "a": "參考方向：(1) 先把問題拆兩層——連線層決定 online/offline，行為層決定 idle/away/busy。(2) 連線層：登入後建立 WebSocket 長連線，連上就把 Redis 中該 user 標為 online 並廣播給好友；正常登出時前端主動通知（用 navigator.sendBeacon 較可靠）；異常斷線靠伺服器端 Ping-Pong 心跳逾時自動判定 offline。即時性要求不高時可退成每 30～60 秒的輪詢，用 last_active_time 加 TTL。(3) 行為層（純前端）：用 Page Visibility API 監聽 visibilitychange 決定 away；用 mousemove/keydown/scroll/click 重置 Timer，5～10 分鐘無動作切 idle；手動的「請勿打擾」存 DB 且優先權最高。(4) 後端只負責儲存與廣播，用 Redis Key-Value 存當前狀態、Pub/Sub 做跨機器廣播，避免高頻寫入主資料庫。(5) 補一句取捨：逾時秒數是產品決策不是規範，要看對「延遲多久算離線」的容忍度。"
+   }
+  ]
+ },
+ "deployment/Zeabur-PostgreSQL公網曝露-unsupported-frontend-protocol日誌與關閉Public-Networking.md": {
+  "tf": [
+   {
+    "q": "日誌裡出現 FATAL: unsupported frontend protocol，代表資料庫已經被攻破。",
+    "a": false,
+    "why": "錯。FATAL 加上連線被關閉，代表 PostgreSQL 擋下了這次無效存取。真正該擔心的是成功登入的紀錄。"
+   },
+   {
+    "q": "要查有沒有人偷偷部署過，應該看 Runtime Logs。",
+    "a": false,
+    "why": "錯。Runtime Logs 是執行期日誌，部署紀錄要看 Deployments 分頁。"
+   },
+   {
+    "q": "關閉 Public Networking 是消除掃描流量最根本的做法。",
+    "a": true,
+    "why": "對。沒有公網 Port 就沒有掃描流量，比事後封 IP 有效得多。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "PostgreSQL 的前端通訊協定目前只支援版本 ____。",
+    "a": "3.0",
+    "why": "所以掃描器送亂碼協定時會直接被拒絕並拋 FATAL。"
+   },
+   {
+    "q": "在 Zeabur 要關掉資料庫對外曝露，是關閉 ____ Networking。",
+    "a": "Public",
+    "why": "改成只走專案內網連線。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "看到資料庫日誌大量陌生連線錯誤時，你的排查順序是什麼？",
+    "a": "參考方向：(1) 先分辨這是「攻擊成功的痕跡」還是「攻擊被擋下的痕跡」——FATAL 加連線關閉屬於後者，重點要找的是 connection authorized 這類成功登入紀錄。(2) 確認自己看的是哪一種日誌：Runtime Logs 看不到部署，要另外去 Deployments 分頁檢查有沒有非自己發起的 commit、不認識的 Git Hash、或手動 Redeploy 的時間點。(3) 若確認沒有異常部署，那些 unsupported frontend protocol / invalid length of startup packet 就是網際網路上的常態掃描雜訊。(4) 根治方法是關閉 Public Networking，只走內網；真的需要本機連線就用臨時開啟或 SSH／VPN 通道，不要長期把 5432 對全世界開著。(5) 附帶好處是日誌變乾淨，之後真的異常才浮得出來。"
+   }
+  ]
+ },
+ "build-and-compilation/建置失敗排查-Module-not-found與ESLint在哪一階段-npm-ci與Dockerfile-WORKDIR.md": {
+  "tf": [
+   {
+    "q": "npm ci 會在必要時更新 package-lock.json。",
+    "a": false,
+    "why": "錯。npm ci 嚴格照 lock 檔安裝且不會改它，會改 lock 檔的是 npm install。"
+   },
+   {
+    "q": "Dockerfile 的 WORKDIR /app 中的 /app 是 Docker 規定的目錄名稱。",
+    "a": false,
+    "why": "錯。只是社群慣例，叫 /project、/code、/usr/src/app 都可以。"
+   },
+   {
+    "q": "ESLint 的 warning 一定不會讓建置失敗。",
+    "a": false,
+    "why": "錯。CI 常設 --max-warnings 0，那時候 warning 也會擋建置。"
+   },
+   {
+    "q": "WORKDIR 指定的目錄若不存在會自動建立。",
+    "a": true,
+    "why": "對，所以不用先 RUN mkdir。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "「can't resolve ./intro.module.scss」這種錯誤發生在打包工具的 ____ 解析階段。",
+    "a": "模組",
+    "why": "module resolution，找不到 import 指向的檔案。"
+   },
+   {
+    "q": "npm ci 存在的理由是為了達成可 ____ 的建置。",
+    "a": "重現",
+    "why": "reproducible build，同一份 lock 檔在任何機器裝出一樣的版本。"
+   },
+   {
+    "q": "ESLint 在建置流程中屬於 ____ 這一格。",
+    "a": "Linting",
+    "why": "順序大致是 Linting → Formatting → Transpiling → Bundling。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "CI 上建置失敗但本機一切正常，你會怎麼查？",
+    "a": "參考方向：(1) 先看失敗訊息落在哪一格：Linting（ESLint 規則或 --max-warnings 0）、Transpiling（Babel／tsc 型別或語法）、還是 Bundling（模組解析找不到檔）。(2) 模組解析失敗最常見的兩個原因是路徑寫錯，以及 _backup 之類的備份檔留在 src/ 底下被一起掃到——後者直接刪掉或搬出 src/。(3) 「本機好、CI 壞」的經典成因是依賴版本不一致：本機用 npm install 裝到了較新的版本，CI 用 npm ci 嚴格照 lock 檔。對策是把 lock 檔納入版控並在本機也跑一次 npm ci 復現。(4) 另一個常見差異是大小寫：本機 Windows/macOS 檔名不分大小寫，CI 的 Linux 分，import 路徑大小寫錯了只有 CI 會爆。(5) Docker build 時再確認 WORKDIR 與 COPY 的相對路徑是否一致。"
+   }
+  ]
+ },
+ "iOS-Swift/SwiftUI與React心智模型對照-宣告式UI與State-Environment-task.md": {
+  "tf": [
+   {
+    "q": "UIKit 跟 React 的寫法很接近，都是宣告式的。",
+    "a": false,
+    "why": "錯。UIKit 是指令式（Imperative），要手動 addSubview、layoutSubviews，比較像傳統 DOM 操作。接近 React 的是 SwiftUI。"
+   },
+   {
+    "q": "SwiftUI 的佈局可以直接把 Flexbox 的觀念套過去。",
+    "a": false,
+    "why": "錯。SwiftUI 用 VStack／HStack／ZStack 的堆疊模型，是另一套思路。"
+   },
+   {
+    "q": "@State 對應的是 React 的 useState。",
+    "a": true,
+    "why": "對。兩者都是元件內部狀態，改變時框架自動重繪對應 UI。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "SwiftUI 中對應 React useContext 的是 @____。",
+    "a": "Environment",
+    "why": "不用層層傳遞就能在 View 樹中共享資料。"
+   },
+   {
+    "q": "宣告式 UI 的核心公式是 UI = f(____)。",
+    "a": "State",
+    "why": "UI 是狀態的映射，React 與 SwiftUI 共用這個心智模型。"
+   },
+   {
+    "q": "SwiftUI 中對應 React useEffect 的修飾器是 .____ 或 .onChange。",
+    "a": "task",
+    "why": "處理初始化資料請求或監聽特定狀態變化。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "面試官問「你只做過 React，為什麼覺得自己能接 iOS 的案子？」你會怎麼回答？",
+    "a": "參考方向：(1) 先講共通的心智模型：SwiftUI 與 React 都是宣告式 UI 這一波典範轉移的產物，核心公式同樣是 UI = f(State)，我描述 UI 該長什麼樣，框架負責比對與更新。(2) 舉具體對照：useState 對 @State、useContext 對 @Environment、useEffect 對 .task/.onChange、Component 對 View、JSX 對 View Builder。(3) 誠實說明要補的三件事：Swift 的強型別與編譯期檢查比 TS 嚴格得多（沒有 any 可以繞）、佈局要從 Flexbox 換成 VStack/HStack/ZStack 的堆疊思維、以及舊專案若是 UIKit 那是指令式寫法要另外學。(4) 收尾：所以要補的是語言與平台 API，不是 UI 架構的思考方式，那部分是可以直接遷移的。"
+   }
+  ]
+ },
+ "chore/Syncthing資料夾顯示Paused-三個原因與恢復同步.md": {
+  "tf": [
+   {
+    "q": "資料夾顯示 Paused 代表同步發生錯誤。",
+    "a": false,
+    "why": "錯。Paused 是暫停狀態不是錯誤，通常是手動暫停或運行條件未滿足。"
+   },
+   {
+    "q": "只要有一端暫停，兩邊的資料就會停在原地不同步。",
+    "a": true,
+    "why": "對，所以也要檢查 Devices 分頁看遠端裝置狀態。"
+   },
+   {
+    "q": "Syncthing 有開 File Versioning 之後，就算我在本機自己誤刪檔案也救得回來。",
+    "a": false,
+    "why": "錯。File Versioning 只對「從其他裝置同步過來的變更」生效，本機自己刪的舊版本 Syncthing 不會歸檔。"
+   },
+   {
+    "q": "中了勒索軟體時，Syncthing 會把被加密的檔案同步到其他裝置。",
+    "a": true,
+    "why": "對。雙向同步不分好壞，刪除與加密都會被忠實傳播，所以它不是備份。"
+   },
+   {
+    "q": "Git 可以保護專案裡所有檔案，包含 .gitignore 掉的 .env 與本機資料庫。",
+    "a": false,
+    "why": "錯。Git 只保護「已 commit 且已 push」的內容，未追蹤檔案硬碟壞掉就沒了。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Android 版 Syncthing 的省電與網路限制設定在 Settings → ____ Conditions。",
+    "a": "Run",
+    "why": "常見的是「僅在 Wi-Fi 下同步」與「僅在充電時同步」。"
+   },
+   {
+    "q": "備份的業界檢查表是 ____ 原則：3 份副本、2 種媒體、1 份異地。",
+    "a": "3-2-1",
+    "why": "CISA 也以此作為小型組織的基準建議。"
+   },
+   {
+    "q": "Syncthing 把被覆蓋或刪除的舊檔放在資料夾內的 ____ 目錄。",
+    "a": ".stversions",
+    "why": "這是 File Versioning 的預設存放位置。"
+   },
+   {
+    "q": "評估「多久救得回來」的指標縮寫是 ____（Recovery Time Objective，復原時間目標）。",
+    "a": "RTO",
+    "why": "資料沒丟不等於沒影響，重灌與重新同步的時間也是成本。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "為什麼 Paused 沒被發現會很麻煩？",
+    "a": "參考方向：兩端會各自累積修改，之後再恢復同步就要處理衝突檔（sync-conflict）。對筆記 vault 特別痛，因為同一篇 .md 兩邊都改過時 Syncthing 只會保留兩份，得手動合併。所以看到 Paused 要當成待辦立刻處理，而不是等下次再說。"
+   },
+   {
+    "q": "Abby 目前是「本機 + 手機 Syncthing + GitHub」，請說明這個組合合不合格，缺了什麼。",
+    "a": "參考方向：以 3-2-1 來看，份數（3）、媒體種類（本機碟／手機／雲端，2 種以上）、異地（GitHub）都勉強湊得出來，結構上算合格。真正缺的是「不會即時同步的那一份」——因為 Syncthing 是雙向即時，誤刪或中毒會同時毀掉本機與手機；GitHub 雖有歷史，但只涵蓋有 commit 且 push 的內容，涵蓋不到 .env、AppData 設定、SSH 私鑰與本機資料庫。補法是加一份冷備份（平常拔掉的外接硬碟或每週手動封存上雲），並列一張「換新電腦要重建什麼」的清單以縮短 RTO。"
+   }
+  ]
+ },
+ "frontend-docs/react/SSR-renderToString與Hydration-伺服器端渲染流程.md": {
+  "tf": [
+   {
+    "q": "SSR 的 HTML 是在 build time 就預先產生好的。",
+    "a": false,
+    "why": "那是 SSG。SSR 是 per-request——每個請求進來才在伺服器現算一份 HTML，所以才能顯示購物車這類即時資料。"
+   },
+   {
+    "q": "CSR 在 build time 不會產生任何有內容的 HTML。",
+    "a": true,
+    "why": "打包器只吐出 JS bundle 和一個含 <div id=\"root\"></div> 的空 index.html。"
+   },
+   {
+    "q": "SSR 的 build time 會產出兩份 bundle。",
+    "a": true,
+    "why": "伺服器端 bundle 給 Node.js 跑 renderToString，客戶端 bundle 給瀏覽器做 Hydration。"
+   },
+   {
+    "q": "伺服器端執行 renderToString 時會建立 DOM Tree。",
+    "a": false,
+    "why": "Node.js 沒有 window 和 document，產出的只是字串；DOM Tree 是瀏覽器 Parse 之後自己建的。"
+   },
+   {
+    "q": "同一個 React 元件在 SSR 架構下會執行兩次。",
+    "a": true,
+    "why": "伺服器一次、客戶端 Hydration 一次——這也是 hydration mismatch 的根本成因。"
+   },
+   {
+    "q": "Hydration 發生在 Layout（Reflow）與 Paint 之後。",
+    "a": true,
+    "why": "所以 SSR 才有「看得到但還不能點」的空窗期。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "React 把元件樹轉成 HTML 字串的伺服器端函式叫 render______()。",
+    "a": "ToString",
+    "why": "串流版本是 renderToPipeableStream。"
+   },
+   {
+    "q": "React 在客戶端認領既有 DOM、掛上事件監聽的函式叫 ______Root()。",
+    "a": "hydrate",
+    "why": "對照純 CSR 用的 createRoot()。"
+   },
+   {
+    "q": "HTML 在 build time 就產生好的架構叫 ______（三個英文字母）。",
+    "a": "SSG",
+    "why": "Static Site Generation，靜態網站生成。"
+   },
+   {
+    "q": "Next.js 中「先給靜態頁、過期後背景重產」的折衷方案叫 ______（三個英文字母）。",
+    "a": "ISR",
+    "why": "Incremental Static Regeneration，用 revalidate 設定秒數。"
+   },
+   {
+    "q": "在元件本體直接呼叫 Date.now() 或 Math.______() 會導致 hydration mismatch。",
+    "a": "random",
+    "why": "兩次執行結果必然不同，要改放進 useEffect。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "面試官問「CSR、SSR、SSG 差在哪」。請用「HTML 在哪一刻、由誰產生」這條主軸回答，並各給一個適合的產品情境。",
+    "a": "參考方向：(1) 先立主軸——三者的 build time 做的事幾乎一樣（編譯＋打包），差別全在 HTML 是誰、在哪一刻拼出來的。(2) CSR：瀏覽器在 runtime 執行 JS 動態建 DOM；首屏最慢、SEO 最差，但伺服器成本最低。適合登入後的後台儀表板（不需要 SEO、使用者願意等一次）。(3) SSR：伺服器在每個請求當下抓資料並 renderToString；首屏快、SEO 好、資料最新，代價是每個請求都吃伺服器 CPU。適合電商商品頁、社群動態這類「內容要即時又要被 Google 收錄」的頁面。(4) SSG：建置機器在 build time 就把 HTML 產好；速度最快、可直接放 CDN、伺服器成本近乎零，但內容在部署後就固定。適合部落格、文件站、行銷官網。(5) 補一句 ISR 當折衷，並指出 SSR 與 SSG 兩者的瀏覽器端流程一樣都要 Hydration。(6) 加分：指出常見混淆——很多人把「build time 先產好、runtime 直接回傳」講成 SSR，那其實是 SSG。"
+   },
+   {
+    "q": "為什麼 SSR 架構下不能在元件本體寫 Date.now()？請從「元件執行兩次」推導到 hydration mismatch。",
+    "a": "參考方向：(1) SSR 下元件會執行兩次——伺服器一次產生 HTML 字串，客戶端 hydrateRoot 時再一次。(2) Hydration 的前提是「React 客戶端首次渲染的結果，必須與伺服器送來的 HTML 完全一致」，React 才能安全地認領既有 DOM 節點而不重建。(3) Date.now()、Math.random()、window.xxx 這類值兩次執行必然不同，比對就會不一致，React 會發出 hydration mismatch 警告並可能整棵子樹改用客戶端重繪，SSR 的效能好處就白費了。(4) 正解是把這類副作用放進 useEffect——useEffect 只在客戶端跑，不參與伺服器渲染，自然不會造成兩邊不一致。(5) 這也呼應 React 要求元件本體必須是純函數（StrictMode 會刻意跑兩次來幫你抓這種問題）。"
+   }
+  ]
+ },
+ "計算機概論/傅立葉轉換-Sine-Cosine與DCT-JPEG壓縮原理.md": {
+  "tf": [
+   {
+    "q": "兩支影片解析度都是 1280x720，就代表畫質一樣。",
+    "a": false,
+    "why": "錯。解析度只說明有幾個像素格子，位元速率才決定每個格子被描述得多細。"
+   },
+   {
+    "q": "在頻寬固定的情況下，把解析度從 720p 拉到 1080p 一定更清楚。",
+    "a": false,
+    "why": "錯。總 bit 數沒變、像素變多，每個像素分到的 bit 更少，反而會出現方塊狀壓縮痕跡。"
+   },
+   {
+    "q": "總位元速率會被影像與音訊兩邊瓜分，所以只看總數可能判斷錯誤。",
+    "a": true,
+    "why": "對。Abby 那兩個檔案就是 B 的總 bitrate 較高，但音訊被砍了 80 kbps。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "位元速率的單位 kbps 全名是 kilobits per ____。",
+    "a": "second",
+    "why": "每秒鐘用掉多少千位元來描述這段影音。"
+   },
+   {
+    "q": "720p 常見的合理位元速率區間大約是 1500～____ kbps。",
+    "a": "4000",
+    "why": "畫面越動態、細節越多，需要的位元速率越高。"
+   },
+   {
+    "q": "位元速率不足時，畫面會出現 8x8 區塊被抹平造成的 ____ 狀色塊（中文常叫馬賽克）。",
+    "a": "方塊",
+    "why": "這是 DCT 量化得太粗的直接後果，對應本篇 (j) 講的高頻被丟掉。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "檔案 A（影像 1154／音訊 251 kbps）與檔案 B（影像 1285／音訊 171 kbps），你會留哪一個？請說明理由。",
+    "a": "參考方向：留 A。影像端 B 只高約 11%，在 720p 下屬於人眼幾乎分辨不出的邊際差距（畫質對 bitrate 的感受遞減得很快）；音訊端 A 的 251 kbps 對 B 的 171 kbps 是將近 47% 的差距，立體聲的高頻與空間感聽得出來。所以 A 是「同樣的總預算分配得比較均衡」。但要誠實補一句：兩者影像 bitrate 都低於 720p 建議區間的下緣（1500 kbps），所以正確結論是「A 的取捨較好」而不是「A 畫質很好」。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_Core_and_Runtime/Stack成長方向與Stack-Pointer-從組語sub-rsp到JS-Call-Stack.md": {
+  "tf": [
+   {
+    "q": "在 x86-64 上，`push` 指令會讓 rsp（Stack Pointer）的值變大。",
+    "a": false,
+    "why": "Stack 往低位址成長，push 是減少 rsp、pop 才是增加 rsp。"
+   },
+   {
+    "q": "反組譯畫面最左邊那一欄的位址，指的是 rsp 目前指到的堆疊位置。",
+    "a": false,
+    "why": "那是指令自己住的位址（Code Segment），跟 rsp 指的堆疊位址是兩條完全不同的軸。"
+   },
+   {
+    "q": "0x7FFF0FC0 比 0x7FFF0FD0 小。",
+    "a": true,
+    "why": "十六進位 C=12、D=13，所以 FC0 < FD0。"
+   },
+   {
+    "q": "JS 裡 Call Stack 的 stack 和存放 primitive 區域變數的 stack 是同一塊記憶體。",
+    "a": true,
+    "why": "同一塊的兩種用途：既追蹤執行位置，也存當前 frame 的 primitive 值與 Heap 指標。"
+   },
+   {
+    "q": "被閉包捕捉的變數會留在 Stack Frame 上，等 return 時一起被 pop。",
+    "a": false,
+    "why": "引擎會把它們搬到 Heap 的 Context 物件，這正是閉包能存活的原因。"
+   },
+   {
+    "q": "Stack 上的記憶體是由 GC（垃圾回收）負責清理的。",
+    "a": false,
+    "why": "Stack Frame 在 return 時自動 pop，是引擎內建機制；GC 只管 Heap。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "SP 的全名是 Stack ____，中文叫堆疊指標，x86-64 上的暫存器名稱是 rsp。",
+    "a": "Pointer",
+    "why": "Stack Pointer，永遠指著堆疊頂端。"
+   },
+   {
+    "q": "BP 的全名是 ____ Pointer，又叫 Frame Pointer，x86-64 上叫 rbp，用來當區域變數偏移量的基準點。",
+    "a": "Base",
+    "why": "Base Pointer／基底指標。"
+   },
+   {
+    "q": "要在堆疊上配置區域變數，組語會下 `____ rsp, N`（因為 stack 往低位址成長）。",
+    "a": "sub",
+    "why": "配置用 sub、歸還用 add 或 leave。"
+   },
+   {
+    "q": "反組譯裡 0x0024 的下一行是 0x0028，差的 4 代表這道指令的機器碼長度是 4 ____。",
+    "a": "bytes",
+    "why": "是指令長度，跟運算元那個 4 無關。"
+   },
+   {
+    "q": "ISA 的全名是 Instruction Set ____，是 CPU 對外公開「有哪些指令與暫存器」的合約。",
+    "a": "Architecture",
+    "why": "指令集架構，x86-64／ARM64／RISC-V 各是一種 ISA。"
+   },
+   {
+    "q": "V8 的 Heap 中，剛建立、生命週期短的物件會先放在 ____ Space（新生代），用 Scavenge 演算法快速回收。",
+    "a": "New",
+    "why": "熬過多次回收才會被搬到 Old Space。"
+   },
+   {
+    "q": "V8 中存放 JIT 編譯器（Ignition／TurboFan）產出的機器碼的區域叫 ____ Space。",
+    "a": "Code",
+    "why": "與 New／Old／Large Object Space 並列。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "用你自己的話解釋：為什麼「sub rsp, 4」明明是減法，反組譯的下一行位址卻從 0x0024 變成 0x0028？請把兩條位址軸講清楚。",
+    "a": "參考方向：(1) 反組譯畫面上同時存在兩條位址軸。左邊那欄是「指令位址」，屬於 Code Segment，程式碼由上往下擺，所以往下讀位址一定遞增，相鄰兩行的差值等於上一道指令的機器碼長度。(2) rsp 指的是「堆疊位址」，屬於 Stack Segment，這條軸往低位址成長，所以配置空間要用 sub。(3) 0x0024 → 0x0028 差 4，是因為 sub 這道指令本身佔 4 bytes，跟運算元的那個 4 沒有任何關係——只是剛好兩個數字都是 4，才特別容易誤會。(4) 一句話：左邊那條軸在回答「下一道指令在哪」，rsp 那條軸在回答「我的區域變數放哪」，是兩件事、兩把尺。"
+   },
+   {
+    "q": "面試官問：「JavaScript 的記憶體就只有 Call Stack 和 Heap 嗎？」你會怎麼回答？",
+    "a": "參考方向：(1) 先給結論：應用層思考用 Call Stack + Heap 大致夠用，但 V8 底層遠不只兩塊。(2) Call Stack 存執行幀、primitive 區域變數與 Heap 指標，return 時自動 pop，不歸 GC 管。(3) Heap 內部細分：New Space（新生代，Scavenge 快速回收）、Old Space（老生代，Mark-Sweep-Compact）、Large Object Space（大物件獨立配置、GC 不搬動）、Code Space（存 JIT 產出的機器碼）。(4) 補一個反直覺的點加分：被閉包捕捉的變數會被搬到 Heap 的 Context 物件，所以閉包變數其實住在 Heap，不是 Stack。(5) 再補 Event Loop 相關的 Web APIs 與 MacroTask／MicroTask Queue，雖然不算純資料記憶體，但也是執行期存放與排隊的機制。"
+   },
+   {
+    "q": "為什麼 x86-64 的 Stack 要設計成往低位址成長？這個設計對 Heap 有什麼好處？",
+    "a": "參考方向：(1) 歷史與布局原因：讓 Stack 從記憶體高位址往下長、Heap 從低位址往上長，兩者相向成長。(2) 好處是中間那塊未使用的空白可以被兩邊彈性共用，不必在程式啟動時就把「Stack 佔多少、Heap 佔多少」切死。(3) 連帶的規則：push 減 rsp、pop 加 rsp、配置用 sub、歸還用 add 或 leave——這些全都是同一個成長方向推導出來的，記住方向就不必死背個別指令。(4) 可補充：這是 ISA 與 ABI 共同約定的，不是編譯器可以自由選擇的；ARM64 同樣是 full descending stack。"
+   }
+  ]
+ },
+ "frontend-docs/編譯期vs執行期三條分界線-AST與CSSOM-編譯與打包-前端與後端記憶體.md": {
+  "tf": [
+   {
+    "q": "PostCSS 產生的 AST 和瀏覽器產生的 CSSOM 是同一棵樹的不同名字。",
+    "a": false,
+    "why": "AST 在建構期由 Node.js 工具產生用來改程式碼；CSSOM 在執行期由瀏覽器產生用來畫畫面，兩者從不相遇。"
+   },
+   {
+    "q": "Vite 或 Webpack 本身認得 .vue 檔的語法。",
+    "a": false,
+    "why": "建置工具只是排程器，是外掛（@vitejs/plugin-vue / vue-loader）裡的 @vue/compiler-sfc 才認得。"
+   },
+   {
+    "q": "HTML5 原生的 <style scoped> 屬性目前仍是主流瀏覽器支援的標準。",
+    "a": false,
+    "why": "因渲染效能與 Reflow 開銷過大被廢棄，改由 Shadow DOM 或編譯期方案（Vue Scoped CSS、CSS Modules）取代。"
+   },
+   {
+    "q": "單向綁定中的「Model」指的是後端資料庫的資料表。",
+    "a": false,
+    "why": "Model 指前端 JS 記憶體裡的 state 變數，跟 API 與資料庫完全無關。"
+   },
+   {
+    "q": "前端記憶體與後端記憶體可以直接互相讀寫變數。",
+    "a": false,
+    "why": "兩者實體隔絕，唯一通道是網路（HTTP／WebSocket）。"
+   },
+   {
+    "q": "後端記憶體是所有使用者共享同一個進程，前端記憶體則是每個使用者獨享。",
+    "a": true,
+    "why": "這也是後端寫全域變數要特別小心的原因。"
+   },
+   {
+    "q": "用 textContent 賦值時，字串裡的 <img onerror=...> 會被瀏覽器執行。",
+    "a": false,
+    "why": "textContent 會強制轉義成純文字，這正是它比 innerHTML 安全的地方。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "AST 的全名是 Abstract ____ Tree，中文叫抽象語法樹，產生於建構期。",
+    "a": "Syntax",
+    "why": "由 PostCSS／Babel／ESLint 這類工具產生，目的是修改程式碼。"
+   },
+   {
+    "q": "CSSOM 的全名是 CSS ____ Model，產生於執行期，會與 DOM 樹合併成 Render Tree。",
+    "a": "Object",
+    "why": "CSS 物件模型，由瀏覽器渲染引擎建立。"
+   },
+   {
+    "q": "把 <template> 轉成 JS 渲染函式屬於「____」這道工序；把數百個檔案依 import 關係合併成 index.js 屬於「打包」。",
+    "a": "編譯",
+    "why": "Compilation／Transpilation 是碼轉碼，Bundling 是多檔合併。"
+   },
+   {
+    "q": "Vue 外掛的核心編譯器叫 @vue/compiler-____，負責把 .vue 拆成 template／script／style 三塊。",
+    "a": "sfc",
+    "why": "Single File Component 單檔案元件編譯器。"
+   },
+   {
+    "q": "Vue Scoped CSS 的做法是在編譯期產生一個 hash，把選擇器改寫成 .title[data-v-____] 這種形式。",
+    "a": "7ba5bd90",
+    "why": "實際值是隨機 hash，重點是「用屬性選擇器把作用域鎖住」。"
+   },
+   {
+    "q": "原生 <style scoped> 被廢棄後，執行期的替代方案是 ____ DOM，編譯期的替代方案是 Vue Scoped CSS 與 CSS Modules。",
+    "a": "Shadow",
+    "why": "Shadow DOM 提供瀏覽器原生的樣式隔離。"
+   },
+   {
+    "q": "單向綁定的精確定義是：____ 的變動不會自動同步回 JS 的 Model 變數。",
+    "a": "View",
+    "why": "所以 React 必須顯式寫 onChange 去 setState。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "面試官問：「CSS 到底是變成 AST 還是 CSSOM？」請完整回答。",
+    "a": "參考方向：(1) 兩個都會發生，但分屬不同階段。(2) 建構期：PostCSS／Babel 這類 Node.js 工具把 CSS 文字解析成 AST（抽象語法樹），目的是用程式去尋找並改寫程式碼，例如替 .title 補上 [data-v-xxxx]，處理完再 Stringify 回一份新的 .css 檔。(3) 執行期：瀏覽器下載到那份「已經被改寫完的最終 CSS」，才把它解析成 CSSOM，與 DOM 樹合併成 Render Tree，最後 Paint 出像素。(4) 關鍵是瀏覽器完全不知道 PostCSS 存在，它拿到的就只是普通 CSS。(5) 一句話收尾：AST 是為了改程式碼而生的樹，CSSOM 是為了畫畫面而生的樹。"
+   },
+   {
+    "q": "請說明 Vite/Webpack 是怎麼「知道」一個 .vue 檔該怎麼處理的，並用這個例子說明前端工具鏈的分層設計。",
+    "a": "參考方向：(1) 建置工具本身不認識 Vue，它只是任務排程器，靠副檔名觸發設定好的外掛。(2) 讀到 .vue 時觸發 @vitejs/plugin-vue 或 vue-loader，外掛核心是 @vue/compiler-sfc。(3) 這支編譯器做 SFC Block Parsing，把檔案拆成 template（轉 JS Render Function）、script、style scoped（產生唯一 hash）。(4) 再把 CSS 與 hash 一起交給 PostCSS，由 PostCSS 的插件把選擇器改寫成 .title[data-v-7ba5bd90]。(5) 分層設計的精神：核心保持通用，語言與框架知識全部下放到外掛；每一層只認識自己那一小塊——PostCSS 也不知道 Vue 是什麼，它只收到「一段 CSS 加一個 hash 字串」。"
+   },
+   {
+    "q": "用「修改使用者名字」這個情境，說明資料從前端記憶體一路到資料庫的完整流程，並指出最常見的觀念誤區。",
+    "a": "參考方向：(1) 前端記憶體：使用者在 input 打字，透過 onChange 呼叫 setName，name 從 'Abby' 變成 'Alex'。注意如果只綁 value 不寫 onChange，變數根本不會變（單向綁定）。(2) 網路傳輸：按下儲存按鈕，前端 JSON.stringify 後發 HTTP POST /api/user。(3) 後端記憶體：Node.js／FastAPI／Go 進程收到 request，解析成 req.body.name 這個伺服器記憶體裡的變數。(4) 永久儲存：後端執行 UPDATE users SET name = 'Alex' 寫入硬碟上的資料庫。(5) 最常見誤區：以為 setState 就等於存好了。前端記憶體非常短命，重新整理就清空；沒有發 API 的話，後端與資料庫根本不知道這件事發生過。(6) 可補充兩塊記憶體的隔離性差異：前端每個使用者獨享，後端所有使用者共享同一進程。"
+   }
+  ]
+ },
+ "Syncthing-P2P檔案同步-Obsidian-Vault跨裝置同步設定.md": {
+  "tf": [
+   {
+    "q": "Syncthing 會把檔案先上傳到 Syncthing 官方的雲端伺服器，再下載到另一台裝置。",
+    "a": false,
+    "why": "它是 P2P 點對點，檔案直接在你自己的裝置之間傳輸，不提供也不經過任何雲端空間。"
+   },
+   {
+    "q": "Android 上使用 Syncthing 需要付費才能解除容量限制。",
+    "a": false,
+    "why": "Android 版免費且無容量上限；20MB 限制是 iOS 的 Möbius Sync 才有。"
+   },
+   {
+    "q": "Sync.com 是 Syncthing 的官方雲端服務。",
+    "a": false,
+    "why": "兩者完全無關，Sync.com 是另一家賣雲端空間的廠商，別買錯。"
+   },
+   {
+    "q": "在另一台裝置上必須先手動建好同名資料夾，Syncthing 才能同步。",
+    "a": false,
+    "why": "不需要，一邊設定分享、另一邊按接受，Syncthing 會自動建立同名資料夾。"
+   },
+   {
+    "q": "配對時要在電腦的 Syncthing 裡輸入電腦自己的 Device ID。",
+    "a": false,
+    "why": "要輸入「對方」的 ID，也就是在電腦上貼手機的 ID。"
+   },
+   {
+    "q": "手機顯示 Offline 最常見的原因是被 Android 的電池最佳化機制關掉了背景程序。",
+    "a": true,
+    "why": "停用電池最佳化是最關鍵的一步，不改的話其他設定都白搭。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Syncthing 屬於 ____（點對點）架構的同步工具，檔案不經過第三方伺服器。",
+    "a": "P2P",
+    "why": "Peer-to-Peer。"
+   },
+   {
+    "q": "Android 上現在實際該安裝的是社群維護的 Syncthing-____。",
+    "a": "Fork",
+    "why": "官方 Android 版已下架封存。"
+   },
+   {
+    "q": "iOS 上的 Syncthing 客戶端叫 ____ Sync，免費版只有 20MB 且僅限自己的沙盒。",
+    "a": "Möbius",
+    "why": "因為 Apple 的沙盒機制限制，才需要額外的付費解鎖。"
+   },
+   {
+    "q": "Syncthing 的裝置 ID 是一長串大寫英數字，每 ____ 碼用一個橫槓隔開。",
+    "a": "7",
+    "why": "格式不對系統會直接擋下來。"
+   },
+   {
+    "q": "Obsidian vault 同步後，手機端只要用「開啟現有 ____」指向那個同步資料夾就能直接編輯。",
+    "a": "vault",
+    "why": "vault 本質就是一個放 .md 的資料夾。"
+   },
+   {
+    "q": "為了避免兩台一直互相覆蓋，建議在 Syncthing 裡忽略 .obsidian/____.json 這個介面狀態檔。",
+    "a": "workspace",
+    "why": "它會頻繁變動，同步它沒有意義還會製造衝突。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "比較用 Syncthing 同步 Obsidian vault 與用 Google Drive／Obsidian Sync 的優缺點，並說明你會怎麼選。",
+    "a": "參考方向：(1) Syncthing 優點：完全免費（除 iOS 客戶端）、沒有容量上限、端對端加密且檔案只存在自己裝置上、隱私最好。(2) Syncthing 缺點：兩台裝置必須「同時在線」才會同步，手機容易被省電機制殺掉背景程序；沒有雲端當中介，所以裝置都關機時就完全不會同步；多裝置同時編輯會產生 sync-conflict 副本。(3) 雲端方案優點：非同步、隨時可同步、有版本歷史、設定簡單。缺點：要錢、廠商技術上讀得到內容。(4) 選擇建議：重視隱私與成本、裝置常一起開機就選 Syncthing；需要跨時區、裝置很少同時開機、或不想處理衝突就選雲端方案。(5) 可補充風險控管：開啟 File Versioning、忽略 .obsidian/workspace.json、養成「編輯前先確認另一台同步完成」的習慣。"
+   },
+   {
+    "q": "一位朋友說「我在 Android 平板上找不到 Möbius Sync 的付費選項」，請說明他的觀念哪裡錯了，並給出正確做法。",
+    "a": "參考方向：(1) 觀念錯誤：Möbius Sync 是 iOS／iPadOS 專屬的客戶端，Android 上根本沒有這個 App，所以找不到是正常的。(2) 為什麼 iOS 才需要它：Apple 的沙盒機制不允許 App 隨意讀寫其他 App 的資料夾，所以要有專門開發的客戶端，並用一次性內購解鎖「存取其他 App 沙盒」的能力。(3) Android 的正確做法：直接從 Google Play 安裝 Syncthing-Fork，免費、開源、沒有任何容量限制。(4) 順帶提醒：不要跟 Sync.com 搞混，那是另一家賣雲端空間的廠商。(5) 若對方確實是在 iOS 上找不到付費按鈕：那是因為解鎖流程要「觸發限制」才會跳出，可以試著 Add Folder 選一個外部資料夾，或直接下載獨立的 Möbius Sync Pro。"
    }
   ]
  }

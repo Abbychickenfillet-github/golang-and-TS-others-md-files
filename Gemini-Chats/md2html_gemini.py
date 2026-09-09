@@ -73,8 +73,52 @@ def split_front_matter(text):
     return meta, body
 
 
+# ---------------------------------------------------------------- 附件索引
+_ASSET_INDEX = None
+_ASSET_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".avif"}
+
+
+def _asset_index():
+    """掃過整個 vault，建立 檔名 → 實體路徑 的索引（給 ![[圖片]] 內嵌用）。"""
+    global _ASSET_INDEX
+    if _ASSET_INDEX is None:
+        _ASSET_INDEX = {}
+        for f in VAULT.rglob("*"):
+            if f.is_file() and f.suffix.lower() in _ASSET_EXT:
+                _ASSET_INDEX.setdefault(f.name, f)
+    return _ASSET_INDEX
+
+
+def _embed_src(name, md_path):
+    """把 ![[檔名]] 解析成相對於該 .md 的相對路徑；找不到就回 None。"""
+    target = _asset_index().get(name)
+    if target is None:
+        return None
+    try:
+        import os
+        return os.path.relpath(target, md_path.parent).replace("\\", "/")
+    except Exception:
+        return None
+
+
 # ---------------------------------------------------------------- md → html
-def convert_body(body):
+def convert_body(body, md_path=None):
+    # ![[圖片.png]] / ![[圖解.svg]] → 真正的 <img>（相對路徑，離線可開）
+    def embed(m):
+        inner = m.group(1).split("|")[0].strip()
+        if Path(inner).suffix.lower() not in _ASSET_EXT:
+            return m.group(0)
+        src = _embed_src(Path(inner).name, md_path) if md_path else None
+        if not src:
+            return f'<p class="missing-img">（找不到圖片：{html_mod.escape(inner)}）</p>'
+        from urllib.parse import quote
+        return (
+            f'<p class="fig"><img src="{quote(src)}" alt="{html_mod.escape(inner)}" '
+            f'loading="lazy"></p>'
+        )
+
+    body = re.sub(r"!\[\[([^\]]+)\]\]", embed, body)
+
     # wikilink → 純文字藥丸（HTML 版無法跳 Obsidian，改標成視覺提示）
     def wl(m):
         inner = m.group(1)
@@ -165,7 +209,7 @@ CSS = """
 body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
   font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   font-size:16.5px;-webkit-font-smoothing:antialiased}
-.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
 header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
   border-radius:16px;padding:26px 28px;margin-bottom:22px}
 header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
@@ -206,6 +250,9 @@ th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-ali
 th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
 tbody tr:nth-child(even){background:#fafbfc}
 hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
 .wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
   border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
 /* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
@@ -400,7 +447,7 @@ def build(md_path: Path, quiz=None):
         source=html_mod.escape(str(meta.get("source", ""))),
         srclinks=srclinks,
         quiz=render_quiz(quiz),
-        body=convert_body(body),
+        body=convert_body(body, md_path),
     )
     html_path = md_path.with_suffix(".html")
     html_path.write_text(out, encoding="utf-8")

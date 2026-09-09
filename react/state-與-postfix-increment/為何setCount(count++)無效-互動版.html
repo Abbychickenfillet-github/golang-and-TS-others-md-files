@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>為何 setCount(count++) 無效而 setCount(count + 1) 可以｜互動版</title>
+<style>
+  :root{
+    --bg:#fafafa; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --good:#059669; --goodbg:#d1fae5; --bad:#dc2626; --badbg:#fee2e2;
+    --warn:#d97706; --warnbg:#fef3c7; --info:#0284c7; --infobg:#e0f2fe;
+    --code:#1e293b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 16px 80px;background:var(--bg);color:var(--ink);
+       font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;line-height:1.85}
+  .wrap{max-width:880px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 28px}
+  h2{font-size:19px;margin:36px 0 12px;padding-left:10px;border-left:4px solid var(--info)}
+  h3{font-size:16px;margin:22px 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+  pre{background:var(--code);color:#e2e8f0;padding:14px 16px;border-radius:8px;overflow-x:auto;
+      font-family:'Cascadia Code',Consolas,monospace;font-size:13.5px;line-height:1.7}
+  code{font-family:'Cascadia Code',Consolas,monospace}
+  .inline-code{background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:13px}
+  ol,ul{padding-left:22px}
+  li{margin:6px 0}
+  .tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;margin-right:6px}
+  .tag-bad{background:var(--badbg);color:var(--bad)}
+  .tag-good{background:var(--goodbg);color:var(--good)}
+  .tag-warn{background:var(--warnbg);color:var(--warn)}
+  .tag-info{background:var(--infobg);color:var(--info)}
+
+  /* 填空 */
+  .blank{border:none;border-bottom:2px dashed var(--info);background:transparent;
+         font-family:'Cascadia Code',Consolas,monospace;font-size:14px;color:var(--ink);
+         width:150px;text-align:center;padding:2px 4px;outline:none}
+  .blank:focus{border-bottom-color:var(--good);background:#f0fdf4}
+  .blank.ok{border-bottom:2px solid var(--good);color:var(--good);font-weight:600}
+  .blank.no{border-bottom:2px solid var(--bad);color:var(--bad)}
+
+  button{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;
+         padding:7px 14px;font-size:13.5px;font-family:inherit;transition:.15s}
+  button:hover{background:#f1f5f9}
+  .btn-primary{background:var(--info);color:#fff;border-color:var(--info)}
+  .btn-primary:hover{background:#0369a1}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+  .answer{display:none;margin-top:12px;padding:14px 16px;border-radius:8px;
+          background:var(--goodbg);border-left:4px solid var(--good);font-size:14.5px}
+  .answer.show{display:block}
+
+  /* 是非題 */
+  .tf-item{padding:12px 0;border-bottom:1px dashed var(--line)}
+  .tf-item:last-child{border-bottom:none}
+  .tf-q{font-weight:500}
+  .tf-btns{margin-top:8px;display:flex;gap:8px;align-items:center}
+  .tf-fb{font-size:13.5px;margin-left:6px}
+  .tf-fb.ok{color:var(--good)}
+  .tf-fb.no{color:var(--bad)}
+  .tf-why{display:none;margin-top:8px;font-size:13.5px;color:var(--muted);
+          background:#f8fafc;padding:10px 12px;border-radius:6px}
+  .tf-why.show{display:block}
+
+  textarea{width:100%;min-height:110px;border:1px solid var(--line);border-radius:8px;
+           padding:10px 12px;font-family:inherit;font-size:14px;resize:vertical;line-height:1.7}
+  .score{font-weight:700;color:var(--info)}
+  figure{margin:16px 0}
+  figure img{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff}
+  figcaption{font-size:13px;color:var(--muted);margin-top:6px;text-align:center}
+  .src{font-size:13px;color:var(--muted)}
+  .src a{color:var(--info)}
+  .live{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:10px;
+        font-family:'Cascadia Code',Consolas,monospace;font-size:12.5px;white-space:pre-wrap}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px}
+  th,td{padding:7px 9px;border:1px solid var(--line);text-align:left}
+  th{background:#f1f5f9}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>為何 setCount(count++) 無效而 setCount(count + 1) 可以</h1>
+<p class="sub">互動版筆記　建立日期 2026-09-07　主題：postfix increment、const 綁定、React render 快照</p>
+
+<figure>
+  <img src="../../obsidian-attachment/學習React_圖解_setCount(count++)為何失效-三道關卡_2026-09-07.svg" alt="setCount(count++) 三道關卡圖解">
+  <figcaption>圖一　setCount(count++) 要闖的三道關卡，以及正確路徑</figcaption>
+</figure>
+
+<h2>一、核心觀念速記</h2>
+<div class="card">
+  <p><span class="tag tag-info">問題</span>count++ 是不是就等於 count = count + 1 ？</p>
+  <ol>
+    <li><b>相同的部分</b>　<span class="inline-code">count++</span> 一定包含一次賦值，也就是 <span class="inline-code">count = 舊值 + 1</span>。這個直覺是對的</li>
+    <li><b>多出來的部分</b>　它同時是一個有回傳值的運算式，而且回傳的是<b>舊值</b></li>
+    <li><b>不等價的部分</b>　<span class="inline-code">++</span> 先做 ToNumeric，<span class="inline-code">+</span> 遇到字串卻做串接</li>
+    <li><b>精準等價的寫法</b>　<span class="inline-code">count = Number(count) + 1</span></li>
+  </ol>
+<pre>let s1 = '5'; s1++;            // ToNumeric('5') → 5，加一 → 數字 6
+let s2 = '5'; s2 = s2 + 1;     // 字串串接 → '51'
+console.log(s1, s2)            // 6  '51'  兩者不等價</pre>
+</div>
+
+<figure>
+  <img src="../../obsidian-attachment/學習JS_圖解_++的對象是位置不是值-Reference與const_2026-09-07.svg" alt="++ 的對象是位置不是值">
+  <figcaption>圖二　同樣是 ++，Base 不一樣結果就不一樣：環境紀錄 vs 物件 vs 根本沒有位置</figcaption>
+</figure>
+
+<h2>二、規格三步拆解（填空練習）</h2>
+<div class="card">
+  <p>ECMAScript 對 <span class="inline-code">count++</span> 的定義有三步，把空格補完：</p>
+  <ol>
+    <li>oldValue =
+      <input class="blank" data-a="ToNumeric" placeholder="抽象操作名稱"> ( count )
+      　<span class="src">提示：把值強制轉成數字型別的那個抽象操作</span>
+    </li>
+    <li>count = oldValue
+      <input class="blank" data-a="+ 1|+1" placeholder="運算" style="width:80px">
+      　這一步就是<b>重新賦值</b>，也是 React 裡爆炸的原因
+    </li>
+    <li>整個運算式回傳
+      <input class="blank" data-a="oldValue|舊值" placeholder="回傳什麼" style="width:120px">
+      　所以 setCount 收到的是舊值
+    </li>
+  </ol>
+  <div class="btn-row">
+    <button class="btn-primary" onclick="checkBlanks()">檢查填空</button>
+    <button onclick="revealBlanks()">直接看答案</button>
+    <button onclick="clearBlanks()">清空重來</button>
+    <span id="blankScore" class="score"></span>
+  </div>
+</div>
+
+<h2>三、三道關卡（點擊展開解答）</h2>
+
+<div class="card">
+  <h3><span class="tag tag-bad">關卡 1</span>綁定是 const，第 2 步賦值直接 TypeError</h3>
+<pre>const [count, setCount] = useState(0)   // 注意這裡是 const
+count++                                  // TypeError: Assignment to constant variable.</pre>
+  <div class="btn-row"><button onclick="toggle('a1')">切換顯示解答</button></div>
+  <div class="answer" id="a1">
+    <p><b>先搞懂 ++ 的操作對象是什麼</b></p>
+    <p>規格裡 <span class="inline-code">x++</span> 的第一步<b>不是</b>「拿到 x 的值」，而是求值出一個
+      <b>Reference Record（參考記錄）</b>，它有兩個關鍵欄位：<b>Base</b>（往哪裡找）與
+      <b>ReferencedName</b>（找哪個名字）。</p>
+    <table>
+      <tr><th>寫法</th><th>Reference 種類</th><th>Base</th><th>ReferencedName</th><th>const 管得到嗎</th></tr>
+      <tr><td><span class="inline-code">count++</span></td><td>identifier reference</td>
+          <td>作用域的 Environment Record</td><td><span class="inline-code">"count"</span></td>
+          <td style="color:#dc2626">管得到 → TypeError</td></tr>
+      <tr><td><span class="inline-code">obj.n++</span></td><td>property reference</td>
+          <td>obj 這個物件</td><td><span class="inline-code">"n"</span></td>
+          <td style="color:#059669">管不到 → 合法</td></tr>
+      <tr><td><span class="inline-code">0++</span></td><td>不是 Reference，是一個值</td>
+          <td>沒有</td><td>沒有</td>
+          <td style="color:#dc2626">解析就被擋 → SyntaxError</td></tr>
+    </table>
+    <p style="margin-top:12px"><b>三個常見誤解</b></p>
+    <ol>
+      <li><b>++ 是針對那個數值本身？</b>不是。++ 要的是「格子」不是「格子裡的東西」。
+        <span class="inline-code">0++</span> 直接 SyntaxError: Invalid left-hand side expression。</li>
+      <li><b>obj.n 裡的 n 是變數？</b>不是。任何作用域都找不到叫 n 的變數，
+        <span class="inline-code">obj.n</span> 整體才是一個 property reference，n 只是要在 obj 裡查的鍵名字串。
+        正確說法是：<b>引擎先用這個 reference 讀出屬性目前的值當作運算式結果，再把加一後的新值寫回同一個 reference。</b></li>
+      <li><b>++ 是一個原子動作？</b>不是，是「讀 → 加一 → 寫回去」。用 getter/setter 可以偷看：
+        getter 被呼叫 1 次（GetValue），setter 被呼叫 1 次（PutValue）。<b>const 擋的正是 PutValue 那一步。</b></li>
+    </ol>
+    <p style="margin-top:12px"><b>const 鎖名字，Object.freeze 鎖內容</b></p>
+    <table>
+      <tr><th></th><th>管什麼</th><th>例子</th></tr>
+      <tr><td><span class="inline-code">const</span></td><td>鎖<b>名字</b>（binding）</td>
+          <td><span class="inline-code">const o={n:0}; o.n++</span> 合法；<span class="inline-code">o={}</span> TypeError</td></tr>
+      <tr><td><span class="inline-code">Object.freeze</span></td><td>鎖<b>內容</b>（屬性）</td>
+          <td><span class="inline-code">Object.freeze(o).n++</span> → TypeError: Cannot assign to read only property 'n'</td></tr>
+    </table>
+    <p style="margin-top:12px"><b>有人真的會對屬性 ++ 嗎？很常見</b>：
+      <span class="inline-code">counts[ch]++</span>（字頻統計）、<span class="inline-code">stats.hits++</span>、
+      <span class="inline-code">arr[i]++</span>、<span class="inline-code">retry.times++</span>。</p>
+    <p style="margin-top:12px"><b>為什麼這一節要放在這裡</b>：因為「const 就是不能改」這個誤解會生出 React 裡最難除錯的 bug——
+      <span class="inline-code">const [todos] = useState([])</span> 之後寫 <span class="inline-code">todos.push(x)</span>
+      <b>完全合法不會報錯</b>，但參考沒變，React 用 Object.is 一比發現相同就跳過重新渲染。
+      資料改了、畫面沒動、console 一片乾淨。</p>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="runRefLab()">現場跑一次這四個實驗</button>
+    </div>
+    <div class="live" id="refLab">（還沒按過）</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3><span class="tag tag-warn">關卡 2</span>就算硬改成 let，postfix 回傳的還是舊值</h3>
+<pre>let local = count          // 把快照抄進 let，語法就過了
+setCount(local++)          // local++ 回傳「舊值」，setCount 收到舊值</pre>
+  <div class="btn-row"><button onclick="toggle('a2')">切換顯示解答</button></div>
+  <div class="answer" id="a2">
+    <ol>
+      <li>排進更新佇列的值等於原本的值，畫面完全不動</li>
+      <li>React 用 <span class="inline-code">Object.is</span> 比較新舊 state，發現一樣，甚至可能連 re-render 都省掉</li>
+      <li>換成 <span class="inline-code">setCount(++local)</span> 表面上會動，但仍然踩到關卡 3，而且 ESLint 會警告你在 render 期間改動不該改的東西</li>
+    </ol>
+  </div>
+</div>
+
+<div class="card">
+  <h3><span class="tag tag-bad">關卡 3</span>count 是這一次 render 的快照</h3>
+  <div class="btn-row"><button onclick="toggle('a3')">切換顯示解答</button></div>
+  <div class="answer" id="a3">
+    <ol>
+      <li>元件函式每 render 一次就重新執行一次，<span class="inline-code">count</span> 是那一次執行的區域常數</li>
+      <li>事件處理器會用閉包（closure）把當時的 count 鎖住</li>
+      <li>在 handler 裡改本地變數，React 根本不知道，也不會重新渲染</li>
+      <li>唯一能觸發重新渲染的動作是<b>呼叫 setCount</b></li>
+    </ol>
+  </div>
+</div>
+
+<div class="card">
+  <h3><span class="tag tag-good">正解</span>setCount(count + 1)</h3>
+<pre>setCount(count + 1)
+// a. count + 1 是純運算式，沒有動到任何綁定
+// b. 真正讓畫面更新的是 setCount 這個呼叫，不是那個加法</pre>
+</div>
+
+<h2>四、延伸陷阱：同一輪連呼叫兩次</h2>
+<div class="card">
+<pre>// 只會加 1
+setCount(count + 1)          // count 是快照 3 → 排入 4
+setCount(count + 1)          // count 還是快照 3 → 又排入 4
+
+// 會加 2
+setCount(prev =&gt; prev + 1)   // 結算時 prev = 3 → 4
+setCount(prev =&gt; prev + 1)   // 結算時 prev = 4 → 5</pre>
+  <div class="btn-row"><button onclick="toggle('a4')">切換顯示判斷準則</button></div>
+  <div class="answer" id="a4">
+    <b>判斷準則</b>　新值需要依賴舊值時，一律用 updater function <span class="inline-code">prev =&gt; ...</span>
+  </div>
+</div>
+
+
+<h2>四之二、附錄：++count 反而比 count++ 好嗎</h2>
+<div class="card">
+  <p><span class="tag tag-bad">結論</span>不是「比較好」，是「壞得比較不明顯」，這反而更危險。</p>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:10px">
+    <thead>
+      <tr style="background:#f1f5f9">
+        <th style="text-align:left;padding:8px;border:1px solid #e2e8f0">關卡</th>
+        <th style="text-align:left;padding:8px;border:1px solid #e2e8f0">count++</th>
+        <th style="text-align:left;padding:8px;border:1px solid #e2e8f0">++count</th>
+        <th style="text-align:left;padding:8px;border:1px solid #e2e8f0">count + 1</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:8px;border:1px solid #e2e8f0">1. const 綁定不能賦值</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626">過不了，TypeError</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626"><b>一樣過不了</b></td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#059669">過關，沒有賦值</td></tr>
+      <tr><td style="padding:8px;border:1px solid #e2e8f0">2. 傳給 setCount 的值</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626">舊值，等於沒改</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#d97706">新值，看起來對了</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#059669">新值，正確</td></tr>
+      <tr><td style="padding:8px;border:1px solid #e2e8f0">3. render 期間改動快照（side effect）</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626">有，違反規則</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626"><b>一樣有</b></td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#059669">沒有</td></tr>
+      <tr><td style="padding:8px;border:1px solid #e2e8f0">4. 同一輪連呼叫兩次</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626">錯</td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626"><b>一樣錯</b></td>
+          <td style="padding:8px;border:1px solid #e2e8f0;color:#d97706">一樣錯，要改用 updater</td></tr>
+    </tbody>
+  </table>
+  <div class="btn-row"><button onclick="toggle('a5')">切換顯示逐點解說</button></div>
+  <div class="answer" id="a5">
+    <ol>
+      <li><b>關卡 1 完全平手</b>　++count 的規格步驟只是把「回傳舊值」換成「回傳新值」，第 2 步的重新賦值一模一樣，照樣丟 TypeError，根本跑不到 setCount</li>
+      <li><b>++count 唯一贏的地方在關卡 2</b>　它回傳新值，所以「假設你已經把 count 換成 let」畫面確實會動一次，但這正是問題：它讓觀念錯誤的程式碼看起來會動</li>
+      <li><b>關卡 3 又平手</b>　在事件處理器裡改動 render 作用域的變數屬於 side effect，ESLint 的 react-hooks 規則會警告，++count 只是把副作用做得比較成功</li>
+      <li><b>關卡 4 還是平手</b>　連寫兩次 setCount(++local)，第二次的 local 仍是同一份快照拷貝，加完只前進一格</li>
+      <li><b>由好到壞的排序</b>　setCount(prev =&gt; prev + 1) ＞ setCount(count + 1) ＞ setCount(++count) ＞ setCount(count++)</li>
+      <li><b>count++ 什麼時候才是好的</b>　在「你就是想要舊值」的場合，例如產生遞增 ID、走訪陣列索引、LeetCode 2620 的 return n++，那些變數是 let 或閉包變數，三道關卡一道都不存在</li>
+    </ol>
+  </div>
+</div>
+
+<h2>五、是非題</h2>
+<div class="card" id="tfBox">
+  <div class="tf-item" data-a="false" data-why="不完全等價。對數字等價，但對字串不等價，因為 ++ 走 ToNumeric，+ 走字串串接。真正精準等價的是 count = Number(count) + 1">
+    <div class="tf-q">1. count++ 與 count = count + 1 在任何情況下都完全等價</div>
+  </div>
+  <div class="tf-item" data-a="true" data-why="正確。const 建立的是不可重新綁定的連結，而 ++ 的第 2 步就是重新賦值，所以直接丟 TypeError">
+    <div class="tf-q">2. useState 解構出來的 count 是 const 綁定，所以 count++ 會丟 TypeError</div>
+  </div>
+  <div class="tf-item" data-a="true" data-why="正確。const 鎖的是「名字指向哪個值」，不是「那個值的內容」，所以改物件屬性是合法的">
+    <div class="tf-q">3. const obj = { n: 0 } 之後寫 obj.n++ 是合法的</div>
+  </div>
+  <div class="tf-item" data-a="false" data-why="不會。畫面更新的唯一觸發點是呼叫 setCount。改本地變數 React 完全不知道，因為那只是這一次 render 的快照拷貝">
+    <div class="tf-q">4. 只要在事件處理器裡成功把本地變數加一，畫面上的數字就會更新</div>
+  </div>
+  <div class="tf-item" data-a="false" data-why="只會加一次。兩行都拿同一份快照去算，佇列變成 [4, 4]，最後結果是 4。要加兩次必須用 setCount(prev =&gt; prev + 1)">
+    <div class="tf-q">5. 在同一個 handler 裡連寫兩行 setCount(count + 1) 會讓數字加二</div>
+  </div>
+  <div class="tf-item" data-a="true" data-why="正確。postfix 回傳舊值，prefix 回傳新值，但兩者對變數本身的效果一樣，都是加一">
+    <div class="tf-q">6. a++ 回傳舊值，++a 回傳新值，但兩者對 a 本身的效果相同</div>
+  </div>
+  <div class="btn-row">
+    <button class="btn-primary" onclick="gradeTF()">批改是非題</button>
+    <button onclick="resetTF()">重做</button>
+    <span id="tfScore" class="score"></span>
+  </div>
+</div>
+
+<h2>六、申論題</h2>
+<div class="card">
+  <p><b>題目一</b>　請用「綁定」與「快照」兩個詞，解釋為什麼 React 團隊要讓 useState 回傳 <code>[值, setter]</code> 這種形式，而不是直接給你一個可以賦值的變數。</p>
+  <textarea id="e1" placeholder="寫下你的想法之後再看參考答案"></textarea>
+  <div class="btn-row"><button onclick="toggle('ea1')">切換顯示參考答案</button></div>
+  <div class="answer" id="ea1">
+    <ol>
+      <li>如果直接給可賦值的變數，React 沒有任何機會知道「值被改了」，因為 JS 的賦值不會發出通知</li>
+      <li>把「讀」與「寫」拆成兩個東西，寫的動作變成一次<b>函式呼叫</b>，React 就有一個可以攔截的時機點，能把更新排進佇列並安排 re-render</li>
+      <li>讀的那一半刻意做成 const 綁定，是為了強制「這一次 render 期間值不會變」，也就是快照語意，這讓事件處理器的行為變得可預測</li>
+      <li>代價是你必須接受「setCount 之後 count 不會立刻變」，這正是初學最容易卡住的地方</li>
+    </ol>
+  </div>
+</div>
+
+<div class="card">
+  <p><b>題目二</b>　同事把 <code>setCount(count++)</code> 改成 <code>setCount(++count)</code>，說「這樣就會動了」。請說明這個修法哪裡對、哪裡仍然錯。</p>
+  <textarea id="e2" placeholder="寫下你的想法之後再看參考答案"></textarea>
+  <div class="btn-row"><button onclick="toggle('ea2')">切換顯示參考答案</button></div>
+  <div class="answer" id="ea2">
+    <ol>
+      <li><b>對的部分</b>　prefix 回傳新值，所以傳給 setCount 的數字確實是加一之後的，畫面看起來會動</li>
+      <li><b>仍然錯的部分之一</b>　如果 count 還是 useState 直接解構出來的 const，<span class="inline-code">++count</span> 一樣是賦值，一樣 TypeError，根本跑不到 setCount</li>
+      <li><b>仍然錯的部分之二</b>　就算改用 let 拷貝，這個寫法是在「改動 render 期間的區域變數」，屬於 side effect，ESLint 的 react-hooks 規則會警告</li>
+      <li><b>仍然錯的部分之三</b>　它沒有解決快照問題。同一輪連呼叫兩次仍然會出錯，正確做法是 <code>setCount(prev =&gt; prev + 1)</code></li>
+      <li><b>結論</b>　它把「症狀」蓋掉了，但沒有處理「原因」</li>
+    </ol>
+  </div>
+</div>
+
+<h2>七、可執行範例與延伸練習</h2>
+<div class="card">
+  <ol>
+    <li>純 JS：<span class="inline-code">C:\coding\JavaScript-practicing\postfix-increment.js</span>　執行 <span class="inline-code">node postfix-increment.js</span></li>
+    <li>React 互動頁：<span class="inline-code">app\postfix-increment\page.tsx</span>　執行 <span class="inline-code">npm run dev</span> 後開 <a href="http://localhost:3000/postfix-increment">localhost:3000/postfix-increment</a></li>
+    <li>LeetCode 2620. Counter　<a href="https://leetcode.com/problems/counter/">連結</a>　關聯原因：標準解就是 <span class="inline-code">return n++</span>，直接考 postfix 回傳舊值</li>
+    <li>LeetCode 2665. Counter II　<a href="https://leetcode.com/problems/counter-ii/">連結</a>　關聯原因：三個方法共用同一個閉包變數，練習「改的是綁定，不是快照」</li>
+    <li>LeetCode 2704. To Be Or Not To Be　<a href="https://leetcode.com/problems/to-be-or-not-to-be/">連結</a>　關聯原因：練習閉包捕捉當下的值</li>
+  </ol>
+</div>
+
+<h2>八、參考來源</h2>
+<div class="card src">
+  <ol>
+    <li>MDN Web Docs, Increment (++)　<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Increment">連結</a>　查閱日期 2026-09-07</li>
+    <li>MDN Web Docs, const　<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const">連結</a>　查閱日期 2026-09-07</li>
+    <li>MDN Web Docs, TypeError: invalid assignment to const　<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_const_assignment">連結</a>　查閱日期 2026-09-07</li>
+    <li>React 官方文件, State as a Snapshot　<a href="https://react.dev/learn/state-as-a-snapshot">連結</a>　查閱日期 2026-09-07</li>
+    <li>React 官方文件, Queueing a Series of State Updates　<a href="https://react.dev/learn/queueing-a-series-of-state-updates">連結</a>　查閱日期 2026-09-07</li>
+    <li>ECMA-262, Postfix Increment Operator　<a href="https://tc39.es/ecma262/#sec-postfix-increment-operator">連結</a>　查閱日期 2026-09-07</li>
+  </ol>
+</div>
+
+</div>
+
+<script>
+  function runRefLab(){
+    const lines = [];
+    try { new Function('return 0++;')(); }
+    catch(e){ lines.push('A. 0++        → ' + e.name + ' | ' + e.message); }
+
+    const obj = { n: 0 }; const before = obj; const returned = obj.n++;
+    lines.push('B. obj.n++     → 回傳 ' + returned + '（舊值），obj.n 現在 ' + obj.n +
+               '，obj === before ? ' + (obj === before));
+
+    let reads = 0, writes = 0, store = 5;
+    const spy = { get n(){ reads++; return store; }, set n(v){ writes++; store = v; } };
+    const out2 = spy.n++;
+    lines.push('C. accessor    → getter ' + reads + ' 次（GetValue），setter ' + writes +
+               ' 次（PutValue），回傳 ' + out2 + '，store ' + store);
+
+    try { const f = Object.freeze({ n: 0 }); f.n++; lines.push('D. frozen.n++  → 沒出錯（非嚴格模式）'); }
+    catch(e){ lines.push('D. frozen.n++  → ' + e.name + ' | ' + e.message); }
+
+    try { new Function('"use strict"; const c = 0; c++;')(); }
+    catch(e){ lines.push('E. const c; c++ → ' + e.name + ' | ' + e.message); }
+
+    document.getElementById('refLab').textContent = lines.join('\n');
+  }
+
+  function toggle(id){
+    document.getElementById(id).classList.toggle('show');
+  }
+
+  function norm(s){ return String(s).trim().replace(/\s+/g,' ').toLowerCase(); }
+
+  function checkBlanks(){
+    const inputs = document.querySelectorAll('.blank');
+    let ok = 0;
+    inputs.forEach(function(inp){
+      const answers = inp.dataset.a.split('|').map(norm);
+      if (answers.indexOf(norm(inp.value)) !== -1) {
+        inp.classList.add('ok'); inp.classList.remove('no'); ok++;
+      } else {
+        inp.classList.add('no'); inp.classList.remove('ok');
+      }
+    });
+    document.getElementById('blankScore').textContent =
+      '答對 ' + ok + ' / ' + inputs.length;
+  }
+
+  function revealBlanks(){
+    document.querySelectorAll('.blank').forEach(function(inp){
+      inp.value = inp.dataset.a.split('|')[0];
+      inp.classList.add('ok'); inp.classList.remove('no');
+    });
+    document.getElementById('blankScore').textContent = '已顯示標準答案';
+  }
+
+  function clearBlanks(){
+    document.querySelectorAll('.blank').forEach(function(inp){
+      inp.value = ''; inp.classList.remove('ok','no');
+    });
+    document.getElementById('blankScore').textContent = '';
+  }
+
+  // 建立是非題按鈕
+  document.querySelectorAll('#tfBox .tf-item').forEach(function(item, i){
+    const row = document.createElement('div');
+    row.className = 'tf-btns';
+    ['是','非'].forEach(function(label, idx){
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.dataset.val = idx === 0 ? 'true' : 'false';
+      b.onclick = function(){
+        item.querySelectorAll('.tf-btns button').forEach(function(x){
+          x.classList.remove('btn-primary');
+        });
+        b.classList.add('btn-primary');
+        item.dataset.picked = b.dataset.val;
+      };
+      row.appendChild(b);
+    });
+    const fb = document.createElement('span');
+    fb.className = 'tf-fb';
+    row.appendChild(fb);
+    item.appendChild(row);
+
+    const why = document.createElement('div');
+    why.className = 'tf-why';
+    why.textContent = '原因：' + item.dataset.why;
+    item.appendChild(why);
+  });
+
+  function gradeTF(){
+    const items = document.querySelectorAll('#tfBox .tf-item');
+    let ok = 0;
+    items.forEach(function(item){
+      const fb = item.querySelector('.tf-fb');
+      const why = item.querySelector('.tf-why');
+      if (!item.dataset.picked) {
+        fb.textContent = '尚未作答'; fb.className = 'tf-fb';
+        return;
+      }
+      if (item.dataset.picked === item.dataset.a) {
+        fb.textContent = '答對'; fb.className = 'tf-fb ok'; ok++;
+      } else {
+        fb.textContent = '答錯'; fb.className = 'tf-fb no';
+      }
+      why.classList.add('show');
+    });
+    document.getElementById('tfScore').textContent =
+      '答對 ' + ok + ' / ' + items.length;
+  }
+
+  function resetTF(){
+    document.querySelectorAll('#tfBox .tf-item').forEach(function(item){
+      delete item.dataset.picked;
+      item.querySelector('.tf-fb').textContent = '';
+      item.querySelector('.tf-why').classList.remove('show');
+      item.querySelectorAll('.tf-btns button').forEach(function(b){
+        b.classList.remove('btn-primary');
+      });
+    });
+    document.getElementById('tfScore').textContent = '';
+  }
+</script>
+</body>
+</html>

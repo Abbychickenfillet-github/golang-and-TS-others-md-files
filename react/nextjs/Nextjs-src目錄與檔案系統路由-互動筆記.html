@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Next.js：src/ 目錄之爭與檔案系統路由雙軸制（互動筆記）</title>
+<style>
+:root{
+  --bg:#fbfaf7; --fg:#23201c; --muted:#6d6459; --line:#e2ddd3;
+  --card:#ffffff; --accent:#b4532a; --accent-soft:#fdf1ea;
+  --ok:#2f6b4f; --ok-soft:#eaf4ee; --warn:#8a6d1f; --warn-soft:#fdf6e3;
+  --bad:#9c3131; --bad-soft:#fbeded; --code:#f3f0ea;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#1a1815; --fg:#eae5dc; --muted:#a39a8d; --line:#3a352e;
+    --card:#232019; --accent:#e08b5f; --accent-soft:#2e2119;
+    --ok:#7fc19c; --ok-soft:#1b2a22; --warn:#d9bb6a; --warn-soft:#2b2618;
+    --bad:#e08a8a; --bad-soft:#2b1c1c; --code:#2a2620;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.85;font-size:16px}
+.wrap{max-width:1000px;margin:0 auto;padding:32px 22px 96px}
+h1{font-size:1.7rem;line-height:1.4;margin:0 0 6px;letter-spacing:-.01em}
+h2{font-size:1.22rem;margin:52px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--accent);display:inline-block}
+h3{font-size:1.05rem;margin:30px 0 10px;color:var(--accent)}
+h4{font-size:.96rem;margin:20px 0 8px}
+p{margin:10px 0}
+.meta{color:var(--muted);font-size:.85rem;line-height:1.9;margin-bottom:26px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+code{font-family:var(--mono);background:var(--code);padding:1px 5px;border-radius:4px;font-size:.88em}
+pre{background:var(--code);padding:14px 16px;border-radius:8px;overflow-x:auto;border:1px solid var(--line);font-size:.85rem;line-height:1.65}
+pre code{background:none;padding:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:16px 0}
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0;padding:14px 18px;margin:16px 0}
+.callout.ok{border-color:var(--ok);background:var(--ok-soft)}
+.callout.warn{border-color:var(--warn);background:var(--warn-soft)}
+.callout.bad{border-color:var(--bad);background:var(--bad-soft)}
+.callout .t{font-weight:700;display:block;margin-bottom:4px}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.9rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--code);font-weight:700;white-space:nowrap}
+ol,ul{padding-left:1.5em;margin:10px 0}
+li{margin:7px 0}
+.scr{width:100%;border:1px solid var(--line);border-radius:8px;display:block;margin:10px 0}
+figcaption{color:var(--muted);font-size:.82rem;text-align:center;margin-bottom:18px}
+/* ---------- 動畫區 ---------- */
+.sim{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin:20px 0}
+.simbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+button{font-family:inherit;font-size:.88rem;padding:7px 15px;border-radius:7px;border:1px solid var(--line);
+  background:var(--card);color:var(--fg);cursor:pointer;transition:.15s}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.pri:hover{opacity:.87;color:#fff}
+.stagelabel{font-size:.88rem;color:var(--muted);flex:1;min-width:180px}
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:720px){.panes{grid-template-columns:1fr}}
+.pane{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--bg)}
+.pane h5{margin:0;padding:9px 13px;font-size:.87rem;background:var(--code);border-bottom:1px solid var(--line)}
+.pane.left h5{color:var(--bad)}
+.pane.right h5{color:var(--ok)}
+.tree{font-family:var(--mono);font-size:.79rem;line-height:1.6;padding:11px 13px;min-height:330px;margin:0;list-style:none}
+.tree li{margin:0;white-space:nowrap;opacity:0;transform:translateX(-6px);animation:pop .32s forwards}
+@keyframes pop{to{opacity:1;transform:none}}
+.tree .cfg{color:var(--muted)}
+.tree .dir{color:var(--accent);font-weight:600}
+.tree .src{color:var(--ok);font-weight:700}
+.tree .ind{padding-left:1.5em}
+.tree .ind2{padding-left:3em}
+.stat{display:flex;gap:14px;flex-wrap:wrap;padding:9px 13px;border-top:1px solid var(--line);font-size:.79rem;background:var(--code)}
+.stat b{font-size:1.05rem}
+.glob{font-family:var(--mono);font-size:.75rem;padding:8px 13px;border-top:1px solid var(--line);color:var(--muted);white-space:pre-wrap;word-break:break-all}
+/* ---------- 邊界示範 ---------- */
+.bnd{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+@media(max-width:720px){.bnd{grid-template-columns:1fr}}
+/* ---------- 測驗 ---------- */
+.q{border:1px solid var(--line);border-radius:9px;padding:15px 18px;margin:14px 0;background:var(--card)}
+.q .stem{font-weight:600;margin-bottom:9px}
+.blank{font-family:var(--mono);font-size:.86rem;padding:4px 8px;border:1px solid var(--line);border-radius:5px;
+  background:var(--bg);color:var(--fg);width:190px;margin:0 3px}
+.blank.good{border-color:var(--ok);background:var(--ok-soft)}
+.blank.bad{border-color:var(--bad);background:var(--bad-soft)}
+.tf{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.tf button{min-width:62px}
+.tf button.picked{background:var(--accent);color:#fff;border-color:var(--accent)}
+.fb{margin-top:10px;padding:10px 13px;border-radius:7px;font-size:.87rem;display:none}
+.fb.show{display:block}
+.fb.y{background:var(--ok-soft);border-left:3px solid var(--ok)}
+.fb.n{background:var(--bad-soft);border-left:3px solid var(--bad)}
+.ans{margin-top:10px;padding:12px 15px;background:var(--code);border-radius:7px;font-size:.89rem;display:none;border-left:3px solid var(--accent)}
+.ans.show{display:block}
+.tag{display:inline-block;font-size:.72rem;padding:1px 8px;border-radius:20px;background:var(--accent-soft);
+  color:var(--accent);border:1px solid var(--accent);margin-right:6px;vertical-align:2px}
+.rel{border-left:3px solid var(--muted);padding-left:14px;margin:12px 0}
+.rel b{color:var(--accent)}
+.src-list{font-size:.85rem}
+.src-list li{margin:9px 0}
+a{color:var(--accent)}
+hr{border:none;border-top:1px solid var(--line);margin:34px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Next.js：<code>src/</code> 目錄之爭與檔案系統路由的雙軸制</h1>
+<div class="meta">
+建立日期：2026-09-06　｜　對應版本：Next.js 16.3.4　｜　分類：react / nextjs<br>
+主題：為何 <code>create-next-app</code> 預設不含 <code>src/</code>、資料夾路由與檔名路由的差異、<code>route.ts</code> 與 <code>proxy.ts</code> 的定位、專案邊界的三層強制力
+</div>
+
+<figure>
+<img class="scr" src="../../obsidian-attachment/create-next-app-recommended-defaults-no-src_2026-09-06.png" alt="create-next-app 的 recommended defaults 選單，紅框標出 Yes, use recommended defaults 與 No src/ directory">
+<figcaption>圖 1　<code>npx create-next-app@latest</code> 的 recommended defaults 明確列出 <code>No src/ directory</code>（截圖日期 2026-09-06，create-next-app@16.3.4）</figcaption>
+</figure>
+
+<hr>
+
+<h2>一、先修正一個我先前講錯的地方</h2>
+
+<div class="callout bad">
+<span class="t">更正</span>
+先前說法「用 <code>src</code> 要設定很多」是誇大的。實際上用 <code>create-next-app</code> 勾選 <code>src</code>，額外設定是 <b>零</b>，CLI 會自動把 <code>tsconfig.json</code> 的 <code>paths</code> 寫成 <code>"@/*": ["./src/*"]</code>。<br><br>
+另外，官方 src Folder 文件中「Tailwind 要在 <code>content</code> 加 <code>/src</code> 前綴」那條，是 Tailwind v3 時代的敘述。Next.js 16 預設安裝的是 <b>Tailwind v4</b>，v4 改為 CSS-first（<code>@import "tailwindcss"</code>）並自動偵測來源檔，<b>沒有 <code>content</code> 欄位要改</b>。引用文件時要看該段落是不是跟著版本更新。
+</div>
+
+<h3>a　「零設定就能跑」真正的意思</h3>
+<p>defaults 的判準不是「哪個架構比較好」，而是這三件事：</p>
+<ol>
+<li><b>減少決策點</b>——新手第一次跑 CLI 時，每多一個選項就多一次卡住的機會</li>
+<li><b>跟官方文件與教學截圖一致</b>——90% 的 Next.js 教學是根目錄 <code>app/</code>，多一層會讓學習者一直要在腦中做路徑轉換</li>
+<li><b>避免靜默失效</b>——官方文件明列：<b>若根目錄同時存在 <code>app/</code>，則 <code>src/app</code> 會被完全忽略</b>。這是不報錯的失敗，最難 debug</li>
+</ol>
+
+<h3>b　真正會痛的只有「事後手動搬」</h3>
+<p>專案跑到一半才決定加 <code>src</code>，要同步改的東西：</p>
+<ol>
+<li><code>tsconfig.json</code> 的 <code>paths</code>（否則 <code>@/</code> 全部解析失敗）</li>
+<li>CI 與 lint／test 的 glob 設定</li>
+<li><code>proxy.ts</code> 要一起搬進 <code>src/</code></li>
+<li>確認根目錄的舊 <code>app/</code> 真的刪乾淨，否則 <code>src/app</code> 靜默失效</li>
+</ol>
+<p>而 <code>public/</code>、<code>package.json</code>、<code>next.config.ts</code>、<code>tsconfig.json</code>、<code>.env.*</code> 這些 <b>一律留在根目錄</b>，不能搬進 <code>src/</code>。</p>
+
+<hr>
+
+<h2>二、動畫：<code>src/</code> 到底幫你解決了什麼</h2>
+
+<p>下面模擬一個專案從「剛建立」長到「上線兩年」的過程。<b>左邊沒有 <code>src/</code>，右邊有</b>。請注意看每個階段底下的兩個數字，以及最下面那行 lint／test 的 glob 要怎麼寫。</p>
+
+<div class="sim">
+  <div class="simbar">
+    <button class="pri" id="btnPlay">▶ 自動播放</button>
+    <button id="btnPrev">← 上一階段</button>
+    <button id="btnNext">下一階段 →</button>
+    <button id="btnReset">↺ 重設</button>
+    <span class="stagelabel" id="stageLabel"></span>
+  </div>
+  <div class="panes">
+    <div class="pane left">
+      <h5>✗ 沒有 src/（Next.js 預設）</h5>
+      <ul class="tree" id="treeA"></ul>
+      <div class="stat">根目錄項目數：<b id="cntA">0</b>　｜　其中「應用程式碼」：<b id="appA">0</b></div>
+      <div class="glob" id="globA"></div>
+    </div>
+    <div class="pane right">
+      <h5>✓ 有 src/</h5>
+      <ul class="tree" id="treeB"></ul>
+      <div class="stat">根目錄項目數：<b id="cntB">0</b>　｜　其中「應用程式碼」：<b id="appB">1</b></div>
+      <div class="glob" id="globB"></div>
+    </div>
+  </div>
+</div>
+
+<div class="callout ok">
+<span class="t">動畫要你看見的重點</span>
+<ol>
+<li>右邊的<b>根目錄項目數幾乎不成長</b>，成長全部發生在 <code>src/</code> 裡面——根目錄永遠只是「這個專案怎麼被建置」的設定層</li>
+<li>左邊的根目錄裡，<code>next.config.ts</code>（設定）跟 <code>components/</code>（業務邏輯）<b>平輩並排</b>，兩種完全不同性質的東西混在同一層</li>
+<li>glob 那一行是最實際的差異：右邊永遠是 <code>src/**</code>，左邊要一條一條列舉，而且<b>每新增一個業務資料夾就要回頭改一次設定</b>（漏改就是 lint 沒掃到、coverage 算錯）</li>
+</ol>
+</div>
+
+<h3>a　所以 <code>src/</code> 的價值準確地說是什麼</h3>
+<ol>
+<li><b>把「應用程式碼」與「專案設定」分成兩個不同的層</b>——這是概念上的分層，不是資料夾潔癖</li>
+<li><b>讓工具的掃描範圍變成一個穩定的常數</b>——ESLint、Vitest、coverage、CODEOWNERS、Docker 的 <code>COPY</code> 都寫 <code>src/</code> 就好，不會因為新增業務資料夾而失效</li>
+<li><b>降低「新資料夾放哪」的決策成本</b>——只要不是設定檔，一律進 <code>src/</code></li>
+</ol>
+
+<div class="callout warn">
+<span class="t">誠實的評估</span>
+以上三點都是真的，但它們是<b>工具便利性</b>，不是<b>架構嚴謹度</b>。<code>src/</code> 不會讓任何一條 import 變得不合法。下一節示範這件事。
+</div>
+
+<hr>
+
+<h2>三、為什麼「有 src 比較嚴謹」是錯覺</h2>
+
+<p>關鍵前提：<b>JavaScript／TypeScript 沒有 package-private 這種存取控制</b>。</p>
+
+<table>
+<tr><th>語言</th><th>模組私有機制</th></tr>
+<tr><td>Java</td><td><code>private</code>／<code>protected</code>／package-private（不寫修飾字＝同 package 才看得到）</td></tr>
+<tr><td>Go</td><td>識別字小寫開頭＝套件私有，大寫開頭才匯出</td></tr>
+<tr><td>Rust</td><td><code>pub</code> 才公開，預設模組私有</td></tr>
+<tr><td><b>JS / TS</b></td><td><b>沒有。只要路徑打得出來，任何檔案都能 import 任何檔案</b></td></tr>
+</table>
+
+<div class="bnd">
+<div class="card">
+<h4 style="color:var(--bad)">沒有 src/</h4>
+<pre><code>features/
+  cart/
+    index.ts          ← 想像中的「大門」
+    internal/
+      priceCalc.ts    ← 想像中的「私有」
+  user/
+    profile.ts</code></pre>
+<pre><code>// features/user/profile.ts
+import { calcPrice } from
+  '@/features/cart/internal/priceCalc'
+// ✅ 編譯通過，執行正常，零警告</code></pre>
+</div>
+<div class="card">
+<h4 style="color:var(--bad)">有 src/</h4>
+<pre><code>src/
+  features/
+    cart/
+      index.ts
+      internal/
+        priceCalc.ts
+    user/
+      profile.ts</code></pre>
+<pre><code>// src/features/user/profile.ts
+import { calcPrice } from
+  '@/features/cart/internal/priceCalc'
+// ✅ 一模一樣，還是通過</code></pre>
+</div>
+</div>
+
+<div class="callout bad">
+<span class="t">結論</span>
+<code>src/</code> 只是把整棵樹往下移一層。<b>誰能 import 誰，一條規則都沒有改變。</b>三個月後你想重構 <code>priceCalc.ts</code>，會發現全專案有 40 個地方繞過大門直接摸進來——這件事在有沒有 <code>src/</code> 的專案裡發生機率完全相同。
+</div>
+
+<h3>a　邊界強制力的三個層級</h3>
+<table>
+<tr><th>層級</th><th>手段</th><th>強制力</th><th>怎麼繞過</th></tr>
+<tr><td>1</td><td><code>src/</code> 資料夾分層</td><td><b>零</b>——純視覺</td><td>不用繞，本來就沒擋</td></tr>
+<tr><td>2</td><td><code>eslint-plugin-boundaries</code></td><td><b>軟</b>——lint 報錯、CI 擋 PR</td><td><code>// eslint-disable-next-line</code></td></tr>
+<tr><td>3</td><td>monorepo workspaces</td><td><b>硬</b>——模組解析失敗</td><td>繞不過，除非改 <code>package.json</code></td></tr>
+</table>
+
+<h3>b　monorepo 為什麼是「硬強制」</h3>
+<pre><code>my-app/
+  package.json          # workspaces: ["apps/*", "packages/*"]
+  apps/
+    web/package.json    # dependencies: { "@acme/ui": "workspace:*" }  ← 有宣告
+    admin/package.json  # dependencies: { }                            ← 沒宣告
+  packages/
+    ui/package.json     # name: "@acme/ui"
+    db/package.json</code></pre>
+<p><code>apps/admin</code> 想 <code>import '@acme/ui'</code>？<b>Node 的模組解析在 <code>admin/node_modules</code> 和它的父層都找不到那個套件名，直接執行期爆錯。</b>這不是有人在旁邊提醒你不要這樣寫，是物理上跑不起來。</p>
+
+<div class="callout">
+<span class="t">修正一個常見誤解</span>
+monorepo <b>不是</b>「比 src 更強的版本」，它們解決不同層級的問題：<br>
+1. <code>src/</code>＝一個 npm package 內部的視覺整理<br>
+2. monorepo＝多個可獨立建置、獨立版本化的 package，靠 <code>package.json</code> 的 dependencies 形成真實邊界<br>
+真正大型的專案走 monorepo 之後，分隔應用程式碼的是 <code>apps/</code> 那一層，<code>src/</code> 這一層的價值就被取代掉了。
+</div>
+
+<hr>
+
+<h2>四、檔案系統路由是「雙軸制」，不是單軸</h2>
+
+<div class="callout warn">
+<span class="t">先釐清一個撞名</span>
+1. <code>routes.ts</code>（複數）——這是 <b>React Router／Vue Router</b> 社群習慣的路由表檔名，屬於 <b>config-based routing</b>，是純前端的「網址對應到哪個元件」設定<br>
+2. <code>route.ts</code>（單數）——這是 <b>Next.js 的 Route Handler</b>，是一個真正的 <b>後端 HTTP endpoint</b><br>
+兩者只是名字像，沒有任何關係。
+</div>
+
+<h3>a　軸一：資料夾決定「網址路徑」</h3>
+<table>
+<tr><th>資料夾寫法</th><th>名稱</th><th>產生的網址</th></tr>
+<tr><td><code>app/dashboard/</code></td><td>一般路徑段</td><td><code>/dashboard</code></td></tr>
+<tr><td><code>app/blog/[slug]/</code></td><td>Dynamic Segment（動態段）</td><td><code>/blog/hello</code> → <code>params.slug = 'hello'</code></td></tr>
+<tr><td><code>app/shop/[...slug]/</code></td><td>Catch-all（全捕捉，一層以上）</td><td><code>/shop/a/b</code> → <code>params.slug = ['a','b']</code></td></tr>
+<tr><td><code>app/shop/[[...slug]]/</code></td><td>Optional Catch-all（可選全捕捉）</td><td>連 <code>/shop</code> 本身也會命中</td></tr>
+<tr><td><code>app/(marketing)/</code></td><td>Route Group（路由群組）</td><td><b>不產生網址</b>，只用來分組與套 layout</td></tr>
+<tr><td><code>app/_lib/</code></td><td>Private Folder（私有資料夾）</td><td><b>完全不參與路由掃描</b></td></tr>
+<tr><td><code>app/@modal/</code></td><td>Parallel Route（平行路由）</td><td>不產生網址，同時渲染多個 slot</td></tr>
+</table>
+
+<h3>b　軸二：檔名決定「這個路徑段扮演什麼角色」</h3>
+<p><b>檔名不會出現在網址裡。</b>它是在告訴 Next.js 這層資料夾要做什麼：</p>
+<ol>
+<li><code>page.tsx</code>——這一段是<b>可訪問的頁面</b>。沒有它，這層資料夾就不是一個網址</li>
+<li><code>route.ts</code>——這一段是<b>後端 endpoint</b>，回傳 JSON／XML／檔案</li>
+<li><code>layout.tsx</code>——外框，切換子路由時<b>不會重新掛載</b>（狀態保留）</li>
+<li><code>template.tsx</code>——外框，但每次導航<b>都重新掛載</b>（狀態重置）</li>
+<li><code>loading.tsx</code>——自動包成 React Suspense 的 fallback</li>
+<li><code>error.tsx</code>——自動包成 Error Boundary</li>
+<li><code>not-found.tsx</code>——404 畫面</li>
+<li><code>default.tsx</code>——Parallel Route 的預設 slot</li>
+</ol>
+
+<div class="callout ok">
+<span class="t">這就是 colocation（就近放置）的基礎</span>
+你可以在 <code>app/dashboard/</code> 裡直接放 <code>DashboardChart.tsx</code>、<code>useDashboard.ts</code>、<code>utils.ts</code>。它們既不叫 <code>page</code> 也不叫 <code>route</code>，<b>所以永遠不會意外變成一個公開網址</b>。這是 App Router 相對舊制最大的架構解放。
+</div>
+
+<h3>c　對比：Pages Router（舊制）才是純檔名路由</h3>
+<pre><code>pages/about.tsx        → /about          # 檔名直接就是網址
+pages/blog/[slug].tsx  → /blog/:slug
+pages/api/users.ts     → /api/users</code></pre>
+<p>舊制是「<b>檔名＝網址</b>」，所以 <code>pages/</code> 裡不能放非頁面檔案（會變成路由）。新制改成「<b>資料夾＝路徑，檔名＝角色</b>」，就是為了解開這個限制。</p>
+
+<hr>
+
+<h2>五、<code>route.ts</code> 的定位與正確路徑</h2>
+
+<h3>a　它跟 SSR 不在同一個分類軸上</h3>
+<table>
+<tr><th>分類軸</th><th>在講什麼</th><th>對象</th></tr>
+<tr><td>SSG / ISR / SSR / PPR</td><td>這個畫面的 <b>HTML 在哪個時間點產生</b></td><td><code>page.tsx</code></td></tr>
+<tr><td>Route Handler</td><td>這是一個 <b>伺服器端的 HTTP endpoint</b></td><td><code>route.ts</code></td></tr>
+</table>
+<p><code>route.ts</code> 本身就是伺服器程式，它產生的是 JSON 不是 HTML，所以沒有「HTML 在哪產生」的問題。</p>
+<div class="callout">
+<span class="t">「SSR 才有」這個印象可能的來源</span>
+Next.js <b>v15.0.0-RC 起，<code>GET</code> handler 的預設快取由 static 改為 dynamic</b>。以前 <code>GET</code> 會在 build 時被靜態化成一個 JSON 檔，現在預設每次請求都執行——所以看起來很像 SSR，但那是<b>快取策略</b>的改變，不是渲染模式。
+</div>
+
+<h3>b　<code>app/(api)/api/</code> 能動，但那一層是多餘的</h3>
+<pre><code>app/(api)/api/users/route.ts   →  /api/users
+app/api/users/route.ts         →  /api/users     # 完全一樣的網址</code></pre>
+<p>因為 <code>(api)</code> 是 Route Group，<b>小括號資料夾不會出現在網址裡</b>。多包這一層沒有帶來任何東西，卻多了一層目錄深度。</p>
+<p>Route Group 的正確用途是「<b>我要分組並套不同 layout，但不想讓分組出現在網址裡</b>」：</p>
+<pre><code>app/(marketing)/layout.tsx        # 行銷版外框：有導覽列、footer
+app/(marketing)/about/page.tsx    → /about
+app/(marketing)/pricing/page.tsx  → /pricing
+
+app/(app)/layout.tsx              # 登入後外框：有側邊欄
+app/(app)/dashboard/page.tsx      → /dashboard</code></pre>
+
+<h3>c　建議的路徑寫法</h3>
+<ol>
+<li><b>一般情況</b>——<code>app/api/&lt;資源名&gt;/route.ts</code>
+<pre><code>app/api/users/route.ts          → GET/POST         /api/users
+app/api/users/[id]/route.ts     → GET/PUT/DELETE   /api/users/123</code></pre></li>
+<li><b>需要版本化</b>——<code>app/api/v1/users/route.ts</code> → <code>/api/v1/users</code></li>
+<li><b>需要按權限分組又不想動網址</b>——這時 Route Group 才派上用場
+<pre><code>app/api/(public)/health/route.ts   → /api/health
+app/api/(admin)/users/route.ts     → /api/users</code></pre></li>
+<li><b>硬規則</b>——<b>同一個資料夾不能同時有 <code>page.tsx</code> 和 <code>route.ts</code></b>，同一個網址不能有兩個 handler，會直接衝突</li>
+<li><b>更重要的建議：你可能根本不需要 <code>route.ts</code></b>——「自家前端呼叫自家後端」現在推薦用 <b>Server Actions</b>（<code>'use server'</code>），不用寫 endpoint、不用手動 <code>fetch</code>、型別自動打通。<code>route.ts</code> 應該留給：
+  <ul>
+  <li>第三方要打的 webhook（Stripe、GitHub）</li>
+  <li>需要開放 CORS 給外部的公開 API</li>
+  <li>非 JSON 的回應（<code>app/rss.xml/route.ts</code>、OG image）</li>
+  </ul>
+</li>
+</ol>
+
+<hr>
+
+<h2>六、<code>proxy.ts</code>：跟 Vue 的 proxy 是兩回事</h2>
+
+<h3>a　檔名與寫法</h3>
+<p>檔名就是 <b><code>proxy.ts</code></b>（或 <code>proxy.js</code>），放在<b>專案根目錄，有 <code>src</code> 就放 <code>src/proxy.ts</code></b>，規則是「跟 <code>app</code> 或 <code>pages</code> 同一層」。</p>
+<pre><code>// proxy.ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+// 必須是 default export，或者具名 export 且名字就叫 proxy
+export function proxy(request: NextRequest) {
+  return NextResponse.redirect(new URL('/home', request.url))
+}
+
+// 沒有 matcher 的話會對「每一個請求」執行，連 CSS、圖片、public/ 的檔案都會被攔
+export const config = {
+  matcher: '/about/:path*',
+}</code></pre>
+
+<div class="callout warn">
+<span class="t">舊名 middleware，Next.js 16 起改名</span>
+舊檔名是 <code>middleware.ts</code>，函式叫 <code>middleware</code>，在 v16.0.0 被 deprecated。官方 codemod：<br>
+<code>npx @next/codemod@canary middleware-to-proxy .</code><br><br>
+Vercel 給的改名理由：「middleware」這個詞常被誤會成 Express.js 的 middleware，導致大家過度使用；「proxy」暗示<b>「在你的 app 前面的一道網路邊界」</b>，更貼近它真正的行為——它可能被部署到 CDN 邊緣節點，跟你的 app 主程式是分開跑的。官方甚至直說：<b>建議把 Proxy 當最後手段，能不用就不用</b>。
+</div>
+
+<h3>b　跟 Vue / Vite 的 proxy 對照</h3>
+<table>
+<tr><th></th><th>Vue / Vite 的 <code>server.proxy</code></th><th>Next.js 的 <code>proxy.ts</code></th></tr>
+<tr><td>執行時機</td><td>只在 <b>dev server</b></td><td>dev 與 <b>production 都在跑</b></td></tr>
+<tr><td>目的</td><td>本機開發時把 <code>/api</code> 轉給後端，<b>解 CORS</b></td><td>請求進入路由前<b>攔截</b>：驗證、redirect、rewrite、加 header</td></tr>
+<tr><td>build 之後</td><td><b>完全消失</b>（真實環境靠 Nginx 做）</td><td>照樣執行</td></tr>
+</table>
+
+<h3>c　那 Next.js 裡真正對應 Vue proxy 的是什麼？</h3>
+<p>是 <b><code>next.config.js</code> 的 <code>rewrites</code></b>，而且它 dev 與 prod 都有效：</p>
+<pre><code>// next.config.js
+module.exports = {
+  async rewrites() {
+    return [
+      { source: '/api/:path*', destination: 'http://localhost:8080/api/:path*' },
+    ]
+  },
+}</code></pre>
+
+<table>
+<tr><th>我想做的事</th><th>Vue / Vite</th><th>Next.js</th></tr>
+<tr><td>開發時把 <code>/api</code> 轉給後端解 CORS</td><td><code>server.proxy</code></td><td><code>next.config.js</code> 的 <code>rewrites</code></td></tr>
+<tr><td>每個請求先驗證登入</td><td>Vue Router 的 <code>beforeEach</code>（<b>瀏覽器端，可被繞過</b>）</td><td><code>proxy.ts</code>（<b>伺服器端，繞不過</b>）</td></tr>
+</table>
+
+<div class="callout bad">
+<span class="t">資安提醒（官方文件明列）</span>
+Server Actions <b>不算獨立路由</b>——它們是對「使用它的那個路由」發出的 POST 請求。所以 Proxy 的 matcher 排除掉某路徑時，<b>也會一併跳過那裡的 Server Action</b>。驗證與授權要在<b>每個 Server Action 內部自己再做一次</b>，不要只靠 Proxy。
+</div>
+
+<hr>
+
+<h2>七、Next.js 不能用在 Vue 或 Angular</h2>
+
+<p>不是「他們懶得支援」，是綁在骨頭裡：</p>
+<ol>
+<li><code>"use client"</code> ／ <code>"use server"</code> 這些 directive 是 <b>React 的語言層機制</b>，不是 Next.js 發明的</li>
+<li><b>RSC（React Server Components）</b> 的序列化格式、Suspense、<code>renderToPipeableStream</code> 全部是 React 內部 API</li>
+<li><code>layout.tsx</code> ／ <code>page.tsx</code> 回傳的是 JSX，由 React 的 reconciler 渲染</li>
+</ol>
+<p><b>Next.js 是「React 的框架」，不是「JS 的框架」。</b></p>
+
+<table>
+<tr><th>UI 函式庫</th><th>對應的全端框架</th></tr>
+<tr><td>React</td><td><b>Next.js</b>、Remix / React Router v7、TanStack Start</td></tr>
+<tr><td>Vue</td><td><b>Nuxt</b></td></tr>
+<tr><td>Angular</td><td>官方 <code>@angular/ssr</code>、社群的 <b>Analog</b></td></tr>
+<tr><td>Svelte</td><td><b>SvelteKit</b></td></tr>
+<tr><td>Solid</td><td><b>SolidStart</b></td></tr>
+<tr><td>要混用</td><td><b>Astro</b>（同一專案可同時放 React、Vue、Svelte 元件）</td></tr>
+</table>
+
+<hr>
+
+<h2>八、互動測驗</h2>
+
+<h3>a　填空題</h3>
+<div class="q">
+  <div class="stem">1. 若根目錄同時存在 <code>app/</code> 與 <code>src/app/</code>，Next.js 會忽略 <input class="blank" data-a="src/app|src/app/|/src/app" placeholder="哪一個？"> 這一份。</div>
+  <button onclick="chk(this)">檢查</button><button onclick="tg(this)">看答案</button>
+  <div class="fb"></div>
+  <div class="ans">答案：<code>src/app</code>。這是<b>靜默失效</b>，不會有任何錯誤訊息，是遷移到 src 時最常見的坑。</div>
+</div>
+<div class="q">
+  <div class="stem">2. Next.js 16 中，請求進入路由前的攔截檔案叫 <input class="blank" data-a="proxy.ts|proxy.js|proxy" placeholder="檔名？">，它的舊名是 <input class="blank" data-a="middleware.ts|middleware.js|middleware" placeholder="舊檔名？">。</div>
+  <button onclick="chk(this)">檢查</button><button onclick="tg(this)">看答案</button>
+  <div class="fb"></div>
+  <div class="ans">答案：<code>proxy.ts</code> ／ <code>middleware.ts</code>。函式名也一起改了（<code>middleware</code> → <code>proxy</code>），可用 <code>npx @next/codemod@canary middleware-to-proxy .</code> 自動遷移。</div>
+</div>
+<div class="q">
+  <div class="stem">3. 在 App Router 中，決定一個資料夾「是不是一個可訪問頁面」的檔名是 <input class="blank" data-a="page.tsx|page.jsx|page.js|page" placeholder="檔名？">；決定它是「後端 endpoint」的檔名是 <input class="blank" data-a="route.ts|route.js|route" placeholder="檔名？">。</div>
+  <button onclick="chk(this)">檢查</button><button onclick="tg(this)">看答案</button>
+  <div class="fb"></div>
+  <div class="ans">答案：<code>page.tsx</code> ／ <code>route.ts</code>。兩者<b>不能放在同一個資料夾</b>，會造成同一網址兩個 handler 的衝突。</div>
+</div>
+<div class="q">
+  <div class="stem">4. 想「分組並套不同 layout，但不要讓分組出現在網址裡」，資料夾要用 <input class="blank" data-a="()|小括號|(name)|括號|route group|Route Group" placeholder="什麼符號？"> 包起來。</div>
+  <button onclick="chk(this)">檢查</button><button onclick="tg(this)">看答案</button>
+  <div class="fb"></div>
+  <div class="ans">答案：<b>小括號 <code>( )</code></b>，稱為 Route Group。例如 <code>app/(marketing)/about/page.tsx</code> 的網址是 <code>/about</code>，<code>(marketing)</code> 不會出現。</div>
+</div>
+<div class="q">
+  <div class="stem">5. 在 Next.js 中，真正對應「Vue 的 <code>server.proxy</code>（開發時把 /api 轉給後端）」的功能，是 <code>next.config.js</code> 的 <input class="blank" data-a="rewrites|rewrite" placeholder="哪個設定？"> 而不是 <code>proxy.ts</code>。</div>
+  <button onclick="chk(this)">檢查</button><button onclick="tg(this)">看答案</button>
+  <div class="fb"></div>
+  <div class="ans">答案：<code>rewrites</code>。而且它 dev 與 production <b>都有效</b>，比 Vue 的 devServer proxy 更完整。</div>
+</div>
+
+<h3>b　是非題</h3>
+<div class="q" data-tf="F">
+  <div class="stem">1. 加上 <code>src/</code> 之後，<code>features/user</code> 就不能再 import <code>features/cart/internal</code> 的檔案了。</div>
+  <div class="tf"><button onclick="tf(this,'T')">○ 是</button><button onclick="tf(this,'F')">✕ 非</button></div>
+  <div class="fb"></div>
+  <div class="ans">JS/TS 沒有 package-private 機制，<code>src/</code> 只是把整棵樹往下移一層，<b>誰能 import 誰完全沒變</b>。要擋要靠 <code>eslint-plugin-boundaries</code>（軟強制）或 monorepo workspaces（硬強制）。</div>
+</div>
+<div class="q" data-tf="F">
+  <div class="stem">2. <code>public/</code> 資料夾在使用 <code>src/</code> 時，應該一起搬進 <code>src/public/</code>。</div>
+  <div class="tf"><button onclick="tf(this,'T')">○ 是</button><button onclick="tf(this,'F')">✕ 非</button></div>
+  <div class="fb"></div>
+  <div class="ans">官方明列 <code>public/</code>、<code>package.json</code>、<code>next.config.js</code>、<code>tsconfig.json</code>、<code>.env.*</code> <b>一律留在根目錄</b>。只有 <code>app</code>／<code>pages</code> 與其他應用程式資料夾（<code>components</code>、<code>lib</code>）搬進去。</div>
+</div>
+<div class="q" data-tf="F">
+  <div class="stem">3. <code>route.ts</code> 是「SSR 專用」的檔案，靜態網站不會用到它。</div>
+  <div class="tf"><button onclick="tf(this,'T')">○ 是</button><button onclick="tf(this,'F')">✕ 非</button></div>
+  <div class="fb"></div>
+  <div class="ans">分類軸不同。SSG/ISR/SSR/PPR 講的是 <code>page.tsx</code> 的 HTML 何時產生；<code>route.ts</code> 本來就是伺服器端 endpoint，產生的是 JSON。（不過 <code>output: 'export'</code> 純靜態輸出時，只有 <code>GET</code> 能被靜態產出，且 Proxy 完全不支援。）</div>
+</div>
+<div class="q" data-tf="T">
+  <div class="stem">4. <code>proxy.ts</code> 若不寫 <code>matcher</code>，連 <code>_next/static</code> 的 CSS、JS 與 <code>public/</code> 的圖片請求都會經過它。</div>
+  <div class="tf"><button onclick="tf(this,'T')">○ 是</button><button onclick="tf(this,'F')">✕ 非</button></div>
+  <div class="fb"></div>
+  <div class="ans">官方文件明確警告這點。沒有 matcher 時 Proxy 對<b>每個請求</b>執行，auth 邏輯會意外擋掉 CSS/JS/圖片載入，畫面會整個裸奔。要用 negative lookahead 排除：<code>'/((?!api|_next/static|_next/image|favicon.ico).*)'</code></div>
+</div>
+<div class="q" data-tf="F">
+  <div class="stem">5. Next.js 可以搭配 Vue 使用，只要換掉渲染層即可。</div>
+  <div class="tf"><button onclick="tf(this,'T')">○ 是</button><button onclick="tf(this,'F')">✕ 非</button></div>
+  <div class="fb"></div>
+  <div class="ans">不行。RSC 序列化、<code>"use client"</code>／<code>"use server"</code> directive、Suspense 都是 React 內部機制。Vue 的對應品是 <b>Nuxt</b>，Angular 是 <code>@angular/ssr</code> 或 Analog。</div>
+</div>
+
+<h3>c　申論題</h3>
+<div class="q">
+  <div class="stem">1. 有人在 code review 說「我們專案要改用 <code>src/</code>，這樣架構才夠嚴謹，才撐得住規模」。請寫出你的回覆，並提出真正能達成他目的的做法。</div>
+  <button onclick="tg(this)">看參考答案</button>
+  <div class="ans">
+  <b>回覆架構</b>：<br>
+  1. 先肯定他真正想解決的問題——他想要的是「模組之間不要亂 import、重構時不會炸」，這個目標是對的<br>
+  2. 指出手段對不上目標——<code>src/</code> 只是把整棵樹往下移一層，<b>不改變任何 import 的合法性</b>。改完之後 <code>features/user</code> 一樣能直接摸進 <code>features/cart/internal</code><br>
+  3. 給出真正有效的三個手段，並說明強制力層級：<br>
+  　a. <code>eslint-plugin-boundaries</code>——宣告資料夾分類與允許的依賴方向，違規 lint 報錯、CI 擋 PR（軟強制）<br>
+  　b. 每個 feature 只透過 <code>index.ts</code> 對外，配合 lint 規則禁止深層路徑 import<br>
+  　c. 真的大到需要獨立建置時走 monorepo workspaces——沒宣告 dependency 就模組解析失敗（硬強制）<br>
+  4. 對 <code>src/</code> 本身給出誠實評價——它有真實但有限的好處（設定與程式碼分層、lint/test/coverage 的 glob 變成穩定常數 <code>src/**</code>），值得做，<b>但要用「工具便利性」的理由去說服，不要用「架構嚴謹度」的理由</b><br>
+  5. 提醒遷移成本——事後搬要同步改 <code>tsconfig.json</code> 的 paths、CI glob、<code>proxy.ts</code> 位置，且根目錄舊 <code>app/</code> 沒刪乾淨會讓 <code>src/app</code> 靜默失效
+  </div>
+</div>
+<div class="q">
+  <div class="stem">2. 請說明 App Router 的「雙軸制」，並解釋為什麼這個設計讓 colocation（就近放置）成為可能，而 Pages Router 做不到。</div>
+  <button onclick="tg(this)">看參考答案</button>
+  <div class="ans">
+  <b>雙軸制</b>：<br>
+  1. 軸一——<b>資料夾決定網址路徑</b>：<code>app/dashboard/settings/</code> → <code>/dashboard/settings</code>；特殊語法有 <code>[slug]</code> 動態段、<code>[...slug]</code> 全捕捉、<code>[[...slug]]</code> 可選全捕捉、<code>(group)</code> 不入網址、<code>_folder</code> 完全不參與路由、<code>@slot</code> 平行路由<br>
+  2. 軸二——<b>檔名決定該路徑段的角色</b>，且檔名<b>不會出現在網址裡</b>：<code>page.tsx</code>（頁面）、<code>route.ts</code>（endpoint）、<code>layout.tsx</code>（不重掛的外框）、<code>template.tsx</code>（每次重掛的外框）、<code>loading.tsx</code>、<code>error.tsx</code>、<code>not-found.tsx</code>、<code>default.tsx</code><br><br>
+  <b>為什麼 colocation 因此成立</b>：<br>
+  只有叫 <code>page</code> 或 <code>route</code> 的檔案才會變成可訪問的網址。所以 <code>app/dashboard/DashboardChart.tsx</code>、<code>useDashboard.ts</code>、<code>schema.ts</code> 可以直接放在功能旁邊，<b>不會意外對外公開</b>。相關程式碼的物理距離縮短，改一個功能只要動一個資料夾。<br><br>
+  <b>Pages Router 為什麼做不到</b>：<br>
+  舊制是純單軸「<b>檔名＝網址</b>」——<code>pages/about.tsx</code> → <code>/about</code>。任何放進 <code>pages/</code> 的檔案都會變成一條路由，所以元件、hook、工具函式必須被趕到 <code>pages/</code> 之外（典型是根目錄的 <code>components/</code>、<code>lib/</code>），造成「同一個功能的檔案散落在三個不相鄰的資料夾」。這也是為什麼舊制專案的根目錄特別容易膨脹，<code>src/</code> 在舊制時代的需求也因此比較高。
+  </div>
+</div>
+<div class="q">
+  <div class="stem">3. 你要設計一個電商站的 API 層。請規劃 <code>route.ts</code> 的路徑結構，並說明哪些情境「不該」用 <code>route.ts</code>。</div>
+  <button onclick="tg(this)">看參考答案</button>
+  <div class="ans">
+  <b>該用 route.ts 的路徑規劃</b>：<br>
+  <pre style="margin:8px 0"><code>app/api/webhooks/stripe/route.ts     # 第三方打進來的 webhook
+app/api/webhooks/shipping/route.ts   # 物流商回報
+app/api/(public)/products/route.ts   # 開放給外部/App 的公開 API
+app/api/(public)/products/[id]/route.ts
+app/rss.xml/route.ts                 # 非 JSON 回應
+app/sitemap.xml/route.ts</code></pre>
+  規劃原則：<br>
+  1. 用 <code>(public)</code>／<code>(internal)</code> 這類 Route Group 分權限，網址仍然乾淨<br>
+  2. 需要對外長期相容時才加版本段 <code>app/api/v1/...</code><br>
+  3. 動態資源用 <code>[id]</code>，記得 v15 起 <code>params</code> 是 Promise，要 <code>await</code><br>
+  4. 絕不在同一資料夾同時放 <code>page.tsx</code> 與 <code>route.ts</code><br><br>
+  <b>不該用 route.ts 的情境</b>：<br>
+  1. <b>自家前端呼叫自家後端</b>——加入購物車、更新數量、送出訂單，這些用 <b>Server Actions</b>（<code>'use server'</code>）。不用寫 endpoint、不用手動 <code>fetch</code>、型別自動打通，也少一層可被外部直接呼叫的攻擊面<br>
+  2. <b>只是為了在 Server Component 取資料</b>——Server Component 可以直接 <code>await db.query()</code>，繞一圈打自己的 API 是多餘的網路往返<br>
+  3. <b>包在 <code>(api)</code> 這種對網址沒有影響的多餘群組裡</b>——<code>app/(api)/api/x/route.ts</code> 與 <code>app/api/x/route.ts</code> 網址相同，前者只是多一層深度<br><br>
+  <b>安全補充</b>：改用 Server Actions 之後，別忘了它不算獨立路由，Proxy 的 matcher 可能不覆蓋它，<b>授權檢查要寫在每個 Server Action 內部</b>。
+  </div>
+</div>
+
+<hr>
+
+<h2>九、關聯筆記與關聯原因</h2>
+<div class="rel"><b>[[圖解_CSR-SSR-SSG的HTML在哪一刻長出來]]</b><br>
+關聯原因：本篇第五節指出「<code>route.ts</code> 跟 SSR 不在同一個分類軸上」。那份筆記處理的是<b>渲染時機軸</b>（HTML 何時產生），本篇處理的是<b>路由角色軸</b>（檔名決定這是頁面還是 endpoint）。兩份合看才不會把「route.ts 是不是 SSR」這種跨軸問題問錯。</div>
+
+<div class="rel"><b>[[學習前端工程_圖解_NodeJS執行環境與打包工具的層級關係]]</b><br>
+關聯原因：本篇第二節談 <code>src/</code> 讓 lint／test／coverage 的 glob 變成穩定常數。那份筆記講的是打包工具在哪一層運作——<b>glob 是打包與檢查工具的輸入</b>，理解工具層級才知道為什麼「掃描範圍穩定」在大專案是實際的成本差異，而不是潔癖。</div>
+
+<div class="rel"><b>[[學習資安_圖解_CSRF流程-Cookie自動夾帶vs-Bearer手動夾帶]]</b><br>
+關聯原因：本篇第六節的資安提醒——Vue Router 的 <code>beforeEach</code> 在瀏覽器端可被繞過，<code>proxy.ts</code> 在伺服器端才擋得住；以及 Server Actions 是 POST 到當前路由、不算獨立路由。<b>這兩點都直接涉及「憑證怎麼被夾帶、誰在哪一層驗證」</b>，跟那份 CSRF 筆記是同一組心智模型。</div>
+
+<div class="rel"><b>[[TS]]（<code>tsconfig.json</code> 的 paths 設定）</b><br>
+關聯原因：<code>src/</code> 遷移最容易漏掉的一步就是 <code>paths</code> 的 <code>"@/*": ["./src/*"]</code>。改了資料夾沒改 paths，所有 <code>@/</code> import 會全數解析失敗。</div>
+
+<hr>
+
+<h2>十、LeetCode / NeetCode 對應題目</h2>
+<div class="callout warn">
+<span class="t">本篇沒有對應的演算法題</span>
+本主題屬於<b>框架慣例與專案架構</b>，不是資料結構或演算法問題，LeetCode／NeetCode 上沒有對應題型。硬掛連結反而會誤導日後複習的優先順序，所以此處留白並說明原因。<br><br>
+如果要練與本篇相鄰的實際技能，建議改用這兩種練法：<br>
+1. 在自己的 sandbox 專案跑一次 <code>npx create-next-app@latest</code>，一次選 <code>src</code>、一次不選，用 <code>tree -L 2</code> 比對兩者的根目錄差異<br>
+2. 建一個 <code>app/api/demo/route.ts</code> 與 <code>app/demo/page.tsx</code>，再故意把兩者放進同一資料夾，親眼看它報什麼錯
+</div>
+
+<hr>
+
+<h2>十一、參考來源</h2>
+<ul class="src-list">
+<li><a href="https://nextjs.org/docs/app/api-reference/file-conventions/src-folder">Next.js Docs — <code>src</code> Folder</a>　｜　文件版本 16.3.4，該頁 lastUpdated <b>2025-10-17</b><br>
+<span style="color:var(--muted)">用於：src 是 alternative 而非必須、public／config／<code>.env</code> 留在根目錄、<code>src/app</code> 被根目錄 <code>app</code> 忽略、Proxy 要放進 src。<b>注意</b>：該頁的 Tailwind <code>content</code> 註記為 v3 時代敘述，對 Next.js 16 預設的 Tailwind v4 已不適用。</span></li>
+
+<li><a href="https://nextjs.org/docs/app/api-reference/file-conventions/proxy">Next.js Docs — <code>proxy.js</code></a>　｜　文件版本 16.3.4，該頁 lastUpdated <b>2026-08-25</b><br>
+<span style="color:var(--muted)">用於：檔名與放置位置、export 規則、matcher 不寫會攔截所有請求、v16.0.0 由 middleware 改名的官方理由、codemod 指令、Node.js runtime 預設、Server Actions 不算獨立路由的安全警告、static export 不支援。</span></li>
+
+<li><a href="https://nextjs.org/docs/app/api-reference/file-conventions/route">Next.js Docs — <code>route.js</code></a>　｜　文件版本 16.3.4，該頁 lastUpdated <b>2026-04-30</b><br>
+<span style="color:var(--muted)">用於：支援的 HTTP methods、<code>params</code> 為 Promise（v15.0.0-RC 起）、<code>GET</code> 預設快取由 static 改 dynamic（v15.0.0-RC）、Route Handlers 於 v13.2.0 引入、非 UI 回應（rss.xml）、CORS 建議。</span></li>
+
+<li><a href="https://nextjs.org/docs/app/getting-started/project-structure">Next.js Docs — Project Structure</a>　｜　文件版本 16.3.4<br>
+<span style="color:var(--muted)">用於：資料夾與檔名慣例的完整清單（Route Group、Private Folder、Parallel Route、各種特殊檔名的角色）。</span></li>
+</ul>
+
+<div class="callout">
+<span class="t">查證建議</span>
+Next.js 的檔案慣例改動頻繁（middleware → proxy 就發生在 v16）。本筆記對應的是 <b>16.3.4</b>，若你的 <code>package.json</code> 版本不同，請以該版本的官方文件為準，特別是 <code>proxy.ts</code>／<code>middleware.ts</code> 的命名。
+</div>
+
+</div>
+
+<script>
+/* ============ 專案成長模擬動畫 ============ */
+const STAGES = [
+  {
+    name: '階段 1：剛跑完 create-next-app',
+    cfgs: ['package.json','next.config.ts','tsconfig.json','eslint.config.mjs','postcss.config.mjs','.gitignore','README.md','AGENTS.md'],
+    pub:  ['public/'],
+    app:  ['app/']
+  },
+  {
+    name: '階段 2：開始拆元件、加共用邏輯',
+    cfgs: ['package.json','next.config.ts','tsconfig.json','eslint.config.mjs','postcss.config.mjs','.gitignore','README.md','AGENTS.md','.env.local'],
+    pub:  ['public/'],
+    app:  ['app/','components/','lib/','hooks/','types/']
+  },
+  {
+    name: '階段 3：導入測試、CI、容器化',
+    cfgs: ['package.json','next.config.ts','tsconfig.json','eslint.config.mjs','postcss.config.mjs','.gitignore','README.md','AGENTS.md','.env.local','vitest.config.ts','playwright.config.ts','Dockerfile','docker-compose.yml','.github/','.dockerignore'],
+    pub:  ['public/'],
+    app:  ['app/','components/','lib/','hooks/','types/','features/','styles/','__tests__/']
+  },
+  {
+    name: '階段 4：上線兩年，i18n、腳本、Storybook 都進來了',
+    cfgs: ['package.json','next.config.ts','tsconfig.json','eslint.config.mjs','postcss.config.mjs','.gitignore','README.md','AGENTS.md','.env.local','.env.production','vitest.config.ts','playwright.config.ts','Dockerfile','docker-compose.yml','.github/','.dockerignore','.storybook/','commitlint.config.js','.husky/','CHANGELOG.md'],
+    pub:  ['public/'],
+    app:  ['app/','components/','lib/','hooks/','types/','features/','styles/','__tests__/','server/','i18n/','messages/','scripts/','stories/','constants/','proxy.ts']
+  }
+];
+
+let idx = 0, timer = null;
+
+function li(text, cls, ind){
+  const d = ind === 2 ? ' ind2' : (ind === 1 ? ' ind' : '');
+  return '<li class="'+cls+d+'" style="animation-delay:'+(Math.random()*220|0)+'ms">'+text+'</li>';
+}
+
+function render(){
+  const s = STAGES[idx];
+  document.getElementById('stageLabel').textContent = s.name;
+
+  // 左：全部平鋪在根目錄
+  let a = '';
+  s.cfgs.forEach(f => a += li('📄 '+f, 'cfg'));
+  s.pub.forEach(f  => a += li('📁 '+f, 'cfg'));
+  s.app.forEach(f  => a += li((f.endsWith('/')?'📁 ':'📄 ')+f, 'dir'));
+  document.getElementById('treeA').innerHTML = a;
+
+  // 右：應用程式碼全部收進 src/
+  let b = '';
+  s.cfgs.forEach(f => b += li('📄 '+f, 'cfg'));
+  s.pub.forEach(f  => b += li('📁 '+f, 'cfg'));
+  b += li('📂 src/', 'src');
+  s.app.forEach(f  => b += li((f.endsWith('/')?'📁 ':'📄 ')+f, 'dir', 1));
+  document.getElementById('treeB').innerHTML = b;
+
+  const rootA = s.cfgs.length + s.pub.length + s.app.length;
+  const rootB = s.cfgs.length + s.pub.length + 1;
+  document.getElementById('cntA').textContent = rootA;
+  document.getElementById('appA').textContent = s.app.length;
+  document.getElementById('cntB').textContent = rootB;
+  document.getElementById('appB').textContent = 1;
+
+  const globList = s.app.filter(f=>f.endsWith('/')).map(f=>f.replace('/','')).join(',');
+  document.getElementById('globA').textContent =
+    'lint / coverage 的 glob：\n{' + globList + '}/**/*.{ts,tsx}\n（每加一個業務資料夾就要回頭改這一行）';
+  document.getElementById('globB').textContent =
+    'lint / coverage 的 glob：\nsrc/**/*.{ts,tsx}\n（永遠不用改）';
+}
+
+function go(n){
+  idx = Math.max(0, Math.min(STAGES.length-1, n));
+  render();
+}
+document.getElementById('btnNext').onclick  = () => go(idx+1);
+document.getElementById('btnPrev').onclick  = () => go(idx-1);
+document.getElementById('btnReset').onclick = () => { stop(); go(0); };
+function stop(){ if(timer){ clearInterval(timer); timer=null; document.getElementById('btnPlay').textContent='▶ 自動播放'; } }
+document.getElementById('btnPlay').onclick = function(){
+  if(timer){ stop(); return; }
+  this.textContent = '❚❚ 暫停';
+  go(0);
+  timer = setInterval(() => {
+    if(idx >= STAGES.length-1){ stop(); return; }
+    go(idx+1);
+  }, 1900);
+};
+render();
+
+/* ============ 測驗互動 ============ */
+function norm(s){ return (s||'').trim().toLowerCase().replace(/[「」『』"'`]/g,'').replace(/\s+/g,''); }
+
+function chk(btn){
+  const q  = btn.closest('.q');
+  const fb = q.querySelector('.fb');
+  const ins = [...q.querySelectorAll('.blank')];
+  let allOk = true;
+  ins.forEach(inp => {
+    const ok = inp.dataset.a.split('|').some(a => norm(a) === norm(inp.value));
+    inp.classList.toggle('good', ok);
+    inp.classList.toggle('bad', !ok);
+    if(!ok) allOk = false;
+  });
+  fb.className = 'fb show ' + (allOk ? 'y' : 'n');
+  fb.textContent = allOk ? '✓ 全部正確。' : '✕ 有欄位不對，紅框的再想一次，或直接看答案。';
+}
+
+function tf(btn, pick){
+  const q  = btn.closest('.q');
+  const fb = q.querySelector('.fb');
+  q.querySelectorAll('.tf button').forEach(b => b.classList.remove('picked'));
+  btn.classList.add('picked');
+  const ok = (pick === q.dataset.tf);
+  fb.className = 'fb show ' + (ok ? 'y' : 'n');
+  fb.textContent = ok ? '✓ 正確。' : '✕ 不對，展開下面的說明看為什麼。';
+  q.querySelector('.ans').classList.add('show');
+}
+
+function tg(btn){
+  const a = btn.closest('.q').querySelector('.ans');
+  a.classList.toggle('show');
+  btn.textContent = a.classList.contains('show') ? '收合答案' : (btn.textContent.includes('參考') ? '看參考答案' : '看答案');
+}
+</script>
+</body>
+</html>

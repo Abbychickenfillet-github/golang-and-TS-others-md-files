@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>immutable 會不會讓舊值塞滿記憶體｜互動版</title>
+<style>
+  :root{--bg:#fafafa;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;
+        --good:#059669;--goodbg:#d1fae5;--bad:#dc2626;--badbg:#fee2e2;
+        --warn:#d97706;--warnbg:#fef3c7;--info:#0284c7;--infobg:#e0f2fe;--code:#1e293b}
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 16px 80px;background:var(--bg);color:var(--ink);
+       font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;line-height:1.85}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 28px}
+  h2{font-size:19px;margin:36px 0 12px;padding-left:10px;border-left:4px solid var(--info)}
+  h3{font-size:16px;margin:22px 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+  pre{background:var(--code);color:#e2e8f0;padding:14px 16px;border-radius:8px;overflow-x:auto;
+      font-family:'Cascadia Code',Consolas,monospace;font-size:13.5px;line-height:1.7}
+  .inline-code{background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:13px;
+               font-family:'Cascadia Code',Consolas,monospace}
+  ol,ul{padding-left:22px} li{margin:6px 0}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+  th,td{padding:8px 10px;border:1px solid var(--line);text-align:left}
+  th{background:#f1f5f9}
+  .tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;margin-right:6px}
+  .tag-bad{background:var(--badbg);color:var(--bad)}
+  .tag-good{background:var(--goodbg);color:var(--good)}
+  .tag-warn{background:var(--warnbg);color:var(--warn)}
+  .tag-info{background:var(--infobg);color:var(--info)}
+  .blank{border:none;border-bottom:2px dashed var(--info);background:transparent;
+         font-family:'Cascadia Code',Consolas,monospace;font-size:14px;color:var(--ink);
+         width:170px;text-align:center;padding:2px 4px;outline:none}
+  .blank:focus{border-bottom-color:var(--good);background:#f0fdf4}
+  .blank.ok{border-bottom:2px solid var(--good);color:var(--good);font-weight:600}
+  .blank.no{border-bottom:2px solid var(--bad);color:var(--bad)}
+  button{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;
+         padding:7px 14px;font-size:13.5px;font-family:inherit;transition:.15s}
+  button:hover{background:#f1f5f9}
+  .btn-primary{background:var(--info);color:#fff;border-color:var(--info)}
+  .btn-primary:hover{background:#0369a1}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  .answer{display:none;margin-top:12px;padding:14px 16px;border-radius:8px;
+          background:var(--goodbg);border-left:4px solid var(--good);font-size:14.5px}
+  .answer.show{display:block}
+  .tf-item{padding:12px 0;border-bottom:1px dashed var(--line)}
+  .tf-item:last-of-type{border-bottom:none}
+  .tf-btns{margin-top:8px;display:flex;gap:8px;align-items:center}
+  .tf-fb{font-size:13.5px;margin-left:6px}
+  .tf-fb.ok{color:var(--good)} .tf-fb.no{color:var(--bad)}
+  .tf-why{display:none;margin-top:8px;font-size:13.5px;color:var(--muted);
+          background:#f8fafc;padding:10px 12px;border-radius:6px}
+  .tf-why.show{display:block}
+  textarea{width:100%;min-height:110px;border:1px solid var(--line);border-radius:8px;
+           padding:10px 12px;font-family:inherit;font-size:14px;resize:vertical;line-height:1.7}
+  .score{font-weight:700;color:var(--info)}
+  figure{margin:16px 0}
+  figure img{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff}
+  figcaption{font-size:13px;color:var(--muted);margin-top:6px;text-align:center}
+  .src{font-size:13px;color:var(--muted)} .src a{color:var(--info)}
+  .live{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:10px;
+        font-family:'Cascadia Code',Consolas,monospace;font-size:13px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>immutable 會不會讓舊值塞滿記憶體</h1>
+<p class="sub">互動版筆記　建立日期 2026-09-07　主題：structural sharing、V8 分代 GC、reachability</p>
+
+<figure>
+  <img src="../../obsidian-attachment/學習React_圖解_immutable更新的記憶體實況-結構共享與GC_2026-09-07.svg" alt="immutable 更新的記憶體實況圖解">
+  <figcaption>圖一　一次 immutable 更新實際新配置了什麼、共用了什麼、舊的去了哪裡</figcaption>
+</figure>
+
+<h2>一、先修正一個關鍵誤解</h2>
+<div class="card">
+  <p><span class="tag tag-warn">誤解</span>「count + 1 是新增一個新的值，所以會有過多值在記憶體中」</p>
+  <ol>
+    <li><b>語意層</b>　這句話是對的，你確實產生了一個新的值</li>
+    <li><b>記憶體層</b>　不成立。<span class="inline-code">number</span> 是 primitive（原始型別），它是「值」不是「物件」</li>
+    <li>小整數還走 <b>Smi</b>（Small Integer）最佳化，V8 直接把數字編碼在指標的位元裡，<b>根本不進堆積</b></li>
+    <li>所以 <span class="inline-code">setCount(count + 1)</span> 的記憶體成本基本是零</li>
+  </ol>
+<pre>A. 一千萬次 count = count + 1
+   heap 變化： 0.02 MB     ← 這 0.02 MB 還是量測本身的雜訊</pre>
+  <p>你的擔心要成立，必須是<b>物件或陣列</b>的情境，例如 <span class="inline-code">setTodos([...todos, newTodo])</span>。</p>
+</div>
+
+<h2>二、structural sharing：新的一份其實很便宜</h2>
+<div class="card">
+<pre>const oldArr = [{n:1}, {n:2}, {n:3}]
+const newArr = [...oldArr, {n:4}]
+
+oldArr === newArr        // false ← 外殼是新的，React 才比得出差別
+oldArr[0] === newArr[0]  // true  ← 元素是同一個物件，沒有被複製</pre>
+  <p><span class="tag tag-info">實測</span>對 100000 筆物件做一次拷貝</p>
+  <table>
+    <tr><th>寫法</th><th>總成本</th><th>每個元素</th><th>意義</th></tr>
+    <tr><td><span class="inline-code">[...base]</span></td><td>0.76 MB</td><td>8.0 bytes</td><td>一個 64 位元指標，元素完全共用</td></tr>
+    <tr><td><span class="inline-code">base.map(o =&gt; ({...o}))</span></td><td>4.58 MB</td><td>48.0 bytes</td><td>真的又生了一批物件，貴 6 倍</td></tr>
+  </table>
+  <p style="margin-top:10px">真正要避免的不是 immutable，是<b>手滑寫成深拷貝</b>。</p>
+</div>
+
+<h2>三、填空練習：GC 的判準是什麼</h2>
+<div class="card">
+  <ol>
+    <li>GC 回收一個物件的判準不是「舊」，而是
+      <input class="blank" data-a="不可達|unreachable|不可達（unreachable）" placeholder="中文或英文">
+    </li>
+    <li>新陣列與舊陣列共用沒變動的元素，這個技巧叫
+      <input class="blank" data-a="structural sharing|結構共享" placeholder="英文或中文" style="width:200px">
+    </li>
+    <li>V8 新生代回收器 Scavenger 的成本只跟
+      <input class="blank" data-a="存活物件|活下來的物件|存活的物件|survivors" placeholder="跟什麼成正比" style="width:190px">
+      成正比，跟垃圾量無關
+    </li>
+    <li>把每一版都存進 history 陣列，總指標數是 n(n+1)/2，時間與空間複雜度是
+      <input class="blank" data-a="O(n^2)|O(n²)|O(n2)" placeholder="大 O" style="width:110px">
+    </li>
+  </ol>
+  <div class="btn-row">
+    <button class="btn-primary" onclick="checkBlanks()">檢查填空</button>
+    <button onclick="revealBlanks()">直接看答案</button>
+    <button onclick="clearBlanks()">清空重來</button>
+    <span id="blankScore" class="score"></span>
+  </div>
+</div>
+
+<h2>四、實測數據對照（點擊展開解讀）</h2>
+
+<div class="card">
+  <h3><span class="tag tag-good">B</span>只保留最新一份　→　1.53 MB</h3>
+<pre>let items = []
+for (let i = 0; i &lt; 20000; i++) {
+  items = [...items, { id: i }]   // 上一圈的陣列立刻變成不可達
+}
+// GC 後 heap 增加： 1.53 MB</pre>
+  <div class="btn-row"><button onclick="toggle('a1')">切換顯示解讀</button></div>
+  <div class="answer" id="a1">
+    <ol>
+      <li>總共產生了 20000 個陣列，最後只剩 1.53 MB</li>
+      <li>等於只留下「最後那一份外殼」加上 20000 個 item 物件</li>
+      <li>中間 19999 個舊外殼全部被回收</li>
+      <li>回收它們幾乎不花錢，因為 Scavenger 只走訪活下來的物件，垃圾越多反而越划算</li>
+    </ol>
+  </div>
+</div>
+
+<div class="card">
+  <h3><span class="tag tag-bad">C</span>每一版都留著　→　144 MB（次數還少了 4 倍）</h3>
+<pre>const history = []
+for (let i = 0; i &lt; 5000; i++) {
+  cur = [...cur, { id: i }]
+  history.push(cur)     // ← 罪魁禍首
+}
+// GC 後 heap 增加： 144.11 MB</pre>
+  <div class="btn-row"><button onclick="toggle('a2')">切換顯示解讀</button></div>
+  <div class="answer" id="a2">
+    <ol>
+      <li>從 1.53 MB 變成 144 MB，但次數還少了 4 倍</li>
+      <li>原因：第 i 版的外殼有 i 個指標，全部留著的總成本是 n(n+1)/2 個指標，也就是 O(n²)</li>
+      <li>把 5000 調成 20000 會直接吃掉約 1.6 GB 而 OOM（Out Of Memory，記憶體不足）</li>
+      <li><b>問題從來不是 immutable 本身，是「你保留了幾份」</b></li>
+    </ol>
+  </div>
+</div>
+
+<div class="card">
+  <h3><span class="tag tag-warn">F</span>immutable 真正的成本是 CPU 不是記憶體</h3>
+<pre>各 30000 次
+   mutable push        ： 1.83 ms
+   immutable [...arr,x]： 3912.51 ms   → 慢約 2138 倍</pre>
+  <div class="btn-row"><button onclick="toggle('a3')">切換顯示解讀與正確做法</button></div>
+  <div class="answer" id="a3">
+    <ol>
+      <li><span class="inline-code">push</span> 是攤銷 O(1)，<span class="inline-code">[...arr, x]</span> 每一圈都要複製 i 個指標，整體 O(n²)</li>
+      <li>在 React 裡通常不痛，因為你是「一次事件一次更新」，不是「迴圈裡跑三萬次」</li>
+      <li>要在迴圈裡累積時，先用 mutable 在區域變數裡組好，最後再一次交出新陣列：</li>
+    </ol>
+<pre>setTodos(prev =&gt; {
+  const draft = [...prev]        // 只複製一次外殼
+  for (const item of incoming) draft.push(item)
+  return draft                   // 交出去的是全新外殼，React 比得出來
+})</pre>
+    <p>這也是 Immer 這類函式庫的核心價值：寫起來像 mutation，產出的是 structural sharing 的新樹。</p>
+  </div>
+</div>
+
+<h2>五、瀏覽器現場實驗</h2>
+<div class="card">
+  <p>下面兩顆按鈕直接在你這個分頁跑，按完看數字。</p>
+  <div class="btn-row">
+    <button class="btn-primary" onclick="runSharing()">驗證 structural sharing</button>
+    <button class="btn-primary" onclick="runSpeed()">比較 push 與展開的速度</button>
+    <button onclick="runMemory()">讀取目前 JS 堆積用量</button>
+  </div>
+  <div class="live" id="liveOut">（還沒按過）</div>
+  <p class="src" style="margin-top:8px">
+    註：<span class="inline-code">performance.memory</span> 只有 Chromium 系瀏覽器提供，而且數值是粗粒度的近似值，
+    要精確量測請用 F12 的 Memory 分頁做 Heap snapshot，或跑 node 版的
+    <span class="inline-code">immutable-memory-gc.js</span>。
+  </p>
+</div>
+
+<h2>六、是非題</h2>
+<div class="card" id="tfBox">
+  <div class="tf-item" data-a="false" data-why="不會。number 是 primitive，是「值」不是「物件」，小整數還走 Smi 最佳化根本不進堆積。實測一千萬次只動了 0.02 MB">
+    <div class="tf-q">1. 每次 setCount(count + 1) 都會在堆積裡留下一個舊的數字物件</div>
+  </div>
+  <div class="tf-item" data-a="true" data-why="正確。[...arr] 複製的是外殼裡那一排指標，每個元素只花 8 bytes，元素本身完全共用">
+    <div class="tf-q">2. [...arr] 只複製指標，不複製指標指向的那些物件</div>
+  </div>
+  <div class="tf-item" data-a="false" data-why="判準是「不可達（unreachable）」，不是「舊」。一個很舊但仍被 history 抓著的物件永遠不會被回收">
+    <div class="tf-q">3. GC 回收物件的判準是這個物件夠不夠舊</div>
+  </div>
+  <div class="tf-item" data-a="true" data-why="正確。V8 的 Scavenger 走訪的是存活物件並把它們搬走，垃圾根本不會被碰到，所以「大量產生短命物件」是被最佳化過的路徑">
+    <div class="tf-q">4. 新生代 GC 的成本只跟存活物件數成正比，跟產生了多少垃圾無關</div>
+  </div>
+  <div class="tf-item" data-a="false" data-why="外殼沒換，React 用 Object.is 比較發現相同會直接 bail out，畫面不會更新。資料雖然改了但畫面停在舊的，是最難除錯的那種 bug">
+    <div class="tf-q">5. todos[0].done = true 之後呼叫 setTodos(todos)，畫面會正常更新</div>
+  </div>
+  <div class="tf-item" data-a="true" data-why="正確。Array.prototype.sort 是就地排序會 mutate 原陣列，setItems(items.sort(...)) 傳回去的是同一個參考，React 不會重新渲染。要寫成 setItems([...items].sort(...))">
+    <div class="tf-q">6. setItems(items.sort(fn)) 是錯的，因為 sort 是就地排序</div>
+  </div>
+  <div class="tf-item" data-a="true" data-why="正確。在迴圈裡每圈都展開整個陣列是 O(n²)，這是 immutable 真正要注意的成本，而不是記憶體">
+    <div class="tf-q">7. 在迴圈裡寫 arr = [...arr, x] 的時間複雜度是 O(n²)</div>
+  </div>
+  <div class="btn-row">
+    <button class="btn-primary" onclick="gradeTF()">批改是非題</button>
+    <button onclick="resetTF()">重做</button>
+    <span id="tfScore" class="score"></span>
+  </div>
+</div>
+
+<h2>七、申論題</h2>
+<div class="card">
+  <p><b>題目一</b>　請說明為什麼 React 願意付出「每次更新都產生新外殼」的代價，換來了哪四件事。</p>
+  <textarea id="e1" placeholder="寫下你的想法之後再看參考答案"></textarea>
+  <div class="btn-row"><button onclick="toggle('ea1')">切換顯示參考答案</button></div>
+  <div class="answer" id="ea1">
+    <ol>
+      <li><b>比較成本從 O(n) 降到 O(1)</b>　只要比外殼參考是否相同，不用逐欄位深比較</li>
+      <li><b>React.memo、useMemo、useEffect 依賴陣列全部靠它</b>　它們用的都是 Object.is</li>
+      <li><b>Concurrent Rendering 需要快照語意</b>　React 可能中斷、丟棄、重跑渲染，state 若被就地改掉，中途結果就不可信</li>
+      <li><b>time travel 與除錯</b>　每一版都是完整可讀的值，不是一堆 diff</li>
+    </ol>
+  </div>
+</div>
+
+<div class="card">
+  <p><b>題目二</b>　你的專案有一個 undo 功能，使用者反映用久了會越來越卡。請列出你會依序檢查的三件事，並說明為什麼是這個順序。</p>
+  <textarea id="e2" placeholder="寫下你的想法之後再看參考答案"></textarea>
+  <div class="btn-row"><button onclick="toggle('ea2')">切換顯示參考答案</button></div>
+  <div class="answer" id="ea2">
+    <ol>
+      <li><b>先看 history 有沒有上限</b>　這是 O(n²) 的來源，也是最常見的原因。加一個上限（例如只留 50 版）通常就解決了</li>
+      <li><b>再看每一版是不是深拷貝</b>　如果寫成 <span class="inline-code">structuredClone(state)</span> 或 <span class="inline-code">JSON.parse(JSON.stringify(state))</span>，共用完全消失，成本會再乘上物件大小。改成只複製變動路徑</li>
+      <li><b>最後才看有沒有其他東西抓住舊 state</b>　閉包、未清除的 setInterval、全域快取。這一項最難找，所以留到最後，用 F12 的 Memory 分頁做兩次 Heap snapshot 比對 Retainers（保留者）</li>
+      <li><b>順序理由</b>　由「最可能且最容易改」排到「最難定位」，先用便宜的假設換掉昂貴的排查</li>
+    </ol>
+  </div>
+</div>
+
+<h2>八、可執行範例</h2>
+<div class="card">
+  <ol>
+    <li>記憶體實測：<span class="inline-code">C:\coding\JavaScript-practicing\immutable-memory-gc.js</span>
+      　執行 <span class="inline-code">node --expose-gc immutable-memory-gc.js</span></li>
+    <li>React 視覺化：<a href="http://localhost:3000/immutable-memory">localhost:3000/immutable-memory</a>
+      　逐列標示「這個元素跟上一輪是不是同一個物件」</li>
+    <li>LeetCode 2635. Apply Transform Over Each Element in Array
+      <a href="https://leetcode.com/problems/apply-transform-over-each-element-in-array/">連結</a>
+      　關聯原因：自己實作 map，練習「產生新陣列而不動原陣列」</li>
+    <li>LeetCode 2724. Sort By
+      <a href="https://leetcode.com/problems/sort-by/">連結</a>
+      　關聯原因：sort 是就地排序，正是 React 裡最常見的 mutation 陷阱</li>
+    <li>LeetCode 2722. Join Two Arrays by ID
+      <a href="https://leetcode.com/problems/join-two-arrays-by-id/">連結</a>
+      　關聯原因：合併時要決定哪些欄位共用、哪些新建，是 structural sharing 的手動版</li>
+  </ol>
+</div>
+
+<h2>九、參考來源</h2>
+<div class="card src">
+  <ol>
+    <li>V8 官方部落格, Orinoco: young generation garbage collection, 2017-11-29　<a href="https://v8.dev/blog/orinoco-parallel-scavenger">連結</a></li>
+    <li>V8 官方部落格, Trash talk: the Orinoco garbage collector, 2019-07-01　<a href="https://v8.dev/blog/trash-talk">連結</a></li>
+    <li>React 官方文件, useState　<a href="https://react.dev/reference/react/useState">連結</a></li>
+    <li>React 官方文件, State as a Snapshot　<a href="https://react.dev/learn/state-as-a-snapshot">連結</a></li>
+    <li>MDN Web Docs, Memory management　<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_management">連結</a></li>
+    <li>本機實測數據, immutable-memory-gc.js, node v22.23.2, 2026-09-07</li>
+  </ol>
+  <p>查閱日期皆為 2026-09-07。</p>
+</div>
+
+</div>
+
+<script>
+  function toggle(id){ document.getElementById(id).classList.toggle('show'); }
+  function norm(s){ return String(s).trim().replace(/\s+/g,' ').toLowerCase(); }
+
+  function checkBlanks(){
+    const inputs = document.querySelectorAll('.blank');
+    let ok = 0;
+    inputs.forEach(function(inp){
+      const answers = inp.dataset.a.split('|').map(norm);
+      if (answers.indexOf(norm(inp.value)) !== -1){ inp.classList.add('ok'); inp.classList.remove('no'); ok++; }
+      else { inp.classList.add('no'); inp.classList.remove('ok'); }
+    });
+    document.getElementById('blankScore').textContent = '答對 ' + ok + ' / ' + inputs.length;
+  }
+  function revealBlanks(){
+    document.querySelectorAll('.blank').forEach(function(inp){
+      inp.value = inp.dataset.a.split('|')[0];
+      inp.classList.add('ok'); inp.classList.remove('no');
+    });
+    document.getElementById('blankScore').textContent = '已顯示標準答案';
+  }
+  function clearBlanks(){
+    document.querySelectorAll('.blank').forEach(function(inp){
+      inp.value=''; inp.classList.remove('ok','no');
+    });
+    document.getElementById('blankScore').textContent = '';
+  }
+
+  // ---- 現場實驗 ----
+  const out = function(text){ document.getElementById('liveOut').textContent = text; };
+
+  function runSharing(){
+    const oldArr = [{n:1},{n:2},{n:3}];
+    const newArr = [...oldArr, {n:4}];
+    const changed = oldArr.map(function(o,i){ return i === 1 ? Object.assign({}, o, {n:99}) : o; });
+    out(
+      '外殼比較\n' +
+      '  oldArr === newArr        → ' + (oldArr === newArr) + '   （新外殼，React 比得出差別）\n' +
+      '  oldArr[0] === newArr[0]  → ' + (oldArr[0] === newArr[0]) + '    （元素共用，沒被複製）\n\n' +
+      '只改第 2 筆的 map 寫法\n' +
+      '  changed[0] === oldArr[0] → ' + (changed[0] === oldArr[0]) + '    （共用）\n' +
+      '  changed[1] === oldArr[1] → ' + (changed[1] === oldArr[1]) + '   （唯一新建的物件）\n' +
+      '  changed[2] === oldArr[2] → ' + (changed[2] === oldArr[2]) + '    （共用）'
+    );
+  }
+
+  function runSpeed(){
+    const M = 20000;
+    let t = performance.now();
+    const a = [];
+    for (let i = 0; i < M; i++) a.push(i);
+    const tm = performance.now() - t;
+
+    t = performance.now();
+    let b = [];
+    for (let i = 0; i < M; i++) b = [...b, i];
+    const ti = performance.now() - t;
+
+    out(
+      '各 ' + M + ' 次\n' +
+      '  mutable push          ： ' + tm.toFixed(2) + ' ms\n' +
+      '  immutable [...arr, x] ： ' + ti.toFixed(2) + ' ms\n' +
+      '  倍數                  ： 約 ' + (ti/tm).toFixed(0) + ' 倍\n\n' +
+      '結論：immutable 真正的成本是 CPU 不是記憶體。\n' +
+      '在迴圈裡累積時，先用 mutable 組好 draft，最後再一次交出新陣列。'
+    );
+  }
+
+  function runMemory(){
+    const m = performance.memory;
+    if (!m) { out('這個瀏覽器沒有提供 performance.memory（只有 Chromium 系才有）。\n請改用 F12 的 Memory 分頁做 Heap snapshot，或跑 node 版腳本。'); return; }
+    const MB = function(b){ return (b/1024/1024).toFixed(2) + ' MB'; };
+    out(
+      '目前這個分頁的 JS 堆積（粗粒度近似值）\n' +
+      '  usedJSHeapSize  ： ' + MB(m.usedJSHeapSize) + '\n' +
+      '  totalJSHeapSize ： ' + MB(m.totalJSHeapSize) + '\n' +
+      '  jsHeapSizeLimit ： ' + MB(m.jsHeapSizeLimit) + '\n\n' +
+      '提醒：這個數字會被背景 GC 與其他分頁干擾，只能看趨勢不能當精確量測。'
+    );
+  }
+
+  // ---- 是非題 ----
+  document.querySelectorAll('#tfBox .tf-item').forEach(function(item){
+    const row = document.createElement('div');
+    row.className = 'tf-btns';
+    ['是','非'].forEach(function(label, idx){
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.dataset.val = idx === 0 ? 'true' : 'false';
+      b.onclick = function(){
+        item.querySelectorAll('.tf-btns button').forEach(function(x){ x.classList.remove('btn-primary'); });
+        b.classList.add('btn-primary');
+        item.dataset.picked = b.dataset.val;
+      };
+      row.appendChild(b);
+    });
+    const fb = document.createElement('span');
+    fb.className = 'tf-fb';
+    row.appendChild(fb);
+    item.appendChild(row);
+    const why = document.createElement('div');
+    why.className = 'tf-why';
+    why.textContent = '原因：' + item.dataset.why;
+    item.appendChild(why);
+  });
+
+  function gradeTF(){
+    const items = document.querySelectorAll('#tfBox .tf-item');
+    let ok = 0;
+    items.forEach(function(item){
+      const fb = item.querySelector('.tf-fb');
+      const why = item.querySelector('.tf-why');
+      if (!item.dataset.picked){ fb.textContent = '尚未作答'; fb.className = 'tf-fb'; return; }
+      if (item.dataset.picked === item.dataset.a){ fb.textContent = '答對'; fb.className = 'tf-fb ok'; ok++; }
+      else { fb.textContent = '答錯'; fb.className = 'tf-fb no'; }
+      why.classList.add('show');
+    });
+    document.getElementById('tfScore').textContent = '答對 ' + ok + ' / ' + items.length;
+  }
+  function resetTF(){
+    document.querySelectorAll('#tfBox .tf-item').forEach(function(item){
+      delete item.dataset.picked;
+      item.querySelector('.tf-fb').textContent = '';
+      item.querySelector('.tf-why').classList.remove('show');
+      item.querySelectorAll('.tf-btns button').forEach(function(b){ b.classList.remove('btn-primary'); });
+    });
+    document.getElementById('tfScore').textContent = '';
+  }
+</script>
+</body>
+</html>
