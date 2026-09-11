@@ -14,7 +14,6 @@ related:
 quiz: HTML-Parsing-瀏覽器拿到HTTP-response-body之後.html
 updated: 2026-09-08
 ---
-
 # HTML Parsing：瀏覽器拿到 HTTP response body 之後
 
 > 本篇重點 a–v，共 22 個。
@@ -43,6 +42,34 @@ updated: 2026-09-08
 
 ## 0. 四步流水線（依順序編號）
 
+![[學習前端_圖解_從原始碼到DOM完整流程-buildtime與runtime-ISO5807_2026-09-11.svg]]
+
+> **這張是主軸圖（第三版）。** 相較前一版多了三件事：
+>
+> a. 上方補了 **build time 的尾巴** —— `.tsx` → 轉譯打包 → 產出 `index.html`，並標出「**存檔這一刻才決定編碼**」
+> b. 明確標出 **「純文字檔」這個說法屬於哪一層**（檔案格式的類別，不是傳輸形態）
+> c. 右下角獨立一塊說明 **JS 字串是另一條線** —— HTML Parsing 全程由 Blink 跑，V8 完全沒參與；
+>    `response.text()` 那條是「你主動用 JS 去抓一份 HTML 當文字處理」，不是瀏覽器載入主文件的路徑
+>
+> 第二版（只有 run time、無 build 段）：![[學習前端_圖解_HTML-Parsing標準流程圖-ISO5807符號_2026-09-11.svg|697]]
+
+> **為什麼換成標準符號**：第一版把每個步驟都畫成同一種圓角矩形，那不是流程圖，只是「有箭頭的清單」。
+> ISO 5807 的符號**本身帶語意**——平行四邊形＝資料、直角矩形＝處理、菱形＝判斷、六邊形＝初始化、
+> 雙邊線矩形＝副流程、圓形＝連接點。換上去之後有兩件事才浮出來：
+>
+> a. **bytes 到 decoding 中間有四道連續判斷** —— 那就是 encoding sniffing algorithm（圖右側副流程）
+> b. **tokenize 與 tree construction 是一個「逐 token」的迴圈**，不是兩個一次做完的步驟
+>
+> 簡化版（只看四步骨架，貼簡報時用）：![[學習前端_圖解_HTML-Parsing四步流水線-bytes到DOM_2026-09-11.svg|697]]
+
+> 上圖是本篇主軸圖。後續追問請直接指回圖上的第幾步，不要另開新章節。
+> 圖裡多標了三件純文字版看不出來的事：① 每一步的**執行者**是誰（網路層／Blink／Blink）
+> ② 左側括號框出**規範定義的 HTML Parsing 範圍**（步驟 2＋3＋4）
+> ③ 底部三個常見誤解與它們對應到第幾步
+
+<details>
+<summary>純文字版（貼到 iThome 等不支援 Obsidian 嵌入的地方時用）</summary>
+
 ```
 網路層　HTTP response body
    ↓
@@ -56,6 +83,8 @@ updated: 2026-09-08
    ↓
 DOM 樹（產物，不是第 5 步）
 ```
+
+</details>
 
 - (a) **HTML Parsing 的範圍是步驟 2、3、4**。WHATWG 規範第 13.2 章「Parsing HTML documents」涵蓋的正是這三段。
 - (b) **步驟 1 屬於網路層**，DOM 是**名詞（產物）**不是動詞（步驟）。
@@ -82,6 +111,24 @@ bytes： 3C  21  44  4F  43  54  59  50  45  20  68  74  6D  6C  3E
 ```
 
 - (f) **F12 驗證**：Network → 點 HTML → Headers 的 `Content-Length: 1834`，這個數字的**單位是 bytes 不是字數**。中文一字在 UTF-8 佔 3 bytes，所以中文網頁的 bytes 數遠大於字數。
+
+---
+
+### 1-1. 用詞對照：什麼時候叫 bytes、什麼時候叫字串
+
+⚠️ 這三個詞常被混用（包括本庫先前的敘述），對照表如下：
+
+| 階段 | 規範的正確叫法 | 可以叫「字串」嗎 |
+|---|---|---|
+| 在網路上、在 HTTP response body 裡 | **bytes（位元組）** | ❌ **不行**，這時候還沒有「字」 |
+| decoding 之後 | **input stream**，內容是 **code points（碼點）** | ⚠️ 勉強，但規範不叫它字串 —— 因為它**可以中途變長** |
+| 在 JS 變數裡拿到的（`response.text()` 之後） | **String（JS 字串）** | ✅ 這才是真的字串 |
+
+- (f-2) 那為什麼常聽到「HTML 是純文字」？因為那句話在講**檔案格式的類別**（相對於 JPG／MP4 那種二進位格式），**不是在講傳輸時的形態**。兩者不衝突，但講的是不同層次。
+- (f-3) 一個判斷口訣：
+  1. 句子在講**網路／磁碟／Content-Length** → 說 **bytes**
+  2. 句子在強調**「它沒有結構、不是物件」** → 說「扁平的字元序列」比說「字串」精確
+  3. 句子在講**JS 變數裡的值** → 說 **String**
 
 ---
 
@@ -291,15 +338,15 @@ after after frameset
 
 **四步完全一樣，零差別。** 差別只在三個變數：誰產生 HTML 字串、什麼時候產生、第一個 response 裡有沒有內容。
 
-| 模式 | HTML 字串誰產生 | 何時 | 首個 response 有內容 | 四步 | 四步後還要做什麼 |
-|---|---|---|---|---|---|
-| 純靜態 HTML | 人手寫 | 寫程式時 | ✅ | 相同 | 直接 paint |
-| SSG（Astro / Hugo / Jekyll / next export） | 建置工具 | build time 一次 | ✅ | 相同 | 有互動則需 hydration |
-| SSR（Next.js / Nuxt / Remix） | Node 跑 `renderToString` | 每次 request | ✅ | 相同 | hydration 掛事件 |
-| PHP / WordPress | PHP 直譯器 | 每次 request | ✅ | 相同 | 沒事了 |
-| Rails / Django / Laravel | template 引擎（ERB / Jinja / Blade） | 每次 request | ✅ | 相同 | 沒事了 |
-| **CSR**（Vite ＋ React SPA） | **瀏覽器裡的 JS** | HTML 解析完、JS 執行時 | ❌ `#root` 是空的 | 相同 | **還要跑一整套 JS 才有內容** |
-| Streaming SSR（React 18） | Node 分段吐 | 每次 request，邊算邊送 | ✅（陸續到） | 相同 | 分段 hydration |
+| 模式                                       | HTML 字串誰產生                       | 何時              | 首個 response 有內容 | 四步  | 四步後還要做什麼           |
+| ---------------------------------------- | -------------------------------- | --------------- | --------------- | --- | ------------------ |
+| 純靜態 HTML                                 | 人手寫                              | 寫程式時            | ✅               | 相同  | 直接 paint           |
+| SSG（Astro / Hugo / Jekyll / next export） | 建置工具                             | build time 一次   | ✅               | 相同  | 有互動則需 hydration    |
+| SSR（Next.js / Nuxt / Remix）              | Node 跑 `renderToString`          | 每次 request      | ✅               | 相同  | hydration 掛事件      |
+| PHP / WordPress                          | PHP 直譯器                          | 每次 request      | ✅               | 相同  | 沒事了                |
+| Rails / Django / Laravel                 | template 引擎（ERB / Jinja / Blade） | 每次 request      | ✅               | 相同  | 沒事了                |
+| **CSR**（Vite ＋ React SPA）                | **瀏覽器裡的 JS**                     | HTML 解析完、JS 執行時 | ❌ `#root` 是空的   | 相同  | **還要跑一整套 JS 才有內容** |
+| Streaming SSR（React 18）                  | Node 分段吐                         | 每次 request，邊算邊送 | ✅（陸續到）          | 相同  | 分段 hydration       |
 
 - 原本 [[script載入方式+前因後果]] (a) 節寫的「不是 CSR、SSR、SSG⋯⋯的專屬，他們全一樣，無例外」**是對的**，可再精確成：
   > 「**HTML Parsing 這四步無例外，但四步結束後畫面上有沒有東西，就完全不一樣了。**」

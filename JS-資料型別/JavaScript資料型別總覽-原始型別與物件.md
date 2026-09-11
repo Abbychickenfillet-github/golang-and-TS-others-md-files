@@ -276,6 +276,42 @@ console.log(9007199254740993n);                       // 9007199254740993n ← B
 
 ⚠️ 注意這裡**完全不會報錯**，這才是可怕的地方。
 
+#### 為什麼「不報錯」才是真正可怕的地方 —— 後端 int64 ID 的真實災難
+
+`9007199254740992 === 9007199254740993` 回 `true`，意思是**兩個不同的 ID 在你的程式裡變成同一個人**。而且沒有任何警告。
+
+實測 JSON 傳輸：
+
+```js
+JSON.parse('{"userId": 9007199254740993}').userId
+// → 9007199254740992   ❌ 尾數被靜靜改掉了
+
+JSON.parse('{"userId": "9007199254740993"}').userId
+// → "9007199254740993"  ✅ 用字串傳就完好
+```
+
+**中文白話**：後端用 Go 的 `int64`／Java 的 `Long`／PostgreSQL 的 `bigint` 當主鍵或 Snowflake ID，轉成 JSON 是一個純數字。前端 `JSON.parse` 把它變成 `Number`，超過 2^53−1 的部分就被四捨五入掉了。**你以為在更新 A 的資料，其實更新到 B。**
+
+#### 那是不是超過 MAX_SAFE_INTEGER 就該用 BigInt？—— 要看你打算對它做什麼
+
+| 你要做什麼 | 該用什麼 | 理由 |
+|---|---|---|
+| 只是**傳遞、顯示、當 key** | **字串** | 最安全，且 JSON 原生支援 |
+| 要做**算術／位元運算** | **BigInt** | 只有它能精確計算大整數 |
+
+⚠️ **BigInt 的兩個坑（實測）**：
+
+```js
+JSON.stringify({ id: 1n })
+// TypeError: Do not know how to serialize a BigInt   ← 不能直接序列化
+
+1n + 1
+// TypeError: Cannot mix BigInt and other types        ← 不能跟 Number 混算
+1n + 1n   // 2n  ✅ 同型別才行
+```
+
+★ **實務最佳解：請後端把 int64 ID 以「字串」形式放進 JSON。** 這是業界慣例（Twitter/X 的 API 就同時給 `id` 和 `id_str`），比在前端補救省事得多。
+
 #### ✅ 該用 BigInt 的時機
 
 - a. **你要對 64-bit 整數做算術** — Go 的 `int64`、Java 的 `Long`、PostgreSQL / MySQL 的 `bigint`，只要你需要對它加減乘除而不只是傳遞
@@ -626,6 +662,16 @@ Reflect.ownKeys(o);               // [ 'name', Symbol(id) ]  ✅ 全部一起拿
 | `JSON.stringify` | 保留成 `null` | **整個鍵會消失** |
 | `==` 互相比較 | `null == undefined` 是 `true` | 同左 |
 | `===` 互相比較 | `null === undefined` 是 `false` | 同左 |
+| `Number(x)` | `0` | `NaN` |
+| `x + 1` | `1`（null→0） | `NaN`（undefined→NaN） |
+| 觸發預設參數 | **不會**（傳 null 就是 null） | **會**（傳 undefined 才用預設值） |
+| `??` / `?.` | 兩者一視同仁：`a ?? b` 只有 a 是 null 或 undefined 才取 b | 同左 |
+
+三個最常被考的行為差（記這個就贏一半）：`typeof null==="object"`／`typeof undefined==="undefined"`；`Number(null)===0` 但 `Number(undefined)===NaN`；`JSON.stringify` 丟掉 undefined、保留 null；且**預設參數只認 undefined**。
+
+**引擎從不自動給你 `null`**——`null` 一定是**你手動 `= null`** 才出現；系統的「空」一律是 `undefined`（所以 `var` 提升、宣告沒賦值拿到的都是 `undefined`，不是 `null`）。
+
+**「宣告一個變數會不會在記憶體劃一格？」——會。** 宣告（`let a;`）會在**環境紀錄（Environment Record，見第 7 節）**裡劃出一格 binding/slot，那格裝的值就是 `undefined`。`undefined` 是原始型別的**單一共用值**（像 singleton），不會為每次使用另外配堆積（heap）記憶體。對比：**完全沒宣告的名字根本沒有那一格 → 一存取就 `ReferenceError`**（「有沒有那一格」正是 undefined 與 ReferenceError 的分界，完整排列組合見 [[15-ReferenceError-vs-undefined-值與錯誤的分界]]）。
 
 ### 使用時機：debounce 的 timer
 

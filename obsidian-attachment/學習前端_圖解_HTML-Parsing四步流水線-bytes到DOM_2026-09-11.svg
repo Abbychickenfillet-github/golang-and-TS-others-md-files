@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 950" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="p" markerWidth="11" markerHeight="11" refX="7" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#C2185B"/>
+    </marker>
+    <marker id="g" markerWidth="11" markerHeight="11" refX="7" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#00897B"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="950" fill="#fffafc"/>
+  <text x="450" y="36" font-size="20" font-weight="700" fill="#4A0033" text-anchor="middle">HTML Parsing：從網路上的 bytes 到記憶體裡的 DOM 物件</text>
+  <text x="450" y="60" font-size="13" fill="#7B1FA2" text-anchor="middle">規範的 HTML Parsing ＝ 步驟 2 ＋ 3 ＋ 4　｜　步驟 1 是網路層，DOM 是產物不是步驟</text>
+
+  <!-- 網路層 -->
+  <rect x="150" y="82" width="440" height="56" rx="10" fill="#eceff1" stroke="#b0bec5" stroke-width="1.8"/>
+  <text x="168" y="107" font-size="14.5" fill="#37474f" font-weight="700">網路層　HTTP response body</text>
+  <text x="168" y="128" font-size="12" fill="#546e7a">一串 0/1 的位元組，還不是「文字」，更不是「網頁」</text>
+
+  <line x1="370" y1="138" x2="370" y2="166" stroke="#C2185B" stroke-width="2.6" marker-end="url(#p)"/>
+
+  <!-- 1 -->
+  <rect x="150" y="170" width="440" height="94" rx="11" fill="#fff" stroke="#E91E63" stroke-width="2.4"/>
+  <circle cx="180" cy="200" r="17" fill="#E91E63"/><text x="180" y="206" font-size="17" fill="#fff" text-anchor="middle" font-weight="700">1</text>
+  <text x="210" y="199" font-size="15" fill="#4A0033" font-weight="700">input byte stream（位元組流）</text>
+  <text x="210" y="222" font-size="12.5" fill="#6b7280">3C 21 44 4F 43 54 59 50 45 …</text>
+  <text x="210" y="243" font-size="12.5" fill="#6b7280">一段一段從網路來，不是一次到齊</text>
+  <text x="210" y="259" font-size="11.5" fill="#b26a00">Content-Length 的單位就是它</text>
+  <text x="610" y="205" font-size="12" fill="#546e7a" font-weight="700">執行者：網路層</text>
+  <text x="610" y="225" font-size="11.5" fill="#90a4ae">還沒進渲染引擎</text>
+
+  <line x1="370" y1="264" x2="370" y2="292" stroke="#C2185B" stroke-width="2.6" marker-end="url(#p)"/>
+
+  <!-- HTML Parsing 括號 -->
+  <path d="M132 300 q-14 0 -14 14 v344 q0 14 14 14" fill="none" stroke="#C2185B" stroke-width="2.6" opacity=".65"/>
+  <text x="104" y="486" font-size="14" fill="#C2185B" font-weight="700" transform="rotate(-90 104 486)" text-anchor="middle">HTML Parsing（規範 §13.2）</text>
+
+  <!-- 2 -->
+  <rect x="150" y="296" width="440" height="94" rx="11" fill="#fff" stroke="#9C27B0" stroke-width="2.4"/>
+  <circle cx="180" cy="326" r="17" fill="#9C27B0"/><text x="180" y="332" font-size="17" fill="#fff" text-anchor="middle" font-weight="700">2</text>
+  <text x="210" y="325" font-size="15" fill="#4A0033" font-weight="700">decoding（解碼）→ input stream</text>
+  <text x="210" y="348" font-size="12.5" fill="#6b7280">依 charset 把 bytes 轉成 code points（碼點）</text>
+  <text x="210" y="369" font-size="12.5" fill="#6b7280">產物是「流」不是「字串」：可以中途變長</text>
+  <text x="210" y="385" font-size="11.5" fill="#b26a00">charset 哪來？→ encoding sniffing 八順序</text>
+  <text x="610" y="331" font-size="12" fill="#7B1FA2" font-weight="700">執行者：Blink</text>
+  <text x="610" y="351" font-size="11.5" fill="#9575cd">BOM ＞ HTTP header</text>
+  <text x="610" y="369" font-size="11.5" fill="#9575cd">＞ 前 1024 bytes 的 meta</text>
+
+  <line x1="370" y1="390" x2="370" y2="418" stroke="#C2185B" stroke-width="2.6" marker-end="url(#p)"/>
+
+  <!-- 3 -->
+  <rect x="150" y="422" width="440" height="108" rx="11" fill="#fff" stroke="#3F51B5" stroke-width="2.4"/>
+  <circle cx="180" cy="452" r="17" fill="#3F51B5"/><text x="180" y="458" font-size="17" fill="#fff" text-anchor="middle" font-weight="700">3</text>
+  <text x="210" y="451" font-size="15" fill="#4A0033" font-weight="700">tokenization（標記化）</text>
+  <text x="210" y="474" font-size="12.5" fill="#6b7280">狀態機把碼點切成 token，只有 6 種：</text>
+  <text x="210" y="495" font-size="12" fill="#3F51B5">DOCTYPE｜start tag｜end tag｜comment｜character｜EOF</text>
+  <text x="210" y="516" font-size="12.5" fill="#c62828">⚠️ token 還是「資料」，不是物件</text>
+  <text x="610" y="457" font-size="12" fill="#1a237e" font-weight="700">執行者：Blink</text>
+  <text x="610" y="477" font-size="11.5" fill="#5c6bc0">不是 V8。HTML 永遠</text>
+  <text x="610" y="495" font-size="11.5" fill="#5c6bc0">不會變成 AST／bytecode</text>
+
+  <line x1="370" y1="530" x2="370" y2="558" stroke="#C2185B" stroke-width="2.6" marker-end="url(#p)"/>
+
+  <!-- 4 -->
+  <rect x="150" y="562" width="440" height="108" rx="11" fill="#fff" stroke="#00897B" stroke-width="2.6"/>
+  <circle cx="180" cy="592" r="17" fill="#00897B"/><text x="180" y="598" font-size="17" fill="#fff" text-anchor="middle" font-weight="700">4</text>
+  <text x="210" y="591" font-size="15" fill="#4A0033" font-weight="700">tree construction（樹建構）</text>
+  <text x="210" y="614" font-size="12.5" fill="#6b7280">第二台狀態機，狀態叫 insertion mode</text>
+  <text x="210" y="635" font-size="12" fill="#00897B">initial → before html → in head → in body …（共 21 種）</text>
+  <text x="210" y="656" font-size="12.5" fill="#c62828" font-weight="700">★ 在這裡才 new 出物件 —— 資料變成物件的那一刻</text>
+  <text x="610" y="597" font-size="12" fill="#004d40" font-weight="700">執行者：Blink</text>
+  <text x="610" y="617" font-size="11.5" fill="#26a69a">同一條主執行緒</text>
+  <text x="610" y="635" font-size="11.5" fill="#26a69a">會被 &lt;script&gt; 打斷</text>
+
+  <line x1="370" y1="670" x2="370" y2="702" stroke="#00897B" stroke-width="3" marker-end="url(#g)"/>
+
+  <!-- 產物 -->
+  <rect x="150" y="706" width="440" height="86" rx="11" fill="#e0f2f1" stroke="#00897B" stroke-width="3"/>
+  <text x="168" y="732" font-size="15" fill="#004d40" font-weight="700">產物：DOM 樹</text>
+  <text x="168" y="754" font-size="12.5" fill="#c62828" font-weight="700">⚠️ 它是「名詞」不是「動詞」，不是第 5 個步驟</text>
+  <text x="168" y="776" font-size="12.5" fill="#00695c">HTMLDivElement 等物件 → CSS 選得到、JS 抓得到、可掛事件</text>
+
+  <!-- 右側：為什麼要變成物件 -->
+  <rect x="614" y="706" width="266" height="86" rx="11" fill="#fff3e0" stroke="#EF6C00" stroke-width="2"/>
+  <text x="630" y="730" font-size="12.5" fill="#e65100" font-weight="700">為什麼非變成物件不可</text>
+  <text x="630" y="751" font-size="11.5" fill="#b26a00">字串沒有原型鏈，接不上</text>
+  <text x="630" y="769" font-size="11.5" fill="#b26a00">EventTarget，所以不能</text>
+  <text x="630" y="785" font-size="11.5" fill="#b26a00">addEventListener</text>
+
+  <!-- 底部三個常見誤解 -->
+  <rect x="30" y="818" width="840" height="116" rx="12" fill="#fff0f6" stroke="#C2185B" stroke-width="2"/>
+  <text x="50" y="845" font-size="14" fill="#4A0033" font-weight="700">⚠️ 三個常見誤解</text>
+  <text x="50" y="872" font-size="12.5" fill="#880e4f" font-weight="700">1.「HTML 是純文字，所以不是 bytes」</text>
+  <text x="330" y="872" font-size="12" fill="#6b7280">→ 純文字講的是內容語意，傳輸一律是 bytes（步驟 1）</text>
+  <text x="50" y="898" font-size="12.5" fill="#880e4f" font-weight="700">2.「tokenization 是 JS 的東西」</text>
+  <text x="330" y="898" font-size="12" fill="#6b7280">→ HTML／CSS／JS 各有一套，執行者是 Blink／Blink／V8（步驟 3）</text>
+  <text x="50" y="924" font-size="12.5" fill="#880e4f" font-weight="700">3.「DOM 是第 5 個步驟」</text>
+  <text x="330" y="924" font-size="12" fill="#6b7280">→ DOM 是步驟 4 的產物，是名詞不是動詞</text>
+</svg>

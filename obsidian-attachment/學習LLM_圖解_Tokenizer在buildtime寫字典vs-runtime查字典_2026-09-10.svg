@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 620" width="920" height="620" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <rect width="920" height="620" fill="#fbfbfd"/>
+  <text x="460" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#1f2937">「Tokenizer」在兩個世界指的不是同一件事</text>
+  <text x="460" y="58" text-anchor="middle" font-size="13.5" fill="#6b7280">Abby 原本的疑問：「build time 跟 runtime 的 tokenizer 會一樣嗎？第一次建檔是不是沒有把每個 lexeme 分開放？」</text>
+
+  <!-- LEFT: LLM world -->
+  <rect x="26" y="82" width="420" height="500" rx="12" fill="#eef4ff" stroke="#adccff" stroke-width="2"/>
+  <text x="48" y="110" font-size="16" font-weight="700" fill="#1d4ed8">世界一・LLM 的 Tokenizer</text>
+  <text x="48" y="132" font-size="12.5" fill="#4b5563">規則是「訓練」出來的 → build time 寫字典、runtime 查字典</text>
+
+  <rect x="48" y="148" width="376" height="66" rx="8" fill="#ffffff" stroke="#c7d2fe"/>
+  <text x="64" y="172" font-size="13.5" font-weight="700" fill="#1d4ed8">BUILD TIME</text>
+  <text x="64" y="194" font-size="13" fill="#111827">BpeTrainer 掃巨量語料庫，統計字元對共現頻率，</text>
+  <text x="64" y="210" font-size="13" fill="#111827">逐步合併最高頻的 pair，train 出一份詞表</text>
+  <polygon points="236,216 228,232 244,232" fill="#1d4ed8"/>
+  <line x1="236" y1="214" x2="236" y2="228" stroke="#1d4ed8" stroke-width="2"/>
+
+  <rect x="48" y="238" width="376" height="88" rx="8" fill="#fff9db" stroke="#f0c419" stroke-width="2"/>
+  <text x="64" y="262" font-size="13.5" font-weight="700" fill="#b45309">產物：一個檔，不是幾十億個檔</text>
+  <text x="64" y="284" font-size="13" fill="#111827" font-family="'Consolas','Courier New',monospace">vocab.json（字 → id） ＋ merges.txt（合併規則）</text>
+  <text x="64" y="304" font-size="13" fill="#111827" font-family="'Consolas','Courier New',monospace">→ 新版直接合併成 tokenizer.json</text>
+  <text x="64" y="320" font-size="12" fill="#b45309">原始語料庫仍以純文字／壓縮檔保存，lexeme 不會被拆開個別存放</text>
+  <polygon points="236,328 228,344 244,344" fill="#1d4ed8"/>
+  <line x1="236" y1="326" x2="236" y2="340" stroke="#1d4ed8" stroke-width="2"/>
+
+  <rect x="48" y="350" width="376" height="86" rx="8" fill="#ffffff" stroke="#c7d2fe"/>
+  <text x="64" y="374" font-size="13.5" font-weight="700" fill="#1d4ed8">RUNTIME</text>
+  <text x="64" y="396" font-size="13" fill="#111827">Tokenizer.from_file() 把 tokenizer.json 載進記憶體 →</text>
+  <text x="64" y="414" font-size="13" fill="#111827">encode() 把使用者字串切成 token id 陣列 →</text>
+  <text x="64" y="430" font-size="13" fill="#111827">陣列丟給模型做 embedding lookup</text>
+
+  <rect x="48" y="452" width="376" height="112" rx="8" fill="#f3f0ff" stroke="#d2b3ff"/>
+  <text x="64" y="476" font-size="13.5" font-weight="700" fill="#6d28d9">兩階段的要求完全相反</text>
+  <text x="64" y="498" font-size="13" fill="#111827">build time：耗時長、要統計與最佳化，只跑一次</text>
+  <text x="64" y="518" font-size="13" fill="#111827">runtime：要求極高速度與低延遲，只做「對照與切割」</text>
+  <text x="64" y="542" font-size="12.5" fill="#6d28d9">切割規則（演算法邏輯）一樣，執行目的不一樣</text>
+
+  <!-- RIGHT: compiler world -->
+  <rect x="474" y="82" width="420" height="500" rx="12" fill="#eefbf1" stroke="#8fd3a4" stroke-width="2"/>
+  <text x="496" y="110" font-size="16" font-weight="700" fill="#15803d">世界二・編譯器／bundler 的 Tokenizer（＝Lexer）</text>
+  <text x="496" y="132" font-size="12.5" fill="#4b5563">規則是人寫死的 → 沒有「學習」階段，從頭到尾都在套用規則</text>
+
+  <rect x="496" y="148" width="376" height="66" rx="8" fill="#ffffff" stroke="#bbe7c8"/>
+  <text x="512" y="172" font-size="13.5" font-weight="700" fill="#15803d">規則來源</text>
+  <text x="512" y="194" font-size="13" fill="#111827">語言規格（關鍵字、運算子、字面值）由人類寫進程式，</text>
+  <text x="512" y="210" font-size="13" fill="#111827">不需要語料庫，也沒有詞表要訓練</text>
+  <polygon points="684,216 676,232 692,232" fill="#15803d"/>
+  <line x1="684" y1="214" x2="684" y2="228" stroke="#15803d" stroke-width="2"/>
+
+  <rect x="496" y="238" width="376" height="88" rx="8" fill="#fff9db" stroke="#f0c419" stroke-width="2"/>
+  <text x="512" y="262" font-size="13.5" font-weight="700" fill="#b45309">BUILD TIME 的拋接關係（完整一句）</text>
+  <text x="512" y="284" font-size="12.5" fill="#111827">bundler 用 acorn（輕量 parser）把原始碼</text>
+  <text x="512" y="302" font-size="12.5" fill="#111827">tokenize 成 token stream → parse 成 AST →</text>
+  <text x="512" y="320" font-size="12.5" fill="#111827">讀出 import 的 specifier → 交給 enhanced-resolve</text>
+  <polygon points="684,328 676,344 692,344" fill="#15803d"/>
+  <line x1="684" y1="326" x2="684" y2="340" stroke="#15803d" stroke-width="2"/>
+
+  <rect x="496" y="350" width="376" height="86" rx="8" fill="#ffffff" stroke="#bbe7c8"/>
+  <text x="512" y="374" font-size="13.5" font-weight="700" fill="#15803d">RUNTIME</text>
+  <text x="512" y="396" font-size="13" fill="#111827">打包後的 JS 送到瀏覽器，V8 用自己的 lexer</text>
+  <text x="512" y="414" font-size="13" fill="#111827">「再切一次」——這就是 Abby 說的「編譯期又切開來一次」，</text>
+  <text x="512" y="430" font-size="13" fill="#111827">切的是不同階段的不同輸入，不是重複做白工</text>
+
+  <rect x="496" y="452" width="376" height="112" rx="8" fill="#ffeef2" stroke="#ff5582" stroke-width="2"/>
+  <text x="512" y="476" font-size="13.5" font-weight="700" fill="#be123c">⚠️ 容易搞混的一點</text>
+  <text x="512" y="498" font-size="13" fill="#111827">tokenizer（lexer）的產物是 token stream，不是 AST。</text>
+  <text x="512" y="518" font-size="13" fill="#111827">要再交給 parser，才 build 出 AST。</text>
+  <text x="512" y="542" font-size="12.5" fill="#be123c">Gemini 把「編譯後的 AST」列成 tokenizer 的輸出，是不精確的說法</text>
+
+  <text x="460" y="604" text-anchor="middle" font-size="13.5" font-weight="700" fill="#374151">一句話記法：LLM 的 tokenizer 在 build time「寫字典」、runtime「查字典」；編譯器的 tokenizer 沒有字典可寫，它從頭到尾都在「照規格切字」</text>
+</svg>

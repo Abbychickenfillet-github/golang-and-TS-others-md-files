@@ -137,6 +137,71 @@ HTML5 **不再依賴 [[SGML-標準通用標記語言|SGML]] / [[DTD-文件類型
 | 寫在哪 | `<html>` 上 | `<head>` 第一個 `<meta>` |
 | 沒寫會怎樣 | 無障礙/SEO/翻譯判斷變差,但字照樣顯示 | <mark style="background: #FF5582A6;">中文可能變亂碼(亂碼/mojibake)</mark> |
 
+### (a-0) ⚠️ `<meta charset="UTF-8">` 是**宣告**，不是**設定**
+
+這是最常見的誤解：**它不會把你的檔案變成 UTF-8。**
+
+| | 編碼 encoding（字元 → bytes） | 解碼 decoding（bytes → 字元） |
+|---|---|---|
+| 何時發生 | **存檔的那一刻** | **瀏覽器讀檔的那一刻** |
+| 誰決定 | 你的編輯器（VS Code 右下角那個 `UTF-8`） | `<meta charset>` ／ HTTP header |
+| `<meta charset>` 的角色 | ❌ 管不到 | ✅ 就是在講這件事 |
+
+所以 `<meta charset="UTF-8">` 的意思是：「**我這份檔案是用 UTF-8 存的，請你也用 UTF-8 來解碼。**」
+
+⚠️ 如果檔案實際存成 Big5 卻寫 `<meta charset="UTF-8">`，結果就是**亂碼** —— 宣告與事實不符。修的方法是改**存檔編碼**，不是改 meta。
+
+⚠️ 而且 **HTTP header 的 charset 優先於 meta**。伺服器送 `Content-Type: text/html; charset=big5` 時，你在 HTML 裡怎麼寫 meta 都沒用。
+
+#### Unicode 跟 ASCII 差在哪
+
+| | ASCII | Unicode |
+|---|---|---|
+| 誕生 | 1963 年 | 1991 年起 |
+| 收了多少字 | **128 個**（7 bits） | **15 萬個以上**，目標是全世界所有文字 |
+| 有中文嗎 | ❌ 沒有，連 `é` `ü` 都沒有 | ✅ 有 |
+| 它是什麼 | **既是字元集也是編碼**（128 個字剛好塞進 1 byte） | **只是字元集**，編碼要另外選 UTF-8／UTF-16／UTF-32 |
+
+**Unicode 給每個字一個編號叫 code point，寫成 `U+XXXX`。**
+
+```js
+'A'.codePointAt(0)   // 65     → U+0041
+'中'.codePointAt(0)  // 20013  → U+4E2D
+```
+
+★ **UTF-8 最聰明的設計：Unicode 的前 128 個 code point 刻意跟 ASCII 完全一樣，而且 UTF-8 對這 128 個字只用 1 byte、位元組值也跟 ASCII 相同。**
+
+```js
+new TextEncoder().encode('A')   // [65]            ← 跟 ASCII 一模一樣
+new TextEncoder().encode('中')  // [228, 184, 173] ← 3 bytes
+```
+
+所以一份**純英文**的檔案，用 ASCII 存和用 UTF-8 存，**位元組完全相同** —— 這叫**向後相容**，也是 UTF-8 打敗 UTF-16 成為網路標準的主因（舊系統不用改就能讀）。
+
+#### ⚠️ UTF-8 是「變動長度」編碼，不能用「除以 3」估字數
+
+| 字元範圍 | 佔幾 bytes | 例子 |
+|---|---|---|
+| U+0000–U+007F（ASCII） | **1** | `a` `<` `=` 數字 |
+| U+0080–U+07FF | **2** | `é` `Ω` 西里爾字母 |
+| U+0800–U+FFFF（中日韓） | **3** | `中` `あ` `한` |
+| U+10000–U+10FFFF | **4** | 😀 罕用漢字 |
+
+實測（`<div class="card"><h1>標題</h1><p>內文文字</p></div>`）：**46 個字元卻只有 58 bytes，平均 1.26 bytes/字元** —— 因為標籤都是 ASCII 只佔 1 byte，只有中文才 3 bytes。
+
+所以 `Content-Length: 1834` **不能直接除以 3**。它可能是 1834 個英文字元，也可能是 611 個中文字，實際上通常是混合。
+
+⚠️ emoji 更亂：😀 是 4 bytes 但 `.length` 是 **2**（UTF-16 代理對）；👨‍👩‍👧 是 **18 bytes、`.length` 是 8**（多個 code point 用 ZWJ 零寬連接符串起來）。
+
+#### 順帶正名：`charset` 這個屬性名其實用錯了
+
+| 術語 | 正確意思 | 例子 |
+|---|---|---|
+| **character set（字元集）** | 有哪些字，以及每個字的編號 | Unicode |
+| **character encoding（字元編碼）** | 那些編號**怎麼變成 bytes** | UTF-8、UTF-16、Big5 |
+
+`UTF-8`、`UTF-16`、`UTF-32` 都是**同一個字元集（Unicode）的不同編碼方式**。所以 `charset="UTF-8"` 嚴格講應該叫 `encoding="UTF-8"` —— 規範層級定義的也是 **character encoding**，`charset` 只是相容性保留下來的歷史名稱。面試被問到可以答這一點。
+
 ### (a) `lang="zh-TW"` 在做什麼?
 
 它是一個 <mark style="background: #ADCCFFA6;">BCP 47 語言標籤</mark>,格式是 `語言-地區`:`zh` = 中文、`TW` = 台灣 → 台灣正體中文。你能用 `zh-TW`,**單純因為這是標準裡合法的標籤,跟 charset 完全無關。**
