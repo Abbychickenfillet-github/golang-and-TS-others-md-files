@@ -5,10 +5,10 @@ source: Gemini
 tags: [gemini, javascript, array, map, array-from, at, thisArg, symbol, weakmap]
 aliases: [為什麼需要陣列, new-Array與map轉換]
 related:
-  - "[[map-轉換陣列重點與練習]]"
-  - "[[陣列遍歷-forEach與callback]]"
-  - "[[filter方法與callback定義]]"
-  - "[[Object-keys與Array-keys-稀疏陣列孔洞的差異]]"
+  - "[[03-map-轉換陣列重點與練習]]"
+  - "[[02-陣列遍歷-forEach與callback]]"
+  - "[[04-filter方法與callback定義]]"
+  - "[[08-Object-keys與Array-keys-稀疏陣列孔洞的差異]]"
   - "[[Symbol-符號型別與物件key]]"
 sources:
   - https://gemini.google.com/app/8bb318387dd5c73d
@@ -21,9 +21,9 @@ updated: 2026-09-05
 > [!info]- 🔗 與既有筆記的關聯
 > 本篇把兩串 Gemini 對話合併：一串是「陣列存在的理由」（很基礎但是面試會被問到「為什麼不用一堆變數」），一串是「new Array 到 map 到 Array.from 的一整條轉換鏈」。
 > 關聯理由如下：
-> (1) [[map-轉換陣列重點與練習]] 已有 map 的練習題，本篇補的是 map 規格層的兩個細節——第二參數 `thisArg` 與稀疏陣列跳過，兩篇互為表裡。
-> (2) [[陣列遍歷-forEach與callback]] 講 forEach，本篇第三節正好是「map 與 forEach 的目的差異」，讀完兩篇才不會混用。
-> (3) [[Object-keys與Array-keys-稀疏陣列孔洞的差異]] 講孔洞，本篇 (l) 點的「map 跳過 empty slot」是同一個底層現象的另一個切面。
+> (1) [[03-map-轉換陣列重點與練習]] 已有 map 的練習題，本篇補的是 map 規格層的兩個細節——第二參數 `thisArg` 與稀疏陣列跳過，兩篇互為表裡。
+> (2) [[02-陣列遍歷-forEach與callback]] 講 forEach，本篇第三節正好是「map 與 forEach 的目的差異」，讀完兩篇才不會混用。
+> (3) [[08-Object-keys與Array-keys-稀疏陣列孔洞的差異]] 講孔洞，本篇 (l) 點的「map 跳過 empty slot」是同一個底層現象的另一個切面。
 > (4) 最後一節的 Symbol 與 WeakMap 屬於 [[Symbol-符號型別與物件key]] 的延伸，因為對話是從「陣列與 Map 的 key 可以放什麼」延伸出去的，故收在本篇並雙向連結。
 
 > 本篇重點 a–v，共 22 個。

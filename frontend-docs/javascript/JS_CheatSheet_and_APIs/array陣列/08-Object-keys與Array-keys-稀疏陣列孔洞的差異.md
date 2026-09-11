@@ -99,10 +99,10 @@ for (const i of arr.keys()) {
 
 - [[Object靜態方法速查]] — `Object.keys` 屬於靜態方法，那篇有完整清單與同族的 `values` / `entries`。
 - [[屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys]] — 本篇是「陣列版」的兩個 keys 對照，那篇是「物件版」的四種列舉方法涵蓋範圍矩陣，合起來才完整。
-- [[every短路求值與初始長度快照-命令式重構為宣告式]] — 同樣是「陣列方法怎麼看待 length 與孔洞」的主題，那篇談 `every` 的初始長度快照。
-- [[陣列遍歷-forEach與callback]] — `forEach` 也會跳過孔洞，可與 (i) 的 `map` 陷阱一起記。
+- [[06-every短路求值與初始長度快照-命令式重構為宣告式]] — 同樣是「陣列方法怎麼看待 length 與孔洞」的主題，那篇談 `every` 的初始長度快照。
+- [[02-陣列遍歷-forEach與callback]] — `forEach` 也會跳過孔洞，可與 (i) 的 `map` 陷阱一起記。
 - [[for-in-迴圈迭代順序與特性]] — `for...in` 走的是屬性視角（跟 `Object.keys` 同陣營），`for...of` 走的是迭代器視角（跟 `arr.keys()` 同陣營），對照 (k) 的判準。
-- [[物件陣列-陣列層vs物件層存取]] — 補強「陣列本質上就是物件」這個前提。
+- [[09-物件陣列-陣列層vs物件層存取]] — 補強「陣列本質上就是物件」這個前提。
 - [[Symbol-符號型別與物件key]] — `Object.keys` 不會列出 Symbol key，是本篇 (c) 「可枚舉自有屬性」限定範圍的另一半。
 
 ## 各對話來源（原文）

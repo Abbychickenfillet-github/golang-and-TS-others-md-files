@@ -8,7 +8,7 @@ related:
   - "[[for-in-迴圈迭代順序與特性]]"
   - "[[屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys]]"
   - "[[Object靜態方法速查]]"
-  - "[[陣列遍歷-forEach與callback]]"
+  - "[[02-陣列遍歷-forEach與callback]]"
   - "[[Symbol-符號型別與物件key]]"
 sources:
   - https://gemini.google.com/app/cd826fdfe895682b
@@ -20,7 +20,7 @@ updated: 2026-09-05
 > [!info]- 🔗 與既有筆記的關聯
 > (1) [[for-in-迴圈迭代順序與特性]] 已經記過 `for...in` 的迭代特性，本篇補的是「為什麼順序長那樣」的規格層原因——OrdinaryOwnPropertyKeys 的三段式排序，兩篇合看才完整。
 > (2) [[屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys]] 講「哪個方法看得到哪些 key」，本篇講「看到的 key 會照什麼順序排」，一個是範圍、一個是順序。
-> (3) 最後一節「forEach 不能用在物件」直接連到 [[陣列遍歷-forEach與callback]]，因為錯誤訊息 `obj.forEach is not a function` 的根源就是 forEach 掛在 `Array.prototype` 上。
+> (3) 最後一節「forEach 不能用在物件」直接連到 [[02-陣列遍歷-forEach與callback]]，因為錯誤訊息 `obj.forEach is not a function` 的根源就是 forEach 掛在 `Array.prototype` 上。
 
 > 本篇重點 a–k，共 11 個。
 

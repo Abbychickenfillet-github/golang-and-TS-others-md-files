@@ -3,7 +3,7 @@ title: 編譯期 vs 執行期的三條分界線——AST 與 CSSOM、編譯與�
 type: topic-note
 source: Gemini
 category: tech
-tags: [gemini, 前端建構, ast, cssom, postcss, vite, webpack, vue, scoped-css, shadow-dom, xss, 記憶體, 面試]
+tags: [gemini, 前端建構, ast, cssom, postcss, vite, webpack, vue, scoped-css, shadow-dom, xss, 記憶體, tokenizer, lexer, bpe, llm, 面試]
 aliases: [AST-vs-CSSOM, 編譯vs打包, Scoped-CSS原理]
 related:
   - "[[00-前端建構到執行全景地圖]]"
@@ -14,7 +14,8 @@ related:
   - "[[Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪]]"
 sources:
   - https://gemini.google.com/app/d2896b718a5f3c00
-updated: 2026-09-09
+  - https://gemini.google.com/app/f947fdd39eddfb0a
+updated: 2026-09-10
 ---
 
 # 編譯期 vs 執行期的三條分界線
@@ -23,7 +24,7 @@ updated: 2026-09-09
 > <mark style="background: #ADCCFFA6;">承接</mark>：[[00-前端建構到執行全景地圖]] 把整條路畫成一張圖，這篇專門攻其中<mark style="background: #FFF3A3A6;">最容易混淆的三個交界處</mark>——每一個都是「名字很像、實際上分屬兩個世界」。
 > <mark style="background: #BBFABBA6;">延伸</mark>：Scoped CSS 的 Vue 實作細節見 [[Vue-SFC實務-styles資料夾與scoped編譯原理-lang與src屬性-CSS預處理器-JSX支援]]；瀏覽器端的 CSSOM → Render Tree 見 [[Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪]]。
 
-> 本篇重點 (a)–(p)，共 16 個。三條分界線：一、AST／CSSOM　二、編譯／打包　三、前端記憶體／後端記憶體。
+> 本篇重點 (a)–(x)，共 24 個。三條分界線：一、AST／CSSOM　二、編譯／打包（含 Tokenizer 的 build time 與 runtime）　三、前端記憶體／後端記憶體。
 
 ---
 
@@ -112,6 +113,43 @@ k. <mark style="background: #FF5582A6;">為什麼被廢棄</mark>：要瀏覽器
 
 l. <mark style="background: #BBFABBA6;">現在的替代方案分兩派</mark>：<mark style="background: #ADCCFFA6;">執行期派</mark>是 Shadow DOM（瀏覽器原生隔離）；<mark style="background: #ADCCFFA6;">編譯期派</mark>是 Vue Scoped CSS（建置階段改寫選擇器）與 CSS Modules（建置階段改寫 class 名）。<mark style="background: #FFF3A3A6;">社群主流走編譯期派，因為把成本挪到建置階段，執行期零開銷</mark>——這又回到了分界線一與分界線二。
 
+### 同一個字兩種意思：Tokenizer 在 build time 與 runtime
+
+> [!question]+ 原本的疑問
+> Build time 跟 runtime 的 tokenizer 會是一樣的嗎？<mark style="background: #FF5582A6;">建立巨量文字語料庫之後又存回一個字串檔，編譯期還要再切開來一次</mark>——所以第一次只是建檔，並沒有把每個 lexeme 分開來放齁？
+
+![[學習LLM_圖解_Tokenizer在buildtime寫字典vs-runtime查字典_2026-09-10.svg]]
+
+m. 會覺得矛盾，是因為<mark style="background: #FFF3A3A6;">「tokenizer」這個字在兩個領域指的不是同一件事</mark>，先把它們拆開看：
+
+| 比較項目 | LLM 領域的 Tokenizer | 編譯器／bundler 領域的 Tokenizer（＝Lexer，詞法分析器） |
+|---|---|---|
+| 規則從哪裡來 | <mark style="background: #ADCCFFA6;">用語料庫訓練出來</mark>（BPE、WordPiece） | <mark style="background: #ADCCFFA6;">人類把語言規格寫死在程式裡</mark>（關鍵字、運算子、字面值） |
+| build time 誰做什麼 | `BpeTrainer` 掃語料庫、統計字元對共現頻率、合併最高頻的 pair，train 出一份詞表 | `acorn` 這類 lexer 直接套用寫死的規則，把原始碼字串 tokenize 成 token stream |
+| runtime 誰做什麼 | Tokenizer 載入詞表檔，把使用者字串 encode 成 token id 陣列 | V8 用自己的 lexer 把送到瀏覽器的 JS 再切一次 |
+| 有沒有「學習」階段 | <mark style="background: #BBFABBA6;">有</mark> | <mark style="background: #FF5582A6;">沒有</mark> |
+
+n. 所以「兩邊會不會一樣」的精確答案是：<mark style="background: #BBFABBA6;">切割的演算法邏輯一樣，執行目的與吞吐要求不一樣</mark>。
+	build time 那一端耗時長、要統計與最佳化，一輩子只跑一次；runtime 那一端要求極高速度與低延遲，只做「對照與切割」。
+
+o. 回答「第一次建檔有沒有把每個 lexeme 分開放」：<mark style="background: #FF5582A6;">沒有分開放</mark>。BPE 訓練<mark style="background: #D2B3FFA6;">只在記憶體裡分開算</mark>，算完把結果收斂成一份詞表檔——`vocab.json`（字 → id）加上 `merges.txt`（合併規則），新版的 Hugging Face `tokenizers` 直接把兩者序列化成單一的 `tokenizer.json`。
+	原始語料庫本身仍然以純文字或壓縮檔保存，並不會被拆成一個 lexeme 一個檔。
+
+p. <mark style="background: #FFF3A3A6;">為什麼不拆開存</mark>：把幾十億個 lexeme 各存成一個檔，中介檔案數量與檔案系統的 inode／metadata 開銷會爆炸，讀取時的隨機 I/O 也遠慢於循序讀一個大檔。
+
+q. 完整的拋接關係（<mark style="background: #ADCCFFA6;">LLM 這條線</mark>）：<mark style="background: #BBFABBA6;">`BpeTrainer`（訓練器）用語料庫 train 出 vocab 與 merges → 序列化成 `tokenizer.json` → runtime 由 `Tokenizer.from_file()` 把它載入記憶體 → `encode()` 把使用者輸入的字串切成 token id 陣列 → 陣列交給模型做 embedding lookup</mark>。
+
+r. 完整的拋接關係（<mark style="background: #ADCCFFA6;">前端工具鏈這條線</mark>，正好對照上面的分界線二）：<mark style="background: #BBFABBA6;">bundler 用 `acorn`（輕量 parser）把原始碼 tokenize 成 token stream → parse 成 AST → 讀出 import 的 specifier → 交給 `enhanced-resolve` resolve 成實際檔路徑</mark>。
+	這裡的 tokenize 只是 parse 的第一道工序，全程沒有任何「訓練」。
+
+s. Abby 說的「編譯期又要切開來一次」<mark style="background: #BBFABBA6;">不是重複做白工</mark>：兩次切割的<mark style="background: #FFF3A3A6;">輸入不同</mark>——訓練期切的是語料庫（為了統計出規則），執行期切的是使用者當下輸入的那一串字（為了套用規則）。
+
+t. 一句話記法：<mark style="background: #FFF3A3A6;">LLM 的 tokenizer 在 build time「寫字典」、在 runtime「查字典」；編譯器的 tokenizer 沒有字典可寫，它從頭到尾都在「照規格切字」</mark>。
+
+> [!warning]+ ⚠️ 存疑／更正（針對這一段的 Gemini 回答）
+> 1. Gemini 的對照表把 <mark style="background: #FF5582A6;">「編譯後的 AST」列成 build time tokenizer 的輸出</mark>，不精確。<mark style="background: #BBFABBA6;">tokenizer（lexer）的產物是 token stream，要再交給 parser，才 build 出 AST</mark>。
+> 2. 它把「學習與產生規則」寫成 build time tokenizer 的<mark style="background: #FF5582A6;">通則</mark>，那只適用於 LLM。<mark style="background: #BBFABBA6;">編譯器與 bundler 的 build time tokenizer 是在「套用」寫死的規則，沒有學習階段</mark>——這正是上面那張表要拆開的地方。
+
 ---
 
 ## 分界線三：前端記憶體與後端記憶體——「Model」到底指哪裡
@@ -119,7 +157,7 @@ l. <mark style="background: #BBFABBA6;">現在的替代方案分兩派</mark>：
 > [!question]+ 原本的疑問
 > 「單向綁定時使用者 input 不會直接寫入 Model」——這個 Model 是指<mark style="background: #FF5582A6;">不會直接打 API，還是不會直接寫到資料表</mark>？
 
-m. <mark style="background: #FF5582A6;">都不是</mark>。這裡的 Model 指的是 <mark style="background: #FFF3A3A6;">JavaScript 記憶體裡存的資料狀態（State／變數）</mark>，跟後端 API 與資料庫<mark style="background: #FF5582A6;">完全無關</mark>。前端 MVVM／MVC 的分層是：
+u. <mark style="background: #FF5582A6;">都不是</mark>。這裡的 Model 指的是 <mark style="background: #FFF3A3A6;">JavaScript 記憶體裡存的資料狀態（State／變數）</mark>，跟後端 API 與資料庫<mark style="background: #FF5582A6;">完全無關</mark>。前端 MVVM／MVC 的分層是：
 
 | 層 | 是什麼 |
 |---|---|
@@ -127,7 +165,7 @@ m. <mark style="background: #FF5582A6;">都不是</mark>。這裡的 Model 指�
 | Model | 前端 JS 記憶體裡的變數（React 的 `useState`、Vue 的 `ref`、或普通 JS 物件） |
 | API／資料庫 | 後端伺服器與資料儲存層，是<mark style="background: #FF5582A6;">完全另外一回事</mark> |
 
-n. 所以<mark style="background: #ADCCFFA6;">單向綁定（Unidirectional Data Binding）</mark>的精確意思是：<mark style="background: #FFF3A3A6;">View 的變動不會自動同步回 JS 的 Model 變數</mark>。使用者在輸入框打字時，畫面上會顯示（那是瀏覽器的原生行為），但變數<mark style="background: #FF5582A6;">完全沒變</mark>。
+v. 所以<mark style="background: #ADCCFFA6;">單向綁定（Unidirectional Data Binding）</mark>的精確意思是：<mark style="background: #FFF3A3A6;">View 的變動不會自動同步回 JS 的 Model 變數</mark>。使用者在輸入框打字時，畫面上會顯示（那是瀏覽器的原生行為），但變數<mark style="background: #FF5582A6;">完全沒變</mark>。
 
 ```jsx
 const [name, setName] = useState('Abby');
@@ -139,7 +177,7 @@ const [name, setName] = useState('Abby');
 <input value={name} onChange={(e) => setName(e.target.value)} />
 ```
 
-o. 前端記憶體與後端記憶體<mark style="background: #FF5582A6;">在邏輯上獨立、在實體上也完全隔絕</mark>：
+w. 前端記憶體與後端記憶體<mark style="background: #FF5582A6;">在邏輯上獨立、在實體上也完全隔絕</mark>：
 
 | 特性 | 前端記憶體（Client-side） | 後端記憶體（Server-side） |
 |---|---|---|
@@ -148,7 +186,7 @@ o. 前端記憶體與後端記憶體<mark style="background: #FF5582A6;">在邏�
 | 生命週期 | 非常短命：重新整理或關閉分頁就<mark style="background: #FF5582A6;">立刻清空</mark> | 長期運行：伺服器沒重啟就一直保留 |
 | 隔離性 | 每個使用者獨享，互不干擾 | <mark style="background: #FFB8EBA6;">所有使用者共享同一個進程</mark> |
 
-p. 兩塊記憶體<mark style="background: #FF5582A6;">無法直接存取對方的變數</mark>，唯一通道是網路：
+x. 兩塊記憶體<mark style="background: #FF5582A6;">無法直接存取對方的變數</mark>，唯一通道是網路：
 
 ```text
 [1. 前端記憶體 Browser RAM]  使用者打字，name 從 "Abby" 變成 "Alex"
@@ -208,6 +246,8 @@ new google.maps.marker.AdvancedMarkerElement({
 | 726. Number of Atoms | https://leetcode.com/problems/number-of-atoms/ | 手刻一個小型 parser 把字串解析成樹狀結構，體會 AST 是怎麼長出來的 |
 | 736. Parse Lisp Expression | https://leetcode.com/problems/parse-lisp-expression/ | 遞迴下降解析＋作用域（scope）處理，跟編譯器前端做的事同一套 |
 | 1106. Parsing A Boolean Expression | https://leetcode.com/problems/parsing-a-boolean-expression/ | 較好入門的表達式解析，練「文字 → 樹 → 求值」 |
+| 8. String to Integer (atoi) | https://leetcode.com/problems/string-to-integer-atoi/ | 最小的一支 lexer：逐字元掃描、跳空白、辨號誌與數字，就是 tokenize 的雛形（對應 (m)–(t)） |
+| 68. Text Justification | https://leetcode.com/problems/text-justification/ | 把長字串切成一段一段再重組，體會「切割規則寫死」與「切割結果怎麼用」是兩件事 |
 | NeetCode 練習總表 | https://neetcode.io/practice | 依主題與難度排好的題單 |
 
 ---
@@ -229,6 +269,14 @@ new google.maps.marker.AdvancedMarkerElement({
 > **使用者：** 舉例程式碼
 > **Gemini：**（跳題）以 Google Maps API 新舊寫法示範 `innerHTML` 字串拼接的 XSS 風險與 `textContent` ＋ `AdvancedMarkerElement` 的安全做法，並補充 Shadow DOM 隔離。
 
+### Build Time 與 Runtime Tokenizer 差異解析（2026-09）— https://gemini.google.com/app/f947fdd39eddfb0a
+
+> [!quote]- 展開對話脈絡
+> **使用者：** Build time 跟 runtime 的 tokenizer 會是一樣的嗎？就是一個建立巨量文字語料庫，然後又變回一個檔案像是字串 string，然後在編譯期間又要切開來一次。所以第一次只是建檔，但是沒有把他們每個 lexeme 分開來放齁？
+> **Gemini：** 不一定完全一樣，取決於應用場景（編譯器／LLM 訓練，還是程式碼建置系統），但通常演算法邏輯是一樣的，只是執行目的與處理方式不同。（1）第一次「建檔」沒有分開放——Tokenizer 掃描龐大文本、計算字詞頻率與共現機率（例如 BPE），算出一份詞表，儲存成單一檔案（`tokenizer.json` 或 `vocab.json`），不會把每個 lexeme 個別獨立存放，否則中介檔案與檔案系統開銷極大。（2）Build Time 負責「訓練」出字典檔，耗時長、需要統計與最佳化；Runtime 負責「高效率載入與即時切割」，要求極高速度與低延遲。
+>
+> ⚠️ 這一則有兩處要更正，已寫在上面 (m)–(t) 那段的存疑／更正 callout。
+
 ---
 
 ## 資料來源（含查證時間）
@@ -244,7 +292,12 @@ new google.maps.marker.AdvancedMarkerElement({
 | `textContent` 不會執行 HTML（XSS 防禦） | https://developer.mozilla.org/en-US/docs/Web/API/Node/textContent | MDN；查證於 2026-09-09 |
 | Google Maps AdvancedMarkerElement（傳 DOM 節點） | https://developers.google.com/maps/documentation/javascript/advanced-markers/overview | 查證於 2026-09-09 |
 | React 官方：Reusing Logic with Custom Hooks | https://react.dev/learn/reusing-logic-with-custom-hooks | 查證於 2026-09-09 |
+| Gemini 對話：Build Time 與 Runtime Tokenizer 差異解析 | https://gemini.google.com/app/f947fdd39eddfb0a | 對話擷取於 2026-09-10 |
+| Hugging Face Tokenizers：BPE 模型載入 `vocab.json` 與 `merges.txt` | https://huggingface.co/docs/tokenizers/main/en/api/models | 官方文件；查證於 2026-09-10 |
+| Hugging Face NLP Course：Byte-Pair Encoding 訓練與合併規則 | https://huggingface.co/docs/course/en/chapter6/5 | 官方課程；查證於 2026-09-10 |
+| Hugging Face Tokenizers Quicktour：`save()` 成 `tokenizer.json`、`from_file()` 載回 | https://huggingface.co/docs/tokenizers/python/latest/quicktour.html | 官方文件；查證於 2026-09-10 |
+| acorn（輕量 JS parser，內含 tokenizer，bundler 依賴它） | https://github.com/acornjs/acorn | GitHub；查證於 2026-09-10 |
 
 ---
 
-<sub>由 Gemini 對話自動整理 · 更新於 2026-09-09</sub>
+<sub>由 Gemini 對話自動整理 · 更新於 2026-09-10</sub>

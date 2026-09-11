@@ -57,9 +57,9 @@ const product = digits.reduce((acc, d) => acc * Number(d), 1); // 24
 
 ## 相關筆記
 
-- [[filter方法與callback定義]]（同樣在回答「callback 到底是什麼」；該篇從 MDN 定義、記憶體位址傳遞與閉包切入，本篇補上「匿名函式也算 callback」以及 reduce 特有的累加器參數，兩篇合看可完整理解 callback 在不同陣列方法中的角色）
-- [[陣列遍歷-forEach與callback]]（forEach 的 callback 不回傳值、只做副作用；reduce 的 callback 一定要 return 才能把累加器接力下去，正好是對照組）
-- [[map-轉換陣列重點與練習]]（map 是一對一轉換、長度不變；reduce 是多對一收斂、可輸出任意型別，兩者常串在同一條資料處理管線上）
+- [[04-filter方法與callback定義]]（同樣在回答「callback 到底是什麼」；該篇從 MDN 定義、記憶體位址傳遞與閉包切入，本篇補上「匿名函式也算 callback」以及 reduce 特有的累加器參數，兩篇合看可完整理解 callback 在不同陣列方法中的角色）
+- [[02-陣列遍歷-forEach與callback]]（forEach 的 callback 不回傳值、只做副作用；reduce 的 callback 一定要 return 才能把累加器接力下去，正好是對照組）
+- [[03-map-轉換陣列重點與練習]]（map 是一對一轉換、長度不變；reduce 是多對一收斂、可輸出任意型別，兩者常串在同一條資料處理管線上）
 - [[JavaScript-字串方法]]（`split()` 屬於字串方法，本篇只討論它與 reduce 搭配的部分，完整字串 API 看該篇）
 
 ## 各對話來源

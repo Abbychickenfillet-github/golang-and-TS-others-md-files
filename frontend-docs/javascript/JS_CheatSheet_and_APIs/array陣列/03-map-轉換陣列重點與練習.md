@@ -5,7 +5,7 @@ title: "map-轉換陣列重點與練習"
 # map：把陣列轉換成新陣列（重點 + 練習）
 
 > 來源練習：`JavaScript-practicing/while-loop.html`
-> 相關：[[陣列遍歷-forEach與callback]]、[[for...in]]、[[常見錯誤-括號引號沒收尾]]
+> 相關：[[02-陣列遍歷-forEach與callback]]、[[for...in]]、[[常見錯誤-括號引號沒收尾]]
 > MDN：<https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Array/map>
 
 > [!important] 🔑 全篇最重點
@@ -88,7 +88,7 @@ let tripled = numbers.map(n => n * 3)
 console.log(tripled)  // [12,15,27,30,33]
 console.log(numbers)  // [4,5,9,10,11] 不變 ✅
 ```
-詳見 [[陣列遍歷-forEach與callback]] 的「副作用 side effect」段。
+詳見 [[02-陣列遍歷-forEach與callback]] 的「副作用 side effect」段。
 
 ---
 

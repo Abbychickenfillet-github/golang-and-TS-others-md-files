@@ -11,7 +11,7 @@ updated: 2026-07-29
 > <mark style="background: #ADCCFFA6;">承接</mark>：[[05-作用域-scope-global-function-block]]決定「看不看得到」，這篇的靜態型別檢查決定「型別對不對」，兩者都在程式**還沒執行**前就確定——這篇是編譯期這一群（01–06）的收尾。
 > <mark style="background: #BBFABBA6;">下一步</mark>：編譯期講完了，下一篇[[07-identifier-vs-property-var全域變數]]開始進入**執行期**，從`var`全域變數的具體例子切入。
 
-> 相關：[[陣列遍歷-forEach與callback]]（TypeError vs SyntaxError）、[[原生函式與js引擎-v8]]、[[常見錯誤-括號引號沒收尾]]
+> 相關：[[02-陣列遍歷-forEach與callback]]（TypeError vs SyntaxError）、[[原生函式與js引擎-v8]]、[[常見錯誤-括號引號沒收尾]]
 
 ---
 

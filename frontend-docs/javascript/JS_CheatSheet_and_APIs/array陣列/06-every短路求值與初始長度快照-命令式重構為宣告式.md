@@ -13,7 +13,7 @@ updated: 2026-08-25
 
 > [!info] 本篇重點 a–n，共 14 個
 > 兩場 Gemini 對話合併：一場問「箭頭函式檢查小於 40」與「every 不會存取超出初始長度的元素」，一場問 `!isValid(request)` 這種否定判斷為什麼講者建議改寫成 `every`。
-> 關聯筆記：<mark style="background: #ADCCFFA6;">[[filter方法與callback定義]]</mark> 講的是同一族 callback 三參數簽名 `(value, index, array)`，這篇把重心放在「短路」與「長度快照」這兩個 filter 沒有的行為；<mark style="background: #ADCCFFA6;">[[高階函式與函數式範式-取代OOP三大設計模式]]</mark> 講為什麼宣告式寫法能取代樣板程式碼，這篇是它在 `every` 上的一個具體案例。
+> 關聯筆記：<mark style="background: #ADCCFFA6;">[[04-filter方法與callback定義]]</mark> 講的是同一族 callback 三參數簽名 `(value, index, array)`，這篇把重心放在「短路」與「長度快照」這兩個 filter 沒有的行為；<mark style="background: #ADCCFFA6;">[[高階函式與函數式範式-取代OOP三大設計模式]]</mark> 講為什麼宣告式寫法能取代樣板程式碼，這篇是它在 `every` 上的一個具體案例。
 
 ---
 

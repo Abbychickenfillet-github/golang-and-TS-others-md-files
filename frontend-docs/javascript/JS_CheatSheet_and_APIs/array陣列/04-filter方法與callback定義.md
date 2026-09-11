@@ -30,7 +30,7 @@ updated: 2026-07-23
 
 ## 相關筆記
 - [[閉包vs參數鑽透-argument-drilling]]（同樣講閉包如何「記住」外層變數；該篇用工廠函式示範封裝折扣資料，本篇則從 filter callback 的記憶體位址/閉包角度補充「為什麼能記住」）
-- [[陣列遍歷-forEach與callback]]（同為陣列方法 + callback 的組合；forEach 的 callback 用於「副作用」，filter 的 callback 用於「回傳布林值決定去留」，兩者可對照理解 callback 在不同陣列方法中角色如何不同）
+- [[02-陣列遍歷-forEach與callback]]（同為陣列方法 + callback 的組合；forEach 的 callback 用於「副作用」，filter 的 callback 用於「回傳布林值決定去留」，兩者可對照理解 callback 在不同陣列方法中角色如何不同）
 
 ## 各對話來源
 

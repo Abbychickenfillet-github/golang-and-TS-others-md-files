@@ -5,7 +5,7 @@ title: "for...of"
 # JavaScript `for...of` 迴圈
 
 > 路徑：frontend-docs / javascript / 物件 / 迴圈遍歷 / for...of
-> 相關：[[for...in]]、[[陣列遍歷-forEach與callback]]、[[iife-是否算原生function]]
+> 相關：[[for...in]]、[[02-陣列遍歷-forEach與callback]]、[[iife-是否算原生function]]
 > MDN：<https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Statements/for...of>
 
 ## 一句話

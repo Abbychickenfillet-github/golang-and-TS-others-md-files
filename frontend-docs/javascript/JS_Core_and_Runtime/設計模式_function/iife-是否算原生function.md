@@ -5,7 +5,7 @@ title: "iife-是否算原生function"
 # IIFE 算原生 function 嗎？
 
 > 路徑：frontend-docs / javascript / 設計模式 function / iife-是否算原生function
-> 相關：[[原生函式與js引擎-v8]]、[[陣列遍歷-forEach與callback]]
+> 相關：[[原生函式與js引擎-v8]]、[[02-陣列遍歷-forEach與callback]]
 > 一句話結論：**不算。** IIFE 不是「引擎內建的原生函式」，而是一種「立即執行」的**設計模式**——你自己定義一個函式，然後馬上呼叫它。它用的是原生語法，但本身不是原生函式。
 
 ---
@@ -250,4 +250,4 @@ counter.inc();  // 2   ← 方法被呼叫多次，但外層 IIFE 沒有再執�
 
 ## 相關筆記
 - [[原生函式與js引擎-v8]]（什麼是真正的「原生內建」函式、跟 V8 的關係）
-- [[陣列遍歷-forEach與callback]]（callback 也是「函式當值傳入」的應用）
+- [[02-陣列遍歷-forEach與callback]]（callback 也是「函式當值傳入」的應用）
