@@ -3972,6 +3972,26 @@
     "q": "用 textContent 賦值時，字串裡的 <img onerror=...> 會被瀏覽器執行。",
     "a": false,
     "why": "textContent 會強制轉義成純文字，這正是它比 innerHTML 安全的地方。"
+   },
+   {
+    "q": "LLM 的 tokenizer 在 build time 訓練完之後，會把語料庫裡每一個 lexeme 拆成獨立檔案存放。",
+    "a": false,
+    "why": "只在記憶體裡分開算，算完收斂成一份詞表檔（vocab.json ＋ merges.txt，或單一 tokenizer.json）。拆成幾十億個檔會讓 inode 與隨機 I/O 開銷爆炸。"
+   },
+   {
+    "q": "編譯器與 bundler 的 tokenizer（lexer）也需要先用語料庫訓練，才知道怎麼切。",
+    "a": false,
+    "why": "它的規則是人類把語言規格（關鍵字、運算子、字面值）寫死在程式裡，沒有學習階段，從頭到尾都在套用規則。"
+   },
+   {
+    "q": "tokenizer（lexer）跑完之後直接就得到 AST。",
+    "a": false,
+    "why": "lexer 的產物是 token stream，要再交給 parser 才 build 出 AST。Gemini 把 AST 列成 tokenizer 的輸出是不精確的。"
+   },
+   {
+    "q": "LLM 的 build time tokenizer 與 runtime tokenizer，切割的演算法邏輯是同一套。",
+    "a": true,
+    "why": "規則同一套，差別在目的與吞吐要求：build time 耗時長只跑一次，runtime 要求低延遲、只做對照與切割。"
    }
   ],
   "cloze": [
@@ -4009,6 +4029,26 @@
     "q": "單向綁定的精確定義是：____ 的變動不會自動同步回 JS 的 Model 變數。",
     "a": "View",
     "why": "所以 React 必須顯式寫 onChange 去 setState。"
+   },
+   {
+    "q": "BPE 訓練完存出來的兩個檔案是 ____.json（字 → id 的詞表）與 merges.txt（合併規則），新版直接合併成單一 tokenizer.json。",
+    "a": "vocab",
+    "why": "Hugging Face tokenizers 的 BPE 模型就是從這兩個檔載入的。"
+   },
+   {
+    "q": "編譯器領域的 tokenizer 又叫 ____（詞法分析器），它的產物是 token stream，不是 AST。",
+    "a": "lexer",
+    "why": "Lexer 只負責切字，建樹是 parser 的事。"
+   },
+   {
+    "q": "完整拋接：bundler 用 acorn 把原始碼 ____ 成 token stream → parse 成 AST → 讀出 import 的 specifier → 交給 enhanced-resolve。",
+    "a": "tokenize",
+    "why": "tokenize 只是 parse 的第一道工序。"
+   },
+   {
+    "q": "一句話記法：LLM 的 tokenizer 在 build time「寫字典」、在 runtime「____」。",
+    "a": "查字典",
+    "why": "runtime 只是載入詞表、對照切割，不再訓練。"
    }
   ],
   "essay": [
@@ -4023,6 +4063,14 @@
    {
     "q": "用「修改使用者名字」這個情境，說明資料從前端記憶體一路到資料庫的完整流程，並指出最常見的觀念誤區。",
     "a": "參考方向：(1) 前端記憶體：使用者在 input 打字，透過 onChange 呼叫 setName，name 從 'Abby' 變成 'Alex'。注意如果只綁 value 不寫 onChange，變數根本不會變（單向綁定）。(2) 網路傳輸：按下儲存按鈕，前端 JSON.stringify 後發 HTTP POST /api/user。(3) 後端記憶體：Node.js／FastAPI／Go 進程收到 request，解析成 req.body.name 這個伺服器記憶體裡的變數。(4) 永久儲存：後端執行 UPDATE users SET name = 'Alex' 寫入硬碟上的資料庫。(5) 最常見誤區：以為 setState 就等於存好了。前端記憶體非常短命，重新整理就清空；沒有發 API 的話，後端與資料庫根本不知道這件事發生過。(6) 可補充兩塊記憶體的隔離性差異：前端每個使用者獨享，後端所有使用者共享同一進程。"
+   },
+   {
+    "q": "面試官問：「build time 的 tokenizer 跟 runtime 的 tokenizer 是同一個嗎？」請完整回答。",
+    "a": "參考方向：(1) 先反問／先分清「tokenizer」在哪個領域——LLM 的 tokenizer 與編譯器的 lexer 是兩件事。(2) LLM 這條線：build time 由 BpeTrainer 掃語料庫、統計字元對共現頻率、逐步合併最高頻 pair，train 出 vocab 與 merges，序列化成 tokenizer.json；runtime 由 Tokenizer.from_file() 載入，encode() 把使用者字串切成 token id 陣列，交給模型做 embedding lookup。(3) 編譯器／bundler 這條線：規則由人寫死，build time 就是在套用規則——bundler 用 acorn 把原始碼 tokenize 成 token stream → parse 成 AST → 讀出 import 的 specifier → 交給 enhanced-resolve。(4) 所以答案是：切割的演算法邏輯一樣，執行目的與吞吐要求不一樣；build time 耗時長只跑一次，runtime 要求低延遲。(5) 補一句常見誤解的更正：lexer 的產物是 token stream，AST 是 parser 的產物。"
+   },
+   {
+    "q": "為什麼建立語料庫時不把每個 lexeme 拆開個別存成檔案？請從檔案系統與 I/O 角度說明。",
+    "a": "參考方向：(1) 訓練時確實會在記憶體裡把 lexeme 分開統計，但那是計算過程，不是儲存格式。(2) 產物只需要「規則」——詞表與合併規則，體積遠小於語料庫本身。(3) 若真的一個 lexeme 一個檔，幾十億個小檔會撐爆檔案系統的 inode 與 metadata，每個檔還有 block 對齊造成的空間浪費。(4) 讀取時變成大量隨機 I/O，遠慢於循序讀一個大檔，訓練與載入都會被拖垮。(5) 所以原始語料庫維持純文字或壓縮檔，詞表另存成 tokenizer.json。"
    }
   ]
  },
@@ -4099,6 +4147,172 @@
    {
     "q": "一位朋友說「我在 Android 平板上找不到 Möbius Sync 的付費選項」，請說明他的觀念哪裡錯了，並給出正確做法。",
     "a": "參考方向：(1) 觀念錯誤：Möbius Sync 是 iOS／iPadOS 專屬的客戶端，Android 上根本沒有這個 App，所以找不到是正常的。(2) 為什麼 iOS 才需要它：Apple 的沙盒機制不允許 App 隨意讀寫其他 App 的資料夾，所以要有專門開發的客戶端，並用一次性內購解鎖「存取其他 App 沙盒」的能力。(3) Android 的正確做法：直接從 Google Play 安裝 Syncthing-Fork，免費、開源、沒有任何容量限制。(4) 順帶提醒：不要跟 Sync.com 搞混，那是另一家賣雲端空間的廠商。(5) 若對方確實是在 iOS 上找不到付費按鈕：那是因為解鎖流程要「觸發限制」才會跳出，可以試著 Add Folder 選一個外部資料夾，或直接下載獨立的 Möbius Sync Pro。"
+   }
+  ]
+ },
+ "Obsidian-語音筆記與GoogleDocs銜接限制.md": {
+  "tf": [
+   {
+    "q": "Obsidian Local REST API 外掛開的服務是走純 HTTP，沒有加密也沒有驗證。",
+    "a": false,
+    "why": "它走 HTTPS（本機自簽 2048-bit RSA／SHA-256 憑證），而且要帶 API Key 才能呼叫。"
+   },
+   {
+    "q": "把 Obsidian Vault 丟進 Google Drive 同步資料夾，Google Docs 文件就會變成可編輯的 Markdown。",
+    "a": false,
+    "why": "同步下來只會是一個極小的 .gdoc 快捷連結（本質是 JSON 連結），沒有實際內容。"
+   },
+   {
+    "q": "函式執行 return 之後，回傳出去的物件會馬上被垃圾回收。",
+    "a": false,
+    "why": "只要外部有變數接住它，引用就不會歸零，物件會繼續活在 Heap 裡。"
+   },
+   {
+    "q": "Codex 的免費層可以使用全部的雲端功能。",
+    "a": false,
+    "why": "2026-09 查證：免費層只有本機端的編碼任務，拿不到雲端功能，而且有每日請求上限。"
+   },
+   {
+    "q": "Obsidian 內建的錄音功能可以做到像 GoodNotes 那樣「點某一行字就跳到當時錄音時間點」。",
+    "a": false,
+    "why": "內建錄音只是把音訊檔嵌進筆記，沒有書寫進度同步回放。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Obsidian 的 ____ ____ ____ 外掛會在本機開一個 HTTP 服務，讓外部程式用 REST 直接讀寫 Vault（英文三個字）。",
+    "a": "Local REST API",
+    "why": "它同時也是一台 MCP 伺服器。"
+   },
+   {
+    "q": "var 是函式作用域且會提升成 undefined；let 與 const 是 ____ 作用域，宣告前存取會落在 TDZ 而直接報錯。",
+    "a": "塊級",
+    "why": "Block Scope，只在 {} 內有效。"
+   },
+   {
+    "q": "閉包被長期掛在全域物件、setInterval 或沒移除的 ____ 上，它引用的外部變數就永遠無法被回收。",
+    "a": "EventListener",
+    "why": "解法是手動解除引用：設為 null 或清掉計時器與監聽器。"
+   },
+   {
+    "q": "基本型別放在 Stack，引用型別（Object、Array、Function）放在 ____，靠垃圾回收機制定期清理。",
+    "a": "Heap",
+    "why": "Heap 空間大但結構複雜。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "用你自己的話說明：為什麼「把 AI 對話落地成本地 Markdown」對 Obsidian 使用者特別重要？請至少提出兩種做法並比較它們的成本與風險。",
+    "a": "參考方向：(1) 本地 .md 才吃得到 wikilink 與關聯圖，雲端文件沒有雙向連結，知識就無法累積成網。(2) 手動複製 Markdown 原始碼：零設定、格式完全可控，但每次都要人工。(3) Local REST API 外掛：一次設定之後可自動化，走 HTTPS 加 API Key，但等於在本機開了一個服務，金鑰外洩就有人能改你的 Vault，且要自己接 webhook 或用支援 MCP 的客戶端。(4) Make／Zapier：門檻低但格式轉換不穩，理由跟 Google Docs 轉 Markdown 會跑掉一樣。"
+   }
+  ]
+ },
+ "遊戲引擎-Unity-UE/Unity角色翻滾插件與Unreal引擎比較.md": {
+  "tf": [
+   {
+    "q": "UE 是 Unreal Engine（虛幻引擎）的縮寫，由 Epic Games 開發。",
+    "a": true,
+    "why": "跟 Unity 並列全球兩大主流 3D 遊戲引擎。"
+   },
+   {
+    "q": "Unreal Engine 只能用 C++ 開發，完全不寫程式碼就做不出互動場景。",
+    "a": false,
+    "why": "Blueprints 視覺化腳本可以讓非程式背景的人拉出可玩的場景。"
+   },
+   {
+    "q": "Ragdoll（布娃娃系統）播放的是事先錄好的翻滾動畫。",
+    "a": false,
+    "why": "Ragdoll 把骨架交給物理引擎即時計算，所以每次摔倒姿勢都不一樣。"
+   },
+   {
+    "q": "多數 UE5 團隊是 C++ 與 Blueprints 混用，而不是二選一。",
+    "a": true,
+    "why": "效能吃緊的系統用 C++，遊戲邏輯與快速原型用 Blueprints。"
+   },
+   {
+    "q": "2026 年的產業比較顯示 Unity 在「開發者主要引擎」這個指標上仍領先 Unreal。",
+    "a": false,
+    "why": "多份 2026 比較指出 Unreal 約 42%、Unity 約 30%；Unity 的優勢集中在手遊與獨立遊戲市場。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "把角色的每個動作當成一個狀態、再定義切換條件的那張圖，叫做動畫 ____ ____（中文四個字）。",
+    "a": "狀態機",
+    "why": "State Machine，翻滾要靠它判斷現在該播前滾翻還是空翻。"
+   },
+   {
+    "q": "Unity 的主要程式語言是 ____，Unreal Engine 的主要程式語言是 ____。",
+    "a": "C# / C++",
+    "why": "UE 另外還有 Blueprints 視覺化腳本。"
+   },
+   {
+    "q": "想做「被撞飛之後自然倒下」這種不可預期的姿態，要用物理型插件 ____，它基於 Ragdoll 與物理模擬。",
+    "a": "PuppetMaster",
+    "why": "狀態機型插件處理主動作，物理型插件處理受擊反應。"
+   },
+   {
+    "q": "C++ 直接編譯成機器碼；C# 先編譯成中介語言 IL，再由執行環境用 ____ 在執行時轉成機器碼。",
+    "a": "JIT",
+    "why": "Just-In-Time 即時編譯，跟 V8 對 JavaScript 做的事是同一組概念。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請說明：讓遊戲角色「翻滾」這件事，拆開來實際上是哪兩件事在負責？並說明什麼情況下你會選狀態機型插件、什麼情況下要加上物理型插件。",
+    "a": "參考方向：(1) 動畫狀態機負責『什麼時候從跑步切成翻滾』，它要知道角色目前的狀態與觸發條件。(2) 物理模擬（Ragdoll）負責『翻得像不像真的』，處理碰撞與重量感。(3) 可預期的主動作（按閃避鍵）用 Invector 這類狀態機型插件就夠。(4) 不可預期的受擊反應（被打飛、失控翻滾）才需要 PuppetMaster 這種物理型插件。(5) 實務上兩者並存，不是二選一。"
+   }
+  ]
+ },
+ "CLI/找回舊影片與檔案-Windows-AQS搜尋語法與YouTube後台篩選.md": {
+  "tf": [
+   {
+    "q": "設為「不公開（Unlisted）」的 YouTube 影片，用前台搜尋框還是找得到。",
+    "a": false,
+    "why": "前台絕對搜不到，必須進 YouTube Studio 後台的「你的影片」才看得見。"
+   },
+   {
+    "q": "AQS 支援正規表示式，可以用 .* 做模式比對。",
+    "a": false,
+    "why": "AQS 只有欄位加比較運算子，要做真正的模式比對得走 PowerShell。"
+   },
+   {
+    "q": "Everything 之所以快，是因為它直接讀 NTFS 的主檔案表（MFT），不必等索引建好。",
+    "a": true,
+    "why": "代價是它預設只搜檔名、不搜內容。"
+   },
+   {
+    "q": "找不到自己錄的影片時，用「內容關鍵字」比用「檔案大小」更可靠。",
+    "a": false,
+    "why": "當年隨手取的檔名通常跟內容對不上，客觀屬性（大小、日期、型別）才可靠。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "AQS 的全名是 Advanced ____ Syntax，是 Windows 檔案總管與 Windows Search 共用的查詢語言。",
+    "a": "Query",
+    "why": "進階查詢語法。"
+   },
+   {
+    "q": "只列出系統判定為影片的檔案，AQS 要寫成 kind:____video（含精確比對符號）。",
+    "a": "=",
+    "why": "= 是精確比對，kind:=video 比 kind:movie 明確。"
+   },
+   {
+    "q": "要篩出大於 100MB 的檔案，跨語系最保險的寫法是 ____:>100MB。",
+    "a": "size",
+    "why": "中文版 Windows 雖然接受部分中文欄位名，但英文欄位名才通用。"
+   },
+   {
+    "q": "螢幕錄影檔常常不在「影片」資料夾，而是躺在錄影軟體的 ____ 儲存路徑底下。",
+    "a": "預設",
+    "why": "OBS、Zoom、QuickTime 各有各的預設資料夾。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "如果你完全記不得檔名，只記得「大概是今年上半年錄的、內容是程式教學」，請設計一套從本地到雲端的搜尋順序，並說明每一步為什麼放在那個位置。",
+    "a": "參考方向：(1) 先本地後雲端，因為本地查詢成本低且不需要網路。(2) 本地第一步用 kind:=video 加 datemodified 區間縮小母體，第二步再加 size:>100MB 把短檔濾掉。(3) 第三步去錄影軟體的預設路徑翻，因為那是最常見的漏網位置。(4) 本地失敗才進 YouTube Studio 後台，因為前台搜不到不公開影片。(5) 後台先勾瀏覽權限與日期，再用縮圖肉眼掃，因為縮圖比標題可靠。(6) 最後回筆記庫搜主題關鍵字，筆記本身就是最後一道索引。"
    }
   ]
  }

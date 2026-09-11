@@ -10,7 +10,7 @@ updated: 2026-08-08
 
 # ReferenceError 與 undefined—「值」與「錯誤」的分界
 
-> 🔖 本篇重點索引：a–k，共 11 個。
+> 🔖 本篇重點索引：a–l，共 12 個。
 
 ---
 
@@ -184,6 +184,33 @@ console.log("b", b());   // 印出 b undefined
 > console.log("b", b()); // b benq
 > ```
 > 這跟 [[05-作用域-scope-global-function-block]] 考點四的 `noSideEffectCanIAccess` 例子是同一個道理：函式內部宣告的變數要「被外部拿到」，唯一合法通道就是 `return`，沒寫 `return` 不是「值不見了」，是「這次呼叫的求值結果從一開始就是 `undefined`」，跟 ReferenceError（identifier 找不到）是完全不同的兩件事，不要混為一談。
+
+**(l)** <mark style="background: #ADCCFFA6;">存取變數的「所有排列組合」速查表</mark>（Abby 追問：先 `console.log` 再宣告，各種組合的結果）：
+
+| 情境 | 程式碼 | 結果 |
+|---|---|---|
+| 完全沒宣告 | `console.log(x)` | `ReferenceError: x is not defined` |
+| var 先用、後宣告（沒賦值） | `console.log(a); var a;` | `undefined` |
+| var 先用、後宣告（有賦值） | `console.log(a); var a=5;` | `undefined`（宣告提升、賦值還沒執行到） |
+| let/const 先用、後宣告（TDZ） | `console.log(b); let b;` | `ReferenceError: Cannot access 'b' before initialization` |
+| let 宣告了沒賦值、之後才讀 | `let b; console.log(b);` | `undefined`（已過 TDZ） |
+| const 沒賦值 | `const c;` | `SyntaxError: Missing initializer`（Parse 期就擋，**整段都不執行**） |
+| 讀物件不存在的屬性 | `console.log({}.foo)` | `undefined`（不報錯） |
+| 讀 window 上不存在的 | `console.log(window.xyz)` | `undefined`（屬性存取，不報錯） |
+
+三個記憶點：
+
+- <mark style="background: #FFF3A3A6;">**沒有任何情境會自動 log 出 `null`**</mark>——引擎從不自動給 `null`，`null` 只有你手動 `= null` 才出現（見 [[null與undefined的差異]]）。所以「var 提升」拿到的是 `undefined`，**不是 `null`**。
+- <mark style="background: #FF5582A6;">`const` 沒賦值是 `SyntaxError`（Parse 期就擋、整段不跑）</mark>，跟 `ReferenceError`（執行期、前面的 `console.log` 照印）是不同時間點的錯——對照本篇時間軸圖第 ③ 格 vs 第 ⑤ 格。
+- 讀「**屬性**」（`obj.foo`、`window.xyz`）永遠是 `undefined`；讀「**識別碼**」（裸寫 `foo`）才可能 `ReferenceError`——底層兩條路，見 [[07-identifier-vs-property-var全域變數]]。
+
+> ⚠️ **REPL（瀏覽器 console）分行執行的陷阱**：在 console 把
+> ```js
+> console.log(b);
+> let b;
+> ```
+> **分兩行、各按一次 Enter**，會得到 `ReferenceError: b is not defined`——因為每次 Enter 是**獨立一次求值**，`console.log(b)` 執行時 `let b` 那行還沒送進去，`b` 根本還沒宣告。
+> 但把兩行**一起貼、一次執行**（等同放在同一段 `<script>`），才是真正的 TDZ 情境 → `ReferenceError: Cannot access 'b' before initialization`。**同一段程式碼，分行跑跟一起跑錯誤訊息不同**，別被 console 的逐行行為騙了。
 
 ## 各對話來源
 

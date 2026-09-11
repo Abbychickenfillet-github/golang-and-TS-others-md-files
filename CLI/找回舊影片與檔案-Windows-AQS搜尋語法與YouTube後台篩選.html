@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>找回舊影片與檔案：Windows AQS 搜尋語法、Everything 與 YouTube 後台篩選</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>找回舊影片與檔案：Windows AQS 搜尋語法、Everything 與 YouTube 後台篩選</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#windows</span><span class="pill">#檔案搜尋</span><span class="pill">#AQS</span><span class="pill">#everything</span><span class="pill">#youtube-studio</span><span class="pill">#工具</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-09</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/0ef53f94af0fcbb9" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">設為「不公開（Unlisted）」的 YouTube 影片，用前台搜尋框還是找得到。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">前台絕對搜不到，必須進 YouTube Studio 後台的「你的影片」才看得見。</div></li><li><p class="qq">AQS 支援正規表示式，可以用 .* 做模式比對。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">AQS 只有欄位加比較運算子，要做真正的模式比對得走 PowerShell。</div></li><li><p class="qq">Everything 之所以快，是因為它直接讀 NTFS 的主檔案表（MFT），不必等索引建好。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">代價是它預設只搜檔名、不搜內容。</div></li><li><p class="qq">找不到自己錄的影片時，用「內容關鍵字」比用「檔案大小」更可靠。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">當年隨手取的檔名通常跟內容對不上，客觀屬性（大小、日期、型別）才可靠。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">AQS 的全名是 Advanced <input class="blank" data-a="Query" placeholder="填答案" autocomplete="off"> Syntax，是 Windows 檔案總管與 Windows Search 共用的查詢語言。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">進階查詢語法。</div></li><li><p class="qq">只列出系統判定為影片的檔案，AQS 要寫成 kind:<input class="blank" data-a="=" placeholder="填答案" autocomplete="off">video（含精確比對符號）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">= 是精確比對，kind:=video 比 kind:movie 明確。</div></li><li><p class="qq">要篩出大於 100MB 的檔案，跨語系最保險的寫法是 <input class="blank" data-a="size" placeholder="填答案" autocomplete="off">:&gt;100MB。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">中文版 Windows 雖然接受部分中文欄位名，但英文欄位名才通用。</div></li><li><p class="qq">螢幕錄影檔常常不在「影片」資料夾，而是躺在錄影軟體的 <input class="blank" data-a="預設" placeholder="填答案" autocomplete="off"> 儲存路徑底下。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">OBS、Zoom、QuickTime 各有各的預設資料夾。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">如果你完全記不得檔名，只記得「大概是今年上半年錄的、內容是程式教學」，請設計一套從本地到雲端的搜尋順序，並說明每一步為什麼放在那個位置。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 先本地後雲端，因為本地查詢成本低且不需要網路。(2) 本地第一步用 kind:=video 加 datemodified 區間縮小母體，第二步再加 size:&gt;100MB 把短檔濾掉。(3) 第三步去錄影軟體的預設路徑翻，因為那是最常見的漏網位置。(4) 本地失敗才進 YouTube Studio 後台，因為前台搜不到不公開影片。(5) 後台先勾瀏覽權限與日期，再用縮圖肉眼掃，因為縮圖比標題可靠。(6) 最後回筆記庫搜主題關鍵字，筆記本身就是最後一道索引。</div></li></ol></section>
+
+<article class="card">
+<h1 id="windows-aqs-everything-youtube">找回舊影片與檔案：Windows AQS 搜尋語法、Everything 與 YouTube 後台篩選</h1>
+<h2 id="aj-10">本篇重點 a–j，共 10 個</h2>
+<blockquote>
+<p>情境：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要找一支自己錄的 XSS 學習影片，但用標題關鍵字怎麼查都查不到</mark>。核心觀念是 — <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">當年隨手取的檔名跟你現在記得的內容通常對不上</mark>，所以要放棄「用內容關鍵字找」，改成「用檔案的客觀屬性篩」：型別、副檔名、大小、日期。</p>
+</blockquote>
+<h2 id="1-aqs">1. 先講清楚縮寫：AQS 是什麼</h2>
+<p>a. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">AQS 是 Advanced Query Syntax（進階查詢語法）</mark>，Windows 檔案總管與 Windows Search 共用的一套查詢語言。你在搜尋框輸入的 <code>kind:</code> 、<code>ext:</code> 、<code>size:</code> 、<code>datemodified:</code> 這些都是 AQS 的欄位，冒號後面接條件，多個條件用空白隔開就是 AND。</p>
+<p>b. <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">AQS 不是正規表示式（Regex）</mark>，它沒有 <code>.*</code> 這類萬用比對，只有欄位加比較運算子。想做真正的模式比對要走 PowerShell，見 <span class="wikilink" title="Obsidian 連結：PowerShell-找檔案與遞迴搜尋陷阱">PowerShell-找檔案與遞迴搜尋陷阱</span>。</p>
+<h2 id="2-windows">2. Windows：用屬性篩，不要用檔名篩</h2>
+<p>c. <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">常用 AQS 欄位對照</mark>（查證 2026-09-09）：</p>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>意思</th>
+<th>範例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind:=video</code></td>
+<td>只列出系統判定為影片的檔案</td>
+<td><code>kind:=video</code></td>
+</tr>
+<tr>
+<td><code>ext:</code></td>
+<td>指定副檔名</td>
+<td><code>ext:mp4</code></td>
+</tr>
+<tr>
+<td><code>size:</code></td>
+<td>依檔案大小篩選</td>
+<td><code>size:&gt;100MB</code></td>
+</tr>
+<tr>
+<td><code>datemodified:</code></td>
+<td>依修改日期篩選，可用區間</td>
+<td><code>datemodified:&gt;01/01/2026</code></td>
+</tr>
+<tr>
+<td><code>datecreated:</code></td>
+<td>依建立日期篩選</td>
+<td><code>datecreated:&gt;01/01/2026</code></td>
+</tr>
+<tr>
+<td><code>contents:</code></td>
+<td>搜尋檔案內容（需已建索引）</td>
+<td><code>contents:XSS</code></td>
+</tr>
+</tbody>
+</table>
+<p>d. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">組合起來就是一句查詢</mark>：<code>kind:=video size:&gt;100MB datemodified:&gt;01/01/2026</code>。<br />
+    這句話翻成人話是「請列出所有系統認得是影片、檔案大於 100 MB、而且 2026 年 1 月 1 日之後被改過的檔案」。<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">螢幕錄影檔通常很大，所以「大小」比「檔名」可靠得多</mark>。</p>
+<p>e. <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Everything 是更快的替代方案</mark>。它是 Windows 上的免費檔名搜尋工具，直接讀 NTFS 的主檔案表（MFT），所以是即時列出全機檔名，不必等索引建好。缺點是它預設只搜檔名、不搜內容。</p>
+<p>f. <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最常被忽略的一步：去看錄影軟體的預設儲存路徑</mark>。OBS、Zoom、QuickTime、Windows 內建的螢幕錄影，各自有自己的預設資料夾，檔案很可能根本不在你以為的「影片」資料夾，而是躺在 <code>C:\Users\&lt;使用者&gt;\Videos</code> 或 <code>Documents</code> 底下。</p>
+<h2 id="3-youtube">3. YouTube：前台搜不到不代表影片不存在</h2>
+<p>g. <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關鍵觀念</mark>：設為「不公開（Unlisted）」或「私人（Private）」的影片，在 YouTube 前台搜尋是絕對搜不到的。要找就必須進 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">YouTube Studio 後台</mark>的「你的影片（Your Videos）」。</p>
+<p>h. 後台的三個篩法：<br />
+    1. 篩選器選「瀏覽權限」，把「不公開」與「私人」都勾起來。<br />
+    2. 篩選器選「日期」，縮到你大概學那個主題的月份或年份。<br />
+    3. 把每頁顯示筆數拉到最大，直接用<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">縮圖肉眼掃</mark> — 學習錄影的縮圖多半是編輯器畫面，即使標題是「未命名」或一串日期，看縮圖也認得出來。</p>
+<p>i. <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">別忘了播放清單</mark>：當初可能順手歸到「課程」「程式學習」「未分類」之類的清單裡，從清單反查比從搜尋框查快。</p>
+<h2 id="4">4. 最後一條線索：回頭查自己的筆記庫</h2>
+<p>j. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在 Obsidian 裡搜 <code>XSS</code>、<code>Web Security</code>、<code>Cross-Site Scripting</code>、<code>錄影</code></mark>，看當時的筆記有沒有順手貼上不公開連結，或寫了「今天錄了 XSS 的影片，檔名是⋯」這種雜記。<br />
+    這也反過來說明<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">為什麼筆記要跟產出物互相連結</mark> — 筆記本身就是最後一道索引。</p>
+<h3 id="checklist">行動 checklist</h3>
+<ul>
+<li>[ ] 用 <code>kind:=video</code> 或 <code>ext:mp4</code> 撈出所有影片，按「修改日期」排序。</li>
+<li>[ ] 檢查 OBS／QuickTime／螢幕錄影軟體的預設儲存路徑。</li>
+<li>[ ] 用 <code>size:&gt;100MB</code> 依大小排序，長影片一定排在前面。</li>
+<li>[ ] 進 YouTube Studio 後台（不是前台首頁）。</li>
+<li>[ ] 篩選器勾「不公開」與「私人」。</li>
+<li>[ ] 用縮圖掃有沒有程式碼畫面的影片，即使標題是預設日期或「未命名」。</li>
+<li>[ ] 回 Obsidian 搜主題關鍵字，看筆記裡有沒有留連結或檔名。</li>
+</ul>
+<h2 id="5">5. ⚠️ 存疑與更正</h2>
+<ul>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Gemini 寫的 <code>kind:movie 大小:&gt;100MB</code> 混用了中英文欄位名</mark>。中文版 Windows 的搜尋框確實接受部分中文欄位名，但<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">跨語系一律用英文欄位名 <code>size:</code> 才保險</mark>，本篇表格已統一改成英文。</li>
+<li>Gemini 把 <code>kind:movie</code> 與 <code>kind:=video</code> 混著寫。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>=</code> 是精確比對</mark>，<code>kind:=video</code> 比 <code>kind:movie</code> 明確，建議固定用前者。</li>
+<li>macOS 的部分本篇不展開，因為 Abby 目前是 Windows 環境；Finder 的搜尋框跟 Spotlight 原生查詢語法（<code>mdfind</code>）規則不同，Gemini 給的 <code>ext:mp4 OR ext:mov</code> 不保證在 Finder 搜尋框直接生效，真要用建議走 <code>mdfind</code> 指令。</li>
+</ul>
+<h2 id="6">6. 關聯筆記與理由</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：PowerShell-找檔案與遞迴搜尋陷阱">PowerShell-找檔案與遞迴搜尋陷阱</span> — 當 AQS 的欄位篩選不夠用（例如要用萬用字元或遞迴比對內容），下一步就是走 PowerShell 的 <code>Get-ChildItem -Recurse</code>，那篇講了遞迴會踩到的坑。</li>
+<li><span class="wikilink" title="Obsidian 連結：檔案命名禁用字元與空格規則">檔案命名禁用字元與空格規則</span> — 這次找不到檔案的根本原因是「命名」，那篇講的是命名規則，兩篇合起來就是「怎麼命名才不會有下次」。</li>
+<li><span class="wikilink" title="Obsidian 連結：grep-options">grep-options</span> — 在 Linux／WSL 環境下，<code>contents:</code> 的對應工具就是 <code>grep</code>，概念一樣是「不靠檔名靠內容」。</li>
+<li><span class="wikilink" title="Obsidian 連結：副檔名意義總表">副檔名意義總表</span> — 用 <code>ext:</code> 篩之前得先知道錄影軟體會吐哪些副檔名（<code>.mp4</code>、<code>.mov</code>、<code>.mkv</code>、<code>.webm</code>），那份圖鑑就是查這個用的。</li>
+</ul>
+<blockquote>
+<p>[!tip] LeetCode／NeetCode 對應題目<br />
+本篇是工具操作，沒有直接對應的演算法題。若想練「用屬性而非精確值查找」的思路，可以做 <a href="https://leetcode.com/problems/implement-trie-prefix-tree/">LeetCode 208. Implement Trie (Prefix Tree)</a>，Everything 這類檔名即時搜尋工具底層用的就是前綴樹與索引的概念。</p>
+</blockquote>
+<h2 id="_1">各對話來源</h2>
+<h3 id="xss-2026-09-09-httpsgeminigooglecomapp0ef53f94af0fcbb9">XSS 學習影片搜尋指南（2026-09-09 擷取）— https://gemini.google.com/app/0ef53f94af0fcbb9</h3>
+<p>使用者：我找不到我之前錄 XSS 學習的影片，本地跟 yt 怎麼找比較有效率，我查影片標題關鍵字都沒有。</p>
+<p>Gemini：有時候我們記住的「影片內容」跟當初隨手命名的「檔案名稱」或「標題」可能完全對不上。本地端搜尋法 — Mac 用 Spotlight／Finder，可輸入 <code>kind:movie</code> 或 <code>kind:video</code> 撈出所有影片，<code>ext:mp4 OR ext:mov</code> 限定格式，<code>kind:movie date:2025-05-01-2026-05-30</code> 結合時間；Windows 強烈推薦免費的 Everything 軟體（一秒搜全機），原生檔案總管可輸入 <code>kind:=video</code>，並依時間與大小篩（錄影檔通常大於 100MB）。進階技巧：檢查 OBS、Zoom、QuickTime 或 Screen Recorder 的預設儲存路徑，影片可能被存在 <code>C:\Users\使用者\Videos</code> 或 Documents。</p>
+<p>YouTube 搜尋法 — 關鍵字找不到很可能是標題太簡短（如「0530錄影」「測試」）。善用 YouTube Studio 後台篩選最精準：把每頁顯示筆數拉到最大（50 筆）用預覽圖肉眼掃有沒有程式碼畫面；進階篩選器選「瀏覽權限」勾選「不公開（Unlisted）」與「私人（Private）」，前台是絕對搜不到的；選「日期」篩出大概的月份或年份。也可檢查「你的影片（Your Videos）」清單，以及當初有沒有歸到「課程」「程式學習」「未分類」等播放清單。</p>
+<p>最後一個隱藏線索在筆記軟體（例如 Obsidian）裡：搜尋 XSS、Web Security、Cross-Site Scripting 或「錄影」，看當時的筆記有沒有順手貼上 YouTube 的不公開連結，或寫下「今天錄了 XSS 的影片，檔名是⋯」的雜記。（Gemini 最後附上一份本地端與 YouTube 的行動 checklist。）</p>
+<h2 id="_2">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇原始對話</td>
+<td><code>https://gemini.google.com/app/0ef53f94af0fcbb9</code></td>
+<td>Gemini 對話，2026-09-09 擷取</td>
+</tr>
+<tr>
+<td>Windows 檔案總管進階搜尋語法（kind、size、datemodified 組合）</td>
+<td><code>https://www.windowscentral.com/software-apps/windows-11/how-to-boost-search-efficiency-on-file-explorer-for-windows-11</code></td>
+<td>查證日 2026-09-09</td>
+</tr>
+<tr>
+<td>File Explorer 搜尋語法整理（AQS 欄位一覽）</td>
+<td><code>https://windowsloop.com/useful-file-explorer-search-syntax-commands/</code></td>
+<td>查證日 2026-09-09</td>
+</tr>
+<tr>
+<td>只搜尋影片檔的 <code>kind:=video</code> 用法</td>
+<td><code>https://winsides.com/find-search-video-files-only-in-windows-11/</code></td>
+<td>查證日 2026-09-09</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-09</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-09</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

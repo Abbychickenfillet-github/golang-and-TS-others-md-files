@@ -2,11 +2,11 @@
 title: HOC 高階組件與渲染劫持｜反向繼承，以及 Vue / Angular 的對應機制
 type: topic-note
 source: Gemini
-tags: [gemini, react, hoc, 渲染劫持, 反向繼承, vue, angular, 設計模式, 面試]
+tags: [gemini, react, hoc, 渲染劫持, 反向繼承, vue, angular, 設計模式, 面試, this, 原型鏈, strict-mode]
 sources:
   - https://gemini.google.com/app/3b8ff7e2ed0d9bd4
   - https://gemini.google.com/app/d2896b718a5f3c00
-updated: 2026-09-09
+updated: 2026-09-11
 ---
 
 # HOC 高階組件與渲染劫持｜反向繼承，以及 Vue / Angular 的對應機制
@@ -61,6 +61,83 @@ function withRenderHijack(WrappedComponent) {
 - `super.render()`：<mark style="background: #ADCCFFA6;">`super` 指向父類別的原型</mark>，所以這句是「呼叫父類別版本的 render，但 `this` 仍然是我自己」，因此原組件的 `this.state` 與 `this.props` 都讀得到。
 - `React.cloneElement(elementTree, {...})`：React 元素是<mark style="background: #FF5582A6;">不可變（immutable）</mark>的，不能直接改屬性，只能複製一份並覆寫。
 
+
+> [!question] 追加 2026-09-11 Abby 問：「`if (!this.props.isAllowed)` 這句的 `this` 是誰？我記得 React 的 `this` 是 undefined」
+> 你記得的沒有錯，只是那句話講的是「另外兩條路」。下面 (f-2) 到 (f-8) 把三條路一次分清楚。
+
+(f-2) <mark style="background: #FFF3A3A6;">`this` 是「React 幫你 `new` 出來的那一顆組件實例」</mark>，它不是 `withRenderHijack` 這個工廠函式，不是 `WrappedComponent` 這個類別本身，也不是「另外一顆被包在裡面的實例」。
+
+![[學習React_圖解_HOC裡的this是誰-呼叫點決定this_2026-09-11.svg]]
+
+(f-3) 用 5W1H 把「為什麼是實例」拆乾淨：
+
+- **Who（誰呼叫 render）**：React 的 <mark style="background: #ADCCFFA6;">reconciler（協調器）</mark>。
+    - 它先把這個匿名 class `new` 出一顆實例，存進 Fiber 節點的 `stateNode` 欄位，之後每次要畫這個組件，就對那顆實例呼叫 `render`。
+- **How（用什麼姿勢呼叫）**：寫成 `instance.render()` 這種「點號呼叫」。
+    - JavaScript 的 <mark style="background: #ADCCFFA6;">隱式綁定（implicit binding，隱含綁定）</mark>規則是「呼叫那一刻，點號左邊那顆物件就是這次的 `this`」，所以 `this` 就是 `instance`。
+- **What（`this.props` 這顆物件是什麼）**：`props` 是 React 直接寫在實例身上的 <mark style="background: #ADCCFFA6;">自有屬性（own property）</mark>，它不在原型鏈上，`Object.hasOwn(this, 'props')` 會是 `true`。
+    - 首次掛載時，匿名 class 沒有自己寫 `constructor`，JS 會替它補一個預設的衍生建構式 `constructor(...args) { super(...args) }`，把 props 一路往上丟給 `WrappedComponent` 的建構式、再丟給 `React.Component` 的建構式，最後由後者做 `this.props = props`。
+    - 之後每次更新，reconciler 會在呼叫 `render` 之前先做 `instance.props = newProps`，所以 `render` 裡讀到的永遠是這一輪最新的 props。
+- **Where（`isAllowed` 的值從哪裡來）**：從使用端的 JSX 屬性來。
+    - 你在外面寫 `<Protected isAllowed={user.role === 'admin'} />`，這個 `isAllowed` 就被收進實例的 `props` 物件裡，`render` 才讀得到。
+- **Why（為什麼不可能是工廠函式）**：`withRenderHijack` 只負責「吃一個組件、吐一個新 class」，它在模組載入時被呼叫一次就結束了，`render` 執行的時候它早就離開呼叫堆疊，`this` 根本輪不到它。
+- **When（什麼時候會變成 undefined）**：在 `render` 的第一層永遠不會。只有當你把方法「取下來」變成裸函式再呼叫，才會掉到下面 (f-4) 的第二條路。
+
+(f-4) <mark style="background: #FF5582A6;">「React 的 `this` 是 undefined」是真的，但它指的是下面第二、第三條路，不是 `render` 這條。</mark>三條路併排看：
+
+| 你寫在哪 | 呼叫那一刻長什麼樣 | `this` 是誰 | 底層原因 |
+| --- | --- | --- | --- |
+| class 組件的 `render()` 裡（本題） | `instance.render()` | <mark style="background: #BBFABBA6;">那顆組件實例</mark> | 點號左邊有接收者（receiver），走隱式綁定 |
+| class 組件的事件處理器 `onClick={this.handleClick}` | `handler(event)` | <mark style="background: #FF5582A6;">`undefined`</mark> | 寫 `this.handleClick` 只是「把函式值讀出來」，接收者在那一刻就斷掉了，之後是裸呼叫 |
+| function 組件（`function MyComp(props)`） | `MyComp(props)` | <mark style="background: #FF5582A6;">`undefined`</mark> | 從頭到尾沒有 `new` 出實例，React 就是把它當普通函式呼叫 |
+
+- 為什麼裸呼叫是 `undefined` 而不是 `window`：
+    - <mark style="background: #ADCCFFA6;">class body（類別主體）永遠是 strict mode（嚴格模式）</mark>，這是規格強制的，不用你寫 `'use strict'`。
+    - ES module（`import` / `export` 的檔案）也永遠是 strict mode，所以 function 組件同理。
+    - 非嚴格模式下裸呼叫的 `this` 會 fallback（退回）成 `globalThis`，嚴格模式把這個 fallback 拿掉了，直接留 `undefined`。
+- 事件處理器的兩個標準解法：
+    - 在 `constructor` 裡寫 `this.handleClick = this.handleClick.bind(this)`，用 <mark style="background: #ADCCFFA6;">`bind`（顯式綁定，explicit binding）</mark>先把接收者釘死。
+    - 或直接寫成箭頭函式的 class field：`handleClick = () => { ... }`，箭頭函式沒有自己的 `this`，它從<mark style="background: #ADCCFFA6;">語彙環境（lexical scope）</mark>往外拿，而 class field 的初始化是在建構實例時跑的，外層剛好就是實例。
+    - 延伸閱讀：[[JavaScript-call-apply-bind-改變this指向]] 把 call / apply / bind 三者的差別與 `this` 五種綁定規則寫在一起。
+
+(f-5) 反向繼承（II）與屬性代理（PP）的 `this` 差在哪，這是本題最容易混的地方：
+
+| | 反向繼承 Inheritance Inversion | 屬性代理 Props Proxy |
+| --- | --- | --- |
+| 寫法 | `class extends WrappedComponent` | `class extends React.Component`，`render` 裡寫 `<WrappedComponent {...this.props} />` |
+| 畫面上有幾顆實例 | <mark style="background: #BBFABBA6;">只有一顆</mark> | <mark style="background: #FFB8EBA6;">兩顆，外層一顆、內層一顆</mark> |
+| `this instanceof WrappedComponent` | `true` | `false` |
+| `this.state` 讀得到原組件的 state 嗎 | 讀得到，因為根本是同一顆實例 | 讀不到，外層看不見內層的內部狀態 |
+| 想拿到原組件實例要怎麼做 | 不用拿，`this` 就是 | 得靠 `ref` 把內層實例抓出來 |
+
+- 所以「HOC 的 `this` 是誰」沒有單一答案，要先問是哪一派：<mark style="background: #FFF3A3A6;">兩派的 `this` 都是「外層那顆實例」，差別在反向繼承讓外層與內層變成同一顆而已。</mark>
+
+(f-6) <mark style="background: #FF5582A6;">順手抓到的陷阱：範例把 `const elementTree = super.render()` 寫在權限判斷「上面」。</mark>
+
+- 這代表 `isAllowed` 是 `false`、畫面只顯示「沒有權限」的時候，原組件的 `render` 其實已經完整跑過一次了，只是產出的元素樹被丟掉。
+- `render` 照理應該是純函式所以通常無害，但只要原組件的 `render` 裡有 `console.log`、計數器、`Date.now()` 這類副作用就會被白白觸發，效能上也是白做工。
+- 要真的「連跑都不跑」，把守衛條件（guard clause）移到最上面：
+
+```jsx
+render() {
+  if (!this.props.isAllowed) return <p>沒有權限</p>;   // 先擋，才不會白跑
+  const elementTree = super.render();
+  return React.cloneElement(elementTree, { className: 'hijacked' });
+}
+```
+
+(f-7) 想自己驗證不用背，在 `render` 第一行插三句就看得到：
+
+```jsx
+render() {
+  console.log(this === undefined);              // false，render 裡一定有 this
+  console.log(this.constructor.name);           // 匿名 class 通常印出 ''，父類別名可用 Object.getPrototypeOf(this.constructor).name 看
+  console.log(this instanceof WrappedComponent); // 反向繼承是 true，屬性代理是 false
+  console.log(Object.hasOwn(this, 'props'));    // true，props 是實例自有屬性，不在原型鏈上
+  // ...
+}
+```
+
 ### 三. 三個主要應用場景
 
 (g) **條件式渲染**：依 props 或 state 決定要不要渲染 `super.render()` 的內容。權限控制、Loading 狀態都屬於這一類。
@@ -88,6 +165,8 @@ function withRenderHijack(WrappedComponent) {
 ## 程式碼範例
 
 同層的 `hoc-props-proxy-vs-inheritance-inversion.jsx` 把兩種 HOC 流派並排寫出來對照。
+
+同層的 `hoc-this-三條路對照.jsx`（2026-09-11 新增）把 (f-2)～(f-7) 做成可跑的檔案：它用 `console.log` 印出「render 裡的 this」「沒 bind 的事件處理器的 this」「function 組件的 this」三條路各自是誰，並且把反向繼承與屬性代理的 `instanceof` 與 `state` 可見性並排驗證。貼進任一個 React 18 專案的頁面，開 F12 Console 就看得到。
 
 ---
 
@@ -187,6 +266,12 @@ export default function Dashboard() {
 | React `cloneElement` API | https://react.dev/reference/react/cloneElement | 查證 2026-08-25 |
 | Vue：Composables | https://vuejs.org/guide/reusability/composables.html | Vue 3，查證 2026-08-25 |
 | Angular：Structural Directives | https://angular.dev/guide/directives/structural-directives | 查證 2026-08-25 |
+| 追加段 (f-2)～(f-8)：`this` 的判定 | 本次問答，整理於 2026-09-11 | Abby 提問「HOC 裡 this 是誰」 |
+| MDN：`this` 運算子（含隱式綁定與 strict mode 下不 fallback 成 globalThis） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/this | 查證 2026-09-11 |
+| MDN：Classes（明載 class body 永遠在 strict mode 下執行） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes | 查證 2026-09-11 |
+| MDN：`Function.prototype.bind` | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/bind | 查證 2026-09-11 |
+| React 官方：`Component`（`this.props` 由 React 設定、render 由 React 呼叫） | https://react.dev/reference/react/Component | 查證 2026-09-11 |
+| React 官方（舊版）：Handling Events，事件處理器要 bind 的原因 | https://legacy.reactjs.org/docs/handling-events.html | React 17 舊文件，查證 2026-09-11 |
 
 > [!warning] ⚠️ 存疑 / 更正
 > 1. Gemini 把英文拼成 <mark style="background: #FF5582A6;">「Render Highjacking」與「Inherited Inversion」，兩個都拼錯了</mark>。正確是 **Render Hijacking**（沒有 h）與 **Inheritance Inversion**（不是 Inherited）。查英文資料時拼錯會找不到。
@@ -195,4 +280,4 @@ export default function Dashboard() {
 
 ---
 
-*由 Gemini 對話自動整理 · 更新於 2026-08-25*
+*由 Gemini 對話自動整理 · 更新於 2026-08-25 · 2026-09-11 追加「HOC 裡的 `this` 是誰」與主軸圖*

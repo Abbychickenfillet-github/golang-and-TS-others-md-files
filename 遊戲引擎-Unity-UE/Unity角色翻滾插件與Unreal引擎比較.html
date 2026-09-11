@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unity 角色翻滾插件與 Unreal Engine（UE）引擎比較</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Unity 角色翻滾插件與 Unreal Engine（UE）引擎比較</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#遊戲引擎</span><span class="pill">#unity</span><span class="pill">#unreal-engine</span><span class="pill">#csharp</span><span class="pill">#cpp</span><span class="pill">#動畫狀態機</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-09</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/301752cb0703c45c" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">UE 是 Unreal Engine（虛幻引擎）的縮寫，由 Epic Games 開發。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">跟 Unity 並列全球兩大主流 3D 遊戲引擎。</div></li><li><p class="qq">Unreal Engine 只能用 C++ 開發，完全不寫程式碼就做不出互動場景。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Blueprints 視覺化腳本可以讓非程式背景的人拉出可玩的場景。</div></li><li><p class="qq">Ragdoll（布娃娃系統）播放的是事先錄好的翻滾動畫。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Ragdoll 把骨架交給物理引擎即時計算，所以每次摔倒姿勢都不一樣。</div></li><li><p class="qq">多數 UE5 團隊是 C++ 與 Blueprints 混用，而不是二選一。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">效能吃緊的系統用 C++，遊戲邏輯與快速原型用 Blueprints。</div></li><li><p class="qq">2026 年的產業比較顯示 Unity 在「開發者主要引擎」這個指標上仍領先 Unreal。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">多份 2026 比較指出 Unreal 約 42%、Unity 約 30%；Unity 的優勢集中在手遊與獨立遊戲市場。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">把角色的每個動作當成一個狀態、再定義切換條件的那張圖，叫做動畫 <input class="blank" data-a="狀態機" placeholder="填答案" autocomplete="off"> ____（中文四個字）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">State Machine，翻滾要靠它判斷現在該播前滾翻還是空翻。</div></li><li><p class="qq">Unity 的主要程式語言是 <input class="blank" data-a="C# / C++" placeholder="填答案" autocomplete="off">，Unreal Engine 的主要程式語言是 ____。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">UE 另外還有 Blueprints 視覺化腳本。</div></li><li><p class="qq">想做「被撞飛之後自然倒下」這種不可預期的姿態，要用物理型插件 <input class="blank" data-a="PuppetMaster" placeholder="填答案" autocomplete="off">，它基於 Ragdoll 與物理模擬。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">狀態機型插件處理主動作，物理型插件處理受擊反應。</div></li><li><p class="qq">C++ 直接編譯成機器碼；C# 先編譯成中介語言 IL，再由執行環境用 <input class="blank" data-a="JIT" placeholder="填答案" autocomplete="off"> 在執行時轉成機器碼。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Just-In-Time 即時編譯，跟 V8 對 JavaScript 做的事是同一組概念。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請說明：讓遊戲角色「翻滾」這件事，拆開來實際上是哪兩件事在負責？並說明什麼情況下你會選狀態機型插件、什麼情況下要加上物理型插件。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 動畫狀態機負責『什麼時候從跑步切成翻滾』，它要知道角色目前的狀態與觸發條件。(2) 物理模擬（Ragdoll）負責『翻得像不像真的』，處理碰撞與重量感。(3) 可預期的主動作（按閃避鍵）用 Invector 這類狀態機型插件就夠。(4) 不可預期的受擊反應（被打飛、失控翻滾）才需要 PuppetMaster 這種物理型插件。(5) 實務上兩者並存，不是二選一。</div></li></ol></section>
+
+<article class="card">
+<h1 id="unity-unreal-engineue">Unity 角色翻滾插件與 Unreal Engine（UE）引擎比較</h1>
+<h2 id="ak-11">本篇重點 a–k，共 11 個</h2>
+<p><img alt="Unity 與 Unreal Engine 的兩軸定位圖：橫軸是主要撰寫方式（純程式碼到視覺化腳本），縱軸是預設畫質天花板；Unity 落在左下（C#、手遊與獨立遊戲），Unreal 落在右上（C++ 加 Blueprints、3A 大作與影視渲染）" src="../obsidian-attachment/學習遊戲引擎_圖解_Unity與UnrealEngine的語言與定位兩軸_2026-09-09.svg" /></p>
+<h2 id="1">1. 先把縮寫講清楚</h2>
+<p>a. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">UE 是 Unreal Engine（虛幻引擎）的縮寫</mark>，由 Epic Games 開發，跟 Unity 並列全球兩大主流的 3D 遊戲開發引擎。這個縮寫在遊戲圈幾乎不寫全名，第一次看到很容易以為是別的東西。</p>
+<p>b. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Ragdoll（布娃娃系統）</mark>是一種讓角色骨架交給物理引擎接管的模擬方式。<br />
+    當角色被撞飛或失去控制時，引擎不再播放預錄動畫，而是即時用剛體與關節約束算出每一根骨頭該往哪裡倒，所以摔倒的姿勢每次都不一樣。</p>
+<p>c. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">State Machine（動畫狀態機）</mark>是把角色的每一個動作當成一個狀態（站立、跑、翻滾、攀爬），再定義「在什麼條件下從 A 狀態切到 B 狀態」的一張圖。<br />
+    翻滾之所以需要狀態機，是因為它必須知道「玩家現在是在跑步還是在半空中」，才決定要播前滾翻還是空翻。</p>
+<p>d. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Parkour（跑酷）系統</mark>指的是翻牆、攀爬、蹬牆跳這一整組跟場景互動的位移動作，通常會搭配 Trigger（觸發器）偵測角色前方有沒有可攀附的邊緣。</p>
+<h2 id="2-unity">2. 讓角色「翻起來」的 Unity 插件</h2>
+<p>e. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">翻滾這件事拆開來看只有兩件事</mark>：一是「什麼時候切成翻滾動作」（動畫狀態機負責），二是「翻得像不像真的」（物理模擬負責）。下面四個插件就是分別強化這兩件事。</p>
+<table>
+<thead>
+<tr>
+<th>插件</th>
+<th>定位</th>
+<th>翻轉／翻滾支援</th>
+<th>適用專案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Invector Third Person Controller</td>
+<td>Unity 最成熟的第三人稱控制器之一</td>
+<td>內建完整動作狀態機，含前翻滾 Roll、閃避空翻，可用 Trigger 綁翻牆與攀爬</td>
+<td>想快速搭好移動、翻滾、戰鬥基礎的專案</td>
+</tr>
+<tr>
+<td>PuppetMaster</td>
+<td>基於 Ragdoll 布娃娃與物理模擬</td>
+<td>適合有物理碰撞與重量感的翻滾，或被撞飛的失控翻滾</td>
+<td>追求真實物理反應或搞笑摔倒效果</td>
+</tr>
+<tr>
+<td>Corgi Engine（2D）／TopDown Engine（2D 與 3D）</td>
+<td>橫向捲軸或俯視角的成套引擎</td>
+<td>內建一鍵閃避 Dash 與 Roll、空中翻轉</td>
+<td>2D 動作遊戲、類銀河惡魔城</td>
+</tr>
+<tr>
+<td>Malbers Animations（Animal Controller／Parkour System）</td>
+<td>針對非人角色與極限運動設計的動畫系統</td>
+<td>支援動物跳躍翻滾、空中翻轉與地形適應</td>
+<td>動物角色、跑酷類玩法</td>
+</tr>
+</tbody>
+</table>
+<p>f. <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">選型建議</mark>：如果翻滾只是「按一下閃避」這種可預期的動作，用 Invector 這類狀態機型插件即可；如果需要「被打飛之後自然倒下」這種不可預期的姿態，才需要 PuppetMaster 這種物理型插件。兩者可以並存，多數專案是狀態機負責主動作、Ragdoll 負責受擊反應。</p>
+<h2 id="3-unity-unreal-engine">3. Unity 與 Unreal Engine 的核心差異</h2>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Unity</th>
+<th>Unreal Engine（UE）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主要程式語言</td>
+<td>C#</td>
+<td>C++ 為主，另有 Blueprints 視覺化腳本</td>
+</tr>
+<tr>
+<td>非程式背景友善度</td>
+<td>需要寫 C# 才能做出邏輯</td>
+<td>Blueprints 可以完全不寫程式碼就拉出可玩的互動場景</td>
+</tr>
+<tr>
+<td>預設畫質與光影</td>
+<td>彈性高，2D、手遊到 3D 獨立遊戲都能做</td>
+<td>預設畫質極高，適合 3A 大作與影視特效</td>
+</tr>
+<tr>
+<td>學習曲線</td>
+<td>C# 相對好上手，生態系與教學資源豐富</td>
+<td>C++ 門檻較高，且 UE 的 C++ 有自己一套慣例，跟標準 C++ 寫法有落差</td>
+</tr>
+<tr>
+<td>常見主力戰場</td>
+<td>手遊與獨立遊戲市場</td>
+<td>主機與 PC 的 3A 大作、建築與影視渲染</td>
+</tr>
+</tbody>
+</table>
+<p>g. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">實務上多數 UE5 團隊是混用的</mark>：效能吃緊的系統與引擎擴充用 C++ 寫，遊戲邏輯與快速原型用 Blueprints 拉，而不是二選一。</p>
+<p>h. <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">語言差異背後其實是執行模型的差異</mark>：C++ 直接編譯成機器碼，效能天花板高但寫錯就直接崩；C# 先編譯成中介語言（IL），再由執行環境用 JIT（Just-In-Time，即時編譯）轉成機器碼，開發速度快、記憶體由 GC 管理。這跟前端筆記裡談的編譯與執行時機是同一組概念。</p>
+<h2 id="4">4. ⚠️ 存疑與更正</h2>
+<p>i. <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Gemini 說「Unity 在獨立開發者與手遊市場市佔率極高」</mark>，這句話在「手遊與獨立遊戲」這個限定範圍內成立，但如果講的是整體開發者的主要引擎選擇，2026 年的多份產業比較指出 Unreal 反而較高（約四成對三成）。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">看到「市佔率」三個字時要先問清楚是哪一個市場</mark>。</p>
+<p>j. <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">插件價格與維護狀態會變</mark>：上表四個插件都是 Unity Asset Store 的付費商品，是否仍在維護、是否支援你當下的 Unity 版本，要到商店頁面看最後更新日期，不能只憑本篇。</p>
+<h2 id="5">5. 關聯筆記與理由</h2>
+<p>k. 這篇跟 vault 內既有筆記的關聯如下，理由寫在後面而不是只丟連結：</p>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：機器碼、位元組碼與機器指令是一樣的嗎">機器碼、位元組碼與機器指令是一樣的嗎</span> — 因為 Unity 用 C#、UE 用 C++，兩邊差別的根源就是「原始碼要經過幾層才變成 CPU 看得懂的東西」，這篇把機器碼與位元組碼的界線講清楚了，正好補上重點 h 的底層。</li>
+<li><span class="wikilink" title="Obsidian 連結：JIT與useMemo-CPU記憶體取捨">JIT與useMemo-CPU記憶體取捨</span> — C# 靠 JIT 在執行時把 IL 轉成機器碼，這篇談的正是 JIT 用「先花時間編譯換之後跑得快」的取捨，跟遊戲引擎為什麼願意付出啟動成本是同一個道理。</li>
+<li><span class="wikilink" title="Obsidian 連結：V8引擎完整管線-Parse到Deoptimization">V8引擎完整管線-Parse到Deoptimization</span> — V8 對 JavaScript 做的事（解析、位元組碼、熱點最佳化、去最佳化）跟 Unity 的 Mono／IL2CPP 對 C# 做的事結構相同，把兩邊對照著看，會發現「引擎」這個詞在瀏覽器與遊戲界指的是類似的東西。</li>
+</ul>
+<blockquote>
+<p>[!tip] LeetCode／NeetCode 對應題目<br />
+本篇屬於工具選型與引擎架構，<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有對應的 LeetCode 或 NeetCode 題目</mark>。若想練跟狀態機有關的演算法思路，可以做 <a href="https://leetcode.com/problems/valid-number/">LeetCode 65. Valid Number</a>（用有限狀態機解析字串）當作 State Machine 的思考練習。</p>
+</blockquote>
+<h2 id="_1">各對話來源</h2>
+<h3 id="unity-ue-2026-09-09-httpsgeminigooglecomapp301752cb0703c45c">Unity 角色翻滾插件與 UE 介紹（2026-09-09 擷取）— https://gemini.google.com/app/301752cb0703c45c</h3>
+<p>使用者：遊戲插件 讓自己翻起來 有什麼／一定要用 unity 開發／UE 是什麼？</p>
+<p>Gemini：讓角色在遊戲中翻轉（如翻滾、翻牆、空翻等）的 Unity 插件主要分為角色動畫與操控系統以及專業 parkour／physics 工具。</p>
+<ol>
+<li>支援翻滾／翻轉的 Unity 軟體與插件</li>
+</ol>
+<p>Invector Third Person Controller（Melee／Shooter Template）— 特點：Unity 最知名且成熟的第三人稱控制器之一。翻轉支援：內建完整動作狀態機，包含前翻滾（Roll）、閃避空翻，並可透過 Trigger 輕鬆綁定翻牆或攀爬動作。適用：想快速搭好角色基礎（移動、翻滾、戰鬥）的專案。</p>
+<p>PuppetMaster — 特點：基於布娃娃系統（Ragdoll）與物理模擬的插件。翻轉支援：適合製作「帶有物理碰撞與重量感」的翻滾或失控翻滾（如被撞飛、失重空翻）。適用：追求真實物理反應或搞笑摔倒效果的遊戲。</p>
+<p>Corgi Engine（2D）／TopDown Engine（2D／3D）— 特點：2D／2.5D 橫向捲軸或俯視角經典引擎。翻轉支援：內建一鍵閃避（Dash／Roll）與空中翻轉功能，免去寫 2D 物理姿態狀態機的麻煩。適用：2D 動作遊戲、類銀河惡魔城遊戲。</p>
+<p>Malbers Animations（Animal Controller／Parkour System）— 特點：針對非人角色（動物、怪獸）或極限運動（跑酷）設計的動畫系統。翻轉支援：支援動物跳躍翻滾、空中翻轉與地形適應。</p>
+<ol start="2">
+<li>UE 是什麼？</li>
+</ol>
+<p>UE 是 Unreal Engine（虛幻引擎）的縮寫，由 Epic Games 開發，是全球與 Unity 並列兩大最主流的 3D 遊戲開發引擎。</p>
+<p>Unity 與 UE 的核心差異簡明對比：主要程式語言 Unity 是 C#，UE 是 C++ 及藍圖（Blueprints 視覺化腳本）；畫質與光影 Unity 彈性高，適合 2D、手機遊戲到 3D 獨立遊戲，UE 預設畫質極高，適合 3A 大作、影視特效；學習曲線 Unity 語言相對好上手、生態系豐富，UE 的 C++ 門檻較高，但藍圖對非程式員極度友善；開發社群 Unity 在獨立開發者與手遊市場市佔率極高，UE 是主機、PC 3A 大作與建築／影視渲染主力。</p>
+<p>（Gemini 最後提供延伸選項：在 Unity 中如何用 Code 實現角色翻滾 Roll、Invector 插件的安裝與動作設定流程。）</p>
+<h2 id="_2">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇原始對話</td>
+<td><code>https://gemini.google.com/app/301752cb0703c45c</code></td>
+<td>Gemini 對話，2026-09-09 擷取</td>
+</tr>
+<tr>
+<td>Unreal 與 Unity 技術比較（語言、學習曲線、適用情境）</td>
+<td><code>https://gamestudio.n-ix.com/unity-vs-unreal-which-to-choose/</code></td>
+<td>2026 年版比較，查證日 2026-09-09</td>
+</tr>
+<tr>
+<td>C# 與 C++ 在 Unity／Unreal 的差異</td>
+<td><code>https://www.circuitstream.com/en/blog/c-vs-c-complete-comparison-between-unity-and-unreal-programming-language</code></td>
+<td>查證日 2026-09-09</td>
+</tr>
+<tr>
+<td>Blueprints 與 C++ 的分工實務</td>
+<td><code>https://www.strayspark.studio/blog/blueprint-vs-cpp-unreal-engine-2026</code></td>
+<td>2026 Edition，查證日 2026-09-09</td>
+</tr>
+<tr>
+<td>引擎主要選用比例（Unreal 約 42%、Unity 約 30%）</td>
+<td><code>https://respawn.outlookindia.com/gaming/gaming-guides/unity-vs-unreal-2026-which-game-engine-should-you-learn-first</code></td>
+<td>2026 年統計，查證日 2026-09-09</td>
+</tr>
+<tr>
+<td>本篇圖解</td>
+<td><code>obsidian-attachment/學習遊戲引擎_圖解_Unity與UnrealEngine的語言與定位兩軸_2026-09-09.svg</code></td>
+<td>繪製於 2026-09-09</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-09</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-09</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

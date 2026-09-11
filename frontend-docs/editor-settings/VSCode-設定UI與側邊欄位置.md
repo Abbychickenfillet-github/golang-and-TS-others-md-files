@@ -36,6 +36,18 @@ updated: 2026-06-17
 ### 對調／移動側邊欄位置
 回到圖形介面後搜尋 <mark style="background: #ADCCFFA6;">`Side Bar Location`</mark> 即可把側邊欄在左右之間切換。
 
+### 關閉「螢幕助讀程式最佳化」
+
+這不是 Windows 聽寫，也不是麥克風功能，而是 VS Code 的 **Screen Reader Accessibility Mode（螢幕助讀程式最佳化模式）**。
+
+| 操作 | 方法 |
+|------|------|
+| 快速關閉或重新開啟 | 按 `Ctrl + Shift + M` |
+| 從命令面板操作 | 按 `Ctrl + Shift + P`，搜尋 `Toggle Screen Reader Accessibility Mode` |
+| 只想確認目前狀態 | 看右下角狀態列的「螢幕助讀程式最佳化」提示 |
+
+右下角的提示通常是狀態指示或切換入口，不需要到右側清單尋找「關閉」項目。
+
 ## 各對話來源
 
 ### 編輯器側邊欄位置快速對調(2026-06)— https://gemini.google.com/app/d135e5531d8bdfdf

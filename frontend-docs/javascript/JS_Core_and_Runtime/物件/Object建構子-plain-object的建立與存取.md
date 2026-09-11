@@ -52,7 +52,7 @@ Object.getPrototypeOf(new Map())    // Map.prototype     → 不是 plain object
 所以檔案拆成三支各自獨立：
 
 - `plain-object-建立與存取.html`：本篇的示範檔
-- `array-of-objects-存取練習.html`：對應 [[物件陣列-陣列層vs物件層存取]]
+- `array-of-objects-存取練習.html`：對應 [[09-物件陣列-陣列層vs物件層存取]]
 - `map-object.html`：Map 有自己的 `get`／`set`／`size`，跟 plain object 是兩套 API
 
 ---
@@ -259,7 +259,7 @@ flowchart TD
 | [[10-傳值vs傳址-賦值與記憶體空間]] | 分流 3 回傳同一參考，就是傳址的教科書案例 |
 | [[Symbol-符號型別與物件key]] | 物件 key 只有字串與 Symbol 兩種，本篇 e 節的例外 |
 | [[Object靜態方法速查]] | f 節說要改用靜態方法，清單在那裡 |
-| [[物件陣列-陣列層vs物件層存取]] | 拆檔的另一半，說明為什麼陣列不是 plain object |
+| [[09-物件陣列-陣列層vs物件層存取]] | 拆檔的另一半，說明為什麼陣列不是 plain object |
 | [[for...in]] | 遍歷 plain object 時會走原型鏈，跟 f 節的 null-prototype 直接相關 |
 
 > [!note] 追問延伸（2026-08-19）
