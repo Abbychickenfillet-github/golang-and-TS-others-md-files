@@ -27,44 +27,175 @@ React hooks（2019 年推出）讓函式式元件擁有了狀態和生命週期�
 
 ### 死法一：依賴陣列中的物件每次都「不等於」
 
+先看一個完整的例子：
+
 ```typescript
-// ❌ 無限循環
-const MyComponent = ({ user }) => {
+// 父元件
+function App() {
+  const [userId, setUserId] = useState('user-123');
+  
+  // ❌ 問題在這裡：每次 App render，都會新建一個 user 物件
+  const user = { id: userId, name: '阿比', gender: 'M', address: '台北' };
+  
+  return (
+    <>
+      <button onClick={() => setUserId('user-456')}>切換到不同的人</button>
+      <button onClick={() => /* 其他不相關的 setState */}>其他按鈕</button>
+      <MyComponent user={user} />
+    </>
+  );
+}
+
+// 子元件
+function MyComponent({ user }) {
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
+    console.log('fetch profile for', user.id);
     fetch(`/api/profiles/${user.id}`)
       .then(r => r.json())
       .then(setProfile);
   }, [user]);  // ← 危險！user 是物件參考
-};
-
-// 為什麼會無限循環？根本原因是「物件參考」
-// 
-// 一句話解釋：
-// user 是物件（參考型別），每次 render 都會新建一個物件，
-// 即使內容相同（都是 { id: "123" }），但它們佔用不同的記憶體位址。
-// useEffect 的依賴陣列會淺比較 user，比較的是「記憶體地址是否相同」，不是「內容是否相同」。
-// 因為地址不同，useEffect 認為 user「改變了」，於是重新執行。
-//
-// 詳細流程：
-// 1. 第一次 render：MyComponent 被呼叫 → 新建 user 物件（記憶體地址 0x1234）
-// 2. useEffect 執行 → fetch 資料 → setProfile
-// 3. setProfile 觸發 re-render → MyComponent 再次被呼叫
-// 4. 第二次 render：新建新的 user 物件（記憶體地址 0x5678）← 地址改了！
-// 5. useEffect 淺比較：舊的 user (0x1234) ≠ 新的 user (0x5678)
-// 6. useEffect 認為 user 改變了，重新執行
-// 7. 無限迴圈...
-
-// ✅ 修正：用 user.id 而不是 user
-useEffect(() => {
-  fetch(`/api/profiles/${user.id}`)
-    .then(r => r.json())
-    .then(setProfile);
-}, [user.id]);  
-// ← 基本型別（string/number），比較的是「值」而不是「記憶體地址」
-//   user.id = "123" 每次都是同一個值，所以 useEffect 認為沒改變
+}
 ```
+
+**useEffect 的依賴陣列用什麼來比較？**
+
+React 對依賴陣列的每個元素使用 **Object.is()** 來比較：
+
+```typescript
+// React 內部簡化版本
+function useEffect(callback, deps) {
+  const prevDeps = /* 上一次的依賴 */;
+  
+  let shouldRun = false;
+  for (let i = 0; i < deps.length; i++) {
+    // 對每個依賴，用 Object.is() 比較
+    if (!Object.is(deps[i], prevDeps[i])) {
+      shouldRun = true;
+      break;
+    }
+  }
+  
+  if (shouldRun) {
+    callback();
+  }
+}
+```
+
+**Object.is() 怎麼比較？**
+
+```typescript
+// 對於基本型別：比較「值」
+Object.is('user-123', 'user-123')  // true ✅
+Object.is('user-123', 'user-456')  // false
+
+// 對於物件：比較「參考（記憶體地址）」，不比較內容
+const user1 = { id: 'user-123', name: '阿比' };
+const user2 = { id: 'user-123', name: '阿比' };  // 內容完全相同
+
+Object.is(user1, user1)   // true （同一個物件參考）
+Object.is(user1, user2)   // false （不同物件，不同記憶體地址） ← 這是關鍵！
+Object.is(user1.id, user2.id)  // true （都是 'user-123'，值相同）
+```
+
+**所以無限循環發生在這裡：**
+
+```
+第一次 render:
+  ├─ App 執行 → 新建 user 物件，記憶體地址 0x1234
+  ├─ MyComponent 收到 user (0x1234)
+  ├─ useEffect 執行 → fetch 資料
+  └─ setProfile → re-render
+
+第二次 render:
+  ├─ App 執行 → 新建新的 user 物件，記憶體地址 0x5678 ← 新地址！
+  ├─ MyComponent 收到 user (0x5678)
+  ├─ useEffect 比較：Object.is(user(0x1234), user(0x5678)) = false
+  ├─ useEffect 認為 user「改變了」，重新執行
+  ├─ fetch 資料 → setProfile
+  └─ re-render... 無限迴圈
+
+為什麼每次都新建物件？
+  因為 JavaScript 的語法：const user = { ... } 
+  每執行一次，就在記憶體裡建立一個新物件
+  這不是 React 的問題，是 JavaScript 基本特性
+```
+
+---
+
+**✅ 解決方案一：只依賴 user.id（最簡單，最常用）**
+
+```typescript
+useEffect(() => {
+  fetch(`/api/profiles/${user.id}`);
+}, [user.id]);  // ← 字串型別，Object.is() 比較的是值
+
+// 實際行為：
+// - 第一次 render：user.id = 'user-123' → fetch
+// - App 其他按鈕被按，但 userId 沒改 → user.id 還是 'user-123'
+// - useEffect 比較：Object.is('user-123', 'user-123') = true
+// - useEffect 不執行 ✅
+```
+
+---
+
+**✅ 解決方案二：如果多個屬性都影響結果，列出所有需要的**
+
+```typescript
+// 場景：profile 內容要根據 gender 和 address 也不同
+useEffect(() => {
+  fetch(`/api/profiles/${user.id}?gender=${user.gender}&address=${user.address}`);
+}, [user.id, user.gender, user.address]);
+
+// 實際行為：
+// - 只有當 user.id、user.gender、user.address 中的任何一個改變時，才執行
+// - user 的其他屬性改變不會觸發
+// - 比 [user] 更精確，避免不必要的 fetch
+```
+
+---
+
+**✅ 解決方案三：如果非得用整個 user 物件，用 useMemo 穩定它**
+
+```typescript
+function App() {
+  const [userId, setUserId] = useState('user-123');
+  const [gender, setGender] = useState('M');
+  
+  // 用 useMemo 保證：只有當依賴改變時，才建立新的 user 物件
+  const user = useMemo(
+    () => ({ id: userId, gender }),
+    [userId, gender]  // ← 只有這兩個改變時，才新建 user 物件
+  );
+  
+  return <MyComponent user={user} />;
+}
+
+function MyComponent({ user }) {
+  useEffect(() => {
+    fetch(`/api/profiles/${user.id}`);
+  }, [user]);  // 現在可以用 [user] 了，因為 user 的參考更穩定
+  
+  // 實際行為：
+  // - App 的其他 state 改變，user 物件的參考不變
+  // - useEffect 比較：Object.is(user, user) = true
+  // - useEffect 不執行 ✅
+}
+```
+
+---
+
+**最佳實踐：選擇最精確的依賴**
+
+| 情況 | 寫法 | 為什麼 |
+|------|------|--------|
+| **只根據 user.id fetch** | `[user.id]` | 精確、避免無限循環、避免不必要的 fetch |
+| **根據多個屬性決定結果** | `[user.id, user.gender]` | 列出真正需要的屬性 |
+| **父元件已用 useMemo 穩定** | `[user]` | 可以用 user 物件，因為參考已經穩定 |
+| **需要監聽 user 的所有改變** | `[user.id, user.gender, user.address, ...]` | 列出所有相關屬性 |
+
+**一句話記住：Object.is() 對物件比的是參考，所以如果物件來自普通的 JavaScript 賦值（不是 useMemo），每次都會是新參考。直接依賴基本型別更安全。**
 
 ### 死法二：setState 觸發的新物件
 
