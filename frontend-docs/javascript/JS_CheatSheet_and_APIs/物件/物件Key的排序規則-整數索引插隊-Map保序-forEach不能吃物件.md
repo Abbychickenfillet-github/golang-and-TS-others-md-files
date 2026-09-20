@@ -12,7 +12,8 @@ related:
   - "[[Symbol-符號型別與物件key]]"
 sources:
   - https://gemini.google.com/app/cd826fdfe895682b
-updated: 2026-09-05
+  - https://gemini.google.com/app/c4466533efd1df26
+updated: 2026-09-17
 ---
 
 # 物件 Key 的排序規則 — 整數索引會插隊、Map 才真正保序、forEach 不能吃物件
@@ -22,7 +23,7 @@ updated: 2026-09-05
 > (2) [[屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys]] 講「哪個方法看得到哪些 key」，本篇講「看到的 key 會照什麼順序排」，一個是範圍、一個是順序。
 > (3) 最後一節「forEach 不能用在物件」直接連到 [[02-陣列遍歷-forEach與callback]]，因為錯誤訊息 `obj.forEach is not a function` 的根源就是 forEach 掛在 `Array.prototype` 上。
 
-> 本篇重點 a–k，共 11 個。
+> 本篇重點 a–k，共 11 個（另含 2026-09-17 補入的 (g-2) 四維度對照表）。
 
 ## 重點整理
 
@@ -84,6 +85,17 @@ order.forEach(key => {
 ```
 
 (g) <mark style="background: #FFB8EBA6;">Map 還有一個關鍵差異：Map 的 key 可以是任何型別（物件、函式、Symbol、數字），Object 的 key 只能是字串或 Symbol</mark>——`obj[2]` 其實存的是 `"2"`，這正是整數 key 會被特別排序的原因。
+
+(g-2) 把 (a)–(g) 壓成一張四維度對照表，決策時看這張就夠（2026-09-17 由 Gemini 對話補入）：
+
+| 維度 | Object | Map |
+|---|---|---|
+| 排序機制 | 混合排序：整數索引優先升序 → 字串鍵依新增順序 → Symbol 鍵依新增順序 | 嚴格依新增順序（FIFO），完全保留寫入順序 |
+| Key 的型態限制 | 僅限字串（String）或 Symbol，數字會被自動轉成字串 | 任何型態，包含物件、函式、數字、布林值 |
+| 迭代方式 | 需要先透過 `Object.keys()` / `Object.entries()` 攤成陣列，或用 `for...in` | 內建 Iterable，可直接用 `for...of` 或 `.forEach()` |
+| 適用場景 | 結構化資料、靜態屬性定義、要 JSON 序列化 | 需要頻繁增刪、嚴格保留順序、或 key 是非字串型態 |
+
+  一句話決策：<mark style="background: #BBFABBA6;">要嚴格維持寫入順序，或要拿數字／物件當 key，就選 `Map`</mark>；只是描述一包固定欄位、而且要 `JSON.stringify` 送出去，就選 Object（`Map` 不能直接被 `JSON.stringify` 序列化，會變成 `{}`）。
 
 ### 三、`order.forEach(key => ...)` 裡的 key 是哪來的（h–i）
 
@@ -168,7 +180,9 @@ for (const key in obj) {
 
 | 主題 | 連結 | 版本／查證時間 |
 | --- | --- | --- |
-| 本篇 Gemini 對話 | https://gemini.google.com/app/cd826fdfe895682b | Gemini Flash，2026-09-05 |
+| 本篇 Gemini 對話（主） | https://gemini.google.com/app/cd826fdfe895682b | Gemini Flash，2026-09-05 |
+| 本篇 (g-2) 四維度對照表的 Gemini 對話 | https://gemini.google.com/app/c4466533efd1df26 | Gemini Flash，2026-09-17 擷取 |
+| MDN — JSON.stringify（Map 不會被序列化成鍵值對） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify | MDN 現行版本，2026-09-17 查證 |
 | ECMA-262 — OrdinaryOwnPropertyKeys（三段式排序規格） | https://tc39.es/ecma262/#sec-ordinaryownpropertykeys | ECMAScript 現行草案，2026-09-05 查證 |
 | ECMA-262 — Array Index 定義（0 到 2^32 − 2） | https://tc39.es/ecma262/#array-index | ECMAScript 現行草案，2026-09-05 查證 |
 | MDN — Object.keys() | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys | MDN 現行版本，2026-09-05 查證 |

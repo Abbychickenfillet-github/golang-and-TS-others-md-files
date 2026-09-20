@@ -117,9 +117,9 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <h1>物件 Key 的排序規則 — 整數索引會插隊、Map 才真正保序、forEach 不能吃物件</h1>
   <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#object</span><span class="pill">#key</span><span class="pill">#ordering</span><span class="pill">#map</span><span class="pill">#for-in</span><span class="pill">#foreach</span></div>
   <div class="meta">
-    <span>更新於 2026-09-05</span>
+    <span>更新於 2026-09-17</span>
     <span>來源：Gemini</span>
-    <a href="https://gemini.google.com/app/cd826fdfe895682b" target="_blank" rel="noopener">原始對話 1</a>
+    <a href="https://gemini.google.com/app/cd826fdfe895682b" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/c4466533efd1df26" target="_blank" rel="noopener">原始對話 2</a>
   </div>
 </header>
 
@@ -146,8 +146,8 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 <p>[!info]- 🔗 與既有筆記的關聯<br />
 (1) <span class="wikilink" title="Obsidian 連結：for-in-迴圈迭代順序與特性">for-in-迴圈迭代順序與特性</span> 已經記過 <code>for...in</code> 的迭代特性，本篇補的是「為什麼順序長那樣」的規格層原因——OrdinaryOwnPropertyKeys 的三段式排序，兩篇合看才完整。<br />
 (2) <span class="wikilink" title="Obsidian 連結：屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys">屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys</span> 講「哪個方法看得到哪些 key」，本篇講「看到的 key 會照什麼順序排」，一個是範圍、一個是順序。<br />
-(3) 最後一節「forEach 不能用在物件」直接連到 <span class="wikilink" title="Obsidian 連結：陣列遍歷-forEach與callback">陣列遍歷-forEach與callback</span>，因為錯誤訊息 <code>obj.forEach is not a function</code> 的根源就是 forEach 掛在 <code>Array.prototype</code> 上。</p>
-<p>本篇重點 a–k，共 11 個。</p>
+(3) 最後一節「forEach 不能用在物件」直接連到 <span class="wikilink" title="Obsidian 連結：02-陣列遍歷-forEach與callback">02-陣列遍歷-forEach與callback</span>，因為錯誤訊息 <code>obj.forEach is not a function</code> 的根源就是 forEach 掛在 <code>Array.prototype</code> 上。</p>
+<p>本篇重點 a–k，共 11 個（另含 2026-09-17 補入的 (g-2) 四維度對照表）。</p>
 </blockquote>
 <h2 id="_1">重點整理</h2>
 <h3 id="ad">一、規格層的三段式排序（a–d）</h3>
@@ -214,6 +214,39 @@ order.forEach(key =&gt; {
 });
 </code></pre>
 <p>(g) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Map 還有一個關鍵差異：Map 的 key 可以是任何型別（物件、函式、Symbol、數字），Object 的 key 只能是字串或 Symbol</mark>——<code>obj[2]</code> 其實存的是 <code>"2"</code>，這正是整數 key 會被特別排序的原因。</p>
+<p>(g-2) 把 (a)–(g) 壓成一張四維度對照表，決策時看這張就夠（2026-09-17 由 Gemini 對話補入）：</p>
+<table>
+<thead>
+<tr>
+<th>維度</th>
+<th>Object</th>
+<th>Map</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>排序機制</td>
+<td>混合排序：整數索引優先升序 → 字串鍵依新增順序 → Symbol 鍵依新增順序</td>
+<td>嚴格依新增順序（FIFO），完全保留寫入順序</td>
+</tr>
+<tr>
+<td>Key 的型態限制</td>
+<td>僅限字串（String）或 Symbol，數字會被自動轉成字串</td>
+<td>任何型態，包含物件、函式、數字、布林值</td>
+</tr>
+<tr>
+<td>迭代方式</td>
+<td>需要先透過 <code>Object.keys()</code> / <code>Object.entries()</code> 攤成陣列，或用 <code>for...in</code></td>
+<td>內建 Iterable，可直接用 <code>for...of</code> 或 <code>.forEach()</code></td>
+</tr>
+<tr>
+<td>適用場景</td>
+<td>結構化資料、靜態屬性定義、要 JSON 序列化</td>
+<td>需要頻繁增刪、嚴格保留順序、或 key 是非字串型態</td>
+</tr>
+</tbody>
+</table>
+<p>一句話決策：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要嚴格維持寫入順序，或要拿數字／物件當 key，就選 <code>Map</code></mark>；只是描述一包固定欄位、而且要 <code>JSON.stringify</code> 送出去，就選 Object（<code>Map</code> 不能直接被 <code>JSON.stringify</code> 序列化，會變成 <code>{}</code>）。</p>
 <h3 id="orderforeachkey-key-hi">三、<code>order.forEach(key =&gt; ...)</code> 裡的 key 是哪來的（h–i）</h3>
 <p>(h) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>key</code> 是你自己命名的參數（Parameter），用來接收 forEach 每一輪傳進來的元素</mark>，不需要另外 <code>const</code> 或 <code>let</code> 宣告，因為參數本身就是一個綁定。</p>
 <pre><code class="language-js">// forEach 寫法
@@ -302,9 +335,19 @@ for (const key in obj) {
 </thead>
 <tbody>
 <tr>
-<td>本篇 Gemini 對話</td>
+<td>本篇 Gemini 對話（主）</td>
 <td>https://gemini.google.com/app/cd826fdfe895682b</td>
 <td>Gemini Flash，2026-09-05</td>
+</tr>
+<tr>
+<td>本篇 (g-2) 四維度對照表的 Gemini 對話</td>
+<td>https://gemini.google.com/app/c4466533efd1df26</td>
+<td>Gemini Flash，2026-09-17 擷取</td>
+</tr>
+<tr>
+<td>MDN — JSON.stringify（Map 不會被序列化成鍵值對）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
 </tr>
 <tr>
 <td>ECMA-262 — OrdinaryOwnPropertyKeys（三段式排序規格）</td>
@@ -337,7 +380,7 @@ for (const key in obj) {
 <p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
 </article>
 
-<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-17</footer>
 </div>
 <script>
 (function(){

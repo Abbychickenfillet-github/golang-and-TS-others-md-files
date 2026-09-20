@@ -7,7 +7,9 @@ sources:
   - https://gemini.google.com/app/0b96bab2bcf0369f
   - https://gemini.google.com/app/7a12e30998ccde0c
   - https://gemini.google.com/app/de0c03613eb15709
-updated: 2026-09-06
+  - https://gemini.google.com/app/880a00585b4bc824
+  - https://gemini.google.com/app/14a5019f253a467f
+updated: 2026-09-15
 ---
 
 # SSR、renderToString 與 Hydration — 伺服器端渲染流程
@@ -124,6 +126,29 @@ hydrateRoot(document.getElementById('root'), <App />);
 
 (v) <mark style="background: #BBFABBA6;">一句話記法</mark>：<mark style="background: #FFF3A3A6;">問「HTML 是誰、在哪一刻拼出來的」就分得出三者</mark>——建置機器拼好的是 SSG，伺服器每次現拼的是 SSR，瀏覽器自己拼的是 CSR。<mark style="background: #FFB8EBA6;">而 Build Time 這一格對三者其實做的事幾乎一樣（編譯＋打包），差別全在 Runtime。</mark>
 
+### 追加 2026-09-15：一句話講清楚 SSG 與 SSR 的分界，以及 HTML 裡那個「站位標記」
+
+#### (一) 靜態檔 vs 動態檔
+
+<mark style="background: #FFF3A3A6;">**SSG 產出的是固定檔案，不管多少人連線，伺服器都遞出同一份 HTML 與 JS；SSR 則是每次請求進來時，伺服器當下執行程式碼把 HTML 組出來，所以每個使用者拿到的內容可以不一樣。**</mark>
+
+| | SSG（Static Site Generation） | SSR（Server-Side Rendering） |
+| --- | --- | --- |
+| HTML 什麼時候長出來 | build time，打包時就生好 | runtime，每一次 request 當下 |
+| 伺服器做什麼 | 只負責把檔案遞出去（等同 CDN 靜態檔） | 執行 render 函式、查資料庫、組字串 |
+| 每個人拿到的內容 | 一樣 | 可以不一樣（登入者名字、個人化推薦） |
+| 內容更新 | 要重新 build（或走 ISR） | 立即反映 |
+
+所以「靜態檔案」的靜態，指的是**檔案內容在被請求之前就已經定案**；SSR 的動態，指的是**內容在被請求的那一刻才決定**。
+
+#### (二) 那個會被 JS 換掉的「站位標記」寫在哪個檔案裡
+
+Abby 問「那個會動的部分是寫在 `.js` 檔裡還是 `.html` 檔裡」，答案是**兩邊都有，但角色不同**：
+
+> 伺服器先把一份**含站位標記的初始 HTML** 回給瀏覽器（例如骨架、`<!--$-->` 這類 Suspense 邊界註解、或空的容器 div）→ 瀏覽器一邊顯示這份 HTML，一邊下載對應的 JS chunk → JS 載入後執行 hydration，React 走一次同樣的元件樹，把事件監聽器綁上去，並把站位處替換成真正的互動內容。
+
+<mark style="background: #ADCCFF62;">**所以「畫面先出現」靠的是 HTML，「會動」靠的是後來載入的 JS chunk。**</mark>這正是本篇前面講的 hydration：HTML 負責**看得到**，JS 負責**按得動**，中間那段空窗期就是 TTI（Time To Interactive）被拉長的原因。
+
 ## 相關筆記
 
 - [[00-前端建構到執行全景地圖]] —— HTML/CSS/JS/React/Vue 各自 build-time→runtime 的總地圖，本篇是 React run-time（SSR/hydration）那一列的來源篇
@@ -185,6 +210,12 @@ Gemini：在 CSR 中，元件只會在客戶端的瀏覽器中執行一次，直
 **Gemini：** 先看 SSR。在 Build Time 時，編譯器會預先結合程式碼與後端資料庫請求，將頁面渲染成靜態 HTML。進入 Runtime 後，當使用者發送請求，伺服器端會直接回傳預先準備好的靜態 HTML 檔案，接著瀏覽器完成解析與繪製，最後掛載前端腳本完成 Hydration。（⚠️ 見重點 (t) 的更正：這段講的是 SSG 不是 SSR）
 接著是 CSR。Build Time 時編譯器僅會將 React 或相關前端套件打包，生成 JavaScript 檔案，此時並沒有完整的 HTML。進入 Runtime 後，瀏覽器會先下載空的 HTML 與大量的 JavaScript，接著在客戶端由引擎解析並動態建立 DOM，最後完成頁面呈現。（✅ 這段正確）
 
+### 追加 2026-09-15｜SSG 與 SSR 的差異解析 — https://gemini.google.com/app/880a00585b4bc824
+
+### 追加 2026-09-15｜初始 HTML 的站位標記與 JS chunk — https://gemini.google.com/app/14a5019f253a467f
+
+（兩串都很短，重點已整併進上方「追加 2026-09-15」。）
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／時間 |
@@ -200,3 +231,7 @@ Gemini：在 CSR 中，元件只會在客戶端的瀏覽器中執行一次，直
 | Next.js — Static Rendering 與 Dynamic Rendering（用於更正重點 (t)：SSG 在 build time、SSR 在 request time） | https://nextjs.org/docs/app/getting-started/partial-prerendering | Next.js App Router 現行文件，2026-09-06 查證 |
 | Next.js — Incremental Static Regeneration（ISR，用於重點 (u) 的第四列） | https://nextjs.org/docs/app/guides/incremental-static-regeneration | Next.js 現行文件，2026-09-06 查證 |
 | MDN — Server-side vs client-side rendering（build/runtime 分界的中立說明） | https://developer.mozilla.org/en-US/docs/Glossary/SSR | MDN 現行版本，2026-09-06 查證 |
+| Next.js：Static Rendering 與 Dynamic Rendering | https://nextjs.org/docs/app/getting-started/partial-prerendering | Next.js 官方，查證 2026-09-15 |
+| React `hydrateRoot`（hydration 的官方定義） | https://react.dev/reference/react-dom/client/hydrateRoot | React 官方，查證 2026-09-15 |
+| 本次追加的原始對話一（Gemini） | https://gemini.google.com/app/880a00585b4bc824 | 對話擷取 2026-09-15 |
+| 本次追加的原始對話二（Gemini） | https://gemini.google.com/app/14a5019f253a467f | 對話擷取 2026-09-15 |

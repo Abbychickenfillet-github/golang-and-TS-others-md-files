@@ -2,18 +2,19 @@
 title: useState 底層 — Fiber Tree、memoizedState 鏈表與過期閉包
 type: topic-note
 source: Gemini
-tags: [gemini, react, hooks, useState, fiber, closure, lexical-scope, 記憶體, scheduler, key]
+tags: [gemini, react, hooks, useState, fiber, closure, lexical-scope, 記憶體, scheduler, key, double-buffering, alternate]
 sources:
   - https://gemini.google.com/app/92bd0f70e642fe50
   - https://gemini.google.com/app/599804dd5ba114af
   - https://gemini.google.com/app/1f0cc8c21e6f88b5
   - https://gemini.google.com/app/76cde95192586aa7
-updated: 2026-09-01
+  - https://gemini.google.com/app/5b6fc934e5d7f253
+updated: 2026-09-18
 ---
 
 # useState 底層 — Fiber Tree、memoizedState 鏈表與過期閉包
 
-> 本篇重點 a–z，共 26 個（u–z 為 2026-08-31 追加）。
+> 本篇重點 a–z，共 26 個（u–z 為 2026-08-31 追加）；第七節 (aa)–(ii) 為 2026-09-18 追加，主題是 Current Tree 與 WorkInProgress Tree 的雙緩衝關係。
 
 ## 重點整理
 
@@ -43,7 +44,7 @@ const result = add(1, 2)              // 外部直接接住，資料流一目瞭
 
 (d) <mark style="background: #ADCCFFA6;">Fiber Tree（Fiber 樹）</mark>是 React 內部維護的資料結構，完整存在於瀏覽器 JavaScript 引擎（例如 Chrome 的 V8）的 <mark style="background: #ADCCFFA6;">Heap Memory（堆積記憶體）</mark>裡。它不是什麼特殊硬體結構，本質就是一堆互相用指標引用的普通 JavaScript 物件。
 
-(e) 每個元件對應一個 <mark style="background: #FFF3A3A6;">FiberNode</mark>，關鍵欄位如下：
+(e) 每個元件對應一個 <mark style="background: #FFF3A3A6;">FiberNode</mark>，關鍵欄位如下，裡面放著React用來管理元件關係的各種資料，它不是瀏覽器DOM的Node物件。最核心的各種資料，它並不是瀏覽器端的部件：
 
 ```js
 const fiberNode = {
@@ -199,9 +200,232 @@ fiberNode = {
 <UserProfileForm key={userId} userId={userId} />
 ```
 
+### 追加 2026-09-15：把 Vue 3 與 Angular 放進同一張表，以及 React 19／React Compiler 帶來的改變
+
+前面六節都在講 React 內部怎麼用 Fiber 的 `memoizedState` 記住狀態。這一節把「同一個問題，另外兩個框架怎麼解」補上，順便交代 React 19 之後的自動化優化。
+
+#### (一) 三種狀態哲學的正面對決
+
+| 比較維度 | React `useState` | Vue 3 `ref` / `reactive` | Angular `signal`（v16+） |
+| --- | --- | --- | --- |
+| 資料哲學 | 不可變（immutable） | 可變（mutable，Proxy 攔截） | 可變（Signal 包裝） |
+| 語法 | `const [val, setVal] = useState()` | `const val = ref()`；`val.value++` | `val = signal()`；`val.update()` |
+| 怎麼改 | 呼叫 setter `setVal(newVal)` | 直接寫 `val.value = newVal` | 呼叫 `val.set()` 或 `val.update()` |
+| 更新機制 | 重新執行整個元件函式，比對 Virtual DOM 後 patch 真實 DOM | Proxy 的 getter 做 track、setter 做 trigger，精準更新有訂閱的 DOM | Signal 依賴圖精準局部更新（舊版走 Zone.js 全樹髒檢查） |
+| 過期閉包風險 | ⚠️ 高（依賴陣列寫漏就中招，見本篇第四節） | ❌ 無（`setup` 只跑一次，`ref` 物件指標固定） | ❌ 無（class 實體的 `this` 固定） |
+| 預設效能 | 父元件重畫，子元件預設跟著重畫 | 自動依賴收集，沒用到該狀態的元件根本不會被通知 | Signal 同上 |
+
+<mark style="background: #ADCCFF62;">**一句話：React 用「重畫換預測性」，Vue 用「攔截換直覺」，Angular 用「依賴圖換架構嚴謹」。**</mark>
+
+Vue 的 getter／setter 兩段拋接寫清楚：
+
+> template 讀取 `count.value` → 觸發 Proxy 的 **getter**，Vue 的 `ReactiveEffect` 把這個 DOM 節點登記成訂閱者（track）→ 之後執行 `count.value++` → 觸發 **setter**，Vue 從訂閱者清單取出受影響的節點（trigger）→ 只 patch 那幾個節點，不做整棵樹的 diff。
+
+#### (二) React 19 與 React Compiler：把手動記憶化自動化
+
+過去 React 最被詬病的一點是「父元件呼叫 setter，所有子元件都無腦跟著 re-render」，所以要手寫滿 `React.memo`、`useMemo`、`useCallback`。
+
+| 以前 | React 19 + React Compiler |
+| --- | --- |
+| 傳給子元件的 callback 要用 `useCallback` 鎖住指標，否則子元件白白重畫 | Compiler 在 **build time** 分析資料流，自動補上記憶化，程式碼回歸純 JavaScript |
+| 衍生資料要用 `useMemo` 避免每次重算 | 同上，交給 Compiler |
+| 非同步表單的 `isLoading`／`error` 用好幾個 `useState` 手動管 | `useActionState`（或 `useFormStatus`）一次搞定 |
+| 樂觀更新自己備份舊值 | `useOptimistic` |
+
+<mark style="background: #BBFABBA6;">**心智模型沒變（UI = f(state)，全函式重新執行），變的是「效能調優這件事從手動搬到編譯期」。**</mark>所以 React 在保住 immutable 心智模型的同時，拿到了接近 Vue／Angular Signals 的局部渲染效能。
+
+#### (三) 那到底誰比較厲害
+
+沒有絕對勝負，三者各贏一個面向：
+
+- **Vue 3 贏在開發直覺度**：自動依賴收集，直接改變數就更新 UI，沒有閉包陷阱也沒有過度重繪。
+- **Angular Signals 贏在架構嚴謹度**：細粒度更新＋強型別邊界，大型團隊的可預測性最好。
+- **React 贏在心智模型簡潔度**：`UI = f(state)` 的純函式哲學，加上 Compiler 之後手動優化的痛點也消失了。
+
+> [!warning] ⚠️ 存疑／查證提醒
+> 原對話還列了一張「框架 Runtime 體積」表（React ~42KB、Vue ~33KB、Angular ~75–110KB，皆 gzip）。
+> 這類數字**版本一改就過時**，而且 Angular 的實際 initial bundle 高度取決於有沒有用 standalone component 與 Signal。這張表在本篇**刻意不收錄**，需要時請直接查 [bundlephobia](https://bundlephobia.com/) 或各框架官方的 bundle size 頁面當下的數字。
+
+
+### 七、追加 2026-09-18：Current Tree 與 WorkInProgress Tree 都是 Fiber Tree（雙緩衝 Double Buffering）
+
+> 起因是一個問題：「所以 Current Tree、WorkInProgress Tree 都是 Fiber Tree 的結構嗎？」
+> <mark style="background: #BBFABBA6;">答案是：對，而且是同一種結構、同一個 class、同一組欄位，差別只在「誰現在被畫在螢幕上」。</mark>
+
+#### (aa) 兩棵樹是同一種東西，不是兩種資料結構
+
+<mark style="background: #FFF3A3A6;">`Current Tree` 與 `WorkInProgress Tree` 兩棵都是由 `FiberNode` 組成的 Fiber Tree</mark>，欄位完全一樣，就是第六節 (u) 那六大類：`child` / `sibling` / `return`、`tag` / `key` / `type`、`pendingProps` / `memoizedProps` / `memoizedState` / `updateQueue`、`stateNode`、`lanes` / `childLanes`、`alternate`。
+
+它們的差別**不在型別，而在身分**：
+
+| | Current Tree | WorkInProgress Tree |
+| --- | --- | --- |
+| 中文 | 當前樹／已上畫面的樹 | 工作中的樹／草稿樹 |
+| 節點型別 | `FiberNode` | `FiberNode`（同一個） |
+| 代表什麼 | <mark style="background: #ADCCFFA6;">此刻螢幕上真正呈現的那一版 UI</mark> | React 正在算的下一版 UI，還沒上畫面 |
+| 誰指著它 | `fiberRoot.current` 這個指標 | `workLoop` 裡的區域變數 `workInProgress` |
+| 可以被改嗎 | 不行，Render 階段只讀不改 | 可以，整個 Render 階段都在改它 |
+| 使用者看得到嗎 | 看得到 | 看不到，直到 Commit |
+
+所以「Fiber Tree」是**類別**，「Current ／ WorkInProgress」是**角色**。就像同樣是一張紙，一張貼在牆上（current）、一張在你手上改（workInProgress）。
+
+#### (bb) `alternate`：兩棵樹是用指標「配對」起來的，而且是雙向
+
+<mark style="background: #FFB8EBA6;">每一個 FiberNode 的 `alternate` 欄位，指向「另一棵樹上位置相同的那個節點」，而且是雙向的。</mark>
+
+```js
+// 假設 App 元件在兩棵樹上各有一個節點
+currentAppFiber.alternate === wipAppFiber     // true
+wipAppFiber.alternate === currentAppFiber     // true  ← 互相指回去
+```
+
+這句話翻成白話：「current 樹上的 App 節點，它的 `alternate` 就是 WIP 樹上的 App 節點；而 WIP 樹上那個節點的 `alternate`，又指回 current 樹上的 App 節點。兩個指標互相指著對方，形成一對。」
+
+<mark style="background: #BBFABBA6;">React 全程只維護「兩棵」樹，不會有第三棵</mark>——這就是「double（雙重）buffering」裡「double」的來源，而不是「很多層緩衝」。
+
+`alternate` 有兩個實際用途：
+
+- **拿舊值來比對**：Render 階段處理 WIP 上某個節點時，React 用 `workInProgress.alternate` 一步拿到它上一次的 `memoizedProps` 與 `memoizedState`，才能判斷「這次到底有沒有變」，決定要不要 bailout（跳過）。沒有 `alternate` 的話就得再走一次樹去找對應節點。
+- **復用節點物件**：見 (ee)。
+
+#### (cc) 先分清楚 `FiberRootNode` 與 `HostRoot` 是兩個東西
+
+這是初學 Fiber 最常混在一起的一組名詞，<mark style="background: #FF5582A6;">它們名字都有 root，但根本不是同一種物件</mark>：
+
+| | `FiberRootNode` | `HostRoot` fiber |
+| --- | --- | --- |
+| 它是什麼 | 整個 React 應用的**容器物件** | 一個**真正的 FiberNode**，`tag === 3` |
+| 是 FiberNode 嗎 | <mark style="background: #FF5582A6;">不是</mark>，它是另一個 class | 是 |
+| 有幾個 | 一個應用一個（`createRoot()` 建立） | 每棵樹各一個，所以共兩個 |
+| 重要欄位 | `containerInfo`（那個真實的 `<div id="root">`）、`current`（指向現在的 current 樹根） | `stateNode` 指回 `FiberRootNode`、`memoizedState` 存 `{ element: <App /> }` |
+| 會被換掉嗎 | 不會，永遠是同一個 | 會，current 與 WIP 各有一個、互為 `alternate` |
+
+```js
+// 關係圖（簡化）
+fiberRoot = {                      // FiberRootNode，不是 fiber
+  containerInfo: document.getElementById('root'),   // 真實 DOM 容器
+  current: hostRootFiber_A,        // 指向「現在」的那棵樹的根
+}
+
+hostRootFiber_A = {                // 這個才是 FiberNode
+  tag: 3,                          // 3 = HostRoot
+  stateNode: fiberRoot,            // 指回容器，形成互指
+  alternate: hostRootFiber_B,      // 另一棵樹的根
+  child: appFiber_A,               // 往下就是 <App /> 的 fiber
+}
+```
+
+<mark style="background: #ADCCFFA6;">記憶方法：`FiberRootNode` 是「應用的門牌」，`HostRoot` fiber 是「樹的第一個節點」。門牌只有一個，樹有兩棵。</mark>
+
+#### (dd) 切換就是一行指標賦值
+
+Commit 階段做完所有 DOM 操作之後，React 只做這一件事：
+
+```js
+root.current = finishedWork;   // finishedWork 就是剛算完的 WorkInProgress 樹的根
+```
+
+`root` 是 `FiberRootNode`，`current` 是它的一個欄位。<mark style="background: #BBFABBA6;">這一行執行完的瞬間，原本的 WIP 樹就「變成」current 樹了</mark>——沒有任何複製、沒有任何搬移，只是換了一個指標指向哪裡。
+
+這就是雙緩衝的核心價值：**切換是 O(1) 的，而且是原子的**。使用者永遠不會看到「算到一半的 UI」，因為算的過程全在另一棵沒人看的樹上發生。
+
+> 這跟繪圖領域的 double buffering 是同一個概念：先在背景畫布（back buffer）把整張圖畫完，再一次 swap 到前景（front buffer），避免使用者看到逐格繪製的撕裂畫面。
+
+#### (ee) ⚠️ 更正一個常見說法：舊樹不是直接丟給 GC
+
+很多文章（包含本庫先前的草稿）會這樣寫：「算完只要把指標一指就完成切換，舊樹交給 GC。」
+
+<mark style="background: #FF5582A6;">這句話的後半段是錯的。</mark>正確的是：
+
+<mark style="background: #FFF3A3A6;">舊的 current 樹不會被丟掉，它會被「留著」，在下一次更新時被拿來當作新的 WorkInProgress 樹重複使用。</mark>這個機制叫 **alternate 復用**，發生在 `createWorkInProgress()` 這個函式裡：
+
+```js
+// react-reconciler/src/ReactFiber.js（概念簡化版）
+function createWorkInProgress(current, pendingProps) {
+  let workInProgress = current.alternate;      // 先看看有沒有現成的可以用
+
+  if (workInProgress === null) {
+    // 首次渲染（mount）：沒有對手，只好 new 一個出來
+    workInProgress = createFiber(current.tag, pendingProps, current.key, current.mode);
+    workInProgress.stateNode = current.stateNode;
+    workInProgress.alternate = current;        // 互相認親
+    current.alternate = workInProgress;
+  } else {
+    // 更新（update）：直接把上一輪那顆節點洗乾淨拿來用，不 new 新物件
+    workInProgress.pendingProps = pendingProps;
+    workInProgress.type = current.type;
+    workInProgress.flags = NoFlags;            // 清掉上一輪的副作用標記
+    workInProgress.deletions = null;
+  }
+
+  // 不管哪一條路，都要把 current 的狀態抄過來當起點
+  workInProgress.child = current.child;
+  workInProgress.memoizedProps = current.memoizedProps;
+  workInProgress.memoizedState = current.memoizedState;   // Hook 鏈表接過來
+  workInProgress.updateQueue = current.updateQueue;
+  return workInProgress;
+}
+```
+
+一行一行翻：
+
+- `let workInProgress = current.alternate;` —— 先問「我的對手節點還在嗎」。在第二次以後的更新，它就是上上一輪那棵樹的節點。
+- `if (workInProgress === null)` —— 只有**首次渲染**會進來，因為這時候還沒有第二棵樹。
+- `createFiber(...)` —— 真的 `new` 一個 FiberNode 出來，然後兩邊互設 `alternate`。
+- `else` 分支 —— 更新時完全不 `new`，只是把舊節點的欄位覆寫成新的：換掉 `pendingProps`、把 `flags`（副作用標記）清成 `NoFlags`。<mark style="background: #BBFABBA6;">這就是物件池（object pool）的思路：與其配置新記憶體再回收，不如把同一顆物件洗乾淨重複用。</mark>
+- 最後三行把 `memoizedProps` ／ `memoizedState` ／ `updateQueue` 從 current 抄過來 —— 所以 Hook 鏈表（第三節那條）是**接手的**，不是重建的。
+
+<mark style="background: #ADCCFF62;">**所以正確的敘述是：兩棵 Fiber 樹在應用的整個生命週期裡輪流當 current 與 WorkInProgress，像兩個交替上場的替身，而不是每次更新都生一棵新樹、丟一棵舊樹。**</mark>真正會被 GC 回收的，是「這次更新後被刪除的那些子樹」，不是整棵舊樹。
+
+#### (ff) 首次渲染（mount）與更新（update）的差別
+
+| | 首次渲染 mount | 後續更新 update |
+| --- | --- | --- |
+| 有幾棵樹 | 一開始只有 `HostRoot` 一個節點的 current 樹 | 兩棵都在 |
+| `alternate` | <mark style="background: #FF5582A6;">是 `null`</mark>，所以每個節點都得 `new` | 不是 `null`，直接復用 |
+| Hook 走哪條路 | `mountState`：真的建立一條新的 Hook 鏈表 | `updateState`：沿著 `alternate.memoizedState` 這條舊鏈表一格一格往下讀 |
+| 效能特徵 | 最貴的一次 | 明顯便宜，因為沒有配置新 FiberNode |
+
+<mark style="background: #BBFABBA6;">這解釋了第三節「為什麼 Hook 不能寫在 if 裡面」的底層原因</mark>：`updateState` 是靠「第幾次被呼叫」去對應「鏈表的第幾格」，它完全依賴上一輪存在 `alternate.memoizedState` 上的順序。順序一亂，第 2 個 `useState` 就會拿到第 1 個的值。
+
+#### (gg) 同一個欄位，在不同 `tag` 下意思不一樣
+
+這是讀 Fiber 原始碼一定會踩到的坑：<mark style="background: #FF5582A6;">`memoizedState` 跟 `updateQueue` 這兩個欄位是「共用插槽」，意思隨 `tag` 改變。</mark>
+
+| 欄位 | FunctionComponent（`tag === 0`） | ClassComponent（`tag === 1`） | HostRoot（`tag === 3`） |
+| --- | --- | --- | --- |
+| `memoizedState` | <mark style="background: #ADCCFFA6;">Hook 鏈表的**頭節點**</mark>（第三節那條單向鏈表） | 就是 `this.state` 那個物件 | `{ element: <App /> }` |
+| `updateQueue` | <mark style="background: #ADCCFFA6;">Effect 的**環狀鏈表**</mark>（`useEffect` ／ `useLayoutEffect` 要跑的東西） | `setState` 排進來的更新佇列 | `render()` 傳進來的 element 佇列 |
+| `stateNode` | 永遠 `null`（見 (w)） | class 實例 | `FiberRootNode` |
+
+所以看到別人的文章說「`memoizedState` 就是 state」，那句話**只在 class component 下成立**。在 function component 裡它是一條鏈表的頭，`state` 的值要再往下走 `hook.memoizedState` 才拿得到。
+
+#### (hh) 一句話總結雙緩衝為什麼重要
+
+<mark style="background: #FFF3A3A6;">因為 Render 階段是**可以被中斷**的（第六節 (v) 講的那個 `while` 迴圈），如果 React 直接改 current 樹，使用者就會看到改到一半的畫面。</mark>雙緩衝讓「可中斷」這件事變成安全的：不管中途被打斷幾次、丟棄幾次計算結果，螢幕上那棵 current 樹始終是完整的一版。
+
+因果鏈：
+
+> 要支援可中斷渲染 → 就不能邊算邊改螢幕上那棵樹 → 所以需要第二棵樹當草稿 → 所以需要 `alternate` 把兩棵配對起來 → 順便可以復用節點省記憶體。
+
+#### (ii) 面試可以這樣答
+
+**Q：Current Tree 跟 WorkInProgress Tree 有什麼差別？**
+
+它們是同一種資料結構，都是由 `FiberNode` 組成的 Fiber Tree，差別在角色：`fiberRoot.current` 指到的那棵是已經上畫面的 current 樹，Render 階段只讀不改；React 在另一棵 WorkInProgress 樹上算新的 UI。兩棵樹上位置相同的節點透過 `alternate` 雙向互指。Commit 階段結束時只做 `root.current = finishedWork` 一行指標賦值就完成切換，是 O(1) 而且原子的。
+
+**Q：舊的那棵樹會被 GC 嗎？**
+
+不會整棵被回收。React 會把它留著，下次更新時在 `createWorkInProgress()` 裡透過 `current.alternate` 拿回來重複使用，只清掉 `flags` 與換掉 `pendingProps`，避免每次更新都重新配置整棵樹的記憶體。真正被回收的是這次更新中被刪除的子樹。
+
+**Q：為什麼叫 double buffering？**
+
+借自繪圖領域：在背景 buffer 畫完整張圖，再一次交換到前景，避免使用者看到繪製到一半的畫面。React 全程只維護兩棵樹，所以是 double 而不是多層。
+
 ## ⚠️ 存疑／更正
 
 - **Gemini 說「已為你在今天的 Google Calendar 上新增這個研讀事項」**：這句話請不要當真。Gemini 在該對話中並未附上任何可驗證的事件連結，語氣也是「已嘗試為你安排」。<mark style="background: #FF5582A6;">建議自己去日曆確認是否真的有這筆事件</mark>，不要以為排程已完成。
+- **「算完只要把指標一指就完成切換，舊樹交給 GC」**：<mark style="background: #FF5582A6;">後半句是錯的，2026-09-18 已於第七節 (ee) 更正。</mark>舊的 current 樹不會整棵被 GC 回收，React 會在下一次更新時透過 `current.alternate` 把它撈回來當作新的 WorkInProgress 重複使用（`createWorkInProgress()` 的 else 分支），只清掉 `flags`、換掉 `pendingProps`。真正被回收的是這次更新中被刪除的子樹。
 - **另一段對話（`599804dd5ba114af`）中 Gemini 說「React 18 之後編譯工具已經改變，寫 JSX 不需要再 import React」**：時間點講錯了。<mark style="background: #BBFABBA6;">新版 JSX Transform 是 React 17（2020-10）引進的，不是 18。</mark>但後半句「`useState` 這類 Hook 仍然必須 import」是正確的。詳見同批筆記〈JSX 轉譯機制〉。
 
 ## 相關題目練習
@@ -211,6 +435,10 @@ fiberNode = {
 | LeetCode 2665. Counter II | https://leetcode.com/problems/counter-ii/ | 用閉包把狀態留在函式外，正是 useState 概念的最小可執行版本 |
 | LeetCode 2622. Cache With Time Limit | https://leetcode.com/problems/cache-with-time-limit/ | `setTimeout` 搭配閉包捕捉變數，跟過期閉包同一組肌肉 |
 | LeetCode 2623. Memoize | https://leetcode.com/problems/memoize/ | 手寫記憶化，直接對應 `memoizedState` 的命名由來 |
+| LeetCode 1367. Linked List in Binary Tree | https://leetcode.com/problems/linked-list-in-binary-tree/ | 同時操作樹與鏈表的指標，跟 Fiber「把樹攤平成鏈表」是同一組肌肉 |
+| LeetCode 114. Flatten Binary Tree to Linked List | https://leetcode.com/problems/flatten-binary-tree-to-linked-list/ | 直接就是 Fiber 的 `child` ／ `sibling` ／ `return` 攤平規則的教科書版本 |
+| LeetCode 116. Populating Next Right Pointers in Each Node | https://leetcode.com/problems/populating-next-right-pointers-in-each-node/ | 幫節點補上「右邊的兄弟」指標，正是 Fiber 的 `sibling` |
+| LeetCode 133. Clone Graph | https://leetcode.com/problems/clone-graph/ | 用 map 記住「舊節點 → 新節點」的配對，跟 `alternate` 雙向互指的概念相同 |
 | LeetCode 206. Reverse Linked List | https://leetcode.com/problems/reverse-linked-list/ | Hook 鏈表就是單向鏈表，練熟指標操作再看 React 原始碼會輕鬆很多 |
 | NeetCode Reverse a Linked List | https://neetcode.io/problems/reverse-a-linked-list | 同上，有影片講解 |
 
@@ -299,6 +527,10 @@ fiberNode = {
 >
 > 為節省磁碟空間<mark style="background: #BBFABBA6;">不重複收錄原文</mark>，僅把對話 ID 登記進 frontmatter 的 `sources`，避免下次增量掃描又把它當成待處理項目。若日後需要原文，直接點上方連結即可。
 
+### 追加 2026-09-15｜React useRef／useState 跨框架實踐比較 — https://gemini.google.com/app/5b6fc934e5d7f253
+
+（原文為鐵人賽草稿，重點已整併進上方「追加 2026-09-15」。）
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／查證時間 |
@@ -317,6 +549,16 @@ fiberNode = {
 | Vue 官方 — 深入響應式系統（(a) 的 A0/A1/A2 範例出處） | https://vuejs.org/guide/extras/reactivity-in-depth.html | Vue 3 現行文件，2026-08-29 查證 |
 | MDN — Closures | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Closures | MDN 現行版本，2026-08-29 查證 |
 | MDN — IIFE 詞彙表 | https://developer.mozilla.org/en-US/docs/Glossary/IIFE | MDN 現行版本，2026-08-29 查證 |
+| Vue 3 Reactivity in Depth（track／trigger） | https://vuejs.org/guide/extras/reactivity-in-depth.html | Vue 3 官方，查證 2026-09-15 |
+| Angular Signals | https://angular.dev/guide/signals | Angular 官方，查證 2026-09-15 |
+| React Compiler | https://react.dev/learn/react-compiler | React 官方，查證 2026-09-15 |
+| `useActionState` / `useOptimistic` | https://react.dev/blog/2024/12/05/react-19 | React 19 發布文，2024-12-05，查證 2026-09-15 |
+| 本次追加的原始對話（Gemini） | https://gemini.google.com/app/5b6fc934e5d7f253 | 對話擷取 2026-09-15 |
+| React 原始碼 — ReactFiber.js 的 `createWorkInProgress()`（(ee) alternate 復用的出處） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiber.js | main 分支，2026-09-18 查證 |
+| React 原始碼 — ReactFiberRoot.js（`FiberRootNode` 建構函式，(cc) 的出處） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberRoot.js | main 分支，2026-09-18 查證 |
+| React 原始碼 — ReactWorkTags.js（`HostRoot = 3` 等 tag 數字列舉，(gg) 的出處） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactWorkTags.js | main 分支，2026-09-18 查證 |
+| React 原始碼 — ReactFiberWorkLoop.js 的 `commitRootImpl()`（`root.current = finishedWork` 那一行，(dd) 的出處） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js | main 分支，2026-09-18 查證 |
+| React 官方部落格 — React Fiber Architecture（Andrew Clark 的原始設計文件，double buffering 一詞的來源） | https://github.com/acdlite/react-fiber-architecture | 2026-09-18 查證 |
 
 ---
 

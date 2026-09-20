@@ -57,6 +57,9 @@ th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-ali
 th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
 tbody tr:nth-child(even){background:#fafbfc}
 hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
 .wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
   border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
 /* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
@@ -114,9 +117,9 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <h1>JSX 轉譯機制 — createElement、jsx-runtime 與 Babel／SWC 的三個步驟</h1>
   <div class="pills"><span class="pill">#gemini</span><span class="pill">#react</span><span class="pill">#jsx</span><span class="pill">#babel</span><span class="pill">#swc</span><span class="pill">#transpile</span><span class="pill">#ast</span><span class="pill">#ecmascript</span></div>
   <div class="meta">
-    <span>更新於 2026-08-29</span>
+    <span>更新於 2026-09-16</span>
     <span>來源：Gemini</span>
-    <a href="https://gemini.google.com/app/91b54d891b833be2" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/599804dd5ba114af" target="_blank" rel="noopener">原始對話 2</a>
+    <a href="https://gemini.google.com/app/91b54d891b833be2" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/599804dd5ba114af" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/0f1814c226521483" target="_blank" rel="noopener">原始對話 3</a>
   </div>
 </header>
 
@@ -135,12 +138,12 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <span>　←　點任一個螢光筆可以把它遮起來</span>
 </div>
 
-<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">JSX 是 ECMAScript 規範的一部分。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">JSX 是非標準的語法擴充，引擎直接看到會丟 SyntaxError。</div></li><li><p class="qq">轉譯（Transpile）是 JavaScript 引擎在執行時做的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是 Babel／SWC／esbuild 這類建置工具在送進瀏覽器之前做的。</div></li><li><p class="qq">React 17 起的 Automatic Runtime 讓你不必再手動 import React。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">轉譯器會自動注入 react/jsx-runtime 的 jsx()／jsxs()。</div></li><li><p class="qq">用了新版 JSX Transform 之後，useState 也不用 import 了。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Hook 是你程式碼真正用到的識別碼，轉譯器不會幫你補。</div></li><li><p class="qq">React Element 是一個 DOM 節點。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它只是一個普通 JavaScript 物件 { $$typeof, type, props }。</div></li><li><p class="qq">SWC 的全稱是 Speedy Web Compiler，用 Rust 寫的。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Next.js 從 12 起預設用它取代 Babel。</div></li><li><p class="qq">Vite 預設的 JSX／TS 轉換器是 SWC。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Vite 預設用 esbuild；SWC 要另外裝 @vitejs/plugin-react-swc 才會用到。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">轉譯第一步把程式碼文字拆成的樹狀結構縮寫叫 <input class="blank" data-a="AST" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Abstract Syntax Tree，抽象語法樹。</div></li><li><p class="qq">舊版轉譯機制的名字叫 <input class="blank" data-a="Classic" placeholder="填答案" autocomplete="off"> Runtime。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">輸出 React.createElement，必須手動 import React。</div></li><li><p class="qq">React Element 用來防止偽造的那個 Symbol 屬性叫 <input class="blank" data-a="$$typeof" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Symbol 無法由 JSON.parse 產生，因此可擋下注入的假 Element。</div></li><li><p class="qq">轉譯三步驟是 Parsing → <input class="blank" data-a="Transformation" placeholder="填答案" autocomplete="off"> → Code Generation。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">外掛在這一步把 JSXElement 節點改寫成 CallExpression。</div></li><li><p class="qq">新版轉譯中，多個子節點會轉成 <input class="blank" data-a="jsxs" placeholder="填答案" autocomplete="off">() 而不是 jsx()。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">s 代表 static children，事先知道是陣列可省掉執行期判斷。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">有人說「ECMA 又沒有定義 JSX，那 React 怎麼跑得起來」，請完整回答他。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：兩件事發生在不同層。轉譯器層（Babel／SWC／esbuild）在建置階段把程式碼當成文字讀進來，剖析成 AST，把 JSXElement 節點改寫成 CallExpression，再重新生成標準 .js 輸出——這一層不執行程式碼，也不受 ECMA 規範限制，因為它只是文字工具。執行階段層（V8 等引擎）看到的已經是 React.createElement(&#x27;button&#x27;, {...}, ...) 或 _jsx(...)，那是 100% 合乎 ECMA 的物件屬性存取與函式呼叫。所以「ECMA 沒定義 JSX」跟「JSX 最後變成合法 JS」完全不衝突。想親眼驗證可以開 Babel REPL 勾選 react preset。</div></li><li><p class="qq">為什麼 React Element 要用 Symbol 當 $$typeof，而不是用一個普通字串？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：安全性。React 渲染時會檢查物件的 $$typeof 是不是它認得的 Symbol，才把它當成合法 Element。Symbol 是唯一且無法被序列化的原始型別，JSON.parse 不可能產出一個 Symbol。假設後端 API 回傳的 JSON 被直接塞進 JSX 渲染，攻擊者最多只能偽造 { type: &#x27;div&#x27;, props: {...}, $$typeof: &#x27;react.element&#x27; } 這種字串版本，過不了檢查，因此無法透過 dangerouslySetInnerHTML 之外的路徑注入任意元素。這是 React 對 XSS 的一道縱深防禦。</div></li></ol></section>
+
 
 <article class="card">
 <h1 id="jsx-createelementjsx-runtime-babelswc">JSX 轉譯機制 — createElement、jsx-runtime 與 Babel／SWC 的三個步驟</h1>
 <blockquote>
-<p>本篇重點 a–n，共 14 個。</p>
+<p>本篇重點 a–q，共 17 個。</p>
 </blockquote>
 <h2 id="_1">重點整理</h2>
 <h3 id="jsx-javascript">一、JSX 不是 JavaScript</h3>
@@ -213,6 +216,37 @@ const button = &lt;button color=&quot;red&quot;&gt;Click&lt;/button&gt;;
 const button = React.createElement(&quot;button&quot;, { color: &quot;red&quot; }, &quot;Click&quot;);
 </code></pre>
 <p>(n) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">動手驗證的最快方式</mark>：打開 Babel 官方線上工具 REPL（https://babeljs.io/repl），左側 Presets 勾選 <code>react</code>，貼上 JSX，右邊即時看到轉譯結果。想看新版轉譯就把 Runtime 設為 <code>automatic</code>。</p>
+<p>(o) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">那這三步的效能成本算誰的？</mark>成本是真的存在，但<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">整筆落在建置期（build-time），使用者的瀏覽器一毛都不用付</mark>。把兩端分開看：</p>
+<table>
+<thead>
+<tr>
+<th>時間點</th>
+<th>誰在做事</th>
+<th>做什麼</th>
+<th>成本落在哪裡</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>建置期 build-time</td>
+<td>Babel、SWC、esbuild 在你的電腦或 CI 機器上</td>
+<td>把 JSX parse 成 AST、transform、generate 回 JS</td>
+<td>開發時的 HMR 熱重載等待時間、<code>npm run build</code> 的打包秒數</td>
+</tr>
+<tr>
+<td>執行期 run-time</td>
+<td>瀏覽器的 JavaScript 引擎</td>
+<td>執行已經是純 JS 的 <code>React.createElement(...)</code> 或 <code>jsx(...)</code></td>
+<td>幾乎為零，瀏覽器完全不知道 JSX 存在過</td>
+</tr>
+</tbody>
+</table>
+<p>(p) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">建置期這筆成本現在已經被壓得很小。</mark>主詞—動詞—受詞寫清楚是這樣：工具鏈把原本用 JavaScript 寫的 parser（<code>Babel</code>）換成用 Rust 寫的（<code>SWC</code>）或用 Go 寫的（<code>esbuild</code>），同一份 JSX 的 parse 與 transform 速度提升約 10 到 100 倍，產物一樣是標準 JS，再交給 bundler 去做後續的 code splitting 與 minify。</p>
+<p>(q) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">轉譯甚至會讓執行期比手寫更快</mark>，因為轉譯器在 (l) 那一步做了靜態分析可以順手做最佳化：</p>
+<ul>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">靜態提升（Static Hoisting）</mark>：把整棵不會隨 state 改變的 JSX 節點提升到 render 函式外面，避免每次 re-render 都重新建立同一個物件。</li>
+<li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">React Compiler 的自動記憶化（Memoization）</mark>：在轉譯階段自動插入記憶化邏輯，減少不必要的子元件重繪。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ 這一項要注意版本</mark>，見下方「存疑／更正」。</li>
+</ul>
 <h3 id="_2">五、名詞補全</h3>
 <ul>
 <li><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SWC = Speedy Web Compiler</mark>，用 Rust 寫的高效能 JavaScript／TypeScript 轉譯器與打包工具。</li>
@@ -223,6 +257,7 @@ const button = React.createElement(&quot;button&quot;, { color: &quot;red&quot; 
 <h2 id="_3">⚠️ 存疑／更正</h2>
 <ul>
 <li><strong>Gemini 說「SWC 目前廣泛應用於 Next.js、Vite 等現代前端工具鏈中」</strong>：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Vite 這一半不精確。</mark>Next.js 從 12 起確實預設用 SWC 取代 Babel；但 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Vite 預設的 JSX／TS 轉換器是 esbuild（Go 寫的），SWC 在 Vite 是可選方案</mark>，要自己裝 <code>@vitejs/plugin-react-swc</code> 才會用到。預設的 <code>@vitejs/plugin-react</code> 走的是 Babel。</li>
+<li><strong>Gemini 說「React 19 / Compiler 優化：自動插入記憶化邏輯」</strong>：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">講得像是升上 React 19 就自動有了，不精確。</mark>正確的關係是——<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">React Compiler 是一個獨立的建置期工具，以 Babel plugin 的形式存在，必須自己安裝 <code>babel-plugin-react-compiler</code> 並把它排在 Babel plugin 管線的第一個</mark>，才會啟用。它在 <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">2025-10-07 發佈 1.0 穩定版</mark>，運作方式是把 Babel 給的 AST 降階成自己的 HIR（High-level Intermediate Representation，高階中間表示），再據此自動插入記憶化。升級 React 19 本身不會啟用它，而且它也支援在 React 19 以下的版本使用。</li>
 <li><strong>另一段語音對話中 Gemini 說「React 18 之後不用 import React」</strong>：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">版本講錯。</mark>新版 JSX Transform 是 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">React 17（2020 年 10 月）</mark>引進的，並且官方有回移（backport）到 16.14、15.7、0.14.10。React 18 沒有再改這件事。</li>
 </ul>
 <h2 id="_4">相關題目練習</h2>
@@ -261,6 +296,7 @@ const button = React.createElement(&quot;button&quot;, { color: &quot;red&quot; 
 <li><span class="wikilink" title="Obsidian 連結：Vite-HMR機制與Rollup打包原理">Vite-HMR機制與Rollup打包原理</span> — 補充 ⚠️ 那條更正：Vite 預設用 esbuild 而非 SWC 的來龍去脈。</li>
 <li><span class="wikilink" title="Obsidian 連結：React-130錯誤-transpilePackages與SWC">React-130錯誤-transpilePackages與SWC</span> — 實戰踩坑版：轉譯設定沒對好時會噴什麼錯。</li>
 <li><span class="wikilink" title="Obsidian 連結：SSR-renderToString與Hydration-伺服器端渲染流程">SSR-renderToString與Hydration-伺服器端渲染流程</span> — Element 物件在伺服器端會被 <code>renderToString</code> 轉成 HTML 字串，是本篇的下游。</li>
+<li><span class="wikilink" title="Obsidian 連結：usePathname與useSearchParams-預渲染Bailout">usePathname與useSearchParams-預渲染Bailout</span> — 呼應 (o) 那張 build-time／run-time 對照表的另一面：轉譯是「建置期做得完的事」，<code>useSearchParams</code> 讀的 Query String 則是「建置期做不完的事」，同一條分界線的兩側各舉一例。</li>
 </ul>
 <h2 id="_6">各對話來源（原文）</h2>
 <h3 id="react-2026-08-28-httpsgeminigooglecomapp91b54d891b833be2">React 元件轉譯機制解析（2026-08-28）— https://gemini.google.com/app/91b54d891b833be2</h3>
@@ -276,6 +312,12 @@ const button = React.createElement(&quot;button&quot;, { color: &quot;red&quot; 
 <p><strong>Gemini：</strong> 轉譯就是文字替換與語法樹重構，分三步——第一步 Parsing：把 <code>.jsx</code> 文字拆成 AST，<code>&lt;button color="red"&gt;Click&lt;/button&gt;</code> 變成 JSXElement 節點（OpeningElement: button、Attributes: color="red"、Children: "Click"）。第二步 Transformation：<code>@babel/plugin-transform-react-jsx</code> 掃到 JSXElement 就改寫成 CallExpression。第三步 Code Generation：把改寫後的 AST 重新組裝輸出成標準 .js。建議用 Babel REPL 線上工具、左側 Presets 勾選 react 即時觀察。</p>
 <p><strong>使用者：</strong> SWC 全稱是什麼</p>
 <p><strong>Gemini：</strong> SWC 的全稱是 Speedy Web Compiler，以 Rust 語言編寫的高效能 JavaScript／TypeScript 轉譯器與打包工具，速度比傳統的 Babel 快上數十甚至數百倍，目前廣泛應用於 Next.js、Vite 等現代前端工具鏈中。</p>
+<h3 id="jsx-ast-2026-09-16-httpsgeminigooglecomapp0f1814c226521483">JSX 轉譯 AST 完整流程解析（2026-09-16 擷取）— https://gemini.google.com/app/0f1814c226521483</h3>
+<p><strong>使用者：</strong> 你說了這個使用 JSX 導致還是需要轉譯的過程會造成效能消耗嗎</p>
+<p><strong>Gemini：</strong> JSX 的轉譯（Transpilation）會造成效能消耗，但這項消耗完全發生在開發與建構階段（Build-time），對使用者的瀏覽器運行效能（Run-time）幾乎沒有負面影響。（1）建構階段有效能消耗：Babel、SWC 或 esbuild 等編譯器需要將 JSX 解析為 AST，再轉換並生成 JavaScript 代碼；影響範疇是開發時的熱重載時間（HMR）以及 CI/CD 打包建構（<code>npm run build</code>）的所需時間；現代前端建構工具已大幅優化此階段，例如從 Babel 轉用 Rust／Go 撰寫的工具（SWC、esbuild 或 Vite），轉譯速度提高了 10 到 100 倍。（2）運行階段幾乎零負擔：經過打包工具處理後，送到使用者瀏覽器的已經是純 JavaScript 代碼（<code>React.createElement(...)</code> 或 React 17+ 的 <code>jsx(...)</code>），瀏覽器完全不知道 JSX 的存在；<code>React.createElement()</code> 本質上只是建立簡單的 JavaScript Plain Object（用來描述 Virtual DOM 結構），執行速度極快。（3）編譯優化反而提升運行效能：靜態提升（Static Hoisting）把不會改變的 JSX 節點提升到渲染函數外部，避免每一次 re-render 都重新建立物件；React 19 / Compiler 優化自動插入記憶化（Memoization）邏輯，減少不必要的子元件重繪與計算。</p>
+<blockquote>
+<p>⚠️ 最後那一句「React 19 / Compiler 優化」講得不精確，更正見上方「存疑／更正」區塊。</p>
+</blockquote>
 <h3 id="2026-08-28-httpsgeminigooglecomapp599804dd5ba114af">程式碼報錯原因解析（2026-08-28，語音模式片段）— https://gemini.google.com/app/599804dd5ba114af</h3>
 <p><strong>使用者：</strong> React 18 以後是不是已經不用 import React 跟 import { useState } from 'react' 了？</p>
 <p><strong>Gemini：</strong> React 18 之後，編譯工具已經改變，所以寫 JSX 時確實不需要再 import React 了。不過，像 useState 這類 Hook 仍然必須從 React import 進來喔。</p>
@@ -296,6 +338,26 @@ const button = React.createElement(&quot;button&quot;, { color: &quot;red&quot; 
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>本篇對話（JSX 轉譯 AST 完整流程解析）</td>
+<td>https://gemini.google.com/app/0f1814c226521483</td>
+<td>Gemini Flash，2026-09-16 擷取</td>
+</tr>
+<tr>
+<td>React 官方部落格 — React Compiler v1.0（確認是 opt-in 的 Babel plugin，不是 React 19 內建）</td>
+<td>https://react.dev/blog/2025/10/07/react-compiler-1</td>
+<td>2025-10-07 發布，2026-09-16 查證</td>
+</tr>
+<tr>
+<td>React 官方 — React Compiler 安裝（必須排在 Babel plugin 管線第一個）</td>
+<td>https://react.dev/learn/react-compiler/installation</td>
+<td>現行文件，2026-09-16 查證</td>
+</tr>
+<tr>
+<td>React 官方 — React Compiler 漸進式導入（Babel overrides／"use memo"／runtime gating 三種 opt-in）</td>
+<td>https://react.dev/learn/react-compiler/incremental-adoption</td>
+<td>現行文件，2026-09-16 查證</td>
+</tr>
 <tr>
 <td>本篇對話（React 元件轉譯機制解析）</td>
 <td>https://gemini.google.com/app/91b54d891b833be2</td>
@@ -352,7 +414,7 @@ const button = React.createElement(&quot;button&quot;, { color: &quot;red&quot; 
 <p>由 Gemini 對話自動整理 · 更新於 2026-08-29</p>
 </article>
 
-<footer>由 Gemini 對話自動整理 · 更新於 2026-08-29</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-16</footer>
 </div>
 <script>
 (function(){

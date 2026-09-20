@@ -38,7 +38,7 @@ async function Article({ postId }: { postId: number }) {
 //   意思:LikeButton 這個互動元件,程式碼在這個檔案、這個 chunk,瀏覽器自己去載入
 1:I["./LikeButton.tsx", ["chunk-LikeButton.js"], "LikeButton"]
 
-// 第 0 行:整棵樹的結構(已經渲染好的「死」內容 + 一個洞)
+// 第 0 行:整棵樹的結構(已經渲染好的「死」內容 + 一個洞-伺服器傳送的初始HTML裡的站位標記，瀏覽器之後會根據下載的JavaScript chunk來填補這個位置)
 //   "$" 開頭 = 一個 React 元素;"$1" = 「這裡放第 1 行定義的那個洞」
 0:["$","article",null,{"children":[
      ["$","h1",null,{"children":"我的文章"}],

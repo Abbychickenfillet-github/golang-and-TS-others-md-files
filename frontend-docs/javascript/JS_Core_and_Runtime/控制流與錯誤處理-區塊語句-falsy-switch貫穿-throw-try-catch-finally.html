@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>控制流與錯誤處理 — 區塊語句、falsy 清單、switch 貫穿、throw 與 try/catch/finally</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>控制流與錯誤處理 — 區塊語句、falsy 清單、switch 貫穿、throw 與 try/catch/finally</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#control-flow</span><span class="pill">#error-handling</span><span class="pill">#try-catch</span><span class="pill">#finally</span><span class="pill">#switch</span><span class="pill">#falsy</span><span class="pill">#block-statement</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-17</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/efb8f910749565b9" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card">
+<h2>主軸圖：try / catch / finally 的執行流程（ISO 5807 流程圖）</h2>
+<p style="margin-top:0">這張圖是本篇的定位座標。之後同主題追問（rethrow、<code>finally</code> 裡寫 <code>return</code> 的優先權、巢狀 try）一律指回圖上的某一個方框，不要另開新章節。</p>
+<div class="fig" style="overflow-x:auto">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 720" style="min-width:700px;width:100%;height:auto" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="cf-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4A5A75"/>
+    </marker>
+  </defs>
+  <style>
+    .cf-l{font-size:15px;fill:#1F2937}
+    .cf-s{font-size:12.5px;fill:#55617A}
+    .cf-e{stroke:#4A5A75;stroke-width:1.8;fill:none;marker-end:url(#cf-ar)}
+    .cf-t{font-size:13px;fill:#4A5A75;font-weight:600}
+  </style>
+  <rect x="0" y="0" width="900" height="720" fill="#FBFCFD"/>
+  <text x="450" y="30" text-anchor="middle" font-size="18" font-weight="700" fill="#1F2937">try 負責試著做 · catch 負責接住壞掉的東西 · finally 負責善後</text>
+
+  <!-- 起點：圓角＝起訖 -->
+  <rect x="345" y="52" width="210" height="42" rx="21" fill="#E8EDF5" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="450" y="79" text-anchor="middle" class="cf-l">進入 try 區塊</text>
+  <path class="cf-e" d="M450 94 L450 124"/>
+
+  <!-- 處理：矩形 -->
+  <rect x="300" y="124" width="300" height="56" fill="#FFFFFF" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="450" y="148" text-anchor="middle" class="cf-l">引擎逐行執行 try 裡的語句</text>
+  <text x="450" y="168" text-anchor="middle" class="cf-s">產物：正常的回傳值，或是一個被 throw 出來的值</text>
+  <path class="cf-e" d="M450 180 L450 212"/>
+
+  <!-- 判斷：菱形 -->
+  <path d="M450 212 L680 272 L450 332 L220 272 Z" fill="#FFF6D9" stroke="#B8933A" stroke-width="1.8"/>
+  <text x="450" y="266" text-anchor="middle" class="cf-l">執行途中有沒有</text>
+  <text x="450" y="288" text-anchor="middle" class="cf-l">throw 出東西？</text>
+
+  <!-- 否 -->
+  <path class="cf-e" d="M220 272 L120 272 L120 392"/>
+  <text x="166" y="264" text-anchor="middle" class="cf-t">否</text>
+  <rect x="30" y="392" width="180" height="56" fill="#F1FAF2" stroke="#3E8E4E" stroke-width="1.8"/>
+  <text x="120" y="416" text-anchor="middle" class="cf-l">跳過 catch</text>
+  <text x="120" y="436" text-anchor="middle" class="cf-s">catch 完全不會被執行</text>
+  <path class="cf-e" d="M120 448 L120 536 L360 536"/>
+
+  <!-- 是 -->
+  <path class="cf-e" d="M680 272 L780 272 L780 392"/>
+  <text x="734" y="264" text-anchor="middle" class="cf-t">是</text>
+  <rect x="690" y="392" width="180" height="56" fill="#FFF4F6" stroke="#C2455E" stroke-width="1.8"/>
+  <text x="780" y="412" text-anchor="middle" class="cf-l">catch (e) 接住它</text>
+  <text x="780" y="432" text-anchor="middle" class="cf-s">e 只活在 catch 區塊內</text>
+  <path class="cf-e" d="M780 448 L780 536 L540 536"/>
+
+  <!-- finally -->
+  <rect x="360" y="508" width="180" height="56" fill="#F6F2FC" stroke="#9B7FD4" stroke-width="1.8"/>
+  <text x="450" y="532" text-anchor="middle" class="cf-l">finally 一定會跑</text>
+  <text x="450" y="552" text-anchor="middle" class="cf-s">關檔案、關連線、清 loading</text>
+  <path class="cf-e" d="M450 564 L450 606"/>
+
+  <rect x="345" y="606" width="210" height="42" rx="21" fill="#E8EDF5" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="450" y="633" text-anchor="middle" class="cf-l">繼續往下執行</text>
+
+  <text x="450" y="690" text-anchor="middle" class="cf-s">圖例：圓角＝起訖　矩形＝處理　菱形＝判斷　箭頭＝控制流方向（ISO 5807 流程圖慣例）</text>
+</svg>
+</div>
+</section>
+
+
+
+<article class="card">
+<h1 id="falsy-switch-throw-trycatchfinally">控制流與錯誤處理 — 區塊語句、falsy 清單、switch 貫穿、throw 與 try/catch/finally</h1>
+<blockquote>
+<p>本篇重點 a–n，共 14 個。<br />
+主軸圖：本頁 HTML 版的「<code>try</code> → <code>catch</code> → <code>finally</code> 三段式流程圖」，之後同主題追問（例如 rethrow、<code>finally</code> 裡 return 的優先權）一律指回這張圖的某個方框。</p>
+</blockquote>
+<hr />
+<h2 id="_1">🎯 速答區</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>一句話速答</th>
+<th>章節</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td><code>{ }</code> 自己就是一種語句嗎</td>
+<td>是，叫區塊語句（Block statement），作用是把多條語句包成一組</td>
+<td>§1</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td><code>var</code> 在區塊裡宣告會怎樣</td>
+<td>漏出去，因為 <code>var</code> 沒有區塊作用域</td>
+<td>§1</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>falsy 有幾個</td>
+<td>六個（<code>false</code>、<code>undefined</code>、<code>null</code>、<code>0</code>、<code>NaN</code>、<code>""</code>），其餘全是 truthy</td>
+<td>§2</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>少寫 <code>break</code> 會怎樣</td>
+<td>貫穿（fall-through），繼續執行下一個 case 的語句</td>
+<td>§3</td>
+</tr>
+<tr>
+<td>Q5</td>
+<td><code>finally</code> 一定會跑嗎</td>
+<td>一定會，不管有沒有拋出例外</td>
+<td>§4</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-ac">1. 區塊語句與作用域（a–c）</h2>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">區塊語句（Block statement）是最基本的語句</mark>，用一對大括號把多條語句組合在一起，通常跟 <code>if</code>、<code>for</code>、<code>while</code> 這些控制流語句搭配使用。</p>
+<pre><code class="language-js">while (x &lt; 10) {
+  x++;      // { x++; } 就是一個區塊語句
+}
+</code></pre>
+<p>(b) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>var</code> 宣告的變數不具備區塊作用域</mark>，它的作用域屬於包含它的函式或整份腳本，所以在區塊裡設定的效果會持續到區塊之外。</p>
+<pre><code class="language-js">var x = 1;
+{
+  var x = 2;
+}
+console.log(x); // 2 ← 在 C 或 Java 裡同樣的程式碼會印出 1
+</code></pre>
+<p>(c) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">改用 <code>let</code> 或 <code>const</code> 就能把作用域收回區塊內</mark>，完整的三兄弟比較寫在 <span class="wikilink" title="Obsidian 連結：04-變數宣告-let-const-var">04-變數宣告-let-const-var</span>，區塊作用域本身寫在 <span class="wikilink" title="Obsidian 連結：05-作用域-scope-global-function-block">05-作用域-scope-global-function-block</span>。</p>
+<hr />
+<h2 id="2-falsydg">2. 條件語句與 falsy（d–g）</h2>
+<p>(d) <code>if...else</code> 的規則是：<code>condition</code> 求值為 <code>true</code> 就執行 <code>statement1</code>，否則執行 <code>statement2</code>，兩者都可以是任何語句，包括再嵌一層的 <code>if</code>。串聯多個條件時用 <code>else if</code>，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只有第一個求值為 <code>true</code> 的條件會被執行</mark>。</p>
+<p>(e) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最佳實踐：永遠寫大括號</mark>，尤其在巢狀 <code>if</code> 的情況下，可讀性與後續維護都靠它。</p>
+<p>(f) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">避免在 <code>if</code> 的條件位置寫賦值</mark>，<code>if (x = y)</code> 看起來像比較，實際是把 <code>y</code> 指派給 <code>x</code> 再拿結果去判斷真假。<br />
+    同一個坑在陣列方法裡也會踩到（<code>arr.find(e =&gt; e = 2)</code>），實例寫在 <span class="wikilink" title="Obsidian 連結：05-find方法-短路與falsy陷阱-如何取得所有符合的索引">05-find方法-短路與falsy陷阱-如何取得所有符合的索引</span>。</p>
+<p>(g) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">falsy 值清單</mark>：<code>false</code>、<code>undefined</code>、<code>null</code>、<code>0</code>、<code>NaN</code>、空字串 <code>""</code>。<br />
+    <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">其他所有數值（包含所有物件）在條件語句中都求值為 <code>true</code></mark>。</p>
+<pre><code class="language-js">const b = new Boolean(false);
+if (b) {
+  // 這裡會進來，因為 b 是「物件」，物件永遠 truthy
+}
+if (b == true) {
+  // 這裡不會進來
+}
+</code></pre>
+<pre><code>切勿混淆原始布林值 `true`／`false` 與 `Boolean` 物件包起來的 `true`／`false`。
+</code></pre>
+<blockquote>
+<p>⚠️ 存疑／更正：Gemini 原文只列了六個 falsy 值。MDN 的 Falsy 詞條另外還收錄 <code>0n</code>（BigInt 零）與 <code>document.all</code>（歷史相容用的特例），完整是八個。日常寫 code 記六個就夠，但面試被問「全部」時要補上 <code>0n</code>。</p>
+</blockquote>
+<hr />
+<h2 id="3-switch-hi">3. switch 與貫穿（h–i）</h2>
+<p>(h) <code>switch</code> 的運作是：求值一個表達式，拿它的值去跟每個 <code>case</code> 標籤比對，找到匹配就執行關聯的語句。</p>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>break</code> 是可選的，少寫就會「貫穿（fall-through）」</mark>，程式會繼續執行下一個 <code>case</code> 內部的語句，直到遇到 <code>break</code> 或 <code>switch</code> 結束。</p>
+<pre><code class="language-js">switch (fruitType) {
+  case &quot;Oranges&quot;:
+    console.log(&quot;Oranges are $0.59 a pound.&quot;);
+    break;
+  case &quot;Apples&quot;:
+    console.log(&quot;Apples are $0.32 a pound.&quot;);
+    break;
+  default:
+    console.log(`Sorry, we are out of ${fruitType}.`);
+}
+</code></pre>
+<hr />
+<h2 id="4-throw-trycatchfinallyjn">4. 例外處理：throw 與 try/catch/finally（j–n）</h2>
+<p>(j) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JavaScript 幾乎可以拋出任何東西</mark>，字串、數字、布林、物件都行。</p>
+<pre><code class="language-js">throw &quot;Error2&quot;;                                   // String
+throw 42;                                         // Number
+throw true;                                       // Boolean
+throw { toString() { return &quot;I'm an object!&quot;; } }; // Object
+</code></pre>
+<pre><code>&lt;mark style="background: #BBFABBA6;"&gt;但實務上請拋專門為此建立的例外類型&lt;/mark&gt;，例如 ECMAScript 的 `Error`（及其子類 `TypeError`、`RangeError`）或 DOM 的 `DOMException`，因為它們帶 `name`、`message` 與 stack trace，錯誤處理函式才有東西可用。
+</code></pre>
+<p>(k) <code>try...catch</code> 的三個區塊，動詞—受詞—拋接關係寫清楚是這樣：</p>
+<table>
+<thead>
+<tr>
+<th>區塊</th>
+<th>誰在做什麼</th>
+<th>什麼時候跑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>try</code></td>
+<td>引擎執行這一組語句，一旦任何一行 <code>throw</code>，就立刻中斷並把拋出的值交給 <code>catch</code></td>
+<td>一定會進入</td>
+</tr>
+<tr>
+<td><code>catch (e)</code></td>
+<td>接住 <code>try</code> 拋來的值，綁到識別碼 <code>e</code> 上，執行補救語句</td>
+<td>只有 <code>try</code> 真的拋出時才跑</td>
+</tr>
+<tr>
+<td><code>finally</code></td>
+<td>不管前面有沒有拋出，都執行收尾語句</td>
+<td>一定會跑</td>
+</tr>
+</tbody>
+</table>
+<p>(l) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>catch</code> 的識別碼只在 <code>catch</code> 區塊執行期間存在</mark>，離開區塊就消失，這一點跟 <code>let</code> 的區塊作用域一致。</p>
+<pre><code class="language-js">function getMonthName(mo) {
+  mo--; // 調整成陣列索引（0 = Jan，11 = Dec）
+  const months = [
+    &quot;Jan&quot;, &quot;Feb&quot;, &quot;Mar&quot;, &quot;Apr&quot;, &quot;May&quot;, &quot;Jun&quot;,
+    &quot;Jul&quot;, &quot;Aug&quot;, &quot;Sep&quot;, &quot;Oct&quot;, &quot;Nov&quot;, &quot;Dec&quot;
+  ];
+  if (!months[mo]) {
+    throw new Error(&quot;Invalid month code&quot;);
+  }
+  return months[mo];
+}
+
+try {
+  monthName = getMonthName(myMonth);
+} catch (e) {
+  monthName = &quot;unknown&quot;;
+  logMyErrors(e); // 把例外物件傳給錯誤處理函式
+}
+</code></pre>
+<p>(m) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>finally</code> 的典型用途是釋放資源</mark>，例如關閉檔案、關閉連線、清掉 loading 狀態。</p>
+<pre><code class="language-js">openMyFile();
+try {
+  writeMyFile(theData);
+} catch (e) {
+  handleError(e);
+} finally {
+  closeMyFile(); // 確保檔案總是會被關閉
+}
+</code></pre>
+<p>(n) 一句話總結：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>try</code> 負責「試著做」、<code>catch</code> 負責「接住壞掉的東西」、<code>finally</code> 負責「不管好壞都要善後」</mark>，三者的責任互不重疊。</p>
+<hr />
+<h2 id="_2">關聯筆記（附關聯原因）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：03-陳述式-Statement-vs-表達式-Expression">03-陳述式-Statement-vs-表達式-Expression</span><br />
+<strong>理由</strong>：本篇 §1 說「任何表達式也可以是一條語句」，那篇拆的就是 Statement 與 Expression 的分界，先看那篇再看本篇才不會混。</li>
+<li><span class="wikilink" title="Obsidian 連結：04-變數宣告-let-const-var">04-變數宣告-let-const-var</span><br />
+<strong>理由</strong>：本篇 (b) 的 <code>var</code> 漏出區塊，那篇有完整的三兄弟對照表與 TDZ。</li>
+<li><span class="wikilink" title="Obsidian 連結：15-ReferenceError-vs-undefined-值與錯誤的分界">15-ReferenceError-vs-undefined-值與錯誤的分界</span><br />
+<strong>理由</strong>：本篇 §4 講怎麼「接住」錯誤，那篇講各種內建錯誤物件分別代表什麼狀況。</li>
+<li><span class="wikilink" title="Obsidian 連結：比較三兄弟-鬆散等於-嚴格等於-Object-is-與React-Vue的狀態比對">比較三兄弟-鬆散等於-嚴格等於-Object-is-與React-Vue的狀態比對</span><br />
+<strong>理由</strong>：本篇 (g) 的 <code>b == true</code> 為什麼是 <code>false</code>，答案是 <code>==</code> 的型別轉換規則，寫在那篇。</li>
+<li><span class="wikilink" title="Obsidian 連結：05-find方法-短路與falsy陷阱-如何取得所有符合的索引">05-find方法-短路與falsy陷阱-如何取得所有符合的索引</span><br />
+<strong>理由</strong>：本篇 (f)(g) 的「條件裡誤用賦值」與 falsy 清單，在那篇有 <code>find</code> 的實戰翻車版本。</li>
+</ul>
+<hr />
+<h2 id="_3">🔗 相關練習題</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼放這裡</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeetCode 2727. Is Object Empty</td>
+<td>https://leetcode.com/problems/is-object-empty/</td>
+<td>練 truthy／falsy 的直覺判斷</td>
+</tr>
+<tr>
+<td>LeetCode 2703. Return Length of Arguments Passed</td>
+<td>https://leetcode.com/problems/return-length-of-arguments-passed/</td>
+<td>練基本語句與回傳</td>
+</tr>
+<tr>
+<td>LeetCode 2665. Counter II</td>
+<td>https://leetcode.com/problems/counter-ii/</td>
+<td>練閉包＋區塊作用域</td>
+</tr>
+<tr>
+<td>LeetCode 2715. Timeout Cancellation</td>
+<td>https://leetcode.com/problems/timeout-cancellation/</td>
+<td>練非同步下的清理（等同 <code>finally</code> 的責任）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">各對話來源（原文）</h2>
+<h3 id="javascript-2026-09-17-httpsgeminigooglecomappefb8f910749565b9">JavaScript 控制流與錯誤處理翻譯（2026-09-17 擷取）— https://gemini.google.com/app/efb8f910749565b9</h3>
+<p><strong>使用者：</strong> https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Control_flow_and_error_handling 幫我翻譯這一篇</p>
+<p><strong>Gemini：</strong> 以下是 MDN 官方文件《控制流與錯誤處理（Control flow and error handling）》的繁體中文翻譯。JavaScript 支援一組簡潔的語句（特別是控制流語句），可以用它們為應用程式加入大量的互動性。在 JavaScript 程式碼中分號用於分隔不同的語句，任何 JavaScript 表達式也可以是一條語句。區塊語句是最基本的語句，用於將多條語句組合在一起，由一對大括號限定，通常與 <code>if</code>、<code>for</code>、<code>while</code> 搭配使用。注意用 <code>var</code> 宣告的變數不具備區塊作用域，其作用域屬於包含它的函式或腳本，<code>var x = 1; { var x = 2; } console.log(x)</code> 會輸出 2，在 C 或 Java 中相應的程式碼會輸出 1，這種作用域影響可以透過使用 <code>let</code> 或 <code>const</code> 來改善。條件語句方面，JavaScript 支援 <code>if...else</code> 與 <code>switch</code>。<code>if...else</code> 在條件為 <code>true</code> 時執行 <code>statement1</code>，否則執行 <code>statement2</code>，可用 <code>else if</code> 串聯多個條件，只有第一個求值為 <code>true</code> 的條件會被執行。最佳實踐是始終使用區塊語句，並避免在 <code>if...else</code> 的條件中使用賦值語句（如 <code>x = y</code>）。以下數值在條件語句中會被求值為 <code>false</code>（Falsy 值）：<code>false</code>、<code>undefined</code>、<code>null</code>、<code>0</code>、<code>NaN</code>、空字串。所有其他數值（包含所有物件）在傳遞給條件語句時都會求值為 <code>true</code>。切勿混淆原始布林值與 <code>Boolean</code> 物件，<code>const b = new Boolean(false); if (b)</code> 會求值為 <code>true</code>，而 <code>if (b == true)</code> 會求值為 <code>false</code>。<code>switch</code> 語句允許程式評估一個表達式並嘗試將該表達式的值與 <code>case</code> 標籤匹配，每個 <code>case</code> 子句關聯的可選 <code>break</code> 語句可確保程式在執行匹配語句後跳出 <code>switch</code>，如果省略 <code>break</code>，程式將繼續執行下一個 <code>case</code> 內部的語句（即貫穿／fall-through 效應）。異常處理方面，可以使用 <code>throw</code> 語句拋出異常，並使用 <code>try...catch</code> 語句來處理異常。JavaScript 中幾乎可以拋出任何物件，然而使用專門為此目的建立的異常類型通常更有效，例如 ECMAScript 異常（如 <code>Error</code>）與 <code>DOMException</code>。<code>try...catch</code> 的結構包含 <code>try</code> 區塊（包含一條或多條語句）、<code>catch</code> 區塊（包含當 <code>try</code> 區塊拋出異常時要執行的語句）、<code>finally</code> 區塊（在 <code>try</code> 和 <code>catch</code> 執行後、整段語句結束前執行）。<code>catch</code> 區塊指定一個識別碼用來存放 <code>throw</code> 拋出的值，此識別碼僅在 <code>catch</code> 區塊執行期間存在。<code>finally</code> 區塊不論是否拋出異常必定會執行，通常可以用來清理資源（如關閉檔案或釋放連結）。</p>
+<hr />
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/efb8f910749565b9</td>
+<td>Gemini Flash，2026-09-17 擷取</td>
+</tr>
+<tr>
+<td>MDN — Control flow and error handling（翻譯原文）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Control_flow_and_error_handling</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>MDN — Falsy（八個 falsy 值的完整清單）</td>
+<td>https://developer.mozilla.org/en-US/docs/Glossary/Falsy</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>MDN — try...catch</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>MDN — switch（fall-through 說明）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/switch</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-17</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-17</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

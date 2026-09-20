@@ -22,6 +22,7 @@ updated: 2026-08-25
 > c. 呼應 [[函式的兩條線-prototype屬性與Prototype原型]]：本篇 p 節「靜態方法 vs 原型方法」就是那篇「兩條線」的實務版本，一條線走 `Object` 函式本身，另一條線走 `Object.prototype`。
 > d. 呼應 [[原型與引擎最佳化-Shape-InlineCache-ValidityCell]]：`Symbol.species` 之所以被 TC39 後悔，理由正是「引擎難以最佳化」，跟那篇講的 Shape 與 Inline Cache 是同一個成本來源。
 > e. 呼應 [[Object建構子-plain-object的建立與存取]]：本篇 q 節提到 `Object.create(null)` 造出的無原型物件，正是那篇的延伸情境。
+> f. 對照 [[Set.prototype-原型物件-無字面量-toStringTag與擴充內建原型]]：本篇講的 `Symbol.species` 在 `Set` 身上是**唯一**的 static property，而那篇講的 `Symbol.toStringTag` 則掛在 `Set.prototype` 上——<mark style="background: #ADCCFFA6;">一個掛建構函式、一個掛原型物件</mark>，正好是本篇 p 節「靜態 vs 原型」兩個盒子的同一組實例，可以並排背。
 
 ---
 

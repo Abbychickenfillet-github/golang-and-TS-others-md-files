@@ -23,6 +23,7 @@ updated: 2026-09-11
 | 08 | 稀疏陣列孔洞 | `new Array(3)` 的「洞」，各方法對洞的行為 | 進階陷阱。要先熟悉所有方法，才看得懂誰會跳過洞 |
 | 09 | 物件陣列 | 陣列層 vs 物件層存取 | 實務資料結構，前面都是純值陣列 |
 | 10 | 陣列的陣列（二維） | 渲染成表格、`c0 c1 c2` 是什麼 | 巢狀結構收尾 |
+| 11 | 陣列的底層記憶體 | 一般陣列／型別陣列／類陣列三者的記憶體佈局、V8 的 fast elements 與 dictionary elements、`ArrayBuffer` 與 View、Transferable 零複製 | 回頭掀開引擎蓋。前十篇講「怎麼用」，這篇講「為什麼 `delete arr[i]` 會讓陣列一輩子變慢」，也解釋 08 的「洞」在引擎層的真正代價 |
 
 ## 可執行範例
 
@@ -30,6 +31,7 @@ updated: 2026-09-11
 
 - `05-demo-find-短路與取得所有符合的索引.js` —— find 的短路證明、取得所有索引的五種寫法
 - `06-demo-every-length-snapshot.js` —— every 的長度快照實測
+- `11-demo-typedarray-view與transferable.js` —— 同一塊 `ArrayBuffer` 掛兩個 View、TypedArray 寫超界的靜默忽略、resizable ArrayBuffer、Worker 轉移後 detached
 
 ## 這條路徑的主線觀念
 

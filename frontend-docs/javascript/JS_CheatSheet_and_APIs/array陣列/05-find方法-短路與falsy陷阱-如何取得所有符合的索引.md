@@ -1,22 +1,26 @@
 ---
 title: "Array.prototype.find() — 短路、falsy 陷阱，以及如何取得「所有」符合的索引"
 type: topic-note
-source: Claude
+source: Claude + Gemini
 category: 技術
-tags: [array, find, findIndex, findLastIndex, flatMap, truthy, falsy, 短路, short-circuit, callback, 迭代方法]
+tags: [array, find, findIndex, findLastIndex, flatMap, truthy, falsy, 短路, short-circuit, callback, 迭代方法, react, object-entries]
 related:
   - "[[04-filter方法與callback定義]]"
   - "[[02-陣列遍歷-forEach與callback]]"
   - "[[06-every短路求值與初始長度快照-命令式重構為宣告式]]"
   - "[[箭頭函式的兩組括號-參數小括弧與主體大括弧-隱式回傳]]"
   - "[[JavaScript資料型別總覽-原始型別與物件]]"
+  - "[[控制流與錯誤處理-區塊語句-falsy-switch貫穿-throw-try-catch-finally]]"
+  - "[[物件Key的排序規則-整數索引插隊-Map保序-forEach不能吃物件]]"
+sources:
+  - https://gemini.google.com/app/8641800775c043cc
 demo: 05-demo-find-短路與取得所有符合的索引.js
-updated: 2026-09-11
+updated: 2026-09-17
 ---
 
 # Array.prototype.find() — 短路、falsy 陷阱與取得所有索引
 
-> 本篇重點 a–k，共 11 個。
+> 本篇重點 a–n，共 14 個（2026-09-17 由 Gemini 對話補入 (g-2)(l)(m)(n)）。
 > 主軸圖：`![[學習JS_圖解_find的短路迴圈-falsy要繼續而不是回undefined_2026-09-11.svg]]`
 > 可執行範例：`demo-find-短路與取得所有符合的索引.js`（已實跑驗證）
 
@@ -132,6 +136,33 @@ if ([]) { /* 會進來 */ }    // [] 是 truthy
 
 原因是 `==` 做的是 `ToPrimitive` → `ToNumber`：`[]` 轉成 `""` 再轉成 `0`，而 `false` 也轉成 `0`，所以相等。**`if` 問的是「truthy 嗎」，`==` 問的是「轉成數字後一樣嗎」，兩個完全不同的問題。** 詳見 [[JavaScript資料型別總覽-原始型別與物件]] 第 4-b 節。
 - (g) 判斷是「回傳值 truthy 嗎」不是「回傳 `true` 嗎」—— 規範內部做的是 `ToBoolean()`，所以 callback 回傳 `"yes"`、`1`、`[]` 都算通過。
+
+- (g-2) ⚠️ **(g) 的同一條規則會養出一個更痛的坑：callback 裡把 `===` 打成 `=`。**（2026-09-17 由 Gemini 對話補入）
+
+```js
+const array3 = [1, 2, 3, 4];
+const found3 = array3.find((e) => e = 2);   // ← 單一個等號，是「賦值」不是「比較」
+
+console.log(found3);   // 2            ← 不是你想找的那個 2，是被賦值進去的 2
+console.log(array3);   // [1, 2, 3, 4] ← 原陣列毫髮無傷
+```
+
+  逐行拆解，動詞—受詞—產物寫清楚：
+  1. `find` 迭代到第一個元素 `1`，把它傳進 callback，參數 `e` 接到 `1`。
+  2. `e = 2` 這個**賦值表達式**把區域變數 `e` 改寫成 `2`，而賦值表達式自己的**回傳值就是被指派的那個值**，也就是 `2`。
+  3. `2` 是 truthy，所以 `find` 判定「第 0 格通過測試」，<mark style="background: #FF5582A6;">在第一圈就短路停住</mark>，回傳 `arr[0]`。
+  4. <mark style="background: #FFF3A3A6;">但你看到的不是 `1`，是 `2`</mark> —— 因為 callback 的參數 `e` 是**傳值**進來的區域變數，重新賦值只改變 `e` 這個綁定，不會回寫 `array3[0]`，所以 `console.log(array3)` 仍然印出原陣列。
+  5. 結論：原陣列不變，`found3` 是 `2`，而且**只跑了一圈**，後面三個元素完全沒被檢查。
+
+  **正解**：要比較就用嚴格相等 `===`。
+
+```js
+const found3 = array3.find((e) => e === 2);
+console.log(found3);   // 2
+console.log(array3);   // [1, 2, 3, 4]
+```
+
+  同一個坑在 `if (x = y)` 也會出現，MDN 在控制流那篇明講「避免在 `if...else` 的條件中使用賦值語句」，見 [[控制流與錯誤處理-區塊語句-falsy-switch貫穿-throw-try-catch-finally]]。
 
 ---
 
@@ -254,6 +285,58 @@ arr3.map((e,i) => e === 0 ? i : 0 ).filter(i => i !== 0 );  // [2]    ❌ 索引
 
 ---
 
+## 6. 真實開發情境：find 到底什麼時候會用到（l–n）
+
+> （2026-09-17 由 Gemini 對話補入）一句話定位：<mark style="background: #FFF3A3A6;">`find` 的職責是「從一包陣列資料中，依條件（通常是 ID）精準取出**單一**項目」</mark>，這正是它跟 `filter`（要一票）與 `some`（只要知道有沒有）的分工。
+
+- (l) **四個最常見的場景**：
+
+| 場景 | 誰用 find 做什麼、產物是什麼 | 典型程式碼 |
+|---|---|---|
+| React 動態路由頁 | 元件拿到網址上的 `productId`，用 `find` 從商品清單撈出那一筆完整資料，產物交給畫面渲染 | `products.find(p => p.id === productId)` |
+| 下拉選單顯示名稱 | 表單 State 只存 `id`，用 `find` 把 `id` 換回整個選項物件，產物是要顯示的 `label` | `userRoles.find(r => r.id === roleId)?.label` |
+| 狀態管理（Redux / Context） | 更新前先用 `find` 確認購物車裡有沒有同一件商品，產物決定要 `quantity += 1` 還是 `push` 新項目 | `cartItems.find(i => i.id === newItem.id)` |
+| 權限檢查 | 用 `find` 從權限陣列取出那一項，產物拿來決定按鈕顯不顯示 | `perms.find(p => p === 'DELETE')` |
+
+```jsx
+// 場景 1：React 動態路由頁（/products/102）
+const products = [
+  { id: 101, name: "MacBook", price: 30000 },
+  { id: 102, name: "iPhone",  price: 25000 }
+];
+
+function ProductDetail({ productId }) {
+  const currentProduct = products.find((p) => p.id === productId);
+  if (!currentProduct) return <div>找不到商品</div>;   // ← 這裡用 !x 沒問題，因為元素是物件不會是 falsy
+  return <h1>{currentProduct.name} - ${currentProduct.price}</h1>;
+}
+```
+
+  <mark style="background: #FF5582A6;">注意</mark>：上面 `if (!currentProduct)` 之所以安全，是因為陣列元素都是**物件**（物件永遠 truthy）。一旦陣列裡是數字或字串，就要退回本篇 (e) 的正解 `!== undefined`。
+
+- (m) **效能上為什麼選 `find` 而不是 `filter`**：`find` 找到第一個符合就立刻停（本篇 (c) 的短路），`filter` 一定會把整個陣列走完。處理長陣列或找唯一值（如 ID）時，`find` 的成本明顯較低。
+
+- (n) <mark style="background: #ADCCFFA6;">陣列方法吃不了物件，要先把物件攤成陣列</mark>。`find`、`filter` 掛在 `Array.prototype` 上，對普通物件呼叫會直接報 `obj.find is not a function`。三種處理方式：
+
+| 需求 | 推薦做法 | 為什麼 |
+|---|---|---|
+| 找符合條件的 key 或 value | `Object.entries(obj).find(([k, v]) => …)` | `entries` 把物件攤成 `[key, value]` 的二維陣列，攤完就能接回 `find` |
+| 只要全部的值 | `Object.values(obj)` | 少一層解構 |
+| 判斷某個屬性存不存在 | `Object.hasOwn(obj, key)` | 只看自身屬性，比 `'key' in obj` 安全（`in` 會沿原型鏈往上找） |
+| key 不確定存不存在時安全讀取 | 可選鏈 `obj.details?.email` | 中途是 `undefined` 就整串回 `undefined`，不會丟 TypeError |
+
+```js
+const userStatus = { alice: "online", bob: "offline", charlie: "online" };
+
+// 找第一個狀態是 "online" 的使用者
+const onlineUser = Object.entries(userStatus).find(([name, status]) => status === "online");
+console.log(onlineUser);   // ["alice", "online"]
+```
+
+  物件 key 被 `Object.entries` 攤出來時的**排序規則**（整數索引會插隊）寫在 [[物件Key的排序規則-整數索引插隊-Map保序-forEach不能吃物件]]，靜態方法的完整清單在 [[Object靜態方法速查]]。
+
+---
+
 ## 對應題目練習
 
 - [LeetCode 2634. Filter Elements from Array](https://leetcode.com/problems/filter-elements-from-array/) — 自己實作 `filter`，會逼你處理 truthy 判斷與 callback 三參數
@@ -285,5 +368,9 @@ arr3.map((e,i) => e === 0 ? i : 0 ).filter(i => i !== 0 );  // [2]    ❌ 索引
 | Falsy 值的完整定義 | https://developer.mozilla.org/en-US/docs/Glossary/Falsy | MDN，2026-09-11 查證 |
 | `includes` 用 SameValueZero | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes | MDN，2026-09-11 查證 |
 | 規範原文 `Array.prototype.find` | https://tc39.es/ecma262/#sec-array.prototype.find | ECMA-262，2026-09-11 查證 |
+| 本篇 (g-2)(l)(m)(n) 的 Gemini 對話 | https://gemini.google.com/app/8641800775c043cc | Gemini Flash，2026-09-17 擷取 |
+| 賦值表達式的回傳值（`e = 2` 求值為 `2`） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Assignment | MDN 現行版本，2026-09-17 查證 |
+| `Object.entries()`（把物件攤成二維陣列） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries | MDN 現行版本，2026-09-17 查證 |
+| `Object.hasOwn()`（取代 `hasOwnProperty` 的推薦寫法） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn | MDN 現行版本，2026-09-17 查證 |
 
 > 本篇所有輸出皆由 `demo-find-短路與取得所有符合的索引.js` 在本機 Node 實跑驗證，非憑記憶書寫。

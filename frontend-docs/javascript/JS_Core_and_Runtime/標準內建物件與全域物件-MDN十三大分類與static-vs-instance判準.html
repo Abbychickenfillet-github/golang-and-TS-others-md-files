@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>標準內建物件與全域物件 — MDN 十三大分類，以及 static vs instance 的唯一判準</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>標準內建物件與全域物件 — MDN 十三大分類，以及 static vs instance 的唯一判準</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#global-objects</span><span class="pill">#built-in</span><span class="pill">#globalThis</span><span class="pill">#static-method</span><span class="pill">#instance-method</span><span class="pill">#mdn</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-17</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/dcd5205199bfbfc9" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card">
+<h2>主軸圖：看到 X.y() 時，怎麼判斷它是 static 還是 instance</h2>
+<p style="margin-top:0">左盒是掛在「類別本身」的 static，右盒是掛在「實體」的 instance。之後同主題追問（原型鏈怎麼找到方法、<code>Symbol.species</code>、自動裝箱）請指回這張圖的左盒、右盒或中間那條「生產實體」的箭頭。</p>
+<div class="fig" style="overflow-x:auto">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 640" style="min-width:700px;width:100%;height:auto" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="go-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4A5A75"/>
+    </marker>
+  </defs>
+  <style>
+    .go-l{font-size:15px;fill:#1F2937}
+    .go-s{font-size:12.5px;fill:#55617A}
+    .go-c{font-size:13px;fill:#33415C;font-family:Consolas,'Cascadia Code',monospace}
+    .go-e{stroke:#4A5A75;stroke-width:1.8;fill:none;marker-end:url(#go-ar)}
+    .go-t{font-size:13px;fill:#4A5A75;font-weight:600}
+  </style>
+  <rect x="0" y="0" width="900" height="640" fill="#FBFCFD"/>
+  <text x="450" y="30" text-anchor="middle" font-size="18" font-weight="700" fill="#1F2937">判準不是「有沒有寫 new」，而是「點號左邊的主語是誰」</text>
+
+  <rect x="320" y="52" width="260" height="42" rx="21" fill="#E8EDF5" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="450" y="79" text-anchor="middle" class="go-l">你看到一行 X.y()</text>
+  <path class="go-e" d="M450 94 L450 124"/>
+
+  <path d="M450 124 L700 184 L450 244 L200 184 Z" fill="#FFF6D9" stroke="#B8933A" stroke-width="1.8"/>
+  <text x="450" y="178" text-anchor="middle" class="go-l">X 是「類別／建構子」</text>
+  <text x="450" y="200" text-anchor="middle" class="go-l">還是「一筆具體資料」？</text>
+
+  <path class="go-e" d="M200 184 L110 184 L110 284"/>
+  <text x="152" y="176" text-anchor="middle" class="go-t">類別</text>
+  <path class="go-e" d="M700 184 L790 184 L790 284"/>
+  <text x="748" y="176" text-anchor="middle" class="go-t">實體</text>
+
+  <!-- 左盒：static -->
+  <rect x="30" y="284" width="330" height="200" rx="12" fill="#EEF2F8" stroke="#4A5A75" stroke-width="2"/>
+  <text x="195" y="312" text-anchor="middle" class="go-l" font-weight="700">左盒：靜態方法 Static Method</text>
+  <text x="195" y="336" text-anchor="middle" class="go-s">掛在「類別本身」這個物件上</text>
+  <text x="195" y="368" text-anchor="middle" class="go-c">Array.isArray([1,2])</text>
+  <text x="195" y="392" text-anchor="middle" class="go-c">Object.keys(obj)</text>
+  <text x="195" y="416" text-anchor="middle" class="go-c">Array.from("123")</text>
+  <text x="195" y="448" text-anchor="middle" class="go-s">工具型物件（Math／JSON／Reflect）</text>
+  <text x="195" y="468" text-anchor="middle" class="go-s">整包都只有這一種</text>
+
+  <!-- 右盒：instance -->
+  <rect x="540" y="284" width="330" height="200" rx="12" fill="#F1FAF2" stroke="#3E8E4E" stroke-width="2"/>
+  <text x="705" y="312" text-anchor="middle" class="go-l" font-weight="700">右盒：實體方法 Instance Method</text>
+  <text x="705" y="336" text-anchor="middle" class="go-s">掛在原型上，由實體沿原型鏈找到</text>
+  <text x="705" y="368" text-anchor="middle" class="go-c">[1,2].includes(1)</text>
+  <text x="705" y="392" text-anchor="middle" class="go-c">myMap.get('key')</text>
+  <text x="705" y="416" text-anchor="middle" class="go-c">str.toUpperCase()</text>
+  <text x="705" y="448" text-anchor="middle" class="go-s">字面值與自動裝箱會幫你把實體生出來</text>
+  <text x="705" y="468" text-anchor="middle" class="go-s">所以不用自己寫 new</text>
+
+  <!-- 中間：工廠方法把左盒的產物丟給右盒 -->
+  <path class="go-e" d="M360 520 L540 520"/>
+  <text x="450" y="512" text-anchor="middle" class="go-t">靜態工廠方法產出一個新實體</text>
+  <text x="450" y="546" text-anchor="middle" class="go-c">Array.from("123")  →  arr.map(x =&gt; x*2)</text>
+  <text x="450" y="572" text-anchor="middle" class="go-s">讀法：Array 這個類別用 from 把字串攤成陣列實體 → 交給 arr → arr 再用自己的 map 逐格轉換</text>
+
+  <text x="450" y="612" text-anchor="middle" class="go-s">圖例：圓角＝起訖　菱形＝判斷　圓角方框＝兩個盒子　箭頭＝產物的拋接方向</text>
+</svg>
+</div>
+</section>
+
+
+
+<article class="card">
+<h1 id="mdn-static-vs-instance">標準內建物件與全域物件 — MDN 十三大分類，以及 static vs instance 的唯一判準</h1>
+<blockquote>
+<p>本篇重點 a–l，共 12 個。<br />
+主軸圖：本頁 HTML 版的「兩個盒子」流程圖（左盒＝類別本身掛的 static，右盒＝實體掛的 instance），後續同主題追問一律指回這張圖的某個盒子或某條箭頭。</p>
+</blockquote>
+<hr />
+<h2 id="_1">🎯 速答區</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>一句話速答</th>
+<th>章節</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>「全域物件」到底指什麼</td>
+<td>有兩個層面的意思，廣義指一整包標準內建物件，狹義指 <code>globalThis</code> 那一顆實體物件</td>
+<td>§1</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td><code>Map</code>、<code>Array</code>、<code>Function</code> 算全域物件嗎</td>
+<td>算，它們屬於「建構子」這一類</td>
+<td>§2</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>呼叫 instance method 一定要先寫 <code>new</code> 嗎</td>
+<td>不用，字面值語法會幫你把實體建出來</td>
+<td>§3</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>怎麼分辨 static 還是 instance</td>
+<td>只看點號左邊的主語是「類別」還是「已存在的實體」</td>
+<td>§3</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-ac">1. 「全域物件」的兩個層面（a–c）</h2>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">廣義：標準內建物件（Standard built-in objects）</mark>。<br />
+    指 JavaScript 執行環境一啟動時，引擎就已經替你載入並建立好的那一整組工具。<br />
+    你不需要 <code>import</code>，也不需要 <code>require</code>，更不需要自己定義，就能在任何地方直接呼叫，例如 <code>Math.random()</code>、<code>JSON.stringify()</code>、<code>new Date()</code>、<code>parseInt("123")</code>。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">狹義：全域物件（The Global Object）</mark>。<br />
+    指環境中最頂層、包容一切全域變數與函式的那一顆實體物件。<br />
+    在瀏覽器環境它是 <code>window</code>，在 Node.js 環境它是 <code>global</code>，跨環境的統一寫法是 <code>globalThis</code>。<br />
+    全域作用域實際上就是由這顆全域物件的屬性所組成，所以 <code>var x = 1</code> 之後 <code>window.x</code> 讀得到（細節見 <span class="wikilink" title="Obsidian 連結：07-identifier-vs-property-var全域變數">07-identifier-vs-property-var全域變數</span>）。</p>
+<p>(c) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在全域作用域中，物件只有三個來源</mark>：引擎內建的標準內建物件、使用者自己撰寫的腳本所建立的、宿主環境（Host Application，例如瀏覽器或 Node.js）另外提供的（例如 <code>document</code>、<code>fetch</code>、<code>process</code>）。</p>
+<hr />
+<h2 id="2-mdn-df">2. MDN 的標準內建物件分類（d–f）</h2>
+<p>(d) MDN 依「功能」把標準內建物件分成十三大類，整理如下表。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>分類</th>
+<th>這一類在做什麼</th>
+<th>代表成員</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>數值屬性 Value properties</td>
+<td>回傳單純數值，本身沒有屬性也沒有方法</td>
+<td><code>globalThis</code>、<code>Infinity</code>、<code>NaN</code>、<code>undefined</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>函式屬性 Function properties</td>
+<td>直接呼叫就回傳結果的全域函式</td>
+<td><code>parseInt()</code>、<code>parseFloat()</code>、<code>isNaN()</code>、<code>encodeURI()</code>、<code>eval()</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>基本物件 Fundamental objects</td>
+<td>語言最核心的基礎結構</td>
+<td><code>Object</code>、<code>Function</code>、<code>Boolean</code>、<code>Symbol</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>錯誤物件 Error objects</td>
+<td>處理例外狀況</td>
+<td><code>Error</code>、<code>TypeError</code>、<code>SyntaxError</code>、<code>RangeError</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>數字與日期 Numbers and dates</td>
+<td>數值計算與時間處理</td>
+<td><code>Number</code>、<code>BigInt</code>、<code>Math</code>、<code>Date</code>、<code>Temporal</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>文字處理 Text processing</td>
+<td>字串與正則表達式</td>
+<td><code>String</code>、<code>RegExp</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td>索引集合 Indexed collections</td>
+<td>依索引排序的資料集合</td>
+<td><code>Array</code>、各類 TypedArray（如 <code>Int32Array</code>）</td>
+</tr>
+<tr>
+<td>8</td>
+<td>鍵控集合 Keyed collections</td>
+<td>依 key 存取、且保留插入順序的集合</td>
+<td><code>Map</code>、<code>Set</code>、<code>WeakMap</code>、<code>WeakSet</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td>結構化資料 Structured data</td>
+<td>二進位緩衝區與序列化</td>
+<td><code>ArrayBuffer</code>、<code>SharedArrayBuffer</code>、<code>DataView</code>、<code>Atomics</code>、<code>JSON</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td>記憶體管理 Memory management</td>
+<td>弱參考與回收通知</td>
+<td><code>WeakRef</code>、<code>FinalizationRegistry</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td>控制抽象物件 Control abstraction objects</td>
+<td>非同步與迭代的抽象層</td>
+<td><code>Promise</code>、<code>Iterator</code>、<code>AsyncIterator</code>、<code>GeneratorFunction</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td>反射 Reflection</td>
+<td>Meta-programming（程式碼操作程式碼）</td>
+<td><code>Reflect</code>、<code>Proxy</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td>國際化 Internationalization</td>
+<td>語系、貨幣、日期格式化</td>
+<td><code>Intl</code> 及其相關模組</td>
+</tr>
+</tbody>
+</table>
+<p>(e) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">從「能不能 new」再切一刀，上表可以壓成三種形狀</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>形狀</th>
+<th>特徵</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>建構子 Constructor</td>
+<td>可以搭配 <code>new</code> 建立新實體，本身也是存在於全域作用域的物件</td>
+<td><code>Array</code>、<code>Map</code>、<code>Set</code>、<code>Object</code>、<code>Function</code>、<code>Promise</code>、<code>Date</code></td>
+</tr>
+<tr>
+<td>工具型物件 Namespace / Utility</td>
+<td>不能 <code>new</code>，本身就是一包靜態方法的集合</td>
+<td><code>Math</code>、<code>JSON</code>、<code>Reflect</code>、<code>Atomics</code></td>
+</tr>
+<tr>
+<td>全域函式與數值</td>
+<td>直接呼叫或直接讀取，沒有 <code>.</code> 前面的類別</td>
+<td><code>parseInt()</code>、<code>isNaN()</code>、<code>Infinity</code>、<code>NaN</code></td>
+</tr>
+</tbody>
+</table>
+<p>(f) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ 存疑／更正</mark>：Gemini 在對話中把分類講成「十二大類」，並且把 <code>Reflect</code> 排在第 11、<code>Intl</code> 排在第 12。<br />
+    對照 MDN 現行的 Standard built-in objects 目錄，實際是 <strong>十三類</strong>，遺漏的是「鍵控集合 Keyed collections」與「記憶體管理 Memory management」。<br />
+    上表已依 MDN 原文補回並重新編號。</p>
+<hr />
+<h2 id="3-static-instancegj">3. static 還是 instance，只看主語（g–j）</h2>
+<p>(g) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">常見誤解：以為「有寫 new 才算實體方法」</mark>。<br />
+    不對。判準不是有沒有 <code>new</code>，而是<strong>點號左邊的主語是誰</strong>。</p>
+<p>(h) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">正確判準</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>種類</th>
+<th>呼叫形狀</th>
+<th>主語是</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>靜態方法 Static Method</td>
+<td><code>類別名稱.方法()</code></td>
+<td>類別／建構子本身</td>
+<td><code>Array.isArray([1,2])</code>、<code>Object.keys(obj)</code>、<code>Array.from("123")</code></td>
+</tr>
+<tr>
+<td>實體方法 Instance Method</td>
+<td><code>實體物件.方法()</code></td>
+<td>已經被建立出來的具體資料</td>
+<td><code>[1,2].includes(1)</code>、<code>myMap.get('key')</code>、<code>str.toUpperCase()</code></td>
+</tr>
+</tbody>
+</table>
+<p>(i) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">字面值（Literals）會自動幫你實體化，所以你不用寫 <code>new</code> 也能呼叫實體方法</mark>。</p>
+<pre><code class="language-js">// 陣列：引擎在底層幫你建出 Array 實體
+const list = [1, 2, 3];   // 相當於 new Array(1, 2, 3)
+list.push(4);             // push 是實體方法，主語是 list
+
+// 字串：原始型別在取方法時會被暫時包裝成 String 物件（自動裝箱）
+const str = &quot;hello&quot;;
+str.toUpperCase();        // toUpperCase 是實體方法，主語是 str
+
+// 物件
+const obj = { a: 1 };
+obj.hasOwnProperty('a');  // hasOwnProperty 是實體方法，主語是 obj
+</code></pre>
+<pre><code>自動裝箱的完整機制寫在 &lt;span class="wikilink" title="Obsidian 連結：自動裝箱與內建建構函式-大寫Symbol與小寫sym"&gt;自動裝箱與內建建構函式-大寫Symbol與小寫sym&lt;/span&gt;。
+</code></pre>
+<p>(j) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">靜態工廠方法會回傳一個新實體，接著就能串實體方法</mark>，這是兩者最常一起出現的地方。</p>
+<pre><code class="language-js">const arr = Array.from(&quot;123&quot;);     // Array.from 是靜態方法，主語是 Array，產物是一個新陣列實體
+const doubled = arr.map(x =&gt; x * 2); // map 是實體方法，主語是 arr（上一行的產物）
+</code></pre>
+<pre><code>讀法是「`Array` 這個類別用 `from` 把字串攤成陣列實體 → 把實體交給 `arr` → `arr` 再用自己的 `map` 逐格轉換」。
+</code></pre>
+<hr />
+<h2 id="4-kl">4. 一句話總結（k–l）</h2>
+<p>(k) 全域物件＝廣義的「引擎已經幫你擺好的一整櫃工具」＋狹義的「裝著這一櫃工具的那個櫃子本身（<code>globalThis</code>）」。</p>
+<p>(l) 看到 <code>X.y()</code> 時，先問「<code>X</code> 是類別還是資料」，答案就決定它是 static 還是 instance，<code>new</code> 只是實體的其中一種生產方式，不是判準。</p>
+<hr />
+<h2 id="_2">關聯筆記（附關聯原因）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：Object靜態方法vs原型方法-Symbol弱封裝與species">Object靜態方法vs原型方法-Symbol弱封裝與species</span><br />
+<strong>理由</strong>：本篇 §3 給的是「怎麼分辨」的判準，那篇給的是「為什麼 JS 要把方法拆到兩個地方掛」的原型層原因，判準＋原因合看才不會只會背。</li>
+<li><span class="wikilink" title="Obsidian 連結：自動裝箱與內建建構函式-大寫Symbol與小寫sym">自動裝箱與內建建構函式-大寫Symbol與小寫sym</span><br />
+<strong>理由</strong>：本篇 (i) 說字串字面值也能呼叫實體方法，背後就是那篇講的自動裝箱（Primitive Wrapper）。</li>
+<li><span class="wikilink" title="Obsidian 連結：07-identifier-vs-property-var全域變數">07-identifier-vs-property-var全域變數</span><br />
+<strong>理由</strong>：本篇 (b) 說「全域作用域由全域物件的屬性組成」，那篇拆解的正是 identifier 與 property 的分界。</li>
+<li><span class="wikilink" title="Obsidian 連結：全域變數的GC回收時機-Reachability與window生命週期">全域變數的GC回收時機-Reachability與window生命週期</span><br />
+<strong>理由</strong>：掛在 <code>window</code> 上的東西什麼時候會被回收，是本篇 (b) 的直接延伸。</li>
+<li><span class="wikilink" title="Obsidian 連結：Object靜態方法速查">Object靜態方法速查</span><br />
+<strong>理由</strong>：本篇 §3 表格的 static 例子（<code>Object.keys</code>、<code>Object.entries</code>）在那篇有完整清單。</li>
+</ul>
+<hr />
+<h2 id="_3">🔗 相關練習題</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼放這裡</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeetCode 2620. Counter</td>
+<td>https://leetcode.com/problems/counter/</td>
+<td>用閉包回傳函式，練「主語是誰」的直覺</td>
+</tr>
+<tr>
+<td>LeetCode 2727. Is Object Empty</td>
+<td>https://leetcode.com/problems/is-object-empty/</td>
+<td>直接考 <code>Object.keys</code> 這個靜態方法的用法</td>
+</tr>
+<tr>
+<td>LeetCode 2634. Filter Elements from Array</td>
+<td>https://leetcode.com/problems/filter-elements-from-array/</td>
+<td>手刻 <code>filter</code>，對照實體方法掛在 <code>Array.prototype</code> 上</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">各對話來源（原文）</h2>
+<h3 id="javascript-2026-09-17-httpsgeminigooglecomappdcd5205199bfbfc9">JavaScript 全域物件解析與分類（2026-09-17 擷取）— https://gemini.google.com/app/dcd5205199bfbfc9</h3>
+<p><strong>使用者：</strong> https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects 幫我翻譯這篇文章，何謂他的全域物件？</p>
+<p><strong>Gemini：</strong> 在 JavaScript 中「全域物件」通常有兩種層面的涵義。廣義是全域作用域中隨處可用的內建資源（Standard Built-in Objects），這就是 MDN 這篇文章主要介紹的內容，當 JavaScript 執行環境啟動時引擎就已經自動載入並建立好這些工具，不需要透過 <code>import</code> 或 <code>require</code> 引入，例如 <code>Math.random()</code>、<code>JSON.stringify()</code>、<code>new Date()</code>、<code>parseInt("123")</code>。狹義是環境頂層的實體物件（The Global Object），在瀏覽器環境中這個物件是 <code>window</code>，可以使用 <code>this</code> 或 <code>globalThis</code> 存取，全域作用域實際上是由全域物件的屬性所組成。在全域作用域中，除了內建物件之外，其他物件要麼是由使用者撰寫的腳本建立，要麼是由宿主環境（Host Application，例如瀏覽器或 Node.js）提供。接著列出 MDN 的標準內建物件分類概覽：數值屬性、函式屬性、基本物件、錯誤物件、數字與日期、文字處理、索引集合、結構化資料、控制抽象物件、反射、國際化等。</p>
+<p><strong>使用者：</strong> 「全域物件（Standard built-in objects / Global objects）：指存在於全域作用域中的內建物件與建構子。」這個是指像 Map 還有 Array 還有 function 這樣嗎？</p>
+<p><strong>Gemini：</strong> 是的，完全正確。你舉的 <code>Map</code>、<code>Array</code> 還有 <code>Function</code>，全都是這裡所說的「標準內建物件／建構子」。詳細來說它們屬於幾種常見的類型：（1）建構子（Constructor Functions / Classes），例如 <code>Array</code>、<code>Map</code>、<code>Set</code>、<code>Object</code>、<code>Function</code>、<code>Promise</code>、<code>Date</code>，特點是可以搭配 <code>new</code> 來建立新的實體，它們本身也是存在於全域作用域中的物件。（2）工具型物件（Namespace / Utility Objects），例如 <code>Math</code>、<code>JSON</code>、<code>Reflect</code>、<code>Atomics</code>，特點是不能用 <code>new</code> 建立實體，但它們本身是包含了許多靜態方法的全域物件。（3）全域函式（Global Functions），例如 <code>parseInt()</code>、<code>parseFloat()</code>、<code>isNaN()</code>、<code>encodeURI()</code>，直接呼叫就能使用。（4）全域數值屬性（Global Value Properties）。</p>
+<p><strong>使用者：</strong> 難道動態方法需要寫 new 嗎？</p>
+<p><strong>Gemini：</strong> 不一定需要顯式寫出 <code>new</code>，但關鍵在於「必須先有物件實體（Instance）」。在 JavaScript 中，物件實體的建立方式不只有 <code>new</code> 關鍵字，語言提供了許多字面值（Literals）語法糖或工廠函式（Factory Functions），它們背後會自動幫你建立物件實體。（1）透過字面值建立實體（最常見，不用寫 new）：陣列 <code>const list = [1,2,3]</code> 底層相當於 <code>new Array(1,2,3)</code>，<code>list.push(4)</code> 是實體方法可直接呼叫；字串 <code>const str = "hello"</code> 底層會自動進行 Primitive Wrapper 的處理，<code>str.toUpperCase()</code> 是實體方法；物件 <code>const obj = { a: 1 }</code>，<code>obj.hasOwnProperty('a')</code> 是實體方法。（2）透過靜態工廠方法建立實體後呼叫：<code>Array.from()</code> 是靜態方法回傳一個新的 Array 實體，<code>map()</code> 是實體方法作用在產生的陣列實體上。核心差異在於呼叫者是「類別」還是「實體」：看一個方法是靜態還是實體，不是看你有沒有寫 <code>new</code>，而是看主語（點號前面）是誰。靜態方法是 <code>類別 / 建構子名稱.方法()</code>，例如 <code>Array.isArray([1, 2])</code>、<code>Object.keys(obj)</code>，主語是 <code>Array</code> 或 <code>Object</code> 這個全域類別本身。實體方法是 <code>實體物件.方法()</code>，例如 <code>[1, 2].includes(1)</code>、<code>myMap.get('key')</code>，主語是某個已經被建立出來的具體資料。</p>
+<hr />
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/dcd5205199bfbfc9</td>
+<td>Gemini Flash，2026-09-17 擷取</td>
+</tr>
+<tr>
+<td>MDN — Standard built-in objects（十三大分類原文）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>MDN — globalThis</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>MDN — Object.keys()（static 方法代表）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>ECMA-262 — The Global Object</td>
+<td>https://tc39.es/ecma262/#sec-global-object</td>
+<td>ECMAScript 現行草案，2026-09-17 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-17</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-17</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

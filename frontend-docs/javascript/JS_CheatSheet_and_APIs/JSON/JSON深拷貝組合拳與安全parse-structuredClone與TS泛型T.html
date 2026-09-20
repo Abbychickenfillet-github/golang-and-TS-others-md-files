@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JSON 深拷貝組合拳與安全 parse——structuredClone 與 TS 泛型 T</title><style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23262d; --muted:#6b7280; --line:#e6e3dc;
+  --accent:#4f6bed; --accent2:#0f9d76; --warn:#d94f6b; --code:#1f2430;
+  --hl-y:#FFF3A3; --hl-r:#FF5582; --hl-g:#BBFABB; --hl-b:#ADCCFF; --hl-p:#FFB8EB; --hl-v:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hd{border-bottom:3px solid var(--ink);padding-bottom:18px;margin-bottom:28px}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:1.85rem;line-height:1.35;margin:0 0 12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.pill{background:#eef1fb;color:#3b4ab5;border:1px solid #d6dcf6;border-radius:999px;
+ padding:2px 11px;font-size:.76rem;letter-spacing:.02em}
+.meta{font-size:.82rem;color:var(--muted)}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:1.3rem;margin:38px 0 14px;
+ padding-left:12px;border-left:6px solid var(--accent)}
+h3{font-size:1.05rem;margin:26px 0 10px;color:#33406e}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+mark{padding:1px 4px;border-radius:3px}
+.hy{background:var(--hl-y)}.hr{background:var(--hl-r);color:#fff}.hg{background:var(--hl-g)}
+.hb{background:var(--hl-b)}.hp{background:var(--hl-p)}.hv{background:var(--hl-v)}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#f2f0ea;font-weight:600}
+tbody tr:nth-child(even){background:#faf9f6}
+pre{background:var(--code);color:#e8ecf5;border-radius:10px;padding:14px 16px;
+ overflow-x:auto;font-size:.84rem;line-height:1.6}
+code{font-family:"JetBrains Mono",Consolas,monospace}
+p code,li code,td code{background:#eeece6;color:#9a3b57;padding:1px 5px;border-radius:4px;font-size:.87em}
+.callout{border-left:5px solid var(--accent);background:#f1f4fd;border-radius:0 10px 10px 0;
+ padding:12px 16px;margin:16px 0;font-size:.92rem}
+.callout.warn{border-color:var(--warn);background:#fdf0f3}
+.callout.ok{border-color:var(--accent2);background:#eefaf5}
+.idx{background:#23262d;color:#f4f2ec;border-radius:12px;padding:12px 18px;font-size:.88rem}
+ol.az{list-style:none;padding-left:0;counter-reset:none}
+ol.az li{margin:10px 0;padding-left:34px;position:relative}
+ol.az li b.k{position:absolute;left:0;top:0;background:var(--accent);color:#fff;
+ width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;
+ justify-content:center;font-size:.78rem}
+/* interactive */
+.blank{background:#dfe4f5;border-bottom:2px dashed var(--accent);border-radius:4px;
+ padding:1px 16px;cursor:pointer;color:transparent;user-select:none;transition:.2s}
+.blank.on{background:#d7f3e6;color:#0b6b4f;border-bottom-color:var(--accent2);font-weight:600}
+.toggle{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:7px 14px;
+ font-size:.83rem;cursor:pointer;margin:6px 6px 6px 0}
+.toggle:hover{background:var(--accent)}
+.ans{display:none;margin-top:10px;background:#eefaf5;border-left:5px solid var(--accent2);
+ border-radius:0 8px 8px 0;padding:12px 16px;font-size:.92rem}
+.ans.show{display:block}
+.tf{margin:12px 0}
+.tf .q{font-weight:600;margin-bottom:6px}
+.tf button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 16px;
+ margin-right:8px;cursor:pointer;font-size:.85rem}
+.tf button:hover{border-color:var(--accent)}
+.tf .fb{display:inline-block;margin-left:6px;font-size:.85rem;font-weight:600}
+.tf .fb.good{color:#0b6b4f}.tf .fb.bad{color:var(--warn)}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:10px;
+ padding:10px 12px;font-family:inherit;font-size:.9rem;resize:vertical;background:#fff}
+svg.flow{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:12px}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);
+ font-size:.8rem;color:var(--muted);text-align:center}
+</style></head><body><div class="wrap">
+<header class="hd"><h1>JSON 深拷貝組合拳與安全 parse——structuredClone 與 TS 泛型 T</h1>
+<div class="pills"><span class="pill">#javascript</span><span class="pill">#json</span><span class="pill">#深拷貝</span><span class="pill">#structuredClone</span><span class="pill">#typescript</span><span class="pill">#泛型</span></div>
+<div class="meta">更新於 2026-09-15 ｜ 來源對話：<br><a href="https://gemini.google.com/app/c3535047879639cc" target="_blank" rel="noopener">https://gemini.google.com/app/c3535047879639cc</a></div>
+<button class="toggle" id="toggle-all" data-on="0">一鍵展開所有答案</button>
+</header>
+
+<div class="idx">本篇重點 a–n，共 14 個。主軸圖固定用下面這張「組合拳三段管線」流程圖，之後追問請直接指回圖裡的方框編號。</div>
+
+<h2>主軸圖：組合拳的三段管線（ISO 5807 標準符號）</h2>
+<div class="card">
+<svg class="flow" viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="ar" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+    <path d="M0,0 L10,4 L0,8 z" fill="#4f6bed"/></marker></defs>
+  <rect x="24" y="24" width="150" height="46" rx="23" fill="#23262d"/>
+  <text x="99" y="53" fill="#fff" font-size="14" text-anchor="middle">① 開始：原物件</text>
+  <path d="M190,110 L330,110 L306,152 L166,152 z" fill="#ADCCFF" stroke="#4f6bed"/>
+  <text x="248" y="136" font-size="13" text-anchor="middle">② 輸入 obj（heap 位址 A）</text>
+  <rect x="380" y="100" width="180" height="56" rx="8" fill="#fff" stroke="#4f6bed" stroke-width="2"/>
+  <text x="470" y="123" font-size="13" text-anchor="middle">③ JSON.stringify</text>
+  <text x="470" y="142" font-size="11" fill="#6b7280" text-anchor="middle">物件 → JSON 文字</text>
+  <path d="M600,110 L740,110 L716,152 L576,152 z" fill="#FFF3A3" stroke="#b79b00"/>
+  <text x="658" y="136" font-size="13" text-anchor="middle">④ 中繼字串</text>
+  <rect x="380" y="196" width="180" height="56" rx="8" fill="#fff" stroke="#4f6bed" stroke-width="2"/>
+  <text x="470" y="219" font-size="13" text-anchor="middle">⑤ JSON.parse</text>
+  <text x="470" y="238" font-size="11" fill="#6b7280" text-anchor="middle">JSON 文字 → 新物件</text>
+  <rect x="150" y="196" width="180" height="56" rx="28" fill="#BBFABB" stroke="#0f9d76"/>
+  <text x="240" y="228" font-size="13" text-anchor="middle">⑥ 結束：clone（位址 B）</text>
+  <line x1="99" y1="70" x2="99" y2="126" stroke="#4f6bed" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="332" y1="131" x2="374" y2="128" stroke="#4f6bed" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="562" y1="128" x2="600" y2="131" stroke="#4f6bed" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="658" y1="152" x2="658" y2="224" stroke="#4f6bed" stroke-width="2"/>
+  <line x1="658" y1="224" x2="566" y2="224" stroke="#4f6bed" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="378" y1="224" x2="336" y2="224" stroke="#4f6bed" stroke-width="2" marker-end="url(#ar)"/>
+</svg>
+<p class="meta">方框 ③ 與 ⑤ 是兩個獨立的處理步驟，中間隔著方框 ④ 的純文字，這就是「為什麼第二層也會斷開」的原因——文字裡沒有任何記憶體位址可以被繼承。</p>
+</div>
+
+<h2>一、組合拳到底在做什麼</h2>
+<div class="card">
+<p><mark class="hy"><b>JSON.parse(JSON.stringify(obj)) 不是把 stringify 當參數傳進去</b></mark>，而是先讓 <code>JSON.stringify</code>（序列化器）把 JS 物件 serialize 成一條 JSON 字串，再把這條字串交給 <code>JSON.parse</code>（JSON parser），由 parser 依 JSON 文法重新長出一個全新的 JS 物件。</p>
+<pre><code>const original = { a: 1, b: { c: 2 } };
+const text  = JSON.stringify(original);   // '{"a":1,"b":{"c":2}}'
+const clone = JSON.parse(text);           // 全新物件
+clone.b.c = 999;
+console.log(original.b.c);                // 2 ← 第二層也斷開了</code></pre>
+<ol class="az">
+<li><b class="k">a</b>組合拳＝JS 早年最常見的深拷貝寫法。</li>
+<li><b class="k">b</b>需要它是因為 JS 物件是<span class="blank" title="點我看答案">傳址（by reference）</span>，<code>const b = a</code> 只是讓兩個名字指向同一塊記憶體。</li>
+<li><b class="k">c</b>淺拷貝（<code>Object.assign</code>、展開運算子）只複製<span class="blank">第一層</span>，第二層以上仍共用位址。</li>
+</ol>
+</div>
+
+<h2>二、組合拳的四個限制</h2>
+<div class="card">
+<table><thead><tr><th>情況</th><th>經過組合拳會變成</th><th>為什麼</th></tr></thead><tbody>
+<tr><td><code>function</code> / <code>Symbol</code> / <code>undefined</code></td><td>物件屬性直接消失，陣列元素變 <code>null</code></td><td>JSON 格式裡沒有這三種型別</td></tr>
+<tr><td><code>NaN</code> / <code>Infinity</code></td><td>變成 <code>null</code></td><td>JSON 的 number 文法不接受這些字面值</td></tr>
+<tr><td><code>Date</code></td><td>變成 ISO 字串，不會自動還原</td><td><code>Date.prototype.toJSON</code> 回傳字串，parse 不知道要變回來</td></tr>
+<tr><td>循環引用</td><td>丟 <code>TypeError</code></td><td>serialize 時會無限遞迴</td></tr>
+</tbody></table>
+<p><b class="k" style="position:static;display:inline-flex">d</b> 四個限制：型別遺失、特殊數值變 null、Date 降級、循環引用直接爆。</p>
+</div>
+
+<h2>三、現代做法 structuredClone</h2>
+<div class="card">
+<p><mark class="hg"><b>現代環境直接用原生 structuredClone(obj) 取代組合拳。</b></mark></p>
+<pre><code>const src  = { when: new Date(), tags: new Set(['a']), nested: { n: NaN } };
+const deep = structuredClone(src);
+deep.when instanceof Date;   // true
+deep.tags instanceof Set;    // true
+Number.isNaN(deep.nested.n); // true</code></pre>
+<div class="callout warn"><b>⚠️ 存疑／補充（Gemini 沒講的部分）</b><br>
+Gemini 只說「建議優先採用 structuredClone」，沒講限制。依 MDN 的 structured clone algorithm：<code>function</code>、<code>Symbol</code>、DOM 節點，以及物件的 prototype 與 getter/setter 都複製不了，碰到 function 會丟 <code>DataCloneError</code>。所以要複製「含方法的 class 實例」仍需自己寫 clone 或用 lodash <code>cloneDeep</code>。</div>
+</div>
+
+<h2>四、parse 之前一定要檢查</h2>
+<div class="card">
+<pre><code>function safeJsonParse(str) {
+  if (typeof str !== 'string' || str.trim() === '') return null;
+  try { return JSON.parse(str); }
+  catch (error) { console.error('JSON 解析失敗：', error.message); return null; }
+}
+
+function parseJsonObject(str) {
+  if (typeof str !== 'string') return null;
+  try {
+    const result = JSON.parse(str);
+    if (typeof result === 'object' &amp;&amp; result !== null) return result;
+  } catch (e) {}
+  return null;
+}</code></pre>
+<p><b class="k" style="position:static;display:inline-flex">g</b> 基本安全版先擋非字串，再用 try…catch 擋語法錯誤。<br>
+<b class="k" style="position:static;display:inline-flex">h</b> 嚴格版多一道 <code>typeof result === 'object' &amp;&amp; result !== null</code>，因為 <code>"123"</code>、<code>"true"</code>、<code>"null"</code> 也都是合法 JSON。</p>
+</div>
+
+<h2>五、為什麼「屬性是字串、值好像不是」</h2>
+<div class="card">
+<p>整條 <code>jsonString</code> 在記憶體中 <mark class="hb">100% 是一串文字</mark>。看起來值不是字串，是因為 JSON 用「有沒有雙引號」這個文法標記來區分型別。</p>
+<pre><code>JSON.stringify({ age: 18, isStudent: true, name: 'Alice' });
+// '{"age":18,"isStudent":true,"name":"Alice"}'
+//     ↑key 必有引號  ↑18 沒引號＝number  ↑有引號＝string</code></pre>
+<p><b class="k" style="position:static;display:inline-flex">i</b> 產物是純文字，沒有任何 JS 值留在裡面。<br>
+<b class="k" style="position:static;display:inline-flex">j</b> 引號就是型別標記。<br>
+<b class="k" style="position:static;display:inline-flex">k</b> <code>JSON.parse</code> 也吃 number、boolean、array、null，不限物件。<br>
+<b class="k" style="position:static;display:inline-flex">l</b> <code>JSON</code> 是 JS 的原生內建物件（跟 <code>Math</code> 同一類），不是只有 <code>.json</code> 檔能用。</p>
+</div>
+
+<h2>六、TypeScript 的 &lt;T&gt; 泛型</h2>
+<div class="card">
+<pre><code>function safeJsonParse&lt;T&gt;(str: string): T | null {
+  try { return JSON.parse(str) as T; } catch { return null; }
+}
+interface User { name: string; age: number }
+const user = safeJsonParse&lt;User&gt;('{"name":"Alice","age":18}');
+
+function deepClone&lt;T&gt;(obj: T): T {
+  return JSON.parse(JSON.stringify(obj)) as T;
+}</code></pre>
+<p><b class="k" style="position:static;display:inline-flex">m</b> <code>&lt;T&gt;</code> 是泛型的型別參數佔位符，代表「呼叫時才決定的型別」，讓函式回傳跟傳入相同的型別。<br>
+<b class="k" style="position:static;display:inline-flex">n</b> <code>as T</code> 只是<mark class="hr">斷言不是驗證</mark>，執行期不會真的檢查資料長相，要真驗證請用 Zod 這類 schema 工具。</p>
+</div>
+
+<h2>七、自己考自己</h2>
+<div class="card">
+<h3>是非題</h3>
+<div class="tf" data-ans="F" data-why="會變成 null，不是保留 NaN。">
+  <div class="q">1. 用組合拳深拷貝 <code>{ n: NaN }</code>，拷貝後 <code>n</code> 仍然是 <code>NaN</code>。</div>
+  <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span>
+</div>
+<div class="tf" data-ans="F" data-why="structuredClone 碰到 function 會丟 DataCloneError。">
+  <div class="q">2. <code>structuredClone</code> 可以複製物件上的方法（function）。</div>
+  <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span>
+</div>
+<div class="tf" data-ans="T" data-why="">
+  <div class="q">3. <code>JSON.parse('123.45')</code> 會回傳型別為 number 的 123.45。</div>
+  <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span>
+</div>
+
+<h3>填空（點一下藍色色塊看答案）</h3>
+<p>1. JSON 是 JS 的<span class="blank">原生內建物件</span>，跟 <code>Math</code> 同一類。<br>
+2. <code>JSON.parse</code> 吃到無效字串會丟 <span class="blank">SyntaxError</span>，所以要用 try…catch 包。<br>
+3. 組合拳碰到循環引用會丟 <span class="blank">TypeError</span>。</p>
+
+<h3>申論題</h3>
+<p><b>Q：</b>請用「誰 用什麼 做什麼、產物是什麼、再拋給誰」的句式，描述 <code>JSON.parse(JSON.stringify(obj))</code> 的完整資料流，並說明為什麼這樣做可以斷開第二層的記憶體引用。</p>
+<textarea placeholder="在這裡寫下你的答案，寫完再按下面按鈕對照…"></textarea><br>
+<button class="toggle" data-target="e1" data-label="顯示參考答案">顯示參考答案</button>
+<div class="ans" id="e1"><code>JSON.stringify</code>（序列化器）把 heap 上位址 A 的 JS 物件 serialize 成一條 JSON 純文字 → 這條純文字交給 <code>JSON.parse</code>（JSON parser）→ parser 依 JSON 文法（number/string/boolean/null/array/object 六種）逐字元重建，在 heap 上另外配置位址 B 長出全新的物件樹 → 回傳給呼叫端。<br>
+斷得開的關鍵是：中繼產物是<b>純文字</b>，文字裡不存在任何記憶體位址，parser 只能「照著文字重新蓋一次」，所以每一層子物件都是新配置的，不會有任何一層還指回原本的位址 A。</div>
+
+<p><b>Q2：</b>什麼情況下你會選組合拳而不是 <code>structuredClone</code>？</p>
+<textarea></textarea><br>
+<button class="toggle" data-target="e2" data-label="顯示參考答案">顯示參考答案</button>
+<div class="ans" id="e2">兩種情況：<br>
+(1) 執行環境太舊（Node 16 以下或很舊的瀏覽器）沒有 <code>structuredClone</code>；<br>
+(2) 你<b>刻意</b>想把 function、<code>undefined</code>、<code>Symbol</code> 這些「不可序列化」的東西清乾淨，只留下純資料——例如要把物件塞進 <code>localStorage</code> 或送進 API 之前先過濾一次。這時組合拳的「限制」反而變成優點。</div>
+</div>
+
+<h2>八、延伸練習（LeetCode）</h2>
+<div class="card">
+<table><thead><tr><th>題號</th><th>題目</th><th>連結</th></tr></thead><tbody>
+<tr><td>2633</td><td>Convert Object to JSON String</td><td><a href="https://leetcode.com/problems/convert-object-to-json-string/" target="_blank">leetcode.com</a></td></tr>
+<tr><td>2628</td><td>JSON Deep Equal</td><td><a href="https://leetcode.com/problems/json-deep-equal/" target="_blank">leetcode.com</a></td></tr>
+<tr><td>2705</td><td>Compact Object</td><td><a href="https://leetcode.com/problems/compact-object/" target="_blank">leetcode.com</a></td></tr>
+</tbody></table>
+</div>
+
+<h2>九、資料來源（含查證時間）</h2>
+<div class="card">
+<table><thead><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr></thead><tbody>
+<tr><td>本篇原始對話（Gemini）</td><td><a href="https://gemini.google.com/app/c3535047879639cc" target="_blank">gemini.google.com</a></td><td>對話擷取 2026-09-15</td></tr>
+<tr><td>structuredClone()</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone" target="_blank">MDN</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>Structured clone algorithm</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm" target="_blank">MDN</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>JSON.stringify()</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify" target="_blank">MDN</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>TypeScript Generics</td><td><a href="https://www.typescriptlang.org/docs/handbook/2/generics.html" target="_blank">TS Handbook</a></td><td>查證 2026-09-15</td></tr>
+</tbody></table>
+</div>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-15</footer>
+</div><script>
+document.addEventListener('click',function(e){
+  var t=e.target;
+  if(t.classList.contains('blank')){t.classList.toggle('on');}
+  if(t.classList.contains('toggle')){
+    var box=document.getElementById(t.dataset.target);
+    if(box){box.classList.toggle('show');
+      t.textContent=box.classList.contains('show')?'隱藏答案':(t.dataset.label||'顯示答案');}
+  }
+  if(t.dataset.tf!==undefined){
+    var wrap=t.closest('.tf'); var fb=wrap.querySelector('.fb');
+    var ok=(t.dataset.tf===wrap.dataset.ans);
+    fb.textContent=ok?'✔ 答對了':'✘ 再想想 → '+wrap.dataset.why;
+    fb.className='fb '+(ok?'good':'bad');
+  }
+});
+document.addEventListener('DOMContentLoaded',function(){
+  var all=document.getElementById('toggle-all');
+  if(all)all.addEventListener('click',function(){
+    var on=all.dataset.on==='1';
+    document.querySelectorAll('.ans').forEach(function(a){a.classList.toggle('show',!on)});
+    document.querySelectorAll('.blank').forEach(function(b){b.classList.toggle('on',!on)});
+    all.dataset.on=on?'0':'1';
+    all.textContent=on?'一鍵展開所有答案':'一鍵收合所有答案';
+  });
+});
+</script></body></html>

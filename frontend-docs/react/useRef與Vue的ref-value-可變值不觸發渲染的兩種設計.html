@@ -372,5 +372,82 @@ Gemini 的回答本身沒有錯，但<mark class="hl hl-warn" tabindex="0" role=
   });
 })();
 </script>
+
+<!-- ==== 追加 2026-09-15（由 Gemini 對話自動整併） ==== -->
+<section style="max-width:820px;margin:40px auto;padding:0 20px;font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;line-height:1.75;color:#23262d">
+<h2 style="font-family:'Noto Serif TC',Georgia,serif;font-size:1.3rem;margin:32px 0 14px;padding-left:12px;border-left:6px solid #4f6bed">追加 2026-09-15：補上 Angular 這一欄，以及 React 19 之後 useRef 的職責分流</h2>
+<div style="background:#fff;border:1px solid #e6e3dc;border-radius:14px;padding:20px 22px;box-shadow:0 1px 2px rgba(0,0,0,.03)">
+
+<p><mark style="background:#FFF3A3;padding:1px 4px;border-radius:3px"><b>關鍵一句話：Vue 與 Angular 不需要「useRef 這種東西來鎖住記憶體指標」，因為它們的程式碼本來就只跑一次。</b></mark></p>
+<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem"><thead><tr><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">框架</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">渲染模型</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">職責 1：綁定 DOM</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">職責 2：保存不觸發渲染的變數</th></tr></thead><tbody>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">React</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">每次 re-render 重新執行整個函式</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>useRef(null)</code> ＋ <code>ref=&#123;el&#125;</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>useRef(v)</code>，固定 heap 指標的 <code>&#123; current &#125;</code></td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">Vue 3</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>&lt;script setup&gt;</code> 只執行一次，Proxy 精準更新</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>useTemplateRef('id')</code>（3.5+）</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">普通的 <code>let count = 0</code>，靠閉包存活</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">Angular</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">Class 實體化一次，靠 CD／Signals 更新</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>viewChild('id')</code>（v17.2+）或 <code>@ViewChild</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">class property <code>private count = 0</code>，附在 <code>this</code> 上</td></tr>
+</tbody></table>
+
+<h3 style="font-size:1.05rem;margin:24px 0 10px;color:#33406e">「全函式執行」的正確順序</h3>
+<p>順序是<b>反過來</b>的：呼叫 setter → React 在 Fiber 記下新狀態並向 scheduler 登記要重畫 → scheduler 在下一個 render phase <b>重新呼叫元件函式</b> → 函式從第一行跑到最後一行，每個 <code>let</code>／<code>const</code> 都重新宣告。所以是「重新渲染 ⇒ 整個函式重新執行」，不是反過來。</p>
+<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem"><thead><tr><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">寫法</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">記憶體發生什麼事</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">結果</th></tr></thead><tbody>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">函式內 <code>let count = 0</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">Render 1 在位址 A，Render 2 時 A 被 GC，另在 B 重建</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">每次歸零，活不過一次渲染</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">函式外 <code>let globalCount</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">位址固定</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">但<b>所有實例共用</b>，兩個 &lt;Counter/&gt; 互相污染</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>useRef(0)</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">Mount 時在該元件的 Fiber 上配置 <code>&#123;current:0&#125;</code>，之後回傳同一位址</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">每個實例各一份，跨渲染存活</td></tr>
+</tbody></table>
+
+<h3 style="font-size:1.05rem;margin:24px 0 10px;color:#33406e">React 19 之後 useRef 的職責分流</h3>
+<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem"><thead><tr><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">以前用 useRef 硬做的事</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">React 19+ 的做法</th></tr></thead><tbody>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">用 <code>forwardRef</code> 轉接 ref</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><b>不再需要</b>，<code>ref</code> 已升格為普通 prop</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">用 <code>useEffect</code> 搭 ref 處理 DOM 卸載清理</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">ref callback 可直接 <code>return</code> 一個 cleanup 函式</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">暫存舊狀態做樂觀更新</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>useOptimistic</code></td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">用 ref 鎖 <code>isSubmitting</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>useActionState</code> / <code>useFormStatus</code></td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">為避免重算而塞進 ref</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><b>React Compiler</b> 自動記憶化</td></tr>
+</tbody></table>
+<pre style="background:#1f2430;color:#e8ecf5;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:.84rem;line-height:1.6"><code>// React 19+：ref 是普通 prop
+function MyInput(&#123; ref, ...props &#125;) &#123; return &lt;input ref=&#123;ref&#125; &#123;...props&#125; /&gt;; &#125;
+
+// React 19+：ref callback 支援 cleanup
+&lt;input ref=&#123;(node) =&gt; &#123;
+  if (node) console.log('DOM 掛載', node);
+  return () =&gt; console.log('DOM 卸載清理');
+&#125;&#125; /&gt;</code></pre>
+<p><mark style="background:#BBFABB;padding:1px 4px;border-radius:3px"><b>結論：現在只有兩件事該用 useRef——存取真實 DOM 節點，以及跨渲染持久化非 UI 變數（timerId、WebSocket 實體）。</b></mark></p>
+<div style="border-left:5px solid #d94f6b;background:#fdf0f3;border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:.92rem"><b>⚠️ 版本提醒</b><br><code>useTemplateRef</code> 需 Vue 3.5+；<code>viewChild()</code> 需 Angular v17.2+；ref 當 prop 與 ref callback cleanup 需 React 19。舊版請回退到 <code>ref(null)</code>／<code>@ViewChild</code>／<code>forwardRef</code>。</div>
+
+<h3 style="font-size:1.05rem;margin:24px 0 10px;color:#33406e">自己考自己</h3>
+<div class="g915-tf" data-ans="F" data-why="順序反了：是重新渲染導致函式重新執行。" style="margin:12px 0">
+ <div style="font-weight:600;margin-bottom:6px">1. 函式元件重新執行，所以才觸發重新渲染。</div>
+ <button data-g915tf="T" style="border:1px solid #e6e3dc;background:#fff;border-radius:8px;padding:5px 16px;margin-right:8px;cursor:pointer">O</button>
+ <button data-g915tf="F" style="border:1px solid #e6e3dc;background:#fff;border-radius:8px;padding:5px 16px;margin-right:8px;cursor:pointer">X</button>
+ <span class="g915-fb" style="font-size:.85rem"></span></div>
+<div class="g915-tf" data-ans="T" data-why="" style="margin:12px 0">
+ <div style="font-weight:600;margin-bottom:6px">2. Vue 之所以不需要 useRef，是因為 &lt;script setup&gt; 只執行一次。</div>
+ <button data-g915tf="T" style="border:1px solid #e6e3dc;background:#fff;border-radius:8px;padding:5px 16px;margin-right:8px;cursor:pointer">O</button>
+ <button data-g915tf="F" style="border:1px solid #e6e3dc;background:#fff;border-radius:8px;padding:5px 16px;margin-right:8px;cursor:pointer">X</button>
+ <span class="g915-fb" style="font-size:.85rem"></span></div>
+<p>填空（點一下看答案）：改 <code>ref.current = 10</code> 屬於 <span class="g915-blank" data-on="0" style="background:#dfe4f5;border-bottom:2px dashed #4f6bed;border-radius:4px;padding:1px 14px;cursor:pointer;color:transparent;user-select:none">原地修改物件屬性</span>，React 不會比對它，所以不會觸發 <span class="g915-blank" data-on="0" style="background:#dfe4f5;border-bottom:2px dashed #4f6bed;border-radius:4px;padding:1px 14px;cursor:pointer;color:transparent;user-select:none">re-render</span>。</p>
+<p><b>申論：</b>為什麼把變數寫在元件函式外面（全域）不能取代 useRef？</p>
+<button style="background:#23262d;color:#fff;border:0;border-radius:8px;padding:7px 14px;font-size:.83rem;cursor:pointer;margin:8px 6px 0 0" data-g915target="ur-a1">顯示答案</button>
+<div id="ur-a1" style="display:none;margin-top:10px;background:#eefaf5;border-left:5px solid #0f9d76;border-radius:0 8px 8px 0;padding:12px 16px;font-size:.92rem">因為全域變數雖然記憶體位址固定，但它<b>只有一份</b>。同一個元件在頁面上 render 兩次（兩個 &lt;Counter/&gt;）時，這兩個實例會共用同一個全域變數，一邊改另一邊也跟著變，元件的獨立性就被破壞了。<code>useRef</code> 把那個 <code>&#123;current&#125;</code> 物件掛在「該元件實例對應的 Fiber 節點」上，所以每個實例各有一份，同時又跨渲染存活。</div>
+
+</div>
+<p style="font-size:.8rem;color:#6b7280;text-align:center;margin-top:24px">由 Gemini 對話自動整理 · 更新於 2026-09-15 ｜ 來源：<a href="https://gemini.google.com/app/5b6fc934e5d7f253">gemini.google.com/app/5b6fc934e5d7f253</a></p>
+</section>
+<script>
+document.addEventListener('click',function(e){
+ var t=e.target;
+ if(t.classList&&t.classList.contains('g915-blank')){
+   t.dataset.on=t.dataset.on==='1'?'0':'1';
+   t.style.color=t.dataset.on==='1'?'#0b6b4f':'transparent';
+   t.style.background=t.dataset.on==='1'?'#d7f3e6':'#dfe4f5';}
+ if(t.dataset&&t.dataset.g915target){
+   var b=document.getElementById(t.dataset.g915target);
+   b.style.display=(b.style.display==='block')?'none':'block';
+   t.textContent=(b.style.display==='block')?'隱藏答案':'顯示答案';}
+ if(t.dataset&&t.dataset.g915tf!==undefined){
+   var w=t.closest('.g915-tf'),f=w.querySelector('.g915-fb'),ok=(t.dataset.g915tf===w.dataset.ans);
+   f.textContent=ok?'✔ 答對了':'✘ 再想想 → '+w.dataset.why;
+   f.style.color=ok?'#0b6b4f':'#d94f6b';f.style.fontWeight='600';}
+});
+</script>
+
 </body>
 </html>

@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 720" width="1180" height="720" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#5b6270"/>
+    </marker>
+    <marker id="arR" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#d1477a"/>
+    </marker>
+    <style>
+      .t  { font-size:15px; fill:#2f3440; }
+      .sm { font-size:12.5px; fill:#5b6270; }
+      .xs { font-size:11px; fill:#7b8290; }
+      .h  { font-size:19px; font-weight:700; fill:#1f2430; }
+      .cell { fill:#ffffff; stroke:#98a0ae; stroke-width:1.2; }
+      .idx { font-size:11px; fill:#8a91a0; }
+      .box { fill:#ffffff; stroke:#b9c0cc; stroke-width:1.4; rx:10; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1180" height="720" fill="#fbfcfd"/>
+  <text x="34" y="44" class="h">三種「陣列」在記憶體裡長什麼樣</text>
+  <text x="34" y="68" class="sm">同一個字「陣列」在 JS 裡指三種完全不同的東西 ， 差別在「記憶體是否連續」與「誰決定怎麼解讀這塊記憶體」</text>
+
+  <!-- ============ 1 一般陣列 ============ -->
+  <rect x="30" y="92" width="360" height="330" class="box" fill="#fffdf2" stroke="#e8d98a"/>
+  <text x="50" y="120" class="h" font-size="16">① 一般陣列 Array</text>
+  <text x="50" y="141" class="sm">本質是物件 ， 索引在規範上是字串鍵 "0" "1" "2"</text>
+
+  <text x="50" y="172" class="t" font-weight="600" fill="#7a6a10">快陣列 Fast Elements（預設）</text>
+  <text x="50" y="191" class="xs">元素密實 → V8 用一塊連續的 FixedArray 當 backing store</text>
+  <g>
+    <rect x="50" y="202" width="58" height="38" class="cell" fill="#fff8d8"/>
+    <rect x="108" y="202" width="58" height="38" class="cell" fill="#fff8d8"/>
+    <rect x="166" y="202" width="58" height="38" class="cell" fill="#fff8d8"/>
+    <rect x="224" y="202" width="58" height="38" class="cell" fill="#fff8d8"/>
+    <rect x="282" y="202" width="58" height="38" class="cell" fill="#f3f4f6" stroke-dasharray="4 3"/>
+    <text x="79" y="226" class="t" text-anchor="middle">'a'</text>
+    <text x="137" y="226" class="t" text-anchor="middle">'b'</text>
+    <text x="195" y="226" class="t" text-anchor="middle">'c'</text>
+    <text x="253" y="226" class="t" text-anchor="middle">'d'</text>
+    <text x="311" y="226" class="xs" text-anchor="middle">預留</text>
+    <text x="79" y="255" class="idx" text-anchor="middle">0</text>
+    <text x="137" y="255" class="idx" text-anchor="middle">1</text>
+    <text x="195" y="255" class="idx" text-anchor="middle">2</text>
+    <text x="253" y="255" class="idx" text-anchor="middle">3</text>
+    <text x="311" y="255" class="idx" text-anchor="middle">capacity</text>
+  </g>
+  <text x="50" y="278" class="sm">arr[i] 直接算位移 → <tspan font-weight="700" fill="#1a7a3c">O(1)</tspan> 隨機存取</text>
+  <text x="50" y="297" class="sm">push 撐爆 capacity → 引擎另開更大一塊 ， 整批搬過去</text>
+
+  <line x1="50" y1="312" x2="370" y2="312" stroke="#e6e2cc"/>
+  <text x="50" y="336" class="t" font-weight="600" fill="#8a3b52">慢陣列 Dictionary Elements</text>
+  <text x="50" y="355" class="xs">變得太稀疏（arr[0]=1 ; arr[999999]=2）→ 轉成雜湊表存</text>
+  <g>
+    <rect x="50" y="366" width="130" height="34" class="cell" fill="#ffe9ef"/>
+    <text x="115" y="388" class="sm" text-anchor="middle">"0" → 1</text>
+    <rect x="196" y="366" width="144" height="34" class="cell" fill="#ffe9ef"/>
+    <text x="268" y="388" class="sm" text-anchor="middle">"999999" → 2</text>
+  </g>
+  <text x="50" y="416" class="xs">省記憶體 ， 但每次存取都要查表 ， 而且掉進慢路徑就回不去</text>
+
+  <!-- ============ 2 型別陣列 ============ -->
+  <rect x="410" y="92" width="400" height="330" class="box" fill="#f3f8ff" stroke="#9dc0ee"/>
+  <text x="430" y="120" class="h" font-size="16">② 型別陣列 TypedArray</text>
+  <text x="430" y="141" class="sm">資料與解讀分離 ： ArrayBuffer 存位元組 ， View 負責解讀</text>
+
+  <text x="430" y="172" class="t" font-weight="600" fill="#1f4f8f">ArrayBuffer（底層 ： 一塊連續且固定的位元組）</text>
+  <g>
+    <rect x="430" y="184" width="352" height="34" class="cell" fill="#dceaff"/>
+    <g stroke="#9dc0ee" stroke-width="1">
+      <line x1="474" y1="184" x2="474" y2="218"/><line x1="518" y1="184" x2="518" y2="218"/>
+      <line x1="562" y1="184" x2="562" y2="218"/><line x1="606" y1="184" x2="606" y2="218"/>
+      <line x1="650" y1="184" x2="650" y2="218"/><line x1="694" y1="184" x2="694" y2="218"/>
+      <line x1="738" y1="184" x2="738" y2="218"/>
+    </g>
+    <text x="606" y="206" class="xs" text-anchor="middle">8 Bytes ， 引擎不知道裡面是什麼型別</text>
+  </g>
+
+  <line x1="520" y1="222" x2="520" y2="252" stroke="#5b6270" marker-end="url(#ar)"/>
+  <line x1="700" y1="222" x2="700" y2="252" stroke="#5b6270" marker-end="url(#ar)"/>
+
+  <text x="430" y="272" class="t" font-weight="600" fill="#1f4f8f">View（視圖 ： 同一塊記憶體可以有多個解讀方式）</text>
+  <g>
+    <rect x="430" y="284" width="172" height="56" class="cell" fill="#eaf3ff"/>
+    <text x="516" y="305" class="sm" text-anchor="middle" font-weight="600">new Int8Array(buffer)</text>
+    <text x="516" y="325" class="xs" text-anchor="middle">1 Byte 一格 → length = 8</text>
+
+    <rect x="610" y="284" width="172" height="56" class="cell" fill="#eaf3ff"/>
+    <text x="696" y="305" class="sm" text-anchor="middle" font-weight="600">new Int32Array(buffer)</text>
+    <text x="696" y="325" class="xs" text-anchor="middle">4 Bytes 一格 → length = 2</text>
+  </g>
+  <text x="430" y="362" class="sm">改了其中一個 View ， 另一個 View 立刻看到 ， 因為底下是同一塊</text>
+
+  <rect x="430" y="374" width="352" height="34" rx="8" fill="#ffe3ea" stroke="#f0a8bd"/>
+  <text x="606" y="396" class="sm" text-anchor="middle" fill="#8a3b52" font-weight="600">長度固定 ， 沒有 push／pop ， 寫超出範圍會被靜默丟棄</text>
+
+  <!-- ============ 3 類陣列 ============ -->
+  <rect x="830" y="92" width="320" height="330" class="box" fill="#f6f2ff" stroke="#c3add9"/>
+  <text x="850" y="120" class="h" font-size="16">③ 類陣列 Array-like</text>
+  <text x="850" y="141" class="sm">只是「長得像陣列」的普通物件</text>
+
+  <g>
+    <rect x="850" y="166" width="280" height="150" class="cell" fill="#f2ecfb"/>
+    <text x="868" y="192" class="sm">{</text>
+    <text x="888" y="214" class="sm">0 : &lt;div&gt; ,</text>
+    <text x="888" y="236" class="sm">1 : &lt;div&gt; ,</text>
+    <text x="888" y="258" class="sm">length : 2</text>
+    <text x="868" y="282" class="sm">}</text>
+    <text x="868" y="306" class="xs">例 ： NodeList ， arguments ， HTMLCollection</text>
+  </g>
+  <rect x="850" y="330" width="280" height="76" rx="8" fill="#ffe3ea" stroke="#f0a8bd"/>
+  <text x="990" y="354" class="sm" text-anchor="middle" fill="#8a3b52" font-weight="600">原型鏈上沒有 Array.prototype</text>
+  <text x="990" y="375" class="xs" text-anchor="middle">所以沒有 map／filter／reduce 可以用</text>
+  <text x="990" y="395" class="xs" text-anchor="middle">要先 Array.from() 轉成「中介陣列」才能接著操作</text>
+
+  <!-- ============ 下半 ： Transferable ============ -->
+  <rect x="30" y="444" width="1120" height="246" class="box" fill="#f4fbf6" stroke="#a8d8b9"/>
+  <text x="50" y="474" class="h" font-size="16">④ 為什麼要把 ArrayBuffer 拆出來 ： 它可以被「轉移」而不是「複製」</text>
+
+  <rect x="60" y="496" width="300" height="150" rx="10" fill="#ffffff" stroke="#b9c0cc"/>
+  <text x="210" y="522" class="t" text-anchor="middle" font-weight="700">主執行緒 Main Thread</text>
+  <text x="210" y="544" class="xs" text-anchor="middle">負責 DOM 與畫面渲染</text>
+  <rect x="90" y="560" width="240" height="40" rx="6" fill="#dceaff" stroke="#9dc0ee"/>
+  <text x="210" y="585" class="sm" text-anchor="middle">ArrayBuffer ＠ 0x1234（100 MB）</text>
+  <text x="210" y="624" class="xs" text-anchor="middle" fill="#8a3b52">postMessage 後 byteLength 變 0（detached）</text>
+
+  <rect x="660" y="496" width="300" height="150" rx="10" fill="#ffffff" stroke="#b9c0cc"/>
+  <text x="810" y="522" class="t" text-anchor="middle" font-weight="700">Worker 執行緒</text>
+  <text x="810" y="544" class="xs" text-anchor="middle">有自己的 Event Loop ， 碰不到 DOM</text>
+  <rect x="690" y="560" width="240" height="40" rx="6" fill="#dceaff" stroke="#9dc0ee"/>
+  <text x="810" y="585" class="sm" text-anchor="middle">同一塊 ＠ 0x1234 ， 直接就地運算</text>
+  <text x="810" y="624" class="xs" text-anchor="middle" fill="#1a7a3c">零複製 ， 只是換了所有權</text>
+
+  <line x1="368" y1="572" x2="652" y2="572" stroke="#d1477a" stroke-width="2.4" marker-end="url(#arR)"/>
+  <text x="510" y="558" class="sm" text-anchor="middle" fill="#a83060" font-weight="700">worker.postMessage(buffer, [buffer])</text>
+  <text x="510" y="594" class="xs" text-anchor="middle" fill="#a83060">第二個參數才是關鍵 ： 把 buffer 列進 transfer list</text>
+  <text x="510" y="616" class="xs" text-anchor="middle">不寫第二個參數 → 走結構化複製 ， 100 MB 要整份複製一遍</text>
+
+  <text x="50" y="672" class="xs">繪製 ： Abby-notes ／ 2026-09-15 ｜ 依據 V8 官方 blog「Elements kinds in V8」與 MDN ArrayBuffer ／ Transferable objects</text>
+</svg>

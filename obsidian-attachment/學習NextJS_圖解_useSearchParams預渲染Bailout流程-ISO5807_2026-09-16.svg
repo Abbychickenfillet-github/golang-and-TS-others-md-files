@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 780" width="940" height="780" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4A5A75"/>
+    </marker>
+    <style>
+      .lbl { font-size: 15px; fill: #1F2937; }
+      .sm  { font-size: 12.5px; fill: #55617A; }
+      .edge{ stroke: #4A5A75; stroke-width: 1.8; fill: none; marker-end: url(#ar); }
+      .tag { font-size: 13px; fill: #4A5A75; font-weight: 600; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="940" height="780" fill="#FBFCFD"/>
+  <text x="470" y="34" text-anchor="middle" font-size="19" font-weight="700" fill="#1F2937">useSearchParams 造成 Prerender Bailout 的判斷流程（ISO 5807）</text>
+  <text x="470" y="56" text-anchor="middle" class="sm">主詞—動詞—受詞：Next.js 在建置期用 Node.js 執行你的元件樹，遇到讀不到的東西就丟出例外</text>
+
+  <!-- 起止 -->
+  <rect x="340" y="80" width="260" height="46" rx="23" fill="#E8EDF5" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="470" y="109" text-anchor="middle" class="lbl">開始：你敲 npm run build</text>
+  <path class="edge" d="M470 126 L470 156"/>
+
+  <!-- 處理 1 -->
+  <rect x="285" y="156" width="370" height="58" fill="#FFFFFF" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="470" y="180" text-anchor="middle" class="lbl">Next.js 用 Node.js 把 /dashboard 的元件樹執行一遍</text>
+  <text x="470" y="200" text-anchor="middle" class="sm">目的是把 React 元件 render 成 HTML 字串，寫進 .next/</text>
+  <path class="edge" d="M470 214 L470 246"/>
+
+  <!-- 判斷 1 -->
+  <path d="M470 246 L700 306 L470 366 L240 306 Z" fill="#FFF6D9" stroke="#B8933A" stroke-width="1.8"/>
+  <text x="470" y="300" text-anchor="middle" class="lbl">這棵樹裡有人呼叫</text>
+  <text x="470" y="322" text-anchor="middle" class="lbl">useSearchParams() 嗎？</text>
+
+  <!-- 否 分支 -->
+  <path class="edge" d="M240 306 L120 306 L120 396"/>
+  <text x="172" y="298" text-anchor="middle" class="tag">否</text>
+  <rect x="20" y="396" width="210" height="72" fill="#FFFFFF" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="125" y="420" text-anchor="middle" class="lbl">路徑在建置期可預測</text>
+  <text x="125" y="440" text-anchor="middle" class="sm">usePathname 讀的 /dashboard</text>
+  <text x="125" y="458" text-anchor="middle" class="sm">是寫死的，算得出來</text>
+  <path class="edge" d="M125 468 L125 520"/>
+  <rect x="20" y="520" width="210" height="72" fill="#E3F6E3" stroke="#3E8E4E" stroke-width="1.8"/>
+  <text x="125" y="546" text-anchor="middle" class="lbl">產出完整 HTML</text>
+  <text x="125" y="566" text-anchor="middle" class="sm">.next/server/app/dashboard.html</text>
+  <text x="125" y="584" text-anchor="middle" class="sm">裡面有真正的文字 → FCP 快</text>
+
+  <!-- 是 分支 -->
+  <path class="edge" d="M700 306 L800 306 L800 396"/>
+  <text x="752" y="298" text-anchor="middle" class="tag">是</text>
+  <rect x="640" y="396" width="285" height="72" fill="#FFFFFF" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="782" y="420" text-anchor="middle" class="lbl">Query String 建置期不存在</text>
+  <text x="782" y="440" text-anchor="middle" class="sm">?category=shoes 由未來的使用者帶進來</text>
+  <text x="782" y="458" text-anchor="middle" class="sm">Node.js 在硬碟上算不出這個值</text>
+  <path class="edge" d="M782 468 L782 500"/>
+
+  <!-- 判斷 2 -->
+  <path d="M782 500 L940 552 L782 604 L624 552 Z" fill="#FFF6D9" stroke="#B8933A" stroke-width="1.8"/>
+  <text x="782" y="546" text-anchor="middle" class="lbl">這個呼叫點外面</text>
+  <text x="782" y="568" text-anchor="middle" class="lbl">有 &lt;Suspense&gt; 接住嗎？</text>
+
+  <!-- 判斷2 否 -->
+  <path class="edge" d="M624 552 L470 552 L470 640"/>
+  <text x="548" y="544" text-anchor="middle" class="tag">否</text>
+  <rect x="300" y="640" width="340" height="90" fill="#FFE4EA" stroke="#C2455E" stroke-width="1.8"/>
+  <text x="470" y="666" text-anchor="middle" class="lbl">例外一路往上冒泡，沒人接</text>
+  <text x="470" y="688" text-anchor="middle" class="sm">next build 直接失敗，錯誤訊息是</text>
+  <text x="470" y="710" text-anchor="middle" font-size="12.5" fill="#C2455E" font-family="monospace">Missing Suspense boundary with useSearchParams</text>
+
+  <!-- 判斷2 是 -->
+  <path class="edge" d="M782 604 L782 640"/>
+  <text x="800" y="628" class="tag">是</text>
+  <rect x="660" y="640" width="265" height="90" fill="#E3F6E3" stroke="#3E8E4E" stroke-width="1.8"/>
+  <text x="792" y="664" text-anchor="middle" class="lbl">只有這棵子樹掉成 CSR</text>
+  <text x="792" y="686" text-anchor="middle" class="sm">外層 shell 仍然靜態預渲染出來</text>
+  <text x="792" y="706" text-anchor="middle" class="sm">損失被關在 Suspense 邊界裡</text>
+
+  <!-- 側註 -->
+  <rect x="20" y="640" width="255" height="90" rx="6" fill="#F4F0FB" stroke="#9B7FD4" stroke-width="1.4" stroke-dasharray="5 3"/>
+  <text x="147" y="664" text-anchor="middle" class="lbl">⚠️ 位置越上層，災情越大</text>
+  <text x="147" y="686" text-anchor="middle" class="sm">寫在 layout 的 Provider 裡，</text>
+  <text x="147" y="706" text-anchor="middle" class="sm">整站的 client 樹會一起 bailout</text>
+</svg>

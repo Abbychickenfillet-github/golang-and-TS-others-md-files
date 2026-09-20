@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OOP 四大特性 RPG 練習——abstractmethod 與存取權限</title><style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23262d; --muted:#6b7280; --line:#e6e3dc;
+  --accent:#4f6bed; --accent2:#0f9d76; --warn:#d94f6b; --code:#1f2430;
+  --hl-y:#FFF3A3; --hl-r:#FF5582; --hl-g:#BBFABB; --hl-b:#ADCCFF; --hl-p:#FFB8EB; --hl-v:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hd{border-bottom:3px solid var(--ink);padding-bottom:18px;margin-bottom:28px}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:1.85rem;line-height:1.35;margin:0 0 12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.pill{background:#eef1fb;color:#3b4ab5;border:1px solid #d6dcf6;border-radius:999px;
+ padding:2px 11px;font-size:.76rem;letter-spacing:.02em}
+.meta{font-size:.82rem;color:var(--muted)}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:1.3rem;margin:38px 0 14px;
+ padding-left:12px;border-left:6px solid var(--accent)}
+h3{font-size:1.05rem;margin:26px 0 10px;color:#33406e}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+mark{padding:1px 4px;border-radius:3px}
+.hy{background:var(--hl-y)}.hr{background:var(--hl-r);color:#fff}.hg{background:var(--hl-g)}
+.hb{background:var(--hl-b)}.hp{background:var(--hl-p)}.hv{background:var(--hl-v)}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#f2f0ea;font-weight:600}
+tbody tr:nth-child(even){background:#faf9f6}
+pre{background:var(--code);color:#e8ecf5;border-radius:10px;padding:14px 16px;
+ overflow-x:auto;font-size:.84rem;line-height:1.6}
+code{font-family:"JetBrains Mono",Consolas,monospace}
+p code,li code,td code{background:#eeece6;color:#9a3b57;padding:1px 5px;border-radius:4px;font-size:.87em}
+.callout{border-left:5px solid var(--accent);background:#f1f4fd;border-radius:0 10px 10px 0;
+ padding:12px 16px;margin:16px 0;font-size:.92rem}
+.callout.warn{border-color:var(--warn);background:#fdf0f3}
+.callout.ok{border-color:var(--accent2);background:#eefaf5}
+.idx{background:#23262d;color:#f4f2ec;border-radius:12px;padding:12px 18px;font-size:.88rem}
+ol.az{list-style:none;padding-left:0;counter-reset:none}
+ol.az li{margin:10px 0;padding-left:34px;position:relative}
+ol.az li b.k{position:absolute;left:0;top:0;background:var(--accent);color:#fff;
+ width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;
+ justify-content:center;font-size:.78rem}
+/* interactive */
+.blank{background:#dfe4f5;border-bottom:2px dashed var(--accent);border-radius:4px;
+ padding:1px 16px;cursor:pointer;color:transparent;user-select:none;transition:.2s}
+.blank.on{background:#d7f3e6;color:#0b6b4f;border-bottom-color:var(--accent2);font-weight:600}
+.toggle{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:7px 14px;
+ font-size:.83rem;cursor:pointer;margin:6px 6px 6px 0}
+.toggle:hover{background:var(--accent)}
+.ans{display:none;margin-top:10px;background:#eefaf5;border-left:5px solid var(--accent2);
+ border-radius:0 8px 8px 0;padding:12px 16px;font-size:.92rem}
+.ans.show{display:block}
+.tf{margin:12px 0}
+.tf .q{font-weight:600;margin-bottom:6px}
+.tf button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 16px;
+ margin-right:8px;cursor:pointer;font-size:.85rem}
+.tf button:hover{border-color:var(--accent)}
+.tf .fb{display:inline-block;margin-left:6px;font-size:.85rem;font-weight:600}
+.tf .fb.good{color:#0b6b4f}.tf .fb.bad{color:var(--warn)}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:10px;
+ padding:10px 12px;font-family:inherit;font-size:.9rem;resize:vertical;background:#fff}
+svg.flow{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:12px}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);
+ font-size:.8rem;color:var(--muted);text-align:center}
+</style></head><body><div class="wrap">
+<header class="hd"><h1>OOP 四大特性 RPG 練習——abstractmethod 與存取權限</h1>
+<div class="pills"><span class="pill">#oop</span><span class="pill">#python</span><span class="pill">#typescript</span><span class="pill">#抽象類別</span><span class="pill">#繼承</span><span class="pill">#多型</span><span class="pill">#封裝</span></div>
+<div class="meta">更新於 2026-09-15 ｜ 來源對話：<br><a href="https://gemini.google.com/app/93a128fc81785ace" target="_blank" rel="noopener">https://gemini.google.com/app/93a128fc81785ace</a></div>
+<button class="toggle" id="toggle-all" data-on="0">一鍵展開所有答案</button>
+</header>
+
+<div class="idx">本篇重點 a–p，共 16 個。主軸圖固定用下面這張「一次 hero.attack(boss) 的多型分派圖」，之後追問請指回圖裡的分支。</div>
+
+<h2>主軸圖：一次 hero.attack(boss) 的多型分派</h2>
+<div class="card">
+<svg class="flow" viewBox="0 0 780 360" xmlns="http://www.w3.org/2000/svg">
+ <defs><marker id="a3" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+  <path d="M0,0 L10,4 L0,8 z" fill="#4f6bed"/></marker></defs>
+ <rect x="280" y="14" width="220" height="44" rx="22" fill="#23262d"/>
+ <text x="390" y="42" fill="#fff" font-size="14" text-anchor="middle">① for (const hero of party)</text>
+ <rect x="270" y="82" width="240" height="46" rx="8" fill="#fff" stroke="#4f6bed" stroke-width="2"/>
+ <text x="390" y="103" font-size="13" text-anchor="middle">② 呼叫 hero.attack(boss)</text>
+ <text x="390" y="120" font-size="11" fill="#6b7280" text-anchor="middle">靜態型別是 Hero</text>
+ <polygon points="390,146 540,186 390,226 240,186" fill="#ADCCFF" stroke="#4f6bed"/>
+ <text x="390" y="184" font-size="12" text-anchor="middle">③ 實際的實例是誰？</text>
+ <text x="390" y="200" font-size="11" fill="#33406e" text-anchor="middle">（執行期才決定）</text>
+ <rect x="40" y="246" width="230" height="56" rx="8" fill="#BBFABB" stroke="#0f9d76"/>
+ <text x="155" y="268" font-size="12" text-anchor="middle">④ Warrior.attack</text>
+ <text x="155" y="287" font-size="11" fill="#0b6b4f" text-anchor="middle">物理傷害＝attackPower</text>
+ <rect x="510" y="246" width="230" height="56" rx="8" fill="#FFB8EB" stroke="#b0468c"/>
+ <text x="625" y="268" font-size="12" text-anchor="middle">⑤ Mage.attack</text>
+ <text x="625" y="287" font-size="11" fill="#7a2f60" text-anchor="middle">MP≥10 → 雙倍；否則普攻回 5 MP</text>
+ <rect x="285" y="286" width="210" height="52" rx="8" fill="#FFF3A3" stroke="#b79b00"/>
+ <text x="390" y="308" font-size="12" text-anchor="middle">⑥ boss.takeDamage(n)</text>
+ <text x="390" y="326" font-size="11" fill="#7a6600" text-anchor="middle">Warrior 覆寫版：先扣護甲</text>
+ <line x1="390" y1="58" x2="390" y2="76" stroke="#4f6bed" stroke-width="2" marker-end="url(#a3)"/>
+ <line x1="390" y1="128" x2="390" y2="142" stroke="#4f6bed" stroke-width="2" marker-end="url(#a3)"/>
+ <line x1="240" y1="186" x2="160" y2="240" stroke="#0f9d76" stroke-width="2" marker-end="url(#a3)"/>
+ <line x1="540" y1="186" x2="620" y2="240" stroke="#b0468c" stroke-width="2" marker-end="url(#a3)"/>
+ <line x1="270" y1="296" x2="280" y2="300" stroke="#4f6bed" stroke-width="2" marker-end="url(#a3)"/>
+ <line x1="510" y1="296" x2="500" y2="300" stroke="#4f6bed" stroke-width="2" marker-end="url(#a3)"/>
+</svg>
+<p class="meta">方框 ② 到菱形 ③ 之間，就是多型的全部魔法：呼叫端只認得 <code>Hero</code> 這個抽象型別，真正跑哪一份 <code>attack</code> 是執行期由實例決定的。</p>
+</div>
+
+<h2>一、練習題目：英雄 RPG 戰鬥系統</h2>
+<div class="card">
+<table><thead><tr><th>特性</th><th>英文</th><th>這題用哪裡實現</th></tr></thead><tbody>
+<tr><td>抽象</td><td>Abstraction</td><td><code>Hero</code> 是抽象類別，<code>attack()</code> 只立契約不寫邏輯</td></tr>
+<tr><td>封裝</td><td>Encapsulation</td><td><code>hp</code> 是 protected，外部不能 <code>hero.hp = -999</code>，只能走 <code>take_damage()</code></td></tr>
+<tr><td>繼承</td><td>Inheritance</td><td><code>Warrior</code>／<code>Mage</code> 複用 <code>is_alive()</code>、<code>get_status()</code></td></tr>
+<tr><td>多型</td><td>Polymorphism</td><td>陣列型別是 <code>Hero[]</code>，統一呼叫 <code>attack()</code> 卻跑出不同行為</td></tr>
+</tbody></table>
+<ol class="az">
+<li><b class="k">a</b>抽象類別 <code>Hero</code>：<code>take_damage()</code>（HP 不得低於 0）、<code>is_alive()</code>、<code>get_status()</code>，以及抽象方法 <code>attack(target)</code>。</li>
+<li><b class="k">b</b><code>Warrior</code>：多 <code>armor</code>，<b>覆寫</b> <code>take_damage()</code> 先扣護甲再扣 HP。</li>
+<li><b class="k">c</b><code>Mage</code>：多 <code>mp</code>，<code>mp &gt;= 10</code> 時打雙倍魔法傷害，否則普攻並回 5 MP。</li>
+</ol>
+<div class="callout">完整可執行程式碼放在同資料夾：<code>oop-polymorphism.py</code>（Python）與 <code>oop-polymorphism.ts</code>（TypeScript）。</div>
+</div>
+
+<h2>二、@abstractmethod 跟 public 有關係嗎</h2>
+<div class="card">
+<p><mark class="hr"><b>沒有關係，它們解決的是完全不同的問題。</b></mark></p>
+<table><thead><tr><th>特性</th><th><code>@abstractmethod</code></th><th><code>public</code>／<code>protected</code>／<code>private</code></th></tr></thead><tbody>
+<tr><td>核心目的</td><td>規範繼承架構</td><td>規範資料封裝與權限</td></tr>
+<tr><td>在回答什麼問題</td><td>「子類別有沒有把這個方法寫出來？」</td><td>「誰可以呼叫這個方法？」</td></tr>
+<tr><td>運作機制</td><td>強制子類別覆寫，沒寫就<b>不能建立實例</b></td><td>限制外部／子類別／內部的存取範圍</td></tr>
+</tbody></table>
+<p><b class="k" style="position:static;display:inline-flex">d</b> <code>@abstractmethod</code> 管繼承規格。<br>
+<b class="k" style="position:static;display:inline-flex">e</b> 存取修飾子管封裝。<br>
+<b class="k" style="position:static;display:inline-flex">f</b> 兩者可以組合：抽象方法通常是 public，但也可以是 protected。</p>
+<h3>Python 沒有存取關鍵字，只有命名慣例</h3>
+<table><thead><tr><th>想表達</th><th>Python 寫法</th><th>實際效果</th></tr></thead><tbody>
+<tr><td>public</td><td><code>def attack(self):</code></td><td>大家都能呼叫</td></tr>
+<tr><td>protected</td><td><code>def _calc(self):</code></td><td>只是<b>提示</b>，語言不會擋</td></tr>
+<tr><td>private</td><td><code>def __calc(self):</code></td><td>觸發 name mangling，改名成 <code>_ClassName__calc</code></td></tr>
+</tbody></table>
+<p><b class="k" style="position:static;display:inline-flex">g</b> Python 的封裝是<span class="blank">君子協定</span>，雙底線也只是改名不是真的鎖住。<br>
+<b class="k" style="position:static;display:inline-flex">h</b> TypeScript 的 <code>private</code> 是<span class="blank">編譯期</span>檢查，transpile 成 JS 後就沒了，要執行期私有請用 <code>#field</code>。</p>
+</div>
+
+<h2>三、兩個常見的初學錯誤</h2>
+<div class="card">
+<div class="callout warn"><b>NameError: name 'Warrior' is not defined</b><br>
+<b class="k" style="position:static;display:inline-flex">i</b> Python 由上往下執行，只貼測試區塊而沒把 <code>class Hero</code>／<code>class Warrior</code> 放在前面，跑到 <code>Warrior(...)</code> 就找不到名稱。解法：把類別定義放在檔案上半部。</div>
+<div class="callout warn"><b>SyntaxError：<code>def__init__</code> 少一個空格</b><br>
+<b class="k" style="position:static;display:inline-flex">j</b> <code>def</code> 與 <code>__init__</code> 之間必須有空格。</div>
+<p><b class="k" style="position:static;display:inline-flex">k</b> <code>def attack(self, target: 'Hero') -&gt; None:</code> 的型別提示對執行結果<b>完全沒有影響</b>，只是給編輯器補全用；寫成字串 <code>'Hero'</code> 是因為類別當下還沒定義完（forward reference）。</p>
+</div>
+
+<h2>四、終端機怎麼跑 Python</h2>
+<div class="card">
+<pre><code># 步驟 A：啟動虛擬環境（CMD 用 activate.bat，PowerShell 用 activate.ps1）
+C:\coding\futuresign\claude-log-cli\.venv\Scripts\activate.ps1
+
+# 步驟 B：執行檔案
+python oop-polymorphism.py</code></pre>
+<p><b class="k" style="position:static;display:inline-flex">l</b> <mark class="hy">一行一個指令</mark>。兩個路徑黏在一起，shell 會當成一個不存在的檔名。</p>
+</div>
+
+<h2>五、不用框架，怎麼在原生環境寫 TypeScript 並 npm i</h2>
+<div class="card">
+<p>瀏覽器有兩件事做不到：<mark class="hy"><b>看不懂 TypeScript，也不知道 import dayjs from 'dayjs' 的 'dayjs' 要去哪裡找</b></mark>，所以需要一個 build tool 幫你 transpile 與 resolve。</p>
+<pre><code>npm create vite@latest my-ts-app -- --template vanilla-ts
+cd my-ts-app &amp;&amp; npm install
+npm i dayjs axios
+npm run dev</code></pre>
+<p><b class="k" style="position:static;display:inline-flex">m</b> 開發期：dev server 把 <code>.ts</code> 即時 transpile 成 JS，並把裸模組名 <code>'dayjs'</code> resolve 成 <code>node_modules</code> 的實際路徑。<br>
+<b class="k" style="position:static;display:inline-flex">n</b> <code>npm run build</code>：把你的 TS 與相依一起打包成標準 JS 與 HTML。<br>
+<b class="k" style="position:static;display:inline-flex">o</b> <code>vanilla-ts</code> ＝「原生 JS ＋ TypeScript，不含任何框架」。<br>
+<b class="k" style="position:static;display:inline-flex">p</b> 不能只用 <code>tsc</code> 配 <code>&lt;script&gt;</code>，因為 <code>tsc</code> 只 transpile，不把 <code>node_modules</code> 的相依打包進來。</p>
+</div>
+
+<h2>六、自己考自己</h2>
+<div class="card">
+<h3>是非題</h3>
+<div class="tf" data-ans="F" data-why="兩者無關，一個管繼承規格、一個管存取權限。">
+ <div class="q">1. <code>@abstractmethod</code> 等同於把方法設成 public。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+<div class="tf" data-ans="T" data-why="">
+ <div class="q">2. Python 的雙底線只是 name mangling 改名，不是真正的私有。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+<div class="tf" data-ans="F" data-why="tsc 只 transpile 不打包相依，瀏覽器仍然無法 resolve 'dayjs'。">
+ <div class="q">3. 只要用 <code>tsc</code> 把 TS 轉成 JS，瀏覽器就能直接用 <code>import dayjs from 'dayjs'</code>。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+
+<h3>申論題</h3>
+<p><b>Q：</b>用完整句子說明「多型」在這個 RPG 例子裡發生在哪一行、以及它是什麼時候被決定的。</p>
+<textarea></textarea><br>
+<button class="toggle" data-target="p1" data-label="顯示參考答案">顯示參考答案</button>
+<div class="ans" id="p1">發生在迴圈裡的 <code>hero.attack(boss)</code> 這一行。<code>party</code> 的靜態型別是 <code>Hero[]</code>，所以編譯期只知道「這東西一定有 attack 方法」；真正要跑 <code>Warrior.attack</code> 還是 <code>Mage.attack</code>，是<b>執行期</b>由該位置實際放的實例決定的（動態分派）。這就是為什麼同一行程式碼可以印出兩種完全不同的戰鬥訊息，而呼叫端完全不需要寫任何 <code>if isinstance(...)</code> 的判斷。</div>
+
+<p><b>Q2：</b><code>Warrior</code> 覆寫 <code>take_damage()</code> 之後，還呼叫 <code>super().take_damage()</code>，這樣做的好處是什麼？</p>
+<textarea></textarea><br>
+<button class="toggle" data-target="p2" data-label="顯示參考答案">顯示參考答案</button>
+<div class="ans" id="p2">職責切乾淨：子類別只負責「這個職業特有的減傷規則」（護甲抵扣），至於「HP 不得低於 0、要印出剩餘血量」這種<b>所有英雄共通</b>的邏輯仍然只寫在父類別一份。日後要改共通邏輯（例如加上「受傷時觸發被動」），只要改 <code>Hero.take_damage()</code> 一個地方，所有子類別自動跟著變，不會出現複製貼上的漂移。</div>
+</div>
+
+<h2>七、延伸練習（LeetCode / NeetCode）</h2>
+<div class="card">
+<table><thead><tr><th>題號</th><th>題目</th><th>為什麼相關</th><th>連結</th></tr></thead><tbody>
+<tr><td>1603</td><td>Design Parking System</td><td>最小的 class 設計題</td><td><a href="https://leetcode.com/problems/design-parking-system/" target="_blank">leetcode</a></td></tr>
+<tr><td>155</td><td>Min Stack</td><td>練「對外只暴露安全方法」的封裝</td><td><a href="https://leetcode.com/problems/min-stack/" target="_blank">leetcode</a></td></tr>
+<tr><td>355</td><td>Design Twitter</td><td>多類別互相持有，練繼承與組合取捨</td><td><a href="https://leetcode.com/problems/design-twitter/" target="_blank">leetcode</a></td></tr>
+<tr><td>—</td><td>NeetCode「Design」分類</td><td>整組 OOP 設計題</td><td><a href="https://neetcode.io/practice" target="_blank">neetcode</a></td></tr>
+</tbody></table>
+</div>
+
+<h2>八、資料來源（含查證時間）</h2>
+<div class="card">
+<table><thead><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr></thead><tbody>
+<tr><td>本篇原始對話（Gemini）</td><td><a href="https://gemini.google.com/app/93a128fc81785ace" target="_blank">gemini.google.com</a></td><td>對話擷取 2026-09-15</td></tr>
+<tr><td>Python <code>abc</code> 抽象基底類別</td><td><a href="https://docs.python.org/3/library/abc.html" target="_blank">docs.python.org</a></td><td>Python 3，查證 2026-09-15</td></tr>
+<tr><td>Python 私有變數與 name mangling</td><td><a href="https://docs.python.org/3/tutorial/classes.html#private-variables" target="_blank">docs.python.org</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>TypeScript Classes</td><td><a href="https://www.typescriptlang.org/docs/handbook/2/classes.html" target="_blank">TS Handbook</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>Vite <code>vanilla-ts</code> 模板</td><td><a href="https://vite.dev/guide/#scaffolding-your-first-vite-project" target="_blank">vite.dev</a></td><td>查證 2026-09-15</td></tr>
+</tbody></table>
+</div>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-15</footer>
+</div><script>
+document.addEventListener('click',function(e){
+  var t=e.target;
+  if(t.classList.contains('blank')){t.classList.toggle('on');}
+  if(t.classList.contains('toggle')){
+    var box=document.getElementById(t.dataset.target);
+    if(box){box.classList.toggle('show');
+      t.textContent=box.classList.contains('show')?'隱藏答案':(t.dataset.label||'顯示答案');}
+  }
+  if(t.dataset.tf!==undefined){
+    var wrap=t.closest('.tf'); var fb=wrap.querySelector('.fb');
+    var ok=(t.dataset.tf===wrap.dataset.ans);
+    fb.textContent=ok?'✔ 答對了':'✘ 再想想 → '+wrap.dataset.why;
+    fb.className='fb '+(ok?'good':'bad');
+  }
+});
+document.addEventListener('DOMContentLoaded',function(){
+  var all=document.getElementById('toggle-all');
+  if(all)all.addEventListener('click',function(){
+    var on=all.dataset.on==='1';
+    document.querySelectorAll('.ans').forEach(function(a){a.classList.toggle('show',!on)});
+    document.querySelectorAll('.blank').forEach(function(b){b.classList.toggle('on',!on)});
+    all.dataset.on=on?'0':'1';
+    all.textContent=on?'一鍵展開所有答案':'一鍵收合所有答案';
+  });
+});
+</script></body></html>

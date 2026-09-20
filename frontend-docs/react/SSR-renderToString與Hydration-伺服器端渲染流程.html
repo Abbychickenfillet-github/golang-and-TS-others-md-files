@@ -483,5 +483,50 @@ Gemini：在 CSR 中，元件只會在客戶端的瀏覽器中執行一次，直
   });
 })();
 </script>
+
+<!-- ==== 追加 2026-09-15（由 Gemini 對話自動整併） ==== -->
+<section style="max-width:820px;margin:40px auto;padding:0 20px;font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;line-height:1.75;color:#23262d">
+<h2 style="font-family:'Noto Serif TC',Georgia,serif;font-size:1.3rem;margin:32px 0 14px;padding-left:12px;border-left:6px solid #4f6bed">追加 2026-09-15：一句話講清楚 SSG 與 SSR 的分界，以及 HTML 裡那個「站位標記」</h2>
+<div style="background:#fff;border:1px solid #e6e3dc;border-radius:14px;padding:20px 22px;box-shadow:0 1px 2px rgba(0,0,0,.03)">
+
+<p><mark style="background:#FFF3A3;padding:1px 4px;border-radius:3px"><b>SSG 產出的是固定檔案，不管多少人連線都遞出同一份；SSR 是每次請求進來時，伺服器當下執行程式碼把 HTML 組出來。</b></mark></p>
+<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem"><thead><tr><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left"></th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">SSG（Static Site Generation）</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">SSR（Server-Side Rendering）</th></tr></thead><tbody>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">HTML 什麼時候長出來</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">build time，打包時就生好</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">runtime，每一次 request 當下</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">伺服器做什麼</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">只負責把檔案遞出去</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">執行 render、查資料庫、組字串</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">每個人拿到的內容</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">一樣</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">可以不一樣</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">內容更新</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">要重新 build（或走 ISR）</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">立即反映</td></tr>
+</tbody></table>
+<p>「靜態」指的是<b>檔案內容在被請求之前就已經定案</b>；「動態」指的是<b>內容在被請求的那一刻才決定</b>。</p>
+<h3 style="font-size:1.05rem;margin:24px 0 10px;color:#33406e">那個會被 JS 換掉的「站位標記」寫在哪個檔案裡</h3>
+<div style="border-left:5px solid #4f6bed;background:#f1f4fd;border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:.92rem">
+伺服器先把一份<b>含站位標記的初始 HTML</b> 回給瀏覽器 → 瀏覽器一邊顯示這份 HTML，一邊下載對應的 JS chunk → JS 載入後執行 hydration，React 走一次同樣的元件樹，把事件監聽器綁上去，並把站位處替換成真正的互動內容。</div>
+<p><mark style="background:#ADCCFF;padding:1px 4px;border-radius:3px"><b>「畫面先出現」靠的是 HTML，「會動」靠的是後來載入的 JS chunk。</b></mark>中間那段空窗期就是 TTI（Time To Interactive）被拉長的原因。</p>
+<div class="g915-tf" data-ans="F" data-why="SSG 的 HTML 在 build time 就生好了。" style="margin:12px 0">
+ <div style="font-weight:600;margin-bottom:6px">1. SSG 的 HTML 也是在每次請求時才組出來的。</div>
+ <button data-g915tf="T" style="border:1px solid #e6e3dc;background:#fff;border-radius:8px;padding:5px 16px;margin-right:8px;cursor:pointer">O</button>
+ <button data-g915tf="F" style="border:1px solid #e6e3dc;background:#fff;border-radius:8px;padding:5px 16px;margin-right:8px;cursor:pointer">X</button>
+ <span class="g915-fb" style="font-size:.85rem"></span></div>
+
+</div>
+<p style="font-size:.8rem;color:#6b7280;text-align:center;margin-top:24px">由 Gemini 對話自動整理 · 更新於 2026-09-15 ｜ 來源：<a href="https://gemini.google.com/app/880a00585b4bc824">880a…c824</a>、<a href="https://gemini.google.com/app/14a5019f253a467f">14a5…467f</a></p>
+</section>
+<script>
+document.addEventListener('click',function(e){
+ var t=e.target;
+ if(t.classList&&t.classList.contains('g915-blank')){
+   t.dataset.on=t.dataset.on==='1'?'0':'1';
+   t.style.color=t.dataset.on==='1'?'#0b6b4f':'transparent';
+   t.style.background=t.dataset.on==='1'?'#d7f3e6':'#dfe4f5';}
+ if(t.dataset&&t.dataset.g915target){
+   var b=document.getElementById(t.dataset.g915target);
+   b.style.display=(b.style.display==='block')?'none':'block';
+   t.textContent=(b.style.display==='block')?'隱藏答案':'顯示答案';}
+ if(t.dataset&&t.dataset.g915tf!==undefined){
+   var w=t.closest('.g915-tf'),f=w.querySelector('.g915-fb'),ok=(t.dataset.g915tf===w.dataset.ans);
+   f.textContent=ok?'✔ 答對了':'✘ 再想想 → '+w.dataset.why;
+   f.style.color=ok?'#0b6b4f':'#d94f6b';f.style.fontWeight='600';}
+});
+</script>
+
 </body>
 </html>

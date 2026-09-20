@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Set.prototype：原型物件、沒有 Set 字面量、Symbol.toStringTag 與擴充內建原型</title>
+<style>
+:root{
+  --bg:#fbfbfa; --card:#ffffff; --line:#e7e5e4; --ink:#1f2937; --sub:#6b7280;
+  --y:#FFF3A3; --r:#FF5582; --g:#BBFABB; --b:#ADCCFF; --p:#FFB8EB; --v:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;}
+.wrap{max-width:860px;margin:0 auto;padding:36px 20px 90px}
+header.hd{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 28px;margin-bottom:26px}
+h1{font-size:25px;line-height:1.4;margin:0 0 12px;font-family:"Noto Serif TC",Georgia,serif}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.pill{font-size:11.5px;padding:3px 11px;border-radius:999px;background:#f3f4f6;color:#4b5563;border:1px solid var(--line)}
+.meta{font-size:12.5px;color:var(--sub)}
+.meta a{color:#2563eb;text-decoration:none;border-bottom:1px dotted #93c5fd}
+h2{font-size:19px;margin:38px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--line);font-family:"Noto Serif TC",Georgia,serif}
+h3{font-size:15.5px;margin:26px 0 10px;color:#374151}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin:16px 0}
+mark{padding:1px 3px;border-radius:3px}
+mark.y{background:var(--y)} mark.r{background:var(--r)} mark.g{background:var(--g)}
+mark.b{background:var(--b)} mark.p{background:var(--p)} mark.v{background:var(--v)}
+.callout{border-left:5px solid #9ca3af;background:#f9fafb;border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:14.2px}
+.callout.warn{border-color:#ef4444;background:#fef2f2}
+.callout.ok{border-color:#16a34a;background:#f0fdf4}
+.callout.info{border-color:#3b82f6;background:#eff6ff}
+.callout.q{border-color:#f59e0b;background:#fffbeb}
+.callout b.t{display:block;margin-bottom:4px}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.6px}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:#f3f4f6;font-weight:700}
+tbody tr:nth-child(even){background:#fafafa}
+pre{background:#1e293b;color:#e2e8f0;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13px;line-height:1.65}
+code{font-family:"JetBrains Mono",Consolas,monospace}
+p code,li code,td code,th code{background:#f1f5f9;color:#be123c;padding:1px 5px;border-radius:4px;font-size:12.8px}
+ul{padding-left:22px} li{margin:6px 0}
+svg{max-width:100%;height:auto}
+img{max-width:100%;border-radius:10px;border:1px solid var(--line)}
+/* 互動 */
+.blank{background:#fde68a;border-bottom:2px dashed #b45309;border-radius:4px;padding:1px 10px;cursor:pointer;
+  font-weight:700;color:transparent;user-select:none;transition:.16s}
+.blank:hover{background:#fcd34d}
+.blank.on{background:#dcfce7;border-bottom:2px solid #16a34a;color:#166534}
+.hint{font-size:12px;color:var(--sub);margin:6px 0 14px}
+.btn{font:inherit;font-size:13px;padding:6px 15px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;
+  cursor:pointer;color:#334155;transition:.16s}
+.btn:hover{background:#f1f5f9}
+.btn.primary{background:#1f2937;color:#fff;border-color:#1f2937}
+.tf{border:1px solid var(--line);border-radius:10px;padding:12px 15px;margin:10px 0;background:#fff}
+.tf .qq{font-size:14.2px;margin-bottom:8px}
+.tf .ans{display:none;margin-top:9px;font-size:13.4px;padding:9px 12px;border-radius:8px;background:#f9fafb;border-left:4px solid #9ca3af}
+.tf.right .ans{background:#f0fdf4;border-left-color:#16a34a}
+.tf.wrong .ans{background:#fef2f2;border-left-color:#ef4444}
+.tf .ans.show{display:block}
+details.essay{border:1px solid var(--line);border-radius:10px;padding:12px 15px;margin:10px 0;background:#fff}
+details.essay summary{cursor:pointer;font-weight:700;font-size:14.2px}
+details.essay .body{margin-top:10px;font-size:13.6px;border-top:1px dashed var(--line);padding-top:10px}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;font-size:13.4px;margin-top:8px}
+footer{margin-top:44px;text-align:center;font-size:12.3px;color:var(--sub)}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(251,251,250,.94);backdrop-filter:blur(6px);
+  padding:10px 0;margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="toolbar">
+  <button class="btn primary" onclick="toggleAll(true)">全部顯示答案</button>
+  <button class="btn" onclick="toggleAll(false)">全部隱藏答案</button>
+  <button class="btn" onclick="resetQuiz()">重置測驗</button>
+  <span class="hint" style="margin:0;align-self:center">黃色色塊點一下顯示／再點一下藏起來</span>
+</div>
+
+<header class="hd">
+  <h1>Set.prototype：原型物件、沒有 Set 字面量、Symbol.toStringTag 與擴充內建原型</h1>
+  <div class="pills">
+    <span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">set</span>
+    <span class="pill">prototype</span><span class="pill">symbol</span><span class="pill">toStringTag</span>
+    <span class="pill">monkey-patching</span><span class="pill">原型鏈</span>
+  </div>
+  <div class="meta">
+    更新於 2026-09-18　·　本篇重點 a–v，共 22 個<br>
+    來源對話：
+    <a href="https://gemini.google.com/app/f9be0d865a7ea277">Set.prototype 意義解析</a>　·
+    <a href="https://gemini.google.com/app/0dded9027c84d1e3">Set 原型與字面量說明</a>　·
+    <a href="https://gemini.google.com/app/250341b76f12e017">Symbol.toStringTag 與 Set 原型</a>
+  </div>
+</header>
+
+<!-- ===== 主軸圖 ===== -->
+<section class="card">
+<h3 style="margin-top:0">主軸圖：一張圖定位全篇（後續追問請指回這張圖的方框編號）</h3>
+<svg viewBox="0 0 980 620" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/></marker>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/></marker>
+  </defs>
+  <rect width="980" height="620" fill="#fbfbfa"/>
+  <text x="24" y="34" font-size="19" font-weight="700" fill="#1f2937">Set 的原型鏈，與 Object.prototype.toString() 讀標籤的流程</text>
+  <text x="24" y="56" font-size="12.5" fill="#6b7280">左欄＝物件之間的指向關係　·　右欄＝ISO 5807 流程圖：一次 toString 呼叫實際跑過的判斷</text>
+  <rect x="24" y="74" width="420" height="510" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+  <text x="44" y="102" font-size="14.5" font-weight="700" fill="#1f2937">① 三階原型鏈</text>
+  <rect x="264" y="120" width="160" height="52" rx="8" fill="#eef2ff" stroke="#6366f1"/>
+  <text x="344" y="141" font-size="13" font-weight="700" text-anchor="middle" fill="#3730a3">Set</text>
+  <text x="344" y="159" font-size="11" text-anchor="middle" fill="#4f46e5">建構函式 typeof "function"</text>
+  <rect x="46" y="120" width="180" height="62" rx="8" fill="#ecfdf5" stroke="#10b981"/>
+  <text x="136" y="142" font-size="13" font-weight="700" text-anchor="middle" fill="#065f46">mySet</text>
+  <text x="136" y="160" font-size="11" text-anchor="middle" fill="#047857">new Set([1,2,3]) 的實例</text>
+  <text x="136" y="175" font-size="10.5" text-anchor="middle" fill="#6b7280">自身只有資料，沒有方法</text>
+  <rect x="46" y="250" width="380" height="96" rx="8" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="66" y="272" font-size="13" font-weight="700" fill="#92400e">Set.prototype　（它自己也是一個物件）</text>
+  <text x="66" y="292" font-size="11.5" fill="#78350f">add() · has() · delete() · clear() · keys() · values()</text>
+  <text x="66" y="309" font-size="11.5" fill="#78350f">union() · intersection() · difference() …（Baseline 2024）</text>
+  <text x="66" y="331" font-size="11.5" font-weight="700" fill="#b45309">[Symbol.toStringTag] = "Set"　← 標籤住在這一層</text>
+  <rect x="46" y="404" width="380" height="82" rx="8" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="66" y="426" font-size="13" font-weight="700" fill="#1e40af">Object.prototype</text>
+  <text x="66" y="446" font-size="11.5" fill="#1d4ed8">hasOwnProperty() · isPrototypeOf() · valueOf()</text>
+  <text x="66" y="466" font-size="11.5" font-weight="700" fill="#1d4ed8">toString()　← 方法住在這一層</text>
+  <rect x="146" y="524" width="180" height="40" rx="20" fill="#f3f4f6" stroke="#9ca3af"/>
+  <text x="236" y="549" font-size="12.5" font-weight="700" text-anchor="middle" fill="#4b5563">null　（鏈到頂）</text>
+  <line x1="136" y1="182" x2="136" y2="250" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <text x="146" y="218" font-size="11" fill="#374151">[[Prototype]]</text>
+  <line x1="236" y1="346" x2="236" y2="404" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <text x="246" y="380" font-size="11" fill="#374151">[[Prototype]]</text>
+  <line x1="236" y1="486" x2="236" y2="524" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <path d="M344,172 L344,214 L396,214 L396,250" fill="none" stroke="#6366f1" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <text x="352" y="208" font-size="11" fill="#4f46e5">.prototype 屬性</text>
+  <text x="46" y="580" font-size="10.5" fill="#6b7280">實線＝實例往上找的 [[Prototype]]　·　虛線＝建構函式身上的 prototype 屬性（兩條不同的線）</text>
+  <rect x="464" y="74" width="492" height="510" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+  <text x="484" y="102" font-size="14.5" font-weight="700" fill="#1f2937">② Object.prototype.toString.call(mySet) 的流程</text>
+  <rect x="604" y="118" width="212" height="34" rx="17" fill="#f3f4f6" stroke="#6b7280"/>
+  <text x="710" y="140" font-size="12" font-weight="700" text-anchor="middle" fill="#374151">開始：呼叫 toString</text>
+  <rect x="584" y="176" width="252" height="42" rx="4" fill="#ecfdf5" stroke="#10b981"/>
+  <text x="710" y="193" font-size="11.5" text-anchor="middle" fill="#065f46">往上找方法：mySet → Set.prototype</text>
+  <text x="710" y="210" font-size="11.5" font-weight="700" text-anchor="middle" fill="#065f46">→ Object.prototype.toString 找到了</text>
+  <path d="M710,238 L856,282 L710,326 L564,282 Z" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="710" y="277" font-size="11.5" font-weight="700" text-anchor="middle" fill="#92400e">是 null / undefined / Array</text>
+  <text x="710" y="294" font-size="11.5" font-weight="700" text-anchor="middle" fill="#92400e">等特例嗎</text>
+  <rect x="464" y="262" width="88" height="40" rx="4" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="508" y="279" font-size="10.5" text-anchor="middle" fill="#991b1b">是 → 直接用</text>
+  <text x="508" y="294" font-size="10.5" text-anchor="middle" fill="#991b1b">特例標籤</text>
+  <line x1="564" y1="282" x2="552" y2="282" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <rect x="584" y="352" width="252" height="46" rx="4" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="710" y="370" font-size="11.5" text-anchor="middle" fill="#92400e">否 → 再往上找標籤：讀</text>
+  <text x="710" y="388" font-size="11.5" font-weight="700" text-anchor="middle" fill="#b45309">mySet[Symbol.toStringTag]</text>
+  <line x1="710" y1="326" x2="710" y2="352" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <path d="M710,414 L856,452 L710,490 L564,452 Z" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="710" y="449" font-size="11.5" font-weight="700" text-anchor="middle" fill="#1e40af">讀到字串了嗎</text>
+  <text x="710" y="466" font-size="10.5" text-anchor="middle" fill="#1d4ed8">（Set.prototype 上有 "Set"）</text>
+  <line x1="710" y1="398" x2="710" y2="414" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <rect x="588" y="516" width="244" height="40" rx="20" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="710" y="541" font-size="12.5" font-weight="700" text-anchor="middle" fill="#166534">回傳 "[object Set]"</text>
+  <line x1="710" y1="490" x2="710" y2="516" stroke="#c2410c" stroke-width="1.8" marker-end="url(#ar2)"/>
+  <text x="720" y="508" font-size="10.5" fill="#c2410c">是</text>
+  <rect x="864" y="432" width="84" height="40" rx="4" fill="#f3f4f6" stroke="#9ca3af"/>
+  <text x="906" y="449" font-size="10.5" text-anchor="middle" fill="#4b5563">否 → 退回</text>
+  <text x="906" y="464" font-size="10.5" font-weight="700" text-anchor="middle" fill="#4b5563">"Object"</text>
+  <line x1="710" y1="152" x2="710" y2="176" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <line x1="710" y1="218" x2="710" y2="238" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <text x="484" y="580" font-size="10.5" fill="#6b7280">注意：兩次查找起點都是 mySet，第一次停在 Object.prototype 拿方法，第二次停在 Set.prototype 拿標籤</text>
+</svg>
+</section>
+
+<section class="card">
+<div class="callout info"><b class="t">與其他筆記的關聯（附理由）</b>
+<ul style="margin:6px 0">
+<li><b>函式的兩條線-prototype屬性與Prototype原型</b>：那篇講「建構函式身上的 <code>prototype</code> 屬性」與「實例身上的 <code>[[Prototype]]</code>」是兩條不同的線，本篇圖①的實線與虛線就是那兩條線。</li>
+<li><b>Symbol-符號型別與物件key</b>：那篇講 key 只能是 string 或 symbol，本篇的 <code>Symbol.toStringTag</code> 就是「用 well-known symbol 當 key」的實例。</li>
+<li><b>Object靜態方法vs原型方法-Symbol弱封裝與species</b>：<code>Set</code> 的 static property 恰好只有 <code>[Symbol.species]</code> 一個，兩篇可以直接對照。</li>
+<li><b>Map.prototype完整清單-實例方法與存取器</b>：Map 與 Set 是同一批 keyed collection，原型結構同構，那篇列清單、本篇講機制。</li>
+<li><b>屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys</b>：本篇第 5 節講 monkey patching 被 <code>for...in</code> 撈到，那篇是完整的列舉涵蓋矩陣。</li>
+</ul></div>
+</section>
+
+<h2>1. <code>Set.prototype</code> 到底是什麼（a–e）</h2>
+<section class="card">
+<div class="callout ok"><b class="t">一句話</b><mark class="g"><code>Set.prototype</code> 是一個<b>普通物件</b>，它是所有 <code>new Set()</code> 產出的實例共用的那一份「母版」。</mark></div>
+<p class="hint">↓ 黃色色塊點一下顯示答案</p>
+<ul>
+<li>(a) <mark class="b"><code>Set</code> 是建構函式，<code>Set.prototype</code> 是掛在它身上的一個屬性，值是一個物件。</mark><br>
+<code>typeof Set</code> 得到 <span class="blank">"function"</span>，<code>typeof Set.prototype</code> 得到 <span class="blank">"object"</span>。</li>
+<li>(b) 每次執行 <code>new Set()</code>，引擎會建一個新實例，並把它的 <code>[[Prototype]]</code> 指向 <code>Set.prototype</code>。
+  <div style="margin-left:18px">所以 <code>Object.getPrototypeOf(new Set()) === Set.prototype</code> 是 <span class="blank">true</span>。</div></li>
+<li>(c) <code>.add()</code>、<code>.has()</code>、<code>.size</code> 這些<b>都不在實例身上</b>，它們住在 <span class="blank">Set.prototype</span> 上。
+  <div style="margin-left:18px">呼叫 <code>mySet.add(1)</code> 時，引擎在 <code>mySet</code> 身上找不到 <code>add</code>，沿 <code>[[Prototype]]</code> 往上一階找到 <code>Set.prototype.add</code>，再以 <code>this = mySet</code> 呼叫它。</div></li>
+<li>(d) ★ MDN 那句 <mark class="y">Allows the addition of properties to all Set objects</mark> 的意思是：<mark class="g">往 <code>Set.prototype</code> 上塞屬性，<b>所有已建好的、以及未來才建的</b> Set 實例都立刻拿得到。</mark>
+  <div style="margin-left:18px">關鍵是<b>查找是動態的</b>，不是建立實例時把方法複製一份給它，所以「先建實例、後補方法」也照樣生效。</div></li>
+<li>(e) <code>Set.prototype</code> 自己也是物件，所以它自己也有原型：<mark class="b"><code>Object.getPrototypeOf(Set.prototype) === Object.prototype</code></mark>，完整鏈是 <code>mySet → Set.prototype → Object.prototype → null</code>，共 <span class="blank">三</span> 階。</li>
+</ul>
+<pre><code>const mySet = new Set([1, 2, 3]);
+
+Object.getPrototypeOf(mySet) === Set.prototype;             // true
+Object.getPrototypeOf(Set.prototype) === Object.prototype;  // true
+Object.getPrototypeOf(Object.prototype);                    // null
+
+// 「後補的方法」舊實例也吃得到 —— 這就是 (d) 那句話的意思
+Set.prototype.isEmpty = function () { return this.size === 0; };
+mySet.isEmpty();     // false（mySet 比這個方法早出生）</code></pre>
+</section>
+
+<h2>2. JavaScript 沒有 Set 字面量（f–i）</h2>
+<section class="card">
+<ul>
+<li>(f) <mark class="g">Abby 的判斷是對的：JavaScript 確實沒有 set literal。</mark></li>
+<li>(g) JS 只保留兩種集合類字面量：<code>{}</code> 是<b>物件</b>字面量，<code>[]</code> 是<b>陣列</b>字面量。
+  <div style="margin-left:18px"><code>{1, 2, 3}</code> 在 JS 裡是 <span class="blank">SyntaxError</span>，因為 <code>{</code> 開頭會被當成物件字面量或區塊，裡面必須是 <code>key: value</code>。</div></li>
+<li>(h) Python 才有 set literal（<code>{1, 2, 3}</code>），所以從 Python 過來的人最容易卡在這裡。</li>
+<li>(i) <mark class="r">建立 Set 的唯一途徑是 <code>new Set(iterable)</code>，而且 <code>new</code> 不能省略</mark>，省略會丟 <span class="blank">TypeError: Constructor Set requires 'new'</span>。</li>
+</ul>
+<table>
+<thead><tr><th>型別</th><th>有字面量嗎</th><th>寫法</th><th>備註</th></tr></thead>
+<tbody>
+<tr><td>Object</td><td>有</td><td><code>{ a: 1 }</code></td><td><code>{}</code> 已經被物件佔走了</td></tr>
+<tr><td>Array</td><td>有</td><td><code>[1, 2, 3]</code></td><td></td></tr>
+<tr><td>Set</td><td>沒有</td><td><code>new Set([1, 2, 3])</code></td><td>參數吃的是任何 iterable</td></tr>
+<tr><td>Map</td><td>沒有</td><td><code>new Map([['a', 1]])</code></td><td>參數吃的是 entries 陣列</td></tr>
+<tr><td>RegExp</td><td>有</td><td><code>/ab+c/</code></td><td>少數同時有字面量與建構函式的型別</td></tr>
+</tbody></table>
+</section>
+
+<h2>3. <code>Symbol.toStringTag</code>：為什麼講它要扯到 <code>Object.prototype.toString()</code>（j–n）</h2>
+<section class="card">
+<div class="callout q"><b class="t">Abby 的原問題：「這邊為何要提及 Set 的原型是物件？」</b>
+因為這個機制<b>同時用到原型鏈的兩端</b>：<code>toString</code> 這個方法是從 <code>Object.prototype</code> 繼承下來的，而標籤 <code>"Set"</code> 是掛在 <code>Set.prototype</code> 上的。少講任何一端，這句 MDN 都讀不通。</div>
+<ul>
+<li>(j) <code>typeof</code> 對所有物件一律回傳 <code>"object"</code>，<mark class="r">它分不出 Set、Map、Array、Date 的差別</mark>。</li>
+<li>(k) 要精準辨型時，老派做法是呼叫 <code>Object.prototype.toString.call(x)</code>，拿到 <code>"[object Xxx]"</code> 這種字串。</li>
+<li>(l) 內部流程是：<mark class="b">先做特例判斷（null、undefined、array、function 等）→ 沿原型鏈讀 <code>x[Symbol.toStringTag]</code> → 讀到字串就當標籤，讀不到就退回 <code>"Object"</code></mark>（對照主軸圖右欄）。</li>
+<li>(m) ★ <code>Set.prototype[Symbol.toStringTag]</code> 的初始值被規格訂為字串 <span class="blank">"Set"</span>，屬性特性是 <code>writable: false, enumerable: false, configurable: true</code>。
+  <div style="margin-left:18px">所以 <code>Object.prototype.toString.call(new Set())</code> 會回 <span class="blank">"[object Set]"</span>。標籤是掛在 <b>Set.prototype</b> 上，實例是<b>繼承</b>到它的。</div></li>
+<li>(n) 自己寫的 class 也能設這個標籤，<code>Object.prototype.toString</code> 一樣會讀到。</li>
+</ul>
+<pre><code>const s = new Set([1, 2]);
+
+typeof s;                                    // "object"  ← 分不出來
+Object.prototype.toString.call(s);           // "[object Set]"
+
+Object.hasOwn(s, Symbol.toStringTag);              // false ← 實例身上沒有
+Object.hasOwn(Set.prototype, Symbol.toStringTag);  // true  ← 住在原型上
+Set.prototype[Symbol.toStringTag];                 // "Set"
+
+class Wallet { get [Symbol.toStringTag]() { return "Wallet"; } }
+Object.prototype.toString.call(new Wallet());      // "[object Wallet]"</code></pre>
+<div class="callout"><b class="t">兩次原型鏈查找，停的樓層不同</b>
+第一次往上：<code>s</code> 沒有 <code>toString</code> → <code>Set.prototype</code> 也沒有 → 走到 <code>Object.prototype.toString</code>，<b>找到方法</b>。<br>
+第二次往上：進到方法內部後讀 <code>this[Symbol.toStringTag]</code>，<code>s</code> 沒有 → <code>Set.prototype</code> 有，值是 <code>"Set"</code>，<b>找到標籤</b>。</div>
+</section>
+
+<h2>4. 幫物件加自訂方法的四種做法（o–r）</h2>
+<section class="card">
+<table>
+<thead><tr><th>做法</th><th>語法</th><th>影響範圍</th><th>什麼時候用</th></tr></thead>
+<tbody>
+<tr><td>直接掛在單一實例</td><td><code>user.sayHi = function () {}</code></td><td>只有這一個物件</td><td>一次性、臨時的</td></tr>
+<tr><td>class 方法</td><td><code>class Dog { bark() {} }</code></td><td>該 class 的所有實例（方法住在 <code>Dog.prototype</code>）</td><td>現代預設做法</td></tr>
+<tr><td>擴充內建原型</td><td><code>Array.prototype.first = function () {}</code></td><td>全域所有 Array 實例</td><td>幾乎都不該用，見第 5 節</td></tr>
+<tr><td><code>Object.defineProperty</code></td><td><code>Object.defineProperty(cat, "meow", { value, enumerable: false })</code></td><td>指定的那個物件</td><td>需要控制 writable / enumerable / configurable 時</td></tr>
+</tbody></table>
+<ul>
+<li>(o) <mark class="b">class 的方法不會被複製到每個實例身上，它們統一住在 <code>Dog.prototype</code></mark>，所以 class 其實是第三種做法的語法糖，只是它不去污染內建物件。</li>
+<li>(p) <code>Object.defineProperty</code> 的價值在於<mark class="y">預設三個特性全是 <code>false</code></mark>，可以造出「存在但不可列舉」的方法。</li>
+<li>(q) ⚠️ 例外一：<code>Object.create(null)</code> 造出的物件<b>沒有原型</b>，繼承不到 <code>Object.prototype</code> 的任何方法（連 <code>toString</code> 都沒有），但仍可直接往它身上掛方法。</li>
+<li>(r) ⚠️ 例外二：<mark class="r">原始型別（number、string、boolean）不是物件，賦值新增屬性不會生效</mark>。
+  <div style="margin-left:18px">非嚴格模式下靜默失敗，嚴格模式下丟 <code>TypeError</code>，原因是自動裝箱產生的包裝物件用完即丟。</div></li>
+<li>補一個 Gemini 沒提的例外：<code>Object.freeze(obj)</code> 之後加不了新方法，<code>Object.seal(obj)</code> 也不行（seal 只擋新增與刪除，既有屬性還能改值）。</li>
+</ul>
+</section>
+
+<h2>5. ⚠️ 為什麼「擴充內建原型」是紅色警告（s–v）</h2>
+<section class="card">
+<div class="callout warn"><b class="t">語法上做得到，工程上不要做</b>這個行為有個專有名詞叫 <b>monkey patching</b>。</div>
+<ul>
+<li>(s) <mark class="r">直接賦值加上去的屬性是可列舉的</mark>，<code>for...in</code> 會把它一起撈出來。若真的非加不可，一定要用 <code>Object.defineProperty(..., { enumerable: <span class="blank">false</span> })</code>。</li>
+<li>(t) ★ 撞名會讓別人的網站整個掛掉，而且<b>歷史上真的發生過</b>：
+  <div style="margin-left:18px">TC39 原本要把陣列攤平的方法命名為 <code>Array.prototype.flatten</code>，但 MooTools 早就自己 patch 了同名方法，瀏覽器一上線就讓一票網站爆掉。最後規格改名成 <code><span class="blank">Array.prototype.flat</span></code> 閃開，這件事被叫做 <b>SmooshGate</b>（2018）。</div></li>
+<li>(u) 引擎最佳化會失效：V8 為「沒被動過的內建原型」走快速路徑，一旦你改了 <code>Set.prototype</code>，相關的 Inline Cache 與 ValidityCell 會被作廢。</li>
+<li>(v) <mark class="g">現代替代方案：寫成普通函式 <code>first(arr)</code>、寫成工具模組、或用 <code>class MySet extends Set</code> 繼承出子類別</mark>，都不會動到全域。</li>
+</ul>
+<div class="callout ok"><b class="t">順帶一提：現在 Set 已經有原生集合運算了，不用自己 patch</b>
+<code>union()</code>、<code>intersection()</code>、<code>difference()</code>、<code>symmetricDifference()</code>、<code>isSubsetOf()</code>、<code>isSupersetOf()</code>、<code>isDisjointFrom()</code> 七個方法自 <b>2024 年 6 月</b>起成為 Baseline 2024。<br>
+它們接受任何 <b>set-like</b> 物件當參數（只要有 <code>size</code> 屬性、<code>has()</code> 方法、<code>keys()</code> 方法），但 <code>this</code> 必須是真正的 <code>Set</code> 實例。</div>
+<pre><code>const evens = new Set([2, 4, 6, 8]);
+const squares = new Set([1, 4, 9]);
+evens.union(squares);          // Set(6) { 2, 4, 6, 8, 1, 9 }
+evens.intersection(squares);   // Set(1) { 4 }</code></pre>
+<p class="hint">可執行的完整示範在同層的 <code>set-prototype-demo.js</code>，用 <code>node set-prototype-demo.js</code> 跑。</p>
+</section>
+
+<h2>6. ⚠️ 存疑／更正（Gemini 講錯的地方）</h2>
+<section class="card">
+<table>
+<thead><tr><th>Gemini 原文</th><th>問題</th><th>正確寫法</th></tr></thead>
+<tbody>
+<tr><td><code>console.typeof(Set.prototype);</code></td><td><mark class="r"><code>console.typeof</code> 這個 API 不存在</mark>，<code>typeof</code> 是運算子不是方法，這行會丟 <code>TypeError</code></td><td><code>typeof Set.prototype</code></td></tr>
+<tr><td>「幾乎所有物件都可以自訂方法」</td><td>講得太滿，漏了兩個常見情況</td><td>要補上 <code>Object.freeze()</code> 與 <code>Object.seal()</code> 之後不能再新增屬性</td></tr>
+<tr><td>四種做法只列語法，沒有標風險</td><td><mark class="r">把「擴充內建原型」跟其他三種平行並列，會讓人以為它是正常選項</mark></td><td>它是 monkey patching，正式專案應避免</td></tr>
+</tbody></table>
+</section>
+
+<h2>自己考自己 ①　是非題</h2>
+<section class="card" id="tfbox">
+  <div class="tf" data-a="F"><div class="qq">1. <code>Set.prototype</code> 是一個函式。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✗ 錯。<code>typeof Set</code> 才是 <code>"function"</code>，<code>typeof Set.prototype</code> 是 <code>"object"</code>。它是一個普通物件。</div></div>
+
+  <div class="tf" data-a="T"><div class="qq">2. 先建好的 Set 實例，也吃得到之後才補到 <code>Set.prototype</code> 上的方法。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✓ 對。原型查找是<b>執行當下才往上走</b>的動態行為，不是建立實例時複製一份方法給它。</div></div>
+
+  <div class="tf" data-a="F"><div class="qq">3. <code>{1, 2, 3}</code> 在 JavaScript 裡會建出一個 Set。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✗ 錯。那是 Python 的語法。JS 沒有 set literal，<code>{1, 2, 3}</code> 會丟 <code>SyntaxError</code>，只能寫 <code>new Set([1, 2, 3])</code>。</div></div>
+
+  <div class="tf" data-a="F"><div class="qq">4. <code>Symbol.toStringTag</code> 這個屬性是掛在每個 Set 實例身上的。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✗ 錯。它掛在 <code>Set.prototype</code> 上，實例是繼承到它的。驗證：<code>Object.hasOwn(new Set(), Symbol.toStringTag)</code> 是 <code>false</code>。</div></div>
+
+  <div class="tf" data-a="T"><div class="qq">5. <code>Object.prototype.toString</code> 這個方法，跟 <code>"Set"</code> 這個標籤，住在原型鏈的不同樓層。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✓ 對。方法住 <code>Object.prototype</code>，標籤住 <code>Set.prototype</code>。這正是「為何要提及 Set 的原型是物件」的答案。</div></div>
+
+  <div class="tf" data-a="F"><div class="qq">6. 用 <code>Array.prototype.xxx = fn</code> 擴充內建原型是標準且推薦的做法。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✗ 錯。那叫 monkey patching：會被 <code>for...in</code> 撈到、會撞名（SmooshGate）、會讓 V8 最佳化失效。要擴充就 <code>class MySet extends Set</code>。</div></div>
+
+  <div class="tf" data-a="T"><div class="qq">7. <code>evens.union(squares)</code> 的參數可以不是真正的 Set，但 <code>evens</code> 本身必須是。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✓ 對。參數只要是 set-like（有 <code>size</code>、<code>has()</code>、<code>keys()</code>）就行，但 <code>this</code> 必須是真正的 Set 實例，因為它直接讀底層資料而不呼叫使用者程式碼。</div></div>
+</section>
+
+<h2>自己考自己 ②　申論題</h2>
+<section class="card">
+<details class="essay"><summary>Q1. 用原型鏈解釋：為什麼 <code>typeof new Set()</code> 得到 <code>"object"</code>，但 <code>Object.prototype.toString.call(new Set())</code> 得到 <code>"[object Set]"</code>？</summary>
+<textarea placeholder="先自己寫，再展開對答案…"></textarea>
+<div class="body"><b>參考答案：</b>
+<code>typeof</code> 是語言層級的運算子，它只看值的內部型別分類，所有非函式的物件一律回 <code>"object"</code>，它根本不看原型鏈。<br>
+<code>Object.prototype.toString.call(x)</code> 則走了兩次原型鏈查找：第一次從實例往上找 <code>toString</code> 這個<b>方法</b>，一路走到 <code>Object.prototype</code> 才找到；第二次在方法內部讀 <code>this[Symbol.toStringTag]</code> 這個<b>標籤</b>，在 <code>Set.prototype</code> 這一層就讀到字串 <code>"Set"</code>，於是拼成 <code>"[object Set]"</code>。<br>
+所以差別是：<code>typeof</code> 不查原型鏈，<code>toString</code> 查了兩趟且停在不同樓層。</div></details>
+
+<details class="essay"><summary>Q2. 同事想加一個 <code>Set.prototype.isEmpty()</code>，說「很方便啊，全專案都能用」。請寫出你會提出的三個反對理由，以及一個替代方案。</summary>
+<textarea placeholder="先自己寫，再展開對答案…"></textarea>
+<div class="body"><b>參考答案：</b>
+<b>理由一（列舉汙染）</b>：直接賦值的屬性 <code>enumerable</code> 預設為 <code>true</code>，任何 <code>for...in</code> 都會多撈到它，遍歷行為被悄悄改掉。<br>
+<b>理由二（撞名）</b>：未來 TC39 若把同名方法標準化，語意不一致就會炸；SmooshGate 就是真實案例，最後是規格被迫改名成 <code>flat</code>。<br>
+<b>理由三（效能）</b>：V8 對未被修改的內建原型有快速路徑，patch 之後相關 Inline Cache 的 ValidityCell 被作廢，全專案的 Set 操作都變慢。<br>
+<b>替代方案</b>：寫成普通工具函式 <code>isEmpty(set)</code>，或 <code>class MySet extends Set { isEmpty() { return this.size === 0; } }</code>，作用域只限自己的型別，不動全域。</div></details>
+
+<details class="essay"><summary>Q3. 為什麼 JavaScript 沒有 Set 字面量？如果今天 TC39 想補一個，會遇到什麼困難？</summary>
+<textarea placeholder="先自己寫，再展開對答案…"></textarea>
+<div class="body"><b>參考答案：</b>
+歷史原因是 <code>{}</code> 在 JS 誕生時就被物件字面量佔走了，而 <code>Set</code> 遲至 ES2015 才進語言，沒有可用的括號符號可以配。<br>
+困難在於 JS 的語法必須向後相容：<code>{</code> 開頭在陳述式位置會被 parse 成 block、在表達式位置會被 parse 成物件字面量，任何新的 <code>{1, 2, 3}</code> 語意都得跟這兩者共存而不產生歧義。要嘛借用新符號（成本高、可讀性差），要嘛靠複雜的 lookahead（讓 parser 難寫、也讓人難讀）。<br>
+現況的折衷是保持 <code>new Set(iterable)</code>，並在 2024 年補上原生集合運算方法，讓「用起來方便」而不動語法。</div></details>
+</section>
+
+<h2>對應題目練習</h2>
+<section class="card">
+<ul>
+<li><a href="https://leetcode.com/problems/filter-elements-from-array/">LeetCode 2634. Filter Elements from Array</a> — 練習「自己實作一個內建方法」而不去 patch <code>Array.prototype</code></li>
+<li><a href="https://leetcode.com/problems/array-wrapper/">LeetCode 2695. Array Wrapper</a> — 考 <code>Symbol.toPrimitive</code> 與 <code>toString</code>，跟本篇的 <code>Symbol.toStringTag</code> 是同一批 well-known symbol</li>
+<li><a href="https://leetcode.com/problems/check-if-object-instance-of-class/">LeetCode 2618. Check if Object Instance of Class</a> — 逼你手走一次原型鏈，正好驗收第 1 節</li>
+<li><a href="https://leetcode.com/problems/intersection-of-two-arrays/">LeetCode 349. Intersection of Two Arrays</a> — 用 <code>Set</code> 解最漂亮，可順手比較「自己寫迴圈」與「用 <code>intersection()</code>」</li>
+</ul>
+</section>
+
+<h2>資料來源（含查證時間）</h2>
+<section class="card">
+<table>
+<thead><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr></thead>
+<tbody>
+<tr><td>Set 總覽與 set-like 物件定義</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set">MDN Set</a></td><td>2026-09-18 查證</td></tr>
+<tr><td>Set.prototype.union 與 Baseline 2024</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set/union">MDN Set.prototype.union</a></td><td>頁面最後修改 2026-09-01，2026-09-18 查證</td></tr>
+<tr><td>Symbol.toStringTag 定義與自訂標籤</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/toStringTag">MDN Symbol.toStringTag</a></td><td>2026-09-18 查證</td></tr>
+<tr><td>Object.prototype.toString 的內部流程</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/toString">MDN Object.prototype.toString</a></td><td>2026-09-18 查證</td></tr>
+<tr><td>規範原文 Set.prototype.union</td><td><a href="https://tc39.es/ecma262/multipage/keyed-collections.html#sec-set.prototype.union">ECMA-262</a></td><td>草案標示 ES2027，2026-09-18 查證</td></tr>
+<tr><td>SmooshGate（flatten 改名 flat 的始末）</td><td><a href="https://developer.chrome.com/blog/smooshgate">Chrome for Developers</a></td><td>原文 2018，2026-09-18 查證</td></tr>
+</tbody></table>
+</section>
+
+<footer>由 Gemini 對話自動整理　·　更新於 2026-09-18</footer>
+</div>
+
+<script>
+document.querySelectorAll('.blank').forEach(function (el) {
+  el.dataset.txt = el.textContent;
+  el.addEventListener('click', function () { el.classList.toggle('on'); });
+});
+function toggleAll(show) {
+  document.querySelectorAll('.blank').forEach(function (el) { el.classList.toggle('on', show); });
+  document.querySelectorAll('.tf .ans').forEach(function (el) { el.classList.toggle('show', show); });
+  document.querySelectorAll('details.essay').forEach(function (el) { el.open = show; });
+}
+function ans(btn, pick) {
+  var box = btn.closest('.tf');
+  var ok = box.dataset.a === pick;
+  box.classList.remove('right', 'wrong');
+  box.classList.add(ok ? 'right' : 'wrong');
+  box.querySelector('.ans').classList.add('show');
+}
+function resetQuiz() {
+  document.querySelectorAll('.tf').forEach(function (b) {
+    b.classList.remove('right', 'wrong');
+    b.querySelector('.ans').classList.remove('show');
+  });
+  document.querySelectorAll('details.essay').forEach(function (d) { d.open = false; });
+  document.querySelectorAll('textarea').forEach(function (t) { t.value = ''; });
+  document.querySelectorAll('.blank').forEach(function (el) { el.classList.remove('on'); });
+}
+</script>
+</body>
+</html>

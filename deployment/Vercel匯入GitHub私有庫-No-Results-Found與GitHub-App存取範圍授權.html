@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vercel 匯入 GitHub 私有庫 — No Results Found 的成因與 GitHub App 存取範圍授權</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Vercel 匯入 GitHub 私有庫 — No Results Found 的成因與 GitHub App 存取範圍授權</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#vercel</span><span class="pill">#github</span><span class="pill">#deployment</span><span class="pill">#github-app</span><span class="pill">#private-repo</span><span class="pill">#oauth</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-17</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/dc1e1986b81b62f9" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card">
+<h2>主軸圖：Vercel → GitHub App → 你的 repo，三方授權流程</h2>
+<p style="margin-top:0">這張圖是本篇的定位座標。問題永遠出在「GitHub 回傳的清單」那一段，不是出在 repo 是不是 public。之後追問請指回圖上的某一個方框。</p>
+<div class="fig" style="overflow-x:auto">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" style="min-width:700px;width:100%;height:auto" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="vc-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4A5A75"/>
+    </marker>
+  </defs>
+  <style>
+    .vc-l{font-size:15px;fill:#1F2937}
+    .vc-s{font-size:12.5px;fill:#55617A}
+    .vc-e{stroke:#4A5A75;stroke-width:1.8;fill:none;marker-end:url(#vc-ar)}
+    .vc-t{font-size:13px;fill:#4A5A75;font-weight:600}
+  </style>
+  <rect x="0" y="0" width="900" height="700" fill="#FBFCFD"/>
+  <text x="450" y="30" text-anchor="middle" font-size="18" font-weight="700" fill="#1F2937">No Results Found 的根因與修法</text>
+
+  <rect x="320" y="52" width="260" height="42" rx="21" fill="#E8EDF5" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="450" y="79" text-anchor="middle" class="vc-l">在 Vercel Import 頁搜尋 repo</text>
+  <path class="vc-e" d="M450 94 L450 124"/>
+
+  <path d="M450 124 L700 178 L450 232 L200 178 Z" fill="#FFF6D9" stroke="#B8933A" stroke-width="1.8"/>
+  <text x="450" y="172" text-anchor="middle" class="vc-l">你打的是「專案名稱」</text>
+  <text x="450" y="194" text-anchor="middle" class="vc-l">還是整串 URL？</text>
+
+  <path class="vc-e" d="M700 178 L800 178 L800 268"/>
+  <text x="752" y="170" text-anchor="middle" class="vc-t">URL</text>
+  <rect x="700" y="268" width="180" height="62" fill="#FFF4F6" stroke="#C2455E" stroke-width="1.8"/>
+  <text x="790" y="292" text-anchor="middle" class="vc-l">一定搜不到</text>
+  <text x="790" y="312" text-anchor="middle" class="vc-s">這欄是名稱搜尋，不解析網址</text>
+  <path class="vc-e" d="M790 330 L790 380 L560 380"/>
+
+  <path class="vc-e" d="M450 232 L450 268"/>
+  <text x="472" y="254" class="vc-t">名稱</text>
+
+  <rect x="290" y="268" width="320" height="62" fill="#FFFFFF" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="450" y="292" text-anchor="middle" class="vc-l">Vercel 用 GitHub App 的 token 去問 GitHub</text>
+  <text x="450" y="312" text-anchor="middle" class="vc-s">「這個帳號授權給我哪些 repo？」</text>
+  <path class="vc-e" d="M450 330 L450 380"/>
+
+  <rect x="290" y="380" width="320" height="62" fill="#FFFFFF" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="450" y="404" text-anchor="middle" class="vc-l">GitHub 只回傳 Repository access 白名單</text>
+  <text x="450" y="424" text-anchor="middle" class="vc-s">不在白名單的 repo，Vercel 根本看不到</text>
+  <path class="vc-e" d="M450 442 L450 486"/>
+
+  <path d="M450 486 L680 534 L450 582 L220 534 Z" fill="#FFF6D9" stroke="#B8933A" stroke-width="1.8"/>
+  <text x="450" y="528" text-anchor="middle" class="vc-l">目標 repo 在白名單裡嗎？</text>
+  <text x="450" y="550" text-anchor="middle" class="vc-s">All repositories 或 Only select repositories</text>
+
+  <path class="vc-e" d="M220 534 L100 534 L100 612"/>
+  <text x="156" y="526" text-anchor="middle" class="vc-t">不在</text>
+  <rect x="10" y="612" width="180" height="62" fill="#FFF4F6" stroke="#C2455E" stroke-width="1.8"/>
+  <text x="100" y="636" text-anchor="middle" class="vc-l">加白名單 → Save</text>
+  <text x="100" y="656" text-anchor="middle" class="vc-s">回 Vercel 按 Refresh</text>
+
+  <path class="vc-e" d="M680 534 L800 534 L800 612"/>
+  <text x="744" y="526" text-anchor="middle" class="vc-t">在</text>
+  <rect x="710" y="612" width="180" height="62" rx="12" fill="#F1FAF2" stroke="#3E8E4E" stroke-width="1.8"/>
+  <text x="800" y="636" text-anchor="middle" class="vc-l">清單出現 → Import</text>
+  <text x="800" y="656" text-anchor="middle" class="vc-s">Private repo 完全不必改 public</text>
+</svg>
+</div>
+</section>
+
+
+
+<article class="card">
+<h1 id="vercel-github-no-results-found-github-app">Vercel 匯入 GitHub 私有庫 — No Results Found 的成因與 GitHub App 存取範圍授權</h1>
+<blockquote>
+<p>本篇重點 a–h，共 8 個。<br />
+主軸圖：本頁 HTML 版的「三方授權流程圖」（Vercel → GitHub App → Repository access → 回到 Vercel Refresh），之後同主題追問請指回這張圖的某個節點。</p>
+</blockquote>
+<hr />
+<h2 id="_1">🎯 速答區</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>一句話速答</th>
+<th>章節</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>repo 一定要改成 public 才能給 Vercel 用嗎</td>
+<td>不用，Private 儲存庫完全可以匯入 Vercel</td>
+<td>§1</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>那為什麼搜尋不到，顯示 No Results Found</td>
+<td>Vercel GitHub App 沒有拿到那個私有庫的存取權限</td>
+<td>§1</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>直接貼完整 GitHub 網址可以嗎</td>
+<td>不行，那個欄位是「名稱搜尋」不是「讀取網址」</td>
+<td>§2</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>怎麼修</td>
+<td>去 GitHub App 的 Repository access 加白名單，存檔後回 Vercel 按 Refresh，再用「專案名稱」搜尋</td>
+<td>§3</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-ac">1. 兩個真正的原因（a–c）</h2>
+<p>(a) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Private（私有）儲存庫完全可以匯入 Vercel</mark>，不需要為了部署把 GitHub 儲存庫改成 Public。把私有庫改公開只會把原始碼與 <code>.env</code> 的歷史紀錄暴露出去，不是解法。</p>
+<p>(b) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">原因一：Vercel GitHub App 未獲取該儲存庫的存取權限</mark>。<br />
+    Vercel 是透過一支安裝在你 GitHub 帳號底下的 GitHub App 去列出 repo 清單的。<br />
+    這支 App 安裝時如果你選了「Only select repositories」，它就只看得到當初勾選的那幾個 repo，後來新建的專案不會自動被包含，於是 Vercel 的搜尋結果就是空的（No Results Found）。</p>
+<p>(c) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">原因二：網址貼錯位置</mark>。<br />
+    在「Import from GitHub」下方那個搜尋框輸入完整的 URL 時，系統會把整串網址當成「名稱關鍵字」去比對 repo 名稱，而不是去解析網址並直接讀取那個 repo，所以一定搜不到。</p>
+<hr />
+<h2 id="2-d">2. 三方是怎麼拋接的（d）</h2>
+<p>(d) 把角色與動作寫成完整的一句話，比較不會記混：</p>
+<blockquote>
+<p>你在 Vercel 的 Import 頁面送出搜尋 → Vercel 用「已安裝的 GitHub App」的 token 去問 GitHub「這個帳號授權給我哪些 repo」 → GitHub 只回傳 Repository access 白名單裡的那幾個 → Vercel 拿這份清單在前端做名稱比對 → 比對不到就顯示 No Results Found。</p>
+</blockquote>
+<pre><code>所以問題出在「GitHub 回傳的清單」這一段，不是出在你的 repo 是不是 public，也不是出在 Vercel 壞掉。
+</code></pre>
+<hr />
+<h2 id="3-eg">3. 修法三步驟（e–g）</h2>
+<table>
+<thead>
+<tr>
+<th>步驟</th>
+<th>動詞—受詞—產物</th>
+<th>大約耗時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>你在 Vercel 搜尋框下方點擊 <code>Vercel GitHub App</code> 連結，瀏覽器跳轉到 GitHub 的應用程式授權頁面</td>
+<td>1 分鐘</td>
+</tr>
+<tr>
+<td>2</td>
+<td>你在 <code>Repository access</code> 設定中選擇 <code>All repositories</code>，或選 <code>Only select repositories</code> 並把目標 repo（例：<code>next-one-time-tracker</code>）加進允許清單</td>
+<td>1 分鐘</td>
+</tr>
+<tr>
+<td>3</td>
+<td>你點 <code>Save</code> 存檔，回到 Vercel 頁面點 <code>Refresh</code>，Vercel 重新向 GitHub 要一次清單，專案就會出現</td>
+<td>30 秒</td>
+</tr>
+</tbody>
+</table>
+<p>(e) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">第 3 步之後，搜尋請改用「專案名稱」而不是完整 URL</mark>，例如直接輸入 <code>next-one-time-tracker</code>，找到後點 <code>Import</code>。</p>
+<p>(f) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>All repositories</code> 與 <code>Only select repositories</code> 的取捨</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>好處</th>
+<th>代價</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>All repositories</td>
+<td>以後新建的 repo 自動看得到，不用再回來改設定</td>
+<td>Vercel 對你所有私有庫都有讀取權</td>
+</tr>
+<tr>
+<td>Only select repositories</td>
+<td>權限最小化，符合 least privilege</td>
+<td>每開一個新專案就要回來加白名單一次</td>
+</tr>
+</tbody>
+</table>
+<p>(g) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">建議：個人練習專案選 All repositories 省事，接案或公司帳號選 Only select repositories</mark>，這是權限最小化原則的實際應用。</p>
+<hr />
+<h2 id="4-h">4. 排查順序（h）</h2>
+<p>(h) 下次再遇到 Vercel 找不到 repo，照這個順序問自己就好：</p>
+<pre><code class="language-text">Vercel 搜尋不到 repo
+  ↓
+① 我是用「名稱」搜尋還是貼了整串 URL ?
+  ├─ 貼 URL ──→ 改打名稱，重試
+  └─ 用名稱
+       ↓
+② GitHub → Settings → Applications → Vercel → Repository access
+   這個 repo 在白名單裡嗎 ?
+  ├─ 不在 ──→ 加進去 → Save → 回 Vercel 按 Refresh
+  └─ 在
+       ↓
+③ 我登入 Vercel 的 GitHub 帳號，跟 repo 擁有者是同一個帳號嗎 ?
+   （個人帳號 vs Organization 是兩套獨立的 App 安裝）
+  ├─ 不是 ──→ 切換帳號，或請 Org owner 安裝 Vercel App
+  └─ 是 ──→ 登出重登 Vercel，重新授權一次
+</code></pre>
+<hr />
+<h2 id="_2">關聯筆記（附關聯原因）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：Vercel-eve-Agent框架與GitOps零設定部署">Vercel-eve-Agent框架與GitOps零設定部署</span><br />
+<strong>理由</strong>：那篇講的是「Vercel 綁定 repo 之後，push 就自動部署」的 GitOps 流程，本篇是那個流程的第 0 步——先讓 Vercel 看得到 repo。</li>
+<li><span class="wikilink" title="Obsidian 連結：GitHub-Actions-CICD-ghcr與Docker映像檔">GitHub-Actions-CICD-ghcr與Docker映像檔</span><br />
+<strong>理由</strong>：同樣是「第三方服務要拿到 GitHub 資源的授權」問題，那篇是用 token 推映像檔到 ghcr，本篇是用 GitHub App 讀 repo，兩種授權模型對照著看比較清楚。</li>
+<li><span class="wikilink" title="Obsidian 連結：repoint-company-repo-to-personal-account">repoint-company-repo-to-personal-account</span><br />
+<strong>理由</strong>：本篇排查第 ③ 步（個人帳號 vs Organization 是兩套 App 安裝）在那篇有帳號搬遷的實際操作。</li>
+</ul>
+<hr />
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/dc1e1986b81b62f9</td>
+<td>Gemini Flash，2026-09-17 擷取</td>
+</tr>
+<tr>
+<td>Vercel Docs — Git Integrations / GitHub</td>
+<td>https://vercel.com/docs/git/vercel-for-github</td>
+<td>Vercel 官方文件，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>GitHub Docs — Managing a GitHub App's repository access</td>
+<td>https://docs.github.com/en/apps/using-github-apps/reviewing-and-modifying-installed-github-apps</td>
+<td>GitHub 官方文件，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>GitHub Docs — Differences between GitHub Apps and OAuth apps</td>
+<td>https://docs.github.com/en/apps/creating-github-apps/about-creating-github-apps/about-creating-github-apps</td>
+<td>GitHub 官方文件，2026-09-17 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-17</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-17</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

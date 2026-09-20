@@ -129,6 +129,14 @@ console.log(denseKeys);  // [0, 1, 2]
 
    `Array.prototype.keys()` 的本質是依據陣列的 `length` 屬性生成連續的索引序列，回傳 Array Iterator（數值 number），不會跳過孔洞，確保索引連續不間斷。適用場合是建立指定長度的連續數字陣列（`[...Array(10).keys()]` 得到 `[0..9]`）、搭配 `for...of` 走訪完整的索引範圍（包含孔洞）、需要確保演算法覆蓋全部索引位置時避免因為稀疏陣列導致某些索引漏掉未處理。
 
+## 孔洞在引擎層的代價（延伸）
+
+本篇講的是「孔洞在 API 層看起來怎樣」，孔洞在 V8 引擎層的代價請看 [[11-陣列的底層記憶體-一般陣列與型別陣列與類陣列-ArrayBuffer視圖與Transferable]] 的重點 (e)(f)。
+
+　簡單說：V8 一旦把陣列標記成 <mark style="background: #FF5582A6;">holey（有洞）</mark>，之後就算把洞全部補滿也永遠回不到 packed，每次存取都要多做一次原型鏈檢查；
+　　而孔洞太多（例如 `arr[0]=1; arr[999999]=2`）還會讓陣列直接降級成 dictionary elements（雜湊表），存取從 O(1) 變成查表。
+　　所以 `new Array(3)` 與 `delete arr[i]` 不只是「API 行為不一致」的問題，它們在效能上是<mark style="background: #FF5582A6;">不可逆</mark>的。
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／查證時間 |
@@ -138,6 +146,7 @@ console.log(denseKeys);  // [0, 1, 2]
 | MDN — Array.prototype.keys() | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/keys | MDN 現行版本，2026-08-29 查證 |
 | MDN — 陣列的稀疏性（Sparse arrays，含各方法是否跳過孔洞的整理） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#array_methods_and_empty_slots | MDN 現行版本，2026-08-29 查證 |
 | ECMA-262 — Array.prototype.keys | https://tc39.es/ecma262/#sec-array.prototype.keys | ECMAScript 現行草案，2026-08-29 查證 |
+| V8 官方 blog — Elements kinds in V8（holey 單向轉換、dictionary elements） | https://v8.dev/blog/elements-kinds | 2017-09-12 發表，2026-09-15 查證 |
 
 ---
 

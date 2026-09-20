@@ -1,7 +1,7 @@
 ---
 title: "useEffect 的 setup 與清理函式：return 的是一個函式，不是執行結果"
 type: topic-note
-tags: [react, hooks, useEffect, cleanup, closure, execution-context, fiber, JS_Core_and_Runtime]
+tags: [react, hooks, useEffect, cleanup, closure, execution-context, fiber, vue, angular, 框架比較, JS_Core_and_Runtime]
 aliases: [useEffect清理函式, useEffect-cleanup, setup與cleanup]
 related:
   - "[[01-React-純函數與嚴格模式-StrictMode]]"
@@ -11,7 +11,7 @@ related:
   - "[[12-return-清理記憶體-stack-frame與閉包例外]]"
   - "[[13-閉包-Closure-私有變數與傳址陷阱]]"
   - "[[for迴圈與setTimeout-var共享變數陷阱-let每輪新綁定與IIFE解法]]"
-updated: 2026-09-07
+updated: 2026-09-15
 ---
 
 # useEffect 的 setup 與清理函式：`return` 的是一個函式，不是執行結果
@@ -309,6 +309,46 @@ g. [[01-React-純函數與嚴格模式-StrictMode]]——**理由**：StrictMode
 
 ---
 
+## (k) 追加 2026-09-15：Vue 與 Angular 怎麼做同一件事（副作用與清理）
+
+React 的 `useEffect` 要你**手動宣告依賴陣列**；Vue 與 Angular 走的是**自動依賴收集**這條路，所以它們沒有「依賴寫漏 → 過期閉包」這個問題。
+
+| 比較維度 | React `useEffect` | Vue 3 `watchEffect` / `watch` | Angular `effect()`（Signal） |
+| --- | --- | --- | --- |
+| 依賴怎麼指定 | 手動寫依賴陣列 `[dep]` | `watchEffect` 自動追蹤內部讀到的 ref；`watch` 明確指定來源 | 自動追蹤 effect 內部讀到的 Signal |
+| 執行時機 | Commit phase 之後、瀏覽器 paint 完成後非同步執行 | 預設 `pre`（DOM 更新前），可設成 `post` | Change Detection 週期中排程執行 |
+| 清理函式怎麼給 | `return () => {...}` | `watchEffect((onCleanup) => { onCleanup(() => {...}) })` | `effect((onCleanup) => { onCleanup(() => {...}) })` |
+| 誰負責在卸載時呼叫清理 | React 走 Fiber 上的 `inst.destroy`（見本篇 (f)(g)） | Vue 綁在元件的 effect scope 上 | Angular 綁在 `DestroyRef` 上 |
+| 過期閉包風險 | ⚠️ 高，靠 ESLint `react-hooks/exhaustive-deps` 提醒 | ❌ 無（`setup` 只執行一次，指標固定） | ❌ 無（class 實體的 `this` 固定） |
+
+```js
+// Vue 3：watchEffect 自動收集內部讀到的 ref，onCleanup 就是 React 的 return
+watchEffect(async (onCleanup) => {
+  let cancelled = false
+  onCleanup(() => { cancelled = true })      // ← 對應 React 的 return () => {}
+  const data = await fetchUser(userId.value) // ← 讀了 userId 就自動變成依賴
+  if (!cancelled) user.value = data
+})
+```
+
+```ts
+// Angular：effect 必須建在 injection context（例如 constructor）裡，才綁得到 DestroyRef
+constructor() {
+  effect((onCleanup) => {
+    const id = this.userId();                 // ← 讀了 signal 就自動變成依賴
+    const controller = new AbortController();
+    fetchUser(id, { signal: controller.signal }).then(d => this.user.set(d));
+    onCleanup(() => controller.abort());
+  });
+}
+```
+
+<mark style="background: #FFF3A3A6;">**同一個觀念換三個名字：React 叫 cleanup function，Vue 叫 `onCleanup`，Angular 也叫 `onCleanup`——但只有 React 需要你自己把依賴列出來。**</mark>
+
+> [!warning] ⚠️ 版本與查證提醒
+> 原對話還附了一張「框架 Runtime 體積」比較表。那些數字隨版本變動極大，本篇不收錄，需要時請查 [bundlephobia](https://bundlephobia.com/) 當下的實際數字。
+> 另外原對話說 React 內部有「Fiber DOM」——**沒有這個東西**。正確說法是 Fiber 節點（`FiberNode`）**映射到**真實 DOM 的 Host Component，詳見 [[useState底層-Fiber-Tree-memoizedState與過期閉包]]。
+
 ## 練習題
 
 LeetCode 的「30 Days of JavaScript」題庫裡有幾題就是在考本篇的閉包與計時器清理：
@@ -338,6 +378,9 @@ NeetCode 目前沒有對應的 JavaScript 語言機制題組，上面五題在 L
 | Dan Abramov — A Complete Guide to useEffect | https://overreacted.io/a-complete-guide-to-useeffect/ | 原文 2019-03，2026-09-06 重讀 |
 | MDN — Arrow function expressions（簡潔本體、名稱推導） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions | 2026-09-06 查證 |
 | MDN — `clearInterval()` | https://developer.mozilla.org/en-US/docs/Web/API/Window/clearInterval | 2026-09-06 查證 |
+| Vue `watchEffect` 與 `onCleanup` | https://vuejs.org/api/reactivity-core.html#watcheffect | Vue 3 官方 API，查證 2026-09-15 |
+| Angular `effect()` 與 `DestroyRef` | https://angular.dev/guide/signals#effects | Angular 官方，查證 2026-09-15 |
+| 本次追加的原始對話（Gemini） | https://gemini.google.com/app/5b6fc934e5d7f253 | 對話擷取 2026-09-15 |
 
 ---
 

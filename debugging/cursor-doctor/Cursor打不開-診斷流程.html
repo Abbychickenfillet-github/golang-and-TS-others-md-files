@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cursor 打不開診斷流程</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--ink:#1f2328;--mute:#667085;--line:#d0d5dd;--accent:#2563eb;--ok:#16a34a;--bad:#dc2626;--warn:#d97706;--hl:#fff3a3}
+@media (prefers-color-scheme:dark){:root{--bg:#15171b;--card:#1e2127;--ink:#e6e8eb;--mute:#9aa3af;--line:#3a3f48;--accent:#60a5fa;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24;--hl:#5b4d10}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 system-ui,"Noto Sans TC","Microsoft JhengHei",sans-serif}
+main{max-width:920px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:1.5rem;margin:.2em 0}
+h2{font-size:1.15rem;margin:2em 0 .6em;border-left:4px solid var(--accent);padding-left:10px}
+.sub{color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--ink);font-size:13px;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
+svg .n{fill:var(--card);stroke:var(--ink);stroke-width:1.5;cursor:pointer;transition:fill .15s}
+svg .n:hover,svg .n.on{fill:var(--hl)}
+svg .e{stroke:var(--mute);stroke-width:1.4;fill:none;marker-end:url(#arr)}
+svg .lab{fill:var(--mute);font-size:12px}
+#detail{margin-top:12px;min-height:88px;border-top:1px dashed var(--line);padding-top:10px}
+#detail b{color:var(--accent)}
+code{background:rgba(127,127,127,.15);padding:1px 5px;border-radius:4px;font-size:.92em}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--mute);font-size:13px;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+.q{margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.blank{display:inline-block;min-width:170px;border-bottom:2px solid var(--accent);cursor:pointer;text-align:center;color:transparent;user-select:none}
+.blank.show{color:var(--accent);font-weight:600}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;padding:4px 12px;cursor:pointer;margin-right:6px}
+button:hover{border-color:var(--accent)}
+.fb{margin-left:6px;font-weight:600}
+.ans{display:none;margin-top:8px;padding:8px 10px;border-left:3px solid var(--ok);background:rgba(22,163,74,.08)}
+.ans.show{display:block}
+#toggleAll{float:right}
+.src li{margin:4px 0}
+.overflow{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+<h1>Cursor 打不開：診斷流程</h1>
+<div class="sub">搭配 <code>cursor-doctor.ps1</code> 使用 ・ 點流程圖的任一個框看說明 ・ 2026-09-17</div>
+
+<h2>1. 主軸圖（ISO 5807 符號）</h2>
+<div class="card">
+<div class="overflow">
+<svg viewBox="0 0 860 600" role="img" aria-label="Cursor 打不開排查流程圖">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#888"/></marker></defs>
+<!-- edges -->
+<path class="e" d="M300,52 V78"/>
+<path class="e" d="M300,122 V148"/>
+<path class="e" d="M370,178 H560"/><text class="lab" x="465" y="166">否</text>
+<path class="e" d="M300,208 V238"/><text class="lab" x="315" y="222">是</text>
+<path class="e" d="M370,268 H560"/><text class="lab" x="465" y="256">是</text>
+<path class="e" d="M300,298 V328"/><text class="lab" x="315" y="312">否</text>
+<path class="e" d="M370,358 H560"/><text class="lab" x="465" y="346">是</text>
+<path class="e" d="M300,388 V418"/><text class="lab" x="315" y="402">否</text>
+<path class="e" d="M370,448 H560"/><text class="lab" x="465" y="436">是</text>
+<path class="e" d="M300,478 V508"/><text class="lab" x="315" y="492">否</text>
+<path class="e" d="M400,535 H560"/>
+<path class="e" d="M700,178 H790 V520"/>
+<path class="e" d="M700,268 H790"/>
+<path class="e" d="M700,358 H790"/>
+<path class="e" d="M700,448 H790"/>
+<path class="e" d="M700,535 H762"/>
+<!-- nodes -->
+<polygon class="n" data-k="init" points="215,30 235,10 365,10 385,30 365,52 235,52"/><text x="300" y="31">初始化：讀取路徑</text>
+<polygon class="n" data-k="input" points="215,122 385,122 405,80 235,80"/><text x="310" y="101">輸入：Cursor.exe 位置</text>
+<polygon class="n" data-k="exe" points="300,148 370,178 300,208 230,178"/><text x="300" y="178">執行檔OK？</text>
+<rect class="n" data-k="reinstall" x="560" y="158" width="140" height="40"/><text x="630" y="178">重新安裝</text>
+<polygon class="n" data-k="proc" points="300,238 370,268 300,298 230,268"/><text x="300" y="268">有行程沒視窗？</text>
+<rect class="n" data-k="kill" x="560" y="248" width="140" height="40"/><text x="630" y="268">強制結束行程</text>
+<polygon class="n" data-k="env" points="300,328 370,358 300,388 230,358"/><text x="300" y="358">RUN_AS_NODE？</text>
+<rect class="n" data-k="unset" x="560" y="338" width="140" height="40"/><text x="630" y="358">刪除環境變數</text>
+<polygon class="n" data-k="disk" points="300,418 370,448 300,478 230,448"/><text x="300" y="448">C 槽 &lt; 2 GB？</text>
+<rect class="n" data-k="clean" x="560" y="428" width="140" height="40"/><rect x="570" y="428" width="120" height="40" fill="none" stroke="currentColor" stroke-width="1" style="pointer-events:none;stroke:var(--ink)"/><text x="630" y="448">C槽清理SOP</text>
+<polygon class="n" data-k="log" points="195,555 385,555 405,515 215,515"/><text x="300" y="535">輸出：log／事件</text>
+<rect class="n" data-k="launch" x="560" y="515" width="140" height="40"/><rect x="570" y="515" width="120" height="40" fill="none" style="pointer-events:none;stroke:var(--ink)"/><text x="630" y="535">4 模式啟動對照</text>
+<circle class="n" data-k="end" cx="790" cy="555" r="28"/><text x="790" y="555">結論</text>
+</svg>
+</div>
+<div class="legend"><span>⬡ 六邊形＝初始化</span><span>▱ 平行四邊形＝資料</span><span>◇ 菱形＝判斷</span><span>▭ 矩形＝處理</span><span>雙邊線矩形＝副流程</span><span>○ 圓形＝結束</span></div>
+<div id="detail"><span class="sub">點上面任一個框 →</span></div>
+</div>
+
+<h2>2. 啟動對照判讀</h2>
+<div class="card overflow">
+<table>
+<tr><th>能開的模式</th><th>病灶</th><th>修法</th></tr>
+<tr><td>normal</td><td>殘留行程</td><td><code>Stop-Process -Name Cursor -Force</code></td></tr>
+<tr><td><code>--disable-gpu</code></td><td>顯示卡驅動或 GPUCache</td><td>更新驅動，或刪 <code>%APPDATA%\Cursor\GPUCache</code></td></tr>
+<tr><td><code>--disable-extensions</code></td><td>某個擴充功能卡住</td><td>逐一移走 <code>%USERPROFILE%\.cursor\extensions</code> 裡的擴充</td></tr>
+<tr><td>全新 <code>--user-data-dir</code></td><td>設定或 state.vscdb 損毀</td><td>先備份整個 <code>%APPDATA%\Cursor</code>，再改名重建</td></tr>
+<tr><td>全部都不行</td><td>程式本體／系統層</td><td>重新安裝</td></tr>
+</table>
+</div>
+
+<h2>3. 自我測驗 <button id="toggleAll">全部顯示答案</button></h2>
+
+<div class="q">填空 a：讓 Electron 執行檔變成純 Node.js 行程的環境變數是 <span class="blank" data-a="ELECTRON_RUN_AS_NODE">?</span>。</div>
+<div class="q">填空 b：判斷行程有沒有視窗，看的是行程物件的 <span class="blank" data-a="MainWindowHandle">?</span> 屬性（0 代表沒有）。</div>
+<div class="q">填空 c：Cursor 存全域狀態與對話紀錄的 SQLite 檔名是 <span class="blank" data-a="state.vscdb">?</span>。</div>
+
+<div class="q" data-tf="false">是非 1：Cursor 行程在背景跑但沒視窗時，再點捷徑通常會開出新視窗。
+<div><button data-v="true">○ 是</button><button data-v="false">✕ 非</button><span class="fb"></span></div>
+<div class="ans">非。新的啟動請求會交給卡住的舊實例處理，所以看起來完全沒反應。</div></div>
+
+<div class="q" data-tf="true">是非 2：<code>-ExecutionPolicy Bypass</code> 只對這一次執行生效，不會永久改系統設定。
+<div><button data-v="true">○ 是</button><button data-v="false">✕ 非</button><span class="fb"></span></div>
+<div class="ans">是。它是 powershell.exe 的啟動參數，只影響這個行程。</div></div>
+
+<div class="q" data-tf="false">是非 3：只要 C 槽還有 1 GB，Cursor 一定能正常啟動。
+<div><button data-v="true">○ 是</button><button data-v="false">✕ 非</button><span class="fb"></span></div>
+<div class="ans">非。state.vscdb 與 -wal 檔寫入、更新暫存都要空間，1 GB 很容易不夠。</div></div>
+
+<div class="q">申論：只有 <code>--user-data-dir</code> 指到全新資料夾時 Cursor 能開，請說明病灶在哪、修之前要先做什麼、為什麼。
+<div><button class="reveal">顯示參考答案</button></div>
+<div class="ans">病灶在 <code>%APPDATA%\Cursor</code>（設定、快取或 state.vscdb 損毀），因為換掉這個資料夾就能開，代表程式本體沒問題。<br>
+修之前要先備份整個資料夾，因為 state.vscdb 裡有 Cursor 對話紀錄與全域設定，直接刪掉就救不回來。<br>
+備份後把資料夾改名（不是刪除），讓 Cursor 重建一份乾淨的，確認能開後再把需要的設定逐步搬回去。</div></div>
+
+<h2>4. 參考來源</h2>
+<ul class="src">
+<li><a href="https://www.electronjs.org/docs/latest/api/environment-variables">Electron 環境變數文件</a>（官方，查閱於 2026-09-17）</li>
+<li><a href="https://code.visualstudio.com/docs/configure/command-line">VS Code 命令列參數</a>（官方，查閱於 2026-09-17）</li>
+<li><a href="https://github.com/Microsoft/vscode/issues/5064">vscode Issue #5064</a>（2016）</li>
+<li><a href="https://github.com/microsoft/vscode/issues/113687">vscode Issue #113687</a>（2020）</li>
+<li><a href="https://github.com/microsoft/vscode/issues/220147">vscode Issue #220147</a>（2024）</li>
+</ul>
+</main>
+<script>
+const D={
+ init:['初始化','腳本先組出 <code>%APPDATA%\\Cursor</code> 路徑與報告檔名，並建立問題清單。'],
+ input:['資料：安裝位置','腳本 用 <code>Get-ItemProperty</code> 讀登錄檔的 Uninstall 區 → 找出 InstallLocation → 拼成 Cursor.exe 路徑（第 1 節）。'],
+ exe:['判斷：執行檔完整？','腳本 用 <code>Get-AuthenticodeSignature</code> 驗簽章，並確認 <code>resources\\app\\package.json</code> 存在。'],
+ reinstall:['處理：重新安裝','執行檔不見、簽章無效或程式本體不完整時，唯一解就是重裝。'],
+ proc:['判斷：有行程沒視窗？','腳本 用 <code>Get-Process Cursor</code> 列行程 → 篩 <code>MainWindowHandle -ne 0</code>。全部是 0 就是殘留（第 2 節，<b>最常見</b>）。'],
+ kill:['處理：強制結束','<code>Stop-Process -Name Cursor -Force</code> 砍掉所有 Cursor 行程，然後重新開。'],
+ env:['判斷：環境變數','腳本 讀 Process／User／Machine 三層的 <code>ELECTRON_RUN_AS_NODE</code>。有設的話 Cursor.exe 會以 Node.js 執行，不開視窗（第 3 節）。'],
+ unset:['處理：刪變數','<code>[Environment]::SetEnvironmentVariable(\'ELECTRON_RUN_AS_NODE\', $null, \'User\')</code>，再重開終端機。'],
+ disk:['判斷：C 槽空間','腳本 用 <code>Get-PSDrive C</code> 讀剩餘空間，&lt; 2 GB 判 FAIL（第 4 節）。你 9/6 的週檢只剩約 15 GB。'],
+ clean:['副流程：C槽空間清理SOP','照 [[C槽空間清理SOP]] 清 Docker build cache 並壓縮 vhdx。'],
+ log:['資料：log 與事件','腳本 用 <code>Select-String</code> 搜 main.log 的 error／ENOSPC／SQLITE，並用 <code>Get-WinEvent</code> 讀事件 1000／1002（第 6、7 節）。'],
+ launch:['副流程：4 模式啟動','加 <code>-LaunchTest</code> 才會跑：normal、--disable-gpu、--disable-extensions、全新 profile，各等 15 秒看有沒有視窗（第 9 節）。'],
+ end:['結論','報告最後的「總結」列出所有 WARN／FAIL，第 10 節依能開的模式給修法。']
+};
+const det=document.getElementById('detail');
+document.querySelectorAll('svg .n').forEach(n=>n.addEventListener('click',()=>{
+ document.querySelectorAll('svg .n').forEach(x=>x.classList.remove('on'));
+ n.classList.add('on');const d=D[n.dataset.k];det.innerHTML='<b>'+d[0]+'</b><br>'+d[1];
+}));
+document.querySelectorAll('.blank').forEach(b=>{b.textContent=b.dataset.a;b.addEventListener('click',()=>b.classList.toggle('show'))});
+document.querySelectorAll('[data-tf]').forEach(q=>{
+ q.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{
+  const ok=btn.dataset.v===q.dataset.tf,fb=q.querySelector('.fb');
+  fb.textContent=ok?'答對':'再想想';fb.style.color=ok?'var(--ok)':'var(--bad)';
+  q.querySelector('.ans').classList.add('show');
+ }));
+});
+document.querySelectorAll('.reveal').forEach(b=>b.addEventListener('click',()=>{
+ const a=b.closest('.q').querySelector('.ans');a.classList.toggle('show');b.textContent=a.classList.contains('show')?'隱藏參考答案':'顯示參考答案';
+}));
+let all=false;
+document.getElementById('toggleAll').addEventListener('click',e=>{
+ all=!all;
+ document.querySelectorAll('.blank').forEach(b=>b.classList.toggle('show',all));
+ document.querySelectorAll('.ans').forEach(a=>a.classList.toggle('show',all));
+ e.target.textContent=all?'全部隱藏答案':'全部顯示答案';
+});
+</script>
+</body>
+</html>

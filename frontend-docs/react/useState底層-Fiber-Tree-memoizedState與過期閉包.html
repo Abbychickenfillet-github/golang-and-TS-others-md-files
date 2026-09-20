@@ -580,5 +580,63 @@ fiberNode = {
   });
 })();
 </script>
+
+<!-- ==== 追加 2026-09-15（由 Gemini 對話自動整併） ==== -->
+<section style="max-width:820px;margin:40px auto;padding:0 20px;font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;line-height:1.75;color:#23262d">
+<h2 style="font-family:'Noto Serif TC',Georgia,serif;font-size:1.3rem;margin:32px 0 14px;padding-left:12px;border-left:6px solid #4f6bed">追加 2026-09-15：把 Vue 3 與 Angular 放進同一張表，以及 React 19／React Compiler</h2>
+<div style="background:#fff;border:1px solid #e6e3dc;border-radius:14px;padding:20px 22px;box-shadow:0 1px 2px rgba(0,0,0,.03)">
+
+<p><mark style="background:#ADCCFF;padding:1px 4px;border-radius:3px"><b>一句話：React 用「重畫換預測性」，Vue 用「攔截換直覺」，Angular 用「依賴圖換架構嚴謹」。</b></mark></p>
+<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem"><thead><tr><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">比較維度</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">React useState</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">Vue 3 ref / reactive</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">Angular signal</th></tr></thead><tbody>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">資料哲學</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">不可變（immutable）</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">可變（Proxy 攔截）</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">可變（Signal 包裝）</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">怎麼改</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">呼叫 setter <code>setVal(newVal)</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">直接寫 <code>val.value = newVal</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>val.set()</code> / <code>val.update()</code></td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">更新機制</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">重新執行整個元件函式，比對 Virtual DOM 後 patch</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">getter track、setter trigger，精準更新有訂閱的 DOM</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">Signal 依賴圖精準局部更新</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">過期閉包風險</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">⚠️ 高（依賴陣列寫漏）</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">❌ 無（setup 只跑一次）</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">❌ 無（this 固定）</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">預設效能</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">父重畫，子預設跟著重畫</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">自動依賴收集，沒用到就不通知</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">同左</td></tr>
+</tbody></table>
+<div style="border-left:5px solid #4f6bed;background:#f1f4fd;border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:.92rem">
+<b>Vue 的兩段拋接：</b>template 讀取 <code>count.value</code> → 觸發 Proxy 的 <b>getter</b>，<code>ReactiveEffect</code> 把該 DOM 節點登記成訂閱者（track）→ 之後執行 <code>count.value++</code> → 觸發 <b>setter</b>，Vue 從訂閱者清單取出受影響節點（trigger）→ 只 patch 那幾個節點，不做整棵樹的 diff。</div>
+
+<h3 style="font-size:1.05rem;margin:24px 0 10px;color:#33406e">React 19 與 React Compiler</h3>
+<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem"><thead><tr><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">以前</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">React 19 + React Compiler</th></tr></thead><tbody>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">傳給子元件的 callback 要 <code>useCallback</code> 鎖指標</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">Compiler 在 build time 分析資料流自動記憶化</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">衍生資料要 <code>useMemo</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">同上，交給 Compiler</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">非同步表單的 isLoading／error 手動管</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>useActionState</code> / <code>useFormStatus</code></td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">樂觀更新自己備份舊值</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>useOptimistic</code></td></tr>
+</tbody></table>
+<p><mark style="background:#BBFABB;padding:1px 4px;border-radius:3px"><b>心智模型沒變（UI = f(state)），變的是「效能調優從手動搬到編譯期」。</b></mark></p>
+<div style="border-left:5px solid #d94f6b;background:#fdf0f3;border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:.92rem"><b>⚠️ 存疑／查證提醒</b><br>原對話列了一張「框架 Runtime 體積」表（React ~42KB、Vue ~33KB、Angular ~75–110KB gzip）。這類數字版本一改就過時，本篇<b>刻意不收錄</b>，需要時請直接查 <a href="https://bundlephobia.com/" target="_blank">bundlephobia</a> 當下的數字。</div>
+
+<h3 style="font-size:1.05rem;margin:24px 0 10px;color:#33406e">自己考自己</h3>
+<div class="g915-tf" data-ans="F" data-why="Vue 的 setup 只跑一次、ref 物件指標固定，所以沒有過期閉包。" style="margin:12px 0">
+ <div style="font-weight:600;margin-bottom:6px">1. Vue 3 也會有跟 React 一樣的過期閉包問題。</div>
+ <button data-g915tf="T" style="border:1px solid #e6e3dc;background:#fff;border-radius:8px;padding:5px 16px;margin-right:8px;cursor:pointer">O</button>
+ <button data-g915tf="F" style="border:1px solid #e6e3dc;background:#fff;border-radius:8px;padding:5px 16px;margin-right:8px;cursor:pointer">X</button>
+ <span class="g915-fb" style="font-size:.85rem"></span></div>
+<p><b>申論：</b>React Compiler 讓 React 拿到了接近 Vue／Signals 的效能，那 React 的心智模型有跟著改變嗎？</p>
+<button style="background:#23262d;color:#fff;border:0;border-radius:8px;padding:7px 14px;font-size:.83rem;cursor:pointer;margin:8px 6px 0 0" data-g915target="us-a1">顯示答案</button>
+<div id="us-a1" style="display:none;margin-top:10px;background:#eefaf5;border-left:5px solid #0f9d76;border-radius:0 8px 8px 0;padding:12px 16px;font-size:.92rem">沒有。心智模型還是 <code>UI = f(state)</code>：狀態一變就重新執行整個元件函式、產生新的 JSX、比對後 patch。Compiler 改的是<b>執行層的效率</b>——它在 build time 分析資料流，替你把該記憶化的地方補上 memo，讓「重新執行」的成本降到接近細粒度更新。所以開發者寫的程式碼變得更單純（不用手寫 useMemo／useCallback），但腦中對「什麼時候會重跑」的理解完全不用改。</div>
+
+</div>
+<p style="font-size:.8rem;color:#6b7280;text-align:center;margin-top:24px">由 Gemini 對話自動整理 · 更新於 2026-09-15 ｜ 來源：<a href="https://gemini.google.com/app/5b6fc934e5d7f253">gemini.google.com/app/5b6fc934e5d7f253</a></p>
+</section>
+<script>
+document.addEventListener('click',function(e){
+ var t=e.target;
+ if(t.classList&&t.classList.contains('g915-blank')){
+   t.dataset.on=t.dataset.on==='1'?'0':'1';
+   t.style.color=t.dataset.on==='1'?'#0b6b4f':'transparent';
+   t.style.background=t.dataset.on==='1'?'#d7f3e6':'#dfe4f5';}
+ if(t.dataset&&t.dataset.g915target){
+   var b=document.getElementById(t.dataset.g915target);
+   b.style.display=(b.style.display==='block')?'none':'block';
+   t.textContent=(b.style.display==='block')?'隱藏答案':'顯示答案';}
+ if(t.dataset&&t.dataset.g915tf!==undefined){
+   var w=t.closest('.g915-tf'),f=w.querySelector('.g915-fb'),ok=(t.dataset.g915tf===w.dataset.ans);
+   f.textContent=ok?'✔ 答對了':'✘ 再想想 → '+w.dataset.why;
+   f.style.color=ok?'#0b6b4f':'#d94f6b';f.style.fontWeight='600';}
+});
+</script>
+
 </body>
 </html>

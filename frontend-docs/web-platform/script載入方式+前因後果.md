@@ -51,6 +51,67 @@ quiz: script載入方式-sync-defer-async.html
 - **瀏覽器看不懂字串**：字串沒有父子關係、沒有屬性物件、沒有方法可呼叫，不能拿來排版/渲染/掛事件。所以一定要有一個**轉換步驟**＝ **HTML Parsing**。（同源觀念：[Markdown-渲染為DOM的過程](Markdown-渲染為DOM的過程.md)——`.md` 也要先轉成 HTML 字串才有戲。）
 - **發生在 Run-time、<mark style="background: #FFB86CA6;">用使用者的 CPU</mark>**：<mark style="background: #FFF3A3A6;">這個解析不是在伺服器先做好，而是**使用者打開網頁那一刻，在他自己的裝置、用他的 CPU** 現場一個字元一個字元讀過去、蓋出結構。</mark>→ HTML 越長、節點越多，弱裝置首屏越卡。
 - **產物是記憶體裡的 DOM 樹**：解析器在主執行緒上把字串讀成一棵樹（`<html>` 為根，掛 `<head>`/`<body>`，再掛 `<div>`/`<p>`…）。
+<mark style="background: #FFF3A3A6;">- **HTML 是「邊收邊解析」的串流（streaming），不是等整份到齊才開始**：這是理解 async／defer 的前提。伺服器把 HTML 切成一段一段的 TCP 封包送過來，<mark style="background: #FFB86CA6;">瀏覽器收到多少就解析多少</mark>，這叫 **增量解析（incremental parsing）**。所以你會看到網頁「由上而下逐漸長出來」，而不是整頁一次跳出來。</mark>
+	   → 所以「解析」這件事本身就是**跟下載並行**的：位元流還在進來，前面收到的部分已經在變成 DOM 了。
+	   → <mark style="background: #FF5582A6;">關鍵推論：既然解析是持續進行的一條線，「中斷」才有意義。</mark>下一節表格說的「中斷」，中斷的就是**這條正在進行的解析線**。
+
+#### 📦 追問：那個「位元流」到底怎麼被切開的？——TCP 封包
+
+<mark style="background: #FFF3A3A6;">**TCP（Transmission Control Protocol，傳輸控制協定）**是負責把資料可靠送達的協定。它不會把一整份 HTML 當成一坨送出去，而是切成很多個**封包（packet）**，一個一個送。</mark>
+
+##### 一個封包裝得下多少？
+
+| 名詞 | 全名 | 意思 | 典型值 |
+|---|---|---|---|
+| **MTU** | Maximum Transmission Unit（最大傳輸單元） | 網路線路一次能搬多大的一包 | 1500 bytes（以太網路） |
+| **MSS** | Maximum Segment Size（最大區段大小） | 扣掉 IP 與 TCP 標頭之後，**真正能裝資料**的空間 | <mark style="background: #BBFABBA6;">約 1460 bytes</mark> |
+
+白話講：`1500 − 20（IP 標頭）− 20（TCP 標頭）= 1460`。所以**你的 HTML 每 1460 個位元組就會被切成一包**。
+
+一份 30 KB 的 HTML ≈ 被切成 21 個封包，瀏覽器是一包一包收到的，收到第 1 包就開始解析第 1 包的內容——這就是「串流」的實際長相。
+
+##### 為什麼前 14 KB 特別重要（14 KB 規則）
+
+<mark style="background: #FFB86CA6;">TCP 有一個叫 **慢啟動（slow start）** 的機制：它不敢一開始就全速衝，怕塞爆網路。</mark>
+
+- 第一輪：只敢送 **initcwnd（initial congestion window，初始擁塞窗口）** 個封包，然後**停下來等對方回應「我收到了」（ACK）**。
+- 收到 ACK 之後，窗口才會變大（通常翻倍），第二輪能送更多。
+- 以此類推，一輪一輪放大。
+
+Linux 從 2.6.39 版起 `initcwnd` 預設是 **10**（這個值源自 Google 的 IETF 提案），所以第一輪能送的資料量是：
+
+```
+10 個封包 × 1460 bytes ≈ 14,600 bytes ≈ 14 KB
+```
+
+<mark style="background: #BBFABBA6;">**結論：你的 HTML 前 14 KB 是「一個來回（round trip）」就能到的，超過的部分要等下一個來回。**</mark>
+
+一個來回要多久？取決於 **RTT（Round-Trip Time，來回時間）**：
+
+| 連線情境 | 典型 RTT | 超過 14 KB 的額外延遲 |
+|---|---|---|
+| 同城市的 CDN 節點 | 10～30 ms | 還算小 |
+| 跨國（台灣打美國） | 150～250 ms | <mark style="background: #FF5582A6;">明顯有感</mark> |
+| 行動網路（4G／訊號差） | 100～500 ms | <mark style="background: #FF5582A6;">非常痛</mark> |
+
+所以「首屏 HTML 壓在 14 KB 以內」這個建議，本質上是在說：**讓瀏覽器在第一個來回就拿到足以畫出首屏的東西，不要為了幾 KB 多等一個 RTT。**
+
+##### 這件事怎麼跟本篇串起來
+
+<mark style="background: #ADCCFFA6;">把三件事疊起來看，才看得出 async／defer 為什麼重要：</mark>
+
+- a. **HTML 被切成封包，一包一包到**（TCP 慢啟動，前 14 KB 最快到）
+- b. **瀏覽器收到多少就解析多少**（增量解析，邊收邊蓋 DOM）
+- c. **解析到 `<script>` 時，要不要停下來**（這就是 blocking／async／defer 的差別）
+
+<mark style="background: #FF5582A6;">最糟的組合是：一般 `<script src>` 放在 `<head>`。</mark>因為它落在「前 14 KB」裡，也就是**最早被解析到的位置**，而它一被解析到就**中斷解析**，主執行緒停在那裡等一個全新的網路請求（又是一個 RTT，而且那支 JS 自己也要經歷一次慢啟動）。
+
+白話講就是：**你花了力氣讓 HTML 的前 14 KB 快快到，結果第 5 行就叫瀏覽器停下來等另一個檔案。**
+
+> [!note] 注意 HTTP 版本的差異
+> 上面講的是 TCP 層，**HTTP/1.1 與 HTTP/2 都跑在 TCP 上**，所以都適用。
+> **HTTP/3 改用 QUIC（跑在 UDP 上）**，壅塞控制機制不同，但「慢啟動」與「初始窗口」的概念仍然存在，14 KB 這個量級的直覺依然適用。
+> 另外 CDN 常把 `initcwnd` 調大（有些調到 30），所以 14 KB 是**典型值不是硬規則**，實際值要看你的伺服器與 CDN 設定。
 <mark style="background: #FFF3A3A6;">- **最具體的一句**：解析器讀到 `<div>` 這段**文字**，就在記憶體 `new` 出一個 **`HTMLDivElement`** 物件（繼承鏈 `HTMLDivElement`→`HTMLElement`→`Element`→`Node`）。物件才有 `.style`、`.className`、`.appendChild()`、`.addEventListener()`。**字串裡的 `<div>` 選不到也操作不動；變成物件、掛上 DOM 樹後，CSS 才選得到、JS 才操作得動。**</mark>
 - **⚠️ 做這件事的是誰？是瀏覽器的「HTML 解析器（渲染引擎，Chrome 是 Blink）」，不是 V8**：V8 是 **JavaScript 引擎、只處理 JS**。把 HTML 字串變 DOM 樹跟 V8 無關；V8 是**另一條線**（JS→AST→bytecode→機器碼，見 (q)）。**HTML 永遠不會進 V8、不會變成 AST／bytecode。** 兩者都在主執行緒上用 CPU，但是兩個不同元件。
 
@@ -102,6 +163,69 @@ quiz: script載入方式-sync-defer-async.html
 
 背景網路執行緒平行下載（左側手寫補充：「利用背景執行緒達到非同步下載」），下載不打斷蓋房子；但**一抓完就搶主緒執行**，此刻 HTML 沒解析完就被打斷。適合**跟 DOM、彼此都無依賴**的獨立腳本（GA、廣告、`lazyOnload`）。
 延伸（為什麼多個 async 不保證順序）：同一份 HTML 寫 `<script async src=a.js>`、`<script async src=b.js>`，規則是「誰先抓完誰先跑」，不管寫的順序。若 `b.js` 較小先抓完，就 b 先 a 後，順序隨網路浮動、每次可能不同。**若 b 依賴 a，用 async 會炸**，要嘛改 `defer`、要嘛合併成一支。
+
+#### 🔍 追問：「下載不中斷」到底是「誰」不中斷「誰」？
+
+這句話省略了主詞跟受詞，補回來是這樣：
+
+<mark style="background: #BBFABBA6;">**下載這支 script 的過程，不會中斷「HTML 的解析」。**</mark>
+
+拆成三個角色看就清楚了：
+
+| 角色 | 是什麼 | 誰在做 |
+|---|---|---|
+| **HTML 位元流** | 伺服器持續送過來的純文字封包 | 網路 |
+| **HTML 解析** | 把收到的字元變成 DOM 物件 | <mark style="background: #FF5582A6;">主執行緒</mark> |
+| **script 下載** | 去抓 `a.js` 這個檔案 | <mark style="background: #BBFABBA6;">背景網路執行緒</mark> |
+
+<mark style="background: #FFF3A3A6;">「不中斷」的**受詞是第二列（HTML 解析）**，不是「下載本身不中斷」。</mark>因為下載交給背景執行緒去做，主執行緒就不用停下來等它，解析可以繼續往下蓋 DOM。
+
+#### 三種模式的時間軸對照
+
+```
+HTML 位元流   ████████████████████████████  持續進來（串流）
+                    ↓ 解析到第 5 行的 <script src="a.js">
+
+【一般 script】阻塞解析
+  HTML 解析   ██████░░░░░░░░░░░░██████████
+  script 下載       ████████
+  script 執行               ████
+              ↑ ░ 這一段解析「停住不動」，主執行緒在乾等
+
+【async】下載不阻塞，但執行阻塞
+  HTML 解析   ██████████████░░░░██████████
+  script 下載       ████████
+  script 執行               ████
+              ↑ 下載期間解析繼續跑，但抓完「插隊」中斷解析去執行
+
+【defer】下載與執行都不阻塞
+  HTML 解析   ████████████████████████
+  script 下載       ████████
+  script 執行                         ████
+              ↑ 解析全程不中斷，等整份解析完才執行
+```
+
+白話講這張圖：**三種模式的「下載」那一列都一樣長**（檔案大小沒變），差別全在**「HTML 解析」那一列有沒有斷掉**，以及**執行的時間點被排在哪裡**。
+
+#### 所以 async 精確的描述是
+
+- ✅ <mark style="background: #BBFABBA6;">**下載階段不阻塞**</mark>：交給背景網路執行緒，主執行緒繼續解析 HTML。
+- ❌ <mark style="background: #FF5582A6;">**執行階段仍然阻塞**</mark>：一抓完就搶主執行緒，這一刻 HTML 可能只解析到一半，就被硬生生打斷。
+- ⚠️ <mark style="background: #FF5582A6;">**而且「什麼時候抓完」取決於網路**</mark>，所以打斷的時間點每次都不一樣，這才是 async 真正難用的地方——不是慢，是**不可預測**。
+
+#### 為什麼一般 `<script>` 非得停下來？
+
+<mark style="background: #FFF3A3A6;">因為 JS 有可能呼叫 `document.write()`，直接把字元插進「還沒解析完的那條位元流」裡。</mark>
+
+```html
+<script>document.write('<h1>我插隊寫進 HTML 了</h1>')</script>
+```
+
+白話講：這行 JS 會在解析器目前讀到的位置，硬塞一段新的 HTML 文字進去，解析器接下來要解析的內容就被改掉了。
+
+<mark style="background: #BBFABBA6;">既然 JS 有能力改寫「解析器接下來要讀的東西」，解析器就不敢繼續往下讀——它必須停下來，等這支 JS 跑完，確定沒有人動過後面的內容，才能安全地繼續。</mark>
+
+這就是 parser-blocking 的根本原因。而 `defer` 之所以能安全地延後執行，正是因為<mark style="background: #FF5582A6;">規範明文規定 `defer` 和 `async` 的腳本裡 `document.write()` 會被忽略</mark>——不能改寫解析流程，就不需要阻塞解析。
 
 ### (f) `<script defer>`：背景下載不中斷、等 DOM 蓋完才依序執行、保證順序
 
@@ -236,7 +360,7 @@ JSX→createElement：<div className="a">Hi {name}</div>
 | code splitting | 切成多個 chunk 按需載入（vendor／各 route lazy chunk） | 切開 | 靠動態 import／React.lazy |
 | scope hoisting | 多個 ES 模組併進同一個函式作用域，省掉每模組包裹殼 | 合併 | 只對 ES module；靠改名避免衝突 |
 
-- <mark style="background: #FFF3A3A6;">**tree-shaking**：砍掉「沒被 import 用到的 export」（死碼）。這一步其實分兩個階段，不是一次做完：  
+### - **tree-shaking**：砍掉「沒被 import 用到的 export」（死碼）。這一步其實分兩個階段，不是一次做完：  
 先是「標記」階段——打包工具靜態分析每個模組的 `import`／`export`，標記出哪些 export 根本沒人用到。  
 真正「物理刪除」那些被標記的死碼，其實是**在後面 minify 階段由 Terser 動手做的**，不是 tree-shaking 這一步自己刪掉。</mark>
 ### - **code splitting**：切多個 chunk 按需載入。

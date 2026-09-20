@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>嚴格模式、Property Descriptor 與 JSON</title>
+<style>
+  :root{
+    --bg:#faf8f5; --panel:#ffffff; --ink:#23262b; --muted:#6b7280; --line:#e6e1d8;
+    --accent:#b4552e; --accent-soft:#fbeee6; --ok:#2c7a4b; --ok-soft:#e3efe6;
+    --warn:#a8801f; --warn-soft:#fff6e8; --bad:#b04a4a; --bad-soft:#fbe3e3;
+    --code:#f5f2ec; --purple:#6a5ba8; --purple-soft:#f2effa;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1a1c20; --panel:#232629; --ink:#e8e6e1; --muted:#9aa0a8; --line:#383b40;
+      --accent:#e08a5f; --accent-soft:#3a2a22; --ok:#7fc79a; --ok-soft:#1f3328;
+      --warn:#e0be6a; --warn-soft:#3a3222; --bad:#e08a8a; --bad-soft:#3a2424;
+      --code:#1f2226; --purple:#a798e0; --purple-soft:#2a2740;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    line-height:1.85;font-size:16px}
+  .wrap{max-width:900px;margin:0 auto;padding:32px 20px 96px}
+  header{border-bottom:3px solid var(--accent);padding-bottom:18px;margin-bottom:28px}
+  h1{font-size:26px;margin:0 0 8px;letter-spacing:.3px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:20px;margin:44px 0 14px;padding-left:12px;border-left:5px solid var(--accent)}
+  h3{font-size:16.5px;margin:26px 0 10px;color:var(--accent)}
+  p{margin:10px 0}
+  code{background:var(--code);padding:2px 6px;border-radius:4px;
+    font-family:"JetBrains Mono","Fira Code",Consolas,monospace;font-size:13.5px}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:8px;
+    padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.7}
+  pre code{background:none;padding:0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:18px 20px;margin:16px 0}
+  .card.ok{border-left:5px solid var(--ok);background:var(--ok-soft)}
+  .card.warn{border-left:5px solid var(--warn);background:var(--warn-soft)}
+  .card.bad{border-left:5px solid var(--bad);background:var(--bad-soft)}
+  .card.info{border-left:5px solid var(--purple);background:var(--purple-soft)}
+  .card h4{margin:0 0 8px;font-size:15px}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:var(--accent-soft);font-weight:700}
+  img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;background:#fff}
+  figure{margin:20px 0}
+  figcaption{color:var(--muted);font-size:13px;text-align:center;margin-top:8px}
+  a{color:var(--accent)}
+
+  /* 填空 */
+  .cloze{background:var(--accent);color:var(--accent);border-radius:4px;padding:1px 10px;
+    cursor:pointer;user-select:none;transition:.18s;border-bottom:2px dashed transparent;
+    font-family:"JetBrains Mono",Consolas,monospace;font-size:13.5px}
+  .cloze:hover{opacity:.86}
+  .cloze.show{background:var(--ok-soft);color:var(--ok);border-bottom-color:var(--ok);font-weight:700}
+
+  /* 工具列 */
+  .bar{position:sticky;top:0;z-index:30;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:10px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+    margin-bottom:22px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+  button{font-family:inherit;font-size:13.5px;padding:7px 14px;border-radius:7px;
+    border:1px solid var(--accent);background:var(--panel);color:var(--accent);cursor:pointer;transition:.15s}
+  button:hover{background:var(--accent);color:#fff}
+  button.on{background:var(--accent);color:#fff}
+  .score{margin-left:auto;font-size:13.5px;color:var(--muted)}
+
+  /* 測驗 */
+  .q{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+  .q .stem{font-weight:600;margin-bottom:10px}
+  .tf{display:flex;gap:10px;margin:8px 0}
+  .tf button{min-width:70px}
+  .tf button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+  .tf button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+  .exp{display:none;margin-top:10px;padding:11px 13px;border-radius:7px;
+    background:var(--code);font-size:14px;border-left:4px solid var(--purple)}
+  .exp.show{display:block}
+  textarea{width:100%;min-height:100px;padding:11px;border:1px solid var(--line);border-radius:8px;
+    background:var(--code);color:var(--ink);font-family:inherit;font-size:14px;line-height:1.7;resize:vertical}
+  .model{display:none;margin-top:10px;padding:12px 14px;border-radius:8px;
+    background:var(--ok-soft);border-left:4px solid var(--ok);font-size:14px}
+  .model.show{display:block}
+  .tag{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:99px;
+    background:var(--accent-soft);color:var(--accent);margin-right:6px;vertical-align:middle}
+  ol,ul{padding-left:26px}
+  li{margin:6px 0}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>嚴格模式、Property Descriptor、與 JSON 的關係</h1>
+  <div class="sub">
+    原問題：讀完講「嚴格模式」跟「物件 property descriptor」的文章之後 —— <strong>這邊跟 JSON 有什麼關係？</strong><br>
+    建立於 2026-09-19｜實測環境 Node v22.22.2｜互動筆記：灰色色塊點一下看答案
+  </div>
+</header>
+
+<div class="bar">
+  <button id="btnCloze">顯示全部填空答案</button>
+  <button id="btnExp">顯示全部解析</button>
+  <button id="btnReset">全部重來</button>
+  <span class="score" id="score">是非題：尚未作答</span>
+</div>
+
+<div class="card ok">
+  <h4>一句話結論</h4>
+  <p>那篇文章講完 strict mode 跟 descriptor 接著講 JSON，<strong>不是換話題，是同一章的下一節</strong>。
+  因為這三樣東西是 <span class="cloze" data-a="ES5（2009 年 12 月）">？？？</span> 同一版一起進來的三兄弟。
+  而且往下挖還有四層實質關聯，不只是時間上的鄰居。</p>
+</div>
+
+<h2>一、原文程式碼逐行翻譯</h2>
+
+<h3>a. 第一段：Data Descriptor（資料描述符）</h3>
+<pre><code>var a = {};
+Object.defineProperties(a, {
+    'name' : { value:'fillano', writable:false, enumerable:false, configurable:false },
+    'age'  : { value:30,        writable:true,  enumerable:true,  configurable:false }
+});</code></pre>
+
+<div class="card">
+<p>「我先用物件字面值做一個空物件 <code>a</code>。
+接著用 <code>Object.defineProperties</code>（複數，一次定義多個）把兩個屬性刻上去 ——
+第一個參數是要被動手腳的物件，第二個參數是一張表，key 是屬性名稱，value 是那個屬性的
+<strong>descriptor（說明書）</strong>，而不是值本身。</p>
+<ol>
+  <li><code>value</code> 就是這個屬性真正存的值。</li>
+  <li><code>writable:false</code> 代表不能被覆寫。<code>a.name = 'x'</code> 在非嚴格模式會
+      <span class="cloze" data-a="靜靜地失敗（silent failure）">？？？</span>，在嚴格模式會丟
+      <span class="cloze" data-a="TypeError">？？？</span>。
+      <span class="tag">strict × descriptor 的交集</span></li>
+  <li><code>enumerable:false</code> 代表不能被列舉，<code>for...in</code>、<code>Object.keys()</code>、
+      以及 <span class="cloze" data-a="JSON.stringify()">？？？</span> 都看不到它。
+      <span class="tag">descriptor × JSON 的交集</span></li>
+  <li><code>configurable:false</code> 代表不能 <code>delete</code>，也不能再改一次它的說明書。</li>
+</ol>
+<p>所以最後 <code>JSON.stringify(a)</code> 吐出來的是 <span class="cloze" data-a='{"age":30}'>？？？</span>，
+<code>name</code> 整個不見了 —— 但 <code>a.name</code> 直接讀還是讀得到 <code>'fillano'</code>。
+<strong>不可列舉不等於讀不到。</strong>」</p>
+</div>
+
+<h3>b. 第二段：Accessor Descriptor —— 而且原文這段會爆炸</h3>
+<pre><code>var a = {};
+(function(){
+    var name = 'fillano';
+    Object.defineProperties(a, {
+        'name' : {
+            get: function(){ return name; },
+            set: function(a) { name = a; },
+            writable: true,      // ← 這一行讓整段丟 TypeError
+            enumerable: true,
+            configurable: false
+        }
+    });
+})();</code></pre>
+
+<div class="card">
+<p>「外面那層 <code>(function(){...})()</code> 叫
+<span class="cloze" data-a="IIFE，立即執行函式運算式">？？？</span>，
+目的是製造一個外界碰不到的作用域，讓 <code>var name</code> 變成
+<span class="cloze" data-a="閉包（closure）裡的私有變數">？？？</span>。
+有人讀 <code>a.name</code> 時不是去拿一個固定的值，而是<strong>呼叫 get 函式</strong>；
+有人寫 <code>a.name = 'x'</code> 時改成<strong>呼叫 set 函式</strong>。」</p>
+</div>
+
+<div class="card bad">
+<h4>原文這段跑不起來</h4>
+<p>規格規定 <code>get</code>／<code>set</code>（accessor 組）跟 <code>value</code>／<code>writable</code>（data 組）
+<strong>互斥</strong>，同時給就直接丟：</p>
+<pre><code>TypeError: Invalid property descriptor.
+Cannot both specify accessors and a value or writable attribute</code></pre>
+<p>把 <code>writable: true</code> 拿掉才跑得起來。另外原文 setter 的參數也取名 <code>a</code>，
+會遮蔽掉外層的物件 <code>a</code>，實務上建議改名。</p>
+</div>
+
+<h2>二、Descriptor 六個欄位速查</h2>
+<table>
+<thead><tr><th>欄位</th><th>哪一組</th><th>意思</th><th>字面值 <code>{}</code> 預設</th><th><code>defineProperty</code> 沒寫時預設</th></tr></thead>
+<tbody>
+<tr><td><code>value</code></td><td>Data</td><td>值本身</td><td>你給的值</td><td><code>undefined</code></td></tr>
+<tr><td><code>writable</code></td><td>Data</td><td>能不能被覆寫</td><td><code>true</code></td><td><code>false</code></td></tr>
+<tr><td><code>get</code></td><td>Accessor</td><td>讀取時攔截</td><td>無</td><td><code>undefined</code></td></tr>
+<tr><td><code>set</code></td><td>Accessor</td><td>寫入時攔截</td><td>無</td><td><code>undefined</code></td></tr>
+<tr><td><code>enumerable</code> ★</td><td>共用</td><td>能不能被列舉</td><td><code>true</code></td><td><code>false</code></td></tr>
+<tr><td><code>configurable</code></td><td>共用</td><td>能不能刪除或重設</td><td><code>true</code></td><td><code>false</code></td></tr>
+</tbody>
+</table>
+<div class="card warn">
+<h4>最容易踩的坑</h4>
+<p><code>Object.defineProperty(obj, 'k', { value: 1 })</code> 建出來的屬性預設是
+<strong>唯讀、不可列舉、不可刪</strong>，跟直覺完全相反。字面值建立則三個開關全開。</p>
+</div>
+
+<h2>三、跟 JSON 的五層關係</h2>
+
+<figure>
+  <img src="../obsidian-attachment/學習JS_圖解_JSON.stringify三層篩選與descriptor_2026-09-19.svg"
+       alt="JSON.stringify 三層篩選漏斗">
+  <figcaption>圖一｜JSON.stringify 的三層篩選，descriptor 的 enumerable 與 get 就卡在這條管線上</figcaption>
+</figure>
+
+<h3>a. 第一層｜歷史關係：ES5 一次生了三胞胎</h3>
+<div class="card">
+<p>ES5 這一版同時塞進：<strong>strict mode</strong>、<strong>property descriptor 全家桶</strong>、
+<strong>內建的 <code>JSON</code> 物件</strong>。</p>
+<p>ES5 之前瀏覽器<strong>沒有</strong>內建 JSON，大家的做法是
+<span class="cloze" data-a="eval('(' + str + ')')">？？？</span>，
+或是引入 Douglas Crockford 寫的 <code>json2.js</code>。</p>
+<p>而且這不只是巧合 —— <strong>strict mode 收緊 <code>eval</code>，跟 JSON 被內建，是同一個安全動機的一體兩面</strong>：
+規格一邊讓 <code>eval</code> 變得沒那麼好用，一邊給你一個安全的 <code>JSON.parse</code> 來取代它。</p>
+</div>
+
+<h3>b. 第二層｜enumerable 直接決定 JSON 序列化什麼（最實用）</h3>
+<div class="card info">
+<p><code>JSON.stringify</code> 的挑選規則只有一條，但三個條件要同時成立：</p>
+<ol>
+  <li><strong>own</strong>（自有屬性，<span class="cloze" data-a="原型鏈上的一律不算">？？？</span>）</li>
+  <li><strong>enumerable: true</strong></li>
+  <li><strong>字串鍵</strong>（<span class="cloze" data-a="Symbol 鍵一律跳過">？？？</span>）</li>
+</ol>
+<p>這跟 <code>Object.keys()</code> 用的是<strong>同一把尺</strong>，連輸出順序都一樣：
+像整數的 key 先照數字升冪，其餘字串 key 照插入順序。</p>
+<pre><code>const l = { b:1, 2:1, a:1, 1:1 };
+Object.keys(l)     // [ '1', '2', 'b', 'a' ]
+JSON.stringify(l)  // {"1":1,"2":1,"b":1,"a":1}</code></pre>
+<p><strong>實務用法</strong>：把內部狀態設成 <code>enumerable:false</code>，它就同時從 <code>for...in</code>、
+<code>Object.keys</code>、以及 API 回傳的 JSON 裡消失。這是<strong>隱藏欄位</strong>的技巧，<strong>不是加密</strong> ——
+值還是讀得到，只是不會被列舉。</p>
+</div>
+
+<h3>c. 第三層｜getter/setter 是攔截點，JSON 自己也有三個攔截點</h3>
+<table>
+<thead><tr><th>攔截點</th><th>哪一側</th><th>什麼時候被呼叫</th></tr></thead>
+<tbody>
+<tr><td><code>get</code></td><td>descriptor</td><td>每次讀這個屬性時</td></tr>
+<tr><td><code>set</code></td><td>descriptor</td><td>每次寫這個屬性時</td></tr>
+<tr><td><code>toJSON()</code></td><td>JSON</td><td>序列化到這個值時，用回傳值取代它</td></tr>
+<tr><td><code>replacer</code>（<code>stringify</code> 第二參數）</td><td>JSON</td><td>每個 key/value 出去之前</td></tr>
+<tr><td><code>reviver</code>（<code>parse</code> 第二參數）</td><td>JSON</td><td>每個 key/value 進來之後</td></tr>
+</tbody>
+</table>
+<div class="card">
+<p>兩側會真的碰在一起：<strong><code>JSON.stringify</code> 會真的呼叫 getter</strong>，把回傳值寫進 JSON。
+反過來，只有 <code>set</code> 沒有 <code>get</code> 的屬性，讀出來是 <code>undefined</code>，
+<code>JSON.stringify</code> 直接把整個 key 丟掉。</p>
+<pre><code>let 次數 = 0;
+const d = {};
+Object.defineProperty(d, 'name', {
+  get(){ 次數++; return 'fillano'; }, enumerable:true
+});
+JSON.stringify(d)   // {"name":"fillano"}
+次數                 // 1  ← 真的被呼叫了</code></pre>
+<p><code>Date</code> 之所以會變成 ISO 字串，就是因為
+<span class="cloze" data-a="Date.prototype.toJSON 存在">？？？</span>，
+不是 JSON 特別優待 Date。</p>
+</div>
+
+<h3>d. 第四層｜JSON 表達不了 descriptor（資訊有損）</h3>
+<div class="card bad">
+<pre><code>const f0 = {};
+Object.defineProperty(f0, 'age', { value:30, writable:false, enumerable:true, configurable:false });
+const f1 = JSON.parse(JSON.stringify(f0));
+
+Object.getOwnPropertyDescriptor(f1, 'age')
+// { value:30, writable:true, enumerable:true, configurable:true }  ← 設定全被洗掉</code></pre>
+<p>JSON 還表達不了：函式、<code>undefined</code>、<code>Symbol</code>（整個 key 消失）、
+<code>NaN</code> 與 <code>Infinity</code>（變成 <span class="cloze" data-a="null">？？？</span>）、
+循環參考（丟 <code>TypeError</code>）、原型鏈、getter 本身（只留下當下那一刻的值）。</p>
+<p><strong>結論：<code>JSON.parse(JSON.stringify(x))</code> 不是深拷貝，是「有損壓縮」。</strong>
+需要深拷貝請用 <span class="cloze" data-a="structuredClone()">？？？</span>。</p>
+</div>
+
+<h3>e. 第五層｜JSON.parse 用「定義語意」而不是「賦值語意」</h3>
+
+<figure>
+  <img src="../obsidian-attachment/學習JS_圖解_定義屬性vs賦值-JSONparse的__proto__差異-ISO5807_2026-09-19.svg"
+       alt="定義屬性 vs 賦值 的流程圖">
+  <figcaption>圖二｜依 ISO 5807 繪製：六邊形＝初始化，平行四邊形＝資料，矩形＝處理，菱形＝判斷，雙邊線矩形＝副流程，圓形＝連接點</figcaption>
+</figure>
+
+<div class="card info">
+<p>規格上 <code>JSON.parse</code> 內部用的是 <code>CreateDataProperty</code>（跟 <code>Object.defineProperty</code> 同一條路），
+<strong>不是</strong> <code>[[Set]]</code> 賦值。差別在 <code>__proto__</code> 身上會完全看得出來：</p>
+<pre><code>JSON.parse('{"__proto__": {"hacked": 1}}')
+// → 真的有 own property "__proto__"，原型沒有被換掉
+
+const p = {};
+p.__proto__ = { hacked: 1 };
+// → 走 Object.prototype 上的 __proto__ setter，原型真的被換掉，own keys 是空的</code></pre>
+<ul>
+  <li><strong>定義（define）</strong>：不看原型鏈，直接在這個物件上刻一格。</li>
+  <li><strong>賦值（set）</strong>：先沿原型鏈找有沒有 setter，有就交給它。</li>
+</ul>
+<p>所以 prototype pollution（原型污染）漏洞<strong>通常不是出在 <code>JSON.parse</code> 本身</strong>，
+而是出在拿解析結果去做<span class="cloze" data-a="遞迴 merge 的時候用了賦值">？？？</span>。</p>
+</div>
+
+<h2>四、原文有四處要修正</h2>
+<div class="card warn">
+<ol>
+  <li><strong>「不能使用 eval」不精確</strong> —— <code>eval</code> 可以用。嚴格模式做的是：<code>eval</code> 裡宣告的變數有自己的作用域不會外漏，且 <code>eval</code> 與 <code>arguments</code> 不能被賦值或當變數名。</li>
+  <li><strong>「物件不可有同名的屬性」已過時</strong> —— ES5 確實禁止，ES6（2015）放寬了。現在嚴格模式下 <code>({x:1, x:2})</code> 不報錯，結果是 <code>{x:2}</code>。仍然禁止的是<strong>函式的重複參數名</strong>。</li>
+  <li><strong>「函數.call(null) 會產生錯誤」不對</strong> —— 不會丟錯。非嚴格模式下 <code>this</code> 被自動裝箱替換成 <code>globalThis</code>，嚴格模式下 <code>this</code> 維持 <code>null</code>。差別是「有沒有被換掉」，不是「有沒有報錯」。</li>
+  <li><strong>Accessor descriptor 不能放 <code>writable</code></strong> —— 原文第二段範例直接丟 <code>TypeError</code>。</li>
+</ol>
+</div>
+
+<h2>五、是非題</h2>
+<div id="tfBox"></div>
+
+<h2>六、申論題</h2>
+<div id="essayBox"></div>
+
+<h2>七、跟既有筆記的關聯</h2>
+<div class="card">
+<ul>
+  <li><strong>JSON</strong>｜那份筆記說明 JSON 是「把字串外套剝掉還原成 JS 資料型態」，這份補上<strong>還原時用的是定義語意不是賦值語意</strong>，以及<strong>哪些屬性會被剝掉</strong>。</li>
+  <li><strong>JavaScript資料型別總覽-原始型別與物件</strong>｜descriptor 描述的就是「物件這個型別的每一格長什麼樣」，是型別總覽往下挖一層。</li>
+  <li><strong>文章-從一個SyntaxError讀懂物件字面量與自動裝箱</strong>｜本篇第四節第 3 點的 <code>.call(null)</code>，就是那篇講的<strong>自動裝箱</strong>在 <code>this</code> 上的版本，嚴格模式把它關掉了。</li>
+  <li><strong>JavaScript-Map-與-Object</strong>｜Map 不能直接 <code>JSON.stringify</code>（會得到 <code>{}</code>），原因正是本篇第三層說的「只序列化 own enumerable 字串鍵」。</li>
+  <li><strong>V8引擎完整管線-Parse到Deoptimization</strong>｜把屬性從 data 改成 accessor 會讓 V8 的 hidden class 轉換，跟去最佳化直接相關。</li>
+</ul>
+</div>
+
+<h2>八、相關練習題</h2>
+<div class="card">
+<ol>
+  <li><a href="https://leetcode.com/problems/compact-object/">LeetCode 2705. Compact Object</a>｜走訪 own enumerable 屬性並過濾 falsy 值，跟 <code>JSON.stringify</code> 的挑選規則同源。</li>
+  <li><a href="https://leetcode.com/problems/is-object-empty/">LeetCode 2727. Is Object Empty</a>｜<code>Object.keys</code> 直球練習，正好驗證「不可列舉屬性不算數」。</li>
+  <li><a href="https://leetcode.com/problems/array-wrapper/">LeetCode 2695. Array Wrapper</a>｜實作 <code>valueOf</code> 與 <code>toString</code>，跟 <code>toJSON</code> 是同一類攔截點。</li>
+  <li><a href="https://leetcode.com/problems/call-function-with-custom-context/">LeetCode 2693. Call Function with Custom Context</a>｜手刻 <code>call</code>，把 <code>this</code> 綁定規則練一遍。</li>
+  <li><a href="https://leetcode.com/problems/deep-merge-of-two-objects/">LeetCode 2755. Deep Merge of Two Objects</a>｜遞迴 merge，也就是第五層講的原型污染真正的發生地點。</li>
+</ol>
+</div>
+
+<footer>
+  <strong>出處</strong>
+  <ul>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify">MDN — JSON.stringify()</a>｜own enumerable string-keyed、toJSON、不可序列化型別</li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty">MDN — Object.defineProperty()</a>｜descriptor 六欄位與預設值、accessor 與 data 互斥</li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode">MDN — Strict mode</a>｜嚴格模式各條限制與 this 不再裝箱</li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone">MDN — structuredClone()</a>｜取代 JSON round-trip 的深拷貝</li>
+    <li><a href="https://tc39.es/ecma262/">ECMA-262 規格</a>｜SerializeJSONProperty、InternalizeJSONProperty、OrdinarySetWithOwnDescriptor</li>
+    <li>原文出處：fillano 的 ES5 介紹文（約 2011 年）—— 文中關於「同名屬性」與「.call(null) 會報錯」的說法反映的是 <strong>ES5 當時</strong>的狀態，ES6 之後已變動。</li>
+  </ul>
+  實測環境與時間：Node v22.22.2，2026-09-19。每一段輸出都由 <code>demo-descriptor-json.js</code> 實際跑出來。
+</footer>
+
+</div>
+
+<script>
+/* ---------- 填空 ---------- */
+document.querySelectorAll('.cloze').forEach(el=>{
+  el.dataset.hidden = el.textContent;
+  el.addEventListener('click',()=>{
+    const on = el.classList.toggle('show');
+    el.textContent = on ? el.dataset.a : el.dataset.hidden;
+  });
+});
+let clozeAllOn = false;
+document.getElementById('btnCloze').addEventListener('click', e=>{
+  clozeAllOn = !clozeAllOn;
+  e.target.classList.toggle('on', clozeAllOn);
+  e.target.textContent = clozeAllOn ? '隱藏全部填空答案' : '顯示全部填空答案';
+  document.querySelectorAll('.cloze').forEach(el=>{
+    el.classList.toggle('show', clozeAllOn);
+    el.textContent = clozeAllOn ? el.dataset.a : el.dataset.hidden;
+  });
+});
+
+/* ---------- 是非題 ---------- */
+const TF = [
+  { s:'把一個屬性設成 enumerable:false 之後，JSON.stringify 就序列化不到它，而且 a.name 也讀不到了。',
+    a:false,
+    e:'前半對、後半錯。enumerable:false 只影響「列舉」——for...in、Object.keys、JSON.stringify 都看不到它，但直接用 a.name 存取完全正常，Object.getOwnPropertyNames 也照樣列得出來。不可列舉不等於私有，更不等於加密。' },
+  { s:'JSON.stringify 遇到 accessor descriptor（有 getter 的屬性）時，會真的呼叫那個 getter，把回傳值寫進 JSON。',
+    a:true,
+    e:'對。序列化的第三層篩選就是「讀值」，這一刻 getter 被真的呼叫一次。實測把計數器放進 getter，stringify 一次之後計數器就從 0 變成 1。反過來說，只有 setter 沒有 getter 的屬性讀出來是 undefined，整個 key 會被丟掉。' },
+  { s:'JSON.parse(JSON.stringify(obj)) 是一個可靠的深拷貝方法。',
+    a:false,
+    e:'錯，這是有損的。descriptor 會被洗回全 true；函式、undefined、Symbol 整個 key 消失；NaN 與 Infinity 變成 null；Date 變成字串回不來；循環參考直接丟 TypeError；原型鏈也沒了。要深拷貝請用 structuredClone()。' },
+  { s:'原文寫的「函數.call(null) 會產生錯誤，而不是在 global context 中執行」是正確的描述。',
+    a:false,
+    e:'錯。嚴格模式下 .call(null) 不會丟錯，只是 this 乖乖維持 null 而不再被自動裝箱替換成 globalThis。非嚴格模式下 this 會變成 [object global]。差別在「有沒有被換掉」，不是「有沒有報錯」。' },
+  { s:'JSON.parse 解析 {"__proto__": {...}} 會把物件的原型換掉，所以 JSON.parse 本身就是原型污染漏洞。',
+    a:false,
+    e:'錯。JSON.parse 內部用的是 CreateDataProperty（定義語意），會產生一個真的 own property 叫 "__proto__"，原型完全沒被動到。原型污染是出在之後拿解析結果去做遞迴 merge 時用了賦值（obj[k] = v），那才會觸發 Object.prototype 上的 __proto__ setter。' },
+  { s:'同一個 descriptor 裡可以同時寫 get、set 跟 writable，這樣功能最完整。',
+    a:false,
+    e:'錯，這會直接丟 TypeError：Invalid property descriptor. Cannot both specify accessors and a value or writable attribute。accessor 組（get/set）跟 data 組（value/writable）互斥。原文第二段範例就是踩到這個。' },
+  { s:'Object.defineProperty(obj, "k", { value: 1 }) 建出來的屬性，writable、enumerable、configurable 預設都是 true。',
+    a:false,
+    e:'錯，預設全部是 false。這跟用字面值 { k: 1 } 建立剛好相反（字面值三個開關全開）。所以 defineProperty 出來的屬性預設是唯讀、不可列舉、不可刪，這是最常被踩的坑。' },
+  { s:'Object.keys 與 JSON.stringify 的輸出順序永遠一致：像整數的 key 先照數字升冪，其餘字串 key 照插入順序。',
+    a:true,
+    e:'對，兩者用的是同一套 OrdinaryOwnPropertyKeys 順序。實測 { b:1, 2:1, a:1, 1:1 } 得到 Object.keys 是 [1,2,b,a]，JSON 是 {"1":1,"2":1,"b":1,"a":1}。' },
+];
+const tfBox = document.getElementById('tfBox');
+TF.forEach((q,i)=>{
+  const d = document.createElement('div');
+  d.className = 'q';
+  d.innerHTML =
+    '<div class="stem">'+(i+1)+'. '+q.s+'</div>'+
+    '<div class="tf"><button data-v="true">○ 對</button><button data-v="false">✕ 錯</button></div>'+
+    '<div class="exp"><strong>解析：</strong>'+q.e+'</div>';
+  const exp = d.querySelector('.exp');
+  d.querySelectorAll('.tf button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const picked = b.dataset.v === 'true';
+      d.querySelectorAll('.tf button').forEach(x=>x.classList.remove('right','wrong'));
+      b.classList.add(picked === q.a ? 'right' : 'wrong');
+      exp.classList.add('show');
+      d.dataset.done = '1';
+      d.dataset.ok = (picked === q.a) ? '1' : '0';
+      updateScore();
+    });
+  });
+  tfBox.appendChild(d);
+});
+function updateScore(){
+  const all = tfBox.querySelectorAll('.q');
+  const done = tfBox.querySelectorAll('.q[data-done="1"]').length;
+  const ok = tfBox.querySelectorAll('.q[data-ok="1"]').length;
+  document.getElementById('score').textContent =
+    done === 0 ? '是非題：尚未作答' : '是非題：答對 '+ok+' ／ 已作答 '+done+' ／ 共 '+all.length+' 題';
+}
+
+/* ---------- 申論題 ---------- */
+const ESSAY = [
+  { q:'用你自己的話說明：為什麼一篇在講「嚴格模式」跟「property descriptor」的文章，下一節會突然開始講 JSON？請至少說出兩層理由。',
+    m:'第一層是章節結構：strict mode、property descriptor、內建 JSON 物件，三者都是 ES5（2009-12）同一版新增的，文章是在依序介紹 ES5 的新東西。<br><br>第二層是安全動機的一體兩面：ES5 之前解析 JSON 要用 eval，而 strict mode 正好在收緊 eval，規格同時給了 JSON.parse 當安全替代品。<br><br>第三層（加分）是實質耦合：descriptor 的 enumerable 直接決定 JSON.stringify 序列化哪些屬性，兩者用的是跟 Object.keys 同一把尺。' },
+  { q:'你在做一個 API，User 物件上有 password 與 sessionToken 兩個欄位，不想讓它們被 res.json(user) 送出去。請說明用 descriptor 怎麼做、原理是什麼、以及這個做法的界線在哪裡。',
+    m:'做法：用 Object.defineProperty(user, "password", { value: pwd, enumerable: false, writable: true }) 把它設成不可列舉。<br><br>原理：JSON.stringify 的挑選規則是 own + enumerable + 字串鍵，三者缺一不可。enumerable 設成 false 就直接被第二層篩掉，同時也從 for...in 與 Object.keys 消失。<br><br>界線（重點）：這是「隱藏」不是「保護」。user.password 直接讀還是讀得到，Object.getOwnPropertyNames 跟 Object.getOwnPropertyDescriptor 也列得出來，結構化 log 或 debugger 一樣看得到。真正的機密不該進到這個物件裡，應該在 DB 查詢階段就 select 掉，或用 #private field / WeakMap。' },
+  { q:'解釋「定義語意（define）」與「賦值語意（set）」的差別，並說明為什麼 JSON.parse(\'{"__proto__":{...}}\') 不會造成原型污染，真正的漏洞點在哪裡。',
+    m:'定義語意不看原型鏈，直接在目標物件上刻一格 own property（Object.defineProperty、CreateDataProperty 走這條）。賦值語意會先沿原型鏈找有沒有 setter，找到就交給那個 setter（obj.k = v 走這條）。<br><br>JSON.parse 內部用 CreateDataPropertyOrThrow，所以 "__proto__" 這個 key 變成一個貨真價實的 own property，Object.prototype 上的 __proto__ setter 根本沒被觸發，原型完全沒動。<br><br>真正的漏洞點：拿 parse 結果去做遞迴 merge 時，程式碼通常寫成 target[key] = source[key]，這是賦值語意，此時 __proto__ setter 就被觸發，原型真的被換掉。防禦方式包含 Object.create(null) 當容器、跳過 __proto__/constructor/prototype 三個 key、或改用 Object.defineProperty 寫入。' },
+  { q:'請列出 JSON.parse(JSON.stringify(x)) 至少五種會出錯或失真的情況，並說明應該改用什麼。',
+    m:'1. descriptor 全被洗回 writable/enumerable/configurable 都是 true。<br>2. 函式、undefined、Symbol 值 → 整個 key 消失（在陣列裡則變成 null）。<br>3. NaN 與 Infinity → 變成 null。<br>4. Date → 變成 ISO 字串，回不來 Date 物件。<br>5. 循環參考 → 直接丟 TypeError: Converting circular structure to JSON。<br>6. Map/Set → 變成 {}，因為資料不在屬性上。<br>7. 原型鏈遺失，class 實例變成 plain object。<br>8. BigInt → 丟 TypeError。<br><br>改用 structuredClone()，它支援 Date、Map、Set、循環參考、TypedArray；仍然不支援函式與 DOM 節點，且一樣不保留原型與 descriptor。' },
+];
+const essayBox = document.getElementById('essayBox');
+ESSAY.forEach((q,i)=>{
+  const d = document.createElement('div');
+  d.className = 'q';
+  d.innerHTML =
+    '<div class="stem">'+(i+1)+'. '+q.q+'</div>'+
+    '<textarea placeholder="先自己寫一遍再看參考答案，寫過的才記得住"></textarea>'+
+    '<div style="margin-top:10px"><button class="showModel">看參考答案</button></div>'+
+    '<div class="model"><strong>參考答案：</strong><br>'+q.m+'</div>';
+  const model = d.querySelector('.model');
+  d.querySelector('.showModel').addEventListener('click', e=>{
+    const on = model.classList.toggle('show');
+    e.target.textContent = on ? '收起參考答案' : '看參考答案';
+    e.target.classList.toggle('on', on);
+  });
+  essayBox.appendChild(d);
+});
+
+/* ---------- 全域按鈕 ---------- */
+let expAllOn = false;
+document.getElementById('btnExp').addEventListener('click', e=>{
+  expAllOn = !expAllOn;
+  e.target.classList.toggle('on', expAllOn);
+  e.target.textContent = expAllOn ? '隱藏全部解析' : '顯示全部解析';
+  document.querySelectorAll('.exp, .model').forEach(x=>x.classList.toggle('show', expAllOn));
+  document.querySelectorAll('.showModel').forEach(b=>{
+    b.textContent = expAllOn ? '收起參考答案' : '看參考答案';
+    b.classList.toggle('on', expAllOn);
+  });
+});
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  document.querySelectorAll('.cloze').forEach(el=>{ el.classList.remove('show'); el.textContent = el.dataset.hidden; });
+  document.querySelectorAll('.exp, .model').forEach(x=>x.classList.remove('show'));
+  document.querySelectorAll('.tf button').forEach(b=>b.classList.remove('right','wrong'));
+  document.querySelectorAll('.q').forEach(q=>{ delete q.dataset.done; delete q.dataset.ok; });
+  document.querySelectorAll('textarea').forEach(t=>t.value='');
+  document.querySelectorAll('.showModel').forEach(b=>{ b.textContent='看參考答案'; b.classList.remove('on'); });
+  clozeAllOn = false; expAllOn = false;
+  const bc = document.getElementById('btnCloze'); bc.classList.remove('on'); bc.textContent='顯示全部填空答案';
+  const be = document.getElementById('btnExp');   be.classList.remove('on'); be.textContent='顯示全部解析';
+  updateScore();
+});
+updateScore();
+</script>
+</body>
+</html>

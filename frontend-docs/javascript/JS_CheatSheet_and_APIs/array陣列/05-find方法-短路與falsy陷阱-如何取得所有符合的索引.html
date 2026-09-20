@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Array.prototype.find() — 短路、falsy 陷阱，以及如何取得「所有」符合的索引</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Array.prototype.find() — 短路、falsy 陷阱，以及如何取得「所有」符合的索引</h1>
+  <div class="pills"><span class="pill">#array</span><span class="pill">#find</span><span class="pill">#findIndex</span><span class="pill">#findLastIndex</span><span class="pill">#flatMap</span><span class="pill">#truthy</span><span class="pill">#falsy</span><span class="pill">#短路</span><span class="pill">#short-circuit</span><span class="pill">#callback</span><span class="pill">#迭代方法</span><span class="pill">#react</span><span class="pill">#object-entries</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-17</span>
+    <span>來源：Claude + Gemini</span>
+    <a href="https://gemini.google.com/app/8641800775c043cc" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="arrayprototypefind-falsy">Array.prototype.find() — 短路、falsy 陷阱與取得所有索引</h1>
+<blockquote>
+<p>本篇重點 a–n，共 14 個（2026-09-17 由 Gemini 對話補入 (g-2)(l)(m)(n)）。<br />
+主軸圖：<code>&lt;p class="fig"&gt;&lt;img src="../../../../obsidian-attachment/%E5%AD%B8%E7%BF%92JS_%E5%9C%96%E8%A7%A3_find%E7%9A%84%E7%9F%AD%E8%B7%AF%E8%BF%B4%E5%9C%88-falsy%E8%A6%81%E7%B9%BC%E7%BA%8C%E8%80%8C%E4%B8%8D%E6%98%AF%E5%9B%9Eundefined_2026-09-11.svg" alt="學習JS_圖解_find的短路迴圈-falsy要繼續而不是回undefined_2026-09-11.svg" loading="lazy"&gt;&lt;/p&gt;</code><br />
+可執行範例：<code>demo-find-短路與取得所有符合的索引.js</code>（已實跑驗證）</p>
+</blockquote>
+<hr />
+<h2 id="_1">🎯 速答區</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>一句話速答</th>
+<th>章節</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td><code>find</code> 回傳什麼</td>
+<td><strong>元素本身</strong>，不是 callback 的回傳值、也不是索引</td>
+<td>§1</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>什麼時候回 <code>undefined</code></td>
+<td><strong>走完整個陣列都沒有任何一次 truthy</strong> 才回</td>
+<td>§1</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>回傳 <code>0</code> 時為什麼 <code>if</code> 進不去</td>
+<td><code>0</code> 是 falsy，<code>if (找到的元素)</code> 會誤判</td>
+<td>§2</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>怎麼拿索引</td>
+<td><code>findIndex</code>（第一個）、<code>findLastIndex</code>（最後一個）</td>
+<td>§3</td>
+</tr>
+<tr>
+<td>Q5</td>
+<td>怎麼拿<strong>全部</strong>索引</td>
+<td><code>find</code> 家族做不到，要用 <code>flatMap</code> / <code>reduce</code> / <code>keys()</code></td>
+<td>§4</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-find">1. find 的真實流程：它是一個「會回頭」的迴圈</h2>
+<pre><code class="language-text">i = 0
+  ↓
+i &lt; arr.length ? ── 否 ──→ 回傳 undefined（走完都沒找到）
+  │ 是
+  ↓
+執行 callbackFn(element, index, array)
+  ↓
+回傳值是 truthy 嗎 ?
+  ├─ 是   ──→ 回傳 arr[i]（元素本身），立刻停止
+  └─ falsy ──→ i = i + 1 ──→ 回到上面的 i &lt; arr.length
+</code></pre>
+<ul>
+<li>(a) <strong>回傳的是「元素」不是 callback 的回傳值。</strong> callback 回傳 truthy 只是「這一格通過測試」的訊號，<code>find</code> 拿到訊號後去取 <code>arr[i]</code> 給你。<strong>這正是 find 與 filter / some / map 的分界點。</strong></li>
+<li>(b) <strong>falsy 不等於「回傳 undefined」。</strong> falsy 的意思是「這一格不合格，繼續看下一個」。只有<strong>整個陣列走完</strong>都沒有 truthy，才回 <code>undefined</code>。</li>
+<li>(c) <strong>短路（short-circuit）</strong>：找到就立刻停，後面的元素完全不看。實測：</li>
+</ul>
+<pre><code class="language-js">let count = 0;
+[1,2,3,4,5].find(e =&gt; { count++; return e === 3; });
+// count === 3   ← 陣列長度 5，但只呼叫 3 次
+
+count = 0;
+[1,2,3,4,5].filter(e =&gt; { count++; return e === 3; });
+// count === 5   ← filter 一定全部走完
+</code></pre>
+<ul>
+<li>(d) callback 拿到三個參數 <code>(element, index, array)</code>，都是 <code>find</code> 幫你傳的，你可以只收前面幾個。第二個參數 <code>thisArg</code> 會指定 callback 裡的 <code>this</code>（箭頭函式無效，因為箭頭函式沒有自己的 <code>this</code>）。</li>
+</ul>
+<hr />
+<h2 id="2-falsy">2. ⚠️ 最容易踩的坑：回傳值是 falsy 時</h2>
+<pre><code class="language-js">const array1 = [15, 555, 80, 7, 0, 77589];
+const find1 = array1.find((e, i) =&gt; e &lt; 2);
+
+console.log(find1);                 // 0        ← 不是 undefined！有找到
+console.log(typeof find1);          // &quot;number&quot;
+console.log(find1 === undefined);   // false
+
+if (find1) {
+  console.log(&quot;進到 if&quot;);
+} else {
+  console.log(&quot;⚠️ 沒進 if，但其實有找到&quot;);   // ← 執行到這行
+}
+</code></pre>
+<ul>
+<li>(e) ★ <strong><code>0</code> 是 falsy，所以「有找到」卻被 <code>if</code> 判成「沒找到」。</strong> 同樣的坑還有找到 <code>""</code>、<code>NaN</code>、<code>false</code>、<code>null</code>、<code>undefined</code> 這幾個 falsy 元素時。</li>
+</ul>
+<p><strong>正解</strong>：跟 <code>undefined</code> 比，不要把結果直接丟進 <code>if</code>。</p>
+<pre><code class="language-js">if (find1 !== undefined) { /* 真的有找到 */ }
+</code></pre>
+<ul>
+<li>(f) <strong>7 個 falsy 值，其餘一律 truthy</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>falsy 值</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>false</code></td>
+<td>布林的假</td>
+</tr>
+<tr>
+<td><code>0</code></td>
+<td>數字零</td>
+</tr>
+<tr>
+<td><code>-0</code></td>
+<td><strong>負零</strong>。IEEE 754 有正零也有負零。<code>-0 === 0</code> 是 <code>true</code>，只有 <code>Object.is(-0, 0)</code>（<code>false</code>）和 <code>1/-0</code>（<code>-Infinity</code>）分得出來</td>
+</tr>
+<tr>
+<td><code>0n</code></td>
+<td><strong>BigInt 的零</strong>。結尾的 <code>n</code> 是 BigInt 字面量語法，<code>typeof 0n === "bigint"</code></td>
+</tr>
+<tr>
+<td><code>""</code></td>
+<td><strong>空</strong>字串（只有空的才 falsy）</td>
+</tr>
+<tr>
+<td><code>null</code></td>
+<td>明確的「沒有值」</td>
+</tr>
+<tr>
+<td><code>undefined</code></td>
+<td>還沒被賦值</td>
+</tr>
+<tr>
+<td><code>NaN</code></td>
+<td>Not a Number</td>
+</tr>
+<tr>
+<td><code>document.all</code></td>
+<td><strong>全語言唯一「是物件卻 falsy」的東西</strong>，見下方 (f-2)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>
+<p>(f-2) ⭐ <strong><code>document.all</code> 是規範裡刻意開的後門</strong>。它是 IE 時代用來抓元素的 API（<code>document.all.myId</code>）。當年很多網站用 <code>if (document.all)</code> 來<strong>偵測是不是 IE</strong>，如果其他瀏覽器實作它並讓它 truthy，就會被誤判成 IE 而走進爛的相容路徑。所以規範給它一個特殊內部標記 <strong><code>&lt;span class="wikilink" title="Obsidian 連結：IsHTMLDDA"&gt;IsHTMLDDA&lt;/span&gt;</code></strong>，讓它：<br />
+  1. <code>Boolean(document.all)</code> → <code>false</code><br />
+  2. <code>typeof document.all</code> → <code>"undefined"</code>（而不是 <code>"object"</code>）<br />
+  3. <code>document.all == null</code> → <code>true</code><br />
+  你<strong>永遠不需要用它</strong>，記住它只是為了答面試題「falsy 有哪幾個」。</p>
+</li>
+<li>
+<p>(f-3) <strong>「其餘一律 truthy」比背清單更重要</strong>。判斷方法是「<strong>它在不在那 7 個裡</strong>」，不是「它看起來像不像 false」：</p>
+</li>
+</ul>
+<pre><code class="language-js">Boolean([]);         // true  ← 空陣列也是 truthy（所有陣列都是）
+Boolean([0]);        // true
+Boolean({});         // true  ← 空物件也是
+Boolean(&quot;false&quot;);    // true  ← 非空字串，內容寫什麼都無所謂
+Boolean(&quot;0&quot;);        // true  ← 字串的 &quot;0&quot; 不是數字的 0
+Boolean(&quot;&quot;);         // false ← 只有「空」字串才 falsy
+</code></pre>
+<ul>
+<li>(f-4) ⚠️ <strong>但 <code>==</code> 走的不是 ToBoolean</strong>，所以會出現看似矛盾的結果：</li>
+</ul>
+<pre><code class="language-js">if ([]) { /* 會進來 */ }    // [] 是 truthy
+[] == false;                 // true  ← ?!
+</code></pre>
+<p>原因是 <code>==</code> 做的是 <code>ToPrimitive</code> → <code>ToNumber</code>：<code>[]</code> 轉成 <code>""</code> 再轉成 <code>0</code>，而 <code>false</code> 也轉成 <code>0</code>，所以相等。<strong><code>if</code> 問的是「truthy 嗎」，<code>==</code> 問的是「轉成數字後一樣嗎」，兩個完全不同的問題。</strong> 詳見 <span class="wikilink" title="Obsidian 連結：JavaScript資料型別總覽-原始型別與物件">JavaScript資料型別總覽-原始型別與物件</span> 第 4-b 節。<br />
+- (g) 判斷是「回傳值 truthy 嗎」不是「回傳 <code>true</code> 嗎」—— 規範內部做的是 <code>ToBoolean()</code>，所以 callback 回傳 <code>"yes"</code>、<code>1</code>、<code>[]</code> 都算通過。</p>
+<ul>
+<li>(g-2) ⚠️ <strong>(g) 的同一條規則會養出一個更痛的坑：callback 裡把 <code>===</code> 打成 <code>=</code>。</strong>（2026-09-17 由 Gemini 對話補入）</li>
+</ul>
+<pre><code class="language-js">const array3 = [1, 2, 3, 4];
+const found3 = array3.find((e) =&gt; e = 2);   // ← 單一個等號，是「賦值」不是「比較」
+
+console.log(found3);   // 2            ← 不是你想找的那個 2，是被賦值進去的 2
+console.log(array3);   // [1, 2, 3, 4] ← 原陣列毫髮無傷
+</code></pre>
+<p>逐行拆解，動詞—受詞—產物寫清楚：<br />
+  1. <code>find</code> 迭代到第一個元素 <code>1</code>，把它傳進 callback，參數 <code>e</code> 接到 <code>1</code>。<br />
+  2. <code>e = 2</code> 這個<strong>賦值表達式</strong>把區域變數 <code>e</code> 改寫成 <code>2</code>，而賦值表達式自己的<strong>回傳值就是被指派的那個值</strong>，也就是 <code>2</code>。<br />
+  3. <code>2</code> 是 truthy，所以 <code>find</code> 判定「第 0 格通過測試」，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在第一圈就短路停住</mark>，回傳 <code>arr[0]</code>。<br />
+  4. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但你看到的不是 <code>1</code>，是 <code>2</code></mark> —— 因為 callback 的參數 <code>e</code> 是<strong>傳值</strong>進來的區域變數，重新賦值只改變 <code>e</code> 這個綁定，不會回寫 <code>array3[0]</code>，所以 <code>console.log(array3)</code> 仍然印出原陣列。<br />
+  5. 結論：原陣列不變，<code>found3</code> 是 <code>2</code>，而且<strong>只跑了一圈</strong>，後面三個元素完全沒被檢查。</p>
+<p><strong>正解</strong>：要比較就用嚴格相等 <code>===</code>。</p>
+<pre><code class="language-js">const found3 = array3.find((e) =&gt; e === 2);
+console.log(found3);   // 2
+console.log(array3);   // [1, 2, 3, 4]
+</code></pre>
+<p>同一個坑在 <code>if (x = y)</code> 也會出現，MDN 在控制流那篇明講「避免在 <code>if...else</code> 的條件中使用賦值語句」，見 <span class="wikilink" title="Obsidian 連結：控制流與錯誤處理-區塊語句-falsy-switch貫穿-throw-try-catch-finally">控制流與錯誤處理-區塊語句-falsy-switch貫穿-throw-try-catch-finally</span>。</p>
+<hr />
+<h2 id="3-findindex-findlastindex">3. 要索引：findIndex / findLastIndex</h2>
+<pre><code class="language-js">const arr = [15, 0, 80, 7, 0, 77589];
+arr.findIndex(e =&gt; e === 0);       // 1   第一個符合的索引
+arr.findLastIndex(e =&gt; e === 0);   // 4   最後一個符合的索引
+arr.indexOf(0);                    // 1   不吃 callback，只比值
+</code></pre>
+<ul>
+<li>(h) 找不到時 <code>findIndex</code> / <code>findLastIndex</code> / <code>indexOf</code> 都回 <strong><code>-1</code></strong>，不是 <code>undefined</code>。<strong>這比 <code>find</code> 安全</strong>，因為 <code>-1</code> 是 truthy，不會有 §2 那個坑；但要注意 <code>-1</code> 判斷要寫 <code>!== -1</code> 不能寫 <code>if (idx)</code>（索引 0 也是 falsy）。</li>
+</ul>
+<hr />
+<h2 id="4-find">4. 要「全部」的索引：find 家族做不到</h2>
+<p><code>find</code> / <code>findIndex</code> 只給你一個。要全部，用這幾種：</p>
+<blockquote>
+<p>⚠️ 先講清楚回傳的東西是什麼：以 <code>[15, 0, 80, 7, 0, 77589]</code> 為例，答案是 <strong><code>[1, 4]</code></strong>。<br />
+這 <code>[1, 4]</code> 是<strong>索引（位置）</strong>不是值 —— 兩個 <code>0</code> 分別坐在第 1 格和第 4 格（從 0 開始數）。</p>
+</blockquote>
+<p><strong>(a) flatMap（推薦）</strong></p>
+<pre><code class="language-js">arr.flatMap((e, i) =&gt; e === 0 ? [i] : []);
+</code></pre>
+<p><strong>中文白話</strong>：逐格檢查，「這一格的值<strong>嚴格等於數字 0</strong> 嗎？是的話交出一個<strong>只裝著它索引的小陣列</strong> <code>[i]</code>，不是的話交出一個<strong>空陣列</strong> <code>[]</code>」。最後 <code>flatMap</code> 把所有小陣列<strong>攤平一層</strong>，空陣列攤平後什麼都不留，等於被過濾掉。</p>
+<pre><code class="language-js">// 中間過程長這樣（實跑結果）
+[15, 0, 80, 7, 0, 77589].map((e,i) =&gt; e === 0 ? [i] : [])
+// → [ [], [1], [], [], [4], [] ]     ← map 只到這裡
+// flatMap 多做一步攤平 → [1, 4]
+</code></pre>
+<p>⚠️ <code>e === 0</code> 是「<strong>等於數字 0</strong>」，不是「e 有值」。想找「有值的」要寫 <code>e != null</code> 或 <code>Boolean(e)</code>。</p>
+<p><strong>(b) reduce</strong></p>
+<pre><code class="language-js">arr.reduce((acc, e, i) =&gt; e === 0 ? [...acc, i] : acc, []);
+</code></pre>
+<p><strong>中文白話</strong>：準備一個<strong>累加器 <code>acc</code>，從空陣列 <code>[]</code> 開始</strong>（最後那個 <code>[]</code> 就是初始值）。逐格檢查，「這格等於 0 嗎？是的話就<strong>把舊的 acc 攤開再把索引 i 接在後面</strong>，變成一個新陣列；不是的話就<strong>原封不動把 acc 傳下去</strong>」。全部走完後，acc 就是答案。</p>
+<p><strong>(c) map ＋ filter</strong></p>
+<pre><code class="language-js">arr.map((e, i) =&gt; e === 0 ? i : -1).filter(i =&gt; i !== -1);
+</code></pre>
+<p><strong>中文白話</strong>：第一趟先把整個陣列<strong>改寫成索引</strong>：符合的位置放它的索引，不符合的位置放 <code>-1</code> 當<strong>哨兵值</strong>（一個「這格不算數」的記號）。第二趟再把所有 <code>-1</code> 濾掉。</p>
+<p><strong>(d) keys ＋ filter</strong></p>
+<pre><code class="language-js">[...arr.keys()].filter(i =&gt; arr[i] === 0);
+</code></pre>
+<p><strong>中文白話</strong>：<code>arr.keys()</code> 會給出「所有索引」的迭代器，用 <code>...</code> 展開成陣列 <code>[0,1,2,3,4,5]</code>，然後<strong>直接對索引過濾</strong> —— 「這個索引指到的值等於 0 嗎？」。這招完全不動元素，只挑位置。</p>
+<p><strong>(e) indexOf 迴圈</strong></p>
+<pre><code class="language-js">const out = [];
+let pos = arr.indexOf(0);          // 先找第一個
+while (pos !== -1) {
+  out.push(pos);                   // 記下這個位置
+  pos = arr.indexOf(0, pos + 1);   // 從「下一格」再找
+}
+</code></pre>
+<p><strong>中文白話</strong>：<code>indexOf</code> 的<strong>第二個參數是「從第幾格開始找」</strong>。所以先找到一個、記下來、再從它的下一格繼續找，找不到時 <code>indexOf</code> 回 <code>-1</code>，迴圈就停。老派寫法，但不建立任何中間陣列，效能最好。</p>
+<p><strong>五種寫法比較</strong></p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>走幾趟</th>
+<th>建中間陣列</th>
+<th>評價</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>flatMap</td>
+<td>1</td>
+<td>每格一個小陣列</td>
+<td>最簡潔，日常首選</td>
+</tr>
+<tr>
+<td>reduce</td>
+<td>1</td>
+<td>每次都展開一個新 acc</td>
+<td>最通用，但展開有成本</td>
+</tr>
+<tr>
+<td>map ＋ filter</td>
+<td>2</td>
+<td>2 個</td>
+<td>最好讀，但走兩趟</td>
+</tr>
+<tr>
+<td>keys ＋ filter</td>
+<td>1（＋展開）</td>
+<td>1 個索引陣列</td>
+<td>不碰元素，語意清楚</td>
+</tr>
+<tr>
+<td>indexOf 迴圈</td>
+<td>1</td>
+<td>無</td>
+<td>效能最好，最不好讀</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>(i) ⚠️ <strong>map + filter 那招的哨兵值不能用 <code>0</code></strong>：</li>
+</ul>
+<pre><code class="language-js">const arr3 = [0, 5, 0];
+arr3.map((e,i) =&gt; e === 0 ? i : -1).filter(i =&gt; i !== -1);  // [0, 2] ✅
+arr3.map((e,i) =&gt; e === 0 ? i : 0 ).filter(i =&gt; i !== 0 );  // [2]    ❌ 索引 0 被自己的哨兵吃掉
+</code></pre>
+<hr />
+<h2 id="5-find">5. find 家族一次看懂：回傳的東西完全不同</h2>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>吃 callback</th>
+<th>回傳</th>
+<th>找不到時</th>
+<th>會不會短路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>find</code></td>
+<td>✅</td>
+<td><strong>元素</strong></td>
+<td><code>undefined</code></td>
+<td>✅ 找到就停</td>
+</tr>
+<tr>
+<td><code>findIndex</code></td>
+<td>✅</td>
+<td><strong>索引</strong></td>
+<td><code>-1</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>findLast</code></td>
+<td>✅</td>
+<td>元素（從後往前）</td>
+<td><code>undefined</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>findLastIndex</code></td>
+<td>✅</td>
+<td>索引（從後往前）</td>
+<td><code>-1</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>filter</code></td>
+<td>✅</td>
+<td><strong>新陣列</strong>（全部符合的元素）</td>
+<td><code>[]</code></td>
+<td>❌ 全部走完</td>
+</tr>
+<tr>
+<td><code>some</code></td>
+<td>✅</td>
+<td><strong>布林</strong>（有沒有任一個）</td>
+<td><code>false</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>every</code></td>
+<td>✅</td>
+<td><strong>布林</strong>（是不是全部）</td>
+<td>—</td>
+<td>✅ 遇到 falsy 就停</td>
+</tr>
+<tr>
+<td><code>includes</code></td>
+<td>❌ 只比值</td>
+<td>布林</td>
+<td><code>false</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>indexOf</code></td>
+<td>❌ 只比值</td>
+<td>索引</td>
+<td><code>-1</code></td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>(j) <code>includes</code> 與 <code>indexOf</code> 的差別：<code>includes</code> 用 <strong>SameValueZero</strong> 比較，<strong>找得到 <code>NaN</code></strong>；<code>indexOf</code> 用 <code>===</code>，<strong>找不到 <code>NaN</code></strong>。</li>
+</ul>
+<pre><code class="language-js">[NaN].includes(NaN);   // true
+[NaN].indexOf(NaN);    // -1   ← 因為 NaN !== NaN
+</code></pre>
+<ul>
+<li>(k) 這一條直接連到 <span class="wikilink" title="Obsidian 連結：比較三兄弟-鬆散等於-嚴格等於-Object-is-與React-Vue的狀態比對">比較三兄弟-鬆散等於-嚴格等於-Object-is-與React-Vue的狀態比對</span>：<code>===</code>、<code>Object.is</code>、SameValueZero 三者對 <code>NaN</code> 與 <code>-0</code> 的處理各不相同。</li>
+</ul>
+<hr />
+<h2 id="6-find-ln">6. 真實開發情境：find 到底什麼時候會用到（l–n）</h2>
+<blockquote>
+<p>（2026-09-17 由 Gemini 對話補入）一句話定位：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>find</code> 的職責是「從一包陣列資料中，依條件（通常是 ID）精準取出<strong>單一</strong>項目」</mark>，這正是它跟 <code>filter</code>（要一票）與 <code>some</code>（只要知道有沒有）的分工。</p>
+</blockquote>
+<ul>
+<li>(l) <strong>四個最常見的場景</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>場景</th>
+<th>誰用 find 做什麼、產物是什麼</th>
+<th>典型程式碼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>React 動態路由頁</td>
+<td>元件拿到網址上的 <code>productId</code>，用 <code>find</code> 從商品清單撈出那一筆完整資料，產物交給畫面渲染</td>
+<td><code>products.find(p =&gt; p.id === productId)</code></td>
+</tr>
+<tr>
+<td>下拉選單顯示名稱</td>
+<td>表單 State 只存 <code>id</code>，用 <code>find</code> 把 <code>id</code> 換回整個選項物件，產物是要顯示的 <code>label</code></td>
+<td><code>userRoles.find(r =&gt; r.id === roleId)?.label</code></td>
+</tr>
+<tr>
+<td>狀態管理（Redux / Context）</td>
+<td>更新前先用 <code>find</code> 確認購物車裡有沒有同一件商品，產物決定要 <code>quantity += 1</code> 還是 <code>push</code> 新項目</td>
+<td><code>cartItems.find(i =&gt; i.id === newItem.id)</code></td>
+</tr>
+<tr>
+<td>權限檢查</td>
+<td>用 <code>find</code> 從權限陣列取出那一項，產物拿來決定按鈕顯不顯示</td>
+<td><code>perms.find(p =&gt; p === 'DELETE')</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-jsx">// 場景 1：React 動態路由頁（/products/102）
+const products = [
+  { id: 101, name: &quot;MacBook&quot;, price: 30000 },
+  { id: 102, name: &quot;iPhone&quot;,  price: 25000 }
+];
+
+function ProductDetail({ productId }) {
+  const currentProduct = products.find((p) =&gt; p.id === productId);
+  if (!currentProduct) return &lt;div&gt;找不到商品&lt;/div&gt;;   // ← 這裡用 !x 沒問題，因為元素是物件不會是 falsy
+  return &lt;h1&gt;{currentProduct.name} - ${currentProduct.price}&lt;/h1&gt;;
+}
+</code></pre>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">注意</mark>：上面 <code>if (!currentProduct)</code> 之所以安全，是因為陣列元素都是<strong>物件</strong>（物件永遠 truthy）。一旦陣列裡是數字或字串，就要退回本篇 (e) 的正解 <code>!== undefined</code>。</p>
+<ul>
+<li>
+<p>(m) <strong>效能上為什麼選 <code>find</code> 而不是 <code>filter</code></strong>：<code>find</code> 找到第一個符合就立刻停（本篇 (c) 的短路），<code>filter</code> 一定會把整個陣列走完。處理長陣列或找唯一值（如 ID）時，<code>find</code> 的成本明顯較低。</p>
+</li>
+<li>
+<p>(n) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">陣列方法吃不了物件，要先把物件攤成陣列</mark>。<code>find</code>、<code>filter</code> 掛在 <code>Array.prototype</code> 上，對普通物件呼叫會直接報 <code>obj.find is not a function</code>。三種處理方式：</p>
+</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>推薦做法</th>
+<th>為什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>找符合條件的 key 或 value</td>
+<td><code>Object.entries(obj).find(([k, v]) =&gt; …)</code></td>
+<td><code>entries</code> 把物件攤成 <code>[key, value]</code> 的二維陣列，攤完就能接回 <code>find</code></td>
+</tr>
+<tr>
+<td>只要全部的值</td>
+<td><code>Object.values(obj)</code></td>
+<td>少一層解構</td>
+</tr>
+<tr>
+<td>判斷某個屬性存不存在</td>
+<td><code>Object.hasOwn(obj, key)</code></td>
+<td>只看自身屬性，比 <code>'key' in obj</code> 安全（<code>in</code> 會沿原型鏈往上找）</td>
+</tr>
+<tr>
+<td>key 不確定存不存在時安全讀取</td>
+<td>可選鏈 <code>obj.details?.email</code></td>
+<td>中途是 <code>undefined</code> 就整串回 <code>undefined</code>，不會丟 TypeError</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-js">const userStatus = { alice: &quot;online&quot;, bob: &quot;offline&quot;, charlie: &quot;online&quot; };
+
+// 找第一個狀態是 &quot;online&quot; 的使用者
+const onlineUser = Object.entries(userStatus).find(([name, status]) =&gt; status === &quot;online&quot;);
+console.log(onlineUser);   // [&quot;alice&quot;, &quot;online&quot;]
+</code></pre>
+<p>物件 key 被 <code>Object.entries</code> 攤出來時的<strong>排序規則</strong>（整數索引會插隊）寫在 <span class="wikilink" title="Obsidian 連結：物件Key的排序規則-整數索引插隊-Map保序-forEach不能吃物件">物件Key的排序規則-整數索引插隊-Map保序-forEach不能吃物件</span>，靜態方法的完整清單在 <span class="wikilink" title="Obsidian 連結：Object靜態方法速查">Object靜態方法速查</span>。</p>
+<hr />
+<h2 id="_2">對應題目練習</h2>
+<ul>
+<li><a href="https://leetcode.com/problems/filter-elements-from-array/">LeetCode 2634. Filter Elements from Array</a> — 自己實作 <code>filter</code>，會逼你處理 truthy 判斷與 callback 三參數</li>
+<li><a href="https://leetcode.com/problems/apply-transform-over-each-element-in-array/">LeetCode 2635. Apply Transform Over Each Element in Array</a> — 自己實作 <code>map</code></li>
+<li><a href="https://leetcode.com/problems/compact-object/">LeetCode 2705. Compact Object</a> — falsy 清單實戰，本篇 (f) 的直接應用</li>
+</ul>
+<hr />
+<h2 id="_3">相關筆記（含關聯理由）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：04-filter方法與callback定義">04-filter方法與callback定義</span><br />
+<strong>理由</strong>：本篇 §5 說 <code>find</code> 回傳元素、<code>filter</code> 回傳新陣列，兩篇對照才看得出「短路 vs 走完」的成本差異。</li>
+<li><span class="wikilink" title="Obsidian 連結：06-every短路求值與初始長度快照-命令式重構為宣告式">06-every短路求值與初始長度快照-命令式重構為宣告式</span><br />
+<strong>理由</strong>：<code>every</code> 與 <code>find</code> 都會短路，那篇還多講了「初始長度快照」這個 <code>find</code> 也適用的細節。</li>
+<li><span class="wikilink" title="Obsidian 連結：箭頭函式的兩組括號-參數小括弧與主體大括弧-隱式回傳">箭頭函式的兩組括號-參數小括弧與主體大括弧-隱式回傳</span><br />
+<strong>理由</strong>：本篇範例 <code>(e, i) =&gt; e &lt; 2</code> 為什麼沒有大括弧也沒有 <code>return</code>，答案在那篇。</li>
+<li><span class="wikilink" title="Obsidian 連結：JavaScript資料型別總覽-原始型別與物件">JavaScript資料型別總覽-原始型別與物件</span><br />
+<strong>理由</strong>：本篇 (e)(f) 的 falsy 陷阱，7 個 falsy 值的完整清單在那篇第 4 節。</li>
+</ul>
+<hr />
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Array.prototype.find()</code> 定義與回傳值</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/find</td>
+<td>MDN，2026-09-11 查證</td>
+</tr>
+<tr>
+<td><code>findIndex</code> / <code>findLastIndex</code></td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/findIndex</td>
+<td>MDN，2026-09-11 查證</td>
+</tr>
+<tr>
+<td><code>flatMap</code>（取得全部索引的推薦寫法）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap</td>
+<td>MDN，2026-09-11 查證</td>
+</tr>
+<tr>
+<td>Falsy 值的完整定義</td>
+<td>https://developer.mozilla.org/en-US/docs/Glossary/Falsy</td>
+<td>MDN，2026-09-11 查證</td>
+</tr>
+<tr>
+<td><code>includes</code> 用 SameValueZero</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes</td>
+<td>MDN，2026-09-11 查證</td>
+</tr>
+<tr>
+<td>規範原文 <code>Array.prototype.find</code></td>
+<td>https://tc39.es/ecma262/#sec-array.prototype.find</td>
+<td>ECMA-262，2026-09-11 查證</td>
+</tr>
+<tr>
+<td>本篇 (g-2)(l)(m)(n) 的 Gemini 對話</td>
+<td>https://gemini.google.com/app/8641800775c043cc</td>
+<td>Gemini Flash，2026-09-17 擷取</td>
+</tr>
+<tr>
+<td>賦值表達式的回傳值（<code>e = 2</code> 求值為 <code>2</code>）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Assignment</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+<tr>
+<td><code>Object.entries()</code>（把物件攤成二維陣列）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+<tr>
+<td><code>Object.hasOwn()</code>（取代 <code>hasOwnProperty</code> 的推薦寫法）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>本篇所有輸出皆由 <code>demo-find-短路與取得所有符合的索引.js</code> 在本機 Node 實跑驗證，非憑記憶書寫。</p>
+</blockquote>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-17</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>前端框架比較：從 JS 底層物件機制看 Vue、React、Angular</title><style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23262d; --muted:#6b7280; --line:#e6e3dc;
+  --accent:#4f6bed; --accent2:#0f9d76; --warn:#d94f6b; --code:#1f2430;
+  --hl-y:#FFF3A3; --hl-r:#FF5582; --hl-g:#BBFABB; --hl-b:#ADCCFF; --hl-p:#FFB8EB; --hl-v:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hd{border-bottom:3px solid var(--ink);padding-bottom:18px;margin-bottom:28px}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:1.85rem;line-height:1.35;margin:0 0 12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.pill{background:#eef1fb;color:#3b4ab5;border:1px solid #d6dcf6;border-radius:999px;
+ padding:2px 11px;font-size:.76rem;letter-spacing:.02em}
+.meta{font-size:.82rem;color:var(--muted)}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:1.3rem;margin:38px 0 14px;
+ padding-left:12px;border-left:6px solid var(--accent)}
+h3{font-size:1.05rem;margin:26px 0 10px;color:#33406e}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+mark{padding:1px 4px;border-radius:3px}
+.hy{background:var(--hl-y)}.hr{background:var(--hl-r);color:#fff}.hg{background:var(--hl-g)}
+.hb{background:var(--hl-b)}.hp{background:var(--hl-p)}.hv{background:var(--hl-v)}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#f2f0ea;font-weight:600}
+tbody tr:nth-child(even){background:#faf9f6}
+pre{background:var(--code);color:#e8ecf5;border-radius:10px;padding:14px 16px;
+ overflow-x:auto;font-size:.84rem;line-height:1.6}
+code{font-family:"JetBrains Mono",Consolas,monospace}
+p code,li code,td code{background:#eeece6;color:#9a3b57;padding:1px 5px;border-radius:4px;font-size:.87em}
+.callout{border-left:5px solid var(--accent);background:#f1f4fd;border-radius:0 10px 10px 0;
+ padding:12px 16px;margin:16px 0;font-size:.92rem}
+.callout.warn{border-color:var(--warn);background:#fdf0f3}
+.callout.ok{border-color:var(--accent2);background:#eefaf5}
+.idx{background:#23262d;color:#f4f2ec;border-radius:12px;padding:12px 18px;font-size:.88rem}
+ol.az{list-style:none;padding-left:0;counter-reset:none}
+ol.az li{margin:10px 0;padding-left:34px;position:relative}
+ol.az li b.k{position:absolute;left:0;top:0;background:var(--accent);color:#fff;
+ width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;
+ justify-content:center;font-size:.78rem}
+/* interactive */
+.blank{background:#dfe4f5;border-bottom:2px dashed var(--accent);border-radius:4px;
+ padding:1px 16px;cursor:pointer;color:transparent;user-select:none;transition:.2s}
+.blank.on{background:#d7f3e6;color:#0b6b4f;border-bottom-color:var(--accent2);font-weight:600}
+.toggle{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:7px 14px;
+ font-size:.83rem;cursor:pointer;margin:6px 6px 6px 0}
+.toggle:hover{background:var(--accent)}
+.ans{display:none;margin-top:10px;background:#eefaf5;border-left:5px solid var(--accent2);
+ border-radius:0 8px 8px 0;padding:12px 16px;font-size:.92rem}
+.ans.show{display:block}
+.tf{margin:12px 0}
+.tf .q{font-weight:600;margin-bottom:6px}
+.tf button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 16px;
+ margin-right:8px;cursor:pointer;font-size:.85rem}
+.tf button:hover{border-color:var(--accent)}
+.tf .fb{display:inline-block;margin-left:6px;font-size:.85rem;font-weight:600}
+.tf .fb.good{color:#0b6b4f}.tf .fb.bad{color:var(--warn)}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:10px;
+ padding:10px 12px;font-family:inherit;font-size:.9rem;resize:vertical;background:#fff}
+svg.flow{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:12px}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);
+ font-size:.8rem;color:var(--muted);text-align:center}
+</style></head><body><div class="wrap">
+<header class="hd"><h1>前端框架比較：從 JS 底層物件機制看 Vue、React、Angular</h1>
+<div class="pills"><span class="pill">#frontend</span><span class="pill">#vue</span><span class="pill">#react</span><span class="pill">#angular</span><span class="pill">#框架比較</span><span class="pill">#proxy</span><span class="pill">#reactivity</span><span class="pill">#面試</span></div>
+<div class="meta">更新於 2026-09-15 ｜ 來源對話：<br><a href="https://gemini.google.com/app/3c3b2621e05ddb66" target="_blank" rel="noopener">https://gemini.google.com/app/3c3b2621e05ddb66</a></div>
+<button class="toggle" id="toggle-all" data-on="0">一鍵展開所有答案</button>
+</header>
+
+<div class="idx">這份 HTML 對應筆記 <code>00-前端框架比較-Vue-React-Angular難易度與優缺點.md</code>。完整的難易度排序與各框架優缺點請看 .md 本文，這裡呈現 2026-09-15 追加的「JS 底層物件機制」視角。</div>
+
+<h2>主軸圖：三塊 JS 地基，三個框架各挑一塊</h2>
+<div class="card">
+<svg class="flow" viewBox="0 0 780 330" xmlns="http://www.w3.org/2000/svg">
+ <defs><marker id="a6" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+  <path d="M0,0 L10,4 L0,8 z" fill="#4f6bed"/></marker></defs>
+ <rect x="270" y="14" width="240" height="46" rx="8" fill="#23262d"/>
+ <text x="390" y="43" fill="#fff" font-size="14" text-anchor="middle">ECMAScript 物件模型</text>
+ <rect x="20" y="104" width="220" height="62" rx="8" fill="#FFF3A3" stroke="#b79b00"/>
+ <text x="130" y="128" font-size="13" text-anchor="middle">存取器屬性 Accessor</text>
+ <text x="130" y="147" font-size="11" fill="#7a6600" text-anchor="middle">get / set 可攔截讀寫</text>
+ <rect x="280" y="104" width="220" height="62" rx="8" fill="#ADCCFF" stroke="#4f6bed"/>
+ <text x="390" y="128" font-size="13" text-anchor="middle">實例方法 Instance Method</text>
+ <text x="390" y="147" font-size="11" fill="#33406e" text-anchor="middle">依賴 this，與狀態耦合</text>
+ <rect x="540" y="104" width="220" height="62" rx="8" fill="#BBFABB" stroke="#0f9d76"/>
+ <text x="650" y="128" font-size="13" text-anchor="middle">靜態方法 / 純函式</text>
+ <text x="650" y="147" font-size="11" fill="#0b6b4f" text-anchor="middle">無狀態，不用 new</text>
+ <rect x="20" y="220" width="220" height="80" rx="10" fill="#fff" stroke="#b79b00" stroke-width="2"/>
+ <text x="130" y="246" font-size="14" text-anchor="middle" font-weight="bold">Vue</text>
+ <text x="130" y="266" font-size="11" text-anchor="middle">Vue 2：Object.defineProperty</text>
+ <text x="130" y="284" font-size="11" text-anchor="middle">Vue 3：Proxy（track / trigger）</text>
+ <rect x="280" y="220" width="220" height="80" rx="10" fill="#fff" stroke="#4f6bed" stroke-width="2"/>
+ <text x="390" y="246" font-size="14" text-anchor="middle" font-weight="bold">Angular</text>
+ <text x="390" y="266" font-size="11" text-anchor="middle">Class ＋ 裝飾器 ＋ DI</text>
+ <text x="390" y="284" font-size="11" text-anchor="middle">ngOnInit 就是實例方法</text>
+ <rect x="540" y="220" width="220" height="80" rx="10" fill="#fff" stroke="#0f9d76" stroke-width="2"/>
+ <text x="650" y="246" font-size="14" text-anchor="middle" font-weight="bold">React</text>
+ <text x="650" y="266" font-size="11" text-anchor="middle">閉包 ＋ 頂層靜態工具函式</text>
+ <text x="650" y="284" font-size="11" text-anchor="middle">createElement / memo / lazy</text>
+ <line x1="330" y1="60" x2="150" y2="98" stroke="#4f6bed" stroke-width="2" marker-end="url(#a6)"/>
+ <line x1="390" y1="60" x2="390" y2="98" stroke="#4f6bed" stroke-width="2" marker-end="url(#a6)"/>
+ <line x1="450" y1="60" x2="630" y2="98" stroke="#4f6bed" stroke-width="2" marker-end="url(#a6)"/>
+ <line x1="130" y1="166" x2="130" y2="214" stroke="#b79b00" stroke-width="2" marker-end="url(#a6)"/>
+ <line x1="390" y1="166" x2="390" y2="214" stroke="#4f6bed" stroke-width="2" marker-end="url(#a6)"/>
+ <line x1="650" y1="166" x2="650" y2="214" stroke="#0f9d76" stroke-width="2" marker-end="url(#a6)"/>
+</svg>
+</div>
+
+<h2>一、先把三塊地基講清楚</h2>
+<div class="card">
+<pre><code>class BaseModule {
+  constructor(name) { this.name = name; }              // 實例屬性
+  render() { return `Rendering ${this.name}`; }        // 實例方法（掛 prototype）
+  static create(name) { return new BaseModule(name); } // 靜態方法（掛 class 本體）
+}
+
+// 存取器屬性：用 Property Descriptor 攔截讀寫
+Object.defineProperty(BaseModule.prototype, 'status', {
+  get() { return this._status; },
+  set(value) { this._status = value; /* ← 可在此插入 side effect */ },
+  enumerable: true, configurable: true
+});</code></pre>
+<table><thead><tr><th>機制</th><th>掛在哪裡</th><th>特性</th><th>適合表達什麼</th></tr></thead><tbody>
+<tr><td>實例方法</td><td><code>prototype</code> 或實例本身</td><td>依賴 <code>this</code>，與實例狀態耦合</td><td>「這個東西會做什麼」</td></tr>
+<tr><td>靜態方法</td><td>建構函式／class 本體</td><td>不用 <code>new</code> 就能叫，無狀態</td><td>工具函式、工廠</td></tr>
+<tr><td>存取器屬性</td><td>Property Descriptor 的 <code>get</code>／<code>set</code></td><td><b>攔截屬性的讀寫</b>，可插入副作用</td><td>隱式響應式、依賴追蹤</td></tr>
+</tbody></table>
+</div>
+
+<h2>二、三個框架各挑了哪一塊</h2>
+<div class="card">
+<table><thead><tr><th>框架</th><th>挑中的 JS 底層機制</th><th>狀態變更機制</th><th>心智模型</th></tr></thead><tbody>
+<tr><td>Vue.js</td><td><b>存取器屬性</b>（Vue 2 <code>defineProperty</code> → Vue 3 <code>Proxy</code>）</td><td>隱式攔截與自動依賴追蹤</td><td>響應式資料驅動</td></tr>
+<tr><td>Angular</td><td><b>ES6 Class 的實例方法</b> ＋ TS 裝飾器</td><td>顯式更新；舊版 Zone.js、新版 Signals</td><td>傳統 OOP 物件導向</td></tr>
+<tr><td>React</td><td><b>純函式、閉包與頂層靜態工具函式</b></td><td>顯式呼叫 setter，靠不可變性與 <code>Object.is</code> 比對</td><td>函式式 UI 快照</td></tr>
+</tbody></table>
+<p><b>Vue</b>：<code>reactive(obj)</code> 用 <code>Proxy</code> 包住物件，<code>get</code> trap 做依賴收集（track）、<code>set</code> trap 做派發更新（trigger），所以你只要寫 <code>count.value++</code> 視圖就自己更新。Vue 2 到 3 的升級，本質上就是「把逐屬性的 <code>defineProperty</code> 換成整個物件層級的 <code>Proxy</code>」，才解決動態新增／刪除屬性攔不到的老問題。</p>
+<p><b>Angular</b>：元件與 Service 都是被 <code>new</code> 出來的 class 實例，生命週期鉤子 <code>ngOnInit</code> 就是實例方法，DI 把服務塞進 constructor；靜態方法主要用在模組工廠（<code>NgModule.forRoot()</code>）。</p>
+<p><b>React</b>：現代 function component 把 <code>this</code> 整個丟掉，核心 API 全是頂層靜態工具函式。React <mark class="hr">刻意不用 <code>Object.defineProperty</code> 或 <code>Proxy</code> 做隱式攔截</mark>，要求你顯式呼叫 setter，用不可變性換可預測性。</p>
+</div>
+
+<h2>三、這對 Abby 的意義</h2>
+<div class="card">
+<p><mark class="hg"><b>框架的 API 長什麼樣，不是設計者的個人喜好，而是「他選了哪一個 JS 機制當地基」的必然結果。</b></mark></p>
+<ol class="az">
+<li><b class="k">1</b>看到 Vue 的 <code>.value</code> 很囉嗦 → 因為 getter／setter 一定要有個東西可以掛。</li>
+<li><b class="k">2</b>看到 Angular 到處是 class 與裝飾器 → 因為它的地基是實例方法與 <code>this</code>。</li>
+<li><b class="k">3</b>看到 React 一堆 <code>useXxx</code> 頂層函式 → 因為它的地基是閉包與靜態工具，沒有 <code>this</code> 可以用。</li>
+</ol>
+<div class="callout">這也是投鐵人賽 Web Platform 組很好的切角：把「靜態方法／實例方法／存取器屬性」當主線，三個框架當三個案例。</div>
+</div>
+
+<h2>四、自己考自己</h2>
+<div class="card">
+<div class="tf" data-ans="F" data-why="React 刻意避開隱式攔截，要求顯式呼叫 setter。">
+ <div class="q">1. React 也是用 Proxy 攔截狀態讀寫來觸發更新的。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+<div class="tf" data-ans="T" data-why="">
+ <div class="q">2. Vue 2 到 Vue 3 的響應式升級，本質是 <code>defineProperty</code> 換成 <code>Proxy</code>。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+<p>填空：Vue 的 <code>get</code> trap 負責 <span class="blank">依賴收集（track）</span>，<code>set</code> trap 負責 <span class="blank">派發更新（trigger）</span>。</p>
+<p><b>申論：</b>為什麼 Vue 2 的 <code>Object.defineProperty</code> 攔不到「動態新增的屬性」，而 Vue 3 的 <code>Proxy</code> 可以？</p>
+<textarea></textarea><br>
+<button class="toggle" data-target="fw1" data-label="顯示參考答案">顯示參考答案</button>
+<div class="ans" id="fw1"><code>Object.defineProperty</code> 是<b>逐個屬性</b>去改寫描述子的：Vue 2 在元件初始化時遍歷 <code>data</code> 的每一個 key，一個一個裝上 getter／setter。既然是初始化當下才裝，之後才 <code>obj.newKey = 1</code> 新增的屬性就沒有人幫它裝，自然攔不到（所以 Vue 2 要用 <code>Vue.set</code>）。<br>
+<code>Proxy</code> 則是<b>把整個物件包起來</b>，攔截的是「對這個物件的任何操作」這個層級的 trap（<code>get</code>、<code>set</code>、<code>deleteProperty</code>、<code>has</code>…），不管 key 是本來就有的還是後來加的，都會經過同一組 trap，所以動態新增與刪除都攔得到。</div>
+</div>
+
+<h2>五、資料來源（含查證時間）</h2>
+<div class="card">
+<table><thead><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr></thead><tbody>
+<tr><td>本次追加的原始對話（Gemini）</td><td><a href="https://gemini.google.com/app/3c3b2621e05ddb66" target="_blank">gemini.google.com</a></td><td>擷取 2026-09-15</td></tr>
+<tr><td><code>Object.defineProperty</code></td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty" target="_blank">MDN</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>Vue 3 Reactivity in Depth</td><td><a href="https://vuejs.org/guide/extras/reactivity-in-depth.html" target="_blank">vuejs.org</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>Angular 依賴注入</td><td><a href="https://angular.dev/guide/di" target="_blank">angular.dev</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>React：把 UI 當成狀態的函式</td><td><a href="https://react.dev/learn/reacting-to-input-with-state" target="_blank">react.dev</a></td><td>查證 2026-09-15</td></tr>
+</tbody></table>
+</div>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-15</footer>
+</div><script>
+document.addEventListener('click',function(e){
+  var t=e.target;
+  if(t.classList.contains('blank')){t.classList.toggle('on');}
+  if(t.classList.contains('toggle')){
+    var box=document.getElementById(t.dataset.target);
+    if(box){box.classList.toggle('show');
+      t.textContent=box.classList.contains('show')?'隱藏答案':(t.dataset.label||'顯示答案');}
+  }
+  if(t.dataset.tf!==undefined){
+    var wrap=t.closest('.tf'); var fb=wrap.querySelector('.fb');
+    var ok=(t.dataset.tf===wrap.dataset.ans);
+    fb.textContent=ok?'✔ 答對了':'✘ 再想想 → '+wrap.dataset.why;
+    fb.className='fb '+(ok?'good':'bad');
+  }
+});
+document.addEventListener('DOMContentLoaded',function(){
+  var all=document.getElementById('toggle-all');
+  if(all)all.addEventListener('click',function(){
+    var on=all.dataset.on==='1';
+    document.querySelectorAll('.ans').forEach(function(a){a.classList.toggle('show',!on)});
+    document.querySelectorAll('.blank').forEach(function(b){b.classList.toggle('on',!on)});
+    all.dataset.on=on?'0':'1';
+    all.textContent=on?'一鍵展開所有答案':'一鍵收合所有答案';
+  });
+});
+</script></body></html>

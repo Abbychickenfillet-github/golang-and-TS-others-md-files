@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>content attribute vs IDL property — 可執行範例</title>
+<style>
+  body{font-family:system-ui,"Noto Sans TC",sans-serif;margin:0;padding:26px;background:#faf9f6;color:#23211d;line-height:1.7}
+  h1{font-size:20px;margin:0 0 6px} h2{font-size:15px;margin:26px 0 8px;color:#8a6d3b}
+  .hint{color:#7d786e;font-size:13px;margin-bottom:18px}
+  .card{background:#fff;border:1px solid #e6e3dc;border-radius:12px;padding:18px 22px;max-width:700px;margin-bottom:18px}
+  input[type=text]{padding:7px 10px;border:1px solid #c5bfb1;border-radius:7px;font-size:14px;width:240px}
+  button,input[type=submit]{padding:7px 16px;border-radius:8px;border:1px solid #c5bfb1;background:#f3efe4;cursor:pointer;font-size:14px}
+  table{border-collapse:collapse;margin-top:12px;font-size:13.5px;width:100%}
+  th,td{border:1px solid #e6e3dc;padding:7px 10px;text-align:left}
+  th{background:#f2efe7}
+  td.v{font-family:ui-monospace,Menlo,Consolas,monospace;color:#1d6f42;font-weight:700}
+  td.v.stale{color:#c2255c}
+  code{background:#f0ede4;padding:1px 6px;border-radius:5px;font-size:.9em;font-family:ui-monospace,Menlo,Consolas,monospace}
+  #qs{font-family:ui-monospace,Menlo,Consolas,monospace;background:#22201c;color:#e9e4d8;padding:12px 15px;border-radius:9px;font-size:13px;word-break:break-all}
+</style>
+</head>
+<body>
+
+<h1>content attribute vs IDL property — 可執行範例</h1>
+<p class="hint">搭配筆記 <code>content-attribute-vs-IDL-property-與表單提交機制.md</code> 的 §2 與 §3。</p>
+
+<div class="card">
+  <h2>實驗 1：改一個字，看兩邊什麼時候分家</h2>
+  <p class="hint">在下面的欄位裡打字。左欄是 JS 的 <code>el.value</code>（當前狀態），右欄是 HTML 的 <code>getAttribute('value')</code>（原始碼寫了什麼）。</p>
+
+  <input type="text" id="k" name="q" value="預設文字">
+  <button type="button" id="reset">setAttribute 改成「被改過了」</button>
+
+  <table>
+    <thead><tr><th style="width:44%">讀法</th><th>目前值</th><th style="width:26%">屬於哪一套</th></tr></thead>
+    <tbody>
+      <tr><td><code>el.value</code></td><td class="v" id="r1">—</td><td>IDL property（當前狀態）</td></tr>
+      <tr><td><code>el.getAttribute('value')</code></td><td class="v" id="r2">—</td><td>content attribute（原始碼）</td></tr>
+      <tr><td><code>el.defaultValue</code></td><td class="v" id="r3">—</td><td>content attribute 的 IDL 對口</td></tr>
+      <tr><td><code>el.name</code> / <code>el.id</code></td><td class="v" id="r4">—</td><td>完全反映，兩邊永遠一致</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>實驗 2：瀏覽器會把表單打包成什麼</h2>
+  <p class="hint">按「模擬提交」不會真的送出，只是用 <code>FormData</code> 把瀏覽器會打包的內容印出來。注意 <strong>只有寫了 name 的欄位會進去</strong>。</p>
+
+  <form id="f" action="/api/search" method="GET">
+    <p><label for="kw">有 name（會被送出）：</label><br>
+       <input type="text" id="kw" name="q" value="mytext"></p>
+    <p><label for="nn">沒有 name（不會被送出）：</label><br>
+       <input type="text" id="nn" value="這行會被瀏覽器忽略"></p>
+    <p><input type="submit" value="模擬提交"></p>
+  </form>
+
+  <div id="qs">按下按鈕後這裡會顯示瀏覽器會送出的 query string。</div>
+</div>
+
+<script>
+/* ---------- 實驗 1 ---------- */
+var el = document.getElementById('k');
+
+function refresh() {
+  var idl  = el.value;
+  var attr = el.getAttribute('value');
+  document.getElementById('r1').textContent = JSON.stringify(idl);
+  document.getElementById('r2').textContent = JSON.stringify(attr);
+  document.getElementById('r3').textContent = JSON.stringify(el.defaultValue);
+  document.getElementById('r4').textContent = 'name=' + el.name + ' , id=' + el.id;
+  // 兩邊不一致時把 content attribute 那格標紅，提醒它已經是「舊的」
+  document.getElementById('r2').classList.toggle('stale', idl !== attr);
+  document.getElementById('r3').classList.toggle('stale', idl !== attr);
+}
+el.addEventListener('input', refresh);
+refresh();
+
+document.getElementById('reset').addEventListener('click', function () {
+  // 使用者打過字之後，setAttribute 不會再影響畫面上的值（dirty value flag 已被設起）
+  el.setAttribute('value', '被改過了');
+  refresh();
+});
+
+/* ---------- 實驗 2 ---------- */
+document.getElementById('f').addEventListener('submit', function (e) {
+  e.preventDefault();                         // 攔下瀏覽器的預設提交，改自己印出來
+  var data = new FormData(e.target);          // FormData 走的就是規格的 form data set 演算法
+  var qs = new URLSearchParams(data).toString();
+  document.getElementById('qs').textContent =
+    'GET ' + e.target.getAttribute('action') + '?' + qs + '  HTTP/1.1';
+});
+</script>
+</body>
+</html>

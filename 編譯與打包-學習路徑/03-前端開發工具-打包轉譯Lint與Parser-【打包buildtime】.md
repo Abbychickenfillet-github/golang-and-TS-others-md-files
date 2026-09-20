@@ -31,8 +31,14 @@ updated: 2026-07-27
 ##### 用詞約定：buildtime 說「轉譯」，runtime 才說「編譯」
 
 > **Lint 與 Parser 到底落在哪一步、哪個時間點？**（互動 node graph 見同資料夾 `…-互動版.html`，點方塊看時間點）
-> - **Lint（ESLint／Prettier）＝旁支的「品質閘門」，不是打包步驟、更不在瀏覽器**。它被觸發的時機都在**開發～build 之前**：存檔時（編輯器）、commit 前（git pre-commit hook，<mark style="background: #FFF3A3A6;">選用</mark>）、build 前（prebuild／CI）——這些只是 Lint 的**觸發時機**，不是主流程的階段。<mark style="background: #FF5582A6;">git commit 跟建置／執行 pipeline 無關</mark>，只是有人順手把 hook 掛在那；它只讀原始碼、回報或自動修，**不改最終 bundle**，失敗就中止 build。
+> - **Lint（ESLint／Prettier）＝旁支的「品質閘門」，不是打包步驟、更不在瀏覽器**。它被觸發的時機都在**開發～build 之前**：
+> 	- 存檔時（編輯器）、commit 前（git pre-commit hook，<mark style="background: #FFF3A3A6;">選用</mark>）、build 前（prebuild／CI）——這些只是 Lint 的**觸發時機**，
+> 	- ## 不是主流程的階段。<mark style="background: #FF5582A6;">git commit 跟建置／執行 pipeline 無關</mark>，只是有人順手把 hook 掛在那；它只讀原始碼、回報或自動修，**不改最終 bundle**，失敗就中止 build。
 > - **Parser 出現在兩個不同時間點、是兩個不同工具**：**build 時** bundler 用 **acorn**（在「建相依圖」那步 parse→AST→讀 import）；**run-time** 時瀏覽器用 **V8 自己的 parser**（parse→AST→bytecode→機器碼）。同樣叫 Parser，但工具不同、時間不同。（acorn 家族的 espree 也被 ESLint 拿去 parse，所以 Parser 是 bundler 與 ESLint 共用的底層零件。）
+> - prebuild來自npm 的生命求鉤子會在執行<NAME>之前自動觸發pre<NAME>
+
+
+
 
 ## buildtime 全流程地圖：每一步做了什麼、主場在哪一篇
 

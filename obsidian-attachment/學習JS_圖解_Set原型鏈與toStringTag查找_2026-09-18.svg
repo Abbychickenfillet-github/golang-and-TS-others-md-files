@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 620" width="980" height="620" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/>
+    </marker>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/>
+    </marker>
+  </defs>
+  <rect width="980" height="620" fill="#fbfbfa"/>
+  <text x="24" y="34" font-size="19" font-weight="700" fill="#1f2937">Set 的原型鏈，與 Object.prototype.toString() 讀標籤的流程</text>
+  <text x="24" y="56" font-size="12.5" fill="#6b7280">左欄＝物件之間的指向關係　·　右欄＝ISO 5807 流程圖：一次 toString 呼叫實際跑過的判斷</text>
+
+  <!-- ===== LEFT: prototype chain ===== -->
+  <rect x="24" y="74" width="420" height="510" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+  <text x="44" y="102" font-size="14.5" font-weight="700" fill="#1f2937">① 三階原型鏈</text>
+
+  <!-- Set constructor -->
+  <rect x="264" y="120" width="160" height="52" rx="8" fill="#eef2ff" stroke="#6366f1"/>
+  <text x="344" y="141" font-size="13" font-weight="700" text-anchor="middle" fill="#3730a3">Set</text>
+  <text x="344" y="159" font-size="11" text-anchor="middle" fill="#4f46e5">建構函式 typeof "function"</text>
+
+  <!-- instance -->
+  <rect x="46" y="120" width="180" height="62" rx="8" fill="#ecfdf5" stroke="#10b981"/>
+  <text x="136" y="142" font-size="13" font-weight="700" text-anchor="middle" fill="#065f46">mySet</text>
+  <text x="136" y="160" font-size="11" text-anchor="middle" fill="#047857">new Set([1,2,3]) 的實例</text>
+  <text x="136" y="175" font-size="10.5" text-anchor="middle" fill="#6b7280">自身只有資料，沒有方法</text>
+
+  <!-- Set.prototype -->
+  <rect x="46" y="250" width="380" height="96" rx="8" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="66" y="272" font-size="13" font-weight="700" fill="#92400e">Set.prototype　（它自己也是一個物件）</text>
+  <text x="66" y="292" font-size="11.5" fill="#78350f">add() · has() · delete() · clear() · keys() · values()</text>
+  <text x="66" y="309" font-size="11.5" fill="#78350f">union() · intersection() · difference() …（Baseline 2024）</text>
+  <text x="66" y="331" font-size="11.5" font-weight="700" fill="#b45309">[Symbol.toStringTag] = "Set"　← 標籤住在這一層</text>
+
+  <!-- Object.prototype -->
+  <rect x="46" y="404" width="380" height="82" rx="8" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="66" y="426" font-size="13" font-weight="700" fill="#1e40af">Object.prototype</text>
+  <text x="66" y="446" font-size="11.5" fill="#1d4ed8">hasOwnProperty() · isPrototypeOf() · valueOf()</text>
+  <text x="66" y="466" font-size="11.5" font-weight="700" fill="#1d4ed8">toString()　← 方法住在這一層</text>
+
+  <!-- null -->
+  <rect x="146" y="524" width="180" height="40" rx="20" fill="#f3f4f6" stroke="#9ca3af"/>
+  <text x="236" y="549" font-size="12.5" font-weight="700" text-anchor="middle" fill="#4b5563">null　（鏈到頂）</text>
+
+  <!-- arrows chain -->
+  <line x1="136" y1="182" x2="136" y2="250" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <text x="146" y="218" font-size="11" fill="#374151">[[Prototype]]</text>
+  <line x1="236" y1="346" x2="236" y2="404" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <text x="246" y="380" font-size="11" fill="#374151">[[Prototype]]</text>
+  <line x1="236" y1="486" x2="236" y2="524" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <!-- Set -> Set.prototype (the other line) -->
+  <path d="M344,172 L344,214 L396,214 L396,250" fill="none" stroke="#6366f1" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <text x="352" y="208" font-size="11" fill="#4f46e5">.prototype 屬性</text>
+
+  <text x="46" y="580" font-size="10.5" fill="#6b7280">實線＝實例往上找的 [[Prototype]]　·　虛線＝建構函式身上的 prototype 屬性（兩條不同的線）</text>
+
+  <!-- ===== RIGHT: flowchart ===== -->
+  <rect x="464" y="74" width="492" height="510" rx="12" fill="#ffffff" stroke="#e5e7eb"/>
+  <text x="484" y="102" font-size="14.5" font-weight="700" fill="#1f2937">② Object.prototype.toString.call(mySet) 的流程</text>
+
+  <!-- start (terminator) -->
+  <rect x="604" y="118" width="212" height="34" rx="17" fill="#f3f4f6" stroke="#6b7280"/>
+  <text x="710" y="140" font-size="12" font-weight="700" text-anchor="middle" fill="#374151">開始：呼叫 toString</text>
+
+  <!-- process 1 -->
+  <rect x="584" y="176" width="252" height="42" rx="4" fill="#ecfdf5" stroke="#10b981"/>
+  <text x="710" y="193" font-size="11.5" text-anchor="middle" fill="#065f46">往上找方法：mySet → Set.prototype</text>
+  <text x="710" y="210" font-size="11.5" font-weight="700" text-anchor="middle" fill="#065f46">→ Object.prototype.toString 找到了</text>
+
+  <!-- decision 1 -->
+  <path d="M710,238 L856,282 L710,326 L564,282 Z" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="710" y="277" font-size="11.5" font-weight="700" text-anchor="middle" fill="#92400e">是 null / undefined / Array</text>
+  <text x="710" y="294" font-size="11.5" font-weight="700" text-anchor="middle" fill="#92400e">等特例嗎</text>
+
+  <!-- yes branch -->
+  <rect x="464" y="262" width="88" height="40" rx="4" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="508" y="279" font-size="10.5" text-anchor="middle" fill="#991b1b">是 → 直接用</text>
+  <text x="508" y="294" font-size="10.5" text-anchor="middle" fill="#991b1b">特例標籤</text>
+  <line x1="564" y1="282" x2="552" y2="282" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+
+  <!-- process 2 -->
+  <rect x="584" y="352" width="252" height="46" rx="4" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="710" y="370" font-size="11.5" text-anchor="middle" fill="#92400e">否 → 再往上找標籤：讀</text>
+  <text x="710" y="388" font-size="11.5" font-weight="700" text-anchor="middle" fill="#b45309">mySet[Symbol.toStringTag]</text>
+  <line x1="710" y1="326" x2="710" y2="352" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+
+  <!-- decision 2 -->
+  <path d="M710,414 L856,452 L710,490 L564,452 Z" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="710" y="449" font-size="11.5" font-weight="700" text-anchor="middle" fill="#1e40af">讀到字串了嗎</text>
+  <text x="710" y="466" font-size="10.5" text-anchor="middle" fill="#1d4ed8">（Set.prototype 上有 "Set"）</text>
+  <line x1="710" y1="398" x2="710" y2="414" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+
+  <!-- end -->
+  <rect x="588" y="516" width="244" height="40" rx="20" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="710" y="541" font-size="12.5" font-weight="700" text-anchor="middle" fill="#166534">回傳 "[object Set]"</text>
+  <line x1="710" y1="490" x2="710" y2="516" stroke="#c2410c" stroke-width="1.8" marker-end="url(#ar2)"/>
+  <text x="720" y="508" font-size="10.5" fill="#c2410c">是</text>
+
+  <!-- fallback -->
+  <rect x="864" y="432" width="84" height="40" rx="4" fill="#f3f4f6" stroke="#9ca3af"/>
+  <text x="906" y="449" font-size="10.5" text-anchor="middle" fill="#4b5563">否 → 退回</text>
+  <text x="906" y="464" font-size="10.5" font-weight="700" text-anchor="middle" fill="#4b5563">"Object"</text>
+  <line x1="856" y1="452" x2="864" y2="452" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+
+  <line x1="710" y1="152" x2="710" y2="176" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+  <line x1="710" y1="218" x2="710" y2="238" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)"/>
+
+  <text x="484" y="580" font-size="10.5" fill="#6b7280">注意：兩次查找起點都是 mySet，第一次停在 Object.prototype 拿方法，第二次停在 Set.prototype 拿標籤</text>
+</svg>

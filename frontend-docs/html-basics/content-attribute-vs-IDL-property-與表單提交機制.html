@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>content attribute vs IDL property 與 form 提交機制 — 互動筆記</title>
+<style>
+:root{--bg:#faf9f6;--card:#fff;--ink:#23211d;--muted:#7d786e;--line:#e6e3dc;--accent:#8a6d3b;
+--code-bg:#22201c;--code-ink:#e9e4d8;
+--hl-yellow:#FFF3A3;--hl-red:#FF5582;--hl-green:#BBFABB;--hl-blue:#ADCCFF;--hl-pink:#FFB8EB;--hl-purple:#D2B3FF;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:40px 22px 80px}
+header.page{border-bottom:2px solid var(--line);padding-bottom:22px;margin-bottom:34px}
+h1{font-family:Georgia,"Noto Serif TC",serif;font-size:26px;line-height:1.45;margin:0 0 12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.pill{font-size:11.5px;padding:3px 11px;border-radius:999px;background:#efece3;color:#6b6457}
+.meta{font-size:12.5px;color:var(--muted)}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+h2{font-family:Georgia,"Noto Serif TC",serif;font-size:21px;margin:44px 0 12px;padding-left:12px;border-left:5px solid var(--accent)}
+h3{font-size:16px;margin:24px 0 8px;color:#4a453c}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:#f2efe7;font-weight:600}
+tbody tr:nth-child(even){background:#fbfaf6}
+code{background:#f0ede4;padding:1px 6px;border-radius:5px;font-size:.9em;font-family:ui-monospace,Menlo,Consolas,monospace}
+pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:11px;overflow-x:auto;font-size:13px;line-height:1.6}
+pre code{background:none;color:inherit;padding:0}
+mark{padding:1px 3px;border-radius:3px}
+.m-y{background:var(--hl-yellow)}.m-r{background:var(--hl-red)}.m-g{background:var(--hl-green)}
+.m-b{background:var(--hl-blue)}.m-p{background:var(--hl-pink)}.m-v{background:var(--hl-purple)}
+.callout{border-left:5px solid #bbb;border-radius:0 10px 10px 0;padding:12px 16px;margin:16px 0;background:#fff}
+.callout .t{font-weight:700;margin-bottom:4px;font-size:14px}
+.c-warn{border-color:#e8735a;background:#fff6f3}
+.c-tip{border-color:#4f9d69;background:#f4fbf6}
+.c-info{border-color:#5b87c4;background:#f4f8fd}
+.c-note{border-color:#9b7cc4;background:#f9f6fd}
+.figwrap{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:20px 0}
+svg .node{cursor:pointer}
+svg .box{fill:#fff;stroke:#b9b3a6;stroke-width:1.6;rx:9}
+svg .box.user{fill:#fdf0f5;stroke:#d98db0}
+svg .box.br{fill:#fdf6e0;stroke:#c9a758}
+svg .box.net{fill:#eef5ff;stroke:#7fa6d8}
+svg .node:hover .box{stroke-width:3}
+svg .node.on .box{stroke-width:3.4;filter:drop-shadow(0 2px 6px rgba(0,0,0,.18))}
+svg text{font-family:system-ui,"Noto Sans TC",sans-serif;fill:#2c2922}
+svg .ttl{font-weight:700;font-size:13px}
+svg .sub2{font-size:11px;fill:#6f6a60}
+svg .edge{stroke:#9c968a;stroke-width:1.8;fill:none;marker-end:url(#ar2)}
+svg .elab{font-size:10.5px;fill:#8a8478}
+#figOut{margin-top:10px;min-height:54px;background:#f7f5ef;border:1px dashed #cfc9bb;border-radius:10px;padding:11px 14px;font-size:14px;color:#46423a}
+.blank{display:inline-block;min-width:80px;text-align:center;border-bottom:2px dashed var(--accent);
+color:transparent;cursor:pointer;user-select:none;background:#f3efe4;border-radius:4px 4px 0 0;padding:0 7px;transition:.18s}
+.blank:hover{background:#eae4d2}
+.blank.show{color:#1d6f42;font-weight:700;border-bottom-style:solid;background:#eefaf1}
+.toggle{cursor:pointer;background:var(--accent);color:#fff;border:none;border-radius:999px;padding:5px 15px;font-size:12.5px}
+.toggle:hover{opacity:.87}
+.ans{display:none;margin-top:10px;padding:12px 15px;background:#f4fbf6;border-left:4px solid #4f9d69;border-radius:0 9px 9px 0;font-size:14px}
+.ans.open{display:block}
+.tf{border:1px solid var(--line);border-radius:11px;padding:13px 16px;margin:11px 0;background:#fff}
+.tf .q{font-size:14.5px;margin-bottom:9px}
+.tf button{margin-right:8px;padding:4px 16px;border-radius:8px;border:1px solid #c5bfb1;background:#fbfaf6;cursor:pointer;font-size:13px}
+.tf .fb{margin-top:9px;font-size:13.5px;display:none}
+.tf .fb.open{display:block}
+.ok{color:#1d6f42;font-weight:600}.no{color:#c2255c;font-weight:600}
+.essay{background:#f9f6fd;border-left:5px solid #9b7cc4;border-radius:0 10px 10px 0;padding:13px 17px;margin:12px 0}
+.essay .q{font-weight:600;font-size:14.5px}
+footer.page{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);text-align:center}
+.small{font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <h1>content attribute vs IDL property<br>與 form 提交機制</h1>
+  <div class="pills">
+    <span class="pill">html</span><span class="pill">Web IDL</span><span class="pill">content attribute</span>
+    <span class="pill">IDL property</span><span class="pill">form</span><span class="pill">submit</span>
+    <span class="pill">query string</span><span class="pill">name vs id</span>
+  </div>
+  <div class="meta">
+    更新於 <strong>2026-09-19</strong> · 本篇重點 a–n，共 14 個 ·
+    來源對話：<a href="https://gemini.google.com/app/c2e73f83487fd392">HTML表單與IDL屬性解析</a>
+    <br>可執行範例：<a href="form-attribute-vs-property-demo.html">form-attribute-vs-property-demo.html</a>
+  </div>
+</header>
+
+<h2>主軸圖：按下 submit 之後，誰做了什麼、拋給誰</h2>
+<p class="small">點任一方框看那一步在做什麼。後續追問優先指回這張圖的某一格。</p>
+
+<div class="figwrap">
+<svg viewBox="0 0 820 440" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="表單提交流程圖">
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9c968a"/>
+    </marker>
+  </defs>
+
+  <g class="node" data-k="s1">
+    <rect class="box user" x="40" y="16" width="230" height="52"/>
+    <text class="ttl" x="155" y="38" text-anchor="middle">① 使用者按下 submit 按鈕</text>
+    <text class="sub2" x="155" y="56" text-anchor="middle">input[type=submit] 或 button[type=submit]</text>
+  </g>
+  <path class="edge" d="M155,68 L155,100"/>
+
+  <g class="node" data-k="s2">
+    <rect class="box br" x="40" y="100" width="230" height="52"/>
+    <text class="ttl" x="155" y="122" text-anchor="middle">② 瀏覽器觸發 form 的 submit</text>
+    <text class="sub2" x="155" y="140" text-anchor="middle">JS 可在此 preventDefault() 攔下</text>
+  </g>
+  <path class="edge" d="M155,152 L155,184"/>
+
+  <g class="node" data-k="s3">
+    <rect class="box br" x="40" y="184" width="230" height="66"/>
+    <text class="ttl" x="155" y="206" text-anchor="middle">③ 走訪所有「有 name」的控制項</text>
+    <text class="sub2" x="155" y="224" text-anchor="middle">收集成 form data set（name=value）</text>
+    <text class="sub2" x="155" y="241" text-anchor="middle">沒 name 的欄位整個被略過</text>
+  </g>
+  <path class="edge" d="M270,217 L332,217"/>
+
+  <g class="node" data-k="s4">
+    <rect class="box br" x="332" y="184" width="216" height="66"/>
+    <text class="ttl" x="440" y="206" text-anchor="middle">④ 依 method 編碼</text>
+    <text class="sub2" x="440" y="224" text-anchor="middle">GET → 接成 query string 貼網址後</text>
+    <text class="sub2" x="440" y="241" text-anchor="middle">POST → 放進 request body</text>
+  </g>
+  <path class="edge" d="M548,217 L610,217"/>
+
+  <g class="node" data-k="s5">
+    <rect class="box net" x="610" y="184" width="180" height="66"/>
+    <text class="ttl" x="700" y="206" text-anchor="middle">⑤ 送 HTTP request</text>
+    <text class="sub2" x="700" y="224" text-anchor="middle">目的地 = form 的 action</text>
+    <text class="sub2" x="700" y="241" text-anchor="middle">預設 method 是 GET</text>
+  </g>
+  <path class="edge" d="M700,250 L700,290"/>
+
+  <g class="node" data-k="s6">
+    <rect class="box net" x="588" y="290" width="202" height="52"/>
+    <text class="ttl" x="689" y="312" text-anchor="middle">⑥ 整頁換掉</text>
+    <text class="sub2" x="689" y="330" text-anchor="middle">用回應內容重新導航這一頁</text>
+  </g>
+
+  <g class="node" data-k="spa">
+    <rect class="box user" x="40" y="290" width="450" height="52"/>
+    <text class="ttl" x="265" y="312" text-anchor="middle">SPA 的岔路：在 ② 就 preventDefault()，改用 fetch 自己送</text>
+    <text class="sub2" x="265" y="330" text-anchor="middle">仍保留 form 與 name，才能用 new FormData(formEl) 一行收齊</text>
+  </g>
+  <path class="edge" d="M155,152 L20,152 L20,316 L40,316"/>
+  <text class="elab" x="20" y="238" text-anchor="middle">攔</text>
+
+  <g class="node" data-k="two">
+    <rect class="box" x="40" y="368" width="750" height="56"/>
+    <text class="ttl" x="415" y="390" text-anchor="middle">貫穿全圖的兩套屬性：content attribute（原始碼寫了什麼） ／ IDL property（現在是什麼狀態）</text>
+    <text class="sub2" x="415" y="409" text-anchor="middle">③ 收集的是 IDL property 的當前值，不是 HTML 上那串字 — 這就是 value 兩邊會分家的原因</text>
+  </g>
+</svg>
+<div id="figOut">👆 點上面任一個方框看說明。</div>
+</div>
+
+<h2>速答區（點灰底可掀答案）</h2>
+<div class="card">
+<table>
+<thead><tr><th style="width:36%">問題</th><th>一句話速答</th></tr></thead>
+<tbody>
+<tr><td>IDL 是什麼的縮寫？</td><td><span class="blank" data-a="Interface Definition Language">Interface Definition Language</span>（介面定義語言），Web 平台用的方言叫 <span class="blank" data-a="Web IDL">Web IDL</span></td></tr>
+<tr><td>HTML 上那串字規格叫什麼？</td><td><span class="blank" data-a="content attribute">content attribute</span>，型別<span class="blank" data-a="永遠是字串">永遠是字串</span></td></tr>
+<tr><td>兩者永遠同步嗎？</td><td><span class="blank" data-a="不是">不是</span>。<code>value</code>／<code>checked</code>／<code>selected</code> 使用者一動就<span class="blank" data-a="分家">分家</span></td></tr>
+<tr><td>要拿使用者現在打了什麼？</td><td>用 <span class="blank" data-a="el.value">el.value</span>，不要用 <code>getAttribute('value')</code></td></tr>
+<tr><td>打包資料的 key 從哪來？</td><td><span class="blank" data-a="name 屬性">name 屬性</span>，<strong>不是</strong> <span class="blank" data-a="id">id</span>。沒 name 不會被送出</td></tr>
+<tr><td><code>&lt;button&gt;</code> 在 form 裡不寫 type？</td><td>預設就是 <span class="blank" data-a="type=&quot;submit&quot;">type="submit"</span>，會意外送出表單</td></tr>
+<tr><td><code>&lt;label for&gt;</code> 指向的是？</td><td><span class="blank" data-a="id">id</span>（不是 name）；在 JS 側這個屬性叫 <span class="blank" data-a="el.htmlFor">el.htmlFor</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>兩套系統對照</h2>
+<div class="card">
+<table>
+<thead><tr><th></th><th>content attribute</th><th>IDL property</th></tr></thead>
+<tbody>
+<tr><td>寫在哪</td><td>HTML 標籤上</td><td>JS 程式裡</td></tr>
+<tr><td>長相</td><td><code>&lt;input value="搜尋" maxlength="10"&gt;</code></td><td><code>el.value</code>、<code>el.maxLength</code></td></tr>
+<tr><td>型別</td><td><mark class="m-y">永遠是字串</mark>（連 <code>"10"</code> 也是字串）</td><td>有真型別（Number／Boolean／DOMTokenList）</td></tr>
+<tr><td>怎麼讀寫</td><td><code>getAttribute</code> / <code>setAttribute</code></td><td><code>el.xxx</code> 直接讀寫</td></tr>
+<tr><td>誰定義的</td><td>HTML 規格的元素定義</td><td><mark class="m-b">Web IDL</mark>，規格寫 <code>attribute DOMString value;</code>，瀏覽器據此在原型上生 getter／setter</td></tr>
+<tr><td>代表什麼</td><td>這份文件<strong>初始寫了什麼</strong></td><td>這個元素<strong>現在是什麼狀態</strong></td></tr>
+</tbody>
+</table>
+
+<div class="callout c-info"><div class="t">💡 重點 b–d：名字為什麼這麼繞</div>
+b. 中文都翻成「屬性」所以一定會混。<mark class="m-g">記英文</mark>：HTML 上的叫 <strong>attribute</strong>，JS 物件上的叫 <strong>property</strong>。<br>
+c. IDL <mark class="m-b">不是給你寫的語言</mark>，是規格作者拿來描述「這個介面有哪些成員、各是什麼型別」的語言，瀏覽器實作者照著它把 C++ 物件包成 JS 看得懂的樣子。MDN 上 <code>HTMLInputElement</code> 列的那排成員全都由它生出來。<br>
+d. 這也解釋了 HTML-Parsing 筆記那句「DOM 節點半對半不對是 JS 物件」：<mark class="m-v">實體是引擎的 C++ 物件，Web IDL 是那層翻譯</mark>。
+</div>
+</div>
+
+<h2>同步關係分三類（最常用的 value 剛好不同步）</h2>
+<div class="card">
+<div class="callout c-warn"><div class="t">⚠️ 存疑／補充：Gemini 這句太模糊</div>
+Gemini 說「<em>兩者通常會同步</em>」。實際上分三類，而 <mark class="m-r"><code>value</code> 正好是不同步的那一類</mark>。
+</div>
+
+<table>
+<thead><tr><th>類型</th><th>代表屬性</th><th>行為</th></tr></thead>
+<tbody>
+<tr><td>完全反映</td><td><code>id</code>、<code>href</code>、<code>title</code>、<code>placeholder</code></td><td>改一邊，另一邊立刻同步</td></tr>
+<tr><td>名字不同但仍反映</td><td><code>class</code>↔<code>className</code>、<code>for</code>↔<code>htmlFor</code>、<code>maxlength</code>↔<code>maxLength</code></td><td>同步，只是 JS 側改名（因為 class／for 是保留字）</td></tr>
+<tr><td><mark class="m-r">只作為初始值，之後分家</mark></td><td><code>value</code>、<code>checked</code>、<code>selected</code></td><td>attribute 記<strong>預設值</strong>，property 記<strong>當前值</strong>，使用者一輸入就各走各的</td></tr>
+</tbody>
+</table>
+
+<pre><code>// &lt;input id="k" value="預設文字"&gt;
+const el = document.getElementById('k');
+
+el.value;                  // "預設文字"
+el.getAttribute('value');  // "預設文字"
+
+// ---- 使用者在畫面上把文字改成 "我打的字" ----
+
+el.value;                  // "我打的字"   ← IDL property：當前狀態
+el.getAttribute('value');  // "預設文字"   ← content attribute：沒變
+el.defaultValue;           // "預設文字"   ← content attribute 的 IDL 對口</code></pre>
+<p class="small">親手驗證：<a href="form-attribute-vs-property-demo.html">form-attribute-vs-property-demo.html</a> 的實驗 1 會即時把兩邊印出來，不一致時標紅。</p>
+
+<div class="callout c-tip"><div class="t">✅ 重點 e–g</div>
+e. <mark class="m-y">要拿使用者「現在打了什麼」一律用 <code>el.value</code></mark>；<code>getAttribute('value')</code> 永遠是載入時的預設值。<br>
+f. 反過來，<mark class="m-r"><code>setAttribute('value','x')</code> 在使用者打過字之後畫面不會變</mark>，因為 IDL property 已經「髒」了（dirty value flag）。<br>
+g. <code>checked</code> 同理。表單 reset 時會把 property 拉回 attribute 的值，這就是 <code>defaultValue</code>／<code>defaultChecked</code> 存在的理由。
+</div>
+</div>
+
+<h2>form 提交：誰打包、打包成什麼、送給誰</h2>
+<div class="card">
+<pre><code>GET /api/search?q=mytext HTTP/1.1
+                ▲  ▲  ▲
+                │  │  └── value：使用者實際打的字
+                │  └── = ：連接符號
+                └── key：來自 name="q"（不是 id="keyword"！）</code></pre>
+
+<table>
+<thead><tr><th>寫法</th><th>會提交嗎</th><th>能包子元素</th><th>按鈕文字來源</th><th>建議</th></tr></thead>
+<tbody>
+<tr><td><code>&lt;input type="submit" value="送出"&gt;</code></td><td>會</td><td><mark class="m-r">不能</mark></td><td><code>value</code> 屬性</td><td>舊寫法，還能用</td></tr>
+<tr><td><code>&lt;button type="submit"&gt;送出&lt;/button&gt;</code></td><td>會</td><td><mark class="m-g">能</mark>（svg／strong／圖示）</td><td>標籤之間的內容</td><td>現代預設選它</td></tr>
+<tr><td><code>&lt;button&gt;送出&lt;/button&gt;</code>（在 form 內）</td><td><mark class="m-y">會</mark>（預設 type=submit）</td><td>能</td><td>標籤之間的內容</td><td>容易誤觸，別這樣寫</td></tr>
+<tr><td><code>&lt;button type="button"&gt;送出&lt;/button&gt;</code></td><td>不會</td><td>能</td><td>標籤之間的內容</td><td>只想跑 JS 時用這個</td></tr>
+</tbody>
+</table>
+
+<div class="callout c-tip"><div class="t">✅ 重點 h–k：最常踩的四個坑</div>
+h. <mark class="m-r">打包用的 key 是 <code>name</code> 不是 <code>id</code></mark>。<code>id</code> 給 CSS／JS／<code>&lt;label for&gt;</code> 用，<mark class="m-b">沒有 name 的欄位根本不會被送出</mark>。<br>
+i. <code>&lt;input type="submit"&gt;</code> 的按鈕文字由 <mark class="m-y"><code>value</code></mark> 決定，跟文字框用 value 存內容是兩回事。<br>
+j. form 內的 <code>&lt;button&gt;</code> 不寫 type 預設是 submit，會意外整頁刷新；只想做一般按鈕要明寫 <mark class="m-g"><code>type="button"</code></mark>。<br>
+k. 不寫 method 預設是 <code>GET</code>，敏感資料會曝在網址與瀏覽紀錄裡，要用 <code>POST</code>。
+</div>
+
+<div class="callout c-note"><div class="t">🗒 重點 l–n：現代前端怎麼接手</div>
+l. SPA 裡通常 <mark class="m-v"><code>e.preventDefault()</code> 攔下預設提交</mark>，改用 <code>fetch</code> 自己送，避免整頁刷新。<br>
+m. 即使攔下來，仍建議<mark class="m-g">保留 <code>&lt;form&gt;</code> 與 <code>name</code></mark>：能用 <code>new FormData(formEl)</code> 一行收齊，鍵盤 Enter 送出與螢幕閱讀器的表單語意也靠它。<br>
+n. <code>&lt;label for="keyword"&gt;</code> 的 <code>for</code> 指向 <mark class="m-b"><code>id</code></mark>（不是 name），這是「名字不同但仍反映」的又一例（JS 側叫 <code>htmlFor</code>）。
+</div>
+</div>
+
+<h2>自己考自己</h2>
+
+<h3>是非題</h3>
+<div id="tfbox"></div>
+
+<h3>申論題</h3>
+<div class="essay">
+  <div class="q">1. 有人回報「我用 <code>setAttribute('value', '新值')</code> 更新欄位，第一次進頁面有效，但使用者打過字之後就完全沒反應」。請用 content attribute 與 IDL property 的關係解釋原因，並給出正確寫法。</div>
+  <button class="toggle" data-t="e1" style="margin-top:9px">看參考方向</button>
+  <div class="ans" id="e1">
+    畫面上顯示的是 <strong>IDL property</strong> <code>el.value</code>。頁面剛載入時 property 還是「乾淨」的，會跟著 content attribute 走，所以改 attribute 看得到效果。
+    使用者一輸入，瀏覽器就把該 input 的 <strong>dirty value flag</strong> 設起來，從此 property 不再跟隨 attribute，<code>setAttribute</code> 只改到了「預設值」（等同 <code>defaultValue</code>），畫面當然不動。
+    正確寫法是直接寫 property：<code>el.value = '新值'</code>。若同時想改掉 reset 後會回到的預設值，才另外寫 <code>el.defaultValue = '新值'</code>。
+  </div>
+</div>
+<div class="essay">
+  <div class="q">2. 用「動詞—受詞—拋接關係」的完整句子，描述使用者按下 submit 到伺服器收到資料之間的每一步，並指出哪一步決定了「有些欄位沒被送出」。</div>
+  <button class="toggle" data-t="e2" style="margin-top:9px">看參考方向</button>
+  <div class="ans" id="e2">
+    使用者按下按鈕 → 瀏覽器對該 <code>&lt;form&gt;</code> 觸發 submit 事件 → 瀏覽器走訪 form 內所有可提交控制項，<strong>只收集有 <code>name</code> 的那些</strong>，把它們的 <code>name</code> 與<strong>當前 IDL property 值</strong>組成 form data set → 瀏覽器依 <code>method</code> 把 data set 編碼（GET 接成 query string 貼在 URL 後，POST 放進 request body）→ 瀏覽器向 <code>action</code> 的 URL 送出 HTTP request → 伺服器解析後回應 → 瀏覽器用回應內容整頁換掉。<br>
+    決定「沒被送出」的是<strong>第三步</strong>：沒有 <code>name</code> 的控制項在收集階段就被跳過，不論它有沒有 <code>id</code>、有沒有值。
+  </div>
+</div>
+<div class="essay">
+  <div class="q">3. 為什麼 HTML 規格要同時維持 content attribute 與 IDL property 兩套，而不是只留一套就好？請各舉一個「只有那一套做得到」的情境。</div>
+  <button class="toggle" data-t="e3" style="margin-top:9px">看參考方向</button>
+  <div class="ans" id="e3">
+    因為兩套回答的是<strong>不同問題</strong>：attribute 回答「這份文件被作者寫成什麼樣」，property 回答「這個元素此刻處於什麼狀態」。<br>
+    只有 attribute 做得到：序列化（<code>el.outerHTML</code>、SSR 輸出 HTML 字串）、CSS 屬性選擇器 <code>input[value="x"]</code>、以及表單 reset 要回到的那個基準值。<br>
+    只有 property 做得到：表達非字串型別（<code>el.checked</code> 是真 Boolean、<code>el.classList</code> 是 DOMTokenList）、表達使用者互動後才存在的狀態（打了什麼字、選了哪一項），這些在原始碼裡從來沒被寫過，attribute 無從記起。
+  </div>
+</div>
+
+<footer class="page">
+  由 Gemini 對話自動整理 · 更新於 2026-09-19<br>
+  對應 Markdown：<code>content-attribute-vs-IDL-property-與表單提交機制.md</code>
+</footer>
+
+</div>
+
+<script>
+var FIG = {
+  s1:'<strong>① 使用者按下按鈕。</strong>能觸發提交的是 <code>&lt;input type="submit"&gt;</code> 或 <code>&lt;button type="submit"&gt;</code>；注意 form 裡的 <code>&lt;button&gt;</code> 不寫 type 時<strong>預設就是 submit</strong>，這是最常見的誤觸來源。',
+  s2:'<strong>② 瀏覽器觸發 submit 事件。</strong>這是 JS 唯一能插手的時機：<code>e.preventDefault()</code> 會讓後面 ③④⑤⑥ 全部不發生，改由你自己用 fetch 處理。',
+  s3:'<strong>③ 收集 form data set。</strong>瀏覽器走訪 form 內所有可提交控制項，<strong>只收有 <code>name</code> 的</strong>，取的是<strong>當前 IDL property 值</strong>（不是 HTML 上那串字）。沒有 name 的欄位就算有 id、有值，也整個被略過。',
+  s4:'<strong>④ 依 method 編碼。</strong>GET 把 data set 接成 query string 貼在 URL 後面（<code>?q=mytext</code>）；POST 放進 request body。不寫 method 時預設是 GET，所以密碼類資料一定要明寫 POST。',
+  s5:'<strong>⑤ 送出 HTTP request。</strong>目的地是 <code>&lt;form action&gt;</code> 指定的 URL。沒寫 action 就送回當前頁面的 URL。',
+  s6:'<strong>⑥ 整頁換掉。</strong>這是傳統表單最大的特徵——瀏覽器用回應內容重新導航，整頁刷新、JS 狀態全部歸零。想避免就得回到 ② 攔下來。',
+  spa:'<strong>SPA 的岔路。</strong>在 ② 攔下之後，仍然建議保留 <code>&lt;form&gt;</code> 與 <code>name</code>：一來 <code>new FormData(formEl)</code> 能一行收齊所有欄位（走的就是 ③ 那個規格演算法），二來鍵盤按 Enter 送出、螢幕閱讀器的表單語意都靠它。',
+  two:'<strong>貫穿全圖的兩套屬性。</strong>③ 收集的是 IDL property 的<strong>當前值</strong>，不是 HTML 原始碼上那串字。這正是為什麼 <code>value</code> 兩邊會分家——使用者打過字之後 dirty value flag 被設起，property 走自己的路，而提交送的是 property。'
+};
+document.querySelectorAll('svg .node').forEach(function(n){
+  n.addEventListener('click', function(){
+    document.querySelectorAll('svg .node').forEach(function(x){x.classList.remove('on')});
+    n.classList.add('on');
+    document.getElementById('figOut').innerHTML = FIG[n.dataset.k] || '';
+  });
+});
+
+document.querySelectorAll('.blank').forEach(function(b){
+  b.textContent = b.dataset.a;
+  b.addEventListener('click', function(){ b.classList.toggle('show'); });
+});
+
+document.querySelectorAll('.toggle').forEach(function(btn){
+  var label = btn.textContent;
+  btn.addEventListener('click', function(){
+    var el = document.getElementById(btn.dataset.t);
+    el.classList.toggle('open');
+    btn.textContent = el.classList.contains('open') ? '收起答案' : label;
+  });
+});
+
+var TF = [
+  {q:'IDL 是一種讓前端工程師拿來寫網頁的語言。', a:false,
+   e:'錯。IDL（Interface Definition Language）是<strong>規格作者</strong>用來描述「這個介面有哪些成員、各是什麼型別」的語言，Web 平台用的方言叫 Web IDL。瀏覽器實作者照著它把 C++ 物件包成 JS 看得懂的樣子，你不會直接寫它。'},
+  {q:'<code>&lt;input maxlength="10"&gt;</code> 的 content attribute 值是數字 10。', a:false,
+   e:'錯。<strong>content attribute 的值永遠是字串</strong>，這裡是 <code>"10"</code>。有真型別的是 IDL property：<code>el.maxLength</code> 才是 Number <code>10</code>。'},
+  {q:'使用者在輸入框打了字之後，<code>el.getAttribute(\'value\')</code> 會跟著變成新打的字。', a:false,
+   e:'錯，這是最常踩的坑。<code>value</code> 屬於「只作為初始值，之後分家」那一類：<code>getAttribute(\'value\')</code> 永遠是原始碼寫的預設值，要拿當前值必須用 <code>el.value</code>。'},
+  {q:'表單提交時，瀏覽器用 <code>id</code> 當作送給伺服器的 key。', a:false,
+   e:'錯。key 來自 <code>name</code> 屬性。<code>id</code> 是給 CSS／JS／<code>&lt;label for&gt;</code> 用的，<strong>沒有 name 的欄位連送都不會被送出</strong>。'},
+  {q:'把 <code>&lt;button&gt;送出&lt;/button&gt;</code> 放在 form 裡而不寫 type，它只是個普通按鈕，不會提交表單。', a:false,
+   e:'錯。form 裡的 <code>&lt;button&gt;</code> <strong>預設就是 <code>type="submit"</code></strong>，會整頁刷新。只想跑 JS 要明寫 <code>type="button"</code>。'},
+  {q:'<code>&lt;input type="submit"&gt;</code> 跟 <code>&lt;button type="submit"&gt;</code> 提交行為相同，但前者不能包子元素。', a:true,
+   e:'對。兩者提交行為一樣，差別在 <code>&lt;input&gt;</code> 是空元素、按鈕文字只能靠 <code>value</code> 放純文字；<code>&lt;button&gt;</code> 能包 <code>&lt;svg&gt;</code>／<code>&lt;strong&gt;</code> 等子元素，所以現代預設選 button。'},
+  {q:'<code>&lt;label for="keyword"&gt;</code> 的 <code>for</code> 指向的是欄位的 <code>name</code>。', a:false,
+   e:'錯，指向的是 <code>id</code>。順帶一提這個屬性在 JS 側叫 <code>el.htmlFor</code>（因為 <code>for</code> 是 JS 保留字），屬於「名字不同但仍反映」那一類。'},
+  {q:'在 SPA 裡既然要用 fetch 自己送，就沒必要再寫 <code>&lt;form&gt;</code> 和 <code>name</code> 了。', a:false,
+   e:'錯。保留它們有兩個實際好處：<code>new FormData(formEl)</code> 能一行收齊所有有 name 的欄位（走的就是規格的收集演算法）；而且鍵盤按 Enter 送出、螢幕閱讀器的表單語意都依賴 <code>&lt;form&gt;</code>。'}
+];
+var box = document.getElementById('tfbox');
+TF.forEach(function(item, i){
+  var d = document.createElement('div');
+  d.className = 'tf';
+  d.innerHTML = '<div class="q">' + (i+1) + '. ' + item.q + '</div>'
+    + '<button data-v="1">⭕ 對</button><button data-v="0">❌ 錯</button><div class="fb"></div>';
+  var fb = d.querySelector('.fb');
+  d.querySelectorAll('button').forEach(function(b){
+    b.addEventListener('click', function(){
+      var right = (b.dataset.v === '1') === item.a;
+      fb.innerHTML = (right ? '<span class="ok">✔ 答對了。</span> ' : '<span class="no">✘ 再想一下。</span> ') + item.e;
+      fb.classList.add('open');
+    });
+  });
+  box.appendChild(d);
+});
+</script>
+</body>
+</html>

@@ -2,17 +2,23 @@
 title: 字串不可變性（JS vs C）與 let 區塊變數遮蔽下的 TDZ
 type: topic-note
 source: Gemini
-tags: [gemini, javascript, string, immutable, tdz, hoisting, memory]
+tags: [gemini, javascript, string, immutable, tdz, hoisting, memory, gc, auto-boxing, wrapper-object, replace]
 aliases: [字串不可變性-JS-vs-C-與TDZ變數遮蔽]
 related:
   - "[[04-變數宣告-let-const-var]]"
   - "[[09-Hoisting-函式宣告vs函式表達式-TDZ]]"
   - "[[10-傳值vs傳址-賦值與記憶體空間]]"
   - "[[11-記憶體模型-stack-heap-動態配置-GC]]"
+  - "[[全域變數的GC回收時機-Reachability與window生命週期]]"
+  - "[[比較三兄弟-鬆散等於-嚴格等於-Object-is-與React-Vue的狀態比對]]"
+  - "[[15-ToPrimitive-ToNumber-型別轉換抽象操作]]"
+  - "[[content-attribute-vs-IDL-property-與表單提交機制]]"
 sources:
   - https://gemini.google.com/app/41d3c779dee10274
   - https://gemini.google.com/app/f4da8ca9d6c67841
-updated: 2026-09-05
+  - https://gemini.google.com/app/982a8a4c879baf13
+  - https://gemini.google.com/app/c2e73f83487fd392
+updated: 2026-09-19
 ---
 
 # 字串不可變性（JS vs C）與 let 區塊變數遮蔽下的 TDZ
@@ -20,7 +26,7 @@ updated: 2026-09-05
 > [!info]- 🔗 與既有筆記的關聯
 > 本篇是 Gemini 來源的補充筆記。字串不可變性是全新主題（vault 尚無專篇），歸進 JS_Core_and_Runtime；TDZ 部分與 [[04-變數宣告-let-const-var]]（手寫，同層變數作用域坑）、[[09-Hoisting-函式宣告vs函式表達式-TDZ]]（Gemini 來源，函式宣告 vs 函式表達式的 TDZ）主題重疊但角度不同，本篇補的是「函式內部宣告同名 let 變數時，TDZ 如何跟作用域鏈的名稱遮蔽（shadowing）互動」這個更細的情境，兩篇既有筆記都是手寫或另一子主題，依筆記工作守則不直接編輯，改開新篇並互相 wikilink。與 [[10-傳值vs傳址-賦值與記憶體空間]] 的「變數是指標、值是記憶體實體資料」概念也直接相關。
 
-本篇重點 a–s，共 19 個
+本篇重點 a–z，共 26 個
 
 ---
 
@@ -207,6 +213,57 @@ console.log(str);             // "Hello World"
 
 (s) <mark style="background: #FF5582A6;">這是面試常考的陷阱</mark>：`+` 對字串是串接、對數字是加法，而 `-` 只有數字語意，所以 `'7' - 7` 會得到 `0`（字串被轉成數字），但 `'7' + 7` 得到 `"77"`。詳細的轉換規則見 [[15-ToPrimitive-ToNumber-型別轉換抽象操作]]。
 
+### 追加 2026-09-19：那個「沒人接住」的新字串去了哪裡，以及字串為什麼能呼叫方法
+
+(t) <mark style="background: #FFF3A3A6;">`str.replace("a","b")` 會佔用新的記憶體</mark>，理由跟 (p) 的 `substring`／`concat` 完全一樣：<mark style="background: #ADCCFFA6;">字串不可變，所以任何「修改」都只能靠新建一塊</mark>。這不是 `replace` 特別耗資源，而是整個 String API 的共同體質。
+
+(u) <mark style="background: #BBFABBA6;">沒有變數接住的回傳值，走的是「建立 → 失去可達性 → 等 GC」這條路</mark>。把 (c) 那條「舊值沒人參照就會被 GC 回收」反過來看就懂了：(c) 講的是「舊字串被拋下」，(u) 講的是「新字串從出生就沒人牽」，兩者最後都落到同一個回收機制。
+
+```js
+str.replace("a", "b");   // 沒用變數接，也沒印出來
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;這一行執行的那一瞬間，引擎確實在 Heap 建了一塊新字串當作回傳值；但因為沒有寫成 `const result = str.replace(...)`、也沒有把它傳給任何函式，<mark style="background: #FF5582A6;">這行結束時它就變成 unreachable（無法從根物件走到的孤兒）</mark>，下一輪 GC 掃過就被釋放。<mark style="background: #D2B3FFA6;">短暫佔用過記憶體，但不會造成洩漏</mark>。
+
+(v) <mark style="background: #FF5582A6;">要小心的是「大字串 × 大量重複替換」</mark>：單次替換的暫時開銷可以忽略，但在迴圈裡對一個很大的字串連續 `replace`，每一輪都在 Heap 新建一塊近乎同樣大的字串，會把 GC 壓力拉高。處理大量文字時改用陣列收集片段再 `join('')`，或直接用一次性的正規表達式全域替換 `str.replace(/a/g, 'b')`。
+
+> [!note]+ ⚠️ 存疑／更正（2026-09-19）
+> Gemini 說「字串（String）是**不可變的（Primitive / Immutable）**」，把 primitive 與 immutable 當成同一件事寫在一起——<mark style="background: #FF5582A6;">這兩個概念是分開的</mark>：primitive 講的是「型別分類」，immutable 講的是「值能不能被原地改寫」。
+> 另外它說「新字串會被分配到新的記憶體空間」在語意上成立，但<mark style="background: #ADCCFFA6;">實作細節上 V8 不一定真的複製整塊</mark>：拼接時常先做成 ConsString（把兩塊的指標串起來的「繩索」結構），等到真的要逐字元讀時才 flatten 成連續記憶體。這不影響「你看到的是一個新字串」這個語意，只影響效能直覺。
+
+(w) <mark style="background: #ADCCFFA6;">字串明明是 primitive，為什麼能呼叫 `.toUpperCase()`、讀 `.length`</mark>？因為有**自動包裝（auto-boxing）**。引擎在背後做三步：
+
+1. 暫時把原始字串包成一個 `String` 物件（概念上等同 `new String("hello")`）
+2. 在這個臨時物件上執行方法或讀屬性
+3. 用完<mark style="background: #BBFABBA6;">立刻丟棄該臨時物件</mark>（又是一個 (u) 式的 unreachable 物件，交給 GC）
+
+&nbsp;&nbsp;&nbsp;&nbsp;JS 的 7 種 primitive 裡，<mark style="background: #FFF3A3A6;">String／Number／Boolean／Symbol／BigInt 有對應的包裝物件，`null` 與 `undefined` 沒有</mark>，所以 `null.toString()` 會直接丟 `TypeError`。
+
+(x) <mark style="background: #FF5582A6;">日常開發一律用純值，不要寫 `new String()`</mark>，因為它會製造出一個真正的物件，行為跟純值不一樣：
+
+```js
+let primitive = "hello";           // 原始型別（推薦）
+let boxed     = new String("hello"); // String 物件（不推薦）
+
+typeof primitive;        // "string"
+typeof boxed;            // "object"   ← 型別就不同了
+
+primitive ==  boxed;     // true   （鬆散等於會先 ToPrimitive，值相同）
+primitive === boxed;     // false  （嚴格等於連型別一起比）
+
+Boolean(new String(""))  // true ← 空字串物件是 truthy，最惡名昭彰的坑
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;比較規則的細節見 [[比較三兄弟-鬆散等於-嚴格等於-Object-is-與React-Vue的狀態比對]] 與 [[15-ToPrimitive-ToNumber-型別轉換抽象操作]]。
+
+> [!danger]+ ⚠️ 存疑／更正（2026-09-19）：Gemini 的程式碼是錯的
+> 它寫成 <mark style="background: #FF5582A6;">`console.typeof(primitive)`</mark>，<mark style="background: #FF5582A6;">這不是合法語法</mark>——`console` 物件上沒有 `typeof` 這個方法，照抄會丟 `TypeError: console.typeof is not a function`。
+> <mark style="background: #BBFABBA6;">正確寫法是 `typeof primitive`</mark>：`typeof` 是**一元運算子**不是函式，所以不需要（也不該）用點號掛在 `console` 底下；要印出來要寫成 `console.log(typeof primitive)`。
+
+(y) <mark style="background: #D2B3FFA6;">auto-boxing 與字串駐留（(g)）是兩件互補的事</mark>：駐留讓「相同的字串字面值共用同一塊記憶體」，auto-boxing 讓「那塊唯讀的記憶體也能用物件的方式操作」。兩者都只有在「字串不可變」這個前提成立時才做得到——可變的話，共用會互相污染，臨時包裝也會寫回原值。
+
+(z) <mark style="background: #FFF3A3A6;">把 (t)(u)(w) 串成一條線記</mark>：<mark style="background: #BBFABBA6;">JS 的字串操作是一台「只出不進」的機器</mark>——每次呼叫方法都在 Heap 產出一塊新東西（新字串或臨時包裝物件），原料（原字串）原封不動，產物有人接就活著、沒人接就等 GC。理解這一條，`replace` 的記憶體問題、`substring` 為什麼要重新賦值、`.length` 為什麼能讀，全部是同一個答案的三種問法。
+
 ### 追加來源：JavaScript 字串的不可變性與操作（2026-09-05）— https://gemini.google.com/app/f4da8ca9d6c67841
 
 **使用者：** 當我們用 `substring()` 來擷取字串，或用 `concat()` 來把兩個字串合為一，這些都是會回傳另一個字串，而非改變原本的字串。示範
@@ -237,6 +294,34 @@ console.log(str);             // "Hello World"
 
 **Gemini：** 完全正確！你的理解非常精準。宣告被提升鎖定了變數名稱，而執行到 `console.log(x)` 時，因為它還處在暫時性死區、也就是還沒初始化的狀態，所以才會立刻爆出 `ReferenceError`。
 
+### JavaScript 字串取代的記憶體佔用（2026-09-19 擷取）— https://gemini.google.com/app/982a8a4c879baf13
+
+**使用者：** 「這樣會佔新的記憶體空間嗎」
+
+**Gemini：** 會的，會佔用新的記憶體空間。在 JavaScript 中，字串（String）是不可變的（Primitive／Immutable）。不可變特性：`replace()` 方法不會修改原本的字串，而是建立並傳回一個全新的字串物件／值。記憶體配置：這個新產生的字串會被分配到新的記憶體空間中；如果原本的字串沒有其他變數引用，後續才會被垃圾回收機制（Garbage Collection）釋放。如果在處理極大字串或進行大量重複的替換操作，建議注意記憶體的暫時開銷。
+
+**使用者：** 「那他回傳的新字串會記錄在哪 沒變數保存它阿」
+
+**Gemini：** 如果不使用變數去接收回傳的新字串，這個新字串會經歷三個過程。（1）暫時儲存在 Heap 記憶體：執行 `replace()` 時，JavaScript 引擎會在 Heap 中建立這個新的字串物件／值，並將它作為該函式的回傳值。（2）如果沒有任何引用：因為沒有寫成 `const result = str.replace(...)` 來用變數指向它，也沒有把它傳給其他函式（例如 `console.log(str.replace(...))`），這個新字串在該行程式碼執行完畢後就會變成無法被存取的孤兒物件（Unreachable object）。（3）觸發垃圾回收：GC 會定期掃描記憶體，當它發現這個字串沒有被任何變數或物件引用時，就會在適當的時機自動將這塊記憶體釋放掉。
+
+**使用者：** 「啥意思」
+
+**Gemini：** 白話來說，`str.replace("a", "b");` 這行執行的那一瞬間，JS 引擎確實默默在記憶體裡產生了一個新字串；但因為你沒有給它名字（變數），程式碼執行到下一行時，這塊記憶體就變成了再也找不到的廢棄物。就像你在紙上寫了一個新單字，但沒有把紙張貼到公告欄，也沒交給任何人；雖然這個單字佔用了紙張的一小角，但因為誰都拿不到這張紙，清潔工（Garbage Collector）過不久就會把它扔進垃圾桶。所以它雖然短暫佔用過記憶體，但會立刻變成可回收狀態，不會造成記憶體永久洩漏。
+
+⚠️ **存疑／更正：**「Primitive／Immutable」把兩個不同概念寫成同一件事；「分配到新的記憶體空間」語意上成立但實作上 V8 常先做成 ConsString 再延後 flatten。見重點 (t)(u) 的 callout。
+
+### HTML表單與IDL屬性解析（岔題段，2026-09-19 擷取）— https://gemini.google.com/app/c2e73f83487fd392
+
+（本對話的主題是 HTML 表單與 IDL 屬性，完整原文見 [[content-attribute-vs-IDL-property-與表單提交機制]]；此處只收與字串包裝物件相關的最後一問。）
+
+**使用者：** 「所以還有一個 STRING 物件是因為資料型別都互有一個自己的的物件嗎？」
+
+**Gemini：** 在 JavaScript 與網頁環境中，答案是是的，大部分原始型別都有對應的包裝物件（Wrapper Objects）。JavaScript 有 7 種原始型別，其中 String ↔ 字串、Number ↔ 數字、Boolean ↔ 布林值、Symbol ↔ 符號、BigInt ↔ 大整數都有對應的全域物件；`null` 與 `undefined` 這兩個沒有對應的物件包裝器。
+&nbsp;&nbsp;&nbsp;&nbsp;為什麼字串可以呼叫方法？當你寫 `let str = "hello";` 時它只是一段純資料並不是物件，但當你執行 `str.toUpperCase()` 或存取 `str.length` 時，JavaScript 會在背後做三件事（稱為 Auto-boxing 自動包裝）：暫時將原始字串包裝成一個 String 物件（`new String("hello")`）→ 執行物件上的方法或存取屬性 → 執行完畢後立即銷毀該臨時物件。這就是為什麼你不需要手動建立 String 物件，就能直接在純字串上使用各種字串方法。
+&nbsp;&nbsp;&nbsp;&nbsp;雖然有 String 物件存在，但日常開發中強烈建議只使用原始純值，避免使用 `new String()`，因為 `primitive == object` 為 true（值相同）但 `primitive === object` 為 false（型別不同）。
+
+⚠️ **存疑／更正：** 原文的程式碼寫成 `console.typeof(primitive)`，**這不是合法語法**。`typeof` 是一元運算子不是函式，正確寫法是 `typeof primitive`，要印出來寫成 `console.log(typeof primitive)`。見重點 (x) 的 callout。
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本/時間 |
@@ -246,5 +331,13 @@ console.log(str);             // "Hello World"
 | 函式宣告 vs 函式表達式的 TDZ | [[09-Hoisting-函式宣告vs函式表達式-TDZ]] | Abby-notes 既有筆記，updated 2026-07-29 |
 | 傳值 vs 傳址記憶體模型 | [[10-傳值vs傳址-賦值與記憶體空間]] | Abby-notes 既有筆記，updated 2026-07-29 |
 | 字串不可變性的 substring／concat 示範（Gemini 對話） | https://gemini.google.com/app/f4da8ca9d6c67841 | Gemini Flash，2026-09-05 |
+| replace 回傳值的記憶體與 GC（Gemini 對話） | https://gemini.google.com/app/982a8a4c879baf13 | Gemini Flash，2026-09，擷取於 2026-09-19 |
+| String 包裝物件與 auto-boxing（Gemini 對話，岔題段） | https://gemini.google.com/app/c2e73f83487fd392 | Gemini Flash，2026-09，擷取於 2026-09-19 |
+| MDN：String.prototype.replace（回傳新字串，不改原字串） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replace | MDN，查證於 2026-09-19 |
+| MDN：Primitive 與 wrapper object（auto-boxing） | https://developer.mozilla.org/en-US/docs/Glossary/Primitive | MDN，查證於 2026-09-19 |
+| MDN：typeof 是運算子不是函式 | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof | MDN，查證於 2026-09-19 |
+| V8 對字串拼接的 ConsString／flatten 機制 | https://v8.dev/blog/string-concatenation | V8 官方部落格，查證於 2026-09-19 |
 
-本篇 Gemini 內容與 MDN《String》《let》《Hoisting》等標準文件描述一致，未發現需要標記存疑/更正之處；g 點的「字串駐留」屬引擎（如 V8）實作優化，非 ECMAScript 規格強制保證行為，已在該點註明。
+2026-08／2026-09-05 兩次的 Gemini 內容與 MDN《String》《let》《Hoisting》等標準文件描述一致，未發現需要標記存疑／更正之處；g 點的「字串駐留」屬引擎（如 V8）實作優化，非 ECMAScript 規格強制保證行為，已在該點註明。
+
+2026-09-19 這次追加的兩段**有兩處需要更正**，已在內文標出：(t)(u) 的「Primitive／Immutable 被寫成同一件事」與「新字串一定被複製到新空間」（V8 實際上常先做 ConsString），以及 (x) 的 <mark style="background: #FF5582A6;">`console.typeof(primitive)` 不是合法語法</mark>，正確是 `typeof primitive`。

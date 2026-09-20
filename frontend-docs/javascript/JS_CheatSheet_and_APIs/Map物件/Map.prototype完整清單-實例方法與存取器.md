@@ -12,6 +12,7 @@ source:
 > [!info] 承接
 > a. 承接 [[Object靜態方法速查]] 的「兩個盒子」章節：那裡說 `map.set(...)` 是實例方法、`Map.groupBy(...)` 是靜態方法，這篇把 `Map.prototype` 整個攤開來數。
 > b. 承接 [[Object建構子-plain-object的建立與存取]] 的 b 節：那篇說 Map 不是 plain object，因為第 1 階原型是 `Map.prototype`。這篇就是那一階裡面有什麼。
+> c. 對照 [[Set.prototype-原型物件-無字面量-toStringTag與擴充內建原型]]：Map 與 Set 是同一批 keyed collection，原型結構完全同構（實例 → `X.prototype` → `Object.prototype` → `null`，`[Symbol.toStringTag]` 都掛在第 1 階）。這篇列 Map 的方法清單，那篇講原型機制本身，兩篇互補著看就不用背兩次。
 > c. 用到 [[屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys]]：要數完整必須用 `Reflect.ownKeys`，不能只用 `getOwnPropertyNames`。
 
 ---

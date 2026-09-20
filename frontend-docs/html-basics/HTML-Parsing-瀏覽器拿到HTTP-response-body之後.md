@@ -1,7 +1,7 @@
 ---
 title: "HTML Parsing：瀏覽器拿到 HTTP response body 之後（bytes → DOM 四步）"
 type: topic-note
-source: Claude
+source: Claude（2026-09-19 追加 §6-1，來源 Gemini）
 category: 技術
 tags: [html, html-parsing, tokenization, tree-construction, insertion-mode, dom, prototype-chain, eventtarget, encoding, charset, bytes, webidl, runtime]
 related:
@@ -11,12 +11,13 @@ related:
   - "[[SPA架構-入口點-CSR客戶端效能與狀態-部署]]"
   - "[[00-V8引擎完整管線-Parse到Deoptimization]]"
   - "[[Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪]]"
+  - "[[content-attribute-vs-IDL-property-與表單提交機制]]"
 quiz: HTML-Parsing-瀏覽器拿到HTTP-response-body之後.html
-updated: 2026-09-08
+updated: 2026-09-19
 ---
 # HTML Parsing：瀏覽器拿到 HTTP response body 之後
 
-> 本篇重點 a–v，共 22 個。
+> 本篇重點 a–w，共 23 個。
 > 這篇是 [[script載入方式+前因後果]] 的**前傳**：那篇開頭那句「收到的是純文字字串」，這篇把它整條展開。
 > 互動版（含兩張 SVG 主軸圖、填空、是非題、申論題）：`HTML-Parsing-瀏覽器拿到HTTP-response-body之後.html`
 
@@ -35,6 +36,7 @@ updated: 2026-09-08
 | Q7 | DOM 節點就是 JS 物件嗎？ | **半對**。在 JS 側像 JS 物件，實體是引擎的 C++ 物件，中間隔一層 WebIDL 包裝 | §5 |
 | Q8 | `extends` 是誰繼承誰？ | `子 extends 父`。`HTMLDivElement extends HTMLElement` ＝ Div 是子 | §5 |
 | Q9 | CSR / SSR / PHP / Rails 的解析流程有差嗎？ | **四步完全一樣**。差別在「四步跑完畫面上有沒有東西」 | §6 |
+| Q9-b | CSR 白畫面時 DOM 到底生成了沒？ | **骨架好了，內容沒蓋**。`getElementById('root')` 抓得到，只是它是空的 | §6-1 |
 | Q10 | Markdown 變 DOM 一定要先轉 HTML 字串嗎？ | **有例外**。react-markdown 全程不產生 HTML 字串 | §7 |
 | Q11 | 轉譯之後才能做 HTML Parsing 嗎？ | **不是**。兩者對象／機器／時間都不同，沒有依賴 | §3-b |
 
@@ -355,6 +357,32 @@ after after frameset
 
 一分鐘驗證法：`Ctrl+U`（伺服器原始字串）對比 `F12 → Elements`（現在的 DOM）。差很多且 `#root` 空 → CSR；幾乎一樣 → SSR/SSG/PHP/Rails。
 
+### 6-1. 「此時 DOM 還沒生成對嗎？」—— 這句話要拆成兩個問題才答得準
+
+w. <mark style="background: #FF5582A6;">看到 CSR 的白畫面就說「DOM 還沒生成」，是把「容器」跟「內容」混成一件事</mark>。<mark style="background: #BBFABBA6;">正確的說法是：**骨架 DOM 已經好了，內容 DOM 還沒蓋**</mark>。把上表 CSR 那一列展開成時間軸就看得很清楚：
+
+```text
+CSR 首次載入的時間軸（四步結束的那一刻打上 ★）
+
+ ①bytes → ②decode → ③tokenize → ④tree construction ──★── ⑤JS 下載/執行 → ⑥framework mount
+                                        │                           │
+                                        ▼                           ▼
+                           此時文件樹上「已經有」：              此時文件樹上「才出現」：
+                             <html> <head> <body>               <div id="root">
+                             <div id="root"></div>  ← 空的         └─ <App> 展開出來的
+                             <script src="bundle.js">                 幾百個節點
+                                        │
+                                        └─ 在 ★ 這一刻執行
+                                           document.getElementById('root')
+                                           → 抓得到！只是它是空的
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;所以同一個問題的兩個答案都成立，端看你問的是哪一層：<mark style="background: #ADCCFFA6;">問「`document.getElementById('root')` 抓不抓得到」→ **抓得到**（步驟 ④ 已經把它建成節點）</mark>；<mark style="background: #ADCCFFA6;">問「畫面上看不看得到東西」→ **看不到**（bundle.js 還在下載或剛開始執行，React／Vue 元件還沒 mount）</mark>。
+
+&nbsp;&nbsp;&nbsp;&nbsp;這也正是入口檔 `main.tsx` 寫 `createRoot(document.getElementById('root')!).render(<App />)` 能跑得通的前提——它<mark style="background: #FFF3A3A6;">依賴的就是「④ 已經跑完、⑤ 才輪到我」這個順序</mark>。若把 `<script>` 放在 `<head>` 且不加 `defer`，執行時機被提前到 ④ 還沒建到 `<div id="root">` 的時候，`getElementById` 就會回 `null`，這是 [[script載入方式-sync-defer-async]] 那篇講的同一件事從 DOM 這一側看。
+
+&nbsp;&nbsp;&nbsp;&nbsp;順帶把名詞對齊：這份只有骨架的 HTML 常被叫做 **shell**（外殼）或 **app shell**，Vite／CRA 產生的 `index.html` 就是它。
+
 ---
 
 ## 7. Markdown → DOM 的兩條路
@@ -429,3 +457,5 @@ after after frameset
 | DOM 是 platform object、透過 WebIDL 暴露給 JS | https://webidl.spec.whatwg.org/#idl-interfaces | Living Standard，2026-09-08 查證 |
 | speculative parsing | https://developer.mozilla.org/en-US/docs/Glossary/Speculative_parsing | 2026-09-08 查證 |
 | DOMParser | https://developer.mozilla.org/en-US/docs/Web/API/DOMParser | 2026-09-08 查證 |
+
+> **§6-1 的來源補充（2026-09-19）：** 該小節由 Gemini 對話〈DOM 生成狀態解析〉`https://gemini.google.com/app/5e3f9817d777f2f1`（Gemini Flash，2026-09，擷取於 2026-09-19）整併而來。對話原文：使用者問「所以此時 DOM 還沒生成對嗎」，Gemini 答「DOM 已經生成了，但裡面實質的 UI 畫面內容還沒生成」——瀏覽器已把 `<html>`／`<head>`／`<body>` 以及 `<div id="root"></div>` 解析成 DOM 節點，此時執行 `document.getElementById('root')` 可以抓到這個空的 div；而 `<script src="bundle.js">` 還在加載或剛開始執行，JavaScript 還沒把 React／Vue 元件掛載（Mount）並動態建立相應的 DOM 節點，簡單來說「容器（骨架）DOM 已經好，內容（UI）DOM 還沒蓋」。此段經與 WHATWG HTML 規格的 tree construction 與 `defer`／`async` 執行時機核對，未發現錯誤，已補上 shell／app shell 的正式名詞與 `<script>` 放置位置的對照。

@@ -6,12 +6,13 @@ tags: [gemini, frontend, 效能, fcp, lighthouse, seo, googlebot, csr, ssr, bund
 sources:
   - https://gemini.google.com/app/9e25a1fa1fe501e3
   - https://gemini.google.com/app/7ee6da02bef71e28
-updated: 2026-08-27
+  - https://gemini.google.com/app/d5f7dbd042133ecb
+updated: 2026-09-16
 ---
 
 # FCP 首次內容繪製 — 與 SEO 爬蟲的關係，以及打包五步驟怎麼影響它
 
-本篇重點 a–t，共 20 個
+本篇重點 a–y，共 25 個
 
 ## 重點整理
 
@@ -95,9 +96,36 @@ s. <mark style="background: #FFF3A3;">Abby 原本的直覺是對的</mark>：「
 
 t. <mark style="background: #D2B3FF;">延伸備註</mark>：FCP 只是 Lighthouse 效能分數的其中一項權重，另外還有 LCP（Largest Contentful Paint，最大內容繪製）、TBT（Total Blocking Time，總阻塞時間）、CLS（Cumulative Layout Shift，累積版面配置位移）等指標，優化時不要只盯著 FCP 一個數字。
 
+u. <mark style="background: #FF5582;">反例：五步驟全部做好，FCP 還是可能很爛。</mark>Abby 的 `next-one-main` 專案 `/dashboard` 頁，gzip 後的首屏 bundle 只有 177,000 bytes，FCP 卻是 5.24 秒。<mark style="background: #FFF3A3;">這證明 (q)(r)(s) 那條「體積 → 傳輸時間 → FCP」的因果鏈只是其中一條路徑</mark>，另外還有兩條與體積無關的路徑：<mark style="background: #ADCCFF;">伺服器吐出來的 HTML 裡根本沒有內容</mark>，以及<mark style="background: #ADCCFF;">渲染被阻塞（render-blocking）</mark>。
+
+v. <mark style="background: #ADCCFF;">預渲染（Pre-rendering）的產物是一個實體檔案，就躺在硬碟上。</mark>這件事最反直覺，所以把兩種模式的生命週期拆開講：
+
+| 比較項目 | 純前端 SPA（CSR，例如 Vite、CRA） | Next.js 預渲染（SSG／SSR） |
+| --- | --- | --- |
+| 建置期（`npm run build`）做什麼 | 打包工具只產出一個空殼 `index.html`（裡面只有 `<div id="root"></div>`）加上打包好的 JS | Next.js 用 Node.js 把 `Dashboard.tsx` 這個 React 元件真的執行一遍，把元件樹 render 成 HTML 標籤字串 |
+| 建置期的產物 | 空殼 HTML ＋ JS chunk | `.next/server/app/dashboard.html` 這份寫滿真實標籤的實體檔案 |
+| 執行期（使用者開網頁）做什麼 | 瀏覽器下載 JS → 執行 React → 在瀏覽器裡動態生成 DOM，這時才第一次發生渲染 | 伺服器直接把建置期寫好的 HTML 丟給瀏覽器，瀏覽器立刻畫得出畫面，JS 隨後下載做 Hydration 接管互動 |
+| 硬碟上有沒有預先渲染好的 HTML | 沒有 | 有 |
+| FCP 的起跑點 | 要等 JS 下載並執行完 | HTML 一到就開始 |
+
+w. 所以 <mark style="background: #BBFABB;">「去打開 `.next/server/app/dashboard.html` 看裡面有沒有字」是判斷責任歸屬的決定性一步</mark>，主詞—動詞—受詞寫清楚是這樣：你用 `sed` 把 HTML 裡的 `<script>` 標籤全部抹掉 → 產物是一份只剩純結構的 HTML → 再交給眼睛判斷。兩種結果分別指向不同的兇手：
+
+   1. <mark style="background: #BBFABB;">假設 A（預渲染成功）</mark>：檔案裡寫滿 `<h1>Dashboard</h1><p>Welcome...</p>`。代表伺服器有做好預渲染，問題出在瀏覽器收到 HTML 之後——被 CSS 擋住，或 Hydration 塞車。
+   2. <mark style="background: #FF5582;">假設 B（預渲染失敗，只有空骨架）</mark>：檔案裡只有 `<div id="app"></div>` 或一個轉圈圈的 `<svg class="spinner">`。代表伺服器根本沒幫你渲染出真正的內容，瀏覽器還是得等 JS 下載完才動態抓資料，FCP 自然爛掉。
+
+   常見的 B 成因是 <mark style="background: #ADCCFF;">CSR bailout</mark>（例如在上層元件呼叫 `useSearchParams`），細節見 [[usePathname與useSearchParams-預渲染Bailout]]。
+
+x. <mark style="background: #ADCCFF;">Render-blocking（阻塞繪製）</mark>是第二條與體積無關的路徑。瀏覽器在解析 HTML 時遇到 `<link rel="stylesheet">`，或遇到沒有標 `async` / `defer` 的 `<script>`，會<mark style="background: #FFF3A3;">完全暫停渲染</mark>，等資源下載並解析完才繼續。它堅持這樣做是為了避免畫面先閃一下沒有樣式的內容（FOUC，Flash of Unstyled Content）。
+
+y. 字型是 render-blocking 裡最容易被忽略的一種。<mark style="background: #FF5582;">如果 `@font-face` 設了 `font-display: block`，在字型檔下載完成前文字會完全隱形</mark>，這叫 <mark style="background: #ADCCFF;">FOIT（Flash of Invisible Text，不可見文字閃爍）</mark>，FCP 會被硬生生拉長。<mark style="background: #BBFABB;">修法是改成 `font-display: swap`</mark>，讓瀏覽器先用系統字型把字畫出來，字型檔到了再換掉。在 Next.js 用 `next/font` 會自動幫你設好這件事。
+
 ## 圖解
 
 ![FCP 與 Googlebot 時間線對比圖](images/FCP與Googlebot時間線對比.svg)
+
+對照 (x)(y) 的 render-blocking，下面這張是 2026-09-16 在 DevTools 裡實際查這件事的畫面。左邊是本 vault 的 `css-兩種卡頓-render-blocking與執行期jank` 那篇筆記，右邊是 DevTools 的 Performance 面板：<mark style="background: #BBFABB;">第一種卡頓（阻塞首屏）要看 Performance 開頭的 Parse Stylesheet，第二種卡頓（執行期 jank）要看滑動時的紅色三角形 Long Task</mark>，兩種卡的量測指標完全不同，不要拿錯面板查。
+
+![DevTools 查 render-blocking 與執行期 jank 的兩個面板](../obsidian-attachment/螢幕擷取畫面%202026-09-16%20192812.png)
 
 ## 練習題（LeetCode／NeetCode 對應）
 
@@ -114,6 +142,10 @@ t. <mark style="background: #D2B3FF;">延伸備註</mark>：FCP 只是 Lighthous
 - [[DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能]] — 本篇 (g) 說 TTFB 決定 FCP 的起跑點，那篇解釋 TTFB 之前的 DNS 與握手成本從哪來。
 - [[CloudFront-CDN概念與快取失效Invalidation]] — 對應 (r) 第 5 步的長期快取策略，CDN 是把這個效果放大到全球節點。
 - [[Node-js底層架構-V8-libuv-Bindings與CSR澄清]] — 那篇已澄清過 CSR 的定義，本篇 (k) 直接沿用該定義討論它對 SEO 的代價。
+- [[usePathname與useSearchParams-預渲染Bailout]] — 本篇 (w) 假設 B「預渲染失敗只剩空骨架」最常見的成因就在那篇，它解釋一個 client hook 怎麼讓整棵樹放棄預渲染。
+- [[FCP-5.24秒-Next.js效能診斷實錄-從指令到根因]] — 本篇 (u)(v)(w) 是觀念，那篇是同一個專案的逐指令實錄：每一步敲了什麼、看到什麼輸出、推論出什麼，最後收斂成三個根因。
+- [[css-兩種卡頓-render-blocking與執行期jank]] — 本篇 (x) 只說 CSS 會擋住首屏，那篇把「擋住首屏」和「畫得出來但滑起來頓」這兩種完全不同的卡分開，並各自對應到不同的 DevTools 面板。
+- [[CJK漢字復用與Noto字體選擇-i18n多語系與Docker打包]] — 本篇 (y) 的 FOIT 與 `font-display`，在那篇會延伸成「CJK 字型檔為什麼特別肥、怎麼子集化」。
 
 ## 各對話來源（原文）
 
@@ -131,10 +163,24 @@ Gemini：（產出一份時間線視覺化資料，內容為：0 ms Googlebot �
 
 文字解答：1. 為什麼 SEO 跟爬蟲有關係：SEO 的核心目的是讓網頁在搜尋結果中排名更高，搜尋引擎透過爬蟲來探索網際網路、下載並讀取網頁內容，然後建立索引。如果爬蟲爬不到您的網頁內容，或爬到的內容是空的，網頁就不會被收錄。2. Google 引擎是用爬蟲嗎：是的，其背後運作的基礎就是 Googlebot。3. 爬蟲不是找資料用的嗎：完全正確，但它找資料的方式決定了它的 SEO 價值；網站索引爬蟲必須更深入地閱讀頁面內容，理解文字、圖片、結構化資料，甚至執行 JavaScript。4. 首次渲染跟爬蟲的關係：傳統伺服器渲染（SSR）伺服器直接回傳包含完整內容的 HTML，爬蟲在 50ms 就能讀取所有內容；客戶端渲染（CSR）伺服器只回傳一個空的 HTML 外殼，內容全靠瀏覽器下載並執行 JS 後才產生。Googlebot 現在會嘗試等待並執行 JS，但這對 SEO 是巨大的懲罰，因為 Google 資源被嚴重浪費，如果渲染總是拖到 3 秒甚至更久，Googlebot 可能會降低爬取頻率或認定該頁面體驗不佳而降低排名。總結：SEO 需要爬蟲，而爬蟲讀取內容的能力直接受限於網頁的首次渲染速度；建議 SEO 至關重要的頁面使用 SSR 或 SSG。
 
+### 優化 FCP 效能與渲染阻塞排查（2026-09-16 擷取）— https://gemini.google.com/app/d5f7dbd042133ecb
+
+使用者：我從 dashboard 的時候，FCP 的成績非常差，大概是 5.24 秒。我就讓 Claude 來幫我找找看為什麼會這樣子，他用了 systematic debugging 的流程調查。bundle 的體積 gzip 後只有 177000 bytes，它不是一個體積的問題。他說關鍵證據在預渲染 HTML 來驗證他的假設，用了 `ls .next/server/app/dashboard && wc -c .next/server/app/dashboard.html && sed -e 's/<script>.*<\/script>//g'`，然後他還聊了 render blocking CSS。
+
+Gemini：頁面 Bundle 體積很小（僅約 177 KB gzip）FCP 卻高達 5.24 秒，這不是 JavaScript 下載太慢的問題，而是渲染阻塞（Render-Blocking）與 HTML 結構呈現 timing 的問題。（1）為什麼 Bundle 小 FCP 還是超慢：FCP 記錄的是瀏覽器在螢幕上渲染出第一個文字或圖片／SVG 的時間；即使 JS Bundle 再小，只要「HTML 本身沒有內容」（伺服器回傳的 `<body>` 只有空的 `<div></div>`，純 CSR），瀏覽器必須等 JS 完全下載、解析、執行完畢並發起請求後才能畫出第一個字；或者「關鍵 CSS／外部資源阻塞渲染」，瀏覽器解析 HTML 遇到 `<link rel="stylesheet">` 或沒標 async／defer 的 `<script>` 會完全暫停渲染。（2）那套 Bash 指令在驗證什麼：核心目標是檢查 SSR／SSG 的預渲染成果——`wc -c` 檢查生成的 HTML 實體位元組大小，`sed -e 's/<script>.*<\/script>//g'` 把 script 標籤全部抹掉只看純 HTML 結構；如果拔掉腳本後 HTML 裡幾乎沒有真正的 DOM 內容，就證明伺服器根本沒有預先渲染出首屏畫面。（3）Render-Blocking CSS 怎麼拖累：瀏覽器需要建立 CSSOM，如果 head 裡載入的 CSS 過大或引用未優化的第三方 CSS，瀏覽器會堅持在 CSS 完全下載完成前不畫出任何像素；字型方面如果 `@font-face` 設定 `font-display: block`，字型檔下載完成前文字會完全隱形（FOIT），FCP 被強制拉長。（4）優化方向：確保首屏元件沒有被無謂的 `use client` 降級、善用 `<Suspense>` 讓 shell 先送出；檢查未使用的第三方 CSS；自訂字型建議用 `next/font` 並設 `font-display: swap`。
+
+使用者：我學了這麼久的 HTML 的編譯的過程跟 CSS 編譯的過程，我還是不知道 pre-rendering 會放在哪，為什麼它居然還有一個檔案啊？我以為 render 了之後它就直接在瀏覽器上執行了，但你看起來這又很像在建構時候的檔案欸。
+
+Gemini：你以前學的是純前端 SPA／CSR 的流程，而 Next.js 採用的是伺服器端預渲染。（1）傳統 SPA：建置階段打包工具只產生一個幾乎空無一物的 `index.html`（裡面只有 `<div id="root"></div>`）跟打包好的 JS；執行階段使用者開啟網頁後瀏覽器下載 JS、執行 React、在瀏覽器裡動態生成 HTML 節點，這時才第一次發生渲染；這套模式下確實不會有任何預渲染好的 HTML 檔案。（2）Next.js：核心概念是「能先做好的事，在打包或伺服器端就先做完」。執行 `npm run build` 時，Next.js 在你的電腦或伺服器上用 Node.js 把 `Dashboard.tsx` 執行了一遍，將 React 元件樹直接轉換成純 HTML 標籤與文字，儲存成一份實體 `.html` 檔案放到 `.next` 資料夾裡。使用者存取時伺服器不需要重新算 React，直接把寫好的 `.html` 丟給瀏覽器，瞬間就能把畫面畫出來，隨後 JS 下載下來進行 Hydration 讓頁面接管互動。（3）為什麼這次 FCP 還是會爛：打開那份 HTML 若寫滿真實標籤，代表預渲染有做好，問題出在 CSS 阻塞或水合塞車；若只有 `<div id="app"></div>` 或一個 spinner，代表伺服器根本沒渲染出真正的內容（可能因為寫了 `use client`，或資料請求沒處理好）。總結：CSR 的 HTML 是瀏覽器執行 JS 時憑空產生的 DOM，硬碟裡沒有 HTML 檔；預渲染（SSG／SSR）的 HTML 是 Node.js 在打包或收到請求時先 Render to String 寫好的，硬碟或記憶體裡有實體 HTML 內容。
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／查證時間 |
 | --- | --- | --- |
+| 本篇 Gemini 對話（優化 FCP 效能與渲染阻塞排查） | https://gemini.google.com/app/d5f7dbd042133ecb | 2026-09-16 擷取 |
+| Next.js 官方 — Rendering 與 Prerendering（產物寫進 .next 的說明） | https://nextjs.org/docs/app/getting-started/partial-prerendering | Next.js 現行文件，2026-09-16 查證 |
+| web.dev — Render blocking resources（阻塞繪製的定義與量測） | https://web.dev/articles/render-blocking-resources | 2026-09-16 查證 |
+| 本 vault 同專案逐指令實錄 | frontend-docs/nextjs/FCP-5.24秒-Next.js效能診斷實錄-從指令到根因.md | 2026-09-16 |
 | 本篇 Gemini 對話（SEO 與爬蟲） | https://gemini.google.com/app/9e25a1fa1fe501e3 | 2026-08-27 擷取 |
 | 本篇 Gemini 對話（FCP 與打包） | https://gemini.google.com/app/7ee6da02bef71e28 | 2026-08-27 擷取 |
 | web.dev — First Contentful Paint (FCP) 定義與 1.8s / 3.0s 門檻 | https://web.dev/articles/fcp | 2026-08-27 查證 |

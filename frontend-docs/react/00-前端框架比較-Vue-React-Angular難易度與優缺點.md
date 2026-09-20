@@ -12,7 +12,8 @@ related:
   - "[[雙向綁定與單向資料流-Vue-Scoped-CSS-PostCSS-Incremental-DOM與HOC]]"
 sources:
   - https://gemini.google.com/app/0656144d084eda4f
-updated: 2026-08-18
+  - https://gemini.google.com/app/3c3b2621e05ddb66
+updated: 2026-09-15
 ---
 
 # 前端框架比較：Vue、React、Angular 難易度與優缺點
@@ -380,7 +381,60 @@ state.newProp = 9;  // [寫入] newProp = 9  ← 注意：新增的屬性也攔�
 - d. <mark style="background: #FF5582A6;">「AngularJS 用髒檢查所以效能差」</mark>——**這是在打一個 2022 年 1 月就 EOL 的版本**。現在講 Angular 就是講 Signals 與 zoneless。
 - e. <mark style="background: #FF5582A6;">「Vue 有 Virtual DOM 所以跟 React 差不多」</mark>——Vue 3.6 的 Vapor Mode 正在把 Virtual DOM 拿掉，這句話的有效期正在過去。
 
-### 自我測驗（2026-08-18 追加：變更偵測與 Proxy）
+#### 追加 2026-09-15：從 JS 底層物件機制看三大框架的 API 設計
+
+前面幾段比的是「好不好學、好不好用」。這一段往下挖一層：**同一組 ECMAScript 物件機制，三個框架各自挑了哪一個當地基**，挑法不同才長出完全不同的心智模型。
+
+#### (一) 先把三塊地基講清楚
+
+```js
+class BaseModule {
+  constructor(name) { this.name = name; }   // 實例屬性
+  render() { return `Rendering ${this.name}`; }  // 實例方法（掛在 prototype 上）
+  static create(name) { return new BaseModule(name); } // 靜態方法（掛在建構函式本體上）
+}
+
+// 存取器屬性：用 Property Descriptor 攔截讀寫
+Object.defineProperty(BaseModule.prototype, 'status', {
+  get() { return this._status; },
+  set(value) { this._status = value; /* ← 可以在這裡偷偷做 side effect */ },
+  enumerable: true, configurable: true
+});
+```
+
+| 機制 | 掛在哪裡 | 特性 | 適合表達什麼 |
+| --- | --- | --- | --- |
+| 實例方法 Instance Method | `prototype` 或實例本身 | 依賴 `this`，與實例狀態耦合 | 「這個東西會做什麼」 |
+| 靜態方法 Static Method | 建構函式／class 本體 | 不用 `new` 就能叫，無狀態 | 工具函式、工廠 |
+| 存取器屬性 Accessor Property | Property Descriptor 的 `get`／`set` | **攔截屬性的讀寫**，可在中間插入副作用 | 隱式響應式、依賴追蹤 |
+
+詳見 [[Object靜態方法速查]] 與 [[屬性列舉決策矩陣-keys與getOwnPropertyNames與Reflect-ownKeys]]。
+
+#### (二) 三個框架各挑了哪一塊地基
+
+| 框架 | 挑中的 JS 底層機制 | 狀態變更機制 | 心智模型 | 程式碼風格 |
+| --- | --- | --- | --- | --- |
+| Vue.js | **存取器屬性**（Vue 2 用 `Object.defineProperty`，Vue 3 換成 `Proxy`） | 隱式攔截與自動依賴追蹤 | 響應式資料驅動 | 宣告式／資料導向 |
+| Angular | **ES6 Class 的實例方法** ＋ TypeScript 裝飾器 | 顯式更新，舊版靠 Zone.js 監聽非同步、新版靠 Signals | 傳統 OOP 物件導向 | 類別與實例導向 |
+| React | **純函式、閉包與頂層靜態工具函式** | 顯式呼叫 setter，靠不可變性與 `Object.is` 比對 | 函式式 UI 快照 | 函數式（FP） |
+
+**Vue**：`reactive(obj)` 用 `Proxy` 把物件包起來，`get` trap 做依賴收集（track）、`set` trap 做派發更新（trigger）——所以你只要寫 `count.value++`，視圖就自己更新了。Vue 2 到 Vue 3 的升級，本質上就是「把逐屬性的 `defineProperty` 換成整個物件層級的 `Proxy`」，才解決了「動態新增／刪除屬性攔不到」的老問題。
+
+**Angular**：元件與 Service 本質上都是被 `new` 出來的 class 實例，生命週期鉤子（`ngOnInit`）就是實例方法，依賴注入把服務塞進 constructor；靜態方法主要用在模組工廠（`NgModule.forRoot()`）。
+
+**React**：早期 class component 還用實例方法（`render()`）與實例屬性（`this.state`），現代 function component 把 `this` 整個丟掉。核心 API（`React.createElement`、`React.memo`、`React.lazy`）全是**頂層靜態工具函式**。React <mark style="background: #FF5582A6;">**刻意不用 `Object.defineProperty` 或 `Proxy` 做隱式攔截**</mark>，要求你顯式呼叫 setter，用不可變性換取可預測性。
+
+#### (三) 這對 Abby 的意義
+
+<mark style="background: #BBFABBA6;">**框架的 API 長什麼樣，不是設計者的個人喜好，而是「他選了哪一個 JS 機制當地基」的必然結果。**</mark>
+
+- 看到 Vue 的 `.value` 很囉嗦 → 因為 getter／setter 一定要有個東西可以掛。
+- 看到 Angular 到處是 class 與裝飾器 → 因為它的地基是實例方法與 `this`。
+- 看到 React 一堆 `useXxx` 頂層函式 → 因為它的地基是閉包與靜態工具，沒有 `this` 可以用。
+
+這也是投鐵人賽 Web Platform 組很好的切角：把「靜態方法／實例方法／存取器屬性」當主線，三個框架當三個案例。
+
+## 自我測驗（2026-08-18 追加：變更偵測與 Proxy）
 
 > [!question] 填空題
 > 1. Proxy 的建構語法是 `new Proxy(||target||, ||handler||)`，handler 裡定義的攔截行為官方術語叫 ||trap（陷阱）||。
@@ -461,6 +515,10 @@ Gemini：是的，React Native 完全使用 JSX 撰寫使用者介面，寫法�
 
 Gemini：Vue 是「漸進式 JavaScript 框架」（Progressive JavaScript Framework），它可以作為單純的函式庫使用，也可以擴充為功能完整的框架，這正是「漸進式」的原因。當輕量函式庫用時，可像 jQuery 那樣以 `<script>` 標籤引入現有頁面；當完整框架用時，搭配 Vue Router、Pinia、Vite／Vue CLI 與 SFC 單檔案組件規範，即具備完整框架能力。對比之下 React 是 UI 函式庫、Angular 是全功能框架。整合進上方追加第 (h) 點。
 
+### 追加 2026-09-15｜JS 底層機制與三大前端框架比較 — https://gemini.google.com/app/3c3b2621e05ddb66
+
+（原文為鐵人賽投稿草稿，重點已整併進上方「追加 2026-09-15」。）
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／時間 |
@@ -469,6 +527,11 @@ Gemini：Vue 是「漸進式 JavaScript 框架」（Progressive JavaScript Frame
 | Angular 版本歷史與最新穩定版（v22，2026-06-03 發布；22.1.0 於 2026-07-29） | https://frontendminds.com/blog/angular-latest-version-2026 | 查證日 2026-08-06 |
 | Angular 支援週期與 EOL（每版 18 個月＝6 個月 active + 12 個月 LTS） | https://endoflife.date/angular | 查證日 2026-08-06 |
 | Angular 版本沿革（維基百科） | https://en.wikipedia.org/wiki/Angular_(web_framework) | 查證日 2026-08-06 |
+| `Object.defineProperty` 與 Property Descriptor | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty | MDN，查證 2026-09-15 |
+| Vue 3 Reactivity in Depth（Proxy 的 track／trigger） | https://vuejs.org/guide/extras/reactivity-in-depth.html | Vue 3 官方，查證 2026-09-15 |
+| Angular 依賴注入與元件生命週期 | https://angular.dev/guide/di | Angular 官方，查證 2026-09-15 |
+| React：把 UI 當成狀態的函式 | https://react.dev/learn/reacting-to-input-with-state | React 官方，查證 2026-09-15 |
+| 本次追加的原始對話（Gemini） | https://gemini.google.com/app/3c3b2621e05ddb66 | 對話擷取 2026-09-15 |
 
 > [!check] 查核結果
 > Gemini 的 Angular 版本演進表（v17→v22 的時間點與各版重點）經查證<mark style="background: #BBFABBA6;">正確</mark>，Angular 22 確為 2026-06-03 發布的最新穩定版，Angular 17 確已 EOL。

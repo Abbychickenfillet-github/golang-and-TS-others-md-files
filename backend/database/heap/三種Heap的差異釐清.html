@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>三種Heap的差異釐清</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>三種Heap的差異釐清</h1>
+  <div class="pills"><span class="pill">#名詞釐清</span><span class="pill">#heap</span><span class="pill">#資料結構</span><span class="pill">#記憶體</span><span class="pill">#資料庫</span></div>
+  <div class="meta">
+    <span>更新於 </span>
+    <span>來源：</span>
+    
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="heap">三種 Heap 的差異釐清</h1>
+<blockquote>
+<p>[!info] 互動筆記（需 HTML Reader 外掛）<br />
+!<span class="wikilink" title="Obsidian 連結：三種Heap的差異釐清.html">三種Heap的差異釐清.html</span></p>
+<p>[!warning] 同一個字、三個無關的東西<br />
+學索引看到的 heap 是 <strong>③ 資料庫堆積表</strong>，跟刷題的 ① 二元堆積、C/Java 的 ② 記憶體堆區完全無關。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>① 二元堆積（資料結構）</th>
+<th>② 記憶體堆區</th>
+<th>③ 堆積表（資料庫）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>是什麼</td>
+<td>完全二元樹</td>
+<td>一塊記憶體區域</td>
+<td>資料表儲存方式</td>
+</tr>
+<tr>
+<td>核心</td>
+<td>父≥/≤子，頂端極值</td>
+<td>動態配置</td>
+<td>列無序，插哪算哪</td>
+</tr>
+<tr>
+<td>解決</td>
+<td>優先佇列、Top-K</td>
+<td>生命週期不定的物件</td>
+<td>不維護排序、寫入快</td>
+</tr>
+<tr>
+<td>對照</td>
+<td>vs 二元搜尋樹</td>
+<td>vs Stack</td>
+<td>vs 叢集索引</td>
+</tr>
+<tr>
+<td>定位</td>
+<td>陣列索引 2i/2i+1</td>
+<td>指標/位址</td>
+<td>RID / ctid</td>
+</tr>
+</tbody>
+</table>
+<p><strong>分辨法</strong>：看到 heap 先問「演算法、記憶體、還是資料表？」對不上就不是同一個。<br />
+資料庫 heap ＝「一堆沒排序的資料頁」，跟叢集索引（照鍵排好）相反。</p>
+<h3 id="1-olog-n-n-log">① 二元堆積的 O(log n)，那個 n 和 log 是什麼</h3>
+<p>補進第 ① 欄的量化細節，來源見文末：</p>
+<ul>
+<li><mark style="background: #ADCCFF;">n</mark> 代表<mark style="background: #FFF3A3;">堆積中目前的元素數量</mark>，不是別的東西。</li>
+<li><mark style="background: #ADCCFF;">log n</mark> 在這裡預設是<mark style="background: #FFF3A3;">以 2 為底的 log₂ n</mark>，因為二元堆積是一棵完全二元樹，每往下一層節點數翻倍，所以<mark style="background: #BBFABB;">樹高就是 log₂ n</mark>。<br />
+    insert 與 extract-min 都是沿著這條高度做 sift-up／sift-down，走的步數最多就是樹高，因此複雜度是 O(log n)。</li>
+<li><mark style="background: #FF5582;">常見誤解</mark>：O(log n) <mark style="background: #FF5582;">不是</mark>「取幾次 log」的意思。它的意思是<mark style="background: #BBFABB;">處理 n 個元素所需的時間會隨著 n 以對數級別成長</mark>——n 從 1,000 變成 1,000,000（一千倍），步數只從約 10 變成約 20（兩倍）。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>元素數量 n</th>
+<th>樹高 ≈ log₂ n</th>
+<th>一次 insert／extract 最多走幾步</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>15</td>
+<td>約 4</td>
+<td>4</td>
+</tr>
+<tr>
+<td>1,023</td>
+<td>約 10</td>
+<td>10</td>
+</tr>
+<tr>
+<td>1,048,575</td>
+<td>約 20</td>
+<td>20</td>
+</tr>
+</tbody>
+</table>
+<p>相關題目練習：</p>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeetCode 703. Kth Largest Element in a Stream</td>
+<td>https://leetcode.com/problems/kth-largest-element-in-a-stream/</td>
+<td>最典型的 Min-Heap 應用，每次 push／pop 就是走一趟 log n 的樹高</td>
+</tr>
+<tr>
+<td>LeetCode 215. Kth Largest Element in an Array</td>
+<td>https://leetcode.com/problems/kth-largest-element-in-an-array/</td>
+<td>用大小為 k 的堆積解，可以直接感受 log k 與 log n 的差別</td>
+</tr>
+<tr>
+<td>LeetCode 1046. Last Stone Weight</td>
+<td>https://leetcode.com/problems/last-stone-weight/</td>
+<td>純粹練 heap 的 insert 與 extract-max，不摻其他邏輯</td>
+</tr>
+<tr>
+<td>NeetCode — Heap / Priority Queue 專題</td>
+<td>https://neetcode.io/practice</td>
+<td>成套練完再回頭看這張表會更有感</td>
+</tr>
+</tbody>
+</table>
+<h2 id="heap-organized-vs">heap-organized vs 非叢集索引（釐清）</h2>
+<ul>
+<li><strong>heap-organized ≠ 非叢集索引</strong>：兩個不同維度。<code>heap-organized</code> 講「<strong>表</strong>怎麼存」（無序資料堆）；「非叢集索引」講「<strong>某個索引</strong>的類型」（葉子放指標、要回表）。但 heap 表上的索引「只能」都是非叢集（因果，不是相等）。</li>
+<li><strong>是很多顆小樹嗎？對一半</strong>：✅ 每個索引各自是一棵 B+樹（幾個索引就幾棵樹）；❌ 但 <strong>heap 本身不是樹</strong>，是平的資料頁堆。樹是「索引」，heap 是「被指向的資料」。</li>
+</ul>
+<h2 id="heap-pk-ctid-pk">heap 無序＝沒 PK 嗎？ctid 是 PK 替代品嗎？</h2>
+<ul>
+<li><strong>heap 無序 ≠ 沒有 PK</strong>：heap 表照樣可以有 PK，PK 只是另一棵 unique 索引樹，負責唯一/識別，<strong>但不排序資料</strong>。</li>
+<li><strong>ctid/RID 不是 PK 替代品</strong>：PK = 邏輯識別碼（穩定、給你/外鍵）；ctid/RID = 實體位址（檔/頁/列號、<strong>會變</strong>、引擎內部用）。所有索引（含 PK）葉子都存 ctid，查 PK 也是走索引拿 ctid 再跳 heap。</li>
+<li><strong>實體順序（heap/叢集）與邏輯識別（PK）是獨立的</strong>：heap 表 PK 不排序資料；InnoDB 叢集表 PK 順便排序資料。❌ 別把 ctid 當永久 ID。</li>
+</ul>
+<h2 id="_1">關聯</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：B+樹與索引結構－叢集索引vs非叢集索引">B+樹與索引結構－叢集索引vs非叢集索引</span> — 4½ 章三家切換</li>
+<li><span class="wikilink" title="Obsidian 連結：索引查詢指令與實戰案例">索引查詢指令與實戰案例</span> — PG vs MySQL 儲存組織</li>
+<li><span class="wikilink" title="Obsidian 連結：鎖與交易與並發控制">鎖與交易與並發控制</span></li>
+<li><span class="wikilink" title="Obsidian 連結：冒泡排序法-range參數與時間複雜度">冒泡排序法-range參數與時間複雜度</span> — 同樣在談 Big-O，那篇是 O(n²) 的反例，跟本篇 ① 的 O(log n) 對照著看，最能感受「級別」的差距</li>
+</ul>
+<h2 id="_2">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話（Min-Heap 的 n 與 log n 釐清）</td>
+<td>https://gemini.google.com/app/25df010da7d28c95</td>
+<td>Gemini Flash，2026-09-16 擷取</td>
+</tr>
+<tr>
+<td>Wikipedia — Binary heap（完全二元樹與 O(log n) 操作）</td>
+<td>https://en.wikipedia.org/wiki/Binary_heap</td>
+<td>2026-09-16 查證</td>
+</tr>
+<tr>
+<td>Python 官方 — heapq（標準函式庫的 Min-Heap 實作）</td>
+<td>https://docs.python.org/3/library/heapq.html</td>
+<td>2026-09-16 查證</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 </footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

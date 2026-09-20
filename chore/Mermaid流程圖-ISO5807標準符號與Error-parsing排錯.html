@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mermaid 流程圖——ISO 5807 標準符號與 Error parsing 排錯</title><style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23262d; --muted:#6b7280; --line:#e6e3dc;
+  --accent:#4f6bed; --accent2:#0f9d76; --warn:#d94f6b; --code:#1f2430;
+  --hl-y:#FFF3A3; --hl-r:#FF5582; --hl-g:#BBFABB; --hl-b:#ADCCFF; --hl-p:#FFB8EB; --hl-v:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hd{border-bottom:3px solid var(--ink);padding-bottom:18px;margin-bottom:28px}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:1.85rem;line-height:1.35;margin:0 0 12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.pill{background:#eef1fb;color:#3b4ab5;border:1px solid #d6dcf6;border-radius:999px;
+ padding:2px 11px;font-size:.76rem;letter-spacing:.02em}
+.meta{font-size:.82rem;color:var(--muted)}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:1.3rem;margin:38px 0 14px;
+ padding-left:12px;border-left:6px solid var(--accent)}
+h3{font-size:1.05rem;margin:26px 0 10px;color:#33406e}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+mark{padding:1px 4px;border-radius:3px}
+.hy{background:var(--hl-y)}.hr{background:var(--hl-r);color:#fff}.hg{background:var(--hl-g)}
+.hb{background:var(--hl-b)}.hp{background:var(--hl-p)}.hv{background:var(--hl-v)}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#f2f0ea;font-weight:600}
+tbody tr:nth-child(even){background:#faf9f6}
+pre{background:var(--code);color:#e8ecf5;border-radius:10px;padding:14px 16px;
+ overflow-x:auto;font-size:.84rem;line-height:1.6}
+code{font-family:"JetBrains Mono",Consolas,monospace}
+p code,li code,td code{background:#eeece6;color:#9a3b57;padding:1px 5px;border-radius:4px;font-size:.87em}
+.callout{border-left:5px solid var(--accent);background:#f1f4fd;border-radius:0 10px 10px 0;
+ padding:12px 16px;margin:16px 0;font-size:.92rem}
+.callout.warn{border-color:var(--warn);background:#fdf0f3}
+.callout.ok{border-color:var(--accent2);background:#eefaf5}
+.idx{background:#23262d;color:#f4f2ec;border-radius:12px;padding:12px 18px;font-size:.88rem}
+ol.az{list-style:none;padding-left:0;counter-reset:none}
+ol.az li{margin:10px 0;padding-left:34px;position:relative}
+ol.az li b.k{position:absolute;left:0;top:0;background:var(--accent);color:#fff;
+ width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;
+ justify-content:center;font-size:.78rem}
+/* interactive */
+.blank{background:#dfe4f5;border-bottom:2px dashed var(--accent);border-radius:4px;
+ padding:1px 16px;cursor:pointer;color:transparent;user-select:none;transition:.2s}
+.blank.on{background:#d7f3e6;color:#0b6b4f;border-bottom-color:var(--accent2);font-weight:600}
+.toggle{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:7px 14px;
+ font-size:.83rem;cursor:pointer;margin:6px 6px 6px 0}
+.toggle:hover{background:var(--accent)}
+.ans{display:none;margin-top:10px;background:#eefaf5;border-left:5px solid var(--accent2);
+ border-radius:0 8px 8px 0;padding:12px 16px;font-size:.92rem}
+.ans.show{display:block}
+.tf{margin:12px 0}
+.tf .q{font-weight:600;margin-bottom:6px}
+.tf button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 16px;
+ margin-right:8px;cursor:pointer;font-size:.85rem}
+.tf button:hover{border-color:var(--accent)}
+.tf .fb{display:inline-block;margin-left:6px;font-size:.85rem;font-weight:600}
+.tf .fb.good{color:#0b6b4f}.tf .fb.bad{color:var(--warn)}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:10px;
+ padding:10px 12px;font-family:inherit;font-size:.9rem;resize:vertical;background:#fff}
+svg.flow{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:12px}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);
+ font-size:.8rem;color:var(--muted);text-align:center}
+</style></head><body><div class="wrap">
+<header class="hd"><h1>Mermaid 流程圖——ISO 5807 標準符號與 Error parsing 排錯</h1>
+<div class="pills"><span class="pill">#mermaid</span><span class="pill">#流程圖</span><span class="pill">#iso5807</span><span class="pill">#obsidian</span><span class="pill">#筆記工具</span></div>
+<div class="meta">更新於 2026-09-15 ｜ 來源對話：<br><a href="https://gemini.google.com/app/1cf3a8ae56dd73a6" target="_blank" rel="noopener">https://gemini.google.com/app/1cf3a8ae56dd73a6</a><br><a href="https://gemini.google.com/app/b03b80e2bc03fbdb" target="_blank" rel="noopener">https://gemini.google.com/app/b03b80e2bc03fbdb</a></div>
+<button class="toggle" id="toggle-all" data-on="0">一鍵展開所有答案</button>
+</header>
+
+<div class="idx">本篇重點 a–m，共 13 個。主軸圖固定用下面這張「ISO 5807 六種符號速查卡」，之後追問請指回某一個形狀。</div>
+
+<h2>主軸圖：ISO 5807 六種符號速查卡</h2>
+<div class="card">
+<svg class="flow" viewBox="0 0 780 320" xmlns="http://www.w3.org/2000/svg">
+ <rect x="30" y="24" width="200" height="56" rx="28" fill="#23262d"/>
+ <text x="130" y="50" fill="#fff" font-size="13" text-anchor="middle">起止 Terminator</text>
+ <text x="130" y="68" fill="#bfc6d4" font-size="11" text-anchor="middle">A([開始])</text>
+ <path d="M300,24 L520,24 L488,80 L268,80 z" fill="#ADCCFF" stroke="#4f6bed"/>
+ <text x="394" y="50" font-size="13" text-anchor="middle">輸入／輸出 I/O</text>
+ <text x="394" y="68" font-size="11" text-anchor="middle">B[/"輸入：原始碼"/]</text>
+ <rect x="560" y="24" width="200" height="56" rx="6" fill="#fff" stroke="#4f6bed" stroke-width="2"/>
+ <text x="660" y="50" font-size="13" text-anchor="middle">處理 Process</text>
+ <text x="660" y="68" font-size="11" fill="#6b7280" text-anchor="middle">C[詞法分析 Lexer]</text>
+ <polygon points="130,140 250,186 130,232 10,186" fill="#FFF3A3" stroke="#b79b00"/>
+ <text x="130" y="182" font-size="13" text-anchor="middle">決策 Decision</text>
+ <text x="130" y="200" font-size="11" text-anchor="middle">D&#123;有錯嗎&#125;</text>
+ <path d="M300,152 a110,16 0 0 1 220,0 v40 a110,16 0 0 1 -220,0 z" fill="#BBFABB" stroke="#0f9d76"/>
+ <text x="410" y="182" font-size="13" text-anchor="middle">資料儲存 Database</text>
+ <text x="410" y="200" font-size="11" text-anchor="middle">E[(資料庫)]</text>
+ <circle cx="660" cy="186" r="46" fill="#FFB8EB" stroke="#b0468c"/>
+ <text x="660" y="182" font-size="12" text-anchor="middle">連接點</text>
+ <text x="660" y="199" font-size="11" text-anchor="middle">F((接點))</text>
+ <rect x="30" y="262" width="730" height="42" rx="8" fill="#f2f0ea" stroke="#e6e3dc"/>
+ <text x="395" y="288" font-size="12" text-anchor="middle">箭頭 → 代表流程方向；帶標籤寫成 A -- 標籤 --&gt; B 或 A --&gt;|標籤| B</text>
+</svg>
+</div>
+
+<h2>一、flowchart TD 本身沒有錯</h2>
+<div class="card">
+<p><mark class="hg"><b>flowchart TD 是 Mermaid 完全合法且標準的開頭。</b></mark>出現 <code>Error parsing mermaid diagram</code> 時，問題幾乎不在這一行，而在後面某個字元。</p>
+<p><b class="k" style="position:static;display:inline-flex">a</b> <code>TD</code> ＝ Top-Down，同義寫法 <code>TB</code>；其他方向有 <code>LR</code>、<code>RL</code>、<code>BT</code>。<br>
+<b class="k" style="position:static;display:inline-flex">b</b> 舊寫法 <code>graph TD</code> 還能用，但官方已改推 <code>flowchart</code>。</p>
+</div>
+
+<h2>二、parse error 的五個常見原因</h2>
+<div class="card">
+<table><thead><tr><th>#</th><th>原因</th><th>錯誤寫法</th><th>正確寫法</th></tr></thead><tbody>
+<tr><td>1</td><td>節點文字含括號、引號、冒號、減號</td><td><code>A[設定 Process: A]</code></td><td><code>A["設定 Process: A"]</code></td></tr>
+<tr><td>2</td><td>用了全形標點</td><td><code>A[（開始）]</code></td><td><code>A["(開始)"]</code></td></tr>
+<tr><td>3</td><td>節點 ID 有空格</td><td><code>node 1[文字]</code></td><td><code>node1["node 1"]</code></td></tr>
+<tr><td>4</td><td>邊線標籤寫法錯</td><td><code>A -&gt; 標籤 -&gt; B</code></td><td><code>A -- 標籤 --&gt; B</code></td></tr>
+<tr><td>5</td><td>subgraph 標題含括號</td><td><code>subgraph P [Parser (Espree)]</code></td><td><code>subgraph P["Parser (Espree)"]</code></td></tr>
+</tbody></table>
+<p><b class="k" style="position:static;display:inline-flex">c</b> 最常踩第 1 與第 5 項：節點文字出現 <code>( ) : - "</code> 一律用<span class="blank">雙引號</span>整段包起來。<br>
+<b class="k" style="position:static;display:inline-flex">d</b> 第 2 項是中文使用者專屬地雷：<code>（）</code>、<code>“”</code>、<code>；</code> 都是全形字元，Mermaid 的 lexer 不認得。<br>
+<b class="k" style="position:static;display:inline-flex">e</b> 節點 ID 是給程式看的識別碼，只能用英數與底線；要顯示的中文寫在中括號裡。</p>
+<div class="callout warn"><b>⚠️ 更正</b><br>
+Gemini 對話中示範的 <code>subgraph ESLint_Parser [Parser 解析器 (Espree / Babel-ESLint)]</code> 自己就踩了第 5 項的雷——中括號裡有 <code>(</code>、<code>)</code>、<code>/</code> 卻沒用雙引號包，貼進 Obsidian <b>會噴 parse error</b>。正確寫法：<code>subgraph ESLint_Parser["Parser (Espree / Babel-ESLint)"]</code>。</div>
+</div>
+
+<h2>三、ISO 5807 標準符號</h2>
+<div class="card">
+<table><thead><tr><th>形狀</th><th>名稱</th><th>用途</th><th>Mermaid 語法</th></tr></thead><tbody>
+<tr><td>圓角矩形</td><td>Terminator 起止</td><td>流程的開始與結束</td><td><code>A([開始])</code></td></tr>
+<tr><td>平行四邊形</td><td>Input／Output</td><td>資料進出</td><td><code>B[/"輸入：Source Code"/]</code></td></tr>
+<tr><td>矩形</td><td>Process 處理</td><td>系統做的運算或動作</td><td><code>C[詞法分析 Lexer]</code></td></tr>
+<tr><td>菱形</td><td>Decision 決策</td><td>條件判斷</td><td><code>D&#123;有語法錯誤嗎&#125;</code></td></tr>
+<tr><td>圓柱形</td><td>Database</td><td>資料庫／持久化</td><td><code>E[(資料庫)]</code></td></tr>
+<tr><td>圓形</td><td>Connector</td><td>跨頁接點</td><td><code>F((接點))</code></td></tr>
+</tbody></table>
+<p><b class="k" style="position:static;display:inline-flex">f</b> 原本的疑問「起頭該不該用圓邊起止符號寫 ESLint」——<mark class="hr">不該</mark>。起止符號寫的是動作的起訖（「開始：執行 ESLint」），工具名稱本身放在 Process 矩形裡。<br>
+<b class="k" style="position:static;display:inline-flex">g</b> 輸入的原始碼用平行四邊形<mark class="hg">是對的</mark>，這個直覺完全正確。</p>
+<h3>範例：ESLint 從 Source Code 到 AST</h3>
+<pre><code>flowchart TD
+    A([開始：執行 ESLint]) --&gt; B[/"輸入：Source Code 原始碼"/]
+    B --&gt; C[詞法分析 Lexer：把程式碼拆成 Tokens]
+    C --&gt; D[語法分析 Parser：把 Tokens 組成 AST]
+    D --&gt; E[/"輸出：AST 抽象語法樹"/]
+    E --&gt; F[走訪 AST 節點並比對規則]
+    F --&gt; G&#123;有 error 等級的違規嗎&#125;
+    G -- Yes --&gt; H[回報 Error 或執行 --fix]
+    G -- No  --&gt; I[通過檢查]
+    H --&gt; J([結束])
+    I --&gt; J</code></pre>
+<p><b class="k" style="position:static;display:inline-flex">h</b> 這張圖對應到「Vue 腳手架套件全表與 Linter 工具鏈」那篇主軸圖的方框 ⑤，兩篇可互相對照。</p>
+</div>
+
+<h2>四、三個平台的渲染支援</h2>
+<div class="card">
+<table><thead><tr><th>平台</th><th>支援</th><th>怎麼寫</th><th>注意</th></tr></thead><tbody>
+<tr><td>Obsidian</td><td>✅ 內建</td><td>用 <code>```mermaid</code> 圍籬</td><td>版本舊時新語法可能不支援</td></tr>
+<tr><td>GitHub / GitHub Pages</td><td>✅ GitHub 內建</td><td>同上</td><td>Pages 用 Jekyll 預設主題<b>不會</b>自動渲染，要自己引 mermaid.js</td></tr>
+<tr><td>iThome 鐵人賽</td><td>❌ 不支援</td><td>只能貼圖片</td><td>先在 mermaid.live 匯出 PNG／SVG</td></tr>
+</tbody></table>
+<p><b class="k" style="position:static;display:inline-flex">i</b> <mark class="hr">iThome 不吃 Mermaid</mark>，投稿前先在 mermaid.live 產出 SVG，存進 <code>obsidian-attachment/</code> 再插圖。<br>
+<b class="k" style="position:static;display:inline-flex">j</b> GitHub Pages 要自己引 script。<br>
+<b class="k" style="position:static;display:inline-flex">k</b> <mark class="hg">自己寫 inline SVG 最保險</mark>：三個平台都吃，還能用 highlightr 配色，本 vault 的主軸圖多半這樣做。</p>
+</div>
+
+<h2>五、排錯 SOP 與自我測驗</h2>
+<div class="card">
+<p><b class="k" style="position:static;display:inline-flex">l</b> 先貼到 <a href="https://mermaid.live" target="_blank">mermaid.live</a>，它會標出第幾行第幾個字元出錯。<br>
+<b class="k" style="position:static;display:inline-flex">m</b> 仍找不到就二分法：砍掉一半再貼，確定哪一半有問題再往下砍。</p>
+<div class="tf" data-ans="F" data-why="flowchart TD 完全合法，錯在後面的字元。">
+ <div class="q">1. 看到 Error parsing mermaid diagram，代表 <code>flowchart TD</code> 這個寫法已被淘汰。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+<div class="tf" data-ans="T" data-why="">
+ <div class="q">2. iThome 鐵人賽文章不支援 Mermaid，必須改貼圖片。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+<p><b>申論：</b>幫下面這段除錯，並說明錯在哪。<code>subgraph Lint [Linter 鏈 (Oxlint -&gt; ESLint)]</code></p>
+<textarea></textarea><br>
+<button class="toggle" data-target="m1" data-label="顯示參考答案">顯示參考答案</button>
+<div class="ans" id="m1">錯在 subgraph 標題的中括號裡同時出現 <code>(</code>、<code>)</code> 與 <code>-&gt;</code>。Mermaid 的 lexer 看到裸露的 <code>(</code> 會以為你要開一個「體育場形節點」，看到 <code>-&gt;</code> 會以為是邊線語法，於是整段 parse 失敗。<br>
+正確寫法是把整串文字用雙引號包起來：<code>subgraph Lint["Linter 鏈 (Oxlint -&gt; ESLint)"]</code>。</div>
+</div>
+
+<h2>六、資料來源（含查證時間）</h2>
+<div class="card">
+<table><thead><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr></thead><tbody>
+<tr><td>原始對話一（Mermaid 排錯）</td><td><a href="https://gemini.google.com/app/1cf3a8ae56dd73a6" target="_blank">gemini.google.com</a></td><td>擷取 2026-09-15</td></tr>
+<tr><td>原始對話二（ISO 5807 符號）</td><td><a href="https://gemini.google.com/app/b03b80e2bc03fbdb" target="_blank">gemini.google.com</a></td><td>擷取 2026-09-15</td></tr>
+<tr><td>Mermaid Flowchart 語法</td><td><a href="https://mermaid.js.org/syntax/flowchart.html" target="_blank">mermaid.js.org</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>Mermaid Live Editor</td><td><a href="https://mermaid.live" target="_blank">mermaid.live</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>流程圖（ISO 5807）</td><td><a href="https://zh.wikipedia.org/zh-tw/%E6%B5%81%E7%A8%8B%E5%9B%BE" target="_blank">維基百科</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>GitHub 支援 Mermaid 公告</td><td><a href="https://github.blog/developer-skills/github/include-diagrams-markdown-files-mermaid/" target="_blank">GitHub Blog</a></td><td>2022-02-14，查證 2026-09-15</td></tr>
+</tbody></table>
+</div>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-15</footer>
+</div><script>
+document.addEventListener('click',function(e){
+  var t=e.target;
+  if(t.classList.contains('blank')){t.classList.toggle('on');}
+  if(t.classList.contains('toggle')){
+    var box=document.getElementById(t.dataset.target);
+    if(box){box.classList.toggle('show');
+      t.textContent=box.classList.contains('show')?'隱藏答案':(t.dataset.label||'顯示答案');}
+  }
+  if(t.dataset.tf!==undefined){
+    var wrap=t.closest('.tf'); var fb=wrap.querySelector('.fb');
+    var ok=(t.dataset.tf===wrap.dataset.ans);
+    fb.textContent=ok?'✔ 答對了':'✘ 再想想 → '+wrap.dataset.why;
+    fb.className='fb '+(ok?'good':'bad');
+  }
+});
+document.addEventListener('DOMContentLoaded',function(){
+  var all=document.getElementById('toggle-all');
+  if(all)all.addEventListener('click',function(){
+    var on=all.dataset.on==='1';
+    document.querySelectorAll('.ans').forEach(function(a){a.classList.toggle('show',!on)});
+    document.querySelectorAll('.blank').forEach(function(b){b.classList.toggle('on',!on)});
+    all.dataset.on=on?'0':'1';
+    all.textContent=on?'一鍵展開所有答案':'一鍵收合所有答案';
+  });
+});
+</script></body></html>

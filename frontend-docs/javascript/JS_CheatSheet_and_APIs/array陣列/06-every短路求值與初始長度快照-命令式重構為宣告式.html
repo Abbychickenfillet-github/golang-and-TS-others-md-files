@@ -1,389 +1,521 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>every() 短路求值與初始長度快照｜把 for + break 重構成宣告式</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>every() 短路求值與箭頭函式改寫一般函式的四個錯</title>
 <style>
 :root{
-  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
-  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
-  --user:#4a7c59; --ai:#5b6bb5;
-  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
-  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+  --bg:#f7f8fa; --panel:#ffffff; --ink:#1c2330; --muted:#5b6674; --line:#dfe4ea;
+  --accent:#2f5fd0; --ok:#1f8a4c; --err:#c8385a; --warn:#b26a00; --violet:#6a45c0;
+  --hl-y:#fff3a3; --hl-b:#adccff; --hl-r:#ff5582; --hl-g:#bbfabb; --hl-v:#d2b3ff; --hl-o:#ffb86c;
+  --code:#f0f2f6;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#12151b; --panel:#1a1f28; --ink:#e6eaf0; --muted:#9aa5b4; --line:#2c333f;
+    --accent:#7aa2f7; --ok:#57c98a; --err:#ff7a9c; --warn:#e0a44a; --violet:#b48ef5;
+    --hl-y:#6b5b12; --hl-b:#1f3c66; --hl-r:#6b1e33; --hl-g:#1d5230; --hl-v:#3f2a66; --hl-o:#6b4312;
+    --code:#141821;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12151b; --panel:#1a1f28; --ink:#e6eaf0; --muted:#9aa5b4; --line:#2c333f;
+  --accent:#7aa2f7; --ok:#57c98a; --err:#ff7a9c; --warn:#e0a44a; --violet:#b48ef5;
+  --hl-y:#6b5b12; --hl-b:#1f3c66; --hl-r:#6b1e33; --hl-g:#1d5230; --hl-v:#3f2a66; --hl-o:#6b4312;
+  --code:#141821;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
-  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  font-size:16.5px;-webkit-font-smoothing:antialiased}
-.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
-header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
-  border-radius:16px;padding:26px 28px;margin-bottom:22px}
-header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
-  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
-.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
-.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
-  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
-.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
-.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
-.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
-.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
-  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
-  font-family:inherit}
-.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
-.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
-.legend span{padding:2px 9px;border-radius:6px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
-  padding:24px 28px;margin-bottom:20px}
-h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
-  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
-.card>h2:first-child{margin-top:0}
-h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
-h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
-p{margin:11px 0}
-blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
-  border-radius:0 8px 8px 0;color:#41525f}
-blockquote p{margin:6px 0}
-ul,ol{padding-left:1.5em}
-li{margin:6px 0}
-code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
-  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
-pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
-  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
-pre code{background:none;color:inherit;padding:0;font-size:inherit}
-table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
-th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
-th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
-tbody tr:nth-child(even){background:#fafbfc}
-hr{border:none;border-top:1px solid var(--line);margin:30px 0}
-.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
-  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
-/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
-mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
-  outline:none;color:inherit}
-mark.hl-core{background:var(--hl-core)}
-mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
-mark.hl-ok{background:var(--hl-ok)}
-mark.hl-term{background:var(--hl-term)}
-mark.hl-data{background:var(--hl-data)}
-mark.hl-note{background:var(--hl-note)}
-mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
-  border-radius:4px;user-select:none;text-shadow:none}
-mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
-  position:absolute;margin-left:-.8em;pointer-events:none}
-mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
-/* ---- 對話原文 ---- */
-.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
-/* ---- 測驗 ---- */
-.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
-.qlist{counter-reset:none;padding-left:1.4em}
-.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
-.qlist>li:last-child{border-bottom:none}
-.qq{font-weight:500;margin:0 0 10px}
-.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
-.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
-  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
-.btns button:hover{background:var(--accent-soft)}
-.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
-.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
-input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
-  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
-input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
-input.blank.bad{border-color:#d1476a;background:#fdf1f4}
-textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
-  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
-.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
-  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
-.fb.show{display:block}
-.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
-footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
-  padding-top:20px;border-top:1px solid var(--line)}
-@media(max-width:640px){
-  .wrap{padding:18px 14px 60px}
-  .card{padding:18px 16px}
-  header.hero{padding:20px 18px}
-  header.hero h1{font-size:1.4rem}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+  line-height:1.85; font-size:16px;
 }
-@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+.wrap{max-width:960px;margin:0 auto;padding:32px 16px 96px}
+h1{font-size:1.6rem;line-height:1.5;margin:0 0 6px}
+h2{font-size:1.22rem;margin:44px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+h3{font-size:1.05rem;margin:28px 0 10px;color:var(--accent)}
+.sub{color:var(--muted);font-size:.9rem;margin-bottom:26px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:16px 0}
+.note{border-left:4px solid var(--accent)}
+.warn{border-left:4px solid var(--err)}
+.tip{border-left:4px solid var(--ok)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:.9em}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto}
+pre code{background:none;padding:0;font-size:.86rem;line-height:1.7}
+mark{padding:1px 4px;border-radius:3px;color:var(--ink)}
+.y{background:var(--hl-y)} .b{background:var(--hl-b)} .r{background:var(--hl-r)}
+.g{background:var(--hl-g)} .v{background:var(--hl-v)} .o{background:var(--hl-o)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+th{background:var(--code);font-weight:600}
+.indent{margin-left:1.6em;color:var(--muted);font-size:.94em}
+img.shot{max-width:100%;border:1px solid var(--line);border-radius:10px;display:block;margin:12px 0 6px}
+figcaption{font-size:.84rem;color:var(--muted);margin-bottom:10px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 13px;transition:.15s}
+button:hover{border-color:var(--accent);color:var(--accent)}
+.toolbar{position:sticky;top:0;z-index:20;background:var(--bg);padding:10px 0;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:18px}
+.blank{
+  display:inline-block;min-width:88px;padding:1px 10px;margin:0 2px;border-bottom:2px dashed var(--accent);
+  color:transparent;background:var(--code);border-radius:4px 4px 0 0;cursor:pointer;user-select:none;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;
+}
+.blank.shown{color:var(--accent);background:var(--hl-g);border-bottom-style:solid;font-weight:600}
+.tf-row{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px dashed var(--line);flex-wrap:wrap}
+.tf-q{flex:1 1 320px;min-width:240px}
+.tf-btns{display:flex;gap:6px}
+.tf-btns button.sel{border-color:var(--accent);background:var(--accent);color:#fff}
+.tf-fb{flex-basis:100%;font-size:.88rem;margin-top:6px;display:none;padding:9px 12px;border-radius:8px}
+.tf-fb.show{display:block}
+.tf-fb.right{background:var(--hl-g);border-left:3px solid var(--ok)}
+.tf-fb.wrong{background:var(--hl-r);border-left:3px solid var(--err)}
+details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:12px 0}
+summary{cursor:pointer;font-weight:600;color:var(--accent)}
+details[open] summary{margin-bottom:10px}
+textarea{width:100%;min-height:110px;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--code);color:var(--ink);font:inherit;font-size:.92rem;resize:vertical}
+svg text{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+.node{cursor:pointer;transition:.18s}
+.node:hover{opacity:.82}
+.node.active rect,.node.active polygon,.node.active ellipse,.node.active path{stroke-width:4}
+#legend{font-size:.85rem;color:var(--muted);margin-top:6px}
+#nodeInfo{min-height:62px;margin-top:12px;padding:12px 14px;border-radius:9px;background:var(--code);border:1px solid var(--line);font-size:.92rem}
+.pill{display:inline-block;font-size:.76rem;padding:2px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted);margin-right:6px}
+a{color:var(--accent)}
+ol.alpha{padding-left:1.4em}
+ol.alpha li{margin:10px 0}
 </style>
 </head>
 <body>
 <div class="wrap">
-<header class="hero">
-  <h1>every() 短路求值與初始長度快照｜把 for + break 重構成宣告式</h1>
-  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#array</span><span class="pill">#高階函式</span><span class="pill">#every</span><span class="pill">#短路求值</span><span class="pill">#宣告式</span><span class="pill">#面試</span></div>
-  <div class="meta">
-    <span>更新於 2026-08-25</span>
-    <span>來源：Gemini</span>
-    <a href="https://gemini.google.com/app/82fbb980432600fc" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/443a99c0d326252e" target="_blank" rel="noopener">原始對話 2</a>
-  </div>
-</header>
 
 <div class="toolbar">
-  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
-  <button id="showAll">👀 全部顯示</button>
+  <button onclick="toggleTheme()">🌗 明暗切換</button>
+  <button onclick="allBlanks(true)">👁 全部顯示答案</button>
+  <button onclick="allBlanks(false)">🙈 全部隱藏答案</button>
+  <button onclick="resetQuiz()">↺ 重置測驗</button>
 </div>
 
-<div class="legend">
-  <span style="background:#FFF3A3">核心重點</span>
-  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
-  <span style="background:#BBFABB">正解建議</span>
-  <span style="background:#ADCCFF">術語定義</span>
-  <span style="background:#FFB8EB">數據補充</span>
-  <span style="background:#D2B3FF">次要備註</span>
-  <span>　←　點任一個螢光筆可以把它遮起來</span>
+<h1>every() 短路求值與初始長度快照<br>｜箭頭函式改寫成一般函式的四個錯</h1>
+<div class="sub">
+  <span class="pill">array 陣列</span><span class="pill">2026-09-18 更新</span>
+  來源：Gemini 兩場對話（2026-08）＋ Claude 一場（2026-09-18）。互動版對應同層的
+  <code>06-every短路求值與初始長度快照-命令式重構為宣告式.md</code>。
 </div>
 
-<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">every() 在執行過程中，如果 callback 往陣列 push 新元素，那些新元素也會被檢查。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">every() 一開始就把 length 拍了快照，圈數被凍結，push 進去的完全不會被存取。</div></li><li><p class="qq">every() 遇到第一個回傳 false 的元素就會立刻停止，不會跑完整個陣列。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這叫短路求值 short-circuiting，效能跟手寫 break 完全一樣。</div></li><li><p class="qq">空陣列呼叫 [].every(fn) 會回傳 false。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">回傳 true，這叫 vacuous truth 空真。相對地 [].some(fn) 回傳 false。</div></li><li><p class="qq">「不會存取超出初始長度的元素」代表整個陣列在 every() 執行期間被凍結，刪除也無效。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">只擋「往後長」，不擋「往前縮」。在 callback 裡 pop 或 splice 刪掉元素，走到那些索引會讀到 undefined。</div></li><li><p class="qq">用 requests.every(isValid) 取代 for + break，效能會變差，只是可讀性比較好。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">every 本身就有短路求值，效能與手動 break 相同，可讀性還更好。</div></li><li><p class="qq">箭頭函式沒有自己的 this，也不能當建構子 new。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這正是它適合當 callback 的原因，那些東西 callback 都不需要。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">every() 遇到第一個 false 就停止的行為，英文術語叫 <input class="blank" data-a="短路" placeholder="填答案" autocomplete="off"> 求值。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">short-circuiting。</div></li><li><p class="qq">`(v) =&gt; v &lt; 40` 這種箭頭後面直接接運算式、自動 return 的寫法，叫做 <input class="blank" data-a="簡潔" placeholder="填答案" autocomplete="off"> 主體。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">concise body，等同於 { return v &lt; 40; }。</div></li><li><p class="qq">`!isValid(request)` 裡的 `!` 是邏輯 <input class="blank" data-a="非" placeholder="填答案" autocomplete="off"> 運算子，會把布林值反轉。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Logical NOT。無效時 isValid 回 false，加上 ! 變成 true，於是進 if。</div></li><li><p class="qq">for + break 的寫法叫命令式（Imperative），requests.every(isValid) 這種直接表達意圖的叫 <input class="blank" data-a="宣告" placeholder="填答案" autocomplete="off"> 式。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Declarative，關注「要什麼」而非「怎麼做」。</div></li><li><p class="qq">callback 的第三個參數 array 指向原陣列本體，所以 array.push 是傳 <input class="blank" data-a="址" placeholder="填答案" autocomplete="off"> 修改，真的會改到外面。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">傳址 by reference。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">用你自己的話說明：為什麼講者建議把 `let everyRequestValid = true; for(...) { if(!isValid(r)) { ...; break; } }` 重構成 `requests.every(isValid)`？請至少講出四個角度，並說明有沒有哪種情況你反而不會這樣改。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 語意化——宣告式直接說「是不是每個都有效」，命令式要讀者追變數狀態與迴圈流程。(2) 減少樣板——省掉暫存變數、for、if、break、最後那個 if，五段變一行。(3) 避免狀態污染——少一個可變的 let，就少一個被別處誤改的風險，也比較好做純函式化。(4) 效能不打折——every 自帶短路求值，遇到第一個 false 就停，跟手寫 break 是同一件事。反而不改的情況：(a) 迴圈裡除了判斷還要做別的副作用（例如同時要收集所有失敗的 request 做錯誤訊息），這時 every 只能回一個布林值，改用 filter 或 reduce 更合適；(b) 需要在中途拿到索引做複雜控制流（例如往回跳）；(c) 極端效能敏感的熱路徑，callback 的函式呼叫開銷在數千萬次迴圈下仍可能有差，但這種情況很少見，先量測再說。另外要注意空陣列的 vacuous truth：requests 為空時 every 回傳 true，要先確認「零筆算不算通過」符合商業邏輯。</div></li></ol></section>
+<div class="card warn">
+  <strong>一句話結論</strong>：不是「一般函式不能用」，而是<mark class="r">你那段寫法既不是箭頭函式也不是一般函式</mark>——
+  <code>=&gt;</code> 被刪掉之後沒有補上 <code>function</code>，parser 只好把 <code>(element)</code> 當成一個普通的括號表達式，
+  後面的左大括弧就變成非法 token。另外，一般函式的大括弧<mark class="y">沒有隱式回傳</mark>，<code>return</code> 必須自己寫。
+</div>
 
-<article class="card">
-<h1 id="every-for-break">every() 短路求值與初始長度快照｜把 for + break 重構成宣告式</h1>
-<blockquote>
-<p>[!info] 本篇重點 a–n，共 14 個<br />
-兩場 Gemini 對話合併：一場問「箭頭函式檢查小於 40」與「every 不會存取超出初始長度的元素」，一場問 <code>!isValid(request)</code> 這種否定判斷為什麼講者建議改寫成 <code>every</code>。<br />
-關聯筆記：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：filter方法與callback定義">filter方法與callback定義</span></mark> 講的是同一族 callback 三參數簽名 <code>(value, index, array)</code>，這篇把重心放在「短路」與「長度快照」這兩個 filter 沒有的行為；<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><span class="wikilink" title="Obsidian 連結：高階函式與函數式範式-取代OOP三大設計模式">高階函式與函數式範式-取代OOP三大設計模式</span></mark> 講為什麼宣告式寫法能取代樣板程式碼，這篇是它在 <code>every</code> 上的一個具體案例。</p>
-</blockquote>
-<hr />
-<h2 id="_1">重點整理</h2>
-<h3 id="callback">一. 先讀懂那個 callback</h3>
-<pre><code class="language-js">const isBelowThreshold = (currentValue) =&gt; currentValue &lt; 40;
-</code></pre>
-<p>(a) <code>const</code> 宣告一個不可重新賦值的綁定，名字叫 <code>isBelowThreshold</code>。<br />
-（不可重新賦值 ≠ 值不可變，只是不能再 <code>isBelowThreshold = 別的東西</code>。）</p>
-<p>(b) <code>=&gt;</code> 是箭頭函式（Arrow Function）。它跟 <code>function</code> 的差別在於：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有自己的 <code>this</code>、沒有 <code>arguments</code>、不能當建構子 <code>new</code></mark>。當 callback 用時這些通通不需要，所以箭頭函式最合適。</p>
-<p>(c) <code>(currentValue)</code> 是形式參數（parameter）。呼叫 <code>every</code> 時，陣列每一個元素會被當成實際參數（argument）餵進來。</p>
-<p>(d) 箭頭後面直接接 <code>currentValue &lt; 40</code> 是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">簡潔主體（concise body）</mark>，等同於 <code>{ return currentValue &lt; 40; }</code>，運算結果自動被 return。</p>
-<p>(e) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>&lt;</code> 是嚴格小於，不含等於。<code>40</code> 本身會得到 <code>false</code>。</mark></p>
-<h3 id="_2">二. 「不會存取超出初始長度的元素」是什麼意思</h3>
-<p>(f) 規格的意思是：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>every()</code> 一開始執行時就把 <code>length</code> 拍了一張快照，之後你在 callback 裡怎麼 <code>push</code>，它都不會多跑那幾圈。</mark></p>
-<pre><code class="language-js">const arr = [1, 2, 3];
+<!-- ══════════════ 主軸圖 ══════════════ -->
+<h2>主軸圖：parser 看到左小括弧之後走哪一條路</h2>
+<p>這張圖是本篇的定位圖。<strong>點任何一個方框看解說</strong>。之後同主題的追問，都會指回這張圖上的某一格，不另開章節。</p>
+
+<div class="card">
+<svg viewBox="0 0 900 640" width="100%" role="img" aria-label="parser 解析箭頭函式的決策流程圖">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g stroke="currentColor" color="var(--muted)" fill="none" stroke-width="1.6" marker-end="url(#ar)">
+    <path d="M450,42 L450,62"/>
+    <path d="M450,104 L450,124"/>
+    <path d="M450,166 L450,186"/>
+    <path d="M450,228 L450,252"/>
+    <path d="M450,318 L450,338"/>
+    <path d="M370,288 L200,288 L200,338"/>
+    <path d="M200,400 L200,420"/>
+    <path d="M530,288 L700,288 L700,338"/>
+    <path d="M700,400 L700,424"/>
+    <path d="M620,372 L560,372 L560,424"/>
+    <path d="M450,400 L450,424"/>
+    <path d="M200,482 L200,540"/>
+    <path d="M450,486 L450,540"/>
+    <path d="M560,486 L560,540"/>
+    <path d="M700,486 L700,540"/>
+  </g>
+
+  <!-- 圓形 開始 -->
+  <g class="node" data-k="start"><ellipse cx="450" cy="24" rx="52" ry="18" fill="var(--panel)" stroke="var(--muted)" stroke-width="2"/><text x="450" y="30" text-anchor="middle" font-size="14" fill="var(--ink)">開始</text></g>
+  <!-- 平行四邊形 資料 -->
+  <g class="node" data-k="in"><polygon points="368,66 552,66 532,104 348,104" fill="var(--hl-b)" stroke="var(--accent)" stroke-width="2"/><text x="450" y="90" text-anchor="middle" font-size="13" fill="var(--ink)">原始碼字元流</text></g>
+  <!-- 六邊形 初始化 -->
+  <g class="node" data-k="init"><polygon points="368,128 532,128 552,147 532,166 368,166 348,147" fill="var(--hl-v)" stroke="var(--violet)" stroke-width="2"/><text x="450" y="152" text-anchor="middle" font-size="13" fill="var(--ink)">Tokenizer 初始化，切出 token 串</text></g>
+  <!-- 雙邊線矩形 副流程 -->
+  <g class="node" data-k="cover">
+    <rect x="320" y="186" width="260" height="42" rx="3" fill="var(--hl-y)" stroke="var(--warn)" stroke-width="2"/>
+    <line x1="328" y1="186" x2="328" y2="228" stroke="var(--warn)" stroke-width="2"/>
+    <line x1="572" y1="186" x2="572" y2="228" stroke="var(--warn)" stroke-width="2"/>
+    <text x="450" y="203" text-anchor="middle" font-size="12.5" fill="var(--ink)">掩護文法 Cover Grammar</text>
+    <text x="450" y="219" text-anchor="middle" font-size="11.5" fill="var(--muted)">先照單全收，不下定論</text>
+  </g>
+  <!-- 菱形 判斷 -->
+  <g class="node" data-k="q1"><polygon points="450,252 530,288 450,324 370,288" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/><text x="450" y="285" text-anchor="middle" font-size="12.5" fill="var(--ink)">下一個 token</text><text x="450" y="300" text-anchor="middle" font-size="12.5" fill="var(--ink)">是 =&gt; 嗎</text></g>
+  <text x="285" y="278" font-size="12" fill="var(--ok)">是</text>
+  <text x="600" y="278" font-size="12" fill="var(--err)">否</text>
+
+  <!-- 左：是 => -->
+  <g class="node" data-k="re"><rect x="92" y="338" width="216" height="62" rx="4" fill="var(--panel)" stroke="var(--ok)" stroke-width="2"/><text x="200" y="363" text-anchor="middle" font-size="12.5" fill="var(--ink)">回頭 reinterpret</text><text x="200" y="381" text-anchor="middle" font-size="12" fill="var(--muted)">重讀成 ArrowParameters</text></g>
+  <g class="node" data-k="q2"><polygon points="200,420 296,451 200,482 104,451" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/><text x="200" y="448" text-anchor="middle" font-size="12" fill="var(--ink)">箭頭後第一個</text><text x="200" y="463" text-anchor="middle" font-size="12" fill="var(--ink)">token 是 ｛ 嗎</text></g>
+  <g class="node" data-k="concise"><rect x="72" y="540" width="240" height="56" rx="3" fill="var(--hl-g)" stroke="var(--ok)" stroke-width="2"/><line x1="80" y1="540" x2="80" y2="596" stroke="var(--ok)" stroke-width="2"/><line x1="304" y1="540" x2="304" y2="596" stroke="var(--ok)" stroke-width="2"/><text x="192" y="563" text-anchor="middle" font-size="12.5" fill="var(--ink)">concise body 簡潔主體</text><text x="192" y="580" text-anchor="middle" font-size="11.5" fill="var(--muted)">否 → 值自動回傳</text></g>
+  <g class="node" data-k="block"><rect x="344" y="424" width="212" height="62" rx="3" fill="var(--hl-o)" stroke="var(--warn)" stroke-width="2"/><line x1="352" y1="424" x2="352" y2="486" stroke="var(--warn)" stroke-width="2"/><line x1="548" y1="424" x2="548" y2="486" stroke="var(--warn)" stroke-width="2"/><text x="450" y="449" text-anchor="middle" font-size="12.5" fill="var(--ink)">block body 區塊主體</text><text x="450" y="467" text-anchor="middle" font-size="11.5" fill="var(--muted)">是 → 必須自己寫 return</text></g>
+  <g class="node" data-k="undef"><polygon points="360,540 560,540 540,596 340,596" fill="var(--hl-r)" stroke="var(--err)" stroke-width="2"/><text x="450" y="563" text-anchor="middle" font-size="12" fill="var(--ink)">沒寫 return</text><text x="450" y="580" text-anchor="middle" font-size="12" fill="var(--ink)">回傳 undefined（falsy）</text></g>
+
+  <!-- 右：不是 => -->
+  <g class="node" data-k="paren"><rect x="592" y="338" width="216" height="62" rx="4" fill="var(--panel)" stroke="var(--err)" stroke-width="2"/><text x="700" y="363" text-anchor="middle" font-size="12.5" fill="var(--ink)">定案為</text><text x="700" y="381" text-anchor="middle" font-size="12" fill="var(--muted)">ParenthesizedExpression</text></g>
+  <g class="node" data-k="err"><polygon points="620,540 820,540 800,596 600,596" fill="var(--hl-r)" stroke="var(--err)" stroke-width="2.5"/><text x="710" y="563" text-anchor="middle" font-size="12" fill="var(--ink)">Uncaught SyntaxError</text><text x="710" y="580" text-anchor="middle" font-size="12" fill="var(--ink)">Unexpected token ｛</text></g>
+  <g class="node" data-k="q4"><polygon points="700,424 792,455 700,486 608,455" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/><text x="700" y="452" text-anchor="middle" font-size="12" fill="var(--ink)">下一個 token</text><text x="700" y="467" text-anchor="middle" font-size="12" fill="var(--ink)">是 ｛ 嗎</text></g>
+</svg>
+<div id="legend">
+  ISO 5807 形狀對照：<mark class="v">六邊形</mark>＝初始化　直角矩形＝處理　菱形＝判斷
+  <mark class="y">雙邊線矩形</mark>＝副流程　<mark class="b">平行四邊形</mark>＝資料　橢圓＝起訖點
+</div>
+<div id="nodeInfo">👆 點圖上任一個方框，這裡會顯示它在做什麼。</div>
+</div>
+
+<div class="card tip">
+  <strong>你這次踩到的是哪一格</strong><br>
+  你寫 <code>(element){element&lt;40}</code>，走的是右側 <strong>否 → 是</strong> → <mark class="r">紅色的 SyntaxError</mark>。<br>
+  如果你補上 <code>function</code> 卻忘記 <code>return</code>，走的是左側 <strong>block body → 沒寫 return</strong> → <mark class="o">回傳 undefined</mark>，
+  那條路<mark class="y">不報錯但答案永遠是 false</mark>，其實更難抓。
+</div>
+
+<!-- ══════════════ 一 ══════════════ -->
+<h2>一. 先讀懂 MDN 那個 callback</h2>
+<pre><code>const isBelowThreshold = (currentValue) =&gt; currentValue &lt; 40</code></pre>
+
+<ol class="alpha" type="a">
+<li><code>const</code> 宣告一個不可重新賦值的綁定，名字叫 <code>isBelowThreshold</code>。
+  <div class="indent">不可重新賦值 ≠ 值不可變，只是不能再 <code>isBelowThreshold = 別的東西</code>。</div></li>
+<li><code>=&gt;</code> 是箭頭函式。它跟 <code>function</code> 的行為差別有五個：<mark class="r">沒有自己的 <code>this</code>、沒有 <code>arguments</code>、不能 <code>new</code>、沒有 <code>prototype</code> 屬性、不能當 generator</mark>。當 callback 用時這五件事通通不需要，所以箭頭函式最合適。</li>
+<li><code>(currentValue)</code> 是形式參數（parameter）。
+  <div class="indent">呼叫 <code>every</code> 時，陣列每一個元素會被當成實際參數（argument）餵進來。</div></li>
+<li>箭頭後面直接接 <code>currentValue &lt; 40</code> 是 <mark class="b">簡潔主體（concise body）</mark>，等同於 <span class="blank" data-a="{ return currentValue < 40 }">{ return currentValue &lt; 40 }</span>，運算結果自動被 return。</li>
+<li><mark class="y"><code>&lt;</code> 是嚴格小於，不含等於。<code>40</code> 本身會得到 <code>false</code>。</mark></li>
+</ol>
+
+<!-- ══════════════ 二 ══════════════ -->
+<h2>二. 你把它改成「一般函式」為什麼壞掉（2026-09-18 實測）</h2>
+
+<figure>
+  <img class="shot" src="../../../../obsidian-attachment/every-callback-改寫一般函式-SyntaxError-console-20260918.png" alt="DevTools Console 連續兩次 Uncaught SyntaxError Unexpected token 左大括弧">
+  <figcaption>DevTools Console 連噴兩次 <code>Uncaught SyntaxError: Unexpected token '{'</code>，游標指在第 1 行左大括弧的位置。左側 MDN 頁面上被螢光筆標起來的正是原本的箭頭函式寫法。</figcaption>
+</figure>
+
+<p>你實際貼進 Console 的是這三行：</p>
+<pre><code>const isBeyondThreshold = (element){element&lt;40};
+const array 1 = [55,86,64,1,10];
+console.log(array.every(isBeyondThreshold));</code></pre>
+
+<h3>(f) 第一個錯（致命）：只刪掉 <code>=&gt;</code>，沒補 <code>function</code></h3>
+<p><code>=&gt;</code> 不是可省略的裝飾符號，它是 <mark class="g">箭頭函式唯一的識別 token</mark>。拿掉它又沒補 <code>function</code>，你留下的 <code>(element)</code> 在文法上只是 <mark class="b">一個被小括弧包住的表達式</mark>，意思是「一個叫 element 的變數，外面套了一層括號」。一個表達式後面直接接左大括弧，文法上接不下去，parser 只能拋
+<span class="blank" data-a="SyntaxError">SyntaxError</span>。</p>
+
+<h3>(g) 底層原因：掩護文法（Cover Grammar）</h3>
+<div class="card note">
+<p><strong>情境</strong>：parser 從左到右一個 token 一個 token 讀。讀到 <code>(</code> 的當下，它<mark class="y">還不知道</mark>這是「括號表達式」還是「箭頭函式的參數列」，因為兩者開頭長得一模一樣。</p>
+<p><strong>ECMA-262 的解法</strong>：先定義一條夠寬鬆的產生式
+<code>CoverParenthesizedExpressionAndArrowParameterList</code>，把括號裡的東西<strong>照單全收，不下定論</strong>。接著看下一個 token：</p>
+<table>
+<tr><th>下一個 token</th><th>parser 怎麼做</th><th>結果</th></tr>
+<tr><td><code>=&gt;</code></td><td>回頭把剛才收下的內容 <mark class="g">reinterpret 成 ArrowParameters 參數列</mark></td><td>組出箭頭函式</td></tr>
+<tr><td>其他</td><td>定案為 <code>ParenthesizedExpression</code>，內容永遠是「表達式」</td><td><mark class="r">你走的就是這條</mark></td></tr>
+</table>
+<p>所以 <code>element</code> 被當成一個<strong>變數名</strong>而不是<strong>參數名</strong>，後面的 <code>{</code> 就成了非法 token。</p>
+<p>順帶一提：規範規定 <code>=&gt;</code> <mark class="r">前面不可以換行</mark>（<code>[no LineTerminator here]</code>），因為換行會讓這個「回頭重讀」的機制失效。</p>
+</div>
+
+<h3>(h) 第二個錯（安靜的殺手）：大括弧換了身分，<code>return</code> 要自己寫</h3>
+<pre><code>// ❌ 語法過了，但每一圈都回 undefined
+const isBelowThreshold = function (element) { element &lt; 40 }
+;[55, 86, 64, 1, 10].every(isBelowThreshold)   // false，理由是 undefined 是 falsy
+
+// ✅ 一般函式的大括弧一律是 block body，必須明寫 return
+const isBelowThreshold = function (element) { return element &lt; 40 }</code></pre>
+<p>箭頭函式的 concise body 有 <mark class="b">隱式回傳（implicit return）</mark>，<code>function</code> 完全沒有這回事。這條路在主軸圖上是左側的 <strong>block body → 沒寫 return</strong>。</p>
+
+<h3>(i) 第三個錯：<code>const array 1</code> 中間多一個空白</h3>
+<p>識別碼（identifier）不能包含空白字元，<code>array 1</code> 會被切成 <code>array</code> 與 <code>1</code> 兩個 token。parser 讀完 <code>const array</code> 就以為宣告到此為止，於是抱怨的其實是
+<span class="blank" data-a="Missing initializer in const declaration">Missing initializer in const declaration</span>，不是 Unexpected token。</p>
+<p>你之所以只看到左大括弧那個錯，是因為 <mark class="y">引擎在 parse 階段遇到第一個語法錯誤就整段中止</mark>，後面幾行根本沒被檢查。</p>
+
+<h3>(j) 第四個錯（執行期）：宣告 <code>array1</code> 卻呼叫 <code>array</code></h3>
+<p>就算前面三個都修好，這行會丟 <code>Uncaught ReferenceError: array is not defined</code>。<mark class="v">這是 parse 期錯與執行期錯的分界</mark>：前三個在程式碼還沒開始跑就被擋下，這個要跑到那一行才會爆。</p>
+
+<h3>(k) 不是錯但會誤導自己：函式名字跟條件對不起來</h3>
+<p>你取名 <code>isBeyondThreshold</code>（超過門檻），條件卻寫 <code>&lt; 40</code>（低於門檻）。用你的資料實測，<strong>兩種條件都會得到 <code>false</code>，但理由完全不同</strong>：</p>
+<table>
+<tr><th>寫法</th><th>逐圈發生什麼事</th><th>跑幾圈</th><th>結果</th></tr>
+<tr><td><code>[55,86,64,1,10].every(v =&gt; v &lt; 40)</code></td><td>第 1 圈 <code>55 &lt; 40</code> 就是 false，<mark class="g">立刻短路</mark></td><td>1</td><td><code>false</code></td></tr>
+<tr><td><code>[55,86,64,1,10].every(v =&gt; v &gt; 40)</code></td><td>55✓ 86✓ 64✓ 都過，第 4 圈 <code>1 &gt; 40</code> 才 false</td><td>4</td><td><code>false</code></td></tr>
+</table>
+
+<h3>三種正確寫法對照（行為完全相同）</h3>
+<pre><code>// 寫法 A：箭頭函式 ＋ concise body（MDN 用的，最短）
+const isBelowThreshold = (currentValue) =&gt; currentValue &lt; 40
+
+// 寫法 B：函式運算式 function expression ＋ block body，必須寫 return
+const isBelowThreshold = function (currentValue) {
+  return currentValue &lt; 40
+}
+
+// 寫法 C：函式宣告 function declaration，會被 hoist 到作用域頂端
+function isBelowThreshold(currentValue) {
+  return currentValue &lt; 40
+}
+
+const array1 = [1, 30, 39, 29, 10, 13]
+console.log(array1.every(isBelowThreshold))   // true</code></pre>
+<div class="card warn">
+<strong>B 與 C 不只是寫法差別</strong>：寫法 C 有 <mark class="r">函式宣告提升（hoisting）</mark>，寫在 <code>console.log</code> 後面也能用；
+寫法 A 與 B 都綁在 <code>const</code> 上，有 TDZ，必須先宣告後使用。
+</div>
+
+<!-- ══════════════ 三 ══════════════ -->
+<h2>三. 「普通函式」這個講法對嗎</h2>
+<p>口語上可以，別人聽得懂，但 <mark class="y">規範裡沒有「普通函式」這個術語</mark>。MDN 在跟箭頭函式對比時用的字是
+<strong>traditional function</strong> 或 <strong>regular function</strong>，中文社群翻成「<mark class="g">一般函式</mark>」或「<mark class="g">傳統函式</mark>」比較通用。建議統一用「一般函式」。</p>
+
+<table>
+<tr><th>你想講的東西</th><th>建議中文</th><th>英文</th><th>ECMA-262 產生式名稱</th></tr>
+<tr><td><code>function f() {}</code></td><td>函式宣告</td><td>function declaration</td><td><code>FunctionDeclaration</code></td></tr>
+<tr><td><code>const f = function () {}</code></td><td>函式運算式（匿名）</td><td>anonymous function expression</td><td><code>FunctionExpression</code></td></tr>
+<tr><td><code>const f = function g() {}</code></td><td>具名函式運算式</td><td>named function expression</td><td><code>FunctionExpression</code></td></tr>
+<tr><td><code>const f = () =&gt; {}</code></td><td>箭頭函式</td><td>arrow function</td><td><code>ArrowFunction</code></td></tr>
+<tr><td>前三者的統稱，用來對比箭頭函式</td><td>一般函式／傳統函式</td><td>traditional / regular function</td><td>無專屬產生式</td></tr>
+</table>
+
+<div class="card warn">
+<strong>(m) 一個常見的誤解要先拆掉</strong><br>
+不能說「函式運算式 vs 箭頭函式」，因為 <mark class="b">箭頭函式本身也是一種 expression</mark>，<code>const f = () =&gt; {}</code> 同樣是「把一個函式運算式賦值給 f」。<br><br>
+正確的兩組對立是：
+<ul>
+<li><strong>位置維度</strong>：函式<u>宣告</u>（statement） vs 函式<u>運算式</u>（expression） ← 決定<span class="blank" data-a="有沒有 hoisting">有沒有 hoisting</span></li>
+<li><strong>語法維度</strong>：一般函式（<code>function</code> 關鍵字） vs 箭頭函式（<code>=&gt;</code>） ← 決定<span class="blank" data-a="有沒有自己的 this / arguments / prototype">有沒有自己的 this / arguments / prototype</span></li>
+</ul>
+</div>
+
+<!-- ══════════════ 四 ══════════════ -->
+<h2>四. 「不會存取超出陣列初始長度的元素」是什麼意思</h2>
+<p><mark class="y"><code>every()</code> 一開始執行時就把 <code>length</code> 拍了一張快照</mark>，之後你在 callback 裡怎麼 <code>push</code>，它都不會多跑那幾圈。</p>
+<pre><code>const arr = [1, 2, 3]
 
 arr.every((val, index, array) =&gt; {
-  array.push(99);                       // 每一圈都往後面塞新元素
-  console.log(`檢查索引 ${index}，值為 ${val}`);
-  return val &lt; 10;
-});
+  array.push(99)                        // 每一圈都往後面塞新元素
+  console.log(`檢查索引 ${index}，值為 ${val}`)
+  return val &lt; 10
+})
 // 檢查索引 0，值為 1
 // 檢查索引 1，值為 2
 // 檢查索引 2，值為 3
-// arr 最後是 [1, 2, 3, 99, 99, 99]，但那三個 99 完全沒被檢查過
-</code></pre>
-<p>(g) 逐行拆解：<code>array</code> 是 callback 的第三個參數，<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">指向的就是原陣列本體（傳址）</mark>，所以 <code>array.push</code> 真的會改到 <code>arr</code>。</p>
-<p>(h) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">陷阱：長度快照只擋「往後長」，不擋「往前縮」。</mark>如果你在 callback 裡 <code>pop()</code> 或 <code>splice()</code> 把元素刪掉，走到那些索引時會讀到 <code>undefined</code>（更精確說是該索引已不存在，會被當成 hole 跳過或讀成 undefined，視刪法而定）。所以規則不是「陣列被凍結」，而是「圈數被凍結」。</p>
-<p>(i) 同一套規則適用於 <code>forEach</code>、<code>map</code>、<code>filter</code>、<code>some</code>、<code>every</code>。這是 ES5 這一批陣列方法共用的規格描述。</p>
-<h3 id="isvalidrequest">三. <code>!isValid(request)</code> 的邏輯拆解</h3>
-<pre><code class="language-js">for (const request of requests) {
-  if (!isValid(request)) { everyRequestValid = false; break; }
-}
-</code></pre>
-<p>(j) <code>isValid(request)</code> 回傳布林值：有效回 <code>true</code>，無效回 <code>false</code>。</p>
-<p>(k) <code>!</code> 是邏輯非（Logical NOT）運算子，把結果反轉：</p>
+// arr 最後是 [1, 2, 3, 99, 99, 99]，但那三個 99 完全沒被檢查過</code></pre>
+<ul>
+<li><strong>(o)</strong> <code>array</code> 是 callback 的第三個參數，<mark class="b">指向原陣列本體（傳址）</mark>，所以 <code>array.push</code> 真的會改到 <code>arr</code>。</li>
+<li><strong>(p)</strong> <mark class="r">長度快照只擋「往後長」，不擋「往前縮」</mark>。在 callback 裡 <code>pop()</code> 或 <code>splice()</code> 刪掉元素，走到那些索引時會讀到 <code>undefined</code>。規則不是「陣列被凍結」，而是「<mark class="g">圈數被凍結</mark>」。</li>
+<li><strong>(q)</strong> 同一套規則適用於 <code>forEach</code>、<code>map</code>、<code>filter</code>、<code>some</code>、<code>every</code>。</li>
+</ul>
+
+<!-- ══════════════ 五六 ══════════════ -->
+<h2>五. <code>!isValid(request)</code> 的邏輯拆解</h2>
+<pre><code>for (const request of requests) {
+  if (!isValid(request)) { everyRequestValid = false; break }
+}</code></pre>
 <table>
-<thead>
-<tr>
-<th>request 狀態</th>
-<th><code>isValid(request)</code></th>
-<th><code>!isValid(request)</code></th>
-<th>進 if 嗎</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>無效</td>
-<td><code>false</code></td>
-<td><code>true</code></td>
-<td><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">進去，標記失敗並 break</mark></td>
-</tr>
-<tr>
-<td>有效</td>
-<td><code>true</code></td>
-<td><code>false</code></td>
-<td>不進去，繼續下一筆</td>
-</tr>
-</tbody>
+<tr><th>request 狀態</th><th><code>isValid(request)</code></th><th><code>!isValid(request)</code></th><th>進 if 嗎</th></tr>
+<tr><td>無效</td><td><code>false</code></td><td><code>true</code></td><td><mark class="r">進去，標記失敗並 break</mark></td></tr>
+<tr><td>有效</td><td><code>true</code></td><td><code>false</code></td><td>不進去，繼續下一筆</td></tr>
 </table>
-<p>(l) 整段話翻成人話：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「只要發現任何一個 request 無效，就把整體標記為無效並跳出迴圈。」</mark></p>
-<h3 id="every">四. 為什麼講者建議改寫成 <code>every</code></h3>
-<pre><code class="language-js">// 重構前（命令式 Imperative）
-let everyRequestValid = true;
+<p>翻成人話：<mark class="y">「只要發現任何一個 request 無效，就把整體標記為無效並跳出迴圈。」</mark></p>
+
+<h2>六. 為什麼講者建議改寫成 <code>every</code></h2>
+<pre><code>// 重構前（命令式 Imperative）
+let everyRequestValid = true
 for (const request of requests) {
-  if (!isValid(request)) { everyRequestValid = false; break; }
+  if (!isValid(request)) { everyRequestValid = false; break }
 }
 if (everyRequestValid) { /* ... */ }
 
 // 重構後（宣告式 Declarative）
-if (requests.every(isValid)) { /* ... */ }
-</code></pre>
-<p>(m) 四個理由：</p>
+if (requests.every(isValid)) { /* ... */ }</code></pre>
 <ul>
-<li><strong>意圖更直覺</strong>：命令式要讀者一步步追變數狀態與迴圈流程；<code>requests.every(isValid)</code> 直接用英文語意說「是不是每個 request 都有效」。</li>
-<li><strong>減少樣板程式碼（Boilerplate）</strong>：省掉暫存變數、<code>for...of</code>、<code>if</code>、手動 <code>break</code>、最後那個 <code>if</code>。</li>
-<li><strong>避免狀態污染</strong>：少一個可變動的 <code>let</code>，就少一個被其他地方誤改的風險。</li>
-<li><strong>自動具備短路求值（Short-circuiting）</strong>：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>every()</code> 遇到第一個回傳 <code>false</code> 的元素就立刻停，效能跟手寫 <code>break</code> 完全相同</mark>，但程式碼乾淨很多。</li>
+<li><strong>意圖更直覺</strong>：命令式要讀者一步步追變數狀態，<code>requests.every(isValid)</code> 直接用英文語意說「是不是每個都有效」。</li>
+<li><strong>減少樣板程式碼</strong>：省掉暫存變數、<code>for...of</code>、<code>if</code>、手動 <code>break</code>、最後那個 <code>if</code>。</li>
+<li><strong>避免狀態污染</strong>：少一個可變動的 <code>let</code>，就少一個被誤改的風險。</li>
+<li><strong>自動短路</strong>：<mark class="g"><code>every()</code> 遇到第一個 <code>false</code> 就立刻停，效能跟手寫 <code>break</code> 完全相同</mark>。</li>
 </ul>
-<p>(n) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">補充一個 Gemini 沒提到但面試常考的邊界：空陣列 <code>[].every(fn)</code> 回傳 <code>true</code>（vacuous truth，空真），<code>[].some(fn)</code> 回傳 <code>false</code>。</mark>如果 <code>requests</code> 可能是空的，要先確認「零筆算不算通過」符合你的商業邏輯。</p>
-<hr />
-<h2 id="_3">程式碼範例</h2>
-<p>同層的 <code>every-length-snapshot-demo.js</code> 可以直接 <code>node every-length-snapshot-demo.js</code> 跑，親眼看到 push 進去的元素沒被檢查。</p>
-<hr />
-<h2 id="leetcode-30-days-of-javascript">練習題（LeetCode / 30 Days of JavaScript）</h2>
-<table>
-<thead>
-<tr>
-<th>題號</th>
-<th>題名</th>
-<th>為什麼相關</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>2634</td>
-<td><a href="https://leetcode.com/problems/filter-elements-from-array/">Filter Elements from Array</a></td>
-<td>手刻 <code>filter</code>，會逼你面對 callback 三參數與長度快照</td>
-</tr>
-<tr>
-<td>2635</td>
-<td><a href="https://leetcode.com/problems/apply-transform-over-each-element-in-array/">Apply Transform Over Each Element in Array</a></td>
-<td>手刻 <code>map</code>，同一族簽名</td>
-</tr>
-<tr>
-<td>2626</td>
-<td><a href="https://leetcode.com/problems/array-reduce-transformation/">Array Reduce Transformation</a></td>
-<td>累加器版本的高階函式</td>
-</tr>
-<tr>
-<td>2629</td>
-<td><a href="https://leetcode.com/problems/function-composition/">Function Composition</a></td>
-<td>函式當參數與回傳值，宣告式思維</td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="_4">各對話來源（原文）</h2>
-<h3 id="javascript-40-2026-08-httpsgeminigooglecomapp82fbb980432600fc">JavaScript 箭頭函式小於 40 檢查（2026-08）— https://gemini.google.com/app/82fbb980432600fc</h3>
-<p><strong>使用者：</strong> <code>const isBelowThreshold = (currentValue) =&gt; currentValue &lt; 40;</code> 檢查值是否小於40還是轉成...</p>
-<p><strong>Gemini：</strong> 這段程式碼是用來檢查傳入的值是否「嚴格小於 40」。<code>currentValue &lt; 40</code>：若 <code>currentValue</code> 小於 40，回傳 <code>true</code>；否則回傳 <code>false</code>。在 <code>Array.prototype.every()</code> 中，它被作為測試函數（callback），用來確認陣列裡的每一個元素是否都小於 40。</p>
-<p><strong>使用者：</strong> 当开始调用 every() 时，callbackFn 将不会访问超出数组初始长度的任何元素。什麼意思</p>
-<p><strong>Gemini：</strong> 這句話的意思是：<code>every()</code> 在執行前，就已經先「固定」了陣列的長度。如果在執行 <code>every()</code> 的過程中，你在 callbackFn 裡面動態新增元素到陣列中，<code>every()</code> 不會去檢查那些新加進去的元素。（程式碼範例與執行結果見上方「重點整理」二.）雖然陣列最後變成了 <code>[1, 2, 3, 99, 99, 99]</code>，但被推進去的 99 完全不會被 <code>every()</code> 存取或檢查。</p>
-<h3 id="isvalidrequest-2026-08-httpsgeminigooglecomapp443a99c0d326252e">解釋 <code>!isValid(request)</code> 邏輯（2026-08）— https://gemini.google.com/app/443a99c0d326252e</h3>
-<p><strong>使用者：</strong> <code>if(!isValid(request)){everyRequestValid =false; break;}</code> 前面的 call site 是檢查傳入的 request 如果沒有效那就是 true？如果有效就是 false？</p>
-<p><strong>Gemini：</strong> 拆解這段邏輯運作方式：<code>isValid(request)</code> 本身是一個會傳回布林值的函式，有效傳回 <code>true</code>，無效傳回 <code>false</code>。當前面加上邏輯非運算子 <code>!</code> 時，會將結果反轉。如果 request 無效（<code>false</code>），<code>!isValid(request)</code> 變成 <code>true</code>，觸發 if 條件，執行 <code>everyRequestValid = false; break;</code>。如果 request 有效（<code>true</code>），<code>!isValid(request)</code> 變成 <code>false</code>，不會進入 if 區塊，繼續檢查下一個 request。整體意思是：「只要發現任何一個 request 無效，就將整體標記為無效並跳出迴圈」。</p>
-<p><strong>使用者：</strong> 他是覺得用 every 這個寫法比較好嗎？</p>
-<p><strong>Gemini：</strong> 是的，講者認為改用 <code>Array.prototype.every()</code> 這種高階函式的寫法會好很多。1. 意圖更直覺（語意化）：原先的 <code>for</code> 迴圈加上 <code>break</code> 是命令式程式碼（Imperative Code），讀者必須一步步追蹤變數狀態與迴圈流程；而 <code>requests.every(isValid)</code> 是宣告式程式碼（Declarative Code）。2. 大幅減少樣板程式碼（Boilerplate Code）。3. 避免狀態污染（Side Effects）：少宣告一個可變動的變數（<code>let</code>）。4. 自動具備 Short-circuiting（短路求值）：<code>every()</code> 在遇到第一個回傳 <code>false</code> 的元素時就會立刻停止，效能與手動寫 <code>break</code> 完全相同。</p>
-<hr />
-<h2 id="_5">資料來源（含查證時間）</h2>
-<table>
-<thead>
-<tr>
-<th>主題</th>
-<th>連結</th>
-<th>版本 / 查證時間</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Gemini 對話：箭頭函式與 every 初始長度</td>
-<td>https://gemini.google.com/app/82fbb980432600fc</td>
-<td>2026-08，本次歸檔 2026-08-25</td>
-</tr>
-<tr>
-<td>Gemini 對話：<code>!isValid</code> 與 every 重構</td>
-<td>https://gemini.google.com/app/443a99c0d326252e</td>
-<td>2026-08，本次歸檔 2026-08-25</td>
-</tr>
-<tr>
-<td>MDN <code>Array.prototype.every()</code></td>
-<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/every</td>
-<td>查證 2026-08-25</td>
-</tr>
-<tr>
-<td>ECMA-262 <code>Array.prototype.every</code> 規格</td>
-<td>https://tc39.es/ecma262/#sec-array.prototype.every</td>
-<td>ES2026 草案，查證 2026-08-25</td>
-</tr>
-<tr>
-<td>MDN 箭頭函式</td>
-<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions</td>
-<td>查證 2026-08-25</td>
-</tr>
-</tbody>
-</table>
-<blockquote>
-<p>[!warning] ⚠️ 存疑 / 補充<br />
-Gemini 的說明只講「不會存取超出初始長度」，沒有提到<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">刪除元素的反向情況</mark>，也沒有提到<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">空陣列 <code>[].every()</code> 回傳 <code>true</code></mark> 這個面試常見坑。這兩點是本篇 (h)(n) 補上的，請以 MDN 與規格為準。</p>
-</blockquote>
-<hr />
-<p><em>由 Gemini 對話自動整理 · 更新於 2026-08-25</em></p>
-</article>
-
-<footer>由 Gemini 對話自動整理 · 更新於 2026-08-25</footer>
+<div class="card note">
+<strong>(v) 面試常考的邊界</strong>：空陣列 <code>[].every(fn)</code> 回傳
+<span class="blank" data-a="true（vacuous truth 空真）">true（vacuous truth 空真）</span>，
+<code>[].some(fn)</code> 回傳 <span class="blank" data-a="false">false</span>。
+如果 <code>requests</code> 可能是空的，要先確認「零筆算不算通過」符合商業邏輯。
 </div>
+
+<!-- ══════════════ 測驗 ══════════════ -->
+<h2>自我測驗：是非題</h2>
+<div id="tf"></div>
+
+<h2>自我測驗：申論題</h2>
+<details>
+<summary>Q1　用你自己的話解釋：為什麼 <code>(element){element&lt;40}</code> 的錯誤訊息指在左大括弧，而不是指在 <code>element</code>？</summary>
+<textarea placeholder="先自己寫，再展開下面的參考答案"></textarea>
+<details><summary>參考答案</summary>
+<p>因為 <code>(element)</code> 這一段在文法上<strong>完全合法</strong>——它就是一個被括號包住的識別碼表達式。parser 讀到這裡沒有任何理由報錯。真正接不下去的是下一個 token：一個表達式後面不能直接跟一個區塊。所以錯誤訊息自然落在 <code>{</code> 上。</p>
+<p>更精確地說，parser 讀到 <code>(</code> 時套用掩護文法 <code>CoverParenthesizedExpressionAndArrowParameterList</code> 把內容暫存，看到下一個 token 不是 <code>=&gt;</code>，就把它定案成 <code>ParenthesizedExpression</code>。這一刻 <code>element</code> 的身分從「可能是參數」變成「確定是變數」，後面的 <code>{</code> 就無處可歸。</p>
+</details>
+</details>
+
+<details>
+<summary>Q2　「忘記寫 <code>return</code>」為什麼比「SyntaxError」更危險？請用 <code>every</code> 與 <code>some</code> 各舉一例說明後果。</summary>
+<textarea placeholder="先自己寫，再展開下面的參考答案"></textarea>
+<details><summary>參考答案</summary>
+<p>SyntaxError 會在 parse 階段被擋下，程式根本跑不起來，你一定會發現。忘記 <code>return</code> 語法完全合法，函式默默回傳 <code>undefined</code>，是 falsy 值，所以：</p>
+<ul>
+<li><code>arr.every(function (v) { v &lt; 40 })</code> → 第一圈就 falsy，<strong>永遠回傳 <code>false</code></strong>，而且短路，看起來「跑很快」，很容易被誤判成效能優化成功。</li>
+<li><code>arr.some(function (v) { v &lt; 40 })</code> → 每一圈都 falsy，跑完全部，<strong>永遠回傳 <code>false</code></strong>，同樣不報錯。</li>
+</ul>
+<p>兩者都會讓後續的 <code>if</code> 判斷永遠走同一條分支，在測試資料剛好也該回 false 的時候完全看不出來，上線後才炸。</p>
+</details>
+</details>
+
+<details>
+<summary>Q3　如果要向面試官說明「箭頭函式跟一般函式的差別」，你會怎麼把「寫法差別」與「行為差別」分開講？</summary>
+<textarea placeholder="先自己寫，再展開下面的參考答案"></textarea>
+<details><summary>參考答案</summary>
+<p><strong>寫法差別（語法糖層次）</strong>：參數小括弧在單一參數時可省略；主體不加大括弧時是 concise body，會隱式回傳；加了大括弧就是 block body，要自己寫 <code>return</code>。這一層純粹是打字多寡。</p>
+<p><strong>行為差別（語意層次，面試重點）</strong>：箭頭函式沒有自己的 <code>this</code>（沿用外層詞法作用域）、沒有 <code>arguments</code> 物件、不能用 <code>new</code> 呼叫、沒有 <code>prototype</code> 屬性、不能當 generator。這一層決定了「能不能拿來當方法、當建構子、當 <code>thisArg</code> 的接收者」，換掉會改變程式行為，不是換個寫法而已。</p>
+<p>收尾可以補一句：正因為 callback 通常不需要這五件事，箭頭函式才成為 callback 的預設選擇。</p>
+</details>
+</details>
+
+<!-- ══════════════ 連結 ══════════════ -->
+<h2>相關筆記與練習題</h2>
+<table>
+<tr><th>題號</th><th>題名</th><th>為什麼相關</th></tr>
+<tr><td>2634</td><td><a href="https://leetcode.com/problems/filter-elements-from-array/">Filter Elements from Array</a></td><td>手刻 <code>filter</code>，逼你面對 callback 三參數與長度快照</td></tr>
+<tr><td>2635</td><td><a href="https://leetcode.com/problems/apply-transform-over-each-element-in-array/">Apply Transform Over Each Element</a></td><td>手刻 <code>map</code>，同一族簽名</td></tr>
+<tr><td>2626</td><td><a href="https://leetcode.com/problems/array-reduce-transformation/">Array Reduce Transformation</a></td><td>累加器版本的高階函式</td></tr>
+<tr><td>2620</td><td><a href="https://leetcode.com/problems/counter/">Counter</a></td><td>回傳函式本身 vs 回傳呼叫結果，逼你分清 concise body 與 block body</td></tr>
+<tr><td>2703</td><td><a href="https://leetcode.com/problems/return-length-of-arguments-passed/">Return Length of Arguments Passed</a></td><td><mark class="y">必須用一般函式或 rest 參數</mark>，因為箭頭函式沒有 <code>arguments</code>，正好驗證 (b)</td></tr>
+</table>
+
+<h2>資料來源（含查證時間）</h2>
+<table>
+<tr><th>主題</th><th>連結</th><th>版本／查證時間</th></tr>
+<tr><td>MDN <code>Array.prototype.every()</code></td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/every">every()</a></td><td>2026-09-18</td></tr>
+<tr><td>MDN 箭頭函式（concise body、traditional function 用語）</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions">Arrow function expressions</a></td><td>2026-09-18</td></tr>
+<tr><td>MDN 函式運算式</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/function">function expression</a></td><td>2026-09-18</td></tr>
+<tr><td>MDN 函式宣告</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function">function declaration</a></td><td>2026-09-18</td></tr>
+<tr><td>ECMA-262 掩護文法</td><td><a href="https://tc39.es/ecma262/#prod-CoverParenthesizedExpressionAndArrowParameterList">CoverParenthesizedExpressionAndArrowParameterList</a></td><td>ES2026 草案，2026-09-18</td></tr>
+<tr><td>ECMA-262 <code>ArrowFunction</code></td><td><a href="https://tc39.es/ecma262/#sec-arrow-function-definitions">Arrow Function Definitions</a></td><td>ES2026 草案，2026-09-18</td></tr>
+<tr><td>Gemini 對話：箭頭函式與 every 初始長度</td><td><a href="https://gemini.google.com/app/82fbb980432600fc">對話連結</a></td><td>2026-08</td></tr>
+<tr><td>Gemini 對話：<code>!isValid</code> 與 every 重構</td><td><a href="https://gemini.google.com/app/443a99c0d326252e">對話連結</a></td><td>2026-08</td></tr>
+</table>
+
+<div class="card warn">
+<strong>⚠️ 存疑／補充</strong><br>
+(g) 的掩護文法說明是依 ECMA-262 產生式整理，不是 Console 直接告訴你的資訊，請以 tc39.es 規範原文為準。
+Gemini 原文沒有提到刪除元素的反向情況，也沒提到空陣列 <code>[].every()</code> 回傳 <code>true</code>，這兩點是 (p)(v) 補上的。
+</div>
+
+<p style="text-align:center;color:var(--muted);font-size:.85rem;margin-top:40px">
+Gemini 對話歸檔於 2026-08-25 · Claude 補充第二、三節與主軸圖於 2026-09-18
+</p>
+
+</div>
+
 <script>
-(function(){
-  // 螢光筆：點擊遮蔽／顯示
-  document.querySelectorAll('mark.hl').forEach(function(m){
-    var toggle=function(){ m.classList.toggle('masked'); };
-    m.addEventListener('click',toggle);
-    m.addEventListener('keydown',function(e){
-      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
-    });
-  });
-  var maskAll=document.getElementById('maskAll');
-  var showAll=document.getElementById('showAll');
-  if(maskAll)maskAll.addEventListener('click',function(){
-    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
-  });
-  if(showAll)showAll.addEventListener('click',function(){
-    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
-  });
+/* ── 明暗切換 ── */
+function toggleTheme(){
+  const r=document.documentElement;
+  const now=r.getAttribute('data-theme');
+  const dark=now?now==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+  r.setAttribute('data-theme',dark?'light':'dark');
+}
 
-  // 是非題
-  document.querySelectorAll('button.tf').forEach(function(b){
-    b.addEventListener('click',function(){
-      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
-      var li=b.closest('li');
-      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
-      b.classList.add(ok===picked?'good':'bad');
-      var fb=li.querySelector('.fb');
-      fb.classList.add('show');
-      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
-    });
-  });
+/* ── 點擊填空 ── */
+document.querySelectorAll('.blank').forEach(el=>{
+  el.title='點一下顯示／隱藏答案';
+  el.addEventListener('click',()=>el.classList.toggle('shown'));
+});
+function allBlanks(show){
+  document.querySelectorAll('.blank').forEach(el=>el.classList.toggle('shown',show));
+}
 
-  // 填空題
-  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
-  document.querySelectorAll('button.chk').forEach(function(b){
-    b.addEventListener('click',function(){
-      var li=b.closest('li'), inp=li.querySelector('input.blank');
-      var ok=norm(inp.value)===norm(inp.dataset.a);
-      inp.classList.remove('good','bad');
-      inp.classList.add(ok?'good':'bad');
-      if(ok){ li.querySelector('.fb').classList.add('show'); }
-    });
+/* ── 主軸圖節點解說 ── */
+const INFO={
+  start:'<b>起訖點（圓形／橢圓）</b>：parser 開始讀這一段原始碼。',
+  in:'<b>資料（平行四邊形）</b>：進來的是一串字元，例如 <code>const isBelowThreshold = (currentValue) =&gt; currentValue &lt; 40</code>。此時還沒有任何結構，只是字。',
+  init:'<b>初始化（六邊形）</b>：Tokenizer（詞法分析）把字元流切成一顆顆 token：<code>const</code>、識別碼、<code>=</code>、<code>(</code>、<code>)</code>、<code>=&gt;</code> …… 切完才輪到 parser 組文法。',
+  cover:'<b>副流程（雙邊線矩形）</b>：這裡是本篇的核心。parser 讀到 <code>(</code> 時無法判斷這是括號表達式還是箭頭函式參數列，所以套用 <code>CoverParenthesizedExpressionAndArrowParameterList</code> 這條寬鬆產生式，<b>先照單全收不下定論</b>，等下一個 token 揭曉。',
+  q1:'<b>判斷（菱形）</b>：下一個 token 是不是 <code>=&gt;</code>？這一題的答案決定括號裡的 <code>element</code> 究竟是「參數名」還是「變數名」。<br>規範還規定 <code>=&gt;</code> 前面不可以換行，因為換行會破壞這個回頭重讀的機制。',
+  re:'<b>處理（直角矩形）</b>：看到 <code>=&gt;</code> 了，parser 回頭把剛才暫存的內容 reinterpret（重新解讀）成 <code>ArrowParameters</code> 參數列，繼續組箭頭函式。',
+  q2:'<b>判斷</b>：箭頭後面第一個 token 是不是左大括弧？這決定主體是 concise body 還是 block body。',
+  concise:'<b>副流程</b>：concise body 簡潔主體。整個表達式求值後<b>自動回傳</b>，例如 <code>currentValue &lt; 40</code> 直接把 true／false 交給 every。',
+  block:'<b>副流程</b>：block body 區塊主體。一般函式的大括弧<b>一律</b>是這種，<b>沒有隱式回傳</b>，必須自己寫 <code>return</code>。',
+  undef:'<b>資料（輸出）</b>：忘記寫 return，函式回傳 <code>undefined</code>。undefined 是 falsy，<code>every</code> 第一圈就判定失敗並短路，<b>結果永遠是 false 而且不報錯</b>——這是最難抓的那一種。',
+  paren:'<b>處理</b>：下一個 token 不是 <code>=&gt;</code>，parser 定案：這只是一個 <code>ParenthesizedExpression</code>，也就是「一個變數外面套了括號」。<b>你的 <code>(element){element&lt;40}</code> 走的就是這一格。</b>',
+  q4:'<b>判斷</b>：一個已經定案的表達式後面，可以接左大括弧嗎？文法上不行。',
+  err:'<b>資料（輸出）</b>：<code>Uncaught SyntaxError: Unexpected token \'{\'</code>。在 parse 階段就爆，整段程式碼一行都沒執行，所以後面 <code>const array 1</code> 的錯你根本看不到。'
+};
+let activeNode=null;
+document.querySelectorAll('.node').forEach(g=>{
+  g.addEventListener('click',()=>{
+    if(activeNode) activeNode.classList.remove('active');
+    g.classList.add('active'); activeNode=g;
+    document.getElementById('nodeInfo').innerHTML=INFO[g.dataset.k]||'';
   });
-  document.querySelectorAll('button.rev').forEach(function(b){
-    b.addEventListener('click',function(){
-      var li=b.closest('li'), inp=li.querySelector('input.blank');
-      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
-      li.querySelector('.fb').classList.add('show');
-    });
-  });
-  document.querySelectorAll('input.blank').forEach(function(inp){
-    inp.addEventListener('keydown',function(e){
-      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
-    });
-  });
+});
 
-  // 申論題
-  document.querySelectorAll('button.rev2').forEach(function(b){
-    b.addEventListener('click',function(){
-      var fb=b.closest('li').querySelector('.fb');
-      fb.classList.toggle('show');
-      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
-    });
-  });
-})();
+/* ── 是非題 ── */
+const TF=[
+  {q:'把 <code>=&gt;</code> 刪掉、其他都不動，就等於把箭頭函式改寫成一般函式。',a:false,
+   e:'錯。<code>=&gt;</code> 是箭頭函式唯一的識別 token，刪掉它必須同時補上 <code>function</code> 關鍵字，而且主體要自己寫 <code>return</code>。只刪 <code>=&gt;</code> 會得到 SyntaxError。'},
+  {q:'<code>function (e) { e &lt; 40 }</code> 會拋出 SyntaxError。',a:false,
+   e:'錯。這段語法完全合法，只是沒有 <code>return</code>，所以回傳 <code>undefined</code>。它不報錯，但讓 <code>every</code> 永遠回 <code>false</code>，比報錯更難抓。'},
+  {q:'parser 讀到 <code>(</code> 的當下，就已經知道這是箭頭函式的參數列還是括號表達式。',a:false,
+   e:'錯。兩者開頭一模一樣，所以規範用掩護文法先照單全收，等看到下一個 token 是不是 <code>=&gt;</code> 才回頭重新解讀。'},
+  {q:'「普通函式」是 ECMA-262 規範裡的正式術語。',a:false,
+   e:'錯。規範裡只有 <code>FunctionDeclaration</code>、<code>FunctionExpression</code>、<code>ArrowFunction</code>。MDN 對比時用 traditional / regular function，中文建議說「一般函式」。'},
+  {q:'<code>const f = () =&gt; {}</code> 也算是一種函式運算式。',a:true,
+   e:'對。箭頭函式本身就是 expression，所以不能把「函式運算式」跟「箭頭函式」拿來對立。正確的對立是「宣告 vs 運算式」以及「一般函式 vs 箭頭函式」兩組。'},
+  {q:'<code>[55,86,64,1,10].every(v =&gt; v &gt; 40)</code> 會跑完全部五圈。',a:false,
+   e:'錯。55、86、64 都通過，但第 4 圈 <code>1 &gt; 40</code> 是 false，<code>every</code> 立刻短路，第 5 個元素沒被檢查，總共只跑 4 圈。'},
+  {q:'在 <code>every</code> 的 callback 裡 <code>push</code> 新元素，那些新元素也會被檢查。',a:false,
+   e:'錯。<code>every</code> 一開始就對 <code>length</code> 拍了快照，圈數被凍結。但注意：刪除元素<b>不</b>受這個保護，走到被刪的索引會讀到 <code>undefined</code>。'},
+  {q:'<code>[].every(fn)</code> 回傳 <code>true</code>。',a:true,
+   e:'對。這是 vacuous truth（空真）：沒有任何元素違反條件，所以「全部都符合」成立。相對地 <code>[].some(fn)</code> 回傳 <code>false</code>。'},
+  {q:'引擎會一次把三行程式碼的所有語法錯誤都列給你看。',a:false,
+   e:'錯。parse 階段遇到第一個語法錯誤就整段中止，所以 <code>const array 1</code> 的錯被第一行的錯蓋住了，你要修完第一個才看得到下一個。'}
+];
+function renderTF(){
+  const box=document.getElementById('tf');
+  box.innerHTML=TF.map((t,i)=>`
+    <div class="tf-row">
+      <div class="tf-q"><b>${i+1}.</b> ${t.q}</div>
+      <div class="tf-btns">
+        <button onclick="ansTF(${i},true,this)">⭕ 對</button>
+        <button onclick="ansTF(${i},false,this)">❌ 錯</button>
+      </div>
+      <div class="tf-fb" id="fb${i}"></div>
+    </div>`).join('');
+}
+function ansTF(i,val,btn){
+  const right=TF[i].a===val;
+  const fb=document.getElementById('fb'+i);
+  btn.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  fb.className='tf-fb show '+(right?'right':'wrong');
+  fb.innerHTML=(right?'✅ 答對　':'❌ 答錯　')+TF[i].e;
+}
+function resetQuiz(){
+  renderTF();
+  document.querySelectorAll('details').forEach(d=>d.open=false);
+  allBlanks(false);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+renderTF();
 </script>
 </body>
 </html>

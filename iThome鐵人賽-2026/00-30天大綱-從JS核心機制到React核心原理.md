@@ -31,18 +31,18 @@ updated: 2026-08-21
 
 ## 第一段｜語言底層：值、記憶體、作用域（Day 1–10）
 
-| Day | 標題 | 承接／被用到 | 血淚史來源 | 既有素材 |
-| --- | --- | --- | --- | --- |
-| **1** | JS 引擎到底在做什麼：從一行 `const a = 1` 看 V8 完整管線 | 全系列起點｜Day 2、13、24 都回頭指這張管線圖 | — | `00-V8引擎完整管線-Parse到Deoptimization.md`（28KB＋互動版）、`01-引擎-Engine-到底是什麼.md`（45KB） |
-| **2** | 記憶體模型：Stack、Heap 與 GC 什麼時候真的回收 | 承接 Day 1｜Day 3、10、12 全靠這張圖 | — | `11-記憶體模型-stack-heap-動態配置-GC.md`、`全域變數的GC回收時機.md`、Stack/Heap SVG |
-| **3** | 傳值 vs 傳址：為什麼「複製」一個物件會害你改到原本的 | 承接 Day 2｜Day 17 的 React state 不可變性直接靠它 | **`2025-09-17_如果依賴整個userData會怎麼樣`** —— 依賴整個物件導致無限重渲染 | `10-傳值vs傳址-賦值與記憶體空間.md`（17KB＋互動版）、`JS-相等性與傳值傳址/` 整包 |
-| **4** | 相等性四種演算法：`==`、`===`、`Object.is`、SameValueZero | 承接 Day 3｜Day 18 的 React 淺比較用得到 | **`2025-09-15_為什麼一個是false一個true`** | `JS-相等性與傳值傳址.md` ＋ `object-is-demo.js` ＋ 四種相等演算法比較表 SVG |
-| **5** | 型別轉換：ToPrimitive 與那些「明明看起來一樣卻不等」 | 承接 Day 4｜Day 8 的包裹物件、Day 9 的 JSON | **`常見錯誤-Number包住陣列變NaN-reduce爆錯.md`** —— 真的爆過的 reduce | `15-ToPrimitive-ToNumber-型別轉換抽象操作.md`、`valueOf-預設行為與原始值轉換.md` |
-| **6** | 作用域與詞法作用域：面試四段式答法 | 承接 Day 2｜Day 7 閉包、Day 11 `this` | **`2025-09-11_npm_start_為什麼讀到的port值是3005`** —— 環境變數被哪一層蓋掉 | `05-作用域`、`14-詞法作用域-Lexical-Scope-面試四段式.md` ＋ `scope-chain-inspector.js`（用 node:inspector 實測） |
-| **7** | 閉包：私有變數、傳址陷阱，與 `return` 之後記憶體怎麼了 | 承接 Day 6｜Day 19 的 hooks 全靠閉包 | — | `13-閉包-Closure`（27KB＋互動版）、`12-return-清理記憶體-stack-frame與閉包例外.md`（**61KB，全 vault 最大的技術筆記**） |
-| **8** | 資料型別總覽：原始型別、包裹物件、自動裝箱、Symbol、Iterator | 承接 Day 5｜Day 9 的 Map、Day 23 的 `for...of` | **`symbol_data_type.html` 打錯字噴 SyntaxError** | `自動裝箱與內建建構函式.md`、`Symbol-符號型別與物件key.md`、`Object建構子-plain-object的建立與存取.md` |
-| **9** | 物件的真面目：原型鏈階數、屬性列舉四格矩陣 | 承接 Day 8｜Day 12 的原型最佳化、Day 20 的 React 原始碼 | **`2025-08-31_得到的屬性值`** | `Object建構子`（769 行，含 i／j／k／l／m 五個追問延伸）、`屬性列舉決策矩陣.md`、原型鏈階數 SVG |
-| **10** | 靜態方法、實例方法、存取器屬性：讀懂 React 原始碼的三行寫法 | 承接 Day 9｜**Day 20 的 `hasOwnProperty.call` 就是這篇** | — | `Day03-靜態方法-實例方法-存取器屬性.md`（已寫好）、兩個盒子 SVG |
+| Day    | 標題                                            | 承接／被用到                                           | 血淚史來源                                                     | 既有素材                                                                                         |
+| ------ | --------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| **1**  | JS 引擎到底在做什麼：從一行 `const a = 1` 看 V8 完整管線       | 全系列起點｜Day 2、13、24 都回頭指這張管線圖                      | —                                                         | `00-V8引擎完整管線-Parse到Deoptimization.md`（28KB＋互動版）、`01-引擎-Engine-到底是什麼.md`（45KB）                |
+| **2**  | 記憶體模型：Stack、Heap 與 GC 什麼時候真的回收                | 承接 Day 1｜Day 3、10、12 全靠這張圖                       | —                                                         | `11-記憶體模型-stack-heap-動態配置-GC.md`、`全域變數的GC回收時機.md`、Stack/Heap SVG                             |
+| **3**  | 傳值 vs 傳址：為什麼「複製」一個物件會害你改到原本的                  | 承接 Day 2｜Day 17 的 React state 不可變性直接靠它           | **`2025-09-17_如果依賴整個userData會怎麼樣`** —— 依賴整個物件導致無限重渲染      | `10-傳值vs傳址-賦值與記憶體空間.md`（17KB＋互動版）、`JS-相等性與傳值傳址/` 整包                                          |
+| **4**  | 相等性四種演算法：`==`、`===`、`Object.is`、SameValueZero | 承接 Day 3｜Day 18 的 React 淺比較用得到                   | **`2025-09-15_為什麼一個是false一個true`**                        | `JS-相等性與傳值傳址.md` ＋ `object-is-demo.js` ＋ 四種相等演算法比較表 SVG                                      |
+| **5**  | 型別轉換：ToPrimitive 與那些「明明看起來一樣卻不等」              | 承接 Day 4｜Day 8 的包裹物件、Day 9 的 JSON                | **`常見錯誤-Number包住陣列變NaN-reduce爆錯.md`** —— 真的爆過的 reduce     | `15-ToPrimitive-ToNumber-型別轉換抽象操作.md`、`valueOf-預設行為與原始值轉換.md`                                |
+| **6**  | 作用域與詞法作用域：面試四段式答法                             | 承接 Day 2｜Day 7 閉包、Day 11 `this`                  | **`2025-09-11_npm_start_為什麼讀到的port值是3005`** —— 環境變數被哪一層蓋掉 | `05-作用域`、`14-詞法作用域-Lexical-Scope-面試四段式.md` ＋ `scope-chain-inspector.js`（用 node:inspector 實測） |
+| **7**  | 閉包：私有變數、傳址陷阱，與 `return` 之後記憶體怎麼了              | 承接 Day 6｜Day 19 的 hooks 全靠閉包                     | —                                                         | `13-閉包-Closure`（27KB＋互動版）、`12-return-清理記憶體-stack-frame與閉包例外.md`（**61KB，全 vault 最大的技術筆記**）    |
+| **8**  | 資料型別總覽：原始型別、包裹物件、自動裝箱、Symbol、Iterator         | 承接 Day 5｜Day 9 的 Map、Day 23 的 `for...of`         | **`symbol_data_type.html` 打錯字噴 SyntaxError**              | `自動裝箱與內建建構函式.md`、`Symbol-符號型別與物件key.md`、`Object建構子-plain-object的建立與存取.md`                    |
+| **9**  | 物件的真面目：原型鏈階數、屬性列舉四格矩陣                         | 承接 Day 8｜Day 12 的原型最佳化、Day 20 的 React 原始碼        | **`2025-08-31_得到的屬性值`**                                   | `Object建構子`（769 行，含 i／j／k／l／m 五個追問延伸）、`屬性列舉決策矩陣.md`、原型鏈階數 SVG                                |
+| **10** | 靜態方法、實例方法、存取器屬性：讀懂 React 原始碼的三行寫法             | 承接 Day 9｜**Day 20 的 `hasOwnProperty.call` 就是這篇** | —                                                         | `Day03-靜態方法-實例方法-存取器屬性.md`（已寫好）、兩個盒子 SVG                                                     |
 
 ---
 

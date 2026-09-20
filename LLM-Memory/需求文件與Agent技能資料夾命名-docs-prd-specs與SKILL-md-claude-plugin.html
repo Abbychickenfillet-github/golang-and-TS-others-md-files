@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>需求文件與 Agent 技能的資料夾命名 — docs/prd/specs 給人看，SKILL.md 與 .claude-plugin 給 Agent 看</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>需求文件與 Agent 技能的資料夾命名 — docs/prd/specs 給人看，SKILL.md 與 .claude-plugin 給 Agent 看</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#claude-code</span><span class="pill">#skill</span><span class="pill">#agent</span><span class="pill">#prd</span><span class="pill">#requirements</span><span class="pill">#plugin</span><span class="pill">#專案結構</span><span class="pill">#命名慣例</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-17</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/c1c7bf0f94490513" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card">
+<h2>主軸圖：專案根目錄的分岔 — 左枝給人讀，右枝給 Agent 讀</h2>
+<p style="margin-top:0">判準只有一個問句：這份文件的讀者是「人類決策者」還是「AI 執行者」。之後追問請指回左枝或右枝的某一個節點。</p>
+<div class="fig" style="overflow-x:auto">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" style="min-width:700px;width:100%;height:auto" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="sk-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4A5A75"/>
+    </marker>
+  </defs>
+  <style>
+    .sk-l{font-size:15px;fill:#1F2937}
+    .sk-s{font-size:12.5px;fill:#55617A}
+    .sk-c{font-size:13px;fill:#33415C;font-family:Consolas,'Cascadia Code',monospace}
+    .sk-e{stroke:#4A5A75;stroke-width:1.8;fill:none;marker-end:url(#sk-ar)}
+    .sk-t{font-size:13px;fill:#4A5A75;font-weight:600}
+  </style>
+  <rect x="0" y="0" width="900" height="620" fill="#FBFCFD"/>
+  <text x="450" y="30" text-anchor="middle" font-size="18" font-weight="700" fill="#1F2937">同一個 repo，兩套完全不同讀者的文件</text>
+
+  <rect x="340" y="52" width="220" height="42" rx="21" fill="#E8EDF5" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="450" y="79" text-anchor="middle" class="sk-c">my-project/</text>
+  <path class="sk-e" d="M450 94 L450 122"/>
+
+  <path d="M450 122 L700 176 L450 230 L200 176 Z" fill="#FFF6D9" stroke="#B8933A" stroke-width="1.8"/>
+  <text x="450" y="170" text-anchor="middle" class="sk-l">這份文件的讀者是</text>
+  <text x="450" y="192" text-anchor="middle" class="sk-l">人類決策者還是 AI 執行者？</text>
+
+  <path class="sk-e" d="M200 176 L110 176 L110 262"/>
+  <text x="152" y="168" text-anchor="middle" class="sk-t">人類</text>
+  <path class="sk-e" d="M700 176 L790 176 L790 262"/>
+  <text x="746" y="168" text-anchor="middle" class="sk-t">AI</text>
+
+  <rect x="20" y="262" width="360" height="270" rx="12" fill="#EEF2F8" stroke="#4A5A75" stroke-width="2"/>
+  <text x="200" y="290" text-anchor="middle" class="sk-l" font-weight="700">左枝：給人讀的需求文件</text>
+  <text x="200" y="322" text-anchor="middle" class="sk-c">docs/prd/PRD.md</text>
+  <text x="200" y="346" text-anchor="middle" class="sk-c">docs/requirements/REQUIREMENTS.md</text>
+  <text x="200" y="370" text-anchor="middle" class="sk-c">docs/specs/FUNCTIONAL_SPEC.md</text>
+  <text x="200" y="394" text-anchor="middle" class="sk-c">docs/architecture/</text>
+  <text x="200" y="430" text-anchor="middle" class="sk-s">描述「要做成什麼樣」</text>
+  <text x="200" y="452" text-anchor="middle" class="sk-s">產物是規格與決策紀錄</text>
+  <text x="200" y="488" text-anchor="middle" class="sk-s">AI 也可以拿來當背景資料讀</text>
+  <text x="200" y="510" text-anchor="middle" class="sk-s">但它不是拿來「觸發動作」的</text>
+
+  <rect x="520" y="262" width="360" height="270" rx="12" fill="#F6F2FC" stroke="#9B7FD4" stroke-width="2"/>
+  <text x="700" y="290" text-anchor="middle" class="sk-l" font-weight="700">右枝：給 Agent 讀的設定</text>
+  <text x="700" y="322" text-anchor="middle" class="sk-c">CLAUDE.md（專案級長期規範）</text>
+  <text x="700" y="346" text-anchor="middle" class="sk-c">.claude/skills/&lt;技能&gt;/SKILL.md</text>
+  <text x="700" y="370" text-anchor="middle" class="sk-c">.claude-plugin/plugin.json</text>
+  <text x="700" y="394" text-anchor="middle" class="sk-c">.claude-plugin/marketplace.json</text>
+  <text x="700" y="430" text-anchor="middle" class="sk-s">SKILL.md 描述「遇到 X 情境照這幾步做」</text>
+  <text x="700" y="452" text-anchor="middle" class="sk-s">三段缺一不可：觸發條件／操作步驟／限制</text>
+  <text x="700" y="488" text-anchor="middle" class="sk-s">plugin.json 描述「這包東西怎麼被安裝」</text>
+  <text x="700" y="510" text-anchor="middle" class="sk-s">由 Claude 的 Plugin 載入器讀</text>
+
+  <text x="450" y="580" text-anchor="middle" class="sk-s">圖例：圓角＝起訖　菱形＝判斷　圓角方框＝兩條分枝　箭頭＝分流方向（ISO 5807 流程圖慣例）</text>
+</svg>
+</div>
+</section>
+
+
+
+<article class="card">
+<h1 id="agent-docsprdspecs-skillmd-claude-plugin-agent">需求文件與 Agent 技能的資料夾命名 — docs/prd/specs 給人看，SKILL.md 與 .claude-plugin 給 Agent 看</h1>
+<blockquote>
+<p>本篇重點 a–i，共 9 個。<br />
+主軸圖：本頁 HTML 版的「專案根目錄分岔圖」（左枝＝給人讀的 <code>docs/</code>，右枝＝給 Agent 讀的 <code>.claude/</code>），之後同主題追問請指回左枝或右枝的某個節點。</p>
+</blockquote>
+<hr />
+<h2 id="_1">🎯 速答區</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>一句話速答</th>
+<th>章節</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>需求文件慣例上放哪</td>
+<td><code>docs/</code> 底下再分 <code>requirements/</code>、<code>specs/</code>、<code>prd/</code></td>
+<td>§1</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td><code>SKILL.md</code> 是需求文件嗎</td>
+<td>不是，它是寫給 AI Agent 的「操作指引與工具擴充選單」</td>
+<td>§2</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td><code>SKILL.md</code> 裡面要寫什麼</td>
+<td>觸發條件、操作步驟、限制與規範，三段缺一不可</td>
+<td>§2</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td><code>.claude-plugin/</code> 是什麼</td>
+<td>定義這個專案作為 Claude Plugin 時的元資料與發布資訊</td>
+<td>§3</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-ac">1. 給「人」看的需求文件（a–c）</h2>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">常見資料夾命名</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>路徑</th>
+<th>放什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docs/</code> 或 <code>documentation/</code></td>
+<td>最標準通用的根目錄資料夾，專案所有相關文件都放這裡</td>
+</tr>
+<tr>
+<td><code>docs/requirements/</code> 或 <code>docs/reqs/</code></td>
+<td>專門存放需求規格書</td>
+</tr>
+<tr>
+<td><code>docs/specs/</code> 或 <code>docs/specifications/</code></td>
+<td>詳細的功能規格說明（Functional Specifications）</td>
+</tr>
+<tr>
+<td><code>docs/prd/</code></td>
+<td>PRD（Product Requirement Document，產品需求文件）</td>
+</tr>
+<tr>
+<td><code>docs/architecture/</code> 或 <code>docs/design/</code></td>
+<td>需求涉及系統架構或設計細節時放這裡</td>
+</tr>
+<tr>
+<td><code>.plans/</code> 或 <code>plans/</code></td>
+<td>部分開發框架（AI Agent 類工具或特定團隊）把規劃與需求文件放這裡</td>
+</tr>
+</tbody>
+</table>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">常見檔名</mark>：<code>PRD.md</code>（產品需求文件）、<code>REQUIREMENTS.md</code>（專案總體需求說明）、<code>FUNCTIONAL_SPEC.md</code>（功能規格說明書）。</p>
+<p>(c) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">判斷標準：這份文件的讀者是「人類決策者」還是「AI 執行者」</mark>。是人類決策者就走這一枝。</p>
+<hr />
+<h2 id="2-agentskillmddg">2. 給「Agent」看的技能定義：SKILL.md（d–g）</h2>
+<p>(d) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>skills/</code> 資料夾與 <code>SKILL.md</code> 用來放給 AI Agent 讀取的自訂技能與功能擴充指令</mark>，它告知 AI 如何執行特定任務（例如發布套件、執行特定測試、呼叫 API、進行程式碼審查）。</p>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">常見位置</mark>：專案根目錄的 <code>.claude/skills/</code>、<code>skills/</code>，或各個 AI 工具專屬的配置目錄中。</p>
+<p>(f) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>SKILL.md</code> 的三段責任，缺一段 Agent 就會亂做</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>段落</th>
+<th>責任</th>
+<th>寫法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>觸發條件 Triggers / Description</td>
+<td>定義 AI 在什麼情境、收到什麼指令時應該載入該技能</td>
+<td>寫在 frontmatter 的 <code>description</code>，要寫得像「使用者會怎麼講這件事」</td>
+</tr>
+<tr>
+<td>操作步驟 Workflow / Steps</td>
+<td>寫明 AI 執行該技能時需遵循的具體步驟與 Bash 命令</td>
+<td>有序清單，指令用 code block</td>
+</tr>
+<tr>
+<td>限制與規範 Rules / Constraints</td>
+<td>列出注意事項，例如安全檢查、禁止變更的檔案</td>
+<td>用「切勿／必須」開頭的祈使句</td>
+</tr>
+</tbody>
+</table>
+<p>(g) 結構範例：</p>
+<pre><code class="language-markdown">---
+name: run-database-migration
+description: 當需要執行資料庫遷移或新增表時使用此技能
+---
+
+# 資料庫遷移技能 (Database Migration Skill)
+
+## 執行步驟
+1. 檢查 `prisma/schema.prisma` 是否有語法錯誤。
+2. 執行指令：`npx prisma migrate dev`
+3. 驗證 migration 檔案是否成功產生於 `prisma/migrations/`。
+
+## 注意事項
+- 切勿在未通知用戶的情況下直接執行 `prisma migrate reset`。
+</code></pre>
+<hr />
+<h2 id="3-claude-plugin-h">3. <code>.claude-plugin/</code> 是什麼（h）</h2>
+<p>(h) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>.claude-plugin/</code> 是專門給 Claude 生態（Claude Code CLI 與 Claude Desktop 外掛）所設計的設定與外掛目錄</mark>。</p>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plugin.json</code></td>
+<td>定義這個工具作為 Claude Plugin 時的元資料、存取權限、相容版本</td>
+</tr>
+<tr>
+<td><code>marketplace.json</code></td>
+<td>定義發布資訊，讓 plugin 可以被列在 marketplace 裡被安裝</td>
+</tr>
+</tbody>
+</table>
+<pre><code>當你在 Claude Code 中載入或安裝此 Plugin 時，Claude 會讀取這裡的設定，進而載入專案定義的 Commands、Agents、Tools 與 Skills。
+雖然資料夾名稱叫 `.claude-plugin`，但許多現代 AI Agent 框架（例如 GSD）為了兼顧生態系，會以 Claude 的 Plugin 規範為基準，讓其他支援相同協定的 AI 工具也能讀取使用。
+</code></pre>
+<hr />
+<h2 id="4-i">4. 一張表分清楚三種檔案（i）</h2>
+<p>(i) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">三者的讀者完全不同，不要混在同一個資料夾</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>讀者</th>
+<th>內容性質</th>
+<th>典型位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PRD.md</code> / <code>REQUIREMENTS.md</code></td>
+<td>人類（也可給 AI 參考）</td>
+<td>產品功能規格與需求，描述「要做成什麼樣」</td>
+<td><code>docs/prd/</code>、<code>docs/requirements/</code></td>
+</tr>
+<tr>
+<td><code>CLAUDE.md</code> / <code>AGENTS.md</code></td>
+<td>AI Agent</td>
+<td>專案級的長期規範與背景知識，描述「在這個 repo 裡做事的規矩」</td>
+<td>專案根目錄</td>
+</tr>
+<tr>
+<td><code>SKILL.md</code></td>
+<td>AI Agent</td>
+<td>單一任務的操作指引與工具擴充，描述「遇到 X 情境時照這幾步做」</td>
+<td><code>.claude/skills/&lt;技能名&gt;/</code></td>
+</tr>
+<tr>
+<td><code>plugin.json</code> / <code>marketplace.json</code></td>
+<td>Claude 的 Plugin 載入器</td>
+<td>外掛元資料與發布資訊，描述「這包東西怎麼被安裝」</td>
+<td><code>.claude-plugin/</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code>`CLAUDE.md` 與 `AGENTS.md` 的差異寫在 &lt;span class="wikilink" title="Obsidian 連結：CLAUDE.md-vs-AGENTS.md"&gt;CLAUDE.md-vs-AGENTS.md&lt;/span&gt;，那篇是本篇這張表的第二列展開。
+</code></pre>
+<hr />
+<h2 id="_2">關聯筆記（附關聯原因）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：CLAUDE.md-vs-AGENTS.md">CLAUDE.md-vs-AGENTS.md</span><br />
+<strong>理由</strong>：本篇 §4 的表格把 <code>CLAUDE.md</code> 跟 <code>SKILL.md</code> 放在同一個象限比較，那篇專講 <code>CLAUDE.md</code> 與 <code>AGENTS.md</code> 這兩份「專案級規範」的差別，是本篇的下一層。</li>
+<li><span class="wikilink" title="Obsidian 連結：Model-Context-Protocol-MCP-協定定義與三大能力">Model-Context-Protocol-MCP-協定定義與三大能力</span><br />
+<strong>理由</strong>：<code>.claude-plugin/</code> 打包進去的 Tools 大多是 MCP server，那篇講 MCP 的三大能力（Tools／Resources／Prompts），是本篇 §3 的技術底層。</li>
+<li><span class="wikilink" title="Obsidian 連結：Agent記憶框架安裝-pip-vs-clone與user-skill-memory檔案">Agent記憶框架安裝-pip-vs-clone與user-skill-memory檔案</span><br />
+<strong>理由</strong>：那篇處理的是「user skill 與 memory 檔案裝在哪」，跟本篇 §2 的 <code>skills/</code> 位置問題是同一件事的兩個角度。</li>
+</ul>
+<hr />
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/c1c7bf0f94490513</td>
+<td>Gemini Flash，2026-09-17 擷取</td>
+</tr>
+<tr>
+<td>Anthropic Docs — Agent Skills（SKILL.md 格式與位置）</td>
+<td>https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview</td>
+<td>Anthropic 官方文件，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>Anthropic Docs — Claude Code Plugins（plugin.json / marketplace.json）</td>
+<td>https://docs.claude.com/en/docs/claude-code/plugins</td>
+<td>Anthropic 官方文件，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>Anthropic Docs — CLAUDE.md 記憶檔</td>
+<td>https://docs.claude.com/en/docs/claude-code/memory</td>
+<td>Anthropic 官方文件，2026-09-17 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-17</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-17</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

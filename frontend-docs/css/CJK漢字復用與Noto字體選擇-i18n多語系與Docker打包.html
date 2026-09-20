@@ -16,7 +16,7 @@
 body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
   font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   font-size:16.5px;-webkit-font-smoothing:antialiased}
-.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
 header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
   border-radius:16px;padding:26px 28px;margin-bottom:22px}
 header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
@@ -57,6 +57,9 @@ th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-ali
 th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
 tbody tr:nth-child(even){background:#fafbfc}
 hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
 .wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
   border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
 /* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
@@ -114,9 +117,9 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <h1>CJK漢字復用與Noto字體選擇-i18n多語系與Docker打包</h1>
   <div class="pills"><span class="pill">#gemini</span><span class="pill">#css</span><span class="pill">#字體</span><span class="pill">#unicode</span><span class="pill">#cjk</span><span class="pill">#i18n</span><span class="pill">#nextjs</span><span class="pill">#docker</span><span class="pill">#woff2</span></div>
   <div class="meta">
-    <span>更新於 2026-08-15</span>
+    <span>更新於 2026-09-16</span>
     <span>來源：Gemini</span>
-    <a href="https://gemini.google.com/app/74c43e47dd339aae" target="_blank" rel="noopener">原始對話 1</a>
+    <a href="https://gemini.google.com/app/74c43e47dd339aae" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/ffd799893d049a90" target="_blank" rel="noopener">原始對話 2</a>
   </div>
 </header>
 
@@ -140,7 +143,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 <article class="card">
 <h1 id="cjk-noto-i18n-docker">CJK 漢字復用與 Noto 字體選擇｜i18n 多語系與 Docker 打包</h1>
 <blockquote>
-<p>本篇重點 a–r，共 18 個</p>
+<p>本篇重點 a–s，共 19 個</p>
 </blockquote>
 <p>相關筆記：<span class="wikilink" title="Obsidian 連結：EC2-vs-ECS-vs-Fargate-vs-VPS-容器部署選型">EC2-vs-ECS-vs-Fargate-vs-VPS-容器部署選型</span>、<span class="wikilink" title="Obsidian 連結：ASCII-美國資訊交換標準碼">ASCII-美國資訊交換標準碼</span>、<span class="wikilink" title="Obsidian 連結：ChatGPT匯出JSON-Unicode跳脫序列看似亂碼">ChatGPT匯出JSON-Unicode跳脫序列看似亂碼</span>、<span class="wikilink" title="Obsidian 連結：00-CSS觀念複習地圖與資料夾索引">00-CSS觀念複習地圖與資料夾索引</span><br />
 關聯原因：這篇的上半段（Unicode 碼點與字形）跟 ASCII／Unicode 跳脫序列筆記是同一個編碼家族；下半段（字體要不要跟著 Docker 走）直接接到容器部署選型那篇，兩篇原本是同一場對話拆出來的。</p>
@@ -226,10 +229,18 @@ export default function RootLayout({ children, params }) {
 <li><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">方案 A</mark>：用 <code>next/font/google</code>，Google 會依使用者語系只送需要的字元切片（靠 CSS 的 <code>unicode-range</code>）。缺點是要連外網。</li>
 <li><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">方案 B</mark>：私有化部署不能連外網時，用 <code>fontmin</code>／<code>pyftsubset</code> 這類工具做<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">字體抽稀（Subsetting）</mark>，把大字體切成繁中、簡中、日文三個小檔。</li>
 </ul>
+<p>(q) <mark style="background: #D2B3FF;">框架對照：Angular 的 i18n 做法跟上面 (o) 的 Next.js 不一樣。</mark>主詞—動詞—受詞拆開寫是這樣：</p>
+<ol>
+<li>開發者在 Angular 的模板裡用 <code>i18n</code> 屬性標記需要翻譯的文字。</li>
+<li>開發者用 Angular CLI 執行 <code>ng extract-i18n</code>，CLI 把標記過的字串抽出來，產物是一份翻譯檔（<code>messages.xlf</code>）。</li>
+<li>譯者把翻譯檔補完，再交回給建置流程。</li>
+<li><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Angular 在建置期（build-time）把每一個語言版本各打包成一份獨立的產物</mark>，同時依 Locale 設定自動調整日期與數字格式。</li>
+</ol>
+<p><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">和 Next.js 的關鍵差異</mark>：Angular 走的是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">建置期分版（build-time i18n）</mark>，每個語言一份 bundle，切語言等於換一份靜態網站；Next.js 的 <code>next/font</code> 與 App Router i18n 則偏向<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">執行期依 locale 決定</mark>。這個差異直接影響到 (p) 的字體策略——Angular 因為每個語言版本本來就分開了，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">日文版的 bundle 裡可以只放日文字型，不需要背著繁中與簡中的字形</mark>，這正好是方案 B 抽稀想達到的效果。</p>
 <hr />
 <h3 id="docker">五、字體與 Docker 的關係</h3>
-<p>(q) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「字體必須跟著 Docker 走」的意思</mark>：Docker 容器啟動時是一個幾乎什麼都沒有的乾淨 Linux 環境，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它不會抓你電腦裡的字體，也不會抓 AWS 主機原本裝的字體</mark>。所以字體檔要放進專案（<code>public/fonts/</code> 或 <code>app/fonts/</code>）、跟著 git commit，Dockerfile 的 <code>COPY . .</code> 才會把它帶進映像檔。這樣不管跑在哪台機器，渲染結果都一致，不會「本地看很美、上線變醜」。</p>
-<p>(r) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不要用 npm 安裝字體</mark>（除非是 <code>fontsource</code> 這類封裝好的套件）：npm 上的 <code>noto-sans-cjk</code> 等套件通常非常龐大，會讓 <code>node_modules</code> 肥大、拖慢 Docker build，且版本更新緩慢。手動放 <code>.woff2</code> 進專案，你可以完全控制載入哪些粗細與語系，對<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">映像檔體積優化更有利</mark>。</p>
+<p>(r) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「字體必須跟著 Docker 走」的意思</mark>：Docker 容器啟動時是一個幾乎什麼都沒有的乾淨 Linux 環境，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它不會抓你電腦裡的字體，也不會抓 AWS 主機原本裝的字體</mark>。所以字體檔要放進專案（<code>public/fonts/</code> 或 <code>app/fonts/</code>）、跟著 git commit，Dockerfile 的 <code>COPY . .</code> 才會把它帶進映像檔。這樣不管跑在哪台機器，渲染結果都一致，不會「本地看很美、上線變醜」。</p>
+<p>(s) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不要用 npm 安裝字體</mark>（除非是 <code>fontsource</code> 這類封裝好的套件）：npm 上的 <code>noto-sans-cjk</code> 等套件通常非常龐大，會讓 <code>node_modules</code> 肥大、拖慢 Docker build，且版本更新緩慢。手動放 <code>.woff2</code> 進專案，你可以完全控制載入哪些粗細與語系，對<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">映像檔體積優化更有利</mark>。</p>
 <table>
 <thead>
 <tr>
@@ -278,6 +289,12 @@ export default function RootLayout({ children, params }) {
 <p><strong>Gemini：</strong> 這句話的意思是：你必須把字體檔案直接放進你的專案資料夾裡，並透過 Dockerfile 打包進映像檔（Image）中。在傳統部署（非容器化）中，如果你在程式裡用到某個字體，你可能需要手動登入伺服器去安裝字體；但在 Docker 的世界裡：環境隔離——Docker 容器啟動時是一個非常乾淨、幾乎什麼都沒有的 Linux 環境（像是一間空屋），它不會抓取你電腦裡的字體，也不會抓取 AWS 伺服器原本裝的字體；自給自足——你的 Docker Image 就是一個「懶人包」，為了確保網頁渲染（或 SSR 生成頁面）時能找到字體，你必須在 Dockerfile 執行 COPY . . 時，確保字體檔案（如 NotoSans.woff2）已經在你的專案路徑下（例如 app/fonts/）。結果是無論這個 Docker 跑在你的電腦、同事的電腦，還是 AWS 上，字體都會永遠存在，不會出現「本地看很美，上線變醜」的問題。</p>
 <p><strong>使用者：</strong> 我在這 5 個 ALL 開頭的應該要選哪一個</p>
 <p><strong>Gemini：</strong> 既然你的專案有 i18n 多國語系需求，這 5 個選項的差別主要在於「打包方式」：All Variable OTF/OTC——可變字體，單一檔案包含所有粗細，不建議，因為某些舊瀏覽器或 Docker 渲染引擎對 Variable Font 支援度不一；All Variable TTF/OTC——同上，只是格式換成 TTF；All Static Language Specific OTCs——將不同語言標準打包成一個 OTC 容器；All Static Language Specific OTFs——最推薦此類，每個語言、每個粗細都是獨立的 OTF 檔案，這對開發者最友善，你可以只挑你要的 tc（繁中）和 jp（日文）放到專案裡；All Static Region Specific Subset OTFs——這是「精簡版」，移除了不常用的字元，雖然最輕，但如果你的翻譯檔裡有罕見字，可能會掉字。最終建議：下載 All Static Language Specific OTFs，解壓後挑選 NotoSansCJKtc-Regular.otf（繁中）和 NotoSansCJKjp-Regular.otf（日文）放入專案，這樣能保證不同語言顯示各自最正確的筆畫標準。</p>
+<h3 id="2026-09-16-httpsgeminigooglecomappffd799893d049a90">東亞字型權重與風格規劃（2026-09-16 擷取）— https://gemini.google.com/app/ffd799893d049a90</h3>
+<blockquote>
+<p>註：這場對話只剩一個回合有文字內容，其餘為語音片段。內容對應本篇 (q)。</p>
+</blockquote>
+<p><strong>使用者：</strong> 是為了支持所有語言，就消除了嗎？那請問 Angular 架構在這部分有做了什麼努力嗎？</p>
+<p><strong>Gemini：</strong> Angular 架構內建了很完善的國際化功能，開發者可以直接在模版中使用標籤標記需要翻譯的文字，並透過 CLI 提取出翻譯檔案，Angular 會在建置時將對應的語言版本打包，同時也能根據區域設定自動調整日期與數字格式。</p>
 <hr />
 <h2 id="_4">資料來源（含查證時間）</h2>
 <table>
@@ -293,6 +310,21 @@ export default function RootLayout({ children, params }) {
 <td>本篇來源對話（Gemini Flash）</td>
 <td>https://gemini.google.com/app/74c43e47dd339aae</td>
 <td>對話擷取於 2026-08-15</td>
+</tr>
+<tr>
+<td>本篇來源對話（東亞字型權重與風格規劃）</td>
+<td>https://gemini.google.com/app/ffd799893d049a90</td>
+<td>對話擷取於 2026-09-16</td>
+</tr>
+<tr>
+<td>Angular 官方｜Internationalization 總覽（建置期分版、CLI 抽取翻譯檔）</td>
+<td>https://angular.dev/guide/i18n</td>
+<td>現行文件，查證於 2026-09-16</td>
+</tr>
+<tr>
+<td>Angular 官方｜ng extract-i18n（產出 messages.xlf）</td>
+<td>https://angular.dev/cli/extract-i18n</td>
+<td>現行文件，查證於 2026-09-16</td>
 </tr>
 <tr>
 <td>Unicode 官方｜Han Unification（Unicode Standard 第 18 章 East Asia）</td>
@@ -329,7 +361,7 @@ export default function RootLayout({ children, params }) {
 </blockquote>
 </article>
 
-<footer>由 Gemini 對話自動整理 · 更新於 2026-08-15</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-16</footer>
 </div>
 <script>
 (function(){

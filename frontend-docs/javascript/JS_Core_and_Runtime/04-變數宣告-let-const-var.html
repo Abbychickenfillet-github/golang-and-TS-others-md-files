@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>變數宣告：let / const / var</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>變數宣告：let / const / var</h1>
+  <div class="pills"></div>
+  <div class="meta">
+    <span>更新於 2026-09-17</span>
+    <span>來源：Claude + Gemini</span>
+    <a href="https://gemini.google.com/app/a043276b763882f4" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="let-const-var">變數宣告：let / const / var</h1>
+<blockquote>
+<p>[!info]- 📍 承接03，銜接05<br />
+<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">承接</mark>：<span class="wikilink" title="Obsidian 連結：03-陳述式-Statement-vs-表達式-Expression">03-陳述式-Statement-vs-表達式-Expression</span>確定變數宣告是一種陳述式，這篇專門拆解let/const/var三種宣告方式的差異。<br />
+<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">下一步</mark>：宣告了變數之後，馬上會遇到「這個變數在哪裡看得到」的問題，下一篇<span class="wikilink" title="Obsidian 連結：05-作用域-scope-global-function-block">05-作用域-scope-global-function-block</span>講作用域。</p>
+<p>相關：<span class="wikilink" title="Obsidian 連結：loops-and-increment-operators">loops-and-increment-operators</span>、<span class="wikilink" title="Obsidian 連結：靜態檢查vs動態檢查-TS-vs-JS">靜態檢查vs動態檢查-TS-vs-JS</span>、<span class="wikilink" title="Obsidian 連結：記憶體模型-stack-heap-動態配置-GC">記憶體模型-stack-heap-動態配置-GC</span><br />
+行事曆練習主題（let vs var + 作用域）</p>
+<p>[!important] 實務慣例<br />
+<strong>預設一律用 <code>const</code>；確定要「重新賦值」才用 <code>let</code>；<code>var</code> 幾乎不用（舊語法、有坑）。</strong></p>
+</blockquote>
+<hr />
+<h2 id="5w1h">5W1H 速查：讀本篇之前先把座標定好</h2>
+<blockquote>
+<p>[!important]+ 最常被搞錯的一件事先講：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「<code>let</code> 與 <code>const</code> 不會 hoisting」是錯的</mark><br />
+三個關鍵字<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">全部都會被提升</mark>，差別不在「有沒有被提升」，而在<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">被提升之後有沒有被初始化</mark>：<br />
+a. <code>var</code> → 在 Creation Phase 就<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">登記＋初始化成 <code>undefined</code></mark>，所以宣告前存取拿到 <code>undefined</code>。<br />
+b. <code>let</code> / <code>const</code> → 在 Creation Phase <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只登記、不初始化</mark>，這段「登記了但還沒初始化」的空窗就是 <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">TDZ（Temporal Dead Zone）</mark>，碰它會丟 <code>ReferenceError</code>。</p>
+<p>差別的關鍵在於：<code>ReferenceError: Cannot access 'x' before initialization</code> 這句話本身就在說「<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這個名字我認得</mark>，只是還沒初始化」——如果真的沒被提升，訊息會是 <code>x is not defined</code>。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩句錯誤訊息不一樣，就是最好的證據。</mark></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>5W1H</th>
+<th>問題</th>
+<th>一句話答案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>What</strong> 是什麼</td>
+<td>這三個關鍵字到底在做什麼？</td>
+<td>都是「在某個作用域裡建立一個<strong>綁定（binding）</strong>」的宣告陳述式。綁定＝一個名字對應到一塊記憶體位置</td>
+</tr>
+<tr>
+<td><strong>When</strong> 什麼時候</td>
+<td>綁定是什麼時候被建立的？</td>
+<td>在<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">執行期</mark>、進入那個作用域的 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Creation Phase</mark>，三個都在這時登記完畢，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">每次進入該作用域都重來一次</mark>。Parse 階段只做決策（要放 Stack 還是 Heap），不配置記憶體</td>
+</tr>
+<tr>
+<td><strong>Who</strong> 誰做的</td>
+<td>誰在建立這些綁定？</td>
+<td>引擎（V8）建立 Environment Record 時做的。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">跟 Babel 無關</mark>——Babel 把 <code>let</code> 降級成 <code>var</code> 加改名是 buildtime 的另一回事，那時候還沒有任何綁定存在</td>
+</tr>
+<tr>
+<td><strong>Where</strong> 在哪裡</td>
+<td>綁定被放進哪個作用域？</td>
+<td>a. <code>var</code> → 最近的<strong>函式</strong>作用域或全域，穿透 <code>{ }</code>；全域的 <code>var</code> 還會變成 <code>window</code> 的 property（見 <span class="wikilink" title="Obsidian 連結：07-identifier-vs-property-var全域變數">07-identifier-vs-property-var全域變數</span>）<br>b. <code>let</code> / <code>const</code> → 最近的<strong>區塊</strong> <code>{ }</code></td>
+</tr>
+<tr>
+<td><strong>Which</strong> 哪一種</td>
+<td>該用哪一個？</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">預設一律 <code>const</code></mark>；確定要重新賦值才 <code>let</code>；<code>var</code> 幾乎不用</td>
+</tr>
+<tr>
+<td><strong>How</strong> 怎麼做到</td>
+<td><code>const</code> 到底鎖住了什麼？</td>
+<td>鎖住的是<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">綁定本身</mark>，不是值的內容。<code>arr.push(3)</code> ✅（改的是 Heap 上的物件）、<code>arr = [9]</code> ❌（改的是綁定指向誰）</td>
+</tr>
+<tr>
+<td><strong>Why</strong> 為什麼</td>
+<td>ES6 為什麼要多這兩個？</td>
+<td>為了補 <code>var</code> 的三個坑：<br>a. 沒有區塊作用域，會漏出去<br>b. 可以重複宣告而不報錯<br>c. 迴圈裡整輪共用同一個綁定，<code>setTimeout</code> 全印同一個值</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_1">時間軸：這件事發生在哪一格</h3>
+<pre><code class="language-text">◄──────────── buildtime 建置期 ────────────►◄────────── runtime 執行期 ──────────►
+      （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+
+ ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤每次進入作用域
+ transpile      bundle           解析             產生            都重來
+ ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
+ │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ Creation Phase   │
+ │let→var │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ ★ 建立 var／let／ │
+ │加改名   │   │Rollup  │      │AST       │   │Bytecode  │   │   const 的綁定    │
+ └────────┘   └────────┘      │Scope     │   └──────────┘   │ ★ var 初始化成    │
+      ↑                       │Analysis  │                  │   undefined       │
+ Babel 只是把文字換掉，        └──────────┘                  │ ★ let／const 進   │
+ 這時候記憶體裡              每個函式只做一次                  │   TDZ，不初始化   │
+ 一個綁定都還沒有。          只做「決策」：                    ├──────────────────┤
+                            這個變數會不會被                  │ Execution Phase  │
+                            閉包捕獲？→ 決定                  │ 跑到宣告那一行，  │
+                            放 Stack 還是 Heap                │ 才初始化＋賦值    │
+                                                             └──────────────────┘
+ ★ 綁定的建立在第 ⑤ 格，不在第 ①③ 格。
+</code></pre>
+<p>變數本身還有自己的第二條時間軸——<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一個綁定的三個階段：宣告 → 初始化 → 賦值</mark>。四種宣告方式的差別，全部落在「第二步在什麼時候發生」：</p>
+<pre><code class="language-text">              ① 宣告 declaration     ② 初始化 initialization   ③ 賦值 assignment
+              （登記這個名字）        （給它第一個值）           （之後再改值）
+              ─────────────────      ─────────────────────     ─────────────────
+              Creation Phase          ↓ 時機因關鍵字而異 ↓       Execution Phase
+
+ function     ├─ 登記 ────────────────┤ 同時完成，整個函式      （可被重新指派）
+              │                       │ 都放進去了
+              │
+ var          ├─ 登記 ────────────────┤ 同時初始化成 undefined  ── 跑到那行才賦值
+              │                       │                            var x = 5
+              │
+ let          ├─ 登記 ─── ◄TDZ► ──────┤ 跑到宣告那行才初始化    ── 之後可重新賦值
+              │           碰到就       │
+              │           Reference-   │
+ const        ├─ 登記 ─── ◄TDZ► ──────┤ 跑到宣告那行才初始化    ── ❌ 不能重新賦值
+              │           Error        │ 而且一定要給初值            TypeError
+              │
+            進入作用域              執行到宣告那一行           之後的任何一行
+</code></pre>
+<p>同一件事用 Mermaid 再畫一次：</p>
+<pre><code class="language-mermaid">flowchart LR
+    subgraph BT[&quot;buildtime 建置期（還沒有任何綁定）&quot;]
+        T[&quot;轉譯 transpile&lt;br/&gt;Babel 把 let／const&lt;br/&gt;降級成 var 加改名&quot;] --&gt; BU[&quot;打包 bundle&lt;br/&gt;webpack／Vite／Rollup&quot;]
+    end
+    subgraph RT1[&quot;runtime 執行期 · 每個函式只做一次&quot;]
+        P[&quot;③ Parse&lt;br/&gt;Scope Analysis 只做決策：&lt;br/&gt;放 Stack 還是 Heap&lt;br/&gt;不配置記憶體&quot;] --&gt; BC[&quot;④ Ignition 產生 Bytecode&quot;]
+    end
+    subgraph RT2[&quot;runtime 執行期 · 每次進入作用域都重來&quot;]
+        CP[&quot;⑤-1 Creation Phase&lt;br/&gt;★ 宣告：三種都登記&lt;br/&gt;★ var 初始化成 undefined&lt;br/&gt;★ let／const 進 TDZ&quot;] --&gt; EP[&quot;⑤-2 Execution Phase&lt;br/&gt;★ 跑到宣告那一行&lt;br/&gt;let／const 才離開 TDZ&lt;br/&gt;完成初始化與賦值&quot;]
+        EP --&gt; AS[&quot;之後的賦值&lt;br/&gt;let ✅ 可重新賦值&lt;br/&gt;const ❌ TypeError&quot;]
+    end
+    BU --&gt; P
+    BC --&gt; CP
+    AS -.-&gt;|&quot;再次進入這個作用域&lt;br/&gt;整包重來一次&quot;| CP
+</code></pre>
+<hr />
+<h2 id="let-vs-const">let vs const（最常用，差別只有「能不能重新賦值」）</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>const</code></th>
+<th><code>let</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>重新賦值</td>
+<td>❌ 不能</td>
+<td>✅ 可以</td>
+</tr>
+<tr>
+<td>宣告要給初值</td>
+<td>必須</td>
+<td>可不給（undefined）</td>
+</tr>
+<tr>
+<td>作用域</td>
+<td>區塊 <code>{}</code></td>
+<td>區塊 <code>{}</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-js">const a = 1; a = 2;   // ❌ TypeError: Assignment to constant variable
+let b = 1;   b = 2;   // ✅ 可以被重新賦值。但是不能重新宣告！不能寫let b = 2;
+const c;              // ❌ SyntaxError：const 一定要給初值
+let d;                // ✅ undefined
+</code></pre>
+<h3 id="const">⚠️ const 不是「內容不能改」，是「不能重新賦值」</h3>
+<pre><code class="language-js">const arr = [1, 2];
+arr.push(3);   // ✅ 改內容可以 → [1,2,3]
+arr = [9];     // ❌ 重新賦值不行
+
+const obj = { name: &quot;Abby&quot; };
+obj.name = &quot;Joe&quot;;  // ✅ 改屬性可以
+obj = {};          // ❌ 重新賦值不行
+</code></pre>
+<p>→ <code>const arr</code> / <code>const obj</code> 還能 push、改屬性，就是因為「改內容 ≠ 重新賦值」。</p>
+<h4 id="const_1">所有「修改原陣列」的方法都能用 const</h4>
+<pre><code class="language-js">const arr = [1, 2, 3];
+arr.push(4);      // ✅ 加到尾
+arr.pop();        // ✅ 移除尾
+arr.unshift(0);   // ✅ 加到頭
+arr.shift();      // ✅ 移除頭
+arr.splice(1, 1); // ✅
+arr.sort();       // ✅
+arr.reverse();    // ✅
+arr[0] = 99;      // ✅ 改某格
+arr.length = 0;   // ✅ 清空
+arr = [];         // ❌ 只有「重新賦值」不行 → TypeError
+</code></pre>
+<blockquote>
+<p>不用背哪些方法可以：只要問「<strong>我在改它的內容，還是讓變數指向全新的東西？</strong>」<br />
+改內容 → const 永遠 OK；<code>=</code> 重新指向 → 才需要 let。<br />
+（<code>map</code>/<code>filter</code>/<code>slice</code>/<code>concat</code> 回傳新陣列、不改原本，對 const 也沒問題。）</p>
+</blockquote>
+<h4 id="2026-09-17-gemini">用「記憶體位址」再講一次同一件事（2026-09-17 由 Gemini 語音對話補入）</h4>
+<ul>
+<li>
+<p><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>const</code> 鎖的是「參考位址（reference）」，不是「值」</mark>。<br />
+    宣告 <code>const arr = [1,2,3]</code> 時，<code>arr</code> 這個綁定被釘死在該陣列所在的那個 heap 位址上，之後不准再指向別處；但那塊 heap 空間裡的內容怎麼改都行。</p>
+</li>
+<li>
+<p><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>let</code> 允許同一個變數名在不同時間點綁定到完全不同的記憶體位址</mark>，所以底下這段完全合法、不會報錯：</p>
+</li>
+</ul>
+<pre><code class="language-js">let array1 = [55, 666, 777];
+array1 = [888, 999, 444];   // ✅ let 可以整個換掉，綁到另一塊全新的記憶體
+</code></pre>
+<pre><code>對照 `const array1 = [55, 666, 777]; array1 = [...]` 就會丟 `TypeError: Assignment to constant variable`。
+「值 vs 位址」的完整圖解在 &lt;span class="wikilink" title="Obsidian 連結：10-傳值vs傳址-賦值與記憶體空間"&gt;10-傳值vs傳址-賦值與記憶體空間&lt;/span&gt;。
+</code></pre>
+<ul>
+<li>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ 常見誤解：以為選 <code>const</code> 比較「省記憶體／省電」</mark>。<br />
+    不成立。選 <code>let</code> 或 <code>const</code> 不會影響硬體耗電量，記憶體配置與垃圾回收（GC）執行得極快，對能耗的影響微乎其微。<br />
+    <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">判準永遠是「程式邏輯與可讀性」</mark>：這個綁定在生命週期內會不會被整個換掉？會就 <code>let</code>，不會就 <code>const</code>。</p>
+</li>
+<li>
+<p><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">正名：<code>var</code> / <code>let</code> / <code>const</code> 這三個字的正式稱呼是「宣告關鍵字（declaration keywords）」</mark>，因為它們的職責是宣告變數，並同時決定該變數的作用域與能不能重新賦值這兩件事。</p>
+</li>
+</ul>
+<hr />
+<h2 id="letconst-vs-varvar">let/const vs var（var 的三個坑）</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>let</code> / <code>const</code></th>
+<th><code>var</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>作用域</td>
+<td><strong>區塊</strong> <code>{}</code>（if/for 內外分開）</td>
+<td><strong>函式</strong>（會漏出 if/for）</td>
+</tr>
+<tr>
+<td>提升 hoisting</td>
+<td>有 TDZ，宣告前用會報錯</td>
+<td>提升並初始化為 <code>undefined</code>（不報錯，易出 bug）</td>
+</tr>
+<tr>
+<td>重複宣告</td>
+<td>❌ 同層不能重複</td>
+<td>✅ 可重複（容易誤蓋）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="1var">坑 1：var 沒有區塊作用域（會漏出去）</h3>
+<pre><code class="language-js">if (true) { var x = 1; let y = 2; }
+console.log(x);   // 1   ← var 漏到外面
+console.log(y);   // ❌ ReferenceError ← let 鎖在 {} 內
+</code></pre>
+<h3 id="2tdz">坑 2：TDZ（暫時性死區）</h3>
+<pre><code class="language-js">console.log(v);   // undefined（var 被提升並初始化）
+var v = 1;
+
+console.log(l);   // ❌ ReferenceError（let 在 TDZ，宣告前不能用）
+let l = 1;
+</code></pre>
+<blockquote>
+<p>[!note] TDZ 和「區塊作用域」是兩個不同概念，別搞混<br />
+兩個都跟 <code>let</code>/<code>var</code> 有關，但問的是不同的事：</p>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>在問什麼</th>
+<th>軸線</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>作用域</strong>（區塊 vs 函式）</td>
+<td>變數「<strong>能在哪裡</strong>」被存取</td>
+<td>空間（<code>{}</code> 內外）</td>
+</tr>
+<tr>
+<td><strong>TDZ 暫時性死區</strong></td>
+<td>變數「<strong>從哪一行起</strong>」能被存取</td>
+<td>時間／順序（宣告那行的上下）</td>
+</tr>
+</tbody>
+</table>
+<p><code>js
+{
+  // console.log(y);  // ❌ TDZ（在區塊內，但在 let 之前 → 時間軸）
+  let y = 2;
+  console.log(y);     // ✅ 2
+}
+// console.log(y);    // ❌ ReferenceError（跑出區塊了 → 空間軸）</code><br />
+兩行都丟 <code>ReferenceError</code>，但原因不同：一個是「太早用」，一個是「在外面用」。</p>
+<p><code>var</code> 剛好兩個坑都踩（沒區塊作用域＋提升成 <code>undefined</code>），所以常被一起講；<br />
+<code>let</code>/<code>const</code> 把兩件事都修好（鎖在區塊內＋TDZ 擋提早用），但它們是<strong>兩個獨立的保護機制</strong>。<br />
+一句話：<strong>作用域決定「進不進得去」，TDZ 決定「到了沒」。</strong></p>
+</blockquote>
+<h3 id="3-settimeout">坑 3：迴圈 + setTimeout 經典差異</h3>
+<pre><code class="language-js">for (var i = 0; i &lt; 3; i++) setTimeout(() =&gt; console.log(i));   // 3 3 3
+for (let i = 0; i &lt; 3; i++) setTimeout(() =&gt; console.log(i));   // 0 1 2
+</code></pre>
+<p><code>var</code> 整個迴圈共用同一個 <code>i</code>；<code>let</code> 每圈是獨立的 <code>i</code>（區塊作用域）。</p>
+<hr />
+<h2 id="_2">一句話總結</h2>
+<ul>
+<li><strong>能不能重新賦值</strong> → 不能用 <code>const</code>、要就 <code>let</code>。</li>
+<li><strong>const 鎖的是「綁定」不是「內容」</strong> → 物件/陣列內容照樣可改。</li>
+<li><strong>var 有函式作用域 + 提升 + 可重複宣告三個坑</strong> → 現代別用。</li>
+</ul>
+<hr />
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>「為什麼陣列要用 const 宣告」Gemini 語音對話</td>
+<td>https://gemini.google.com/app/a043276b763882f4</td>
+<td>Gemini Flash，2026-09-17 擷取</td>
+</tr>
+<tr>
+<td>MDN — const（綁定不可重新賦值，但值可變）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>MDN — let</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let</td>
+<td>MDN 現行版本，2026-09-17 查證</td>
+</tr>
+<tr>
+<td>ECMA-262 — Declarations and the Variable Statement</td>
+<td>https://tc39.es/ecma262/#sec-declarations-and-the-variable-statement</td>
+<td>ECMAScript 現行草案，2026-09-17 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<blockquote>
+<p>[!info]- ➡️ 下一篇<br />
+<span class="wikilink" title="Obsidian 連結：05-作用域-scope-global-function-block">05-作用域-scope-global-function-block</span>——變數在哪裡看得到、哪裡會被關在門外。</p>
+</blockquote>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-17</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

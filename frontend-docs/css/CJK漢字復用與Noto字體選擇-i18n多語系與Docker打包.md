@@ -5,12 +5,13 @@ source: Gemini
 tags: [gemini, css, 字體, unicode, cjk, i18n, nextjs, docker, woff2]
 sources:
   - https://gemini.google.com/app/74c43e47dd339aae
-updated: 2026-08-15
+  - https://gemini.google.com/app/ffd799893d049a90
+updated: 2026-09-16
 ---
 
 # CJK 漢字復用與 Noto 字體選擇｜i18n 多語系與 Docker 打包
 
-> 本篇重點 a–r，共 18 個
+> 本篇重點 a–s，共 19 個
 
 相關筆記：[[EC2-vs-ECS-vs-Fargate-vs-VPS-容器部署選型]]、[[ASCII-美國資訊交換標準碼]]、[[ChatGPT匯出JSON-Unicode跳脫序列看似亂碼]]、[[00-CSS觀念複習地圖與資料夾索引]]
 關聯原因：這篇的上半段（Unicode 碼點與字形）跟 ASCII／Unicode 跳脫序列筆記是同一個編碼家族；下半段（字體要不要跟著 Docker 走）直接接到容器部署選型那篇，兩篇原本是同一場對話拆出來的。
@@ -95,13 +96,22 @@ export default function RootLayout({ children, params }) {
 - <mark style="background: #BBFABBA6;">方案 A</mark>：用 `next/font/google`，Google 會依使用者語系只送需要的字元切片（靠 CSS 的 `unicode-range`）。缺點是要連外網。
 - <mark style="background: #BBFABBA6;">方案 B</mark>：私有化部署不能連外網時，用 `fontmin`／`pyftsubset` 這類工具做<mark style="background: #ADCCFFA6;">字體抽稀（Subsetting）</mark>，把大字體切成繁中、簡中、日文三個小檔。
 
+(q) <mark style="background: #D2B3FF;">框架對照：Angular 的 i18n 做法跟上面 (o) 的 Next.js 不一樣。</mark>主詞—動詞—受詞拆開寫是這樣：
+
+   1. 開發者在 Angular 的模板裡用 `i18n` 屬性標記需要翻譯的文字。
+   2. 開發者用 Angular CLI 執行 `ng extract-i18n`，CLI 把標記過的字串抽出來，產物是一份翻譯檔（`messages.xlf`）。
+   3. 譯者把翻譯檔補完，再交回給建置流程。
+   4. <mark style="background: #FFF3A3A6;">Angular 在建置期（build-time）把每一個語言版本各打包成一份獨立的產物</mark>，同時依 Locale 設定自動調整日期與數字格式。
+
+   <mark style="background: #ADCCFFA6;">和 Next.js 的關鍵差異</mark>：Angular 走的是<mark style="background: #ADCCFFA6;">建置期分版（build-time i18n）</mark>，每個語言一份 bundle，切語言等於換一份靜態網站；Next.js 的 `next/font` 與 App Router i18n 則偏向<mark style="background: #ADCCFFA6;">執行期依 locale 決定</mark>。這個差異直接影響到 (p) 的字體策略——Angular 因為每個語言版本本來就分開了，<mark style="background: #BBFABBA6;">日文版的 bundle 裡可以只放日文字型，不需要背著繁中與簡中的字形</mark>，這正好是方案 B 抽稀想達到的效果。
+
 ---
 
 ### 五、字體與 Docker 的關係
 
-(q) <mark style="background: #FFF3A3A6;">「字體必須跟著 Docker 走」的意思</mark>：Docker 容器啟動時是一個幾乎什麼都沒有的乾淨 Linux 環境，<mark style="background: #FF5582A6;">它不會抓你電腦裡的字體，也不會抓 AWS 主機原本裝的字體</mark>。所以字體檔要放進專案（`public/fonts/` 或 `app/fonts/`）、跟著 git commit，Dockerfile 的 `COPY . .` 才會把它帶進映像檔。這樣不管跑在哪台機器，渲染結果都一致，不會「本地看很美、上線變醜」。
+(r) <mark style="background: #FFF3A3A6;">「字體必須跟著 Docker 走」的意思</mark>：Docker 容器啟動時是一個幾乎什麼都沒有的乾淨 Linux 環境，<mark style="background: #FF5582A6;">它不會抓你電腦裡的字體，也不會抓 AWS 主機原本裝的字體</mark>。所以字體檔要放進專案（`public/fonts/` 或 `app/fonts/`）、跟著 git commit，Dockerfile 的 `COPY . .` 才會把它帶進映像檔。這樣不管跑在哪台機器，渲染結果都一致，不會「本地看很美、上線變醜」。
 
-(r) <mark style="background: #FF5582A6;">不要用 npm 安裝字體</mark>（除非是 `fontsource` 這類封裝好的套件）：npm 上的 `noto-sans-cjk` 等套件通常非常龐大，會讓 `node_modules` 肥大、拖慢 Docker build，且版本更新緩慢。手動放 `.woff2` 進專案，你可以完全控制載入哪些粗細與語系，對<mark style="background: #BBFABBA6;">映像檔體積優化更有利</mark>。
+(s) <mark style="background: #FF5582A6;">不要用 npm 安裝字體</mark>（除非是 `fontsource` 這類封裝好的套件）：npm 上的 `noto-sans-cjk` 等套件通常非常龐大，會讓 `node_modules` 肥大、拖慢 Docker build，且版本更新緩慢。手動放 `.woff2` 進專案，你可以完全控制載入哪些粗細與語系，對<mark style="background: #BBFABBA6;">映像檔體積優化更有利</mark>。
 
 | 部署方式 | 是否用 Docker | 字體存放位置 |
 |---|---|---|
@@ -154,6 +164,14 @@ export default function RootLayout({ children, params }) {
 
 **Gemini：** 既然你的專案有 i18n 多國語系需求，這 5 個選項的差別主要在於「打包方式」：All Variable OTF/OTC——可變字體，單一檔案包含所有粗細，不建議，因為某些舊瀏覽器或 Docker 渲染引擎對 Variable Font 支援度不一；All Variable TTF/OTC——同上，只是格式換成 TTF；All Static Language Specific OTCs——將不同語言標準打包成一個 OTC 容器；All Static Language Specific OTFs——最推薦此類，每個語言、每個粗細都是獨立的 OTF 檔案，這對開發者最友善，你可以只挑你要的 tc（繁中）和 jp（日文）放到專案裡；All Static Region Specific Subset OTFs——這是「精簡版」，移除了不常用的字元，雖然最輕，但如果你的翻譯檔裡有罕見字，可能會掉字。最終建議：下載 All Static Language Specific OTFs，解壓後挑選 NotoSansCJKtc-Regular.otf（繁中）和 NotoSansCJKjp-Regular.otf（日文）放入專案，這樣能保證不同語言顯示各自最正確的筆畫標準。
 
+### 東亞字型權重與風格規劃（2026-09-16 擷取）— https://gemini.google.com/app/ffd799893d049a90
+
+> 註：這場對話只剩一個回合有文字內容，其餘為語音片段。內容對應本篇 (q)。
+
+**使用者：** 是為了支持所有語言，就消除了嗎？那請問 Angular 架構在這部分有做了什麼努力嗎？
+
+**Gemini：** Angular 架構內建了很完善的國際化功能，開發者可以直接在模版中使用標籤標記需要翻譯的文字，並透過 CLI 提取出翻譯檔案，Angular 會在建置時將對應的語言版本打包，同時也能根據區域設定自動調整日期與數字格式。
+
 ---
 
 ## 資料來源（含查證時間）
@@ -161,6 +179,9 @@ export default function RootLayout({ children, params }) {
 | 主題 | 連結 | 版本／時間 |
 |---|---|---|
 | 本篇來源對話（Gemini Flash） | https://gemini.google.com/app/74c43e47dd339aae | 對話擷取於 2026-08-15 |
+| 本篇來源對話（東亞字型權重與風格規劃） | https://gemini.google.com/app/ffd799893d049a90 | 對話擷取於 2026-09-16 |
+| Angular 官方｜Internationalization 總覽（建置期分版、CLI 抽取翻譯檔） | https://angular.dev/guide/i18n | 現行文件，查證於 2026-09-16 |
+| Angular 官方｜ng extract-i18n（產出 messages.xlf） | https://angular.dev/cli/extract-i18n | 現行文件，查證於 2026-09-16 |
 | Unicode 官方｜Han Unification（Unicode Standard 第 18 章 East Asia） | https://www.unicode.org/versions/latest/ | 查證於 2026-08-15 |
 | Google Fonts｜Noto CJK GitHub Releases | https://github.com/notofonts/noto-cjk | 查證於 2026-08-15 |
 | Next.js 官方｜Font Optimization（next/font） | https://nextjs.org/docs/app/api-reference/components/font | 查證於 2026-08-15 |

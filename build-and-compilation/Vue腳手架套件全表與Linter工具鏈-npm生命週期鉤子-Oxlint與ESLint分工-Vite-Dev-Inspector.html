@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vue 腳手架套件全表與 Linter 工具鏈</title><style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23262d; --muted:#6b7280; --line:#e6e3dc;
+  --accent:#4f6bed; --accent2:#0f9d76; --warn:#d94f6b; --code:#1f2430;
+  --hl-y:#FFF3A3; --hl-r:#FF5582; --hl-g:#BBFABB; --hl-b:#ADCCFF; --hl-p:#FFB8EB; --hl-v:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hd{border-bottom:3px solid var(--ink);padding-bottom:18px;margin-bottom:28px}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:1.85rem;line-height:1.35;margin:0 0 12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.pill{background:#eef1fb;color:#3b4ab5;border:1px solid #d6dcf6;border-radius:999px;
+ padding:2px 11px;font-size:.76rem;letter-spacing:.02em}
+.meta{font-size:.82rem;color:var(--muted)}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:1.3rem;margin:38px 0 14px;
+ padding-left:12px;border-left:6px solid var(--accent)}
+h3{font-size:1.05rem;margin:26px 0 10px;color:#33406e}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+mark{padding:1px 4px;border-radius:3px}
+.hy{background:var(--hl-y)}.hr{background:var(--hl-r);color:#fff}.hg{background:var(--hl-g)}
+.hb{background:var(--hl-b)}.hp{background:var(--hl-p)}.hv{background:var(--hl-v)}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#f2f0ea;font-weight:600}
+tbody tr:nth-child(even){background:#faf9f6}
+pre{background:var(--code);color:#e8ecf5;border-radius:10px;padding:14px 16px;
+ overflow-x:auto;font-size:.84rem;line-height:1.6}
+code{font-family:"JetBrains Mono",Consolas,monospace}
+p code,li code,td code{background:#eeece6;color:#9a3b57;padding:1px 5px;border-radius:4px;font-size:.87em}
+.callout{border-left:5px solid var(--accent);background:#f1f4fd;border-radius:0 10px 10px 0;
+ padding:12px 16px;margin:16px 0;font-size:.92rem}
+.callout.warn{border-color:var(--warn);background:#fdf0f3}
+.callout.ok{border-color:var(--accent2);background:#eefaf5}
+.idx{background:#23262d;color:#f4f2ec;border-radius:12px;padding:12px 18px;font-size:.88rem}
+ol.az{list-style:none;padding-left:0;counter-reset:none}
+ol.az li{margin:10px 0;padding-left:34px;position:relative}
+ol.az li b.k{position:absolute;left:0;top:0;background:var(--accent);color:#fff;
+ width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;
+ justify-content:center;font-size:.78rem}
+/* interactive */
+.blank{background:#dfe4f5;border-bottom:2px dashed var(--accent);border-radius:4px;
+ padding:1px 16px;cursor:pointer;color:transparent;user-select:none;transition:.2s}
+.blank.on{background:#d7f3e6;color:#0b6b4f;border-bottom-color:var(--accent2);font-weight:600}
+.toggle{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:7px 14px;
+ font-size:.83rem;cursor:pointer;margin:6px 6px 6px 0}
+.toggle:hover{background:var(--accent)}
+.ans{display:none;margin-top:10px;background:#eefaf5;border-left:5px solid var(--accent2);
+ border-radius:0 8px 8px 0;padding:12px 16px;font-size:.92rem}
+.ans.show{display:block}
+.tf{margin:12px 0}
+.tf .q{font-weight:600;margin-bottom:6px}
+.tf button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 16px;
+ margin-right:8px;cursor:pointer;font-size:.85rem}
+.tf button:hover{border-color:var(--accent)}
+.tf .fb{display:inline-block;margin-left:6px;font-size:.85rem;font-weight:600}
+.tf .fb.good{color:#0b6b4f}.tf .fb.bad{color:var(--warn)}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:10px;
+ padding:10px 12px;font-family:inherit;font-size:.9rem;resize:vertical;background:#fff}
+svg.flow{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:12px}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);
+ font-size:.8rem;color:var(--muted);text-align:center}
+</style></head><body><div class="wrap">
+<header class="hd"><h1>Vue 腳手架套件全表與 Linter 工具鏈</h1>
+<div class="pills"><span class="pill">#vue</span><span class="pill">#vite</span><span class="pill">#eslint</span><span class="pill">#oxlint</span><span class="pill">#npm</span><span class="pill">#打包</span><span class="pill">#ast</span></div>
+<div class="meta">更新於 2026-09-15 ｜ 來源對話：<br><a href="https://gemini.google.com/app/b03b80e2bc03fbdb" target="_blank" rel="noopener">https://gemini.google.com/app/b03b80e2bc03fbdb</a></div>
+<button class="toggle" id="toggle-all" data-on="0">一鍵展開所有答案</button>
+</header>
+
+<div class="idx">本篇重點 a–q，共 17 個。主軸圖固定用下面這張「一次 npm run build 的完整拋接鏈」，之後追問請直接指回圖裡的方框編號。</div>
+
+<h2>主軸圖：一次 npm run build 的完整拋接鏈</h2>
+<div class="card">
+<svg class="flow" viewBox="0 0 780 420" xmlns="http://www.w3.org/2000/svg">
+ <defs><marker id="a2" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+  <path d="M0,0 L10,4 L0,8 z" fill="#4f6bed"/></marker></defs>
+ <rect x="300" y="14" width="180" height="42" rx="21" fill="#23262d"/>
+ <text x="390" y="41" fill="#fff" font-size="14" text-anchor="middle">① npm run build</text>
+ <rect x="290" y="82" width="200" height="46" rx="8" fill="#D2B3FF" stroke="#7c4dcc"/>
+ <text x="390" y="102" font-size="13" text-anchor="middle">② npm 生命週期鉤子</text>
+ <text x="390" y="119" font-size="11" fill="#4a3070" text-anchor="middle">偵測到 prebuild → 先跑它</text>
+ <rect x="60" y="156" width="180" height="46" rx="8" fill="#fff" stroke="#4f6bed" stroke-width="2"/>
+ <text x="150" y="176" font-size="13" text-anchor="middle">③ oxlint（Rust）</text>
+ <text x="150" y="193" font-size="11" fill="#6b7280" text-anchor="middle">先跑基礎規則</text>
+ <rect x="290" y="156" width="200" height="46" rx="8" fill="#fff" stroke="#4f6bed" stroke-width="2"/>
+ <text x="390" y="176" font-size="13" text-anchor="middle">④ eslint-plugin-oxlint</text>
+ <text x="390" y="193" font-size="11" fill="#6b7280" text-anchor="middle">關掉重複規則</text>
+ <rect x="540" y="156" width="200" height="46" rx="8" fill="#fff" stroke="#4f6bed" stroke-width="2"/>
+ <text x="640" y="176" font-size="13" text-anchor="middle">⑤ eslint（espree→AST）</text>
+ <text x="640" y="193" font-size="11" fill="#6b7280" text-anchor="middle">eslint-scope 建 Scope Tree</text>
+ <path d="M320,236 L470,236 L446,282 L296,282 z" fill="#FFF3A3" stroke="#b79b00"/>
+ <text x="383" y="264" font-size="13" text-anchor="middle">⑥ error／warning 清單</text>
+ <polygon points="390,300 520,340 390,380 260,340" fill="#ADCCFF" stroke="#4f6bed"/>
+ <text x="390" y="345" font-size="13" text-anchor="middle">⑦ 有 error 嗎？</text>
+ <rect x="560" y="316" width="190" height="48" rx="8" fill="#FF5582" stroke="#a82a45"/>
+ <text x="655" y="337" fill="#fff" font-size="13" text-anchor="middle">⑧ exit code 1</text>
+ <text x="655" y="354" fill="#fff" font-size="11" text-anchor="middle">shell 中斷，vite build 沒跑到</text>
+ <rect x="30" y="316" width="190" height="48" rx="24" fill="#BBFABB" stroke="#0f9d76"/>
+ <text x="125" y="337" font-size="13" text-anchor="middle">⑨ exit code 0</text>
+ <text x="125" y="354" font-size="11" fill="#0b6b4f" text-anchor="middle">才輪到 vite build 打包</text>
+ <line x1="390" y1="56" x2="390" y2="76" stroke="#4f6bed" stroke-width="2" marker-end="url(#a2)"/>
+ <line x1="330" y1="128" x2="200" y2="150" stroke="#4f6bed" stroke-width="2" marker-end="url(#a2)"/>
+ <line x1="240" y1="179" x2="284" y2="179" stroke="#4f6bed" stroke-width="2" marker-end="url(#a2)"/>
+ <line x1="490" y1="179" x2="534" y2="179" stroke="#4f6bed" stroke-width="2" marker-end="url(#a2)"/>
+ <line x1="640" y1="202" x2="640" y2="228" stroke="#4f6bed" stroke-width="2"/>
+ <line x1="640" y1="228" x2="452" y2="250" stroke="#4f6bed" stroke-width="2" marker-end="url(#a2)"/>
+ <line x1="383" y1="282" x2="388" y2="296" stroke="#4f6bed" stroke-width="2" marker-end="url(#a2)"/>
+ <line x1="520" y1="340" x2="554" y2="340" stroke="#d94f6b" stroke-width="2" marker-end="url(#a2)"/>
+ <text x="536" y="332" font-size="11" fill="#d94f6b">Yes</text>
+ <line x1="260" y1="340" x2="226" y2="340" stroke="#0f9d76" stroke-width="2" marker-end="url(#a2)"/>
+ <text x="232" y="332" font-size="11" fill="#0f9d76">No</text>
+</svg>
+<p class="meta">符號依 ISO 5807：圓角矩形＝起止，矩形＝處理，平行四邊形＝資料輸入／輸出，菱形＝決策。</p>
+</div>
+
+<h2>一、這個專案是用什麼指令長出來的</h2>
+<div class="card">
+<pre><code>npm create vue@latest</code></pre>
+<p><b class="k" style="position:static;display:inline-flex">a</b> 反推方法：看 <code>node_modules</code> 有沒有 <code>@vitejs/plugin-vue</code>、<code>vite-plugin-vue-devtools</code>、<code>oxlint</code> 這種「官方模板才會一起裝」的組合。</p>
+</div>
+
+<h2>二、套件功能全表</h2>
+<div class="card">
+<table><thead><tr><th>套件</th><th>一句話功能</th><th>Vite 相關</th></tr></thead><tbody>
+<tr><td><code>vue</code></td><td>Vue 3 核心 runtime，提供響應式系統與元件化能力</td><td></td></tr>
+<tr><td><code>@vue/compiler-sfc</code></td><td>把 <code>.vue</code> SFC compile 成標準 JS（template → render function）</td><td></td></tr>
+<tr><td><code>vue-router</code></td><td>把網址 map 到元件，負責 SPA 頁面切換</td><td></td></tr>
+<tr><td><code>pinia</code></td><td>把跨元件共享的資料收在 store 裡</td><td></td></tr>
+<tr><td><code>vite</code></td><td>開發期提供 dev server，產出期把模組打包成靜態檔</td><td>✅</td></tr>
+<tr><td><code>@vitejs/plugin-vue</code></td><td>讓 Vite 認得 <code>.vue</code>，交給 compiler-sfc 編譯並支援 HMR</td><td>✅</td></tr>
+<tr><td><code>vite-plugin-vue-devtools</code></td><td>在開發頁面內嵌 Vue DevTools 面板</td><td>✅</td></tr>
+<tr><td><code>vite-plugin-inspect</code></td><td>顯示每個插件 transform 的中間產物與模組依賴圖</td><td>✅</td></tr>
+<tr><td><code>vite-plugin-vue-inspector</code></td><td>點擊元件跳回編輯器對應行號</td><td>✅</td></tr>
+<tr><td><code>typescript</code></td><td>型別檢查器，把 <code>.ts</code> transpile 成 <code>.js</code></td><td></td></tr>
+<tr><td><code>vue-tsc</code></td><td>看得懂 <code>.vue</code> 的 TS 型別檢查器</td><td></td></tr>
+<tr><td><code>@volar/*</code></td><td>給 VS Code 用的 language server，提供 IntelliSense</td><td></td></tr>
+<tr><td><code>eslint</code></td><td>把原始碼 parse 成 AST 後比對規則，產出 error／warning 清單</td><td></td></tr>
+<tr><td><code>eslint-plugin-vue</code></td><td>讓 ESLint 看得懂 Vue template 語法</td><td></td></tr>
+<tr><td><code>@typescript-eslint/*</code></td><td>讓 ESLint 能 parse TypeScript</td><td></td></tr>
+<tr><td><code>oxlint</code></td><td>Rust 寫的高速 linter，跑基礎規則</td><td></td></tr>
+<tr><td><code>eslint-plugin-oxlint</code></td><td>把 ESLint 裡 Oxlint 已檢查過的重複規則 disable</td><td></td></tr>
+<tr><td><code>oxfmt</code></td><td>Rust 寫的高速格式化工具</td><td></td></tr>
+<tr><td><code>vitest</code></td><td>沿用 Vite 設定與 ESM 解析的單元測試框架</td><td>✅</td></tr>
+<tr><td><code>playwright</code></td><td>跨瀏覽器 E2E 測試，模擬真實使用者操作</td><td></td></tr>
+<tr><td><code>jsdom</code></td><td>在 Node 裡模擬 DOM／BOM，讓單測不用開瀏覽器</td><td></td></tr>
+<tr><td><code>rolldown</code></td><td>Rust 寫的 bundler，Vite 下一代預設打包引擎</td><td>✅</td></tr>
+<tr><td><code>lightningcss</code></td><td>Rust 寫的 CSS transpiler 與壓縮器</td><td>✅</td></tr>
+<tr><td><code>postcss</code></td><td>用 JS 插件 transform CSS</td><td>✅</td></tr>
+<tr><td><code>chokidar</code></td><td>檔案監看庫，dev server 靠它偵測存檔觸發 HMR</td><td>✅</td></tr>
+</tbody></table>
+</div>
+
+<h2>三、為什麼 ESLint 有錯誤會擋建置</h2>
+<div class="card">
+<p><mark class="hy"><b>不是 ESLint 自己有權力擋，而是 build 腳本把 lint 串在打包前面，shell 遇到非零 exit code 就中斷整條鏈。</b></mark></p>
+<pre><code>{ "scripts": { "build": "vue-tsc &amp;&amp; eslint . &amp;&amp; vite build" } }</code></pre>
+<ol class="az">
+<li><b class="k">b</b><code>&amp;&amp;</code> 的意義是：前一個指令 exit code 為 <span class="blank">0</span> 才執行下一個。</li>
+<li><b class="k">c</b>只有 <span class="blank">error</span> 等級會擋，把規則改成 <code>"warn"</code> 就不會中斷建置。</li>
+<li><b class="k">d</b>設計初衷是把未使用變數、未處理的非同步例外擋在 production 之外，避免上線白屏。</li>
+</ol>
+<h3>prebuild 為什麼會自動跑</h3>
+<pre><code>{
+  "prebuild": "npm run lint",
+  "build": "next build",
+  "lint": "npx eslint ."
+}</code></pre>
+<ol class="az">
+<li><b class="k">e</b>原因不是 <code>next</code> 這個字，而是 <mark class="hb">npm 的 lifecycle scripts</mark>：定義了 <code>pre&lt;NAME&gt;</code>，執行 <code>npm run &lt;NAME&gt;</code> 時就會先自動跑它；<code>post&lt;NAME&gt;</code> 則在成功後跑。</li>
+<li><b class="k">f</b><code>prebuild</code> 裡一定要寫完整的 <code>npm run lint</code>，因為 scripts 的值只是一串<span class="blank">丟給 shell 的字串</span>，shell 不認識你自訂的 key <code>lint</code>，只會去找 <code>lint.exe</code>。</li>
+</ol>
+</div>
+
+<h2>四、npx eslint . --fix 是怎麼改檔案的</h2>
+<div class="card">
+<p><b class="k" style="position:static;display:inline-flex">g</b> ESLint 用 <code>espree</code>（預設 parser）把原始碼 parse 成 <mark class="hb">AST（Abstract Syntax Tree，抽象語法樹）</mark> → 規則走訪 AST 找到違規節點 → <code>--fix</code> 依規則重新產生標準化字串 → 直接覆寫原始檔。</p>
+<p><b class="k" style="position:static;display:inline-flex">h</b> 安全，因為 <code>--fix</code> 只動格式與無歧義的風格，不會改業務邏輯。<br>
+<b class="k" style="position:static;display:inline-flex">i</b> 保險做法：先 commit，跑完用 <code>git diff</code> 檢查，不滿意就 <code>git restore .</code>。</p>
+</div>
+
+<h2>五、import/no-unresolved 這個否定句</h2>
+<div class="card">
+<table><thead><tr><th>結構</th><th>原字</th><th>意思</th></tr></thead><tbody>
+<tr><td><code>import/</code></td><td>Import</td><td><code>eslint-plugin-import</code> 的命名空間</td></tr>
+<tr><td><code>no-</code></td><td>No</td><td>否定詞，「出現這情況就報錯」</td></tr>
+<tr><td><code>unresolved</code></td><td>Unresolved</td><td>未被 resolve 的（un- ＋ resolved）</td></tr>
+</tbody></table>
+<p><b class="k" style="position:static;display:inline-flex">j</b> 完整直譯：Do not allow import statements to reference modules that cannot be resolved to a real file.</p>
+<p><b class="k" style="position:static;display:inline-flex">k</b> <b>什麼叫 resolve</b>：bundler／Node 拿到 <code>import eve from 'eve'</code> 的 specifier <code>'eve'</code> → 先判斷是不是相對路徑 → 不是就去 <code>node_modules/eve</code> 找 → 讀該套件 <code>package.json</code> 的 <code>exports</code> 或 <code>main</code> 找進入點 → 找不到就回報 unresolved。</p>
+<p><b class="k" style="position:static;display:inline-flex">l</b> 同款否定句：<code>no-unused-vars</code>、<code>no-undef</code>、<code>no-console</code>。</p>
+</div>
+
+<h2>六、Oxlint 與 ESLint 的分工</h2>
+<div class="card">
+<div class="callout ok"><code>oxlint</code>（Rust 高速 linter）先跑完絕大多數基礎規則 → <code>eslint-plugin-oxlint</code> 把 ESLint 設定中「Oxlint 已檢查過」的同名規則 disable → <code>eslint</code>（JS 通用 linter）只剩高階／自訂／外掛規則要跑。</div>
+<p><b class="k" style="position:static;display:inline-flex">m</b> 理由一：不要重跑，否則 Rust 的速度優勢被浪費。<br>
+<b class="k" style="position:static;display:inline-flex">n</b> 理由二：避免兩邊對同一件事的修法不一致而互相打架。</p>
+</div>
+
+<h2>七、ESLint 的作用域分析</h2>
+<div class="card">
+<p><b class="k" style="position:static;display:inline-flex">o</b> parser 產出 AST 之後，<code>eslint-scope</code> 走訪 AST 建立 <b>Scope Tree</b>（global → module → function → block），並把每個變數的 definition 與 references 綁在一起。</p>
+<p><b class="k" style="position:static;display:inline-flex">p</b> 這是兩條經典規則的基礎：<code>no-unused-vars</code> ＝ 有 definition 但 references 長度為 <span class="blank">0</span>；<code>no-undef</code> ＝ 有 reference 但整條 scope chain 上找不到 <span class="blank">definition</span>。</p>
+</div>
+
+<h2>八、Dev Inspector 是給誰用的</h2>
+<div class="card">
+<p><mark class="hg"><b>是開發者在用，只活在 npm run dev 階段，production build 會被完全剔除。</b></mark></p>
+<div class="callout"><code>vite-plugin-vue-inspector</code> 在開發期於每個 DOM 元素注入 <code>data-*</code>（檔案路徑＋行號）並注入監聽腳本 → 你點擊元件，腳本發 <code>GET /__open-in-editor?file=src/App.vue:10</code> 給<b>本機的 Vite Dev Server</b> → Vite 呼叫 Node 的 <code>child_process</code> 啟動你本機 VS Code 並跳到該行。</div>
+<p><b class="k" style="position:static;display:inline-flex">q</b> 關鍵在於「瀏覽器連的是你自己電腦上的 dev server」，才有權力叫起本機編輯器；線上使用者連的是 CDN 靜態檔，既沒這段腳本也沒那台 server。</p>
+</div>
+
+<h2>九、ES 代表什麼</h2>
+<div class="card">
+<p><code>ESLint</code> 與 <code>esbuild</code> 的 <b>ES ＝ ECMAScript</b>，JavaScript 的官方標準名稱。<code>ESLint</code> ＝ ECMAScript ＋ lint（源自 C 時代的 lint，挑出程式碼裡的「棉絮」）；<code>esbuild</code> ＝ ECMAScript ＋ build。</p>
+<div class="callout warn"><b>⚠️ 更正</b><br>對話中提到「Oxlint 的 Ox 代表公牛」，Gemini 順著接話沒更正。依 <a href="https://oxc.rs/" target="_blank">oxc 官方</a>，<code>Ox</code> 取自 <b>Oxidation（氧化）</b>，是 Rust 社群對「用 Rust 重寫既有 JS 工具」的慣用說法（oxidize），不是公牛。</div>
+</div>
+
+<h2>十、自己考自己</h2>
+<div class="card">
+<h3>是非題</h3>
+<div class="tf" data-ans="F" data-why="是 npm 的 lifecycle scripts 機制，跟 next 這個字無關。">
+ <div class="q">1. <code>prebuild</code> 會自動執行，是因為 build 指令裡有 <code>next</code> 這個字。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+<div class="tf" data-ans="T" data-why="">
+ <div class="q">2. ESLint 的 warning 等級不會擋住 <code>npm run build</code>。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+<div class="tf" data-ans="F" data-why="Ox 來自 Oxidation（氧化），Rust 重寫的意思。">
+ <div class="q">3. Oxlint 的 Ox 代表公牛，象徵跑得快。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+
+<h3>申論題</h3>
+<p><b>Q：</b>請用「誰 用什麼 做什麼、產物是什麼、再拋給誰」的句式，完整描述從 <code>npm run build</code> 到 <code>vite build</code> 之間發生的事。</p>
+<textarea></textarea><br>
+<button class="toggle" data-target="q1" data-label="顯示參考答案">顯示參考答案</button>
+<div class="ans" id="q1">使用者在終端機下 <code>npm run build</code> → npm 先檢查 <code>scripts</code> 有沒有 <code>prebuild</code>，有就先把 <code>npm run lint</code> 這串字丟給 shell → shell 執行 <code>npx eslint .</code> → ESLint 用 <code>espree</code> 把原始碼 parse 成 AST，交給 <code>eslint-scope</code> 建 Scope Tree，再讓各規則走訪節點 → 產物是一份 error／warning 清單與一個 exit code → 若有任一 error，exit code 為 1，shell 中斷，<code>next build</code>／<code>vite build</code> 根本沒被呼叫；若全部只有 warning，exit code 為 0，npm 才接著把 <code>next build</code> 丟給 shell 去打包。</div>
+
+<p><b>Q2：</b>為什麼 <code>vite-plugin-vue-inspector</code> 能叫起你本機的 VS Code，但線上的使用者不行？</p>
+<textarea></textarea><br>
+<button class="toggle" data-target="q2" data-label="顯示參考答案">顯示參考答案</button>
+<div class="ans" id="q2">因為開發期你的瀏覽器連的是「跑在你自己這台電腦上的 Vite Dev Server（一支 Node 程式）」，它與 VS Code 在同一台機器上，所以能用 <code>child_process</code> 啟動編輯器。打包後這些插件與注入的監聽腳本會被完全剔除，線上使用者拿到的只是 CDN 上的靜態 HTML／JS，既沒有 <code>/__open-in-editor</code> 這個端點，也沒有任何一台屬於他的 Node 程式可以呼叫。</div>
+</div>
+
+<h2>十一、資料來源（含查證時間）</h2>
+<div class="card">
+<table><thead><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr></thead><tbody>
+<tr><td>本篇原始對話（Gemini）</td><td><a href="https://gemini.google.com/app/b03b80e2bc03fbdb" target="_blank">gemini.google.com</a></td><td>對話擷取 2026-09-15</td></tr>
+<tr><td>npm scripts 生命週期</td><td><a href="https://docs.npmjs.com/cli/v10/using-npm/scripts" target="_blank">npm docs v10</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>ESLint <code>--fix</code></td><td><a href="https://eslint.org/docs/latest/use/command-line-interface#--fix" target="_blank">eslint.org</a></td><td>查證 2026-09-15</td></tr>
+<tr><td><code>eslint-scope</code></td><td><a href="https://github.com/eslint/eslint-scope" target="_blank">GitHub</a></td><td>查證 2026-09-15</td></tr>
+<tr><td><code>import/no-unresolved</code></td><td><a href="https://github.com/import-js/eslint-plugin-import/blob/main/docs/rules/no-unresolved.md" target="_blank">eslint-plugin-import</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>oxc（Ox 命名由來）</td><td><a href="https://oxc.rs/" target="_blank">oxc.rs</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>Vue 官方腳手架</td><td><a href="https://vuejs.org/guide/quick-start.html" target="_blank">vuejs.org</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>Rolldown</td><td><a href="https://rolldown.rs/" target="_blank">rolldown.rs</a></td><td>查證 2026-09-15</td></tr>
+</tbody></table>
+</div>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-15</footer>
+</div><script>
+document.addEventListener('click',function(e){
+  var t=e.target;
+  if(t.classList.contains('blank')){t.classList.toggle('on');}
+  if(t.classList.contains('toggle')){
+    var box=document.getElementById(t.dataset.target);
+    if(box){box.classList.toggle('show');
+      t.textContent=box.classList.contains('show')?'隱藏答案':(t.dataset.label||'顯示答案');}
+  }
+  if(t.dataset.tf!==undefined){
+    var wrap=t.closest('.tf'); var fb=wrap.querySelector('.fb');
+    var ok=(t.dataset.tf===wrap.dataset.ans);
+    fb.textContent=ok?'✔ 答對了':'✘ 再想想 → '+wrap.dataset.why;
+    fb.className='fb '+(ok?'good':'bad');
+  }
+});
+document.addEventListener('DOMContentLoaded',function(){
+  var all=document.getElementById('toggle-all');
+  if(all)all.addEventListener('click',function(){
+    var on=all.dataset.on==='1';
+    document.querySelectorAll('.ans').forEach(function(a){a.classList.toggle('show',!on)});
+    document.querySelectorAll('.blank').forEach(function(b){b.classList.toggle('on',!on)});
+    all.dataset.on=on?'0':'1';
+    all.textContent=on?'一鍵展開所有答案':'一鍵收合所有答案';
+  });
+});
+</script></body></html>

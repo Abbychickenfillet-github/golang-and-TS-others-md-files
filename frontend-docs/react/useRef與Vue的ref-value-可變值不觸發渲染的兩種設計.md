@@ -2,10 +2,11 @@
 title: useRef 與 Vue 的 ref.value｜可變值不觸發渲染的兩種設計
 type: topic-note
 source: Gemini
-tags: [gemini, react, useRef, vue, reactivity, 響應式, getter-setter]
+tags: [gemini, react, useRef, vue, angular, viewchild, react19, reactivity, 響應式, getter-setter, 鐵人賽]
 sources:
   - https://gemini.google.com/app/98af81d8878facae
-updated: 2026-08-25
+  - https://gemini.google.com/app/5b6fc934e5d7f253
+updated: 2026-09-15
 ---
 
 # useRef 與 Vue 的 ref.value｜可變值不觸發渲染的兩種設計
@@ -82,6 +83,80 @@ React Hooks 沒有直接的 LeetCode 題，但「包一層物件才留得住狀�
 
 ---
 
+### 追加 2026-09-15：補上 Angular 這一欄，以及 React 19 之後 useRef 的職責分流
+
+前面兩節把 React 與 Vue 講完了，這一節把 Angular 補進同一張表，並交代 React 19 之後 `useRef` 被哪些新機制分流。
+
+#### (一) 同一件事，三個框架拆法不同
+
+React 的 `useRef` 一個人扛了兩個職責，Vue 與 Angular 則是**把這兩個職責拆開**：
+
+| 框架 | 渲染模型（決定了下面兩欄） | 職責 1：綁定／操作 DOM 元素 | 職責 2：保存跨渲染但不觸發渲染的變數 |
+| --- | --- | --- | --- |
+| React | 每次 re-render 重新執行整個函式 | `const el = useRef(null)` 搭配 `ref={el}` | `useRef(initialValue)`，回傳固定 heap 指標的 `{ current }` 物件 |
+| Vue 3 | `<script setup>` 只執行一次，之後由 Proxy 精準更新 | `const el = useTemplateRef('id')`（3.5+）或同名 `ref(null)` | 普通的 `let count = 0` 就夠，靠閉包存活整個生命週期 |
+| Angular | Class 實體化一次，靠 Change Detection／Signals 更新視圖 | `el = viewChild('id')`（v17.2+）或 `@ViewChild('id')` | 普通的 class property `private count = 0`，附著在 `this` 上 |
+
+<mark style="background: #FFF3A3A6;">**關鍵一句話：Vue 與 Angular 不需要「useRef 這種東西來鎖住記憶體指標」，因為它們的程式碼本來就只跑一次。**</mark>
+
+#### (二) 「全函式執行」到底是什麼意思
+
+Abby 問「全函式執行是指函式元件重新執行的時候會重新渲染嗎」——順序其實是**反過來**的：
+
+> 使用者呼叫 setter（如 `setCount`） → React 在對應的 Fiber 節點記下新狀態並向 scheduler 登記「這個元件要重畫」 → scheduler 在下一個 render phase **重新呼叫 `Counter()` 這個函式** → 函式從第一行跑到最後一行，裡面每一個 `let`／`const` 都重新宣告一次 → 回傳新的 JSX。
+
+所以是「**重新渲染 ⇒ 整個函式重新執行**」，不是「函式重新執行 ⇒ 觸發渲染」。
+
+記憶體上的三種寫法對照：
+
+| 寫法 | 記憶體發生什麼事 | 結果 |
+| --- | --- | --- |
+| 函式內 `let count = 0` | Render 1 在位址 A 建立，Render 2 時 A 被 GC，另在位址 B 重建 | 每次渲染歸零，活不過一次渲染 |
+| 函式外 `let globalCount = 0` | 位址固定 | 位址固定但**所有實例共用**，頁面放兩個 `<Counter/>` 會互相污染 |
+| `useRef(0)` | Mount 時在該元件的 Fiber 上配置一個 `{ current: 0 }`，之後每次都回傳**同一個位址** | 每個實例各有一份，且跨渲染存活 |
+
+`useRef` 的簡化心智模型（不是真實實作，只是幫助理解）：
+
+```js
+function useRef(initialValue) {
+  // 掛在「該元件對應的 Fiber 節點」上，所以每個實例各有一份
+  const [refObject] = useState({ current: initialValue });
+  return refObject;
+}
+```
+
+改 `ref.current = 10` 是**原地修改物件屬性（mutable modification）**，React 根本不會去比對 ref 的變化，所以完全不會觸發 re-render。
+
+#### (三) React 19 之後，useRef 的四個職責被分流
+
+`useRef` 沒有被廢除，但它過去被濫用的場景各自有了專職工具：
+
+| 以前用 useRef 硬做的事 | React 19+ 的做法 |
+| --- | --- |
+| 用 `forwardRef` 把 ref 轉接給子元件 | **`forwardRef` 不再需要**，`ref` 已升格為普通 prop：`function MyInput({ ref, ...props })` |
+| 用 `useEffect` 搭 `ref.current` 處理 DOM 卸載清理 | **ref callback 可以直接 `return` 一個 cleanup 函式**，元素卸載時自動執行 |
+| 暫存舊狀態做樂觀更新 | `useOptimistic` |
+| 用 ref 鎖 `isSubmitting` 旗標 | `useActionState`／`useFormStatus` |
+| 為了避免每次 render 重算而塞進 ref | **React Compiler** 自動做記憶化，不用再手寫 `useMemo`／`useCallback` |
+
+```jsx
+// React 19+：ref 是普通 prop，不用 forwardRef
+function MyInput({ ref, ...props }) {
+  return <input ref={ref} {...props} />;
+}
+
+// React 19+：ref callback 支援 cleanup
+<input ref={(node) => {
+  if (node) console.log('DOM 掛載', node);
+  return () => console.log('DOM 卸載清理');
+}} />
+```
+
+<mark style="background: #BBFABBA6;">**結論：現在只有兩件事該用 `useRef`——(1) 存取真實 DOM 節點（`.focus()`、`.scrollTo()`）；(2) 跨渲染持久化非 UI 變數（`timerId`、WebSocket 實體）。**</mark>其餘交給專職 Hook。
+
+> [!warning] ⚠️ 版本提醒
+> `useTemplateRef` 需要 **Vue 3.5+**；Angular 的 `viewChild()` Signal 版需要 **v17.2+**；`ref` 當普通 prop 與 ref callback cleanup 需要 **React 19**。在舊版專案請回退到 `ref(null)`／`@ViewChild`／`forwardRef`。
+
 ## 各對話來源（原文）
 
 ### useRef 的用途與應用（2026-08）— https://gemini.google.com/app/98af81d8878facae
@@ -108,6 +183,10 @@ React Hooks 沒有直接的 LeetCode 題，但「包一層物件才留得住狀�
 
 ---
 
+### React useRef 跨框架實踐比較（2026-09）— https://gemini.google.com/app/5b6fc934e5d7f253
+
+（原文為鐵人賽草稿，重點已整併進上方「追加 2026-09-15」，此處只留對話連結避免重複佔版面。）
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本 / 查證時間 |
@@ -118,6 +197,11 @@ React Hooks 沒有直接的 LeetCode 題，但「包一層物件才留得住狀�
 | Vue 官方：Reactivity Fundamentals（含 why `.value`） | https://vuejs.org/guide/essentials/reactivity-fundamentals.html | Vue 3，查證 2026-08-25 |
 | Vue 官方：Reactivity in Depth | https://vuejs.org/guide/extras/reactivity-in-depth.html | Vue 3，查證 2026-08-25 |
 | MDN：`Object.defineProperty` getter / setter | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/get | 查證 2026-08-25 |
+| Vue `useTemplateRef`（3.5+） | https://vuejs.org/api/composition-api-helpers.html#usetemplateref | Vue 3 官方 API，查證 2026-09-15 |
+| Angular `viewChild()` Signal query | https://angular.dev/guide/signals/queries | Angular 官方，查證 2026-09-15 |
+| React 19：ref 作為 prop、forwardRef 不再需要 | https://react.dev/blog/2024/12/05/react-19 | React 官方 blog，2024-12-05，查證 2026-09-15 |
+| React `ref` callback cleanup | https://react.dev/reference/react-dom/components/common#ref-callback | React 官方，查證 2026-09-15 |
+| 本次追加的原始對話（Gemini） | https://gemini.google.com/app/5b6fc934e5d7f253 | 對話擷取 2026-09-15 |
 
 > [!warning] ⚠️ 存疑 / 補充
 > Gemini 的回答本身沒有錯，但<mark style="background: #FF5582A6;">完全沒有指出 React `useRef` 與 Vue `ref` 的目的相反</mark>，一路混著講兩邊，很容易讓人以為它們是同一種東西的兩個名字。(j) 那一點是本篇補上的關鍵區分，請以兩邊官方文件為準。

@@ -115,9 +115,9 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 <div class="wrap">
 <header class="hero">
   <h1>字串不可變性（JS vs C）與 let 區塊變數遮蔽下的 TDZ</h1>
-  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#string</span><span class="pill">#immutable</span><span class="pill">#tdz</span><span class="pill">#hoisting</span><span class="pill">#memory</span></div>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#string</span><span class="pill">#immutable</span><span class="pill">#tdz</span><span class="pill">#hoisting</span><span class="pill">#memory</span><span class="pill">#gc</span><span class="pill">#auto-boxing</span><span class="pill">#wrapper-object</span><span class="pill">#replace</span></div>
   <div class="meta">
-    <span>更新於 2026-09-05</span>
+    <span>更新於 2026-09-19</span>
     <span>來源：Gemini</span>
     <a href="https://gemini.google.com/app/41d3c779dee10274" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/f4da8ca9d6c67841" target="_blank" rel="noopener">原始對話 2</a>
   </div>
@@ -204,6 +204,170 @@ console.log(str);             // &quot;Hello World&quot;
 <h3 id="javascript-2026-09-05-httpsgeminigooglecomappf4da8ca9d6c67841">追加來源：JavaScript 字串的不可變性與操作（2026-09-05）— https://gemini.google.com/app/f4da8ca9d6c67841</h3>
 <p><strong>使用者：</strong> 當我們用 <code>substring()</code> 來擷取字串，或用 <code>concat()</code> 來把兩個字串合為一，這些都是會回傳另一個字串，而非改變原本的字串。示範</p>
 <p><strong>Gemini：</strong> 這段文字在說明 JavaScript 中字串的原生值不可變性（Immutability）。對字串進行擷取或拼接時，原本的字串變數內容不會受到任何影響，方法只會回傳一個全新的字串。<code>substring(0, 4)</code> 會回傳 <code>"Java"</code> 而 <code>originalStr</code> 仍是 <code>"JavaScript"</code>；<code>str1.concat(str2)</code> 會回傳 <code>"Hello World"</code> 而 <code>str1</code>、<code>str2</code> 保持原樣。觀念小結：如果希望更新變數的值，必須明確地把回傳的新字串重新賦值給該變數（<code>str = str.concat(" World")</code>）。</p>
+<h3 id="add-2026-09-19">追加 2026-09-19：那個「沒人接住」的新字串去了哪裡，以及字串為什麼能呼叫方法</h3>
+
+<p>(t) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>str.replace("a","b")</code> 會佔用新的記憶體</mark>，理由跟 (p) 的 <code>substring</code>／<code>concat</code> 完全一樣：<mark class="hl hl-term" tabindex="0" role="button">字串不可變，所以任何「修改」都只能靠新建一塊</mark>。這不是 <code>replace</code> 特別耗資源，而是整個 String API 的共同體質。</p>
+
+<p>(u) <mark class="hl hl-ok" tabindex="0" role="button">沒有變數接住的回傳值，走的是「建立 → 失去可達性 → 等 GC」這條路</mark>。把 (c) 那條「舊值沒人參照就會被 GC 回收」反過來看：(c) 講「舊字串被拋下」，(u) 講「新字串從出生就沒人牽」，最後都落到同一個回收機制。</p>
+
+<!-- 互動主軸圖：只出不進的機器 -->
+<div class="card">
+<p class="legend"><strong>互動圖：字串操作是一台「只出不進」的機器。</strong>點任一格看它在做什麼。</p>
+<svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg" id="strSvg" role="img" aria-label="字串操作記憶體流向圖">
+  <defs><marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9c968a"/></marker></defs>
+  <style>
+    #strSvg .n{cursor:pointer}
+    #strSvg .bx{fill:#fff;stroke:#b9b3a6;stroke-width:1.6;rx:9}
+    #strSvg .bx.src{fill:#eef5ff;stroke:#7fa6d8}
+    #strSvg .bx.out{fill:#f0fbf2;stroke:#78b78e}
+    #strSvg .bx.dead{fill:#fff1f4;stroke:#d98da0}
+    #strSvg .n:hover .bx{stroke-width:3}
+    #strSvg .n.on .bx{stroke-width:3.4;filter:drop-shadow(0 2px 6px rgba(0,0,0,.18))}
+    #strSvg text{font-family:system-ui,"Noto Sans TC",sans-serif;fill:#2c2922}
+    #strSvg .t1{font-weight:700;font-size:13px}
+    #strSvg .t2{font-size:11px;fill:#6f6a60}
+    #strSvg .ed{stroke:#9c968a;stroke-width:1.8;fill:none;marker-end:url(#sa)}
+    #strSvg .el{font-size:10.5px;fill:#8a8478}
+  </style>
+  <g class="n" data-k="src">
+    <rect class="bx src" x="16" y="94" width="190" height="66"/>
+    <text class="t1" x="111" y="118" text-anchor="middle">原料：原字串</text>
+    <text class="t2" x="111" y="137" text-anchor="middle">Heap 上的唯讀實體</text>
+    <text class="t2" x="111" y="153" text-anchor="middle">一個位元都不會被改</text>
+  </g>
+  <path class="ed" d="M206,127 L272,127"/>
+  <g class="n" data-k="machine">
+    <rect class="bx" x="272" y="82" width="196" height="90"/>
+    <text class="t1" x="370" y="106" text-anchor="middle">機器：String 方法</text>
+    <text class="t2" x="370" y="126" text-anchor="middle">replace / substring / concat</text>
+    <text class="t2" x="370" y="143" text-anchor="middle">toUpperCase / + 串接</text>
+    <text class="t2" x="370" y="161" text-anchor="middle">在 Heap 產出一塊新東西</text>
+  </g>
+  <path class="ed" d="M468,108 L540,108 L540,64"/>
+  <text class="el" x="512" y="100">有人接</text>
+  <path class="ed" d="M468,148 L540,148 L540,196"/>
+  <text class="el" x="512" y="172">沒人接</text>
+  <g class="n" data-k="kept">
+    <rect class="bx out" x="540" y="18" width="244" height="62"/>
+    <text class="t1" x="662" y="42" text-anchor="middle">產物被變數接住 → 活著</text>
+    <text class="t2" x="662" y="62" text-anchor="middle">const r = str.replace(...)　從根可達，GC 不收</text>
+  </g>
+  <g class="n" data-k="dead">
+    <rect class="bx dead" x="540" y="178" width="244" height="72"/>
+    <text class="t1" x="662" y="202" text-anchor="middle">產物沒人接 → unreachable</text>
+    <text class="t2" x="662" y="221" text-anchor="middle">str.replace(...)　這行結束就成孤兒</text>
+    <text class="t2" x="662" y="238" text-anchor="middle">下一輪 GC 掃過就釋放，不會洩漏</text>
+  </g>
+  <g class="n" data-k="box">
+    <rect class="bx" x="16" y="6" width="190" height="62"/>
+    <text class="t1" x="111" y="30" text-anchor="middle">臨時包裝物件</text>
+    <text class="t2" x="111" y="49" text-anchor="middle">auto-boxing 產生，用完即丟</text>
+  </g>
+  <path class="ed" d="M111,68 L111,94"/>
+  <text class="el" x="150" y="86">也是產物</text>
+</svg>
+<div id="strOut" style="margin-top:10px;min-height:48px;background:#f7f5ef;border:1px dashed #cfc9bb;border-radius:10px;padding:11px 14px;font-size:14px">👆 點上面任一個方框看說明。</div>
+</div>
+
+<pre><code class="language-js">str.replace("a", "b");   // 沒用變數接，也沒印出來</code></pre>
+
+<p>這一行執行的那一瞬間，引擎確實在 Heap 建了一塊新字串當回傳值；但因為沒寫成 <code>const result = str.replace(...)</code>、也沒傳給任何函式，<mark class="hl hl-warn" tabindex="0" role="button">這行結束時它就變成 unreachable（無法從根物件走到的孤兒）</mark>，下一輪 GC 掃過就被釋放。<strong>短暫佔用過記憶體，但不會造成洩漏。</strong></p>
+
+<p>(v) <mark class="hl hl-warn" tabindex="0" role="button">要小心的是「大字串 × 大量重複替換」</mark>：單次替換可忽略，但在迴圈裡對很大的字串連續 <code>replace</code>，每一輪都在 Heap 新建一塊近乎同樣大的字串，GC 壓力會拉高。改用陣列收集片段再 <code>join('')</code>，或用一次性的全域正規表達式 <code>str.replace(/a/g, 'b')</code>。</p>
+
+<div class="card" style="border-left:5px solid #e8735a;background:#fff6f3">
+<p><strong>⚠️ 存疑／更正（2026-09-19）</strong><br>
+Gemini 說「字串是<strong>不可變的（Primitive / Immutable）</strong>」，把 primitive 與 immutable 當成同一件事——<mark class="hl hl-warn" tabindex="0" role="button">這兩個概念是分開的</mark>：primitive 講「型別分類」，immutable 講「值能不能被原地改寫」。<br>
+另外「新字串會被分配到新的記憶體空間」語意上成立，但 <mark class="hl hl-term" tabindex="0" role="button">V8 不一定真的複製整塊</mark>：拼接時常先做成 ConsString（把兩塊的指標串起來的繩索結構），等到要逐字元讀時才 flatten。這不影響語意，只影響效能直覺。</p>
+</div>
+
+<p>(w) <mark class="hl hl-term" tabindex="0" role="button">字串明明是 primitive，為什麼能呼叫 <code>.toUpperCase()</code>、讀 <code>.length</code></mark>？因為有<strong>自動包裝（auto-boxing）</strong>，引擎在背後做三步：①暫時把原始字串包成一個 <code>String</code> 物件（概念上等同 <code>new String("hello")</code>）→ ②在這個臨時物件上執行方法或讀屬性 → ③用完 <mark class="hl hl-ok" tabindex="0" role="button">立刻丟棄該臨時物件</mark>（又是一個 (u) 式的 unreachable 物件，交給 GC）。<br>
+JS 的 7 種 primitive 裡，<mark class="hl hl-core" tabindex="0" role="button">String／Number／Boolean／Symbol／BigInt 有對應的包裝物件，<code>null</code> 與 <code>undefined</code> 沒有</mark>，所以 <code>null.toString()</code> 會直接丟 <code>TypeError</code>。</p>
+
+<p>(x) <mark class="hl hl-warn" tabindex="0" role="button">日常開發一律用純值，不要寫 <code>new String()</code></mark>，因為它會製造出一個真正的物件：</p>
+
+<pre><code class="language-js">let primitive = "hello";             // 原始型別（推薦）
+let boxed     = new String("hello"); // String 物件（不推薦）
+
+typeof primitive;        // "string"
+typeof boxed;            // "object"   ← 型別就不同了
+
+primitive ==  boxed;     // true   （鬆散等於會先 ToPrimitive，值相同）
+primitive === boxed;     // false  （嚴格等於連型別一起比）
+
+Boolean(new String(""))  // true ← 空字串物件是 truthy，最惡名昭彰的坑</code></pre>
+
+<div class="card" style="border-left:5px solid #e8735a;background:#fff6f3">
+<p><strong>⚠️ 存疑／更正（2026-09-19）：Gemini 的程式碼是錯的</strong><br>
+它寫成 <mark class="hl hl-warn" tabindex="0" role="button"><code>console.typeof(primitive)</code></mark>，<strong>這不是合法語法</strong>——<code>console</code> 物件上沒有 <code>typeof</code> 這個方法，照抄會丟 <code>TypeError: console.typeof is not a function</code>。<br>
+<mark class="hl hl-ok" tabindex="0" role="button">正確寫法是 <code>typeof primitive</code></mark>：<code>typeof</code> 是<strong>一元運算子</strong>不是函式，要印出來寫成 <code>console.log(typeof primitive)</code>。</p>
+</div>
+
+<p>(y) <mark class="hl hl-term" tabindex="0" role="button">auto-boxing 與字串駐留（(g)）是兩件互補的事</mark>：駐留讓「相同的字串字面值共用同一塊記憶體」，auto-boxing 讓「那塊唯讀的記憶體也能用物件的方式操作」。兩者都只有在「字串不可變」成立時才做得到——可變的話，共用會互相污染，臨時包裝也會寫回原值。</p>
+
+<p>(z) <mark class="hl hl-core" tabindex="0" role="button">把 (t)(u)(w) 串成一條線記</mark>：<mark class="hl hl-ok" tabindex="0" role="button">JS 的字串操作是一台「只出不進」的機器</mark>——每次呼叫方法都在 Heap 產出一塊新東西（新字串或臨時包裝物件），原料原封不動，產物有人接就活著、沒人接就等 GC。<code>replace</code> 的記憶體問題、<code>substring</code> 為什麼要重新賦值、<code>.length</code> 為什麼能讀，全部是同一個答案的三種問法。</p>
+
+<h3 id="quiz-2026-09-19">自己考自己（2026-09-19 追加）</h3>
+<div id="tf1919"></div>
+
+<script>
+(function(){
+  var FIG = {
+    src:'<strong>原料：原字串。</strong>它在 Heap 上是唯讀的實體。<code>replace</code>／<code>substring</code>／<code>toUpperCase</code> 跑完之後，它一個位元都沒被改過——這就是「不可變」的具體長相。',
+    machine:'<strong>機器：String 方法。</strong>所有 String 方法（包括 <code>+</code> 串接）都只做一件事：讀原料、在 Heap 產出一塊新東西、把它當回傳值交出去。它從來不寫回原料，所以你必須自己重新賦值（重點 q）。',
+    kept:'<strong>產物被接住。</strong>寫成 <code>const r = str.replace(...)</code> 之後，變數 <code>r</code> 讓這塊新字串從根物件可達（reachable），GC 不會回收它，它會一直活到 <code>r</code> 離開作用域為止。',
+    dead:'<strong>產物沒人接。</strong>只寫 <code>str.replace(...)</code> 而不接、不印、不傳，這行結束時新字串就沒有任何參照指向它，成為 unreachable 的孤兒物件。它短暫佔用過記憶體，但下一輪 GC 掃過就釋放，<strong>不會造成記憶體洩漏</strong>。',
+    box:'<strong>臨時包裝物件。</strong>當你寫 <code>str.length</code> 或 <code>str.toUpperCase()</code>，引擎會暫時把 primitive 包成一個 <code>String</code> 物件、在它身上取值、然後立刻丟棄。這個臨時物件走的就是右下那條路——用完即成 unreachable，交給 GC。'
+  };
+  var svg = document.getElementById('strSvg');
+  if(!svg) return;
+  svg.querySelectorAll('.n').forEach(function(n){
+    n.addEventListener('click', function(){
+      svg.querySelectorAll('.n').forEach(function(x){x.classList.remove('on')});
+      n.classList.add('on');
+      document.getElementById('strOut').innerHTML = FIG[n.dataset.k] || '';
+    });
+  });
+
+  var TF = [
+    {q:'<code>str.replace("a","b")</code> 沒有用變數接住的話，引擎會聰明地不去建立那個新字串。', a:false,
+     e:'錯。新字串<strong>一定會被建出來</strong>（它是函式的回傳值），只是建完立刻變成 unreachable 的孤兒，下一輪 GC 才把它收掉。短暫佔用過記憶體，但不會洩漏。'},
+    {q:'「沒人接住的新字串」會造成記憶體洩漏。', a:false,
+     e:'錯。洩漏的定義是「不再需要、卻仍然從根可達」。這個新字串剛好相反——它<strong>不可達</strong>，所以 GC 收得掉，正是洩漏的反面。'},
+    {q:'因為字串是 primitive，所以 <code>"hello".length</code> 其實是在一個臨時的 String 物件上讀出來的。', a:true,
+     e:'對，這就是 auto-boxing：引擎暫時把 primitive 包成 <code>String</code> 物件 → 在它身上讀 <code>length</code> → 立刻丟棄臨時物件。你不用自己 <code>new String()</code> 就是這個機制在幫忙。'},
+    {q:'7 種 primitive 全部都有對應的包裝物件。', a:false,
+     e:'錯。<code>null</code> 與 <code>undefined</code> <strong>沒有</strong>包裝物件，所以 <code>null.toString()</code> 會直接丟 <code>TypeError</code>。有包裝物件的是 String／Number／Boolean／Symbol／BigInt。'},
+    {q:'要在 console 印出型別，正確寫法是 <code>console.typeof(x)</code>。', a:false,
+     e:'錯，這是 Gemini 在對話裡寫錯的地方。<code>console</code> 上沒有 <code>typeof</code> 這個方法，照抄會丟 <code>TypeError: console.typeof is not a function</code>。<code>typeof</code> 是<strong>一元運算子</strong>，正確寫法是 <code>console.log(typeof x)</code>。'},
+    {q:'<code>new String("")</code> 在 if 判斷裡會被當成 falsy，跟空字串一樣。', a:false,
+     e:'錯，而且這是最惡名昭彰的坑。<code>new String("")</code> 是一個<strong>物件</strong>，而所有物件都是 truthy，所以 <code>if (new String(""))</code> 會進去。這正是「日常一律用純值、不要 new」的實際理由。'},
+    {q:'在迴圈裡對一個很大的字串連續做 replace，記憶體與 GC 壓力會明顯上升。', a:true,
+     e:'對。每一輪都在 Heap 新建一塊近乎同樣大的字串，舊的隨即變成垃圾。改用陣列收集片段再 <code>join(\'\')</code>，或用一次性的全域正規表達式 <code>str.replace(/a/g, \'b\')</code>。'}
+  ];
+  var box = document.getElementById('tf1919');
+  TF.forEach(function(item, i){
+    var d = document.createElement('div');
+    d.className = 'card';
+    d.style.cssText = 'padding:13px 16px;margin:11px 0';
+    d.innerHTML = '<div style="font-size:14.5px;margin-bottom:9px">' + (i+1) + '. ' + item.q + '</div>'
+      + '<button data-v="1" style="margin-right:8px;padding:4px 16px;border-radius:8px;border:1px solid #c5bfb1;background:#fbfaf6;cursor:pointer">⭕ 對</button>'
+      + '<button data-v="0" style="padding:4px 16px;border-radius:8px;border:1px solid #c5bfb1;background:#fbfaf6;cursor:pointer">❌ 錯</button>'
+      + '<div class="fb" style="margin-top:9px;font-size:13.5px;display:none"></div>';
+    var fb = d.querySelector('.fb');
+    d.querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){
+        var right = (b.dataset.v === '1') === item.a;
+        fb.innerHTML = (right ? '<span style="color:#1d6f42;font-weight:600">✔ 答對了。</span> '
+                              : '<span style="color:#c2255c;font-weight:600">✘ 再想一下。</span> ') + item.e;
+        fb.style.display = 'block';
+      });
+    });
+    box.appendChild(d);
+  });
+})();
+</script>
+
 <h2 id="_2">各對話來源</h2>
 <h3 id="js-c-2026-08-02-httpsgeminigooglecomapp41d3c779dee10274">JS 字串不可變性與 C 差異（2026-08-02 擷取）— https://gemini.google.com/app/41d3c779dee10274</h3>
 <p><strong>使用者：</strong> 原生值是不可變的（immutable），意思是我們不能改變那個值本身。舉例來說字串（string）是其中一個，這是在 explain this 的網站看到的前端面試考題，題目是如何知道變數的型別？答案之一在講到字串，他說 JavaScript 原生值，我們不能去改變 'Hi' 這一個字串（但在其他程式語言，字串有可能是可變的，例如在 C 就是可變的）。我們僅可以把某個變數，賦予另一個字串，例如：<code>let greeting = "Hi"; greeting = "Hello";</code>。那重新覆值呢？難道不是嗎，還是說是記憶體位址挖一個新的空格放字串，舊的等沒有用到就會被丟掉？C 就是可變的，那效能差在哪？</p>
@@ -256,7 +420,7 @@ console.log(str);             // &quot;Hello World&quot;
 <p>本篇 Gemini 內容與 MDN《String》《let》《Hoisting》等標準文件描述一致，未發現需要標記存疑/更正之處；g 點的「字串駐留」屬引擎（如 V8）實作優化，非 ECMAScript 規格強制保證行為，已在該點註明。</p>
 </article>
 
-<footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-19</footer>
 </div>
 <script>
 (function(){

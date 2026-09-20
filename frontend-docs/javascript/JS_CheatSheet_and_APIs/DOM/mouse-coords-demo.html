@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>滑鼠座標四組基準 — 可執行範例（修法 B）</title>
+<style>
+  body{font-family:system-ui,"Noto Sans TC",sans-serif;margin:0;padding:24px;line-height:1.7;background:#fafaf8;color:#222}
+  h1{font-size:20px;margin:0 0 4px}
+  .hint{color:#777;font-size:13px;margin-bottom:16px}
+  #info{background:#fff;border:1px solid #e3e3de;border-radius:12px;padding:16px 20px;max-width:640px}
+  #info h2{font-size:14px;letter-spacing:.04em;color:#8a7f5c;margin:14px 0 6px;text-transform:uppercase}
+  #info h2:first-child{margin-top:0}
+  #info p{margin:2px 0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px}
+  .v{display:inline-block;min-width:56px;text-align:right;font-weight:700;color:#1d6f42}
+  .neg{color:#c2255c}
+  footer{margin-top:20px;font-size:12px;color:#999;max-width:640px}
+</style>
+</head>
+<body>
+
+<h1>滑鼠座標四組基準 — 可執行範例</h1>
+<p class="hint">在頁面上移動滑鼠。骨架只建立一次，mousemove 只改寫文字節點（筆記 §3 修法 B）。試著捲動頁面，觀察只有 Page 那一組會變。</p>
+
+<div id="info"></div>
+
+<footer>
+  搭配筆記：<code>window物件三種成員與滑鼠座標-client-screen-page-與innerHTML覆蓋陷阱.md</code><br>
+  換算關係：<code>pageX = clientX + window.scrollX</code>
+</footer>
+
+<div style="height:1400px"></div>
+
+<script>
+// 1) 骨架只建一次 —— 這一步做完之後，下面抓到的節點參照才可以一直重用
+var el = document.getElementById('info');
+el.innerHTML =
+    '<h2>viewport 可視區（原點：可視區左上角）</h2>'
+  + '<p>client  X: <span class="v" id="cx">-</span>   client  Y: <span class="v" id="cy">-</span></p>'
+  + '<h2>document 文件（原點：整份文件左上角，含捲動隱藏處）</h2>'
+  + '<p>page    X: <span class="v" id="px">-</span>   page    Y: <span class="v" id="py">-</span></p>'
+  + '<h2>screen 實體螢幕（原點：螢幕左上角）</h2>'
+  + '<p>screen  X: <span class="v" id="sx">-</span>   screen  Y: <span class="v" id="sy">-</span></p>'
+  + '<p>window  X: <span class="v" id="wx">-</span>   window  Y: <span class="v" id="wy">-</span>   ← 量的是「視窗」不是「滑鼠」</p>'
+  + '<h2>window 屬性 / 子物件</h2>'
+  + '<p>innerWidth : <span class="v" id="iw">-</span>  ← 屬性 Property</p>'
+  + '<p>screen.width: <span class="v" id="sw">-</span>  ← 子物件 screen 底下的 width 屬性</p>'
+  + '<p>history.length: <span class="v" id="hl">-</span>  ← 子物件 history 底下的 length 屬性</p>';
+
+// 2) 骨架已在文件裡，抓一次就好
+function $(id){ return document.getElementById(id); }
+var cx=$('cx'), cy=$('cy'), px=$('px'), py=$('py'),
+    sx=$('sx'), sy=$('sy'), wx=$('wx'), wy=$('wy'),
+    iw=$('iw'), sw=$('sw'), hl=$('hl');
+
+function set(node, n){
+  node.textContent = n;
+  node.classList.toggle('neg', n < 0);   // 負數（多螢幕）標紅，提醒這不是壞掉
+}
+
+// 3) 高頻事件只改文字節點，不重建任何元素；再用 requestAnimationFrame 節流成一幀一次
+var rafId = 0;
+document.addEventListener('mousemove', function (e) {
+  if (rafId) return;                       // 這一幀已經排程過了，這次事件直接丟掉
+  rafId = requestAnimationFrame(function () {
+    rafId = 0;
+    set(cx, e.clientX);       set(cy, e.clientY);
+    set(px, e.pageX);         set(py, e.pageY);
+    set(sx, e.screenX);       set(sy, e.screenY);
+    set(wx, window.screenX);  set(wy, window.screenY);
+    set(iw, window.innerWidth);
+    set(sw, window.screen.width);
+    set(hl, window.history.length);
+  });
+});
+</script>
+</body>
+</html>

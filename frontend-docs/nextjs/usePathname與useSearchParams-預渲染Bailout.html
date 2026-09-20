@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>usePathname 與 useSearchParams — 預渲染 Bailout</title>
+<style>
+  :root{
+    --ink:#1F2937; --sub:#55617A; --line:#E3E7EE; --bg:#FBFCFD; --card:#FFFFFF;
+    --accent:#4A5A75; --warn:#C2455E; --ok:#3E8E4E; --note:#9B7FD4;
+    --hl-yellow:#FFF3A3; --hl-red:#FF5582; --hl-green:#BBFABB;
+    --hl-blue:#ADCCFF; --hl-pink:#FFB8EB; --hl-purple:#D2B3FF;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC","Microsoft JhengHei",-apple-system,"Segoe UI",sans-serif;
+       line-height:1.75;}
+  .wrap{max-width:860px;margin:0 auto;padding:40px 22px 80px}
+  header{border-bottom:2px solid var(--line);padding-bottom:22px;margin-bottom:34px}
+  h1{font-family:"Noto Serif TC",Georgia,serif;font-size:27px;line-height:1.45;margin:0 0 12px}
+  .pills{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 10px}
+  .pill{font-size:12px;padding:3px 11px;border-radius:999px;background:#EEF2F8;color:var(--accent);border:1px solid #DCE3EE}
+  .meta{font-size:13px;color:var(--sub)}
+  .meta a{color:var(--accent)}
+  h2{font-family:"Noto Serif TC",Georgia,serif;font-size:21px;margin:44px 0 6px;
+     padding-left:12px;border-left:5px solid var(--accent)}
+  h3{font-size:17px;margin:30px 0 8px;color:#2B3648}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:18px 0;
+        box-shadow:0 1px 3px rgba(20,30,50,.05)}
+  .fig{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin:18px 0;overflow-x:auto}
+  .fig svg{display:block;width:100%;height:auto;min-width:720px}
+  mark{padding:1px 3px;border-radius:3px}
+  .y{background:var(--hl-yellow)} .r{background:var(--hl-red)} .g{background:var(--hl-green)}
+  .b{background:var(--hl-blue)} .p{background:var(--hl-pink)} .v{background:var(--hl-purple)}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14.5px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#EEF2F8;font-weight:600}
+  tbody tr:nth-child(even){background:#F7F9FC}
+  pre{background:#242B38;color:#E6EAF2;padding:15px 17px;border-radius:9px;overflow-x:auto;
+      font-size:13.5px;line-height:1.6;font-family:"Cascadia Code",Consolas,monospace}
+  code{font-family:"Cascadia Code",Consolas,monospace;font-size:13.5px}
+  p code,li code,td code{background:#EEF2F8;padding:1px 5px;border-radius:4px;color:#33415C}
+  .callout{border-left:5px solid var(--warn);background:#FFF4F6;padding:13px 17px;border-radius:0 9px 9px 0;margin:16px 0}
+  .callout.ok{border-color:var(--ok);background:#F1FAF2}
+  .callout.note{border-color:var(--note);background:#F6F2FC}
+  .callout b{display:block;margin-bottom:4px}
+  .idx{font-size:14px;color:var(--sub);background:#EEF2F8;display:inline-block;padding:4px 13px;border-radius:999px}
+
+  /* 互動 */
+  .blank{background:#E6ECF6;border-bottom:2px dashed var(--accent);border-radius:4px;
+         padding:1px 12px;cursor:pointer;color:transparent;user-select:none;transition:.18s;font-weight:600}
+  .blank:hover{background:#D8E1F0}
+  .blank.on{color:#1F2937;background:var(--hl-green);border-bottom-style:solid;cursor:default}
+  .toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0 6px}
+  button{font-family:inherit;font-size:13.5px;padding:7px 15px;border-radius:8px;border:1px solid #D3DAE6;
+         background:#fff;color:var(--accent);cursor:pointer;transition:.15s}
+  button:hover{background:#EEF2F8}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.primary:hover{background:#3B4A62}
+  .quiz{border:1px solid var(--line);border-radius:10px;padding:15px 18px;margin:14px 0;background:#fff}
+  .quiz .q{font-weight:600;margin-bottom:9px}
+  .opt{display:flex;gap:9px;margin:7px 0}
+  .opt button{min-width:62px}
+  .fb{font-size:14px;margin-top:9px;display:none;padding:9px 12px;border-radius:7px;line-height:1.65}
+  .fb.show{display:block}
+  .fb.right{background:#F1FAF2;border-left:4px solid var(--ok)}
+  .fb.wrong{background:#FFF4F6;border-left:4px solid var(--warn)}
+  textarea{width:100%;min-height:96px;border:1px solid #D3DAE6;border-radius:8px;padding:11px;
+           font-family:inherit;font-size:14.5px;line-height:1.7;resize:vertical}
+  .model{display:none;margin-top:11px;background:#F7F9FC;border:1px dashed #C9D3E2;border-radius:8px;padding:13px 15px;font-size:14.5px}
+  .model.show{display:block}
+  .srcbox{background:#F7F9FC;border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+  .u,.gm{border-left:4px solid;padding:9px 13px;border-radius:0 7px 7px 0;margin:10px 0;font-size:14.5px}
+  .u{border-color:#4A5A75;background:#EEF2F8}
+  .gm{border-color:#9B7FD4;background:#F6F2FC}
+  .u b,.gm b{font-size:13px;letter-spacing:.4px}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--sub);text-align:center}
+  a{color:#3B5C8A}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>usePathname 與 useSearchParams<br>差在哪，以及為什麼一個會害整站掉成 CSR</h1>
+  <div class="pills">
+    <span class="pill">gemini</span><span class="pill">nextjs</span><span class="pill">app-router</span>
+    <span class="pill">hooks</span><span class="pill">prerender</span><span class="pill">bailout</span>
+    <span class="pill">suspense</span><span class="pill">csr</span><span class="pill">fcp</span>
+  </div>
+  <div class="meta">
+    更新於 2026-09-17 ｜ 來源：<a href="https://gemini.google.com/app/71e6e770a1e5bce3" target="_blank" rel="noopener">Gemini 對話</a>
+  </div>
+  <div style="margin-top:12px"><span class="idx">本篇重點 a–n，共 14 個 · 2026-09-17 補入 k-2 / k-3</span></div>
+</header>
+
+<h2>主軸圖</h2>
+<p>這張流程圖是本篇的定位座標，後面每一個重點都可以指回圖上的某一個方框。例如「Missing Suspense boundary」那個粉紅色框，就是 (h) 在講的那條建置失敗。</p>
+<div class="fig">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 780" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4A5A75"/>
+    </marker>
+  </defs>
+  <style>
+    .lbl{font-size:15px;fill:#1F2937}.sm{font-size:12.5px;fill:#55617A}
+    .edge{stroke:#4A5A75;stroke-width:1.8;fill:none;marker-end:url(#ar2)}
+    .tag{font-size:13px;fill:#4A5A75;font-weight:600}
+    .node{transition:.2s;cursor:default}
+  </style>
+  <rect x="0" y="0" width="940" height="780" fill="#FBFCFD"/>
+  <text x="470" y="34" text-anchor="middle" font-size="19" font-weight="700" fill="#1F2937">useSearchParams 造成 Prerender Bailout 的判斷流程（ISO 5807）</text>
+  <text x="470" y="56" text-anchor="middle" class="sm">主詞—動詞—受詞：Next.js 在建置期用 Node.js 執行你的元件樹，遇到讀不到的東西就丟出例外</text>
+
+  <rect x="340" y="80" width="260" height="46" rx="23" fill="#E8EDF5" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="470" y="109" text-anchor="middle" class="lbl">開始：你敲 npm run build</text>
+  <path class="edge" d="M470 126 L470 156"/>
+
+  <rect x="285" y="156" width="370" height="58" fill="#FFFFFF" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="470" y="180" text-anchor="middle" class="lbl">Next.js 用 Node.js 把 /dashboard 的元件樹執行一遍</text>
+  <text x="470" y="200" text-anchor="middle" class="sm">目的是把 React 元件 render 成 HTML 字串，寫進 .next/</text>
+  <path class="edge" d="M470 214 L470 246"/>
+
+  <path d="M470 246 L700 306 L470 366 L240 306 Z" fill="#FFF6D9" stroke="#B8933A" stroke-width="1.8"/>
+  <text x="470" y="300" text-anchor="middle" class="lbl">這棵樹裡有人呼叫</text>
+  <text x="470" y="322" text-anchor="middle" class="lbl">useSearchParams() 嗎？</text>
+
+  <path class="edge" d="M240 306 L120 306 L120 396"/>
+  <text x="172" y="298" text-anchor="middle" class="tag">否</text>
+  <rect x="20" y="396" width="210" height="72" fill="#FFFFFF" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="125" y="420" text-anchor="middle" class="lbl">路徑在建置期可預測</text>
+  <text x="125" y="440" text-anchor="middle" class="sm">usePathname 讀的 /dashboard</text>
+  <text x="125" y="458" text-anchor="middle" class="sm">是寫死的，算得出來</text>
+  <path class="edge" d="M125 468 L125 520"/>
+  <rect x="20" y="520" width="210" height="72" fill="#E3F6E3" stroke="#3E8E4E" stroke-width="1.8"/>
+  <text x="125" y="546" text-anchor="middle" class="lbl">產出完整 HTML</text>
+  <text x="125" y="566" text-anchor="middle" class="sm">.next/server/app/dashboard.html</text>
+  <text x="125" y="584" text-anchor="middle" class="sm">裡面有真正的文字 → FCP 快</text>
+
+  <path class="edge" d="M700 306 L800 306 L800 396"/>
+  <text x="752" y="298" text-anchor="middle" class="tag">是</text>
+  <rect x="640" y="396" width="285" height="72" fill="#FFFFFF" stroke="#4A5A75" stroke-width="1.8"/>
+  <text x="782" y="420" text-anchor="middle" class="lbl">Query String 建置期不存在</text>
+  <text x="782" y="440" text-anchor="middle" class="sm">?category=shoes 由未來的使用者帶進來</text>
+  <text x="782" y="458" text-anchor="middle" class="sm">Node.js 在硬碟上算不出這個值</text>
+  <path class="edge" d="M782 468 L782 500"/>
+
+  <path d="M782 500 L940 552 L782 604 L624 552 Z" fill="#FFF6D9" stroke="#B8933A" stroke-width="1.8"/>
+  <text x="782" y="546" text-anchor="middle" class="lbl">這個呼叫點外面</text>
+  <text x="782" y="568" text-anchor="middle" class="lbl">有 &lt;Suspense&gt; 接住嗎？</text>
+
+  <path class="edge" d="M624 552 L470 552 L470 640"/>
+  <text x="548" y="544" text-anchor="middle" class="tag">否</text>
+  <rect x="300" y="640" width="340" height="90" fill="#FFE4EA" stroke="#C2455E" stroke-width="1.8"/>
+  <text x="470" y="666" text-anchor="middle" class="lbl">例外一路往上冒泡，沒人接</text>
+  <text x="470" y="688" text-anchor="middle" class="sm">next build 直接失敗，錯誤訊息是</text>
+  <text x="470" y="710" text-anchor="middle" font-size="12.5" fill="#C2455E" font-family="monospace">Missing Suspense boundary with useSearchParams</text>
+
+  <path class="edge" d="M782 604 L782 640"/>
+  <text x="800" y="628" class="tag">是</text>
+  <rect x="660" y="640" width="265" height="90" fill="#E3F6E3" stroke="#3E8E4E" stroke-width="1.8"/>
+  <text x="792" y="664" text-anchor="middle" class="lbl">只有這棵子樹掉成 CSR</text>
+  <text x="792" y="686" text-anchor="middle" class="sm">外層 shell 仍然靜態預渲染出來</text>
+  <text x="792" y="706" text-anchor="middle" class="sm">損失被關在 Suspense 邊界裡</text>
+
+  <rect x="20" y="640" width="255" height="90" rx="6" fill="#F4F0FB" stroke="#9B7FD4" stroke-width="1.4" stroke-dasharray="5 3"/>
+  <text x="147" y="664" text-anchor="middle" class="lbl">⚠️ 位置越上層，災情越大</text>
+  <text x="147" y="686" text-anchor="middle" class="sm">寫在 layout 的 Provider 裡，</text>
+  <text x="147" y="706" text-anchor="middle" class="sm">整站的 client 樹會一起 bailout</text>
+</svg>
+</div>
+
+<div class="toolbar">
+  <button class="primary" onclick="allBlanks(true)">顯示全部答案</button>
+  <button onclick="allBlanks(false)">隱藏全部答案</button>
+  <span style="font-size:13px;color:var(--sub);align-self:center">灰色方塊點一下顯示，再點工具列可整批切換</span>
+</div>
+
+<h2>一、兩個 Hook 各自讀 URL 的哪一段</h2>
+<div class="card">
+<p><b>(a)</b> <mark class="b">usePathname()</mark> 是 Next.js App Router 提供的 client hook。它讀取的受詞是 <mark class="y">URL 的路徑（Path）</mark>，回傳型態是 <span class="blank" data-a="字串 string">字串 string</span>，回答的問題是「使用者現在站在哪一頁」。</p>
+<p><b>(b)</b> <mark class="b">useSearchParams()</mark> 讀取的受詞是 <mark class="y">URL 問號後面的查詢字串（Query String）</mark>，回傳型態是唯讀物件 <code>ReadonlyURLSearchParams</code>，要再用 <span class="blank" data-a=".get('key')">.get('key')</span> 把值取出來。回答的問題是「使用者這一頁帶了什麼篩選條件」。</p>
+<p><b>(c)</b> 以網址 <code>https://example.com/dashboard/products?category=shoes&amp;sort=asc</code> 為例，兩者切開的位置是這樣：</p>
+<table>
+  <thead><tr><th>比較項目</th><th>usePathname()</th><th>useSearchParams()</th></tr></thead>
+  <tbody>
+    <tr><td>讀到的內容</td><td><code>/dashboard/products</code></td><td><code>category=shoes&amp;sort=asc</code></td></tr>
+    <tr><td>回傳型態</td><td>字串 string</td><td>唯讀物件 ReadonlyURLSearchParams</td></tr>
+    <tr><td>取值寫法</td><td>直接當字串用</td><td>要再呼叫 <code>.get('category')</code></td></tr>
+    <tr><td>典型用途</td><td>導覽列高亮目前頁面</td><td>搜尋關鍵字、商品篩選、分頁切換</td></tr>
+    <tr><td>靜態預渲染</td><td>可以直接用</td><td>必須包在 Suspense 裡，否則 build 失敗</td></tr>
+    <tr><td>口訣</td><td>想知道「走到哪一頁」</td><td>想知道「帶了什麼條件」</td></tr>
+  </tbody>
+</table>
+<p><b>(d)</b> <code>usePathname</code> 的實作範例，用途是把目前頁面的連結標成紅色：</p>
+<pre><code>'use client'
+
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export default function Navigation() {
+  const pathname = usePathname()          // 例如回傳 "/dashboard"
+
+  return (
+    &lt;nav&gt;
+      &lt;Link
+        href="/dashboard"
+        style={{ color: pathname === '/dashboard' ? 'red' : 'black' }}
+      &gt;
+        Dashboard
+      &lt;/Link&gt;
+    &lt;/nav&gt;
+  )
+}</code></pre>
+<p><b>(e)</b> <code>useSearchParams</code> 的實作範例，用途是把 <code>?category=shoes</code> 的 <code>shoes</code> 取出來顯示：</p>
+<pre><code>'use client'
+
+import { useSearchParams } from 'next/navigation'
+
+export default function SearchResult() {
+  const searchParams = useSearchParams()
+  const category = searchParams.get('category')   // ?category=shoes 時回傳 'shoes'
+
+  return &lt;p&gt;當前分類：{category}&lt;/p&gt;
+}</code></pre>
+</div>
+
+<h2>二、Bailout 是怎麼發生的（對照主軸圖的右半邊）</h2>
+<div class="card">
+<p><b>(f)</b> <mark class="b">Bailout（跳船）</mark>指的是 <mark class="y">Next.js 在建置期放棄把某一棵元件樹預渲染成 HTML，把它降級成使用者端渲染（CSR）</mark>。「跳船」是比喻：靜態預渲染這條船開不下去了，這棵樹自己跳下去用瀏覽器游過去。</p>
+<p><b>(g)</b> 為什麼只有 <code>useSearchParams</code> 會觸發它，關鍵在<mark class="y">建置期知不知道這個值</mark>。路徑 <code>/dashboard/products</code> 在 <code>npm run build</code> 的當下是寫死在檔案系統裡的，Node.js <span class="blank" data-a="算得出來">算得出來</span>；查詢字串 <code>?search=react</code> 代表未來某一個使用者的請求，<mark class="r">建置期的伺服器根本還沒收到任何請求，不可能知道</mark>。</p>
+<p><b>(h)</b> 所以只要元件直接呼叫了 <code>useSearchParams()</code> 又沒有 <code>&lt;Suspense&gt;</code> 接住，<code>next build</code> 會直接拋出這一行錯誤：</p>
+<pre><code>Error: Missing Suspense boundary with useSearchParams</code></pre>
+<div class="callout">
+  <b>(i) 災情大小取決於呼叫點的位置有多上層</b>
+  整條 client 元件樹都會被一起拖下水。<mark class="p">實測案例</mark>：Abby 的 <code>next-one-main</code> 專案，<code>LoaderProvider</code> 寫在 root layout 裡並且呼叫了 <code>useSearchParams</code>，結果整站每一頁的 client 樹全部 bailout 成 CSR，FCP 被拖到 <span class="blank" data-a="5.24 秒">5.24 秒</span>。原始碼層級的完整驗證寫在 <code>FCP-5.24秒-Next.js效能診斷實錄-從指令到根因.md</code> 的 Step 7。
+</div>
+</div>
+
+<h2>三、三種解法，由輕到重</h2>
+<div class="card">
+<div class="callout ok">
+  <b>(j) 解法一：改用 usePathname（最輕量，優先考慮）</b>
+  判斷標準是：這個元件只是想知道「現在在哪一條路由」來切換樣式或決定要不要顯示嗎？如果是，直接換成 <code>usePathname</code> 就好，完全不影響靜態預渲染。Abby 的 <code>LoaderProvider</code> 正是這一種情況。
+</div>
+<div class="callout ok">
+  <b>(k) 解法二：用 &lt;Suspense&gt; 把呼叫點包起來</b>
+  如果真的必須讀 Query String（搜尋欄、篩選器），就把呼叫 <code>useSearchParams</code> 的那個 client component 用 <code>&lt;Suspense&gt;</code> 包住。這麼做<mark class="r">並不會讓 bailout 消失</mark>，而是<mark class="y">把損失關在 Suspense 邊界裡</mark>：外層頁面 shell 照常靜態預渲染，只有內部那一小塊在瀏覽器補上。
+</div>
+<pre><code>import { Suspense } from 'react'
+import SearchBar from './search-bar'
+
+export default function Page() {
+  return (
+    &lt;main&gt;
+      {/* 外層保持靜態，只有 SearchBar 這一塊動態載入 */}
+      &lt;Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
+        &lt;SearchBar /&gt;
+      &lt;/Suspense&gt;
+    &lt;/main&gt;
+  )
+}</code></pre>
+<div class="callout note">
+  <b>(k-2) 先把三個渲染時機的名詞定死（2026-09-17 補入）</b>
+  <mark class="y">靜態渲染與動態渲染都是「伺服器端」的處理方式</mark>，差別只在算的時間點是建置期還是請求期，不要把「動態渲染」跟「CSR」混為一談。
+</div>
+<table>
+  <thead><tr><th>名詞</th><th>誰在什麼時候產出 HTML</th><th>拿到的資料是什麼時候的</th></tr></thead>
+  <tbody>
+    <tr><td>靜態渲染 Static Rendering</td><td>Next.js 在 <code>next build</code> 建置時就先生成 HTML，之後每個請求都直接送這份快取</td><td>建置當下的資料</td></tr>
+    <tr><td>動態渲染 Dynamic Rendering</td><td>伺服器在每一個請求進來時才即時生成 HTML</td><td>該次請求當下的最新資料</td></tr>
+    <tr><td>使用者端渲染 CSR</td><td>伺服器只送空殼，瀏覽器下載 JS 後才把畫面畫出來</td><td>瀏覽器執行時的資料</td></tr>
+  </tbody>
+</table>
+<div class="callout ok">
+  <b>(k-3) 加不加 &lt;Suspense&gt;，決定的是「損失範圍」而不是「有沒有損失」</b>
+  <mark class="r">兩者不是互相排斥的「二選一」</mark>，而是你在決定「希望哪一部分先在伺服器做完」。<code>useSearchParams</code> 的本質是：在元件中呼叫這個 hook 會通知 Next.js「必須等到參數確認後才能完整呈現」，所以才需要在懸吊邊界（Suspense boundary）處把它隔離起來。
+</div>
+<table>
+  <thead><tr><th>做法</th><th>頁面外層</th><th>讀 Query String 的那一塊</th><th>代價</th></tr></thead>
+  <tbody>
+    <tr><td>用 <code>&lt;Suspense&gt;</code> 包住呼叫點</td><td>維持 static／SSR，伺服器先把骨架與靜態 HTML 渲染出來</td><td>只有這一小塊在瀏覽器補上</td><td>使用者會先看到 fallback 再看到內容</td></tr>
+    <tr><td>不包 <code>&lt;Suspense&gt;</code></td><td>整頁被降級成全動態渲染（Dynamic Rendering）</td><td>跟著整頁一起動態</td><td>伺服器每收到一次 Request 都要重算整頁，完全享受不到靜態快取</td></tr>
+  </tbody>
+</table>
+<div class="callout ok">
+  <b>(l) 解法三：改在 Server Component 用 searchParams prop</b>
+  如果讀取點就在 <code>page.tsx</code>，根本不需要動用 client hook。App Router 的 Page 元件原生就會收到一個 <code>searchParams</code> prop，直接在伺服器端拿到參數，連 client boundary 都不用開。
+</div>
+<pre><code>// app/products/page.tsx —— 這是 Server Component，不要加 'use client'
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise&lt;{ category?: string }&gt;
+}) {
+  const { category } = await searchParams
+  return &lt;p&gt;當前分類：{category}&lt;/p&gt;
+}</code></pre>
+<div class="callout note">
+  <b>⚠️ 版本差異</b>
+  Next.js 15 起 <code>searchParams</code> 改成 Promise，必須 <code>await</code> 才拿得到值；Next.js 14 及以前是同步物件，可以直接 <code>searchParams.category</code>。詳見
+  <a href="https://nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional" target="_blank" rel="noopener">官方 Page 的 searchParams 說明</a>。
+</div>
+</div>
+
+<h2>四、判斷順序（遇到 bailout 時照這個順序問自己）</h2>
+<div class="card">
+<p><b>(m)</b> 這是一條有先後的檢查流程，所以用數字而不是字母：</p>
+<ol>
+  <li>這個元件真的需要 Query String 嗎？不需要就改 <code>usePathname</code>（解法一）</li>
+  <li>需要，但讀取點在 <code>page.tsx</code> 嗎？是的話改用 <code>searchParams</code> prop（解法三）</li>
+  <li>需要，而且一定要在 client component 裡讀嗎？才用 <code>&lt;Suspense&gt;</code> 包（解法二）</li>
+  <li>包完之後，確認 <code>&lt;Suspense&gt;</code> 的位置<mark class="r">越低越好</mark>，不要包在 layout 這種每頁都吃到的地方</li>
+</ol>
+<p><b>(n)</b> <mark class="v">延伸備註</mark>：bailout 這個詞在 Next.js 文件裡不只一種用法。本篇講的是<mark class="b">預渲染 bailout（prerender bailout）</mark>，發生在建置期；另外還有 React 自己的 <mark class="b">render bailout</mark>（state 沒變就跳過 re-render），那是執行期的事情，兩者不要混在一起。</p>
+</div>
+
+<h2>自己考自己</h2>
+
+<h3>是非題</h3>
+<div id="tf"></div>
+
+<h3>申論題</h3>
+<div class="quiz">
+  <div class="q">Q1. 用「誰 用什麼 做什麼、產物是什麼、再拋給誰」的句型，完整描述 <code>next build</code> 遇到一個沒有被 Suspense 包住的 <code>useSearchParams()</code> 時發生了什麼事。</div>
+  <textarea placeholder="寫下你的答案再看參考解答……"></textarea>
+  <div class="toolbar"><button onclick="tog(this)">顯示參考解答</button></div>
+  <div class="model">
+    Next.js 用 Node.js 在建置期把 <code>/dashboard</code> 的元件樹執行一遍，產物本來應該是一份寫進 <code>.next/server/app/dashboard.html</code> 的完整 HTML 字串。執行到 <code>useSearchParams()</code> 時，這個 hook 偵測到自己正在「靜態預渲染」而不是在瀏覽器裡，而它要讀的 Query String 在這個時間點不存在，於是它 throw 出一個 bailout 例外。這個例外往上冒泡，本來應該被最近的 <code>&lt;Suspense&gt;</code> 邊界接住並把該子樹標記成「交給瀏覽器渲染」；但因為沒有任何 Suspense，例外一路冒到頂端沒人接，Next.js 就把整個 build 判定為失敗，拋給終端機的訊息是 <code>Missing Suspense boundary with useSearchParams</code>。
+  </div>
+</div>
+<div class="quiz">
+  <div class="q">Q2. 為什麼 <code>usePathname</code> 不會 bailout，<code>useSearchParams</code> 卻會？請用「建置期能不能算出這個值」當主軸回答，並說明這跟 FCP 有什麼關係。</div>
+  <textarea placeholder="寫下你的答案再看參考解答……"></textarea>
+  <div class="toolbar"><button onclick="tog(this)">顯示參考解答</button></div>
+  <div class="model">
+    差別在於值的來源。路徑是由檔案系統的資料夾結構決定的，<code>app/dashboard/page.tsx</code> 這個檔案擺在那裡，建置期就知道它的路徑是 <code>/dashboard</code>，所以 Node.js 算得出來、可以安心預渲染。查詢字串則是由未來某一個使用者在網址列打出來的，建置的當下還沒有任何請求進來，這個值在邏輯上不存在，不是「還沒算」而是「無法算」。<br><br>
+    跟 FCP 的關係是：bailout 之後伺服器吐給瀏覽器的 HTML 裡沒有真正的文字，只剩空殼。瀏覽器必須先下載 JS、執行 React、再發 API 請求，才畫得出第一個字，FCP 因此被拉長好幾秒。這也是為什麼 bundle 很小（gzip 才 177 KB）FCP 卻還是 5.24 秒——問題不在體積，在 HTML 裡沒東西。
+  </div>
+</div>
+
+<h2>各對話來源（原文）</h2>
+<div class="srcbox">
+  <p style="margin-top:0"><b>Next.js 路由工具差異解析</b>（2026-09 擷取）—
+    <a href="https://gemini.google.com/app/71e6e770a1e5bce3" target="_blank" rel="noopener">gemini.google.com/app/71e6e770a1e5bce3</a></p>
+  <div class="u"><b>使用者</b><br>幫我淺顯易懂的教學 useSearchParams 跟 usePathName 用途跟用法差在哪</div>
+  <div class="gm"><b>Gemini</b><br>useSearchParams 與 usePathname 都用於獲取當前頁面的 URL 資訊，但專注的位置與用途完全不同。usePathname 讀取 URL 的路徑（Path），主要用於判斷使用者「現在在哪個頁面」；useSearchParams 讀取 URL 的查詢參數（Query String），主要用於取得網址問號後面的資料篩選、分頁或搜尋條件。接著給出對照表（讀取範圍、傳回型態、常見情境、伺服器預渲染需求）與兩段程式碼範例：usePathname 用來設定選單高亮，useSearchParams 需搭配 <code>.get()</code> 獲取特定參數。簡單口訣是「想知道走到哪一頁用 usePathname，想知道帶了什麼條件用 useSearchParams」。</div>
+  <div class="u"><b>使用者</b><br>拿掉 LoaderProvider 的 useSearchParams（usePathname 就夠用且不會 bailout）有人遇到 useSearchParams bailout 的問題過嗎</div>
+  <div class="gm"><b>Gemini</b><br>useSearchParams 造成 Prerender Bailout（靜態渲染失效）是 Next.js App Router 社群中非常經典且常見的陷阱。在生產環境構建或靜態預渲染時，伺服器會嘗試將頁面事先打包成 HTML；usePathname 的路徑在構建時是固定且可預測的，因此可以安心預渲染；useSearchParams 的查詢參數代表動態的使用者請求資料，在伺服器靜態打包的當下不可能知道使用者未來會帶什麼 Query String 進來。因此一旦元件直接使用了 useSearchParams()，Next.js 會認定這個元件無法在靜態打包時完成渲染，將包含該元件的整條 Client 元件樹跳出靜態渲染，轉為用戶端渲染。如果沒有用 <code>&lt;Suspense&gt;</code> 包覆，在 next build 時會直接拋出 <code>Missing Suspense boundary with useSearchParams</code>。常見解決方案有三個：替換為 usePathname、加上 <code>&lt;Suspense&gt;</code> 包覆、改用 Server Component 的 searchParams prop。</div>
+</div>
+
+<h2>資料來源（含查證時間）</h2>
+<table>
+  <thead><tr><th>主題</th><th>連結</th><th>版本／查證時間</th></tr></thead>
+  <tbody>
+    <tr><td>本篇 Gemini 對話</td><td><a href="https://gemini.google.com/app/71e6e770a1e5bce3" target="_blank" rel="noopener">Next.js 路由工具差異解析</a></td><td>Gemini Flash，2026-09-16 擷取</td></tr>
+    <tr><td>Next.js 官方 — useSearchParams</td><td><a href="https://nextjs.org/docs/app/api-reference/functions/use-search-params" target="_blank" rel="noopener">use-search-params</a></td><td>現行文件，2026-09-16 查證</td></tr>
+    <tr><td>Next.js 官方 — usePathname</td><td><a href="https://nextjs.org/docs/app/api-reference/functions/use-pathname" target="_blank" rel="noopener">use-pathname</a></td><td>現行文件，2026-09-16 查證</td></tr>
+    <tr><td>錯誤訊息說明頁</td><td><a href="https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout" target="_blank" rel="noopener">missing-suspense-with-csr-bailout</a></td><td>現行文件，2026-09-16 查證</td></tr>
+    <tr><td>Page 的 searchParams prop（Next 15 起是 Promise）</td><td><a href="https://nextjs.org/docs/app/api-reference/file-conventions/page" target="_blank" rel="noopener">file-conventions/page</a></td><td>現行文件，2026-09-16 查證</td></tr>
+    <tr><td>React 官方 — Suspense</td><td><a href="https://react.dev/reference/react/Suspense" target="_blank" rel="noopener">react/Suspense</a></td><td>現行文件，2026-09-16 查證</td></tr>
+    <tr><td>k-2、k-3 的 Gemini 對話（安裝 Git Graph 擴充功能，後半段轉 Next.js）</td><td><a href="https://gemini.google.com/app/0a254a9c8a7c9b2a" target="_blank" rel="noopener">gemini.google.com/app/0a254a9c8a7c9b2a</a></td><td>Gemini Flash，2026-09-17 擷取</td></tr>
+    <tr><td>本 vault 同專案實測</td><td>frontend-docs/nextjs/FCP-5.24秒-Next.js效能診斷實錄-從指令到根因.md</td><td>2026-09-16</td></tr>
+  </tbody>
+</table>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-17</footer>
+</div>
+
+<script>
+document.querySelectorAll('.blank').forEach(function(el){
+  el.addEventListener('click', function(){ el.classList.toggle('on'); });
+});
+function allBlanks(on){
+  document.querySelectorAll('.blank').forEach(function(el){ el.classList.toggle('on', on); });
+}
+function tog(btn){
+  var m = btn.closest('.quiz').querySelector('.model');
+  m.classList.toggle('show');
+  btn.textContent = m.classList.contains('show') ? '隱藏參考解答' : '顯示參考解答';
+}
+var TF = [
+  {q:'usePathname 讀到的是網址問號後面的查詢字串。', a:false,
+   e:'錯。usePathname 讀的是「路徑」那一段，例如 /dashboard/products。問號後面的 category=shoes 是 useSearchParams 的地盤。'},
+  {q:'把 useSearchParams 用 &lt;Suspense&gt; 包起來，bailout 就不會發生了。', a:false,
+   e:'錯。bailout 還是會發生，Suspense 只是把它「關進邊界裡」：外層 shell 仍然靜態預渲染，只有 Suspense 內那一棵子樹掉成 CSR。'},
+  {q:'useSearchParams 寫在 root layout 的 Provider 裡，比寫在單一頁面的小元件裡嚴重得多。', a:true,
+   e:'對。呼叫點越上層，被拖下水的 client 元件樹越大。寫在 layout 等於整站每一頁都跟著掉成 CSR。'},
+  {q:'在 page.tsx 裡想拿 Query String，一定要用 useSearchParams 這個 client hook。', a:false,
+   e:'錯。App Router 的 Page 元件原生就收得到 searchParams prop，在 Server Component 裡直接拿，連 client boundary 都不用開（Next 15 起要 await）。'},
+  {q:'bundle 體積很小，FCP 就一定不會太差。', a:false,
+   e:'錯。Abby 的專案 gzip 後才 177 KB，FCP 仍然是 5.24 秒。因為問題出在「HTML 裡沒有內容」與「render-blocking CSS」，不是下載量。'},
+  {q:'「動態渲染（Dynamic Rendering）」跟「使用者端渲染（CSR）」是同一件事。', a:false,
+   e:'錯。動態渲染仍然是「伺服器端」在每個請求進來時即時生成 HTML；CSR 是伺服器只送空殼、由瀏覽器畫。靜態渲染與動態渲染的差別只在算的時間點是建置期還是請求期。（2026-09-17 補入）'},
+  {q:'不加 &lt;Suspense&gt; 時，只有呼叫 useSearchParams 的那一小塊會受影響，其他部分照常靜態快取。', a:false,
+   e:'錯。不包 Suspense 的話，整個頁面會被降級成全動態渲染，伺服器每收到一次 Request 都要重算整頁，完全享受不到靜態快取。包了 Suspense 才能把損失關在那一小塊裡。（2026-09-17 補入）'}
+];
+var tfBox = document.getElementById('tf');
+TF.forEach(function(item, i){
+  var d = document.createElement('div');
+  d.className = 'quiz';
+  d.innerHTML = '<div class="q">' + (i+1) + '. ' + item.q + '</div>' +
+    '<div class="opt"><button data-v="1">O 對</button><button data-v="0">X 錯</button></div>' +
+    '<div class="fb"></div>';
+  d.querySelectorAll('.opt button').forEach(function(b){
+    b.addEventListener('click', function(){
+      var picked = b.dataset.v === '1';
+      var fb = d.querySelector('.fb');
+      var ok = picked === item.a;
+      fb.className = 'fb show ' + (ok ? 'right' : 'wrong');
+      fb.innerHTML = (ok ? '✅ 答對了　' : '❌ 再想一下　') + item.e;
+    });
+  });
+  tfBox.appendChild(d);
+});
+</script>
+</body>
+</html>

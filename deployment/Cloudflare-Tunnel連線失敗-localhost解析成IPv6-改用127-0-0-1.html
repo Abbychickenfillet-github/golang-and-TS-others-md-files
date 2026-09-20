@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cloudflare Tunnel 連線失敗——localhost 被解析成 IPv6 的 ::1</title><style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23262d; --muted:#6b7280; --line:#e6e3dc;
+  --accent:#4f6bed; --accent2:#0f9d76; --warn:#d94f6b; --code:#1f2430;
+  --hl-y:#FFF3A3; --hl-r:#FF5582; --hl-g:#BBFABB; --hl-b:#ADCCFF; --hl-p:#FFB8EB; --hl-v:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+ line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px}
+header.hd{border-bottom:3px solid var(--ink);padding-bottom:18px;margin-bottom:28px}
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:1.85rem;line-height:1.35;margin:0 0 12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.pill{background:#eef1fb;color:#3b4ab5;border:1px solid #d6dcf6;border-radius:999px;
+ padding:2px 11px;font-size:.76rem;letter-spacing:.02em}
+.meta{font-size:.82rem;color:var(--muted)}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:1.3rem;margin:38px 0 14px;
+ padding-left:12px;border-left:6px solid var(--accent)}
+h3{font-size:1.05rem;margin:26px 0 10px;color:#33406e}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:20px 22px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+mark{padding:1px 4px;border-radius:3px}
+.hy{background:var(--hl-y)}.hr{background:var(--hl-r);color:#fff}.hg{background:var(--hl-g)}
+.hb{background:var(--hl-b)}.hp{background:var(--hl-p)}.hv{background:var(--hl-v)}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#f2f0ea;font-weight:600}
+tbody tr:nth-child(even){background:#faf9f6}
+pre{background:var(--code);color:#e8ecf5;border-radius:10px;padding:14px 16px;
+ overflow-x:auto;font-size:.84rem;line-height:1.6}
+code{font-family:"JetBrains Mono",Consolas,monospace}
+p code,li code,td code{background:#eeece6;color:#9a3b57;padding:1px 5px;border-radius:4px;font-size:.87em}
+.callout{border-left:5px solid var(--accent);background:#f1f4fd;border-radius:0 10px 10px 0;
+ padding:12px 16px;margin:16px 0;font-size:.92rem}
+.callout.warn{border-color:var(--warn);background:#fdf0f3}
+.callout.ok{border-color:var(--accent2);background:#eefaf5}
+.idx{background:#23262d;color:#f4f2ec;border-radius:12px;padding:12px 18px;font-size:.88rem}
+ol.az{list-style:none;padding-left:0;counter-reset:none}
+ol.az li{margin:10px 0;padding-left:34px;position:relative}
+ol.az li b.k{position:absolute;left:0;top:0;background:var(--accent);color:#fff;
+ width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;
+ justify-content:center;font-size:.78rem}
+/* interactive */
+.blank{background:#dfe4f5;border-bottom:2px dashed var(--accent);border-radius:4px;
+ padding:1px 16px;cursor:pointer;color:transparent;user-select:none;transition:.2s}
+.blank.on{background:#d7f3e6;color:#0b6b4f;border-bottom-color:var(--accent2);font-weight:600}
+.toggle{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:7px 14px;
+ font-size:.83rem;cursor:pointer;margin:6px 6px 6px 0}
+.toggle:hover{background:var(--accent)}
+.ans{display:none;margin-top:10px;background:#eefaf5;border-left:5px solid var(--accent2);
+ border-radius:0 8px 8px 0;padding:12px 16px;font-size:.92rem}
+.ans.show{display:block}
+.tf{margin:12px 0}
+.tf .q{font-weight:600;margin-bottom:6px}
+.tf button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 16px;
+ margin-right:8px;cursor:pointer;font-size:.85rem}
+.tf button:hover{border-color:var(--accent)}
+.tf .fb{display:inline-block;margin-left:6px;font-size:.85rem;font-weight:600}
+.tf .fb.good{color:#0b6b4f}.tf .fb.bad{color:var(--warn)}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:10px;
+ padding:10px 12px;font-family:inherit;font-size:.9rem;resize:vertical;background:#fff}
+svg.flow{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:12px}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);
+ font-size:.8rem;color:var(--muted);text-align:center}
+</style></head><body><div class="wrap">
+<header class="hd"><h1>Cloudflare Tunnel 連線失敗——localhost 被解析成 IPv6 的 ::1</h1>
+<div class="pills"><span class="pill">#cloudflare</span><span class="pill">#tunnel</span><span class="pill">#ipv6</span><span class="pill">#localhost</span><span class="pill">#部署</span><span class="pill">#除錯</span></div>
+<div class="meta">更新於 2026-09-15 ｜ 來源對話：<br><a href="https://gemini.google.com/app/0f25c0c06deebd4e" target="_blank" rel="noopener">https://gemini.google.com/app/0f25c0c06deebd4e</a></div>
+<button class="toggle" id="toggle-all" data-on="0">一鍵展開所有答案</button>
+</header>
+
+<div class="idx">本篇重點 a–k，共 11 個。主軸圖固定用下面這張「Tunnel 兩段連線圖」，之後追問請指回圖中斷掉的那一段。</div>
+
+<h2>主軸圖：Tunnel 的兩段連線，斷在第二段</h2>
+<div class="card">
+<svg class="flow" viewBox="0 0 780 300" xmlns="http://www.w3.org/2000/svg">
+ <defs><marker id="a4" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+  <path d="M0,0 L10,4 L0,8 z" fill="#4f6bed"/></marker>
+  <marker id="a4r" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+  <path d="M0,0 L10,4 L0,8 z" fill="#d94f6b"/></marker></defs>
+ <rect x="20" y="40" width="170" height="60" rx="10" fill="#fff" stroke="#4f6bed" stroke-width="2"/>
+ <text x="105" y="66" font-size="13" text-anchor="middle">① 外部訪客瀏覽器</text>
+ <text x="105" y="85" font-size="11" fill="#6b7280" text-anchor="middle">trycloudflare.com</text>
+ <rect x="240" y="40" width="190" height="60" rx="10" fill="#ADCCFF" stroke="#4f6bed" stroke-width="2"/>
+ <text x="335" y="66" font-size="13" text-anchor="middle">② Cloudflare 邊緣 tpe01</text>
+ <text x="335" y="85" font-size="11" fill="#33406e" text-anchor="middle">QUIC／HTTP-3</text>
+ <rect x="480" y="40" width="190" height="60" rx="10" fill="#BBFABB" stroke="#0f9d76" stroke-width="2"/>
+ <text x="575" y="66" font-size="13" text-anchor="middle">③ cloudflared（你的電腦）</text>
+ <text x="575" y="85" font-size="11" fill="#0b6b4f" text-anchor="middle">預檢全 PASS ✔</text>
+ <rect x="480" y="190" width="190" height="66" rx="10" fill="#fff" stroke="#d94f6b" stroke-width="2" stroke-dasharray="6 4"/>
+ <text x="575" y="214" font-size="13" text-anchor="middle">④ origin：localhost:3001</text>
+ <text x="575" y="232" font-size="11" fill="#d94f6b" text-anchor="middle">解析成 [::1]:3001</text>
+ <text x="575" y="249" font-size="11" fill="#d94f6b" text-anchor="middle">沒人在聽 → TCP RST</text>
+ <rect x="200" y="190" width="230" height="66" rx="10" fill="#FFF3A3" stroke="#b79b00"/>
+ <text x="315" y="214" font-size="12" text-anchor="middle">⑤ 實際服務只綁在</text>
+ <text x="315" y="234" font-size="13" text-anchor="middle" font-weight="bold">127.0.0.1:3001（IPv4）</text>
+ <text x="315" y="251" font-size="11" fill="#7a6600" text-anchor="middle">所以瀏覽器打得開、cloudflared 打不到</text>
+ <line x1="192" y1="70" x2="234" y2="70" stroke="#4f6bed" stroke-width="2" marker-end="url(#a4)"/>
+ <line x1="432" y1="70" x2="474" y2="70" stroke="#4f6bed" stroke-width="2" marker-end="url(#a4)"/>
+ <line x1="575" y1="100" x2="575" y2="184" stroke="#d94f6b" stroke-width="3" marker-end="url(#a4r)"/>
+ <text x="600" y="146" font-size="12" fill="#d94f6b">✘ 斷在這裡</text>
+ <line x1="474" y1="223" x2="436" y2="223" stroke="#b79b00" stroke-width="2" stroke-dasharray="4 3"/>
+ <text x="455" y="215" font-size="11" fill="#b79b00">≠</text>
+</svg>
+</div>
+
+<h2>一、錯誤現場</h2>
+<div class="card">
+<pre><code>ERR error="Unable to reach the origin service...
+dial tcp [::1]:3001: connectex: No connection could be made
+because the target machine actively refused it."
+originService=http://localhost:3001</code></pre>
+<p><mark class="hy"><b>核心原因：Tunnel 連得上 Cloudflare，只是連不到你本機的服務。</b></mark></p>
+<ol class="az">
+<li><b class="k">a</b><code>::1</code> 是 IPv6 的 loopback 位址，等同 IPv4 的 <span class="blank">127.0.0.1</span>。cloudflared 把 <code>localhost</code> 解析成 IPv6 了。</li>
+<li><b class="k">b</b><code>actively refused</code> 不是被防火牆擋（那會 timeout），而是 <mark class="hb">那個 port 上根本沒有程式在監聽</mark>，作業系統直接回 TCP RST。</li>
+<li><b class="k">c</b>兩個可能：服務沒啟動，或服務只綁 IPv4 而沒監聽 <code>::1</code>。</li>
+</ol>
+</div>
+
+<h2>二、為什麼 localhost 有時 IPv4、有時 IPv6</h2>
+<div class="card">
+<ol class="az">
+<li><b class="k">d</b><code>localhost</code> 只是一個名字，Windows 的 <code>hosts</code> 檔裡同時對應 <code>127.0.0.1</code> 與 <code>::1</code>。</li>
+<li><b class="k">e</b>走哪一個由 client 的解析順序決定；Windows 與新版 Node 都偏好 <span class="blank">IPv6 優先</span>。</li>
+<li><b class="k">f</b>很多 Node／Next.js dev server 預設只 bind 在 <code>127.0.0.1</code>，才會出現「瀏覽器打得開、cloudflared 打不到」的錯覺（瀏覽器會自己 fallback 到 IPv4）。</li>
+</ol>
+</div>
+
+<h2>三、解法</h2>
+<div class="card">
+<div class="callout ok"><b>解法一（最快）</b><pre style="margin:8px 0 0"><code>cloudflared tunnel --url http://127.0.0.1:3001</code></pre></div>
+<p><b class="k" style="position:static;display:inline-flex">g</b> 把 <code>localhost</code> 換成 <code>127.0.0.1</code>，跳過名稱解析直接走 IPv4。<br>
+<b class="k" style="position:static;display:inline-flex">h</b> 先在瀏覽器開 <code>http://127.0.0.1:3001</code> 確認服務真的活著，再開 tunnel。<br>
+<b class="k" style="position:static;display:inline-flex">i</b> 或讓服務同時監聽兩個 stack，例如 <code>next dev -H 0.0.0.0</code>（<code>0.0.0.0</code> ＝所有 IPv4 介面；要吃 IPv6 用 <code>::</code>）。</p>
+</div>
+
+<h2>四、順手讀懂 log 裡的其他行</h2>
+<div class="card">
+<table><thead><tr><th>Log 行</th><th>在講什麼</th></tr></thead><tbody>
+<tr><td><code>CONNECTIVITY PRE-CHECKS ... Environment is healthy</code></td><td>對 argotunnel 做過 DNS、UDP(QUIC)、TCP(HTTP/2) 三種預檢全 PASS，代表<b>對外</b>沒問題</td></tr>
+<tr><td><code>Initial protocol quic</code></td><td>這條 tunnel 走 QUIC（UDP 上的 HTTP/3）</td></tr>
+<tr><td><code>Registered tunnel connection ... location=tpe01</code></td><td>已成功註冊到 Cloudflare 台北邊緣節點</td></tr>
+<tr><td><code>ICMP proxy will use 192.168.0.31</code></td><td>cloudflared 會代理 ping 這類 ICMP 封包，用這張網卡當來源</td></tr>
+<tr><td><code>does not support system root certificate pool on Windows</code></td><td>要驗證 origin 的 TLS 憑證得自己給 <code>--origin-ca-pool</code>；純 HTTP 本機服務沒影響</td></tr>
+<tr><td><code>Thank you for trying ... no uptime guarantee</code></td><td><code>trycloudflare.com</code> 是免登入臨時通道，沒有可用性保證</td></tr>
+</tbody></table>
+<p><b class="k" style="position:static;display:inline-flex">j</b> <mark class="hg">預檢全 PASS 卻仍失敗，就可以直接斷定問題在「本機 origin 端」</mark>，這是這份 log 最有價值的診斷資訊。</p>
+<div class="callout warn"><b>⚠️ 安全提醒（Gemini 沒提）</b><br>
+<code>--url</code> 產生的 <code>https://xxx.trycloudflare.com</code> 是<b>任何人都打得開的公開網址</b>，沒有驗證，開發中的後台頁面與資料庫管理介面都會跟著曝露。<br>
+<b class="k" style="position:static;display:inline-flex">k</b> 用完立刻 Ctrl+C 關掉；需要長期分享請改 named tunnel 並掛 Cloudflare Access。</div>
+</div>
+
+<h2>五、自己考自己</h2>
+<div class="card">
+<div class="tf" data-ans="F" data-why="actively refused 是 TCP RST，代表沒人在聽；被防火牆擋通常是 timeout。">
+ <div class="q">1. <code>connectex: actively refused</code> 代表被防火牆擋掉了。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+<div class="tf" data-ans="T" data-why="">
+ <div class="q">2. <code>::1</code> 與 <code>127.0.0.1</code> 都是 loopback，只是分屬 IPv6 與 IPv4。</div>
+ <button data-tf="T">O</button><button data-tf="F">X</button><span class="fb"></span></div>
+<p><b>申論：</b>為什麼「瀏覽器開 <code>http://localhost:3001</code> 正常，但 cloudflared 說連不到」？</p>
+<textarea></textarea><br>
+<button class="toggle" data-target="c1" data-label="顯示參考答案">顯示參考答案</button>
+<div class="ans" id="c1">因為兩個 client 對同一個名字 <code>localhost</code> 的處理方式不同。瀏覽器拿到 <code>localhost</code> 會依 Happy Eyeballs 之類的策略同時／依序嘗試 <code>::1</code> 與 <code>127.0.0.1</code>，IPv6 失敗就自動 fallback 到 IPv4，所以你看得到頁面。cloudflared 只挑了偏好的 <code>::1</code> 去 dial，而你的 dev server 只 bind 在 <code>127.0.0.1</code>，作業系統在 <code>::1:3001</code> 上找不到監聽者就回 TCP RST，於是 cloudflared 直接判定 origin 不可達，不會再試 IPv4。</div>
+</div>
+
+<h2>六、資料來源（含查證時間）</h2>
+<div class="card">
+<table><thead><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr></thead><tbody>
+<tr><td>本篇原始對話（Gemini）</td><td><a href="https://gemini.google.com/app/0f25c0c06deebd4e" target="_blank">gemini.google.com</a></td><td>擷取 2026-09-15；cloudflared 2026.7.2</td></tr>
+<tr><td>quick tunnel（trycloudflare）限制</td><td><a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/" target="_blank">Cloudflare docs</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>建立 named tunnel</td><td><a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/" target="_blank">Cloudflare docs</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>RFC 4291 IPv6 loopback <code>::1</code></td><td><a href="https://datatracker.ietf.org/doc/html/rfc4291#section-2.5.3" target="_blank">IETF</a></td><td>查證 2026-09-15</td></tr>
+<tr><td>Node DNS result order（IPv6 優先）</td><td><a href="https://nodejs.org/api/dns.html#dnssetdefaultresultorderorder" target="_blank">nodejs.org</a></td><td>查證 2026-09-15</td></tr>
+</tbody></table>
+</div>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-15</footer>
+</div><script>
+document.addEventListener('click',function(e){
+  var t=e.target;
+  if(t.classList.contains('blank')){t.classList.toggle('on');}
+  if(t.classList.contains('toggle')){
+    var box=document.getElementById(t.dataset.target);
+    if(box){box.classList.toggle('show');
+      t.textContent=box.classList.contains('show')?'隱藏答案':(t.dataset.label||'顯示答案');}
+  }
+  if(t.dataset.tf!==undefined){
+    var wrap=t.closest('.tf'); var fb=wrap.querySelector('.fb');
+    var ok=(t.dataset.tf===wrap.dataset.ans);
+    fb.textContent=ok?'✔ 答對了':'✘ 再想想 → '+wrap.dataset.why;
+    fb.className='fb '+(ok?'good':'bad');
+  }
+});
+document.addEventListener('DOMContentLoaded',function(){
+  var all=document.getElementById('toggle-all');
+  if(all)all.addEventListener('click',function(){
+    var on=all.dataset.on==='1';
+    document.querySelectorAll('.ans').forEach(function(a){a.classList.toggle('show',!on)});
+    document.querySelectorAll('.blank').forEach(function(b){b.classList.toggle('on',!on)});
+    all.dataset.on=on?'0':'1';
+    all.textContent=on?'一鍵展開所有答案':'一鍵收合所有答案';
+  });
+});
+</script></body></html>

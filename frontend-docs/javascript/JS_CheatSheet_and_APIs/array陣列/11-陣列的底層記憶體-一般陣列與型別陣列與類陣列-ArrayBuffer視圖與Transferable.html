@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>陣列的底層記憶體：一般陣列 與 型別陣列 與 類陣列</title>
+<style>
+  :root{
+    --bg:#fbfcfd; --card:#ffffff; --ink:#2f3440; --sub:#5b6270; --faint:#8a91a0;
+    --line:#e3e7ee; --accent:#3b6fb6;
+    --hl-y:#FFF3A3; --hl-r:#FF5582; --hl-g:#BBFABB; --hl-b:#ADCCFF; --hl-p:#FFB8EB; --hl-v:#D2B3FF;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+       font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;}
+  .wrap{max-width:860px;margin:0 auto;padding:40px 22px 90px}
+  header{border-bottom:2px solid var(--line);padding-bottom:22px;margin-bottom:30px}
+  h1{font-family:"Noto Serif TC",Georgia,serif;font-size:30px;line-height:1.35;margin:0 0 12px}
+  .pills{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+  .pill{font-size:12px;padding:3px 11px;border-radius:999px;background:#eef2f8;color:#4a5568;border:1px solid #dde4ee}
+  .meta{font-size:13px;color:var(--faint)}
+  .meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+  h2{font-size:21px;margin:42px 0 14px;padding-left:12px;border-left:5px solid var(--accent)}
+  h3{font-size:16.5px;margin:26px 0 8px;color:#394050}
+  p{margin:10px 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:18px 0;
+        box-shadow:0 1px 3px rgba(20,30,50,.04)}
+  .indent{margin-left:26px;color:var(--sub);font-size:14.5px;border-left:2px solid #eef1f6;padding-left:12px}
+  mark{padding:1px 4px;border-radius:3px}
+  .my{background:var(--hl-y)} .mr{background:var(--hl-r)} .mg{background:var(--hl-g)}
+  .mb{background:var(--hl-b)} .mp{background:var(--hl-p)} .mv{background:var(--hl-v)}
+  code{background:#f1f3f7;padding:1.5px 5px;border-radius:4px;font-size:13.5px;
+       font-family:"JetBrains Mono",Consolas,Menlo,monospace}
+  pre{background:#1f2430;color:#e6e9f0;border-radius:10px;padding:15px 17px;overflow-x:auto;font-size:13.5px;line-height:1.65}
+  pre code{background:none;color:inherit;padding:0}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14.5px}
+  th,td{border:1px solid #dfe4ec;padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#eef2f8;font-weight:700}
+  tbody tr:nth-child(even){background:#fafbfd}
+  .callout{border-left:5px solid;border-radius:0 10px 10px 0;padding:13px 17px;margin:16px 0;font-size:14.5px}
+  .warn{border-color:#e05572;background:#fff2f5}
+  .good{border-color:#3fa562;background:#f1fbf4}
+  .info{border-color:#3b6fb6;background:#f1f6fd}
+  figure{margin:24px 0}
+  figure img{width:100%;border:1px solid var(--line);border-radius:12px;background:#fff}
+  figcaption{font-size:12.5px;color:var(--faint);text-align:center;margin-top:8px}
+  .toolbar{position:sticky;top:0;z-index:20;background:rgba(251,252,253,.93);backdrop-filter:blur(6px);
+           border-bottom:1px solid var(--line);padding:9px 0;margin:-40px -22px 24px;display:flex;gap:9px;
+           flex-wrap:wrap;justify-content:center}
+  button{font:inherit;font-size:13.5px;cursor:pointer;border:1px solid #cbd4e2;background:#fff;color:#394050;
+         padding:6px 15px;border-radius:999px;transition:.15s}
+  button:hover{background:#eef2f8;border-color:var(--accent)}
+  button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* 挖空 */
+  .cloze{background:#394050;color:transparent;border-radius:4px;padding:1px 6px;cursor:pointer;
+         user-select:none;transition:.18s;border-bottom:2px solid #394050}
+  .cloze::after{content:"？";color:#fff}
+  .cloze.show{background:var(--hl-g);color:#1f2430;border-bottom-color:#3fa562}
+  .cloze.show::after{content:""}
+  /* 是非題 */
+  .tf{border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin:12px 0;background:#fff}
+  .tf .q{font-weight:600;margin-bottom:9px}
+  .tf .btns{display:flex;gap:9px;margin-bottom:8px}
+  .tf .fb{display:none;font-size:14px;padding:10px 12px;border-radius:8px;margin-top:4px}
+  .tf.done .fb{display:block}
+  .tf .fb.ok{background:#f1fbf4;border-left:4px solid #3fa562}
+  .tf .fb.no{background:#fff2f5;border-left:4px solid #e05572}
+  /* 申論 */
+  .essay{border:1px dashed #c3cddd;border-radius:11px;padding:15px 17px;margin:14px 0;background:#fcfdff}
+  .essay textarea{width:100%;min-height:96px;border:1px solid #dfe4ec;border-radius:8px;padding:10px;
+                  font:inherit;font-size:14px;resize:vertical}
+  .essay .ans{display:none;margin-top:12px;background:#f7f9fc;border-left:4px solid var(--accent);
+              padding:12px 14px;border-radius:0 8px 8px 0;font-size:14.5px}
+  .essay.open .ans{display:block}
+  footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--faint);text-align:center}
+  .idx{font-size:13.5px;color:var(--sub);background:#f4f7fb;border-radius:9px;padding:10px 14px}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="toolbar">
+  <button id="btnCloze">🕶 全部挖空 / 顯示</button>
+  <button id="btnQuiz">📝 顯示 / 隱藏 考題區</button>
+  <button id="btnReset">↺ 重置作答</button>
+</div>
+
+<header>
+  <h1>陣列的底層記憶體<br>一般陣列 與 型別陣列 與 類陣列</h1>
+  <div class="pills">
+    <span class="pill">javascript</span><span class="pill">array</span>
+    <span class="pill">TypedArray</span><span class="pill">ArrayBuffer</span>
+    <span class="pill">V8</span><span class="pill">memory</span><span class="pill">WebWorker</span>
+  </div>
+  <div class="meta">
+    更新於 2026-09-15 ｜ 來源對話：<a href="https://gemini.google.com/app/fb2e1580ca06e598" target="_blank" rel="noopener">Gemini · JavaScript 陣列不支援字串鍵</a>
+  </div>
+  <div class="idx" style="margin-top:14px">
+    本篇重點 <b>a–y</b> ，共 25 個。主軸圖只有一張 ， 後續追問直接指回圖上的 ①②③④ 四個區塊。
+    <br>點擊<span class="cloze">黑色方塊</span>可以顯示答案 ， 再點一次收回去。
+  </div>
+</header>
+
+<figure>
+  <img src="../../../../obsidian-attachment/學習JS_圖解_三種陣列的記憶體佈局-一般陣列vs型別陣列vs類陣列_2026-09-15.svg"
+       alt="三種陣列的記憶體佈局主軸圖">
+  <figcaption>主軸圖 ： ① 一般陣列　② 型別陣列　③ 類陣列　④ Transferable 轉移</figcaption>
+</figure>
+
+<h2>一句話總覽</h2>
+<table>
+  <thead><tr><th>名稱</th><th>它到底是什麼</th><th>記憶體佈局</th><th>長度</th><th>有沒有 map／filter</th></tr></thead>
+  <tbody>
+    <tr><td>一般陣列 Array</td><td>一個有特殊 length 行為的物件</td>
+        <td>預設<span class="cloze">連續（fast elements）</span> ， 太稀疏時轉<span class="cloze">雜湊表（dictionary elements）</span></td>
+        <td>動態</td><td>有</td></tr>
+    <tr><td>型別陣列 TypedArray</td><td>掛在 ArrayBuffer 上的一層「解讀方式」</td>
+        <td>嚴格連續的位元組</td><td><span class="cloze">建立當下固定</span></td><td>有大部分 ， 沒有 push／pop</td></tr>
+    <tr><td>類陣列 Array-like</td><td>只有 length 與數字鍵的普通物件</td>
+        <td>就是一般物件的屬性表</td><td>看物件自己怎麼定</td><td><span class="cloze">完全沒有</span></td></tr>
+    <tr><td>中介陣列 Intermediary Array</td><td>不是 API ， 是「過程中的暫存陣列」這個概念</td>
+        <td>就是一般陣列</td><td>動態</td><td>有</td></tr>
+  </tbody>
+</table>
+<div class="callout info"><mark class="mb">中介陣列</mark>一詞不在 ECMA-262 規範裡 ， 把它當成描述用語就好 ， 不要當成某個類別去找。</div>
+
+<h2>① 一般陣列 Array ： 本質是物件 ， 只是 length 很特別</h2>
+<div class="card">
+  <h3>(a) 索引在規範裡是字串鍵</h3>
+  <p>規範定義的 array index 是「可以轉回同一個字串的非負整數字串」 ， 所以 <code>arr[0]</code> 與 <code>arr['0']</code> 取到同一格。</p>
+  <p class="indent">但這是「語意上」的規定 ， 不代表引擎真的去字串化 ， 見 (d)。</p>
+
+  <h3>(b) <code>length</code> 回傳的是<span class="cloze">「最大整數索引 + 1」</span> ， 不是元素個數</h3>
+<pre><code>const arr = ['apple'];
+arr[100] = 'banana';
+arr.length;        // 101 ，不是 2
+arr.length = 1;    // 反過來手動改 length 會把後面的元素砍掉
+arr;               // ['apple']</code></pre>
+
+  <h3>(c) 可以掛非索引屬性 ， 而且不計入 <code>length</code></h3>
+<pre><code>const arr = [1, 2];
+arr.customKey = 'I am not an index';
+arr.length;        // 2
+arr.customKey;     // 'I am not an index'</code></pre>
+
+  <h3>(d) V8 預設用「快陣列 fast elements」</h3>
+  <p>一塊<span class="cloze">連續</span>的 backing store ， <code>arr[i]</code> 直接算位移 ， 所以是 <mark class="mg">O(1)</mark>。</p>
+  <div class="callout warn">
+    <b>⚠️ 更正</b>：Gemini 在對話中說一般陣列「記憶體分配是離散的 ， 類似雜湊表或鏈結串列」 ， 這句話會誤導。
+    <br>V8 的預設是連續的 <code>FixedArray</code> ， 只有在 (e) 的情況才會退化成雜湊表。
+  </div>
+
+  <h3>(e) 太稀疏就掉進「慢陣列 dictionary elements」</h3>
+  <p>V8 官方 blog 的說法是 ： fast elements 是單純的 VM 內部陣列 ， property index 直接對應 elements store 的 index ；但對「只有少數格子有值的超大稀疏陣列」來說太浪費 ， 於是改成 dictionary mode。</p>
+
+  <h3>(f) elements kind 的轉換是<span class="cloze">單向</span>的 ， 而且 holey 回不去</h3>
+  <p>一旦被標記成 holey（有洞） ， 之後就算把洞都補滿也永遠是 holey ；一旦升級成比較一般的 kind 也退不回去。</p>
+  <div class="callout good">
+    實務結論 ： <mark class="mg">不要 <code>delete arr[i]</code> ， 也不要 <code>new Array(n)</code> 先開洞再填</mark> ，
+    用 <code>push</code> 或 <code>Array.from({length:n}, ...)</code> 讓它保持 packed。
+  </div>
+
+  <h3>(g) 擴容是「另開一塊更大的 ， 整批複製過去 ， 再釋放舊的」</h3>
+  <p>V8 先給陣列一個預設 capacity → <code>push</code> 把元素塞爆 capacity → 引擎在 Heap 重新申請一塊更大的連續記憶體 → 把舊資料整批複製過去 → 釋放舊空間 ， 整個過程對開發者透明。</p>
+  <div class="callout warn">
+    <b>⚠️ 存疑</b>：Gemini 說擴容倍率是「1.5 到 2 倍」。V8 原始碼的 <code>JSObject::NewElementsCapacity</code> 大約是「舊容量 + 位移 + 16」 ，
+    但網路二手整理對位移量有 <code>&gt;&gt; 1</code> 與 <code>&gt;&gt; 2</code> 兩種矛盾說法 ， 要用請以原始碼為準。
+    <br>「2 倍」比較像 C++ <code>std::vector</code> 的常見做法 ， 不要跟 V8 混為一談。
+  </div>
+</div>
+
+<h2>② 型別陣列 TypedArray ： 資料與解讀分離</h2>
+<div class="card">
+  <h3>(h) 架構是「<span class="cloze">底層緩衝區 ArrayBuffer</span> + <span class="cloze">頂層視圖 View</span>」</h3>
+  <p><code>ArrayBuffer</code> 只是向作業系統要到的一塊連續位元組 ， 它自己不知道裡面是整數還是浮點數 ；
+     <code>TypedArray</code> 本身不存資料 ， 它是一張<mark class="mb">格式卡</mark> ， 負責告訴引擎「請把這塊 buffer 當成某種數字格式來讀寫」。</p>
+  <p class="indent">所以建立 View 的時候一定要把 buffer 傳進去 ， 因為 View 必須寄生在某個 buffer 之上。</p>
+
+  <h3>(i) 同一塊 buffer 可以掛多個 View ， 改一個另一個立刻看得到</h3>
+<pre><code>const buffer = new ArrayBuffer(8);        // 8 Bytes
+const i8  = new Int8Array(buffer);        // 1 Byte 一格 → length 8
+const i32 = new Int32Array(buffer);       // 4 Bytes 一格 → length 2
+
+i32[0] = 1000;
+i8[0];   // 底下是同一塊記憶體，i8 立刻看到 1000 的最低位元組</code></pre>
+
+  <h3>(j) 長度建立當下就固定 ， 沒有 <code>push</code>／<code>pop</code></h3>
+  <div class="callout warn">
+    <b>⚠️ 更正</b>：Gemini 說容量不夠時會「跳出錯誤或寫入失敗」。
+    實際行為是<mark class="mg">靜默忽略</mark> ： 對超出範圍的數字索引寫入<b>不會丟 <code>TypeError</code></b> ， 也不會擴充長度 ， 讀回來是 <code>undefined</code>。
+  </div>
+<pre><code>const ta = new Int32Array(3);
+ta[10] = 99;
+ta.length;   // 3
+ta[10];      // undefined ，不會報錯，這比報錯更難 debug</code></pre>
+
+  <h3>(k) 真的要變長 ， 有兩條路</h3>
+<pre><code>// 路線一：手動擴容（就是 (g) 裡引擎幫一般陣列做的事，自己做一遍）
+let oldArr = new Int32Array([10, 20, 30]);
+const newArr = new Int32Array(oldArr.length * 2);
+newArr.set(oldArr);        // 把舊資料整批複製進去
+newArr[3] = 40;
+oldArr = newArr;
+
+// 路線二：resizable ArrayBuffer（建立時就先講好上限）
+const buf = new ArrayBuffer(12, { maxByteLength: 40 });
+const view = new Int32Array(buf);   // 不給長度 → 會跟著 buffer 伸縮
+view.length;        // 3
+buf.resize(20);
+view.length;        // 5</code></pre>
+</div>
+
+<h2>③ 類陣列 Array-like 與中介陣列</h2>
+<div class="card">
+  <h3>(l) 類陣列只是「有 length 與數字鍵」的普通物件</h3>
+  <p>原型鏈上<span class="cloze">沒有 <code>Array.prototype</code></span> 。 常見的有 <code>NodeList</code>、<code>arguments</code>、<code>HTMLCollection</code>。</p>
+
+  <h3>(m) 中介陣列是「概念」不是 API</h3>
+  <p>它指的是 ： 為了得到最終結果 ， 在中間步驟臨時建立、用完即丟的暫存陣列。</p>
+
+  <h3>(n) 鏈式呼叫的每一步都會生一個中介陣列</h3>
+<pre><code>const numbers = [1, 2, 3, 4, 5];
+const result = numbers
+  .filter(n =&gt; n % 2 !== 0)   // 產生中介陣列 [1, 3, 5]
+  .map(n =&gt; n * 2);           // 產生最終結果 [2, 6, 10]</code></pre>
+  <p>幾十筆無所謂 ；但如果原始陣列有一百萬筆 ， <code>filter</code> 產生的中介陣列會瞬間吃掉大量記憶體又立刻被丟棄 ， 觸發 <mark class="mp">GC</mark> 造成畫面卡頓。</p>
+  <p class="indent">要避免就改寫成單一 <code>for</code> 迴圈或用 Generator ， 一次走完不落地。</p>
+
+  <h3>(o) <code>Array.from()</code> 的產物就是一個中介陣列</h3>
+<pre><code>const divs = document.querySelectorAll('div');   // NodeList ，沒有 map
+const divArray = Array.from(divs);               // 中介陣列，這時才有 map</code></pre>
+</div>
+
+<h2>④ 為什麼底層要拆成 ArrayBuffer ： 因為它可以被「轉移」</h2>
+<div class="card">
+  <h3>(p) 陣列 <span class="cloze">O(1)</span> 隨機存取 ， 單向鏈結串列 <span class="cloze">O(n)</span> 循序存取</h3>
+  <p>鏈結串列的節點是 <code>[Data | Next]</code> ， 變數只記得 Head 的位址 ， 要拿第 n 個就得做 n 次 <code>current = current.next</code> ， 完全無法跳關。</p>
+
+  <h3>(q) 陣列能 O(1) 是因為位址可以用算的</h3>
+<pre><code>目標位址 = 起始位址 + (索引 × 單一元素大小)
+arr[3] → 1000 + (3 × 4) = 1012</code></pre>
+
+  <h3>(r) 但頭部增刪剛好反過來</h3>
+  <table>
+    <thead><tr><th>操作</th><th>陣列 Array</th><th>單向鏈結串列</th><th>為什麼</th></tr></thead>
+    <tbody>
+      <tr><td>讀特定位置 get(i)</td><td>O(1)</td><td>O(n)</td><td>陣列算位址 ， 鏈結串列要順著指標走</td></tr>
+      <tr><td>搜尋特定數值</td><td>O(n)</td><td>O(n)</td><td>兩者都不知道值在哪 ， 都要從頭查</td></tr>
+      <tr><td>頭部新增／刪除</td><td><span class="cloze">O(n)</span></td><td><span class="cloze">O(1)</span></td><td>陣列要把後面全部搬一格 ， 鏈結串列只改 Head 指標</td></tr>
+    </tbody>
+  </table>
+
+  <h3>(s) 所以 JS 一般陣列不是鏈結串列</h3>
+  <p>鏈結串列每個節點都顯式存一個 next 指標 ， JS 陣列底層沒有這種指標鏈 ；就算退化成 dictionary mode 也是雜湊表而不是鏈結串列。</p>
+
+  <h3>(t) Worker 執行緒有自己的 Event Loop 與記憶體空間 ， 碰不到 DOM</h3>
+  <h3>(u) 主執行緒把資料丟給 Worker ， 預設走「<span class="cloze">結構化複製 structured clone</span>」 ， 是整份複製</h3>
+  <h3>(v) 要零複製 ， 關鍵在 <code>postMessage</code> 的<mark class="my">第二個參數</mark>（transfer list）</h3>
+<pre><code>const buffer = new ArrayBuffer(1024 * 1024 * 100);   // 100 MB
+worker.postMessage(buffer, [buffer]);                // 第二個參數才是 transfer list
+buffer.byteLength;                                    // 0 ！已經 detached</code></pre>
+  <p class="indent">主執行緒把記憶體所有權移交給 Worker → 瀏覽器不複製任何資料 → Worker 拿到同一塊記憶體 → 主執行緒那份立刻 detached。</p>
+
+  <h3>(w) detach 是為了避免<span class="cloze">資料競爭 race condition</span></h3>
+  <p>任何時刻只有一份 <code>ArrayBuffer</code> 真正握有底層記憶體。要「兩邊同時看得到」得改用 <code>SharedArrayBuffer</code>（而且需要 COOP／COEP 標頭）。</p>
+
+  <h3>(x) in-place（就地）的意思</h3>
+  <p>Worker 直接在原記憶體位置上算完再轉回來 ， 全程零複製。</p>
+
+  <h3>(y) ⚠️ 更正 ： Service Worker 不是拿來做巨量計算的</h3>
+  <table>
+    <thead><tr><th></th><th>Web Worker（Dedicated Worker）</th><th>Service Worker</th></tr></thead>
+    <tbody>
+      <tr><td>用途</td><td>巨量計算、檔案／影像解析</td><td>攔截網路請求、快取、離線、推播</td></tr>
+      <tr><td>生命週期</td><td>跟著開啟它的頁面</td><td>事件驅動 ， 閒置時瀏覽器會主動終止它</td></tr>
+      <tr><td>適合長時間運算</td><td>適合</td><td>不適合 ， 做到一半可能被殺掉</td></tr>
+      <tr><td>能不能碰 DOM</td><td>不能</td><td>不能</td></tr>
+    </tbody>
+  </table>
+  <div class="callout good">所以「轉移 ArrayBuffer 去背景算完再轉回來」這個 pattern ， 正確的對象是 <mark class="mg">Web Worker</mark>。</div>
+</div>
+
+<div id="quizzone">
+<h2>自己考自己 ： 是非題</h2>
+
+<div class="tf" data-ans="F">
+  <div class="q">1. JS 一般陣列因為記憶體不連續 ， 所以底層其實就是單向鏈結串列。</div>
+  <div class="btns"><button data-v="T">○ 對</button><button data-v="F">✕ 錯</button></div>
+  <div class="fb no">錯。V8 預設用連續的 fast elements ， 只有超稀疏時才退化成<b>雜湊表</b> ， 從頭到尾都不是鏈結串列。鏈結串列的特徵是每個節點顯式存 next 指標。</div>
+</div>
+
+<div class="tf" data-ans="F">
+  <div class="q">2. 對 <code>new Int32Array(3)</code> 寫入 <code>ta[10] = 99</code> 會丟出 <code>RangeError</code>。</div>
+  <div class="btns"><button data-v="T">○ 對</button><button data-v="F">✕ 錯</button></div>
+  <div class="fb no">錯。是<b>靜默忽略</b> ， 不丟任何錯 ， <code>ta.length</code> 還是 3 ， <code>ta[10]</code> 讀回來是 <code>undefined</code>。這正是 (j) 提到 Gemini 講錯的地方。</div>
+</div>
+
+<div class="tf" data-ans="T">
+  <div class="q">3. <code>const a = ['x']; a[100] = 'y';</code> 之後 <code>a.length</code> 會是 101。</div>
+  <div class="btns"><button data-v="T">○ 對</button><button data-v="F">✕ 錯</button></div>
+  <div class="fb ok">對。<code>length</code> 是「最大整數索引 + 1」 ， 不是元素個數 ， 中間 99 格是洞。</div>
+</div>
+
+<div class="tf" data-ans="F">
+  <div class="q">4. 只要呼叫 <code>worker.postMessage(buffer)</code> ， 就能達成零複製傳輸。</div>
+  <div class="btns"><button data-v="T">○ 對</button><button data-v="F">✕ 錯</button></div>
+  <div class="fb no">錯。少了第二個參數就走<b>結構化複製</b> ， 100 MB 要整份複製一遍。零複製的關鍵是 <code>postMessage(buffer, [buffer])</code> 的 transfer list。</div>
+</div>
+
+<div class="tf" data-ans="T">
+  <div class="q">5. 陣列的 <code>unshift</code> 是 O(n) ， 但單向鏈結串列在頭部插入是 O(1)。</div>
+  <div class="btns"><button data-v="T">○ 對</button><button data-v="F">✕ 錯</button></div>
+  <div class="fb ok">對。陣列要把後面所有元素往後搬一格 ； 鏈結串列只要改 Head 指標。隨機存取快的 ， 頭部增刪就慢 ， 反之亦然。</div>
+</div>
+
+<div class="tf" data-ans="F">
+  <div class="q">6. Service Worker 很適合拿來跑長時間的巨量計算 ， 因為它是背景執行緒。</div>
+  <div class="btns"><button data-v="T">○ 對</button><button data-v="F">✕ 錯</button></div>
+  <div class="fb no">錯。Service Worker 是事件驅動的網路代理 ， 閒置時瀏覽器會主動終止它 ， 長時間運算做到一半可能被殺掉。要做計算請用 <b>Web Worker</b>。</div>
+</div>
+
+<h2>自己考自己 ： 申論題</h2>
+
+<div class="essay">
+  <p><b>Q1.</b> 為什麼 <code>TypedArray</code> 要設計成「必須寄生在 <code>ArrayBuffer</code> 上」 ， 而不是自己直接存資料 ？ 這樣拆開有什麼好處 ？</p>
+  <textarea placeholder="先自己寫一段，再按下面看參考答案…"></textarea>
+  <button class="toggleAns">看參考答案</button>
+  <div class="ans">
+    因為這是<b>「資料與解讀分離」</b>的設計。<code>ArrayBuffer</code> 負責持有一塊連續的原始位元組 ， 它不帶任何型別資訊 ；
+    <code>TypedArray</code> 只是一張「格式卡」 ， 負責告訴引擎要用幾個 Byte 一格、有號還是無號、整數還是浮點去解讀。
+    <br>好處有三個 ：
+    <br>(1) 同一塊記憶體可以同時掛多個 View ， 解析二進位封包時前 4 Bytes 用 <code>Int32Array</code> 讀檔頭、後面用 <code>Uint8Array</code> 讀像素 ， 不用複製。
+    <br>(2) 因為資料獨立成一個物件 ， 它才有辦法整塊被<b>轉移</b>給 Worker（transfer list） ， 達成零複製。
+    <br>(3) 型別固定 + 記憶體連續 ， CPU 可以用位址公式直接跳轉 ， 效能接近原生。
+  </div>
+</div>
+
+<div class="essay">
+  <p><b>Q2.</b> 同事寫了 <code>const arr = new Array(1000); arr[0] = 1; arr[999] = 2;</code> 說這樣「先開好空間比較快」。請說明這段話錯在哪裡 ， 以及你會怎麼改寫。</p>
+  <textarea placeholder="先自己寫一段，再按下面看參考答案…"></textarea>
+  <button class="toggleAns">看參考答案</button>
+  <div class="ans">
+    錯在兩件事 ：
+    <br>(1) <code>new Array(1000)</code> 建立的是一個<b>全是洞的 holey 陣列</b> ， V8 會把它標記成 holey elements kind ， 而 elements kind 的轉換是<b>單向</b>的 ， 之後就算把 1000 格都填滿也回不到 packed ， 每次存取都要多做一次原型鏈檢查。
+    <br>(2) 只填兩格、其餘都空 ， 這是典型的稀疏陣列 ， V8 很可能直接把它降級成 <b>dictionary elements</b>（雜湊表） ， 每次存取都要查表 ， 反而比連續陣列慢。
+    <br>改寫方式 ： 如果真的只有兩筆資料 ， 就用 <code>Map</code> 或普通物件表達稀疏語意 ；如果真的要 1000 格 ， 用 <code>Array.from({ length: 1000 }, () =&gt; 0)</code> 或 <code>new Array(1000).fill(0)</code> 一次填滿 ， 讓它維持 packed。
+  </div>
+</div>
+
+<div class="essay">
+  <p><b>Q3.</b> 一個一百萬筆的陣列要做 <code>filter</code> 再 <code>map</code> ， 為什麼會卡頓 ？ 講清楚中介陣列跟 GC 的關係 ， 並給兩個改寫方向。</p>
+  <textarea placeholder="先自己寫一段，再按下面看參考答案…"></textarea>
+  <button class="toggleAns">看參考答案</button>
+  <div class="ans">
+    <code>filter</code> 會<b>配置一個全新的陣列</b>把符合條件的元素放進去 ， 這就是中介陣列 ；接著 <code>map</code> 又配置<b>第二個</b>全新陣列。
+    也就是說一百萬筆資料在瞬間被額外配置了一到兩份 ， 而中介陣列在 <code>map</code> 跑完後立刻變成垃圾。
+    <br>大量短命物件會把 V8 的 new space 塞滿 ， 觸發頻繁的 minor GC ， GC 期間主執行緒會停下來 ， 畫面就掉幀。
+    <br>兩個改寫方向 ：
+    <br>(1) 合併成單一 <code>for</code> 迴圈（或一次 <code>reduce</code>） ， 只走一遍、只配置一個結果陣列。
+    <br>(2) 用 Generator／iterator 做 lazy 管線 ， 每個元素流過整條鏈才換下一個 ， 中間完全不落地。若資料來自 Worker ， 也可以把原始資料放進 <code>ArrayBuffer</code> 轉移給 Worker 就地算完再轉回來。
+  </div>
+</div>
+</div>
+
+<h2>相關筆記（為什麼相關）</h2>
+<div class="card">
+  <ul>
+    <li><b>11-記憶體模型-stack-heap-動態配置-GC</b>　→　那篇講 Stack 與 Heap 的分工 ， 本篇的「陣列擴容要在 Heap 重新申請一塊」正是那篇的具體案例。</li>
+    <li><b>10-傳值vs傳址-賦值與記憶體空間</b>　→　<code>ArrayBuffer</code> 轉移的是「指標的所有權」 ， 是傳址觀念推到極致的版本（傳完來源端還會失效）。</li>
+    <li><b>08-Object-keys與Array-keys-稀疏陣列孔洞的差異</b>　→　同一件事的兩面 ： 那篇講洞在 API 層看起來怎樣 ， 本篇 (e)(f) 講洞在 V8 引擎層的代價。</li>
+    <li><b>全域變數的GC回收時機-Reachability與window生命週期</b>　→　本篇 (n) 的中介陣列之所以要在意 ， 就是因為它們會變成 GC 的工作量。</li>
+    <li><b>執行緒-非同步-延遲的差異</b>　→　本篇 (t)(u)(v) 的 Worker 是「真的多執行緒」 ， 跟那篇的「非同步不等於多執行緒」剛好互補。</li>
+    <li><b>01-為什麼需要陣列-new-Array與map轉換-thisArg與at負索引-Array-from通用工廠</b>　→　<code>Array.from</code> 在那篇是「通用工廠」 ， 在本篇 (o) 是「產生中介陣列的手段」。</li>
+  </ul>
+</div>
+
+<h2>練習題</h2>
+<table>
+  <thead><tr><th>主題</th><th>題目</th></tr></thead>
+  <tbody>
+    <tr><td>陣列 O(1) 索引 vs 雜湊表查找</td><td><a href="https://leetcode.com/problems/two-sum/" target="_blank" rel="noopener">1. Two Sum</a></td></tr>
+    <tr><td>親手實作單向鏈結串列的 O(n) 走訪</td><td><a href="https://leetcode.com/problems/design-linked-list/" target="_blank" rel="noopener">707. Design Linked List</a></td></tr>
+    <tr><td>親手實作雜湊表（對應 dictionary elements）</td><td><a href="https://leetcode.com/problems/design-hashmap/" target="_blank" rel="noopener">706. Design HashMap</a></td></tr>
+    <tr><td>in-place 就地操作 ， 不開中介陣列</td><td><a href="https://leetcode.com/problems/rotate-array/" target="_blank" rel="noopener">189. Rotate Array</a></td></tr>
+    <tr><td>稀疏／孔洞與雙指標就地覆寫</td><td><a href="https://leetcode.com/problems/remove-element/" target="_blank" rel="noopener">27. Remove Element</a></td></tr>
+    <tr><td>NeetCode 陣列與雜湊表單元</td><td><a href="https://neetcode.io/roadmap" target="_blank" rel="noopener">Arrays &amp; Hashing</a></td></tr>
+  </tbody>
+</table>
+
+<h2>資料來源（含查證時間）</h2>
+<table>
+  <thead><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr></thead>
+  <tbody>
+    <tr><td>本篇的原始對話（Gemini）</td><td><a href="https://gemini.google.com/app/fb2e1580ca06e598" target="_blank" rel="noopener">JavaScript 陣列不支援字串鍵</a></td><td>對話擷取於 2026-09-15</td></tr>
+    <tr><td>fast elements 與 dictionary elements ， packed／holey 單向轉換</td><td><a href="https://v8.dev/blog/elements-kinds" target="_blank" rel="noopener">Elements kinds in V8</a></td><td>V8 官方 blog ， 2017-09-12 發表 ， 查證於 2026-09-15</td></tr>
+    <tr><td>ArrayBuffer 總覽與 resizable</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer" target="_blank" rel="noopener">MDN ArrayBuffer</a></td><td>查證於 2026-09-15</td></tr>
+    <tr><td>ArrayBuffer.prototype.resize()</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/resize" target="_blank" rel="noopener">MDN resize()</a></td><td>查證於 2026-09-15</td></tr>
+    <tr><td>Transferable objects（轉移後來源端 detached）</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Transferable_objects" target="_blank" rel="noopener">MDN Transferable objects</a></td><td>查證於 2026-09-15</td></tr>
+    <tr><td>SharedArrayBuffer（兩邊同時存取的替代方案）</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer" target="_blank" rel="noopener">MDN SharedArrayBuffer</a></td><td>查證於 2026-09-15</td></tr>
+    <tr><td>V8 擴容倍率的二手說法（彼此矛盾 ， 僅供參考）</td><td><a href="https://dev.to/doogal/why-dynamic-arrays-arent-actually-dynamic-2inc" target="_blank" rel="noopener">Why Dynamic Arrays Aren't Actually Dynamic</a></td><td>部落格 ， 查證於 2026-09-15 ， ⚠️ 非官方</td></tr>
+  </tbody>
+</table>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-15 · Abby-notes</footer>
+</div>
+
+<script>
+(function () {
+  // 挖空：點擊切換
+  var clozes = Array.prototype.slice.call(document.querySelectorAll('.cloze'));
+  clozes.forEach(function (c) {
+    c.addEventListener('click', function () { c.classList.toggle('show'); });
+  });
+
+  var btnCloze = document.getElementById('btnCloze');
+  btnCloze.addEventListener('click', function () {
+    var anyHidden = clozes.some(function (c) { return !c.classList.contains('show'); });
+    clozes.forEach(function (c) { c.classList.toggle('show', anyHidden); });
+    btnCloze.classList.toggle('on', anyHidden);
+  });
+
+  // 是非題
+  Array.prototype.forEach.call(document.querySelectorAll('.tf'), function (box) {
+    var ans = box.getAttribute('data-ans');
+    var fb = box.querySelector('.fb');
+    var body = fb.innerHTML.trim();
+    fb.setAttribute('data-body', body);
+    Array.prototype.forEach.call(box.querySelectorAll('.btns button'), function (b) {
+      b.addEventListener('click', function () {
+        Array.prototype.forEach.call(box.querySelectorAll('.btns button'), function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        box.classList.add('done');
+        var correct = b.getAttribute('data-v') === ans;
+        fb.innerHTML = '<b>' + (correct ? '✅ 答對了！' : '❌ 再想一下。') + '</b>　' + fb.getAttribute('data-body');
+      });
+    });
+  });
+
+  // 申論題：切換參考答案
+  Array.prototype.forEach.call(document.querySelectorAll('.essay .toggleAns'), function (b) {
+    b.addEventListener('click', function () {
+      var box = b.closest('.essay');
+      box.classList.toggle('open');
+      b.textContent = box.classList.contains('open') ? '收起參考答案' : '看參考答案';
+    });
+  });
+
+  // 考題區顯示 / 隱藏
+  var zone = document.getElementById('quizzone');
+  var btnQuiz = document.getElementById('btnQuiz');
+  btnQuiz.addEventListener('click', function () {
+    var hidden = zone.style.display === 'none';
+    zone.style.display = hidden ? '' : 'none';
+    btnQuiz.classList.toggle('on', !hidden);
+  });
+
+  // 重置
+  document.getElementById('btnReset').addEventListener('click', function () {
+    clozes.forEach(function (c) { c.classList.remove('show'); });
+    Array.prototype.forEach.call(document.querySelectorAll('.tf'), function (box) {
+      box.classList.remove('done');
+      Array.prototype.forEach.call(box.querySelectorAll('.btns button'), function (x) { x.classList.remove('on'); });
+      var fb = box.querySelector('.fb');
+      fb.innerHTML = fb.getAttribute('data-body');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.essay'), function (e) {
+      e.classList.remove('open');
+      e.querySelector('textarea').value = '';
+      e.querySelector('.toggleAns').textContent = '看參考答案';
+    });
+    btnCloze.classList.remove('on');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+})();
+</script>
+</body>
+</html>

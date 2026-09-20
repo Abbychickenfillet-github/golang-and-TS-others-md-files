@@ -423,5 +423,62 @@ document.querySelectorAll('.essay .toggle').forEach(function (btn) {
   });
 });
 </script>
+
+<!-- ==== 追加 2026-09-15（由 Gemini 對話自動整併） ==== -->
+<section style="max-width:820px;margin:40px auto;padding:0 20px;font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;line-height:1.75;color:#23262d">
+<h2 style="font-family:'Noto Serif TC',Georgia,serif;font-size:1.3rem;margin:32px 0 14px;padding-left:12px;border-left:6px solid #4f6bed">追加 2026-09-15：Vue 與 Angular 怎麼做同一件事（副作用與清理）</h2>
+<div style="background:#fff;border:1px solid #e6e3dc;border-radius:14px;padding:20px 22px;box-shadow:0 1px 2px rgba(0,0,0,.03)">
+
+<p>React 的 <code>useEffect</code> 要你<b>手動宣告依賴陣列</b>；Vue 與 Angular 走的是<b>自動依賴收集</b>，所以它們沒有「依賴寫漏 → 過期閉包」這個問題。</p>
+<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem"><thead><tr><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">比較維度</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">React useEffect</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">Vue 3 watchEffect / watch</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">Angular effect()</th></tr></thead><tbody>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">依賴怎麼指定</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">手動寫依賴陣列 <code>[dep]</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>watchEffect</code> 自動追蹤讀到的 ref</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">自動追蹤讀到的 Signal</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">執行時機</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">Commit phase 之後、paint 完成後非同步</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">預設 <code>pre</code>（DOM 更新前），可設 <code>post</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">Change Detection 週期中排程</td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">清理函式怎麼給</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>return () =&gt; &#123;...&#125;</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>onCleanup(() =&gt; &#123;...&#125;)</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>onCleanup(() =&gt; &#123;...&#125;)</code></td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">誰負責在卸載時呼叫清理</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">Fiber 上的 <code>inst.destroy</code></td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">元件的 effect scope</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top"><code>DestroyRef</code></td></tr>
+<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">過期閉包風險</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">⚠️ 高，靠 <code>exhaustive-deps</code> 提醒</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">❌ 無</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">❌ 無</td></tr>
+</tbody></table>
+<pre style="background:#1f2430;color:#e8ecf5;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:.84rem;line-height:1.6"><code>// Vue 3：watchEffect 自動收集內部讀到的 ref
+watchEffect(async (onCleanup) =&gt; &#123;
+  let cancelled = false
+  onCleanup(() =&gt; &#123; cancelled = true &#125;)        // ← 對應 React 的 return () =&gt; &#123;&#125;
+  const data = await fetchUser(userId.value)   // ← 讀了 userId 就自動變成依賴
+  if (!cancelled) user.value = data
+&#125;)</code></pre>
+<pre style="background:#1f2430;color:#e8ecf5;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:.84rem;line-height:1.6"><code>// Angular：effect 必須建在 injection context（constructor）裡才綁得到 DestroyRef
+constructor() &#123;
+  effect((onCleanup) =&gt; &#123;
+    const id = this.userId();
+    const controller = new AbortController();
+    fetchUser(id, &#123; signal: controller.signal &#125;).then(d =&gt; this.user.set(d));
+    onCleanup(() =&gt; controller.abort());
+  &#125;);
+&#125;</code></pre>
+<p><mark style="background:#FFF3A3;padding:1px 4px;border-radius:3px"><b>同一個觀念換三個名字：React 叫 cleanup function，Vue 與 Angular 都叫 onCleanup——但只有 React 需要你自己把依賴列出來。</b></mark></p>
+<div style="border-left:5px solid #d94f6b;background:#fdf0f3;border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:.92rem"><b>⚠️ 更正</b><br>原對話說 React 內部有「Fiber DOM」——<b>沒有這個東西</b>。正確說法是 Fiber 節點（<code>FiberNode</code>）<b>映射到</b>真實 DOM 的 Host Component。另外原對話附的「框架 Runtime 體積」數字版本一改就過時，本篇不收錄。</div>
+<p><b>申論：</b>為什麼 Vue 與 Angular 不會有「依賴寫漏」的問題？</p>
+<button style="background:#23262d;color:#fff;border:0;border-radius:8px;padding:7px 14px;font-size:.83rem;cursor:pointer;margin:8px 6px 0 0" data-g915target="ue-a1">顯示答案</button>
+<div id="ue-a1" style="display:none;margin-top:10px;background:#eefaf5;border-left:5px solid #0f9d76;border-radius:0 8px 8px 0;padding:12px 16px;font-size:.92rem">因為依賴不是你「宣告」的，是框架在 effect <b>第一次執行時偷看你讀了誰</b>而收集來的。Vue 的 <code>watchEffect</code> 執行時，任何被讀到的 <code>ref.value</code> 都會觸發 Proxy 的 getter，Vue 就把這個 effect 登記成該 ref 的訂閱者；Angular 的 <code>effect()</code> 讀到 Signal 時同理。既然清單是自動產生的，就不存在「人寫漏了」這件事。React 反過來要你手寫陣列，是因為 React 的元件函式每次都整個重跑，沒有一個穩定的「讀取時機」可以攔截。</div>
+
+</div>
+<p style="font-size:.8rem;color:#6b7280;text-align:center;margin-top:24px">由 Gemini 對話自動整理 · 更新於 2026-09-15 ｜ 來源：<a href="https://gemini.google.com/app/5b6fc934e5d7f253">gemini.google.com/app/5b6fc934e5d7f253</a></p>
+</section>
+<script>
+document.addEventListener('click',function(e){
+ var t=e.target;
+ if(t.classList&&t.classList.contains('g915-blank')){
+   t.dataset.on=t.dataset.on==='1'?'0':'1';
+   t.style.color=t.dataset.on==='1'?'#0b6b4f':'transparent';
+   t.style.background=t.dataset.on==='1'?'#d7f3e6':'#dfe4f5';}
+ if(t.dataset&&t.dataset.g915target){
+   var b=document.getElementById(t.dataset.g915target);
+   b.style.display=(b.style.display==='block')?'none':'block';
+   t.textContent=(b.style.display==='block')?'隱藏答案':'顯示答案';}
+ if(t.dataset&&t.dataset.g915tf!==undefined){
+   var w=t.closest('.g915-tf'),f=w.querySelector('.g915-fb'),ok=(t.dataset.g915tf===w.dataset.ans);
+   f.textContent=ok?'✔ 答對了':'✘ 再想想 → '+w.dataset.why;
+   f.style.color=ok?'#0b6b4f':'#d94f6b';f.style.fontWeight='600';}
+});
+</script>
+
 </body>
 </html>

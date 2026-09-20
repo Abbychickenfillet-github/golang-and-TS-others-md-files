@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>函式的四種寫法與 SyntaxError 排查：宣告 vs 表達式、具名 vs 匿名、concise body vs block body</title>
+<style>
+:root{--bg:#fbfbfa;--card:#fff;--line:#e7e5e4;--ink:#1f2937;--sub:#6b7280;
+--y:#FFF3A3;--r:#FF5582;--g:#BBFABB;--b:#ADCCFF;--p:#FFB8EB;--v:#D2B3FF;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;}
+.wrap{max-width:860px;margin:0 auto;padding:36px 20px 90px}
+header.hd{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 28px;margin-bottom:26px}
+h1{font-size:24px;line-height:1.45;margin:0 0 12px;font-family:"Noto Serif TC",Georgia,serif}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.pill{font-size:11.5px;padding:3px 11px;border-radius:999px;background:#f3f4f6;color:#4b5563;border:1px solid var(--line)}
+.meta{font-size:12.5px;color:var(--sub)}
+.meta a,section a{color:#2563eb;text-decoration:none;border-bottom:1px dotted #93c5fd}
+h2{font-size:19px;margin:38px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--line);font-family:"Noto Serif TC",Georgia,serif}
+h3{font-size:15.5px;margin:24px 0 10px;color:#374151}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin:16px 0}
+mark{padding:1px 3px;border-radius:3px}
+mark.y{background:var(--y)}mark.r{background:var(--r)}mark.g{background:var(--g)}
+mark.b{background:var(--b)}mark.p{background:var(--p)}mark.v{background:var(--v)}
+.callout{border-left:5px solid #9ca3af;background:#f9fafb;border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:14.2px}
+.callout.warn{border-color:#ef4444;background:#fef2f2}
+.callout.ok{border-color:#16a34a;background:#f0fdf4}
+.callout.info{border-color:#3b82f6;background:#eff6ff}
+.callout.q{border-color:#f59e0b;background:#fffbeb}
+.callout b.t{display:block;margin-bottom:4px}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:#f3f4f6;font-weight:700}
+tbody tr:nth-child(even){background:#fafafa}
+pre{background:#1e293b;color:#e2e8f0;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13px;line-height:1.65}
+code{font-family:"JetBrains Mono",Consolas,monospace}
+p code,li code,td code,th code,div code{background:#f1f5f9;color:#be123c;padding:1px 5px;border-radius:4px;font-size:12.8px}
+pre code{background:none;color:inherit;padding:0}
+ul{padding-left:22px}li{margin:6px 0}
+svg{max-width:100%;height:auto}
+figure{margin:16px 0}
+figure img{max-width:100%;border-radius:10px;border:1px solid var(--line);display:block}
+figcaption{font-size:12.3px;color:var(--sub);margin-top:7px;text-align:center}
+.blank{background:#fde68a;border-bottom:2px dashed #b45309;border-radius:4px;padding:1px 10px;cursor:pointer;
+font-weight:700;color:transparent;user-select:none;transition:.16s}
+.blank:hover{background:#fcd34d}
+.blank.on{background:#dcfce7;border-bottom:2px solid #16a34a;color:#166534}
+.hint{font-size:12px;color:var(--sub);margin:6px 0 14px}
+.btn{font:inherit;font-size:13px;padding:6px 15px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;color:#334155;transition:.16s}
+.btn:hover{background:#f1f5f9}
+.btn.primary{background:#1f2937;color:#fff;border-color:#1f2937}
+.tf{border:1px solid var(--line);border-radius:10px;padding:12px 15px;margin:10px 0;background:#fff}
+.tf .qq{font-size:14.2px;margin-bottom:8px}
+.tf .ans{display:none;margin-top:9px;font-size:13.4px;padding:9px 12px;border-radius:8px;background:#f9fafb;border-left:4px solid #9ca3af}
+.tf.right .ans{background:#f0fdf4;border-left-color:#16a34a}
+.tf.wrong .ans{background:#fef2f2;border-left-color:#ef4444}
+.tf .ans.show{display:block}
+details.essay{border:1px solid var(--line);border-radius:10px;padding:12px 15px;margin:10px 0;background:#fff}
+details.essay summary{cursor:pointer;font-weight:700;font-size:14.2px}
+details.essay .body{margin-top:10px;font-size:13.6px;border-top:1px dashed var(--line);padding-top:10px}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;font-size:13.4px;margin-top:8px}
+footer{margin-top:44px;text-align:center;font-size:12.3px;color:var(--sub)}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(251,251,250,.94);backdrop-filter:blur(6px);
+padding:10px 0;margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="toolbar">
+  <button class="btn primary" onclick="toggleAll(true)">全部顯示答案</button>
+  <button class="btn" onclick="toggleAll(false)">全部隱藏答案</button>
+  <button class="btn" onclick="resetQuiz()">重置測驗</button>
+  <span class="hint" style="margin:0;align-self:center">黃色色塊點一下顯示／再點一下藏起來</span>
+</div>
+
+<header class="hd">
+  <h1>函式的四種寫法與 SyntaxError 排查<br><span style="font-size:17px;color:#6b7280">宣告 vs 表達式　·　具名 vs 匿名　·　concise body vs block body</span></h1>
+  <div class="pills">
+    <span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">函式</span>
+    <span class="pill">匿名函式</span><span class="pill">IIFE</span><span class="pill">箭頭函式</span>
+    <span class="pill">函式表達式</span><span class="pill">SyntaxError</span><span class="pill">concise-body</span>
+  </div>
+  <div class="meta">
+    更新於 2026-09-18　·　本篇重點 a–r，共 18 個<br>
+    來源對話：
+    <a href="https://gemini.google.com/app/1c2e605259537e41">傳統函式可否為匿名函式</a>　·
+    <a href="https://gemini.google.com/app/a934bc9778ee91b7">JavaScript 函式寫法與錯誤解析</a>
+  </div>
+</header>
+
+<section class="card">
+<h3 style="margin-top:0">主軸圖：一張圖定位全篇（後續追問請指回這張圖的某個方框）</h3>
+<svg viewBox="0 0 960 660" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#16a34a"/></marker>
+    <marker id="ard" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+  </defs>
+  <rect width="960" height="660" fill="#fbfbfa"/>
+  <text x="24" y="34" font-size="19" font-weight="700" fill="#1f2937">引擎讀到 const f = ( element ) 之後，下一個 token 決定一切</text>
+  <text x="24" y="56" font-size="12.5" fill="#6b7280">ISO 5807 流程圖　·　圓角＝起止　矩形＝處理　菱形＝判斷　·　紅線＝Abby 這次踩到的路徑</text>
+  <rect x="330" y="80" width="300" height="40" rx="20" fill="#f3f4f6" stroke="#6b7280"/>
+  <text x="480" y="105" font-size="13" font-weight="700" text-anchor="middle" fill="#374151">開始 parse：讀到 const f =</text>
+  <rect x="318" y="146" width="324" height="44" rx="4" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="480" y="165" font-size="12" text-anchor="middle" fill="#1e40af">= 右邊只接受一個「表達式」</text>
+  <text x="480" y="182" font-size="12" text-anchor="middle" fill="#1e40af">（不接受陳述式，也不接受區塊）</text>
+  <line x1="480" y1="120" x2="480" y2="146" stroke="#6b7280" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="290" y="216" width="380" height="58" rx="4" fill="#f5f3ff" stroke="#8b5cf6"/>
+  <text x="480" y="236" font-size="12" text-anchor="middle" fill="#5b21b6">讀到 ( element ) —— 此刻還分不出是什麼</text>
+  <text x="480" y="254" font-size="12" font-weight="700" text-anchor="middle" fill="#6d28d9">先用 cover grammar 暫存成「兩義」：</text>
+  <text x="480" y="270" font-size="11.5" text-anchor="middle" fill="#6d28d9">括號表達式？還是箭頭函式的參數列？</text>
+  <line x1="480" y1="190" x2="480" y2="216" stroke="#6b7280" stroke-width="1.6" marker-end="url(#a)"/>
+  <path d="M480,300 L700,356 L480,412 L260,356 Z" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="480" y="351" font-size="13" font-weight="700" text-anchor="middle" fill="#92400e">下一個 token 是什麼</text>
+  <text x="480" y="370" font-size="11.5" text-anchor="middle" fill="#b45309">（parser 在這裡才定案）</text>
+  <line x1="480" y1="274" x2="480" y2="300" stroke="#6b7280" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="34" y="446" width="250" height="60" rx="4" fill="#ecfdf5" stroke="#10b981"/>
+  <text x="159" y="468" font-size="12" font-weight="700" text-anchor="middle" fill="#065f46">是 =&gt;　→　回頭把 (element)</text>
+  <text x="159" y="486" font-size="12" text-anchor="middle" fill="#047857">重新解讀成「參數列」</text>
+  <text x="159" y="501" font-size="11" text-anchor="middle" fill="#6b7280">整體是一個箭頭函式</text>
+  <path d="M260,356 L159,356 L159,446" fill="none" stroke="#16a34a" stroke-width="1.8" marker-end="url(#ag)"/>
+  <text x="168" y="404" font-size="11.5" font-weight="700" fill="#16a34a">=&gt;</text>
+  <rect x="34" y="534" width="250" height="88" rx="4" fill="#f0fdf4" stroke="#16a34a"/>
+  <text x="159" y="556" font-size="12" font-weight="700" text-anchor="middle" fill="#166534">主體有沒有大括號</text>
+  <text x="48" y="578" font-size="11.5" fill="#166534">沒有 → concise body，自動回傳</text>
+  <text x="60" y="594" font-size="11" fill="#4b5563">(element) =&gt; element &lt; 40</text>
+  <text x="48" y="612" font-size="11.5" fill="#166534">有 → block body，必須自己寫 return</text>
+  <line x1="159" y1="506" x2="159" y2="534" stroke="#16a34a" stroke-width="1.8" marker-end="url(#ag)"/>
+  <rect x="356" y="446" width="248" height="60" rx="4" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="480" y="468" font-size="12" font-weight="700" text-anchor="middle" fill="#1e40af">若一開始就是 function 關鍵字</text>
+  <text x="480" y="486" font-size="12" text-anchor="middle" fill="#1d4ed8">→ 傳統函式表達式，一樣合法</text>
+  <text x="480" y="501" font-size="11" text-anchor="middle" fill="#6b7280">const f = function (element) { … }</text>
+  <line x1="480" y1="412" x2="480" y2="446" stroke="#6b7280" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="676" y="446" width="250" height="60" rx="4" fill="#fef2f2" stroke="#ef4444"/>
+  <text x="801" y="468" font-size="12" font-weight="700" text-anchor="middle" fill="#991b1b">是 {　→　文法裡沒有任何一條</text>
+  <text x="801" y="486" font-size="12" text-anchor="middle" fill="#b91c1c">允許「括號表達式後面接區塊」</text>
+  <text x="801" y="501" font-size="11" text-anchor="middle" fill="#6b7280">(element){ element &lt; 40 }</text>
+  <path d="M700,356 L801,356 L801,446" fill="none" stroke="#dc2626" stroke-width="2" marker-end="url(#ard)"/>
+  <text x="762" y="404" font-size="11.5" font-weight="700" fill="#dc2626">{</text>
+  <rect x="676" y="534" width="250" height="52" rx="26" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="801" y="556" font-size="12.5" font-weight="700" text-anchor="middle" fill="#991b1b">Uncaught SyntaxError:</text>
+  <text x="801" y="574" font-size="12.5" font-weight="700" text-anchor="middle" fill="#991b1b">Unexpected token '{'</text>
+  <line x1="801" y1="506" x2="801" y2="534" stroke="#dc2626" stroke-width="2" marker-end="url(#ard)"/>
+  <text x="676" y="606" font-size="11" fill="#991b1b">錯誤指的是 { 而不是 ( —— ( element ) 本身沒錯</text>
+  <text x="24" y="640" font-size="11" fill="#6b7280">結論：「寫成 const f = … 就一定要用箭頭函式」是錯的。中間那條路（function 關鍵字）同樣合法，引擎只是需要你二選一講清楚。</text>
+</svg>
+</section>
+
+<section class="card">
+<div class="callout info"><b class="t">與其他筆記的關聯（附理由）</b>
+<ul style="margin:6px 0">
+<li><b>箭頭函式的兩組括號-參數小括弧與主體大括弧-隱式回傳</b>：那篇把「參數的小括弧」與「主體的大括弧」拆成兩組獨立規則講到底，本篇只講到踩雷當下需要的程度。</li>
+<li><b>09-Hoisting-函式宣告vs函式表達式-TDZ</b>：本篇 (q) 說「宣告可以提前呼叫、表達式不行」，那篇解釋為什麼——差別不在有沒有被 hoist，而在有沒有被初始化。</li>
+<li><b>JavaScript-函式類型總整理</b>：那篇是四條分類軸的完整比較表，本篇是其中兩條軸的實戰排查版。</li>
+<li><b>06-every短路求值與初始長度快照-命令式重構為宣告式</b>：這次踩雷的現場就是 MDN 的 <code>Array.prototype.every()</code> 範例頁，那篇講 <code>every</code> 本身在做什麼。</li>
+<li><b>03-陳述式-Statement-vs-表達式-Expression</b>：本篇 (f)(h) 整個推論的地基。</li>
+</ul></div>
+</section>
+
+<h2>1. 先把兩條軸分開：它們互相獨立（a–d）</h2>
+<section class="card">
+<div class="callout q"><b class="t">Abby 的原問題：「是因為寫成表達式的都一定要搭配箭頭函式嗎？」</b>
+<mark class="g">不是。</mark>「函式表達式」講的是<b>函式出現在哪個位置</b>，「箭頭函式」講的是<b>函式用哪種語法寫</b>，兩者完全正交，可以自由組合。</div>
+<p class="hint">↓ 黃色色塊點一下顯示答案</p>
+<ul>
+<li>(a) <mark class="b">軸一：函式宣告 vs 函式表達式</mark>
+  <div style="margin-left:18px">以 <code>function</code> 關鍵字開頭、獨立成一句的是<b>宣告</b>；被放在「需要一個值」的位置（賦值右邊、當引數、當回傳值）的是<b>表達式</b>。</div></li>
+<li>(b) <mark class="b">軸二：具名 vs 匿名</mark>
+  <div style="margin-left:18px">指的是 <code>function</code> 後面有沒有寫名字，<b>跟變數叫什麼無關</b>。<code>const greet = function () {}</code> 裡的函式本體是 <span class="blank">匿名</span> 的，<code>greet</code> 只是綁著它的變數。</div></li>
+<li>(c) ★ 兩軸交叉後的四格，四格都合法：</li>
+</ul>
+<table>
+<thead><tr><th></th><th>用 <code>function</code> 關鍵字</th><th>用箭頭 <code>=&gt;</code></th></tr></thead>
+<tbody>
+<tr><th>宣告位置</th><td><code>function f(x) { return x &lt; 40; }</code></td><td>不存在，箭頭函式只能是表達式</td></tr>
+<tr><th>表達式位置</th><td><code>const f = function (x) { return x &lt; 40; };</code></td><td><code>const f = (x) =&gt; x &lt; 40;</code></td></tr>
+</tbody></table>
+<ul><li>(d) <mark class="r">所以「寫成 <code>const xxx = ...</code> 就一定要用箭頭函式」是錯的</mark>，<code>const f = function (x) { ... }</code> 完全合法，只是現代寫法偏好箭頭。</li></ul>
+</section>
+
+<h2>2. 那行 Console 到底錯在哪：<code>Unexpected token '{'</code>（e–j）</h2>
+<section class="card">
+<figure>
+  <img src="images/MDN-every範例-箭頭漏寫導致SyntaxError-Unexpected-token-2026-09-18.png" alt="MDN every 範例頁上漏寫箭頭導致的 SyntaxError">
+  <figcaption>現場：MDN <code>Array.prototype.every()</code> 範例頁，Console 連丟兩次 <code>Uncaught SyntaxError: Unexpected token '{'</code>（螢光筆標的正是缺了箭頭的那一段）</figcaption>
+</figure>
+<pre><code>const isBeyondThreshold = (element){element &lt; 40};   // ❌ SyntaxError</code></pre>
+<ul>
+<li>(e) 上面那行就是踩雷的原始碼。</li>
+<li>(f) <mark class="b">引擎讀到 <code>const isBeyondThreshold =</code> 之後，接下來只接受一個表達式</mark>，因為 <code>=</code> 右邊要的是一個值。</li>
+<li>(g) 接著讀到 <code>(element)</code>，這時它<b>還不知道</b>這是什麼。規格用一種叫 <mark class="v">cover grammar</mark> 的手法先把它暫存成「可能是括號表達式、也可能是箭頭函式的參數列」，等下一個 token 來決定。</li>
+<li>(h) ★ 下一個 token 決定一切：
+  <div style="margin-left:18px">若是 <code>=&gt;</code> → 回頭把 <code>(element)</code> 重新解讀成 <span class="blank">參數列</span>，整體是箭頭函式 ✅<br>
+  若是 <code>{</code> → <mark class="r">沒有任何一條文法允許「括號表達式後面直接接一個區塊」</mark>，當場丟 <code>Unexpected token '{'</code> ❌</div></li>
+<li>(i) 這就是為什麼<mark class="y">錯誤訊息指的是 <code>{</code> 而不是 <code>(</code></mark>：<code>(element)</code> 本身沒錯，錯在它後面接了引擎接不下去的東西。</li>
+<li>(j) 四種改法都能跑，選一種就好：</li>
+</ul>
+<table>
+<thead><tr><th>改法</th><th>寫法</th><th>說明</th></tr></thead>
+<tbody>
+<tr><td>補箭頭，用 concise body</td><td><code>const isBeyondThreshold = (element) =&gt; element &lt; 40;</code></td><td>最短，自動回傳</td></tr>
+<tr><td>補箭頭，用 block body</td><td><code>const isBeyondThreshold = (element) =&gt; { return element &lt; 40; };</code></td><td>大括號在，就得自己寫 return</td></tr>
+<tr><td>改成函式宣告</td><td><code>function isBeyondThreshold(element) { return element &lt; 40; }</code></td><td>會被 hoist，可以提前呼叫</td></tr>
+<tr><td>改成傳統函式表達式</td><td><code>const isBeyondThreshold = function (element) { return element &lt; 40; };</code></td><td>補上 <code>function</code> 關鍵字，引擎就知道你要哪一種</td></tr>
+</tbody></table>
+<pre><code>function isBeyondThreshold(element) { return element &lt; 40; }
+const array1 = [55, 86, 64, 1, 10];
+console.log(array1.every(isBeyondThreshold));            // false
+
+// 或直接把匿名的傳統函式當 callback 傳進去
+console.log(array1.every(function (element) { return element &lt; 40; }));  // false</code></pre>
+<div class="callout ok"><b class="t">DevTools Console 貼多行程式碼的小技巧</b>
+(r) <mark class="g">在 Console 裡按 <code>Shift + Enter</code> 是換行，按 <code>Enter</code> 才是執行</mark>。寫 class 或多行函式時先把整段（包含最後那個 <code>}</code>）寫完再送出。<br>
+同一場對話裡 Abby 的 <code>class Dog { ... }</code> 報錯也是同一個病根：<mark class="r">最外層的 <code>}</code> 漏掉</mark>，引擎以為 class 還沒結束，讀到下一行的 <code>const myDog</code> 就爆。</div>
+</section>
+
+<h2>3. 有大括號就得自己 return：concise body vs block body（k–n）</h2>
+<section class="card">
+<div class="callout warn"><b class="t">名詞先澄清</b>
+(k) <mark class="y">Gemini 說的「多行程式塊」指的是<b>語法形態</b>，不是你在編輯器裡實際敲了幾行</mark>。就算全部擠在同一行，只要有 <code>{}</code>，它就是 block body。</div>
+<ul>
+<li>(l) <mark class="b">concise body ＝箭頭後面直接接一個表達式，沒有大括號</mark>，引擎<b>自動回傳</b>那個表達式的值。</li>
+<li>(m) <mark class="b">block body ＝箭頭後面接 <code>{}</code></mark>，引擎<b>不會</b>自動回傳，沒寫 <code>return</code> 就回 <span class="blank">undefined</span>。</li>
+<li>(n) ⚠️ 這個錯比 (e) 那個更陰險，因為<mark class="r">它不報錯，只是默默給你錯的答案</mark>：</li>
+</ul>
+<pre><code>// 有大括號卻沒寫 return → 每次呼叫都回 undefined（falsy）
+const isBeyondThreshold = (element) =&gt; { element &lt; 40 };
+[55, 86, 64, 1, 10].every(isBeyondThreshold);   // false —— 看起來「對」，其實是誤打誤撞
+
+// 換成應該要是 true 的資料就露餡了
+[1, 2, 3].every((e) =&gt; { e &lt; 40 });             // false ← 錯！正確答案是 true
+[1, 2, 3].every((e) =&gt; e &lt; 40);                 // true  ← 這才對</code></pre>
+<table>
+<thead><tr><th>形態</th><th>寫法</th><th>要自己寫 <code>return</code> 嗎</th></tr></thead>
+<tbody>
+<tr><td>concise body</td><td><code>(x) =&gt; x &lt; 40</code></td><td>不用，自動回傳</td></tr>
+<tr><td>block body</td><td><code>(x) =&gt; { return x &lt; 40; }</code></td><td>必須寫，否則回 <code>undefined</code></td></tr>
+<tr><td>傳統函式</td><td><code>function (x) { return x &lt; 40; }</code></td><td>必須寫，否則回 <code>undefined</code></td></tr>
+</tbody></table>
+</section>
+
+<h2>4. 傳統匿名函式的三種常見場景（o–q）</h2>
+<section class="card">
+<p>(o) <mark class="g">用 <code>function</code> 關鍵字定義的「傳統函式」完全可以是匿名的</mark>，最常出現在下面三個位置：</p>
+<ol>
+<li><mark class="b">函式表達式</mark>：把沒名字的函式賦值給變數，<mark class="y">變數名代表該函式，但函式本體本身是匿名的。</mark>
+<pre><code>const greet = function () { console.log("Hello World"); };
+greet();</code></pre></li>
+<li><mark class="b">立即執行函式（IIFE）</mark>：定義當下立刻執行，<mark class="y">常用來建立獨立作用域、避免污染全域變數。</mark>
+<pre><code>(function () { console.log("立刻執行，且沒有名字"); })();</code></pre></li>
+<li><mark class="b">回呼函式（Callback）</mark>：直接當參數傳給其他方法，事件監聽與非同步最常見。
+<pre><code>setTimeout(function () { console.log("延遲 1 秒後執行"); }, 1000);</code></pre></li>
+</ol>
+<p>(p) 現代多用箭頭函式取代，但兩者<b>行為</b>關鍵不同，不只是寫法長短：</p>
+<table>
+<thead><tr><th>面向</th><th>傳統匿名函式</th><th>箭頭函式</th></tr></thead>
+<tbody>
+<tr><td><code>this</code> 綁定</td><td><mark class="r">動態綁定：取決於「呼叫時」的上下文</mark></td><td><mark class="g">沒有自己的 this，繼承「定義時」外層環境（靜態）</mark></td></tr>
+<tr><td><code>arguments</code></td><td>內部可用 <code>arguments</code> 存取所有傳入參數</td><td><mark class="r">不支援 <code>arguments</code></mark></td></tr>
+<tr><td>能不能 <code>new</code></td><td>可以，是建構函式</td><td><mark class="r">不行，會丟 TypeError</mark></td></tr>
+<tr><td>有沒有 <code>prototype</code> 屬性</td><td>有</td><td>沒有</td></tr>
+</tbody></table>
+<p>(q) <mark class="b">宣告與表達式還有一個執行期差異</mark>：函式宣告在進入作用域時就連名帶身體一起就緒，可以提前呼叫；<code>const</code>／<code>let</code> 的函式表達式只建綁定不初始化，提前呼叫會撞 TDZ 丟 <code>ReferenceError</code>。</p>
+</section>
+
+<h2>5. ⚠️ 存疑／更正（Gemini 講得不夠精確的地方）</h2>
+<section class="card">
+<table>
+<thead><tr><th>Gemini 原文</th><th>問題</th><th>補正</th></tr></thead>
+<tbody>
+<tr><td>把「漏掉 <code>=&gt;</code>」與「漏掉 <code>return</code>」並列成「兩個語法錯誤」</td><td><mark class="r">只有前者是 SyntaxError，後者根本不報錯</mark>，會靜默回傳 <code>undefined</code></td><td>兩者嚴重性完全不同：前者當場爆、後者是邏輯 bug，要分開講</td></tr>
+<tr><td>「漏掉花括號內的 return，否則預設會回傳 undefined」</td><td>說法沒錯，但沒說清楚<mark class="y">這跟傳統函式是同一條規則</mark>，不是箭頭函式特有</td><td>只要是 block body（含傳統 <code>function</code>），一律不自動回傳</td></tr>
+<tr><td>只說「語法解析器不知道你要寫哪一種」</td><td>講對了方向但沒講機制</td><td>規格上的名詞是 <b>cover grammar</b>：<code>(element)</code> 先被暫存成兩義，等下一個 token 才定案</td></tr>
+</tbody></table>
+</section>
+
+<h2>自己考自己 ①　是非題</h2>
+<section class="card">
+  <div class="tf" data-a="F"><div class="qq">1. 只要把函式寫在 <code>const f = ...</code> 的右邊，就一定得用箭頭函式。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✗ 錯。<code>const f = function (x) { ... }</code> 一樣是合法的函式表達式。「表達式」講位置，「箭頭」講語法，兩條軸互相獨立。</div></div>
+
+  <div class="tf" data-a="T"><div class="qq">2. <code>const greet = function () {}</code> 裡的那個函式，本體是匿名的。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✓ 對。具名與否看的是 <code>function</code> 後面有沒有名字，跟變數叫 <code>greet</code> 無關。</div></div>
+
+  <div class="tf" data-a="F"><div class="qq">3. <code>(element){ element &lt; 40 }</code> 報的 <code>Unexpected token '{'</code>，是因為小括號寫錯了。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✗ 錯。<code>(element)</code> 本身完全合法，可以是括號表達式也可以是參數列。錯的是它後面接了 <code>{</code>，文法裡沒有任何一條允許這樣接。</div></div>
+
+  <div class="tf" data-a="T"><div class="qq">4. <code>(e) =&gt; { e &lt; 40 }</code> 不會報錯，但每次呼叫都回 <code>undefined</code>。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✓ 對。有大括號就是 block body，不自動回傳。這是比 SyntaxError 更陰險的一類 bug，因為它靜默。</div></div>
+
+  <div class="tf" data-a="F"><div class="qq">5. 「Block Body」的意思是程式碼實際寫了超過一行。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✗ 錯。那是語法形態的名稱，跟實際行數無關。全部擠在同一行、只要有 <code>{}</code>，仍然是 block body。</div></div>
+
+  <div class="tf" data-a="T"><div class="qq">6. 用 <code>function</code> 宣告出來的函式可以在宣告之前就呼叫，用 <code>const</code> 綁的函式表達式不行。</div>
+    <button class="btn" onclick="ans(this,'T')">O</button> <button class="btn" onclick="ans(this,'F')">X</button>
+    <div class="ans">✓ 對。兩者都會被 hoist，差別在有沒有被<b>初始化</b>：宣告連名帶身體就緒，<code>const</code> 只建綁定、處於 TDZ，提前碰它丟 <code>ReferenceError</code>。</div></div>
+</section>
+
+<h2>自己考自己 ②　申論題</h2>
+<section class="card">
+<details class="essay"><summary>Q1. 逐步說明引擎讀到 <code>const f = (element){ element &lt; 40 };</code> 時發生了什麼，為什麼錯誤訊息指的是 <code>{</code>？</summary>
+<textarea placeholder="先自己寫，再展開對答案…"></textarea>
+<div class="body"><b>參考答案：</b>
+① 讀到 <code>const f =</code>，引擎知道接下來必須是一個表達式。<br>
+② 讀到 <code>(element)</code>，此時它有兩種可能——括號表達式，或箭頭函式的參數列。規格用 cover grammar 把它暫存成兩義，不急著定案。<br>
+③ 讀下一個 token 來定案：若是 <code>=&gt;</code> 就重新解讀成參數列；這裡讀到的是 <code>{</code>。<br>
+④ 文法裡沒有「括號表達式後面接區塊」這條產生式，於是在 <code>{</code> 這個位置報 <code>Unexpected token '{'</code>。<br>
+所以錯誤指向 <code>{</code> 而非 <code>(</code>，因為 <code>(element)</code> 在讀到它的當下完全合法，是後面那個 token 讓整串接不下去。</div></details>
+
+<details class="essay"><summary>Q2. 為什麼「漏掉 <code>=&gt;</code>」跟「漏掉 <code>return</code>」不該被並列成同一類錯誤？各自會怎麼表現？</summary>
+<textarea placeholder="先自己寫，再展開對答案…"></textarea>
+<div class="body"><b>參考答案：</b>
+漏掉 <code>=&gt;</code> 是<b>語法錯誤</b>：程式碼連 parse 都過不了，整個 script 一行都不會執行，Console 當場丟 <code>SyntaxError</code>。它很吵，但也因此很好修。<br>
+漏掉 <code>return</code> 是<b>邏輯錯誤</b>：語法完全合法，函式跑得起來，只是每次都回 <code>undefined</code>。搭配 <code>every</code>／<code>filter</code>／<code>find</code> 這種吃 truthy 的 API 時，結果會靜默錯掉，甚至可能「剛好對」而騙過你。<br>
+把兩者並列會讓人以為漏 <code>return</code> 也會報錯，於是養成「沒報錯就是對的」的錯誤直覺。</div></details>
+
+<details class="essay"><summary>Q3. 同一個 callback，什麼時候該用 concise body、什麼時候該用 block body？請給出判準而不是「越短越好」。</summary>
+<textarea placeholder="先自己寫，再展開對答案…"></textarea>
+<div class="body"><b>參考答案：</b>
+判準是<b>用括號表達意圖</b>，不是比長度。<br>
+只是求一個值、而且呼叫端需要這個回傳值（<code>map</code>、<code>filter</code>、<code>find</code>、<code>every</code>）→ concise body，讀者一眼就知道「這裡回傳了東西」。<br>
+有副作用、呼叫端不需要回傳值（<code>forEach</code>、事件處理）→ block body，用大括號明示「我不回傳東西」，順便避免不小心把副作用的回傳值洩漏出去（例如 <code>arr.map(e =&gt; list.push(e))</code> 會拿到一堆長度數字）。<br>
+超過一行、或需要 <code>if</code>／<code>for</code> 這類陳述式 → 只能 block body，因為 concise body 的位置在語法上只接受表達式。</div></details>
+</section>
+
+<h2>對應題目練習</h2>
+<section class="card">
+<ul>
+<li><a href="https://leetcode.com/problems/create-hello-world-function/">LeetCode 2667. Create Hello World Function</a> — 最小規模的「回傳一個函式」，逼你分清楚回傳函式本身與回傳呼叫結果</li>
+<li><a href="https://leetcode.com/problems/counter/">LeetCode 2620. Counter</a> — 表達式位置的函式＋閉包，正好驗收第 1 節兩條軸</li>
+<li><a href="https://leetcode.com/problems/filter-elements-from-array/">LeetCode 2634. Filter Elements from Array</a> — callback 寫成 concise body 還是 block body，寫錯就回 <code>undefined</code>，直球考第 3 節</li>
+<li><a href="https://leetcode.com/problems/allow-one-function-call/">LeetCode 2666. Allow One Function Call</a> — 傳統函式與箭頭函式在 <code>this</code>／<code>arguments</code> 上的差異會真的影響解法</li>
+</ul>
+</section>
+
+<h2>資料來源（含查證時間）</h2>
+<section class="card">
+<table>
+<thead><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr></thead>
+<tbody>
+<tr><td>踩雷現場的範例頁 Array.prototype.every</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/every">MDN every()</a></td><td>2026-09-18 查證</td></tr>
+<tr><td>箭頭函式語法與 concise／block body</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions">MDN Arrow functions</a></td><td>2026-09-18 查證</td></tr>
+<tr><td>函式表達式 function expression</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/function">MDN function expression</a></td><td>2026-09-18 查證</td></tr>
+<tr><td>函式宣告 function declaration</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function">MDN function declaration</a></td><td>2026-09-18 查證</td></tr>
+<tr><td>IIFE 術語定義</td><td><a href="https://developer.mozilla.org/en-US/docs/Glossary/IIFE">MDN Glossary IIFE</a></td><td>2026-09-18 查證</td></tr>
+<tr><td>規範原文 ArrowFunction 與 cover grammar</td><td><a href="https://tc39.es/ecma262/#sec-arrow-function-definitions">ECMA-262</a></td><td>2026-09-18 查證</td></tr>
+<tr><td>Console 多行輸入與 Shift+Enter</td><td><a href="https://developer.chrome.com/docs/devtools/console/reference">Chrome DevTools 文件</a></td><td>2026-09-18 查證</td></tr>
+</tbody></table>
+</section>
+
+<footer>由 Gemini 對話自動整理　·　更新於 2026-09-18</footer>
+</div>
+
+<script>
+document.querySelectorAll('.blank').forEach(function (el) {
+  el.addEventListener('click', function () { el.classList.toggle('on'); });
+});
+function toggleAll(show) {
+  document.querySelectorAll('.blank').forEach(function (el) { el.classList.toggle('on', show); });
+  document.querySelectorAll('.tf .ans').forEach(function (el) { el.classList.toggle('show', show); });
+  document.querySelectorAll('details.essay').forEach(function (el) { el.open = show; });
+}
+function ans(btn, pick) {
+  var box = btn.closest('.tf');
+  var ok = box.dataset.a === pick;
+  box.classList.remove('right', 'wrong');
+  box.classList.add(ok ? 'right' : 'wrong');
+  box.querySelector('.ans').classList.add('show');
+}
+function resetQuiz() {
+  document.querySelectorAll('.tf').forEach(function (b) {
+    b.classList.remove('right', 'wrong');
+    b.querySelector('.ans').classList.remove('show');
+  });
+  document.querySelectorAll('details.essay').forEach(function (d) { d.open = false; });
+  document.querySelectorAll('textarea').forEach(function (t) { t.value = ''; });
+  document.querySelectorAll('.blank').forEach(function (el) { el.classList.remove('on'); });
+}
+</script>
+</body>
+</html>

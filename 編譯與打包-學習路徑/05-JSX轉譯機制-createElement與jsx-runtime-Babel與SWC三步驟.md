@@ -6,12 +6,13 @@ tags: [gemini, react, jsx, babel, swc, transpile, ast, ecmascript]
 sources:
   - https://gemini.google.com/app/91b54d891b833be2
   - https://gemini.google.com/app/599804dd5ba114af
-updated: 2026-08-29
+  - https://gemini.google.com/app/0f1814c226521483
+updated: 2026-09-16
 ---
 
 # JSX 轉譯機制 — createElement、jsx-runtime 與 Babel／SWC 的三個步驟
 
-> 本篇重點 a–n，共 14 個。
+> 本篇重點 a–q，共 17 個。
 
 ## 重點整理
 
@@ -117,6 +118,20 @@ const button = React.createElement("button", { color: "red" }, "Click");
 
 (n) <mark style="background: #BBFABBA6;">動手驗證的最快方式</mark>：打開 Babel 官方線上工具 REPL（https://babeljs.io/repl），左側 Presets 勾選 `react`，貼上 JSX，右邊即時看到轉譯結果。想看新版轉譯就把 Runtime 設為 `automatic`。
 
+(o) <mark style="background: #FFF3A3A6;">那這三步的效能成本算誰的？</mark>成本是真的存在，但<mark style="background: #BBFABBA6;">整筆落在建置期（build-time），使用者的瀏覽器一毛都不用付</mark>。把兩端分開看：
+
+| 時間點 | 誰在做事 | 做什麼 | 成本落在哪裡 |
+| --- | --- | --- | --- |
+| 建置期 build-time | Babel、SWC、esbuild 在你的電腦或 CI 機器上 | 把 JSX parse 成 AST、transform、generate 回 JS | 開發時的 HMR 熱重載等待時間、`npm run build` 的打包秒數 |
+| 執行期 run-time | 瀏覽器的 JavaScript 引擎 | 執行已經是純 JS 的 `React.createElement(...)` 或 `jsx(...)` | 幾乎為零，瀏覽器完全不知道 JSX 存在過 |
+
+(p) <mark style="background: #BBFABBA6;">建置期這筆成本現在已經被壓得很小。</mark>主詞—動詞—受詞寫清楚是這樣：工具鏈把原本用 JavaScript 寫的 parser（`Babel`）換成用 Rust 寫的（`SWC`）或用 Go 寫的（`esbuild`），同一份 JSX 的 parse 與 transform 速度提升約 10 到 100 倍，產物一樣是標準 JS，再交給 bundler 去做後續的 code splitting 與 minify。
+
+(q) <mark style="background: #BBFABBA6;">轉譯甚至會讓執行期比手寫更快</mark>，因為轉譯器在 (l) 那一步做了靜態分析可以順手做最佳化：
+
+   - <mark style="background: #ADCCFFA6;">靜態提升（Static Hoisting）</mark>：把整棵不會隨 state 改變的 JSX 節點提升到 render 函式外面，避免每次 re-render 都重新建立同一個物件。
+   - <mark style="background: #ADCCFFA6;">React Compiler 的自動記憶化（Memoization）</mark>：在轉譯階段自動插入記憶化邏輯，減少不必要的子元件重繪。<mark style="background: #FF5582A6;">⚠️ 這一項要注意版本</mark>，見下方「存疑／更正」。
+
 ### 五、名詞補全
 
 - <mark style="background: #ADCCFFA6;">SWC = Speedy Web Compiler</mark>，用 Rust 寫的高效能 JavaScript／TypeScript 轉譯器與打包工具。
@@ -127,6 +142,7 @@ const button = React.createElement("button", { color: "red" }, "Click");
 ## ⚠️ 存疑／更正
 
 - **Gemini 說「SWC 目前廣泛應用於 Next.js、Vite 等現代前端工具鏈中」**：<mark style="background: #FF5582A6;">Vite 這一半不精確。</mark>Next.js 從 12 起確實預設用 SWC 取代 Babel；但 <mark style="background: #BBFABBA6;">Vite 預設的 JSX／TS 轉換器是 esbuild（Go 寫的），SWC 在 Vite 是可選方案</mark>，要自己裝 `@vitejs/plugin-react-swc` 才會用到。預設的 `@vitejs/plugin-react` 走的是 Babel。
+- **Gemini 說「React 19 / Compiler 優化：自動插入記憶化邏輯」**：<mark style="background: #FF5582A6;">講得像是升上 React 19 就自動有了，不精確。</mark>正確的關係是——<mark style="background: #BBFABBA6;">React Compiler 是一個獨立的建置期工具，以 Babel plugin 的形式存在，必須自己安裝 `babel-plugin-react-compiler` 並把它排在 Babel plugin 管線的第一個</mark>，才會啟用。它在 <mark style="background: #FFB8EBA6;">2025-10-07 發佈 1.0 穩定版</mark>，運作方式是把 Babel 給的 AST 降階成自己的 HIR（High-level Intermediate Representation，高階中間表示），再據此自動插入記憶化。升級 React 19 本身不會啟用它，而且它也支援在 React 19 以下的版本使用。
 - **另一段語音對話中 Gemini 說「React 18 之後不用 import React」**：<mark style="background: #FF5582A6;">版本講錯。</mark>新版 JSX Transform 是 <mark style="background: #BBFABBA6;">React 17（2020 年 10 月）</mark>引進的，並且官方有回移（backport）到 16.14、15.7、0.14.10。React 18 沒有再改這件事。
 
 ## 相關題目練習
@@ -146,6 +162,7 @@ const button = React.createElement("button", { color: "red" }, "Click");
 - [[Vite-HMR機制與Rollup打包原理]] — 補充 ⚠️ 那條更正：Vite 預設用 esbuild 而非 SWC 的來龍去脈。
 - [[React-130錯誤-transpilePackages與SWC]] — 實戰踩坑版：轉譯設定沒對好時會噴什麼錯。
 - [[SSR-renderToString與Hydration-伺服器端渲染流程]] — Element 物件在伺服器端會被 `renderToString` 轉成 HTML 字串，是本篇的下游。
+- [[usePathname與useSearchParams-預渲染Bailout]] — 呼應 (o) 那張 build-time／run-time 對照表的另一面：轉譯是「建置期做得完的事」，`useSearchParams` 讀的 Query String 則是「建置期做不完的事」，同一條分界線的兩側各舉一例。
 
 ## 各對話來源（原文）
 
@@ -175,6 +192,14 @@ const button = React.createElement("button", { color: "red" }, "Click");
 
 **Gemini：** SWC 的全稱是 Speedy Web Compiler，以 Rust 語言編寫的高效能 JavaScript／TypeScript 轉譯器與打包工具，速度比傳統的 Babel 快上數十甚至數百倍，目前廣泛應用於 Next.js、Vite 等現代前端工具鏈中。
 
+### JSX 轉譯 AST 完整流程解析（2026-09-16 擷取）— https://gemini.google.com/app/0f1814c226521483
+
+**使用者：** 你說了這個使用 JSX 導致還是需要轉譯的過程會造成效能消耗嗎
+
+**Gemini：** JSX 的轉譯（Transpilation）會造成效能消耗，但這項消耗完全發生在開發與建構階段（Build-time），對使用者的瀏覽器運行效能（Run-time）幾乎沒有負面影響。（1）建構階段有效能消耗：Babel、SWC 或 esbuild 等編譯器需要將 JSX 解析為 AST，再轉換並生成 JavaScript 代碼；影響範疇是開發時的熱重載時間（HMR）以及 CI/CD 打包建構（`npm run build`）的所需時間；現代前端建構工具已大幅優化此階段，例如從 Babel 轉用 Rust／Go 撰寫的工具（SWC、esbuild 或 Vite），轉譯速度提高了 10 到 100 倍。（2）運行階段幾乎零負擔：經過打包工具處理後，送到使用者瀏覽器的已經是純 JavaScript 代碼（`React.createElement(...)` 或 React 17+ 的 `jsx(...)`），瀏覽器完全不知道 JSX 的存在；`React.createElement()` 本質上只是建立簡單的 JavaScript Plain Object（用來描述 Virtual DOM 結構），執行速度極快。（3）編譯優化反而提升運行效能：靜態提升（Static Hoisting）把不會改變的 JSX 節點提升到渲染函數外部，避免每一次 re-render 都重新建立物件；React 19 / Compiler 優化自動插入記憶化（Memoization）邏輯，減少不必要的子元件重繪與計算。
+
+> ⚠️ 最後那一句「React 19 / Compiler 優化」講得不精確，更正見上方「存疑／更正」區塊。
+
 ### 程式碼報錯原因解析（2026-08-28，語音模式片段）— https://gemini.google.com/app/599804dd5ba114af
 
 **使用者：** React 18 以後是不是已經不用 import React 跟 import { useState } from 'react' 了？
@@ -195,6 +220,10 @@ const button = React.createElement("button", { color: "red" }, "Click");
 
 | 主題 | 連結 | 版本／查證時間 |
 | --- | --- | --- |
+| 本篇對話（JSX 轉譯 AST 完整流程解析） | https://gemini.google.com/app/0f1814c226521483 | Gemini Flash，2026-09-16 擷取 |
+| React 官方部落格 — React Compiler v1.0（確認是 opt-in 的 Babel plugin，不是 React 19 內建） | https://react.dev/blog/2025/10/07/react-compiler-1 | 2025-10-07 發布，2026-09-16 查證 |
+| React 官方 — React Compiler 安裝（必須排在 Babel plugin 管線第一個） | https://react.dev/learn/react-compiler/installation | 現行文件，2026-09-16 查證 |
+| React 官方 — React Compiler 漸進式導入（Babel overrides／"use memo"／runtime gating 三種 opt-in） | https://react.dev/learn/react-compiler/incremental-adoption | 現行文件，2026-09-16 查證 |
 | 本篇對話（React 元件轉譯機制解析） | https://gemini.google.com/app/91b54d891b833be2 | Gemini Flash，2026-08-28 |
 | 本篇對話（程式碼報錯原因解析，語音片段） | https://gemini.google.com/app/599804dd5ba114af | Gemini Flash，2026-08-28 |
 | React 官方部落格 — Introducing the New JSX Transform（確認是 17 不是 18） | https://legacy.reactjs.org/blog/2020/09/22/introducing-the-new-jsx-transform.html | 2020-09-22 發布，2026-08-29 查證 |

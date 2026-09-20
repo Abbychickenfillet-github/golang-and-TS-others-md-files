@@ -781,6 +781,112 @@ console.log(doc.getElementById('root').tagName);  // "DIV"
 <li>兩者幾乎一樣 → <b>SSR / SSG / PHP / Rails</b>（再看有沒有 hydration 用的 JS 才能細分）</li>
 </ol>
 
+
+<h3 id="s7-1">7-1. 「此時 DOM 還沒生成對嗎？」—— 這句話要拆成兩個問題才答得準（2026-09-19 追加）</h3>
+
+<div class="warn">
+(w) <b>看到 CSR 的白畫面就說「DOM 還沒生成」，是把「容器」跟「內容」混成一件事。</b><br>
+正確的說法是：<b>骨架 DOM 已經好了，內容 DOM 還沒蓋。</b>
+</div>
+
+<div class="figwrap">
+<p class="hint">把上表 CSR 那一列展開成時間軸。點任一格看說明。</p>
+<svg viewBox="0 0 820 300" xmlns="http://www.w3.org/2000/svg" id="csrSvg" role="img" aria-label="CSR 首次載入時間軸">
+  <defs><marker id="ca" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9c968a"/></marker></defs>
+  <style>
+    #csrSvg .n{cursor:pointer}
+    #csrSvg .bx{fill:#fff;stroke:#b9b3a6;stroke-width:1.6;rx:9}
+    #csrSvg .bx.p4{fill:#eef5ff;stroke:#7fa6d8}
+    #csrSvg .bx.js{fill:#fdf6e0;stroke:#c9a758}
+    #csrSvg .bx.ui{fill:#f0fbf2;stroke:#78b78e}
+    #csrSvg .n:hover .bx{stroke-width:3}
+    #csrSvg .n.on .bx{stroke-width:3.4;filter:drop-shadow(0 2px 6px rgba(0,0,0,.18))}
+    #csrSvg text{font-family:system-ui,"Noto Sans TC",sans-serif;fill:#2c2922}
+    #csrSvg .t1{font-weight:700;font-size:12.5px}
+    #csrSvg .t2{font-size:11px;fill:#6f6a60}
+    #csrSvg .ed{stroke:#9c968a;stroke-width:1.8;fill:none;marker-end:url(#ca)}
+    #csrSvg .star{font-size:15px;fill:#c9852a;font-weight:700}
+  </style>
+  <g class="n" data-k="p14">
+    <rect class="bx p4" x="14" y="26" width="250" height="62"/>
+    <text class="t1" x="139" y="50" text-anchor="middle">①–④ bytes → decode → tokenize</text>
+    <text class="t1" x="139" y="68" text-anchor="middle">→ tree construction</text>
+    <text class="t2" x="139" y="83" text-anchor="middle">執行者：Blink。四步無例外，CSR 也一樣</text>
+  </g>
+  <text class="star" x="288" y="62" text-anchor="middle">★</text>
+  <path class="ed" d="M264,57 L316,57"/>
+  <g class="n" data-k="js">
+    <rect class="bx js" x="316" y="26" width="230" height="62"/>
+    <text class="t1" x="431" y="50" text-anchor="middle">⑤ bundle.js 下載 / 執行</text>
+    <text class="t2" x="431" y="68" text-anchor="middle">V8 parse → bytecode → run</text>
+    <text class="t2" x="431" y="83" text-anchor="middle">真正的瓶頸在這一格，不在 parsing</text>
+  </g>
+  <path class="ed" d="M546,57 L596,57"/>
+  <g class="n" data-k="mount">
+    <rect class="bx ui" x="596" y="26" width="210" height="62"/>
+    <text class="t1" x="701" y="50" text-anchor="middle">⑥ framework mount</text>
+    <text class="t2" x="701" y="68" text-anchor="middle">createRoot(...).render(&lt;App/&gt;)</text>
+    <text class="t2" x="701" y="83" text-anchor="middle">幾百個節點這時才被 createElement</text>
+  </g>
+
+  <path class="ed" d="M139,88 L139,140"/>
+  <path class="ed" d="M701,88 L701,140"/>
+
+  <g class="n" data-k="has">
+    <rect class="bx p4" x="14" y="140" width="250" height="118"/>
+    <text class="t1" x="139" y="164" text-anchor="middle">★ 這一刻，文件樹上「已經有」</text>
+    <text class="t2" x="139" y="186" text-anchor="middle">&lt;html&gt; &lt;head&gt; &lt;body&gt;</text>
+    <text class="t2" x="139" y="205" text-anchor="middle">&lt;div id="root"&gt;&lt;/div&gt;　← 空的</text>
+    <text class="t2" x="139" y="224" text-anchor="middle">&lt;script src="bundle.js"&gt;</text>
+    <text class="t2" x="139" y="246" text-anchor="middle">getElementById('root') → 抓得到！</text>
+  </g>
+  <g class="n" data-k="later">
+    <rect class="bx ui" x="596" y="140" width="210" height="118"/>
+    <text class="t1" x="701" y="164" text-anchor="middle">⑥ 之後，文件樹上「才出現」</text>
+    <text class="t2" x="701" y="188" text-anchor="middle">&lt;div id="root"&gt;</text>
+    <text class="t2" x="701" y="207" text-anchor="middle">　└ &lt;App&gt; 展開出來的</text>
+    <text class="t2" x="701" y="226" text-anchor="middle">　　　幾百個節點</text>
+    <text class="t2" x="701" y="248" text-anchor="middle">畫面這時才不是白的</text>
+  </g>
+
+  <g class="n" data-k="shell">
+    <rect class="bx" x="300" y="170" width="262" height="58"/>
+    <text class="t1" x="431" y="194" text-anchor="middle">名詞對齊：shell / app shell</text>
+    <text class="t2" x="431" y="214" text-anchor="middle">Vite、CRA 產生的 index.html 就是它</text>
+  </g>
+</svg>
+<div id="csrOut" style="margin-top:10px;min-height:48px;background:#f7f5ef;border:1px dashed #cfc9bb;border-radius:10px;padding:11px 14px;font-size:14px">👆 點上面任一個方框看說明。</div>
+</div>
+
+<p>所以同一個問題的兩個答案都成立，端看你問的是哪一層：<br>
+問「<code>document.getElementById('root')</code> 抓不抓得到」→ <b>抓得到</b>（步驟 ④ 已經把它建成節點）；<br>
+問「畫面上看不看得到東西」→ <b>看不到</b>（bundle.js 還在下載或剛開始執行，React／Vue 元件還沒 mount）。</p>
+
+<div class="note">
+這也正是入口檔 <code>main.tsx</code> 寫 <code>createRoot(document.getElementById('root')!).render(&lt;App /&gt;)</code> 能跑得通的前提——它依賴的就是「④ 已經跑完、⑤ 才輪到我」這個順序。若把 <code>&lt;script&gt;</code> 放在 <code>&lt;head&gt;</code> 且不加 <code>defer</code>，執行時機被提前到 ④ 還沒建到 <code>&lt;div id="root"&gt;</code> 的時候，<code>getElementById</code> 就會回 <code>null</code>——這是 <code>script載入方式-sync-defer-async</code>（Obsidian 連結） 那篇講的同一件事從 DOM 這一側看。
+</div>
+
+<script>
+(function(){
+  var FIG={
+    p14:'<strong>①–④ 四步。</strong>CSR 的 HTML 極短、節點極少，所以這四步<strong>反而跑得更快</strong>。「CSR 慢」慢的不是 parsing，是 ★ 之後那一大段 JS。',
+    js:'<strong>⑤ bundle.js。</strong>下載 → V8 parse → 編成 bytecode → 執行。這一格才是 CSR 首屏的真正瓶頸，跟 HTML Parsing 無關。',
+    mount:'<strong>⑥ mount。</strong>框架在這一刻才開始用 <code>createElement</code>／<code>appendChild</code> 把幾百個節點掛進 <code>#root</code>。在這之前畫面是白的。',
+    has:'<strong>★ 這一刻文件樹上已經有什麼。</strong>骨架節點全部就位：<code>&lt;html&gt;</code>、<code>&lt;head&gt;</code>、<code>&lt;body&gt;</code>、空的 <code>&lt;div id="root"&gt;</code>、<code>&lt;script&gt;</code>。所以 <code>document.getElementById(\'root\')</code> <strong>抓得到</strong>——這就是「DOM 已經生成了」那半句的意思。',
+    later:'<strong>⑥ 之後才出現的。</strong><code>&lt;App&gt;</code> 展開出來的那幾百個節點。這就是「內容 DOM 還沒蓋」那半句的意思——容器早就在，內容是後來才進去的。',
+    shell:'<strong>名詞對齊。</strong>這份只有骨架的 HTML 正式叫 <strong>shell</strong>（外殼）或 <strong>app shell</strong>。Vite、CRA 產生的 <code>index.html</code> 就是它——打開來看只有十幾行，一個 <code>#root</code> 加一個 <code>&lt;script&gt;</code>。'
+  };
+  var svg=document.getElementById('csrSvg'); if(!svg) return;
+  svg.querySelectorAll('.n').forEach(function(n){
+    n.addEventListener('click',function(){
+      svg.querySelectorAll('.n').forEach(function(x){x.classList.remove('on')});
+      n.classList.add('on');
+      document.getElementById('csrOut').innerHTML=FIG[n.dataset.k]||'';
+    });
+  });
+})();
+</script>
+
 <!-- ============ 8 ============ -->
 <h2 id="s8">8. Markdown → DOM 的兩條路（其中一條不經過 HTML Parsing）</h2>
 

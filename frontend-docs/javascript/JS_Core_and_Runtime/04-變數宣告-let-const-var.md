@@ -1,8 +1,11 @@
 ---
 title: 變數宣告：let / const / var
 type: topic-note
-aliases: [變數宣告-let-const-var]
-updated: 2026-07-29
+aliases: [變數宣告-let-const-var, 宣告關鍵字, declaration keywords]
+source: Claude + Gemini
+sources:
+  - https://gemini.google.com/app/a043276b763882f4
+updated: 2026-09-17
 ---
 
 # 變數宣告：let / const / var
@@ -151,6 +154,27 @@ arr = [];         // ❌ 只有「重新賦值」不行 → TypeError
 > 改內容 → const 永遠 OK；`=` 重新指向 → 才需要 let。
 > （`map`/`filter`/`slice`/`concat` 回傳新陣列、不改原本，對 const 也沒問題。）
 
+#### 用「記憶體位址」再講一次同一件事（2026-09-17 由 Gemini 語音對話補入）
+
+- <mark style="background: #ADCCFFA6;">`const` 鎖的是「參考位址（reference）」，不是「值」</mark>。
+	宣告 `const arr = [1,2,3]` 時，`arr` 這個綁定被釘死在該陣列所在的那個 heap 位址上，之後不准再指向別處；但那塊 heap 空間裡的內容怎麼改都行。
+
+- <mark style="background: #BBFABBA6;">`let` 允許同一個變數名在不同時間點綁定到完全不同的記憶體位址</mark>，所以底下這段完全合法、不會報錯：
+
+```js
+let array1 = [55, 666, 777];
+array1 = [888, 999, 444];   // ✅ let 可以整個換掉，綁到另一塊全新的記憶體
+```
+
+	對照 `const array1 = [55, 666, 777]; array1 = [...]` 就會丟 `TypeError: Assignment to constant variable`。
+	「值 vs 位址」的完整圖解在 [[10-傳值vs傳址-賦值與記憶體空間]]。
+
+- <mark style="background: #FF5582A6;">⚠️ 常見誤解：以為選 `const` 比較「省記憶體／省電」</mark>。
+	不成立。選 `let` 或 `const` 不會影響硬體耗電量，記憶體配置與垃圾回收（GC）執行得極快，對能耗的影響微乎其微。
+	<mark style="background: #FFF3A3A6;">判準永遠是「程式邏輯與可讀性」</mark>：這個綁定在生命週期內會不會被整個換掉？會就 `let`，不會就 `const`。
+
+- <mark style="background: #ADCCFFA6;">正名：`var` / `let` / `const` 這三個字的正式稱呼是「宣告關鍵字（declaration keywords）」</mark>，因為它們的職責是宣告變數，並同時決定該變數的作用域與能不能重新賦值這兩件事。
+
 ---
 
 ## let/const vs var（var 的三個坑）
@@ -212,6 +236,17 @@ for (let i = 0; i < 3; i++) setTimeout(() => console.log(i));   // 0 1 2
 - **能不能重新賦值** → 不能用 `const`、要就 `let`。
 - **const 鎖的是「綁定」不是「內容」** → 物件/陣列內容照樣可改。
 - **var 有函式作用域 + 提升 + 可重複宣告三個坑** → 現代別用。
+
+---
+
+## 資料來源（含查證時間）
+
+| 主題 | 連結 | 版本／時間 |
+|---|---|---|
+| 「為什麼陣列要用 const 宣告」Gemini 語音對話 | https://gemini.google.com/app/a043276b763882f4 | Gemini Flash，2026-09-17 擷取 |
+| MDN — const（綁定不可重新賦值，但值可變） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const | MDN 現行版本，2026-09-17 查證 |
+| MDN — let | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let | MDN 現行版本，2026-09-17 查證 |
+| ECMA-262 — Declarations and the Variable Statement | https://tc39.es/ecma262/#sec-declarations-and-the-variable-statement | ECMAScript 現行草案，2026-09-17 查證 |
 
 ---
 

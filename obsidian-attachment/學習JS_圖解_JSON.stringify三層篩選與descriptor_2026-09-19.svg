@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="900" height="600" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">
+  <rect x="0" y="0" width="900" height="600" fill="#fdfcfa"/>
+  <text x="450" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="#1f2937">JSON.stringify 的三層篩選漏斗</text>
+  <text x="450" y="62" text-anchor="middle" font-size="14" fill="#6b7280">property descriptor 的 enumerable 與 get 就卡在這條管線上</text>
+
+  <!-- 入口 -->
+  <rect x="60" y="88" width="560" height="62" rx="8" fill="#e8edf5" stroke="#5b7ba8" stroke-width="2"/>
+  <text x="340" y="112" text-anchor="middle" font-size="15" font-weight="700" fill="#24405f">輸入：物件的所有 own property（自有屬性，不含原型鏈）</text>
+  <text x="340" y="134" text-anchor="middle" font-size="13" fill="#3f5a7d">Object.getOwnPropertyNames + Object.getOwnPropertySymbols 看得到的全部</text>
+
+  <path d="M340 150 L340 178" stroke="#5b7ba8" stroke-width="2"/>
+  <path d="M334 172 L340 182 L346 172 Z" fill="#5b7ba8"/>
+
+  <!-- 篩選 1 -->
+  <rect x="110" y="182" width="460" height="58" rx="8" fill="#fbeee6" stroke="#c97b4a" stroke-width="2"/>
+  <text x="340" y="205" text-anchor="middle" font-size="15" font-weight="700" fill="#8a4f28">篩選 a：鍵必須是字串鍵</text>
+  <text x="340" y="226" text-anchor="middle" font-size="13" fill="#8a4f28">Symbol 鍵一律丟掉，連 replacer 都看不到它</text>
+  <text x="600" y="215" font-size="13" fill="#a33">→ 丟棄 Symbol 鍵</text>
+
+  <path d="M340 240 L340 268" stroke="#5b7ba8" stroke-width="2"/>
+  <path d="M334 262 L340 272 L346 262 Z" fill="#5b7ba8"/>
+
+  <!-- 篩選 2 -->
+  <rect x="140" y="272" width="400" height="58" rx="8" fill="#fbeee6" stroke="#c97b4a" stroke-width="2"/>
+  <text x="340" y="295" text-anchor="middle" font-size="15" font-weight="700" fill="#8a4f28">篩選 b：descriptor 的 enumerable 必須為 true</text>
+  <text x="340" y="316" text-anchor="middle" font-size="13" fill="#8a4f28">這一關跟 Object.keys、for...in 用的是同一把尺</text>
+  <text x="600" y="305" font-size="13" fill="#a33">→ 丟棄 enumerable:false</text>
+
+  <path d="M340 330 L340 358" stroke="#5b7ba8" stroke-width="2"/>
+  <path d="M334 352 L340 362 L346 352 Z" fill="#5b7ba8"/>
+
+  <!-- 篩選 3 -->
+  <rect x="170" y="362" width="340" height="74" rx="8" fill="#fbeee6" stroke="#c97b4a" stroke-width="2"/>
+  <text x="340" y="385" text-anchor="middle" font-size="15" font-weight="700" fill="#8a4f28">篩選 c：讀值，值必須是可序列化型別</text>
+  <text x="340" y="405" text-anchor="middle" font-size="13" fill="#8a4f28">accessor 的 get 在這一刻被真的呼叫一次</text>
+  <text x="340" y="424" text-anchor="middle" font-size="13" fill="#8a4f28">值若有 toJSON，改用 toJSON() 的回傳值</text>
+  <text x="600" y="399" font-size="13" fill="#a33">→ 丟棄 undefined</text>
+  <text x="600" y="418" font-size="13" fill="#a33">→ 丟棄 function 與 symbol</text>
+
+  <path d="M340 436 L340 464" stroke="#5b7ba8" stroke-width="2"/>
+  <path d="M334 458 L340 468 L346 458 Z" fill="#5b7ba8"/>
+
+  <!-- 出口 -->
+  <rect x="200" y="468" width="280" height="56" rx="8" fill="#e3efe6" stroke="#4b8b5f" stroke-width="2"/>
+  <text x="340" y="492" text-anchor="middle" font-size="15" font-weight="700" fill="#2c5a3b">輸出：一段 JSON 字串</text>
+  <text x="340" y="512" text-anchor="middle" font-size="13" fill="#2c5a3b">descriptor 本身沒有被寫進去，只有當下的值</text>
+
+  <!-- 右側 descriptor 說明 -->
+  <rect x="630" y="88" width="240" height="250" rx="10" fill="#f4f1fa" stroke="#7a6aa8" stroke-width="2"/>
+  <text x="750" y="114" text-anchor="middle" font-size="14" font-weight="700" fill="#4a3d78">Property Descriptor</text>
+  <text x="646" y="140" font-size="12.5" fill="#3f3568">Data Descriptor（資料描述符）</text>
+  <text x="656" y="160" font-size="12.5" fill="#5a4f85">value      值本身</text>
+  <text x="656" y="179" font-size="12.5" fill="#5a4f85">writable   能不能被覆寫</text>
+  <text x="646" y="205" font-size="12.5" fill="#3f3568">Accessor Descriptor（存取描述符）</text>
+  <text x="656" y="225" font-size="12.5" fill="#5a4f85">get        讀取時攔截</text>
+  <text x="656" y="244" font-size="12.5" fill="#5a4f85">set        寫入時攔截</text>
+  <text x="646" y="270" font-size="12.5" fill="#3f3568">兩種共用</text>
+  <text x="656" y="290" font-size="12.5" fill="#b05a2a">enumerable  能不能被列舉 ★</text>
+  <text x="656" y="309" font-size="12.5" fill="#5a4f85">configurable 能不能刪除或改設定</text>
+  <text x="646" y="330" font-size="11.5" fill="#8a2f2f">★ 這一格直接決定 JSON 看不看得到</text>
+
+  <rect x="630" y="352" width="240" height="172" rx="10" fill="#fff6e8" stroke="#c9a14a" stroke-width="2"/>
+  <text x="750" y="378" text-anchor="middle" font-size="14" font-weight="700" fill="#7a5c14">兩個互斥組合</text>
+  <text x="646" y="402" font-size="12.5" fill="#7a5c14">同一個 descriptor 裡</text>
+  <text x="646" y="422" font-size="12.5" fill="#7a5c14">get / set 不能跟</text>
+  <text x="646" y="442" font-size="12.5" fill="#7a5c14">value / writable 同時出現</text>
+  <text x="646" y="468" font-size="12.5" fill="#a33">否則丟 TypeError：</text>
+  <text x="646" y="488" font-size="11" fill="#a33">Cannot both specify accessors</text>
+  <text x="646" y="504" font-size="11" fill="#a33">and a value or writable attribute</text>
+
+  <text x="450" y="570" text-anchor="middle" font-size="12" fill="#9ca3af">出處：ECMA-262 SerializeJSONProperty / MDN JSON.stringify｜繪製 2026-09-19</text>
+</svg>

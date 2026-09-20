@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 700" width="960" height="700" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">
+  <rect x="0" y="0" width="960" height="700" fill="#fdfcfa"/>
+  <text x="480" y="34" text-anchor="middle" font-size="21" font-weight="700" fill="#1f2937">把一個 key 放進物件的兩條路：賦值語意 vs 定義語意</text>
+  <text x="480" y="56" text-anchor="middle" font-size="13" fill="#6b7280">流程圖符號依 ISO 5807：六邊形＝初始化，平行四邊形＝資料，矩形＝處理，菱形＝判斷，雙邊線矩形＝副流程，圓形＝連接點</text>
+
+  <!-- 六邊形 初始化 -->
+  <path d="M340 80 L620 80 L648 108 L620 136 L340 136 L312 108 Z" fill="#e8edf5" stroke="#5b7ba8" stroke-width="2"/>
+  <text x="480" y="104" text-anchor="middle" font-size="14" font-weight="700" fill="#24405f">初始化：手上有一個物件 obj</text>
+  <text x="480" y="124" text-anchor="middle" font-size="13" fill="#3f5a7d">要放入 key = "__proto__"，value = { hacked: 1 }</text>
+
+  <path d="M480 136 L480 164" stroke="#5b7ba8" stroke-width="2"/><path d="M474 158 L480 168 L486 158 Z" fill="#5b7ba8"/>
+
+  <!-- 平行四邊形 資料 -->
+  <path d="M360 168 L640 168 L610 212 L330 212 Z" fill="#f4f1fa" stroke="#7a6aa8" stroke-width="2"/>
+  <text x="485" y="196" text-anchor="middle" font-size="13.5" fill="#4a3d78">資料來源：字面值、使用者輸入、或一段 JSON 文字</text>
+
+  <path d="M480 212 L480 240" stroke="#5b7ba8" stroke-width="2"/><path d="M474 234 L480 244 L486 234 Z" fill="#5b7ba8"/>
+
+  <!-- 菱形 判斷 -->
+  <path d="M480 244 L680 314 L480 384 L280 314 Z" fill="#fff6e8" stroke="#c9a14a" stroke-width="2"/>
+  <text x="480" y="308" text-anchor="middle" font-size="14" font-weight="700" fill="#7a5c14">用哪一種內部方法寫入？</text>
+  <text x="480" y="330" text-anchor="middle" font-size="12.5" fill="#7a5c14">[[Set]] 還是 [[DefineOwnProperty]]</text>
+
+  <text x="240" y="300" font-size="13" font-weight="700" fill="#8a4f28">[[Set]] 賦值</text>
+  <path d="M280 314 L180 314 L180 400" stroke="#c9a14a" stroke-width="2" fill="none"/><path d="M174 394 L180 404 L186 394 Z" fill="#c9a14a"/>
+
+  <text x="700" y="300" font-size="13" font-weight="700" fill="#2c5a3b">[[DefineOwnProperty]] 定義</text>
+  <path d="M680 314 L790 314 L790 400" stroke="#c9a14a" stroke-width="2" fill="none"/><path d="M784 394 L790 404 L796 394 Z" fill="#c9a14a"/>
+
+  <!-- 左：處理 矩形 -->
+  <rect x="40" y="404" width="280" height="86" rx="4" fill="#fbeee6" stroke="#c97b4a" stroke-width="2"/>
+  <text x="180" y="428" text-anchor="middle" font-size="13.5" font-weight="700" fill="#8a4f28">處理：沿原型鏈找有沒有 setter</text>
+  <text x="180" y="450" text-anchor="middle" font-size="12.5" fill="#8a4f28">obj.__proto__ = v</text>
+  <text x="180" y="470" text-anchor="middle" font-size="12.5" fill="#8a4f28">找到 Object.prototype 上的 __proto__ setter</text>
+
+  <path d="M180 490 L180 518" stroke="#c97b4a" stroke-width="2"/><path d="M174 512 L180 522 L186 512 Z" fill="#c97b4a"/>
+
+  <!-- 左：副流程 雙邊線矩形 -->
+  <rect x="40" y="522" width="280" height="72" rx="4" fill="#fbe3e3" stroke="#b04a4a" stroke-width="2"/>
+  <line x1="52" y1="522" x2="52" y2="594" stroke="#b04a4a" stroke-width="2"/>
+  <line x1="308" y1="522" x2="308" y2="594" stroke="#b04a4a" stroke-width="2"/>
+  <text x="180" y="548" text-anchor="middle" font-size="13.5" font-weight="700" fill="#7a2f2f">副流程：SetPrototypeOf</text>
+  <text x="180" y="570" text-anchor="middle" font-size="12.5" fill="#7a2f2f">原型真的被換掉，沒有產生 own property</text>
+  <text x="180" y="588" text-anchor="middle" font-size="12" fill="#7a2f2f">這就是 prototype pollution 的入口</text>
+
+  <!-- 右：處理 矩形 -->
+  <rect x="650" y="404" width="280" height="86" rx="4" fill="#e3efe6" stroke="#4b8b5f" stroke-width="2"/>
+  <text x="790" y="428" text-anchor="middle" font-size="13.5" font-weight="700" fill="#2c5a3b">處理：不看原型鏈，直接刻一格</text>
+  <text x="790" y="450" text-anchor="middle" font-size="12.5" fill="#2c5a3b">JSON.parse 內部用 CreateDataProperty</text>
+  <text x="790" y="470" text-anchor="middle" font-size="12.5" fill="#2c5a3b">Object.defineProperty 走的也是這條</text>
+
+  <path d="M790 490 L790 518" stroke="#4b8b5f" stroke-width="2"/><path d="M784 512 L790 522 L796 512 Z" fill="#4b8b5f"/>
+
+  <!-- 右：副流程 -->
+  <rect x="650" y="522" width="280" height="72" rx="4" fill="#dff0e6" stroke="#2c7a4b" stroke-width="2"/>
+  <line x1="662" y1="522" x2="662" y2="594" stroke="#2c7a4b" stroke-width="2"/>
+  <line x1="918" y1="522" x2="918" y2="594" stroke="#2c7a4b" stroke-width="2"/>
+  <text x="790" y="548" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1f5c38">副流程：CreateDataPropertyOrThrow</text>
+  <text x="790" y="570" text-anchor="middle" font-size="12.5" fill="#1f5c38">產生一個貨真價實的 own property "__proto__"</text>
+  <text x="790" y="588" text-anchor="middle" font-size="12" fill="#1f5c38">原型沒有被動到，JSON.parse 本身是安全的</text>
+
+  <!-- 連接點 -->
+  <circle cx="480" cy="630" r="22" fill="#e8edf5" stroke="#5b7ba8" stroke-width="2"/>
+  <text x="480" y="636" text-anchor="middle" font-size="13" font-weight="700" fill="#24405f">A</text>
+  <path d="M320 558 L440 558 L440 616" stroke="#9ca3af" stroke-width="1.6" fill="none" stroke-dasharray="4 3"/>
+  <path d="M650 558 L520 558 L520 616" stroke="#9ca3af" stroke-width="1.6" fill="none" stroke-dasharray="4 3"/>
+  <text x="480" y="678" text-anchor="middle" font-size="12.5" fill="#4b5563">真正的風險在 A 之後：拿 JSON.parse 的結果去做遞迴 merge 時若用賦值，就掉回左邊那條路</text>
+  <text x="480" y="695" text-anchor="middle" font-size="11.5" fill="#9ca3af">出處：ECMA-262 InternalizeJSONProperty / OrdinarySetWithOwnDescriptor｜繪製 2026-09-19</text>
+</svg>
