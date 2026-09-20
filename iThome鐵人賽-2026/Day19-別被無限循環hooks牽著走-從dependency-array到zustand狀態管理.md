@@ -39,20 +39,31 @@ const MyComponent = ({ user }) => {
   }, [user]);  // ← 危險！user 是物件參考
 };
 
-// 為什麼會無限循環？
-// 1. MyComponent render → user 是新物件 { id: "123" }
+// 為什麼會無限循環？根本原因是「物件參考」
+// 
+// 一句話解釋：
+// user 是物件（參考型別），每次 render 都會新建一個物件，
+// 即使內容相同（都是 { id: "123" }），但它們佔用不同的記憶體位址。
+// useEffect 的依賴陣列會淺比較 user，比較的是「記憶體地址是否相同」，不是「內容是否相同」。
+// 因為地址不同，useEffect 認為 user「改變了」，於是重新執行。
+//
+// 詳細流程：
+// 1. 第一次 render：MyComponent 被呼叫 → 新建 user 物件（記憶體地址 0x1234）
 // 2. useEffect 執行 → fetch 資料 → setProfile
-// 3. setProfile → 組件重新 render
-// 4. 新的 user 物件被建立，但即使內容相同，參考也不同
-// 5. useEffect 看到 user 改變了（參考級別），再執行一次
-// 6. 迴圈開始...
+// 3. setProfile 觸發 re-render → MyComponent 再次被呼叫
+// 4. 第二次 render：新建新的 user 物件（記憶體地址 0x5678）← 地址改了！
+// 5. useEffect 淺比較：舊的 user (0x1234) ≠ 新的 user (0x5678)
+// 6. useEffect 認為 user 改變了，重新執行
+// 7. 無限迴圈...
 
 // ✅ 修正：用 user.id 而不是 user
 useEffect(() => {
   fetch(`/api/profiles/${user.id}`)
     .then(r => r.json())
     .then(setProfile);
-}, [user.id]);  // ← 基本型別，比較的是值而不是參考
+}, [user.id]);  
+// ← 基本型別（string/number），比較的是「值」而不是「記憶體地址」
+//   user.id = "123" 每次都是同一個值，所以 useEffect 認為沒改變
 ```
 
 ### 死法二：setState 觸發的新物件
