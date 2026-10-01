@@ -25,7 +25,9 @@ related:
   - "[[script載入方式+前因後果]]"
 sources:
   - https://gemini.google.com/app/1f474e0298a19e6b
-updated: 2026-08-14
+  - https://gemini.google.com/app/d3170a12b286f9b1
+  - https://gemini.google.com/app/3adc7c0aa29f8a2d
+updated: 2026-09-25
 ---
 
 # DNS 查詢、TCP 與 TLS 握手 RTT、邊緣節點與網頁效能
@@ -33,7 +35,7 @@ updated: 2026-08-14
 > 與 [[CloudFront-CDN概念與快取失效Invalidation]] 相關的原因：那篇談的是 CDN「快取內容」與「失效機制」的操作面，這篇補上它「為什麼會快」的物理層原因（光纖傳輸距離與 RTT），兩篇合看才會知道 CDN 省下的到底是什麼成本。
 > 與 [[Cookie-與-Session]] 相關的原因：那篇談 HTTP 之上的狀態管理，這篇談 HTTP 之下的連線建立（TCP＋TLS），是同一條請求路徑的上下兩層。
 
-**本篇重點 a–t，共 20 個。**
+**本篇重點 a–y，共 25 個。**（2026-09-21 由 Gemini 對話補入 (u)(v)(w)(x)：TCP Slow Start 慢啟動；2026-09-25 補入 (y)：三向握手正名）
 
 ## 重點整理
 
@@ -106,7 +108,7 @@ updated: 2026-08-14
 └──【公路 B (全新獨立通道)】───> other.com       (圖片 a.jpg，需重做 DNS + TCP + TLS)
 ```
 
-### 五、TCP 三向握手與 TLS 握手各需幾個 RTT
+### 五、TCP 三向握手、TLS 握手各需幾個 RTT，以及握完手之後的慢啟動
 
 > [!info] 什麼是 RTT
 > <mark style="background: #ADCCFFA6;">RTT（Round Trip Time，往返時間）</mark>＝封包從瀏覽器發出、到達伺服器、再傳回瀏覽器的一整趟來回時間。
@@ -131,6 +133,130 @@ Client (瀏覽器)                                Server (伺服器)
 
 > [!warning] 跨域為什麼慢
 > 即使用 TLS 1.3，載入跨域資源仍要重付 2 個 RTT（TCP 1＋TLS 1）。跨國傳輸若 1 RTT＝150 ms，<mark style="background: #FF5582A6;">光是連線建立就白白浪費 300 ms</mark>。
+
+#### 五之一之補、SYN、ACK 這些縮寫到底是什麼意思（2026-09-22 補充）
+
+上面那張圖寫了 `SYN → SYN-ACK → ACK`，但那三個字其實是三個**旗標位元（flag bits）**，不是三種特別的封包。
+
+##### 先認字
+
+| 縮寫 | 全名 | 中文 | 這一位元設成 1 代表 |
+|---|---|---|---|
+| <mark style="background: #FFF3A3A6;">**SYN**</mark> | **Syn**chronize | 同步 | 「我要建立連線，並且同步序號」 |
+| <mark style="background: #FFF3A3A6;">**ACK**</mark> | **Ack**nowledge | 確認 | 「我確認收到你到某個序號為止的資料」 |
+| **FIN** | **Fin**ish | 結束 | 「我沒有資料要再傳了」（正常關閉用） |
+| **RST** | **R**e**s**e**t** | 重設 | 「這個連線有問題，立刻砍掉」（異常中斷用） |
+| **PSH** | **P**u**sh** | 推送 | 「別再等緩衝區裝滿了，馬上交給應用程式」 |
+
+<mark style="background: #FF5582A6;">所以「SYN-ACK」不是一種新的封包類型，它是**同一個封包裡把 SYN 和 ACK 兩個位元同時設成 1**。</mark>它在一次傳輸裡同時說了兩句話：「我同意建立連線」＋「我確認收到你剛剛那個」。
+
+##### 三個步驟各自在說什麼
+
+```
+  Client                                        Server
+    |                                             |
+    |──── ① SYN, seq=x ─────────────────────────>|
+    |     「我要連線，我這邊的序號從 x 開始」            |
+    |                                             |
+    |<─── ② SYN + ACK, seq=y, ack=x+1 ───────────|
+    |     「我同意。我的序號從 y 開始，                 |
+    |       而且我確認收到你的 x，下一個請給我 x+1」     |
+    |                                             |
+    |──── ③ ACK, ack=y+1 ───────────────────────>|
+    |     「我確認收到你的 y，下一個請給我 y+1」         |
+    |                                             |
+    |════ 連線建立，開始傳資料 ═══════════════════>|
+```
+
+白話講 `seq` 與 `ack` 這兩個數字：
+
+- **`seq`（Sequence Number，序號）**：我送出的這批資料，第一個位元組的編號是幾號。
+
+- **`ack`（Acknowledgment Number，確認號）**：我已經收到你到某個編號為止的資料，**下一個請從這個號碼開始給我**。
+
+<mark style="background: #BBFABBA6;">這兩個數字就是 TCP 能「可靠傳輸」的關鍵</mark>——有了編號，封包就算亂序抵達也能重新排好，掉了哪一段也算得出來，該重傳哪一段一目了然。這也是為什麼前面說封包會被切開、順序可能錯亂，但你的 HTML 最後還是完整的。
+
+##### 為什麼非要三次？兩次不行嗎
+
+這是經典面試題，關鍵在<mark style="background: #FFF3A3A6;">「**雙向**都要確認對方收得到」</mark>。
+
+| 步驟 | 完成後，誰確定了什麼 |
+|---|---|
+| ① SYN | **Server 知道**：Client 能發送，而且想連線 |
+| ② SYN-ACK | **Client 知道**：Server 收到了我的請求，而且 Server 也能發送 |
+| ③ ACK | <mark style="background: #FF5582A6;">**Server 才知道**：Client 收到了我的回應</mark> |
+
+<mark style="background: #FF5582A6;">少了第三步，Server 永遠不知道自己那個 SYN-ACK 有沒有送到。</mark>它會處於「我以為連線建立了，但對方可能根本沒收到」的狀態——如果 SYN-ACK 在路上掉了，Server 會傻等一個永遠不會來的請求，而 Client 完全不知道有連線存在。
+
+（延伸：TCP 關閉連線需要**四次**（FIN → ACK → FIN → ACK），因為兩個方向要分別關閉，一邊說完了另一邊可能還有資料要傳。）
+
+##### 順便協商了什麼：MSS 就是在這裡決定的
+
+握手不只是打招呼，<mark style="background: #FFB86CA6;">雙方會在 SYN 與 SYN-ACK 的**選項欄位（TCP Options）**裡交換參數</mark>：
+
+| 協商的參數 | 全名 | 作用 |
+|---|---|---|
+| <mark style="background: #BBFABBA6;">**MSS**</mark> | Maximum Segment Size | <mark style="background: #BBFABBA6;">一個封包最多能裝多少資料</mark>，雙方各報一個，**取小的那個** |
+| **Window Scale** | 窗口縮放因子 | 讓接收窗口能超過 65535 bytes 的上限，高頻寬連線必要 |
+| **SACK Permitted** | Selective Acknowledgment | 支援「選擇性確認」，掉包時只重傳缺的那段而不是全部重來 |
+| **Timestamps** | 時間戳 | 用來量測 RTT 與判斷封包新舊 |
+
+<mark style="background: #FF5582A6;">**這一格解答了一個之前留著的問題：「MSS 約 1460 bytes」這個數字從哪來的？**</mark>
+
+答案是：**它不是寫死的常數，是每次連線在三向握手時協商出來的結果。**
+
+流程是這樣：
+
+- a. 雙方各自算出自己這邊能接受的 MSS（通常是 `本地 MTU − 40`，以太網路就是 `1500 − 20（IP 標頭）− 20（TCP 標頭）= 1460`）
+- b. 在 SYN／SYN-ACK 裡互相告知
+- c. <mark style="background: #BBFABBA6;">實際採用**兩者中較小的那個**</mark>
+
+所以如果中間經過 VPN 或某些隧道（它們會加自己的標頭，壓縮可用空間），MSS 就會小於 1460，你的 HTML 會被切成更多包。這也是為什麼「1460」要講成「**典型值**」而不是定值。
+
+> [!tip] 想親眼看到這三個封包
+> Chrome DevTools 的 Network 面板**看不到**這一層，它最細只到「一個 HTTP 請求」。
+> 要看到 SYN／SYN-ACK／ACK 三個實際封包、以及 Options 欄位裡協商的 MSS 數字，工具是 **Wireshark**（封包分析器）。抓一次連線，在過濾欄打 `tcp.flags.syn == 1` 就只會留下握手的封包。
+
+#### 五之二、握完手還不會全速：TCP Slow Start（慢啟動）
+
+(u) <mark style="background: #ADCCFFA6;">TCP Slow Start（慢啟動）是一套避免網路擁塞的發送速率控制機制</mark>
+　　它解決的問題是：連線剛建立時，伺服器並不知道中間這條路徑能吃多少資料量
+　　　　若一開始就全速送，中途的路由器來不及處理就會丟封包（Packet Loss），反而更慢
+　　所以它的哲學是<mark style="background: #FFF3A3A6;">「先用小流量試水溫，再指數級加速」</mark>
+
+(v) 誰用什麼控制什麼：<mark style="background: #BBFABBA6;">發送端（伺服器）維護一個叫「擁塞視窗」（CWND，Congestion Window）的計數器 → CWND 決定「還沒收到 ACK 之前，最多能在路上放幾個封包」 → 每收到接收端回來的 ACK 就把 CWND 放大 → 放大到門檻或丟包為止</mark>
+
+| 項目 | 全名與中文 | 這個值在做什麼 | 典型數值 |
+|---|---|---|---|
+| CWND | Congestion Window，擁塞視窗 | 發送端自己算出來的「路上最多能放幾個封包」 | 初始 10 個 MSS（約 14 KB） |
+| RWND | Receive Window，接收視窗 | 接收端告訴發送端「我的緩衝區還吃得下多少」 | 由接收端在 TCP 標頭回報 |
+| ssthresh | Slow Start Threshold，慢啟動門檻 | 指數成長的煞車點，超過就換成線性成長 | 動態調整，丟包時被下修 |
+| MSS | Maximum Segment Size，最大區段大小 | 一個 TCP 區段能裝的最大位元組數 | 乙太網路典型 1460 bytes |
+
+> [!note] 實際送出量＝min(CWND, RWND)
+> 發送端每一輪能送的量取兩個視窗的<mark style="background: #ADCCFFA6;">最小值</mark>：CWND 是「怕塞車」（網路狀況），RWND 是「怕爆倉」（接收端處理能力）。慢啟動只管 CWND 這一邊。
+
+(w) 成長節奏：<mark style="background: #FFF3A3A6;">每經過 1 個 RTT，CWND 大致加倍（指數成長）</mark>
+
+```text
+第 1 輪 RTT：送 10 個封包  ──收到 ACK──>
+第 2 輪 RTT：送 20 個封包  ──收到 ACK──>
+第 3 輪 RTT：送 40 個封包  ──收到 ACK──>
+第 4 輪 RTT：送 80 個封包 ……
+```
+<mark style="background: #FF5582A6;">名字叫「Slow」是指「起步點很低」，不是指「成長很慢」</mark>——它其實是 2 的次方在飆。
+
+(x) 兩種結束方式，對應兩種後果：
+
+| 結束原因 | 發生了什麼 | CWND 接下來怎麼走 |
+|---|---|---|
+| CWND 達到 ssthresh | 指數成長踩煞車 | 進入擁塞避免（Congestion Avoidance），改成每 RTT 只加 1 個 MSS 的線性成長 |
+| 偵測到封包遺失 | 路由器塞車、封包被丟 | 下修 ssthresh，並大幅縮減 CWND 重新試探（詳見下方存疑欄的 Reno 行為） |
+
+> [!warning] 這件事怎麼咬到網頁效能
+> (1) <mark style="background: #FF5582A6;">小檔案吃不到你家的大頻寬</mark>：幾 KB 的 CSS／JS 可能在 CWND 還沒長大前就傳完了，頻寬根本沒用到。
+> (2) <mark style="background: #FFB8EBA6;">每加速一級都要等 1 個 RTT</mark>，所以跨國高延遲線路上，慢啟動的代價會被 RTT 放大——這正好接回上面 (r)(s) 的 RTT 計算。
+> (3) 現代的解法是<mark style="background: #BBFABBA6;">不要一直重開新連線</mark>：HTTP Keep-Alive／HTTP/2 多路複用讓同一條已經「暖起來」（CWND 已長大）的連線繼續用；HTTP/3（QUIC）則用 0-RTT 恢復與連線遷移，減少重來一次的次數。
 
 ### 六、封包（Packet）與 Socket 的差別
 
@@ -197,6 +323,10 @@ TLS 與 SSL 是新舊代關係：SSL 由 Netscape 於 1990 年代開發（1.0／
 4. CDN 的邊緣機房術語縮寫是 ||PoP（Point of Presence）||。
 5. 提前完成跨域 DNS 與 TLS 連線的 HTML 標籤屬性是 ||rel="preconnect"||。
 6. Socket 的中文正式譯名是 ||套接字||。
+7. 慢啟動裡控制「路上最多能放幾個封包」的變數叫 ||CWND（Congestion Window，擁塞視窗）||。
+8. RFC 6928 之後，CWND 的初始值建議是 ||10 個 MSS（約 14 KB）||。
+9. CWND 漲到 ||ssthresh（Slow Start Threshold，慢啟動門檻）|| 之後，就從指數成長改成線性成長。
+10. 發送端每一輪真正能送的量，是 CWND 與 ||RWND（Receive Window，接收視窗）|| 取最小值。
 
 ### 是非題
 
@@ -204,13 +334,27 @@ TLS 與 SSL 是新舊代關係：SSL 由 Netscape 於 1990 年代開發（1.0／
 2. HTTP/2 時代仍建議把資源分散到多個子網域以增加並行下載。 → ||✗ 錯。那是 HTTP/1.1 時代的 Domain Sharding。HTTP/2 之後最佳實踐反轉為盡量維持單一網域，靠多路複用併發。||
 3. 封包和 Socket 講的是同一件事。 → ||✗ 錯。封包是在網路上流動的資料單元，Socket 是 OS 提供給程式的通訊端點介面。||
 4. TLS 1.3 的 0-RTT 只在「曾經連過該伺服器、手上有 Session Key」時才能使用。 → ||✓ 對。0-RTT 是 Resumption（恢復連線）機制，首次連線用不到。||
+5. Slow Start 的「Slow」是指傳輸速度成長得很慢。 → ||✗ 錯。Slow 指的是「起步的 CWND 很小」，成長本身是每個 RTT 加倍的指數成長，一點都不慢。||
+6. 只要頻寬夠大，下載一個 5 KB 的 CSS 檔就能跑滿頻寬。 → ||✗ 錯。連線剛建立時 CWND 只有約 14 KB，小檔案往往在 CWND 長大之前就傳完了，根本來不及用到大頻寬。||
+7. 換成 HTTP/3（QUIC）之後就完全沒有慢啟動了。 → ||✗ 錯。QUIC 自己也有擁塞控制與慢啟動（RFC 9002）。QUIC 省掉的是「TCP＋TLS 分開握手」的 RTT，以及靠 0-RTT 恢復少重來幾次，不是取消慢啟動。||
 
 ### 申論題
 
 1. 你的網站首頁引用了 5 個不同網域的第三方資源（字型、圖床、廣告、GA、地圖）。假設使用者在台灣、這些網域都只有美國源站、1 RTT＝150 ms 且全部使用 TLS 1.3。請估算光是「建立連線」這件事就多花了多少時間，並提出兩種改善方向。
 2. 為什麼說「雙向綁定裡的 Model 是前端記憶體，跟資料庫無關」與「TCP 公路是 Client 與 Server 之間建立」這兩件事，其實反映的是同一個觀念（前後端是兩個完全隔離的記憶體空間）？
+3. 有人主張「把首屏 critical CSS 壓在 14 KB 以內」。請用 (u)～(x) 的 CWND 初始值與 RTT 概念說明這個數字是怎麼來的，並說明在 1 RTT＝150 ms 的跨國線路上，超出 14 KB 會多付出什麼代價。
+
+(y) <mark style="background: #ADCCFFA6;">正名：叫「三向握手」或「三次握手」比「三方握手」精確</mark>——TCP 連線建立自始至終只有 Client、Server 兩個參與者，「三」指的是「三個步驟／三次訊息往返」（SYN → SYN-ACK → ACK），不是有第三方參與。中文若說成「三方握手」容易讓人誤以為多了一個第三方角色，因此技術討論建議統一用「三向」或「三次」。
+
+---
 
 ## 各對話來源（原文摘要）
+
+### 追加 2026-09-25（三向握手 vs 三方握手正名）— https://gemini.google.com/app/3adc7c0aa29f8a2d
+
+**使用者：** 只有伺服器跟客戶端，哪裡來的第三方？
+
+**Gemini：** Three-way Handshake 的「三」指三個步驟／三次訊息往返，不是三個參與者；全程只有 Client 與 Server 兩方。中文建議譯為「三向握手」或「三次握手」，避免「三方握手」造成誤解。
 
 ### DNS 查詢與網頁效能優化（2026-08）— https://gemini.google.com/app/1f474e0298a19e6b
 
@@ -242,6 +386,20 @@ Gemini：以「信件 vs 郵筒」比喻區分封包與 Socket，並說明 TLS �
 
 Gemini：釐清 Client 與 Server 的角色分工，說明「你的電腦」指的是任一訪客的裝置，公路是每位訪客連線當下才動態建立的。整合進上方第八節。
 
+### TCP Slow Start 慢啟動（2026-09-21 擷取）— https://gemini.google.com/app/d3170a12b286f9b1
+
+使用者：用中文解釋（承接前一則關於 TCP Slow Start 的英文說明）
+
+Gemini：TCP Slow Start（慢啟動）是一種為了防止網路擁塞而採取的資料傳輸機制，核心哲學是在不確定網路狀況時，先從小流量開始測試，再快速提升傳輸速度。
+
+1. 為什麼需要：客戶端與伺服器剛建立 TCP 連線時，伺服器並不知道中間的網路路徑能承受多少資料量。如果一開始就以最大頻寬全力發送，很容易造成網路路由器來不及處理而丟包（Packet Loss），導致嚴重的網路卡頓。
+
+2. 運作原理：伺服器會維護一個稱為「擁塞視窗」（Congestion Window, CWND）的數值，代表一次可以發送的資料包數量。早期規範 CWND 從 1 個封包開始，現今標準（如 RFC 6928）大多從 10 個封包（約 14 KB）開始。伺服器每收到一輪客戶端回傳的確認訊號（ACK），就會將 CWND 的大小加倍：第 1 輪 RTT 發送 10 個封包、第 2 輪 20 個、第 3 輪 40 個、第 4 輪 80 個。名字雖然叫 Slow，指的是起步時流量很小，但實際上傳輸速度是以 2 的次方呈指數級快速飆升。
+
+3. 何時結束 Slow Start：(a) 達到慢啟動門檻 ssthresh 時，切換到擁塞避免（Congestion Avoidance）階段，不再以 2 倍暴增，改成每輪只增加 1 個封包的線性平緩增長；(b) 發生封包遺失時，伺服器會重新調整門檻（ssthresh），並大幅縮減 CWND，重新調整發送節奏。
+
+4. 對網頁載入速度的影響：小檔案無法發揮全速，許多容量小的網頁元件（如幾 KB 的 CSS 或 JS 檔）可能在 Slow Start 還沒升到最大速度前就已經傳送完畢；由於每增加一次流量都需要等待一個往返時間（RTT），在高延遲的網路上（如跨國連線）連線建立初期會感覺較慢；現代 HTTP 協定採用 Keep-Alive（連線複用），或是基於 UDP 的 QUIC／HTTP/3，盡量減少重複建立 TCP 連線與重新經歷 Slow Start 的次數。
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／時間 |
@@ -251,12 +409,20 @@ Gemini：釐清 Client 與 Server 的角色分工，說明「你的電腦」指�
 | TLS 1.2 規範（RFC 5246） | https://www.rfc-editor.org/rfc/rfc5246 | RFC 發布 2008-08、查證日 2026-08-14 |
 | Resource Hints（dns-prefetch／preconnect）規範 | https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/preconnect | 查證日 2026-08-14 |
 | Populating the page 原文（web.dev／MDN 效能章節） | https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work | 查證日 2026-08-14 |
+| Gemini 對話原文（TCP Slow Start 慢啟動） | https://gemini.google.com/app/d3170a12b286f9b1 | 對話日期 2026-09、整理日 2026-09-21 |
+| RFC 5681：TCP Congestion Control（Slow Start、Congestion Avoidance、ssthresh 的規範定義） | https://www.rfc-editor.org/rfc/rfc5681 | RFC 發布 2009-09、查證日 2026-09-21 |
+| RFC 6928：Increasing TCP's Initial Window（初始 CWND 提高到 10 個 MSS 的依據） | https://www.rfc-editor.org/rfc/rfc6928 | RFC 發布 2013-04、查證日 2026-09-21 |
+| RFC 9002：QUIC Loss Detection and Congestion Control（QUIC 同樣有 Slow Start） | https://www.rfc-editor.org/rfc/rfc9002 | RFC 發布 2021-05、查證日 2026-09-21 |
+| MDN：TCP slow start 與 TTFB／效能的關係 | https://developer.mozilla.org/en-US/docs/Glossary/TCP_slow_start | 查證日 2026-09-21 |
 
 > [!warning] ⚠️ 存疑／提醒
 > (1) Gemini 說「TLS 1.2 需要 2 個 RTT」是<mark style="background: #FFF3A3A6;">標準完整握手</mark>的情況；實務上 TLS 1.2 若使用 <mark style="background: #D2B3FFA6;">False Start</mark> 或 <mark style="background: #D2B3FFA6;">Session Resumption</mark>，可縮短到 1 個 RTT，這點對話中沒有提到。
 > (2) 對話中提到的 IP 位址 93.184.216.34 是 example.com 的舊 IP，該網域已於 2025 年更換 IP 與託管方式，<mark style="background: #FFB8EBA6;">僅供理解範例，不要當現況引用</mark>。
 > (3) 「1 RTT＝150 ms」是台美跨國的典型量級，實際值依線路與時段變動很大，不是固定常數。
+> (4) <mark style="background: #FF5582A6;">Gemini 說「每收到一輪 ACK 就把 CWND 加倍」是簡化說法</mark>。RFC 5681 的實際規則是<mark style="background: #BBFABBA6;">每收到一個 ACK，CWND 就增加 1 個 MSS</mark>；因為一個 RTT 內會收到「整個視窗份量」的 ACK，加總起來的效果才近似於每 RTT 加倍。面試若被追問「為什麼是指數成長」，要答得出這個逐 ACK 累加的機制，而不是只背「加倍」。
+> (5) <mark style="background: #FF5582A6;">Gemini 說「丟包就大幅縮減 CWND」沒有分清楚兩種丟包</mark>。以 TCP Reno 為例：偵測到<mark style="background: #ADCCFFA6;">重複 ACK（Fast Retransmit）</mark>時，ssthresh 降為目前 CWND 的一半、CWND 進入快速恢復；但若是<mark style="background: #ADCCFFA6;">逾時（RTO Timeout）</mark>，CWND 會直接打回 1 個 MSS 重新慢啟動，代價大得多。另外現代 Linux 預設用的 <mark style="background: #D2B3FFA6;">CUBIC</mark>、Google 的 <mark style="background: #D2B3FFA6;">BBR</mark> 對丟包的反應都跟 Reno 不同，BBR 甚至不把丟包當成擁塞訊號。
+> (6) <mark style="background: #FFB8EBA6;">QUIC／HTTP-3 並沒有取消慢啟動</mark>：RFC 9002 明定 QUIC 也有 Slow Start 與 Congestion Avoidance。QUIC 真正省掉的是 TCP 與 TLS 分開握手的 RTT，以及靠 0-RTT 恢復與連線遷移減少「從頭再暖一次」的次數。
 
 ---
 
-由 Gemini 對話自動整理 · 更新於 2026-08-14
+由 Gemini 對話自動整理 · 更新於 2026-09-21

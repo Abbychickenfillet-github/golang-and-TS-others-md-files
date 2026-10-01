@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>物件 — configurable 這把鎖，與 Object.defineProperty 的實務用途</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>物件 — configurable 這把鎖，與 Object.defineProperty 的實務用途</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#物件</span><span class="pill">#property-descriptor</span><span class="pill">#configurable</span><span class="pill">#writable</span><span class="pill">#enumerable</span><span class="pill">#defineProperty</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-21</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/2e7949bbfd10a5aa" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/8df708d3627625d9" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">value、writable、enumerable、configurable 是 JavaScript 的保留字，所以不能拿來當一般變數名稱。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它們不是保留字，只是 Object.defineProperty 約定會去讀的四個 key 名稱。寫 const value = 1 完全合法。</div></li><li><p class="qq">把 configurable 設成 false 之後，這個屬性的值就再也改不了了。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">configurable 鎖的是「結構與規則」，不是值。只要 writable 還是 true，obj.a = 20 照樣成功。要鎖值得另外把 writable 設成 false。</div></li><li><p class="qq">configurable: false 之後，writable 還是可以從 true 改成 false。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這是兩個例外之一，但方向是單行道：只准往更嚴格走，false 改不回 true。</div></li><li><p class="qq">用 Object.defineProperty 新增一個屬性時，如果沒寫 enumerable，它的預設值是 true。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">預設是 false。三個布林欄位沒寫一律 false，跟 obj.a = 10 直接賦值（三個都 true）剛好相反，這是最常見的坑。</div></li><li><p class="qq">陣列的 length 屬性跟 Math.PI 一樣，都是 writable: false。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">⚠️ 這是本篇更正的地方。陣列 length 是 { writable: true, enumerable: false, configurable: false }，所以 arr.length = 0 合法，只是刪不掉。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Object.defineProperty 的第三個參數，正式名稱叫做屬性 <input class="blank" data-a="描述" placeholder="填答案" autocomplete="off"> 器（descriptor）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">property descriptor，描述器物件。</div></li><li><p class="qq">configurable: false 時，delete obj.prop 在嚴格模式下會丟出 <input class="blank" data-a="TypeError" placeholder="填答案" autocomplete="off"> 這個錯誤型別。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">非嚴格模式下不報錯，delete 只是靜靜回傳 false。</div></li><li><p class="qq">Math.PI 的三個布林欄位全是 <input class="blank" data-a="false" placeholder="填答案" autocomplete="off">，所以你既改不了 π 也刪不掉它。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">{ writable: false, enumerable: false, configurable: false }。</div></li><li><p class="qq">Vue <input class="blank" data-a="2" placeholder="填答案" autocomplete="off"> 的響應式系統就是用 Object.defineProperty 的 getter／setter 攔截讀寫實作的，Vue 3 已改用 Proxy。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">不要把 Vue 2、Vue 3、React 三者混為一談，React 從來就不是靠 defineProperty 追蹤狀態。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">為什麼實務專案裡幾乎看不到有人寫 Object.defineProperty？請說出「不用它的理由」與「非用它不可的三種場合」。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">不用的理由：日常業務邏輯根本沒有「屬性不可刪、不可列舉」這種需求，物件字面值 { a: 10 } 一行寫完而且一眼就懂，defineProperty 要多寫五行卻換來用不到的控制力。
+
+非用它不可的三種場合：
+（1）保護函式庫或框架的核心欄位，不希望使用者不小心 delete 掉或改壞設定，例如 Vue 2 的響應式系統用 getter／setter 攔截讀寫。
+（2）做出唯讀常數或受控更新的欄位，需要 writable: true 搭 configurable: false 這種混搭組合，值可以換但屬性不能被刪。
+（3）加上隱藏欄位不想污染列舉，讓 Object.keys 與 JSON.stringify 看不到它，例如內部快取或內部 id。
+
+另外引擎自己內建的屬性就是靠這四個欄位設定出來的，Math.PI 是最好的例子。</div></li><li><p class="qq">請用一句話說清楚 configurable 到底鎖住什麼，並舉出它放行的兩個例外。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">一句話：configurable 鎖的是「屬性的結構與規則」，不是「屬性的值」。
+
+鎖住的三件事：不能 delete、不能再用 defineProperty 改它的特徵（例如把 enumerable 從 false 改回 true）、不能在 data property 與 accessor property 之間互換。
+
+放行的兩個例外：
+（1）writable 可以從 true 改成 false，但不能從 false 改回 true，方向是單行道，只准往更嚴格走。
+（2）只要 writable 還是 true，obj.a = 20 這種一般賦值照樣成功。
+
+所以要把值也鎖死，必須另外把 writable 設成 false。</div></li></ol></section>
+
+<article class="card">
+<h1 id="configurable-objectdefineproperty">物件 — configurable 這把鎖，與 Object.defineProperty 的實務用途</h1>
+<p>本篇重點 a–n，共 14 個</p>
+<blockquote>
+<p>這篇補的是 <span class="wikilink" title="Obsidian 連結：物件-PropertyDescriptor完整拆解">物件-PropertyDescriptor完整拆解</span> 沒展開的兩個實務問題：<br />
+  一是「configurable 到底鎖住什麼」，二是「既然這麼精細，為什麼專案裡幾乎看不到有人寫 <code>Object.defineProperty</code>」。<br />
+關聯原因：那篇拆的是 descriptor 有哪幾個欄位（結構面），這篇問的是這些欄位鎖起來之後會發生什麼事（行為面），兩篇要對照看才完整。</p>
+</blockquote>
+<hr />
+<h2 id="configurable">一、主軸圖：configurable 擋住哪幾條路</h2>
+<p class="fig"><img src="../obsidian-attachment/%E5%AD%B8%E7%BF%92JS_%E5%9C%96%E8%A7%A3_configurable%E9%80%99%E6%8A%8A%E9%8E%96%E6%93%8B%E4%BD%8F%E5%93%AA%E5%B9%BE%E6%A2%9D%E8%B7%AF-ISO5807_2026-09-21.svg" alt="學習JS_圖解_configurable這把鎖擋住哪幾條路-ISO5807_2026-09-21.svg" loading="lazy"></p>
+
+<p>（a）看圖的順序是：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">先問 configurable 是不是 false，是的話再逐欄檢查你想改哪一格</mark>，三個出口分別是「全部擋掉」「writable 例外」「value 例外」。之後同主題追問，請直接指回這張圖的某個方框。</p>
+<hr />
+<h2 id="defineproperty">二、defineProperty 的第三個參數是一份「設定檔」</h2>
+<p>（b）<code>Object.defineProperty(obj, key, descriptor)</code> 一共吃三個引數：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">第一個是目標物件、第二個是屬性名稱、第三個是描述器物件（descriptor）</mark>。</p>
+<p>（c）<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>value</code>、<code>writable</code>、<code>enumerable</code>、<code>configurable</code> 不是 JavaScript 的保留字（reserved word）</mark>。<br />
+    它們只是 <code>Object.defineProperty</code> 這支函式「約定會去讀」的四個 key 名稱。<br />
+    你完全可以寫 <code>const value = 1</code>，引擎不會抱怨；只有當這四個名字出現在 descriptor 物件裡的時候，引擎才會把它們當設定值解讀。</p>
+<p>（d）誰對誰做什麼：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">你把一個普通物件字面值（descriptor）交給 <code>Object.defineProperty</code>，<code>Object.defineProperty</code> 讀出裡面這四個 key，再把讀到的設定寫進該屬性在引擎內部的 property slot，最後回傳被修改過的那個物件本身。</mark></p>
+<table>
+<thead>
+<tr>
+<th>descriptor 欄位</th>
+<th>這一欄管什麼</th>
+<th>沒寫的話預設值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>value</code></td>
+<td>屬性實際存的值</td>
+<td><code>undefined</code></td>
+</tr>
+<tr>
+<td><code>writable</code></td>
+<td>這個值能不能被重新賦值</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>enumerable</code></td>
+<td>能不能被 <code>for...in</code> 與 <code>Object.keys</code> 列舉出來</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>configurable</code></td>
+<td>能不能被 <code>delete</code>，以及能不能再被 <code>defineProperty</code> 改設定</td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<p>（e）<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">用 <code>defineProperty</code> 新增屬性時，三個布林欄位的預設值全是 <code>false</code></mark>，跟用 <code>obj.a = 10</code> 直接賦值（三個都是 <code>true</code>）剛好相反。這是最容易踩到的一個坑。</p>
+<hr />
+<h2 id="configurable-false">三、configurable: false 鎖住什麼、又放行什麼</h2>
+<p>（f）鎖住的三件事：<br />
+    1. <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不能 <code>delete obj.prop</code></mark>，屬性拔不掉（嚴格模式下會丟 <code>TypeError</code>，非嚴格模式下 <code>delete</code> 只是靜靜回傳 <code>false</code>）。<br />
+    2. 不能再用 <code>Object.defineProperty</code> 改它的特徵，例如把 <code>enumerable: false</code> 改回 <code>true</code>。<br />
+    3. 不能把「資料屬性（data property）」換成「存取器屬性（accessor property，也就是 <code>get</code> / <code>set</code>）」，反方向也不行。</p>
+<p>（g）放行的兩個例外：<br />
+    1. <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>writable</code> 可以從 <code>true</code> 改成 <code>false</code></mark>，但不能從 <code>false</code> 改回 <code>true</code>。規則的方向是單行道：只准往更嚴格走。<br />
+    2. <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只要 <code>writable</code> 還是 <code>true</code>，<code>obj.a = 20</code> 這種一般賦值照樣成功</mark>。</p>
+<p>（h）一句話收斂：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>configurable</code> 鎖的是「屬性的結構與規則」，不是「屬性的值」。要把值鎖死，得另外把 <code>writable</code> 設成 <code>false</code>。</mark></p>
+<p>（i）搭配截圖對照著看會更快：</p>
+<p class="fig"><img src="../obsidian-attachment/%E5%AD%B8%E7%BF%92JS_%E6%88%AA%E5%9C%96_Console_writable%E4%B8%8D%E6%98%AF%E8%83%BD%E4%B8%8D%E8%83%BD%E5%AF%AB%E7%9A%84%E7%B8%BD%E9%96%8B%E9%97%9C_2026-09-20.png" alt="學習JS_截圖_Console_writable不是能不能寫的總開關_2026-09-20.png" loading="lazy"></p>
+
+<p class="fig"><img src="../obsidian-attachment/%E5%AD%B8%E7%BF%92JS_%E6%88%AA%E5%9C%96_Console_enumerable-false%E8%AE%93%E8%AA%B0%E7%9C%8B%E4%B8%8D%E8%A6%8B_2026-09-20.png" alt="學習JS_截圖_Console_enumerable-false讓誰看不見_2026-09-20.png" loading="lazy"></p>
+
+<hr />
+<h2 id="defineproperty_1">四、那為什麼實務專案裡幾乎看不到 defineProperty</h2>
+<p>（j）因為<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">日常寫業務邏輯時，根本沒有「要求屬性不可刪、不可列舉」的需求</mark>。物件字面值 <code>{ a: 10 }</code> 一行就寫完，而且讀的人一眼就懂；<code>defineProperty</code> 要多寫五行，換來的控制力在一般 CRUD 頁面上用不到。</p>
+<p>（k）換句話說，<code>defineProperty</code> 不是「進階寫法」而是「特殊需求才出場的工具」。真正會用到它的場合有三類：</p>
+<table>
+<thead>
+<tr>
+<th>使用場合</th>
+<th>為什麼非它不可</th>
+<th>典型例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>保護函式庫或框架的核心欄位</td>
+<td>不希望使用者不小心 <code>delete</code> 掉或改壞設定</td>
+<td>Vue 2 的響應式系統就是用 getter / setter 攔截讀寫</td>
+</tr>
+<tr>
+<td>做出唯讀常數或受控更新的欄位</td>
+<td>需要「值可以換、屬性不能被刪」這種混搭組合</td>
+<td><code>writable: true</code> 搭 <code>configurable: false</code></td>
+</tr>
+<tr>
+<td>加上隱藏欄位不想污染列舉</td>
+<td>要讓 <code>Object.keys</code> 與 <code>JSON.stringify</code> 看不到它</td>
+<td>內部快取、內部 id</td>
+</tr>
+</tbody>
+</table>
+<p>（l）<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">引擎自己內建的屬性，就是靠這四個欄位設定出來的</mark>。例如 <code>Math.PI</code> 的 descriptor 是 <code>{ writable: false, enumerable: false, configurable: false }</code>，所以你既改不了 π 的值也刪不掉它。</p>
+<hr />
+<h2 id="_1">五、⚠️ 存疑／更正</h2>
+<p>（m）<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ 更正：Gemini 把「<code>Math.PI</code> 與 <code>Array</code> 的 <code>length</code>」擺在一起，說兩者都是靠 <code>writable: false</code> 保護的，這對 <code>length</code> 來說是錯的。</mark><br />
+    陣列實例的 <code>length</code> 是 <code>{ writable: true, enumerable: false, configurable: false }</code>。<br />
+    所以 <code>arr.length = 0</code> 是合法的（這正是清空陣列的老寫法），只是你刪不掉 <code>length</code> 這個屬性。<br />
+    自己在 Console 驗一次：<code>Object.getOwnPropertyDescriptor([1,2,3], 'length')</code>。</p>
+<p>（n）<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">備註：Gemini 說「Vue、React 用這些設定保護核心屬性」，這句話對 Vue 2 成立（<code>Object.defineProperty</code> 正是 Vue 2 響應式的實作核心），但 Vue 3 已改用 <code>Proxy</code>，React 從來就不是靠 <code>defineProperty</code> 做狀態追蹤的。</mark>不要把三者混為一談。</p>
+<hr />
+<h2 id="_2">六、自己動手</h2>
+<p>配套程式碼：<code>demo-configurable.js</code>（同一層資料夾，跑 <code>node demo-configurable.js</code>）</p>
+<pre><code class="language-js">'use strict';
+
+const obj = {};
+
+Object.defineProperty(obj, 'a', {
+  value: 10,
+  writable: true,
+  enumerable: true,
+  configurable: false,   // 上鎖
+});
+
+// 1. 想刪除 → 嚴格模式下直接丟 TypeError
+try {
+  delete obj.a;
+} catch (e) {
+  console.log('刪除失敗：', e.constructor.name);  // TypeError
+}
+console.log('a 還在嗎 →', obj.a);                 // 10
+
+// 2. 想改 enumerable → TypeError
+try {
+  Object.defineProperty(obj, 'a', { enumerable: false });
+} catch (e) {
+  console.log('改設定失敗：', e.constructor.name); // TypeError
+}
+
+// 3. 想改 value → 成功，因為 writable 還是 true
+obj.a = 20;
+console.log('值可以換 →', obj.a);                  // 20
+
+// 4. writable 是單行道：true → false 可以
+Object.defineProperty(obj, 'a', { writable: false });
+try {
+  Object.defineProperty(obj, 'a', { writable: true });
+} catch (e) {
+  console.log('false 改回 true 失敗：', e.constructor.name); // TypeError
+}
+
+// 5. 更正示範：陣列的 length 是 writable: true
+console.log(Object.getOwnPropertyDescriptor([1, 2, 3], 'length'));
+// { value: 3, writable: true, enumerable: false, configurable: false }
+</code></pre>
+<hr />
+<h2 id="_3">七、延伸練習</h2>
+<p>LeetCode 與 NeetCode 沒有直接對應 property descriptor 的題目（這是語言特性而非演算法），最接近的是 <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JavaScript 專區的物件操作題</mark>：</p>
+<ul>
+<li><a href="https://leetcode.com/problems/generate-fibonacci-sequence/">LeetCode 2648. Generate Fibonacci Sequence</a>（練 generator 與物件協定，同樣是「引擎約定會讀哪些 key」的思路）</li>
+<li><a href="https://leetcode.com/problems/filter-elements-from-array/">LeetCode 2634. Filter Elements from Array</a>（練不用內建方法自己走訪，會碰到 <code>length</code> 是 <code>writable: true</code> 這件事）</li>
+</ul>
+<hr />
+<h2 id="_4">八、各對話來源（原文）</h2>
+<h3 id="objectdefineproperty-2026-09-21-httpsgeminigooglecomapp2e7949bbfd10a5aa">Object.defineProperty 的用途與解析（2026-09-21 擷取）— https://gemini.google.com/app/2e7949bbfd10a5aa</h3>
+<p>使用者：（語音輸入，原文有辨識錯字）property descriptor 屬性的細節，我在實際的專案裡面很少看到這個寫法，可是它可以控制這麼多精細的細節，為什麼很少人用呢？是不是因為沒有特別要求？</p>
+<p>Gemini：確實是因為大多數情況下並不需要那麼複雜的控制。平常我們定義物件，直接用大括號的字面意義寫法就足夠了，既簡潔又直觀。<code>Object.defineProperty</code> 通常是用在需要特別處理的時候，比如設定屬性為唯讀、不能被枚舉，或者需要寫入 getter 和 setter 時才會用到。</p>
+<h3 id="javascript-2026-09-21-httpsgeminigooglecomapp8df708d3627625d9">JavaScript 物件屬性查詢與遍歷方法（2026-09-21 擷取）— https://gemini.google.com/app/8df708d3627625d9</h3>
+<p>使用者：（語音輸入）那個 configurable 是什麼意思？</p>
+<p>Gemini：在 JavaScript 的屬性描述器（Property Descriptor）中，<code>configurable</code> 控制該屬性是否可以被修改屬性設定以及是否可以被刪除。當 <code>configurable: false</code> 時：無法刪除（不能用 <code>delete obj.prop</code>）、無法修改屬性特徵（無法再透過 <code>Object.defineProperty()</code> 改變設定）、無法切換屬性類型（不能把 data property 改成 accessor property，反之亦然）。唯一的例外狀況：可以將 <code>writable</code> 從 <code>true</code> 改為 <code>false</code>（但無法從 <code>false</code> 改回 <code>true</code>）；只要該屬性的 <code>writable</code> 是 <code>true</code>，即使 <code>configurable</code> 是 <code>false</code>，依然可以隨意修改它的值。簡而言之，<code>configurable</code> 就像是這個屬性架構的鎖：一旦鎖上，這個屬性的結構與規則就幾乎被定型，無法被輕易重新定義或刪除。</p>
+<p>使用者：所以是說這些方法在 <code>Object.defineProperty()</code> 的 data descriptor 是 <code>writable: false, enumerable: false, configurable: false</code> 這樣嗎？<code>value</code>、<code>writable</code>、<code>enumerable</code>、<code>configurable</code> 這 4 個是類似保留字嗎？因為你在這邊設定這些屬性值給 a，變成深層巢狀結構，用意是什麼？</p>
+<p>Gemini：它們不是 JavaScript 的保留字，而是 <code>Object.defineProperty()</code> 專用的特定屬性名稱（Key）。當您傳入第 3 個參數（描述器物件）給 <code>Object.defineProperty</code> 時，JavaScript 引擎會去讀取這個物件裡面是否有這 4 個特定的名稱。至於設定成這樣的用意：① 保護核心資料不被意外修改或刪除（封裝性與安全性），在開發大型專案或套件時，某些重要物件的屬性是系統運作的核心；② 實現 DOM 或瀏覽器內建 API 的行為，例如 <code>Math.PI</code> 的 <code>writable: false</code> 且 <code>configurable: false</code>，所以你無法修改 π 的值，也無法刪除它；③ 建立唯讀或特定存取規則的屬性，例如 <code>writable: true, configurable: false</code> 代表這個屬性的值可以隨意更新，但永遠會留在物件上。</p>
+<hr />
+<h2 id="_5">九、資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Object.defineProperty 與 descriptor 四欄位</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>Property descriptor 預設值與 configurable 規則</td>
+<td>https://tc39.es/ecma262/#sec-validateandapplypropertydescriptor</td>
+<td>ECMA-262 規範（ValidateAndApplyPropertyDescriptor），2026-09-21 查證</td>
+</tr>
+<tr>
+<td>Math.PI 的 descriptor</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/PI</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>陣列 length 是 writable</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/length</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/2e7949bbfd10a5aa ／ https://gemini.google.com/app/8df708d3627625d9</td>
+<td>2026-09-21 擷取</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-21</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

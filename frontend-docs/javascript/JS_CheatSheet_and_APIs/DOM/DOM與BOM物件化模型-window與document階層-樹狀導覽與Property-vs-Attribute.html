@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOM 與 BOM 的物件化模型：window／document 階層、樹狀導覽屬性與 Property vs Attribute</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="this.dataset.failed=1"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.disabled=true">
+<style>
+:root {
+  --bg: #f7f6f3; --card: #ffffff; --text: #2b2b2b; --muted: #6b6b6b;
+  --border: #e6e3dc; --accent: #6b8f71; --code-bg: #1e1e1e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0 16px 60px;
+  background: var(--bg); color: var(--text);
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, -apple-system, sans-serif;
+  line-height: 1.7; font-size: 16px;
+}
+.wrap { max-width: 820px; margin: 0 auto; }
+header.page-head {
+  padding: 36px 0 20px; border-bottom: 2px solid var(--border); margin-bottom: 28px;
+}
+h1.title {
+  font-family: "Noto Serif TC", Georgia, serif;
+  font-size: 1.7em; margin: 0 0 12px; line-height: 1.4;
+}
+.meta-line { color: var(--muted); font-size: 0.9em; margin: 4px 0; }
+.pills { margin: 10px 0; }
+.pill {
+  display: inline-block; background: #eef2ea; color: #45614a;
+  border-radius: 999px; padding: 3px 12px; font-size: 0.82em;
+  margin: 3px 6px 3px 0; border: 1px solid #d7e2d2;
+}
+.src-link { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 22px 26px; margin: 22px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.card > h2:first-child { margin-top: 0; }
+h2 { font-size: 1.28em; border-left: 5px solid var(--accent); padding-left: 12px; margin: 0 0 16px; }
+h3 { font-size: 1.08em; color: #3d4f3f; margin-top: 22px; }
+.toggle-btn {
+  cursor: pointer; user-select: none; background: #45614a; color: #fff;
+  border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.9em; margin: 6px 0 18px;
+}
+.toggle-btn:hover { background: #37513c; }
+.quiz-hidden .reveal-target { filter: blur(6px); opacity: 0.55; transition: filter .2s, opacity .2s; }
+.reveal-target { transition: filter .2s, opacity .2s; }
+details.src-item {
+  background: #fbfaf7; border: 1px solid var(--border); border-radius: 10px;
+  padding: 4px 16px 12px; margin: 14px 0;
+}
+details.src-item summary {
+  cursor: pointer; font-weight: 600; padding: 10px 0; color: #3d4f3f;
+}
+.turn-user, .turn-gemini {
+  border-left: 4px solid; border-radius: 6px; padding: 10px 14px; margin: 10px 0;
+}
+.turn-user { border-color: #ADCCFF; background: #f3f7ff; }
+.turn-gemini { border-color: #BBFABB; background: #f3fbf3; }
+mark { padding: 0 3px; border-radius: 3px; }
+table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 0.92em; }
+th, td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; }
+th { background: #eef2ea; }
+tr:nth-child(even) td { background: #fafaf8; }
+pre {
+  background: var(--code-bg); color: #eee; border-radius: 10px; padding: 14px 16px;
+  overflow-x: auto; font-size: 0.88em;
+}
+code { font-family: "Fira Code", "Cascadia Code", Consolas, monospace; }
+:not(pre) > code { background: #eef0ec; color: #3d4f3f; padding: 1px 6px; border-radius: 4px; }
+img { max-width: 100%; border-radius: 8px; margin: 10px 0; }
+blockquote {
+  border-left: 4px solid #D2B3FF; background: #faf7ff; margin: 14px 0; padding: 8px 16px; color: #5b4a70;
+}
+footer.page-foot {
+  text-align: center; color: var(--muted); font-size: 0.85em; margin-top: 40px;
+  padding-top: 18px; border-top: 1px solid var(--border);
+}
+a { color: var(--accent); }
+@media (max-width: 480px) {
+  body { font-size: 15px; }
+  .card { padding: 16px 16px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="page-head">
+  <h1 class="title">DOM 與 BOM 的物件化模型：window／document 階層、樹狀導覽屬性與 Property vs Attribute</h1>
+  <div class="pills"><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">dom</span><span class="pill">bom</span><span class="pill">window</span><span class="pill">document</span><span class="pill">tree-navigation</span><span class="pill">property</span><span class="pill">attribute</span><span class="pill">jquery</span></div>
+  <div class="meta-line">更新日期：2026-09-25</div>
+  <div class="meta-line">來源：<a class="src-link" href="https://gemini.google.com/app/44ddcc15ba4120ea" target="_blank">https://gemini.google.com/app/44ddcc15ba4120ea</a> ・ <a class="src-link" href="https://gemini.google.com/app/a32d56dd37435b7c" target="_blank">https://gemini.google.com/app/a32d56dd37435b7c</a></div>
+</header>
+
+<div class="card">
+  <button class="toggle-btn" onclick="document.getElementById('main-content').classList.toggle('quiz-hidden'); this.textContent = this.textContent.includes('隱藏') ? '🙉 顯示重點內容' : '🙈 隱藏重點內容（自我測驗）';">🙈 隱藏重點內容（自我測驗）</button>
+  <div id="main-content" class="reveal-target">
+<h1>DOM 與 BOM 的物件化模型</h1>
+<blockquote>
+<p>本篇重點 a–h，共 8 個。</p>
+<p>[!info] 與其他筆記的關聯（附理由）
+1. 承接 [[window物件三種成員與滑鼠座標-client-screen-page-與innerHTML覆蓋陷阱]]：那篇專講 <code>window</code> 底下三種成員與滑鼠座標系統，本篇補上更上層的觀念——「為什麼瀏覽器要把頁面跟視窗都變成物件」，是那篇的前置概念。
+2. 呼應 [[控制流與錯誤處理-區塊語句-falsy-switch貫穿-throw-try-catch-finally]] 的 (o)(p)(q)：<code>document.all</code> 之所以會被特許轉成 falsy，前提就是本篇 (a) 講的「<code>document</code> 是被物件化出來的 JS 物件」。</p>
+</blockquote>
+<h2>1. 為什麼瀏覽器要把頁面跟視窗「物件化」（a–b）</h2>
+<p>(a) <mark style="background: #ADCCFFA6;">JavaScript 引擎不能直接理解 HTML 原始碼或瀏覽器視窗本身</mark>，所以瀏覽器會把這些東西轉化成 JS 看得懂的物件結構，才能被程式碼讀取與修改。HTML 原始碼只是純文字（例如 <code>&lt;button id="btn"&gt;按我&lt;/button&gt;</code>），瀏覽器解析後會建立對應的 JS 物件，掛上屬性與方法，例如 <code>document.getElementById('btn')</code> 拿到的 <code>button</code> 物件可以直接讀 <code>button.textContent</code>、寫 <code>button.style.color = 'red'</code>。</p>
+<p>(b) <mark style="background: #FFF3A3A6;">DOM（Document Object Model）管頁面內容，BOM（Browser Object Model）管瀏覽器視窗本身</mark>，兩者是不同層級的物件化結果：</p>
+<pre><code class="hljs language-text">window   (BOM 頂層物件，代表瀏覽器本身)
+└── document   (DOM 頂層物件，代表當前載入的 HTML 頁面)
+    └── &lt;html&gt;
+        └── &lt;body&gt;
+            └── &lt;button&gt;   (頁面中的個別 HTML 元素物件)
+</code></pre>
+<p>DOM 部分：瀏覽器解析 HTML 時把每個標籤、文字、屬性都轉成一個個 JS 物件並組成樹狀結構（DOM Tree），根物件是 <code>document</code>。</p>
+<p>BOM 部分：整個瀏覽器視窗（網址列、瀏覽歷史、螢幕解析度、視窗大小）被封裝成以 <code>window</code> 為頂層的物件，例如 <code>window.location</code>（網址，<code>window.location.href = '...'</code> 可轉址）、<code>window.history</code>（瀏覽歷史，<code>window.history.back()</code> 模擬上一頁）、<code>window.navigator</code>（使用者裝置與瀏覽器資訊）。</p>
+<h2>2. 樹狀導覽：原生 DOM 屬性 vs jQuery 方法（c–e）</h2>
+<p>(c) <mark style="background: #BBFABBA6;">「樹狀導覽（Tree Navigation）」屬性是 JavaScript 原生（Vanilla JS）的 DOM 屬性，不是 jQuery 專屬</mark>——<code>parentNode</code>、<code>childNodes</code>、<code>firstChild</code>、<code>lastChild</code>、<code>previousSibling</code>、<code>nextSibling</code> 全部是 DOM Level 1 標準就有的原生屬性。會覺得眼熟是因為 jQuery 本來就是為了封裝、簡化這些原生操作而設計的：</p>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>原生 DOM 屬性</th>
+<th>jQuery 方法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>找父節點</td>
+<td><code>node.parentNode</code></td>
+<td><code>$(node).parent()</code></td>
+</tr>
+<tr>
+<td>找所有子節點</td>
+<td><code>node.childNodes</code></td>
+<td><code>$(node).children()</code></td>
+</tr>
+<tr>
+<td>找第一個子節點</td>
+<td><code>node.firstChild</code></td>
+<td><code>$(node).children().first()</code></td>
+</tr>
+<tr>
+<td>找最後一個子節點</td>
+<td><code>node.lastChild</code></td>
+<td><code>$(node).children().last()</code></td>
+</tr>
+<tr>
+<td>找前一個兄弟節點</td>
+<td><code>node.previousSibling</code></td>
+<td><code>$(node).prev()</code></td>
+</tr>
+<tr>
+<td>找後一個兄弟節點</td>
+<td><code>node.nextSibling</code></td>
+<td><code>$(node).next()</code></td>
+</tr>
+</tbody>
+</table>
+<p>(d) <mark style="background: #FF5582A6;">原生 DOM 陷阱：<code>Node</code>（節點）包含文字節點、註解節點，不只有 <code>Element</code>（HTML 標籤）</mark>。用 <code>childNodes</code>／<code>firstChild</code> 存取時，換行與空格會被算成獨立的文字節點：</p>
+<pre><code class="hljs language-html">&lt;div id=&quot;parent&quot;&gt;
+  &lt;p&gt;Hello&lt;/p&gt;
+&lt;/div&gt;
+</code></pre>
+<pre><code class="hljs language-js">const parent = document.getElementById('parent');
+console.log(parent.firstChild);
+// 拿到的不是 &lt;p&gt;！而是 &lt;div&gt; 與 &lt;p&gt; 之間的「換行＋空格」文字節點
+</code></pre>
+<p>(e) <mark style="background: #BBFABBA6;">解法是改用帶有 Element 字眼的現代屬性</mark>，只回傳真正的 HTML 元素、自動濾掉空白文字節點：<code>parentElement</code>、<code>children</code>（取代 <code>childNodes</code>）、<code>firstElementChild</code>（取代 <code>firstChild</code>）、<code>lastElementChild</code>（取代 <code>lastChild</code>）、<code>previousElementSibling</code>（取代 <code>previousSibling</code>）、<code>nextElementSibling</code>（取代 <code>nextSibling</code>）。這正是 jQuery 當年大受歡迎的原因之一——<code>$(node).children()</code> 自動濾空白，原生 DOM 後來才補上對應版本。</p>
+<h2>3. Property（屬性存取）vs Attribute（HTML 標籤屬性）（f–h）</h2>
+<p>(f) <mark style="background: #ADCCFFA6;">原生 DOM 提供大量「Property（屬性）」，意思就是可以用點記號 <code>.</code> 直接讀寫，不用加括號呼叫</mark>。Property 代表物件的狀態／資料（直接存取），Method（方法）代表物件的行為／動作（要加 <code>()</code> 呼叫執行）：</p>
+<pre><code class="hljs language-js">// Property：直接讀寫，不加括號
+const el = node.parentElement;
+node.textContent = &quot;Hello World&quot;;
+
+// Method：要呼叫執行
+node.appendChild(newChild);
+document.getElementById(&quot;myId&quot;);
+</code></pre>
+<p>(g) 三類常見的可直接存取 Property：① 樹狀導覽（唯讀）如 <code>box.parentElement</code>、<code>box.children</code>、<code>box.nextElementSibling</code>；② 內容操作（可讀寫）如 <code>title.textContent = '新標題'</code>、<code>title.style.color = 'red'</code>；③ HTML 標籤屬性的直接映射（可讀寫）如 <code>img.src = '...'</code>、<code>input.value = '...'</code>、<code>input.disabled = true</code>。</p>
+<p>(h) <mark style="background: #FFF3A3A6;">DOM Property 與 HTML Attribute 是兩個經常被混淆的概念</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>英文</th>
+<th>存取方式</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DOM 屬性</td>
+<td>Property</td>
+<td>直接存取（如 <code>element.className</code>）</td>
+<td>存在於 JS 物件記憶體中的變數，存取速度最快</td>
+</tr>
+<tr>
+<td>HTML 屬性</td>
+<td>Attribute</td>
+<td>透過方法（如 <code>element.getAttribute('class')</code>）</td>
+<td>寫在 HTML 原始碼裡的字串標籤</td>
+</tr>
+</tbody>
+</table>
+<p>現代前端開發絕大多數情況都直接存取 DOM Property，既直覺又方便，只有在需要讀取「HTML 原始碼字面寫了什麼」時才會用 <code>getAttribute()</code>。</p>
+<h2>各對話來源（原文）</h2>
+<details class="src-item" open><summary>DOM 與 BOM 的物件化概念（2026-09-25）— https://gemini.google.com/app/44ddcc15ba4120ea</summary>
+<div class="turn-user"><strong>使用者：</strong> 瀏覽器和頁面都可以用物件的方式建立模型是什麼意思？</div>
+<div class="turn-gemini"><strong>Gemini：</strong> JavaScript 或瀏覽器本身不能直接理解 HTML 原始碼或瀏覽器視窗，因此瀏覽器會把這些東西「物件化」，讓程式碼可以讀取、修改它們。DOM 把頁面物件化成以 <code>document</code> 為頂層的樹狀結構；BOM 把整個瀏覽器視窗物件化成以 <code>window</code> 為頂層的物件，兩者階層關係是 <code>window → document → &lt;html&gt; → &lt;body&gt; → 個別元素</code>。</div>
+</details><details class="src-item" open><summary>JS 變數指派與記憶體運作（節錄：DOM 樹狀導覽與屬性存取部分）（2026-09-25）— https://gemini.google.com/app/a32d56dd37435b7c</summary>
+<div class="turn-user"><strong>使用者：</strong> 「樹狀導航（Tree Navigation）：提供遍歷節點樹的方法，例如 parentNode、childNodes、firstChild、lastChild、previousSibling、nextSibling」這不都是 jQuery 的方法嗎？</div>
+<div class="turn-gemini"><strong>Gemini：</strong> 不是，這些是原生 DOM 屬性，jQuery 只是把它們封裝簡化。原生 DOM 的陷阱在於 <code>childNodes</code>／<code>firstChild</code> 會把換行空白算成文字節點，現代原生 DOM 另外提供了帶 Element 字眼的屬性（<code>children</code>、<code>firstElementChild</code>…）解決這個問題。</div>
+<div class="turn-user"><strong>使用者：</strong> 原生 DOM 有提供屬性嗎？屬性的意思是直接存取嗎？</div>
+<div class="turn-gemini"><strong>Gemini：</strong> 是的，DOM Property 就是可以用 <code>.</code> 直接讀寫的物件成員，不用加 <code>()</code>；並與 HTML Attribute（寫在原始碼裡的字串標籤，須用 <code>getAttribute()</code> 讀取）是兩個不同概念。</div>
+<hr />
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話 ①</td>
+<td>https://gemini.google.com/app/44ddcc15ba4120ea</td>
+<td>Gemini Flash，2026-09-25 擷取</td>
+</tr>
+<tr>
+<td>本篇 Gemini 對話 ②</td>
+<td>https://gemini.google.com/app/a32d56dd37435b7c</td>
+<td>Gemini Flash，2026-09-25 擷取</td>
+</tr>
+<tr>
+<td>MDN — Document Object Model (DOM)</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model</td>
+<td>MDN 現行版本，2026-09-25 查證</td>
+</tr>
+<tr>
+<td>MDN — Node.firstChild / Element.firstElementChild</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/Node/firstChild</td>
+<td>MDN 現行版本，2026-09-25 查證</td>
+</tr>
+<tr>
+<td>MDN — Properties vs Attributes</td>
+<td>https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/DOM_scripting#properties_and_methods</td>
+<td>MDN 現行版本，2026-09-25 查證</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-25</p></details>
+  </div>
+</div>
+
+<footer class="page-foot">由 Gemini 對話自動整理 · 更新於 2026-09-25</footer>
+</div>
+<script>
+if (window.hljs) { try { hljs.highlightAll(); } catch(e) {} }
+</script>
+</body>
+</html>

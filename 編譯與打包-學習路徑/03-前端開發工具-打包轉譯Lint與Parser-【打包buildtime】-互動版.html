@@ -489,7 +489,23 @@ footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);
 <p>（此對話前段為按鈕計數器閉包除錯，已整併進 [[閉包-Closure-私有變數與傳址陷阱]]；以下為後段延伸到編譯/打包的部分）</p>
 <div class="src-user"><span class="role">使用者</span>React 是怎麼去編譯的呢他跟原生 JS 差在哪 / 所以先轉譯才打包囉？Scanner 是啥 / 好像聽 YouTube 影片說是由 nodejs 編譯的欸還是我記錯了 / 但我一般在打包前端的時候我不一定會用到 nodejs 啊，萬一我的後端選型不是 nodejs 而是 Python 呢？</div>
 <div class="src-gem"><span class="role">Gemini</span>說明 React 需經 JSX 轉譯（Babel/SWC）與模組打包（Vite/Webpack/ESBuild）才能被瀏覽器執行，並比較 React 與原生 JS 在 DOM 操作、程式思維、效能機制上的差異；解釋 Scanner 是 JS 引擎編譯第一階段的詞法分析器，把原始碼拆成 Token；澄清 Node.js 不是編譯器本身而是執行環境，讓 Babel/Webpack 等工具能讀寫檔案並執行；最後說明前端打包用 Node.js（開發期工具）與後端選型用 Python（Production Runtime）是兩個不衝突的獨立分工，並列出前後端分離／Python 託管靜態檔／SSR 三種常見部署架構。</div>
-<footer>由 Gemini 對話自動整理 · 更新於 2026-07-27</footer>
+<div style="margin:24px 0;padding:18px 20px;border-left:4px solid #BBFABB;background:#f7fdf7;border-radius:6px;">
+<h3 style="margin-top:0;">2026-09-28 追加：註解／console.log 對打包的影響 ＋ bundler 含不含 transpile</h3>
+<table style="width:100%;border-collapse:collapse;margin:10px 0;">
+<tr style="background:#eee;"><th style="border:1px solid #ccc;padding:6px;text-align:left;">項目</th><th style="border:1px solid #ccc;padding:6px;text-align:left;">對 transpile／bundle 時間</th><th style="border:1px solid #ccc;padding:6px;text-align:left;">對檔案大小與執行期</th></tr>
+<tr><td style="border:1px solid #ccc;padding:6px;">註解</td><td style="border:1px solid #ccc;padding:6px;"><mark style="background:#BBFABBA6;cursor:pointer;" class="spoiler">幾乎為零</mark></td><td style="border:1px solid #ccc;padding:6px;">production 會被 minifier 整段拔掉，開發時放心寫</td></tr>
+<tr><td style="border:1px solid #ccc;padding:6px;"><code>console.log</code></td><td style="border:1px solid #ccc;padding:6px;">感受不到差異（除非數十萬行）</td><td style="border:1px solid #ccc;padding:6px;"><mark style="background:#FF5582A6;cursor:pointer;" class="spoiler">預設不會自動清掉，會一起打包進 production</mark></td></tr>
+</table>
+<p>Next.js 的拋接鏈（點看答案）：Next.js 讀到 <code>compiler.removeConsole:true</code> → <span class="spoiler" style="background:#FFF3A3A6;padding:2px 4px;border-radius:3px;cursor:pointer;">轉交給內建的 SWC transpiler</span> → <span class="spoiler" style="background:#FFF3A3A6;padding:2px 4px;border-radius:3px;cursor:pointer;">SWC 在 transpile 時順手移除符合條件的 console.* 呼叫</span>。（<a href="https://nextjs.org/docs/architecture/nextjs-compiler" target="_blank">Next.js 官方文件</a>，查證於 2026-09-28）</p>
+<h4>bundler 含不含 transpile：一次講清楚</h4>
+<table style="width:100%;border-collapse:collapse;margin:10px 0;">
+<tr style="background:#eee;"><th style="border:1px solid #ccc;padding:6px;text-align:left;">bundler</th><th style="border:1px solid #ccc;padding:6px;text-align:left;">transpile 怎麼做</th><th style="border:1px solid #ccc;padding:6px;text-align:left;">拋接關係</th></tr>
+<tr><td style="border:1px solid #ccc;padding:6px;">Webpack</td><td style="border:1px solid #ccc;padding:6px;">外包</td><td style="border:1px solid #ccc;padding:6px;">讀到 .ts/.jsx → 拋給 babel-loader → Babel transpile 成 ES5 → 拋回給 Webpack bundle</td></tr>
+<tr><td style="border:1px solid #ccc;padding:6px;">Turbopack</td><td style="border:1px solid #ccc;padding:6px;">內建 SWC</td><td style="border:1px solid #ccc;padding:6px;">讀到原始碼 → 直接呼叫內建 SWC transpile → 不用另裝 loader</td></tr>
+</table>
+<p style="font-size:0.9em;color:#555;">點擊上面螢光色文字可切換顯示／隱藏答案（自我測驗）。來源對話：<a href="https://gemini.google.com/app/c01555684437e816" target="_blank">Turbopack 與 Webpack 差異比較</a>。</p>
+</div>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-28</footer>
 </div><script>
 function toggleAll(show){document.querySelectorAll('.spoiler').forEach(function(s){
  if(show){s.classList.add('on');}else{s.classList.remove('on');}});}

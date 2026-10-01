@@ -9,12 +9,13 @@ sources:
   - https://gemini.google.com/app/de0c03613eb15709
   - https://gemini.google.com/app/880a00585b4bc824
   - https://gemini.google.com/app/14a5019f253a467f
-updated: 2026-09-15
+  - https://gemini.google.com/app/3f1fb43b3b7f08aa
+updated: 2026-09-22
 ---
 
 # SSR、renderToString 與 Hydration — 伺服器端渲染流程
 
-本篇重點 a–v，共 22 個（l–p 為 2026-09-01 追加；q–v 為 2026-09-06 追加）
+本篇重點 a–w，共 23 個（l–p 為 2026-09-01 追加；q–v 為 2026-09-06 追加；w 為 2026-09-22 追加）
 
 (a) <mark style="background: #ADCCFFA6;">SSR（Server-Side Rendering，伺服器端渲染）</mark>：在伺服器上先把頁面產生成 HTML 字串再傳給瀏覽器，好處是<mark style="background: #BBFABBA6;">首屏更快看到內容、對 SEO 友善</mark>（爬蟲不必等 JS 執行完才看得到文字）。
 
@@ -30,6 +31,16 @@ updated: 2026-09-15
 8. JS bundle 下載完、執行，React 呼叫 `hydrateRoot()` → <mark style="background: #ADCCFFA6;">Hydration</mark>——走訪既有 DOM、掛上事件監聽 → <mark style="background: #BBFABBA6;">此時頁面才變成可以互動</mark>
 
 SSR 的核心賣點正是把「看得到（Paint 完成）」跟「能互動（Hydration 完成）」拆成兩個時間點，讓使用者先看到內容，互動性稍後才補上（詳細管線見 [[Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪]]）。
+
+(w) <mark style="background: #FFF3A3A6;">同一條管線換個角度看：HTML、CSS、JavaScript 這三條線各自什麼時候從 server 走到 client</mark>（2026-09-22 追加，Abby 問的是「Next.js 專案這個畫面 SSR，三條線是怎麼走的」）：
+
+| 這條線 | 在伺服器端被做了什麼 | 什麼時候送到瀏覽器 | 到了之後做什麼 | 缺了它會怎樣 |
+| --- | --- | --- | --- | --- |
+| HTML | 伺服器先跑完資料抓取邏輯，再用 `renderToString` 把元件樹轉成 HTML 字串 | 第一個 response 就帶走，跟 (a) 的步驟 1–2 同一件事 | 瀏覽器 parse 成 DOM Tree | 首屏空白，SEO 爬蟲看不到文字 |
+| CSS | 建置階段就被抽成 `.css` 檔並算好 content hash，伺服器只在 HTML 裡插入 `<link>` 指向它 | 瀏覽器 parse HTML 遇到 `<link>` 時才去要，屬於 render-blocking 資源 | parse 成 CSSOM，跟 DOM 合成 Render Tree 才能 Layout 與 Paint | 畫面出現無樣式的裸 HTML（FOUC） |
+| JavaScript | 建置階段被 bundler 打包成 chunk，伺服器同樣只插入 `<script>` 指向它 | HTML 顯示出來之後才下載與執行 | 執行 `hydrateRoot`，走訪既有 DOM 把事件監聽掛上去 | 畫面看得到但按不動，卡在 (a) 的步驟 7 到 8 之間 |
+
+	<mark style="background: #BBFABBA6;">所以「三條線」不是同時抵達</mark>：HTML 走第一班車決定「什麼時候看得到」，CSS 搭同一班車的下一節決定「看起來對不對」，JavaScript 走最後一班決定「什麼時候按得動」。
 
 (b) <mark style="background: #FFF3A3A6;">伺服器怎麼把元件變成 HTML</mark>：靠框架提供的特定函式，React 就是 `renderToString`（或串流版 `renderToPipeableStream`）。它把 React 元件樹轉成<mark style="background: #FFB8EBA6;">純字串</mark>，不是 DOM 節點。
 
@@ -216,6 +227,14 @@ Gemini：在 CSR 中，元件只會在客戶端的瀏覽器中執行一次，直
 
 （兩串都很短，重點已整併進上方「追加 2026-09-15」。）
 
+### 追加 2026-09-22｜Next.js SSR 從 server side 到 client side 進行了什麼交互 — https://gemini.google.com/app/3f1fb43b3b7f08aa
+
+**使用者：** 我在整個 Next 專案這個畫面 SSR，你說一下這三條線 HTML、CSS、JavaScript，它從後端 server 到前端 client side 是怎麼樣的一個過程？進行了什麼步驟跟交互？
+
+**Gemini：** 這過程其實蠻有效率的。當使用者發送請求時，伺服器會先執行邏輯並取得資料，接著把元件轉譯成靜態的 HTML 和必要的 CSS。這些資料會先送到前端，讓瀏覽器能馬上呈現出初始畫面，這能給使用者很好的第一印象。隨後，瀏覽器會下載 JavaScript 檔案，並進行 Hydration，也就是把 JavaScript 綁定到靜態的 HTML 上，讓頁面完全恢復互動功能。
+
+> ⚠️ 存疑／更正：Gemini 說「把元件轉譯成靜態的 HTML 和必要的 CSS」，這句把 CSS 的產生時機講錯了。<mark style="background: #FF5582A6;">CSS 不是在 request 當下跟著元件一起被產出的</mark>，它在<mark style="background: #BBFABBA6;">建置階段（build time）就已經被 bundler 抽成獨立的 `.css` 檔並算好 content hash</mark>，伺服器在 request 當下只是在 HTML 裡插入一行 `<link>` 指向那個檔。修正後的完整對照見上方重點 (w)。
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／時間 |
@@ -235,3 +254,6 @@ Gemini：在 CSR 中，元件只會在客戶端的瀏覽器中執行一次，直
 | React `hydrateRoot`（hydration 的官方定義） | https://react.dev/reference/react-dom/client/hydrateRoot | React 官方，查證 2026-09-15 |
 | 本次追加的原始對話一（Gemini） | https://gemini.google.com/app/880a00585b4bc824 | 對話擷取 2026-09-15 |
 | 本次追加的原始對話二（Gemini） | https://gemini.google.com/app/14a5019f253a467f | 對話擷取 2026-09-15 |
+| 本次追加的原始對話（Gemini）〈Next.js SSR 三條線〉 | https://gemini.google.com/app/3f1fb43b3b7f08aa | 對話擷取 2026-09-22 |
+| Next.js — CSS 在 build time 被抽出成獨立檔案（用於 (w) 與上方更正） | https://nextjs.org/docs/app/getting-started/css | Next.js 官方，查證 2026-09-22 |
+| MDN — Render-blocking CSS（用於 (w) 的 CSS 那一列） | https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/Critical_rendering_path | MDN，查證 2026-09-22 |

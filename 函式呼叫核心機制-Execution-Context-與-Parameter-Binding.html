@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>函式呼叫核心機制-Execution-Context-與-Parameter-Binding</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>函式呼叫核心機制-Execution-Context-與-Parameter-Binding</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#傳值</span><span class="pill">#傳址</span><span class="pill">#形參</span><span class="pill">#實參</span><span class="pill">#函式作用域</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-28</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/3aac1efabf64e593" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="execution-context-parameter-binding">函式呼叫核心機制：Execution Context 與 Parameter Binding</h1>
+<p>本篇重點 a–j，共 10 個</p>
+<h2 id="_1">重點整理</h2>
+<h3 id="a-pass-by-value">a. 原始型別傳值（Pass by Value）：函式內部改參數，外部變數不受影響</h3>
+<p>當基本型別（Primitive Types，數字、字串、布林值）傳進函式時，JavaScript 會複製一份<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「副本」</mark>送進函式：</p>
+<pre><code class="language-javascript">function square(number) {
+  number = number * number; // 改的是內部的副本
+  return number;
+}
+
+var num = 5;
+square(num);
+console.log(num); // 5！外部的 num 完全沒受影響
+</code></pre>
+<h3 id="b-pass-by-reference-sharing">b. 物件型別傳參考（Pass by Reference / Sharing）：內外指向同一個位址</h3>
+<p>物件（Object、Array 等）行為相反，傳遞的是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">記憶體位址（指標）</mark>，函式內部改屬性，外部看到的是同一個物件：</p>
+<pre><code class="language-javascript">function myFunc(theObject) {
+  theObject.make = &quot;Toyota&quot;; // 改了物件內部的屬性
+}
+
+var mycar = { make: &quot;Honda&quot;, model: &quot;Accord&quot;, year: 1998 };
+myFunc(mycar);
+console.log(mycar.make); // &quot;Toyota&quot;！外部的 mycar 被改變了
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>型別</th>
+<th>傳遞方式</th>
+<th>函式內部修改是否影響外部</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始型別（數字、字串、布林值⋯）</td>
+<td>值的副本（Pass by Value）</td>
+<td>不影響</td>
+</tr>
+<tr>
+<td>物件型別（Object、Array⋯）</td>
+<td>記憶體位址（Pass by Reference / Sharing）</td>
+<td>會影響</td>
+</tr>
+</tbody>
+</table>
+<h3 id="c-formal-parameter">c. 形參（Formal Parameter）就是只活在函式內部的區域變數</h3>
+<p>呼叫 <code>square(num)</code> 時，JavaScript 背後等同於：進入函式建立內部作用域 → 在函式內部自動宣告一個區域變數 <code>number</code>（形參） → 把外部傳進來的 <code>num</code> 的值複製給它（等同隱式執行 <code>var number = num;</code>） → 執行內部運算只動到 <code>number</code> 這個副本 → 離開函式後 <code>number</code> 隨即銷毀，外部的 <code>num</code> 全程沒被碰過。</p>
+<p><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">外部變數是在外部作用域定義的（<code>num</code>），函式參數（<code>number</code>）是 JavaScript 呼叫函式當下才在內部自動建立並賦值的區域變數</mark>——兩者因為作用域隔絕＋傳遞值的副本而互不影響。</p>
+<h3 id="d">d. 副本在記憶體裡有獨立的位址</h3>
+<p>傳遞原始型別時，記憶體會為外部變數與內部形參各自配置一塊<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">獨立的位址</mark>：宣告 <code>var num = 5</code> 時配置一個位置存 5；呼叫 <code>square(num)</code> 時另外配置一塊全新的獨立位置給形參 <code>number</code>，把 5 複製進去。因為兩者記憶體位址完全不同，改動 <code>number</code> 不會動到 <code>num</code>。這正是 a、c 兩點「傳值＋區域變數隔離」在記憶體層面的具體樣子。</p>
+<h3 id="e-formal-parametervs-actual-argument">e. 形參（Formal Parameter）vs 實參（Actual Argument）</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>形參 Formal Parameter</th>
+<th>實參 Actual Argument</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>定義</td>
+<td>定義函式時寫在括號裡的變數名稱（如 <code>function square(number)</code> 的 <code>number</code>）</td>
+<td>呼叫函式時真正帶進去的值（如 <code>square(80)</code> 的 <code>80</code>）</td>
+</tr>
+<tr>
+<td>本質</td>
+<td>一個「宣告」，函式內部準備接資料的變數位置</td>
+<td>呼叫當下傳進去的具體數值</td>
+</tr>
+<tr>
+<td>作用域與生命週期</td>
+<td>只活在函式的區域作用域，呼叫瞬間建立、函式執行結束（<code>return</code>）即銷毀</td>
+<td>活在外部作用域，不因函式執行完畢而消失</td>
+</tr>
+<tr>
+<td>命名獨立性</td>
+<td>改名（如 <code>function square(x)</code>）完全不影響外部呼叫方式與結果</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="f-consolelog-return">f. <code>console.log</code> 放在 <code>return</code> 後面會被無視</h3>
+<p><code>return</code> 代表函式立刻結束並跳出，寫在 <code>return</code> 下方的程式碼（例如 <code>console.log</code>）是<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">永遠不會被執行到的 Unreachable code</mark>。想在函式內部觀察變數變化，<code>console.log</code> 要放在 <code>return</code> 之前：</p>
+<pre><code class="language-javascript">function square(number) {
+  console.log('Inside function number: ' + number); // 放在 return 前面才會執行
+  return number * number;
+}
+</code></pre>
+<h3 id="g">g. 呼叫函式沒有接住回傳值，畫面上就看不到結果</h3>
+<p><code>square(80)</code> 確實計算出 6400 並 <code>return</code>，但若沒有用 <code>console.log</code> 印出或存進變數，畫面上不會顯示這個結果：</p>
+<pre><code class="language-javascript">let result = square(80); // 呼叫函式並接住回傳值（6400）
+console.log('square result: ' + result);
+</code></pre>
+<h3 id="h-mdn-vs">h. MDN 範例的簡潔寫法 vs 除錯友善寫法，各有目的</h3>
+<p>MDN 常直接寫 <code>return number * number;</code>（<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最簡潔的標準寫法</mark>，實務開發中避免建立不必要的臨時變數）；但若要在函式內部 <code>console.log</code> 觀察計算過程，這種一步到位的寫法會被 f 點的「return 後面不執行」卡住。除錯／教學階段可以拆兩步：<code>number = number * number;</code> 先計算並更新區域變數 → <code>console.log</code> 印出過程 → 最後才 <code>return number;</code>，把「計算過程」與「離開函式」分開，方便中途插入排查程式碼。</p>
+<h3 id="i-anonymous-function-for">i. 匿名函式（Anonymous Function）跟 <code>for</code> 迴圈無關</h3>
+<p>「匿名」指這個函式沒有名字，純粹當作值現場建立、直接傳進另一個函式當參數：</p>
+<pre><code class="language-javascript">function map(f, a) {
+  var result = [], i;
+  for (i = 0; i != a.length; i++)
+    result[i] = f(a[i]); // 呼叫傳進來的第一個參數 f
+  return result;
+}
+
+map(
+  function (x) { return x * x * x; }, // 匿名函式：第一個參數，沒有名字
+  [0, 1, 2, 5, 10]
+);
+</code></pre>
+<p><code>for</code> 迴圈只負責重複執行；真正「沒有名字、被當作參數傳進去」的 <code>function (x) { ... }</code> 才叫匿名函式，跟迴圈本身是兩件事。<code>map</code> 的形參 <code>f</code> 接住這個匿名函式，<code>a</code> 接住陣列，迴圈裡每輪呼叫 <code>f(a[i])</code> 執行它。</p>
+<h3 id="j">j. 與嚴格模式的關聯：重複參數名稱</h3>
+<p>補充一則同系列的短追問：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">非嚴格模式下允許函式參數重名</mark>（後面的參數會覆蓋前面同名的），但<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">嚴格模式（<code>'use strict'</code>）下重複參數名稱會直接拋出 <code>SyntaxError: Duplicate parameter name not allowed in this context</code></mark>：</p>
+<pre><code class="language-javascript">// 非嚴格模式：合法，輸出 2（後面的蓋過前面）
+function sloppyTest(a, a) {
+  console.log(a);
+}
+sloppyTest(1, 2);
+
+// 嚴格模式：直接 SyntaxError，函式定義階段就報錯
+'use strict';
+function strictTest(a, a) {
+  console.log(a);
+}
+</code></pre>
+<hr />
+<h2 id="_2">各對話來源</h2>
+<h3 id="javascript-2026-09-28-httpsgeminigooglecomapp3aac1efabf64e593">JavaScript 變數宣告語法解析（實際內容為函式作用域／傳值傳址／形參實參，2026-09-28）— https://gemini.google.com/app/3aac1efabf64e593</h3>
+<p>使用者：什麼意思呢 原始參數例如一個數字被作為值傳遞給函式，如果呼叫的函式改變了這個參數的值，不會影響到函式外部的原始變數。舉例，還是說就是下面那一個例子？</p>
+<p>Gemini：這段講的就是 JavaScript「傳值（Pass by Value）」，基本型別傳進函式時是複製副本；物件型別行為相反，是「傳參考（Pass by Reference / Sharing）」，函式內部改屬性外部也會跟著變。</p>
+<p>使用者：所以這邊講的是函式作用域會隔絕內部和外部的變數，同時函式內部會複製一次number但這次的前提下，number是否有在外部定義？還是在內部定義的？還是這沒有區別？</p>
+<p>Gemini：外部有外部的變數（<code>num</code>），內部有內部的變數（形參 <code>number</code>），兩者分開。形參是只存在函式內部的區域變數，呼叫時 JavaScript 自動建立並把外部值複製給它，函式結束就銷毀，外部變數全程不受影響——有沒有區別，區別非常大，因為傳值＋區域變數隔離讓兩者互不影響。</p>
+<p>使用者：你說 把5複製一份給內部的參數那這個副本是否在記憶體裡面也有一個地址</p>
+<p>Gemini：是的，副本在記憶體裡有自己獨立的位址；外部變數與內部形參佔用不同的記憶體位置，所以修改形參只動到形參自己的空間。</p>
+<p>使用者：number square這個例子使用形參或者實際參數有差嗎？</p>
+<p>Gemini：有差，形參（Formal Parameter）是定義時的變數名稱，實參（Actual Argument）是呼叫時真正傳進去的值，兩者作用域、生命週期、記憶體位址都不同，形參改名也不影響外部呼叫結果。</p>
+<p>使用者：這邊是如何呼叫一個匿名函式作為其第一個參數？他的匿名是指for迴圈嗎？</p>
+<p>Gemini：不是，匿名跟 for 迴圈無關。匿名指函式沒有名字，是現場建立直接當參數傳進去的值；for 迴圈只負責重複呼叫這個被傳進來的函式。</p>
+<h3 id="javascript-2026-09-28-httpsgeminigooglecomapp3a1b8c513813cf2d">JavaScript 參數預設值解析（重複參數名稱與嚴格模式，2026-09-28）— https://gemini.google.com/app/3a1b8c513813cf2d</h3>
+<p>使用者：給幫我寫一個是嚴格模式，一個是非嚴格模式的嗎？（針對重複參數名稱）</p>
+<p>Gemini：非嚴格模式下 <code>function sloppyTest(a, a)</code> 合法，後面的參數覆蓋前面；嚴格模式下 <code>'use strict'; function strictTest(a, a)</code> 會拋出 <code>SyntaxError: Duplicate parameter name not allowed in this context</code>。</p>
+<hr />
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：JavaScript 變數宣告語法解析（實際為傳值傳址／形參實參）</td>
+<td>https://gemini.google.com/app/3aac1efabf64e593</td>
+<td>對話擷取於 2026-09-28</td>
+</tr>
+<tr>
+<td>Gemini 對話：JavaScript 參數預設值解析（實際為重複參數名稱／嚴格模式）</td>
+<td>https://gemini.google.com/app/3a1b8c513813cf2d</td>
+<td>對話擷取於 2026-09-28</td>
+</tr>
+<tr>
+<td>MDN：Functions — Pass by value 範例（<code>square</code>／<code>mycar</code>）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Functions</td>
+<td>查證於 2026-09-28</td>
+</tr>
+<tr>
+<td>MDN：Strict mode — 重複參數名稱限制</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode</td>
+<td>查證於 2026-09-28</td>
+</tr>
+<tr>
+<td>MDN：Anonymous function expression</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/function</td>
+<td>查證於 2026-09-28</td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ 存疑／更正：無——本篇對話內容經與 MDN 官方文件核對，方向正確；兩則對話標題與實際內容有落差（標題各自寫「變數宣告語法解析」「參數預設值解析」，實際內容是傳值傳址與嚴格模式重複參數），筆記標題已改用實際內容命名以利日後查找。</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-28</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

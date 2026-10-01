@@ -3,7 +3,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>函式呼叫核心機制互動版：Execution Context、Creation Phase 與參數綁定</title>
 <style>
-:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;
+  --ok:#15803d;--err:#b91c1c;--warn:#c2410c;--violet:#6d28d9;}
 *{box-sizing:border-box;}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
 .wrap{max-width:900px;margin:0 auto;padding:28px 20px 80px;}
@@ -14,24 +15,29 @@ header.note h1{margin:0 0 12px;font-size:1.5rem;font-family:"Noto Serif TC",seri
 .meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
 section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
 h2{font-size:1.15rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
-h3{font-size:1rem;margin:1em 0 .5em;color:#374151;}
+h3{font-size:1rem;margin:1.2em 0 .5em;color:#374151;}
 code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
 mark{padding:.05em .25em;border-radius:4px;}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.9rem;}
-th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;}
+.y{background:#fff3a3}.b{background:#adccff}.r{background:#ff5582}.g{background:#bbfabb}.v{background:#d2b3ff}.o{background:#ffb86c}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.89rem;}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;}
 th{background:#f1f5f9;}
-pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;color:#abb2bf;font-size:.85rem;}
+pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;color:#abb2bf;font-size:.85rem;line-height:1.65;}
+pre .cm{color:#7f848e;}pre .kw{color:#c678dd;}pre .op{color:#e5c07b;}pre .ok{color:#98c379;}pre .no{color:#e06c75;}
 footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+.indent{margin-left:1.6em;color:var(--muted);font-size:.94em;}
 
 .grammar-tree{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:18px 10px;justify-content:center;}
 .gt-node{position:relative;background:#eef1ff;border:2px solid #c7d2fe;border-radius:10px;padding:10px 14px;font-family:"JetBrains Mono",Consolas,monospace;font-size:.85rem;color:#4338ca;cursor:help;white-space:nowrap;}
 .gt-node.optional{background:#fff7ed;border-color:#fed7aa;color:#c2410c;font-size:.78rem;white-space:normal;max-width:180px;}
+.gt-node.required{background:#ecfdf5;border-color:#a7f3d0;color:#047857;font-size:.78rem;white-space:normal;max-width:180px;}
 .gt-node:hover{background:#4f46e5;color:#fff;border-color:#4f46e5;z-index:5;}
 .gt-node.optional:hover{background:#ea580c;border-color:#ea580c;color:#fff;}
+.gt-node.required:hover{background:#047857;border-color:#047857;color:#fff;}
 .gt-node[data-tip]::after{
   content:attr(data-tip);
   position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);
-  width:240px;white-space:normal;background:#1f2937;color:#f3f4f6;padding:9px 11px;border-radius:8px;
+  width:250px;white-space:normal;background:#1f2937;color:#f3f4f6;padding:9px 11px;border-radius:8px;
   font-family:"Noto Sans TC",sans-serif;font-size:.78rem;line-height:1.5;
   opacity:0;pointer-events:none;transition:opacity .15s;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:10;
 }
@@ -44,58 +50,255 @@ footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
 .gt-branch{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
 .gt-hint{text-align:center;font-size:.78rem;color:var(--muted);margin-top:-6px;margin-bottom:8px;}
 
-.paren-table td.role-yes{color:#15803d;font-weight:600;}
-.paren-table td.role-no{color:#b91c1c;}
+.paren-table td.role-yes{color:var(--ok);font-weight:600;}
+.paren-table td.role-no{color:var(--err);}
 
 .callout{margin:14px 0;padding:12px 16px;border-left:6px solid #7c6f9b;background:#faf9fc;border-radius:10px;}
+.callout.warn{border-left-color:var(--err);background:#fef2f2;}
+.callout.ok{border-left-color:var(--ok);background:#f0fdf4;}
 .callout-title{font-weight:700;margin-bottom:4px;}
+
+.three{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:14px 0;}
+.three>div{border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:12px 14px;background:#fff;}
+.three b{display:block;margin-bottom:4px;font-size:.95rem;}
+.three small{color:var(--muted);}
+
+.blank{display:inline-block;min-width:78px;padding:1px 9px;margin:0 2px;border-bottom:2px dashed var(--accent);
+  color:transparent;background:#eef1f6;border-radius:4px 4px 0 0;cursor:pointer;user-select:none;
+  font-family:"JetBrains Mono",Consolas,monospace;font-size:.88em;}
+.blank.shown{color:#4338ca;background:#bbfabb;border-bottom-style:solid;font-weight:600;}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:5px 12px;}
+button:hover{border-color:var(--accent);color:var(--accent);}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
 </style></head><body>
 <div class="wrap">
 
 <header class="note">
 <h1>函式呼叫核心機制互動版：Execution Context、Creation Phase 與參數綁定</h1>
-<div class="pills"><span class="pill">#javascript</span><span class="pill">#execution-context</span><span class="pill">#parameter-binding</span><span class="pill">#identifier</span></div>
-<div class="meta">完整逐點論述（(a)–(m) 共 13 點）見同資料夾 <code>函式呼叫核心機制-Execution-Context-與-Parameter-Binding.md</code>；本頁是它的互動延伸，重點放在 <strong>FormalParameterList 文法樹的 hover 解釋</strong>與 <strong>括號多重角色對照表</strong>，其餘小節請直接看 .md。</div>
+<div class="pills"><span class="pill">#javascript</span><span class="pill">#execution-context</span><span class="pill">#parameter-binding</span><span class="pill">#grammar</span><span class="pill">#identifier</span></div>
+<div class="meta">
+本頁是<strong>文法產生式（grammar production）專篇</strong>，可以單獨讀，編號從 1 開始。<br>
+執行期的完整逐點論述（Execution Context 怎麼建、Creation Phase 做什麼、參數怎麼綁）見同資料夾
+<code>08-函式呼叫核心機制-Execution-Context-與-Parameter-Binding.md</code>。<br>
+<span style="color:#b91c1c">2026-09-29 改版</span>：原本沿用 .md 的 (d)(m) 編號，現在改成 1／2／3／4 獨立編號，並新增第 3、4 節（宣告的文法產生式、<code>lexical</code> 這個字的三種意思）。
+</div>
 </header>
 
+<div class="toolbar">
+  <button onclick="allBlanks(true)">👁 全部顯示答案</button>
+  <button onclick="allBlanks(false)">🙈 全部隱藏答案</button>
+</div>
+
+<!-- ═══════ 1 ═══════ -->
 <section class="card">
-<h2>(d) FormalParameterList 文法樹——滑鼠移到每個節點看解釋</h2>
+<h2>1. FormalParameterList 文法樹——滑鼠移到每個節點看解釋</h2>
 <p class="gt-hint">↓ 滑鼠移到下面每個方框上，會彈出這個文法節點的白話解釋（注意 FormalParameterList 是「整份列表」、FormalParameter 是「其中一個參數」，兩者不是同義詞）</p>
 <div class="grammar-tree">
-  <div class="gt-node" data-tip="整份參數列表本身，例如 function foo(a, b, c) 裡『a, b, c』這一整串。(e) 講的『簡單/非簡單參數列表』判定基準就是這整份 List——只要裡面任何一個參數帶 default/rest/解構，整份 List 就降級為非簡單。">FormalParameterList</div>
+  <div class="gt-node" data-tip="整份參數列表本身，例如 function foo(a, b, c) 裡『a, b, c』這一整串。『簡單／非簡單參數列表』的判定基準就是這整份 List——只要裡面任何一個參數帶 default／rest／解構，整份 List 就降級為非簡單。">FormalParameterList</div>
   <div class="gt-arrow">→</div>
   <div class="gt-node" data-tip="函式參數列表裡『一個』參數項目，是 FormalParameterList 用逗號分隔出來的其中一格，例如 function f(a, b) 裡的 a 或 b 各自是一個 FormalParameter（可以逗號接龍出現多次）。">FormalParameter</div>
   <div class="gt-arrow">→</div>
-  <div class="gt-node" data-tip="這個參數項目的『繫結形式』：可以是單一名稱綁定，也可以是解構模式（{a,b} 或 [a,b]）。是不是解構模式，直接決定這份參數列表算不算『簡單參數列表』（見 (e)）。">BindingElement</div>
+  <div class="gt-node" data-tip="這個參數項目的『繫結形式』：可以是單一名稱綁定，也可以是解構模式（{a,b} 或 [a,b]）。是不是解構模式，直接決定這份參數列表算不算『簡單參數列表』。">BindingElement</div>
   <div class="gt-arrow">→</div>
   <div class="gt-node" data-tip="當這個參數不是解構模式、只是單純一個變數名稱時，走 SingleNameBinding 這條路——本篇 createCounter(buttonId)、greet(greeting) 這些範例全部都是這種情況。">SingleNameBinding</div>
   <div class="gt-arrow">→</div>
   <div class="gt-branch">
-    <div class="gt-node" data-tip="真正的識別碼節點，跟 let x 的 x 是同一種文法角色（都是廣義的 Identifier production），必須遵守相同命名規則：不能是保留字、不能數字開頭等，見 (d) 內文。">BindingIdentifier</div>
-    <div class="gt-node optional" data-tip="可選的 = 預設值表達式，例如 function f(a = 1) 的『= 1』這一段。一旦某個參數帶了 Initializer，整份參數列表就從『簡單』降級為『非簡單』——連帶影響重複參數名稱是否合法、arguments 物件是 mapped 還是 unmapped、能不能在函式體內寫 use strict，詳見 (e)。">Initializer（可選，= 預設值）</div>
+    <div class="gt-node" data-tip="真正的識別碼節點，跟 let x 的 x 是同一種文法角色（都是廣義的 Identifier production），必須遵守相同命名規則：不能是保留字、不能數字開頭等。">BindingIdentifier</div>
+    <div class="gt-node optional" data-tip="可選的 = 預設值表達式，例如 function f(a = 1) 的『= 1』這一段。一旦某個參數帶了 Initializer，整份參數列表就從『簡單』降級為『非簡單』——連帶影響重複參數名稱是否合法、arguments 物件是 mapped 還是 unmapped、能不能在函式體內寫 use strict。">Initializer（可選，= 預設值）</div>
   </div>
   <div class="gt-arrow">→</div>
-  <div class="gt-node" data-tip="文法樹最底層的終端節點：Identifier。跟 let/const 宣告的變數名稱是完全同一種 Identifier production，命名規則一致——這就是 (d) 的結論：參數名稱在文法上是正牌 Identifier，不是山寨版。">Identifier</div>
+  <div class="gt-node" data-tip="文法樹最底層的終端節點：Identifier。跟 let／const 宣告的變數名稱是完全同一種 Identifier production，命名規則一致——結論就是：參數名稱在文法上是正牌 Identifier，不是山寨版。">Identifier</div>
 </div>
-<p>延伸閱讀：<a href="https://tc39.es/ecma262/#sec-destructuring-binding-patterns" target="_blank" rel="noopener">ECMA-262：Destructuring Binding Patterns（FormalParameter/BindingElement 完整文法定義）</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters" target="_blank" rel="noopener">MDN：Default parameters（Initializer 的實際行為）</a></p>
+<p>延伸閱讀：<a href="https://tc39.es/ecma262/#sec-destructuring-binding-patterns" target="_blank" rel="noopener">ECMA-262：Destructuring Binding Patterns（FormalParameter／BindingElement 完整文法定義）</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Default_parameters" target="_blank" rel="noopener">MDN：Default parameters（Initializer 的實際行為）</a></p>
 </section>
 
+<!-- ═══════ 2 ═══════ -->
 <section class="card">
-<h2>(m) 只要是小括弧都是引數表達式嗎？——滑鼠移到每一列看對照</h2>
+<h2>2. 只要是小括弧都是引數表達式嗎？——看對照表</h2>
 <table class="paren-table">
 <thead><tr><th><code>()</code> 出現的地方</th><th>例子</th><th>屬於哪個文法產生式</th><th>裡面是引數表達式嗎？</th></tr></thead>
 <tbody>
 <tr><td>呼叫式</td><td><code>foo(a, b)</code></td><td><code>CallExpression → MemberExpression Arguments</code></td><td class="role-yes">✅ 是</td></tr>
-<tr><td>函式定義的參數列表</td><td><code>function foo(x, y) {}</code></td><td><code>FormalParameters</code>（見上方 (d) 文法樹）</td><td class="role-no">❌ 不是，是參數宣告</td></tr>
+<tr><td>函式定義的參數列表</td><td><code>function foo(x, y) {}</code></td><td><code>FormalParameters</code>（見上方第 1 節文法樹）</td><td class="role-no">❌ 不是，是參數宣告</td></tr>
 <tr><td>純分組（提升優先權）</td><td><code>(1 + 2) * 3</code></td><td>Grouping Operator</td><td class="role-no">❌ 不是，只是分組</td></tr>
 <tr><td>控制流程關鍵字語法</td><td><code>if (x)</code>、<code>while (x)</code>、<code>for (...)</code></td><td>各自語句自己的產生式</td><td class="role-no">❌ 不是</td></tr>
 <tr><td>IIFE 雙層括號</td><td><code>(function(){})()</code></td><td>外層 Grouping／內層 <code>Arguments</code></td><td>外層 ❌／內層 ✅</td></tr>
+<tr><td>箭頭函式的參數列</td><td><code>(a, b) =&gt; a + b</code></td><td><code>ArrowParameters</code>（先被掩護文法收下，看到 <code>=&gt;</code> 才重讀）</td><td class="role-no">❌ 不是，是參數宣告</td></tr>
 </tbody>
 </table>
-<div class="callout"><div class="callout-title">💡 一句話</div><p>只有緊跟在「被呼叫的東西」後面、屬於 <code>CallExpression</code>／<code>Arguments</code> 這個文法節點的括號，裡面才是引數表達式——判斷方式是看括號屬於哪個文法產生式，不是看有沒有括號。</p></div>
+<div class="callout"><div class="callout-title">💡 一句話</div><p>只有緊跟在「被呼叫的東西」後面、屬於 <code>CallExpression</code>／<code>Arguments</code> 這個文法節點的括號，裡面才是引數表達式——<mark class="y">判斷方式是看括號屬於哪個文法產生式，不是看有沒有括號</mark>。</p></div>
 </section>
 
-<footer>由 Abby × Claude 對話整理 · 更新於 2026-07-28</footer>
+<!-- ═══════ 3 ═══════ -->
+<section class="card">
+<h2>3. 宣告的文法產生式：Initializer 為什麼有時可選、有時必要（2026-09-29 新增）</h2>
+
+<h3>3-1 三條產生式擺在一起看</h3>
+<pre><code><span class="cm">// var 走這條</span>
+VariableDeclaration :
+    BindingIdentifier Initializer<span class="op">(opt)</span>       <span class="cm">← 可選</span>
+    BindingPattern Initializer                <span class="cm">← 沒有 opt，必要</span>
+
+<span class="cm">// let 與 const 共用這條</span>
+LexicalBinding :
+    BindingIdentifier Initializer<span class="op">(opt)</span>       <span class="cm">← 可選（但 const 另有早期錯誤規則）</span>
+    BindingPattern Initializer                <span class="cm">← 沒有 opt，必要</span></code></pre>
+
+<p>先把三個名詞的位置對上：</p>
+<div class="three">
+<div style="border-left-color:var(--accent)"><b>BindingIdentifier</b><small>單一名稱綁定</small>
+  <code>foo</code>、<code>array1</code>、<code>使用者名稱</code><br>
+  就是一個普通的變數名。</div>
+<div style="border-left-color:var(--violet)"><b>BindingPattern</b><small>解構模式</small>
+  <code>{ a, b }</code>、<code>[ x, y ]</code><br>
+  從一個物件或陣列裡<strong>拆出</strong>值來的寫法。</div>
+<div style="border-left-color:var(--warn)"><b>Initializer</b><small>初始值</small>
+  <code>= 右邊那一整段</code><br>
+  <code>(opt)</code> 是 optional 的縮寫，代表文法允許整段不寫。</div>
+</div>
+
+<h3>3-2 為什麼 <code>BindingPattern</code> 後面的 Initializer <mark class="v">沒有 <code>(opt)</code></mark></h3>
+<div class="callout ok">
+<div class="callout-title">一句話</div>
+<p><mark class="g">解構的語意就是「從某個東西裡面拆出值」，沒有那個「某個東西」，就沒有東西可以拆。</mark><br>
+<code>let { a }</code> 這句話在語意上根本不成立——你要從<strong>哪裡</strong>把 <code>a</code> 拆出來？所以文法直接不給你這個選項。</p>
+</div>
+
+<p>實測（Node v22.22.2，2026-09-29）——注意<mark class="r">三個關鍵字全部被擋</mark>：</p>
+<table>
+<thead><tr><th>寫法</th><th>結果</th></tr></thead>
+<tbody>
+<tr><td><code>var { a }</code></td><td class="role-no"><code>SyntaxError: Missing initializer in destructuring declaration</code></td></tr>
+<tr><td><code>let { a }</code></td><td class="role-no">同上</td></tr>
+<tr><td><code>let [ a ]</code></td><td class="role-no">同上</td></tr>
+<tr><td><code>const { a }</code></td><td class="role-no">同上</td></tr>
+<tr><td><code>let { a } = { a: 1 }</code></td><td class="role-yes">✅ 合法，<code>a</code> 是 <code>1</code></td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+<div class="callout-title">⚠️ 這裡有兩種不同層級的「擋」，錯誤訊息也不一樣</div>
+<table style="margin:8px 0 0">
+<thead><tr><th></th><th><code>const foo</code></th><th><code>let { a }</code></th></tr></thead>
+<tbody>
+<tr><td>被哪一層擋下</td><td><mark class="o">早期錯誤 Early Error 規則</mark></td><td><mark class="v">文法產生式本身沒有 <code>(opt)</code></mark></td></tr>
+<tr><td>擋哪些關鍵字</td><td><strong>只擋 <code>const</code></strong>，<code>var foo</code>／<code>let foo</code> 都合法</td><td><strong>三個全擋</strong>，連 <code>var</code> 都不行</td></tr>
+<tr><td>錯誤訊息</td><td><code>Missing initializer in <mark class="o">const declaration</mark></code></td><td><code>Missing initializer in <mark class="v">destructuring declaration</mark></code></td></tr>
+</tbody>
+</table>
+<p style="margin-bottom:0">看錯誤訊息的後半段就知道自己撞到哪一層：<code>const declaration</code> ＝ 撞到早期錯誤規則，<code>destructuring declaration</code> ＝ 撞到文法產生式。</p>
+</div>
+
+<h3>3-3 為什麼對 <code>var</code>／<code>let</code> 而言，沒有 Initializer 是<mark class="g">完全合法</mark>的</h3>
+<p>關鍵在於：<mark class="y">「沒有 Initializer」不等於「沒有值」，而是「值用預設的 <code>undefined</code>」。</mark></p>
+<table>
+<thead><tr><th>寫法</th><th>引擎實際做了什麼</th><th>結果</th></tr></thead>
+<tbody>
+<tr><td><code>var foo</code></td><td>Creation Phase 執行 <code>InitializeBinding(foo, <mark class="y">undefined</mark>)</code></td><td class="role-yes">✅ 合法，值是 <code>undefined</code></td></tr>
+<tr><td><code>let foo</code></td><td>執行到那一行時執行 <code>InitializeBinding(foo, <mark class="y">undefined</mark>)</code>，TDZ 在那一刻結束</td><td class="role-yes">✅ 合法，值是 <code>undefined</code></td></tr>
+<tr><td><code>const foo</code></td><td>—</td><td class="role-no">❌ <code>SyntaxError: Missing initializer in const declaration</code></td></tr>
+</tbody>
+</table>
+
+<p><strong>三個必須支援「不寫 Initializer」的場景：</strong></p>
+<pre><code><span class="cm">// a. 先宣告、後依條件賦值</span>
+<span class="kw">let</span> 結果                       <span class="cm">← 沒有 Initializer，完全合法</span>
+<span class="kw">if</span> (條件) 結果 = <span class="ok">'A'</span>
+<span class="kw">else</span>      結果 = <span class="ok">'B'</span>
+
+<span class="cm">// b. for...in ／ for...of 的位置根本沒有 =</span>
+<span class="kw">for</span> (<span class="kw">const</span> 鍵 <span class="kw">of</span> Object.keys(物件)) { }
+
+<span class="cm">// c. 函式參數、catch (e) 的參數也是 BindingIdentifier，同樣不帶 Initializer</span></code></pre>
+
+<div class="callout ok">
+<div class="callout-title">那 <code>const</code> 為什麼不行</div>
+<p>如果允許 <code>const foo</code>，會造出一個<mark class="r">永遠是 <code>undefined</code>、而且永遠不能改</mark>的綁定——它<strong>完全沒有任何用途</strong>，寫出來一定是打錯字。</p>
+<p style="margin-bottom:0">所以規範用一條早期錯誤規則直接禁止：<em>如果 Initializer 不存在，而且這個 LexicalDeclaration 是常數宣告，就是 Syntax Error。</em><br>
+<mark class="g">文法允許省略，是 const 自己額外加了一條規則把它擋掉的。</mark></p>
+</div>
+
+<h3>3-4 回頭看 2026-09-18 那個 <code>const array 1</code></h3>
+<p>同一個打字錯誤（識別碼中間多一個空白），三個關鍵字給你<strong>兩種完全不同的訊息</strong>：</p>
+<table>
+<thead><tr><th>寫法</th><th>錯誤訊息</th></tr></thead>
+<tbody>
+<tr><td><code>const array 1 = [1]</code></td><td class="role-no"><code>SyntaxError: Missing initializer in const declaration</code></td></tr>
+<tr><td><code>var array 1 = [1]</code></td><td class="role-no"><code>SyntaxError: Expected a semicolon</code></td></tr>
+<tr><td><code>let array 1 = [1]</code></td><td class="role-no"><code>SyntaxError: Expected a semicolon</code></td></tr>
+</tbody>
+</table>
+<p>原因：parser 把 <code>const array</code> 讀成一個<strong>完整的 LexicalBinding</strong>——<code>BindingIdentifier</code> 是 <span class="blank" data-a="array">array</span>，沒有 <code>Initializer</code>。</p>
+<ul>
+<li>對 <code>const</code>：那條早期錯誤規則<mark class="r">立刻觸發</mark>，所以抱怨「少了初始值」。</li>
+<li>對 <code>var</code>／<code>let</code>：沒有 Initializer 是<mark class="g">完全合法</mark>的，所以 parser 認為宣告到此結束，接著開始抱怨後面那個 <code>1</code> 前面應該要有分號。</li>
+</ul>
+<div class="callout"><div class="callout-title">💡 一句話</div><p><mark class="y">錯誤訊息長什麼樣，取決於 parser 在哪一條產生式上卡住，不是取決於你以為自己犯了什麼錯。</mark></p></div>
+</section>
+
+<!-- ═══════ 4 ═══════ -->
+<section class="card">
+<h2>4. <code>lexical</code> 這個字在 JS 裡有三個意思（2026-09-29 新增）</h2>
+
+<div class="callout warn">
+<div class="callout-title">⚠️ 先破除一個誤解</div>
+<p><mark class="r"><code>LexicalBinding</code> 跟箭頭函式<strong>完全無關</strong>。</mark><br>
+它就是 <code>let</code>／<code>const</code> 宣告裡「<strong>一個名字 ＋ 它的初始值</strong>」那一格而已。</p>
+<pre style="margin-bottom:0"><code><span class="kw">const</span> foo = () =&gt; {}
+<span class="cm">      └─────────┘  ← 這一整格是 LexicalBinding</span>
+<span class="cm">                     箭頭函式只是它 Initializer 的「值」</span>
+
+<span class="kw">const</span> foo = <span class="ok">1</span>
+<span class="cm">      └───────┘   ← 這也一樣是 LexicalBinding，跟上面同一條產生式</span></code></pre>
+</div>
+
+<p>問題出在 <code>lexical</code> 這個字在 JavaScript 裡被用在三個<strong>互不相干</strong>的地方：</p>
+
+<div class="three">
+<div style="border-left-color:var(--accent)">
+  <b>① Lexical Scope 詞法作用域</b>
+  <small>作用域規則</small>
+  一個名字指的是誰，由它<strong>寫在原始碼的哪一層</strong>決定，跟被誰呼叫無關。<br>
+  同義詞：靜態作用域 Static Scope。
+</div>
+<div style="border-left-color:var(--violet)">
+  <b>② LexicalDeclaration／LexicalBinding</b>
+  <small>文法產生式名稱</small>
+  就是 <code>let</code> 與 <code>const</code> 宣告。<br>
+  <mark class="v">跟箭頭函式毫無關係</mark>，<code>const x = 1</code> 也走這條。
+</div>
+<div style="border-left-color:var(--err)">
+  <b>③ <code>[[ThisMode]] = lexical</code></b>
+  <small>函式物件的內部欄位</small>
+  <mark class="r">這個才是箭頭函式</mark>。代表它沒有自己的 <code>this</code> 與 <code>arguments</code>，沿用外層。
+</div>
+</div>
+
+<h3>為什麼 <code>let</code>／<code>const</code> 的產生式叫「Lexical」</h3>
+<p>因為它們是<mark class="g">區塊作用域</mark>的——作用域邊界由程式碼寫在<strong>哪一對 <code>{}</code> 裡面</strong>決定，這是一種「看位置」的性質，也就是<strong>詞法的（lexical）</strong>。</p>
+<p>反過來 <code>var</code> 不受 <code>{}</code> 限制（只認函式邊界），所以它的產生式就叫
+<span class="blank" data-a="VariableDeclaration">VariableDeclaration</span>，<mark class="y">名字裡沒有 Lexical 這個字</mark>——這個命名差異本身就是線索。</p>
+
+<table>
+<thead><tr><th>產生式名稱</th><th>對應關鍵字</th><th>作用域邊界</th><th>名字裡有 Lexical 嗎</th></tr></thead>
+<tbody>
+<tr><td><code>VariableStatement</code> / <code>VariableDeclaration</code></td><td><code>var</code></td><td>函式作用域</td><td class="role-no">❌ 沒有</td></tr>
+<tr><td><code>LexicalDeclaration</code> / <code>LexicalBinding</code></td><td><code>let</code>、<code>const</code></td><td><mark class="g">區塊作用域</mark></td><td class="role-yes">✅ 有</td></tr>
+</tbody>
+</table>
+
+<div class="callout"><div class="callout-title">💡 一句話</div>
+<p>看到 <code>lexical</code> 先問「這句話在講作用域、講宣告關鍵字、還是講 <code>this</code>」——<mark class="y">三個答案完全不同，別把它們串在一起</mark>。</p></div>
+</section>
+
+<footer>由 Abby × Claude 對話整理 · 2026-07-28 建立 · 2026-09-29 改版（改為獨立編號 1–4，新增第 3、4 節）</footer>
 </div>
 <script src="../../../assets/wikilink.js" data-root="../../../"></script>
+<script>
+document.querySelectorAll('.blank').forEach(el=>{
+  el.title='點一下顯示／隱藏答案';
+  el.addEventListener('click',()=>el.classList.toggle('shown'));
+});
+function allBlanks(s){document.querySelectorAll('.blank').forEach(el=>el.classList.toggle('shown',s))}
+</script>
 </body></html>

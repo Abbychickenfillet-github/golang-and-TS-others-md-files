@@ -117,9 +117,9 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <h1>SSR、renderToString 與 Hydration — 伺服器端渲染流程</h1>
   <div class="pills"><span class="pill">#gemini</span><span class="pill">#react</span><span class="pill">#ssr</span><span class="pill">#hydration</span><span class="pill">#dom</span><span class="pill">#seo</span><span class="pill">#效能</span><span class="pill">#build-time</span><span class="pill">#runtime</span><span class="pill">#ssg</span></div>
   <div class="meta">
-    <span>更新於 2026-09-06</span>
+    <span>更新於 2026-09-22</span>
     <span>來源：Gemini</span>
-    <a href="https://gemini.google.com/app/0b96bab2bcf0369f" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/7a12e30998ccde0c" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/de0c03613eb15709" target="_blank" rel="noopener">原始對話 3</a>
+    <a href="https://gemini.google.com/app/0b96bab2bcf0369f" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/7a12e30998ccde0c" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/de0c03613eb15709" target="_blank" rel="noopener">原始對話 3</a><a href="https://gemini.google.com/app/880a00585b4bc824" target="_blank" rel="noopener">原始對話 4</a><a href="https://gemini.google.com/app/14a5019f253a467f" target="_blank" rel="noopener">原始對話 5</a><a href="https://gemini.google.com/app/3f1fb43b3b7f08aa" target="_blank" rel="noopener">原始對話 6</a>
   </div>
 </header>
 
@@ -142,7 +142,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 
 <article class="card">
 <h1 id="ssrrendertostring-hydration">SSR、renderToString 與 Hydration — 伺服器端渲染流程</h1>
-<p>本篇重點 a–v，共 22 個（l–p 為 2026-09-01 追加；q–v 為 2026-09-06 追加）</p>
+<p>本篇重點 a–w，共 23 個（l–p 為 2026-09-01 追加；q–v 為 2026-09-06 追加；w 為 2026-09-22 追加）</p>
 <p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SSR（Server-Side Rendering，伺服器端渲染）</mark>：在伺服器上先把頁面產生成 HTML 字串再傳給瀏覽器，好處是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">首屏更快看到內容、對 SEO 友善</mark>（爬蟲不必等 JS 執行完才看得到文字）。</p>
 <p><strong>Hydration 在完整渲染管線裡是第幾步？</strong>——<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Reflow（重排/Layout）跟 Repaint（重繪/Paint）排在 Hydration 前面</mark>，順序是：</p>
 <ol>
@@ -156,6 +156,43 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 <li>JS bundle 下載完、執行，React 呼叫 <code>hydrateRoot()</code> → <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Hydration</mark>——走訪既有 DOM、掛上事件監聽 → <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">此時頁面才變成可以互動</mark></li>
 </ol>
 <p>SSR 的核心賣點正是把「看得到（Paint 完成）」跟「能互動（Hydration 完成）」拆成兩個時間點，讓使用者先看到內容，互動性稍後才補上（詳細管線見 <span class="wikilink" title="Obsidian 連結：Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪">Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪</span>）。</p>
+<p>(w) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">同一條管線換個角度看：HTML、CSS、JavaScript 這三條線各自什麼時候從 server 走到 client</mark>（2026-09-22 追加，Abby 問的是「Next.js 專案這個畫面 SSR，三條線是怎麼走的」）：</p>
+<table>
+<thead>
+<tr>
+<th>這條線</th>
+<th>在伺服器端被做了什麼</th>
+<th>什麼時候送到瀏覽器</th>
+<th>到了之後做什麼</th>
+<th>缺了它會怎樣</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HTML</td>
+<td>伺服器先跑完資料抓取邏輯，再用 <code>renderToString</code> 把元件樹轉成 HTML 字串</td>
+<td>第一個 response 就帶走，跟 (a) 的步驟 1–2 同一件事</td>
+<td>瀏覽器 parse 成 DOM Tree</td>
+<td>首屏空白，SEO 爬蟲看不到文字</td>
+</tr>
+<tr>
+<td>CSS</td>
+<td>建置階段就被抽成 <code>.css</code> 檔並算好 content hash，伺服器只在 HTML 裡插入 <code>&lt;link&gt;</code> 指向它</td>
+<td>瀏覽器 parse HTML 遇到 <code>&lt;link&gt;</code> 時才去要，屬於 render-blocking 資源</td>
+<td>parse 成 CSSOM，跟 DOM 合成 Render Tree 才能 Layout 與 Paint</td>
+<td>畫面出現無樣式的裸 HTML（FOUC）</td>
+</tr>
+<tr>
+<td>JavaScript</td>
+<td>建置階段被 bundler 打包成 chunk，伺服器同樣只插入 <code>&lt;script&gt;</code> 指向它</td>
+<td>HTML 顯示出來之後才下載與執行</td>
+<td>執行 <code>hydrateRoot</code>，走訪既有 DOM 把事件監聽掛上去</td>
+<td>畫面看得到但按不動，卡在 (a) 的步驟 7 到 8 之間</td>
+</tr>
+</tbody>
+</table>
+<pre><code>&lt;mark style="background: #BBFABBA6;"&gt;所以「三條線」不是同時抵達&lt;/mark&gt;：HTML 走第一班車決定「什麼時候看得到」，CSS 搭同一班車的下一節決定「看起來對不對」，JavaScript 走最後一班決定「什麼時候按得動」。
+</code></pre>
 <p>(b) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">伺服器怎麼把元件變成 HTML</mark>：靠框架提供的特定函式，React 就是 <code>renderToString</code>（或串流版 <code>renderToPipeableStream</code>）。它把 React 元件樹轉成<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">純字串</mark>，不是 DOM 節點。</p>
 <pre><code class="language-jsx">// 伺服器端（Node.js）
 import { renderToString } from 'react-dom/server';
@@ -300,6 +337,47 @@ hydrateRoot(document.getElementById('root'), &lt;App /&gt;);
 </tbody>
 </table>
 <p>(v) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一句話記法</mark>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">問「HTML 是誰、在哪一刻拼出來的」就分得出三者</mark>——建置機器拼好的是 SSG，伺服器每次現拼的是 SSR，瀏覽器自己拼的是 CSR。<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">而 Build Time 這一格對三者其實做的事幾乎一樣（編譯＋打包），差別全在 Runtime。</mark></p>
+<h3 id="2026-09-15-ssg-ssr-html">追加 2026-09-15：一句話講清楚 SSG 與 SSR 的分界，以及 HTML 裡那個「站位標記」</h3>
+<h4 id="vs">(一) 靜態檔 vs 動態檔</h4>
+<p><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><strong>SSG 產出的是固定檔案，不管多少人連線，伺服器都遞出同一份 HTML 與 JS；SSR 則是每次請求進來時，伺服器當下執行程式碼把 HTML 組出來，所以每個使用者拿到的內容可以不一樣。</strong></mark></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>SSG（Static Site Generation）</th>
+<th>SSR（Server-Side Rendering）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HTML 什麼時候長出來</td>
+<td>build time，打包時就生好</td>
+<td>runtime，每一次 request 當下</td>
+</tr>
+<tr>
+<td>伺服器做什麼</td>
+<td>只負責把檔案遞出去（等同 CDN 靜態檔）</td>
+<td>執行 render 函式、查資料庫、組字串</td>
+</tr>
+<tr>
+<td>每個人拿到的內容</td>
+<td>一樣</td>
+<td>可以不一樣（登入者名字、個人化推薦）</td>
+</tr>
+<tr>
+<td>內容更新</td>
+<td>要重新 build（或走 ISR）</td>
+<td>立即反映</td>
+</tr>
+</tbody>
+</table>
+<p>所以「靜態檔案」的靜態，指的是<strong>檔案內容在被請求之前就已經定案</strong>；SSR 的動態，指的是<strong>內容在被請求的那一刻才決定</strong>。</p>
+<h4 id="js">(二) 那個會被 JS 換掉的「站位標記」寫在哪個檔案裡</h4>
+<p>Abby 問「那個會動的部分是寫在 <code>.js</code> 檔裡還是 <code>.html</code> 檔裡」，答案是<strong>兩邊都有，但角色不同</strong>：</p>
+<blockquote>
+<p>伺服器先把一份<strong>含站位標記的初始 HTML</strong> 回給瀏覽器（例如骨架、<code>&lt;!--$--&gt;</code> 這類 Suspense 邊界註解、或空的容器 div）→ 瀏覽器一邊顯示這份 HTML，一邊下載對應的 JS chunk → JS 載入後執行 hydration，React 走一次同樣的元件樹，把事件監聽器綁上去，並把站位處替換成真正的互動內容。</p>
+</blockquote>
+<p><mark style="background: #ADCCFF62;"><strong>所以「畫面先出現」靠的是 HTML，「會動」靠的是後來載入的 JS chunk。</strong></mark>這正是本篇前面講的 hydration：HTML 負責<strong>看得到</strong>，JS 負責<strong>按得動</strong>，中間那段空窗期就是 TTI（Time To Interactive）被拉長的原因。</p>
 <h2 id="_1">相關筆記</h2>
 <ul>
 <li><span class="wikilink" title="Obsidian 連結：00-前端建構到執行全景地圖">00-前端建構到執行全景地圖</span> —— HTML/CSS/JS/React/Vue 各自 build-time→runtime 的總地圖，本篇是 React run-time（SSR/hydration）那一列的來源篇</li>
@@ -346,6 +424,15 @@ Gemini：在 CSR 中，元件只會在客戶端的瀏覽器中執行一次，直
 <p><strong>使用者：</strong> 可以詳細一點，畫出流程給我看嗎？SSR 跟 CSR 的 build time 流程是什麼？要畫出差異性，而且他們在 runtime 的流程是什麼？<br />
 <strong>Gemini：</strong> 先看 SSR。在 Build Time 時，編譯器會預先結合程式碼與後端資料庫請求，將頁面渲染成靜態 HTML。進入 Runtime 後，當使用者發送請求，伺服器端會直接回傳預先準備好的靜態 HTML 檔案，接著瀏覽器完成解析與繪製，最後掛載前端腳本完成 Hydration。（⚠️ 見重點 (t) 的更正：這段講的是 SSG 不是 SSR）<br />
 接著是 CSR。Build Time 時編譯器僅會將 React 或相關前端套件打包，生成 JavaScript 檔案，此時並沒有完整的 HTML。進入 Runtime 後，瀏覽器會先下載空的 HTML 與大量的 JavaScript，接著在客戶端由引擎解析並動態建立 DOM，最後完成頁面呈現。（✅ 這段正確）</p>
+<h3 id="2026-09-15ssg-ssr-httpsgeminigooglecomapp880a00585b4bc824">追加 2026-09-15｜SSG 與 SSR 的差異解析 — https://gemini.google.com/app/880a00585b4bc824</h3>
+<h3 id="2026-09-15-html-js-chunk-httpsgeminigooglecomapp14a5019f253a467f">追加 2026-09-15｜初始 HTML 的站位標記與 JS chunk — https://gemini.google.com/app/14a5019f253a467f</h3>
+<p>（兩串都很短，重點已整併進上方「追加 2026-09-15」。）</p>
+<h3 id="2026-09-22nextjs-ssr-server-side-client-side-httpsgeminigooglecomapp3f1fb43b3b7f08aa">追加 2026-09-22｜Next.js SSR 從 server side 到 client side 進行了什麼交互 — https://gemini.google.com/app/3f1fb43b3b7f08aa</h3>
+<p><strong>使用者：</strong> 我在整個 Next 專案這個畫面 SSR，你說一下這三條線 HTML、CSS、JavaScript，它從後端 server 到前端 client side 是怎麼樣的一個過程？進行了什麼步驟跟交互？</p>
+<p><strong>Gemini：</strong> 這過程其實蠻有效率的。當使用者發送請求時，伺服器會先執行邏輯並取得資料，接著把元件轉譯成靜態的 HTML 和必要的 CSS。這些資料會先送到前端，讓瀏覽器能馬上呈現出初始畫面，這能給使用者很好的第一印象。隨後，瀏覽器會下載 JavaScript 檔案，並進行 Hydration，也就是把 JavaScript 綁定到靜態的 HTML 上，讓頁面完全恢復互動功能。</p>
+<blockquote>
+<p>⚠️ 存疑／更正：Gemini 說「把元件轉譯成靜態的 HTML 和必要的 CSS」，這句把 CSS 的產生時機講錯了。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">CSS 不是在 request 當下跟著元件一起被產出的</mark>，它在<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">建置階段（build time）就已經被 bundler 抽成獨立的 <code>.css</code> 檔並算好 content hash</mark>，伺服器在 request 當下只是在 HTML 裡插入一行 <code>&lt;link&gt;</code> 指向那個檔。修正後的完整對照見上方重點 (w)。</p>
+</blockquote>
 <h2 id="_3">資料來源（含查證時間）</h2>
 <table>
 <thead>
@@ -411,11 +498,46 @@ Gemini：在 CSR 中，元件只會在客戶端的瀏覽器中執行一次，直
 <td>https://developer.mozilla.org/en-US/docs/Glossary/SSR</td>
 <td>MDN 現行版本，2026-09-06 查證</td>
 </tr>
+<tr>
+<td>Next.js：Static Rendering 與 Dynamic Rendering</td>
+<td>https://nextjs.org/docs/app/getting-started/partial-prerendering</td>
+<td>Next.js 官方，查證 2026-09-15</td>
+</tr>
+<tr>
+<td>React <code>hydrateRoot</code>（hydration 的官方定義）</td>
+<td>https://react.dev/reference/react-dom/client/hydrateRoot</td>
+<td>React 官方，查證 2026-09-15</td>
+</tr>
+<tr>
+<td>本次追加的原始對話一（Gemini）</td>
+<td>https://gemini.google.com/app/880a00585b4bc824</td>
+<td>對話擷取 2026-09-15</td>
+</tr>
+<tr>
+<td>本次追加的原始對話二（Gemini）</td>
+<td>https://gemini.google.com/app/14a5019f253a467f</td>
+<td>對話擷取 2026-09-15</td>
+</tr>
+<tr>
+<td>本次追加的原始對話（Gemini）〈Next.js SSR 三條線〉</td>
+<td>https://gemini.google.com/app/3f1fb43b3b7f08aa</td>
+<td>對話擷取 2026-09-22</td>
+</tr>
+<tr>
+<td>Next.js — CSS 在 build time 被抽出成獨立檔案（用於 (w) 與上方更正）</td>
+<td>https://nextjs.org/docs/app/getting-started/css</td>
+<td>Next.js 官方，查證 2026-09-22</td>
+</tr>
+<tr>
+<td>MDN — Render-blocking CSS（用於 (w) 的 CSS 那一列）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/Critical_rendering_path</td>
+<td>MDN，查證 2026-09-22</td>
+</tr>
 </tbody>
 </table>
 </article>
 
-<footer>由 Gemini 對話自動整理 · 更新於 2026-09-06</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-22</footer>
 </div>
 <script>
 (function(){
@@ -483,50 +605,5 @@ Gemini：在 CSR 中，元件只會在客戶端的瀏覽器中執行一次，直
   });
 })();
 </script>
-
-<!-- ==== 追加 2026-09-15（由 Gemini 對話自動整併） ==== -->
-<section style="max-width:820px;margin:40px auto;padding:0 20px;font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;line-height:1.75;color:#23262d">
-<h2 style="font-family:'Noto Serif TC',Georgia,serif;font-size:1.3rem;margin:32px 0 14px;padding-left:12px;border-left:6px solid #4f6bed">追加 2026-09-15：一句話講清楚 SSG 與 SSR 的分界，以及 HTML 裡那個「站位標記」</h2>
-<div style="background:#fff;border:1px solid #e6e3dc;border-radius:14px;padding:20px 22px;box-shadow:0 1px 2px rgba(0,0,0,.03)">
-
-<p><mark style="background:#FFF3A3;padding:1px 4px;border-radius:3px"><b>SSG 產出的是固定檔案，不管多少人連線都遞出同一份；SSR 是每次請求進來時，伺服器當下執行程式碼把 HTML 組出來。</b></mark></p>
-<table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem"><thead><tr><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left"></th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">SSG（Static Site Generation）</th><th style="border:1px solid #e6e3dc;padding:9px 11px;background:#f2f0ea;text-align:left">SSR（Server-Side Rendering）</th></tr></thead><tbody>
-<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">HTML 什麼時候長出來</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">build time，打包時就生好</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">runtime，每一次 request 當下</td></tr>
-<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">伺服器做什麼</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">只負責把檔案遞出去</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">執行 render、查資料庫、組字串</td></tr>
-<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">每個人拿到的內容</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">一樣</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">可以不一樣</td></tr>
-<tr><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">內容更新</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">要重新 build（或走 ISR）</td><td style="border:1px solid #e6e3dc;padding:9px 11px;text-align:left;vertical-align:top">立即反映</td></tr>
-</tbody></table>
-<p>「靜態」指的是<b>檔案內容在被請求之前就已經定案</b>；「動態」指的是<b>內容在被請求的那一刻才決定</b>。</p>
-<h3 style="font-size:1.05rem;margin:24px 0 10px;color:#33406e">那個會被 JS 換掉的「站位標記」寫在哪個檔案裡</h3>
-<div style="border-left:5px solid #4f6bed;background:#f1f4fd;border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:.92rem">
-伺服器先把一份<b>含站位標記的初始 HTML</b> 回給瀏覽器 → 瀏覽器一邊顯示這份 HTML，一邊下載對應的 JS chunk → JS 載入後執行 hydration，React 走一次同樣的元件樹，把事件監聽器綁上去，並把站位處替換成真正的互動內容。</div>
-<p><mark style="background:#ADCCFF;padding:1px 4px;border-radius:3px"><b>「畫面先出現」靠的是 HTML，「會動」靠的是後來載入的 JS chunk。</b></mark>中間那段空窗期就是 TTI（Time To Interactive）被拉長的原因。</p>
-<div class="g915-tf" data-ans="F" data-why="SSG 的 HTML 在 build time 就生好了。" style="margin:12px 0">
- <div style="font-weight:600;margin-bottom:6px">1. SSG 的 HTML 也是在每次請求時才組出來的。</div>
- <button data-g915tf="T" style="border:1px solid #e6e3dc;background:#fff;border-radius:8px;padding:5px 16px;margin-right:8px;cursor:pointer">O</button>
- <button data-g915tf="F" style="border:1px solid #e6e3dc;background:#fff;border-radius:8px;padding:5px 16px;margin-right:8px;cursor:pointer">X</button>
- <span class="g915-fb" style="font-size:.85rem"></span></div>
-
-</div>
-<p style="font-size:.8rem;color:#6b7280;text-align:center;margin-top:24px">由 Gemini 對話自動整理 · 更新於 2026-09-15 ｜ 來源：<a href="https://gemini.google.com/app/880a00585b4bc824">880a…c824</a>、<a href="https://gemini.google.com/app/14a5019f253a467f">14a5…467f</a></p>
-</section>
-<script>
-document.addEventListener('click',function(e){
- var t=e.target;
- if(t.classList&&t.classList.contains('g915-blank')){
-   t.dataset.on=t.dataset.on==='1'?'0':'1';
-   t.style.color=t.dataset.on==='1'?'#0b6b4f':'transparent';
-   t.style.background=t.dataset.on==='1'?'#d7f3e6':'#dfe4f5';}
- if(t.dataset&&t.dataset.g915target){
-   var b=document.getElementById(t.dataset.g915target);
-   b.style.display=(b.style.display==='block')?'none':'block';
-   t.textContent=(b.style.display==='block')?'隱藏答案':'顯示答案';}
- if(t.dataset&&t.dataset.g915tf!==undefined){
-   var w=t.closest('.g915-tf'),f=w.querySelector('.g915-fb'),ok=(t.dataset.g915tf===w.dataset.ans);
-   f.textContent=ok?'✔ 答對了':'✘ 再想想 → '+w.dataset.why;
-   f.style.color=ok?'#0b6b4f':'#d94f6b';f.style.fontWeight='600';}
-});
-</script>
-
 </body>
 </html>

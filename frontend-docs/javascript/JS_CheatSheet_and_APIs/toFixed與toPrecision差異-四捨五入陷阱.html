@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>toFixed() 與 toPrecision()——控制對象、四捨五入陷阱與科學記號規則</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__hljsFailed=true"></script>
+<style>
+:root {
+  --bg: #faf9f7; --card-bg: #ffffff; --text: #2b2b2b; --sub-text:#6b6b6b;
+  --border:#e6e2da; --accent:#6b8f9c; --pill-bg:#eef2f4;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; padding:0 16px 60px; background:var(--bg); color:var(--text);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  line-height:1.7;
+}
+.container { max-width:820px; margin:0 auto; }
+header.page-head {
+  padding:36px 0 20px; border-bottom:1px solid var(--border); margin-bottom:28px;
+}
+h1 { font-family:"Noto Serif TC",Georgia,serif; font-size:1.65rem; line-height:1.4; margin:0 0 14px; }
+.meta-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
+.pill {
+  display:inline-block; background:var(--pill-bg); color:var(--accent);
+  border-radius:999px; padding:3px 12px; font-size:0.78rem; border:1px solid var(--border);
+}
+.updated { color:var(--sub-text); font-size:0.85rem; }
+.src-link { font-size:0.85rem; }
+.src-link a { color:var(--accent); }
+section.card {
+  background:var(--card-bg); border:1px solid var(--border); border-radius:14px;
+  padding:24px 26px; margin-bottom:22px; box-shadow:0 1px 3px rgba(0,0,0,0.03);
+}
+h2 { font-size:1.25rem; border-left:4px solid var(--accent); padding-left:10px; margin-top:0; }
+h3 { font-size:1.05rem; color:#3d3d3d; margin-top:28px; }
+p.kp { display:flex; gap:10px; align-items:flex-start; margin:14px 0; }
+.kp-letter {
+  cursor:pointer; user-select:none; font-weight:700; color:#fff; background:var(--accent);
+  border-radius:6px; padding:1px 8px; flex-shrink:0; font-size:0.85rem;
+}
+.kp-text { transition:filter .15s ease, opacity .15s ease; }
+.kp-text.hidden-kp { filter:blur(6px); opacity:.45; }
+mark { padding:0 3px; border-radius:3px; }
+table { border-collapse:collapse; width:100%; margin:16px 0; font-size:0.92rem; }
+th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; }
+tr:nth-child(even) td { background:#f7f5f1; }
+th { background:#efece5; }
+pre { border-radius:10px; padding:14px 16px; overflow-x:auto; font-size:0.85rem; background:#282c34; }
+code { font-family:"JetBrains Mono","Fira Code",monospace; }
+:not(pre) > code { background:#eee; padding:1px 5px; border-radius:4px; color:#a5395b; }
+blockquote {
+  border-left:4px solid #cbb; margin:14px 0; padding:6px 14px; background:#fdfaf5; color:#555;
+}
+img { max-width:100%; border-radius:8px; margin:10px 0; }
+.source-card { border-radius:10px; padding:14px 16px; margin:12px 0; background:#f6f7f8; border-left:4px solid var(--accent); }
+.source-card .who-user { color:#8a5a00; font-weight:700; }
+.source-card .who-gemini { color:#2c6e8f; font-weight:700; }
+a { color:var(--accent); }
+footer { text-align:center; color:var(--sub-text); font-size:0.8rem; margin-top:40px; }
+.toolbar { text-align:right; margin-bottom:10px; }
+.toolbar button {
+  background:var(--card-bg); border:1px solid var(--border); border-radius:8px;
+  padding:6px 12px; font-size:0.82rem; cursor:pointer; color:var(--accent);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#1c1d1f; --card-bg:#26282b; --text:#e6e4df; --sub-text:#9a9a9a; --border:#3a3c3f; --pill-bg:#2f3336; }
+  blockquote { background:#242527; color:#bbb; }
+  .source-card { background:#232527; }
+  :not(pre) > code { background:#33363a; color:#ff9ec2; }
+  tr:nth-child(even) td { background:#242628; }
+  th { background:#2c2f32; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header class="page-head">
+<h1>toFixed() 與 toPrecision()——控制對象、四捨五入陷阱與科學記號規則</h1>
+<div class="meta-row"><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">toFixed</span><span class="pill">toPrecision</span><span class="pill">浮點數</span><span class="pill">IEEE754</span><span class="pill">面試</span></div>
+<div class="meta-row">
+  <span class="updated">更新於 2026-09-23</span>
+  <span class="src-link">來源：<a href="https://gemini.google.com/app/a413bb16a7394d11" target="_blank">https://gemini.google.com/app/a413bb16a7394d11</a></span>
+</div>
+</header>
+<div class="toolbar">
+  <button onclick="toggleAllKP()">全部隱藏／顯示重點</button>
+</div>
+<section class="card"><blockquote class="source-card">
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+[[parseInt與Number-字串轉數值差異]] 講的是「字串怎麼變成數字」，本篇講的是「數字怎麼變回字串顯示」，是同一條資料流的頭尾兩端。</p>
+<p>本篇重點 a–l，共 12 個。</p>
+</blockquote>
+<h2>重點整理</h2>
+<h3>一、核心差異：控制對象不同（a–c）</h3>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(a)</span><span class="kp-text"><mark style="background: #ADCCFFA6;">兩者的核心差異是「算位數的起點不同」</mark>：<code>toFixed(n)</code> 控制<mark style="background: #FFF3A3A6;">小數點後的位數</mark>，起點固定在小數點 <code>.</code> 之後，適合貨幣、金額、百分比這種「一定要顯示到小數後幾位」的場景；<code>toPrecision(n)</code> 控制<mark style="background: #FFF3A3A6;">整體的有效數字</mark>，起點是<mark style="background: #FF5582A6;">從第一個非 0 的數字開始算</mark>，適合科學計算、測量數據這種要求整體精確度的場景。</span></p>
+<pre><code class="language-js">const num = 123.4567;
+
+// toFixed：規定「小數點後面要留幾位」
+num.toFixed(2);      // &quot;123.46&quot;（小數點後留 2 位，四捨五入）
+num.toFixed(0);      // &quot;123&quot;（只留整數）
+
+// toPrecision：規定「整串數字一共要留幾位有效數字」
+num.toPrecision(2);  // &quot;1.2e+2&quot;（總共只要 2 位，整數放不下就轉科學記號）
+num.toPrecision(4);  // &quot;123.5&quot;（從頭數 4 位：1,2,3,5）
+</code></pre>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(b)</span><span class="kp-text"><mark style="background: #FF5582A6;">「toPrecision 不處理小數點後面的位數」是常見誤解</mark>：它一樣會處理小數，只是<mark style="background: #BBFABBA6;">算盤從最左邊（第一個非 0 數字）開始數，而不是從小數點開始數</mark>。</span></p>
+<pre><code class="language-js">(12.3456).toPrecision(4); // &quot;12.35&quot; —— 4 位有效數字：1,2,3,5，小數點後留了 2 位
+(12.3456).toPrecision(2); // &quot;12&quot;    —— 只要 2 位：1,2，小數點後全部捨棄
+</code></pre>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(c)</span><span class="kp-text"><mark style="background: #D2B3FFA6;">單字記憶法</mark>：<code>toFixed</code> 對應英文 <mark style="background: #ADCCFFA6;">Fixed point（定點數）</mark>，相對於 Floating point（浮點，小數點位置會「浮動」），Fixed 就是把小數點「釘死」在某個位置，後面只准留 n 位（如 <code>toFixed(2)</code> 固定留 2 位，像 <code>$10.50</code>）。<code>toPrecision</code> 對應英文 <mark style="background: #ADCCFFA6;">Precision（精確度）</mark>：不管數字多大多小，只要求前 n 位最有價值的數字。</span></p>
+<h3>二、四捨五入為什麼會「跟想像的不一樣」（d–h）</h3>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(d)</span><span class="kp-text"><mark style="background: #FF5582A6;">根本原因：JavaScript 用 IEEE 754 雙精度浮點數（64-bit）儲存所有數字</mark>。許多十進位小數轉成二進位後會變成無限循環小數，電腦只能在邊界截斷，因而產生微小的<mark style="background: #FFF3A3A6;">精度偏差（Precision Error）</mark>。<code>toFixed()</code>／<code>toPrecision()</code> 處理的其實是<mark style="background: #BBFABBA6;">已經被二進位微幅調整過的近似值</mark>，不是你輸入的十進位原始數字。</span></p>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(e)</span><span class="kp-text"><mark style="background: #FF5582A6;">經典陷阱：<code>(1.005).toFixed(2)</code> 不是 <code>"1.01"</code> 而是 <code>"1.00"</code></mark>：</span></p>
+<pre><code class="language-js">(1.005).toFixed(2);        // &quot;1.00&quot; —— 不是直覺的 &quot;1.01&quot;！
+(1.005).toPrecision(20);   // &quot;1.0049999999999998934&quot; —— 這才是它在記憶體裡的真實值
+</code></pre>
+<p>因為二進位無法精確表達 <code>0.005</code>，實際存的是 <code>1.00499999999999989...</code>。<code>toFixed(2)</code> 四捨五入時看的是小數點後第 3 位——是 <code>4</code>（小於 5），所以被捨去，結果變成 <code>"1.00"</code>。對照組 <code>(1.015).toFixed(2)</code> 因為實際存的是 <code>1.0150000000000001243</code>（比 1.015 微幅偏大），結果就如預期是 <code>"1.02"</code>。</p>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(f)</span><span class="kp-text"><mark style="background: #ADCCFFA6;">除了二進位表示誤差，規範本身的捨入定義也會影響結果</mark>：<code>(1.25).toPrecision(2)</code> 是 <code>"1.3"</code>（正常進位），因為 <code>1.25</code> 剛好能被二進位精確表示；一旦數字無法被精確表示，結果就取決於誤差是微幅偏大還是偏小。</span></p>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(g)</span><span class="kp-text"><mark style="background: #FF5582A6;">解法：不要在金融／帳務場景直接依賴原生 <code>toFixed()</code></mark>。三種修正方式：</span></p>
+<ol>
+<li><mark style="background: #BBFABBA6;">改用最小單位整數儲存</mark>——把金額換算成「分／角」再計算，避開小數點（例如 <code>$1.05</code> 存成整數 <code>105</code> 分）。</li>
+<li><mark style="background: #BBFABBA6;">指數修正技巧（Exponential Correction）</mark>——利用科學記號把小數點暫時往右移，四捨五入完再移回來：</li>
+</ol>
+<pre><code class="language-js">function safeRound(num, decimalPlaces) {
+  const factor = Math.pow(10, decimalPlaces);
+  return (Math.round(Number(num + &quot;e&quot; + decimalPlaces)) / factor).toFixed(decimalPlaces);
+}
+safeRound(1.005, 2); // &quot;1.01&quot; —— 正確修正
+</code></pre>
+<ol>
+<li><mark style="background: #BBFABBA6;">改用任意精度（Arbitrary-precision）套件</mark>——<code>big.js</code>（輕量，適合金融金額）、<code>decimal.js</code>（功能更完整）、<code>bignumber.js</code>。</li>
+</ol>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(h)</span><span class="kp-text"><mark style="background: #FFB8EBA6;"><code>toPrecision(20)</code> 是很好用的偵錯技巧</mark>：把精度拉到 20 位，直接看某個小數在記憶體裡「真正」被存成什麼樣子，可以用來驗證浮點數誤差是否是結果不如預期的原因。</span></p>
+<h3>三、科學記號 vs. 一般小數：<code>toPrecision</code> 怎麼決定要不要展開（i–l）</h3>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(i)</span><span class="kp-text"><mark style="background: #FFF3A3A6;"><code>toPrecision()</code> 的設計目標是「優先給人類閱讀」</mark>，不是每種情況都硬輸出科學記號。引擎算出標準科學記號後，會依規則二選一：直接展開成一般小數，或維持科學記號。</span></p>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(j)</span><span class="kp-text"><mark style="background: #ADCCFFA6;">判斷條件 1：展開成一般小數會不會「失真」</mark>。<code>123.4567.toPrecision(2)</code> 的科學記號是 <code>1.2×10²</code>，展開成一般數字是 <code>120</code>——但 <code>120</code> 看起來像 3 位有效數字，跟要求的「2 位」語意不符，<mark style="background: #FF5582A6;">不允許展開，強制用 <code>"1.2e+2"</code></mark>。<code>toPrecision(4)</code> 的科學記號是 <code>1.235×10²</code>，展開是 <code>123.5</code>，剛好 4 位有效數字（1,2,3,5）完全不失真，<mark style="background: #BBFABBA6;">允許展開為 <code>"123.5"</code></mark>。</span></p>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(k)</span><span class="kp-text"><mark style="background: #ADCCFFA6;">判斷條件 2：指數 e 是否落在 −6 ≤ e &lt; n 的可讀範圍內</mark>。只要指數在這個舒適區內、且展開不失真，就優先展開成一般小數（<code>123.5</code> 比 <code>1.235e+2</code> 直覺）。</span></p>
+<pre><code class="language-text">123.4567.toPrecision(2)
+└─► 標準科學記號：1.2 × 10²
+   ├─► 嘗試展開：120（無法精準表達 2 位有效數字 ❌）
+   └─► 最終輸出：&quot;1.2e+2&quot;
+
+123.4567.toPrecision(4)
+└─► 標準科學記號：1.235 × 10²
+   ├─► 嘗試展開：123.5（剛好完美符合 4 位有效數字 ✔️）
+   └─► 最終輸出：&quot;123.5&quot;
+</code></pre>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(l)</span><span class="kp-text"><mark style="background: #FF5582A6;">小數點的位置不是固定在「倒數第一位」</mark>，純粹取決於原數字的數量級與要求的有效位數 n。舉例（皆要求 4 位有效數字）：<code>(0.123456).toPrecision(4)</code> → <code>"0.1235"</code>（4 位全在小數點後）；<code>(1234.56).toPrecision(4)</code> → <code>"1235"</code>（展開後剛好是整數，連小數點都不用寫）。規則就是：先數出前 n 個有效數字，再把小數點「放回原本的數量級位置」。</span></p>
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/a413bb16a7394d11</td>
+<td>Gemini Flash，2026-09-23</td>
+</tr>
+<tr>
+<td>MDN — Number.prototype.toPrecision()</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/toPrecision</td>
+<td>MDN 頁面最後修改於 2025-07-10，查證於 2026-09-23</td>
+</tr>
+<tr>
+<td>MDN — Number.prototype.toFixed()</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/toFixed</td>
+<td>MDN 現行文件，查證於 2026-09-23</td>
+</tr>
+<tr>
+<td>IEEE 754 雙精度浮點數規範背景</td>
+<td>https://en.wikipedia.org/wiki/Double-precision_floating-point_format</td>
+<td>一般參考，查證於 2026-09-23</td>
+</tr>
+</tbody>
+</table>
+<h2>各對話來源（原文）</h2>
+<h3>JS toFixed 與 toPrecision 差異（2026-09-23）— https://gemini.google.com/app/a413bb16a7394d11</h3>
+<blockquote class="source-card">
+<p><strong class="who-user">使用者：</strong> JS的NUMBER物件 的toFixed方法跟toPrecision() 差在哪裡？示範。所以toPrecision是不處理小數點後面的位數。toFixed 語意上是算固定浮點數嗎 不對他沒有講到浮點 所以要如何聯想這個字跟小數點的關係</p>
+<p><strong class="who-gemini">Gemini：</strong>（見上方重點整理 a–c，含 toFixed 控制小數位、toPrecision 控制有效數字的完整說明與 Fixed/Precision 的英文記憶聯想法）</p>
+<p><strong class="who-user">使用者：</strong> 請說明 JavaScript 的 toFixed 和 toPrecision 在進行四捨五入時，為什麼有時結果跟想像的不一樣？（浮點數精度問題）</p>
+<p><strong class="who-gemini">Gemini：</strong>（見上方重點整理 d–h，含 <code>1.005.toFixed(2)</code> 陷阱範例與三種金融場景修正法）</p>
+<p><strong class="who-user">使用者：</strong> 為什麼結果不用 1.235×10² 表示？所以是不是小數點都在倒數第一位</p>
+<p><strong class="who-gemini">Gemini：</strong>（見上方重點整理 i–l，含科學記號展開規則與小數點位置判斷）</p>
+</blockquote>
+<h2>練習題（LeetCode／NeetCode 對照）</h2>
+<p>本題屬於 API 語意與浮點數精度題，沒有直接對應的 LeetCode 題號。想練「浮點數誤差」的手感，可以看 <mark style="background: #D2B3FFA6;">LeetCode 972. Equal Rational Numbers</mark>（https://leetcode.com/problems/equal-rational-numbers/，需比較不同表示法是否代表同一個有理數，會碰到類似的精度判斷）。</p>
+<h2>關聯筆記</h2>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>關聯原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>parseInt與Number-字串轉數值差異</td>
+<td>同一條資料流的另一端：字串轉數字 vs. 數字轉字串顯示</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-23</p></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-23</footer>
+</div>
+<script>
+function toggleKP(el) {
+  var txt = el.nextElementSibling;
+  if (txt) txt.classList.toggle('hidden-kp');
+}
+var __allHidden = false;
+function toggleAllKP() {
+  __allHidden = !__allHidden;
+  document.querySelectorAll('.kp-text').forEach(function(t) {
+    t.classList.toggle('hidden-kp', __allHidden);
+  });
+}
+try { if (!window.__hljsFailed && window.hljs) hljs.highlightAll(); } catch(e) {}
+</script>
+</body>
+</html>

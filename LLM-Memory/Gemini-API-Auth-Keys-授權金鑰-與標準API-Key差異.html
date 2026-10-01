@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gemini API Auth Keys（授權金鑰）— 與舊版標準 API Key 的差異與遷移期限</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Gemini API Auth Keys（授權金鑰）— 與舊版標準 API Key 的差異與遷移期限</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#api-key</span><span class="pill">#auth-key</span><span class="pill">#google-ai-studio</span><span class="pill">#service-account</span><span class="pill">#iam</span><span class="pill">#資安</span><span class="pill">#LLM</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-22</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/b93412b175e72415" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Auth key 只有付費方案才能用。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">金鑰型態只影響身分驗證與權限，Free Tier 一樣能用。</div></li><li><p class="qq">Auth key 綁定的是 GCP 專案，Standard key 綁定的是服務帳戶。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">反了。Auth key 綁服務帳戶，Standard key 綁專案。</div></li><li><p class="qq">舊的 Standard key 外洩時，風險比 Auth key 大，因為它可能被拿去打同專案下其他 Google API。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Auth key 預設只能存取 Generative Language API，爆炸半徑小很多。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">舊制 Standard key 的字串前綴是 <input class="blank" data-a="AIza" placeholder="填答案" autocomplete="off">，新制 Auth key 的前綴是 AQ.Ab。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">有些第三方套件寫死了 AIza 開頭的驗證，換新金鑰會被誤判為無效。</div></li><li><p class="qq">自 2026-<input class="blank" data-a="05" placeholder="填答案" autocomplete="off">-28 起，AI Studio 新建的金鑰一律預設為 Auth key。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">接著 2026-06-19 拒絕未設限的 Standard key，2026-09 全面拒絕 Standard key。</div></li><li><p class="qq">Auth key 綁定服務帳戶之後，就能套用 Google Cloud 的 <input class="blank" data-a="IAM" placeholder="填答案" autocomplete="off"> 權限控制。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Identity and Access Management，可做精細的存取控管。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">你的舊金鑰突然失效了。請說明你會怎麼判斷這是額度用完還是制度汰換，以及完整的處理步驟。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 先看金鑰前綴，AIza 開頭代表是舊制 Standard key，2026-09 起已被官方拒絕，不是額度問題。(2) 再看錯誤訊息是 429（額度）還是 401/403（驗證失敗）。(3) 到 AI Studio 的 API keys 頁面建新金鑰，系統預設給 Auth key。(4) 只換環境變數的值，呼叫方式不變，仍然放在 x-goog-api-key header。(5) 若第三方套件報「金鑰格式無效」，去看該套件的 issue，是它的正規表示式沒跟上。</div></li></ol></section>
+
+<article class="card">
+<h1 id="gemini-api-auth-keys-api-key">Gemini API Auth Keys（授權金鑰）— 與舊版標準 API Key 的差異與遷移期限</h1>
+<p>本篇重點 a–j，共 10 個。</p>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="1">1. 兩種金鑰的差別</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Standard key（標準金鑰，舊制）</mark>：字串以 <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>AIza</code></mark> 開頭，本質上是一個綁在 GCP 專案上的通用金鑰。<br />
+    <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">風險</mark>：如果沒有設限制，同一把金鑰外洩之後可能被拿去打該專案底下其他 Google API，不只是 Gemini。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Auth key（授權金鑰，新制）</mark>：字串以 <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>AQ.Ab</code></mark> 開頭，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">直接綁定一個 Google Cloud 服務帳戶（service account），請求會以該服務帳戶的身分被處理</mark>。<br />
+    因此可以套用 IAM 的權限控制，而且<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">預設只能存取 Generative Language API（也就是 Gemini API）</mark>，外洩時的爆炸半徑小很多。</p>
+<table>
+<thead>
+<tr>
+<th>比較項目</th>
+<th>Standard key（舊）</th>
+<th>Auth key（新）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>字串前綴</td>
+<td><code>AIza</code></td>
+<td><code>AQ.Ab</code></td>
+</tr>
+<tr>
+<td>綁定對象</td>
+<td>GCP 專案</td>
+<td>GCP 服務帳戶</td>
+</tr>
+<tr>
+<td>預設可存取範圍</td>
+<td>該專案啟用的多個 Google API</td>
+<td>只有 Generative Language API</td>
+</tr>
+<tr>
+<td>權限控制</td>
+<td>靠手動加金鑰限制</td>
+<td>走 IAM，可精細控管</td>
+</tr>
+<tr>
+<td>外洩處置</td>
+<td>手動撤銷</td>
+<td>可快速強制停用，偵測到外洩時自動停止存取</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2-gemini">2. 時間線（<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ 這段是對 Gemini 回答的補正</mark>）</h3>
+<p>(c) Gemini 只說了「2026-05-28 起新建金鑰預設為授權金鑰」這一條，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">漏掉後面兩個更關鍵的死線</mark>，補齊如下：</p>
+<pre><code class="language-text">2026-05-28 ──► AI Studio 新建的金鑰一律預設為 Auth key
+      │
+2026-06-19 ──► Gemini API 開始拒絕「未設限制的 Standard key」
+      │        （有明確設限制的 Standard key 這時還能用）
+      │
+2026-09    ──► Gemini API 拒絕 Standard key，舊金鑰全面失效
+      ▼
+      今天 2026-09-22：Abby 的舊金鑰「過期」就是撞上這條線
+</code></pre>
+<p>(d) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">所以 Abby 那句「我的舊的過期了」不是額度用完，是舊制金鑰被官方停用</mark>，解法是重新建一把新的 Auth key 換掉程式碼裡的字串，而不是去找哪裡儲值。</p>
+<h3 id="3">3. 免費專案可不可以用</h3>
+<p>(e) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">可以，Auth key 跟收費方案無關</mark>。金鑰型態只影響「身分驗證與權限」，不影響你在 Free Tier 還是 Paid Tier。<br />
+    <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">對個人小專案反而更划算</mark>：綁服務帳戶之後，金鑰不小心推上 GitHub 被掃到時，可以直接停用那個服務帳戶，不必整個專案重來。</p>
+<h3 id="4">4. 怎麼換（操作路徑）</h3>
+<p>(f) 到 <a href="https://aistudio.google.com/apikey">Google AI Studio 的 API keys 頁面</a> → 建立一把新金鑰 → 系統預設就會給 Auth key。</p>
+<p>(g) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">介面變動提醒</mark>：2026 年新版 AI Studio 把按鈕換了位置與字樣，Abby 用「Create API key」搜尋不到是正常的。<br />
+    直接走 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">左側選單或右上角的 <code>Get API key</code> / <code>API keys</code> 入口</mark>，不要靠搜尋按鈕文字找。</p>
+<p>(h) 換完之後，程式碼端只需要把環境變數的值換掉，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">呼叫方式完全不變</mark>——仍然是放在 request header 裡送出：</p>
+<pre><code class="language-bash">curl &quot;https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent&quot; \
+  -H &quot;x-goog-api-key: $GEMINI_API_KEY&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -X POST -d '{&quot;contents&quot;:[{&quot;parts&quot;:[{&quot;text&quot;:&quot;Hello&quot;}]}]}'
+</code></pre>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">第三方工具可能還沒跟上</mark>：有些套件對金鑰字串做了 <code>AIza</code> 開頭的正規表示式驗證，換成 <code>AQ.Ab</code> 開頭之後會被誤判為「無效金鑰」。遇到這種錯誤要去看套件的 issue，不是你的金鑰有問題。</p>
+<p>(j) 金鑰要放在哪一個 header、為什麼一定要寫在後端路由：見 <span class="wikilink" title="Obsidian 連結：HTTP-Headers-Request與Response-誰送給誰">HTTP-Headers-Request與Response-誰送給誰</span>。</p>
+<hr />
+<h2 id="_2">各對話來源</h2>
+<h3 id="gemini-2026-09-httpsgeminigooglecomappb93412b175e72415">認識 Gemini 授權金鑰（2026-09）— https://gemini.google.com/app/b93412b175e72415</h3>
+<p><strong>使用者：</strong> 這個驗證金鑰是什麼啊<br />
+<strong>Gemini：</strong> 授權金鑰（Auth Keys）是 Gemini API 為提高安全性所推出的一種全新驗證機制。與過去的「標準 API 金鑰」相比，主要的差別與優點如下——綁定服務帳戶：授權金鑰會直接連結至 Google Cloud 服務帳戶，系統會以該服務帳戶的身分處理請求，方便進行更精細的權限與存取控制。安全性更高：預設僅能存取 Generative Language API（Gemini API）。若金鑰不幸外洩，系統可快速強制停用或在偵測到外洩時自動停止存取，降低風險。防範濫用：自 2026 年 5 月 28 日起，在 Google AI Studio 中建立的所有新金鑰都會預設為授權金鑰。</p>
+<p><strong>使用者：</strong> 我能用在我的免費專案嗎<br />
+<strong>Gemini：</strong> 可以，免費專案完全可以使用驗證金鑰。不論是免費方案還是付費方案，主要差異僅在於金鑰的權限與安全性機制。免費權益不變：使用驗證金鑰不會強制你改為付費方案。安全性提升：驗證金鑰會綁定 Google Cloud 服務帳戶，能防止金鑰不小心公開或遭濫用。只要前往 Google AI Studio 重新建立一組 API 金鑰，系統就會預設產生新型態的「驗證金鑰」，替換掉程式碼中的舊金鑰即可。</p>
+<p><strong>使用者：</strong> 幫我找到我現在要申請金鑰的網址，我的舊的過期了<br />
+<strong>Gemini：</strong> 你可以點擊 Google AI Studio 取得 API 金鑰頁面直接進行申請與管理。進去後點選 Create API key 即可產生新的驗證金鑰。</p>
+<p><strong>使用者：</strong> 現在沒有了啊，你看我用搜尋找不到 Create API key<br />
+<strong>Gemini：</strong> 在 2026 年推出的新版 Google AI Studio 介面中，畫面選單進行了調整，因此原本舊位置的「Create API key」按鈕可能看起來不太一樣。</p>
+<hr />
+<h2 id="_3">相關筆記</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>路徑</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HTTP Headers 的方向性</td>
+<td>backend/HTTP-Headers-Request與Response-誰送給誰.md</td>
+<td>金鑰是「夾在 Request Header 裡」送出去的，那篇講 header 誰產生、送給誰</td>
+</tr>
+<tr>
+<td>MCP 協定定義與三大能力</td>
+<td>LLM-Memory/Model-Context-Protocol-MCP-協定定義與三大能力.md</td>
+<td>MCP server 呼叫外部 LLM 時同樣要在伺服器端保管金鑰，是本篇 (h) 的實際應用場景</td>
+</tr>
+<tr>
+<td>資料遮罩與 PII 保護</td>
+<td>backend/data-masking-pii-protection.md</td>
+<td>同屬「不要把敏感字串外流到前端」這條線</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇來源對話</td>
+<td>https://gemini.google.com/app/b93412b175e72415</td>
+<td>Gemini 對話，2026-09</td>
+</tr>
+<tr>
+<td>官方：Using Gemini API keys</td>
+<td><a href="https://ai.google.dev/gemini-api/docs/api-key">ai.google.dev</a></td>
+<td>Google AI for Developers，查證 2026-09-22</td>
+</tr>
+<tr>
+<td>遷移死線整理（2026-06-19 拒絕未設限標準金鑰）</td>
+<td><a href="https://www.doit.com/blog/the-gemini-api-key-abuse-fix-is-here-and-it-has-a-deadline">DoiT：Gemini API Key Deprecation</a></td>
+<td>2026-06，查證 2026-09-22</td>
+</tr>
+<tr>
+<td>金鑰前綴 <code>AIza</code> → <code>AQ.Ab</code> 實測</td>
+<td><a href="https://dev.to/rapls/i-created-a-gemini-api-key-and-got-aq-instead-of-aiza-3dp3">DEV Community</a></td>
+<td>2026-06，查證 2026-09-22</td>
+</tr>
+<tr>
+<td>第三方套件金鑰格式驗證失敗案例</td>
+<td><a href="https://github.com/super-android/tunelab/issues/2">GitHub issue</a></td>
+<td>2026，查證 2026-09-22</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-22</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

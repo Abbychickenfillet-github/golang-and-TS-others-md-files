@@ -48,7 +48,7 @@ footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:
 <header class="note-head">
   <h1 class="note-title">進制轉換與「除 2 取餘數法」原理</h1>
   <div class="tags"><span class="tag">#gemini</span><span class="tag">#計算機概論</span><span class="tag">#進制轉換</span><span class="tag">#二進制</span><span class="tag">#多項式除法</span></div>
-  <div class="meta">更新於 2026-06-25　·　分類：技術　·　<a href="https://gemini.google.com/app/e5e541dca6c5c80b" target="_blank">來源連結</a></div>
+  <div class="meta">更新於 2026-09-28　·　分類：技術　·　<a href="https://gemini.google.com/app/e5e541dca6c5c80b" target="_blank">來源連結 1</a>　·　<a href="https://gemini.google.com/app/d50a81c07eb1478a" target="_blank">來源連結 2</a>　·　<a href="https://gemini.google.com/app/7cbc5bd991e2ed73" target="_blank">來源連結 3</a></div>
   <div class="quiz-bar">
     <button class="quiz-btn" id="quizToggle" type="button">🙈 隱藏全部重點（自我測驗）</button>
     <span class="quiz-hint">點任一螢光筆可單獨顯示／隱藏答案</span>
@@ -102,6 +102,17 @@ f(x) = g(x)·q(x) + r(x)
 <p>[!tip] 一句話總結:十進制→二進制的「除 2 取餘」其實就是把 N 看成以 2 為底的多項式,反覆做多項式除法、一層層把係數(位元)從低位到高位剝出來。任何進制轉任何進制都是同理(除以目標底數即可)。</p>
 </blockquote>
 </section>
+<section class="card"><h2>小數部分怎麼轉：「乘 2 取整法」（2026-09-28 追加）</h2>
+<p>整數部分用<mark style="background:#FFF3A3A6;">除 2 取餘數</mark>、由下往上讀；小數部分反過來，要用<mark style="background:#BBFABBA6;">乘 2 取整數</mark>、由上往下讀：</p>
+<pre style="background:#1e2430;color:#e6e6e6;padding:12px;border-radius:8px;overflow-x:auto;">0.1 &times; 2 = 0.2   取整數 0
+0.2 &times; 2 = 0.4   取整數 0
+0.4 &times; 2 = 0.8   取整數 0
+0.8 &times; 2 = 1.6   取整數 1（留下小數 0.6 繼續乘）
+0.6 &times; 2 = 1.2   取整數 1
+0.2 &times; 2 = 0.4   取整數 0（回到第 2 步，開始循環）</pre>
+<p>十進制 <code>0.1</code> 轉成二進制是 <mark style="background:#FF5582A6;">0.0001100110011...（0011 無限循環）</mark>，跟十進制的 1/3 = 0.333... 是同一種「有限小數在另一個進位制下變無限循環」的現象。這正是 <a href="../frontend-docs/numeric-precision-safety.html">0.1 + 0.2 !== 0.3</a> 這類浮點數精度問題的根源。</p>
+<blockquote><p>[!tip] 一句話對照：整數部分「除 2、由下往上讀餘數」；小數部分「乘 2、由上往下讀整數」。兩者都是把數字拆成 2 的次方展開式，只是整數在剝正次方項、小數在剝負次方項。</p></blockquote>
+</section>
 <section class="card"><h2>各對話來源</h2>
 <h3>任何進制轉任何進制（除2取餘數法）(2026-06) — https://gemini.google.com/app/e5e541dca6c5c80b</h3>
 <blockquote>
@@ -110,8 +121,14 @@ f(x) = g(x)·q(x) + r(x)
 <p><strong>使用者:</strong> 從高位階一直除以 2 很簡單,但概念上越上面是 2 的次方越大,它卻是把每一步除下來的餘數當成最低位元、最後得到的是最高位元,這個原理是什麼?</p>
 <p><strong>Gemini:</strong> 這個原理是基於多項式除法。每次除以 2,都是在把數字的二進制表示中的冪次項一個一個提取出來。第一個餘數對應 2⁰ 這一項,所以是最低位元;最後的餘數對應最高次幂項,所以是最高位元。</p>
 <p><strong>使用者:</strong> 介紹多項式除法。</p>
-<p><strong>Gemini:</strong> 多項式除法的原理和整數長除法一模一樣,只是把數字換成含變數的多項式。核心關係:被除式 = 除式 × 商式 + 餘式,f(x)=g(x)·q(x)+r(x);餘式次數一定小於除式次數。方法有長除法(通用)與綜合除法(除式為一次式時的捷徑)。任一個十進制數 N 可寫成以 2 為底的多項式 N = aₙ(2ⁿ)+…+a₁(2¹)+a₀(2⁰),除以 2 時含 2 的項都被整除,只有 a₀ 留下當餘數,所以第一個餘數是最低位元。</p></section>
-<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-25</footer>
+<p><strong>Gemini:</strong> 多項式除法的原理和整數長除法一模一樣,只是把數字換成含變數的多項式。核心關係:被除式 = 除式 × 商式 + 餘式,f(x)=g(x)·q(x)+r(x);餘式次數一定小於除式次數。方法有長除法(通用)與綜合除法(除式為一次式時的捷徑)。任一個十進制數 N 可寫成以 2 為底的多項式 N = aₙ(2ⁿ)+…+a₁(2¹)+a₀(2⁰),除以 2 時含 2 的項都被整除,只有 a₀ 留下當餘數,所以第一個餘數是最低位元。</p><h3>二進位轉換原理：解析最高位元由來（2026-09-28）— https://gemini.google.com/app/d50a81c07eb1478a</h3>
+<p><strong>使用者：</strong> 為什麼最高位元組是從整數除到最後一個的餘數？</p>
+<p><strong>Gemini：</strong> 把整數寫成以 2 為底的多項式展開式，第一次除的餘數對應最低位元，最後一個餘數對應最高位元（與本篇同一原理，未新增觀念）。</p>
+<h3>十進制 0.1 轉二進制解析（2026-09-28）— https://gemini.google.com/app/7cbc5bd991e2ed73</h3>
+<p><strong>使用者：</strong> 二進制 0.1 轉換到底怎麼算？</p>
+<p><strong>Gemini：</strong> 透過「乘 2 取整法」，內容已整併進上方新增小節。</p>
+</section>
+<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-09-28</footer>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>try{hljs.highlightAll();}catch(e){}

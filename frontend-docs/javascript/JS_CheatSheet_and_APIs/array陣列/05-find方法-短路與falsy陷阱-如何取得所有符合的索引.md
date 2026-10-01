@@ -14,13 +14,14 @@ related:
   - "[[物件Key的排序規則-整數索引插隊-Map保序-forEach不能吃物件]]"
 sources:
   - https://gemini.google.com/app/8641800775c043cc
+  - https://gemini.google.com/app/c0190f9cd3bc8a08
 demo: 05-demo-find-短路與取得所有符合的索引.js
-updated: 2026-09-17
+updated: 2026-09-21
 ---
 
 # Array.prototype.find() — 短路、falsy 陷阱與取得所有索引
 
-> 本篇重點 a–n，共 14 個（2026-09-17 由 Gemini 對話補入 (g-2)(l)(m)(n)）。
+> 本篇重點 a–n，共 14 個（2026-09-17 由 Gemini 對話補入 (g-2)(l)(m)(n)；2026-09-21 補入 (g-3)：`=` 左邊的三種賦值目標）。
 > 主軸圖：`![[學習JS_圖解_find的短路迴圈-falsy要繼續而不是回undefined_2026-09-11.svg]]`
 > 可執行範例：`demo-find-短路與取得所有符合的索引.js`（已實跑驗證）
 
@@ -163,6 +164,22 @@ console.log(array3);   // [1, 2, 3, 4]
 ```
 
   同一個坑在 `if (x = y)` 也會出現，MDN 在控制流那篇明講「避免在 `if...else` 的條件中使用賦值語句」，見 [[控制流與錯誤處理-區塊語句-falsy-switch貫穿-throw-try-catch-finally]]。
+
+- (g-3) **延伸一個規範名詞：`=` 的左邊只能放「賦值目標（Assignment target）」。**（2026-09-21 由 Gemini 對話補入）
+
+  上面 (g-2) 之所以能成立，是因為 `e` 本身是一個合法的賦值目標。<mark style="background: #ADCCFFA6;">規範允許放在 `=` 左邊的東西只有三類</mark>：
+
+| 賦值目標種類 | 長相 | 這一行做了什麼 |
+|---|---|---|
+| 識別碼（Identifier，變數） | `x = 10` | 把 `10` 綁到 `x` 這個變數綁定上 |
+| 屬性存取器（Property Accessor，物件屬性） | `obj.x = 10`、`obj['x'] = 10` | 在 `obj` 這個物件上修改或新增名為 `x` 的屬性 |
+| 解構模式（Destructuring pattern） | `[a, b] = [1, 2]` | 依位置（或鍵名）把右側的值拆開，一次綁到多個目標上 |
+
+  <mark style="background: #ADCCFFA6;">「屬性存取器（Property Accessor）」指的就是用點號 `.` 或中括號 `[]` 去存取物件屬性的那個語法</mark>，`obj.x` 與 `obj['x']` 都是
+　　所以一句話總結：<mark style="background: #FFF3A3A6;">`=` 的左邊除了放一般變數，也可以放 `obj.key` 這種用來讀寫物件屬性的語法</mark>
+　　<mark style="background: #FF5582A6;">反過來說，`1 = x`、`f() = x`、`(a + b) = x` 都不是合法賦值目標，會直接丟 `SyntaxError: Invalid assignment target`</mark>（<mark style="background: #D2B3FFA6;">注意：這是解析階段就報錯，不是執行時才錯</mark>）
+
+  同名不同物要分清楚：這裡講的「屬性存取器」是 `.`／`[]` 這個**語法**，跟物件的「存取器屬性（accessor property，getter／setter）」是兩件事，後者見 [[存取器屬性三種定義方式-getter-setter與資料驗證]]。
 
 ---
 
@@ -370,6 +387,10 @@ console.log(onlineUser);   // ["alice", "online"]
 | 規範原文 `Array.prototype.find` | https://tc39.es/ecma262/#sec-array.prototype.find | ECMA-262，2026-09-11 查證 |
 | 本篇 (g-2)(l)(m)(n) 的 Gemini 對話 | https://gemini.google.com/app/8641800775c043cc | Gemini Flash，2026-09-17 擷取 |
 | 賦值表達式的回傳值（`e = 2` 求值為 `2`） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Assignment | MDN 現行版本，2026-09-17 查證 |
+| 本篇 (g-3) 的 Gemini 對話（property accessor 為何是賦值目標） | https://gemini.google.com/app/c0190f9cd3bc8a08 | Gemini Flash，2026-09-21 擷取 |
+| 屬性存取器（Property Accessors，`.` 與 `[]` 語法） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Property_accessors | MDN 現行版本，2026-09-21 查證 |
+| 解構賦值（Destructuring assignment） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring | MDN 現行版本，2026-09-21 查證 |
+| 規範原文：AssignmentTargetType 與合法賦值目標 | https://tc39.es/ecma262/#sec-assignment-operators | ECMA-262，2026-09-21 查證 |
 | `Object.entries()`（把物件攤成二維陣列） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries | MDN 現行版本，2026-09-17 查證 |
 | `Object.hasOwn()`（取代 `hasOwnProperty` 的推薦寫法） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn | MDN 現行版本，2026-09-17 查證 |
 

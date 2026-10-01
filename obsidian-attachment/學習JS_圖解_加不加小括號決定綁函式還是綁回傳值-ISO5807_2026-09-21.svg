@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" width="900" height="620" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <style>
+    .box{fill:#ffffff;stroke:#5b6b7c;stroke-width:1.6}
+    .proc{fill:#eef4fb;stroke:#4a6fa5;stroke-width:1.6}
+    .dec{fill:#fff8e1;stroke:#c99a06;stroke-width:1.6}
+    .ok{fill:#e8f8e8;stroke:#2e7d32;stroke-width:1.6}
+    .no{fill:#ffeaef;stroke:#c2185b;stroke-width:1.6}
+    .t{font-size:14px;fill:#1f2933}
+    .tb{font-size:15px;font-weight:700;fill:#12212e}
+    .lbl{font-size:12.5px;fill:#5b6b7c}
+    .cap{font-size:12px;fill:#7a8794}
+    .mono{font-size:13.5px;fill:#1f2933;font-family:'Cascadia Mono',Consolas,monospace}
+    .ln{stroke:#5b6b7c;stroke-width:1.5;fill:none;marker-end:url(#ar4)}
+  </style>
+  <defs>
+    <marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6b7c"/>
+    </marker>
+  </defs>
+
+  <text x="24" y="30" class="tb" font-size="17">圖解：小括號一加上去，你綁的就不是函式而是它的回傳值</text>
+  <text x="24" y="50" class="cap">主軸圖：上半＝加不加括號　下半＝on-event 覆蓋 vs addEventListener 排隊</text>
+
+  <rect x="320" y="70" width="270" height="40" rx="20" class="box"/>
+  <text x="455" y="95" class="mono" text-anchor="middle">el.onblur = checkUsername ??</text>
+
+  <path class="ln" d="M455,110 L455,140"/>
+  <polygon points="455,140 645,186 455,232 265,186" class="dec"/>
+  <text x="455" y="182" class="tb" text-anchor="middle">右邊有沒有加小括號？</text>
+  <text x="455" y="202" class="mono" text-anchor="middle">checkUsername vs checkUsername()</text>
+
+  <text x="200" y="176" class="lbl">沒加</text>
+  <path class="ln" d="M265,186 L150,186 L150,246"/>
+  <text x="662" y="176" class="lbl">加了</text>
+  <path class="ln" d="M645,186 L760,186 L760,246"/>
+
+  <rect x="30" y="246" width="250" height="96" rx="8" class="ok"/>
+  <text x="155" y="270" class="tb" text-anchor="middle">⭕ 綁「函式本身」</text>
+  <text x="155" y="292" class="t" text-anchor="middle">把函式當成一個值交出去</text>
+  <text x="155" y="314" class="t" text-anchor="middle">事件觸發時瀏覽器才呼叫它</text>
+  <text x="155" y="334" class="mono" text-anchor="middle">el.onblur = checkUsername</text>
+
+  <rect x="635" y="246" width="250" height="96" rx="8" class="no"/>
+  <text x="760" y="270" class="tb" text-anchor="middle">❌ 綁「回傳值」</text>
+  <text x="760" y="292" class="t" text-anchor="middle">這一行就立刻執行完了</text>
+  <text x="760" y="314" class="t" text-anchor="middle">把 undefined 賦值給 onblur</text>
+  <text x="760" y="334" class="cap" text-anchor="middle">事件觸發時沒東西可跑</text>
+
+  <line x1="24" y1="372" x2="876" y2="372" stroke="#cbd5e0" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="24" y="398" class="tb">綁第二個函式的時候，兩種寫法的命運完全不同</text>
+
+  <rect x="30" y="416" width="390" height="170" rx="8" class="proc"/>
+  <text x="225" y="440" class="tb" text-anchor="middle">on-event 事件處理器：一個插槽</text>
+  <text x="225" y="466" class="mono" text-anchor="middle">btn.onclick = functionA</text>
+  <text x="225" y="488" class="mono" text-anchor="middle">btn.onclick = functionB</text>
+  <rect x="120" y="504" width="210" height="34" rx="6" class="no"/>
+  <text x="225" y="526" class="t" text-anchor="middle">插槽被 functionB 蓋掉</text>
+  <text x="225" y="562" class="cap" text-anchor="middle">點擊時只跑 functionB　移除要寫 = null</text>
+
+  <rect x="480" y="416" width="390" height="170" rx="8" class="proc"/>
+  <text x="675" y="440" class="tb" text-anchor="middle">addEventListener：一條佇列</text>
+  <text x="675" y="466" class="mono" text-anchor="middle">btn.addEventListener('click', fnA)</text>
+  <text x="675" y="488" class="mono" text-anchor="middle">btn.addEventListener('click', fnB)</text>
+  <rect x="570" y="504" width="210" height="34" rx="6" class="ok"/>
+  <text x="675" y="526" class="t" text-anchor="middle">兩個都留著，依序執行</text>
+  <text x="675" y="562" class="cap" text-anchor="middle">事件名不加 on　移除用 removeEventListener</text>
+</svg>

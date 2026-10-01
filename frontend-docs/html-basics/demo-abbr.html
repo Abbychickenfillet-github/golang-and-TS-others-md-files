@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>demo-abbr：title 到底會不會被渲染</title>
+<style>
+  body{font-family:'Noto Sans TC','Microsoft JhengHei',sans-serif;line-height:1.9;max-width:760px;margin:40px auto;padding:0 20px;color:#1f2933}
+  h1{font-size:22px;border-bottom:3px solid #4a6fa5;padding-bottom:8px}
+  h2{font-size:17px;margin-top:32px;color:#2c4a6e}
+  .demo{background:#f7fafc;border-left:4px solid #4a6fa5;padding:14px 18px;border-radius:0 8px 8px 0;margin:12px 0}
+  code{background:#eef2f6;padding:2px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:13.5px}
+  pre{background:#1f2933;color:#e6edf3;padding:14px;border-radius:8px;overflow-x:auto;font-size:13px}
+  .naked abbr{text-decoration:none}
+  .styled abbr[title]{text-decoration:underline dotted #c2185b;cursor:help}
+  table{border-collapse:collapse;width:100%;margin-top:10px}
+  th,td{border:1px solid #cbd5e0;padding:8px 10px;text-align:left;font-size:14px}
+  th{background:#eef4fb}
+  tr:nth-child(even) td{background:#fafbfc}
+  .out{background:#fff8e1;border:1px dashed #c99a06;padding:10px 14px;border-radius:6px;font-size:14px;margin-top:10px}
+</style>
+</head>
+<body>
+
+<h1>demo-abbr：&lt;abbr title&gt; 的內容到底會不會被渲染</h1>
+<p>搭配筆記：<code>abbr元素-縮寫與acronym的差異-title屬性怎麼被看見.md</code></p>
+
+<h2>① 把滑鼠移上去，看 tooltip</h2>
+<div class="demo styled">
+  <p>我正在學習 <abbr title="HyperText Markup Language">HTML</abbr> 與 <abbr title="Cascading Style Sheets">CSS</abbr> 網頁設計，順便查了 <abbr title="National Aeronautics and Space Administration">NASA</abbr> 的資料。</p>
+</div>
+<p>畫面上只看得到 HTML、CSS、NASA 三組字，title 的完整內容不佔任何版面寬度。</p>
+
+<h2>② 證明給自己看：文字節點裡沒有 title</h2>
+<pre><code>const el = document.querySelector('abbr');
+el.textContent          // "HTML"          ← 只有這四個字
+el.title                // "HyperText Markup Language"
+el.getAttribute('title')// "HyperText Markup Language"
+el.childNodes.length    // 1，只有一個文字節點</code></pre>
+<div class="out" id="out">（下面會自動印出實際結果）</div>
+
+<h2>③ 預設樣式其實不保證</h2>
+<p>沒有自己寫 CSS 的版本（<code>text-decoration:none</code> 模擬「某些瀏覽器不加樣式」）：</p>
+<div class="demo naked">
+  <p>沒有底線的 <abbr title="Application Programming Interface">API</abbr>，使用者根本不知道這裡可以 hover。</p>
+</div>
+<p>自己補 CSS 的版本：</p>
+<div class="demo styled">
+  <p>有虛線底線的 <abbr title="Application Programming Interface">API</abbr>，游標也換成 <code>cursor: help</code>。</p>
+</div>
+
+<h2>④ abbreviation 與 acronym 的分界</h2>
+<table>
+  <tr><th>縮寫</th><th>怎麼唸</th><th>分類</th></tr>
+  <tr><td>HTML</td><td>H-T-M-L，逐字母</td><td>Abbreviation</td></tr>
+  <tr><td>NASA</td><td>ˈnæsə，當成一個單字</td><td>Acronym（也屬於 Abbreviation）</td></tr>
+  <tr><td>Dr.</td><td>Doctor，截短</td><td>Abbreviation</td></tr>
+  <tr><td>laser</td><td>ˈleɪzər，當成一個單字</td><td>Acronym</td></tr>
+</table>
+
+<h2>⑤ 最穩的寫法：第一次出現就寫全名</h2>
+<div class="demo styled">
+  <p>超文字標記語言（<abbr title="HyperText Markup Language">HTML</abbr>）是網頁的骨架。</p>
+</div>
+<p>因為觸控裝置沒有 hover，手機使用者永遠看不到 tooltip。</p>
+
+<script>
+  const el = document.querySelector('.styled abbr');
+  document.getElementById('out').textContent =
+    'textContent → "' + el.textContent + '"　｜　title → "' + el.title +
+    '"　｜　childNodes.length → ' + el.childNodes.length;
+</script>
+</body>
+</html>

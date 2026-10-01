@@ -17,6 +17,7 @@ tags:
 sources:
   - https://gemini.google.com/app/60eb0e34d9fc653b
   - https://gemini.google.com/app/0211c80a1b2bcc92
+  - https://gemini.google.com/app/c01555684437e816
 related:
   - "[[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】|04-V8引擎完整管線-Parse到Deoptimization（編譯 runtime）]]"
   - "[[08-npm-run-script-mechanism]]"
@@ -150,6 +151,36 @@ updated: 2026-07-27
 - **esbuild 為什麼身兼 transpiler／bundler 二職**：esbuild 內部**同時**實作了 parser ＋ transpiler ＋ bundler ＋ minifier（Go 寫、極快），所以它**單獨就能 transpile、也能 bundle**。只是很多工具只借它的一部分——例如 Vite 開發期只用它「預轉譯依賴」那塊、不用它 bundle。
 - **「Vite v8 起取代 esbuild ＋ Rollup」是什麼意思**：**Vite ≤7** 內部用**兩個**工具——開發期用 **esbuild**（預轉譯依賴）、生產期用 **Rollup**（做 bundle）；**Vite v8（2026）** 改用**一個** Rust 工具 **Rolldown** 把這兩份活一起做。所以答案：**Vite ≤7 生產用 Rollup；Vite v8+ 生產用 Rolldown。**
 - **Turbopack 有贏過 Rolldown 嗎**：兩者**定位不同、不會在同一專案二選一**——**Turbopack 綁 Next.js**、**Rolldown 綁 Vite**。速度上都是 Rust、都很快，**benchmark 互有勝負、隨版本一直變，沒有絕對贏家**；別記「誰贏」，記「各自綁哪個生態」。
+
+### 2c. 註解／`console.log` 對打包時間與檔案大小的影響（2026-09-28 追加）
+
+| 項目 | 對「transpile／bundle 時間」的影響 | 對「最終檔案大小與執行期」的影響 |
+| --- | --- | --- |
+| 註解（`//`、`/* */`） | <mark style="background: #BBFABBA6;">幾乎為零</mark>，parser（如 acorn／SWC）掃過文字的成本是奈秒級 | production 模式下 minifier 會整段拔掉，開發時可以放心多寫，上線不會變胖 |
+| `console.log` | 也是真實的語句，parser 一樣要把它 parse 進 AST，但除非整支檔案有數十萬行，否則感受不到差異 | <mark style="background: #FF5582A6;">預設不會被自動清掉</mark>，會原封不動被打包進 production bundle，除非額外設定 minifier（如 Terser）或框架的專用選項 |
+
+以 Next.js 為例，`next.config.js` 用 `compiler.removeConsole` 這個選項，把「production 環境自動清 `console.log`」這件事**拋給** Next.js 內建的編譯步驟去做：
+
+```js
+module.exports = {
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+}
+```
+
+> ⚠️ 拋接關係要寫清楚：不是「Next.js 編譯掉 console.log」這麼籠統，而是 **Next.js 讀到 `compiler.removeConsole: true`** → 在 build 階段把這個設定**轉交給**內建的 SWC transpiler → **SWC 在把原始碼 transpile 成瀏覽器可執行的 JS 時，順手移除符合條件的 `console.*` 呼叫**。（官方文件：[Next.js Compiler](https://nextjs.org/docs/architecture/nextjs-compiler)，查證於 2026-09-28）
+
+### 2d. bundler 本身「含不含 transpile」——一次講清楚拋接鏈（2026-09-28 追加）
+
+不是所有 bundler 都自己動手 transpile，要看它是「內建」還是「外包」：
+
+| bundler | transpile 怎麼做 | 拋接關係（誰用什麼做什麼、產物給誰） |
+| --- | --- | --- |
+| Webpack | 外包，自己不 transpile | Webpack 讀到 `.ts`／`.jsx` 檔 → 透過 `babel-loader` 把檔案拋給 Babel → Babel 把 ES6+／JSX transpile 成 ES5 → 拋回給 Webpack 繼續做 bundle |
+| Turbopack | 內建 SWC 當自己的 transpiler | Turbopack 讀到原始碼 → 直接呼叫內建的 SWC 把它 transpile 成 JS → 不需要另外裝、另外設定 loader |
+
+> 這裡的關鍵字要挑對：Babel／TSC／SWC 做的是 **transpile**（原始碼轉原始碼，例如 JSX/TS 轉成 JS），不要說成「編譯」這種容易跟「多檔案整合」搞混的詞；bundler（Webpack／Turbopack／Rollup／esbuild）做的是把多個檔案的依賴關係整合成瀏覽器能載入的產物，兩者是「處理單一檔案」對「整合多檔案」的分工，不是同一件事的兩種說法。
 
 ### 3. ESLint vs Prettier（程式碼品質工具）
 
@@ -342,6 +373,12 @@ flowchart TB
 使用者：React 是怎麼去編譯的呢他跟原生 JS 差在哪 / 所以先轉譯才打包囉？Scanner 是啥 / 好像聽 YouTube 影片說是由 nodejs 編譯的欸還是我記錯了 / 但我一般在打包前端的時候我不一定會用到 nodejs 啊，萬一我的後端選型不是 nodejs 而是 Python 呢？
 
 Gemini：說明 React 需經 JSX 轉譯（Babel/SWC）與模組打包（Vite/Webpack/ESBuild）才能被瀏覽器執行，並比較 React 與原生 JS 在 DOM 操作、程式思維、效能機制上的差異；解釋 Scanner 是 JS 引擎編譯第一階段的詞法分析器，把原始碼拆成 Token；澄清 Node.js 不是編譯器本身而是執行環境，讓 Babel/Webpack 等工具能讀寫檔案並執行；最後說明前端打包用 Node.js（開發期工具）與後端選型用 Python（Production Runtime）是兩個不衝突的獨立分工，並列出前後端分離／Python 託管靜態檔／SSR 三種常見部署架構。
+
+### Turbopack 與 Webpack 差異比較（2026-09-28）— https://gemini.google.com/app/c01555684437e816
+
+使用者：問 Turbopack 與 Webpack 的核心差異、Turbopack 的生態系為何較小、自己專案 `next dev --turbo` 的配置意義、寫很多註解和 `console.log` 是否會拖慢打包時間、打包工具是否包含編譯。
+
+Gemini：說明 Turbopack（Rust、增量編譯、Next.js 專用）與 Webpack（JS、生態成熟、單次編譯）的差異；解釋 Turbopack 生態系目前綁定 Next.js、尚無法獨立用在其他框架；確認使用者的 `"dev": "rimraf .next && next dev --turbo"` 設定已符合官方建議，且 `build` 指令仍走 Webpack；釐清「打包工具通常內建或外包一個 transpiler」的分工關係。
 
 ## 資料來源（含查證時間）
 

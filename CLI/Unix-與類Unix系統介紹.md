@@ -6,6 +6,7 @@ tags: [gemini, 作業系統, unix, linux, macos, bsd]
 sources:
   - https://gemini.google.com/app/99bcb912540d69c8
   - https://gemini.google.com/app/954863faf2a234f5
+  - https://gemini.google.com/app/934dbe472fd8e85c
 updated: 2026-09-09
 ---
 
@@ -79,6 +80,33 @@ Linux 因商標與授權原因不能直接叫 Unix，但<mark style="background:
 
 ---
 
+## 追加 2026-09-28：System V — 不只是舊版 Unix，更是現代系統的底層規範
+
+> [!info]+ 一句話
+> <mark style="background: #ADCCFFA6;">System V（唸作 System Five，簡寫 SysV）</mark>是 1983 年 AT&T 貝爾實驗室推出的官方商業版 UNIX，跟柏克萊 BSD 是當年 UNIX 戰爭的兩大陣營；今天的 Linux／macOS 把兩邊的底層機制都繼承了下來，所以現代系統裡常常同時看到「System V 某某」這種命名。
+
+### a. System V 的歷史定位
+AT&T 主導、商業化標準化導向；對手是加州柏克萊大學主導、開源學術派的 <mark style="background: #ADCCFFA6;">BSD</mark>（率先引進 TCP/IP 網路架構）。現代 Linux 與類 Unix 系統（含本篇 macOS）把兩邊的底層機制都吸收繼承下來，這正是 [[Unix-與類Unix系統介紹|上面]] macOS／Linux 家族分類背後的歷史根源。
+
+### b. System V IPC（Inter-Process Communication，跨程序通訊機制）
+Linux／Unix 中程序（Process）之間交換資料的經典三件套：
+
+| 機制 | 用途 |
+|---|---|
+| Message Queuing（訊息佇列） | 讓不同程序傳送結構化訊息 |
+| Semaphore（號誌／信號量） | 多程序間的同步與鎖（Lock） |
+| Shared Memory（共用記憶體） | 多程序直接共享同一塊記憶體位址，效率最高的 IPC 方式 |
+
+### c. System V Init（傳統開機啟動流程）
+在 `systemd` 出現以前，傳統 Linux 用的開機管理系統叫 <mark style="background: #ADCCFFA6;">SysV init</mark>：提出 <mark style="background: #FFF3A3A6;">Runlevel（執行等級 0～6）</mark>概念（如 3 是純文字模式、5 是圖形介面），啟動腳本放在 `/etc/init.d/`，用 `start`／`stop`／`restart` 控制服務。
+
+### d. System V ABI（Application Binary Interface，二進位介面規範）
+定義 CPU 暫存器如何傳遞函式參數、記憶體如何對齊、執行檔（ELF）格式規範，是現代 Linux、macOS 等平台的硬體溝通標準；細節（尤其是浮點數走哪個暫存器）見 [[Elision語法標記與System-V-ABI暫存器傳遞慣例]]。
+
+> 來源對話：[解析 JS 規格中的 Elision opt](https://gemini.google.com/app/934dbe472fd8e85c)（2026-09-28，對話後段追問到 System V ABI／System V 本身，與 Elision 語法標記無直接關聯，記在這裡與 Unix 分類互相呼應）
+
+---
+
 ## 各對話來源
 
 ### /usr 目錄在 Mac 與 WSL（2026-09）— https://gemini.google.com/app/954863faf2a234f5
@@ -98,6 +126,14 @@ https://linux.vbird.org/linux_basic/centos7/
 
 ---
 
+### 解析 JS 規格中的 Elision opt（System V 段落，2026-09-28）— https://gemini.google.com/app/934dbe472fd8e85c
+
+使用者：「System V」索引system v是什麼
+
+Gemini：System V（簡寫 SysV）是 UNIX 歷史上極具影響力的作業系統版本，1983 年由 AT&T 推出，成為當時 Unix 世界的官方商業標準，與柏克萊 BSD 分庭抗禮。現代電腦科學中提到 System V，通常指它留下的底層規範：System V IPC（訊息佇列／號誌／共用記憶體）、System V Init（傳統開機 Runlevel 機制）、System V ABI（CPU 暫存器如何傳參數、記憶體對齊、ELF 執行檔格式規範）。
+
+---
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／時間 |
@@ -109,3 +145,4 @@ https://linux.vbird.org/linux_basic/centos7/
 | Red Hat：FHS 概覽（靜態／變動檔案分離的理由） | https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/5/html/deployment_guide/s1-filesystem-fhs | 查證於 2026-09-09 |
 | Ubuntu：Filesystem Hierarchy Standard 說明 | https://ubuntu.com/project/docs/how-ubuntu-is-made/concepts/filesystem-hierarchy-standard/ | 查證於 2026-09-09 |
 | `/usr` 名稱由來（UNIX Source Repository／System Resources） | https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard | 查證於 2026-09-09 |
+| Gemini 對話：解析 JS 規格中的 Elision opt（System V 部分） | https://gemini.google.com/app/934dbe472fd8e85c | 對話擷取於 2026-09-28 |

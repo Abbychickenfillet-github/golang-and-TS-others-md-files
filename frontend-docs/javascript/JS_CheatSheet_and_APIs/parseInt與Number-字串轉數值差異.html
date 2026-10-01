@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>parseInt() 與 Number()——字串轉數值的兩種路線</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__hljsFailed=true"></script>
+<style>
+:root {
+  --bg: #faf9f7; --card-bg: #ffffff; --text: #2b2b2b; --sub-text:#6b6b6b;
+  --border:#e6e2da; --accent:#6b8f9c; --pill-bg:#eef2f4;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; padding:0 16px 60px; background:var(--bg); color:var(--text);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  line-height:1.7;
+}
+.container { max-width:820px; margin:0 auto; }
+header.page-head {
+  padding:36px 0 20px; border-bottom:1px solid var(--border); margin-bottom:28px;
+}
+h1 { font-family:"Noto Serif TC",Georgia,serif; font-size:1.65rem; line-height:1.4; margin:0 0 14px; }
+.meta-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
+.pill {
+  display:inline-block; background:var(--pill-bg); color:var(--accent);
+  border-radius:999px; padding:3px 12px; font-size:0.78rem; border:1px solid var(--border);
+}
+.updated { color:var(--sub-text); font-size:0.85rem; }
+.src-link { font-size:0.85rem; }
+.src-link a { color:var(--accent); }
+section.card {
+  background:var(--card-bg); border:1px solid var(--border); border-radius:14px;
+  padding:24px 26px; margin-bottom:22px; box-shadow:0 1px 3px rgba(0,0,0,0.03);
+}
+h2 { font-size:1.25rem; border-left:4px solid var(--accent); padding-left:10px; margin-top:0; }
+h3 { font-size:1.05rem; color:#3d3d3d; margin-top:28px; }
+p.kp { display:flex; gap:10px; align-items:flex-start; margin:14px 0; }
+.kp-letter {
+  cursor:pointer; user-select:none; font-weight:700; color:#fff; background:var(--accent);
+  border-radius:6px; padding:1px 8px; flex-shrink:0; font-size:0.85rem;
+}
+.kp-text { transition:filter .15s ease, opacity .15s ease; }
+.kp-text.hidden-kp { filter:blur(6px); opacity:.45; }
+mark { padding:0 3px; border-radius:3px; }
+table { border-collapse:collapse; width:100%; margin:16px 0; font-size:0.92rem; }
+th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; }
+tr:nth-child(even) td { background:#f7f5f1; }
+th { background:#efece5; }
+pre { border-radius:10px; padding:14px 16px; overflow-x:auto; font-size:0.85rem; background:#282c34; }
+code { font-family:"JetBrains Mono","Fira Code",monospace; }
+:not(pre) > code { background:#eee; padding:1px 5px; border-radius:4px; color:#a5395b; }
+blockquote {
+  border-left:4px solid #cbb; margin:14px 0; padding:6px 14px; background:#fdfaf5; color:#555;
+}
+img { max-width:100%; border-radius:8px; margin:10px 0; }
+.source-card { border-radius:10px; padding:14px 16px; margin:12px 0; background:#f6f7f8; border-left:4px solid var(--accent); }
+.source-card .who-user { color:#8a5a00; font-weight:700; }
+.source-card .who-gemini { color:#2c6e8f; font-weight:700; }
+a { color:var(--accent); }
+footer { text-align:center; color:var(--sub-text); font-size:0.8rem; margin-top:40px; }
+.toolbar { text-align:right; margin-bottom:10px; }
+.toolbar button {
+  background:var(--card-bg); border:1px solid var(--border); border-radius:8px;
+  padding:6px 12px; font-size:0.82rem; cursor:pointer; color:var(--accent);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#1c1d1f; --card-bg:#26282b; --text:#e6e4df; --sub-text:#9a9a9a; --border:#3a3c3f; --pill-bg:#2f3336; }
+  blockquote { background:#242527; color:#bbb; }
+  .source-card { background:#232527; }
+  :not(pre) > code { background:#33363a; color:#ff9ec2; }
+  tr:nth-child(even) td { background:#242628; }
+  th { background:#2c2f32; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header class="page-head">
+<h1>parseInt() 與 Number()——字串轉數值的兩種路線</h1>
+<div class="meta-row"><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">parseInt</span><span class="pill">Number</span><span class="pill">型別轉換</span><span class="pill">面試</span></div>
+<div class="meta-row">
+  <span class="updated">更新於 2026-09-23</span>
+  <span class="src-link">來源：<a href="https://gemini.google.com/app/cc9d71781181bb4a" target="_blank">https://gemini.google.com/app/cc9d71781181bb4a</a></span>
+</div>
+</header>
+<div class="toolbar">
+  <button onclick="toggleAllKP()">全部隱藏／顯示重點</button>
+</div>
+<section class="card"><blockquote class="source-card">
+<p>[!info]- 🔗 與既有筆記的關聯<br />
+[[number-isnan-vs-isnan]] 記的是「轉換失敗後怎麼檢測 NaN」，本篇記的是「轉換本身怎麼做」——兩篇合起來剛好是字串轉數值這件事的前半段（轉換）與後半段（驗證結果）。</p>
+<p>本篇重點 a–f，共 6 個。</p>
+</blockquote>
+<h2>重點整理</h2>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(a)</span><span class="kp-text"><mark style="background: #ADCCFFA6;">parseInt() 是解析器（Parser）</mark>：<mark style="background: #FFF3A3A6;">從字串開頭逐字讀取，盡可能解析出整數，遇到第一個非數字字元就停止</mark>，允許字串尾巴接非數字內容。<code>parseInt("100px")</code> 結果是 <code>100</code>。</span></p>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(b)</span><span class="kp-text"><mark style="background: #ADCCFFA6;">Number() 是強制型別轉換（Type Coercion）</mark>：<mark style="background: #FF5582A6;">要求整串字串都符合合法數字格式</mark>，只要含有任何非數字字元（正負號、小數點、科學記號除外），整串直接判定失敗、回傳 <code>NaN</code>。<code>Number("100px")</code> 結果是 <code>NaN</code>。</span></p>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(c)</span><span class="kp-text">對空字串與特殊值的處理，兩者常常不一致，<mark style="background: #FF5582A6;">容易誤判</mark>：</span></p>
+<table>
+<thead>
+<tr>
+<th>輸入值</th>
+<th><code>parseInt()</code></th>
+<th><code>Number()</code></th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>""</code>（空字串）</td>
+<td><code>NaN</code></td>
+<td><code>0</code></td>
+<td><code>Number()</code> 把空字串或純空格轉成 <code>0</code></td>
+</tr>
+<tr>
+<td><code>null</code></td>
+<td><code>NaN</code></td>
+<td><code>0</code></td>
+<td><code>Number(null)</code> 是 <code>0</code></td>
+</tr>
+<tr>
+<td><code>undefined</code></td>
+<td><code>NaN</code></td>
+<td><code>NaN</code></td>
+<td>兩者皆為 <code>NaN</code></td>
+</tr>
+<tr>
+<td><code>true</code> / <code>false</code></td>
+<td><code>NaN</code></td>
+<td><code>1</code> / <code>0</code></td>
+<td>只有 <code>Number()</code> 能轉換布林值</td>
+</tr>
+</tbody>
+</table>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(d)</span><span class="kp-text"><mark style="background: #FFF3A3A6;">小數點的處理方式完全不同</mark>：<code>parseInt()</code> <mark style="background: #FF5582A6;">直接無條件捨去小數點後所有內容</mark>（<code>parseInt("3.14")</code> 為 <code>3</code>）；<code>Number()</code> <mark style="background: #BBFABBA6;">保留完整小數</mark>（<code>Number("3.14")</code> 為 <code>3.14</code>）。</span></p>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(e)</span><span class="kp-text"><mark style="background: #FFB8EBA6;">進位（radix）支援只有 parseInt 有</mark>：<code>parseInt(string, radix)</code> 支援第二個參數指定進制（如 2 進位、16 進位），例如 <code>parseInt("10", 2)</code> 為 <code>2</code>；<code>Number()</code> <mark style="background: #FF5582A6;">不支援指定進制參數</mark>，只能自動識別字串中的 <code>0x</code>（十六進位）、<code>0b</code>（二進位）、<code>0o</code>（八進位）前綴。</span></p>
+<pre><code class="language-js">parseInt(&quot;100px&quot;)        // 100  —— 容錯，讀到 p 就停
+Number(&quot;100px&quot;)          // NaN  —— 嚴格，整串必須合法
+
+parseInt(&quot;3.14&quot;)         // 3    —— 捨去小數
+Number(&quot;3.14&quot;)           // 3.14 —— 保留小數
+
+parseInt(&quot;10&quot;, 2)        // 2    —— 指定二進位
+Number(&quot;0b10&quot;)           // 2    —— 只能靠前綴自動識別
+Number(&quot;10&quot;, 2)          // 10   —— 第二個參數被忽略，不支援 radix
+</code></pre>
+<p class="kp"><span class="kp-letter" onclick="toggleKP(this)" title="點一下隱藏/顯示重點內容">(f)</span><span class="kp-text"><mark style="background: #D2B3FFA6;">使用建議</mark>：要抽取字串開頭的整數（例如從 CSS 單位 <code>"20px"</code> 取出 <code>20</code>）或需要處理進制轉換，用 <code>parseInt()</code>；要嚴格驗證整串字串是否為合法數字、且需要保留小數，用 <code>Number()</code>（或更專門解析浮點數的 <code>parseFloat()</code>）。</span></p>
+<h2>各對話來源（原文）</h2>
+<h3>parseInt 與 Number 的差異（2026-09-23）— https://gemini.google.com/app/cc9d71781181bb4a</h3>
+<blockquote class="source-card">
+<p><strong class="who-user">使用者：</strong> 這邊用parseInt跟Number把字串轉換成數值差在哪</p>
+<p><strong class="who-gemini">Gemini：</strong> 在 JavaScript 中，將字串轉換為數值時，<code>parseInt()</code> 與 <code>Number()</code> 主要有以下幾點核心差異：1. 解析機制與容錯度——<code>parseInt()</code> 從開頭讀到非數字字元為止，允許尾巴有多餘內容；<code>Number()</code> 要求整串合法，否則回傳 <code>NaN</code>。2. 對空字串與特殊值的處理（見上表）。3. 小數點與進位支援——<code>parseInt()</code> 捨去小數、支援 radix 參數；<code>Number()</code> 保留小數、不支援 radix 參數，僅能自動識別 <code>0x</code>/<code>0b</code>/<code>0o</code> 前綴。使用建議：抽取開頭整數或處理進制用 <code>parseInt()</code>；嚴格驗證並保留小數用 <code>Number()</code> 或 <code>parseFloat()</code>。</p>
+</blockquote>
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／查證時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/cc9d71781181bb4a</td>
+<td>Gemini Flash，2026-09-23</td>
+</tr>
+<tr>
+<td>MDN — parseInt()</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/parseInt</td>
+<td>MDN 頁面最後修改於 2025-07-08，查證於 2026-09-23</td>
+</tr>
+<tr>
+<td>MDN — Number()</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number</td>
+<td>MDN 現行文件，查證於 2026-09-23</td>
+</tr>
+</tbody>
+</table>
+<h2>練習題（LeetCode／NeetCode 對照）</h2>
+<p>本題屬於基礎 API 語意題，沒有直接對應的 LeetCode 題號。想練「字串轉數字＋容錯解析」的手感，可以看 <mark style="background: #D2B3FFA6;">LeetCode 8. String to Integer (atoi)</mark>（https://leetcode.com/problems/string-to-integer-to-atoi/）——這題本質上就是要你自己手刻一個簡化版 <code>parseInt()</code>。</p>
+<h2>關聯筆記</h2>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>關聯原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>number-isnan-vs-isnan</td>
+<td>轉換失敗後怎麼判斷結果是不是 NaN，是本篇的下一步</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-23</p></section>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-23</footer>
+</div>
+<script>
+function toggleKP(el) {
+  var txt = el.nextElementSibling;
+  if (txt) txt.classList.toggle('hidden-kp');
+}
+var __allHidden = false;
+function toggleAllKP() {
+  __allHidden = !__allHidden;
+  document.querySelectorAll('.kp-text').forEach(function(t) {
+    t.classList.toggle('hidden-kp', __allHidden);
+  });
+}
+try { if (!window.__hljsFailed && window.hljs) hljs.highlightAll(); } catch(e) {}
+</script>
+</body>
+</html>

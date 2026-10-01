@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HTTP Headers — Request 與 Response 各自由誰產生、送給誰、用完丟掉</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>HTTP Headers — Request 與 Response 各自由誰產生、送給誰、用完丟掉</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#http</span><span class="pill">#headers</span><span class="pill">#user-agent</span><span class="pill">#content-encoding</span><span class="pill">#coop</span><span class="pill">#api-key</span><span class="pill">#devtools</span><span class="pill">#backend</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-22</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/1d5ae90dec1246db" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">瀏覽器收到 Response Headers 之後，會把它們原封不動再回傳給伺服器。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Response Headers 是單向的，瀏覽器只拿來處理這一次的回應，用完即丟。</div></li><li><p class="qq">同一個頁面裡，CSS 請求與 API 請求各自帶著自己那一包 Request Headers。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">每一個網路請求都是獨立的一次 HTTP 交換，headers 各自產生。</div></li><li><p class="qq">Content-Type 裡的 charset=UTF-8 是一種壓縮演算法。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">UTF-8 是字元編碼，壓縮是 Content-Encoding: gzip 在管的。</div></li><li><p class="qq">API 金鑰寫在前端程式裡是安全的，因為它被打包進 bundle 看不出來。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">bundle 會被下載到使用者電腦，按 F12 就能讀到字串，金鑰必須留在後端。</div></li><li><p class="qq">COOP 設成 same-origin-allow-popups，是為了讓自己開出來的 popup 仍保有 window.opener 參照。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">OAuth 彈窗登入需要靠 window.opener 把結果回傳給母視窗。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">告訴伺服器「我是哪個瀏覽器、哪個作業系統」的那個 Request Header 叫 <input class="blank" data-a="User-Agent" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">在 Console 打 navigator.userAgent 可以印出同一個字串。</div></li><li><p class="qq">宣告 body 用 gzip 壓過的 Response Header 是 <input class="blank" data-a="Content-Encoding" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">瀏覽器據此解壓，目的是縮小傳輸體積。</div></li><li><p class="qq">curl 要加自訂標頭，用的參數是 <input class="blank" data-a="-H" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">例如 -H &quot;x-goog-api-key: $GEMINI_API_KEY&quot;。</div></li><li><p class="qq">在 DevTools 的 <input class="blank" data-a="Network" placeholder="填答案" autocomplete="off"> 面板點開任一筆請求，就能同時看到 Request Headers 與 Response Headers。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Headers 分頁上半是 General，中段 Response，下段 Request。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請完整說明：一個使用者在你的網站按下按鈕呼叫第三方 AI API，從前端到第三方之間，金鑰經過了哪些 header、由誰產生、為什麼不能少掉中間那一層後端。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 前端只打自家後端，這一段的 Request Headers 不含第三方金鑰，可能只帶自家的 Cookie 或 Authorization。(2) 後端路由收到請求，從伺服器上的環境變數讀出金鑰，組出 x-goog-api-key 與 Content-Type: application/json，再對第三方發一次全新的請求。(3) 第三方回 Response Headers 與 body 給後端，後端只把需要的資料轉給前端。(4) 少掉後端這層，金鑰就會出現在瀏覽器可讀的位置，任何人 F12 就能盜用，帳單算在你頭上。</div></li></ol></section>
+
+<article class="card">
+<h1 id="http-headers-request-response">HTTP Headers — Request 與 Response 各自由誰產生、送給誰、用完丟掉</h1>
+<blockquote>
+<p>⚠️ 這篇的來源對話在 Gemini 側欄被自動命名為「常見 4xx 用戶端錯誤狀態碼」，但整段對話的實際內容是 <strong>HTTP Headers 的方向性</strong>與 <strong>API 金鑰該放在哪個 header</strong>，跟 4xx 狀態碼無關。標題以實際內容為準。</p>
+</blockquote>
+<p>本篇重點 a–l，共 12 個。</p>
+<p class="fig"><img src="../obsidian-attachment/%E5%AD%B8%E7%BF%92%E5%BE%8C%E7%AB%AF_%E5%9C%96%E8%A7%A3_RequestHeaders%E5%BE%80%E4%B8%8A%E9%80%81-ResponseHeaders%E5%BE%80%E4%B8%8B%E9%80%81-%E7%94%A8%E5%AE%8C%E5%8D%B3%E4%B8%9F_2026-09-22.svg" alt="學習後端_圖解_RequestHeaders往上送-ResponseHeaders往下送-用完即丟_2026-09-22.svg" loading="lazy"></p>
+
+<blockquote>
+<p>這張是本篇的主軸圖。後面每一個重點都可以指回圖裡的位置：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">①＝往上的紫線</mark>、<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">②＝往下的粉線</mark>、<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">③＝那條不存在的灰虛線</mark>。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="1-header">1. 一次請求裡有兩包 header，方向剛好相反</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Request Headers（請求標頭）</mark>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">瀏覽器（client）產生，往伺服器（server）送</mark>。<br />
+    內容是「我是誰、我想要什麼、我接受什麼格式」，例如 <code>User-Agent</code>、<code>Cookie</code>、<code>Accept</code>、<code>Authorization</code>。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Response Headers（回應標頭）</mark>：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">伺服器產生，往瀏覽器送</mark>。<br />
+    內容是「我回給你的東西長怎樣、你要怎麼處理」，例如 <code>Content-Type</code>、<code>Content-Encoding</code>、<code>Cross-Origin-Opener-Policy</code>。</p>
+<p>(c) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Abby 當時講反了，這裡是修正點</mark>：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">瀏覽器收到 Response Headers 之後，只拿來處理「這一次」的回應內容，不會再把 Response Headers 原封不動回傳給公司的伺服器</mark>。<br />
+    所以「大型應用有幾百萬使用者，是不是每次都要把 response headers 傳回去」這個擔心不存在——<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">response headers 是單向、用完即丟</mark>。</p>
+<p>(d) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">真正每次都會往上送的是 Request Headers</mark>：每一個網路請求（HTML、CSS、JS、圖片、XHR/fetch）都各自帶自己的一包 Request Headers，所以在 DevTools Network 面板裡每一列都能點開看到各自不同的 headers。</p>
+<h3 id="2-header">2. 逐條看這次對話出現的 header</h3>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>方向</th>
+<th>誰產生</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>User-Agent</code></td>
+<td>Request</td>
+<td>瀏覽器</td>
+<td>一段文字，告訴伺服器「我是哪個瀏覽器、哪個作業系統、哪種裝置」，讓伺服器回傳合適的內容</td>
+</tr>
+<tr>
+<td><code>Cookie</code></td>
+<td>Request</td>
+<td>瀏覽器</td>
+<td>把先前 <code>Set-Cookie</code> 存下來的值帶回同源伺服器</td>
+</tr>
+<tr>
+<td><code>Content-Type</code></td>
+<td>兩邊都有</td>
+<td>送出方</td>
+<td>宣告 body 的媒體型別與字元編碼，例如 <code>text/css; charset=UTF-8</code>、<code>application/json</code></td>
+</tr>
+<tr>
+<td><code>Content-Encoding</code></td>
+<td>Response</td>
+<td>伺服器</td>
+<td>宣告 body 用哪種壓縮演算法壓過，例如 <code>gzip</code>，瀏覽器據此解壓，目的是縮小傳輸體積</td>
+</tr>
+<tr>
+<td><code>Cross-Origin-Opener-Policy</code>（COOP）</td>
+<td>Response</td>
+<td>伺服器</td>
+<td>控制這份文件跟它用 <code>window.open()</code> 開出來的新分頁，要不要放在同一個 browsing context group</td>
+</tr>
+<tr>
+<td><code>x-goog-api-key</code> / <code>Authorization</code></td>
+<td>Request</td>
+<td>呼叫方程式</td>
+<td>攜帶 API 金鑰做身分驗證</td>
+</tr>
+</tbody>
+</table>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Content-Type</code> 的兩段式寫法</mark>：<code>text/css</code> 是媒體型別（MIME type），<code>charset=UTF-8</code> 是字元編碼。<br />
+    <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要分清楚</mark>：UTF-8 是<strong>字元編碼</strong>，不是壓縮演算法；壓縮是 <code>Content-Encoding: gzip</code> 那一條在管的。對話裡這兩個詞曾混在一起講，這裡拆開。</p>
+<p>(f) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">COOP 的 <code>same-origin-allow-popups</code></mark>：這份文件自己被隔離在獨立的 browsing context group，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">但它主動開出來的 popup 仍然保留 <code>window.opener</code> 參照</mark>，代價是拿不到 cross-origin isolation。<br />
+    典型用途是 <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">OAuth 彈窗登入</mark>：授權頁在 popup 開啟，結果要靠 <code>window.opener</code> 回傳給母視窗，所以不能把參照切斷（延伸見 <span class="wikilink" title="Obsidian 連結：OAuth與RESTful-Firebase登入-彈窗vs重定向">OAuth與RESTful-Firebase登入-彈窗vs重定向</span>）。</p>
+<h3 id="3-api">3. API 金鑰放在哪裡</h3>
+<p>(g) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">API 金鑰是「夾在 Request Headers 裡」送出去的</mark>，不是另外一個神秘的地方。<br />
+    在 DevTools Network 面板點開該筆請求 → Request Headers，就會看到金鑰那一行，同一包裡通常還有 <code>Content-Type: application/json</code>。</p>
+<p>(h) curl 用 <code>-H</code> 參數加上這個標頭，例如：</p>
+<pre><code class="language-bash">curl &quot;https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent&quot; \
+  -H &quot;x-goog-api-key: $GEMINI_API_KEY&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -X POST \
+  -d '{&quot;contents&quot;:[{&quot;parts&quot;:[{&quot;text&quot;:&quot;Hello&quot;}]}]}'
+</code></pre>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">金鑰一定要寫在後端路由裡，不要寫在前端程式</mark>。<br />
+    <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">原因很直白：前端 bundle 會被下載到使用者電腦上，任何人按 F12 就能讀到字串</mark>。正確做法是前端打自家後端 → 後端拿伺服器上的環境變數組出 <code>x-goog-api-key</code> → 後端再打第三方 API → 把結果回給前端。</p>
+<p>(j) 金鑰本身的新舊制差異另開一篇：<span class="wikilink" title="Obsidian 連結：Gemini-API-Auth-Keys-授權金鑰-與標準API-Key差異">Gemini-API-Auth-Keys-授權金鑰-與標準API-Key差異</span>。</p>
+<h3 id="4-abby">4. 怎麼自己驗證（Abby 可以馬上動手）</h3>
+<p>(k) 打開任一網站 → F12 → Network → 重新整理 → 點任一列 → Headers 分頁。<br />
+    上半 <code>General</code>（method、status code、remote address），中段 <code>Response Headers</code>，下段 <code>Request Headers</code>。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">同一頁的 CSS 請求跟 API 請求，Request Headers 內容會不一樣</mark>，這就是 (d) 說的「每個請求各自一包」。</p>
+<p>(l) 在 Console 打 <code>navigator.userAgent</code>，會印出這個瀏覽器送出去的 <code>User-Agent</code> 字串本體，跟 Network 面板裡看到的那一行對得起來。</p>
+<hr />
+<h2 id="_2">各對話來源</h2>
+<h3 id="4xx-http-headers2026-09-httpsgeminigooglecomapp1d5ae90dec1246db">常見 4xx 用戶端錯誤狀態碼（實際內容為 HTTP Headers，2026-09）— https://gemini.google.com/app/1d5ae90dec1246db</h3>
+<p>（語音輸入，原文已去除重複語音回放段落。）</p>
+<p><strong>使用者：</strong> 有個 header，然後就 request header 是嗎？<br />
+<strong>Gemini：</strong> 沒錯，你在 F12 的 Network 面板裡點開請求，看到的 Request Headers 就是其中一種標頭。包含像 User-Agent 或 Cookie 這些資訊都在這裡面。</p>
+<p><strong>使用者：</strong> user agent 是什麼？<br />
+<strong>Gemini：</strong> User-Agent 是一段文字，用來告訴伺服器你是用哪個瀏覽器、作業系統，還有是什麼裝置在發出請求，好讓伺服器回傳適合的內容。</p>
+<p><strong>使用者：</strong> 所以每次 server side 都會收到 response headers 裡面的所有內容嗎？在大型應用場景裡，這麼多使用者，靜態網頁也會回傳這些 response headers 給公司的伺服器嗎？<br />
+<strong>Gemini：</strong> 伺服器會隨每個請求產生並發送 Response Headers，但使用者的瀏覽器收到後，只用來處理該次請求的內容，不會再把這些標頭回傳給公司的伺服器。</p>
+<p><strong>使用者：</strong> 我剛剛講反了，我應該講的是 request headers。所以伺服器回傳的是內容類型 text/css、字元編碼 UTF-8、encoding 演算法，然後跨網域的 opener policy 是什麼？<br />
+<strong>Gemini：</strong> Response Headers 中的 Content-Encoding gzip 代表檔案是用 gzip 演算法壓縮過，能縮小傳輸體積。Cross-Origin-Opener-Policy 則是一種安全規範，設定為 same-origin-allow-popups 表示這份文件可以和透過它開啟的彈出視窗共享瀏覽內容，並保護頁面不被惡意跨網域程式碼控制。</p>
+<p><strong>使用者：</strong> Google API key 裡面的 headers 會夾帶在我現在看到的 network 的 headers 裡面呢，還是它另外有個地方？<br />
+<strong>Gemini：</strong>（接續下一輪）</p>
+<p><strong>使用者：</strong> 不對，他應該是每個網路請求都有自己的 headers。所以我會在底下多一個跟 Google API key 有關的，它的 content type 就會是像文件裡面寫的 application/json，是嗎？<br />
+<strong>Gemini：</strong> 是的，當你發送請求時，包含 API key 與 Content-Type 等標頭，都會顯示在 Network 面板的 Request Headers 裡。</p>
+<p><strong>使用者：</strong> 那通常範例要求會在標頭中加入 API 金鑰。<br />
+<strong>Gemini：</strong> 沒錯，範例中展示了如何使用 <code>-H</code> 參數。</p>
+<p><strong>使用者：</strong> 我這個是寫在後端路由裡面嗎？<br />
+<strong>Gemini：</strong> 是的，這類 API 請求通常寫在後端路由中，這樣可以保護您的 API 金鑰不被直接暴露在前端程式中。</p>
+<hr />
+<h2 id="_3">相關筆記</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>路徑</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cookie 與 Session</td>
+<td>backend/Cookie-與-Session.md</td>
+<td><code>Cookie</code> 就是本篇 (b) 表格裡最常見的 Request Header，那篇講它怎麼被 <code>Set-Cookie</code> 種下去、又怎麼被帶回來</td>
+</tr>
+<tr>
+<td>Cookie 隔離邊界與跨站請求安全</td>
+<td>backend/Cookie隔離邊界與跨站請求安全-Origin-SameSite-CSRF-Token與Bearer.md</td>
+<td>同樣在談 header 的方向性，但聚焦在 <code>Origin</code>、<code>SameSite</code>、<code>Authorization: Bearer</code> 的攻防</td>
+</tr>
+<tr>
+<td>OAuth 與 Firebase 登入：彈窗 vs 重定向</td>
+<td>backend/OAuth與RESTful-Firebase登入-彈窗vs重定向.md</td>
+<td>(f) 的 COOP <code>same-origin-allow-popups</code> 正是為了 OAuth 彈窗保留 <code>window.opener</code> 而存在</td>
+</tr>
+<tr>
+<td>DNS 查詢、TCP 與 TLS 握手 RTT</td>
+<td>backend/DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能.md</td>
+<td>那篇講「header 送出去之前」發生的連線建立，本篇接在它後面</td>
+</tr>
+<tr>
+<td>Gemini API 授權金鑰</td>
+<td>LLM-Memory/Gemini-API-Auth-Keys-授權金鑰-與標準API-Key差異.md</td>
+<td>(g)(h)(i) 講金鑰放哪個 header，那篇講金鑰本身的格式與遷移期限</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇來源對話</td>
+<td>https://gemini.google.com/app/1d5ae90dec1246db</td>
+<td>Gemini 對話，2026-09</td>
+</tr>
+<tr>
+<td>HTTP headers 總覽</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers">MDN HTTP headers</a></td>
+<td>MDN，查證 2026-09-22</td>
+</tr>
+<tr>
+<td><code>User-Agent</code></td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/User-Agent">MDN User-Agent</a></td>
+<td>MDN，查證 2026-09-22</td>
+</tr>
+<tr>
+<td><code>Content-Encoding</code></td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Encoding">MDN Content-Encoding</a></td>
+<td>MDN，查證 2026-09-22</td>
+</tr>
+<tr>
+<td><code>Cross-Origin-Opener-Policy</code></td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cross-Origin-Opener-Policy">MDN COOP</a></td>
+<td>MDN，查證 2026-09-22</td>
+</tr>
+<tr>
+<td>Gemini API 金鑰放 header 的官方寫法</td>
+<td><a href="https://ai.google.dev/gemini-api/docs/api-key">Using Gemini API keys</a></td>
+<td>Google AI for Developers，查證 2026-09-22</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-22</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

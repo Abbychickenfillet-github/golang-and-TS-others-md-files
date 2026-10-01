@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>事件處理器 vs 事件監聽器 — on-event 與 addEventListener 差在哪</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>事件處理器 vs 事件監聽器 — on-event 與 addEventListener 差在哪</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#dom</span><span class="pill">#event-handler</span><span class="pill">#event-listener</span><span class="pill">#addEventListener</span><span class="pill">#once</span><span class="pill">#capture</span><span class="pill">#事件</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-21</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/8e9aa6457858bff9" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">el.onblur = checkUsername() 這樣寫，事件觸發時會執行 checkUsername。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">加了小括號代表「現在就跑」。這一行執行時函式就跑完了，onblur 拿到的是回傳值 undefined，事件觸發時沒東西可執行。</div></li><li><p class="qq">對同一個元素的同一個事件用 addEventListener 綁兩個函式，後面的會覆蓋前面的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">addEventListener 是往佇列排隊，兩個都會留著並依加入順序執行。會覆蓋的是 on-event 插槽寫法。</div></li><li><p class="qq">addEventListener 的第一個參數要寫 &#x27;click&#x27; 而不是 &#x27;onclick&#x27;。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">on-event 寫法才要加 on（el.onclick），addEventListener 一律不加。</div></li><li><p class="qq">{ once: true } 的意思是「這個按鈕之後被禁止點擊」。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">once 是「listener 執行完一次後自動移除」，按鈕本身還是可以點，只是沒人接了。要真的鎖住得自己控制 btn.disabled。</div></li><li><p class="qq">addEventListener 的 options 只有 capture 與 once 兩個欄位。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">⚠️ 本篇更正處。常用的有四個：capture、once、passive、signal。面試問第三個參數時 passive 幾乎一定會被追問，因為它跟捲動效能直接相關。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">小括號的意思是「現在就跑」，而你要的是「<input class="blank" data-a="等一下" placeholder="填答案" autocomplete="off"> 再跑」，所以綁事件時不能加。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">真的需要傳參數時就包一層函式把呼叫延後。</div></li><li><p class="qq">el.onclick 本質上是一個「<input class="blank" data-a="插槽" placeholder="填答案" autocomplete="off">」，只有一格，所以會被第二次賦值蓋掉；addEventListener 則是往一條佇列排隊。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這一句可以解釋兩者之間所有的差異。</div></li><li><p class="qq">on-event 寫法要移除函式時寫 el.onclick = <input class="blank" data-a="null" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">addEventListener 則用 removeEventListener，或搭配 AbortController 的 signal。</div></li><li><p class="qq">想在任意時刻優雅地拔掉監聽，可以搭配 <input class="blank" data-a="Abort" placeholder="填答案" autocomplete="off"> Controller 的 signal，比記住函式參考再 removeEventListener 乾淨。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">const ac = new AbortController(); ... ac.abort();</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請完整說明 el.onclick 與 addEventListener 的差異，至少涵蓋五個面向。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">本質差異一句話：el.onclick 是一個「插槽」，只有一格；addEventListener 是往一條「佇列」排隊。這句話能解釋底下所有差異。
+
+（1）同一事件綁多個函式：on-event 不行，後面的蓋掉前面的；addEventListener 可以，依加入順序執行。
+（2）語法：el.onclick = handleClick vs el.addEventListener(&#x27;click&#x27;, handleClick)。
+（3）事件名稱：on-event 要加 on（onclick、onblur）；addEventListener 不加（&#x27;click&#x27;、&#x27;blur&#x27;）。
+（4）進階選項：on-event 沒有；addEventListener 第三個參數可傳 capture、once、passive、signal。
+（5）移除方式：on-event 寫 el.onclick = null；addEventListener 用 removeEventListener(&#x27;click&#x27;, handleClick)，或搭 AbortController 的 signal。
+（6）相容性：on-event 極高，很舊的瀏覽器也支援；addEventListener 從 IE9 起全面支援，現代開發沒有問題。
+
+結論：現代開發一律優先用 addEventListener。</div></li><li><p class="qq">為什麼綁事件時不能加小括號？如果我真的需要傳參數給處理函式，該怎麼寫？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">因為小括號 () 的意思是「現在就呼叫」。
+
+寫 el.onblur = checkUsername 時，你是把函式「本身」當成一個值，賦給 el 的 onblur 插槽，瀏覽器會在使用者讓輸入框失焦時才去呼叫它。
+
+寫 el.onblur = checkUsername() 時，引擎讀到這一行就立刻執行 checkUsername，再把它的回傳值（通常是 undefined）賦給 onblur。結果是函式在不該跑的時候跑了一次，而事件真正觸發時插槽裡是 undefined，完全沒有函式可以執行。
+
+需要傳參數時，包一層函式把呼叫延後就好：
+el.onblur = () =&gt; checkUsername(&#x27;abby&#x27;);
+el.addEventListener(&#x27;blur&#x27;, () =&gt; checkUsername(&#x27;abby&#x27;));
+
+注意包成箭頭函式之後，這個匿名函式沒有名字可以參考，所以之後想 removeEventListener 就得先把它存成變數，或改用 AbortController 的 signal。</div></li></ol></section>
+
+<article class="card">
+<h1 id="vs-on-event-addeventlistener">事件處理器 vs 事件監聽器 — on-event 與 addEventListener 差在哪</h1>
+<p>本篇重點 a–l，共 12 個</p>
+<blockquote>
+<p>關聯原因：<span class="wikilink" title="Obsidian 連結：事件流與事件代理">事件流與事件代理</span> 講的是事件「在 DOM 樹上怎麼跑」（捕獲 → 目標 → 冒泡），這篇講的是「你要怎麼把函式掛上去接它」。<br />
+  兩篇合起來才完整：先知道事件會經過誰，再知道用哪種方式接。<br />
+而 <span class="wikilink" title="Obsidian 連結：content-attribute-vs-IDL-property-與表單提交機制">content-attribute-vs-IDL-property-與表單提交機制</span> 的觀念在這裡直接派上用場：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>onclick</code> 是 DOM 物件上的 IDL property（一個插槽）</mark>，所以它才會被第二次賦值蓋掉。</p>
+</blockquote>
+<hr />
+<h2 id="_1">一、主軸圖：小括號與插槽</h2>
+<p class="fig"><img src="../../../../obsidian-attachment/%E5%AD%B8%E7%BF%92JS_%E5%9C%96%E8%A7%A3_%E5%8A%A0%E4%B8%8D%E5%8A%A0%E5%B0%8F%E6%8B%AC%E8%99%9F%E6%B1%BA%E5%AE%9A%E7%B6%81%E5%87%BD%E5%BC%8F%E9%82%84%E6%98%AF%E7%B6%81%E5%9B%9E%E5%82%B3%E5%80%BC-ISO5807_2026-09-21.svg" alt="學習JS_圖解_加不加小括號決定綁函式還是綁回傳值-ISO5807_2026-09-21.svg" loading="lazy"></p>
+
+<p>（a）這張圖分上下兩半：上半是「加不加小括號」的分岔，下半是「綁第二個函式時，插槽 vs 佇列」的對比。之後追問請指回圖上的某個方框。</p>
+<hr />
+<h2 id="_2">二、第一個坑：不能加小括號</h2>
+<p>（b）正確寫法是 <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>el.onblur = checkUsername;</code></mark>，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不是 <code>el.onblur = checkUsername();</code></mark>。</p>
+<p>（c）誰對誰做什麼，兩種寫法講清楚：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>這一行實際發生什麼</th>
+<th>事件觸發時的結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>el.onblur = checkUsername</code></td>
+<td>你把函式本身當成一個值，賦給 <code>el</code> 的 <code>onblur</code> 插槽</td>
+<td>使用者讓輸入框失焦時，瀏覽器才去呼叫這個函式</td>
+</tr>
+<tr>
+<td><code>el.onblur = checkUsername()</code></td>
+<td>引擎讀到這一行就立刻執行 <code>checkUsername</code>，再把它的回傳值（通常是 <code>undefined</code>）賦給 <code>onblur</code></td>
+<td>插槽裡是 <code>undefined</code>，事件觸發時完全沒有函式可以執行</td>
+</tr>
+</tbody>
+</table>
+<p>（d）<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">記法：小括號 <code>()</code> 的意思是「現在就跑」。你要的是「等一下再跑」，所以不能加。</mark></p>
+<p>（e）例外情況是你「真的需要傳參數」，那就包一層函式，把呼叫延後：</p>
+<pre><code class="language-js">el.onblur = () =&gt; checkUsername('abby');            // on-event 寫法
+el.addEventListener('blur', () =&gt; checkUsername('abby')); // listener 寫法
+</code></pre>
+<blockquote>
+<p>[!example] 同一條規則在 Fetch API 的現場（2026-09-21 補）<br />
+這個坑不只出現在 DOM 元素上，只要是 <code>addEventListener</code> 都一樣。用 <code>AbortSignal</code> 監聽中斷事件時：<br />
+<code>js
+req.signal.addEventListener("abort", console.log("abort"));   // ✗ 立刻印出，插槽裡是 undefined
+req.signal.addEventListener("abort", () =&gt; console.log("abort")); // ✓</code><br />
+<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>AbortSignal</code> 也是一個 EventTarget</mark>，所以（b）到（e）整套規則原封不動適用。AbortController 與 <code>{ signal }</code> 的完整用法（取消 fetch、逾時、一次拔掉整批監聽器）寫在 <span class="wikilink" title="Obsidian 連結：Axios-vs-Fetch-回應解析與錯誤處理">Axios-vs-Fetch-回應解析與錯誤處理</span> 第 5 節——關聯原因：那篇是「為什麼要取消」，這篇是「怎麼把取消的處理函式正確掛上去」。</p>
+</blockquote>
+<hr />
+<h2 id="on-event-addeventlistener">三、on-event 處理器與 addEventListener 的本質差異</h2>
+<p>（f）<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>el.onclick</code> 是一個「插槽」，<code>addEventListener</code> 是往一條「佇列」裡排隊。</mark>這一句解釋得了底下所有差異。</p>
+<p>（g）插槽只有一格，所以會互相覆蓋：</p>
+<pre><code class="language-js">const btn = document.querySelector('button');
+
+btn.onclick = functionA;
+btn.onclick = functionB;   // functionA 被蓋掉，點擊時只會執行 functionB
+</code></pre>
+<p>（h）佇列可以排很多個，依照加入順序執行：</p>
+<pre><code class="language-js">btn.addEventListener('click', functionA);
+btn.addEventListener('click', functionB);  // 點擊時 functionA 與 functionB 都會執行
+</code></pre>
+<p>（i）完整對照：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>傳統事件處理器（on-event）</th>
+<th>現代事件監聽器（addEventListener）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>同一事件綁多個函式</td>
+<td>❌ 不行，後面的蓋掉前面的</td>
+<td>⭕ 可以，依加入順序執行</td>
+</tr>
+<tr>
+<td>語法範例</td>
+<td><code>el.onclick = handleClick</code></td>
+<td><code>el.addEventListener('click', handleClick)</code></td>
+</tr>
+<tr>
+<td>事件名稱寫法</td>
+<td>要加 <code>on</code>，例如 <code>onclick</code>、<code>onblur</code></td>
+<td>不加 <code>on</code>，直接寫 <code>'click'</code>、<code>'blur'</code></td>
+</tr>
+<tr>
+<td>進階選項</td>
+<td>❌ 沒有</td>
+<td>⭕ 有，第三個參數可傳 <code>capture</code>、<code>once</code>、<code>passive</code>、<code>signal</code></td>
+</tr>
+<tr>
+<td>移除方式</td>
+<td><code>el.onclick = null</code></td>
+<td><code>el.removeEventListener('click', handleClick)</code></td>
+</tr>
+<tr>
+<td>相容性</td>
+<td>極高，很舊的瀏覽器也支援</td>
+<td>IE9 以後全面支援，現代開發沒有問題</td>
+</tr>
+</tbody>
+</table>
+<p>（j）<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">現代開發一律優先用 <code>addEventListener</code></mark>，維護性與擴充性好很多。on-event 寫法只在極簡單的示範或非常舊的程式碼裡出現。</p>
+<hr />
+<h2 id="once">四、once：只觸發一次就自我銷毀</h2>
+<p>（k）<code>addEventListener</code> 的第三個參數傳 <code>{ once: true }</code> 時，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">這個 listener 執行完一次之後會自動把自己移除</mark>，之後再怎麼點都不會再跑。</p>
+<pre><code class="language-js">const btn = document.querySelector('button');
+
+btn.addEventListener('click', function () {
+  console.log('這個按鈕只能點一次！');
+}, { once: true });
+</code></pre>
+<pre><code>常見情境：領取優惠券或折扣碼的按鈕（防止重複領取）、表單送出按鈕（避免網路慢時使用者連點造成重複送出）、初次導覽教學的一次性彈窗。
+</code></pre>
+<p>（l）<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">補充：<code>once</code> 是「執行完就移除」而不是「禁止再點」。</mark>如果你要的是「處理中先鎖住、失敗還能重試」，那要自己控制 <code>btn.disabled</code>，或改用 <code>AbortController</code> 搭配 <code>{ signal }</code> 手動決定什麼時候解除監聽。</p>
+<pre><code class="language-js">const ac = new AbortController();
+btn.addEventListener('click', handleSubmit, { signal: ac.signal });
+ac.abort();   // 想拔掉的時候自己喊停，比記住函式參考再 removeEventListener 乾淨
+</code></pre>
+<hr />
+<h2 id="_3">五、⚠️ 存疑／更正</h2>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ Gemini 把第三個參數只講了 <code>capture</code> 與 <code>once</code>，漏掉常考的另外兩個。</mark>完整的 options 物件有四個常用欄位：<code>capture</code>（在捕獲階段觸發）、<code>once</code>（觸發一次後自動移除）、<code>passive</code>（承諾不呼叫 <code>preventDefault</code>，讓瀏覽器可以放心優化捲動效能）、<code>signal</code>（搭配 <code>AbortController</code> 移除）。面試問到 <code>addEventListener</code> 第三個參數時，<code>passive</code> 幾乎一定會被追問，因為它跟捲動效能直接相關。</p>
+<hr />
+<h2 id="_4">六、自己動手</h2>
+<p>配套檔案：<code>demo-handler-vs-listener.html</code>（同一層資料夾，用瀏覽器直接開，四個按鈕各示範一種行為）</p>
+<hr />
+<h2 id="_5">七、延伸練習</h2>
+<p>事件綁定屬於 DOM API 而非演算法，LeetCode 沒有直接對應題。最接近的是 JavaScript 專區裡「回呼與函式當值傳遞」的題目，觀念正好是（b）到（d）在講的事：</p>
+<ul>
+<li><a href="https://leetcode.com/problems/allow-one-function-call/">LeetCode 2666. Allow One Function Call</a>：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">用手寫的方式實作出 <code>{ once: true }</code> 的行為</mark>，寫完再回頭看（k）會特別有感。</li>
+<li><a href="https://leetcode.com/problems/counter/">LeetCode 2620. Counter</a>：練「回傳函式而不是回傳值」，正好是（d）那個小括號陷阱的反面。</li>
+<li><a href="https://leetcode.com/problems/promise-time-limit/">LeetCode 2637. Promise Time Limit</a>：練把函式當值包一層再交出去。</li>
+</ul>
+<hr />
+<h2 id="_6">八、各對話來源（原文）</h2>
+<h3 id="2026-09-21-httpsgeminigooglecomapp8e9aa6457858bff9">事件處理器（2026-09-21 擷取）— https://gemini.google.com/app/8e9aa6457858bff9</h3>
+<p>使用者：所以會寫成 <code>element.onevent = checkUsername()</code> 嗎？</p>
+<p>Gemini：不行的，不能加小括號。正確寫法是 <code>el.onblur = checkUsername;</code>。原因：不加小括號（<code>checkUsername</code>）是將函式「本身」當作一個值傳給事件處理器，這樣瀏覽器才會在使用者觸發事件（例如失去焦點 onblur）時，才去呼叫這個函式。加了小括號（<code>checkUsername()</code>）代表「立刻執行」這個函式，程式碼執行到這一行時函式就會馬上跑完，並把函式回傳的結果（通常是 <code>undefined</code>）賦值給 <code>el.onblur</code>，這會導致事件觸發時完全沒有函式可以執行。書中的範例圖示與說明中也有特別標註「不需要小括號」。</p>
+<p>使用者：事件處理器跟事件監聽器差在哪？</p>
+<p>Gemini：兩者最大的差別在於能不能同時綁定多個函式，以及語法與彈性。（1）事件處理器（Event Handlers）就是傳統寫法，例如 <code>element.onclick = functionName</code>，只能綁定一個函式，如果對同一個事件重複指定，後面的會覆蓋掉前面的。優點是語法簡單直覺、相容性極高；缺點是無法讓同一個事件同時執行多個獨立的任務，移除時只能設為 <code>null</code>。（2）事件監聽器（Event Listeners）是現代 JavaScript 最推薦的標準寫法，使用 <code>addEventListener()</code>，對同一個事件綁定多個函式時它們會依序執行，不會互相覆蓋；事件名稱第一個參數寫 <code>'click'</code>、<code>'blur'</code>、<code>'mouseover'</code>，前面不用加 <code>on</code>；可以傳入第三個參數控制捕獲／冒泡階段（capture）或讓事件只觸發一次（<code>once: true</code>）；隨時可以用 <code>removeEventListener()</code> 移除特定的監聽函式。在現代開發中，基本上都建議優先使用 <code>addEventListener</code>。</p>
+<p>使用者：Once！</p>
+<p>Gemini：對，<code>once: true</code> 是 <code>addEventListener</code> 非常好用的一個進階設定。當你傳入 <code>{ once: true }</code> 時，這個事件監聽器在被觸發執行完一次之後，就會自動自我銷毀（自動移除），後面再怎麼點擊或觸發都不會再執行了。常見的使用情境：領取優惠券／折扣碼按鈕（防止使用者重複點擊領取）、表單提交或送出按鈕（避免使用者因為網路慢連續點擊導致重複送出表單）、初次導覽教學的一次性彈出。</p>
+<hr />
+<h2 id="_7">九、資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>addEventListener 與 options（capture／once／passive／signal）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>on-event 處理器（event handler property）的定義與限制</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/Events/Event_handlers</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>AbortController 搭配 signal 移除監聽</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/API/AbortController</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/8e9aa6457858bff9</td>
+<td>2026-09-21 擷取</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-21</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -2,8 +2,8 @@
 title: App Router 與 Pages Router — RSC、Streaming SSR、loading.js 與 error.js 的檔案約定
 type: topic-note
 source: Gemini
-tags: [gemini, nextjs, app-router, pages-router, rsc, streaming, ssr, suspense, seo, 面試]
-aliases: [AppRouter與PagesRouter, StreamingSSR, loadingjs, errorjs]
+tags: [gemini, nextjs, app-router, pages-router, rsc, streaming, ssr, suspense, seo, server-actions, 面試]
+aliases: [AppRouter與PagesRouter, StreamingSSR, loadingjs, errorjs, ServerActions]
 related:
   - "[[SSR-renderToString與Hydration-伺服器端渲染流程]]"
   - "[[react-server-component-slug-動態路由參數]]"
@@ -12,7 +12,8 @@ related:
   - "[[nextjs-params-slug動態路由用法]]"
 sources:
   - https://gemini.google.com/app/9495dffc9a8507ba
-updated: 2026-09-05
+  - https://gemini.google.com/app/67157cf935a73293
+updated: 2026-09-23
 ---
 
 # App Router 與 Pages Router — RSC、Streaming SSR、loading.js 與 error.js 的檔案約定
@@ -23,7 +24,7 @@ updated: 2026-09-05
 > (3) [[FCP首次內容繪製-SEO爬蟲與打包五步驟]] 講 FCP 與爬蟲，本篇第五節的 SEO 段落是那篇在框架選型上的延伸：Streaming 改善的是 TTFB 與 FCP，不是 SEO 本身。
 > (4) [[動態路由與應用進入點-Nextjs的slug-VueRouter冒號-Express的appget]] 記的是三個框架的路由語法對照，本篇補 Next.js 兩套路由「架構層級」的差異。
 
-> 本篇重點 a–u，共 21 個。
+> 本篇重點 a–v，共 22 個。
 
 ![Streaming SSR 與傳統 SSR 的時間軸對照](images/StreamingSSR-vs-傳統SSR-時間軸.svg)
 
@@ -121,12 +122,16 @@ export async function getServerSideProps(context) {
 
 (u) <mark style="background: #D2B3FFA6;">有沒有 `src/` 資料夾對功能與效能完全沒有影響</mark>，Next.js 會自動識別。差別只是專案組織：`src/` 把原始碼與根目錄的設定檔（`package.json`、`next.config.js`、`tsconfig.json`、`.env`）隔開，大型專案較好維護。<mark style="background: #FF5582A6;">但 `public/` 永遠必須在最外層根目錄，不能搬進 `src/`。</mark>
 
+### 六、Server Actions 是什麼（v）
+
+(v) <mark style="background: #ADCCFFA6;">Server Actions 讓你直接在 React 元件裡寫可在伺服器執行的函式</mark>（函式或檔案頂端標記 `'use server'`），<mark style="background: #FFF3A3A6;">最常用於處理表單提交與資料寫入（mutation）</mark>，不必另外開一支獨立的 API Route。跟第三節的 `fetch` 對照著看：<mark style="background: #BBFABBA6;">`fetch` 負責「讀」（對應 REST 的 GET），Server Actions 負責「寫」（對應 REST 的 POST）</mark>，兩者是同一套「伺服器優先」設計哲學下的一體兩面，且 Server Actions <mark style="background: #FF5582A6;">是 App Router 專屬能力，Pages Router 沒有對應機制</mark>，仍須寫獨立 API Route 處理表單送出。
+
 ## ⚠️ 存疑／需要留意
 
 | 項目 | 對話中的說法 | 需要留意的地方 |
 | --- | --- | --- |
 | React 版本 | 「App Router 完整整合 React 19 / Canary 的最新特性」 | 實際支援的 React 版本綁定於你安裝的 Next.js 版本，升級前請以該版 release note 為準，不要照抄這句話 |
-| Server Actions | 被列為 App Router 專屬 | 概念正確，但功能穩定度隨版本變動，實作前查當版文件 |
+| Server Actions | 被列為 App Router 專屬，見 (v) | 概念正確，但功能穩定度隨版本變動（例如快取行為、與 `useFormStatus` / `useActionState` 的搭配方式），實作前查當版文件 |
 
 ## 各對話來源（原文摘要）
 
@@ -134,15 +139,23 @@ export async function getServerSideProps(context) {
 
 依序問了六輪：(1) 兩者差異總覽 →(2)「這很表象，底層怎麼做的」＋「為什麼還用原生 fetch」＋「SSR 也能用在 Pages Router 嗎」＋「loading.js 預設 Streaming 是什麼意思」→(3)「Streaming 代表是 SSR 嗎」「一定要包在 Suspense 內嗎」→(4)「app 跟 app/(rsc)/rsc 都有 layout.js 正常嗎」「_app.js 跟前後端分離的關係」「無支援＝缺乏原生巢狀 layout 嗎」「為何切頁重渲染較頻繁」→(5) 專案要不要用 `src/` 資料夾 →(6)「SEO 要好是要用 App Router 嗎」。原文已整併進上方重點整理，不再重複貼一次。
 
+### Server Actions 是啥？（2026-09-23）— https://gemini.google.com/app/67157cf935a73293
+
+> **使用者：** server actions是啥？
+>
+> **Gemini：** Server Actions 讓你在 React 元件裡直接寫後端邏輯。它能在伺服器上執行，比如處理表單提交或資料互動，免去額外建立獨立 API 路由的麻煩。
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／查證時間 |
 | --- | --- | --- |
 | 本篇 Gemini 對話 | https://gemini.google.com/app/9495dffc9a8507ba | Gemini Flash，2026-09-05 |
+| Server Actions 補充對話 | https://gemini.google.com/app/67157cf935a73293 | Gemini Flash，2026-09-23 |
 | Next.js — App Router 官方文件 | https://nextjs.org/docs/app | Next.js 現行文件，2026-09-05 查證 |
 | Next.js — loading.js 檔案約定 | https://nextjs.org/docs/app/api-reference/file-conventions/loading | Next.js 現行文件，2026-09-05 查證 |
 | Next.js — error.js 檔案約定 | https://nextjs.org/docs/app/api-reference/file-conventions/error | Next.js 現行文件，2026-09-05 查證 |
 | Next.js — Route Groups | https://nextjs.org/docs/app/building-your-application/routing/route-groups | Next.js 現行文件，2026-09-05 查證 |
+| Next.js — Server Actions and Mutations | https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations | Next.js 現行文件，2026-09-23 查證 |
 | React — `<Suspense>` | https://react.dev/reference/react/Suspense | React 現行文件，2026-09-05 查證 |
 | MDN — Transfer-Encoding | https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Transfer-Encoding | MDN，2026-09-05 查證 |
 
@@ -162,4 +175,4 @@ export async function getServerSideProps(context) {
 
 ---
 
-由 Gemini 對話自動整理 · 更新於 2026-09-05
+由 Gemini 對話自動整理 · 更新於 2026-09-23

@@ -3,140 +3,398 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JavaScript 函式類型總整理（宣告/表達式/具名匿名/Generator/Constructor）</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<title>JavaScript 函式類型總整理｜四條互相獨立的分類軸</title>
 <style>
-:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
-*{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
-.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
-header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
-h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
-.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
-.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
-.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
-.meta a{color:var(--accent);text-decoration:none;}
-.meta a:hover{text-decoration:underline;}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
-h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
-h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
-h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
-p{margin:.6em 0;}
-ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
-mark{padding:1px 3px;border-radius:3px;}
-a{color:var(--accent);}
-code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
-pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
-pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
-th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
-th{background:var(--accent-soft);}
-tr:nth-child(even) td{background:#fafbfc;}
-blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
-img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
-footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+:root{
+  --bg:#f7f8fa; --panel:#fff; --ink:#1c2330; --muted:#5b6674; --line:#dfe4ea;
+  --accent:#2f5fd0; --ok:#1f8a4c; --err:#c8385a; --warn:#b26a00; --violet:#6a45c0;
+  --hl-y:#fff3a3; --hl-b:#adccff; --hl-r:#ff5582; --hl-g:#bbfabb; --hl-v:#d2b3ff; --hl-o:#ffb86c;
+  --code:#f0f2f6;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12151b; --panel:#1a1f28; --ink:#e6eaf0; --muted:#9aa5b4; --line:#2c333f;
+  --accent:#7aa2f7; --ok:#57c98a; --err:#ff7a9c; --warn:#e0a44a; --violet:#b48ef5;
+  --hl-y:#6b5b12; --hl-b:#1f3c66; --hl-r:#6b1e33; --hl-g:#1d5230; --hl-v:#3f2a66; --hl-o:#6b4312;
+  --code:#141821;
+}}
+:root[data-theme="dark"]{
+  --bg:#12151b; --panel:#1a1f28; --ink:#e6eaf0; --muted:#9aa5b4; --line:#2c333f;
+  --accent:#7aa2f7; --ok:#57c98a; --err:#ff7a9c; --warn:#e0a44a; --violet:#b48ef5;
+  --hl-y:#6b5b12; --hl-b:#1f3c66; --hl-r:#6b1e33; --hl-g:#1d5230; --hl-v:#3f2a66; --hl-o:#6b4312;
+  --code:#141821;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.85;font-size:16px;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:28px 16px 96px}
+h1{font-size:1.55rem;line-height:1.5;margin:0 0 6px}
+h2{font-size:1.2rem;margin:42px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+h3{font-size:1.04rem;margin:26px 0 10px;color:var(--accent)}
+.sub{color:var(--muted);font-size:.9rem;margin-bottom:24px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:16px 0}
+.note{border-left:4px solid var(--accent)}.warn{border-left:4px solid var(--err)}.tip{border-left:4px solid var(--ok)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em;
+  font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto}
+pre code{background:none;padding:0;font-size:.85rem;line-height:1.7}
+mark{padding:1px 4px;border-radius:3px;color:var(--ink)}
+.y{background:var(--hl-y)}.b{background:var(--hl-b)}.r{background:var(--hl-r)}
+.g{background:var(--hl-g)}.v{background:var(--hl-v)}.o{background:var(--hl-o)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.88rem}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--code);font-weight:600}
+.indent{margin-left:1.6em;color:var(--muted);font-size:.94em}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 13px;transition:.15s}
+button:hover{border-color:var(--accent);color:var(--accent)}
+.toolbar{position:sticky;top:0;z-index:20;background:var(--bg);padding:10px 0;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:18px}
+.blank{display:inline-block;min-width:80px;padding:1px 10px;margin:0 2px;border-bottom:2px dashed var(--accent);
+  color:transparent;background:var(--code);border-radius:4px 4px 0 0;cursor:pointer;user-select:none;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em}
+.blank.shown{color:var(--accent);background:var(--hl-g);border-bottom-style:solid;font-weight:600}
+.tf-row{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px dashed var(--line);flex-wrap:wrap}
+.tf-q{flex:1 1 320px;min-width:230px}.tf-btns{display:flex;gap:6px}
+.tf-btns button.sel{border-color:var(--accent);background:var(--accent);color:#fff}
+.tf-fb{flex-basis:100%;font-size:.88rem;margin-top:6px;display:none;padding:9px 12px;border-radius:8px}
+.tf-fb.show{display:block}.tf-fb.right{background:var(--hl-g);border-left:3px solid var(--ok)}
+.tf-fb.wrong{background:var(--hl-r);border-left:3px solid var(--err)}
+details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:12px 0}
+summary{cursor:pointer;font-weight:600;color:var(--accent)}
+details[open] summary{margin-bottom:10px}
+textarea{width:100%;min-height:100px;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--code);color:var(--ink);font:inherit;font-size:.92rem;resize:vertical}
+svg text{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+.node{cursor:pointer;transition:.18s}.node:hover{opacity:.82}
+.node.active rect,.node.active polygon,.node.active ellipse{stroke-width:4}
+#nodeInfo{min-height:60px;margin-top:12px;padding:12px 14px;border-radius:9px;background:var(--code);border:1px solid var(--line);font-size:.92rem}
+.pill{display:inline-block;font-size:.76rem;padding:2px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted);margin-right:6px}
+a{color:var(--accent)}
+ol.alpha{padding-left:1.4em}ol.alpha li{margin:10px 0}
+.axes{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:14px 0}
+.axes>div{border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:12px 14px;background:var(--panel)}
+.axes b{display:block;margin-bottom:4px}
 </style>
 </head>
 <body>
 <div class="wrap">
-<header class="note-head">
-  <h1 class="note-title">JavaScript 函式類型總整理（宣告/表達式/具名匿名/Generator/Constructor）</h1>
-  <div class="tags"><span class="tag">#gemini</span><span class="tag">#chatgpt</span><span class="tag">#javascript</span><span class="tag">#function</span><span class="tag">#hoisting</span><span class="tag">#generator</span><span class="tag">#obsidian</span></div>
-  <div class="meta">更新於 2026-06-19　·　<a href="https://chatgpt.com/share/6a36285c-66b4-83e8-bb53-a6a83e0d7162" target="_blank">來源連結</a></div>
-</header>
-<h1>JavaScript 函式類型總整理</h1>
-<blockquote>
-<p>來源為 ChatGPT 分享對話，Abby 指定的複習重點之一。</p>
-</blockquote>
-<section class="card"><h2>重點整理</h2>
-<h3>一、最關鍵的兩條軸：宣告 vs 表達式</h3>
+
+<div class="toolbar">
+  <button onclick="toggleTheme()">🌗 明暗切換</button>
+  <button onclick="allBlanks(true)">👁 全部顯示答案</button>
+  <button onclick="allBlanks(false)">🙈 全部隱藏答案</button>
+  <button onclick="resetQuiz()">↺ 重置測驗</button>
+</div>
+
+<h1>JavaScript 函式類型總整理<br>四條互相獨立的分類軸</h1>
+<div class="sub">
+  <span class="pill">JS_Core_and_Runtime</span><span class="pill">2026-09-28 改寫</span>
+  對應 <code>JavaScript-函式類型總整理.md</code>。機制細節請看
+  <code>09-Hoisting-函式宣告vs函式表達式-TDZ</code>，本篇只放比較軸。
+</div>
+
+<div class="card note">
+<strong>四條軸各管各的，不要混在一起記</strong>
+<div class="axes" style="margin-top:12px">
+<div style="border-left-color:var(--accent)"><b>① 宣告 vs 表達式</b>決定<mark class="b">能不能提前呼叫</mark>、出事時報哪一種錯</div>
+<div style="border-left-color:var(--ok)"><b>② 具名 vs 匿名</b>決定<mark class="g">除錯堆疊好不好讀</mark>、能不能自我遞迴</div>
+<div style="border-left-color:var(--err)"><b>③ 箭頭 vs 非箭頭</b>決定 <mark class="r"><code>this</code>、<code>arguments</code>、能不能 <code>new</code></mark></div>
+<div style="border-left-color:var(--violet)"><b>④ 一般 vs Generator</b>決定<mark class="v">怎麼被呼叫、回傳什麼</mark></div>
+</div>
+<p style="margin-bottom:0"><mark class="y">最常見的錯誤是把①跟③混在一起</mark>——「宣告 vs 表達式」<strong>完全不影響 <code>this</code></strong>，決定 <code>this</code> 的是③。</p>
+</div>
+
+<!-- ══════ 主軸圖 ══════ -->
+<h2>主軸圖：軸① 的四種寫法，各自在哪一格拿到函式物件</h2>
+<p><strong>點任何一個方框看解說。</strong></p>
+
+<div class="card">
+<svg viewBox="0 0 900 430" width="100%" role="img" aria-label="四種函式寫法在 Creation Phase 與 Execution Phase 的狀態">
+  <defs><marker id="ar3" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+    <path d="M0,0 L0,6 L8,3 z" fill="currentColor"/></marker></defs>
+
+  <rect x="20" y="46" width="410" height="300" rx="10" fill="none" stroke="var(--accent)" stroke-dasharray="6 4" stroke-width="2"/>
+  <text x="34" y="68" font-size="13" font-weight="700" fill="var(--accent)">① Creation Phase</text>
+  <text x="34" y="86" font-size="11.5" fill="var(--muted)">＝ instantiation 整批跑完，不求值任何 = 右邊</text>
+
+  <rect x="470" y="46" width="410" height="300" rx="10" fill="none" stroke="var(--ok)" stroke-dasharray="6 4" stroke-width="2"/>
+  <text x="484" y="68" font-size="13" font-weight="700" fill="var(--ok)">② Execution Phase</text>
+  <text x="484" y="86" font-size="11.5" fill="var(--muted)">＝ 逐行執行，表達式在這裡才被求值</text>
+
+  <g class="node" data-k="enter"><ellipse cx="450" cy="22" rx="86" ry="16" fill="var(--panel)" stroke="var(--muted)" stroke-width="2"/>
+    <text x="450" y="28" text-anchor="middle" font-size="12.5" fill="var(--ink)">進入作用域</text></g>
+
+  <g class="node" data-k="decl"><rect x="42" y="102" width="366" height="52" rx="6" fill="var(--hl-g)" stroke="var(--ok)" stroke-width="2"/>
+    <text x="56" y="124" font-size="12.5" fill="var(--ink)" font-weight="700">function foo(){}</text>
+    <text x="56" y="143" font-size="11.5" fill="var(--ink)">②初始化 ＝ 完整函式物件，這一刻就能呼叫</text></g>
+  <g class="node" data-k="declR"><rect x="492" y="102" width="366" height="52" rx="6" fill="var(--panel)" stroke="var(--ok)" stroke-width="2"/>
+    <text x="506" y="133" font-size="12.5" fill="var(--ok)" font-weight="700">✅ 任何位置呼叫都正常</text></g>
+
+  <g class="node" data-k="var"><rect x="42" y="168" width="366" height="52" rx="6" fill="var(--hl-y)" stroke="var(--warn)" stroke-width="2"/>
+    <text x="56" y="190" font-size="12.5" fill="var(--ink)" font-weight="700">var foo = function(){}</text>
+    <text x="56" y="209" font-size="11.5" fill="var(--ink)">②初始化 ＝ undefined，③賦值還沒發生</text></g>
+  <g class="node" data-k="varR"><rect x="492" y="168" width="366" height="52" rx="6" fill="var(--panel)" stroke="var(--warn)" stroke-width="2"/>
+    <text x="506" y="188" font-size="11.5" fill="var(--ink)">提前讀 → undefined（安靜地錯）</text>
+    <text x="506" y="207" font-size="11.5" fill="var(--warn)" font-weight="700">提前呼叫 → TypeError</text></g>
+
+  <g class="node" data-k="const"><rect x="42" y="234" width="366" height="52" rx="6" fill="var(--hl-r)" stroke="var(--err)" stroke-width="2"/>
+    <text x="56" y="256" font-size="12.5" fill="var(--ink)" font-weight="700">const foo = function(){}</text>
+    <text x="56" y="275" font-size="11.5" fill="var(--err)" font-weight="700">②故意不做 → 這段空窗就是 TDZ</text></g>
+  <g class="node" data-k="constR"><rect x="492" y="234" width="366" height="52" rx="6" fill="var(--panel)" stroke="var(--err)" stroke-width="2"/>
+    <text x="506" y="254" font-size="11.5" fill="var(--err)" font-weight="700">讀／typeof／呼叫 全部 ReferenceError</text>
+    <text x="506" y="273" font-size="11.5" fill="var(--muted)">跑到那一行 → ②初始化，TDZ 結束</text></g>
+
+  <g class="node" data-k="arrow"><rect x="42" y="300" width="366" height="36" rx="6" fill="var(--hl-v)" stroke="var(--violet)" stroke-width="2"/>
+    <text x="56" y="323" font-size="12" fill="var(--ink)">const foo = () =&gt; {}　軸①同 const，差別全在軸③</text></g>
+  <g class="node" data-k="arrowR"><rect x="492" y="300" width="366" height="36" rx="6" fill="var(--panel)" stroke="var(--violet)" stroke-width="2"/>
+    <text x="506" y="323" font-size="11.5" fill="var(--ink)">求值那一刻把外層 this 定死，之後誰呼叫都不變</text></g>
+
+  <g stroke="currentColor" color="var(--muted)" fill="none" stroke-width="1.6" marker-end="url(#ar3)">
+    <path d="M450,38 L450,44"/>
+    <path d="M410,128 L488,128"/><path d="M410,194 L488,194"/><path d="M410,260 L488,260"/><path d="M410,318 L488,318"/>
+  </g>
+
+  <text x="450" y="378" text-anchor="middle" font-size="12" fill="var(--muted)">四種寫法的「①建立綁定」全部在左欄同一格　　差別只在「②初始化」被往後挪多遠</text>
+  <text x="450" y="400" text-anchor="middle" font-size="12" fill="var(--accent)" font-weight="700">所以「函式表達式不會提升」是錯的說法</text>
+</svg>
+<div id="nodeInfo">👆 點圖上任一個方框，這裡會顯示它在做什麼。</div>
+</div>
+
+<!-- ══════ 軸一 ══════ -->
+<h2>軸①：宣告 vs 表達式</h2>
+
+<h3>1-1 三個名詞的層級關係</h3>
 <table>
-<thead>
-<tr>
-<th>類型</th>
-<th>語法</th>
-<th>可否提升(hoisting)</th>
-<th>可否匿名</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>函式宣告 Declaration</td>
-<td><code>function foo() {}</code></td>
-<td>✅ 會提升（連名帶身體）</td>
-<td>❌ 一定要有名字</td>
-</tr>
-<tr>
-<td>函式表達式 Expression</td>
-<td><code>const foo = function () {}</code></td>
-<td>❌ 不會提升</td>
-<td>✅ 可匿名或具名</td>
-</tr>
-</tbody>
+<tr><th>名詞</th><th>規範裡的對應</th><th>層級</th><th>一句話</th></tr>
+<tr><td><strong>實例化 instantiation</strong></td><td><code>FunctionDeclarationInstantiation</code></td><td><mark class="v">整個流程（容器）</mark></td><td>進入作用域時，把所有名字<strong>一次整批安頓好</strong>的那個步驟</td></tr>
+<tr><td>① 建立綁定 declare</td><td><code>CreateMutableBinding</code></td><td>流程裡的一個動作</td><td>在 Environment Record 裡<strong>登記名字</strong>，還沒有值</td></tr>
+<tr><td>② 初始化 initialization</td><td><code>InitializeBinding</code></td><td>流程裡的一個動作</td><td>讓某一個綁定<strong>拿到第一個值</strong></td></tr>
+<tr><td>③ 賦值 assignment</td><td><code>SetMutableBinding</code></td><td><mark class="o">已經不在那個流程裡</mark></td><td>後來<strong>改掉</strong>已經有值的綁定</td></tr>
 </table>
+<p class="indent"><mark class="g">instantiation 是「整場開學典禮」，initialization 是「幫某一個學生把課本發下去」。</mark>一場典禮會發很多次課本，也可以刻意跳過某幾個——那就是 TDZ。</p>
+
+<div class="card tip">
+<strong>函式物件還沒被建立，算哪一種</strong><br><br>
+算 <span class="blank" data-a="沒被初始化">沒被初始化</span>，<strong>不算</strong>沒被實例化。實例化已經做完了，它只是被<mark class="r">刻意跳過了 <code>InitializeBinding</code></mark>。<br>
+<strong>TDZ 的定義就是「實例化做完了、初始化還沒做」的那段空窗。</strong>
+</div>
+
+<h3>1-2 每一步在哪一個 Phase</h3>
+<table>
+<tr><th>步驟</th><th><code>function foo(){}</code></th><th><code>var foo = fn</code></th><th><code>let</code>／<code>const foo = fn</code></th></tr>
+<tr><td>① 建立綁定</td><td>Creation</td><td>Creation</td><td>Creation</td></tr>
+<tr><td>② 初始化</td><td><mark class="g">Creation，函式物件</mark></td><td><mark class="y">Creation，<code>undefined</code></mark></td><td><mark class="r">Execution，跑到那一行</mark></td></tr>
+<tr><td>①②之間有空窗嗎</td><td>沒有</td><td>沒有</td><td><mark class="r">有，＝TDZ</mark></td></tr>
+<tr><td>③ 賦值</td><td>不需要</td><td>Execution</td><td>不需要，②就是拿到函式物件那一刻</td></tr>
+</table>
+
+<ol class="alpha" type="a">
+<li><mark class="r">「函式物件在哪個 Phase 被做出來」才是真正的分界</mark>。函式<strong>宣告</strong>在 Creation Phase 就做好（<code>InstantiateFunctionObject</code>）；函式<strong>表達式</strong>的 <code>=</code> 右邊是表達式，<mark class="y">只在 <span class="blank" data-a="Execution Phase">Execution Phase</span> 才被求值</mark>。</li>
+<li><mark class="b">賦值不屬於 instantiation</mark>。instantiation 在 Creation Phase 就收工了。</li>
+<li><mark class="g">函式宣告只有①②，沒有③</mark>。兩步都在 Creation Phase，中間不換格。</li>
+</ol>
+
+<h3>1-3 <code>var</code> 與 <code>const</code> 的函式表達式差在哪</h3>
+<table>
+<tr><th></th><th><code>var foo = function(){}</code></th><th><code>const foo = function(){}</code></th></tr>
+<tr><td>②初始化的時機</td><td>Creation Phase</td><td><mark class="r">Execution Phase</mark></td></tr>
+<tr><td>有沒有 TDZ</td><td>沒有</td><td><mark class="r">有</mark></td></tr>
+<tr><td>提前讀／<code>typeof</code></td><td><code>undefined</code>，<mark class="y">安靜地錯</mark></td><td><code>ReferenceError</code>，<mark class="g">大聲地錯</mark></td></tr>
+<tr><td>提前呼叫</td><td><mark class="o"><code>TypeError: foo is not a function</code></mark></td><td><code>ReferenceError</code></td></tr>
+<tr><td>能不能重新賦值</td><td>能</td><td><mark class="r">不能</mark></td></tr>
+<tr><td>作用域邊界</td><td>函式作用域（<code>if</code>／<code>for</code> 的 <code>{}</code> 關不住）</td><td><mark class="g">區塊作用域</mark></td></tr>
+<tr><td>全域宣告會變成 <code>globalThis</code> 屬性嗎</td><td><mark class="r">會</mark></td><td>不會</td></tr>
+<tr><td>重複宣告同名</td><td>允許，後面覆蓋前面</td><td><mark class="r">SyntaxError</mark></td></tr>
+</table>
+<div class="card note">
+<strong>設計意圖</strong>：<code>let</code>／<code>const</code> 刻意保留 TDZ，就是要把「用在宣告之前」從 <code>var</code> 那種<mark class="y">安靜的 <code>undefined</code></mark> 升級成<mark class="g">大聲的 <code>ReferenceError</code></mark>。安靜的錯會一路傳到很遠才爆，大聲的錯當場就停。
+</div>
+
+<h3>1-4 所以實務上該怎麼呼叫</h3>
+<pre><code>// ✅ 函式宣告：兩個位置都可以
+processProducts()
+function processProducts() { console.log('成功') }
+processProducts()
+
+// ❌ 函式表達式：宣告之前不行
+processProducts()                                  // ReferenceError
+const processProducts = function () { console.log('成功') }
+
+// ✅ 函式表達式：一定要在下面
+const processProducts2 = function () { console.log('成功') }
+processProducts2()</code></pre>
+<div class="card tip">
+<strong>一條不用背規則的實務準則</strong><br>
+<mark class="g">不管哪一種，一律寫成「先定義、後呼叫」。</mark>這樣兩種寫法行為完全一致，你不需要在腦中維護「這個能提前、那個不行」這張表。<br><br>
+唯一真的需要用到「宣告可以提前呼叫」的場合，是<mark class="b">互相遞迴的兩個函式</mark>（A 呼叫 B、B 也呼叫 A），那時函式宣告才有不可取代的價值。
+</div>
+
+<!-- ══════ 軸二三四 ══════ -->
+<h2>軸②：具名 vs 匿名</h2>
 <ul>
-<li><mark style="background: #FFF3A3A6;">函式宣告會 hoisting</mark>：宣告前就能呼叫（引擎在編譯階段把整個函式提到範疇頂端）。</li>
-<li><mark style="background: #FF5582A6;">函式表達式不會 hoisting</mark>：賦值前呼叫會落在 TDZ／undefined 而報錯。</li>
+<li>具名：<code>function foo(){}</code>、<code>const a = function bar(){}</code></li>
+<li>匿名：<code>function(){}</code>（沒名字）。<mark class="g">「不具名」＝「匿名」</mark>，只是中文翻譯不同。</li>
 </ul>
-<h3>二、具名 vs 匿名（不具名）</h3>
-<p>「具名／匿名」是形容<mark style="background: #ADCCFFA6;">「有沒有函式名稱」</mark>：</p>
+<div class="card warn">
+<strong>為什麼沒有「匿名函式宣告」</strong><br>
+因為<mark class="r">函式宣告語法的 <code>function</code> 一定要有名字</mark>，<code>function(){}</code> 單獨寫直接 SyntaxError。所以匿名<strong>只能長在函式表達式上</strong>。<br>
+四種組合：具名宣告 ✅、匿名宣告 ❌、匿名表達式 ✅、具名表達式 ✅。
+</div>
+<p><strong>具名函式表達式</strong>（Named Function Expression）<code>const a = function foo(){}</code>：名字 <code>foo</code> <mark class="b">只在函式內部可見</mark>，好處是利於自我遞迴與除錯堆疊。</p>
+
+<h2>軸③：箭頭 vs 非箭頭（決定 <code>this</code> 與 <code>arguments</code>）</h2>
+<table>
+<tr><th>函式類型</th><th>自己的 <code>arguments</code></th><th>自己的 <code>this</code></th><th>能 <code>new</code></th><th>有 <code>prototype</code></th></tr>
+<tr><td><code>function foo(){}</code></td><td><mark class="g">有</mark></td><td>有</td><td>能</td><td>有</td></tr>
+<tr><td><code>const foo = function(){}</code></td><td><mark class="g">有</mark></td><td>有</td><td>能</td><td>有</td></tr>
+<tr><td><code>{ foo(){} }</code> 物件簡寫方法</td><td><mark class="g">有</mark></td><td>有</td><td><mark class="r">不能</mark></td><td><mark class="r">沒有</mark></td></tr>
+<tr><td><code>const foo = () =&gt; {}</code></td><td><mark class="r">沒有</mark></td><td><mark class="r">沒有</mark></td><td>不能</td><td>沒有</td></tr>
+<tr><td><code>function* gen(){}</code></td><td><mark class="g">有</mark></td><td>有</td><td>不能</td><td>有</td></tr>
+</table>
+<div class="card note">
+<mark class="v">箭頭函式那一列全是「沒有」，不是四條各自獨立的規定</mark>：它的內部欄位 <code>[[ThisMode]]</code> 是 <code>lexical</code>，而規範裡<strong>同一個判斷式同時關掉了 <code>this</code> 綁定與 <code>arguments</code> 物件</strong>。它們在規格裡是同一個 <code>if</code> 的兩個結果。
+</div>
+
+<h3><code>arguments</code> 三個必須講清楚的點</h3>
+<ol class="alpha" type="a">
+<li><mark class="r">它不是保留字，是隱式區域變數／識別碼</mark>。驗證：非嚴格模式下 <code>var arguments = 99</code> 合法，回傳 <code>99</code>；真保留字 <code>var class = 1</code> 直接 SyntaxError。</li>
+<li>它是<mark class="b">類陣列物件</mark>：有 <code>length</code>、可索引，但<mark class="r">沒有 <code>push</code>／<code>slice</code>／<code>forEach</code>／<code>map</code></mark>，<code>Array.isArray()</code> 回 <span class="blank" data-a="false">false</span>。</li>
+<li><mark class="v">ES6 之後它可迭代</mark>（有 <code>Symbol.iterator</code>），所以 <code>[...arguments]</code> 就能轉成真陣列，不必再寫 <code>Array.prototype.slice.call(arguments)</code>。</li>
+</ol>
+<p class="indent">實務上應該用 rest 參數 <code>(...args)</code> 取代它——拿到的是真陣列，而且箭頭函式也能用。機制細節見 <code>09-Hoisting-函式宣告vs函式表達式-TDZ</code>。</p>
+
+<h2>軸④：一般 vs Generator vs Constructor</h2>
 <ul>
-<li>具名函式：<code>function foo(){}</code>、<code>const a = function bar(){}</code></li>
-<li>匿名函式：<code>function(){}</code>（沒名字）</li>
-<li><mark style="background: #BBFABBA6;">「不具名」=「匿名」</mark>，只是中文翻譯不同，是同義詞。</li>
+<li><strong>Generator</strong> <code>function* gen(){}</code>：<mark class="v"><code>*</code> 只改「怎麼被呼叫、回傳什麼」</mark>。<code>gen()</code> <strong>不會執行任何一行函式本體</strong>，只回傳一個 iterator；第一次 <code>.next()</code> 才真的跑到第一個 <code>yield</code>。
+  <div class="indent"><code>yield</code>：產出一個值並「暫停」，下次 <code>.next()</code> 從這裡繼續。<code>return</code>：直接結束（<code>done: true</code>）。</div></li>
+<li><strong>Constructor 函式</strong>：用 <code>new</code> 呼叫、慣例首字大寫，用來產生物件實例。</li>
 </ul>
-<blockquote>
-<p>[!warning] 為什麼沒有「匿名函式宣告」？<br />
-因為<mark style="background: #FF5582A6;">函式宣告語法的 <code>function</code> 一定要有名字</mark>，<code>function(){}</code> 直接 SyntaxError。匿名只能出現在「函式表達式」。所以：具名函式宣告 ✅、匿名函式宣告 ❌、匿名函式表達式 ✅、具名函式表達式 ✅。</p>
-</blockquote>
-<h3>三、其他常見函式型態</h3>
-<ul>
-<li><mark style="background: #ADCCFFA6;">具名函式表達式</mark>（Named Function Expression）：<code>const a = function foo(){}</code>——名字 <code>foo</code> 只在函式內部可見，利於遞迴與除錯堆疊。</li>
-<li><mark style="background: #ADCCFFA6;">Generator 函式</mark>：<code>function* gen(){}</code>，<code>*</code> 代表這是產生器函式，可用 <mark style="background: #FFF3A3A6;"><code>yield</code></mark> 暫停/分次回傳。</li>
-<li><code>yield</code>：產出一個值並「暫停」，下次 <code>.next()</code> 從這裡繼續。</li>
-<li><code>return</code>：直接結束產生器（<code>done:true</code>）。</li>
-<li><mark style="background: #ADCCFFA6;">Constructor 函式（建構式）</mark>：用 <code>new</code> 呼叫、慣例首字大寫，用來產生物件實例。</li>
-<li>（延伸）箭頭函式 <code>()=&gt;{}</code>：一定匿名、不綁自己的 <code>this</code>，常作回呼。</li>
-</ul>
-<h3>四、箭頭函式的 <code>this</code>（事件監聽器情境）</h3>
-<p>箭頭函式<mark style="background: #FF5582A6;">不綁自己的 <code>this</code></mark>，而是<mark style="background: #FFF3A3A6;">從外層作用域繼承</mark>過來。所以在 <code>addEventListener</code> 裡寫箭頭函式時，<code>this</code> 是「綁定事件時所在的上下文」，<mark style="background: #FF5582A6;">不是被點的按鈕本身</mark>。</p>
-<ul>
-<li>例：按鈕掛在 <code>document</code> 或某個 <code>div</code> 內，箭頭函式裡的 <code>this</code> 會指向那個外層物件（<code>document</code> / <code>div</code>），而不是 button。</li>
-<li><mark style="background: #BBFABBA6;">想讓 <code>this</code> 真的指向按鈕（觸發事件的元素），就用「普通函式」</mark>：</li>
-</ul>
-<pre><code class="language-javascript">// 普通函式：this 就是按鈕本身
-button.addEventListener('click', function () {
-  console.log(this); // 這裡 this = 被點的 button
+<p><mark class="y">這條軸跟軸①、軸③互不干涉</mark>——Generator 一樣有宣告與表達式兩種寫法，一樣有自己的 <code>this</code> 與 <code>arguments</code>。</p>
+
+<!-- ══════ 測驗 ══════ -->
+<h2>自我測驗：是非題</h2>
+<div id="tf"></div>
+
+<h2>自我測驗：申論題</h2>
+<details>
+<summary>Q1　同事說「函式表達式不會 hoisting」，你要怎麼更正他，而且說明為什麼 TDZ 反而是提升的證據？</summary>
+<textarea placeholder="先自己寫，再展開參考答案"></textarea>
+<details><summary>參考答案</summary>
+<p>更正：三種寫法的<strong>綁定</strong>全部都會在 Creation Phase 建立，差別在<strong>初始化</strong>被往後挪多遠。沒被提升的不是名字，是值。</p>
+<p>TDZ 是證據的理由：如果 <code>const foo</code> 的名字真的沒被登記，提前碰它應該得到 <code>foo is not defined</code>（名字不存在）。但實際上得到的是 <code>Cannot access 'foo' before initialization</code>——<strong>引擎知道有這個名字，才有辦法分辨這兩種情況</strong>。更強的證據是 <code>typeof</code>：它對完全不存在的名字會安靜地回 <code>'undefined'</code>，卻擋不住 TDZ。</p>
+</details>
+</details>
+
+<details>
+<summary>Q2　為什麼說「宣告 vs 表達式」完全不影響 <code>this</code>？請舉例。</summary>
+<textarea placeholder="先自己寫，再展開參考答案"></textarea>
+<details><summary>參考答案</summary>
+<p>因為 <code>this</code> 由軸③（箭頭 vs 非箭頭）決定，軸①只決定綁定何時被初始化。</p>
+<p><code>function foo(){ return this }</code> 與 <code>const foo = function(){ return this }</code> 的 <code>this</code> 行為<strong>完全相同</strong>——兩者都在每次呼叫時依「誰點它」重新決定。差別只在前者能提前呼叫。</p>
+<p>反過來，<code>const foo = () =&gt; this</code> 跟 <code>const foo = function(){ return this }</code> 同樣都是「表達式 ＋ const」，軸①一模一樣，<code>this</code> 行為卻天差地遠：箭頭版在求值那一刻把外層 <code>this</code> 定死，<code>call</code>／<code>apply</code>／<code>bind</code> 都改不動它。</p>
+</details>
+</details>
+
+<details>
+<summary>Q3　什麼情況下你會刻意選用「函式宣告」而不是 <code>const</code> ＋ 函式表達式？</summary>
+<textarea placeholder="先自己寫，再展開參考答案"></textarea>
+<details><summary>參考答案</summary>
+<p><strong>互相遞迴</strong>是唯一真的不可取代的場合：A 呼叫 B、B 也呼叫 A，寫成 <code>const</code> 的話一定有一個會落在另一個的 TDZ 裡。函式宣告因為在 Creation Phase 就完整就緒，兩個互相參照沒有先後問題。</p>
+<p>其他常見理由是可讀性偏好——把主要流程寫在檔案上方、輔助函式寫在下方，靠宣告的提升讓閱讀順序符合思考順序。但這是團隊風格選擇，不是技術必要。</p>
+<p>反方意見也要知道：一律用 <code>const</code> 的好處是所有函式行為一致、不用記例外，而且 <code>const</code> 擋掉了不小心重新賦值。多數現代 style guide 傾向後者。</p>
+</details>
+</details>
+
+<h2>資料來源</h2>
+<table>
+<tr><th>主題</th><th>連結</th><th>查證時間</th></tr>
+<tr><td>MDN 函式宣告</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function">function declaration</a></td><td>2026-09-28</td></tr>
+<tr><td>MDN 函式運算式</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/function">function expression</a></td><td>2026-09-28</td></tr>
+<tr><td>MDN 箭頭函式</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions">Arrow functions</a></td><td>2026-09-28</td></tr>
+<tr><td>MDN <code>arguments</code></td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/arguments">arguments 物件</a></td><td>2026-09-28</td></tr>
+<tr><td>ECMA-262 FDI</td><td><a href="https://tc39.es/ecma262/#sec-functiondeclarationinstantiation">FunctionDeclarationInstantiation</a></td><td>2026-09-28</td></tr>
+<tr><td>ECMA-262 Environment Record</td><td><a href="https://tc39.es/ecma262/#sec-environment-records">CreateMutableBinding／InitializeBinding／SetMutableBinding</a></td><td>2026-09-28</td></tr>
+</table>
+<p style="color:var(--muted);font-size:.86rem">軸③那張比較表的每一格（<code>arguments</code>、<code>new</code>、<code>prototype</code>）與軸①的所有錯誤訊息，皆由 <code>09-demo-arguments與hoisting錯誤型別.js</code> 於 Node v22.22.2 實跑產生（2026-09-28）。三個名詞的層級對照是依 ECMA-262 抽象操作整理，不是 Console 直接告訴你的資訊。</p>
+
+</div>
+
+<script>
+function toggleTheme(){
+  const r=document.documentElement, now=r.getAttribute('data-theme');
+  const dark=now?now==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+  r.setAttribute('data-theme',dark?'light':'dark');
+}
+document.querySelectorAll('.blank').forEach(el=>{
+  el.title='點一下顯示／隱藏答案';
+  el.addEventListener('click',()=>el.classList.toggle('shown'));
+});
+function allBlanks(s){document.querySelectorAll('.blank').forEach(el=>el.classList.toggle('shown',s))}
+
+const INFO={
+  enter:'<b>進入作用域</b>：每次函式被呼叫、或進入一個區塊，整套流程從頭重來一次。同一個函式呼叫三次就跑三次，三組綁定互不相干。',
+  decl:'<b>函式宣告，Creation Phase</b>：①建立綁定 ＋ ②初始化成完整函式物件，兩步連做，<b>沒有③</b>。這也是它跟表達式唯一真正的差別。',
+  declR:'<b>執行期</b>：任何位置呼叫都正常。唯一真的需要這個特性的場合是<b>互相遞迴</b>——A 呼叫 B、B 也呼叫 A，寫成 const 一定有一個落在對方的 TDZ 裡。',
+  var:'<b>var 表達式，Creation Phase</b>：②初始化成 <code>undefined</code>。綁定此刻是「已宣告、已初始化、還沒賦值」，三階段走完兩個。',
+  varR:'<b>執行期</b>：提前讀拿到 <code>undefined</code>，<b>完全不報錯</b>——這是安靜的錯，會一路傳到很遠才爆。提前呼叫才是 <code>TypeError: foo is not a function</code>，因為 <code>undefined()</code> 不能呼叫。',
+  const:'<b>const／let 表達式，Creation Phase</b>：只做 <code>CreateImmutableBinding</code>，<b>刻意跳過 InitializeBinding</b>。名字已在 Environment Record 裡，但沒有值——這段空窗就是 TDZ。',
+  constR:'<b>執行期</b>：讀、<code>typeof</code>、呼叫全部 <code>ReferenceError</code>。<b>連 typeof 都擋</b>，正好反證名字是存在的（typeof 對真的不存在的名字會安靜回 undefined）。',
+  arrow:'<b>箭頭函式</b>：在軸①（宣告 vs 表達式）上跟 <code>const</code> 表達式<b>完全一樣</b>，一樣有 TDZ、一樣在 Execution Phase 才求值。它的特別之處全部在軸③。',
+  arrowR:'<b>箭頭函式的執行期</b>：求值那一刻把外層 <code>this</code> 定死，之後不管誰呼叫、用 <code>call</code>／<code>apply</code>／<code>bind</code> 都改不動。同一個 <code>[[ThisMode]] = lexical</code> 也讓它沒有自己的 <code>arguments</code>。'
+};
+let act=null;
+document.querySelectorAll('.node').forEach(g=>{
+  g.addEventListener('click',()=>{
+    if(act) act.classList.remove('active');
+    g.classList.add('active'); act=g;
+    document.getElementById('nodeInfo').innerHTML=INFO[g.dataset.k]||'';
+  });
 });
 
-// 箭頭函式：this 繼承外層，不是 button
-button.addEventListener('click', () =&gt; {
-  console.log(this); // 指向外層上下文（如 document / 模組），不是 button
-});
-</code></pre>
-<blockquote>
-<p>[!tip] 小結<br />
-要拿「觸發事件的元素」：用普通函式的 <code>this</code>，或不論哪種寫法都可改用 <mark style="background: #BBFABBA6;"><code>e.currentTarget</code></mark>（綁監聽器的元素）／<code>e.target</code>（實際被點的元素），就不受 <code>this</code> 綁定影響。</p>
-</blockquote></section>
-<section class="card"><h2>Obsidian callout / CSS Snippet 筆記（同對話的次要重點）</h2>
-<ul>
-<li><mark style="background: #FF5582A6;">toggle 一遇程式碼就中斷</mark>：在 Obsidian 的折疊（callout/toggle）裡嵌程式碼區塊容易把區塊切斷，需注意縮排與是否在 callout 內正確續行。</li>
-<li><mark style="background: #FFB8EBA6;">callout 內 h3 比外面 h3 還大</mark>：是 snippet 把 <code>.callout h6</code>（或標題層級）樣式覆寫到了 callout 內標題；把 <code>.callout h6</code> 註解掉反而出問題，代表你的標題實際吃到的是 h6 規則。調整 callout 內標題字級要對「.callout 內對應層級」設定，而非全域 h3/h6。</li>
-<li><mark style="background: #ADCCFFA6;">對比色</mark>：<code>background-color: var(--code-background); color: var(--code-color);</code> 就是讓底色與文字做對比的意思。</li>
-<li><mark style="background: #FF5582A6;"><code>- [ ]</code> 沒出現 checkbox</mark>：①確認是 <code>.md</code> 檔（Canvas 的原生 text card 不解析）；②輸入要用<mark style="background: #BBFABBA6;">半形英文</mark>（中文全形符號不行）：<code>- [ ] 這是待辦</code>；③設定→編輯器→「調整 Checklist」要開；④檢查是否有 CSS snippet 蓋掉 checkbox 樣式。</li>
-<li>Canvas vs 一般編輯器：Canvas 是 Obsidian 1.1.0+ 的「畫布式筆記」（拖拉卡片、連結），與標準 Markdown 編輯器不同。</li>
-</ul></section>
-<section class="card"><h2>各對話來源</h2>
-<h3>JavaScript 函式類型總整理 &amp; Obsidian-callout（ChatGPT 分享）— https://chatgpt.com/share/6a36285c-66b4-83e8-bb53-a6a83e0d7162</h3>
-<p>對話涵蓋兩大主題：<br />
-1. <strong>Obsidian callout / CSS Snippet</strong>：toggle 遇程式碼中斷、callout 內 h3 因 <code>.callout h6</code> 規則而變大、<code>var(--code-background)/--code-color)</code> 對比色、<code>- [ ]</code> checkbox 不顯示的排查（檔案需為 .md、半形輸入、開啟「調整 Checklist」、檢查 snippet）、Canvas 與標準編輯器差異。<br />
-2. <strong>JavaScript 函式類型</strong>：函式宣告 vs 函式表達式（hoisting 差異）、具名 vs 匿名（=不具名，同義詞）、為何沒有「匿名函式宣告」（宣告必須有名字否則 SyntaxError）、具名函式表達式、Generator <code>function*</code> 的 <code>*</code> 與 <code>yield</code> vs <code>return</code>、Constructor 建構式函式。</p>
-<h3>補充（Abby 提供的重點）— 箭頭函式的 this</h3>
-<p>箭頭函式的 <code>this</code> 從外層作用域繼承，事件監聽器裡用箭頭函式時 <code>this</code> 指向綁定當下的上下文（如 document/div）而非按鈕；想指向按鈕本身要用普通函式 <code>function(){ console.log(this) }</code>。</p></section>
-<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-19</footer>
-</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script>try{document.querySelectorAll('pre code').forEach(function(b){hljs.highlightElement(b);});}catch(e){}</script>
-<script src="../../../assets/wikilink.js" data-root="../../../"></script>
+const TF=[
+  {q:'函式表達式不會 hoisting。',a:false,
+   e:'錯。四種寫法的<b>綁定</b>全部在 Creation Phase 建立，差別只在<b>初始化</b>被往後挪多遠。'},
+  {q:'實例化 instantiation 跟初始化 initialization 是同義詞。',a:false,
+   e:'錯。instantiation 是整個流程（容器），initialization 是流程裡的一個動作。一次 instantiation 會做很多次 initialization，也可以刻意跳過某些（＝TDZ）。'},
+  {q:'<code>var foo = function(){}</code> 提前 <code>console.log(foo)</code> 會報錯。',a:false,
+   e:'錯。會印出 <code>undefined</code>，完全不報錯。因為 <code>var</code> 在 Creation Phase 就被初始化成 <code>undefined</code> 了。只有「呼叫」它才會丟 <code>TypeError</code>。'},
+  {q:'把 <code>function foo(){}</code> 改寫成 <code>const foo = function(){}</code>，<code>this</code> 的行為會改變。',a:false,
+   e:'錯。<code>this</code> 由軸③（箭頭 vs 非箭頭）決定，軸①完全不影響。兩者的 <code>this</code> 都是每次呼叫時依「誰點它」重新決定。'},
+  {q:'把 <code>function foo(){}</code> 改寫成 <code>const foo = () => {}</code>，<code>this</code> 的行為會改變。',a:true,
+   e:'對。這次動到的是軸③。箭頭函式在求值那一刻把外層 <code>this</code> 定死，之後 <code>call</code>／<code>apply</code>／<code>bind</code> 都改不動它。'},
+  {q:'存在「匿名函式宣告」這種寫法。',a:false,
+   e:'錯。函式宣告的 <code>function</code> 後面一定要有名字，<code>function(){}</code> 單獨寫直接 SyntaxError。匿名只能長在函式表達式上。'},
+  {q:'<code>gen()</code> 會執行 Generator 函式本體的第一行。',a:false,
+   e:'錯。<code>gen()</code> 一行都不執行，只回傳一個 iterator。第一次 <code>.next()</code> 才真的跑到第一個 <code>yield</code>。'},
+  {q:'物件的簡寫方法 <code>{ foo(){} }</code> 有自己的 <code>arguments</code>，但不能被 <code>new</code>。',a:true,
+   e:'對，兩點都對（實測過）。它有 <code>arguments</code> 與 <code>this</code>，但沒有 <code>[[Construct]]</code>，所以不能 <code>new</code>，也沒有 <code>prototype</code> 屬性。'},
+  {q:'箭頭函式沒有 <code>this</code>、沒有 <code>arguments</code>、不能 <code>new</code>、沒有 <code>prototype</code>，是四條各自獨立的規定。',a:false,
+   e:'錯。它們來自同一個根源：箭頭函式的內部欄位 <code>[[ThisMode]]</code> 是 <code>lexical</code>，規範裡同一個判斷式同時關掉了 <code>this</code> 與 <code>arguments</code>。'},
+  {q:'在全域用 <code>var foo = 1</code> 宣告，<code>globalThis.foo</code> 讀得到；用 <code>const</code> 則讀不到。',a:true,
+   e:'對（實測 <code>globalThis.a = 1</code>、<code>globalThis.c = undefined</code>）。這是 <code>var</code> 與 <code>let</code>／<code>const</code> 另一個常被忽略的差異。'}
+];
+function renderTF(){
+  document.getElementById('tf').innerHTML=TF.map((t,i)=>`
+    <div class="tf-row">
+      <div class="tf-q"><b>${i+1}.</b> ${t.q}</div>
+      <div class="tf-btns">
+        <button onclick="ansTF(${i},true,this)">⭕ 對</button>
+        <button onclick="ansTF(${i},false,this)">❌ 錯</button>
+      </div>
+      <div class="tf-fb" id="fb${i}"></div>
+    </div>`).join('');
+}
+function ansTF(i,v,btn){
+  const right=TF[i].a===v, fb=document.getElementById('fb'+i);
+  btn.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  fb.className='tf-fb show '+(right?'right':'wrong');
+  fb.innerHTML=(right?'✅ 答對　':'❌ 答錯　')+TF[i].e;
+}
+function resetQuiz(){
+  renderTF();
+  document.querySelectorAll('details').forEach(d=>d.open=false);
+  allBlanks(false);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+renderTF();
+</script>
 </body>
 </html>

@@ -119,7 +119,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <div class="meta">
     <span>更新於 2026-09-09</span>
     <span>來源：Gemini</span>
-    <a href="https://gemini.google.com/app/99bcb912540d69c8" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/954863faf2a234f5" target="_blank" rel="noopener">原始對話 2</a>
+    <a href="https://gemini.google.com/app/99bcb912540d69c8" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/954863faf2a234f5" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/934dbe472fd8e85c" target="_blank" rel="noopener">原始對話 3</a>
   </div>
 </header>
 
@@ -254,6 +254,45 @@ macOS＝有認證的正統 Unix；Linux＝沒掛 Unix 商標但骨子裡是 Unix
 這是一段<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">語音對話，只有一問一答，內容非常精簡</mark>。Gemini 講的方向正確（<code>/usr</code> 是全使用者共用、Windows 使用者目錄是個人專屬），但<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有提到 FHS 標準、沒有提到 <code>/home</code> 才是真正的對應者、也沒說 <code>/usr</code> 是唯讀</mark>。以上補充是查 FHS 官方規格後另外補的，來源見文末表格。</p>
 </blockquote>
 <hr />
+<h2 id="2026-09-28system-v-unix">追加 2026-09-28：System V — 不只是舊版 Unix，更是現代系統的底層規範</h2>
+<blockquote>
+<p>[!info]+ 一句話<br />
+<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">System V（唸作 System Five，簡寫 SysV）</mark>是 1983 年 AT&amp;T 貝爾實驗室推出的官方商業版 UNIX，跟柏克萊 BSD 是當年 UNIX 戰爭的兩大陣營；今天的 Linux／macOS 把兩邊的底層機制都繼承了下來，所以現代系統裡常常同時看到「System V 某某」這種命名。</p>
+</blockquote>
+<h3 id="a-system-v">a. System V 的歷史定位</h3>
+<p>AT&amp;T 主導、商業化標準化導向；對手是加州柏克萊大學主導、開源學術派的 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">BSD</mark>（率先引進 TCP/IP 網路架構）。現代 Linux 與類 Unix 系統（含本篇 macOS）把兩邊的底層機制都吸收繼承下來，這正是 <span class="wikilink" title="Obsidian 連結：Unix-與類Unix系統介紹|上面">上面</span> macOS／Linux 家族分類背後的歷史根源。</p>
+<h3 id="b-system-v-ipcinter-process-communication">b. System V IPC（Inter-Process Communication，跨程序通訊機制）</h3>
+<p>Linux／Unix 中程序（Process）之間交換資料的經典三件套：</p>
+<table>
+<thead>
+<tr>
+<th>機制</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Message Queuing（訊息佇列）</td>
+<td>讓不同程序傳送結構化訊息</td>
+</tr>
+<tr>
+<td>Semaphore（號誌／信號量）</td>
+<td>多程序間的同步與鎖（Lock）</td>
+</tr>
+<tr>
+<td>Shared Memory（共用記憶體）</td>
+<td>多程序直接共享同一塊記憶體位址，效率最高的 IPC 方式</td>
+</tr>
+</tbody>
+</table>
+<h3 id="c-system-v-init">c. System V Init（傳統開機啟動流程）</h3>
+<p>在 <code>systemd</code> 出現以前，傳統 Linux 用的開機管理系統叫 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">SysV init</mark>：提出 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Runlevel（執行等級 0～6）</mark>概念（如 3 是純文字模式、5 是圖形介面），啟動腳本放在 <code>/etc/init.d/</code>，用 <code>start</code>／<code>stop</code>／<code>restart</code> 控制服務。</p>
+<h3 id="d-system-v-abiapplication-binary-interface">d. System V ABI（Application Binary Interface，二進位介面規範）</h3>
+<p>定義 CPU 暫存器如何傳遞函式參數、記憶體如何對齊、執行檔（ELF）格式規範，是現代 Linux、macOS 等平台的硬體溝通標準；細節（尤其是浮點數走哪個暫存器）見 <span class="wikilink" title="Obsidian 連結：Elision語法標記與System-V-ABI暫存器傳遞慣例">Elision語法標記與System-V-ABI暫存器傳遞慣例</span>。</p>
+<blockquote>
+<p>來源對話：<a href="https://gemini.google.com/app/934dbe472fd8e85c">解析 JS 規格中的 Elision opt</a>（2026-09-28，對話後段追問到 System V ABI／System V 本身，與 Elision 語法標記無直接關聯，記在這裡與 Unix 分類互相呼應）</p>
+</blockquote>
+<hr />
 <h2 id="_2">各對話來源</h2>
 <h3 id="usr-mac-wsl2026-09-httpsgeminigooglecomapp954863faf2a234f5">/usr 目錄在 Mac 與 WSL（2026-09）— https://gemini.google.com/app/954863faf2a234f5</h3>
 <p>使用者：在 Unix system resources 裡面會放的東西，跟在 Windows user 裡面放的東西有什麼差異，直接講。</p>
@@ -263,6 +302,10 @@ macOS＝有認證的正統 Unix；Linux＝沒掛 Unix 商標但骨子裡是 Unix
 <p>Gemini：分兩大類——正統 Unix（Commercial Unix）與類 Unix（Unix-like）。①蘋果 macOS/iOS：核心 Darwin（BSD＋Mach），通過 The Open Group UNIX 認證，是發行量最大的正統 Unix，Mac 全系列皆屬之。②企業級：IBM AIX（Power）、Oracle Solaris（SPARC/x86）、HP-UX。③類 Unix Linux 家族：Ubuntu/Debian/CentOS/RHEL/Alpine，因商標授權不能叫 Unix 但完全模仿其架構與哲學，絕大多數伺服器都跑 Linux。</p>
 <p>去看完<br />
 https://linux.vbird.org/linux_basic/centos7/</p>
+<hr />
+<h3 id="js-elision-optsystem-v-2026-09-28-httpsgeminigooglecomapp934dbe472fd8e85c">解析 JS 規格中的 Elision opt（System V 段落，2026-09-28）— https://gemini.google.com/app/934dbe472fd8e85c</h3>
+<p>使用者：「System V」索引system v是什麼</p>
+<p>Gemini：System V（簡寫 SysV）是 UNIX 歷史上極具影響力的作業系統版本，1983 年由 AT&amp;T 推出，成為當時 Unix 世界的官方商業標準，與柏克萊 BSD 分庭抗禮。現代電腦科學中提到 System V，通常指它留下的底層規範：System V IPC（訊息佇列／號誌／共用記憶體）、System V Init（傳統開機 Runlevel 機制）、System V ABI（CPU 暫存器如何傳參數、記憶體對齊、ELF 執行檔格式規範）。</p>
 <hr />
 <h2 id="_3">資料來源（含查證時間）</h2>
 <table>
@@ -308,6 +351,11 @@ https://linux.vbird.org/linux_basic/centos7/</p>
 <td><code>/usr</code> 名稱由來（UNIX Source Repository／System Resources）</td>
 <td>https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard</td>
 <td>查證於 2026-09-09</td>
+</tr>
+<tr>
+<td>Gemini 對話：解析 JS 規格中的 Elision opt（System V 部分）</td>
+<td>https://gemini.google.com/app/934dbe472fd8e85c</td>
+<td>對話擷取於 2026-09-28</td>
 </tr>
 </tbody>
 </table>

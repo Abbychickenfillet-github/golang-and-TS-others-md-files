@@ -108,6 +108,134 @@ Linux 從 2.6.39 版起 `initcwnd` 預設是 **10**（這個值源自 Google 的
 
 白話講就是：**你花了力氣讓 HTML 的前 14 KB 快快到，結果第 5 行就叫瀏覽器停下來等另一個檔案。**
 
+##### 📏 再往下一層：封包不但切斷標籤，連「一個字元」都切得斷
+
+<mark style="background: #FF5582A6;">封包是按**位元組**切的，而位元組完全不管你的標籤邊界在哪，也不管一個字元需要幾個位元組。</mark>
+
+實測一段很普通的 HTML（把 MSS 縮到 40 bytes 才看得出切點，真實是 1460）：
+
+```
+封包  內容（↵ 代表換行）                      切點落在哪
+------------------------------------------------------------------
+ #1  <!DOCTYPE html>↵<html lang="zh-Hant">↵<h    ⚠️ 標籤正中間被切斷
+ #2  ead><meta charset="utf-8"><title>我的�       標籤邊界外
+ #3  ��站</title></head>↵<body>↵  <div id="r     ⚠️ 標籤正中間被切斷
+ #4  oot" class="container">↵    <h1 class="t    ⚠️ 標籤正中間被切斷
+```
+
+被切斷的標籤長這樣：
+
+```
+封包 #3 結束時：
+  已收到    「<div id="r」                      ← 標籤還沒完
+  還在路上  「oot" class="container">」         ← 要等下一個封包
+  完整標籤  「<div id="root" class="container">」
+```
+
+<mark style="background: #FFF3A3A6;">解析器在那一刻處於一個尷尬狀態：**它知道有一個標籤開始了，但不知道那是什麼標籤**——連標籤名是 `div` 還是 `divider` 都還不確定。</mark>
+
+而封包 #2 結尾那個 `我的�`，<mark style="background: #FF5582A6;">那個 `�` 不是亂碼，是一個中文字被切成兩半。</mark>因為 UTF-8 是**變動長度編碼**：
+
+| 字元 | UTF-8 佔幾個位元組 |
+|---|---|
+| `a`、`<`、`1` | 1 byte |
+| 中文字（如「網」） | <mark style="background: #FF5582A6;">3 bytes</mark> |
+| 部分 emoji | 4 bytes |
+
+「網」的位元組是 `0xe7 0xb6 0xb2`，這 3 個位元組可能被切在任何一刀。
+
+##### 🧵 所以整條管線有兩個「必須能停在半路」的階段
+
+```
+位元組流  ─→  TextDecoder  ─→  字元流  ─→  Tokenizer  ─→  token  ─→  DOM 樹
+              （stream 模式）                （狀態機）
+                    ▲                            ▲
+                    │                            │
+         要能停在「湊不成一個字元             要能停在「還沒讀到 >
+          的殘留位元組」上                     的半個標籤」上
+```
+
+<mark style="background: #ADCCFFA6;">兩個階段的設計思路一模一樣：**把狀態存在外面，收到多少處理多少，剩下的殘料留著等下一批。**</mark>
+
+**階段一：`TextDecoder` 的 stream 模式**
+
+```js
+const sentence = Buffer.from('我的網站', 'utf8');   // 共 12 bytes
+const cut = 5;                                      // 刻意切在「網」的 3 個位元組中間
+
+// ❌ 沒有 stream：每段各自獨立解碼，湊不成字的殘料直接變成 �
+const naive = new TextDecoder('utf-8');
+naive.decode(sentence.subarray(0, cut)) + naive.decode(sentence.subarray(cut));
+// → 「我??網站」
+
+// ✅ 有 stream：告訴解碼器「這還沒完」，它把殘料留著等下一批
+const dec = new TextDecoder('utf-8');
+dec.decode(sentence.subarray(0, cut), { stream: true })
+  + dec.decode(sentence.subarray(cut), { stream: true });
+// → 「我的網站」
+```
+
+白話講 `{ stream: true }`：**這一批不是最後一批，如果結尾有湊不成完整字元的位元組，先留著不要急著吐 `�`。**
+
+**階段二：Tokenizer 的狀態機**
+
+```js
+function createTokenizer() {
+  let state = 'TEXT';     // 我現在在讀文字，還是在讀標籤？
+  let buffer = '';        // 還沒讀完的那半個標籤，先暫存在這
+  const tokens = [];
+
+  return {
+    feed(chunk) {                      // 每收到一個封包就呼叫一次
+      for (const ch of chunk) {
+        if (state === 'TEXT') {
+          if (ch === '<') { buffer = '<'; state = 'TAG'; }
+          else buffer += ch;
+        } else {
+          buffer += ch;
+          if (ch === '>') { tokens.push(buffer); buffer = ''; state = 'TEXT'; }
+        }
+      }
+      return { state, pending: buffer };   // 回報目前卡在哪
+    },
+    tokens,
+  };
+}
+```
+
+白話講這段：它只有兩個狀態，遇到 `<` 切到 TAG，遇到 `>` 吐出一個 token 並切回 TEXT。<mark style="background: #BBFABBA6;">關鍵是 `state` 和 `buffer` 活在 `feed()` **外面**，所以每次只餵一小段也不會出錯。</mark>
+
+一包一包餵進去，觀察它每次卡在哪：
+
+```
+封包  餵完之後的狀態       還卡在 buffer 裡的東西
+--------------------------------------------------
+ #1   TAG（標籤讀一半）      「<h」
+ #2   TEXT（文字讀一半）     「我的�」
+ #3   TAG（標籤讀一半）      「<div id="r」
+ #4   TAG（標籤讀一半）      「<h1 class="t」
+```
+
+##### ❓ 那它是「遇到什麼狀況」才需要暫停？
+
+<mark style="background: #FFF3A3A6;">不是遇到錯誤，也不是遇到特殊字元——是**這一批位元組用完了，但還沒讀到結尾**。</mark>
+
+| 階段 | 「用完了但沒結束」的具體情況 | 它怎麼處理 |
+|---|---|---|
+| TextDecoder | 剩 1～2 個位元組，但這個字需要 3 個 | 殘料留在解碼器內部，等下一批 |
+| Tokenizer | 已經讀到 `<`，但這批資料裡沒有 `>` | 半個標籤留在 `buffer`，等下一批 |
+
+<mark style="background: #BBFABBA6;">兩者都是同一條主執行緒在做，而且都是「自然地停在資料邊界」，不是被中斷或被搶走。</mark>這跟 `<script>` 造成的 **parser-blocking 完全不同**——後者是「資料明明還有，但我不敢往下讀」。
+
+> [!warning] ⚠️ 「半個字元」是比喻，不是真的 0.5 個位元組
+> <mark style="background: #FF5582A6;">**位元組（byte）是最小單位，不存在半個位元組。**</mark>
+> 「停在半個字元」的精確意思是：**已經收到 1 個或 2 個位元組，但這個字元需要 3 個，所以還湊不出一個字。**
+> 同理「半個標籤」＝ 已經收到 `<div id="r` 這 10 個完整的位元組，但標籤還沒結束。
+> **每一個位元組都是完整的，不完整的是「由多個位元組組成的那個東西」。**
+
+> [!note] 完整可執行範例
+> 上面所有輸出都來自 `packet-boundary-demo.js`（在 `iThome鐵人賽-2026/` 與 `JavaScript-practicing/refactoring/` 兩處），`node packet-boundary-demo.js` 即可重跑。詳細版說明見 [[文章-一個div可能被切成兩半-從TCP封包到DOM樹]]。
+
 > [!note] 注意 HTTP 版本的差異
 > 上面講的是 TCP 層，**HTTP/1.1 與 HTTP/2 都跑在 TCP 上**，所以都適用。
 > **HTTP/3 改用 QUIC（跑在 UDP 上）**，壅塞控制機制不同，但「慢啟動」與「初始窗口」的概念仍然存在，14 KB 這個量級的直覺依然適用。

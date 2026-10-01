@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>&lt;abbr&gt; 元素 — abbreviation 與 acronym 的差異，以及 title 屬性怎麼被看見</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>&lt;abbr&gt; 元素 — abbreviation 與 acronym 的差異，以及 title 屬性怎麼被看見</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#html</span><span class="pill">#abbr</span><span class="pill">#acronym</span><span class="pill">#title</span><span class="pill">#accessibility</span><span class="pill">#語意化</span><span class="pill">#無障礙</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-21</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/c9f01038758d249c" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">title 屬性的內容會被渲染進網頁的版面文字裡。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是 content attribute，不會變成文字節點，所以不佔任何版面。只有 hover tooltip、螢幕閱讀器、機器讀取這三個出口會取用它。</div></li><li><p class="qq">acronym 是 abbreviation 的一種特例。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">分界點是「能不能當成一個單字唸出來」。NASA 唸得出來是 acronym，HTML 得逐字母唸就只是 abbreviation。</div></li><li><p class="qq">HTML5 已經廢棄 &lt;acronym&gt; 標籤，現在一律用 &lt;abbr&gt;。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">MDN 的說法是 &lt;acronym&gt; should not be used。</div></li><li><p class="qq">所有瀏覽器都會幫 &lt;abbr title&gt; 加上虛線底線，所以不需要自己寫 CSS。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">⚠️ 本篇更正處。MDN 明寫各家不一致：有的加虛線底線、有的加底線同時轉 small caps、有的根本不做特殊樣式。要一致就自己寫 CSS。</div></li><li><p class="qq">用 &lt;abbr title&gt; 可以提升網頁的 SEO 排名。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">⚠️ 本篇更正處。Google 從未把 title 屬性列為排名因子。寫 &lt;abbr&gt; 的理由是無障礙與可維護性，不是排名。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">規範規定 title 裡「必須只放縮寫的完整展開，不得夾帶其他文字」，原文那句英文是 and nothing <input class="blank" data-a="else" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">所以不要寫成 title=&quot;HTML（超文字標記語言，1993 年提出）&quot;。</div></li><li><p class="qq">NASA 唸作 ˈnæsə，屬於 <input class="blank" data-a="acronym" placeholder="填答案" autocomplete="off">（英文），HTML 逐字母唸，只屬於廣義的 abbreviation。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">分界點就是能不能當成一個單字發音。</div></li><li><p class="qq">因為觸控裝置沒有 <input class="blank" data-a="hover" placeholder="填答案" autocomplete="off"> 這個互動，手機使用者永遠看不到 tooltip，所以第一次出現時最好直接把全名寫在內文裡。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">MDN 的實務建議：能在內文寫全名就不要只靠 title。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請說明 &lt;abbr title=&quot;...&quot;&gt; 裡的完整字，是透過哪三個出口被「看到」的，並各自說明誰取用它。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">瀏覽器 parse 完之後，&lt;abbr&gt; 底下的文字節點只有縮寫本身，title 被存成 attribute 而不是子節點，所以排版引擎不會把它排進版面。它只在三個出口浮現：
+
+（1）滑鼠 hover：由瀏覽器的原生 tooltip 機制取用，游標停留一兩秒後浮出小氣泡顯示完整名稱。
+（2）螢幕閱讀器：由報讀軟體（NVDA、JAWS、VoiceOver）取用，可選擇朗讀完整單字而不是逐字母唸出縮寫。
+（3）機器讀取：由爬蟲與各種 HTML 解析工具取用，拿得到縮寫對應的完整語意。
+
+畫面上永遠只看得到縮寫本身那幾個字。</div></li><li><p class="qq">為什麼「只靠 title 提供全名」不是好的無障礙做法？該怎麼寫比較穩？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">兩個理由：
+
+（1）觸控裝置沒有 hover，手機與平板使用者永遠看不到 tooltip，等於這段資訊對他們完全不存在。
+（2）各家瀏覽器對 &lt;abbr title&gt; 的預設樣式不一致，有的根本不加虛線底線，使用者不會知道這裡可以 hover。
+
+最穩的寫法是第一次出現時直接在內文把全名寫出來，例如「超文字標記語言（&lt;abbr title=&quot;HyperText Markup Language&quot;&gt;HTML&lt;/abbr&gt;）」，title 只當補強而不是唯一管道。MDN 的建議也是：能在內文裡直接展開，就不要只靠 title。</div></li></ol></section>
+
+<article class="card">
+<h1 id="abbr-abbreviation-acronym-title">&lt;abbr&gt; 元素 — abbreviation 與 acronym 的差異，以及 title 屬性怎麼被看見</h1>
+<p>本篇重點 a–k，共 11 個</p>
+<blockquote>
+<p>關聯原因：<span class="wikilink" title="Obsidian 連結：content-attribute-vs-IDL-property-與表單提交機制">content-attribute-vs-IDL-property-與表單提交機制</span> 講的是「HTML 原始碼裡寫的 attribute」與「DOM 物件上的 property」是兩回事。<br />
+<code>&lt;abbr title="…"&gt;</code> 正是最乾淨的範例：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">title 是 content attribute，它不會變成文字節點，所以不參與排版</mark>，只在特定出口被取用。<br />
+另外 <span class="wikilink" title="Obsidian 連結：HTML5演進-Quirks-Mode與HTML5-API">HTML5演進-Quirks-Mode與HTML5-API</span> 裡提到的「HTML5 淘汰了哪些舊標籤」，<code>&lt;acronym&gt;</code> 就是其中一個。</p>
+</blockquote>
+<hr />
+<h2 id="title">一、主軸圖：title 走哪條路才會被看到</h2>
+<p class="fig"><img src="../../obsidian-attachment/%E5%AD%B8%E7%BF%92%E5%89%8D%E7%AB%AF_%E5%9C%96%E8%A7%A3_abbr%E7%9A%84title%E8%B5%B0%E5%93%AA%E6%A2%9D%E8%B7%AF%E6%89%8D%E6%9C%83%E8%A2%AB%E7%9C%8B%E5%88%B0%E6%88%96%E8%A2%AB%E8%AE%80%E5%87%BA%E4%BE%86_2026-09-21.svg" alt="學習前端_圖解_abbr的title走哪條路才會被看到或被讀出來_2026-09-21.svg" loading="lazy"></p>
+
+<p>（a）看圖重點：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">瀏覽器 parse 完之後，<code>&lt;abbr&gt;</code> 底下的文字節點只有「HTML」四個字，<code>title</code> 被存成 attribute 而不是子節點</mark>，所以排版引擎不會把它排進版面。它只在圖中那三個出口浮現。</p>
+<hr />
+<h2 id="_1">二、規範原文與翻譯</h2>
+<p>（b）HTML 規範對 <code>&lt;abbr&gt;</code> 的定義原文是：</p>
+<blockquote>
+<p>The <code>abbr</code> element represents an abbreviation or acronym, optionally with its expansion. The <code>title</code> attribute may be used to provide an expansion of the abbreviation. The attribute, if specified, must contain an expansion of the abbreviation, and nothing else.</p>
+</blockquote>
+<p>（c）翻譯：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>&lt;abbr&gt;</code> 元素代表一個縮寫（abbreviation）或首字縮寫詞（acronym），並可選擇性地附帶它的完整展開內容。<code>title</code> 屬性可用來提供該縮寫的完整內容。若有指定這個屬性，它的內容必須「只」放縮寫的完整展開，不得夾帶其他無關文字。</mark></p>
+<p>（d）<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最後那句 “and nothing else” 是硬性規定</mark>，所以不要寫成 <code>title="HTML（超文字標記語言，1993 年提出）"</code>，補充說明要另外找地方放。</p>
+<hr />
+<h2 id="abbreviation-acronym">三、abbreviation 與 acronym 差在哪</h2>
+<p>（e）兩者在中文都叫「縮寫」，但在英文語言學上是包含關係：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">acronym 是 abbreviation 的一種特例</mark>。</p>
+<table>
+<thead>
+<tr>
+<th>類別</th>
+<th>定義與讀法</th>
+<th>範例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Abbreviation（廣義縮寫）</td>
+<td>把單字截短，或按字母逐個發音</td>
+<td><code>Dr.</code>（Doctor）、<code>e.g.</code>（exempli gratia）、<code>HTML</code>（唸 H-T-M-L）</td>
+</tr>
+<tr>
+<td>Acronym（首字組合詞）</td>
+<td>取詞組中每個字的首字母，組成一個「新單字」來發音</td>
+<td><code>NASA</code>（唸 ˈnæsə）、<code>RAM</code>（唸 ræm）、<code>laser</code></td>
+</tr>
+</tbody>
+</table>
+<p>（f）分界點很單純：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">能不能當成一個單字唸出來。</mark>唸得出來（NASA）就是 acronym，得一個字母一個字母唸（HTML）就只是 abbreviation。</p>
+<p>（g）<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HTML5 已經把 <code>&lt;acronym&gt;</code> 標籤廢棄（deprecated）</mark>，現在一律用 <code>&lt;abbr&gt;</code> 標示所有縮寫，不分是哪一種。MDN 的說法是 <code>&lt;acronym&gt;</code> should not be used。</p>
+<hr />
+<h2 id="_2">四、實際用起來會發生什麼</h2>
+<p>（h）三個效果，分別由三個不同的角色去取用同一個 attribute：</p>
+<table>
+<thead>
+<tr>
+<th>出口</th>
+<th>誰取用 title</th>
+<th>使用者看到什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>滑鼠 hover</td>
+<td>瀏覽器的原生 tooltip 機制</td>
+<td>游標停留一兩秒後浮出小氣泡，顯示完整名稱</td>
+</tr>
+<tr>
+<td>螢幕閱讀器</td>
+<td>報讀軟體（NVDA、JAWS、VoiceOver）</td>
+<td>可選擇朗讀完整單字，而不是逐字母唸出縮寫</td>
+</tr>
+<tr>
+<td>機器讀取</td>
+<td>爬蟲與各種 HTML 解析工具</td>
+<td>拿得到縮寫對應的完整語意</td>
+</tr>
+</tbody>
+</table>
+<p>（i）<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">title 的內容永遠不會被渲染進版面文字。</mark></p>
+<pre><code class="language-html">&lt;p&gt;我正在學習 &lt;abbr title=&quot;HyperText Markup Language&quot;&gt;HTML&lt;/abbr&gt; 網頁設計。&lt;/p&gt;
+</code></pre>
+<pre><code>畫面上實際看到的只有：我正在學習 HTML 網頁設計。
+那串 “HyperText Markup Language” 完全不佔版面，只有滑鼠移上去才會浮現。
+</code></pre>
+<p>（j）視覺上的預設樣式：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">多數瀏覽器會幫「有 title 的 abbr」加上虛線底線（<code>text-decoration: underline dotted</code>）</mark>，但這不是規範保證的。</p>
+<hr />
+<h2 id="_3">五、⚠️ 存疑／更正</h2>
+<p>（k）兩點要修正 Gemini 的說法：</p>
+<ol>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️「文字下方通常會自動出現虛線底線」講得太肯定。</mark>MDN 明確寫著各家表現不一致：有的加虛線底線、有的加虛線底線同時把內容轉成 small caps、有的根本不做任何特殊樣式（跟 <code>&lt;span&gt;</code> 一樣）。要保證一致就自己寫 CSS。</li>
+<li><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️「提升 SEO」這一點沒有實證背書。</mark><code>&lt;abbr title&gt;</code> 帶來的是語意與無障礙價值，Google 從未把 title 屬性列為排名因子。寫 <code>&lt;abbr&gt;</code> 的理由應該是無障礙（accessibility）與可維護性，不是為了排名。<br />
+    另外 MDN 補了一條實務建議：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">能在內文裡直接把全名寫出來，就不要只靠 title</mark>（因為觸控裝置沒有 hover，手機使用者永遠看不到 tooltip）。第一次出現時寫「超文字標記語言（HTML）」才是最穩的做法。</li>
+</ol>
+<hr />
+<h2 id="_4">六、自己動手</h2>
+<p>配套檔案：<code>demo-abbr.html</code>（同一層資料夾，用瀏覽器直接開）</p>
+<hr />
+<h2 id="_5">七、各對話來源（原文）</h2>
+<h3 id="html-abbr-2026-09-21-httpsgeminigooglecomappc9f01038758d249c">HTML abbr 標籤解析與差異說明（2026-09-21 擷取）— https://gemini.google.com/app/c9f01038758d249c</h3>
+<p>使用者：（貼上規範原文）The abbr element represents an abbreviation or acronym, optionally with its expansion. The title attribute may be used to provide an expansion of the abbreviation. The attribute, if specified, must contain an expansion of the abbreviation, and nothing else. 翻譯整段、解釋 abbreviation 與 acronym 差異、這個 <code>&lt;abbr&gt;</code> 標籤到底幹啥效果。</p>
+<p>Gemini：（1）內文翻譯：<code>&lt;abbr&gt;</code> 元素代表縮寫（abbreviation）或首字縮寫詞（acronym），並可選擇性地附帶其完整擴展內容。title 屬性可用於提供該縮寫的完整內容。若有指定該屬性，其內容必須僅包含該縮寫的完整擴展內容，不得有其他無關文字。</p>
+<p>（2）Abbreviation 與 Acronym 的差異：兩者在中文都常統稱為「縮寫」，但在英文語言學上有明確區別。Abbreviation（廣義縮寫）是將單字截短，或按字母逐個發音的縮寫，例如 Dr.（Doctor）、e.g.（exempli gratia）、HTML（唸 H-T-M-L）。Acronym（首字組合詞）是擷取詞組中每個單字的首字母，並組合成一個新單字來發音，例如 NASA（唸 ˈnæsə）、RAM（唸 ræm）、Laser。關係說明：Acronym 是 Abbreviation 的一種特例。在 HTML5 中，舊有的 <code>&lt;acronym&gt;</code> 標籤已被廢棄，統一使用 <code>&lt;abbr&gt;</code> 來標示所有縮寫與首字詞。</p>
+<p>（3）<code>&lt;abbr&gt;</code> 標籤的效果與實際用途：電腦視覺效果（文字下方通常會自動出現虛線底線，滑鼠懸停時瀏覽器會跳出浮動氣泡顯示完整名稱）、無障礙輔助（螢幕閱讀器能透過 title 讀出完整的單字）、SEO 與語意化（讓搜尋引擎理解該縮寫代表的真實意涵）。</p>
+<p>使用者：那 title 裡面放的完整字元會渲染出來嗎？</p>
+<p>Gemini：不會直接渲染（顯示）在網頁的版面文字中。title 屬性裡面的完整字元是作為補充資訊儲存在後台，只有在特定的使用者互動或輔助工具情境下才會浮現：滑鼠懸停（Hover）時瀏覽器才會跳出一個小小的原生浮動提示框（Tooltip）顯示 title 的內容；螢幕閱讀器（Screen Reader）在視障使用者使用報讀軟體時，可以選擇讀出 title 裡的完整字詞，而不是只念出縮寫字母。範例：<code>&lt;p&gt;我正在學習 &lt;abbr title="HyperText Markup Language"&gt;HTML&lt;/abbr&gt; 網頁設計。&lt;/p&gt;</code>，畫面實際渲染結果是「我正在學習 HTML 網頁設計。」，畫面中完全看不到 "HyperText Markup Language" 這串字。</p>
+<hr />
+<h2 id="_6">八、資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&lt;abbr&gt; 元素定義、title 用法與預設樣式不一致</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/abbr</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>&lt;acronym&gt; 已廢棄，改用 &lt;abbr&gt;</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/acronym</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>title 全域屬性的語意與限制</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/title</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>進階文字語意教學（含 abbr 實務建議）</td>
+<td>https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/Advanced_text_features</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/c9f01038758d249c</td>
+<td>2026-09-21 擷取</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-21</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

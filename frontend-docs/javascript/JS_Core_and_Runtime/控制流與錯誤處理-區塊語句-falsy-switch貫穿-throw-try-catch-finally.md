@@ -14,12 +14,13 @@ related:
   - "[[05-find方法-短路與falsy陷阱-如何取得所有符合的索引]]"
 sources:
   - https://gemini.google.com/app/efb8f910749565b9
-updated: 2026-09-17
+  - https://gemini.google.com/app/a32d56dd37435b7c
+updated: 2026-09-25
 ---
 
 # 控制流與錯誤處理 — 區塊語句、falsy 清單、switch 貫穿、throw 與 try/catch/finally
 
-> 本篇重點 a–n，共 14 個。
+> 本篇重點 a–q，共 17 個。
 > 主軸圖：本頁 HTML 版的「`try` → `catch` → `finally` 三段式流程圖」，之後同主題追問（例如 rethrow、`finally` 裡 return 的優先權）一律指回這張圖的某個方框。
 
 ---
@@ -85,6 +86,14 @@ if (b == true) {
 	切勿混淆原始布林值 `true`／`false` 與 `Boolean` 物件包起來的 `true`／`false`。
 
 > ⚠️ 存疑／更正：Gemini 原文只列了六個 falsy 值。MDN 的 Falsy 詞條另外還收錄 `0n`（BigInt 零）與 `document.all`（歷史相容用的特例），完整是八個。日常寫 code 記六個就夠，但面試被問「全部」時要補上 `0n`。
+
+(o) <mark style="background: #ADCCFFA6;">`document.all` 是唯一被 ECMAScript 規範「特許」轉成 falsy 的物件</mark>，內部用 `[[IsHTMLDDA]]` 標記；`Boolean(document.all)` 回傳 `false`、`typeof document.all` 回傳 `"undefined"`，但 `document.all[0]`、`document.all.length` 仍能正常存取到 DOM 元素——功能還在，只是在「型別轉換／布林判斷」時被引擎說謊成不存在。
+
+(p) 這是 1990 年代「瀏覽器大戰」留下的相容性包袱：IE4 率先推出 `document.all`，W3C 後來訂出 `document.getElementById()` 標準，但大量舊網頁已寫死 `if (document.all) { ... IE 專屬碼 } else { ... 標準碼 }`。新瀏覽器（Firefox、Chrome）若不支援 `document.all` 會讓舊站掛掉；若支援又會誤觸發 IE 專屬的壞程式碼。折衷方案是讓 `document.all` 繼續可用，但在布林判斷時偽裝成不存在，讓 `if (document.all)` 求值為 `false`、正確走進 `else` 的標準分支。
+
+(q) `document.all` 的「能存取」與「判斷時偽裝不存在」是 **AND（兩者同時成立）**，不是二選一：它本質仍是真正的 `HTMLAllCollection` 物件（能 `[0]`、`.length`、`.item()`），同時在型別轉換情境（`Boolean()`、`if`、`typeof`、`== undefined`）被規範要求偽裝成 `undefined`。
+
+> ⚠️ 存疑／更正（2026-09-25 補充查證）：Gemini 給出的「1997 IE4 推出 → 1998 W3C DOM Level 1 → 2004–2008 Firefox/Chrome 相容處理 → 2009 HTML5 草案標準化 → 2015 ES6 定案」時間線屬於**合理但未逐年逐月核對原始規格文件**的敘事整理，年代細節（尤其 2009 年那個節點）建議之後對照 [MDN document.all](https://developer.mozilla.org/en-US/docs/Web/API/Document/all) 與 [TC39 Annex B — `[[IsHTMLDDA]]` Internal Slot](https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot) 原文再次確認，目前先當作「事件先後順序大致正確、確切年份待覆核」的參考時間軸。
 
 ---
 
@@ -204,6 +213,18 @@ try {
 
 **Gemini：** 以下是 MDN 官方文件《控制流與錯誤處理（Control flow and error handling）》的繁體中文翻譯。JavaScript 支援一組簡潔的語句（特別是控制流語句），可以用它們為應用程式加入大量的互動性。在 JavaScript 程式碼中分號用於分隔不同的語句，任何 JavaScript 表達式也可以是一條語句。區塊語句是最基本的語句，用於將多條語句組合在一起，由一對大括號限定，通常與 `if`、`for`、`while` 搭配使用。注意用 `var` 宣告的變數不具備區塊作用域，其作用域屬於包含它的函式或腳本，`var x = 1; { var x = 2; } console.log(x)` 會輸出 2，在 C 或 Java 中相應的程式碼會輸出 1，這種作用域影響可以透過使用 `let` 或 `const` 來改善。條件語句方面，JavaScript 支援 `if...else` 與 `switch`。`if...else` 在條件為 `true` 時執行 `statement1`，否則執行 `statement2`，可用 `else if` 串聯多個條件，只有第一個求值為 `true` 的條件會被執行。最佳實踐是始終使用區塊語句，並避免在 `if...else` 的條件中使用賦值語句（如 `x = y`）。以下數值在條件語句中會被求值為 `false`（Falsy 值）：`false`、`undefined`、`null`、`0`、`NaN`、空字串。所有其他數值（包含所有物件）在傳遞給條件語句時都會求值為 `true`。切勿混淆原始布林值與 `Boolean` 物件，`const b = new Boolean(false); if (b)` 會求值為 `true`，而 `if (b == true)` 會求值為 `false`。`switch` 語句允許程式評估一個表達式並嘗試將該表達式的值與 `case` 標籤匹配，每個 `case` 子句關聯的可選 `break` 語句可確保程式在執行匹配語句後跳出 `switch`，如果省略 `break`，程式將繼續執行下一個 `case` 內部的語句（即貫穿／fall-through 效應）。異常處理方面，可以使用 `throw` 語句拋出異常，並使用 `try...catch` 語句來處理異常。JavaScript 中幾乎可以拋出任何物件，然而使用專門為此目的建立的異常類型通常更有效，例如 ECMAScript 異常（如 `Error`）與 `DOMException`。`try...catch` 的結構包含 `try` 區塊（包含一條或多條語句）、`catch` 區塊（包含當 `try` 區塊拋出異常時要執行的語句）、`finally` 區塊（在 `try` 和 `catch` 執行後、整段語句結束前執行）。`catch` 區塊指定一個識別碼用來存放 `throw` 拋出的值，此識別碼僅在 `catch` 區塊執行期間存在。`finally` 區塊不論是否拋出異常必定會執行，通常可以用來清理資源（如關閉檔案或釋放連結）。
 
+### 追加 2026-09-25（JS 變數指派與記憶體運作，document.all 補問）— https://gemini.google.com/app/a32d56dd37435b7c
+
+**使用者：** Undefined是truthy Null是falsy?
+
+**Gemini：** 不是，`undefined` 與 `null` 都是 falsy。
+
+**使用者：** `document.all` 為什麼是 falsy？
+
+**Gemini：** 詳見上方 (o)(p)(q) 三點：ECMAScript 規範特許 `[[IsHTMLDDA]]` 內部標記、IE4 與瀏覽器大戰的相容性折衷、「能存取」與「判斷時偽裝成 undefined」是 AND 關係。並追問「那時候沒有模組化，是否每頁都要重寫判斷」——答案是肯定的，當年常見寫在 `<script src="common.js">` 共用檔或直接複製貼上到每個頁面。
+
+---
+
 ---
 
 ## 資料來源（含查證時間）
@@ -215,6 +236,8 @@ try {
 | MDN — Falsy（八個 falsy 值的完整清單） | https://developer.mozilla.org/en-US/docs/Glossary/Falsy | MDN 現行版本，2026-09-17 查證 |
 | MDN — try...catch | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch | MDN 現行版本，2026-09-17 查證 |
 | MDN — switch（fall-through 說明） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/switch | MDN 現行版本，2026-09-17 查證 |
+| MDN — document.all | https://developer.mozilla.org/en-US/docs/Web/API/Document/all | MDN 現行版本，2026-09-25 補充查證 |
+| TC39 ECMA-262 Annex B — IsHTMLDDA Internal Slot | https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot | 現行 ECMA-262 規範，2026-09-25 補充查證（年代時間線待覆核，見上方存疑標註） |
 
 ---
 

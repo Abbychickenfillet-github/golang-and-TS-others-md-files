@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JSON 不是建構子 — 命名空間物件（namespace object）與 Math 的對照</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>JSON 不是建構子 — 命名空間物件（namespace object）與 Math 的對照</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#json</span><span class="pill">#namespace-object</span><span class="pill">#constructor</span><span class="pill">#typeerror</span><span class="pill">#math</span><span class="pill">#reflect</span><span class="pill">#intl</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-21</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/c548e823716ff9f9" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">JSON 不能被 new，是因為它是物件而不是函式。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">方向對但不精確。真正的判準是「有沒有 [[Construct]] 內部方法」。反例是箭頭函式：typeof 是 function，但一樣不能被 new。</div></li><li><p class="qq">JSON() 這樣直接當函式呼叫是可以的，只是不能加 new。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">兩種都不行。JSON() 會丟 TypeError: JSON is not a function。</div></li><li><p class="qq">Math、JSON、Reflect、Intl、Atomics 都是命名空間物件，都不能被 new。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">再加上 WebAssembly，這整個家族都只是靜態方法的容器。</div></li><li><p class="qq">JSON 身上有 prototype 屬性，只是被設成 null。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">&#x27;prototype&#x27; in JSON 直接回傳 false，它根本沒有這個屬性。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">JSON 這種「只當靜態方法容器、沒有狀態也沒有實例」的全域物件，正式名稱叫 <input class="blank" data-a="命名空間" placeholder="填答案" autocomplete="off"> 物件（英文 namespace object）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">MDN 的用語就是 namespace object。</div></li><li><p class="qq">new JSON() 會丟出的完整錯誤訊息是 TypeError: JSON is not a <input class="blank" data-a="constructor" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">而 JSON() 丟的是 is not a function，兩者訊息不同。</div></li><li><p class="qq">new 運算子真正在找的內部方法叫做 [[<input class="blank" data-a="Construct" placeholder="填答案" autocomplete="off">]]，找不到就當場丟 TypeError。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">規範層面的答案。typeof 只是快篩。</div></li><li><p class="qq">Object.prototype.toString.call(JSON) 會回傳 &quot;[object <input class="blank" data-a="JSON" placeholder="填答案" autocomplete="off">]&quot;。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">因為 JSON 身上有 Symbol.toStringTag 且值為 &#x27;JSON&#x27;。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">為什麼 JSON 不需要被實例化？請從 new 的工作內容反推。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">new 的工作是：建立一個新物件、把 this 綁上去、掛上 prototype、讓這個實例可以保存自己的狀態。
+
+但 JSON 不需要保存任何狀態或實例資料。JSON.parse 與 JSON.stringify 都是純函式：給輸入、出輸出，做完就結束，兩次呼叫之間不需要記住任何東西。
+
+沒有狀態要存，實例就沒有存在的意義，所以設計者直接把它做成命名空間物件——一個裝靜態方法的容器，跟 Math 一模一樣。你不會寫 new Math()，只會直接呼叫 Math.random()。</div></li><li><p class="qq">同事說「typeof X === &#x27;object&#x27; 就代表不能 new」，這句話對嗎？請說明更準確的判準。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">結論上通常會得到正確答案，但推理過程不對。
+
+更準確的判準是「這個值有沒有 [[Construct]] 內部方法」。
+
+反例是箭頭函式：typeof (() =&gt; {}) 回傳 &#x27;function&#x27;，符合「是函式」的條件，但 new (() =&gt; {}) 一樣丟 TypeError: ... is not a constructor，因為箭頭函式沒有 [[Construct]]。同樣的還有 class 的方法簡寫、以及大部分內建的工具方法。
+
+所以 typeof X === &#x27;function&#x27; 只能當快篩（不是 function 就一定不能 new），規範層面的答案在 [[Construct]]。</div></li></ol></section>
+
+<article class="card">
+<h1 id="json-math">JSON 不是建構子 — 命名空間物件與 Math 的對照</h1>
+<p>本篇重點 a–i，共 9 個</p>
+<blockquote>
+<p>關聯原因：<span class="wikilink" title="Obsidian 連結：JSON設計由來-reviver函式與Whitespace規範">JSON設計由來-reviver函式與Whitespace規範</span> 講的是 JSON 這個「資料格式」怎麼來的；這篇講的是 JSON 這個「全域物件」在引擎裡是什麼身分。<br />
+  另外 <span class="wikilink" title="Obsidian 連結：static-vs-instance-判準">static-vs-instance-判準</span> 那篇的判準（靜態方法掛在建構子身上、實例方法掛在 prototype 上）在這裡剛好出現一個極端案例：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JSON 全身上下只有靜態方法，連 prototype 都沒有。</mark></p>
+</blockquote>
+<hr />
+<h2 id="new-json">一、主軸圖：new JSON() 走到哪一格卡住</h2>
+<p class="fig"><img src="../../../../obsidian-attachment/%E5%AD%B8%E7%BF%92JS_%E5%9C%96%E8%A7%A3_JSON%E6%98%AF%E5%91%BD%E5%90%8D%E7%A9%BA%E9%96%93%E7%89%A9%E4%BB%B6%E4%B8%8D%E6%98%AF%E5%BB%BA%E6%A7%8B%E5%AD%90-new%E6%9C%83%E8%B5%B0%E5%88%B0%E5%93%AA%E8%A3%A1%E5%8D%A1%E4%BD%8F_2026-09-21.svg" alt="學習JS_圖解_JSON是命名空間物件不是建構子-new會走到哪裡卡住_2026-09-21.svg" loading="lazy"></p>
+
+<p>（a）看圖重點：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>new</code> 運算子會去找目標身上的 <code>&lt;span class="wikilink" title="Obsidian 連結：Construct"&gt;Construct&lt;/span&gt;</code> 內部方法</mark>，找得到才往下建立實例，找不到就當場丟 <code>TypeError</code>。JSON 身上根本沒有這一格，所以連「試著建」的機會都沒有。</p>
+<hr />
+<h2 id="new-json_1">二、為什麼不能寫 new JSON()</h2>
+<p>（b）執行 <code>new JSON()</code> 的結果是：</p>
+<pre><code class="language-js">new JSON();   // TypeError: JSON is not a constructor
+JSON();       // TypeError: JSON is not a function
+</code></pre>
+<p>（c）<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JSON 是一個「命名空間物件（namespace object）」</mark>，設計目的只是當一個容器，把一整組靜態方法（static methods）裝在同一個名字底下：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>誰對誰做什麼</th>
+<th>產物</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>JSON.parse(text, reviver?)</code></td>
+<td>把一段符合 JSON 語法的字串交給引擎 parse</td>
+<td>一個 JavaScript 值（物件、陣列、數字…）</td>
+</tr>
+<tr>
+<td><code>JSON.stringify(value, replacer?, space?)</code></td>
+<td>把一個 JavaScript 值交給引擎序列化</td>
+<td>一段 JSON 字串</td>
+</tr>
+</tbody>
+</table>
+<p>（d）<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">它跟 <code>Math</code> 是同一種東西</mark>：你不會寫 <code>new Math()</code>，只會直接呼叫 <code>Math.random()</code> 或 <code>Math.floor()</code>。JSON 也是同樣的用法。</p>
+<p>（e）為什麼不需要實例化：<code>new</code> 的工作是「建立一個新物件、綁定 <code>this</code>、掛上 prototype」。<br />
+    但 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JSON 不需要保存任何狀態或實例資料</mark>，<code>parse</code> 與 <code>stringify</code> 都是純函式：給輸入、出輸出，做完就結束。<br />
+    沒有狀態要存，就沒有實例存在的意義。</p>
+<p>（f）同一個家族還有誰：<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Math</code>、<code>JSON</code>、<code>Reflect</code>、<code>Intl</code>、<code>Atomics</code></mark>（以及 <code>WebAssembly</code>）。這幾個全域物件都不是建構子，<code>new</code> 它們一律丟 <code>TypeError</code>。</p>
+<hr />
+<h2 id="_1">三、怎麼自己驗證</h2>
+<p>（g）在 Console 直接看內部標記：</p>
+<pre><code class="language-js">typeof JSON;                                   // &quot;object&quot;，不是 &quot;function&quot;
+typeof Date;                                   // &quot;function&quot;
+
+Object.prototype.toString.call(JSON);          // &quot;[object JSON]&quot;
+JSON[Symbol.toStringTag];                      // &quot;JSON&quot;
+
+'prototype' in JSON;                           // false，連 prototype 都沒有
+Object.getOwnPropertyNames(JSON);              // ['parse', 'stringify', ...]
+</code></pre>
+<p>（h）<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">最快的判準：<code>typeof X === 'function'</code> 才有機會被 <code>new</code>。</mark><code>typeof JSON</code> 回傳 <code>"object"</code>，到這裡就可以收工了。</p>
+<hr />
+<h2 id="_2">四、⚠️ 補充更正</h2>
+<p>（i）<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ Gemini 的回答沒有錯，但少講了一層：真正的判準不是「它是不是物件」，而是「它有沒有 <code>&lt;span class="wikilink" title="Obsidian 連結：Construct"&gt;Construct&lt;/span&gt;</code> 內部方法」。</mark><br />
+    反例是箭頭函式：<code>typeof (() =&gt; {}) === 'function'</code>，但 <code>new (() =&gt; {})</code> 一樣會丟 <code>TypeError: ... is not a constructor</code>，因為箭頭函式也沒有 <code>&lt;span class="wikilink" title="Obsidian 連結：Construct"&gt;Construct&lt;/span&gt;</code>。<br />
+    所以 <code>typeof</code> 只是快篩，規範層面的答案在 <code>&lt;span class="wikilink" title="Obsidian 連結：Construct"&gt;Construct&lt;/span&gt;</code>。</p>
+<hr />
+<h2 id="_3">五、各對話來源（原文）</h2>
+<h3 id="json-2026-09-21-httpsgeminigooglecomappc548e823716ff9f9">JSON 與一般物件的差異解析（2026-09-21 擷取）— https://gemini.google.com/app/c548e823716ff9f9</h3>
+<p>使用者：不能寫 <code>new JSON</code> 的意思？</p>
+<p>Gemini：在 JavaScript 中，不能寫 <code>new JSON()</code> 的原因在於 JSON 不是一個建構子函數（Constructor Function）。如果你嘗試執行 <code>new JSON()</code>，瀏覽器會直接拋出錯誤：<code>TypeError: JSON is not a constructor</code>。</p>
+<p>背後原因與設計邏輯：</p>
+<ol>
+<li>
+<p>JSON 是一個「命名空間物件（Namespace Object）」。JavaScript 中的全局 JSON 物件，設計初衷是用來提供一整組靜態工具方法（Static Methods），例如 <code>JSON.parse()</code>（將 JSON 字串解析成 JavaScript 值／物件）與 <code>JSON.stringify()</code>（將 JavaScript 值轉成 JSON 字串）。它就像 Math 物件一樣——你不會寫 <code>new Math()</code>，而是直接呼叫 <code>Math.random()</code> 或 <code>Math.floor()</code>。JSON 單純只是一個用來存放這些工具函數的容器（命名空間），並不需要實例化（Instantiate）。</p>
+</li>
+<li>
+<p>沒有狀態或實例屬性。<code>new</code> 關鍵字的作用是根據類別或建構子創建出一個新的物件實例（Instance），並綁定 <code>this</code> 與內部屬性。然而 JSON 物件本身不需要儲存任何狀態或實例數據，所有的轉換作業都是「給輸入、出輸出」的純函數操作，因此完全沒有實例化的必要。</p>
+</li>
+</ol>
+<p>補充：除了不能用 <code>new</code> 之外，你也不能直接調用它：<code>JSON()</code> 會拋出 <code>TypeError: JSON is not a function</code>。MDN 文件對此有明確定義：與大多數全局物件不同，JSON 不是建構子，你不能將它與 <code>new</code> 運算子一起使用，也不能將 JSON 物件作為函數調用。</p>
+<p>總結來說：JSON 只是個工具箱，直接使用裡面的靜態方法 <code>JSON.parse()</code> 與 <code>JSON.stringify()</code> 即可。</p>
+<hr />
+<h2 id="_4">六、資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JSON 是命名空間物件、不是建構子</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>哪些內建物件不是建構子（Math、JSON、Symbol、Reflect、Intl、Atomics）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Not_a_constructor</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>命名空間物件的定義</td>
+<td>https://developer.mozilla.org/en-US/docs/MDN/Writing_guidelines/Page_structures/Page_types/JavaScript_namespace_page_template</td>
+<td>MDN，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>Gemini 對話原文</td>
+<td>https://gemini.google.com/app/c548e823716ff9f9</td>
+<td>2026-09-21 擷取</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-21</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

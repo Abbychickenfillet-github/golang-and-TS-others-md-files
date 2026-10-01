@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>物件 — Property Descriptor 完整拆解</title>
+<style>
+  :root{
+    --bg:#faf8f5; --panel:#ffffff; --ink:#23262b; --muted:#6b7280; --line:#e6e1d8;
+    --accent:#2f6f8f; --accent-soft:#e6eff4; --ok:#2c7a4b; --ok-soft:#e3efe6;
+    --warn:#a8801f; --warn-soft:#fff6e8; --bad:#b04a4a; --bad-soft:#fbe3e3;
+    --code:#f4f1ec; --purple:#6a5ba8; --purple-soft:#f2effa;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1a1c20; --panel:#232629; --ink:#e8e6e1; --muted:#9aa0a8; --line:#383b40;
+      --accent:#7fb8d6; --accent-soft:#1e3038; --ok:#7fc79a; --ok-soft:#1f3328;
+      --warn:#e0be6a; --warn-soft:#3a3222; --bad:#e08a8a; --bad-soft:#3a2424;
+      --code:#1f2226; --purple:#a798e0; --purple-soft:#2a2740;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    line-height:1.85;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 20px 96px}
+  header{border-bottom:3px solid var(--accent);padding-bottom:18px;margin-bottom:26px}
+  h1{font-size:26px;margin:0 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:20px;margin:44px 0 14px;padding-left:12px;border-left:5px solid var(--accent)}
+  h3{font-size:16.5px;margin:26px 0 10px;color:var(--accent)}
+  code{background:var(--code);padding:2px 6px;border-radius:4px;
+    font-family:"JetBrains Mono","Fira Code",Consolas,monospace;font-size:13.5px}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:8px;
+    padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.7}
+  pre code{background:none;padding:0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:16px 0}
+  .card.ok{border-left:5px solid var(--ok);background:var(--ok-soft)}
+  .card.warn{border-left:5px solid var(--warn);background:var(--warn-soft)}
+  .card.bad{border-left:5px solid var(--bad);background:var(--bad-soft)}
+  .card.info{border-left:5px solid var(--purple);background:var(--purple-soft)}
+  .card h4{margin:0 0 8px;font-size:15px}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:var(--accent-soft);font-weight:700}
+  tr.hit td{background:var(--ok-soft)}
+  img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px}
+  figure{margin:20px 0}
+  figcaption{color:var(--muted);font-size:13px;text-align:center;margin-top:8px}
+  a{color:var(--accent)}
+  blockquote{margin:12px 0;padding:10px 16px;border-left:4px solid var(--muted);
+    color:var(--muted);background:var(--code);border-radius:0 6px 6px 0;font-size:14px}
+  .cloze{background:var(--accent);color:var(--accent);border-radius:4px;padding:1px 10px;
+    cursor:pointer;user-select:none;transition:.18s;border-bottom:2px dashed transparent;
+    font-family:"JetBrains Mono",Consolas,monospace;font-size:13.5px}
+  .cloze:hover{opacity:.86}
+  .cloze.show{background:var(--ok-soft);color:var(--ok);border-bottom-color:var(--ok);font-weight:700}
+  .bar{position:sticky;top:0;z-index:30;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:10px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+    margin-bottom:22px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+  button{font-family:inherit;font-size:13.5px;padding:7px 14px;border-radius:7px;
+    border:1px solid var(--accent);background:var(--panel);color:var(--accent);cursor:pointer;transition:.15s}
+  button:hover{background:var(--accent);color:#fff}
+  button.on{background:var(--accent);color:#fff}
+  .score{margin-left:auto;font-size:13.5px;color:var(--muted)}
+  .q{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+  .q .stem{font-weight:600;margin-bottom:10px}
+  .tf{display:flex;gap:10px;margin:8px 0}
+  .tf button{min-width:70px}
+  .tf button.right{background:var(--ok);border-color:var(--ok);color:#fff}
+  .tf button.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+  .exp{display:none;margin-top:10px;padding:11px 13px;border-radius:7px;
+    background:var(--code);font-size:14px;border-left:4px solid var(--purple)}
+  .exp.show{display:block}
+  textarea{width:100%;min-height:100px;padding:11px;border:1px solid var(--line);border-radius:8px;
+    background:var(--code);color:var(--ink);font-family:inherit;font-size:14px;line-height:1.7;resize:vertical}
+  .model{display:none;margin-top:10px;padding:12px 14px;border-radius:8px;
+    background:var(--ok-soft);border-left:4px solid var(--ok);font-size:14px}
+  .model.show{display:block}
+  ol,ul{padding-left:26px}
+  li{margin:6px 0}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>物件 — Property Descriptor 完整拆解</h1>
+  <div class="sub">
+    從「嚴格模式與 JSON」那篇拆出來的<strong>物件</strong>分支：只談一個 property 到底由哪些欄位組成。<br>
+    建立於 2026-09-20｜實測環境 Node v22.22.2｜灰色色塊點一下看答案
+  </div>
+</header>
+
+<div class="bar">
+  <button id="btnCloze">顯示全部填空答案</button>
+  <button id="btnExp">顯示全部解析</button>
+  <button id="btnReset">全部重來</button>
+  <span class="score" id="score">是非題：尚未作答</span>
+</div>
+
+<h2>零、這段程式碼在 MDN 的哪裡</h2>
+<pre><code>var a = {};
+Object.defineProperties(a, {
+    'name': { value:'fillano', writable:false, enumerable:false, configurable:false },
+    'age' : { value:30,        writable:true,  enumerable:true,  configurable:false }
+});</code></pre>
+
+<div class="card warn">
+<h4>誠實的答案：這段程式碼本身不在 MDN 上</h4>
+<p><code>fillano</code> 是作者自己的名字，這是 <strong>fillano 的 ES5 介紹文</strong>（約 2011 年）裡自己寫的範例。
+但它示範的語法在 MDN 上有明確對應的章節。</p>
+</div>
+
+<table>
+<thead><tr><th>原文在講的事</th><th>MDN 對應章節</th></tr></thead>
+<tbody>
+<tr><td><code>Object.defineProperties(obj, {...})</code> 這個方法</td>
+    <td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperties">Object.defineProperties()</a></td></tr>
+<tr><td>四個欄位的意思與預設值</td>
+    <td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty#description">Object.defineProperty() → Description</a></td></tr>
+<tr><td>Data 與 Accessor descriptor 互斥</td>
+    <td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty#description">Object.defineProperty() → Description</a></td></tr>
+<tr><td>原文下一段那種 <code>get</code>／<code>set</code> 寫法</td>
+    <td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Working_with_objects#defining_getters_and_setters">Working with objects → Defining getters and setters</a></td></tr>
+<tr><td>哪些操作看得到不可列舉屬性</td>
+    <td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties">Enumerability and ownership of properties</a></td></tr>
+</tbody>
+</table>
+
+<blockquote>
+"A <strong>data descriptor</strong> is a property with a value that may or may not be writable.
+An <strong>accessor descriptor</strong> is a property described by a getter-setter pair of functions.
+A descriptor must be one of these two flavors; <strong>it cannot be both</strong>."
+<br>—— MDN, Object.defineProperty() → Description
+</blockquote>
+
+<h2>一、這算 getter 跟 setter 嗎</h2>
+<div class="card bad">
+<h4>不算。你貼的這一段完全沒有 getter 跟 setter。</h4>
+<ol>
+  <li>你貼的這段用的是 <code>value</code> 跟 <code>writable</code> → 這叫
+      <span class="cloze" data-a="Data Descriptor（資料描述符）">？？？</span>，屬性背後就是一格死的值。</li>
+  <li>原文<strong>下一段</strong>才用 <code>get</code> 跟 <code>set</code> → 那個才叫
+      <span class="cloze" data-a="Accessor Descriptor（存取描述符）">？？？</span>，屬性背後是一對函式。</li>
+  <li>一個 property <strong>只能是其中一種</strong>。</li>
+</ol>
+<p>所以分類方向是對的（這確實是物件相關的筆記），但精確地說：
+<strong>主題是 property descriptor，getter/setter 只是它的其中一種形態。</strong></p>
+</div>
+
+<h2>二、最重要的澄清：writable 不是「能不能寫」的總開關</h2>
+
+<div class="card info">
+<h4>我原本的疑問</h4>
+<p>「<code>writable: true</code> 代表可以覆寫，拿掉是寫成 <code>writable: false</code> 還是完全不寫？
+拿掉也很奇怪啊，你要可以寫才能 get 或 set 吧？」</p>
+<p><strong>答案：完全不寫。而且「不寫」不等於「寫成 false」。</strong></p>
+</div>
+
+<h3>a. writable 只存在於 data descriptor 上，accessor descriptor 根本沒有這一格</h3>
+<p>不是「預設 <code>false</code>」，是<strong>這個欄位不存在</strong>。實測印出來只有四個欄位：</p>
+<pre><code>const e = {}; let _v = 'fillano';
+Object.defineProperty(e, 'name', {
+  get() { return _v; }, set(x) { _v = x; },
+  enumerable: true, configurable: true
+});
+
+Object.getOwnPropertyDescriptor(e, 'name')
+// { get: [Function], set: [Function], enumerable: true, configurable: true }
+//   ↑ 沒有 value，也沒有 writable</code></pre>
+
+<h3>b. 有沒有 set 函式，才是 accessor 屬性「能不能寫」的答案</h3>
+<pre><code>e.name = '改成功了';
+e.name    // '改成功了'   ← 沒有 writable 照樣寫得進去</code></pre>
+
+<h3>c. 只有 get 沒有 set 才是真正的唯讀</h3>
+<pre><code>const f = {};
+Object.defineProperty(f, 'ro', { get() { return 1; }, enumerable: true });
+f.ro = 999;  f.ro     // 1   ← 非嚴格模式，靜靜失敗
+(function(){ 'use strict'; f.ro = 999; })()
+// TypeError: Cannot set property ro of #&lt;Object&gt; which has only a getter</code></pre>
+
+<div class="card ok">
+<h4>一句話記住兩組欄位的分工</h4>
+<table>
+<thead><tr><th>你想表達的意思</th><th>data descriptor 用</th><th>accessor descriptor 用</th></tr></thead>
+<tbody>
+<tr><td>這個屬性存什麼</td><td><code>value</code></td><td><code>get</code> 函式的回傳值</td></tr>
+<tr><td>能不能被寫</td><td><code>writable: true / false</code></td><td>有沒有給 <code>set</code> 函式</td></tr>
+</tbody>
+</table>
+<p>所以「你要可以寫才能 get 或 set」這個推論，是把兩套機制混在一起了。
+<code>writable</code> 管的是 data 屬性的賦值，<code>set</code> 管的是 accessor 屬性的賦值，
+它們是<strong>兩條平行的路</strong>，不是一個在管另一個。</p>
+</div>
+
+<figure>
+  <img src="../obsidian-attachment/學習JS_截圖_Console_writable不是能不能寫的總開關_2026-09-20.png"
+       alt="Console 實測：accessor descriptor 沒有 writable 欄位">
+  <figcaption>截圖一｜三種情境的 Console 實測：有 get+set 沒有 writable、只有 get 才是唯讀、兩組混用直接 TypeError</figcaption>
+</figure>
+
+<h2>三、六個欄位完整表</h2>
+<table>
+<thead><tr><th>欄位</th><th>哪一組</th><th>意思</th><th>字面值 <code>{}</code></th><th><code>defineProperty</code> 沒寫時</th></tr></thead>
+<tbody>
+<tr><td><code>value</code></td><td>Data</td><td>值本身</td><td>你給的值</td><td><code>undefined</code></td></tr>
+<tr><td><code>writable</code></td><td>Data</td><td>能不能用賦值改值</td><td><code>true</code></td><td><code>false</code></td></tr>
+<tr><td><code>get</code></td><td>Accessor</td><td>讀取時呼叫的函式</td><td>無</td><td><code>undefined</code></td></tr>
+<tr><td><code>set</code></td><td>Accessor</td><td>寫入時呼叫的函式</td><td>無</td><td><code>undefined</code></td></tr>
+<tr><td><code>enumerable</code></td><td>共用</td><td>能不能被列舉</td><td><code>true</code></td><td><code>false</code></td></tr>
+<tr><td><code>configurable</code></td><td>共用</td><td>能不能刪除或重設說明書</td><td><code>true</code></td><td><code>false</code></td></tr>
+</tbody>
+</table>
+<div class="card warn">
+<p><strong>最容易踩的坑</strong>：<code>Object.defineProperty(o, 'a', { value: 1 })</code> 建出來的屬性預設是
+<span class="cloze" data-a="唯讀、不可列舉、不可刪">？？？</span>，
+而 <code>o.a = 1</code> 這種一般賦值建出來的三個開關<span class="cloze" data-a="全開（全 true）">？？？</span>。</p>
+</div>
+
+<h2>四、writable 與 configurable 的四種組合</h2>
+<table>
+<thead><tr><th><code>writable</code></th><th><code>configurable</code></th><th>結果</th></tr></thead>
+<tbody>
+<tr><td>true</td><td>true</td><td>完全正常的一般屬性</td></tr>
+<tr><td>true</td><td>false</td><td>值可以改，但不能刪、不能改說明書</td></tr>
+<tr><td>false</td><td>true</td><td><strong>鎖不住</strong> —— 還能用 <code>defineProperty</code> 重新給值繞過去</td></tr>
+<tr class="hit"><td>false</td><td>false</td><td><strong>真正的常數屬性</strong>，改不了、刪不了、重設不了（原文 <code>name</code> 就是這格）</td></tr>
+</tbody>
+</table>
+<pre><code>// 原文的 a.name 四種攻擊全部失敗
+a.name = '改掉';                                  // 非嚴格：靜默失敗
+(function(){ 'use strict'; a.name = '改掉'; })()  // TypeError: Cannot assign to read only property
+delete a.name;                                    // 沒用
+Object.defineProperty(a, 'name', { value:'X' });  // TypeError: Cannot redefine property: name
+a.name                                            // 'fillano'  ← 永遠是它</code></pre>
+
+<h2>五、enumerable 的可見性對照</h2>
+<div class="card">
+<p>「<code>enumerable: false</code> 代表 <code>for...in</code>、<code>Object.keys()</code>、<code>JSON.stringify()</code> 對它沒有作用」——
+方向對，但措辭要修：不是那些方法<strong>對它沒作用</strong>，而是那些方法<strong>根本看不到它</strong>。
+它還在物件上好端端地，只是不參與列舉。</p>
+</div>
+
+<figure>
+  <img src="../obsidian-attachment/學習JS_截圖_Console_enumerable-false讓誰看不見_2026-09-20.png"
+       alt="Console 實測：enumerable false 讓誰看不見">
+  <figcaption>截圖二｜同一個物件丟給七種列舉類操作與六種直接詢問類操作的對照</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>❌ 看不見（列舉類）</th><th>結果</th><th>✅ 看得見（直接問類）</th><th>結果</th></tr></thead>
+<tbody>
+<tr><td><code>for...in</code></td><td><code>['age']</code></td><td><code>a.name</code></td><td><code>'fillano'</code></td></tr>
+<tr><td><code>Object.keys(a)</code></td><td><code>['age']</code></td><td><code>'name' in a</code></td><td><code>true</code></td></tr>
+<tr><td><code>Object.values(a)</code></td><td><code>[30]</code></td><td><code>Object.hasOwn(a,'name')</code></td><td><code>true</code></td></tr>
+<tr><td><code>Object.entries(a)</code></td><td><code>[['age',30]]</code></td><td><code>Object.getOwnPropertyNames(a)</code></td><td><code>['name','age']</code></td></tr>
+<tr><td><code>JSON.stringify(a)</code></td><td><code>{"age":30}</code></td><td><code>Reflect.ownKeys(a)</code></td><td><code>['name','age']</code></td></tr>
+<tr><td><code>{ ...a }</code></td><td><code>{age:30}</code></td><td><code>getOwnPropertyDescriptor</code></td><td>完整說明書</td></tr>
+<tr><td><code>Object.assign({}, a)</code></td><td><code>{age:30}</code></td><td></td><td></td></tr>
+</tbody>
+</table>
+<div class="card bad">
+<p><strong>所以 <code>enumerable: false</code> 是「隱藏」不是「保護」。</strong> 真正的機密不該進到這個物件裡。</p>
+</div>
+
+<h3>for...in 跟 Object.keys 的關鍵差異：原型鏈</h3>
+<pre><code>function Parent(){}
+Parent.prototype.inherited = 1;
+const c = new Parent();  c.own = 2;
+
+for (const k in c) ...   // ['own', 'inherited']   ← 走上原型鏈了
+Object.keys(c)           // ['own']                ← 只看 own</code></pre>
+<p>這也解釋了為什麼老教科書會叫你在 <code>for...in</code> 裡加
+<span class="cloze" data-a="hasOwnProperty 檢查">？？？</span>。</p>
+
+<h2>六、「own」到底是什麼意思</h2>
+<div class="card info">
+<p><code>own property</code>（自有屬性）＝<strong>這一格是刻在這個物件身上的</strong>，不是從
+<span class="cloze" data-a="原型鏈（prototype chain）">？？？</span>繼承來的。</p>
+<pre><code>const proto = { fromProto: 'A' };
+const d = Object.create(proto);   // d 的原型是 proto
+d.normal = 'B';
+
+d.fromProto                       // 'A'    ← 讀得到
+Object.hasOwn(d, 'fromProto')     // false  ← 但不是 d 的 own property
+Object.hasOwn(d, 'normal')        // true</code></pre>
+<p>三個條件一起擋掉誰的實測：</p>
+<pre><code>const proto = { fromProto: 'A' };
+const d = Object.create(proto);                                        // ① 不是 own
+d.normal = 'B';                                                        // 全部通過
+Object.defineProperty(d, 'hidden', { value:'C', enumerable:false });   // ② 不可列舉
+d[Symbol('sym')] = 'D';                                                // ③ 不是字串鍵
+
+JSON.stringify(d)    // {"normal":"B"}   ← 只剩一個活下來</code></pre>
+</div>
+
+<h2>七、兩種語意：定義（define）與賦值（set）</h2>
+<table>
+<thead><tr><th></th><th>賦值語意 <code>obj.k = v</code></th><th>定義語意 <code>Object.defineProperty</code></th></tr></thead>
+<tbody>
+<tr><td>內部方法</td><td><code>[[Set]]</code></td><td><code>[[DefineOwnProperty]]</code></td></tr>
+<tr><td>會不會先找原型鏈上的 setter</td><td><strong>會</strong></td><td><strong>不會</strong></td></tr>
+<tr><td>產生的 descriptor</td><td>三個開關全 <code>true</code></td><td>沒寫的一律 <code>false</code></td></tr>
+<tr><td>遇到 <code>writable:false</code></td><td>失敗（嚴格模式丟錯）</td><td>看 <code>configurable</code> 決定</td></tr>
+<tr><td><code>obj.__proto__ = x</code></td><td>觸發原型 setter，<strong>換掉原型</strong></td><td>建立一個叫 <code>__proto__</code> 的普通屬性</td></tr>
+</tbody>
+</table>
+
+<figure>
+  <img src="../obsidian-attachment/學習JS_截圖_Console_prototype-pollution的hacked記號_2026-09-20.png"
+       alt="Console 實測：prototype pollution 的 hacked 記號">
+  <figcaption>截圖三｜<code>hacked</code> 只是一個記號，檢查方式是去問一個全新的空物件 <code>({}).hacked</code></figcaption>
+</figure>
+
+<div class="card bad">
+<h4>為什麼 payload 要寫成 <code>{"__proto__": {"hacked": 1}}</code></h4>
+<p><code>hacked</code> 這個名字沒有意義，它只是一個<strong>記號</strong>，用來檢查污染有沒有成功 ——
+檢查方式是去問一個全新的空物件有沒有長出這個屬性。</p>
+<ol>
+  <li><code>JSON.parse</code> 之後 → <code>({}).hacked</code> 是 <code>undefined</code>，<strong>沒被污染</strong>。</li>
+  <li><code>p.__proto__ = { hacked: 1 }</code> 之後 → 只有 <code>p</code> 自己的原型被換掉，<code>({}).hacked</code> 還是 <code>undefined</code>。</li>
+  <li>把 parse 結果丟進<strong>用賦值寫的遞迴 merge</strong> 之後 → <code>({}).hacked === 1</code>、<code>[].hacked === 1</code>，
+      <span class="cloze" data-a="全世界的物件都被污染了">？？？</span>。這才是災難。</li>
+</ol>
+</div>
+
+<h2>八、是非題</h2>
+<div id="tfBox"></div>
+
+<h2>九、申論題</h2>
+<div id="essayBox"></div>
+
+<h2>十、跟其他筆記的關聯</h2>
+<div class="card">
+<ul>
+  <li><strong>嚴格模式-PropertyDescriptor-與JSON的關係</strong>｜這篇是它的物件分支。那篇處理 descriptor → JSON 的方向，這篇處理 descriptor 本身的結構。</li>
+  <li><strong>JavaScript資料型別總覽-原始型別與物件</strong>｜那篇說「物件是一組 key-value」，這篇補上<strong>每一個 value 其實是一份六欄位的說明書</strong>，不是一個裸值。</li>
+  <li><strong>JSON</strong>｜<code>enumerable</code> 那一格是 <code>JSON.stringify</code> 的第二道篩選閘門。</li>
+  <li><strong>JavaScript-Map-與-Object</strong>｜Map 的項目<strong>不是 property</strong>，所以完全不受 descriptor 系統管轄，<code>JSON.stringify(new Map(...))</code> 才會得到 <code>{}</code>。</li>
+  <li><strong>Day1-型別辨別-自動轉換-與immutable的四個層次</strong>｜那篇的第一層就是 <code>writable:false</code>，第二層 <code>Object.freeze</code> 等於把所有屬性的 <code>writable</code> 與 <code>configurable</code> 一起關掉。</li>
+</ul>
+</div>
+
+<footer>
+  <strong>出處</strong>
+  <ul>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty">MDN — Object.defineProperty()</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperties">MDN — Object.defineProperties()</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getOwnPropertyDescriptor">MDN — Object.getOwnPropertyDescriptor()</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Working_with_objects#defining_getters_and_setters">MDN — Working with objects → Defining getters and setters</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties">MDN — Enumerability and ownership of properties</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn">MDN — Object.hasOwn()</a></li>
+    <li><a href="https://tc39.es/ecma262/">ECMA-262 規格</a>｜OrdinaryDefineOwnProperty、ValidateAndApplyPropertyDescriptor</li>
+    <li>原文出處：fillano 的 ES5 介紹文（約 2011 年）—— 範例本身不是 MDN 的內容。</li>
+  </ul>
+  實測環境與時間：Node v22.22.2，2026-09-20。每一段輸出都由 <code>demo-property-descriptor.js</code> 實際跑出來。
+</footer>
+
+</div>
+<script>
+document.querySelectorAll('.cloze').forEach(el=>{
+  el.dataset.hidden = el.textContent;
+  el.addEventListener('click',()=>{
+    const on = el.classList.toggle('show');
+    el.textContent = on ? el.dataset.a : el.dataset.hidden;
+  });
+});
+let clozeAllOn = false;
+document.getElementById('btnCloze').addEventListener('click', e=>{
+  clozeAllOn = !clozeAllOn;
+  e.target.classList.toggle('on', clozeAllOn);
+  e.target.textContent = clozeAllOn ? '隱藏全部填空答案' : '顯示全部填空答案';
+  document.querySelectorAll('.cloze').forEach(el=>{
+    el.classList.toggle('show', clozeAllOn);
+    el.textContent = clozeAllOn ? el.dataset.a : el.dataset.hidden;
+  });
+});
+
+const TF = [
+  { s:'原文那段 Object.defineProperties(a, { name: {...}, age: {...} }) 是在示範物件的 getter 跟 setter。',
+    a:false,
+    e:'錯。那一段用的是 value 與 writable，屬於 Data Descriptor（資料描述符），屬性背後是一格死的值。原文的下一段才用 get 與 set，那個才是 Accessor Descriptor。一個 property 只能是其中一種，不能兩種都是。' },
+  { s:'accessor descriptor（有 get/set 的屬性）的 writable 預設值是 false。',
+    a:false,
+    e:'錯。不是「預設 false」，是這個欄位根本不存在。實測印出 descriptor 只有 { get, set, enumerable, configurable } 四個欄位，引擎不會幫你補上 writable。能不能寫，看的是你有沒有提供 set 函式。' },
+  { s:'一個屬性只給 get 不給 set，在非嚴格模式下寫入它會靜靜失敗，在嚴格模式下會丟 TypeError。',
+    a:true,
+    e:'對。非嚴格模式下 f.ro = 999 之後 f.ro 還是 1，什麼都不說；嚴格模式下丟 TypeError: Cannot set property ro of #<Object> which has only a getter。這跟 data descriptor 的 writable:false 是同一種「靜默失敗 vs 大聲報錯」的模式。' },
+  { s:'writable:false 就一定鎖得住，值再也改不了。',
+    a:false,
+    e:'錯，要看 configurable。如果 configurable 是 true，別人還能用 Object.defineProperty 重新給一次值繞過去。真正的常數屬性需要 writable:false 加上 configurable:false 兩個都關掉——原文的 a.name 剛好就是這一格，所以它確實永遠是 fillano。' },
+  { s:'enumerable:false 的屬性，用 Object.getOwnPropertyNames 也列不出來。',
+    a:false,
+    e:'錯。Object.getOwnPropertyNames、Reflect.ownKeys、in 運算子、Object.hasOwn、getOwnPropertyDescriptor 全部照樣看得到。看不到它的只有「列舉」類操作：for...in、Object.keys/values/entries、JSON.stringify、展開運算子、Object.assign。' },
+  { s:'for...in 跟 Object.keys 的差別只有寫法，列出來的東西是一樣的。',
+    a:false,
+    e:'錯。for...in 會沿著原型鏈往上走，把繼承來的可列舉屬性也列出來；Object.keys 只看 own property。實測 Parent.prototype.inherited = 1 之後，for...in 得到 ["own","inherited"]，Object.keys 只得到 ["own"]。' },
+  { s:'JSON.parse(\'{"__proto__": {"hacked": 1}}\') 執行完之後，({}).hacked 會變成 1。',
+    a:false,
+    e:'錯，還是 undefined。JSON.parse 內部走定義語意（CreateDataProperty），只是在結果物件上刻出一個叫 "__proto__" 的普通 own property，Object.prototype 完全沒被動到。hacked 只是一個記號，用來檢查污染有沒有成功。真正會讓 ({}).hacked 變成 1 的，是把 parse 結果丟進用賦值寫的遞迴 merge。' },
+  { s:'用一般賦值 o.a = 1 建立的屬性，writable、enumerable、configurable 三個都是 true。',
+    a:true,
+    e:'對，MDN 明文寫了這個等價關係。相對地，Object.defineProperty(o, "a", { value: 1 }) 沒寫的欄位一律是 false，所以會得到一個唯讀、不可列舉、不可刪的屬性——這是最常被踩的坑。' },
+];
+const tfBox = document.getElementById('tfBox');
+TF.forEach((q,i)=>{
+  const d = document.createElement('div');
+  d.className = 'q';
+  d.innerHTML = '<div class="stem">'+(i+1)+'. '+q.s+'</div>'+
+    '<div class="tf"><button data-v="true">○ 對</button><button data-v="false">✕ 錯</button></div>'+
+    '<div class="exp"><strong>解析：</strong>'+q.e+'</div>';
+  const exp = d.querySelector('.exp');
+  d.querySelectorAll('.tf button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const picked = b.dataset.v === 'true';
+      d.querySelectorAll('.tf button').forEach(x=>x.classList.remove('right','wrong'));
+      b.classList.add(picked === q.a ? 'right' : 'wrong');
+      exp.classList.add('show');
+      d.dataset.done='1'; d.dataset.ok = (picked===q.a)?'1':'0';
+      updateScore();
+    });
+  });
+  tfBox.appendChild(d);
+});
+function updateScore(){
+  const all = tfBox.querySelectorAll('.q').length;
+  const done = tfBox.querySelectorAll('.q[data-done="1"]').length;
+  const ok = tfBox.querySelectorAll('.q[data-ok="1"]').length;
+  document.getElementById('score').textContent =
+    done===0 ? '是非題：尚未作答' : '是非題：答對 '+ok+' ／ 已作答 '+done+' ／ 共 '+all+' 題';
+}
+
+const ESSAY = [
+  { q:'用你自己的話說明：為什麼「你要可以寫才能 get 或 set 吧」這個推論是錯的？請把 writable 跟 set 的分工講清楚。',
+    m:'因為 writable 跟 set 分屬兩套互斥的機制，不是一個在管另一個。<br><br>一個 property 只能是 data descriptor 或 accessor descriptor 其中一種。data descriptor 用 value 存值、用 writable 決定賦值能不能成功；accessor descriptor 用 get 函式產生值、用有沒有 set 函式決定賦值能不能成功。<br><br>accessor descriptor 上根本沒有 writable 這個欄位（不是預設 false，是不存在），所以「拿掉 writable」的正確做法是完全不寫。實測掛上 get+set 之後印出 descriptor 只有四個欄位，而且用賦值照樣寫得進去。<br><br>真正的唯讀 accessor 是「只給 get 不給 set」，這時非嚴格模式靜默失敗、嚴格模式丟 TypeError。' },
+  { q:'請說明 enumerable:false 到底讓哪些操作看不見，哪些照樣看得見，並解釋為什麼它是「隱藏」而不是「保護」。',
+    m:'看不見的全部是「列舉」類操作：for...in、Object.keys/values/entries、JSON.stringify、展開運算子 {...a}、Object.assign。<br><br>照樣看得見的全部是「直接問」類操作：直接存取 a.name、in 運算子、Object.hasOwn/hasOwnProperty、Object.getOwnPropertyNames、Reflect.ownKeys、Object.getOwnPropertyDescriptor。<br><br>它是隱藏不是保護，因為屬性還好端端地在物件上，值一讀就到，descriptor 也印得出來，debugger 與結構化 log 一樣看得到。真正的機密不該進到這個物件裡，應該在 DB 查詢階段就 select 掉，或用 #private field / WeakMap。' },
+  { q:'解釋 own property 的意思，並說明 JSON.stringify 的三個篩選條件分別會擋掉什麼樣的屬性。',
+    m:'own property 指這一格是刻在這個物件身上的，不是從原型鏈繼承來的。判斷方式是 Object.hasOwn(obj, key)。<br><br>三個條件：<br>① own —— 擋掉原型鏈上的屬性。用 Object.create(proto) 建的物件，proto 上的 fromProto 讀得到但不會被序列化。<br>② enumerable:true —— 擋掉用 defineProperty 設成不可列舉的屬性。<br>③ 字串鍵 —— 擋掉 Symbol 鍵，而且連 replacer 都看不到它。<br><br>實測一個同時具備這四種屬性的物件，stringify 之後只剩下完全通過三關的那一個。這跟 Object.keys 用的是同一把尺，連順序都一樣。' },
+  { q:'為什麼 prototype pollution 的示範 payload 要寫成 {"__proto__": {"hacked": 1}}？請說明 hacked 的角色，以及三條路線各自的結果。',
+    m:'hacked 沒有特殊意義，它是一個「記號」（marker），用來檢查污染有沒有成功。檢查方式是去問一個跟這次操作完全無關的全新空物件：({}).hacked。如果它從 undefined 變成 1，代表 Object.prototype 被寫進了東西，那就是全域污染。<br><br>路線一 JSON.parse：走定義語意 CreateDataProperty，只是在結果物件上刻出一個叫 "__proto__" 的普通 own property，原型沒被動到，({}).hacked 仍是 undefined。<br><br>路線二 p.__proto__ = {...}：走賦值語意，觸發 Object.prototype 上的 __proto__ setter，把 p 自己的原型換掉。p.hacked 是 1，但 ({}).hacked 仍是 undefined——只污染到 p 一個。<br><br>路線三 把 parse 結果丟進用賦值寫的遞迴 merge：merge 內部寫 target[k] = source[k]，遞迴時 target["__proto__"] 讀到的是 Object.prototype，於是 hacked 被寫上去。此時 ({}).hacked、[].hacked、(function(){}).hacked 全部是 1，全世界的物件都被污染了。<br><br>防禦：用 Object.create(null) 當容器、跳過 __proto__/constructor/prototype 三個 key、或改用 Object.defineProperty 寫入。' },
+];
+const essayBox = document.getElementById('essayBox');
+ESSAY.forEach((q,i)=>{
+  const d = document.createElement('div');
+  d.className='q';
+  d.innerHTML = '<div class="stem">'+(i+1)+'. '+q.q+'</div>'+
+    '<textarea placeholder="先自己寫一遍再看參考答案，寫過的才記得住"></textarea>'+
+    '<div style="margin-top:10px"><button class="showModel">看參考答案</button></div>'+
+    '<div class="model"><strong>參考答案：</strong><br>'+q.m+'</div>';
+  const model = d.querySelector('.model');
+  d.querySelector('.showModel').addEventListener('click', e=>{
+    const on = model.classList.toggle('show');
+    e.target.textContent = on ? '收起參考答案' : '看參考答案';
+    e.target.classList.toggle('on', on);
+  });
+  essayBox.appendChild(d);
+});
+
+let expAllOn = false;
+document.getElementById('btnExp').addEventListener('click', e=>{
+  expAllOn = !expAllOn;
+  e.target.classList.toggle('on', expAllOn);
+  e.target.textContent = expAllOn ? '隱藏全部解析' : '顯示全部解析';
+  document.querySelectorAll('.exp, .model').forEach(x=>x.classList.toggle('show', expAllOn));
+  document.querySelectorAll('.showModel').forEach(b=>{
+    b.textContent = expAllOn ? '收起參考答案' : '看參考答案';
+    b.classList.toggle('on', expAllOn);
+  });
+});
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  document.querySelectorAll('.cloze').forEach(el=>{ el.classList.remove('show'); el.textContent = el.dataset.hidden; });
+  document.querySelectorAll('.exp, .model').forEach(x=>x.classList.remove('show'));
+  document.querySelectorAll('.tf button').forEach(b=>b.classList.remove('right','wrong'));
+  document.querySelectorAll('.q').forEach(q=>{ delete q.dataset.done; delete q.dataset.ok; });
+  document.querySelectorAll('textarea').forEach(t=>t.value='');
+  document.querySelectorAll('.showModel').forEach(b=>{ b.textContent='看參考答案'; b.classList.remove('on'); });
+  clozeAllOn=false; expAllOn=false;
+  const bc=document.getElementById('btnCloze'); bc.classList.remove('on'); bc.textContent='顯示全部填空答案';
+  const be=document.getElementById('btnExp');   be.classList.remove('on'); be.textContent='顯示全部解析';
+  updateScore();
+});
+updateScore();
+</script>
+</body>
+</html>

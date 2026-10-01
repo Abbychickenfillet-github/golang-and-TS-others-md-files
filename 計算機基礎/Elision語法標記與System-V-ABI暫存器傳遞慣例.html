@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Elision語法標記與System-V-ABI暫存器傳遞慣例</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Elision語法標記與System-V-ABI暫存器傳遞慣例</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#ECMAScript語法</span><span class="pill">#BNF</span><span class="pill">#ABI</span><span class="pill">#calling-convention</span><span class="pill">#SIMD</span><span class="pill">#System-V</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-28</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/934dbe472fd8e85c" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="elisionsystem-v-abi">Elision語法標記與System-V-ABI暫存器傳遞慣例</h1>
+<p>本篇重點 a–h，共 8 個</p>
+<h2 id="_1">重點整理</h2>
+<h3 id="a-ecmascript-elision">a. 什麼是 ECMAScript 規格書裡的 Elision</h3>
+<p><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Elision</mark> 指「省略、空缺、逗號之間的空位」。在 JavaScript 陣列字面值（Array Literal）裡，如果寫出兩個連續逗號，中間被留白的位置就是 Elision：</p>
+<pre><code class="language-javascript">const arr = [1, , 3];
+// 中間那個未定義的空位（稀疏陣列 sparse array）在語法解析時就標記為 Elision
+</code></pre>
+<h3 id="b-opt">b. 什麼是規格書裡的 <code>opt</code> 標記</h3>
+<p><code>opt</code> 是 optional 的縮寫。ECMAScript 規格書（Spec）的 BNF 文法標記法裡，某個語法符號右下標了 <code>opt</code>（或寫成 <code>[opt]</code>），代表這個語法元素<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">可以出現、也可以不出現</mark>。</p>
+<h3 id="c-elision-opt">c. 合起來讀：<code>Elision opt</code></h3>
+<p>規格書裡常見的陣列元素定義：</p>
+<pre><code>ElementList :
+  Elision opt AssignmentExpression
+  ElementList , Elision opt AssignmentExpression
+</code></pre>
+<p>意思是：陣列的<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">第一個元素前面可以有空位（Elision opt），也可以直接接運算式</mark>（例如 <code>[, 1]</code> 或 <code>[1]</code> 都合法）；元素與元素之間也可以包含一個或多個空位（例如 <code>[1, , , 2]</code>）。</p>
+<hr />
+<h3 id="d">d. 浮點數在函式呼叫時走哪個暫存器：與整數分開傳</h3>
+<p>現代 CPU 架構的呼叫慣例（Calling Convention）裡，浮點數（<code>float</code>／<code>double</code>）即使是簡單的基本型別（Primitive），底層也<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不會放進通用暫存器</mark>（如 x86-64 的 <code>rax</code>、<code>rdi</code>、<code>rsi</code>），而是直接放進<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">浮點／SIMD 暫存器</mark>（如 x86-64 的 <code>xmm0</code> ~ <code>xmm7</code>）。</p>
+<p>原因：x86-64（System V ABI 或 Windows x64）已淘汰早期的 x87 浮點協同處理器，改由 SSE/AVX（即 SIMD 暫存器）接管浮點運算；<code>xmm</code> 暫存器雖然主要設計給 SIMD（單指令多資料）用，但同時也是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">執行純量浮點數（Scalar Floating-Point）運算</mark>的地方。</p>
+<h3 id="e-vs-system-v-abi">e. 整數 vs 浮點數在 System V ABI 下的暫存器分配範例</h3>
+<p>以 C 函式 <code>void foo(int a, double b, int c, float d);</code> 在 x86-64 Linux（System V ABI）為例，編譯成組合語言後：</p>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>型別</th>
+<th>分配到的暫存器</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>a</code></td>
+<td>整數 <code>int</code></td>
+<td>通用暫存器 <code>edi</code></td>
+</tr>
+<tr>
+<td><code>b</code></td>
+<td>浮點數 <code>double</code></td>
+<td>SIMD 暫存器 <code>xmm0</code></td>
+</tr>
+<tr>
+<td><code>c</code></td>
+<td>整數 <code>int</code></td>
+<td>通用暫存器 <code>esi</code></td>
+</tr>
+<tr>
+<td><code>d</code></td>
+<td>浮點數 <code>float</code></td>
+<td>SIMD 暫存器 <code>xmm1</code></td>
+</tr>
+</tbody>
+</table>
+<p><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">結論：小數依然是直接傳值（By Value），不需要傳記憶體位址</mark>；但因為 CPU 硬體把「整數算術邏輯單元 ALU」與「浮點／向量運算單元 FPU/SIMD」分開設計，浮點數一定走 <code>xmm</code>／<code>ymm</code> 這種浮點/SIMD 暫存器通道傳遞，跟整數的通用暫存器通道是分開的兩條路。</p>
+<h3 id="f-system-v-abi">f. System V ABI 是什麼</h3>
+<p><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">System V ABI（Application Binary Interface）</mark>就是上面 d、e 兩點描述的那套規範：定義 CPU 暫存器如何傳遞函式參數、記憶體如何對齊、執行檔（ELF）格式，是現代 Linux、macOS 等平台的硬體溝通標準。「System V」這個名字的完整歷史脈絡（AT&amp;T 商業版 UNIX、與 BSD 的 UNIX 戰爭、System V IPC、System V Init）記在 <span class="wikilink" title="Obsidian 連結：Unix-與類Unix系統介紹">Unix-與類Unix系統介紹</span> 的「追加 2026-09-28」段落，因為那屬於 Unix 系統史而非 JS 語法或暫存器機制本身，兩篇互相對照著看。</p>
+<h3 id="g-elision-system-v-abi">g. 這兩件事（Elision 語法、System V ABI）為什麼會出現在同一篇筆記</h3>
+<p>因為它們來自同一段 Gemini 對話的前後兩個追問——先問 ECMAScript 規格書的 <code>Elision opt</code> 語法標記，接著追問「小數要不要用 SIMD 處理」延伸到暫存器分配與 System V ABI。兩者主題不同層次（一個是 JS 語言規格的文法標記，一個是 CPU／ABI 的底層機制），但因為同一次對話一起釐清，故整理在同一篇，並各自留一個標號（a–c 是 Elision、d–f 是 ABI）方便日後分開複習。</p>
+<h3 id="h">h. 延伸練習</h3>
+<ul>
+<li><a href="https://leetcode.com/problems/special-array-with-x-elements-greater-than-or-equal-x/">LeetCode 1608. Special Array With X Elements Greater Than or Equal X</a> — 練習陣列邊界與元素計數，可順便體會稀疏陣列（含 Elision 空位）在 <code>.length</code> 與走訪上的坑</li>
+<li><a href="https://leetcode.com/problems/find-all-numbers-disappeared-in-an-array/">LeetCode 448. Find All Numbers Disappeared in an Array</a> — 陣列走訪與缺值偵測，練習分辨 <code>undefined</code>（Elision 造成）與「值真的是 undefined」的差異</li>
+</ul>
+<hr />
+<h2 id="_2">各對話來源</h2>
+<h3 id="js-elision-opt2026-09-28-httpsgeminigooglecomapp934dbe472fd8e85c">解析 JS 規格中的 Elision opt（2026-09-28）— https://gemini.google.com/app/934dbe472fd8e85c</h3>
+<p>使用者：elision opt是啥</p>
+<p>Gemini：Elision 指陣列字面值裡逗號間的省略空位；<code>opt</code> 是 optional 的縮寫，規格書裡標了 <code>opt</code> 代表該語法元素可有可無。合起來 <code>Elision opt</code> 代表「這裡可以出現省略/空位，但不是必須出現」。範例文法：<code>ElementList : Elision opt AssignmentExpression</code>。</p>
+<p>使用者：如果只是有小數你會當成是浮點數 還需要用SIMD去處理嗎還是會當成Primitive來處理 數值小、簡單的參數</p>
+<p>Gemini：浮點數即使是簡單基本型別，底層也不會放進通用暫存器，而是放進浮點/SIMD 暫存器（如 x86-64 的 xmm0~xmm7）。因為 x87 浮點協同處理器已被淘汰，現在浮點運算由 SSE/AVX（SIMD 暫存器）接管。它仍是 Primitive、仍是傳值，但因硬體把 ALU 與 FPU/SIMD 分開設計，浮點數一定走 xmm/ymm 通道傳遞。</p>
+<p>使用者：「System V」索引system v是什麼</p>
+<p>Gemini：System V（簡寫 SysV）是 1983 年 AT&amp;T 推出的官方商業版 UNIX，與柏克萊 BSD 是 UNIX 戰爭的兩大陣營。現代提到 System V 通常指它留下的底層規範：System V IPC（跨程序通訊）、System V Init（傳統開機機制）、System V ABI（本篇 d~f 點描述的暫存器傳遞與二進位介面規範）。</p>
+<hr />
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話：解析 JS 規格中的 Elision opt</td>
+<td>https://gemini.google.com/app/934dbe472fd8e85c</td>
+<td>對話擷取於 2026-09-28</td>
+</tr>
+<tr>
+<td>ECMAScript 規格書：BNF 文法標記（<code>opt</code> 下標、Elision 定義）</td>
+<td>https://tc39.es/ecma262/#sec-array-initializer</td>
+<td>現行版本；查證於 2026-09-28</td>
+</tr>
+<tr>
+<td>System V AMD64 ABI（x86-64 呼叫慣例、xmm 暫存器分配規則正式文件）</td>
+<td>https://gitlab.com/x86-psABIs/x86-64-ABI</td>
+<td>現行版本；查證於 2026-09-28</td>
+</tr>
+<tr>
+<td>MDN：Array literal 語法（Elision／稀疏陣列說明）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Array_initializer</td>
+<td>查證於 2026-09-28</td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ 存疑／更正：無——本篇對話內容經與 ECMAScript 規格書、System V ABI 官方文件核對，方向正確。</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-28</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

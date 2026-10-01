@@ -9,6 +9,8 @@ related:
   - "[[script載入方式+前因後果]]"
   - "[[Markdown-渲染為DOM的過程]]"
   - "[[SPA架構-入口點-CSR客戶端效能與狀態-部署]]"
+  - "[[CSR初始DOM只有空div-root-DOM建立的時機與阻塞]]"
+  - "[[abbr元素-縮寫與acronym的差異-title屬性怎麼被看見]]"
   - "[[00-V8引擎完整管線-Parse到Deoptimization]]"
   - "[[Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪]]"
   - "[[content-attribute-vs-IDL-property-與表單提交機制]]"

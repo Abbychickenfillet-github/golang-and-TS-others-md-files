@@ -18,12 +18,13 @@ related:
   - "[[CLAUDE.md-vs-AGENTS.md]]"
 sources:
   - https://gemini.google.com/app/c6e0b0444e11722e
-updated: 2026-08-09
+  - https://gemini.google.com/app/ccb5a2b37e88244a
+updated: 2026-09-23
 ---
 
 # Model Context Protocol（MCP，模型上下文協定）——定義、三大能力與 2026 規格演進
 
-> **本篇重點 a–n，共 14 個。**
+> **本篇重點 a–p，共 16 個。**
 > 這篇的起點是一段語音對話：Abby 用自己的話講「MCP 就是一個協定，可以讓原本的應用軟體接到外面的其他裝置或服務」，Gemini 回「理解正確，但它不局限於裝置，更側重應用軟體與資料的串接」。原始對話很短，以下內容由官方規格補齊並標註查證時間。
 
 ---
@@ -57,17 +58,21 @@ updated: 2026-08-09
 
 ## Server 對外暴露的三大能力
 
-(g) <mark style="background: #FFF3A3A6;">Tools（工具）</mark>：可被模型呼叫的函式，附帶自然語言描述與 JSON Schema 參數定義。<mark style="background: #FF5582A6;">這是唯一會「產生副作用」的類型</mark>，所以規格上是「model-controlled，但需要 Host 取得使用者同意」。
+(g) <mark style="background: #FFF3A3A6;">Tools（工具）</mark>：可被模型呼叫的函式，附帶自然語言描述與 JSON Schema 參數定義。<mark style="background: #FF5582A6;">這是唯一會「產生副作用」的類型</mark>，所以規格上是「model-controlled，但需要 Host 取得使用者同意」。實際會用 Tools 做的事：發送 Email、查詢資料庫、執行 Git 命令、操作 GitHub API、呼叫 Google Search API。
 
-(h) <mark style="background: #FFF3A3A6;">Resources（資源）</mark>：用 URI 識別的唯讀上下文，例如一份檔案、一筆資料列。它是「被讀進脈絡」而不是「被執行」。
+(h) <mark style="background: #FFF3A3A6;">Resources（資源）</mark>：用 URI 識別的唯讀上下文，例如一份檔案、一筆資料列。它是「被讀進脈絡」而不是「被執行」。常見的 Resources 內容：本地專案文件、日誌檔案（Logs）、資料庫 Schema、特定 API 回傳的 JSON 資料。
 
-(i) <mark style="background: #FFF3A3A6;">Prompts（提示範本）</mark>：可重複使用的提示樣板，通常由使用者主動選用（例如斜線指令）。
+(i) <mark style="background: #FFF3A3A6;">Prompts（提示範本）</mark>：可重複使用的提示樣板，通常由使用者主動選用（例如斜線指令）。常見範例：程式碼審查範本（Code Review Template）、Bug 除錯引導流程。
 
 | 能力 | 誰決定要用 | 有無副作用 | 類比 |
 |---|---|---|---|
 | Tools | 模型提議、使用者核准 | 有 | REST 的 POST |
 | Resources | 應用程式／使用者 | 無 | REST 的 GET |
 | Prompts | 使用者 | 無 | 範本檔 |
+
+(o) <mark style="background: #FFB8EBA6;">現成 MCP Server 的常見應用情境</mark>：<mark style="background: #ADCCFFA6;">GitHub / GitLab MCP</mark>（讀 Issue、PR、Commit 紀錄或建立 Branch）、<mark style="background: #ADCCFFA6;">PostgreSQL / MySQL MCP</mark>（唯讀查詢資料庫結構與執行 SQL）、<mark style="background: #ADCCFFA6;">Fetch / Web Browsing MCP</mark>（抓取網頁內容或爬蟲）、<mark style="background: #ADCCFFA6;">Filesystem MCP</mark>（限定存取電腦中特定資料夾的檔案）。這些對照到上面的表格，資料庫查詢與檔案系統多半落在 Resources，會寫入或執行動作的（建 Branch、發 Email）落在 Tools。
+
+(p) <mark style="background: #D2B3FFA6;">使用者視角 vs 開發者視角容易搞混的地方</mark>：`claude.ai/directory/manage`（Submissions）是<mark style="background: #FF5582A6;">開發者提交、管理「自己寫的」MCP Server 審核狀態</mark>的地方，不是使用者安裝入口，所以還沒發佈過就會看到空白，這是正常現象。<mark style="background: #BBFABBA6;">一般使用者要安裝別人寫好的 MCP Server</mark>，要嘛在本機設定檔（例如 `claude_desktop_config.json`）裡設定，要嘛去官方或社群的 Claude Connectors Directory 找現成服務。
 
 ---
 
@@ -92,6 +97,7 @@ updated: 2026-08-09
 ## ⚠️ 存疑／更正
 
 - 原始對話中 Abby 說「接到外面的其他的裝置服務」，Gemini 只做了輕微修正就結束，<mark style="background: #FF5582A6;">沒有講到 Tools／Resources／Prompts 三大能力，也沒有講傳輸方式</mark>。這是一段語音閒聊等級的對話，本篇的技術內容幾乎全部是後續補齊的，請以下方來源表為準。
+- 補充對話（(o)(p)）是 Abby 在 `claude.ai/directory/manage` 頁面看到空白清單時問的，Gemini 的回答把「開發者提交介面」與「使用者安裝管道」講清楚了，內容與官方文件一致，沒有查到錯誤。
 
 ---
 
@@ -117,6 +123,12 @@ updated: 2026-08-09
 
 （語音轉文字有斷字，上方已整理為可讀版本。）
 
+### MCP Server 的內容與應用解析（2026-09-23）— https://gemini.google.com/app/ccb5a2b37e88244a
+
+> **使用者：** mcp server 這邊應該要有什麼
+>
+> **Gemini：** MCP Server（Model Context Protocol 伺服器）是用來為 AI 模型（如 Claude、Cursor 等）提供外部資料存取或工具執行能力的中介服務。在目前頁面的 Submissions 中，主要是展示您向 Anthropic 或社群目錄提交（發布）供大眾或團隊使用的 MCP Server/Plugins。如果您還沒有開發或提交任何自製的 MCP 伺服器，這裡顯示為空是正常的。一個標準且完整的 MCP Server 主要包含三大核心功能：Tools（工具／函數呼叫，讓 AI 執行動作，如發 Email、查資料庫、執行 Git 指令）、Resources（資源／資料讀取，提供靜態或動態上下文，如專案文件、日誌、DB Schema）、Prompts（提示詞範本，如程式碼審查範本）。常見現成 MCP Server：GitHub/GitLab MCP、PostgreSQL/MySQL MCP、Fetch/Web Browsing MCP、Filesystem MCP。若要安裝別人寫好的 MCP Server，可在本地設定檔（例如 `claude_desktop_config.json`）中設定，或瀏覽官方與社群推薦的 Claude Connectors Directory。
+
 ---
 
 ## 資料來源（含查證時間）
@@ -124,7 +136,12 @@ updated: 2026-08-09
 | 主題 | 連結 | 版本／查證時間 |
 |---|---|---|
 | 原始 Gemini 對話 | https://gemini.google.com/app/c6e0b0444e11722e | 2026-08（對話當下） |
+| 補充 Gemini 對話（Tools/Resources/Prompts 應用舉例） | https://gemini.google.com/app/ccb5a2b37e88244a | 2026-09-23（對話當下） |
 | MCP 官方規格 | https://modelcontextprotocol.io/specification/2026-07-28 | 規格版本 2026-07-28，查證於 2026-08-09 |
 | 2026-07-28 版釋出說明（無狀態核心、Extensions、MCP Apps） | https://blog.modelcontextprotocol.io/posts/2026-07-28/ | 2026-07-28，查證於 2026-08-09 |
 | 2026 MCP 藍圖 | https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/ | 2026，查證於 2026-08-09 |
 | 規格版本演進時間軸 | https://hidekazu-konishi.com/entry/mcp_specification_version_timeline.html | 查證於 2026-08-09 |
+
+---
+
+由 Gemini 對話自動整理 · 更新於 2026-09-23

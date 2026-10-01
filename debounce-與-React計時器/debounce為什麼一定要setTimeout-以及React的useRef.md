@@ -2,7 +2,9 @@
 title: debounce 為什麼一定要用 setTimeout？React 裡是靠 useRef 嗎？
 tags: [JavaScript, debounce, throttle, setTimeout, 閉包, React, useRef, useEffect, 效能優化]
 created: 2026-09-05
-updated: 2026-09-05
+updated: 2026-09-22
+gemini_sources:
+  - https://gemini.google.com/app/a2f6534388cc91d2
 charset: utf-8
 status: 已驗證（所有時間軸輸出皆以 Node.js v22 實跑）
 ---
@@ -100,6 +102,8 @@ debounce 的定義是：**把一連串密集發生的事件，壓縮成「安靜
 - d. `> 1000ms` — 使用者會開始懷疑壞掉了
 
 ### 1-b. 為什麼非得有一個「延後 + 可取消」的機制
+
+> 📌 2026-09-22 Gemini 對話〈安靜的定義與運作〉（https://gemini.google.com/app/a2f6534388cc91d2）問的就是「防抖裡面有 clearTimeout 嗎」，答案與本節一致：<mark style="background: #BBFABBA6;">`clearTimeout` 負責「取消上一次還沒燒完的計時器」，`setTimeout` 負責「重新開始倒數」，兩者合起來才構成「等你安靜下來才執行一次」</mark>。React 端的兩種做法（`useRef` 保存 timer、`useEffect` 的 cleanup 回傳 `() => clearTimeout(timer)`）分別在下方 2-a 與 2-e 有完整實跑對照，此處不重複。
 
 debounce 的語意拆開來只有兩個需求：
 

@@ -117,9 +117,9 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <h1>Array.prototype.find() — 短路、falsy 陷阱，以及如何取得「所有」符合的索引</h1>
   <div class="pills"><span class="pill">#array</span><span class="pill">#find</span><span class="pill">#findIndex</span><span class="pill">#findLastIndex</span><span class="pill">#flatMap</span><span class="pill">#truthy</span><span class="pill">#falsy</span><span class="pill">#短路</span><span class="pill">#short-circuit</span><span class="pill">#callback</span><span class="pill">#迭代方法</span><span class="pill">#react</span><span class="pill">#object-entries</span></div>
   <div class="meta">
-    <span>更新於 2026-09-17</span>
+    <span>更新於 2026-09-21</span>
     <span>來源：Claude + Gemini</span>
-    <a href="https://gemini.google.com/app/8641800775c043cc" target="_blank" rel="noopener">原始對話 1</a>
+    <a href="https://gemini.google.com/app/8641800775c043cc" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/c0190f9cd3bc8a08" target="_blank" rel="noopener">原始對話 2</a>
   </div>
 </header>
 
@@ -138,12 +138,12 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <span>　←　點任一個螢光筆可以把它遮起來</span>
 </div>
 
-
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">array3.find((e) =&gt; e = 2) 會把原陣列的第一個元素改成 2。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">callback 的參數 e 是傳值進來的區域變數，重新賦值只改變 e 這個綁定，不會回寫 array3[0]。原陣列毫髮無傷，但 find 會在第一圈就短路回傳 2。</div></li><li><p class="qq">obj[&#x27;x&#x27;] = 10 裡的 obj[&#x27;x&#x27;] 是一個合法的賦值目標（Assignment target）。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">屬性存取器（Property Accessor）指的就是用點號 . 或中括號 [] 存取屬性的語法，它是規範允許的三種賦值目標之一。</div></li><li><p class="qq">f() = 10 只是執行時才會出錯，語法上是合法的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">函式呼叫不是合法的賦值目標，這在解析階段就會丟 SyntaxError: Invalid assignment target，程式根本跑不起來。</div></li><li><p class="qq">find 找到值為 0 的元素時會回傳 undefined。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它回傳的是 0，只是 0 是 falsy，直接丟進 if 會被判成「沒找到」。正解是跟 undefined 比：if (result !== undefined)。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">= 左邊允許放三種賦值目標：識別碼（變數）、<input class="blank" data-a="屬性" placeholder="填答案" autocomplete="off"> 存取器（obj.x 與 obj[&#x27;x&#x27;]），以及解構模式。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">英文是 Property Accessor。注意它跟 getter／setter 那種「存取器屬性」是兩件事。</div></li><li><p class="qq">[a, b] = [1, 2] 這種一次綁多個目標的寫法叫 <input class="blank" data-a="解構" placeholder="填答案" autocomplete="off"> 模式。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Destructuring pattern，也是合法的賦值目標之一。</div></li><li><p class="qq">賦值表達式 e = 2 自己的回傳值就是被指派的那個值，也就是 <input class="blank" data-a="2" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">因為它回傳 2（truthy），find 才會誤判第 0 格通過測試而短路。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">把 === 誤打成 = 時，為什麼 find 只跑一圈、回傳的卻不是陣列原本的第一個元素？請逐步說明，並說出為什麼原陣列沒有被改到。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">find 迭代到第一個元素 1，把它傳進 callback，參數 e 接到 1。接著 e = 2 這個賦值表達式把區域變數 e 改寫成 2，而賦值表達式自己的回傳值就是被指派的那個值 2。2 是 truthy，所以 find 判定第 0 格通過測試而短路停住，回傳 arr[0]。你看到 2 而不是 1，是因為回傳的是 e 被改寫後的值；原陣列沒被改到，是因為 callback 的參數是傳值進來的區域綁定，重新賦值不會回寫 array3[0]。結果是原陣列不變、found3 為 2，而且後面三個元素完全沒被檢查。</div></li></ol></section>
 
 <article class="card">
 <h1 id="arrayprototypefind-falsy">Array.prototype.find() — 短路、falsy 陷阱與取得所有索引</h1>
 <blockquote>
-<p>本篇重點 a–n，共 14 個（2026-09-17 由 Gemini 對話補入 (g-2)(l)(m)(n)）。<br />
+<p>本篇重點 a–n，共 14 個（2026-09-17 由 Gemini 對話補入 (g-2)(l)(m)(n)；2026-09-21 補入 (g-3)：<code>=</code> 左邊的三種賦值目標）。<br />
 主軸圖：<code>&lt;p class="fig"&gt;&lt;img src="../../../../obsidian-attachment/%E5%AD%B8%E7%BF%92JS_%E5%9C%96%E8%A7%A3_find%E7%9A%84%E7%9F%AD%E8%B7%AF%E8%BF%B4%E5%9C%88-falsy%E8%A6%81%E7%B9%BC%E7%BA%8C%E8%80%8C%E4%B8%8D%E6%98%AF%E5%9B%9Eundefined_2026-09-11.svg" alt="學習JS_圖解_find的短路迴圈-falsy要繼續而不是回undefined_2026-09-11.svg" loading="lazy"&gt;&lt;/p&gt;</code><br />
 可執行範例：<code>demo-find-短路與取得所有符合的索引.js</code>（已實跑驗證）</p>
 </blockquote>
@@ -338,6 +338,40 @@ console.log(found3);   // 2
 console.log(array3);   // [1, 2, 3, 4]
 </code></pre>
 <p>同一個坑在 <code>if (x = y)</code> 也會出現，MDN 在控制流那篇明講「避免在 <code>if...else</code> 的條件中使用賦值語句」，見 <span class="wikilink" title="Obsidian 連結：控制流與錯誤處理-區塊語句-falsy-switch貫穿-throw-try-catch-finally">控制流與錯誤處理-區塊語句-falsy-switch貫穿-throw-try-catch-finally</span>。</p>
+<ul>
+<li>(g-3) <strong>延伸一個規範名詞：<code>=</code> 的左邊只能放「賦值目標（Assignment target）」。</strong>（2026-09-21 由 Gemini 對話補入）</li>
+</ul>
+<p>上面 (g-2) 之所以能成立，是因為 <code>e</code> 本身是一個合法的賦值目標。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">規範允許放在 <code>=</code> 左邊的東西只有三類</mark>：</p>
+<table>
+<thead>
+<tr>
+<th>賦值目標種類</th>
+<th>長相</th>
+<th>這一行做了什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>識別碼（Identifier，變數）</td>
+<td><code>x = 10</code></td>
+<td>把 <code>10</code> 綁到 <code>x</code> 這個變數綁定上</td>
+</tr>
+<tr>
+<td>屬性存取器（Property Accessor，物件屬性）</td>
+<td><code>obj.x = 10</code>、<code>obj['x'] = 10</code></td>
+<td>在 <code>obj</code> 這個物件上修改或新增名為 <code>x</code> 的屬性</td>
+</tr>
+<tr>
+<td>解構模式（Destructuring pattern）</td>
+<td><code>[a, b] = [1, 2]</code></td>
+<td>依位置（或鍵名）把右側的值拆開，一次綁到多個目標上</td>
+</tr>
+</tbody>
+</table>
+<p><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「屬性存取器（Property Accessor）」指的就是用點號 <code>.</code> 或中括號 <code>[]</code> 去存取物件屬性的那個語法</mark>，<code>obj.x</code> 與 <code>obj['x']</code> 都是<br />
+　　所以一句話總結：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>=</code> 的左邊除了放一般變數，也可以放 <code>obj.key</code> 這種用來讀寫物件屬性的語法</mark><br />
+　　<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">反過來說，<code>1 = x</code>、<code>f() = x</code>、<code>(a + b) = x</code> 都不是合法賦值目標，會直接丟 <code>SyntaxError: Invalid assignment target</code></mark>（<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">注意：這是解析階段就報錯，不是執行時才錯</mark>）</p>
+<p>同名不同物要分清楚：這裡講的「屬性存取器」是 <code>.</code>／<code>[]</code> 這個<strong>語法</strong>，跟物件的「存取器屬性（accessor property，getter／setter）」是兩件事，後者見 <span class="wikilink" title="Obsidian 連結：存取器屬性三種定義方式-getter-setter與資料驗證">存取器屬性三種定義方式-getter-setter與資料驗證</span>。</p>
 <hr />
 <h2 id="3-findindex-findlastindex">3. 要索引：findIndex / findLastIndex</h2>
 <pre><code class="language-js">const arr = [15, 0, 80, 7, 0, 77589];
@@ -692,6 +726,26 @@ console.log(onlineUser);   // [&quot;alice&quot;, &quot;online&quot;]
 <td>MDN 現行版本，2026-09-17 查證</td>
 </tr>
 <tr>
+<td>本篇 (g-3) 的 Gemini 對話（property accessor 為何是賦值目標）</td>
+<td>https://gemini.google.com/app/c0190f9cd3bc8a08</td>
+<td>Gemini Flash，2026-09-21 擷取</td>
+</tr>
+<tr>
+<td>屬性存取器（Property Accessors，<code>.</code> 與 <code>[]</code> 語法）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Property_accessors</td>
+<td>MDN 現行版本，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>解構賦值（Destructuring assignment）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring</td>
+<td>MDN 現行版本，2026-09-21 查證</td>
+</tr>
+<tr>
+<td>規範原文：AssignmentTargetType 與合法賦值目標</td>
+<td>https://tc39.es/ecma262/#sec-assignment-operators</td>
+<td>ECMA-262，2026-09-21 查證</td>
+</tr>
+<tr>
 <td><code>Object.entries()</code>（把物件攤成二維陣列）</td>
 <td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries</td>
 <td>MDN 現行版本，2026-09-17 查證</td>
@@ -708,7 +762,7 @@ console.log(onlineUser);   // [&quot;alice&quot;, &quot;online&quot;]
 </blockquote>
 </article>
 
-<footer>由 Gemini 對話自動整理 · 更新於 2026-09-17</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-21</footer>
 </div>
 <script>
 (function(){

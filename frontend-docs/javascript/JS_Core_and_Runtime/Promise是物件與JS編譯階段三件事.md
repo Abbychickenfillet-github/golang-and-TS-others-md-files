@@ -125,36 +125,7 @@ await b   // 'hello'    → 原始值（string）
 
 (d) <mark style="background: #D2B3FFA6;">次要備註</mark>：這也是為什麼 `async function` 一定回傳 Promise ——即使你 `return 1`，引擎也會幫你包成 `Promise.resolve(1)`；`await` 做的事就是把這層容器拆掉，把裡面的值交給你。
 
-### 二、NaN 屬於 Number，不是 undefined
-
-(e) <mark style="background: #FF5582A6;">`NaN`（Not a Number）在 JavaScript 的型別系統中屬於 `Number`</mark>，名字非常會誤導人。
-
-```js
-console.log(typeof NaN)   // "number"
-```
-
-(f) 為什麼叫「不是數字」卻是數字型別？因為 <mark style="background: #ADCCFFA6;">`NaN` 是 IEEE 754 浮點數標準裡定義的一個特殊數值（Special Value）</mark>。當數學運算算不出有意義的結果（例如 `0 / 0`、`'abc' * 2`、`Math.sqrt(-1)`），JavaScript 不會拋錯，而是回傳 `NaN` 表示「這是一個無效的數值結果」。它佔的是 Number 型別裡的一組特殊位元樣式，所以型別當然還是 Number。
-
-(g) 跟 `undefined` 的分界：
-
-| 值 | 意思 | `typeof` |
-| --- | --- | --- |
-| `undefined` | 變數尚未被賦值，或屬性不存在 | `"undefined"` |
-| `NaN` | 變數<mark style="background: #BBFABBA6;">有值、且是數值型別</mark>，但這個數值內容無效 | `"number"` |
-
-(h) <mark style="background: #FF5582A6;">`NaN` 是 JavaScript 中唯一不等於自己的值</mark>：`NaN === NaN` 是 `false`。所以不能用 `===` 去判斷。
-
-(i) <mark style="background: #BBFABBA6;">正確的檢查方式是 `Number.isNaN()`</mark>：
-
-```js
-Number.isNaN(NaN)       // true
-Number.isNaN('hello')   // false ← 正確：'hello' 本來就不是 number
-isNaN('hello')          // true  ← 陷阱：全域舊版 isNaN 會先做型別轉換
-```
-
-<mark style="background: #FF5582A6;">全域的 `isNaN()`（沒有 `Number.` 前綴的那個舊 API）會先把參數 ToNumber 轉型再判斷</mark>，所以 `isNaN('hello')` 會是 `true`，這幾乎一定不是你要的。ES2015 之後請一律用 `Number.isNaN()`，它不做任何轉型。
-
-### 三、JS 在編譯階段做了哪三件事
+### 二、JS 在編譯階段做了哪三件事
 
 (j) JavaScript 雖然常被叫「腳本語言」，但執行前一樣會經過<mark style="background: #ADCCFFA6;">編譯階段（Compilation Phase）</mark>。V8 這類引擎在這個階段做三件事：語法解析、作用域建立與記憶體配置、生成位元組碼。
 

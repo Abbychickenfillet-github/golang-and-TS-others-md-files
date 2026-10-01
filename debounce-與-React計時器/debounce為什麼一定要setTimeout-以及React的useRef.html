@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>debounce 為什麼一定要用 setTimeout？React 裡是靠 useRef 嗎？</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>debounce 為什麼一定要用 setTimeout？React 裡是靠 useRef 嗎？</h1>
+  <div class="pills"><span class="pill">#JavaScript</span><span class="pill">#debounce</span><span class="pill">#throttle</span><span class="pill">#setTimeout</span><span class="pill">#閉包</span><span class="pill">#React</span><span class="pill">#useRef</span><span class="pill">#useEffect</span><span class="pill">#效能優化</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-22</span>
+    <span>來源：</span>
+    
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="debounce-settimeoutreact-useref">debounce 為什麼一定要用 setTimeout？React 裡是靠 useRef 嗎？</h1>
+<hr />
+<h2 id="0">0. 先修正一個前提</h2>
+<blockquote>
+<p>「debounce 是避免昂貴計算用的」</p>
+</blockquote>
+<p>這句話<strong>只對了一半</strong>。「避免昂貴計算」是<strong>結果</strong>，不是<strong>定義</strong>。</p>
+<p>debounce 的定義是：<strong>把一連串密集發生的事件，壓縮成「安靜下來之後」的一次執行。</strong></p>
+<p>這個區別很重要，因為它決定了你該選 debounce 還是 throttle：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>debounce（防抖動）</th>
+<th>throttle（節流）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>語意</td>
+<td>等你<strong>停下來</strong>才做</td>
+<td>固定<strong>節奏</strong>做</td>
+</tr>
+<tr>
+<td>使用者一直操作時</td>
+<td><strong>完全不執行</strong></td>
+<td>每隔 N 毫秒執行一次</td>
+</tr>
+<tr>
+<td>執行次數</td>
+<td>一串操作 = 1 次</td>
+<td>一串操作 = 好幾次</td>
+</tr>
+<tr>
+<td>典型場景</td>
+<td>搜尋框、表單即時驗證、視窗 resize 完成後重算版面</td>
+<td>捲動視差、拖曳、無限捲動偵測、滑鼠移動軌跡</td>
+</tr>
+<tr>
+<td>判斷口訣</td>
+<td>「我只要<strong>最後</strong>那個結果」</td>
+<td>「我要<strong>過程中</strong>的取樣」</td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ 選錯的後果很具體：捲動監聽如果用 debounce，使用者<strong>捲動過程中畫面完全不更新</strong>，只有停下來才動一下 — 這通常不是你要的。</p>
+<h3 id="_1">實跑證據</h3>
+<p>用 100ms 一個字的速度打「javascript」，delay 都設 300ms（<code>demo-01-debounce-vs-throttle.js</code>）：</p>
+<pre><code class="language-text">   5ms 打出「j」
+  [throttle]    5ms 查詢「j」
+ 104ms 打出「ja」
+ 204ms 打出「jav」
+ 304ms 打出「java」
+ 404ms 打出「javas」
+  [throttle]  404ms 查詢「javas」
+ 504ms 打出「javasc」
+ 604ms 打出「javascr」
+ 704ms 打出「javascri」
+  [throttle]  704ms 查詢「javascri」
+ 805ms 打出「javascrip」
+ 904ms 打出「javascript」
+  [debounce] 1205ms 查詢「javascript」    ← 只有這一次
+</code></pre>
+<ul>
+<li>a. throttle 在打字過程中執行了 <strong>3 次</strong></li>
+<li>b. debounce 在最後一個字（904ms）之後又安靜了 300ms，在 <strong>1205ms 執行 1 次</strong></li>
+<li>c. 如果使用者永遠不停手，debounce 就<strong>永遠不執行</strong> — 這是特性不是 bug</li>
+</ul>
+<hr />
+<h2 id="1-settimeout-03">1. 問題一：一定要用 setTimeout 嗎？是要等大概 0.3 秒嗎？</h2>
+<h3 id="1-a-03">1-a. 先回答「是不是等 0.3 秒」— 不是</h3>
+<p><strong>不是「等 0.3 秒」，是「等使用者安靜 0.3 秒」。</strong></p>
+<p>差別在 <code>clearTimeout(timer)</code> 這一行。每一次事件進來都會先把上一個排程<strong>取消</strong>，再排一個新的。所以那 300 毫秒的計時器<strong>一直在被重置</strong>：</p>
+<pre><code class="language-text">時間軸（delay = 300ms）
+
+    0ms   使用者打「j」
+          └─► clearTimeout(null)    ← 傳 null 是安全的，什麼都不做
+              setTimeout #1  ─────────────────►  預定 300ms 到期
+
+  100ms   使用者打「ja」
+          └─► clearTimeout(#1)      ✂ 取消 #1（它還沒到期就被殺掉）
+              setTimeout #2  ─────────────────►  預定 400ms 到期
+
+  200ms   使用者打「jav」
+          └─► clearTimeout(#2)      ✂ 取消 #2
+              setTimeout #3  ─────────────────►  預定 500ms 到期
+
+          （使用者停手，沒有新事件進來，所以沒人去取消 #3）
+
+  500ms   #3 存活到期 ✅
+          └─► 真的執行 fetchResults(&quot;jav&quot;)
+
+
+  重點：那 300ms 一直在被重置
+        所以語意是「等使用者安靜 300ms」
+        不是「從第一次事件算起等 300ms」
+</code></pre>
+<p>所以正確的說法是：<strong>最後一次事件之後 300 毫秒</strong>才執行。300 這個數字是可調的參數，常見取值：</p>
+<ul>
+<li>a. <code>150ms ~ 200ms</code> — 即時搜尋建議（autocomplete），要讓人覺得「馬上就有反應」</li>
+<li>b. <code>300ms ~ 500ms</code> — 一般搜尋、表單驗證（人類打字停頓的自然節奏大約在這區間）</li>
+<li>c. <code>800ms ~ 1000ms</code> — 自動存草稿，不急</li>
+<li>d. <code>&gt; 1000ms</code> — 使用者會開始懷疑壞掉了</li>
+</ul>
+<h3 id="1-b">1-b. 為什麼非得有一個「延後 + 可取消」的機制</h3>
+<blockquote>
+<p>📌 2026-09-22 Gemini 對話〈安靜的定義與運作〉（https://gemini.google.com/app/a2f6534388cc91d2）問的就是「防抖裡面有 clearTimeout 嗎」，答案與本節一致：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>clearTimeout</code> 負責「取消上一次還沒燒完的計時器」，<code>setTimeout</code> 負責「重新開始倒數」，兩者合起來才構成「等你安靜下來才執行一次」</mark>。React 端的兩種做法（<code>useRef</code> 保存 timer、<code>useEffect</code> 的 cleanup 回傳 <code>() =&gt; clearTimeout(timer)</code>）分別在下方 2-a 與 2-e 有完整實跑對照，此處不重複。</p>
+</blockquote>
+<p>debounce 的語意拆開來只有兩個需求：</p>
+<ul>
+<li>a. <strong>把一個工作排到未來某個時間點</strong></li>
+<li>b. <strong>在它真的執行之前，我可以反悔取消它</strong></li>
+</ul>
+<p>JavaScript 是<strong>單執行緒</strong>的，而且<strong>沒有 <code>sleep()</code></strong>。你不能寫「先卡在這裡 300 毫秒再繼續」，因為那會凍結整個 UI（滑鼠不能點、動畫停住、輸入框打不了字）。</p>
+<pre><code class="language-js">// ❌ 這種東西在 JS 裡是災難
+function sleep(ms) {
+  const end = Date.now() + ms;
+  while (Date.now() &lt; end) {}   // 卡死主執行緒 300ms，整個頁面凍結
+}
+</code></pre>
+<p>所以你唯一能做的是：<strong>把工作交給事件迴圈（event loop），叫它晚點再回來找你。</strong> 而在標準 Web API 裡，同時滿足「延後」和「可取消」這兩個條件、又到處都能用的，就只有 <code>setTimeout</code> / <code>clearTimeout</code> 這一對。</p>
+<h3 id="1-c">1-c. 那有沒有別的做法？誠實比較</h3>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>能延後？</th>
+<th>能取消？</th>
+<th>能表達「安靜 N 毫秒」？</th>
+<th>判定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>setTimeout</code> / <code>clearTimeout</code></td>
+<td>✅ 任意毫秒</td>
+<td>✅</td>
+<td>✅</td>
+<td><strong>實務唯一解</strong></td>
+</tr>
+<tr>
+<td><code>scheduler.postTask</code> + <code>TaskController</code></td>
+<td>✅ 有 <code>delay</code> 選項</td>
+<td>✅ <code>controller.abort()</code></td>
+<td>✅</td>
+<td>語意上更好，但<strong>支援度有限</strong></td>
+</tr>
+<tr>
+<td><code>requestAnimationFrame</code></td>
+<td>⚠️ 只能到「下一幀」約 16.7ms</td>
+<td>✅ <code>cancelAnimationFrame</code></td>
+<td>❌ 做不到 300ms 語意</td>
+<td>適合 scroll / resize 的 <strong>throttle</strong>，不是 debounce</td>
+</tr>
+<tr>
+<td><code>requestIdleCallback</code></td>
+<td>⚠️ 「瀏覽器有空的時候」</td>
+<td>✅ <code>cancelIdleCallback</code></td>
+<td>❌ 語意是「閒」不是「安靜」</td>
+<td>適合低優先度背景工作</td>
+</tr>
+<tr>
+<td><code>Promise</code> + <code>AbortController</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td><strong>底層還是 setTimeout</strong>，只是換個包裝</td>
+</tr>
+<tr>
+<td><code>Date.now()</code> 比時間戳</td>
+<td>❌ 需要外部 tick 來源</td>
+<td>—</td>
+<td>❌ 抓不到「最後一次」</td>
+<td>這是 <strong>throttle</strong> 的實作法，不是 debounce</td>
+</tr>
+<tr>
+<td>CSS transition / Web Animations</td>
+<td>✅</td>
+<td>✅</td>
+<td>❌ 沒有回呼語意</td>
+<td>不適用</td>
+</tr>
+</tbody>
+</table>
+<p><strong>唯一真正的替代品是 Scheduler API：</strong></p>
+<pre><code class="language-js">// 語意更漂亮：延後 + 優先度 + 可取消，全部內建
+let controller = null;
+function search(keyword) {
+  controller?.abort();                       // 取消上一個排程
+  controller = new TaskController();
+  scheduler.postTask(() =&gt; fetchResults(keyword), {
+    delay: 300,
+    priority: &quot;user-visible&quot;,
+    signal: controller.signal,
+  }).catch((e) =&gt; { if (e.name !== &quot;AbortError&quot;) throw e; });
+}
+</code></pre>
+<p>⚠️ 但 MDN 明確標示 <code>scheduler.postTask()</code> 是 <strong>limited availability、not Baseline</strong>（Chromium 系列支援，Safari 與 Firefox 尚未全面跟上）。所以除非你只需要支援 Chromium，<strong>正式專案還是寫 <code>setTimeout</code></strong>。</p>
+<p><strong>結論</strong>：不是「一定要」用 setTimeout，而是「除了它以外沒有到處都能用的東西」。它是實務上的唯一解。</p>
+<h3 id="1-d">1-d. 你這段程式碼的四個細節</h3>
+<pre><code class="language-js">function debounce(fn, delay) {
+  let timer = null;                            // ← 1
+  return function (...args) {                  // ← 2
+    clearTimeout(timer);                       // ← 3
+    timer = setTimeout(() =&gt; {
+      fn.apply(this, args);                    // ← 4
+    }, delay);
+  };
+}
+</code></pre>
+<ol>
+<li>
+<p><strong><code>let timer = null</code> 是被閉包鎖住的私有變數。</strong> 每呼叫一次 <code>debounce()</code> 就產生一個獨立的 <code>timer</code>，兩個不同的搜尋框互不干擾。這個變數活多久？活到那個回傳的函式不再被任何人引用為止 — 因為函式物件的 <code>&lt;span class="wikilink" title="Obsidian 連結：Environment"&gt;Environment&lt;/span&gt;</code> 一直指著這個 Environment Record，GC 不敢動它。</p>
+</li>
+<li>
+<p><strong>回傳的這個 function expression 才是真正的閉包。</strong> 它必須用 <code>function</code> 而不是箭頭函式，因為第 4 點要用到 <code>this</code>。</p>
+</li>
+<li>
+<p><strong><code>clearTimeout(timer)</code> 不用先判斷 null。</strong> 規範規定：傳入 <code>null</code>、<code>undefined</code>、或一個早就到期的 id，<code>clearTimeout</code> 都會<strong>靜靜地什麼都不做</strong>，不會報錯。所以 <code>if (timer !== null)</code> 可以省略 — 你貼的這版已經省了，是對的。</p>
+</li>
+<li>
+<p><strong><code>fn.apply(this, args)</code> 的用意是「把呼叫端的 <code>this</code> 原封不動傳下去」。</strong> 如果有人這樣用：<br />
+<code>js
+   obj.handler = debounce(function () { console.log(this.name); }, 300);
+   obj.handler();          // 希望 this 是 obj</code><br />
+   沒有 <code>apply(this, ...)</code> 的話，<code>this</code> 會變成 <code>undefined</code>（嚴格模式）或 <code>window</code>。<br />
+   ⚠️ 也因為這樣，<strong>回傳的函式不能寫成箭頭函式</strong> — 箭頭函式沒有自己的 <code>this</code>，會往外抓到 <code>debounce</code> 定義時的 <code>this</code>，整個機制就壞了。</p>
+</li>
+</ol>
+<p><strong>還缺的東西</strong>：你這版沒有 <code>cancel()</code>（元件卸載時放棄排隊中的那次）和 <code>flush()</code>（使用者按 Enter，不想再等）。正式專案的完整版寫在 <code>demo-03-debounce加強版.js</code>，實跑結果：</p>
+<pre><code class="language-text">=== leading: true, trailing: true ===
+     5ms 執行「j」          ← 第一下立刻做（leading edge）
+   505ms 執行「jav」        ← 最後一下也做（trailing edge）
+
+=== flush()：使用者按 Enter，不想再等 ===
+  pending? true
+   906ms 執行「react」      ← 立刻執行，不等 300ms
+  flush 後 pending? false
+
+=== cancel()：元件 unmount，直接放棄 ===
+  400ms 後確認：什麼都沒執行 ✅
+</code></pre>
+<p><strong>一個 TypeScript 的坑</strong>：<code>setTimeout</code> 的回傳值在瀏覽器是 <code>number</code>，在 Node.js 是 <code>NodeJS.Timeout</code> 物件。寫共用程式碼時型別要用：</p>
+<pre><code class="language-ts">let timer: ReturnType&lt;typeof setTimeout&gt; | null = null;
+</code></pre>
+<hr />
+<h2 id="2-react-useref">2. 問題二：在 React 是靠 useRef 來處理嗎？</h2>
+<h3 id="2-a">2-a. 先把因果講清楚</h3>
+<p><strong><code>useRef</code> 不是「React 版的 debounce 實作方式」。</strong> debounce 的核心永遠是 <code>setTimeout</code> + <code>clearTimeout</code>，這一點在 React 裡完全沒變。</p>
+<p><code>useRef</code> 解決的是<strong>另一個問題</strong>：<strong>timer id 要怎麼在 re-render 之間存活下來。</strong></p>
+<p>在原生 JS 版，這個問題由<strong>閉包</strong>免費解決了 — <code>let timer</code> 被鎖在 <code>debounce()</code> 的作用域裡，回傳的函式一直看得到它。</p>
+<p>但在 React 裡，<strong>元件函式每次 render 都會從頭再跑一次</strong>，所以：</p>
+<pre><code class="language-jsx">function SearchBox() {
+  let timer = null;          // ❌ 每次 render 都重新變回 null
+  // ...
+}
+</code></pre>
+<p>第二次 render 時，<code>timer</code> 又是 <code>null</code> 了，你<strong>永遠清不掉上一次排的計時器</strong> — debounce 就失效了，每打一個字都會發一次請求。</p>
+<h3 id="2-b">2-b. 實跑證據</h3>
+<p><code>demo-02-為什麼React需要useRef.js</code> 用純 JS 模擬了 React 的 render 行為：</p>
+<pre><code class="language-text">=== ❌ 用 local 變數 ===
+--- 第 1 次 render ---
+render 開始時 timer = null
+--- 第 2 次 render ---
+render 開始時 timer = null          ← 上一次的 id 消失了，清不掉
+
+=== ✅ 用 useRef ===
+--- 第 1 次 render ---
+render 開始時 timerRef.current = null
+--- 第 2 次 render ---
+render 開始時 timerRef.current = 上一次留下來的 id     ← ✅ 存活了
+--- 第 3 次 render ---
+render 開始時 timerRef.current = 上一次留下來的 id
+</code></pre>
+<h3 id="2-c">2-c. 概念對照表</h3>
+<table>
+<thead>
+<tr>
+<th>原生 JS 版</th>
+<th>React 版</th>
+<th>為什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>let timer = null</code>（閉包私有變數）</td>
+<td><code>const timerRef = useRef(null)</code></td>
+<td>都是「跨多次呼叫存活、且不對外公開」的可變盒子</td>
+</tr>
+<tr>
+<td>閉包的 Environment Record</td>
+<td>React 內部的 fiber 節點</td>
+<td>兩者都是「掛在別的地方、活得比一次執行久」的儲存空間</td>
+</tr>
+<tr>
+<td><code>timer</code></td>
+<td><code>timerRef.current</code></td>
+<td>ref 物件本身永遠是同一個，只有 <code>.current</code> 在變</td>
+</tr>
+<tr>
+<td>手動 <code>clearTimeout</code></td>
+<td><code>useEffect</code> 的 cleanup 函式</td>
+<td>React 幫你在對的時機呼叫</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>useRef</code> 的兩個關鍵性質</strong>（這才是它被選中的原因）：</p>
+<ul>
+<li>a. <strong>同一個物件跨 render 存活</strong> — React 把它存在 fiber 上，不隨函式執行結束而消失</li>
+<li>b. <strong>改 <code>.current</code> 不會觸發 re-render</strong> — timer id 純粹是內部狀態，不該讓畫面重繪</li>
+</ul>
+<h3 id="2-d-usestate-timer">2-d. 為什麼不能用 useState 存 timer</h3>
+<pre><code class="language-jsx">// ❌ 反例
+const [timer, setTimer] = useState(null);
+const handleChange = (e) =&gt; {
+  clearTimeout(timer);                    // ⚠️ 讀到的可能是上一輪 render 的舊值
+  setTimer(setTimeout(() =&gt; {...}, 300)); // ⚠️ 每打一個字就多一次無謂的 re-render
+};
+</code></pre>
+<p>三個問題：</p>
+<ul>
+<li>a. <strong>每次 <code>setTimer</code> 都會觸發 re-render</strong> — 一個純內部的計時器 id 竟然在驅動畫面重繪，完全沒必要</li>
+<li>b. <strong>state 更新是非同步的</strong> — 這一輪的 <code>handleChange</code> 讀到的 <code>timer</code> 是「這一次 render 當下的快照」，不保證是最新排的那個</li>
+<li>c. <strong>語意錯誤</strong> — state 的定義是「會影響畫面的資料」，timer id 不影響畫面</li>
+</ul>
+<h3 id="2-e-react-demo-04-reactjsx">2-e. 三種 React 寫法（完整程式碼在 <code>demo-04-React三種寫法.jsx</code>）</h3>
+<h4 id="auseref-timer">寫法 A：<code>useRef</code> 存 timer</h4>
+<p>最接近你原本的心智模型。適用於「要 debounce 的是<strong>一個動作</strong>」，例如送出表單、上報埋點。</p>
+<pre><code class="language-jsx">function SearchBoxA() {
+  const [keyword, setKeyword] = useState(&quot;&quot;);
+  const timerRef = useRef(null);
+
+  const handleChange = (e) =&gt; {
+    const value = e.target.value;      // ⚠️ 先取出來
+    setKeyword(value);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() =&gt; fetchResults(value), 300);
+  };
+
+  useEffect(() =&gt; () =&gt; clearTimeout(timerRef.current), []);  // ⚠️ 卸載時一定要清
+
+  return &lt;input value={keyword} onChange={handleChange} /&gt;;
+}
+</code></pre>
+<h4 id="b-usedebouncedvalue-hook">⭐ 寫法 B：自訂 <code>useDebouncedValue</code> hook — <strong>最推薦</strong></h4>
+<p><strong>關鍵洞察：<code>useEffect</code> 的 cleanup 函式，在語意上「就是」<code>clearTimeout</code>。</strong></p>
+<p>React 的 effect 執行順序是：依賴變了 → <strong>先跑上一次的 cleanup</strong> → 再跑新的 effect。這跟 debounce 的「先取消舊計時器 → 再排新計時器」<strong>完全同構</strong>。所以你根本不用自己管 timer：</p>
+<pre><code class="language-jsx">function useDebouncedValue(value, delay = 300) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() =&gt; {
+    const id = setTimeout(() =&gt; setDebounced(value), delay);
+    return () =&gt; clearTimeout(id);      // ← cleanup 就是 clearTimeout
+  }, [value, delay]);
+  return debounced;
+}
+
+function SearchBoxB() {
+  const [keyword, setKeyword] = useState(&quot;&quot;);                 // 每次打字都更新 → input 不卡
+  const debouncedKeyword = useDebouncedValue(keyword, 300);   // 安靜 300ms 才變
+
+  useEffect(() =&gt; {
+    if (!debouncedKeyword) return;
+    const controller = new AbortController();
+    fetchResults(debouncedKeyword, { signal: controller.signal });
+    return () =&gt; controller.abort();    // 順手解掉「舊請求比新請求晚回來」的競態問題
+  }, [debouncedKeyword]);
+
+  return &lt;input value={keyword} onChange={(e) =&gt; setKeyword(e.target.value)} /&gt;;
+}
+</code></pre>
+<p><strong>為什麼這個寫法最好</strong>：</p>
+<ul>
+<li>a. 完全沒有手動的 <code>clearTimeout</code>，unmount 時 React 自動幫你清 — 少一個記憶體洩漏的來源</li>
+<li>b. 思考單位從「debounce 一個<strong>回呼</strong>」變成「debounce 一個<strong>值</strong>」，比較符合 React 的宣告式思維</li>
+<li>c. <code>keyword</code>（即時，給 input 用）和 <code>debouncedKeyword</code>（延遲，給 API 用）分開，輸入框永遠不卡</li>
+<li>d. 這個 hook 可以在整個專案重複使用</li>
+</ul>
+<h4 id="cusememo-debounce">寫法 C：<code>useMemo</code> 包 debounce 函式</h4>
+<pre><code class="language-jsx">const debouncedFetch = useMemo(
+  () =&gt; debounce((kw) =&gt; fetchResults(kw, userId), 300),
+  [userId]                              // ⚠️ 依賴陣列給空的會產生 stale closure
+);
+useEffect(() =&gt; () =&gt; debouncedFetch.cancel?.(), [debouncedFetch]);
+</code></pre>
+<p>⚠️ <strong>stale closure（過期閉包）陷阱</strong>：如果依賴陣列寫成 <code>[]</code>，<code>useMemo</code> 只會在第一次 render 建立這個函式，它內部抓到的 <code>userId</code> <strong>永遠停在第一次 render 的值</strong>。使用者切換帳號後，還是拿舊的 <code>userId</code> 去查 — 而且不會報錯，很難抓。</p>
+<p><strong>React 19.2（2025-10-01 釋出）新增的 <code>useEffectEvent</code> 就是為了解決這類問題</strong>：它讓你在 effect 裡呼叫一個「永遠看得到最新 props / state、但不需要放進依賴陣列」的函式。不過它<strong>不是拿來做 debounce 的</strong>，只是剛好能治 stale closure 這個併發症。</p>
+<h3 id="2-f-react">2-f. React 專屬的四個坑</h3>
+<ul>
+<li>
+<p>a. <strong>忘記在 unmount 時清計時器</strong> — 元件已經消失，300ms 後那個回呼還是會跑，如果裡面有 <code>setState</code> 就會做白工（React 18 之後不再警告，但依然是浪費）</p>
+</li>
+<li>
+<p>b. <strong>在非同步回呼裡讀 <code>e.target</code></strong> — 一定要先 <code>const value = e.target.value</code> 取出來。React 17 之前有<strong>事件池（event pooling）</strong>機制，事件物件會被回收再利用，等 300ms 之後再讀 <code>e.target.value</code> 會拿到 <code>null</code>。React 17 已經移除事件池，但這個習慣還是要保持（而且舊 codebase 常見）。</p>
+</li>
+<li>
+<p>c. <strong>StrictMode 下開發模式 effect 會跑兩次</strong> — 你會看到計時器被排兩次又清一次。這是 React 故意的（用來揪出沒寫 cleanup 的 effect），正式打包版不會發生。如果你的 effect 有正確的 cleanup，這個行為不會造成問題 — 反過來說，<strong>如果 StrictMode 下出問題，就代表你的 cleanup 沒寫對</strong>。</p>
+</li>
+<li>
+<p>d. <strong><code>useDeferredValue</code> 不是 debounce</strong> — 這是很常見的誤會：</p>
+</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>useDebouncedValue</code>（自己寫）</th>
+<th><code>useDeferredValue</code>（React 18+ 內建）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>機制</td>
+<td>時間（setTimeout）</td>
+<td>排程優先度（concurrent rendering）</td>
+</tr>
+<tr>
+<td>等多久</td>
+<td>你指定的固定毫秒</td>
+<td>沒有固定時間，看主執行緒忙不忙</td>
+</tr>
+<tr>
+<td>能減少 API 呼叫嗎</td>
+<td>✅ 可以</td>
+<td>❌ <strong>不行</strong>，值最後還是會全部到達</td>
+</tr>
+<tr>
+<td>解決什麼</td>
+<td>網路請求太多、計算太貴</td>
+<td><strong>大量清單重繪造成的卡頓</strong></td>
+</tr>
+<tr>
+<td>打字時</td>
+<td>輸入框流暢，請求只發一次</td>
+<td>輸入框流暢，重繪被降級為低優先度</td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ 如果你的目標是「少發幾次 API 請求」，<code>useDeferredValue</code> <strong>完全幫不上忙</strong>，必須用 debounce。</p>
+<hr />
+<h2 id="3">3. 一句話總結</h2>
+<ul>
+<li>
+<p>a. <strong>問題一</strong>：<code>setTimeout</code> 不是「規定」而是「實務上唯一到處都能用的、同時具備延後與可取消的 API」。<code>scheduler.postTask</code> 語意更好但支援度不足。而且不是「等 0.3 秒」，是「等<strong>安靜</strong> 0.3 秒」，關鍵在 <code>clearTimeout</code> 的重置。</p>
+</li>
+<li>
+<p>b. <strong>問題二</strong>：是，但要理解因果 — <code>useRef</code> 不是 debounce 的實作，它是用來<strong>取代閉包</strong>、讓 timer id 跨 render 存活的那個盒子。而更 React 的做法是根本不碰 timer，改用 <code>useEffect</code> 的 cleanup（寫法 B），因為 cleanup 的執行時機跟 <code>clearTimeout</code> 完全同構。</p>
+</li>
+</ul>
+<hr />
+<h2 id="4">4. 關聯筆記（附上關聯的理由）</h2>
+<ul>
+<li>
+<p>a. <code>iThome鐵人賽-2026/文章-閉包活多久-從debounce的timer看Environment-Record存活時間.md</code><br />
+<strong>理由</strong>：本文第 1-d 節說「<code>let timer</code> 被閉包鎖住」，那篇追的正是「這個變數到底活到什麼時候才被 GC」。本文問「怎麼用」，那篇問「活多久」。</p>
+</li>
+<li>
+<p>b. <code>JS-資料型別/JavaScript資料型別總覽-原始型別與物件.md</code> 第 6 節與第 7 節<br />
+<strong>理由</strong>：第 6 節就是拿這段 debounce 解釋「為什麼 timer 要初始化成 <code>null</code> 而不是 <code>undefined</code>」，第 7 節解釋 <code>&lt;span class="wikilink" title="Obsidian 連結：Environment"&gt;Environment&lt;/span&gt;</code> 與 Environment Record — 兩篇是同一個機制的前後段。</p>
+</li>
+<li>
+<p>c. <code>00-V8引擎完整管線-Parse到Deoptimization.md</code><br />
+<strong>理由</strong>：本文提到「V8 在 parse 階段就決定哪些變數要 context allocation（配置到 heap）」，<code>timer</code> 就是被內層函式引用而必須放進 Context 的典型例子，那篇有完整的管線位置圖。</p>
+</li>
+<li>
+<p>d. <code>iThome鐵人賽-2026/草稿-useState為什麼沒更新-從getter與Proxy看React的設計選擇.md</code><br />
+<strong>理由</strong>：本文第 2-d 節說「state 更新是非同步的，讀到的是這一次 render 的快照」，那篇是這件事的完整推導。想清楚那篇，就能理解為什麼 timer 不能放 state。</p>
+</li>
+<li>
+<p>e. <code>frontend-docs/</code>（效能相關筆記）<br />
+<strong>理由</strong>：debounce 與 throttle 是「減少工作量」的手段，虛擬清單、<code>useDeferredValue</code>、<code>React.memo</code> 是「加快工作」的手段 — 遇到卡頓時要先判斷是哪一類問題，才知道該拿哪個工具。</p>
+</li>
+</ul>
+<hr />
+<h2 id="5">5. 延伸練習</h2>
+<ul>
+<li>a. <a href="https://leetcode.com/problems/debounce/">LeetCode 2627. Debounce</a> — 直接實作本文的函式，寫完就懂 <code>clearTimeout</code> 的重置</li>
+<li>b. <a href="https://leetcode.com/problems/throttle/">LeetCode 2676. Throttle</a> — Premium 題，但概念上就是本文第 0 節的對照組</li>
+<li>c. <a href="https://leetcode.com/problems/cache-with-time-limit/">LeetCode 2622. Cache With Time Limit</a> — <code>setTimeout</code> + <code>Map</code>，練習「排程 + 取消」的另一種組合</li>
+<li>d. <a href="https://leetcode.com/problems/sleep/">LeetCode 2621. Sleep</a> — 用 Promise 包 <code>setTimeout</code>，理解「為什麼 JS 沒有同步的 sleep」</li>
+<li>e. <a href="https://leetcode.com/problems/promise-time-limit/">LeetCode 2637. Promise Time Limit</a> — <code>setTimeout</code> 當逾時哨兵，跟 debounce 是同一個 API 的不同用法</li>
+</ul>
+<hr />
+<h2 id="6">6. 檔案清單</h2>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>內容</th>
+<th>能不能直接跑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>demo-01-debounce-vs-throttle.js</code></td>
+<td>模擬打字，印出兩者的時間軸差異</td>
+<td>✅ <code>node demo-01-debounce-vs-throttle.js</code></td>
+</tr>
+<tr>
+<td><code>demo-02-為什麼React需要useRef.js</code></td>
+<td>用純 JS 模擬 React re-render，證明 local 變數會重生</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>demo-03-debounce加強版.js</code></td>
+<td>含 leading / trailing / cancel / flush / pending</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>demo-04-React三種寫法.jsx</code></td>
+<td>三種正確寫法 + 兩個反例</td>
+<td>❌ 閱讀用，需在 React 專案裡執行</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7">7. 參考來源</h2>
+<p>所有 URL 於 <strong>2026-09-05</strong> 查閱。</p>
+<ul>
+<li>a. MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/setTimeout">setTimeout()</a> 與 <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/clearTimeout">clearTimeout()</a>（「傳入無效 id 不會報錯」的規範說明）</li>
+<li>b. MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/API/Scheduler/postTask">Scheduler: postTask() method</a>（<code>delay</code> 選項、<code>TaskController</code> 取消機制，以及 <strong>limited availability / not Baseline</strong> 的支援度標示）</li>
+<li>c. MDN — <a href="https://developer.mozilla.org/en-US/docs/Web/API/Scheduler/yield">Scheduler: yield() method</a></li>
+<li>d. WICG — <a href="https://wicg.github.io/scheduling-apis/">Prioritized Task Scheduling 規範</a> 與 <a href="https://github.com/WICG/scheduling-apis/blob/main/explainers/prioritized-post-task.md">prioritized-post-task explainer</a></li>
+<li>e. React 官方文件 — <a href="https://react.dev/reference/react/useRef">useRef</a>（「改 <code>.current</code> 不會觸發 re-render」）</li>
+<li>f. React 官方文件 — <a href="https://react.dev/reference/react/useEffect">useEffect：清理函式的執行時機</a></li>
+<li>g. React 官方文件 — <a href="https://react.dev/learn/synchronizing-with-effects">Synchronizing with Effects / You Might Not Need an Effect</a></li>
+<li>h. React 官方文件 — <a href="https://react.dev/reference/react/useDeferredValue">useDeferredValue</a></li>
+<li>i. LogRocket — <a href="https://blog.logrocket.com/react-19-2-is-here/">React 19.2 is here: Activity API, useEffectEvent, and more</a>（發表於 <strong>2025-10-13</strong>，確認 <code>useEffectEvent</code> 於 <strong>React 19.2（2025-10-01 釋出）</strong>轉為穩定）</li>
+<li>j. LogRocket — <a href="https://blog.logrocket.com/react-useeffectevent/">React useEffectEvent: Goodbye to stale closure headaches</a></li>
+<li>k. React 官方文件 — <a href="https://react.dev/blog/2020/08/10/react-v17-rc#no-event-pooling">ReactDOM 事件池移除說明（React 17 release notes）</a></li>
+</ul>
+<p><strong>驗證環境</strong>：Node.js v22，執行日期 2026-09-05。所有時間軸輸出皆為實跑結果，非手寫。</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-22</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

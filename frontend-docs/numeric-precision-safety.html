@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>數值精度與安全性統整</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>數值精度與安全性統整</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#IEEE754</span><span class="pill">#浮點數</span><span class="pill">#精度</span><span class="pill">#FutureSign</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-28</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/7cbc5bd991e2ed73" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/926d66c18ed36bf2" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/e374c0067f2eb277" target="_blank" rel="noopener">原始對話 3</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="_1">數值精度與安全性統整</h1>
+<h2 id="javascript">問題根源：JavaScript 浮點數精度</h2>
+<h3 id="100-99">為什麼 100 會變成 99？</h3>
+<p>JavaScript 使用 IEEE 754 雙精度浮點數，部分十進位數字無法精確表示：</p>
+<pre><code class="language-javascript">0.1 + 0.2 === 0.3       // false
+0.1 + 0.2                // 0.30000000000000004
+
+100 * 0.1               // 9.999999999999998
+(100).toFixed(2)        // &quot;100.00&quot; ✓ (字串)
+Number((100).toFixed(2)) // 100 ✓ (數字)
+</code></pre>
+<p>常見觸發場景：<br />
+- 小數點運算：<code>price * quantity</code>、<code>amount / 100</code><br />
+- 百分比計算：<code>total * 0.99</code><br />
+- 稅金/手續費：<code>price * 0.05</code></p>
+<hr />
+<h2 id="ieee-754-012026-09-28">底層機制：IEEE 754 雙精度浮點數怎麼存 0.1（2026-09-28 追加）</h2>
+<h3 id="_2">浮點數不等於小數</h3>
+<p>「小數」是數學概念，「浮點數（floating-point）」是電腦用<strong>有限位元</strong>模擬小數的一種資料格式（IEEE 754 是最常見標準）。電腦表示小數還有另一種做法「定點數（fixed-point）」，小數點位置固定、不會有誤差，但表示範圍較小，常見於金融計帳（如 C# 的 <code>decimal</code>、Python 的 <code>Decimal</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>類型</th>
+<th>小數點位置</th>
+<th>特點</th>
+<th>常見用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>浮點數 Floating-point</td>
+<td>可動（科學記號 M×2ᴱ）</td>
+<td>範圍極大，但部分小數<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">無法精確表示</mark></td>
+<td>科學計算、3D 繪圖</td>
+</tr>
+<tr>
+<td>定點數 Fixed-point / Decimal</td>
+<td>固定</td>
+<td><mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">完全精確</mark>，範圍較小</td>
+<td>金融、會計</td>
+</tr>
+</tbody>
+</table>
+<h3 id="64-bit">64-bit 雙精度的位元配置</h3>
+<p><mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">64 位元</mark>指的是整體記憶體空間（正負號＋指數＋尾數），不是尾數本身的長度：</p>
+<table>
+<thead>
+<tr>
+<th>正負號 Sign</th>
+<th>指數 Exponent</th>
+<th>尾數 Mantissa / Fraction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 bit</td>
+<td>11 bits</td>
+<td>52 bits</td>
+</tr>
+</tbody>
+</table>
+<p>尾數欄位只存 52 位，但因為二進位科學記號法（如 <code>1.1001...×2⁻⁴</code>）小數點左邊一定是隱含的 <code>1</code>（不用花記憶體存），所以<strong>實際精度是 1 + 52 = 53 位</strong>。</p>
+<h3 id="bias-475">指數為何要加偏移量（Bias）：從十進制 4.75 推導到硬體比大小</h3>
+<p><strong>a. 換成二進位科學記號法，小數點左邊永遠只會是 1</strong>：十進位 <code>4.75</code> 轉二進位是 <code>100.11₂</code>，把小數點左移 2 位、指數補回 <code>×2²</code>，寫成 <code>1.0011₂ × 2²</code>。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">二進位只有 0 與 1 兩個數字，任何非零數字寫成科學記號法，小數點左邊一定且只會是 <code>1</code></mark>——這正是上面「隱藏位元（Hidden Bit）」可以直接不存、省下 1 個位元的原因。</p>
+<p><strong>b. 如果指數直接用二補數（Two's complement）存，硬體比大小會出錯</strong>：二補數裡負數的最高位元是 <code>1</code>（如 <code>-1</code> 存成 <code>1111 1111</code>），正數的最高位元是 <code>0</code>。若指數直接用二補數存，會出現負指數（如 <code>2⁻¹</code>）的位元開頭是 <code>1</code>、正指數（如 <code>2¹</code>）開頭是 <code>0</code>，<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">硬體逐位元比大小時負指數反而看起來比正指數大</mark>，ALU 無法直接把整個浮點數當一般二進位整數做字典序比較，必須先拆解符號位、判斷正負再做轉換，電路變得複雜笨重。</p>
+<p><strong>c. IEEE 754 的解法：指數全部加一個固定偏移量（Bias）</strong>，把所有可能的指數整體平移成非負整數再存。單精度的 Bias 是 <code>127</code>：實際指數 <code>-1</code> 存成 <code>-1+127=126</code>（<code>0111 1110</code>），實際指數 <code>+1</code> 存成 <code>1+127=128</code>（<code>1000 0000</code>）。因為 <code>128 &gt; 126</code>，位元的數值順序就跟直覺的指數大小順序一致，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">硬體可以直接把整個 64-bit（或 32-bit）當成一般無符號整數做字典序比較，不用為指數另做特殊轉譯電路</mark>，這也是浮點數比大小可以跟整數共用比較邏輯的原因。</p>
+<h3 id="01-02-fpu">逐步拆解：0.1 + 0.2 在浮點運算器（FPU）裡怎麼算</h3>
+<ol>
+<li><strong>十進制轉二進制</strong>：<code>0.1</code> 轉成二進制是無限循環小數 <code>1.1001100110011...×2⁻⁴</code>，<code>0.2</code> 是 <code>1.1001100110011...×2⁻³</code>（推導方式見 <span class="wikilink" title="Obsidian 連結：進制轉換-除2取餘數法原理|乘 2 取整法">乘 2 取整法</span>）。</li>
+<li><strong>存入暫存器（截斷並捨入）</strong>：尾數只能留 53 位精度，電腦用「捨入到最接近，正中間進到偶數」（Ties to Even，俗稱銀行家捨入法）處理超出的部分。以 <code>0.1</code> 為例，裁切到第 53 位後，因為後面還有其他 <code>1</code>，會強制進位，導致 <code>0.1</code> 存進電腦後<strong>實際數值微幅偏大</strong>，約為 <code>0.1000000000000000055511151231257827021181583404541015625</code>。</li>
+<li><strong>對階與相加</strong>：兩個浮點數相加前要先把指數調整一致（對階），<code>0.1</code> 的指數要提升到跟 <code>0.2</code> 一樣的 <code>2⁻³</code>，尾數對應右移一位再相加。</li>
+<li><strong>規格化與再次捨入</strong>：加總結果轉回科學記號形式，尾數超出 53 位的部分再捨入一次，最終换算回十進制會是 <code>0.3000000000000000444089209850062616169452667236328125</code>，印出時精簡顯示成 <code>0.30000000000000004</code>。</li>
+</ol>
+<p><mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">重點：<code>0.1 + 0.2 !== 0.3</code> 不是 JavaScript 的 bug，而是所有採用 IEEE 754 雙精度浮點數的語言（Python、Java、C++⋯）共同的行為</mark>，根源在於十進制的 0.1／0.2 換算成二進制都是無限循環小數，必須截斷捨入才能塞進 53 位精度的尾數欄位。</p>
+<blockquote>
+<p>來源對話：<a href="https://gemini.google.com/app/7cbc5bd991e2ed73">十進制 0.1 轉二進制解析</a>、<a href="https://gemini.google.com/app/926d66c18ed36bf2">浮點數與小數的差異解析</a>、<a href="https://gemini.google.com/app/e374c0067f2eb277">浮點數公式設計原理解析</a>（2026-09-28）</p>
+</blockquote>
+<hr />
+<h2 id="tofixed-vs-toprecision"><code>.toFixed()</code> vs <code>.toPrecision()</code></h2>
+<h3 id="tofixeddigits">toFixed(digits)</h3>
+<p><strong>用途</strong>：固定小數位數（四捨五入到指定位數）</p>
+<pre><code class="language-javascript">(99.996).toFixed(2)     // &quot;100.00&quot;  ✓ 正確四捨五入
+(99.994).toFixed(2)     // &quot;99.99&quot;
+(123.456).toFixed(2)    // &quot;123.46&quot;
+</code></pre>
+<p><strong>特性</strong>：<br />
+- 返回 <strong>字串</strong>，不是數字<br />
+- 小數位數由參數決定<br />
+- 會進行四捨五入<br />
+- 安全用於顯示/傳輸</p>
+<h3 id="toprecisiondigits">toPrecision(digits)</h3>
+<p><strong>用途</strong>：有效數字精度（包括整數部分）</p>
+<pre><code class="language-javascript">(100).toPrecision(3)    // &quot;1.00e+2&quot; (科學記號！)
+(100).toPrecision(4)    // &quot;100.0&quot;
+(123.456).toPrecision(5) // &quot;123.46&quot;
+</code></pre>
+<p><strong>特性</strong>：<br />
+- 返回 <strong>字串</strong><br />
+- 指定的是<strong>總有效數字</strong>，不是小數位數<br />
+- 大數字易產生科學記號<br />
+- <strong>不推薦用於金額</strong></p>
+<hr />
+<h2 id="futuresign">安全規則（FutureSign 應用）</h2>
+<h3 id="_3">❌ 危險：直接浮點數運算顯示</h3>
+<pre><code class="language-javascript">// 禁止！可能顯示 99.99999999
+const total = price * quantity;
+return &lt;span&gt;{total}&lt;/span&gt;;
+
+// 禁止！字串混亂
+const display = (100.1).toString(); // &quot;100.1&quot; 不一致
+</code></pre>
+<h3 id="1">✅ 安全方案 1：整數分幣（推薦用於金額）</h3>
+<p><strong>原則</strong>：所有金額內部用分（整數）存儲，計算完後再轉元顯示</p>
+<pre><code class="language-javascript">// 後端響應：金額以分存儲
+{
+  price: 9999,  // 99.99 元
+  quantity: 2,
+  total: 19998  // 199.98 元
+}
+
+// 前端顯示函式
+const formatCurrency = (cents) =&gt; {
+  const yuan = Math.floor(cents / 100);
+  const fen = cents % 100;
+  return `${yuan}.${fen.toString().padStart(2, '0')}`;
+};
+
+formatCurrency(19998) // &quot;199.98&quot; ✓ 安全
+</code></pre>
+<p><strong>優點</strong>：<br />
+- 完全避免浮點數精度問題<br />
+- 計算都在整數域（不損失精度）<br />
+- 金融級安全標準</p>
+<h3 id="2-tofixed">✅ 安全方案 2：用 toFixed 進行顯示</h3>
+<pre><code class="language-javascript">// 計算後立即轉字串，限制位數
+const displayPrice = (price) =&gt; {
+  // 1. 先舍入到小數位數
+  const rounded = Math.round(price * 100) / 100;
+  // 2. 轉成字串並固定位數
+  return rounded.toFixed(2);
+};
+
+displayPrice(99.996) // &quot;100.00&quot; ✓
+displayPrice(99.994) // &quot;99.99&quot; ✓
+</code></pre>
+<p><strong>使用場景</strong>：<br />
+- 顯示銷售價格<br />
+- 顯示計算結果<br />
+- 輸出到 UI</p>
+<h3 id="3">✅ 安全方案 3：第三方精度庫</h3>
+<p><strong>使用 Decimal.js 或 Big.js</strong></p>
+<pre><code class="language-javascript">import Decimal from 'decimal.js';
+
+const price = new Decimal('99.99');
+const qty = new Decimal('2');
+const total = price.times(qty);
+
+total.toString()     // &quot;199.98&quot; ✓ 精確
+total.toFixed(2)    // &quot;199.98&quot; ✓ 精確
+</code></pre>
+<p><strong>優點</strong>：<br />
+- 完全精確計算<br />
+- 支持任意精度<br />
+- 適合複雜財務計算</p>
+<p><strong>缺點</strong>：<br />
+- 增加包大小<br />
+- 性能略低<br />
+- 簡單場景可能過度設計</p>
+<hr />
+<h2 id="futuresign_1">FutureSign 場景檢查清單</h2>
+<h3 id="_4">票券價格 / 手續費</h3>
+<pre><code class="language-javascript">// ❌ 危險
+const fee = price * 0.05;
+
+// ✅ 安全：計算後四捨五入
+const fee = Math.round(price * 0.05 * 100) / 100;
+const display = fee.toFixed(2);
+
+// ✅ 更安全：後端計算，前端只顯示
+// 後端：feeCents = Math.round(priceCents * 5 / 100)
+// 前端：formatCents(feeCents)
+</code></pre>
+<h3 id="_5">轉帳金額</h3>
+<pre><code class="language-javascript">// ❌ 危險
+const refund = originalPrice - discountPrice;
+
+// ✅ 安全：確保兩邊都經過舍入
+const refund = (Math.round(originalPrice * 100) - Math.round(discountPrice * 100)) / 100;
+return refund.toFixed(2);
+</code></pre>
+<h3 id="eg">批量操作（e.g., 多張票批轉讓）</h3>
+<pre><code class="language-javascript">// ❌ 危險：逐個加總，誤差累積
+let total = 0;
+tickets.forEach(t =&gt; { total += t.price; });
+
+// ✅ 安全：先轉整數，計算完再除
+let totalCents = 0;
+tickets.forEach(t =&gt; { totalCents += Math.round(t.price * 100); });
+const result = totalCents / 100;
+return result.toFixed(2);
+</code></pre>
+<h3 id="ecpay">ECPay / 綠界金額傳遞</h3>
+<pre><code class="language-javascript">// 綠界要求金額為整數
+const priceInYuan = 99.99;
+
+// ❌ 危險
+const ecpayAmount = parseInt(priceInYuan);  // 99（丟失）
+
+// ✅ 安全
+const ecpayAmount = Math.round(priceInYuan * 100) / 100; // 99.99
+const ecpayInt = Math.round(ecpayAmount * 100); // 9999（傳給綠界）
+</code></pre>
+<hr />
+<h2 id="_6">顯示層最佳實踐</h2>
+<h3 id="_7">統一的金額格式化函式</h3>
+<pre><code class="language-typescript">// utils/currency.ts
+export const formatCurrency = (
+  cents: number,
+  locale: 'zh-TW' | 'en-US' = 'zh-TW'
+): string =&gt; {
+  const yuan = (cents / 100).toFixed(2);
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'TWD',
+  }).format(parseFloat(yuan));
+};
+
+// 或簡化版
+export const formatCurrency = (yuan: number): string =&gt; {
+  return yuan.toFixed(2);
+};
+
+// 用法
+&lt;span&gt;{formatCurrency(priceInYuan)}&lt;/span&gt;
+</code></pre>
+<h3 id="hardcode">禁止 Hardcode 四捨五入</h3>
+<p>所有金額相關計算統一走上述工具函式，不要各自實現。</p>
+<hr />
+<h2 id="lint">Lint 規則建議</h2>
+<pre><code class="language-javascript">// ESLint rule: no-direct-float-arithmetic
+// 禁止這樣寫
+price * quantity  // ❌ 應改用函式
+
+// 要求這樣寫
+multiply(price, quantity)  // ✓ 明確的精度函式
+</code></pre>
+<hr />
+<h2 id="_8">總結表</h2>
+<table>
+<thead>
+<tr>
+<th>場景</th>
+<th>方案</th>
+<th>返回型</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>金額計算</td>
+<td>分（整數）</td>
+<td>number</td>
+<td>最安全，金融級</td>
+</tr>
+<tr>
+<td>金額顯示</td>
+<td>toFixed(2)</td>
+<td>string</td>
+<td>顯示時使用</td>
+</tr>
+<tr>
+<td>百分比/倍數</td>
+<td>toFixed(1~2)</td>
+<td>string</td>
+<td>業務報表</td>
+</tr>
+<tr>
+<td>精密計算</td>
+<td>Decimal.js</td>
+<td>Decimal</td>
+<td>複雜財務邏輯</td>
+</tr>
+<tr>
+<td><strong>禁止</strong></td>
+<td>toPrecision</td>
+<td>string</td>
+<td>易產生科學記號</td>
+</tr>
+<tr>
+<td><strong>禁止</strong></td>
+<td>直接浮點運算</td>
+<td>number</td>
+<td>精度損失</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_9">參考資源</h2>
+<ul>
+<li><a href="https://en.wikipedia.org/wiki/IEEE_754">IEEE 754 浮點數</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/toFixed">JavaScript Number.toFixed()</a></li>
+<li><a href="https://mikemcl.github.io/decimal.js/">Decimal.js 文件</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Monetary_value">金融系統安全規範</a></li>
+</ul>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-28</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

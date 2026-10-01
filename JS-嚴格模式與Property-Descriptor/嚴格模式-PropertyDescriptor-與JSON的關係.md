@@ -124,7 +124,10 @@ var a = {};
    規格規定：`get` / `set` 屬於 accessor 描述符，`value` / `writable` 屬於 data 描述符，**兩組互斥**。
    同時給就直接丟：
    `TypeError: Invalid property descriptor. Cannot both specify accessors and a value or writable attribute`
-   把 `writable: true` 拿掉才跑得起來。
+   **修正方式是「完全刪掉那一行」，不是改成 `writable: false`。**
+   `writable` 這個欄位只存在於 data descriptor 上，accessor descriptor 根本沒有這一格 ——
+   不是「預設 false」，是這個欄位不存在。accessor 屬性能不能被寫，看的是**有沒有提供 `set` 函式**，
+   跟 `writable` 完全無關。詳見 [[物件-PropertyDescriptor完整拆解]] 第二節。
 
 ---
 
@@ -239,6 +242,55 @@ p.__proto__ = { hacked: 1 };
 
 ---
 
+## 三之二、補充：那三道閘門為什麼存在（設計理由）
+
+> 先澄清一個容易混的地方：這篇筆記裡有**兩個不同的東西**，不要合成「五層漏斗」——
+> **三層篩選漏斗**（那張圖）＝ `JSON.stringify` 內部的三道閘門；
+> **五層關係**（第三節）＝ descriptor 跟 JSON 的五種關聯。
+>
+> 上面只寫了每一道閘門「篩掉什麼」，這一節補上「**為什麼規格要這樣設計**」。
+
+### a. 為什麼排除 Symbol 鍵
+
+因為 **Symbol 的身分來自唯一性（identity），不是來自值**。兩個 `Symbol('x')` 永遠不相等。
+JSON 是純文字交換格式，就算把它寫成 `"Symbol(x)"`，解析回來也不可能還原成**同一個** Symbol。
+而且 Symbol 當初的設計目的就是「不會跟別人撞名的半私有鍵」，把它序列化送出去等於違反設計初衷。
+
+### b. 為什麼排除 `enumerable: false`（這個理由最漂亮）
+
+因為 `enumerable` 在語言裡的定義就是「**這個屬性屬於物件的公開、可被走訪的介面**」。
+
+最有力的證據是：**所有內建方法都是 `enumerable: false`**。
+
+```js
+Object.getOwnPropertyDescriptor(Array.prototype, 'map')
+// { value: [Function], writable: true, enumerable: false, configurable: true }
+
+Object.keys(Array.prototype).length                 // 0
+Object.getOwnPropertyNames(Array.prototype).length  // 40
+```
+
+如果 `JSON.stringify` 不看 `enumerable`，那 `JSON.stringify([1,2])` 就會把 `map`、`filter`、`reduce`
+這 40 個方法全部吐出來。**這一道閘門的存在理由，就是把「語言給的機制」跟「你的資料」分開。**
+
+### c. 為什麼排除原型鏈（`own`）
+
+因為原型上的東西是**所有實例共享的、類別層級的資料**，不是這個實例的狀態。
+序列化的目的是「傳這一個實例的資料」，不是「傳它的類別定義」。
+否則每個 `new Person()` 序列化出來都會附帶一份完整的 `Person.prototype`。
+
+### d. 為什麼值是 `undefined` / function / Symbol 就整個丟掉
+
+因為 **JSON 規格（RFC 8259）只有六種型別**：object、array、string、number、`true`／`false`、`null`。
+**沒有 `undefined`，沒有 function。**
+
+丟掉不是因為「不想要」，是因為**根本無法表達**。
+`NaN` 與 `Infinity` 變成 `null` 也是同一個理由 —— JSON 的 number 是十進位字面值，沒有 NaN 這個概念。
+
+出處：[RFC 8259 — The JavaScript Object Notation (JSON) Data Interchange Format](https://www.rfc-editor.org/rfc/rfc8259)
+
+---
+
 ## 四、原文有四處要修正（2026-09-19 用 Node v22.22.2 實測）
 
 1. **「不能使用 eval」不精確**
@@ -257,6 +309,10 @@ p.__proto__ = { hacked: 1 };
 ---
 
 ## 五、跟既有筆記的關聯（以及為什麼相關）
+
+- [[物件-PropertyDescriptor完整拆解]]
+  **原因**：這篇的「物件」分支。本篇處理 descriptor → JSON 的方向，那篇處理 descriptor 本身的六個欄位、
+  `writable` 與 `set` 的分工、`enumerable` 的完整可見性對照表，以及這段範例在 MDN 上的對應章節。
 
 - [[JSON]]
   **原因**：那份筆記說明 JSON 是「把字串外套剝掉還原成 JS 資料型態」，這份筆記補上**還原的時候用的是定義語意不是賦值語意**，以及**哪些屬性會被剝掉**（`enumerable:false` 與 Symbol 鍵）。

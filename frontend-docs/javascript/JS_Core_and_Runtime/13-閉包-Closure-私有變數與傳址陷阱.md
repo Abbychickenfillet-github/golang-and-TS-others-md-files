@@ -130,7 +130,7 @@ flowchart LR
 
 所以「每顆按鈕一個獨立計數器」能成立，靠的正是後者：`createCounter(buttonId)` 被呼叫幾次，就有<mark style="background: #FFF3A3A6;">幾份互不相干的 Context</mark>；如果閉包是在編譯期就定案的東西，這件事根本做不到。
 
-## 重點整理
+## 閉包定義
 
 一句話定義：<mark style="background: #FFF3A3A6;">閉包是一個內層函式，能「記憶」並存取外層函式的範疇（Scope），即使外層函式已經執行完畢、從 [[事件循環-Event-Loop-微任務與巨任務|Call Stack]] 離開了（機制細節見 [[return-清理記憶體-stack-frame與閉包例外]]；函式參數綁定與 Execution Context 完整整理見 [[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]]）。</mark> 在 JS 中閉包<mark style="background: #ADCCFFA6;">不是要特別開啟的功能</mark>，而是伴隨函式建立而自然誕生的底層機制。
 

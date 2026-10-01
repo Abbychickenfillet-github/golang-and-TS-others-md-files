@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>filter() 方法與 Callback 函式定義</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>filter() 方法與 Callback 函式定義</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#array</span><span class="pill">#callback</span><span class="pill">#closure</span><span class="pill">#memory</span><span class="pill">#高階函式</span><span class="pill">#callback-hell</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-21</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/62a033a5c6e48ae3" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/cc4ff1d6cc8ff31a" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">processArray([1,2,3], double()) 這樣寫可以正常運作。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">加小括號會先執行 double()（參數是 undefined，得到 NaN），再把結果當 callback 傳進去，外層一呼叫就丟 callback is not a function。要傳函式本身就不能加括號。</div></li><li><p class="qq">filter 的 callback 回傳 false 的元素會被留在新陣列裡。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">反了。callback 像篩網：回傳 true 才留下，false 被濾掉。</div></li><li><p class="qq">Promise 與 async/await 出現之後，JavaScript 就不再使用 callback 了。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它們只是把「等結果之後做什麼」從參數位置搬到 .then() 或 await 的下一行，解決的是巢狀難讀（Callback Hell）。map／filter／addEventListener 這些同步與事件型 callback 完全沒有被取代。</div></li><li><p class="qq">傳 callback 時，傳進去的是該函式在記憶體中的位址，而不是它執行後的結果。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">外層函式拿到這個位址（Reference）後，在自己的執行過程中透過位址找到並執行它，這就是 (d) 講的 Reference Pass。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">Callback 的三個動作：你定義它、你 <input class="blank" data-a="傳遞" placeholder="填答案" autocomplete="off"> 它（當引數傳出去、不加小括號）、別人回頭呼叫它。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">「回呼（call back）」的 back 就是指控制權交出去、時候到了再回頭叫你。</div></li><li><p class="qq">JS 的函式可以賦值給變數、當引數傳遞、當回傳值，這個特性叫「一等公民」，英文是 First-class <input class="blank" data-a="Function" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">這是 callback 之所以能成立的語言層前提。</div></li><li><p class="qq">巢狀的非同步 callback 一層包一層、難以閱讀與處理錯誤，這個現象俗稱 Callback <input class="blank" data-a="Hell" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">回呼地獄，正是 Promise 與 async/await 要解決的問題。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">callback 的三種常見形態（逐元素處理、非同步完成通知、成功失敗分支）各自把「什麼決定權」交給了呼叫端？請各舉一個 API 為例。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">逐元素處理（map／filter／forEach）：外層負責走訪陣列與決定呼叫幾次，把「每個元素要變成什麼／留不留」交給呼叫端。非同步完成通知（setTimeout／fs.readFile／舊式 AJAX）：外層負責等待 I/O 或計時，把「拿到結果之後做什麼」交給呼叫端。成功失敗分支（onSuccess／onError、Promise 的 then／catch）：外層負責判斷條件選一條路，把「成功要幹嘛、失敗要幹嘛」交給呼叫端。三者共同點是外層只保留流程控制權，業務邏輯全部外包。</div></li></ol></section>
+
+<article class="card">
+<h1 id="filter-callback">filter() 方法與 Callback 函式定義</h1>
+<p>本篇重點 a–j，共 10 個（2026-09-21 由 Gemini 對話補入 (g)～(j)：callback 的三種形態與小括號陷阱）</p>
+<h2 id="_1">重點整理</h2>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>filter()</code> 一定會用到一個 callback function</mark>：<code>filter()</code> 遍歷陣列每個元素時都會呼叫這個 callback，callback 回傳 <code>true</code> 該元素就保留進新陣列、回傳 <code>false</code> 就被濾掉——callback 就像篩網，決定誰能通過。</p>
+<p>(b) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">MDN 對 Callback 的定義</mark>：「回呼函式（Callback function）是指被作為引數（Argument）傳入另一個函式的函式，並在該外部函式內部被呼叫，以完成某些任務或流程。」</p>
+<p>(c) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Callback 既是寫法風格，也涉及記憶體機制</mark>，可從兩個角度理解：<br />
+　　① <strong>語法/設計角度</strong>：JS 函式是「一等公民（First-Class Functions）」，可賦值給變數、當引數傳遞、當回傳值——<code>fnA(fnB)</code> 時 <code>fnB</code> 就是 callback，意思是「這是我的邏輯，交給你（fnA），你在適當時機再呼叫回（call back）我」。<br />
+　　② <strong>記憶體角度</strong>：不只是文字寫法，底層涉及三個核心機制（見 d、e、f）。</p>
+<p>(d) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">記憶體位址傳遞（Reference Pass）</mark>：寫 <code>data.filter(checkId)</code> 時，傳的不是函式「執行後的結果」，而是該函式在記憶體堆積（Heap）中的記憶體位址（指標 Reference）；外部函式（如 filter）拿到這個位址後，在自己的執行過程中透過位址找到並執行該函式。</p>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">閉包（Closure）與變數生存週期</mark>：若 callback 存取了外層變數（例如 <code>data.filter(item =&gt; item.id !== targetId)</code> 用到外層的 <code>targetId</code>），callback 會保留對其詞法範疇（Lexical Scope）中變數的引用；即使 filter 正在自己的作用域運作，callback 依然能存取外部的 <code>targetId</code>，這就是閉包保留記憶體上下文的特性。</p>
+<p>(f) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Call Stack 與 Event Loop 的分野</mark>：callback 可分同步／非同步。<strong>同步 callback</strong>（如 <code>Array.filter</code>）直接在當前執行上下文（Call Stack）中被呼叫、推入釋放記憶體；<strong>非同步 callback</strong>（如 <code>setTimeout</code>／API 請求）會先擺在記憶體空間中，等非同步任務完成後，經 Web APIs → Task Queue → Event Loop 才重新被推回 Call Stack 執行。</p>
+<p>(g) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一句話定義：callback 是「被當成引數傳進另一個函式、並在適當時機被那個函式回頭呼叫」的函式</mark><br />
+　　拆成三個動作就不會忘：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">你定義它（寫好 <code>greeting</code>）→ 你傳遞它（<code>processUserInput(greeting)</code>，注意不加小括號）→ 別人呼叫它（<code>processUserInput</code> 內部回頭執行 <code>greeting()</code>）</mark><br />
+　　　　「回呼（call back）」的 back 就是指這個「控制權先交出去、時候到了再回頭叫你」的方向</p>
+<p>(h) 三種最常見的 callback 形態，對照著看就知道它在解什麼問題：</p>
+<table>
+<thead>
+<tr>
+<th>形態</th>
+<th>外層函式負責什麼</th>
+<th>callback 負責什麼</th>
+<th>典型 API</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>逐元素處理</td>
+<td>走訪陣列、決定呼叫幾次</td>
+<td>決定「每個元素要變成什麼」</td>
+<td><code>map</code>、<code>filter</code>、<code>forEach</code></td>
+</tr>
+<tr>
+<td>非同步完成通知</td>
+<td>等待 I/O、計時器、網路回應</td>
+<td>決定「拿到結果之後做什麼」</td>
+<td><code>setTimeout</code>、<code>fs.readFile</code>、舊式 AJAX</td>
+</tr>
+<tr>
+<td>分支解耦（成功／失敗）</td>
+<td>判斷條件，選一條路呼叫</td>
+<td>決定「成功要幹嘛、失敗要幹嘛」</td>
+<td><code>onSuccess</code> / <code>onError</code>、Promise 的 <code>then</code> / <code>catch</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-javascript">// 形態一：逐元素處理——把「怎麼變」抽出來交給呼叫端決定
+function processArray(arr, callback) {
+  const result = [];
+  for (let i = 0; i &lt; arr.length; i++) {
+    result.push(callback(arr[i]));   // 外層只負責走訪，變形邏輯是 callback 的事
+  }
+  return result;
+}
+const double = num =&gt; num * 2;
+console.log(processArray([1, 2, 3], double));   // [2, 4, 6]
+
+// 形態二：非同步完成通知——資料到手才回呼
+function fetchData(callback) {
+  setTimeout(() =&gt; {
+    const data = { id: 101, name: &quot;Alice&quot; };
+    callback(data);                  // 等 2 秒拿到資料，才回頭呼叫
+  }, 2000);
+}
+fetchData(userData =&gt; console.log(&quot;收到使用者資料：&quot;, userData.name));
+
+// 形態三：分支解耦——成功與失敗各給一個 callback
+function checkNumber(num, onSuccess, onError) {
+  if (num &gt; 0) onSuccess(num + &quot; 是正數&quot;);
+  else onError(num + &quot; 不是正數&quot;);
+}
+checkNumber(5, msg =&gt; console.log(&quot;成功：&quot;, msg), msg =&gt; console.log(&quot;錯誤：&quot;, msg));
+</code></pre>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">傳 callback 時加小括號就全毀了</mark>：<code>processArray([1,2,3], double())</code> 會先執行 <code>double()</code>（參數是 undefined，得到 NaN），再把那個結果當 callback 傳進去，外層一呼叫就爆 <code>callback is not a function</code><br />
+　　這條規則跟事件監聽器是同一條，詳見 <span class="wikilink" title="Obsidian 連結：事件處理器vs事件監聽器-onevent與addEventListener">事件處理器vs事件監聽器-onevent與addEventListener</span> 第二節</p>
+<p>(j) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">形態二是「回呼地獄（Callback Hell）」的起點</mark>：巢狀的非同步 callback 一層包一層會讓錯誤處理與流程閱讀變得很痛苦，這正是 Promise 與 <code>async/await</code> 被發明出來要解決的問題——它們沒有取消 callback，只是把「等結果之後做什麼」從參數位置搬到 <code>.then()</code> 或 <code>await</code> 的下一行。</p>
+<h2 id="_2">相關筆記</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：閉包vs參數鑽透-argument-drilling">閉包vs參數鑽透-argument-drilling</span>（同樣講閉包如何「記住」外層變數；該篇用工廠函式示範封裝折扣資料，本篇則從 filter callback 的記憶體位址/閉包角度補充「為什麼能記住」）</li>
+<li><span class="wikilink" title="Obsidian 連結：02-陣列遍歷-forEach與callback">02-陣列遍歷-forEach與callback</span>（同為陣列方法 + callback 的組合；forEach 的 callback 用於「副作用」，filter 的 callback 用於「回傳布林值決定去留」，兩者可對照理解 callback 在不同陣列方法中角色如何不同）</li>
+</ul>
+<h2 id="_3">各對話來源</h2>
+<h3 id="filter-callback-2026-07-23-httpsgeminigooglecomapp62a033a5c6e48ae3">Filter 方法的 Callback 函式（2026-07-23）— https://gemini.google.com/app/62a033a5c6e48ae3</h3>
+<p>使用者：所以filter一定會用到一個callback function嗎<br />
+Gemini：確認 filter() 一定會用到 callback，說明其作為「篩網」的運作方式，回傳 true 保留、false 濾掉。</p>
+<p>使用者：Callback的定義到底是什麼 mdn，他只是一種寫法的格式還是他有參雜到一些記憶體的概念？<br />
+Gemini：引用 MDN 定義，說明 callback 同時是設計模式（一等公民函式）也涉及記憶體機制，並拆解三層：記憶體位址傳遞（Reference Pass）、閉包與變數生存週期、Call Stack 與 Event Loop 的同步/非同步差異。</p>
+<h3 id="javascript-2026-09-21-httpsgeminigooglecomappcc4ff1d6cc8ff31a">識別 JavaScript 中的回呼函式（2026-09-21 擷取）— https://gemini.google.com/app/cc4ff1d6cc8ff31a</h3>
+<p>使用者：在幫我寫一個 callback</p>
+<p>Gemini：提供三個常見且實用的 callback 範例。範例 1 是陣列處理（模擬 <code>map</code>／<code>filter</code>）：<code>processArray(arr, callback)</code> 用迴圈走訪陣列，把每個元素傳給 callback 處理後 push 進結果陣列，搭配 <code>double</code>（乘以 2）與 <code>addTen</code>（加 10）兩個 callback 示範同一個外層函式可以換不同邏輯。範例 2 是非同步操作：<code>fetchData(callback)</code> 用 <code>setTimeout</code> 模擬等待 2 秒的伺服器請求，資料拿到後才呼叫 callback 並帶入資料。範例 3 是事件處理與邏輯解耦：<code>checkNumber(num, onSuccess, onError)</code> 依條件呼叫不同的 callback。</p>
+<p>使用者：callback fn 是一個被回呼的函式</p>
+<p>Gemini：完全正確。Callback Function（回呼函式）的核心概念就是「被作為參數傳進另一個函式，並在適當時機被回呼（呼叫執行）的函式」。簡單來說分三步：你定義它（寫好一個函式）、你傳遞它（把它當參數傳給另一個函式）、別人呼叫它（接收它的函式在內部回頭來呼叫它）。這個機制讓程式能做到非同步處理（資料下載完才執行）、事件監聽（按鈕點擊後執行），或是自訂邏輯控制。</p>
+<h2 id="_4">對應題目練習</h2>
+<p>(g)～(j) 講的「把函式當值傳出去、由外層決定何時呼叫」在 LeetCode JavaScript 專區有對應題：</p>
+<ul>
+<li><a href="https://leetcode.com/problems/filter-elements-from-array/">LeetCode 2634. Filter Elements from Array</a>：直接手寫 <code>filter</code>，把 (a) 的篩網機制自己實作一次。</li>
+<li><a href="https://leetcode.com/problems/apply-transform-over-each-element-in-array/">LeetCode 2635. Apply Transform Over Each Element in Array</a>：就是 (h) 形態一的 <code>processArray</code>。</li>
+<li><a href="https://leetcode.com/problems/counter-ii/">LeetCode 2665. Counter II</a>：練「回傳一包函式」，理解函式當值來回傳遞。</li>
+<li><a href="https://leetcode.com/problems/promise-pool/">LeetCode 2636. Promise Pool</a>：體會 (j) 說的 callback 巢狀為什麼痛，以及 Promise 怎麼救。</li>
+</ul>
+<h2 id="_5">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>對話原始出處</td>
+<td>https://gemini.google.com/app/62a033a5c6e48ae3</td>
+<td>2026-07-23 查證</td>
+</tr>
+<tr>
+<td>對話原始出處（識別 JavaScript 中的回呼函式）</td>
+<td>https://gemini.google.com/app/cc4ff1d6cc8ff31a</td>
+<td>對話日期 2026-09、2026-09-21 查證</td>
+</tr>
+<tr>
+<td>MDN Callback function 定義</td>
+<td>https://developer.mozilla.org/en-US/docs/Glossary/Callback_function</td>
+<td>與 MDN Glossary 說明一致，2026-07-23 查證</td>
+</tr>
+<tr>
+<td>MDN：Array.prototype.filter()（callbackFn 的三個參數與 thisArg）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter</td>
+<td>查證日 2026-09-21</td>
+</tr>
+<tr>
+<td>MDN：First-class Function（一等公民函式）</td>
+<td>https://developer.mozilla.org/en-US/docs/Glossary/First-class_Function</td>
+<td>查證日 2026-09-21</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>由 Gemini 對話自動整理 · 更新於 2026-09-21</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-21</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

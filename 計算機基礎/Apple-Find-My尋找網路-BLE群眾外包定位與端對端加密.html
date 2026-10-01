@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Apple「尋找」（Find My）網路 — BLE 群眾外包定位與端對端加密</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Apple「尋找」（Find My）網路 — BLE 群眾外包定位與端對端加密</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#計算機基礎</span><span class="pill">#網路</span><span class="pill">#bluetooth</span><span class="pill">#ble</span><span class="pill">#mesh</span><span class="pill">#端對端加密</span><span class="pill">#定位</span><span class="pill">#隱私</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-22</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/b000ab7ee5e6ddcd" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">「尋找」網路是靠電信業者的基地台接收遺失裝置的訊號。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是靠路過的其他 Apple 裝置用 BLE 收到廣播後代為回報位置。</div></li><li><p class="qq">幫忙轉傳位置的陌生人看得到那台裝置在哪。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">全程端對端加密，轉傳者與 Apple 官方都無法解密，只有失主可以。</div></li><li><p class="qq">AirTag 沒有 SIM 卡也沒有 Wi-Fi，所以離線後就完全找不到。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">AirTag 本來就只靠 BLE 廣播，靠別人的 iPhone 代為回報，這正是尋找網路的價值。</div></li><li><p class="qq">買二手 iPhone 時，賣家沒有把裝置從自己的 Apple ID 移除，會卡在啟用鎖定。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">Activation Lock 設計目的是讓偷來的裝置無法被轉賣使用。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">遺失裝置廣播訊號用的是 <input class="blank" data-a="BLE" placeholder="填答案" autocomplete="off">（Bluetooth Low Energy，低耗電藍牙）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">低耗電是重點，AirTag 一顆鈕扣電池能撐約一年。</div></li><li><p class="qq">為了避免固定識別碼被拿來長期跟蹤，廣播的公開金鑰會定期 <input class="blank" data-a="輪替" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">rotate，這是隱私設計的關鍵之一。</div></li><li><p class="qq">一旦啟用「尋找」，要關閉、抹除或重新啟用該裝置都必須提供帳號密碼，這個機制叫 <input class="blank" data-a="Activation" placeholder="填答案" autocomplete="off"> Lock。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">中文叫啟用鎖定。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請說明為什麼「尋找」網路在台北市區找得到 AirTag，在山區卻幾乎找不到，並從這個現象反推它的架構特性。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：因為定位來源不是 AirTag 自己，而是路過的其他 Apple 裝置。這是一種群眾外包（crowdsourced）架構，密度決定覆蓋率與更新頻率。市區 Apple 裝置密集，幾分鐘內就會有人經過並回報；山區沒有人經過，就沒有任何節點能把座標上傳，AirTag 的廣播等於發給空氣。由此可反推：這張網的效能與使用者密度成正比，且它本質上是機會式（opportunistic）的，不保證即時。</div></li></ol></section>
+
+<article class="card">
+<h1 id="applefind-my-ble">Apple「尋找」（Find My）網路 — BLE 群眾外包定位與端對端加密</h1>
+<p>本篇重點 a–i，共 9 個。</p>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="1">1. 核心誤解先釐清</h3>
+<p>(a) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">常見誤解</mark>：以為「尋找」是靠電信業者的基地台去接收裝置訊號。<br />
+    <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">實際上不是</mark>。<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「尋找」網路是靠全球數億台 Apple 裝置互相幫忙轉接位置，形成一張類 mesh 的藍牙網狀網路</mark>。</p>
+<h3 id="2">2. 運作流程（誰做什麼、拋給誰）</h3>
+<p>(b) 三步的拋接關係：</p>
+<pre><code class="language-text">① 遺失的裝置（iPhone / AirTag / Apple Watch）
+     離線或被標示為遺失時，持續用 BLE（Bluetooth Low Energy，低耗電藍牙）
+     向四周廣播一組「匿名且會輪替的公開金鑰」
+        │
+        ▼
+② 路過的任何一台 Apple 裝置（別人的 iPhone / iPad / Mac）
+     收到這組廣播 → 用自己當下的 GPS / Wi-Fi / 基地台算出「我現在在哪」
+     → 用那組公開金鑰把這個座標加密 → 上傳到 Apple 伺服器
+        │
+        ▼
+③ 失主
+     用自己的 Apple ID 登入 → 下載密文 → 用只存在自己裝置上的私鑰解密
+     → 地圖上看到位置
+</code></pre>
+<p>(c) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">BLE（Bluetooth Low Energy，低耗電藍牙）</mark>：重點在「低耗電」——AirTag 只靠一顆鈕扣電池就能廣播一年左右，靠的就是它。</p>
+<p>(d) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">關鍵字是「群眾外包（crowdsourced）」</mark>：<mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">別人的 iPhone 就是一台會走路的訊號接收站</mark>，所以人越多的地方定位越準，荒郊野外幾乎找不到。</p>
+<h3 id="3">3. 隱私保護</h3>
+<p>(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">端對端加密（End-to-End Encryption，E2EE）</mark>：全程加密且匿名。<br />
+    <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">幫忙轉傳的陌生人不知道自己幫了誰，也看不到裝置位置；連 Apple 官方也無法解密</mark>，因為私鑰只在失主的裝置上。</p>
+<p>(f) <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">廣播的公開金鑰會定期輪替</mark>，避免固定識別碼被拿來長期跟蹤同一個人。</p>
+<h3 id="4">4. 與電信基地台定位的差別</h3>
+<table>
+<thead>
+<tr>
+<th>比較項目</th>
+<th>電信基地台（Cellular Towers）</th>
+<th>尋找網路（Find My Network）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>適用裝置</td>
+<td>必須有 SIM／eSIM 且能連行動網路，例如 iPhone、LTE 版 iPad</td>
+<td>任何支援的 Apple 裝置與配件，包含完全沒有網路能力的 AirTag</td>
+</tr>
+<tr>
+<td>定位原理</td>
+<td>三角定位，範圍較大</td>
+<td>附近裝置代為回報自己的精確座標</td>
+</tr>
+<tr>
+<td>裝置離線時</td>
+<td>完全失效</td>
+<td>仍然有效，只要附近有 Apple 裝置經過</td>
+</tr>
+<tr>
+<td>誰看得到位置</td>
+<td>電信業者與可取得資料的一方</td>
+<td>只有失主本人</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5">5. 啟用條件與帳號綁定</h3>
+<p>(g) 在 iOS 13、iPadOS 或 macOS Catalina 以上、且同時啟用 iCloud 與「定位服務」的裝置上，該裝置與配對的 Apple 配件會<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">自動啟用「尋找」</mark>（iOS 8 至 iOS 12 時期叫「尋找我的 iPhone」）。</p>
+<p>(h) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一旦啟用，裝置就綁定到你的 Apple 帳號</mark>，任何人（<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">包括你本人</mark>）要關閉「尋找」、抹除或重新啟用該裝置，都必須提供帳號密碼。<br />
+    這就是所謂的 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Activation Lock（啟用鎖定）</mark>，設計目的是讓偷來的裝置無法被轉賣使用。</p>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">實務陷阱</mark>：二手購買 Apple 裝置時，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一定要當場確認賣家已經把裝置從他的 Apple ID 移除</mark>，否則拿到手會卡在啟用鎖定，變成一塊磚。</p>
+<hr />
+<h2 id="_2">各對話來源</h2>
+<h3 id="apple2026-09-httpsgeminigooglecomappb000ab7ee5e6ddcd">Apple「尋找」網路運作機制解析（2026-09）— https://gemini.google.com/app/b000ab7ee5e6ddcd</h3>
+<p><strong>使用者：</strong>（貼上 Apple 官方說明）「尋找」——當您在執行 iOS 13、iPadOS 或 macOS Catalina 或以上版本的裝置上啟用 iCloud 和「定位服務」時，該裝置及與其配對的 Apple 配件將自動啟用「尋找」（在執行 iOS 8 至 iOS 12 的裝置稱為「尋找我的 iPhone」）。一旦啟用，您的裝置便會自動連結至您的帳號，任何人（包括您本人）均必須提供帳號密碼……</p>
+<p><strong>Gemini：</strong> Apple 的「尋找」（Find My）網路運作方式不是直接利用電信公司的基地台去接收裝置訊號，而是透過全球龐大的 Apple 裝置生態系（iPhone、iPad、Mac 等）來互相幫忙定位。</p>
+<p>發射藍牙訊號：當您的裝置（例如 iPhone、AirTag 或 Apple Watch）處於離線狀態或被標示為遺失時，它會持續透過低耗電藍牙（BLE）向四周發射安全的匿名藍牙訊號。</p>
+<p>附近的 Apple 裝置接力接收（做為訊號轉接站）：只要附近有任何人的 iPhone、iPad 或 Mac 經過並接收到這個藍牙訊號，該裝置就會利用自己當下的行動網路／Wi-Fi 與 GPS／基地台定位資訊，將您的裝置位置上傳至 Apple 的加密伺服器。簡單來說，別人的 iPhone 就像是移動式的訊號接收器。</p>
+<p>端對端加密：整個過程全程加密且完全匿名。幫忙傳送位置資訊的陌生人不會知道自己幫誰定位，也看不到您的裝置位置；連 Apple 官方也無法解密，只有您本人可以用自己的 Apple ID 查看位置。</p>
+<p>與電信基地台的差別：電信基地台僅用於有插 SIM 卡／eSIM 且具備行動網路功能的裝置，當裝置連線時，基地台會輔助進行初步大範圍定位，但不是「尋找」網路尋找離線物品或配件的主要方式。尋找網路則利用全球數億台 Apple 裝置組成的微型藍牙網狀網路，即使裝置沒有連上電信基地台或 Wi-Fi 也能運作。</p>
+<hr />
+<h2 id="_3">相關筆記</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>路徑</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>瀏覽器 Geolocation API 與 App 原生 GPS 定位差異</td>
+<td>frontend-docs/web-platform/瀏覽器Geolocation-API與App原生GPS定位差異.md</td>
+<td>同樣在比較「誰算出座標、精度差在哪」，那篇是網頁端，本篇是作業系統與硬體端</td>
+</tr>
+<tr>
+<td>cloudflared 日誌、ICMP Proxy 與根憑證</td>
+<td>計算機基礎/cloudflared日誌-ICMP-Proxy與IPv6-Link-Local位址與根憑證.md</td>
+<td>同屬網路層基礎，那篇講中繼與憑證信任鏈，本篇講中繼與端對端加密</td>
+</tr>
+<tr>
+<td>Cookie 隔離邊界與跨站請求安全</td>
+<td>backend/Cookie隔離邊界與跨站請求安全-Origin-SameSite-CSRF-Token與Bearer.md</td>
+<td>(e) 的 E2EE 與那篇的「誰能看到什麼」是同一套隱私邊界思維</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇來源對話</td>
+<td>https://gemini.google.com/app/b000ab7ee5e6ddcd</td>
+<td>Gemini 對話，2026-09</td>
+</tr>
+<tr>
+<td>Apple 官方：如果 iPhone 遺失或遭竊</td>
+<td><a href="https://support.apple.com/zh-tw/HT201472">Apple 支援</a></td>
+<td>Apple，查證 2026-09-22</td>
+</tr>
+<tr>
+<td>Apple Platform Security：Find My（含金鑰輪替與 E2EE 設計）</td>
+<td><a href="https://support.apple.com/guide/security/find-my-security-sec6cbc80fd0/web">Apple Platform Security</a></td>
+<td>Apple Platform Security Guide，查證 2026-09-22</td>
+</tr>
+<tr>
+<td>Activation Lock（啟用鎖定）</td>
+<td><a href="https://support.apple.com/zh-tw/HT201365">Apple 支援</a></td>
+<td>Apple，查證 2026-09-22</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-22</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

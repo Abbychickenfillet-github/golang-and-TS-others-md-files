@@ -7,6 +7,8 @@ sources:
   - https://gemini.google.com/app/e3ae7e8de2295cab
   - https://gemini.google.com/app/52460f79bd7ab146
 updated: 2026-08-27
+related:
+  - "[[JSON不是建構子-命名空間物件與Math的對照]]"
 ---
 
 # JSON 的設計由來 — Notation 的意思、reviver 函式與 Whitespace 規範

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 660" width="980" height="660" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">
+  <rect width="980" height="660" fill="#fdfcfa"/>
+  <text x="490" y="32" text-anchor="middle" font-size="20" font-weight="700" fill="#1f2937">在 DevTools 展開 get: ƒ get() 看到的七項，到底是什麼</text>
+  <text x="490" y="54" text-anchor="middle" font-size="13" fill="#6b7280">左邊四項是「真的存在的 JS 屬性」，右邊三項是「引擎內部插槽」，DevTools 用雙中括號區分</text>
+
+  <!-- Console 模擬 -->
+  <rect x="24" y="72" width="420" height="250" rx="8" fill="#1e1f22" stroke="#3c4043" stroke-width="1.5"/>
+  <text x="40" y="96" font-family="monospace" font-size="12.5" fill="#9aa0a6">▾ get: ƒ get()</text>
+  <text x="56" y="120" font-family="monospace" font-size="12.5" fill="#e8eaed">length: <tspan fill="#f7b267">0</tspan></text>
+  <text x="56" y="142" font-family="monospace" font-size="12.5" fill="#e8eaed">name: <tspan fill="#a5d6a7">"get"</tspan></text>
+  <text x="56" y="164" font-family="monospace" font-size="12.5" fill="#e8eaed">arguments: <tspan fill="#9aa0a6">(...)</tspan></text>
+  <text x="56" y="186" font-family="monospace" font-size="12.5" fill="#e8eaed">caller: <tspan fill="#9aa0a6">(...)</tspan></text>
+  <text x="56" y="212" font-family="monospace" font-size="12.5" fill="#c792ea">[[FunctionLocation]]: <tspan fill="#8ab4f8">VM101:3</tspan></text>
+  <text x="56" y="234" font-family="monospace" font-size="12.5" fill="#c792ea">[[Prototype]]: <tspan fill="#e8eaed">ƒ ()</tspan></text>
+  <text x="56" y="256" font-family="monospace" font-size="12.5" fill="#c792ea">[[Scopes]]: <tspan fill="#e8eaed">Scopes[2]</tspan></text>
+  <text x="40" y="292" font-family="monospace" font-size="11.5" fill="#6b7280">// 這裡每一行都是「這個 get 函式物件」本身的資訊</text>
+  <text x="40" y="308" font-family="monospace" font-size="11.5" fill="#6b7280">// 跟 descriptor 的六個欄位無關</text>
+
+  <!-- 分類標題 -->
+  <rect x="470" y="72" width="486" height="118" rx="8" fill="#e3efe6" stroke="#4b8b5f" stroke-width="2"/>
+  <text x="486" y="96" font-size="14" font-weight="700" fill="#2c5a3b">① ~ ④ 真正的 JS 屬性（程式碼讀得到）</text>
+  <text x="486" y="118" font-size="12.5" fill="#2c5a3b">length = 這個函式<tspan font-weight="700">宣告了幾個參數</tspan>。get() 沒參數所以是 0。</text>
+  <text x="486" y="137" font-size="12.5" fill="#2c5a3b">name = 函式名稱字串 "get"。兩者都是 enumerable:false。</text>
+  <text x="486" y="160" font-size="12.5" fill="#8a4f28">arguments / caller = 上古時代的非標準屬性，已廢棄。</text>
+  <text x="486" y="179" font-size="12.5" fill="#8a4f28"><tspan font-weight="700">(...)</tspan> 是 DevTools 的「點了才求值」標記，這裡點下去會丟 TypeError。</text>
+
+  <rect x="470" y="202" width="486" height="120" rx="8" fill="#f4f1fa" stroke="#7a6aa8" stroke-width="2"/>
+  <text x="486" y="226" font-size="14" font-weight="700" fill="#4a3d78">⑤ ~ ⑦ 內部插槽 internal slot（程式碼讀不到）</text>
+  <text x="486" y="248" font-size="12.5" fill="#3f3568"><tspan font-family="monospace">[[雙中括號]]</tspan> 是 ECMA-262 規格表示「引擎內部狀態」的記法，</text>
+  <text x="486" y="267" font-size="12.5" fill="#3f3568">DevTools 直接沿用。你<tspan font-weight="700">不能</tspan>寫 <tspan font-family="monospace">fn["[[Scopes]]"]</tspan> 把它拿出來。</text>
+  <text x="486" y="290" font-size="12.5" fill="#3f3568"><tspan font-family="monospace">VM101</tspan> 是 DevTools 給「從 Console 或 eval 執行的程式碼」的虛擬檔名，</text>
+  <text x="486" y="309" font-size="12.5" fill="#3f3568">不是你的真實檔案，重新貼一次數字就會變。</text>
+
+  <!-- Scopes 重點 -->
+  <rect x="24" y="346" width="932" height="150" rx="10" fill="#fff6e8" stroke="#c9a14a" stroke-width="2.5"/>
+  <text x="44" y="374" font-size="15" font-weight="700" fill="#7a5c14">★ [[Scopes]] 才是這次最值得看的一項 —— 它就是「_v 被關在哪裡」的答案</text>
+  <text x="44" y="400" font-size="13" fill="#7a5c14">展開 Scopes[2] 會看到兩層：</text>
+  <rect x="56" y="412" width="410" height="68" rx="6" fill="#1e1f22"/>
+  <text x="70" y="434" font-family="monospace" font-size="12.5" fill="#c792ea">▾ 0: Closure  <tspan fill="#e8eaed">{ _v: <tspan fill="#a5d6a7">'fillano'</tspan> }</tspan>  <tspan fill="#f7b267">← 在這裡！</tspan></text>
+  <text x="70" y="456" font-family="monospace" font-size="12.5" fill="#c792ea">▾ 1: Global   <tspan fill="#9aa0a6">{ ... }</tspan></text>
+  <text x="70" y="474" font-family="monospace" font-size="11" fill="#6b7280">Closure ＝ 閉包，這個函式記住的外層變數</text>
+  <text x="486" y="434" font-size="12.5" fill="#7a5c14"><tspan font-weight="700">這就回答了「_v 沒有被 e 包住」的疑問：</tspan></text>
+  <text x="486" y="454" font-size="12.5" fill="#7a5c14">_v 確實不在物件 e 身上，它在 getter 函式的</text>
+  <text x="486" y="473" font-size="12.5" fill="#7a5c14"><tspan font-weight="700">閉包作用域</tspan>裡，被這個函式「記住」了。</text>
+
+  <!-- 底部對照 -->
+  <rect x="24" y="516" width="932" height="104" rx="10" fill="#fbe3e3" stroke="#b04a4a" stroke-width="2"/>
+  <text x="44" y="544" font-size="15" font-weight="700" fill="#7a2f2f">最重要的釐清：這七項跟 descriptor 的六個欄位，是兩件完全不同的事</text>
+  <text x="44" y="570" font-size="13" fill="#7a2f2f"><tspan font-weight="700">descriptor 的六個欄位</tspan>：describe「e.name 這個<tspan font-weight="700">屬性</tspan>」→ value / writable / get / set / enumerable / configurable</text>
+  <text x="44" y="592" font-size="13" fill="#7a2f2f"><tspan font-weight="700">展開 ƒ get() 看到的七項</tspan>：describe「<tspan font-weight="700">那個 getter 函式物件本身</tspan>」→ 它有幾個參數、叫什麼名字、閉包裡有什麼</text>
+  <text x="44" y="612" font-size="12" fill="#a33">你是往下多鑽了一層 —— 從「屬性的說明書」鑽進「說明書裡那個函式的身體」。</text>
+
+  <text x="490" y="645" text-anchor="middle" font-size="11.5" fill="#9ca3af">出處：MDN Function.prototype.length / name、MDN Function.prototype.caller（deprecated）、ECMA-262 internal slot 記法｜繪製 2026-09-20</text>
+</svg>

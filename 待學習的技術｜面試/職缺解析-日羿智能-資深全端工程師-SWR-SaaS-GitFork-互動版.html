@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日羿智能職缺｜SWR、SaaS、Git Fork</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1f2328;--muted:#5d6570;--line:#d9dde3;--accent:#2f6fde;--ok:#1d8a4f;--bad:#c23b3b;--hl:#fff3a3;--proc:#e8f0fe;--dec:#fdf1dc;--data:#e7f6ec;--sub:#f1e9fb;--init:#fde8e8;--conn:#e6f4f7}
+@media (prefers-color-scheme:dark){:root{--bg:#15171a;--card:#1e2126;--ink:#e6e8eb;--muted:#9aa3ad;--line:#343a42;--accent:#6ea1ff;--ok:#4cc38a;--bad:#ff7b7b;--hl:#5b5320;--proc:#1f2d45;--dec:#43361c;--data:#1d3a29;--sub:#35294a;--init:#46262a;--conn:#1d3b42}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75}
+main{max-width:960px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.6rem;margin:.2em 0}
+h2{font-size:1.2rem;margin:2em 0 .6em;padding-left:10px;border-left:4px solid var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+.sub{color:var(--muted);font-size:.92rem}
+nav{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+nav a{font-size:.85rem;padding:4px 10px;border:1px solid var(--line);border-radius:99px;color:var(--ink);text-decoration:none;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--proc)}
+code{font-family:ui-monospace,Consolas,monospace;background:var(--proc);padding:1px 5px;border-radius:4px;font-size:.88em}
+pre{background:#0f1419;color:#e6e1cf;padding:12px;border-radius:8px;overflow-x:auto;font-size:.85rem}
+mark{background:var(--hl);color:inherit;padding:0 2px}
+.tag{display:inline-block;font-size:.75rem;padding:1px 8px;border-radius:99px;margin-left:4px}
+.ok{background:var(--data);color:var(--ok)}.todo{background:var(--init);color:var(--bad)}.mid{background:var(--dec)}
+svg text{fill:var(--ink);font-size:13px;font-family:inherit}
+.node{cursor:pointer}
+.node .shape{stroke:var(--muted);stroke-width:1.5;transition:stroke .2s,stroke-width .2s}
+.node.active .shape{stroke:var(--accent);stroke-width:3.5}
+.edge{stroke:var(--muted);stroke-width:1.5;fill:none;marker-end:url(#arrow)}
+#stepInfo{min-height:4.5em}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.8rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:4px}
+.legend i{display:inline-block;width:14px;height:10px;border:1px solid var(--muted)}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:4px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+.blank{display:inline-block;min-width:5em;border-bottom:2px dashed var(--accent);cursor:pointer;color:transparent;text-align:center;user-select:none}
+.blank.show{color:var(--accent);font-weight:600;border-bottom-style:solid}
+.tf{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
+.tf .res{font-weight:600}
+.ans{display:none;margin-top:8px;padding:8px 12px;border-left:3px solid var(--ok);background:var(--data);border-radius:4px}
+.ans.show{display:block}
+.swr{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.swr div{border:1px solid var(--line);border-radius:8px;padding:8px;font-size:.85rem;opacity:.35;transition:opacity .3s,transform .3s}
+.swr div.on{opacity:1;transform:translateY(-3px);border-color:var(--accent)}
+@media (max-width:640px){.swr{grid-template-columns:1fr 1fr}}
+.svgwrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+<h1>日羿智能｜Sr. Full Stack Engineer</h1>
+<p class="sub">主 Node.js（Fastify），副 React（Next.js、TailwindCSS、Zustand、SWR）<br>醫療系統的 SaaS 主系統與本地端分叉版本<br>本篇重點 a–h，共 8 個</p>
+<nav><a href="#a">a. 主軸圖</a><a href="#b">b. JD 對照</a><a href="#c">c. SWR</a><a href="#d">d. SaaS</a><a href="#e">e. Fork 包含什麼</a><a href="#f">f. 填空</a><a href="#g">g. 是非題</a><a href="#h">h. 申論題</a></nav>
+
+<h2 id="a">a. 主軸圖：SaaS 主系統 ↔ 本地端分叉的同步流程</h2>
+<div class="card">
+<p class="sub">依 ISO 5807 符號繪製，點任一個框看說明</p>
+<div class="legend">
+<span><i style="background:var(--init);clip-path:polygon(20% 0,80% 0,100% 50%,80% 100%,20% 100%,0 50%)"></i>六邊形＝初始化</span>
+<span><i style="background:var(--proc)"></i>矩形＝處理</span>
+<span><i style="background:var(--dec);transform:rotate(45deg);width:10px"></i>菱形＝判斷</span>
+<span><i style="background:var(--data);transform:skewX(-20deg)"></i>平行四邊形＝資料</span>
+<span><i style="background:var(--sub);border-left:3px double var(--muted);border-right:3px double var(--muted)"></i>雙邊線矩形＝副流程</span>
+<span><i style="background:var(--conn);border-radius:50%;width:12px;height:12px"></i>圓形＝連接點</span>
+</div>
+<div class="svgwrap">
+<svg viewBox="0 0 900 490" width="100%" style="min-width:640px" role="img" aria-label="Fork 同步流程圖">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:#8a929c"/></marker></defs>
+<path class="edge" d="M170,60 L250,60"/>
+<path class="edge" d="M450,60 L520,60"/>
+<path class="edge" d="M700,85 L700,140"/>
+<path class="edge" d="M700,200 L700,235"/>
+<path class="edge" d="M630,285 L480,285"/><text x="545" y="277">有衝突</text>
+<path class="edge" d="M700,335 L700,380"/><text x="708" y="362">沒有</text>
+<path class="edge" d="M380,315 L380,350 L650,350 L650,380"/>
+<path class="edge" d="M590,420 L480,420"/>
+<path class="edge" d="M280,420 L200,420"/>
+
+<g class="node" data-k="init"><polygon class="shape" fill="var(--init)" points="30,60 55,30 145,30 170,60 145,90 55,90"/><text x="100" y="56" text-anchor="middle">從 SaaS 主系統</text><text x="100" y="74" text-anchor="middle">fork 本地端版本</text></g>
+<g class="node" data-k="remote"><rect class="shape" fill="var(--proc)" x="250" y="35" width="200" height="50"/><text x="350" y="56" text-anchor="middle">git remote add upstream</text><text x="350" y="74" text-anchor="middle">登記主系統</text></g>
+<g class="node" data-k="release"><polygon class="shape" fill="var(--data)" points="540,35 880,35 860,85 520,85"/><text x="700" y="56" text-anchor="middle">主系統釋出新版本</text><text x="700" y="74" text-anchor="middle">（上游新的 commit）</text></g>
+<g class="node" data-k="fetch"><rect class="shape" fill="var(--proc)" x="600" y="140" width="200" height="60"/><text x="700" y="165" text-anchor="middle">git fetch upstream</text><text x="700" y="185" text-anchor="middle">下載到 upstream/main</text></g>
+<g class="node" data-k="merge"><polygon class="shape" fill="var(--dec)" points="700,235 790,285 700,335 610,285"/><text x="700" y="281" text-anchor="middle">merge 後</text><text x="700" y="299" text-anchor="middle">有衝突嗎？</text></g>
+<g class="node" data-k="resolve"><rect class="shape" fill="var(--sub)" x="280" y="255" width="200" height="60"/><line x1="292" y1="255" x2="292" y2="315" stroke="var(--muted)"/><line x1="468" y1="255" x2="468" y2="315" stroke="var(--muted)"/><text x="380" y="280" text-anchor="middle">解衝突副流程</text><text x="380" y="298" text-anchor="middle">保留客製、接受修正</text></g>
+<g class="node" data-k="push"><rect class="shape" fill="var(--proc)" x="590" y="380" width="220" height="50"/><text x="700" y="401" text-anchor="middle">git push origin main</text><text x="700" y="419" text-anchor="middle">推回自己的 fork</text></g>
+<g class="node" data-k="docker"><rect class="shape" fill="var(--sub)" x="280" y="395" width="200" height="50"/><line x1="292" y1="395" x2="292" y2="445" stroke="var(--muted)"/><line x1="468" y1="395" x2="468" y2="445" stroke="var(--muted)"/><text x="380" y="416" text-anchor="middle">docker compose build</text><text x="380" y="434" text-anchor="middle">打包映像檔</text></g>
+<g class="node" data-k="onsite"><circle class="shape" fill="var(--conn)" cx="145" cy="420" r="52"/><text x="145" y="416" text-anchor="middle">到客戶現場</text><text x="145" y="434" text-anchor="middle">裝機</text></g>
+</svg>
+</div>
+<div id="stepInfo" class="card" style="margin-bottom:0">點上面的框框，這裡會顯示「誰 用什麼 做什麼，產物是什麼，再交給誰」。</div>
+</div>
+
+<h2 id="b">b. JD 對照（已具備 vs 待補）</h2>
+<div class="card">
+<table>
+<tr><th>JD 要求</th><th>Abby 的實證</th><th>狀態</th></tr>
+<tr><td>Monorepo 與打包工具</td><td>futuresign 以 monorepo 管理三端，用 git subtree 拆出獨立 repo</td><td><span class="tag ok">已具備</span></td></tr>
+<tr><td>TypeScript、Next.js</td><td>TimeLog 以 Next.js 與 TypeScript 開發並部署</td><td><span class="tag ok">已具備</span></td></tr>
+<tr><td>Node.js 的 Fastify</td><td>用過 FastAPI、Go Gin、Next.js API Routes</td><td><span class="tag todo">待補</span></td></tr>
+<tr><td>TailwindCSS、Zustand</td><td>SCSS design system，Zustand 概念熟悉</td><td><span class="tag mid">待確認</span></td></tr>
+<tr><td>SWR</td><td>用過 TanStack Query，同一套 stale-while-revalidate 策略</td><td><span class="tag ok">概念已具備</span></td></tr>
+<tr><td>Git Fork 處理</td><td>subtree 分離、同步，處理過 non-fast-forward 衝突</td><td><span class="tag ok">概念相近</span></td></tr>
+<tr><td>容器化部署</td><td>公司專案以 Docker Compose 建置</td><td><span class="tag ok">已具備</span></td></tr>
+<tr><td>AI 開發工具與原理</td><td>Gemini 2.5 Flash、RAG、用 Claude Skill 管理工作流程</td><td><span class="tag ok">已具備</span></td></tr>
+</table>
+</div>
+
+<h2 id="c">c. SWR（stale-while-revalidate）</h2>
+<div class="card">
+<p><mark>SWR 的意思是：先回傳舊的（stale）快取資料，同時在背景重新驗證（revalidate）並抓新資料。</mark></p>
+<p>它有兩層意思：</p>
+<p>1. <a href="https://www.rfc-editor.org/rfc/rfc5861">RFC 5861</a>（2010-05）定義的 HTTP 快取指令 <code>Cache-Control: max-age=600, stale-while-revalidate=30</code></p>
+<p>2. Vercel 開發的 React 資料抓取套件 <a href="https://swr.vercel.app/docs/getting-started">SWR</a>，Hook 名稱是 <code>useSWR</code></p>
+<p><button id="swrPlay">▶ 播放 useSWR 的四個時間點</button></p>
+<div class="swr">
+<div>① 元件呼叫 <code>useSWR(key)</code>，SWR 先去快取找這個 key</div>
+<div>② 快取有舊資料，立刻回傳給畫面（stale）</div>
+<div>③ 同時在背景呼叫 fetcher 重新抓資料（revalidate）</div>
+<div>④ 新資料回來後更新快取，元件重新渲染成最新畫面</div>
+</div>
+<pre>const { data, error, isLoading } = useSWR(`/api/user/${userId}`, fetcher)</pre>
+<p class="sub">白話：用網址字串當快取的 key，用 fetcher 抓資料，拿回資料、錯誤、是否載入中三個值。</p>
+</div>
+
+<h2 id="d">d. SaaS（Software as a Service，軟體即服務）</h2>
+<div class="card">
+<p><mark>廠商把軟體架在自己的雲端上，客戶用瀏覽器連線使用，不必自己安裝和維護伺服器。</mark></p>
+<table>
+<tr><th>模型</th><th>全名</th><th>廠商提供什麼</th><th>例子</th></tr>
+<tr><td>IaaS</td><td>Infrastructure as a Service</td><td>虛擬機器、網路、儲存空間</td><td>AWS EC2</td></tr>
+<tr><td>PaaS</td><td>Platform as a Service</td><td>可以直接部署程式的平台</td><td>Zeabur、Vercel</td></tr>
+<tr><td>SaaS</td><td>Software as a Service</td><td>完整可用的軟體</td><td>Gmail、Notion</td></tr>
+</table>
+<p class="sub">出處：<a href="https://csrc.nist.gov/pubs/sp/800/145/final">NIST SP 800-145</a>（2011-09）</p>
+<p>在這個職缺裡，主系統是 SaaS，本地端版本（on-premise）則是 fork 出來、裝在醫療院所現場機器上的那一份。</p>
+</div>
+
+<h2 id="e">e. Git Fork 包含哪些</h2>
+<div class="card">
+<p><mark>Fork 不是 Git 指令，而是 GitHub 等平台的功能：在伺服器端把整個 repo 複製成你名下一個獨立的新 repo。</mark></p>
+<table>
+<tr><th>項目</th><th>會不會被複製</th></tr>
+<tr><td>程式碼與完整 commit 歷史</td><td>會</td></tr>
+<tr><td>分支</td><td>預設只複製 main，取消勾選「Copy the DEFAULT branch only」才會複製全部</td></tr>
+<tr><td>tags</td><td>會</td></tr>
+<tr><td>issues、pull requests</td><td>不會，fork 有自己一套全新的</td></tr>
+<tr><td>repo 設定、協作者、Actions secrets</td><td>不會</td></tr>
+<tr><td>Actions workflow 檔案</td><td>檔案會複製，但 fork 上預設不會自動執行</td></tr>
+</table>
+<p class="sub">出處：<a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks">About forks</a>、<a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork">Syncing a fork</a>（查證 2026-09-17）</p>
+</div>
+
+<h2 id="f">f. 填空題（點底線顯示答案）</h2>
+<div class="card">
+<p>1. SWR 的全名是 <span class="blank">stale-while-revalidate</span>，定義在 <span class="blank">RFC 5861</span>。</p>
+<p>2. SaaS 的全名是 <span class="blank">Software as a Service</span>。</p>
+<p>3. Fork 之後要用 <span class="blank">git remote add upstream</span> 登記原本的主系統。</p>
+<p>4. 把主系統新 commit 下載到本機但不改工作目錄的指令是 <span class="blank">git fetch upstream</span>。</p>
+<p>5. useSWR 回傳的三個值是 data、error 和 <span class="blank">isLoading</span>。</p>
+<p><button id="allBlanks">全部顯示／隱藏</button></p>
+</div>
+
+<h2 id="g">g. 是非題</h2>
+<div class="card" id="tfBox"></div>
+
+<h2 id="h">h. 申論題（先自己想，再按顯示）</h2>
+<div class="card">
+<p><b>1. 本地端分叉要和 SaaS 主系統長期並行，你會怎麼降低每次同步的衝突？</b></p>
+<button class="toggle">顯示參考答案</button>
+<div class="ans">先把本地端客製集中在設定檔、環境變數和擴充點，不去改主系統的核心程式碼。<br>再固定節奏 fetch upstream 並合併，不要累積太多版本才一次合。<br>行為差異用 feature flag 控制，合併時就只需要處理少量衝突。</div>
+<p style="margin-top:16px"><b>2. 為什麼到醫療院所現場裝機適合用 Docker？</b></p>
+<button class="toggle">顯示參考答案</button>
+<div class="ans">Docker 映像檔把程式和執行環境一起打包，現場機器只要裝好 Docker 就能跑出和開發時一樣的環境。<br>版本升級時只要換映像檔，出問題也能快速退回上一版。<br>醫療資料不能離開院內，本地端部署加上容器化，可以同時滿足資料留在院內和安裝可重現。</div>
+<p style="margin-top:16px"><b>3. 你用過 TanStack Query，要怎麼說明自己能馬上上手 SWR？</b></p>
+<button class="toggle">顯示參考答案</button>
+<div class="ans">兩者都實作 stale-while-revalidate 策略，都用 key 管理快取、都會在背景重新驗證並去除重複請求。<br>差別在 API 名稱，例如 TanStack Query 用 queryKey 和 useMutation，SWR 用字串 key 和 mutate。<br>我已經理解伺服器狀態和 UI 狀態要分開管理，換套件只是換 API。</div>
+</div>
+
+<p class="sub" style="margin-top:32px">相關筆記：push-to-seperate-repo（subtree 分離與同步）、subtree-push-conflict-resolution（non-fast-forward 衝突）、react-query-architecture（TanStack Query 架構）<br>職缺原文：<a href="https://www.104.com.tw/job/8q6f2">104 日羿智能</a>（07/21 更新，查證 2026-09-17）</p>
+</main>
+<script>
+const info={
+ init:"<b>初始化</b>：團隊在 GitHub 上從 SaaS 主系統 fork 出本地端版本，產物是一個獨立的新 repo，接著交給工程師 clone 到本機。",
+ remote:"<b>處理</b>：工程師用 <code>git remote add upstream</code> 登記主系統的網址，產物是一個名叫 upstream 的遠端，之後的同步都靠它。",
+ release:"<b>資料</b>：SaaS 主系統釋出新版本，產物是上游的新 commit（例如修 bug、加功能），等著被本地端版本拿去合併。",
+ fetch:"<b>處理</b>：工程師用 <code>git fetch upstream</code> 把上游新 commit 下載到遠端追蹤分支 upstream/main，這一步不改動工作目錄，產物交給下一步 merge。",
+ merge:"<b>判斷</b>：工程師用 <code>git merge upstream/main</code> 合併，Git 判斷兩邊有沒有改到同一段程式碼，有衝突就進入解衝突副流程，沒有就直接 push。",
+ resolve:"<b>副流程</b>：工程師逐一檢查衝突，保留本地端的客製設定，同時接受上游的修正，完成後 commit，產物交給 push。",
+ push:"<b>處理</b>：工程師用 <code>git push origin main</code> 把合併結果推回自己的 fork，產物是更新後的本地端版本程式碼。",
+ docker:"<b>副流程</b>：工程師用 <code>docker compose build</code> 把程式和執行環境打包成映像檔，產物是可以直接在現場機器執行的 image。",
+ onsite:"<b>連接點</b>：工程師帶著映像檔到醫療院所現場安裝，順便訪談使用者的需求，新需求再回到流程開頭。"
+};
+document.querySelectorAll('.node').forEach(n=>n.addEventListener('click',()=>{
+ document.querySelectorAll('.node').forEach(x=>x.classList.remove('active'));
+ n.classList.add('active');
+ document.getElementById('stepInfo').innerHTML=info[n.dataset.k];
+}));
+document.getElementById('swrPlay').addEventListener('click',()=>{
+ const steps=[...document.querySelectorAll('.swr div')];
+ steps.forEach(s=>s.classList.remove('on'));
+ steps.forEach((s,i)=>setTimeout(()=>s.classList.add('on'),i*900));
+});
+document.querySelectorAll('.blank').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('show')));
+document.getElementById('allBlanks').addEventListener('click',()=>{
+ const bs=[...document.querySelectorAll('.blank')];
+ const show=!bs.every(b=>b.classList.contains('show'));
+ bs.forEach(b=>b.classList.toggle('show',show));
+});
+const tfs=[
+ ["Fork 是 Git 內建的指令，可以用 git fork 執行。",false,"Fork 是 GitHub、GitLab 等平台的功能，Git 本身沒有 git fork 指令。"],
+ ["Fork 一個 repo 時，原本的 issues 和 pull requests 會一起被複製。",false,"issues 和 PR 不會被複製，fork 會有自己一套全新的。"],
+ ["git fetch upstream 會直接改動你的工作目錄。",false,"fetch 只更新遠端追蹤分支 upstream/main，要 merge 之後工作目錄才會改變。"],
+ ["SWR 會先回傳快取的舊資料，再在背景抓新資料。",true,"這正是 stale-while-revalidate 的意思。"],
+ ["Zeabur、Vercel 屬於 SaaS。",false,"它們提供可以部署程式的平台，屬於 PaaS。"],
+ ["TanStack Query 和 SWR 採用同一套快取策略。",true,"兩者都實作 stale-while-revalidate。"]
+];
+const box=document.getElementById('tfBox');
+tfs.forEach(([q,a,why],i)=>{
+ const d=document.createElement('div');d.className='tf';
+ d.innerHTML=`<span>${i+1}. ${q}</span><button data-v="1">⭕</button><button data-v="0">❌</button><span class="res"></span>`;
+ d.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{
+  const right=(btn.dataset.v==='1')===a;const r=d.querySelector('.res');
+  r.style.color=right?'var(--ok)':'var(--bad)';
+  r.textContent=(right?'答對了。':'答錯了。')+why;
+ }));
+ box.appendChild(d);
+});
+document.querySelectorAll('.toggle').forEach(t=>t.addEventListener('click',()=>{
+ const a=t.nextElementSibling;a.classList.toggle('show');
+ t.textContent=a.classList.contains('show')?'隱藏參考答案':'顯示參考答案';
+}));
+</script>
+</body>
+</html>

@@ -8,12 +8,13 @@ tags: [gemini, javascript, 函式, 匿名函式, IIFE, 箭頭函式, 函式表�
 sources:
   - https://gemini.google.com/app/1c2e605259537e41
   - https://gemini.google.com/app/a934bc9778ee91b7
-updated: 2026-09-18
+  - https://gemini.google.com/app/e68544230e0b356d
+updated: 2026-09-25
 ---
 
 # 函式的四種寫法與 SyntaxError 排查
 
-> [!info] 本篇重點 a–r，共 18 個
+> [!info] 本篇重點 a–t，共 20 個
 > 兩場 Gemini 對話併成一條主線：先把「宣告 vs 表達式」與「具名 vs 匿名」兩條軸分開 → 再用 Abby 在 Console 踩到的 <mark style="background: #FF5582A6;">`Uncaught SyntaxError: Unexpected token '{'`</mark> 反推引擎是怎麼 parse 的 → 最後收在「加了大括號就必須自己寫 `return`」這個不報錯卻更陰險的陷阱。
 
 > [!info] 與其他筆記的關聯（附理由）
@@ -153,6 +154,22 @@ setTimeout(function () { console.log("延遲 1 秒後執行"); }, 1000);
 
 - (q) <mark style="background: #ADCCFFA6;">宣告與表達式還有一個執行期差異</mark>：函式宣告在進入作用域時就連名帶身體一起就緒，可以提前呼叫；`const`／`let` 的函式表達式只建綁定不初始化，提前呼叫會撞 TDZ 丟 `ReferenceError`。理由見 [[09-Hoisting-函式宣告vs函式表達式-TDZ]]。
 
+## 6. 箭頭函式 vs Callback：不是同一個維度（s–t）
+
+- (s) <mark style="background: #ADCCFFA6;">「箭頭函式」與「Callback」不能劃等號，兩者根本不是同一個分類軸</mark>：箭頭函式是**寫法／語法格式**（用 `() => {}` 定義函式的其中一種方式），Callback 是**角色／使用情境**（被當成參數傳進另一個函式、等未來某個時機被回頭呼叫的那個函式）。可以用箭頭函式寫 Callback，也可以用傳統 `function` 寫 Callback——兩者是不同維度，不是誰包含誰。
+
+- (t) <mark style="background: #BBFABBA6;">誰是 Callback？「被呼叫」的那個才是</mark>，不是「主動呼叫別人」的那個。以 `setTimeout(myCallback, 3000)` 為例：`setTimeout` 是主動執行、發起呼叫的那一方；`myCallback` 是被傳進去、等 3 秒後被 `setTimeout` 回頭呼叫（call back）的那一方，所以 `myCallback` 才是 Callback 函式，`setTimeout` 不是。
+
+```js
+// 1. 被動等待執行的函式（這是 Callback）
+const myCallback = () => {
+  console.log("3 秒到了！");
+};
+
+// 2. 主動呼叫別人的函式（setTimeout 是主呼叫者，不是 Callback）
+setTimeout(myCallback, 3000);
+```
+
 ---
 
 ## 5. ⚠️ 存疑／更正（Gemini 講得不夠精確的地方）
@@ -195,6 +212,14 @@ setTimeout(function () { console.log("延遲 1 秒後執行"); }, 1000);
 **使用者：** 是因為寫成表達式的都一定要搭配箭頭函式嗎？
 
 **Gemini：** 不是，表達式與箭頭函式是兩回事。只要把函式賦值給變數就叫函式表達式，右邊用傳統 `function` 或箭頭 `=>` 都可以。報錯的原因是寫了 `(element){ ... }`，引擎在 `const` 後面既找不到 `function` 關鍵字、又找不到箭頭 `=>`，不知道你要寫哪一種，所以丟 `SyntaxError`。
+
+### 追加 2026-09-25（箭頭函式與 Callback 差異解析）— https://gemini.google.com/app/e68544230e0b356d
+
+**使用者：** 箭頭函式跟 callback fn 可以劃上等號嗎？Callback 是被扣的叫 callback 還是主動 call 其他函式的才是？
+
+**Gemini：** 不能劃等號。箭頭函式是寫法／語法格式，Callback 是角色／使用情境；能用箭頭函式寫 Callback，也能用傳統 `function` 寫 Callback。誰是 Callback 的判準是「被呼叫」的那一個——`setTimeout(myCallback, 3000)` 中 `setTimeout` 是主呼叫者，`myCallback` 才是 Callback。
+
+---
 
 ---
 

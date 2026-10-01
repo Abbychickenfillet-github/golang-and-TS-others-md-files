@@ -6,7 +6,6 @@ source:
   - MDN Symbol、Object() constructor
   - 實測環境 Node.js v22（V8）
 ---
-
 # 自動裝箱與內建建構函式
 
 > [!info] 這篇的由來

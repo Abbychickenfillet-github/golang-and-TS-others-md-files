@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Server-side form validation（伺服器端表單驗證）— 為什麼前端驗證擋不住</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Server-side form validation（伺服器端表單驗證）— 為什麼前端驗證擋不住</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#backend</span><span class="pill">#表單驗證</span><span class="pill">#validation</span><span class="pill">#資安</span><span class="pill">#sql-injection</span><span class="pill">#xss</span><span class="pill">#http-400</span><span class="pill">#ux</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-22</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/f1ff251f8f4d9ec7" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">只要前端用了 HTML5 的 required 屬性，後端就可以省略驗證。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">攻擊者可以用 Postman 或 curl 直接打 API，完全不經過你的前端。</div></li><li><p class="qq">「這個 Email 是不是已經被註冊過」這種檢查，前端自己做得到。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">前端沒有資料庫，必須由後端查表才知道。</div></li><li><p class="qq">驗證通過的資料，寫進資料庫時就不必再用參數化查詢了。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">驗證是「該不該收」，參數化查詢與 escaping 是「收下之後怎麼安全地存與顯示」，兩件事都要做。</div></li><li><p class="qq">用 Zod 或 Pydantic 把規則寫成一份 schema 給前後端共用，可以避免兩邊規則不一致。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">這是實務上防止「前端說可以、後端說不行」的標準做法。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">表單資料本身有問題時，後端通常回 HTTP <input class="blank" data-a="400" placeholder="填答案" autocomplete="off"> Bad Request。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">401 是沒表明身分，403 是有身分但沒權限。</div></li><li><p class="qq">FastAPI 的 Pydantic 對驗證錯誤預設回的狀態碼是 <input class="blank" data-a="422" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">422 Unprocessable Content 表示語法對但語意不合規。</div></li><li><p class="qq">前端驗證的主要目的是提升 <input class="blank" data-a="使用者體驗" placeholder="填答案" autocomplete="off">，後端驗證的主要目的是保障安全。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">即時回饋，減少無效的網路請求。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請用「誰 用什麼 做什麼、產物是什麼、再拋給誰」的句型，把一次註冊表單從按下送出到寫入資料庫的完整流程寫出來，並標出驗證失敗時流程在哪裡折返。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：使用者填完表單按送出 → 瀏覽器把欄位序列化成 JSON，用 fetch 送到後端 API → 後端路由接到資料，交給驗證層做必填檢查、格式檢查、查資料庫比對 → 失敗就組出錯誤訊息物件回 HTTP 400/422，前端接到後渲染到欄位下方（流程在這裡折返，沒有碰到資料庫寫入）→ 成功則執行業務邏輯，用參數化查詢寫入資料庫，回 200/201 與結果，前端導頁。</div></li></ol></section>
+
+<article class="card">
+<h1 id="server-side-form-validation">Server-side form validation（伺服器端表單驗證）— 為什麼前端驗證擋不住</h1>
+<p>本篇重點 a–k，共 11 個。</p>
+<p class="fig"><img src="../obsidian-attachment/%E5%AD%B8%E7%BF%92%E5%BE%8C%E7%AB%AF_%E5%9C%96%E8%A7%A3_%E5%89%8D%E7%AB%AF%E9%A9%97%E8%AD%89%E7%9A%84%E4%B8%89%E6%A2%9D%E7%B9%9E%E9%81%8E%E8%B7%AF%E5%BE%91%E8%88%87%E5%BE%8C%E7%AB%AF%E6%9C%80%E5%BE%8C%E9%98%B2%E7%B7%9A-ISO5807_2026-09-22.svg" alt="學習後端_圖解_前端驗證的三條繞過路徑與後端最後防線-ISO5807_2026-09-22.svg" loading="lazy"></p>
+
+<blockquote>
+<p>這張是本篇的主軸圖。右上粉紅區＝重點 (c) 的三條繞過路徑，綠框內＝重點 (f) 的後端流程，菱形右邊那條折返線＝重點 (g) 的 400／422。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<h3 id="1">1. 定義與一句話心法</h3>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Server-side form validation（伺服器端表單驗證）</mark>：使用者送出表單之後，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">伺服器端的程式碼再檢查一次這些資料是否符合格式、安全性與業務邏輯</mark>。</p>
+<p>(b) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">心法</mark>：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">前端驗證是為了體驗，後端驗證是為了安全</mark>。兩者不是二選一，是分工。</p>
+<h3 id="2">2. 為什麼前端擋不住（核心理由）</h3>
+<p>(c) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">前端驗證可以被繞過，而且門檻極低</mark>。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">攻擊者根本不必用你的網頁</mark>，三種常見繞法：</p>
+<pre><code class="language-text">繞法 1：瀏覽器關掉 JavaScript          → 所有 JS 驗證直接不執行
+繞法 2：F12 改掉 &lt;input required&gt; 屬性  → HTML5 內建驗證失效
+繞法 3：用 Postman / curl 直接打 API    → 從頭到尾沒有經過你的前端
+</code></pre>
+<pre><code>所以後端是&lt;mark style="background: #BBFABBA6;"&gt;保護資料庫的第一道，也是最後一道防線&lt;/mark&gt;，能擋下 SQL Injection、XSS 這類把惡意字串塞進欄位的攻擊（延伸見 &lt;span class="wikilink" title="Obsidian 連結：javascript-url-XSS-實驗室"&gt;javascript-url-XSS-實驗室&lt;/span&gt;）。
+</code></pre>
+<p>(d) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">資料完整性</mark>：確保進資料庫的每一筆都合規——Email 格式對、必填欄位有值、密碼強度夠。</p>
+<p>(e) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">複雜業務邏輯只有後端做得到</mark>，因為必須查資料庫才知道答案：</p>
+<ul>
+<li>這個帳號或 Email 是不是已經被別人註冊走了</li>
+<li>這個商品的庫存還夠不夠</li>
+<li>
+<p>這個使用者有沒有權限執行這個操作</p>
+<p><mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">前端沒有資料庫，這三題它一題都答不出來</mark>。</p>
+</li>
+</ul>
+<h3 id="3-vs">3. 前端驗證 vs 後端驗證對照</h3>
+<table>
+<thead>
+<tr>
+<th>比較項目</th>
+<th>Client-side validation（用戶端驗證）</th>
+<th>Server-side validation（伺服器端驗證）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>執行位置</td>
+<td>使用者的瀏覽器，用 HTML5 屬性或 JavaScript</td>
+<td>後端伺服器，用 Node.js、Python、Java、PHP 等</td>
+</tr>
+<tr>
+<td>主要目的</td>
+<td>提供即時回饋，提升使用者體驗</td>
+<td>保障系統安全，維護資料正確性</td>
+</tr>
+<tr>
+<td>安全性</td>
+<td>低，極易被繞過或修改</td>
+<td>高，使用者無法直接控制後端邏輯</td>
+</tr>
+<tr>
+<td>反應速度</td>
+<td>極快，不需經過網路傳輸就能提示錯誤</td>
+<td>較慢，需要一次 API 請求或網頁重新載入</td>
+</tr>
+<tr>
+<td>能不能查資料庫</td>
+<td>不能</td>
+<td>能</td>
+</tr>
+</tbody>
+</table>
+<h3 id="4">4. 實作流程（誰做什麼、產物丟給誰）</h3>
+<p>(f) 完整一輪的拋接關係寫成一句話：</p>
+<pre><code class="language-text">使用者 在前端填完表單並按送出
+  → 瀏覽器 把欄位資料序列化成 JSON，用 fetch 送到後端 API
+    → 後端路由 接到資料，呼叫驗證層（必填檢查 → 正規表示式格式檢查 → 查資料庫比對）
+      → 驗證失敗：後端 組出錯誤訊息物件，回 HTTP 400 Bad Request 給前端
+          → 前端 收到 400，把訊息渲染到對應欄位下方讓使用者修正
+      → 驗證成功：後端 執行業務邏輯（寫入資料庫）
+          → 回 HTTP 200／201 與成功結果，前端 導頁或顯示成功
+</code></pre>
+<p>(g) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">驗證失敗回 <code>400 Bad Request</code></mark>，代表「你送來的東西本身有問題」。<br />
+    <mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">跟它容易混淆的鄰居</mark>：<code>401 Unauthorized</code> 是「你沒表明身分」，<code>403 Forbidden</code> 是「你表明了身分但沒權限」，<code>422 Unprocessable Content</code> 是「語法對但語意不合規」，有些框架（例如 FastAPI 的 Pydantic）預設對驗證錯誤回 422 而不是 400。</p>
+<h3 id="5">5. 最佳實務</h3>
+<p>(h) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「前後端雙重驗證」是標準答案</mark>：前端負責即時提醒（密碼沒填就立刻紅字），減少無效的網路請求；後端負責最後把關，確保就算繞過前端資料也絕對安全。</p>
+<p>(i) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不要為了省事只留一邊</mark>。只留前端＝門沒鎖；只留後端＝使用者每打錯一個字都要等一次 round trip。</p>
+<p>(j) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">驗證規則最好只寫一份、兩邊共用</mark>。實務上用 schema 函式庫（Zod、Yup、Pydantic）把規則定義成一個 schema 物件，前端 import 它做即時檢查，後端 import 同一份做最終把關，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">避免兩邊規則不一致導致「前端說可以、後端說不行」的鬼打牆</mark>。</p>
+<p>(k) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">後端驗證跟 escaping 是兩件事</mark>：驗證是「這筆資料該不該收」，escaping／參數化查詢是「收下之後怎麼安全地存與顯示」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">通過驗證的資料仍然要用參數化查詢寫入資料庫，仍然要在輸出時做 HTML escaping</mark>，不能因為驗證過了就省略。</p>
+<hr />
+<h2 id="_2">各對話來源</h2>
+<h3 id="2026-09-httpsgeminigooglecomappf1ff251f8f4d9ec7">伺服器端表單驗證解析（2026-09）— https://gemini.google.com/app/f1ff251f8f4d9ec7</h3>
+<p><strong>使用者：</strong> 何謂 server-side form validation？</p>
+<p><strong>Gemini：</strong> Server-side form validation（伺服器端表單驗證）是指當使用者填寫並送出表單後，將資料傳送至伺服器（Server），由伺服器端的程式碼來檢查這些資料是否符合格式、安全性與業務邏輯的過程。</p>
+<ol>
+<li>
+<p>為何需要伺服器端驗證？安全性（防範惡意攻擊）：用戶端驗證很容易被繞過（例如透過關閉瀏覽器 JS、使用 Postman 等工具直接發送請求，或修改前端程式碼）。伺服器端是保護資料庫與系統安全的第一道，也是最終一道防線，能防止 SQL 注入、跨站腳本攻擊（XSS）等風險。資料完整性與準確性：確保存入資料庫的資料均符合規範。複雜業務邏輯檢查：有些驗證必須查詢伺服器資料庫才能完成，例如檢查註冊的帳號／Email 是否已被其他人使用、檢查商品庫存是否足夠、檢查使用者是否有權限執行該操作。</p>
+</li>
+<li>
+<p>與 Client-side Form Validation 的差異：執行位置、主要目的、安全性、反應速度四項對照（見上方表格）。</p>
+</li>
+<li>
+<p>常見的實作流程：送出表單 → 後端接收資料後呼叫驗證邏輯 → 若驗證失敗，伺服器回傳錯誤訊息與狀態碼（如 HTTP 400），前端收到後顯示給使用者修正；若驗證成功，伺服器處理業務邏輯並回傳成功結果或進行頁面跳轉。</p>
+</li>
+</ol>
+<p>最佳實務原則：「前後端雙重驗證」是最佳作法。用戶端驗證負責即時提醒，減少無效的網路請求；伺服器端驗證負責最後把關，確保資料就算繞過前端也絕對安全無誤。</p>
+<hr />
+<h2 id="_3">相關筆記</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>路徑</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>content attribute vs IDL property 與表單提交機制</td>
+<td>frontend-docs/html-basics/content-attribute-vs-IDL-property-與表單提交機制.md</td>
+<td>那篇講「前端這一半」——表單欄位的值怎麼被讀出來送出去，本篇接在它後面講後端怎麼收</td>
+</tr>
+<tr>
+<td>React Hook Form：useForm、register、watch、setValue</td>
+<td>frontend-docs/react/React-Hook-Form-useForm-register-watch-setValue.md</td>
+<td>前端即時驗證的實作，對應本篇 (h) 的「前端負責即時提醒」</td>
+</tr>
+<tr>
+<td>javascript: URL XSS 實驗室</td>
+<td>frontend-docs/web-platform/javascript-url-XSS-實驗室.html</td>
+<td>(c) 提到的 XSS，那篇是可以動手玩的實驗</td>
+</tr>
+<tr>
+<td>ClickFix 社交工程攻擊</td>
+<td>backend/ClickFix社交工程攻擊-假驗證碼誘騙貼上PowerShell與網站被注入的處置.md</td>
+<td>同屬「使用者輸入不可信」的資安主線</td>
+</tr>
+<tr>
+<td>HTTP Headers 的方向性</td>
+<td>backend/HTTP-Headers-Request與Response-誰送給誰.md</td>
+<td>(f) 流程裡 fetch 送出去的那包 Request Headers 長什麼樣</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="leetcodeneetcode">練習題（LeetCode／NeetCode）</h2>
+<p>表單驗證本身不是演算法題，但 (c) 裡「用正規表示式檢查格式」這件事在 LeetCode 有直接對應的題目，可以拿來練「不用 regex 也要能寫出驗證邏輯」：</p>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>連結</th>
+<th>為什麼相關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>65. Valid Number</td>
+<td>https://leetcode.com/problems/valid-number/</td>
+<td>純手寫狀態機驗證一個字串是不是合法數字，正是後端驗證層在做的事</td>
+</tr>
+<tr>
+<td>468. Validate IP Address</td>
+<td>https://leetcode.com/problems/validate-ip-address/</td>
+<td>格式驗證的經典題，邊界條件多，很像真實的欄位驗證</td>
+</tr>
+<tr>
+<td>20. Valid Parentheses</td>
+<td>https://leetcode.com/problems/valid-parentheses/</td>
+<td>最基礎的「輸入合法性檢查」思維暖身</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇來源對話</td>
+<td>https://gemini.google.com/app/f1ff251f8f4d9ec7</td>
+<td>Gemini 對話，2026-09</td>
+</tr>
+<tr>
+<td>MDN：Client-side form validation</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/Form_validation">MDN</a></td>
+<td>MDN，查證 2026-09-22</td>
+</tr>
+<tr>
+<td>HTTP 400 Bad Request</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/400">MDN 400</a></td>
+<td>MDN，查證 2026-09-22</td>
+</tr>
+<tr>
+<td>HTTP 422 Unprocessable Content</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/422">MDN 422</a></td>
+<td>MDN，查證 2026-09-22</td>
+</tr>
+<tr>
+<td>OWASP Input Validation Cheat Sheet</td>
+<td><a href="https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html">OWASP</a></td>
+<td>OWASP Cheat Sheet Series，查證 2026-09-22</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-09-22</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

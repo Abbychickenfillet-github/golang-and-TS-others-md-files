@@ -38,15 +38,15 @@ updated: 2026-08-04
 > [!important]+ 最常被問錯的一題先講：<mark style="background: #FF5582A6;">參數綁定**不是**在 buildtime 的 Parse 階段發生</mark>
 > 它發生在 **runtime（執行期）的 Creation Phase**，而且**每次呼叫都重來一次**。Parse 只做一次、而且只做「決策」，真正在記憶體裡挖格子寫值的是 Creation Phase。下面的時間軸把這條界線畫出來。
 
-| 5W1H | 問題 | 一句話答案 |
-|---|---|---|
-| **What** 是什麼 | Execution Context 是什麼？參數綁定是什麼？ | Execution Context 是引擎每次呼叫函式時在記憶體裡搭起來的一座臨時舞台；參數綁定是「參數名字」與「一塊記憶體位置」的對應關係 |
-| **When** 什麼時候 | 是 buildtime 的 Parse 階段嗎？ | <mark style="background: #FF5582A6;">不是</mark>。Parse 屬於編譯期、每個函式只做一次；參數綁定屬於**執行期的 Creation Phase**，呼叫幾次就做幾次 |
-| **Who** 誰做的 | 是誰建立這些綁定？ | JS 引擎（V8）自動做的。規格上對應的抽象操作叫 `FunctionDeclarationInstantiation`。<mark style="background: #ADCCFFA6;">跟打包工具、跟 React 都無關</mark> |
-| **Where** 在哪裡 | 綁定實際存在哪？ | 在 RAM 裡。沒被閉包捕獲 → **Stack Frame／CPU 暫存器**；被捕獲 → **Heap 上的 Context 物件** |
-| **Which** 哪一種 | 括號裡的東西哪些算參數？ | 只有走 `FormalParameterList` 的才算。`this`（`.call` 的第一引數）**不算**；`if (x)` 與 `(a+b)` 的括號也不是引數表達式 |
-| **How** 怎麼做到 | 一次呼叫的完整流程？ | 建立 Execution Context → Creation Phase（建 Environment Record、建參數綁定並初始化、hoisting）→ Execution Phase（逐行執行）→ `return` 彈出 Stack Frame |
-| **Why** 為什麼 | 為什麼要每次呼叫都重建？ | 因為要讓同一段程式碼被呼叫無數次而互不干擾。遞迴、閉包、React 每次 render 拿到獨立的 props，全部靠這件事 |
+| 5W1H          | 問題                                 | 一句話答案                                                                                                                          |
+| ------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **What** 是什麼  | Execution Context 是什麼？<br>參數綁定是什麼？ | <mark style="background: #FFF3A3A6;">Execution Context 是引擎每次呼叫函式時在記憶體裡搭起來的一座臨時舞台</mark>。<br>參數綁定是「參數名字」與「一塊記憶體位置」的對應關係         |
+| **When** 什麼時候 | 是 buildtime 的 Parse 階段嗎？           | <mark style="background: #FF5582A6;">不是</mark>。Parse 屬於編譯期、每個函式只做一次；參數綁定屬於**執行期的 Creation Phase**，呼叫幾次就做幾次                     |
+| **Who** 誰做的   | 是誰建立這些綁定？                          | JS 引擎（V8）自動做的。規格上對應的抽象操作叫 `FunctionDeclarationInstantiation`。<mark style="background: #ADCCFFA6;">跟打包工具、跟 React 都無關</mark>     |
+| **Where** 在哪裡 | 綁定實際存在哪？                           | 在 RAM 裡。沒被閉包捕獲 → **Stack Frame／CPU 暫存器**；被捕獲 → **Heap 上的 Context 物件**                                                          |
+| **Which** 哪一種 | 括號裡的東西哪些算參數？                       | 只有走 `FormalParameterList` 的才算。`this`（`.call` 的第一引數）**不算**；`if (x)` 與 `(a+b)` 的括號也不是引數表達式                                       |
+| **How** 怎麼做到  | 一次呼叫的完整流程？                         | 建立 Execution Context → Creation Phase（建 Environment Record、建參數綁定並初始化、hoisting）→ Execution Phase（逐行執行）→ `return` 彈出 Stack Frame |
+| **Why** 為什麼   | 為什麼要每次呼叫都重建？                       | 因為要讓同一段程式碼被呼叫無數次而互不干擾。遞迴、閉包、React 每次 render 拿到獨立的 props，全部靠這件事                                                                 |
 
 ### 時間軸：從 buildtime 到 runtime，參數綁定站在哪一格
 

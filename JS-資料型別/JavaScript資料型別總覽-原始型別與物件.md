@@ -2,7 +2,7 @@
 title: JavaScript 資料型別總覽 — 原始型別（Primitive）與物件（Object）
 tags: [JavaScript, 資料型別, primitive, object, Symbol, Map, WeakMap, sparse-array, 閉包]
 created: 2026-09-05
-updated: 2026-09-05
+updated: 2026-09-24
 charset: utf-8
 status: 已驗證（本文所有 console 輸出皆以 Node.js v22.22.2 實跑確認）
 ---
@@ -10,7 +10,7 @@ status: 已驗證（本文所有 console 輸出皆以 Node.js v22.22.2 實跑確
 # JavaScript 資料型別總覽 — 原始型別與物件
 
 
-> 這份筆記從 Abby 手寫的大綱整理而成，並補上三件原稿缺漏或寫錯的地方：
+> 這份筆記從手寫的大綱整理而成，並補上三件原稿缺漏或寫錯的地方：
 > a. 原始型別漏掉 **BigInt**，實際上是 **7 種**而不是 6 種
 > b. React 星星評分的三種寫法裡，**寫法 1 與寫法 3 都是壞的**，本文附上實跑證據與修正
 > c. WeakMap 範例裡變數名打錯（`vm` 宣告卻用 `wm` 呼叫），實際會噴 `ReferenceError` 而不是 `TypeError`
@@ -33,7 +33,7 @@ JavaScript 的值
 │   ├── Symbol       Symbol()   永遠唯一
 │   ├── undefined               引擎說「這裡沒東西」
 │   └── null                    開發者說「我刻意清空」
-│                               ⚠️ typeof 卻回傳 "object"（1995 年的 bug）
+│                               ⚠️ typeof null卻回傳 "object"（1995 年的 bug）
 │
 └── 物件 Object ── 1 種 ── 可變 mutable ── 變數存的是參考 reference
     │
@@ -45,7 +45,7 @@ JavaScript 的值
     └── Date / RegExp / Promise / Error ...
 ```
 
-**一句話定義**
+簡單統整定義差異
 
 - a. **原始型別**：值本身不能被改動。你以為在「改字串」，其實是造了一個新字串。
 - b. **物件**：一個可以掛任意鍵值的容器，變數裡存的是「指向它的參考」而不是本體。
@@ -71,7 +71,7 @@ JavaScript 的值
 ```
 
 原始的 typeof 對照表截圖：
-
++號運算子
 ![typeof 對照表](https://ithelp.ithome.com.tw/upload/images/20260905/20183570YU5Tr8RLud.png)
 
 ⚠️ 兩個著名的坑
@@ -84,6 +84,12 @@ JavaScript 的值
 ## 2. String（字串）
 
 > 📖 MDN｜[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String) ｜ [String.prototype.substring()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/substring) ｜ [String.prototype.slice()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice) ｜ [String.prototype.concat()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/concat) ｜ [樣板字面值 Template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals)
+>
+> `String` 只是 MDN [Standard built-in objects（標準內建物件）](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects) 清單裡的其中一個。
+> 　　同一層還有 `Number`、`Boolean`、`Symbol`、`BigInt`（另外 4 個包裝物件），以及 `Object`、`Function`、`Array`、`Map`、`Set`、`WeakMap`、`Promise`、`Date`、`RegExp`、`JSON`、`Math`、`Error` 等，整份清單都從上面那個總目錄點進去。
+
+字串是最常見的原始值（primitive）之一。
+　　字串本身是**不可變的（immutable）**：用 `substring()` 擷取一段、用 `concat()` 把兩個字串合為一，都是**回傳另一個新字串**，原本的字串完全不會被改動。
 
 ```js
 const s = "JavaScript";
@@ -96,7 +102,66 @@ s.slice(-6);            // "Script" slice 接受負數索引，substring 不接�
 - b. `slice(start, end)`：功能類似但**接受負數**，`-1` 代表倒數第一個。實務上 `slice` 用得比 `substring` 多。
 - c. `concat()`：回傳**新字串**，原字串不動（因為原始型別不可變）。實務上大家幾乎都用 `+` 或樣板字串 `` `${a}${b}` ``，`concat` 只在需要串很多段時偶爾出現。
 
-**自動裝箱（autoboxing）**：`"abc".length` 之所以能動，是因為引擎在讀屬性的瞬間，臨時包一個 `String` 包裝物件出來，取完就丟。所以下面這行不會報錯但也沒用：
+
+其他常用的簡單方法（`const t = "JavaScript"`，Node v22.22.2 實跑）：
+
+| 用途 | 方法 | 範例 | 結果 | 備註 |
+|---|---|---|---|---|
+| 查長度／取字元 | [`length`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length) | `t.length` | `10` | 是屬性不是方法，不加括號 |
+|  | [`at()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/at) | `t.at(-1)` | `"t"` | 接受負數索引 |
+|  | [`charAt()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/charAt) | `t.charAt(0)` | `"J"` | 舊寫法，不接受負數 |
+| 找位置／判斷有沒有 | [`indexOf()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf) | `t.indexOf("a")` | `1` | 找不到回傳 `-1` |
+|  | [`lastIndexOf()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf) | `t.lastIndexOf("a")` | `3` | 從尾巴往前找 |
+|  | [`includes()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes) | `t.includes("Script")` | `true` | 只要布林值時比 `indexOf() !== -1` 好讀 |
+|  | [`startsWith()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith)／[`endsWith()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith) | `t.startsWith("Java")` | `true` | 檢查開頭或結尾 |
+| 大小寫 | [`toUpperCase()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toUpperCase)／[`toLowerCase()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toLowerCase) | `t.toUpperCase()` | `"JAVASCRIPT"` | 比對使用者輸入前常先統一大小寫 |
+| 去空白／補字 | [`trim()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trim) | `"  Hi  ".trim()` | `"Hi"` | 還有 `trimStart()`、`trimEnd()` 只去一邊 |
+|  | [`padStart()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/padStart) | `"5".padStart(3, "0")` | `"005"` | 補零做時間格式很常用 |
+|  | [`repeat()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/repeat) | `"ab".repeat(3)` | `"ababab"` | 重複 n 次 |
+| 切開／取代 | [`split()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/split) | `"a,b,c".split(",")` | `["a","b","c"]` | 字串變陣列，反向是陣列的 `join()` |
+|  | [`replace()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replace) | `"a-a".replace("a", "b")` | `"b-a"` | 只換第一個 |
+|  | [`replaceAll()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replaceAll) | `"a-a".replaceAll("a", "b")` | `"b-b"` | 全部換掉 |
+
+　　上表每一個方法都**回傳新值**，`t` 本身永遠還是 `"JavaScript"`——這就是開頭說的字串不可變。
+
+**自動裝箱（autoboxing）**：除了 `null` 與 `undefined`，每個原始型別都有一個對應的 **wrapper object（包裝物件）** 建構子——`String`、`Number`、`Boolean`、`Symbol`、`BigInt`。
+　　`"abc".length`、`"abc".toUpperCase()` 之所以能動，是因為引擎在讀屬性的瞬間做了 `ToObject("abc")`，**臨時**包一個 `String` 包裝物件出來，從 `String.prototype` 找到方法，用完就丟。
+　　`new String("hello")` 則是**手動**把包裝物件建出來並留住它——它不是自動裝箱本身，而是讓你親眼看到「自動裝箱時那個一閃即逝的東西長什麼樣」。
+
+```js
+let primitiveStr = "hello";
+let objectStr = new String("hello");
+
+console.log(typeof primitiveStr); // "string" (原始型別)
+console.log(typeof objectStr);    // "object" (物件)
+
+// ↓ 以下為補充對照，Node v22.22.2 實跑確認
+console.log(primitiveStr.toUpperCase());              // "HELLO"  原始值沒有屬性，卻能呼叫方法 → 自動裝箱
+console.log(Object.getPrototypeOf(primitiveStr) === String.prototype); // true  臨時包裝物件的原型就是 String.prototype
+console.log(primitiveStr instanceof String);          // false  instanceof 不會幫原始值裝箱
+console.log(objectStr instanceof String);             // true
+console.log(primitiveStr === objectStr);              // false  一個是值、一個是物件參考
+console.log(primitiveStr == objectStr);               // true   == 對物件做 ToPrimitive 拆箱後才比
+console.log(typeof objectStr.valueOf());              // "string"  valueOf() = 手動拆箱（unboxing）
+console.log(Boolean(new String("")));                 // true   包裝物件永遠是 truthy，就算裡面是空字串
+```
+
+整段翻成中文：
+「我宣告 `primitiveStr` 存一個原始字串 `"hello"`，再用 `new` 呼叫 `String` 建構子，做出一個**把 `"hello"` 包在裡面的物件** `objectStr`。
+　　`typeof` 看 `primitiveStr` 回傳 `"string"`，看 `objectStr` 回傳 `"object"`——證明兩者外觀一樣，型別卻完全不同。
+接著我對原始字串呼叫 `toUpperCase()`，它明明不是物件卻能用方法，因為引擎在這一瞬間把它自動裝箱成臨時的 `String` 物件。
+　　所以取它的原型會拿到 `String.prototype`，但 `instanceof` 不會幫原始值裝箱，所以回傳 `false`，只有真的包裝物件 `objectStr` 才是 `true`。
+最後，`===` 不做型別轉換，值和物件永遠不相等，而 `==` 會對物件做 ToPrimitive（先試 `valueOf()`）把它拆回 `"hello"` 再比，所以相等。
+　　包裝物件是物件，物件一律 truthy，所以就算包的是空字串 `""`，`Boolean()` 仍回傳 `true`——這也是**實務上不要寫 `new String()`** 的主因。」
+
+| 關鍵字 | 意思 | 跟底層的關係 |
+|---|---|---|
+| `new` | 呼叫建構子，產生一個新物件並回傳它的參考 | 少了 `new`，`String("hello")` 只是型別轉換函式，回傳原始字串 |
+| `typeof` | 回傳一個描述型別的字串 | 看的是值本身，不會觸發裝箱 |
+| `instanceof` | 沿著左邊值的原型鏈，找有沒有右邊建構子的 `prototype` | 規格 [OrdinaryHasInstance](https://tc39.es/ecma262/#sec-ordinaryhasinstance) 第一步就寫「O 不是 Object 就回傳 false」，原始值根本沒進到查原型鏈那一步 |
+| `valueOf()` | 取出包裝物件內部 `[[StringData]]` 這個 internal slot（內部欄位）存的原始值 | 手動拆箱，`==` 與 `+` 內部的 ToPrimitive 也會先呼叫它 |
+
+同一個機制的反面：屬性寫進臨時包裝物件後，那個物件立刻被丟掉，所以下面這行不會報錯但也沒用：
 
 ```js
 const s = "abc";
@@ -585,6 +650,15 @@ new Set([NaN, NaN]).size;   // 1      SameValueZero，所以只留一個
 ```
 
 ⚠️ **`Object.is` 就是 React 判斷 state 有沒有變的那個函式**，所以理解這張表對你寫 React 有直接幫助。
+
+> 追問（2026-09-28）：**為什麼 TC39 要特地為 Set／Map 訂出 SameValueZero，不直接沿用 `===`？** 因為 ES6 早期草案曾讓 `Set` 直接套用 `===` 判斷去重，會踩到兩個反直覺的坑：
+> a. `NaN === NaN` 是 `false`，若 `Set` 照抄，`set.add(NaN)` 執行三次，`set.size` 會變成 `3`（去重完全失效），`set.has(NaN)` 也永遠回傳 `false`，等於**放得進去、找不回來、也刪不掉**。
+> b. 早期草案曾借用 `Object.is()` 的 SameValue 演算法，把 `+0` 與 `-0` 當成不同值，`new Set([+0, -0]).size` 會是 `2`，不符合「0 就是 0」的直覺。
+>
+> TC39 最終在 ES2015 正式規範定案時，另外訂出 **SameValueZero**：與 SameValue 唯一的差異只在 `+0`／`-0`（SameValueZero 視為相同），其餘規則（`NaN` 視為相同、其他型別等同 `===`）不變。這也是「Value equality for -0 and 0」這條 MDN 相容性註記背後的規格演進脈絡。
+>
+> 來源對話：[JavaScript Set 的正負零改動原因](https://gemini.google.com/app/68465c3f688c9c72)、[JavaScript Set 的獨立性與相等性機制](https://gemini.google.com/app/0febc00ec2ac4150)（2026-09-28）
+
 
 > 對應題目：[LeetCode 2704. To Be Or Not To Be](https://leetcode.com/problems/to-be-or-not-to-be/) — 實作 `toBe`（用 `===`）與 `notToBe`，很短但會逼你把「相等」想清楚。
 

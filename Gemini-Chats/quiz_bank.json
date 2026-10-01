@@ -4315,5 +4315,681 @@
     "a": "參考方向：(1) 先本地後雲端，因為本地查詢成本低且不需要網路。(2) 本地第一步用 kind:=video 加 datemodified 區間縮小母體，第二步再加 size:>100MB 把短檔濾掉。(3) 第三步去錄影軟體的預設路徑翻，因為那是最常見的漏網位置。(4) 本地失敗才進 YouTube Studio 後台，因為前台搜不到不公開影片。(5) 後台先勾瀏覽權限與日期，再用縮圖肉眼掃，因為縮圖比標題可靠。(6) 最後回筆記庫搜主題關鍵字，筆記本身就是最後一道索引。"
    }
   ]
+ },
+ "JS-物件/物件-configurable這把鎖與defineProperty實務用途.md": {
+  "tf": [
+   {
+    "q": "value、writable、enumerable、configurable 是 JavaScript 的保留字，所以不能拿來當一般變數名稱。",
+    "a": false,
+    "why": "它們不是保留字，只是 Object.defineProperty 約定會去讀的四個 key 名稱。寫 const value = 1 完全合法。"
+   },
+   {
+    "q": "把 configurable 設成 false 之後，這個屬性的值就再也改不了了。",
+    "a": false,
+    "why": "configurable 鎖的是「結構與規則」，不是值。只要 writable 還是 true，obj.a = 20 照樣成功。要鎖值得另外把 writable 設成 false。"
+   },
+   {
+    "q": "configurable: false 之後，writable 還是可以從 true 改成 false。",
+    "a": true,
+    "why": "這是兩個例外之一，但方向是單行道：只准往更嚴格走，false 改不回 true。"
+   },
+   {
+    "q": "用 Object.defineProperty 新增一個屬性時，如果沒寫 enumerable，它的預設值是 true。",
+    "a": false,
+    "why": "預設是 false。三個布林欄位沒寫一律 false，跟 obj.a = 10 直接賦值（三個都 true）剛好相反，這是最常見的坑。"
+   },
+   {
+    "q": "陣列的 length 屬性跟 Math.PI 一樣，都是 writable: false。",
+    "a": false,
+    "why": "⚠️ 這是本篇更正的地方。陣列 length 是 { writable: true, enumerable: false, configurable: false }，所以 arr.length = 0 合法，只是刪不掉。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Object.defineProperty 的第三個參數，正式名稱叫做屬性 ____ 器（descriptor）。",
+    "a": "描述",
+    "why": "property descriptor，描述器物件。"
+   },
+   {
+    "q": "configurable: false 時，delete obj.prop 在嚴格模式下會丟出 ____ 這個錯誤型別。",
+    "a": "TypeError",
+    "why": "非嚴格模式下不報錯，delete 只是靜靜回傳 false。"
+   },
+   {
+    "q": "Math.PI 的三個布林欄位全是 ____，所以你既改不了 π 也刪不掉它。",
+    "a": "false",
+    "why": "{ writable: false, enumerable: false, configurable: false }。"
+   },
+   {
+    "q": "Vue ____ 的響應式系統就是用 Object.defineProperty 的 getter／setter 攔截讀寫實作的，Vue 3 已改用 Proxy。",
+    "a": "2",
+    "why": "不要把 Vue 2、Vue 3、React 三者混為一談，React 從來就不是靠 defineProperty 追蹤狀態。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "為什麼實務專案裡幾乎看不到有人寫 Object.defineProperty？請說出「不用它的理由」與「非用它不可的三種場合」。",
+    "a": "不用的理由：日常業務邏輯根本沒有「屬性不可刪、不可列舉」這種需求，物件字面值 { a: 10 } 一行寫完而且一眼就懂，defineProperty 要多寫五行卻換來用不到的控制力。\n\n非用它不可的三種場合：\n（1）保護函式庫或框架的核心欄位，不希望使用者不小心 delete 掉或改壞設定，例如 Vue 2 的響應式系統用 getter／setter 攔截讀寫。\n（2）做出唯讀常數或受控更新的欄位，需要 writable: true 搭 configurable: false 這種混搭組合，值可以換但屬性不能被刪。\n（3）加上隱藏欄位不想污染列舉，讓 Object.keys 與 JSON.stringify 看不到它，例如內部快取或內部 id。\n\n另外引擎自己內建的屬性就是靠這四個欄位設定出來的，Math.PI 是最好的例子。"
+   },
+   {
+    "q": "請用一句話說清楚 configurable 到底鎖住什麼，並舉出它放行的兩個例外。",
+    "a": "一句話：configurable 鎖的是「屬性的結構與規則」，不是「屬性的值」。\n\n鎖住的三件事：不能 delete、不能再用 defineProperty 改它的特徵（例如把 enumerable 從 false 改回 true）、不能在 data property 與 accessor property 之間互換。\n\n放行的兩個例外：\n（1）writable 可以從 true 改成 false，但不能從 false 改回 true，方向是單行道，只准往更嚴格走。\n（2）只要 writable 還是 true，obj.a = 20 這種一般賦值照樣成功。\n\n所以要把值也鎖死，必須另外把 writable 設成 false。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_CheatSheet_and_APIs/JSON/JSON不是建構子-命名空間物件與Math的對照.md": {
+  "tf": [
+   {
+    "q": "JSON 不能被 new，是因為它是物件而不是函式。",
+    "a": false,
+    "why": "方向對但不精確。真正的判準是「有沒有 [[Construct]] 內部方法」。反例是箭頭函式：typeof 是 function，但一樣不能被 new。"
+   },
+   {
+    "q": "JSON() 這樣直接當函式呼叫是可以的，只是不能加 new。",
+    "a": false,
+    "why": "兩種都不行。JSON() 會丟 TypeError: JSON is not a function。"
+   },
+   {
+    "q": "Math、JSON、Reflect、Intl、Atomics 都是命名空間物件，都不能被 new。",
+    "a": true,
+    "why": "再加上 WebAssembly，這整個家族都只是靜態方法的容器。"
+   },
+   {
+    "q": "JSON 身上有 prototype 屬性，只是被設成 null。",
+    "a": false,
+    "why": "'prototype' in JSON 直接回傳 false，它根本沒有這個屬性。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "JSON 這種「只當靜態方法容器、沒有狀態也沒有實例」的全域物件，正式名稱叫 ____ 物件（英文 namespace object）。",
+    "a": "命名空間",
+    "why": "MDN 的用語就是 namespace object。"
+   },
+   {
+    "q": "new JSON() 會丟出的完整錯誤訊息是 TypeError: JSON is not a ____。",
+    "a": "constructor",
+    "why": "而 JSON() 丟的是 is not a function，兩者訊息不同。"
+   },
+   {
+    "q": "new 運算子真正在找的內部方法叫做 [[____]]，找不到就當場丟 TypeError。",
+    "a": "Construct",
+    "why": "規範層面的答案。typeof 只是快篩。"
+   },
+   {
+    "q": "Object.prototype.toString.call(JSON) 會回傳 \"[object ____]\"。",
+    "a": "JSON",
+    "why": "因為 JSON 身上有 Symbol.toStringTag 且值為 'JSON'。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "為什麼 JSON 不需要被實例化？請從 new 的工作內容反推。",
+    "a": "new 的工作是：建立一個新物件、把 this 綁上去、掛上 prototype、讓這個實例可以保存自己的狀態。\n\n但 JSON 不需要保存任何狀態或實例資料。JSON.parse 與 JSON.stringify 都是純函式：給輸入、出輸出，做完就結束，兩次呼叫之間不需要記住任何東西。\n\n沒有狀態要存，實例就沒有存在的意義，所以設計者直接把它做成命名空間物件——一個裝靜態方法的容器，跟 Math 一模一樣。你不會寫 new Math()，只會直接呼叫 Math.random()。"
+   },
+   {
+    "q": "同事說「typeof X === 'object' 就代表不能 new」，這句話對嗎？請說明更準確的判準。",
+    "a": "結論上通常會得到正確答案，但推理過程不對。\n\n更準確的判準是「這個值有沒有 [[Construct]] 內部方法」。\n\n反例是箭頭函式：typeof (() => {}) 回傳 'function'，符合「是函式」的條件，但 new (() => {}) 一樣丟 TypeError: ... is not a constructor，因為箭頭函式沒有 [[Construct]]。同樣的還有 class 的方法簡寫、以及大部分內建的工具方法。\n\n所以 typeof X === 'function' 只能當快篩（不是 function 就一定不能 new），規範層面的答案在 [[Construct]]。"
+   }
+  ]
+ },
+ "frontend-docs/html-basics/abbr元素-縮寫與acronym的差異-title屬性怎麼被看見.md": {
+  "tf": [
+   {
+    "q": "title 屬性的內容會被渲染進網頁的版面文字裡。",
+    "a": false,
+    "why": "它是 content attribute，不會變成文字節點，所以不佔任何版面。只有 hover tooltip、螢幕閱讀器、機器讀取這三個出口會取用它。"
+   },
+   {
+    "q": "acronym 是 abbreviation 的一種特例。",
+    "a": true,
+    "why": "分界點是「能不能當成一個單字唸出來」。NASA 唸得出來是 acronym，HTML 得逐字母唸就只是 abbreviation。"
+   },
+   {
+    "q": "HTML5 已經廢棄 <acronym> 標籤，現在一律用 <abbr>。",
+    "a": true,
+    "why": "MDN 的說法是 <acronym> should not be used。"
+   },
+   {
+    "q": "所有瀏覽器都會幫 <abbr title> 加上虛線底線，所以不需要自己寫 CSS。",
+    "a": false,
+    "why": "⚠️ 本篇更正處。MDN 明寫各家不一致：有的加虛線底線、有的加底線同時轉 small caps、有的根本不做特殊樣式。要一致就自己寫 CSS。"
+   },
+   {
+    "q": "用 <abbr title> 可以提升網頁的 SEO 排名。",
+    "a": false,
+    "why": "⚠️ 本篇更正處。Google 從未把 title 屬性列為排名因子。寫 <abbr> 的理由是無障礙與可維護性，不是排名。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "規範規定 title 裡「必須只放縮寫的完整展開，不得夾帶其他文字」，原文那句英文是 and nothing ____。",
+    "a": "else",
+    "why": "所以不要寫成 title=\"HTML（超文字標記語言，1993 年提出）\"。"
+   },
+   {
+    "q": "NASA 唸作 ˈnæsə，屬於 ____（英文），HTML 逐字母唸，只屬於廣義的 abbreviation。",
+    "a": "acronym",
+    "why": "分界點就是能不能當成一個單字發音。"
+   },
+   {
+    "q": "因為觸控裝置沒有 ____ 這個互動，手機使用者永遠看不到 tooltip，所以第一次出現時最好直接把全名寫在內文裡。",
+    "a": "hover",
+    "why": "MDN 的實務建議：能在內文寫全名就不要只靠 title。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請說明 <abbr title=\"...\"> 裡的完整字，是透過哪三個出口被「看到」的，並各自說明誰取用它。",
+    "a": "瀏覽器 parse 完之後，<abbr> 底下的文字節點只有縮寫本身，title 被存成 attribute 而不是子節點，所以排版引擎不會把它排進版面。它只在三個出口浮現：\n\n（1）滑鼠 hover：由瀏覽器的原生 tooltip 機制取用，游標停留一兩秒後浮出小氣泡顯示完整名稱。\n（2）螢幕閱讀器：由報讀軟體（NVDA、JAWS、VoiceOver）取用，可選擇朗讀完整單字而不是逐字母唸出縮寫。\n（3）機器讀取：由爬蟲與各種 HTML 解析工具取用，拿得到縮寫對應的完整語意。\n\n畫面上永遠只看得到縮寫本身那幾個字。"
+   },
+   {
+    "q": "為什麼「只靠 title 提供全名」不是好的無障礙做法？該怎麼寫比較穩？",
+    "a": "兩個理由：\n\n（1）觸控裝置沒有 hover，手機與平板使用者永遠看不到 tooltip，等於這段資訊對他們完全不存在。\n（2）各家瀏覽器對 <abbr title> 的預設樣式不一致，有的根本不加虛線底線，使用者不會知道這裡可以 hover。\n\n最穩的寫法是第一次出現時直接在內文把全名寫出來，例如「超文字標記語言（<abbr title=\"HyperText Markup Language\">HTML</abbr>）」，title 只當補強而不是唯一管道。MDN 的建議也是：能在內文裡直接展開，就不要只靠 title。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_CheatSheet_and_APIs/DOM/事件處理器vs事件監聽器-onevent與addEventListener.md": {
+  "tf": [
+   {
+    "q": "el.onblur = checkUsername() 這樣寫，事件觸發時會執行 checkUsername。",
+    "a": false,
+    "why": "加了小括號代表「現在就跑」。這一行執行時函式就跑完了，onblur 拿到的是回傳值 undefined，事件觸發時沒東西可執行。"
+   },
+   {
+    "q": "對同一個元素的同一個事件用 addEventListener 綁兩個函式，後面的會覆蓋前面的。",
+    "a": false,
+    "why": "addEventListener 是往佇列排隊，兩個都會留著並依加入順序執行。會覆蓋的是 on-event 插槽寫法。"
+   },
+   {
+    "q": "addEventListener 的第一個參數要寫 'click' 而不是 'onclick'。",
+    "a": true,
+    "why": "on-event 寫法才要加 on（el.onclick），addEventListener 一律不加。"
+   },
+   {
+    "q": "{ once: true } 的意思是「這個按鈕之後被禁止點擊」。",
+    "a": false,
+    "why": "once 是「listener 執行完一次後自動移除」，按鈕本身還是可以點，只是沒人接了。要真的鎖住得自己控制 btn.disabled。"
+   },
+   {
+    "q": "addEventListener 的 options 只有 capture 與 once 兩個欄位。",
+    "a": false,
+    "why": "⚠️ 本篇更正處。常用的有四個：capture、once、passive、signal。面試問第三個參數時 passive 幾乎一定會被追問，因為它跟捲動效能直接相關。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "小括號的意思是「現在就跑」，而你要的是「____ 再跑」，所以綁事件時不能加。",
+    "a": "等一下",
+    "why": "真的需要傳參數時就包一層函式把呼叫延後。"
+   },
+   {
+    "q": "el.onclick 本質上是一個「____」，只有一格，所以會被第二次賦值蓋掉；addEventListener 則是往一條佇列排隊。",
+    "a": "插槽",
+    "why": "這一句可以解釋兩者之間所有的差異。"
+   },
+   {
+    "q": "on-event 寫法要移除函式時寫 el.onclick = ____。",
+    "a": "null",
+    "why": "addEventListener 則用 removeEventListener，或搭配 AbortController 的 signal。"
+   },
+   {
+    "q": "想在任意時刻優雅地拔掉監聽，可以搭配 ____ Controller 的 signal，比記住函式參考再 removeEventListener 乾淨。",
+    "a": "Abort",
+    "why": "const ac = new AbortController(); ... ac.abort();"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請完整說明 el.onclick 與 addEventListener 的差異，至少涵蓋五個面向。",
+    "a": "本質差異一句話：el.onclick 是一個「插槽」，只有一格；addEventListener 是往一條「佇列」排隊。這句話能解釋底下所有差異。\n\n（1）同一事件綁多個函式：on-event 不行，後面的蓋掉前面的；addEventListener 可以，依加入順序執行。\n（2）語法：el.onclick = handleClick vs el.addEventListener('click', handleClick)。\n（3）事件名稱：on-event 要加 on（onclick、onblur）；addEventListener 不加（'click'、'blur'）。\n（4）進階選項：on-event 沒有；addEventListener 第三個參數可傳 capture、once、passive、signal。\n（5）移除方式：on-event 寫 el.onclick = null；addEventListener 用 removeEventListener('click', handleClick)，或搭 AbortController 的 signal。\n（6）相容性：on-event 極高，很舊的瀏覽器也支援；addEventListener 從 IE9 起全面支援，現代開發沒有問題。\n\n結論：現代開發一律優先用 addEventListener。"
+   },
+   {
+    "q": "為什麼綁事件時不能加小括號？如果我真的需要傳參數給處理函式，該怎麼寫？",
+    "a": "因為小括號 () 的意思是「現在就呼叫」。\n\n寫 el.onblur = checkUsername 時，你是把函式「本身」當成一個值，賦給 el 的 onblur 插槽，瀏覽器會在使用者讓輸入框失焦時才去呼叫它。\n\n寫 el.onblur = checkUsername() 時，引擎讀到這一行就立刻執行 checkUsername，再把它的回傳值（通常是 undefined）賦給 onblur。結果是函式在不該跑的時候跑了一次，而事件真正觸發時插槽裡是 undefined，完全沒有函式可以執行。\n\n需要傳參數時，包一層函式把呼叫延後就好：\nel.onblur = () => checkUsername('abby');\nel.addEventListener('blur', () => checkUsername('abby'));\n\n注意包成箭頭函式之後，這個匿名函式沒有名字可以參考，所以之後想 removeEventListener 就得先把它存成變數，或改用 AbortController 的 signal。"
+   }
+  ]
+ },
+ "frontend-docs/web-platform/CSR初始DOM只有空div-root-DOM建立的時機與阻塞.md": {
+  "tf": [
+   {
+    "q": "瀏覽器要等整份 HTML 全部下載完，才會開始建立 DOM。",
+    "a": false,
+    "why": "DOM 是增量式（incremental）建構的：Parser 收到第一批 bytes 就啟動，收到多少 HTML 就先蓋出多少 DOM 分枝。"
+   },
+   {
+    "q": "CSR 的頁面在 DOMContentLoaded 觸發時，畫面上就已經有內容了。",
+    "a": false,
+    "why": "這是本篇最核心的一點。DOMContentLoaded 時初始 DOM 確實建好了，但裡面只有空的 div#root，內容要等 bundle.js 執行完才被塞進去。DOM 存在不等於畫面有東西。"
+   },
+   {
+    "q": "沒有寫 async 或 defer 的 <script>，會讓 HTML Parsing 暫停。",
+    "a": true,
+    "why": "因為 JS 可能呼叫 document.write() 改變 DOM 結構，Parser 不敢先往下走。"
+   },
+   {
+    "q": "CSS 不會影響 DOM 的建立速度，因為它走的是另一條 CSSOM 管線。",
+    "a": false,
+    "why": "會間接影響。script 前面若有 <link rel=\"stylesheet\">，該 script 必須等 CSSOM 建好才能執行，而 script 又卡住 parsing，所以 DOM 建立被拖延。"
+   },
+   {
+    "q": "window.onload 觸發代表 HTML 解析完成，但圖片可能還沒載完。",
+    "a": false,
+    "why": "描述的是 DOMContentLoaded。window.onload 代表連圖片、樣式表等所有資源都載完了。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "HTML Parser 的第一步 Conversion，是把 ____ 依照指定編碼（通常是 UTF-8）轉成字元。",
+    "a": "bytes",
+    "why": "bytes → 字元 → token → node → DOM 樹。"
+   },
+   {
+    "q": "CSR 的入口 HTML 裡，那個等著被填滿的空容器慣例上寫成 <div id=\"____\"></div>。",
+    "a": "root",
+    "why": "Vue 專案常寫 app，React 慣例是 root。"
+   },
+   {
+    "q": "HTML 解析完成、DOM 樹完整建立時，瀏覽器觸發的事件叫 ____。",
+    "a": "DOMContentLoaded",
+    "why": "此時圖片與 CSS 等外部資源可能還在載。"
+   },
+   {
+    "q": "CSR 的白屏發生在時間軸第 4 格：DOM 已建好，但 ____ 還在下載或執行。",
+    "a": "bundle.js",
+    "why": "這正是 SSR 與 SSG 想解決的痛點——把有內容的 HTML 提前到第 3 格就交給瀏覽器。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請用時間軸說明「CSR 的畫面在哪一刻才長出來」，並指出白屏發生在哪一格、為什麼。",
+    "a": "五格時間軸：\n\n第 1 格　請求送出到收完 response body 之前：瀏覽器手上只有還沒解碼的 bytes，DOM 一個節點都沒有。\n第 2 格　HTML Parsing：Parser 收到第一批 bytes 就啟動，bytes → 字元 → token → node → 掛上 DOM 樹，邊讀邊建。\n第 3 格　初始 DOM 完成：DOM 樹完整，DOMContentLoaded 觸發。但裡面只有空的 <div id=\"root\"></div> 與一個 <script src=\"bundle.js\">。\n第 4 格　下載並執行 bundle.js：React 或 Vue 啟動。\n第 5 格　JS 用 createElement 或框架的 Virtual DOM 渲染機制，把真正的內容塞進 div#root，使用者才看到畫面。\n\n白屏發生在第 4 格：DOM 已經建好、DOMContentLoaded 也早就觸發了，但 bundle 還在下載或執行，畫面上一片空白。SSR 與 SSG 就是為了解決這一點——把「有內容的 HTML」提前到第 3 格就交給瀏覽器。"
+   },
+   {
+    "q": "有哪兩種情況會把 HTML Parsing 按下暫停？請把「誰對誰做什麼」寫清楚。",
+    "a": "（1）同步 script 直接卡住 Parser：當 HTML Parser 讀到 <script src=\"app.js\">（沒寫 async 也沒寫 defer）時，Parser 立刻停止建立 DOM，把控制權交給瀏覽器去下載這支 JS 並交給 JS 引擎執行，執行完畢後 Parser 才繼續往下解析剩餘的 HTML。原因是這支 JS 有可能呼叫 document.write() 改變 DOM 結構，Parser 不敢先往下走。\n\n（2）CSS 間接卡住 JS、JS 再卡住 Parser：如果那支 script 前面有 <link rel=\"stylesheet\">，JS 引擎必須等 CSS 被 parse 成 CSSOM 之後才能執行這支 script。原因是 JS 可能去讀元素的計算後樣式（例如 getComputedStyle），樣式沒算完就讀會拿到錯的值。結果是 script 被 CSSOM 卡住、Parser 又被 script 卡住，DOM 的建立跟著被拖延。\n\n避開的方式是給 script 加 defer（等 parsing 完成後、DOMContentLoaded 之前依序執行）或 async（下載完就執行，不保證順序）。"
+   }
+  ]
+ },
+ "backend/DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能.md": {
+  "tf": [
+   {
+    "q": "Slow Start 的「Slow」是指 CWND 的成長速度很慢。",
+    "a": false,
+    "why": "Slow 指的是「起步點很低」（初始只有約 10 個 MSS）。成長本身是每個 RTT 加倍的指數成長，一點都不慢。"
+   },
+   {
+    "q": "只要家裡頻寬夠大，下載一個 5 KB 的 CSS 檔就能跑滿頻寬。",
+    "a": false,
+    "why": "連線剛建立時 CWND 只有約 14 KB，小檔案往往在 CWND 長大之前就傳完了，根本來不及用到大頻寬。這也是「首屏 critical CSS 壓在 14 KB 內」這個建議的由來。"
+   },
+   {
+    "q": "換成 HTTP/3（QUIC）之後就沒有慢啟動了。",
+    "a": false,
+    "why": "RFC 9002 明定 QUIC 也有 Slow Start 與 Congestion Avoidance。QUIC 省掉的是 TCP 與 TLS 分開握手的 RTT，以及靠 0-RTT 恢復少重來幾次。"
+   },
+   {
+    "q": "發送端每一輪真正能送的量，是 CWND 與 RWND 取最小值。",
+    "a": true,
+    "why": "CWND 是「怕塞車」（網路狀況，發送端自己估），RWND 是「怕爆倉」（接收端緩衝區，由接收端回報）。慢啟動只負責 CWND 那一邊。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "慢啟動裡控制「還沒收到 ACK 之前路上最多能放幾個封包」的變數，縮寫叫 ____。",
+    "a": "CWND",
+    "why": "CWND＝Congestion Window，擁塞視窗，由發送端自己維護。"
+   },
+   {
+    "q": "CWND 漲到 ____ 這個門檻之後，就從指數成長改成每 RTT 只加 1 個 MSS 的線性成長。",
+    "a": "ssthresh",
+    "why": "ssthresh＝Slow Start Threshold，慢啟動門檻；跨過去就進入擁塞避免（Congestion Avoidance）。"
+   },
+   {
+    "q": "RFC 6928 之後，CWND 的初始值建議提高到 ____ 個 MSS（約 14 KB）。",
+    "a": "10",
+    "why": "早期規範是從 1 個封包開始，現今主流實作採用 10。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "為什麼有人主張「首屏 critical CSS 壓在 14 KB 以內」？請用 CWND 初始值與 RTT 說明，並估算在 1 RTT＝150 ms 的跨國線路上超出會多付多少時間。",
+    "a": "因為 TCP 連線剛建立時 CWND 約為 10 個 MSS（10×1460≈14.6 KB），這是第一個 RTT 內就能一次送完的量。超過 14 KB 的部分必須等第一批 ACK 回來、CWND 加倍之後才能送，也就是多付至少 1 個 RTT；在 1 RTT＝150 ms 的跨國線路上，每多一輪就是 150 ms，而且這段時間 CPU 與頻寬都在空等。所以壓在 14 KB 內等於讓首屏樣式在第一輪就到齊。"
+   }
+  ]
+ },
+ "frontend-docs/Axios-vs-Fetch-回應解析與錯誤處理.md": {
+  "tf": [
+   {
+    "q": "req.signal.addEventListener(\"abort\", console.log(\"abort\")) 會在 abort 事件發生時印出 abort。",
+    "a": false,
+    "why": "加了小括號代表「現在就跑」：console.log 在綁定當下就執行完了，回傳值 undefined 才被當成監聽器。事件真的發生時沒有函式可以執行。"
+   },
+   {
+    "q": "原生 fetch() 有內建的 timeout 選項可以設定逾時。",
+    "a": false,
+    "why": "fetch 本身沒有 timeout 參數，要用 AbortController 搭 setTimeout 自己做，或直接用現成的 AbortSignal.timeout(ms)。"
+   },
+   {
+    "q": "AbortController 是 ECMAScript（JavaScript 語言本身）規範的一部分。",
+    "a": false,
+    "why": "⚠️ 本篇更正處。它是 WHATWG DOM 規範定義的介面，由瀏覽器與 Node.js（v15+）各自實作，不屬於 ECMAScript。"
+   },
+   {
+    "q": "請求被 abort 之後，fetch 的 Promise 會以一個 name 為 'AbortError' 的錯誤 reject。",
+    "a": true,
+    "why": "所以 catch 裡要先判斷 err.name === 'AbortError'，把「自己喊停」跟「真的壞掉」分開處理。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "AbortController 身上只有兩個東西要記：交出去給 fetch 的 ____，以及你用來喊停的 abort() 方法。",
+    "a": "signal",
+    "why": "controller.signal 是 AbortSignal 物件，會記錄 aborted 與 reason。"
+   },
+   {
+    "q": "即時搜尋時若不取消前一次請求，舊資料可能晚回來蓋掉新資料，這種問題叫 ____ Condition。",
+    "a": "Race",
+    "why": "競態條件。TanStack Query／SWR 幫你處理掉的主要就是這件事。"
+   },
+   {
+    "q": "addEventListener(type, fn, { ____ }) 之後，一次 controller.abort() 就能拔掉一整批監聽器。",
+    "a": "signal",
+    "why": "比逐一 removeEventListener 乾淨，也不必自己記住每個函式參考。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請用「誰 用什麼 做什麼、產物是什麼、再拋給誰」的句型，把一次「使用者按下取消鈕、fetch 被中斷」的完整流程寫出來。",
+    "a": "你 new AbortController() 建立控制器 → 取出 controller.signal 交給 fetch(url, { signal }) → fetch 把這個 signal 註冊給瀏覽器底層網路層監聽 → 使用者按下取消鈕，你的 click handler 呼叫 controller.abort() → signal 觸發 abort 事件、aborted 變成 true → 底層中斷連線，fetch 的 Promise 以 name 為 'AbortError' 的錯誤 reject → 你的 catch 判斷 err.name 決定要靜靜略過（使用者自己取消）還是跳錯誤提示。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_CheatSheet_and_APIs/array陣列/04-filter方法與callback定義.md": {
+  "tf": [
+   {
+    "q": "processArray([1,2,3], double()) 這樣寫可以正常運作。",
+    "a": false,
+    "why": "加小括號會先執行 double()（參數是 undefined，得到 NaN），再把結果當 callback 傳進去，外層一呼叫就丟 callback is not a function。要傳函式本身就不能加括號。"
+   },
+   {
+    "q": "filter 的 callback 回傳 false 的元素會被留在新陣列裡。",
+    "a": false,
+    "why": "反了。callback 像篩網：回傳 true 才留下，false 被濾掉。"
+   },
+   {
+    "q": "Promise 與 async/await 出現之後，JavaScript 就不再使用 callback 了。",
+    "a": false,
+    "why": "它們只是把「等結果之後做什麼」從參數位置搬到 .then() 或 await 的下一行，解決的是巢狀難讀（Callback Hell）。map／filter／addEventListener 這些同步與事件型 callback 完全沒有被取代。"
+   },
+   {
+    "q": "傳 callback 時，傳進去的是該函式在記憶體中的位址，而不是它執行後的結果。",
+    "a": true,
+    "why": "外層函式拿到這個位址（Reference）後，在自己的執行過程中透過位址找到並執行它，這就是 (d) 講的 Reference Pass。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Callback 的三個動作：你定義它、你 ____ 它（當引數傳出去、不加小括號）、別人回頭呼叫它。",
+    "a": "傳遞",
+    "why": "「回呼（call back）」的 back 就是指控制權交出去、時候到了再回頭叫你。"
+   },
+   {
+    "q": "JS 的函式可以賦值給變數、當引數傳遞、當回傳值，這個特性叫「一等公民」，英文是 First-class ____。",
+    "a": "Function",
+    "why": "這是 callback 之所以能成立的語言層前提。"
+   },
+   {
+    "q": "巢狀的非同步 callback 一層包一層、難以閱讀與處理錯誤，這個現象俗稱 Callback ____。",
+    "a": "Hell",
+    "why": "回呼地獄，正是 Promise 與 async/await 要解決的問題。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "callback 的三種常見形態（逐元素處理、非同步完成通知、成功失敗分支）各自把「什麼決定權」交給了呼叫端？請各舉一個 API 為例。",
+    "a": "逐元素處理（map／filter／forEach）：外層負責走訪陣列與決定呼叫幾次，把「每個元素要變成什麼／留不留」交給呼叫端。非同步完成通知（setTimeout／fs.readFile／舊式 AJAX）：外層負責等待 I/O 或計時，把「拿到結果之後做什麼」交給呼叫端。成功失敗分支（onSuccess／onError、Promise 的 then／catch）：外層負責判斷條件選一條路，把「成功要幹嘛、失敗要幹嘛」交給呼叫端。三者共同點是外層只保留流程控制權，業務邏輯全部外包。"
+   }
+  ]
+ },
+ "frontend-docs/javascript/JS_CheatSheet_and_APIs/array陣列/05-find方法-短路與falsy陷阱-如何取得所有符合的索引.md": {
+  "tf": [
+   {
+    "q": "array3.find((e) => e = 2) 會把原陣列的第一個元素改成 2。",
+    "a": false,
+    "why": "callback 的參數 e 是傳值進來的區域變數，重新賦值只改變 e 這個綁定，不會回寫 array3[0]。原陣列毫髮無傷，但 find 會在第一圈就短路回傳 2。"
+   },
+   {
+    "q": "obj['x'] = 10 裡的 obj['x'] 是一個合法的賦值目標（Assignment target）。",
+    "a": true,
+    "why": "屬性存取器（Property Accessor）指的就是用點號 . 或中括號 [] 存取屬性的語法，它是規範允許的三種賦值目標之一。"
+   },
+   {
+    "q": "f() = 10 只是執行時才會出錯，語法上是合法的。",
+    "a": false,
+    "why": "函式呼叫不是合法的賦值目標，這在解析階段就會丟 SyntaxError: Invalid assignment target，程式根本跑不起來。"
+   },
+   {
+    "q": "find 找到值為 0 的元素時會回傳 undefined。",
+    "a": false,
+    "why": "它回傳的是 0，只是 0 是 falsy，直接丟進 if 會被判成「沒找到」。正解是跟 undefined 比：if (result !== undefined)。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "= 左邊允許放三種賦值目標：識別碼（變數）、____ 存取器（obj.x 與 obj['x']），以及解構模式。",
+    "a": "屬性",
+    "why": "英文是 Property Accessor。注意它跟 getter／setter 那種「存取器屬性」是兩件事。"
+   },
+   {
+    "q": "[a, b] = [1, 2] 這種一次綁多個目標的寫法叫 ____ 模式。",
+    "a": "解構",
+    "why": "Destructuring pattern，也是合法的賦值目標之一。"
+   },
+   {
+    "q": "賦值表達式 e = 2 自己的回傳值就是被指派的那個值，也就是 ____。",
+    "a": "2",
+    "why": "因為它回傳 2（truthy），find 才會誤判第 0 格通過測試而短路。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "把 === 誤打成 = 時，為什麼 find 只跑一圈、回傳的卻不是陣列原本的第一個元素？請逐步說明，並說出為什麼原陣列沒有被改到。",
+    "a": "find 迭代到第一個元素 1，把它傳進 callback，參數 e 接到 1。接著 e = 2 這個賦值表達式把區域變數 e 改寫成 2，而賦值表達式自己的回傳值就是被指派的那個值 2。2 是 truthy，所以 find 判定第 0 格通過測試而短路停住，回傳 arr[0]。你看到 2 而不是 1，是因為回傳的是 e 被改寫後的值；原陣列沒被改到，是因為 callback 的參數是傳值進來的區域綁定，重新賦值不會回寫 array3[0]。結果是原陣列不變、found3 為 2，而且後面三個元素完全沒被檢查。"
+   }
+  ]
+ },
+ "backend/HTTP-Headers-Request與Response-誰送給誰.md": {
+  "tf": [
+   {
+    "q": "瀏覽器收到 Response Headers 之後，會把它們原封不動再回傳給伺服器。",
+    "a": false,
+    "why": "Response Headers 是單向的，瀏覽器只拿來處理這一次的回應，用完即丟。"
+   },
+   {
+    "q": "同一個頁面裡，CSS 請求與 API 請求各自帶著自己那一包 Request Headers。",
+    "a": true,
+    "why": "每一個網路請求都是獨立的一次 HTTP 交換，headers 各自產生。"
+   },
+   {
+    "q": "Content-Type 裡的 charset=UTF-8 是一種壓縮演算法。",
+    "a": false,
+    "why": "UTF-8 是字元編碼，壓縮是 Content-Encoding: gzip 在管的。"
+   },
+   {
+    "q": "API 金鑰寫在前端程式裡是安全的，因為它被打包進 bundle 看不出來。",
+    "a": false,
+    "why": "bundle 會被下載到使用者電腦，按 F12 就能讀到字串，金鑰必須留在後端。"
+   },
+   {
+    "q": "COOP 設成 same-origin-allow-popups，是為了讓自己開出來的 popup 仍保有 window.opener 參照。",
+    "a": true,
+    "why": "OAuth 彈窗登入需要靠 window.opener 把結果回傳給母視窗。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "告訴伺服器「我是哪個瀏覽器、哪個作業系統」的那個 Request Header 叫 ____。",
+    "a": "User-Agent",
+    "why": "在 Console 打 navigator.userAgent 可以印出同一個字串。"
+   },
+   {
+    "q": "宣告 body 用 gzip 壓過的 Response Header 是 ____。",
+    "a": "Content-Encoding",
+    "why": "瀏覽器據此解壓，目的是縮小傳輸體積。"
+   },
+   {
+    "q": "curl 要加自訂標頭，用的參數是 ____。",
+    "a": "-H",
+    "why": "例如 -H \"x-goog-api-key: $GEMINI_API_KEY\"。"
+   },
+   {
+    "q": "在 DevTools 的 ____ 面板點開任一筆請求，就能同時看到 Request Headers 與 Response Headers。",
+    "a": "Network",
+    "why": "Headers 分頁上半是 General，中段 Response，下段 Request。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請完整說明：一個使用者在你的網站按下按鈕呼叫第三方 AI API，從前端到第三方之間，金鑰經過了哪些 header、由誰產生、為什麼不能少掉中間那一層後端。",
+    "a": "參考方向：(1) 前端只打自家後端，這一段的 Request Headers 不含第三方金鑰，可能只帶自家的 Cookie 或 Authorization。(2) 後端路由收到請求，從伺服器上的環境變數讀出金鑰，組出 x-goog-api-key 與 Content-Type: application/json，再對第三方發一次全新的請求。(3) 第三方回 Response Headers 與 body 給後端，後端只把需要的資料轉給前端。(4) 少掉後端這層，金鑰就會出現在瀏覽器可讀的位置，任何人 F12 就能盜用，帳單算在你頭上。"
+   }
+  ]
+ },
+ "backend/Server-side-form-validation-伺服器端表單驗證.md": {
+  "tf": [
+   {
+    "q": "只要前端用了 HTML5 的 required 屬性，後端就可以省略驗證。",
+    "a": false,
+    "why": "攻擊者可以用 Postman 或 curl 直接打 API，完全不經過你的前端。"
+   },
+   {
+    "q": "「這個 Email 是不是已經被註冊過」這種檢查，前端自己做得到。",
+    "a": false,
+    "why": "前端沒有資料庫，必須由後端查表才知道。"
+   },
+   {
+    "q": "驗證通過的資料，寫進資料庫時就不必再用參數化查詢了。",
+    "a": false,
+    "why": "驗證是「該不該收」，參數化查詢與 escaping 是「收下之後怎麼安全地存與顯示」，兩件事都要做。"
+   },
+   {
+    "q": "用 Zod 或 Pydantic 把規則寫成一份 schema 給前後端共用，可以避免兩邊規則不一致。",
+    "a": true,
+    "why": "這是實務上防止「前端說可以、後端說不行」的標準做法。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "表單資料本身有問題時，後端通常回 HTTP ____ Bad Request。",
+    "a": "400",
+    "why": "401 是沒表明身分，403 是有身分但沒權限。"
+   },
+   {
+    "q": "FastAPI 的 Pydantic 對驗證錯誤預設回的狀態碼是 ____。",
+    "a": "422",
+    "why": "422 Unprocessable Content 表示語法對但語意不合規。"
+   },
+   {
+    "q": "前端驗證的主要目的是提升 ____，後端驗證的主要目的是保障安全。",
+    "a": "使用者體驗",
+    "why": "即時回饋，減少無效的網路請求。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請用「誰 用什麼 做什麼、產物是什麼、再拋給誰」的句型，把一次註冊表單從按下送出到寫入資料庫的完整流程寫出來，並標出驗證失敗時流程在哪裡折返。",
+    "a": "參考方向：使用者填完表單按送出 → 瀏覽器把欄位序列化成 JSON，用 fetch 送到後端 API → 後端路由接到資料，交給驗證層做必填檢查、格式檢查、查資料庫比對 → 失敗就組出錯誤訊息物件回 HTTP 400/422，前端接到後渲染到欄位下方（流程在這裡折返，沒有碰到資料庫寫入）→ 成功則執行業務邏輯，用參數化查詢寫入資料庫，回 200/201 與結果，前端導頁。"
+   }
+  ]
+ },
+ "LLM-Memory/Gemini-API-Auth-Keys-授權金鑰-與標準API-Key差異.md": {
+  "tf": [
+   {
+    "q": "Auth key 只有付費方案才能用。",
+    "a": false,
+    "why": "金鑰型態只影響身分驗證與權限，Free Tier 一樣能用。"
+   },
+   {
+    "q": "Auth key 綁定的是 GCP 專案，Standard key 綁定的是服務帳戶。",
+    "a": false,
+    "why": "反了。Auth key 綁服務帳戶，Standard key 綁專案。"
+   },
+   {
+    "q": "舊的 Standard key 外洩時，風險比 Auth key 大，因為它可能被拿去打同專案下其他 Google API。",
+    "a": true,
+    "why": "Auth key 預設只能存取 Generative Language API，爆炸半徑小很多。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "舊制 Standard key 的字串前綴是 ____，新制 Auth key 的前綴是 AQ.Ab。",
+    "a": "AIza",
+    "why": "有些第三方套件寫死了 AIza 開頭的驗證，換新金鑰會被誤判為無效。"
+   },
+   {
+    "q": "自 2026-____-28 起，AI Studio 新建的金鑰一律預設為 Auth key。",
+    "a": "05",
+    "why": "接著 2026-06-19 拒絕未設限的 Standard key，2026-09 全面拒絕 Standard key。"
+   },
+   {
+    "q": "Auth key 綁定服務帳戶之後，就能套用 Google Cloud 的 ____ 權限控制。",
+    "a": "IAM",
+    "why": "Identity and Access Management，可做精細的存取控管。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "你的舊金鑰突然失效了。請說明你會怎麼判斷這是額度用完還是制度汰換，以及完整的處理步驟。",
+    "a": "參考方向：(1) 先看金鑰前綴，AIza 開頭代表是舊制 Standard key，2026-09 起已被官方拒絕，不是額度問題。(2) 再看錯誤訊息是 429（額度）還是 401/403（驗證失敗）。(3) 到 AI Studio 的 API keys 頁面建新金鑰，系統預設給 Auth key。(4) 只換環境變數的值，呼叫方式不變，仍然放在 x-goog-api-key header。(5) 若第三方套件報「金鑰格式無效」，去看該套件的 issue，是它的正規表示式沒跟上。"
+   }
+  ]
+ },
+ "計算機基礎/Apple-Find-My尋找網路-BLE群眾外包定位與端對端加密.md": {
+  "tf": [
+   {
+    "q": "「尋找」網路是靠電信業者的基地台接收遺失裝置的訊號。",
+    "a": false,
+    "why": "是靠路過的其他 Apple 裝置用 BLE 收到廣播後代為回報位置。"
+   },
+   {
+    "q": "幫忙轉傳位置的陌生人看得到那台裝置在哪。",
+    "a": false,
+    "why": "全程端對端加密，轉傳者與 Apple 官方都無法解密，只有失主可以。"
+   },
+   {
+    "q": "AirTag 沒有 SIM 卡也沒有 Wi-Fi，所以離線後就完全找不到。",
+    "a": false,
+    "why": "AirTag 本來就只靠 BLE 廣播，靠別人的 iPhone 代為回報，這正是尋找網路的價值。"
+   },
+   {
+    "q": "買二手 iPhone 時，賣家沒有把裝置從自己的 Apple ID 移除，會卡在啟用鎖定。",
+    "a": true,
+    "why": "Activation Lock 設計目的是讓偷來的裝置無法被轉賣使用。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "遺失裝置廣播訊號用的是 ____（Bluetooth Low Energy，低耗電藍牙）。",
+    "a": "BLE",
+    "why": "低耗電是重點，AirTag 一顆鈕扣電池能撐約一年。"
+   },
+   {
+    "q": "為了避免固定識別碼被拿來長期跟蹤，廣播的公開金鑰會定期 ____。",
+    "a": "輪替",
+    "why": "rotate，這是隱私設計的關鍵之一。"
+   },
+   {
+    "q": "一旦啟用「尋找」，要關閉、抹除或重新啟用該裝置都必須提供帳號密碼，這個機制叫 ____ Lock。",
+    "a": "Activation",
+    "why": "中文叫啟用鎖定。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請說明為什麼「尋找」網路在台北市區找得到 AirTag，在山區卻幾乎找不到，並從這個現象反推它的架構特性。",
+    "a": "參考方向：因為定位來源不是 AirTag 自己，而是路過的其他 Apple 裝置。這是一種群眾外包（crowdsourced）架構，密度決定覆蓋率與更新頻率。市區 Apple 裝置密集，幾分鐘內就會有人經過並回報；山區沒有人經過，就沒有任何節點能把座標上傳，AirTag 的廣播等於發給空氣。由此可反推：這張網的效能與使用者密度成正比，且它本質上是機會式（opportunistic）的，不保證即時。"
+   }
+  ]
  }
 }

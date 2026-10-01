@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 560" width="880" height="560" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <style>
+    .box{fill:#ffffff;stroke:#5b6b7c;stroke-width:1.6}
+    .proc{fill:#eef4fb;stroke:#4a6fa5;stroke-width:1.6}
+    .dec{fill:#fff8e1;stroke:#c99a06;stroke-width:1.6}
+    .ok{fill:#e8f8e8;stroke:#2e7d32;stroke-width:1.6}
+    .no{fill:#ffeaef;stroke:#c2185b;stroke-width:1.6}
+    .t{font-size:14px;fill:#1f2933}
+    .tb{font-size:15px;font-weight:700;fill:#12212e}
+    .lbl{font-size:12.5px;fill:#5b6b7c}
+    .cap{font-size:12px;fill:#7a8794}
+    .mono{font-size:13.5px;fill:#1f2933;font-family:'Cascadia Mono',Consolas,monospace}
+    .ln{stroke:#5b6b7c;stroke-width:1.5;fill:none;marker-end:url(#ar2)}
+  </style>
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6b7c"/>
+    </marker>
+  </defs>
+
+  <text x="24" y="30" class="tb" font-size="17">圖解：寫下 new JSON() 之後，引擎在哪一格卡住</text>
+  <text x="24" y="50" class="cap">主軸圖：命名空間物件（namespace object）沒有 [[Construct]] 這個內部方法，所以 new 找不到可以呼叫的東西</text>
+
+  <rect x="320" y="72" width="240" height="40" rx="20" class="box"/>
+  <text x="440" y="97" class="mono" text-anchor="middle">new JSON()</text>
+
+  <path class="ln" d="M440,112 L440,142"/>
+
+  <polygon points="440,142 640,192 440,242 240,192" class="dec"/>
+  <text x="440" y="188" class="tb" text-anchor="middle">JSON 身上有沒有</text>
+  <text x="440" y="208" class="mono" text-anchor="middle">[[Construct]] 內部方法？</text>
+
+  <text x="660" y="186" class="lbl">有（例如 Date、Map）</text>
+  <path class="ln" d="M640,192 L790,192 L790,300"/>
+  <rect x="690" y="300" width="180" height="70" rx="8" class="ok"/>
+  <text x="780" y="326" class="t" text-anchor="middle">建立新實例</text>
+  <text x="780" y="348" class="mono" text-anchor="middle">new Date()  ✔</text>
+
+  <text x="300" y="268" class="lbl">沒有</text>
+  <path class="ln" d="M440,242 L440,300"/>
+
+  <rect x="290" y="300" width="300" height="70" rx="8" class="no"/>
+  <text x="440" y="326" class="tb" text-anchor="middle">❌ 立刻丟錯</text>
+  <text x="440" y="350" class="mono" text-anchor="middle">TypeError: JSON is not a constructor</text>
+
+  <path class="ln" d="M440,370 L440,404"/>
+
+  <rect x="150" y="404" width="580" height="54" rx="8" class="proc"/>
+  <text x="440" y="426" class="tb" text-anchor="middle">同一家族：Math、JSON、Reflect、Intl、Atomics 都是命名空間物件</text>
+  <text x="440" y="447" class="t" text-anchor="middle">它們只是「靜態方法的容器」，沒有狀態、沒有實例，也不能當函式呼叫</text>
+
+  <path class="ln" d="M440,458 L440,490"/>
+
+  <rect x="230" y="490" width="420" height="44" rx="22" class="box"/>
+  <text x="440" y="510" class="tb" text-anchor="middle">正確用法：直接取用裡面的靜態方法</text>
+  <text x="440" y="529" class="mono" text-anchor="middle">JSON.parse(str) ／ JSON.stringify(value)</text>
+</svg>

@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 640" width="920" height="640" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <style>
+    .box{fill:#ffffff;stroke:#5b6b7c;stroke-width:1.6}
+    .proc{fill:#eef4fb;stroke:#4a6fa5;stroke-width:1.6}
+    .dec{fill:#fff8e1;stroke:#c99a06;stroke-width:1.6}
+    .ok{fill:#e8f8e8;stroke:#2e7d32;stroke-width:1.6}
+    .no{fill:#ffeaef;stroke:#c2185b;stroke-width:1.6}
+    .t{font-size:13.5px;fill:#1f2933}
+    .tb{font-size:14.5px;font-weight:700;fill:#12212e}
+    .lbl{font-size:12px;fill:#5b6b7c}
+    .cap{font-size:11.5px;fill:#7a8794}
+    .mono{font-size:12.5px;fill:#1f2933;font-family:'Cascadia Mono',Consolas,monospace}
+    .ln{stroke:#5b6b7c;stroke-width:1.5;fill:none;marker-end:url(#ar5)}
+    .dash{stroke:#c2185b;stroke-width:1.4;fill:none;stroke-dasharray:5 4;marker-end:url(#ar6)}
+  </style>
+  <defs>
+    <marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6b7c"/>
+    </marker>
+    <marker id="ar6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c2185b"/>
+    </marker>
+  </defs>
+
+  <text x="24" y="28" class="tb" font-size="17">圖解：CSR 的畫面是在哪一格才長出來（六格時間軸）</text>
+  <text x="24" y="48" class="cap">主軸圖：DOM 不是「等 HTML 全下載完才一次建好」，而是 HTML Parser 邊讀邊建；CSR 只是把「內容節點」延後到第 5 格才塞進去</text>
+
+  <line x1="60" y1="92" x2="880" y2="92" stroke="#5b6b7c" stroke-width="2" marker-end="url(#ar5)"/>
+  <text x="884" y="96" class="lbl">時間</text>
+
+  <!-- 1 -->
+  <circle cx="110" cy="92" r="7" fill="#c2185b"/>
+  <rect x="30" y="112" width="160" height="94" rx="8" class="no"/>
+  <text x="110" y="134" class="tb" text-anchor="middle">1　請求送出</text>
+  <text x="110" y="156" class="t" text-anchor="middle">正在收 bytes</text>
+  <text x="110" y="176" class="t" text-anchor="middle">DOM 一個節點</text>
+  <text x="110" y="194" class="t" text-anchor="middle">都還沒有</text>
+
+  <!-- 2 -->
+  <circle cx="290" cy="92" r="7" fill="#4a6fa5"/>
+  <rect x="210" y="112" width="160" height="94" rx="8" class="proc"/>
+  <text x="290" y="134" class="tb" text-anchor="middle">2　HTML Parsing</text>
+  <text x="290" y="154" class="t" text-anchor="middle">bytes → 字元</text>
+  <text x="290" y="172" class="t" text-anchor="middle">→ token → node</text>
+  <text x="290" y="192" class="cap" text-anchor="middle">邊讀邊建，增量式</text>
+
+  <!-- 3 -->
+  <circle cx="470" cy="92" r="7" fill="#4a6fa5"/>
+  <rect x="390" y="112" width="160" height="94" rx="8" class="box"/>
+  <text x="470" y="134" class="tb" text-anchor="middle">3　初始 DOM 完成</text>
+  <text x="470" y="155" class="mono" text-anchor="middle">&lt;div id="root"&gt;&lt;/div&gt;</text>
+  <text x="470" y="174" class="t" text-anchor="middle">裡面是空的</text>
+  <text x="470" y="194" class="cap" text-anchor="middle">DOMContentLoaded 觸發</text>
+
+  <!-- 4 -->
+  <circle cx="650" cy="92" r="7" fill="#c99a06"/>
+  <rect x="570" y="112" width="160" height="94" rx="8" class="dec"/>
+  <text x="650" y="134" class="tb" text-anchor="middle">4　執行 bundle.js</text>
+  <text x="650" y="154" class="t" text-anchor="middle">React／Vue 啟動</text>
+  <text x="650" y="174" class="t" text-anchor="middle">畫面此刻仍是白的</text>
+  <text x="650" y="194" class="cap" text-anchor="middle">白屏就發生在這一格</text>
+
+  <!-- 5 -->
+  <circle cx="830" cy="92" r="7" fill="#2e7d32"/>
+  <rect x="750" y="112" width="160" height="94" rx="8" class="ok"/>
+  <text x="830" y="134" class="tb" text-anchor="middle">5　JS 動態建節點</text>
+  <text x="830" y="154" class="mono" text-anchor="middle">createElement</text>
+  <text x="830" y="174" class="t" text-anchor="middle">塞進 div#root</text>
+  <text x="830" y="194" class="cap" text-anchor="middle">使用者終於看到畫面</text>
+
+  <line x1="24" y1="236" x2="896" y2="236" stroke="#cbd5e0" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="24" y="264" class="tb">第 2 格放大：HTML Parser 的四步流水線，以及誰會把它按下暫停</text>
+
+  <rect x="40" y="284" width="150" height="56" rx="8" class="proc"/>
+  <text x="115" y="308" class="tb" text-anchor="middle">Conversion</text>
+  <text x="115" y="328" class="cap" text-anchor="middle">bytes 依編碼轉字元</text>
+  <path class="ln" d="M190,312 L228,312"/>
+
+  <rect x="230" y="284" width="150" height="56" rx="8" class="proc"/>
+  <text x="305" y="308" class="tb" text-anchor="middle">Tokenization</text>
+  <text x="305" y="328" class="cap" text-anchor="middle">字元拆成 tag token</text>
+  <path class="ln" d="M380,312 L418,312"/>
+
+  <rect x="420" y="284" width="150" height="56" rx="8" class="proc"/>
+  <text x="495" y="308" class="tb" text-anchor="middle">Lexing</text>
+  <text x="495" y="328" class="cap" text-anchor="middle">token 變 Node 物件</text>
+  <path class="ln" d="M570,312 L608,312"/>
+
+  <rect x="610" y="284" width="150" height="56" rx="8" class="ok"/>
+  <text x="685" y="308" class="tb" text-anchor="middle">Tree Construction</text>
+  <text x="685" y="328" class="cap" text-anchor="middle">Node 掛上 DOM 樹</text>
+
+  <rect x="40" y="378" width="400" height="88" rx="8" class="no"/>
+  <text x="240" y="402" class="tb" text-anchor="middle">⛔ 誰會把 parsing 按暫停</text>
+  <text x="240" y="424" class="t" text-anchor="middle">同步 script（沒寫 async／defer）：</text>
+  <text x="240" y="443" class="t" text-anchor="middle">Parser 停下來，等它下載並執行完才繼續</text>
+  <text x="240" y="460" class="cap" text-anchor="middle">因為 document.write() 可能改變 DOM 結構</text>
+
+  <rect x="470" y="378" width="410" height="88" rx="8" class="no"/>
+  <text x="675" y="402" class="tb" text-anchor="middle">⛔ CSS 間接卡住 JS</text>
+  <text x="675" y="424" class="t" text-anchor="middle">script 前面若有 &lt;link rel="stylesheet"&gt;，</text>
+  <text x="675" y="443" class="t" text-anchor="middle">script 必須等 CSSOM 建好才能執行</text>
+  <text x="675" y="460" class="cap" text-anchor="middle">→ DOM 的建立也跟著被拖慢</text>
+
+  <rect x="40" y="500" width="840" height="60" rx="8" class="box"/>
+  <text x="460" y="524" class="tb" text-anchor="middle">兩個事件分別代表什麼</text>
+  <text x="460" y="546" class="t" text-anchor="middle">DOMContentLoaded＝HTML 解析完、DOM 樹完整（圖片與 CSS 可能還沒好）　｜　window.onload＝連圖片、樣式表等資源全部載完</text>
+
+  <rect x="40" y="576" width="840" height="46" rx="23" class="ok"/>
+  <text x="460" y="604" class="tb" text-anchor="middle">結論：CSR 的初始 DOM 早就解析完了，只是裡面還沒有畫面上的任何元件節點</text>
+</svg>
