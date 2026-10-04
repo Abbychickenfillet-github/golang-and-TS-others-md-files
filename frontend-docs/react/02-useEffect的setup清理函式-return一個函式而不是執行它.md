@@ -275,6 +275,44 @@ Call Stack 是後進先出（LIFO）的罐頭堆，只負責「同一時間正�
 
 ![[useEffect_setup與cleanup_CallStack罐頭時間軸_2026-10-04.png]]
 
+**那 cleanup 哪一次 commit 會被呼叫？為什麼不是我們自己呼叫？**
+這是「回呼函式（callback）」的概念：把函式交給別人，由對方在適當的時機呼叫。
+
+| 你寫的 | 你交出去的函式 | 誰在什麼時候呼叫 |
+|---|---|---|
+| `setTimeout(fn, 1000)` | `fn` | 瀏覽器，1 秒後 |
+| `addEventListener('click', fn)` | `fn` | 瀏覽器，使用者點擊時 |
+| `promise.then(fn)` | `fn` | JS 引擎，promise 完成時 |
+| `useEffect(() => { ...; return cleanup })` | `cleanup` | React，這個 Effect 需要停止同步時 |
+
+程式裡從來沒有出現 `cleanup()`，因為「什麼時候該清理」只有 React 知道：deps 有沒有變、元件有沒有被移除，都是 React 在比較與維護。
+所以 `return` 這一行並不是白做：它把 cleanup 連同它用閉包抓住的 `connection` 一起交給 React 保管，日後 React 才能關掉「當初那一條」連線。
+
+cleanup 會在「setup 之後，第一個符合下列任一條件的 commit」被呼叫：
+
+| 條件 | 是哪一次 commit | 例子 |
+|---|---|---|
+| deps 變了 | 因 `setState` 或父元件傳入新 props 引發 re-render，該次 render 之後的 commit | `roomId` 從 `general` 改成 `travel` 的那一次 |
+| 元件被移除 | 條件式渲染拿掉它、路由切走、父元件移除它的那一次 commit | 按下「關閉聊天室」 |
+| StrictMode（開發模式） | 第一次掛載之後緊接著的那一輪 | 見 (g) 第三點 |
+
+若 deps 永遠不變、元件又一直存在，cleanup 就永遠不會被呼叫。
+
+**為什麼是 commit，不是 render：** render 階段必須是純計算，React 可能中斷、重做或丟棄它（見 [[React兩階段渲染-Render與Commit-Mount-Update-Unmount生命週期]]）。若在 render 裡呼叫 cleanup，可能 render 被丟棄了連線卻已經斷掉。commit 才是「確定要生效」的階段，所以改 DOM、跑 setup、跑 cleanup 都排在 commit。
+
+React 呼叫 cleanup 的那幾行，簡化自原始碼 `ReactFiberCommitEffects.js`：
+
+```js
+const inst = effect.inst          // 取得這個 Effect 的共用小房子
+const destroy = inst.destroy      // 取出 setup 當初 return 的那個函式
+if (destroy !== undefined) {      // 有交出 cleanup 才需要呼叫
+  inst.destroy = undefined        // 先清空，避免同一個 cleanup 被呼叫兩次
+  safelyCallDestroy(finishedWork, nearestMountedAncestor, destroy) // 真正呼叫它，出錯時由 React 接住
+}
+```
+
+這段程式碼包在一個迴圈裡，React 沿著 `fiber.updateQueue.lastEffect` 那個環，一個 Effect 一個 Effect 走過去。
+
 補充一個常被忽略的細節：**cleanup 讀到的是「它那一次 render 的值」，這是正確行為不是 bug**。因為 cleanup① 的任務就是收拾 setup① 建立的東西，它當然要用 setup① 當時的那組值。
 
 ---
