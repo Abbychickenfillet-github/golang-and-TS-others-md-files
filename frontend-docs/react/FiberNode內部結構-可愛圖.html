@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>FiberNode 內部結構（可愛版）</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff7ec;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#4a3b32}
+#art{width:1400px;padding:36px 40px 40px;background:#fff7ec}
+h1{margin:0 0 4px;font-size:34px}
+.sub{font-size:18px;color:#8a7466;margin-bottom:22px}
+.row{display:flex;gap:26px;align-items:stretch}
+.card{border-radius:28px;padding:20px 24px;border:5px solid;box-shadow:0 8px 0 rgba(0,0,0,.08)}
+.fiber{flex:0 0 330px;background:#ffe3ec;border-color:#ff9ebb}
+.fiber h2{margin:0 0 12px;font-size:25px}
+.field{background:#fff;border-radius:16px;padding:8px 14px;margin:9px 0;font-size:19px;font-weight:600}
+.field small{display:block;font-weight:400;color:#8a7466;font-size:14px}
+.field.hot{background:#fff0a8;border:3px solid #ffb800}
+.field.ring{background:#d9f3ff;border:3px solid #4cb8e8}
+.arrow{font-size:50px;align-self:center;line-height:1}
+.train{flex:1;background:#e9f9e1;border-color:#8fd16a}
+.train h2{margin:0 0 4px;font-size:25px}
+.cars{display:flex;align-items:center;gap:6px;margin-top:14px}
+.car{background:#fff;border:4px solid #8fd16a;border-radius:22px;padding:10px 6px;text-align:center;width:150px;font-size:18px;font-weight:700}
+.car .e{font-size:42px;display:block}
+.car small{display:block;font-weight:400;font-size:13px;color:#8a7466}
+.car.fx{background:#fff0a8;border-color:#ffb800}
+.nx{font-size:30px;text-align:center;line-height:1}
+.nx small{display:block;font-size:13px;font-weight:700;color:#4aa02c}
+.null{font-size:44px;text-align:center}
+.null small{display:block;font-size:14px;font-weight:700;color:#d63c5a}
+.effect{margin:18px 0 0 150px;background:#fff9d6;border:4px dashed #ffb800;border-radius:24px;padding:12px 20px;display:flex;gap:16px;align-items:center;font-size:18px;font-weight:600}
+.effect .t{font-size:20px;font-weight:800;margin-right:6px}
+.chip{white-space:nowrap;background:#fff;border-radius:16px;padding:6px 12px;border:3px solid #ffd35c;text-align:center}
+.chip small{display:block;font-weight:400;font-size:13px;color:#8a7466}
+.bottom{display:flex;gap:26px;margin-top:26px}
+.ringbox{flex:1.1;background:#e3f4ff;border-color:#4cb8e8}
+.ringbox h2,.verdict h2{margin:0 0 10px;font-size:25px}
+.eff{display:flex;align-items:center;gap:10px;margin-top:12px}
+.e1{background:#fff;border:4px solid #4cb8e8;border-radius:20px;padding:8px 14px;text-align:center;font-weight:700;font-size:17px}
+.e1 .e{font-size:34px;display:block}
+.back{margin-top:10px;font-size:22px;font-weight:800;color:#1f86b8}
+.verdict{flex:1;background:#fff;border-color:#c9b6ff}
+table{border-collapse:collapse;width:100%;font-size:18px}
+td{padding:7px 8px;vertical-align:top}
+td:first-child{width:46px;font-size:28px}
+</style>
+</head>
+<body>
+<div id="art">
+  <h1>🧸 FiberNode 內部結構（函式元件）</h1>
+  <div class="sub">以 &lt;Counter /&gt; 為例：裡面呼叫了 useState → useEffect → useRef 各一次</div>
+
+  <div class="row">
+    <div class="card fiber">
+      <h2>🧩 FiberNode<br><small style="font-size:16px;font-weight:400">React 替每個元件記的一張卡</small></h2>
+      <div class="field">🏷️ type<small>Counter 函式本人</small></div>
+      <div class="field hot">🚂 memoizedState<small>指向 Hook 鏈的第一格</small></div>
+      <div class="field ring">🔁 updateQueue<small>指向 Effect 的環（見下方）</small></div>
+      <div class="field">🪞 alternate<small>另一棵樹的分身</small></div>
+    </div>
+
+    <div class="arrow">👉</div>
+
+    <div class="card train">
+      <h2>🚂 Hook 鏈：單向火車，尾巴是 null，不是環</h2>
+      <div style="font-size:17px;color:#6b8a5a">React 依照你呼叫 Hook 的順序，一節一節掛上去（所以 Hook 不能寫在 if 裡）</div>
+      <div class="cars">
+        <div class="car"><span class="e">🧠</span>Hook ①<small>useState</small><small>memoizedState = 值</small></div>
+        <div class="nx">➡️<small>next</small></div>
+        <div class="car fx"><span class="e">⚡</span>Hook ②<small>useEffect</small><small>memoizedState = Effect</small></div>
+        <div class="nx">➡️<small>next</small></div>
+        <div class="car"><span class="e">📦</span>Hook ③<small>useRef</small><small>memoizedState = {current}</small></div>
+        <div class="nx">➡️<small>next</small></div>
+        <div class="null">🚫<small>null 到此為止</small></div>
+      </div>
+      <div class="effect">
+        <span class="t">⚡ 打開 Effect 物件</span>
+        <div class="chip">🔌 create<small>setup 函式</small></div>
+        <div class="chip">📋 deps<small>依賴陣列</small></div>
+        <div class="chip">🧹 inst.destroy<small>cleanup 函式</small></div>
+        <div class="chip">🔗 next<small>指向下一個 Effect</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="card ringbox">
+      <h2>🔄 真正的「環」在這：Effect 清單</h2>
+      <div style="font-size:17px;color:#4c7d96">fiber.updateQueue.lastEffect 指向最後一個，最後一個的 next 繞回第一個</div>
+      <div class="eff">
+        <div class="e1"><span class="e">⚡</span>Effect A</div><span style="font-size:30px">➡️</span>
+        <div class="e1"><span class="e">⚡</span>Effect B</div><span style="font-size:30px">➡️</span>
+        <div class="e1"><span class="e">⚡</span>Effect C</div>
+      </div>
+      <div class="back">↩️ C 的 next 回到 A（環）</div>
+    </div>
+    <div class="card verdict">
+      <h2>✏️ 對照你的手繪</h2>
+      <table>
+        <tr><td>✅</td><td>memoizedState 接出一條單向鏈：對</td></tr>
+        <tr><td>✅</td><td>useEffect 帶依賴陣列與 cleanup：對</td></tr>
+        <tr><td>⚠️</td><td>Hook 鏈不是環，最後一節的 next 是 null</td></tr>
+        <tr><td>⚠️</td><td>deps 與 cleanup 住在 Effect 物件裡，不是直接掛在 Hook 上</td></tr>
+        <tr><td>💡</td><td>「環」指的是 updateQueue 的 Effect 清單</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -85,6 +85,19 @@ fiberNode = {
 }
 ```
 
+![[FiberNode內部結構_Hook單向鏈與Effect環_2026-10-04.png]]
+
+上圖的原始檔是同資料夾的 `FiberNode內部結構-可愛圖.html`。
+常有人把這條鏈畫成「環」，其實有兩條不同的鏈，形狀不一樣：
+
+| 鏈 | 從哪裡出發 | 形狀 | 依據（`ReactFiberHooks.js`） |
+|---|---|---|---|
+| Hook 鏈 | `fiber.memoizedState` | 單向，最後一節 `next` 是 `null` | `Hook.next: Hook \| null` |
+| Effect 清單 | `fiber.updateQueue.lastEffect` | 環狀，最後一個的 `next` 繞回第一個 | `Effect.next: Effect`，建立時 `lastEffect.next = effect` |
+
+useEffect 的依賴陣列與 cleanup 不是直接掛在 Hook 節點上，而是在那個 Hook 的 `memoizedState` 所指的 Effect 物件裡：`create`（setup）、`deps`、`inst.destroy`（cleanup）、`next`。
+React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放在 Effect 上，所以舊文章寫 `effect.destroy` 並不算錯。
+
 (j) 若元件完全沒呼叫任何 Hook，`fiberNode.memoizedState` 就是 `null`。
 
 (k) <mark style="background: #FF5582A6;">常見誤解：第二次渲染時程式碼會變成 `useState(1)`。不會。</mark>原始碼永遠寫死 `useState(0)`，每次 re-render 都照樣執行到這一行、照樣把 `0` 傳進去。差別在於 `useState` 內部會問 Fiber：「這個節點已經存在了嗎」，存在就<mark style="background: #BBFABBA6;">忽略你傳的初始值</mark>，直接回傳鏈表裡的最新值。所以 `0` 只在第一次掛載（Mount）時有意義。
@@ -535,6 +548,7 @@ function createWorkInProgress(current, pendingProps) {
 
 | 主題 | 連結 | 版本／查證時間 |
 | --- | --- | --- |
+| Hook 鏈與 Effect 環的型別與建立邏輯（`Hook`、`Effect`、`EffectInstance`、`lastEffect.next = effect`） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberHooks.js | main 分支原始碼，2026-10-04 實際抓取核對 |
 | 本篇對話（變數宣告與 Return 的差異，第二串） | https://gemini.google.com/app/1f0cc8c21e6f88b5 | Gemini Flash，2026-08-31 |
 | 本篇對話（變數宣告與 Return 的差異，第三串，內容重複未另收錄） | https://gemini.google.com/app/76cde95192586aa7 | Gemini Flash，2026-09-01 查證 |
 | React 原始碼 — ReactFiberWorkLoop.js（`workLoop` 與可中斷渲染） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js | main 分支，2026-08-31 查證 |
