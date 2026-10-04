@@ -76,6 +76,27 @@ flowchart TD
   F --> G([結束])
 ```
 
+**官方原文的「包含」關係，以及誰先誰後：**
+官方原文：*A setup function with setup code that connects to that system. It should return a cleanup function with cleanup code that disconnects from that system.*
+
+| 名稱 | 是什麼 | 寫在哪 | 什麼時候執行 |
+|---|---|---|---|
+| setup 函式 | 傳給 `useEffect` 的第一個參數，整個箭頭函式 | `useEffect(` 的括號裡 | React 決定要「連上」時 |
+| setup code | 函式裡負責 `connect()` 的那幾行 | setup 函式本體 | 跟著 setup 函式一起跑 |
+| cleanup 函式 | setup 函式 `return` 出去的那個小函式 | 寫在 setup 函式裡面 | `return` 時只是被建立並交給 React 保管，之後才由 React 呼叫 |
+| cleanup code | 小函式裡負責 `disconnect()` 的那幾行 | cleanup 函式本體 | 跟著 cleanup 函式一起跑 |
+
+「包含」只在寫法上成立：cleanup 函式寫在 setup 函式裡面。
+「cleanup 先於 setup」只對**下一次的** setup 成立，對它自己那一次不成立：cleanup 必須等 setup 跑過、把它 `return` 出來才存在，所以每個 cleanup 一定在它對應的 setup 之後。
+
+| 步驟 | 事件 | 實際執行的順序 |
+|---|---|---|
+| 1 | mount | setup①（還沒有上一次的 cleanup，所以沒東西可先跑），產生 cleanup① |
+| 2 | deps 變了 | cleanup①（用舊值）→ setup②，產生 cleanup② |
+| 3 | unmount | cleanup② |
+
+配對規則：setupN 先於 cleanupN，cleanupN 先於 setupN+1。
+
 **mount 跟「掛到瀏覽器上」是什麼關係？**
 mount 指元件第一次被放進 React 的元件樹，React 實際做的事是在 commit 階段用 `createElement` 建出 DOM node，再用 `appendChild` 插進瀏覽器的 DOM 樹（最上層是 `createRoot(document.getElementById('root'))` 指定的容器）。
 所以「掛到瀏覽器上」的精確說法是「插進 DOM 樹」，它跟「畫到螢幕上」是兩件事，中間隔著 browser paint。
