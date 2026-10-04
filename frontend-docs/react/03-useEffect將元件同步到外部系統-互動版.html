@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>useEffect：把元件同步到外部系統（互動版）</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--ink:#252932;--muted:#6b7280;--line:#e4e7ec;--accent:#5b6ef5;--accent-soft:#eef0ff;--ok:#0f9d58;--bad:#e04a5f;--code:#f2f4f8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.8;font-size:16px}
+.wrap{max-width:960px;margin:0 auto;padding:26px 18px 80px}
+header{background:linear-gradient(135deg,#eef1ff,#f6f0ff);border:1px solid var(--line);border-radius:18px;padding:24px 28px;margin-bottom:18px}
+header h1{margin:0 0 8px;font-size:1.45rem;line-height:1.4}
+.meta{color:var(--muted);font-size:.84rem}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px}
+h2{font-size:1.15rem;border-left:5px solid var(--accent);padding-left:12px;margin:.1em 0 .8em}
+code{background:var(--code);padding:.1em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:#f1f4f9}
+button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 14px;cursor:pointer}
+button:hover{border-color:var(--accent);background:var(--accent-soft)}
+.row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+.row>.col{flex:1 1 360px;min-width:0}
+svg{width:100%;height:auto;background:#fbfcfe;border:1px solid var(--line);border-radius:10px}
+svg .node{fill:#fff;stroke:#9aa3b5;stroke-width:1.6;transition:fill .25s,stroke .25s}
+svg .node.on{fill:#ffe9a8;stroke:#d98324;stroke-width:2.6}
+svg text{font-size:13px;fill:#252932;text-anchor:middle;dominant-baseline:middle}
+svg .lbl{font-size:12px;fill:#6b7280}
+svg .edge{stroke:#7b8499;stroke-width:1.6;fill:none}
+#log{background:#1f2430;color:#e8ecf3;border-radius:10px;padding:12px 14px;min-height:210px;max-height:260px;overflow:auto;font-family:Consolas,monospace;font-size:.85rem;line-height:1.7}
+#log .s{color:#7ee0a0}#log .c{color:#ff9aa8}#log .i{color:#9fb0d0}
+.ctrl{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;align-items:center}
+.blank{display:inline-block;min-width:72px;border-bottom:2px solid var(--accent);color:transparent;background:#dfe4f5;border-radius:4px;padding:0 6px;cursor:pointer;text-align:center;user-select:none}
+.blank.done{color:#0b6b4f;background:#d7f3e6}
+.tf,.essay{margin:12px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}
+.q{font-weight:600;margin-bottom:8px}
+.fb{display:none;margin-top:8px;padding:8px 12px;border-radius:8px;font-size:.92rem}
+.fb.show{display:block}.fb.right{background:#e3f6ea;color:#0b6b4f}.fb.wrong{background:#fde6ea;color:#a52b3e}
+.essay textarea{width:100%;min-height:80px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit}
+.ans{display:none;margin-top:8px;padding:10px 12px;background:var(--accent-soft);border-radius:8px;font-size:.93rem}
+.ans.show{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>useEffect：把元件同步到外部系統</h1>
+  <div class="meta">主軸：react.dev 官方 Usage「Connecting to an external system」｜對應筆記 <code>03-useEffect將元件同步到外部系統-Web-API與DOM.md</code>｜2026-10-04</div>
+</header>
+
+<section>
+  <h2>一、主軸圖：setup 與 cleanup 何時跑（可操作）</h2>
+  <p>左邊是流程圖，右邊是 <code>ChatRoom</code> 範例的主控台。按按鈕觀察哪個方框亮起，以及 log 的順序。</p>
+  <div class="row">
+    <div class="col">
+      <svg viewBox="0 0 570 410" role="img" aria-label="useEffect 生命週期流程圖">
+        <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7b8499"/></marker></defs>
+        <ellipse id="n-start" class="node" cx="200" cy="30" rx="90" ry="20"/><text x="200" y="30">元件 mount</text>
+        <rect id="n-setup" class="node" x="110" y="75" width="180" height="44" rx="8"/><text x="200" y="97">setup 連上外部系統</text>
+        <polygon id="n-dec" class="node" points="200,158 300,200 200,242 100,200"/><text x="200" y="200">deps 有變嗎？</text>
+        <rect id="n-cleanupA" class="node" x="360" y="178" width="170" height="44" rx="8"/><text x="445" y="200">cleanup（舊值）</text>
+        <rect id="n-setupB" class="node" x="360" y="270" width="170" height="44" rx="8"/><text x="445" y="292">setup（新值）</text>
+        <rect id="n-cleanupZ" class="node" x="110" y="290" width="180" height="44" rx="8"/><text x="200" y="312">最後一次 cleanup</text>
+        <ellipse id="n-end" class="node" cx="200" cy="380" rx="70" ry="20"/><text x="200" y="380">元件 unmount</text>
+        <path class="edge" d="M200 50V75" marker-end="url(#ar)"/>
+        <path class="edge" d="M200 119V158" marker-end="url(#ar)"/>
+        <path class="edge" d="M300 200H360" marker-end="url(#ar)"/><text class="lbl" x="330" y="190">有變</text>
+        <path class="edge" d="M445 222V270" marker-end="url(#ar)"/>
+        <path class="edge" stroke-dasharray="5 4" d="M530 292H550V138H206" marker-end="url(#ar)"/><text class="lbl" x="470" y="130">下一次 commit</text>
+        <path class="edge" d="M200 242V290" marker-end="url(#ar)"/><text class="lbl" x="232" y="266">元件被移除</text>
+        <path class="edge" d="M200 334V360" marker-end="url(#ar)"/>
+      </svg>
+    </div>
+    <div class="col">
+      <div class="ctrl">
+        <button id="b-mount">① 開啟聊天室（mount）</button>
+        <button id="b-room">② 換房間（deps 變）</button>
+        <button id="b-unmount">③ 關閉聊天室（unmount）</button>
+      </div>
+      <label><input type="checkbox" id="strict"> 開啟 StrictMode（開發模式）</label>
+      <div id="log"><span class="i">// 按左邊按鈕開始</span></div>
+      <div class="ctrl"><span id="state" class="meta"></span><button id="b-clear">清空 log</button></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>二、外部系統對照表</h2>
+  <table>
+    <tr><th>類別</th><th>例子</th><th>setup 連上</th><th>cleanup 斷開</th></tr>
+    <tr><td>Web API（計時器）</td><td><code>setInterval</code></td><td>建立計時器</td><td><code>clearInterval(id)</code></td></tr>
+    <tr><td>Web API（全域事件）</td><td><code>window</code> 的 <code>pointermove</code></td><td><code>addEventListener</code></td><td><code>removeEventListener</code></td></tr>
+    <tr><td>DOM（觀察者）</td><td><code>IntersectionObserver</code></td><td><code>observe(div)</code></td><td><code>disconnect()</code></td></tr>
+    <tr><td>DOM（元素方法）</td><td><code>&lt;dialog&gt;</code></td><td><code>showModal()</code></td><td><code>close()</code></td></tr>
+    <tr><td>網路</td><td>聊天室連線</td><td><code>connect()</code></td><td><code>disconnect()</code></td></tr>
+    <tr><td>第三方函式庫</td><td>動畫庫、地圖</td><td><code>start()</code></td><td><code>stop()</code></td></tr>
+  </table>
+  <p>mount 的精確意思：commit 階段用 <code>appendChild</code> 把 DOM node 插進瀏覽器 DOM 樹。跟「畫到螢幕」（browser paint）是兩件事。</p>
+</section>
+
+<section>
+  <h2>三、自我測驗</h2>
+
+  <p>填空（點一下顯示答案）：</p>
+  <p>1. <code>useEffect</code> 的第一個參數叫 <span class="blank" data-a="setup">　　</span> 函式，第二個叫 <span class="blank" data-a="dependencies">　　</span>。</p>
+  <p>2. React 比較依賴新舊值使用 <span class="blank" data-a="Object.is">　　</span>。</p>
+  <p>3. 不寫依賴陣列，每次 <span class="blank" data-a="commit">　　</span> 之後都會重跑。</p>
+  <p>4. StrictMode 開發模式多跑的順序是 setup → <span class="blank" data-a="cleanup">　　</span> → setup。</p>
+  <p>5. mount 在 commit 階段是呼叫 <span class="blank" data-a="appendChild">　　</span> 把 DOM node 插進 DOM 樹。</p>
+
+  <div class="tf" data-ans="false"><div class="q">是非：依賴陣列可以自己挑要列哪些值。</div>
+    <button data-v="true">是</button> <button data-v="false">非</button>
+    <div class="fb"></div><div class="why" hidden>程式碼裡讀到的 reactive value 就必須全列，由程式碼決定。</div></div>
+  <div class="tf" data-ans="false"><div class="q">是非：用 state 算出另一個 state，應該用 Effect。</div>
+    <button data-v="true">是</button> <button data-v="false">非</button>
+    <div class="fb"></div><div class="why" hidden>這不是外部系統，直接在 render 中計算即可。</div></div>
+  <div class="tf" data-ans="false"><div class="q">是非：Effect 在伺服器端渲染時也會執行。</div>
+    <button data-v="true">是</button> <button data-v="false">非</button>
+    <div class="fb"></div><div class="why" hidden>Effect 只在 client 執行。</div></div>
+  <div class="tf" data-ans="true"><div class="q">是非：<code>window.addEventListener</code> 屬於外部系統。</div>
+    <button data-v="true">是</button> <button data-v="false">非</button>
+    <div class="fb"></div><div class="why" hidden>它是瀏覽器提供的 Web API，不由 React 控制，需要 cleanup 移除。</div></div>
+  <div class="tf" data-ans="false"><div class="q">是非：mount 完成就代表使用者已經看到畫面。</div>
+    <button data-v="true">是</button> <button data-v="false">非</button>
+    <div class="fb"></div><div class="why" hidden>mount 是 DOM 插入完成，之後還要經過 browser paint 才會畫到螢幕。</div></div>
+
+  <div class="essay"><div class="q">申論：用 5W1H 說明什麼是外部系統，並舉三個例子寫出各自的 cleanup。</div>
+    <textarea placeholder="在這裡寫下你的答案"></textarea>
+    <button class="toggle">顯示參考答案</button>
+    <div class="ans">What：不由 React 控制的東西。Why：React 只管 JSX，不會幫你斷開連線。When：mount 後連上，deps 變或 unmount 時斷開。How：setup 連上，cleanup 反向復原。例子：<code>setInterval</code> 配 <code>clearInterval</code>，<code>addEventListener</code> 配 <code>removeEventListener</code>，<code>observer.observe</code> 配 <code>observer.disconnect</code>。</div></div>
+  <div class="essay"><div class="q">申論：Effect 與元件 mount／unmount 生命週期有什麼不同？為什麼 deps 變了 cleanup 也會跑？</div>
+    <textarea placeholder="在這裡寫下你的答案"></textarea>
+    <button class="toggle">顯示參考答案</button>
+    <div class="ans">Effect 只有「開始同步」與「停止同步」兩個動作，描述的是和外部系統的同步關係，不是元件存在與否。deps 變了代表要同步的目標改變，必須先停止對舊目標的同步（cleanup 用舊值），再開始對新目標的同步（setup 用新值），元件不需要 unmount。</div></div>
+</section>
+
+<section>
+  <h2>資料來源（含查證時間）</h2>
+  <table>
+    <tr><th>主題</th><th>連結</th><th>版本／時間</th></tr>
+    <tr><td>React 官方文件：useEffect</td><td><a href="https://react.dev/reference/react/useEffect">react.dev/reference/react/useEffect</a></td><td>依 2026-10-04 貼入的頁面全文整理</td></tr>
+    <tr><td>React 官方文件：Synchronizing with Effects</td><td><a href="https://react.dev/learn/synchronizing-with-effects">react.dev/learn/synchronizing-with-effects</a></td><td>2026-10-04 抓取被擋，Effect 與事件處理器的措辭未逐字核對</td></tr>
+    <tr><td>React 官方文件：Render and Commit</td><td><a href="https://react.dev/learn/render-and-commit">react.dev/learn/render-and-commit</a></td><td>2026-10-04 抓取被擋，mount 與 paint 順序依既有筆記整理</td></tr>
+  </table>
+</section>
+
+</div>
+<script>
+(function () {
+  var logEl = document.getElementById('log'), stateEl = document.getElementById('state');
+  var mounted = false, room = 'general', rooms = ['general', 'travel', 'music'];
+
+  function flash(ids) {
+    ids.forEach(function (id) { document.getElementById(id).classList.add('on'); });
+    setTimeout(function () { ids.forEach(function (id) { document.getElementById(id).classList.remove('on'); }); }, 900);
+  }
+  function push(cls, text) {
+    var d = document.createElement('div'); d.className = cls; d.textContent = text; logEl.appendChild(d);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function setup(r) { push('s', '✅ setup：連上 "' + r + '" 房間'); }
+  function cleanup(r) { push('c', '❌ cleanup：斷開 "' + r + '" 房間'); }
+  function show() { stateEl.textContent = mounted ? '目前：已 mount，房間 = ' + room : '目前：未 mount'; }
+
+  document.getElementById('b-mount').onclick = function () {
+    if (mounted) return push('i', '// 已經 mount 了');
+    mounted = true; push('i', '// 元件 mount（DOM 已插入）');
+    setup(room); flash(['n-start', 'n-setup']);
+    if (document.getElementById('strict').checked) {
+      push('i', '// StrictMode 多跑一輪');
+      cleanup(room); setup(room); flash(['n-cleanupA']);
+    }
+    show();
+  };
+  document.getElementById('b-room').onclick = function () {
+    var next = rooms[(rooms.indexOf(room) + 1) % rooms.length];
+    if (!mounted) { room = next; push('i', '// 還沒 mount，只是改了 roomId = ' + next + '，不會跑 Effect'); return show(); }
+    push('i', '// roomId 變了：' + room + ' → ' + next + '，commit 後比較 deps');
+    flash(['n-dec', 'n-cleanupA', 'n-setupB']);
+    cleanup(room); room = next; setup(room); show();
+  };
+  document.getElementById('b-unmount').onclick = function () {
+    if (!mounted) return push('i', '// 還沒 mount');
+    push('i', '// 元件被移除'); flash(['n-dec', 'n-cleanupZ', 'n-end']);
+    cleanup(room); mounted = false; show();
+  };
+  document.getElementById('b-clear').onclick = function () { logEl.innerHTML = ''; };
+  show();
+
+  document.querySelectorAll('.blank').forEach(function (el) {
+    el.onclick = function () { el.textContent = el.dataset.a; el.classList.add('done'); };
+  });
+  document.querySelectorAll('.tf').forEach(function (box) {
+    var fb = box.querySelector('.fb'), why = box.querySelector('.why').textContent;
+    box.querySelectorAll('button').forEach(function (btn) {
+      btn.onclick = function () {
+        var ok = btn.dataset.v === box.dataset.ans;
+        fb.className = 'fb show ' + (ok ? 'right' : 'wrong');
+        fb.textContent = (ok ? '✔ 答對了。' : '✘ 再想想。') + why;
+      };
+    });
+  });
+  document.querySelectorAll('.essay .toggle').forEach(function (btn) {
+    btn.onclick = function () {
+      var open = btn.nextElementSibling.classList.toggle('show');
+      btn.textContent = open ? '隱藏參考答案' : '顯示參考答案';
+    };
+  });
+})();
+</script>
+</body>
+</html>
