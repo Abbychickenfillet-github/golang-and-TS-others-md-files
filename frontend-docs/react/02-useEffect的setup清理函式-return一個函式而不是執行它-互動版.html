@@ -322,7 +322,7 @@ type EffectInstance = {
       <ol>
         <li><b>是什麼</b>：<code>useEffect</code> 的 setup 函式可以選擇性地回傳一個函式，React 官方稱它 cleanup function，存在該 effect 的 <code>inst.destroy</code> 欄位。</li>
         <li><b>為什麼需要</b>：effect 常會建立「持續存在的東西」——計時器、事件監聽器、WebSocket 連線、訂閱。這些不會隨元件消失而自動消失，必須主動關掉，否則就是記憶體洩漏。</li>
-        <li><b>什麼時候被呼叫</b>：卸載前、每次重跑 setup 之前、以及 StrictMode 開發模式下掛載後多跑的那一輪。順序永遠成對交錯。</li>
+        <li><b>什麼時候被呼叫</b>：卸載後、每次重跑 setup 之前、以及 StrictMode 開發模式下掛載後多跑的那一輪。順序永遠成對交錯。</li>
         <li><b>底層原理</b>：cleanup 靠閉包抓住 setup 當次的區域變數。這些變數因為被捕獲而配置在 Heap 的 Context 物件而非 Stack，所以 setup <code>return</code> 之後依然活著，直到 cleanup 被呼叫、effect 卸載、沒人引用，才被 GC 回收。</li>
       </ol>
     </div>

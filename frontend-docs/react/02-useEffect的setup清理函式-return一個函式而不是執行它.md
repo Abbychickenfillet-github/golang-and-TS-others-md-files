@@ -32,7 +32,7 @@ updated: 2026-09-15
 | 5W1H | 問題 | 一句話答案 |
 |---|---|---|
 | **What** 是什麼 | 清理函式是什麼？ | `useEffect` 的第一個參數（setup function）可以選擇性回傳一個「不收參數、不回傳值」的函式，React 官方稱它 cleanup function |
-| **When** 什麼時候 | 它什麼時候被執行？ | <mark style="background: #FF5582A6;">不是在 `return` 那一行</mark>。是在三個時機由 React 呼叫：元件卸載前、每次重跑 setup 之前、以及 StrictMode 開發模式掛載後多跑的那一輪 |
+| **When** 什麼時候 | 它什麼時候被執行？ | <mark style="background: #FF5582A6;">不是在 `return` 那一行</mark>。是在三個時機由 React 呼叫：元件卸載後（官方：after your component is removed from the page）、每次重跑 setup 之前、以及 StrictMode 開發模式掛載後多跑的那一輪 |
 | **Who** 誰做的 | 誰呼叫它？ | React 的 commit 階段。不是你、不是 JS 引擎、不是瀏覽器 |
 | **Where** 在哪裡 | 它被存在哪？ | 存在該 effect 物件的 `inst.destroy` 欄位上，而那個 effect 掛在 fiber 節點（Heap）上 |
 | **Which** 哪一種 | 哪些東西需要清理？ | 會「持續存在」的東西：計時器、事件監聽器、WebSocket／SSE 連線、訂閱、`AbortController`、第三方套件的實例 |
@@ -88,7 +88,7 @@ flowchart LR
         F["時機到了才呼叫 cleanup<br/>★ clearInterval&#40;id&#41; 這時才真的執行"]
     end
     B --> C --> D --> E
-    E -.->|"卸載前／依賴變動前／StrictMode 檢查"| F
+    E -.->|"卸載後／依賴變動前／StrictMode 檢查"| F
     F -.->|"若是依賴變動，接著跑新的 setup"| D
 ```
 
@@ -249,7 +249,10 @@ type EffectInstance = {
 
 專業回答一定要講清楚時機：
 
-1. **元件卸載（unmount）前**——最直覺的那個。
+1. **元件卸載（unmount）後**——元件已從畫面移除，React 最後再跑一次。官方原文是 *Your cleanup code runs one final time after your component is removed from the page*。
+
+   > [!warning] ⚠️ 更正（2026-10-04 對照 react.dev 原文）
+   > 本篇先前寫成「卸載**前**」，與官方不符。官方說的是「卸載**後**」。
 
 2. **每次要重新執行 setup 之前**——依賴陣列裡的值變了，React 會先跑舊的 cleanup、再跑新的 setup。所以順序永遠是 `setup① → cleanup① → setup② → cleanup② → ...`，<mark style="background: #ADCCFFA6;">成對且交錯，不會有兩個 setup 同時活著</mark>。
 
@@ -285,7 +288,7 @@ type EffectInstance = {
 
 **b. 為什麼需要**：因為 effect 常常會建立「會持續存在的東西」——計時器、事件監聽器、WebSocket 連線、訂閱。這些不會隨元件消失而自動消失，必須有人主動關掉，否則就是記憶體洩漏。
 
-**c. 什麼時候被呼叫**：卸載前、每次重跑 setup 之前、以及 StrictMode 開發模式下掛載後多跑的那一輪。順序永遠是 setup 與 cleanup 成對交錯。
+**c. 什麼時候被呼叫**：卸載後、每次重跑 setup 之前、以及 StrictMode 開發模式下掛載後多跑的那一輪。順序永遠是 setup 與 cleanup 成對交錯。
 
 **d. 底層原理**：cleanup 函式靠**閉包**抓住 setup 當次的區域變數（例如計時器 id）。這些變數因為被閉包捕獲，被引擎配置在 Heap 的 Context 物件而非 Stack，所以 setup 函式 `return` 之後它們依然活著，直到 cleanup 被呼叫、effect 被卸載、沒人再引用，才會被 GC 回收。
 
