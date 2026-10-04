@@ -152,8 +152,6 @@ useRef 與 Vue `ref` 的差異見 [[useRef與Vue的ref-value-可變值不觸發�
 
 ---
 
----
-
 ## g. 自我測驗（點開標題看答案）
 
 > [!question]- 填空：5 題
