@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>useEffect 的 setup 與 cleanup：Call Stack 罐頭時間軸</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff7ec;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#4a3b32}
+#art{width:1900px;padding:34px 40px 38px;background:#fff7ec}
+h1{margin:0 0 4px;font-size:34px}
+.sub{font-size:18px;color:#8a7466;margin-bottom:18px}
+.vs{display:flex;gap:22px;margin-bottom:20px}
+.vs div{flex:1;border-radius:22px;padding:12px 18px;font-size:19px;font-weight:600;border:5px solid}
+.vs .no{background:#ffe3e8;border-color:#ff8fa5}.vs .ok{background:#e3f8e3;border-color:#7bd07b}
+.vs small{display:block;font-weight:400;font-size:16px;color:#6d5a4f}
+.frames{display:flex;gap:16px;align-items:stretch}
+.fr{flex:1;min-width:0;background:#fff;border-radius:26px;border:5px solid #ffc27a;padding:12px 12px 14px;box-shadow:0 8px 0 rgba(0,0,0,.08);display:flex;flex-direction:column;gap:9px}
+.fr h3{margin:0;font-size:20px;line-height:1.35;min-height:54px}
+.fr h3 span{display:inline-block;background:#ffb800;color:#fff;border-radius:50%;width:32px;height:32px;line-height:32px;text-align:center;margin-right:6px}
+.lab{font-size:15px;font-weight:800;color:#7a6a5f}
+.stack{height:178px;background:#f3ece4;border-radius:16px;border:4px dashed #d7c4b0;padding:8px;display:flex;flex-direction:column-reverse;gap:5px}
+.can{background:#d9ecff;border:3px solid #6ab0f0;border-radius:12px;padding:3px 8px;font-size:16px;font-weight:700;display:flex;gap:6px;align-items:center}
+.can.top{background:#fff0a8;border-color:#ffb800}
+.can.cl{background:#ffe0e0;border-color:#e04a5f}
+.can.su{background:#dcf7dc;border-color:#4cc24c}
+.empty{margin:auto;font-size:17px;color:#a08f80;font-weight:700;text-align:center}
+.heap{background:#fff9d6;border:4px solid #ffd35c;border-radius:16px;padding:8px 10px;display:flex;flex-direction:column;gap:5px;font-size:15px;font-weight:700}
+.row{background:#fff;border-radius:10px;padding:3px 8px;border:3px solid #ffe08a}
+.row.su{border-color:#4cc24c;background:#effbef}.row.cl{border-color:#e04a5f;background:#fff0f0}
+.row small{font-weight:400;color:#7a6a5f;font-size:13px;display:block}
+.cap{font-size:16px;line-height:1.55;background:#fff7ec;border-radius:12px;padding:6px 10px;flex:1}
+.foot{margin-top:18px;display:flex;gap:22px}
+.foot div{flex:1;background:#e3f4ff;border:5px solid #4cb8e8;border-radius:22px;padding:12px 18px;font-size:18px;font-weight:600}
+.foot small{display:block;font-weight:400;font-size:15px;color:#4c7d96;margin-top:3px}
+</style>
+</head>
+<body>
+<div id="art">
+  <h1>🥫 useEffect 的 setup 與 cleanup：Call Stack 罐頭時間軸</h1>
+  <div class="sub">以 &lt;ChatRoom /&gt; 為例：一個 useEffect，經過「第一次掛載 → 依賴變動」兩輪。左邊是 Call Stack（罐頭疊），下面是 Heap 上的 Effect 物件</div>
+  <div class="vs">
+    <div class="no">❌ 常見的想像<small>setup 罐頭先進 stack，cleanup 罐頭疊在它上面，所以 cleanup 先彈出</small></div>
+    <div class="ok">✅ 實際情況<small>cleanup 從來沒有跟 setup 同時在 stack 上，它是被 React 在「之後另一次」呼叫的，先後由 React 的 commit 排程決定</small></div>
+  </div>
+  <div class="frames" id="frames"></div>
+  <div class="foot">
+    <div>🥫 Call Stack 是後進先出（LIFO）<small>它只決定「同一時間疊在一起」的函式誰先彈出，例如 flushPassiveEffects 呼叫 setup()，一定是 setup() 先彈出</small></div>
+    <div>🔄 同一次 commit 的順序<small>React 先跑完所有要清理的 cleanup（commitPassiveUnmountEffects），再跑所有 setup（commitPassiveMountEffects）</small></div>
+    <div>🏠 cleanup 住在哪<small>fiber → Hook ② 的 memoizedState → Effect 物件 → inst.destroy，不在 queue，也不在 Hook 的 next</small></div>
+  </div>
+</div>
+<script>
+var F=[
+ {t:'render：呼叫元件函式',st:[['Counter()','top']],h:[['create = setup 函式','render 時存進 Effect 物件','su'],['inst.destroy = undefined','還沒有 cleanup','']],c:'render 只是把 setup 函式「存起來」，還沒執行。元件函式跑完罐頭就彈出。'},
+ {t:'commit：React 呼叫 setup',st:[['flushPassiveEffects',''],['setup()','su top']],h:[['create = setup 函式','正在被呼叫','su'],['inst.destroy = undefined','return 還沒執行','']],c:'setup 罐頭在 stack 上。裡面的 return () =&gt; … 只是在 Heap 建立一個函式物件，沒有呼叫它。'},
+ {t:'setup 回傳：cleanup 被存起來',st:[],h:[['create = setup 函式','已執行完','su'],['inst.destroy = cleanup 函式①','React 把 return 的函式存進來','cl']],c:'setup() 罐頭已經彈出，stack 空了。cleanup 靜靜躺在 Heap 的 Effect 物件裡，完全不在 stack 上。'},
+ {t:'依賴變動：React 先呼叫舊 cleanup',st:[['flushPassiveEffects',''],['cleanup①()','cl top']],h:[['create = 新 setup 函式','新 render 已存入，還沒執行','su'],['inst.destroy = undefined','inst 是新舊 Effect 共用的，React 先清成 undefined 再呼叫舊 cleanup','cl']],c:'新一輪 render 與 commit 之後，React 先呼叫舊的 cleanup①，用的是舊 render 的閉包值（舊 roomId）。'},
+ {t:'cleanup 彈出後才輪到新 setup',st:[['flushPassiveEffects',''],['setup()','su top']],h:[['create = 新 setup 函式','新 render 存入','su'],['inst.destroy = undefined → cleanup 函式②','setup 回傳後存入','cl']],c:'cleanup①() 已彈出才輪到新的 setup②()。兩者從不同時在 stack 上，順序是 cleanup① → setup②。'}
+];
+var h='';
+F.forEach(function(f,i){
+  var cans=f.st.map(function(c){var cls=c[1]?(' '+c[1]):'';return '<div class="can'+cls+'">🥫 '+c[0]+(c[1].indexOf('top')>-1?' ⬅️ 執行中':'')+'</div>';}).join('');
+  if(!f.st.length) cans='<div class="empty">🈳 stack 是空的<br>沒有任何罐頭</div>';
+  var rows=f.h.map(function(r){return '<div class="row '+r[2]+'">'+(r[2]==='su'?'🔌 ':'🧹 ')+r[0]+(r[1]?'<small>'+r[1]+'</small>':'')+'</div>';}).join('');
+  h+='<div class="fr"><h3><span>'+(i+1)+'</span>'+f.t+'</h3><div class="lab">📚 Call Stack（下面是底）</div><div class="stack">'+cans+'</div><div class="lab">🏠 Heap：Hook ② 的 Effect 物件</div><div class="heap">'+rows+'</div><div class="cap">'+f.c+'</div></div>';
+});
+document.getElementById('frames').innerHTML=h;
+</script>
+</body>
+</html>

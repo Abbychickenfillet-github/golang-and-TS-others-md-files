@@ -107,6 +107,10 @@ useEffect 的依賴陣列與 cleanup 不是直接掛在 Hook 節點上，而是�
 `useRef` 的節點沒有 `queue`，所以改 `ref.current` 沒有任何管道通知 React，這就是它不觸發 re-render 的底層原因。
 因此圖中的環有兩個：Effect 清單（`fiber.updateQueue.lastEffect`）與 `useState` 的 `pending` 更新清單，Hook 鏈本身都不是環。
 
+setup 與 cleanup 在圖上的位置：`create` 就是 setup 函式，在 render 時存入。`inst.destroy` 就是 cleanup 函式，要等 commit 時 setup 跑完、`return` 出來才存入，在那之前是 `undefined`。
+cleanup 不在 `queue`（`useEffect` 的 `queue` 是 `null`），也不在 Hook 的 `next`（那是下一節 Hook）。
+`inst` 是跨 render 共用的，所以新舊 Effect 物件都指到同一個 `inst`，React 才找得到「上一次留下的 cleanup」。時間軸見 [[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (g)。
+
 React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放在 Effect 上，所以舊文章寫 `effect.destroy` 並不算錯。
 
 (j) 若元件完全沒呼叫任何 Hook，`fiberNode.memoizedState` 就是 `null`。

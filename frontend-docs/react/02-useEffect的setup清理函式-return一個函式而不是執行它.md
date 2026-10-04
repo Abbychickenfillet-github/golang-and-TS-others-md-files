@@ -258,6 +258,23 @@ type EffectInstance = {
 
 3. **開發模式的 StrictMode 下，掛載後會立刻多跑一輪** `setup → cleanup → setup`。這不是 bug，是 React 故意在幫你檢查「你的 cleanup 有沒有寫對」。<mark style="background: #FFF3A3A6;">如果你的元件在 StrictMode 下行為異常（例如計時器變兩倍快、請求送兩次），通常代表 cleanup 漏寫了</mark>——詳見 [[01-React-純函數與嚴格模式-StrictMode]]。
 
+**用 Call Stack（呼叫堆疊）看順序：為什麼不是「cleanup 疊在 setup 上面所以先彈出」**
+Call Stack 是後進先出（LIFO）的罐頭堆，只負責「同一時間正在執行、層層呼叫」的函式。
+`return () => ...` 只是建立一個函式物件放在 Heap，並沒有呼叫它，所以 cleanup 從來沒有跟 setup 同時在 stack 上。
+
+| 時間點 | Call Stack 上有什麼 | cleanup 在哪裡 |
+|---|---|---|
+| ① render | `Counter()` | 還沒有，Effect 物件的 `create` 存著 setup 函式 |
+| ② commit 執行 setup | `flushPassiveEffects`、`setup()` | 還沒有，`return` 尚未執行 |
+| ③ setup 回傳之後 | 空的 | Heap：Effect 物件的 `inst.destroy` |
+| ④ 依賴變動，React 呼叫舊 cleanup | `flushPassiveEffects`、`cleanup①()` | 被呼叫中，`inst.destroy` 先被清成 `undefined` |
+| ⑤ cleanup 彈出後，呼叫新 setup | `flushPassiveEffects`、`setup②()` | 回傳後 `inst.destroy` 存入 cleanup② |
+
+所以順序不是 stack 決定的，是 React 的 commit 排程決定的：同一次 commit 裡先跑完所有要清理的 cleanup（原始碼 `commitPassiveUnmountEffects`），再跑所有 setup（`commitPassiveMountEffects`）。
+`create` 在 render 時存入、`inst.destroy` 在 commit 時 `destroy = create(); inst.destroy = destroy;` 那一行才存入，這就是 ③ 之前 `inst.destroy` 是 `undefined` 的原因。
+
+![[useEffect_setup與cleanup_CallStack罐頭時間軸_2026-10-04.png]]
+
 補充一個常被忽略的細節：**cleanup 讀到的是「它那一次 render 的值」，這是正確行為不是 bug**。因為 cleanup① 的任務就是收拾 setup① 建立的東西，它當然要用 setup① 當時的那組值。
 
 ---
@@ -378,6 +395,7 @@ NeetCode 目前沒有對應的 JavaScript 語言機制題組，上面五題在 L
 | React 官方文件 — `useEffect`（setup 與 cleanup 的契約、三個呼叫時機） | https://react.dev/reference/react/useEffect | 2026-09-06 查證 |
 | React 官方文件 — Synchronizing with Effects | https://react.dev/learn/synchronizing-with-effects | 2026-09-06 查證 |
 | React 官方文件 — State as a Snapshot（stale closure 的官方說法） | https://react.dev/learn/state-as-a-snapshot | 2026-09-06 查證 |
+| React 原始碼 `ReactFiberCommitEffects.js`（`destroy = create(); inst.destroy = destroy;`）與 `ReactFiberWorkLoop.js`（`commitPassiveUnmountEffects` 先於 `commitPassiveMountEffects`） | https://github.com/facebook/react/tree/main/packages/react-reconciler/src | main 分支，2026-10-04 實際抓取核對 |
 | Dan Abramov — A Complete Guide to useEffect | https://overreacted.io/a-complete-guide-to-useeffect/ | 原文 2019-03，2026-09-06 重讀 |
 | MDN — Arrow function expressions（簡潔本體、名稱推導） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions | 2026-09-06 查證 |
 | MDN — `clearInterval()` | https://developer.mozilla.org/en-US/docs/Web/API/Window/clearInterval | 2026-09-06 查證 |
