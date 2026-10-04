@@ -17,10 +17,10 @@ updated: 2026-10-04
 
 # useEffect：把元件同步到外部系統
 
-> [!info] 本篇重點 a–f，共 6 個
+> [!info] 本篇重點 a–g，共 7 個
 > 主軸是 react.dev 官方 `useEffect` 頁面 Usage 第一節「Connecting to an external system」。
 > Abby 在 Gemini 的追問只是支線，放在 f。
-> 互動版（流程圖＋自我測驗）：`03-useEffect將元件同步到外部系統-互動版.html`，範例程式碼：`03-useEffect-外部系統-demo.jsx`。
+> 範例程式碼：`03-useEffect-外部系統-demo.jsx`（同資料夾，可直接貼進 CodeSandbox 跑）。流程圖在 c，自我測驗在 g，全部集中在這一個檔案。
 
 ---
 
@@ -151,6 +151,50 @@ useRef 與 Vue `ref` 的差異見 [[useRef與Vue的ref-value-可變值不觸發�
 追問的原始對話連結在 frontmatter 的 `sources`，本次寫入時該網站無法重新讀取，內容以上述既有筆記為準。
 
 ---
+
+---
+
+## g. 自我測驗（點開標題看答案）
+
+> [!question]- 填空：5 題
+> 1. `useEffect` 的第一個參數叫 ＿＿＿ 函式，第二個叫 ＿＿＿。
+> 2. React 比較依賴新舊值使用 ＿＿＿。
+> 3. 不寫依賴陣列，每次 ＿＿＿ 之後都會重跑。
+> 4. StrictMode 開發模式多跑的順序是 setup → ＿＿＿ → setup。
+> 5. mount 在 commit 階段是呼叫 ＿＿＿ 把 DOM node 插進 DOM 樹。
+>
+> > [!success]- 答案
+> > 1. setup、dependencies　2. `Object.is`　3. commit　4. cleanup　5. `appendChild`
+
+> [!question]- 是非：依賴陣列可以自己挑要列哪些值。
+> > [!success] 非
+> > 程式碼裡讀到的 reactive value 就必須全列，由程式碼決定。
+
+> [!question]- 是非：用 state 算出另一個 state，應該用 Effect。
+> > [!success] 非
+> > 這不是外部系統，直接在 render 中計算即可。
+
+> [!question]- 是非：Effect 在伺服器端渲染時也會執行。
+> > [!success] 非
+> > Effect 只在 client 執行。
+
+> [!question]- 是非：`window.addEventListener` 屬於外部系統。
+> > [!success] 是
+> > 它是瀏覽器提供的 Web API，不由 React 控制，需要 cleanup 移除。
+
+> [!question]- 是非：mount 完成就代表使用者已經看到畫面。
+> > [!success] 非
+> > mount 是 DOM 插入完成，之後還要經過 browser paint 才會畫到螢幕。
+
+> [!question]- 申論：用 5W1H 說明什麼是外部系統，並舉三個例子寫出各自的 cleanup。
+> > [!success] 參考答案
+> > What：不由 React 控制的東西。Why：React 只管 JSX，不會幫你斷開連線。When：mount 後連上，deps 變或 unmount 時斷開。How：setup 連上，cleanup 反向復原。
+> > 例子：`setInterval` 配 `clearInterval`，`addEventListener` 配 `removeEventListener`，`observer.observe` 配 `observer.disconnect`。
+
+> [!question]- 申論：Effect 與元件 mount／unmount 生命週期有什麼不同？為什麼 deps 變了 cleanup 也會跑？
+> > [!success] 參考答案
+> > Effect 只有「開始同步」與「停止同步」兩個動作，描述的是和外部系統的同步關係，不是元件存在與否。
+> > deps 變了代表要同步的目標改變，必須先停止對舊目標的同步（cleanup 用舊值），再開始對新目標的同步（setup 用新值），元件不需要 unmount。
 
 ## 資料來源（含查證時間）
 
