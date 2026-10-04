@@ -84,3 +84,15 @@ export function ModalDialog({ isOpen, children }) {
 
   return <dialog ref={ref}>{children}</dialog>
 }
+
+/* ⑤ 對照組：沒寫 cleanup 的壞版本，在 StrictMode 開發模式下計數會每秒加 2
+ * 原因：setup → cleanup(沒有) → setup，兩個計時器同時在跑 */
+export function TimerNoCleanup() {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    setInterval(() => setCount(c => c + 1), 1000) // 沒存 id，也沒有 return cleanup
+  }, [])
+
+  return <h1>{count}</h1>
+}

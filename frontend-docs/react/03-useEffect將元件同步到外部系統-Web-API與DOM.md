@@ -110,8 +110,34 @@ React 用 `Object.is` 逐項比較 deps 的新舊值，來決定要不要重跑�
 ## d. 鏡像原則與 StrictMode
 
 cleanup 必須能把 setup 做的事完整復原，這叫「鏡像」。
-開發模式的 StrictMode 會在第一次真正的 setup 之前，多跑一輪 **setup → cleanup → setup** 來壓力測試鏡像寫得對不對。
-判準是：使用者不該分辨得出「setup 只跑一次」跟「setup → cleanup → setup」。
+官方原文：*To help you find bugs, in development React runs setup and cleanup one extra time before the setup.*
+這句話裡的 development 指開發模式，也就是 `<StrictMode>` 包住元件時（Vite 與 CRA 的模板預設就包著）。正式上線（production）不會多跑。
+
+**這個「多跑一次」發生在掛載（mount）那一刻，不是每次 re-render。**
+React 在元件第一次掛載後，故意模擬一次「卸載再重新掛載」，所以順序是 **setup → cleanup → setup**，之後 deps 變動才照一般規則跑。
+
+| StrictMode 的兩種「多跑一次」 | 跑的是什麼 | 什麼時候跑 | 目的 |
+|---|---|---|---|
+| 雙重 render | 元件函式本體被呼叫兩次 | 每一次 render，包含每次 `setState` 後的 re-render | 抓出不純的 render，見 [[01-React-純函數與嚴格模式-StrictMode]] |
+| Effect 多一輪 | setup → cleanup → setup | 只在掛載那一次 | 抓出沒寫對的 cleanup |
+
+**官方說的 visible issues（使用者看得見的問題）就是：cleanup 沒把 setup 做的事復原，多出來的那一輪就留下殘骸。**
+你的推論是對的：出現這種問題，就代表 cleanup 該去停止或取消 setup 剛剛建立的東西。順帶一提，這裡的 setup 是「連線的函式」，不是 class 的「建構函式」（constructor）。
+
+| setup 做的事 | 沒寫 cleanup，StrictMode 下看到的 visible issue | cleanup 該做的事 |
+|---|---|---|
+| `setInterval(() => setCount(c => c + 1), 1000)` | 計數每秒加 2，因為同時有兩個計時器在跑 | `clearInterval(id)` |
+| `window.addEventListener('pointermove', fn)` | 同一個事件處理了兩次 | `removeEventListener` |
+| `connection.connect()` | 同一個房間連了兩條線，收到重複訊息 | `connection.disconnect()` |
+| `animation.start()` | 動畫從頭疊了兩次 | `animation.stop()` |
+
+**rule of thumb（經驗法則）的白話：**
+官方原文：*the user shouldn't be able to distinguish between the setup being called once (as in production) and a setup → cleanup → setup sequence (as in development).*
+意思是：使用者不該分辨得出「正式環境只 setup 一次」跟「開發環境 setup → cleanup → setup」是哪一個。
+cleanup 把第一次 setup 完全抵銷掉，第二次 setup 之後的世界，就跟只 setup 一次的世界一模一樣，外部系統裡永遠只剩一份連線、一個計時器、一個監聽器。
+連結的「See common solutions」就是教你怎麼補 cleanup，常見解法已經寫在本篇 b 段的表裡：每一種 setup 配一個反向的 cleanup。
+
+可以直接跑 `03-useEffect-外部系統-demo.jsx` 裡的 `TimerNoCleanup`，在 StrictMode 下親眼看計數變兩倍快，再對照 `Timer` 修好的版本。
 
 > [!tip] 什麼時候可以不寫 cleanup
 > 官方的 `MapWidget` 範例沒寫 cleanup，因為那個 class 只管理傳進去的那個 DOM node，元件移除後 node 與 instance 都會被瀏覽器的 GC 回收。
@@ -204,4 +230,5 @@ useRef 與 Vue `ref` 的差異見 [[useRef與Vue的ref-value-可變值不觸發�
 | React 官方文件：You Might Not Need an Effect | https://react.dev/learn/you-might-not-need-an-effect | 該頁面內連結，未重新抓取 |
 | MDN：`IntersectionObserver` | https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API | 該頁面內連結，未重新抓取 |
 | MDN：`HTMLDialogElement.showModal()` | https://developer.mozilla.org/en-US/docs/Web/API/HTMLDialogElement/showModal | 該頁面內連結，未重新抓取 |
+| React 官方文件：useEffect 的 Caveats 與 Troubleshooting（StrictMode 額外一輪 setup → cleanup、visible issues、rule of thumb 原文） | https://react.dev/reference/react/useEffect | 依 2026-10-04 貼入的全文，原文逐字引用 |
 | Abby 的追問對話（Gemini） | https://gemini.google.com/app/5b6fc934e5d7f253 | 本次無法讀取，僅作索引 |
