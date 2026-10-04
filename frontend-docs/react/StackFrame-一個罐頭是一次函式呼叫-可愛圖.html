@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>Stack Frame：一個罐頭是一次函式呼叫</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff7ec;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#4a3b32}
+#art{width:1800px;padding:34px 40px 38px;background:#fff7ec}
+h1{margin:0 0 4px;font-size:34px}
+.sub{font-size:18px;color:#8a7466;margin-bottom:18px}
+.toprow{display:flex;gap:22px;margin-bottom:20px}
+.card{border-radius:26px;border:5px solid;padding:14px 20px;box-shadow:0 8px 0 rgba(0,0,0,.08)}
+.no{flex:1;background:#ffe3e8;border-color:#ff8fa5}
+.ok{flex:1.4;background:#fff;border-color:#8fd16a}
+.card h2{margin:0 0 8px;font-size:23px}
+.mini{display:flex;gap:18px;align-items:center}
+.box{width:170px;border:4px solid #e04a5f;border-radius:14px;padding:6px;background:#fff;display:flex;flex-direction:column-reverse;gap:4px}
+.box .c{background:#ffe0e0;border:3px solid #e04a5f;border-radius:10px;padding:2px 8px;font-weight:700;font-size:17px;text-align:center}
+.lines{font-size:17px;line-height:1.7;font-weight:600}
+.lines small{display:block;font-weight:400;font-size:15px;color:#7a6a5f}
+.times{display:flex;gap:14px}
+.t{flex:1;background:#fffdf6;border:4px solid #ffc27a;border-radius:20px;padding:10px 12px;display:flex;flex-direction:column;gap:7px}
+.t h3{margin:0;font-size:18px;line-height:1.35;min-height:48px}
+.t h3 b{display:inline-block;background:#ffb800;color:#fff;border-radius:50%;width:28px;height:28px;line-height:28px;text-align:center;margin-right:5px}
+.st{height:150px;background:#f3ece4;border:3px dashed #d7c4b0;border-radius:14px;padding:6px;display:flex;flex-direction:column-reverse;gap:4px}
+.can{background:#d9ecff;border:3px solid #6ab0f0;border-radius:10px;padding:2px 8px;font-size:15px;font-weight:700}
+.can.su{background:#dcf7dc;border-color:#4cc24c}.can.cl{background:#ffe0e0;border-color:#e04a5f}.can.top{background:#fff0a8;border-color:#ffb800}
+.can small{display:block;font-weight:400;font-size:12px;color:#5b6d82}
+.empty{margin:auto;color:#a08f80;font-weight:700;font-size:15px;text-align:center}
+.cp{font-size:14.5px;line-height:1.5}
+.arrow{align-self:center;font-size:30px}
+.heap{margin-top:16px;background:#fff9d6;border:5px solid #ffd35c;border-radius:24px;padding:12px 20px;display:flex;gap:20px;font-size:17px;font-weight:700;align-items:center}
+.heap .it{background:#fff;border:3px solid #ffe08a;border-radius:14px;padding:4px 12px;font-weight:600;font-size:16px}
+.heap small{font-weight:400;color:#7a6a5f;font-size:14px;display:block}
+.anat{margin-top:16px;display:flex;gap:22px}
+.anat .card{flex:1;background:#e3f4ff;border-color:#4cb8e8}
+.anat table{border-collapse:collapse;width:100%;font-size:16px}
+.anat td{padding:4px 8px;border-bottom:2px dashed #b9dff2;vertical-align:top}
+.anat td:first-child{font-weight:800;width:150px;white-space:nowrap}
+.anat small{color:#4c7d96}
+</style>
+</head>
+<body>
+<div id="art">
+  <h1>🥫 Stack Frame（堆疊框）：一個罐頭 = 一次函式呼叫，不是一個 Hook</h1>
+  <div class="sub">Stack Frame 是 JS 每「呼叫」一次函式就在 Call Stack 疊上去的一個罐頭，函式回傳就彈出。以 &lt;ChatRoom /&gt; 的一個 useEffect 為例</div>
+
+  <div class="toprow">
+    <div class="card no">
+      <h2>❌ 你的圖：整個 useEffect 一個框，cleanup 疊在 setup 上</h2>
+      <div class="mini">
+        <div class="box"><div class="c">setup</div><div class="c">cleanup</div></div>
+        <div class="lines">① frame 是「每一次呼叫」一個，不是「每個 useEffect」一個
+          <small>useEffect 一輩子會產生好幾個不同時間的罐頭</small>
+          ② setup 與 cleanup 是兩次不同的呼叫，從不同時在 stack 上
+          <small>setup 回傳彈出之後，過了很久才輪到 cleanup</small>
+          ③ cleanup 不是被 setup 呼叫的，呼叫它的是 React
+          <small>所以它不會疊在 setup 上面</small></div>
+      </div>
+    </div>
+    <div class="card ok">
+      <h2>✅ 同一個 useEffect 的一生：四個不同時間的罐頭（時間往右走）</h2>
+      <div class="times">
+        <div class="t"><h3><b>1</b>render：你寫的 <code>useEffect(...)</code> 這行被呼叫</h3>
+          <div class="st"><div class="can top">useEffect(...)<small>只是把 setup 存起來</small></div><div class="can">ChatRoom()</div></div>
+          <div class="cp">這一行只「登記」setup，不執行它，馬上彈出</div></div>
+        <div class="arrow">➡️</div>
+        <div class="t"><h3><b>2</b>commit：React 呼叫 setup()</h3>
+          <div class="st"><div class="can su top">setup()<small>連線 connect()</small></div><div class="can">React 的 commit 函式</div></div>
+          <div class="cp">回傳 cleanup 後，setup() 罐頭彈出</div></div>
+        <div class="arrow">➡️</div>
+        <div class="t"><h3><b>3</b>roomId 變了：React 呼叫 cleanup()</h3>
+          <div class="st"><div class="can cl top">cleanup()<small>斷線 disconnect()</small></div><div class="can">React 的 commit 函式</div></div>
+          <div class="cp">不在 setup 的罐頭裡，也不疊在它上面</div></div>
+        <div class="arrow">➡️</div>
+        <div class="t"><h3><b>4</b>接著 React 呼叫新的 setup()</h3>
+          <div class="st"><div class="can su top">setup()<small>用新 roomId 連線</small></div><div class="can">React 的 commit 函式</div></div>
+          <div class="cp">又是一個全新的罐頭</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="heap">
+    <div>🏠 Heap（一直都在，不會隨罐頭彈出）</div>
+    <div class="it">Effect 物件<small>create（setup 函式）、deps、inst.destroy（cleanup 函式）</small></div>
+    <div class="it">Context 物件（閉包）<small>serverUrl、roomId、connection 因為被 cleanup 用到，搬到這裡</small></div>
+  </div>
+
+  <div class="anat">
+    <div class="card">
+      <h2>🔬 解剖一個罐頭：以 setup() 為例</h2>
+      <table>
+        <tr><td>📮 返回位址</td><td>函式做完要回到誰。這裡是呼叫它的 React commit 函式<br><small>這也是 setup() 彈出之後程式接著跑的位置</small></td></tr>
+        <tr><td>📥 參數</td><td>setup 沒有參數<br><small>每個罐頭各有自己的一份，不會跟別的呼叫共用</small></td></tr>
+        <tr><td>📦 區域變數</td><td><code>const connection = createConnection(...)</code><br><small>一般區域變數放在罐頭裡，罐頭彈出就消失</small></td></tr>
+        <tr><td>🏠 閉包例外</td><td><code>connection</code> 被 cleanup 的函式抓住，所以引擎把它放到 Heap 的 Context<br><small>罐頭彈出後它還活著，這就是 cleanup 之後還能 disconnect 的原因</small></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h2>📏 判斷「畫在同一個罐頭堆裡」的規則</h2>
+      <table>
+        <tr><td>疊在一起</td><td>A 呼叫 B，B 還沒做完，A 也還在等。例如 commit 函式呼叫 setup()</td></tr>
+        <tr><td>不會疊在一起</td><td>兩次呼叫發生在不同時間，前一個已經回傳。例如 setup() 與之後的 cleanup()</td></tr>
+        <tr><td>要畫成時間軸</td><td>想表達「誰先誰後」時，用左到右的多個罐頭堆，不要塞進同一個</td></tr>
+        <tr><td>Hook 本身</td><td>「useEffect」是一個概念，不是罐頭。罐頭只對應「某一次函式呼叫」</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

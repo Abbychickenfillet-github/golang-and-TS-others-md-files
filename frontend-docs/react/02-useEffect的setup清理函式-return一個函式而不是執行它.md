@@ -326,6 +326,21 @@ if (destroy !== undefined) {      // 有交出 cleanup 才需要呼叫
 | `flushPassiveEffects` 是 React 正在執行排好的副作用，包含舊 cleanup 與新 setup | 對 | 順序是先全部 cleanup（`commitPassiveUnmountEffects`），再全部 setup（`commitPassiveMountEffects`） |
 | 副作用是非同步處理的，等 DOM 更新完成才統一處理 | 大致對，需補精確 | 這裡的「非同步」是「延後到另一個任務」，不是 `async`／`await`。多數情況排在 Paint 之後。例外：若 render 由離散事件（例如點擊）引發，React 在同一個任務結束前同步 flush，原始碼註解說是為了讓結果「立刻可被觀察」 |
 
+**Stack Frame（堆疊框）到底是什麼？你手繪的「整個 useEffect 一個框，cleanup 疊在 setup 上」要怎麼修：**
+Stack Frame 是 JS 每「呼叫」一次函式，就在 Call Stack 疊上去的一個罐頭，裡面有返回位址（做完回到誰）、參數、區域變數，函式回傳就彈出。詳見 [[12-return-清理記憶體-stack-frame與閉包例外]]。
+
+| 你的畫法 | 判定 | 正確理解 |
+|---|---|---|
+| 整個 useEffect 一個框 | 不對 | 罐頭對應「某一次函式呼叫」，不是「某個 Hook」。一個 useEffect 一輩子會產生好幾個不同時間的罐頭：render 時 `useEffect(...)` 那行、commit 時 `setup()`、之後的 `cleanup()`、再之後新的 `setup()` |
+| cleanup 疊在 setup 上面 | 不對 | 兩者是不同時間的兩次呼叫，從不同時在 stack 上。疊在一起只發生在「A 呼叫 B 而 B 還沒做完」，例如 React 的 commit 函式呼叫 `setup()` |
+| 把 Effect 物件跟 stack 畫在一起 | 要分開 | Effect 物件（`create`、`deps`、`inst.destroy`）在 Heap 一直都在，罐頭則是暫時的 |
+| Stack 是後進先出、下面是先進 | 對 | 這個觀念正確，只是套用的對象要換成「同時存在的呼叫」 |
+
+`useEffect(...)` 這一行本身在 render 時是一次很短的呼叫（`mountEffect` 或 `updateEffect`），只是把 setup 登記進 Effect 物件就彈出了，並不會執行 setup。
+`setup()` 罐頭裡的區域變數 `connection` 本來會隨罐頭彈出而消失，但因為 cleanup 的函式抓住了它（閉包），引擎把它放到 Heap 的 Context，所以 cleanup 之後還能 `disconnect()`。
+
+![[StackFrame_一個罐頭是一次函式呼叫_2026-10-04.png]]
+
 那個「連回 Effect」的動作，是 commit 前面的階段在 Fiber 上標記 Passive 旗標，等到 `flushPassiveEffects` 執行時，沿著 `fiber.updateQueue.lastEffect` 那個環找到各個 Effect，再取出 `create` 或 `inst.destroy` 來呼叫。
 
 補充一個常被忽略的細節：**cleanup 讀到的是「它那一次 render 的值」，這是正確行為不是 bug**。因為 cleanup① 的任務就是收拾 setup① 建立的東西，它當然要用 setup① 當時的那組值。
