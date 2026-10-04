@@ -9,17 +9,22 @@ body{margin:0;background:#fff7ec;font-family:"Noto Sans TC","PingFang TC","Micro
 #art{width:1900px;padding:34px 40px 38px;background:#fff7ec}
 h1{margin:0 0 4px;font-size:34px}
 .sub{font-size:18px;color:#8a7466;margin-bottom:18px}
-.vs{display:flex;gap:22px;margin-bottom:20px}
+.vs{display:flex;gap:22px;margin-bottom:18px}
 .vs div{flex:1;border-radius:22px;padding:12px 18px;font-size:19px;font-weight:600;border:5px solid}
 .vs .no{background:#ffe3e8;border-color:#ff8fa5}.vs .ok{background:#e3f8e3;border-color:#7bd07b}
 .vs small{display:block;font-weight:400;font-size:16px;color:#6d5a4f}
-.frames{display:flex;gap:16px;align-items:stretch}
+.bar{font-size:22px;font-weight:800;margin:6px 0 10px;padding:6px 16px;border-radius:14px;display:inline-block}
+.bar.r{background:#ffe0e0;color:#b02a43}.bar.g{background:#dcf7dc;color:#1f7a3a}
+.frames{display:flex;gap:16px;align-items:stretch;margin-bottom:22px}
 .fr{flex:1;min-width:0;background:#fff;border-radius:26px;border:5px solid #ffc27a;padding:12px 12px 14px;box-shadow:0 8px 0 rgba(0,0,0,.08);display:flex;flex-direction:column;gap:9px}
+.fr.gr{border-color:#8fd16a}
 .fr h3{margin:0;font-size:20px;line-height:1.35;min-height:54px}
 .fr h3 span{display:inline-block;background:#ffb800;color:#fff;border-radius:50%;width:32px;height:32px;line-height:32px;text-align:center;margin-right:6px}
+.fr.gr h3 span{background:#4cc24c}
 .lab{font-size:15px;font-weight:800;color:#7a6a5f}
-.stack{height:178px;background:#f3ece4;border-radius:16px;border:4px dashed #d7c4b0;padding:8px;display:flex;flex-direction:column-reverse;gap:5px}
-.can{background:#d9ecff;border:3px solid #6ab0f0;border-radius:12px;padding:3px 8px;font-size:16px;font-weight:700;display:flex;gap:6px;align-items:center}
+.stack{height:205px;background:#f3ece4;border-radius:16px;border:4px dashed #d7c4b0;padding:8px;display:flex;flex-direction:column-reverse;gap:5px}
+.can{background:#d9ecff;border:3px solid #6ab0f0;border-radius:12px;padding:3px 8px;font-size:15.5px;font-weight:700}
+.can small{display:block;font-weight:400;font-size:12.5px;color:#5b6d82}
 .can.top{background:#fff0a8;border-color:#ffb800}
 .can.cl{background:#ffe0e0;border-color:#e04a5f}
 .can.su{background:#dcf7dc;border-color:#4cc24c}
@@ -29,42 +34,64 @@ h1{margin:0 0 4px;font-size:34px}
 .row.su{border-color:#4cc24c;background:#effbef}.row.cl{border-color:#e04a5f;background:#fff0f0}
 .row small{font-weight:400;color:#7a6a5f;font-size:13px;display:block}
 .cap{font-size:16px;line-height:1.55;background:#fff7ec;border-radius:12px;padding:6px 10px;flex:1}
-.foot{margin-top:18px;display:flex;gap:22px}
-.foot div{flex:1;background:#e3f4ff;border:5px solid #4cb8e8;border-radius:22px;padding:12px 18px;font-size:18px;font-weight:600}
-.foot small{display:block;font-weight:400;font-size:15px;color:#4c7d96;margin-top:3px}
+.nt{flex:1;min-width:0;background:#e8f7e3;border:5px solid #8fd16a;border-radius:26px;padding:16px 20px;font-size:17px;line-height:1.7;font-weight:600}
+.nt small{display:block;font-weight:400;font-size:15px;color:#4b6a45;margin-top:4px}
+.nt code{background:#fff;border-radius:6px;padding:0 5px;font-size:15px}
+.foot{margin-top:6px;display:flex;gap:18px}
+.foot div{flex:1;background:#e3f4ff;border:5px solid #4cb8e8;border-radius:22px;padding:12px 16px;font-size:17px;font-weight:600}
+.foot small{display:block;font-weight:400;font-size:14.5px;color:#4c7d96;margin-top:3px;line-height:1.55}
 </style>
 </head>
 <body>
 <div id="art">
   <h1>🥫 useEffect 的 setup 與 cleanup：Call Stack 罐頭時間軸</h1>
-  <div class="sub">以 &lt;ChatRoom /&gt; 為例：一個 useEffect，經過「第一次掛載 → 依賴變動」兩輪。左邊是 Call Stack（罐頭疊），下面是 Heap 上的 Effect 物件</div>
+  <div class="sub">以 &lt;ChatRoom /&gt; 為例：一個 useEffect（deps 是 [roomId]），兩條路線。左邊是 Call Stack（罐頭疊），下面是 Heap 上的 Effect 物件</div>
   <div class="vs">
     <div class="no">❌ 常見的想像<small>setup 罐頭先進 stack，cleanup 罐頭疊在它上面，所以 cleanup 先彈出</small></div>
     <div class="ok">✅ 實際情況<small>cleanup 從來沒有跟 setup 同時在 stack 上，它是被 React 在「之後另一次」呼叫的，先後由 React 的 commit 排程決定</small></div>
   </div>
-  <div class="frames" id="frames"></div>
+  <div class="bar r">🔴 路線一：deps 變了（第一次掛載 → roomId 改變）</div>
+  <div class="frames" id="f1"></div>
+  <div class="bar g">🟢 路線二：deps 沒變（例如只是在輸入框打字，roomId 沒變）</div>
+  <div class="frames" id="f2"></div>
   <div class="foot">
-    <div>🥫 Call Stack 是後進先出（LIFO）<small>它只決定「同一時間疊在一起」的函式誰先彈出，例如 flushPassiveEffects 呼叫 setup()，一定是 setup() 先彈出</small></div>
+    <div>🥫 Call Stack 是後進先出（LIFO）<small>只決定「同一時間疊在一起」的函式誰先彈出，例如 setup() 一定比呼叫它的 commitHookEffectListMount 先彈出</small></div>
     <div>🔄 同一次 commit 的順序<small>React 先跑完所有要清理的 cleanup（commitPassiveUnmountEffects），再跑所有 setup（commitPassiveMountEffects）</small></div>
-    <div>🏠 cleanup 住在哪<small>fiber → Hook ② 的 memoizedState → Effect 物件 → inst.destroy，不在 queue，也不在 Hook 的 next</small></div>
+    <div>🏠 兩個函式都住在 Heap<small>setup（create）與 cleanup（inst.destroy）都是 Heap 上的函式物件，各被一個欄位記著位址。閒置時 stack 是空的，位址只存在 Heap 的 Effect 物件裡</small></div>
+    <div>📌 stack 上的位址只是暫時的<small>只有「被呼叫期間」，呼叫它的函式才有局部變數持有位址，例如 const destroy = inst.destroy。函式彈出，這個局部變數就消失，Heap 的函式物件不受影響</small></div>
   </div>
 </div>
 <script>
-var F=[
+var SKIP='中間還有幾層呼叫，略過';
+var A=[
  {t:'render：呼叫元件函式',st:[['Counter()','top']],h:[['create = setup 函式','render 時存進 Effect 物件','su'],['inst.destroy = undefined','還沒有 cleanup','']],c:'render 只是把 setup 函式「存起來」，還沒執行。元件函式跑完罐頭就彈出。'},
- {t:'commit：React 呼叫 setup',st:[['flushPassiveEffects',''],['setup()','su top']],h:[['create = setup 函式','正在被呼叫','su'],['inst.destroy = undefined','return 還沒執行','']],c:'setup 罐頭在 stack 上。裡面的 return () =&gt; … 只是在 Heap 建立一個函式物件，沒有呼叫它。'},
- {t:'setup 回傳：cleanup 被存起來',st:[],h:[['create = setup 函式','已執行完','su'],['inst.destroy = cleanup 函式①','React 把 return 的函式存進來','cl']],c:'setup() 罐頭已經彈出，stack 空了。cleanup 靜靜躺在 Heap 的 Effect 物件裡，完全不在 stack 上。'},
- {t:'依賴變動：React 先呼叫舊 cleanup',st:[['flushPassiveEffects',''],['cleanup①()','cl top']],h:[['create = 新 setup 函式','新 render 已存入，還沒執行','su'],['inst.destroy = undefined','inst 是新舊 Effect 共用的，React 先清成 undefined 再呼叫舊 cleanup','cl']],c:'新一輪 render 與 commit 之後，React 先呼叫舊的 cleanup①，用的是舊 render 的閉包值（舊 roomId）。'},
- {t:'cleanup 彈出後才輪到新 setup',st:[['flushPassiveEffects',''],['setup()','su top']],h:[['create = 新 setup 函式','新 render 存入','su'],['inst.destroy = undefined → cleanup 函式②','setup 回傳後存入','cl']],c:'cleanup①() 已彈出才輪到新的 setup②()。兩者從不同時在 stack 上，順序是 cleanup① → setup②。'}
+ {t:'commit：React 呼叫 setup',st:[['flushPassiveEffects','',SKIP],['commitHookEffectListMount','','局部變數 create ➜ 指向 Heap 的 setup 函式'],['setup()','su top']],h:[['create = setup 函式','正在被呼叫','su'],['inst.destroy = undefined','return 還沒執行','']],c:'setup 罐頭在 stack 上。裡面的 return () =&gt; … 只是在 Heap 建立一個函式物件，沒有呼叫它。'},
+ {t:'setup 回傳：cleanup 被存起來',st:[],h:[['create = setup 函式','已執行完','su'],['inst.destroy = cleanup 函式①','React 把 return 的函式存進來','cl']],c:'setup() 與呼叫它的罐頭都已彈出，stack 空了。cleanup 靜靜躺在 Heap 的 Effect 物件裡，stack 上沒有任何位址。'},
+ {t:'roomId 變了：React 先呼叫舊 cleanup',st:[['flushPassiveEffects','',SKIP],['commitHookEffectListUnmount','','局部變數 destroy ➜ 指向 Heap 的 cleanup①'],['cleanup①()','cl top']],h:[['create = 新 setup 函式','新 render 已存入，還沒執行','su'],['inst.destroy = undefined','inst 是新舊 Effect 共用的，React 先清成 undefined 再呼叫舊 cleanup','cl']],c:'新一輪 render 與 commit 之後，React 先呼叫舊的 cleanup①，用的是舊 render 的閉包值（舊 roomId）。'},
+ {t:'cleanup 彈出後才輪到新 setup',st:[['flushPassiveEffects','',SKIP],['commitHookEffectListMount','','局部變數 create ➜ 指向 Heap 的新 setup 函式'],['setup()','su top']],h:[['create = 新 setup 函式','新 render 存入','su'],['inst.destroy = undefined → cleanup 函式②','setup 回傳後存入','cl']],c:'cleanup①() 已彈出才輪到新的 setup②()。兩者從不同時在 stack 上，順序是 cleanup① → setup②。'}
 ];
-var h='';
-F.forEach(function(f,i){
-  var cans=f.st.map(function(c){var cls=c[1]?(' '+c[1]):'';return '<div class="can'+cls+'">🥫 '+c[0]+(c[1].indexOf('top')>-1?' ⬅️ 執行中':'')+'</div>';}).join('');
-  if(!f.st.length) cans='<div class="empty">🈳 stack 是空的<br>沒有任何罐頭</div>';
-  var rows=f.h.map(function(r){return '<div class="row '+r[2]+'">'+(r[2]==='su'?'🔌 ':'🧹 ')+r[0]+(r[1]?'<small>'+r[1]+'</small>':'')+'</div>';}).join('');
-  h+='<div class="fr"><h3><span>'+(i+1)+'</span>'+f.t+'</h3><div class="lab">📚 Call Stack（下面是底）</div><div class="stack">'+cans+'</div><div class="lab">🏠 Heap：Hook ② 的 Effect 物件</div><div class="heap">'+rows+'</div><div class="cap">'+f.c+'</div></div>';
-});
-document.getElementById('frames').innerHTML=h;
+var B=[
+ {t:'render：deps 比較結果「沒變」',st:[['Counter()','top']],h:[['create = 新 setup 函式','存進來了，但沒有「需要執行」標記','su'],['inst.destroy = cleanup 函式①','原封不動','cl']],c:'React 用 Object.is 逐項比較新舊 deps，全部相同。新的 setup 函式照樣存進 Effect 物件，但不標記 HookHasEffect，也不設 Passive 旗標。'},
+ {t:'commit：沒有 Passive 待辦',st:[['commitRoot','top','只更新 DOM，例如輸入框的字']],h:[['create = 新 setup 函式','不會被呼叫','su'],['inst.destroy = cleanup 函式①','不會被呼叫','cl']],c:'commit 看不到這個 Effect 的 Passive 旗標，所以不會排 flushPassiveEffects。cleanup 與 setup 都不跑。'},
+ {t:'之後：連線維持原樣',st:[],h:[['create = 新 setup 函式','從頭到尾沒被執行','su'],['inst.destroy = cleanup 函式①','仍躺在 Heap，等下一次 deps 真的變','cl']],c:'stack 是空的。連線一直活著，cleanup① 沒被動過。下一次 roomId 變了，才會回到路線一的第 4 格。'}
+];
+function render(data,id,cls){
+  var h='';
+  data.forEach(function(f,i){
+    var cans=f.st.map(function(c){
+      var top=(c[1]||'').indexOf('top')>-1, sub=c[2]||'';
+      return '<div class="can '+(c[1]||'')+'">🥫 '+c[0]+(top?' ⬅️ 執行中':'')+(sub?'<small>'+sub+'</small>':'')+'</div>';
+    }).join('');
+    if(!f.st.length) cans='<div class="empty">🈳 stack 是空的<br>沒有任何罐頭</div>';
+    var rows=f.h.map(function(r){return '<div class="row '+r[2]+'">'+(r[2]==='su'?'🔌 ':'🧹 ')+r[0]+(r[1]?'<small>'+r[1]+'</small>':'')+'</div>';}).join('');
+    h+='<div class="fr '+cls+'"><h3><span>'+(i+1+(cls?5:0))+'</span>'+f.t+'</h3><div class="lab">📚 Call Stack（下面是底）</div><div class="stack">'+cans+'</div><div class="lab">🏠 Heap：Hook ② 的 Effect 物件</div><div class="heap">'+rows+'</div><div class="cap">'+f.c+'</div></div>';
+  });
+  document.getElementById(id).innerHTML=h;
+}
+render(A,'f1','');render(B,'f2','gr');
+document.getElementById('f2').innerHTML+=
+ '<div class="nt">🔍 怎麼判斷「沒變」<small>areHookInputsEqual 逐項用 <code>Object.is</code> 比較新舊 deps 陣列，長度相同且每一項都相同才算沒變</small><small>注意比較的是「值」：字串與數字內容相同就算相同，物件與函式則要是同一個位址才算相同</small></div>'+
+ '<div class="nt">⚙️ 沒變時 React 只做一件事<small><code>pushSimpleEffect(hookFlags, inst, create, nextDeps)</code>，沒有 <code>HookHasEffect</code>，也不執行 <code>fiber.flags |= Passive</code></small><small>有變才會多做那一行，commit 才看得到 Passive 待辦，才會排出 flushPassiveEffects</small></div>';
 </script>
 </body>
 </html>

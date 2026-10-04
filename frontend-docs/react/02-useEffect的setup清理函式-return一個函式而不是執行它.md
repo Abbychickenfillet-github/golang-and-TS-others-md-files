@@ -313,6 +313,21 @@ if (destroy !== undefined) {      // 有交出 cleanup 才需要呼叫
 
 這段程式碼包在一個迴圈裡，React 沿著 `fiber.updateQueue.lastEffect` 那個環，一個 Effect 一個 Effect 走過去。
 
+**deps 沒變的時候呢？（罐頭圖的路線二）**
+`updateEffectImpl` 會先用 `areHookInputsEqual` 逐項以 `Object.is` 比較新舊 deps。全部相同就只做 `pushSimpleEffect(hookFlags, inst, create, nextDeps)` 然後 `return`，沒有 `HookHasEffect` 標記，也不執行 `fiber.flags |= Passive`。
+所以 commit 看不到 Passive 待辦，不會排 `flushPassiveEffects`，cleanup 與 setup 都不跑。新 render 的 setup 函式雖然存進了 Effect 物件，但從頭到尾沒被執行，`inst.destroy` 仍是上一次的 cleanup，連線維持原樣。
+
+**幾個常見的理解，逐一對照：**
+
+| 你的說法 | 判定 | 說明 |
+|---|---|---|
+| setup 沒有放在 Heap 上 | 不對 | setup 也是函式物件，存在 Effect 物件的 `create` 欄位，同樣在 Heap。函式物件本身在 Heap，「被呼叫的過程」才會在 Stack 產生 frame |
+| cleanup 在 Heap，Stack 上也該有個位子記錄它的位址 | 呼叫期間才對 | 呼叫它的函式有局部變數 `const destroy = inst.destroy` 持有位址，函式彈出就消失。閒置時 Stack 是空的，位址只存在 Heap 的 `inst.destroy`，由 Fiber 一路連到 root |
+| `flushPassiveEffects` 是 React 正在執行排好的副作用，包含舊 cleanup 與新 setup | 對 | 順序是先全部 cleanup（`commitPassiveUnmountEffects`），再全部 setup（`commitPassiveMountEffects`） |
+| 副作用是非同步處理的，等 DOM 更新完成才統一處理 | 大致對，需補精確 | 這裡的「非同步」是「延後到另一個任務」，不是 `async`／`await`。多數情況排在 Paint 之後。例外：若 render 由離散事件（例如點擊）引發，React 在同一個任務結束前同步 flush，原始碼註解說是為了讓結果「立刻可被觀察」 |
+
+那個「連回 Effect」的動作，是 commit 前面的階段在 Fiber 上標記 Passive 旗標，等到 `flushPassiveEffects` 執行時，沿著 `fiber.updateQueue.lastEffect` 那個環找到各個 Effect，再取出 `create` 或 `inst.destroy` 來呼叫。
+
 補充一個常被忽略的細節：**cleanup 讀到的是「它那一次 render 的值」，這是正確行為不是 bug**。因為 cleanup① 的任務就是收拾 setup① 建立的東西，它當然要用 setup① 當時的那組值。
 
 ---
@@ -433,7 +448,7 @@ NeetCode 目前沒有對應的 JavaScript 語言機制題組，上面五題在 L
 | React 官方文件 — `useEffect`（setup 與 cleanup 的契約、三個呼叫時機） | https://react.dev/reference/react/useEffect | 2026-09-06 查證 |
 | React 官方文件 — Synchronizing with Effects | https://react.dev/learn/synchronizing-with-effects | 2026-09-06 查證 |
 | React 官方文件 — State as a Snapshot（stale closure 的官方說法） | https://react.dev/learn/state-as-a-snapshot | 2026-09-06 查證 |
-| React 原始碼 `ReactFiberCommitEffects.js`（`destroy = create(); inst.destroy = destroy;`）與 `ReactFiberWorkLoop.js`（`commitPassiveUnmountEffects` 先於 `commitPassiveMountEffects`） | https://github.com/facebook/react/tree/main/packages/react-reconciler/src | main 分支，2026-10-04 實際抓取核對 |
+| React 原始碼 `ReactFiberCommitEffects.js`（`destroy = create(); inst.destroy = destroy;`）、`ReactFiberWorkLoop.js`（`commitPassiveUnmountEffects` 先於 `commitPassiveMountEffects`、`scheduleCallback(NormalSchedulerPriority, …)`、離散事件同步 flush 的註解、`commitRoot`）、`ReactFiberHooks.js`（`updateEffectImpl` 與 `areHookInputsEqual`） | https://github.com/facebook/react/tree/main/packages/react-reconciler/src | main 分支，2026-10-04 實際抓取核對 |
 | Dan Abramov — A Complete Guide to useEffect | https://overreacted.io/a-complete-guide-to-useeffect/ | 原文 2019-03，2026-09-06 重讀 |
 | MDN — Arrow function expressions（簡潔本體、名稱推導） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions | 2026-09-06 查證 |
 | MDN — `clearInterval()` | https://developer.mozilla.org/en-US/docs/Web/API/Window/clearInterval | 2026-09-06 查證 |

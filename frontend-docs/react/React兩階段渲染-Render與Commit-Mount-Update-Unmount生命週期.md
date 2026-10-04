@@ -24,6 +24,18 @@ updated: 2026-08-31
 
 (c) <mark style="background: #FFF3A3A6;">所以 Commit 既不等於 Mount 也不等於 Update</mark>。Mount、Update、Unmount 三者都會走完「Render Phase → Commit Phase」，Commit 只是「把結果套用到畫面上」的那一段機制。
 
+**React 怎麼定義「一個 commit」的單位：**
+一個 commit 等於「一個 root 的一次 render 完成」。原始碼是 `commitRoot(root, finishedWork, lanes, ...)`，其中 `finishedWork` 是 `root.current.alternate`，也就是整棵算好的 WorkInProgress 樹，`lanes` 是這一批更新的優先序。
+
+| 常見誤解 | 實際 |
+|---|---|
+| 每個元件各自 commit | 不是，整棵樹一次套用，然後 `root.current` 切到新樹 |
+| 每次 `setState` 就一個 commit | 不是，同一批（同一個事件、同一個 tick）的多個 `setState` 會合併成一次 render，只產生一個 commit |
+| render 一次就必定 commit 一次 | 不一定，Concurrent 模式下 render 可能被中斷或丟棄，只有「完成並確定要用」的那次才 commit |
+| 不同優先序的更新同時 commit | 不是，急的（例如點擊）與緩的（transition）各自 render 與 commit |
+
+被動 Effect 的接續是這樣：commit 時如果 `finishedWork` 的 `flags` 或 `subtreeFlags` 裡有 Passive 旗標，React 就用 `scheduleCallback(NormalSchedulerPriority, flushPassiveEffects)` 排一個之後的任務。沒有 Passive 旗標（例如 deps 沒變）就什麼都不排。
+
 (d) Commit Phase 內部還細分成三個子階段，這是搞懂 `useLayoutEffect` 與 `useEffect` 差別的關鍵：
 
 | 子階段 | 做的事 | 對應的 Hook |
@@ -31,7 +43,7 @@ updated: 2026-08-31
 | Mutation | 真正動 DOM（`appendChild`／改屬性／`removeChild`） | — |
 | Layout | 同步執行，此時<mark style="background: #FF5582A6;">瀏覽器還沒 Paint</mark> | `useLayoutEffect` |
 | （瀏覽器 Paint） | 畫面真的被畫到螢幕上 | — |
-| Passive | 非同步執行，Paint 之後才跑 | `useEffect` |
+| Passive | 延後到另一個任務執行（不是 `async`／`await`），通常 Paint 之後才跑。若這次 render 由離散事件（例如點擊）引發，React 會在同一個任務結束前同步 flush | `useEffect` |
 
 ### 二、Mount／Update／Unmount 的完整流程
 

@@ -112,6 +112,21 @@ setup 與 cleanup 在圖上的位置：`create` 就是 setup 函式，在 render
 cleanup 不在 `queue`（`useEffect` 的 `queue` 是 `null`），也不在 Hook 的 `next`（那是下一節 Hook）。
 `inst` 是跨 render 共用的，所以新舊 Effect 物件都指到同一個 `inst`，React 才找得到「上一次留下的 cleanup」。時間軸見 [[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (g)。
 
+**為什麼 `useEffect` 的 `queue` 是 `null`？**
+`queue` 是「更新信箱」，專門收 `setState`／`dispatch` 排進來的待處理更新。只有「有 setter、會被人呼叫來排更新」的 Hook 才需要它。`useEffect` 沒有 setter，更新來源只有「下一次 render 時 React 自己比較 deps」，所以 `mountEffectImpl` 完全沒去設定 `hook.queue`，維持 `mountWorkInProgressHook` 建立時的初值 `null`。
+
+| Hook | 有沒有 setter | `queue` |
+|---|---|---|
+| `useState` | 有，`setCount` | 有 |
+| `useReducer` | 有，`dispatch` | 有 |
+| `useEffect` | 沒有 | `null` |
+| `useRef` | 沒有，改 `current` 不排程 | `null` |
+
+**`inst` 到底是什麼？**
+`inst` 是 instance（實例）的縮寫，一個只有一個欄位的小物件 `{ destroy }`，掛載時用 `createEffectInstance()` 建立一次，之後這個 Effect 一輩子都用同一個。
+需要它的原因：每次 render，React 都會為這個 Hook 建立一個新的 Effect 物件（記這次的 `create` 與 `deps`），舊的 Effect 物件下一輪就被換掉了。但 cleanup 是「有狀態的」，要等 setup 跑完才存在，還得留到下一輪才用。若放在會被換掉的 Effect 物件上，下一輪就找不到，所以另外放一個跨 render 共用的小房子，新舊 Effect 都指向它。
+原始碼註解原文：*The effect "instance" is a shared object that remains the same for the entire lifetime of an effect. In Rust terms, a RefCell. We use it to store the "destroy" function that is returned from an effect, because that is stateful.*
+
 React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放在 Effect 上，所以舊文章寫 `effect.destroy` 並不算錯。
 
 (j) 若元件完全沒呼叫任何 Hook，`fiberNode.memoizedState` 就是 `null`。
