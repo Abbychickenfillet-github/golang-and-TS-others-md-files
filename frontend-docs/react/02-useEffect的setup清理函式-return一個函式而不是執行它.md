@@ -204,6 +204,22 @@ e. 幾秒或幾分鐘後 React 呼叫清理函式時，它才去讀那塊記憶�
 
 <mark style="background: #BBFABBA6;">一句話：清理函式能關掉「當初那一個」計時器，靠的不是 React 記得，而是 JS 閉包把 `id` 從 Stack 搬到了 Heap。</mark>
 
+**Heap 上的 Context（背包）長什麼樣：**
+
+| 名稱 | 白話 | 依據 |
+|---|---|---|
+| Context | Heap 上的物件，裝「被內層函式抓住的變數」 | V8 原始碼 `contexts.h` |
+| JSFunction | 函式物件，本質是 `(context, 程式碼)` 的組合，所以每個函式都背著一個 Context | 同上，原文：*JSFunctions are pairs (context, function code), sometimes also called closures* |
+| Context 的固定欄位 | `scope_info`（描述有哪些變數）、`previous`（指向外一層的 Context）、`extension`（額外資料），之後才是變數本身 | 同上 |
+| 建立時機 | 進入函式的那一刻建立，不是建立閉包時，所以每次呼叫都有全新的一份 | 2012 年 Vyacheslav Egorov 的文章，⚠️ 年代久遠，且原文無法開啟，只讀到搜尋摘要，概念仍通用 |
+| 規格上的稱呼 | ECMAScript 稱 Lexical Environment、函式的 `[[Environment]]`、outer 參照，大致對應 V8 的 Context、JSFunction 的 context、`previous` | ⚠️ 依記憶整理，未逐字核對規格 |
+
+套到 React 的 Effect 上：`Effect.create` 指向 setup 函式，它背著 Context ①（那一次 render 的 `roomId`、`serverUrl`）。`inst.destroy` 指向 cleanup 函式，它背著 Context ②（`setup()` 那一次呼叫的 `connection`），而 ② 的 `previous` 指回 ①。
+所以 cleanup 之後還能 `disconnect()`「當初那一條」連線，也因此 cleanup 若讀 `roomId`，讀到的是它那一次 render 的值，這就是 (g) 說的「cleanup 讀到的是它那一次 render 的值」。
+讀變數的規則是：從函式自己的 Context 開始，找不到就沿 `previous` 往外一層。
+
+![[HeapContext_閉包背包_2026-10-04.png]]
+
 ![[學習React_圖解_setCount(count++)為何失效-三道關卡_2026-09-07.svg]]
 
 > 上圖是同一族的問題：`setCount(count++)` 為何失效的三道關卡。它跟本篇的 stale closure 共用同一個底層原因——**每次 render 都是一次全新的函式呼叫，閉包抓住的是那一次的綁定**。
@@ -464,6 +480,8 @@ NeetCode 目前沒有對應的 JavaScript 語言機制題組，上面五題在 L
 | React 官方文件 — Synchronizing with Effects | https://react.dev/learn/synchronizing-with-effects | 2026-09-06 查證 |
 | React 官方文件 — State as a Snapshot（stale closure 的官方說法） | https://react.dev/learn/state-as-a-snapshot | 2026-09-06 查證 |
 | React 原始碼 `ReactFiberCommitEffects.js`（`destroy = create(); inst.destroy = destroy;`）、`ReactFiberWorkLoop.js`（`commitPassiveUnmountEffects` 先於 `commitPassiveMountEffects`、`scheduleCallback(NormalSchedulerPriority, …)`、離散事件同步 flush 的註解、`commitRoot`）、`ReactFiberHooks.js`（`updateEffectImpl` 與 `areHookInputsEqual`） | https://github.com/facebook/react/tree/main/packages/react-reconciler/src | main 分支，2026-10-04 實際抓取核對 |
+| V8 原始碼 `src/objects/contexts.h`（JSFunction 與 Context 的欄位說明） | https://github.com/v8/v8/blob/main/src/objects/contexts.h | main 分支，2026-10-04 實際抓取核對 |
+| Grokking V8 closures for fun（Context 在進入函式時建立、previous 指標串成鏈） | https://mrale.ph/blog/2012/09/23/grokking-v8-closures-for-fun.html | 2012-09-23，⚠️ 原文被網路擋下，僅讀到搜尋摘要 |
 | Dan Abramov — A Complete Guide to useEffect | https://overreacted.io/a-complete-guide-to-useeffect/ | 原文 2019-03，2026-09-06 重讀 |
 | MDN — Arrow function expressions（簡潔本體、名稱推導） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions | 2026-09-06 查證 |
 | MDN — `clearInterval()` | https://developer.mozilla.org/en-US/docs/Web/API/Window/clearInterval | 2026-09-06 查證 |
