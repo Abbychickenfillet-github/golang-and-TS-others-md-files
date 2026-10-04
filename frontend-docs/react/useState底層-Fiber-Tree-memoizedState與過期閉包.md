@@ -96,6 +96,17 @@ fiberNode = {
 | Effect 清單 | `fiber.updateQueue.lastEffect` | 環狀，最後一個的 `next` 繞回第一個 | `Effect.next: Effect`，建立時 `lastEffect.next = effect` |
 
 useEffect 的依賴陣列與 cleanup 不是直接掛在 Hook 節點上，而是在那個 Hook 的 `memoizedState` 所指的 Effect 物件裡：`create`（setup）、`deps`、`inst.destroy`（cleanup）、`next`。
+每一節 Hook 都是同一種結構 `{ memoizedState, baseState, baseQueue, queue, next }`，差別只在 `memoizedState` 與 `queue` 裡放什麼：
+
+| Hook | `memoizedState` 放什麼 | `queue` 放什麼 | 依據（`ReactFiberHooks.js`） |
+|---|---|---|---|
+| `useState` | 目前的值，例如 `count = 1`（`baseState` 另存更新前的基準值） | `{ pending, dispatch, lastRenderedReducer, lastRenderedState }`，其中 `pending` 是待處理更新的環，`dispatch` 就是 `setCount` | `mountStateImpl`、`mountState` |
+| `useEffect` | 一個 Effect 物件 `{ tag, create, deps, inst, next }` | `null` | `mountEffectImpl` |
+| `useRef` | `{ current }` 這個小盒子本身 | `null` | `mountRef` |
+
+`useRef` 的節點沒有 `queue`，所以改 `ref.current` 沒有任何管道通知 React，這就是它不觸發 re-render 的底層原因。
+因此圖中的環有兩個：Effect 清單（`fiber.updateQueue.lastEffect`）與 `useState` 的 `pending` 更新清單，Hook 鏈本身都不是環。
+
 React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放在 Effect 上，所以舊文章寫 `effect.destroy` 並不算錯。
 
 (j) 若元件完全沒呼叫任何 Hook，`fiberNode.memoizedState` 就是 `null`。
