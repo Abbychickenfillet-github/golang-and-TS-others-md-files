@@ -144,6 +144,19 @@ mount 指元件第一次被放進 React 的元件樹，React 實際做的事是�
 
 若這次 commit 是由點擊這類互動引起，React 可能在 paint 之前就先跑 Effect，所以不要假設 Effect 一定在 paint 之後。
 React Native 沒有瀏覽器，mount 時 `appendChild` 的對象換成原生 UI，概念相同。
+**那 mount 比較像 hydration 嗎？** hydration 是 mount 的一種做法，不是 mount 的同義詞。兩者都是「元件第一次在 client 掛載」，差別在 DOM 是新建還是認領：
+
+| | 純 client 掛載（`createRoot().render`） | Hydration（`hydrateRoot`） |
+|---|---|---|
+| 起點 | 容器是空的 | 容器裡已經有 server 產生的 HTML |
+| Render 階段 | 呼叫元件函式算出 JSX | 一樣呼叫元件函式算出 JSX |
+| Commit 時對 DOM | 建立 DOM node 並 `appendChild` | 不建立，「認領」既有的 DOM node 並掛上事件監聽 |
+| Effect 的 setup | commit 後執行 | hydration 完成後在 client 執行 |
+| 一致性要求 | 無 | JSX 必須和 server 的 HTML 一致，否則出現 hydration mismatch |
+
+兩種做法的 Effect 時機相同：setup 都在 client 上、掛載（含 hydration）完成之後才跑，server 上完全不跑。所以前面 e 段那個 `didMount` 技巧，就是利用「Effect 只在 client 掛載後才跑」，讓 server 與 hydration 時的輸出一致，掛載後才換成 client 專屬內容。
+上面說 mount 時 `appendChild`，指的是純 client 掛載的情況，hydration 時 DOM 本來就存在。Hydration 的完整流程見 [[SSR-renderToString與Hydration-伺服器端渲染流程]]。
+
 完整的階段圖見 [[React兩階段渲染-Render與Commit-Mount-Update-Unmount生命週期]]。
 
 React 用 `Object.is` 逐項比較 deps 的新舊值，來決定要不要重跑。
@@ -285,4 +298,5 @@ useRef 與 Vue `ref` 的差異見 [[useRef與Vue的ref-value-可變值不觸發�
 | MDN：`IntersectionObserver` | https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API | 該頁面內連結，未重新抓取 |
 | MDN：`HTMLDialogElement.showModal()` | https://developer.mozilla.org/en-US/docs/Web/API/HTMLDialogElement/showModal | 該頁面內連結，未重新抓取 |
 | React 官方文件：useEffect 的 Caveats 與 Troubleshooting（StrictMode 額外一輪 setup → cleanup、visible issues、rule of thumb 原文） | https://react.dev/reference/react/useEffect | 依 2026-10-04 貼入的全文，原文逐字引用 |
+| React 官方文件：`hydrateRoot`（hydration 認領既有 DOM 的定義，依本 repo SSR 筆記整理） | https://react.dev/reference/react-dom/client/hydrateRoot | 該筆記 2026-09-15 查證，本次未重新抓取 |
 | Abby 的追問對話（Gemini） | https://gemini.google.com/app/5b6fc934e5d7f253 | 本次無法讀取，僅作索引 |
