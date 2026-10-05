@@ -20,7 +20,7 @@ updated: 2026-09-18
 
 ### 一、先釐清：函式怎麼把值交給外面
 
-(a) <mark style="background: #ADCCFFA6;">副作用（Side Effect）</mark> 指的是函式去改動了自己作用域以外的東西。Vue 官方文件那段 `let A2` 先在外層宣告、再由 `update()` 去寫入，並不是因為「只有這樣外面才拿得到」，而是為了示範響應式系統如何追蹤一個已存在的狀態。
+(a) <mark style="background: #ADCCFFA6;">副作用（Side Effect）</mark> 指的是函式去改動了自己作用域以外的東西。[Vue 官方文件](https://vuejs.org/guide/extras/reactivity-in-depth.html)那段 `let A2` 先在外層宣告、再由 `update()` 去寫入，並不是因為「只有這樣外面才拿得到」，而是為了示範響應式系統如何追蹤一個已存在的狀態。
 
 ```js
 let A0 = 1
@@ -507,7 +507,7 @@ function createWorkInProgress(current, pendingProps) {
 
 **使用者：** 前面的例子在講宣告式跟命令式的不同，但除此之外，又講到原生的 JavaScript 必須要把外部變數定義好，然後再讓函式內部使用。是否是因為這樣子，才能給外部作用域使用？還是說其實我外部不用 let 宣告一個變數，但我內部宣告的變數或是參數寫了 return，一樣可以給外部使用呢？
 
-**Gemini：** 核心答案是你的理解非常準確，不需要在外部先用 let 宣告變數，只要函式內部有 return，外部就可以接收並使用這個結果。Vue 官方文件那個範例先宣告 `let A2` 的原因不是「唯有這樣外部才能用」，而是為了演示副作用與狀態變更——`update()` 沒有返回值，它的目的就是去改變外部狀態 A2，Vue 的響應式系統核心就在於追蹤狀態變化並自動觸發更新。使用 return 則是純函式：資料流明確、無副作用、方便重複呼叫。對照表：外部宣告變數對應 `watchEffect` 或 DOM 渲染，使用 return 對應 `computed`。
+**Gemini：** 核心答案是你的理解非常準確，不需要在外部先用 let 宣告變數，只要函式內部有 return，外部就可以接收並使用這個結果。[Vue 官方文件](https://vuejs.org/guide/extras/reactivity-in-depth.html)那個範例先宣告 `let A2` 的原因不是「唯有這樣外部才能用」，而是為了演示副作用與狀態變更——`update()` 沒有返回值，它的目的就是去改變外部狀態 A2，Vue 的響應式系統核心就在於追蹤狀態變化並自動觸發更新。使用 return 則是純函式：資料流明確、無副作用、方便重複呼叫。對照表：外部宣告變數對應 `watchEffect` 或 DOM 渲染，使用 return 對應 `computed`。
 
 **使用者：** 是否對 React 的 useState hook 來說，這個都是在函式元件內部的變數，所以它完全沒有所謂的 lexical scope 的外部變數？
 
@@ -584,6 +584,7 @@ function createWorkInProgress(current, pendingProps) {
 | 主題 | 連結 | 版本／查證時間 |
 | --- | --- | --- |
 | Hook 鏈的型別與 `useState`、`useRef` 的建立邏輯（`Hook`、`mountState`、`UpdateQueue`、`mountRef`）；Effect 部分改列在 02 筆記的來源表 | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberHooks.js | main 分支原始碼，2026-10-04 實際抓取核對 |
+| Vue 官方文件：Reactivity in Depth（`let A0`、`let A1`、`let A2` 與 `update()` 的範例，用來示範響應式系統如何追蹤狀態） | https://vuejs.org/guide/extras/reactivity-in-depth.html | ⚠️ 2026-10-05 嘗試抓取被網路擋下，網址與段落依記憶，未實際打開核對 |
 | 本篇對話（變數宣告與 Return 的差異，第二串） | https://gemini.google.com/app/1f0cc8c21e6f88b5 | Gemini Flash，2026-08-31 |
 | 本篇對話（變數宣告與 Return 的差異，第三串，內容重複未另收錄） | https://gemini.google.com/app/76cde95192586aa7 | Gemini Flash，2026-09-01 查證 |
 | React 原始碼 — ReactFiberWorkLoop.js（`workLoop` 與可中斷渲染） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js | main 分支，2026-08-31 查證 |

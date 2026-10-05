@@ -301,6 +301,15 @@ React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放�
 | Hook 鏈（`Hook.next`，單向，尾巴是 `null`） | 元件裡每一個會建立節點的 Hook，依呼叫順序 | `useState`、`useReducer`、`useRef`、`useMemo`、`useCallback`、`useId`、`useTransition` 等，也包含 `useEffect`、`useLayoutEffect`、`useInsertionEffect`、`useImperativeHandle`。`useContext` 不在裡面，它只讀 context，不建立節點 |
 | Effect 環（`Effect.next`，環） | 其中會產生 Effect 物件的那幾個 Hook 的 Effect 物件，依呼叫順序 | `useEffect`、`useLayoutEffect`、`useInsertionEffect`、`useImperativeHandle` |
 
+**`useImperativeHandle` 是 fiber 嗎？不是，它是一個 Hook。** Fiber 是元件實例在樹上的那一格，Hook 是掛在 fiber 上的節點。`useImperativeHandle` 在 Hook 鏈上占一節，它的 Effect 物件進 Effect 環，長相跟 `useEffect` 的差別如下（`mountImperativeHandle` 與 `imperativeHandleEffect`）：
+
+| 欄位 | `useEffect` | `useImperativeHandle` |
+|---|---|---|
+| `tag` | `Passive` | `Layout`，在 layout 階段執行，不是 Passive |
+| `create` | 你寫的 setup 函式 | `imperativeHandleEffect.bind(null, create, ref)`，把你的 `create` 與 `ref` 綁起來，執行時做 `ref.current = create()` |
+| `deps` | 你傳的依賴陣列 | `deps.concat([ref])`，沒傳 deps 就是 `null` |
+| `inst.destroy` | 你 `return` 的函式 | 內建的清理函式：`ref.current = null`，若 `ref` 是函式則呼叫 `ref(null)` |
+
 所以一個 `useEffect` 會有兩個位置：它在 Hook 鏈上有一節 Hook，這一節的 `memoizedState` 指向 Effect 物件，同一個 Effect 物件又被串在 Effect 環上（掛在 `fiber.updateQueue.lastEffect`）。commit 時 React 只要走 Effect 環就能找到所有要處理的 Effect，不用走完整條 Hook 鏈，這是我依程式碼做的推論，不是官方說明。
 
 為什麼用環而不是一般鏈：只要記一個 `lastEffect` 指標，`lastEffect.next` 就是第一個，往尾端新增也只要改兩個指標。這是我依程式碼做的推論，不是 React 官方說明。

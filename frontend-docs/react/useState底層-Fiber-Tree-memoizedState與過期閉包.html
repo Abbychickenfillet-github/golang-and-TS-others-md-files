@@ -144,7 +144,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 </blockquote>
 <h2 id="_1">重點整理</h2>
 <h3 id="_2">一、先釐清：函式怎麼把值交給外面</h3>
-<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">副作用（Side Effect）</mark> 指的是函式去改動了自己作用域以外的東西。Vue 官方文件那段 <code>let A2</code> 先在外層宣告、再由 <code>update()</code> 去寫入，並不是因為「只有這樣外面才拿得到」，而是為了示範響應式系統如何追蹤一個已存在的狀態。</p>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">副作用（Side Effect）</mark> 指的是函式去改動了自己作用域以外的東西。<a href="https://vuejs.org/guide/extras/reactivity-in-depth.html" target="_blank" rel="noopener">Vue 官方文件</a>那段 <code>let A2</code> 先在外層宣告、再由 <code>update()</code> 去寫入，並不是因為「只有這樣外面才拿得到」，而是為了示範響應式系統如何追蹤一個已存在的狀態。</p>
 <pre><code class="language-js">let A0 = 1
 let A1 = 2
 let A2                 // 外層宣告的共享狀態
@@ -386,7 +386,7 @@ fiberNode = {
 <h2 id="_7">各對話來源（原文）</h2>
 <h3 id="return-2026-08-28-httpsgeminigooglecomapp92bd0f70e642fe50">變數宣告與 Return 的差異（2026-08-28）— https://gemini.google.com/app/92bd0f70e642fe50</h3>
 <p><strong>使用者：</strong> 前面的例子在講宣告式跟命令式的不同，但除此之外，又講到原生的 JavaScript 必須要把外部變數定義好，然後再讓函式內部使用。是否是因為這樣子，才能給外部作用域使用？還是說其實我外部不用 let 宣告一個變數，但我內部宣告的變數或是參數寫了 return，一樣可以給外部使用呢？</p>
-<p><strong>Gemini：</strong> 核心答案是你的理解非常準確，不需要在外部先用 let 宣告變數，只要函式內部有 return，外部就可以接收並使用這個結果。Vue 官方文件那個範例先宣告 <code>let A2</code> 的原因不是「唯有這樣外部才能用」，而是為了演示副作用與狀態變更——<code>update()</code> 沒有返回值，它的目的就是去改變外部狀態 A2，Vue 的響應式系統核心就在於追蹤狀態變化並自動觸發更新。使用 return 則是純函式：資料流明確、無副作用、方便重複呼叫。對照表：外部宣告變數對應 <code>watchEffect</code> 或 DOM 渲染，使用 return 對應 <code>computed</code>。</p>
+<p><strong>Gemini：</strong> 核心答案是你的理解非常準確，不需要在外部先用 let 宣告變數，只要函式內部有 return，外部就可以接收並使用這個結果。<a href="https://vuejs.org/guide/extras/reactivity-in-depth.html" target="_blank" rel="noopener">Vue 官方文件</a>那個範例先宣告 <code>let A2</code> 的原因不是「唯有這樣外部才能用」，而是為了演示副作用與狀態變更——<code>update()</code> 沒有返回值，它的目的就是去改變外部狀態 A2，Vue 的響應式系統核心就在於追蹤狀態變化並自動觸發更新。使用 return 則是純函式：資料流明確、無副作用、方便重複呼叫。對照表：外部宣告變數對應 <code>watchEffect</code> 或 DOM 渲染，使用 return 對應 <code>computed</code>。</p>
 <p><strong>使用者：</strong> 是否對 React 的 useState hook 來說，這個都是在函式元件內部的變數，所以它完全沒有所謂的 lexical scope 的外部變數？</p>
 <p><strong>Gemini：</strong> 不完全是這樣。useState 雖然在函式元件內部呼叫並宣告狀態，但它之所以能運作，背後完全依賴 JavaScript 的 Lexical Scope 與閉包機制。元件本質上只是一個每次渲染都會重新執行的普通函式，如果 state 單純只是區域變數，每次重新執行就會被重置。useState 能在多次渲染之間記住舊值，是因為 React 在元件外部（React 內部的 Fiber 節點／記憶體）維護了一個狀態鏈表。接著 Gemini 舉了 <code>setTimeout</code> 印出舊 count 的過期閉包範例。</p>
 <p><strong>使用者：</strong> 1. react 有一個自己私有的記憶體嗎 2. 幫我去我今天的行事曆寫上我需要實作過期閉包 3. 我還沒有真正了解剛剛延遲印出 count 是 0 這件事，我應該直接貼到我的專案中測試嗎？setTimeout() 應該是點擊的 3 秒後才觸發函式的意思嗎？</p>
