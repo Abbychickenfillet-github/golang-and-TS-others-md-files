@@ -96,7 +96,7 @@ fiberNode = {
 | Hook 鏈 | `fiber.memoizedState` | 單向，最後一節 `next` 是 `null` | `Hook.next: Hook \| null` |
 | Effect 清單 | `fiber.updateQueue.lastEffect` | 環狀，最後一個的 `next` 繞回第一個 | `Effect.next: Effect`，建立時 `lastEffect.next = effect` |
 
-useEffect 的依賴陣列與 cleanup 不是直接掛在 Hook 節點上，而是在那個 Hook 的 `memoizedState` 所指的 Effect 物件裡：`create`（setup）、`deps`、`inst.destroy`（cleanup）、`next`。
+useEffect 那一節 Hook 的 `memoizedState` 指向的是一個 Effect 物件，不是直接存值。Effect 物件（`create`、`deps`、`inst`、`next`）的型別逐行解釋、`inst` 是什麼、為什麼是環，完整說明在 Effect 相關的筆記：[[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (f)。
 每一節 Hook 都是同一種結構 `{ memoizedState, baseState, baseQueue, queue, next }`，差別只在 `memoizedState` 與 `queue` 裡放什麼：
 
 | Hook | `memoizedState` 放什麼 | `queue` 放什麼 | 依據（`ReactFiberHooks.js`） |
@@ -107,10 +107,6 @@ useEffect 的依賴陣列與 cleanup 不是直接掛在 Hook 節點上，而是�
 
 `useRef` 的節點沒有 `queue`，所以改 `ref.current` 沒有任何管道通知 React，這就是它不觸發 re-render 的底層原因。
 因此圖中的環有兩個：Effect 清單（`fiber.updateQueue.lastEffect`）與 `useState` 的 `pending` 更新清單，Hook 鏈本身都不是環。
-
-setup 與 cleanup 在圖上的位置：`create` 就是 setup 函式，在 render 時存入。`inst.destroy` 就是 cleanup 函式，要等 commit 時 setup 跑完、`return` 出來才存入，在那之前是 `undefined`。
-cleanup 不在 `queue`（`useEffect` 的 `queue` 是 `null`），也不在 Hook 的 `next`（那是下一節 Hook）。
-`inst` 是跨 render 共用的，所以新舊 Effect 物件都指到同一個 `inst`，React 才找得到「上一次留下的 cleanup」。時間軸見 [[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (g)。
 
 **`queue` 是什麼（一句話）：它是 `useState` 的「待辦信箱」，每呼叫一次 `setCount`，React 就丟一封「更新」進去，下一次 render 時照順序拆信，算出新的 state。**
 
@@ -134,42 +130,7 @@ cleanup 不在 `queue`（`useEffect` 的 `queue` 是 `null`），也不在 Hook 
 | `useEffect` | 沒有 | `null` |
 | `useRef` | 沒有，改 `current` 不排程 | `null` |
 
-**`create`、`inst` 算 Hook 的屬性嗎？** 不算，它們是 <mark style="background: #ADCCFFA6;">**Effect 物件**</mark>的屬性。Hook 物件只有 `memoizedState`、`baseState`、`baseQueue`、`queue`、`next` 五個屬性，其中 `useEffect` 那一節 Hook 的 `memoizedState` 指向 Effect 物件，Effect 物件才有 `tag`、`create`、`deps`、`inst`、`next`。`inst` 本身又是一個物件 `{ destroy }`，所以 cleanup 的位置是「Hook.memoizedState → Effect.inst.destroy」。
-
-**Effect 是物件型別，為什麼又說它是環？兩件事不衝突：** `Effect` 這個型別描述的是「一個節點」長什麼樣，環是「很多個節點的 `next` 怎麼接」。就像「人」這個型別有一個 `朋友` 欄位，一群人手牽手圍成圈，每個人還是一個物件。
-
-逐行對照原始碼的型別（Flow 是 Meta 開發的靜態型別檢查工具，React 原始碼用它，不是 TypeScript）：
-
-| 行 | 意思 |
-|---|---|
-| `type Effect = { ... }` | 宣告一個叫 `Effect` 的物件型別 |
-| `tag: HookFlags` | 位元旗標。`HasEffect` 是 `0b0001`、`Insertion` 是 `0b0010`、`Layout` 是 `0b0100`、`Passive` 是 `0b1000`。用來區分是哪一種 Hook（`useEffect` 是 Passive），以及這一輪要不要執行 |
-| `inst: EffectInstance` | 跨 render 共用的小房子，內容是 `{ destroy }` |
-| `create: () => (() => void) \| void` | 沒有參數的函式，回傳「一個沒有參數也沒有回傳值的函式」（cleanup）或什麼都不回傳 |
-| `deps: Array<mixed> \| void \| null` | 依賴陣列，或 `void`／`null` 代表沒傳。`mixed` 是 Flow 的「安全的任意型別」，對應 TypeScript 的 `unknown`（不是 `any`）：拿到值之後要先檢查型別才能用。實作上 `undefined` 會先被轉成 `null` |
-| `next: Effect` | 下一個 Effect。注意它**沒有** `\| null`，代表永遠有下一個 |
-
-型別本身就看得出是不是環：
-
-| 型別 | `next` 的型別 | 意思 |
-|---|---|---|
-| `Hook` | `Hook \| null` | 可以是 `null`，所以有尾巴，是單向鏈 |
-| `Effect` | `Effect`（不可為 `null`） | 永遠有下一個，沒有尾巴，是環。原始碼的註解也寫著 `// Circular` |
-
-環是怎麼串起來的（`pushEffectImpl`）：
-1. 第一個 Effect：`lastEffect = effect.next = effect`，自己指自己。
-2. 之後的 Effect：先取 `firstEffect = lastEffect.next`，把 `lastEffect.next` 改指向新的，新的 `next` 指回 `firstEffect`，再把 `lastEffect` 改成新的。
-3. 順序就是你在元件裡呼叫 `useEffect`、`useLayoutEffect`、`useInsertionEffect` 由上到下的順序，每次 render 開頭 `lastEffect` 會先重設成 `null` 再重建。
-4. 這條環只串「宣告 Effect 的 Hook」，不含 `useState`、`useRef`，所以它跟 Hook 鏈是兩條不同的鏈。
-
-為什麼用環而不是一般鏈：只要記一個 `lastEffect` 指標，`lastEffect.next` 就是第一個，往尾端新增也只要改兩個指標。這是我依程式碼做的推論，不是 React 官方說明。
-
-**`inst` 到底是什麼？**
-`inst` 是 instance（實例）的縮寫，一個只有一個欄位的小物件 `{ destroy }`，掛載時用 `createEffectInstance()` 建立一次，之後這個 Effect 一輩子都用同一個。
-需要它的原因：每次 render，React 都會為這個 Hook 建立一個新的 Effect 物件（記這次的 `create` 與 `deps`），舊的 Effect 物件下一輪就被換掉了。但 cleanup 是「有狀態的」，要等 setup 跑完才存在，還得留到下一輪才用。若放在會被換掉的 Effect 物件上，下一輪就找不到，所以另外放一個跨 render 共用的小房子，新舊 Effect 都指向它。
-原始碼註解原文：*The effect "instance" is a shared object that remains the same for the entire lifetime of an effect. In Rust terms, a RefCell. We use it to store the "destroy" function that is returned from an effect, because that is stateful.*
-
-React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放在 Effect 上，所以舊文章寫 `effect.destroy` 並不算錯。
+Effect 物件（`create`、`deps`、`inst`、`next`）的型別逐行解釋、`inst` 是什麼、為什麼是環，完整說明在 Effect 相關的筆記：[[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (f)。
 
 (j) 若元件完全沒呼叫任何 Hook，`fiberNode.memoizedState` 就是 `null`。
 
@@ -621,8 +582,7 @@ function createWorkInProgress(current, pendingProps) {
 
 | 主題 | 連結 | 版本／查證時間 |
 | --- | --- | --- |
-| React 原始碼 `ReactHookEffectTags.js`（`HasEffect`、`Insertion`、`Layout`、`Passive` 四個旗標值） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactHookEffectTags.js | main 分支，2026-10-05 實際抓取核對 |
-| Hook 鏈與 Effect 環的型別與建立邏輯（`Hook`、`Effect`、`EffectInstance`、`lastEffect.next = effect`） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberHooks.js | main 分支原始碼，2026-10-04 實際抓取核對 |
+| Hook 鏈的型別與 `useState`、`useRef` 的建立邏輯（`Hook`、`mountState`、`UpdateQueue`、`mountRef`）；Effect 部分改列在 02 筆記的來源表 | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberHooks.js | main 分支原始碼，2026-10-04 實際抓取核對 |
 | 本篇對話（變數宣告與 Return 的差異，第二串） | https://gemini.google.com/app/1f0cc8c21e6f88b5 | Gemini Flash，2026-08-31 |
 | 本篇對話（變數宣告與 Return 的差異，第三串，內容重複未另收錄） | https://gemini.google.com/app/76cde95192586aa7 | Gemini Flash，2026-09-01 查證 |
 | React 原始碼 — ReactFiberWorkLoop.js（`workLoop` 與可中斷渲染） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js | main 分支，2026-08-31 查證 |
