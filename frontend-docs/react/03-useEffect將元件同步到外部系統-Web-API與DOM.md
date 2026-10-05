@@ -225,10 +225,23 @@ React 在元件第一次掛載後，故意模擬一次「卸載再重新掛載�
 這跟 StrictMode 的雙重 render 是兩回事：雙重 render 會讓元件函式（含 `useEffect(...)` 那一行）被呼叫兩次，但那只是登記，不會執行 setup。
 
 **React 怎麼做到 StrictMode 的「多一輪」：**
-1. `<StrictMode>` 元件建立 fiber 時，React 把 `StrictLegacyMode` 寫進該 fiber 的 `mode` 欄位（Concurrent root 上再加 `StrictEffectsMode`），子孫 fiber 繼承這個 mode。
-2. 每次 commit 完成後（只在 `__DEV__`），React 呼叫 `commitDoubleInvokeEffectsInDEV`，檢查 root 的 mode 有沒有 Strict 旗標，沒有就不做。
-3. 它走訪 fiber 樹，找出「剛被放進畫面（`PlacementDEV` 旗標）且位於 StrictMode 內」的 fiber，對每個呼叫 `doubleInvokeEffectsOnFiber`。
+1. `<StrictMode>` 建立 fiber 時，React 把 `StrictLegacyMode`（Concurrent root 上再加 `StrictEffectsMode`）寫進該 fiber 的 `mode` 欄位，子孫 fiber 繼承。這些 mode 位元是用在「雙重 render」：`workInProgress.mode & StrictLegacyMode`。
+2. 開發模式下，每次 commit 結束後（沒有被動 Effect 時）或 `flushPassiveEffects` 跑完後（有被動 Effect 時），React 都會呼叫 `commitDoubleInvokeEffectsInDEV`，跟有沒有用 StrictMode 無關。正式環境的建置會把 `__DEV__` 分支整段移除，所以不存在。
+3. 它沿 fiber 樹往下走，遇到型別是 `<StrictMode>` 的 fiber，就記下「這底下在 StrictMode 內」。若某棵子樹沒有 `PlacementDEV`（剛被放進畫面）也沒有 `Visibility` 旗標，就提早 return，不再往下。只有「位於 StrictMode 內、且帶 `PlacementDEV` 旗標」的 fiber，才會被呼叫 `doubleInvokeEffectsOnFiber`。
 4. `doubleInvokeEffectsOnFiber` 先 `disconnectPassiveEffect`（模擬卸載，呼叫 cleanup），再 `reconnectPassiveEffects`（模擬重新掛載，呼叫 setup）。
+
+幾個名詞：
+
+| 名詞 | 是什麼 |
+|---|---|
+| `fiber.mode` | 一個數字，當作位元旗標（每一個位元是一個開關）。`ConcurrentMode` 是 `0b1`、`ProfileMode` 是 `0b10`、`StrictLegacyMode` 是 `0b1000`、`StrictEffectsMode` 是 `0b10000`。用 `mode \|= StrictLegacyMode` 打開開關，用 `mode & StrictLegacyMode` 檢查。子 fiber 建立時繼承父的 mode，所以 `<StrictMode>` 底下的整棵子樹都帶著 Strict 位元 |
+| concurrent root | 用 `createRoot()` 或 `hydrateRoot()` 建立的 root，源碼裡 `root.tag` 是 `1`（`ConcurrentRoot`）。能做可中斷的 render、transition、自動批次更新。舊的 `ReactDOM.render` 建立的是 legacy root（`LegacyRoot`，`tag` 是 `0`） |
+| fiber | 就是 FiberNode，Fiber 樹上的一個節點。它不是元件函式（函式存在 `fiber.type`），也不是 DOM 節點（DOM 存在 `fiber.stateNode`），而是 React 替「某個元件實例在樹上的那一格」記的帳卡：state、Effect、位置都記在它身上 |
+
+**「對 fiber 模擬卸載」是什麼意思：**
+fiber 是元件實例的代理，所以「卸載這個元件」就是對它的 fiber 做一組動作。真正的卸載會做三件事：呼叫它所有 Effect 的 cleanup、把它的 DOM 從畫面移除、斷開 fiber 的指標交給 GC。
+模擬卸載只做第一件：`disconnectPassiveEffect` 對函式元件呼叫 `commitHookPassiveUnmountEffects`，沿著 Effect 環呼叫每個 `inst.destroy`，而且順序刻意模仿真實刪除，先父後子。fiber 本身、state、DOM 都原封不動，接著 `reconnectPassiveEffects` 再把 `create` 呼叫一輪。
+比喻：學生資料卡被標記「請假」，是對這個人的出席紀錄動手，資料卡本身還在櫃子裡。
 
 **實測結果（React 19.3.0 開發版加 jsdom，腳本見 `03-useEffect-StrictMode實測.js`）：**
 

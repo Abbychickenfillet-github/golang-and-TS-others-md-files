@@ -88,7 +88,7 @@ fiberNode = {
 ![[FiberNode內部結構_Hook單向鏈與Effect環_2026-10-04.jpg]]
 
 上圖的原始檔是同資料夾的 `FiberNode內部結構-可愛圖.html`。
-圖左邊那張卡列出 `FiberNode` 全部 23 個欄位（另有 4 個效能分析欄位 `actualDuration` 等略過），依據是原始碼 `ReactFiber.js` 的 `FiberNode` 建構函式，分成身分、樹位置、資料、排程與待辦、雙緩衝五組。圖底部另有一張 Context 背包卡，說明 setup 與 cleanup 兩個函式各背著 Heap 上的哪個 Context，細節見 [[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (e)。
+圖左邊那張卡列出 `FiberNode` 全部 23 個欄位（另有 4 個效能分析欄位 `actualDuration` 等略過），依據是原始碼 `ReactFiber.js` 的 `FiberNode` 建構函式，分成身分、樹位置、資料、排程與待辦、雙緩衝五組。圖底部另有一張 Context 背包卡，說明 setup 與 cleanup 兩個函式各背著 Heap 上的哪個 Context，細節見 [[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (e)。旁邊還有一張 StrictMode 實測卡，列出開發模式下 `create` 與 `inst.destroy` 被呼叫的真實順序，詳見 [[03-useEffect將元件同步到外部系統-Web-API與DOM]] 的 d。
 常有人把這條鏈畫成「環」，其實有兩條不同的鏈，形狀不一樣：
 
 | 鏈 | 從哪裡出發 | 形狀 | 依據（`ReactFiberHooks.js`） |
