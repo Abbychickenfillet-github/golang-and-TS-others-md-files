@@ -350,6 +350,7 @@ Stack Frame 是 JS 每「呼叫」一次函式，就在 Call Stack 疊上去的�
 | 整個 useEffect 一個框 | 不對 | 罐頭對應「某一次函式呼叫」，不是「某個 Hook」。一個 useEffect 一輩子會產生好幾個不同時間的罐頭：render 時 `useEffect(...)` 那行、commit 時 `setup()`、之後的 `cleanup()`、再之後新的 `setup()` |
 | cleanup 疊在 setup 上面 | 不對 | 兩者是不同時間的兩次呼叫，從不同時在 stack 上。疊在一起只發生在「A 呼叫 B 而 B 還沒做完」，例如 React 的 commit 函式呼叫 `setup()` |
 | 把 Effect 物件跟 stack 畫在一起 | 要分開 | Effect 物件（`create`、`deps`、`inst.destroy`）在 Heap 一直都在，罐頭則是暫時的 |
+| 一個函式一個 stack frame | 差一個字 | 單位是「每一次呼叫」，不是「每一個函式」。遞迴 `f(3)` 呼叫 `f(2)` 呼叫 `f(1)`，同一個函式同時有 3 個 frame。`setup` 函式在 StrictMode 被呼叫兩次，就是兩個不同時間的 frame。只定義、沒呼叫的函式一個 frame 都沒有，例如 `return () => ...` 建立的 cleanup 在被呼叫之前不佔任何 frame |
 | Stack 是後進先出、下面是先進 | 對 | 這個觀念正確，只是套用的對象要換成「同時存在的呼叫」 |
 
 `useEffect(...)` 這一行本身在 render 時是一次很短的呼叫（`mountEffect` 或 `updateEffect`），只是把 setup 登記進 Effect 物件就彈出了，並不會執行 setup。
