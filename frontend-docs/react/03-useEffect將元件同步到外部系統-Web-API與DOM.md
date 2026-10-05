@@ -261,6 +261,14 @@ mode 就是一個普通數字，寫成二進位，每一個位置（位元）是
 3. 官方範本（例如 Vite 的 `main.tsx`）預設就這樣寫，⚠️ 這點依記憶，未核對。
 也可以只包一部分，例如只包某個新功能，範圍外的元件不受影響。另外原始碼中 `createRoot(el, { unstable_strictMode: true })` 能讓 `HostRoot` 的 mode 一開始就帶 Strict 位元，但名稱有 `unstable_`，不是穩定的公開 API。
 
+**三個短答：**
+
+| 問題 | 短答 |
+|---|---|
+| 額外一輪的順序是 cleanup → setup 再來一次嗎 | 完整序列是 setup → cleanup → setup，只有這三步。第一個 setup 是掛載本來就要跑的，「額外一輪」只多了 cleanup 與第二個 setup，不是 cleanup → setup → cleanup → setup |
+| `ReactFiberWorkLoop.js` 管什麼 | 管所有元件的 render 與 commit 流程，不只 useEffect。它是總指揮：`renderRootSync` 與 `renderRootConcurrent`（render 階段）、`commitRoot`、`flushPassiveEffectsImpl`、`commitDoubleInvokeEffectsInDEV`（commit 階段）都在裡面。各種 effect 的具體動作在 `ReactFiberCommitWork.js` 與 `ReactFiberCommitEffects.js`，Hook 的邏輯在 `ReactFiberHooks.js` |
+| 模擬卸載算 commit 還是 render 階段 | commit 階段，屬於被動 Effect 那一段。render 階段不會呼叫任何 cleanup，真正要卸載時也只是在 render 階段標記 `ChildDeletion`，cleanup 要等到 commit 才跑 |
+
 **「對 fiber 模擬卸載」是什麼意思：**
 fiber 是元件實例的代理，所以「卸載這個元件」就是對它的 fiber 做一組動作。真正的卸載會做三件事：呼叫它所有 Effect 的 cleanup、把它的 DOM 從畫面移除、斷開 fiber 的指標交給 GC。
 模擬卸載只做第一件：`disconnectPassiveEffect` 對函式元件呼叫 `commitHookPassiveUnmountEffects`，沿著 Effect 環呼叫每個 `inst.destroy`，而且順序刻意模仿真實刪除，先父後子。fiber 本身、state、DOM 都原封不動，接著 `reconnectPassiveEffects` 再把 `create` 呼叫一輪。
