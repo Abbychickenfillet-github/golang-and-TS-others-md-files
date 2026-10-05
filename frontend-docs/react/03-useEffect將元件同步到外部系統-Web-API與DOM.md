@@ -50,6 +50,8 @@ Effect 指的是「由渲染本身引起、需要和外部系統同步」的程�
 | 你寫的 API | `useEffect(setup, deps)` 這個 Hook，用來宣告一個 Effect | `useEffect(() => { ... }, [roomId])` |
 | React 內部的資料 | Fiber 上的 Effect 物件 `{ create, deps, inst, next }` | `create` 存著 setup 函式，`inst.destroy` 存著 cleanup 函式 |
 
+![[Effect的三個層次_概念API內部資料_2026-10-05.png]]
+
 大寫的 Effect 是 React 的專有詞，指上面這個「同步」的概念。小寫的 side effect（副作用）是一般程式設計的詞，泛指「改動函式以外世界」的行為，例如改 DOM、發請求。Effect 是用來安放那些副作用的地方。
 
 Effect 的心智模型只有兩個動作：「開始同步」（setup）與「停止同步」（cleanup）。
@@ -222,6 +224,40 @@ React 在元件第一次掛載後，故意模擬一次「卸載再重新掛載�
 因為用的是同一個 Effect 物件，這一輪 setup 抓到的仍是同一次 render 的 props 與 state。
 這跟 StrictMode 的雙重 render 是兩回事：雙重 render 會讓元件函式（含 `useEffect(...)` 那一行）被呼叫兩次，但那只是登記，不會執行 setup。
 
+**React 怎麼做到 StrictMode 的「多一輪」：**
+1. `<StrictMode>` 元件建立 fiber 時，React 把 `StrictLegacyMode` 寫進該 fiber 的 `mode` 欄位（Concurrent root 上再加 `StrictEffectsMode`），子孫 fiber 繼承這個 mode。
+2. 每次 commit 完成後（只在 `__DEV__`），React 呼叫 `commitDoubleInvokeEffectsInDEV`，檢查 root 的 mode 有沒有 Strict 旗標，沒有就不做。
+3. 它走訪 fiber 樹，找出「剛被放進畫面（`PlacementDEV` 旗標）且位於 StrictMode 內」的 fiber，對每個呼叫 `doubleInvokeEffectsOnFiber`。
+4. `doubleInvokeEffectsOnFiber` 先 `disconnectPassiveEffect`（模擬卸載，呼叫 cleanup），再 `reconnectPassiveEffects`（模擬重新掛載，呼叫 setup）。
+
+**實測結果（React 19.3.0 開發版加 jsdom，腳本見 `03-useEffect-StrictMode實測.js`）：**
+
+| 事件 | 正式環境 | 開發模式 StrictMode |
+|---|---|---|
+| 掛載 | setup | setup → cleanup → setup |
+| deps 真的改變 | cleanup（舊）→ setup（新） | cleanup（舊）→ setup（新），沒有額外一輪 |
+| re-render 但 deps 沒變 | 什麼都不跑 | 什麼都不跑 |
+| 卸載 | cleanup | cleanup |
+
+![[StrictMode實測_React19_真實執行順序_2026-10-05.png]]
+
+對照你的兩個理解：
+
+| 你的說法 | 判定 | 說明 |
+|---|---|---|
+| 開發模式也是掛載 setup，cleanup 等真的移除才用 | 只有正式環境是這樣 | StrictMode 的開發模式在掛載時，故意立刻呼叫一次 cleanup（模擬卸載），再 setup 一次（模擬重新掛載） |
+| deps 真的改變時，會 setup → cleanup → setup → 又一次 cleanup | 不對 | 額外一輪只出現在「掛載」那一次。deps 改變只有 cleanup（舊）→ setup（新），沒有第二個自動的 cleanup |
+
+**StrictMode 雙重 render 只登記不跑 setup，那怎麼知道 `useEffect` 沒寫好？**
+React 沒有針對「漏寫 cleanup」的錯誤訊息，實測整個過程 `console.error` 與 `console.warn` 都是 0 則。要靠「多一輪」暴露出來的行為與 log 來判斷。雙重 render 檢查的是另一件事：元件函式本體純不純。
+
+| 方法 | 做法 | 看到什麼，代表什麼 |
+|---|---|---|
+| 在 setup 與 cleanup 各放一行 `console.log` | 看 F12 Console | 掛載時應是 setup、cleanup、setup 交錯。若連續兩個 setup 中間沒有 cleanup，就是漏寫 cleanup |
+| 看 F12 Network | 觀察同一個 API | 掛載時同一個請求送兩次，代表 fetch 沒用 `ignore` 旗標或 `AbortController` |
+| 看行為 | 計時器、動畫、訊息 | 計數每秒加 2、動畫疊加、訊息重複，代表外部系統被啟動了兩次 |
+| ESLint `react-hooks/exhaustive-deps` | 編輯器黃線 | 實測會警告 `missing dependency 'roomId'`，但對漏寫 cleanup 的 `setInterval` 完全沒警告 |
+
 **官方說的 visible issues（使用者看得見的問題）就是：cleanup 沒把 setup 做的事復原，多出來的那一輪就留下殘骸。**
 你的推論是對的：出現這種問題，就代表 cleanup 該去停止或取消 setup 剛剛建立的東西。順帶一提，這裡的 setup 是「連線的函式」，不是 class 的「建構函式」（constructor）。
 
@@ -334,4 +370,6 @@ useRef 與 Vue `ref` 的差異見 [[useRef與Vue的ref-value-可變值不觸發�
 | React 官方文件：useEffect 的 Caveats 與 Troubleshooting（StrictMode 額外一輪 setup → cleanup、visible issues、rule of thumb 原文） | https://react.dev/reference/react/useEffect | 依 2026-10-04 貼入的全文，原文逐字引用 |
 | React 官方文件：`hydrateRoot`（hydration 認領既有 DOM 的定義，依本 repo SSR 筆記整理） | https://react.dev/reference/react-dom/client/hydrateRoot | 該筆記 2026-09-15 查證，本次未重新抓取 |
 | React 原始碼 `ReactFiberWorkLoop.js`（`doubleInvokeEffectsOnFiber`、`disconnectPassiveEffect`、`reconnectPassiveEffects`） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js | main 分支，2026-10-05 實際抓取核對 |
+| React 原始碼 `ReactTypeOfMode.js` 與 `ReactFiber.js`（`StrictLegacyMode`、`StrictEffectsMode` 寫入 fiber 的 mode） | https://github.com/facebook/react/tree/main/packages/react-reconciler/src | main 分支，2026-10-05 實際抓取核對 |
+| 自行實測：react 與 react-dom 19.3.0、jsdom、eslint 9、eslint-plugin-react-hooks 7.1.1 | 腳本 `03-useEffect-StrictMode實測.js` | 2026-10-05 實際執行 |
 | Abby 的追問對話（Gemini） | https://gemini.google.com/app/5b6fc934e5d7f253 | 本次無法讀取，僅作索引 |
