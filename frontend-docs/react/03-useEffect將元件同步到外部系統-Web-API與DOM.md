@@ -54,8 +54,22 @@ Effect 指的是「由渲染本身引起、需要和外部系統同步」的程�
 
 大寫的 Effect 是 React 的專有詞，指上面這個「同步」的概念。小寫的 side effect（副作用）是一般程式設計的詞，泛指「改動函式以外世界」的行為，例如改 DOM、發請求。Effect 是用來安放那些副作用的地方。
 
+**Effect 跟 `useEffect` 是畫上等號嗎？官方措辭是「呼叫 `useEffect` 來宣告一個 Effect」。**
+官方 Reference 的原句：*Call `useEffect` at the top level of your component to declare an Effect.* 句子裡 `useEffect` 是被呼叫的函式（API），Effect 是被宣告出來的東西，就像「呼叫 `useState` 來宣告一個 state 變數」。
+
+| 面向 | 說明 |
+|---|---|
+| 日常用法 | 幾乎可以畫等號：一個 `useEffect(...)` 呼叫就宣告一個 Effect。官方說的「write every Effect as an independent process」是在說每個 `useEffect` 各寫成獨立的一組同步，「you probably don't need an Effect」就是在說「你大概不需要寫 `useEffect`」 |
+| 嚴格來說 | 不完全相同。Effect 是概念與內部資料，`useEffect` 是宣告它的 API。另外宣告 Effect 的 Hook 不只 `useEffect`，還有 `useLayoutEffect` 與 `useInsertionEffect` |
+| 原始碼證據 | 三個 Hook 共用同一種 Effect 物件，用 `tag`（`HookPassive`、`HookLayout`、`HookInsertion`）區分，所以 Effect 比 `useEffect` 範圍更大 |
+
+
 Effect 的心智模型只有兩個動作：「開始同步」（setup）與「停止同步」（cleanup）。
 它不等於元件的 mount、update、unmount 生命週期，所以 deps 變了會停止再開始，元件根本沒 unmount 也一樣。
+
+![[Effect心智模型_兩個動作_2026-10-05.png]]
+
+「只有兩個動作」有那麼簡單嗎？動作確實只有「開始同步」與「停止同步」兩個，但有五件事要知道：觸發的事件有五種、一個元件可以有很多個各自獨立的 Effect、每一輪同步用的是那一次 render 的值、沒寫 cleanup 時「停止」是空的、想讀最新值又不想重新同步要用 Effect Event（`useEffectEvent`）。詳見上圖下半部。
 
 ---
 
@@ -87,6 +101,11 @@ flowchart TD
   C -- 元件被移除 --> F[最後執行一次 cleanup]
   F --> G([結束])
 ```
+
+> [!important] 新觀念：cleanup 不是 `useEffect` 的第三個參數，而是 setup 函式的回傳值
+> 通常是以 <mark style="background: #FFF3A3A6;">**setup 函式為主體**</mark>，由它 <mark style="background: #FF5582A6;">**`return` 出一個 cleanup 函式**</mark> 交給 React。
+> `useEffect` 只收兩個參數：<mark style="background: #BBFABBA6;">setup 函式</mark> 與 <mark style="background: #ADCCFFA6;">依賴陣列</mark>。想「停止同步」時要做的事，是寫在 setup 函式裡面、被 `return` 出去的那個函式。
+> 沒寫 `return`，就等於沒有 cleanup。
 
 **官方原文的「包含」關係，以及誰先誰後：**
 官方原文：*A setup function with setup code that connects to that system. It should return a cleanup function with cleanup code that disconnects from that system.*

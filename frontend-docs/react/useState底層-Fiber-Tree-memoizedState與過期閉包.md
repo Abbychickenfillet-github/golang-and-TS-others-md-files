@@ -112,6 +112,18 @@ setup 與 cleanup 在圖上的位置：`create` 就是 setup 函式，在 render
 cleanup 不在 `queue`（`useEffect` 的 `queue` 是 `null`），也不在 Hook 的 `next`（那是下一節 Hook）。
 `inst` 是跨 render 共用的，所以新舊 Effect 物件都指到同一個 `inst`，React 才找得到「上一次留下的 cleanup」。時間軸見 [[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (g)。
 
+**`queue` 是什麼（一句話）：它是 `useState` 的「待辦信箱」，每呼叫一次 `setCount`，React 就丟一封「更新」進去，下一次 render 時照順序拆信，算出新的 state。**
+
+| `queue` 的欄位 | 白話 |
+|---|---|
+| `pending` | 還沒處理的更新，串成環，指向最後一封 |
+| `dispatch` | 就是 `setCount` 本人（`dispatchSetState.bind(null, fiber, queue)`），綁好了「要把信丟進哪個 Hook 的 queue」 |
+| `lastRenderedReducer` | 算新值的規則，`useState` 用的是 `basicStateReducer`：action 是函式就呼叫它，否則直接當新值 |
+| `lastRenderedState` | 上一次 render 用的 state，用來在信箱是空時先試算一個值 |
+
+流程：`setCount(1)` → `dispatchSetState` 建立一封 Update 接到 `queue.pending` 的環上 → 排定 re-render → render 時 `updateReducerImpl` 把 `pending` 併進 `baseQueue`，逐封套用 reducer → 結果存進 Hook 的 `memoizedState`。
+信箱是空的時候，React 還會先用 `lastRenderedReducer` 試算一次，新舊值相同就不排 re-render。
+
 **為什麼 `useEffect` 的 `queue` 是 `null`？**
 `queue` 是「更新信箱」，專門收 `setState`／`dispatch` 排進來的待處理更新。只有「有 setter、會被人呼叫來排更新」的 Hook 才需要它。`useEffect` 沒有 setter，更新來源只有「下一次 render 時 React 自己比較 deps」，所以 `mountEffectImpl` 完全沒去設定 `hook.queue`，維持 `mountWorkInProgressHook` 建立時的初值 `null`。
 
@@ -121,6 +133,8 @@ cleanup 不在 `queue`（`useEffect` 的 `queue` 是 `null`），也不在 Hook 
 | `useReducer` | 有，`dispatch` | 有 |
 | `useEffect` | 沒有 | `null` |
 | `useRef` | 沒有，改 `current` 不排程 | `null` |
+
+**`create`、`inst` 算 Hook 的屬性嗎？** 不算，它們是 <mark style="background: #ADCCFFA6;">**Effect 物件**</mark>的屬性。Hook 物件只有 `memoizedState`、`baseState`、`baseQueue`、`queue`、`next` 五個屬性，其中 `useEffect` 那一節 Hook 的 `memoizedState` 指向 Effect 物件，Effect 物件才有 `tag`、`create`、`deps`、`inst`、`next`。`inst` 本身又是一個物件 `{ destroy }`，所以 cleanup 的位置是「Hook.memoizedState → Effect.inst.destroy」。
 
 **`inst` 到底是什麼？**
 `inst` 是 instance（實例）的縮寫，一個只有一個欄位的小物件 `{ destroy }`，掛載時用 `createEffectInstance()` 建立一次，之後這個 Effect 一輩子都用同一個。

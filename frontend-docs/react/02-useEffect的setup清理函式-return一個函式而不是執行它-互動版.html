@@ -150,6 +150,74 @@ footer a{color:var(--accent)}
     <b>用詞校正</b>：<code>return</code> 是<span class="hl-y">回傳／交還</span>，不是「丟出」。
     JS 裡「丟出／拋出」專指 <code>throw</code>（丟例外）。面試時講「丟出」會被聽成 <code>throw</code>。
   </div>
+
+  <h3>圖解：<code>return</code> 這一行，就是「把函式交給 React」的動作（點按鈕一步一步看）</h3>
+  <style>
+  .rt-btns{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
+  .rt-btns button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;cursor:pointer;font-family:inherit;font-size:.88rem;font-weight:700;transition:.15s}
+  .rt-btns button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .rt-grid{display:grid;grid-template-columns:1.6fr .8fr 1.2fr;gap:12px}
+  @media(max-width:860px){.rt-grid{grid-template-columns:1fr}}
+  .rt-box{border:2px solid var(--line);border-radius:12px;padding:10px 12px;background:#fbfcfe;min-width:0}
+  .rt-box h4{margin:0 0 6px;font-size:.92rem}
+  .rt-code{background:#1f2430;color:#e8ecf3;border-radius:8px;padding:8px 0;font-family:"JetBrains Mono",Consolas,monospace;font-size:.8rem;line-height:1.8;overflow-x:auto}
+  .rt-code div{padding:0 12px;white-space:pre}
+  .rt-code div.hl{background:#3a4468;border-left:4px solid #ffd166}
+  .rt-stack{display:flex;flex-direction:column-reverse;gap:5px;min-height:120px;background:#f3ece4;border:2px dashed #d7c4b0;border-radius:10px;padding:7px}
+  .rt-can{background:#d9ecff;border:2px solid #6ab0f0;border-radius:8px;padding:3px 8px;font-size:.84rem;font-weight:700}
+  .rt-can.top{background:#fff0a8;border-color:#ffb800}
+  .rt-can.cl{background:#ffe0e0;border-color:#e04a5f}
+  .rt-empty{margin:auto;color:#a08f80;font-weight:700;font-size:.85rem;text-align:center}
+  .rt-row{background:#fff;border:2px solid #ffe08a;border-radius:8px;padding:4px 9px;margin:5px 0;font-size:.84rem;font-weight:700}
+  .rt-row small{display:block;font-weight:400;color:var(--muted);font-size:.78rem}
+  .rt-fn{border:3px solid #e04a5f;background:#fff0f0;border-radius:10px;padding:6px 10px;margin-top:8px;font-size:.84rem;font-weight:700;display:none}
+  .rt-fn.show{display:block}
+  .rt-fn small{display:block;font-weight:400;color:var(--muted);font-size:.78rem}
+  .rt-link{color:#d98324;font-weight:800}
+  .rt-con{background:#1f2430;color:#9fe3b0;border-radius:8px;padding:7px 12px;font-family:Consolas,monospace;font-size:.84rem;margin-top:10px;min-height:2.2em}
+  .rt-say{margin-top:10px;border-left:5px solid var(--accent);background:#eef0ff;border-radius:0 8px 8px 0;padding:9px 13px;font-size:.93rem}
+  .rt-say b{color:#c0283f}
+  </style>
+  <div id="rt-demo">
+    <div class="rt-btns" id="rt-btns"></div>
+    <div class="rt-grid">
+      <div class="rt-box"><h4>📜 你寫的程式碼（黃線是目前執行到哪一行）</h4><div class="rt-code" id="rt-code"></div></div>
+      <div class="rt-box"><h4>📚 Call Stack（下面是底）</h4><div class="rt-stack" id="rt-stack"></div></div>
+      <div class="rt-box"><h4>🏠 Heap：React 的 Effect 物件，與你建立的函式物件</h4>
+        <div class="rt-row">create <small id="rt-create">＝ setup 函式（render 時就存好了）</small></div>
+        <div class="rt-row">inst.destroy <small id="rt-destroy">＝ undefined（還沒有 cleanup）</small></div>
+        <div class="rt-fn" id="rt-fn">🧹 <code>() =&gt; clearInterval(id)</code><small id="rt-fnsub"></small></div>
+      </div>
+    </div>
+    <div class="rt-con" id="rt-con"></div>
+    <div class="rt-say" id="rt-say"></div>
+  </div>
+  <script>
+  (function(){
+    var code=["useEffect(() => {","  const id = setInterval(tick, 1000)","  return () => clearInterval(id)","}, [])"];
+    var steps=[
+      {t:"① React 呼叫 setup()",line:1,stack:[["React 的 commit 函式",""],["setup()","top"]],fn:0,destroy:"＝ undefined（還沒有 cleanup）",con:"計時器 id = 7 已啟動",say:"setup 的第一行在做事：<b>開始同步</b>（啟動計時器）。這是真的在執行。"},
+      {t:"② 執行到 return 這一行",line:2,stack:[["React 的 commit 函式",""],["setup()","top"]],fn:1,fnsub:"剛在 Heap 建立，還沒交給任何人",destroy:"＝ undefined（還是空的）",con:"（沒有任何新輸出：clearInterval 一次都沒被呼叫）",say:"<b>return 這一刻只是「建立」一個函式物件</b>，放在 Heap，<b>沒有執行它</b>。箭頭函式本體裡的 clearInterval(id) 要等到有人呼叫它才會跑。"},
+      {t:"③ setup() 回傳：交給 React",line:3,stack:[["React 的 commit 函式",""]],fn:1,fnsub:"已被 React 收下，背著 id = 7",destroy:"<span class='rt-link'>➜ 指向上面那個 cleanup 函式</span>（React 把它存進來了）",con:"（仍然沒有新輸出）",say:"<b>return 對應的動作，就是「把這個函式交給呼叫 setup 的 React」</b>。React 把它存進 Effect 物件的 inst.destroy。此時 setup() 罐頭已彈出，Stack 上沒有任何 cleanup。"},
+      {t:"④ 之後 deps 改變：React 呼叫 cleanup",line:-1,stack:[["React 的 commit 函式",""],["cleanup()","cl"]],fn:1,fnsub:"正在被 React 呼叫",destroy:"＝ undefined（React 先清空，再呼叫它）",con:"clearInterval(7) 被呼叫，計時器停止",say:"cleanup 是被 React「另一次」呼叫的，<b>從來沒有跟 setup() 同時在 Stack 上</b>。直到這一步，clearInterval 才真的執行。"}
+    ];
+    var $=function(i){return document.getElementById(i)};
+    var btns=$("rt-btns");
+    steps.forEach(function(st,i){var b=document.createElement("button");b.textContent=st.t;b.onclick=function(){show(i)};btns.appendChild(b)});
+    function show(i){
+      var st=steps[i];
+      Array.prototype.forEach.call(btns.children,function(b,k){b.className=k===i?"on":""});
+      $("rt-code").innerHTML=code.map(function(c,k){return "<div class='"+(k===st.line?"hl":"")+"'>"+c.replace(/</g,"&lt;").replace(/>/g,"&gt;")+"</div>"}).join("");
+      $("rt-stack").innerHTML=st.stack.length?st.stack.map(function(c){return "<div class='rt-can "+c[1]+"'>🥫 "+c[0]+(c[1].indexOf("top")>-1||c[1]==="cl"?" ⬅️ 執行中":"")+"</div>"}).join(""):"<div class='rt-empty'>stack 是空的</div>";
+      $("rt-fn").className="rt-fn"+(st.fn?" show":"");
+      $("rt-fnsub").textContent=st.fnsub||"";
+      $("rt-destroy").innerHTML=st.destroy;
+      $("rt-con").textContent="> "+st.con;
+      $("rt-say").innerHTML=st.say;
+    }
+    show(0);
+  })();
+  </script>
 </section>
 
 <!-- ============ 填空 ============ -->

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>Effect 的心智模型</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff7ec;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#4a3b32}
+#art{width:1800px;padding:34px 40px 38px;background:#fff7ec}
+h1{margin:0 0 4px;font-size:34px}
+.sub{font-size:18px;color:#8a7466;margin-bottom:18px;line-height:1.6}
+.card{border-radius:26px;border:5px solid;padding:14px 20px;box-shadow:0 8px 0 rgba(0,0,0,.08)}
+.card h2{margin:0 0 8px;font-size:23px}
+.top{display:flex;gap:22px;align-items:stretch}
+.sm{flex:1.25;background:#e9f9e1;border-color:#8fd16a}
+.tr{flex:1;background:#e8f0ff;border-color:#6aa0f0}
+.states{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px}
+.bubble{width:250px;border-radius:30px;border:6px solid;padding:14px 12px;text-align:center;font-size:22px;font-weight:800;line-height:1.4}
+.bubble small{display:block;font-size:15px;font-weight:600;margin-top:4px}
+.b0{background:#f1f1f1;border-color:#bbb;color:#777}
+.b1{background:#d3f9d8;border-color:#3fb950;color:#1b6e2c}
+.mid{display:flex;flex-direction:column;gap:14px;align-items:center}
+.act{border-radius:18px;border:4px solid;padding:6px 14px;text-align:center;font-weight:800;font-size:18px;line-height:1.4;width:230px}
+.act code{display:block;font-size:14px;font-weight:600}
+.go{background:#dcf7dc;border-color:#4cc24c;color:#1b6e2c}
+.stop{background:#ffe0e0;border-color:#e04a5f;color:#a1244a}
+.arrow{font-size:34px;line-height:1}
+table{border-collapse:collapse;width:100%;font-size:17px}
+th,td{padding:6px 8px;border-bottom:2px dashed #cdd9f3;text-align:left;vertical-align:top}
+th{font-size:15px;color:#4a6fb0}
+.tk{border-radius:8px;padding:1px 8px;font-weight:800;font-size:15px;margin-right:3px}
+.tk.s{background:#d3f9d8;color:#1b6e2c}.tk.c{background:#ffd8e4;color:#a1244a}.tk.n{background:#eceff4;color:#6b7280}
+.q{margin-top:20px;background:#fff;border-color:#c9b6ff}
+.q .row{display:flex;gap:14px}
+.q .it{flex:1;background:#faf7ff;border:3px solid #dccffb;border-radius:18px;padding:10px 14px;font-size:16px;font-weight:700;line-height:1.55}
+.q .it small{display:block;font-weight:400;font-size:14.5px;color:#6d5a4f;margin-top:3px}
+code{background:#f1ede6;border-radius:5px;padding:0 4px;font-size:14px}
+</style>
+</head>
+<body>
+<div id="art">
+  <h1>🧠 Effect 的心智模型：只有兩個動作</h1>
+  <div class="sub">Effect 就是一段「讓元件和外部系統保持同步」的邏輯。它只有兩個狀態、兩個動作，其他的複雜度都來自「什麼時候觸發這兩個動作」</div>
+
+  <div class="top">
+    <div class="card sm">
+      <h2>🔁 兩個狀態、兩個動作</h2>
+      <div class="states">
+        <div class="bubble b0">💤 沒有同步<small>外部系統沒連著</small></div>
+        <div class="mid">
+          <div class="act go">開始同步<code>＝ setup（connect）</code></div>
+          <div class="arrow">➡️</div>
+          <div class="arrow">⬅️</div>
+          <div class="act stop">停止同步<code>＝ cleanup（disconnect）</code></div>
+        </div>
+        <div class="bubble b1">🔗 同步中<small>外部系統連著</small></div>
+      </div>
+      <div style="margin-top:14px;font-size:16px;font-weight:600;line-height:1.6">不管事件是掛載、更新還是卸載，Effect 自己只會做這兩件事：<span class="tk s">開始</span>或<span class="tk c">停止</span>。「重新同步」就是先停止再開始</div>
+    </div>
+
+    <div class="card tr">
+      <h2>⚡ 什麼事件會觸發這兩個動作</h2>
+      <table>
+        <tr><th>事件</th><th>實際的動作</th><th>狀態變化</th></tr>
+        <tr><td>元件掛載（mount）</td><td><span class="tk s">開始</span></td><td>💤 ➜ 🔗</td></tr>
+        <tr><td>deps 變了</td><td><span class="tk c">停止</span>➜<span class="tk s">開始</span></td><td>🔗 ➜ 💤 ➜ 🔗<br>元件並沒有卸載</td></tr>
+        <tr><td>re-render 但 deps 沒變</td><td><span class="tk n">什麼都不做</span></td><td>🔗 維持</td></tr>
+        <tr><td>元件卸載（unmount）</td><td><span class="tk c">停止</span></td><td>🔗 ➜ 💤</td></tr>
+        <tr><td>開發模式 StrictMode，掛載時</td><td><span class="tk s">開始</span>➜<span class="tk c">停止</span>➜<span class="tk s">開始</span></td><td>🔗 ➜ 💤 ➜ 🔗<br>故意多演練一次</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card q">
+    <h2>❓ 「只有兩個動作」有那麼簡單嗎？動作確實只有兩個，但這五件事要知道</h2>
+    <div class="row">
+      <div class="it">① 動作少，觸發的事件多<small>上表有五種情況。讀官方文件時，要先分清楚是哪個事件在觸發</small></div>
+      <div class="it">② 一個元件可以有很多個 Effect<small>每個 <code>useEffect</code> 是獨立的一組，各自在兩個狀態間切換，互不干擾</small></div>
+      <div class="it">③ 每一輪同步用的是「那一次 render 的值」<small>停止用舊值，開始用新值，這是閉包的結果</small></div>
+      <div class="it">④ 停止可以是空的<small>沒寫 return cleanup 的 Effect，「停止」什麼都不會做</small></div>
+      <div class="it">⑤ 想讀最新值又不想重新同步<small>用 Effect Event（<code>useEffectEvent</code>），它讀得到最新的 props 與 state，但不會讓 Effect 重新同步</small></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -19,7 +19,7 @@ h1{margin:0 0 4px;font-size:34px}
 .fr{flex:1;min-width:0;background:#fff;border-radius:26px;border:5px solid #ffc27a;padding:12px 12px 14px;box-shadow:0 8px 0 rgba(0,0,0,.08);display:flex;flex-direction:column;gap:9px}
 .fr.gr{border-color:#8fd16a}
 .fr h3{margin:0;font-size:20px;line-height:1.35;min-height:54px}
-.fr h3 span{display:inline-block;background:#ffb800;color:#fff;border-radius:50%;width:32px;height:32px;line-height:32px;text-align:center;margin-right:6px}
+.fr h3 span{display:inline-block;background:#ffb800;color:#fff;border-radius:999px;padding:0 12px;height:32px;line-height:32px;text-align:center;margin-right:6px;font-size:16px;white-space:nowrap}
 .fr.gr h3 span{background:#4cc24c}
 .lab{font-size:15px;font-weight:800;color:#7a6a5f}
 .stack{height:205px;background:#f3ece4;border-radius:16px;border:4px dashed #d7c4b0;padding:8px;display:flex;flex-direction:column-reverse;gap:5px}
@@ -45,7 +45,7 @@ h1{margin:0 0 4px;font-size:34px}
 <body>
 <div id="art">
   <h1>🥫 useEffect 的 setup 與 cleanup：Call Stack 罐頭時間軸</h1>
-  <div class="sub">以 &lt;ChatRoom /&gt; 為例：一個 useEffect（deps 是 [roomId]），兩條路線。左邊是 Call Stack（罐頭疊），下面是 Heap 上的 Effect 物件</div>
+  <div class="sub">以 &lt;ChatRoom /&gt; 為例：一個 useEffect（deps 是 [roomId]），兩條路線。「步驟 N」是時間先後，不是 Hook 的編號。每格上面是 Call Stack（罐頭疊），下面是 Heap 上這個 useEffect 的 Effect 物件（Fiber 圖裡，它就是 Hook 鏈中某一節的 memoizedState 所指的東西）</div>
   <div class="vs">
     <div class="no">❌ 常見的想像<small>setup 罐頭先進 stack，cleanup 罐頭疊在它上面，所以 cleanup 先彈出</small></div>
     <div class="ok">✅ 實際情況<small>cleanup 從來沒有跟 setup 同時在 stack 上，它是被 React 在「之後另一次」呼叫的，先後由 React 的 commit 排程決定</small></div>
@@ -64,16 +64,16 @@ h1{margin:0 0 4px;font-size:34px}
 <script>
 var SKIP='中間還有幾層呼叫，略過';
 var A=[
- {t:'render：呼叫元件函式',st:[['Counter()','top']],h:[['create = setup 函式','render 時存進 Effect 物件','su'],['inst.destroy = undefined','還沒有 cleanup','']],c:'render 只是把 setup 函式「存起來」，還沒執行。元件函式跑完罐頭就彈出。'},
+ {t:'render：呼叫元件函式',st:[['ChatRoom()','top']],h:[['create = setup 函式','render 時存進 Effect 物件','su'],['inst.destroy = undefined','還沒有 cleanup','']],c:'render 只是把 setup 函式「存起來」，還沒執行。元件函式跑完罐頭就彈出。'},
  {t:'commit：React 呼叫 setup',st:[['flushPassiveEffects','',SKIP],['commitHookEffectListMount','','局部變數 create ➜ 指向 Heap 的 setup 函式'],['setup()','su top']],h:[['create = setup 函式','正在被呼叫','su'],['inst.destroy = undefined','return 還沒執行','']],c:'setup 罐頭在 stack 上。裡面的 return () =&gt; … 只是在 Heap 建立一個函式物件，沒有呼叫它。'},
- {t:'setup 回傳：cleanup 被存起來',st:[],h:[['create = setup 函式','已執行完','su'],['inst.destroy = cleanup 函式①','React 把 return 的函式存進來','cl']],c:'setup() 與呼叫它的罐頭都已彈出，stack 空了。cleanup 靜靜躺在 Heap 的 Effect 物件裡，stack 上沒有任何位址。'},
- {t:'roomId 變了：React 先呼叫舊 cleanup',st:[['flushPassiveEffects','',SKIP],['commitHookEffectListUnmount','','局部變數 destroy ➜ 指向 Heap 的 cleanup①'],['cleanup①()','cl top']],h:[['create = 新 setup 函式','新 render 已存入，還沒執行','su'],['inst.destroy = undefined','inst 是新舊 Effect 共用的，React 先清成 undefined 再呼叫舊 cleanup','cl']],c:'新一輪 render 與 commit 之後，React 先呼叫舊的 cleanup①，用的是舊 render 的閉包值（舊 roomId）。'},
- {t:'cleanup 彈出後才輪到新 setup',st:[['flushPassiveEffects','',SKIP],['commitHookEffectListMount','','局部變數 create ➜ 指向 Heap 的新 setup 函式'],['setup()','su top']],h:[['create = 新 setup 函式','新 render 存入','su'],['inst.destroy = undefined → cleanup 函式②','setup 回傳後存入','cl']],c:'cleanup①() 已彈出才輪到新的 setup②()。兩者從不同時在 stack 上，順序是 cleanup① → setup②。'}
+ {t:'setup 回傳：cleanup 被存起來',st:[],h:[['create = setup 函式','已執行完','su'],['inst.destroy = cleanup 函式（舊）','React 把 return 的函式存進來','cl']],c:'setup() 與呼叫它的罐頭都已彈出，stack 空了。cleanup 靜靜躺在 Heap 的 Effect 物件裡，stack 上沒有任何位址。'},
+ {t:'roomId 變了：React 先呼叫舊 cleanup',st:[['flushPassiveEffects','',SKIP],['commitHookEffectListUnmount','','局部變數 destroy ➜ 指向 Heap 的 舊 cleanup'],['舊的 cleanup()','cl top']],h:[['create = 新 setup 函式','新 render 已存入，還沒執行','su'],['inst.destroy = undefined','inst 是新舊 Effect 共用的，React 先清成 undefined 再呼叫舊 cleanup','cl']],c:'新一輪 render 與 commit 之後，React 先呼叫舊的 cleanup，用的是舊 render 的閉包值（舊 roomId）。'},
+ {t:'cleanup 彈出後才輪到新 setup',st:[['flushPassiveEffects','',SKIP],['commitHookEffectListMount','','局部變數 create ➜ 指向 Heap 的新 setup 函式'],['setup()','su top']],h:[['create = 新 setup 函式','新 render 存入','su'],['inst.destroy = undefined → cleanup 函式（新）','setup 回傳後存入','cl']],c:'舊的 cleanup() 已彈出才輪到新的 setup()。兩者從不同時在 stack 上，順序是 舊的 cleanup → 新的 setup。'}
 ];
 var B=[
- {t:'render：deps 比較結果「沒變」',st:[['Counter()','top']],h:[['create = 新 setup 函式','存進來了，但沒有「需要執行」標記','su'],['inst.destroy = cleanup 函式①','原封不動','cl']],c:'React 用 Object.is 逐項比較新舊 deps，全部相同。新的 setup 函式照樣存進 Effect 物件，但不標記 HookHasEffect，也不設 Passive 旗標。'},
- {t:'commit：沒有 Passive 待辦',st:[['commitRoot','top','只更新 DOM，例如輸入框的字']],h:[['create = 新 setup 函式','不會被呼叫','su'],['inst.destroy = cleanup 函式①','不會被呼叫','cl']],c:'commit 看不到這個 Effect 的 Passive 旗標，所以不會排 flushPassiveEffects。cleanup 與 setup 都不跑。'},
- {t:'之後：連線維持原樣',st:[],h:[['create = 新 setup 函式','從頭到尾沒被執行','su'],['inst.destroy = cleanup 函式①','仍躺在 Heap，等下一次 deps 真的變','cl']],c:'stack 是空的。連線一直活著，cleanup① 沒被動過。下一次 roomId 變了，才會回到路線一的第 4 格。'}
+ {t:'render：deps 比較結果「沒變」',st:[['ChatRoom()','top']],h:[['create = 新 setup 函式','存進來了，但沒有「需要執行」標記','su'],['inst.destroy = cleanup 函式（舊）','原封不動','cl']],c:'React 用 Object.is 逐項比較新舊 deps，全部相同。新的 setup 函式照樣存進 Effect 物件，但不標記 HookHasEffect，也不設 Passive 旗標。'},
+ {t:'commit：沒有 Passive 待辦',st:[['commitRoot','top','只更新 DOM，例如輸入框的字']],h:[['create = 新 setup 函式','不會被呼叫','su'],['inst.destroy = cleanup 函式（舊）','不會被呼叫','cl']],c:'commit 看不到這個 Effect 的 Passive 旗標，所以不會排 flushPassiveEffects。cleanup 與 setup 都不跑。'},
+ {t:'之後：連線維持原樣',st:[],h:[['create = 新 setup 函式','從頭到尾沒被執行','su'],['inst.destroy = cleanup 函式（舊）','仍躺在 Heap，等下一次 deps 真的變','cl']],c:'stack 是空的。連線一直活著，舊 cleanup 沒被動過。下一次 roomId 變了，才會回到路線一的步驟 4。'}
 ];
 function render(data,id,cls){
   var h='';
@@ -84,7 +84,7 @@ function render(data,id,cls){
     }).join('');
     if(!f.st.length) cans='<div class="empty">🈳 stack 是空的<br>沒有任何罐頭</div>';
     var rows=f.h.map(function(r){return '<div class="row '+r[2]+'">'+(r[2]==='su'?'🔌 ':'🧹 ')+r[0]+(r[1]?'<small>'+r[1]+'</small>':'')+'</div>';}).join('');
-    h+='<div class="fr '+cls+'"><h3><span>'+(i+1+(cls?5:0))+'</span>'+f.t+'</h3><div class="lab">📚 Call Stack（下面是底）</div><div class="stack">'+cans+'</div><div class="lab">🏠 Heap：Hook ② 的 Effect 物件</div><div class="heap">'+rows+'</div><div class="cap">'+f.c+'</div></div>';
+    h+='<div class="fr '+cls+'"><h3><span>步驟 '+(i+1+(cls?5:0))+'</span>'+f.t+'</h3><div class="lab">📚 Call Stack（下面是底）</div><div class="stack">'+cans+'</div><div class="lab">🏠 Heap：這個 useEffect 的 Effect 物件</div><div class="heap">'+rows+'</div><div class="cap">'+f.c+'</div></div>';
   });
   document.getElementById(id).innerHTML=h;
 }

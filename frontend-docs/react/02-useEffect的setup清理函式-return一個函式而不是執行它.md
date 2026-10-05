@@ -29,6 +29,10 @@ updated: 2026-09-15
 > [!important]+ 最常被搞錯的一件事先講
 > <mark style="background: #FF5582A6;">`return () => clearInterval(id)` 這一行執行時，`clearInterval` 一次都沒有被呼叫</mark>。它只是**建立**了一個函式物件並交還給 React。`clearInterval(id)` 要等到 React 決定該清理時、真的去呼叫那個函式，才會被執行。差一個箭頭（`return clearInterval(id)`）行為就完全相反——那才是當場執行。
 
+> [!important] 新觀念：cleanup 是 setup 函式 `return` 出來的函式
+> 通常是以 <mark style="background: #FFF3A3A6;">**setup 函式為主體**</mark>，由它 <mark style="background: #FF5582A6;">**`return` 出一個 cleanup 函式**</mark> 交給 React，而不是另外多傳一個參數給 `useEffect`。
+> `return` 這一刻 <mark style="background: #BBFABBA6;">只是建立並交出這個函式，沒有執行它</mark>。互動版第一節有逐步圖解：`02-useEffect的setup清理函式-return一個函式而不是執行它-互動版.html`。
+
 | 5W1H | 問題 | 一句話答案 |
 |---|---|---|
 | **What** 是什麼 | 清理函式是什麼？ | `useEffect` 的第一個參數（setup function）可以選擇性回傳一個「不收參數、不回傳值」的函式，React 官方稱它 cleanup function |

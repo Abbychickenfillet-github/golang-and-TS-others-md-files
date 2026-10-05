@@ -85,6 +85,9 @@ td:first-child{width:44px;font-size:26px}
 .tk{font-style:normal;border-radius:8px;padding:1px 9px;font-size:14px;font-weight:800;margin:0 4px}
 .tk.s{background:#d3f9d8;color:#1b6e2c}.tk.c{background:#ffd8e4;color:#a1244a}.tk.n{background:#eceff4;color:#6b7280}
 .smnote{font-size:14px;line-height:1.6;color:#4a5b6a;font-weight:600;margin-top:8px}
+.rcap{font-size:14.5px;color:#4c7d96;font-weight:600;line-height:1.5;margin-bottom:6px}
+.ringbox .rings{display:flex;gap:16px}
+.ringbox .rg{flex:1;min-width:0}
 </style>
 </head>
 <body>
@@ -105,7 +108,7 @@ td:first-child{width:44px;font-size:26px}
       <div style="font-size:17px;color:#6b8a5a">React 依照你呼叫 Hook 的順序，一節一節掛上去（所以 Hook 不能寫在 if 裡）。每一節都是同一種 Hook 物件，差別只在 memoizedState 裡放什麼</div>
       <div class="lane">
         <div class="st">
-          <div class="car st1"><span class="e">🧠</span>Hook ①<small>useState</small></div>
+          <div class="car st1"><span class="e">🧠</span>第 1 個 Hook<small>useState</small></div>
           <div class="down">⬇️ 打開</div>
           <div class="pop s">
             <div class="t">🧠 useState 的 Hook 物件</div>
@@ -120,7 +123,7 @@ td:first-child{width:44px;font-size:26px}
         </div>
         <div class="nx">➡️<small>next</small></div>
         <div class="st">
-          <div class="car fx"><span class="e">⚡</span>Hook ②<small>useEffect</small></div>
+          <div class="car fx"><span class="e">⚡</span>第 2 個 Hook<small>useEffect</small></div>
           <div class="down">⬇️ 打開</div>
           <div class="pop f">
             <div class="t">⚡ useEffect 的 Hook 物件</div>
@@ -136,7 +139,7 @@ td:first-child{width:44px;font-size:26px}
         </div>
         <div class="nx">➡️<small>next</small></div>
         <div class="st">
-          <div class="car rf"><span class="e">📦</span>Hook ③<small>useRef</small></div>
+          <div class="car rf"><span class="e">📦</span>第 3 個 Hook<small>useRef</small></div>
           <div class="down">⬇️ 打開</div>
           <div class="pop r">
             <div class="t">📦 useRef 的 Hook 物件</div>
@@ -155,25 +158,10 @@ td:first-child{width:44px;font-size:26px}
   <div class="bottom">
     <div class="card ringbox">
       <h2>🔄 真正的「環」有兩個，都不是 Hook 鏈</h2>
+      <div class="rcap">環：最後一個元素的 <code>next</code> 又指回第一個。外面的指標只記住「最後一個」，要找第一個就走一步 <code>last.next</code>。新增元素時接在最後一個後面，再把指標改指向新的最後一個</div>
       <div class="rings">
-        <div class="rg">
-          <div class="cap">① Effect 清單：fiber.updateQueue.lastEffect 指向最後一個</div>
-          <div class="eff">
-            <div class="e1"><span class="e">⚡</span>Effect A</div><span style="font-size:26px">➡️</span>
-            <div class="e1"><span class="e">⚡</span>Effect B</div><span style="font-size:26px">➡️</span>
-            <div class="e1"><span class="e">⚡</span>Effect C</div>
-          </div>
-          <div class="back">↩️ C 的 next 回到 A</div>
-        </div>
-        <div class="rg">
-          <div class="cap">② 待處理更新：hook.queue.pending 指向最後一個</div>
-          <div class="eff">
-            <div class="e1"><span class="e">📨</span>setCount(1)</div><span style="font-size:26px">➡️</span>
-            <div class="e1"><span class="e">📨</span>setCount(2)</div><span style="font-size:26px">➡️</span>
-            <div class="e1"><span class="e">📨</span>setCount(3)</div>
-          </div>
-          <div class="back">↩️ 最後一封的 next 回到第一封</div>
-        </div>
+        <div class="rg"><div class="cap">① Effect 清單（掛在 fiber 上）：這個元件所有 useEffect 與 useLayoutEffect 的 Effect 物件</div><svg viewBox="-60 0 380 300" width="340" height="268" style="display:block;margin:0 auto"><defs><marker id="m2f8fd8" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2f8fd8"/></marker></defs><path d="M196 62 Q262 80 252 150" fill="none" stroke="#2f8fd8" stroke-width="5" stroke-linecap="round" marker-end="url(#m2f8fd8)"/><path d="M186 200 Q150 232 114 200" fill="none" stroke="#2f8fd8" stroke-width="5" stroke-linecap="round" marker-end="url(#m2f8fd8)"/><path d="M48 150 Q40 80 104 62" fill="none" stroke="#2f8fd8" stroke-width="5" stroke-linecap="round" marker-end="url(#m2f8fd8)"/><text x="262" y="100" font-size="13" font-weight="800" fill="#2f8fd8">next</text><text x="132" y="240" font-size="13" font-weight="800" fill="#2f8fd8">next</text><text x="-56" y="104" font-size="13" font-weight="800" fill="#2f8fd8">next（繞回）</text><rect x="98" y="25" width="104" height="46" rx="14" fill="#fff" stroke="#2f8fd8" stroke-width="4"/><text x="150" y="46" font-size="20" text-anchor="middle">⚡</text><text x="150" y="64" font-size="13" font-weight="800" text-anchor="middle" fill="#3a3040">Effect A</text><rect x="186" y="155" width="104" height="46" rx="14" fill="#fff" stroke="#2f8fd8" stroke-width="4"/><text x="238" y="176" font-size="20" text-anchor="middle">⚡</text><text x="238" y="194" font-size="13" font-weight="800" text-anchor="middle" fill="#3a3040">Effect B</text><rect x="10" y="155" width="104" height="46" rx="14" fill="#fff" stroke="#2f8fd8" stroke-width="6"/><text x="62" y="176" font-size="20" text-anchor="middle">⚡</text><text x="62" y="194" font-size="13" font-weight="800" text-anchor="middle" fill="#3a3040">Effect C</text><text x="150" y="132" font-size="13" font-weight="800" text-anchor="middle" fill="#6b5a4f">第一個 ＝ 最後一個.next</text><text x="-56" y="266" font-size="13" font-weight="800" fill="#c0283f">☝️ fiber.updateQueue.lastEffect</text><text x="-56" y="285" font-size="13" font-weight="800" fill="#c0283f">　 指向粗框那一個（最後一個）</text></svg></div>
+        <div class="rg"><div class="cap">② 待處理更新（掛在 useState 的 queue 上）：每呼叫一次 setCount 就多一封更新</div><svg viewBox="-60 0 380 300" width="340" height="268" style="display:block;margin:0 auto"><defs><marker id="m8a4fd6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8a4fd6"/></marker></defs><path d="M196 62 Q262 80 252 150" fill="none" stroke="#8a4fd6" stroke-width="5" stroke-linecap="round" marker-end="url(#m8a4fd6)"/><path d="M186 200 Q150 232 114 200" fill="none" stroke="#8a4fd6" stroke-width="5" stroke-linecap="round" marker-end="url(#m8a4fd6)"/><path d="M48 150 Q40 80 104 62" fill="none" stroke="#8a4fd6" stroke-width="5" stroke-linecap="round" marker-end="url(#m8a4fd6)"/><text x="262" y="100" font-size="13" font-weight="800" fill="#8a4fd6">next</text><text x="132" y="240" font-size="13" font-weight="800" fill="#8a4fd6">next</text><text x="-56" y="104" font-size="13" font-weight="800" fill="#8a4fd6">next（繞回）</text><rect x="98" y="25" width="104" height="46" rx="14" fill="#fff" stroke="#8a4fd6" stroke-width="4"/><text x="150" y="46" font-size="20" text-anchor="middle">📨</text><text x="150" y="64" font-size="13" font-weight="800" text-anchor="middle" fill="#3a3040">setCount(1)</text><rect x="186" y="155" width="104" height="46" rx="14" fill="#fff" stroke="#8a4fd6" stroke-width="4"/><text x="238" y="176" font-size="20" text-anchor="middle">📨</text><text x="238" y="194" font-size="13" font-weight="800" text-anchor="middle" fill="#3a3040">setCount(2)</text><rect x="10" y="155" width="104" height="46" rx="14" fill="#fff" stroke="#8a4fd6" stroke-width="6"/><text x="62" y="176" font-size="20" text-anchor="middle">📨</text><text x="62" y="194" font-size="13" font-weight="800" text-anchor="middle" fill="#3a3040">setCount(3)</text><text x="150" y="132" font-size="13" font-weight="800" text-anchor="middle" fill="#6b5a4f">第一個 ＝ 最後一個.next</text><text x="-56" y="266" font-size="13" font-weight="800" fill="#c0283f">☝️ hook.queue.pending</text><text x="-56" y="285" font-size="13" font-weight="800" fill="#c0283f">　 指向粗框那一個（最後一個）</text></svg><div class="rcap" style="margin-top:2px">第一次 setCount 時只有一封，它的 next 指向自己</div></div>
       </div>
     </div>
     <div class="card ctxbox">
