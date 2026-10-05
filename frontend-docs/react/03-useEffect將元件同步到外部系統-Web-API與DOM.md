@@ -177,7 +177,18 @@ React 用 `Object.is` 逐項比較 deps 的新舊值，來決定要不要重跑�
 ## d. 鏡像原則與 StrictMode
 
 cleanup 必須能把 setup 做的事完整復原，這叫「鏡像」。
-官方原文：*To help you find bugs, in development React runs setup and cleanup one extra time before the setup.*
+官方原文逐句拆解：
+
+| 官方原文 | 白話 |
+|---|---|
+| *To help you find bugs, in development React runs setup and cleanup one extra time before the setup.* | 為了幫你找 bug，開發模式下 React 在「真正的 setup」之前，先多跑一輪 setup 加 cleanup |
+| *This is a stress-test that verifies your Effect's logic is implemented correctly.* | 這是壓力測試，用來驗證你的 Effect 邏輯有沒有寫對 |
+| *If this causes visible issues, your cleanup function is missing some logic.* | 若這一輪造成使用者看得見的問題，代表 cleanup 漏寫了邏輯，見下方表格 |
+| *The cleanup function should stop or undo whatever the setup function was doing.* | cleanup 的職責是停止或復原 setup 做的事 |
+
+**stress test（壓力測試）是什麼：** 在比正常更嚴苛的條件下檢驗系統會不會壞。
+軟體工程裡通常指「用極端的負載測穩定性」，這裡 React 施加的壓力不是流量，而是「重複」：模擬元件被卸載又重新掛載，看你的 Effect 能不能被反覆啟動、停止而結果不變。
+正式環境只會 setup 一次，但真實世界裡元件本來就可能被卸載再掛載（切換路由、條件式渲染、Offscreen 保留狀態），開發模式提早幫你演練。
 這句話裡的 development 指開發模式，也就是 `<StrictMode>` 包住元件時（Vite 與 CRA 的模板預設就包著）。正式上線（production）不會多跑。
 
 **這個「多跑一次」發生在掛載（mount）那一刻，不是每次 re-render。**
