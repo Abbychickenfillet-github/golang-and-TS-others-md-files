@@ -97,6 +97,39 @@ flowchart TD
 
 配對規則：setupN 先於 cleanupN，cleanupN 先於 setupN+1。
 
+**官方三句話逐句對照：「cleanup 用舊值跑」是不是代表 cleanup 比 setup 先？**
+
+| 官方原文 | 白話 | 誰先 |
+|---|---|---|
+| 1. Your setup code runs when your component is added to the page (mounts). | 掛載時只跑 setup，此時還沒有任何 cleanup 可跑 | setup 先 |
+| 2. After every commit where the dependencies have changed: First, your cleanup code runs with the old props and state. Then, your setup code runs with the new props and state. | deps 變了的那次 commit，先用舊值跑上一輪的 cleanup，再用新值跑新的 setup | cleanup 先於「新的」setup |
+| 3. Your cleanup code runs one final time after your component is removed from the page (unmounts). | 元件移除後最後再跑一次 cleanup | cleanup 最後 |
+
+「with the old props and state」的意思是：這個 cleanup 是上一次 render 產生的，它抓住的是那一次 render 的 props 與 state（閉包），所以看到的是「舊值」。這不是在說 cleanup 優先，順序要看第 1、2、3 句合起來讀：setup① → cleanup①（舊值）→ setup②（新值）→ … → 最後一次 cleanup。
+
+**「useEffect 裡面、cleanup 以外的都叫 setup code」嗎？大致是，要補三個精確的界線：**
+
+```js
+useEffect(() => {                                        // ← setup 函式（整個箭頭函式）
+  const connection = createConnection(serverUrl, roomId); // ① setup code
+  connection.connect();                                   // ① setup code
+  return () => {                                          // ← 這一行在 setup 時執行，作用是建立 cleanup 函式
+    connection.disconnect();                              // ② cleanup code
+  };
+}, [serverUrl, roomId]);                                  // ③ 依賴（第二個參數，不是會執行的 code）
+```
+
+| 名稱 | 範圍 | 什麼時候執行 |
+|---|---|---|
+| setup 函式 | 傳給 `useEffect` 的整個箭頭函式 | React 在 commit 之後呼叫 |
+| setup code | setup 函式裡，扣掉 cleanup 函式本體，其餘會在 setup 時跑的敘述 | 跟著 setup 函式一起跑 |
+| cleanup 函式 | `return` 出去的那個函式 | `return` 時只是建立，之後由 React 呼叫 |
+| cleanup code | cleanup 函式的本體 | 跟著 cleanup 函式一起跑 |
+| 依賴陣列 | `useEffect` 的第二個參數 | 不執行，React 拿來比較 |
+| 元件本體（`useEffect` 外面） | `useState`、算變數等 | 每一次 render 都跑，不是 setup code |
+
+官方範例標示的 setup code 只有 `createConnection` 與 `connect()` 兩行，也就是「負責連上外部系統」的那幾行。沒有 `return` 的 Effect 就沒有 cleanup code，整個函式本體都算 setup code。
+
 **mount 跟「掛到瀏覽器上」是什麼關係？**
 mount 指元件第一次被放進 React 的元件樹，React 實際做的事是在 commit 階段用 `createElement` 建出 DOM node，再用 `appendChild` 插進瀏覽器的 DOM 樹（最上層是 `createRoot(document.getElementById('root'))` 指定的容器）。
 所以「掛到瀏覽器上」的精確說法是「插進 DOM 樹」，它跟「畫到螢幕上」是兩件事，中間隔著 browser paint。
