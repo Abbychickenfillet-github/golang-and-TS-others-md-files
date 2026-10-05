@@ -46,7 +46,7 @@ h1{margin:0 0 4px;font-size:34px}
 .null{align-self:flex-start;margin-top:22px;font-size:44px;text-align:center;width:90px}
 .null small{display:block;font-size:14px;font-weight:700;color:#d63c5a}
 .bottom{display:flex;gap:24px;margin-top:26px}
-.ringbox{flex:1.5;background:#e3f4ff;border-color:#4cb8e8}
+.ringbox{flex:1.25;background:#e3f4ff;border-color:#4cb8e8}
 .ringbox h2,.verdict h2{margin:0 0 10px;font-size:25px}
 .rings{display:flex;gap:30px}
 .rg{flex:1}
@@ -67,6 +67,16 @@ td:first-child{width:44px;font-size:26px}
 .f2 small{font-size:12.5px;color:#8a7466}
 .f2.hot{background:#fff0a8;border:3px solid #ffb800}
 .f2.ring{background:#d9f3ff;border:3px solid #4cb8e8}
+.tg{border-radius:999px;padding:1px 10px;font-size:13px;font-weight:800;color:#fff;white-space:nowrap;margin-left:4px}
+.tgb{background:#2e6fd6}.tgp{background:#8a4fd6}
+.ctxbox{flex:1.1;background:#fff9d6;border-color:#ffd35c}
+.ctxbox h2{margin:0 0 6px;font-size:23px}
+.cxcap{font-size:15px;color:#7a6a5f;font-weight:600}
+.cx{border-radius:18px;padding:6px 12px;margin-top:6px;font-size:15px;font-weight:700;color:#3a3040}
+.cxb{background:#e4eeff;border:4px solid #2e6fd6}.cxp{background:#f0e6ff;border:4px solid #8a4fd6}
+.sl{background:#fff;border-radius:8px;padding:0 9px;margin:3px 0;font-weight:600;font-size:14px;border:2px solid #d5dcea}
+.sl em{font-style:normal;color:#6b7a99}
+.pv{text-align:center;font-size:16px;font-weight:800;margin:2px 0}
 </style>
 </head>
 <body>
@@ -107,10 +117,10 @@ td:first-child{width:44px;font-size:26px}
           <div class="pop f">
             <div class="t">⚡ useEffect 的 Hook 物件</div>
             <div class="chip">📦 memoizedState<small>放一個 Effect 物件</small></div>
-            <div class="chip setup" style="margin-left:18px">🔌 create = 【setup 函式】<small>render 時存入，commit 時被呼叫</small></div>
+            <div class="chip setup" style="margin-left:18px">🔌 create = 【setup 函式】 <span class="tg tgb">🎒 context ➜ ①</span><small>render 時存入，commit 時被呼叫</small></div>
             <div class="chip" style="margin-left:18px">📋 deps<small>依賴陣列</small></div>
             <div class="chip" style="margin-left:18px">🏠 inst<small>跨 render 共用的小房子</small></div>
-            <div class="chip cleanup" style="margin-left:36px">🧹 destroy = 【cleanup 函式】<small>setup 跑完 return 時才存入，之前是 undefined</small></div>
+            <div class="chip cleanup" style="margin-left:36px">🧹 destroy = 【cleanup 函式】 <span class="tg tgp">🎒 context ➜ ②</span><small>setup 跑完 return 時才存入，之前是 undefined</small></div>
             <div class="chip" style="margin-left:18px">🔗 next<small>下一個 Effect，是環</small></div>
             <div class="chip nul">📮 queue<small>null，cleanup 不在這</small></div>
             <div class="chip nul">🔗 next<small>下一節 Hook，cleanup 也不在這</small></div>
@@ -158,6 +168,21 @@ td:first-child{width:44px;font-size:26px}
         </div>
       </div>
     </div>
+    <div class="card ctxbox">
+      <h2>🎒 Heap 上的 Context（閉包背包）</h2>
+      <div class="cxcap">setup 與 cleanup 函式都是 JSFunction，各背著一個 Context</div>
+      <div class="cx cxp">🎒 Context ②（setup() 那一次呼叫）<span class="tg tgp">cleanup 背著它</span>
+        <div class="sl">previous <em>➜ Context ①</em></div>
+        <div class="sl">connection <em>= 連線物件</em></div>
+      </div>
+      <div class="pv">⬇️ previous（往外一層）</div>
+      <div class="cx cxb">🎒 Context ①（ChatRoom() 那一次 render）<span class="tg tgb">setup 背著它</span>
+        <div class="sl">previous <em>➜ 外層（模組與全域）</em></div>
+        <div class="sl">roomId <em>= 'general'</em></div>
+        <div class="sl">serverUrl <em>= 'https://…'</em></div>
+      </div>
+      <div class="cxcap" style="margin-top:8px">cleanup 之後還能 disconnect「當初那一條」連線，靠的就是 ② 這個背包</div>
+    </div>
     <div class="card verdict">
       <h2>✏️ 對照你的手繪</h2>
       <table>
@@ -166,6 +191,7 @@ td:first-child{width:44px;font-size:26px}
         <tr><td>⚠️</td><td>Hook 鏈不是環，最後一節的 next 是 null</td></tr>
         <tr><td>⚠️</td><td>deps 與 cleanup 住在 Effect 物件裡，不是直接掛在 Hook 上</td></tr>
         <tr><td>💡</td><td>環在 Effect 清單與 pending 更新清單</td></tr>
+        <tr><td>🎒</td><td>函式背的 Context 住在 Heap，不在 Stack 罐頭裡</td></tr>
       </table>
     </div>
   </div>
