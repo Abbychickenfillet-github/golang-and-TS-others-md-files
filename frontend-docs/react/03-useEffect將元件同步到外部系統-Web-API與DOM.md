@@ -234,9 +234,32 @@ React 在元件第一次掛載後，故意模擬一次「卸載再重新掛載�
 
 | 名詞 | 是什麼 |
 |---|---|
-| `fiber.mode` | 一個數字，當作位元旗標（每一個位元是一個開關）。`ConcurrentMode` 是 `0b1`、`ProfileMode` 是 `0b10`、`StrictLegacyMode` 是 `0b1000`、`StrictEffectsMode` 是 `0b10000`。用 `mode \|= StrictLegacyMode` 打開開關，用 `mode & StrictLegacyMode` 檢查。子 fiber 建立時繼承父的 mode，所以 `<StrictMode>` 底下的整棵子樹都帶著 Strict 位元 |
+| `fiber.mode` | 一個數字，當作位元旗標（每一個位元是一個開關）。`ConcurrentMode` 是 `0b1`、`ProfileMode` 是 `0b10`、`StrictLegacyMode` 是 `0b1000`、`StrictEffectsMode` 是 `0b10000`。用 `mode \|= StrictLegacyMode` 打開開關，用 `mode & StrictLegacyMode` 檢查（開發模式的 `HostRoot` 另外帶 `ProfileMode`）。子 fiber 建立時繼承父的 mode，所以 `<StrictMode>` 底下的整棵子樹都帶著 Strict 位元 |
 | concurrent root | 用 `createRoot()` 或 `hydrateRoot()` 建立的 root，源碼裡 `root.tag` 是 `1`（`ConcurrentRoot`）。能做可中斷的 render、transition、自動批次更新。舊的 `ReactDOM.render` 建立的是 legacy root（`LegacyRoot`，`tag` 是 `0`） |
 | fiber | 就是 FiberNode，Fiber 樹上的一個節點。它不是元件函式（函式存在 `fiber.type`），也不是 DOM 節點（DOM 存在 `fiber.stateNode`），而是 React 替「某個元件實例在樹上的那一格」記的帳卡：state、Effect、位置都記在它身上 |
+
+**`mode |= StrictLegacyMode` 到底怎麼「打開開關」：**
+mode 就是一個普通數字，寫成二進位，每一個位置（位元）是一個開關。用到的運算子：
+
+| 寫法 | 名稱 | 做什麼 | 例子 |
+|---|---|---|---|
+| `0b1000` | 二進位字面量 | `0b` 開頭表示後面是二進位數字，`0b1000` 就是十進位 8 | `StrictLegacyMode` 就是 `0b0001000` |
+| `a \| b` | 位元 OR | 兩數對齊，每一位只要有一個是 1，結果就是 1 | `3 \| 8` 得到 `11` |
+| `a \|= b` | 複合賦值 | 算完 `a \| b` 再存回 `a`，等於 `a = a \| b` | `mode \|= StrictLegacyMode` 把第 3 位打開 |
+| `a & b` | 位元 AND | 兩邊都是 1 才是 1，用來檢查開關 | `27 & 8` 是 `8`（開），`3 & 8` 是 `0`（關） |
+| `~b` | 位元 NOT | 把每一位反過來，搭配 `&=` 關掉開關 | `mode &= ~StrictLegacyMode` |
+
+實際數字（開發模式，已用 Node 執行驗證）：`HostRoot` 的 mode 是 `0000011`（3，ConcurrentMode 加 ProfileMode）。`<StrictMode>` 的 fiber 繼承 3，`|= StrictLegacyMode`（8）變 `0001011`（11），再 `|= StrictEffectsMode`（16）變 `0011011`（27）。它底下所有子 fiber 建立時，都把父的 mode 這個數字直接複製過來（`createFiberFromElement(element, returnFiber.mode, lanes)`），所以整棵子樹的 Strict 開關都是開的。「標註嚴格模式」就是這麼單純：只是在數字裡把某一位寫成 1，沒有任何特殊物件。
+
+![[fiber_mode開關板_位元旗標_2026-10-05.png]]
+
+**「`<StrictMode>` 通常在 root 底下」是什麼意思，為什麼：**
+意思是 `<StrictMode>` 通常是 `HostRoot`（`root.current`，整棵 fiber 樹最上面那個節點）的第一個子節點，也就是 `render(<StrictMode><App /></StrictMode>)` 這種最外層包法。所以 `HostRoot` 自己的 mode 沒有 Strict 位元，Strict 位元是從 `<StrictMode>` 那個 fiber 開始才往下繼承。
+通常這樣放的原因：
+1. `<StrictMode>` 只檢查它底下的後代，要檢查整個應用就得包在最外層。
+2. 它不產生任何 DOM，也只在開發模式有作用，包在最外層沒有成本。
+3. 官方範本（例如 Vite 的 `main.tsx`）預設就這樣寫，⚠️ 這點依記憶，未核對。
+也可以只包一部分，例如只包某個新功能，範圍外的元件不受影響。另外原始碼中 `createRoot(el, { unstable_strictMode: true })` 能讓 `HostRoot` 的 mode 一開始就帶 Strict 位元，但名稱有 `unstable_`，不是穩定的公開 API。
 
 **「對 fiber 模擬卸載」是什麼意思：**
 fiber 是元件實例的代理，所以「卸載這個元件」就是對它的 fiber 做一組動作。真正的卸載會做三件事：呼叫它所有 Effect 的 cleanup、把它的 DOM 從畫面移除、斷開 fiber 的指標交給 GC。
@@ -385,4 +408,5 @@ useRef 與 Vue `ref` 的差異見 [[useRef與Vue的ref-value-可變值不觸發�
 | React 原始碼 `ReactFiberWorkLoop.js`（`doubleInvokeEffectsOnFiber`、`disconnectPassiveEffect`、`reconnectPassiveEffects`） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js | main 分支，2026-10-05 實際抓取核對 |
 | React 原始碼 `ReactTypeOfMode.js` 與 `ReactFiber.js`（`StrictLegacyMode`、`StrictEffectsMode` 寫入 fiber 的 mode） | https://github.com/facebook/react/tree/main/packages/react-reconciler/src | main 分支，2026-10-05 實際抓取核對 |
 | 自行實測：react 與 react-dom 19.3.0、jsdom、eslint 9、eslint-plugin-react-hooks 7.1.1 | 腳本 `03-useEffect-StrictMode實測.js` | 2026-10-05 實際執行 |
+| React 原始碼 `ReactFiber.js`（`createHostRootFiber`、`<StrictMode>` 的 `mode \|= StrictLegacyMode`）、`ReactChildFiber.js`（子 fiber 繼承 `returnFiber.mode`、設 `PlacementDEV`）、`ReactDOMRoot.js`（`unstable_strictMode` 選項） | https://github.com/facebook/react/tree/main/packages | main 分支，2026-10-05 實際抓取核對 |
 | Abby 的追問對話（Gemini） | https://gemini.google.com/app/5b6fc934e5d7f253 | 本次無法讀取，僅作索引 |
