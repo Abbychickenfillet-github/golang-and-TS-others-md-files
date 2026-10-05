@@ -96,6 +96,7 @@ fiberNode = {
 | Hook 鏈 | `fiber.memoizedState` | 單向，最後一節 `next` 是 `null` | `Hook.next: Hook \| null` |
 | Effect 清單 | `fiber.updateQueue.lastEffect` | 環狀，最後一個的 `next` 繞回第一個 | `Effect.next: Effect`，建立時 `lastEffect.next = effect` |
 
+Hook 鏈串的是「所有會建立節點的 Hook」，不是只有 `useState` 與 `useRef`，`useEffect` 這類也各占一節（`useContext` 例外，它只讀 context，不建立節點）。Effect 環則只串其中會產生 Effect 的 Hook，所以 Effect 類的 Hook 同時在兩條鏈上。
 useEffect 那一節 Hook 的 `memoizedState` 指向的是一個 Effect 物件，不是直接存值。Effect 物件（`create`、`deps`、`inst`、`next`）的型別逐行解釋、`inst` 是什麼、為什麼是環，完整說明在 Effect 相關的筆記：[[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (f)。
 每一節 Hook 都是同一種結構 `{ memoizedState, baseState, baseQueue, queue, next }`，差別只在 `memoizedState` 與 `queue` 裡放什麼：
 

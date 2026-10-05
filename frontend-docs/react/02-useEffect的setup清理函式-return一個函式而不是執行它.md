@@ -292,7 +292,16 @@ React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放�
 1. 第一個 Effect：`lastEffect = effect.next = effect`，自己指自己。
 2. 之後的 Effect：先取 `firstEffect = lastEffect.next`，把 `lastEffect.next` 改指向新的，新的 `next` 指回 `firstEffect`，再把 `lastEffect` 改成新的。
 3. 順序就是你在元件裡呼叫 `useEffect`、`useLayoutEffect`、`useInsertionEffect` 由上到下的順序，每次 render 開頭 `lastEffect`（掛在 `fiber.updateQueue` 上）會先重設成 `null` 再重建。
-4. 這條環只串「宣告 Effect 的 Hook」，不含 `useState`、`useRef`，所以它跟 Hook 鏈是兩條不同的鏈：Hook 鏈是單向、有尾巴的，Effect 環沒有尾巴。
+4. 這條環只串「會產生 Effect 物件的 Hook」：`useEffect`、`useLayoutEffect`、`useInsertionEffect`，以及內部也靠 Effect 實作的 `useImperativeHandle`。`useState`、`useRef` 不產生 Effect，所以不在這條環裡。
+
+**Hook 鏈（`Hook.next`）與 Effect 環（`Effect.next`）的關係：** Effect 類的 Hook 同時在兩條鏈上，不是互相分開的。
+
+| 鏈 | 串的是什麼 | 包含哪些 Hook |
+|---|---|---|
+| Hook 鏈（`Hook.next`，單向，尾巴是 `null`） | 元件裡每一個會建立節點的 Hook，依呼叫順序 | `useState`、`useReducer`、`useRef`、`useMemo`、`useCallback`、`useId`、`useTransition` 等，也包含 `useEffect`、`useLayoutEffect`、`useInsertionEffect`、`useImperativeHandle`。`useContext` 不在裡面，它只讀 context，不建立節點 |
+| Effect 環（`Effect.next`，環） | 其中會產生 Effect 物件的那幾個 Hook 的 Effect 物件，依呼叫順序 | `useEffect`、`useLayoutEffect`、`useInsertionEffect`、`useImperativeHandle` |
+
+所以一個 `useEffect` 會有兩個位置：它在 Hook 鏈上有一節 Hook，這一節的 `memoizedState` 指向 Effect 物件，同一個 Effect 物件又被串在 Effect 環上（掛在 `fiber.updateQueue.lastEffect`）。commit 時 React 只要走 Effect 環就能找到所有要處理的 Effect，不用走完整條 Hook 鏈，這是我依程式碼做的推論，不是官方說明。
 
 為什麼用環而不是一般鏈：只要記一個 `lastEffect` 指標，`lastEffect.next` 就是第一個，往尾端新增也只要改兩個指標。這是我依程式碼做的推論，不是 React 官方說明。
 
