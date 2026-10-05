@@ -42,6 +42,16 @@ Effect 指的是「由渲染本身引起、需要和外部系統同步」的程�
 | 事件處理器 | 使用者的某個操作 | 可以 | 按下按鈕後送出表單 |
 | Effect | 元件 commit 到畫面上這件事本身 | 可以，而且負責同步外部系統 | 元件出現時連上聊天室 |
 
+**Effect 到底是什麼？同一個詞有三個層次，最常被搞混：**
+
+| 層次 | 它是什麼 | 例子 |
+|---|---|---|
+| 概念 | 讓元件和外部系統保持同步的一段邏輯，由「元件出現在畫面上」這件事本身引起 | 元件出現時連上聊天室，消失時斷線 |
+| 你寫的 API | `useEffect(setup, deps)` 這個 Hook，用來宣告一個 Effect | `useEffect(() => { ... }, [roomId])` |
+| React 內部的資料 | Fiber 上的 Effect 物件 `{ create, deps, inst, next }` | `create` 存著 setup 函式，`inst.destroy` 存著 cleanup 函式 |
+
+大寫的 Effect 是 React 的專有詞，指上面這個「同步」的概念。小寫的 side effect（副作用）是一般程式設計的詞，泛指「改動函式以外世界」的行為，例如改 DOM、發請求。Effect 是用來安放那些副作用的地方。
+
 Effect 的心智模型只有兩個動作：「開始同步」（setup）與「停止同步」（cleanup）。
 它不等於元件的 mount、update、unmount 生命週期，所以 deps 變了會停止再開始，元件根本沒 unmount 也一樣。
 
@@ -199,6 +209,19 @@ React 在元件第一次掛載後，故意模擬一次「卸載再重新掛載�
 | 雙重 render | 元件函式本體被呼叫兩次 | 每一次 render，包含每次 `setState` 後的 re-render | 抓出不純的 render，見 [[01-React-純函數與嚴格模式-StrictMode]] |
 | Effect 多一輪 | setup → cleanup → setup | 只在掛載那一次 | 抓出沒寫對的 cleanup |
 
+**這個「多一輪」是第二次執行 `useEffect` 嗎？不是，是把同一個 Effect 的 setup 與 cleanup 再跑一輪：**
+
+| 項目 | 為了這一輪有沒有再來一次 |
+|---|---|
+| `useEffect(...)` 這行 Hook 呼叫（登記 setup 與 deps） | 沒有，它是 render 時的事 |
+| Effect 物件 | 沒有新建，還是同一個，`inst` 也是同一個 |
+| setup 函式 | 多跑一次 |
+| cleanup 函式 | 跑一次 |
+
+實作上，commit 完成後 React 對「剛掛載、且位於 StrictMode 內」的 fiber 呼叫 `doubleInvokeEffectsOnFiber`，裡面是兩步：先 `disconnectPassiveEffect`（模擬卸載，會呼叫 cleanup），再 `reconnectPassiveEffects`（模擬重新掛載，會呼叫 setup）。
+因為用的是同一個 Effect 物件，這一輪 setup 抓到的仍是同一次 render 的 props 與 state。
+這跟 StrictMode 的雙重 render 是兩回事：雙重 render 會讓元件函式（含 `useEffect(...)` 那一行）被呼叫兩次，但那只是登記，不會執行 setup。
+
 **官方說的 visible issues（使用者看得見的問題）就是：cleanup 沒把 setup 做的事復原，多出來的那一輪就留下殘骸。**
 你的推論是對的：出現這種問題，就代表 cleanup 該去停止或取消 setup 剛剛建立的東西。順帶一提，這裡的 setup 是「連線的函式」，不是 class 的「建構函式」（constructor）。
 
@@ -310,4 +333,5 @@ useRef 與 Vue `ref` 的差異見 [[useRef與Vue的ref-value-可變值不觸發�
 | MDN：`HTMLDialogElement.showModal()` | https://developer.mozilla.org/en-US/docs/Web/API/HTMLDialogElement/showModal | 該頁面內連結，未重新抓取 |
 | React 官方文件：useEffect 的 Caveats 與 Troubleshooting（StrictMode 額外一輪 setup → cleanup、visible issues、rule of thumb 原文） | https://react.dev/reference/react/useEffect | 依 2026-10-04 貼入的全文，原文逐字引用 |
 | React 官方文件：`hydrateRoot`（hydration 認領既有 DOM 的定義，依本 repo SSR 筆記整理） | https://react.dev/reference/react-dom/client/hydrateRoot | 該筆記 2026-09-15 查證，本次未重新抓取 |
+| React 原始碼 `ReactFiberWorkLoop.js`（`doubleInvokeEffectsOnFiber`、`disconnectPassiveEffect`、`reconnectPassiveEffects`） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js | main 分支，2026-10-05 實際抓取核對 |
 | Abby 的追問對話（Gemini） | https://gemini.google.com/app/5b6fc934e5d7f253 | 本次無法讀取，僅作索引 |
