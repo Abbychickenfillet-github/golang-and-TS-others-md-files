@@ -44,8 +44,8 @@ code{background:#f1ede6;border-radius:5px;padding:0 4px;font-size:14px}
 </head>
 <body>
 <div id="art">
-  <h1>🎒 Heap 上的 Context：閉包的「背包」</h1>
-  <div class="sub">一般區域變數住在 Stack 的罐頭裡，罐頭彈出就消失。若內層函式還會用到它，引擎就把它裝進 Heap 上的 Context（背包），函式物件再背著這個背包走。<br>以 &lt;ChatRoom /&gt; 的 useEffect 為例，顏色對應：<span class="v b">藍 = Context ①（ChatRoom 那一次 render 的背包）</span> <span class="v p">紫 = Context ②（setup() 那一次呼叫的背包）</span></div>
+  <h1>🎒 Heap 上的 Context 物件（捕捉變數）：閉包的「背包」</h1>
+  <div class="sub">一般區域變數住在 Stack 的罐頭裡，罐頭彈出就消失。若內層函式還會用到它，引擎就把它裝進 Heap 上的 Context 物件（背包），函式物件再背著這個背包走。<b>Context 記住的是「內部函式引用的外部變數」，也就是閉包捕捉的環境資料，不是函式本身</b>。<br>以 &lt;ChatRoom /&gt; 的 useEffect 為例，顏色對應：<span class="v b">藍 = Context ①（ChatRoom 那一次 render 的背包）</span> <span class="v p">紫 = Context ②（setup() 那一次呼叫的背包）</span></div>
 
   <div class="cols">
     <div class="card code">
@@ -76,20 +76,20 @@ code{background:#f1ede6;border-radius:5px;padding:0 4px;font-size:14px}
     <div class="card heap">
       <h2>🏠 Heap（一直都在）</h2>
       <div class="eff">Effect 物件
-        <div class="fn"><span>create ➜</span><div class="fnb s">🔌 setup 函式（JSFunction）</div><span class="tag b">🎒 context ➜ ①</span></div>
-        <div class="fn"><span>inst.destroy ➜</span><div class="fnb c">🧹 cleanup 函式（JSFunction）</div><span class="tag p">🎒 context ➜ ②</span></div>
+        <div class="fn"><span>create ➜</span><div class="fnb s">🔌 setup 函式（JSFunction）</div><span class="tag b">🎒 Context（捕捉變數）➜ ①</span></div>
+        <div class="fn"><span>inst.destroy ➜</span><div class="fnb c">🧹 cleanup 函式（JSFunction）</div><span class="tag p">🎒 Context（捕捉變數）➜ ②</span></div>
       </div>
-      <div class="ctx p">🎒 Context ②（setup() 那一次呼叫）
+      <div class="ctx p">🎒 Context ②（捕捉變數）｜setup() 那一次呼叫
         <div class="slot">scope_info <em>描述有哪些變數</em></div>
         <div class="slot">previous <em>➜ Context ①</em></div>
-        <div class="slot">connection <em>= 連線物件 { connect, disconnect }</em></div>
+        <div class="slot">connection <em>＝ 被捕捉的變數：連線物件 { connect, disconnect }</em></div>
       </div>
       <div class="prev">⬇️ previous（往外一層）</div>
-      <div class="ctx b">🎒 Context ①（ChatRoom() 那一次 render）
+      <div class="ctx b">🎒 Context ①（捕捉變數）｜ChatRoom() 那一次 render
         <div class="slot">scope_info</div>
         <div class="slot">previous <em>➜ 外層（模組與全域）的 Context</em></div>
-        <div class="slot">roomId <em>= 'general'</em></div>
-        <div class="slot">serverUrl <em>= 'https://localhost:1234'</em></div>
+        <div class="slot">roomId <em>＝ 被捕捉的變數：'general'</em></div>
+        <div class="slot">serverUrl <em>＝ 被捕捉的變數：'https://localhost:1234'</em></div>
       </div>
     </div>
   </div>

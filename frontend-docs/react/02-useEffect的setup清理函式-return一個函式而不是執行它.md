@@ -208,11 +208,16 @@ e. 幾秒或幾分鐘後 React 呼叫清理函式時，它才去讀那塊記憶�
 
 <mark style="background: #BBFABBA6;">一句話：清理函式能關掉「當初那一個」計時器，靠的不是 React 記得，而是 JS 閉包把 `id` 從 Stack 搬到了 Heap。</mark>
 
+> [!important] Context 物件（捕捉變數）記的是什麼：<mark style="background: #FFF3A3A6;">內部函式所引用的外部變數</mark>
+> 也就是<mark style="background: #BBFABBA6;">閉包所捕捉的環境資料</mark>，<mark style="background: #FF5582A6;">而不是函式本身</mark>。
+> 函式物件另外存在 Effect 物件的 `create` 與 `inst.destroy`，它只是「背著」一個 Context 的位址。
+> 圖中凡是 Context 旁邊標「（捕捉變數）」，指的就是這個意思。
+
 **Heap 上的 Context（背包）長什麼樣：**
 
 | 名稱 | 白話 | 依據 |
 |---|---|---|
-| Context | Heap 上的物件，裝「被內層函式抓住的變數」 | V8 原始碼 `contexts.h` |
+| Context 物件（捕捉變數） | Heap 上的物件，裝「被內層函式抓住的變數」，不是函式本身 | V8 原始碼 `contexts.h` |
 | JSFunction | 函式物件，本質是 `(context, 程式碼)` 的組合，所以每個函式都背著一個 Context | 同上，原文：*JSFunctions are pairs (context, function code), sometimes also called closures* |
 | Context 的固定欄位 | `scope_info`（描述有哪些變數）、`previous`（指向外一層的 Context）、`extension`（額外資料），之後才是變數本身 | 同上 |
 | 建立時機 | 進入函式的那一刻建立，不是建立閉包時，所以每次呼叫都有全新的一份 | 2012 年 Vyacheslav Egorov 的文章，⚠️ 年代久遠，且原文無法開啟，只讀到搜尋摘要，概念仍通用 |

@@ -174,6 +174,9 @@ footer a{color:var(--accent)}
   .rt-fn.show{display:block}
   .rt-fn small{display:block;font-weight:400;color:var(--muted);font-size:.78rem}
   .rt-link{color:#d98324;font-weight:800}
+  .rt-ctx{display:none;border:3px solid #8a4fd6;background:#f0e6ff;border-radius:10px;padding:6px 10px;margin-top:8px;font-size:.84rem;font-weight:700}
+  .rt-ctx.show{display:block}
+  .rt-ctx small{display:block;font-weight:400;color:var(--muted);font-size:.78rem}
   .rt-con{background:#1f2430;color:#9fe3b0;border-radius:8px;padding:7px 12px;font-family:Consolas,monospace;font-size:.84rem;margin-top:10px;min-height:2.2em}
   .rt-say{margin-top:10px;border-left:5px solid var(--accent);background:#eef0ff;border-radius:0 8px 8px 0;padding:9px 13px;font-size:.93rem}
   .rt-say b{color:#c0283f}
@@ -187,6 +190,7 @@ footer a{color:var(--accent)}
         <div class="rt-row">create <small id="rt-create">＝ setup 函式（render 時就存好了）</small></div>
         <div class="rt-row">inst.destroy <small id="rt-destroy">＝ undefined（還沒有 cleanup）</small></div>
         <div class="rt-fn" id="rt-fn">🧹 <code>() =&gt; clearInterval(id)</code><small id="rt-fnsub"></small></div>
+        <div class="rt-ctx" id="rt-ctx">🎒 Context 物件（捕捉變數）：<code>id = 7</code><small>記的是 cleanup 函式引用到的外部變數，不是函式本身。上面那個函式物件只是「背著」它的位址</small></div>
       </div>
     </div>
     <div class="rt-con" id="rt-con"></div>
@@ -198,7 +202,7 @@ footer a{color:var(--accent)}
     var steps=[
       {t:"① React 呼叫 setup()",line:1,stack:[["React 的 commit 函式",""],["setup()","top"]],fn:0,destroy:"＝ undefined（還沒有 cleanup）",con:"計時器 id = 7 已啟動",say:"setup 的第一行在做事：<b>開始同步</b>（啟動計時器）。這是真的在執行。"},
       {t:"② 執行到 return 這一行",line:2,stack:[["React 的 commit 函式",""],["setup()","top"]],fn:1,fnsub:"剛在 Heap 建立，還沒交給任何人",destroy:"＝ undefined（還是空的）",con:"（沒有任何新輸出：clearInterval 一次都沒被呼叫）",say:"<b>return 這一刻只是「建立」一個函式物件</b>，放在 Heap，<b>沒有執行它</b>。箭頭函式本體裡的 clearInterval(id) 要等到有人呼叫它才會跑。"},
-      {t:"③ setup() 回傳：交給 React",line:3,stack:[["React 的 commit 函式",""]],fn:1,fnsub:"已被 React 收下，背著 id = 7",destroy:"<span class='rt-link'>➜ 指向上面那個 cleanup 函式</span>（React 把它存進來了）",con:"（仍然沒有新輸出）",say:"<b>return 對應的動作，就是「把這個函式交給呼叫 setup 的 React」</b>。React 把它存進 Effect 物件的 inst.destroy。此時 setup() 罐頭已彈出，Stack 上沒有任何 cleanup。"},
+      {t:"③ setup() 回傳：交給 React",line:3,stack:[["React 的 commit 函式",""]],fn:1,fnsub:"已被 React 收下，背著 Context（捕捉變數）：id = 7",destroy:"<span class='rt-link'>➜ 指向上面那個 cleanup 函式</span>（React 把它存進來了）",con:"（仍然沒有新輸出）",say:"<b>return 對應的動作，就是「把這個函式交給呼叫 setup 的 React」</b>。React 把它存進 Effect 物件的 inst.destroy。此時 setup() 罐頭已彈出，Stack 上沒有任何 cleanup。"},
       {t:"④ 之後 deps 改變：React 呼叫 cleanup",line:-1,stack:[["React 的 commit 函式",""],["cleanup()","cl"]],fn:1,fnsub:"正在被 React 呼叫",destroy:"＝ undefined（React 先清空，再呼叫它）",con:"clearInterval(7) 被呼叫，計時器停止",say:"cleanup 是被 React「另一次」呼叫的，<b>從來沒有跟 setup() 同時在 Stack 上</b>。直到這一步，clearInterval 才真的執行。"}
     ];
     var $=function(i){return document.getElementById(i)};
@@ -210,6 +214,7 @@ footer a{color:var(--accent)}
       $("rt-code").innerHTML=code.map(function(c,k){return "<div class='"+(k===st.line?"hl":"")+"'>"+c.replace(/</g,"&lt;").replace(/>/g,"&gt;")+"</div>"}).join("");
       $("rt-stack").innerHTML=st.stack.length?st.stack.map(function(c){return "<div class='rt-can "+c[1]+"'>🥫 "+c[0]+(c[1].indexOf("top")>-1||c[1]==="cl"?" ⬅️ 執行中":"")+"</div>"}).join(""):"<div class='rt-empty'>stack 是空的</div>";
       $("rt-fn").className="rt-fn"+(st.fn?" show":"");
+      $("rt-ctx").className="rt-ctx"+(st.fn?" show":"");
       $("rt-fnsub").textContent=st.fnsub||"";
       $("rt-destroy").innerHTML=st.destroy;
       $("rt-con").textContent="> "+st.con;
@@ -296,7 +301,7 @@ footer a{color:var(--accent)}
     <div>
       <h3>被內層函式引用（本篇的情況）</h3>
       <p style="font-size:.93rem">引擎在 Parse 階段的 Scope Analysis 就判定它會逃逸，改配置在
-      <span class="hl-g">Heap 上的 Context 物件</span>。setup 的 Execution Context 拆掉之後，
+      <span class="hl-g">Heap 上的 Context 物件（捕捉變數）</span>。setup 的 Execution Context 拆掉之後，
       <code>id</code> 依然活著，直到沒人引用才被 GC 回收。</p>
     </div>
   </div>
@@ -344,7 +349,7 @@ type EffectInstance = {
     <div class="q">2. 清理函式能關掉「當初那一個」計時器，是因為 <code>id</code> 被閉包捕獲後配置在 Heap 上。</div>
     <button data-v="true">○ 是</button><button data-v="false">✗ 非</button>
     <div class="fb"></div>
-    <div class="exp" hidden>對。引擎在 Scope Analysis 就判定 <code>id</code> 會逃逸，把它放進 Heap 上的 Context 物件，所以 setup 函式的 Stack Frame 彈掉之後它依然存活。</div>
+    <div class="exp" hidden>對。引擎在 Scope Analysis 就判定 <code>id</code> 會逃逸，把它放進 Heap 上的 Context 物件（捕捉變數），所以 setup 函式的 Stack Frame 彈掉之後它依然存活。</div>
   </div>
 
   <div class="tf" data-ans="false">
@@ -391,7 +396,7 @@ type EffectInstance = {
         <li><b>是什麼</b>：<code>useEffect</code> 的 setup 函式可以選擇性地回傳一個函式，React 官方稱它 cleanup function，存在該 effect 的 <code>inst.destroy</code> 欄位。</li>
         <li><b>為什麼需要</b>：effect 常會建立「持續存在的東西」——計時器、事件監聽器、WebSocket 連線、訂閱。這些不會隨元件消失而自動消失，必須主動關掉，否則就是記憶體洩漏。</li>
         <li><b>什麼時候被呼叫</b>：卸載後、每次重跑 setup 之前、以及 StrictMode 開發模式下掛載後多跑的那一輪。順序永遠成對交錯。</li>
-        <li><b>底層原理</b>：cleanup 靠閉包抓住 setup 當次的區域變數。這些變數因為被捕獲而配置在 Heap 的 Context 物件而非 Stack，所以 setup <code>return</code> 之後依然活著，直到 cleanup 被呼叫、effect 卸載、沒人引用，才被 GC 回收。</li>
+        <li><b>底層原理</b>：cleanup 靠閉包抓住 setup 當次的區域變數。這些變數因為被捕獲而配置在 Heap 的 Context 物件（捕捉變數）而非 Stack，所以 setup <code>return</code> 之後依然活著，直到 cleanup 被呼叫、effect 卸載、沒人引用，才被 GC 回收。</li>
       </ol>
     </div>
   </div>
