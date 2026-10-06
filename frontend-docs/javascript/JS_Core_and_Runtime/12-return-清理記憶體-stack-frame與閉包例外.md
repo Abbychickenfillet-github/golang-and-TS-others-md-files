@@ -69,11 +69,15 @@ updated: 2026-07-31
 |---|---|---|
 | **What** 是什麼 | `return` 到底清掉了什麼？ | <mark style="background: #BBFABBA6;">只有 Stack 上這一層 Stack Frame</mark>：返回位址、Saved Frame Pointer、參數、沒被捕獲的區域變數。<mark style="background: #FF5582A6;">Heap 一根寒毛都沒被動到</mark> |
 | **When** 什麼時候 | 什麼時候清？ | <mark style="background: #FF5582A6;">執行期</mark>，`return` 執行的那個當下，引擎<mark style="background: #BBFABBA6;">立即、自動、同步</mark>地把這次呼叫的 Stack Frame pop 掉，跟 GC 那種「不定時、不可預測」是兩套完全不同的節奏（push 發生在呼叫的那一刻，次數的算法見下方「一句話驗證法」第 2 點） |
-| **Who** 誰做的 | 誰負責清？ | 引擎與 CPU 的<mark style="background: #ADCCFFA6;">固定機制</mark>——把 Stack Pointer 移回去、還原 Base Pointer 就結束了（見本篇第 5 節組合語言視角）。<mark style="background: #FF5582A6;">不是 GC</mark>，GC 從頭到尾不管 Stack |
+| **Who** 誰做的 | `return` 的效果由哪幾層分工完成？ | 三層分工：<mark style="background: #ADCCFFA6;">**ECMAScript 規格**</mark>定義 `return` 的語意：結束目前函式、把回傳值交給呼叫者，並把正在執行的 execution context 從 execution context stack 移除。<mark style="background: #ADCCFFA6;">**V8**</mark>把這個語意實作成 Bytecode `Return` 與機器碼的函式結尾，負責拆掉 Stack Frame。<mark style="background: #ADCCFFA6;">**CPU**</mark>執行 `mov rsp, rbp`、`pop rbp`、`ret`，只移動 SP 與 BP 兩個暫存器。<mark style="background: #BBFABBA6;">**清掉 Stack Frame 的動作就是這兩個指標的移動**</mark>，GC 只管 Heap，不參與（動畫見下方） |
 | **Where** 在哪裡 | 東西各自住在哪？ | a. Stack Frame → Call Stack；b. 物件實體 → Heap；c. <mark style="background: #FFF3A3A6;">被閉包捕獲的綁定 → Heap 上的 Context 物件</mark>，由那個閉包函式的 context 欄位指著（V8 裡每個函式物件都是 `JSFunction`，即 `(context, 程式碼)` 的組合） |
 | **Which** 哪一種 | 哪些東西會跟著 Frame 一起消失？ | a. 沒被捕獲的參數與區域原始值 → <mark style="background: #BBFABBA6;">立即消失</mark>；b. 指向 Heap 的指標格子 → 格子消失，但 Heap 實體毫髮無傷；c. 被捕獲的綁定 → <mark style="background: #FF5582A6;">根本不在 Frame 裡</mark>，不受影響 |
 | **How** 怎麼做到 | `return` 的完整動作是什麼？ | 三件幾乎同時發生的事：① 算出回傳值 → ② 把值與控制權一起交還呼叫者 → ③ 這個 Frame 被 pop。呼叫者不是「收到後才醒來」，它<mark style="background: #ADCCFFA6;">本來就凍在那一行等著</mark>，`return` 是結束等待的那一刻 |
 | **Why** 為什麼 | 為什麼 Stack 可以清得這麼粗暴？ | 因為 <mark style="background: #BBFABBA6;">LIFO</mark>：最後 push 的一定最先 pop，生命週期規律到可以預測，<mark style="background: #ADCCFFA6;">把指標往回移一格就等於全部清空</mark>，完全不需要逐一判斷誰還活著。Heap 沒有這種規律，才需要 GC |
+
+上表 Who 那一列的動畫：`return` 時 SP 與 BP 依序怎麼移動（x86-64 函式結尾 `mov rsp, rbp` → `pop rbp` → `ret`）。
+
+![return 時 SP 與 BP 的移動（每步 2 秒，循環播放）](../../../obsidian-attachment/return時SP與BP移動_動畫_2026-10-06.svg)
 
 ### 時間軸：這件事發生在哪一格
 
@@ -441,6 +445,10 @@ next(); // 2  ← count 還活著!沒有歸零、沒被清
 - **Base Pointer（BP，有些教材叫 Frame Pointer／FP）**：也是 CPU 的一個暫存器，裡面存的值是**這個函式 frame 一開始建立時的位址**，進入函式的當下把當時的 SP 存進 BP，之後整個函式執行期間 BP 都不會變——這就是「地板」，讓函式內部可以用固定的 offset（例如「BP 往回數 2 格」）去存取參數、區域變數，不會因為函式執行過程中 SP 一直變動而找不到東西。
 - 呼叫愈多層函式，SP 會不斷往「數字更小」的方向疊上去；每進入一層新函式，BP 就會被重新設成當時的 SP，標記這一層 frame 專屬的地板；`return` 時再把 BP 還原成呼叫者的舊 BP（圖裡 `0xFFFC` 那格「上一層呼叫者的 BP 備份」存的就是這個）。
 
+![return 時 SP 與 BP 的移動（每步 2 秒，循環播放）](../../../obsidian-attachment/return時SP與BP移動_動畫_2026-10-06.svg)
+
+⚠️ 上方簡化圖把「呼叫者 BP 備份」（0xFFFC）畫在返回位址（0xFFFB）的下方。實際 x86-64 是 `call` 先 push 返回位址，`push rbp` 才存 BP 備份，所以 BP 備份的位址比返回位址小，上面動畫是這個順序。
+
 **(iii) 追問：`mov edi, 3`這行字本身是機器碼嗎？右邊`bf 03 00 00 00`又是什麼？**
 
 不是，`mov edi, 3`是**組合語言（Assembly）的助憶符（mnemonic）**，是寫給人看的、好記的文字版本；CPU真正讀進去執行的，是右邊那串十六進位數字`bf 03 00 00 00`，這才是**機器碼（Machine Code）**。兩者是同一件事的兩種表示法，一一對應：組譯器（Assembler）負責把助憶符翻成機器碼；反組譯器（Disassembler，這張截圖做的事）則反過來，把機器碼翻回人看得懂的助憶符——截圖裡左邊位址、中間助憶符、右邊十六進位機器碼，其實是同一份程式的三種呈現方式，同時列出來對照用。
@@ -727,6 +735,9 @@ f. **追問延伸：10的9次方是2的幾次方？** 答案不是一個整數�
 ## 資料來源（含查證時間）
 | 主題 | 連結／說明 | 版本／時間 |
 |---|---|---|
+| ECMAScript 規格：函式 `[[Call]]` 結束時「Remove calleeContext from the execution context stack」 | https://tc39.es/ecma262/#sec-ecmascript-function-objects-call-thisargument-argumentslist | 2026-10-06 讀取 tc39/ecma262 main 的 spec.html |
+| V8 `src/interpreter/interpreter-generator.cc`：`IGNITION_HANDLER(Return…)` 回傳 accumulator | https://github.com/v8/v8/blob/main/src/interpreter/interpreter-generator.cc | 2026-10-06 讀取 main 分支 |
+| V8 `src/builtins/x64/builtins-x64.cc`：`LeaveInterpreterFrame` 內呼叫 `leave` 拆掉 Frame | https://github.com/v8/v8/blob/main/src/builtins/x64/builtins-x64.cc | 2026-10-06 讀取 main 分支 |
 | V8 `src/objects/contexts.h`（JSFunction 是 (context, code)、ScriptContext、native context 的 extension 放全域物件） | https://github.com/v8/v8/blob/main/src/objects/contexts.h | 2026-10-06 讀取 main 分支 |
 | Preparser、lazy parsing、Variable allocation、PIFE | https://v8.dev/blog/preparser | 發表 2019-04-15，2026-10-06 查證（讀取 v8/v8.dev 倉庫原始檔） |
 | Bytecode flushing | https://v8.dev/blog/v8-release-74 | 發表 2019-03-22，2026-10-06 查證 |
