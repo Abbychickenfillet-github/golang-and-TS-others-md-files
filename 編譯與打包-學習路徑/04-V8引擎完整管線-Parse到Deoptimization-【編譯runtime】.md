@@ -111,7 +111,7 @@ flowchart TD
   | Additionally, many web pages ship code that's only used by certain features which may not be accessed by a user at all during any individual run of the page. | 例如結帳頁、後台管理功能的程式碼，使用者這一次載入頁面可能根本不會點到 |
   | Eagerly compiling code unnecessarily has real resource costs: | eagerly 是「迫切」，意思是不管用不用得到都先編譯。下面三條是它的代價 |
   | CPU cycles are used to create the code, delaying the availability of code that's actually needed for startup. | main thread 一次只能做一件事，每花一段 CPU 時間去編譯啟動時用不到的函式，真正要用的函式就晚一點才輪到。availability 是「可用性」，指程式碼何時能被執行（與 GC 的可達性 reachability 是不同概念）。that's actually needed for startup 修飾 code，指「啟動時真的需要的那些程式碼」 |
-  | Code objects take up memory, at least until bytecode flushing decides that the code isn't currently needed and allows it to be garbage-collected. | 編好的 Bytecode 會佔 V8 heap 的記憶體。bytecode flushing 的做法（[V8 v7.4 發佈說明](https://v8.dev/blog/v8-release-74)，2019-03-22）：V8 為每個函式的 bytecode 記錄「年齡」，每次 GC 年齡加一，函式被執行時歸零，超過門檻的 bytecode 在下一次 GC 被回收，函式變回尚未編譯，之後再被呼叫才重新 lazy compile。它依「最近有沒有被執行」判斷，與 scope chain 的可達性是兩個機制（可達性決定物件能不能被 GC）。官方量測 bytecode 約占 V8 heap 的 15%，flushing 省下 5 到 15% |
+  | Code objects take up memory, at least until bytecode flushing decides that the code isn't currently needed and allows it to be garbage-collected. | 編好的 Bytecode 會佔 V8 heap 的記憶體。bytecode flushing 的做法（[V8 v7.4 發佈說明](https://v8.dev/blog/v8-release-74)，2019-03-22）：被 GC 回收的只有函式編好的 Bytecode，函式物件與它的 SharedFunctionInfo 仍然可達，不會被回收。回收前先判斷這份 Bytecode 是否「最近沒被執行」：v7.4 的做法是為 Bytecode 記錄「年齡」，每次 GC 時沒被執行就加一，被執行就歸零，累積超過門檻（連續好幾次 GC 都沒被執行）才在 GC 時回收。回收後函式變回尚未編譯，下次被呼叫才重新 lazy compile。這個判斷與 scope chain 的可達性是兩個機制（可達性決定物件能不能被 GC）。現行 V8 main 的旗標 `bytecode_old_time` 預設 180（秒），描述為「flush of bytecode when it has not been executed recently」，判定看起來已改為以時間為準，本篇未逐行驗證實作。官方量測 bytecode 約占 V8 heap 的 15%，flushing 省下 5 到 15% |
   | Code compiled by the time the top-level script finishes executing ends up being cached on disk, taking up disk space. | 這是 Chrome 的 code cache（[Code caching for JavaScript developers](https://v8.dev/blog/code-caching-for-devs)，2019-04-08）。同一支 script 第二次載入時，Chrome 把編好的結果序列化，附在 HTTP cache 的檔案旁。「頂層腳本執行完時已編譯的函式」都會進 cache，所以不必要的 eager compile 也會一起佔磁碟。這整段都是 runtime 的 V8 與 Chrome 在做的事 |
 
   跟 Critical Rendering Path（CRP，瀏覽器把 HTML 變成畫面的 DOM、CSSOM、render tree、layout、paint 這條路）的關係：官方這篇沒有談 render。兩者都是「啟動時的必經路」，而且會重疊，因為沒加 `async`、`defer` 的 script 會擋住 HTML 的 parse，它的下載、parse、compile、執行都得做完，後面的畫面才能繼續，所以會推遲首次繪製。這個連結是我的推論，不是官方原文。相關：[[FCP首次內容繪製-SEO爬蟲與打包五步驟]]。
@@ -506,6 +506,7 @@ flowchart LR
 
 | 主題 | 連結 | 版本／時間 |
 |---|---|---|
+| Bytecode flushing 現行旗標（`flush_bytecode`、`bytecode_old_time = 180` 秒）與 `FlushSFI` 把 BytecodeArray 原地轉成 UncompiledData | https://github.com/v8/v8/blob/main/src/flags/flag-definitions.h 、https://github.com/v8/v8/blob/main/src/heap/mark-compact.cc | 2026-10-06 讀取 main 分支 |
 | Preparser、lazy parsing、Variable allocation、PIFE | https://v8.dev/blog/preparser | 發表 2019-04-15，2026-10-06 查證（讀取 v8/v8.dev 倉庫原始檔） |
 | Scanner、AST 與 Ignition 的關係 | https://v8.dev/blog/scanner | 發表 2019-03-25，2026-10-06 查證 |
 | Bytecode flushing | https://v8.dev/blog/v8-release-74 | 發表 2019-03-22，2026-10-06 查證 |
