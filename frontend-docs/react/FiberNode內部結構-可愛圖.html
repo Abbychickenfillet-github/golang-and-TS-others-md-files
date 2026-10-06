@@ -99,6 +99,20 @@ td:first-child{width:44px;font-size:26px}
 .car.ih{background:#d9f7f3;border-color:#3fb8af}
 .pop.h{background:#e9fbf8;border-color:#3fb8af}
 .nest.nh2{background:#c9f2ec;border-color:#2aa79d}
+.legend{margin-top:26px;background:#fffdf0;border-color:#ffd35c}
+.legend h2{margin:0 0 4px;font-size:25px}
+.lgcap{font-size:15px;color:#7a6a5f;font-weight:600;margin-bottom:10px;line-height:1.5}
+.lgrow{display:flex;gap:16px}
+.lg{flex:1;min-width:0;background:#fff;border-radius:20px;padding:12px 16px;border:4px solid;font-size:15px;line-height:1.55;font-weight:600}
+.lg h3{margin:0 0 6px;font-size:20px}
+.lg .when{display:inline-block;border-radius:999px;padding:1px 10px;font-size:13px;font-weight:800;color:#fff;margin-bottom:6px}
+.lg code{background:#f3eee6;border-radius:6px;padding:0 5px;font-size:13.5px}
+.lg .ex{margin-top:6px;background:#faf6ee;border-radius:12px;padding:6px 10px;font-size:13.5px}
+.lg .why{margin-top:6px;color:#4c7d96;font-size:13.5px}
+.lg1{border-color:#8fd16a}.lg1 .when{background:#4aa02c}
+.lg2{border-color:#ffb800}.lg2 .when{background:#d98c00}
+.lg3{border-color:#b79cff}.lg3 .when{background:#7a52e0}
+.lg4{border-color:#3fb8af}.lg4 .when{background:#2aa79d}
 </style>
 </head>
 <body>
@@ -242,6 +256,16 @@ td:first-child{width:44px;font-size:26px}
         <tr><td>💡</td><td>環在 Effect 清單與 pending 更新清單</td></tr>
         <tr><td>🎒</td><td>函式背的 Context（捕捉變數）住在 Heap，不在 Stack 罐頭裡</td></tr>
       </table>
+    </div>
+  </div>
+  <div class="card legend">
+    <h2>📖 這四個 Hook 各是什麼意思？（它們都在上方的 Effect 環裡）</h2>
+    <div class="lgcap">共同點：都是「React 做完某件事之後，請幫我跑一段我寫的程式」。差別只在「跑的時間點」不同，所以 Effect 物件上用 <code>tag</code> 旗標區分。React 每次 commit 依序處理：Insertion ➜ Layout ➜ Passive（畫面畫完才輪到）</div>
+    <div class="lgrow">
+      <div class="lg lg1"><h3>⚡ useEffect</h3><span class="when">Passive：畫面畫完之後</span><br>白話：「畫面更新完了，再去跟外面的世界對一下」。外面的世界指計時器、網路連線、瀏覽器事件監聽、第三方套件。<div class="ex">例：<code>useEffect(() =&gt; { const id = setInterval(tick, 1000); return () =&gt; clearInterval(id) }, [])</code>。掛載後開始計時，卸載時停掉</div><div class="why">為什麼在環裡：它就是最典型的 Effect，create ＝ 你寫的 setup，inst.destroy ＝ 你 return 的 cleanup</div></div>
+      <div class="lg lg2"><h3>📐 useLayoutEffect</h3><span class="when">Layout：DOM 改好、畫面還沒畫出來</span><br>白話：「我要在使用者看到畫面之前，先量尺寸或調位置」。因為它會擋住畫面繪製，所以只在不得不時用。<div class="ex">例：提示框要先量按鈕的位置與自己的高度，才知道該放上面還是下面。用 useEffect 會先閃一下錯的位置，用 useLayoutEffect 則使用者只看到對的位置</div><div class="why">為什麼在環裡：跟 useEffect 同一種 Effect 物件，只是 tag 是 Layout，所以跑得比較早</div></div>
+      <div class="lg lg3"><h3>🎨 useInsertionEffect</h3><span class="when">Insertion：最早，早於所有 Layout</span><br>白話：「在別人讀版面之前，先把 CSS 規則塞進頁面」。設計給 CSS-in-JS 套件的作者用，一般應用程式幾乎用不到。<div class="ex">例：樣式函式庫在這裡把 <code>&lt;style&gt;</code> 規則插入 <code>document.head</code>，後面的 useLayoutEffect 去量尺寸時，樣式已經生效。此時還讀不到 ref</div><div class="why">為什麼在環裡：同一種 Effect 物件，tag 是 Insertion。原始碼中它在 commit 的 mutation 階段執行</div></div>
+      <div class="lg lg4"><h3>🔌 useImperativeHandle</h3><span class="when">Layout：跟 useLayoutEffect 同時間</span><br>白話：「爸爸拿到我的 ref 時，只讓他看到我挑好的幾個方法」。原本 ref 會直接給出 DOM 節點，這個 Hook 讓子元件改成只露出 <code>focus()</code>、<code>reset()</code> 這類自己挑的功能。<div class="ex">例：<code>useImperativeHandle(ref, () =&gt; ({ focus() { inputRef.current.focus() } }), [])</code>。爸爸只能呼叫 <code>ref.current.focus()</code>，碰不到內部的 input</div><div class="why">為什麼在環裡：原始碼把它做成一個 Layout Effect：create 時做 <code>ref.current = 你的物件</code>，cleanup 時把 <code>ref.current</code> 設回 null</div></div>
     </div>
   </div>
 </div>

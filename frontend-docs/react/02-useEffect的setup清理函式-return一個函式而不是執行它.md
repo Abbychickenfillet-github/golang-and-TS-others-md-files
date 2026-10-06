@@ -294,6 +294,17 @@ React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放�
 3. 順序就是你在元件裡呼叫 `useEffect`、`useLayoutEffect`、`useInsertionEffect` 由上到下的順序，每次 render 開頭 `lastEffect`（掛在 `fiber.updateQueue` 上）會先重設成 `null` 再重建。
 4. 這條環只串「會產生 Effect 物件的 Hook」：`useEffect`、`useLayoutEffect`、`useInsertionEffect`，以及內部也靠 Effect 實作的 `useImperativeHandle`。`useState`、`useRef` 不產生 Effect，所以不在這條環裡。
 
+**這四個 Hook 各是什麼意思：** 它們的共同點是「React 做完某件事之後，請幫我跑一段我寫的程式」，差別只在跑的時間點，所以同一種 Effect 物件用 `tag` 旗標區分。每次 commit，React 依 Insertion、Layout、Passive 的順序處理（Passive 通常在畫面畫完之後，離散事件如點擊引發的更新可能同步 flush）。
+
+| Hook | 白話意思 | 什麼時候執行（`tag`） | 簡單例子 | 為什麼在環裡 |
+|---|---|---|---|---|
+| `useEffect` | 畫面更新完了，再去跟外面的世界（計時器、網路、事件監聽、第三方套件）對一下 | `Passive`，畫面畫完之後 | `useEffect(() => { const id = setInterval(tick, 1000); return () => clearInterval(id) }, [])`，掛載後開始計時，卸載時停掉 | 最典型的 Effect，`create` 是你寫的 setup，`inst.destroy` 是你 return 的 cleanup |
+| `useLayoutEffect` | 在使用者看到畫面之前，先量尺寸或調位置，會擋住繪製所以不得已才用 | `Layout`，DOM 改好之後、畫面還沒畫出來 | 提示框先量按鈕位置與自己的高度，決定放上面或下面。用 `useEffect` 會先閃一下錯的位置 | 同一種 Effect 物件，只是 `tag` 是 `Layout`，所以跑得比較早 |
+| `useInsertionEffect` | 在別人讀版面之前，先把 CSS 規則塞進頁面，設計給 CSS-in-JS 套件作者用，一般應用幾乎用不到 | `Insertion`，最早，早於所有 Layout。原始碼中它在 commit 的 mutation 階段執行，此時還讀不到 ref | 樣式函式庫在這裡把 `<style>` 規則插入 `document.head`，之後 `useLayoutEffect` 量尺寸時樣式已生效 | 同一種 Effect 物件，`tag` 是 `Insertion` |
+| `useImperativeHandle` | 爸爸拿到我的 `ref` 時，只讓他看到我挑好的幾個方法，不直接給出 DOM 節點 | `Layout`，跟 `useLayoutEffect` 同時間 | `useImperativeHandle(ref, () => ({ focus() { inputRef.current.focus() } }), [])`，爸爸只能呼叫 `ref.current.focus()`，碰不到內部的 input | 原始碼把它做成 Layout Effect：create 時 `ref.current = 你的物件`，cleanup 時設回 `null` |
+
+⚠️ 存疑：`useLayoutEffect` 與 `useInsertionEffect` 的「用途」描述來自我對官方文件的記憶，react.dev 被沙盒擋住無法當場查證，請對照官方頁面確認。執行階段（Insertion 在 mutation 階段、Layout 在 layout 階段）與 `useImperativeHandle` 的實作則已對照原始碼。
+
 **Hook 鏈（`Hook.next`）與 Effect 環（`Effect.next`）的關係：** Effect 類的 Hook 同時在兩條鏈上，不是互相分開的。
 
 | 鏈 | 串的是什麼 | 包含哪些 Hook |
