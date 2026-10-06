@@ -53,8 +53,8 @@ updated: 2026-07-31
 ◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
         （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
 
- ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤每次執行都重來
- transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
+ ①轉譯          ②打包            ③V8 Parse       ④Bytecode      ⑤每次執行都重來
+ transpile      bundle           (runtime)        產生            ↓↓↓↓↓↓↓↓↓↓
  ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
  │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ 執行到函式定義那行│
  │tsc     │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ ★ 生出一個函式物件│
@@ -102,7 +102,7 @@ flowchart LR
         T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
     end
     subgraph RT1["runtime 執行期 · 只做一次的部分"]
-        P["Parse 解析<br/>Scope Analysis：<br/>★ 決定哪些變數會被捕獲<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode"]
+        P["V8 的 Parse<br/>Scope Analysis：<br/>★ 決定哪些變數會被捕獲<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode"]
     end
     subgraph RT2["runtime 執行期 · 執行幾次就生幾份"]
         F["執行到函式定義那一行<br/>★ 生出函式物件<br/>★ 掛上 [[Environment]]<br/>＝ 閉包誕生"] --> RE["外層 return<br/>Stack Frame 被 pop<br/>Heap 的 Context 不受影響"]
@@ -124,9 +124,17 @@ flowchart LR
 
 想確認某件事在哪一格，問自己：<mark style="background: #BBFABBA6;">「這件事對同一個函式做幾次？」</mark>
 
-1. 只做一次 → 屬於 Parse／編譯期（第 ③ ④ 格），例如「決定 `count` 會被捕獲、要放 Heap」
+1. 只做一次 → 屬於 V8 的 Parse 與 Bytecode 產生（runtime，第 ③ ④ 格），例如「決定 `count` 會被捕獲、要放 Heap」
 
 2. 執行到幾次就做幾次 → 屬於執行期（第 ⑤ 格），例如「生出一個函式物件並掛上環境」
+
+上面第 1 點的「編譯」發生在 runtime，跟 buildtime 的打包是不同階段。對照如下（用詞約定見 [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】]]：buildtime 說「轉譯」，runtime 才說「編譯」）：
+
+| 階段 | 詞 | 誰做 | 什麼時候 | 做什麼 |
+|---|---|---|---|---|
+| 第 ① 格 | 轉譯（transpile） | Babel、tsc、SWC | buildtime，你的電腦或 CI | 原始碼轉成原始碼（JSX、TS 轉成 JS） |
+| 第 ② 格 | 打包（bundle） | webpack、Vite、Rollup | buildtime，你的電腦或 CI | 合併模組，輸出給瀏覽器的 bundle 檔 |
+| 第 ③ ④ 格 | 編譯（compile） | V8 的 Parse 與 Ignition | runtime，瀏覽器或 Node 載入腳本之後 | 原始碼文字 parse 成 AST，再編成 Bytecode，同時決定變數放 Stack 或 Heap |
 
 所以「每顆按鈕一個獨立計數器」能成立，靠的正是後者：`createCounter(buttonId)` 被呼叫幾次，就有<mark style="background: #FFF3A3A6;">幾份互不相干的 Context</mark>；如果閉包是在編譯期就定案的東西，這件事根本做不到。
 
