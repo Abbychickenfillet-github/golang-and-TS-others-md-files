@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>閉包在 buildtime 與 runtime 時間軸（可愛版）</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff7ec;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#4a3b32}
+#art{width:2400px;padding:34px 40px 36px;background:#fff7ec}
+h1{margin:0 0 4px;font-size:34px}
+.sub{font-size:18px;color:#8a7466;margin-bottom:20px}
+.zones{display:flex;align-items:stretch}
+.zone{border-radius:28px;padding:18px 22px 22px;border:5px solid}
+.zb{flex:0 0 700px;background:#eef3ff;border-color:#8fa8ff}
+.zr{flex:1;background:#e9f9e1;border-color:#8fd16a}
+.zt{font-size:25px;font-weight:800;margin:0 0 2px}
+.zs{font-size:15px;color:#7a6a5f;font-weight:600;margin-bottom:12px}
+.deploy{flex:0 0 96px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:19px;color:#c0283f;text-align:center}
+.deploy b{font-size:44px;line-height:1}
+.deploy i{display:block;width:6px;flex:1;margin:8px 0;background:repeating-linear-gradient(#c0283f 0 10px,transparent 10px 20px);border-radius:3px}
+.steps{display:flex;gap:14px;align-items:stretch}
+.st{flex:1;min-width:0;background:#fff;border:4px solid;border-radius:22px;padding:12px 14px;font-size:16px;line-height:1.55;font-weight:600}
+.st h3{margin:0 0 4px;font-size:21px}
+.no{display:inline-block;background:#4a3b32;color:#fff;border-radius:999px;padding:0 10px;font-size:15px;margin-right:6px}
+.sb{border-color:#8fa8ff}.sr3{border-color:#ff9ebb;background:#fff2f6}.sr4{border-color:#b79cff}.sr5{border-color:#ffb800;background:#fffbe6}
+.arr{align-self:center;font-size:30px;line-height:1}
+.star{background:#fff0a8;border:3px solid #ffb800;border-radius:14px;padding:5px 9px;margin-top:6px;font-size:15px;font-weight:800;color:#8a5a00}
+.plain{background:#eceff4;border:3px dashed #9aa5b8;border-radius:14px;padding:5px 9px;margin-top:6px;font-size:14.5px;font-weight:700;color:#5b6678}
+.tag{display:inline-block;border-radius:999px;padding:1px 10px;font-size:13px;font-weight:800;color:#fff;margin-bottom:4px}
+.tb{background:#2e6fd6}.tr{background:#d63c5a}.tg{background:#4aa02c}
+.seq{margin-top:6px;display:flex;flex-direction:column;gap:5px}
+.sq{border-radius:12px;padding:4px 10px;font-size:15px;font-weight:700;border:3px solid;background:#fff}
+.sq.a{border-color:#ffb800;background:#fff0a8}.sq.p{border-color:#8fd16a}.sq.h{border-color:#4cb8e8;background:#e3f4ff}.sq.g{border-color:#9aa5b8;border-style:dashed;background:#eceff4}
+.loop{margin-top:6px;font-size:15px;font-weight:800;color:#c0507a;text-align:center}
+.foot{margin-top:16px;border-radius:20px;padding:10px 16px;border:4px solid #ffb800;background:#fff;font-size:17px;font-weight:700;line-height:1.6}
+</style>
+</head>
+<body>
+<div id="art">
+  <h1>⏱️ 閉包在哪一格形成？時間軸：buildtime 到 runtime</h1>
+  <div class="sub">閉包的「形成」站在第 ⑤ 格，第 ③ 格只決定「誰要住 Heap」</div>
+  <div class="zones">
+    <div class="zone zb">
+      <div class="zt">🛠️ buildtime 建置期</div>
+      <div class="zs">你的電腦或 CI，部署前就跑完</div>
+      <div class="steps">
+        <div class="st sb"><span class="tag tb">buildtime</span><h3><span class="no">①</span>transpile</h3>Babel／tsc／SWC<div class="plain">詞法範疇在「你寫下程式碼」的那一刻就定了，但那是作者決定結構，不是這一格在做事</div></div>
+        <div class="arr">➡️</div>
+        <div class="st sb"><span class="tag tb">buildtime</span><h3><span class="no">②</span>bundle</h3>webpack／Vite／Rollup</div>
+      </div>
+    </div>
+    <div class="deploy"><i></i><b>🚀</b>部署<br>上線<i></i></div>
+    <div class="zone zr">
+      <div class="zt">🏃 runtime 執行期</div>
+      <div class="zs">瀏覽器或 Node 載入腳本之後</div>
+      <div class="steps">
+        <div class="st sr3"><span class="tag tr">runtime · 只做一次</span><h3><span class="no">③</span>V8 Parse</h3>Scanner ➜ Parser ➜ AST ➜ Scope Analysis<div class="star">★ 決定誰會被捕獲、該放 Heap 的 Context。每個函式只做一次，只做決策，不配置任何記憶體</div></div>
+        <div class="arr">➡️</div>
+        <div class="st sr4"><span class="tag tr">runtime · 只做一次</span><h3><span class="no">④</span>Bytecode</h3>Ignition 把 AST 編成 Bytecode</div>
+        <div class="arr">➡️</div>
+        <div class="st sr5"><span class="tag tg">runtime · 執行幾次生幾份</span><h3><span class="no">⑤</span>執行到函式定義</h3>
+          <div class="seq">
+            <div class="sq a">★ 生出一個函式物件，掛上 <code>[[Environment]]</code>，＝ 閉包誕生</div>
+            <div class="sq p">外層 return：Frame 被 pop，Heap 的 Context 不受影響</div>
+            <div class="sq h">只要還有人抓著它，就活到參照被切斷</div>
+            <div class="sq g">之後才輪到 GC 回收</div>
+          </div>
+          <div class="loop">🔁 再呼叫一次，又是全新一份</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">★ 第 ③ 格只決定「誰要住 Heap」，一個函式只決定一次。閉包本身是「執行到幾次就生幾份」，這就是為什麼每顆按鈕都能有自己的計數器。</div>
+</div>
+</body>
+</html>

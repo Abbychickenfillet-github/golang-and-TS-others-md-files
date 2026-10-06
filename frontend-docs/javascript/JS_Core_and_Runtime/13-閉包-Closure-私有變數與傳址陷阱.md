@@ -72,52 +72,13 @@ console.log(snap(1)());          // 1，要「快照」得主動複製出另一�
 
 ### 時間軸：這件事發生在哪一格
 
-```text
-◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
-        （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
-
- ①轉譯          ②打包            ③V8 Parse       ④Bytecode      ⑤每次執行都重來
- transpile      bundle           (runtime)        產生            ↓↓↓↓↓↓↓↓↓↓
- ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
- │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ 執行到函式定義那行│
- │tsc     │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ ★ 生出一個函式物件│
- │SWC     │   │Rollup  │      │AST       │   │Bytecode  │   │ ★ 掛上            │
- └────────┘   └────────┘      │Scope     │   └──────────┘   │   [[Environment]] │
-                              │Analysis： │                  │   ＝閉包誕生      │
-  ★ 詞法範疇在「你寫下       │★ 決定誰會 │                  ├──────────────────┤
-    程式碼」的那一刻就       │  被捕獲、 │                  │ 外層 return：     │
-    定了，但那是「作者       │  該放 Heap│                  │ Frame pop，但 Heap│
-    決定結構」，不是         │  的 Context│                 │ 的 Context 不受影響│
-    buildtime 這一格         └──────────┘                  ├──────────────────┤
-    在做事                   每個函式只做一次                │ 只要還有人抓著它  │
-                             只做「決策」，                  │ → 活到參照被切斷  │
-                             不配置任何記憶體                │ → 才輪到 GC       │
-                                                            └────────┬─────────┘
-                                                                     └─► 再呼叫一次
-                                                                        又是全新一份
-
- ★ 閉包的「形成」站在第 ⑤ 格。第 ③ 格只是決定「誰要住 Heap」，一個函式只決定一次；
-   閉包本身則是「執行到幾次就生幾份」——這就是為什麼每顆按鈕能有自己的計數器。
-```
+![閉包在哪一格形成：buildtime 到 runtime 時間軸](../../../obsidian-attachment/closure_timeline_buildtime_vs_runtime_2026-10-06.png)
 
 一個閉包自己也有一條由生到死的序列：
 
-```text
- ①決策           ②誕生            ③外層退場        ④被持有          ⑤斷線 → 回收
- Parse           create           caller pop       retained         unreachable
-┌──────────┐   ┌──────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐
-│Scope     │   │執行到函式定義│  │外層函式    │  │被監聽器／  │  │移除監聽器／│
-│Analysis  │──►│→ 函式物件 ＋ │─►│return，其  │─►│計時器／變數│─►│元件卸載／  │
-│看出 count│   │  Heap Context│  │Stack Frame │  │抓著 →      │  │設 null →   │
-│會被捕獲  │   │  ＝閉包誕生  │  │被 pop 掉   │  │一直活著    │  │GC 才回收   │
-└──────────┘   └──────────────┘  └────────────┘  └────────────┘  └────────────┘
-  只做一次        執行幾次生幾份     Context 不受影響   跟有沒有在跑無關    可達性說了算
+![一個閉包的生命週期五步](../../../obsidian-attachment/closure_lifecycle_5steps_2026-10-06.png)
 
- ★ 第 ④ 格就是本篇「執行時間 ≠ 存活時間」在講的事：使用者晾在那十分鐘不動，
-   debounce 裡的 timer 依然活著，因為事件監聽器還抓著它。
-```
-
-同一件事用 Mermaid 再畫一次：
+同一條時間軸的流程圖版本：
 
 ```mermaid
 flowchart LR
@@ -194,6 +155,18 @@ counter.increment(); // 2
 
 - <mark style="background: #ADCCFFA6;">哪些是「閉包」？</mark>回傳物件裡 `increment: function() {...}` 和 `decrement: function() {...}` 這兩個函式值，各自都是閉包——因為它們都是**內層函式**，都引用了外層 `createCounter` 的 `count`。呼應本篇最上面那句一句話定義：<mark style="background: #FFF3A3A6;">「閉包是一個內層函式，能記憶並存取外層函式的範疇」</mark>——這裡的「內層函式」不是只能指一個，這個範例剛好有兩個內層函式，兩個都成立。
 - <mark style="background: #FF5582A6;">更精確的講法：閉包不是「函式」這個標籤本身，是「函式＋它捕捉到的外層作用域」這個組合。</mark>`increment` 和 `decrement` 是兩個**不同的函式物件**（記憶體位置不同），但因為它們是在**同一次** `createCounter()` 呼叫裡一起建立的，兩者背後指向的是**同一個** Function Environment Record（裝著 `count` 那個）。所以 `counter.increment()` 讓 `count` 變成 1 之後，`counter.decrement()` 讀到的也是同一個已經變成 1 的 `count`，不是各自獨立的複本。這就是為什麼「一個計數器物件裡的 increment/decrement 能互相影響同一個數字」。
+
+`increment` 與 `decrement` 用的是**同一個變數 `count`**，所以它們指向**同一個 Context**，不是各自一份。可以用 V8 的 `%DebugPrint`（`node --allow-natives-syntax`）直接看兩個函式物件的 context 欄位：
+
+| 函式物件 | context 欄位（Node.js 實測的位址） | 說明 |
+|---|---|---|
+| `counter.increment` | `0x277748023691 <FunctionContext[3]>` | 同一個 Context |
+| `counter.decrement` | `0x277748023691 <FunctionContext[3]>` | 位址相同，共用同一個 `count` slot |
+| 第二次 `createCounter()` 的 `counter2.increment` | `0x2bdc00e61fe9 <FunctionContext[3]>` | 另一次呼叫建立另一個 Context，有自己的 `count` |
+
+兩個函式物件本身是兩個不同的物件（位址不同、程式碼不同），但各自的 context 欄位指向同一個 Context。`FunctionContext[3]` 的 3 個欄位是 `scope_info`、`previous`、`count`。執行結果也一致：`increment()` 印 `increment1`，接著 `decrement()` 印 `decrement0`，後者是從前者留下的 `1` 往下減。
+
+只有當函式**自己**也有被內層函式捕獲的區域變數時，才會再多出一個屬於那個函式的 Context，用 `previous` 接回 `createCounter` 的 Context。
 
 > [!tip] 判斷「這是不是閉包」的快速心法
 > 問自己：這個函式**有沒有引用到外層作用域的變數**？有 → 它就是閉包（不管它有沒有名字、是宣告式還是箭頭函式）。JS 裡每個函式其實都天生帶著自己定義時的作用域鏈結（[[Environment]] 內部欄位），但通常只有在「外層函式已經執行完、內層函式還活著並繼續存取那個變數」這種情境下，才會特別被拿出來討論、稱之為「閉包在作用」——這也是本篇「兩大基石」裡第二點「垃圾回收」在講的事：一般函式執行完局部變數會被清掉，但被內層函式（閉包）引用住的變數，GC 不敢清。
