@@ -10,6 +10,8 @@ updated: 2026-07-31
 
 # `return` 到底清掉了什麼？Stack Frame 自動清 vs 閉包例外
 
+<div class="tip-glossary" data-term="頂層程式碼的變數一律放 Heap，因為變數會跨 script 可見" data-text="「頂層」指 script 檔最外層、不在任何函式裡的程式碼。&#10;classic &lt;script&gt; 的最外層共用同一個全域範圍：var 與 function 宣告會變成 window 的屬性，let、const、class 放在全域的 ScriptContext。其他 script 隨時可能存取它們，所以 V8 一律放在 Heap 的 Context，不放進會被 pop 掉的 Stack Frame。&#10;&#10;React 元件函式裡的變數是函式內部變數，不在這句話的範圍內，照一般規則：沒被閉包捕獲放 Stack，被事件處理函式或 effect 捕獲才放 Heap 的 Context。元件之間用 props 傳值是資料流的設計，與記憶體放在哪裡是兩件事。&#10;bundler（Vite、webpack）處理的 ES module，每個檔案的最外層是 module 範圍，不會變成全域，別的檔案要用就 export 與 import。所以在 React 專案裡這句話幾乎碰不到，只是每個 module 載入時付一次的成本。&#10;&#10;純 JS 要不要全域變數：現代寫法盡量不用，因為會依賴載入順序，名稱也容易衝突。舊式 classic script 的用法如下。&#10;a.js：const appName = &#x27;Abby&#x27;; function greet() { return &#x27;Hi &#x27; + appName }&#10;b.js：console.log(greet())&#10;index.html：先 &lt;script src=&quot;a.js&quot;&gt;，再 &lt;script src=&quot;b.js&quot;&gt;，順序不能反。&#10;改用 module：a.js 寫 export function greet() {…}，b.js 寫 import { greet } from &#x27;./a.js&#x27;，HTML 用 &lt;script type=&quot;module&quot; src=&quot;b.js&quot;&gt;。"></div>
+
 <div class="tip-glossary" data-term="JSFunction" data-text="在 V8 裡，每個函式物件都是 JSFunction，包括 counter 本身。JSFunction 的定義是 (context, 程式碼) 的組合，每一個都有一個 context 欄位。counter 與內層函式的差別，在於各自的 context 欄位指向誰"></div>
 
 > [!info]- 📍 承接11，銜接13
