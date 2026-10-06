@@ -25,6 +25,21 @@ code, pre, pre code, .highlight pre, .highlight code { font-size: var(--note-cod
 .auto-toc a { color: #C2185B; text-decoration: none; }
 .auto-toc a:hover { text-decoration: underline; }
 .mermaid { text-align: center; margin: 1em 0; }
+.callout { margin: 1em 0; border-left: 5px solid #8fa8ff; border-radius: 10px; background: #f3f6ff; padding: .5em 1em .6em; line-height: 1.7; }
+.callout > summary, .callout-title { font-weight: 800; cursor: default; padding: .2em 0; list-style-position: inside; }
+details.callout > summary { cursor: pointer; }
+.callout-body > :first-child { margin-top: .3em; }
+.callout-body > :last-child { margin-bottom: 0; }
+.callout-important { border-color: #ff5582; background: #fff1f5; }
+.callout-warning, .callout-caution { border-color: #ffb800; background: #fff9e0; }
+.callout-info, .callout-note { border-color: #4cb8e8; background: #eef9ff; }
+.callout-tip, .callout-success { border-color: #4cc24c; background: #effaef; }
+.callout-danger, .callout-failure, .callout-bug { border-color: #e04a5f; background: #ffecee; }
+.callout-question { border-color: #b79cff; background: #f6f1ff; }
+.tip-img { border-bottom: 2px dotted #C2185B; cursor: help; }
+#tip-img-pop { position: fixed; z-index: 9999; display: none; max-width: min(92vw, 1100px); background: #fff; border: 3px solid #C2185B; border-radius: 12px; padding: 6px; box-shadow: 0 8px 28px rgba(0,0,0,.3); pointer-events: none; }
+#tip-img-pop img { display: block; max-width: 100%; height: auto; }
+#tip-img-fab { position: fixed; right: 16px; bottom: 16px; z-index: 9998; background: #C2185B; color: #fff; border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: help; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
@@ -44,3 +59,86 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script src="{{ '/assets/toc.js' | relative_url }}"></script>
+
+<script>
+/* 1. Obsidian 的 callout（> [!important]+ 標題）在 Jekyll 不會渲染，這裡把它轉成色框；一般引用區塊的換行也補成 <br> */
+document.addEventListener('DOMContentLoaded', function () {
+  var icons = { info: 'ℹ️', note: '📝', important: '❗', warning: '⚠️', caution: '⚠️', tip: '💡', success: '✅', question: '❓', danger: '🛑', failure: '❌', bug: '🐛', example: '📌', quote: '💬', abstract: '📄', todo: '☑️' };
+  /* kramdown 不處理 <mark> 裡面的 markdown，所以 **粗體** 與 `程式碼` 會以原樣顯示，這裡補轉成 HTML */
+  document.querySelectorAll('main mark').forEach(function (mk) {
+    if (mk.closest('pre') || mk.innerHTML.indexOf('`') === -1 && mk.innerHTML.indexOf('**') === -1) return;
+    mk.innerHTML = mk.innerHTML
+      .replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`\n]+?)`/g, '<code>$1</code>');
+  });
+  var re = /^\s*\[!(\w+)\]([+-]?)[ \t]*([^\n]*)(?:\n|$)/;
+  document.querySelectorAll('main blockquote').forEach(function (bq) {
+    if (bq.closest('.callout')) return;
+    var p = bq.querySelector(':scope > p');
+    if (!p) return;
+    var m = re.exec(p.innerHTML);
+    if (!m) {
+      bq.querySelectorAll(':scope > p').forEach(function (q) { q.innerHTML = q.innerHTML.replace(/\n/g, '<br>'); });
+      return;
+    }
+    var type = m[1].toLowerCase(), fold = m[2], title = m[3] || (type.charAt(0).toUpperCase() + type.slice(1));
+    var rest = p.innerHTML.slice(m[0].length).replace(/\n/g, '<br>');
+    var box = document.createElement(fold ? 'details' : 'div');
+    box.className = 'callout callout-' + type;
+    if (fold === '+') box.setAttribute('open', '');
+    var head = document.createElement(fold ? 'summary' : 'div');
+    head.className = 'callout-title';
+    head.innerHTML = (icons[type] || '📌') + ' ' + title;
+    var body = document.createElement('div');
+    body.className = 'callout-body';
+    if (rest.trim()) { var np = document.createElement('p'); np.innerHTML = rest; body.appendChild(np); }
+    p.remove();
+    while (bq.firstChild) {
+      var n = bq.firstChild;
+      if (n.nodeType === 1 && n.tagName === 'P') n.innerHTML = n.innerHTML.replace(/\n/g, '<br>');
+      body.appendChild(n);
+    }
+    box.appendChild(head); box.appendChild(body);
+    bq.replaceWith(box);
+  });
+});
+
+/* 2. 滑鼠移到 .tip-img 的字上，就浮出 data-img 指定的圖片；右下角的 🗺️ 按鈕也可以隨時看 */
+document.addEventListener('DOMContentLoaded', function () {
+  var tips = document.querySelectorAll('.tip-img[data-img]');
+  if (!tips.length) return;
+  var rootEl = document.querySelector('script[data-root]');
+  var root = (rootEl && rootEl.getAttribute('data-root')) || '/';
+  var repo = location.pathname.match(/^\/golang-and-ts-others-md-files\//i);
+  if (root === '/' && repo) root = repo[0];
+  function src(el) { return root + el.getAttribute('data-img'); }
+  var pop = document.createElement('div');
+  pop.id = 'tip-img-pop';
+  var img = document.createElement('img');
+  pop.appendChild(img);
+  document.body.appendChild(pop);
+  function show(el, x, y) {
+    img.src = src(el);
+    pop.style.display = 'block';
+    var w = pop.offsetWidth, h = pop.offsetHeight;
+    var left = Math.min(Math.max(8, x - w / 2), window.innerWidth - w - 8);
+    var top = y + 18; if (top + h > window.innerHeight - 8) top = Math.max(8, y - h - 18);
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  }
+  function hide() { pop.style.display = 'none'; }
+  tips.forEach(function (el) {
+    el.addEventListener('mouseenter', function (e) { show(el, e.clientX, e.clientY); });
+    el.addEventListener('mousemove', function (e) { show(el, e.clientX, e.clientY); });
+    el.addEventListener('mouseleave', hide);
+    el.addEventListener('click', function (e) { show(el, e.clientX, e.clientY); });
+  });
+  var fab = document.createElement('div');
+  fab.id = 'tip-img-fab';
+  fab.textContent = '🗺️ 時間軸圖';
+  fab.addEventListener('mouseenter', function () { show(tips[0], window.innerWidth / 2, window.innerHeight / 3); });
+  fab.addEventListener('mouseleave', hide);
+  fab.addEventListener('click', function () { show(tips[0], window.innerWidth / 2, window.innerHeight / 3); });
+  document.body.appendChild(fab);
+  document.addEventListener('click', function (e) { if (!e.target.closest('.tip-img') && e.target !== fab) hide(); });
+});
+</script>

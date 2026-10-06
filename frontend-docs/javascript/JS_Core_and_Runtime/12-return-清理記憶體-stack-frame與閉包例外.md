@@ -26,7 +26,7 @@ updated: 2026-07-31
 
 > [!important]+ 最常被搞錯的一題先講：<mark style="background: #FF5582A6;">閉包**不是**在 `return` 那一刻把變數「搶救」出來的</mark>
 > 常見的錯誤畫面是：`counter()` 執行完 → Frame 要被清掉 → 內層函式伸手把 `count` 撈出來搬到 Heap。<mark style="background: #BBFABBA6;">實際順序完全相反</mark>：
-> a. 決策發生在最早的 <mark style="background: #ADCCFFA6;">Parse 階段的 Scope Analysis</mark>——引擎那時就看出 `count` 會被內層函式引用。
+> a. 決策發生在 runtime 最早的一步：<mark style="background: #ADCCFFA6;"><span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">V8 的 Parse</span> 階段做的 Scope Analysis</mark>（滑鼠移到虛線字上會浮出時間軸圖）——V8 那時就看出 `count` 會被內層函式引用。注意 buildtime 時 Babel 與 bundler 的 parse 也有 scope 分析，但那一份不決定 Stack 或 Heap。
 > b. 於是<mark style="background: #FFF3A3A6;">一進入 `counter()` 的作用域，Heap 上的 Context 物件就先建好了</mark>，`count` 從第一秒起就住在 Heap，Stack Frame 裡放的只是一個指向它的指標（見本篇開頭 mrale.ph 那條佐證）。
 > c. `return` 時 Frame 照樣被完整 pop 掉，<mark style="background: #FF5582A6;">什麼都沒被搶救</mark>——因為要留下來的東西，從頭到尾就不在 Stack 上。
 > 一句話：`return` 沒有「例外處理」，它每次都做同一件事；<mark style="background: #BBFABBA6;">是變數一開始就被放在不同的地方</mark>。
@@ -43,11 +43,16 @@ updated: 2026-07-31
 
 ### 時間軸：這件事發生在哪一格
 
+![buildtime 與 runtime 時間軸：兩個 Parse、兩份 Scope Analysis](../../../obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png)
+
+整條線上有**兩個 Parse**：buildtime 是 Babel／bundler 用自己的 parser 做的，runtime 是 V8 載入腳本時做的。只有 runtime 這一個（第 ③ 格）的 Scope Analysis 會決定「變數放 Stack 還是 Heap」。下面文字版的 ③ 一律寫成「V8 Parse」以免混淆。
+⚠️ 存疑：buildtime 的 scope 分析用途（Babel 追蹤變數綁定、bundler 做 tree shaking）是我依一般知識整理，沒有逐一查原始碼或官方文件，請你對照 Babel 與 bundler 文件確認。
+
 ```text
 ◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
         （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
 
- ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤每次呼叫都重來
+ ①轉譯          ②打包            ③V8 Parse       ④Bytecode      ⑤每次呼叫都重來
  transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
  ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
  │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ push Stack Frame │
@@ -82,7 +87,7 @@ updated: 2026-07-31
 │各就各位  │ │凍結等待  │  │          │  │消失      │   │時機不可預測  │
 └──────────┘ └──────────┘  └──────────┘  └──────────┘   └──────────────┘
      │                                                            ▲
-     └── 若 Scope Analysis 說「有變數被捕獲」，這一格同時在 Heap ───┘
+     └── 若 V8 的 Scope Analysis 說「有變數被捕獲」，這一格同時在 Heap ───┘
          建好 Context 物件，該變數從此就不住 Stack 了
 
  ★ ①～④ 是自動、即時、次數固定的；⑤ 是不定時、不可預測的。混在一起想就會亂。
@@ -93,10 +98,10 @@ updated: 2026-07-31
 ```mermaid
 flowchart LR
     subgraph BT["buildtime 建置期（部署前跑完，V8 還沒看到程式碼）"]
-        T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+        T["轉譯 transpile<br/>Babel／tsc／SWC<br/>（也有 buildtime 的 parse，不決定 Stack 或 Heap）"] --> BU["打包 bundle<br/>webpack／Vite／Rollup<br/>（也有 buildtime 的 parse，不決定 Stack 或 Heap）"]
     end
     subgraph RT1["runtime 執行期 · 只做一次的部分"]
-        P["Parse 解析<br/>Scope Analysis：<br/>★ 決定誰會被閉包捕獲<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode"]
+        P["V8 的 Parse<br/>Scope Analysis：<br/>★ 決定誰會被閉包捕獲<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode"]
     end
     subgraph RT2["runtime 執行期 · 每次呼叫都重來"]
         PU["① push Stack Frame<br/>返回位址、參數、區域變數"] --> CX["② 若有變數被捕獲<br/>同時在 Heap 建 Context 物件<br/>Frame 裡只放一個指標"]
@@ -113,13 +118,13 @@ flowchart LR
 > [!warning]- 為什麼「`return` 會清理記憶體」這句話會把人帶偏？三個原因
 > a. <mark style="background: #FFF3A3A6;">「記憶體」三個字沒有分家</mark>：Stack 與 Heap 是兩套清理機制（自動 pop vs GC 判斷可達性），但「清理記憶體」這句話把它們糊成一團，於是很多人以為 `return` 也會順手處理 Heap。它不會。
 > b. <mark style="background: #ADCCFFA6;">「閉包例外」這個說法本身就有誤導性</mark>：聽起來像 `return` 在某些情況下會網開一面。實際上 `return` 每次都做完全一樣的事——<mark style="background: #BBFABBA6;">例外的不是清理動作，是那個變數一開始被放的位置</mark>。
-> c. <mark style="background: #FF5582A6;">因為決策與執行隔太遠</mark>：「這個變數要放 Heap」是 Parse 階段做的決定（每個函式只做一次），「真的配置一個 Context」是每次呼叫時做的動作。中間隔了整個 Bytecode 階段，很容易在腦中被壓縮成同一瞬間。
+> c. <mark style="background: #FF5582A6;">因為決策與執行隔太遠</mark>：「這個變數要放 Heap」是 V8 在 runtime 的 <span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">Parse</span> 階段做的決定（每個函式只做一次），「真的配置一個 Context」是每次呼叫時做的動作。中間隔了整個 Bytecode 階段，很容易在腦中被壓縮成同一瞬間。
 
 ### 一句話驗證法
 
 想確認某件事在哪一格，問自己：<mark style="background: #BBFABBA6;">「這件事對同一個函式做幾次？」</mark>
 
-1. 只做一次 → 屬於 Parse／編譯期（第 ③ ④ 格），例如「決定 `count` 要放 Heap」
+1. 只做一次 → 屬於 V8 的 <span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">Parse</span> 與 Bytecode 產生（runtime，第 ③ ④ 格），例如「決定 `count` 要放 Heap」
 
 2. 呼叫幾次就做幾次 → 屬於執行期（第 ⑤ 格）。這類事的主詞要分清楚：
 	- 每「呼叫」一次函式，V8 就在 Call Stack 上 push 一個新的 Stack Frame。

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>buildtime 與 runtime 時間軸（可愛版）</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff7ec;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#4a3b32}
+#art{width:2400px;padding:34px 40px 36px;background:#fff7ec}
+h1{margin:0 0 4px;font-size:34px}
+.sub{font-size:18px;color:#8a7466;margin-bottom:20px}
+.zones{display:flex;gap:0;align-items:stretch}
+.zone{border-radius:28px;padding:18px 22px 22px;border:5px solid}
+.zb{flex:0 0 700px;background:#eef3ff;border-color:#8fa8ff}
+.zr{flex:1;background:#e9f9e1;border-color:#8fd16a}
+.zt{font-size:25px;font-weight:800;margin:0 0 2px}
+.zs{font-size:15px;color:#7a6a5f;font-weight:600;margin-bottom:12px}
+.deploy{flex:0 0 96px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:19px;color:#c0283f;text-align:center}
+.deploy b{font-size:44px;line-height:1}
+.deploy i{display:block;width:6px;flex:1;margin:8px 0;background:repeating-linear-gradient(#c0283f 0 10px,transparent 10px 20px);border-radius:3px}
+.steps{display:flex;gap:14px;align-items:stretch}
+.st{flex:1;min-width:0;background:#fff;border:4px solid;border-radius:22px;padding:12px 14px;font-size:16px;line-height:1.55;font-weight:600;position:relative}
+.st h3{margin:0 0 4px;font-size:21px}
+.st .no{display:inline-block;background:#4a3b32;color:#fff;border-radius:999px;padding:0 10px;font-size:15px;margin-right:6px}
+.st code{background:#f3eee6;border-radius:6px;padding:0 5px;font-size:14px}
+.sb1,.sb2{border-color:#8fa8ff}
+.sr3{border-color:#ff9ebb;background:#fff2f6}
+.sr4{border-color:#b79cff}
+.sr5{border-color:#ffb800;background:#fffbe6}
+.arr{align-self:center;font-size:30px;line-height:1}
+.star{background:#fff0a8;border:3px solid #ffb800;border-radius:14px;padding:5px 9px;margin-top:6px;font-size:15px;font-weight:800;color:#8a5a00}
+.no-star{background:#eceff4;border:3px dashed #9aa5b8;border-radius:14px;padding:5px 9px;margin-top:6px;font-size:14.5px;font-weight:700;color:#5b6678}
+.tag{display:inline-block;border-radius:999px;padding:1px 10px;font-size:13px;font-weight:800;color:#fff;margin-bottom:4px}
+.tb{background:#2e6fd6}.tr{background:#d63c5a}.tg{background:#4aa02c}
+.seq{margin-top:6px;display:flex;flex-direction:column;gap:5px}
+.sq{border-radius:12px;padding:4px 10px;font-size:15px;font-weight:700;border:3px solid}
+.sq.p{background:#fff;border-color:#8fd16a}.sq.e{background:#fff;border-color:#c9c9c9}.sq.r{background:#ffe0e0;border-color:#e04a5f}.sq.g{background:#eceff4;border-color:#9aa5b8;border-style:dashed}
+.loop{margin-top:6px;font-size:15px;font-weight:800;color:#c0507a;text-align:center}
+.foot{margin-top:16px;display:flex;gap:16px}
+.fc{flex:1;border-radius:20px;padding:10px 16px;border:4px solid;background:#fff;font-size:16px;font-weight:600;line-height:1.55}
+.fc b{font-size:18px}
+.f1{border-color:#8fa8ff}.f2{border-color:#8fd16a}.f3{border-color:#ffb800}
+</style>
+</head>
+<body>
+<div id="art">
+  <h1>⏱️ buildtime 與 runtime 時間軸：有兩個 Parse、兩份 Scope Analysis</h1>
+  <div class="sub">只有第 ③ 格「V8 在 runtime 做的 Scope Analysis」，決定變數放 Stack 還是 Heap。buildtime 那份是另一個工具為了自己的目的做的</div>
+  <div class="zones">
+    <div class="zone zb">
+      <div class="zt">🛠️ buildtime 建置期</div>
+      <div class="zs">你的電腦或 CI，部署前就跑完，V8 還沒看到程式碼</div>
+      <div class="steps">
+        <div class="st sb1">
+          <span class="tag tb">buildtime</span>
+          <h3><span class="no">①</span>transpile</h3>
+          Babel／tsc／SWC 用 parser 把原始碼 parse 成 AST，改寫語法後輸出 JS
+          <div class="no-star">⚠️ 這裡的 parse 也有 scope 分析，用來追蹤變數綁定，<b>不決定</b> Stack 或 Heap</div>
+        </div>
+        <div class="arr">➡️</div>
+        <div class="st sb2">
+          <span class="tag tb">buildtime</span>
+          <h3><span class="no">②</span>bundle</h3>
+          webpack／Vite／Rollup 用 parser 讀出 import 與 export，合併成 bundle
+          <div class="no-star">⚠️ 這裡的 scope 分析用於 tree shaking 等，<b>不決定</b> Stack 或 Heap</div>
+        </div>
+      </div>
+    </div>
+    <div class="deploy"><i></i><b>🚀</b>部署<br>上線<i></i></div>
+    <div class="zone zr">
+      <div class="zt">🏃 runtime 執行期</div>
+      <div class="zs">瀏覽器或 Node 載入腳本之後，由 V8 負責</div>
+      <div class="steps">
+        <div class="st sr3">
+          <span class="tag tr">runtime · 只做一次</span>
+          <h3><span class="no">③</span>V8 的 Parse</h3>
+          Scanner 切 token ➜ Parser 產生 AST ➜ 在 AST 上做 Scope Analysis
+          <div class="star">★ V8 的 Scope Analysis 決定誰會被閉包捕獲 ➜ 該放 Stack 還是 Heap。只做決策，不配置任何記憶體</div>
+        </div>
+        <div class="arr">➡️</div>
+        <div class="st sr4">
+          <span class="tag tr">runtime · 只做一次</span>
+          <h3><span class="no">④</span>Bytecode</h3>
+          Ignition 把 AST 編成 Bytecode，交給直譯器執行
+        </div>
+        <div class="arr">➡️</div>
+        <div class="st sr5">
+          <span class="tag tg">runtime · 每次呼叫都重來</span>
+          <h3><span class="no">⑤</span>呼叫與 return</h3>
+          <div class="seq">
+            <div class="sq p">① 呼叫：V8 push 一個 Stack Frame</div>
+            <div class="sq p">② 若有變數被捕獲：同時在 Heap 建 Context 物件</div>
+            <div class="sq e">③ 執行函式本體</div>
+            <div class="sq r">④ return：V8 pop 整片 Frame，Heap 不動</div>
+            <div class="sq g">⑤ Context 沒人指了 ➜ GC 不定時回收</div>
+          </div>
+          <div class="loop">🔁 再呼叫一次，整包重來</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">
+    <div class="fc f1"><b>🔵 buildtime 的 Parse</b><br>Babel、bundler 的 parser 做的。目的是改寫或打包程式碼，跟「變數住哪」無關</div>
+    <div class="fc f3"><b>⭐ 決策與執行隔很遠</b><br>「該不該逃到 Heap」在第 ③ 格決定，「真的配置與清除」在第 ⑤ 格。兩者常被壓縮成同一件事來想，這就是誤會的來源</div>
+    <div class="fc f2"><b>🟢 次數怎麼算</b><br>③④ 每個函式只做一次。⑤ 呼叫幾次就重來幾次：V8 push 與 pop 的次數相同，順序相反（LIFO）</div>
+  </div>
+</div>
+</body>
+</html>
