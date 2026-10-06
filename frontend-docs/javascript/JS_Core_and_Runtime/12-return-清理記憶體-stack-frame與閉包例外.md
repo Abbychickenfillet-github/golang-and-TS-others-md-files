@@ -16,15 +16,11 @@ updated: 2026-07-31
 > <mark style="background: #ADCCFFA6;">承接</mark>：[[11-記憶體模型-stack-heap-動態配置-GC]]講完整個Stack／Heap模型，這篇聚焦在一個具體時刻——`return`發生時Stack Frame怎麼被清掉，以及被閉包捕獲的變數為什麼是例外。
 > <mark style="background: #BBFABBA6;">下一步</mark>：這篇提到的「閉包例外」只是先點出現象，下一篇[[13-閉包-Closure-私有變數與傳址陷阱]]是閉包本身的深入篇。
 
-<div class="note-meta" markdown="1">
-
 > 相關：[[記憶體模型-stack-heap-動態配置-GC]]、[[變數宣告-let-const-var]]、[[設計模式_function]]、[[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]]（參數綁定何時建立、何時被這裡講的 stack frame 一起清掉）
 > 起點問題：「return 會清理記憶體喔」→ 對，但只清 Stack，不一定清 Heap。
 > 互動考試：`C:\coding\JavaScript-practicing\memory-model-quiz.html`
 > 互動動畫（Stack Frame push/pop + GC Mark-and-Sweep 逐步播放）：同資料夾 `return-清理記憶體-stack-frame與閉包例外.html`
 > 外部佐證（2026-07-28 補）：V8 確實會把被閉包捕獲的變數放進一個叫 `Context` 的 heap-allocated 物件、由 closure 這個函式物件的 context 欄位指著（V8 裡每個函式物件都是 `JSFunction`，都帶一個 context 欄位），而且是「一進入該作用域就建立 Context」而非等到真的產生 closure 才建立——見 [Grokking V8 closures for fun (and profit?)](https://mrale.ph/blog/2012/09/23/grokking-v8-closures-for-fun.html)（作者 Vyacheslav Egorov，V8 工程師，發表於 2012-09-23；文章年代較早，但 Context 物件走 Heap 配置這個架構性結論至今仍成立）。
-
-</div>
 
 ---
 
