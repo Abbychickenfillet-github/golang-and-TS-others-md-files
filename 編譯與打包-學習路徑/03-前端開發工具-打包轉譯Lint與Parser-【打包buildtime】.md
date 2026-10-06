@@ -184,6 +184,19 @@ updated: 2026-07-27
 - **Esprima**：經典老牌，早期工具基石（早期 ESLint），教科書級。
 - **SWC / Biome(Rust)**：現代為求極速用 Rust 重寫，SWC 為代表，Next.js 內部使用。
 
+**buildtime 的 parser 也有 scanner。** 只要是 parser，第一步一定是「把原始碼文字切成 token」，這一步在不同工具有不同名字：Scanner、Lexer、Tokenizer 指同一件事。buildtime 與 runtime 的差別不在有沒有這一步，而在「由誰做、做完拿去幹嘛」：buildtime 的 token 用來建 AST 後改寫程式碼，runtime 的 token 用來建 V8 自己的 AST 後編成 Bytecode。
+
+| 工具 | 切 token 的那一段叫什麼 | 在原始碼的哪裡（2026-10-06 確認檔案存在） |
+|---|---|---|
+| @babel/parser | Tokenizer（`class Tokenizer`） | `packages/babel-parser/src/tokenizer/index.ts` |
+| Acorn | tokenizer | `acorn/src/tokenize.js` |
+| TypeScript（tsc） | Scanner（`createScanner`） | `src/compiler/scanner.ts`（release-5.9） |
+| esbuild | Lexer（`type Lexer struct`） | `internal/js_lexer/js_lexer.go` |
+| SWC | lexer | `crates/swc_ecma_parser/src/lexer/mod.rs` |
+| V8（runtime，對照） | Scanner | 官方部落格 [Blazingly fast parsing, part 1: optimizing the scanner](https://v8.dev/blog/scanner)（2019-03-25） |
+
+驗證方式：到 GitHub 各工具的原始碼目錄開上表的路徑，檔案存在且名稱就是 tokenizer／scanner／lexer。我只確認了檔名與類別名稱，沒有逐行讀各工具切 token 的實作。
+
 **資料格式內建款：** `JSON.parse()`（JS 內建 JSON 解析器）;V8 / SpiderMonkey（瀏覽器內建 HTML/CSS Parser）。
 
 **解析器產生器（Parser Generator）** — 給語法規則就自動生 Parser:<mark style="background: #D2B3FFA6;">ANTLR（跨語言頂級，常用於 SQL/搜尋指令）</mark>、Bison / Yacc（C/C++ 編譯器課祖師爺）。
@@ -263,7 +276,7 @@ flowchart TB
 | 執行效能機制 | 每次改 DOM 立刻觸發重繪 | 記憶體中虛擬 DOM 比較，批次處理（Batching）更新 |
 
 > [!info] 🕓 這段是 run-time 的 V8（流程圖最右格）：這裡說「編譯」才對，跟 build-time 的「轉譯」是兩層
-> <mark style="background: #FFF3A3A6;">**Scanner（詞法分析器 / Lexer）**</mark> 是 **V8 在瀏覽器執行時（run-time）編譯**的第一階段：把原始碼字串拆成 Token（`const count = 0;` → `const`／`count`／`=`／`0`／`;`）。V8 流程：Source Code → Scanner（字串→Tokens）→ Parser（Tokens→AST）→ Ignition（AST→Bytecode 並執行）。**這叫「編譯 compile」（→bytecode／機器碼）用詞正確**，因為在 run-time；build-time 做的是「轉譯 transpile」（source→source），別混。細節見 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]]。
+> <mark style="background: #FFF3A3A6;">**Scanner（詞法分析器 / Lexer）**</mark> 是 **V8 在瀏覽器執行時（run-time）編譯**的第一階段（buildtime 的 parser 前段也有 scanner，只是工具常叫 tokenizer 或 lexer，見上方第 5 節）：把原始碼字串拆成 Token（`const count = 0;` → `const`／`count`／`=`／`0`／`;`）。V8 流程：Source Code → Scanner（字串→Tokens）→ Parser（Tokens→AST）→ Ignition（AST→Bytecode 並執行）。**這叫「編譯 compile」（→bytecode／機器碼）用詞正確**，因為在 run-time；build-time 做的是「轉譯 transpile」（source→source），別混。細節見 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]]。
 >
 > **acorn 已 parse 成 AST，為什麼 V8 又 parse 一次？** 因為 <mark style="background: #BBFABBA6;">AST 不會被傳輸，只有純文字 JS 會</mark>：acorn 的 AST 在你電腦／CI，bundle 一寫出就丟了；瀏覽器只收到純文字字串，V8 拿不到那棵 AST，要執行就得自己重 parse 成 V8 自己的 AST（AST 比原始碼更大、兩邊格式不通用、V8 為安全也得自己再驗）。結論：<mark style="background: #FF5582A6;">parse 兩次（acorn＋V8）、compile 只有一次（只有 V8）；build-time 從頭到尾沒 compile，只 transpile＋bundle</mark>。
 
@@ -355,6 +368,7 @@ Gemini：說明 React 需經 JSX 轉譯（Babel/SWC）與模組打包（Vite/Web
 | Vue SFC 模板編譯（compiler-sfc、template→render fn、編譯期優化） | https://vuejs.org/guide/scaling-up/tooling.html#sfc | Vue 官方 tooling／SFC |
 | Angular AOT 編譯（Ivy、預設 AOT、模板型別檢查、esbuild builder） | https://angular.dev/tools/cli/aot-compiler | Angular 官方 AOT（v17+ 預設 AOT＋esbuild） |
 | React Compiler（自動 memo、build 時、opt-in、React 20/Next 16 stable） | https://react.dev/learn/react-compiler | React 官方 React Compiler |
+| buildtime 各 parser 的 tokenizer／scanner／lexer 檔案位置 | https://github.com/babel/babel 、https://github.com/acornjs/acorn 、https://github.com/microsoft/TypeScript 、https://github.com/evanw/esbuild 、https://github.com/swc-project/swc | 2026-10-06 讀取各倉庫原始檔，只確認檔名與類別名稱 |
 | Browserslist（query→版本清單、共用給各工具） | https://github.com/browserslist/browserslist | 官方 repo |
 | Autoprefixer 是 PostCSS 外掛、依 browserslist 補前綴 | https://github.com/postcss/autoprefixer | 官方 repo |
 | @babel/preset-env（讀 browserslist 決定 transpile/polyfill） | https://babeljs.io/docs/babel-preset-env | Babel 官方 |

@@ -30,15 +30,24 @@ updated: 2026-07-31
 > b. 於是<mark style="background: #FFF3A3A6;">一進入 `counter()` 的作用域，Heap 上的 Context 物件就先建好了</mark>，`count` 從第一秒起就住在 Heap，Stack Frame 裡放的只是一個指向它的指標（見本篇開頭 mrale.ph 那條佐證）。
 >
 > ```js
-> function counter() {      // 呼叫 counter() 的瞬間：V8 push 一個 Stack Frame，同時在 Heap 建好 Context 物件
->   let count = 0;          // count 住在 Heap 的 Context 裡，Stack Frame 只放一個指向 Context 的指標
->   return function () {    // 這個內層函式（JSFunction）背著指向同一個 Context 的位址
->     return ++count;       // 這一行引用了 count，V8 在 Parse 階段的 Scope Analysis 就是看到它，才決定 count 要放 Heap
+> function counter() {      // ① 呼叫 counter()：V8 push counter 的 Stack Frame，同時在 Heap 建好 Context 物件
+>   let count = 0;          //    count 住在 Context 裡。Stack Frame 只放「返回位址」與「指向 Context 的指標」，沒有 count 的值
+>   return function () {    // ② 建立內層函式（JSFunction），它背著指向同一個 Context 的位址，然後 return 它
+>     return ++count;       //    這一行引用了 count，V8 在 Parse 階段的 Scope Analysis 就是看到它，才決定 count 要放 Heap
 >   };
-> }
-> const next = counter();   // counter 的 Frame 被 pop 掉，但 Context 還在 Heap，因為 next 這個函式背著它
-> next();                   // 1，count 沒有被清掉
+> }                         // ③ counter() 執行完：V8 把 counter 的 Stack Frame pop 掉（Frame 被清掉），Heap 上的 Context 一根寒毛都沒動
+> const next = counter();   //    內層函式被存進 next，所以它背著的 Context 仍然有人指著
+> next();                   // ④ 呼叫內層函式：從 Context 讀寫 count，回傳 1。count 沒有被清掉，因為清掉的 Frame 裡本來就沒有它
 > ```
+>
+> | 時間點 | Call Stack（Stack Frame） | Heap |
+> |---|---|---|
+> | ① 進入 `counter()` | counter 的 Frame：返回位址、指向 Context 的指標 | Context（`count = 0`） |
+> | ② 執行到 `return function…` | 同上 | Context（`count = 0`）、內層函式（背著 Context） |
+> | ③ `counter()` 執行完 | counter 的 Frame 已被 pop，Frame 裡的東西全部消失 | Context（`count = 0`）與內層函式都還在，因為 `next` 指著內層函式 |
+> | ④ 呼叫 `next()` | next 這次呼叫的 Frame | Context（`count` 變成 `1`） |
+>
+> 所以前面「錯誤畫面」裡的「撈出來搬到 Heap」根本沒有發生：第 ③ 步 pop Frame 時，`count` 本來就不在 Frame 裡，沒有東西需要搶救。
 >
 > c. `return` 時 Frame 照樣被完整 pop 掉，<mark style="background: #FF5582A6;">什麼都沒被搶救</mark>——因為要留下來的東西，從頭到尾就不在 Stack 上。
 > 一句話：<mark style="background: #BBFABBA6;">`return` 每次只做三件固定的事：算出回傳值、把回傳值與控制權交還給呼叫者、讓 V8 把這次呼叫的 Stack Frame 從 Call Stack 上 pop 掉。這三件事跟變數有沒有被閉包捕獲無關</mark>。被閉包捕獲的變數不會被清，是因為它從一開始就放在 Heap 的 Context 裡，本來就不在這個 Frame 上。
