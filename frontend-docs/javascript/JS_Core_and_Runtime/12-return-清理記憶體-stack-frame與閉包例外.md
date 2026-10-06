@@ -180,7 +180,7 @@ flowchart LR
 1. 只做一次 → 屬於 V8 的 <span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">Parse</span> 與 Bytecode 產生（runtime，第 ③ ④ 格），例如「決定 `count` 要放 Heap」
 
 2. 呼叫幾次就做幾次 → 屬於執行期（第 ⑤ 格）。這類事的主詞要分清楚：
-	- 每「呼叫」一次函式，V8 就在 Call Stack 上 push 一個新的 Stack Frame。
+	- 每「<mark style="background: #FFF3A3A6;">呼叫</mark>」一次函式，V8 就在 Call Stack 上 <mark style="background: #BBFABBA6;">push 一個新的 Stack Frame</mark>。
 	- 每「return」一次，V8 就把那一次呼叫的 Stack Frame pop 掉。所以函式被呼叫幾次，Call Stack 就 push 幾次、pop 幾次，而且 pop 的順序與 push 相反（LIFO）。
 	- 每次呼叫，如果函式裡有被內層函式捕獲的變數，V8 還會在 Heap 上建立一個新的 Context 物件。
 
