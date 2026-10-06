@@ -192,6 +192,8 @@ input.addEventListener('input', (e) => search(e.target.value)); // search 被綁
 
 <mark style="background: #BBFABBA6;">`setTimeout`／`clearTimeout` 只是拿來實作「怎麼知道使用者已經停下來了」這件事的其中一種手段</mark>：每次新動作進來就把「安靜倒數」重新歸零（`clearTimeout` 舊的、`setTimeout` 一個新的），只有倒數真的跑到底、沒被打斷，才代表「已經安靜 `delay` 毫秒了」，這時才真正執行 `fn`。一句話：**debounce 要解決的問題是「目的」，計時器是達成這個目的的「手段」，兩者不要混為一談。**
 
+React 另有較新的 Hook <a href="https://react.dev/reference/react/useTransition#perform-non-blocking-updates-with-actions" target="_blank" rel="noopener" class="tip-text" data-tip="useTransition 是 React 的 Hook（React 18 加入，React 19 擴充成可搭配 Actions），回傳 [isPending, startTransition]。&#10;把會造成畫面大幅更新的 state 更新包在 startTransition 裡，React 會把它標成「非緊急」：輸入框打字這類緊急更新先完成，非緊急的更新可以被中斷、被新的輸入取代，所以 UI 不會卡住。isPending 在 transition 進行中是 true，可以拿來顯示載入中。&#10;官方在「Perform non-blocking updates with Actions」一節說明：startTransition 裡也可以放 async 函式（Action），React 會在整個 Action 進行期間維持 isPending。&#10;與 debounce 的差別：debounce 延後「要不要觸發」，降低觸發次數。useTransition 不延遲更新，而是降低更新的優先級，讓緊急更新先完成。兩者可以搭配：先 debounce 減少請求，再用 transition 避免重新渲染卡住 UI。&#10;（依 React 官方文件整理，未逐句對照原文）">useTransition</a>，處理的也是「更新太頻繁、畫面卡住」這類問題，手段不是計時器，而是降低更新的優先級。
+
 #### `let timer = null` 為什麼不能用空陣列 `[]`
 
 | | `timer`（debounce） | `history`（下面的魔王題） |

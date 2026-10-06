@@ -135,6 +135,16 @@ runtime 重複 parse 的成本，V8 用另外兩招減輕：lazy parsing（內�
 preparser 還要追蹤變數，原因直接連到 [[return-清理記憶體-stack-frame與閉包例外]]：官方在同一篇的 Variable allocation 一節說，V8 要知道「每個變數有沒有被內層函式引用」，才能決定它放 Stack 或 Heap 的 context，所以 preparser 也必須追蹤變數的宣告與引用，而且在 preparse 期間就做完整的 scope resolution。V8 把「每個變數放哪裡」序列化成一個小陣列存起來，之後完整 parse 該函式時直接套用，內層函式就不必被重複 preparse。結果是每個函式最多被 preparse 一次、完整 parse 一次（bytecode 被 flushing 回收後又被呼叫時會重新 parse，是例外）。
 官方還提到兩種特例。頂層程式碼的變數一律放 Heap，因為變數會跨 script 可見。`(function(){…})` 這種括號包起來的函式，V8 假設它會立刻被呼叫，直接完整 parse 並編譯，稱為 PIFE（possibly-invoked function expression）。
 
+頂層變數依載入方式分配在不同的地方（對照 V8 原始碼 `scopes.cc`、`source-text-module.h`、`contexts.h`）：
+
+| 載入方式 | 變數 | V8 怎麼放 |
+|---|---|---|
+| classic script | `var`、`function` 宣告 | 全域物件的屬性（native context 的 extension 欄位放全域物件） |
+| classic script | `let`、`const`、`class` | ScriptContext：Heap 上的 Context，每個有頂層 lexical 宣告的 script 一份，收進 ScriptContextTable |
+| ES module | 有 `export` 的變數 | `VariableLocation::MODULE`，存在 `SourceTextModule` 的 Cell（`regular_exports` 陣列），Cell 在 Heap 上 |
+| ES module | `import` 進來的綁定 | 同樣是 `MODULE` 位置，指向匯出端同一個 Cell（`regular_imports` 陣列），所以兩個檔案共用同一份值 |
+| ES module | 沒 `export` 也沒 `import` 的最外層變數 | 推論：與函式區域變數相同，沒被內層函式捕獲放 Stack，被捕獲放 module 的 Context（`extension` 欄位指向 module 物件）。尚未逐行驗證分配程式碼 |
+
 用本篇的 `counter()` 看 lazy parsing 怎麼進行（官方部落格 `outer`／`inner` 範例的對應版本）：
 
 ```js

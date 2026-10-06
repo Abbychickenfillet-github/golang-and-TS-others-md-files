@@ -158,7 +158,8 @@ document.addEventListener('DOMContentLoaded', function () {
 /* 3. 詞彙提示：筆記裡放 <div class="tip-glossary" data-term="詞" data-text="說明"></div>，同頁所有出現的「詞」滑鼠移上去就顯示說明 */
 document.addEventListener('DOMContentLoaded', function () {
   var gl = Array.prototype.slice.call(document.querySelectorAll('.tip-glossary[data-term]'));
-  if (!gl.length) return;
+  var statics = Array.prototype.slice.call(document.querySelectorAll('.tip-text[data-tip]'));
+  if (!gl.length && !statics.length) return;
   var main = document.querySelector('main') || document.body;
   var pop = document.createElement('div');
   pop.id = 'tip-text-pop';
@@ -172,6 +173,11 @@ document.addEventListener('DOMContentLoaded', function () {
     pop.style.left = left + 'px'; pop.style.top = top + 'px';
   }
   function hide() { pop.style.display = 'none'; }
+  statics.forEach(function (sp) {
+    sp.addEventListener('mouseenter', function (e) { show(sp, e.clientX, e.clientY); });
+    sp.addEventListener('mousemove', function (e) { show(sp, e.clientX, e.clientY); });
+    sp.addEventListener('mouseleave', hide);
+  });
   gl.forEach(function (g) {
     var term = g.getAttribute('data-term'), text = g.getAttribute('data-text');
     var walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT, null);
