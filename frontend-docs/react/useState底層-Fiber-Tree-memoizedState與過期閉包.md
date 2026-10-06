@@ -121,6 +121,30 @@ useEffect 那一節 Hook 的 `memoizedState` 指向的是一個 Effect 物件，
 流程：`setCount(1)` → `dispatchSetState` 建立一封 Update 接到 `queue.pending` 的環上 → 排定 re-render → render 時 `updateReducerImpl` 把 `pending` 併進 `baseQueue`，逐封套用 reducer → 結果存進 Hook 的 `memoizedState`。
 信箱是空的時候，React 還會先用 `lastRenderedReducer` 試算一次，新舊值相同就不排 re-render。
 
+**setter 與 `queue` 是一對的：有 setter 才有 `queue`，沒有 setter 就是 `null`。**
+
+setter（`setCount`）本身就是 `dispatchSetState` 綁上這個 Hook 的 `queue`，它唯一的工作就是把「更新」投進那個 `queue`。所以 `queue` 是 setter 的投遞目的地，兩者必須同時存在。
+
+```js
+function mountState(initialState) {
+  const hook = mountStateImpl(initialState);       // 建 Hook 節點，同時建 queue：hook.queue = { pending: null, dispatch: null, ... }
+  const queue = hook.queue;                        // 取出剛建好的 queue
+  const dispatch = dispatchSetState.bind(          // bind：預先把前兩個參數填好，產生一個新函式
+    null, currentlyRenderingFiber, queue);         // 填好「哪個 fiber」與「哪個 queue」，之後呼叫只需傳新值
+  queue.dispatch = dispatch;                       // queue 也記住這個 dispatch
+  return [hook.memoizedState, dispatch];           // 回傳 [state, setter]，這個 dispatch 就是你的 setCount
+}
+```
+
+| 步驟 | 發生什麼 | 與 `queue` 的關係 |
+|---|---|---|
+| 1 | `mountStateImpl` 建立 `queue` 物件 | `queue` 為了給 setter 投遞而誕生 |
+| 2 | `dispatchSetState.bind(null, fiber, queue)` 產生 setter | setter 的第二個固定參數就是這個 `queue` |
+| 3 | 你呼叫 `setCount(1)` | `dispatchSetState` 把一封 Update 接到 `queue.pending` |
+| 4 | 下次 render，`updateReducerImpl` 讀 `queue.pending` | 拆信算出新 state |
+
+反過來看：`useRef`、`useEffect` 沒有 setter，就沒有 `dispatchSetState.bind(...)` 這一步，沒有東西要投信，所以 `mountRef`、`mountEffectImpl` 都沒建 `queue`，Hook 節點上的 `queue` 維持 `mountWorkInProgressHook` 給的初值 `null`。因果方向是「沒有 setter ⇒ 不需要 queue」，不是「不需要更新畫面 ⇒ queue 為 null」。
+
 **為什麼 `useEffect` 的 `queue` 是 `null`？**
 `queue` 是「更新信箱」，專門收 `setState`／`dispatch` 排進來的待處理更新。只有「有 setter、會被人呼叫來排更新」的 Hook 才需要它。`useEffect` 沒有 setter，更新來源只有「下一次 render 時 React 自己比較 deps」，所以 `mountEffectImpl` 完全沒去設定 `hook.queue`，維持 `mountWorkInProgressHook` 建立時的初值 `null`。
 
