@@ -48,6 +48,29 @@ updated: 2026-07-31
 整條線上有**兩個 Parse**：buildtime 是 Babel／bundler 用自己的 parser 做的，runtime 是 V8 載入腳本時做的。只有 runtime 這一個（第 ③ 格）的 Scope Analysis 會決定「變數放 Stack 還是 Heap」。下面文字版的 ③ 一律寫成「V8 Parse」以免混淆。
 ⚠️ 存疑：buildtime 的 scope 分析用途（Babel 追蹤變數綁定、bundler 做 tree shaking）是我依一般知識整理，沒有逐一查原始碼或官方文件，請你對照 Babel 與 bundler 文件確認。
 
+**為什麼 buildtime 與 runtime 要各產生一次 AST（抽象語法樹，Abstract Syntax Tree，把原始碼文字整理成樹狀結構的資料）？**
+
+核心原因：buildtime 的工具交給下一關的是「JS 文字檔」，不是那棵樹。每一關只能從文字重新 parse 出自己的樹。
+
+| 問題 | buildtime 的 AST | runtime 的 AST |
+|---|---|---|
+| 誰產生 | Babel、tsc、SWC、bundler 各自的 parser | V8 的 parser（Scanner 先切 token，Parser 再組成樹） |
+| 輸入是什麼 | 你寫的原始碼文字（TS、JSX、新語法） | 部署後瀏覽器收到的 JS 文字檔，也就是 buildtime 輸出的結果 |
+| 為什麼要建樹 | 要在樹上改寫或分析：把 JSX／TS transpile 成 JS、讀出 `import` 與 `export`、tree shaking | 要在樹上做 Scope Analysis（決定變數放 Stack 或 Heap），再交給 Ignition 產生 Bytecode |
+| 樹的下一步 | code generator 把樹印回 JS 文字，寫成檔案，然後這棵樹就丟掉了 | Ignition 把樹編成 Bytecode，之後樹通常就不留了 |
+| 為什麼不能共用 | 部署前就跑完，行程結束、記憶體釋放，樹不會跟著檔案送出去 | 發生在使用者的機器上，只拿得到文字檔 |
+
+三個層次的原因：
+a. **交付格式是文字。** 瀏覽器與 Node 規格上接收的是 JS 原始碼文字，沒有一個標準的「送樹」格式。
+b. **樹的形狀每家不同。** Babel 用的 AST 格式與 V8 內部的 AST 資料結構（C++ 物件）不相同，也沒有公開給外部使用，所以 buildtime 的樹就算想送也送不進 V8。
+c. **兩邊要做的事不同。** buildtime 的樹是為了「改寫程式碼」，runtime 的樹是為了「決定怎麼執行」，需要的資訊本來就不一樣。另外 `eval`、`new Function` 這種字串，只有 runtime 才會出現，buildtime 根本看不到。
+
+runtime 重複 parse 的成本，V8 用另外兩招減輕：lazy parsing（內層函式先用較快的 preparser 略過，真的被呼叫才完整 parse）與 code cache（把編好的結果存起來，下次載入同一支腳本跳過 parse）。
+
+⚠️ 存疑：上面關於 preparser、code cache 與「V8 AST 不公開」是我依一般知識整理，V8 官方部落格（https://v8.dev/blog/preparser 、https://v8.dev/blog/code-caching-for-devs）被沙盒擋住，沒辦法當場查證，請你對照確認。
+
+練習題（LeetCode）：[224. Basic Calculator](https://leetcode.com/problems/basic-calculator/) 就是把一串運算式文字 parse 成結構再計算，是 parser 的縮小版。
+
 ```text
 ◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
         （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
