@@ -18,7 +18,7 @@ updated: 2026-07-31
 > 起點問題：「return 會清理記憶體喔」→ 對，但只清 Stack，不一定清 Heap。
 > 互動考試：`C:\coding\JavaScript-practicing\memory-model-quiz.html`
 > 互動動畫（Stack Frame push/pop + GC Mark-and-Sweep 逐步播放）：同資料夾 `return-清理記憶體-stack-frame與閉包例外.html`
-> 外部佐證（2026-07-28 補）：V8 確實會把被閉包捕獲的變數放進一個叫 `Context` 的 heap-allocated 物件、掛在 closure（`JSFunction`）上，而且是「一進入該作用域就建立 Context」而非等到真的產生 closure 才建立——見 [Grokking V8 closures for fun (and profit?)](https://mrale.ph/blog/2012/09/23/grokking-v8-closures-for-fun.html)（作者 Vyacheslav Egorov，V8 工程師，發表於 2012-09-23；文章年代較早，但 Context 物件走 Heap 配置這個架構性結論至今仍成立）。
+> 外部佐證（2026-07-28 補）：V8 確實會把被閉包捕獲的變數放進一個叫 `Context` 的 heap-allocated 物件、由 closure 這個函式物件的 context 欄位指著（V8 裡每個函式物件都是 `JSFunction`，都帶一個 context 欄位），而且是「一進入該作用域就建立 Context」而非等到真的產生 closure 才建立——見 [Grokking V8 closures for fun (and profit?)](https://mrale.ph/blog/2012/09/23/grokking-v8-closures-for-fun.html)（作者 Vyacheslav Egorov，V8 工程師，發表於 2012-09-23；文章年代較早，但 Context 物件走 Heap 配置這個架構性結論至今仍成立）。
 
 ---
 
@@ -32,7 +32,7 @@ updated: 2026-07-31
 > ```js
 > function counter() {      // ① 呼叫 counter()：V8 push counter 的 Stack Frame，同時在 Heap 建好 Context 物件
 >   let count = 0;          //    count 住在 Context 裡。Stack Frame 只放「返回位址」與「指向 Context 的指標」，沒有 count 的值
->   return function () {    // ② 求值 return 後面的函式：建立內層函式（JSFunction），它背著指向同一個 Context 的位址，此時 counter 的 Frame 仍在
+>   return function () {    // ② 求值 return 後面的函式：建立內層函式物件，它的 context 欄位指向 counter 的 Context，此時 counter 的 Frame 仍在
 >     return ++count;       //    這一行引用了 count，V8 在 Parse 階段的 Scope Analysis 就是看到它，才決定 count 要放 Heap
 >   };                      // ③ return 完成：內層函式交給呼叫者，V8 同時 pop 掉 counter 的 Stack Frame，Heap 上的 Context 一根寒毛都沒動
 > }
@@ -58,7 +58,7 @@ updated: 2026-07-31
 | **What** 是什麼 | `return` 到底清掉了什麼？ | <mark style="background: #BBFABBA6;">只有 Stack 上這一層 Stack Frame</mark>：返回位址、Saved Frame Pointer、參數、沒被捕獲的區域變數。<mark style="background: #FF5582A6;">Heap 一根寒毛都沒被動到</mark> |
 | **When** 什麼時候 | 什麼時候清？ | <mark style="background: #FF5582A6;">執行期</mark>，`return` 執行的那個當下，引擎<mark style="background: #BBFABBA6;">立即、自動、同步</mark>地把這次呼叫的 Stack Frame pop 掉，跟 GC 那種「不定時、不可預測」是兩套完全不同的節奏（push 發生在呼叫的那一刻，次數的算法見下方「一句話驗證法」第 2 點） |
 | **Who** 誰做的 | 誰負責清？ | 引擎與 CPU 的<mark style="background: #ADCCFFA6;">固定機制</mark>——把 Stack Pointer 移回去、還原 Base Pointer 就結束了（見本篇第 5 節組合語言視角）。<mark style="background: #FF5582A6;">不是 GC</mark>，GC 從頭到尾不管 Stack |
-| **Where** 在哪裡 | 東西各自住在哪？ | a. Stack Frame → Call Stack；b. 物件實體 → Heap；c. <mark style="background: #FFF3A3A6;">被閉包捕獲的綁定 → Heap 上的 Context 物件</mark>，掛在那個閉包函式（`JSFunction`）身上 |
+| **Where** 在哪裡 | 東西各自住在哪？ | a. Stack Frame → Call Stack；b. 物件實體 → Heap；c. <mark style="background: #FFF3A3A6;">被閉包捕獲的綁定 → Heap 上的 Context 物件</mark>，由那個閉包函式的 context 欄位指著（V8 裡每個函式物件都是 `JSFunction`，即 `(context, 程式碼)` 的組合） |
 | **Which** 哪一種 | 哪些東西會跟著 Frame 一起消失？ | a. 沒被捕獲的參數與區域原始值 → <mark style="background: #BBFABBA6;">立即消失</mark>；b. 指向 Heap 的指標格子 → 格子消失，但 Heap 實體毫髮無傷；c. 被捕獲的綁定 → <mark style="background: #FF5582A6;">根本不在 Frame 裡</mark>，不受影響 |
 | **How** 怎麼做到 | `return` 的完整動作是什麼？ | 三件幾乎同時發生的事：① 算出回傳值 → ② 把值與控制權一起交還呼叫者 → ③ 這個 Frame 被 pop。呼叫者不是「收到後才醒來」，它<mark style="background: #ADCCFFA6;">本來就凍在那一行等著</mark>，`return` 是結束等待的那一刻 |
 | **Why** 為什麼 | 為什麼 Stack 可以清得這麼粗暴？ | 因為 <mark style="background: #BBFABBA6;">LIFO</mark>：最後 push 的一定最先 pop，生命週期規律到可以預測，<mark style="background: #ADCCFFA6;">把指標往回移一格就等於全部清空</mark>，完全不需要逐一判斷誰還活著。Heap 沒有這種規律，才需要 GC |
