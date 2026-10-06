@@ -10,7 +10,7 @@ updated: 2026-07-31
 
 # `return` 到底清掉了什麼？Stack Frame 自動清 vs 閉包例外
 
-<div class="tip-glossary" data-term="頂層程式碼的變數一律放 Heap，因為變數會跨 script 可見" data-text="「頂層」指 script 檔最外層、不在任何函式裡的程式碼。&#10;適用範圍：這句話出自 V8 部落格，講的是 classic &lt;script&gt;。純 JS 用 &lt;script src&gt; 載入時適用。React 專案用的是 ES module（Vite、webpack 打包後也是），不直接適用。&#10;&#10;classic &lt;script&gt; 的最外層共用同一個全域範圍：var 與 function 宣告會變成 window 的屬性，let、const、class 放在全域的 ScriptContext。其他 script 隨時可能存取它們，所以 V8 一律放在 Heap 的 Context，不放進會被 pop 掉的 Stack Frame。&#10;&#10;ES module 的最外層是 module 範圍，不是全域，別的檔案要用就 export 與 import，「變數會跨 script 可見」的理由不成立。不過 module 層級的變數同樣活得比任何函式久（要給其他檔案 import、給元件函式用），所以多半也放在 Heap 上的結構裡。這一點是推論，沒有查證 V8 對 module 變數的實作。&#10;&#10;React 元件函式裡的變數是函式內部變數，不在這句話的範圍內，照一般規則：沒被閉包捕獲放 Stack，被事件處理函式或 effect 捕獲才放 Heap 的 Context。元件之間用 props 傳值是資料流的設計，與記憶體放在哪裡是兩件事。所以在 React 專案裡這句話幾乎碰不到。&#10;&#10;純 JS 要不要全域變數：現代寫法盡量不用，因為會依賴載入順序，名稱也容易衝突。舊式 classic script 的用法如下。&#10;a.js：const appName = &#x27;Abby&#x27;; function greet() { return &#x27;Hi &#x27; + appName }&#10;b.js：console.log(greet())&#10;index.html：先 &lt;script src=&quot;a.js&quot;&gt;，再 &lt;script src=&quot;b.js&quot;&gt;，順序不能反。&#10;改用 module：a.js 寫 export function greet() {…}，b.js 寫 import { greet } from &#x27;./a.js&#x27;，HTML 用 &lt;script type=&quot;module&quot; src=&quot;b.js&quot;&gt;。"></div>
+<div class="tip-glossary" data-term="頂層程式碼的變數一律放 Heap，因為變數會跨 script 可見" data-text="「頂層」指 script 檔最外層、不在任何函式裡的程式碼。&#10;適用範圍：這句話出自 V8 部落格，講的是 classic &lt;script&gt;。純 JS 用 &lt;script src&gt; 載入時適用。React 專案用的是 ES module（Vite、webpack 打包後也是），不直接適用。&#10;&#10;classic &lt;script&gt; 的最外層共用同一個全域範圍：var 與 function 宣告會變成 window 的屬性，let、const、class 放在全域的 ScriptContext。其他 script 隨時可能存取它們，所以 V8 一律放在 Heap 的 Context，不放進會被 pop 掉的 Stack Frame。&#10;&#10;ES module 的最外層是 module 範圍，不是全域，別的檔案要用就 export 與 import，「變數會跨 script 可見」的理由不成立。V8 的做法（已對照 scopes.cc、source-text-module.h）：有 export 的變數、以及 import 進來的綁定，用 VariableLocation::MODULE 分配，存在 SourceTextModule 的 Cell 物件裡（regular_exports、regular_imports 兩個陣列），Cell 在 Heap 上，import 端指向匯出端同一個 Cell，所以兩個檔案看到的是同一份值。沒有 export 也沒有 import 的最外層變數，推論上跟函式的區域變數一樣：沒被內層函式捕獲放 Stack，被捕獲才放 module 的 Context（Context 的 extension 欄位指向 module 物件）。這一句是依 module scope 是 DeclarationScope 推論，沒有逐行驗證。&#10;&#10;React 元件函式裡的變數是函式內部變數，不在這句話的範圍內，照一般規則：沒被閉包捕獲放 Stack，被事件處理函式或 effect 捕獲才放 Heap 的 Context。元件之間用 props 傳值是資料流的設計，與記憶體放在哪裡是兩件事。所以在 React 專案裡這句話幾乎碰不到。&#10;&#10;純 JS 要不要全域變數：現代寫法盡量不用，因為會依賴載入順序，名稱也容易衝突。舊式 classic script 的用法如下。&#10;a.js：const appName = &#x27;Abby&#x27;; function greet() { return &#x27;Hi &#x27; + appName }&#10;b.js：console.log(greet())&#10;index.html：先 &lt;script src=&quot;a.js&quot;&gt;，再 &lt;script src=&quot;b.js&quot;&gt;，順序不能反。&#10;改用 module：a.js 寫 export function greet() {…}，b.js 寫 import { greet } from &#x27;./a.js&#x27;，HTML 用 &lt;script type=&quot;module&quot; src=&quot;b.js&quot;&gt;。"></div>
 
 <div class="tip-glossary" data-term="JSFunction" data-text="在 V8 裡，每個函式物件都是 JSFunction，包括 counter 本身。JSFunction 的定義是 (context, 程式碼) 的組合，每一個都有一個 context 欄位。counter 與內層函式的差別，在於各自的 context 欄位指向誰"></div>
 
@@ -197,7 +197,7 @@ flowchart LR
 
 ## 0. Stack 跟 Stack Frame 是什麼關係？
 
-`Stack` 是**一整塊專門用來裝呼叫紀錄的記憶體區域**（一個容器），`Stack Frame` 是**每呼叫一次函式就疊上去的其中一片**（一個呼叫紀錄），彼此**並排堆疊、不是套疊**。新的 frame 永遠疊在最上面，只有最上面那片是「目前正在執行」的，下面的全部處於暫停狀態、乖乖等上面的先跑完、被 pop 掉才會輪到自己（更精確、對應真實 hex 記憶體位址與 Stack Pointer／Base Pointer 的版本，見本篇「## 5. 組合語言視角」）：
+`Stack` 是**一整塊專門用來裝呼叫紀錄的記憶體區域**（一個容器），`Stack Frame` 是**每呼叫一次函式就疊上去的其中一片**（一個呼叫紀錄），彼此**並排堆疊、不是套疊**。新的 frame 永遠疊在最上面，只有最上面那片是「目前正在執行」的，下面的全部處於暫停狀態、乖乖等上面的先跑完、被 pop 掉才會輪到自己（更精確、對應真實 hex 記憶體位址與 Stack Pointer／Base Pointer 的版本，見[本篇「## 5. 組合語言視角」](#5.%20再往下一層：組合語言視角的%20Stack——真的有記憶體位址，還有%20SP／BP%20兩個暫存器)）：
 
 ```mermaid
 %%{init: {'flowchart': {'htmlLabels': true, 'nodeSpacing': 45, 'rankSpacing': 45, 'padding': 14}} }%%
@@ -693,6 +693,8 @@ f. **追問延伸：10的9次方是2的幾次方？** 答案不是一個整數�
 ## 資料來源（含查證時間）
 | 主題 | 連結／說明 | 版本／時間 |
 |---|---|---|
+| V8 module 變數：`ModuleScope::AllocateModuleVariables` 只把 import／export 的變數配到 `VariableLocation::MODULE`（以 cell_index 對應 Cell） | https://github.com/v8/v8/blob/main/src/ast/scopes.cc | 2026-10-06 讀取 main 分支 |
+| V8 `SourceTextModule` 的 `regular_exports`、`regular_imports`（Cell 陣列）與 `LoadVariable`／`StoreVariable` | https://github.com/v8/v8/blob/main/src/objects/source-text-module.h | 2026-10-06 讀取 main 分支 |
 | Bytecode flushing 現行旗標（`flush_bytecode`、`bytecode_old_time = 180` 秒）與 `FlushSFI` 把 BytecodeArray 原地轉成 UncompiledData | https://github.com/v8/v8/blob/main/src/flags/flag-definitions.h 、https://github.com/v8/v8/blob/main/src/heap/mark-compact.cc | 2026-10-06 讀取 main 分支 |
 | gcc -O0 編譯 `add` 的實際反組譯（sum 在 `[rbp-0x4]`、a 在 `[rbp-0x14]`、b 在 `[rbp-0x18]`，結尾 `pop rbp`、`ret`） | 本機 `gcc -O0` 加 `objdump -d -M intel`（x86-64） | 2026-10-06 實測 |
 | ECMAScript 規格：函式 `[[Call]]` 結束時「Remove calleeContext from the execution context stack」 | https://tc39.es/ecma262/#sec-ecmascript-function-objects-call-thisargument-argumentslist | 2026-10-06 讀取 tc39/ecma262 main 的 spec.html |
