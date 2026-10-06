@@ -32,10 +32,10 @@ updated: 2026-07-31
 > ```js
 > function counter() {      // ① 呼叫 counter()：V8 push counter 的 Stack Frame，同時在 Heap 建好 Context 物件
 >   let count = 0;          //    count 住在 Context 裡。Stack Frame 只放「返回位址」與「指向 Context 的指標」，沒有 count 的值
->   return function () {    // ② 建立內層函式（JSFunction），它背著指向同一個 Context 的位址，然後 return 它
+>   return function () {    // ② 求值 return 後面的函式：建立內層函式（JSFunction），它背著指向同一個 Context 的位址，此時 counter 的 Frame 仍在
 >     return ++count;       //    這一行引用了 count，V8 在 Parse 階段的 Scope Analysis 就是看到它，才決定 count 要放 Heap
->   };
-> }                         // ③ counter() 執行完：V8 把 counter 的 Stack Frame pop 掉（Frame 被清掉），Heap 上的 Context 一根寒毛都沒動
+>   };                    // ③ return 完成：內層函式交給呼叫者，V8 同時 pop 掉 counter 的 Stack Frame，Heap 上的 Context 一根寒毛都沒動
+> }
 > const next = counter();   //    內層函式被存進 next，所以它背著的 Context 仍然有人指著
 > next();                   // ④ 呼叫內層函式：從 Context 讀寫 count，回傳 1。count 保存在 Context 裡，所以每次呼叫都能累加
 > ```
@@ -43,8 +43,8 @@ updated: 2026-07-31
 > | 時間點 | Call Stack（Stack Frame） | Heap |
 > |---|---|---|
 > | ① 進入 `counter()` | counter 的 Frame：返回位址、指向 Context 的指標 | Context（`count = 0`） |
-> | ② 執行到 `return function…` | 同上 | Context（`count = 0`）、內層函式（背著 Context） |
-> | ③ `counter()` 執行完 | counter 的 Frame 已被 pop，Frame 裡的東西全部消失 | Context（`count = 0`）與內層函式都還在，因為 `next` 指著內層函式 |
+> | ② 求值 `return` 後面的 `function…` | counter 的 Frame 內容與 ① 相同（返回位址、指向 Context 的指標），Frame 還在，因為 `return` 還沒完成 | Context（`count = 0`）、新建立的內層函式（背著 Context） |
+> | ③ `return` 完成 | `return` 把內層函式交給呼叫者，同時 counter 的 Frame 被 pop，Frame 裡的東西全部消失 | Context（`count = 0`）與內層函式都還在，因為 `next` 指著內層函式 |
 > | ④ 呼叫 `next()` | next 這次呼叫的 Frame | Context（`count` 變成 `1`） |
 >
 > 第 ③ 步 pop Frame 時，`count` 本來就在 Heap 的 Context 裡，沒有任何東西需要搬動。
@@ -89,7 +89,7 @@ c. **兩邊要做的事不同。** buildtime 的樹是為了「改寫程式碼�
 
 runtime 重複 parse 的成本，V8 用另外兩招減輕：lazy parsing（內層函式先用較快的 preparser 略過，真的被呼叫才完整 parse）與 code cache（把編好的結果存起來，下次載入同一支腳本跳過 parse）。
 
-已查證（2026-10-06，V8 官方部落格原始檔）：lazy parsing 與 preparser 見 [Blazingly fast parsing, part 2: lazy parsing](https://v8.dev/blog/preparser)（2019-04-15），code cache 見 [Code caching for JavaScript developers](https://v8.dev/blog/code-caching-for-devs)（2019-04-08）。完整逐句對照在 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]] 的「Preparser 與 Lazy Parsing」。
+已查證（2026-10-06，V8 官方部落格原始檔）：lazy parsing 與 preparser 見 [Blazingly fast parsing, part 2: lazy parsing](https://v8.dev/blog/preparser)（2019-04-15），code cache 見 [Code caching for JavaScript developers](https://v8.dev/blog/code-caching-for-devs)（2019-04-08）。逐句對照見下方「V8 的 Parse 內部：Preparser 與 Lazy Parsing」，V8 管線全貌見 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]]。
 ⚠️ 仍存疑：「V8 的 AST 不公開給外部使用」這一點沒有查到來源。
 
 練習題（LeetCode）：[224. Basic Calculator](https://leetcode.com/problems/basic-calculator/) 就是把一串運算式文字 parse 成結構再計算，是 parser 的縮小版。
@@ -120,6 +120,42 @@ runtime 重複 parse 的成本，V8 用另外兩招減輕：lazy parsing（內�
 
  ★ 「該不該逃到 Heap」的決策在第 ③ 格；「真的配置與清除」在第 ⑤ 格。
    兩者相隔很遠，卻常被壓縮成同一件事來想，這就是誤會的來源。
+```
+
+### V8 的 Parse 內部：Preparser 與 Lazy Parsing
+
+**Preparser 與 Lazy Parsing（惰性 parse）：**V8 的 parser 遇到函式時，不一定立刻把它完整 parse 成 AST。它會切換成 preparser（parser 的精簡版，只做「剛好足以略過這個函式」的最少工作），先確認函式本體語法合法，並記下外層函式編譯所需的資訊。等這個函式第一次被呼叫，V8 才完整 parse 它並交給 Ignition 編成 Bytecode。
+
+官方部落格 [Blazingly fast parsing, part 2: lazy parsing](https://v8.dev/blog/preparser)（2019-04-15）第一段的逐句對照：
+
+| 官方原文 | 白話解釋 |
+|---|---|
+| Parsing is the step where source code is turned into an intermediate representation to be consumed by a compiler (in V8, the bytecode compiler Ignition). | 這是 runtime 在 V8 裡做的事。這裡的 compiler 指 Ignition（把 AST 編成 Bytecode 的 bytecode compiler），與 buildtime 的 transpiler（原始碼轉原始碼）、之後把熱點函式編成機器碼的 TurboFan（optimizing compiler）屬於不同層。這句出現在 part 2，part 1 講 scanner 的優化 |
+| Parsing and compiling happens on the critical path of web page startup | critical path 指頁面啟動時「必須依序完成、後面才能繼續」的那條工作路徑。parse 與 compile 都在 main thread 的啟動流程上，花多久，頁面就晚多久能互動 |
+| and not all functions shipped to the browser are immediately needed during startup. | 一支 bundle 裡有很多函式，但啟動當下只會用到其中一小部分 |
+| Even though developers can delay such code with async and deferred scripts, that's not always feasible. | 原文沒有說明理由，以下是我的推論。a. 啟動就要用的程式碼本來就不能延後。b. `async`、`defer` 只改變 script 何時下載與執行，檔案一旦執行，裡面沒被呼叫的函式至少還是會被 preparse 一次。c. 把不需要的功能拆出去要靠 code splitting 與 dynamic import 重構，成本高，第三方 script 更不是你能拆的。d. 有執行順序依賴的 script 不能隨便用 `async` |
+| Additionally, many web pages ship code that's only used by certain features which may not be accessed by a user at all during any individual run of the page. | 例如結帳頁、後台管理功能的程式碼，使用者這一次載入頁面可能根本不會點到 |
+| Eagerly compiling code unnecessarily has real resource costs: | eagerly 是「迫切」，意思是不管用不用得到都先編譯。下面三條是它的代價 |
+| CPU cycles are used to create the code, delaying the availability of code that's actually needed for startup. | main thread 一次只能做一件事，每花一段 CPU 時間去編譯啟動時用不到的函式，真正要用的函式就晚一點才輪到。availability 是「可用性」，指程式碼何時能被執行（與 GC 的可達性 reachability 是不同概念）。that's actually needed for startup 修飾 code，指「啟動時真的需要的那些程式碼」 |
+| Code objects take up memory, at least until bytecode flushing decides that the code isn't currently needed and allows it to be garbage-collected. | 編好的 Bytecode 會佔 V8 heap 的記憶體。bytecode flushing 的做法（[V8 v7.4 發佈說明](https://v8.dev/blog/v8-release-74)，2019-03-22）：V8 為每個函式的 bytecode 記錄「年齡」，每次 GC 年齡加一，函式被執行時歸零，超過門檻的 bytecode 在下一次 GC 被回收，函式變回尚未編譯，之後再被呼叫才重新 lazy compile。它依「最近有沒有被執行」判斷，與 scope chain 的可達性是兩個機制（可達性決定物件能不能被 GC）。官方量測 bytecode 約占 V8 heap 的 15%，flushing 省下 5 到 15% |
+| Code compiled by the time the top-level script finishes executing ends up being cached on disk, taking up disk space. | 這是 Chrome 的 code cache（[Code caching for JavaScript developers](https://v8.dev/blog/code-caching-for-devs)，2019-04-08）。同一支 script 第二次載入時，Chrome 把編好的結果序列化，附在 HTTP cache 的檔案旁。「頂層腳本執行完時已編譯的函式」都會進 cache，所以不必要的 eager compile 也會一起佔磁碟。這整段都是 runtime 的 V8 與 Chrome 在做的事 |
+
+跟 Critical Rendering Path（CRP，瀏覽器把 HTML 變成畫面的 DOM、CSSOM、render tree、layout、paint 這條路）的關係：官方這篇沒有談 render。兩者都是「啟動時的必經路」，而且會重疊，因為沒加 `async`、`defer` 的 script 會擋住 HTML 的 parse，它的下載、parse、compile、執行都得做完，後面的畫面才能繼續，所以會推遲首次繪製。這個連結是我的推論，不是官方原文。相關：[[FCP首次內容繪製-SEO爬蟲與打包五步驟]]。
+
+preparser 還要追蹤變數，原因直接連到 [[return-清理記憶體-stack-frame與閉包例外]]：官方在同一篇的 Variable allocation 一節說，V8 要知道「每個變數有沒有被內層函式引用」，才能決定它放 Stack 或 Heap 的 context，所以 preparser 也必須追蹤變數的宣告與引用，而且在 preparse 期間就做完整的 scope resolution。V8 把「每個變數放哪裡」序列化成一個小陣列存起來，之後完整 parse 該函式時直接套用，內層函式就不必被重複 preparse。結果是每個函式最多被 preparse 一次、完整 parse 一次（bytecode 被 flushing 回收後又被呼叫時會重新 parse，是例外）。
+官方還提到兩種特例。頂層程式碼的變數一律放 Heap，因為變數會跨 script 可見。`(function(){…})` 這種括號包起來的函式，V8 假設它會立刻被呼叫，直接完整 parse 並編譯，稱為 PIFE（possibly-invoked function expression）。
+
+用本篇的 `counter()` 看 lazy parsing 怎麼進行（官方部落格 `outer`／`inner` 範例的對應版本）：
+
+```js
+function counter() {      // ① 頂層掃到這個宣告：preparser 先略過函式本體，同時記下「count 被內層函式引用」
+  let count = 0;
+  return function () {    //    更內層的函式也只被 preparse，不建 AST
+    return ++count;
+  };
+}
+const next = counter();   // ② 第一次呼叫 counter()：V8 才完整 parse counter 並編成 Bytecode，套用 ① 記下的「count 放 Heap」，內層函式仍然只被 preparse
+next();                   // ③ 第一次呼叫內層函式：這時才完整 parse 內層函式並編成 Bytecode
 ```
 
 一次呼叫的 Stack Frame 自己也有一條由生到死的序列：
@@ -679,6 +715,10 @@ f. **追問延伸：10的9次方是2的幾次方？** 答案不是一個整數�
 ## 資料來源（含查證時間）
 | 主題 | 連結／說明 | 版本／時間 |
 |---|---|---|
+| Preparser、lazy parsing、Variable allocation、PIFE | https://v8.dev/blog/preparser | 發表 2019-04-15，2026-10-06 查證（讀取 v8/v8.dev 倉庫原始檔） |
+| Bytecode flushing | https://v8.dev/blog/v8-release-74 | 發表 2019-03-22，2026-10-06 查證 |
+| Code cache 與磁碟快取 | https://v8.dev/blog/code-caching-for-devs | 發表 2019-04-08，2026-10-06 查證 |
+| 「async／defer 為何不一定可行」「CRP 與 critical path 的關係」 | 本篇推論，非官方原文 | 無 |
 | Stack Pointer／Base Pointer、hex 記憶體位址、frame 屋頂與地板的視覺呈現方式 | 參考 YouTube Shorts〈How Assembly Functions Work – The Stack Explained〉@MxyAhoy 的畫面構圖（使用者提供截圖），本篇圖表為原創重繪，非直接複製 | 查證日期 2026-07-29 |
 | 同一支影片更深入的片段：mov edi/esi機器碼位元組拆解、opcode與operand分割、little-endian、EDI/ESI名稱源流與System V AMD64 ABI呼叫慣例 | 同一支@MxyAhoy影片，使用者提供截圖（IMG_5039、IMG_5038） | 查證日期 2026-07-30 |
 | bf等register-in-opcode（+rd）編碼手法：基底opcode加暫存器編號（mov r32,imm32、push r64、pop r64對照表），使用者手繪整理 | 使用者提供手繪截圖（photo.jpeg），對照Intel指令集通用編碼慣例 | 查證日期 2026-07-30 |
