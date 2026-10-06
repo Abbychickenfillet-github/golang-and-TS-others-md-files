@@ -41,7 +41,8 @@ updated: 2026-07-31
 > ```
 >
 > c. `return` 時 Frame 照樣被完整 pop 掉，<mark style="background: #FF5582A6;">什麼都沒被搶救</mark>——因為要留下來的東西，從頭到尾就不在 Stack 上。
-> 一句話：`return` 沒有「例外處理」，它每次都做同一件事；<mark style="background: #BBFABBA6;">是變數一開始就被放在不同的地方</mark>。
+> 一句話：<mark style="background: #BBFABBA6;">`return` 每次只做三件固定的事：算出回傳值、把回傳值與控制權交還給呼叫者、讓 V8 把這次呼叫的 Stack Frame 從 Call Stack 上 pop 掉。這三件事跟變數有沒有被閉包捕獲無關</mark>。被閉包捕獲的變數不會被清，是因為它從一開始就放在 Heap 的 Context 裡，本來就不在這個 Frame 上。
+> 本篇說的「例外」是「特殊待遇」的意思（`return` 有沒有對閉包網開一面），跟 JavaScript 的 Exception（`throw`、`try...catch`）無關。
 
 | 5W1H | 問題 | 一句話答案 |
 |---|---|---|
@@ -79,7 +80,8 @@ c. **兩邊要做的事不同。** buildtime 的樹是為了「改寫程式碼�
 
 runtime 重複 parse 的成本，V8 用另外兩招減輕：lazy parsing（內層函式先用較快的 preparser 略過，真的被呼叫才完整 parse）與 code cache（把編好的結果存起來，下次載入同一支腳本跳過 parse）。
 
-⚠️ 存疑：上面關於 preparser、code cache 與「V8 AST 不公開」是我依一般知識整理，V8 官方部落格（https://v8.dev/blog/preparser 、https://v8.dev/blog/code-caching-for-devs）被沙盒擋住，沒辦法當場查證，請你對照確認。
+已查證（2026-10-06，V8 官方部落格原始檔）：lazy parsing 與 preparser 見 [Blazingly fast parsing, part 2: lazy parsing](https://v8.dev/blog/preparser)（2019-04-15），code cache 見 [Code caching for JavaScript developers](https://v8.dev/blog/code-caching-for-devs)（2019-04-08）。完整逐句對照在 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]] 的「Preparser 與 Lazy Parsing」。
+⚠️ 仍存疑：「V8 的 AST 不公開給外部使用」這一點沒有查到來源。
 
 練習題（LeetCode）：[224. Basic Calculator](https://leetcode.com/problems/basic-calculator/) 就是把一串運算式文字 parse 成結構再計算，是 parser 的縮小版。
 
@@ -152,7 +154,7 @@ flowchart LR
 
 > [!warning]- 為什麼「`return` 會清理記憶體」這句話會把人帶偏？三個原因
 > a. <mark style="background: #FFF3A3A6;">「記憶體」三個字沒有分家</mark>：Stack 與 Heap 是兩套清理機制（自動 pop vs GC 判斷可達性），但「清理記憶體」這句話把它們糊成一團，於是很多人以為 `return` 也會順手處理 Heap。它不會。
-> b. <mark style="background: #ADCCFFA6;">「閉包例外」這個說法本身就有誤導性</mark>：聽起來像 `return` 在某些情況下會網開一面。實際上 `return` 每次都做完全一樣的事——<mark style="background: #BBFABBA6;">例外的不是清理動作，是那個變數一開始被放的位置</mark>。
+> b. <mark style="background: #ADCCFFA6;">「閉包例外」這個說法本身就有誤導性</mark>：聽起來像 `return` 在某些情況下會網開一面。實際上 `return` 每次都只做上面那三件固定的事（算回傳值、交還控制權、pop Stack Frame），不會因為閉包而多做或少做任何一件——<mark style="background: #BBFABBA6;">例外的不是清理動作，是那個變數一開始被放的位置</mark>。
 > c. <mark style="background: #FF5582A6;">因為決策與執行隔太遠</mark>：「這個變數要放 Heap」是 V8 在 runtime 的 <span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">Parse</span> 階段做的決定（每個函式只做一次），「真的配置一個 Context」是每次呼叫時做的動作。中間隔了整個 Bytecode 階段，很容易在腦中被壓縮成同一瞬間。
 
 ### 一句話驗證法

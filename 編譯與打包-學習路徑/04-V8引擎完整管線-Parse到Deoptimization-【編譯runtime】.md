@@ -83,7 +83,7 @@ flowchart TD
 
       | | Scope Analysis 的初步判定（這裡） | TurboFan 的 Escape Analysis（下方 TurboFan 階段） |
       |---|---|---|
-      | 發生時機 | Parse 階段，**每個函式都會做一次** | 只有被判定為 Hot Code、送進 TurboFan 之後才會做 |
+      | 發生時機 | Parse 階段，**每個函式都會做一次**（含被 preparser 略過的函式，見下方 Preparser 那一點） | 只有被判定為 Hot Code、送進 TurboFan 之後才會做 |
       | 判斷依據 | **靜態語法結構**：AST 上有沒有內層函式引用這個變數 | **實際執行 Profile**：這個物件在真正跑過的案例裡，有沒有被回傳、存到外部變數、被閉包捕獲 |
       | 保守程度 | 保守——只要「可能」被捕獲就先放 Heap，確保正確性優先 | 激進——只要「證明」完全不會逃逸，可以直接連 Heap 都不配置 |
       | 對物件的處理 | 二選一：整包放 Stack 或整包放 Heap Context | 可以更細：把物件拆成好幾個獨立的純量值（scalar），例如物件的每個欄位各自變成一個暫存器變數，完全跳過「配置一整個物件」這件事 |
@@ -95,6 +95,27 @@ flowchart TD
   - **判斷要不要建立 `arguments` 物件**：如果函式本體根本沒引用 `arguments`，V8 可以直接省略建立它，省一筆開銷（哪種參數列表會影響 `arguments` 是「mapped」還是「unmapped」，見 [[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]] 的簡單參數列表說明）。
   - **strict mode 判定**：從 `"use strict"` 指令或 ES Module 環境推定這段程式碼是不是 strict mode，會影響後面一系列語法限制。
   - **Early Error 靜態語法檢查**：例如同一個參數列表裡重複的參數名稱、同一 scope 裡重複的 `let`/`const` 宣告，這類「編譯期就能確定是錯的」語法錯誤，也是在這個階段被抓出來（完整的重複參數名稱規則見 [[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]] 的 (e)）。
+
+- **Preparser 與 Lazy Parsing（惰性 parse）**：V8 的 parser 遇到函式時，不一定立刻把它完整 parse 成 AST。它會切換成 preparser（parser 的精簡版，只做「剛好足以略過這個函式」的最少工作），先確認函式本體語法合法，並記下外層函式編譯所需的資訊。等這個函式第一次被呼叫，V8 才完整 parse 它並交給 Ignition 編成 Bytecode。
+
+  官方部落格 [Blazingly fast parsing, part 2: lazy parsing](https://v8.dev/blog/preparser)（2019-04-15）第一段的逐句對照：
+
+  | 官方原文 | 白話解釋 |
+  |---|---|
+  | Parsing is the step where source code is turned into an intermediate representation to be consumed by a compiler (in V8, the bytecode compiler Ignition). | 這是 runtime 在 V8 裡做的事，不是 buildtime。這裡的 compiler 指 Ignition（把 AST 編成 Bytecode 的 bytecode compiler）。它不是 transpiler（transpile 是 buildtime 的原始碼轉原始碼），也不是 TurboFan（TurboFan 是之後把熱點函式編成機器碼的 optimizing compiler）。注意這句出現在 part 2，part 1 講的是 scanner 的優化 |
+  | Parsing and compiling happens on the critical path of web page startup | critical path 指頁面啟動時「必須依序完成、後面才能繼續」的那條工作路徑。parse 與 compile 都在 main thread 的啟動流程上，花多久，頁面就晚多久能互動 |
+  | and not all functions shipped to the browser are immediately needed during startup. | 一支 bundle 裡有很多函式，但啟動當下只會用到其中一小部分 |
+  | Even though developers can delay such code with async and deferred scripts, that's not always feasible. | 原文沒有說明理由，以下是我的推論。a. 啟動就要用的程式碼本來就不能延後。b. `async`、`defer` 只改變 script 何時下載與執行，檔案一旦執行，裡面沒被呼叫的函式至少還是會被 preparse 一次。c. 把不需要的功能拆出去要靠 code splitting 與 dynamic import 重構，成本高，第三方 script 更不是你能拆的。d. 有執行順序依賴的 script 不能隨便用 `async` |
+  | Additionally, many web pages ship code that's only used by certain features which may not be accessed by a user at all during any individual run of the page. | 例如結帳頁、後台管理功能的程式碼，使用者這一次載入頁面可能根本不會點到 |
+  | Eagerly compiling code unnecessarily has real resource costs: | eagerly 是「迫切」，意思是不管用不用得到都先編譯。下面三條是它的代價 |
+  | CPU cycles are used to create the code, delaying the availability of code that's actually needed for startup. | main thread 一次只能做一件事，每花一段 CPU 時間去編譯啟動時用不到的函式，真正要用的函式就晚一點才輪到。availability 是「可用性」，指程式碼何時能被執行，不是「可達性」（reachability，那是 GC 的概念）。that's actually needed for startup 是在修飾 code，意思是「啟動時真的需要的那些程式碼」 |
+  | Code objects take up memory, at least until bytecode flushing decides that the code isn't currently needed and allows it to be garbage-collected. | 編好的 Bytecode 會佔 V8 heap 的記憶體。bytecode flushing 的做法（[V8 v7.4 發佈說明](https://v8.dev/blog/v8-release-74)，2019-03-22）：V8 為每個函式的 bytecode 記錄「年齡」，每次 GC 年齡加一，函式被執行時歸零，超過門檻的 bytecode 在下一次 GC 被回收，函式變回尚未編譯，之後再被呼叫才重新 lazy compile。它看的是「最近有沒有被執行」，不是 scope chain 有沒有鍊住它（scope chain 與可達性是另一件事，決定物件能不能被 GC）。官方量測 bytecode 約占 V8 heap 的 15%，flushing 省下 5 到 15% |
+  | Code compiled by the time the top-level script finishes executing ends up being cached on disk, taking up disk space. | 這是 Chrome 的 code cache（[Code caching for JavaScript developers](https://v8.dev/blog/code-caching-for-devs)，2019-04-08）。同一支 script 第二次載入時，Chrome 把編好的結果序列化，附在 HTTP cache 的檔案旁。「頂層腳本執行完時已編譯的函式」都會進 cache，所以不必要的 eager compile 也會一起佔磁碟。這整段都是 runtime 的 V8 與 Chrome 在做的事，不是 buildtime |
+
+  跟 Critical Rendering Path（CRP，瀏覽器把 HTML 變成畫面的 DOM、CSSOM、render tree、layout、paint 這條路）的關係：官方這篇沒有談 render。兩者都是「啟動時的必經路」，而且會重疊，因為沒加 `async`、`defer` 的 script 會擋住 HTML 的 parse，它的下載、parse、compile、執行都得做完，後面的畫面才能繼續，所以會推遲首次繪製。這個連結是我的推論，不是官方原文。相關：[[FCP首次內容繪製-SEO爬蟲與打包五步驟]]。
+
+  preparser 還要追蹤變數，原因直接連到 [[return-清理記憶體-stack-frame與閉包例外]]：官方在同一篇的 Variable allocation 一節說，V8 要知道「每個變數有沒有被內層函式引用」，才能決定它放 Stack 或 Heap 的 context，所以 preparser 也必須追蹤變數的宣告與引用，而且在 preparse 期間就做完整的 scope resolution。V8 把「每個變數放哪裡」序列化成一個小陣列存起來，之後完整 parse 該函式時直接套用，內層函式就不必被重複 preparse。結果是每個函式最多被 preparse 一次、完整 parse 一次（bytecode 被 flushing 回收後又被呼叫時會重新 parse，是例外）。
+  官方還提到兩種特例。頂層程式碼的變數一律放 Heap，因為變數會跨 script 可見。`(function(){…})` 這種括號包起來的函式，V8 假設它會立刻被呼叫，直接完整 parse 並編譯，稱為 PIFE（possibly-invoked function expression）。
 
 ### Ignition（直譯器）階段
 
@@ -159,7 +180,7 @@ var smallestNumber = function (n, t) {
 
 快速結論（完整版見 [[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]] 的 (f)(g)(h) 三節）：
 
-- **Parse（本篇最上面 Scanner→Parser→AST→Scope Analysis 那段）是編譯期**，對同一個函式只做一次（V8 甚至會 lazy parsing，delay 到第一次被呼叫前才補做），產出可重複使用的 Bytecode。
+- **Parse（本篇最上面 Scanner→Parser→AST→Scope Analysis 那段）是編譯期**，對同一個函式只做一次，產出可重複使用的 Bytecode。V8 還會做 lazy parsing：內層函式先由 preparser 略過，第一次被呼叫才完整 parse（細節見上方「Preparser 與 Lazy Parsing」）。
 - **Hoisting／參數綁定屬於 Execution Context 的 Creation Phase，是執行期**，函式被呼叫幾次就重做幾次——這跟 Parse 是兩個完全不同時間點的動作，只是 lazy compilation 讓兩者在時間上很靠近，容易被誤以為是同一件事。
 - 「編譯」跟「翻譯／直譯」的用詞差異：編譯＝把原始碼轉成另一種可重複執行的表示法（Parse＋Bytecode 產生，一次性）；翻譯／直譯＝真的執行已編譯好的表示法（Ignition 跑 Bytecode，每次呼叫都重來）。
 
@@ -478,6 +499,16 @@ flowchart LR
 - [[Node-js底層架構-V8-libuv-Bindings與CSR澄清]] —— libuv 到底是什麼、Node.js 完整分層架構、CSR 渲染邏輯在哪執行、純前端會不會用到 Node 專屬 API
 - [[陳述式-Statement-vs-表達式-Expression]] —— 上面 AST 逐字稿裡 `ExpressionStatement`、`VariableDeclaration` 這些節點名稱背後的分類邏輯
 - [[引擎-Engine-到底是什麼]] —— 「引擎」這個詞的正式定義，以及 Engine／Interpreter／Compiler／Runtime／Host Environment 的名詞辨析
+
+## 資料來源（含查證時間）
+
+| 主題 | 連結 | 版本／時間 |
+|---|---|---|
+| Preparser、lazy parsing、Variable allocation、PIFE | https://v8.dev/blog/preparser | 發表 2019-04-15，2026-10-06 查證（讀取 v8/v8.dev 倉庫原始檔） |
+| Scanner、AST 與 Ignition 的關係 | https://v8.dev/blog/scanner | 發表 2019-03-25，2026-10-06 查證 |
+| Bytecode flushing | https://v8.dev/blog/v8-release-74 | 發表 2019-03-22，2026-10-06 查證 |
+| Code cache 與磁碟快取 | https://v8.dev/blog/code-caching-for-devs | 發表 2019-04-08，2026-10-06 查證 |
+| 「async／defer 為何不一定可行」「CRP 與 critical path 的關係」 | 本篇推論，非官方原文 | 無 |
 
 ---
 
