@@ -34,7 +34,7 @@ updated: 2026-07-31
 | 5W1H | 問題 | 一句話答案 |
 |---|---|---|
 | **What** 是什麼 | `return` 到底清掉了什麼？ | <mark style="background: #BBFABBA6;">只有 Stack 上這一層 Stack Frame</mark>：返回位址、Saved Frame Pointer、參數、沒被捕獲的區域變數。<mark style="background: #FF5582A6;">Heap 一根寒毛都沒被動到</mark> |
-| **When** 什麼時候 | 什麼時候清？ | <mark style="background: #FF5582A6;">執行期</mark>，`return` 執行的那個當下，<mark style="background: #BBFABBA6;">立即、自動、同步</mark>。呼叫幾次就 push／pop 幾次，跟 GC 那種「不定時、不可預測」是兩套完全不同的節奏 |
+| **When** 什麼時候 | 什麼時候清？ | <mark style="background: #FF5582A6;">執行期</mark>，`return` 執行的那個當下，引擎<mark style="background: #BBFABBA6;">立即、自動、同步</mark>地把這次呼叫的 Stack Frame pop 掉，跟 GC 那種「不定時、不可預測」是兩套完全不同的節奏（push 發生在「呼叫」的那一刻，不是 `return`，次數的算法見下方「一句話驗證法」第 2 點） |
 | **Who** 誰做的 | 誰負責清？ | 引擎與 CPU 的<mark style="background: #ADCCFFA6;">固定機制</mark>——把 Stack Pointer 移回去、還原 Base Pointer 就結束了（見本篇第 5 節組合語言視角）。<mark style="background: #FF5582A6;">不是 GC</mark>，GC 從頭到尾不管 Stack |
 | **Where** 在哪裡 | 東西各自住在哪？ | a. Stack Frame → Call Stack；b. 物件實體 → Heap；c. <mark style="background: #FFF3A3A6;">被閉包捕獲的綁定 → Heap 上的 Context 物件</mark>，掛在那個閉包函式（`JSFunction`）身上 |
 | **Which** 哪一種 | 哪些東西會跟著 Frame 一起消失？ | a. 沒被捕獲的參數與區域原始值 → <mark style="background: #BBFABBA6;">立即消失</mark>；b. 指向 Heap 的指標格子 → 格子消失，但 Heap 實體毫髮無傷；c. 被捕獲的綁定 → <mark style="background: #FF5582A6;">根本不在 Frame 裡</mark>，不受影響 |
@@ -121,7 +121,10 @@ flowchart LR
 
 1. 只做一次 → 屬於 Parse／編譯期（第 ③ ④ 格），例如「決定 `count` 要放 Heap」
 
-2. 呼叫幾次就做幾次 → 屬於執行期（第 ⑤ 格），例如「push／pop Frame」「建立一個新的 Context 物件」
+2. 呼叫幾次就做幾次 → 屬於執行期（第 ⑤ 格）。這類事的主詞要分清楚：
+	- 每「呼叫」一次函式，V8 就在 Call Stack 上 push 一個新的 Stack Frame。
+	- 每「return」一次，V8 就把那一次呼叫的 Stack Frame pop 掉。所以函式被呼叫幾次，Call Stack 就 push 幾次、pop 幾次，而且 pop 的順序與 push 相反（LIFO）。
+	- 每次呼叫，如果函式裡有被內層函式捕獲的變數，V8 還會在 Heap 上建立一個新的 Context 物件。
 
 所以 `counter()` 被呼叫三次，就會有<mark style="background: #FFF3A3A6;">三個互不相干的 Context 物件、三個各自獨立的 `count`</mark>——但「`count` 該住 Heap」這個決定，從頭到尾只做過一次。
 
