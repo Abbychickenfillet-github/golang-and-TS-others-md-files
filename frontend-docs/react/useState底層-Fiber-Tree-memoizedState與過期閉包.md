@@ -133,6 +133,8 @@ useEffect 那一節 Hook 的 `memoizedState` 指向的是一個 Effect 物件，
 
 **常見誤解：「`useRef` 的 `queue` 是 `null`，是不是代表它不跟 React 溝通？它沒有 state，要怎麼更新值？」**
 
+**一句話：`useRef` 是「更新值，但不會因為它而更新畫面」。** 值當場就改了（`ref.current = 5` 是普通賦值），但沒有任何東西通知 React，所以 React 不會因此排程 re-render，畫面不動。之後如果別的原因（例如 `setState`）讓元件重新 render，這次 render 就會讀到最新的 `ref.current`，畫面才跟著變。對比 `useState`：改值加上通知 React，值與畫面一起更新。
+
 先拆成兩件事：「保管」與「通知」。`useRef` 跟 React 有溝通「保管」，沒有溝通「通知」。
 
 | 問題 | `useState` | `useRef` |

@@ -181,9 +181,15 @@ td:first-child{width:44px;font-size:26px}
               <div class="nh">🎁 memoizedState<small>＝ { current } 這個小盒子（物件）</small></div>
               <div class="chip">🪧 current<small>你放進去的值或 DOM node</small></div>
             </div>
-            <div class="chip nul">📮 queue<small>null，沒有更新信箱</small></div>
+            <div class="chip nul">📮 queue<small>null，沒有 setter 所以不需要信箱</small></div>
             <div class="chip">🔗 next<small>下一節 Hook：第 4 個</small></div>
-            <div style="font-size:14px;color:#7a6aa0;margin-top:2px">🤫 改 current 不會排程 re-render，因為沒人通知 React</div>
+            <div style="background:#fff;border:3px solid #9b7cf0;border-radius:14px;padding:7px 10px;margin-top:4px;font-size:13.5px;line-height:1.55;font-weight:600;color:#3a3040">
+              <b style="color:#6b3fd0">✅ useRef ＝ 值會更新，但不會因為它而更新畫面</b><br>
+              ① <code>ref.current = 5</code> 是普通賦值，<b>值當場就變了</b><br>
+              ② 但沒有 setter、<code>queue</code> 是 null，沒人通知 React，所以<b>不排程 re-render，畫面不動</b><br>
+              ③ 之後若別的原因（例如 setState）讓元件重畫，畫面才會讀到最新的 current<br>
+              <span style="color:#a1244a">對比 useState：改值 ＋ 通知 React ＝ 值與畫面一起更新</span>
+            </div>
           </div>
         </div>
         <div class="nx">➡️<small>next</small></div>
