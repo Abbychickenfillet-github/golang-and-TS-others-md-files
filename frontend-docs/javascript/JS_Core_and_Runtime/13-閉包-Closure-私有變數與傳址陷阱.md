@@ -31,11 +31,34 @@ updated: 2026-07-31
 
 ## 5W1H 速查：讀本篇之前先把座標定好
 
-> [!important]+ 最常被搞錯的一題先講：<mark style="background: #FF5582A6;">閉包捕獲的是「綁定」，不是「值的快照」</mark>
-> 很多人腦中的畫面是：內層函式出生時把外層變數<mark style="background: #FF5582A6;">複印一份</mark>收進口袋。<mark style="background: #BBFABBA6;">不是的</mark>——它抓住的是<mark style="background: #FFF3A3A6;">那一格記憶體本身</mark>，外面改、裡面就跟著變。本篇兩道最難的題目其實是同一個誤解的兩張臉：
-> a. <mark style="background: #ADCCFFA6;">經典面試題</mark>：`var` 迴圈 ＋ `setTimeout` 印出 `4, 4, 4`，正是因為三個閉包抓的是<mark style="background: #FF5582A6;">同一格 `i`</mark>，不是三份 1／2／3 的快照。換成 `let`，每輪迭代產生<mark style="background: #BBFABBA6;">新的綁定</mark>，才會是 1／2／3。
-> b. <mark style="background: #ADCCFFA6;">魔王題「閉包漏水」</mark>：`getHistory` 回傳陣列參照，外面拿到的就是<mark style="background: #FF5582A6;">同一個陣列</mark>，直接 `push` 就繞過你的方法改掉私有狀態。要真的私有，回傳時得切一刀：`[...history]`。
-> 一句話：閉包不是保險箱，是<mark style="background: #BBFABBA6;">一條指向同一格記憶體的線</mark>。
+> [!important]+ 速查：<mark style="background: #BBFABBA6;">**閉包捕獲的是「綁定」，也就是變數所在的那一格**</mark>，外面改了，閉包讀到的就是新值
+> 內層函式出生時，抓住的是<mark style="background: #FFF3A3A6;">**外層變數那一格記憶體本身**</mark>，不會另外複印一份收進口袋。本篇兩道最難的題目都是這一點的應用：
+> a. <mark style="background: #ADCCFFA6;">經典面試題</mark>：`var` 迴圈 ＋ `setTimeout` 印出 `4, 4, 4`，因為三個閉包抓的是<mark style="background: #BBFABBA6;">**同一格 `i`**</mark>。換成 `let`，每輪迭代產生<mark style="background: #BBFABBA6;">**新的綁定**</mark>，才會是 1／2／3。
+> b. <mark style="background: #ADCCFFA6;">魔王題「閉包漏水」</mark>：`getHistory` 回傳陣列參照，外面拿到的就是<mark style="background: #BBFABBA6;">**同一個陣列**</mark>，直接 `push` 就繞過你的方法改掉私有狀態。要真的私有，回傳時得切一刀：`[...history]`。
+> 一句話：閉包是<mark style="background: #BBFABBA6;">**一條指向同一格記憶體的線**</mark>，不是保險箱。
+
+「那一格」在不同層次叫不同名字：
+
+| 層次 | 「那一格」叫什麼 | 閉包怎麼抓住它 |
+|---|---|---|
+| ECMAScript 規格 | 綁定（binding），存在 Environment Record 裡 | 函式物件的 `[[Environment]]` 指向那份 Environment Record |
+| V8 實作 | **Heap 上 Context 物件裡的一個 slot**（Context 是裝著好幾個被捕獲變數的容器） | 函式物件（`JSFunction`）的 context 欄位指向這個 Context，讀寫變數都經過這個 slot |
+| 沒被任何閉包捕獲的變數 | 在 Stack Frame 裡 | 不會被閉包看見，函式 `return` 後跟著 Frame 一起消失 |
+
+用程式驗證（Node.js 實測，輸出寫在註解）：
+
+```js
+function make() { let x = 1; return { get: () => x, set: v => { x = v; } }; }
+const o = make(); o.set(5);
+console.log(o.get());            // 5，get 與 set 兩個閉包共用同一個 x（同一個 Context slot）
+console.log(make().get());       // 1，另一次呼叫產生另一個 Context，有自己的 x
+var fs = []; for (var i = 0; i < 3; i++) fs.push(() => i);
+console.log(fs.map(f => f()));   // [ 3, 3, 3 ]，三個閉包共用同一格 i
+let gs = []; for (let j = 0; j < 3; j++) gs.push(() => j);
+console.log(gs.map(f => f()));   // [ 0, 1, 2 ]，每輪迭代各有一格 j
+function snap(x) { const copy = x; x = 99; return () => copy; }
+console.log(snap(1)());          // 1，要「快照」得主動複製出另一個變數
+```
 
 | 5W1H | 問題 | 一句話答案 |
 |---|---|---|
