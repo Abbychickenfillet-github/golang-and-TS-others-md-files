@@ -286,7 +286,7 @@ createCounter('counter2');
 
 除錯時踩到的幾個真實陷阱：
 
-- <mark style="background: #ADCCFFA6;">`buttonId` 抓的是「HTML 元素的 id 屬性」，不是變數名稱</mark>——`document.getElementById(buttonId)` 是拿參數的**值**（字串）去比對 DOM 上 `id="..."` 屬性，跟這個參數叫什麼變數名完全無關。容易誤以為傳入的是「變數名稱」本身。
+- <mark style="background: #ADCCFFA6;">**`buttonId` 是參數（變數），它的值是一個字串**</mark>。`document.getElementById(buttonId)` 拿這個字串去比對 DOM 上元素的 `id="..."` 屬性，找到就回傳該元素，找不到回傳 `null`（見 [MDN getElementById](https://developer.mozilla.org/en-US/docs/Web/API/Document/getElementById)）。參數叫什麼名字都可以，改成 `x` 一樣運作，決定結果的是字串的值。
 - <mark style="background: #FF5582A6;">呼叫 `createCounter()` 時傳入的字串，必須跟 HTML 裡按鈕的實際 `id` 完全一致</mark>（例如 HTML 是 `id="counter1"`，就不能傳 `"buttonId1"`），否則 `getElementById` 拿到 `null`。
 - <mark style="background: #FF5582A6;">一旦某次 `getElementById` 綁錯（拿到 `null`）就對它呼叫 `addEventListener`，會直接丟出 TypeError 中斷整段程式碼的執行</mark>——後面所有按鈕的事件綁定都會被連帶跳過而失效，畫面上看起來像「全部按鈕都壞掉了」，但根因往往只是最前面一個 ID 打錯字。
 - 這裡的閉包核心：`count` 和 `button` 都被鎖在 `createCounter` 的作用域裡，每呼叫一次 `createCounter(...)`，就會產生一個**全新、互不干擾**的 `count`，這就是「各按鈕獨立計數」的原理——與前面 `createWallet` 私有變數是同一套機制的不同應用。
