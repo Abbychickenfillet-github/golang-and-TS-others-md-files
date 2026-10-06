@@ -10,6 +10,8 @@ updated: 2026-07-31
 
 # `return` 到底清掉了什麼？Stack Frame 自動清 vs 閉包例外
 
+<div class="tip-glossary" data-term="JSFunction" data-text="在 V8 裡，每個函式物件都是 JSFunction，包括 counter 本身。JSFunction 的定義是 (context, 程式碼) 的組合，每一個都有一個 context 欄位。counter 與內層函式的差別，在於各自的 context 欄位指向誰"></div>
+
 > [!info]- 📍 承接11，銜接13
 > <mark style="background: #ADCCFFA6;">承接</mark>：[[11-記憶體模型-stack-heap-動態配置-GC]]講完整個Stack／Heap模型，這篇聚焦在一個具體時刻——`return`發生時Stack Frame怎麼被清掉，以及被閉包捕獲的變數為什麼是例外。
 > <mark style="background: #BBFABBA6;">下一步</mark>：這篇提到的「閉包例外」只是先點出現象，下一篇[[13-閉包-Closure-私有變數與傳址陷阱]]是閉包本身的深入篇。
@@ -48,6 +50,16 @@ updated: 2026-07-31
 > | ④ 呼叫 `next()` | next 這次呼叫的 Frame | Context（`count` 變成 `1`） |
 >
 > 第 ③ 步 pop Frame 時，`count` 本來就在 Heap 的 Context 裡，沒有任何東西需要搬動。
+>
+> 兩個 `JSFunction` 的 context 欄位各指向哪裡（滑鼠移到 JSFunction 上有說明）：
+>
+> | 函式物件 | context 欄位指向 | 再往外（`previous`） |
+> |---|---|---|
+> | 內層函式 | counter 的 Context（放 `count`） | counter 被建立時所在的層級 |
+> | `counter` 本身 | 它被建立時所在的層級：頂層函式就是 script 最外層的 Context | 最外面是 native context，其 `extension` 欄位放全域物件（瀏覽器的 `window`／`globalThis`） |
+>
+> 對應到 ECMAScript：頂層函式的 `[[Environment]]` 就是全域環境，所以可以把 `counter` 的 context 看成「全域層級的 Context」。V8 實作上，有頂層 `let`／`const`／`class` 的 script 會多一層 ScriptContext，鏈尾才是 native context。ES module 的頂層函式指向 module context。Node.js 的 CommonJS 檔案被包在一個函式裡，頂層函式的外層是那個包裝函式的 Context（此點依一般知識，未對照 Node 原始碼）。
+>
 >
 > c. `return` 時 Frame 被完整 pop 掉，<mark style="background: #BBFABBA6;">**要留下來的東西從頭到尾都在 Heap**</mark>，所以不需要任何額外處理。
 > 一句話：<mark style="background: #BBFABBA6;">`return` 每次只做三件固定的事：算出回傳值、把回傳值與控制權交還給呼叫者、讓 V8 把這次呼叫的 Stack Frame 從 Call Stack 上 pop 掉。這三件事跟變數有沒有被閉包捕獲無關</mark>。被閉包捕獲的變數不會被清，是因為它從一開始就放在 Heap 的 Context 裡，本來就不在這個 Frame 上。
@@ -715,6 +727,7 @@ f. **追問延伸：10的9次方是2的幾次方？** 答案不是一個整數�
 ## 資料來源（含查證時間）
 | 主題 | 連結／說明 | 版本／時間 |
 |---|---|---|
+| V8 `src/objects/contexts.h`（JSFunction 是 (context, code)、ScriptContext、native context 的 extension 放全域物件） | https://github.com/v8/v8/blob/main/src/objects/contexts.h | 2026-10-06 讀取 main 分支 |
 | Preparser、lazy parsing、Variable allocation、PIFE | https://v8.dev/blog/preparser | 發表 2019-04-15，2026-10-06 查證（讀取 v8/v8.dev 倉庫原始檔） |
 | Bytecode flushing | https://v8.dev/blog/v8-release-74 | 發表 2019-03-22，2026-10-06 查證 |
 | Code cache 與磁碟快取 | https://v8.dev/blog/code-caching-for-devs | 發表 2019-04-08，2026-10-06 查證 |

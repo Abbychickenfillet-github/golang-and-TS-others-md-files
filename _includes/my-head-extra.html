@@ -43,6 +43,9 @@ details.callout > summary { cursor: pointer; }
 #tip-img-pop { position: fixed; z-index: 9999; display: none; max-width: min(92vw, 1100px); background: #fff; border: 3px solid #C2185B; border-radius: 12px; padding: 6px; box-shadow: 0 8px 28px rgba(0,0,0,.3); pointer-events: none; }
 #tip-img-pop img { display: block; max-width: 100%; height: auto; }
 #tip-img-fab { position: fixed; right: 16px; bottom: 16px; z-index: 9998; background: #C2185B; color: #fff; border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: help; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+.tip-text { border-bottom: 2px dotted #C2185B; cursor: help; }
+#tip-text-pop { position: fixed; z-index: 9999; display: none; max-width: min(92vw, 420px); background: #fff; color: #333; border: 3px solid #C2185B; border-radius: 12px; padding: 8px 12px; font-size: 13px !important; line-height: 1.6; box-shadow: 0 8px 28px rgba(0,0,0,.3); pointer-events: none; }
+.tip-glossary { display: none; }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
@@ -143,5 +146,54 @@ document.addEventListener('DOMContentLoaded', function () {
   fab.addEventListener('click', function () { show(tips[0], window.innerWidth / 2, window.innerHeight / 3); });
   document.body.appendChild(fab);
   document.addEventListener('click', function (e) { if (!e.target.closest('.tip-img') && e.target !== fab) hide(); });
+});
+</script>
+
+<script>
+/* 3. 詞彙提示：筆記裡放 <div class="tip-glossary" data-term="詞" data-text="說明"></div>，同頁所有出現的「詞」滑鼠移上去就顯示說明 */
+document.addEventListener('DOMContentLoaded', function () {
+  var gl = Array.prototype.slice.call(document.querySelectorAll('.tip-glossary[data-term]'));
+  if (!gl.length) return;
+  var main = document.querySelector('main') || document.body;
+  var pop = document.createElement('div');
+  pop.id = 'tip-text-pop';
+  document.body.appendChild(pop);
+  function show(el, x, y) {
+    pop.textContent = el.getAttribute('data-tip');
+    pop.style.display = 'block';
+    var w = pop.offsetWidth, h = pop.offsetHeight;
+    var left = Math.min(Math.max(8, x - w / 2), window.innerWidth - w - 8);
+    var top = y + 18; if (top + h > window.innerHeight - 8) top = Math.max(8, y - h - 18);
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  }
+  function hide() { pop.style.display = 'none'; }
+  gl.forEach(function (g) {
+    var term = g.getAttribute('data-term'), text = g.getAttribute('data-text');
+    var walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT, null);
+    var nodes = [], n;
+    while ((n = walker.nextNode())) {
+      if (n.nodeValue.indexOf(term) === -1) continue;
+      var pe = n.parentElement;
+      if (!pe || pe.closest('script, style, .tip-glossary, .tip-text, #tip-text-pop')) continue;
+      nodes.push(n);
+    }
+    nodes.forEach(function (node) {
+      var parts = node.nodeValue.split(term), frag = document.createDocumentFragment();
+      parts.forEach(function (part, i) {
+        if (i > 0) {
+          var sp = document.createElement('span');
+          sp.className = 'tip-text'; sp.setAttribute('data-tip', text); sp.textContent = term;
+          sp.addEventListener('mouseenter', function (e) { show(sp, e.clientX, e.clientY); });
+          sp.addEventListener('mousemove', function (e) { show(sp, e.clientX, e.clientY); });
+          sp.addEventListener('mouseleave', hide);
+          sp.addEventListener('click', function (e) { show(sp, e.clientX, e.clientY); });
+          frag.appendChild(sp);
+        }
+        if (part) frag.appendChild(document.createTextNode(part));
+      });
+      node.parentNode.replaceChild(frag, node);
+    });
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.tip-text')) hide(); });
 });
 </script>
