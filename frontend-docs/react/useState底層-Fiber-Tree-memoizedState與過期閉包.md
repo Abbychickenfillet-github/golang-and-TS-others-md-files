@@ -131,6 +131,45 @@ useEffect 那一節 Hook 的 `memoizedState` 指向的是一個 Effect 物件，
 | `useEffect` | 沒有 | `null` |
 | `useRef` | 沒有，改 `current` 不排程 | `null` |
 
+**常見誤解：「`useRef` 的 `queue` 是 `null`，是不是代表它不跟 React 溝通？它沒有 state，要怎麼更新值？」**
+
+先拆成兩件事：「保管」與「通知」。`useRef` 跟 React 有溝通「保管」，沒有溝通「通知」。
+
+| 問題 | `useState` | `useRef` |
+|---|---|---|
+| 值放在哪 | Hook 節點的 `memoizedState` | 也是 Hook 節點的 `memoizedState`，裡面放 `{ current: 初始值 }` 這個普通物件 |
+| 誰保管 | React 保管 | React 保管，每次 render 的 `updateRef` 都回傳同一個物件（同一個位址） |
+| 怎麼改值 | 呼叫 `setCount(新值)`，React 丟一封更新進 `queue`，下次 render 才換成新值 | 你自己寫 `ref.current = 新值`，這只是 JavaScript 對普通物件的屬性賦值，立刻生效 |
+| 改了之後 React 知道嗎 | 知道，因為你走了 `dispatch`，`queue` 裡多了一封信，排定 re-render | 不知道，因為沒有任何函式被呼叫，`queue` 是 `null`，沒有信箱可以投 |
+| 會 re-render 嗎 | 會 | 不會 |
+| 下次 render 讀到什麼 | 新的 state 值（每次 render 是一份新快照） | 同一個盒子的最新內容（因為盒子是同一個，你改的是盒子裡面） |
+
+逐行看原始碼（`ReactFiberHooks.js`）：
+
+```js
+function mountRef(initialValue) {
+  const hook = mountWorkInProgressHook();   // 在 Hook 鏈上新增一節 Hook 節點
+  const ref = {current: initialValue};      // 建立一個普通物件，只有 current 一個屬性
+  hook.memoizedState = ref;                 // 讓這節 Hook 的 memoizedState 指向這個物件
+  return ref;                               // 把物件交給你，就是你拿到的 countRef
+}
+function updateRef(initialValue) {
+  const hook = updateWorkInProgressHook();  // 沿著 Hook 鏈找到這次對應的那一節
+  return hook.memoizedState;                // 回傳同一個物件，不建立新的，也不看 initialValue
+}
+```
+
+1. `function mountRef(initialValue)`：宣告函式，只在元件第一次 render（mount）時由 `useRef(0)` 呼叫，`initialValue` 就是你傳的 `0`。
+2. `{current: initialValue}`：物件字面值，建立一個只有 `current` 屬性的普通物件。它不是 React 的特殊型別，所以你寫 `ref.current = 5` 不需要經過 React。
+3. `hook.memoizedState = ref`：這一行就是「React 保管」的部分。物件掛在 fiber 的 Hook 鏈上，元件函式每次執行完，函式裡的區域變數都會消失，但這個物件還在 Hook 節點上，所以下次 render 還拿得回來。
+4. `updateRef` 沒有 `queue` 的任何操作，也沒有排程。沒有排程就沒有 re-render，這就是「改 `current` 不會更新畫面」的底層原因。
+
+所以你的理解要修正兩處：
+a. 「`queue` 是 `null` 是因為它拿來存不需要更新畫面的資料」：因果顛倒了一點。`queue` 是 `null` 是因為 `useRef` 沒有 setter，不需要信箱，「不觸發 re-render」是這個設計的結果。
+b. 「一定要更新 state 才能更新值」：只有 `useState` 是這樣，因為 React 要靠你呼叫 setter 才知道有變化。`useRef` 的值直接賦值就改了，代價是 React 不知道，畫面不會跟著變。所以它適合存計時器 id、上一次的值、DOM 節點這類「畫面不直接顯示」的資料。
+
+⚠️ 存疑：官方建議不要在 render 過程中讀寫 `ref.current`（初始化除外），請在事件處理函式或 Effect 裡改。這是我對 react.dev `useRef` 頁面的記憶，該網站被沙盒擋住，無法當場查證。`mountRef` 與 `updateRef` 的程式碼已於 2026-10-06 對照原始碼。
+
 Effect 物件（`create`、`deps`、`inst`、`next`）的型別逐行解釋、`inst` 是什麼、為什麼是環，完整說明在 Effect 相關的筆記：[[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (f)。
 
 (j) 若元件完全沒呼叫任何 Hook，`fiberNode.memoizedState` 就是 `null`。
