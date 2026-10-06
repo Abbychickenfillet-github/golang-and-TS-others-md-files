@@ -34,7 +34,7 @@ updated: 2026-07-31
 >   let count = 0;          //    count 住在 Context 裡。Stack Frame 只放「返回位址」與「指向 Context 的指標」，沒有 count 的值
 >   return function () {    // ② 求值 return 後面的函式：建立內層函式（JSFunction），它背著指向同一個 Context 的位址，此時 counter 的 Frame 仍在
 >     return ++count;       //    這一行引用了 count，V8 在 Parse 階段的 Scope Analysis 就是看到它，才決定 count 要放 Heap
->   };                    // ③ return 完成：內層函式交給呼叫者，V8 同時 pop 掉 counter 的 Stack Frame，Heap 上的 Context 一根寒毛都沒動
+>   };                      // ③ return 完成：內層函式交給呼叫者，V8 同時 pop 掉 counter 的 Stack Frame，Heap 上的 Context 一根寒毛都沒動
 > }
 > const next = counter();   //    內層函式被存進 next，所以它背著的 Context 仍然有人指著
 > next();                   // ④ 呼叫內層函式：從 Context 讀寫 count，回傳 1。count 保存在 Context 裡，所以每次呼叫都能累加
@@ -99,7 +99,7 @@ runtime 重複 parse 的成本，V8 用另外兩招減輕：lazy parsing（內�
         （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
 
  ①轉譯          ②打包            ③V8 Parse       ④Bytecode      ⑤每次呼叫都重來
- transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
+ transpile      bundle           (runtime)        產生            ↓↓↓↓↓↓↓↓↓↓
  ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
  │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ push Stack Frame │
  │tsc     │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ ＋（若有變數被捕  │
