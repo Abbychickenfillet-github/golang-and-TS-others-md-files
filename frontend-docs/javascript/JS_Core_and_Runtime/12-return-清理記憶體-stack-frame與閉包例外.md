@@ -402,6 +402,8 @@ next(); // 2  ← count 還活著!沒有歸零、沒被清
 
 ![return 時 SP 與 BP 的移動（每步 2 秒，循環播放）](../../../obsidian-attachment/return時SP與BP移動_動畫_2026-10-06.svg)
 
+圖與動畫裡 sum、b、a 的上下順序是簡化畫法：後存入的在上面（a、b 先存，sum 最後算出來，所以 sum 最靠近 SP）。實際的編譯器在函式開頭就決定好每個變數相對 BP 的固定 offset，順序不一定等於計算順序。例如 gcc `-O0` 編譯 `int add(int a, int b) { int sum = a + b; return sum; }` 的結果是：`sum` 在 `[rbp-0x4]`、`a` 在 `[rbp-0x14]`、`b` 在 `[rbp-0x18]`。因為這個函式沒有再呼叫別的函式，編譯器沒有 `sub rsp, N`，結尾只有 `pop rbp`、`ret`。
+
 **(iii) 追問：`mov edi, 3`這行字本身是機器碼嗎？右邊`bf 03 00 00 00`又是什麼？**
 
 不是，`mov edi, 3`是**組合語言（Assembly）的助憶符（mnemonic）**，是寫給人看的、好記的文字版本；CPU真正讀進去執行的，是右邊那串十六進位數字`bf 03 00 00 00`，這才是**機器碼（Machine Code）**。兩者是同一件事的兩種表示法，一一對應：組譯器（Assembler）負責把助憶符翻成機器碼；反組譯器（Disassembler，這張截圖做的事）則反過來，把機器碼翻回人看得懂的助憶符——截圖裡左邊位址、中間助憶符、右邊十六進位機器碼，其實是同一份程式的三種呈現方式，同時列出來對照用。
@@ -688,6 +690,7 @@ f. **追問延伸：10的9次方是2的幾次方？** 答案不是一個整數�
 ## 資料來源（含查證時間）
 | 主題 | 連結／說明 | 版本／時間 |
 |---|---|---|
+| gcc -O0 編譯 `add` 的實際反組譯（sum 在 `[rbp-0x4]`、a 在 `[rbp-0x14]`、b 在 `[rbp-0x18]`，結尾 `pop rbp`、`ret`） | 本機 `gcc -O0` 加 `objdump -d -M intel`（x86-64） | 2026-10-06 實測 |
 | ECMAScript 規格：函式 `[[Call]]` 結束時「Remove calleeContext from the execution context stack」 | https://tc39.es/ecma262/#sec-ecmascript-function-objects-call-thisargument-argumentslist | 2026-10-06 讀取 tc39/ecma262 main 的 spec.html |
 | V8 `src/interpreter/interpreter-generator.cc`：`IGNITION_HANDLER(Return…)` 回傳 accumulator | https://github.com/v8/v8/blob/main/src/interpreter/interpreter-generator.cc | 2026-10-06 讀取 main 分支 |
 | V8 `src/builtins/x64/builtins-x64.cc`：`LeaveInterpreterFrame` 內呼叫 `leave` 拆掉 Frame | https://github.com/v8/v8/blob/main/src/builtins/x64/builtins-x64.cc | 2026-10-06 讀取 main 分支 |
