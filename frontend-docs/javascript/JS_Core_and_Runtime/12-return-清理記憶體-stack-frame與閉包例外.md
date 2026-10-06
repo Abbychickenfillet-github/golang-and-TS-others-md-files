@@ -110,34 +110,6 @@ runtime 重複 parse 的成本，V8 用另外兩招減輕：lazy parsing（內�
 
 練習題（LeetCode）：[224. Basic Calculator](https://leetcode.com/problems/basic-calculator/) 就是把一串運算式文字 parse 成結構再計算，是 parser 的縮小版。
 
-```text
-◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
-        （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
-
- ①轉譯          ②打包            ③V8 Parse       ④Bytecode      ⑤每次呼叫都重來
- transpile      bundle           (runtime)        產生            ↓↓↓↓↓↓↓↓↓↓
- ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
- │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ push Stack Frame │
- │tsc     │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ ＋（若有變數被捕  │
- │SWC     │   │Rollup  │      │AST       │   │Bytecode  │   │   獲）建 Context   │
- └────────┘   └────────┘      │Scope     │   └──────────┘   ├──────────────────┤
-                              │Analysis： │                  │ 執行函式本體      │
-                              │★ 決定誰   │                  ├──────────────────┤
-                              │  會被閉包 │                  │ ★ return         │
-                              │  捕獲 →   │                  │   pop 掉整個 Frame│
-                              │  該放     │                  │   Heap 完全沒動   │
-                              │  Stack 還 │                  ├──────────────────┤
-                              │  是 Heap  │                  │ Context 若沒人指  │
-                              └──────────┘                  │ → 等 GC（不定時） │
-                              每個函式只做一次                └────────┬─────────┘
-                              只做「決策」，不配置                      │
-                              任何記憶體                                └─► 再呼叫一次
-                                                                          整包重來
-
- ★ 「該不該逃到 Heap」的決策在第 ③ 格；「真的配置與清除」在第 ⑤ 格。
-   兩者相隔很遠，卻常被壓縮成同一件事來想，這就是誤會的來源。
-```
-
 ### V8 的 Parse 內部：Preparser 與 Lazy Parsing
 
 **Preparser 與 Lazy Parsing（惰性 parse）：**V8 的 parser 遇到函式時，不一定立刻把它完整 parse 成 AST。它會切換成 preparser（parser 的精簡版，只做「剛好足以略過這個函式」的最少工作），先確認函式本體語法合法，並記下外層函式編譯所需的資訊。等這個函式第一次被呼叫，V8 才完整 parse 它並交給 Ignition 編成 Bytecode。
@@ -191,7 +163,7 @@ next();                   // ③ 第一次呼叫內層函式：這時才完整 p
  ★ ①～④ 是自動、即時、次數固定的；⑤ 是不定時、不可預測的。混在一起想就會亂。
 ```
 
-同一件事用 Mermaid 再畫一次：
+同一條時間軸的流程圖版本：
 
 ```mermaid
 flowchart LR
