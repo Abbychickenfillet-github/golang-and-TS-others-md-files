@@ -28,6 +28,18 @@ updated: 2026-07-31
 > 常見的錯誤畫面是：`counter()` 執行完 → Frame 要被清掉 → 內層函式伸手把 `count` 撈出來搬到 Heap。<mark style="background: #BBFABBA6;">實際順序完全相反</mark>：
 > a. 決策發生在 runtime 最早的一步：<mark style="background: #ADCCFFA6;"><span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">V8 的 Parse</span> 階段做的 Scope Analysis</mark>（滑鼠移到虛線字上會浮出時間軸圖）——V8 那時就看出 `count` 會被內層函式引用。注意 buildtime 時 Babel 與 bundler 的 parse 也有 scope 分析，但那一份不決定 Stack 或 Heap。
 > b. 於是<mark style="background: #FFF3A3A6;">一進入 `counter()` 的作用域，Heap 上的 Context 物件就先建好了</mark>，`count` 從第一秒起就住在 Heap，Stack Frame 裡放的只是一個指向它的指標（見本篇開頭 mrale.ph 那條佐證）。
+>
+> ```js
+> function counter() {      // 呼叫 counter() 的瞬間：V8 push 一個 Stack Frame，同時在 Heap 建好 Context 物件
+>   let count = 0;          // count 住在 Heap 的 Context 裡，Stack Frame 只放一個指向 Context 的指標
+>   return function () {    // 這個內層函式（JSFunction）背著指向同一個 Context 的位址
+>     return ++count;       // 這一行引用了 count，V8 在 Parse 階段的 Scope Analysis 就是看到它，才決定 count 要放 Heap
+>   };
+> }
+> const next = counter();   // counter 的 Frame 被 pop 掉，但 Context 還在 Heap，因為 next 這個函式背著它
+> next();                   // 1，count 沒有被清掉
+> ```
+>
 > c. `return` 時 Frame 照樣被完整 pop 掉，<mark style="background: #FF5582A6;">什麼都沒被搶救</mark>——因為要留下來的東西，從頭到尾就不在 Stack 上。
 > 一句話：`return` 沒有「例外處理」，它每次都做同一件事；<mark style="background: #BBFABBA6;">是變數一開始就被放在不同的地方</mark>。
 
@@ -336,7 +348,7 @@ next(); // 1
 next(); // 2  ← count 還活著!沒有歸零、沒被清
 ```
 
-**為什麼？** 因為回傳的內層函式仍然「引用」`count`,所以 `count` 被搬去 heap 保管(閉包環境),只要 `next` 還在,`count` 就不會被 GC 清。
+**為什麼？** 因為回傳的內層函式引用了 `count`，V8 的 Scope Analysis 一開始就決定 `count` 放在 Heap 的 Context（閉包環境）裡，不是 return 時才「搬」過去。只要 `next` 還在，Context 與 `count` 就不會被 GC 清。
 → 這就是 `closure_counter.html`、`closure_shop.html` 能持續記住狀態的原因。
 
 ---
