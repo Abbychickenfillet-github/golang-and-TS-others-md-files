@@ -143,7 +143,7 @@ function mountState(initialState) {
 | 3 | 你呼叫 `setCount(1)` | `dispatchSetState` 把一封 Update 接到 `queue.pending` |
 | 4 | 下次 render，`updateReducerImpl` 讀 `queue.pending` | 拆信算出新 state |
 
-反過來看：`useRef`、`useEffect` 沒有 setter，就沒有 `dispatchSetState.bind(...)` 這一步，沒有東西要投信，所以 `mountRef`、`mountEffectImpl` 都沒建 `queue`，Hook 節點上的 `queue` 維持 `mountWorkInProgressHook` 給的初值 `null`。因果方向是「沒有 setter ⇒ 不需要 queue」，不是「不需要更新畫面 ⇒ queue 為 null」。
+反過來看：`useRef`、`useEffect` 沒有 setter，就沒有 `dispatchSetState.bind(...)` 這一步，沒有東西要投信，所以 `mountRef`、`mountEffectImpl` 都沒建 `queue`，Hook 節點上的 `queue` 維持 `mountWorkInProgressHook` 給的初值 `null`。因果方向是：**沒有 setter，就不需要 queue。**
 
 **為什麼 `useEffect` 的 `queue` 是 `null`？**
 `queue` 是「更新信箱」，專門收 `setState`／`dispatch` 排進來的待處理更新。只有「有 setter、會被人呼叫來排更新」的 Hook 才需要它。`useEffect` 沒有 setter，更新來源只有「下一次 render 時 React 自己比較 deps」，所以 `mountEffectImpl` 完全沒去設定 `hook.queue`，維持 `mountWorkInProgressHook` 建立時的初值 `null`。
@@ -155,11 +155,11 @@ function mountState(initialState) {
 | `useEffect` | 沒有 | `null` |
 | `useRef` | 沒有，改 `current` 不排程 | `null` |
 
-**常見誤解：「`useRef` 的 `queue` 是 `null`，是不是代表它不跟 React 溝通？它沒有 state，要怎麼更新值？」**
+**`useRef` 的值怎麼更新：保管與通知是兩件事**
 
 **一句話：`useRef` 是「更新值，但不會因為它而更新畫面」。** 值當場就改了（`ref.current = 5` 是普通賦值），但沒有任何東西通知 React，所以 React 不會因此排程 re-render，畫面不動。之後如果別的原因（例如 `setState`）讓元件重新 render，這次 render 就會讀到最新的 `ref.current`，畫面才跟著變。對比 `useState`：改值加上通知 React，值與畫面一起更新。
 
-先拆成兩件事：「保管」與「通知」。`useRef` 跟 React 有溝通「保管」，沒有溝通「通知」。
+`useRef` 與 React 的關係分成「保管」與「通知」：React 保管那個盒子，改值時不通知 React。
 
 | 問題 | `useState` | `useRef` |
 |---|---|---|
@@ -190,9 +190,9 @@ function updateRef(initialValue) {
 3. `hook.memoizedState = ref`：這一行就是「React 保管」的部分。物件掛在 fiber 的 Hook 鏈上，元件函式每次執行完，函式裡的區域變數都會消失，但這個物件還在 Hook 節點上，所以下次 render 還拿得回來。
 4. `updateRef` 沒有 `queue` 的任何操作，也沒有排程。沒有排程就沒有 re-render，這就是「改 `current` 不會更新畫面」的底層原因。
 
-所以你的理解要修正兩處：
-a. 「`queue` 是 `null` 是因為它拿來存不需要更新畫面的資料」：因果顛倒了一點。`queue` 是 `null` 是因為 `useRef` 沒有 setter，不需要信箱，「不觸發 re-render」是這個設計的結果。
-b. 「一定要更新 state 才能更新值」：只有 `useState` 是這樣，因為 React 要靠你呼叫 setter 才知道有變化。`useRef` 的值直接賦值就改了，代價是 React 不知道，畫面不會跟著變。所以它適合存計時器 id、上一次的值、DOM 節點這類「畫面不直接顯示」的資料。
+兩個重點：
+a. **`queue` 是 `null`，因為 `useRef` 沒有 setter，不需要信箱。**「不觸發 re-render」是這個設計的結果。
+b. **只有 `useState` 需要呼叫 setter 才能通知 React。** `useRef` 的值直接賦值就改了，React 不知道，畫面不會跟著變。所以它適合存計時器 id、上一次的值、DOM 節點這類「畫面不直接顯示」的資料。
 
 ⚠️ 存疑：官方建議不要在 render 過程中讀寫 `ref.current`（初始化除外），請在事件處理函式或 Effect 裡改。這是我對 react.dev `useRef` 頁面的記憶，該網站被沙盒擋住，無法當場查證。`mountRef` 與 `updateRef` 的程式碼已於 2026-10-06 對照原始碼。
 

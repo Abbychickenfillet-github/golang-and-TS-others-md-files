@@ -24,8 +24,8 @@ updated: 2026-07-31
 
 ## 5W1H 速查：讀本篇之前先把座標定好
 
-> [!important]+ 最常被搞錯的一題先講：<mark style="background: #FF5582A6;">閉包**不是**在 `return` 那一刻把變數「搶救」出來的</mark>
-> 常見的錯誤畫面是：`counter()` 執行完 → Frame 要被清掉 → 內層函式伸手把 `count` 撈出來搬到 Heap。<mark style="background: #BBFABBA6;">實際順序完全相反</mark>：
+> [!important]+ 速查：<mark style="background: #BBFABBA6;">**閉包變數從進入作用域起就放在 Heap 的 Context 裡**，`return` 時只需要 pop Stack Frame</mark>
+> 時間順序如下：
 > a. 決策發生在 runtime 最早的一步：<mark style="background: #ADCCFFA6;"><span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">V8 的 Parse</span> 階段做的 Scope Analysis</mark>（滑鼠移到虛線字上會浮出時間軸圖）——V8 那時就看出 `count` 會被內層函式引用。注意 buildtime 時 Babel 與 bundler 的 parse 也有 scope 分析，但那一份不決定 Stack 或 Heap。
 > b. 於是<mark style="background: #FFF3A3A6;">一進入 `counter()` 的作用域，Heap 上的 Context 物件就先建好了</mark>，`count` 從第一秒起就住在 Heap，Stack Frame 裡放的只是一個指向它的指標（見本篇開頭 mrale.ph 那條佐證）。
 >
@@ -37,7 +37,7 @@ updated: 2026-07-31
 >   };
 > }                         // ③ counter() 執行完：V8 把 counter 的 Stack Frame pop 掉（Frame 被清掉），Heap 上的 Context 一根寒毛都沒動
 > const next = counter();   //    內層函式被存進 next，所以它背著的 Context 仍然有人指著
-> next();                   // ④ 呼叫內層函式：從 Context 讀寫 count，回傳 1。count 沒有被清掉，因為清掉的 Frame 裡本來就沒有它
+> next();                   // ④ 呼叫內層函式：從 Context 讀寫 count，回傳 1。count 保存在 Context 裡，所以每次呼叫都能累加
 > ```
 >
 > | 時間點 | Call Stack（Stack Frame） | Heap |
@@ -47,16 +47,16 @@ updated: 2026-07-31
 > | ③ `counter()` 執行完 | counter 的 Frame 已被 pop，Frame 裡的東西全部消失 | Context（`count = 0`）與內層函式都還在，因為 `next` 指著內層函式 |
 > | ④ 呼叫 `next()` | next 這次呼叫的 Frame | Context（`count` 變成 `1`） |
 >
-> 所以前面「錯誤畫面」裡的「撈出來搬到 Heap」根本沒有發生：第 ③ 步 pop Frame 時，`count` 本來就不在 Frame 裡，沒有東西需要搶救。
+> 第 ③ 步 pop Frame 時，`count` 本來就在 Heap 的 Context 裡，沒有任何東西需要搬動。
 >
-> c. `return` 時 Frame 照樣被完整 pop 掉，<mark style="background: #FF5582A6;">什麼都沒被搶救</mark>——因為要留下來的東西，從頭到尾就不在 Stack 上。
+> c. `return` 時 Frame 被完整 pop 掉，<mark style="background: #BBFABBA6;">**要留下來的東西從頭到尾都在 Heap**</mark>，所以不需要任何額外處理。
 > 一句話：<mark style="background: #BBFABBA6;">`return` 每次只做三件固定的事：算出回傳值、把回傳值與控制權交還給呼叫者、讓 V8 把這次呼叫的 Stack Frame 從 Call Stack 上 pop 掉。這三件事跟變數有沒有被閉包捕獲無關</mark>。被閉包捕獲的變數不會被清，是因為它從一開始就放在 Heap 的 Context 裡，本來就不在這個 Frame 上。
-> 本篇說的「例外」是「特殊待遇」的意思（`return` 有沒有對閉包網開一面），跟 JavaScript 的 Exception（`throw`、`try...catch`）無關。
+> 本篇的「閉包例外」指變數放置位置的特殊情形（此處的「例外」不是 Exception）。
 
 | 5W1H | 問題 | 一句話答案 |
 |---|---|---|
 | **What** 是什麼 | `return` 到底清掉了什麼？ | <mark style="background: #BBFABBA6;">只有 Stack 上這一層 Stack Frame</mark>：返回位址、Saved Frame Pointer、參數、沒被捕獲的區域變數。<mark style="background: #FF5582A6;">Heap 一根寒毛都沒被動到</mark> |
-| **When** 什麼時候 | 什麼時候清？ | <mark style="background: #FF5582A6;">執行期</mark>，`return` 執行的那個當下，引擎<mark style="background: #BBFABBA6;">立即、自動、同步</mark>地把這次呼叫的 Stack Frame pop 掉，跟 GC 那種「不定時、不可預測」是兩套完全不同的節奏（push 發生在「呼叫」的那一刻，不是 `return`，次數的算法見下方「一句話驗證法」第 2 點） |
+| **When** 什麼時候 | 什麼時候清？ | <mark style="background: #FF5582A6;">執行期</mark>，`return` 執行的那個當下，引擎<mark style="background: #BBFABBA6;">立即、自動、同步</mark>地把這次呼叫的 Stack Frame pop 掉，跟 GC 那種「不定時、不可預測」是兩套完全不同的節奏（push 發生在呼叫的那一刻，次數的算法見下方「一句話驗證法」第 2 點） |
 | **Who** 誰做的 | 誰負責清？ | 引擎與 CPU 的<mark style="background: #ADCCFFA6;">固定機制</mark>——把 Stack Pointer 移回去、還原 Base Pointer 就結束了（見本篇第 5 節組合語言視角）。<mark style="background: #FF5582A6;">不是 GC</mark>，GC 從頭到尾不管 Stack |
 | **Where** 在哪裡 | 東西各自住在哪？ | a. Stack Frame → Call Stack；b. 物件實體 → Heap；c. <mark style="background: #FFF3A3A6;">被閉包捕獲的綁定 → Heap 上的 Context 物件</mark>，掛在那個閉包函式（`JSFunction`）身上 |
 | **Which** 哪一種 | 哪些東西會跟著 Frame 一起消失？ | a. 沒被捕獲的參數與區域原始值 → <mark style="background: #BBFABBA6;">立即消失</mark>；b. 指向 Heap 的指標格子 → 格子消失，但 Heap 實體毫髮無傷；c. 被捕獲的綁定 → <mark style="background: #FF5582A6;">根本不在 Frame 裡</mark>，不受影響 |
@@ -68,7 +68,7 @@ updated: 2026-07-31
 ![buildtime 與 runtime 時間軸：兩個 Parse、兩份 Scope Analysis](../../../obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png)
 
 整條線上有**兩個 Parse**：buildtime 是 Babel／bundler 用自己的 parser 做的，runtime 是 V8 載入腳本時做的。只有 runtime 這一個（第 ③ 格）的 Scope Analysis 會決定「變數放 Stack 還是 Heap」。下面文字版的 ③ 一律寫成「V8 Parse」以免混淆。
-⚠️ 存疑：buildtime 的 scope 分析用途（Babel 追蹤變數綁定、bundler 做 tree shaking）是我依一般知識整理，沒有逐一查原始碼或官方文件，請你對照 Babel 與 bundler 文件確認。
+⚠️ 存疑：buildtime 的 scope 分析用途（Babel 追蹤變數綁定、bundler 做 tree shaking）依一般知識整理，尚未對照 Babel 與 bundler 文件。
 
 **為什麼 buildtime 與 runtime 要各產生一次 AST（抽象語法樹，Abstract Syntax Tree，把原始碼文字整理成樹狀結構的資料）？**
 
@@ -161,10 +161,10 @@ flowchart LR
     RE -.->|"再呼叫一次就整包重來"| PU
 ```
 
-> [!warning]- 為什麼「`return` 會清理記憶體」這句話會把人帶偏？三個原因
-> a. <mark style="background: #FFF3A3A6;">「記憶體」三個字沒有分家</mark>：Stack 與 Heap 是兩套清理機制（自動 pop vs GC 判斷可達性），但「清理記憶體」這句話把它們糊成一團，於是很多人以為 `return` 也會順手處理 Heap。它不會。
-> b. <mark style="background: #ADCCFFA6;">「閉包例外」這個說法本身就有誤導性</mark>：聽起來像 `return` 在某些情況下會網開一面。實際上 `return` 每次都只做上面那三件固定的事（算回傳值、交還控制權、pop Stack Frame），不會因為閉包而多做或少做任何一件——<mark style="background: #BBFABBA6;">例外的不是清理動作，是那個變數一開始被放的位置</mark>。
-> c. <mark style="background: #FF5582A6;">因為決策與執行隔太遠</mark>：「這個變數要放 Heap」是 V8 在 runtime 的 <span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">Parse</span> 階段做的決定（每個函式只做一次），「真的配置一個 Context」是每次呼叫時做的動作。中間隔了整個 Bytecode 階段，很容易在腦中被壓縮成同一瞬間。
+> [!info]- `return` 與「清理記憶體」的三個辨析
+> a. <mark style="background: #FFF3A3A6;">**Stack 與 Heap 是兩套清理機制**</mark>：Stack 靠 `return` 時自動 pop，Heap 靠 GC 判斷可達性。「清理記憶體」一詞涵蓋兩者，`return` 只負責 Stack 那一側。
+> b. <mark style="background: #ADCCFFA6;">**`return` 每次都只做那三件固定的事**</mark>（算回傳值、交還控制權、pop Stack Frame），不因閉包而改變。閉包的差別在於變數一開始被放的位置。
+> c. <mark style="background: #FF5582A6;">**決策與執行相隔很遠**</mark>：「這個變數要放 Heap」是 V8 在 runtime 的 <span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">Parse</span> 階段做的決定（每個函式只做一次），「真的配置一個 Context」是每次呼叫時做的動作，中間隔了整個 Bytecode 階段。
 
 ### 一句話驗證法
 
@@ -359,7 +359,7 @@ next(); // 1
 next(); // 2  ← count 還活著!沒有歸零、沒被清
 ```
 
-**為什麼？** 因為回傳的內層函式引用了 `count`，V8 的 Scope Analysis 一開始就決定 `count` 放在 Heap 的 Context（閉包環境）裡，不是 return 時才「搬」過去。只要 `next` 還在，Context 與 `count` 就不會被 GC 清。
+**為什麼？** 因為回傳的內層函式引用了 `count`，V8 的 Scope Analysis 一開始就決定 `count` 放在 Heap 的 Context（閉包環境）裡。只要 `next` 還在，Context 與 `count` 就不會被 GC 清。
 → 這就是 `closure_counter.html`、`closure_shop.html` 能持續記住狀態的原因。
 
 ---

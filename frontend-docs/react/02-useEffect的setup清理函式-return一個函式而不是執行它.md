@@ -303,7 +303,7 @@ React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放�
 | `useInsertionEffect` | 在別人讀版面之前，先把 CSS 規則塞進頁面，設計給 CSS-in-JS 套件作者用，一般應用幾乎用不到 | `Insertion`，最早，早於所有 Layout。原始碼中它在 commit 的 mutation 階段執行，此時還讀不到 ref | 樣式函式庫在這裡把 `<style>` 規則插入 `document.head`，之後 `useLayoutEffect` 量尺寸時樣式已生效 | 同一種 Effect 物件，`tag` 是 `Insertion` |
 | `useImperativeHandle` | 爸爸拿到我的 `ref` 時，只讓他看到我挑好的幾個方法，不直接給出 DOM 節點 | `Layout`，跟 `useLayoutEffect` 同時間 | `useImperativeHandle(ref, () => ({ focus() { inputRef.current.focus() } }), [])`，爸爸只能呼叫 `ref.current.focus()`，碰不到內部的 input | 原始碼把它做成 Layout Effect：create 時 `ref.current = 你的物件`，cleanup 時設回 `null` |
 
-⚠️ 存疑：`useLayoutEffect` 與 `useInsertionEffect` 的「用途」描述來自我對官方文件的記憶，react.dev 被沙盒擋住無法當場查證，請對照官方頁面確認。執行階段（Insertion 在 mutation 階段、Layout 在 layout 階段）與 `useImperativeHandle` 的實作則已對照原始碼。
+⚠️ 存疑：`useLayoutEffect` 與 `useInsertionEffect` 的「用途」描述來自我對官方文件的記憶，尚未對照 react.dev 官方頁面。執行階段（Insertion 在 mutation 階段、Layout 在 layout 階段）與 `useImperativeHandle` 的實作則已對照原始碼。
 
 **Hook 鏈（`Hook.next`）與 Effect 環（`Effect.next`）的關係：** Effect 類的 Hook 同時在兩條鏈上，不是互相分開的。
 
@@ -312,7 +312,7 @@ React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放�
 | Hook 鏈（`Hook.next`，單向，尾巴是 `null`） | 元件裡每一個會建立節點的 Hook，依呼叫順序 | `useState`、`useReducer`、`useRef`、`useMemo`、`useCallback`、`useId`、`useTransition` 等，也包含 `useEffect`、`useLayoutEffect`、`useInsertionEffect`、`useImperativeHandle`。`useContext` 不在裡面，它只讀 context，不建立節點 |
 | Effect 環（`Effect.next`，環） | 其中會產生 Effect 物件的那幾個 Hook 的 Effect 物件，依呼叫順序 | `useEffect`、`useLayoutEffect`、`useInsertionEffect`、`useImperativeHandle` |
 
-**`useImperativeHandle` 是 fiber 嗎？不是，它是一個 Hook。** Fiber 是元件實例在樹上的那一格，Hook 是掛在 fiber 上的節點。`useImperativeHandle` 在 Hook 鏈上占一節，它的 Effect 物件進 Effect 環，長相跟 `useEffect` 的差別如下（`mountImperativeHandle` 與 `imperativeHandleEffect`）：
+**`useImperativeHandle` 是 Hook，不是 fiber。** Fiber 是元件實例在樹上的那一格，Hook 是掛在 fiber 上的節點。`useImperativeHandle` 在 Hook 鏈上占一節，它的 Effect 物件進 Effect 環，長相跟 `useEffect` 的差別如下（`mountImperativeHandle` 與 `imperativeHandleEffect`）：
 
 | 欄位 | `useEffect` | `useImperativeHandle` |
 |---|---|---|
@@ -332,9 +332,6 @@ React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放�
 專業回答一定要講清楚時機：
 
 1. **元件卸載（unmount）後**——元件已從畫面移除，React 最後再跑一次。官方原文是 *Your cleanup code runs one final time after your component is removed from the page*。
-
-   > [!warning] ⚠️ 更正（2026-10-04 對照 react.dev 原文）
-   > 本篇先前寫成「卸載**前**」，與官方不符。官方說的是「卸載**後**」。
 
 2. **每次要重新執行 setup 之前**——依賴陣列裡的值變了，React 會先跑舊的 cleanup、再跑新的 setup。所以順序永遠是 `setup① → cleanup① → setup② → cleanup② → ...`，<mark style="background: #ADCCFFA6;">成對且交錯，不會有兩個 setup 同時活著</mark>。
 

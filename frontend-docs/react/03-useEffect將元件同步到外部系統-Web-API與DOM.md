@@ -69,7 +69,7 @@ Effect 的心智模型只有兩個動作：「開始同步」（setup）與「�
 
 ![[Effect心智模型_兩個動作_2026-10-05.png]]
 
-「只有兩個動作」有那麼簡單嗎？動作確實只有「開始同步」與「停止同步」兩個，但有五件事要知道：觸發的事件有五種、一個元件可以有很多個各自獨立的 Effect、每一輪同步用的是那一次 render 的值、沒寫 cleanup 時「停止」是空的、想讀最新值又不想重新同步要用 Effect Event（`useEffectEvent`）。詳見上圖下半部。
+動作只有「開始同步」與「停止同步」兩個，另外有五件事需要一起記住：觸發的事件有五種、一個元件可以有很多個各自獨立的 Effect、每一輪同步用的是那一次 render 的值、沒寫 cleanup 時「停止」是空的、想讀最新值又不想重新同步要用 Effect Event（`useEffectEvent`）。詳見上圖下半部。
 
 ---
 
@@ -102,7 +102,7 @@ flowchart TD
   F --> G([結束])
 ```
 
-> [!important] 新觀念：cleanup 不是 `useEffect` 的第三個參數，而是 setup 函式的回傳值
+> [!important] cleanup 是 setup 函式的回傳值（`useEffect` 只收兩個參數）
 > 通常是以 <mark style="background: #FFF3A3A6;">**setup 函式為主體**</mark>，由它 <mark style="background: #FF5582A6;">**`return` 出一個 cleanup 函式**</mark> 交給 React。
 > `useEffect` 只收兩個參數：<mark style="background: #BBFABBA6;">setup 函式</mark> 與 <mark style="background: #ADCCFFA6;">依賴陣列</mark>。想「停止同步」時要做的事，是寫在 setup 函式裡面、被 `return` 出去的那個函式。
 > 沒寫 `return`，就等於沒有 cleanup。
