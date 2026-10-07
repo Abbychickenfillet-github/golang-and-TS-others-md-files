@@ -184,6 +184,8 @@ counter.increment(); // 2
 | 內容 | 返回位址、Saved BP、這次呼叫的暫存器與區域變數。`increment` 與 `decrement` 的 Bytecode 標示 `Register count 0`、`Frame size 0`，Frame 裡沒有任何區域變數 | `count` |
 | 誰用 | `increment()` 一次呼叫一個 Frame，`decrement()` 一次呼叫一個 Frame，用完就 pop | 所有 `createCounter()` 同一次呼叫建立的閉包 |
 
+被捕獲的變數在 Heap 上的位置：Context 是一個有位址的 Heap 物件，每個被捕獲的變數是這個物件裡的一個 slot，位置由 Context 的位址加上 slot 編號決定（`count` 是第 2 格）。同一個作用域裡被捕獲的好幾個變數放在同一個 Context 的不同 slot，共用這個 Context 的位址，不會各自開一個 Context。
+
 會「覆蓋」的情況是讀與寫之間被 `await` 隔開，別的任務在這段空檔改了同一格，寫回時就蓋掉對方的結果：
 
 ```js
