@@ -148,6 +148,17 @@ flowchart TD
 
   accumulator 是 Ignition 這台**虛擬機器**的暫存器，不是 CPU 規格裡的暫存器。V8 實作直譯器時，把它放在一個真正的 CPU 暫存器裡：x64 是 `rax`，arm64 是 `x0`（V8 `register-x64.h`、`register-arm64.h` 的 `kInterpreterAccumulatorRegister`）。這個名稱沿用自早期 CPU（例如 6502）專門做運算的累加器暫存器。
 
+  Bytecode 由誰讀、誰執行：compiler 是**軟體**（一支程式，負責翻譯），CPU 是**硬體**（只執行機器碼）。V8 的這些元件本身都是已編譯好的機器碼，跑在 CPU 上，再去處理 Bytecode：
+
+  | 角色 | 軟體還是硬體 | 對 Bytecode 做什麼 |
+  |---|---|---|
+  | Ignition 的 bytecode 編譯器 | V8 內的軟體 | 把 AST 編成 Bytecode |
+  | Ignition 直譯器 | V8 內的軟體 | 逐個讀 Bytecode 並執行（讀 `LdaCurrentContextSlot` 就去讀 Context 的 slot） |
+  | Sparkplug（baseline compiler） | V8 內的軟體 | 讀 Bytecode（`BaselineCompiler` 以 `BytecodeArray` 為輸入），編成機器碼 |
+  | TurboFan | V8 內的軟體 | 讀 Bytecode（`bytecode-graph-builder`）建圖並優化，產生機器碼 |
+  | CPU | 硬體 | **只執行機器碼**，看不懂 Bytecode；直譯期間它執行的是 Ignition 直譯器本身的機器碼 |
+  | 其他引擎與工具 | 軟體 | 讀不了。Bytecode 的格式是 V8 自己定義的，而且隨 V8 版本改變：V8 載入 code cache 時會檢查版本、旗標與原始碼是否一致（`kVersionMismatch`、`kFlagsMismatch`、`kSourceMismatch`），不符就丟掉重新編譯。人要看只能用 `node --print-bytecode` 這類 V8 提供的輸出 |
+
   「對 accumulator 讀或寫」這一欄來自 V8 `bytecodes.h` 的 `ImplicitRegisterUse`：`LdaCurrentContextSlot` 是 `kWriteAccumulator`，`StaCurrentContextSlot` 是 `kReadAccumulator`，`Inc`、`Dec` 是 `kReadWriteAccumulator`，`Return` 是 `kReadAccumulator`。`Lda`、`Sta` 的全名是依組合語言「Load／Store Accumulator」的命名慣例，原始碼本身沒有拼出全名。`[2]` 是 Context 的第 2 格，第 0 格是 `scope_info`、第 1 格是 `previous`。
 
 ### Hot Code 判定
@@ -532,6 +543,7 @@ flowchart LR
 
 | 主題 | 連結 | 版本／時間 |
 |---|---|---|
+| Sparkplug 與 TurboFan 以 Bytecode 為輸入、code cache 的版本／旗標／原始碼檢查 | https://github.com/v8/v8/blob/main/src/baseline/baseline-compiler.cc 、https://github.com/v8/v8/blob/main/src/compiler/bytecode-graph-builder.cc 、https://github.com/v8/v8/blob/main/src/snapshot/code-serializer.cc | 2026-10-07 讀取 main 分支 |
 | accumulator 在 x64 對應 `rax`、arm64 對應 `x0` | https://github.com/v8/v8/blob/main/src/codegen/x64/register-x64.h 、https://github.com/v8/v8/blob/main/src/codegen/arm64/register-arm64.h | 2026-10-07 讀取 main 分支 |
 | Ignition 是 register machine、accumulator 隱含暫存器 | https://v8.dev/blog/ignition-interpreter | 發表 2016-08-23，2026-10-07 查證（讀取 v8/v8.dev 倉庫原始檔） |
 | `LdaCurrentContextSlot`、`StaCurrentContextSlot`、`Inc`、`Dec`、`Return` 的 `ImplicitRegisterUse` | https://github.com/v8/v8/blob/main/src/interpreter/bytecodes.h | 2026-10-07 讀取 main 分支 |
