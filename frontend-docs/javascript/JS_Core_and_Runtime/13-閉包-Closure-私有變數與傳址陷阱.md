@@ -186,6 +186,17 @@ counter.increment(); // 2
 
 被捕獲的變數在 Heap 上的位置：Context 是一個有位址的 Heap 物件，每個被捕獲的變數是這個物件裡的一個 slot，位置由 Context 的位址加上 slot 編號決定（`count` 是第 2 格）。同一個作用域裡被捕獲的好幾個變數放在同一個 Context 的不同 slot，共用這個 Context 的位址，不會各自開一個 Context。
 
+slot 是按「變數宣告」分配的，不是按「哪個函式用到它」分配。`increment` 與 `decrement` 裡寫的 `count` 是外層同一個宣告，所以兩邊用同一個 slot。用 `node --print-bytecode` 驗證（外層多宣告一個 `let step = 10`，兩個函式都用到 `count` 與 `step`）：
+
+| 變數 | `increment` 的 Bytecode | `decrement` 的 Bytecode |
+|---|---|---|
+| `count`（宣告一次） | `LdaCurrentContextSlot [2]`、`StaCurrentContextSlot [2]` | `LdaCurrentContextSlot [2]`、`StaCurrentContextSlot [2]`，**同一格** |
+| `step`（另一個宣告） | `LdaImmutableCurrentContextSlot [3]` | `LdaImmutableCurrentContextSlot [3]`，另一格 |
+
+這時兩個函式的 context 欄位指向的是 `FunctionContext[4]`（`scope_info`、`previous`、`count`、`step` 共 4 格）。
+
+只有在函式裡**另外宣告**同名變數（遮蔽）時，才會是不同的變數。例如 `decrement` 內寫 `let count = 100`，它沒有被任何內層函式捕獲，Bytecode 用的是暫存器（`Star0`、`Dec`，`Frame size 8`），放在 `decrement` 自己的 Stack Frame，不佔 Context 的 slot。結果 `increment()`、`decrement()`、`increment()` 回傳 `1 99 2`，外層的 `count` 沒被動到。
+
 會「覆蓋」的情況是讀與寫之間被 `await` 隔開，別的任務在這段空檔改了同一格，寫回時就蓋掉對方的結果：
 
 ```js
