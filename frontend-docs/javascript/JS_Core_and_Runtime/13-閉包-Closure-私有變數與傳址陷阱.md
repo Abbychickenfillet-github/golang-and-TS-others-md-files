@@ -176,6 +176,14 @@ counter.increment(); // 2
 
 第 2 格就是 `FunctionContext[3]` 裡的 `count`（第 0 格 `scope_info`、第 1 格 `previous`）。連續呼叫 `increment()`、`decrement()`、`increment()`、`increment()`、`decrement()` 的回傳值是 `1 0 1 2 1`。
 
+每次呼叫各自開一個 Stack Frame（各自的記憶體空間），但 `count` 不在 Frame 裡，在共用的 Context：
+
+| | 每次呼叫各自一份（Stack Frame） | 共用一份（Heap 的 Context） |
+|---|---|---|
+| 位置 | Call Stack，呼叫時 push、return 時 pop | Heap |
+| 內容 | 返回位址、Saved BP、這次呼叫的暫存器與區域變數。`increment` 與 `decrement` 的 Bytecode 標示 `Register count 0`、`Frame size 0`，Frame 裡沒有任何區域變數 | `count` |
+| 誰用 | `increment()` 一次呼叫一個 Frame，`decrement()` 一次呼叫一個 Frame，用完就 pop | 所有 `createCounter()` 同一次呼叫建立的閉包 |
+
 會「覆蓋」的情況是讀與寫之間被 `await` 隔開，別的任務在這段空檔改了同一格，寫回時就蓋掉對方的結果：
 
 ```js
