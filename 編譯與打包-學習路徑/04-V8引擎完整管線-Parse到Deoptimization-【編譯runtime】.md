@@ -134,7 +134,7 @@ flowchart TD
 - 把 AST **編譯**成精簡的 **Bytecode**，然後**直譯執行**（見 [[機器碼與bytecode的差異]] 對 bytecode 概念的完整解釋）。
 - 執行的同時**順手收集 Profiling Data**（V8 內部叫 **Feedback Vector**）：記錄「這個函式被呼叫幾次」「傳進來的參數通常是什麼型別」「這個屬性存取通常是對哪種物件形狀（Shape/Hidden Class）」等統計資料，供之後 TurboFan 判斷要不要優化、怎麼優化。
 
-- **Ignition 是 register machine（暫存器機器）**：每個 Bytecode 的輸入與輸出寫成明確的暫存器運算元，另外有一個特殊的 **accumulator（累加器）暫存器**，是許多 Bytecode 預設的隱含輸入與輸出，所以不必把它寫進 Bytecode，Bytecode 因此更短（[Firing up the Ignition interpreter](https://v8.dev/blog/ignition-interpreter)，2016-08-23）。
+- **Ignition 直譯器實作的是一台 register machine（暫存器機器）**：每個 Bytecode 的輸入與輸出寫成明確的暫存器運算元，另外有一個特殊的 **accumulator（累加器）暫存器**，是許多 Bytecode 預設的隱含輸入與輸出，所以不必把它寫進 Bytecode，Bytecode 因此更短（[Firing up the Ignition interpreter](https://v8.dev/blog/ignition-interpreter)，2016-08-23）。
 
   以 `count++`（`count` 是被閉包捕獲的變數）為例，`node --print-bytecode` 輸出的 Bytecode 這樣讀：
 
@@ -146,7 +146,15 @@ flowchart TD
   | `StaCurrentContextSlot [2]` | `Sta` ＝ Store Accumulator：把 accumulator 的值寫回目前 Context 的第 2 格 | 讀 | 寫回 `count` |
   | `Return` | 回傳 accumulator 的值 | 讀 | `return count` 的結果 |
 
-  accumulator 是 Ignition 這台**虛擬機器**的暫存器，不是 CPU 規格裡的暫存器。V8 實作直譯器時，把它放在一個真正的 CPU 暫存器裡：x64 是 `rax`，arm64 是 `x0`（V8 `register-x64.h`、`register-arm64.h` 的 `kInterpreterAccumulatorRegister`）。這個名稱沿用自早期 CPU（例如 6502）專門做運算的累加器暫存器。
+  accumulator 是 Ignition 直譯器所模擬的那台 register machine 的暫存器，不是 CPU 規格裡的暫存器。V8 實作直譯器時，把它放在一個真正的 CPU 暫存器裡：x64 是 `rax`，arm64 是 `x0`（V8 `register-x64.h`、`register-arm64.h` 的 `kInterpreterAccumulatorRegister`）。這個名稱沿用自早期 CPU（例如 6502）專門做運算的累加器暫存器。
+
+  「直譯器」與「虛擬機器」是同一件事的兩個面向：**Bytecode 的指令集加上 accumulator 與暫存器，定義了一台不存在於硬體的抽象機器（虛擬機器）**，**Ignition 直譯器是一支真實的程式，負責在 CPU 上模擬這台機器，逐個執行 Bytecode**。
+
+  | 名稱 | 是什麼 | 在這裡指 |
+  |---|---|---|
+  | 虛擬機器（register machine） | 一份規格：有哪些指令、哪些暫存器、各指令的行為 | Bytecode 指令集（`bytecodes.h` 列的那些）與 accumulator |
+  | 直譯器（interpreter） | 一支實作這份規格的程式 | Ignition |
+  | 實體機器 | 真正的硬體 | CPU |
 
   Bytecode 由誰讀、誰執行：compiler 是**軟體**（一支程式，負責翻譯），CPU 是**硬體**（只執行機器碼）。V8 的這些元件本身都是已編譯好的機器碼，跑在 CPU 上，再去處理 Bytecode：
 
