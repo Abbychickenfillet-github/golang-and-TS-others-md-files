@@ -169,6 +169,28 @@ flowchart TD
 
   「對 accumulator 讀或寫」這一欄來自 V8 `bytecodes.h` 的 `ImplicitRegisterUse`：`LdaCurrentContextSlot` 是 `kWriteAccumulator`，`StaCurrentContextSlot` 是 `kReadAccumulator`，`Inc`、`Dec` 是 `kReadWriteAccumulator`，`Return` 是 `kReadAccumulator`。`Lda`、`Sta` 的全名是依組合語言「Load／Store Accumulator」的命名慣例，原始碼本身沒有拼出全名。`[2]` 是 Context 的第 2 格，第 0 格是 `scope_info`、第 1 格是 `previous`。
 
+  `Lda` 與 `Sta` 的差別是資料流動的方向，accumulator 永遠是其中一端：
+
+  | | `Lda`（Load Accumulator，載入累加器） | `Sta`（Store Accumulator，儲存累加器） |
+  |---|---|---|
+  | 方向 | 別處 → accumulator | accumulator → 別處 |
+  | 對 accumulator | 寫入，舊值被覆蓋 | 讀取，accumulator 的值不變 |
+  | 別處是哪裡 | Context 的 slot、暫存器、常數、全域變數等 | Context 的 slot、暫存器、物件屬性、全域變數等 |
+  | 暫存器版本 | `Ldar <src>`（Load Accumulator from Register）：`SetAccumulator(LoadRegister(src))` | `Star <dst>`（Store Accumulator to Register）：`StoreRegister(GetAccumulator(), dst)` |
+  | Context slot 版本 | `LdaCurrentContextSlot [2]`：讀目前 Context 的第 2 格放進 accumulator | `StaCurrentContextSlot [2]`：把 accumulator 寫進目前 Context 的第 2 格 |
+  | 對應 `count++` | 先 `Lda` 讀出 `count` | 算完 `Inc` 後 `Sta` 寫回 `count` |
+
+  `Return` 的意思是「結束目前這個函式的執行，把 accumulator 的值交還給呼叫者」，它與其他 Bytecode 的差別在於**不繼續跳到下一個 Bytecode**：
+
+  | 步驟 | 誰做 | 做什麼 |
+  |---|---|---|
+  | 1 | 其他 Bytecode 的 handler（每個 Bytecode 對應的一小段機器碼） | 做完事後呼叫 `Dispatch()`，查表跳到下一個 Bytecode 的 handler，直譯迴圈因此持續 |
+  | 2 | `Return` 的 handler | 只有 `GetAccumulator()` 與 `Return(accumulator)`，**沒有 `Dispatch()`**，所以迴圈在這裡中止，handler 以機器碼的 `ret` 回到 Interpreter Entry Trampoline（直譯器進入點的小段機器碼） |
+  | 3 | Interpreter Entry Trampoline | 呼叫 `LeaveInterpreterFrame`：用 `leave`（`mov rsp, rbp` 加 `pop rbp`）拆掉這個函式的 Stack Frame（連同暫存器檔案），再丟掉傳進來的引數 |
+  | 4 | Interpreter Entry Trampoline | 執行 `ret`，回到呼叫者，回傳值留在 accumulator 所在的 CPU 暫存器（x64 是 `rax`） |
+
+  第 3 步的 `leave` 與 `ret` 就是 [[12-return-清理記憶體-stack-frame與閉包例外]] 講的 return 時 SP 與 BP 移動的那個動作，在 Ignition 裡由 Entry Trampoline 負責，不是由 `Return` 這個 Bytecode 的 handler 負責。
+
 ### Hot Code 判定
 
 V8 監控函式的**呼叫次數**（以及迴圈的**執行次數**，這種情況叫 OSR／On-Stack Replacement），超過門檻就標記成「熱點程式碼」，送去給 TurboFan 優化。**沒達標的程式碼就繼續留在 Ignition 直譯執行**——多數程式碼其實只跑一兩次，直接省下 TurboFan 的編譯成本。
@@ -555,6 +577,8 @@ flowchart LR
 | accumulator 在 x64 對應 `rax`、arm64 對應 `x0` | https://github.com/v8/v8/blob/main/src/codegen/x64/register-x64.h 、https://github.com/v8/v8/blob/main/src/codegen/arm64/register-arm64.h | 2026-10-07 讀取 main 分支 |
 | Ignition 是 register machine、accumulator 隱含暫存器 | https://v8.dev/blog/ignition-interpreter | 發表 2016-08-23，2026-10-07 查證（讀取 v8/v8.dev 倉庫原始檔） |
 | `LdaCurrentContextSlot`、`StaCurrentContextSlot`、`Inc`、`Dec`、`Return` 的 `ImplicitRegisterUse` | https://github.com/v8/v8/blob/main/src/interpreter/bytecodes.h | 2026-10-07 讀取 main 分支 |
+| `Ldar`、`Star`、`LdaCurrentContextSlot`、`StaCurrentContextSlot`、`Return` 的 handler（`Return` 無 `Dispatch()`） | https://github.com/v8/v8/blob/main/src/interpreter/interpreter-generator.cc | 2026-10-07 讀取 main 分支 |
+| `LeaveInterpreterFrame`、Entry Trampoline 的 `do_return`（`leave`、`DropArguments`、`ret`） | https://github.com/v8/v8/blob/main/src/builtins/x64/builtins-x64.cc | 2026-10-07 讀取 main 分支 |
 | `count++` 的實際 Bytecode 輸出 | 本機 `node --print-bytecode`（Node.js v22.22.0） | 2026-10-07 實測 |
 | V8 module 變數：`ModuleScope::AllocateModuleVariables` 只把 import／export 的變數配到 `VariableLocation::MODULE`（以 cell_index 對應 Cell） | https://github.com/v8/v8/blob/main/src/ast/scopes.cc | 2026-10-06 讀取 main 分支 |
 | V8 `SourceTextModule` 的 `regular_exports`、`regular_imports`（Cell 陣列）與 `LoadVariable`／`StoreVariable` | https://github.com/v8/v8/blob/main/src/objects/source-text-module.h | 2026-10-06 讀取 main 分支 |
