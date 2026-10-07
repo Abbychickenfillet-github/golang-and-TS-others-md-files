@@ -195,6 +195,17 @@ slot 是按「變數宣告」分配的，不是按「哪個函式用到它」分
 
 這時兩個函式的 context 欄位指向的是 `FunctionContext[4]`（`scope_info`、`previous`、`count`、`step` 共 4 格）。
 
+工廠函式（factory function）的「寫一次、無限復用、互不干擾」由兩個層次各自負責：
+
+| 層次 | 共用還是各自 | 說明 |
+|---|---|---|
+| 程式碼（`BytecodeArray`） | 全部共用，只有一份 | 不論呼叫幾次 `createCounter()`，`increment` 的 Bytecode 都是同一份，所以「寫一次」 |
+| 函式物件（`JSFunction`） | 每次呼叫 `createCounter()` 各自建立新的 | 兩次呼叫產生的 `increment` 是兩個不同物件，`a.increment === b.increment` 為 `false` |
+| Context（`count` 所在的 Heap 物件） | 每次呼叫 `createCounter()` 各自建立新的一個 | 這就是「互不干擾」的來源，`a` 的 `count` 與 `b` 的 `count` 在不同的 Context，位址不同 |
+| 同一次呼叫內的 `increment` 與 `decrement` | 共用同一個 Context、同一個 `count` slot | 兩者操作同一個 `count`，這是刻意的，所以 `increment()` 之後 `decrement()` 會從 1 往下減 |
+
+Node 驗證（2026-10-07）：`const a = createCounter(), b = createCounter()`，`a.increment()` 兩次、`b.decrement()` 一次，`a.get()` 為 `2`，`b.get()` 為 `-1`。`a.decrement()` 之後 `a.get()` 為 `1`，`b` 不受影響。不同的變數放不同的 slot（`count` 第 2 格、`step` 第 3 格），同一個變數被多個閉包使用則共用同一個 slot。
+
 只有在函式裡**另外宣告**同名變數（遮蔽）時，才會是不同的變數。例如 `decrement` 內寫 `let count = 100`，它沒有被任何內層函式捕獲，Bytecode 用的是暫存器（`Star0`、`Dec`，`Frame size 8`），放在 `decrement` 自己的 Stack Frame，不佔 Context 的 slot。結果 `increment()`、`decrement()`、`increment()` 回傳 `1 99 2`，外層的 `count` 沒被動到。
 
 會「覆蓋」的情況是讀與寫之間被 `await` 隔開，別的任務在這段空檔改了同一格，寫回時就蓋掉對方的結果：
