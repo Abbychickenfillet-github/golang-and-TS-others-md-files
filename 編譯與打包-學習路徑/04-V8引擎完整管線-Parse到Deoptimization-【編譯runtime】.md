@@ -134,6 +134,20 @@ flowchart TD
 - 把 AST **編譯**成精簡的 **Bytecode**，然後**直譯執行**（見 [[機器碼與bytecode的差異]] 對 bytecode 概念的完整解釋）。
 - 執行的同時**順手收集 Profiling Data**（V8 內部叫 **Feedback Vector**）：記錄「這個函式被呼叫幾次」「傳進來的參數通常是什麼型別」「這個屬性存取通常是對哪種物件形狀（Shape/Hidden Class）」等統計資料，供之後 TurboFan 判斷要不要優化、怎麼優化。
 
+- **Ignition 是 register machine（暫存器機器）**：每個 Bytecode 的輸入與輸出寫成明確的暫存器運算元，另外有一個特殊的 **accumulator（累加器）暫存器**，是許多 Bytecode 預設的隱含輸入與輸出，所以不必把它寫進 Bytecode，Bytecode 因此更短（[Firing up the Ignition interpreter](https://v8.dev/blog/ignition-interpreter)，2016-08-23）。
+
+  以 `count++`（`count` 是被閉包捕獲的變數）為例，`node --print-bytecode` 輸出的 Bytecode 這樣讀：
+
+  | Bytecode | 意思 | 對 accumulator | 在這個例子裡 |
+  |---|---|---|---|
+  | `LdaCurrentContextSlot [2]` | `Lda` ＝ Load Accumulator：把目前 Context 的第 2 格讀進 accumulator | 寫入 | 讀出 `count` |
+  | `ThrowReferenceErrorIfHole [0]` | accumulator 若是「hole」（`let` 尚未初始化）就丟 `ReferenceError`，也就是 TDZ 檢查 | 讀 | 確認 `count` 已初始化 |
+  | `Inc [0]` | accumulator 加 1，`[0]` 是 Feedback Vector 的 slot 編號，用來記錄型別資訊 | 讀寫 | `count + 1` |
+  | `StaCurrentContextSlot [2]` | `Sta` ＝ Store Accumulator：把 accumulator 的值寫回目前 Context 的第 2 格 | 讀 | 寫回 `count` |
+  | `Return` | 回傳 accumulator 的值 | 讀 | `return count` 的結果 |
+
+  「對 accumulator 讀或寫」這一欄來自 V8 `bytecodes.h` 的 `ImplicitRegisterUse`：`LdaCurrentContextSlot` 是 `kWriteAccumulator`，`StaCurrentContextSlot` 是 `kReadAccumulator`，`Inc`、`Dec` 是 `kReadWriteAccumulator`，`Return` 是 `kReadAccumulator`。`Lda`、`Sta` 的全名是依組合語言「Load／Store Accumulator」的命名慣例，原始碼本身沒有拼出全名。`[2]` 是 Context 的第 2 格，第 0 格是 `scope_info`、第 1 格是 `previous`。
+
 ### Hot Code 判定
 
 V8 監控函式的**呼叫次數**（以及迴圈的**執行次數**，這種情況叫 OSR／On-Stack Replacement），超過門檻就標記成「熱點程式碼」，送去給 TurboFan 優化。**沒達標的程式碼就繼續留在 Ignition 直譯執行**——多數程式碼其實只跑一兩次，直接省下 TurboFan 的編譯成本。
@@ -516,6 +530,9 @@ flowchart LR
 
 | 主題 | 連結 | 版本／時間 |
 |---|---|---|
+| Ignition 是 register machine、accumulator 隱含暫存器 | https://v8.dev/blog/ignition-interpreter | 發表 2016-08-23，2026-10-07 查證（讀取 v8/v8.dev 倉庫原始檔） |
+| `LdaCurrentContextSlot`、`StaCurrentContextSlot`、`Inc`、`Dec`、`Return` 的 `ImplicitRegisterUse` | https://github.com/v8/v8/blob/main/src/interpreter/bytecodes.h | 2026-10-07 讀取 main 分支 |
+| `count++` 的實際 Bytecode 輸出 | 本機 `node --print-bytecode`（Node.js v22.22.0） | 2026-10-07 實測 |
 | V8 module 變數：`ModuleScope::AllocateModuleVariables` 只把 import／export 的變數配到 `VariableLocation::MODULE`（以 cell_index 對應 Cell） | https://github.com/v8/v8/blob/main/src/ast/scopes.cc | 2026-10-06 讀取 main 分支 |
 | V8 `SourceTextModule` 的 `regular_exports`、`regular_imports`（Cell 陣列）與 `LoadVariable`／`StoreVariable` | https://github.com/v8/v8/blob/main/src/objects/source-text-module.h | 2026-10-06 讀取 main 分支 |
 | Bytecode flushing 現行旗標（`flush_bytecode`、`bytecode_old_time = 180` 秒）與 `FlushSFI` 把 BytecodeArray 原地轉成 UncompiledData | https://github.com/v8/v8/blob/main/src/flags/flag-definitions.h 、https://github.com/v8/v8/blob/main/src/heap/mark-compact.cc | 2026-10-06 讀取 main 分支 |

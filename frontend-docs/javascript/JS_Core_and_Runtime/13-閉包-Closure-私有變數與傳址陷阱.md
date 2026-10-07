@@ -174,7 +174,7 @@ counter.increment(); // 2
 | 2. 改 | `Inc` | `Dec` |
 | 3. 寫 | `StaCurrentContextSlot [2]`：寫回同一格 | `StaCurrentContextSlot [2]` |
 
-第 2 格就是 `FunctionContext[3]` 裡的 `count`（第 0 格 `scope_info`、第 1 格 `previous`）。連續呼叫 `increment()`、`decrement()`、`increment()`、`increment()`、`decrement()` 的回傳值是 `1 0 1 2 1`。
+第 2 格就是 `FunctionContext[3]` 裡的 `count`（第 0 格 `scope_info`、第 1 格 `previous`）。`Lda`、`Sta` 的意思（Load／Store Accumulator）與每個 Bytecode 的讀法見 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]] 的 Ignition 一節。連續呼叫 `increment()`、`decrement()`、`increment()`、`increment()`、`decrement()` 的回傳值是 `1 0 1 2 1`。
 
 每次呼叫各自開一個 Stack Frame（各自的記憶體空間），但 `count` 不在 Frame 裡，在共用的 Context：
 
