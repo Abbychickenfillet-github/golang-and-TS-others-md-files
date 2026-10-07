@@ -166,6 +166,28 @@ counter.increment(); // 2
 
 兩個函式物件本身是兩個不同的物件（位址不同、程式碼不同），但各自的 context 欄位指向同一個 Context。`FunctionContext[3]` 的 3 個欄位是 `scope_info`、`previous`、`count`。執行結果也一致：`increment()` 印 `increment1`，接著 `decrement()` 印 `decrement0`，後者是從前者留下的 `1` 往下減。
 
+**`count++` 與 `count--` 為什麼不會互相覆蓋：** 兩者對同一個 slot 做「讀目前的值 → 加減 1 → 寫回」，而且一次呼叫在 Call Stack 上整段跑完，才輪到下一次呼叫。後一次讀到的是前一次寫回的值，所以結果是累加。用 `node --print-bytecode` 看 V8 實際產生的 Bytecode：
+
+| 步驟 | `increment` 的 `count++` | `decrement` 的 `count--` |
+|---|---|---|
+| 1. 讀 | `LdaCurrentContextSlot [2]`：從目前 Context 的第 2 格讀出 `count` | `LdaCurrentContextSlot [2]` |
+| 2. 改 | `Inc` | `Dec` |
+| 3. 寫 | `StaCurrentContextSlot [2]`：寫回同一格 | `StaCurrentContextSlot [2]` |
+
+第 2 格就是 `FunctionContext[3]` 裡的 `count`（第 0 格 `scope_info`、第 1 格 `previous`）。連續呼叫 `increment()`、`decrement()`、`increment()`、`increment()`、`decrement()` 的回傳值是 `1 0 1 2 1`。
+
+會「覆蓋」的情況是讀與寫之間被 `await` 隔開，別的任務在這段空檔改了同一格，寫回時就蓋掉對方的結果：
+
+```js
+let count = 0;
+async function incSlow() { const c = count; await sleep(10); count = c + 1; }  // 先讀，10ms 後才寫
+async function decSlow() { const c = count; await sleep(5);  count = c - 1; }  // 先讀，5ms 後就寫
+await Promise.all([incSlow(), decSlow()]);
+console.log(count);  // 1：decSlow 在 5ms 寫入 -1，incSlow 在 10ms 用舊的 c = 0 寫回 1，蓋掉了 -1
+```
+
+`increment`／`decrement` 本身沒有 `await`，讀與寫之間不會被插入別的呼叫，所以不會發生這種情況。
+
 只有當函式**自己**也有被內層函式捕獲的區域變數時，才會再多出一個屬於那個函式的 Context，用 `previous` 接回 `createCounter` 的 Context。
 
 > [!tip] 判斷「這是不是閉包」的快速心法
