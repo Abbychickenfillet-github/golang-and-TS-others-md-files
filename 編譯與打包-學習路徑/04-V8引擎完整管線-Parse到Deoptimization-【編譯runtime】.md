@@ -146,6 +146,8 @@ flowchart TD
   | `StaCurrentContextSlot [2]` | `Sta` ＝ Store Accumulator：把 accumulator 的值寫回目前 Context 的第 2 格 | 讀 | 寫回 `count` |
   | `Return` | 回傳 accumulator 的值 | 讀 | `return count` 的結果 |
 
+  accumulator 是 Ignition 這台**虛擬機器**的暫存器，不是 CPU 規格裡的暫存器。V8 實作直譯器時，把它放在一個真正的 CPU 暫存器裡：x64 是 `rax`，arm64 是 `x0`（V8 `register-x64.h`、`register-arm64.h` 的 `kInterpreterAccumulatorRegister`）。這個名稱沿用自早期 CPU（例如 6502）專門做運算的累加器暫存器。
+
   「對 accumulator 讀或寫」這一欄來自 V8 `bytecodes.h` 的 `ImplicitRegisterUse`：`LdaCurrentContextSlot` 是 `kWriteAccumulator`，`StaCurrentContextSlot` 是 `kReadAccumulator`，`Inc`、`Dec` 是 `kReadWriteAccumulator`，`Return` 是 `kReadAccumulator`。`Lda`、`Sta` 的全名是依組合語言「Load／Store Accumulator」的命名慣例，原始碼本身沒有拼出全名。`[2]` 是 Context 的第 2 格，第 0 格是 `scope_info`、第 1 格是 `previous`。
 
 ### Hot Code 判定
@@ -530,6 +532,7 @@ flowchart LR
 
 | 主題 | 連結 | 版本／時間 |
 |---|---|---|
+| accumulator 在 x64 對應 `rax`、arm64 對應 `x0` | https://github.com/v8/v8/blob/main/src/codegen/x64/register-x64.h 、https://github.com/v8/v8/blob/main/src/codegen/arm64/register-arm64.h | 2026-10-07 讀取 main 分支 |
 | Ignition 是 register machine、accumulator 隱含暫存器 | https://v8.dev/blog/ignition-interpreter | 發表 2016-08-23，2026-10-07 查證（讀取 v8/v8.dev 倉庫原始檔） |
 | `LdaCurrentContextSlot`、`StaCurrentContextSlot`、`Inc`、`Dec`、`Return` 的 `ImplicitRegisterUse` | https://github.com/v8/v8/blob/main/src/interpreter/bytecodes.h | 2026-10-07 讀取 main 分支 |
 | `count++` 的實際 Bytecode 輸出 | 本機 `node --print-bytecode`（Node.js v22.22.0） | 2026-10-07 實測 |
