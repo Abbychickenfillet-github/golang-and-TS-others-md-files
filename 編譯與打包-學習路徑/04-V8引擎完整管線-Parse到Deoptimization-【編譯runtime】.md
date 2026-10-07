@@ -180,6 +180,17 @@ flowchart TD
   | Context slot 版本 | `LdaCurrentContextSlot [2]`：讀目前 Context 的第 2 格放進 accumulator | `StaCurrentContextSlot [2]`：把 accumulator 寫進目前 Context 的第 2 格 |
   | 對應 `count++` | 先 `Lda` 讀出 `count` | 算完 `Inc` 後 `Sta` 寫回 `count` |
 
+  `LdaCurrentContextSlot [2]` 這一行裡有三個不同的東西：
+
+  | 部分 | 是什麼 | 住在哪裡 |
+  |---|---|---|
+  | `LdaCurrentContextSlot` | **指令**（opcode，操作碼）：一個動作，意思是「從目前 Context 讀一格放進 accumulator」，不是資料也不是格子 | 函式的 `BytecodeArray` 物件裡的一個位元組，`BytecodeArray` 屬於 V8 管理的記憶體（新版放在 trusted space） |
+  | `[2]` | **運算元**（operand）：slot 編號，告訴指令要讀第幾格 | 跟指令一起存在 `BytecodeArray` 裡 |
+  | 第 2 格（slot） | **格子**：Context 物件裡存放 `count` 的位置 | Heap 上的 Context 物件，layout 是 `scope_info`、`previous`、接著才是被捕獲的變數 |
+  | accumulator | Ignition 直譯器那台 register machine 的暫存器 | 不在 Heap，V8 把它放在 CPU 暫存器（x64 是 `rax`） |
+
+  所以 `Lda` 是「讀」這個動作，Context 的第 2 格是被讀的對象，`Lda` 本身不是 Context 裡的格子，也不是對格子的描述。
+
   `Return` 的意思是「結束目前這個函式的執行，把 accumulator 的值交還給呼叫者」，它與其他 Bytecode 的差別在於**不繼續跳到下一個 Bytecode**：
 
   | 步驟 | 誰做 | 做什麼 |
@@ -579,6 +590,7 @@ flowchart LR
 | `LdaCurrentContextSlot`、`StaCurrentContextSlot`、`Inc`、`Dec`、`Return` 的 `ImplicitRegisterUse` | https://github.com/v8/v8/blob/main/src/interpreter/bytecodes.h | 2026-10-07 讀取 main 分支 |
 | `Ldar`、`Star`、`LdaCurrentContextSlot`、`StaCurrentContextSlot`、`Return` 的 handler（`Return` 無 `Dispatch()`） | https://github.com/v8/v8/blob/main/src/interpreter/interpreter-generator.cc | 2026-10-07 讀取 main 分支 |
 | `LeaveInterpreterFrame`、Entry Trampoline 的 `do_return`（`leave`、`DropArguments`、`ret`） | https://github.com/v8/v8/blob/main/src/builtins/x64/builtins-x64.cc | 2026-10-07 讀取 main 分支 |
+| `BytecodeArray` 繼承 `ExposedTrustedObject`（trusted space）、`LdaContextSlot` 的運算元型別 `kContextSlot` | https://github.com/v8/v8/blob/main/src/objects/bytecode-array.h 、https://github.com/v8/v8/blob/main/src/interpreter/bytecodes.h | 2026-10-07 讀取 main 分支 |
 | `count++` 的實際 Bytecode 輸出 | 本機 `node --print-bytecode`（Node.js v22.22.0） | 2026-10-07 實測 |
 | V8 module 變數：`ModuleScope::AllocateModuleVariables` 只把 import／export 的變數配到 `VariableLocation::MODULE`（以 cell_index 對應 Cell） | https://github.com/v8/v8/blob/main/src/ast/scopes.cc | 2026-10-06 讀取 main 分支 |
 | V8 `SourceTextModule` 的 `regular_exports`、`regular_imports`（Cell 陣列）與 `LoadVariable`／`StoreVariable` | https://github.com/v8/v8/blob/main/src/objects/source-text-module.h | 2026-10-06 讀取 main 分支 |
