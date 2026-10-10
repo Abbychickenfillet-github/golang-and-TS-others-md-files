@@ -1,0 +1,285 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>adopt-buffer-MIN_SIZE與TypedArray-Uint8-Uint32位元寬度</title><style>
+body{margin:0;background:#f6f5f2;color:#2b2b2b;font:16px/1.7 -apple-system,'Noto Sans TC','Microsoft JhengHei',sans-serif}
+.wrap{width:100%;max-width:none;margin:0;padding:28px clamp(16px,2.5vw,44px) 64px;box-sizing:border-box}
+header{background:#fff;border-radius:14px;padding:24px 28px;box-shadow:0 1px 4px #0001;margin-bottom:24px}
+h1{font-family:'Noto Serif TC',Georgia,serif;margin:0 0 10px;font-size:1.7em}
+.pill{display:inline-block;background:#e8eefc;color:#34508f;border-radius:99px;padding:1px 12px;margin:2px 4px 2px 0;font-size:.82em}
+.meta{color:#777;font-size:.88em;margin-top:8px}
+article{background:#fff;border-radius:14px;padding:8px 28px 24px;box-shadow:0 1px 4px #0001}
+h2{border-left:5px solid #7a9cd6;padding-left:12px;margin-top:2em}
+h3{color:#34508f}
+pre{background:#1e2230;color:#e6e9f2;padding:14px 16px;border-radius:10px;overflow-x:auto;font:.88em/1.55 Consolas,monospace}
+code{background:#eef0f5;padding:1px 6px;border-radius:5px;font-family:Consolas,monospace;font-size:.9em}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.93em}
+th,td{border:1px solid #d9dce3;padding:6px 10px;text-align:left}
+tr:nth-child(even) td{background:#f7f8fb}th{background:#e9edf6}
+blockquote{margin:1em 0;border-left:5px solid #e6b422;background:#fff8e0;padding:6px 16px;border-radius:0 8px 8px 0}
+img{max-width:100%}
+li.pt{cursor:pointer;list-style:none;margin:.4em 0;padding:6px 10px;border-radius:8px;background:#f3f6fd;border:1px dashed #b8c6e6}
+li.pt.hide{color:transparent;text-shadow:none;background:#dfe5f3;user-select:none}
+li.pt.hide *{color:transparent!important;background:transparent!important}
+ul:has(li.pt){padding-left:0}
+.bar{position:sticky;top:0;background:#f6f5f2;padding:8px 0;z-index:5}
+button{background:#34508f;color:#fff;border:0;border-radius:8px;padding:6px 14px;margin-right:8px;cursor:pointer}
+footer{text-align:center;color:#999;font-size:.82em;margin-top:28px}
+details.src{background:#fafafa;border:1px solid #e3e3e3;border-radius:10px;padding:8px 14px;margin:10px 0}
+.defbox{background:#f0f7f4;border:1px solid #bcdcd0;border-left:5px solid #3f9e7f;border-radius:0 10px 10px 0;padding:14px 20px;margin:18px 0}
+.defbox h2{border:0;padding:0;margin:0 0 10px;font-size:1.12em;color:#2c6b57}
+.defbox .one{font-size:1.04em;font-weight:600;margin:0 0 10px;color:#1f4a3c}
+.defbox ol{margin:8px 0 0;padding-left:1.4em}
+.defbox li{margin:.35em 0}
+.defbox .warn{margin:12px 0 0;padding:8px 12px;background:#fff6e5;border-radius:8px;font-size:.93em}
+.defbox .warn b{color:#9a6b00}
+.cmt{color:#8aa}
+h2[id],h3[id]{scroll-margin-top:70px}
+h2[id]:target,h3[id]:target{animation:hl 1.4s ease}
+@keyframes hl{0%,55%{background:#fff2b8}100%{background:transparent}}
+html{scroll-behavior:smooth}
+*,*::before,*::after{box-sizing:border-box}
+/* ---- 寬螢幕：大綱釘在左邊，不再浪費左右留白 ---- */
+@media (min-width:1100px){
+  article{display:grid;grid-template-columns:clamp(220px,18vw,300px) minmax(0,1fr);column-gap:clamp(24px,2.6vw,48px);align-items:start}
+  article > *{grid-column:2;min-width:0}
+  article > nav.toc{grid-column:1;grid-row:1 / span 999;position:sticky;top:66px;margin:0;align-self:start;max-height:calc(100vh - 90px);overflow:auto}
+
+}
+@media (min-width:1700px){
+  article{grid-template-columns:clamp(240px,15vw,320px) minmax(0,1fr)}
+  .wrap{padding-left:clamp(44px,5vw,120px);padding-right:clamp(44px,5vw,120px)}
+}
+</style><link rel="stylesheet" href="../assets/notes.css">
+</head><body><div class="wrap"><header><h1>adopt-buffer-MIN_SIZE與TypedArray-Uint8-Uint32位元寬度</h1><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">TypedArray</span><span class="pill">Uint32Array</span><span class="pill">Buffer</span><span class="pill">css-tree</span><span class="pill">GC</span><div class="meta">更新 2026-10-10 ・ <a href="https://gemini.google.com/app/0fa113dfd0ee9e71">來源</a></div></header><div class="bar"><button onclick="setAll(true)">全部隱藏重點</button><button onclick="setAll(false)">全部顯示</button><span style="color:#888;font-size:.85em">點 (a)(b)… 重點可單獨隱藏／顯示，自我測驗　｜　<b style="color:#2c6b57">綠色虛線名詞：滑過看解釋，點一下釘住並可拖曳</b></span></div><article>
+<nav class="toc">
+<div class="toc-h">本篇大綱　<span>點標題直接跳</span></div>
+<ol>
+  <li><a href="#buffer">先定義：這個檔案裡的 Buffer 到底是什麼</a>
+    <ol>
+      <li><a href="#arraybuffer">退一步：這條 Uint32Array 底下是什麼 —— ArrayBuffer</a></li>
+      <li><a href="#why32">這才是非用 32-bit 不可的真正原因</a></li>
+      <li><a href="#word">那「buffer」這個詞本身呢</a></li>
+    </ol>
+  </li>
+  <li><a href="#points">重點整理</a><span class="toc-n">(a)–(l) 共 12 點</span></li>
+  <li><a href="#sources">各對話來源（原文節錄）</a>
+    <ol>
+      <li><a href="#src-minsize">程式碼中 MIN_SIZE 定義解析</a></li>
+      <li><a href="#src-vmodel">Vue.js 中的 v-model 雙向綁定</a></li>
+    </ol>
+  </li>
+  <li><a href="#refs">資料來源（含查證時間）</a></li>
+</ol>
+</nav>
+
+<section class="defbox">
+<h2 id="buffer">先定義：這個檔案裡的 Buffer 到底是什麼</h2>
+<p class="one">就是一條 <code>Uint32Array</code> —— 一塊連續記憶體，每格固定 4 bytes，專門存 CSS tokenizer 掃描過程中產生的「純數字<span class="term" tabindex="0" data-def="metadata：描述資料的資料。這裡存的不是 CSS 文字本身，而是「關於那段文字的資訊」—— 它從第幾個字元開始、到第幾個字元結束、是什麼型別、在第幾行第幾欄。就像書的目錄不是書的內容，但告訴你內容在哪裡。">中繼資料</span>」。</p>
+<p style="margin:0 0 10px">它不是檔案內容，也不是字串。原始 CSS 文字另外存在 <code>source</code> 裡；buffer 只存「第幾個字元到第幾個字元是一個 <span class="term" tabindex="0" data-def="詞法單元：tokenizer 把一長串 CSS 文字切成的最小有意義單位，例如一個選擇器名稱、一個冒號、一個數值、一個分號。切完才輪到 parser 組成語法樹。">token</span>、它是什麼型別、在第幾行第幾欄」這類<b><span class="term" tabindex="0" data-def="也就是「位置資訊」—— 第幾個字元、第幾行、第幾欄、第幾號型別，全部都是整數，所以才能塞進 Uint32Array。">座標與編號</span></b>。</p>
+
+<h3 id="arraybuffer" style="color:#2c6b57;margin:20px 0 8px;font-size:1.02em">⬛ 退一步：這條 Uint32Array 底下是什麼 —— ArrayBuffer</h3>
+<pre><code class="language-js">// ① 開一塊原始記憶體
+var buffer = new ArrayBuffer(8);
+//                          └─ 單位永遠是 byte，不是 bit
+//                             8 bytes = 64 bits
+//   做的事：請 V8 幫你跟作業系統要一塊「連續的、固定長度的 8 bytes 原始記憶體」
+//   注意：這塊記憶體不在 V8 的 JS heap 裡面，是 heap 外（off-heap）另外配置的，
+//         JS 這邊只拿到一個持有指標的包裝物件
+
+// ② ArrayBuffer 本身什麼都不能做
+buffer[0] = 5;
+console.log(buffer[0]);              // 5          ← 看起來有寫進去
+console.log(new Uint8Array(buffer)); // [0,0,0,0,0,0,0,0]
+//   真相：buffer[0] = 5 只是在「物件」上掛了一個叫 "0" 的普通屬性，
+//         底層那 8 個 bytes 一個都沒動。ArrayBuffer 沒有索引讀寫能力。
+
+// ③ 所以必須套一個「視圖 view」才能讀寫
+var z = new Uint8Array(buffer, 1, 4);
+//                     └──┬─┘  │  └─ length：要 4 個元素
+//                        │    └──── byteOffset：從第 1 個 byte 開始
+//                        └───────── 掛在這塊 buffer 上（借用，不是複製）
+
+z.length      // 4   幾個元素
+z.byteOffset  // 1   從第幾個 byte 起算
+z.byteLength  // 4   共佔幾個 byte（Uint8 每格 1 byte，所以 4x1=4）
+z.buffer === buffer   // true  ← 指向同一塊，沒有任何複製
+
+// ④ 證明共用同一塊記憶體
+var all = new Uint8Array(buffer);   // 看整塊 8 bytes 的視圖
+z[0] = 255;
+z[3] = 7;
+console.log(Array.from(all));
+// [0, 255, 0, 0, 7, 0, 0, 0]
+//  ↑            ↑
+//  byte 0 不在 z 範圍內，所以還是 0
+//               z 寫的東西全部落在 byte 1~4</code></pre>
+
+<pre><code class="language-text">buffer（8 bytes）
+ byte:  0    1    2    3    4    5    6    7
+      ┌────┬────┬────┬────┬────┬────┬────┬────┐
+      │ 0  │255 │ 0  │ 0  │ 7  │ 0  │ 0  │ 0  │
+      └────┴────┴────┴────┴────┴────┴────┴────┘
+            └──────── z ────────┘
+            z[0] z[1] z[2] z[3]</code></pre>
+
+<p style="margin:10px 0 0"><b>⚠️ byteOffset 有對齊限制</b>：必須是元素寬度的倍數。Uint8 每格 1 byte 所以 offset 給 1 沒問題；<code>new Uint32Array(buffer, 1)</code> 會噴 <code>RangeError: start offset of Uint32Array should be a multiple of 4</code>，Uint32 的 offset 只能是 0、4、8…</p>
+
+<p style="margin:14px 0 6px"><b>🔁 那 TypedArray 自己有沒有記憶體？沒有，它永遠只是視圖。</b></p>
+<pre><code class="language-js">var u32 = new Uint32Array(8);        // 沒有傳 buffer 進去
+u32.buffer instanceof ArrayBuffer    // true  ← 但它還是有一個
+u32.buffer.byteLength                // 32    ← 8 元素 x 4 bytes，V8 偷偷幫你開的
+u32.BYTES_PER_ELEMENT                // 4
+//   白話：沒有「不是視圖的 TypedArray」這種東西。
+//         你沒給 buffer，引擎就自己 new 一個再把視圖架上去。</code></pre>
+
+<p style="margin:14px 0 6px"><b>同一塊 bytes，換個視圖就是完全不同的數字：</b></p>
+<pre><code class="language-js">var b     = new ArrayBuffer(8);
+var asU8  = new Uint8Array(b);       // 一格 1 byte
+var asU32 = new Uint32Array(b);      // 一格 4 bytes，兩者看的是同一塊
+
+asU8[0]=1; asU8[1]=0; asU8[2]=0; asU8[3]=0;
+asU32[0]   // 1
+asU8[0]=0; asU8[3]=1;
+asU32[0]   // 16777216
+//   白話：底層都是同樣 4 個 bytes，只是「1 放在哪一端」不同，
+//         用 Uint32 讀出來就差了一千六百多萬倍。
+//         這是 little-endian <span class="term" tabindex="0" data-def="little-endian：多位元組的數字存進記憶體時，把最低位的 byte 放在最前面的地址。x86 與多數 ARM 都是小端序，所以 JS 的 TypedArray 在這些機器上讀出來也是小端序。">小端序</span> —— 低位 byte 放在前面。</code></pre>
+
+<p style="margin:10px 0 0"><b>三層關係</b>：<code>ArrayBuffer</code>（有記憶體、不能讀寫）→ 套上 <code>TypedArray</code> 視圖（沒記憶體、決定幾個 byte 算一個數字）→ 才有 <code>u32[0]</code> 這個可以讀寫的數字。<br><b>回到本篇</b>：<code>offsetAndType</code> 能把 <code>(type &lt;&lt; 24) | end</code> 塞進一格，正是因為它選了 Uint32 這個視圖 —— 換成 Uint8Array 視圖，同樣的記憶體會被切成 4 個互不相干的小數字，打包就失效了。</p>
+
+<p style="margin:10px 0 0"><b>📌 補充（ES2024 起）</b>：「固定長度」已經不是絕對。<code>new ArrayBuffer(8, { maxByteLength: 16 })</code> 可以建立 resizable buffer，之後用 <code>.resize(16)</code> 改大小；一般寫法 <code>new ArrayBuffer(8)</code> 的 <code>.resizable</code> 是 <code>false</code>，仍然是固定的。另外 <code>.transfer()</code> 會把所有權轉走並讓原本那個 <code>.detached === true</code>，這就是 Worker 之間零複製傳遞（Transferable）的基礎。</p>
+
+<p style="margin:14px 0 6px"><b>css-tree v3.2.1 實際只有四個地方呼叫 <code>adoptBuffer</code>，就是這四條 buffer：</b></p>
+<table>
+<tr><th>呼叫處</th><th>buffer</th><th>長度</th><th>一格存什麼</th></tr>
+<tr><td><code>TokenStream.js:56</code></td><td><code>offsetAndType</code></td><td><code>source.length + 1</code></td><td><b>一個 <span class="term" tabindex="0" data-def="詞法單元：tokenizer 把一長串 CSS 文字切成的最小有意義單位，例如一個選擇器名稱、一個冒號、一個數值、一個分號。切完才輪到 parser 組成語法樹。">token</span> 一格</b>：高 8 bits 放 token 型別，低 24 bits 放結束 <span class="term" tabindex="0" data-def="偏移量：某個位置距離起點有多遠，單位是「第幾個」。字元 offset 就是從字串開頭數來第幾個字元，從 0 開始算。">offset</span></td></tr>
+<tr><td><code>TokenStream.js:57</code></td><td><code>balance</code></td><td><code>source.length + 1</code></td><td>括號／大括號的配對位置（哪個 index 跟哪個 index 成對）</td></tr>
+<tr><td><code>OffsetToLocation.js:12</code></td><td><code>lines</code></td><td><code>sourceLength</code></td><td><b>一個字元一格</b>：這個字元在第幾行</td></tr>
+<tr><td><code>OffsetToLocation.js:13</code></td><td><code>columns</code></td><td><code>sourceLength</code></td><td>這個字元在第幾欄</td></tr>
+</table>
+<p style="margin:10px 0 0"><b>為什麼長度用 <code>source.length</code>？</b>因為 token 數事先不知道，所以拿「最壞情況 ＝ 每個字元都自成一個 token」當上界先開好，寧可開大也不要中途擴容。</p>
+
+<h3 id="why32" style="color:#2c6b57;margin:20px 0 8px;font-size:1.02em">🔑 這才是非用 32-bit 不可的真正原因（補強下面的 (k)）</h3>
+<pre><code class="language-js">const OFFSET_MASK = 0x00FFFFFF;   // 低 24 bits
+const TYPE_SHIFT  = 24;
+offsetAndType[index] = (type &lt;&lt; TYPE_SHIFT) | end;   // 型別與 offset 打包進同一個數字</code></pre>
+<p style="margin:0">白話：<b>它把兩個資訊塞進同一個 32-bit 整數</b> —— 左移 24 位把 token 型別推到高 8 bits，再用 <code>|</code> 把結束 offset 填進低 24 bits。一格就同時回答「這是什麼 token」和「它到哪裡結束」，不必開兩條陣列。所以不是「32-bit 比較夠用」，是<b>結構上需要 24+8 這個切法</b>，Uint8Array 根本塞不下。</p>
+<p style="margin:8px 0 0">副作用：offset 只有 24 bits，上限 16,777,215 —— 也就是 css-tree 能處理的 CSS 原始碼<b>最大約 16 MB</b>。</p>
+
+<h3 id="word" style="color:#2c6b57;margin:20px 0 8px;font-size:1.02em">那「buffer」這個詞本身呢</h3>
+<p style="margin:0">通用定義是「一塊事先配置好、大小固定的連續記憶體，用來暫存正在流動中的資料」，存在的理由是<b>兩端速度對不上</b>（例如讀檔、網路封包）。但 <b>css-tree 用的是另一種意思</b>：它不是接資料流的桶子，而是<b>可重複使用的工作區（scratch space）</b>。同一個詞，這裡的重點在「重用」而不是「緩衝」—— 這也是 <code>adoptBuffer</code> 的 adopt（領養、沿用）這個字的由來。</p>
+<p class="warn"><b>⚠️ 別跟 cache 搞混：</b>buffer 解決「<b>速度／時機對不上</b>」或「<b>避免重複配置</b>」，cache 解決「<b>不想重算或重抓</b>」。兩者都是中間層，目的不同。</p>
+</section>
+<h2 id="points">重點整理</h2>
+<ul>
+<li class="pt">(a) <mark style="background: #ADCCFFA6;">adopt-buffer</mark> 是 css-tree（CSS parser 套件）內部的小工具函式：呼叫端傳入「既存的 Buffer（上一輪已配置好的 TypedArray）」與需要的 <code>size</code>，容量夠就原樣回傳重用，不夠才配置新的。</li>
+<li class="pt">(b) 目的是<mark style="background: #BBFABBA6;">減少記憶體配置與 <span class="term" tabindex="0" data-def="Garbage Collection 垃圾回收：引擎自動找出沒人再引用的物件並釋放其記憶體。回收當下會短暫暫停 JS 執行，配置越頻繁就暫停越頻繁，表現出來就是卡頓。">GC（垃圾回收）</span>壓力</mark>：若每次解析都 <code>new Uint32Array(size)</code>，會頻繁配置並觸發 V8 垃圾回收，造成卡頓。</li>
+<li class="pt">(c) 這裡的 Buffer 就是「放資料的容器」：連續記憶體，裡面存 token 的起訖 offset、字元碼、換行位置等數字。</li>
+<li class="pt">(d) 可信的實作形狀（依我所知 css-tree 原始碼）：<code>const MIN_SIZE = 16 * 1024;</code>，容量不足時 <code>return new Uint32Array(Math.max(size + 1024, MIN_SIZE))</code>，足夠時 <code>return buffer</code>。</li>
+<li class="pt">(e) <mark style="background: #FFF3A3A6;">MIN_SIZE = 16 * 1024 是 16384 個「元素」，不是 16 KB</mark>；<code>Uint32Array</code> 每元素 4 Bytes，所以實際是 16384 × 4 = 65536 Bytes = 64 KB。</li>
+<li class="pt">(f) <code>Math.max(size + 1024, MIN_SIZE)</code>：需求小（例如 100）時取保底 16384；需求大（例如 20000）時取 <code>size + 1024 = 21024</code>，多預留 1024 個元素當緩衝。</li>
+<li class="pt">(g) <code>new Uint8Array(2)</code> 的 <code>2</code> 是「長度（元素個數）」，不是數值上限，總記憶體 = 2 × 1 Byte。</li>
+<li class="pt">(h) <code>uint8 = [1,2,3,...]</code> 沒有報錯，是因為這句是把變數 <code>uint8</code> <mark style="background: #FF5582A6;">重新賦值成一個普通 Array</mark>，原本的 Uint8Array 被丟棄，並不是改了 Uint8Array 的長度。</li>
+<li class="pt">(i) TypedArray 長度固定：<code>uint8[2] = 3</code> 寫入越界索引會被忽略，<code>uint8[2]</code> 仍是 <code>undefined</code>，<code>length</code> 仍為 2。</li>
+<li class="pt">(j) 8-bit 的限制在「元素值」：Uint8 範圍 0–255，存入 256 會 wrap（模 256）變 0，257 變 1。</li>
+<li class="pt">(k) Uint32Array 範圍 0–4,294,967,295，適合存索引與偏移量（offset），所以 css-tree 用 32-bit 而不是 8-bit。</li>
+<li class="pt">(l) 另一則對話順帶說明 Vue 的 <mark style="background: #ADCCFFA6;">v-model</mark>：它是 <code>:value</code> + <code>@input</code> 的語法糖，實現表單元素的雙向綁定；修飾符 <code>.lazy</code>（改在 change 事件同步）、<code>.number</code>（轉數字）、<code>.trim</code>（去頭尾空白）。</li>
+</ul>
+<pre><code class="language-js">var uint8 = new Uint8Array(2);
+uint8[0] = 256; uint8[1] = 257;
+console.log(uint8[0], uint8[1]);   // 0 1（wrap）
+uint8[2] = 3;                      // 越界寫入被忽略
+console.log(uint8.length, uint8[2]); // 2 undefined
+</code></pre>
+<pre><code class="language-html">&lt;input v-model=&quot;message&quot;&gt;
+&lt;!-- 等同於 --&gt;
+&lt;input :value=&quot;message&quot; @input=&quot;message = $event.target.value&quot;&gt;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>型別</th>
+<th>元素寬度</th>
+<th>每元素 Bytes</th>
+<th>數值範圍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Uint8Array</td>
+<td>8 bits</td>
+<td>1</td>
+<td>0 – 255</td>
+</tr>
+<tr>
+<td>Uint32Array</td>
+<td>32 bits</td>
+<td>4</td>
+<td>0 – 4,294,967,295</td>
+</tr>
+</tbody>
+</table>
+<blockquote><p>✅ <b>已查證結案（2026-10-10，實際下載 npm 套件 <code>css-tree@3.2.1</code> 讀原始碼 <code>lib/tokenizer/adopt-buffer.js</code>）</b>：真實實作就是下面這五行，<b>整段沒有任何複製舊資料的程式碼</b>，所以筆記原本懷疑的「第一版說法（<code>buffer.length * 2</code> 或 2048、會把舊資料複製過去）不可採信」<b>判斷正確</b>。另外也確認 <code>buffer.length &lt; size</code> 比的是<b>元素個數</b>而不是 bytes，(e) 的說法成立。</p>
+<pre><code class="language-js">const MIN_SIZE = 16 * 1024;
+
+export function adoptBuffer(buffer = null, size) {
+    if (buffer === null || buffer.length &lt; size) {
+        return new Uint32Array(Math.max(size + 1024, MIN_SIZE));
+    }
+
+    return buffer;
+};</code></pre>
+<p style="margin:6px 0 0">白話逐行：預設參數 <code>buffer = null</code> 代表第一次呼叫時根本還沒有 buffer；<code>buffer === null || buffer.length &lt; size</code> 是「沒有、或現有的裝不下」兩種情況合在一起判斷；成立就配一條新的 <code>Uint32Array</code>，長度取「需求 +1024 緩衝」與「保底 16384」之中較大者；都不成立就 <code>return buffer</code> 把原本那條原封不動還回去。</p></blockquote>
+<p>相關筆記：<code>CPU字長-TINYINT型別與OpenAPI資安雜記</code>（位元寬度與數值範圍的基礎）、<code>進位制-二進制-十六進制-Bytes與RGB</code>。</p>
+<h2 id="sources">各對話來源（原文節錄）</h2>
+<h3 id="src-minsize">程式碼中 MIN_SIZE 定義解析 — https://gemini.google.com/app/94446417665b7298</h3>
+<p>使用者：所以他要第一次就拿到最少 16*1024 也就是 16KB 嗎……小於的話它是 return new Uint32Array 會將 size+1024？MIN_SIZE</p>
+<p>Gemini：16 * 1024 不是 16 KB，是 16,384 個 32-bit 元素 = 64 KB；Math.max(size + 1024, MIN_SIZE) 小需求取保底，大需求再加 1024 緩衝。</p>
+<p>使用者：<code>var uint8 = new Uint8Array(2);</code> 這邊 2 是什麼意思？<code>uint8 = [1,...,9]</code> 為何可以這樣寫？8 位的限制到底在哪？為何是 32-bit？</p>
+<p>Gemini：2 是長度；重新賦值成普通 Array；8-bit 限制在元素值 0–255 溢位 wrap；32-bit 可存到約 42 億，適合索引與 offset。</p>
+<h3 id="src-vmodel">Vue.js 中的 v-model 雙向綁定 — https://gemini.google.com/app/0fa113dfd0ee9e71</h3>
+<p>使用者：v-model 是什麼意思</p>
+<p>Gemini：v-model 是 Vue 指令，在表單元素或自訂組件上實現雙向資料綁定，本質是 v-bind 加 v-on 的語法糖，並介紹 .lazy / .number / .trim。</p>
+<p>使用者：adopt buffer 是做什麼用的 → 既存的 buffer 是什麼意思，這邊的 buffer 是用來放東西的？</p>
+<p>Gemini：adopt-buffer 是 css-tree 內用來重用記憶體 Buffer、減少 GC 壓力的函式；Buffer 就是放資料的容器，容量夠就重用，不夠才擴容。</p>
+<h2 id="refs">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話（MIN_SIZE）</td>
+<td>https://gemini.google.com/app/94446417665b7298</td>
+<td>2026-10-07 擷取</td>
+</tr>
+<tr>
+<td>Gemini 對話（v-model / adopt-buffer）</td>
+<td>https://gemini.google.com/app/0fa113dfd0ee9e71</td>
+<td>2026-10-07 擷取</td>
+</tr>
+<tr>
+<td>MDN TypedArray</td>
+<td>https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/TypedArray</td>
+<td>官方文件網址，未於本次逐條查證</td>
+</tr>
+<tr>
+<td>Vue 表單輸入綁定</td>
+<td>https://vuejs.org/guide/essentials/forms.html</td>
+<td>官方文件網址，未於本次逐條查證</td>
+</tr>
+<tr>
+<td>css-tree 原始碼</td>
+<td>https://github.com/csstree/csstree</td>
+<td>adopt-buffer 實作請自行核對</td>
+</tr>
+</tbody>
+</table></article><footer>由 Gemini 對話自動整理 · 更新於 2026-10-07</footer></div><script>
+document.querySelectorAll('li.pt').forEach(l=>l.onclick=()=>l.classList.toggle('hide'));
+function setAll(h){document.querySelectorAll('li.pt').forEach(l=>l.classList.toggle('hide',h))}
+
+</script><script src="../assets/notes.js" defer></script>
+</body></html>

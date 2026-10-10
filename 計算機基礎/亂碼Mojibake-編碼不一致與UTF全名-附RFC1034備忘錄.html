@@ -1,0 +1,95 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>亂碼Mojibake-編碼不一致與UTF全名-附RFC1034備忘錄</title><style>
+body{margin:0;background:#f6f5f2;color:#2b2b2b;font:16px/1.7 -apple-system,'Noto Sans TC','Microsoft JhengHei',sans-serif}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px}
+header{background:#fff;border-radius:14px;padding:24px 28px;box-shadow:0 1px 4px #0001;margin-bottom:24px}
+h1{font-family:'Noto Serif TC',Georgia,serif;margin:0 0 10px;font-size:1.7em}
+.pill{display:inline-block;background:#e8eefc;color:#34508f;border-radius:99px;padding:1px 12px;margin:2px 4px 2px 0;font-size:.82em}
+.meta{color:#777;font-size:.88em;margin-top:8px}
+article{background:#fff;border-radius:14px;padding:8px 28px 24px;box-shadow:0 1px 4px #0001}
+h2{border-left:5px solid #7a9cd6;padding-left:12px;margin-top:2em}
+h3{color:#34508f}
+pre{background:#1e2230;color:#e6e9f2;padding:14px 16px;border-radius:10px;overflow-x:auto;font:.88em/1.55 Consolas,monospace}
+code{background:#eef0f5;padding:1px 6px;border-radius:5px;font-family:Consolas,monospace;font-size:.9em}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.93em}
+th,td{border:1px solid #d9dce3;padding:6px 10px;text-align:left}
+tr:nth-child(even) td{background:#f7f8fb}th{background:#e9edf6}
+blockquote{margin:1em 0;border-left:5px solid #e6b422;background:#fff8e0;padding:6px 16px;border-radius:0 8px 8px 0}
+img{max-width:100%}
+li.pt{cursor:pointer;list-style:none;margin:.4em 0;padding:6px 10px;border-radius:8px;background:#f3f6fd;border:1px dashed #b8c6e6}
+li.pt.hide{color:transparent;text-shadow:none;background:#dfe5f3;user-select:none}
+li.pt.hide *{color:transparent!important;background:transparent!important}
+ul:has(li.pt){padding-left:0}
+.bar{position:sticky;top:0;background:#f6f5f2;padding:8px 0;z-index:5}
+button{background:#34508f;color:#fff;border:0;border-radius:8px;padding:6px 14px;margin-right:8px;cursor:pointer}
+footer{text-align:center;color:#999;font-size:.82em;margin-top:28px}
+details.src{background:#fafafa;border:1px solid #e3e3e3;border-radius:10px;padding:8px 14px;margin:10px 0}
+</style><link rel="stylesheet" href="../assets/notes.css">
+</head><body><div class="wrap"><header><h1>亂碼Mojibake-編碼不一致與UTF全名-附RFC1034備忘錄</h1><span class="pill">gemini</span><span class="pill">編碼</span><span class="pill">Mojibake</span><span class="pill">Big5</span><span class="pill">UTF-8</span><span class="pill">RFC</span><span class="pill">DNS</span><div class="meta">更新 2026-10-07 ・ <a href="https://gemini.google.com/app/5ffb905872a44279">來源</a></div></header><div class="bar"><button onclick="setAll(true)">全部隱藏重點</button><button onclick="setAll(false)">全部顯示</button><span style="color:#888;font-size:.85em">點(a)(b)…重點可單獨隱藏／顯示，自我測驗</span></div><article>
+<p>本篇重點 a–i，共 9 個。</p>
+<h2>重點整理</h2>
+<ul>
+<li class="pt">(a) 看到像 <code>Sðpc-20 g*NØk&gt;</code> 的符號，是<mark style="background: #ADCCFFA6;">Mojibake（亂碼，日文「文字化け」）</mark>：檔案實際儲存的編碼與讀取時使用的編碼不一致。</li>
+<li class="pt">(b) 最常見組合：檔案以 Big5（繁中）或 GBK（簡中）儲存，卻被當成 UTF-8 或 Windows-1252／ISO-8859-1（Latin-1，西歐編碼）讀取；<code>ð</code>、<code>û</code>、<code>›</code> 這類字元是多位元組中文被拆成單位元組後的典型殘影。</li>
+<li class="pt">(c) 台灣環境中，Excel 匯出的 CSV 極大機率是 Big5；建議開發環境與資料庫統一用 UTF-8，匯入時再轉碼。</li>
+<li class="pt">(d) Node.js 修復：用 <code>fs.readFileSync</code> 讀成 Buffer（不要直接讀字串），再用 <code>iconv-lite</code> 的 <code>iconv.decode(buffer, 'big5')</code> 轉成 UTF-8 字串。</li>
+<li class="pt">(e) 瀏覽器修復：<code>FileReader.readAsText(file, 'big5')</code> 的第二個參數指定編碼。</li>
+<li class="pt">(f) <mark style="background: #FFF3A3A6;">UTF = Unicode Transformation Format</mark>（Unicode 轉換格式），UTF-8 / UTF-16 / UTF-32 是把 Unicode 碼位（code point）編成位元組序列的不同方案。</li>
+<li class="pt">(g) <mark style="background: #ADCCFFA6;">RFC（Request for Comments）</mark>文件標頭的「Memo」是歷史沿用稱呼，RFC 1034（Domain Names – Concepts and Facilities，DNS 核心觀念）是 Internet Standard（STD 13）。</li>
+<li class="pt">(h) 「Distribution of this memo is unlimited」意思是<mark style="background: #BBFABBA6;">本文件散佈不受限制</mark>，任何人可自由閱讀、複製、轉載；不是指「發行數量無限」。</li>
+<li class="pt">(i) 診斷小技巧：先猜來源編碼（Big5 / GBK / UTF-8），用 <code>iconv</code> 或編輯器「以編碼重新開啟」逐一試，通常 1–2 次就能還原。</li>
+</ul>
+<pre><code class="language-js">const fs = require('fs');
+const iconv = require('iconv-lite');
+const buffer = fs.readFileSync('data.txt');   // Buffer，不是字串
+console.log(iconv.decode(buffer, 'big5'));    // 以 Big5 解碼成 UTF-8 字串
+</code></pre>
+<blockquote>
+<p>⚠️ 存疑/更正：Gemini 把 Mojibake 寫成「加持（Mojibake）」，這是錯誤翻譯，Mojibake 源自日文「文字化け」，中文就是「亂碼」。另外它從貼上的亂碼推測原內容是「電器規格或出貨清單」純屬猜測，無法由亂碼證實（500W、110V 只是殘留的 ASCII 字元）。</p>
+</blockquote>
+<p>相關筆記：<code>ASCII-美國資訊交換標準碼</code>（ASCII 範圍的字元不會亂，這就是為何 <code>500W 110V</code> 還看得到）、<code>Epoch時間起點-閏秒與UTC-GMT差別</code>（同為標準文件的「規範背景」類筆記）。</p>
+<h2>各對話來源（原文節錄）</h2>
+<h3>亂碼問題解析與 JavaScript 解決方案 — https://gemini.google.com/app/5ffb905872a44279</h3>
+<p>使用者：（貼上一份含 <code>Sðpc-20 g*NØk&gt; –ûR›—lB 500W 110V</code> 的亂碼清單）為什麼會有這個符號</p>
+<p>Gemini：這是文字編碼錯誤（Mojibake）……Big5 / GBK 被誤當 UTF-8 或 Latin-1 讀取……Node.js 用 iconv-lite、前端用 FileReader 指定 big5。</p>
+<p>使用者：UTF stands for what — Spell out</p>
+<p>Gemini：UTF stands for Unicode Transformation Format.</p>
+<h3>解讀 RFC 1034 檔案性質與授權 — https://gemini.google.com/app/b830fcafe8b84cbe</h3>
+<p>使用者：意思是這篇 RFC1034 是一個 MEMO，而他的產出發行無限？</p>
+<p>Gemini：「MEMO」是 RFC 的慣用稱呼；「Distribution of this memo is unlimited」指本文件發行不受限制，任何人可自由閱讀與散佈，不是產出數量無限。</p>
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話（亂碼）</td>
+<td>https://gemini.google.com/app/5ffb905872a44279</td>
+<td>2026-10-07 擷取</td>
+</tr>
+<tr>
+<td>Gemini 對話（RFC 1034）</td>
+<td>https://gemini.google.com/app/b830fcafe8b84cbe</td>
+<td>2026-10-07 擷取</td>
+</tr>
+<tr>
+<td>RFC 1034</td>
+<td>https://www.rfc-editor.org/rfc/rfc1034</td>
+<td>1987-11（Mockapetris），文件固定網址</td>
+</tr>
+<tr>
+<td>Unicode 編碼說明</td>
+<td>https://www.unicode.org/faq/utf_bom.html</td>
+<td>官方 FAQ，未於本次逐條查證</td>
+</tr>
+</tbody>
+</table></article><footer>由 Gemini 對話自動整理 · 更新於 2026-10-07</footer></div><script>
+document.querySelectorAll('li.pt').forEach(l=>l.onclick=()=>l.classList.toggle('hide'));
+function setAll(h){document.querySelectorAll('li.pt').forEach(l=>l.classList.toggle('hide',h))}
+</script><script src="../assets/notes.js" defer></script>
+</body></html>

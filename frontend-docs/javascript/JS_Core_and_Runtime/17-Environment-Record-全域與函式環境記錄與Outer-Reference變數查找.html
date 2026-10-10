@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Environment Record——全域與函式環境記錄，以及 Outer Reference 的變數查找</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+<link rel="stylesheet" href="../../../assets/notes.css">
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Environment Record——全域與函式環境記錄，以及 Outer Reference 的變數查找</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#JS_Core_and_Runtime</span><span class="pill">#environment-record</span><span class="pill">#scope-chain</span><span class="pill">#outer-reference</span><span class="pill">#面試</span></div>
+  <div class="meta">
+    <span>更新於 2026-10-10</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/093e2363da093e7d" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Outer Reference 指向的是函式「被呼叫」時的呼叫者。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">指向函式「定義」時所在的外層記錄，這就是詞法作用域。</div></li><li><p class="qq">全域用 let 宣告的變數會成為 window 的屬性。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">let/const/class 在 Declarative Environment Record，不會掛到 globalThis。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">變數在目前記錄找不到時，會沿著 <input class="blank" data-a="Outer Reference" placeholder="填答案" autocomplete="off"> 往外層找。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">一路到全域仍找不到才丟 ReferenceError。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請說明執行 greet() 時，引擎如何找到全域的 name。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">建立 Function Environment Record，在其中先找 name 找不到，沿 Outer Reference 到 Global Environment Record 找到 &#x27;Alice&#x27;。</div></li></ol></section>
+
+<article class="card">
+<h1 id="environment-record-outer-reference">Environment Record——全域與函式環境記錄，以及 Outer Reference 的變數查找</h1>
+<blockquote>
+<p>本篇重點 a–f，共 6 個。<br />
+主軸圖：下方「兩個 Environment Record 以 Outer Reference 串起來」的文字圖，之後追問請指回圖中的某一格。</p>
+</blockquote>
+<hr />
+<h2 id="_1">重點整理</h2>
+<p><strong>(a)</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Environment Record（環境記錄）</mark>是 ECMAScript 規格裡用來儲存「識別碼（identifier）→ 值」對照表的內部結構。JS 引擎每進入一個作用域（全域、函式、區塊）就建立一個，變數與函式宣告都記在裡面。</p>
+<p><strong>(b)</strong> 每個 Environment Record 都帶一條 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Outer Reference（外部環境連結）</mark>，指向外層的 Environment Record。全域那一層的 Outer Reference 是 null，這就是作用域鏈（scope chain）的終點。</p>
+<p><strong>(c)</strong> 範例程式與引擎建出來的結構如下（程式碼為 Gemini 原例）：</p>
+<pre><code class="language-javascript">let name = &quot;Alice&quot;;
+const age = 25;
+
+function greet() {
+  let message = &quot;Hello&quot;;
+  console.log(message + &quot; &quot; + name);
+}
+
+greet();
+</code></pre>
+<pre><code class="language-text">┌─ Function Environment Record（執行 greet() 時建立）─┐
+│ message   : &quot;Hello&quot;                                 │
+│ arguments : { length: 0 }                           │
+│ this      : window 或 undefined（看嚴格模式）          │
+│ Outer ────┐                                         │
+└───────────┼─────────────────────────────────────────┘
+            ▼
+┌─ Global Environment Record ─────────────────────────┐
+│ name  : &quot;Alice&quot;                                     │
+│ age   : 25                                          │
+│ greet : &lt;function&gt;                                  │
+│ Outer : null                                        │
+└─────────────────────────────────────────────────────┘
+</code></pre>
+<p><strong>(d)</strong> 變數查找（resolve identifier）的流程：引擎先在目前的 Environment Record 找這個名字，找不到就沿著 Outer Reference 往外一層找，一路找到全域，還找不到才丟出 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">ReferenceError</mark>。以 <code>console.log(message + " " + name)</code> 為例：<code>message</code> 在 greet 自己的記錄就找到，<code>name</code> 要靠 Outer Reference 跳到全域才找到。</p>
+<p><strong>(e)</strong> Outer Reference 指向哪裡是在<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">函式「定義」的位置</mark>決定的，不是呼叫的位置，這就是詞法作用域（Lexical Scope）。即使 greet 被丟到別處去呼叫，它的 Outer 仍然指回當初定義它的那一層。閉包能活下來也是同一個原因：內層函式握著外層 Environment Record 的參照，外層記錄就不會被回收（見 <span class="wikilink" title="Obsidian 連結：閉包-createCounter與Heap上的Environment-Record">閉包-createCounter與Heap上的Environment-Record</span>）。</p>
+<p><strong>(f)</strong> ⚠️ 存疑／更正：Gemini 的範例把全域的 <code>name</code>、<code>age</code>、<code>greet</code> 畫成同一張表，這是教學簡化。依規格，Global Environment Record 其實由兩部分組成：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Object Environment Record</mark>（綁到 globalThis，裝 <code>var</code> 與函式宣告）和 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Declarative Environment Record</mark>（裝 <code>let</code>、<code>const</code>、<code>class</code>）。所以 <code>let name</code> 與 <code>const age</code> <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不會</mark>變成 <code>window.name</code>、<code>window.age</code> 的屬性，而 <code>function greet</code> 會變成 <code>window.greet</code>。另外 <code>this</code> 在規格中是 Function Environment Record 的 <span class="wikilink" title="Obsidian 連結：ThisValue">ThisValue</span> 內部欄位，不是一般綁定，這裡只當概念看待。</p>
+<hr />
+<h2 id="_2">各對話來源（原文）</h2>
+<h3 id="environment-record-2026-10-09-httpsgeminigooglecomapp093e2363da093e7d">Environment Record 解析（2026-10-09 擷取）— https://gemini.google.com/app/093e2363da093e7d</h3>
+<p>使用者：舉例</p>
+<p>Gemini：以 JavaScript 執行以下程式碼為例，JavaScript 引擎會建立不同的 Environment Record 來儲存這些資訊。</p>
+<ol>
+<li>全域作用域（Global Environment Record）：name "Alice"（未初始化 → 賦值）、age 25、greet 為函數參照。</li>
+<li>函式作用域（Function Environment Record，執行 greet() 時建立）：message "Hello"、arguments { length: 0 }、this 為 window 或 undefined（視嚴格模式而定）、外部環境連結（Outer Reference）指向全域 Environment Record。</li>
+</ol>
+<p>變數尋找的過程：找 message 在 greet 的記錄就找到 "Hello"，找 name 在 greet 的記錄找不到，透過 Outer Reference 往外找，最後在全域記錄找到 "Alice"。</p>
+<p>（註：此對話只有「舉例」這一個回合，前文為先前回合，已不在頁面上。）</p>
+<hr />
+<h2 id="_3">關聯筆記（附關聯原因）</h2>
+<ul>
+<li><span class="wikilink" title="Obsidian 連結：閉包-createCounter與Heap上的Environment-Record">閉包-createCounter與Heap上的Environment-Record</span><br />
+<strong>理由</strong>：那篇講 Environment Record 放在 Heap 上才讓閉包存活，本篇先把「記錄長什麼樣、怎麼串」講清楚。</li>
+<li><span class="wikilink" title="Obsidian 連結：14-詞法作用域-Lexical-Scope-面試四段式">14-詞法作用域-Lexical-Scope-面試四段式</span><br />
+<strong>理由</strong>：Outer Reference 在定義時決定，就是詞法作用域的底層機制。</li>
+<li><span class="wikilink" title="Obsidian 連結：16-綁定生命週期-宣告-初始化-賦值三階段與形式參數">16-綁定生命週期-宣告-初始化-賦值三階段與形式參數</span><br />
+<strong>理由</strong>：本篇範例中 <code>let name</code> 的「未初始化 → 賦值」就是那篇的三階段與 TDZ。</li>
+</ul>
+<hr />
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本篇 Gemini 對話</td>
+<td>https://gemini.google.com/app/093e2363da093e7d</td>
+<td>2026-10-09 擷取</td>
+</tr>
+<tr>
+<td>ECMAScript 規格 — Environment Records</td>
+<td>https://tc39.es/ecma262/#sec-environment-records</td>
+<td>規格為 living standard，更正點 (f) 對應 Global Environment Records 小節，2026-10-10 依規格結構整理，尚未逐字重新核對頁面</td>
+</tr>
+<tr>
+<td>MDN — Closures</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures</td>
+<td>MDN，頁面日期以官網為準</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-10-10</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+<script src="../../../assets/notes.js" defer></script>
+</body>
+</html>

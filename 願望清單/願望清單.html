@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>願望清單 — 總表與分流規則</title>
+<style>
+  :root{
+    --bg:#fbfaf7; --card:#ffffff; --ink:#1f2933; --muted:#6b7681; --line:#e2ded6;
+    --blue:#2f6fb5; --blueBg:#e7f0fb; --amber:#c79a1f; --amberBg:#fff4d6;
+    --green:#2e9e67; --greenBg:#eafaf0; --purple:#7a52b3; --purpleBg:#f3ecfb;
+    --red:#c0392b; --redBg:#fde8e8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#15181c; --card:#1d2227; --ink:#e8eaed; --muted:#9aa4af; --line:#2d343b;
+      --blueBg:#17283d; --amberBg:#312a14; --greenBg:#13291f; --purpleBg:#241c33; --redBg:#331a18; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif;
+    line-height:1.85;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px;margin:0 auto;padding:40px 24px 90px}
+  header{border-bottom:2px solid var(--line);padding-bottom:22px;margin-bottom:34px}
+  h1{font-size:30px;margin:0 0 8px;letter-spacing:.3px}
+  .meta{color:var(--muted);font-size:14px;margin:0}
+  h2{font-size:21px;margin:46px 0 14px;padding-left:12px;border-left:5px solid var(--blue)}
+  h3{font-size:17px;margin:28px 0 10px;color:var(--blue)}
+  p{margin:10px 0}
+  a{color:var(--blue)}
+  a:hover{background:var(--blueBg);border-radius:3px}
+
+  .idx{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:24px 0}
+  .idx ol{margin:8px 0 0;padding-left:22px}
+  .idx li{margin:4px 0}
+  .idx a{text-decoration:none}
+  .idx a:hover{text-decoration:underline}
+
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:15px;
+    background:var(--card);border-radius:10px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  th{background:var(--blueBg);color:var(--ink);text-align:left;padding:12px 14px;
+    font-weight:700;font-size:14px;border-bottom:2px solid var(--line)}
+  td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr{transition:background .15s ease}
+  tbody tr:hover{background:var(--amberBg)}
+  tr:last-child td{border-bottom:none}
+
+  figure{margin:26px 0;text-align:center}
+  figure img{max-width:100%;border:1px solid var(--line);border-radius:12px;background:#fff;
+    transition:transform .25s ease, box-shadow .25s ease;cursor:zoom-in}
+  figure img:hover{transform:scale(1.012);box-shadow:0 10px 30px rgba(0,0,0,.14)}
+  figcaption{color:var(--muted);font-size:13px;margin-top:10px}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:18px 0}
+  .card{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--blue);
+    border-radius:10px;padding:16px 18px;transition:transform .18s ease, box-shadow .18s ease}
+  .card:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(0,0,0,.1)}
+  .card.cal{border-left-color:var(--red)}
+  .card.task{border-left-color:var(--green)}
+  .card.note{border-left-color:var(--purple)}
+  .card h4{margin:0 0 6px;font-size:16px}
+  .card .tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:999px;
+    background:var(--blueBg);color:var(--blue);margin-bottom:8px}
+  .card.cal .tag{background:var(--redBg);color:var(--red)}
+  .card.task .tag{background:var(--greenBg);color:var(--green)}
+  .card.note .tag{background:var(--purpleBg);color:var(--purple)}
+  .card p{margin:6px 0;font-size:14px;color:var(--muted)}
+
+  .box{border-radius:10px;padding:14px 18px;margin:18px 0;border:1px solid var(--line)}
+  .box.warn{background:var(--amberBg);border-color:var(--amber)}
+  .box.ok{background:var(--greenBg);border-color:var(--green)}
+  .box b{display:block;margin-bottom:4px}
+
+  .status{display:inline-block;font-size:12px;padding:2px 10px;border-radius:999px;font-weight:700}
+  .s-think{background:var(--amberBg);color:var(--amber)}
+  .s-cmp{background:var(--blueBg);color:var(--blue)}
+  .s-done{background:var(--greenBg);color:var(--green)}
+
+  footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:13px}
+  code{background:var(--blueBg);padding:1px 6px;border-radius:4px;font-size:.92em}
+</style>
+<link rel="stylesheet" href="../assets/notes.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>願望清單 — 總表與分流規則</h1>
+  <p class="meta">建立於 2026-10-09　·　主軸圖：一個願望要走完四個關卡才會變成消費　·　相關筆記：<a href="觸控與360度變形筆電.html">觸控與 360 度變形筆電</a></p>
+</header>
+
+<div class="idx">
+  <b>本篇重點 1–4，依順序閱讀</b>
+  <ol>
+    <li><a href="#s1">三個收納位置的本質差異，決定什麼放哪裡</a></li>
+    <li><a href="#s2">主軸圖：一個願望要走完四個關卡</a></li>
+    <li><a href="#s3">我的願望清單總表</a></li>
+    <li><a href="#s4">每月 1 號複查，只問三個問題</a></li>
+  </ol>
+</div>
+
+<h2 id="s1">1. 三個收納位置的本質差異</h2>
+
+<p>先把工具的本質講清楚，之後遇到任何新願望，你自己就能分流，不用再問我。</p>
+
+<table>
+  <thead>
+    <tr><th style="width:17%">工具</th><th style="width:19%">它的第一欄位是什麼</th><th>適合裝什麼</th><th style="width:28%">它裝不住什麼</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>Google Calendar</b></td>
+      <td>「什麼時候」</td>
+      <td>有綁死日期的事，例如雙 11 當天去比價、保固到期日、分期繳款日</td>
+      <td>沒有日期的願望。硬塞進去只會讓日曆變髒，你會開始忽略它</td>
+    </tr>
+    <tr>
+      <td><b>Google Tasks</b></td>
+      <td>「要做什麼動作」</td>
+      <td>一行標題的提醒。它同時出現在 Gmail 與 Calendar 的側欄，所以你每天都會看到</td>
+      <td>規格比較。備註欄是純文字，沒有表格也沒有圖片，貼一堆參數會變成一坨</td>
+    </tr>
+    <tr>
+      <td><b>手機備忘錄</b></td>
+      <td>「現在趕快記下來」</td>
+      <td>在店裡看到機型、聽到朋友推薦，三秒捕捉用</td>
+      <td>長期保存。東西丟進去就不會再被翻出來，它是黑洞不是倉庫</td>
+    </tr>
+    <tr>
+      <td><b>Obsidian（這裡）</b></td>
+      <td>「它跟什麼有關」</td>
+      <td>需要表格對照、需要附來源連結、需要跟別篇筆記互連的決策過程</td>
+      <td>提醒。Obsidian 不會主動跳出來戳你，所以提醒一定要外放到 Tasks</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>所以結論是分層，不是四選一</h3>
+
+<div class="cards">
+  <div class="card note">
+    <span class="tag">決策層</span>
+    <h4>Obsidian</h4>
+    <p>願望一旦需要比規格、比價、附來源，就在這裡開一篇。這層負責「想清楚」。</p>
+  </div>
+  <div class="card task">
+    <span class="tag">提醒層</span>
+    <h4>Google Tasks</h4>
+    <p>開一張叫 <code>Wishlist</code> 的清單，一個願望一行，備註只放筆記路徑。這層負責「不會忘」。</p>
+  </div>
+  <div class="card cal">
+    <span class="tag">時間層</span>
+    <h4>Google Calendar</h4>
+    <p>只放買點那一天，例如雙 11、黑五、開學季。其他時候完全不要碰日曆。</p>
+  </div>
+  <div class="card">
+    <span class="tag">暫存層</span>
+    <h4>手機備忘錄</h4>
+    <p>只當捕捉網。當天晚上要倒進 Obsidian 然後清空，不清空它就會變黑洞。</p>
+  </div>
+</div>
+
+<h2 id="s2">2. 主軸圖：一個願望要走完四個關卡</h2>
+
+<p>這張圖是本主題的主軸圖。之後同主題的追問，我會直接擴充這張圖裡的某個方框，或者指回某個步驟，不會另外再開新章節。符號依 ISO 5807 區分形狀，所以你一眼就能分出「哪些是判斷、哪些是處理、哪些是資料」。</p>
+
+<figure>
+  <img src="../obsidian-attachment/願望清單_圖解_一個願望要走完四個關卡才會變成消費_ISO5807_2026-10-09.svg"
+       alt="ISO 5807 流程圖：願望從產生到購入的四個關卡">
+  <figcaption>四個關卡依序是：關卡一判斷有沒有綁時間　→　關卡二判斷要不要比規格　→　關卡三每月複查　→　關卡四預算與意願雙重確認</figcaption>
+</figure>
+
+<div class="box warn">
+  <b>這張圖真正在防的事</b>
+  紅色虛線那條迴圈（連接點 A）是整張圖的重點。它強迫一個願望至少活過一次「每月複查」才能被買。衝動購物死在這條迴圈上，真正想要的東西會活下來。
+</div>
+
+<h2 id="s3">3. 我的願望清單總表</h2>
+
+<table>
+  <thead>
+    <tr><th style="width:22%">願望</th><th style="width:11%">狀態</th><th style="width:13%">關卡位置</th><th>為什麼想要</th><th style="width:16%">決策筆記</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>可觸控的 360 度變形筆電</b></td>
+      <td><span class="status s-cmp">比規格中</span></td>
+      <td>關卡二（副流程）</td>
+      <td>不想再用 touchpad 慢慢滑游標，想直接用手指點到目標。另外想要轉軸可以折很多角度，看文件與追劇時能換姿勢</td>
+      <td><a href="觸控與360度變形筆電.html">觸控與 360 度變形筆電</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="box ok">
+  <b>怎麼新增一筆</b>
+  在上面的表格加一列就好。只有「狀態」走到「比規格中」的願望，才需要另外開一篇決策筆記；還在「想一想」階段的，留在表格裡一行就夠，不要先開檔案。
+</div>
+
+<h2 id="s4">4. 每月 1 號複查，只問三個問題</h2>
+
+<p>複查不是重讀整篇筆記，那太累你不會做。只問這三句，每筆願望三十秒：</p>
+
+<table>
+  <thead><tr><th style="width:8%">順序</th><th style="width:34%">問題</th><th>答案是「否」的時候怎麼處理</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>我這個月有因為沒有它而真的不方便嗎</td><td>連續兩個月都答否，就從清單刪掉。它只是當時心動，不是需求</td></tr>
+    <tr><td>2</td><td>預算到位了嗎</td><td>留在清單，狀態不動，下個月再問</td></tr>
+    <tr><td>3</td><td>規格表上還有沒有沒查清楚的欄位</td><td>把那個欄位抄進 Google Tasks 當下個月的動作，不要只在心裡記</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  <p><b>相關筆記</b>　<a href="觸控與360度變形筆電.html">觸控與 360 度變形筆電</a>　·　<a href="pointer-events-demo.html">PointerEvent 程式碼示範：觸控螢幕對前端開發的意義</a></p>
+  <p>Obsidian 裡若要用 wikilink，對應檔名為 <code>[[觸控與360度變形筆電]]</code>　·　本頁為手寫 HTML，Obsidian 需啟用 HTML Reader 外掛才能內嵌預覽</p>
+</footer>
+
+</div>
+<script src="../assets/notes.js" defer></script>
+</body>
+</html>

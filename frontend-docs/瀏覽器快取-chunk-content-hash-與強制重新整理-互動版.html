@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>瀏覽器快取：第一次與第二次載入為何數量不同</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#4f6bed;--ok:#15803d;--okbg:#dcfce7;--warn:#b45309;--warnbg:#fef3c7;--bad:#b91c1c;--badbg:#fee2e2;--info:#1d4ed8;--infobg:#dbeafe;}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1c1f25;--ink:#e6e8ec;--muted:#9aa3b2;--line:#2c313a;--accent:#8aa0ff;--ok:#86efac;--okbg:#14351f;--warn:#fcd34d;--warnbg:#3a2e0e;--bad:#fca5a5;--badbg:#3d1717;--info:#93c5fd;--infobg:#172a4a;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.8;font-size:16px}
+.wrap{max-width:860px;margin:0 auto;padding:24px 16px 80px}
+header.note{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-bottom:16px}
+header.note h1{margin:0 0 10px;font-size:1.6rem;line-height:1.4}
+.pill{display:inline-block;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:2px 12px;font-size:.78rem;margin:3px 6px 3px 0}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px}
+.toolbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;margin-bottom:12px;border-bottom:1px solid var(--line)}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 14px;font-size:.85rem;margin-right:8px}
+.btn.alt{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:16px}
+h2{font-size:1.2rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .8em}
+h3{font-size:1.02rem;margin:1.2em 0 .4em}
+ol.alpha{list-style:lower-alpha;padding-left:1.6em}
+ol.alpha li{margin:.5em 0}
+ul.sub{margin:.3em 0 .3em;padding-left:1.3em;color:var(--ink)}
+code{background:var(--infobg);color:var(--info);padding:.05em .4em;border-radius:5px;font-size:.88em}
+pre{background:#0f172a;color:#e2e8f0;padding:12px 14px;border-radius:10px;overflow:auto;font-size:.82rem;line-height:1.6}
+table{border-collapse:collapse;width:100%;font-size:.88rem;margin:.6em 0}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--infobg);color:var(--info)}
+.callout{border-radius:10px;padding:10px 14px;margin:.8em 0;font-size:.92rem}
+.callout.ok{background:var(--okbg);color:var(--ok)}
+.callout.warn{background:var(--warnbg);color:var(--warn)}
+.callout.info{background:var(--infobg);color:var(--info)}
+.blank{background:var(--warnbg);color:var(--warn);border-radius:6px;padding:.05em .45em;cursor:pointer;border-bottom:2px dashed var(--warn);user-select:none}
+.blank.open{background:var(--okbg);color:var(--ok);border-bottom-color:var(--ok)}
+svg{max-width:100%;height:auto}
+svg text{font-family:inherit}
+.node{fill:var(--card);stroke:var(--accent);stroke-width:1.6}
+.dec{fill:var(--warnbg);stroke:var(--warn);stroke-width:1.6}
+.good{fill:var(--okbg);stroke:var(--ok);stroke-width:1.6}
+.net{fill:var(--badbg);stroke:var(--bad);stroke-width:1.6}
+.lbl{fill:var(--ink);font-size:13px}
+.arrow{stroke:var(--muted);stroke-width:1.6;fill:none;marker-end:url(#ah)}
+.tag{fill:var(--muted);font-size:12px}
+.sim-tabs button{background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:6px 10px;margin:3px 6px 3px 0;font-size:.82rem}
+.sim-tabs button.on{background:var(--accent);color:#fff}
+.files{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin:10px 0}
+.f{border-radius:8px;padding:6px 8px;font-size:.74rem;line-height:1.4;border:1px solid var(--line)}
+.f b{display:block;font-size:.76rem}
+.f.net{background:var(--badbg);color:var(--bad);border-color:var(--bad)}
+.f.cache{background:var(--okbg);color:var(--ok);border-color:var(--ok)}
+.f.rev{background:var(--infobg);color:var(--info);border-color:var(--info)}
+.stat{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+.stat div{background:var(--infobg);color:var(--info);border-radius:10px;padding:8px 14px;font-size:.88rem}
+.stat strong{font-size:1.15rem;display:block}
+.tf button{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:5px 14px;margin-right:8px}
+.tf .res{margin-top:6px;font-size:.88rem}
+textarea{width:100%;min-height:90px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit}
+.ans{display:none;margin-top:8px}
+.ans.show{display:block}
+.src li{font-size:.86rem}
+a{color:var(--accent)}
+</style><link rel="stylesheet" href="../assets/notes.css">
+</head>
+<body><div class="wrap">
+
+<header class="note">
+<h1>瀏覽器快取：為什麼第二次載入的檔案數量比第一次少</h1>
+<span class="pill">HTTP Cache</span><span class="pill">Cache-Control</span><span class="pill">content hash</span><span class="pill">Next.js on Vercel</span><span class="pill">Webpack / Vite / Angular</span>
+<div class="meta">主軸圖：下方「瀏覽器載入單一檔案的判斷流程」，之後所有追問都指回這張圖的某個方框。<br>建立日期：2026-10-02 │ 實測對象：本專案的 Vercel 站 <code>next-one-time-tracker.vercel.app</code>、angular.dev、vuejs.org、react.dev</div>
+</header>
+
+<div class="toolbar">
+<button class="btn" onclick="setAll(true)">全部顯示答案</button>
+<button class="btn alt" onclick="setAll(false)">全部隱藏答案</button>
+<span style="color:var(--muted);font-size:.8rem">黃底虛線框＝點一下顯示答案</span>
+</div>
+
+<section class="card">
+<h2>一、先講結論</h2>
+<ol class="alpha">
+<li>第二次載入少很多檔案，是因為瀏覽器把第一次下載的 JS 與 CSS <b>存進快取</b>了。下次要用同一個網址的檔案時，先看快取，不用再問伺服器。</li>
+<li>「檔名一樣就不重讀」成立的前提，是伺服器在回應標頭寫了 <code>Cache-Control: public, max-age=31536000, immutable</code>。意思是「這個網址的內容一年內都不會變，不用再來問」。</li>
+<li>檔名會變的原因是打包工具把內容算出一段 hash 放進檔名（例如 <code>main-8bc660a98b463b2d.js</code>）。內容沒改，hash 就不變，檔名不變，快取繼續有效。內容改了，檔名就變，等於是一個全新網址，瀏覽器自然去下載。</li>
+<li>換檔名是<b>打包工具</b>做的事，不是 React、Vue、Angular 這些框架本身做的。三大框架現在的預設打包流程都會換 hash，下面第五節有線上實測。</li>
+<li>HTML 本身不能換檔名（使用者輸入的網址是固定的），所以 HTML 要設成「每次都問一下，沒變就回 304」。HTML 裡面寫著最新的 JS 檔名，這就是整個機制的槓桿點。</li>
+</ol>
+</section>
+
+<section class="card">
+<h2>二、主軸圖：瀏覽器載入單一檔案的判斷流程</h2>
+<p>瀏覽器每遇到一個要載入的網址（<code>&lt;script src&gt;</code>、<code>&lt;link href&gt;</code>、圖片都一樣），都會走這張流程。</p>
+<svg viewBox="0 0 760 640" role="img" aria-label="瀏覽器快取判斷流程圖">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b7280"/></marker></defs>
+<rect class="node" x="200" y="10" width="360" height="46" rx="23"/>
+<text class="lbl" x="380" y="38" text-anchor="middle">要載入 /_next/static/chunks/main-8bc6.js</text>
+<path class="arrow" d="M380 56V84"/>
+<polygon class="dec" points="380,84 520,134 380,184 240,134"/>
+<text class="lbl" x="380" y="130" text-anchor="middle">A 快取裡有這個網址嗎</text>
+<text class="tag" x="380" y="148" text-anchor="middle">（網址含 hash 才算同一個）</text>
+<path class="arrow" d="M240 134H110V222"/><text class="tag" x="150" y="126">沒有</text>
+<rect class="net" x="20" y="222" width="180" height="62" rx="10"/>
+<text class="lbl" x="110" y="248" text-anchor="middle">向伺服器 GET</text>
+<text class="lbl" x="110" y="268" text-anchor="middle">回 200 並存進快取</text>
+<path class="arrow" d="M520 134H650V222"/><text class="tag" x="590" y="126">有</text>
+<polygon class="dec" points="650,222 750,262 650,302 550,262"/>
+<text class="lbl" x="650" y="258" text-anchor="middle">B 還在新鮮期</text>
+<text class="tag" x="650" y="276" text-anchor="middle">age &lt; max-age ?</text>
+<path class="arrow" d="M650 302V350"/><text class="tag" x="662" y="332">是</text>
+<rect class="good" x="540" y="350" width="220" height="70" rx="10"/>
+<text class="lbl" x="650" y="376" text-anchor="middle">直接用快取</text>
+<text class="lbl" x="650" y="396" text-anchor="middle">DevTools 顯示 disk cache</text>
+<text class="tag" x="650" y="412" text-anchor="middle">0 個網路請求</text>
+<path class="arrow" d="M550 262H400V350"/><text class="tag" x="470" y="254">否（過期）</text>
+<polygon class="dec" points="400,350 500,390 400,430 300,390"/>
+<text class="lbl" x="400" y="386" text-anchor="middle">C 有 ETag</text>
+<text class="tag" x="400" y="404" text-anchor="middle">或 Last-Modified ?</text>
+<path class="arrow" d="M300 390H110V222" style="display:none"/>
+<path class="arrow" d="M400 430V478"/><text class="tag" x="412" y="460">有</text>
+<rect class="node" x="260" y="478" width="280" height="56" rx="10"/>
+<text class="lbl" x="400" y="502" text-anchor="middle">送條件請求</text>
+<text class="lbl" x="400" y="522" text-anchor="middle">If-None-Match: "etag"</text>
+<path class="arrow" d="M300 534V560H200"/>
+<path class="arrow" d="M500 534V560H600"/>
+<rect class="good" x="30" y="560" width="170" height="64" rx="10"/>
+<text class="lbl" x="115" y="586" text-anchor="middle">304 Not Modified</text>
+<text class="tag" x="115" y="606" text-anchor="middle">只傳標頭 沿用快取</text>
+<rect class="net" x="600" y="560" width="150" height="64" rx="10"/>
+<text class="lbl" x="675" y="586" text-anchor="middle">200 新內容</text>
+<text class="tag" x="675" y="606" text-anchor="middle">更新快取</text>
+<path class="arrow" d="M300 390H260V300H110V284" style="display:none"/>
+<text class="tag" x="250" y="380">沒有 ETag</text>
+<path class="arrow" d="M300 390H240V400H60V284" />
+<text class="tag" x="130" y="416">沒有 → 只能重新 GET</text>
+</svg>
+<div class="callout info">這張圖裡的 A、B、C 三個菱形，就是後面所有追問要「指回去」的位置。<br>例如「等 10 分鐘」是在調整 B 的 max-age，「強制重新整理」是整張圖直接跳到最左邊的方框。</div>
+</section>
+
+<section class="card">
+<h2>三、實測：本專案在 Vercel 上的回應標頭</h2>
+<p>實測日期 2026-10-02，用 <code>curl -I</code> 對線上站發請求，標頭如下。</p>
+<table>
+<tr><th>檔案</th><th>Cache-Control</th><th>對應主軸圖</th><th>意義</th></tr>
+<tr><td>HTML 頁面 <code>/user</code></td><td><code>public, max-age=0, must-revalidate</code></td><td>B 永遠視為過期，走到 C</td><td>每次都帶 ETag 去問，沒變就 304</td></tr>
+<tr><td>JS chunk（檔名含 hash）</td><td><code>public,max-age=31536000,immutable</code></td><td>B 一年內都新鮮</td><td>一年內直接用快取，連條件請求都不送</td></tr>
+</table>
+<p>這個 <code>/user</code> 頁面一共引用了 <b>26 個</b> script 檔。第二次進站時，瀏覽器只需要重新問 HTML 一個請求，另外 26 個都從快取拿。</p>
+<h3>用 F12 自己驗證</h3>
+<ol class="alpha">
+<li>開 F12 → Network，勾選 Disable cache 先<b>取消勾選</b>（不然看不到快取效果）。</li>
+<li>第一次進站：Size 欄位顯示實際傳輸大小（例如 85 kB）。</li>
+<li>再按網址列進入（不是 F5）：Size 欄位變成 <code>(disk cache)</code> 或 <code>(memory cache)</code>，Time 接近 0 ms。</li>
+<li>Network 上方的 transferred 數字會從十幾 MB 掉到幾 KB。</li>
+</ol>
+<div class="callout warn">此筆記的截圖我沒辦法在對話中自動擷取你的 F12。你照上面做完後，把畫面存進 <code>obsidian-attachment</code>，再貼在這裡用紅框標出 Size 欄位。</div>
+</section>
+
+<section class="card">
+<h2>四、互動模擬：20 個檔案共 20 MB 的情境</h2>
+<p>假設網站有 1 份 HTML 加上 20 個 JS 與 CSS 檔，共約 20 MB（示意數字，單檔平均 1 MB）。選一個情境看每個檔案的結果。</p>
+<div class="sim-tabs" id="tabs"></div>
+<div class="stat" id="stat"></div>
+<div class="files" id="files"></div>
+<div class="callout info" id="why"></div>
+</section>
+
+<section class="card">
+<h2>五、換檔名是誰做的：框架對照與實測</h2>
+<p>換檔名不是框架本身的功能，而是<b>打包工具</b>（bundler）在輸出檔案時做的事：打包工具用雜湊演算法對每個 chunk 的內容算出 hash，寫進檔名，再把新檔名寫回 HTML 的 <code>&lt;script src&gt;</code>。</p>
+<table>
+<tr><th>生態系</th><th>實際負責換檔名的工具</th><th>設定名稱</th><th>線上實測檔名（2026-10-02）</th></tr>
+<tr><td>React（Next.js）</td><td>Next.js 內建的 webpack／Turbopack</td><td><code>[contenthash]</code></td><td><code>main-8bc660a98b463b2d.js</code>（react.dev）</td></tr>
+<tr><td>React（CRA／Webpack）</td><td>webpack</td><td><code>output.filename: '[name].[contenthash].js'</code></td><td>同上規則</td></tr>
+<tr><td>Vue（Vite）</td><td>Vite 以 Rollup 輸出</td><td>Rollup 的 <code>[hash]</code></td><td><code>app.B91ytTIH.js</code>（vuejs.org）</td></tr>
+<tr><td>Angular</td><td>Angular CLI 的 builder</td><td><code>outputHashing</code></td><td><code>main-53YHTYUY.js</code>（angular.dev）</td></tr>
+</table>
+<div class="callout ok">結論：<b>React、Vue、Angular 都會換 hash</b>，因為它們各自預設的打包流程都開著 content hash。React 是一個函式庫，自己沒有檔名機制，所以「React 會換檔名」更精確的說法是「React 專案用的打包工具會換檔名」。</div>
+<h3>content hash 的連鎖失效</h3>
+<ol class="alpha">
+<li>chunk A 裡面寫了「我要 import chunk B（檔名 <code>b-1111.js</code>）」。</li>
+<li>B 的內容一改，B 的檔名變成 <code>b-2222.js</code>。</li>
+<li>A 的內容裡那段檔名字串也跟著變，所以 A 的 hash 也變。這叫連鎖失效。</li>
+<li>解法：webpack 用 <code>runtimeChunk: 'single'</code> 把「檔名對照表」抽成獨立小檔，用 <code>splitChunks</code> 把很少變動的 node_modules 抽成 vendor chunk，用 <code>moduleIds: 'deterministic'</code> 讓模組編號不因為新增檔案而亂跳。這樣改一行業務程式碼，只會有 1 到 2 個檔名變。</li>
+</ol>
+</section>
+
+<section class="card">
+<h2>六、「等 10 分鐘」與「強制」分別對應流程圖哪裡</h2>
+<table>
+<tr><th>你想要的行為</th><th>怎麼做</th><th>對應主軸圖</th></tr>
+<tr><td>等 10 分鐘之內不要重讀，過了才去問</td><td>回應標頭寫 <code>Cache-Control: max-age=600</code></td><td>調整 B 的新鮮期為 600 秒。過期後走到 C，用 ETag 問一次，沒變回 304</td></tr>
+<tr><td>檔名一樣就一直不重讀</td><td>檔名帶 hash，再加 <code>max-age=31536000, immutable</code></td><td>B 永遠是「是」</td></tr>
+<tr><td>使用者按 F5（一般重新整理）</td><td>瀏覽器送 <code>Cache-Control: max-age=0</code> 加條件標頭</td><td>強制 B 視為過期，走到 C，沒變就 304。有 immutable 的檔案瀏覽器會略過這個檢查</td></tr>
+<tr><td>Ctrl+Shift+R（強制重新整理）</td><td>瀏覽器送 <code>Cache-Control: no-cache</code> 與 <code>Pragma: no-cache</code></td><td>整個跳過 A 與 B 與 C，直接 GET 拿完整 200</td></tr>
+<tr><td>開發時整個站不要快取</td><td>F12 → Network → 勾選 Disable cache（F12 開著才有效）</td><td>同強制重新整理</td></tr>
+</table>
+<div class="callout warn">hash 檔名的搭配規則：<b>HTML 不能設長快取</b>。如果 HTML 也被快取一年，使用者拿到的永遠是舊 HTML，裡面寫的永遠是舊 JS 檔名，新版就永遠上不去。所以 HTML 設 <code>max-age=0, must-revalidate</code> 或 <code>no-cache</code>，JS 才設一年。</div>
+</section>
+
+<section class="card">
+<h2>七、自我測驗</h2>
+<h3>填空（點黃底框顯示答案）</h3>
+<ol class="alpha">
+<li>檔名帶 hash 的 JS 檔，回應標頭通常寫 <span class="blank" data-a="max-age=31536000, immutable">點我</span>，表示一年內不用再問伺服器。</li>
+<li>一般重新整理（F5）時，瀏覽器會送 <span class="blank" data-a="If-None-Match（條件請求）">點我</span>，伺服器沒變就回 <span class="blank" data-a="304 Not Modified">點我</span>。</li>
+<li>webpack 讓檔名只在內容改變時才變的替換字串叫 <span class="blank" data-a="[contenthash]">點我</span>。</li>
+<li>強制重新整理（Ctrl+Shift+R）時，瀏覽器送出的快取標頭是 <span class="blank" data-a="Cache-Control: no-cache">點我</span>。</li>
+</ol>
+<h3>是非題</h3>
+<div class="tf" data-correct="false" data-why="錯。換檔名是 webpack、Vite（Rollup）、Angular CLI 這類打包工具的功能。React 本身只是函式庫。">
+<p>a. 只有 React 專案才會自動把 chunk 檔名加上 hash。</p>
+<button onclick="tf(this,true)">是</button><button onclick="tf(this,false)">非</button><div class="res"></div>
+</div>
+<div class="tf" data-correct="false" data-why="錯。HTML 的網址不能改，若設一年快取，使用者永遠讀到舊 HTML，看不到新 JS。HTML 要設 no-cache 或 max-age=0。">
+<p>b. 為了效能，HTML 也應該設 max-age=31536000。</p>
+<button onclick="tf(this,true)">是</button><button onclick="tf(this,false)">非</button><div class="res"></div>
+</div>
+<div class="tf" data-correct="true" data-why="對。內容沒變 hash 就不變，網址不變，快取命中。">
+<p>c. 網站改版時只改了一個元件，沒有被牽連的 chunk 會繼續使用瀏覽器快取。</p>
+<button onclick="tf(this,true)">是</button><button onclick="tf(this,false)">非</button><div class="res"></div>
+</div>
+<h3>申論題</h3>
+<p>用主軸圖的 A、B、C 三個菱形，說明「第二次載入 26 個 JS 檔只花 1 個請求」與「改版後使用者怎麼拿到新檔案」。</p>
+<textarea placeholder="先自己寫，再按下面按鈕看參考答案"></textarea>
+<button class="btn" style="margin-top:8px" onclick="this.nextElementSibling.classList.toggle('show')">顯示或隱藏參考答案</button>
+<div class="ans callout ok">第二次載入時，HTML 因為 <code>max-age=0</code> 在 B 判為過期，走到 C 帶 ETag 問伺服器，沒變就 304，這是唯一的請求。26 個 JS 檔的網址含 hash，在 A 命中快取，在 B 因為一年期限判為新鮮，直接使用，0 個請求。改版後 HTML 變了，伺服器回 200 與新 HTML，新 HTML 引用的新 JS 檔名在 A 找不到，走到最左邊的方框 GET 下載。沒被改到的 chunk 檔名不變，繼續命中快取。</div>
+</section>
+
+<section class="card">
+<h2>八、關聯筆記（含關聯原因）</h2>
+<ol class="alpha">
+<li>[[FCP首次內容繪製-SEO爬蟲與打包五步驟]]：打包五步驟裡有「產生 content hash」，這篇講的是 hash 產出後瀏覽器如何利用它。<a href="FCP首次內容繪製-SEO爬蟲與打包五步驟.html">開啟</a></li>
+<li>[[Vite-HMR機制與Rollup打包原理]]：Vue 與 Vite 的 <code>app.B91ytTIH.js</code> 這種檔名由 Rollup 輸出，原理在該篇。<a href="Vite-HMR機制與Rollup打包原理-互動版.html">開啟</a></li>
+<li>[[00-前端建構到執行全景地圖]]：本篇位於全景圖「部署與瀏覽器執行」那一段。</li>
+<li>[[Supabase-連線池-與-TLS-CA憑證-互動版]]：同一次部署到 Vercel 的另一個問題。<a href="../deployment/Supabase-連線池-與-TLS-CA憑證-互動版.html">開啟</a></li>
+</ol>
+</section>
+
+<section class="card src">
+<h2>九、出處</h2>
+<ol class="alpha">
+<li>MDN，HTTP caching（頁面最後修改 2026-08-14，擷取 2026-10-02）：<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching">developer.mozilla.org/…/Caching</a>。支撐 immutable、cache busting、F5 與強制重新整理行為。</li>
+<li>webpack，Caching 指南（頁面未標示日期，擷取 2026-10-02）：<a href="https://webpack.js.org/guides/caching/">webpack.js.org/guides/caching</a>。支撐 <code>[contenthash]</code>、runtimeChunk、splitChunks、moduleIds。</li>
+<li>Vite 官方 Building for Production（擷取 2026-10-02）：<a href="https://vite.dev/guide/build.html">vite.dev/guide/build</a>。文件只提到「產生 hashed assets」，預設檔名樣式以 vuejs.org 實測檔名佐證。</li>
+<li>Angular 官方文件沒有在我查到的頁面寫出 outputHashing 預設值，改以 angular.dev 實測檔名 <code>main-53YHTYUY.js</code> 與其 <code>Cache-Control: public,max-age=31536000,immutable</code> 佐證（2026-10-02 curl）。</li>
+<li>本專案實測：<code>curl -I https://next-one-time-tracker.vercel.app/user</code> 與其 chunk（2026-10-02）。</li>
+</ol>
+</section>
+
+</div>
+<script>
+function setAll(on){document.querySelectorAll('.blank').forEach(function(b){b.classList.toggle('open',on);b.textContent=on?b.dataset.a:'點我'})}
+document.addEventListener('click',function(e){var b=e.target.closest('.blank');if(!b)return;var o=b.classList.toggle('open');b.textContent=o?b.dataset.a:'點我'});
+function tf(btn,val){var box=btn.closest('.tf');var ok=(String(val)===box.dataset.correct);var r=box.querySelector('.res');r.innerHTML=(ok?'<b style="color:var(--ok)">答對</b>　':'<b style="color:var(--bad)">答錯</b>　')+box.dataset.why}
+// 互動模擬
+var N=20;var scen=[
+{k:'first',t:'第一次進站',why:'快取是空的，主軸圖走到最左邊方框：21 個檔案全部向伺服器 GET 並存進快取。',f:function(i,h){return 'net'}},
+{k:'second',t:'第二次進站（沒改版）',why:'HTML 在 C 問 ETag 回 304，20 個 hash 檔在 B 判為新鮮，直接用快取。只有 1 個網路請求。',f:function(i,h){return h?'rev':'cache'}},
+{k:'deploy',t:'第二次進站（改了 2 個檔案）',why:'HTML 變了回 200，新 HTML 引用 2 個新檔名，這 2 個走 GET 下載。其餘 18 個檔名沒變，繼續命中快取。',f:function(i,h){return h?'net':(i<2?'net':'cache')}},
+{k:'f5',t:'按 F5 一般重新整理',why:'HTML 帶條件標頭回 304。有 immutable 的 hash 檔，瀏覽器略過重新驗證，維持快取。',f:function(i,h){return h?'rev':'cache'}},
+{k:'hard',t:'Ctrl+Shift+R 強制重新整理',why:'瀏覽器送 Cache-Control: no-cache，整張流程圖被跳過，21 個檔案全部重新 GET，等於第一次進站。',f:function(i,h){return 'net'}}
+];
+var cur=0;
+function render(){
+ var s=scen[cur];var tabs=document.getElementById('tabs');tabs.innerHTML='';
+ scen.forEach(function(x,i){var b=document.createElement('button');b.textContent=x.t;if(i===cur)b.className='on';b.onclick=function(){cur=i;render()};tabs.appendChild(b)});
+ var box=document.getElementById('files');box.innerHTML='';var net=0,mb=0,cache=0,rev=0;
+ for(var i=-1;i<N;i++){
+  var h=(i===-1);var st=s.f(i<0?0:i,h);var d=document.createElement('div');d.className='f '+st;
+  var name=h?'index.html':(i%4===3?'chunk-'+('a1b2c3d4'.slice(0,4))+i+'.css':'chunk-'+('f0e1'+i)+'.js');
+  var label=st==='net'?'200 網路下載':(st==='rev'?'304 條件請求':'disk cache');
+  d.innerHTML='<b>'+name+'</b>'+label;box.appendChild(d);
+  if(st==='net'){net++;mb+=h?0.04:1}else if(st==='rev'){net++;rev++}else cache++;
+ }
+ document.getElementById('stat').innerHTML='<div><strong>'+net+'</strong>網路請求數</div><div><strong>'+mb.toFixed(1)+' MB</strong>實際下載量</div><div><strong>'+cache+'</strong>直接用快取</div>';
+ document.getElementById('why').textContent=s.why;
+}
+render();
+</script>
+<script src="../assets/notes.js" defer></script>
+</body></html>

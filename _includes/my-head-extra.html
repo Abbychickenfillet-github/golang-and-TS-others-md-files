@@ -1,3 +1,5 @@
+<link rel="stylesheet" href="{{ '/assets/notes.css' | relative_url }}">
+
 <script src="{{ '/assets/wikilink.js' | relative_url }}" data-root="{{ '/' | relative_url }}"></script>
 
 <style>
@@ -9,6 +11,23 @@
 .auto-toc a { color: #C2185B; text-decoration: none; }
 .auto-toc a:hover { text-decoration: underline; }
 .mermaid { text-align: center; margin: 1em 0; }
+
+/* .md 頁面：寬螢幕時大綱釘到左側 */
+@media (min-width: 1100px) {
+  .post-content:has(> nav.toc) {
+    display: grid;
+    grid-template-columns: clamp(220px, 17vw, 300px) minmax(0, 1fr);
+    column-gap: clamp(24px, 2.4vw, 44px);
+    align-items: start;
+  }
+  .post-content:has(> nav.toc) > * { grid-column: 2; min-width: 0; }
+  .post-content:has(> nav.toc) > nav.toc {
+    grid-column: 1; grid-row: 1 / span 999;
+    position: sticky; top: 20px; margin: 0; align-self: start;
+    max-height: calc(100vh - 48px); overflow: auto;
+    padding: 12px 14px 14px; font-size: .92em;
+  }
+}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
@@ -27,4 +46,4 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<script src="{{ '/assets/toc.js' | relative_url }}"></script>
+<script src="{{ '/assets/notes.js' | relative_url }}" defer></script>

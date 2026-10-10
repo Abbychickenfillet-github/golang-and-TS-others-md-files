@@ -1,0 +1,119 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>閉包-createCounter與Heap上的Environment-Record</title><style>
+body{margin:0;background:#f6f5f2;color:#2b2b2b;font:16px/1.7 -apple-system,'Noto Sans TC','Microsoft JhengHei',sans-serif}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px}
+header{background:#fff;border-radius:14px;padding:24px 28px;box-shadow:0 1px 4px #0001;margin-bottom:24px}
+h1{font-family:'Noto Serif TC',Georgia,serif;margin:0 0 10px;font-size:1.7em}
+.pill{display:inline-block;background:#e8eefc;color:#34508f;border-radius:99px;padding:1px 12px;margin:2px 4px 2px 0;font-size:.82em}
+.meta{color:#777;font-size:.88em;margin-top:8px}
+article{background:#fff;border-radius:14px;padding:8px 28px 24px;box-shadow:0 1px 4px #0001}
+h2{border-left:5px solid #7a9cd6;padding-left:12px;margin-top:2em}
+h3{color:#34508f}
+pre{background:#1e2230;color:#e6e9f2;padding:14px 16px;border-radius:10px;overflow-x:auto;font:.88em/1.55 Consolas,monospace}
+code{background:#eef0f5;padding:1px 6px;border-radius:5px;font-family:Consolas,monospace;font-size:.9em}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.93em}
+th,td{border:1px solid #d9dce3;padding:6px 10px;text-align:left}
+tr:nth-child(even) td{background:#f7f8fb}th{background:#e9edf6}
+blockquote{margin:1em 0;border-left:5px solid #e6b422;background:#fff8e0;padding:6px 16px;border-radius:0 8px 8px 0}
+img{max-width:100%}
+li.pt{cursor:pointer;list-style:none;margin:.4em 0;padding:6px 10px;border-radius:8px;background:#f3f6fd;border:1px dashed #b8c6e6}
+li.pt.hide{color:transparent;text-shadow:none;background:#dfe5f3;user-select:none}
+li.pt.hide *{color:transparent!important;background:transparent!important}
+ul:has(li.pt){padding-left:0}
+.bar{position:sticky;top:0;background:#f6f5f2;padding:8px 0;z-index:5}
+button{background:#34508f;color:#fff;border:0;border-radius:8px;padding:6px 14px;margin-right:8px;cursor:pointer}
+footer{text-align:center;color:#999;font-size:.82em;margin-top:28px}
+details.src{background:#fafafa;border:1px solid #e3e3e3;border-radius:10px;padding:8px 14px;margin:10px 0}
+</style><link rel="stylesheet" href="../../../assets/notes.css">
+</head><body><div class="wrap"><header><h1>閉包-createCounter與Heap上的Environment-Record</h1><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">closure</span><span class="pill">閉包</span><span class="pill">Heap</span><span class="pill">Environment-Record</span><div class="meta">更新 2026-10-07 ・ <a href="https://gemini.google.com/app/18bfd9b15e29a064">來源</a></div></header><div class="bar"><button onclick="setAll(true)">全部隱藏重點</button><button onclick="setAll(false)">全部顯示</button><span style="color:#888;font-size:.85em">點(a)(b)…重點可單獨隱藏／顯示，自我測驗</span></div><article>
+<p>本篇重點 a–g，共 7 個。</p>
+<h2>重點整理</h2>
+<ul>
+<li class="pt">(a) <mark style="background: #ADCCFFA6;">closure（閉包）</mark>指內層函式（<code>increment</code> / <code>decrement</code>）把它引用的外層變數（<code>count</code>）一起帶走：外層函式 <code>createCounter()</code> 執行完後其 Stack Frame 會 Pop 清除，但被內層函式引用的變數不會消失。</li>
+<li class="pt">(b) 引擎（V8（Chrome 的 JS 引擎））每呼叫一次 <code>createCounter()</code>，就在 Heap 配置一份新的 Environment Record（環境記錄，存放被捕捉變數的物件），<code>count</code> 住在那裡，而不是住在 Stack。</li>
+<li class="pt">(c) <mark style="background: #BBFABBA6;">呼叫一次 createCounter()</mark>：<code>increment</code> 與 <code>decrement</code> 指向同一份 Environment Record，所以共用同一個 <code>count</code>。</li>
+<li class="pt">(d) <mark style="background: #BBFABBA6;">呼叫兩次 createCounter()</mark>：<code>counterA</code> 與 <code>counterB</code> 各有獨立的 Environment Record，<code>counterA.increment()</code> 不會影響 <code>counterB</code>。</li>
+<li class="pt">(e) 只要還有外部變數（例如 <code>counter</code>）引用著內層函式，這份 Environment Record 就不會被 GC（Garbage Collection，垃圾回收）清掉。</li>
+<li class="pt">(f) 在 React Effect 的脈絡下被問到「context 主要記住的是函式，還是內部函式引用的變數」：答案是 <mark style="background: #FFF3A3A6;">記住的是內部函式所引用的外部變數（閉包捕捉的環境資料），不是函式本身</mark>。</li>
+<li class="pt">(g) 不需要 HTML 也能驗證：用 Node.js 直接執行 <code>node 檔名.js</code>，加 <code>console.log</code> 即可；要「觸發」必須加小括號呼叫，<code>counter.increment</code> 只是取得函式物件，不會執行。</li>
+</ul>
+<pre><code class="language-js">function createCounter() {
+  let count = 0;                       // 住在 Heap 的 Environment Record
+  return {
+    increment() { return ++count; },
+    decrement() { return --count; },
+  };
+}
+const counterA = createCounter();
+const counterB = createCounter();
+console.log(counterA.increment()); // 1
+console.log(counterA.increment()); // 2
+console.log(counterB.increment()); // 1（與 counterA 隔離）
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>情境</th>
+<th>Environment Record 數量</th>
+<th>count 是否共用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>呼叫一次 <code>createCounter()</code></td>
+<td>1</td>
+<td>共用</td>
+</tr>
+<tr>
+<td>呼叫兩次 <code>createCounter()</code></td>
+<td>2</td>
+<td>各自獨立</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ 存疑/更正：Gemini 第一輪回答（「沒觸發」）答非所問，使用者真正想問的是共用與否的記憶體位置，直到第三輪才答對。另外「每次呼叫都會建立 Environment Record」是教學簡化，V8 實際只會替「有被內層函式捕捉的變數」建立 Context 物件（依我所知，未連網查證）。</p>
+</blockquote>
+<p>相關筆記：<code>函式呼叫核心機制-Execution-Context-與-Parameter-Binding</code>（同樣在講 Execution Context，本篇補上「被捕捉變數為何留在 Heap」）。</p>
+<h2>各對話來源（原文節錄）</h2>
+<h3>白話解析 Accumulator（2026-10-07 擷取）— https://gemini.google.com/app/18bfd9b15e29a064</h3>
+<p>使用者：我意思是沒有html是要測試個屁</p>
+<p>Gemini：沒 HTML 一樣可以在純 JavaScript 環境測試……加 console.log，用 <code>node 檔名.js</code> 執行。</p>
+<p>使用者：但是我沒有觸發他呀</p>
+<p>Gemini：要加小括號 <code>()</code> 才會真正執行觸發……</p>
+<p>使用者：屁啦，你要不要查證一下再說</p>
+<p>Gemini：（承認沒解釋清楚）每次呼叫 <code>createCounter()</code> 都會在 Heap 建立全新的 Environment Record；呼叫一次共用同一個 <code>count</code>，呼叫兩次各自獨立。Stack Frame 會 Pop，Heap 的 Environment Record 只要仍被引用就不會被 GC。</p>
+<h3>React Effect 型別結構解析 — https://gemini.google.com/app/e849300121131d8a</h3>
+<p>使用者：我是問，我下的重點是 context。它主要記住的是一個函式，還是說內部函式所引用的變數？</p>
+<p>Gemini：Context 物件主要記住的是內部函式所引用的外部變數，也就是閉包所捕捉的環境資料，而非函式本身。</p>
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話（Accumulator）</td>
+<td>https://gemini.google.com/app/18bfd9b15e29a064</td>
+<td>2026-10-07 擷取</td>
+</tr>
+<tr>
+<td>Gemini 對話（Effect）</td>
+<td>https://gemini.google.com/app/e849300121131d8a</td>
+<td>2026-10-07 擷取</td>
+</tr>
+<tr>
+<td>MDN Closures</td>
+<td>https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Closures</td>
+<td>官方文件網址，未於本次逐條查證</td>
+</tr>
+</tbody>
+</table></article><footer>由 Gemini 對話自動整理 · 更新於 2026-10-07</footer></div><script>
+document.querySelectorAll('li.pt').forEach(l=>l.onclick=()=>l.classList.toggle('hide'));
+function setAll(h){document.querySelectorAll('li.pt').forEach(l=>l.classList.toggle('hide',h))}
+</script><script src="../../../assets/notes.js" defer></script>
+</body></html>

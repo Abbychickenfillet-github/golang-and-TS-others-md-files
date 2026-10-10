@@ -110,6 +110,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 }
 @media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
 </style>
+<link rel="stylesheet" href="../assets/notes.css">
 </head>
 <body>
 <div class="wrap">
@@ -117,9 +118,9 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <h1>Vercel 匯入 GitHub 私有庫 — No Results Found 的成因與 GitHub App 存取範圍授權</h1>
   <div class="pills"><span class="pill">#gemini</span><span class="pill">#vercel</span><span class="pill">#github</span><span class="pill">#deployment</span><span class="pill">#github-app</span><span class="pill">#private-repo</span><span class="pill">#oauth</span></div>
   <div class="meta">
-    <span>更新於 2026-09-17</span>
+    <span>更新於 2026-10-10</span>
     <span>來源：Gemini</span>
-    <a href="https://gemini.google.com/app/dc1e1986b81b62f9" target="_blank" rel="noopener">原始對話 1</a>
+    <a href="https://gemini.google.com/app/dc1e1986b81b62f9" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/378e14cadcd64314" target="_blank" rel="noopener">原始對話 2</a>
   </div>
 </header>
 
@@ -138,78 +139,12 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <span>　←　點任一個螢光筆可以把它遮起來</span>
 </div>
 
-<section class="card">
-<h2>主軸圖：Vercel → GitHub App → 你的 repo，三方授權流程</h2>
-<p style="margin-top:0">這張圖是本篇的定位座標。問題永遠出在「GitHub 回傳的清單」那一段，不是出在 repo 是不是 public。之後追問請指回圖上的某一個方框。</p>
-<div class="fig" style="overflow-x:auto">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" style="min-width:700px;width:100%;height:auto" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
-  <defs>
-    <marker id="vc-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4A5A75"/>
-    </marker>
-  </defs>
-  <style>
-    .vc-l{font-size:15px;fill:#1F2937}
-    .vc-s{font-size:12.5px;fill:#55617A}
-    .vc-e{stroke:#4A5A75;stroke-width:1.8;fill:none;marker-end:url(#vc-ar)}
-    .vc-t{font-size:13px;fill:#4A5A75;font-weight:600}
-  </style>
-  <rect x="0" y="0" width="900" height="700" fill="#FBFCFD"/>
-  <text x="450" y="30" text-anchor="middle" font-size="18" font-weight="700" fill="#1F2937">No Results Found 的根因與修法</text>
-
-  <rect x="320" y="52" width="260" height="42" rx="21" fill="#E8EDF5" stroke="#4A5A75" stroke-width="1.8"/>
-  <text x="450" y="79" text-anchor="middle" class="vc-l">在 Vercel Import 頁搜尋 repo</text>
-  <path class="vc-e" d="M450 94 L450 124"/>
-
-  <path d="M450 124 L700 178 L450 232 L200 178 Z" fill="#FFF6D9" stroke="#B8933A" stroke-width="1.8"/>
-  <text x="450" y="172" text-anchor="middle" class="vc-l">你打的是「專案名稱」</text>
-  <text x="450" y="194" text-anchor="middle" class="vc-l">還是整串 URL？</text>
-
-  <path class="vc-e" d="M700 178 L800 178 L800 268"/>
-  <text x="752" y="170" text-anchor="middle" class="vc-t">URL</text>
-  <rect x="700" y="268" width="180" height="62" fill="#FFF4F6" stroke="#C2455E" stroke-width="1.8"/>
-  <text x="790" y="292" text-anchor="middle" class="vc-l">一定搜不到</text>
-  <text x="790" y="312" text-anchor="middle" class="vc-s">這欄是名稱搜尋，不解析網址</text>
-  <path class="vc-e" d="M790 330 L790 380 L560 380"/>
-
-  <path class="vc-e" d="M450 232 L450 268"/>
-  <text x="472" y="254" class="vc-t">名稱</text>
-
-  <rect x="290" y="268" width="320" height="62" fill="#FFFFFF" stroke="#4A5A75" stroke-width="1.8"/>
-  <text x="450" y="292" text-anchor="middle" class="vc-l">Vercel 用 GitHub App 的 token 去問 GitHub</text>
-  <text x="450" y="312" text-anchor="middle" class="vc-s">「這個帳號授權給我哪些 repo？」</text>
-  <path class="vc-e" d="M450 330 L450 380"/>
-
-  <rect x="290" y="380" width="320" height="62" fill="#FFFFFF" stroke="#4A5A75" stroke-width="1.8"/>
-  <text x="450" y="404" text-anchor="middle" class="vc-l">GitHub 只回傳 Repository access 白名單</text>
-  <text x="450" y="424" text-anchor="middle" class="vc-s">不在白名單的 repo，Vercel 根本看不到</text>
-  <path class="vc-e" d="M450 442 L450 486"/>
-
-  <path d="M450 486 L680 534 L450 582 L220 534 Z" fill="#FFF6D9" stroke="#B8933A" stroke-width="1.8"/>
-  <text x="450" y="528" text-anchor="middle" class="vc-l">目標 repo 在白名單裡嗎？</text>
-  <text x="450" y="550" text-anchor="middle" class="vc-s">All repositories 或 Only select repositories</text>
-
-  <path class="vc-e" d="M220 534 L100 534 L100 612"/>
-  <text x="156" y="526" text-anchor="middle" class="vc-t">不在</text>
-  <rect x="10" y="612" width="180" height="62" fill="#FFF4F6" stroke="#C2455E" stroke-width="1.8"/>
-  <text x="100" y="636" text-anchor="middle" class="vc-l">加白名單 → Save</text>
-  <text x="100" y="656" text-anchor="middle" class="vc-s">回 Vercel 按 Refresh</text>
-
-  <path class="vc-e" d="M680 534 L800 534 L800 612"/>
-  <text x="744" y="526" text-anchor="middle" class="vc-t">在</text>
-  <rect x="710" y="612" width="180" height="62" rx="12" fill="#F1FAF2" stroke="#3E8E4E" stroke-width="1.8"/>
-  <text x="800" y="636" text-anchor="middle" class="vc-l">清單出現 → Import</text>
-  <text x="800" y="656" text-anchor="middle" class="vc-s">Private repo 完全不必改 public</text>
-</svg>
-</div>
-</section>
-
 
 
 <article class="card">
 <h1 id="vercel-github-no-results-found-github-app">Vercel 匯入 GitHub 私有庫 — No Results Found 的成因與 GitHub App 存取範圍授權</h1>
 <blockquote>
-<p>本篇重點 a–h，共 8 個。<br />
+<p>本篇重點 a–l，共 12 個。<br />
 主軸圖：本頁 HTML 版的「三方授權流程圖」（Vercel → GitHub App → Repository access → 回到 Vercel Refresh），之後同主題追問請指回這張圖的某個節點。</p>
 </blockquote>
 <hr />
@@ -338,6 +273,13 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   └─ 是 ──→ 登出重登 Vercel，重新授權一次
 </code></pre>
 <hr />
+<h3 id="2026-10-10pr-repository-access">追加 2026-10-10：PR 自動預覽部署、Repository access 清單與前後端是否要拆</h3>
+<p><strong>(i)</strong> 想要「每個 PR 自動部署預覽（Preview every PR live without any configuration required）」，前提就是 Vercel GitHub App 對該 repo 有存取權。畫面上要求 configure repository access，意思是去 GitHub 的 Applications 設定頁，把要預覽的 repo 勾進 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Repository access</mark> 清單。</p>
+<p><strong>(j)</strong> 判斷是否設定完成：Repository access 清單裡列出了 <code>Guru Laptop E-commerce</code> 與 <code>Next One Time Tracker</code> 兩個專案庫，代表 Vercel 已拿到這兩個 repo 的權限，可以做自動部署與預覽。</p>
+<p><strong>(k)</strong> 清單裡若還有未連接的 <code>gurulaptop-ecommerce-v2</code>，要先確認它也在 Repository access 授權內，再回 Vercel 專案頁重新整理，或按 connect 找它。</p>
+<p><strong>(l)</strong> <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Vercel 不要求前後端一定要分開</mark>：可用單一儲存庫（Monorepo），也可在同一個專案內用 API Routes 或 Serverless Functions 寫後端邏輯。</p>
+<p>原文：https://gemini.google.com/app/378e14cadcd64314（GitHub App 管理，2026-10-09 擷取；使用者貼的是 Vercel 與 GitHub 畫面截圖，截圖內容未存下，只保留文字問答）</p>
+<hr />
 <h2 id="_2">關聯筆記（附關聯原因）</h2>
 <ul>
 <li><span class="wikilink" title="Obsidian 連結：Vercel-eve-Agent框架與GitOps零設定部署">Vercel-eve-Agent框架與GitOps零設定部署</span><br />
@@ -364,6 +306,11 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 <td>Gemini Flash，2026-09-17 擷取</td>
 </tr>
 <tr>
+<td>追加：GitHub App 管理 Gemini 對話</td>
+<td>https://gemini.google.com/app/378e14cadcd64314</td>
+<td>2026-10-09 擷取</td>
+</tr>
+<tr>
 <td>Vercel Docs — Git Integrations / GitHub</td>
 <td>https://vercel.com/docs/git/vercel-for-github</td>
 <td>Vercel 官方文件，2026-09-17 查證</td>
@@ -384,7 +331,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 <p>由 Gemini 對話自動整理 · 更新於 2026-09-17</p>
 </article>
 
-<footer>由 Gemini 對話自動整理 · 更新於 2026-09-17</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-10-10</footer>
 </div>
 <script>
 (function(){
@@ -452,5 +399,6 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   });
 })();
 </script>
+<script src="../assets/notes.js" defer></script>
 </body>
 </html>

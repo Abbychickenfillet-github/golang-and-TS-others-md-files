@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supabase 連線池字串能否取代 CA 憑證</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#4f6bed;--ok:#15803d;--okbg:#dcfce7;--warn:#b45309;--warnbg:#fef3c7;--bad:#b91c1c;--badbg:#fee2e2;--info:#1d4ed8;--infobg:#dbeafe;}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1c1f25;--ink:#e6e8ec;--muted:#9aa3b2;--line:#2c313a;--accent:#8aa0ff;--ok:#86efac;--okbg:#14351f;--warn:#fcd34d;--warnbg:#3a2e0e;--bad:#fca5a5;--badbg:#3d1717;--info:#93c5fd;--infobg:#172a4a;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.8;font-size:16px}
+.wrap{max-width:860px;margin:0 auto;padding:24px 16px 80px}
+header.note{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-bottom:16px}
+header.note h1{margin:0 0 10px;font-size:1.6rem;line-height:1.4}
+.pill{display:inline-block;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:2px 12px;font-size:.78rem;margin:3px 6px 3px 0}
+.meta{color:var(--muted);font-size:.85rem;margin-top:8px}
+.toolbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;margin-bottom:12px;border-bottom:1px solid var(--line)}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 14px;font-size:.85rem;margin-right:8px}
+.btn.alt{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:16px}
+h2{font-size:1.2rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .8em}
+h3{font-size:1.02rem;margin:1.2em 0 .4em}
+ol.alpha{list-style:lower-alpha;padding-left:1.6em}
+ol.alpha li{margin:.5em 0}
+code{background:var(--infobg);color:var(--info);padding:.05em .4em;border-radius:5px;font-size:.88em;word-break:break-all}
+pre{background:#0f172a;color:#e2e8f0;padding:12px 14px;border-radius:10px;overflow:auto;font-size:.82rem;line-height:1.6}
+table{border-collapse:collapse;width:100%;font-size:.88rem;margin:.6em 0}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:var(--infobg);color:var(--info)}
+.callout{border-radius:10px;padding:10px 14px;margin:.8em 0;font-size:.92rem}
+.callout.ok{background:var(--okbg);color:var(--ok)}
+.callout.warn{background:var(--warnbg);color:var(--warn)}
+.callout.bad{background:var(--badbg);color:var(--bad)}
+.callout.info{background:var(--infobg);color:var(--info)}
+.blank{background:var(--warnbg);color:var(--warn);border-radius:6px;padding:.05em .45em;cursor:pointer;border-bottom:2px dashed var(--warn);user-select:none}
+.blank.open{background:var(--okbg);color:var(--ok);border-bottom-color:var(--ok)}
+svg{max-width:100%;height:auto}
+svg text{font-family:inherit}
+.node{fill:var(--card);stroke:var(--accent);stroke-width:1.6}
+.dec{fill:var(--warnbg);stroke:var(--warn);stroke-width:1.6}
+.good{fill:var(--okbg);stroke:var(--ok);stroke-width:1.6}
+.net{fill:var(--badbg);stroke:var(--bad);stroke-width:1.6}
+.lbl{fill:var(--ink);font-size:13px}
+.tag{fill:var(--muted);font-size:12px}
+.arrow{stroke:var(--muted);stroke-width:1.6;fill:none;marker-end:url(#ah)}
+.tf button{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:5px 14px;margin-right:8px}
+.tf .res{margin-top:6px;font-size:.88rem}
+textarea{width:100%;min-height:90px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit}
+.ans{display:none;margin-top:8px}
+.ans.show{display:block}
+.sel button{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;padding:6px 12px;margin:3px 6px 3px 0;font-size:.82rem}
+.sel button.on{background:var(--accent);color:#fff}
+.src li{font-size:.86rem}
+a{color:var(--accent)}
+</style><link rel="stylesheet" href="../assets/notes.css">
+</head>
+<body><div class="wrap">
+
+<header class="note">
+<h1>Supabase 連線池字串能不能取代 CA 憑證</h1>
+<span class="pill">PostgreSQL</span><span class="pill">TLS</span><span class="pill">Supavisor 連線池</span><span class="pill">Vercel Serverless</span><span class="pill">node-postgres（pg）</span>
+<div class="meta">主軸圖：下方「TLS 驗證伺服器身分」流程。連線池與 CA 是這張圖上兩個不同位置的事。<br>建立日期：2026-10-02 │ 實測對象：本專案的 Supabase 專案（Session pooler，ap-southeast-1）</div>
+</header>
+
+<div class="toolbar">
+<button class="btn" onclick="setAll(true)">全部顯示答案</button>
+<button class="btn alt" onclick="setAll(false)">全部隱藏答案</button>
+</div>
+
+<section class="card">
+<h2>一、結論：不能取代，而且實測證實了</h2>
+<ol class="alpha">
+<li>連線池（Pooler）解決的問題是「同時有很多連線，資料庫的連線數不夠」。CA 憑證解決的問題是「我連到的真的是 Supabase 嗎」。兩者是不同層的事。</li>
+<li>連線池字串（port 5432 或 6543 的 <code>pooler.supabase.com</code>）本身也走 TLS。要驗證它的身分，仍然需要 Supabase 的 CA 憑證。</li>
+<li>我用 node-postgres 對本專案的 Session pooler 做了實測（2026-10-02）：
+<table>
+<tr><th>設定</th><th>結果</th></tr>
+<tr><td><code>ssl: { rejectUnauthorized: true }</code> 且不給 CA</td><td>失敗，<code>SELF_SIGNED_CERT_IN_CHAIN</code></td></tr>
+<tr><td><code>ssl: { rejectUnauthorized: false }</code></td><td>成功（但不驗證身分）</td></tr>
+</table>
+原因：Supabase 的憑證鏈是 Supabase 自己的 CA 簽發，Node.js 內建的信任清單裡沒有它。</li>
+<li>所以要嚴格驗證，只有「補上 CA 憑證」這條路。要省事就用 <code>rejectUnauthorized: false</code>，但那等於只加密、不驗證，無法防中間人攻擊。</li>
+</ol>
+</section>
+
+<section class="card">
+<h2>二、主軸圖：TLS 驗證伺服器身分</h2>
+<svg viewBox="0 0 760 420" role="img" aria-label="TLS 驗證流程">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6b7280"/></marker></defs>
+<rect class="node" x="30" y="20" width="200" height="60" rx="10"/>
+<text class="lbl" x="130" y="46" text-anchor="middle">Vercel 上的 Node.js</text>
+<text class="tag" x="130" y="66" text-anchor="middle">pg 連線池 max 3</text>
+<rect class="node" x="520" y="20" width="210" height="60" rx="10"/>
+<text class="lbl" x="625" y="46" text-anchor="middle">Supabase 連線池</text>
+<text class="tag" x="625" y="66" text-anchor="middle">aws-0-…pooler.supabase.com</text>
+<path class="arrow" d="M230 50H520"/>
+<text class="tag" x="375" y="42" text-anchor="middle">A 連線並要求 TLS</text>
+<path class="arrow" d="M520 70H230" style="stroke-dasharray:5 4"/>
+<text class="tag" x="375" y="90" text-anchor="middle">B 伺服器出示憑證（由 Supabase CA 簽發）</text>
+<polygon class="dec" points="130,130 250,180 130,230 10,180"/>
+<text class="lbl" x="130" y="176" text-anchor="middle">C 憑證鏈能追到</text>
+<text class="lbl" x="130" y="194" text-anchor="middle">我信任的 CA 嗎</text>
+<path class="arrow" d="M130 80V130"/>
+<path class="arrow" d="M130 230V290"/><text class="tag" x="142" y="262">能（有給 CA）</text>
+<rect class="good" x="30" y="290" width="200" height="70" rx="10"/>
+<text class="lbl" x="130" y="318" text-anchor="middle">連線成功</text>
+<text class="tag" x="130" y="338" text-anchor="middle">加密 且 身分已驗證</text>
+<path class="arrow" d="M250 180H400"/><text class="tag" x="325" y="172" text-anchor="middle">不能（沒給 CA）</text>
+<polygon class="dec" points="480,130 590,180 480,230 370,180"/>
+<text class="lbl" x="480" y="176" text-anchor="middle">D rejectUnauthorized</text>
+<text class="lbl" x="480" y="194" text-anchor="middle">是 true 嗎</text>
+<path class="arrow" d="M480 230V290"/><text class="tag" x="492" y="262">true</text>
+<rect class="net" x="380" y="290" width="200" height="70" rx="10"/>
+<text class="lbl" x="480" y="318" text-anchor="middle">拒絕連線</text>
+<text class="tag" x="480" y="338" text-anchor="middle">SELF_SIGNED_CERT_IN_CHAIN</text>
+<path class="arrow" d="M590 180H650V290"/><text class="tag" x="620" y="172">false</text>
+<rect class="dec" x="570" y="290" width="170" height="70" rx="10" style="display:none"/>
+<rect x="600" y="290" width="150" height="70" rx="10" class="dec"/>
+<text class="lbl" x="675" y="318" text-anchor="middle">連線成功</text>
+<text class="tag" x="675" y="338" text-anchor="middle">只加密 不驗證身分</text>
+<text class="tag" x="675" y="352" text-anchor="middle">可能被中間人冒充</text>
+</svg>
+<div class="callout info">連線池（Pooler）只影響圖中右上角「Supabase 連線池」那個方框的<b>位置與行為</b>（用哪個 port、是否共用連線）。菱形 C 與 D 是 TLS 的事，換任何連線池字串都不會改變。</div>
+</section>
+
+<section class="card">
+<h2>三、連線池到底是什麼，Vercel 該選哪一種</h2>
+<p>資料庫能同時接受的連線數有上限。Serverless 函式（像 Vercel）每個實例都會自己開連線，流量一高就會超過上限。連線池就是在資料庫前面放一個代理，讓很多客戶端連線共用少數幾條真正的資料庫連線。</p>
+<div class="sel" id="sel"></div>
+<table id="poolTable"></table>
+<div class="callout warn"><b>更正我先前的說法：</b>我之前建議你用 Session pooler（port 5432），並說 Transaction pooler 不建議。查了 Supabase 官方文件後，對 Vercel 這類 serverless，官方建議的是 <b>Transaction pooler（port 6543）</b>，而且 Prisma 要加 <code>?pgbouncer=true</code>。Session pooler 每個客戶端佔一條持久連線，serverless 實例一多容易把池子用滿。目前專案流量小，Session pooler 可以運作，但正式上線建議換成 Transaction pooler。</div>
+<h3>換成 Transaction pooler 要改什麼</h3>
+<ol class="alpha">
+<li><code>DATABASE_URL</code> 的 port 從 5432 改成 6543，後面加上 <code>?pgbouncer=true</code>（給 Prisma，讓它關閉 prepared statements）。</li>
+<li><code>pg</code>（node-postgres）預設只用未命名的查詢，不會用具名 prepared statements，所以 <code>config/server.postgresql.js</code> 不用改。</li>
+<li><code>prisma migrate</code> 與 <code>prisma db push</code> 需要 session 狀態，要改用 Session pooler 的字串（port 5432）。這時 <code>schema.prisma</code> 的 datasource 要補一個 <code>directUrl</code> 指向 5432 的字串。</li>
+</ol>
+</section>
+
+<section class="card">
+<h2>四、三種設定方式比較</h2>
+<table>
+<tr><th>方式</th><th>程式碼</th><th>加密</th><th>驗證伺服器身分</th><th>適合</th></tr>
+<tr><td>a. 補 CA 並嚴格驗證</td><td><code>ssl: { ca, rejectUnauthorized: true }</code></td><td>是</td><td>是</td><td>正式環境（目前專案採用）</td></tr>
+<tr><td>b. 只加密不驗證</td><td><code>ssl: { rejectUnauthorized: false }</code></td><td>是</td><td>否</td><td>快速測試</td></tr>
+<tr><td>c. 不用 SSL</td><td>不設 ssl</td><td>否</td><td>否</td><td>本機 localhost 資料庫。Supabase 開了 Enforce SSL 會被拒絕</td></tr>
+</table>
+<div class="callout ok">Supabase 後台的 <b>Enforce SSL</b> 只規定「一定要用 SSL」，相當於 PostgreSQL 的 <code>sslmode=require</code>，不驗證身分。官方文件的建議是開啟 Enforce SSL 時搭配 <code>verify-full</code>，也就是方式 a。</div>
+</section>
+
+<section class="card">
+<h2>五、自我測驗</h2>
+<h3>填空（點黃底框顯示答案）</h3>
+<ol class="alpha">
+<li>連線池解決的是 <span class="blank" data-a="連線數不夠（共用資料庫連線）">點我</span>，CA 憑證解決的是 <span class="blank" data-a="驗證伺服器身分、防中間人攻擊">點我</span>。</li>
+<li>對 Node.js 設 <code>rejectUnauthorized: true</code> 卻不給 CA，Supabase 會回錯誤碼 <span class="blank" data-a="SELF_SIGNED_CERT_IN_CHAIN">點我</span>。</li>
+<li>官方建議給 Vercel 用的連線池模式是 <span class="blank" data-a="Transaction pooler（port 6543）">點我</span>，Prisma 要加 <span class="blank" data-a="?pgbouncer=true">點我</span>。</li>
+</ol>
+<h3>是非題</h3>
+<div class="tf" data-correct="false" data-why="錯。Pooler 字串也走 TLS，也要驗證憑證，實測不給 CA 且 rejectUnauthorized 為 true 會失敗。">
+<p>a. 改用 Pooler 連線字串之後，就不需要 CA 憑證了。</p>
+<button onclick="tf(this,true)">是</button><button onclick="tf(this,false)">非</button><div class="res"></div>
+</div>
+<div class="tf" data-correct="false" data-why="錯。rejectUnauthorized 為 false 時仍有加密，但不驗證身分，攻擊者可以冒充伺服器。">
+<p>b. rejectUnauthorized 設成 false 代表連線沒有加密。</p>
+<button onclick="tf(this,true)">是</button><button onclick="tf(this,false)">非</button><div class="res"></div>
+</div>
+<h3>申論題</h3>
+<p>用主軸圖的菱形 C 與 D 解釋：為什麼只換連線池字串，不補 CA 也不改設定，連線仍然會失敗？</p>
+<textarea placeholder="先自己寫，再按下面按鈕看參考答案"></textarea>
+<button class="btn" style="margin-top:8px" onclick="this.nextElementSibling.classList.toggle('show')">顯示或隱藏參考答案</button>
+<div class="ans callout ok">連線池字串只改變連線的目的地（主機與 port）。連上之後 TLS 流程不變：伺服器出示憑證，客戶端在 C 檢查憑證鏈能不能追到信任的 CA。Supabase 的 CA 不在 Node.js 內建信任清單，所以 C 的答案是「不能」，接著到 D。rejectUnauthorized 為 true 就拒絕連線。要讓 C 變成「能」，必須把 Supabase 的 CA 憑證交給 pg 的 ssl.ca 選項。</div>
+</section>
+
+<section class="card">
+<h2>六、關聯筆記（含關聯原因）</h2>
+<ol class="alpha">
+<li>[[瀏覽器快取-chunk-content-hash-與強制重新整理-互動版]]：同一次部署到 Vercel 遇到的另一個問題，一個在瀏覽器端快取，一個在伺服器到資料庫的連線。<a href="../frontend-docs/瀏覽器快取-chunk-content-hash-與強制重新整理-互動版.html">開啟</a></li>
+<li>[[FCP首次內容繪製-SEO爬蟲與打包五步驟]]：同屬 Vercel 部署流程，打包產物最後就是被部署到那個環境。</li>
+</ol>
+</section>
+
+<section class="card src">
+<h2>七、出處</h2>
+<ol class="alpha">
+<li>Supabase 官方文件，SSL Enforcement（頁面未標示日期，擷取 2026-10-02）：<a href="https://supabase.com/docs/guides/platform/ssl-enforcement">supabase.com/docs/guides/platform/ssl-enforcement</a>。支撐六種 sslmode、CA 憑證下載位置、<code>verify-full</code> 建議、Enforce SSL 同時涵蓋 Supavisor 連線池。</li>
+<li>Supabase 官方文件，Connecting to your database（擷取 2026-10-02）：<a href="https://supabase.com/docs/guides/database/connecting-to-postgres">supabase.com/docs/guides/database/connecting-to-postgres</a>。支撐 Direct、Session、Transaction 三種連線方式差異與 Vercel 建議。</li>
+<li>本專案實測（2026-10-02）：node-postgres 以 <code>rejectUnauthorized: true</code> 且不給 CA 連 Session pooler，回 <code>SELF_SIGNED_CERT_IN_CHAIN</code>。</li>
+</ol>
+</section>
+
+</div>
+<script>
+function setAll(on){document.querySelectorAll('.blank').forEach(function(b){b.classList.toggle('open',on);b.textContent=on?b.dataset.a:'點我'})}
+document.addEventListener('click',function(e){var b=e.target.closest('.blank');if(!b)return;var o=b.classList.toggle('open');b.textContent=o?b.dataset.a:'點我'});
+function tf(btn,val){var box=btn.closest('.tf');var ok=(String(val)===box.dataset.correct);box.querySelector('.res').innerHTML=(ok?'<b style="color:var(--ok)">答對</b>　':'<b style="color:var(--bad)">答錯</b>　')+box.dataset.why}
+var P=[
+{n:'Direct connection',port:'5432',ip:'預設只有 IPv6，IPv4 要加購附加元件',use:'長時間執行的後端（VM、容器）',note:'沒有連線池，Vercel 是 IPv4 環境所以連不上'},
+{n:'Session pooler',port:'5432',ip:'IPv4（所有方案）',use:'只有 IPv4 的網路、BI 工具、migration',note:'每個客戶端佔一條持久連線，支援 prepared statements'},
+{n:'Transaction pooler',port:'6543',ip:'IPv4（所有方案）',use:'Serverless（Vercel）',note:'每個交易結束就還連線，不支援 prepared statements，Prisma 要 pgbouncer=true'}
+];
+var cur=2;
+function draw(){var s=document.getElementById('sel');s.innerHTML='';P.forEach(function(p,i){var b=document.createElement('button');b.textContent=p.n;if(i===cur)b.className='on';b.onclick=function(){cur=i;draw()};s.appendChild(b)});
+var p=P[cur];document.getElementById('poolTable').innerHTML='<tr><th>port</th><td>'+p.port+'</td></tr><tr><th>IPv4／IPv6</th><td>'+p.ip+'</td></tr><tr><th>適合場景</th><td>'+p.use+'</td></tr><tr><th>注意</th><td>'+p.note+'</td></tr>'}
+draw();
+</script>
+<script src="../assets/notes.js" defer></script>
+</body></html>

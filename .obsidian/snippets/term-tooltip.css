@@ -1,0 +1,51 @@
+/* ============================================================
+   term-tooltip.css — Obsidian 本機用（跟 assets/notes.css 對齊）
+   1. .md 閱讀模式滿版（取消 Obsidian 的 readable line length 窄欄）
+   2. <span class="term" data-def="解釋">詞</span> 名詞浮卡
+   啟用：設定 → 外觀 → CSS 程式片段 → 重新整理 → 打開 term-tooltip
+   ⚠️ Obsidian 裡只有 hover 預覽，點擊拖曳那版需要 JS，只在瀏覽器開 .html 才有
+   ============================================================ */
+
+/* ---- 1. 滿版 ---- */
+.markdown-preview-view.is-readable-line-width .markdown-preview-sizer,
+.markdown-source-view.is-readable-line-width .cm-contentContainer,
+.markdown-rendered.is-readable-line-width {
+  max-width: none !important;
+  width: 100% !important;
+}
+.markdown-preview-view, .markdown-rendered { padding-left: clamp(12px, 2vw, 40px); padding-right: clamp(12px, 2vw, 40px); }
+.markdown-rendered pre, .markdown-rendered table { max-width: none; width: 100%; }
+
+/* ---- 2. 名詞浮卡 ---- */
+.term {
+  position: relative;
+  border-bottom: 2px dotted var(--color-green, #3f9e7f);
+  cursor: help; font-weight: 600; color: var(--color-green, #1f4a3c);
+}
+.term::after {
+  content: attr(data-def);
+  position: absolute; left: 50%; bottom: 140%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content; max-width: 320px;
+  background: #243b33; color: #f2f7f5;
+  font-size: .82em; font-weight: 400; line-height: 1.6;
+  padding: 9px 13px; border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.28);
+  opacity: 0; visibility: hidden; transition: .18s ease;
+  z-index: 50; white-space: normal; text-align: left; pointer-events: none;
+}
+.term::before {
+  content: ""; position: absolute; left: 50%; bottom: 140%;
+  transform: translateX(-50%) translateY(4px);
+  border: 6px solid transparent; border-top-color: #243b33;
+  margin-bottom: -12px; opacity: 0; visibility: hidden;
+  transition: .18s ease; z-index: 51; pointer-events: none;
+}
+.term:hover::after, .term:hover::before,
+.term:focus::after, .term:focus::before {
+  opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
+}
+.theme-dark .term { border-bottom-color: #5ec7a3; color: #7fd9b8; }
+.theme-dark .term::after { background: #0f1f1a; color: #e8f5ef; border: 1px solid #2e5c4c; }
+.theme-dark .term::before { border-top-color: #0f1f1a; }
+@media (max-width: 700px) { .term::after { max-width: 230px; font-size: .78em; } }

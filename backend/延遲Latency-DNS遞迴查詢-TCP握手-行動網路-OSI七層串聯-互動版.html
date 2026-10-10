@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>延遲 Latency：DNS 遞迴查詢、TCP 握手、行動網路與 OSI 七層串聯（互動版）</title>
+<style>
+:root {
+  --bg: #f7f6f3; --card: #ffffff; --text: #2b2b2b; --muted: #6b6b6b;
+  --border: #e6e3dc; --accent: #6b8f71; --accent-d: #45614a;
+  --hl: #dc143c; --hl-bg: #fff3c4;
+  --dns: #4f8bd6; --tcp: #e0902b; --tls: #8e5fc7; --http: #3f9d6b;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0 16px 70px; background: var(--bg); color: var(--text);
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  line-height: 1.7; font-size: 16px;
+}
+.wrap { max-width: 880px; margin: 0 auto; }
+header.page-head { padding: 34px 0 18px; border-bottom: 2px solid var(--border); margin-bottom: 8px; }
+h1 { font-family: "Noto Serif TC", Georgia, serif; font-size: 1.6em; margin: 0 0 8px; line-height: 1.4; }
+.meta { color: var(--muted); font-size: .9em; }
+.meta a { color: var(--accent-d); }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; margin: 22px 0; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+h2 { font-size: 1.22em; border-left: 5px solid var(--accent); padding-left: 12px; margin: 0 0 14px; }
+mark { background: #fff3a3; padding: 0 3px; border-radius: 3px; }
+button, select, input { font: inherit; }
+.btn { cursor: pointer; background: var(--accent-d); color: #fff; border: 0; border-radius: 8px; padding: 7px 14px; font-size: .9em; margin: 3px 4px 3px 0; }
+.btn:hover { background: #37513c; }
+.btn.ghost { background: #eef2ea; color: var(--accent-d); border: 1px solid #d7e2d2; }
+.btn.ghost.on { background: var(--accent-d); color: #fff; }
+.btn:disabled { opacity: .45; cursor: default; }
+.hint { color: var(--muted); font-size: .88em; }
+
+/* ---------- flowchart ---------- */
+.fc-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 10px; }
+.info { position: sticky; top: 0; z-index: 5; background: var(--hl-bg); border: 2px solid var(--hl); border-radius: 10px; padding: 10px 14px; margin: 8px 0 12px; min-height: 92px; }
+.info b { color: #8a0f2a; }
+.info .tag { display: inline-block; font-size: .78em; background: var(--hl); color: #fff; border-radius: 999px; padding: 1px 10px; margin-right: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .85em; color: var(--muted); margin: 6px 0 10px; }
+.legend svg { vertical-align: middle; margin-right: 4px; }
+svg.fc { width: 100%; height: auto; max-width: 760px; display: block; margin: 0 auto; }
+.node { cursor: pointer; }
+.node .shape { fill: #fff; stroke: #5a6b5d; stroke-width: 2; transition: fill .2s, stroke .2s; }
+.node text { font-size: 14.5px; fill: #222; pointer-events: none; text-anchor: middle; dominant-baseline: middle; }
+.node.visited .shape { fill: #e3efe5; stroke: var(--accent-d); }
+.node.skipped { opacity: .35; }
+.node.active .shape { fill: var(--hl-bg); stroke: var(--hl); stroke-width: 4; }
+.edge { fill: none; stroke: #8a948c; stroke-width: 2; }
+.edge.done { stroke: var(--accent-d); stroke-width: 3; }
+.elabel { font-size: 13px; fill: #8a0f2a; font-weight: 700; text-anchor: middle; }
+
+/* ---------- ledger ---------- */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.grid label { display: block; font-size: .88em; color: var(--muted); }
+.grid input[type=range] { width: 100%; }
+.grid select, .grid input[type=number] { width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; }
+.bar { display: flex; height: 38px; border-radius: 8px; overflow: hidden; margin: 8px 0; background: #eee; }
+.bar div { display: flex; align-items: center; justify-content: center; color: #fff; font-size: .8em; white-space: nowrap; overflow: hidden; transition: width .25s; }
+table { border-collapse: collapse; width: 100%; font-size: .93em; }
+th, td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: #f1efe9; }
+.total { font-size: 1.15em; font-weight: 700; }
+
+/* ---------- OSI ---------- */
+.osi { display: grid; gap: 6px; margin: 10px 0; }
+.layer { display: grid; grid-template-columns: 44px 1fr; border-radius: 10px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: transform .15s, border-color .15s; }
+.layer:hover { transform: translateX(3px); }
+.layer .n { display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 1.2em; }
+.layer .b { padding: 8px 12px; font-size: .92em; }
+.layer .b small { color: #444; display: block; }
+.layer.hit { border-color: var(--hl); box-shadow: 0 0 0 3px #dc143c33; }
+.l7 .n { background: #4a78c2; } .l7 .b { background: #dbe6f7; }
+.l6 .n { background: #1fb0cf; } .l6 .b { background: #d6f1f7; }
+.l5 .n { background: #4caf50; } .l5 .b { background: #dff0df; }
+.l4 .n { background: #e6b800; } .l4 .b { background: #fbf0c4; }
+.l3 .n { background: #ef8a2d; } .l3 .b { background: #fbe0c6; }
+.l2 .n { background: #d9459b; } .l2 .b { background: #f6d5e7; }
+.l1 .n { background: #d9302c; } .l1 .b { background: #f7d2d0; }
+
+
+/* ---------- event loop ---------- */
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 10px 0; }
+.box { border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px; background: #fbfaf7; }
+.box h3 { margin: 0 0 6px; font-size: 1em; }
+.dots { display: flex; flex-wrap: wrap; gap: 3px; min-height: 28px; margin: 6px 0; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #b9c4bb; }
+.dot.t { background: #d9302c; border-radius: 2px; }
+.dot.ready { background: var(--hl); box-shadow: 0 0 0 2px #dc143c44; }
+.state { display: inline-block; padding: 2px 12px; border-radius: 999px; font-size: .88em; font-weight: 700; color: #fff; }
+.state.sleep { background: #6b7a6f; } .state.wake { background: #e0902b; } .state.run { background: #d9302c; }
+.warn { color: #b3261e; font-weight: 700; }
+.steps { margin: 8px 0; padding-left: 0; list-style: none; }
+.steps li { padding: 6px 10px; margin: 4px 0; border-radius: 8px; border: 1px solid var(--border); background: #fff; }
+.steps li.on { border-color: var(--hl); background: var(--hl-bg); font-weight: 700; }
+
+
+/* ---------- 第一節 ---------- */
+.search { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; margin: 6px 0 10px; }
+.tscroll { overflow-x: auto; }
+h3 { font-size: 1.05em; color: #3d4f3f; margin: 22px 0 8px; }
+
+/* ---------- quiz ---------- */
+.q { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 10px 0; background: #fbfaf7; }
+.ans { display: none; margin-top: 8px; padding: 8px 12px; background: #eef7ee; border-left: 4px solid var(--accent); border-radius: 6px; }
+.ans.show { display: block; }
+.blank { cursor: pointer; background: #dfe6dd; color: transparent; border-radius: 4px; padding: 0 10px; user-select: none; border-bottom: 2px solid var(--accent-d); }
+.blank.open { background: #d8f1d6; color: #1a4d22; font-weight: 700; user-select: auto; }
+.tf button.pick { margin-right: 6px; }
+.right { color: #1a7a33; font-weight: 700; } .wrong { color: #b3261e; font-weight: 700; }
+@media (max-width: 600px) { .card { padding: 16px 14px; } h1 { font-size: 1.3em; } }
+</style>
+<link rel="stylesheet" href="../assets/notes.css">
+</head>
+<body>
+<div class="wrap">
+
+<header class="page-head">
+  <h1>延遲 Latency：DNS 遞迴查詢、TCP 握手、行動網路與 OSI 七層串聯</h1>
+  <div class="meta">互動版 · 對應筆記 <a href="延遲Latency-DNS遞迴查詢-TCP握手-行動網路-OSI七層串聯.md">延遲Latency-DNS遞迴查詢-TCP握手-行動網路-OSI七層串聯.md</a> · 前一篇 <a href="DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能-原文Populating-the-page導讀.html">DNS 查詢、TCP 與 TLS 握手 RTT</a> · 整理日 2026-10-03</div>
+  <div class="meta">資料來源：MDN <a href="https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work">How browsers work</a>（2025-12-18 修改）、<a href="https://www.rfc-editor.org/rfc/rfc1034#section-5.3">RFC 1034 §5.3</a>、<a href="https://www.iso.org/standard/11955.html">ISO 5807:1985</a>（查證日 2026-10-03）</div>
+</header>
+
+<!-- ============ 0. 名詞導覽與延遲（對應筆記第一節） ============ -->
+<section class="card" id="intro">
+  <h2>一、延遲 Latency：名詞導覽、正常與慢、怎麼降</h2>
+  <p class="hint">對應筆記第一節，是全篇總入口：先把名詞講完，再定義延遲、算帳、給「正常與慢」的標準，最後講怎麼降。後面各節只是把其中一格放大。</p>
+
+  <h3>(a-0) 先定義「第幾層」</h3>
+  <p><mark>第 1 層是實體層（硬體），第 7 層是應用層（軟體）。</mark>OSI 的編號由下往上數：數字越小越靠近電線與電波、越偏硬體；數字越大越靠近使用者與程式、越偏軟體。送出資料時由第 7 層往第 1 層走（封裝），接收時由第 1 層往第 7 層走（解封裝）。</p>
+  <div class="tscroll"><table>
+    <tr><th>層號</th><th>名稱</th><th>偏軟還是偏硬</th><th>這一層在解決什麼</th><th>本篇例子</th></tr>
+    <tr><td>7</td><td>應用層 Application</td><td>軟體（程式與函式庫）</td><td>程式之間用什麼「語言」溝通</td><td>DNS、HTTP、WebSocket</td></tr>
+    <tr><td>6</td><td>展示層 Presentation</td><td>軟體</td><td>資料格式、編碼、加密</td><td>TLS（常被歸在此）</td></tr>
+    <tr><td>5</td><td>會談層 Session</td><td>軟體</td><td>建立與管理一次對話</td><td>實務少獨立看待</td></tr>
+    <tr><td>4</td><td>傳輸層 Transport</td><td>作業系統核心（軟體）</td><td>送到對方機器上的「哪個程式」，並決定可不可靠</td><td>TCP、UDP</td></tr>
+    <tr><td>3</td><td>網路層 Network</td><td>核心與路由器（軟體為主）</td><td>跨網路送到「哪一台機器」</td><td>IP</td></tr>
+    <tr><td>2</td><td>資料連結層 Data Link</td><td>網卡與驅動（軟硬交界）</td><td>同一段網路上送給下一台設備</td><td>Wi-Fi、Ethernet、MAC</td></tr>
+    <tr><td>1</td><td>實體層 Physical</td><td>硬體</td><td>位元如何變成電波或光訊號</td><td>光纖、無線電波、雙絞線</td></tr>
+  </table></div>
+  <p class="hint">TCP/IP 四層模型的教材常把「連結、網際網路、傳輸、應用」由下往上標成 1～4（不同教材編法不一）；業界說 L3、L4、L7 一律指 OSI 編號。</p>
+
+  <h3>(a-1) 名詞導覽（依 OSI 層由 L7 排到 L1，可搜尋）</h3>
+  <input type="search" id="gSearch" class="search" placeholder="輸入關鍵字篩選，例如 UDP、L4、快取、基地台">
+  <div class="tscroll"><table id="gTable"><thead><tr><th>OSI 層</th><th>名詞</th><th>全名與中文</th><th>一句話定義</th><th>細講在</th></tr></thead><tbody></tbody></table></div>
+
+  <h3>stub resolver 有確實解析嗎？</h3>
+  <p><mark>有。它負責「替程式解析」，沒做的只是「追查」。</mark><a href="https://www.rfc-editor.org/rfc/rfc9499.html" target="_blank" rel="noopener">RFC 9499</a> 定義 stub resolver 為「無法自己完成整個解析的 resolver」，<a href="https://www.rfc-editor.org/rfc/rfc1034#section-5.3.1" target="_blank" rel="noopener">RFC 1034 §5.3.1</a> 說這是把解析功能交給支援遞迴查詢的 name server，本機只需一份 name server 位址清單。</p>
+  <div class="tscroll"><table>
+    <tr><th>stub resolver 的工作</th><th>做不做</th><th>說明</th></tr>
+    <tr><td>提供解析入口給程式（如 getaddrinfo）</td><td>做</td><td>程式問「這個名字的 IP」，由它回答</td></tr>
+    <tr><td>查 hosts 檔與本機快取</td><td>做</td><td>命中就直接回，連網路都不出</td></tr>
+    <tr><td>送查詢給設定好的 recursive resolver</td><td>做</td><td>Linux 的位址在 <a href="https://man7.org/linux/man-pages/man5/resolv.conf.5.html" target="_blank" rel="noopener">resolv.conf</a> 的 nameserver</td></tr>
+    <tr><td>處理逾時、重送、換下一台</td><td>做</td><td>RFC 1034 §5.3.1：要自己設重送間隔，同時應付掉包與伺服器當機</td></tr>
+    <tr><td>依 TTL 快取答案</td><td>做</td><td>本機實測：清空快取後解析 example.com，TTL 300，3 秒後變 297</td></tr>
+    <tr><td>追查 root、TLD、authoritative</td><td>不做</td><td>這是 recursive resolver 的工作</td></tr>
+  </table></div>
+  <p class="hint">瀏覽器端：Chrome 有自己的 built-in resolver（<a href="https://chromium.googlesource.com/chromium/src/+/main/net/dns/README.md" target="_blank" rel="noopener">Chromium net/dns README</a>），也可呼叫作業系統的 getaddrinfo()，符合條件時擇一。</p>
+
+  <h3>(a-2) TCP 與 UDP：點一個情境，看該用哪個</h3>
+  <p class="hint">兩者是同一層（L4）的兩種取捨，不是新舊或好壞。以 RFC 日期看，UDP（1980）比 TCP（1981）還早一年。</p>
+  <div class="fc-bar" id="scChips"></div>
+  <div class="info" id="scInfo" style="position:static;min-height:70px"><span class="tag">提示</span>點上面的情境。</div>
+  <div class="tscroll"><table>
+    <tr><th>比較項目</th><th><a href="https://www.rfc-editor.org/rfc/rfc9293" target="_blank" rel="noopener">TCP</a></th><th><a href="https://www.rfc-editor.org/rfc/rfc768" target="_blank" rel="noopener">UDP</a></th></tr>
+    <tr><td>連線</td><td>先三向握手（約 1 RTT）才能傳資料</td><td>不需要握手，直接送</td></tr>
+    <tr><td>可靠性</td><td>掉了會重傳，保證送達</td><td>不保證，要不要補由應用層決定</td></tr>
+    <tr><td>順序</td><td>保證依序</td><td>不保證</td></tr>
+    <tr><td>資料形式</td><td>連續位元組流，沒有訊息邊界</td><td>獨立的資料報，有邊界</td></tr>
+    <tr><td>額外負擔</td><td>標頭大、要維護連線狀態、有擁塞控制與慢啟動</td><td>標頭很小（來源埠、目的埠、長度、檢查碼各 16 位元）</td></tr>
+    <tr><td>延遲特性</td><td>握手與重傳讓首包慢；掉包時後面要等（隊頭阻塞）</td><td>首包最快，但掉包不會自動補</td></tr>
+    <tr><td>規範</td><td>RFC 793（1981-09），現行 RFC 9293</td><td>RFC 768（1980-08）</td></tr>
+  </table></div>
+
+  <h3>DNS 為什麼預設走 UDP 的 53 埠？兩者一定有關係嗎？</h3>
+  <p><mark>沒有必然關係：UDP 是「怎麼送」（傳輸協定），53 是「送給這台機器上的哪個服務」（埠號），是兩件獨立的事。</mark>RFC 1035 §4.2 說 DNS 可用資料報或虛擬電路（TCP），查詢「偏好」資料報是因為額外負擔低、效能好；同一個 53 埠在 UDP 與 TCP 各登記一份（IANA：domain 53 的 TCP 與 UDP）。UDP 與 TCP 的埠號是各自獨立的空間，UDP 53 與 TCP 53 是兩個不同的端點。</p>
+  <div class="tscroll"><table>
+    <tr><th>DNS 的傳輸方式</th><th>協定與埠</th><th>什麼時候用</th><th>規範</th></tr>
+    <tr><td>傳統查詢（預設）</td><td>UDP 53</td><td>一問一答很小，省掉握手，1 RTT 問完</td><td>RFC 1035（1987-11）</td></tr>
+    <tr><td>傳統查詢的 TCP 版</td><td>TCP 53</td><td>回應被截斷（TC 位元）、區域傳輸；RFC 7766 要求 DNS 實作必須支援 TCP</td><td>RFC 1035、RFC 7766（2016-03）</td></tr>
+    <tr><td>加大 UDP 訊息</td><td>仍是 UDP 53</td><td>原始 UDP 訊息上限 512 位元組；EDNS(0) 讓雙方宣告更大的大小，建議從約 4096 起試</td><td>RFC 6891（2013-04）</td></tr>
+    <tr><td>DNS over TLS（DoT）</td><td>TCP 853</td><td>加密 stub 到 recursive resolver 的查詢</td><td>RFC 7858（2016-05）</td></tr>
+    <tr><td>DNS over HTTPS（DoH）</td><td>走 HTTPS（TCP 之上，慣用 443）</td><td>把每個 DNS 查詢包成一次 HTTP 請求</td><td>RFC 8484（2018-10）</td></tr>
+    <tr><td>DNS over QUIC（DoQ）</td><td>UDP 853</td><td>QUIC 之上的加密 DNS</td><td>RFC 9250（2022-05）</td></tr>
+  </table></div>
+  <p class="hint">埠號是約定，不是技術限制：IANA 登記表把 domain 53 同時登記給 TCP 與 UDP（受讓人為 DNS 發明者 Paul Mockapetris）；853 則登記給「DNS over TLS（TCP）」與「DNS over DTLS／QUIC（UDP）」。</p>
+
+  <h3>(a-3) 與延遲有關的量</h3>
+  <div class="tscroll"><table>
+    <tr><th>名詞</th><th>衡量什麼</th><th>單位</th><th>受什麼影響</th></tr>
+    <tr><td>Latency 延遲</td><td>一個封包從來源走到目的地的時間</td><td>ms</td><td>物理距離、轉接次數、無線段</td></tr>
+    <tr><td>RTT 往返時間</td><td>A 到 B 再回 A，延遲最常用的量法</td><td>ms</td><td>同上，約為單程兩倍</td></tr>
+    <tr><td>Bandwidth 頻寬</td><td>線路單位時間「最多」能送多少</td><td>Mbps</td><td>線路規格</td></tr>
+    <tr><td>Throughput 吞吐量</td><td>單位時間「實際」送了多少</td><td>Mbps</td><td>延遲、擁塞、慢啟動、掉包</td></tr>
+    <tr><td>TTFB</td><td>送出請求到收到第一個位元組，已含 DNS、TCP、TLS 與伺服器處理</td><td>ms</td><td>各段 RTT 之和加伺服器處理</td></tr>
+    <tr><td>Jitter 抖動</td><td>延遲一次比一次不穩的程度</td><td>ms</td><td>無線訊號、擁塞</td></tr>
+    <tr><td>Packet loss 封包遺失率</td><td>送出的封包掉了幾成</td><td>%</td><td>訊號差、壅塞；TCP 重傳使延遲變大</td></tr>
+  </table></div>
+  <p class="hint">頻寬是水管多粗，latency 是水管多長，水管再粗也縮短不了長度。</p>
+
+  <h3>(b) 為什麼不能直接把 RTT 相加</h3>
+  <div class="tscroll"><table>
+    <tr><th>原因</th><th>說明</th></tr>
+    <tr><td>各段對象不同</td><td>DNS 是手機到 resolver，TCP、TLS、HTTP 是手機到 web server，RTT 不一樣長</td></tr>
+    <tr><td>有快取與複用</td><td>DNS 快取命中為 0；連線複用時 TCP 與 TLS 為 0</td></tr>
+    <tr><td>不是全部串行</td><td>瀏覽器同時對多個 hostname 建連線</td></tr>
+    <tr><td>資料還要傳</td><td>檔案大小 ÷ 有效頻寬，且慢啟動使大檔要多個 RTT 才加速到全速</td></tr>
+    <tr><td>伺服器與渲染也要時間</td><td>後端查資料庫、瀏覽器解析與渲染都不在 RTT 裡</td></tr>
+  </table></div>
+  <p><mark>總載入時間 ≈ 連線建立（各段往返數 × 該段 RTT）＋ 伺服器處理 ＋ 傳輸（資料量 ÷ 有效頻寬，含慢啟動）＋ 瀏覽器解析與渲染。</mark>下面第三節的試算就是在算「連線建立」那一段。</p>
+
+  <h3>(b-2) 正常還是慢？輸入你量到的數字</h3>
+  <p class="hint">門檻來自 web.dev（TTFB、LCP、INP，75 百分位）、Nielsen 1993（感受）、WICG Network Information API（連線分級）。LCP 與 INP「差」的界線本次未取得原文，所以只判斷到「好／需改善」。</p>
+  <div class="grid">
+    <div><label>要判斷什麼</label>
+      <select id="vMetric">
+        <option value="ttfb">TTFB（ms）</option>
+        <option value="lcp">LCP 最大內容繪製（ms）</option>
+        <option value="inp">INP 互動到下一次繪製（ms）</option>
+        <option value="rtt">網路 RTT 的連線分級（ms）</option>
+        <option value="feel">使用者感受的回應時間（ms）</option>
+        <option value="floor">相對物理下限（輸入距離 km 與實測 RTT）</option>
+      </select></div>
+    <div><label id="vLab1">數值（ms）</label><input type="number" id="vNum" value="1200" min="0"></div>
+    <div id="vBox2" style="display:none"><label>實測 RTT（ms）</label><input type="number" id="vNum2" value="180" min="0"></div>
+  </div>
+  <div class="info" id="vOut" style="position:static;min-height:60px"></div>
+
+  <h3>(b-3) 現代降低延遲的做法（點方向篩選）</h3>
+  <p class="hint">降低延遲只有三個方向：縮短距離、減少往返次數、讓等待重疊（提前或平行），每一項都是它們的變形。</p>
+  <div class="fc-bar" id="rdChips"></div>
+  <div class="tscroll"><table id="rdTable"><thead><tr><th>手法</th><th>省哪一筆</th><th>怎麼做到</th><th>方向</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<!-- ============ 1. 流程圖 ============ -->
+<section class="card" id="flow">
+  <h2>二、Recursive Lookup 遞迴查詢流程圖（ISO 5807 符號）</h2>
+  <p>選一個情境，按「下一步」一格一格走；也可以直接點任何一個方框看它在做什麼。<mark>流程圖的標準是 ISO 5807，不是 ISO 8607。</mark></p>
+  <div class="fc-bar" id="scenarios"></div>
+  <div class="fc-bar">
+    <button class="btn" id="btnNext">下一步 ▶</button>
+    <button class="btn ghost" id="btnAuto">自動播放</button>
+    <button class="btn ghost" id="btnReset">重來</button>
+    <span class="hint" id="costLine"></span>
+  </div>
+  <div class="info" id="info"><span class="tag">提示</span>先選情境，再按「下一步」。</div>
+  <div class="legend" id="legend"></div>
+  <svg class="fc" id="svg" viewBox="0 0 760 1300" role="img" aria-label="Recursive Lookup 遞迴查詢流程圖"></svg>
+</section>
+
+<!-- ============ 2. 延遲試算 ============ -->
+<section class="card" id="ledger">
+  <h2>三、延遲帳本試算：請求送出前要付多少 ms</h2>
+  <p class="hint">調整參數，看 DNS、TCP、TLS 三筆往返各佔多少。<mark>每一筆的對方不同</mark>：DNS 對 recursive resolver，TCP 與 TLS 對 web server。</p>
+  <div class="grid">
+    <div><label>手機 → recursive resolver RTT：<b id="vR">60</b> ms</label><input type="range" id="rttR" min="5" max="300" value="60"></div>
+    <div><label>手機 → web server RTT：<b id="vW">150</b> ms</label><input type="range" id="rttW" min="5" max="400" value="150"></div>
+    <div><label>TLS 版本</label>
+      <select id="tls"><option value="1">TLS 1.3（1 RTT）</option><option value="2">TLS 1.2（2 RTT）</option><option value="0">TLS 1.3 0-RTT 恢復（0 RTT）</option></select></div>
+    <div><label>resolver 快取命中？</label>
+      <select id="rc"><option value="hit">命中（只問一次）</option><option value="miss">沒命中（resolver 內部再追 3 站，每站約 15 ms）</option></select></div>
+    <div><label>本機（瀏覽器／OS）快取命中？</label>
+      <select id="lc"><option value="miss">沒命中</option><option value="hit">命中（DNS 為 0）</option></select></div>
+    <div><label>頁面引用的不同 hostname 數：<b id="vN">1</b></label><input type="range" id="nHost" min="1" max="10" value="1"></div>
+  </div>
+  <div class="bar" id="bar"></div>
+  <table>
+    <tr><th>步驟</th><th>算式</th><th>ms</th></tr>
+    <tr><td>DNS lookup</td><td id="fDns"></td><td id="mDns"></td></tr>
+    <tr><td>TCP 三向握手</td><td id="fTcp"></td><td id="mTcp"></td></tr>
+    <tr><td>TLS 握手</td><td id="fTls"></td><td id="mTls"></td></tr>
+    <tr><td>HTTP 請求到首位元組（至少 1 RTT）</td><td id="fHttp"></td><td id="mHttp"></td></tr>
+  </table>
+  <p class="total">單一 hostname 在送出請求前：<span id="one"></span> ms；引用 <span id="nn"></span> 個不同 hostname、逐一串行的最壞情況：<span id="all"></span> ms</p>
+  <p class="hint">瀏覽器實際會平行處理多個 hostname，所以串行數字是上限，用來感受「跨網域資源每個都要重付一次」。</p>
+</section>
+
+<!-- ============ 3. OSI ============ -->
+<section class="card" id="osi">
+  <h2>四、OSI 七層：點一層看這一層在本篇扮演什麼</h2>
+  <div class="fc-bar">
+    <button class="btn" id="btnEnc">送出 DNS 查詢：封裝 L7→L1</button>
+    <button class="btn ghost" id="btnDec">對方收到：解封裝 L1→L7</button>
+  </div>
+  <div class="info" id="osiInfo" style="position:static;min-height:70px"><span class="tag">提示</span>紅框的三層（7、4、3）是本篇主角。</div>
+  <div class="osi" id="osiList"></div>
+  <p class="hint">TLS 在 OSI 沒有明確位置，常被放在 L6；TCP/IP 四層模型把 5～7 層合併為應用層。<mark>DNS 在 L7，查出來的 IP 是 L3 位址。</mark></p>
+  <h3>一條 WebSocket 連線，每個名詞在哪一層</h3>
+  <p><mark>WebSocket 在 L7（最上層）；TCP 在 L4 傳輸層，不是 L3；socket 與 fd 不屬於七層，是程式呼叫核心的 API。</mark></p>
+  <img src="../obsidian-attachment/學習網路_圖解_一條WebSocket連線在OSI各層對應什麼-socket與fd在哪_2026-10-04.svg" alt="一條 WebSocket 連線在 OSI 各層對應什麼：L7 WebSocket、L6 TLS、socket API 分界、L4 TCP、L3 IP、L2、L1" style="width:100%;height:auto;border:1px solid var(--border);border-radius:10px;background:#fff">
+</section>
+
+<!-- ============ 4. TCP vs TLS 年代 ============ -->
+<section class="card" id="age">
+  <h2>五、TCP 與 TLS 誰比較新？RTT 跟新舊有關嗎？</h2>
+  <table>
+    <tr><th>協定</th><th>規範與發布時間</th><th>握手 RTT</th></tr>
+    <tr><td>TCP</td><td>RFC 793，1981-09（現行為 RFC 9293）</td><td>1</td></tr>
+    <tr><td>TLS 1.0</td><td>RFC 2246，1999-01</td><td>—</td></tr>
+    <tr><td>TLS 1.2</td><td>RFC 5246，2008-08</td><td>2</td></tr>
+    <tr><td>TLS 1.3</td><td>RFC 8446，2018-08</td><td>1（0-RTT 恢復為 0）</td></tr>
+    <tr><td>QUIC</td><td>RFC 9000，2021-05</td><td>傳輸與加密握手合併，約 1</td></tr>
+  </table>
+  <p><mark>TCP 較老、TLS 較新；TLS 疊在 TCP 上，所以 TCP 握手必在前。</mark>MDN 說 TLS「five more round trips」是把圖上的 5 條單趟箭頭當成往返；一個 RTT 含去與回兩條箭頭。</p>
+</section>
+
+<!-- ============ 5. event loop ============ -->
+<section class="card" id="loop">
+  <h2>六、一條執行緒怎麼顧 N 條連線：event loop 與 epoll</h2>
+  <p><mark>epoll 是作業系統的 API，event loop 是程式的迴圈結構</mark>：迴圈每一輪都呼叫 epoll_wait，問核心哪些 fd 就緒了。拖動連線數，比較兩種模型：</p>
+  <div class="grid"><div><label>同時連線數 N：<b id="nConn">1000</b></label><input type="range" id="nc" min="10" max="20000" step="10" value="1000"></div></div>
+  <div class="two">
+    <div class="box"><h3>一連線一執行緒（阻塞 I/O）</h3>
+      <div>需要執行緒：<b id="thA">1000</b> 條</div>
+      <div class="dots" id="dotsA"></div>
+      <div class="hint">每條執行緒有自己的 stack，大多數時間在 read 上睡著等資料。</div></div>
+    <div class="box"><h3>I/O 多路複用（event loop）</h3>
+      <div>需要執行緒：<b>1</b> 條　監看 fd：<b id="fdB">1000</b> 個</div>
+      <div class="dots" id="dotsB"></div>
+      <div id="fdWarn" class="hint"></div></div>
+  </div>
+  <div class="fc-bar"><button class="btn" id="lpNext">下一步 ▶</button><button class="btn ghost" id="lpReset">重來</button><span>執行緒目前狀態：<span class="state sleep" id="lpState">睡眠</span></span></div>
+  <ol class="steps" id="lpSteps">
+    <li>1. 呼叫 epoll_wait 等待（睡眠，不用 CPU）</li>
+    <li>2. 核心回報 3 個 fd 就緒（醒來，標紅的連線）</li>
+    <li>3. 依序執行這 3 條連線的處理函式（運算中，用 CPU，所以要短）</li>
+    <li>4. 回到步驟 1，又睡眠</li>
+  </ol>
+  <p class="hint">沒有「I/O 專用執行緒」與「CPU 執行緒」之分：同一條執行緒反覆睡眠、醒來、運算。一條 WebSocket ＝ 一條 TCP 連線 ＝ 一個 socket（fd）。</p>
+</section>
+
+<!-- ============ 6. 測驗 ============ -->
+<section class="card" id="quiz">
+  <h2>七、自己考自己</h2>
+  <h3>填空（點灰色格子顯示答案）</h3>
+  <div id="fill"></div>
+  <h3>是非題</h3>
+  <div id="tf"></div>
+  <h3>申論題</h3>
+  <div id="essay"></div>
+</section>
+
+</div>
+
+<script>
+/* ============================== 流程圖資料 ============================== */
+const NW = 300, CX = 300;
+const nodes = {
+  S:{t:'term',x:CX,y:40, h:48,text:['開始：瀏覽器要連','www.example.com'],
+     tag:'開始（終止符）',d:'使用者輸入網址或點擊連結。瀏覽器先要知道 www.example.com 的 IP 才能建立連線。'},
+  B:{t:'dec',x:CX,y:135,text:['瀏覽器快取有 IP？'],
+     tag:'判斷',d:'瀏覽器自己的 DNS 快取。查詢單位是 hostname，且只在 TTL 內有效；過期就當沒有。'},
+  C:{t:'dec',x:CX,y:245,text:['OS 快取或 hosts 檔有？'],
+     tag:'判斷',d:'作業系統的 stub resolver 快取，以及 hosts 檔的手動對應。仍是你的電腦上，不用出門。'},
+  D:{t:'data',x:CX,y:350,text:['stub resolver 把查詢送給','recursive resolver'],
+     tag:'資料輸出（遞迴查詢）',d:'<b>第一次出門</b>：用 UDP 53 埠送到電信業者或 8.8.8.8 這類 recursive resolver。手機要先經基地台、電信核心機房才到這裡，這是手機上最貴的一個往返。這一段是「遞迴查詢」：resolver 要負責追到底。'},
+  E:{t:'dec',x:CX,y:460,text:['recursive resolver 快取有？'],
+     tag:'判斷',d:'resolver 服務很多人，熱門網域通常已被別人查過。實務上它也常已快取 .com 的 TLD NS，所以很少真的問到 root。'},
+  F:{t:'pre',x:CX,y:570,text:['問 root：誰管 .com？'],
+     tag:'預先定義的處理（迭代）',d:'resolver 去問 root name server。這一段起是「迭代查詢」：對方只回「去問更近的那台」，由 resolver 自己一站一站追。'},
+  G:{t:'proc',x:CX,y:650,text:['root 回轉介：.com TLD 的 NS'],
+     tag:'處理（referral 轉介）',d:'root 不知道 www.example.com，只告訴 resolver：.com 的 TLD name server 是這幾台。'},
+  H:{t:'pre',x:CX,y:730,text:['問 .com TLD：誰管 example.com？'],
+     tag:'預先定義的處理（迭代）',d:'resolver 去問 .com 的 TLD name server。'},
+  I:{t:'proc',x:CX,y:810,text:['TLD 回轉介：example.com 權威 NS'],
+     tag:'處理（referral 轉介）',d:'TLD 回覆：example.com 的 authoritative name server 在這幾台（例如網域擁有者設定的 DNS 託管服務）。'},
+  J:{t:'pre',x:CX,y:890,text:['問 authoritative：','www.example.com 的 A 紀錄？'],
+     tag:'預先定義的處理（迭代）',d:'resolver 去問權威 name server，這台才握有網域擁有者設定的真正紀錄。', h:62},
+  K:{t:'proc',x:CX,y:975,text:['權威 NS 回答 A 紀錄與 TTL'],
+     tag:'處理（最終答案）',d:'回傳 IP（A 或 AAAA 紀錄）以及 TTL。TTL 決定這筆答案各層快取能保存多久。'},
+  L:{t:'proc',x:CX,y:1055,text:['resolver 依 TTL 寫入快取'],
+     tag:'處理（快取）',d:'下一個問同一個名字的人，resolver 在 TTL 內直接回答，不必再追 root、TLD、authoritative。'},
+  R:{t:'data',x:CX,y:1140,text:['resolver 把 IP 回給','stub resolver'],
+     tag:'資料輸入（答案回來）',d:'答案走原路回到手機：核心機房 → 基地台 → 手機。這是第二半個往返，合起來就是 DNS 的 1 RTT（手機到 resolver）。'},
+  M:{t:'proc',x:CX,y:1215,text:['OS 與瀏覽器也寫入快取'],
+     tag:'處理（快取）',d:'本機兩層快取各存一份，下次同一個 hostname 在 TTL 內不用再出門。'},
+  Z:{t:'term',x:CX,y:1275,h:44,text:['拿到 IP → 進入 TCP 握手'],
+     tag:'結束（終止符）',d:'DNS 到此結束。接下來瀏覽器拿這個 IP 去跟「web server」（不是 name server）做 TCP 三向握手。'}
+};
+const edges = [
+  ['S','B'],['B','C','否'],['C','D','否'],['D','E'],['E','F','否'],['F','G'],['G','H'],['H','I'],['I','J'],['J','K'],['K','L'],['L','R'],['R','M'],['M','Z'],
+  ['B','Z','是','busR'],['C','Z','是','busR'],['E','R','是','busL']
+];
+const scenarios = {
+  browser:{name:'瀏覽器快取命中',path:['S','B','Z'],cost:'DNS 成本：0 RTT（不用出門）'},
+  os:{name:'OS／hosts 命中',path:['S','B','C','Z'],cost:'DNS 成本：0 RTT（不用出門）'},
+  resolver:{name:'resolver 快取命中',path:['S','B','C','D','E','R','M','Z'],cost:'DNS 成本：1 RTT（手機 ↔ resolver）'},
+  cold:{name:'全部沒命中（冷查詢）',path:['S','B','C','D','E','F','G','H','I','J','K','L','R','M','Z'],cost:'DNS 成本：手機端 1 RTT ＋ resolver 內部追查 3 站（機房間單趟短）'}
+};
+const svg = document.getElementById('svg');
+const NS = 'http://www.w3.org/2000/svg';
+function el(n, a, p){ const e=document.createElementNS(NS,n); for(const k in a) e.setAttribute(k,a[k]); (p||svg).appendChild(e); return e; }
+function dims(n){ const h=n.h|| (n.t==='dec'?78:52); const w=n.t==='dec'?290:NW; return {w,h}; }
+function drawShape(g,n){
+  const {w,h}=dims(n), x=n.x, y=n.y, c={class:'shape'};
+  if(n.t==='term') el('rect',{...c,x:x-w/2,y:y-h/2,width:w,height:h,rx:h/2},g);
+  else if(n.t==='proc') el('rect',{...c,x:x-w/2,y:y-h/2,width:w,height:h},g);
+  else if(n.t==='dec') el('polygon',{...c,points:`${x},${y-h/2} ${x+w/2},${y} ${x},${y+h/2} ${x-w/2},${y}`},g);
+  else if(n.t==='data'){ const s=18; el('polygon',{...c,points:`${x-w/2+s},${y-h/2} ${x+w/2+s},${y-h/2} ${x+w/2-s},${y+h/2} ${x-w/2-s},${y+h/2}`},g); }
+  else if(n.t==='pre'){ el('rect',{...c,x:x-w/2,y:y-h/2,width:w,height:h},g);
+    el('line',{x1:x-w/2+14,y1:y-h/2,x2:x-w/2+14,y2:y+h/2,stroke:'#5a6b5d','stroke-width':2},g);
+    el('line',{x1:x+w/2-14,y1:y-h/2,x2:x+w/2-14,y2:y+h/2,stroke:'#5a6b5d','stroke-width':2},g); }
+}
+function n_bottom(id){ const n=nodes[id], d=dims(n); return [n.x, n.y+d.h/2]; }
+function n_top(id){ const n=nodes[id], d=dims(n); return [n.x, n.y-d.h/2]; }
+function n_right(id){ const n=nodes[id], d=dims(n); return [n.x+d.w/2 + (n.t==='data'?18:0), n.y]; }
+function n_left(id){ const n=nodes[id], d=dims(n); return [n.x-d.w/2 - (n.t==='data'?18:0), n.y]; }
+
+// arrow marker
+const defs = el('defs',{});
+['', 'on'].forEach(k=>{
+  const m=el('marker',{id:'arr'+k,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:8,markerHeight:8,orient:'auto-start-reverse'},defs);
+  el('path',{d:'M0,0 L10,5 L0,10 z',fill:k?'#45614a':'#8a948c'},m);
+});
+const edgeEls = {};
+edges.forEach(([a,b,lab,mode])=>{
+  let d, lx, ly;
+  if(mode==='busR'){ const [x1,y1]=n_right(a), [x2,y2]=n_right(b); d=`M${x1},${y1} H640 V${y2} H${x2}`; lx=x1+30; ly=y1-8; }
+  else if(mode==='busL'){ const [x1,y1]=n_right(a), [x2,y2]=n_right(b); d=`M${x1},${y1} H560 V${y2} H${x2}`; lx=x1+30; ly=y1-8; }
+  else { const [x1,y1]=n_bottom(a), [x2,y2]=n_top(b); d=`M${x1},${y1} V${y2}`; lx=x1+16; ly=(y1+y2)/2; }
+  const p=el('path',{d,class:'edge','marker-end':'url(#arr)'});
+  edgeEls[a+b]=p;
+  if(lab){ const t=el('text',{x:lx,y:ly,class:'elabel'}); t.textContent=lab; }
+});
+const nodeEls = {};
+Object.keys(nodes).forEach(id=>{
+  const n=nodes[id], g=el('g',{class:'node'});
+  drawShape(g,n);
+  n.text.forEach((line,i)=>{ const t=el('text',{x:n.x,y:n.y+(i-(n.text.length-1)/2)*18},g); t.textContent=line; });
+  g.addEventListener('click',()=>show(id));
+  nodeEls[id]=g;
+});
+
+// legend
+document.getElementById('legend').innerHTML = [
+  ['橢圓＝開始／結束','<rect x="1" y="3" width="32" height="14" rx="7" fill="#fff" stroke="#5a6b5d" stroke-width="2"/>'],
+  ['矩形＝處理','<rect x="1" y="3" width="32" height="14" fill="#fff" stroke="#5a6b5d" stroke-width="2"/>'],
+  ['菱形＝判斷','<polygon points="17,1 33,10 17,19 1,10" fill="#fff" stroke="#5a6b5d" stroke-width="2"/>'],
+  ['平行四邊形＝資料進出','<polygon points="7,3 33,3 27,17 1,17" fill="#fff" stroke="#5a6b5d" stroke-width="2"/>'],
+  ['雙邊矩形＝預先定義的處理（去問另一台 name server）','<rect x="1" y="3" width="32" height="14" fill="#fff" stroke="#5a6b5d" stroke-width="2"/><line x1="6" y1="3" x2="6" y2="17" stroke="#5a6b5d" stroke-width="2"/><line x1="28" y1="3" x2="28" y2="17" stroke="#5a6b5d" stroke-width="2"/>']
+].map(([t,s])=>`<span><svg width="34" height="20">${s}</svg>${t}</span>`).join('');
+
+// 狀態機
+let cur = 'cold', step = -1, timer = null;
+const info = document.getElementById('info');
+function show(id){
+  const n=nodes[id];
+  info.innerHTML = `<span class="tag">${n.tag}</span><b>${n.text.join('')}</b><br>${n.d}`;
+}
+function render(){
+  const path = scenarios[cur].path;
+  Object.keys(nodeEls).forEach(id=>{
+    const c=nodeEls[id].classList; c.remove('visited','active','skipped');
+    const idx=path.indexOf(id);
+    if(idx===-1) c.add('skipped');
+    else if(idx<step) c.add('visited');
+    else if(idx===step) c.add('active');
+  });
+  Object.keys(edgeEls).forEach(k=>{
+    const a=k[0], b=k[1], p=edgeEls[k];
+    const ia=path.indexOf(a), ib=path.indexOf(b);
+    const used = ia!==-1 && ib!==-1 && ib===ia+1 || (ia!==-1&&ib!==-1&&Math.abs(ib-ia)>=1 && path[ia+1]===b);
+    const done = used && ib<=step;
+    p.classList.toggle('done',done); p.setAttribute('marker-end', done?'url(#arron)':'url(#arr)');
+    p.style.opacity = used ? 1 : .25;
+  });
+  document.getElementById('costLine').textContent = scenarios[cur].cost;
+  document.getElementById('btnNext').disabled = step>=path.length-1;
+  if(step>=0) show(path[step]);
+}
+function pick(k){ stop(); cur=k; step=-1; info.innerHTML='<span class="tag">提示</span>按「下一步」開始走：'+scenarios[k].name; document.querySelectorAll('#scenarios .btn').forEach(b=>b.classList.toggle('on',b.dataset.k===k)); render(); }
+function next(){ const path=scenarios[cur].path; if(step<path.length-1){ step++; render(); } else stop(); }
+function stop(){ if(timer){ clearInterval(timer); timer=null; document.getElementById('btnAuto').textContent='自動播放'; } }
+document.getElementById('scenarios').innerHTML = Object.keys(scenarios).map(k=>`<button class="btn ghost${k===cur?' on':''}" data-k="${k}">${scenarios[k].name}</button>`).join('');
+document.querySelectorAll('#scenarios .btn').forEach(b=>b.onclick=()=>pick(b.dataset.k));
+document.getElementById('btnNext').onclick = next;
+document.getElementById('btnReset').onclick = ()=>pick(cur);
+document.getElementById('btnAuto').onclick = function(){
+  if(timer){ stop(); return; }
+  if(step>=scenarios[cur].path.length-1) step=-1;
+  this.textContent='暫停'; next(); timer=setInterval(next,1600);
+};
+render();
+
+/* ============================== 延遲試算 ============================== */
+const $ = id=>document.getElementById(id);
+function calc(){
+  const rR=+$('rttR').value, rW=+$('rttW').value, tlsR=+$('tls').value, n=+$('nHost').value;
+  const rcMiss=$('rc').value==='miss', lcHit=$('lc').value==='hit';
+  $('vR').textContent=rR; $('vW').textContent=rW; $('vN').textContent=n;
+  const extra = rcMiss ? 45 : 0;
+  const dns = lcHit ? 0 : rR + extra;
+  const tcp = rW, tls = tlsR*rW, http = rW;
+  $('fDns').textContent = lcHit ? '本機快取命中 = 0' : `${rR}（手機↔resolver）` + (rcMiss?' + 3×15（resolver 追查）':'');
+  $('fTcp').textContent = `1 × ${rW}`; $('fTls').textContent = `${tlsR} × ${rW}`; $('fHttp').textContent = `1 × ${rW}（不含伺服器處理）`;
+  $('mDns').textContent=dns; $('mTcp').textContent=tcp; $('mTls').textContent=tls; $('mHttp').textContent=http;
+  const pre = dns+tcp+tls, all = dns+tcp+tls+http;
+  $('one').textContent = pre; $('nn').textContent = n; $('all').textContent = pre*n;
+  const parts=[['DNS',dns,'var(--dns)'],['TCP',tcp,'var(--tcp)'],['TLS',tls,'var(--tls)'],['HTTP',http,'var(--http)']];
+  $('bar').innerHTML = parts.filter(p=>p[1]>0).map(p=>`<div style="width:${p[1]/all*100}%;background:${p[2]}">${p[0]} ${p[1]}ms</div>`).join('');
+}
+['rttR','rttW','tls','rc','lc','nHost'].forEach(id=>$(id).addEventListener('input',calc)); calc();
+
+/* ============================== OSI ============================== */
+const layers = [
+  {n:7,c:'l7',name:'應用層 Application',hit:true,items:'DNS、HTTP、HTTPS',pdu:'訊息 data',add:'DNS 訊息：問 www.example.com 的 A 紀錄',
+   d:'<b>DNS 協定本身在這一層</b>；HTTP、HTTPS 也在這。DNS 查完、TCP 與 TLS 握手完，才輪到 HTTP 送出真正的請求。'},
+  {n:6,c:'l6',name:'展示層 Presentation',items:'TLS（常被歸此）',pdu:'訊息',add:'（DNS 查詢本身不加密；HTTPS 才有 TLS）',
+   d:'資料格式化、編碼、加密。TLS 在 OSI 沒有明確位置，教材常放在這；實務上它疊在 TCP 之上、HTTP 之下。'},
+  {n:5,c:'l5',name:'會談層 Session',items:'TCP/IP 模型合併進應用層',pdu:'訊息',add:'—',d:'建立、管理、終止會談。TCP/IP 四層模型把 5～7 層合成「應用層」，實務很少獨立看待這層。'},
+  {n:4,c:'l4',name:'傳輸層 Transport',hit:true,items:'TCP（三向握手）、UDP（DNS 預設）',pdu:'區段 segment／資料報 datagram',add:'UDP 標頭：目的埠 53',
+   d:'<b>TCP 在這一層</b>：SYN → SYN-ACK → ACK 固定約 1 RTT。DNS 預設用 UDP 53 埠，回應太大或需加密才改走 TCP、DoT、DoH。'},
+  {n:3,c:'l3',name:'網路層 Network',hit:true,items:'IP 位址、路由、ICMP',pdu:'封包 packet',add:'IP 標頭：目的 IP 為 resolver',
+   d:'<b>IP 位址屬於這一層</b>。DNS 的「答案」A／AAAA 紀錄就是 L3 的 IPv4／IPv6 位址：L7 的查詢，拿回 L3 的位址。'},
+  {n:2,c:'l2',name:'資料連結層 Data Link',items:'Wi-Fi 802.11、Ethernet、蜂巢式無線介面',pdu:'訊框 frame',add:'訊框標頭：下一跳的 MAC 位址',
+   d:'在同一段網路上把資料送到下一台設備（你的路由器或基地台）。'},
+  {n:1,c:'l1',name:'實體層 Physical',items:'光纖、無線電波、雙絞線',pdu:'位元 bit',add:'轉成電波或光訊號',
+   d:'真正離開你的裝置：手機的無線電波到 cell tower，或電腦的網路線。'}
+];
+$('osiList').innerHTML = layers.map(l=>`<div class="layer ${l.c}${l.hit?' hit':''}" data-n="${l.n}"><div class="n">${l.n}</div><div class="b"><b>${l.name}</b>　${l.pdu}<small>${l.items}</small></div></div>`).join('');
+function osiShow(l, mode){
+  const L=layers.find(x=>x.n===+l); $('osiInfo').innerHTML=`<span class="tag">L${L.n}</span>${L.d}` + (mode?`<br><b>${mode==='enc'?'這一層加上':'這一層拆掉'}：</b>${L.add}`:'');
+  document.querySelectorAll('.layer').forEach(e=>e.style.outline = (+e.dataset.n===L.n)?'3px solid var(--hl)':'none');
+}
+document.querySelectorAll('.layer').forEach(e=>e.onclick=()=>osiShow(e.dataset.n));
+function osiPlay(order, mode){
+  let i=0; (function go(){ osiShow(order[i],mode); i++; if(i<order.length) setTimeout(go,1300); })();
+}
+$('btnEnc').onclick=()=>osiPlay([7,4,3,2,1],'enc');
+$('btnDec').onclick=()=>osiPlay([1,2,3,4,7],'dec');
+
+
+/* ============================== event loop ============================== */
+let lpStep = -1, readyIdx = [];
+function drawDots(){
+  const n=+$('nc').value; $('nConn').textContent=n; $('thA').textContent=n; $('fdB').textContent=n;
+  const cap=Math.min(n,400), ratio=n/cap;
+  $('dotsA').innerHTML = Array.from({length:cap},()=>'<span class="dot t" title="一條執行緒"></span>').join('') + (n>cap?`<span class="hint">…共 ${n} 條</span>`:'');
+  readyIdx = [3, Math.floor(cap/2), cap-2].filter(i=>i>=0&&i<cap);
+  $('dotsB').innerHTML = Array.from({length:cap},(_,i)=>`<span class="dot${(lpStep>=1&&lpStep<=2&&readyIdx.includes(i))?' ready':''}" title="一個 fd"></span>`).join('') + (n>cap?`<span class="hint">…共 ${n} 個</span>`:'');
+  $('fdWarn').innerHTML = n>1024 ? '<span class="warn">注意：超過 1024 個 fd，要先調高 ulimit -n（常見預設為 1024）</span>' : '連線數在常見 fd 上限內';
+}
+function lpRender(){
+  document.querySelectorAll('#lpSteps li').forEach((li,i)=>li.classList.toggle('on',i===lpStep));
+  const st=$('lpState'); const m=[['sleep','睡眠'],['wake','醒來'],['run','運算中'],['sleep','睡眠']][Math.max(lpStep,0)];
+  st.className='state '+m[0]; st.textContent=m[1]; drawDots();
+}
+$('nc').addEventListener('input',drawDots);
+$('lpNext').onclick=()=>{ lpStep=(lpStep+1)%4; lpRender(); };
+$('lpReset').onclick=()=>{ lpStep=-1; lpRender(); };
+lpRender();
+
+/* ============================== 第一節：名詞導覽、情境、判斷、降延遲 ============================== */
+const gloss = [
+  ['L7 應用層','<a href="https://www.rfc-editor.org/rfc/rfc1034" target="_blank" rel="noopener">DNS</a>','Domain Name System 網域名稱系統','把 www.example.com 這種主機名稱翻成 IP 位址的分散式命名系統與查詢協定，預設走 UDP 的 53 埠','第二節'],
+  ['L7 應用層','<a href="https://www.rfc-editor.org/rfc/rfc9110" target="_blank" rel="noopener">HTTP、HTTPS</a>','HyperText Transfer Protocol（Secure）','瀏覽器向伺服器要網頁、API 資料的請求與回應格式；HTTPS 是 HTTP 加 TLS','(b)'],
+  ['L7 應用層','<a href="https://www.rfc-editor.org/rfc/rfc6455" target="_blank" rel="noopener">WebSocket</a>','WebSocket 協定','先用 HTTP 握手，再升級成雙向、可持續互傳訊息的連線','第六節'],
+  ['L7 應用層','<a href="https://www.rfc-editor.org/rfc/rfc1034#section-2.4" target="_blank" rel="noopener">Name server</a>','名稱伺服器','回答 DNS 問題的伺服器，細分為 root、TLD、authoritative 與 recursive resolver','第二節'],
+  ['L7 應用層','Web server','網站伺服器','放網頁與 API 的主機，瀏覽器拿到 IP 之後才去連它','第二節'],
+  ['L7 應用層','<a href="https://www.rfc-editor.org/rfc/rfc9499.html" target="_blank" rel="noopener">Stub resolver</a>','存根解析器','「無法自己完成整個解析、依賴 recursive resolver」的解析器（RFC 9499）；確實負責替程式解析（查 hosts 與快取、送查詢、重送、快取答案），不做的是追查 root、TLD、authoritative','下方說明'],
+  ['L7 應用層','<a href="https://www.rfc-editor.org/rfc/rfc9499.html" target="_blank" rel="noopener">Recursive resolver</a>','遞迴解析器','「以遞迴模式運作、通常會快取答案」的解析器（RFC 9499）；快取沒有時，代替你一站一站追到最終答案','第二節'],
+  ['L6 展示層','<a href="https://www.rfc-editor.org/rfc/rfc8446" target="_blank" rel="noopener">TLS</a>','Transport Layer Security 傳輸層安全性協定','疊在 TCP 之上做加密、防竄改、驗證身分（OSI 沒有明確位置，常被歸在此層）','第四、五節'],
+  ['L5 會談層','（本篇沒有獨立名詞）','Session 會談','概念上負責建立與管理一次對話；TCP/IP 模型把它併進應用層，實務少獨立看待','第四節'],
+  ['L4 傳輸層','<a href="https://www.rfc-editor.org/rfc/rfc9293" target="_blank" rel="noopener">TCP</a>','Transmission Control Protocol 傳輸控制協定','兩端先握手建立連線，之後保證資料不遺失、不重複、依序抵達的可靠位元組流','(a-2)、第五節'],
+  ['L4 傳輸層','<a href="https://www.rfc-editor.org/rfc/rfc768" target="_blank" rel="noopener">UDP</a>','User Datagram Protocol 使用者資料報協定','不握手、不保證送達與順序，把獨立的資料報直接丟出去，額外負擔最小','(a-2)'],
+  ['L4 傳輸層','<a href="https://www.rfc-editor.org/rfc/rfc9000" target="_blank" rel="noopener">QUIC（HTTP/3 跑在它上面）</a>','QUIC','建在 UDP 上的傳輸協定，自己做可靠傳輸並把加密握手合併；HTTP/3 是 L7 的 HTTP 跑在 QUIC 之上','(b-3)、第五節'],
+  ['L3 網路層','<a href="https://www.rfc-editor.org/rfc/rfc791" target="_blank" rel="noopener">IP</a>','Internet Protocol 網際網路協定','給每台設備一個位址，並決定封包怎麼一站一站送過去，不保證送達','第四節'],
+  ['L2 資料連結層','Wi-Fi 802.11、Ethernet、MAC 位址','區域網路的連結技術與硬體位址','在同一段網路上，把訊框送給下一台設備（路由器、基地台）','第四節'],
+  ['L1 實體層','光纖、無線電波、Cell tower 基地台','實體媒介與無線電收發站','位元如何變成光或電波；基地台兼有 L1、L2 功能，手機的請求先到這裡','筆記第三節'],
+  ['不屬於七層','Socket、fd','套接字、檔案描述符','作業系統提供給程式的連線介面，位於 L7／L6 與 L4 之間；fd 是它的整數編號','第六節'],
+  ['不屬於七層','CDN、PoP','Content Delivery Network、Point of Presence','在世界各地的機房放快取與節點，讓使用者連到最近的一個','(b-3)']
+];
+function renderGloss(){
+  const q = $('gSearch').value.trim().toLowerCase();
+  const rows = gloss.filter(r => !q || r.join(' ').replace(/<[^>]+>/g,'').toLowerCase().includes(q));
+  $('gTable').tBodies[0].innerHTML = rows.length
+    ? rows.map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td></tr>`).join('')
+    : '<tr><td colspan="5">沒有符合的名詞</td></tr>';
+}
+$('gSearch').addEventListener('input', renderGloss); renderGloss();
+
+const scen = [
+  {k:'查 DNS',t:'UDP（53 埠）',w:'一問一答都很小，用 UDP 省掉握手，1 RTT 就問完；若走 TCP 要先 1 RTT 握手、再 1 RTT 問答。回應太大被截斷時才改用 TCP。'},
+  {k:'載入網頁（HTTP/1.1、HTTP/2）',t:'TCP',w:'內容要完整、依序送達，少一個位元組頁面就壞；代價是三向握手加 TLS 握手。'},
+  {k:'載入網頁（HTTP/3）',t:'QUIC，跑在 UDP 之上',w:'QUIC 自己做可靠傳輸與加密，把傳輸握手與加密握手合併；各 stream 不要求跨 stream 嚴格依序，一條掉包不會卡住其他。'},
+  {k:'語音／視訊通話',t:'UDP（通常）',w:'晚到的聲音沒有價值，寧可掉一小段，也不要為了重傳讓整段通話卡住（通行做法，非單一規範）。'},
+  {k:'下載大檔、資料庫連線',t:'TCP',w:'不能少任何位元組、順序不能亂，可靠性比首包速度重要。'},
+  {k:'線上遊戲的位置更新',t:'UDP（通常）',w:'最新狀態比舊狀態重要，舊封包重傳回來已沒意義（通行做法）。'},
+  {k:'DNS 區域傳輸 zone transfer',t:'TCP（53 埠）',w:'RFC 1035 §4.2：區域更新需要可靠傳輸，必須用虛擬電路（TCP）。'}
+];
+$('scChips').innerHTML = scen.map((s,i)=>`<button class="btn ghost" data-i="${i}">${s.k}</button>`).join('');
+document.querySelectorAll('#scChips .btn').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#scChips .btn').forEach(x=>x.classList.toggle('on',x===b));
+  const s=scen[+b.dataset.i];
+  $('scInfo').innerHTML=`<span class="tag">${s.t}</span><b>${s.k}</b><br>${s.w}`;
+});
+
+function fmt(ms){ return ms>=1000 ? (ms/1000).toFixed(2).replace(/\.?0+$/,'')+' 秒' : ms+' ms'; }
+function verdict(){
+  const m=$('vMetric').value, v=+$('vNum').value, v2=+$('vNum2').value;
+  $('vBox2').style.display = m==='floor' ? '' : 'none';
+  $('vLab1').textContent = m==='floor' ? '單程距離（km）' : '數值（ms）';
+  let tag='', msg='';
+  if(m==='ttfb'){ tag = v<=800?'好':v<=1800?'需改善':'差'; msg=`TTFB ${fmt(v)}。web.dev 門檻：0.8 秒以內為好，0.8～1.8 秒需改善，超過 1.8 秒為差。TTFB 已含 DNS、TCP、TLS 與伺服器處理。`; }
+  else if(m==='lcp'){ tag = v<=2500?'好':'需改善（或更差）'; msg=`LCP ${fmt(v)}。web.dev：2.5 秒以內為好；「差」的界線本次未取得原文，故只判到這裡。`; }
+  else if(m==='inp'){ tag = v<=200?'好':'需改善（或更差）'; msg=`INP ${fmt(v)}。web.dev：200 毫秒以內為好；「差」的界線本次未取得原文。`; }
+  else if(m==='rtt'){ tag = v>=2000?'slow-2g 等級':v>=1400?'2g 等級':v>=270?'3g 等級':'4g 等級'; msg=`RTT ${fmt(v)}。依 WICG effectiveType：2000 ms 以上為 slow-2g，1400 以上為 2g，270 以上為 3g，低於 270 為 4g。這是「分級」不是好壞標準。`; }
+  else if(m==='feel'){ tag = v<=100?'覺得立即':v<=1000?'思緒不被打斷':v<=10000?'接近注意力極限':'超過注意力極限'; msg=`${fmt(v)}。Nielsen 1993：0.1 秒覺得立即，1 秒思緒不被打斷，10 秒是注意力的極限。`; }
+  else { const floor = v/100; const ratio = floor>0 ? v2/floor : 0;
+    tag = !v ? '請輸入距離' : ratio<2 ? '接近物理下限的常見範圍' : '遠高於物理下限';
+    msg = `單程 ${v} km，光纖約每秒 2×10⁸ 公尺，RTT 物理下限約 ${floor.toFixed(1)} ms；你量到 ${v2} ms，約為下限的 ${ratio.toFixed(1)} 倍。<br>本頁自訂的經驗判讀：低於 2 倍視為正常範圍（前文常見值為下限的 1.5～2 倍），2 倍以上要查路由、擁塞或無線段。`; }
+  $('vOut').innerHTML=`<span class="tag">${tag}</span>${msg}`;
+}
+['vMetric','vNum','vNum2'].forEach(id=>$(id).addEventListener('input',verdict)); verdict();
+
+const reduce = [
+  ['CDN 與邊緣節點（PoP）','所有往返的單趟距離','內容與 TLS 終結放在離使用者近的機房','縮短距離'],
+  ['Anycast DNS 與公共 resolver','DNS','同一個位址由多處實體回應，使用者連到最近的','縮短距離'],
+  ['連線複用（Keep-Alive、HTTP/2 多路複用）','第二個請求起的 TCP 與 TLS','同一個 hostname 只建一次連線，所有請求共用','減少往返'],
+  ['TLS 1.3 與 0-RTT 恢復','TLS','完整握手 2 RTT 降到 1 RTT，恢復連線可為 0 RTT；0-RTT 資料有被重放風險，只適合可重複執行的請求','減少往返'],
+  ['HTTP/3（QUIC，跑在 UDP 上）','TCP 與 TLS 兩筆合成一筆','RFC 9000：低延遲連線建立與可選 0-RTT；各 stream 不要求跨 stream 嚴格依序','減少往返'],
+  ['dns-prefetch、preconnect','DNS、TCP、TLS','在真的需要之前，先把連線建好','提前'],
+  ['減少不同 hostname','每個 hostname 各付的 DNS、TCP、TLS','HTTP/2 之後盡量把資源收斂到少數網域','減少往返'],
+  ['快取與壓縮','請求次數與傳輸時間','Cache-Control、瀏覽器快取、brotli 與 gzip、圖片格式最佳化','減少往返'],
+  ['非同步並發','序列等待','把彼此獨立的請求同時送出，不要排隊等','平行'],
+  ['縮短伺服器處理時間','TTFB 中的伺服器段','資料庫索引、伺服器端快取','縮短處理'],
+  ['5G 與 MEC','無線段與回程','把處理與快取放到基地台旁','縮短距離']
+];
+let rdDir='全部';
+function renderReduce(){
+  $('rdTable').tBodies[0].innerHTML = reduce.filter(r=>rdDir==='全部'||r[3]===rdDir)
+    .map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('');
+  document.querySelectorAll('#rdChips .btn').forEach(b=>b.classList.toggle('on',b.dataset.d===rdDir));
+}
+$('rdChips').innerHTML = ['全部','縮短距離','減少往返','提前','平行','縮短處理'].map(d=>`<button class="btn ghost" data-d="${d}">${d}</button>`).join('');
+document.querySelectorAll('#rdChips .btn').forEach(b=>b.onclick=()=>{ rdDir=b.dataset.d; renderReduce(); });
+renderReduce();
+
+
+/* ============================== 測驗 ============================== */
+const fills = [
+  '瀏覽器查 DNS 的單位是 [[hostname（主機名稱）]]，不是 domain。',
+  '手機通常先問 [[recursive resolver]]，由它去追 root、TLD、authoritative，而不是手機直接問權威伺服器。',
+  'recursive resolver 向 root、TLD、authoritative 追查時，用的是 [[迭代（轉介 referral）]] 查詢。',
+  '流程圖符號的國際標準編號是 ISO [[5807]]，不是 ISO 8607。',
+  'DNS 協定位於 OSI 第 [[7]] 層，TCP 位於第 [[4]] 層，IP 位址位於第 [[3]] 層。',
+  '比較早誕生的是 [[TCP]]（1981 年），TLS 1.0 是 1999 年。',
+  '一條 TCP 連線上跑多個 stream 的是 [[HTTP/2]] 的多路複用；一條執行緒監看多個 fd 的是 [[I/O]] 多路複用。',
+  'epoll 是作業系統的 [[API]]，event loop 是程式的 [[迴圈結構]]，前者被後者每一輪呼叫。',
+  '一條 WebSocket ＝ 一條 [[TCP]] 連線 ＝ 伺服器上的一個 [[socket（fd）]]。',
+  '同一處理程序內的執行緒共用 [[heap]]，各自有自己的 [[stack]]。',
+  'IPC 的全名是 [[Inter-Process Communication（行程間通訊）]]，因為不同處理程序的 [[記憶體]] 互相看不到。',
+  '運算資源是 [[CPU 核心]]，執行緒是被作業系統排到核心上跑的一條 [[執行流程]]。',
+  'OSI 編號由下往上數，第 [[1]] 層是實體層（硬體），第 [[7]] 層是應用層（軟體）。',
+  'DNS 預設走 [[UDP]] 的 [[53]] 埠；UDP 是傳輸方式，53 是埠號，兩者是獨立的兩件事。',
+  'Input 與 Output 的方向，是站在 [[正在執行這次 I/O 的那個程式]] 的角度看；同一批位元組，客戶端送出是 [[Output]]，伺服器收到是 [[Input]]。',
+  'epoll 的 e 是 [[event]]，核心裡實作它的檔案叫 [[eventpoll.c]]。',
+  'root name server 回的不是 IP，而是 [[TLD name server 的名單（轉介 referral）]]。'
+];
+$('fill').innerHTML = fills.map((f,i)=>`<div class="q">${i+1}. ${f.replace(/\[\[(.+?)\]\]/g,'<span class="blank" title="點擊顯示答案">$1</span>')}</div>`).join('');
+document.querySelectorAll('.blank').forEach(b=>b.onclick=()=>b.classList.toggle('open'));
+
+const tfs = [
+  {q:'DNS lookup 是由 name server 負責處理 TCP 三向握手的第一個封包。',a:false,e:'DNS 在前，只回 IP；TCP 握手是瀏覽器與 web server 之間的事。'},
+  {q:'訪問過某網站就不會再做 DNS lookup。',a:false,e:'要看快取是否還在 TTL 內，過期就要重查；單位是 hostname。'},
+  {q:'TLS 1.3 比 TLS 1.2 新，握手 RTT 也更少。',a:true,e:'1.2 為 2 RTT、1.3 為 1 RTT。但「新就一定少」不是通則，是這兩版剛好如此。'},
+  {q:'MDN 說 TLS 需要 five more round trips，所以 TLS 等於 5 RTT。',a:false,e:'MDN 數的是圖上的單趟箭頭，不是往返；一個 RTT 含去與回兩條。'},
+  {q:'把同步程式改成 async 可以加速 CPU-bound 的影像壓縮。',a:false,e:'瓶頸在計算，async 只改善「等待」；要靠多核心平行或更好的演算法。'},
+  {q:'網路延遲只發生在無線網路。',a:false,e:'MDN Understanding latency：延遲是封包從來源到目的地的時間，有線也有。'},
+  {q:'用 event loop 處理一萬條連線，就需要一萬條執行緒。',a:false,e:'一條執行緒用 epoll 監看一萬個 fd；每條連線只是一個 fd 加一份狀態物件。'},
+  {q:'I/O-bound 任務等待時，是「CPU 在空等」。',a:false,e:'空等的是執行緒，被作業系統睡眠後 CPU 去跑別的；浪費的是執行緒的記憶體與切換成本。'},
+  {q:'epoll 可以監看一般檔案，所以 Node 的 fs 直接走 epoll。',a:false,e:'對一般檔案呼叫 epoll_ctl 會回 EPERM；Node 的 fs 走 libuv 的 Worker Pool。'},
+  {q:'Edge 與 Chrome 都是用 Electron 打包的桌面軟體。',a:false,e:'它們是 Chromium 瀏覽器本體；Electron ＝ Chromium ＋ Node.js，Claude 桌面版與 Obsidian 才是 Electron 軟體。'},
+  {q:'Chromium 採多處理程序，主要目的是讓 CPU-bound 工作更快。',a:false,e:'主要為了隔離：一個分頁當掉不拖垮整個瀏覽器，並限制惡意程式碼的影響。'},
+  {q:'async/await 是 I/O 的形容詞。',a:false,e:'它是語法關鍵字；形容詞是 blocking／non-blocking、synchronous／asynchronous，任務性質用 I/O-bound。'},
+  {q:'Multi-processing 是比執行緒大一級的「單位」。',a:false,e:'大一級的單位是處理程序（Process）；Multi-processing 是用多個處理程序一起工作的做法。'},
+  {q:'子處理程序修改了模組層級變數，父處理程序也會看到。',a:false,e:'各自有獨立記憶體，要用 Pipe、Queue、socket 等 IPC 傳回去；同一處理程序內的執行緒才共用變數。'},
+  {q:'同一批 HTTP 請求位元組，對客戶端是 Output，對伺服器也是 Output。',a:false,e:'方向以各自的程式為第一人稱：客戶端送出是 Output，伺服器從 socket 讀到是 Input；回應則反過來。'},
+  {q:'DNS 用 UDP 53，所以 DNS 只能走 UDP。',a:false,e:'UDP 是傳輸方式、53 是埠號；DNS 也能走 TCP 53（截斷、區域傳輸，RFC 7766 要求必須支援）、DoT 的 TCP 853、DoQ 的 UDP 853，或 DoH 走 HTTPS。'},
+  {q:'第 1 層是應用層，第 7 層是實體層。',a:false,e:'相反：OSI 編號由下往上，第 1 層是實體層（硬體），第 7 層是應用層（軟體）。'},
+  {q:'頻寬變大，延遲就一定變小。',a:false,e:'頻寬是水管多粗，latency 是水管多長；加粗水管縮短不了長度，延遲主要受距離與往返次數影響。'},
+  {q:'web.dev 的 TTFB「好」門檻是 0.8 秒以內。',a:true,e:'0.8 秒以內為好，0.8 到 1.8 秒需改善，超過 1.8 秒為差；TTFB 已含 DNS、TCP、TLS 與伺服器處理。'},
+  {q:'root name server 只回 .com 的 name server 名單，所以沒有必要回應。',a:false,e:'這份轉介就是 root 的全部工作；沒有它，resolver 不知道下一站去問誰。'},
+  {q:'epoll_wait 就是 macOS 的 kqueue。',a:false,e:'epoll_wait 是 Linux epoll 的等待函式；kqueue 與 IOCP 是其他系統上扮演相同角色的各自 API，且 IOCP 是完成通知而非就緒通知。'},
+  {q:'對一般檔案呼叫 epoll_ctl 得到 EPERM，代表使用者權限不夠。',a:false,e:'在 epoll 這裡 EPERM 表示 fd 類型不支援 epoll（一般檔案、目錄），與使用者權限無關。'},
+  {q:'「處理函式要短」指的是程式碼行數要少。',a:false,e:'指佔用那條唯一執行緒的時間短；做法是用非同步 API、把重運算移給 worker、切片讓出、少做事。'}
+];
+$('tf').innerHTML = tfs.map((t,i)=>`<div class="q tf" data-i="${i}">${i+1}. ${t.q}<br><button class="btn ghost pick" data-v="1">✓ 對</button><button class="btn ghost pick" data-v="0">✗ 錯</button><div class="ans"></div></div>`).join('');
+document.querySelectorAll('.tf .pick').forEach(b=>b.onclick=()=>{
+  const box=b.closest('.tf'), t=tfs[+box.dataset.i], ok=(b.dataset.v==='1')===t.a, a=box.querySelector('.ans');
+  a.innerHTML=`<span class="${ok?'right':'wrong'}">${ok?'答對了':'再想想'}</span>　正確答案：${t.a?'✓ 對':'✗ 錯'}。${t.e}`; a.classList.add('show');
+});
+
+const essays = [
+  {q:'使用者在手機上開一個引用 6 個不同 hostname 的頁面，全部冷快取、TLS 1.3。請列出 DNS、TCP、TLS 各要付幾個往返，並說明為什麼手機端真正貴的只有「手機到 resolver」那一段。',
+   a:'每個 hostname 各付：DNS 1 RTT（手機↔resolver）、TCP 1 RTT、TLS 1.3 為 1 RTT，共約 3 個往返，6 個 hostname 最壞要重付 6 次（實際可平行）。手機到 resolver 要先過無線段與基地台、電信核心機房；resolver 之後追 root、TLD、authoritative 是機房之間的有線網路，單趟很短，所以貴的主要是手機端那一個往返。'},
+  {q:'請口述 recursive resolver 在「快取沒有」時追查 www.example.com 的完整流程，並標出哪一段是遞迴、哪一段是迭代。',
+   a:'stub resolver 把問題交給 recursive resolver（遞迴：它負責追到底）。resolver 問 root → 得到 .com TLD 的轉介；問 .com TLD → 得到 example.com 權威 NS 的轉介；問權威 NS → 得到 A 紀錄與 TTL（這三站是迭代：對方只回轉介或答案）。resolver 依 TTL 快取後把 IP 回給 stub resolver，OS 與瀏覽器也各存一份。'},
+  {q:'一個 API 服務 CPU 只有 10% 但回應很慢；另一個影像處理服務 CPU 100%。各自是哪種瓶頸？建議用 I/O 多路複用還是多核平行？',
+   a:'前者低 CPU 高等待，是 I/O-bound，適合 I/O 多路複用或非同步，並減少往返次數；後者是 CPU-bound，加 async 沒用，應多核心平行（多執行緒、多行程、worker）或改善演算法。兩種並存時，I/O 走事件迴圈，重計算丟給 worker。'},
+  {q:'請用「辦公室與員工」比喻說明處理程序、執行緒、IPC 三者的關係，並說明為什麼 IPC 比執行緒讀共享變數慢，卻仍然值得用。',
+   a:'處理程序是獨立辦公室（獨立記憶體），執行緒是辦公室裡共用桌上文件的員工；辦公室之間不能直接翻對方文件，要走 IPC（管道、socket、佇列、共享記憶體等）。IPC 要序列化或複製資料，比同一處理程序內直接讀變數慢；但換來一間辦公室出事不連累其他間（穩定）與權限隔離（安全），Chromium 與 Electron 就是這樣設計的。'},
+  {q:'為什麼 DNS 預設走 UDP，卻仍然必須支援 TCP？請說明 UDP 與 53 埠各自是什麼。',
+   a:'UDP 是 L4 的傳輸協定，不握手、額外負擔小，一問一答很小的 DNS 查詢用它 1 RTT 就能完成；53 是埠號，標識「這台機器上的 DNS 服務」，IANA 同時登記給 TCP 與 UDP，兩者是獨立的兩件事。UDP 訊息原本上限 512 位元組（EDNS(0) 可加大），回應被截斷或要做區域傳輸時需要可靠傳輸，所以 RFC 1035 允許、RFC 7766 要求 DNS 實作必須支援 TCP。'},
+  {q:'請用「epoll_wait 睡眠 → 被喚醒 → 執行處理函式 → 再睡眠」說明一條執行緒為什麼能同時顧上萬條連線，並說明處理函式為什麼不能算太久。',
+   a:'迴圈每一輪先在 epoll_wait 睡著；核心回報有幾個 fd 就緒，執行緒醒來只處理這幾條的處理函式，處理完又睡。大多數連線大多數時間在等，所以每一輪只有少數需要處理。但處理函式是在同一條執行緒上跑，算太久就會卡住其他所有連線的處理，所以必須短，長計算要丟給 worker。'}
+];
+$('essay').innerHTML = essays.map((e,i)=>`<div class="q">${i+1}. ${e.q}<br><button class="btn ghost" data-i="${i}">顯示參考答案</button><div class="ans">${e.a}</div></div>`).join('');
+document.querySelectorAll('#essay .btn').forEach(b=>b.onclick=()=>b.nextElementSibling.classList.toggle('show'));
+</script>
+<script src="../assets/notes.js" defer></script>
+</body>
+</html>

@@ -110,6 +110,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 }
 @media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
 </style>
+<link rel="stylesheet" href="../../../assets/notes.css">
 </head>
 <body>
 <div class="wrap">
@@ -117,9 +118,9 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <h1>Symbol-符號型別與物件key</h1>
   <div class="pills"><span class="pill">#javascript</span><span class="pill">#symbol</span><span class="pill">#物件</span><span class="pill">#key</span><span class="pill">#JS_Core_and_Runtime</span></div>
   <div class="meta">
-    <span>更新於 2026-09-09</span>
+    <span>更新於 2026-10-08</span>
     <span>來源：Gemini</span>
-    <a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/64ba1028141e5c94" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/d703923c0ccc127d" target="_blank" rel="noopener">原始對話 3</a>
+    <a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/64ba1028141e5c94" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/d703923c0ccc127d" target="_blank" rel="noopener">原始對話 3</a><a href="https://gemini.google.com/app/a05eb537135c1b4d" target="_blank" rel="noopener">原始對話 4</a>
   </div>
 </header>
 
@@ -417,6 +418,24 @@ Symbol 解決的是<mark class="hl hl-core" tabindex="0" role="button" aria-labe
 <p>[!warning]+ ⚠️ 該次對話品質備註<br />
 這是一段<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">語音輸入的對話，逐字稿辨識嚴重破碎</mark>（「新寶石」＝Symbol、「原信念」＝原型鏈、「full」＝<code>for</code>），中間還混進了完全無關的生活問題。技術內容<mark class="hl hl-note" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">全部與本篇既有段落重疊</mark>，因此不另開新筆記，只在此併入來源與交叉確認。<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Object.getOwnPropertySymbols</code> 的使用情境</mark>那一問對方沒有回答完，若還想知道請見本篇第 8 節與 <span class="wikilink" title="Obsidian 連結：Object靜態方法vs原型方法-Symbol弱封裝與species">Object靜態方法vs原型方法-Symbol弱封裝與species</span>。</p>
 </blockquote>
+<h3 id="2026-10-08-console-symboliterator-static-data-property">追加 2026-10-08：在 Console 裡「看見」<code>Symbol.iterator</code>，以及它到底是誰的 static data property</h3>
+<p>h. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Array.prototype[Symbol.iterator]</code> 只會印出 <code>ƒ values() { [native code] }</code>，是正常的</mark>：陣列預設的迭代方法本來就<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">指向同一個函式 <code>Array.prototype.values</code></mark>。Console 印出的是「屬性的值」，不是「屬性的 key」。<br />
+    想看到 key 本身是 Symbol，有三條路：</p>
+<pre><code>```js
+Object.getOwnPropertySymbols(Array.prototype)   // 回傳陣列，內含 Symbol(Symbol.iterator) 等 Symbol key
+console.dir(Array.prototype)                    // 展開後，字串屬性之後會看到 [Symbol(Symbol.iterator)]: ƒ values()
+Object.getOwnPropertyDescriptor(Array.prototype, Symbol.iterator) // 看 value / writable / enumerable / configurable
+```
+</code></pre>
+<p>i. <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Array.prototype</code> 是「建構函式 <code>Array</code> 的 <code>prototype</code> 屬性所指向的原型物件」</mark>，所有陣列實例（如 <code>[1,2,3]</code>）的方法與 Symbol 屬性都存放在它身上。<br />
+    實例要拿到同一個物件，標準寫法是 <code>Object.getPrototypeOf(arr)</code>，<code>arr.__proto__</code> 是舊式非標準寫法（不建議）。詳見 <span class="wikilink" title="Obsidian 連結：查看plain-object的prototype">查看plain-object的prototype</span>。</p>
+<p>j. <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Symbol.iterator</code> 整體</mark>是掛在全域 <code>Symbol</code> 這個函式物件上的 <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">static data property（靜態資料屬性）</mark>，它存的值是一個全域唯一的<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">知名 Symbol 值</mark>。<br />
+<code>.iterator</code> 只是這個屬性的名稱（property key），不是獨立的另一種屬性。<br />
+    對照兩個位置：<code>Symbol.iterator</code>（掛在 <code>Symbol</code> 上，值是 Symbol 標籤）、<code>Array.prototype[Symbol.iterator]</code>（掛在原型物件上，值是迭代器函式）。兩者經常被搞混，記法是「前者是鑰匙，後者是鑰匙開出來的函式」。</p>
+<blockquote>
+<p>[!warning]+ ⚠️ 存疑/更正：<code>Reflect.has</code> 不能判斷 Own Property<br />
+該次對話第二輪，Gemini 說可以用 <code>Reflect.has</code> 或 <code>hasOwnProperty</code> 檢查「是否為 Own Property」。<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>Reflect.has(obj, key)</code> 等同 <code>key in obj</code>，會一路查到原型鏈，不是只查自身</mark>。要確認自身擁有請用 <code>Object.hasOwn(obj, key)</code> 或 <code>Object.prototype.hasOwnProperty.call(obj, key)</code>。（查證：MDN <code>Reflect.has</code>，2026-10-08）</p>
+</blockquote>
 <hr />
 <h2 id="_2">資料來源（含查證時間）</h2>
 <table>
@@ -439,6 +458,11 @@ Symbol 解決的是<mark class="hl hl-core" tabindex="0" role="button" aria-labe
 <td>Gemini 對話（語音輸入），整理於 2026-09-09</td>
 </tr>
 <tr>
+<td>追加段 h–j：Console 檢視 <code>Symbol.iterator</code>、static data property</td>
+<td>https://gemini.google.com/app/a05eb537135c1b4d</td>
+<td>Gemini 對話，整理於 2026-10-08</td>
+</tr>
+<tr>
 <td>Symbol 型別、<code>Symbol.for</code>、<code>new Symbol()</code> 拋錯、weak encapsulation 原文</td>
 <td>https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol</td>
 <td>MDN，查證於 2026-08-14</td>
@@ -448,11 +472,21 @@ Symbol 解決的是<mark class="hl hl-core" tabindex="0" role="button" aria-labe
 <td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_properties</td>
 <td>MDN，查證於 2026-08-14</td>
 </tr>
+<tr>
+<td><code>Symbol.iterator</code> static data property 定義</td>
+<td>https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Symbol/iterator</td>
+<td>MDN，查證於 2026-10-08</td>
+</tr>
+<tr>
+<td><code>Reflect.has</code> 等同 <code>in</code> 運算子</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect/has</td>
+<td>MDN，查證於 2026-10-08</td>
+</tr>
 </tbody>
 </table>
 </article>
 
-<footer>由 Gemini 對話自動整理 · 更新於 2026-09-09</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-10-08</footer>
 </div>
 <script>
 (function(){
@@ -520,5 +554,6 @@ Symbol 解決的是<mark class="hl hl-core" tabindex="0" role="button" aria-labe
   });
 })();
 </script>
+<script src="../../../assets/notes.js" defer></script>
 </body>
 </html>

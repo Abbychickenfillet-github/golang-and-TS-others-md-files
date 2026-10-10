@@ -1,0 +1,122 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LeetCode-224-Basic-Calculator-堆疊處理括號</title><style>
+body{margin:0;background:#f6f5f2;color:#2b2b2b;font:16px/1.7 -apple-system,'Noto Sans TC','Microsoft JhengHei',sans-serif}
+.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px}
+header{background:#fff;border-radius:14px;padding:24px 28px;box-shadow:0 1px 4px #0001;margin-bottom:24px}
+h1{font-family:'Noto Serif TC',Georgia,serif;margin:0 0 10px;font-size:1.7em}
+.pill{display:inline-block;background:#e8eefc;color:#34508f;border-radius:99px;padding:1px 12px;margin:2px 4px 2px 0;font-size:.82em}
+.meta{color:#777;font-size:.88em;margin-top:8px}
+article{background:#fff;border-radius:14px;padding:8px 28px 24px;box-shadow:0 1px 4px #0001}
+h2{border-left:5px solid #7a9cd6;padding-left:12px;margin-top:2em}
+h3{color:#34508f}
+pre{background:#1e2230;color:#e6e9f2;padding:14px 16px;border-radius:10px;overflow-x:auto;font:.88em/1.55 Consolas,monospace}
+code{background:#eef0f5;padding:1px 6px;border-radius:5px;font-family:Consolas,monospace;font-size:.9em}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.93em}
+th,td{border:1px solid #d9dce3;padding:6px 10px;text-align:left}
+tr:nth-child(even) td{background:#f7f8fb}th{background:#e9edf6}
+blockquote{margin:1em 0;border-left:5px solid #e6b422;background:#fff8e0;padding:6px 16px;border-radius:0 8px 8px 0}
+img{max-width:100%}
+li.pt{cursor:pointer;list-style:none;margin:.4em 0;padding:6px 10px;border-radius:8px;background:#f3f6fd;border:1px dashed #b8c6e6}
+li.pt.hide{color:transparent;text-shadow:none;background:#dfe5f3;user-select:none}
+li.pt.hide *{color:transparent!important;background:transparent!important}
+ul:has(li.pt){padding-left:0}
+.bar{position:sticky;top:0;background:#f6f5f2;padding:8px 0;z-index:5}
+button{background:#34508f;color:#fff;border:0;border-radius:8px;padding:6px 14px;margin-right:8px;cursor:pointer}
+footer{text-align:center;color:#999;font-size:.82em;margin-top:28px}
+details.src{background:#fafafa;border:1px solid #e3e3e3;border-radius:10px;padding:8px 14px;margin:10px 0}
+</style><link rel="stylesheet" href="../assets/notes.css">
+</head><body><div class="wrap"><header><h1>LeetCode-224-Basic-Calculator-堆疊處理括號</h1><span class="pill">gemini</span><span class="pill">leetcode</span><span class="pill">stack</span><span class="pill">堆疊</span><span class="pill">字串解析</span><span class="pill">演算法</span><div class="meta">更新 2026-10-07 ・ <a href="https://gemini.google.com/app/dd2df180a386e37f">來源</a></div></header><div class="bar"><button onclick="setAll(true)">全部隱藏重點</button><button onclick="setAll(false)">全部顯示</button><span style="color:#888;font-size:.85em">點(a)(b)…重點可單獨隱藏／顯示，自我測驗</span></div><article>
+<p>本篇重點 a–g，共 7 個。</p>
+<h2>重點整理</h2>
+<ul>
+<li class="pt">(a) 題目：<a href="https://leetcode.com/problems/basic-calculator/">LeetCode 224 Basic Calculator</a> 要求計算只含 <code>+</code>、<code>-</code>、括號與空格的算式字串。</li>
+<li class="pt">(b) 核心思路：<mark style="background: #FFF3A3A6;">單次掃描 O(N) + stack（堆疊）</mark>。只有加減沒有乘除，所以不需處理運算子優先順序，難點只在「括號會把正負號展開」。</li>
+<li class="pt">(c) 維護三個狀態：<code>result</code>（目前累加和）、<code>sign</code>（目前數字的正負號，<code>1</code> 或 <code>-1</code>）、<code>number</code>（正在讀的多位數）。</li>
+<li class="pt">(d) 遇到數字：<code>number = number * 10 + digit</code>，逐位組成多位數。</li>
+<li class="pt">(e) 遇到 <code>+</code> 或 <code>-</code>：先把 <code>sign * number</code> 加進 <code>result</code>，<code>number</code> 歸零，再更新 <code>sign</code>。</li>
+<li class="pt">(f) 遇到 <code>(</code>：把 <code>result</code> 與 <code>sign</code> 依序 push 進 stack，然後 <code>result = 0</code>、<code>sign = 1</code>，括號內當成獨立的新算式。</li>
+<li class="pt">(g) 遇到 <code>)</code>：先結算括號內最後一個數字，再 pop 出括號前的 <code>sign</code> 與 <code>result</code>，用 <code>result = prevResult + prevSign * result</code> 合併回外層。</li>
+</ul>
+<pre><code class="language-js">var calculate = function (s) {
+  let stack = [], result = 0, number = 0, sign = 1;
+  for (const ch of s) {
+    if (ch &gt;= '0' &amp;&amp; ch &lt;= '9') number = number * 10 + (ch - '0');
+    else if (ch === '+' || ch === '-') {
+      result += sign * number; number = 0;
+      sign = ch === '+' ? 1 : -1;
+    } else if (ch === '(') {
+      stack.push(result, sign);          // 先 push result 再 push sign
+      result = 0; sign = 1;
+    } else if (ch === ')') {
+      result += sign * number; number = 0;
+      const prevSign = stack.pop();      // 後進先出：先 pop 出 sign
+      const prevResult = stack.pop();
+      result = prevResult + prevSign * result;
+    }
+  }
+  return result + sign * number;
+};
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>複雜度</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>時間</td>
+<td>O(N)</td>
+<td>只掃描字串一次</td>
+</tr>
+<tr>
+<td>空間</td>
+<td>O(N)</td>
+<td>stack 大小取決於括號最大巢狀深度</td>
+</tr>
+</tbody>
+</table>
+<p>範例 <code>(1+(4+5+2)-3)+(6+8)</code> 結果為 23，內層 <code>(4+5+2)=11</code>，併回外層 <code>1+11=12</code>，再 <code>-3</code> 得 9，最後 <code>+14</code> 得 23。</p>
+<p>相關練習：<code>快慢指標-讀取指標i與寫入指標k-原地刪除</code>（同為單次掃描技巧，本篇的差別是需要 stack 保存括號前的狀態）。進階可接著練 <a href="https://leetcode.com/problems/basic-calculator-ii/">LeetCode 227 Basic Calculator II</a> 與 <a href="https://leetcode.com/problems/basic-calculator-iii/">LeetCode 772 Basic Calculator III</a>。</p>
+<blockquote>
+<p>⚠️ 存疑/更正：Gemini 原文的程式碼縮排全部遺失，且回答中把「O(N)」輸出成亂碼符號，使用者追問後才補上；本篇已重新整理縮排。Gemini 範例演練中 Stack 顯示為 <code>[0, 1, 1, 1]</code>，push 順序是先 result 後 sign，與程式碼一致。</p>
+</blockquote>
+<h2>各對話來源（原文節錄）</h2>
+<h3>LeetCode 224 解題思路 — https://gemini.google.com/app/dd2df180a386e37f</h3>
+<p>使用者：說明此題的解題思路</p>
+<p>Gemini：本題要求實作加減法與括號的計算器……單次掃描 + Stack 處理括號……（完整步驟、範例演練、JS 實作與複雜度已整理於上方重點）。</p>
+<p>使用者：「時間複雜度 ￼」？</p>
+<p>Gemini：哎呀，剛才輸出格式跑掉了，漏掉符號！原意是時間複雜度 O(N)，只需對長度為 N 的字串進行單次掃描。</p>
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 對話</td>
+<td>https://gemini.google.com/app/dd2df180a386e37f</td>
+<td>2026-10-07 擷取</td>
+</tr>
+<tr>
+<td>LeetCode 224</td>
+<td>https://leetcode.com/problems/basic-calculator/</td>
+<td>題目頁，未於本次逐條查證</td>
+</tr>
+<tr>
+<td>NeetCode 題解</td>
+<td>https://neetcode.io/practice</td>
+<td>使用者可自行搜尋 Basic Calculator</td>
+</tr>
+</tbody>
+</table></article><footer>由 Gemini 對話自動整理 · 更新於 2026-10-07</footer></div><script>
+document.querySelectorAll('li.pt').forEach(l=>l.onclick=()=>l.classList.toggle('hide'));
+function setAll(h){document.querySelectorAll('li.pt').forEach(l=>l.classList.toggle('hide',h))}
+</script><script src="../assets/notes.js" defer></script>
+</body></html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PointerEvent 示範 — 分辨滑鼠、手指、觸控筆</title>
+<style>
+  :root{
+    --bg:#fbfaf7; --card:#ffffff; --ink:#1f2933; --muted:#6b7681; --line:#e2ded6;
+    --blue:#2f6fb5; --blueBg:#e7f0fb; --green:#2e9e67; --red:#c0392b; --amberBg:#fff4d6; --amber:#c79a1f;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#15181c; --card:#1d2227; --ink:#e8eaed; --muted:#9aa4af; --line:#2d343b;
+      --blueBg:#17283d; --amberBg:#312a14; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif;line-height:1.8}
+  .wrap{max-width:980px;margin:0 auto;padding:36px 24px 80px}
+  h1{font-size:25px;margin:0 0 6px}
+  .meta{color:var(--muted);font-size:14px;margin:0 0 26px}
+  h2{font-size:18px;margin:34px 0 10px;padding-left:10px;border-left:4px solid var(--blue)}
+  a{color:var(--blue)}
+  a:hover{background:var(--blueBg);border-radius:3px}
+  code{background:var(--blueBg);padding:1px 6px;border-radius:4px;font-size:.92em}
+
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0}
+  .legend span{display:inline-flex;align-items:center;gap:7px;font-size:14px;
+    padding:4px 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);
+    transition:transform .15s ease}
+  .legend span:hover{transform:translateY(-2px)}
+  .dot{width:12px;height:12px;border-radius:50%}
+
+  #pad{width:100%;height:340px;background:var(--card);border:2px dashed var(--line);
+    border-radius:12px;touch-action:none;cursor:crosshair;display:block;
+    transition:border-color .2s ease}
+  #pad:hover{border-color:var(--blue)}
+
+  .bar{margin:14px 0}
+  .bar button{font:inherit;font-size:14px;padding:6px 18px;cursor:pointer;
+    border:1.5px solid var(--blue);background:var(--card);color:var(--blue);
+    border-radius:999px;transition:all .15s ease}
+  .bar button:hover{background:var(--blue);color:#fff;transform:translateY(-1px)}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+  @media (max-width:760px){ .grid{grid-template-columns:1fr} }
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+  .panel h3{margin:0 0 10px;font-size:15px;color:var(--blue)}
+  #log{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;font-size:12.5px;
+    max-height:230px;overflow-y:auto}
+  #log .row{padding:4px 6px;border-bottom:1px solid var(--line);transition:background .12s ease}
+  #log .row:hover{background:var(--amberBg)}
+  #caps{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;font-size:12.5px;
+    white-space:pre-line;margin:0;color:var(--muted)}
+
+  .note{background:var(--amberBg);border:1px solid var(--amber);border-radius:10px;
+    padding:14px 18px;margin:22px 0;font-size:14.5px}
+  .note b{display:block;margin-bottom:4px}
+</style>
+<link rel="stylesheet" href="../assets/notes.css">
+</head>
+<body>
+<div class="wrap">
+
+<h1>PointerEvent 示範 — 分辨滑鼠、手指、觸控筆</h1>
+<p class="meta">2026-10-09　·　回到 <a href="觸控與360度變形筆電.html">觸控與 360 度變形筆電</a> 的第 6 節</p>
+
+<p>在下面的方框裡用<b>滑鼠拖曳</b>、用<b>手指畫</b>、如果有觸控筆就再用<b>筆畫一次</b>。三種輸入會畫出不同顏色，右邊會即時印出瀏覽器收到的欄位。</p>
+
+<div class="legend">
+  <span><i class="dot" style="background:#2f6fb5"></i>mouse 滑鼠</span>
+  <span><i class="dot" style="background:#2e9e67"></i>touch 手指</span>
+  <span><i class="dot" style="background:#c0392b"></i>pen 觸控筆（筆跡粗細隨壓力變化）</span>
+</div>
+
+<canvas id="pad"></canvas>
+
+<div class="bar"><button id="clear">清除畫布與紀錄</button></div>
+
+<div class="grid">
+  <div class="panel">
+    <h3>事件紀錄（最新在最上面）</h3>
+    <div id="log"></div>
+  </div>
+  <div class="panel">
+    <h3>這台機器被瀏覽器怎麼認定</h3>
+    <p id="caps"></p>
+  </div>
+</div>
+
+<div class="note">
+  <b>要觀察的重點</b>
+  用滑鼠畫的時候 <code>pressure</code> 會是固定值，用壓感筆畫的時候它會隨力道在 0 到 1 之間變動，筆跡粗細也會跟著變。
+  另外看右邊那塊：在變形筆電上 <code>(pointer: fine)</code> 與 <code>(any-pointer: coarse)</code> 會<b>同時</b>為 true，這就是為什麼不能只靠 CSS 媒體查詢判斷使用者當下在用觸控。
+</div>
+
+<h2>為什麼畫布要寫 <code>touch-action: none</code></h2>
+<p>瀏覽器預設會把手指的拖曳解讀成捲動頁面，這樣 <code>pointermove</code> 會在捲動開始的瞬間被取消，你就畫不出線。<code>touch-action: none</code> 的意思是「這個元素上的觸控手勢全部交給我自己處理，瀏覽器不要插手」，所以手指才畫得動。</p>
+
+<h2>延伸閱讀</h2>
+<ul>
+  <li><a href="https://developer.mozilla.org/zh-TW/docs/Web/API/Pointer_events">MDN — Pointer events</a></li>
+  <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pointerType">MDN — <code>PointerEvent.pointerType</code></a></li>
+  <li><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/touch-action">MDN — <code>touch-action</code></a></li>
+</ul>
+
+<script src="pointer-events-demo.js"></script>
+</div>
+<script src="../assets/notes.js" defer></script>
+</body>
+</html>

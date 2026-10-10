@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>觸控與 360 度變形筆電 — 選購決策筆記</title>
+<style>
+  :root{
+    --bg:#fbfaf7; --card:#ffffff; --ink:#1f2933; --muted:#6b7681; --line:#e2ded6;
+    --blue:#2f6fb5; --blueBg:#e7f0fb; --amber:#c79a1f; --amberBg:#fff4d6;
+    --green:#2e9e67; --greenBg:#eafaf0; --purple:#7a52b3; --purpleBg:#f3ecfb;
+    --red:#c0392b; --redBg:#fde8e8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#15181c; --card:#1d2227; --ink:#e8eaed; --muted:#9aa4af; --line:#2d343b;
+      --blueBg:#17283d; --amberBg:#312a14; --greenBg:#13291f; --purpleBg:#241c33; --redBg:#331a18; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif;
+    line-height:1.85;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1060px;margin:0 auto;padding:40px 24px 90px}
+  header{border-bottom:2px solid var(--line);padding-bottom:22px;margin-bottom:30px}
+  h1{font-size:29px;margin:0 0 8px}
+  .meta{color:var(--muted);font-size:14px;margin:0}
+  h2{font-size:21px;margin:50px 0 14px;padding-left:12px;border-left:5px solid var(--blue);scroll-margin-top:20px}
+  h3{font-size:17px;margin:30px 0 10px;color:var(--blue)}
+  p{margin:10px 0}
+  a{color:var(--blue)}
+  a:hover{background:var(--blueBg);border-radius:3px}
+  .indent{margin-left:28px;color:var(--muted);font-size:14.5px;border-left:2px dotted var(--line);padding-left:14px}
+
+  .idx{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:24px 0}
+  .idx ol{margin:8px 0 0;padding-left:22px}
+  .idx li{margin:4px 0}
+  .idx a{text-decoration:none}
+  .idx a:hover{text-decoration:underline}
+
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14.5px;
+    background:var(--card);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  th{background:var(--blueBg);text-align:left;padding:12px 14px;font-weight:700;font-size:14px;border-bottom:2px solid var(--line)}
+  td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr{transition:background .15s ease}
+  tbody tr:hover{background:var(--amberBg)}
+  tr:last-child td{border-bottom:none}
+  .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  figure{margin:26px 0;text-align:center}
+  figure img{max-width:100%;border:1px solid var(--line);border-radius:12px;background:#fff;
+    transition:transform .25s ease, box-shadow .25s ease;cursor:zoom-in}
+  figure img:hover{transform:scale(1.012);box-shadow:0 10px 30px rgba(0,0,0,.14)}
+  figcaption{color:var(--muted);font-size:13px;margin-top:10px}
+
+  .box{border-radius:10px;padding:14px 18px;margin:18px 0;border:1px solid var(--line);background:var(--card)}
+  .box.warn{background:var(--amberBg);border-color:var(--amber)}
+  .box.ok{background:var(--greenBg);border-color:var(--green)}
+  .box.info{background:var(--blueBg);border-color:var(--blue)}
+  .box b{display:block;margin-bottom:4px}
+
+  /* ---- 點擊填空 ---- */
+  .cloze{display:inline-block;min-width:92px;text-align:center;padding:1px 10px;margin:0 2px;
+    border-bottom:2px dashed var(--blue);background:var(--blueBg);color:transparent;
+    border-radius:4px 4px 0 0;cursor:pointer;user-select:none;transition:all .18s ease}
+  .cloze::after{content:"？？？";color:var(--blue);font-weight:700;letter-spacing:1px}
+  .cloze:hover{background:var(--amberBg);border-bottom-color:var(--amber)}
+  .cloze.open{color:var(--ink);background:var(--greenBg);border-bottom:2px solid var(--green);font-weight:700}
+  .cloze.open::after{content:""}
+
+  /* ---- 是非題 ---- */
+  .tf{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:14px 0;
+    transition:box-shadow .2s ease}
+  .tf:hover{box-shadow:0 4px 14px rgba(0,0,0,.08)}
+  .tf .q{font-weight:600;margin-bottom:10px}
+  .tf button{font:inherit;font-size:14px;padding:5px 20px;margin-right:8px;cursor:pointer;
+    border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;
+    transition:all .15s ease}
+  .tf button:hover{border-color:var(--blue);background:var(--blueBg);transform:translateY(-1px)}
+  .tf button.picked-right{background:var(--greenBg);border-color:var(--green);color:var(--green);font-weight:700}
+  .tf button.picked-wrong{background:var(--redBg);border-color:var(--red);color:var(--red);font-weight:700}
+  .tf .fb{margin-top:10px;font-size:14.5px;display:none;padding-left:12px;border-left:3px solid var(--green)}
+  .tf .fb.show{display:block}
+
+  /* ---- 申論題 ---- */
+  details.essay{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--purple);
+    border-radius:10px;padding:12px 18px;margin:14px 0;transition:box-shadow .2s ease}
+  details.essay:hover{box-shadow:0 4px 14px rgba(0,0,0,.08)}
+  details.essay summary{cursor:pointer;font-weight:600;list-style:none;outline:none}
+  details.essay summary::-webkit-details-marker{display:none}
+  details.essay summary::before{content:"▶ ";color:var(--purple);transition:all .2s}
+  details.essay[open] summary::before{content:"▼ "}
+  details.essay .ans{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);font-size:14.5px}
+
+  .tools{margin:16px 0}
+  .tools button{font:inherit;font-size:14px;padding:6px 18px;margin-right:8px;cursor:pointer;
+    border:1.5px solid var(--blue);background:var(--card);color:var(--blue);border-radius:999px;transition:all .15s ease}
+  .tools button:hover{background:var(--blue);color:#fff;transform:translateY(-1px)}
+
+  code{background:var(--blueBg);padding:1px 6px;border-radius:4px;font-size:.92em}
+  pre{background:#1d2227;color:#e8eaed;padding:16px 18px;border-radius:10px;overflow-x:auto;font-size:13.5px;line-height:1.7}
+  pre code{background:none;padding:0;color:inherit}
+
+  footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+</style>
+<link rel="stylesheet" href="../assets/notes.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>觸控與 360 度變形筆電 — 選購決策筆記</h1>
+  <p class="meta">建立於 2026-10-09　·　上層筆記：<a href="願望清單.html">願望清單 — 總表與分流規則</a>　·　主軸圖：360 度轉軸的四種模式</p>
+</header>
+
+<div class="idx">
+  <b>本篇重點 1–8，依順序閱讀</b>
+  <ol>
+    <li><a href="#s1">把口語需求翻成買得到東西的規格名詞</a></li>
+    <li><a href="#s2">主軸圖：360 度轉軸的四種模式</a></li>
+    <li><a href="#s3">觸控筆協定：買錯筆就寫不了字</a></li>
+    <li><a href="#s4">現行機型參考（2026-10 查證）</a></li>
+    <li><a href="#s5">選購檢核八問 a–h</a></li>
+    <li><a href="#s6">對前端工程師的額外意義：PointerEvent</a></li>
+    <li><a href="#s7">自我測驗</a></li>
+    <li><a href="#s8">資料來源（含查證時間）</a></li>
+  </ol>
+</div>
+
+<h2 id="s1">1. 把口語需求翻成買得到東西的規格名詞</h2>
+
+<p>你原本的說法是「可以觸控」跟「有 yoga 功能、轉軸角度很多」。這兩句話拿到購物網站搜尋是搜不到東西的，因為前者太寬、後者是品牌名。下面這張表把它們翻成規格欄位上真正會出現的字。</p>
+
+<table>
+  <thead><tr><th style="width:24%">你的口語</th><th style="width:26%">正式規格名詞</th><th>要往下追問的那一層</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>可以觸控，不想一直滑 touchpad</td>
+      <td><b>Touchscreen</b>（觸控螢幕）<br><span class="num">Multi-touch 十點觸控</span></td>
+      <td>手指點，還是筆也要能寫。只要手指點，規格寫 Multi-touch 就夠；要寫字畫畫，就得往下看第 3 節的觸控筆協定</td>
+    </tr>
+    <tr>
+      <td>yoga 功能，轉軸角度很多</td>
+      <td><b>Convertible</b>（變形筆電），也叫 <b>2-in-1</b><br>關鍵字是 <b>360-degree hinge</b></td>
+      <td>Yoga 是 Lenovo 的產品線名稱，不是技術名稱。用 360-degree hinge 去搜，才會同時搜到別家對手</td>
+    </tr>
+    <tr>
+      <td>（容易買錯的鄰居）</td>
+      <td><b>Detachable</b>（可拆鍵盤）</td>
+      <td>螢幕整片拔下來的機構，例如 Surface Pro。它不是轉軸式，鍵盤拔掉就沒有鍵盤了。你要的是鍵盤永遠黏著、只是會翻的那種</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="box info">
+  <b>同類產品線怎麼找</b>
+  Lenovo 叫 <b>Yoga</b>，HP 叫 <b>OmniBook X Flip</b>（更早叫 Spectre x360），ASUS 叫 <b>Zenbook Flip</b>，Acer 叫 <b>Spin</b>，Dell 走 <b>2-in-1</b> 命名。
+  <span class="indent" style="display:block;margin-top:8px">看到名字裡有 Flip、Spin、x360、Yoga 這四個字，大致就是 360 度轉軸這一類。</span>
+</div>
+
+<h2 id="s2">2. 主軸圖：360 度轉軸的四種模式</h2>
+
+<p>這張是本篇的主軸圖。你真正花錢買的不是「觸控」這件事，而是下面這四種姿勢，因為觸控螢幕本身在一般筆電上也買得到，轉軸才是變形筆電的本體。</p>
+
+<figure>
+  <img src="../obsidian-attachment/學習硬體_圖解_360度轉軸的四種模式與190度鍵盤自動上鎖_2026-10-09.svg"
+       alt="360 度轉軸的四種模式：Laptop、Tent、Stand、Tablet">
+  <figcaption>轉軸從 110 度轉到 360 度，同一台機器變成四種不同的東西。下方黃框是翻過 190 度以後的鍵盤自動上鎖行為</figcaption>
+</figure>
+
+<table>
+  <thead><tr><th style="width:16%">模式</th><th style="width:14%">轉軸角度</th><th>你實際會在什麼時候用它</th></tr></thead>
+  <tbody>
+    <tr><td><b>Laptop</b> 一般模式</td><td class="num">約 110 度</td><td>寫程式、打字。這個模式下觸控只是多一條輸入路，不是主力</td></tr>
+    <tr><td><b>Tent</b> 帳篷模式</td><td class="num">約 300 度</td><td>倒 V 字站在桌上，佔的桌面面積最小。追劇、視訊、在廚房看食譜</td></tr>
+    <tr><td><b>Stand</b> 站立模式</td><td class="num">約 270 度</td><td>鍵盤朝下當底座，螢幕推到最靠近你。這是四種模式裡觸控點擊最穩的一種，因為戳螢幕時機器不會往後倒</td></tr>
+    <tr><td><b>Tablet</b> 平板模式</td><td class="num">360 度翻到底</td><td>手拿著看 PDF、手寫筆記、畫圖。重量與螢幕反光這兩個缺點，全部在這個模式才會真正被你感覺到</td></tr>
+  </tbody>
+</table>
+
+<h2 id="s3">3. 觸控筆協定：買錯筆就寫不了字</h2>
+
+<p>這一節是最容易踩雷的地方。觸控螢幕能不能用筆寫字，取決於螢幕裡的數位板（digitizer）支援哪一種協定，而不是取決於你買了多貴的筆。協定對不上，筆在螢幕上就只是一根塑膠棒。</p>
+
+<table>
+  <thead><tr><th style="width:18%">協定</th><th style="width:15%">筆要不要電池</th><th style="width:26%">誰在用</th><th>要注意什麼</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>MPP</b><br><span class="num">Microsoft Pen Protocol</span></td>
+      <td>要</td>
+      <td>Microsoft Surface、HP、部分 Dell（Inspiron 與 Latitude 的一部分）</td>
+      <td>版本從 1.2 一路到 2.6。最新的 2.6 是 Surface Slim Pen 2，多了 Zero-Force Inking 與觸覺回饋。高版本的筆接到低版本的螢幕會自動降級，功能縮水但還能用</td>
+    </tr>
+    <tr>
+      <td><b>Wacom AES</b><br><span class="num">Active ElectroStatic</span></td>
+      <td>要</td>
+      <td>多家 Windows 筆電採用</td>
+      <td>原理跟 MPP 最接近，都是筆自己供電、把訊號電容耦合進觸控螢幕，所以螢幕可以是一整片平貼玻璃，不用多一層感應層</td>
+    </tr>
+    <tr>
+      <td><b>Wacom EMR</b><br><span class="num">電磁共振</span></td>
+      <td>不要</td>
+      <td>Samsung Galaxy Book 系列</td>
+      <td>筆不用充電不用換電池，但螢幕背後要多一層感應層，所以機身會稍厚。這是另一套東西，不要跟 AES 搞混</td>
+    </tr>
+    <tr>
+      <td><b>USI</b></td>
+      <td>要</td>
+      <td>Chromebook</td>
+      <td>Windows 筆電基本上不會遇到</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="box warn">
+  <b>下單前一定要單獨確認的一行字</b>
+  規格表寫「支援觸控筆」不等於「附觸控筆」。很多機型的筆是另外加購，一支筆台幣兩三千起跳。
+  <span class="indent" style="display:block;margin-top:8px">正確的問法是：這台用哪一個協定，筆有沒有附在盒子裡，如果要另外買的話型號是哪一支。</span>
+</div>
+
+<h2 id="s4">4. 現行機型參考（2026-10 查證）</h2>
+
+<p>下面是目前查得到、確定是 360 度轉軸的機型。價格欄全部是原始來源寫的美金定價，我沒有查到可信的台灣售價，所以不寫台幣，避免給你錯的數字。</p>
+
+<table>
+  <thead>
+    <tr><th style="width:23%">機型</th><th style="width:15%">螢幕</th><th style="width:11%">重量</th><th style="width:14%">定價（原幣）</th><th>備註與來源日期</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>Lenovo Yoga 9i 2-in-1<br>Aura Edition (Gen 11)</b></td>
+      <td class="num">14 吋<br>2.8K OLED 120Hz</td>
+      <td class="num">1.29 kg</td>
+      <td class="num">US$1,949 起</td>
+      <td>厚度 15.29 mm，轉軸做成旋轉式 soundbar，所以翻到任何模式聲音方向都一致。2026 年 5 月上市。來源日期 2026-03-01</td>
+    </tr>
+    <tr>
+      <td><b>Lenovo Yoga 9i<br>Aura Edition（前一代）</b></td>
+      <td class="num">14 吋 OLED</td>
+      <td class="num">約 1.32 kg<br><span style="color:var(--muted)">(2.9 lb)</span></td>
+      <td class="num">US$1,499 – 2,349</td>
+      <td>Tom's Guide 評為畫面最漂亮的 2-in-1。價格區間隨配置變動。來源日期 2026-07-30</td>
+    </tr>
+    <tr>
+      <td><b>HP OmniBook X Flip 14</b></td>
+      <td class="num">14 吋 16:10<br>最高 3K OLED 120Hz</td>
+      <td class="num">約 1.41 kg<br><span style="color:var(--muted)">(3.11 lb，Intel 版)</span></td>
+      <td class="num">未公布</td>
+      <td>支援觸控筆但官方沒說有沒有附。AMD 版更重一些。SDR 最高 500 nits，部分 OLED 配置 HDR 最高 1,100 nits。來源日期 2026-01-05</td>
+    </tr>
+    <tr>
+      <td><b>HP OmniBook X Flip 16</b></td>
+      <td class="num">16 吋<br>最高 3K OLED</td>
+      <td class="num">約 1.91 kg<br><span style="color:var(--muted)">(4.2 lb)</span></td>
+      <td class="num">未公布</td>
+      <td>這個重量翻成平板模式單手完全拿不住，只能當 Tent 與 Stand 用。來源日期 2026-01-05</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="box warn">
+  <b>一個對你有利的壞消息</b>
+  Tom's Guide 在 2026-07-30 的評測裡直接指出，真正用 360 度轉軸、能完整翻成平板的機型其實正在變少，現在掛「2-in-1」的產品很多改用別的機構，例如雙螢幕、可拆鍵盤、或者像 Surface Laptop Studio 2 那種滑動式螢幕。
+  <span class="indent" style="display:block;margin-top:8px">所以你搜尋的時候不要只搜 2-in-1，一定要搭配 360-degree hinge 或 360 度翻轉，不然會撈到一堆拆鍵盤的機型。</span>
+</div>
+
+<h2 id="s5">5. 選購檢核八問 a–h</h2>
+
+<p>這八點沒有先後順序，所以用字母編號。到店裡或下單前逐條問一次。</p>
+
+<table>
+  <thead><tr><th style="width:6%"></th><th style="width:26%">要確認的項目</th><th>為什麼它會影響你</th></tr></thead>
+  <tbody>
+    <tr><td><b>a</b></td><td>重量與螢幕尺寸</td><td>14 吋翻成平板單手拿久會痠。想常用平板模式，建議壓在 1.3 kg 以下</td></tr>
+    <tr><td><b>b</b></td><td>面板是亮面還是霧面</td><td>觸控螢幕幾乎都是亮面（glossy），在窗邊會照到自己的臉。這是觸控機的固定代價，有沒有霧面選項要問清楚</td></tr>
+    <tr><td><b>c</b></td><td>翻過 190 度鍵盤會不會自動上鎖</td><td>會上鎖，所以手掌壓到按鍵不會打出字。但手指還是摸得到凸起的按鍵，這個觸感有些人受不了，要實機摸過</td></tr>
+    <tr><td><b>d</b></td><td>觸控筆協定與筆是否附贈</td><td>見第 3 節。這一條最常被規格表的「支援觸控筆」五個字騙過去</td></tr>
+    <tr><td><b>e</b></td><td>鉸鍊的保固條款</td><td>轉軸是機械件，是這類機型最常見的維修點。保固有沒有涵蓋鉸鍊，要翻條款不要聽櫃台說</td></tr>
+    <tr><td><b>f</b></td><td>OLED 還是 IPS</td><td>OLED 顏色漂亮但有烙印（burn-in）風險，而你寫程式會整天開著同一個 IDE 版面，是烙印的高風險用法</td></tr>
+    <tr><td><b>g</b></td><td>連接埠的位置</td><td>翻成 Tent 或 Stand 的時候，原本在側面的埠會跑到奇怪的方向，插著電源線可能會卡住</td></tr>
+    <tr><td><b>h</b></td><td>記憶體是否焊死</td><td>現在的輕薄變形機幾乎都是 LPDDR5X 直接焊在主機板上，買下去就不能加。要一次買到夠用的容量</td></tr>
+  </tbody>
+</table>
+
+<h2 id="s6">6. 對前端工程師的額外意義：PointerEvent</h2>
+
+<p>買觸控機對你還有一個職業上的好處：你終於能在自己的機器上測觸控行為，不用再靠 Chrome DevTools 模擬。這裡補一段跟它直接相關的前端知識。</p>
+
+<p>瀏覽器處理輸入裝置的歷史走過三代。滑鼠事件 <code>MouseEvent</code> 只認滑鼠；後來為了手機加了 <code>TouchEvent</code>，結果同一段互動要寫兩套；<b>PointerEvent</b> 把三種輸入裝置統一成同一組事件，用 <code>pointerType</code> 這個屬性去分辨來源。</p>
+
+<pre><code>element.addEventListener('pointerdown', (e) =&gt; {
+  if (e.pointerType === 'pen') {
+    draw(e.clientX, e.clientY, e.pressure);
+  }
+});</code></pre>
+
+<p class="indent">這段在做的事是：我在元素上掛一個 <code>pointerdown</code> 監聽器，不管使用者是用滑鼠、手指還是觸控筆按下去，都會進到同一個 callback。<br>
+進來以後我用 <code>e.pointerType</code> 判斷來源，它的值只會是 <code>'mouse'</code>、<code>'touch'</code>、<code>'pen'</code> 三者之一。<br>
+確認是筆的時候，我才去讀 <code>e.pressure</code>——這是 0 到 1 的壓力值，滑鼠永遠回傳 0 或 0.5，只有支援壓感的筆才有真實數值。</p>
+
+<p>另外一個跟觸控機直接相關的坑是 CSS 的互動媒體查詢。你的新機器同時有 touchpad 跟觸控螢幕，所以它會<b>同時</b>符合精準指標與粗略指標兩種條件：</p>
+
+<pre><code>@media (hover: hover) and (pointer: fine) {
+  .btn:hover { background: #e7f0fb; }
+}</code></pre>
+
+<p class="indent">這段在做的事是：只有當裝置「能夠 hover」而且「指標是精準的」時候，才套用 hover 樣式。<br>
+純觸控裝置的 <code>hover</code> 會是 <code>none</code>、<code>pointer</code> 會是 <code>coarse</code>，所以不會套到，避免手指點完以後 hover 樣式黏在上面不消失。<br>
+變形筆電比較麻煩的地方在於它<b>兩種都符合</b>，所以用這組查詢做 feature detection 在變形機上會失準，真的要區分就得改用 <code>pointerType</code> 在 JavaScript 裡判斷。</p>
+
+<p>可以直接跑的示範檔放在同一個資料夾：<a href="pointer-events-demo.html">pointer-events-demo.html</a>（配合 <a href="pointer-events-demo.js">pointer-events-demo.js</a>）。用滑鼠、手指、觸控筆分別點它，畫面會即時印出 <code>pointerType</code> 與 <code>pressure</code>。</p>
+
+<div class="box info">
+  <b>關於 LeetCode／NeetCode 對應題目</b>
+  這一節是瀏覽器事件模型與硬體規格，不屬於演算法題範疇，LeetCode 與 NeetCode 都沒有對應題目，所以這裡不硬塞連結。要練相關的東西，方向是 MDN 的 Pointer events 文件與實作練習，不是刷題。
+</div>
+
+<h2 id="s7">7. 自我測驗</h2>
+
+<div class="tools">
+  <button onclick="document.querySelectorAll('.cloze').forEach(c=&gt;c.classList.add('open'))">全部顯示答案</button>
+  <button onclick="document.querySelectorAll('.cloze').forEach(c=&gt;c.classList.remove('open'))">全部隱藏答案</button>
+  <button onclick="document.querySelectorAll('details.essay').forEach(d=&gt;d.open=false)">收合所有申論題</button>
+</div>
+
+<h3>7-1　點擊填空（點一下空格看答案）</h3>
+
+<p>a.　Yoga 是 <span class="cloze" data-a="Lenovo">Lenovo</span> 的產品線名稱，真正該拿去搜尋的技術關鍵字是 <span class="cloze" data-a="360-degree hinge">360-degree hinge</span>。</p>
+
+<p>b.　螢幕整片拔得下來的機構叫 <span class="cloze" data-a="Detachable">Detachable</span>，代表機種是 <span class="cloze" data-a="Surface Pro">Surface Pro</span>，它跟轉軸式是兩種不同的東西。</p>
+
+<p>c.　轉軸翻過 <span class="cloze" data-a="190 度">190 度</span> 以後，韌體會自動停用鍵盤與 touchpad 的輸入。</p>
+
+<p>d.　筆不需要電池、靠電磁共振運作的協定叫 <span class="cloze" data-a="Wacom EMR">Wacom EMR</span>，代表廠商是 <span class="cloze" data-a="Samsung">Samsung</span>。</p>
+
+<p>e.　PointerEvent 用來分辨輸入來源的屬性是 <span class="cloze" data-a="pointerType">pointerType</span>，它的三個可能值是 <span class="cloze" data-a="mouse / touch / pen">mouse / touch / pen</span>。</p>
+
+<p>f.　MPP 目前最新的版本是 <span class="cloze" data-a="2.6">2.6</span>，它多出來的兩個功能是 <span class="cloze" data-a="Zero-Force Inking 與觸覺回饋">Zero-Force Inking 與觸覺回饋</span>。</p>
+
+<h3>7-2　是非題</h3>
+
+<div class="tf" data-ans="F">
+  <div class="q">a.　規格表上寫「支援觸控筆」，就代表盒子裡會附一支觸控筆。</div>
+  <button onclick="tf(this,'T')">對</button><button onclick="tf(this,'F')">錯</button>
+  <div class="fb"><b>錯。</b>支援與附贈是兩件事。很多機型的筆要另外加購，所以下單前要單獨問「筆有沒有在盒子裡」。</div>
+</div>
+
+<div class="tf" data-ans="T">
+  <div class="q">b.　觸控螢幕的機型幾乎都是亮面面板，在窗邊會反光照到自己。</div>
+  <button onclick="tf(this,'T')">對</button><button onclick="tf(this,'F')">錯</button>
+  <div class="fb"><b>對。</b>這是觸控機的固定代價，不是某一家廠商偷工。想要霧面就要特別找，而且選擇很少。</div>
+</div>
+
+<div class="tf" data-ans="F">
+  <div class="q">c.　高版本的 MPP 觸控筆接到低版本的數位板，會完全不能用。</div>
+  <button onclick="tf(this,'T')">對</button><button onclick="tf(this,'F')">錯</button>
+  <div class="fb"><b>錯。</b>會自動降級到舊的功能集，還是能寫，只是壓力階數、傾斜偵測這些功能會縮水。</div>
+</div>
+
+<div class="tf" data-ans="T">
+  <div class="q">d.　在變形筆電上，用 CSS 的 <code>(hover: hover) and (pointer: fine)</code> 來判斷「使用者是不是在用觸控」會失準。</div>
+  <button onclick="tf(this,'T')">對</button><button onclick="tf(this,'F')">錯</button>
+  <div class="fb"><b>對。</b>變形筆電同時有 touchpad 與觸控螢幕，兩種條件都符合，所以這組查詢分不出當下是哪一種。要準確判斷必須在 JavaScript 裡讀 <code>e.pointerType</code>。</div>
+</div>
+
+<h3>7-3　申論題</h3>
+
+<details class="essay">
+  <summary>a.　為什麼「願望清單」不應該整張寫進 Google Calendar？請從工具的第一欄位說明。</summary>
+  <div class="ans">
+    Google Calendar 的資料模型以時間為主鍵，每一筆記錄都必須先回答「什麼時候」。願望本身沒有日期，為了塞進日曆而硬編一個假日期，會造成兩個後果。
+    <p class="indent">第一，日曆上出現大量不需要你當天行動的項目，訊號雜訊比下降，你會開始習慣性忽略通知，連真正有時間性的事也一起被忽略。<br>
+    第二，願望的核心資訊是比較與理由，而日曆的事件欄位沒有表格也沒有結構，寫進去就是一團純文字。</p>
+    正確做法是把有日期的那一小部分（買點，例如雙 11）切出來放日曆，其餘留在 Obsidian 與 Google Tasks。
+  </div>
+</details>
+
+<details class="essay">
+  <summary>b.　同樣是「可以用筆寫字的螢幕」，MPP、Wacom AES、Wacom EMR 三者的取捨差在哪裡？</summary>
+  <div class="ans">
+    MPP 與 Wacom AES 的運作原理相近，都是筆自己帶電源、把訊號以電容方式耦合進觸控顯示面板，因此螢幕可以做成一整片平貼玻璃，不需要額外的感應層，機身可以更薄，代價是筆要充電或換電池。
+    <p class="indent">Wacom EMR 走的是電磁共振，感應層在面板背後主動供能給筆，所以筆完全不用電池、重量輕、也不會沒電，代價是機身必須多容納一層感應結構。</p>
+    對你的使用情境來說：如果筆只是偶爾點一點，MPP 或 AES 的機型就夠，而且機身更薄更輕；如果會長時間畫圖、很在意筆沒電，EMR 比較省心，但選擇被限縮到 Samsung Galaxy Book 這一條線上。
+  </div>
+</details>
+
+<details class="essay">
+  <summary>c.　你的原始需求是「不想一直用 touchpad 慢慢滑」。觸控螢幕真的解決了這個問題嗎？請誠實評估。</summary>
+  <div class="ans">
+    部分解決，而且有條件。
+    <p class="indent">觸控確實消除了「滑很遠」這個動作，手指直接落在目標上，對點按鈕、捲長頁面、切分頁這類大目標操作是真的快。<br>
+    但是在 Laptop 模式下，螢幕是立著的，手要離開鍵盤抬到半空中去戳，長時間會造成俗稱 gorilla arm 的手臂疲勞，所以寫程式時你多半還是會退回 touchpad。<br>
+    另外觸控的精準度對小目標不利，例如 IDE 裡的行號、游標定位、拖曳分隔線，這些用手指反而比 touchpad 慢。</p>
+    真正會讓你覺得划算的是 Stand 與 Tablet 這兩個模式：螢幕被推到離手很近、或者直接拿在手上，這時候觸控才是主力輸入而不是輔助。
+    <p class="indent">所以結論是：如果你買它只為了取代 touchpad，期待值要放低；如果你同時會用到看文件、手寫筆記、追劇這幾種情境，它就值得。</p>
+  </div>
+</details>
+
+<h2 id="s8">8. 資料來源（含查證時間）</h2>
+
+<table>
+  <thead><tr><th style="width:30%">主題</th><th style="width:38%">連結</th><th>版本／時間</th></tr></thead>
+  <tbody>
+    <tr><td>2-in-1 機型整理，以及「真 360 度轉軸機型正在變少」這個觀察</td><td><a href="https://www.tomsguide.com/best-picks/best-2-in-1-laptops">Tom's Guide — The best 2-in-1 laptops</a></td><td>文章更新日 2026-07-30，查證日 2026-10-09</td></tr>
+    <tr><td>Lenovo Yoga 9i 2-in-1 Gen 11 的螢幕、重量、厚度、定價與上市時間</td><td><a href="https://www.windowscentral.com/hardware/lenovo/new-lenovo-yoga-9i-2-in-1-gen-11-announcement-mwc-2026">Windows Central — Yoga 9i Gen 11 hands on（MWC 2026）</a></td><td>發表日 2026-03-01，查證日 2026-10-09</td></tr>
+    <tr><td>HP OmniBook X Flip 14 與 16 的螢幕、重量、觸控筆支援與 360 度轉軸四模式</td><td><a href="https://www.notebookcheck.net/HP-unveils-OmniBook-X-Flip-14-and-Flip-16-with-3K-OLED-touchscreens-stylus-support-and-bigger-battery-options.1196759.0.html">Notebookcheck — HP OmniBook X Flip 14 / 16</a></td><td>發表日 2026-01-05，頁面更新 2026-10-05，查證日 2026-10-09</td></tr>
+    <tr><td>MPP 的版本演進、與 Wacom AES 的原理比較、各廠牌採用狀況</td><td><a href="https://en.wikipedia.org/wiki/Microsoft_pen_protocol">Wikipedia — Microsoft pen protocol</a></td><td>查證日 2026-10-09</td></tr>
+    <tr><td>流程圖符號形狀依據</td><td><a href="https://zh.wikipedia.org/zh-tw/%E6%B5%81%E7%A8%8B%E5%9C%96">維基百科 — 流程圖（ISO 5807）</a></td><td>查證日 2026-10-09</td></tr>
+  </tbody>
+</table>
+
+<div class="box warn">
+  <b>⚠️ 存疑的欄位，看的時候請留意</b>
+  第 4 節 Lenovo Yoga 9i 那兩列，Windows Central 寫 1.29 kg、Tom's Guide 寫 2.9 lb（約 1.32 kg），兩邊差了 30 公克。原因可能是不同世代或不同配置，我沒有查到能一次對齊兩者的官方規格頁，所以兩個數字都保留並標註來源，<b>不要把它當成精確值</b>，以實機或官網規格頁為準。
+</div>
+
+<footer>
+  <p><b>相關筆記</b>　<a href="願望清單.html">願望清單 — 總表與分流規則</a>　·　<a href="pointer-events-demo.html">PointerEvent 程式碼示範</a></p>
+  <p>Obsidian wikilink：<code>[[願望清單]]</code>　·　本頁為手寫 HTML，Obsidian 需啟用 HTML Reader 外掛才能內嵌預覽</p>
+</footer>
+
+</div>
+
+<script>
+document.querySelectorAll('.cloze').forEach(function(c){
+  c.textContent = c.dataset.a;
+  c.addEventListener('click', function(){ c.classList.toggle('open'); });
+});
+
+function tf(btn, pick){
+  var box = btn.closest('.tf');
+  var correct = box.dataset.ans;
+  box.querySelectorAll('button').forEach(function(b){ b.classList.remove('picked-right','picked-wrong'); });
+  btn.classList.add(pick === correct ? 'picked-right' : 'picked-wrong');
+  box.querySelector('.fb').classList.add('show');
+}
+</script>
+<script src="../assets/notes.js" defer></script>
+</body>
+</html>
