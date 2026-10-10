@@ -29,10 +29,14 @@ updated: 2026-09-15
 > [!important]+ 最常被搞錯的一件事先講
 > <mark style="background: #FF5582A6;">`return () => clearInterval(id)` 這一行執行時，`clearInterval` 一次都沒有被呼叫</mark>。它只是**建立**了一個函式物件並交還給 React。`clearInterval(id)` 要等到 React 決定該清理時、真的去呼叫那個函式，才會被執行。差一個箭頭（`return clearInterval(id)`）行為就完全相反——那才是當場執行。
 
+> [!important] 新觀念：cleanup 是 setup 函式 `return` 出來的函式
+> 通常是以 <mark style="background: #FFF3A3A6;">**setup 函式為主體**</mark>，由它 <mark style="background: #FF5582A6;">**`return` 出一個 cleanup 函式**</mark> 交給 React，而不是另外多傳一個參數給 `useEffect`。
+> `return` 這一刻 <mark style="background: #BBFABBA6;">只是建立並交出這個函式，沒有執行它</mark>。互動版第一節有逐步圖解：`02-useEffect的setup清理函式-return一個函式而不是執行它-互動版.html`。
+
 | 5W1H | 問題 | 一句話答案 |
 |---|---|---|
 | **What** 是什麼 | 清理函式是什麼？ | `useEffect` 的第一個參數（setup function）可以選擇性回傳一個「不收參數、不回傳值」的函式，React 官方稱它 cleanup function |
-| **When** 什麼時候 | 它什麼時候被執行？ | <mark style="background: #FF5582A6;">不是在 `return` 那一行</mark>。是在三個時機由 React 呼叫：元件卸載前、每次重跑 setup 之前、以及 StrictMode 開發模式掛載後多跑的那一輪 |
+| **When** 什麼時候 | 它什麼時候被執行？ | <mark style="background: #FF5582A6;">不是在 `return` 那一行</mark>。是在三個時機由 React 呼叫：元件卸載後（官方：after your component is removed from the page）、每次重跑 setup 之前、以及 StrictMode 開發模式掛載後多跑的那一輪 |
 | **Who** 誰做的 | 誰呼叫它？ | React 的 commit 階段。不是你、不是 JS 引擎、不是瀏覽器 |
 | **Where** 在哪裡 | 它被存在哪？ | 存在該 effect 物件的 `inst.destroy` 欄位上，而那個 effect 掛在 fiber 節點（Heap）上 |
 | **Which** 哪一種 | 哪些東西需要清理？ | 會「持續存在」的東西：計時器、事件監聽器、WebSocket／SSE 連線、訂閱、`AbortController`、第三方套件的實例 |
@@ -88,7 +92,7 @@ flowchart LR
         F["時機到了才呼叫 cleanup<br/>★ clearInterval&#40;id&#41; 這時才真的執行"]
     end
     B --> C --> D --> E
-    E -.->|"卸載前／依賴變動前／StrictMode 檢查"| F
+    E -.->|"卸載後／依賴變動前／StrictMode 檢查"| F
     F -.->|"若是依賴變動，接著跑新的 setup"| D
 ```
 
@@ -204,6 +208,27 @@ e. 幾秒或幾分鐘後 React 呼叫清理函式時，它才去讀那塊記憶�
 
 <mark style="background: #BBFABBA6;">一句話：清理函式能關掉「當初那一個」計時器，靠的不是 React 記得，而是 JS 閉包把 `id` 從 Stack 搬到了 Heap。</mark>
 
+> [!important] Context 物件（捕捉變數）記的是什麼：<mark style="background: #FFF3A3A6;">內部函式所引用的外部變數</mark>
+> 也就是<mark style="background: #BBFABBA6;">閉包所捕捉的環境資料</mark>，<mark style="background: #FF5582A6;">而不是函式本身</mark>。
+> 函式物件另外存在 Effect 物件的 `create` 與 `inst.destroy`，它只是「背著」一個 Context 的位址。
+> 圖中凡是 Context 旁邊標「（捕捉變數）」，指的就是這個意思。
+
+**Heap 上的 Context（背包）長什麼樣：**
+
+| 名稱 | 白話 | 依據 |
+|---|---|---|
+| Context 物件（捕捉變數） | Heap 上的物件，裝「被內層函式抓住的變數」，不是函式本身 | V8 原始碼 `contexts.h` |
+| JSFunction | 函式物件，本質是 `(context, 程式碼)` 的組合，所以每個函式都背著一個 Context | 同上，原文：*JSFunctions are pairs (context, function code), sometimes also called closures* |
+| Context 的固定欄位 | `scope_info`（描述有哪些變數）、`previous`（指向外一層的 Context）、`extension`（額外資料），之後才是變數本身 | 同上 |
+| 建立時機 | 進入函式的那一刻建立，不是建立閉包時，所以每次呼叫都有全新的一份 | 2012 年 Vyacheslav Egorov 的文章，⚠️ 年代久遠，且原文無法開啟，只讀到搜尋摘要，概念仍通用 |
+| 規格上的稱呼 | ECMAScript 稱 Lexical Environment、函式的 `[[Environment]]`、outer 參照，大致對應 V8 的 Context、JSFunction 的 context、`previous` | ⚠️ 依記憶整理，未逐字核對規格 |
+
+套到 React 的 Effect 上：`Effect.create` 指向 setup 函式，它背著 Context ①（那一次 render 的 `roomId`、`serverUrl`）。`inst.destroy` 指向 cleanup 函式，它背著 Context ②（`setup()` 那一次呼叫的 `connection`），而 ② 的 `previous` 指回 ①。
+所以 cleanup 之後還能 `disconnect()`「當初那一條」連線，也因此 cleanup 若讀 `roomId`，讀到的是它那一次 render 的值，這就是 (g) 說的「cleanup 讀到的是它那一次 render 的值」。
+讀變數的規則是：從函式自己的 Context 開始，找不到就沿 `previous` 往外一層。
+
+![[HeapContext_閉包背包_2026-10-04.png]]
+
 ![[學習React_圖解_setCount(count++)為何失效-三道關卡_2026-09-07.svg]]
 
 > 上圖是同一族的問題：`setCount(count++)` 為何失效的三道關卡。它跟本篇的 stale closure 共用同一個底層原因——**每次 render 都是一次全新的函式呼叫，閉包抓住的是那一次的綁定**。
@@ -212,7 +237,7 @@ e. 幾秒或幾分鐘後 React 呼叫清理函式時，它才去讀那塊記憶�
 
 ## (f) React 內部怎麼看待這個回傳值（可以直接背的證據）
 
-React 原始碼 `packages/react-reconciler/src/ReactFiberHooks.js` 裡，effect 的型別定義寫得非常清楚：
+React 原始碼 `packages/react-reconciler/src/ReactFiberHooks.js` 裡，effect 的型別定義寫得非常清楚（Flow 是 Meta 開發的靜態型別檢查工具，React 原始碼用它，不是 TypeScript）：
 
 ```ts
 type Effect = {
@@ -230,18 +255,75 @@ type EffectInstance = {
 
 逐行翻成中文：
 
-1. `create` 就是你寫給 `useEffect` 的那個 setup 函式。它的型別簽章 `() => (() => void) | void` 白紙黑字寫著：<mark style="background: #FF5582A6;">它只能回傳「一個不收參數也不回傳值的函式」，或者什麼都不回傳</mark>。
-
-2. `inst` 是一個 `EffectInstance` 物件，裡面的 `destroy` 欄位就是你 `return` 出去的那個清理函式的存放位置。
-
-3. React 原始碼的註解說明了為什麼要獨立包一個 `EffectInstance`：因為 destroy 是**有狀態的**（stateful），effect 被卸載後這個欄位會被設回 `undefined`。
-
-4. `next` 代表 effect 之間也是串成鏈結串列的，跟 hook 本身的鏈結串列是同一套設計思路。
+| 行 | 意思 |
+|---|---|
+| `type Effect = { ... }` | 宣告一個叫 `Effect` 的物件型別，每次 `useEffect` 呼叫會產生一個這種物件 |
+| `tag: HookFlags` | 位元旗標。`HasEffect` 是 `0b0001`、`Insertion` 是 `0b0010`、`Layout` 是 `0b0100`、`Passive` 是 `0b1000`。用來區分是哪一種 Hook（`useEffect` 是 Passive），以及這一輪要不要執行 |
+| `inst: EffectInstance` | 一個 `EffectInstance` 物件，裡面的 `destroy` 欄位就是你 `return` 出去的那個清理函式的存放位置 |
+| `create` | 就是你寫給 `useEffect` 的那個 setup 函式。型別簽章 `() => (() => void) \| void` 白紙黑字寫著：<mark style="background: #FF5582A6;">它只能回傳「一個不收參數也不回傳值的函式」，或者什麼都不回傳</mark> |
+| `deps: Array<mixed> \| void \| null` | 依賴陣列，或 `void`／`null` 代表沒傳。`mixed` 是 Flow 的「安全的任意型別」，對應 TypeScript 的 `unknown`（不是 `any`）：拿到值之後要先檢查型別才能用。實作上 `undefined` 會先被轉成 `null` |
+| `next: Effect` | 下一個 Effect。注意它**沒有** `\| null`，代表永遠有下一個，所以 Effect 之間串成的是「環」，見下方 |
 
 這直接解釋了兩個常見錯誤為什麼會壞：
 
 - 寫 `useEffect(async () => {...})` → async 函式回傳的是 **Promise**，不是函式，型別對不上，React 會在主控台警告
 - 寫 `return clearInterval(id)` → 回傳的是 `undefined`，React 以為你沒有清理邏輯
+
+![[FiberNode內部結構_Hook單向鏈與Effect環_2026-10-04.jpg]]
+
+**`create`、`inst` 算 Hook 的屬性嗎？** 不算，它們是 <mark style="background: #ADCCFFA6;">**Effect 物件**</mark>的屬性。Hook 物件只有 `memoizedState`、`baseState`、`baseQueue`、`queue`、`next` 五個屬性，其中 `useEffect` 那一節 Hook 的 `memoizedState` 指向 Effect 物件，Effect 物件才有 `tag`、`create`、`deps`、`inst`、`next`。`inst` 本身又是一個物件 `{ destroy }`，所以 cleanup 的位置是「Hook.memoizedState → Effect.inst.destroy」。`useEffect` 那一節 Hook 的 `queue` 是 `null`，原因見 [[useState底層-Fiber-Tree-memoizedState與過期閉包]] 的 `queue` 說明。
+
+**setup 與 cleanup 住在 Effect 物件的哪裡：** `create` 就是 setup 函式，在 render 時存入。`inst.destroy` 就是 cleanup 函式，要等 commit 時 setup 跑完、`return` 出來才存入，在那之前是 `undefined`。cleanup 不在 Hook 的 `queue`（值是 `null`），也不在 Hook 的 `next`（那是下一節 Hook）。時間軸見 (g)。
+
+**`inst` 到底是什麼？**
+`inst` 是 instance（實例）的縮寫，一個只有一個欄位的小物件 `{ destroy }`，掛載時用 `createEffectInstance()` 建立一次，之後這個 Effect 一輩子都用同一個。
+需要它的原因：每次 render，React 都會為這個 Hook 建立一個新的 Effect 物件（記這次的 `create` 與 `deps`），舊的 Effect 物件下一輪就被換掉了。但 cleanup 是「有狀態的」，要等 setup 跑完才存在，還得留到下一輪才用，effect 被卸載後這個欄位會被設回 `undefined`。若放在會被換掉的 Effect 物件上，下一輪就找不到，所以另外放一個跨 render 共用的小房子，新舊 Effect 都指向它。
+原始碼註解原文：*The effect "instance" is a shared object that remains the same for the entire lifetime of an effect. In Rust terms, a RefCell. We use it to store the "destroy" function that is returned from an effect, because that is stateful.*
+React 19 的 `destroy` 放在共用的 `inst` 物件上，React 18 則直接放在 Effect 上，所以舊文章寫 `effect.destroy` 並不算錯。
+
+**Effect 是物件型別，為什麼又說它是環？兩件事不衝突：** `Effect` 這個型別描述的是「一個節點」長什麼樣，環是「很多個節點的 `next` 怎麼接」。就像「人」這個型別有一個 `朋友` 欄位，一群人手牽手圍成圈，每個人還是一個物件。型別本身就看得出是不是環：
+
+| 型別 | `next` 的型別 | 意思 |
+|---|---|---|
+| `Hook` | `Hook \| null` | 可以是 `null`，所以有尾巴，是單向鏈 |
+| `Effect` | `Effect`（不可為 `null`） | 永遠有下一個，沒有尾巴，是環。原始碼的註解也寫著 `// Circular` |
+
+環是怎麼串起來的（`pushEffectImpl`）：
+1. 第一個 Effect：`lastEffect = effect.next = effect`，自己指自己。
+2. 之後的 Effect：先取 `firstEffect = lastEffect.next`，把 `lastEffect.next` 改指向新的，新的 `next` 指回 `firstEffect`，再把 `lastEffect` 改成新的。
+3. 順序就是你在元件裡呼叫 `useEffect`、`useLayoutEffect`、`useInsertionEffect` 由上到下的順序，每次 render 開頭 `lastEffect`（掛在 `fiber.updateQueue` 上）會先重設成 `null` 再重建。
+4. 這條環只串「會產生 Effect 物件的 Hook」：`useEffect`、`useLayoutEffect`、`useInsertionEffect`，以及內部也靠 Effect 實作的 `useImperativeHandle`。`useState`、`useRef` 不產生 Effect，所以不在這條環裡。
+
+**這四個 Hook 各是什麼意思：** 它們的共同點是「React 做完某件事之後，請幫我跑一段我寫的程式」，差別只在跑的時間點，所以同一種 Effect 物件用 `tag` 旗標區分。每次 commit，React 依 Insertion、Layout、Passive 的順序處理（Passive 通常在畫面畫完之後，離散事件如點擊引發的更新可能同步 flush）。
+
+| Hook | 白話意思 | 什麼時候執行（`tag`） | 簡單例子 | 為什麼在環裡 |
+|---|---|---|---|---|
+| `useEffect` | 畫面更新完了，再去跟外面的世界（計時器、網路、事件監聽、第三方套件）對一下 | `Passive`，畫面畫完之後 | `useEffect(() => { const id = setInterval(tick, 1000); return () => clearInterval(id) }, [])`，掛載後開始計時，卸載時停掉 | 最典型的 Effect，`create` 是你寫的 setup，`inst.destroy` 是你 return 的 cleanup |
+| `useLayoutEffect` | 在使用者看到畫面之前，先量尺寸或調位置，會擋住繪製所以不得已才用 | `Layout`，DOM 改好之後、畫面還沒畫出來 | 提示框先量按鈕位置與自己的高度，決定放上面或下面。用 `useEffect` 會先閃一下錯的位置 | 同一種 Effect 物件，只是 `tag` 是 `Layout`，所以跑得比較早 |
+| `useInsertionEffect` | 在別人讀版面之前，先把 CSS 規則塞進頁面，設計給 CSS-in-JS 套件作者用，一般應用幾乎用不到 | `Insertion`，最早，早於所有 Layout。原始碼中它在 commit 的 mutation 階段執行，此時還讀不到 ref | 樣式函式庫在這裡把 `<style>` 規則插入 `document.head`，之後 `useLayoutEffect` 量尺寸時樣式已生效 | 同一種 Effect 物件，`tag` 是 `Insertion` |
+| `useImperativeHandle` | 爸爸拿到我的 `ref` 時，只讓他看到我挑好的幾個方法，不直接給出 DOM 節點 | `Layout`，跟 `useLayoutEffect` 同時間 | `useImperativeHandle(ref, () => ({ focus() { inputRef.current.focus() } }), [])`，爸爸只能呼叫 `ref.current.focus()`，碰不到內部的 input | 原始碼把它做成 Layout Effect：create 時 `ref.current = 你的物件`，cleanup 時設回 `null` |
+
+⚠️ 存疑：`useLayoutEffect` 與 `useInsertionEffect` 的「用途」描述來自我對官方文件的記憶，尚未對照 react.dev 官方頁面。執行階段（Insertion 在 mutation 階段、Layout 在 layout 階段）與 `useImperativeHandle` 的實作則已對照原始碼。
+
+**Hook 鏈（`Hook.next`）與 Effect 環（`Effect.next`）的關係：** Effect 類的 Hook 同時在兩條鏈上，不是互相分開的。
+
+| 鏈 | 串的是什麼 | 包含哪些 Hook |
+|---|---|---|
+| Hook 鏈（`Hook.next`，單向，尾巴是 `null`） | 元件裡每一個會建立節點的 Hook，依呼叫順序 | `useState`、`useReducer`、`useRef`、`useMemo`、`useCallback`、`useId`、`useTransition` 等，也包含 `useEffect`、`useLayoutEffect`、`useInsertionEffect`、`useImperativeHandle`。`useContext` 不在裡面，它只讀 context，不建立節點 |
+| Effect 環（`Effect.next`，環） | 其中會產生 Effect 物件的那幾個 Hook 的 Effect 物件，依呼叫順序 | `useEffect`、`useLayoutEffect`、`useInsertionEffect`、`useImperativeHandle` |
+
+**`useImperativeHandle` 是 Hook，不是 fiber。** Fiber 是元件實例在樹上的那一格，Hook 是掛在 fiber 上的節點。`useImperativeHandle` 在 Hook 鏈上占一節，它的 Effect 物件進 Effect 環，長相跟 `useEffect` 的差別如下（`mountImperativeHandle` 與 `imperativeHandleEffect`）：
+
+| 欄位 | `useEffect` | `useImperativeHandle` |
+|---|---|---|
+| `tag` | `Passive` | `Layout`，在 layout 階段執行，不是 Passive |
+| `create` | 你寫的 setup 函式 | `imperativeHandleEffect.bind(null, create, ref)`，把你的 `create` 與 `ref` 綁起來，執行時做 `ref.current = create()` |
+| `deps` | 你傳的依賴陣列 | `deps.concat([ref])`，沒傳 deps 就是 `null` |
+| `inst.destroy` | 你 `return` 的函式 | 內建的清理函式：`ref.current = null`，若 `ref` 是函式則呼叫 `ref(null)` |
+
+所以一個 `useEffect` 會有兩個位置：它在 Hook 鏈上有一節 Hook，這一節的 `memoizedState` 指向 Effect 物件，同一個 Effect 物件又被串在 Effect 環上（掛在 `fiber.updateQueue.lastEffect`）。commit 時 React 只要走 Effect 環就能找到所有要處理的 Effect，不用走完整條 Hook 鏈，這是我依程式碼做的推論，不是官方說明。
+
+為什麼用環而不是一般鏈：只要記一個 `lastEffect` 指標，`lastEffect.next` 就是第一個，往尾端新增也只要改兩個指標。這是我依程式碼做的推論，不是 React 官方說明。
 
 ---
 
@@ -249,11 +331,97 @@ type EffectInstance = {
 
 專業回答一定要講清楚時機：
 
-1. **元件卸載（unmount）前**——最直覺的那個。
+1. **元件卸載（unmount）後**——元件已從畫面移除，React 最後再跑一次。官方原文是 *Your cleanup code runs one final time after your component is removed from the page*。
 
 2. **每次要重新執行 setup 之前**——依賴陣列裡的值變了，React 會先跑舊的 cleanup、再跑新的 setup。所以順序永遠是 `setup① → cleanup① → setup② → cleanup② → ...`，<mark style="background: #ADCCFFA6;">成對且交錯，不會有兩個 setup 同時活著</mark>。
 
 3. **開發模式的 StrictMode 下，掛載後會立刻多跑一輪** `setup → cleanup → setup`。這不是 bug，是 React 故意在幫你檢查「你的 cleanup 有沒有寫對」。<mark style="background: #FFF3A3A6;">如果你的元件在 StrictMode 下行為異常（例如計時器變兩倍快、請求送兩次），通常代表 cleanup 漏寫了</mark>——詳見 [[01-React-純函數與嚴格模式-StrictMode]]。
+
+**用 Call Stack（呼叫堆疊）看順序：為什麼不是「cleanup 疊在 setup 上面所以先彈出」**
+Call Stack 是後進先出（LIFO）的罐頭堆，只負責「同一時間正在執行、層層呼叫」的函式。
+`return () => ...` 只是建立一個函式物件放在 Heap，並沒有呼叫它，所以 cleanup 從來沒有跟 setup 同時在 stack 上。
+
+| 時間點 | Call Stack 上有什麼 | cleanup 在哪裡 |
+|---|---|---|
+| ① render | `Counter()` | 還沒有，Effect 物件的 `create` 存著 setup 函式 |
+| ② commit 執行 setup | `flushPassiveEffects`、`setup()` | 還沒有，`return` 尚未執行 |
+| ③ setup 回傳之後 | 空的 | Heap：Effect 物件的 `inst.destroy` |
+| ④ 依賴變動，React 呼叫舊 cleanup | `flushPassiveEffects`、`cleanup①()` | 被呼叫中，`inst.destroy` 先被清成 `undefined` |
+| ⑤ cleanup 彈出後，呼叫新 setup | `flushPassiveEffects`、`setup②()` | 回傳後 `inst.destroy` 存入 cleanup② |
+
+所以順序不是 stack 決定的，是 React 的 commit 排程決定的：同一次 commit 裡先跑完所有要清理的 cleanup（原始碼 `commitPassiveUnmountEffects`），再跑所有 setup（`commitPassiveMountEffects`）。
+`create` 在 render 時存入、`inst.destroy` 在 commit 時 `destroy = create(); inst.destroy = destroy;` 那一行才存入，這就是 ③ 之前 `inst.destroy` 是 `undefined` 的原因。
+
+![[useEffect_setup與cleanup_CallStack罐頭時間軸_2026-10-04.png]]
+
+**那 cleanup 哪一次 commit 會被呼叫？為什麼不是我們自己呼叫？**
+這是「回呼函式（callback）」的概念：把函式交給別人，由對方在適當的時機呼叫。
+
+| 你寫的 | 你交出去的函式 | 誰在什麼時候呼叫 |
+|---|---|---|
+| `setTimeout(fn, 1000)` | `fn` | 瀏覽器，1 秒後 |
+| `addEventListener('click', fn)` | `fn` | 瀏覽器，使用者點擊時 |
+| `promise.then(fn)` | `fn` | JS 引擎，promise 完成時 |
+| `useEffect(() => { ...; return cleanup })` | `cleanup` | React，這個 Effect 需要停止同步時 |
+
+程式裡從來沒有出現 `cleanup()`，因為「什麼時候該清理」只有 React 知道：deps 有沒有變、元件有沒有被移除，都是 React 在比較與維護。
+所以 `return` 這一行並不是白做：它把 cleanup 連同它用閉包抓住的 `connection` 一起交給 React 保管，日後 React 才能關掉「當初那一條」連線。
+
+cleanup 會在「setup 之後，第一個符合下列任一條件的 commit」被呼叫：
+
+| 條件 | 是哪一次 commit | 例子 |
+|---|---|---|
+| deps 變了 | 因 `setState` 或父元件傳入新 props 引發 re-render，該次 render 之後的 commit | `roomId` 從 `general` 改成 `travel` 的那一次 |
+| 元件被移除 | 條件式渲染拿掉它、路由切走、父元件移除它的那一次 commit | 按下「關閉聊天室」 |
+| StrictMode（開發模式） | 第一次掛載之後緊接著的那一輪 | 見 (g) 第三點 |
+
+若 deps 永遠不變、元件又一直存在，cleanup 就永遠不會被呼叫。
+
+**為什麼是 commit，不是 render：** render 階段必須是純計算，React 可能中斷、重做或丟棄它（見 [[React兩階段渲染-Render與Commit-Mount-Update-Unmount生命週期]]）。若在 render 裡呼叫 cleanup，可能 render 被丟棄了連線卻已經斷掉。commit 才是「確定要生效」的階段，所以改 DOM、跑 setup、跑 cleanup 都排在 commit。
+
+React 呼叫 cleanup 的那幾行，簡化自原始碼 `ReactFiberCommitEffects.js`：
+
+```js
+const inst = effect.inst          // 取得這個 Effect 的共用小房子
+const destroy = inst.destroy      // 取出 setup 當初 return 的那個函式
+if (destroy !== undefined) {      // 有交出 cleanup 才需要呼叫
+  inst.destroy = undefined        // 先清空，避免同一個 cleanup 被呼叫兩次
+  safelyCallDestroy(finishedWork, nearestMountedAncestor, destroy) // 真正呼叫它，出錯時由 React 接住
+}
+```
+
+這段程式碼包在一個迴圈裡，React 沿著 `fiber.updateQueue.lastEffect` 那個環，一個 Effect 一個 Effect 走過去。
+
+**deps 沒變的時候呢？（罐頭圖的路線二）**
+`updateEffectImpl` 會先用 `areHookInputsEqual` 逐項以 `Object.is` 比較新舊 deps。全部相同就只做 `pushSimpleEffect(hookFlags, inst, create, nextDeps)` 然後 `return`，沒有 `HookHasEffect` 標記，也不執行 `fiber.flags |= Passive`。
+所以 commit 看不到 Passive 待辦，不會排 `flushPassiveEffects`，cleanup 與 setup 都不跑。新 render 的 setup 函式雖然存進了 Effect 物件，但從頭到尾沒被執行，`inst.destroy` 仍是上一次的 cleanup，連線維持原樣。
+
+**幾個常見的理解，逐一對照：**
+
+| 你的說法 | 判定 | 說明 |
+|---|---|---|
+| setup 沒有放在 Heap 上 | 不對 | setup 也是函式物件，存在 Effect 物件的 `create` 欄位，同樣在 Heap。函式物件本身在 Heap，「被呼叫的過程」才會在 Stack 產生 frame |
+| cleanup 在 Heap，Stack 上也該有個位子記錄它的位址 | 呼叫期間才對 | 呼叫它的函式有局部變數 `const destroy = inst.destroy` 持有位址，函式彈出就消失。閒置時 Stack 是空的，位址只存在 Heap 的 `inst.destroy`，由 Fiber 一路連到 root |
+| `flushPassiveEffects` 是 React 正在執行排好的副作用，包含舊 cleanup 與新 setup | 對 | 順序是先全部 cleanup（`commitPassiveUnmountEffects`），再全部 setup（`commitPassiveMountEffects`） |
+| 副作用是非同步處理的，等 DOM 更新完成才統一處理 | 大致對，需補精確 | 這裡的「非同步」是「延後到另一個任務」，不是 `async`／`await`。多數情況排在 Paint 之後。例外：若 render 由離散事件（例如點擊）引發，React 在同一個任務結束前同步 flush，原始碼註解說是為了讓結果「立刻可被觀察」 |
+
+**Stack Frame（堆疊框）到底是什麼？你手繪的「整個 useEffect 一個框，cleanup 疊在 setup 上」要怎麼修：**
+Stack Frame 是 JS 每「呼叫」一次函式，就在 Call Stack 疊上去的一個罐頭，裡面有返回位址（做完回到誰）、參數、區域變數，函式回傳就彈出。詳見 [[12-return-清理記憶體-stack-frame與閉包例外]]。
+
+| 你的畫法 | 判定 | 正確理解 |
+|---|---|---|
+| 整個 useEffect 一個框 | 不對 | 罐頭對應「某一次函式呼叫」，不是「某個 Hook」。一個 useEffect 一輩子會產生好幾個不同時間的罐頭：render 時 `useEffect(...)` 那行、commit 時 `setup()`、之後的 `cleanup()`、再之後新的 `setup()` |
+| cleanup 疊在 setup 上面 | 不對 | 兩者是不同時間的兩次呼叫，從不同時在 stack 上。疊在一起只發生在「A 呼叫 B 而 B 還沒做完」，例如 React 的 commit 函式呼叫 `setup()` |
+| 把 Effect 物件跟 stack 畫在一起 | 要分開 | Effect 物件（`create`、`deps`、`inst.destroy`）在 Heap 一直都在，罐頭則是暫時的 |
+| 一個函式一個 stack frame | 差一個字 | 單位是「每一次呼叫」，不是「每一個函式」。遞迴 `f(3)` 呼叫 `f(2)` 呼叫 `f(1)`，同一個函式同時有 3 個 frame。`setup` 函式在 StrictMode 被呼叫兩次，就是兩個不同時間的 frame。只定義、沒呼叫的函式一個 frame 都沒有，例如 `return () => ...` 建立的 cleanup 在被呼叫之前不佔任何 frame |
+| Stack 是後進先出、下面是先進 | 對 | 這個觀念正確，只是套用的對象要換成「同時存在的呼叫」 |
+
+`useEffect(...)` 這一行本身在 render 時是一次很短的呼叫（`mountEffect` 或 `updateEffect`），只是把 setup 登記進 Effect 物件就彈出了，並不會執行 setup。
+`setup()` 罐頭裡的區域變數 `connection` 本來會隨罐頭彈出而消失，但因為 cleanup 的函式抓住了它（閉包），引擎把它放到 Heap 的 Context，所以 cleanup 之後還能 `disconnect()`。
+
+![[StackFrame_一個罐頭是一次函式呼叫_2026-10-04.png]]
+
+那個「連回 Effect」的動作，是 commit 前面的階段在 Fiber 上標記 Passive 旗標，等到 `flushPassiveEffects` 執行時，沿著 `fiber.updateQueue.lastEffect` 那個環找到各個 Effect，再取出 `create` 或 `inst.destroy` 來呼叫。
 
 補充一個常被忽略的細節：**cleanup 讀到的是「它那一次 render 的值」，這是正確行為不是 bug**。因為 cleanup① 的任務就是收拾 setup① 建立的東西，它當然要用 setup① 當時的那組值。
 
@@ -285,7 +453,7 @@ type EffectInstance = {
 
 **b. 為什麼需要**：因為 effect 常常會建立「會持續存在的東西」——計時器、事件監聽器、WebSocket 連線、訂閱。這些不會隨元件消失而自動消失，必須有人主動關掉，否則就是記憶體洩漏。
 
-**c. 什麼時候被呼叫**：卸載前、每次重跑 setup 之前、以及 StrictMode 開發模式下掛載後多跑的那一輪。順序永遠是 setup 與 cleanup 成對交錯。
+**c. 什麼時候被呼叫**：卸載後、每次重跑 setup 之前、以及 StrictMode 開發模式下掛載後多跑的那一輪。順序永遠是 setup 與 cleanup 成對交錯。
 
 **d. 底層原理**：cleanup 函式靠**閉包**抓住 setup 當次的區域變數（例如計時器 id）。這些變數因為被閉包捕獲，被引擎配置在 Heap 的 Context 物件而非 Stack，所以 setup 函式 `return` 之後它們依然活著，直到 cleanup 被呼叫、effect 被卸載、沒人再引用，才會被 GC 回收。
 
@@ -375,6 +543,11 @@ NeetCode 目前沒有對應的 JavaScript 語言機制題組，上面五題在 L
 | React 官方文件 — `useEffect`（setup 與 cleanup 的契約、三個呼叫時機） | https://react.dev/reference/react/useEffect | 2026-09-06 查證 |
 | React 官方文件 — Synchronizing with Effects | https://react.dev/learn/synchronizing-with-effects | 2026-09-06 查證 |
 | React 官方文件 — State as a Snapshot（stale closure 的官方說法） | https://react.dev/learn/state-as-a-snapshot | 2026-09-06 查證 |
+| React 原始碼 `ReactFiberCommitEffects.js`（`destroy = create(); inst.destroy = destroy;`）、`ReactFiberWorkLoop.js`（`commitPassiveUnmountEffects` 先於 `commitPassiveMountEffects`、`scheduleCallback(NormalSchedulerPriority, …)`、離散事件同步 flush 的註解、`commitRoot`）、`ReactFiberHooks.js`（`updateEffectImpl` 與 `areHookInputsEqual`） | https://github.com/facebook/react/tree/main/packages/react-reconciler/src | main 分支，2026-10-04 實際抓取核對 |
+| V8 原始碼 `src/objects/contexts.h`（JSFunction 與 Context 的欄位說明） | https://github.com/v8/v8/blob/main/src/objects/contexts.h | main 分支，2026-10-04 實際抓取核對 |
+| Grokking V8 closures for fun（Context 在進入函式時建立、previous 指標串成鏈） | https://mrale.ph/blog/2012/09/23/grokking-v8-closures-for-fun.html | 2012-09-23，⚠️ 原文被網路擋下，僅讀到搜尋摘要 |
+| React 原始碼 `ReactHookEffectTags.js`（`HasEffect`、`Insertion`、`Layout`、`Passive` 四個旗標值） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactHookEffectTags.js | main 分支，2026-10-05 實際抓取核對 |
+| React 原始碼 `ReactFiberHooks.js`（`Hook`、`Effect`、`EffectInstance` 型別、`pushSimpleEffect`、`pushEffectImpl` 的 `// Circular` 與環的串法） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberHooks.js | main 分支，2026-10-05 實際抓取核對 |
 | Dan Abramov — A Complete Guide to useEffect | https://overreacted.io/a-complete-guide-to-useeffect/ | 原文 2019-03，2026-09-06 重讀 |
 | MDN — Arrow function expressions（簡潔本體、名稱推導） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions | 2026-09-06 查證 |
 | MDN — `clearInterval()` | https://developer.mozilla.org/en-US/docs/Web/API/Window/clearInterval | 2026-09-06 查證 |

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>StrictMode 實測</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff7ec;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#4a3b32}
+#art{width:1850px;padding:34px 40px 38px;background:#fff7ec}
+h1{margin:0 0 4px;font-size:34px}
+.sub{font-size:17px;color:#8a7466;margin-bottom:16px;line-height:1.6}
+.cols{display:flex;gap:18px;align-items:stretch}
+.col{flex:1;min-width:0;border-radius:24px;border:5px solid;padding:12px 16px;box-shadow:0 8px 0 rgba(0,0,0,.08)}
+.col h2{margin:0 0 8px;font-size:21px}
+.c1{background:#eaf7ee;border-color:#7bd07b}.c2{background:#e8f0ff;border-color:#6aa0f0}.c3{background:#ffe9ec;border-color:#ff8fa5}
+.ev{font-size:14.5px;font-weight:800;color:#6b5a4f;margin:9px 0 3px;padding:2px 8px;background:#fff;border-radius:8px;display:inline-block}
+.ln{font-family:Consolas,"Noto Sans Mono",monospace;font-size:14.5px;line-height:1.7;padding:0 8px;border-radius:6px;margin:2px 0;white-space:pre}
+.ln.r{background:#eceff4;color:#6b7280}
+.ln.su{background:#d3f9d8;color:#1b6e2c;font-weight:700}
+.ln.cl{background:#ffd8e4;color:#a1244a;font-weight:700}
+.ln.warn{background:#fff3bf;color:#8a5a00;font-weight:700}
+.legend{margin:6px 0 14px;font-size:15px;font-weight:700}
+.legend span{border-radius:6px;padding:1px 8px;margin-right:6px;font-family:Consolas,monospace;font-size:14px}
+.find{display:flex;gap:16px;margin-top:18px}
+.find div{flex:1;background:#fff;border:5px solid #c9b6ff;border-radius:22px;padding:10px 16px;font-size:16px;font-weight:700;line-height:1.6}
+.find small{display:block;font-weight:400;font-size:14.5px;color:#6d5a4f}
+.find code{background:#f1ede6;border-radius:5px;padding:0 4px;font-size:13.5px}
+</style>
+</head>
+<body>
+<div id="art">
+  <h1>🧪 實測：同一段 Effect，三種情況的真實執行順序</h1>
+  <div class="sub">環境：React 19.3.0 開發版（react 與 react-dom）＋ jsdom，2026-10-05 實際執行。每個欄位都依序做：掛載 ➜ deps 真的改變（general→travel）➜ re-render 但 deps 沒變 ➜ 卸載</div>
+  <div class="legend"><span class="ln r">render</span><span class="ln su">setup</span><span class="ln cl">cleanup</span></div>
+  <div class="cols">
+    <div class="col c1"><h2>🟢 正式環境（沒有 StrictMode）</h2>
+      <div class="ev">掛載</div><div class="ln r">render #1 (general)</div><div class="ln su">setup   (general)</div>
+      <div class="ev">deps 真的改變</div><div class="ln r">render #2 (travel)</div><div class="ln cl">cleanup (general)</div><div class="ln su">setup   (travel)</div>
+      <div class="ev">re-render，deps 沒變</div><div class="ln r">render #3 (travel)</div>
+      <div class="ev">卸載</div><div class="ln cl">cleanup (travel)</div>
+    </div>
+    <div class="col c2"><h2>🔵 開發模式：包在 &lt;StrictMode&gt;</h2>
+      <div class="ev">掛載</div><div class="ln r">render #1 (general)</div><div class="ln r">render #2 (general)</div><div class="ln su">setup   (general)</div><div class="ln cl">cleanup (general)</div><div class="ln su">setup   (general)</div>
+      <div class="ev">deps 真的改變</div><div class="ln r">render #3 (travel)</div><div class="ln r">render #4 (travel)</div><div class="ln cl">cleanup (general)</div><div class="ln su">setup   (travel)</div>
+      <div class="ev">re-render，deps 沒變</div><div class="ln r">render #5 (travel)</div><div class="ln r">render #6 (travel)</div>
+      <div class="ev">卸載</div><div class="ln cl">cleanup (travel)</div>
+    </div>
+    <div class="col c3"><h2>🔴 StrictMode＋漏寫 cleanup</h2>
+      <div class="ev">掛載</div><div class="ln su">setup (general)</div><div class="ln warn">setup (general)  ← 兩個 setup 之間沒有 cleanup</div>
+      <div class="ev">deps 真的改變</div><div class="ln su">setup (travel)</div>
+      <div class="ev">re-render，deps 沒變</div><div class="ln r">（沒有任何 Effect 動作）</div>
+      <div class="ev">卸載</div><div class="ln r">（沒有 cleanup 可跑）</div>
+      <div class="ln warn" style="margin-top:14px;white-space:normal">React 全程發出的 console.error 與 console.warn：<b>0 則</b></div>
+    </div>
+  </div>
+  <div class="find">
+    <div>① 「多跑一輪」只發生在掛載<small>藍欄掛載區塊是 setup → cleanup → setup。deps 真的改變時只有 cleanup → setup，沒有第二個 cleanup，也沒有再多一輪</small></div>
+    <div>② 雙重 render 每次都有<small>藍欄每次更新都 render 兩次（#1 #2、#3 #4、#5 #6），但 setup 只登記，沒有因此多跑</small></div>
+    <div>③ 漏寫 cleanup 沒有錯誤訊息<small>React 不會警告。只能從行為看出來：紅欄掛載時連續兩個 setup 之間沒有 cleanup</small></div>
+    <div>④ ESLint 抓得到缺少依賴，抓不到漏寫 cleanup<small>實測 <code>react-hooks/exhaustive-deps</code>（eslint-plugin-react-hooks 7.1.1）對 ChatRoom 的 <code>[]</code> 警告：missing dependency 'roomId'。Timer 的 <code>setInterval</code> 沒清除，完全沒有警告</small></div>
+  </div>
+</div>
+</body>
+</html>

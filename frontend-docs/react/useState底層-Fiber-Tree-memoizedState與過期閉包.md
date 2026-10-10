@@ -20,7 +20,7 @@ updated: 2026-09-18
 
 ### 一、先釐清：函式怎麼把值交給外面
 
-(a) <mark style="background: #ADCCFFA6;">副作用（Side Effect）</mark> 指的是函式去改動了自己作用域以外的東西。Vue 官方文件那段 `let A2` 先在外層宣告、再由 `update()` 去寫入，並不是因為「只有這樣外面才拿得到」，而是為了示範響應式系統如何追蹤一個已存在的狀態。
+(a) <mark style="background: #ADCCFFA6;">副作用（Side Effect）</mark> 指的是函式去改動了自己作用域以外的東西。[Vue 官方文件](https://vuejs.org/guide/extras/reactivity-in-depth.html)那段 `let A2` 先在外層宣告、再由 `update()` 去寫入，並不是因為「只有這樣外面才拿得到」，而是為了示範響應式系統如何追蹤一個已存在的狀態。
 
 ```js
 let A0 = 1
@@ -84,6 +84,119 @@ fiberNode = {
   },
 }
 ```
+
+![[FiberNode內部結構_Hook單向鏈與Effect環_2026-10-04.jpg]]
+
+上圖的原始檔是同資料夾的 `FiberNode內部結構-可愛圖.html`。
+圖左邊那張卡列出 `FiberNode` 全部 23 個欄位（另有 4 個效能分析欄位 `actualDuration` 等略過），依據是原始碼 `ReactFiber.js` 的 `FiberNode` 建構函式，分成身分、樹位置、資料、排程與待辦、雙緩衝五組。圖底部另有一張 Context 物件（捕捉變數）卡：Context 記的是閉包捕捉的外部變數，不是函式本身，說明 setup 與 cleanup 兩個函式各背著 Heap 上的哪個 Context，細節見 [[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (e)。旁邊還有一張 StrictMode 實測卡，列出開發模式下 `create` 與 `inst.destroy` 被呼叫的真實順序，詳見 [[03-useEffect將元件同步到外部系統-Web-API與DOM]] 的 d。
+常有人把這條鏈畫成「環」，其實有兩條不同的鏈，形狀不一樣：
+
+| 鏈 | 從哪裡出發 | 形狀 | 依據（`ReactFiberHooks.js`） |
+|---|---|---|---|
+| Hook 鏈 | `fiber.memoizedState` | 單向，最後一節 `next` 是 `null` | `Hook.next: Hook \| null` |
+| Effect 清單 | `fiber.updateQueue.lastEffect` | 環狀，最後一個的 `next` 繞回第一個 | `Effect.next: Effect`，建立時 `lastEffect.next = effect` |
+
+Hook 鏈串的是「所有會建立節點的 Hook」，不是只有 `useState` 與 `useRef`，`useEffect` 這類也各占一節（`useContext` 例外，它只讀 context，不建立節點）。Effect 環則只串其中會產生 Effect 的 Hook，所以 Effect 類的 Hook 同時在兩條鏈上。
+useEffect 那一節 Hook 的 `memoizedState` 指向的是一個 Effect 物件，不是直接存值。Effect 物件（`create`、`deps`、`inst`、`next`）的型別逐行解釋、`inst` 是什麼、為什麼是環，完整說明在 Effect 相關的筆記：[[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (f)。
+每一節 Hook 都是同一種結構 `{ memoizedState, baseState, baseQueue, queue, next }`，差別只在 `memoizedState` 與 `queue` 裡放什麼：
+
+| Hook | `memoizedState` 放什麼 | `queue` 放什麼 | 依據（`ReactFiberHooks.js`） |
+|---|---|---|---|
+| `useState` | 目前的值，例如 `count = 1`（`baseState` 另存更新前的基準值） | `{ pending, dispatch, lastRenderedReducer, lastRenderedState }`，其中 `pending` 是待處理更新的環，`dispatch` 就是 `setCount` | `mountStateImpl`、`mountState` |
+| `useEffect` | 一個 Effect 物件 `{ tag, create, deps, inst, next }` | `null` | `mountEffectImpl` |
+| `useRef` | `{ current }` 這個小盒子本身 | `null` | `mountRef` |
+
+`useRef` 的節點沒有 `queue`，所以改 `ref.current` 沒有任何管道通知 React，這就是它不觸發 re-render 的底層原因。
+因此圖中的環有兩個：Effect 清單（`fiber.updateQueue.lastEffect`）與 `useState` 的 `pending` 更新清單，Hook 鏈本身都不是環。
+
+**`queue` 是什麼（一句話）：它是 `useState` 的「待辦信箱」，每呼叫一次 `setCount`，React 就丟一封「更新」進去，下一次 render 時照順序拆信，算出新的 state。**
+
+| `queue` 的欄位 | 白話 |
+|---|---|
+| `pending` | 還沒處理的更新，串成環，指向最後一封 |
+| `dispatch` | 就是 `setCount` 本人（`dispatchSetState.bind(null, fiber, queue)`），綁好了「要把信丟進哪個 Hook 的 queue」 |
+| `lastRenderedReducer` | 算新值的規則，`useState` 用的是 `basicStateReducer`：action 是函式就呼叫它，否則直接當新值 |
+| `lastRenderedState` | 上一次 render 用的 state，用來在信箱是空時先試算一個值 |
+
+流程：`setCount(1)` → `dispatchSetState` 建立一封 Update 接到 `queue.pending` 的環上 → 排定 re-render → render 時 `updateReducerImpl` 把 `pending` 併進 `baseQueue`，逐封套用 reducer → 結果存進 Hook 的 `memoizedState`。
+信箱是空的時候，React 還會先用 `lastRenderedReducer` 試算一次，新舊值相同就不排 re-render。
+
+**setter 與 `queue` 是一對的：有 setter 才有 `queue`，沒有 setter 就是 `null`。**
+
+setter（`setCount`）本身就是 `dispatchSetState` 綁上這個 Hook 的 `queue`，它唯一的工作就是把「更新」投進那個 `queue`。所以 `queue` 是 setter 的投遞目的地，兩者必須同時存在。
+
+```js
+function mountState(initialState) {
+  const hook = mountStateImpl(initialState);       // 建 Hook 節點，同時建 queue：hook.queue = { pending: null, dispatch: null, ... }
+  const queue = hook.queue;                        // 取出剛建好的 queue
+  const dispatch = dispatchSetState.bind(          // bind：預先把前兩個參數填好，產生一個新函式
+    null, currentlyRenderingFiber, queue);         // 填好「哪個 fiber」與「哪個 queue」，之後呼叫只需傳新值
+  queue.dispatch = dispatch;                       // queue 也記住這個 dispatch
+  return [hook.memoizedState, dispatch];           // 回傳 [state, setter]，這個 dispatch 就是你的 setCount
+}
+```
+
+| 步驟 | 發生什麼 | 與 `queue` 的關係 |
+|---|---|---|
+| 1 | `mountStateImpl` 建立 `queue` 物件 | `queue` 為了給 setter 投遞而誕生 |
+| 2 | `dispatchSetState.bind(null, fiber, queue)` 產生 setter | setter 的第二個固定參數就是這個 `queue` |
+| 3 | 你呼叫 `setCount(1)` | `dispatchSetState` 把一封 Update 接到 `queue.pending` |
+| 4 | 下次 render，`updateReducerImpl` 讀 `queue.pending` | 拆信算出新 state |
+
+反過來看：`useRef`、`useEffect` 沒有 setter，就沒有 `dispatchSetState.bind(...)` 這一步，沒有東西要投信，所以 `mountRef`、`mountEffectImpl` 都沒建 `queue`，Hook 節點上的 `queue` 維持 `mountWorkInProgressHook` 給的初值 `null`。因果方向是：**沒有 setter，就不需要 queue。**
+
+**為什麼 `useEffect` 的 `queue` 是 `null`？**
+`queue` 是「更新信箱」，專門收 `setState`／`dispatch` 排進來的待處理更新。只有「有 setter、會被人呼叫來排更新」的 Hook 才需要它。`useEffect` 沒有 setter，更新來源只有「下一次 render 時 React 自己比較 deps」，所以 `mountEffectImpl` 完全沒去設定 `hook.queue`，維持 `mountWorkInProgressHook` 建立時的初值 `null`。
+
+| Hook | 有沒有 setter | `queue` |
+|---|---|---|
+| `useState` | 有，`setCount` | 有 |
+| `useReducer` | 有，`dispatch` | 有 |
+| `useEffect` | 沒有 | `null` |
+| `useRef` | 沒有，改 `current` 不排程 | `null` |
+
+**`useRef` 的值怎麼更新：保管與通知是兩件事**
+
+**一句話：`useRef` 是「更新值，但不會因為它而更新畫面」。** 值當場就改了（`ref.current = 5` 是普通賦值），但沒有任何東西通知 React，所以 React 不會因此排程 re-render，畫面不動。之後如果別的原因（例如 `setState`）讓元件重新 render，這次 render 就會讀到最新的 `ref.current`，畫面才跟著變。對比 `useState`：改值加上通知 React，值與畫面一起更新。
+
+`useRef` 與 React 的關係分成「保管」與「通知」：React 保管那個盒子，改值時不通知 React。
+
+| 問題 | `useState` | `useRef` |
+|---|---|---|
+| 值放在哪 | Hook 節點的 `memoizedState` | 也是 Hook 節點的 `memoizedState`，裡面放 `{ current: 初始值 }` 這個普通物件 |
+| 誰保管 | React 保管 | React 保管，每次 render 的 `updateRef` 都回傳同一個物件（同一個位址） |
+| 怎麼改值 | 呼叫 `setCount(新值)`，React 丟一封更新進 `queue`，下次 render 才換成新值 | 你自己寫 `ref.current = 新值`，這只是 JavaScript 對普通物件的屬性賦值，立刻生效 |
+| 改了之後 React 知道嗎 | 知道，因為你走了 `dispatch`，`queue` 裡多了一封信，排定 re-render | 不知道，因為沒有任何函式被呼叫，`queue` 是 `null`，沒有信箱可以投 |
+| 會 re-render 嗎 | 會 | 不會 |
+| 下次 render 讀到什麼 | 新的 state 值（每次 render 是一份新快照） | 同一個盒子的最新內容（因為盒子是同一個，你改的是盒子裡面） |
+
+逐行看原始碼（`ReactFiberHooks.js`）：
+
+```js
+function mountRef(initialValue) {
+  const hook = mountWorkInProgressHook();   // 在 Hook 鏈上新增一節 Hook 節點
+  const ref = {current: initialValue};      // 建立一個普通物件，只有 current 一個屬性
+  hook.memoizedState = ref;                 // 讓這節 Hook 的 memoizedState 指向這個物件
+  return ref;                               // 把物件交給你，就是你拿到的 countRef
+}
+function updateRef(initialValue) {
+  const hook = updateWorkInProgressHook();  // 沿著 Hook 鏈找到這次對應的那一節
+  return hook.memoizedState;                // 回傳同一個物件，不建立新的，也不看 initialValue
+}
+```
+
+1. `function mountRef(initialValue)`：宣告函式，只在元件第一次 render（mount）時由 `useRef(0)` 呼叫，`initialValue` 就是你傳的 `0`。
+2. `{current: initialValue}`：物件字面值，建立一個只有 `current` 屬性的普通物件。它不是 React 的特殊型別，所以你寫 `ref.current = 5` 不需要經過 React。
+3. `hook.memoizedState = ref`：這一行就是「React 保管」的部分。物件掛在 fiber 的 Hook 鏈上，元件函式每次執行完，函式裡的區域變數都會消失，但這個物件還在 Hook 節點上，所以下次 render 還拿得回來。
+4. `updateRef` 沒有 `queue` 的任何操作，也沒有排程。沒有排程就沒有 re-render，這就是「改 `current` 不會更新畫面」的底層原因。
+
+兩個重點：
+a. **`queue` 是 `null`，因為 `useRef` 沒有 setter，不需要信箱。**「不觸發 re-render」是這個設計的結果。
+b. **只有 `useState` 需要呼叫 setter 才能通知 React。** `useRef` 的值直接賦值就改了，React 不知道，畫面不會跟著變。所以它適合存計時器 id、上一次的值、DOM 節點這類「畫面不直接顯示」的資料。
+
+⚠️ 存疑：官方建議不要在 render 過程中讀寫 `ref.current`（初始化除外），請在事件處理函式或 Effect 裡改。這是我對 react.dev `useRef` 頁面的記憶，該網站被沙盒擋住，無法當場查證。`mountRef` 與 `updateRef` 的程式碼已於 2026-10-06 對照原始碼。
+
+Effect 物件（`create`、`deps`、`inst`、`next`）的型別逐行解釋、`inst` 是什麼、為什麼是環，完整說明在 Effect 相關的筆記：[[02-useEffect的setup清理函式-return一個函式而不是執行它]] 的 (f)。
 
 (j) 若元件完全沒呼叫任何 Hook，`fiberNode.memoizedState` 就是 `null`。
 
@@ -459,7 +572,7 @@ function createWorkInProgress(current, pendingProps) {
 
 **使用者：** 前面的例子在講宣告式跟命令式的不同，但除此之外，又講到原生的 JavaScript 必須要把外部變數定義好，然後再讓函式內部使用。是否是因為這樣子，才能給外部作用域使用？還是說其實我外部不用 let 宣告一個變數，但我內部宣告的變數或是參數寫了 return，一樣可以給外部使用呢？
 
-**Gemini：** 核心答案是你的理解非常準確，不需要在外部先用 let 宣告變數，只要函式內部有 return，外部就可以接收並使用這個結果。Vue 官方文件那個範例先宣告 `let A2` 的原因不是「唯有這樣外部才能用」，而是為了演示副作用與狀態變更——`update()` 沒有返回值，它的目的就是去改變外部狀態 A2，Vue 的響應式系統核心就在於追蹤狀態變化並自動觸發更新。使用 return 則是純函式：資料流明確、無副作用、方便重複呼叫。對照表：外部宣告變數對應 `watchEffect` 或 DOM 渲染，使用 return 對應 `computed`。
+**Gemini：** 核心答案是你的理解非常準確，不需要在外部先用 let 宣告變數，只要函式內部有 return，外部就可以接收並使用這個結果。[Vue 官方文件](https://vuejs.org/guide/extras/reactivity-in-depth.html)那個範例先宣告 `let A2` 的原因不是「唯有這樣外部才能用」，而是為了演示副作用與狀態變更——`update()` 沒有返回值，它的目的就是去改變外部狀態 A2，Vue 的響應式系統核心就在於追蹤狀態變化並自動觸發更新。使用 return 則是純函式：資料流明確、無副作用、方便重複呼叫。對照表：外部宣告變數對應 `watchEffect` 或 DOM 渲染，使用 return 對應 `computed`。
 
 **使用者：** 是否對 React 的 useState hook 來說，這個都是在函式元件內部的變數，所以它完全沒有所謂的 lexical scope 的外部變數？
 
@@ -535,6 +648,8 @@ function createWorkInProgress(current, pendingProps) {
 
 | 主題 | 連結 | 版本／查證時間 |
 | --- | --- | --- |
+| Hook 鏈的型別與 `useState`、`useRef` 的建立邏輯（`Hook`、`mountState`、`UpdateQueue`、`mountRef`）；Effect 部分改列在 02 筆記的來源表 | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberHooks.js | main 分支原始碼，2026-10-04 實際抓取核對 |
+| Vue 官方文件：Reactivity in Depth（`let A0`、`let A1`、`let A2` 與 `update()` 的範例，用來示範響應式系統如何追蹤狀態） | https://vuejs.org/guide/extras/reactivity-in-depth.html | ⚠️ 2026-10-05 嘗試抓取被網路擋下，網址與段落依記憶，未實際打開核對 |
 | 本篇對話（變數宣告與 Return 的差異，第二串） | https://gemini.google.com/app/1f0cc8c21e6f88b5 | Gemini Flash，2026-08-31 |
 | 本篇對話（變數宣告與 Return 的差異，第三串，內容重複未另收錄） | https://gemini.google.com/app/76cde95192586aa7 | Gemini Flash，2026-09-01 查證 |
 | React 原始碼 — ReactFiberWorkLoop.js（`workLoop` 與可中斷渲染） | https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js | main 分支，2026-08-31 查證 |

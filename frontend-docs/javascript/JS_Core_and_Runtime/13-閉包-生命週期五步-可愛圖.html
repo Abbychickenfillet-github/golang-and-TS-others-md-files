@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>一個閉包的生命週期五步（可愛版）</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff7ec;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#4a3b32}
+#art{width:2200px;padding:34px 40px 36px;background:#fff7ec}
+h1{margin:0 0 4px;font-size:32px}
+.sub{font-size:17px;color:#8a7466;margin-bottom:22px}
+.row{display:flex;gap:10px;align-items:stretch}
+.card{flex:1;min-width:0;border:5px solid;border-radius:26px;background:#fff;padding:14px 16px;font-size:17px;line-height:1.55;font-weight:600}
+.card h3{margin:0;font-size:24px}
+.en{font-size:14px;color:#8a7466;font-weight:700;margin-bottom:8px}
+.no{display:inline-block;background:#4a3b32;color:#fff;border-radius:999px;padding:0 11px;font-size:16px;margin-right:6px}
+.c1{border-color:#ff9ebb;background:#fff2f6}.c2{border-color:#ffb800;background:#fffbe6}.c3{border-color:#b79cff;background:#f5efff}.c4{border-color:#4cb8e8;background:#e9f7ff}.c5{border-color:#e04a5f;background:#ffecee}
+.arr{align-self:center;font-size:34px}
+.note{margin-top:10px;border-radius:14px;padding:5px 10px;font-size:15px;font-weight:800;background:#fff;border:3px dashed}
+.n1{border-color:#ff9ebb;color:#a1244a}.n2{border-color:#ffb800;color:#8a5a00}.n3{border-color:#b79cff;color:#5b3fb0}.n4{border-color:#4cb8e8;color:#1f6f94}.n5{border-color:#e04a5f;color:#a1244a}
+.foot{margin-top:18px;border-radius:20px;padding:10px 16px;border:4px solid #ffb800;background:#fff;font-size:17px;font-weight:700;line-height:1.6}
+</style>
+</head>
+<body>
+<div id="art">
+  <h1>🔄 一個閉包的生命週期五步</h1>
+  <div class="sub">以 createCounter 的 count 為例：從 V8 決定它放哪裡，到最後被 GC 回收</div>
+  <div class="row">
+    <div class="card c1"><h3><span class="no">①</span>決策</h3><div class="en">Parse</div>Scope Analysis 看出 <code>count</code> 會被內層函式捕獲，決定放 Heap 的 Context<div class="note n1">只做一次</div></div>
+    <div class="arr">➡️</div>
+    <div class="card c2"><h3><span class="no">②</span>誕生</h3><div class="en">create</div>執行到函式定義：生出函式物件，並在 Heap 建好 Context，函式的 context 欄位指向它，＝ 閉包誕生<div class="note n2">執行幾次生幾份</div></div>
+    <div class="arr">➡️</div>
+    <div class="card c3"><h3><span class="no">③</span>外層退場</h3><div class="en">caller pop</div>外層函式 return，它的 Stack Frame 被 pop 掉<div class="note n3">Context 不受影響</div></div>
+    <div class="arr">➡️</div>
+    <div class="card c4"><h3><span class="no">④</span>被持有</h3><div class="en">retained</div>被監聽器、計時器或變數抓著，閉包一直活著<div class="note n4">跟有沒有在跑無關</div></div>
+    <div class="arr">➡️</div>
+    <div class="card c5"><h3><span class="no">⑤</span>斷線 ➜ 回收</h3><div class="en">unreachable</div>移除監聽器、元件卸載或設成 <code>null</code> 之後，沒有人指著它，GC 才回收<div class="note n5">可達性說了算</div></div>
+  </div>
+  <div class="foot">★ 第 ④ 格就是本篇「執行時間 ≠ 存活時間」在講的事：使用者晾在那十分鐘不動，debounce 裡的 timer 依然活著，因為事件監聽器還抓著它。</div>
+</div>
+</body>
+</html>

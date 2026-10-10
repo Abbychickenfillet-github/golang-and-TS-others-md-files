@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>fiber.mode 的開關板</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff7ec;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#4a3b32}
+#art{width:1850px;padding:34px 40px 38px;background:#fff7ec}
+h1{margin:0 0 4px;font-size:34px}
+.sub{font-size:18px;color:#8a7466;margin-bottom:18px;line-height:1.6}
+.row{display:flex;gap:20px;align-items:stretch;margin-bottom:20px}
+.card{border-radius:26px;border:5px solid;padding:14px 18px;box-shadow:0 8px 0 rgba(0,0,0,.08);min-width:0}
+.card h2{margin:0 0 6px;font-size:23px}
+.cap{font-size:15px;color:#7a6a5f;font-weight:600;line-height:1.55;margin-bottom:8px}
+.sw{background:#fff0f6;border-color:#ff9ebb;flex:1.15}
+.ops{background:#e8f0ff;border-color:#6aa0f0;flex:1}
+.tree{background:#e9f9e1;border-color:#8fd16a;flex:1.1}
+.bits{display:flex;gap:8px;margin:6px 0}
+.bit{flex:1;text-align:center;border-radius:14px;padding:6px 2px;font-weight:800;border:4px solid #d9d9d9;background:#f2f2f2;color:#9a9a9a}
+.bit .n{font-size:26px;display:block;line-height:1.2}
+.bit small{display:block;font-size:12px;font-weight:700;line-height:1.3;min-height:48px}
+.bit.on{background:#d3f9d8;border-color:#3fb950;color:#1b6e2c}
+.bit.hi{background:#fff0a8;border-color:#ffb800;color:#8a5a00}
+.bit.rm{background:#f7f7f7;border:4px dashed #ccc;color:#bbb}
+.lbl{font-size:15px;font-weight:800;color:#6b5a4f;margin-top:8px}
+table{border-collapse:collapse;width:100%;font-size:16px}
+td,th{padding:5px 8px;border-bottom:2px dashed #cfd9f3;text-align:left;vertical-align:top}
+th{font-size:14.5px;color:#4a6fb0}
+.mono{font-family:Consolas,"Noto Sans Mono",monospace;font-weight:700;letter-spacing:1px}
+.on1{color:#1b6e2c;background:#d3f9d8;border-radius:4px;padding:0 2px}
+.nd{border-radius:18px;border:4px solid #8fd16a;background:#fff;padding:6px 12px;font-weight:700;font-size:16px;margin:4px 0}
+.nd small{display:block;font-weight:600;font-size:13.5px;color:#6d5a4f;font-family:Consolas,"Noto Sans Mono",monospace}
+.nd.st{border-color:#ffb800;background:#fff9d6}
+.nd.out{border-color:#ccc;background:#f4f4f4}
+.ind{margin-left:34px}
+.dn{text-align:center;font-size:22px;margin:0}
+pre{margin:0 0 8px;background:#2a2538;color:#eee;border-radius:12px;padding:8px 12px;font-size:14.5px;line-height:1.6;font-family:Consolas,monospace}
+.read{background:#fff;border-color:#c9b6ff;width:100%}
+.read td:first-child{font-weight:800;white-space:nowrap}
+code{background:#f1ede6;border-radius:5px;padding:0 4px;font-size:14px}
+</style>
+</head>
+<body>
+<div id="art">
+  <h1>🎛️ fiber.mode 的開關板：一個數字裝七個開關</h1>
+  <div class="sub">mode 就是一個普通的數字（<code>typeof mode === 'number'</code>）。把它寫成二進位，每一個位置（位元）就是一個「開／關」開關。以開發模式為例，數字都是實際執行得到的。</div>
+
+  <div class="row">
+    <div class="card sw">
+      <h2>① 七個開關各是什麼（HostRoot 開發模式：<span class="mono">0000011</span> ＝ 3）</h2>
+      <div class="cap">由右往左數：第 0 位、第 1 位……亮綠燈表示這個開關是 1（開）。HostRoot 是 ConcurrentMode 加 ProfileMode</div>
+      <div class="bits">
+        <div class="bit"><span class="n">0</span><small>第 6 位<br>（沒用）</small></div>
+        <div class="bit"><span class="n">0</span><small>第 5 位<br>Suspensey<br>ImagesMode</small></div>
+        <div class="bit hi"><span class="n">0</span><small>第 4 位<br>Strict<br>EffectsMode<br>＝ 16</small></div>
+        <div class="bit hi"><span class="n">0</span><small>第 3 位<br>Strict<br>LegacyMode<br>＝ 8</small></div>
+        <div class="bit rm"><span class="n">0</span><small>第 2 位<br>（已移除）</small></div>
+        <div class="bit on"><span class="n">1</span><small>第 1 位<br>ProfileMode<br>＝ 2</small></div>
+        <div class="bit on"><span class="n">1</span><small>第 0 位<br>Concurrent<br>Mode ＝ 1</small></div>
+      </div>
+      <div class="lbl">黃色是 StrictMode 會去打開的兩個開關</div>
+      <div class="cap" style="margin-top:6px">子 fiber 建立時，直接把「父 fiber 的 mode 這個數字」複製過來（原始碼：<code>createFiberFromElement(element, returnFiber.mode, lanes)</code>），所以開關狀態會一路往下繼承</div>
+    </div>
+
+    <div class="card ops">
+      <h2>② <code>mode |= StrictLegacyMode</code> 一步一步</h2>
+      <div class="cap"><code>|</code> 是位元 OR：兩個數字對齊，每一位只要有一個是 1，結果就是 1。<code>|=</code> 是「算完再存回 mode」，等於 <code>mode = mode | StrictLegacyMode</code></div>
+      <table>
+        <tr><th>步驟</th><th>二進位（7 位）</th><th>十進位</th></tr>
+        <tr><td>mode 原本（繼承自父）</td><td class="mono">0000<span style="color:#aaa">0</span>011</td><td>3</td></tr>
+        <tr><td>StrictLegacyMode</td><td class="mono">000<span class="on1">1</span>000</td><td>8</td></tr>
+        <tr><td>OR 之後的 mode</td><td class="mono">000<span class="on1">1</span>011</td><td>11</td></tr>
+        <tr><td>再 <code>|= StrictEffectsMode</code>（16）</td><td class="mono">00<span class="on1">1</span>1011</td><td>27</td></tr>
+      </table>
+      <div class="lbl">怎麼檢查開關是不是開的：<code>&amp;</code>（位元 AND，兩邊都是 1 才是 1）</div>
+      <table>
+        <tr><td><code>27 &amp; 8</code></td><td class="mono">0001000</td><td>＝ 8，不等於 0（<code>!== NoMode</code>），開</td></tr>
+        <tr><td><code>3 &amp; 8</code></td><td class="mono">0000000</td><td>＝ 0（<code>=== NoMode</code>），關</td></tr>
+      </table>
+      <div class="lbl">關掉開關：<code>mode &amp;= ~StrictLegacyMode</code>（<code>~</code> 是把每一位反過來）</div>
+    </div>
+
+    <div class="card tree">
+      <h2>③ 「StrictMode 在 root 底下」長這樣</h2>
+<pre>createRoot(el).render(
+  &lt;StrictMode&gt;
+    &lt;App /&gt;
+  &lt;/StrictMode&gt;
+)</pre>
+      <div class="nd">HostRoot fiber（root.current）<small>mode = 0000011 ＝ 3　沒有 Strict 位元</small></div>
+      <div class="dn">⬇️ 子節點</div>
+      <div class="nd st ind">StrictMode fiber<small>繼承 3，再 |= 8、|= 16　mode = 0011011 ＝ 27</small></div>
+      <div class="dn ind">⬇️</div>
+      <div class="nd st" style="margin-left:68px">App fiber<small>繼承 27　Strict 位元都是開的</small></div>
+      <div class="dn" style="margin-left:68px">⬇️</div>
+      <div class="nd st" style="margin-left:102px">ChatRoom fiber<small>繼承 27　跑雙重 render 與額外一輪 Effect</small></div>
+      <div class="nd out" style="margin-top:10px">若有個 &lt;Footer /&gt; 寫在 StrictMode 外面<small>mode = 3　不在嚴格模式內</small></div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-bottom:0">
+    <div class="card read">
+      <h2>④ 誰在讀這些開關（原始碼實際位置）</h2>
+      <table>
+        <tr><th>開關</th><th>誰在讀</th><th>用來做什麼</th></tr>
+        <tr><td>StrictLegacyMode</td><td><code>renderWithHooks</code>：<code>workInProgress.mode &amp; StrictLegacyMode</code></td><td>決定要不要把元件函式呼叫兩次（雙重 render）</td></tr>
+        <tr><td>StrictEffectsMode</td><td><code>mountEffect</code>：<code>currentlyRenderingFiber.mode &amp; StrictEffectsMode</code></td><td>開啟時，替這個 Effect 多加上 <code>MountPassiveDevEffect</code> 旗標</td></tr>
+        <tr><td>StrictEffectsMode 與 StrictLegacyMode</td><td><code>commitDoubleInvokeEffectsInDEV</code>：檢查 <code>root.current.mode</code></td><td>只決定「從 root 開始是不是已經在嚴格模式內」。遇到 &lt;StrictMode&gt; 的 fiber 時，是看它的型別（<code>fiber.type === REACT_STRICT_MODE_TYPE</code>）</td></tr>
+        <tr><td>PlacementDEV（在 <code>fiber.flags</code>，不是 mode）</td><td><code>ReactChildFiber</code> 新建 fiber 時：<code>flags |= Placement | PlacementDEV</code></td><td>標記「剛被放進畫面」，才輪得到額外一輪 Effect。flags 也是同一種位元旗標手法</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

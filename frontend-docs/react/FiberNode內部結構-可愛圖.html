@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>FiberNode 內部結構（可愛版）</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff7ec;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#4a3b32}
+#art{width:3000px;padding:36px 40px 40px;background:#fff7ec}
+h1{margin:0 0 4px;font-size:34px}
+.sub{font-size:18px;color:#8a7466;margin-bottom:22px}
+.row{display:flex;gap:24px;align-items:stretch}
+.card{border-radius:28px;padding:20px 24px;border:5px solid;box-shadow:0 8px 0 rgba(0,0,0,.08)}
+.fiber{flex:0 0 310px;background:#ffe3ec;border-color:#ff9ebb}
+.fiber h2{margin:0 0 12px;font-size:25px}
+.field{background:#fff;border-radius:16px;padding:8px 14px;margin:9px 0;font-size:19px;font-weight:600}
+.field small{display:block;font-weight:400;color:#8a7466;font-size:14px}
+.field.hot{background:#fff0a8;border:3px solid #ffb800}
+.field.ring{background:#d9f3ff;border:3px solid #4cb8e8}
+.arrow{font-size:50px;align-self:center;line-height:1}
+.train{flex:1;min-width:0;background:#e9f9e1;border-color:#8fd16a}
+.train h2{margin:0 0 4px;font-size:25px}
+.lane{display:flex;align-items:flex-start;gap:8px;margin-top:14px}
+.st{flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;gap:8px}
+.car{background:#fff;border:4px solid #8fd16a;border-radius:22px;padding:8px 6px;text-align:center;font-size:19px;font-weight:800}
+.car .e{font-size:40px;display:block}
+.car small{display:block;font-weight:400;font-size:14px;color:#8a7466}
+.car.fx{background:#fff0a8;border-color:#ffb800}
+.car.st1{background:#ffeef3;border-color:#ff9ebb}
+.car.rf{background:#efe6ff;border-color:#b79cff}
+.down{text-align:center;font-size:26px;line-height:1}
+.pop{border-radius:20px;padding:10px 12px;border:4px dashed;display:flex;flex-direction:column;gap:7px;flex:1}
+.pop.s{background:#fff2f6;border-color:#ff9ebb}
+.pop.f{background:#fff9d6;border-color:#ffb800}
+.pop.r{background:#f5efff;border-color:#b79cff}
+.pop .t{font-weight:800;font-size:17px}
+.chip{background:#fff;border-radius:14px;padding:5px 10px;border:3px solid;font-size:16px;font-weight:700}
+.chip small{font-weight:400;font-size:13px;color:#8a7466;margin-left:4px}
+.s .chip{border-color:#ffc2d3}.f .chip{border-color:#ffd35c}.r .chip{border-color:#d3c0ff}
+.chip.ringc{background:#e3f4ff;border-color:#4cb8e8}
+.chip.setup{background:#dcf7dc;border-color:#4cc24c!important}.chip.cleanup{background:#ffe0e0;border-color:#e04a5f!important}
+.chip.setup small,.chip.cleanup small{display:block;margin-left:0}
+.chip.nul{background:#eee;border-color:#ccc;color:#777}
+.nx{align-self:flex-start;margin-top:30px;font-size:30px;text-align:center;line-height:1}
+.nx small{display:block;font-size:13px;font-weight:700;color:#4aa02c}
+.null{align-self:flex-start;margin-top:22px;font-size:44px;text-align:center;width:90px}
+.null small{display:block;font-size:14px;font-weight:700;color:#d63c5a}
+.bottom{display:flex;gap:24px;margin-top:26px}
+.ringbox{flex:1.25;background:#e3f4ff;border-color:#4cb8e8}
+.ringbox h2,.verdict h2{margin:0 0 10px;font-size:25px}
+.rings{display:flex;gap:30px}
+.rg{flex:1}
+.rg .cap{font-size:16px;color:#4c7d96;margin-bottom:6px}
+.eff{display:flex;align-items:center;gap:8px;margin-top:6px}
+.e1{background:#fff;border:4px solid #4cb8e8;border-radius:20px;padding:6px 12px;text-align:center;font-weight:700;font-size:16px}
+.e1 .e{font-size:30px;display:block}
+.back{margin-top:8px;font-size:20px;font-weight:800;color:#1f86b8}
+.verdict{flex:1;background:#fff;border-color:#c9b6ff}
+table{border-collapse:collapse;width:100%;font-size:17px}
+td{padding:6px 8px;vertical-align:top}
+td:first-child{width:44px;font-size:26px}
+.fiber{flex:0 0 600px}
+.cols{columns:2;column-gap:16px}
+.gb{break-inside:avoid;margin-bottom:6px}
+.fiber .grp{font-weight:800;font-size:16px;color:#c0507a;margin:10px 0 3px}
+.f2{background:#fff;border-radius:12px;padding:3px 10px;margin:4px 0;font-size:15px;display:flex;flex-direction:column}
+.f2 small{font-size:12.5px;color:#8a7466}
+.f2.hot{background:#fff0a8;border:3px solid #ffb800}
+.f2.ring{background:#d9f3ff;border:3px solid #4cb8e8}
+.tg{border-radius:999px;padding:1px 10px;font-size:13px;font-weight:800;color:#fff;white-space:nowrap;margin-left:4px}
+.tgb{background:#2e6fd6}.tgp{background:#8a4fd6}
+.ctxbox{flex:1.1;background:#fff9d6;border-color:#ffd35c}
+.ctxbox h2{margin:0 0 6px;font-size:23px}
+.cxcap{font-size:15px;color:#7a6a5f;font-weight:600}
+.cx{border-radius:18px;padding:6px 12px;margin-top:6px;font-size:15px;font-weight:700;color:#3a3040}
+.cxb{background:#e4eeff;border:4px solid #2e6fd6}.cxp{background:#f0e6ff;border:4px solid #8a4fd6}
+.sl{background:#fff;border-radius:8px;padding:0 9px;margin:3px 0;font-weight:600;font-size:14px;border:2px solid #d5dcea}
+.sl em{font-style:normal;color:#6b7a99}
+.pv{text-align:center;font-size:16px;font-weight:800;margin:2px 0}
+.smbox{flex:1.05;background:#e9f7ff;border-color:#4cb8e8}
+.smbox h2{margin:0 0 4px;font-size:23px}
+.smcap{font-size:14px;color:#4c7d96;font-weight:600;margin-bottom:6px;line-height:1.5}
+.smr{display:flex;flex-direction:column;background:#fff;border-radius:12px;padding:4px 10px;margin:6px 0;font-size:15px;font-weight:700}
+.smr span{margin-top:2px}
+.tk{font-style:normal;border-radius:8px;padding:1px 9px;font-size:14px;font-weight:800;margin:0 4px}
+.tk.s{background:#d3f9d8;color:#1b6e2c}.tk.c{background:#ffd8e4;color:#a1244a}.tk.n{background:#eceff4;color:#6b7280}
+.smnote{font-size:14px;line-height:1.6;color:#4a5b6a;font-weight:600;margin-top:8px}
+.rcap{font-size:14.5px;color:#4c7d96;font-weight:600;line-height:1.5;margin-bottom:6px}
+.ringbox .rings{display:flex;gap:16px}
+.ringbox .rg{flex:1;min-width:0}
+.nest{border-radius:16px;padding:7px 9px;border:4px solid;display:flex;flex-direction:column;gap:6px}
+.nest>.nh{font-weight:800;font-size:16px}
+.nest>.nh small{font-weight:600;font-size:13px;color:#7a6a5f;margin-left:6px}
+.nest.nq{background:#ffe3ec;border-color:#ff7ea6}
+.nest.nf{background:#fff0b3;border-color:#ffb800}
+.nest.ni{background:#fffdf0;border-color:#ffd35c}
+.nest.nr{background:#e6dcff;border-color:#9b7cf0}
+.pcap{font-size:13px;color:#7a6a5f;font-weight:600;line-height:1.45}
+.car.ih{background:#d9f7f3;border-color:#3fb8af}
+.pop.h{background:#e9fbf8;border-color:#3fb8af}
+.nest.nh2{background:#c9f2ec;border-color:#2aa79d}
+.legend{margin-top:26px;background:#fffdf0;border-color:#ffd35c}
+.legend h2{margin:0 0 4px;font-size:25px}
+.lgcap{font-size:15px;color:#7a6a5f;font-weight:600;margin-bottom:10px;line-height:1.5}
+.lgrow{display:flex;gap:16px}
+.lg{flex:1;min-width:0;background:#fff;border-radius:20px;padding:12px 16px;border:4px solid;font-size:15px;line-height:1.55;font-weight:600}
+.lg h3{margin:0 0 6px;font-size:20px}
+.lg .when{display:inline-block;border-radius:999px;padding:1px 10px;font-size:13px;font-weight:800;color:#fff;margin-bottom:6px}
+.lg code{background:#f3eee6;border-radius:6px;padding:0 5px;font-size:13.5px}
+.lg .ex{margin-top:6px;background:#faf6ee;border-radius:12px;padding:6px 10px;font-size:13.5px}
+.lg .why{margin-top:6px;color:#4c7d96;font-size:13.5px}
+.lg1{border-color:#8fd16a}.lg1 .when{background:#4aa02c}
+.lg2{border-color:#ffb800}.lg2 .when{background:#d98c00}
+.lg3{border-color:#b79cff}.lg3 .when{background:#7a52e0}
+.lg4{border-color:#3fb8af}.lg4 .when{background:#2aa79d}
+</style>
+</head>
+<body>
+<div id="art">
+  <h1>🧸 FiberNode 內部結構（函式元件）</h1>
+  <div class="sub">以 &lt;Counter /&gt; 為例：裡面依序呼叫 useState → useEffect → useRef → useImperativeHandle 各一次。Hook 不是 fiber，而是掛在 fiber 上的節點，下方把每一節 Hook 打開來看</div>
+
+  <div class="row">
+    <div class="card fiber">
+<h2>🧩 FiberNode<br><small style="font-size:15px;font-weight:400">React 替每個元件記的一張卡<br>共 23 個欄位，另有 4 個效能分析欄位略過</small></h2>
+<div class="cols"><div class="gb"><div class="grp">🪪 身分</div><div class="f2 "><b>🏷️ tag</b><small>元件種類，例如函式元件</small></div><div class="f2 "><b>🔑 key</b><small>列表裡的身分證</small></div><div class="f2 "><b>🧬 elementType、type</b><small>Counter 函式本人</small></div><div class="f2 "><b>🎯 stateNode</b><small>真正的 DOM 節點或 class 實例</small></div></div><div class="gb"><div class="grp">🌳 在樹裡的位置</div><div class="f2 "><b>⬆️ return</b><small>爸爸</small></div><div class="f2 "><b>⬇️ child</b><small>第一個孩子</small></div><div class="f2 "><b>➡️ sibling</b><small>下一個兄弟</small></div><div class="f2 "><b>🔢 index</b><small>排第幾個</small></div><div class="f2 "><b>📎 ref、refCleanup</b><small>你傳的 ref 與它的清理</small></div></div><div class="gb"><div class="grp">🎒 資料</div><div class="f2 "><b>📥 pendingProps</b><small>這次要用的 props</small></div><div class="f2 "><b>📤 memoizedProps</b><small>上次用過的 props</small></div><div class="f2 hot"><b>🚂 memoizedState</b><small>指向 Hook 鏈的第一格</small></div><div class="f2 ring"><b>🔁 updateQueue</b><small>指向 Effect 的環（見下方）</small></div><div class="f2 "><b>🔌 dependencies</b><small>讀過哪些 context（useContext 用的，不是閉包 Context）</small></div></div><div class="gb"><div class="grp">🚦 排程與待辦</div><div class="f2 "><b>⚙️ mode</b><small>位元旗標：Concurrent、Strict 等</small></div><div class="f2 "><b>🚩 flags</b><small>這個節點的待辦（插入、更新…）</small></div><div class="f2 "><b>🚩 subtreeFlags</b><small>子孫的待辦</small></div><div class="f2 "><b>🗑️ deletions</b><small>要刪掉的子節點</small></div><div class="f2 "><b>⏱️ lanes</b><small>優先序</small></div><div class="f2 "><b>⏱️ childLanes</b><small>子孫的優先序</small></div></div><div class="gb"><div class="grp">🪞 雙緩衝</div><div class="f2 "><b>🪞 alternate</b><small>另一棵樹的分身</small></div></div></div>
+</div>
+
+    <div class="arrow">👉</div>
+
+    <div class="card train">
+      <h2>🚂 Hook 鏈：單向火車，尾巴是 null，不是環</h2>
+      <div style="font-size:17px;color:#6b8a5a">React 依照你呼叫 Hook 的順序，一節一節掛上去（所以 Hook 不能寫在 if 裡）。每一節都是同一種 Hook 物件，差別只在 memoizedState 裡放什麼</div>
+      <div class="lane">
+        <div class="st">
+          <div class="car st1"><span class="e">🧠</span>第 1 個 Hook<small>useState</small></div>
+          <div class="down">⬇️ 打開</div>
+          <div class="pop s">
+            <div class="t">🧠 useState 的 Hook 物件</div>
+            <div class="pcap">外層這一排是 Hook 物件自己的屬性（彼此平行）。有色框是「該屬性的值」，它的屬性包在框內</div>
+            <div class="chip">🔢 memoizedState<small>目前的值，例如 count = 1</small></div>
+            <div class="chip">🪣 baseState<small>更新前的基準值</small></div>
+            <div class="nest nq">
+              <div class="nh">📮 queue<small>＝ 更新信箱（也是一個物件，它的屬性在框內）</small></div>
+              <div class="chip">📬 pending<small>待處理的更新，是環</small></div>
+              <div class="chip">📣 dispatch<small>就是 setCount，出生時就綁定了這個 queue（setter 與 queue 是一對）</small></div>
+              <div class="chip">🧮 lastRenderedReducer<small>算新值的規則</small></div>
+            </div>
+            <div class="chip">🔗 next<small>下一節 Hook</small></div>
+          </div>
+        </div>
+        <div class="nx">➡️<small>next</small></div>
+        <div class="st">
+          <div class="car fx"><span class="e">⚡</span>第 2 個 Hook<small>useEffect</small></div>
+          <div class="down">⬇️ 打開</div>
+          <div class="pop f">
+            <div class="t">⚡ useEffect 的 Hook 物件</div>
+            <div class="pcap">外層這一排是 Hook 物件自己的屬性（彼此平行）。有色框是「該屬性的值」，它的屬性包在框內</div>
+            <div class="nest nf">
+              <div class="nh">📦 memoizedState<small>＝ 指向一個 Effect 物件，這個物件的屬性都在框內</small></div>
+              <div class="chip setup">🔌 create = 【setup 函式】 <span class="tg tgb">🎒 Context（捕捉變數）➜ ①</span><small>render 時存入，commit 時被呼叫</small></div>
+              <div class="chip">📋 deps<small>依賴陣列</small></div>
+              <div class="nest ni">
+                <div class="nh">🏠 inst<small>跨 render 共用的小房子（也是物件）</small></div>
+                <div class="chip cleanup">🧹 destroy = 【cleanup 函式】 <span class="tg tgp">🎒 Context（捕捉變數）➜ ②</span><small>setup 跑完 return 時才存入，之前是 undefined</small></div>
+              </div>
+              <div class="chip">🔗 next<small>Effect 的 next：下一個 Effect，是環</small></div>
+            </div>
+            <div class="chip nul">📮 queue<small>null：沒有 setter，就沒有 dispatch 要綁，所以不建 queue</small></div>
+            <div class="chip nul">🔗 next<small>Hook 的 next：下一節 Hook，與 memoizedState 平行</small></div>
+          </div>
+        </div>
+        <div class="nx">➡️<small>next</small></div>
+        <div class="st">
+          <div class="car rf"><span class="e">📦</span>第 3 個 Hook<small>useRef</small></div>
+          <div class="down">⬇️ 打開</div>
+          <div class="pop r">
+            <div class="t">📦 useRef 的 Hook 物件</div>
+            <div class="pcap">外層這一排是 Hook 物件自己的屬性（彼此平行）。有色框是「該屬性的值」，它的屬性包在框內</div>
+            <div class="nest nr">
+              <div class="nh">🎁 memoizedState<small>＝ { current } 這個小盒子（物件）</small></div>
+              <div class="chip">🪧 current<small>你放進去的值或 DOM node</small></div>
+            </div>
+            <div class="chip nul">📮 queue<small>null，沒有 setter 所以不需要信箱</small></div>
+            <div class="chip">🔗 next<small>下一節 Hook：第 4 個</small></div>
+            <div style="background:#fff;border:3px solid #9b7cf0;border-radius:14px;padding:7px 10px;margin-top:4px;font-size:13.5px;line-height:1.55;font-weight:600;color:#3a3040">
+              <b style="color:#6b3fd0">✅ useRef ＝ 值會更新，但不會因為它而更新畫面</b><br>
+              ① <code>ref.current = 5</code> 是普通賦值，<b>值當場就變了</b><br>
+              ② 但沒有 setter、<code>queue</code> 是 null，沒人通知 React，所以<b>不排程 re-render，畫面不動</b><br>
+              ③ 之後若別的原因（例如 setState）讓元件重畫，畫面才會讀到最新的 current<br>
+              <span style="color:#a1244a">對比 useState：改值 ＋ 通知 React ＝ 值與畫面一起更新</span>
+            </div>
+          </div>
+        </div>
+        <div class="nx">➡️<small>next</small></div>
+        <div class="st">
+          <div class="car ih"><span class="e">🪝</span>第 4 個 Hook<small>useImperativeHandle</small></div>
+          <div class="down">⬇️ 打開</div>
+          <div class="pop h">
+            <div class="t">🪝 useImperativeHandle 的 Hook 物件</div>
+            <div class="pcap">它是 Hook，不是 fiber。它在 Hook 鏈上占一節，Effect 物件也進 Effect 環。外層是 Hook 自己的屬性，有色框是該屬性的值</div>
+            <div class="nest nh2">
+              <div class="nh">📦 memoizedState<small>＝ 指向一個 Effect 物件（跟 useEffect 同一種，只是 tag 不同）</small></div>
+              <div class="chip">🏷️ tag<small>Layout（0b0100）加 HasEffect：在 layout 階段跑，不是 Passive</small></div>
+              <div class="chip setup">🔌 create = 【imperativeHandleEffect.bind(null, create, ref)】<small>把你給的 create 與 ref 綁起來。執行時 ref.current = create()</small></div>
+              <div class="chip">📋 deps<small>你的 deps 再接上 ref（deps.concat([ref])），沒傳 deps 就是 null</small></div>
+              <div class="nest ni">
+                <div class="nh">🏠 inst<small>跨 render 共用的小房子（也是物件）</small></div>
+                <div class="chip cleanup">🧹 destroy = 【() =&gt; { ref.current = null }】 <span class="tg tgp">🎒 Context（捕捉變數）：refObject</span><small>卸載或重新同步時，把 ref.current 清回 null</small></div>
+              </div>
+              <div class="chip">🔗 next<small>Effect 的 next：下一個 Effect，是環</small></div>
+            </div>
+            <div class="chip nul">📮 queue<small>null：沒有 setter，就沒有 dispatch 要綁，所以不建 queue</small></div>
+            <div class="chip nul">🔗 next<small>Hook 的 next：null，鏈到此為止</small></div>
+          </div>
+        </div>
+        <div class="null">🚫<small>null</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="card ringbox">
+      <h2>🔄 真正的「環」有兩個，都不是 Hook 鏈</h2>
+      <div class="rcap">環：最後一個元素的 <code>next</code> 又指回第一個。外面的指標只記住「最後一個」，要找第一個就走一步 <code>last.next</code>。新增元素時接在最後一個後面，再把指標改指向新的最後一個</div>
+      <div class="rings">
+        <div class="rg"><div class="cap">① Effect 清單（掛在 fiber 上）：本例有兩個 Effect：第 2 個 Hook（useEffect）與第 4 個 Hook（useImperativeHandle）。useState、useRef 不產生 Effect，不在環裡。同一個 Effect 物件也被它那一節 Hook 的 memoizedState 指著，所以在 Hook 鏈與這個環上都找得到</div><svg viewBox="-70 0 430 300" width="380" height="265" style="display:block;margin:0 auto"><defs><marker id="m2f8fd8" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2f8fd8"/></marker></defs><path d="M262 52 Q340 128 262 206" fill="none" stroke="#2f8fd8" stroke-width="5" stroke-linecap="round" marker-end="url(#m2f8fd8)"/><path d="M38 206 Q-40 128 38 52" fill="none" stroke="#2f8fd8" stroke-width="5" stroke-linecap="round" marker-end="url(#m2f8fd8)"/><text x="318" y="132" font-size="13" font-weight="800" fill="#2f8fd8">next</text><text x="-62" y="132" font-size="13" font-weight="800" fill="#2f8fd8">next</text><rect x="36" y="16" width="228" height="56" rx="14" fill="#fff" stroke="#2f8fd8" stroke-width="4"/><text x="150" y="41" font-size="18" text-anchor="middle">⚡ <tspan font-size="14" font-weight="800" fill="#3a3040">Effect</tspan></text><text x="150" y="61" font-size="12.5" font-weight="800" text-anchor="middle" fill="#3a3040">第 2 個 Hook：useEffect</text><rect x="36" y="186" width="228" height="56" rx="14" fill="#fff" stroke="#2f8fd8" stroke-width="6"/><text x="150" y="211" font-size="18" text-anchor="middle">🪝 <tspan font-size="14" font-weight="800" fill="#3a3040">Effect</tspan></text><text x="150" y="231" font-size="12.5" font-weight="800" text-anchor="middle" fill="#3a3040">第 4 個 Hook：useImperativeHandle</text><text x="150" y="132" font-size="13" font-weight="800" text-anchor="middle" fill="#6b5a4f">第一個 ＝ 最後一個.next</text><text x="-62" y="274" font-size="13" font-weight="800" fill="#c0283f">☝️ fiber.updateQueue.lastEffect</text><text x="-62" y="292" font-size="13" font-weight="800" fill="#c0283f">　 指向粗框那一個（最後一個）</text></svg></div>
+        <div class="rg"><div class="cap">② 待處理更新（掛在 useState 的 queue 上）：每呼叫一次 setCount 就多一封更新</div><svg viewBox="-60 0 380 300" width="340" height="268" style="display:block;margin:0 auto"><defs><marker id="m8a4fd6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8a4fd6"/></marker></defs><path d="M196 62 Q262 80 252 150" fill="none" stroke="#8a4fd6" stroke-width="5" stroke-linecap="round" marker-end="url(#m8a4fd6)"/><path d="M186 200 Q150 232 114 200" fill="none" stroke="#8a4fd6" stroke-width="5" stroke-linecap="round" marker-end="url(#m8a4fd6)"/><path d="M48 150 Q40 80 104 62" fill="none" stroke="#8a4fd6" stroke-width="5" stroke-linecap="round" marker-end="url(#m8a4fd6)"/><text x="262" y="100" font-size="13" font-weight="800" fill="#8a4fd6">next</text><text x="132" y="240" font-size="13" font-weight="800" fill="#8a4fd6">next</text><text x="-56" y="104" font-size="13" font-weight="800" fill="#8a4fd6">next（繞回）</text><rect x="98" y="25" width="104" height="46" rx="14" fill="#fff" stroke="#8a4fd6" stroke-width="4"/><text x="150" y="46" font-size="20" text-anchor="middle">📨</text><text x="150" y="64" font-size="13" font-weight="800" text-anchor="middle" fill="#3a3040">setCount(1)</text><rect x="186" y="155" width="104" height="46" rx="14" fill="#fff" stroke="#8a4fd6" stroke-width="4"/><text x="238" y="176" font-size="20" text-anchor="middle">📨</text><text x="238" y="194" font-size="13" font-weight="800" text-anchor="middle" fill="#3a3040">setCount(2)</text><rect x="10" y="155" width="104" height="46" rx="14" fill="#fff" stroke="#8a4fd6" stroke-width="6"/><text x="62" y="176" font-size="20" text-anchor="middle">📨</text><text x="62" y="194" font-size="13" font-weight="800" text-anchor="middle" fill="#3a3040">setCount(3)</text><text x="150" y="132" font-size="13" font-weight="800" text-anchor="middle" fill="#6b5a4f">第一個 ＝ 最後一個.next</text><text x="-56" y="266" font-size="13" font-weight="800" fill="#c0283f">☝️ hook.queue.pending</text><text x="-56" y="285" font-size="13" font-weight="800" fill="#c0283f">　 指向粗框那一個（最後一個）</text></svg><div class="rcap" style="margin-top:2px">第一次 setCount 時只有一封，它的 next 指向自己</div></div>
+      </div>
+    </div>
+    <div class="card ctxbox">
+      <h2>🎒 Heap 上的 Context 物件（捕捉變數）</h2>
+      <div class="cxcap">Context 記的是「內部函式引用到的外部變數」，也就是閉包捕捉的環境資料，<b>不是函式本身</b>。setup 與 cleanup 函式（JSFunction）各背著一個 Context 的位址</div>
+      <div class="cx cxp">🎒 Context ②（捕捉變數）<span class="tg tgp">cleanup 背著它</span>
+        <div class="sl">previous <em>➜ Context ①（捕捉變數）</em></div>
+        <div class="sl">connection <em>＝ 被捕捉的變數（cleanup 用到它）</em></div>
+      </div>
+      <div class="pv">⬇️ previous（往外一層）</div>
+      <div class="cx cxb">🎒 Context ①（捕捉變數）<span class="tg tgb">setup 背著它</span>
+        <div class="sl">previous <em>➜ 外層（模組與全域）</em></div>
+        <div class="sl">roomId <em>＝ 被捕捉的變數（setup 用到它）</em></div>
+        <div class="sl">serverUrl <em>＝ 被捕捉的變數（setup 用到它）</em></div>
+      </div>
+      <div class="cxcap" style="margin-top:8px">cleanup 之後還能 disconnect「當初那一條」連線，靠的就是 ② 這個背包</div>
+    </div>
+    <div class="card smbox">
+      <h2>🧪 實測：StrictMode 下 Effect 的順序</h2>
+      <div class="smcap">React 19.3.0 開發版加 jsdom，2026-10-05 實際執行。這些呼叫的對象，就是左邊 Effect 物件的 create 與 inst.destroy</div>
+      <div class="smr"><b>掛載</b><span><i class="tk s">setup</i>➜<i class="tk c">cleanup</i>➜<i class="tk s">setup</i></span></div>
+      <div class="smr"><b>deps 真的改變</b><span><i class="tk c">cleanup（舊）</i>➜<i class="tk s">setup（新）</i></span></div>
+      <div class="smr"><b>deps 沒變</b><span><i class="tk n">什麼都不跑</i></span></div>
+      <div class="smr"><b>卸載</b><span><i class="tk c">cleanup</i></span></div>
+      <div class="smnote">① 多一輪只發生在「掛載」，deps 改變時沒有<br>② 這一輪不是第二次呼叫 useEffect，是同一個 Effect 物件被再呼叫一輪<br>③ 漏寫 cleanup 時 React 不會報錯（0 則警告），只看得到連續兩個 setup</div>
+    </div>
+    <div class="card verdict">
+      <h2>📌 重點整理</h2>
+      <table>
+        <tr><td>🧠</td><td><b>memoizedState</b> 接出一條單向的 Hook 鏈，最後一節的 next 是 null</td></tr>
+        <tr><td>⚡</td><td>useEffect 的 deps 與 cleanup 住在 <b>Effect 物件</b>裡，Hook 的 memoizedState 指著它</td></tr>
+        <tr><td>🔄</td><td><b>環</b>出現在 Effect 清單與 pending 更新清單</td></tr>
+        <tr><td>🎒</td><td>函式背的 Context（捕捉變數）住在 <b>Heap</b>，不在 Stack 罐頭裡</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card legend">
+    <h2>📖 這四個 Hook 各是什麼意思？（它們都在上方的 Effect 環裡）</h2>
+    <div class="lgcap">共同點：都是「React 做完某件事之後，請幫我跑一段我寫的程式」。差別只在「跑的時間點」不同，所以 Effect 物件上用 <code>tag</code> 旗標區分。React 每次 commit 依序處理：Insertion ➜ Layout ➜ Passive（畫面畫完才輪到）</div>
+    <div class="lgrow">
+      <div class="lg lg1"><h3>⚡ useEffect</h3><span class="when">Passive：畫面畫完之後</span><br>白話：「畫面更新完了，再去跟外面的世界對一下」。外面的世界指計時器、網路連線、瀏覽器事件監聽、第三方套件。<div class="ex">例：<code>useEffect(() =&gt; { const id = setInterval(tick, 1000); return () =&gt; clearInterval(id) }, [])</code>。掛載後開始計時，卸載時停掉</div><div class="why">為什麼在環裡：它就是最典型的 Effect，create ＝ 你寫的 setup，inst.destroy ＝ 你 return 的 cleanup</div></div>
+      <div class="lg lg2"><h3>📐 useLayoutEffect</h3><span class="when">Layout：DOM 改好、畫面還沒畫出來</span><br>白話：「我要在使用者看到畫面之前，先量尺寸或調位置」。因為它會擋住畫面繪製，所以只在不得不時用。<div class="ex">例：提示框要先量按鈕的位置與自己的高度，才知道該放上面還是下面。用 useEffect 會先閃一下錯的位置，用 useLayoutEffect 則使用者只看到對的位置</div><div class="why">為什麼在環裡：跟 useEffect 同一種 Effect 物件，只是 tag 是 Layout，所以跑得比較早</div></div>
+      <div class="lg lg3"><h3>🎨 useInsertionEffect</h3><span class="when">Insertion：最早，早於所有 Layout</span><br>白話：「在別人讀版面之前，先把 CSS 規則塞進頁面」。設計給 CSS-in-JS 套件的作者用，一般應用程式幾乎用不到。<div class="ex">例：樣式函式庫在這裡把 <code>&lt;style&gt;</code> 規則插入 <code>document.head</code>，後面的 useLayoutEffect 去量尺寸時，樣式已經生效。此時還讀不到 ref</div><div class="why">為什麼在環裡：同一種 Effect 物件，tag 是 Insertion。原始碼中它在 commit 的 mutation 階段執行</div></div>
+      <div class="lg lg4"><h3>🔌 useImperativeHandle</h3><span class="when">Layout：跟 useLayoutEffect 同時間</span><br>白話：「爸爸拿到我的 ref 時，只讓他看到我挑好的幾個方法」。原本 ref 會直接給出 DOM 節點，這個 Hook 讓子元件改成只露出 <code>focus()</code>、<code>reset()</code> 這類自己挑的功能。<div class="ex">例：<code>useImperativeHandle(ref, () =&gt; ({ focus() { inputRef.current.focus() } }), [])</code>。爸爸只能呼叫 <code>ref.current.focus()</code>，碰不到內部的 input</div><div class="why">為什麼在環裡：原始碼把它做成一個 Layout Effect：create 時做 <code>ref.current = 你的物件</code>，cleanup 時把 <code>ref.current</code> 設回 null</div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

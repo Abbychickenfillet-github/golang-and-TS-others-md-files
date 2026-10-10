@@ -31,11 +31,34 @@ updated: 2026-07-31
 
 ## 5W1H 速查：讀本篇之前先把座標定好
 
-> [!important]+ 最常被搞錯的一題先講：<mark style="background: #FF5582A6;">閉包捕獲的是「綁定」，不是「值的快照」</mark>
-> 很多人腦中的畫面是：內層函式出生時把外層變數<mark style="background: #FF5582A6;">複印一份</mark>收進口袋。<mark style="background: #BBFABBA6;">不是的</mark>——它抓住的是<mark style="background: #FFF3A3A6;">那一格記憶體本身</mark>，外面改、裡面就跟著變。本篇兩道最難的題目其實是同一個誤解的兩張臉：
-> a. <mark style="background: #ADCCFFA6;">經典面試題</mark>：`var` 迴圈 ＋ `setTimeout` 印出 `4, 4, 4`，正是因為三個閉包抓的是<mark style="background: #FF5582A6;">同一格 `i`</mark>，不是三份 1／2／3 的快照。換成 `let`，每輪迭代產生<mark style="background: #BBFABBA6;">新的綁定</mark>，才會是 1／2／3。
-> b. <mark style="background: #ADCCFFA6;">魔王題「閉包漏水」</mark>：`getHistory` 回傳陣列參照，外面拿到的就是<mark style="background: #FF5582A6;">同一個陣列</mark>，直接 `push` 就繞過你的方法改掉私有狀態。要真的私有，回傳時得切一刀：`[...history]`。
-> 一句話：閉包不是保險箱，是<mark style="background: #BBFABBA6;">一條指向同一格記憶體的線</mark>。
+> [!important]+ 速查：<mark style="background: #BBFABBA6;">**閉包捕獲的是「綁定」，也就是變數所在的那一格**</mark>，外面改了，閉包讀到的就是新值
+> 內層函式出生時，抓住的是<mark style="background: #FFF3A3A6;">**外層變數那一格記憶體本身**</mark>，不會另外複印一份收進口袋。本篇兩道最難的題目都是這一點的應用：
+> a. <mark style="background: #ADCCFFA6;">經典面試題</mark>：`var` 迴圈 ＋ `setTimeout` 印出 `4, 4, 4`，因為三個閉包抓的是<mark style="background: #BBFABBA6;">**同一格 `i`**</mark>。換成 `let`，每輪迭代產生<mark style="background: #BBFABBA6;">**新的綁定**</mark>，才會是 1／2／3。
+> b. <mark style="background: #ADCCFFA6;">魔王題「閉包漏水」</mark>：`getHistory` 回傳陣列參照，外面拿到的就是<mark style="background: #BBFABBA6;">**同一個陣列**</mark>，直接 `push` 就繞過你的方法改掉私有狀態。要真的私有，回傳時得切一刀：`[...history]`。
+> 一句話：閉包是<mark style="background: #BBFABBA6;">**一條指向同一格記憶體的線**</mark>，不是保險箱。
+
+「那一格」在不同層次叫不同名字：
+
+| 層次 | 「那一格」叫什麼 | 閉包怎麼抓住它 |
+|---|---|---|
+| ECMAScript 規格 | 綁定（binding），存在 Environment Record 裡 | 函式物件的 `[[Environment]]` 指向那份 Environment Record |
+| V8 實作 | **Heap 上 Context 物件裡的一個 slot**（Context 是裝著好幾個被捕獲變數的容器） | 函式物件（`JSFunction`）的 context 欄位指向這個 Context，讀寫變數都經過這個 slot |
+| 沒被任何閉包捕獲的變數 | 在 Stack Frame 裡 | 不會被閉包看見，函式 `return` 後跟著 Frame 一起消失 |
+
+用程式驗證（Node.js 實測，輸出寫在註解）：
+
+```js
+function make() { let x = 1; return { get: () => x, set: v => { x = v; } }; }
+const o = make(); o.set(5);
+console.log(o.get());            // 5，get 與 set 兩個閉包共用同一個 x（同一個 Context slot）
+console.log(make().get());       // 1，另一次呼叫產生另一個 Context，有自己的 x
+var fs = []; for (var i = 0; i < 3; i++) fs.push(() => i);
+console.log(fs.map(f => f()));   // [ 3, 3, 3 ]，三個閉包共用同一格 i
+let gs = []; for (let j = 0; j < 3; j++) gs.push(() => j);
+console.log(gs.map(f => f()));   // [ 0, 1, 2 ]，每輪迭代各有一格 j
+function snap(x) { const copy = x; x = 99; return () => copy; }
+console.log(snap(1)());          // 1，要「快照」得主動複製出另一個變數
+```
 
 | 5W1H | 問題 | 一句話答案 |
 |---|---|---|
@@ -49,52 +72,13 @@ updated: 2026-07-31
 
 ### 時間軸：這件事發生在哪一格
 
-```text
-◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
-        （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
-
- ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤每次執行都重來
- transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
- ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
- │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ 執行到函式定義那行│
- │tsc     │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ ★ 生出一個函式物件│
- │SWC     │   │Rollup  │      │AST       │   │Bytecode  │   │ ★ 掛上            │
- └────────┘   └────────┘      │Scope     │   └──────────┘   │   [[Environment]] │
-                              │Analysis： │                  │   ＝閉包誕生      │
-  ★ 詞法範疇在「你寫下       │★ 決定誰會 │                  ├──────────────────┤
-    程式碼」的那一刻就       │  被捕獲、 │                  │ 外層 return：     │
-    定了，但那是「作者       │  該放 Heap│                  │ Frame pop，但 Heap│
-    決定結構」，不是         │  的 Context│                 │ 的 Context 不受影響│
-    buildtime 這一格         └──────────┘                  ├──────────────────┤
-    在做事                   每個函式只做一次                │ 只要還有人抓著它  │
-                             只做「決策」，                  │ → 活到參照被切斷  │
-                             不配置任何記憶體                │ → 才輪到 GC       │
-                                                            └────────┬─────────┘
-                                                                     └─► 再呼叫一次
-                                                                        又是全新一份
-
- ★ 閉包的「形成」站在第 ⑤ 格。第 ③ 格只是決定「誰要住 Heap」，一個函式只決定一次；
-   閉包本身則是「執行到幾次就生幾份」——這就是為什麼每顆按鈕能有自己的計數器。
-```
+![閉包在哪一格形成：buildtime 到 runtime 時間軸](../../../obsidian-attachment/closure_timeline_buildtime_vs_runtime_2026-10-06.png)
 
 一個閉包自己也有一條由生到死的序列：
 
-```text
- ①決策           ②誕生            ③外層退場        ④被持有          ⑤斷線 → 回收
- Parse           create           caller pop       retained         unreachable
-┌──────────┐   ┌──────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐
-│Scope     │   │執行到函式定義│  │外層函式    │  │被監聽器／  │  │移除監聽器／│
-│Analysis  │──►│→ 函式物件 ＋ │─►│return，其  │─►│計時器／變數│─►│元件卸載／  │
-│看出 count│   │  Heap Context│  │Stack Frame │  │抓著 →      │  │設 null →   │
-│會被捕獲  │   │  ＝閉包誕生  │  │被 pop 掉   │  │一直活著    │  │GC 才回收   │
-└──────────┘   └──────────────┘  └────────────┘  └────────────┘  └────────────┘
-  只做一次        執行幾次生幾份     Context 不受影響   跟有沒有在跑無關    可達性說了算
+![一個閉包的生命週期五步](../../../obsidian-attachment/closure_lifecycle_5steps_2026-10-06.png)
 
- ★ 第 ④ 格就是本篇「執行時間 ≠ 存活時間」在講的事：使用者晾在那十分鐘不動，
-   debounce 裡的 timer 依然活著，因為事件監聽器還抓著它。
-```
-
-同一件事用 Mermaid 再畫一次：
+同一條時間軸的流程圖版本：
 
 ```mermaid
 flowchart LR
@@ -102,7 +86,7 @@ flowchart LR
         T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
     end
     subgraph RT1["runtime 執行期 · 只做一次的部分"]
-        P["Parse 解析<br/>Scope Analysis：<br/>★ 決定哪些變數會被捕獲<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode"]
+        P["V8 的 Parse<br/>Scope Analysis：<br/>★ 決定哪些變數會被捕獲<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode"]
     end
     subgraph RT2["runtime 執行期 · 執行幾次就生幾份"]
         F["執行到函式定義那一行<br/>★ 生出函式物件<br/>★ 掛上 [[Environment]]<br/>＝ 閉包誕生"] --> RE["外層 return<br/>Stack Frame 被 pop<br/>Heap 的 Context 不受影響"]
@@ -124,9 +108,17 @@ flowchart LR
 
 想確認某件事在哪一格，問自己：<mark style="background: #BBFABBA6;">「這件事對同一個函式做幾次？」</mark>
 
-1. 只做一次 → 屬於 Parse／編譯期（第 ③ ④ 格），例如「決定 `count` 會被捕獲、要放 Heap」
+1. 只做一次 → 屬於 V8 的 Parse 與 Bytecode 產生（runtime，第 ③ ④ 格），例如「決定 `count` 會被捕獲、要放 Heap」
 
 2. 執行到幾次就做幾次 → 屬於執行期（第 ⑤ 格），例如「生出一個函式物件並掛上環境」
+
+上面第 1 點的「編譯」發生在 runtime，跟 buildtime 的打包是不同階段。對照如下（用詞約定見 [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】]]：buildtime 說「轉譯」，runtime 才說「編譯」）：
+
+| 階段 | 詞 | 誰做 | 什麼時候 | 做什麼 |
+|---|---|---|---|---|
+| 第 ① 格 | 轉譯（transpile） | Babel、tsc、SWC | buildtime，你的電腦或 CI | 原始碼轉成原始碼（JSX、TS 轉成 JS） |
+| 第 ② 格 | 打包（bundle） | webpack、Vite、Rollup | buildtime，你的電腦或 CI | 合併模組，輸出給瀏覽器的 bundle 檔 |
+| 第 ③ ④ 格 | 編譯（compile） | V8 的 Parse 與 Ignition | runtime，瀏覽器或 Node 載入腳本之後 | 原始碼文字 parse 成 AST，再編成 Bytecode，同時決定變數放 Stack 或 Heap |
 
 所以「每顆按鈕一個獨立計數器」能成立，靠的正是後者：`createCounter(buttonId)` 被呼叫幾次，就有<mark style="background: #FFF3A3A6;">幾份互不相干的 Context</mark>；如果閉包是在編譯期就定案的東西，這件事根本做不到。
 
@@ -164,6 +156,72 @@ counter.increment(); // 2
 - <mark style="background: #ADCCFFA6;">哪些是「閉包」？</mark>回傳物件裡 `increment: function() {...}` 和 `decrement: function() {...}` 這兩個函式值，各自都是閉包——因為它們都是**內層函式**，都引用了外層 `createCounter` 的 `count`。呼應本篇最上面那句一句話定義：<mark style="background: #FFF3A3A6;">「閉包是一個內層函式，能記憶並存取外層函式的範疇」</mark>——這裡的「內層函式」不是只能指一個，這個範例剛好有兩個內層函式，兩個都成立。
 - <mark style="background: #FF5582A6;">更精確的講法：閉包不是「函式」這個標籤本身，是「函式＋它捕捉到的外層作用域」這個組合。</mark>`increment` 和 `decrement` 是兩個**不同的函式物件**（記憶體位置不同），但因為它們是在**同一次** `createCounter()` 呼叫裡一起建立的，兩者背後指向的是**同一個** Function Environment Record（裝著 `count` 那個）。所以 `counter.increment()` 讓 `count` 變成 1 之後，`counter.decrement()` 讀到的也是同一個已經變成 1 的 `count`，不是各自獨立的複本。這就是為什麼「一個計數器物件裡的 increment/decrement 能互相影響同一個數字」。
 
+`increment` 與 `decrement` 用的是**同一個變數 `count`**，所以它們指向**同一個 Context**，不是各自一份。可以用 V8 的 `%DebugPrint`（`node --allow-natives-syntax`）直接看兩個函式物件的 context 欄位：
+
+| 函式物件 | context 欄位（Node.js 實測的位址） | 說明 |
+|---|---|---|
+| `counter.increment` | `0x277748023691 <FunctionContext[3]>` | 同一個 Context |
+| `counter.decrement` | `0x277748023691 <FunctionContext[3]>` | 位址相同，共用同一個 `count` slot |
+| 第二次 `createCounter()` 的 `counter2.increment` | `0x2bdc00e61fe9 <FunctionContext[3]>` | 另一次呼叫建立另一個 Context，有自己的 `count` |
+
+兩個函式物件本身是兩個不同的物件（位址不同、程式碼不同），但各自的 context 欄位指向同一個 Context。`FunctionContext[3]` 的 3 個欄位是 `scope_info`、`previous`、`count`。執行結果也一致：`increment()` 印 `increment1`，接著 `decrement()` 印 `decrement0`，後者是從前者留下的 `1` 往下減。
+
+**`count++` 與 `count--` 為什麼不會互相覆蓋：** 兩者對同一個 slot 做「讀目前的值 → 加減 1 → 寫回」，而且一次呼叫在 Call Stack 上整段跑完，才輪到下一次呼叫。後一次讀到的是前一次寫回的值，所以結果是累加。用 `node --print-bytecode` 看 V8 實際產生的 Bytecode：
+
+| 步驟 | `increment` 的 `count++` | `decrement` 的 `count--` |
+|---|---|---|
+| 1. 讀 | `LdaCurrentContextSlot [2]`：從目前 Context 的第 2 格讀出 `count` | `LdaCurrentContextSlot [2]` |
+| 2. 改 | `Inc` | `Dec` |
+| 3. 寫 | `StaCurrentContextSlot [2]`：寫回同一格 | `StaCurrentContextSlot [2]` |
+
+第 2 格就是 `FunctionContext[3]` 裡的 `count`（第 0 格 `scope_info`、第 1 格 `previous`）。`Lda`、`Sta` 的意思（Load／Store Accumulator）與每個 Bytecode 的讀法見 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]] 的 Ignition 一節。連續呼叫 `increment()`、`decrement()`、`increment()`、`increment()`、`decrement()` 的回傳值是 `1 0 1 2 1`。
+
+每次呼叫各自開一個 Stack Frame（各自的記憶體空間），但 `count` 不在 Frame 裡，在共用的 Context：
+
+| | 每次呼叫各自一份（Stack Frame） | 共用一份（Heap 的 Context） |
+|---|---|---|
+| 位置 | Call Stack，呼叫時 push、return 時 pop | Heap |
+| 內容 | 返回位址、Saved BP、這次呼叫的暫存器與區域變數。`increment` 與 `decrement` 的 Bytecode 標示 `Register count 0`、`Frame size 0`，Frame 裡沒有任何區域變數 | `count` |
+| 誰用 | `increment()` 一次呼叫一個 Frame，`decrement()` 一次呼叫一個 Frame，用完就 pop | 所有 `createCounter()` 同一次呼叫建立的閉包 |
+
+被捕獲的變數在 Heap 上的位置：Context 是一個有位址的 Heap 物件，每個被捕獲的變數是這個物件裡的一個 slot，位置由 Context 的位址加上 slot 編號決定（`count` 是第 2 格）。同一個作用域裡被捕獲的好幾個變數放在同一個 Context 的不同 slot，共用這個 Context 的位址，不會各自開一個 Context。
+
+slot 是按「變數宣告」分配的，不是按「哪個函式用到它」分配。`increment` 與 `decrement` 裡寫的 `count` 是外層同一個宣告，所以兩邊用同一個 slot。用 `node --print-bytecode` 驗證（外層多宣告一個 `let step = 10`，兩個函式都用到 `count` 與 `step`）：
+
+| 變數 | `increment` 的 Bytecode | `decrement` 的 Bytecode |
+|---|---|---|
+| `count`（宣告一次） | `LdaCurrentContextSlot [2]`、`StaCurrentContextSlot [2]` | `LdaCurrentContextSlot [2]`、`StaCurrentContextSlot [2]`，**同一格** |
+| `step`（另一個宣告） | `LdaImmutableCurrentContextSlot [3]` | `LdaImmutableCurrentContextSlot [3]`，另一格 |
+
+這時兩個函式的 context 欄位指向的是 `FunctionContext[4]`（`scope_info`、`previous`、`count`、`step` 共 4 格）。
+
+工廠函式（factory function）的「寫一次、無限復用、互不干擾」由兩個層次各自負責：
+
+| 層次 | 共用還是各自 | 說明 |
+|---|---|---|
+| 程式碼（`BytecodeArray`） | 全部共用，只有一份 | 不論呼叫幾次 `createCounter()`，`increment` 的 Bytecode 都是同一份，所以「寫一次」 |
+| 函式物件（`JSFunction`） | 每次呼叫 `createCounter()` 各自建立新的 | 兩次呼叫產生的 `increment` 是兩個不同物件，`a.increment === b.increment` 為 `false` |
+| Context（`count` 所在的 Heap 物件） | 每次呼叫 `createCounter()` 各自建立新的一個 | 這就是「互不干擾」的來源，`a` 的 `count` 與 `b` 的 `count` 在不同的 Context，位址不同 |
+| 同一次呼叫內的 `increment` 與 `decrement` | 共用同一個 Context、同一個 `count` slot | 兩者操作同一個 `count`，這是刻意的，所以 `increment()` 之後 `decrement()` 會從 1 往下減 |
+
+Node 驗證（2026-10-07）：`const a = createCounter(), b = createCounter()`，`a.increment()` 兩次、`b.decrement()` 一次，`a.get()` 為 `2`，`b.get()` 為 `-1`。`a.decrement()` 之後 `a.get()` 為 `1`，`b` 不受影響。不同的變數放不同的 slot（`count` 第 2 格、`step` 第 3 格），同一個變數被多個閉包使用則共用同一個 slot。
+
+只有在函式裡**另外宣告**同名變數（遮蔽）時，才會是不同的變數。例如 `decrement` 內寫 `let count = 100`，它沒有被任何內層函式捕獲，Bytecode 用的是暫存器（`Star0`、`Dec`，`Frame size 8`），放在 `decrement` 自己的 Stack Frame，不佔 Context 的 slot。結果 `increment()`、`decrement()`、`increment()` 回傳 `1 99 2`，外層的 `count` 沒被動到。
+
+會「覆蓋」的情況是讀與寫之間被 `await` 隔開，別的任務在這段空檔改了同一格，寫回時就蓋掉對方的結果：
+
+```js
+let count = 0;
+async function incSlow() { const c = count; await sleep(10); count = c + 1; }  // 先讀，10ms 後才寫
+async function decSlow() { const c = count; await sleep(5);  count = c - 1; }  // 先讀，5ms 後就寫
+await Promise.all([incSlow(), decSlow()]);
+console.log(count);  // 1：decSlow 在 5ms 寫入 -1，incSlow 在 10ms 用舊的 c = 0 寫回 1，蓋掉了 -1
+```
+
+`increment`／`decrement` 本身沒有 `await`，讀與寫之間不會被插入別的呼叫，所以不會發生這種情況。
+
+只有當函式**自己**也有被內層函式捕獲的區域變數時，才會再多出一個屬於那個函式的 Context，用 `previous` 接回 `createCounter` 的 Context。
+
 > [!tip] 判斷「這是不是閉包」的快速心法
 > 問自己：這個函式**有沒有引用到外層作用域的變數**？有 → 它就是閉包（不管它有沒有名字、是宣告式還是箭頭函式）。JS 裡每個函式其實都天生帶著自己定義時的作用域鏈結（[[Environment]] 內部欄位），但通常只有在「外層函式已經執行完、內層函式還活著並繼續存取那個變數」這種情境下，才會特別被拿出來討論、稱之為「閉包在作用」——這也是本篇「兩大基石」裡第二點「垃圾回收」在講的事：一般函式執行完局部變數會被清掉，但被內層函式（閉包）引用住的變數，GC 不敢清。
 
@@ -191,6 +249,8 @@ input.addEventListener('input', (e) => search(e.target.value)); // search 被綁
 <mark style="background: #FFF3A3A6;">要解決的問題是「操作觸發得太頻繁」——使用者打字時每敲一鍵就觸發一次 `input` 事件，如果每次都直接做昂貴操作（打 API、重渲染整個清單），會浪費資源、還可能出現競態問題（Race Condition：後發的請求先回來，畫面顯示對不上使用者當下打的字）。</mark>這個問題本質上跟「有沒有計時器」無關，就算不用 `setTimeout` 這個問題一樣存在。
 
 <mark style="background: #BBFABBA6;">`setTimeout`／`clearTimeout` 只是拿來實作「怎麼知道使用者已經停下來了」這件事的其中一種手段</mark>：每次新動作進來就把「安靜倒數」重新歸零（`clearTimeout` 舊的、`setTimeout` 一個新的），只有倒數真的跑到底、沒被打斷，才代表「已經安靜 `delay` 毫秒了」，這時才真正執行 `fn`。一句話：**debounce 要解決的問題是「目的」，計時器是達成這個目的的「手段」，兩者不要混為一談。**
+
+React 另有較新的 Hook <a href="https://react.dev/reference/react/useTransition#perform-non-blocking-updates-with-actions" target="_blank" rel="noopener" class="tip-text" data-tip="useTransition 是 React 的 Hook（React 18 加入，React 19 擴充成可搭配 Actions），回傳 [isPending, startTransition]。&#10;把會造成畫面大幅更新的 state 更新包在 startTransition 裡，React 會把它標成「非緊急」：輸入框打字這類緊急更新先完成，非緊急的更新可以被中斷、被新的輸入取代，所以 UI 不會卡住。isPending 在 transition 進行中是 true，可以拿來顯示載入中。&#10;官方在「Perform non-blocking updates with Actions」一節說明：startTransition 裡也可以放 async 函式（Action），React 會在整個 Action 進行期間維持 isPending。&#10;與 debounce 的差別：debounce 延後「要不要觸發」，降低觸發次數。useTransition 不延遲更新，而是降低更新的優先級，讓緊急更新先完成。兩者可以搭配：先 debounce 減少請求，再用 transition 避免重新渲染卡住 UI。&#10;（依 React 官方文件整理，未逐句對照原文）">useTransition</a>，處理的也是「更新太頻繁、畫面卡住」這類問題，手段不是計時器，而是降低更新的優先級。
 
 #### `let timer = null` 為什麼不能用空陣列 `[]`
 
@@ -276,7 +336,7 @@ createCounter('counter2');
 
 除錯時踩到的幾個真實陷阱：
 
-- <mark style="background: #ADCCFFA6;">`buttonId` 抓的是「HTML 元素的 id 屬性」，不是變數名稱</mark>——`document.getElementById(buttonId)` 是拿參數的**值**（字串）去比對 DOM 上 `id="..."` 屬性，跟這個參數叫什麼變數名完全無關。容易誤以為傳入的是「變數名稱」本身。
+- <mark style="background: #ADCCFFA6;">**`buttonId` 是參數（變數），它的值是一個字串**</mark>。`document.getElementById(buttonId)` 拿這個字串去比對 DOM 上元素的 `id="..."` 屬性，找到就回傳該元素，找不到回傳 `null`（見 [MDN getElementById](https://developer.mozilla.org/en-US/docs/Web/API/Document/getElementById)）。參數叫什麼名字都可以，改成 `x` 一樣運作，決定結果的是字串的值。
 - <mark style="background: #FF5582A6;">呼叫 `createCounter()` 時傳入的字串，必須跟 HTML 裡按鈕的實際 `id` 完全一致</mark>（例如 HTML 是 `id="counter1"`，就不能傳 `"buttonId1"`），否則 `getElementById` 拿到 `null`。
 - <mark style="background: #FF5582A6;">一旦某次 `getElementById` 綁錯（拿到 `null`）就對它呼叫 `addEventListener`，會直接丟出 TypeError 中斷整段程式碼的執行</mark>——後面所有按鈕的事件綁定都會被連帶跳過而失效，畫面上看起來像「全部按鈕都壞掉了」，但根因往往只是最前面一個 ID 打錯字。
 - 這裡的閉包核心：`count` 和 `button` 都被鎖在 `createCounter` 的作用域裡，每呼叫一次 `createCounter(...)`，就會產生一個**全新、互不干擾**的 `count`，這就是「各按鈕獨立計數」的原理——與前面 `createWallet` 私有變數是同一套機制的不同應用。

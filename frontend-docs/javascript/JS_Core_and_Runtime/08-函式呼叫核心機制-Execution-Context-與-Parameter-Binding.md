@@ -586,6 +586,8 @@ function d({x, y}) {}        // 非簡單：解構模式
    ```
    來源：[MDN Strict mode](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode)
 
+`arguments` 物件本身的完整複習（長相、什麼時候有、轉成陣列）見 [[arguments物件-類陣列的全部傳入引數]]。
+
 一句話：「簡單參數列表」是規格拿來當**共同判斷基準**的一個布林值，同時決定了唯一性檢查、`arguments` 物件行為、能不能宣告 strict mode 這三件事——底層邏輯一致：只要參數列表用了 default／rest／解構這些「現代」語法，V8 就把整個函式當成**天生該遵守較嚴謹規則**的程式碼，不再套用 ES5 以前那些寬鬆的舊行為。這段延伸自 [[閉包-Closure-私有變數與傳址陷阱]] 裡最早提到「簡單參數列表」的地方，回去看可以對照原始情境。
 
 ## (f) 函式被呼叫的當下，是已經 Parse 過了，還是正在 Parse？——已經 Parse 過了

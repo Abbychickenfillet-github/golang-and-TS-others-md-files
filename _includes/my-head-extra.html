@@ -3,23 +3,64 @@
 <script src="{{ '/assets/wikilink.js' | relative_url }}" data-root="{{ '/' | relative_url }}"></script>
 
 <style>
-.page-heading h1 { font-size: clamp(1.6rem, 4vw, 2.4rem) !important; line-height: 1.3 !important; }
-.post-content h1:first-child, .post-content > h1:first-of-type { font-size: clamp(1.4rem, 3.2vw, 2rem) !important; margin-top: .2em !important; }
+/* 字級總開關（2026-10-06）：想調大小只改這幾行，單位 px。
+   beautiful-jekyll 預設：內文 18px、h1 36px、h2 30px、h3 24px、h4 18px，這裡全部覆蓋成較小的值 */
+:root {
+  --note-body: 10px;
+  --note-h1: 17px;
+  --note-h2: 16px;
+  --note-h3: 14.5px;
+  --note-h4: 11px;
+  --note-code: 10px;
+  --note-code-inline: 10px;
+  --note-meta: 8px;
+}
+body { font-size: var(--note-body) !important; line-height: 1.7; }
+h1, .page-heading h1, .post-content h1:first-child, .post-content > h1:first-of-type { font-size: var(--note-h1) !important; line-height: 1.4 !important; margin-top: .6em !important; }
+h2 { font-size: var(--note-h2) !important; line-height: 1.4 !important; margin-top: 1em !important; }
+h3 { font-size: var(--note-h3) !important; line-height: 1.4 !important; margin-top: .9em !important; }
+h4, h5, h6 { font-size: var(--note-h4) !important; line-height: 1.4 !important; margin-top: .8em !important; }
+main p, main li, main td, main th, main blockquote, main blockquote p { font-size: var(--note-body) !important; }
+code { font-size: var(--note-code-inline) !important; }
+pre, pre code, .highlight, .highlight pre, .highlight code, .highlight span { font-size: var(--note-code) !important; line-height: 1.55 !important; }
+pre, .highlight pre { white-space: pre-wrap !important; overflow-wrap: anywhere; overflow-x: visible !important; }
+.page-subheading, .post-subheading { font-size: var(--note-body) !important; }
 .auto-toc { background: #FFF5F8; border: 1px solid #F8BBD0; border-radius: 10px; padding: .8em 1.2em; margin: 1em 0 1.4em; }
 .auto-toc-title { font-weight: 700; color: #C2185B; margin-bottom: .4em; }
 .auto-toc ul { margin: 0; padding-left: 1.2em; }
 .auto-toc a { color: #C2185B; text-decoration: none; }
 .auto-toc a:hover { text-decoration: underline; }
 .mermaid { text-align: center; margin: 1em 0; }
+.mermaid svg { font-size: 10px !important; }
+.mermaid .nodeLabel, .mermaid .edgeLabel, .mermaid .label, .mermaid foreignObject div, .mermaid foreignObject span, .mermaid foreignObject p, .mermaid text { font-size: 10px !important; line-height: 1.3 !important; }
+.callout { margin: 1em 0; border-left: 5px solid #8fa8ff; border-radius: 10px; background: #f3f6ff; padding: .5em 1em .6em; line-height: 1.7; }
+.callout > summary, .callout-title { font-weight: 800; cursor: default; padding: .2em 0; list-style-position: inside; }
+details.callout > summary { cursor: pointer; }
+.callout-body > :first-child { margin-top: .3em; }
+.callout-body > :last-child { margin-bottom: 0; }
+.callout-important { border-color: #ff5582; background: #fff1f5; }
+.callout-warning, .callout-caution { border-color: #ffb800; background: #fff9e0; }
+.callout-info, .callout-note { border-color: #4cb8e8; background: #eef9ff; }
+.callout-tip, .callout-success { border-color: #4cc24c; background: #effaef; }
+.callout-danger, .callout-failure, .callout-bug { border-color: #e04a5f; background: #ffecee; }
+.callout-question { border-color: #b79cff; background: #f6f1ff; }
+.tip-img { border-bottom: 2px dotted #C2185B; cursor: help; }
+#tip-img-pop { position: fixed; z-index: 9999; display: none; max-width: min(92vw, 1100px); background: #fff; border: 3px solid #C2185B; border-radius: 12px; padding: 6px; box-shadow: 0 8px 28px rgba(0,0,0,.3); pointer-events: none; }
+#tip-img-pop img { display: block; max-width: 100%; height: auto; }
+#tip-img-fab { position: fixed; right: 16px; bottom: 16px; z-index: 9998; background: #C2185B; color: #fff; border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: help; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+.tip-text { border-bottom: 2px dotted #C2185B; cursor: help; }
+#tip-text-pop { position: fixed; z-index: 9999; display: none; white-space: pre-line; max-width: min(92vw, 520px); background: #fff; color: #333; border: 3px solid #C2185B; border-radius: 12px; padding: 8px 12px; font-size: 13px !important; line-height: 1.6; box-shadow: 0 8px 28px rgba(0,0,0,.3); pointer-events: none; }
+.tip-glossary { display: none; }
+.note-meta, .note-meta *, main .note-meta blockquote p, main .note-meta a { font-size: var(--note-meta) !important; line-height: 1.6 !important; }
 
-/* .md 頁面的側欄由 notes.css 的 .notes-grid 統一處理 */
+/* .md 頁面的 fluid 滿版與左側大綱 sidepanel 由 assets/notes.css 的 .notes-grid 統一處理 */
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   if (!window.mermaid) return;
-  mermaid.initialize({ startOnLoad: false, theme: 'default' });
+  mermaid.initialize({ startOnLoad: false, theme: 'default', themeVariables: { fontSize: '10px' } });
   document.querySelectorAll('code.language-mermaid').forEach(function (code) {
     var pre = code.closest('pre') || code.parentElement;
     var div = document.createElement('div');
@@ -32,3 +73,162 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script src="{{ '/assets/notes.js' | relative_url }}" defer></script>
+
+<script>
+/* 1. Obsidian 的 callout（> [!important]+ 標題）在 Jekyll 不會渲染，這裡把它轉成色框；一般引用區塊的換行也補成 <br> */
+document.addEventListener('DOMContentLoaded', function () {
+  var icons = { info: 'ℹ️', note: '📝', important: '❗', warning: '⚠️', caution: '⚠️', tip: '💡', success: '✅', question: '❓', danger: '🛑', failure: '❌', bug: '🐛', example: '📌', quote: '💬', abstract: '📄', todo: '☑️' };
+  /* kramdown 不處理 <mark> 裡面的 markdown，所以 **粗體** 與 `程式碼` 會以原樣顯示，這裡補轉成 HTML */
+  document.querySelectorAll('main mark').forEach(function (mk) {
+    if (mk.closest('pre') || mk.innerHTML.indexOf('`') === -1 && mk.innerHTML.indexOf('**') === -1) return;
+    mk.innerHTML = mk.innerHTML
+      .replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`\n]+?)`/g, '<code>$1</code>');
+  });
+  var re = /^\s*\[!(\w+)\]([+-]?)[ \t]*([^\n]*)(?:\n|$)/;
+  document.querySelectorAll('main blockquote').forEach(function (bq) {
+    if (bq.closest('.callout')) return;
+    if (/^\s*(相關|關聯|起點問題|互動考試|互動動畫|外部佐證)[：:]/.test(bq.textContent)) bq.classList.add('note-meta');
+    var p = bq.querySelector(':scope > p');
+    if (!p) return;
+    var m = re.exec(p.innerHTML);
+    if (!m) {
+      bq.querySelectorAll(':scope > p').forEach(function (q) { q.innerHTML = q.innerHTML.replace(/\n/g, '<br>'); });
+      return;
+    }
+    var type = m[1].toLowerCase(), fold = m[2], title = m[3] || (type.charAt(0).toUpperCase() + type.slice(1));
+    var rest = p.innerHTML.slice(m[0].length).replace(/\n/g, '<br>');
+    var box = document.createElement(fold ? 'details' : 'div');
+    box.className = 'callout callout-' + type;
+    if (fold === '+') box.setAttribute('open', '');
+    var head = document.createElement(fold ? 'summary' : 'div');
+    head.className = 'callout-title';
+    head.innerHTML = (icons[type] || '📌') + ' ' + title;
+    var body = document.createElement('div');
+    body.className = 'callout-body';
+    if (rest.trim()) { var np = document.createElement('p'); np.innerHTML = rest; body.appendChild(np); }
+    p.remove();
+    while (bq.firstChild) {
+      var n = bq.firstChild;
+      if (n.nodeType === 1 && n.tagName === 'P') n.innerHTML = n.innerHTML.replace(/\n/g, '<br>');
+      body.appendChild(n);
+    }
+    box.appendChild(head); box.appendChild(body);
+    bq.replaceWith(box);
+  });
+});
+
+/* 2. 滑鼠移到 .tip-img 的字上，就浮出 data-img 指定的圖片；右下角的 🗺️ 按鈕也可以隨時看 */
+document.addEventListener('DOMContentLoaded', function () {
+  var tips = document.querySelectorAll('.tip-img[data-img]');
+  if (!tips.length) return;
+  var rootEl = document.querySelector('script[data-root]');
+  var root = (rootEl && rootEl.getAttribute('data-root')) || '/';
+  var repo = location.pathname.match(/^\/golang-and-ts-others-md-files\//i);
+  if (root === '/' && repo) root = repo[0];
+  function src(el) { return root + el.getAttribute('data-img'); }
+  var pop = document.createElement('div');
+  pop.id = 'tip-img-pop';
+  var img = document.createElement('img');
+  pop.appendChild(img);
+  document.body.appendChild(pop);
+  function show(el, x, y) {
+    img.src = src(el);
+    pop.style.display = 'block';
+    var w = pop.offsetWidth, h = pop.offsetHeight;
+    var left = Math.min(Math.max(8, x - w / 2), window.innerWidth - w - 8);
+    var top = y + 18; if (top + h > window.innerHeight - 8) top = Math.max(8, y - h - 18);
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  }
+  function hide() { pop.style.display = 'none'; }
+  tips.forEach(function (el) {
+    el.addEventListener('mouseenter', function (e) { show(el, e.clientX, e.clientY); });
+    el.addEventListener('mousemove', function (e) { show(el, e.clientX, e.clientY); });
+    el.addEventListener('mouseleave', hide);
+    el.addEventListener('click', function (e) { show(el, e.clientX, e.clientY); });
+  });
+  var fab = document.createElement('div');
+  fab.id = 'tip-img-fab';
+  fab.textContent = '🗺️ 時間軸圖';
+  fab.addEventListener('mouseenter', function () { show(tips[0], window.innerWidth / 2, window.innerHeight / 3); });
+  fab.addEventListener('mouseleave', hide);
+  fab.addEventListener('click', function () { show(tips[0], window.innerWidth / 2, window.innerHeight / 3); });
+  document.body.appendChild(fab);
+  document.addEventListener('click', function (e) { if (!e.target.closest('.tip-img') && e.target !== fab) hide(); });
+});
+</script>
+
+<script>
+/* 3. 詞彙提示：筆記裡放 <div class="tip-glossary" data-term="詞" data-text="說明"></div>，同頁所有出現的「詞」滑鼠移上去就顯示說明 */
+document.addEventListener('DOMContentLoaded', function () {
+  var gl = Array.prototype.slice.call(document.querySelectorAll('.tip-glossary[data-term]'));
+  var statics = Array.prototype.slice.call(document.querySelectorAll('.tip-text[data-tip]'));
+  if (!gl.length && !statics.length) return;
+  var main = document.querySelector('main') || document.body;
+  var pop = document.createElement('div');
+  pop.id = 'tip-text-pop';
+  document.body.appendChild(pop);
+  function show(el, x, y) {
+    pop.textContent = el.getAttribute('data-tip');
+    pop.style.display = 'block';
+    var w = pop.offsetWidth, h = pop.offsetHeight;
+    var left = Math.min(Math.max(8, x - w / 2), window.innerWidth - w - 8);
+    var top = y + 18; if (top + h > window.innerHeight - 8) top = Math.max(8, y - h - 18);
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  }
+  function hide() { pop.style.display = 'none'; }
+  statics.forEach(function (sp) {
+    sp.addEventListener('mouseenter', function (e) { show(sp, e.clientX, e.clientY); });
+    sp.addEventListener('mousemove', function (e) { show(sp, e.clientX, e.clientY); });
+    sp.addEventListener('mouseleave', hide);
+  });
+  gl.forEach(function (g) {
+    var term = g.getAttribute('data-term'), text = g.getAttribute('data-text');
+    var walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT, null);
+    var nodes = [], n;
+    while ((n = walker.nextNode())) {
+      if (n.nodeValue.indexOf(term) === -1) continue;
+      var pe = n.parentElement;
+      if (!pe || pe.closest('script, style, .tip-glossary, .tip-text, #tip-text-pop')) continue;
+      nodes.push(n);
+    }
+    nodes.forEach(function (node) {
+      var parts = node.nodeValue.split(term), frag = document.createDocumentFragment();
+      parts.forEach(function (part, i) {
+        if (i > 0) {
+          var sp = document.createElement('span');
+          sp.className = 'tip-text'; sp.setAttribute('data-tip', text); sp.textContent = term;
+          sp.addEventListener('mouseenter', function (e) { show(sp, e.clientX, e.clientY); });
+          sp.addEventListener('mousemove', function (e) { show(sp, e.clientX, e.clientY); });
+          sp.addEventListener('mouseleave', hide);
+          sp.addEventListener('click', function (e) { show(sp, e.clientX, e.clientY); });
+          frag.appendChild(sp);
+        }
+        if (part) frag.appendChild(document.createTextNode(part));
+      });
+      node.parentNode.replaceChild(frag, node);
+    });
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.tip-text')) hide(); });
+});
+</script>
+
+<script>
+/* 4. 標題連結：[文字](#標題原文) 在 Obsidian 可用，Jekyll 產生的標題 id 與標題原文不同，這裡把連結對應到實際的標題 */
+document.addEventListener('DOMContentLoaded', function () {
+  var heads = Array.prototype.slice.call(document.querySelectorAll('main h1, main h2, main h3, main h4, main h5, main h6'));
+  function norm(x) { return x.replace(/\s+/g, ' ').trim(); }
+  document.querySelectorAll('main a[href^="#"]').forEach(function (a) {
+    var want;
+    try { want = norm(decodeURIComponent(a.getAttribute('href').slice(1))); } catch (e) { return; }
+    if (!want || document.getElementById(want)) return;
+    for (var i = 0; i < heads.length; i++) {
+      if (norm(heads[i].textContent) === want) {
+        if (!heads[i].id) heads[i].id = 'sec-' + i;
+        a.setAttribute('href', '#' + heads[i].id);
+        return;
+      }
+    }
+  });
+});
+</script>

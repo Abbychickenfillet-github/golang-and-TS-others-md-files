@@ -10,6 +10,10 @@ updated: 2026-07-31
 
 # `return` 到底清掉了什麼？Stack Frame 自動清 vs 閉包例外
 
+<div class="tip-glossary" data-term="頂層程式碼的變數一律放 Heap，因為變數會跨 script 可見" data-text="「頂層」指 script 檔最外層、不在任何函式裡的程式碼。&#10;適用範圍：這句話出自 V8 部落格，講的是 classic &lt;script&gt;。純 JS 用 &lt;script src&gt; 載入時適用。React 專案用的是 ES module（Vite、webpack 打包後也是），不直接適用。&#10;&#10;classic &lt;script&gt; 的最外層共用同一個全域範圍：var 與 function 宣告會變成 window 的屬性，let、const、class 放在全域的 ScriptContext。其他 script 隨時可能存取它們，所以 V8 一律放在 Heap 的 Context，不放進會被 pop 掉的 Stack Frame。&#10;&#10;ES module 的最外層是 module 範圍，不是全域，別的檔案要用就 export 與 import，「變數會跨 script 可見」的理由不成立。V8 的做法（已對照 scopes.cc、source-text-module.h）：有 export 的變數、以及 import 進來的綁定，用 VariableLocation::MODULE 分配，存在 SourceTextModule 的 Cell 物件裡（regular_exports、regular_imports 兩個陣列），Cell 在 Heap 上，import 端指向匯出端同一個 Cell，所以兩個檔案看到的是同一份值。沒有 export 也沒有 import 的最外層變數，推論上跟函式的區域變數一樣：沒被內層函式捕獲放 Stack，被捕獲才放 module 的 Context（Context 的 extension 欄位指向 module 物件）。這一句是依 module scope 是 DeclarationScope 推論，沒有逐行驗證。&#10;&#10;React 元件函式裡的變數是函式內部變數，不在這句話的範圍內，照一般規則：沒被閉包捕獲放 Stack，被事件處理函式或 effect 捕獲才放 Heap 的 Context。元件之間用 props 傳值是資料流的設計，與記憶體放在哪裡是兩件事。所以在 React 專案裡這句話幾乎碰不到。&#10;&#10;純 JS 要不要全域變數：現代寫法盡量不用，因為會依賴載入順序，名稱也容易衝突。舊式 classic script 的用法如下。&#10;a.js：const appName = &#x27;Abby&#x27;; function greet() { return &#x27;Hi &#x27; + appName }&#10;b.js：console.log(greet())&#10;index.html：先 &lt;script src=&quot;a.js&quot;&gt;，再 &lt;script src=&quot;b.js&quot;&gt;，順序不能反。&#10;改用 module：a.js 寫 export function greet() {…}，b.js 寫 import { greet } from &#x27;./a.js&#x27;，HTML 用 &lt;script type=&quot;module&quot; src=&quot;b.js&quot;&gt;。"></div>
+
+<div class="tip-glossary" data-term="JSFunction" data-text="在 V8 裡，每個函式物件都是 JSFunction，包括 counter 本身。JSFunction 的定義是 (context, 程式碼) 的組合，每一個都有一個 context 欄位。counter 與內層函式的差別，在於各自的 context 欄位指向誰"></div>
+
 > [!info]- 📍 承接11，銜接13
 > <mark style="background: #ADCCFFA6;">承接</mark>：[[11-記憶體模型-stack-heap-動態配置-GC]]講完整個Stack／Heap模型，這篇聚焦在一個具體時刻——`return`發生時Stack Frame怎麼被清掉，以及被閉包捕獲的變數為什麼是例外。
 > <mark style="background: #BBFABBA6;">下一步</mark>：這篇提到的「閉包例外」只是先點出現象，下一篇[[13-閉包-Closure-私有變數與傳址陷阱]]是閉包本身的深入篇。
@@ -18,85 +22,151 @@ updated: 2026-07-31
 > 起點問題：「return 會清理記憶體喔」→ 對，但只清 Stack，不一定清 Heap。
 > 互動考試：`C:\coding\JavaScript-practicing\memory-model-quiz.html`
 > 互動動畫（Stack Frame push/pop + GC Mark-and-Sweep 逐步播放）：同資料夾 `return-清理記憶體-stack-frame與閉包例外.html`
-> 外部佐證（2026-07-28 補）：V8 確實會把被閉包捕獲的變數放進一個叫 `Context` 的 heap-allocated 物件、掛在 closure（`JSFunction`）上，而且是「一進入該作用域就建立 Context」而非等到真的產生 closure 才建立——見 [Grokking V8 closures for fun (and profit?)](https://mrale.ph/blog/2012/09/23/grokking-v8-closures-for-fun.html)（作者 Vyacheslav Egorov，V8 工程師，發表於 2012-09-23；文章年代較早，但 Context 物件走 Heap 配置這個架構性結論至今仍成立）。
+> 外部佐證（2026-07-28 補）：V8 確實會把被閉包捕獲的變數放進一個叫 `Context` 的 heap-allocated 物件、由 closure 這個函式物件的 context 欄位指著（V8 裡每個函式物件都是 `JSFunction`，都帶一個 context 欄位），而且是「一進入該作用域就建立 Context」而非等到真的產生 closure 才建立——見 [Grokking V8 closures for fun (and profit?)](https://mrale.ph/blog/2012/09/23/grokking-v8-closures-for-fun.html)（作者 Vyacheslav Egorov，V8 工程師，發表於 2012-09-23；文章年代較早，但 Context 物件走 Heap 配置這個架構性結論至今仍成立）。
 
 ---
 
 ## 5W1H 速查：讀本篇之前先把座標定好
 
-> [!important]+ 最常被搞錯的一題先講：<mark style="background: #FF5582A6;">閉包**不是**在 `return` 那一刻把變數「搶救」出來的</mark>
-> 常見的錯誤畫面是：`counter()` 執行完 → Frame 要被清掉 → 內層函式伸手把 `count` 撈出來搬到 Heap。<mark style="background: #BBFABBA6;">實際順序完全相反</mark>：
-> a. 決策發生在最早的 <mark style="background: #ADCCFFA6;">Parse 階段的 Scope Analysis</mark>——引擎那時就看出 `count` 會被內層函式引用。
+> [!important]+ 速查：<mark style="background: #BBFABBA6;">**閉包變數從進入作用域起就放在 Heap 的 Context 裡**，`return` 時只需要 pop Stack Frame</mark>
+> 時間順序如下：
+> a. 決策發生在 runtime 最早的一步：<mark style="background: #ADCCFFA6;"><span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">V8 的 Parse</span> 階段做的 Scope Analysis</mark>（滑鼠移到虛線字上會浮出時間軸圖）——V8 那時就看出 `count` 會被內層函式引用。注意 buildtime 時 Babel 與 bundler 的 parse 也有 scope 分析，但那一份不決定 Stack 或 Heap。
 > b. 於是<mark style="background: #FFF3A3A6;">一進入 `counter()` 的作用域，Heap 上的 Context 物件就先建好了</mark>，`count` 從第一秒起就住在 Heap，Stack Frame 裡放的只是一個指向它的指標（見本篇開頭 mrale.ph 那條佐證）。
-> c. `return` 時 Frame 照樣被完整 pop 掉，<mark style="background: #FF5582A6;">什麼都沒被搶救</mark>——因為要留下來的東西，從頭到尾就不在 Stack 上。
-> 一句話：`return` 沒有「例外處理」，它每次都做同一件事；<mark style="background: #BBFABBA6;">是變數一開始就被放在不同的地方</mark>。
+>
+> ```js
+> function counter() {      // ① 呼叫 counter()：V8 push counter 的 Stack Frame，同時在 Heap 建好 Context 物件
+>   let count = 0;          //    count 住在 Context 裡。Stack Frame 只放「返回位址」與「指向 Context 的指標」，沒有 count 的值
+>   return function () {    // ② 求值 return 後面的函式：建立內層函式物件，它的 context 欄位指向 counter 的 Context，此時 counter 的 Frame 仍在
+>     return ++count;       //    這一行引用了 count，V8 在 Parse 階段的 Scope Analysis 就是看到它，才決定 count 要放 Heap
+>   };                      // ③ return 完成：內層函式交給呼叫者，V8 同時 pop 掉 counter 的 Stack Frame，Heap 上的 Context 一根寒毛都沒動
+> }
+> const next = counter();   //    內層函式被存進 next，所以它背著的 Context 仍然有人指著
+> next();                   // ④ 呼叫內層函式：從 Context 讀寫 count，回傳 1。count 保存在 Context 裡，所以每次呼叫都能累加
+> ```
+>
+> | 時間點 | Call Stack（Stack Frame） | Heap |
+> |---|---|---|
+> | ① 進入 `counter()` | counter 的 Frame：返回位址、指向 Context 的指標 | Context（`count = 0`） |
+> | ② 求值 `return` 後面的 `function…` | counter 的 Frame 內容與 ① 相同（返回位址、指向 Context 的指標），Frame 還在，因為 `return` 還沒完成 | Context（`count = 0`）、新建立的內層函式（背著 Context） |
+> | ③ `return` 完成 | `return` 把內層函式交給呼叫者，同時 counter 的 Frame 被 pop，Frame 裡的東西全部消失 | Context（`count = 0`）與內層函式都還在，因為 `next` 指著內層函式 |
+> | ④ 呼叫 `next()` | next 這次呼叫的 Frame | Context（`count` 變成 `1`） |
+>
+> 第 ③ 步 pop Frame 時，`count` 本來就在 Heap 的 Context 裡，沒有任何東西需要搬動。
+>
+> 兩個 `JSFunction` 的 context 欄位各指向哪裡（滑鼠移到 JSFunction 上有說明）：
+>
+> | 函式物件 | context 欄位指向 | 再往外（`previous`） |
+> |---|---|---|
+> | 內層函式 | counter 的 Context（放 `count`） | counter 被建立時所在的層級 |
+> | `counter` 本身 | 它被建立時所在的層級：頂層函式就是 script 最外層的 Context | 最外面是 native context，其 `extension` 欄位放全域物件（瀏覽器的 `window`／`globalThis`） |
+>
+> 對應到 ECMAScript：頂層函式的 `[[Environment]]` 就是全域環境，所以可以把 `counter` 的 context 看成「全域層級的 Context」。V8 實作上，有頂層 `let`／`const`／`class` 的 script 會多一層 ScriptContext，鏈尾才是 native context。ES module 的頂層函式指向 module context。Node.js 的 CommonJS 檔案被包在一個函式裡，頂層函式的外層是那個包裝函式的 Context（此點依一般知識，未對照 Node 原始碼）。
+>
+>
+> c. `return` 時 Frame 被完整 pop 掉，<mark style="background: #BBFABBA6;">**要留下來的東西從頭到尾都在 Heap**</mark>，所以不需要任何額外處理。
+> 一句話：<mark style="background: #BBFABBA6;">`return` 每次只做三件固定的事：算出回傳值、把回傳值與控制權交還給呼叫者、讓 V8 把這次呼叫的 Stack Frame 從 Call Stack 上 pop 掉。這三件事跟變數有沒有被閉包捕獲無關</mark>。被閉包捕獲的變數不會被清，是因為它從一開始就放在 Heap 的 Context 裡，本來就不在這個 Frame 上。
+> 本篇的「閉包例外」指變數放置位置的特殊情形（此處的「例外」不是 Exception）。
 
 | 5W1H | 問題 | 一句話答案 |
 |---|---|---|
 | **What** 是什麼 | `return` 到底清掉了什麼？ | <mark style="background: #BBFABBA6;">只有 Stack 上這一層 Stack Frame</mark>：返回位址、Saved Frame Pointer、參數、沒被捕獲的區域變數。<mark style="background: #FF5582A6;">Heap 一根寒毛都沒被動到</mark> |
-| **When** 什麼時候 | 什麼時候清？ | <mark style="background: #FF5582A6;">執行期</mark>，`return` 執行的那個當下，<mark style="background: #BBFABBA6;">立即、自動、同步</mark>。呼叫幾次就 push／pop 幾次，跟 GC 那種「不定時、不可預測」是兩套完全不同的節奏 |
-| **Who** 誰做的 | 誰負責清？ | 引擎與 CPU 的<mark style="background: #ADCCFFA6;">固定機制</mark>——把 Stack Pointer 移回去、還原 Base Pointer 就結束了（見本篇第 5 節組合語言視角）。<mark style="background: #FF5582A6;">不是 GC</mark>，GC 從頭到尾不管 Stack |
-| **Where** 在哪裡 | 東西各自住在哪？ | a. Stack Frame → Call Stack；b. 物件實體 → Heap；c. <mark style="background: #FFF3A3A6;">被閉包捕獲的綁定 → Heap 上的 Context 物件</mark>，掛在那個閉包函式（`JSFunction`）身上 |
+| **When** 什麼時候 | 什麼時候清？ | <mark style="background: #FF5582A6;">執行期</mark>，`return` 執行的那個當下，引擎<mark style="background: #BBFABBA6;">立即、自動、同步</mark>地把這次呼叫的 Stack Frame pop 掉，跟 GC 那種「不定時、不可預測」是兩套完全不同的節奏（push 發生在呼叫的那一刻，次數的算法見下方「一句話驗證法」第 2 點） |
+| **Who** 誰做的 | `return` 的效果由哪幾層分工完成？ | 三層分工：<mark style="background: #ADCCFFA6;">**ECMAScript 規格**</mark>定義 `return` 的語意：結束目前函式、把回傳值交給呼叫者，並把正在執行的 execution context 從 execution context stack 移除。<mark style="background: #ADCCFFA6;">**V8**</mark>把這個語意實作成 Bytecode `Return` 與機器碼的函式結尾，負責拆掉 Stack Frame。<mark style="background: #ADCCFFA6;">**CPU**</mark>執行 `mov rsp, rbp`、`pop rbp`、`ret`，只移動 SP 與 BP 兩個暫存器。<mark style="background: #BBFABBA6;">**清掉 Stack Frame 的動作就是這兩個指標的移動**</mark>，GC 只管 Heap，不參與（動畫見下方） |
+| **Where** 在哪裡 | 東西各自住在哪？ | a. Stack Frame → Call Stack；b. 物件實體 → Heap；c. <mark style="background: #FFF3A3A6;">被閉包捕獲的綁定 → Heap 上的 Context 物件</mark>，由那個閉包函式的 context 欄位指著（V8 裡每個函式物件都是 `JSFunction`，即 `(context, 程式碼)` 的組合） |
 | **Which** 哪一種 | 哪些東西會跟著 Frame 一起消失？ | a. 沒被捕獲的參數與區域原始值 → <mark style="background: #BBFABBA6;">立即消失</mark>；b. 指向 Heap 的指標格子 → 格子消失，但 Heap 實體毫髮無傷；c. 被捕獲的綁定 → <mark style="background: #FF5582A6;">根本不在 Frame 裡</mark>，不受影響 |
 | **How** 怎麼做到 | `return` 的完整動作是什麼？ | 三件幾乎同時發生的事：① 算出回傳值 → ② 把值與控制權一起交還呼叫者 → ③ 這個 Frame 被 pop。呼叫者不是「收到後才醒來」，它<mark style="background: #ADCCFFA6;">本來就凍在那一行等著</mark>，`return` 是結束等待的那一刻 |
 | **Why** 為什麼 | 為什麼 Stack 可以清得這麼粗暴？ | 因為 <mark style="background: #BBFABBA6;">LIFO</mark>：最後 push 的一定最先 pop，生命週期規律到可以預測，<mark style="background: #ADCCFFA6;">把指標往回移一格就等於全部清空</mark>，完全不需要逐一判斷誰還活著。Heap 沒有這種規律，才需要 GC |
 
+上表 Who 那一列的動畫：`return` 時 SP 與 BP 依序怎麼移動（x86-64 函式結尾 `mov rsp, rbp` → `pop rbp` → `ret`）。
+
+![return 時 SP 與 BP 的移動（每步 2 秒，循環播放）](../../../obsidian-attachment/return時SP與BP移動_動畫_2026-10-06.svg)
+
 ### 時間軸：這件事發生在哪一格
 
-```text
-◄──────────── buildtime 建置期 ────────────►◄──────── runtime 執行期 ────────────►
-        （你的電腦／CI，部署前就跑完）              （瀏覽器或 Node 載入腳本之後）
+![buildtime 與 runtime 時間軸：兩個 Parse、兩份 Scope Analysis](../../../obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png)
 
- ①轉譯          ②打包            ③Parse          ④Bytecode      ⑤每次呼叫都重來
- transpile      bundle           解析             產生            ↓↓↓↓↓↓↓↓↓↓
- ┌────────┐   ┌────────┐      ┌──────────┐   ┌──────────┐   ┌──────────────────┐
- │Babel   │   │webpack │      │Scanner   │   │Ignition  │   │ push Stack Frame │
- │tsc     │──►│Vite    │─────►│Parser    │──►│把 AST 編成│──►│ ＋（若有變數被捕  │
- │SWC     │   │Rollup  │      │AST       │   │Bytecode  │   │   獲）建 Context   │
- └────────┘   └────────┘      │Scope     │   └──────────┘   ├──────────────────┤
-                              │Analysis： │                  │ 執行函式本體      │
-                              │★ 決定誰   │                  ├──────────────────┤
-                              │  會被閉包 │                  │ ★ return         │
-                              │  捕獲 →   │                  │   pop 掉整個 Frame│
-                              │  該放     │                  │   Heap 完全沒動   │
-                              │  Stack 還 │                  ├──────────────────┤
-                              │  是 Heap  │                  │ Context 若沒人指  │
-                              └──────────┘                  │ → 等 GC（不定時） │
-                              每個函式只做一次                └────────┬─────────┘
-                              只做「決策」，不配置                      │
-                              任何記憶體                                └─► 再呼叫一次
-                                                                          整包重來
+整條線上有**兩個 Parse**：buildtime 是 Babel／bundler 用自己的 parser 做的，runtime 是 V8 載入腳本時做的。只有 runtime 這一個（第 ③ 格）的 Scope Analysis 會決定「變數放 Stack 還是 Heap」。下面文字版的 ③ 一律寫成「V8 Parse」以免混淆。
+⚠️ 存疑：buildtime 的 scope 分析用途（Babel 追蹤變數綁定、bundler 做 tree shaking）依一般知識整理，尚未對照 Babel 與 bundler 文件。
 
- ★ 「該不該逃到 Heap」的決策在第 ③ 格；「真的配置與清除」在第 ⑤ 格。
-   兩者相隔很遠，卻常被壓縮成同一件事來想，這就是誤會的來源。
+**為什麼 buildtime 與 runtime 要各產生一次 AST（抽象語法樹，Abstract Syntax Tree，把原始碼文字整理成樹狀結構的資料）？**
+
+核心原因：buildtime 的工具交給下一關的是「JS 文字檔」，不是那棵樹。每一關只能從文字重新 parse 出自己的樹。
+
+| 問題 | buildtime 的 AST | runtime 的 AST |
+|---|---|---|
+| 誰產生 | Babel、tsc、SWC、bundler 各自的 parser | V8 的 parser（Scanner 先切 token，Parser 再組成樹） |
+| 輸入是什麼 | 你寫的原始碼文字（TS、JSX、新語法） | 部署後瀏覽器收到的 JS 文字檔，也就是 buildtime 輸出的結果 |
+| 為什麼要建樹 | 要在樹上改寫或分析：把 JSX／TS transpile 成 JS、讀出 `import` 與 `export`、tree shaking | 要在樹上做 Scope Analysis（決定變數放 Stack 或 Heap），再交給 Ignition 產生 Bytecode |
+| 樹的下一步 | code generator 把樹印回 JS 文字，寫成檔案，然後這棵樹就丟掉了 | Ignition 把樹編成 Bytecode，之後樹通常就不留了 |
+| 為什麼不能共用 | 部署前就跑完，行程結束、記憶體釋放，樹不會跟著檔案送出去 | 發生在使用者的機器上，只拿得到文字檔 |
+
+三個層次的原因：
+a. **交付格式是文字。** 瀏覽器與 Node 規格上接收的是 JS 原始碼文字，沒有一個標準的「送樹」格式。
+b. **樹的形狀每家不同。** Babel 用的 AST 格式與 V8 內部的 AST 資料結構（C++ 物件）不相同，也沒有公開給外部使用，所以 buildtime 的樹就算想送也送不進 V8。
+c. **兩邊要做的事不同。** buildtime 的樹是為了「改寫程式碼」，runtime 的樹是為了「決定怎麼執行」，需要的資訊本來就不一樣。另外 `eval`、`new Function` 這種字串，只有 runtime 才會出現，buildtime 根本看不到。
+
+runtime 重複 parse 的成本，V8 用另外兩招減輕：lazy parsing（內層函式先用較快的 preparser 略過，真的被呼叫才完整 parse）與 code cache（把編好的結果存起來，下次載入同一支腳本跳過 parse）。
+
+已查證（2026-10-06，V8 官方部落格原始檔）：lazy parsing 與 preparser 見 [Blazingly fast parsing, part 2: lazy parsing](https://v8.dev/blog/preparser)（2019-04-15），code cache 見 [Code caching for JavaScript developers](https://v8.dev/blog/code-caching-for-devs)（2019-04-08）。逐句對照見下方「V8 的 Parse 內部：Preparser 與 Lazy Parsing」，V8 管線全貌見 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]]。
+⚠️ 仍存疑：「V8 的 AST 不公開給外部使用」這一點沒有查到來源。
+
+練習題（LeetCode）：[224. Basic Calculator](https://leetcode.com/problems/basic-calculator/) 就是把一串運算式文字 parse 成結構再計算，是 parser 的縮小版。
+
+### V8 的 Parse 內部：Preparser 與 Lazy Parsing
+
+**Preparser 與 Lazy Parsing（惰性 parse）：**V8 的 parser 遇到函式時，不一定立刻把它完整 parse 成 AST。它會切換成 preparser（parser 的精簡版，只做「剛好足以略過這個函式」的最少工作），先確認函式本體語法合法，並記下外層函式編譯所需的資訊。等這個函式第一次被呼叫，V8 才完整 parse 它並交給 Ignition 編成 Bytecode。
+
+官方部落格 [Blazingly fast parsing, part 2: lazy parsing](https://v8.dev/blog/preparser)（2019-04-15）第一段的逐句對照：
+
+| 官方原文 | 白話解釋 |
+|---|---|
+| Parsing is the step where source code is turned into an intermediate representation to be consumed by a compiler (in V8, the bytecode compiler Ignition). | 這是 runtime 在 V8 裡做的事。這裡的 compiler 指 Ignition（把 AST 編成 Bytecode 的 bytecode compiler），與 buildtime 的 transpiler（原始碼轉原始碼）、之後把熱點函式編成機器碼的 TurboFan（optimizing compiler）屬於不同層。這句出現在 part 2，part 1 講 scanner 的優化 |
+| Parsing and compiling happens on the critical path of web page startup | critical path 指頁面啟動時「必須依序完成、後面才能繼續」的那條工作路徑。parse 與 compile 都在 main thread 的啟動流程上，花多久，頁面就晚多久能互動 |
+| and not all functions shipped to the browser are immediately needed during startup. | 一支 bundle 裡有很多函式，但啟動當下只會用到其中一小部分 |
+| Even though developers can delay such code with async and deferred scripts, that's not always feasible. | 原文沒有說明理由，以下是我的推論。a. 啟動就要用的程式碼本來就不能延後。b. `async`、`defer` 只改變 script 何時下載與執行，檔案一旦執行，裡面沒被呼叫的函式至少還是會被 preparse 一次。c. 把不需要的功能拆出去要靠 code splitting 與 dynamic import 重構，成本高，第三方 script 更不是你能拆的。d. 有執行順序依賴的 script 不能隨便用 `async` |
+| Additionally, many web pages ship code that's only used by certain features which may not be accessed by a user at all during any individual run of the page. | 例如結帳頁、後台管理功能的程式碼，使用者這一次載入頁面可能根本不會點到 |
+| Eagerly compiling code unnecessarily has real resource costs: | eagerly 是「迫切」，意思是不管用不用得到都先編譯。下面三條是它的代價 |
+| CPU cycles are used to create the code, delaying the availability of code that's actually needed for startup. | main thread 一次只能做一件事，每花一段 CPU 時間去編譯啟動時用不到的函式，真正要用的函式就晚一點才輪到。availability 是「可用性」，指程式碼何時能被執行（與 GC 的可達性 reachability 是不同概念）。that's actually needed for startup 修飾 code，指「啟動時真的需要的那些程式碼」 |
+| Code objects take up memory, at least until bytecode flushing decides that the code isn't currently needed and allows it to be garbage-collected. | 編好的 Bytecode 會佔 V8 heap 的記憶體。bytecode flushing 的做法（[V8 v7.4 發佈說明](https://v8.dev/blog/v8-release-74)，2019-03-22）：被 GC 回收的只有函式編好的 Bytecode，函式物件與它的 SharedFunctionInfo 仍然可達，不會被回收。回收前先判斷這份 Bytecode 是否「最近沒被執行」：v7.4 的做法是為 Bytecode 記錄「年齡」，每次 GC 時沒被執行就加一，被執行就歸零，累積超過門檻（連續好幾次 GC 都沒被執行）才在 GC 時回收。回收後函式變回尚未編譯，下次被呼叫才重新 lazy compile。這個判斷與 scope chain 的可達性是兩個機制（可達性決定物件能不能被 GC）。現行 V8 main 的旗標 `bytecode_old_time` 預設 180（秒），描述為「flush of bytecode when it has not been executed recently」，判定看起來已改為以時間為準，本篇未逐行驗證實作。官方量測 bytecode 約占 V8 heap 的 15%，flushing 省下 5 到 15% |
+| Code compiled by the time the top-level script finishes executing ends up being cached on disk, taking up disk space. | 這是 Chrome 的 code cache（[Code caching for JavaScript developers](https://v8.dev/blog/code-caching-for-devs)，2019-04-08）。同一支 script 第二次載入時，Chrome 把編好的結果序列化，附在 HTTP cache 的檔案旁。「頂層腳本執行完時已編譯的函式」都會進 cache，所以不必要的 eager compile 也會一起佔磁碟。這整段都是 runtime 的 V8 與 Chrome 在做的事 |
+
+跟 Critical Rendering Path（CRP，瀏覽器把 HTML 變成畫面的 DOM、CSSOM、render tree、layout、paint 這條路）的關係：官方這篇沒有談 render。兩者都是「啟動時的必經路」，而且會重疊，因為沒加 `async`、`defer` 的 script 會擋住 HTML 的 parse，它的下載、parse、compile、執行都得做完，後面的畫面才能繼續，所以會推遲首次繪製。這個連結是我的推論，不是官方原文。相關：[[FCP首次內容繪製-SEO爬蟲與打包五步驟]]。
+
+preparser 還要追蹤變數，原因直接連到 [[return-清理記憶體-stack-frame與閉包例外]]：官方在同一篇的 Variable allocation 一節說，V8 要知道「每個變數有沒有被內層函式引用」，才能決定它放 Stack 或 Heap 的 context，所以 preparser 也必須追蹤變數的宣告與引用，而且在 preparse 期間就做完整的 scope resolution。V8 把「每個變數放哪裡」序列化成一個小陣列存起來，之後完整 parse 該函式時直接套用，內層函式就不必被重複 preparse。結果是每個函式最多被 preparse 一次、完整 parse 一次（bytecode 被 flushing 回收後又被呼叫時會重新 parse，是例外）。
+官方還提到兩種特例。頂層程式碼的變數一律放 Heap，因為變數會跨 script 可見。`(function(){…})` 這種括號包起來的函式，V8 假設它會立刻被呼叫，直接完整 parse 並編譯，稱為 PIFE（possibly-invoked function expression）。
+
+頂層變數依載入方式分配在不同的地方（對照 V8 原始碼 `scopes.cc`、`source-text-module.h`、`contexts.h`）：
+
+| 載入方式 | 變數 | V8 怎麼放 |
+|---|---|---|
+| classic script | `var`、`function` 宣告 | 全域物件的屬性（native context 的 extension 欄位放全域物件） |
+| classic script | `let`、`const`、`class` | ScriptContext：Heap 上的 Context，每個有頂層 lexical 宣告的 script 一份，收進 ScriptContextTable |
+| ES module | 有 `export` 的變數 | `VariableLocation::MODULE`，存在 `SourceTextModule` 的 Cell（`regular_exports` 陣列），Cell 在 Heap 上 |
+| ES module | `import` 進來的綁定 | 同樣是 `MODULE` 位置，指向匯出端同一個 Cell（`regular_imports` 陣列），所以兩個檔案共用同一份值 |
+| ES module | 沒 `export` 也沒 `import` 的最外層變數 | 推論：與函式區域變數相同，沒被內層函式捕獲放 Stack，被捕獲放 module 的 Context（`extension` 欄位指向 module 物件）。尚未逐行驗證分配程式碼 |
+
+用本篇的 `counter()` 看 lazy parsing 怎麼進行（官方部落格 `outer`／`inner` 範例的對應版本）：
+
+```js
+function counter() {      // ① 頂層掃到這個宣告：preparser 先略過函式本體，同時記下「count 被內層函式引用」
+  let count = 0;
+  return function () {    //    更內層的函式也只被 preparse，不建 AST
+    return ++count;
+  };
+}
+const next = counter();   // ② 第一次呼叫 counter()：V8 才完整 parse counter 並編成 Bytecode，套用 ① 記下的「count 放 Heap」，內層函式仍然只被 preparse
+next();                   // ③ 第一次呼叫內層函式：這時才完整 parse 內層函式並編成 Bytecode
 ```
 
-一次呼叫的 Stack Frame 自己也有一條由生到死的序列：
-
-```text
- ①push        ②執行          ③return        ④pop           ⑤剩下的歸 GC
-┌──────────┐ ┌──────────┐  ┌──────────┐  ┌──────────┐   ┌──────────────┐
-│Frame 疊上│ │只有最上面│  │算出回傳值│  │SP 往回移 │   │Heap 上的物件 │
-│去，參數／│►│那片在跑，│─►│值＋控制權│─►│＝整片    │──►│與 Context：  │
-│區域變數  │ │下面全部  │  │交還呼叫者│  │Frame 立刻│   │沒人指才回收  │
-│各就各位  │ │凍結等待  │  │          │  │消失      │   │時機不可預測  │
-└──────────┘ └──────────┘  └──────────┘  └──────────┘   └──────────────┘
-     │                                                            ▲
-     └── 若 Scope Analysis 說「有變數被捕獲」，這一格同時在 Heap ───┘
-         建好 Context 物件，該變數從此就不住 Stack 了
-
- ★ ①～④ 是自動、即時、次數固定的；⑤ 是不定時、不可預測的。混在一起想就會亂。
-```
-
-同一件事用 Mermaid 再畫一次：
+同一條時間軸的流程圖版本：
 
 ```mermaid
 flowchart LR
     subgraph BT["buildtime 建置期（部署前跑完，V8 還沒看到程式碼）"]
-        T["轉譯 transpile<br/>Babel／tsc／SWC"] --> BU["打包 bundle<br/>webpack／Vite／Rollup"]
+        T["轉譯 transpile<br/>Babel／tsc／SWC<br/>（也有 buildtime 的 parse，不決定 Stack 或 Heap）"] --> BU["打包 bundle<br/>webpack／Vite／Rollup<br/>（也有 buildtime 的 parse，不決定 Stack 或 Heap）"]
     end
     subgraph RT1["runtime 執行期 · 只做一次的部分"]
-        P["Parse 解析<br/>Scope Analysis：<br/>★ 決定誰會被閉包捕獲<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode"]
+        P["V8 的 Parse<br/>Scope Analysis：<br/>★ 決定誰會被閉包捕獲<br/>只做決策，不配置記憶體"] --> BC["Ignition 產生 Bytecode"]
     end
     subgraph RT2["runtime 執行期 · 每次呼叫都重來"]
         PU["① push Stack Frame<br/>返回位址、參數、區域變數"] --> CX["② 若有變數被捕獲<br/>同時在 Heap 建 Context 物件<br/>Frame 裡只放一個指標"]
@@ -110,18 +180,21 @@ flowchart LR
     RE -.->|"再呼叫一次就整包重來"| PU
 ```
 
-> [!warning]- 為什麼「`return` 會清理記憶體」這句話會把人帶偏？三個原因
-> a. <mark style="background: #FFF3A3A6;">「記憶體」三個字沒有分家</mark>：Stack 與 Heap 是兩套清理機制（自動 pop vs GC 判斷可達性），但「清理記憶體」這句話把它們糊成一團，於是很多人以為 `return` 也會順手處理 Heap。它不會。
-> b. <mark style="background: #ADCCFFA6;">「閉包例外」這個說法本身就有誤導性</mark>：聽起來像 `return` 在某些情況下會網開一面。實際上 `return` 每次都做完全一樣的事——<mark style="background: #BBFABBA6;">例外的不是清理動作，是那個變數一開始被放的位置</mark>。
-> c. <mark style="background: #FF5582A6;">因為決策與執行隔太遠</mark>：「這個變數要放 Heap」是 Parse 階段做的決定（每個函式只做一次），「真的配置一個 Context」是每次呼叫時做的動作。中間隔了整個 Bytecode 階段，很容易在腦中被壓縮成同一瞬間。
+> [!info]- `return` 與「清理記憶體」的三個辨析
+> a. <mark style="background: #FFF3A3A6;">**Stack 與 Heap 是兩套清理機制**</mark>：Stack 靠 `return` 時自動 pop，Heap 靠 GC 判斷可達性。「清理記憶體」一詞涵蓋兩者，`return` 只負責 Stack 那一側。
+> b. <mark style="background: #ADCCFFA6;">**`return` 每次都只做那三件固定的事**</mark>（算回傳值、交還控制權、pop Stack Frame），不因閉包而改變。閉包的差別在於變數一開始被放的位置。
+> c. <mark style="background: #FF5582A6;">**決策與執行相隔很遠**</mark>：「這個變數要放 Heap」是 V8 在 runtime 的 <span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">Parse</span> 階段做的決定（每個函式只做一次），「真的配置一個 Context」是每次呼叫時做的動作，中間隔了整個 Bytecode 階段。
 
 ### 一句話驗證法
 
 想確認某件事在哪一格，問自己：<mark style="background: #BBFABBA6;">「這件事對同一個函式做幾次？」</mark>
 
-1. 只做一次 → 屬於 Parse／編譯期（第 ③ ④ 格），例如「決定 `count` 要放 Heap」
+1. 只做一次 → 屬於 V8 的 <span class="tip-img" data-img="obsidian-attachment/timeline_buildtime_vs_runtime_two-parse_2026-10-06.png">Parse</span> 與 Bytecode 產生（runtime，第 ③ ④ 格），例如「決定 `count` 要放 Heap」
 
-2. 呼叫幾次就做幾次 → 屬於執行期（第 ⑤ 格），例如「push／pop Frame」「建立一個新的 Context 物件」
+2. 呼叫幾次就做幾次 → 屬於執行期（第 ⑤ 格）。這類事的主詞要分清楚：
+	- 每「<mark style="background: #FFF3A3A6;">呼叫</mark>」一次函式，V8 就在 Call Stack 上 <mark style="background: #BBFABBA6;">push 一個新的 Stack Frame</mark>。
+	- 每「return」一次，V8 就把那一次呼叫的 Stack Frame pop 掉。所以函式被呼叫幾次，Call Stack 就 push 幾次、pop 幾次，而且 pop 的順序與 push 相反（LIFO）。
+	- 每次呼叫，如果函式裡有被內層函式捕獲的變數，V8 還會在 Heap 上建立一個新的 Context 物件。
 
 所以 `counter()` 被呼叫三次，就會有<mark style="background: #FFF3A3A6;">三個互不相干的 Context 物件、三個各自獨立的 `count`</mark>——但「`count` 該住 Heap」這個決定，從頭到尾只做過一次。
 
@@ -134,7 +207,7 @@ flowchart LR
 
 ## 0. Stack 跟 Stack Frame 是什麼關係？
 
-`Stack` 是**一整塊專門用來裝呼叫紀錄的記憶體區域**（一個容器），`Stack Frame` 是**每呼叫一次函式就疊上去的其中一片**（一個呼叫紀錄），彼此**並排堆疊、不是套疊**。新的 frame 永遠疊在最上面，只有最上面那片是「目前正在執行」的，下面的全部處於暫停狀態、乖乖等上面的先跑完、被 pop 掉才會輪到自己（更精確、對應真實 hex 記憶體位址與 Stack Pointer／Base Pointer 的版本，見本篇「## 5. 組合語言視角」）：
+`Stack` 是**一整塊專門用來裝呼叫紀錄的記憶體區域**（一個容器），`Stack Frame` 是**每呼叫一次函式就疊上去的其中一片**（一個呼叫紀錄），彼此**並排堆疊、不是套疊**。新的 frame 永遠疊在最上面，只有最上面那片是「目前正在執行」的，下面的全部處於暫停狀態、乖乖等上面的先跑完、被 pop 掉才會輪到自己（更精確、對應真實 hex 記憶體位址與 Stack Pointer／Base Pointer 的版本，見[本篇「## 5. 組合語言視角」](#5.%20再往下一層：組合語言視角的%20Stack——真的有記憶體位址，還有%20SP／BP%20兩個暫存器)）：
 
 ```mermaid
 %%{init: {'flowchart': {'htmlLabels': true, 'nodeSpacing': 45, 'rankSpacing': 45, 'padding': 14}} }%%
@@ -305,7 +378,7 @@ next(); // 1
 next(); // 2  ← count 還活著!沒有歸零、沒被清
 ```
 
-**為什麼？** 因為回傳的內層函式仍然「引用」`count`,所以 `count` 被搬去 heap 保管(閉包環境),只要 `next` 還在,`count` 就不會被 GC 清。
+**為什麼？** 因為回傳的內層函式引用了 `count`，V8 的 Scope Analysis 一開始就決定 `count` 放在 Heap 的 Context（閉包環境）裡。只要 `next` 還在，Context 與 `count` 就不會被 GC 清。
 → 這就是 `closure_counter.html`、`closure_shop.html` 能持續記住狀態的原因。
 
 ---
@@ -337,7 +410,12 @@ next(); // 2  ← count 還活著!沒有歸零、沒被清
 
 - **Stack Pointer（SP）**：CPU 裡一個獨立的暫存器（register，不是 Stack 裡的內容，是 CPU 內部另一塊儲存空間），裡面存的「值」是一個 hex 位址，永遠指向**目前 Stack 最上面、最後被 push 進去的那個位置**——這就是「屋頂」。每 push 一次東西，SP 存的位址就往數字更小的方向移動（往上疊）；每 pop 一次，就往數字更大的方向移回去。
 - **Base Pointer（BP，有些教材叫 Frame Pointer／FP）**：也是 CPU 的一個暫存器，裡面存的值是**這個函式 frame 一開始建立時的位址**，進入函式的當下把當時的 SP 存進 BP，之後整個函式執行期間 BP 都不會變——這就是「地板」，讓函式內部可以用固定的 offset（例如「BP 往回數 2 格」）去存取參數、區域變數，不會因為函式執行過程中 SP 一直變動而找不到東西。
-- 呼叫愈多層函式，SP 會不斷往「數字更小」的方向疊上去；每進入一層新函式，BP 就會被重新設成當時的 SP，標記這一層 frame 專屬的地板；`return` 時再把 BP 還原成呼叫者的舊 BP（圖裡 `0xFFFC` 那格「上一層呼叫者的 BP 備份」存的就是這個）。
+- 呼叫愈多層函式，SP 會不斷往「數字更小」的方向疊上去；每進入一層新函式，BP 就會被重新設成當時的 SP，標記這一層 frame 專屬的地板；`return` 時再把 BP 還原成呼叫者的舊 BP（圖裡 `0xFFF6` 那格「上一層呼叫者的 BP 備份」存的就是這個）。
+- Stack 上的 frame 一層層被 pop 掉時，SP 往位址更大的方向（封閉底部）移回去，BP 每次 `return` 都還原成呼叫者的 BP，位址比被 pop 的 frame 的 BP 大。位址小的一端是開口，push 與 pop 都在這一端進行。
+
+![return 時 SP 與 BP 的移動（每步 2 秒，循環播放）](../../../obsidian-attachment/return時SP與BP移動_動畫_2026-10-06.svg)
+
+圖與動畫裡 sum、b、a 的上下順序是簡化畫法：後存入的在上面（a、b 先存，sum 最後算出來，所以 sum 最靠近 SP）。實際的編譯器在函式開頭就決定好每個變數相對 BP 的固定 offset，順序不一定等於計算順序。例如 gcc `-O0` 編譯 `int add(int a, int b) { int sum = a + b; return sum; }` 的結果是：`sum` 在 `[rbp-0x4]`、`a` 在 `[rbp-0x14]`、`b` 在 `[rbp-0x18]`。因為這個函式沒有再呼叫別的函式，編譯器沒有 `sub rsp, N`，結尾只有 `pop rbp`、`ret`。
 
 **(iii) 追問：`mov edi, 3`這行字本身是機器碼嗎？右邊`bf 03 00 00 00`又是什麼？**
 
@@ -625,6 +703,18 @@ f. **追問延伸：10的9次方是2的幾次方？** 答案不是一個整數�
 ## 資料來源（含查證時間）
 | 主題 | 連結／說明 | 版本／時間 |
 |---|---|---|
+| V8 module 變數：`ModuleScope::AllocateModuleVariables` 只把 import／export 的變數配到 `VariableLocation::MODULE`（以 cell_index 對應 Cell） | https://github.com/v8/v8/blob/main/src/ast/scopes.cc | 2026-10-06 讀取 main 分支 |
+| V8 `SourceTextModule` 的 `regular_exports`、`regular_imports`（Cell 陣列）與 `LoadVariable`／`StoreVariable` | https://github.com/v8/v8/blob/main/src/objects/source-text-module.h | 2026-10-06 讀取 main 分支 |
+| Bytecode flushing 現行旗標（`flush_bytecode`、`bytecode_old_time = 180` 秒）與 `FlushSFI` 把 BytecodeArray 原地轉成 UncompiledData | https://github.com/v8/v8/blob/main/src/flags/flag-definitions.h 、https://github.com/v8/v8/blob/main/src/heap/mark-compact.cc | 2026-10-06 讀取 main 分支 |
+| gcc -O0 編譯 `add` 的實際反組譯（sum 在 `[rbp-0x4]`、a 在 `[rbp-0x14]`、b 在 `[rbp-0x18]`，結尾 `pop rbp`、`ret`） | 本機 `gcc -O0` 加 `objdump -d -M intel`（x86-64） | 2026-10-06 實測 |
+| ECMAScript 規格：函式 `[[Call]]` 結束時「Remove calleeContext from the execution context stack」 | https://tc39.es/ecma262/#sec-ecmascript-function-objects-call-thisargument-argumentslist | 2026-10-06 讀取 tc39/ecma262 main 的 spec.html |
+| V8 `src/interpreter/interpreter-generator.cc`：`IGNITION_HANDLER(Return…)` 回傳 accumulator | https://github.com/v8/v8/blob/main/src/interpreter/interpreter-generator.cc | 2026-10-06 讀取 main 分支 |
+| V8 `src/builtins/x64/builtins-x64.cc`：`LeaveInterpreterFrame` 內呼叫 `leave` 拆掉 Frame | https://github.com/v8/v8/blob/main/src/builtins/x64/builtins-x64.cc | 2026-10-06 讀取 main 分支 |
+| V8 `src/objects/contexts.h`（JSFunction 是 (context, code)、ScriptContext、native context 的 extension 放全域物件） | https://github.com/v8/v8/blob/main/src/objects/contexts.h | 2026-10-06 讀取 main 分支 |
+| Preparser、lazy parsing、Variable allocation、PIFE | https://v8.dev/blog/preparser | 發表 2019-04-15，2026-10-06 查證（讀取 v8/v8.dev 倉庫原始檔） |
+| Bytecode flushing | https://v8.dev/blog/v8-release-74 | 發表 2019-03-22，2026-10-06 查證 |
+| Code cache 與磁碟快取 | https://v8.dev/blog/code-caching-for-devs | 發表 2019-04-08，2026-10-06 查證 |
+| 「async／defer 為何不一定可行」「CRP 與 critical path 的關係」 | 本篇推論，非官方原文 | 無 |
 | Stack Pointer／Base Pointer、hex 記憶體位址、frame 屋頂與地板的視覺呈現方式 | 參考 YouTube Shorts〈How Assembly Functions Work – The Stack Explained〉@MxyAhoy 的畫面構圖（使用者提供截圖），本篇圖表為原創重繪，非直接複製 | 查證日期 2026-07-29 |
 | 同一支影片更深入的片段：mov edi/esi機器碼位元組拆解、opcode與operand分割、little-endian、EDI/ESI名稱源流與System V AMD64 ABI呼叫慣例 | 同一支@MxyAhoy影片，使用者提供截圖（IMG_5039、IMG_5038） | 查證日期 2026-07-30 |
 | bf等register-in-opcode（+rd）編碼手法：基底opcode加暫存器編號（mov r32,imm32、push r64、pop r64對照表），使用者手繪整理 | 使用者提供手繪截圖（photo.jpeg），對照Intel指令集通用編碼慣例 | 查證日期 2026-07-30 |

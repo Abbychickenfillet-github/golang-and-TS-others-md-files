@@ -13,6 +13,8 @@ note: 檔名前綴 00 代表本篇是 JS_Core_and_Runtime 資料夾裡「依編�
 
 # 【編譯 runtime】V8 引擎完整管線：Parse → Ignition → TurboFan → Deoptimization
 
+<div class="tip-glossary" data-term="頂層程式碼的變數一律放 Heap，因為變數會跨 script 可見" data-text="「頂層」指 script 檔最外層、不在任何函式裡的程式碼。&#10;適用範圍：這句話出自 V8 部落格，講的是 classic &lt;script&gt;。純 JS 用 &lt;script src&gt; 載入時適用。React 專案用的是 ES module（Vite、webpack 打包後也是），不直接適用。&#10;&#10;classic &lt;script&gt; 的最外層共用同一個全域範圍：var 與 function 宣告會變成 window 的屬性，let、const、class 放在全域的 ScriptContext。其他 script 隨時可能存取它們，所以 V8 一律放在 Heap 的 Context，不放進會被 pop 掉的 Stack Frame。&#10;&#10;ES module 的最外層是 module 範圍，不是全域，別的檔案要用就 export 與 import，「變數會跨 script 可見」的理由不成立。V8 的做法（已對照 scopes.cc、source-text-module.h）：有 export 的變數、以及 import 進來的綁定，用 VariableLocation::MODULE 分配，存在 SourceTextModule 的 Cell 物件裡（regular_exports、regular_imports 兩個陣列），Cell 在 Heap 上，import 端指向匯出端同一個 Cell，所以兩個檔案看到的是同一份值。沒有 export 也沒有 import 的最外層變數，推論上跟函式的區域變數一樣：沒被內層函式捕獲放 Stack，被捕獲才放 module 的 Context（Context 的 extension 欄位指向 module 物件）。這一句是依 module scope 是 DeclarationScope 推論，沒有逐行驗證。&#10;&#10;React 元件函式裡的變數是函式內部變數，不在這句話的範圍內，照一般規則：沒被閉包捕獲放 Stack，被事件處理函式或 effect 捕獲才放 Heap 的 Context。元件之間用 props 傳值是資料流的設計，與記憶體放在哪裡是兩件事。所以在 React 專案裡這句話幾乎碰不到。&#10;&#10;純 JS 要不要全域變數：現代寫法盡量不用，因為會依賴載入順序，名稱也容易衝突。舊式 classic script 的用法如下。&#10;a.js：const appName = &#x27;Abby&#x27;; function greet() { return &#x27;Hi &#x27; + appName }&#10;b.js：console.log(greet())&#10;index.html：先 &lt;script src=&quot;a.js&quot;&gt;，再 &lt;script src=&quot;b.js&quot;&gt;，順序不能反。&#10;改用 module：a.js 寫 export function greet() {…}，b.js 寫 import { greet } from &#x27;./a.js&#x27;，HTML 用 &lt;script type=&quot;module&quot; src=&quot;b.js&quot;&gt;。"></div>
+
 > [!info]- 📍 00號：整個編號序列的起點
 > <mark style="background: #BBFABBA6;">起點</mark>：這是`JS_Core_and_Runtime`資料夾照編譯到執行順序編號的第一篇，畫出Parse→Ignition→TurboFan→Deoptimization整條管線地圖。
 > <mark style="background: #ADCCFFA6;">下一步</mark>：管線圖裡第一個要拆解的詞就是「引擎」本身，下一篇[[01-引擎-Engine-到底是什麼]]先把這個詞定義清楚。
@@ -83,7 +85,7 @@ flowchart TD
 
       | | Scope Analysis 的初步判定（這裡） | TurboFan 的 Escape Analysis（下方 TurboFan 階段） |
       |---|---|---|
-      | 發生時機 | Parse 階段，**每個函式都會做一次** | 只有被判定為 Hot Code、送進 TurboFan 之後才會做 |
+      | 發生時機 | Parse 階段，**每個函式都會做一次**（含被 preparser 略過的函式，見下方 Preparser 那一點） | 只有被判定為 Hot Code、送進 TurboFan 之後才會做 |
       | 判斷依據 | **靜態語法結構**：AST 上有沒有內層函式引用這個變數 | **實際執行 Profile**：這個物件在真正跑過的案例裡，有沒有被回傳、存到外部變數、被閉包捕獲 |
       | 保守程度 | 保守——只要「可能」被捕獲就先放 Heap，確保正確性優先 | 激進——只要「證明」完全不會逃逸，可以直接連 Heap 都不配置 |
       | 對物件的處理 | 二選一：整包放 Stack 或整包放 Heap Context | 可以更細：把物件拆成好幾個獨立的純量值（scalar），例如物件的每個欄位各自變成一個暫存器變數，完全跳過「配置一整個物件」這件事 |
@@ -96,10 +98,109 @@ flowchart TD
   - **strict mode 判定**：從 `"use strict"` 指令或 ES Module 環境推定這段程式碼是不是 strict mode，會影響後面一系列語法限制。
   - **Early Error 靜態語法檢查**：例如同一個參數列表裡重複的參數名稱、同一 scope 裡重複的 `let`/`const` 宣告，這類「編譯期就能確定是錯的」語法錯誤，也是在這個階段被抓出來（完整的重複參數名稱規則見 [[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]] 的 (e)）。
 
+- **Preparser 與 Lazy Parsing（惰性 parse）**：V8 的 parser 遇到函式時，不一定立刻把它完整 parse 成 AST。它會切換成 preparser（parser 的精簡版，只做「剛好足以略過這個函式」的最少工作），先確認函式本體語法合法，並記下外層函式編譯所需的資訊。等這個函式第一次被呼叫，V8 才完整 parse 它並交給 Ignition 編成 Bytecode。
+
+  官方部落格 [Blazingly fast parsing, part 2: lazy parsing](https://v8.dev/blog/preparser)（2019-04-15）第一段的逐句對照：
+
+  | 官方原文 | 白話解釋 |
+  |---|---|
+  | Parsing is the step where source code is turned into an intermediate representation to be consumed by a compiler (in V8, the bytecode compiler Ignition). | 這是 runtime 在 V8 裡做的事。這裡的 compiler 指 Ignition（把 AST 編成 Bytecode 的 bytecode compiler），與 buildtime 的 transpiler（原始碼轉原始碼）、之後把熱點函式編成機器碼的 TurboFan（optimizing compiler）屬於不同層。這句出現在 part 2，part 1 講 scanner 的優化 |
+  | Parsing and compiling happens on the critical path of web page startup | critical path 指頁面啟動時「必須依序完成、後面才能繼續」的那條工作路徑。parse 與 compile 都在 main thread 的啟動流程上，花多久，頁面就晚多久能互動 |
+  | and not all functions shipped to the browser are immediately needed during startup. | 一支 bundle 裡有很多函式，但啟動當下只會用到其中一小部分 |
+  | Even though developers can delay such code with async and deferred scripts, that's not always feasible. | 原文沒有說明理由，以下是我的推論。a. 啟動就要用的程式碼本來就不能延後。b. `async`、`defer` 只改變 script 何時下載與執行，檔案一旦執行，裡面沒被呼叫的函式至少還是會被 preparse 一次。c. 把不需要的功能拆出去要靠 code splitting 與 dynamic import 重構，成本高，第三方 script 更不是你能拆的。d. 有執行順序依賴的 script 不能隨便用 `async` |
+  | Additionally, many web pages ship code that's only used by certain features which may not be accessed by a user at all during any individual run of the page. | 例如結帳頁、後台管理功能的程式碼，使用者這一次載入頁面可能根本不會點到 |
+  | Eagerly compiling code unnecessarily has real resource costs: | eagerly 是「迫切」，意思是不管用不用得到都先編譯。下面三條是它的代價 |
+  | CPU cycles are used to create the code, delaying the availability of code that's actually needed for startup. | main thread 一次只能做一件事，每花一段 CPU 時間去編譯啟動時用不到的函式，真正要用的函式就晚一點才輪到。availability 是「可用性」，指程式碼何時能被執行（與 GC 的可達性 reachability 是不同概念）。that's actually needed for startup 修飾 code，指「啟動時真的需要的那些程式碼」 |
+  | Code objects take up memory, at least until bytecode flushing decides that the code isn't currently needed and allows it to be garbage-collected. | 編好的 Bytecode 會佔 V8 heap 的記憶體。bytecode flushing 的做法（[V8 v7.4 發佈說明](https://v8.dev/blog/v8-release-74)，2019-03-22）：被 GC 回收的只有函式編好的 Bytecode，函式物件與它的 SharedFunctionInfo 仍然可達，不會被回收。回收前先判斷這份 Bytecode 是否「最近沒被執行」：v7.4 的做法是為 Bytecode 記錄「年齡」，每次 GC 時沒被執行就加一，被執行就歸零，累積超過門檻（連續好幾次 GC 都沒被執行）才在 GC 時回收。回收後函式變回尚未編譯，下次被呼叫才重新 lazy compile。這個判斷與 scope chain 的可達性是兩個機制（可達性決定物件能不能被 GC）。現行 V8 main 的旗標 `bytecode_old_time` 預設 180（秒），描述為「flush of bytecode when it has not been executed recently」，判定看起來已改為以時間為準，本篇未逐行驗證實作。官方量測 bytecode 約占 V8 heap 的 15%，flushing 省下 5 到 15% |
+  | Code compiled by the time the top-level script finishes executing ends up being cached on disk, taking up disk space. | 這是 Chrome 的 code cache（[Code caching for JavaScript developers](https://v8.dev/blog/code-caching-for-devs)，2019-04-08）。同一支 script 第二次載入時，Chrome 把編好的結果序列化，附在 HTTP cache 的檔案旁。「頂層腳本執行完時已編譯的函式」都會進 cache，所以不必要的 eager compile 也會一起佔磁碟。這整段都是 runtime 的 V8 與 Chrome 在做的事 |
+
+  跟 Critical Rendering Path（CRP，瀏覽器把 HTML 變成畫面的 DOM、CSSOM、render tree、layout、paint 這條路）的關係：官方這篇沒有談 render。兩者都是「啟動時的必經路」，而且會重疊，因為沒加 `async`、`defer` 的 script 會擋住 HTML 的 parse，它的下載、parse、compile、執行都得做完，後面的畫面才能繼續，所以會推遲首次繪製。這個連結是我的推論，不是官方原文。相關：[[FCP首次內容繪製-SEO爬蟲與打包五步驟]]。
+
+  preparser 還要追蹤變數，原因直接連到 [[return-清理記憶體-stack-frame與閉包例外]]：官方在同一篇的 Variable allocation 一節說，V8 要知道「每個變數有沒有被內層函式引用」，才能決定它放 Stack 或 Heap 的 context，所以 preparser 也必須追蹤變數的宣告與引用，而且在 preparse 期間就做完整的 scope resolution。V8 把「每個變數放哪裡」序列化成一個小陣列存起來，之後完整 parse 該函式時直接套用，內層函式就不必被重複 preparse。結果是每個函式最多被 preparse 一次、完整 parse 一次（bytecode 被 flushing 回收後又被呼叫時會重新 parse，是例外）。
+  官方還提到兩種特例。頂層程式碼的變數一律放 Heap，因為變數會跨 script 可見。`(function(){…})` 這種括號包起來的函式，V8 假設它會立刻被呼叫，直接完整 parse 並編譯，稱為 PIFE（possibly-invoked function expression）。
+
+  頂層變數依載入方式分配在不同的地方（對照 V8 原始碼 `scopes.cc`、`source-text-module.h`、`contexts.h`）：
+
+  | 載入方式 | 變數 | V8 怎麼放 |
+  |---|---|---|
+  | classic script | `var`、`function` 宣告 | 全域物件的屬性（native context 的 extension 欄位放全域物件） |
+  | classic script | `let`、`const`、`class` | ScriptContext：Heap 上的 Context，每個有頂層 lexical 宣告的 script 一份，收進 ScriptContextTable |
+  | ES module | 有 `export` 的變數 | `VariableLocation::MODULE`，存在 `SourceTextModule` 的 Cell（`regular_exports` 陣列），Cell 在 Heap 上 |
+  | ES module | `import` 進來的綁定 | 同樣是 `MODULE` 位置，指向匯出端同一個 Cell（`regular_imports` 陣列），所以兩個檔案共用同一份值 |
+  | ES module | 沒 `export` 也沒 `import` 的最外層變數 | 推論：與函式區域變數相同，沒被內層函式捕獲放 Stack，被捕獲放 module 的 Context（`extension` 欄位指向 module 物件）。尚未逐行驗證分配程式碼 |
+
 ### Ignition（直譯器）階段
 
 - 把 AST **編譯**成精簡的 **Bytecode**，然後**直譯執行**（見 [[機器碼與bytecode的差異]] 對 bytecode 概念的完整解釋）。
 - 執行的同時**順手收集 Profiling Data**（V8 內部叫 **Feedback Vector**）：記錄「這個函式被呼叫幾次」「傳進來的參數通常是什麼型別」「這個屬性存取通常是對哪種物件形狀（Shape/Hidden Class）」等統計資料，供之後 TurboFan 判斷要不要優化、怎麼優化。
+
+- **Ignition 直譯器實作的是一台 register machine（暫存器機器）**：每個 Bytecode 的輸入與輸出寫成明確的暫存器運算元，另外有一個特殊的 **accumulator（累加器）暫存器**，是許多 Bytecode 預設的隱含輸入與輸出，所以不必把它寫進 Bytecode，Bytecode 因此更短（[Firing up the Ignition interpreter](https://v8.dev/blog/ignition-interpreter)，2016-08-23）。
+
+  以 `count++`（`count` 是被閉包捕獲的變數）為例，`node --print-bytecode` 輸出的 Bytecode 這樣讀：
+
+  | Bytecode | 意思 | 對 accumulator | 在這個例子裡 |
+  |---|---|---|---|
+  | `LdaCurrentContextSlot [2]` | `Lda` ＝ Load Accumulator：把目前 Context 的第 2 格讀進 accumulator | 寫入 | 讀出 `count` |
+  | `ThrowReferenceErrorIfHole [0]` | accumulator 若是「hole」（`let` 尚未初始化）就丟 `ReferenceError`，也就是 TDZ 檢查 | 讀 | 確認 `count` 已初始化 |
+  | `Inc [0]` | accumulator 加 1，`[0]` 是 Feedback Vector 的 slot 編號，用來記錄型別資訊 | 讀寫 | `count + 1` |
+  | `StaCurrentContextSlot [2]` | `Sta` ＝ Store Accumulator：把 accumulator 的值寫回目前 Context 的第 2 格 | 讀 | 寫回 `count` |
+  | `Return` | 回傳 accumulator 的值 | 讀 | `return count` 的結果 |
+
+  accumulator 是 Ignition 直譯器所模擬的那台 register machine 的暫存器，不是 CPU 規格裡的暫存器。V8 實作直譯器時，把它放在一個真正的 CPU 暫存器裡：x64 是 `rax`，arm64 是 `x0`（V8 `register-x64.h`、`register-arm64.h` 的 `kInterpreterAccumulatorRegister`）。這個名稱沿用自早期 CPU（例如 6502）專門做運算的累加器暫存器。
+
+  「直譯器」與「虛擬機器」是同一件事的兩個面向：**Bytecode 的指令集加上 accumulator 與暫存器，定義了一台不存在於硬體的抽象機器（虛擬機器）**，**Ignition 直譯器是一支真實的程式，負責在 CPU 上模擬這台機器，逐個執行 Bytecode**。
+
+  | 名稱 | 是什麼 | 在這裡指 |
+  |---|---|---|
+  | 虛擬機器（register machine） | 一份規格：有哪些指令、哪些暫存器、各指令的行為 | Bytecode 指令集（`bytecodes.h` 列的那些）與 accumulator |
+  | 直譯器（interpreter） | 一支實作這份規格的程式 | Ignition |
+  | 實體機器 | 真正的硬體 | CPU |
+
+  Bytecode 由誰讀、誰執行：compiler 是**軟體**（一支程式，負責翻譯），CPU 是**硬體**（只執行機器碼）。V8 的這些元件本身都是已編譯好的機器碼，跑在 CPU 上，再去處理 Bytecode：
+
+  | 角色 | 軟體還是硬體 | 對 Bytecode 做什麼 |
+  |---|---|---|
+  | Ignition 的 bytecode 編譯器 | V8 內的軟體 | 把 AST 編成 Bytecode |
+  | Ignition 直譯器 | V8 內的軟體 | 逐個讀 Bytecode 並執行（讀 `LdaCurrentContextSlot` 就去讀 Context 的 slot） |
+  | Sparkplug（baseline compiler） | V8 內的軟體 | 讀 Bytecode（`BaselineCompiler` 以 `BytecodeArray` 為輸入），編成機器碼 |
+  | TurboFan | V8 內的軟體 | 讀 Bytecode（`bytecode-graph-builder`）建圖並優化，產生機器碼 |
+  | CPU | 硬體 | **只執行機器碼**，看不懂 Bytecode；直譯期間它執行的是 Ignition 直譯器本身的機器碼 |
+  | 其他引擎與工具 | 軟體 | 讀不了。Bytecode 的格式是 V8 自己定義的，而且隨 V8 版本改變：V8 載入 code cache 時會檢查版本、旗標與原始碼是否一致（`kVersionMismatch`、`kFlagsMismatch`、`kSourceMismatch`），不符就丟掉重新編譯。人要看只能用 `node --print-bytecode` 這類 V8 提供的輸出 |
+
+  「對 accumulator 讀或寫」這一欄來自 V8 `bytecodes.h` 的 `ImplicitRegisterUse`：`LdaCurrentContextSlot` 是 `kWriteAccumulator`，`StaCurrentContextSlot` 是 `kReadAccumulator`，`Inc`、`Dec` 是 `kReadWriteAccumulator`，`Return` 是 `kReadAccumulator`。`Lda`、`Sta` 的全名是依組合語言「Load／Store Accumulator」的命名慣例，原始碼本身沒有拼出全名。`[2]` 是 Context 的第 2 格，第 0 格是 `scope_info`、第 1 格是 `previous`。
+
+  `Lda` 與 `Sta` 的差別是資料流動的方向，accumulator 永遠是其中一端：
+
+  | | `Lda`（Load Accumulator，載入累加器） | `Sta`（Store Accumulator，儲存累加器） |
+  |---|---|---|
+  | 方向 | 別處 → accumulator | accumulator → 別處 |
+  | 對 accumulator | 寫入，舊值被覆蓋 | 讀取，accumulator 的值不變 |
+  | 別處是哪裡 | Context 的 slot、暫存器、常數、全域變數等 | Context 的 slot、暫存器、物件屬性、全域變數等 |
+  | 暫存器版本 | `Ldar <src>`（Load Accumulator from Register）：`SetAccumulator(LoadRegister(src))` | `Star <dst>`（Store Accumulator to Register）：`StoreRegister(GetAccumulator(), dst)` |
+  | Context slot 版本 | `LdaCurrentContextSlot [2]`：讀目前 Context 的第 2 格放進 accumulator | `StaCurrentContextSlot [2]`：把 accumulator 寫進目前 Context 的第 2 格 |
+  | 對應 `count++` | 先 `Lda` 讀出 `count` | 算完 `Inc` 後 `Sta` 寫回 `count` |
+
+  `LdaCurrentContextSlot [2]` 這一行裡有三個不同的東西：
+
+  | 部分 | 是什麼 | 住在哪裡 |
+  |---|---|---|
+  | `LdaCurrentContextSlot` | **指令**（opcode，操作碼）：一個動作，意思是「從目前 Context 讀一格放進 accumulator」，不是資料也不是格子 | 函式的 `BytecodeArray` 物件裡的一個位元組，`BytecodeArray` 屬於 V8 管理的記憶體（新版放在 trusted space） |
+  | `[2]` | **運算元**（operand）：slot 編號，告訴指令要讀第幾格 | 跟指令一起存在 `BytecodeArray` 裡 |
+  | 第 2 格（slot） | **格子**：Context 物件裡存放 `count` 的位置 | Heap 上的 Context 物件，layout 是 `scope_info`、`previous`、接著才是被捕獲的變數 |
+  | accumulator | Ignition 直譯器那台 register machine 的暫存器 | 不在 Heap，V8 把它放在 CPU 暫存器（x64 是 `rax`） |
+
+  所以 `Lda` 是「讀」這個動作，Context 的第 2 格是被讀的對象，`Lda` 本身不是 Context 裡的格子，也不是對格子的描述。
+
+  `Return` 的意思是「結束目前這個函式的執行，把 accumulator 的值交還給呼叫者」，它與其他 Bytecode 的差別在於**不繼續跳到下一個 Bytecode**：
+
+  | 步驟 | 誰做 | 做什麼 |
+  |---|---|---|
+  | 1 | 其他 Bytecode 的 handler（每個 Bytecode 對應的一小段機器碼） | 做完事後呼叫 `Dispatch()`，查表跳到下一個 Bytecode 的 handler，直譯迴圈因此持續 |
+  | 2 | `Return` 的 handler | 只有 `GetAccumulator()` 與 `Return(accumulator)`，**沒有 `Dispatch()`**，所以迴圈在這裡中止，handler 以機器碼的 `ret` 回到 Interpreter Entry Trampoline（直譯器進入點的小段機器碼） |
+  | 3 | Interpreter Entry Trampoline | 呼叫 `LeaveInterpreterFrame`：用 `leave`（`mov rsp, rbp` 加 `pop rbp`）拆掉這個函式的 Stack Frame（連同暫存器檔案），再丟掉傳進來的引數 |
+  | 4 | Interpreter Entry Trampoline | 執行 `ret`，回到呼叫者，回傳值留在 accumulator 所在的 CPU 暫存器（x64 是 `rax`） |
+
+  第 3 步的 `leave` 與 `ret` 就是 [[12-return-清理記憶體-stack-frame與閉包例外]] 講的 return 時 SP 與 BP 移動的那個動作，在 Ignition 裡由 Entry Trampoline 負責，不是由 `Return` 這個 Bytecode 的 handler 負責。
 
 ### Hot Code 判定
 
@@ -159,7 +260,7 @@ var smallestNumber = function (n, t) {
 
 快速結論（完整版見 [[函式呼叫核心機制-Execution-Context-與-Parameter-Binding]] 的 (f)(g)(h) 三節）：
 
-- **Parse（本篇最上面 Scanner→Parser→AST→Scope Analysis 那段）是編譯期**，對同一個函式只做一次（V8 甚至會 lazy parsing，delay 到第一次被呼叫前才補做），產出可重複使用的 Bytecode。
+- **Parse（本篇最上面 Scanner→Parser→AST→Scope Analysis 那段）是編譯期**，對同一個函式只做一次，產出可重複使用的 Bytecode。V8 還會做 lazy parsing：內層函式先由 preparser 略過，第一次被呼叫才完整 parse（細節見上方「Preparser 與 Lazy Parsing」）。
 - **Hoisting／參數綁定屬於 Execution Context 的 Creation Phase，是執行期**，函式被呼叫幾次就重做幾次——這跟 Parse 是兩個完全不同時間點的動作，只是 lazy compilation 讓兩者在時間上很靠近，容易被誤以為是同一件事。
 - 「編譯」跟「翻譯／直譯」的用詞差異：編譯＝把原始碼轉成另一種可重複執行的表示法（Parse＋Bytecode 產生，一次性）；翻譯／直譯＝真的執行已編譯好的表示法（Ignition 跑 Bytecode，每次呼叫都重來）。
 
@@ -478,6 +579,27 @@ flowchart LR
 - [[Node-js底層架構-V8-libuv-Bindings與CSR澄清]] —— libuv 到底是什麼、Node.js 完整分層架構、CSR 渲染邏輯在哪執行、純前端會不會用到 Node 專屬 API
 - [[陳述式-Statement-vs-表達式-Expression]] —— 上面 AST 逐字稿裡 `ExpressionStatement`、`VariableDeclaration` 這些節點名稱背後的分類邏輯
 - [[引擎-Engine-到底是什麼]] —— 「引擎」這個詞的正式定義，以及 Engine／Interpreter／Compiler／Runtime／Host Environment 的名詞辨析
+
+## 資料來源（含查證時間）
+
+| 主題 | 連結 | 版本／時間 |
+|---|---|---|
+| Sparkplug 與 TurboFan 以 Bytecode 為輸入、code cache 的版本／旗標／原始碼檢查 | https://github.com/v8/v8/blob/main/src/baseline/baseline-compiler.cc 、https://github.com/v8/v8/blob/main/src/compiler/bytecode-graph-builder.cc 、https://github.com/v8/v8/blob/main/src/snapshot/code-serializer.cc | 2026-10-07 讀取 main 分支 |
+| accumulator 在 x64 對應 `rax`、arm64 對應 `x0` | https://github.com/v8/v8/blob/main/src/codegen/x64/register-x64.h 、https://github.com/v8/v8/blob/main/src/codegen/arm64/register-arm64.h | 2026-10-07 讀取 main 分支 |
+| Ignition 是 register machine、accumulator 隱含暫存器 | https://v8.dev/blog/ignition-interpreter | 發表 2016-08-23，2026-10-07 查證（讀取 v8/v8.dev 倉庫原始檔） |
+| `LdaCurrentContextSlot`、`StaCurrentContextSlot`、`Inc`、`Dec`、`Return` 的 `ImplicitRegisterUse` | https://github.com/v8/v8/blob/main/src/interpreter/bytecodes.h | 2026-10-07 讀取 main 分支 |
+| `Ldar`、`Star`、`LdaCurrentContextSlot`、`StaCurrentContextSlot`、`Return` 的 handler（`Return` 無 `Dispatch()`） | https://github.com/v8/v8/blob/main/src/interpreter/interpreter-generator.cc | 2026-10-07 讀取 main 分支 |
+| `LeaveInterpreterFrame`、Entry Trampoline 的 `do_return`（`leave`、`DropArguments`、`ret`） | https://github.com/v8/v8/blob/main/src/builtins/x64/builtins-x64.cc | 2026-10-07 讀取 main 分支 |
+| `BytecodeArray` 繼承 `ExposedTrustedObject`（trusted space）、`LdaContextSlot` 的運算元型別 `kContextSlot` | https://github.com/v8/v8/blob/main/src/objects/bytecode-array.h 、https://github.com/v8/v8/blob/main/src/interpreter/bytecodes.h | 2026-10-07 讀取 main 分支 |
+| `count++` 的實際 Bytecode 輸出 | 本機 `node --print-bytecode`（Node.js v22.22.0） | 2026-10-07 實測 |
+| V8 module 變數：`ModuleScope::AllocateModuleVariables` 只把 import／export 的變數配到 `VariableLocation::MODULE`（以 cell_index 對應 Cell） | https://github.com/v8/v8/blob/main/src/ast/scopes.cc | 2026-10-06 讀取 main 分支 |
+| V8 `SourceTextModule` 的 `regular_exports`、`regular_imports`（Cell 陣列）與 `LoadVariable`／`StoreVariable` | https://github.com/v8/v8/blob/main/src/objects/source-text-module.h | 2026-10-06 讀取 main 分支 |
+| Bytecode flushing 現行旗標（`flush_bytecode`、`bytecode_old_time = 180` 秒）與 `FlushSFI` 把 BytecodeArray 原地轉成 UncompiledData | https://github.com/v8/v8/blob/main/src/flags/flag-definitions.h 、https://github.com/v8/v8/blob/main/src/heap/mark-compact.cc | 2026-10-06 讀取 main 分支 |
+| Preparser、lazy parsing、Variable allocation、PIFE | https://v8.dev/blog/preparser | 發表 2019-04-15，2026-10-06 查證（讀取 v8/v8.dev 倉庫原始檔） |
+| Scanner、AST 與 Ignition 的關係 | https://v8.dev/blog/scanner | 發表 2019-03-25，2026-10-06 查證 |
+| Bytecode flushing | https://v8.dev/blog/v8-release-74 | 發表 2019-03-22，2026-10-06 查證 |
+| Code cache 與磁碟快取 | https://v8.dev/blog/code-caching-for-devs | 發表 2019-04-08，2026-10-06 查證 |
+| 「async／defer 為何不一定可行」「CRP 與 critical path 的關係」 | 本篇推論，非官方原文 | 無 |
 
 ---
 
