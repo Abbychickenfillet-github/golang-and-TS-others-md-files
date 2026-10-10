@@ -35,41 +35,9 @@ details.src{background:#fafafa;border:1px solid #e3e3e3;border-radius:10px;paddi
 h2[id],h3[id]{scroll-margin-top:70px}
 h2[id]:target,h3[id]:target{animation:hl 1.4s ease}
 @keyframes hl{0%,55%{background:#fff2b8}100%{background:transparent}}
-html{scroll-behavior:smooth}
-*,*::before,*::after{box-sizing:border-box}
-/* ---- 寬螢幕：大綱釘在左邊，不再浪費左右留白 ---- */
-@media (min-width:1100px){
-  article{display:grid;grid-template-columns:clamp(220px,18vw,300px) minmax(0,1fr);column-gap:clamp(24px,2.6vw,48px);align-items:start}
-  article > *{grid-column:2;min-width:0}
-  article > nav.toc{grid-column:1;grid-row:1 / span 999;position:sticky;top:66px;margin:0;align-self:start;max-height:calc(100vh - 90px);overflow:auto}
-
-}
-@media (min-width:1700px){
-  article{grid-template-columns:clamp(240px,15vw,320px) minmax(0,1fr)}
-  .wrap{padding-left:clamp(44px,5vw,120px);padding-right:clamp(44px,5vw,120px)}
-}
 </style><link rel="stylesheet" href="../assets/notes.css">
 </head><body><div class="wrap"><header><h1>adopt-buffer-MIN_SIZE與TypedArray-Uint8-Uint32位元寬度</h1><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">TypedArray</span><span class="pill">Uint32Array</span><span class="pill">Buffer</span><span class="pill">css-tree</span><span class="pill">GC</span><div class="meta">更新 2026-10-10 ・ <a href="https://gemini.google.com/app/0fa113dfd0ee9e71">來源</a></div></header><div class="bar"><button onclick="setAll(true)">全部隱藏重點</button><button onclick="setAll(false)">全部顯示</button><span style="color:#888;font-size:.85em">點 (a)(b)… 重點可單獨隱藏／顯示，自我測驗　｜　<b style="color:#2c6b57">綠色虛線名詞：滑過看解釋，點一下釘住並可拖曳</b></span></div><article>
-<nav class="toc">
-<div class="toc-h">本篇大綱　<span>點標題直接跳</span></div>
-<ol>
-  <li><a href="#buffer">先定義：這個檔案裡的 Buffer 到底是什麼</a>
-    <ol>
-      <li><a href="#arraybuffer">退一步：這條 Uint32Array 底下是什麼 —— ArrayBuffer</a></li>
-      <li><a href="#why32">這才是非用 32-bit 不可的真正原因</a></li>
-      <li><a href="#word">那「buffer」這個詞本身呢</a></li>
-    </ol>
-  </li>
-  <li><a href="#points">重點整理</a><span class="toc-n">(a)–(l) 共 12 點</span></li>
-  <li><a href="#sources">各對話來源（原文節錄）</a>
-    <ol>
-      <li><a href="#src-minsize">程式碼中 MIN_SIZE 定義解析</a></li>
-      <li><a href="#src-vmodel">Vue.js 中的 v-model 雙向綁定</a></li>
-    </ol>
-  </li>
-  <li><a href="#refs">資料來源（含查證時間）</a></li>
-</ol>
-</nav>
+
 
 <section class="defbox">
 <h2 id="buffer">先定義：這個檔案裡的 Buffer 到底是什麼</h2>
@@ -148,6 +116,54 @@ asU32[0]   // 16777216
 
 <p style="margin:10px 0 0"><b>📌 補充（ES2024 起）</b>：「固定長度」已經不是絕對。<code>new ArrayBuffer(8, { maxByteLength: 16 })</code> 可以建立 resizable buffer，之後用 <code>.resize(16)</code> 改大小；一般寫法 <code>new ArrayBuffer(8)</code> 的 <code>.resizable</code> 是 <code>false</code>，仍然是固定的。另外 <code>.transfer()</code> 會把所有權轉走並讓原本那個 <code>.detached === true</code>，這就是 Worker 之間零複製傳遞（Transferable）的基礎。</p>
 
+<h3 style="color:#2c6b57;margin:22px 0 8px;font-size:1.02em">📐 TypedArray 跟一般陣列差在哪</h3>
+
+<pre><code class="language-text">【plain Array】  const arr = [1, "x", {name:"abby"}, true];
+
+  arr ──► 一個 JS 物件（住在 heap）
+          ┌─────────────────────────────────────┐
+          │ "0" ──► 1              小整數可內嵌    │
+          │ "1" ──► 指標 ──► 字串 "x"（在別處）    │
+          │ "2" ──► 指標 ──► 物件 {name}（在別處） │
+          │ "3" ──► true                        │
+          │ length: 4   ← 可變，push 就變        │
+          └─────────────────────────────────────┘
+   · 索引本質上是「字串 key」，靠查表找
+   · 每格各自是一個 JS value，型別可以全不一樣
+   · 有些格子裝的只是指標，真正的資料四散在 heap
+
+
+【TypedArray】  const u8 = new Uint8Array([1,2,3,4]);
+
+  u8 ──► 視圖物件（只有 4 個數字，自己沒有資料）
+         buffer ─┐   byteOffset=0   length=4   BYTES_PER_ELEMENT=1
+                 ▼
+         ArrayBuffer（連續 4 bytes，緊密排好）
+         ┌────┬────┬────┬────┐
+         │ 01 │ 02 │ 03 │ 04 │
+         └────┴────┴────┴────┘
+           0    1    2    3      ← 位址用「算」的，不是查表
+   · 沒有指標、沒有型別標籤、沒有洞
+   · 位址 = 起點 + byteOffset + index x BYTES_PER_ELEMENT
+   · CPU 可以整段一次搬，所以 css-tree 拿它存 token 座標</code></pre>
+
+<table>
+<tr><th>比較項目</th><th>plain Array</th><th>TypedArray</th></tr>
+<tr><td><code>Array.isArray()</code></td><td><code>true</code></td><td><b><code>false</code></b> ⚠️ 它不是陣列</td></tr>
+<tr><td>可以裝什麼</td><td>任何型別混著裝</td><td>只有單一數值型別</td></tr>
+<tr><td>長度</td><td>可變，<code>push</code> / <code>length=</code> 都能改</td><td><b>固定</b>，建立後改不了</td></tr>
+<tr><td><code>push</code> / <code>splice</code></td><td>✅ 有</td><td><b>❌ 沒有</b>（長度固定，沒意義）</td></tr>
+<tr><td><code>subarray</code> / <code>set</code></td><td>❌ 沒有</td><td>✅ 有（<code>subarray</code> 共用同一塊記憶體，不複製）</td></tr>
+<tr><td><code>.buffer</code></td><td>❌ 沒有</td><td>✅ 有，指向底層 ArrayBuffer</td></tr>
+<tr><td>越界寫入 <code>x[5]=9</code>（長度 2）</td><td>length 變 6，中間留洞</td><td><b>靜靜忽略</b>，length 還是 2，連屬性都不會產生</td></tr>
+<tr><td>值溢位 <code>x[0]=300</code></td><td>就是 <code>300</code></td><td><b><code>44</code></b>（300 % 256 回捲）</td></tr>
+<tr><td>可以稀疏（有洞）嗎</td><td>✅ 可以</td><td><b>❌ 不可能</b></td></tr>
+<tr><td>記憶體</td><td>每格一個 JS value，可能散落各處</td><td>一段緊密連續的 raw bytes</td></tr>
+</table>
+
+<p style="margin:10px 0 0"><b>一句話分辨</b>：plain Array 是「<b>可以裝任何東西的清單</b>」，TypedArray 是「<b>一段原始記憶體的解讀方式</b>」。
+前者方便，後者快而且省，代價是失去彈性。<code>Array.isArray(new Uint8Array())</code> 回傳 <code>false</code> 就是在告訴你 —— 它們根本不是同一類東西。</p>
+
 <p style="margin:14px 0 6px"><b>css-tree v3.2.1 實際只有四個地方呼叫 <code>adoptBuffer</code>，就是這四條 buffer：</b></p>
 <table>
 <tr><th>呼叫處</th><th>buffer</th><th>長度</th><th>一格存什麼</th></tr>
@@ -167,6 +183,20 @@ offsetAndType[index] = (type &lt;&lt; TYPE_SHIFT) | end;   // 型別與 offset �
 
 <h3 id="word" style="color:#2c6b57;margin:20px 0 8px;font-size:1.02em">那「buffer」這個詞本身呢</h3>
 <p style="margin:0">通用定義是「一塊事先配置好、大小固定的連續記憶體，用來暫存正在流動中的資料」，存在的理由是<b>兩端速度對不上</b>（例如讀檔、網路封包）。但 <b>css-tree 用的是另一種意思</b>：它不是接資料流的桶子，而是<b>可重複使用的工作區（scratch space）</b>。同一個詞，這裡的重點在「重用」而不是「緩衝」—— 這也是 <code>adoptBuffer</code> 的 adopt（領養、沿用）這個字的由來。</p>
+<p style="margin:14px 0 6px"><b>🔗 往下挖的兩個方向</b></p>
+<ol style="margin:0 0 10px">
+<li><b><a href="../編譯與打包-學習路徑/01-CPU五大單元-ALU-CU-暫存器-快取與微指令-互動版.html">byte addressability（位元組可定址性）</a></b>　
+<span style="color:#2c6b57">✅ 強相關，而且是因果關係</span><br>
+記憶體最小的「可定址單位」就是一個 <span class="term" tabindex="0" data-def="byte 可定址性：CPU 的位址匯流排每一個位址對應一個 byte，不是一個 bit。所以你可以說「第 1000 個 byte」，但沒有「第 1000 個 bit」這種位址。">byte</span>，每個 byte 有自己的門牌號碼，<b>但單一個 bit 沒有位址</b>。
+這直接決定了三件事：<code>new ArrayBuffer(8)</code> 的 8 為什麼是 byte 而不是 bit、<code>byteOffset</code> 為什麼以 byte 計、以及<b>為什麼 css-tree 想在一格裡塞兩個資訊就只能自己做位元運算</b> —— 因為硬體不讓你定址到 bit，<code>(type &lt;&lt; 24) | end</code> 就是在「一個可定址的 byte 群組內部」自己切出 8+24 的格子。</li>
+
+<li><b><a href="../backend/DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能-原文Populating-the-page導讀.html">TCP 的接收視窗與流量控制</a></b>　
+<span style="color:#9a6b00">⚠️ 間接相關，接點要講精確</span><br>
+<b>「三次握手」本身不是 buffer 概念</b> —— SYN / SYN-ACK / ACK 做的是建立連線與交換初始序號（ISN）。
+真正的接點是：TCP 標頭裡有一個 <b>16-bit 的 Window 欄位</b>，每一個封包都帶著它，<b>SYN 也不例外</b>，而那個數字的意思就是「<b>我的接收 buffer 還剩多少空間</b>」。
+握手只是雙方<b>第一次互相通告</b> window 大小、並順便協商 Window Scale 選項（把 65535 bytes 的上限放大）的時機。
+所以 buffer 的「兩端速度對不上」在 TCP 裡的具體長相是<b>流量控制與滑動視窗</b>，不是握手的三個步驟本身 —— 連結時請記得是連到這個概念，不要只寫「三次握手」。</li>
+</ol>
 <p class="warn"><b>⚠️ 別跟 cache 搞混：</b>buffer 解決「<b>速度／時機對不上</b>」或「<b>避免重複配置</b>」，cache 解決「<b>不想重算或重抓</b>」。兩者都是中間層，目的不同。</p>
 </section>
 <h2 id="points">重點整理</h2>

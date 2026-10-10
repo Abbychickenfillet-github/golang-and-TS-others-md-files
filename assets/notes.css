@@ -47,6 +47,17 @@ pre, table { max-width: none; }
 pre { overflow-x: auto; }
 table { width: 100%; }
 
+/* 不讓長網址、長檔名、長程式碼字串撐破版面 */
+a, code, kbd, samp { overflow-wrap: anywhere; }
+p, li, td, th, dd, figcaption { overflow-wrap: break-word; }
+
+/* 窄螢幕：表格改成自己橫向捲動，而不是把整頁撐寬 */
+@media (max-width: 900px) {
+  table { display: block; overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
+  table::-webkit-scrollbar { height: 6px; }
+  table::-webkit-scrollbar-thumb { background: #c9d4e8; border-radius: 6px; }
+}
+
 /* ---------- 2. 大綱 ---------- */
 
 .toc, .auto-toc {
@@ -74,39 +85,44 @@ h2[id], h3[id], h4[id] { scroll-margin-top: 72px; }
 h2[id]:target, h3[id]:target, h4[id]:target { animation: notes-hl 1.4s ease; }
 @keyframes notes-hl { 0%, 55% { background: #fff2b8; } 100% { background: transparent; } }
 
-/* 寬螢幕：大綱釘到左側，把原本浪費的留白變成常駐導覽 */
+/* ---------- 統一版面：左側大綱 sidepanel + 右側內文 ---------- */
+/* .notes-grid 由 notes.js 建立，不管原本是 article / .wrap / 什麼都沒有，結構都一致 */
+.notes-grid { display: block; }
+
 @media (min-width: 1100px) {
-  article:has(> nav.toc) {
+  .notes-grid {
     display: grid;
-    grid-template-columns: clamp(220px, 17vw, 300px) minmax(0, 1fr);
+    grid-template-columns: clamp(230px, 17vw, 310px) minmax(0, 1fr);
     column-gap: clamp(24px, 2.4vw, 44px);
     align-items: start;
   }
-  article:has(> nav.toc) > * { grid-column: 2; min-width: 0; }
-  article:has(> nav.toc) > nav.toc {
-    grid-column: 1;
-    grid-row: 1 / span 999;
+  .notes-grid > nav.toc {
     position: sticky;
     top: 66px;
     margin: 0;
     align-self: start;
     max-height: calc(100vh - 92px);
     overflow: auto;
-    padding: 12px 14px 14px;
+    padding: 14px 16px 16px;
     font-size: .92em;
   }
-  article:has(> nav.toc) > nav.toc ol { padding-left: 1.25em; }
+  .notes-grid > nav.toc ol { padding-left: 1.25em; }
+  .notes-grid > .notes-main,
+  .notes-grid > article { min-width: 0; }
 }
-/* 沒有 <article> 的舊檔：大綱留在上方，但寬螢幕時分欄排，不要佔掉一整屏高度 */
-@media (min-width: 1100px) {
-  .wrap > nav.toc > ol,
-  .post-content > nav.toc > ol { columns: 2; column-gap: 40px; }
+
+/* 窄螢幕：大綱收合成可展開的區塊，不佔掉整個第一屏 */
+@media (max-width: 1099px) {
+  .notes-grid > nav.toc { max-height: 42vh; overflow: auto; }
 }
-@media (min-width: 1500px) {
-  .wrap > nav.toc > ol,
-  .post-content > nav.toc > ol { columns: 3; }
+
+/* 捲到哪一節就亮哪一條 */
+.toc a.here {
+  background: #e3ecfb;
+  border-bottom-color: #4a6fb8;
+  font-weight: 700;
+  color: #1b3570;
 }
-.toc > ol > li { break-inside: avoid; }
 
 .toc::-webkit-scrollbar { width: 8px; }
 .toc::-webkit-scrollbar-thumb { background: #c9d4e8; border-radius: 8px; }
@@ -178,4 +194,5 @@ h2[id]:target, h3[id]:target, h4[id]:target { animation: notes-hl 1.4s ease; }
   .toc a:hover, .auto-toc a:hover { background: #26324a; color: #cfe0ff; }
   .term { border-bottom-color: #5ec7a3; color: #7fd9b8; }
   .term.pinned { background: #1d3a30; }
+  .toc a.here { background: #2b3a55; color: #cfe0ff; border-bottom-color: #7fa6e8; }
 }
