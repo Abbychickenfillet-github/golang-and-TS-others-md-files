@@ -194,6 +194,8 @@ eatBreakfast(); // 程式從這裡開始
 
 <mark style="background: #FF5582A6;">常見迷思澄清</mark>：「非同步是不是一次能執行多個任務？」<mark style="background: #BBFABBA6;">不是。</mark> 任何一微秒裡 JS 的 Call Stack <mark style="background: #FFF3A3A6;">永遠只有一行程式碼在跑</mark>。非同步的真相是：JS 本人（廚師）永遠單執行緒，是<mark style="background: #ADCCFFA6;">瀏覽器環境（Web APIs，多執行緒）</mark>在旁邊幫忙等待與計時；等外包做完，JS 再找空檔處理結果。所以「同時燒水又切菜」是<mark style="background: #FFF3A3A6;">整個網頁系統</mark>看起來的樣子，不是 JS 引擎本人。
 
+<mark style="background: #ADCCFFA6;">Web Worker 的定義</mark>：讓網頁內容在「背景執行緒」裡執行腳本的簡單方式（MDN：Web Workers are a simple means for web content to run scripts in background threads）。用 `new Worker('檔案.js')` 建立一個 Worker 物件，那個檔案會在另一條執行緒、另一個全域環境（不是 `window`）裡跑，所以<mark style="background: #FFF3A3A6;">不能直接操作 DOM</mark>；它和主執行緒只靠 `postMessage` 與 `onmessage` 傳訊息，資料是複製、不是共用。Worker 裡仍然能用一部分 Web APIs，例如 `fetch()`、`XMLHttpRequest`、`setTimeout`／`setInterval`、WebSockets、IndexedDB，這些的 callback 會回到「這個 Worker 自己的」Event Loop，不是主執行緒的。
+
 <mark style="background: #FF5582A6;">每個執行緒都有自己的 Call Stack</mark>（作業系統替每條執行緒各配一塊 stack 記憶體）。所以「JS 單執行緒」＝「只有一個 Call Stack」；多開一條執行緒，就多一個獨立的 Call Stack，而且 JS 的執行緒各自還有自己的 Event Loop：
 
 | 執行緒 | 有自己的 Call Stack？ | 有自己的 Event Loop？ | 跑你寫的 JS？ |
@@ -206,7 +208,15 @@ eatBreakfast(); // 程式從這裡開始
 
 主執行緒和 Worker 靠 `postMessage` 傳訊息：對方收到的訊息，會變成它自己 Event Loop 裡的一個巨任務。因為不共用 Call Stack，<mark style="background: #FFF3A3A6;">Worker 裡的死迴圈不會讓主執行緒的畫面凍結</mark>，這也是重運算丟給 Worker 的原因。每條執行緒（agent）也各有自己的 Heap（裝物件的記憶體），所以 `postMessage` 傳資料是複製、不是共用；例外是 `SharedArrayBuffer`：兩邊各有自己的物件，但背後那塊記憶體是同一塊（MDN Execution model）。上面「Web APIs（多執行緒）在旁邊幫忙等待」的那些執行緒不跑你的 JS，所以沒有 JS 的 Call Stack。
 
-Worker 有三種：<mark style="background: #ADCCFFA6;">Dedicated Worker</mark>（只給建立它的腳本用，一般說的 Web Worker）、<mark style="background: #ADCCFFA6;">Shared Worker</mark>（多個頁面或 Worker 共用）、<mark style="background: #ADCCFFA6;">Service Worker</mark>（網路代理：攔截請求、離線快取、推播）。依 HTML 規格，三種各是自己的 agent，各有一個 worker event loop，也都沒有 DOM。順帶一提，規格說的是「agent」：同一個 agent 可以包含主文件和它的同源 iframe，所以主執行緒的 event loop 可能被同源 iframe 共用。Node.js 的 `worker_threads` 官方文件稱它是「獨立的 JavaScript 執行緒」，但沒有逐字寫「各有自己的 Event Loop」，本篇不下結論。
+<mark style="background: #FF5582A6;">Service Worker 和 Dedicated Worker 不是同一個東西</mark>。「Web Worker」有兩種用法：廣義是三種 Worker 的總稱（MDN：Service workers are a type of web worker），狹義就是 Dedicated Worker，所以寫成 Dedicated Worker / Web Worker：
+
+| 種類 | 誰能用 | 拿來做什麼 |
+|------|--------|-----------|
+| Dedicated Worker / Web Worker | 只有建立它的那個腳本 | 在背景執行緒做重運算，不卡畫面 |
+| Shared Worker | 多個腳本（不同視窗、iframe、Worker 都可以），必須同源；大家連到「同一個 Worker 實例」，各自透過一個 port 與它通訊 | 多個頁面共用的背景工作；沒有任何頁面再參照它時才關閉 |
+| Service Worker | 註冊在某個來源與路徑下 | 像代理伺服器：攔截網路請求、離線快取、推播 |
+
+三種的共同點：依 HTML 規格，三種各是自己的 agent，各有一個 worker event loop，也都沒有 DOM。順帶一提，規格說的是「agent」：同一個 agent 可以包含主文件和它的同源 iframe，所以主執行緒的 event loop 可能被同源 iframe 共用。Node.js 的 `worker_threads` 官方文件稱它是「獨立的 JavaScript 執行緒」，但沒有逐字寫「各有自己的 Event Loop」，本篇不下結論。
 
 C++、Java 這類語言習慣直接開多條執行緒（Python、Go、Rust、C# 也都支援，不是只有它們）：多條執行緒共用同一塊記憶體，能在多核心 CPU 上真的同時跑，CPU 密集的計算通常因此變快；代價是<mark style="background: #FF5582A6;">死結（Deadlock）與競爭條件（Race Condition：多條執行緒同時改同一份資料而衝突）</mark>，要靠鎖（lock／mutex）自己小心管理。JS 主執行緒反過來：一次只有一個 Call Stack 在動資料，不會兩邊同時改，換來的是「同步運算太久就卡住所有事」。 詳見 [[並行串行]]。
 
@@ -359,7 +369,7 @@ Gemini：JS 是單執行緒語言，結合 Call Stack、Web APIs、Callback Queu
 | 每個 worker 建立自己的 agent；每個 agent 各有自己的 Stack、Heap、Queue（HTML 稱 event loop）；同一 agent 可含主文件與同源 iframe | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Execution_model | MDN，2026-10-13 查證 |
 | 建立 agent 時「Set agent's event loop to a new event loop」；worker event loop 的定義；一個 event loop 有一個以上 task queue；每個 task 後做微任務檢查點；畫面渲染只由 window event loop 執行；rAF callbacks 在樣式與排版之前 | https://html.spec.whatwg.org/multipage/webappapis.html#event-loops | HTML Living Standard（Event loops 一節），2026-10-13 查證 |
 | postMessage 的訊息以「posted message task source」上的 task 送達；MessagePort 的 port message queue 是 event loop 的 task source | https://html.spec.whatwg.org/multipage/web-messaging.html | HTML Living Standard，2026-10-13 查證 |
-| Worker 在另一條執行緒、不能操作 DOM、資料以 postMessage 複製；Dedicated／Shared／Service Worker | https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers | MDN，2026-10-13 查證 |
+| Worker 在另一條執行緒、不能操作 DOM、資料以 postMessage 複製；Worker 可用 fetch／XMLHttpRequest／setTimeout／WebSockets／IndexedDB；Dedicated／Shared／Service Worker；Shared Worker 須同源、以 port 通訊、無人參照時關閉 | https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers | MDN，2026-10-13 查證 |
 | Service Worker 跑在 worker context、沒有 DOM、在不同執行緒、像代理伺服器攔截請求 | https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API | MDN，2026-10-13 查證 |
 | Node.js worker_threads 是「獨立的 JavaScript 執行緒」；適合 CPU 密集、對 I/O 密集幫助不大；未逐字寫各有 Event Loop | https://nodejs.org/api/worker_threads.html | Node.js 官方文件，2026-10-13 查證 |
 
