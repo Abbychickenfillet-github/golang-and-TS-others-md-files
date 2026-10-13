@@ -9,10 +9,20 @@ sources:
   - https://gemini.google.com/app/296e1a879bb61062
   - https://gemini.google.com/app/d54c36b18b457e25
   - https://gemini.google.com/app/7461a8e128a56871
-updated: 2026-08-06
+updated: 2026-10-13
 ---
 
 # JavaScript 事件循環 Event Loop（微任務 vs 巨任務）
+
+<!-- 滑鼠移到「Call Stack／Stack Frame／回呼」上會浮出圖或說明（由 _includes/my-head-extra.html 處理，Mermaid 圖裡的字也有效） -->
+<div class="tip-glossary" data-term="Call Stack" data-img="obsidian-attachment/學習JS_圖解_Stack位址與SP-BP_2026-07-29.svg" data-text="Call Stack（呼叫堆疊）＝整個容器，後進先出（LIFO）：只有「開口」能 push／pop，底部「封閉」；位址數字越小越靠近開口（越晚 push）。"></div>
+<div class="tip-glossary" data-term="Call stack" data-img="obsidian-attachment/學習JS_圖解_Stack位址與SP-BP_2026-07-29.svg" data-text="Call Stack（呼叫堆疊）＝整個容器，後進先出（LIFO）：只有「開口」能 push／pop，底部「封閉」；位址數字越小越靠近開口（越晚 push）。"></div>
+<div class="tip-glossary" data-term="call stack" data-img="obsidian-attachment/學習JS_圖解_Stack位址與SP-BP_2026-07-29.svg" data-text="Call Stack（呼叫堆疊）＝整個容器，後進先出（LIFO）：只有「開口」能 push／pop，底部「封閉」；位址數字越小越靠近開口（越晚 push）。"></div>
+<div class="tip-glossary" data-term="呼叫堆疊" data-img="obsidian-attachment/學習JS_圖解_Stack位址與SP-BP_2026-07-29.svg" data-text="Call Stack（呼叫堆疊）＝整個容器，後進先出（LIFO）：只有「開口」能 push／pop，底部「封閉」；位址數字越小越靠近開口（越晚 push）。"></div>
+<div class="tip-glossary" data-term="Stack Frame" data-img="obsidian-attachment/StackFrame_一個罐頭是一次函式呼叫_2026-10-04.png" data-text="Stack Frame＝容器裡的「一格」：每呼叫一次函式就 push 一個、return 時 pop 掉。Call Stack 清空＝所有 Stack Frame 都被 pop 掉。"></div>
+<div class="tip-glossary" data-term="Stack frame" data-img="obsidian-attachment/StackFrame_一個罐頭是一次函式呼叫_2026-10-04.png" data-text="Stack Frame＝容器裡的「一格」：每呼叫一次函式就 push 一個、return 時 pop 掉。Call Stack 清空＝所有 Stack Frame 都被 pop 掉。"></div>
+<div class="tip-glossary" data-term="stack frame" data-img="obsidian-attachment/StackFrame_一個罐頭是一次函式呼叫_2026-10-04.png" data-text="Stack Frame＝容器裡的「一格」：每呼叫一次函式就 push 一個、return 時 pop 掉。Call Stack 清空＝所有 Stack Frame 都被 pop 掉。"></div>
+<div class="tip-glossary" data-term="回呼" data-text="Callback（回呼）：被當成參數放進某個函式、並在那個函式的本體裡「被呼叫」的那個函式，才叫 callback。看的是它被放在哪、被誰呼叫，不是函式本身長什麼樣（也可能由瀏覽器／Node 環境回頭呼叫）。"></div>
 
 ---
 
@@ -61,6 +71,7 @@ updated: 2026-08-06
               也一起清掉                    只取一個！     也在這裡清掉
 
  ★ 微任務是「清空」，巨任務是「一次一個」——這一格是整篇最關鍵的分界。
+ （「清空」＝連清空過程中新生的也一起清；這是 JS 特有的規則，Python asyncio 每輪只跑開始時的快照）
  ★ 只要 Call Stack 沒清空（例如同步死迴圈），t1 以後永遠不會發生，畫面徹底凍住。
 
  對照隨堂考：console.log('1') → setTimeout('2') → Promise.then('3') → console.log('4')
@@ -74,20 +85,22 @@ updated: 2026-08-06
 
 ```mermaid
 flowchart LR
-    A["① 同步程式碼<br/>從頭跑到尾<br/>Call Stack 從有到空"] --> B["② 清空微任務佇列<br/>Promise.then／queueMicrotask<br/>全部清光，不是只取一個"]
-    B --> C["③ rAF ＋ UI 渲染<br/>requestAnimationFrame<br/>Style → Layout → Paint → Composite"]
-    C --> D["④ 取出一個巨任務<br/>setTimeout／I/O／點擊事件<br/>一輪只取一個"]
+    A["① 同步程式碼<br/>從頭跑到尾<br/>Call Stack 從有到空<br/>（整個容器清空＝每個 Stack Frame 都 pop 掉）"] --> B["② 清空微任務佇列<br/>Promise.then／queueMicrotask<br/>全部清光，不是只取一個<br/>（JS 才有；Python asyncio 每輪只跑開始時的快照）"]
+    B --> C["③ rAF ＋ UI 渲染<br/>requestAnimationFrame<br/>Style → Layout → Paint → Composite<br/>（不是每輪必做：瀏覽器判斷該更新畫面才做）"]
+    C --> D["④ 取出一個巨任務<br/>setTimeout／I/O／點擊事件<br/>一輪只取一個<br/>（Web API 時間到才把回呼放進佇列）"]
     D --> E["⑤ 再清空微任務佇列<br/>這個巨任務生出來的<br/>微任務在這裡被清掉"]
     E -.->|"下一輪 tick"| C
     B -.->|"清空過程中新生的微任務<br/>排進同一輪一起清掉"| B
 ```
 
-> [!warning]- 三個很容易連帶搞錯的延伸點
+> [!warning]- 四個很容易連帶搞錯的延伸點
 > a. <mark style="background: #FFF3A3A6;">`setTimeout(fn, 0)` 不是「立刻執行」</mark>：0 只代表「最短延遲」，callback 仍然要進巨任務佇列排隊，而且要等目前的同步碼跑完、微任務全部清空之後才輪得到。
 >
 > b. <mark style="background: #ADCCFFA6;">「Call Stack 清空」＝ stack frame 數量歸零</mark>：事件迴圈判斷的依據就是這個數字，跟 [[12-return-清理記憶體-stack-frame與閉包例外]] 講的「`return` 才會 pop 掉 frame」是同一件事的兩個角度。
 >
 > c. <mark style="background: #BBFABBA6;">非同步不等於多執行緒</mark>：JS 主執行緒從頭到尾只有一條，事件迴圈只是幫它排班，並沒有多開任何執行緒來跑你的 JS，詳見 [[執行緒-非同步-延遲的差異]]。
+>
+> d. <mark style="background: #FFF3A3A6;">③ 渲染不是「清空微任務之後必做」</mark>：微任務清空後，瀏覽器才判斷「現在是不是該更新畫面」（約每 16.6ms 一次，對齊螢幕更新率；沒東西要畫、或這個影格已經畫過就跳過）。有要畫時，先跑 rAF 的 callback，再依序 Style → Layout → Paint → Composite。**所以 ② 一定在 ③ 前面**（微任務沒清完，資料還沒算好，畫出來只是過渡狀態），但 ③ 不一定每個巨任務後都發生。
 
 ## 重點整理
 
@@ -138,6 +151,10 @@ eatBreakfast(); // 程式從這裡開始
 
 堆疊變化：`[eatBreakfast]` → 遇到 makeCoffee 變 `[makeCoffee, eatBreakfast]`（eatBreakfast 暫停等待）→ makeCoffee 印完被 Pop 回 `[eatBreakfast]` → eatBreakfast 印完 Pop → `[空]`。<mark style="background: #FFF3A3A6;">JS 只有一個罐子，所以叫單執行緒</mark>——最上面那片沒拿走，下面的只能死守等待。
 
+![Call Stack：開口（push／pop）在上、封閉底部在下，位址數字 0xFFF0（小）→ 0xFFFF（大）](../../../obsidian-attachment/學習JS_圖解_Stack位址與SP-BP_2026-07-29.svg)
+
+（上圖：只有「開口」能進出，所以後進先出；越晚 push 的離開口越近、位址數字越小。SP／BP 的細節見 [[12-return-清理記憶體-stack-frame與閉包例外]]。）
+
 ### 追加：單執行緒 vs 同步 vs 非同步（別再搞混）
 
 <mark style="background: #ADCCFFA6;">單執行緒</mark>講的是「廚房只有一個廚師」（資源限制）；<mark style="background: #ADCCFFA6;">同步/非同步</mark>講的是「廚師做事的模式」（流程設計）。
@@ -152,11 +169,13 @@ eatBreakfast(); // 程式從這裡開始
 
 ### 追加：宏/微任務的排隊是誰在管？
 
-<mark style="background: #FF5582A6;">Web APIs 只負責「計時／等待」，不負責分類與排隊。</mark> 分類排隊是 <mark style="background: #ADCCFFA6;">JS 引擎內部的 Event Loop</mark> 在管：
+<mark style="background: #FF5582A6;">Web APIs 只負責「計時／等待」</mark>，時間到了才把回呼放進對應的佇列；<mark style="background: #ADCCFFA6;">放進哪一條，由「來源」決定</mark>（見下方「看血統／來源」），Event Loop 只負責「Stack 清空後，挑下一個誰上場」。Event Loop 屬於<mark style="background: #ADCCFFA6;">宿主環境（瀏覽器依 HTML 規格、Node.js 靠 libuv）</mark>，不是 JS 引擎（V8）內部的東西：
 
 - `setTimeout`、DOM 事件 → 時間到後，Web API 把回呼丟進<mark style="background: #ADCCFFA6;">宏任務佇列 Macrotask Queue</mark>。
 - `Promise.then()` → <mark style="background: #FFF3A3A6;">根本不經過 Web API</mark>（Promise 是 JS 原生自帶），狀態完成時引擎直接塞進<mark style="background: #BBFABBA6;">微任務佇列 Microtask Queue</mark>。
 - Event Loop（餐廳經理）：Stack 清空後<mark style="background: #FFF3A3A6;">先把微任務佇列「全部」清光</mark>，才抓一個宏任務進 Stack；每執行完一個宏任務會再回頭檢查有沒有新微任務插隊。
+
+> ⚠️ 存疑／更正（2026-10-13）：原 Gemini 說法「分類排隊是 JS 引擎內部的 Event Loop 在管」不精確。本篇上方時間軸（「事件迴圈不在 V8 裡」）與 [[V8與libuv協同工作原理-非同步IO]] 都指出 Event Loop 在宿主環境、不在 V8；另外 Web API 計時到了其實有參與「入列」，只是進哪一條佇列由來源（`setTimeout` → 宏任務、`Promise.then` → 微任務）決定，不是 Event Loop 臨時分類。
 
 ### 追加：為什麼微任務要優先？（銀行櫃檯比喻）
 
@@ -194,6 +213,10 @@ eatBreakfast(); // 程式從這裡開始
 ### 追加（2026-07-29）：Stack Frame 跟 Event Loop 到底有什麼關係？
 
 <mark style="background: #FFF3A3A6;">Event Loop並不直接操作stack frame，但它的核心運作規則，本質上就是在監控「Call Stack上還剩下幾個stack frame」。</mark>上面講的「Call Stack完全清空」，精確地講就是：<mark style="background: #ADCCFFA6;">目前stack frame數量歸零</mark>——跟[[12-return-清理記憶體-stack-frame與閉包例外]]裡講的那個「return才會pop掉frame」是同一件事，只是這裡把角度拉到「整個Call Stack何時變空」來看。
+
+![Stack Frame：一個罐頭＝一次函式呼叫](../../../obsidian-attachment/StackFrame_一個罐頭是一次函式呼叫_2026-10-04.png)
+
+（兩張圖是不同層級：上一節的圖是「整個 Call Stack（容器）」，這張是「容器裡的一格 Stack Frame」。）
 
 具體連起來是這樣：
 

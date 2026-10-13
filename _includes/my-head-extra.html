@@ -51,6 +51,9 @@ details.callout > summary { cursor: pointer; }
 .tip-text { border-bottom: 2px dotted #C2185B; cursor: help; }
 #tip-text-pop { position: fixed; z-index: 9999; display: none; white-space: pre-line; max-width: min(92vw, 520px); background: #fff; color: #333; border: 3px solid #C2185B; border-radius: 12px; padding: 8px 12px; font-size: 13px !important; line-height: 1.6; box-shadow: 0 8px 28px rgba(0,0,0,.3); pointer-events: none; }
 .tip-glossary { display: none; }
+#tip-text-pop.has-img { white-space: normal; padding: 6px; max-width: min(94vw, 940px); }
+#tip-text-pop.has-img img { display: block; width: min(920px, 90vw); height: auto; background: #fff; }
+#tip-text-pop .tip-cap { margin-top: 6px; font-size: 12px; line-height: 1.5; color: #555; }
 .note-meta, .note-meta *, main .note-meta blockquote p, main .note-meta a { font-size: var(--note-meta) !important; line-height: 1.6 !important; }
 
 /* .md 頁面的 fluid 滿版與左側大綱 sidepanel 由 assets/notes.css 的 .notes-grid 統一處理 */
@@ -159,17 +162,33 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script>
-/* 3. 詞彙提示：筆記裡放 <div class="tip-glossary" data-term="詞" data-text="說明"></div>，同頁所有出現的「詞」滑鼠移上去就顯示說明 */
+/* 3. 詞彙提示：筆記裡放 <div class="tip-glossary" data-term="詞" data-text="說明"></div>，同頁所有出現的「詞」滑鼠移上去就顯示說明。
+      再加 data-img="obsidian-attachment/圖.svg" 就改成浮出圖片（data-text 變成圖說，可省略）。
+      程式碼區塊（pre）不處理；Mermaid 圖畫好之後，圖裡面的字也會套用。 */
 document.addEventListener('DOMContentLoaded', function () {
   var gl = Array.prototype.slice.call(document.querySelectorAll('.tip-glossary[data-term]'));
   var statics = Array.prototype.slice.call(document.querySelectorAll('.tip-text[data-tip]'));
   if (!gl.length && !statics.length) return;
   var main = document.querySelector('main') || document.body;
+  var rootEl = document.querySelector('script[data-root]');
+  var root = (rootEl && rootEl.getAttribute('data-root')) || '/';
+  var repo = location.pathname.match(/^\/golang-and-ts-others-md-files\//i);
+  if (root === '/' && repo) root = repo[0];
   var pop = document.createElement('div');
   pop.id = 'tip-text-pop';
   document.body.appendChild(pop);
   function show(el, x, y) {
-    pop.textContent = el.getAttribute('data-tip');
+    var img = el.getAttribute('data-img'), tip = el.getAttribute('data-tip');
+    pop.textContent = '';
+    pop.classList.toggle('has-img', !!img);
+    if (img) {
+      var im = document.createElement('img');
+      im.src = root + img;
+      pop.appendChild(im);
+      if (tip) { var cap = document.createElement('div'); cap.className = 'tip-cap'; cap.textContent = tip; pop.appendChild(cap); }
+    } else {
+      pop.textContent = tip;
+    }
     pop.style.display = 'block';
     var w = pop.offsetWidth, h = pop.offsetHeight;
     var left = Math.min(Math.max(8, x - w / 2), window.innerWidth - w - 8);
@@ -177,37 +196,56 @@ document.addEventListener('DOMContentLoaded', function () {
     pop.style.left = left + 'px'; pop.style.top = top + 'px';
   }
   function hide() { pop.style.display = 'none'; }
-  statics.forEach(function (sp) {
+  function bind(sp) {
     sp.addEventListener('mouseenter', function (e) { show(sp, e.clientX, e.clientY); });
     sp.addEventListener('mousemove', function (e) { show(sp, e.clientX, e.clientY); });
     sp.addEventListener('mouseleave', hide);
-  });
-  gl.forEach(function (g) {
-    var term = g.getAttribute('data-term'), text = g.getAttribute('data-text');
-    var walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT, null);
-    var nodes = [], n;
-    while ((n = walker.nextNode())) {
-      if (n.nodeValue.indexOf(term) === -1) continue;
-      var pe = n.parentElement;
-      if (!pe || pe.closest('script, style, .tip-glossary, .tip-text, #tip-text-pop')) continue;
-      nodes.push(n);
-    }
-    nodes.forEach(function (node) {
-      var parts = node.nodeValue.split(term), frag = document.createDocumentFragment();
-      parts.forEach(function (part, i) {
-        if (i > 0) {
-          var sp = document.createElement('span');
-          sp.className = 'tip-text'; sp.setAttribute('data-tip', text); sp.textContent = term;
-          sp.addEventListener('mouseenter', function (e) { show(sp, e.clientX, e.clientY); });
-          sp.addEventListener('mousemove', function (e) { show(sp, e.clientX, e.clientY); });
-          sp.addEventListener('mouseleave', hide);
-          sp.addEventListener('click', function (e) { show(sp, e.clientX, e.clientY); });
-          frag.appendChild(sp);
-        }
-        if (part) frag.appendChild(document.createTextNode(part));
+    sp.addEventListener('click', function (e) { show(sp, e.clientX, e.clientY); });
+  }
+  statics.forEach(bind);
+
+  var SKIP = 'script, style, .tip-glossary, .tip-text, #tip-text-pop';
+  function wrap(host, inMermaid) {
+    var skip = inMermaid ? SKIP : SKIP + ', pre, .mermaid';   // Mermaid 原始碼不能被改動，畫好之後才從 SVG 裡處理
+    gl.forEach(function (g) {
+      var term = g.getAttribute('data-term'), text = g.getAttribute('data-text'), img = g.getAttribute('data-img');
+      var walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT, null);
+      var nodes = [], n;
+      while ((n = walker.nextNode())) {
+        if (n.nodeValue.indexOf(term) === -1) continue;
+        var pe = n.parentElement;
+        if (!pe || pe.closest(skip)) continue;
+        nodes.push(n);
+      }
+      nodes.forEach(function (node) {
+        var parts = node.nodeValue.split(term), frag = document.createDocumentFragment();
+        parts.forEach(function (part, i) {
+          if (i > 0) {
+            var sp = document.createElement('span');
+            sp.className = 'tip-text';
+            if (text) sp.setAttribute('data-tip', text);
+            if (img) sp.setAttribute('data-img', img);
+            sp.textContent = term;
+            bind(sp);
+            frag.appendChild(sp);
+          }
+          if (part) frag.appendChild(document.createTextNode(part));
+        });
+        node.parentNode.replaceChild(frag, node);
       });
-      node.parentNode.replaceChild(frag, node);
     });
+  }
+  wrap(main, false);
+
+  // Mermaid 是非同步畫的：等 SVG 出現後，再處理圖裡面的字
+  Array.prototype.forEach.call(document.querySelectorAll('.mermaid'), function (m) {
+    function tryWrap() {
+      if (m.getAttribute('data-tipped') || !m.querySelector('svg')) return;
+      m.setAttribute('data-tipped', '1');
+      wrap(m, true);
+    }
+    tryWrap();
+    new MutationObserver(tryWrap).observe(m, { childList: true });
   });
   document.addEventListener('click', function (e) { if (!e.target.closest('.tip-text')) hide(); });
 });
