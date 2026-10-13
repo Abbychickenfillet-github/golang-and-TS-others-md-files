@@ -100,3 +100,5 @@ window.addEventListener("DOMContentLoaded", addElement);  // 更常見、更早�
 | ③ 插入 | 放進 DOM 畫面才看得到 | `append` / `prepend` / `before` / `insertBefore` |
 
 > 最常忘的就是第 ③ 步——只建立不插入，畫面什麼都不會出現。
+
+> 相關：節點插入 DOM 後畫面何時更新，見 [[JavaScript-Event Loop事件循環機制與閉包-面試核心]] 的 1-3。

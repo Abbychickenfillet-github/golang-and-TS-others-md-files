@@ -54,7 +54,7 @@ updated: 2026-08-21
 | **12** | 引擎怎麼加速物件：Shape、Inline Cache、ValidityCell | 承接 Day 9｜Day 22 的 React 效能 | — | `原型與引擎最佳化-Shape-InlineCache-ValidityCell.md`（**你自己整理的 Shape/IC 那段是這篇的主體**） |
 | **13** | 事件循環：微任務與巨任務，以及 Node 跟瀏覽器差在哪 | 承接 Day 1｜Day 14、25 | **`2025-10-11_為何yoki登入後計算時間差有15秒跟-11秒`** —— 時間軸錯亂的真實案例 | `事件循環-Event-Loop-微任務與巨任務.md`（20KB＋互動版）、`Node-js底層架構-V8-libuv.md`（36KB） |
 | **14** | 執行緒、非同步、延遲：三個常被混為一談的詞 | 承接 Day 13｜Day 15 | — | `執行緒-非同步-延遲的差異.md`（13KB＋互動版）、`V8與libuv協同工作原理.md` |
-| **15** | Promise 與 async/await：錯誤處理的三個層次 | 承接 Day 14｜Day 25 的資料獲取 | **`2025-09-06_Runtime_AxiosError`** | `Axios-vs-Fetch-回應解析與錯誤處理.md`、`js-runtime/JavaScript-事件循環與閉包-面試核心.md` |
+| **15** | Promise 與 async/await：錯誤處理的三個層次 | 承接 Day 14｜Day 25 的資料獲取 | **`2025-09-06_Runtime_AxiosError`** | `Axios-vs-Fetch-回應解析與錯誤處理.md`、`js-runtime/JavaScript-Event Loop事件循環機制與閉包-面試核心.md` |
 | **16** | 事件流與事件代理：捕獲、冒泡、為什麼 React 的事件不太一樣 | 承接 Day 13｜Day 21 的 React 合成事件 | — | `事件流與事件代理.md`（14KB ＋ 兩個互動版：筆記版與考題版） |
 
 ---

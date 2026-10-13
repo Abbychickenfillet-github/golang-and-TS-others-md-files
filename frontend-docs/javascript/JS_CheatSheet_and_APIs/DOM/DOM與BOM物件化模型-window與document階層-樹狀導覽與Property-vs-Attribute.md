@@ -130,3 +130,5 @@ document.getElementById("myId");
 ---
 
 由 Gemini 對話自動整理 · 更新於 2026-09-25
+
+> 相關：DOM 操作是同步的、但畫面更新延後到渲染步驟，以及 MutationObserver 的運作，見 [[JavaScript-Event Loop事件循環機制與閉包-面試核心]] 的 1-3。

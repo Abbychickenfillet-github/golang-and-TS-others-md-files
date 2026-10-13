@@ -170,3 +170,5 @@ Gemini：對，`once: true` 是 `addEventListener` 非常好用的一個進階�
 | on-event 處理器（event handler property）的定義與限制 | https://developer.mozilla.org/en-US/docs/Web/Events/Event_handlers | MDN，2026-09-21 查證 |
 | AbortController 搭配 signal 移除監聽 | https://developer.mozilla.org/en-US/docs/Web/API/AbortController | MDN，2026-09-21 查證 |
 | Gemini 對話原文 | https://gemini.google.com/app/8e9aa6457858bff9 | 2026-09-21 擷取 |
+
+> 相關：註冊的 callback 何時被呼叫由 Event Loop 決定，見 [[JavaScript-Event Loop事件循環機制與閉包-面試核心]] 的 1-3。
