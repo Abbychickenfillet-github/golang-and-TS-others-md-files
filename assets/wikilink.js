@@ -51,7 +51,8 @@
           Array.prototype.slice.call(node.childNodes).forEach(walk);
         }
       }
-      walk(document.body);
+      function run() { walk(document.body); }
+      if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', run); } else { run(); }
     })
     .catch(function (e) { console.warn('wikilink index load failed', e); });
 })();
