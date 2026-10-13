@@ -255,6 +255,8 @@ Web API 是瀏覽器提供的原生介面（`document`、`fetch`、`localStorage
 - [LeetCode 2637. Promise Time Limit](https://leetcode.com/problems/promise-time-limit/)：把「逾時就放棄」做出來，正是 (f) 說的 `fetch` 沒有 timeout 時要自己實作的那件事。
 - [LeetCode 2721. Execute Asynchronous Functions in Parallel](https://leetcode.com/problems/execute-asynchronous-functions-in-parallel/)：練多個非同步任務的協調，對照 `AbortSignal.any([...])` 的用途。
 
+> 相關：axios 在瀏覽器裡預設用 XMLHttpRequest 發請求，XHR 與 fetch、axios 的關係見 [[XMLHttpRequest-CORS-explanation]]。
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／時間 |

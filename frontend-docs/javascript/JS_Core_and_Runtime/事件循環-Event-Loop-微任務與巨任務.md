@@ -125,7 +125,7 @@ JavaScript 是<mark style="background: #ADCCFFA6;">單執行緒（Single Thread�
 四個核心組成：
 
 - <mark style="background: #ADCCFFA6;">呼叫堆疊 Call Stack</mark>：追蹤目前正在執行的函式，遵循<mark style="background: #FFF3A3A6;">後進先出 LIFO</mark>。
-- <mark style="background: #ADCCFFA6;">Web APIs</mark>：瀏覽器提供的環境（非 JS 引擎本身），負責 `setTimeout`、`fetch`、DOM 事件等的倒數或等待。
+- <mark style="background: #ADCCFFA6;">Web APIs</mark>：瀏覽器提供的環境（非 JS 引擎本身），負責 `setTimeout`、`fetch`、`XMLHttpRequest`、DOM 事件等的倒數或等待（XHR 見 [[XMLHttpRequest-CORS-explanation]]）。
 - <mark style="background: #ADCCFFA6;">工作佇列 Callback / Task Queue</mark>：非同步任務完成後，其回呼函式被移入這裡排隊。
 - <mark style="background: #ADCCFFA6;">Event Loop</mark>：工作非常單純——持續監控 Call Stack，當 Call Stack <mark style="background: #FFF3A3A6;">完全清空</mark>時，就把佇列中的第一個任務推進 Call Stack 執行。
 

@@ -39,6 +39,24 @@ const { data } = useQuery({
 
 ---
 
+### 現在還有人在用嗎？XHR、fetch、axios 的關係
+
+有，但新寫的程式通常改用 `fetch`。XHR 在 MDN 上沒有被標示為過時，仍然是瀏覽器內建 API，主要出現在舊專案和函式庫底層。
+
+| 項目 | XMLHttpRequest（XHR） | fetch | axios |
+|------|----------------------|-------|-------|
+| 是什麼 | 瀏覽器內建的 Web API，用來向伺服器要資料而不重新整理整頁 | 較新的瀏覽器內建 Web API | 第三方函式庫，不是瀏覽器內建 |
+| 底層 | 它自己 | 它自己 | 在瀏覽器裡預設用 XHR 發請求，在 Node.js 用 http（官方 README：Make XMLHttpRequests from the browser） |
+| 寫法 | 事件與回呼（`onload`、`onerror`） | Promise（可搭配 `async/await`） | Promise |
+| 上傳進度 | 有 `upload` 物件可監聽 | 本次未查證 | 提供 `onUploadProgress` 設定 |
+| 能不能用在 Worker | 可以，Service Worker 除外（MDN） | 本次未查證 | 本次未查證 |
+
+名稱裡的 XML 是歷史包袱：MDN 寫「Despite its name, XMLHttpRequest can be used to retrieve any type of data, not just XML」，取回 JSON、文字、檔案都可以。
+
+它在 Event Loop 裡的位置：XHR 與 `fetch` 一樣是 Web API，請求由瀏覽器在 JS 引擎之外送出與等待，回應到了才把 `onload` 之類的 callback 放進巨任務佇列，見 [[事件循環-Event-Loop-微任務與巨任務]] 的 Web APIs 一節；`fetch` 與 axios 的差異與錯誤處理見 [[Axios-vs-Fetch-回應解析與錯誤處理]]。
+
+「現在有多少網站還在用 XHR」這類使用比例，本次沒有查到可靠的官方統計，不下結論。
+
 ## CORS 是什麼？
 
 **CORS (Cross-Origin Resource Sharing)** = 跨來源資源共享
@@ -196,3 +214,12 @@ const { data: paidOrdersData } = useQuery({
 ---
 
 *建立日期：2026-01-21*
+
+## 資料來源（含查證時間）
+
+| 主題 | 連結 | 版本／時間 |
+|------|------|-----------|
+| XHR 的定義；名稱雖有 XML 但可取回任何資料；可用於 Web Workers（Service Workers 除外）；有 `upload` 屬性 | https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest | MDN，2026-10-13 查證；該頁沒有把 XHR 標為過時 |
+| axios 在瀏覽器發 XMLHttpRequests、在 Node.js 發 http 請求；`onUploadProgress` | https://github.com/axios/axios | axios README，2026-10-13 查證 |
+
+> 查證方式：用 WebFetch 擷取上列頁面並比對原文；擷取工具有摘要成分，引文請以原頁為準。
