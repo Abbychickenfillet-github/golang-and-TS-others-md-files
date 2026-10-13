@@ -111,8 +111,31 @@ h2[id]:target, h3[id]:target, h4[id]:target { animation: notes-hl 1.4s ease; }
   .notes-grid > article { min-width: 0; }
 }
 
-/* 窄螢幕：大綱收合成可展開的區塊，不佔掉整個第一屏 */
-@media (max-width: 1099px) {
+/* 平板寬度（700–1099px）：大綱一樣放左側，欄寬縮小，不再堆在內文上方吃掉視窗高度 */
+@media (min-width: 700px) and (max-width: 1099px) {
+  .notes-grid {
+    display: grid;
+    grid-template-columns: clamp(170px, 24vw, 230px) minmax(0, 1fr);
+    column-gap: 20px;
+    align-items: start;
+  }
+  .notes-grid > nav.toc {
+    position: sticky;
+    top: 66px;
+    margin: 0;
+    align-self: start;
+    max-height: calc(100vh - 92px);
+    overflow: auto;
+    padding: 12px 12px 14px;
+    font-size: .85em;
+  }
+  .notes-grid > nav.toc ol { padding-left: 1.1em; }
+  .notes-grid > .notes-main,
+  .notes-grid > article { min-width: 0; }
+}
+
+/* 手機寬度（<700px）：放不下兩欄，大綱才堆在內文上方，並限制高度 */
+@media (max-width: 699px) {
   .notes-grid > nav.toc { max-height: 42vh; overflow: auto; }
 }
 
