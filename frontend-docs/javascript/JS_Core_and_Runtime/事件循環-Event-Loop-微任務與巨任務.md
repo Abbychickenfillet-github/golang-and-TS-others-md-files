@@ -33,7 +33,7 @@ updated: 2026-10-13
 （上圖：Event Loop 就是「協調者」，自己不執行任何 JS，只看 Call Stack 清空了沒；空了才從佇列剷一個任務放上去。）
 
 > [!important]+ 最常被搞錯的一件事先講：<mark style="background: #FF5582A6;">微任務不是「一輪取一個」，是「一次清空」</mark>
-> 很多人把微任務佇列想成跟巨任務一樣「一輪拉一個出來跑」——<mark style="background: #FFF3A3A6;">不是</mark>。Call Stack 一清空，事件迴圈就會把<mark style="background: #BBFABBA6;">整個微任務佇列徹底清空</mark>才罷休，而且<mark style="background: #FF5582A6;">清空過程中新生出來的微任務也會被排進同一輪一起清掉</mark>。這也是為什麼在微任務裡寫無窮遞迴會直接餓死巨任務、畫面永遠不再更新——而巨任務相反，<mark style="background: #ADCCFFA6;">一輪只取一個</mark>，取完就先去清微任務。
+> 很多人把微任務佇列想成跟巨任務一樣「一輪拉一個出來跑」——<mark style="background: #FFF3A3A6;">不是</mark>。Call Stack 一清空，事件迴圈就會把<mark style="background: #BBFABBA6;">整個微任務佇列徹底清空</mark>才罷休，而且<mark style="background: #FF5582A6;">清空過程中新生出來的微任務也會被排進同一輪一起清掉</mark>。這也是為什麼在微任務裡寫無窮遞迴會直接餓死巨任務、畫面永遠不再更新——而巨任務相反，<mark style="background: #ADCCFFA6;">一輪只取一個</mark>，取完就先去清微任務。<br><br><mark style="background: #FF5582A6;">「清空」不是 5 個微任務同時結束</mark>：它們依先進先出排隊，<mark style="background: #FFF3A3A6;">一個接一個</mark>各自在 Call Stack 上跑完、pop 掉，才換下一個（單執行緒，同一時間只有一個在跑）；清空過程中新產生的微任務排到隊尾，也會在這一輪被跑完。實測：`Promise.then` A、B（B 裡面又產生 D）、`queueMicrotask` C，再加一個 `setTimeout` T，輸出順序是 <mark style="background: #BBFABBA6;">同步 → A → B → C → D → T</mark>。
 
 | 5W1H | 問題 | 一句話答案 |
 |---|---|---|
