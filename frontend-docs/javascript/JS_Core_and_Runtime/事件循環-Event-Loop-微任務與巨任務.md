@@ -204,7 +204,7 @@ eatBreakfast(); // 程式從這裡開始
 
 ![一條執行緒＝一個 Call Stack＋一個 Event Loop；多一條執行緒就多一組，彼此只靠 postMessage 傳訊息](../../../obsidian-attachment/事件循環_一條執行緒含一個CallStack與一個EventLoop_2026-10-13.svg)
 
-主執行緒和 Worker 靠 `postMessage` 傳訊息：對方收到的訊息，會變成它自己 Event Loop 裡的一個巨任務。因為不共用 Call Stack，<mark style="background: #FFF3A3A6;">Worker 裡的死迴圈不會讓主執行緒的畫面凍結</mark>，這也是重運算丟給 Worker 的原因。上面「Web APIs（多執行緒）在旁邊幫忙等待」的那些執行緒不跑你的 JS，所以沒有 JS 的 Call Stack。
+主執行緒和 Worker 靠 `postMessage` 傳訊息：對方收到的訊息，會變成它自己 Event Loop 裡的一個巨任務。因為不共用 Call Stack，<mark style="background: #FFF3A3A6;">Worker 裡的死迴圈不會讓主執行緒的畫面凍結</mark>，這也是重運算丟給 Worker 的原因。每條執行緒（agent）也各有自己的 Heap（裝物件的記憶體），所以 `postMessage` 傳資料是複製、不是共用；例外是 `SharedArrayBuffer`：兩邊各有自己的物件，但背後那塊記憶體是同一塊（MDN Execution model）。上面「Web APIs（多執行緒）在旁邊幫忙等待」的那些執行緒不跑你的 JS，所以沒有 JS 的 Call Stack。
 
 Worker 有三種：<mark style="background: #ADCCFFA6;">Dedicated Worker</mark>（只給建立它的腳本用，一般說的 Web Worker）、<mark style="background: #ADCCFFA6;">Shared Worker</mark>（多個頁面或 Worker 共用）、<mark style="background: #ADCCFFA6;">Service Worker</mark>（網路代理：攔截請求、離線快取、推播）。依 HTML 規格，三種各是自己的 agent，各有一個 worker event loop，也都沒有 DOM。順帶一提，規格說的是「agent」：同一個 agent 可以包含主文件和它的同源 iframe，所以主執行緒的 event loop 可能被同源 iframe 共用。Node.js 的 `worker_threads` 官方文件稱它是「獨立的 JavaScript 執行緒」，但沒有逐字寫「各有自己的 Event Loop」，本篇不下結論。
 
