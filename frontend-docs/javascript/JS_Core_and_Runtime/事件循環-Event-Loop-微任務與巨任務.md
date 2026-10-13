@@ -73,6 +73,9 @@ updated: 2026-10-13
  ★ 微任務是「清空」，巨任務是「一次一個」——這一格是整篇最關鍵的分界。
  （「清空」＝連清空過程中新生的也一起清；這是 JS 特有的規則，Python asyncio 每輪只跑開始時的快照）
  ★ 只要 Call Stack 沒清空（例如同步死迴圈），t1 以後永遠不會發生，畫面徹底凍住。
+ ★ t0「同步程式碼從頭跑到尾、Call Stack 從有到空」＝整份腳本最外層的程式碼當成第一個任務一路執行：
+   每個函式呼叫（含 console.log）push 一格、跑完 pop；最後一格 pop 掉，Call Stack 就從有東西變成空，t1 才輪到。
+   setTimeout／Promise.then 在 t0 只是「登記」，callback 還沒跑。
 
  對照隨堂考：console.log('1') → setTimeout('2') → Promise.then('3') → console.log('4')
    t0 同步碼：印出 1、印出 4      （2 進巨任務佇列，3 進微任務佇列）
@@ -149,7 +152,18 @@ function makeCoffee() {
 eatBreakfast(); // 程式從這裡開始
 ```
 
-堆疊變化：`[eatBreakfast]` → 遇到 makeCoffee 變 `[makeCoffee, eatBreakfast]`（eatBreakfast 暫停等待）→ makeCoffee 印完被 Pop 回 `[eatBreakfast]` → eatBreakfast 印完 Pop → `[空]`。<mark style="background: #FFF3A3A6;">JS 只有一個罐子，所以叫單執行緒</mark>——最上面那片沒拿走，下面的只能死守等待。
+堆疊變化（括號是示意寫法，**左邊是頂端＝開口，右邊是底部**）：
+
+| 步驟 | 發生什麼 | Call Stack 中變成 |
+|------|----------|-------------------|
+| ① | 執行 `eatBreakfast()` | `[eatBreakfast]` |
+| ② | eatBreakfast 裡面呼叫 `makeCoffee()`，從開口 push 進去 | `[makeCoffee, eatBreakfast]`（eatBreakfast 暫停等待） |
+| ③ | makeCoffee 印出「咖啡泡好了！」，pop（頂端先出） | `[eatBreakfast]` |
+| ④ | eatBreakfast 繼續，印出「吃完早餐了！」，pop | `[]`（空） |
+
+<mark style="background: #FF5582A6;">不是用 index 來讀</mark>：LIFO 的意思是<mark style="background: #FFF3A3A6;">最後 push 的 makeCoffee（頂端）先跑完、先 pop</mark>；eatBreakfast 是先 push 的，要等 makeCoffee 離開之後才能繼續。這個括號只是示意，不是真正的 JS 陣列，左邊是頂端剛好和 Chrome DevTools 的 Call Stack 面板由上往下的順序一致；如果真的用 JS 陣列模擬，慣例是 `push`／`pop` 都在尾端，頂端會是最後一個 index，要寫成 `[eatBreakfast, makeCoffee]`，方向剛好相反，所以上面特別標明哪邊是頂端。
+
+<mark style="background: #FFF3A3A6;">JS 只有一個罐子，所以叫單執行緒</mark>——最上面那片沒拿走，下面的只能死守等待。
 
 ![Call Stack：開口（push／pop）在上、封閉底部在下，位址數字 0xFFF0（小）→ 0xFFFF（大）](../../../obsidian-attachment/學習JS_圖解_Stack位址與SP-BP_2026-07-29.svg)
 

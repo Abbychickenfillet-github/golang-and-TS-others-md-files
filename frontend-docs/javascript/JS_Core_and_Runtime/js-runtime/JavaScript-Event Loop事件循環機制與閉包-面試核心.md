@@ -182,6 +182,8 @@ box.textContent = '完成';
 
 DOM 的值馬上變了（JS 讀得到），但**使用者看到的畫面**要等到兩個巨任務之間的渲染步驟。所以長時間同步運算會凍結畫面，也是為什麼要把重運算拆成多個巨任務、或丟給 Web Worker。
 
+`textContent = '完成'` 之後，瀏覽器只是把「樣式／排版需要重算」標記起來；等到渲染機會，才依 Critical Rendering Path 的順序做 Style → Layout → Paint → Composite，使用者才看到新文字。這一段的完整流程，以及 `requestAnimationFrame` 排在哪一格，寫在 [[Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪]]，兩篇對照著看。
+
 **3. 渲染步驟的時間點（一輪 Event Loop 大致順序）：**
 巨任務（如 click callback）→ 清空所有微任務 → `requestAnimationFrame` callback → 計算樣式 / 排版（Layout）→ 繪製（Paint）→ 下一個巨任務。
 （渲染管線的細節見 [[Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪]]、實際在 DevTools 裡怎麼看見見 [[DevTools-Performance-面板-渲染管線與Repaint判讀]]；卡頓的兩種來源見 [[css-兩種卡頓-render-blocking與執行期jank]]。）
