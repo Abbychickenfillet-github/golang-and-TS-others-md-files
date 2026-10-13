@@ -28,12 +28,16 @@ updated: 2026-10-13
 
 ## 5W1H 速查：讀本篇之前先把座標定好
 
+![Coordinator（協調者）：Event Loop 盯著 Call Stack，空了才從佇列剷一個任務放上去](../../../obsidian-attachment/事件循環_Event-Loop協調者_從佇列剷任務放進CallStack_2026-10-13.svg)
+
+（上圖：Event Loop 就是「協調者」，自己不執行任何 JS，只看 Call Stack 清空了沒；空了才從佇列剷一個任務放上去。）
+
 > [!important]+ 最常被搞錯的一件事先講：<mark style="background: #FF5582A6;">微任務不是「一輪取一個」，是「一次清空」</mark>
 > 很多人把微任務佇列想成跟巨任務一樣「一輪拉一個出來跑」——<mark style="background: #FFF3A3A6;">不是</mark>。Call Stack 一清空，事件迴圈就會把<mark style="background: #BBFABBA6;">整個微任務佇列徹底清空</mark>才罷休，而且<mark style="background: #FF5582A6;">清空過程中新生出來的微任務也會被排進同一輪一起清掉</mark>。這也是為什麼在微任務裡寫無窮遞迴會直接餓死巨任務、畫面永遠不再更新——而巨任務相反，<mark style="background: #ADCCFFA6;">一輪只取一個</mark>，取完就先去清微任務。
 
 | 5W1H | 問題 | 一句話答案 |
 |---|---|---|
-| **What** 是什麼 | Event Loop 到底是什麼？ | 一個工作極單純的排班機制：持續監控 Call Stack，<mark style="background: #BBFABBA6;">一發現 Stack 清空</mark>就從佇列拉任務進來執行。它本身不執行任何 JS |
+| **What** 是什麼 | Event Loop 到底是什麼？ | <mark style="background: #ADCCFFA6;">Coordinator（協調者）</mark>——一個工作極單純的排班機制：持續監控 Call Stack，<mark style="background: #BBFABBA6;">一發現 Stack 清空</mark>就從佇列拉任務進來執行。它本身不執行任何 JS |
 | **When** 什麼時候 | 什麼時候輪到微任務？ | 每次 Call Stack 清空的那一刻——同步碼跑完、或一個巨任務跑完。<mark style="background: #FF5582A6;">清空微任務優先於下一個巨任務</mark> |
 | **Who** 誰做的 | Call Stack、佇列、Event Loop 各是誰的？ | <mark style="background: #FF5582A6;">Call Stack 一律是 V8 的</mark>（Chrome 與 Node.js 都一樣）；<mark style="background: #ADCCFFA6;">佇列與 Event Loop 是「宿主環境」的</mark>：Chrome 由 Chromium 依 HTML 規格自己實作，Node.js 由 libuv 實作（<mark style="background: #FF5582A6;">Chrome 沒有用 libuv</mark>）。對照見下表 |
 | **Where** 在哪裡 | 這些任務各自排在哪？ | 至少三個不同的隊伍：<mark style="background: #BBFABBA6;">微任務佇列</mark>、<mark style="background: #BBFABBA6;">巨任務佇列</mark>、`requestAnimationFrame` 自己的隊伍。Call Stack 則是唯一的執行現場 |
@@ -198,7 +202,19 @@ eatBreakfast(); // 程式從這裡開始
 | Web Worker／Node.js worker_threads（每開一個） | 有，各一個，彼此不共用 | 有，各自一個 | 是 |
 | 瀏覽器內部的計時、網路執行緒；libuv Thread Pool | 有各自的原生 stack（C／C++ 的），不是 JS 的 Call Stack | 沒有 JS 的 Event Loop | 否 |
 
+![一條執行緒＝一個 Call Stack＋一個 Event Loop；多一條執行緒就多一組，彼此只靠 postMessage 傳訊息](../../../obsidian-attachment/事件循環_一條執行緒含一個CallStack與一個EventLoop_2026-10-13.svg)
+
 主執行緒和 Worker 靠 `postMessage` 傳訊息：對方收到的訊息，會變成它自己 Event Loop 裡的一個巨任務。因為不共用 Call Stack，<mark style="background: #FFF3A3A6;">Worker 裡的死迴圈不會讓主執行緒的畫面凍結</mark>，這也是重運算丟給 Worker 的原因。上面「Web APIs（多執行緒）在旁邊幫忙等待」的那些執行緒不跑你的 JS，所以沒有 JS 的 Call Stack。
+
+C++、Java 這類語言習慣直接開多條執行緒（Python、Go、Rust、C# 也都支援，不是只有它們）：多條執行緒共用同一塊記憶體，能在多核心 CPU 上真的同時跑，CPU 密集的計算通常因此變快；代價是<mark style="background: #FF5582A6;">死結（Deadlock）與競爭條件（Race Condition：多條執行緒同時改同一份資料而衝突）</mark>，要靠鎖（lock／mutex）自己小心管理。JS 主執行緒反過來：一次只有一個 Call Stack 在動資料，不會兩邊同時改，換來的是「同步運算太久就卡住所有事」。 詳見 [[並行串行]]。
+
+| 比較 | JS（單執行緒＋Event Loop） | C++／Java（多執行緒） |
+|------|---------------------------|----------------------|
+| 同時做事的方式 | 並行（Concurrency）：一條執行緒輪流交錯，一次只做一件 | 平行（Parallelism）：多條執行緒在多核心上真的同時跑 |
+| 共用資料 | 只有一個 Call Stack 動資料，不會兩邊同時改 | 多條執行緒共用記憶體，要用鎖保護 |
+| 擅長 | 等待多、計算少（網頁互動、API 伺服器） | 大量 CPU 計算、需要用滿多核心 |
+| 主要風險 | 同步運算太久會卡住全部（畫面凍結） | 死結、競爭條件、鎖用錯很難除錯 |
+| 什麼時候才會變快 | 把等待丟出去（非同步），不要卡住 Call Stack | 計算量夠大、切分得好；執行緒切換與搶鎖本身也有成本，不一定比較快 |
 
 ### 追加：宏/微任務的排隊是誰在管？
 

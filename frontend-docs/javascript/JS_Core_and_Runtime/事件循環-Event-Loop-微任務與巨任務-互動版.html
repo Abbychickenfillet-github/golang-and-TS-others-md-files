@@ -43,6 +43,8 @@ footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
 <header class="note"><h1>JavaScript 事件循環 Event Loop（微任務 vs 巨任務）</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#event-loop</span><span class="pill">#非同步</span><span class="pill">#面試</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/82167bcb1c15c00c" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/b3a4ebdfa5b4754d" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/296e1a879bb61062" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/d54c36b18b457e25" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/7461a8e128a56871" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
 <div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
 <section class="card"><h2>重點整理</h2>
+<p><img src="../../../obsidian-attachment/事件循環_Event-Loop協調者_從佇列剷任務放進CallStack_2026-10-13.svg" alt="Coordinator（協調者）：Event Loop 盯著 Call Stack，空了才從佇列剷一個任務放上去" style="max-width:100%;height:auto"></p>
+<p>（上圖：Event Loop 就是「協調者」，自己不執行任何 JS，只看 Call Stack 清空了沒；空了才從佇列剷一個任務放上去。）</p>
 <p>JavaScript 是<mark style="background: #ADCCFFA6;">單執行緒（Single Thread）</mark>的語言，同一時間只能執行一個任務（只有一個 Call Stack 在運作）。但網頁要處理大量非同步操作（API 請求、計時器、使用者點擊），為了不讓畫面在等待時「凍結」，瀏覽器用 <mark style="background: #FFF3A3A6;">Event Loop</mark> 機制達成「非同步、非阻塞（Non-blocking）」。</p>
 <p>四個核心組成：</p>
 <ul>
@@ -158,7 +160,21 @@ eatBreakfast(); // 程式從這裡開始
 </tr>
 </tbody>
 </table>
+<p><img src="../../../obsidian-attachment/事件循環_一條執行緒含一個CallStack與一個EventLoop_2026-10-13.svg" alt="一條執行緒＝一個 Call Stack＋一個 Event Loop" style="max-width:100%;height:auto"></p>
 <p>主執行緒和 Worker 靠 <code>postMessage</code> 傳訊息：對方收到的訊息，會變成它自己 Event Loop 裡的一個巨任務。因為不共用 Call Stack，<mark style="background: #FFF3A3A6;">Worker 裡的死迴圈不會讓主執行緒的畫面凍結</mark>，這也是重運算丟給 Worker 的原因。上面「Web APIs（多執行緒）在旁邊幫忙等待」的那些執行緒不跑你的 JS，所以沒有 JS 的 Call Stack。</p>
+<p>C++、Java 這類語言習慣直接開多條執行緒（Python、Go、Rust、C# 也都支援，不是只有它們）：多條執行緒共用同一塊記憶體，能在多核心 CPU 上真的同時跑，CPU 密集的計算通常因此變快；代價是<mark style="background: #FF5582A6;">死結（Deadlock）與競爭條件（Race Condition：多條執行緒同時改同一份資料而衝突）</mark>，要靠鎖（lock／mutex）自己小心管理。JS 主執行緒反過來：一次只有一個 Call Stack 在動資料，不會兩邊同時改，換來的是「同步運算太久就卡住所有事」。</p>
+<table>
+<thead>
+<tr><th>比較</th><th>JS（單執行緒＋Event Loop）</th><th>C++／Java（多執行緒）</th></tr>
+</thead>
+<tbody>
+<tr><td>同時做事的方式</td><td>並行（Concurrency）：一條執行緒輪流交錯，一次只做一件</td><td>平行（Parallelism）：多條執行緒在多核心上真的同時跑</td></tr>
+<tr><td>共用資料</td><td>只有一個 Call Stack 動資料，不會兩邊同時改</td><td>多條執行緒共用記憶體，要用鎖保護</td></tr>
+<tr><td>擅長</td><td>等待多、計算少（網頁互動、API 伺服器）</td><td>大量 CPU 計算、需要用滿多核心</td></tr>
+<tr><td>主要風險</td><td>同步運算太久會卡住全部（畫面凍結）</td><td>死結、競爭條件、鎖用錯很難除錯</td></tr>
+<tr><td>什麼時候才會變快</td><td>把等待丟出去（非同步），不要卡住 Call Stack</td><td>計算量夠大、切分得好；執行緒切換與搶鎖本身也有成本，不一定比較快</td></tr>
+</tbody>
+</table>
 <h3>追加：宏/微任務的排隊是誰在管？</h3>
 <p><mark style="background: #FF5582A6;">Web APIs 只負責「計時／等待」</mark>，時間到了才把回呼放進對應的佇列；<mark style="background: #ADCCFFA6;">放進哪一條，由「來源」決定</mark>，Event Loop 只負責「Stack 清空後，挑下一個誰上場」。Event Loop 屬於<mark style="background: #ADCCFFA6;">宿主環境（瀏覽器依 HTML 規格、Node.js 靠 libuv）</mark>，不是 JS 引擎（V8）內部的東西：</p>
 <ul>
