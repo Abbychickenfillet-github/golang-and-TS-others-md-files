@@ -3,6 +3,7 @@
    1. 自動產生巢狀大綱（h2 + h3），每個標題自動補 id
    2. 統一把大綱放到左側 sidepanel（不管原本是 article / .wrap / 什麼都沒有）
    3. .term 名詞：滑過預覽（CSS）、點擊釘成可拖曳說明卡
+   4. 「各對話來源」「追加回合」（Gemini 對話備查）預設收合
    ========================================================================== */
 (function () {
   'use strict';
@@ -252,5 +253,44 @@
     map.forEach(function (_, t) { io.observe(t); });
   }
 
-  ready(function () { layout(); initTerms(); initScrollSpy(); });
+  /* ---------- 6. Gemini 對話區塊預設收合 ----------
+     「各對話來源」「追加回合」只是對話原文備查，正確內容都已整理進正文，所以預設收合。
+     做法：標題移進 <summary>（id 不變，大綱連結照常運作），標題之後、到下一個同級或更高級標題
+     之前的同層內容放進 <details class="fold">。外層已收合時，裡面的小標題不再多包一層。 */
+  function initFold() {
+    var main = document.querySelector('.notes-main') || document.querySelector('article') ||
+               document.querySelector('.post-content');
+    if (!main) return;
+    var RE = /^(各對話來源|對話來源|追加回合)/;
+    var level = function (el) { return +el.tagName.charAt(1); };
+
+    Array.prototype.slice.call(main.querySelectorAll('h2, h3, h4')).forEach(function (h) {
+      if (!RE.test(h.textContent.trim()) || h.closest('details.fold')) return;
+      var rest = [], n = h.nextSibling;
+      while (n && !(n.nodeType === 1 && /^H[1-6]$/.test(n.tagName) && level(n) <= level(h))) {
+        rest.push(n); n = n.nextSibling;
+      }
+      var d = document.createElement('details'), s = document.createElement('summary');
+      d.className = 'fold';
+      h.parentNode.insertBefore(d, h);
+      s.appendChild(h);
+      d.appendChild(s);
+      rest.forEach(function (x) { d.appendChild(x); });
+    });
+
+    // 目標標題在收合區塊裡時（點大綱連結、或網址帶 #hash），先展開再跳過去
+    function reveal(id) {
+      var t = id && document.getElementById(id);
+      for (var p = t && t.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
+      return t;
+    }
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('nav.toc a[href^="#"]');
+      if (a) reveal(decodeURIComponent(a.getAttribute('href').slice(1)));
+    });
+    var t0 = location.hash && reveal(decodeURIComponent(location.hash.slice(1)));
+    if (t0) t0.scrollIntoView();
+  }
+
+  ready(function () { layout(); initFold(); initTerms(); initScrollSpy(); });
 })();
