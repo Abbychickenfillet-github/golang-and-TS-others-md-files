@@ -35,11 +35,20 @@ updated: 2026-10-13
 |---|---|---|
 | **What** 是什麼 | Event Loop 到底是什麼？ | 一個工作極單純的排班機制：持續監控 Call Stack，<mark style="background: #BBFABBA6;">一發現 Stack 清空</mark>就從佇列拉任務進來執行。它本身不執行任何 JS |
 | **When** 什麼時候 | 什麼時候輪到微任務？ | 每次 Call Stack 清空的那一刻——同步碼跑完、或一個巨任務跑完。<mark style="background: #FF5582A6;">清空微任務優先於下一個巨任務</mark> |
-| **Who** 誰做的 | 佇列排隊是誰在管？ | <mark style="background: #FF5582A6;">不是 V8</mark>。V8 只負責執行 JS。事件迴圈與佇列在宿主環境裡：瀏覽器端由 <mark style="background: #ADCCFFA6;">HTML 規格</mark>定義，Node.js 端在 <mark style="background: #ADCCFFA6;">libuv</mark> 裡 |
+| **Who** 誰做的 | Call Stack、佇列、Event Loop 各是誰的？ | <mark style="background: #FF5582A6;">Call Stack 一律是 V8 的</mark>（Chrome 與 Node.js 都一樣）；<mark style="background: #ADCCFFA6;">佇列與 Event Loop 是「宿主環境」的</mark>：Chrome 由 Chromium 依 HTML 規格自己實作，Node.js 由 libuv 實作（<mark style="background: #FF5582A6;">Chrome 沒有用 libuv</mark>）。對照見下表 |
 | **Where** 在哪裡 | 這些任務各自排在哪？ | 至少三個不同的隊伍：<mark style="background: #BBFABBA6;">微任務佇列</mark>、<mark style="background: #BBFABBA6;">巨任務佇列</mark>、`requestAnimationFrame` 自己的隊伍。Call Stack 則是唯一的執行現場 |
 | **Which** 哪一種 | 哪些算微、哪些算巨？ | 微：`Promise.then`、`async/await`、`queueMicrotask`、`MutationObserver`。巨：`setTimeout`、`setInterval`、I/O、UI 事件。<mark style="background: #FF5582A6;">分類依據是「來源」，不是「執行時間長短」</mark> |
 | **How** 怎麼做到 | 一輪 tick 的完整順序？ | 同步碼跑完 → <mark style="background: #BBFABBA6;">清空微任務</mark> → rAF → UI 渲染 → 取<mark style="background: #ADCCFFA6;">一個</mark>巨任務 → <mark style="background: #BBFABBA6;">再清空微任務</mark> → 如此反覆 |
 | **Why** 為什麼 | 為什麼微任務要優先？ | 因為微任務是<mark style="background: #FFF3A3A6;">「當前這件事的收尾」</mark>（引擎內部的後續步驟），巨任務則是<mark style="background: #FFF3A3A6;">「來自外部的全新事件」</mark>。先把手上的事收乾淨，再接下一位客人 |
+
+「前端／後端」指的是<mark style="background: #FFF3A3A6;">程式跑在哪裡</mark>（使用者的瀏覽器 vs 伺服器），不是指哪一個零件。同一段 JS 放在不同宿主環境，Call Stack 都是 V8 在管，但佇列與 Event Loop 換成宿主自己的：
+
+| 零件 | 瀏覽器（Chrome，前端） | Node.js（後端） |
+|------|------------------------|-----------------|
+| Call Stack、執行 JS | V8 | V8 |
+| 微任務佇列 | V8（Call Stack 清空時由宿主叫它清空） | V8（另有 `process.nextTick` 佇列，由 Node 管，優先於 Promise 微任務） |
+| 巨任務佇列與 Event Loop | Chromium 自己實作（依 HTML 規格），不是 libuv | libuv |
+| 計時、網路、檔案等 Web API／系統呼叫 | Chromium（Blink 與瀏覽器行程） | Node 的 C++ 綁定＋libuv（含 Thread Pool） |
 
 ### 時間軸：這件事發生在哪一格
 
@@ -175,11 +184,21 @@ eatBreakfast(); // 程式從這裡開始
 
 | 觀念 | 核心定義 | 以 Call Stack 為主的運作 | 生活化比喻 |
 |------|----------|--------------------------|-----------|
-| 單執行緒 Single Thread | 同一時間只能做一件事 | 整個 JS 引擎只有一個 Call Stack | 廚房只有一個廚師、一雙手 |
+| 單執行緒 Single Thread | 同一時間只能做一件事 | 這條執行緒只有一個 Call Stack（每條執行緒各有自己的，見下方） | 廚房只有一個廚師、一雙手 |
 | 同步 Synchronous | <mark style="background: #FF5582A6;">前一件沒做完，下一件絕不開始</mark> | 任務進 Stack 若花 5 秒就<mark style="background: #FF5582A6;">阻塞（Blocking）</mark>5 秒，網頁凍結 | 廚師守在鍋邊 10 分鐘什麼都不做 |
 | 非同步 Asynchronous | 遇到耗時任務先交代出去，自己繼續做 | 丟給 <mark style="background: #ADCCFFA6;">Web APIs</mark> 倒數／等資料，Stack 立刻清空往下跑 | 廚師把水壺放上爐子就轉頭去切菜 |
 
 <mark style="background: #FF5582A6;">常見迷思澄清</mark>：「非同步是不是一次能執行多個任務？」<mark style="background: #BBFABBA6;">不是。</mark> 任何一微秒裡 JS 的 Call Stack <mark style="background: #FFF3A3A6;">永遠只有一行程式碼在跑</mark>。非同步的真相是：JS 本人（廚師）永遠單執行緒，是<mark style="background: #ADCCFFA6;">瀏覽器環境（Web APIs，多執行緒）</mark>在旁邊幫忙等待與計時；等外包做完，JS 再找空檔處理結果。所以「同時燒水又切菜」是<mark style="background: #FFF3A3A6;">整個網頁系統</mark>看起來的樣子，不是 JS 引擎本人。
+
+<mark style="background: #FF5582A6;">每個執行緒都有自己的 Call Stack</mark>（作業系統替每條執行緒各配一塊 stack 記憶體）。所以「JS 單執行緒」＝「只有一個 Call Stack」；多開一條執行緒，就多一個獨立的 Call Stack，而且 JS 的執行緒各自還有自己的 Event Loop：
+
+| 執行緒 | 有自己的 Call Stack？ | 有自己的 Event Loop？ | 跑你寫的 JS？ |
+|--------|----------------------|----------------------|---------------|
+| 主執行緒 | 有，一個 | 有 | 是 |
+| Web Worker／Node.js worker_threads（每開一個） | 有，各一個，彼此不共用 | 有，各自一個 | 是 |
+| 瀏覽器內部的計時、網路執行緒；libuv Thread Pool | 有各自的原生 stack（C／C++ 的），不是 JS 的 Call Stack | 沒有 JS 的 Event Loop | 否 |
+
+主執行緒和 Worker 靠 `postMessage` 傳訊息：對方收到的訊息，會變成它自己 Event Loop 裡的一個巨任務。因為不共用 Call Stack，<mark style="background: #FFF3A3A6;">Worker 裡的死迴圈不會讓主執行緒的畫面凍結</mark>，這也是重運算丟給 Worker 的原因。上面「Web APIs（多執行緒）在旁邊幫忙等待」的那些執行緒不跑你的 JS，所以沒有 JS 的 Call Stack。
 
 ### 追加：宏/微任務的排隊是誰在管？
 

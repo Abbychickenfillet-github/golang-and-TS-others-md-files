@@ -109,7 +109,7 @@ eatBreakfast(); // 程式從這裡開始
 <tr>
 <td>單執行緒 Single Thread</td>
 <td>同一時間只能做一件事</td>
-<td>整個 JS 引擎只有一個 Call Stack</td>
+<td>這條執行緒只有一個 Call Stack（每條執行緒各有自己的，見下方）</td>
 <td>廚房只有一個廚師、一雙手</td>
 </tr>
 <tr>
@@ -127,8 +127,40 @@ eatBreakfast(); // 程式從這裡開始
 </tbody>
 </table>
 <p><mark style="background: #FF5582A6;">常見迷思澄清</mark>：「非同步是不是一次能執行多個任務？」<mark style="background: #BBFABBA6;">不是。</mark> 任何一微秒裡 JS 的 Call Stack <mark style="background: #FFF3A3A6;">永遠只有一行程式碼在跑</mark>。非同步的真相是：JS 本人（廚師）永遠單執行緒，是<mark style="background: #ADCCFFA6;">瀏覽器環境（Web APIs，多執行緒）</mark>在旁邊幫忙等待與計時；等外包做完，JS 再找空檔處理結果。所以「同時燒水又切菜」是<mark style="background: #FFF3A3A6;">整個網頁系統</mark>看起來的樣子，不是 JS 引擎本人。</p>
+<p><mark style="background: #FF5582A6;">每個執行緒都有自己的 Call Stack</mark>（作業系統替每條執行緒各配一塊 stack 記憶體）。所以「JS 單執行緒」＝「只有一個 Call Stack」；多開一條執行緒，就多一個獨立的 Call Stack，而且 JS 的執行緒各自還有自己的 Event Loop：</p>
+<table>
+<thead>
+<tr>
+<th>執行緒</th>
+<th>有自己的 Call Stack？</th>
+<th>有自己的 Event Loop？</th>
+<th>跑你寫的 JS？</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主執行緒</td>
+<td>有，一個</td>
+<td>有</td>
+<td>是</td>
+</tr>
+<tr>
+<td>Web Worker／Node.js worker_threads（每開一個）</td>
+<td>有，各一個，彼此不共用</td>
+<td>有，各自一個</td>
+<td>是</td>
+</tr>
+<tr>
+<td>瀏覽器內部的計時、網路執行緒；libuv Thread Pool</td>
+<td>有各自的原生 stack（C／C++ 的），不是 JS 的 Call Stack</td>
+<td>沒有 JS 的 Event Loop</td>
+<td>否</td>
+</tr>
+</tbody>
+</table>
+<p>主執行緒和 Worker 靠 <code>postMessage</code> 傳訊息：對方收到的訊息，會變成它自己 Event Loop 裡的一個巨任務。因為不共用 Call Stack，<mark style="background: #FFF3A3A6;">Worker 裡的死迴圈不會讓主執行緒的畫面凍結</mark>，這也是重運算丟給 Worker 的原因。上面「Web APIs（多執行緒）在旁邊幫忙等待」的那些執行緒不跑你的 JS，所以沒有 JS 的 Call Stack。</p>
 <h3>追加：宏/微任務的排隊是誰在管？</h3>
-<p><mark style="background: #FF5582A6;">Web APIs 只負責「計時／等待」，不負責分類與排隊。</mark> 分類排隊是 <mark style="background: #ADCCFFA6;">JS 引擎內部的 Event Loop</mark> 在管：</p>
+<p><mark style="background: #FF5582A6;">Web APIs 只負責「計時／等待」</mark>，時間到了才把回呼放進對應的佇列；<mark style="background: #ADCCFFA6;">放進哪一條，由「來源」決定</mark>，Event Loop 只負責「Stack 清空後，挑下一個誰上場」。Event Loop 屬於<mark style="background: #ADCCFFA6;">宿主環境（瀏覽器依 HTML 規格、Node.js 靠 libuv）</mark>，不是 JS 引擎（V8）內部的東西：</p>
 <ul>
 <li><code>setTimeout</code>、DOM 事件 → 時間到後，Web API 把回呼丟進<mark style="background: #ADCCFFA6;">宏任務佇列 Macrotask Queue</mark>。</li>
 <li><code>Promise.then()</code> → <mark style="background: #FFF3A3A6;">根本不經過 Web API</mark>（Promise 是 JS 原生自帶），狀態完成時引擎直接塞進<mark style="background: #BBFABBA6;">微任務佇列 Microtask Queue</mark>。</li>
