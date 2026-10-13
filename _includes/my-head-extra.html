@@ -52,7 +52,7 @@ details.callout > summary { cursor: pointer; }
 #tip-text-pop { position: fixed; z-index: 9999; display: none; white-space: pre-line; max-width: min(92vw, 520px); background: #fff; color: #333; border: 3px solid #C2185B; border-radius: 12px; padding: 8px 12px; font-size: 13px !important; line-height: 1.6; box-shadow: 0 8px 28px rgba(0,0,0,.3); pointer-events: none; }
 .tip-glossary { display: none; }
 #tip-text-pop.has-img { white-space: normal; padding: 6px; max-width: min(94vw, 940px); }
-#tip-text-pop.has-img img { display: block; width: min(920px, 90vw); height: auto; background: #fff; }
+#tip-text-pop.has-img img { display: block; width: auto; height: auto; max-width: min(920px, 90vw); max-height: 80vh; background: #fff; }
 #tip-text-pop .tip-cap { margin-top: 6px; font-size: 12px; line-height: 1.5; color: #555; }
 .note-meta, .note-meta *, main .note-meta blockquote p, main .note-meta a { font-size: var(--note-meta) !important; line-height: 1.6 !important; }
 
@@ -190,6 +190,11 @@ document.addEventListener('DOMContentLoaded', function () {
       pop.textContent = tip;
     }
     pop.style.display = 'block';
+    place(x, y);
+    var loading = pop.querySelector('img');
+    if (loading && !loading.complete) loading.addEventListener('load', function () { place(x, y); });   // 圖載入後尺寸才確定，要重算位置
+  }
+  function place(x, y) {
     var w = pop.offsetWidth, h = pop.offsetHeight;
     var left = Math.min(Math.max(8, x - w / 2), window.innerWidth - w - 8);
     var top = y + 18; if (top + h > window.innerHeight - 8) top = Math.max(8, y - h - 18);
