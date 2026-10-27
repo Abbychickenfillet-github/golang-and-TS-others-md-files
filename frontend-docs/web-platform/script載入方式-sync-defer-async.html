@@ -136,12 +136,12 @@
   <!-- ② 時間軸 -->
   <section>
     <h2><span class="tag">比喻＋時間軸</span> 六種載入模式在搶「主執行緒」</h2>
-    <p class="note">重點 (d)–(i)：差別只在「買說明書要不要打斷蓋房子」「看說明書插在哪個時間點」。點按鈕切換看時間軸怎麼變；六種的橫軸刻度相同，可以直接比誰先蓋完。</p>
+    <p class="note">重點 (d)–(i)：差別只在「下載 JS 要不要打斷解析 HTML」「執行 JS 插在哪個時間點」。點按鈕切換看時間軸怎麼變；六種的橫軸刻度相同，可以直接比誰先解析完。</p>
 
     <div class="metaphor">
-      <div class="mcard"><span class="emo">🏠</span><b>蓋房子</b><small>解析 HTML、蓋 DOM。占主執行緒。</small></div>
-      <div class="mcard"><span class="emo">📖</span><b>買說明書</b><small>下載 JS。走背景網路執行緒，不占主緒。</small></div>
-      <div class="mcard"><span class="emo">👓</span><b>看說明書</b><small>執行 JS。占主執行緒，會卡住蓋房子。</small></div>
+      <div class="mcard"><span class="emo">🏠</span><b>解析 HTML（蓋房子）</b><small>把 HTML 文字讀成 DOM 樹。占主執行緒。</small></div>
+      <div class="mcard"><span class="emo">📖</span><b>下載 JS（買說明書）</b><small>走背景網路執行緒，不占主緒。</small></div>
+      <div class="mcard"><span class="emo">👓</span><b>執行 JS（看說明書）</b><small>V8 跑 JS。占主執行緒，會卡住解析 HTML。</small></div>
     </div>
 
     <div class="btns">
@@ -168,11 +168,11 @@
       </div>
     </div>
     <div class="legend">
-      <span><i class="sw b-parse"></i>解析 HTML（蓋房子）</span>
+      <span><i class="sw b-parse"></i>解析 HTML（蓋房子，建出 DOM）</span>
       <span><i class="sw b-down"></i>下載 JS（買說明書）</span>
       <span><i class="sw b-exec"></i>執行 JS（看說明書）</span>
       <span><i class="sw b-wait"></i>空等（主執行緒閒置，等下載）</span>
-      <span><i class="sw b-data"></i>資料（Ajax，非程式）</span>
+      <span><i class="sw b-data"></i>Ajax 抓回的資料（JSON，不是 DOM）</span>
     </div>
     <div class="verdict" id="verdict"></div>
   </section>
@@ -373,7 +373,7 @@ function step(){ if(cur<stages.length-1){cur++;paint();} }
 function resetPipe(){ cur=-1; paint(); }
 paint();
 
-/* ② 時間軸：六種模式共用同一條橫軸（T 個單位），可直接比誰先蓋完 */
+/* ② 時間軸：六種模式共用同一條橫軸（T 個單位），可直接比誰先解析完 */
 const T=110;
 function bar(cls,start,len,label){
   return `<div class="blk ${cls}" title="${label}" style="left:${start/T*100}%;width:${len/T*100}%">${label}</div>`;
@@ -382,39 +382,39 @@ function bar(cls,start,len,label){
 const scenes={
   normal:{
     at:30, pin:'▲ 解析到 &lt;script&gt;',
-    main:[['b-parse',0,30,'蓋房子'],['b-wait',30,20,'空等'],['b-exec',50,10,'看說明書'],['b-parse2',60,50,'繼續蓋']],
+    main:[['b-parse',0,30,'解析 HTML'],['b-wait',30,20,'空等'],['b-exec',50,10,'執行 JS'],['b-parse2',60,50,'繼續解析']],
     net:[['b-down',30,20,'下載 JS']],
-    v:'一般 &lt;script&gt;：解析到它就<strong>整個暫停</strong>。下載其實一樣交給網路執行緒，但主執行緒<strong>不能去蓋房子，只能空等</strong>（灰色斜線），抓完立刻看說明書，跑完才繼續蓋。三種裡最慢蓋完（110）。'
+    v:'一般 &lt;script&gt;：解析到它就<strong>整個暫停</strong>。下載其實一樣交給網路執行緒，但主執行緒<strong>不能繼續解析 HTML，只能空等</strong>（灰色斜線），抓完立刻執行 JS，跑完才繼續解析。三種裡最慢解析完（110）。'
   },
   async:{
     at:30, pin:'▲ 解析到 &lt;script async&gt;',
-    main:[['b-parse',0,50,'蓋房子（下載時照蓋）'],['b-exec',50,10,'看說明書'],['b-parse2',60,30,'繼續蓋']],
+    main:[['b-parse',0,50,'解析 HTML（下載時照跑）'],['b-exec',50,10,'執行 JS'],['b-parse2',60,30,'繼續解析']],
     net:[['b-down',30,20,'背景下載 JS']],
-    v:'async：下載走<strong>背景網路執行緒</strong>、不打斷蓋房子；但 JS <strong>一抓完就立刻插隊</strong>搶主執行緒執行（打斷解析）。多支之間<strong>不保證順序</strong>，抓完的時間點看網路。'
+    v:'async：下載走<strong>背景網路執行緒</strong>、不打斷解析 HTML；但 JS <strong>一抓完就立刻插隊</strong>搶主執行緒執行（打斷解析）。多支之間<strong>不保證順序</strong>，抓完的時間點看網路。'
   },
   defer:{
     at:30, pin:'▲ 解析到 &lt;script defer&gt;',
-    main:[['b-parse',0,80,'蓋房子（一路蓋完）'],['b-exec',80,10,'看說明書']],
+    main:[['b-parse',0,80,'解析 HTML（一路解析完）'],['b-exec',80,10,'執行 JS']],
     net:[['b-down',30,20,'背景下載 JS']],
-    v:'defer：下載一樣走背景、不打斷；下載完<strong>先放著</strong>，等整份 HTML 解析完、DOM 蓋好才依序執行 JS。<strong>保證順序</strong>，最適合操作 DOM 的主程式。'
+    v:'defer：下載一樣走背景、不打斷；下載完<strong>先放著</strong>，等整份 HTML 解析完、DOM 建好才依序執行 JS。<strong>保證順序</strong>，最適合操作 DOM 的主程式。'
   },
   bodyend:{
     at:80, pin:'▲ 到最後才讀到 &lt;script&gt;',
-    main:[['b-parse',0,80,'蓋房子（DOM 幾乎蓋好）'],['b-wait',80,20,'空等'],['b-exec',100,10,'看說明書']],
+    main:[['b-parse',0,80,'解析 HTML（DOM 幾乎建好）'],['b-wait',80,20,'空等'],['b-exec',100,10,'執行 JS']],
     net:[['b-down',80,20,'讀到才下載']],
-    v:'放 &lt;/body&gt; 前：<strong>本質仍是一般 script</strong>（讀到才抓、抓完立刻跑、會 blocking），只是位置在最後，前面 DOM 都蓋好了，JS 操作得到元素、使用者也先看到畫面。缺點：<strong>沒有「背景提早下載」</strong>，下載從 80 才開始，比 defer 慢（110 vs 90）。土法煉鋼版 defer。'
+    v:'放 &lt;/body&gt; 前：<strong>本質仍是一般 script</strong>（讀到才抓、抓完立刻跑、會 blocking），只是位置在最後，前面 DOM 都建好了，JS 操作得到元素、使用者也先看到畫面。缺點：<strong>沒有「背景提早下載」</strong>，下載從 80 才開始，比 defer 慢（110 vs 90）。土法煉鋼版 defer。'
   },
   module:{
     at:30, pin:'▲ 解析到 type="module"',
-    main:[['b-parse',0,80,'蓋房子（一路蓋完）'],['b-exec',80,10,'看說明書']],
+    main:[['b-parse',0,80,'解析 HTML（一路解析完）'],['b-exec',80,10,'執行 JS']],
     net:[['b-down',30,20,'下載入口模組'],['b-down',50,20,'遞迴抓 import']],
     v:'type="module"：<strong>預設就等於 defer</strong>——不中斷解析、等解析完才執行。多出來的是它會依 <code>import</code> <strong>遞迴去抓相依模組</strong>（第二段紫色），全部到齊才依相依圖順序執行，各模組只跑一次。Vite／原生 ES Module 主流寫法。'
   },
   ajax:{
     at:90, pin:'▲ JS 跑起來後才發請求',
-    main:[['b-parse',0,80,'蓋房子'],['b-exec',80,10,'看說明書'],['b-data',100,10,'處理資料']],
+    main:[['b-parse',0,80,'解析 HTML'],['b-exec',80,10,'執行 JS'],['b-data',100,10,'處理資料']],
     net:[['b-down',30,20,'下載 JS'],['b-data',90,10,'抓資料']],
-    v:'Ajax／fetch()／axios：<strong>不是載「程式」，是載「資料」</strong>。前面五種是「怎麼把 .js 載進來跑」；Ajax 是 JS 已經在跑之後才主動去後端要 JSON（綠色）。資料回來走 Event Loop 的 callback／<code>await</code>，跟解析時機脫鉤；React <code>useEffect</code>、React Query／SWR 都是這一層。'
+    v:'Ajax／fetch()／axios：<strong>不是載「程式」，是載「資料」</strong>。綠色是 Ajax 抓回來的 JSON，<strong>不是 DOM</strong>：DOM 是藍色「解析 HTML」建出來的，兩者是不同東西。前面五種是「怎麼把 .js 載進來跑」；Ajax 是 JS 已經在跑之後才主動去後端要 JSON（綠色）。資料回來走 Event Loop 的 callback／<code>await</code>，跟解析時機脫鉤；React <code>useEffect</code>、React Query／SWR 都是這一層。'
   }
 };
 function setMode(m,btn){
