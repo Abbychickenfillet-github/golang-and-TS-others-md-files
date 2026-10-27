@@ -128,6 +128,41 @@
   <h1>HTML 解析（Run-time）與 <code>&lt;script&gt;</code> 六種載入模式</h1>
   <p class="sub">主軸互動圖 · 對應筆記 <code>script載入方式-sync-defer-async.md</code>（重點 a–p）</p>
 
+  <!-- ② 時間軸 -->
+  <section>
+    <h2><span class="tag">比喻＋時間軸</span> 三種載入策略在搶「主執行緒」</h2>
+    <p class="note">重點 (c)(d)(e)(f)：差別只在「買說明書要不要打斷蓋房子」「看說明書插在哪個時間點」。點按鈕切換看時間軸怎麼變。</p>
+
+    <div class="metaphor">
+      <div class="mcard"><span class="emo">🏠</span><b>蓋房子</b><small>解析 HTML、蓋 DOM。占主執行緒。</small></div>
+      <div class="mcard"><span class="emo">📖</span><b>買說明書</b><small>下載 JS。走背景網路執行緒，不占主緒。</small></div>
+      <div class="mcard"><span class="emo">👓</span><b>看說明書</b><small>執行 JS。占主執行緒，會卡住蓋房子。</small></div>
+    </div>
+
+    <div class="btns">
+      <button class="mode on" data-m="normal" onclick="setMode('normal',this)">一般 &lt;script&gt;</button>
+      <button class="mode" data-m="async" onclick="setMode('async',this)">async</button>
+      <button class="mode" data-m="defer" onclick="setMode('defer',this)">defer</button>
+    </div>
+
+    <div class="timeline">
+      <div class="trow">
+        <div class="tlabel">🏠 主執行緒</div>
+        <div class="track" id="trackMain"></div>
+      </div>
+      <div class="trow">
+        <div class="tlabel">📖 網路執行緒</div>
+        <div class="track" id="trackNet"></div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="sw b-parse"></i>解析 HTML（蓋房子）</span>
+      <span><i class="sw b-down"></i>下載 JS（買說明書）</span>
+      <span><i class="sw b-exec"></i>執行 JS（看說明書）</span>
+    </div>
+    <div class="verdict" id="verdict"></div>
+  </section>
+
   <!-- ① 主軸圖 -->
   <section>
     <h2><span class="tag">主軸圖</span> 純文字字串 → HTML Parsing → DOM 樹</h2>
@@ -252,41 +287,6 @@
       </div>
     </div>
     <div class="verdict">產物＝ <code>dist/</code>：<b>index.html ＋ 幾支帶 hash 的 .js/.css</b>（＝「打包產物」）。伺服器把它發給瀏覽器後，Blink 才做 HTML Parsing、V8 才跑 JS。</div>
-  </section>
-
-  <!-- ② 時間軸 -->
-  <section>
-    <h2><span class="tag">比喻＋時間軸</span> 三種載入策略在搶「主執行緒」</h2>
-    <p class="note">重點 (c)(d)(e)(f)：差別只在「買說明書要不要打斷蓋房子」「看說明書插在哪個時間點」。點按鈕切換看時間軸怎麼變。</p>
-
-    <div class="metaphor">
-      <div class="mcard"><span class="emo">🏠</span><b>蓋房子</b><small>解析 HTML、蓋 DOM。占主執行緒。</small></div>
-      <div class="mcard"><span class="emo">📖</span><b>買說明書</b><small>下載 JS。走背景網路執行緒，不占主緒。</small></div>
-      <div class="mcard"><span class="emo">👓</span><b>看說明書</b><small>執行 JS。占主執行緒，會卡住蓋房子。</small></div>
-    </div>
-
-    <div class="btns">
-      <button class="mode on" data-m="normal" onclick="setMode('normal',this)">一般 &lt;script&gt;</button>
-      <button class="mode" data-m="async" onclick="setMode('async',this)">async</button>
-      <button class="mode" data-m="defer" onclick="setMode('defer',this)">defer</button>
-    </div>
-
-    <div class="timeline">
-      <div class="trow">
-        <div class="tlabel">🏠 主執行緒</div>
-        <div class="track" id="trackMain"></div>
-      </div>
-      <div class="trow">
-        <div class="tlabel">📖 網路執行緒</div>
-        <div class="track" id="trackNet"></div>
-      </div>
-    </div>
-    <div class="legend">
-      <span><i class="sw b-parse"></i>解析 HTML（蓋房子）</span>
-      <span><i class="sw b-down"></i>下載 JS（買說明書）</span>
-      <span><i class="sw b-exec"></i>執行 JS（看說明書）</span>
-    </div>
-    <div class="verdict" id="verdict"></div>
   </section>
 
   <!-- ③ 自我測驗 -->
