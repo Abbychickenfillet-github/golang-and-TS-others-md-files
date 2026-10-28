@@ -107,8 +107,19 @@
   .b-wait{background:repeating-linear-gradient(45deg,#5a6478,#5a6478 6px,#46506a 6px,#46506a 12px);color:#fff}
   .b-data{background:var(--green)}
   .mark{position:absolute;top:0;bottom:0;width:2px;background:#fff;opacity:.55;z-index:2}
-  .trackmark{flex:1;height:20px;position:relative}
+  .b-cssd{background:#ff9ec4}
+  .b-cssom{background:#c93f86;color:#fff}
+  .mark.css{background:#ff9ec4}
+  .trackmark{flex:1;height:42px;position:relative}
   .pin{position:absolute;top:0;transform:translateX(-50%);font-size:.72rem;color:var(--accent2);white-space:nowrap;transition:left .8s ease}
+  .pin.css{color:#ff9ec4}
+  .pin.js{top:20px}
+  .cssbox{margin-top:12px;padding:12px 16px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:.85rem}
+  .sub a,.cssbox a{color:var(--accent);text-decoration:underline}
+  .sub a code{color:inherit}
+  .cssbox b.t{color:#ff9ec4}
+  .cssbox ol{margin:6px 0 8px;padding-left:20px}
+  .cssbox .eq{font-family:monospace;font-size:.8rem;color:var(--muted)}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin-top:6px}
   .legend span{display:inline-flex;align-items:center;gap:6px}
   .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
@@ -135,13 +146,14 @@
 
   <!-- ② 時間軸 -->
   <section>
-    <h2><span class="tag">比喻＋時間軸</span> 六種載入模式在搶「主執行緒」</h2>
-    <p class="note">重點 (d)–(i)：差別只在「下載 JS 要不要打斷解析 HTML」「執行 JS 插在哪個時間點」。點按鈕切換看時間軸怎麼變；六種的橫軸刻度相同，可以直接比誰先解析完。</p>
+    <h2><span class="tag">比喻＋時間軸</span> 六種載入模式在搶「主執行緒」（含 CSS／CSSOM）</h2>
+    <p class="note">重點 (d)–(i)：差別只在「下載 JS 要不要打斷解析 HTML」「執行 JS 插在哪個時間點」。點按鈕切換看時間軸怎麼變；六種的橫軸刻度相同，可以直接比誰先解析完。第三條線是 CSS：<code>&lt;link rel="stylesheet"&gt;</code> 在 <code>&lt;head&gt;</code>，下載後由 CSS parser 建 CSSOM，六種模式下都一樣。</p>
 
     <div class="metaphor">
       <div class="mcard"><span class="emo">🏠</span><b>解析 HTML（蓋房子）</b><small>把 HTML 文字讀成 DOM 樹。占主執行緒。</small></div>
       <div class="mcard"><span class="emo">📖</span><b>下載 JS（買說明書）</b><small>走背景網路執行緒，不占主緒。</small></div>
       <div class="mcard"><span class="emo">👓</span><b>執行 JS（看說明書）</b><small>V8 跑 JS。占主執行緒，會卡住解析 HTML。</small></div>
+      <div class="mcard"><span class="emo">🎨</span><b>解析 CSS（上油漆）</b><small>把 CSS 文字讀成 CSSOM 樹。和 DOM 是兩個 parser 各自建的，不卡 HTML 解析。</small></div>
     </div>
 
     <div class="btns">
@@ -163,6 +175,10 @@
         <div class="track" id="trackNet"></div>
       </div>
       <div class="trow">
+        <div class="tlabel">🎨 CSS → CSSOM</div>
+        <div class="track" id="trackCss"></div>
+      </div>
+      <div class="trow">
         <div class="tlabel"></div>
         <div class="trackmark" id="trackMark"></div>
       </div>
@@ -171,10 +187,22 @@
       <span><i class="sw b-parse"></i>解析 HTML（蓋房子，建出 DOM）</span>
       <span><i class="sw b-down"></i>下載 JS（買說明書）</span>
       <span><i class="sw b-exec"></i>執行 JS（看說明書）</span>
+      <span><i class="sw b-cssd"></i>下載 CSS</span>
+      <span><i class="sw b-cssom"></i>建 CSSOM（解析 CSS）</span>
       <span><i class="sw b-wait"></i>空等（主執行緒閒置，等下載）</span>
       <span><i class="sw b-data"></i>Ajax 抓回的資料（JSON，不是 DOM）</span>
     </div>
     <div class="verdict" id="verdict"></div>
+    <div class="cssbox">
+      <b class="t">CSS 在這張圖的角色</b>
+      <ol>
+        <li><b>平行下載、獨立建 CSSOM，不擋解析 HTML。</b>第三條線和主執行緒的解析 HTML 同時進行，DOM 照蓋。</li>
+        <li><b>擋「畫」。</b>CSSOM 沒建好就不畫第一個像素（避免先閃出沒樣式的畫面，FOUC）。所以 CSS 越慢，白畫面越久，和你用哪種 script 載入無關。</li>
+        <li><b>擋「後面的同步 script 執行」。</b>script 可能讀樣式，要等前面 <code>&lt;link&gt;</code> 的 CSSOM 好了才跑。上圖 CSS 比 JS 早好所以看不出來；若 CSS 比 JS 慢，一般 script 的「執行 JS」會被往後推。</li>
+      </ol>
+      <div class="eq">DOM ＋ CSSOM → Render Tree → Layout → Paint</div>
+      記法：<b>下載是平行的，被擋住的是「畫」與「執行」，不是「建 DOM」。</b>細節見 <a href="../css/css-兩種卡頓-render-blocking與執行期jank.html">css-兩種卡頓-render-blocking與執行期jank</a>。
+    </div>
   </section>
 
   <!-- ① 主軸圖 -->
@@ -378,6 +406,9 @@ const T=110;
 function bar(cls,start,len,label){
   return `<div class="blk ${cls}" title="${label}" style="left:${start/T*100}%;width:${len/T*100}%">${label}</div>`;
 }
+/* CSS 線：<link rel="stylesheet"> 在 head，六種模式都一樣；CSSOM 在 cssReady 建好 */
+const cssRow=[['b-cssd',0,15,'下載 CSS'],['b-cssom',15,10,'CSSOM']];
+const cssReady=25;
 /* 每筆 [樣式, 起點, 長度, 文字]；解析總長固定 80、下載長 20、執行長 10 */
 const scenes={
   normal:{
@@ -421,10 +452,13 @@ function setMode(m,btn){
   document.querySelectorAll('.mode').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
   const s=scenes[m];
-  const mk=`<div class="mark" style="left:${s.at/T*100}%"></div>`;
+  const mk=`<div class="mark css" style="left:${cssReady/T*100}%"></div><div class="mark" style="left:${s.at/T*100}%"></div>`;
   document.getElementById('trackMain').innerHTML=s.main.map(b=>bar(b[0],b[1],b[2],b[3])).join('')+mk;
   document.getElementById('trackNet').innerHTML=s.net.map(b=>bar(b[0],b[1],b[2],b[3])).join('')+mk;
-  document.getElementById('trackMark').innerHTML=`<span class="pin" style="left:${s.at/T*100}%;transform:translateX(${s.at>60?-85:-50}%)">${s.pin}</span>`;
+  document.getElementById('trackCss').innerHTML=cssRow.map(b=>bar(b[0],b[1],b[2],b[3])).join('')+mk;
+  document.getElementById('trackMark').innerHTML=
+    `<span class="pin css" style="left:${cssReady/T*100}%">▲ CSSOM 建好，才能首次繪製</span>`+
+    `<span class="pin js" style="left:${s.at/T*100}%;transform:translateX(${s.at>60?-85:-50}%)">${s.pin}</span>`;
   document.getElementById('verdict').innerHTML=s.v;
 }
 setMode('normal',document.querySelector('.mode'));
