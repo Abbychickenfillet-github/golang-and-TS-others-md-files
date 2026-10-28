@@ -150,7 +150,7 @@
   <!-- ② 時間軸 -->
   <section>
     <h2><span class="tag">比喻＋時間軸</span> 六種載入模式在搶「主執行緒」（含 CSS／CSSOM）</h2>
-    <p class="note">重點 (d)–(i)：差別只在「下載 JS 要不要打斷解析 HTML」「執行 JS 插在哪個時間點」。點按鈕切換看時間軸怎麼變；六種的橫軸刻度相同，可以直接比誰先解析完。第三條線是 CSS：<code>&lt;link rel="stylesheet"&gt;</code> 在 <code>&lt;head&gt;</code>，下載後由 CSS parser 建 CSSOM，六種模式下都一樣。</p>
+    <p class="note">重點 (d)–(i)：差別只在「下載 JS 要不要打斷解析 HTML」「執行 JS 插在哪個時間點」。點按鈕切換看時間軸怎麼變；六種的橫軸刻度相同，可以直接比誰先解析完。<b>橫軸的數字（80、100…）是相對刻度，不是毫秒，也沒有實測</b>，只表示先後與長短比例。第三條線是 CSS：<code>&lt;link rel="stylesheet"&gt;</code> 在 <code>&lt;head&gt;</code>，下載後由 CSS parser 建 CSSOM，六種模式下都一樣。</p>
 
     <div class="metaphor">
       <div class="mcard"><span class="emo">🏠</span><b>解析 HTML（蓋房子）</b><small>把 HTML 文字讀成 DOM 樹。占主執行緒。</small></div>
@@ -221,8 +221,8 @@
       <b class="t" style="display:block;margin-top:10px">三個常見疑問</b>
       <ol>
         <li><b>JS 會改變 HTML Parsing 的結果嗎？</b>會，靠 <code>document.write()</code>：它把字元直接插進解析器「還沒讀到的輸入流」，後面要解析的內容就被改了，所以同步 script 一定要先停下來。一般的 <code>appendChild</code>、<code>innerHTML</code> 是改「已經建好的 DOM」，不會改解析器的輸入。</li>
-        <li><b>HTML parser 和 CSS parser 是同一個執行緒嗎？</b>多半是，「各自建」指的是兩套互不相依的演算法與資料，不是兩條平行執行緒；真正平行的是網路下載。已知 2013 年 WebKit 把 HTML 的 tokenize 搬到背景 parser 執行緒，建 DOM 樹仍在主執行緒（<a href="https://lists.webkit.org/pipermail/webkit-dev/2013-January/023291.html">webkit-dev</a>）；2014 年 Blink 相關討論提到 CSS／media query 的處理主要在主執行緒（<a href="https://lists.w3.org/Archives/Public/public-whatwg-archive/2014Jan/0007.html">whatwg 討論串</a>）。現行 Chrome 的實作我沒有查證，所以圖上不把 CSSOM 畫成獨立執行緒。</li>
-        <li><b>preload scanner 是什麼？</b>不是完整的 parser，是輕量的「預載掃描器」（MDN 稱 speculative parsing，推測式解析）。主解析器被 script 擋住時，它只認標籤和屬性，繼續往後讀 HTML 原始碼，把 <code>&lt;link href&gt;</code>、<code>&lt;script src&gt;</code>、<code>&lt;img src&gt;</code> 的網址挑出來提早發請求。它不建 DOM、不執行 JS，所以不會被 script 卡住；限制是只看得到 HTML 標記，看不到 CSS 檔裡的 <code>@import</code>、<code>url()</code>。它在哪條執行緒：2013 年 WebKit 已改到背景 parser 執行緒，現行實作未驗證。</li>
+        <li><b>HTML parser 和 CSS parser 是同一個執行緒嗎？</b>2026-10-28 查到的資料：<b>Blink（Chrome）</b>的 HTML 與 CSS 解析都在主執行緒（背景 HTML parser 已移除，CSS 為同步解析）；<b>WebKit（Safari）</b>的 HTML 解析在主執行緒（2014 年已移除 threaded parser），CSS 未能查證；<b>Gecko（Firefox）</b>不同，HTML 在背景 parser 執行緒，樣式表丟 thread pool 解析。「各自建」只代表兩套互不相依的演算法，真正平行的是網路下載。這是從官方原始碼目錄與討論推得，沒有現行的官方執行緒架構文件，也沒有實測。完整表格與來源見 <a href="瀏覽器解析執行緒-HTML與CSS-parser與preload-scanner-Blink-WebKit-Gecko.html">瀏覽器解析執行緒</a>。</li>
+        <li><b>preload scanner 是什麼？</b>不是完整的 parser，是「預載掃描器」：主解析器被 script 擋住時，往後讀 HTML 原始碼，找出 <code>&lt;script src&gt;</code>、<code>&lt;link href&gt;</code>、<code>&lt;img src&gt;</code> 的網址提早發請求。MDN 詞彙表的條目叫 <b>Speculative parsing</b>（推測式解析），該頁沒有出現 "preload scanner" 一詞，描述的是 Firefox 的做法：parser 自己往後解析、推測式建樹並提早載入。Blink 的 <code>HTMLPreloadScanner</code> 是獨立元件，<b>在主執行緒、只掃 body 的第一個 chunk</b>。限制：看不到外部 CSS 檔裡的 <code>@import</code>、<code>url()</code>。</li>
       </ol>
       記法：<b>下載是平行的，被擋住的是「畫」與「執行」，不是「建 DOM」。</b>細節見 <a href="../css/css-兩種卡頓-render-blocking與執行期jank.html">css-兩種卡頓-render-blocking與執行期jank</a>。
     </div>
