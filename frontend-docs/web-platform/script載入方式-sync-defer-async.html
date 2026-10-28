@@ -201,7 +201,13 @@
         <li><b>擋「後面的同步 script 執行」。</b>script 可能讀樣式，要等前面 <code>&lt;link&gt;</code> 的 CSSOM 好了才跑。上圖 CSS 比 JS 早好所以看不出來；若 CSS 比 JS 慢，一般 script 的「執行 JS」會被往後推。</li>
       </ol>
       <div class="eq">DOM ＋ CSSOM → Render Tree → Layout → Paint</div>
-      <p style="margin:8px 0 0"><b>CSS 不是從時間 0 就開始。</b>要等瀏覽器讀到 <code>&lt;link rel="stylesheet"&gt;</code>（或被 preload scanner 掃到）才去下載，下載完才建 CSSOM。<code>&lt;link&gt;</code> 寫在 <code>&lt;head&gt;</code> 所以起點很靠左但不是 0；寫在 <code>&lt;body&gt;</code> 後面就更晚才抓。CSS 裡的 <code>@import</code>、字型、背景圖要等 CSS 解析後才被發現，所以會串成瀑布。圖中 JS 的下載起點同樣是簡化成「解析到那個標籤」，實際上 preload scanner 會先往後掃、提早開抓。</p>
+      <b class="t" style="display:block;margin-top:10px">CSS → CSSOM：什麼時候開始、怎麼建</b>
+      <ol>
+        <li><b>下載起點：</b>CSS 不是從時間 0 就開始。要等瀏覽器讀到 <code>&lt;link rel="stylesheet"&gt;</code>（或被 preload scanner 掃到）才去下載。</li>
+        <li><b>建 CSSOM：</b>下載完才由 CSS parser 解析建 CSSOM。<code>&lt;link&gt;</code> 寫在 <code>&lt;head&gt;</code> 所以起點很靠左但不是 0；寫在 <code>&lt;body&gt;</code> 後面就更晚才抓。</li>
+        <li><b>CSS 裡的資源：</b><code>@import</code>、字型、背景圖要等 CSS 解析後才被發現（preload scanner 看不到 CSS 檔內部），所以會一層一層串成瀑布。</li>
+        <li><b>preload scanner：</b>它會在主解析器還沒走到之前，先往後掃 HTML 提早抓 CSS 和 JS。圖中的下載起點（包含 JS 的「解析到 <code>&lt;script&gt;</code> 才開始」）都是簡化成「解析到那個標籤」。</li>
+      </ol>
       記法：<b>下載是平行的，被擋住的是「畫」與「執行」，不是「建 DOM」。</b>細節見 <a href="../css/css-兩種卡頓-render-blocking與執行期jank.html">css-兩種卡頓-render-blocking與執行期jank</a>。
     </div>
   </section>
