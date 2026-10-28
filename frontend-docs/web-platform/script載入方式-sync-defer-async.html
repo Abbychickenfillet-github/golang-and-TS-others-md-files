@@ -201,6 +201,7 @@
         <li><b>擋「後面的同步 script 執行」。</b>script 可能讀樣式，要等前面 <code>&lt;link&gt;</code> 的 CSSOM 好了才跑。上圖 CSS 比 JS 早好所以看不出來；若 CSS 比 JS 慢，一般 script 的「執行 JS」會被往後推。</li>
       </ol>
       <div class="eq">DOM ＋ CSSOM → Render Tree → Layout → Paint</div>
+      <p style="margin:8px 0 0"><b>CSS 不是從時間 0 就開始。</b>要等瀏覽器讀到 <code>&lt;link rel="stylesheet"&gt;</code>（或被 preload scanner 掃到）才去下載，下載完才建 CSSOM。<code>&lt;link&gt;</code> 寫在 <code>&lt;head&gt;</code> 所以起點很靠左但不是 0；寫在 <code>&lt;body&gt;</code> 後面就更晚才抓。CSS 裡的 <code>@import</code>、字型、背景圖要等 CSS 解析後才被發現，所以會串成瀑布。圖中 JS 的下載起點同樣是簡化成「解析到那個標籤」，實際上 preload scanner 會先往後掃、提早開抓。</p>
       記法：<b>下載是平行的，被擋住的是「畫」與「執行」，不是「建 DOM」。</b>細節見 <a href="../css/css-兩種卡頓-render-blocking與執行期jank.html">css-兩種卡頓-render-blocking與執行期jank</a>。
     </div>
   </section>
@@ -407,8 +408,8 @@ function bar(cls,start,len,label){
   return `<div class="blk ${cls}" title="${label}" style="left:${start/T*100}%;width:${len/T*100}%">${label}</div>`;
 }
 /* CSS 線：<link rel="stylesheet"> 在 head，六種模式都一樣；CSSOM 在 cssReady 建好 */
-const cssRow=[['b-cssd',0,15,'下載 CSS'],['b-cssom',15,10,'CSSOM']];
-const cssReady=25;
+const cssRow=[['b-cssd',4,12,'下載 CSS'],['b-cssom',16,10,'CSSOM']];
+const cssReady=26;
 /* 每筆 [樣式, 起點, 長度, 文字]；解析總長固定 80、下載長 20、執行長 10 */
 const scenes={
   normal:{
