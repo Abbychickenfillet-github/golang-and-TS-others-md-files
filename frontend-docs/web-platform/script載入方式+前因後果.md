@@ -25,7 +25,7 @@ related:
   - "[[SPA架構-入口點-CSR客戶端效能與狀態-部署]]"
 sources:
   - https://share.gemini.google/BijtuQltf0i9
-updated: 2026-08-11
+updated: 2026-10-25
 quiz: script載入方式-sync-defer-async.html
 ---
 # <mark style="background: #FFB86CA6;">HTML 解析</mark>（<mark style="background: #FF5582A6;">Run-time</mark>）與 `<script>` 六種載入模式
@@ -46,8 +46,13 @@ quiz: script載入方式-sync-defer-async.html
 
 - **收到的是純文字字串**：伺服器把 `index.html` 丟過來，瀏覽器當下拿到的不是「網頁」，而是一整條純文字
 	   這邊不是CSR, SSR, SSG, 純靜態HTML, PHP, WordPress, Rails的專屬他們全一樣。這是HTML標準規定的解析流程。無例外。
-- `<!DOCTYPE html><html>…<div id="root">…</div>…`。對電腦來說，`<div>` 一開始只是 5 個字元，不是「可設寬高、可掛事件的物件」。
-	 舉的例子是React CSR因為有div id ="root"
+- **「5 個字元」對任何來源的 HTML 都成立，下面用 CSR 空殼當例子只是因為它最短**：`<!DOCTYPE html><html>…<div id="root">…</div>…`。對電腦來說，`<div>` 一開始只是 5 個字元，不是「可設寬高、可掛事件的物件」。
+	 這個例子是 React CSR 的空殼，因為有 `<div id="root">`。HTML 在 build-time 有四種樣態，送到瀏覽器時全都是字串：
+	- **手寫純靜態 HTML**（PHP、WordPress、Rails 在伺服器拼出來的回應也歸這類）：沒有 build 這一步，檔案本身就含完整內容。
+	- **CSR 空殼**：bundler 用輕量 parser 把 `<script>`、`<link>` 注入模板 `index.html`，再 minify 成一長條，`<div id="root">` 是空的，內容要等瀏覽器端 JS 才長出來。
+	- **SSG 預渲染**：build 時 Node 用 `renderToStaticMarkup` 先把內容 HTML 串好，寫成 `.html` 檔，這是唯一在 build 時就含內容的樣態。
+	- **SSR**：build 只產出伺服器程式，HTML 字串要等每次請求時，伺服器用 `renderToString` 才串出來。
+	- 四種的詳細對照表在本篇後段「HTML 在 build-time 的下場」，結論都一樣：瀏覽器收到的是字串，必須 Run-time 跑 HTML Parsing。
 - **瀏覽器看不懂字串**：字串沒有父子關係、沒有屬性物件、沒有方法可呼叫，不能拿來排版/渲染/掛事件。所以一定要有一個**轉換步驟**＝ **HTML Parsing**。（同源觀念：[Markdown-渲染為DOM的過程](Markdown-渲染為DOM的過程.md)——`.md` 也要先轉成 HTML 字串才有戲。）
 - **發生在 Run-time、<mark style="background: #FFB86CA6;">用使用者的 CPU</mark>**：<mark style="background: #FFF3A3A6;">這個解析不是在伺服器先做好，而是**使用者打開網頁那一刻，在他自己的裝置、用他的 CPU** 現場一個字元一個字元讀過去、蓋出結構。</mark>→ HTML 越長、節點越多，弱裝置首屏越卡。
 - **產物是記憶體裡的 DOM 樹**：解析器在主執行緒上把字串讀成一棵樹（`<html>` 為根，掛 `<head>`/`<body>`，再掛 `<div>`/`<p>`…）。
@@ -282,10 +287,178 @@ function createTokenizer() {
 
 **關於這張表的主詞與「位置」**：每一列的主詞＝**那種 `<script>` 標籤/載入方式**；「HTML 解析時」欄＝瀏覽器**由上而下、解析到它那一刻**會不會中斷。位置規則：**`async`/`defer` 只對「有 `src` 的外部 script」有效**（inline 加了沒用）；慣例放 `<head>`（邊解析邊背景下載最划算），放 `<body>` 裡也行、但 `defer` 放 body 尾就沒意義；**別放在 `</body>` 之後**（body 外是不合規 HTML，瀏覽器會塞回 body）。
 
+### (c2) 位置 × 屬性：排列組合總表
+
+**排列數**
+- 位置 3 種：① `<head>` ② `<body>` 起初 ③ `</body>` 前
+- 寫法 4 種（外部 classic script）：無屬性、`async`、`defer`、`async defer`
+- 3 × 4 = **12 種寫法**，實際行為只有 **9 種**：`async defer` 同時寫，`async` 生效（MDN：act as if only async）
+- 加 `type="module"`：`defer` 無影響（本來就 defer），`async` 有效；新增 3 × 2 = 6 種寫法，**時序行為沿用 defer、async**，只多 ESM 語意（嚴格模式、模組作用域、CORS）
+- inline script（沒有 `src`）：`async`、`defer` 無效
+
+**三個位置各自的差別**
+- ① `<head>`：標籤最早被發現，下載最早開始。無屬性時 `<body>` 還沒蓋，DOM 空，且整頁等它：最糟。配 `defer`：最佳
+- ② `<body>` 起初：前面沒有內容可先畫，擋的量跟 `<head>` 一樣。與 ① 的差別只剩「晚一點被發現」。幾乎沒人用
+- ③ `</body>` 前：前面的內容已先解析、先畫，無屬性的阻塞傷害最小，但標籤最晚被發現、下載最晚開始。這是沒有 `defer` 年代的土法煉鋼（見 (g)）
+
+**9 種行為**
+
+| # | 位置 | 屬性 | 解析 | 何時開始下載 | 何時執行 | 順序 | 執行時的 DOM |
+|---|---|---|---|---|---|---|---|
+| 1 | head | 無 | 中斷 | 最早 | 抓完立刻 | 照出現順序 | 空，body 還沒蓋 |
+| 2 | head | async | 不中斷 | 最早，背景平行 | 抓完立刻，可能打斷解析 | 不保證 | 不確定，可能只蓋一半 |
+| 3 | head | defer | 不中斷 | 最早，背景平行 | 解析完、DOMContentLoaded 之前 | 保證 | 完整 |
+| 4 | body 起初 | 無 | 中斷 | 讀到才抓 | 抓完立刻 | 照出現順序 | 空 |
+| 5 | body 起初 | async | 不中斷 | 讀到才抓，背景平行 | 抓完立刻 | 不保證 | 不確定 |
+| 6 | body 起初 | defer | 不中斷 | 讀到才抓，背景平行 | 解析完 | 保證 | 完整 |
+| 7 | body 尾 | 無 | 中斷，但剩沒多少可中斷 | 最晚 | 抓完立刻 | 照出現順序 | 幾乎完整 |
+| 8 | body 尾 | async | 不中斷 | 最晚，背景平行 | 抓完立刻 | 不保證 | 幾乎完整 |
+| 9 | body 尾 | defer | 不中斷 | 最晚，背景平行 | 解析完 | 保證 | 完整 |
+
+- `async defer` 的三種位置，行為分別等於第 2、5、8 列
+- 第 9 列與第 7 列結果幾乎一樣，`defer` 放 body 尾沒有意義（呼應上方位置規則）
+- 同位置比較：`defer` 的執行時機永遠是「解析完」，位置只影響「多早開始下載」
+- 只有 `<head>` 裡的 script 可能擋住渲染（MDN）
+
+**怎麼選**
+
+| 情境 | 寫法 |
+|---|---|
+| 主程式，要操作 DOM | `<head>` + `defer`，或 `type="module"` |
+| 獨立的第三方（GA、廣告），不依賴別人 | `async`，放 `<head>` 最早下載 |
+| 舊專案無法加屬性 | 放 `</body>` 前 |
+| 需要照順序、彼此有依賴 | `defer`（`async` 不保證順序） |
+
+來源：MDN，[`<script>` 元素](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script)，頁面標示最後修改 2026-05-09。未查證：各瀏覽器對 body 起初的下載發現時間差，實際取決於 preload scanner，未實測。
+
+### (c3) 三個容易混的問題
+
+**① 「head 無屬性」的意思**
+- 屬性＝`async`、`defer`、`type="module"` 這類寫在標籤上的東西
+- head + 無屬性＝上表第 1 列：解析到那一行就**停下**、抓完**立刻執行**，此時 `<body>` 還沒蓋，DOM 是空的
+- 所以 `document.getElementById('btn')` 回傳 `null`，下一行 `.addEventListener` 報 `TypeError`
+
+**② 打包、parse、tokenize 發生在哪、我寫在哪**
+
+| 階段 | 誰做 | 時間 | 處理的是 |
+|---|---|---|---|
+| 打包（bundle、minify、切 chunk） | Next／Webpack | build 時（開發機或 CI） | 把原始碼變成一堆 `.js` 檔，**不跑**程式 |
+| HTML tokenize＋建 DOM | 瀏覽器 HTML parser | 載入頁面時 | HTML 文字，遇到 `<script>` 才決定停不停 |
+| JS parse（tokenize→AST）＋編譯 | 瀏覽器 JS 引擎 | script **下載完要執行前** | `.js` 檔內容 |
+| 執行 | 同上 | 緊接 parse 之後 | 跑一次 |
+
+- 打包只改變「檔案長什麼樣」，**不改變**瀏覽器看到 `<script>` 標籤時的規則
+- 兩種 tokenize 是兩件事：HTML 的決定「標籤何時停」，JS 的決定「檔案內容怎麼執行」
+
+**本專案實測**（`.next/server/app/about.html`，2026-11-03）
+
+| 位置 | 數量 | 內容 |
+|---|---|---|
+| `<head>` | 24 | 全是 `<script src="/_next/static/chunks/xxx.js" async>` |
+| `<body>` | 12 | 11 個內嵌（React 傳給瀏覽器的資料）＋1 個外部 `webpack-xxx.js`（`async`） |
+
+- `app/` 底下只有 `app/layout.js` 寫了 `<Script>`（Bootstrap CDN，`strategy="afterInteractive"`）
+- 其餘 35 個是 **Next 打包後自動插入**，且全部是 `async`，不是 head 無屬性
+- 所以「head 無屬性會讓按鈕失效」的情況，在 Next 專案裡幾乎不會踩到；手寫 HTML 或貼第三方片段才會
+
+**③ 事件監聽有兩條時間軸**
+
+| 時間軸 | 發生什麼 | 次數 |
+|---|---|---|
+| A. 載入 | script 本體跑一次，嘗試 `addEventListener` | 1 次 |
+| B. 使用者操作 | 點擊、懸停，處理函式被呼叫 | 0～100 次，**由使用者決定** |
+
+- 處理函式被呼叫幾次，**跟載入時機無關**
+- 時機只影響 A 的結果：註冊成功＝B 軸有函式可呼叫；註冊失敗（`null`）＝B 軸沒有函式，點多少次都是 0
+- 因果是單向：**A 決定 B 有沒有函式，B 的次數不會回頭影響 A**
+- 補救：把註冊移到 `DOMContentLoaded`，或掛在 `document` 上做事件委派（點擊時再判斷 `e.target`），A 軸這一步就不依賴元素是否已存在
+
+**③-2 四種實測範例（可自己開：[[script位置與綁定時機-四種情境.html]]）**
+
+| 情境 | 位置 | 寫法 | script 本體執行時 | 按 3 次 |
+|---|---|---|---|---|
+| A | head | 直接 `getElementById('btn').addEventListener` | `body = null`，`btn = null` → `TypeError` | 0 次 |
+| B | head | 包進 `DOMContentLoaded` | `btn = null`，事件觸發時 `btn` 才有值 | 3 次 |
+| C | head | 綁在 `document` 做事件委派 | `body = null`，但 `document` 存在 | 3 次 |
+| D | body 結尾 | 直接綁定 | `btn` 已存在 | 3 次 |
+
+- 以上在 jsdom 與真實瀏覽器（Chromium 內嵌窗格，載入 HTML 檔）都得到相同結果（2026-11-04 實測）
+- 「DOM 空，body 還沒蓋」的白話：head 裡的 script 跑的時候，瀏覽器才讀到 `<head>`，後面的 `<body>`、`<button>` 還沒讀，所以 `document.body` 是 `null`，找按鈕也找不到
+
+**③-3 `null.addEventListener` 為什麼是 TypeError，不是 ReferenceError**
+
+| 錯誤 | 意思 | 例子 | 實測訊息 |
+|---|---|---|---|
+| `ReferenceError` | **名稱**找不到，或在宣告前使用 | `notDeclared.foo`、TDZ 的 `let` | `notDeclared is not defined`、`Cannot access 'y' before initialization` |
+| `TypeError` | 名稱存在，但**值**不能做這個操作 | `null.foo`、`undefined.foo`、數字呼叫不存在的方法 | `Cannot read properties of null (reading 'addEventListener')`、`n.addEventListener is not a function` |
+
+- `const btn = document.getElementById('btn')`：`btn` 這個名稱**有宣告**，值是 `null`（`getElementById` 找不到時依規格回傳 `null`，不是錯誤）
+- 錯誤出在下一行：對 `null` 讀 `.addEventListener`，`null` 沒有任何屬性 → `TypeError`
+- JS 的變數**沒有型別**，型別屬於**值**；`addEventListener` 是 `EventTarget` 原型上的方法，只有值是 DOM 元素（或 `window`、`document`）時才找得到
+- 需要在寫程式時就被提醒：TypeScript 把 `getElementById` 標成 `HTMLElement | null`，沒判斷就用會在編譯時報錯
+- 執行時的防護：`btn?.addEventListener(...)`，`btn` 是 `null` 時整行回傳 `undefined`，不報錯（但按鈕也沒綁上，是靜默失敗）
+
+**④ HTML parser 的名字**
+- 「HTML parser」是規格裡的角色，**沒有單一品牌**，規格由 WHATWG HTML Standard 定義（tokenizer＋tree construction 兩階段），各引擎自己實作
+
+| 環境 | 引擎 | JS 引擎 | HTML parser |
+|---|---|---|---|
+| Chrome、Edge | Blink | V8 | Blink 內建（`HTMLDocumentParser`） |
+| Safari | WebKit | JavaScriptCore | WebKit 內建 |
+| Firefox | Gecko | SpiderMonkey | Gecko 內建（HTML5 parser） |
+| Servo | Servo | — | `html5ever` |
+| Node.js 的 jsdom | — | V8 | `parse5`（jsdom 依賴 `^8.0.1`，已查 `node_modules`） |
+
+- 前面 jsdom 實測用的是 **parse5**
+- 未查證：Blink、WebKit、Gecko 內部類別名稱來自記憶，未對照原始碼
+
+**⑤ `<script>` 不用下載，還需要停嗎**
+- **要停**。停的原因有兩個，下載只是其中一個：
+  1. 等下載（只有 `src` 才有）
+  2. **執行本身**：腳本可能改 DOM、`document.write`，後面怎麼解析取決於它跑完的結果，所以 parser 先讓出控制權給 JS 引擎，跑完才繼續
+- inline classic script（沒有 `src`）：沒有下載時間，但 parse、編譯、執行的時間仍在擋
+- 另一個會多等的情況：前面有還沒載完的 CSS，script 要等樣式表載完才執行（腳本可能讀樣式，需要 CSSOM）
+- 不會停的 inline：
+  - `type="module"`：預設 defer，解析完才跑
+  - `type="application/json"`、`type="text/template"` 等非 JS 的 type：是資料區塊，不執行
+- 本專案例：build 產物 body 裡 11 個內嵌 script 屬於這類（Next 的資料片段），內容很小，擋的時間可忽略
+- 未查證：CSS 等待這條沒有重新抓規格原文，來自記憶
+
+**⑥ 「下載」和「停止解析」是兩件事（問答）**
+
+> 問：只有外部檔案才會下載 JS，HTML 裡面直接寫的 `<script>` 不用下載；但兩種都會停止 HTML Parsing？
+
+答：**對**，前提是 classic script 且沒有 `async`／`defer`。
+
+- **下載**：只有帶 `src` 的外部檔案需要，額外發一次請求。inline 的內容本來就在 HTML 裡，沒有下載這一步
+- **停止解析**：兩種都停，因為停的主因是「要執行」，不是「要下載」
+
+| | 外部（`src`） | inline（HTML 裡直接寫） |
+|---|---|---|
+| 需要下載 | 要 | 不要 |
+| classic、無屬性 | 停：**等下載＋執行** | 停：**只有執行** |
+| 加 `defer` | 不停，解析完才執行 | 屬性無效，照樣停 |
+| 加 `async` | 不停，下載完打斷解析去執行 | 屬性無效，照樣停 |
+| `type="module"` | 預設 defer，解析完才執行 | 預設 defer，解析完才執行 |
+| `type="application/json"` 等非 JS | 資料區塊，不執行，不停 | 資料區塊，不執行，不停 |
+
+- 停多久：外部 ＝ 下載等待 ＋ parse、編譯、執行；inline ＝ parse、編譯、執行
+- 外部的下載常能提早開始：parser 停住時，preload scanner 會繼續往後掃，先把後面的資源抓起來，所以實際等待可能比整個下載時間短
+- 所以 inline 比外部快，但只要內容跑得久（大迴圈、同步運算），一樣會卡住畫面
+- 未查證：preload scanner 的行為與非 JS type 不下載這兩點，本次未重新抓規格原文
+
+來源：MDN，[`<script>` 元素](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script)，頁面標示最後修改 2026-05-09；jsdom 實測四種情境（head 直接綁定、DOMContentLoaded、事件委派、body 尾）與本專案 build 產物計數，皆為 2026-11-03 實測。
+
 ### (d) 一般 `<script>`（預設，`<head>`）：中斷解析、立即執行、Blocking
 
 「站在原地買說明書＋馬上看完」：解析器讀到就暫停，把主緒交給 V8 下載＋執行，跑完才續。放 `<head>` 特別糟——`<body>` 都還沒蓋，JS 要找的 DOM 還不存在，使用者盯著白畫面等<mark style="background: #FFB8EBA6;">（parser-blocking）</mark>。
-**命名坑：別叫這個「同步 JS」**——「同步/非同步 JS」在 JS 圈更常指程式碼本身的執行模型（callback／Promise／Event Loop，見 [JavaScript-事件循環與閉包-面試核心](../javascript/JS_Core_and_Runtime/js-runtime/JavaScript-事件循環與閉包-面試核心.md)），跟「載入時機」不同層次。本篇一律用 `#阻塞解析`(parser-blocking) 稱呼它。
+**命名坑：別叫這個「同步 JS」**——「同步/非同步 JS」在 JS 圈更常指程式碼本身的執行模型（callback／Promise／Event Loop，見 [JavaScript-Event Loop事件循環機制與閉包-面試核心](JavaScript-Event%20Loop事件循環機制與閉包-面試核心.md)），跟「載入時機」不同層次。本篇一律用 `#阻塞解析`(parser-blocking) 稱呼它。
+
+> **它會中斷「幾秒」？沒有固定秒數**（面試用，互動版 HTML 有 hover 與裝置自適應三欄）。中斷時間 ≈ <mark style="background: #FFF3A3A6;">（外部 src 才有）下載時間 ＋ V8 的 parse＋compile＋execute</mark>：
+> - **① 下載**＝檔案大小 ÷ 網速 ＋ RTT。網速單位＝**bps（bits per second）**＝Kbps／Mbps／Gbps；<mark style="background: #FF5582A6;">bit ≠ byte</mark>，檔案大小是 byte、1 byte＝8 bit，算下載要先 ×8（例 100 KB＝800 Kb，10 Mbps ≈ 0.08s＋RTT）。<mark style="background: #BBFABBA6;">inline `<script>` 沒有這段</mark>——字元已在 HTML、不用再下載。
+> - **② parse＋compile＋execute 是 CPU-bound**（瓶頸在 CPU 算力不是網路），吃主執行緒 CPU，跟程式量與裝置 CPU 有關——主場見 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]]、CPU 本身見 [[01-CPU五大單元-ALU-CU-暫存器-快取與微指令]]。
+> - **隨裝置／網路放大**：桌機＋快 WiFi 約 0.1s；中階手機＋4G 約 1–2s；低階手機＋弱 3G 卡好幾秒。**不同瀏覽器**：下載 bytes 本身差不多（網路主導），但 preload scanner／HTTP2‧3／快取影響「多早開始抓」，parse/execute 則因引擎（V8／SpiderMonkey／JavaScriptCore）有速度差。
+> - 所以要用 defer／async／`type=module` 挪開、用 code-splitting 縮小 bundle、以低階裝置做效能預算；精準量看 DevTools → Performance 的 Evaluate Script ＋ Network 下載時間。
 
 ### (e) `<script async>`：背景下載不中斷，但抓完立刻插隊執行、不保證順序
 
@@ -409,7 +582,7 @@ Vite／原生 ES Module 預設作法。特性：① **預設就是 defer 行為*
 > 後面的 `defer`、`async`、code splitting、tree-shaking，**全部是這一句的推論**。
 >
 > 📎 至於「純文字如何變成 DOM」那四個步驟（bytes → decode → tokenize → tree construction），
-> 見 [[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]] —— 那篇是本篇的**前傳**，
+> 見 [[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]] —— 那篇是本篇的**前傳**，
 > 把 (a) 一句話帶過的東西整條展開，並解釋 DOM 節點的原型繼承鏈為什麼讓它能掛事件。
 
 
@@ -687,7 +860,7 @@ hydration 之後，互動造成的 re-render 回到瀏覽器端，跟 CSR 一樣
 
 ### Hydration Mismatch（水合不一致）
 
-**接上 HTML Parsing 流程**：SSR 送來的 HTML 字串，瀏覽器先跑完 HTML Parsing（bytes → decode → tokenize → tree construction）蓋出 **DOM**（見 [HTML-Parsing-瀏覽器拿到HTTP-response-body之後](../html-basics/HTML-Parsing-瀏覽器拿到HTTP-response-body之後.md)）；hydration 就是 React 走訪這棵**既有 DOM**、把事件掛上去。前提：「伺服器算的 HTML」要跟「瀏覽器端 React 重算一次的結果」**長得一樣**；一不一樣 → **hydration mismatch**。
+**接上 HTML Parsing 流程**：SSR 送來的 HTML 字串，瀏覽器先跑完 HTML Parsing（bytes → decode → tokenize → tree construction）蓋出 **DOM**（見 [HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後](HTML-Parsing%20DOM樹建立過程-瀏覽器拿到HTTP-response-body之後.md)）；hydration 就是 React 走訪這棵**既有 DOM**、把事件掛上去。前提：「伺服器算的 HTML」要跟「瀏覽器端 React 重算一次的結果」**長得一樣**；一不一樣 → **hydration mismatch**。
 
 - **發生原因（常見地雷）**：在元件本體（render 期間）用了「兩邊會算出不同值」的東西：
 	- `Date.now()` / `new Date()`：伺服器算的時間 ≠ 瀏覽器算的時間 → 產出的 HTML 不同。
@@ -741,7 +914,7 @@ hydration 之後，互動造成的 re-render 回到瀏覽器端，跟 CSR 一樣
 - [Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪](../react/Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪.md) —— DOM 蓋好後，樣式計算→排版→繪製的下一段
 - [機器碼與bytecode的差異](../../build-and-compilation/機器碼與bytecode的差異.md)、[00-V8引擎完整管線-Parse到Deoptimization](../javascript/JS_Core_and_Runtime/00-V8引擎完整管線-Parse到Deoptimization.md) —— JS 側的 Parse→AST→Bytecode→執行
 - [前端開發工具-打包編譯Lint與Parser](../../build-and-compilation/前端開發工具-打包編譯Lint與Parser.md) —— React/TS 如何在 build-time 被轉譯打包成純文字
-- [JavaScript-事件循環與閉包-面試核心](../javascript/JS_Core_and_Runtime/js-runtime/JavaScript-事件循環與閉包-面試核心.md)、[事件循環-Event-Loop-微任務與巨任務](../javascript/JS_Core_and_Runtime/事件循環-Event-Loop-微任務與巨任務.md) —— 「同步/非同步 JS」真正常指的主題（Event Loop），跟本篇不同層次
+- [JavaScript-Event Loop事件循環機制與閉包-面試核心](JavaScript-Event%20Loop事件循環機制與閉包-面試核心.md)、[事件循環-Event-Loop-微任務與巨任務](../javascript/JS_Core_and_Runtime/事件循環-Event-Loop-微任務與巨任務.md) —— 「同步/非同步 JS」真正常指的主題（Event Loop），跟本篇不同層次
 
 ## 資料來源（含查證時間）
 
