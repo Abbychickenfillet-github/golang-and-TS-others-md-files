@@ -220,7 +220,7 @@
       <span><i class="sw b-parse"></i>解析 HTML（蓋房子，建出 DOM）</span>
       <span><i class="sw b-down"></i>下載 JS（買說明書）</span>
       <span><i class="sw b-exec"></i>執行 JS（看說明書）</span>
-      <span><i class="sw b-bc"></i>BC：parse 成 bytecode（Ignition，主緒下道）</span>
+      <span><i class="sw b-bc"></i><span class="term" data-def="bytecode（位元組碼）：V8 的 Ignition 把 JS 原始碼編成的中間格式，給直譯器一行一行讀。輸入是原始碼，輸出才是 bytecode；它不是機器碼。">BC</span>：Ignition 把原始碼編成 bytecode（主緒下道）</span>
       <span><i class="sw b-interp"></i>直譯 bytecode＋收集型別回饋（主緒下道）</span>
       <span><i class="sw b-jit"></i>JIT 編譯（虛線＝熱了才有）</span>
       <span><i class="sw b-inst"></i>換上機器碼</span>
@@ -242,7 +242,7 @@
         <li><b>熱了才編。</b>執行時累積「額度」（呼叫次數、迴圈次數），用完才送去編譯；層級由低到高是 Sparkplug、Maglev、TurboFan，越高階門檻越高。<strong>短小的 script 可能整段都沒觸發 JIT</strong>，所以圖中 JIT 與「換上」畫虛線。細節見 <a href="../../編譯與打包-學習路徑/04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】-互動版.html">04 V8 引擎管線</a>。</li>
         <li><b>在哪條執行緒。</b>優化編譯多半在<strong>背景執行緒</strong>做，主執行緒繼續直譯，編好才換上，所以 JIT 本身不擋解析 HTML；但有些步驟仍在主緒，不是全部都在背景。Sparkplug 另有「背景編譯」的 Chromium 旗標（<code>V8ConcurrentSparkplug</code>），是否預設啟用我沒有查證。</li>
         <li><b>和六種模式的關係。</b>模式只決定「執行 JS」那一格出現在哪個時間點，JIT 整組跟著往後移，位置關係六種都相同。defer、module 的 JIT 也要等解析完才開始，<strong>JIT 補不了「晚執行」</strong>。</li>
-        <li><b>圖沒畫的兩件事。</b>① 下載期間 V8 可能已在背景先 parse、編譯 bytecode（script streaming），主緒只做最後收尾；② 型別假設被打破時 Deoptimization 退回直譯。</li>
+        <li><b>圖沒畫的兩件事。</b>① 下載期間 V8 可能已在背景，把「已經收到的那一段原始碼」先 parse 並編成 bytecode（script streaming）：輸入是原始碼，輸出才是 bytecode，主緒只做最後收尾；② 型別假設被打破時 Deoptimization 退回直譯。</li>
       </ol>
       <small style="color:var(--muted)">來源：V8 官方部落格 <a href="https://v8.dev/blog/maglev">Maglev</a>（Ignition、Sparkplug、Maglev、TurboFan 四層；Maglev 隨 Chrome M117 上線）、<a href="https://v8.dev/blog/background-compilation">Background compilation</a>（背景 parse／編譯）；「優化編譯多半在背景」另參考 Intel 工程部落格（二手資料，非 V8 官方文件）。門檻、各層確切觸發條件與各層在哪條執行緒，本頁沒有逐一查證，位置與長度為示意。</small>
     </div>
@@ -565,7 +565,7 @@ const VS={
 function jitRows(s){
   const ex=s.main.find(b=>b[0]==='b-exec'), a=ex[1], len=ex[2];
   return {
-    eng:[['b-bc',a,3,'BC','Ignition：把原始碼 parse 成 AST，再產生 bytecode（內層函式多半第一次被呼叫才編）'],
+    eng:[['b-bc',a,3,'BC','bytecode（位元組碼）：Ignition 把原始碼 parse 成 AST，再編成 bytecode。輸入是原始碼，輸出才是 bytecode，不是機器碼。內層函式多半第一次被呼叫才編'],
          ['b-interp',a+3,len-3,'直譯','直譯執行 bytecode，同時收集型別回饋（feedback）給 JIT 用']],
     jit:[['b-jit',a+4,8,'JIT','Sparkplug／Maglev／TurboFan：函式熱了（累積的執行額度用完）才編成機器碼。優化編譯多半在背景執行緒，主緒照常執行。示意：短小 script 可能不會觸發'],
          ['b-inst',a+12,3,'換上','編好的機器碼換上，之後呼叫該函式就跑機器碼（若型別假設被打破會 Deoptimization 退回直譯，圖未畫）']]

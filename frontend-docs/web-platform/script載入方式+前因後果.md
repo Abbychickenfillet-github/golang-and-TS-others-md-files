@@ -77,7 +77,7 @@ quiz: script載入方式-sync-defer-async.html
 - `defer`：下載與 HTML 解析並行；**執行**等 HTML 解析完
 - JIT 發生在「執行之後」，而且只有跑得夠熱的函式才會編，所以 JIT 一定晚於 HTML 解析完，順序是：解析完 → 執行 JS（直譯）→ 熱了才 JIT
 - 修正一個常見說法：不是「HTML 下載完才 JIT」；JIT 看的是 **JS 何時開始執行**，不是 HTML 何時下載完
-- 下載期間若已在背景把 JS 編成 bytecode（streaming），那**不是 JIT**，JIT 是把 bytecode 再編成機器碼
+- 下載期間若已在背景把「已收到的那一段 JS 原始碼」編成 bytecode（streaming；輸入是原始碼，輸出才是 bytecode），那**不是 JIT**，JIT 是把 bytecode 再編成機器碼
 
 **機器碼比較快嗎**
 - 一般來說是：直譯每條 bytecode 要「讀指令、分派、執行」，機器碼直接由 CPU 執行；TurboFan 還會依型別回饋做特化
