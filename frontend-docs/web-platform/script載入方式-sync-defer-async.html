@@ -113,6 +113,10 @@
   .b-exec{background:var(--accent2)}
   .b-wait{background:repeating-linear-gradient(45deg,#5a6478,#5a6478 6px,#46506a 6px,#46506a 12px);color:#fff}
   .b-data{background:var(--green)}
+  .grp{display:inline-flex;align-items:center;gap:8px;padding:3px 10px;border:1px dashed var(--accent);border-radius:10px}
+  .grp .gl{font-size:.74rem;color:var(--accent);white-space:nowrap;cursor:help}
+  .b-waitc{background:repeating-linear-gradient(45deg,#a0507a,#a0507a 6px,#7c3d5e 6px,#7c3d5e 12px);color:#fff}
+  .track.two{height:46px}
   .b-bc{background:#7fd1b9;color:#0a1a16}
   .b-interp{background:#b8923a;color:#fff}
   .b-jit{background:rgba(255,138,92,.28);border:1.5px dashed var(--thread);color:#ffd2bd}
@@ -167,7 +171,7 @@
   <!-- ② 時間軸 -->
   <section>
     <h2><span class="tag">比喻＋時間軸</span> 六種載入模式在搶「主執行緒」（含 CSS／CSSOM）</h2>
-    <p class="note">重點 (d)–(i)：差別只在「下載 JS 要不要打斷解析 HTML」「執行 JS 插在哪個時間點」。點按鈕切換看時間軸怎麼變；六種的橫軸刻度相同，可以直接比誰先解析完。<b>橫軸的數字（80、100…）是相對刻度，不是毫秒，也沒有實測</b>，只表示先後與長短比例。第三條線是 CSS：<code>&lt;link rel="stylesheet"&gt;</code> 在 <code>&lt;head&gt;</code>，下載後由 CSS parser 建 CSSOM，六種模式下都一樣。</p>
+    <p class="note">重點 (d)–(i)：差別只在「下載 JS 要不要打斷解析 HTML」「執行 JS 插在哪個時間點」。點按鈕切換看時間軸怎麼變；六種的橫軸刻度相同，可以直接比誰先解析完。<b>橫軸的數字（80、100…）是相對刻度，不是毫秒，也沒有實測</b>，只表示先後與長短比例。CSS 的下載畫在「網路執行緒」那一行的下道，「建 CSSOM」另畫一行：<code>&lt;link rel="stylesheet"&gt;</code> 在 <code>&lt;head&gt;</code>，下載後由 CSS parser 建 CSSOM，六種模式下都一樣。</p>
 
     <div class="metaphor">
       <div class="mcard"><span class="emo">🏠</span><b>解析 HTML（蓋房子）</b><small>把 HTML 文字讀成 DOM 樹。占主執行緒。</small></div>
@@ -179,8 +183,11 @@
 
     <div class="btns">
       <button class="mode on" data-m="normal" onclick="setMode('normal',this)">一般 &lt;script&gt;</button>
-      <button class="mode" data-m="async" onclick="setMode('async',this)">async</button>
-      <button class="mode" data-m="defer" onclick="setMode('defer',this)">defer</button>
+      <span class="grp">
+        <button class="mode" data-m="async" onclick="setMode('async',this)">async</button>
+        <span class="gl" title="async 與 defer 都是「下載走背景、不暫停 HTML 解析」。差別只在執行時機：async 抓完立刻插隊執行，defer 等解析完才執行。">← 都不中斷 HTML 解析 →</span>
+        <button class="mode" data-m="defer" onclick="setMode('defer',this)">defer</button>
+      </span>
       <button class="mode" data-m="bodyend" onclick="setMode('bodyend',this)">放 &lt;/body&gt; 前</button>
       <button class="mode" data-m="module" onclick="setMode('module',this)">type="module"</button>
       <button class="mode" data-m="ajax" onclick="setMode('ajax',this)">Ajax／fetch</button>
@@ -190,11 +197,7 @@
     <div class="timeline">
       <div class="trow">
         <div class="tlabel">🏠 主執行緒</div>
-        <div class="track" id="trackMain"></div>
-      </div>
-      <div class="trow">
-        <div class="tlabel">⚙ V8（主緒）</div>
-        <div class="track" id="trackEng"></div>
+        <div class="track two" id="trackMain"></div>
       </div>
       <div class="trow">
         <div class="tlabel">🔥 JIT（背景）</div>
@@ -202,11 +205,7 @@
       </div>
       <div class="trow">
         <div class="tlabel">📖 網路執行緒</div>
-        <div class="track" id="trackNet"></div>
-      </div>
-      <div class="trow">
-        <div class="tlabel">🎨 CSS 線</div>
-        <div class="track" id="trackCss"></div>
+        <div class="track two" id="trackNet"></div>
       </div>
       <div class="trow">
         <div class="tlabel">🖼 畫面</div>
@@ -221,17 +220,19 @@
       <span><i class="sw b-parse"></i>解析 HTML（蓋房子，建出 DOM）</span>
       <span><i class="sw b-down"></i>下載 JS（買說明書）</span>
       <span><i class="sw b-exec"></i>執行 JS（看說明書）</span>
-      <span><i class="sw b-bc"></i>BC：parse 成 bytecode（Ignition）</span>
-      <span><i class="sw b-interp"></i>直譯 bytecode＋收集型別回饋</span>
+      <span><i class="sw b-bc"></i>BC：parse 成 bytecode（Ignition，主緒下道）</span>
+      <span><i class="sw b-interp"></i>直譯 bytecode＋收集型別回饋（主緒下道）</span>
       <span><i class="sw b-jit"></i>JIT 編譯（虛線＝熱了才有）</span>
       <span><i class="sw b-inst"></i>換上機器碼</span>
       <span><i class="sw b-cssd"></i>下載 CSS</span>
-      <span><i class="sw b-cssom"></i>建 CSSOM（解析 CSS）</span>
-      <span><i class="sw b-wait"></i>空等（主執行緒閒置，等下載或等 CSSOM）</span>
+      <span><i class="sw b-cssom"></i>建 CSSOM（解析 CSS，主緒下道）</span>
+      <span><i class="sw b-wait"></i>空等：等 JS 下載</span>
+      <span><i class="sw b-waitc"></i>空等：JS 已到手，等 CSSOM 建好</span>
       <span><i class="sw b-blank"></i>畫面空白（CSSOM 沒好不畫）</span>
       <span><i class="sw b-paint"></i>最早可首次繪製</span>
       <span><i class="sw b-data"></i>Ajax 抓回的資料（JSON，不是 DOM）</span>
     </div>
+    <p class="note"><b>網路執行緒那一行同時畫 JS 與 CSS 的下載</b>（上下兩道，因為下載可以同時進行；HTML、圖片、<code>fetch</code> 也走同一個網路，圖中沒畫）。<b>主執行緒只有一行</b>：上道是解析 HTML、空等、執行 JS；下道是同一條主緒上「穿插」的工作，包含<b>建 CSSOM</b>（Blink 的 CSS parser 在主執行緒）以及 V8 的 <b>BC、直譯</b>（它們是「執行 JS」那一格的內部拆解）。一條執行緒同一刻只能做一件事，所以實際上建 CSSOM 會和解析 HTML 輪流使用主緒；圖為了不改動時間刻度，把它畫在下道。主執行緒上粉紅斜線「等 CSSOM」＝JS 已經下載好，卻因為 CSSOM 還沒建好不能執行。網路執行緒是瀏覽器內部的元件，你寫不了它；你能自己開的背景執行緒是 Web Worker，兩者不同。</p>
     <div class="verdict" id="verdict"></div>
     <div class="verdict pc" id="proscons"></div>
     <div class="cssbox" id="jitbox">
@@ -248,7 +249,7 @@
     <div class="cssbox">
       <b class="t">CSS 在這張圖的角色（六種模式共通，不隨按鈕變；各模式專屬的 CSS 影響看上方「CSS 在這個模式的角色」）</b>
       <ol>
-        <li><b>平行下載、獨立建 CSSOM，不擋解析 HTML。</b>CSS 的「下載」走網路，和主執行緒的解析 HTML 同時進行，DOM 照蓋。「建 CSSOM」本身多半仍占用主執行緒（各引擎不同），只是很短；第三條線是邏輯上的流程，<b>不是獨立的執行緒</b>。</li>
+        <li><b>平行下載、獨立建 CSSOM，不擋解析 HTML。</b>CSS 的「下載」走網路，和主執行緒的解析 HTML 同時進行，DOM 照蓋。「建 CSSOM」本身多半仍占用主執行緒（各引擎不同），只是很短；「建 CSSOM」那一行是邏輯上的流程，<b>不是獨立的執行緒</b>。</li>
         <li><b>擋「畫」。</b>CSSOM 沒建好就不畫第一個像素（避免先閃出沒樣式的畫面，FOUC）。所以 CSS 越慢，白畫面越久，和你用哪種 script 載入無關。</li>
         <li><b>擋「後面的同步 script 執行」。</b>script 可能讀樣式，要等前面 <code>&lt;link&gt;</code> 的 CSSOM 好了才跑。上圖 CSS 比 JS 早好所以看不出來；若 CSS 比 JS 慢，一般 script 的「執行 JS」會被往後推。</li>
       </ol>
@@ -497,19 +498,26 @@ paint();
 
 /* ② 時間軸：六種模式共用同一條橫軸（T 個單位），可直接比誰先解析完 */
 let T=110, curMode='normal', slow=false;
-function bar(cls,start,len,label,tip){
-  return `<div class="blk ${cls}" title="${tip||label}" style="left:${start/T*100}%;width:${len/T*100}%">${label}</div>`;
+function bar(cls,start,len,label,tip,lane){
+  const ly=lane===0?'top:0;height:50%;':(lane===1?'top:50%;height:50%;':'');
+  return `<div class="blk ${cls}" title="${tip||label}" style="left:${start/T*100}%;width:${len/T*100}%;${ly}">${label}</div>`;
 }
 /* 每筆 [樣式, 起點, 長度, 文字]；解析總長 80、下載長 20、執行長 10。
    C ＝ CSSOM 建好的時間點：一般 CSS 在 26，「很大／很慢」在 100。
    同步 script、defer／module script 要等 C 之後才能執行（規格 13.2.7：沒有擋住 script 的 style sheet）。
    async 是否等 CSSOM 沒查到規格依據，這裡照不等畫，並在說明文字註明。 */
 function build(m,C){
-  const w=(from,to)=>to>from?[['b-wait',from,to-from,'空等']]:[];
+  /* 空等拆成兩種：dlEnd 之前是等 JS 下載，之後是 JS 已到手但 CSSOM 還沒建好 */
+  const w=(from,to,dlEnd=from)=>{
+    const a=Math.min(Math.max(dlEnd,from),to), r=[];
+    if(a>from) r.push(['b-wait',from,a-from,'等 JS 下載']);
+    if(to>a) r.push(['b-waitc',a,to-a,'等 CSSOM']);
+    return r;
+  };
   const dl=(s,l,t)=>['b-down',s,l,t];
   if(m==='normal'){const x=Math.max(50,C);
     return {at:30,pin:'▲ 解析到 &lt;script&gt;',
-      main:[['b-parse',0,30,'解析 HTML'],...w(30,x),['b-exec',x,10,'執行 JS'],['b-parse2',x+10,50,'繼續解析']],
+      main:[['b-parse',0,30,'解析 HTML'],...w(30,x,50),['b-exec',x,10,'執行 JS'],['b-parse2',x+10,50,'繼續解析']],
       net:[dl(30,20,'下載 JS')]};}
   if(m==='async')
     return {at:30,pin:'▲ 解析到 &lt;script async&gt;',
@@ -521,7 +529,7 @@ function build(m,C){
       net:[dl(30,20,'背景下載 JS')]};}
   if(m==='bodyend'){const x=Math.max(100,C);
     return {at:80,pin:'▲ 到最後才讀到 &lt;script&gt;',
-      main:[['b-parse',0,80,'解析 HTML（DOM 幾乎建好）'],...w(80,x),['b-exec',x,10,'執行 JS']],
+      main:[['b-parse',0,80,'解析 HTML（DOM 幾乎建好）'],...w(80,x,100),['b-exec',x,10,'執行 JS']],
       net:[dl(80,20,'讀到才下載')]};}
   if(m==='module'){const x=Math.max(80,C);
     return {at:30,pin:'▲ 解析到 type="module"',
@@ -637,9 +645,14 @@ function render(){
   const screenRow=[['b-blank',0,C,'空白：CSSOM 沒好不畫'],['b-paint',C,T-C,'最早可首次繪製']];
   const mk=`<div class="mark css" style="left:${4/T*100}%"></div>`+
            `<div class="mark css" style="left:${C/T*100}%"></div><div class="mark" style="left:${s.at/T*100}%"></div>`;
-  const put=(id,row)=>document.getElementById(id).innerHTML=row.map(b=>bar(b[0],b[1],b[2],b[3],b[4])).join('')+mk;
-  put('trackMain',s.main); put('trackNet',s.net); put('trackCss',cssRow); put('trackScreen',screenRow);
-  const j=jitRows(s); put('trackEng',j.eng); put('trackJit',j.jit);
+  const put=(id,row)=>document.getElementById(id).innerHTML=row.map(b=>bar(b[0],b[1],b[2],b[3],b[4],b[5])).join('')+mk;
+  /* 網路執行緒：JS 與 CSS 的下載都在這一行，上下兩道（下載可同時進行） */
+  const netRow=s.net.map(b=>[b[0],b[1],b[2],b[3],b[4],0]).concat([[cssRow[0][0],cssRow[0][1],cssRow[0][2],cssRow[0][3],'CSS 下載：和 JS 下載同一條網路執行緒，下載可以同時進行',1]]);
+  /* 主執行緒是同一條：上道＝解析 HTML／空等／執行 JS，下道＝同一條主緒上穿插的工作（建 CSSOM、V8 的 BC 與直譯） */
+  const lane=(row,l)=>row.map(b=>[b[0],b[1],b[2],b[3],b[4],l]);
+  const j=jitRows(s);
+  put('trackMain',[...lane(s.main,0),...lane([cssRow[1]],1),...lane(j.eng,1)]);
+  put('trackNet',netRow); put('trackScreen',screenRow); put('trackJit',j.jit);
   const tx=f=>f<.1?0:(f<.3?-8:(f>.55?-100:-50));
   const pin=(cls,at,txt)=>`<span class="pin ${cls}" style="left:${at/T*100}%;transform:translateX(${tx(at/T)}%)">${txt}</span>`;
   document.getElementById('trackMark').innerHTML=

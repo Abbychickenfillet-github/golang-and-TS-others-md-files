@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>script 位置與綁定時機：四種情境</title>
+<title>script 位置與綁定時機：五種情境</title>
 <style>
   :root {
     --bg: #ffffff;
@@ -102,7 +102,7 @@
 </head>
 <body>
 <main>
-  <h1>script 位置與綁定時機：四種情境</h1>
+  <h1>script 位置與綁定時機：五種情境</h1>
   <p class="sub">每張卡片是一個獨立的小網頁，按框裡的「按我」，看右邊的紀錄。</p>
 
   <div class="rule">
@@ -124,6 +124,19 @@
       code:
         "const btn = document.getElementById('btn')\n" +
         "L('script 本體執行：body = ' + document.body + '，btn = ' + btn)\n" +
+        "let n = 0\n" +
+        "btn.addEventListener('click', () => {\n" +
+        "  n++; C(); L('處理函式被呼叫，第 ' + n + ' 次')\n" +
+        "})"
+    },
+    {
+      id: 'E',
+      title: 'E　script 在 body 一開頭（按鈕之前），直接綁定',
+      tag: '預期：失敗，和 head 一樣。按鈕寫在 script 後面，script 跑的時候還沒建好',
+      where: 'bodyStart',
+      code:
+        "const btn = document.getElementById('btn')\n" +
+        "L('script 本體執行：btn = ' + btn)\n" +
         "let n = 0\n" +
         "btn.addEventListener('click', () => {\n" +
         "  n++; C(); L('處理函式被呼叫，第 ' + n + ' 次')\n" +
@@ -173,6 +186,13 @@
     }
   ]
 
+  // 每張卡片的 HTML 結構：script 與按鈕誰先誰後，就是成敗的關鍵
+  var SHAPE = {
+    head: '<head> <script>…<\/script> </head>\n<body> <button id="btn"> </body>',
+    bodyStart: '<body> <script>…<\/script> <button id="btn"> </body>',
+    bodyEnd: '<body> <button id="btn"> <script>…<\/script> </body>'
+  }
+
   // 每個小網頁都先放一段共用的前置 script：L 寫紀錄、C 通知被呼叫、onerror 抓錯誤
   function buildPage(scene) {
     var prelude =
@@ -185,9 +205,10 @@
     var user = '<script>' + scene.code + '<\/script>'
     var head = scene.where === 'head' ? prelude + user : prelude
     var tail = scene.where === 'bodyEnd' ? user : ''
+    var top = scene.where === 'bodyStart' ? user : ''
     return (
       '<!doctype html><html><head><meta charset="utf-8">' + head + '</head>' +
-      '<body style="font:14px sans-serif;margin:10px">' +
+      '<body style="font:14px sans-serif;margin:10px">' + top +
       '<button id="btn" style="font:inherit;padding:4px 14px">按我</button>' +
       tail + '</body></html>'
     )
@@ -207,7 +228,7 @@
     tag.className = 'tag'
     tag.textContent = s.tag
     var pre = document.createElement('pre')
-    pre.textContent = '<script> 內容（放在 ' + (s.where === 'head' ? '<head>' : '</body> 前') + '）\n' + s.code
+    pre.textContent = '結構：\n' + SHAPE[s.where] + '\n\n<script> 內容\n' + s.code
     var frame = document.createElement('iframe')
     frame.title = '情境 ' + s.id
     var stat = document.createElement('p')

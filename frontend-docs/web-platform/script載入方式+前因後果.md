@@ -347,6 +347,7 @@ function createTokenizer() {
 | 8 | body 尾 | async | 不中斷 | 最晚，背景平行 | 抓完立刻 | 不保證 | 幾乎完整 |
 | 9 | body 尾 | defer | 不中斷 | 最晚，背景平行 | 解析完 | 保證 | 完整 |
 
+- 第 1、4 列（無屬性，放在 head 或 body 一開頭）：執行時後面的元素還沒建好，直接抓元素會得到 `null`，實測見 (c3) ③-2 的 A、E
 - `async defer` 的三種位置，行為分別等於第 2、5、8 列
 - 第 9 列與第 7 列結果幾乎一樣，`defer` 放 body 尾沒有意義（呼應上方位置規則）
 - 同位置比較：`defer` 的執行時機永遠是「解析完」，位置只影響「多早開始下載」
@@ -405,7 +406,7 @@ function createTokenizer() {
 - 因果是單向：**A 決定 B 有沒有函式，B 的次數不會回頭影響 A**
 - 補救：把註冊移到 `DOMContentLoaded`，或掛在 `document` 上做事件委派（點擊時再判斷 `e.target`），A 軸這一步就不依賴元素是否已存在
 
-**③-2 四種實測範例（可自己開：[[script位置與綁定時機-四種情境.html]]）**
+**③-2 五種實測範例（可自己開：[[script位置與綁定時機-四種情境.html]]，檔名沿用舊的「四種」，內容已是五種）**
 
 | 情境 | 位置 | 寫法 | script 本體執行時 | 按 3 次 |
 |---|---|---|---|---|
@@ -413,6 +414,10 @@ function createTokenizer() {
 | B | head | 包進 `DOMContentLoaded` | `btn = null`，事件觸發時 `btn` 才有值 | 3 次 |
 | C | head | 綁在 `document` 做事件委派 | `body = null`，但 `document` 存在 | 3 次 |
 | D | body 結尾 | 直接綁定 | `btn` 已存在 | 3 次 |
+| E | body 一開頭（按鈕之前） | 直接綁定 | `btn = null` → `TypeError` | 0 次 |
+
+- 判斷成敗只看一件事：**script 跑的時候，要抓的元素有沒有已經在 DOM 裡**。`<body><script>…</script>按鈕</body>`（E）和 head（A）一樣失敗；`<body>按鈕<script>…</script></body>`（D）成功
+- E 在 2026-11-05 用瀏覽器實測，結果與 A 相同
 
 - 以上在 jsdom 與真實瀏覽器（Chromium 內嵌窗格，載入 HTML 檔）都得到相同結果（2026-11-04 實測）
 - 「DOM 空，body 還沒蓋」的白話：head 裡的 script 跑的時候，瀏覽器才讀到 `<head>`，後面的 `<body>`、`<button>` 還沒讀，所以 `document.body` 是 `null`，找按鈕也找不到
@@ -478,6 +483,30 @@ function createTokenizer() {
 - 外部的下載常能提早開始：parser 停住時，preload scanner 會繼續往後掃，先把後面的資源抓起來，所以實際等待可能比整個下載時間短
 - 所以 inline 比外部快，但只要內容跑得久（大迴圈、同步運算），一樣會卡住畫面
 - 未查證：preload scanner 的行為與非 JS type 不下載這兩點，本次未重新抓規格原文
+
+**⑦ 網路執行緒 vs Web Worker**
+
+| | 網路執行緒（瀏覽器內部） | Web Worker |
+|---|---|---|
+| 是誰的 | 瀏覽器自己 | 你的程式，用 `new Worker('x.js')` 開 |
+| 做什麼 | 收發網路資料（DNS、連線、TLS、HTTP、快取） | 跑你寫的 JS（重運算、處理大檔、打 API） |
+| 你能不能在上面寫程式 | 不能 | 能 |
+| DOM | 與 JS 無關 | 沒有 DOM，也沒有 `window` |
+| 怎麼溝通 | 瀏覽器內部把收到的資料交回來 | `postMessage` 傳資料，自己有一個 event loop |
+| 什麼時候動 | 讀到 `<script src>`、`<link>`、`<img>`，或呼叫 `fetch()` | 你呼叫 `new Worker()` |
+
+- **所有下載都走網路**（HTML、CSS、JS、圖片、`fetch`），不是只有 JS；時間軸圖只把 JS 畫在「網路 (JS)」，是為了好讀
+- Worker 裡呼叫 `fetch()`：實際收資料的仍是瀏覽器的網路元件，Worker 只是發請求、等回應的那一方
+- 目的不同：下載不需要 Worker；Worker 是把「吃 CPU 的 JS」移出主執行緒，避免卡住畫面
+- 未查證：Chrome 的網路元件叫 Network Service，但它是獨立 process 還是 browser process 內的執行緒，依平台與版本而異，圖中「網路執行緒」是簡化說法；Web Worker 的特性來自記憶，未重新開 MDN
+
+**⑧ 在 Obsidian 打開互動 HTML 沒反應**
+
+- Obsidian 本身不能開 `.html`；這個 vault 裝了社群外掛 **HTML Reader**（`obsidian-html-plugin`），所以檔案能開
+- 外掛預設模式是 `BalanceMode`，由原始碼可見會**移除 `<script>`**並加上 `script-src 'none'` 的 CSP，所以互動頁的按鈕、由 JS 畫的時間軸都不會動，看起來像壞掉
+- 只有 **Unrestricted Mode** 才保留 script；外掛自己標示為危險，只對自己的檔案使用
+- 筆記裡 `[[檔名]]` 沒寫副檔名時只會找 `.md`，指不到 `.html`，要寫 `[[檔名.html]]`
+- 未實測：沒有在你的 Obsidian 裡實際切換模式，上述來自外掛原始碼 `.obsidian/plugins/obsidian-html-plugin/main.js`
 
 來源：MDN，[`<script>` 元素](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script)，頁面標示最後修改 2026-05-09；jsdom 實測四種情境（head 直接綁定、DOMContentLoaded、事件委派、body 尾）與本專案 build 產物計數，皆為 2026-11-03 實測。
 
