@@ -24,8 +24,12 @@ updated: 2026-10-28
 | 引擎 | HTML parser | CSS parser | preload scanner |
 |---|---|---|---|
 | **Blink**（Chrome、Edge） | **主執行緒**。曾有背景 HTML parser，2017-12 有 CL「Remove background html parser」（理由：`The background thread is no longer used`）；現行 `core/html/parser` 目錄已沒有 `background_html_parser.*`、`html_parser_thread.*` | **主執行緒、同步解析**（blink-dev 說明 CSS 文字解析在 Blink 是同步的）；現行 `core/css/parser` 目錄沒有任何 thread／background／worker 檔 | `HTMLPreloadScanner` 在**主執行緒**，只掃 body 資料的**第一個 chunk**。另有 `BackgroundHTMLScanner` 在 worker 掃**內嵌 script** 提早編譯（不是預載資源）；原始碼 TODO 寫「把 HTMLPreloadScanner 移到背景執行緒並合併」 |
-| **WebKit**（Safari） | **主執行緒**。2013 加入背景解析（bug 107083）；2014-01 bug 127224「Remove the remaining threaded parser code」；現行 `html/parser` 目錄沒有 `HTMLParserThread`、`BackgroundHTMLParser` | **未能查證**。`css/parser` 目錄可見檔案沒有執行緒相關名稱，但清單只看到一部分，也沒有官方說明 | `HTMLPreloadScanner`、`CSSPreloadScanner` 檔案存在；在哪條執行緒**未查證** |
+| **WebKit**（Safari） | **主執行緒**。2013 加入背景解析（bug 107083）；2014-01 bug 127224「Remove the remaining threaded parser code」；現行 `html/parser` 目錄沒有 `HTMLParserThread`、`BackgroundHTMLParser` | **一般樣式表的解析：未能查證**（沒有官方說明，`css/parser` 目錄可見檔案沒有執行緒相關名稱）。**旁證（2026-11-04 查）**：WebKit bug 216370（2020-09，r267009）把 CSS 解析用到的 singleton 改成 `MainThreadNeverDestroyed`，原文說這些「not intended to ever be used off of the main thread」，表示設計預設是主執行緒；同一個 bug 提到 CSS 解析有「一小部分」（顏色、字型字串）為了 OffscreenCanvas 需要能在非主執行緒跑 | `HTMLPreloadScanner`、`CSSPreloadScanner` 檔案存在；在哪條執行緒**未查證** |
 | **Gecko**（Firefox） | **背景 parser 執行緒**。MDN：「Firefox since Firefox 4, support speculative parsing off of the main thread」 | **樣式表丟 thread pool 解析**（bug 1346988，Firefox 61）。平行的是「不同樣式表之間」，不是單一檔案內；UA 樣式表永遠同步 | 沒有獨立元件。MDN 描述的是 parser 自己往後解析，推測式跑 tree construction 並提早發請求 |
+
+名詞：
+- **樣式表（stylesheet）**：一份 CSS，可以是 `<link rel="stylesheet" href="x.css">` 載進來的 `.css` 檔，也可以是 `<style>` 裡的內容。「樣式表丟 thread pool 解析」是指把整份 CSS 文字解析成規則（CSSOM）這件事
+- **OffscreenCanvas**：可以不放在畫面上、也能在 Web Worker 裡使用的 Canvas API。Worker 裡沒有 DOM，所以畫圖時用到的「顏色字串、字型字串」（如 `'#ff0000'`、`'12px serif'`）要能在非主執行緒解析，這就是 WebKit bug 216370 裡「一小部分 CSS 解析要能在非主執行緒」的原因
 
 重點：
 - **Blink 與 WebKit：HTML、CSS 解析都在主執行緒**（WebKit 的 CSS 除外，未查證）。
@@ -64,3 +68,6 @@ updated: 2026-10-28
 | WebKit html／parser 目錄 | https://github.com/WebKit/WebKit/tree/main/Source/WebCore/html/parser |
 | Firefox 樣式表丟 thread pool 解析 | https://bugzilla.mozilla.org/show_bug.cgi?id=1346988 |
 | Blink 掃外部 CSS 檔 @import 的 CL（未 landed） | https://codereview.chromium.org/166633002 |
+| WebKit CSS 解析 singleton 限主執行緒（2020-09，2026-11-04 開啟原文確認） | https://bugs.webkit.org/show_bug.cgi?id=216370 |
+
+2026-11-04 補查：搜尋「Blink 現在是否已把樣式表解析移到非主執行緒」，只找到 2015～2019 的舊討論（新 CSS parser「未來可能」離主執行緒；constructable stylesheets 提案說 CSS 文字解析是同步的），**沒有找到現行 Chromium 已改成非主執行緒的證據**，也沒有證據證明沒有。結論維持上表，但屬「截至舊資料與目錄檢查」。

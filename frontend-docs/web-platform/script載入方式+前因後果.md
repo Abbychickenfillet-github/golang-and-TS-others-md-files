@@ -56,9 +56,41 @@ quiz: script載入方式-sync-defer-async.html
 - **瀏覽器看不懂字串**：字串沒有父子關係、沒有屬性物件、沒有方法可呼叫，不能拿來排版/渲染/掛事件。所以一定要有一個**轉換步驟**＝ **HTML Parsing**。（同源觀念：[Markdown-渲染為DOM的過程](Markdown-渲染為DOM的過程.md)——`.md` 也要先轉成 HTML 字串才有戲。）
 - **發生在 Run-time、<mark style="background: #FFB86CA6;">用使用者的 CPU</mark>**：<mark style="background: #FFF3A3A6;">這個解析不是在伺服器先做好，而是**使用者打開網頁那一刻，在他自己的裝置、用他的 CPU** 現場一個字元一個字元讀過去、蓋出結構。</mark>→ HTML 越長、節點越多，弱裝置首屏越卡。
 - **產物是記憶體裡的 DOM 樹**：解析器在主執行緒上把字串讀成一棵樹（`<html>` 為根，掛 `<head>`/`<body>`，再掛 `<div>`/`<p>`…）。
-<mark style="background: #FFF3A3A6;">- **HTML 是「邊收邊解析」的串流（streaming），不是等整份到齊才開始**：這是理解 async／defer 的前提。伺服器把 HTML 切成一段一段的 TCP 封包送過來，<mark style="background: #FFB86CA6;">瀏覽器收到多少就解析多少</mark>，這叫 **增量解析（incremental parsing）**。所以你會看到網頁「由上而下逐漸長出來」，而不是整頁一次跳出來。</mark>
+<mark style="background: #FFF3A3A6;">- **HTML 是「邊收邊解析」的串流（streaming），不是等整份到齊才開始**：這是理解 async／defer 的前提。伺服器把 HTML 切成一段一段的 TCP 封包送過來，<mark style="background: #FFB86CA6;">瀏覽器收到多少就解析多少</mark>，這叫 **<span title="收到多少 HTML 就解析多少，不等整份到齊。和 async 有關但不是同一件事：增量解析是解析器的行為，async 管的是 script 何時下載與執行。詳見下方「增量解析 vs 非同步載入」">增量解析（incremental parsing）</span>**（滑鼠移上去有說明，詳見下方「增量解析 vs 非同步載入」）。所以你會看到網頁「由上而下逐漸長出來」，而不是整頁一次跳出來。</mark>
 	   → 所以「解析」這件事本身就是**跟下載並行**的：位元流還在進來，前面收到的部分已經在變成 DOM 了。
 	   → <mark style="background: #FF5582A6;">關鍵推論：既然解析是持續進行的一條線，「中斷」才有意義。</mark>下一節表格說的「中斷」，中斷的就是**這條正在進行的解析線**。
+
+#### 增量解析 vs 非同步載入：有關係，但不是同一件事
+
+| | 增量解析 | 非同步載入（`async`、`defer`、`fetch`） |
+|---|---|---|
+| 是什麼 | 解析器「收到多少 HTML 就解析多少」 | script 的下載與執行時機怎麼安排 |
+| 處理的對象 | HTML 文字 | `<script>` 要載的 JS 檔（或 `fetch` 的資料） |
+| 誰決定 | 瀏覽器本來就這樣 | 你寫在標籤上的屬性 |
+
+- **增量解析是前提**：解析是一條持續進行的線，同步 `<script>` 才有「中斷」可言；`async`、`defer` 就是讓這條線不被中斷
+- **兩者都靠「下載不占主執行緒」**：後續的 HTML 封包、JS 檔都由網路執行緒收，主執行緒不用等
+- **沒有 `async` 也有增量解析**：只是遇到同步 script 時暫停，等它執行完再繼續
+- **名字像的另一個**：V8 的 script streaming 是 **JS 檔**邊下載邊在背景 parse、編譯 bytecode（來源：[V8 Background compilation](https://v8.dev/blog/background-compilation)），和 HTML 的增量解析是兩個不同的 parser
+
+**`defer` 與 JIT 的先後**
+- `defer`：下載與 HTML 解析並行；**執行**等 HTML 解析完
+- JIT 發生在「執行之後」，而且只有跑得夠熱的函式才會編，所以 JIT 一定晚於 HTML 解析完，順序是：解析完 → 執行 JS（直譯）→ 熱了才 JIT
+- 修正一個常見說法：不是「HTML 下載完才 JIT」；JIT 看的是 **JS 何時開始執行**，不是 HTML 何時下載完
+- 下載期間若已在背景把 JS 編成 bytecode（streaming），那**不是 JIT**，JIT 是把 bytecode 再編成機器碼
+
+**機器碼比較快嗎**
+- 一般來說是：直譯每條 bytecode 要「讀指令、分派、執行」，機器碼直接由 CPU 執行；TurboFan 還會依型別回饋做特化
+- 實測（2026-11-05，Node v24.14.0，同一支迴圈跑 20 × 2,000,000 次，單次量測）：
+
+| 設定 | 時間 |
+|---|---|
+| 預設（含 JIT） | 61 ms |
+| `--no-opt`（關掉優化編譯） | 92 ms |
+| `--jitless`（只用直譯） | 703 ms |
+
+- 代價：編譯要花時間與記憶體；只跑一兩次的程式碼編了不划算；型別假設被打破要 Deoptimization 退回直譯
+- 限制：單一微基準、只量一次，數字依機器與 V8 版本而變；`--jitless` 與 `--no-opt` 的精確語意沒有逐條查證旗標文件
 
 #### 📦 追問：那個「位元流」到底怎麼被切開的？——TCP 封包
 

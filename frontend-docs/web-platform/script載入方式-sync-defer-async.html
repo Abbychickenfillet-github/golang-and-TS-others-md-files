@@ -94,7 +94,14 @@
   .mcard .emo{font-size:1.4rem}
   .mcard b{display:block;margin:4px 0}
   .mcard small{color:var(--muted)}
-  .timeline{margin:12px 0}
+  .timeline{margin:12px 0;position:relative;padding-top:46px}
+  .stamp{position:absolute;top:0;z-index:5;pointer-events:none;padding:3px 10px;border:2px solid;border-radius:6px;transform:rotate(-3deg);font-size:.78rem;line-height:1.3;background:rgba(15,20,32,.92);max-width:70%}
+  .stamp b{display:block}
+  .stamp small{display:block;font-weight:400;font-size:.68rem}
+  .stamp.bad{color:var(--red);border-color:var(--red)}
+  .stamp.warn{color:var(--accent2);border-color:var(--accent2)}
+  .stamp.ok{color:var(--green);border-color:var(--green)}
+  .stamp.na{color:var(--muted);border-color:var(--muted)}
   .trow{display:flex;align-items:center;gap:10px;margin:9px 0}
   .tlabel{width:120px;font-family:monospace;font-size:.82rem;flex:none}
   .track{flex:1;height:30px;background:#0a0f1a;border-radius:7px;position:relative;overflow:hidden;border:1px solid var(--line)}
@@ -106,6 +113,10 @@
   .b-exec{background:var(--accent2)}
   .b-wait{background:repeating-linear-gradient(45deg,#5a6478,#5a6478 6px,#46506a 6px,#46506a 12px);color:#fff}
   .b-data{background:var(--green)}
+  .b-bc{background:#7fd1b9;color:#0a1a16}
+  .b-interp{background:#b8923a;color:#fff}
+  .b-jit{background:rgba(255,138,92,.28);border:1.5px dashed var(--thread);color:#ffd2bd}
+  .b-inst{background:rgba(255,107,107,.3);border:1.5px dashed var(--red);color:#ffd0d0}
   .mark{position:absolute;top:0;bottom:0;width:2px;background:#fff;opacity:.55;z-index:2}
   .b-blank{background:#2f3a52;color:#cbd5e6}
   .b-paint{background:#7bdff2}
@@ -123,6 +134,12 @@
   .cssbox b.t{color:#ff9ec4}
   .cssbox ol{margin:6px 0 8px;padding-left:20px}
   .cssbox .eq{font-family:monospace;font-size:.8rem;color:var(--muted)}
+  .pc p{margin:8px 0 0}
+  .pc .pc-how{padding:8px 10px;border-left:3px solid var(--accent);background:var(--panel);border-radius:6px}
+  .pc .pc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+  .pc .pc-grid ul{margin:4px 0 0;padding-left:18px}
+  .pc b.t2{color:var(--accent2)}
+  @media(max-width:640px){.pc .pc-grid{grid-template-columns:1fr}}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin-top:6px}
   .legend span{display:inline-flex;align-items:center;gap:6px}
   .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
@@ -156,6 +173,7 @@
       <div class="mcard"><span class="emo">🏠</span><b>解析 HTML（蓋房子）</b><small>把 HTML 文字讀成 DOM 樹。占主執行緒。</small></div>
       <div class="mcard"><span class="emo">📖</span><b>下載 JS（買說明書）</b><small>走背景網路執行緒，不占主緒。</small></div>
       <div class="mcard"><span class="emo">👓</span><b>執行 JS（看說明書）</b><small>V8 跑 JS。占主執行緒，會卡住解析 HTML。</small></div>
+      <div class="mcard"><span class="emo">🔥</span><b>JIT（把常翻的頁抄成快速版）</b><small>函式被跑得夠多次才編成機器碼。優化編譯多半在背景執行緒，不擋解析 HTML。</small></div>
       <div class="mcard"><span class="emo">🎨</span><b>解析 CSS（上油漆）</b><small>把 CSS 文字讀成 CSSOM 樹。和 DOM 是兩個 parser 各自建的，不卡 HTML 解析。</small></div>
     </div>
 
@@ -173,6 +191,14 @@
       <div class="trow">
         <div class="tlabel">🏠 主執行緒</div>
         <div class="track" id="trackMain"></div>
+      </div>
+      <div class="trow">
+        <div class="tlabel">⚙ V8（主緒）</div>
+        <div class="track" id="trackEng"></div>
+      </div>
+      <div class="trow">
+        <div class="tlabel">🔥 JIT（背景）</div>
+        <div class="track" id="trackJit"></div>
       </div>
       <div class="trow">
         <div class="tlabel">📖 網路執行緒</div>
@@ -195,6 +221,10 @@
       <span><i class="sw b-parse"></i>解析 HTML（蓋房子，建出 DOM）</span>
       <span><i class="sw b-down"></i>下載 JS（買說明書）</span>
       <span><i class="sw b-exec"></i>執行 JS（看說明書）</span>
+      <span><i class="sw b-bc"></i>BC：parse 成 bytecode（Ignition）</span>
+      <span><i class="sw b-interp"></i>直譯 bytecode＋收集型別回饋</span>
+      <span><i class="sw b-jit"></i>JIT 編譯（虛線＝熱了才有）</span>
+      <span><i class="sw b-inst"></i>換上機器碼</span>
       <span><i class="sw b-cssd"></i>下載 CSS</span>
       <span><i class="sw b-cssom"></i>建 CSSOM（解析 CSS）</span>
       <span><i class="sw b-wait"></i>空等（主執行緒閒置，等下載或等 CSSOM）</span>
@@ -203,8 +233,20 @@
       <span><i class="sw b-data"></i>Ajax 抓回的資料（JSON，不是 DOM）</span>
     </div>
     <div class="verdict" id="verdict"></div>
+    <div class="verdict pc" id="proscons"></div>
+    <div class="cssbox" id="jitbox">
+      <b class="t">JIT 編譯的時機點（六種模式共通，位置跟著「執行 JS」走）</b>
+      <ol>
+        <li><b>不是 script 一到就編。</b>JS 下載完（inline 則是讀到）後，V8 先 parse 成 AST、產生 bytecode（Ignition，圖中 BC），然後<strong>直譯</strong>執行並收集型別回饋。JIT 在這之後才可能發生。</li>
+        <li><b>熱了才編。</b>執行時累積「額度」（呼叫次數、迴圈次數），用完才送去編譯；層級由低到高是 Sparkplug、Maglev、TurboFan，越高階門檻越高。<strong>短小的 script 可能整段都沒觸發 JIT</strong>，所以圖中 JIT 與「換上」畫虛線。細節見 <a href="../../編譯與打包-學習路徑/04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】-互動版.html">04 V8 引擎管線</a>。</li>
+        <li><b>在哪條執行緒。</b>優化編譯多半在<strong>背景執行緒</strong>做，主執行緒繼續直譯，編好才換上，所以 JIT 本身不擋解析 HTML；但有些步驟仍在主緒，不是全部都在背景。Sparkplug 另有「背景編譯」的 Chromium 旗標（<code>V8ConcurrentSparkplug</code>），是否預設啟用我沒有查證。</li>
+        <li><b>和六種模式的關係。</b>模式只決定「執行 JS」那一格出現在哪個時間點，JIT 整組跟著往後移，位置關係六種都相同。defer、module 的 JIT 也要等解析完才開始，<strong>JIT 補不了「晚執行」</strong>。</li>
+        <li><b>圖沒畫的兩件事。</b>① 下載期間 V8 可能已在背景先 parse、編譯 bytecode（script streaming），主緒只做最後收尾；② 型別假設被打破時 Deoptimization 退回直譯。</li>
+      </ol>
+      <small style="color:var(--muted)">來源：V8 官方部落格 <a href="https://v8.dev/blog/maglev">Maglev</a>（Ignition、Sparkplug、Maglev、TurboFan 四層；Maglev 隨 Chrome M117 上線）、<a href="https://v8.dev/blog/background-compilation">Background compilation</a>（背景 parse／編譯）；「優化編譯多半在背景」另參考 Intel 工程部落格（二手資料，非 V8 官方文件）。門檻、各層確切觸發條件與各層在哪條執行緒，本頁沒有逐一查證，位置與長度為示意。</small>
+    </div>
     <div class="cssbox">
-      <b class="t">CSS 在這張圖的角色</b>
+      <b class="t">CSS 在這張圖的角色（六種模式共通，不隨按鈕變；各模式專屬的 CSS 影響看上方「CSS 在這個模式的角色」）</b>
       <ol>
         <li><b>平行下載、獨立建 CSSOM，不擋解析 HTML。</b>CSS 的「下載」走網路，和主執行緒的解析 HTML 同時進行，DOM 照蓋。「建 CSSOM」本身多半仍占用主執行緒（各引擎不同），只是很短；第三條線是邏輯上的流程，<b>不是獨立的執行緒</b>。</li>
         <li><b>擋「畫」。</b>CSSOM 沒建好就不畫第一個像素（避免先閃出沒樣式的畫面，FOUC）。所以 CSS 越慢，白畫面越久，和你用哪種 script 載入無關。</li>
@@ -226,6 +268,35 @@
       </ol>
       記法：<b>下載是平行的，被擋住的是「畫」與「執行」，不是「建 DOM」。</b>細節見 <a href="../css/css-兩種卡頓-render-blocking與執行期jank.html">css-兩種卡頓-render-blocking與執行期jank</a>。
     </div>
+  </section>
+
+  <!-- 一般 script 中斷多久（面試用：裝置/網路自適應） -->
+  <section>
+    <style>
+      .term-cpu{border-bottom:2px dotted #b4455a;cursor:help;position:relative;font-weight:700;}
+      .term-cpu:hover::after{content:"CPU-bound＝瓶頸在 CPU 算力、不是網路。parse＋compile＋execute 要主執行緒的 CPU 一字一字處理，程式越多、裝置 CPU 越弱就越久。對照 I/O-bound＝瓶頸在下載/網路。";position:absolute;left:0;top:150%;width:270px;background:#1f1b2e;color:#eee;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.55;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,.28);white-space:normal;}
+      .adapt{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0;}
+      .adapt .cardx{border:1px solid #e7e3da;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.6;background:#fff;}
+      .adapt .cardx b.h{display:block;margin-bottom:4px;}
+      @media(max-width:640px){.adapt{grid-template-columns:1fr;}}
+    </style>
+    <h2><span class="tag">面試用</span> 一般 <code>&lt;script&gt;</code>（無 defer/async）中斷 HTML Parsing「幾秒」？</h2>
+    <p class="note">沒有固定秒數。中斷時間＝<b>兩段相加</b>，而且會<b>隨裝置與網路放大</b>——這正是面試講「為何要 defer/async/code-splitting、為何要顧低階裝置」的切入點。</p>
+    <div class="eq">中斷時間 ≈（外部 src 才有）下載時間 ＋ V8 的 parse＋compile＋execute</div>
+    <ol>
+      <li><b>① 下載時間（只有外部 <code>&lt;script src&gt;</code> 才有）</b>＝ 檔案大小 ÷ 網速 ＋ 連線延遲(RTT)。
+        <div style="margin:4px 0 0 0;padding-left:14px;border-left:3px solid #e7e3da;">網速單位＝<b>bps（bits per second）</b>＝Kbps／Mbps／Gbps。<b>bit ≠ byte</b>：檔案大小用 byte（KB/MB），1 byte＝8 bit，算下載要先 ×8。例：100 KB＝800 Kb，在 10 Mbps ≈ 0.08s（再加 RTT）。<br><mark>inline <code>&lt;script&gt;</code>（直接寫在 HTML 裡）<b>沒有這段</b></mark>——字元已在 HTML，不用再發請求下載。</div>
+      </li>
+      <li><b>② parse＋compile＋execute</b> 是 <span class="term-cpu">CPU-bound</span>（滑鼠移上去看說明）：V8 把這段 JS 解析、編譯、跑完，吃的是<b>主執行緒的 CPU</b>，跟程式量＋實際做多少事＋裝置 CPU 有關。主場見 <a href="../../編譯與打包-學習路徑/04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】-互動版.html">04 V8 引擎管線</a>；CPU 本身見 <a href="../../編譯與打包-學習路徑/01-CPU五大單元-ALU-CU-暫存器-快取與微指令-互動版.html">01 CPU 五大單元</a>。</li>
+    </ol>
+    <b>同一支 script，不同裝置／網路差很多：</b>
+    <div class="adapt">
+      <div class="cardx"><b class="h">💻 桌機＋快 WiFi</b>下載 ~50–150ms、執行 ~數十–200ms → 合計約 <b>0.1s</b></div>
+      <div class="cardx"><b class="h">📱 中階手機＋4G</b>下載 ~0.5–1s、執行更久（CPU 較弱）→ 合計約 <b>1–2s</b></div>
+      <div class="cardx"><b class="h">📱 低階手機＋弱 3G</b>下載可能<b>好幾秒</b>、執行也拖 → 合計 <b>卡好幾秒</b></div>
+    </div>
+    <p class="note"><b>不同瀏覽器下載時間會不同嗎？</b>下載的 bytes 本身主要由<b>網路頻寬／延遲／伺服器</b>決定，各瀏覽器差不多；但各家的 <b>preload scanner、HTTP/2‧3、連線數、快取策略</b>會影響「多早開始抓、要不要重抓」。真正差較多的是 <b>parse/execute</b>——引擎不同（Chrome/Edge 的 V8、Firefox 的 SpiderMonkey、Safari 的 JavaScriptCore）速度本就有差。</p>
+    <p class="note">🎯 面試收尾：中斷時間＝下載＋CPU 執行、且<b>隨裝置與網路放大</b>，所以用 <code>defer</code>/<code>async</code>/<code>type="module"</code> 把它挪開、用 <b>code-splitting</b> 讓 bundle 變小，並<b>以低階裝置為基準</b>做效能預算。要精準量：DevTools → Performance 看那支 script 的 <b>Evaluate Script</b> 時間＋Network 的下載時間。</p>
   </section>
 
   <!-- ① 主軸圖 -->
@@ -426,8 +497,8 @@ paint();
 
 /* ② 時間軸：六種模式共用同一條橫軸（T 個單位），可直接比誰先解析完 */
 let T=110, curMode='normal', slow=false;
-function bar(cls,start,len,label){
-  return `<div class="blk ${cls}" title="${label}" style="left:${start/T*100}%;width:${len/T*100}%">${label}</div>`;
+function bar(cls,start,len,label,tip){
+  return `<div class="blk ${cls}" title="${tip||label}" style="left:${start/T*100}%;width:${len/T*100}%">${label}</div>`;
 }
 /* 每筆 [樣式, 起點, 長度, 文字]；解析總長 80、下載長 20、執行長 10。
    C ＝ CSSOM 建好的時間點：一般 CSS 在 26，「很大／很慢」在 100。
@@ -478,20 +549,97 @@ const VS={
   module:'CSS 很慢：和 defer 一樣，執行被推到 100（module script 預設放進同一個「解析完才執行」清單，這是依規格推論，沒另外驗證）。畫面空白到 100。',
   ajax:'CSS 很慢：JS 被 CSSOM 推到 100 才執行，所以 <code>fetch()</code> 也晚了 20 才發出、資料晚到。CSS 慢會連帶拖慢「用 JS 載資料」。畫面空白到 100。'
 };
+/* JIT 時機（示意，單位是相對刻度，不是毫秒）：
+   以「執行 JS」那一格的起點 a 為基準，六種模式用同一組相對位置，只有 a 不同。
+   BC＝Ignition 把原始碼 parse 成 bytecode；之後直譯並收集型別回饋；
+   函式夠熱才觸發 JIT（背景編譯，主緒照常執行），編好再換上機器碼。
+   短小的 script 可能整段都沒觸發 JIT，所以 JIT 與「換上」畫成虛線。 */
+function jitRows(s){
+  const ex=s.main.find(b=>b[0]==='b-exec'), a=ex[1], len=ex[2];
+  return {
+    eng:[['b-bc',a,3,'BC','Ignition：把原始碼 parse 成 AST，再產生 bytecode（內層函式多半第一次被呼叫才編）'],
+         ['b-interp',a+3,len-3,'直譯','直譯執行 bytecode，同時收集型別回饋（feedback）給 JIT 用']],
+    jit:[['b-jit',a+4,8,'JIT','Sparkplug／Maglev／TurboFan：函式熱了（累積的執行額度用完）才編成機器碼。優化編譯多半在背景執行緒，主緒照常執行。示意：短小 script 可能不會觸發'],
+         ['b-inst',a+12,3,'換上','編好的機器碼換上，之後呼叫該函式就跑機器碼（若型別假設被打破會 Deoptimization 退回直譯，圖未畫）']]
+  };
+}
+/* 印章：蓋在「執行 JS」那一格上方，標示 JS 執行的那一刻抓不抓得到 DOM（六種都蓋，不偏袒） */
+const STAMP={
+  normal:['bad','✗ 這裡抓不到 DOM',s=>'解析只到 '+s.at+'／80，它後面的標籤還沒建好；直接 getElementById 會得到 null'],
+  async:['warn','? 不一定抓得到 DOM',()=>'看下載完的那一刻解析到哪，可能只建一半'],
+  defer:['ok','✓ DOM 完整，抓得到',()=>'解析完、DOMContentLoaded 之前才執行'],
+  bodyend:['ok','✓ DOM 幾乎完整',()=>'script 前面的標籤都在，後面的不在'],
+  module:['ok','✓ DOM 完整，抓得到',()=>'和 defer 一樣，解析完才執行'],
+  ajax:['na','－ 看呼叫它的那支 JS',()=>'抓回來的是 JSON，不是 DOM；抓 DOM 的時機同前五種']
+};
+function placeStamp(s){
+  const tl=document.querySelector('.timeline'), tr=document.getElementById('trackMain');
+  let el=document.getElementById('stamp');
+  if(!el){el=document.createElement('div');el.id='stamp';tl.appendChild(el);}
+  const st=STAMP[curMode], ex=s.main.find(b=>b[0]==='b-exec');
+  el.className='stamp '+st[0];
+  el.innerHTML='<b>'+st[1]+'</b><small>'+st[2](s)+'</small>';
+  tl.style.paddingTop=(el.offsetHeight+12)+'px';
+  const w=tr.offsetWidth, x=tr.offsetLeft+ex[1]/T*w;
+  el.style.left=Math.max(tr.offsetLeft,Math.min(x,tr.offsetLeft+w-el.offsetWidth))+'px';
+}
+/* 每種模式的優點、缺點、JS 執行時抓得到的 DOM、CSS 角色（六種格式一致，不偏袒任何一種） */
+const PCHOW='<p class="pc-how"><b>JS 怎麼抓 DOM（六種共通）：</b>瀏覽器把 DOM 樹放在記憶體，並提供全域物件 <code>document</code> 給 JS。<code>getElementById</code>、<code>querySelector</code> 這些 DOM API 是<strong>在這棵記憶體裡的樹上查找、不走網路</strong>，找到回傳節點物件，找不到回傳 <code>null</code>。JS 和 HTML 解析器<strong>共用主執行緒</strong>，所以 JS 只能在解析器讓出時跑，而且只看得到<strong>解析器當下已經建好的部分</strong>。對照：module 模式的「遞迴抓 import」是<strong>下載模組檔（走網路）</strong>，和「抓 DOM（查記憶體）」是兩件事。</p>';
+const PC={
+  normal:{
+    pro:['最簡單，讀到就依出現順序執行','不用記任何屬性'],
+    con:['下載＋執行都擋住解析，後面的 HTML 全部等','放在 <code>&lt;head&gt;</code> 時 DOM 是空的，操作不到元素','下載與執行的時間都算進停頓'],
+    dom:'只有「它前面」的標籤存在。放在 <code>&lt;head&gt;</code> 時 <code>document.body</code> 是 <code>null</code>，<code>getElementById</code> 回傳 <code>null</code>。',
+    css:'要等前面 <code>&lt;link&gt;</code> 的 CSSOM 好了才能執行（規格 13.2.7），CSS 越慢，解析停頓越久。'},
+  async:{
+    pro:['不擋解析，下載與解析同時進行','適合彼此獨立的第三方腳本（統計、廣告）'],
+    con:['執行時間點不固定，會打斷解析','多支之間不保證順序，有相依就會壞','只對外部 <code>src</code> 有效，inline 加了無效'],
+    dom:'看下載完的那一刻解析到哪，<strong>可能只建一半</strong>。要抓的元素不一定在，需用 <code>DOMContentLoaded</code> 或事件委派。',
+    css:'這張圖把 async 畫成不等 CSSOM；是否等 CSSOM 我沒查到規格依據，未下結論。不論如何，首次繪製仍要等 CSSOM。'},
+  defer:{
+    pro:['不擋解析，背景提早下載','解析完才執行，DOM 完整','多支保證依出現順序'],
+    con:['只對外部 <code>src</code> 有效，inline 加了無效','要等整份 HTML 解析完才跑，比 async 晚','不適合要在畫面出現前就先跑的腳本'],
+    dom:'在「解析完、<code>DOMContentLoaded</code> 之前」執行，<strong>DOM 完整</strong>，直接 <code>getElementById</code> 就抓得到。',
+    css:'規格要求沒有擋住 script 的 style sheet 才執行 defer，所以 CSS 慢時，執行被推到 CSSOM 之後。'},
+  bodyend:{
+    pro:['不需要任何屬性，舊瀏覽器也能用','前面 DOM 都建好，使用者先看到內容','操作元素安全'],
+    con:['標籤最晚被發現，下載最晚開始（沒有背景提早下載）','仍是同步 script，會擋住最後一小段解析','比 defer 慢（圖中 110 vs 90）'],
+    dom:'script 前面的標籤都已存在，<strong>DOM 幾乎完整</strong>，可直接抓。放在 script 後面的標籤才抓不到。',
+    css:'script 在最後才讀到，CSSOM 通常已經好了，比較不會多等；CSS 慢到超過 JS 下載完才會多空等。'},
+  module:{
+    pro:['預設就是 defer，不用另外加屬性','有模組作用域與嚴格模式，可用 <code>import</code>／<code>export</code> 組織程式','各模組只執行一次，依相依圖排順序'],
+    con:['會依 <code>import</code> 遞迴下載，請求可能一層串一層（瀑布），需 bundle 或 <code>modulepreload</code> 緩解','跨來源載入要 CORS','inline 的 module 也是延後，但沒有 <code>src</code> 就不用下載'],
+    dom:'和 defer 一樣：解析完才執行，<strong>DOM 完整</strong>。「遞迴抓 import」是下載模組檔，不是抓 DOM。',
+    css:'和 defer 一樣，執行被推到 CSSOM 之後（依規格推論，沒另外驗證）。'},
+  ajax:{
+    pro:['頁面先出現，資料再補上','可依使用者操作隨時再取，只更新局部','資料與程式分開，可快取、可重試'],
+    con:['要等 JS 跑起來才發請求，比伺服器直接回 HTML 多一趟','資料回來前要顯示 loading 或 skeleton','首屏內容若完全靠它，不執行 JS 的爬蟲或預覽看不到'],
+    dom:'Ajax 抓回的是 <strong>JSON，不是 DOM</strong>。抓 DOM 的時機取決於「呼叫 fetch 的那支 JS」何時跑（見前五種）；資料回來後再用 DOM API 更新畫面。',
+    css:'JS 被 CSSOM 推遲執行時，<code>fetch()</code> 也跟著晚發，CSS 慢會連帶拖慢資料。'}
+};
+function pcHtml(m){
+  const p=PC[m], li=a=>a.map(x=>'<li>'+x+'</li>').join('');
+  return PCHOW+
+    '<div class="pc-grid"><div><b class="ok">優點</b><ul>'+li(p.pro)+'</ul></div>'+
+    '<div><b class="no">缺點</b><ul>'+li(p.con)+'</ul></div></div>'+
+    '<p><b class="t2">JS 執行時抓得到的 DOM：</b>'+p.dom+'</p>'+
+    '<p><b class="t2">CSS 在這個模式的角色：</b>'+p.css+'</p>';
+}
 function render(){
   const C=slow?100:26;
   const ms=['normal','async','defer','bodyend','module','ajax'];
   const sc={}; ms.forEach(m=>sc[m]=build(m,C));
   const end=b=>b[1]+b[2];
-  T=Math.max(...ms.map(m=>Math.max(...sc[m].main.map(end),...sc[m].net.map(end))),C+10);
+  T=Math.max(...ms.map(m=>Math.max(...sc[m].main.map(end),...sc[m].net.map(end),...jitRows(sc[m]).jit.map(end))),C+10);
   const s=sc[curMode];
   const cssRow=slow?[['b-cssd',4,76,'下載 CSS（檔案很大）'],['b-cssom',80,20,'CSSOM']]
                    :[['b-cssd',4,12,'下載 CSS'],['b-cssom',16,10,'CSSOM']];
   const screenRow=[['b-blank',0,C,'空白：CSSOM 沒好不畫'],['b-paint',C,T-C,'最早可首次繪製']];
   const mk=`<div class="mark css" style="left:${4/T*100}%"></div>`+
            `<div class="mark css" style="left:${C/T*100}%"></div><div class="mark" style="left:${s.at/T*100}%"></div>`;
-  const put=(id,row)=>document.getElementById(id).innerHTML=row.map(b=>bar(b[0],b[1],b[2],b[3])).join('')+mk;
+  const put=(id,row)=>document.getElementById(id).innerHTML=row.map(b=>bar(b[0],b[1],b[2],b[3],b[4])).join('')+mk;
   put('trackMain',s.main); put('trackNet',s.net); put('trackCss',cssRow); put('trackScreen',screenRow);
+  const j=jitRows(s); put('trackEng',j.eng); put('trackJit',j.jit);
   const tx=f=>f<.1?0:(f<.3?-8:(f>.55?-100:-50));
   const pin=(cls,at,txt)=>`<span class="pin ${cls}" style="left:${at/T*100}%;transform:translateX(${tx(at/T)}%)">${txt}</span>`;
   document.getElementById('trackMark').innerHTML=
@@ -499,6 +647,8 @@ function render(){
     pin('ready',C,'▲ CSSOM 好了才能首次繪製')+
     pin('js',s.at,s.pin);
   document.getElementById('verdict').innerHTML=slow?VS[curMode]:V[curMode];
+  document.getElementById('proscons').innerHTML=pcHtml(curMode);
+  placeStamp(s);
   const sb=document.getElementById('slowBtn');
   sb.textContent='CSS 很大／很慢：'+(slow?'開':'關'); sb.classList.toggle('on',slow);
 }
@@ -508,6 +658,7 @@ function setMode(m,btn){
   curMode=m; render();
 }
 function toggleSlow(){ slow=!slow; render(); }
+window.addEventListener('resize',()=>render());
 setMode('normal',document.querySelector('.mode'));
 
 /* ③ quiz */
