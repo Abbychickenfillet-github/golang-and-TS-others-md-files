@@ -29,6 +29,15 @@ note: 檔名前綴 00 代表本篇是 JS_Core_and_Runtime 資料夾裡「依編�
 - **Node.js**：把 V8 抽出來，外面包 `libuv`（處理檔案 I/O、網路等的事件迴圈）與 Node 專屬 API（`fs`、`http`…），讓 JS 可以離開瀏覽器、在伺服器上跑。<mark style="background: #FFF3A3A6;">「只包一層 libuv」是簡化說法</mark>，完整架構（libuv 具體是什麼、Node 還有哪些層、CSR 渲染邏輯在哪執行、純前端會不會用到 Node API）另開一篇：[[Node-js底層架構-V8-libuv-Bindings與CSR澄清]]。
 - **Deno、Electron**：也是內嵌 V8（Electron 甚至同時內嵌 V8 + Chromium）。
 
+> [!info] libuv 的名詞定義與定位
+> - **定義**：libuv ＝ **跨平台非同步 I/O 支援函式庫**（cross-platform support library focused on asynchronous I/O），C 語言寫的，最初為 Node.js 開發。官方自述它「designed around the event-driven asynchronous I/O model」。
+> - **定位**：**平台抽象層（platform abstraction layer）**。往上面對 Node 的 C++ Bindings，往下面對各作業系統不同的 I/O 機制（Linux `epoll`、macOS `kqueue`、Windows `IOCP`），把它們統一成同一組介面。
+> - **算中間層嗎**：看對誰說。對「作業系統」是中間層；對「V8」不是。分層是 `Node 專屬 API（fs、http）→ C++ Bindings → libuv → 作業系統`，**V8 與 libuv 是各自獨立、被 Node 一起嵌進來的兩個兄弟**：V8 只執行 JS，不呼叫 libuv；libuv 也不認得 JS，更不認得 `fs`、`http` 這些名字。
+> - **內含**：事件迴圈（Event Loop）、Handles／Requests／Streams、Thread Pool。
+> - **不是 JS 引擎的一部分**：瀏覽器的事件迴圈由瀏覽器自己實作，不是 libuv；Node.js 裡這個位置才換成 libuv。
+> - **縮寫**：官方沒有解釋，不猜。
+> - 來源：[libuv Design overview](https://docs.libuv.org/en/v1.x/design.html)（查證 2026-11-08）；完整分層見 [[Node-js底層架構-V8-libuv-Bindings與CSR澄清]]。
+
 <mark style="background: #FFF3A3A6;">跟 SSR（Server-Side Rendering）的關係</mark>：Next.js、Nuxt 這類 SSR 框架，是讓 React／Vue 的渲染邏輯改在**伺服器上的 Node.js**執行，而 Node.js 底層就是 V8。也就是說，SSR 時伺服器產生 HTML 字串的那段 JS，走的**正是本篇這一整套 Parse → Ignition → TurboFan → Deoptimization 管線**，只是少了瀏覽器提供的 `window`/`document`（改用 Node 的 host 環境），並不是換了一顆完全不同的引擎。差異只在**執行環境（host environment：瀏覽器 Web APIs vs Node.js APIs）**，不是引擎本身或編譯管線。
 
 Node.js 在一般前端「打包」流程裡的角色（跟 SSR 不是同一件事，容易搞混）另有詳細說明，見 [[前端開發工具-打包編譯Lint與Parser]] 第 7 節。
@@ -38,8 +47,10 @@ Node.js 在一般前端「打包」流程裡的角色（跟 SSR 不是同一件�
 > [!warning]+ 這張圖到底在講哪個時間點？——全程都是「編譯 runtime（執行期）」
 > a. 下圖從「JavaScript 原始碼」一路到 Deoptimization 的每一站，都發生在**瀏覽器／Node.js 載入並執行這支腳本的當下**，由 V8 引擎自己完成。這裡的「編譯」指的是 JIT（Just-In-Time Compilation，即時編譯）——名字裡的 Just-In-Time 就是「執行到的那一刻才編譯」的意思。
 > b. **打包 buildtime（建置期）發生在這張圖的左邊界之外**：Babel／tsc／SWC 把 TSX/JSX 轉成標準 JS、bundler（webpack／Vite／Rollup／Turbopack）把多個模組合併壓縮，這些都是在你的電腦或 CI 上跑完、部署之前就結束的事。V8 拿到的永遠是「已經轉譯打包完的標準 JS」，它看不到你原本寫的 TSX。
-> c. <mark style="background: #FF5582A6;">用詞請跟著本資料夾的約定走：buildtime 那一段一律叫「轉譯（transpile）」與「打包（bundle）」，不要叫「編譯」</mark>；「編譯（compile）」這個詞只留給 V8 在執行期做的 AST → Bytecode → 機器碼。理由是方向不同——轉譯是高階語言 → 另一個同樣高階的語言（TSX → 標準 JS），編譯是高階 → 更低階的表示法。這組用詞的完整分辨與工具對照，主場在 [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】|03-前端開發工具（打包 buildtime）]]，本篇只放結論。
-> d. 想看 buildtime 那一段的完整流程，請改讀同資料夾的 [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】|03-前端開發工具（打包 buildtime）]]（那篇開頭有〈buildtime 全流程地圖〉表格，逐步對應到各篇）；至於這些步驟是**誰觸發、依什麼順序跑**，主場在 [[08-npm-run-script-mechanism]] 與 [[09-npm-scripts-pre-post-生命週期鉤子]]——`npm run build` 才是把所有 buildtime 工具串起來的那根線。打包工具選型另見 [[07-前端專案建立與打包選型-Vite與createVue與NextJS與npm鎖版本]]。
+> c. <mark style="background: #FF5582A6;">用詞請跟著本資料夾的約定走：buildtime 那一段一律叫「轉譯（transpile）」與「打包（bundle）」，不要叫「編譯」</mark>；「編譯（compile）」這個詞只留給 V8 在執行期做的 AST → Bytecode → 機器碼。理由是方向不同——轉譯是高階語言 → 另一個同樣高階的語言（TSX → 標準 JS），編譯是高階 → 更低階的表示法。這組用詞的完整分辨與工具對照，主場在 [[03-前端開發工具-【打包buildtime】轉譯Lint與Parser-|03-前端開發工具（打包 buildtime）]]，本篇只放結論。
+> d. 想看 buildtime 那一段的完整流程，請改讀同資料夾的 [[03-前端開發工具-【打包buildtime】轉譯Lint與Parser-|03-前端開發工具（打包 buildtime）]]（那篇開頭有〈buildtime 全流程地圖〉表格，逐步對應到各篇）；至於這些步驟是**誰觸發、依什麼順序跑**，主場在 [[08-npm-run-script-mechanism]] 與 [[09-npm-scripts-pre-post-生命週期鉤子]]——`npm run build` 才是把所有 buildtime 工具串起來的那根線。打包工具選型另見 [[07-前端專案建立與打包選型-Vite與createVue與NextJS與npm鎖版本]]。
+
+<a id="v8-pipeline-mermaid"></a>
 
 ```mermaid
 flowchart TD
