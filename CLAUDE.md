@@ -62,7 +62,6 @@ backend是統一的
 commit前請先npm run lint + docker compose up --build確認無編譯錯誤以及lint風格問題
 ### 請勿在協助COMMIT的時候直接把自己當成CO-AUTHOR，
 如："🤖 Generated with Claude Code"
-- 如果要查詢資料庫就直接用docker exec db的方式查詢就好，我們是使用ZEABUR線上的DB Connection string在根目錄的.env中DATABASE_URL=mysql+pymysql://root:<MYSQL_PASSWORD>@hnd1.clusters.zeabur.com:32195/future_sign_prod (目前已無參與這個專案供參而已)
   ### 同一個分支如果已經開立PR切勿再PUSH以免增加CICD費用
 TEST:
 Commit以及PR前保持良好習慣前後端皆須建立單元測試
