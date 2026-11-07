@@ -2,7 +2,7 @@
    notes.js — Abby-notes 共用腳本（單一來源）
    1. 自動產生巢狀大綱（h2 + h3），每個標題自動補 id
    2. 統一把大綱放到左側 sidepanel（不管原本是 article / .wrap / 什麼都沒有）
-   3. .term 名詞：滑過預覽（CSS）、點擊釘成可拖曳說明卡
+   3. .term 名詞：滑過預覽（CSS）、點擊釘成可拖曳說明卡；有 data-link 的詞滑過會浮出可點連結的卡片
    4. 「各對話來源」「追加回合」（Gemini 對話備查）預設收合
    ========================================================================== */
 (function () {
@@ -182,6 +182,14 @@
       var body = document.createElement('div');
       body.className = 'tipcard-b';
       body.textContent = el.dataset.def || '（這個詞還沒寫解釋）';
+      if (el.dataset.link) {   // 有 data-link 的詞：釘住的卡片裡也放連結
+        var la = document.createElement('a');
+        la.className = 'tiphover-link';
+        la.href = el.dataset.link;
+        la.textContent = el.dataset.linkText || '前往相關說明';
+        body.appendChild(document.createElement('br'));
+        body.appendChild(la);
+      }
 
       card.appendChild(head); card.appendChild(body);
       document.body.appendChild(card);
@@ -234,7 +242,125 @@
     addEventListener('resize', function () { open.forEach(clamp); });
   }
 
-  /* ---------- 4. 捲動時高亮目前所在章節 ---------- */
+
+  /* ---------- 3b. .term[data-link]：滑過浮出「可以點連結」的說明卡 ----------
+     語法：<span class="term" data-def="說明" data-link="網址" data-link-text="連結文字">詞</span>
+     .term 原本的 CSS 提示框是 ::after，不能放連結，所以有 data-link 的詞改由這張真正的元素卡片負責
+     （外觀沿用 .tipcard）。用事件委派，之後才動態產生的 .term 也有效。沒有 data-link 的詞完全不受影響。
+     滑鼠從詞移到卡片上不會消失；離開 180ms 後才收起；Esc、點擊詞、捲動都會收起。 */
+  function initTermLinks() {
+    var card = null, cur = null, timer = null;
+
+    function termOf(n) { return n && n.closest ? n.closest('.term[data-link]') : null; }
+    function inCard(n) { return !!(card && n && card.contains(n)); }
+    function hide() {
+      clearTimeout(timer);
+      if (card) { card.remove(); card = null; cur = null; }
+    }
+    function later() { clearTimeout(timer); timer = setTimeout(hide, 180); }
+
+    function show(el) {
+      clearTimeout(timer);
+      if (cur === el && card) return;
+      hide();
+      var c = document.createElement('div');
+      c.className = 'tipcard tiphover';
+      c.setAttribute('role', 'tooltip');
+      var b = document.createElement('div');
+      b.className = 'tipcard-b';
+      var t = document.createElement('b');
+      t.className = 'tiphover-t';
+      t.textContent = el.textContent;
+      var a = document.createElement('a');
+      a.className = 'tiphover-link';
+      a.href = el.dataset.link;
+      a.textContent = el.dataset.linkText || '前往相關說明';
+      b.appendChild(t);
+      b.appendChild(document.createElement('br'));
+      b.appendChild(document.createTextNode(el.dataset.def || ''));
+      b.appendChild(document.createElement('br'));
+      b.appendChild(a);
+      c.appendChild(b);
+      document.body.appendChild(c);
+
+      var r = el.getBoundingClientRect();
+      var cw = c.offsetWidth, ch = c.offsetHeight;
+      var left = Math.min(Math.max(8, r.left + r.width / 2 - cw / 2), innerWidth - cw - 8);
+      var top = r.bottom + 6;
+      if (top + ch > innerHeight - 8) top = Math.max(8, r.top - ch - 6);   // 下方放不下就翻到上方
+      c.style.left = left + 'px';
+      c.style.top = top + 'px';
+      card = c; cur = el;
+    }
+
+    document.addEventListener('mouseover', function (e) {
+      var t = termOf(e.target);
+      if (t) show(t);
+      else if (inCard(e.target)) clearTimeout(timer);
+    });
+    document.addEventListener('mouseout', function (e) {
+      if (!termOf(e.target) && !inCard(e.target)) return;
+      var to = e.relatedTarget;
+      if (inCard(to) || (cur && to && cur.contains(to))) return;
+      later();
+    });
+    document.addEventListener('focusin', function (e) {
+      var t = termOf(e.target);
+      if (t) show(t);
+    });
+    document.addEventListener('focusout', function (e) {
+      if (termOf(e.target) && !inCard(e.relatedTarget)) later();
+    });
+    document.addEventListener('click', function (e) { if (termOf(e.target)) hide(); }, true);   // 捕獲階段：釘住邏輯會 stopPropagation
+    addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+    addEventListener('scroll', hide, true);
+  }
+
+  /* ---------- 4. 詞彙提示 .tip-glossary：整頁所有出現的詞都變成 hover 說明 ----------
+     語法（.md 與獨立 .html 通用）：
+       <div class="tip-glossary" data-term="DNS" data-text="Domain Name System…"></div>
+     Jekyll 那邊 my-head-extra.html 已有同名機制，這裡是給獨立 .html 用的，兩邊不會重複執行 */
+  function initGlossary() {
+    if (document.querySelector('script[data-glossary-handled]')) return;
+    var gl = Array.prototype.slice.call(document.querySelectorAll('.tip-glossary[data-term]'));
+    if (!gl.length) return;
+    var host = document.querySelector('main, article, .notes-main, .wrap') || document.body;
+
+    gl.forEach(function (g) {
+      var term = g.getAttribute('data-term');
+      var text = g.getAttribute('data-text') || g.getAttribute('data-tip');
+      if (!term || !text) return;
+      // 先把整頁的文字節點收集起來，再一次換，避免邊走邊改造成無窮迴圈
+      var walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT, null);
+      var nodes = [], n;
+      while ((n = walker.nextNode())) {
+        if (n.nodeValue.indexOf(term) === -1) continue;
+        var pe = n.parentElement;
+        if (!pe) continue;
+        // 程式碼區塊、已經是提示的、大綱、說明卡裡面都不要動
+        if (pe.closest('script, style, pre, code, .tip-glossary, .term, .tipcard, nav.toc, .auto-toc')) continue;
+        nodes.push(n);
+      }
+      nodes.forEach(function (node) {
+        var parts = node.nodeValue.split(term);
+        var frag = document.createDocumentFragment();
+        parts.forEach(function (part, i) {
+          if (i > 0) {
+            var sp = document.createElement('span');
+            sp.className = 'term';
+            sp.setAttribute('data-def', text);
+            sp.setAttribute('tabindex', '0');
+            sp.textContent = term;
+            frag.appendChild(sp);
+          }
+          if (part) frag.appendChild(document.createTextNode(part));
+        });
+        node.parentNode.replaceChild(frag, node);
+      });
+    });
+  }
+
+  /* ---------- 5. 捲動時高亮目前所在章節 ---------- */
   function initScrollSpy() {
     var nav = document.querySelector('nav.toc');
     if (!nav || !('IntersectionObserver' in window)) return;
@@ -292,5 +418,5 @@
     if (t0) t0.scrollIntoView();
   }
 
-  ready(function () { layout(); initFold(); initTerms(); initScrollSpy(); });
+  ready(function () { layout(); initFold(); initGlossary(); initTerms(); initTermLinks(); initScrollSpy(); });
 })();
