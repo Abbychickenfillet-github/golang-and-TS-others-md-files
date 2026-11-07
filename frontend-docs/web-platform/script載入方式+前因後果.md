@@ -123,6 +123,18 @@ Linux 從 2.6.39 版起 `initcwnd` 預設是 **10**（這個值源自 Google 的
 
 <mark style="background: #BBFABBA6;">**結論：你的 HTML 前 14 KB 是「一個來回（round trip）」就能到的，超過的部分要等下一個來回。**</mark>
 
+> **原本的 initcwnd 是多少（2026-11-08 查證）：約 3 個封包，≈ 4 KB。**
+>
+> | 版本 | 初始窗口 | 以 MSS 1460 計 | 來源 |
+> |---|---|---|---|
+> | RFC 3390（2002-10） | `min(4×MSS, max(2×MSS, 4380 bytes))`，即 2～4 個封包，MSS 1460 時是 3 個 | 4380 bytes ≈ 4.3 KB | https://datatracker.ietf.org/doc/html/rfc3390 |
+> | RFC 6928（2013-04） | 上限 `min(10×MSS, max(2×MSS, 14600))`，即最多 10 個封包 | 14600 bytes ≈ 14.6 KB | https://datatracker.ietf.org/doc/html/rfc6928 |
+>
+> - RFC 6928 第 5.1 節寫「from 3 segments to 10 segments」，第 4 節寫初始窗口「has remained 4 KB for a decade」。
+> - RFC 6928 的狀態是 **Experimental**，不是標準；而且寫的是「最多」，TCP 可以選更小的值（「MAY start with an initial window that is smaller than 10 segments」）。
+> - 14 KB 是 14,600 bytes ÷ 1000；換成 1 KiB = 1024 bytes 是約 14.3 KiB，筆記沿用業界說法「14 KB」。
+> - **沒查證**：RFC 3390 之前更早的規定（我印象是 1～2 個封包，但沒有開 RFC 2581／2414 核對），所以 [DNS查詢-TCP與TLS握手RTT 筆記](../../backend/DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能.md) 437 行寫的「早期從 1 個封包開始」我沒驗證；Linux 2.6.39 改成 10 的版本號也沿用舊筆記，這次沒重查。
+
 一個來回要多久？取決於 **RTT（Round-Trip Time，來回時間）**：
 
 | 連線情境 | 典型 RTT | 超過 14 KB 的額外延遲 |
@@ -310,12 +322,14 @@ function createTokenizer() {
 
 | 模式                       | 🏠 解析時（蓋房子）         | 📖 下載（買說明書）       | 👓 執行（看說明書）      | 順序保證      | 典型場景／框架                           |
 | ------------------------ | ------------------- | ----------------- | ---------------- | --------- | --------------------------------- |
-| `<script>`（一般，`<head>`）  | **中斷**（Blocking）    | 讀到當下才抓，主緒空等       | 抓完**立刻**執行，才續解析  | 按出現順序     | 早期網頁；現代少用                         |
+| `<script>`（一般，`<head>`）  | **中斷**（Blocking）    | 讀到當下才抓，主緒空等       | 抓完**立刻**執行，才續解析  | 按出現順序     | 早期網頁；現代少用（為什麼最糟：見表下連結）            |
 | `<script async>`         | 下載不中斷；執行插隊中斷        | 背景平行下載            | **抓完立刻插隊執行**     | **不保證**   | GA、廣告、Next.js `lazyOnload`        |
 | `<script defer>`         | **不中斷**             | 背景平行下載            | **等 DOM 蓋完才執行**  | **保證**按順序 | 需操作 DOM 的主程式；CRA／Webpack          |
 | `<script>` 放 `</body>` 前 | 讀到時前面 DOM 幾乎蓋好      | 讀到才抓（本質仍一般）       | 抓完立刻執行           | 按出現順序     | 傳統 SPA 自動注入位置                     |
 | `<script type="module">` | **不中斷**（預設等同 defer） | 背景平行下載，遞迴抓 import | 等解析完才執行          | 保證        | Vite／原生 ES Module 主流              |
 | Ajax／`fetch()`／`axios`   | 與載入解析**無關**         | JS 跑起來後主動抓「資料」    | 資料回來進 Event Loop | 由程式邏輯決定   | React `useEffect`、React Query／SWR |
+
+第一列（一般 `<script>` 放 `<head>`）為什麼是最糟的組合：[[script載入方式+前因後果#這件事怎麼跟本篇串起來|把封包、增量解析、blocking 疊起來看]]（Obsidian 滑鼠移上去會預覽那一節，點下去跳過去）
 
 **關於這張表的主詞與「位置」**：每一列的主詞＝**那種 `<script>` 標籤/載入方式**；「HTML 解析時」欄＝瀏覽器**由上而下、解析到它那一刻**會不會中斷。位置規則：**`async`/`defer` 只對「有 `src` 的外部 script」有效**（inline 加了沒用）；慣例放 `<head>`（邊解析邊背景下載最划算），放 `<body>` 裡也行、但 `defer` 放 body 尾就沒意義；**別放在 `</body>` 之後**（body 外是不合規 HTML，瀏覽器會塞回 body）。
 
@@ -541,33 +555,6 @@ function createTokenizer() {
 | **script 下載** | 去抓 `a.js` 這個檔案 | <mark style="background: #BBFABBA6;">背景網路執行緒</mark> |
 
 <mark style="background: #FFF3A3A6;">「不中斷」的**受詞是第二列（HTML 解析）**，不是「下載本身不中斷」。</mark>因為下載交給背景執行緒去做，主執行緒就不用停下來等它，解析可以繼續往下蓋 DOM。
-
-#### 三種模式的時間軸對照
-
-```
-HTML 位元流   ████████████████████████████  持續進來（串流）
-                    ↓ 解析到第 5 行的 <script src="a.js">
-
-【一般 script】阻塞解析
-  HTML 解析   ██████░░░░░░░░░░░░██████████
-  script 下載       ████████
-  script 執行               ████
-              ↑ ░ 這一段解析「停住不動」，主執行緒在乾等
-
-【async】下載不阻塞，但執行阻塞
-  HTML 解析   ██████████████░░░░██████████
-  script 下載       ████████
-  script 執行               ████
-              ↑ 下載期間解析繼續跑，但抓完「插隊」中斷解析去執行
-
-【defer】下載與執行都不阻塞
-  HTML 解析   ████████████████████████
-  script 下載       ████████
-  script 執行                         ████
-              ↑ 解析全程不中斷，等整份解析完才執行
-```
-
-白話講這張圖：**三種模式的「下載」那一列都一樣長**（檔案大小沒變），差別全在**「HTML 解析」那一列有沒有斷掉**，以及**執行的時間點被排在哪裡**。
 
 #### 所以 async 精確的描述是
 
