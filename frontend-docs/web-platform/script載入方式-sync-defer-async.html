@@ -117,10 +117,10 @@
   .grp .gl{font-size:.74rem;color:var(--accent);white-space:nowrap;cursor:help}
   .b-waitc{background:repeating-linear-gradient(45deg,#a0507a,#a0507a 6px,#7c3d5e 6px,#7c3d5e 12px);color:#fff}
   .track.two{height:46px}
-  .bc-hover{position:relative;display:inline-block}
-  .bc-hover>a{color:var(--accent);text-decoration:underline dotted;cursor:help}
-  .bc-hover .bc-card{display:none;position:absolute;left:0;top:100%;z-index:20;width:300px;padding:8px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:.78rem;line-height:1.5;color:var(--ink);white-space:normal}
-  .bc-hover:hover .bc-card,.bc-hover:focus-within .bc-card{display:block}
+  .legend .term,.blk .term{color:var(--green);border-bottom-color:var(--green)}
+  #trackMain,#trackMain .b-bc{overflow:visible}
+  #trackMain .term::after,#trackMain .term:hover::after,#trackMain .term:focus::after{left:auto;right:-8px;transform:none}
+  .legend a{color:var(--accent)}
   .b-bc{background:#7fd1b9;color:#0a1a16}
   .b-interp{background:#b8923a;color:#fff}
   .b-jit{background:rgba(255,138,92,.28);border:1.5px dashed var(--thread);color:#ffd2bd}
@@ -224,7 +224,7 @@
       <span><i class="sw b-parse"></i>解析 HTML（蓋房子，建出 DOM）</span>
       <span><i class="sw b-down"></i>下載 JS（買說明書）</span>
       <span><i class="sw b-exec"></i>執行 JS（看說明書）</span>
-      <span><i class="sw b-bc"></i><span><span class="bc-hover"><a href="../../編譯與打包-學習路徑/04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】.html#v8-pipeline-mermaid">BC</a><span class="bc-card"><b>bytecode（位元組碼）</b>：V8 的 Ignition 把 JS 原始碼編成的中間格式，給直譯器一行一行讀。輸入是原始碼，輸出才是 bytecode；它不是機器碼。<br><a href="../../編譯與打包-學習路徑/04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】.html#v8-pipeline-mermaid">直接前往 04 V8 引擎完整管線的 Mermaid 流程圖</a></span></span>：Ignition 把原始碼編成 bytecode（主緒下道）</span></span>
+      <span><i class="sw b-bc"></i><span><span class="term" tabindex="0" data-def="bytecode（位元組碼）：V8 的 Ignition 把 JS 原始碼編成的中間格式，給直譯器一行一行讀。輸入是原始碼，輸出才是 bytecode；它不是機器碼。">BC</span>：Ignition 把原始碼編成 bytecode（主緒下道）　<a href="../../編譯與打包-學習路徑/04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】.html#v8-pipeline-mermaid">→ 04 V8 引擎完整管線的 Mermaid 流程圖</a></span></span>
       <span><i class="sw b-interp"></i>直譯 bytecode＋收集型別回饋（主緒下道）</span>
       <span><i class="sw b-jit"></i>JIT 編譯（虛線＝熱了才有）</span>
       <span><i class="sw b-inst"></i>換上機器碼</span>
@@ -504,7 +504,7 @@ paint();
 let T=110, curMode='normal', slow=false;
 function bar(cls,start,len,label,tip,lane){
   const ly=lane===0?'top:0;height:50%;':(lane===1?'top:50%;height:50%;':'');
-  return `<div class="blk ${cls}" title="${tip||label}" style="left:${start/T*100}%;width:${len/T*100}%;${ly}">${label}</div>`;
+  return `<div class="blk ${cls}" title="${tip===undefined?label:tip}" style="left:${start/T*100}%;width:${len/T*100}%;${ly}">${label}</div>`;
 }
 /* 每筆 [樣式, 起點, 長度, 文字]；解析總長 80、下載長 20、執行長 10。
    C ＝ CSSOM 建好的時間點：一般 CSS 在 26，「很大／很慢」在 100。
@@ -566,11 +566,11 @@ const VS={
    BC＝Ignition 把原始碼 parse 成 bytecode；之後直譯並收集型別回饋；
    函式夠熱才觸發 JIT（背景編譯，主緒照常執行），編好再換上機器碼。
    短小的 script 可能整段都沒觸發 JIT，所以 JIT 與「換上」畫成虛線。 */
-const BCLINK='../../編譯與打包-學習路徑/04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】.html#v8-pipeline-mermaid';
+const BCDEF='bytecode（位元組碼）：V8 的 Ignition 把 JS 原始碼編成的中間格式，給直譯器一行一行讀。輸入是原始碼，輸出才是 bytecode；它不是機器碼。內層函式多半第一次被呼叫才編。';
 function jitRows(s){
   const ex=s.main.find(b=>b[0]==='b-exec'), a=ex[1], len=ex[2];
   return {
-    eng:[['b-bc',a,3,'<a href="'+BCLINK+'" style="color:inherit">BC</a>','bytecode（位元組碼）：Ignition 把原始碼 parse 成 AST，再編成 bytecode。輸入是原始碼，輸出才是 bytecode，不是機器碼。內層函式多半第一次被呼叫才編'],
+    eng:[['b-bc',a,3,'<span class="term" tabindex="0" data-def="'+BCDEF+'">BC</span>',''],
          ['b-interp',a+3,len-3,'直譯','直譯執行 bytecode，同時收集型別回饋（feedback）給 JIT 用']],
     jit:[['b-jit',a+4,8,'JIT','Sparkplug／Maglev／TurboFan：函式熱了（累積的執行額度用完）才編成機器碼。優化編譯多半在背景執行緒，主緒照常執行。示意：短小 script 可能不會觸發'],
          ['b-inst',a+12,3,'換上','編好的機器碼換上，之後呼叫該函式就跑機器碼（若型別假設被打破會 Deoptimization 退回直譯，圖未畫）']]
