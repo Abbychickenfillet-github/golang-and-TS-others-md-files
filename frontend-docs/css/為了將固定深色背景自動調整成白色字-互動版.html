@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>為了將固定深色背景自動調整成白色字｜互動版</title>
+<style>
+:root{--bg:oklch(0.985 0.004 90);--card:#fff;--ink:oklch(0.27 0.02 250);--muted:oklch(0.55 0.02 250);--line:oklch(0.92 0.01 250);--accent:oklch(0.52 0.08 240);--soft:oklch(0.96 0.015 240);--warn:oklch(0.5 0.17 27)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;font-size:16px}
+.wrap{max-width:960px;margin:0 auto;padding:28px 18px 90px}
+h1{font-size:1.5rem;margin:0 0 6px;line-height:1.4}
+h2{font-size:1.15rem;margin:34px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--soft)}
+.sub{color:var(--muted);font-size:.9rem;margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:18px}
+table{border-collapse:collapse;width:100%;font-size:.92rem;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:var(--soft);white-space:nowrap}
+code{background:oklch(0.95 0.008 250);padding:1px 6px;border-radius:5px;font-size:.88em;font-family:Consolas,monospace}
+pre{background:oklch(0.27 0.02 250);color:oklch(0.93 0.01 250);padding:14px 16px;border-radius:10px;overflow-x:auto;font-size:.84rem;line-height:1.55}
+pre code{background:none;color:inherit;padding:0}
+.scroll-x{overflow-x:auto}
+.scroll-x svg{min-width:760px;width:100%;height:auto;display:block}
+.seg{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.seg button,.btn{font:inherit;font-size:.88rem;background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 14px;cursor:pointer;color:var(--ink)}
+.seg button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* 即時對照實驗 */
+.stage{border-radius:12px;padding:18px;transition:background .2s}
+.stage[data-theme="light"]{--stage-bg:oklch(0.97 0.01 250);--legal-text:oklch(0.447 0.034 261)}
+.stage[data-theme="dark"]{--stage-bg:oklch(0.22 0.02 260);--legal-text:oklch(0.95 0 0)}
+.stage[data-theme="warm"]{--stage-bg:oklch(0.32 0.06 55);--legal-text:oklch(0.95 0.02 80)}
+.stage{background:var(--stage-bg)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.two{grid-template-columns:1fr}}
+.demo{border:1px dashed oklch(0.6 0.02 250 / .6);border-radius:10px;padding:12px 14px;font-size:.95rem}
+.demo b{display:block;margin-bottom:4px}
+.demo.fixed p{color:oklch(0.447 0.034 261)}      /* 等於 Sass 編譯後的死值 */
+.demo.live p{color:var(--legal-text, oklch(0.447 0.034 261))}
+.demo b{color:inherit}
+.demo.fixed b,.demo.live b{color:var(--legal-text)}
+.demo.fixed b{color:oklch(0.447 0.034 261)}
+/* oklch 滑桿 */
+.pg{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:640px){.pg{grid-template-columns:1fr}}
+.row{display:grid;grid-template-columns:70px 1fr 64px;gap:8px;align-items:center;margin:6px 0;font-size:.9rem}
+.sw{border-radius:10px;padding:16px;min-height:110px;border:1px solid var(--line);font-size:.95rem}
+.sw small{display:block;opacity:.85}
+.ok{color:oklch(0.45 0.12 150);font-weight:700}.no{color:var(--warn);font-weight:700}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.chip{border-radius:10px;padding:12px 14px;border:1px solid var(--line);font-size:.88rem}
+.chip .a{font-weight:700;font-size:1rem}
+.chip .s{font-size:.78rem;margin-top:4px}
+.q{border-top:1px dashed var(--line);padding:12px 0}
+.q button{font:inherit;font-size:.85rem;margin-right:6px;padding:4px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
+.q .ans{display:none;margin-top:6px;padding:8px 12px;background:var(--soft);border-radius:8px;font-size:.9rem}
+.q .ans.show{display:block}
+.todo{background:oklch(0.97 0.06 95);border:1px solid oklch(0.85 0.1 95);border-radius:10px;padding:10px 14px;font-size:.92rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>為了將固定深色背景自動調整成白色字</h1>
+<div class="sub">互動版。筆記：<a href="為了將固定深色背景自動調整成白色字.html">為了將固定深色背景自動調整成白色字</a>　專案：next-one-time-tracker 的 <code>legal.module.scss</code></div>
+
+<h2>a 專案現況</h2>
+<div class="card">
+<table>
+  <tr><th>項目</th><th>現況</th></tr>
+  <tr><td>共用範圍</td><td>服務條款、退換貨政策、隱私權政策三頁共用 <code>legal.module.scss</code>，維持共用即可</td></tr>
+  <tr><td>背景</td><td><code>.legalPage</code>、<code>.legalCard</code> 的 <code>background</code> 已刪，透出主題背景</td></tr>
+  <tr><td>文字色</td><td>全部寫死深色（<code>#1a202c</code>、<code>#4a5568</code>…），深色主題下看不到</td></tr>
+  <tr><td>主題</td><td><code>&lt;html data-theme="…"&gt;</code>；<code>globals.scss</code> 每個主題定義 <code>--text-primary</code> 等變數</td></tr>
+</table>
+</div>
+
+<h2>b 流程圖：Sass 變數與 CSS 變數</h2>
+<div class="card">
+  <div class="scroll-x"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 770" role="img" aria-label="Sass 變數與 CSS 變數：編譯時與執行期的流程圖" style="font-family:'Noto Sans TC','Microsoft JhengHei',sans-serif"><rect width="980" height="770" fill="#ffffff"/><defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#4b5b68"/></marker></defs><text x="215" y="26" font-size="17" font-weight="700" fill="#23303b" text-anchor="middle">Sass 變數  $text</text><text x="700" y="26" font-size="17" font-weight="700" fill="#23303b" text-anchor="middle">CSS 變數  --legal-text</text><rect x="50.0" y="44" width="330" height="48" rx="24.0" fill="#e9f7ee" stroke="#4b5b68" stroke-width="2"/><text x="215" y="58" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">開始：寫 SCSS</text><text x="215" y="78" font-size="14" font-family="Consolas,monospace" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">p { color: $text }</text><path d="M215 92L215 124" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><rect x="50.0" y="124" width="330" height="52" fill="#fff" stroke="#4b5b68" stroke-width="2"/><text x="215" y="140" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">Sass 編譯器把 $text</text><text x="215" y="160" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">換成實際值 #4a5568</text><path d="M215 176L215 210" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><rect x="50.0" y="210" width="330" height="62" fill="#fdecea" stroke="#4b5b68" stroke-width="2"/><text x="215" y="231" font-size="14" font-family="Consolas,monospace" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">輸出 CSS：p { color: #4a5568 }</text><text x="215" y="251" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">$text 已消失，只剩死值</text><path d="M215 272L215 336" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><rect x="50.0" y="336" width="330" height="52" fill="#fff" stroke="#4b5b68" stroke-width="2"/><text x="215" y="362" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">瀏覽器載入：color 就是 #4a5568</text><path d="M215 388L215 412" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><polygon points="50.0,462 215,412 380.0,462 215,512" fill="#fff8dc" stroke="#4b5b68" stroke-width="2"/><text x="215" y="462" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">使用者切換 data-theme？</text><path d="M215 512L215 548" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><text x="225" y="534" font-size="14" font-weight="700" fill="#b3261e" text-anchor="start">是</text><rect x="50.0" y="548" width="330" height="52" fill="#fff" stroke="#4b5b68" stroke-width="2"/><text x="215" y="564" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">沒有變數可更新</text><text x="215" y="584" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">顏色不變</text><path d="M215 600L215 636" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><rect x="50.0" y="636" width="330" height="48" rx="24.0" fill="#fdecea" stroke="#4b5b68" stroke-width="2"/><text x="215" y="660" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">結束：深色背景上仍是深灰字</text><rect x="535.0" y="44" width="330" height="48" rx="24.0" fill="#e9f7ee" stroke="#4b5b68" stroke-width="2"/><text x="700" y="58" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">開始：寫 SCSS</text><text x="700" y="78" font-size="14" font-family="Consolas,monospace" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">p { color: var(--legal-text, #4a5568) }</text><path d="M700 92L700 124" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><rect x="535.0" y="124" width="330" height="52" fill="#fff" stroke="#4b5b68" stroke-width="2"/><text x="700" y="140" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">Sass 編譯器不處理 var()</text><text x="700" y="160" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">原樣放行</text><path d="M700 176L700 210" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><rect x="535.0" y="210" width="330" height="62" fill="#eaf2f7" stroke="#4b5b68" stroke-width="2"/><text x="700" y="231" font-size="14" font-family="Consolas,monospace" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">輸出 CSS：p { color: var(--legal-text…) }</text><text x="700" y="251" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">var() 還在</text><path d="M700 272L700 336" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><rect x="535.0" y="336" width="330" height="52" fill="#fff" stroke="#4b5b68" stroke-width="2"/><text x="700" y="352" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">瀏覽器載入：依目前 data-theme</text><text x="700" y="372" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">解析 --legal-text</text><path d="M700 388L700 412" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><polygon points="535.0,462 700,412 865.0,462 700,512" fill="#fff8dc" stroke="#4b5b68" stroke-width="2"/><text x="700" y="462" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">使用者切換 data-theme？</text><path d="M700 512L700 548" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><text x="710" y="534" font-size="14" font-weight="700" fill="#b3261e" text-anchor="start">是</text><rect x="535.0" y="548" width="330" height="52" fill="#fff" stroke="#4b5b68" stroke-width="2"/><text x="700" y="574" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">瀏覽器重新解析 --legal-text</text><path d="M700 600L700 636" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><rect x="535.0" y="636" width="330" height="40" fill="#fff" stroke="#4b5b68" stroke-width="2"/><text x="700" y="656" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">畫面即時換色，不用重新打包</text><path d="M700 676L700 700" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><rect x="535.0" y="700" width="330" height="48" rx="24.0" fill="#e9f7ee" stroke="#4b5b68" stroke-width="2"/><text x="700" y="724" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">結束：字色跟著主題</text><path d="M380.0 462L402.0 462" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><text x="384.0" y="454" font-size="14" font-weight="700" fill="#b3261e" text-anchor="start">否</text><rect x="402.0" y="444" width="84" height="36" rx="18" fill="#e9f7ee" stroke="#4b5b68" stroke-width="2"/><text x="444.0" y="462" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">維持原樣</text><path d="M865.0 462L887.0 462" stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)"/><text x="869.0" y="454" font-size="14" font-weight="700" fill="#b3261e" text-anchor="start">否</text><rect x="887.0" y="444" width="84" height="36" rx="18" fill="#e9f7ee" stroke="#4b5b68" stroke-width="2"/><text x="929.0" y="462" font-size="14" font-family="inherit" font-weight="400" fill="#23303b" text-anchor="middle" dominant-baseline="middle">維持原樣</text><line x1="20" y1="303" x2="960" y2="303" stroke="#8a97a3" stroke-width="2" stroke-dasharray="8 6"/><text x="24" y="296" font-size="13" fill="#6b7b88" font-weight="700">上：build time（打包時）</text><text x="24" y="321" font-size="13" fill="#6b7b88" font-weight="700">下：runtime（瀏覽器執行期）</text></svg></div>
+  <p style="font-size:.88rem;color:var(--muted);margin:8px 0 0">上半是打包時，Sass 把 <code>$text</code> 換成實際值；下半是瀏覽器執行期，只有還留在 CSS 裡的 <code>var()</code> 能跟著 <code>data-theme</code> 重算。</p>
+</div>
+
+<h2>c 即時對照：切換主題，看兩種寫法</h2>
+<div class="card">
+  <div class="seg" id="themeSeg">
+    <button data-t="light" class="on">淺色主題</button>
+    <button data-t="dark">深色主題</button>
+    <button data-t="warm">暖棕主題</button>
+  </div>
+  <div class="stage" id="stage" data-theme="light">
+    <div class="two">
+      <div class="demo fixed"><b>寫死的值（等於 Sass 變數編譯後）</b><p>color: oklch(0.447 0.034 261)。切到深色主題，深灰字落在深底，看不到。</p></div>
+      <div class="demo live"><b>CSS 變數 var(--legal-text)</b><p>color: var(--legal-text)。主題一換，瀏覽器重算，字色跟著變。</p></div>
+    </div>
+  </div>
+</div>
+
+<h2>d oklch 滑桿：L、C、H 三個旋鈕</h2>
+<div class="card">
+  <div class="pg">
+    <div>
+      <div class="row"><label for="L">L 明度</label><input id="L" type="range" min="0" max="1" step="0.01" value="0.45"><code id="Lv"></code></div>
+      <div class="row"><label for="C">C 彩度</label><input id="C" type="range" min="0" max="0.4" step="0.005" value="0.12"><code id="Cv"></code></div>
+      <div class="row"><label for="H">H 色相</label><input id="H" type="range" min="0" max="360" step="1" value="255"><code id="Hv"></code></div>
+      <pre><code id="css"></code></pre>
+    </div>
+    <div>
+      <div class="sw" id="sw1"><b>Sass 規則（L &gt; 0.65 用深字）</b><small id="r1"></small>範例文字 Aa 小字 14px</div>
+      <div class="sw" id="sw2" style="margin-top:10px"><b>contrast-color()</b><small id="r2"></small>範例文字 Aa 小字 14px</div>
+    </div>
+  </div>
+</div>
+
+<h2>e <code>#1a202c</code> 是怎樣的黑色</h2>
+<div class="card">
+  <div class="chips">
+    <div class="chip" style="background:#000;color:#fff"><div class="a">#000000 純黑</div><div class="s">oklch(0 0 0)　L 0、C 0</div></div>
+    <div class="chip" style="background:#1a202c;color:#fff"><div class="a">#1a202c</div><div class="s">oklch(0.243 0.025 264)　L 0.243、C 0.025，帶一點藍的深炭灰</div></div>
+    <div class="chip" style="background:#1a1a1a;color:#fff"><div class="a">#1a1a1a</div><div class="s">oklch(0.218 0 90)　C 0，中性深灰</div></div>
+  </div>
+  <p style="font-size:.9rem">它是 Tailwind v1 gray-900。同盤的 gray-800、700、300 色相都落在 256 到 264 度（藍灰），只有 L 不同：</p>
+  <div class="chips">
+    <div class="chip" style="background:#1a202c;color:#fff"><div class="a">gray-900</div><div class="s">oklch(0.243 0.025 264)</div></div>
+    <div class="chip" style="background:#2d3748;color:#fff"><div class="a">gray-800</div><div class="s">oklch(0.335 0.033 261)</div></div>
+    <div class="chip" style="background:#4a5568;color:#fff"><div class="a">gray-700</div><div class="s">oklch(0.447 0.034 261)</div></div>
+    <div class="chip" style="background:#e2e8f0;color:#1a202c"><div class="a">gray-300</div><div class="s">oklch(0.929 0.013 256)</div></div>
+  </div>
+</div>
+
+<h2>f contrast-color() 實測（中間色調）</h2>
+<div class="card">
+  <div class="todo">待測試：<span id="support"></span>。下面每格左邊是 <code>contrast-color()</code> 的結果，右邊是 oklch 65% 規則。中間亮度的色塊（L 約 0.55 到 0.7）看哪個字比較好讀。</div>
+  <div class="chips" id="mid" style="margin-top:12px"></div>
+  <table style="margin-top:14px">
+    <tr><th>名詞</th><th>意思</th></tr>
+    <tr><td>用途</td><td>給一個背景色，瀏覽器回傳白或黑，當文字色</td></tr>
+    <tr><td>Baseline 2026 newly available</td><td>2026 年 4 月起最新版主要瀏覽器都支援；舊瀏覽器可能沒有，要有後備</td></tr>
+    <tr><td>中間色調問題</td><td>黑與白的對比都接近 4.5:1 時，選出的字可能剛好過標準但小字吃力（MDN 以 <code>#2277d3</code> 為例）</td></tr>
+  </table>
+</div>
+
+<h2>g 自我測驗</h2>
+<div class="card">
+  <div class="q"><b>1. 切換 data-theme 會讓 Sass 變數固定。</b><br><button>是</button><button>非</button>
+    <div class="ans">非。固定的原因是 Sass 變數在打包時就被換成實際值；<code>data-theme</code> 只是 &lt;html&gt; 上的屬性，只能影響還留在 CSS 裡的 <code>var()</code>。</div></div>
+  <div class="q"><b>2. contrast-color() 可以回傳自選的深灰色 #1a202c。</b><br><button>是</button><button>非</button>
+    <div class="ans">非。依 MDN，回傳值只會是 white 或 black。要用自選的深灰，用成對 CSS 變數或 Sass 函式。</div></div>
+  <div class="q"><b>3. 填空：#1a202c 的 oklch 彩度 C 約是 ____，所以它是帶一點 ____ 的近黑。</b><br><button>顯示答案</button>
+    <div class="ans">0.025；藍（色相 H 約 264 度）。</div></div>
+</div>
+</div>
+
+<script>
+(function(){
+  // c 主題切換
+  var stage = document.getElementById('stage');
+  document.getElementById('themeSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    stage.setAttribute('data-theme', b.dataset.t);
+    [].forEach.call(this.children, function(x){ x.classList.toggle('on', x === b); });
+  });
+
+  // d oklch 滑桿
+  var L = document.getElementById('L'), C = document.getElementById('C'), H = document.getElementById('H');
+  var sw1 = document.getElementById('sw1'), sw2 = document.getElementById('sw2');
+  var DARK = 'oklch(0.243 0.025 264)', LIGHT = 'oklch(0.98 0 0)';
+  function render(){
+    var l = +L.value, c = +C.value, h = +H.value;
+    var col = 'oklch(' + l + ' ' + c + ' ' + h + ')';
+    document.getElementById('Lv').textContent = l;
+    document.getElementById('Cv').textContent = c;
+    document.getElementById('Hv').textContent = h;
+    document.getElementById('css').textContent = 'background: ' + col + ';';
+    sw1.style.background = col;
+    sw1.style.color = l > 0.65 ? DARK : LIGHT;
+    document.getElementById('r1').textContent = '結果：' + (l > 0.65 ? '深字 ' + DARK : '白字 ' + LIGHT);
+    sw2.style.setProperty('--c', col);
+    sw2.style.background = col;
+    sw2.style.color = 'contrast-color(' + col + ')';
+    var got = getComputedStyle(sw2).color;
+    document.getElementById('r2').textContent = supported ? '結果：' + toBW(got) : '你的瀏覽器不支援 contrast-color()';
+  }
+  var supported = window.CSS && CSS.supports && CSS.supports('color', 'contrast-color(red)');
+  function toBW(c){
+    var n = c.match(/[\d.]+/g); if(!n) return c;
+    var v = parseFloat(n[0]); var white = c.indexOf('color(') === 0 ? v > 0.5 : v > 127;
+    return white ? '白字' : '黑字';
+  }
+  [L, C, H].forEach(function(el){ el.addEventListener('input', render); });
+  document.getElementById('support').innerHTML = supported
+    ? '你的瀏覽器<span class="ok">支援</span> contrast-color()'
+    : '你的瀏覽器<span class="no">不支援</span> contrast-color()，右邊欄位只會顯示 oklch 規則的結果';
+  render();
+
+  // f 中間色調色塊
+  var mids = [['#2277d3', 'MDN 例子'], ['#3b82f6', 'Tailwind blue-500'], ['#777777', '中灰'], ['#c2410c', '橘棕'], ['#16a34a', '綠'], ['#f6ca85', '淡橘（偏亮）'], ['#1a1a1a', '深灰（偏暗）']];
+  var box = document.getElementById('mid');
+  mids.forEach(function(m){
+    var d = document.createElement('div'); d.className = 'chip'; d.style.background = m[0];
+    var a = document.createElement('div'); a.innerHTML = '<span class="a">' + m[0] + '</span>　' + m[1];
+    var l = document.createElement('div'); l.textContent = '左：contrast-color()　右：oklch 規則'; l.className = 's';
+    d.appendChild(a); d.appendChild(l);
+    var row = document.createElement('div'); row.style.cssText = 'display:flex;gap:12px;margin-top:6px;font-size:.95rem';
+    var s1 = document.createElement('span'); s1.textContent = '範例 Aa 14px';
+    var s2 = document.createElement('span'); s2.textContent = '範例 Aa 14px';
+    if (supported) s1.style.color = 'contrast-color(' + m[0] + ')'; else s1.textContent = '（不支援）';
+    // oklch 規則：用 canvas 把 hex 轉成 L
+    s2.style.color = lOf(m[0]) > 0.65 ? DARK : LIGHT;
+    row.appendChild(s1); row.appendChild(s2); d.appendChild(row);
+    box.appendChild(d);
+  });
+  function lin(c){ c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+  function lOf(hex){
+    var n = parseInt(hex.slice(1), 16), r = lin(n >> 16 & 255), g = lin(n >> 8 & 255), b = lin(n & 255);
+    var l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+    var m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+    var s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    return 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+  }
+
+  // g 測驗
+  document.querySelectorAll('.q').forEach(function(q){
+    q.addEventListener('click', function(e){ if (e.target.closest('button')) q.querySelector('.ans').classList.add('show'); });
+  });
+})();
+</script>
+</body>
+</html>

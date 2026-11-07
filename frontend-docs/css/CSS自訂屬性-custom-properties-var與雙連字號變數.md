@@ -69,6 +69,10 @@ color: var(--text, #333);   /* --text 沒設就用 #333 */
 
 一句話：**`--bg` 是「活的、瀏覽器端的變數」；Sass `$bg` 是「build 時就被替換掉的死值」。** 這也是為什麼主題切換、暗色模式一定用 `--bg` 這種 CSS 自訂屬性，不用 Sass 變數。
 
+![Sass 變數與 CSS 變數的流程圖](images/sass變數-vs-css變數-編譯時與執行期-流程圖.svg)
+
+延伸：[[為了將固定深色背景自動調整成白色字]]。
+
 ## (f) 用 JS 讀寫（做主題切換就靠這個）
 
 ```js
@@ -77,6 +81,10 @@ getComputedStyle(document.documentElement).getPropertyValue('--bg');
 // 寫（即時整片換色）
 document.documentElement.style.setProperty('--bg', '#123');
 ```
+
+## (g) 背景變深，文字自動變白
+
+整理在 [[為了將固定深色背景自動調整成白色字]]：Sass 變數與 CSS 變數的流程圖、三種做法（CSS 變數、`contrast-color()`、Sass 函式）、`#1a202c` 是什麼黑色。
 
 ---
 
@@ -90,3 +98,4 @@ document.documentElement.style.setProperty('--bg', '#123');
 | CSS 自訂屬性（Custom Properties／CSS variables） | https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties | MDN，2026-09-09 查 |
 | `var()` 函式與 fallback | https://developer.mozilla.org/en-US/docs/Web/CSS/var | MDN，2026-09-09 查 |
 | `--*`（自訂屬性語法） | https://developer.mozilla.org/en-US/docs/Web/CSS/--* | MDN，2026-09-09 查 |
+

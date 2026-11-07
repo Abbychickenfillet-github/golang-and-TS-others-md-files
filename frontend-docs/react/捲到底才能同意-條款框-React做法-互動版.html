@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>捲到底才能同意｜條款框 Scroll-to-Agree 互動版</title>
+<style>
+:root{--bg:#fbfaf7;--card:#fff;--ink:#23303b;--muted:#6b7b88;--line:#e4e8ec;--accent:#3f6f8f;--accent-soft:#eaf2f7;--ok:#1f7a3d;--warn:#b3261e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.7;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;font-size:16px}
+.wrap{max-width:900px;margin:0 auto;padding:28px 18px 80px}
+h1{font-size:1.55rem;margin:0 0 6px}
+h2{font-size:1.15rem;margin:30px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--accent-soft)}
+.sub{color:var(--muted);font-size:.9rem;margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:18px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.toolbar button,.seg button{font:inherit;font-size:.88rem;background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 14px;cursor:pointer;color:var(--ink)}
+.toolbar button:hover,.seg button:hover{background:var(--accent-soft)}
+.seg button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:1.3fr 1fr;gap:18px}
+@media(max-width:720px){.grid{grid-template-columns:1fr}}
+.terms{height:240px;overflow-y:auto;border:2px solid #9aa7b2;border-radius:8px;padding:12px 16px;background:#fff;font-size:.92rem}
+.terms:focus-visible{outline:3px solid var(--accent)}
+.terms h3{margin:.2em 0 .5em;text-align:center}
+.terms p{margin:.55em 0}
+.bar{height:8px;background:#e8edf1;border-radius:99px;margin:10px 0;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .1s}
+.btns{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.btns button{font:inherit;border:0;border-radius:8px;padding:9px 18px;color:#fff;cursor:pointer}
+#agree{background:#0a6aa1}
+#agree:disabled{background:#8fa3b0;cursor:not-allowed}
+#decline{background:#b3261e}
+.hint{font-size:.85rem;margin-top:8px;min-height:1.4em}
+.hint.ok{color:var(--ok);font-weight:600}.hint.wait{color:var(--warn)}
+.stat{font-size:.9rem}
+.stat table{border-collapse:collapse;width:100%}
+.stat td{border:1px solid var(--line);padding:7px 10px}
+.stat td:first-child{background:var(--accent-soft);white-space:nowrap}
+.stat td.tip{position:relative;cursor:help;text-decoration:underline dotted var(--accent);text-underline-offset:3px}
+.stat td.tip:focus-visible{outline:2px solid var(--accent)}
+.tipbox{display:none;position:absolute;left:0;top:100%;z-index:10;width:min(310px,78vw);margin-top:4px;padding:10px 12px;border-radius:8px;background:#1f2933;color:#e6edf3;font-size:.82rem;font-weight:400;line-height:1.6;white-space:normal;text-decoration:none;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.tipbox b{color:#ffe08a}
+.tipbox code{background:#33414d;color:#e6edf3}
+.stat td.tip:hover .tipbox,.stat td.tip:focus .tipbox{display:block}
+.num{font-family:Consolas,monospace;font-weight:700}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:.88rem}
+.flow .b{border:2px solid var(--accent);border-radius:8px;padding:6px 10px;background:#fff}
+.flow .d{border:2px solid #b8860b;border-radius:4px;padding:6px 10px;background:#fff8dc;transform:skew(-8deg)}
+.flow .d span{display:inline-block;transform:skew(8deg)}
+.flow .e{border:2px solid var(--ok);border-radius:99px;padding:6px 12px;background:#e9f7ee}
+.flow .a{color:var(--muted)}
+pre{background:#1f2933;color:#e6edf3;padding:14px 16px;border-radius:10px;overflow-x:auto;font-size:.84rem;line-height:1.55}
+.q{border-top:1px dashed var(--line);padding:12px 0}
+.q button{font:inherit;font-size:.85rem;margin-right:6px;padding:4px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
+.q .ans{display:none;margin-top:6px;padding:8px 12px;background:var(--accent-soft);border-radius:8px;font-size:.9rem}
+.q .ans.show{display:block}
+.tag{display:inline-block;font-size:.75rem;padding:1px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>捲到底才能同意｜Scroll-to-Agree 互動版</h1>
+<div class="sub">筆記：<a href="捲到底才能同意-條款框-React做法.html">捲到底才能同意-條款框-React做法</a>　來源：next-one-time-tracker issue #8</div>
+
+<h2>a 流程圖（ISO 5807 符號）</h2>
+<div class="card">
+<svg viewBox="0 0 560 660" role="img" aria-label="捲到底才能同意的流程圖" style="width:100%;max-width:560px;height:auto;display:block;margin:0 auto;font-family:inherit">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#4b5b68"/></marker></defs>
+  <g stroke="#4b5b68" stroke-width="2" fill="none" marker-end="url(#ar)">
+    <path d="M260 50V80"/><path d="M260 120V155"/>
+    <path d="M380 210H450V547H370"/>
+    <path d="M260 265V305"/><path d="M260 345V375"/>
+    <path d="M140 430H60V325H150"/>
+    <path d="M260 485V525"/><path d="M260 569V600"/>
+  </g>
+  <g font-size="15" text-anchor="middle" dominant-baseline="middle" fill="#23303b" stroke="#4b5b68" stroke-width="2">
+    <rect x="170" y="10" width="180" height="40" rx="20" fill="#e9f7ee"/>
+    <rect x="150" y="80" width="220" height="40" fill="#fff"/>
+    <polygon points="140,210 260,155 380,210 260,265" fill="#fff8dc"/>
+    <rect x="150" y="305" width="220" height="40" fill="#fff"/>
+    <polygon points="140,430 260,375 380,430 260,485" fill="#fff8dc"/>
+    <rect x="150" y="525" width="220" height="44" fill="#fff"/>
+    <rect x="200" y="600" width="120" height="40" rx="20" fill="#e9f7ee"/>
+  </g>
+  <g font-size="15" text-anchor="middle" dominant-baseline="middle" fill="#23303b">
+    <text x="260" y="30">開始：開啟條款</text>
+    <text x="260" y="100">鎖住「已閱讀並同意」鈕</text>
+    <text x="260" y="201">條款整段看得完嗎？</text><text x="260" y="222" font-size="12.5" fill="#6b7b88">（看得完 = 不用捲）</text>
+    <text x="260" y="325">使用者捲動條款框</text>
+    <text x="260" y="430">捲到底了嗎？</text>
+    <text x="260" y="547">解鎖按鈕（之後不再鎖回）</text>
+    <text x="260" y="620">結束</text>
+  </g>
+  <g font-size="14" fill="#b3261e" font-weight="700">
+    <text x="396" y="198">是</text>
+    <text x="272" y="287">否</text>
+    <text x="100" y="418" text-anchor="middle">否：繼續捲</text>
+    <text x="272" y="508">是</text>
+  </g>
+</svg>
+<table style="margin-top:14px">
+  <tr><th>符號</th><th>名稱（ISO 5807）</th><th>圖中用在</th></tr>
+  <tr><td>圓角矩形</td><td>Terminator 起止</td><td>開始、結束</td></tr>
+  <tr><td>矩形</td><td>Process 處理步驟</td><td>鎖住鈕、使用者捲動、解鎖鈕</td></tr>
+  <tr><td>菱形</td><td>Decision 決策</td><td>看得完嗎？、捲到底了嗎？</td></tr>
+</table>
+<p style="font-size:.88rem;color:var(--muted);margin:6px 0 0">看得完：條款短，整段都在框內，沒有可捲的內容，載入就解鎖。看不完：使用者要捲，每次捲動都再判斷一次，直到捲到底。</p>
+</div>
+
+<h2>b 實際操作</h2>
+<div class="card">
+  <div class="toolbar">
+    <span class="seg" id="methodSeg">
+      <button data-m="A" class="on">做法 A：onScroll</button>
+      <button data-m="B">做法 B：IntersectionObserver</button>
+    </span>
+    <span class="seg" id="lenSeg">
+      <button data-l="long" class="on">長條款（要捲）</button>
+      <button data-l="short">短條款（不用捲）</button>
+    </span>
+    <button id="reset">重設</button>
+  </div>
+  <div class="grid">
+    <div>
+      <div class="terms" id="box" role="region" aria-label="服務條款" tabindex="0"></div>
+      <div class="bar"><i id="prog"></i></div>
+      <div class="btns">
+        <button id="agree" disabled>已閱讀並同意</button>
+        <button id="decline">不同意並取消註冊</button>
+      </div>
+      <div class="hint wait" id="hint">請捲到條款最底部後才能同意</div>
+    </div>
+    <div class="stat">
+      <table>
+        <tr><td>目前做法</td><td id="sMethod">A</td></tr>
+        <tr><td>handler / callback 次數</td><td class="num" id="sCount">0</td></tr>
+        <tr><td class="tip" tabindex="0">scrollTop<span class="tipbox"><b>Element 的屬性（property）</b>，可讀可寫，不是方法，讀取時不加括號。<br>值 = 這個元素的內容已經往上捲掉幾 px，也就是可視框上緣離內容頂端的距離。0 = 還沒捲。可能有小數。</span></td><td class="num" id="sTop">0</td></tr>
+        <tr><td class="tip" tabindex="0">clientHeight<span class="tipbox"><b>Element 的唯讀屬性（property）</b>，不是方法。<br>值 = 元素可視那一格的高度（px、整數）= CSS <code>height</code> + <code>padding</code> - 水平捲軸高度；不含 border、margin。這裡就是條款框一次看得到的高度。</span></td><td class="num" id="sCh">0</td></tr>
+        <tr><td class="tip" tabindex="0">scrollHeight<span class="tipbox"><b>Element 的唯讀屬性（property）</b>，不是方法。<br>值 = 這個元素內容的總高度（px、整數），包含因 overflow 被藏起來、要捲才看得到的部分。是元素自己的內容高度，不是整個 HTML 頁面的高度。</span></td><td class="num" id="sSh">0</td></tr>
+        <tr><td class="tip" tabindex="0">剩餘可捲距離<span class="tipbox"><b>不是瀏覽器屬性</b>，是這個頁面自己算的：<br><code>scrollHeight - clientHeight - scrollTop</code>。0 = 到底。<br>不是 <code>scrollHeight - scrollTop</code>：可視框本身已經看得到 clientHeight 那麼高，要再扣掉。</span></td><td class="num" id="sLeft">0</td></tr>
+        <tr><td>reachedEnd</td><td class="num" id="sEnd">false</td></tr>
+      </table>
+      <p style="font-size:.84rem;color:var(--muted)">A 每次捲動都會計次；B 只在 sentinel 進出可見範圍時計次。捲到底後往上捲，reachedEnd 保持 true。把滑鼠移到 scrollTop、clientHeight、scrollHeight、剩餘可捲距離上，看定義。</p>
+    </div>
+  </div>
+</div>
+
+<h2>c 程式碼對照</h2>
+<div class="card">
+<pre id="code"></pre>
+</div>
+
+<h2>e 追加（Gemini，2026-11-05）</h2><div class="card"><p><b>(i)</b> <code>element.clientHeight</code>：元素自己的可視高度（content+padding，不含 border/margin/水平捲軸）。<code>window.innerHeight</code>：viewport 可見高度，隨視窗縮放、DevTools 改變。捲到底判斷用前者。</p><p><b>(j)</b> 手機網址列收合會改變視窗高度，IntersectionObserver 較穩。</p><p style="color:#b33">⚠️ 存疑/更正：Gemini 範例 <code>} locals = scrollContainer</code> 多了 <code>locals</code>，語法錯誤，應為 <code>} = scrollContainer</code>。</p><p style="color:#888">來源：<a href="https://gemini.google.com/app/cbbb5903507d7074">cbbb5903507d7074</a>、<a href="https://gemini.google.com/app/805fb1447ce5da22">805fb1447ce5da22</a></p></div>
+<h2>d 自我測驗</h2>
+<div class="card">
+  <div class="q">
+    <b>1. 判斷捲到底可以寫 <code>scrollTop === scrollHeight - clientHeight</code>。</b><br>
+    <button data-ans="x">是</button><button data-ans="o">非</button>
+    <div class="ans">非。<code>scrollTop</code> 可能有小數，而 <code>scrollHeight</code>、<code>clientHeight</code> 是整數，會永遠不相等。改用 <code>&gt;=</code> 加 1px 容差。</div>
+  </div>
+  <div class="q">
+    <b>2. IntersectionObserver 的 <code>root</code> 不設，也能偵測條款框內的 sentinel。</b><br>
+    <button data-ans="x">是</button><button data-ans="o">非</button>
+    <div class="ans">非。<code>root</code> 預設是整個 viewport，要設成捲動容器。</div>
+  </div>
+  <div class="q">
+    <b>3. 填空：條款短到不用捲時，A 要在 ____ 檢查一次；B 靠 ____ 後 callback 先跑一次。</b><br>
+    <button data-ans="show">顯示答案</button>
+    <div class="ans">mount（useEffect）；<code>observe()</code>。</div>
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+  var box = document.getElementById('box');
+  var prog = document.getElementById('prog');
+  var agree = document.getElementById('agree');
+  var hint = document.getElementById('hint');
+  var state = {method:'A', len:'long', reached:false, count:0, io:null, sentinel:null};
+  var codes = {
+    A: "const check = () => {\n  const el = boxRef.current   // 條款框的真實 DOM（ref={boxRef} 掛上後 React 填入）\n  if (!el) return             // mount 前 current 是 null\n  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1)\n    setReachedEnd(true)   // 只設 true\n}\nuseEffect(() => { check() }, [])   // 不用捲時直接解鎖\n// <div ref={boxRef} onScroll={check} tabIndex={0} ...>",
+    B: "useEffect(() => {\n  const io = new IntersectionObserver(\n    ([entry]) => {\n      if (entry.isIntersecting) { setReachedEnd(true); io.disconnect() }\n    },\n    { root: boxRef.current, threshold: 0 }  // boxRef.current：條款框 DOM，當觀察視窗\n  )\n  io.observe(endRef.current)   // endRef.current：1px sentinel 的 DOM；observe 後 callback 先跑一次\n  return () => io.disconnect()\n}, [])\n// <div ref={endRef} style={{height:1}} />  放在容器最後"
+  };
+  function fill(){
+    var n = state.len === 'long' ? 16 : 2;
+    var html = '<h3>個人資料蒐集告知函</h3>';
+    for (var i = 1; i <= n; i++) html += '<p>' + i + '、本告知函依據個人資料保護法第八條之規定，於蒐集您的個人資料時進行法定告知義務。蒐集之目的包含會員管理、客戶服務、行銷與統計分析。</p>';
+    box.innerHTML = html;
+    if (state.method === 'B') { state.sentinel = document.createElement('div'); state.sentinel.style.height = '1px'; box.appendChild(state.sentinel); }
+  }
+  function stats(){
+    var left = Math.max(0, box.scrollHeight - box.clientHeight - box.scrollTop);
+    document.getElementById('sMethod').textContent = state.method === 'A' ? 'A onScroll' : 'B IntersectionObserver';
+    document.getElementById('sCount').textContent = state.count;
+    document.getElementById('sTop').textContent = box.scrollTop.toFixed(1);
+    document.getElementById('sCh').textContent = box.clientHeight;
+    document.getElementById('sSh').textContent = box.scrollHeight;
+    document.getElementById('sLeft').textContent = left.toFixed(1);
+    document.getElementById('sEnd').textContent = String(state.reached);
+    var max = box.scrollHeight - box.clientHeight;
+    prog.style.width = (max <= 0 ? 100 : Math.min(100, box.scrollTop / max * 100)) + '%';
+  }
+  function unlock(){
+    if (state.reached) return;
+    state.reached = true;
+    agree.disabled = false;
+    hint.className = 'hint ok';
+    hint.textContent = '已捲到底，可以按「已閱讀並同意」';
+  }
+  function check(){
+    state.count++;
+    if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) unlock();
+    stats();
+  }
+  function teardown(){
+    if (state.io) { state.io.disconnect(); state.io = null; }
+    box.onscroll = null;
+  }
+  function setup(){
+    teardown();
+    state.reached = false; state.count = 0;
+    agree.disabled = true;
+    hint.className = 'hint wait';
+    hint.textContent = '請捲到條款最底部後才能同意';
+    fill();
+    box.scrollTop = 0;
+    document.getElementById('code').textContent = codes[state.method];
+    if (state.method === 'A') {
+      box.onscroll = check;
+      check();   // mount 時檢查一次
+    } else {
+      state.io = new IntersectionObserver(function(entries){
+        state.count++;
+        if (entries[0].isIntersecting) { unlock(); state.io.disconnect(); }
+        stats();
+      }, {root: box, threshold: 0});
+      state.io.observe(state.sentinel);
+    }
+    stats();
+  }
+  box.addEventListener('scroll', stats, {passive:true});
+  document.getElementById('methodSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    state.method = b.dataset.m;
+    [].forEach.call(this.children, function(x){ x.classList.toggle('on', x === b); });
+    setup();
+  });
+  document.getElementById('lenSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    state.len = b.dataset.l;
+    [].forEach.call(this.children, function(x){ x.classList.toggle('on', x === b); });
+    setup();
+  });
+  document.getElementById('reset').addEventListener('click', setup);
+  document.getElementById('decline').addEventListener('click', function(){
+    hint.className = 'hint wait'; hint.textContent = '已按「不同意並取消註冊」：此鈕任何時候都可按';
+  });
+  agree.addEventListener('click', function(){
+    hint.className = 'hint ok'; hint.textContent = '已同意（正式版要把使用者、時間、條款版本存到後端）';
+  });
+  document.querySelectorAll('.q').forEach(function(q){
+    q.addEventListener('click', function(e){
+      var b = e.target.closest('button'); if (!b) return;
+      q.querySelector('.ans').classList.add('show');
+    });
+  });
+  setup();
+})();
+</script>
+</body>
+</html>
