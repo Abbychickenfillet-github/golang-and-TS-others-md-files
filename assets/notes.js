@@ -227,7 +227,7 @@
 
     terms.forEach(function (el) {
       if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
-      el.title = '點一下可釘住並拖曳';
+      if (!el.matches('[data-link], [data-float]')) el.title = '點一下可釘住並拖曳';   // 浮動卡片的詞不再疊一個原生提示
       el.addEventListener('click', function (e) {
         e.stopPropagation();          // 不要順便觸發外層 li.pt 的隱藏重點
         e.preventDefault();
@@ -245,13 +245,15 @@
 
   /* ---------- 3b. .term[data-link]：滑過浮出「可以點連結」的說明卡 ----------
      語法：<span class="term" data-def="說明" data-link="網址" data-link-text="連結文字">詞</span>
-     .term 原本的 CSS 提示框是 ::after，不能放連結，所以有 data-link 的詞改由這張真正的元素卡片負責
-     （外觀沿用 .tipcard）。用事件委派，之後才動態產生的 .term 也有效。沒有 data-link 的詞完全不受影響。
+           <span class="term" data-def="說明" data-float>詞</span>   ← 只要浮動卡片、不帶連結
+     .term 原本的 CSS 提示框是 ::after，不能放連結，也會被 overflow:hidden 的容器切掉，所以有 data-link
+     或 data-float 的詞改由這張真正的元素卡片負責（外觀沿用 .tipcard，掛在 body 上不會被切）。
+     用事件委派，之後才動態產生的 .term 也有效。兩個屬性都沒有的詞完全不受影響。
      滑鼠從詞移到卡片上不會消失；離開 180ms 後才收起；Esc、點擊詞、捲動都會收起。 */
   function initTermLinks() {
     var card = null, cur = null, timer = null;
 
-    function termOf(n) { return n && n.closest ? n.closest('.term[data-link]') : null; }
+    function termOf(n) { return n && n.closest ? n.closest('.term[data-link], .term[data-float]') : null; }
     function inCard(n) { return !!(card && n && card.contains(n)); }
     function hide() {
       clearTimeout(timer);
@@ -271,15 +273,17 @@
       var t = document.createElement('b');
       t.className = 'tiphover-t';
       t.textContent = el.textContent;
-      var a = document.createElement('a');
-      a.className = 'tiphover-link';
-      a.href = el.dataset.link;
-      a.textContent = el.dataset.linkText || '前往相關說明';
       b.appendChild(t);
       b.appendChild(document.createElement('br'));
       b.appendChild(document.createTextNode(el.dataset.def || ''));
-      b.appendChild(document.createElement('br'));
-      b.appendChild(a);
+      if (el.dataset.link) {
+        var a = document.createElement('a');
+        a.className = 'tiphover-link';
+        a.href = el.dataset.link;
+        a.textContent = el.dataset.linkText || '前往相關說明';
+        b.appendChild(document.createElement('br'));
+        b.appendChild(a);
+      }
       c.appendChild(b);
       document.body.appendChild(c);
 

@@ -118,6 +118,16 @@
   .b-waitc{background:repeating-linear-gradient(45deg,#a0507a,#a0507a 6px,#7c3d5e 6px,#7c3d5e 12px);color:#fff}
   .track.two{height:46px}
   .legend .term,.blk .term{color:var(--green);border-bottom-color:var(--green)}
+  .blk .term[data-float]:not([data-link]){color:inherit;border-bottom:none;font-weight:inherit}
+  .grp .gl.term{color:var(--accent);border-bottom-color:var(--accent);font-weight:400}
+  /* 這頁是深色主題；筆記庫的左側大綱預設淺色（只在系統深色模式才變深），這裡一律改用本頁的變數，避免白底 */
+  body nav.toc,body .auto-toc{background:var(--panel);border-color:var(--line)}
+  body .toc-h,body .auto-toc-title{color:var(--accent)}
+  body .toc-h span,body .toc-n{color:var(--muted)}
+  body .toc a,body .auto-toc a{color:var(--ink)}
+  body .toc a:hover,body .auto-toc a:hover{color:var(--ink);background:var(--panel2);border-bottom-color:var(--accent)}
+  body .toc a.here{color:var(--ink);background:var(--panel2);border-bottom-color:var(--accent)}
+  body .toc::-webkit-scrollbar-thumb{background:var(--line)}
   .b-bc{background:#7fd1b9;color:#0a1a16}
   .b-interp{background:#b8923a;color:#fff}
   .b-jit{background:rgba(255,138,92,.28);border:1.5px dashed var(--thread);color:#ffd2bd}
@@ -186,7 +196,7 @@
       <button class="mode on" data-m="normal" onclick="setMode('normal',this)">一般 &lt;script&gt;</button>
       <span class="grp">
         <button class="mode" data-m="async" onclick="setMode('async',this)">async</button>
-        <span class="gl" title="async 與 defer 都是「下載走背景、不暫停 HTML 解析」。差別只在執行時機：async 抓完立刻插隊執行，defer 等解析完才執行。">← 都不中斷 HTML 解析 →</span>
+        <span class="gl term" tabindex="0" data-float data-def="async 與 defer 都是「下載走背景、不暫停 HTML 解析」。差別只在執行時機：async 抓完立刻插隊執行，defer 等解析完才執行。">← 都不中斷 HTML 解析 →</span>
         <button class="mode" data-m="defer" onclick="setMode('defer',this)">defer</button>
       </span>
       <button class="mode" data-m="bodyend" onclick="setMode('bodyend',this)">放 &lt;/body&gt; 前</button>
@@ -278,7 +288,7 @@
       .term-cpu{border-bottom:2px dotted #b4455a;cursor:help;position:relative;font-weight:700;}
       .term-cpu:hover::after{content:"CPU-bound＝瓶頸在 CPU 算力、不是網路。parse＋compile＋execute 要主執行緒的 CPU 一字一字處理，程式越多、裝置 CPU 越弱就越久。對照 I/O-bound＝瓶頸在下載/網路。";position:absolute;left:0;top:150%;width:270px;background:#1f1b2e;color:#eee;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.55;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,.28);white-space:normal;}
       .adapt{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0;}
-      .adapt .cardx{border:1px solid #e7e3da;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.6;background:#fff;}
+      .adapt .cardx{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.6;background:var(--panel2);}
       .adapt .cardx b.h{display:block;margin-bottom:4px;}
       @media(max-width:640px){.adapt{grid-template-columns:1fr;}}
     </style>
@@ -501,7 +511,9 @@ paint();
 let T=110, curMode='normal', slow=false;
 function bar(cls,start,len,label,tip,lane){
   const ly=lane===0?'top:0;height:50%;':(lane===1?'top:50%;height:50%;':'');
-  return `<div class="blk ${cls}" title="${tip===undefined?label:tip}" style="left:${start/T*100}%;width:${len/T*100}%;${ly}">${label}</div>`;
+  /* 有說明文字的方塊用筆記庫的 .term（notes.js 浮動卡片，不會被軌道切掉）；不用瀏覽器原生 title */
+  const wrap=tip?`<span class="term" tabindex="0" data-float data-def="${String(tip).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}">${label}</span>`:label;
+  return `<div class="blk ${cls}" style="left:${start/T*100}%;width:${len/T*100}%;${ly}">${wrap}</div>`;
 }
 /* 每筆 [樣式, 起點, 長度, 文字]；解析總長 80、下載長 20、執行長 10。
    C ＝ CSSOM 建好的時間點：一般 CSS 在 26，「很大／很慢」在 100。

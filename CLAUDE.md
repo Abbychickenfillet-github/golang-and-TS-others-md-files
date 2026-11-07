@@ -37,7 +37,11 @@ title: "CLAUDE"
 - **愛關聯**：多用 `[[wikilink]]` 互連，但要兼顧obsidian跟ithome還有github.io的github pages能否使用連結；不要吝嗇**截圖**（例如問到 Cookie/Session 就去截 F12 的 Cookie），能用美麗圖表或截圖展示的就做。
 - **程式碼示範**：把 `.html/.js/.css/.go/.py` 這類檔案跟它的筆記 `.md` 放在**同一個資料夾**。
 - 引用的官方文件連結直接嵌入到筆記的關鍵字中不需要太長的字元顯示
-- **要貼到 Obsidian**：善用外掛 HTML reader、highlightr（螢光筆配色）、excalidraw。
+- **要貼到 Obsidian**：善用外掛 HTML reader、highlightr（螢光筆配色）、excalidraw。HTML Reader 預設模式（`BalanceMode`）會移除 `<script>`，互動頁在 Obsidian 裡不會動，要切到 Unrestricted Mode 才行。
+- **名詞、縮寫、圖上標籤的 hover 說明，一律用筆記庫的 `.term`，不要用瀏覽器原生 `title` 屬性**。（2026-11 Abby 指示）
+  - 語法：`<span class="term" tabindex="0" data-def="說明">詞</span>`；說明裡要放連結就加 `data-link` 與 `data-link-text`；詞在 `overflow:hidden` 的容器裡（例如時間軸方塊）或由 JS 動態產生，就加 `data-float`，改由浮動卡片顯示，才不會被切掉。
+  - 樣式與行為由 `assets/notes.css`、`assets/notes.js` 提供，互動 HTML 要引入這兩個檔；寫新 hover 前先看這兩個檔開頭的說明，不要自己另做一套。
+- **互動 HTML 的卡片不要硬寫白底（`#fff`）**：底色用該頁自己的 CSS 變數（例如 `--panel`、`--panel2`），深色主題的頁面出現白底卡片會很刺眼。新增的顏色用 `oklch()`。（2026-11 Abby 指示）
 - **一篇筆記一張主軸圖**：每個主題的互動 HTML 筆記，盡量固定用**同一張圖／動畫**當主軸（例如 `return-清理記憶體-stack-frame與閉包例外.html` 的 Stack/Heap 分欄動畫）。同主題後續追問，優先**擴充或指回這張圖裡的特定位置**（某個步驟、某個方框、某個標籤），不要每次都另開新章節——視覺定位比純文字更好記，Abby 可以直接「指回剛剛那個位子」。
 - **術語統一：一律用「transpile（轉譯）」**：中文的「轉」、英文的「transform」若指的是「原始碼→原始碼（JSX/TS→JS）」這件事，全部統一寫成 **transpile**，不要混用「轉／transform 類」等不對稱說法。（2026-09 Abby 指示）
 - **補內容用「融合」不「另開區塊」**：對既有筆記補充時，優先**把新內容融合進最相關的既有段落／表格**，不要動不動就新開一個 `##`／`###` 區塊。（2026-09 Abby 指示）
