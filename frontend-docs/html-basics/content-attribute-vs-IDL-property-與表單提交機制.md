@@ -1,13 +1,26 @@
 ---
-title: "content attribute vs IDL property（HTML 屬性與 JS 屬性的兩套系統），與 form 提交機制"
+title: content attribute vs IDL property（HTML 屬性與 JS 屬性的兩套系統），與 form 提交機制
 type: topic-note
 source: Gemini
 category: 技術
-tags: [gemini, html, webidl, idl-attribute, content-attribute, form, submit, query-string, name, dom]
-aliases: [IDL屬性是什麼, HTML屬性與JS屬性差在哪, 表單提交機制]
+tags:
+  - gemini
+  - html
+  - webidl
+  - idl-attribute
+  - content-attribute
+  - form
+  - submit
+  - query-string
+  - name
+  - dom
+aliases:
+  - IDL屬性是什麼
+  - HTML屬性與JS屬性差在哪
+  - 表單提交機制
 related:
   - "[[HTML文件結構-DOCTYPE與骨架]]"
-  - "[[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]]"
+  - "[[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]]"
   - "[[textContent-innerText-innerHTML差異]]"
   - "[[window物件三種成員與滑鼠座標-client-screen-page-與innerHTML覆蓋陷阱]]"
   - "[[字串不可變性-JS-vs-C-與TDZ變數遮蔽]]"
@@ -25,7 +38,7 @@ updated: 2026-09-19
 
 > [!info]- 🔗 與既有筆記的關聯（為什麼放在這一層）
 > a. 本篇的主角是「**同一個 `<input>`，在 HTML 原始碼裡叫 attribute、在 JS 物件上叫 property，兩套名字兩套值**」，這是 HTML 規格層面的東西，所以歸進 `html-basics/`。
-> b. 與 [[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]] 直接接得上：那篇講 parser 怎麼把 bytes 變成 DOM 節點，本篇接著講「**節點被建出來之後，它身上那兩套屬性是怎麼對應的**」——WebIDL 那一層正是那篇 Q7 講的「JS 側像 JS 物件，實體是 C++ 物件，中間隔一層 WebIDL 包裝」。
+> b. 與 [[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]] 直接接得上：那篇講 parser 怎麼把 bytes 變成 DOM 節點，本篇接著講「**節點被建出來之後，它身上那兩套屬性是怎麼對應的**」——WebIDL 那一層正是那篇 Q7 講的「JS 側像 JS 物件，實體是 C++ 物件，中間隔一層 WebIDL 包裝」。
 > c. 與 [[textContent-innerText-innerHTML差異]] 同屬「讀寫 DOM 的幾組容易搞混的名字」系列。
 
 ---
@@ -62,7 +75,7 @@ updated: 2026-09-19
 > b. 中文常把兩者都翻成「屬性」，所以一定會混。<mark style="background: #BBFABBA6;">記英文就不會亂</mark>：HTML 上的叫 **attribute**，JS 物件上的叫 **property**。
 > c. IDL 的全名是 <mark style="background: #ADCCFFA6;">**Interface Definition Language**（介面定義語言）</mark>，Web 平台用的方言叫 **Web IDL**。它不是給你寫的語言，是**規格作者拿來描述「這個介面有哪些成員、各是什麼型別」的語言**，瀏覽器實作者再照著它把 C++ 物件包成 JS 看得懂的樣子。
 > &nbsp;&nbsp;&nbsp;&nbsp;所以你在 MDN 看到 `HTMLInputElement` 底下列的那一排 `value`、`checked`、`disabled`，全部都是從 Web IDL 定義生出來的 IDL property。
-> d. 這也解釋了 [[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]] 裡「DOM 節點半對半不對是 JS 物件」那句話：<mark style="background: #D2B3FFA6;">實體是引擎的 C++ 物件，Web IDL 是那層翻譯</mark>。
+> d. 這也解釋了 [[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]] 裡「DOM 節點半對半不對是 JS 物件」那句話：<mark style="background: #D2B3FFA6;">實體是引擎的 C++ 物件，Web IDL 是那層翻譯</mark>。
 
 ---
 

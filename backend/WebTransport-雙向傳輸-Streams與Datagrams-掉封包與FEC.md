@@ -100,7 +100,7 @@ updated: 2026-09-01
 - [[Vite-HMR機制與Rollup打包原理]] — HMR 用的是 WebSocket，跟本篇 (p) 的對照可以一起看：同樣是「伺服器主動推給瀏覽器」，但一個是開發工具、一個是即時傳輸。
 - [[IoT大範圍斷線-告警機制與重試策略-系統設計面試]] — 那篇的重試策略跟本篇 (h) 的「可靠性由誰負責」是同一組取捨：底層自動重傳，還是應用層自己決定要不要重試。
 - [[Dev-Server在Node環境-devServer-proxy繞過CORS-HMR用WebSocket-與原生語言打包工具]] — 那篇有 Node.js 端 WebSocket 的實作面（`ws`／`sockjs` 套件），跟本篇的協定層剛好互補。
-- [[Cookie隔離邊界與跨站請求安全-Origin-SameSite-CSRF-Token與Bearer]] — WebTransport 同樣受 Origin 與 CORS 規範管轄，安全模型那一段可以對照著看。
+- [[2-Cookie隔離邊界與跨站請求安全-Origin-SameSite-CSRF-Token與Bearer]] — WebTransport 同樣受 Origin 與 CORS 規範管轄，安全模型那一段可以對照著看。
 
 ## 各對話來源（原文）
 

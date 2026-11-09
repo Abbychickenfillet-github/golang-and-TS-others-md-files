@@ -16,7 +16,7 @@ updated: 2026-08-25
 
 > [!info] 本篇重點 a–t，共 20 個
 > 兩場對話合併：一場是網站上跳出假驗證視窗要求貼上一長串 Base64 PowerShell，一場是判斷 `c1ph3r.site` 這個網址安不安全。共通主軸是<mark style="background: #FFF3A3A6;">「怎麼在點下去之前就判斷出這是攻擊」，以及「身為網站開發者，發現自己的站在對訪客做這件事時該怎麼辦」</mark>。
-> 關聯筆記：<mark style="background: #ADCCFFA6;">[[CSRF-與-Antiforgery-Cookie]]</mark> 與 <mark style="background: #ADCCFFA6;">[[Cookie-與-Session]]</mark> 講的是「攻擊者怎麼偷用你的身分」，這篇講的是更前面一步——攻擊者怎麼騙你親手把後門裝起來；<mark style="background: #ADCCFFA6;">[[SonarLint憑證警告-CaptivePortal攔截與MITM誤判]]</mark> 是同一批對話裡的另一件事，那篇談的是<mark style="background: #BBFABBA6;">誤判</mark>的 MITM 警告，這篇談的是<mark style="background: #FF5582A6;">真的</mark>攻擊，兩篇對照著看可以練出「哪種警告該怕」的判斷力。
+> 關聯筆記：<mark style="background: #ADCCFFA6;">[[CSRF-與-Antiforgery-Cookie]]</mark> 與 <mark style="background: #ADCCFFA6;">[[1-Cookie-與-Session]]</mark> 講的是「攻擊者怎麼偷用你的身分」，這篇講的是更前面一步——攻擊者怎麼騙你親手把後門裝起來；<mark style="background: #ADCCFFA6;">[[SonarLint憑證警告-CaptivePortal攔截與MITM誤判]]</mark> 是同一批對話裡的另一件事，那篇談的是<mark style="background: #BBFABBA6;">誤判</mark>的 MITM 警告，這篇談的是<mark style="background: #FF5582A6;">真的</mark>攻擊，兩篇對照著看可以練出「哪種警告該怕」的判斷力。
 
 ---
 

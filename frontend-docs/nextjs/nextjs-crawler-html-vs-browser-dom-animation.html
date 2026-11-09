@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>爬蟲看到的 HTML 與瀏覽器的 DOM</title>
+<link rel="stylesheet" href="../../assets/note-interactive.css">
+<style>
+  .stage{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+  .col{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:300px;display:flex;flex-direction:column;gap:8px}
+  .col h3{margin:0;font-size:15px}
+  .col .cap{font-size:12.5px;color:var(--sub)}
+  .code{background:var(--code);color:#E6EAF2;border-radius:8px;padding:8px 10px;font-family:"Cascadia Code",Consolas,monospace;font-size:12.5px;line-height:1.55;
+        white-space:pre-wrap;overflow-wrap:anywhere}
+  .code .ln{display:block;padding:0 4px;border-radius:3px}
+  .code .ln.hl{background:#35507A}
+  .code .ln.js{background:#7A3540}
+  .box{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13.5px}
+  .box b{display:block;font-size:12.5px;color:var(--sub);margin-bottom:2px;font-weight:600}
+  .box.dim{opacity:.55}
+  .screen{background:#fff;color:#111;border:2px solid #9AA4B8;border-radius:8px;min-height:84px;padding:8px 10px;font-size:13.5px}
+  .screen.blank-screen{background:#fff;color:#999;display:flex;align-items:center;justify-content:center}
+  .screen h4{margin:0 0 4px;font-size:15px}
+  .tag{display:inline-block;font-size:12px;padding:0 8px;border-radius:999px;background:var(--head);color:var(--accent);margin-right:4px}
+  .added{background:#FFD9DE;color:#7A1F33;border-radius:3px;padding:0 3px}
+  .steps{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+  .steps button.cur{background:var(--accent);color:var(--card);border-color:var(--accent)}
+  .say{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;min-height:4.5em}
+  .counter{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}
+  .counter div{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:13.5px}
+  @media (max-width:900px){ .stage{grid-template-columns:1fr} .col{min-height:0} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>爬蟲看到的 HTML 與瀏覽器的 DOM<br>差在「有沒有被瀏覽器端 JS 改過」</h1>
+  <div class="pills"><span class="pill">crawler</span><span class="pill">googlebot</span><span class="pill">prerender</span><span class="pill">csr</span><span class="pill">seo</span></div>
+  <div class="meta">建立 2026-10-26 ｜ 接在 <a href="nextjs-prerender-and-csr-bailout.html">Prerender 與 CSR Bailout</a> 之後 ｜ 名詞可 hover、聚焦或點擊</div>
+  <span class="idx">本篇重點 a–f，共 6 個</span>
+</header>
+
+<h2 id="precise">a. 精確說法</h2>
+<table>
+  <thead><tr><th>原本的說法</th><th>修正</th><th>為什麼</th></tr></thead>
+  <tbody>
+    <tr><td>爬蟲看的是 HTML 還沒有被 parse 過的狀態</td><td>爬蟲拿到的是 <span class="term" data-term="html">HTML 文字</span>，也就是 <span class="term" data-term="view-source">view-source</span> 或 curl 看到的那份，<mark class="y">還沒被瀏覽器端 JS 修改過</mark></td><td>爬蟲自己也會 <span class="term" data-term="parse">parse</span> 這串文字來抽出文字與連結，所以重點不在「沒 parse」，而在「沒有經過瀏覽器執行 JS 之後的 <span class="term" data-term="dom">DOM</span>」</td></tr>
+    <tr><td>爬蟲都這樣</td><td>Googlebot 是例外，會排隊渲染</td><td>Google 官方文件說 200 狀態的頁面都會送進渲染佇列，由無頭 Chromium 執行 JS，之後用渲染後的 HTML 索引</td></tr>
+  </tbody>
+</table>
+
+<h2 id="anim">b. 動畫：同一份 HTML 文字，三方各自怎麼處理</h2>
+<div class="toolbar" role="group" aria-label="情境">
+  <span>頁面類型：</span>
+  <button type="button" id="scCsr" class="sel">CSR 空殼</button>
+  <button type="button" id="scPre">預渲染</button>
+  <span style="margin-left:12px">爬蟲類型：</span>
+  <button type="button" id="botPlain" class="sel">不執行 JS 的爬蟲</button>
+  <button type="button" id="botGoogle">Googlebot</button>
+</div>
+<div class="steps" id="steps" role="group" aria-label="步驟"></div>
+<div class="say" id="say" aria-live="polite"></div>
+<div class="counter" id="counter"></div>
+<div class="stage">
+  <div class="col" id="colRaw"></div>
+  <div class="col" id="colBot"></div>
+  <div class="col" id="colBrowser"></div>
+</div>
+<div class="toolbar"><button type="button" id="prev">上一步</button><button type="button" id="next">下一步</button><button type="button" id="play">自動播放</button></div>
+<div class="callout note"><b>範例而非實測輸出</b>
+  動畫中的 HTML 是依你專案 <code>app/intro/page.js</code> 第 172 行的標題文字寫成的範例。<code>localhost:3001</code> 沒在執行，所以沒有 curl 到真正的回應，連結 <code>/pricing</code> 是示意。</div>
+
+<h2 id="reading">c. 怎麼讀這張動畫</h2>
+<table>
+  <thead><tr><th>欄位</th><th>代表什麼</th><th>差別</th></tr></thead>
+  <tbody>
+    <tr><td>左：伺服器回應的 HTML 文字</td><td>curl 與 view-source 看到的內容，三方拿到的是同一份</td><td>紅底的行是後來被 JS 加上的，不在這份文字裡</td></tr>
+    <tr><td>中：爬蟲</td><td>自己 parse 文字，抽出文字與連結。Googlebot 還會等渲染</td><td>不執行 JS 的爬蟲，索引內容永遠停在步驟 2</td></tr>
+    <tr><td>右：瀏覽器</td><td>parse 成 DOM，再執行 JS 修改 DOM，最後畫出畫面</td><td>使用者看到的是 DOM，不是 HTML 文字</td></tr>
+  </tbody>
+</table>
+
+<h2 id="evidence">d. 專案證據：--deck-h 為什麼在原始 HTML 出現 0 次</h2>
+<table>
+  <thead><tr><th>項目</th><th>內容</th><th>驗證方式</th></tr></thead>
+  <tbody>
+    <tr><td>寫入位置</td><td><code>hooks/use-slide-deck.js</code> 第 43 行 <code>deck.style.setProperty('--deck-h', ...)</code>，包在 <code>useEffect</code> 內</td><td>已打開檔案確認</td></tr>
+    <tr><td>為什麼原始 HTML 一定是 0 次</td><td><code>useEffect</code> 在伺服器渲染與預渲染時不會執行，而且它要讀 <code>main.clientHeight</code>，這個值只有瀏覽器排版後才有</td><td>effect 不在伺服器執行：本 vault SSR 筆記 (e)。clientHeight 為推論</td></tr>
+    <tr><td>首頁標題文字是否在原始 HTML</td><td>原始碼 <code>app/intro/page.js</code> 第 172 行 h1 是「智能時間管理 從免費開始」。是否出現在原始 HTML 取決於首頁有沒有被 Bailout</td><td>未驗證。<code>localhost:3001</code> 沒在執行，也沒重跑 build</td></tr>
+    <tr><td>要自己驗證時</td><td>先 <code>curl -s http://localhost:3001/ | grep -c "智能時間管理"</code>，再 <code>curl -s http://localhost:3001/ | grep -c "deck-h"</code>。第二個應為 0。接著在 Elements 面板找 <code>--deck-h</code>，應該看得到</td><td>指令未執行</td></tr>
+  </tbody>
+</table>
+<p class="meta"><code>next dev</code> 是按需渲染，dev 下 curl 到的內容不等於 production 預渲染的檔案，要比對請用 <code>next build</code> 後 <code>next start</code>。這點依據 Next.js useSearchParams 文件中 dev 與 production 行為不同的說明推廣，本次未另測。</p>
+
+<h2 id="google">e. Googlebot 與其他爬蟲</h2>
+<table>
+  <thead><tr><th>項目</th><th>官方怎麼說</th><th>來源與日期</th></tr></thead>
+  <tbody>
+    <tr><td>處理流程</td><td>抓取、渲染、索引三階段。200 狀態的頁面都送進 <span class="term" data-term="render-queue">渲染佇列</span>，由無頭 Chromium 執行 JS，再解析渲染後的 HTML</td><td>JavaScript SEO basics，頁面標示 2026-03-04 UTC</td></tr>
+    <tr><td>等待時間</td><td>渲染的等待時間不一定</td><td>同上，這是我對官方「渲染佇列」描述的歸納，沒有逐字查到時間數字</td></tr>
+    <tr><td>不是所有 bot 都能執行 JS</td><td>官方仍建議伺服器端渲染或預渲染，對使用者與爬蟲都更快</td><td>同上</td></tr>
+    <tr><td>連結</td><td>只能發現有 <code>href</code> 的 <code>&lt;a&gt;</code>。連結放在初始伺服器回應，不必等渲染就能被發現</td><td>同上。「不必等渲染」是推論</td></tr>
+    <tr><td>2MB 上限</td><td>Googlebot 對單一 URL 最多抓 2MB（PDF 為 64MB），包含 HTTP 標頭。超過就停在 2MB，前面那段當成完整檔案處理。HTML 引用的外部資源另計，不算進母頁面</td><td>Inside Googlebot 官方部落格，文章寫的日期 2026-03-31</td></tr>
+    <tr><td>WRS</td><td><span class="term" data-term="wrs">WRS</span> 像現代瀏覽器執行 JS 與 CSS，但無狀態，每次請求之間清除本地儲存與 session</td><td>同上</td></tr>
+    <tr><td>其他爬蟲、社群預覽、AI 抓取是否執行 JS</td><td>未查證</td><td>沒有查到可信的官方說法</td></tr>
+  </tbody>
+</table>
+
+<h2 id="practice">f. 互動練習</h2>
+<h3>填空</h3>
+<div class="toolbar"><button type="button" id="showAll">全部顯示</button><button type="button" id="hideAll">全部隱藏</button></div>
+<div id="fills"></div>
+<h3>是非題</h3>
+<div id="tf"></div>
+<h3>申論題</h3>
+<div id="essay"></div>
+
+<h2 id="related">關聯筆記與關聯原因</h2>
+<table>
+  <thead><tr><th>筆記</th><th>為什麼相關</th></tr></thead>
+  <tbody>
+    <tr><td><a href="nextjs-prerender-and-csr-bailout.html">Prerender 與 CSR Bailout</a></td><td>本篇的前一篇。那篇講 HTML 如何預先產生與 Bailout，本篇講爬蟲讀到的就是那份 HTML 文字</td></tr>
+    <tr><td><a href="../FCP首次內容繪製-SEO爬蟲與打包五步驟.html">FCP 與 SEO 爬蟲</a></td><td>已有「CSR 空殼對爬蟲不友善」的基本論述，本篇補上 Googlebot 渲染佇列這個例外與精確說法</td></tr>
+    <tr><td><a href="../react/SSR-renderToString與Hydration-伺服器端渲染流程.html">SSR、renderToString 與 Hydration</a></td><td>「useEffect 在伺服器不執行」是本篇 --deck-h 證據的依據</td></tr>
+    <tr><td><a href="FCP-5.24秒-Next.js效能診斷實錄-從指令到根因.md">FCP 5.24 秒診斷實錄</a></td><td>用 sed 與 grep 看原始 HTML 的做法，和本篇 curl 看原始 HTML 是同一套手法</td></tr>
+  </tbody>
+</table>
+
+<h2 id="sources">資料來源（含查證時間）</h2>
+<p class="meta">查閱日 2026-10-26。</p>
+<table>
+  <thead><tr><th>主題</th><th>連結</th><th>頁面標示的日期</th></tr></thead>
+  <tbody>
+    <tr><td>Google JavaScript SEO basics</td><td><a href="https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics" target="_blank" rel="noopener">developers.google.com/.../javascript-seo-basics</a></td><td>Last updated 2026-03-04 UTC</td></tr>
+    <tr><td>Inside Googlebot（2MB 上限、WRS）</td><td><a href="https://developers.google.com/search/blog/2026/03/crawler-blog-post" target="_blank" rel="noopener">developers.google.com/search/blog/2026/03/crawler-blog-post</a></td><td>文章寫 Tuesday, March 31, 2026，無另標更新日期</td></tr>
+    <tr><td>專案實測</td><td>hooks/use-slide-deck.js、app/intro/page.js</td><td>查閱日 2026-10-26</td></tr>
+  </tbody>
+</table>
+<p><b>未查證</b>：其他爬蟲、社群預覽、AI 抓取是否執行 JS，渲染佇列的實際等待時間，首頁原始 HTML 是否已含標題文字。</p>
+
+<footer>爬蟲看到的 HTML 與瀏覽器的 DOM · 2026-10-26</footer>
+</div>
+
+<script src="nextjs-terms.js"></script>
+<script src="../../assets/note-quiz.js"></script>
+<script>
+(function () {
+  var state = { sc: 'csr', bot: 'plain', step: 1 }
+  var STEP_NAMES = ['1 伺服器回應', '2 parse HTML 文字', '3 是否執行 JS', '4 渲染與畫面', '5 索引與結果']
+
+  var RAW = {
+    csr: [
+      '<!doctype html>',
+      '<html lang="zh-Hant">',
+      '<head><title>時間管理</title></head>',
+      '<body>',
+      '  <div id="root"></div>',
+      '  <script src="/_next/static/main.js" async><\/script>',
+      '</body></html>'
+    ],
+    pre: [
+      '<!doctype html>',
+      '<html lang="zh-Hant">',
+      '<head><title>時間管理</title></head>',
+      '<body>',
+      '  <div class="introPage">',
+      '    <h1>智能時間管理 <span>從免費開始</span></h1>',
+      '    <p>無需註冊，立即體驗時間記錄功能。</p>',
+      '    <a href="/pricing">查看方案</a>',
+      '  </div>',
+      '  <script src="/_next/static/main.js" async><\/script>',
+      '</body></html>'
+    ]
+  }
+  var TEXT = { csr: [], pre: ['智能時間管理 從免費開始', '無需註冊，立即體驗時間記錄功能。'] }
+  var LINKS = { csr: [], pre: ['/pricing'] }
+
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
+  function list(a, empty) { return a.length ? a.map(function (x) { return '<div>' + esc(x) + '</div>' }).join('') : '<div>' + empty + '</div>' }
+
+  function say() {
+    var s = state, t = {
+      1: '爬蟲與瀏覽器對同一個網址發出請求，伺服器回應同一份 HTML 文字（狀態 200）。這時三方都還沒有 DOM。',
+      2: s.sc === 'csr'
+        ? '兩邊都 parse 這串文字。爬蟲抽到的文字與連結都是空的，只記下一個 script。瀏覽器 parse 出 DOM，但 #root 是空的，畫面是白的。'
+        : '兩邊都 parse 這串文字。爬蟲抽到標題、段落與一個連結。瀏覽器 parse 出有內容的 DOM，套上 CSS 就畫得出畫面。',
+      3: s.bot === 'plain'
+        ? (s.sc === 'csr' ? '瀏覽器下載並執行 JS，建立內容。不執行 JS 的爬蟲在這一步什麼都沒做。' : '瀏覽器執行 JS：Hydration 掛事件，useEffect 把 --deck-h 寫進 DOM。不執行 JS 的爬蟲什麼都沒做。')
+        : (s.sc === 'csr' ? '瀏覽器下載並執行 JS，建立內容。Googlebot 把這個 200 狀態的頁面排進渲染佇列，等待時間不一定。' : '瀏覽器執行 JS。Googlebot 把頁面排進渲染佇列，但初始 HTML 裡的文字與連結它在步驟 2 就已經拿到了。'),
+      4: s.bot === 'plain'
+        ? '使用者在瀏覽器裡看到完整畫面。爬蟲沒有渲染這一步，它的手上仍是步驟 2 的結果。'
+        : '使用者看到完整畫面。Googlebot 輪到渲染，用無頭 Chromium 執行 JS，得到渲染後的 DOM。',
+      5: s.bot === 'plain'
+        ? (s.sc === 'csr' ? '索引內容是空的：這個頁面對不執行 JS 的爬蟲等於沒有內容。' : '索引內容就是步驟 2 抽到的標題、段落與連結。DOM 後來被 JS 加上的東西（例如 --deck-h）它看不到。')
+        : (s.sc === 'csr' ? '等渲染完成後才用渲染後的 HTML 索引。內容與連結都要等這一步才會被發現，比預渲染晚。' : '用渲染後的 HTML 索引。內容與連結在初始回應就有，發現得更早，也不依賴渲染是否順利。')
+    }
+    return t[state.step]
+  }
+
+  function colRaw() {
+    var lines = RAW[state.sc].map(function (l) {
+      return '<span class="ln' + (state.step === 1 ? ' hl' : '') + '">' + esc(l) + '</span>'
+    }).join('')
+    var n = state.step >= 3 && state.sc === 'pre' ? 0 : 0
+    return '<h3>伺服器回應的 HTML 文字</h3><div class="cap">curl 與 view-source 看到的內容，三方拿到同一份</div>' +
+      '<div class="code">' + lines + '</div>' +
+      '<div class="box"><b>--deck-h 出現次數</b>' + n + ' 次，使用者專案由瀏覽器端 JS 後來加上</div>'
+  }
+
+  function colBot() {
+    var s = state, h = '<h3>爬蟲</h3><div class="cap">' + (s.bot === 'plain' ? '不執行 JS 的爬蟲' : 'Googlebot：會排隊渲染') + '</div>'
+    if (s.step === 1) h += '<div class="box"><b>收到</b>HTTP 200 與 HTML 文字（含標頭最多 2MB，超過會被截斷）</div>'
+    if (s.step >= 2) {
+      h += '<div class="box"><b>parse 文字後抽出的文字</b>' + list(TEXT[s.sc], '（沒有）') + '</div>'
+      h += '<div class="box"><b>抽出的連結</b>' + list(LINKS[s.sc], '（沒有）') + '</div>'
+    }
+    if (s.step >= 3) {
+      h += s.bot === 'plain'
+        ? '<div class="box dim"><b>執行 JS</b>不執行，沒有變化</div>'
+        : '<div class="box"><b>渲染佇列</b>200 狀態，已排隊，等待時間不一定</div>'
+    }
+    if (s.step >= 4 && s.bot === 'google') {
+      h += '<div class="box"><b>無頭 Chromium 執行 JS 之後</b>' + list(TEXT.pre, '（沒有）').replace('', '') + '</div>'
+    }
+    if (s.step === 5) {
+      var got = s.bot === 'plain' ? TEXT[s.sc].length : TEXT.pre.length
+      h += '<div class="box"><b>最後索引</b>' + (got ? '有內容（' + got + ' 段文字）' : '沒有內容') + '</div>'
+    }
+    return h
+  }
+
+  function colBrowser() {
+    var s = state, h = '<h3>瀏覽器</h3><div class="cap">parse 成 DOM，執行 JS，改 DOM，畫畫面</div>'
+    if (s.step === 1) return h + '<div class="box"><b>收到</b>同一份 HTML 文字，還沒有 DOM</div><div class="screen blank-screen">畫面：等待中</div>'
+    var jsRan = s.step >= 3
+    var dom
+    if (s.sc === 'csr') {
+      dom = jsRan
+        ? '<span class="ln">div#root</span><span class="ln added">  h1 智能時間管理 從免費開始</span><span class="ln added">  p 無需註冊……</span><span class="ln added">  a[href="/pricing"]</span>'
+        : '<span class="ln">div#root（空的）</span>'
+    } else {
+      dom = '<span class="ln">div.introPage' + (jsRan ? ' <span class="added">style="--deck-h: 742px"</span>' : '') + '</span><span class="ln">  h1 智能時間管理 從免費開始</span><span class="ln">  p 無需註冊……</span><span class="ln">  a[href="/pricing"]</span>'
+    }
+    h += '<div class="box"><b>DOM（' + (jsRan ? '已被 JS 修改' : '剛 parse 完') + '）</b><div class="code" style="padding:6px 8px">' + dom + '</div></div>'
+    var seen = s.sc === 'pre' || jsRan
+    h += seen
+      ? '<div class="screen"><h4>智能時間管理 從免費開始</h4>無需註冊，立即體驗時間記錄功能。<br><a href="#" onclick="return false">查看方案</a></div>'
+      : '<div class="screen blank-screen">畫面：白的，等 JS</div>'
+    if (s.step >= 3) h += '<div class="box"><b>--deck-h 在 DOM 中</b>' + (s.sc === 'pre' ? '1 次，使用者專案 JS 加上' : '本動畫的 CSR 範例沒有此屬性') + '</div>'
+    return h
+  }
+
+  function render() {
+    document.getElementById('say').textContent = say()
+    document.getElementById('colRaw').innerHTML = colRaw()
+    document.getElementById('colBot').innerHTML = colBot()
+    document.getElementById('colBrowser').innerHTML = colBrowser()
+    var nBot = state.step >= 2 ? (state.bot === 'google' && state.step >= 4 ? TEXT.pre.length : TEXT[state.sc].length) : 0
+    document.getElementById('counter').innerHTML =
+      '<div>爬蟲目前讀到的文字段數：<b>' + nBot + '</b></div>' +
+      '<div>使用者目前看到內容：<b>' + ((state.sc === 'pre' && state.step >= 2) || state.step >= 3 ? '有' : '沒有') + '</b></div>'
+    Array.prototype.forEach.call(document.querySelectorAll('#steps button'), function (b, i) { b.classList.toggle('cur', i + 1 === state.step) })
+    document.getElementById('scCsr').classList.toggle('sel', state.sc === 'csr')
+    document.getElementById('scPre').classList.toggle('sel', state.sc === 'pre')
+    document.getElementById('botPlain').classList.toggle('sel', state.bot === 'plain')
+    document.getElementById('botGoogle').classList.toggle('sel', state.bot === 'google')
+  }
+
+  var stepsBox = document.getElementById('steps')
+  STEP_NAMES.forEach(function (n, i) {
+    var b = document.createElement('button')
+    b.type = 'button'
+    b.textContent = n
+    b.addEventListener('click', function () { state.step = i + 1; render() })
+    stepsBox.appendChild(b)
+  })
+  document.getElementById('scCsr').addEventListener('click', function () { state.sc = 'csr'; render() })
+  document.getElementById('scPre').addEventListener('click', function () { state.sc = 'pre'; render() })
+  document.getElementById('botPlain').addEventListener('click', function () { state.bot = 'plain'; render() })
+  document.getElementById('botGoogle').addEventListener('click', function () { state.bot = 'google'; render() })
+  document.getElementById('prev').addEventListener('click', function () { state.step = Math.max(1, state.step - 1); render() })
+  document.getElementById('next').addEventListener('click', function () { state.step = Math.min(5, state.step + 1); render() })
+  var timer = null
+  document.getElementById('play').addEventListener('click', function () {
+    var btn = this
+    if (timer) { clearInterval(timer); timer = null; btn.textContent = '自動播放'; return }
+    state.step = 1; render(); btn.textContent = '停止'
+    timer = setInterval(function () {
+      if (state.step >= 5) { clearInterval(timer); timer = null; btn.textContent = '自動播放'; return }
+      state.step++; render()
+    }, 1800)
+  })
+  render()
+
+  NoteQuiz.mount({
+    fills: [
+      ['爬蟲拿到的是伺服器回應的 ', 'HTML 文字', '，也就是 view-source 看到的那份。'],
+      ['精確說法是爬蟲看到的內容還沒被瀏覽器端 ', 'JS', ' 修改過，不是沒被 parse。'],
+      ['Googlebot 會把 ', '200', ' 狀態的頁面排進渲染佇列。'],
+      ['Googlebot 對單一 URL 最多抓 ', '2MB', '，包含 HTTP 標頭。'],
+      ['useEffect 在伺服器渲染時 ', '不會', '（會或不會）執行，所以 --deck-h 不在原始 HTML。']
+    ],
+    tf: [
+      { q: '爬蟲不會 parse HTML，所以拿到的是未解析的文字。', a: false, e: '錯。爬蟲也會 parse HTML 文字來抽出文字與連結。差別在它不一定執行 JS 去修改 DOM。' },
+      { q: 'Googlebot 看到的永遠只有初始 HTML。', a: false, e: '錯。Google 官方說 200 狀態的頁面會排入渲染佇列，用無頭 Chromium 執行 JS，再用渲染後的 HTML 索引。' },
+      { q: '所有爬蟲都能執行 JS，所以 CSR 空殼沒有 SEO 問題。', a: false, e: '錯。官方明說不是所有 bot 都能執行 JS，所以仍建議伺服器端渲染或預渲染。' },
+      { q: '連結放在初始伺服器回應，比靠 JS 注入更容易被更快發現。', a: true, e: '對。這是依 Google 文件「渲染佇列等待時間不一定」做的推論，初始回應的連結不必等渲染。' },
+      { q: '在 Elements 面板看到的內容，等於 curl 到的 HTML。', a: false, e: '錯。Elements 是 JS 執行後的 DOM，curl 是伺服器回應的原始文字。你專案的 --deck-h 就只出現在前者。' },
+      { q: '外部 JS 與 CSS 檔的大小會算進母頁面的 2MB。', a: false, e: '錯。官方說 HTML 引用的外部資源由 WRS 另外抓取，各自有獨立的位元組計數。' }
+    ],
+    essay: [
+      { q: '用自己的話說明「爬蟲看到的是還沒被瀏覽器端 JS 修改過的 HTML」，並說明 Googlebot 為什麼是例外。',
+        m: '爬蟲抓到伺服器回應的 HTML 文字，自己 parse 出文字與連結。它不一定執行頁面 JS，所以看不到 JS 後來改的 DOM。Googlebot 會把 200 狀態的頁面排入渲染佇列，用無頭 Chromium 執行 JS，之後用渲染後的 HTML 索引，但等待時間不一定。' },
+      { q: '為什麼用預渲染對爬蟲與使用者都比較好？',
+        m: '初始 HTML 就含內容與連結，不依賴渲染佇列也不依賴 JS，爬蟲在第一次回應就讀得到，使用者在 HTML 與 CSS 就緒時就看得到畫面。官方也說伺服器端或預渲染對使用者與爬蟲都比較快。' }
+    ]
+  })
+})()
+</script>
+<script src="../../assets/notes.js" defer></script>
+</body>
+</html>

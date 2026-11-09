@@ -20,6 +20,7 @@ updated: 2026-11-05
 
 > [!info] 本篇重點 a–j，共 10 個
 > 來源：next-one-time-tracker issue #8「做一個下拉捲動 後同意的功能」。程式範例：`scroll-to-agree-demo.jsx`（同資料夾）。互動版：[互動版](捲到底才能同意-條款框-React做法-互動版.html)。
+> sentinel 元素的專文：[[sentinel元素-IntersectionObserver哨兵-捲到底-無限捲動-置頂偵測]]。
 > 關聯筆記：[[03-useEffect將元件同步到外部系統-Web-API與DOM]]（IntersectionObserver 屬於 effect 同步外部系統）、[[useRef與Vue的ref-value-可變值不觸發渲染的兩種設計]]（`boxRef` 拿 DOM）、[[useSlideDeck-逐題解析-ref-closest-forEach-scroll-snap]]（同專案另一處 scroll 邏輯）。
 
 ![issue #8 截圖標註：a 捲軸、b 條款框、c 同意鈕、d 不同意鈕](../images/scroll-to-agree-issue8-標註圖.png)

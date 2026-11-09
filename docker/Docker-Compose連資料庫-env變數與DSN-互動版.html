@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker Compose 怎麼連資料庫：env 變數 → DSN → MySQL 握手</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--warn:#f59e0b;--bad:#ef4444;--ok:#10b981;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:22px 26px;margin-bottom:18px;}
+header.note h1{margin:0 0 10px;font-size:1.6rem;line-height:1.35;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:2px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:6px;}
+.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.93);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button,.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.btn.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;background:#FFF3A3A6;}
+mark.hidden-ans{color:transparent!important;background:#d8dbe0!important;user-select:none;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+pre{background:#282c34;border-radius:10px;overflow-x:auto;margin:.6em 0;}
+pre code{background:none;color:#abb2bf;display:block;padding:14px 18px;font-size:.88rem;line-height:1.6;}
+.explain{margin:.2em 0 1em 1.2em;color:#374151;}
+blockquote{border-left:4px solid var(--warn);background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+blockquote.bad{border-color:var(--bad);background:#fef2f2;}
+table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:.93rem;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;}
+th{background:#f1f5f9;}
+.indent{margin-left:1.6em;color:#4b5563;}
+.tf{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:8px 0;}
+.tf .r{margin-left:8px;font-weight:700;}
+.essay .ans{display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-top:8px;}
+.essay.open .ans{display:block;}
+svg text{font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+</style><link rel="stylesheet" href="../assets/notes.css">
+</head><body>
+<div class="wrap">
+<header class="note">
+<h1>Docker Compose 怎麼連資料庫：env 變數 → DSN → MySQL 握手</h1>
+<span class="pill">#docker</span><span class="pill">#docker-compose</span><span class="pill">#env</span><span class="pill">#mysql</span><span class="pill">#golang</span><span class="pill">#票務系統專案</span>
+<div class="meta">以「票務系統專案」的 <code>backend-go/docker-compose.dev.yml</code> 實際設定為例 · 建立於 2026-10-14 · 學習路線見 [[00-Docker學習路線-索引]]（第 6、7 站）</div>
+</header>
+<div class="toolbar"><button id="toggleAll" onclick="__toggleAll()">遮住所有重點（自我考試）</button><span style="color:var(--muted);font-size:.8rem">點任一個黃色螢光筆可單獨遮住或顯示</span></div>
+
+<section class="card"><h2>1. 一句話結論</h2>
+<p>Docker 連資料庫<strong>沒有 tokenization</strong>。</p>
+<p class="indent">compose 在建立容器時把 <code>environment:</code> 的變數注入 Go 程序 → Go 用 <code>os.Getenv</code> 讀出 host、帳號、密碼 → 拼成一條 <mark>DSN（Data Source Name，資料來源名稱）連線字串</mark> → 交給 GORM（Go 的 ORM）和 go-sql-driver/mysql（MySQL driver）開 TCP 連線 → 用 MySQL 自己的<mark>帳號密碼握手</mark>完成認證。</p>
+<p>主機名稱寫 <code>mysql</code> 就能連到，是因為 <mark>compose 把每個 service 名稱註冊成內部網路的 DNS 名稱</mark>。</p>
+</section>
+
+<section class="card"><h2>2. 主軸流程圖（ISO 5807 符號）</h2>
+<svg viewBox="0 0 760 1010" width="100%" style="max-width:900px;display:block;margin:auto" role="img" aria-label="compose up 到 MySQL 連線成功的流程圖">
+<defs><marker id="ar" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#64748b"/></marker></defs>
+<g stroke="#334155" stroke-width="1.6" fill="#fff" font-size="14">
+<!-- hexagon init -->
+<polygon points="250,20 510,20 535,50 510,80 250,80 225,50" fill="#ede9fe"/>
+<text x="380" y="46" text-anchor="middle" stroke="none" fill="#111">初始化：docker compose -f … up --build</text>
+<text x="380" y="66" text-anchor="middle" stroke="none" fill="#555" font-size="12">建立網路 backend-go_default、volume mysql-data</text>
+<!-- process build -->
+<rect x="230" y="110" width="300" height="56" fill="#e0f2fe"/>
+<text x="380" y="134" text-anchor="middle" stroke="none" fill="#111">處理：依 Dockerfile.dev build 映像檔</text>
+<text x="380" y="154" text-anchor="middle" stroke="none" fill="#555" font-size="12">此時還不知道 MYSQL_HOST 等 env</text>
+<!-- diamond -->
+<polygon points="380,196 520,246 380,296 240,246" fill="#fef9c3"/>
+<text x="380" y="242" text-anchor="middle" stroke="none" fill="#111">判斷：mysql、redis</text>
+<text x="380" y="260" text-anchor="middle" stroke="none" fill="#111">healthcheck 通過？</text>
+<path d="M520,246 H588" fill="none" stroke="#64748b" marker-end="url(#ar)"/>
+<rect x="590" y="220" width="150" height="52" fill="#fff"/>
+<text x="665" y="243" text-anchor="middle" stroke="none" fill="#111" font-size="13">處理：等 10 秒</text>
+<text x="665" y="261" text-anchor="middle" stroke="none" fill="#555" font-size="12">再跑 mysqladmin ping</text>
+<text x="545" y="238" stroke="none" fill="#b91c1c" font-size="12">否</text>
+<path d="M665,220 V180 H420 V196" fill="none" marker-end="url(#ar)"/>
+<text x="392" y="318" stroke="none" fill="#15803d" font-size="12">是</text>
+<!-- data parallelogram env -->
+<polygon points="250,326 550,326 520,390 220,390" fill="#dcfce7"/>
+<text x="385" y="352" text-anchor="middle" stroke="none" fill="#111">資料：environment: MYSQL_HOST=mysql</text>
+<text x="385" y="372" text-anchor="middle" stroke="none" fill="#555" font-size="12">MYSQL_PORT / USER / PASSWORD / DATABASE</text>
+<!-- process inject -->
+<rect x="230" y="420" width="300" height="56" fill="#e0f2fe"/>
+<text x="380" y="444" text-anchor="middle" stroke="none" fill="#111">處理：建立 backend-go 容器</text>
+<text x="380" y="464" text-anchor="middle" stroke="none" fill="#555" font-size="12">把 env 注入程序 → air 啟動 Go</text>
+<!-- process getenv -->
+<rect x="230" y="506" width="300" height="56" fill="#e0f2fe"/>
+<text x="380" y="530" text-anchor="middle" stroke="none" fill="#111">處理：config.go 用 getEnv 讀出設定</text>
+<text x="380" y="550" text-anchor="middle" stroke="none" fill="#555" font-size="12">讀不到就用預設值 localhost</text>
+<!-- data DSN -->
+<polygon points="250,592 550,592 520,656 220,656" fill="#dcfce7"/>
+<text x="385" y="618" text-anchor="middle" stroke="none" fill="#111">資料：DSN 字串</text>
+<text x="385" y="638" text-anchor="middle" stroke="none" fill="#555" font-size="12">root:***@tcp(mysql:3306)/ticketing_dev?…</text>
+<!-- subprocess gorm -->
+<rect x="230" y="686" width="300" height="56" fill="#fae8ff"/>
+<line x1="246" y1="686" x2="246" y2="742"/><line x1="514" y1="686" x2="514" y2="742"/>
+<text x="380" y="710" text-anchor="middle" stroke="none" fill="#111">副流程：gorm.Open(mysql.Open(dsn))</text>
+<text x="380" y="730" text-anchor="middle" stroke="none" fill="#555" font-size="12">go-sql-driver 負責實際連線</text>
+<!-- process DNS -->
+<rect x="230" y="772" width="300" height="56" fill="#e0f2fe"/>
+<text x="380" y="796" text-anchor="middle" stroke="none" fill="#111">處理：Docker 內建 DNS 解析 mysql</text>
+<text x="380" y="816" text-anchor="middle" stroke="none" fill="#555" font-size="12">得到 mysql 容器的內部 IP</text>
+<!-- process handshake -->
+<rect x="230" y="858" width="300" height="56" fill="#e0f2fe"/>
+<text x="380" y="882" text-anchor="middle" stroke="none" fill="#111">處理：TCP 3306 → MySQL 認證握手</text>
+<text x="380" y="902" text-anchor="middle" stroke="none" fill="#555" font-size="12">隨機 salt ＋ caching_sha2_password</text>
+<!-- connector -->
+<circle cx="380" cy="968" r="30" fill="#f1f5f9"/>
+<text x="380" y="973" text-anchor="middle" stroke="none" fill="#111" font-size="13">連線池</text>
+</g>
+<g stroke="#64748b" stroke-width="1.6" fill="none" marker-end="url(#ar)">
+<path d="M380,80 V108"/><path d="M380,166 V194"/><path d="M380,296 V324"/><path d="M380,390 V418"/><path d="M380,476 V504"/><path d="M380,562 V590"/><path d="M380,656 V684"/><path d="M380,742 V770"/><path d="M380,828 V856"/><path d="M380,914 V936"/>
+</g>
+</svg>
+<p style="color:var(--muted);font-size:.85rem">形狀：六邊形＝初始化，直角矩形＝處理，菱形＝判斷，平行四邊形＝資料，雙邊線矩形＝副流程，圓形＝連接點。</p>
+</section>
+
+<section class="card"><h2>3. 指令一行一行拆</h2>
+<pre><code>docker compose -f backend-go/docker-compose.dev.yml up --build</code></pre>
+<table>
+<tr><th>片段</th><th>做什麼</th></tr>
+<tr><td><code>docker</code></td><td>Docker CLI（client）把請求透過 named pipe 傳給 dockerd（daemon，背景服務）。真正建容器的是 daemon。</td></tr>
+<tr><td><code>compose</code></td><td>compose 外掛讀 YAML 檔，把「多個容器＋網路＋volume」一次排好。</td></tr>
+<tr><td><code>-f backend-go/…yml</code></td><td>指定要讀哪一份 compose 檔。不寫的話預設讀目前資料夾的 <code>compose.yaml</code> 或 <code>docker-compose.yml</code>。檔案所在資料夾就是 project 目錄，所以 <code>build.context: .</code> 指的是 <code>backend-go/</code>。</td></tr>
+<tr><td><code>up</code></td><td>建立網路、volume、容器，然後啟動，並把所有容器的 log 印在終端機（前景模式，加 <code>-d</code> 才會丟到背景）。</td></tr>
+<tr><td><code>--build</code></td><td>啟動前先重新 build 有 <code>build:</code> 的服務（這裡是 backend-go）。每 build 一次就會留下舊的 layer 和 build cache，這才是 vhdx 變大的主因。</td></tr>
+</table>
+<blockquote>你這份 <code>backend-go/docker-compose.dev.yml</code> 檔頭寫著「這份是備用」，主要檔案在 <code>deploy/docker/docker-compose.dev.yml</code>。兩份要一起改，不然會出現「改了沒反應」。</blockquote>
+</section>
+
+<section class="card"><h2>4. 為什麼 host 寫 mysql 就連得到</h2>
+<p>compose 啟動時會建立一個預設網路 <code>&lt;專案名&gt;_default</code>，每個 service 都加入這個網路，而且 <mark>service 名稱（mysql、redis）會變成可以被解析的主機名稱</mark>。</p>
+<table>
+<tr><th>誰在連</th><th>host 要寫</th><th>port</th><th>原因</th></tr>
+<tr><td>backend-go 容器</td><td><code>mysql</code></td><td>3306</td><td>走 compose 內部網路，用 service 名稱解析</td></tr>
+<tr><td>你在 Windows 上的 DBeaver、或直接 <code>go run</code></td><td><code>localhost</code></td><td>3306</td><td>靠 <code>ports: "3306:3306"</code> 把容器的 port 開到主機</td></tr>
+<tr><td>容器裡寫 <code>localhost</code></td><td>✗ 連不到</td><td>—</td><td>容器裡的 localhost 是容器自己，不是 MySQL</td></tr>
+</table>
+<p><mark><code>ports:</code> 是給主機用的</mark>，容器和容器之間互連根本不需要 <code>ports:</code>。</p>
+<p class="indent">所以 Redis 的 <code>REDIS_HOST=redis</code> 也是同樣道理。</p>
+</section>
+
+<section class="card"><h2>5. env 變數怎麼一路走到 Go</h2>
+<h3>5-1 compose 宣告變數</h3>
+<pre><code>backend-go:
+  environment:
+    - MYSQL_HOST=mysql
+    - MYSQL_PORT=3306
+    - MYSQL_USER=root
+    - MYSQL_PASSWORD=password
+    - MYSQL_DATABASE=ticketing_dev</code></pre>
+<p class="explain">在 backend-go 容器建立時，compose 把這 5 個 <code>KEY=VALUE</code> 放進容器裡程序的環境變數，跟你在終端機打 <code>export MYSQL_HOST=mysql</code> 效果一樣。</p>
+<h3>5-2 Go 讀出來（<code>internal/config/config.go:174</code>）</h3>
+<pre><code>Host: getEnv("MYSQL_HOST", "localhost"),</code></pre>
+<p class="explain">去環境變數找 <code>MYSQL_HOST</code>，有就用它的值（mysql），找不到就用預設值 localhost。這就是為什麼不用 Docker 直接 go run 時也能連本機 MySQL。</p>
+<h3>5-3 拼成 DSN（<code>config.go:296</code>）</h3>
+<pre><code>fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&amp;parseTime=True&amp;loc=Local",
+    user, password, host, port, dbName)</code></pre>
+<p class="explain">把帳號、密碼、主機、port、資料庫名稱依序填進格式字串，產出像 <code>root:password@tcp(mysql:3306)/ticketing_dev?charset=utf8mb4&amp;parseTime=True&amp;loc=Local</code> 的一條字串。</p>
+<table>
+<tr><th>DSN 片段</th><th>意思</th></tr>
+<tr><td><code>root:password@</code></td><td>MySQL 帳號：密碼</td></tr>
+<tr><td><code>tcp(mysql:3306)</code></td><td>用 TCP 連到主機 mysql 的 3306 port</td></tr>
+<tr><td><code>/ticketing_dev</code></td><td>預設使用的資料庫</td></tr>
+<tr><td><code>charset=utf8mb4</code></td><td>用完整 UTF-8（包含 emoji）</td></tr>
+<tr><td><code>parseTime=True</code></td><td>把 DATETIME 欄位轉成 Go 的 <code>time.Time</code>，不然會拿到 []byte</td></tr>
+<tr><td><code>loc=Local</code></td><td>時間用容器的本地時區解讀</td></tr>
+</table>
+<h3>5-4 開連線（<code>internal/database/database.go:60</code>）</h3>
+<pre><code>db, err := gorm.Open(mysql.Open(dsn), &amp;gorm.Config{ ... })</code></pre>
+<p class="explain"><code>mysql.Open(dsn)</code> 把 DSN 包成 GORM 看得懂的 dialector（方言設定），<code>gorm.Open</code> 再用它建立一個帶連線池的 <code>*gorm.DB</code>，之後所有查詢都從池子裡借連線。</p>
+</section>
+
+<section class="card"><h2>6. 你說的「tokenization」其實是 MySQL 認證握手</h2>
+<p>連資料庫用的是<mark>帳號密碼</mark>，不是 token。driver 開 TCP 連線之後的流程：</p>
+<ol>
+<li>MySQL server 先送出問候封包，裡面有一段<mark>隨機 salt（亂數）</mark>。</li>
+<li>driver 用密碼和 salt 算出雜湊（MySQL 8 預設外掛是 <code>caching_sha2_password</code>），只送雜湊，不送明文密碼。</li>
+<li>server 驗證通過回 OK，這條連線就放進連線池重複使用。</li>
+</ol>
+<p>同一份 compose 裡真正跟 token 有關的是 <code>JWT_SECRET</code>：</p>
+<p class="indent">那是「使用者 ↔ 你的 Go 後端」的登入憑證，Go 用 JWT_SECRET 簽 token 給前端。後端 ↔ 資料庫這一段完全不用 JWT。</p>
+</section>
+
+<section class="card"><h2>7. build 時 vs 執行時：dev 和 build 差在哪</h2>
+<table>
+<tr><th>設定方式</th><th>什麼時候生效</th><th>改了要怎樣才生效</th><th>你的例子</th></tr>
+<tr><td>compose <code>environment:</code></td><td><mark>容器建立時（執行時）</mark></td><td><code>docker compose up -d</code> 重建容器即可，不用 rebuild</td><td>MYSQL_HOST、JWT_SECRET</td></tr>
+<tr><td>Dockerfile <code>ENV</code></td><td>寫進映像檔，執行時讀</td><td>要 rebuild</td><td>Dockerfile.dev 沒用到</td></tr>
+<tr><td>compose <code>build.args</code>＋Dockerfile <code>ARG</code></td><td><mark>只在 build 時</mark></td><td>要 rebuild</td><td>被註解掉的前端 <code>VITE_API_URL</code></td></tr>
+</table>
+<p>Go 後端是執行時才讀 env，所以同一個映像檔換 env 就能連不同資料庫（本機 MySQL 或 Zeabur staging）。</p>
+<p>Vite 前端剛好相反：<mark><code>VITE_*</code> 在 build 時就被寫死進 JS 檔</mark>，所以要用 build args，改了一定要重 build。</p>
+<blockquote><code>docker compose restart</code> 只是重開同一個容器，<strong>不會套用新的 env</strong>。改了 environment 要用 <code>docker compose up -d</code>，compose 發現設定變了會重建容器。</blockquote>
+<p>dev 模式的熱重載是另一件事：</p>
+<p class="indent"><code>volumes: - .:/app</code> 把你的原始碼掛進容器，air（Go 熱重載工具）偵測到 .go 檔變動就重新編譯，env 不受影響。</p>
+</section>
+
+<section class="card"><h2>8. compose 裡 env 的 4 種寫法與優先順序</h2>
+<pre><code># a. environment 清單（你現在的寫法）
+environment:
+  - MYSQL_HOST=mysql
+
+# b. environment map 寫法，效果一樣
+environment:
+  MYSQL_HOST: mysql
+
+# c. env_file：把整個檔案的 KEY=VALUE 都注入容器
+env_file:
+  - .env.dev
+
+# d. ${} 插值：值從主機的 shell 或 project 目錄的 .env 讀
+environment:
+  - MYSQL_PASSWORD=${MYSQL_PASSWORD}</code></pre>
+<p class="explain">a 和 b 只是 YAML 的兩種寫法。c 是把一整份檔案搬進容器。d 是在 compose 解析 YAML 時，先把 <code>${MYSQL_PASSWORD}</code> 換成主機上的值再交給容器。</p>
+<blockquote>常見誤會：<mark>project 目錄的 <code>.env</code> 預設只拿來做 <code>${}</code> 插值</mark>，不會自動整包進容器。要整包注入要用 <code>env_file:</code>。</blockquote>
+<h3>同一個變數寫在多個地方時，誰贏（官方文件順序，1 最優先）</h3>
+<ol>
+<li><code>docker compose run -e KEY=VALUE</code></li>
+<li><code>environment:</code> 或 <code>env_file:</code>，而且值是從 shell 或 <code>.env</code> 插值進來的</li>
+<li>只寫在 <code>environment:</code></li>
+<li><code>env_file:</code></li>
+<li>Dockerfile 的 <code>ENV</code></li>
+</ol>
+<p>檢查最後實際值的方法：</p>
+<pre><code>docker compose -f backend-go/docker-compose.dev.yml config
+docker compose -f backend-go/docker-compose.dev.yml exec backend-go env | grep MYSQL</code></pre>
+<p class="explain">第一行印出插值完成後的完整 compose 設定。第二行進到執行中的 backend-go 容器，列出它真正拿到的 MYSQL 開頭變數。</p>
+</section>
+
+<section class="card"><h2>9. ⚠️ 你這份 compose 檔的安全問題</h2>
+<blockquote class="bad"><p><code>backend-go/docker-compose.dev.yml</code> 有被 git 追蹤，remote 指向 GitHub。檔案裡直接寫了真的金鑰：</p>
+<ul>
+<li>Zeabur staging 資料庫密碼（雖然被註解，還是在檔案裡）</li>
+<li>Google OAuth client secret</li>
+<li>AWS access key 和 secret key</li>
+<li>Mailgun API key</li>
+</ul>
+<p>（這篇筆記刻意不抄任何金鑰的值。）</p></blockquote>
+<p>建議處理順序：</p>
+<ol>
+<li>到 GitHub 確認 repo 是 private，以及有誰有權限看。</li>
+<li>如果 repo 曾經公開或分享給別人，到 AWS、Google Cloud Console、Mailgun、Zeabur 重新產生（rotate）這些金鑰，因為 git 歷史裡還留著舊值。</li>
+<li>把金鑰搬到 <code>backend-go/.env.dev</code>，加進 <code>.gitignore</code>，compose 改成 <code>env_file: .env.dev</code> 或 <code>${}</code> 插值。</li>
+<li>另外提交一份 <code>.env.example</code>，只放 key 不放值，讓別人知道要設定哪些變數。</li>
+</ol>
+<p>小細節：compose 幫 MySQL 建了 <code>devuser</code> 帳號，但 backend-go 其實用 <code>root</code> 連線。開發環境沒關係，正式環境要用權限較小的帳號。</p>
+</section>
+
+<section class="card"><h2>10. 自我測驗</h2>
+<h3>是非題</h3>
+<div id="tfbox"></div>
+<h3>申論題</h3>
+<div class="essay"><p><strong>Q1.</strong> 為什麼同一份 Go 映像檔可以連本機 MySQL 也可以連 Zeabur staging，但 Vite 前端換 API 網址就得重 build？</p><button class="btn alt" onclick="this.parentNode.classList.toggle('open')">顯示／隱藏答案</button>
+<div class="ans">Go 是在程式啟動時用 os.Getenv 讀 MYSQL_HOST，所以只要換 compose 的 environment 再重建容器就好。Vite 的 VITE_* 是在 build 時被字串替換寫進打包好的 JS，瀏覽器裡根本沒有 process.env，所以改值一定要重新 build。</div></div>
+<div class="essay"><p><strong>Q2.</strong> backend-go 容器報錯 <code>dial tcp 127.0.0.1:3306: connect: connection refused</code>，可能是哪裡設錯？怎麼查？</p><button class="btn alt" onclick="this.parentNode.classList.toggle('open')">顯示／隱藏答案</button>
+<div class="ans">127.0.0.1 代表 Go 讀到的 host 是 localhost，最可能是 MYSQL_HOST 沒傳進容器，getEnv 用了預設值 localhost。用 <code>docker compose exec backend-go env | grep MYSQL</code> 檢查，確認改的是正在用的那份 compose 檔（備用檔和 deploy/docker 主檔），改完用 up -d 重建容器而不是 restart。</div></div>
+</section>
+
+<section class="card"><h2>11. 相關筆記</h2>
+<p>[[00-Docker學習路線-索引]]：這篇在學習路線的第 6 站（網路）和第 7 站（compose）。</p>
+<p>[[compose-dev-references-dockerfile-dev-and-mysql-host-check]]：同一個專案，講 compose 怎麼引用 Dockerfile.dev、MySQL host 怎麼確認，這篇是它的延伸。</p>
+<p>[[air-docker-compose]]：第 7 節提到的 air 熱重載。</p>
+<p>[[docker-引擎-context-image-container-觀念]]：第 3 節 client 和 daemon 的分工。</p>
+<p>[[Docker問題prune+壓縮vhdx(虛擬磁碟)解決硬碟爆掉]]：第 3 節 <code>--build</code> 留下的 cache 要怎麼清。</p>
+</section>
+
+<section class="card src"><h2>12. 資料來源</h2>
+<table>
+<tr><th>主題</th><th>連結</th><th>查閱時間</th></tr>
+<tr><td>Compose 設定環境變數</td><td><a href="https://docs.docker.com/compose/how-tos/environment-variables/set-environment-variables/">Docker Docs — Set environment variables</a></td><td>2026-10-14</td></tr>
+<tr><td>環境變數優先順序</td><td><a href="https://docs.docker.com/compose/how-tos/environment-variables/envvars-precedence/">Docker Docs — Environment variables precedence</a></td><td>2026-10-14</td></tr>
+<tr><td>${} 插值與 .env</td><td><a href="https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/">Docker Docs — Variable interpolation</a></td><td>2026-10-14</td></tr>
+<tr><td>service 名稱當主機名稱</td><td><a href="https://docs.docker.com/compose/how-tos/networking/">Docker Docs — Networking in Compose</a></td><td>2026-10-14</td></tr>
+<tr><td>depends_on 與 healthcheck</td><td><a href="https://docs.docker.com/compose/how-tos/startup-order/">Docker Docs — Control startup order</a></td><td>2026-10-14</td></tr>
+<tr><td>DSN 格式與 parseTime</td><td><a href="https://github.com/go-sql-driver/mysql#dsn-data-source-name">go-sql-driver/mysql README</a></td><td>2026-10-14</td></tr>
+<tr><td>caching_sha2_password</td><td><a href="https://dev.mysql.com/doc/refman/8.0/en/caching-sha2-pluggable-authentication.html">MySQL 8.0 Reference Manual</a></td><td>2026-10-14</td></tr>
+<tr><td>Vite env 在 build 時替換</td><td><a href="https://vite.dev/guide/env-and-mode">Vite — Env Variables and Modes</a></td><td>2026-10-14</td></tr>
+<tr><td>專案實際設定</td><td>票務系統專案 <code>backend-go/</code>：docker-compose.dev.yml、Dockerfile.dev、internal/config/config.go、internal/database/database.go</td><td>2026-10-14 讀取</td></tr>
+</table></section>
+<footer>Claude 整理 · 2026-10-14</footer>
+</div>
+<script>
+var TF=[
+["compose 的 ports: \"3306:3306\" 是讓 backend-go 容器連得到 MySQL 的必要設定。",false,"容器之間走內部網路，用 mysql:3306 就連得到。ports 是開給主機（DBeaver、go run）用的。"],
+["project 目錄下的 .env 會自動整包注入每個容器。",false,".env 預設只用於 ${} 插值，要整包注入要寫 env_file:。"],
+["改了 compose 的 environment 之後，docker compose restart 就會套用新值。",false,"restart 只重開同一個容器，要用 up -d 讓 compose 重建容器。"],
+["Go 後端連 MySQL 時，密碼不會以明文在網路上傳送。",true,"caching_sha2_password 用 server 給的隨機 salt 算雜湊再送出。"],
+["Vite 的 VITE_API_URL 改了之後一定要重新 build 前端。",true,"VITE_* 在 build 時就被寫死進 JS。"]
+];
+(function(){var box=document.getElementById('tfbox');TF.forEach(function(q,i){var d=document.createElement('div');d.className='tf';d.innerHTML='<div>'+(i+1)+'. '+q[0]+'</div><button class="btn alt">○ 對</button><button class="btn alt">✕ 錯</button><span class="r"></span><div class="why" style="display:none;color:#4b5563;margin-top:6px"></div>';var bs=d.querySelectorAll('button'),r=d.querySelector('.r'),w=d.querySelector('.why');[true,false].forEach(function(v,k){bs[k].onclick=function(){var ok=v===q[1];r.textContent=ok?'答對了':'答錯了';r.style.color=ok?'#15803d':'#b91c1c';w.textContent='解析：'+q[2];w.style.display='block';};});box.appendChild(d);});})();
+document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+var __h=false;window.__toggleAll=function(){__h=!__h;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',__h);});document.getElementById('toggleAll').textContent=__h?'顯示所有重點':'遮住所有重點（自我考試）';};
+</script>
+<script src="../assets/wikilink.js" data-root="../"></script>
+<script src="../assets/notes.js" defer></script>
+</body></html>

@@ -147,6 +147,9 @@ const processProducts = function(){ console.log("我想執行..."); };
 > [!warning]+ 先更正一個很常見的記錯
 > 很多人（包括我自己複習時）會記成「`const foo = function(){}` 提早呼叫會得到 <mark style="background: #FF5582A6;">`foo is not a function`</mark>」。
 > <mark style="background: #BBFABBA6;">這是錯的。</mark>`foo is not a function` 是 **`TypeError`**，而且<mark style="background: #FFF3A3A6;">只有 `var` 的函式表達式、而且是「呼叫」它的時候</mark>才會出現。`const`／`let` 一律是 `ReferenceError`。
+> 因為var會被提升並初始化為undefined，呼叫他會報TypeError。而let和const則在宣告前存取會進入TDZ導致Reference Error。
+
+
 
 以下四種全部實測過（Node v22.22.2，2026-09-28）：
 

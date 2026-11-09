@@ -12,7 +12,7 @@ updated: 2026-08-15
 
 > 本篇重點 a–s，共 19 個
 
-相關筆記：[[DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能]]、[[CloudFront-CDN概念與快取失效Invalidation]]、[[Cookie-與-Session]]、[[冪等性Idempotence與冪運算的區別]]
+相關筆記：[[DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能]]、[[CloudFront-CDN概念與快取失效Invalidation]]、[[1-Cookie-與-Session]]、[[冪等性Idempotence與冪運算的區別]]
 關聯原因：Round Robin 是 LB 的預設演算法；LB 又直接決定 Session 能不能黏在同一台機器（Sticky Session），所以跟 Cookie／Session 筆記是同一條鏈。CDN 與 DNS 則是這條鏈更上游的一段。
 
 ---
@@ -135,7 +135,7 @@ location / {
 
 (q) <mark style="background: #FFB8EBA6;">雲端環境（Zeabur、AWS）通常自動提供 LB</mark>，不必手動設 Nginx 也能應付高併發。
 
-(r) <mark style="background: #D2B3FFA6;">補充（Gemini 沒提）</mark>：Sticky Session 雖然方便，但會讓 LB 分流不均，也讓機器無法隨意下線（該機器上的 Session 會斷）。現代做法更傾向把 Session 外部化到 Redis，讓後端維持<mark style="background: #ADCCFFA6;">無狀態（Stateless）</mark>，這樣任何機器都能接任何請求。可對照 [[Cookie-與-Session]]。
+(r) <mark style="background: #D2B3FFA6;">補充（Gemini 沒提）</mark>：Sticky Session 雖然方便，但會讓 LB 分流不均，也讓機器無法隨意下線（該機器上的 Session 會斷）。現代做法更傾向把 Session 外部化到 Redis，讓後端維持<mark style="background: #ADCCFFA6;">無狀態（Stateless）</mark>，這樣任何機器都能接任何請求。可對照 [[1-Cookie-與-Session]]。
 
 (s) <mark style="background: #FF5582A6;">名詞別搞混</mark>：Round Robin 在「作業系統排程」與「負載平衡」是同一個演算法概念，但前者切的是 CPU 時間、後者切的是請求；面試被問到要先確認對方在講哪一層。
 

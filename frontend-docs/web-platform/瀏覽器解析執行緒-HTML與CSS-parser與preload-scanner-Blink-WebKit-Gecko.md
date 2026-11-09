@@ -48,6 +48,21 @@ updated: 2026-10-28
 | 看不到 | 外部 CSS 檔裡的 `@import`、`url()`、`@font-face`，要等 CSS 被解析才發現 |
 | 例外 | Blink 另有 `CSSPreloadScanner`，掃 CSS 文字裡的 `@import`（從 HTML token 讀入，推測是內嵌 `<style>`）。2014 年「掃外部 CSS 檔 @import」的 CL 當時**沒有 landed** |
 
+### 二之一、preload scanner 自己有做 DNS 查詢和 TCP 三方交握嗎（2026-11-07 查證）
+
+**沒有，它只負責「找出網址、交出請求」，連線由網路層處理。**
+
+| 步驟 | 誰做 | 依據 |
+|---|---|---|
+| 掃 HTML、找資源 | `HTMLPreloadScanner` | Chromium 原始碼 `html_preload_scanner.cc`：`StartTagScanner::CreatePreloadRequest()` 建立 `PreloadRequest`，推進 `PreloadRequestStream` |
+| 一般資源（`<img>`、`<script>`、`<link rel=stylesheet>`） | 交給 `HTMLResourcePreloader::Preload()` → `PreloadRequest::Start()`，走正常的資源抓取流程 | `html_resource_preloader.cc`。**抓取之後怎麼連線，我沒讀到網路層原始碼**；DNS、TCP、TLS 是任何請求都要的步驟，見 MDN「How browsers work」：先 DNS，再 TCP 三方交握，HTTPS 再 TLS，才能發請求。已有可重用的連線、DNS 已快取時會省略（MDN 說 IP 位址「likely be cached」、同源連線「already open」）。這是從這些文件推論，不是 preload scanner 專屬的行為說明 |
+| `<link rel=preconnect>` | scanner 看到後發出 preconnect 請求，`HTMLResourcePreloader::Preload()` 呼叫 `PreconnectHost()` → `WebPrescientNetworking::Preconnect()`。**只建立連線，不抓資源** | `html_resource_preloader.cc`、`preload_helper.cc`；[MDN preconnect](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/rel/preconnect)：「DNS+TCP for HTTP, and DNS+TCP+TLS for HTTPS origins」 |
+| `<link rel=dns-prefetch>` | **不是 scanner 處理**。`html_preload_scanner.cc` 只在判斷樣式表時排除它；`dns-prefetch` 由 `PreloadHelper::DnsPrefetchIfNeeded` 處理，只做 DNS | `preload_helper.cc`；MDN preconnect 頁：dns-prefetch 只做第一步 DNS 查詢 |
+
+- 所以你的問法「是直接做 DNS lookup，然後只做 TCP 三方交握嗎」：**一般資源請求不是只有這兩步**，HTTPS 還有 TLS，之後才送 HTTP 請求、收回應；而且有快取或舊連線時前面幾步會省略。
+- web.dev 的 [Preload scanner](https://web.dev/articles/preload-scanner) 只說它「examines raw markup in order to find resources to opportunistically fetch」，沒講連線細節。
+- 沒查證：HTTP/3（QUIC）的連線流程不是 TCP 三方交握，這次沒查。
+
 ## 三、對時間軸圖的影響
 
 - 圖中 JS、CSS 的下載起點畫成「解析到那個標籤」是**簡化**；實際上 preload scanner 會更早發請求。

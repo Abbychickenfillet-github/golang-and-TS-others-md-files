@@ -9,6 +9,20 @@ updated: 2026-06-28
 
 # HTML 文件結構:DOCTYPE、骨架、lang 與 charset
 
+> [!quote] 📖 權威來源｜WHATWG HTML Living Standard
+> 這篇的所有說法都以 WHATWG 官方規範為準。想複習細節直接點進去即可（Living Standard 代表持續更新，你點到的永遠是最新版）。
+> - 規範首頁（單頁版）：[html.spec.whatwg.org](https://html.spec.whatwg.org/)
+> - 多頁版（比較好導航）：[multipage](https://html.spec.whatwg.org/multipage/)
+> - DOCTYPE 語法：[the-doctype](https://html.spec.whatwg.org/multipage/syntax.html#the-doctype)
+> - `<html>` 根元素：[the-html-element](https://html.spec.whatwg.org/multipage/semantics.html#the-html-element)
+> - `<head>`：[the-head-element](https://html.spec.whatwg.org/multipage/semantics.html#the-head-element)
+> - `<body>`：[the-body-element](https://html.spec.whatwg.org/multipage/sections.html#the-body-element)
+> - `<meta charset>`：[charset](https://html.spec.whatwg.org/multipage/semantics.html#charset)
+> - `lang` 屬性：[the-lang-attribute](https://html.spec.whatwg.org/multipage/dom.html#the-lang-and-xml:lang-attributes)
+> 
+> 來源擷取日：2026-10-23｜規範標示 Last Updated：2026-10-20
+
+
 > 面試常考的「最基礎卻最少人講得出所以然」的一題。把每一行 boilerplate 的**為什麼**講清楚。
 ![[Pasted image 20260715171107.png]]
 ---
@@ -140,6 +154,7 @@ HTML5 **不再依賴 [[SGML-標準通用標記語言|SGML]] / [[DTD-文件類型
 ### (a-0) ⚠️ `<meta charset="UTF-8">` 是**宣告**，不是**設定**
 
 這是最常見的誤解：**它不會把你的檔案變成 UTF-8。**
+只是告知狀態，不保證後續的執行跟設定會完全成功。設定給解讀或顯示檔案的瀏覽器看，瀏覽器譬如Gecko, sniffing encoding algorithm 由Blink—排版引擎(Chromium開源瀏覽器專案計畫是Webkit衍伸出來的)做。
 
 | | 編碼 encoding（字元 → bytes） | 解碼 decoding（bytes → 字元） |
 |---|---|---|

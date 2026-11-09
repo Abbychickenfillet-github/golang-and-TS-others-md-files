@@ -1,0 +1,42 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DataLoader 批次化解 N+1：Prisma findUnique 與 @unique</title>
+<style>body{font-family:system-ui,"Noto Sans TC",sans-serif;background:#f6f5f1;color:#2b2b2b;line-height:1.7;margin:0}main{max-width:820px;margin:auto;padding:32px 20px}h1{font-family:Georgia,"Noto Serif TC",serif}h2{border-bottom:2px solid #ddd;padding-bottom:4px;margin-top:32px}.pill{background:#e4e9f2;border-radius:99px;padding:2px 10px;margin-right:6px;font-size:.85em}pre{background:#1e2230;color:#e8e8e8;padding:14px;border-radius:8px;overflow-x:auto}code{font-family:Consolas,monospace}mark{background:#FFF3A3A6}.callout{border-left:5px solid #FF5582;background:#fff;padding:8px 12px;margin:10px 0;border-radius:4px}details{background:#fff;border-radius:8px;padding:8px 12px;margin:8px 0;box-shadow:0 1px 2px #0001}summary{cursor:pointer;font-weight:600}.ans{background:#BBFABBA6;padding:6px 10px;border-radius:6px}footer{color:#888;font-size:.85em;margin-top:40px}</style></head><body><main>
+<h1>DataLoader 批次化解 N+1：Prisma findUnique 與 @unique</h1><div><span class="pill">dataloader</span><span class="pill">prisma</span><span class="pill">graphql</span><span class="pill">n+1</span> ・ updated 2026-10-30 ・ <a href="https://gemini.google.com/app/be690f4a08b28a77">Gemini 對話</a></div>
+<h2>重點整理</h2>
+<p>本篇重點 (a)–(e)，共 5 個。</p>
+<h3>(a) DataLoader 解決 N+1 查詢問題</h3>
+<li>N+1 問題：先 1 次查出 100 位使用者，再對每位各查 1 次文章，共 101 次 SQL。</li>
+<li>DataLoader (Facebook/Meta 開源套件) 用兩招解決：</li>
+<p>  - <mark>批次化 (Batching)</mark>：同一個事件循環 (Event Loop) 內收集多個單筆讀取 (ID 1、2、3)，合併成一次 <code>WHERE id IN (1,2,3)</code>。</p>
+<p>  - <mark>快取 (Caching)</mark>：同一次請求生命週期內，相同 ID 直接回傳記憶體結果，不重複查庫。</p>
+<li>典型場景：GraphQL resolver，關聯 [[GraphQL-概念與REST對比]]。</li>
+<p>  - 關聯原因：GraphQL 每個欄位各自 resolve，最容易產生 N+1，DataLoader 是標準解法。</p>
+<h3>(b) Prisma findUnique 不是「第一筆」</h3>
+<li><code>findUnique()</code>：用 <code>@id</code> 或 <code>@unique</code> 欄位查單一筆，找不到回傳 <code>null</code>，<code>findUniqueOrThrow()</code> 則丟錯。</li>
+<li><code>findFirst()</code>：用一般條件(可搭配排序)取符合清單的第一筆。</li>
+<h3>(c) @id 與 @unique 的差別</h3>
+<li>主鍵 (Primary Key, <code>@id</code>)：一張表只能一個，不能為 null。</li>
+<li>唯一約束 (<code>@unique</code>)：可多個，例如 email、phone，值不可重複。</li>
+<li>⚠️ 存疑/補充：Gemini 說「多數資料庫允許多筆 null」，PostgreSQL 與 MySQL 成立，但 SQL Server 的 UNIQUE 約束只允許一筆 null，實際依資料庫而定。</li>
+<pre><code>model User {
+  id    Int     @id @default(autoincrement()) // 主鍵，自動遞增
+  email String  @unique                       // 唯一約束，重複寫入會報錯
+  name  String?                               // ? 代表可為 null
+}</code></pre>
+<h3>(d) 想練習?</h3>
+<li>LeetCode 無直接對應題；概念上與「批次查詢/去重快取」相近，可參考 <a href="https://leetcode.com/problems/lru-cache/">LRU Cache</a>(快取結構)。</li>
+<h3>(e) 關聯筆記</h3>
+<li>[[backend/js-delete-operator-vs-prisma-delete]]：同樣在談 Prisma 操作。</li>
+<h2>各對話來源</h2>
+<h3>DataLoader 與 findUnique 解析 (2026-10-30 抓取) — https://gemini.google.com/app/be690f4a08b28a77</h3>
+<li>使用者：dataloader是什麼然後findUnique是找資料庫裡面符合條件的第一個嗎？</li>
+<li>Gemini：見 a、b。</li>
+<li>使用者：@unique 資料庫？是什麼啦</li>
+<li>Gemini：見 c。</li>
+<h2>資料來源(含查證時間)</h2>
+<p>| 主題 | 連結 | 版本/時間 |</p>
+<p>|---|---|---|</p>
+<p>| DataLoader | <a href="https://github.com/graphql/dataloader">graphql/dataloader</a> | README 持續更新，本次未逐字重新查證(2026-10-30) |</p>
+<p>| findUnique | <a href="https://www.prisma.io/docs/orm/reference/prisma-client-reference">Prisma Client API</a> | 同上 |</p>
+<p>| NULL 與 UNIQUE | <a href="https://www.postgresql.org/docs/current/ddl-constraints.html">PostgreSQL 文件: Unique Constraints</a> | 同上 |</p>
+<h2>自我測驗(點一下顯示或隱藏答案)</h2><details><summary>DataLoader 解決什麼問題?</summary><p class="ans">N+1 查詢，靠批次化與快取</p></details><details><summary>findUnique 與 findFirst 差在哪?</summary><p class="ans">前者用 @id/@unique 查單筆，後者用一般條件取第一筆</p></details><details><summary>@unique 與主鍵差在哪?</summary><p class="ans">@unique 可多個且可為 null(依資料庫)，主鍵只能一個且不可 null</p></details>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-10-30</footer></main></body></html>

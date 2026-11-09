@@ -8,7 +8,7 @@ related:
   - "[[WebTransport-雙向傳輸機制與三種模式]]"
   - "[[JWT_TOKEN_EXPLANATION]]"
   - "[[IoT大範圍斷線-告警機制與重試策略-系統設計面試]]"
-  - "[[Cookie-與-Session]]"
+  - "[[1-Cookie-與-Session]]"
 sources:
   - https://gemini.google.com/app/d9c81309bc44e965
 updated: 2026-09-05
@@ -20,7 +20,7 @@ updated: 2026-09-05
 > (1) [[JWT_TOKEN_EXPLANATION]] 講 Token 能證明什麼，本篇正好是它的邊界說明：<mark style="background: #FF5582A6;">Token 只能證明「驗證過」，證明不了「現在人在不在」</mark>。這兩篇要一起看才不會把「有 Token」誤當成「在線上」。
 > (2) [[IoT大範圍斷線-告警機制與重試策略-系統設計面試]] 討論的是裝置端大量斷線時的重試與告警，本篇的心跳逾時判定是同一套機制用在「人」身上。
 > (3) [[WebTransport-雙向傳輸機制與三種模式]] 記的是新一代雙向傳輸，本篇的作法 A 用的是它的前輩 WebSocket，可以對照兩者的取捨。
-> (4) [[Cookie-與-Session]] 講的是「身分怎麼被記住」，本篇講的是「狀態怎麼被即時同步」，兩件不同的事常被混為一談。
+> (4) [[1-Cookie-與-Session]] 講的是「身分怎麼被記住」，本篇講的是「狀態怎麼被即時同步」，兩件不同的事常被混為一談。
 
 > 本篇重點 a–j，共 10 個。
 

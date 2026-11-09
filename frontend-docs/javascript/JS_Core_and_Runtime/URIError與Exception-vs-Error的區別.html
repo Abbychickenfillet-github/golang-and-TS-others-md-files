@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>URIError 與 Exception vs Error</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>URIError 與 Exception vs Error</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#error-handling</span></div>
+  <div class="meta">
+    <span>更新於 2026-11-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/0d9f2ea6dd05cd7b" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/7f7f6e0f59f17cde" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="urierror-exception-vs-error">URIError 與 Exception vs Error</h1>
+<p>本篇重點 a–f，共 6 個</p>
+<h2 id="_1">重點整理</h2>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">URIError</mark> 是 JS 內建的 Error 子類型，當 <code>decodeURI()</code>、<code>decodeURIComponent()</code>、<code>encodeURI()</code>、<code>encodeURIComponent()</code> 收到不合法的 URI 就會拋出。<br />
+(b) 常見成因：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">非法的百分比編碼</mark>，例如 <code>%</code> 後面不是兩位十六進位數字（<code>%3Z</code>），或字串結尾只有 <code>%</code> 或 <code>%1</code>。<br />
+(c) 範例：</p>
+<pre><code class="language-javascript">try {
+  decodeURIComponent('%3Z');          // 'Z' 不是合法十六進位
+} catch (error) {
+  console.log(error instanceof URIError); // true
+  console.log(error.message);             // &quot;URI malformed&quot;（各引擎訊息文字略有不同）
+}
+</code></pre>
+<p>逐行：<code>try</code> 圈出可能拋錯的區塊 → <code>decodeURIComponent('%3Z')</code> 解碼失敗，引擎建立 URIError 並丟出 → <code>catch (error)</code> 接住 → <code>instanceof URIError</code> 檢查它的原型鏈是否含 URIError。</p>
+<p>(d) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">解法</mark>：處理使用者輸入或外部來源的 URL 字串時一律包在 <code>try...catch</code>，避免未捕捉的 URIError 讓程式崩潰。<br />
+(e) Exception vs Error：Gemini 的說法是 Exception 為「可預期且可處理的狀況」，Error 為「嚴重且通常無法恢復的問題（如記憶體不足）」。<br />
+   ⚠️ 存疑／更正：這個二分法是 <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Java 的分類</mark>（<code>Exception</code> 與 <code>Error</code> 都是 <code>Throwable</code> 的子類）。在 JavaScript 沒有獨立的 Exception 類別，<code>throw</code> 可以丟任何值，慣例是丟 <code>Error</code> 物件，URIError、TypeError、RangeError 都是 Error 的子類，而且都可以被 catch。<br />
+(f) 結論：講「Exception handling」時指的是 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">例外處理機制（try/catch/throw）</mark>，Error 是被丟出的物件類型之一，兩者在 JS 不是同層級的對立概念。</p>
+<h2 id="_2">各對話來源</h2>
+<h3 id="urierror-2026-11-05-httpsgeminigooglecomapp0d9f2ea6dd05cd7b">URIError 解析與範例（2026-11-05 讀取）— https://gemini.google.com/app/0d9f2ea6dd05cd7b</h3>
+<p>使用者：URIError 是什麼<br />
+Gemini：JS 內建錯誤類型，URI 處理函數收到非法格式時拋出，並提供 <code>decodeURIComponent('%3Z')</code> 範例與 try...catch 建議（詳見 a–d）。</p>
+<h3 id="2026-11-05-httpsgeminigooglecomapp7f7f6e0f59f17cde">異常與錯誤的區別（2026-11-05 讀取）— https://gemini.google.com/app/7f7f6e0f59f17cde</h3>
+<p>使用者：Exception handling exception 就完全等於 error 嗎？<br />
+Gemini：不完全相同。Exception 通常指可預期並處理的狀況，Error 往往代表嚴重問題（詳見 e–f 的更正）。</p>
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>URIError</td>
+<td><a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/URIError">MDN URIError</a></td>
+<td>官方文件，未於本次重新抓取</td>
+</tr>
+<tr>
+<td>Error 與子類</td>
+<td><a href="https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/Error">MDN Error</a></td>
+<td>官方文件，未於本次重新抓取</td>
+</tr>
+<tr>
+<td>Java Exception vs Error</td>
+<td><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Throwable.html">Oracle Java Throwable</a></td>
+<td>官方文件，未於本次重新抓取</td>
+</tr>
+<tr>
+<td>對話原文</td>
+<td>見 frontmatter sources</td>
+<td>2026-11-05 讀取</td>
+</tr>
+</tbody>
+</table>
+<p>相關筆記：<span class="wikilink" title="Obsidian 連結：15-ReferenceError-vs-undefined-值與錯誤的分界-互動版">15-ReferenceError-vs-undefined-值與錯誤的分界-互動版</span>（另一種 JS 內建錯誤型別 ReferenceError）。</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-11-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

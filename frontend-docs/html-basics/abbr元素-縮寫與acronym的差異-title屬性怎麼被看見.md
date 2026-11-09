@@ -3,13 +3,21 @@ title: <abbr> 元素 — abbreviation 與 acronym 的差異，以及 title 屬�
 type: topic-note
 source: Gemini
 category: 技術
-tags: [gemini, html, abbr, acronym, title, accessibility, 語意化, 無障礙]
+tags:
+  - gemini
+  - html
+  - abbr
+  - acronym
+  - title
+  - accessibility
+  - 語意化
+  - 無障礙
 sources:
   - https://gemini.google.com/app/c9f01038758d249c
 related:
   - "[[HTML文件結構-DOCTYPE與骨架]]"
   - "[[content-attribute-vs-IDL-property-與表單提交機制]]"
-  - "[[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]]"
+  - "[[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]]"
   - "[[HTML5演進-Quirks-Mode與HTML5-API]]"
 updated: 2026-09-21
 ---

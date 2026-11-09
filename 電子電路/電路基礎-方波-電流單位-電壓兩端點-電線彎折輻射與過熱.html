@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>電路基礎：電線彎折輻射 vs 過熱／安培與毫安微安／電壓為何是兩端點</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>電路基礎：電線彎折輻射 vs 過熱／安培與毫安微安／電壓為何是兩端點</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#電路</span><span class="pill">#電壓電流</span></div>
+  <div class="meta">
+    <span>更新於 2026-10-26</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/5a595124ece03dd1" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="_1">電路基礎問答</h1>
+<p>本篇重點 a–g，共 7 個</p>
+<h2 id="_2">重點整理</h2>
+<ul>
+<li>(a) 「彎折處有輻射損失（bending loss）」指高頻訊號或光纖：過度彎曲（macrobending）改變波導結構，能量散逸。</li>
+<li>(b) 吹風機用市電 60 Hz，波長約數千公里，電線不是有效天線，<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">彎折不會產生危險的電磁輻射</mark>。</li>
+<li>(c) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">真正危險是機械疲勞與過熱</mark>：銅絲反覆彎折斷裂 → 剩少數細絲、截面積變小、電阻 R 變大 → 依焦耳定律 P = I²R 局部發熱（吹風機約 1200–1500W、10–13A）→ 絕緣皮熔化、短路或起火。</li>
+<li>(d) 收納順著自然圓弧捲、不要緊纏機身；避免在機身根部施力；發現發熱、變硬、變形就更換。</li>
+<li>(e) 1 安培＝每秒 1 庫侖，約 6.24×10¹⁸ 個電子通過，對微控制器、LED、感測器是很大電流；常用 mA（10⁻³）與 μA（10⁻⁶）。</li>
+<li>(f) <mark class="hl hl-data" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「微分電流單位」應為「微（micro）字首」，與微積分無關</mark>；但電流定義確為 i(t)=dq/dt，電荷對時間的微分。</li>
+<li>(g) 電壓是電位差，必須指定兩點，如 V_AB=V_A−V_B；兩端元件（電阻、電容、電感、電池）直接跨在兩端，多端元件（電晶體）也是指定其中兩端（如 V_BE）。電流用「通過 through」，電壓用「跨在 across」。</li>
+</ul>
+<h2 id="_3">各對話來源（原文摘要）</h2>
+<h3 id="2026-10-26-httpsgeminigooglecomapp5a595124ece03dd1">認識方波（2026-10-26 抓取）— https://gemini.google.com/app/5a595124ece03dd1</h3>
+<p><strong>使用者：</strong> 店員說彎折處有輻射能損失，吹風機線彎到不就很危險嗎？<br />
+<strong>Gemini：</strong> 見 (a)–(d)。<br />
+<strong>使用者：</strong> 安培其實很大，更常用微分的電流單位，對嗎？<br />
+<strong>Gemini：</strong> 見 (e)(f)。<br />
+<strong>使用者：</strong> 電壓是定義在 2 端點的元件上？<br />
+<strong>Gemini：</strong> 見 (g)；結尾詢問是否整理成 Google 簡報。</p>
+<h2 id="_4">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 原始對話</td>
+<td>https://gemini.google.com/app/5a595124ece03dd1</td>
+<td>2026-10-26 抓取</td>
+</tr>
+</tbody>
+</table>
+<p>由 Gemini 對話自動整理 · 更新於 2026-10-26</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-10-26</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

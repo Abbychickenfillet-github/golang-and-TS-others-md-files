@@ -1,0 +1,160 @@
+/* ==========================================================================
+   note-interactive.css — 互動 HTML 筆記共用樣式（色彩變數、表格、提示框、填空、是非、申論、名詞 hover 補強）
+   搭配 notes.css（.term 基本樣式）、note-quiz.js（練習題）、各主題的 *-terms.js（名詞表）
+   ========================================================================== */
+/* :root 是整份文件的根（<html>），寫在這裡的變數全頁都能用 var(--名稱) 取值；這一組是淺色模式 */
+:root{
+  /* 文字色、次要文字色、邊線色、頁面底色、卡片底色、淡底色、表頭底色 */
+  --ink:#1F2937; --sub:#55617A; --line:#E3E7EE; --bg:#FBFCFD; --card:#FFFFFF; --soft:#F7F9FC; --head:#EEF2F8;
+  /* 強調色、警示（紅）、正確（綠）、中性提醒（橘）、否定（灰） */
+  --accent:#4A5A75; --warn:#C2455E; --ok:#2F7D3E; --mid:#B7791F; --no:#7B8494;
+  /* 上面幾種狀態對應的淡色背景：正確、警示、提醒、否定 */
+  --okbg:#E7F6EA; --warnbg:#FFF1F3; --midbg:#FFF6DF; --nobg:#EEF0F4;
+  /* 螢光筆黃、螢光筆綠、程式碼區塊底色、連結色 */
+  --hl-yellow:#FFF3A3; --hl-green:#BBFABB; --code:#242B38; --link:#3B6FB5;
+/* :root 區塊結束 */
+}
+/* 使用者的系統設定是深色模式時，套用下面這組規則 */
+@media (prefers-color-scheme: dark){
+  /* 深色模式再宣告一次同名變數，覆蓋上面的淺色值，其他規則不用改 */
+  :root{
+    /* 文字、次要文字、邊線、頁面底、卡片底、淡底、表頭底（深色版） */
+    --ink:#E6EAF2; --sub:#A4AEC2; --line:#2E3A50; --bg:#12161E; --card:#1A202B; --soft:#1E2532; --head:#232C3C;
+    /* 強調、警示、正確、提醒、否定（深色版，亮度提高才看得清楚） */
+    --accent:#9DBCF0; --warn:#FF8FA3; --ok:#7FD99A; --mid:#F0C070; --no:#9AA4B8;
+    /* 淡色背景（深色版，改成暗色調） */
+    --okbg:#1B3326; --warnbg:#3A1F27; --midbg:#3A3019; --nobg:#262C38;
+    /* 螢光筆、程式碼底、連結色（深色版） */
+    --hl-yellow:#5C5420; --hl-green:#25512B; --code:#0E1219; --link:#8DB6F0;
+  /* :root 區塊結束 */
+  }
+/* @media 區塊結束 */
+}
+/* 所有元素的寬高都把 padding 與 border 算進去，不會因為加了內距而撐破版面 */
+*{box-sizing:border-box}
+/* body：去掉預設外距，底色與文字色改用變數，深淺色模式自動切換 */
+body{margin:0;background:var(--bg);color:var(--ink);
+     /* 字型依序嘗試：思源黑體、微軟正黑體、系統字型、無襯線；行高 1.8 讓中文大段文字好讀 */
+     font-family:"Noto Sans TC","Microsoft JhengHei",-apple-system,"Segoe UI",sans-serif;line-height:1.8}
+/* .wrap：內容容器，最寬 980px 置中；上 36px、左右 16px、下 80px 內距；overflow-x:clip 把超出的橫向內容裁掉，避免出現橫向捲軸 */
+.wrap{max-width:980px;margin:0 auto;padding:36px 16px 80px;overflow-x:clip}
+/* header：頁首底部一條 2px 分隔線，與下方內容隔開 */
+header{border-bottom:2px solid var(--line);padding-bottom:20px;margin-bottom:30px}
+/* h1：標題用襯線字型（思源宋體→Georgia），27px，行高 1.45，下方留 12px */
+h1{font-family:"Noto Serif TC",Georgia,serif;font-size:27px;line-height:1.45;margin:0 0 12px}
+/* h2：章節標題，襯線字型 21px；上方留 46px 與前一章區隔；左側 5px 強調色粗線 */
+h2{font-family:"Noto Serif TC",Georgia,serif;font-size:21px;margin:46px 0 8px;padding-left:12px;border-left:5px solid var(--accent)}
+/* h3：小節標題，17px，上方 28px、下方 8px */
+h3{font-size:17px;margin:28px 0 8px}
+/* .pills：標籤列，橫向排列、放不下自動換行，標籤間距 7px */
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+/* .pill：單個標籤，小字、膠囊形（圓角 999px）、淡底加邊線 */
+.pill{font-size:12px;padding:3px 11px;border-radius:999px;background:var(--head);color:var(--accent);border:1px solid var(--line)}
+/* .meta：來源、日期等補充資訊，13px 次要文字色 */
+.meta{font-size:13px;color:var(--sub)}
+/* .idx：「本篇重點 a–z」那一行索引，膠囊底；inline-block 讓底色只包住文字 */
+.idx{font-size:14px;color:var(--sub);background:var(--head);display:inline-block;padding:4px 13px;border-radius:999px;margin-top:10px}
+/* table：表格寬度撐滿，邊線合併成單線，上下留 14px */
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14.5px}
+/* th、td：儲存格有邊線與內距，文字靠左、頂端對齊 */
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+/* th：表頭加淡底色並加粗 */
+th{background:var(--head);font-weight:600}
+/* 偶數列加淡底色（斑馬紋），橫向閱讀不易看錯行 */
+tbody tr:nth-child(even){background:var(--soft)}
+/* code：等寬字型（Cascadia Code→Consolas→系統等寬） */
+code{font-family:"Cascadia Code",Consolas,monospace;font-size:13.5px}
+/* 行內程式碼（段落、清單、儲存格內的 code）加淡底與小圓角，與一般文字區分 */
+p code,li code,td code{background:var(--head);padding:1px 5px;border-radius:4px}
+/* pre：程式碼區塊，深色底、固定淺色字；內容過寬時出現橫向捲軸（overflow-x:auto） */
+pre{background:var(--code);color:#E6EAF2;padding:14px 16px;border-radius:9px;overflow-x:auto;font-size:13.5px;line-height:1.6}
+/* .callout：提示框，預設是警示樣式：左側 5px 紅線＋淡紅底；右側圓角、左側直角貼著線 */
+.callout{border-left:5px solid var(--warn);background:var(--warnbg);padding:12px 16px;border-radius:0 9px 9px 0;margin:16px 0}
+/* .callout.ok：正確／成功樣式（綠線＋淡綠底） */
+.callout.ok{border-color:var(--ok);background:var(--okbg)}
+/* .callout.note：提醒／補充樣式（橘線＋淡橘底） */
+.callout.note{border-color:var(--mid);background:var(--midbg)}
+/* 提示框裡的粗體當小標題，獨佔一行並與下方文字隔 3px */
+.callout b{display:block;margin-bottom:3px}
+/* .fig：放圖片或 SVG 的框；背景硬寫白色（深色模式也是白底，確保圖上的黑線看得到）；圖太寬時可橫向捲動 */
+.fig{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;margin:16px 0;overflow-x:auto}
+/* mark：螢光筆標記，文字色沿用上層，只加底色（底色由 .y、.g 提供） */
+mark{padding:1px 3px;border-radius:3px;color:inherit}
+/* .y 黃色螢光筆、.g 綠色螢光筆，顏色來自變數 */
+.y{background:var(--hl-yellow)} .g{background:var(--hl-green)}
+/* 連結用變數色，深淺色模式各自調整成看得清楚的藍 */
+a{color:var(--link)}
+/* button：統一按鈕外觀；沿用周圍字型、圓角、卡片底、強調色文字、手指游標 */
+button{font-family:inherit;font-size:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--accent);cursor:pointer}
+/* 滑鼠移到按鈕上時，底色換成表頭底色，表示可點 */
+button:hover{background:var(--head)}
+/* button.sel：被選取的按鈕，反白成強調色底、卡片色字 */
+button.sel{background:var(--accent);color:var(--card);border-color:var(--accent)}
+/* 鍵盤 Tab 聚焦（:focus-visible）到按鈕、名詞、填空格時，畫一圈 3px 藍色外框，方便鍵盤操作者看到焦點在哪 */
+button:focus-visible,.term:focus-visible,.blank:focus-visible{outline:3px solid #2563EB;outline-offset:2px}
+/* .toolbar：一排按鈕，橫向排列、可換行、垂直置中 */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;align-items:center}
+/* footer：頁尾，上方分隔線、小字、置中 */
+footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--sub);text-align:center}
+
+/* 名詞 hover 補強（基本樣式在 notes.css 的 .term） */
+/* .term-missing：名詞表裡找不到解釋的詞，用粉紅底、紅色底線標出，方便補寫 */
+.term-missing{background:#FFD9DE;border-bottom-color:#C2455E}
+/* data-align="left"：提示框靠詞的左緣對齊（取消 notes.css 的置中位移）；!important 才蓋得過 notes.css */
+.term[data-align="left"]::after{left:0 !important;transform:none !important}
+/* data-align="right"：提示框靠詞的右緣對齊，避免詞在右側時提示框超出視窗 */
+.term[data-align="right"]::after{left:auto !important;right:0 !important;transform:none !important}
+/* data-pos="below"：提示框改放在詞的下方（notes.css 預設在上方），bottom 改成 auto 並用 top 定位 */
+.term[data-pos="below"]::after{bottom:auto !important;top:140% !important}
+/* 提示框的小箭頭也跟著移到下方：位置改用 top，箭頭方向翻轉（上邊透明、下邊上色） */
+.term[data-pos="below"]::before{bottom:auto !important;top:140% !important;margin-bottom:0 !important;margin-top:-12px !important;
+  /* 箭頭三角形：上邊框透明、下邊框用提示框同色，朝上指向詞 */
+  border-top-color:transparent !important;border-bottom-color:#243b33 !important}
+/* 視窗寬度 900px 以下（手機、小平板）時套用下面規則 */
+@media (max-width:900px){
+  /* 所有 .term 的提示框（含各種對齊組合）一律改成釘在畫面底部的整條說明，不再貼著詞，避免小螢幕超出邊界 */
+  .term::after,.term[data-align]::after,.term[data-pos]::after,.term[data-align][data-pos]::after{
+    /* fixed 固定在視窗；左右各留 12px、離底部 14px；清掉原本的 top 與位移 */
+    position:fixed !important;left:12px !important;right:12px !important;bottom:14px !important;top:auto !important;
+    /* 寬度自動、不限最大寬；字級略放大；z-index 9999 蓋在所有內容上面 */
+    width:auto !important;max-width:none !important;transform:none !important;font-size:.92em;z-index:9999}
+  /* 底部說明條不需要小箭頭，直接隱藏 */
+  .term::before,.term[data-pos]::before{display:none !important}
+/* @media 區塊結束 */
+}
+
+/* 練習題 */
+/* .blank：填空格；平常文字設成透明（color:transparent）只看到虛線底，點擊後才顯示答案；min-width 讓空格有固定寬度 */
+.blank{display:inline-block;min-width:4.5em;text-align:center;background:var(--head);border-bottom:2px dashed var(--accent);
+       /* 小圓角、左右內距、手指游標、禁止選取文字（避免點擊時選到答案）、粗體 */
+       border-radius:4px;padding:0 10px;cursor:pointer;color:transparent;user-select:none;font-weight:700}
+/* .blank.on：已揭曉的填空格，文字變回正常色、改綠色螢光底、虛線變實線 */
+.blank.on{color:var(--ink);background:var(--hl-green);border-bottom-style:solid}
+/* .fill：一題填空題的外框，卡片底加邊線 */
+.fill{margin:10px 0;padding:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+/* .quiz：是非題、申論題的外框，樣式與填空題一致 */
+.quiz{border:1px solid var(--line);border-radius:10px;padding:13px 16px;margin:12px 0;background:var(--card)}
+/* .quiz 裡的題目文字加粗，與下方選項隔 8px */
+.quiz .q{font-weight:600;margin-bottom:8px}
+/* .opt：「對／錯」兩個按鈕橫向並排，間距 8px */
+.opt{display:flex;gap:8px}
+/* .fb：作答後的回饋框，預設隱藏；有 .show 才顯示 */
+.fb{display:none;margin-top:9px;padding:9px 12px;border-radius:7px;font-size:14.5px}
+/* .fb.show：顯示回饋框（由 note-quiz.js 加上 show） */
+.fb.show{display:block}
+/* .fb.right：答對的回饋，綠色淡底、左側綠線 */
+.fb.right{background:var(--okbg);border-left:4px solid var(--ok)}
+/* .fb.wrong：答錯的回饋，紅色淡底、左側紅線 */
+.fb.wrong{background:var(--warnbg);border-left:4px solid var(--warn)}
+/* textarea：申論題的作答框；寬度撐滿、最小高 90px、沿用字型、只允許上下拉伸 */
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:10px;font-family:inherit;font-size:14.5px;
+         /* 底色與文字色用變數，深色模式也不會刺眼；resize:vertical 只能調整高度 */
+         background:var(--card);color:var(--ink);resize:vertical}
+/* .model：申論題的參考答案區，預設隱藏；淡底、虛線框，與作答框區分 */
+.model{display:none;margin-top:10px;background:var(--soft);border:1px dashed var(--line);border-radius:8px;padding:11px 14px;font-size:14.5px}
+/* .model.show：點「顯示參考答案」後顯示 */
+.model.show{display:block}
+/* .badge：小徽章（例如「正確」「不適用」），膠囊形、粗體小字 */
+.badge{display:inline-block;font-size:13px;font-weight:700;padding:1px 10px;border-radius:999px}
+/* 三種徽章配色：.yes 綠（成立）、.no 灰（不成立）、.mid 橘（視情況）；底色與文字色都來自變數 */
+.badge.yes{background:var(--okbg);color:var(--ok)} .badge.no{background:var(--nobg);color:var(--no)} .badge.mid{background:var(--midbg);color:var(--mid)}

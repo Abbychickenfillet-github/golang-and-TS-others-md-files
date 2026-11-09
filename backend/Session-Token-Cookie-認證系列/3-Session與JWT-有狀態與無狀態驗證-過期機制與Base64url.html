@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Session 與 JWT：有狀態 vs 無狀態驗證、過期機制、Base64url</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Session 與 JWT：有狀態 vs 無狀態驗證、過期機制、Base64url</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#backend</span><span class="pill">#session</span><span class="pill">#jwt</span><span class="pill">#stateless</span><span class="pill">#cookie</span><span class="pill">#base64url</span><span class="pill">#owasp</span></div>
+  <div class="meta">
+    <span>更新於 2026-10-30</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/9118a11b50bbd667" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/287b2caf42deb314" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/fba7a832cdf298fe" target="_blank" rel="noopener">原始對話 3</a><a href="https://gemini.google.com/app/b2a539467cfc9322" target="_blank" rel="noopener">原始對話 4</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="session-jwt-vs-base64url">Session 與 JWT：有狀態 vs 無狀態驗證、過期機制、Base64url</h1>
+<blockquote>
+<p>本篇重點 a–p ，共 16 個。<br />
+前置概念見 <span class="wikilink" title="Obsidian 連結：Cookie-與-Session">Cookie-與-Session</span>（Cookie 與 Session 基本運作）與 <span class="wikilink" title="Obsidian 連結：XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線">XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線</span>（HttpOnly 為何能擋 XSS）。關聯原因：本篇是把前兩篇的 Session ID 放進「有狀態／無狀態」這條主軸上比較。</p>
+</blockquote>
+<h2 id="sessionvs-jwt">一張主軸：有狀態（Session）vs 無狀態（JWT）</h2>
+<table>
+<thead>
+<tr>
+<th>比較面向</th>
+<th>有狀態：集中式 Session</th>
+<th>無狀態：JWT（JSON Web Token）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>狀態存在哪</td>
+<td>伺服器（記憶體／Redis／MySQL）的 session store</td>
+<td>客戶端手上的 Token 本身</td>
+</tr>
+<tr>
+<td>客戶端拿到什麼</td>
+<td>一個短短的 Session ID（通常放 Cookie）</td>
+<td>一包 Header.Payload.Signature</td>
+</tr>
+<tr>
+<td>伺服器怎麼驗</td>
+<td>拿 Session ID 去 session store 查表</td>
+<td>用密鑰重算簽章再比對</td>
+</tr>
+<tr>
+<td>要強制踢人</td>
+<td>刪掉該筆 Session 即時失效</td>
+<td>很難即時作廢（Revocation）</td>
+</tr>
+<tr>
+<td>擴展性</td>
+<td>多台伺服器要共用 store（例如 Redis Cluster）</td>
+<td>資源伺服器只要能驗簽章就不必共用 store</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_1">重點整理</h2>
+<p><strong>a.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HTTP 是無狀態（Stateless）協定</mark>：它沒有內建機制把前後兩個獨立請求關聯起來。所以網站要記住「這個人已登入」就得額外做 Session 管理。</p>
+<p><strong>b.</strong> Session 驗證流程（Abby 自己的說法，Gemini 判定正確）：<br />
+1. 使用者登入送出 credentials。<br />
+2. 伺服器 authenticate 是否 valid。<br />
+3. 伺服器建立 Session，把 Session ID 存進 session store。<br />
+4. 伺服器把 Session ID 用 Set-Cookie 發給瀏覽器。<br />
+5. 之後每個請求瀏覽器自動夾帶這個 Cookie ，伺服器拿 ID 查表確認身分。</p>
+<p><strong>c.</strong> <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">OWASP 的建議：架構允許時優先選集中式 Session</mark>，Session ID 放 Cookie 並設 Secure 與 HttpOnly ，搭配 SameSite（Lax 或 Strict）擋 CSRF ，並使用成熟框架而不是自己實作。</p>
+<p><strong>d.</strong> 兩種攻擊與防禦：<br />
+1. Session 劫持（Hijacking）：攻擊者用 MITM 或 XSS 偷走 Session ID。防禦是全站 HTTPS 加 HttpOnly。<br />
+2. Session 固定（Fixation）：攻擊者預先指定 Session ID 騙使用者登入。防禦是 <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">每次登入都重新產生新的 Session ID 並作廢舊的</mark>。</p>
+<p><strong>e.</strong> Session 過期有兩層，缺一不可：<br />
+1. Cookie 層：省略 Expires 與 Max-Age 就是 Session Cookie ，關瀏覽器即刪（OWASP 預設建議）。設了就變 Persistent Cookie ，例如「記住我 30 天」。<br />
+2. 伺服器層：<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">只靠前端清 Cookie 不算登出</mark> ，伺服器沒刪 Session 就等於沒收回權限。</p>
+<p><strong>f.</strong> 伺服器端三種逾期機制：閒置逾期（Idle ，例如 20 分鐘沒請求）、絕對逾期（Absolute ，例如登入後 8 小時）、更新逾期（Renewal ，定期換發新 ID 並作廢舊 ID ）。</p>
+<p><strong>g.</strong> 有狀態的優點：隨時可控（刪一筆就踢人）、機敏資料留在伺服器、請求只帶短 ID 。缺點：流量大時要共用 store ，伺服器負擔重。</p>
+<p><strong>h.</strong> 無狀態的 JWT 把狀態打包成「伺服器簽章過的物件」交給客戶端，資源伺服器驗得出簽章就不必回頭查發行端，適合分散式微服務。缺點是體積較大與難以即時作廢。</p>
+<p><strong>i.</strong> 補救 JWT 難作廢的做法：Access Token（短效期）加 Refresh Token（長效期），由 Refresh Endpoint 集中決定要不要繼續發新 Access Token 。</p>
+<p><strong>j.</strong> <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JWT 被改過 exp 無法登入</mark>：JWT 由 Header、Payload、Signature 三段組成，Signature 是伺服器用密鑰對前兩段運算出來的。你可以輕易解碼並修改 Payload（它只是 Base64url 編碼，不是加密），但改完後簽章與內容對不上；你沒有密鑰就無法重新產生正確簽章，後端驗證失敗回 401 Unauthorized 。</p>
+<p><strong>k.</strong> 後端驗證 JWT 的步驟：後端用自己的密鑰，對收到的 Header 與 Payload 重新做簽章運算，算出結果與第三段比對，不一致就拒絕。</p>
+<p><strong>l.</strong> ⚠️ 補充（Gemini 沒講）：JWT 的 Payload 「可被任何人讀」，所以不要放密碼等機敏資料。簽章保證的是「沒被改」，不是「看不到」。</p>
+<p><strong>m.</strong> URL-safe 的意思：資料編碼後只含不會破壞 URL 結構的字元。標準 URL 的保留字元（? &amp; / =）與不安全字元（空格 + # &lt; &gt;）若混在資料裡，會被誤判為網址結構。</p>
+<p><strong>n.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Base64url 與標準 Base64 的差異</mark>：<br />
+1. 把 + 換成 - 。<br />
+2. 把 / 換成 _ 。<br />
+3. 通常省略結尾補齊用的 = 。<br />
+這是 JWT 被稱為「compact, URL-safe」的原因（RFC 7519）。</p>
+<p><strong>o.</strong> JWT 確實會出現在網址中（Email 驗證連結、密碼重設連結、OAuth／OIDC 轉址、臨時下載連結），但即使它主要放在 Authorization Header ，採用 Base64url 也讓同一套編碼能同時用在 Header 與 URL 。</p>
+<p><strong>p.</strong> ⚠️ 存疑／更正：Gemini 把「JWT 放在 URL query」講得像常態做法，沒有提到風險。Token 放在網址會進入瀏覽器歷史、伺服器 access log 與 Referer 標頭而外洩，一般建議 Access Token 放 Header 或 HttpOnly Cookie ，網址上只適合「單次、短效期」的連結。另外 OIDC 的 implicit flow（把 id_token 放在 # fragment 回傳）已不被建議，現行建議用 Authorization Code Flow 加 PKCE 。</p>
+<h2 id="_2">各對話來源（原文摘錄）</h2>
+<h3 id="session-2026-10-httpsgeminigooglecomapp9118a11b50bbd667">Session 驗證機制（2026-10）— https://gemini.google.com/app/9118a11b50bbd667</h3>
+<p>使用者：在 session based 的驗證的話，使用者登入後會得到一個 credentials 。然後 server 去做驗證，去 authenticate 是否 valid 。然後會把這個 session ID 存在 session store ，我這樣說對嗎？</p>
+<p>Gemini：對的，你的理解完全正確。在伺服器建立 Session 後，會將 Session ID 設定在瀏覽器的 Cookie 中，之後客戶端的後續請求都會夾帶這個 Cookie ，讓伺服器驗證身分狀態。</p>
+<h3 id="understanding-stateless-http2026-10-29-httpsgeminigooglecomapp287b2caf42deb314">Understanding Stateless HTTP（2026-10-29）— https://gemini.google.com/app/287b2caf42deb314</h3>
+<p>使用者：有狀態的做法是什麼 → 翻譯一下這一頁（使用者開著 OWASP Session management 頁面）→ session 可以設定過期時間嗎</p>
+<p>Gemini：（重點已整合進 d～g 、 c 、 e 、 f ，包含集中式 Session 、Session 劫持與固定、三種逾期、Cookie 的 Expires 與 Max-Age 。）</p>
+<h3 id="jwt-httpsgeminigooglecomappfba7a832cdf298fe">JWT 過期竄改驗證— https://gemini.google.com/app/fba7a832cdf298fe</h3>
+<p>使用者：JWT 如果過期時間被竄改過他還有辦法登入嗎</p>
+<p>Gemini：不行。竄改 exp 會讓簽章失效，後端用密鑰重算簽章比對失敗，回 401 。（整合進 j 、 k 。）</p>
+<h3 id="url-safe-httpsgeminigooglecomappb2a539467cfc9322">URL-safe 意義解析— https://gemini.google.com/app/b2a539467cfc9322</h3>
+<p>使用者：說明一下： URL-safe means → 可是 JSON Web Token 又不會出現在網址</p>
+<p>Gemini：說明 Base64url 與標準 Base64 差異；並舉 Email 連結、OAuth／OIDC 轉址、臨時下載連結三種 JWT 出現在網址的情境。（整合進 m 、 n 、 o ，並於 p 標注存疑。）</p>
+<h2 id="leetcodeneetcode">練習題（LeetCode／NeetCode）</h2>
+<p>此主題為後端驗證概念，無直接對應的演算法題。相關基礎可練習雜湊表：<a href="https://leetcode.com/problems/two-sum/">1. Two Sum</a> ，因為 session store 的本質就是 key（Session ID）對 value（使用者狀態）的查表。</p>
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 原始對話（4 則）</td>
+<td>見 frontmatter sources</td>
+<td>對話擷取於 2026-10-30</td>
+</tr>
+<tr>
+<td>OWASP Session Management Cheat Sheet（對話中使用者開啟並請 Gemini 翻譯的頁面）</td>
+<td>https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html</td>
+<td>官方持續更新，本次未重新抓取，僅依對話內容整理，請以最新版為準</td>
+</tr>
+<tr>
+<td>RFC 7519 JSON Web Token</td>
+<td>https://www.rfc-editor.org/rfc/rfc7519</td>
+<td>2015-05 發布</td>
+</tr>
+<tr>
+<td>RFC 4648 §5 Base64url</td>
+<td>https://www.rfc-editor.org/rfc/rfc4648#section-5</td>
+<td>2006-10 發布</td>
+</tr>
+<tr>
+<td>MDN Set-Cookie（Expires、Max-Age）</td>
+<td>https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie</td>
+<td>MDN ，本次未重新抓取</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-10-30</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

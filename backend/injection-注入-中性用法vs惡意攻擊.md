@@ -92,4 +92,4 @@ new UserService(new FakeDB());    // 測試
 ## 相關筆記
 
 - 系統目錄與路徑：[[usr-Unix系統資源]]
-- 後端安全（Cookie/Session/CSRF/XSS）：[[Cookie-與-Session]]、[[CSRF-與-Antiforgery-Cookie]]
+- 後端安全（Cookie/Session/CSRF/XSS）：[[1-Cookie-與-Session]]、[[CSRF-與-Antiforgery-Cookie]]

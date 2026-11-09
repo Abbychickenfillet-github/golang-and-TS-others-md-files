@@ -7,9 +7,9 @@ updated: 2026-10-13
 
 # Critical Rendering Path（關鍵渲染路徑）與 Event Loop
 
-> 六大步驟、重排 vs 重繪誰先、什麼操作會觸發、優化技巧與互動測驗，都在 [互動版](Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪-互動版.html)。本篇只補互動版沒接起來的三件事：a. 渲染在 Event Loop 的哪一格；b. `textContent` 這類 DOM 操作之後畫面怎麼更新；c. `requestAnimationFrame` 排在哪。
+> 六大步驟、重排 vs 重繪誰先、什麼操作會觸發、優化技巧、互動測驗、以及 **ISO 5807 標準流程圖（主軸圖）**，都在 [互動版](Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪-互動版.html)。本篇只補互動版文字沒接起來的四件事：a. 渲染在 Event Loop 的哪一格；b. `textContent` 這類 DOM 操作之後畫面怎麼更新；c. `requestAnimationFrame` 排在哪；d. CSS parser 先把 CSS 切成哪些 token（CSSOM 之前）。
 
-本篇重點 a–c，共 3 個。
+本篇重點 a–d，共 4 個。
 
 ## a. 渲染在 Event Loop 的哪一格
 
@@ -58,12 +58,29 @@ rAF 不屬於宏任務也不屬於微任務，它有自己的隊伍，<mark styl
 
 互動版的優化技巧也提到：動畫用 rAF，以及用它把寫入集中，避免在同一幀內讀寫交錯造成 Layout Thrashing。
 
+## d. CSS parser 先把 CSS 切成哪些 token（CSSOM 之前）
+
+對應主軸圖的 **CSSOM 方框**（點它會跳到互動版的 token 解說）。Blink 的 CSS parser 先 tokenize（詞法分析）把 CSS 字串切成一顆顆 token，再 parse 成「選擇器＋宣告」規則，最後組成 CSSOM 樹。你表格列的那幾種就是 tokenize 吐出的 token 型別。
+
+以 `#app > .btn { color:#fff; margin-top:16px; font-family:"Noto Sans"; }` 為例：
+
+| Token 型別 | 是什麼 | 這段 CSS 裡的例子 |
+|------|------|------|
+| ident | 識別字：字母/數字/`-`/`_` 組成的「名字」，選擇器名、屬性名、關鍵字值都是它 | `btn`、`color`、`margin-top`、`solid` |
+| hash | `#` 後接一段 ident，用在 id 選擇器與十六進位顏色 | `#app`、`#fff` |
+| string | 用 `"` 或 `'` 包起來的字串 | `"Noto Sans"` |
+| dimension | 數字＋緊接的單位，整體算一顆 token（不是數字和單位分開） | `16px` |
+| delim | 單一字元的分隔符/符號，自己不構成別種 token 時就是它 | `>`（子代組合子）、`.`（class 前的點） |
+
+另有 number（`1.5`）、percentage（`50%`）、function（`rgb(`）、at-keyword（`@media`）等型別，完整清單見下方來源。切 token 之後才 parse、建 CSSOM，然後才和 DOM 合併成 Render Tree（主軸圖第 3 個方框）。
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／時間 |
 |------|------|-----------|
 | 事件循環處理模型（巨任務、微任務檢查點、update the rendering 與 rAF 的順序） | https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model | HTML Living Standard；本次未逐字查證，依既有筆記與記憶整理，2026-10-13 |
 | Composite 由哪個執行緒做 | 規格未定義，屬瀏覽器實作 | 2026-10-13，本篇只寫「因瀏覽器而異」 |
+| CSS token 型別（ident/hash/string/dimension/delim 等的定義與範例） | https://www.w3.org/TR/css-syntax-3/#tokenization | W3C CSS Syntax Module Level 3；逐字查證 token 清單，2026-10-14 |
 
 ## 關聯筆記
 

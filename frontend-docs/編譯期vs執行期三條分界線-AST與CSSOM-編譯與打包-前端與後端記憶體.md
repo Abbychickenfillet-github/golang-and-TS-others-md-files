@@ -3,12 +3,32 @@ title: 編譯期 vs 執行期的三條分界線——AST 與 CSSOM、編譯與�
 type: topic-note
 source: Gemini
 category: tech
-tags: [gemini, 前端建構, ast, cssom, postcss, vite, webpack, vue, scoped-css, shadow-dom, xss, 記憶體, tokenizer, lexer, bpe, llm, 面試]
-aliases: [AST-vs-CSSOM, 編譯vs打包, Scoped-CSS原理]
+tags:
+  - gemini
+  - 前端建構
+  - ast
+  - cssom
+  - postcss
+  - vite
+  - webpack
+  - vue
+  - scoped-css
+  - shadow-dom
+  - xss
+  - 記憶體
+  - tokenizer
+  - lexer
+  - bpe
+  - llm
+  - 面試
+aliases:
+  - AST-vs-CSSOM
+  - 編譯vs打包
+  - Scoped-CSS原理
 related:
   - "[[00-前端建構到執行全景地圖]]"
   - "[[Vite-HMR機制與Rollup打包原理]]"
-  - "[[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]]"
+  - "[[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]]"
   - "[[Vue-SFC實務-styles資料夾與scoped編譯原理-lang與src屬性-CSS預處理器-JSX支援]]"
   - "[[textContent-innerText-innerHTML差異]]"
   - "[[Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪]]"
@@ -107,7 +127,6 @@ j. HTML5 曾有一個<mark style="background: #ADCCFFA6;">原生的 `<style scop
   </style>
   <p>我是紅色的字</p>
 </div>
-```
 
 k. <mark style="background: #FF5582A6;">為什麼被廢棄</mark>：要瀏覽器在<mark style="background: #FFF3A3A6;">動態解析 DOM 樹的當下</mark>即時計算並切斷樣式作用域，對渲染引擎的效能開銷極大，且容易觸發重複排版（Reflow）。主流瀏覽器最終放棄原生實作。
 

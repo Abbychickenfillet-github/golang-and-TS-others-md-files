@@ -91,6 +91,7 @@ export default function SearchResult() {
 f. <mark style="background: #ADCCFFA6;">Bailout（跳船）</mark>指的是
     <mark style="background: #FFF3A3A6;">Next.js 在建置期放棄把某一棵元件樹預渲染成 HTML，把它降級成使用者端渲染（CSR）</mark>
     「跳船」是比喻：靜態預渲染這條船開不下去了，這棵樹自己跳下去用瀏覽器游過去
+    被放棄的只是呼叫點到最近 Suspense 邊界的那棵子樹，Suspense 以外照常預渲染，而且 `'use client'` 的元件本身仍會被預渲染成 HTML，所以「降級成 CSR」不等於整頁都沒做預渲染（2026-10-26 補入，Prerender 定義、HTML 到 DOM 的時間線與流程圖見 [[nextjs-prerender-and-csr-bailout]]）
 
 g. 為什麼只有 `useSearchParams` 會觸發它，關鍵在<mark style="background: #FFF3A3A6;">建置期知不知道這個值</mark>
     路徑 `/dashboard/products` 在 `npm run build` 的當下是寫死在檔案系統裡的，Node.js 算得出來
@@ -155,6 +156,8 @@ k-3. <mark style="background: #BBFABBA6;">所以 `<Suspense>` 加不加，決定
     一句話：<mark style="background: #FF5582A6;">兩者不是互相排斥的「二選一」</mark>，而是你在決定「希望哪一部分先在伺服器做完」。
     `useSearchParams` 的本質是在元件中呼叫這個 hook 會通知 Next.js「必須等到參數確認後才能完整呈現」，所以才需要在懸吊邊界（Suspense boundary）處把它隔離起來。
 
+    <mark style="background: #FF5582A6;">⚠️ 存疑（2026-10-26 查官方文件）</mark>：上表「不包 Suspense 整頁降級成全動態渲染」出自 Gemini，與官方說法不同。Next.js 錯誤頁（Missing Suspense boundary with useSearchParams）寫的是不包 Suspense 會讓整頁選擇使用者端渲染，而且 production build 的靜態頁會直接失敗。另外官方詞彙表把「請求時才渲染」叫 Dynamic rendering，而本表「靜態／動態」的分法大方向正確。要真的做成動態渲染，官方建議在 Server Component 先呼叫 `connection()`。
+
 l. <mark style="background: #BBFABBA6;">解法三：改在 Server Component 用 searchParams prop</mark>
     如果讀取點就在 `page.tsx`，根本不需要動用 client hook
     App Router 的 Page 元件原生就會收到一個 `searchParams` prop，直接在伺服器端拿到參數，連 client boundary 都不用開
@@ -189,6 +192,8 @@ n. <mark style="background: #D2B3FF;">延伸備註</mark>：bailout 這個詞在
     另外還有 React 自己的 <mark style="background: #ADCCFFA6;">render bailout</mark>（state 沒變就跳過 re-render），那是執行期的事情，兩者不要混在一起
 
 ## 關聯筆記（附關聯原因）
+
+- [[nextjs-prerender-and-csr-bailout]] — 本篇 (f) 只講 Bailout 的定義，那篇補上 Prerender 是什麼、預渲染的 HTML 還不是 DOM 的時間線，以及 Bailout 與 Prerender 的流程圖，另有可 hover 的名詞與練習題。
 
 - [[FCP-5.24秒-Next.js效能診斷實錄-從指令到根因]] — 本篇 (i) 只給結論「整站 bailout 會讓 FCP 變 5.24 秒」，那篇是同一件事的原始碼層級實證：怎麼用 grep 找到誰在呼叫 `useSearchParams`、`react-dom` 內部怎麼 throw、產物 HTML 裡留下什麼墓碑。本篇是入口，那篇是深潛。
 - [[App-Router與Pages-Router-RSC與Streaming-SSR-loading與error約定]] — 本篇 (k)(l) 用到的 `<Suspense>` 與 Server Component 的 `searchParams` prop 都是 App Router 才有的東西，那篇解釋這兩種 Router 的世界觀差在哪。

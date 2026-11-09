@@ -303,6 +303,21 @@ h3 { font-size: 1.05em; color: #3d4f3f; margin: 22px 0 8px; }
     <tr><td>QUIC</td><td>RFC 9000，2021-05</td><td>傳輸與加密握手合併，約 1</td></tr>
   </table>
   <p><mark>TCP 較老、TLS 較新；TLS 疊在 TCP 上，所以 TCP 握手必在前。</mark>MDN 說 TLS「five more round trips」是把圖上的 5 條單趟箭頭當成往返；一個 RTT 含去與回兩條箭頭。</p>
+  <h3>TCP 三向握手：一步一步看（x、y 可自己改）</h3>
+  <p class="hint">預設 x＝100、y＝300，與 RFC 9293 §3.5 的範例相同。x、y 是<b>位元組</b>編號的起始值（ISN），不是封包編號；握手的對方是 web server，不是 root name server。</p>
+  <div class="grid">
+    <div><label>客戶端起始序號 x</label><input type="number" id="hsX" value="100"></div>
+    <div><label>伺服器起始序號 y</label><input type="number" id="hsY" value="300"></div>
+  </div>
+  <div class="fc-bar"><button class="btn" id="hsNext">下一步 ▶</button><button class="btn ghost" id="hsReset">重來</button></div>
+  <div class="two">
+    <div class="box"><h3>客戶端（瀏覽器）</h3>狀態：<span class="state sleep" id="hsCS">尚未連線</span></div>
+    <div class="box"><h3>伺服器（web server）</h3>狀態：<span class="state sleep" id="hsSS">LISTEN</span></div>
+  </div>
+  <div class="info" id="hsInfo" style="position:static;min-height:70px"><span class="tag">提示</span>按「下一步」開始第 1 步。</div>
+  <div class="tscroll"><table id="hsTable"><thead><tr><th>步驟</th><th>方向</th><th>旗標</th><th>seq</th><th>ack</th></tr></thead><tbody></tbody></table></div>
+  <p class="hint">SYN 占一個序號，所以確認號是 x+1、y+1，不是 x、y。第 3 步之後連線才算建立，才開始傳資料。</p>
+
 </section>
 
 <!-- ============ 5. event loop ============ -->
@@ -638,6 +653,36 @@ document.querySelectorAll('#rdChips .btn').forEach(b=>b.onclick=()=>{ rdDir=b.da
 renderReduce();
 
 
+
+/* ============================== 三向握手逐步 ============================== */
+let hsStep = 0;
+function hsSteps(){
+  const x=+$('hsX').value||0, y=+$('hsY').value||0;
+  return [
+    {dir:'客戶端 → 伺服器',flags:'SYN',seq:x,ack:'—',cs:'SYN-SENT',ss:'LISTEN',
+     t:`客戶端說：我想建立連線，我這一側的位元組編號從 ${x} 開始。還沒送任何資料。`},
+    {dir:'伺服器 → 客戶端',flags:'SYN + ACK',seq:y,ack:x+1,cs:'SYN-SENT',ss:'SYN-RECEIVED',
+     t:`同一個封包做兩件事：宣告我這一側從 ${y} 開始（SYN），並確認收到你的 ${x}，下一個請從 ${x+1} 給我（ACK）。`},
+    {dir:'客戶端 → 伺服器',flags:'ACK',seq:x+1,ack:y+1,cs:'ESTABLISHED',ss:'ESTABLISHED',
+     t:`客戶端確認收到你的 ${y}，下一個請從 ${y+1} 給我。連線建立，接下來才開始傳資料；伺服器收到這個 ACK 後也進入 ESTABLISHED。`}
+  ];
+}
+function hsRender(){
+  const st = hsSteps();
+  $('hsTable').tBodies[0].innerHTML = st.slice(0,hsStep).map((r,i)=>`<tr><td>${i+1}</td><td>${r.dir}</td><td>${r.flags}</td><td>${r.seq}</td><td>${r.ack}</td></tr>`).join('');
+  const cur = hsStep>0 ? st[hsStep-1] : null;
+  const cs = $('hsCS'), ss = $('hsSS');
+  cs.textContent = cur ? cur.cs : '尚未連線'; ss.textContent = cur ? cur.ss : 'LISTEN';
+  cs.className = 'state ' + (cur && cur.cs==='ESTABLISHED' ? 'run' : 'wake'); ss.className = 'state ' + (cur && cur.ss==='ESTABLISHED' ? 'run' : 'wake');
+  if(!cur){ cs.className='state sleep'; ss.className='state sleep'; }
+  $('hsInfo').innerHTML = cur ? `<span class="tag">第 ${hsStep} 步：${cur.flags}</span>${cur.t}` : '<span class="tag">提示</span>按「下一步」開始第 1 步。';
+  $('hsNext').disabled = hsStep>=3;
+}
+$('hsNext').onclick=()=>{ if(hsStep<3){ hsStep++; hsRender(); } };
+$('hsReset').onclick=()=>{ hsStep=0; hsRender(); };
+['hsX','hsY'].forEach(id=>$(id).addEventListener('input',hsRender));
+hsRender();
+
 /* ============================== 測驗 ============================== */
 const fills = [
   '瀏覽器查 DNS 的單位是 [[hostname（主機名稱）]]，不是 domain。',
@@ -655,6 +700,8 @@ const fills = [
   'OSI 編號由下往上數，第 [[1]] 層是實體層（硬體），第 [[7]] 層是應用層（軟體）。',
   'DNS 預設走 [[UDP]] 的 [[53]] 埠；UDP 是傳輸方式，53 是埠號，兩者是獨立的兩件事。',
   'Input 與 Output 的方向，是站在 [[正在執行這次 I/O 的那個程式]] 的角度看；同一批位元組，客戶端送出是 [[Output]]，伺服器收到是 [[Input]]。',
+  '三向握手的第二步是 [[SYN-ACK]]：同一個封包宣告伺服器自己的起始序號 y，並確認收到客戶端的 x，確認號為 [[x+1]]。',
+  'event loop 必須跑在 [[一條執行緒]] 上；libuv 官方說一個 loop 同一時間只綁一條執行緒。',
   'epoll 的 e 是 [[event]]，核心裡實作它的檔案叫 [[eventpoll.c]]。',
   'root name server 回的不是 IP，而是 [[TLD name server 的名單（轉介 referral）]]。'
 ];
@@ -677,6 +724,9 @@ const tfs = [
   {q:'Multi-processing 是比執行緒大一級的「單位」。',a:false,e:'大一級的單位是處理程序（Process）；Multi-processing 是用多個處理程序一起工作的做法。'},
   {q:'子處理程序修改了模組層級變數，父處理程序也會看到。',a:false,e:'各自有獨立記憶體，要用 Pipe、Queue、socket 等 IPC 傳回去；同一處理程序內的執行緒才共用變數。'},
   {q:'同一批 HTTP 請求位元組，對客戶端是 Output，對伺服器也是 Output。',a:false,e:'方向以各自的程式為第一人稱：客戶端送出是 Output，伺服器從 socket 讀到是 Input；回應則反過來。'},
+  {q:'TCP 三向握手裡的序號 x、y 是封包的編號。',a:false,e:'它們是位元組編號的起始值（ISN），由兩端各自挑選；SYN 占一個序號，所以確認號是 x+1、y+1。'},
+  {q:'TCP 三向握手的另一端是 root name server。',a:false,e:'握手的對方是網站的 web server；root name server 是 DNS 查詢鏈上的角色，DNS 在握手之前。'},
+  {q:'libuv 的 Worker Pool 執行緒也會跑 event loop。',a:false,e:'它們只跑阻塞工作（檔案系統、DNS 的 getaddrinfo 等），做完把結果交回 loop 所在的執行緒；fs.readFile 的回呼仍在主執行緒（threadId 0）執行。'},
   {q:'DNS 用 UDP 53，所以 DNS 只能走 UDP。',a:false,e:'UDP 是傳輸方式、53 是埠號；DNS 也能走 TCP 53（截斷、區域傳輸，RFC 7766 要求必須支援）、DoT 的 TCP 853、DoQ 的 UDP 853，或 DoH 走 HTTPS。'},
   {q:'第 1 層是應用層，第 7 層是實體層。',a:false,e:'相反：OSI 編號由下往上，第 1 層是實體層（硬體），第 7 層是應用層（軟體）。'},
   {q:'頻寬變大，延遲就一定變小。',a:false,e:'頻寬是水管多粗，latency 是水管多長；加粗水管縮短不了長度，延遲主要受距離與往返次數影響。'},

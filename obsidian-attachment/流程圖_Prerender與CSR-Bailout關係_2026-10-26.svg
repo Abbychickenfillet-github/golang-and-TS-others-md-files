@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 1000" role="img" aria-labelledby="ttl dsc" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <title id="ttl">Prerender 與 CSR Bailout 的關係流程圖</title>
+  <desc id="dsc">元件在 next build 被執行，判斷是否碰到建置期無法得知的東西，再判斷外層有沒有 Suspense，最後到瀏覽器端怎麼走。</desc>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <style>
+      .t{font-size:14px;fill:#0f172a}
+      .tb{font-size:14px;fill:#0f172a;font-weight:700}
+      .lb{font-size:13px;fill:#7c2d12;font-weight:700}
+      .ln{stroke:#334155;stroke-width:2;fill:none}
+      .sm{font-size:12px;fill:#475569}
+    </style>
+  </defs>
+  <rect width="1100" height="1000" rx="14" fill="#ffffff" stroke="#cbd5e1"/>
+
+  <!-- 起點：端點 -->
+  <rect x="400" y="16" width="200" height="44" rx="22" fill="#e2e8f0" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="43" text-anchor="middle" class="tb">元件進入 next build</text>
+  <path class="ln" d="M500,60 V90" marker-end="url(#ar)"/>
+
+  <!-- 處理：執行元件函式 -->
+  <rect x="330" y="90" width="340" height="56" fill="#dbeafe" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="114" text-anchor="middle" class="tb">執行元件函式</text>
+  <text x="500" y="134" text-anchor="middle" class="sm">Server 與 Client Component 都會被執行</text>
+  <path class="ln" d="M500,146 V162" marker-end="url(#ar)"/>
+
+  <!-- 決策 1 -->
+  <polygon points="500,162 660,226 500,290 340,226" fill="#fef3c7" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="214" text-anchor="middle" class="tb">渲染途中碰到</text>
+  <text x="500" y="233" text-anchor="middle" class="tb">建置期無法得知的東西？</text>
+  <text x="500" y="252" text-anchor="middle" class="sm">useSearchParams、ssr: false、丟錯</text>
+
+  <!-- 否 -->
+  <path class="ln" d="M340,226 H230 V330" marker-end="url(#ar)"/>
+  <text x="285" y="216" text-anchor="middle" class="lb">否</text>
+  <!-- 文件：HTML -->
+  <path d="M90,330 H370 V396 Q300,376 230,396 T90,396 Z" fill="#dcfce7" stroke="#334155" stroke-width="2"/>
+  <text x="230" y="356" text-anchor="middle" class="tb">完整預渲染</text>
+  <text x="230" y="376" text-anchor="middle" class="sm">HTML 字串 + RSC Payload</text>
+  <text x="230" y="392" text-anchor="middle" class="sm">存成 .next/server/app 下的 .html</text>
+
+  <!-- 是 -->
+  <path class="ln" d="M660,226 H730 V284" marker-end="url(#ar)"/>
+  <text x="695" y="216" text-anchor="middle" class="lb">是</text>
+
+  <!-- 決策 2 -->
+  <polygon points="730,284 860,340 730,396 600,340" fill="#fef3c7" stroke="#334155" stroke-width="2"/>
+  <text x="730" y="336" text-anchor="middle" class="tb">外層有</text>
+  <text x="730" y="356" text-anchor="middle" class="tb">Suspense 包住？</text>
+
+  <!-- 沒有 -->
+  <path class="ln" d="M860,340 H900" marker-end="url(#ar)"/>
+  <text x="880" y="330" text-anchor="middle" class="lb">沒有</text>
+  <rect x="900" y="296" width="190" height="88" rx="30" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
+  <text x="995" y="324" text-anchor="middle" class="tb">next build 報錯</text>
+  <text x="995" y="344" text-anchor="middle" class="sm">Missing Suspense boundary</text>
+  <text x="995" y="362" text-anchor="middle" class="sm">官方說明：整頁會變 CSR</text>
+
+  <!-- 有 -->
+  <path class="ln" d="M730,396 V436" marker-end="url(#ar)"/>
+  <text x="746" y="420" class="lb">有</text>
+  <rect x="580" y="436" width="300" height="92" fill="#ffe4e6" stroke="#334155" stroke-width="2"/>
+  <text x="730" y="460" text-anchor="middle" class="tb">只放棄這棵子樹（Bailout）</text>
+  <text x="730" y="481" text-anchor="middle" class="sm">HTML 裡放最近 Suspense 的 fallback</text>
+  <text x="730" y="499" text-anchor="middle" class="sm">並留下 BAILOUT_TO_CLIENT_SIDE_RENDERING</text>
+  <text x="730" y="517" text-anchor="middle" class="sm">Suspense 以外的部分照常預渲染</text>
+
+  <!-- 匯流 → 瀏覽器 -->
+  <path class="ln" d="M230,396 V598 H330" marker-end="url(#ar)"/>
+  <path class="ln" d="M730,528 V598 H670" marker-end="url(#ar)"/>
+  <rect x="330" y="570" width="340" height="56" fill="#dbeafe" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="594" text-anchor="middle" class="tb">瀏覽器解析 HTML 字串</text>
+  <text x="500" y="614" text-anchor="middle" class="sm">此刻才建立 DOM（伺服器端沒有 DOM）</text>
+  <path class="ln" d="M500,626 V660" marker-end="url(#ar)"/>
+
+  <rect x="330" y="660" width="340" height="56" fill="#dbeafe" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="684" text-anchor="middle" class="tb">下載並執行 JS chunk</text>
+  <text x="500" y="704" text-anchor="middle" class="sm">React 開始接手</text>
+  <path class="ln" d="M500,716 V730" marker-end="url(#ar)"/>
+
+  <!-- 決策 3 -->
+  <polygon points="500,730 650,790 500,850 350,790" fill="#fef3c7" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="782" text-anchor="middle" class="tb">這棵子樹的 HTML</text>
+  <text x="500" y="802" text-anchor="middle" class="tb">是預渲染的結果嗎？</text>
+
+  <path class="ln" d="M350,790 H230 V850" marker-end="url(#ar)"/>
+  <text x="290" y="780" text-anchor="middle" class="lb">是</text>
+  <rect x="90" y="850" width="280" height="96" fill="#dcfce7" stroke="#334155" stroke-width="2"/>
+  <text x="230" y="876" text-anchor="middle" class="tb">Hydration</text>
+  <text x="230" y="898" text-anchor="middle" class="sm">hydrateRoot 認領既有 DOM</text>
+  <text x="230" y="916" text-anchor="middle" class="sm">只掛事件，不重建節點</text>
+  <text x="230" y="934" text-anchor="middle" class="sm">看得到的時間 = FCP 快</text>
+
+  <path class="ln" d="M650,790 H730 V850" marker-end="url(#ar)"/>
+  <text x="690" y="780" text-anchor="middle" class="lb">否（Bailout）</text>
+  <rect x="580" y="850" width="300" height="96" fill="#ffe4e6" stroke="#334155" stroke-width="2"/>
+  <text x="730" y="876" text-anchor="middle" class="tb">瀏覽器端重新渲染這個邊界</text>
+  <text x="730" y="898" text-anchor="middle" class="sm">React 重試渲染，成功就取代 fallback</text>
+  <text x="730" y="916" text-anchor="middle" class="sm">要等 JS 跑完才有內容</text>
+  <text x="730" y="934" text-anchor="middle" class="sm">拖慢的是 LCP 與可用時間</text>
+
+  <!-- 圖例 -->
+  <g transform="translate(900,560)">
+    <text x="0" y="0" class="tb">圖例（ISO 5807）</text>
+    <rect x="0" y="12" width="46" height="22" rx="11" fill="#e2e8f0" stroke="#334155" stroke-width="1.5"/>
+    <text x="56" y="28" class="sm">端點</text>
+    <rect x="0" y="44" width="46" height="22" fill="#dbeafe" stroke="#334155" stroke-width="1.5"/>
+    <text x="56" y="60" class="sm">處理步驟</text>
+    <polygon points="23,76 46,92 23,108 0,92" fill="#fef3c7" stroke="#334155" stroke-width="1.5"/>
+    <text x="56" y="96" class="sm">判斷</text>
+    <path d="M0,118 H46 V138 Q35,132 23,138 T0,138 Z" fill="#dcfce7" stroke="#334155" stroke-width="1.5"/>
+    <text x="56" y="132" class="sm">文件 / 產物</text>
+    <rect x="0" y="150" width="46" height="22" fill="#ffe4e6" stroke="#334155" stroke-width="1.5"/>
+    <text x="56" y="166" class="sm">Bailout 路徑</text>
+  </g>
+</svg>

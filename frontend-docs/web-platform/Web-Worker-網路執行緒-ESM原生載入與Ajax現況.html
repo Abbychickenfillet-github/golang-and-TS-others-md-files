@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Web Worker、網路執行緒、ESM 原生載入與 Ajax 現況</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>Web Worker、網路執行緒、ESM 原生載入與 Ajax 現況</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#web-worker</span><span class="pill">#esm</span><span class="pill">#ajax</span><span class="pill">#browser</span></div>
+  <div class="meta">
+    <span>更新於 2026-11-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/c348a65efec477ce" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/61d2efdc297715a5" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/9fd87c7577a347de" target="_blank" rel="noopener">原始對話 3</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+
+
+<article class="card">
+<h1 id="web-workeresm-ajax">Web Worker、網路執行緒、ESM 原生載入與 Ajax 現況</h1>
+<p>本篇重點 a–l，共 12 個</p>
+<h2 id="_1">重點整理</h2>
+<h3 id="web-worker-web-worker">一、Web Worker（對話 Web Worker 環境限制）</h3>
+<p>(a) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Web Worker 跑在獨立於 window 的背景執行緒</mark>，所以<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">沒有 window 也沒有 document</mark>，不能直接操作 DOM。<br />
+(b) Worker 與主執行緒的溝通流程：主執行緒呼叫 <code>worker.postMessage(data)</code> 把資料交給 Worker → Worker 在背景計算（也可以用 <code>fetch()</code> 抓資料）→ Worker 呼叫 <code>postMessage(result)</code> 把結果傳回 → 主執行緒收到後自己更新 document。<br />
+(c) 為什麼需要：瀏覽器的 JS 預設單執行緒，主執行緒同時負責渲染與使用者互動，若一項運算花 3 秒，畫面會凍結。Worker 就是把重運算搬去背景的「工讀生」。<br />
+(d) 適用情境：大數據運算、大型圖片壓縮或影片轉檔、Excel 解析、AI 推論與加解密、背景輪詢與 WebSocket。<br />
+(e) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">XMLHttpRequest</mark> 出現在 MDN 的 Worker 文件，是因為 Worker 規格比 fetch 早出現，現在 Worker 內已可使用 <code>fetch()</code>。</p>
+<h3 id="web-api-js">二、網路執行緒與 Web API（對話 JS 標籤阻塞問題）</h3>
+<p>(f) DevTools 網路瀑布圖：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">綠色 = 等待伺服器回應（TTFB，首位元組時間）</mark>，<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">藍色 = 下載內容的傳輸時間</mark>。timing 分頁可看各階段耗時。<br />
+(g) 瀑布圖上的「1.48s」是從開始錄製算起的第 1.48 秒，不是時鐘的 1 點 18 分。<br />
+(h) 當瀏覽器 parse HTML 遇到 <code>&lt;script src="app.js"&gt;</code>，主執行緒把下載任務交給<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">網路執行緒（Network Thread）</mark>，由它負責 HTTP 請求、TCP/IP 與 SSL 握手，主執行緒不必空等。<br />
+(i) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Web API</mark> 是瀏覽器提供給 JS 呼叫的介面（<code>fetch</code>、<code>setTimeout</code>、DOM、<code>localStorage</code>）。兩者關係：網路執行緒是底層的「運輸部門」，Web API 是 JS 用來聯絡各部門的「窗口」。<code>fetch()</code> 觸發後，底層請網路執行緒發送請求，抓完再把結果丟回事件佇列。</p>
+<h3 id="es-module-ajax">三、ES Module 與 Ajax（對話 結束對話）</h3>
+<p>(j) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">ES Modules 讓腳本在瀏覽器原生運行</mark>：Safari 10.1（2017-03）、Chrome 61（2017-09）先後支援 <code>&lt;script type="module"&gt;</code>，不再需要 Webpack、Browserify、RequireJS 把檔案打包。<br />
+   ⚠️ 存疑／更正：Gemini 說 Firefox 60 在「2018 年初」支援，Firefox 60 實際約 2018 年 5 月釋出，請以 MDN 相容表為準。<br />
+(k) ESM 與進程的關係：沒有新增進程類型。<code>type="module"</code> 預設 <code>defer</code>（不阻塞渲染）→ 網路進程對每個 import 發獨立請求 → 渲染進程的 V8 因 import/export 是靜態的，能在執行前先建好依賴樹。模組預設<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">嚴格模式</mark>，且跨網域載入受 CORS 限制。<br />
+(l) Ajax 還有人用：<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">AJAX（Asynchronous JavaScript and XML）</mark>的概念（不重新整理就向伺服器要資料並局部更新）已是標準，但 XML 已被 JSON 取代，寫法改用 <code>fetch</code>、Axios、TanStack Query、SWR。</p>
+<h2 id="_2">各對話來源</h2>
+<h3 id="web-worker-2026-11-05-httpsgeminigooglecomappc348a65efec477ce">Web Worker 環境限制（2026-11-05 讀取）— https://gemini.google.com/app/c348a65efec477ce</h3>
+<p>使用者：所以是什麼環境 document嗎？我記得node.js沒有window也沒有document<br />
+Gemini：Web Worker 中的 JavaScript 運行在獨立於 window 的執行緒環境，因此裡面也沒有 document 物件，需透過 postMessage() 傳回主執行緒再更新 document。<br />
+使用者：但現在比較少用XMLHttpRequest了？所以到底何謂使用web worker<br />
+Gemini：現代已改用 fetch() 或 Axios；使用 Web Worker 就是把吃重的任務搬到背景執行緒，避免主執行緒卡死（詳見上方 a–e）。</p>
+<h3 id="js-2026-11-05-httpsgeminigooglecomapp61d2efdc297715a5">JS 標籤阻塞問題（2026-11-05 讀取）— https://gemini.google.com/app/61d2efdc297715a5</h3>
+<p>使用者：藍色和綠色分別是什麼？　→　Gemini：綠色是 TTFB，藍色是下載時間。<br />
+使用者：我看它等待的時候是從 1 點 18 分。　→　Gemini：是第 1.48 秒進入排隊狀態。<br />
+使用者：wikilink-index.json　→　Gemini：約 3 秒多開始載入，排隊後順利下載完成。<br />
+使用者：是由網路執行緒去下載JS？何謂網路執行緒 Web API嗎　→　Gemini：是，由網路執行緒負責下載；Web API 是 JS 呼叫瀏覽器功能的介面（詳見 f–i）。</p>
+<h3 id="2026-11-05-httpsgeminigooglecomapp9fd87c7577a347de">結束對話（2026-11-05 讀取）— https://gemini.google.com/app/9fd87c7577a347de</h3>
+<p>使用者：Es module跟網頁瀏覽器的進程有什麼關係　他是可以讓腳本在瀏覽器原生運行嗎 2017年<br />
+Gemini：是，2017 年前後主流瀏覽器陸續支援 <code>&lt;script type="module"&gt;</code>（詳見 j–k）。<br />
+使用者：Ajax還有人在用嗎<br />
+Gemini：還有，只是改叫 Fetch / Axios / 框架資料層（詳見 l）。</p>
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本／時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Web Workers API</td>
+<td><a href="https://developer.mozilla.org/zh-TW/docs/Web/API/Web_Workers_API">MDN Web Workers API</a></td>
+<td>官方文件，未於本次重新抓取，請自行核對版本</td>
+</tr>
+<tr>
+<td>script type=module</td>
+<td><a href="https://developer.mozilla.org/zh-TW/docs/Web/HTML/Element/script">MDN script 元素</a></td>
+<td>官方文件，未於本次重新抓取</td>
+</tr>
+<tr>
+<td>Chrome 網路面板</td>
+<td><a href="https://developer.chrome.com/docs/devtools/network/reference">Chrome DevTools Network</a></td>
+<td>官方文件，未於本次重新抓取</td>
+</tr>
+<tr>
+<td>三篇對話原文</td>
+<td>見 frontmatter sources</td>
+<td>Gemini 對話，2026-11-05 讀取</td>
+</tr>
+</tbody>
+</table>
+<p>相關筆記：<span class="wikilink" title="Obsidian 連結：事件循環-Event-Loop-微任務與巨任務">事件循環-Event-Loop-微任務與巨任務</span>（網路與主執行緒如何拋回事件佇列）、<span class="wikilink" title="Obsidian 連結：ESM模組作用域-為何不需要IIFE-與傳統Script對比">ESM模組作用域-為何不需要IIFE-與傳統Script對比</span>（ESM 的作用域與嚴格模式）、<span class="wikilink" title="Obsidian 連結：V8與libuv協同工作原理-非同步IO">V8與libuv協同工作原理-非同步IO</span>（執行緒分工的同類概念）。</p>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-11-05</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

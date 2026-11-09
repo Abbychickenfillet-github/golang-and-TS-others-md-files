@@ -53,5 +53,5 @@ npm 內建認得幾個**慣例保留字**，這幾個可以省略 `run`:
 
 - [[next-turbopack-server-chunks-hash-comparison]] — 同一個專案，追 CORS 問題時順便釐清的 Turbopack chunks 懶編譯行為
 - [[09-npm-scripts-pre-post-生命週期鉤子]] — 本篇的下一層：`run` 找到 script 之後，npm 還會自動幫你跑 `preX` 與 `postX`
-- [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】|03-前端開發工具（打包 buildtime）]] — 本篇講「`npm run build` 這根線怎麼被拉動」，那篇講「線上串著的轉譯、Lint、壓縮、打包各自做什麼」，那篇開頭的〈buildtime 全流程地圖〉把兩者逐步對照
+- [[03-前端開發工具-【打包buildtime】轉譯Lint與Parser-|03-前端開發工具（打包 buildtime）]] — 本篇講「`npm run build` 這根線怎麼被拉動」，那篇講「線上串著的轉譯、Lint、壓縮、打包各自做什麼」，那篇開頭的〈buildtime 全流程地圖〉把兩者逐步對照
 - [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】|04-V8引擎完整管線（編譯 runtime）]] — 邊界：`npm run build` 跑完 buildtime 就結束了，瀏覽器拿到產物之後的 runtime 編譯是另一條線

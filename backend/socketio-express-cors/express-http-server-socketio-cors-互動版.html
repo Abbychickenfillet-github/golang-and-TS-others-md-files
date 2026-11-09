@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Express http server 與 Socket.IO CORS 互動版</title>
+<style>
+  :root {
+    --bg: #f7f8fa; --card: #ffffff; --text: #1d2330; --muted: #5b6475; --line: #d5dae3;
+    --accent: #0b5fff; --ok: #0a7a3d; --bad: #b3261e; --mark: #fff3a3;
+    --box: #eaf1ff; --box-line: #0b5fff; --warn: #fff1e0; --warn-line: #c25b00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151c; --card: #1a1f2a; --text: #e8ecf4; --muted: #a1abbd; --line: #333b4b;
+      --accent: #6ea0ff; --ok: #5fd58f; --bad: #ff8f87; --mark: #5a4f10;
+      --box: #1d2b4a; --box-line: #6ea0ff; --warn: #3a2a14; --warn-line: #ffb067;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.75 system-ui, "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.2rem; margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin: 12px 0; }
+  code, pre { font-family: ui-monospace, Consolas, monospace; font-size: .92em; }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); }
+  button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 8px; padding: 6px 12px; }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible, .node:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .blank { display: inline-block; min-width: 7em; border-bottom: 2px dashed var(--accent); color: transparent;
+    cursor: pointer; padding: 0 6px; background: none; border-top: 0; border-left: 0; border-right: 0; border-radius: 0; }
+  .blank.open { color: var(--ok); border-bottom-style: solid; background: var(--mark); font-weight: 600; }
+  .answer { display: none; margin-top: 10px; padding: 10px 12px; border-left: 4px solid var(--ok); background: var(--bg); }
+  .answer.show { display: block; }
+  .tf { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .fb { margin-top: 8px; font-weight: 600; }
+  .fb.ok { color: var(--ok); } .fb.bad { color: var(--bad); }
+  svg { width: 100%; height: auto; display: block; }
+  .node { cursor: pointer; }
+  .node rect, .node polygon { fill: var(--box); stroke: var(--box-line); stroke-width: 2; }
+  .node.warn rect, .node.warn polygon { fill: var(--warn); stroke: var(--warn-line); }
+  .node.sel rect, .node.sel polygon { stroke-width: 4; }
+  .node text { fill: var(--text); font-size: 14px; text-anchor: middle; pointer-events: none; }
+  .edge { stroke: var(--muted); stroke-width: 2; fill: none; marker-end: url(#arr); }
+  .edge-label { fill: var(--muted); font-size: 12px; text-anchor: middle; }
+  #detail { min-height: 5.5em; }
+  mark { background: var(--mark); color: inherit; padding: 0 2px; border-radius: 3px; }
+  a { color: var(--accent); }
+  .idx { color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Express http server 與 Socket.IO 的 CORS</h1>
+  <p class="sub">本篇重點 a–e，共 5 個。互動：點流程圖方框看說明，點虛線填空看答案，是非題與申論題可自我測驗。筆記全文見 <code>express-http-server-socketio-cors.md</code>。</p>
+
+  <h2>a. 流程圖：一個請求怎麼走到 Express 或 Socket.IO</h2>
+  <div class="card">
+    <svg viewBox="0 0 860 400" role="img" aria-label="瀏覽器請求經過 Node http server 分流到 Express app 或 Socket.IO，Socket.IO 在握手時用 allowRequest 檢查 Origin">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+        </marker>
+      </defs>
+      <g class="node" tabindex="0" data-k="browser"><rect x="10" y="110" width="240" height="150" rx="10"/><text x="130" y="140">瀏覽器</text><text x="130" y="170">fetch 與 XHR：會被 CORS 檢查</text><text x="130" y="200">new WebSocket：不受 CORS 檢查</text><text x="130" y="230">兩者握手都會帶 Cookie</text></g>
+      <g class="node" tabindex="0" data-k="http"><rect x="300" y="150" width="170" height="70" rx="10"/><text x="385" y="180">Node http.Server</text><text x="385" y="200">createServer(app)</text></g>
+      <g class="node" tabindex="0" data-k="app"><rect x="520" y="20" width="170" height="70" rx="10"/><text x="605" y="50">Express app</text><text x="605" y="70">(req, res, next)</text></g>
+      <g class="node warn" tabindex="0" data-k="check"><polygon points="605,150 700,200 605,250 510,200"/><text x="605" y="196">allowRequest</text><text x="605" y="214">檢查 Origin</text></g>
+      <g class="node" tabindex="0" data-k="io"><rect x="520" y="300" width="170" height="70" rx="10"/><text x="605" y="330">Socket.IO Server</text><text x="605" y="350">on / emit 具名事件</text></g>
+      <g class="node warn" tabindex="0" data-k="deny"><rect x="740" y="175" width="100" height="50" rx="10"/><text x="790" y="205">拒絕連線</text></g>
+
+      <path class="edge" d="M250,185 L300,185"/><text class="edge-label" x="275" y="172">請求</text>
+      <path class="edge" d="M430,150 L520,70"/><text class="edge-label" x="460" y="100">一般 HTTP</text>
+      <path class="edge" d="M470,190 L510,200"/><text class="edge-label" x="490" y="182">upgrade</text>
+      <path class="edge" d="M605,250 L605,300"/><text class="edge-label" x="640" y="278">放行</text>
+      <path class="edge" d="M700,200 L740,200"/><text class="edge-label" x="720" y="190">否</text>
+    </svg>
+    <div id="detail" class="card" aria-live="polite">點上面任一方框，這裡會顯示說明。</div>
+  </div>
+
+  <h2>b. 填空（點虛線看答案）</h2>
+  <div class="card">
+    <p>1. <code>express()</code> 回傳的 <code>app</code> 本質是一個簽名為 <button class="blank" data-a="(req, res, next)">&nbsp;</button> 的函式，所以能直接傳給 <code>http.createServer</code>。</p>
+    <p>2. 要掛 Socket.IO 必須自己用 <button class="blank" data-a="http.createServer(app)">&nbsp;</button> 拿到 server 把手，不能只呼叫 <code>app.listen</code>，因為後者會 <button class="blank" data-a="另外建一個新的 http server">&nbsp;</button>。</p>
+    <p>3. Socket.IO 官方文件示範的初始化寫法是 <button class="blank" data-a="new Server(httpServer, options)">&nbsp;</button>。</p>
+    <p>4. <code>origin: "*"</code> 不能和 <button class="blank" data-a="credentials（Cookie）">&nbsp;</button> 一起使用，瀏覽器會擋掉回應。</p>
+    <p>5. WebSocket 連線 <button class="blank" data-a="不受 CORS 約束">&nbsp;</button>，所以要在握手時用 <button class="blank" data-a="allowRequest">&nbsp;</button> 自己檢查 Origin。</p>
+  </div>
+
+  <h2>c. 是非題</h2>
+  <div class="card" data-tf="false" data-why="&lt;mark&gt;CORS 只是瀏覽器的規則，伺服器關不掉它。&lt;/mark&gt;origin: &quot;*&quot; 是放寬到所有來源都可讀，不是停用。">
+    <p>1. <code>origin: "*"</code> 等於把 CORS 關掉。</p>
+    <div class="tf"><button data-v="true">是</button><button data-v="false">非</button></div><div class="fb"></div>
+  </div>
+  <div class="card" data-tf="true" data-why="MDN 與 Socket.IO 文件都寫明：credentials 為 true 時 Access-Control-Allow-Origin 必須是明確來源，不能是 *。">
+    <p>2. 帶 Cookie 的跨來源請求，不能使用 <code>Access-Control-Allow-Origin: *</code>。</p>
+    <div class="tf"><button data-v="true">是</button><button data-v="false">非</button></div><div class="fb"></div>
+  </div>
+  <div class="card" data-tf="false" data-why="Socket.IO 是自己的協定，WebSocket 只是它可選的傳輸之一，另外還有 HTTP long-polling。原生 WebSocket 客戶端連不上 Socket.IO 伺服器。">
+    <p>3. Socket.IO 就是 WebSocket 的一個實作，兩者可以互連。</p>
+    <div class="tf"><button data-v="true">是</button><button data-v="false">非</button></div><div class="fb"></div>
+  </div>
+  <div class="card" data-tf="true" data-why="協定層只有訊息 frame，沒有事件名稱。瀏覽器 API 才用 MessageEvent 與 onmessage 提供事件驅動的寫法，具名事件是 Socket.IO 加的。">
+    <p>4. WebSocket 協定本身沒有「事件名稱」，具名事件是 Socket.IO 這一層加上去的。</p>
+    <div class="tf"><button data-v="true">是</button><button data-v="false">非</button></div><div class="fb"></div>
+  </div>
+
+  <h2>d. 申論題（面試）</h2>
+  <div class="card">
+    <p>1. 請說明為什麼 <code>origin: "*"</code> 搭配 Cookie 登入的即時系統不安全，以及你會怎麼改。</p>
+    <button data-toggle="e1">顯示或隱藏參考答案</button>
+    <div class="answer" id="e1">
+      <p>WebSocket 不受 CORS 約束，所以靠 Cookie 認證的連線若不檢查 Origin，任何網站的腳本都能讓使用者的瀏覽器帶著登入狀態連進來，這就是跨站 WebSocket 劫持。</p>
+      <p>改法：a. cors.origin 改成明確白名單。b. 用 <code>allowRequest</code> 在握手階段檢查 Origin。c. 真正的授權要靠連線時驗證 token 或 session，不能只靠 Origin，因為非瀏覽器的客戶端可以偽造標頭。</p>
+    </div>
+  </div>
+  <div class="card">
+    <p>2. 你的專案有用 Express 嗎？請說明 Express 與 Node http 的關係。</p>
+    <button data-toggle="e2">顯示或隱藏參考答案</button>
+    <div class="answer" id="e2">
+      <p>本專案是 Next.js，Route Handler 由 Next 內部的 server 處理，我沒有自己建 http server。Express 是建在 Node <code>http</code> 之上的框架，<code>express()</code> 回傳 <code>(req, res, next)</code> 函式，<code>app.listen</code> 只是 <code>http.createServer(app).listen</code> 的語法糖。需要掛 WebSocket 時我會自己建 <code>httpServer</code>。</p>
+    </div>
+  </div>
+
+  <h2>e. 資料來源（含查證時間）</h2>
+  <div class="card">
+    <table>
+      <tr><th>主題</th><th>連結</th><th>版本或時間</th></tr>
+      <tr><td>Socket.IO 處理 CORS</td><td><a href="https://socket.io/docs/v4/handling-cors/">handling-cors</a></td><td>頁面標示更新 2026-10-06，查證 2026-10-11</td></tr>
+      <tr><td>Socket.IO 初始化</td><td><a href="https://socket.io/docs/v4/server-initialization/">server-initialization</a></td><td>頁面標示更新 2026-10-06，查證 2026-10-11</td></tr>
+      <tr><td>Socket.IO 運作原理</td><td><a href="https://socket.io/docs/v4/how-it-works/">how-it-works</a></td><td>頁面標示更新 2026-10-06，查證 2026-10-11</td></tr>
+      <tr><td>MDN CORS</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS">HTTP CORS</a></td><td>最後修改 2026-09-04，查證 2026-10-11</td></tr>
+      <tr><td>MDN WebSocket API</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API">WebSockets_API</a></td><td>最後修改 2026-09-12，查證 2026-10-11</td></tr>
+      <tr><td>react-markdown</td><td><a href="https://github.com/remarkjs/react-markdown">remarkjs/react-markdown</a></td><td>README 未標版本，查證 2026-10-11</td></tr>
+      <tr><td>Express 原始碼</td><td><a href="https://github.com/expressjs/express/blob/4.x/lib/application.js">application.js</a></td><td>4.x 分支，已直接對照，查證 2026-10-11</td></tr>
+    </table>
+    <p class="idx">存疑：<code>allowRequest</code> 是否同時套用在 WebSocket upgrade 請求，尚未逐行驗證原始碼，使用前請實測。</p>
+  </div>
+</main>
+
+<script>
+  var info = {
+    browser: '瀏覽器：CORS 的檢查只發生在這一端。fetch 與 XHR 發出請求後，瀏覽器依伺服器回的 Access-Control-* 標頭決定「腳本能不能讀到回應」，請求本身多半已經送達並被伺服器處理。若 credentials 為 include 而伺服器回 Allow-Origin 為 *，瀏覽器把回應當網路錯誤，因為這等於讓任何網站讀取訪客登入後的個人化資料。new WebSocket 的握手不受 CORS 管轄，Cookie 照樣會附上。',
+    http: 'Node http.Server：由 http.createServer(app) 建立。每個請求觸發 request 事件並交給 app，Upgrade 請求則觸發 upgrade 事件，Socket.IO 就是掛在這個事件上，所以兩者必須共用同一個 server。',
+    app: 'Express app：本質是 (req, res, next) 函式，用來跑中介層與路由。一般 HTTP 請求走這裡。',
+    check: 'allowRequest：Socket.IO 提供的握手檢查函式，拿到請求後呼叫 callback(錯誤, 是否放行)。因為 WebSocket 不受 CORS 約束，來源檢查要在這裡自己做。',
+    io: 'Socket.IO Server：在 Engine.IO 之上提供具名事件 on 與 emit、ack、rooms、自動重連。WebSocket 只是它可選的傳輸之一。',
+    deny: '拒絕連線：Origin 不在白名單時 callback 傳 false。注意沒有 Origin 的非瀏覽器請求仍需靠登入驗證擋。'
+  };
+  var detail = document.getElementById('detail');
+  document.querySelectorAll('.node').forEach(function (n) {
+    function pick() {
+      document.querySelectorAll('.node').forEach(function (x) { x.classList.remove('sel'); });
+      n.classList.add('sel');
+      detail.textContent = info[n.dataset.k];
+    }
+    n.addEventListener('click', pick);
+    n.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+  });
+  document.querySelectorAll('.blank').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var open = b.classList.toggle('open');
+      b.textContent = open ? b.dataset.a : ' ';
+    });
+  });
+  document.querySelectorAll('[data-tf]').forEach(function (card) {
+    var fb = card.querySelector('.fb');
+    card.querySelectorAll('button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var right = btn.dataset.v === card.dataset.tf;
+        fb.className = 'fb ' + (right ? 'ok' : 'bad');
+        fb.innerHTML = (right ? '答對了。' : '答錯了。') + card.dataset.why;
+      });
+    });
+  });
+  document.querySelectorAll('[data-toggle]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.getElementById(b.dataset.toggle).classList.toggle('show');
+    });
+  });
+</script>
+</body>
+</html>

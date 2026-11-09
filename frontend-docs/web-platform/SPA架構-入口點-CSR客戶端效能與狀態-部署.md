@@ -19,7 +19,7 @@ related:
   - "[[script載入方式+前因後果]]"
   - "[[SSR-renderToString與Hydration-伺服器端渲染流程]]"
   - "[[11-記憶體模型-stack-heap-動態配置-GC]]"
-  - "[[Cookie-與-Session]]"
+  - "[[1-Cookie-與-Session]]"
 updated: 2026-08-11
 ---
 

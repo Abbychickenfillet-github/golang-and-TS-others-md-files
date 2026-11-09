@@ -16,7 +16,7 @@ sources:
   - https://gemini.google.com/app/8641800775c043cc
   - https://gemini.google.com/app/c0190f9cd3bc8a08
 demo: 05-demo-find-短路與取得所有符合的索引.js
-updated: 2026-09-21
+updated: 2026-10-17
 ---
 
 # Array.prototype.find() — 短路、falsy 陷阱與取得所有索引
@@ -99,23 +99,115 @@ if (find1 !== undefined) { /* 真的有找到 */ }
 
 - (f) **7 個 falsy 值，其餘一律 truthy**：
 
-| falsy 值 | 說明 |
-|---|---|
-| `false` | 布林的假 |
-| `0` | 數字零 |
-| `-0` | **負零**。IEEE 754 有正零也有負零。`-0 === 0` 是 `true`，只有 `Object.is(-0, 0)`（`false`）和 `1/-0`（`-Infinity`）分得出來 |
-| `0n` | **BigInt 的零**。結尾的 `n` 是 BigInt 字面量語法，`typeof 0n === "bigint"` |
-| `""` | **空**字串（只有空的才 falsy） |
-| `null` | 明確的「沒有值」 |
-| `undefined` | 還沒被賦值 |
-| `NaN` | Not a Number |
-| `document.all` | **全語言唯一「是物件卻 falsy」的東西**，見下方 (f-2) |
+| falsy 值        | 說明                                                                                                                                                                                                        |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `false`        | 布林的假                                                                                                                                                                                                      |
+| `0`            | 數字零                                                                                                                                                                                                       |
+| `-0`           | **負零**。IEEE 754 有正零也有負零。`-0 === 0` 是 `true`，只有 `Object.is(-0, 0)`（`false`）和 `1/-0`（`-Infinity`）分得出來                                                                                                       |
+| `0n`           | **BigInt 的零**。結尾的 `n` 是 BigInt 字面量語法，`typeof 0n === "bigint"`                                                                                                                                             |
+| `""`           | **空**字串（只有空的才 falsy）                                                                                                                                                                                      |
+| `null`         | 明確的「沒有值」                                                                                                                                                                                                  |
+| `undefined`    | 還沒被賦值                                                                                                                                                                                                     |
+| `NaN`          | Not a Number                                                                                                                                                                                              |
+| `document.all` | **全語言唯一「是物件卻 falsy」的東西**，見下方 (f-2)。它是 `Document` 節點底下的屬性，回傳 `HTMLAllCollection`（型別由 WHATWG 維護的 HTML Standard 定義），內容是文件中的所有元素，見 (f-2-1)。所以當初在替這個特殊的內部行為命名時，HTML 規格的作者們就直接把這個識別標記跟文件物件（Document）綁一起；DDA 是一個用來存取 Document DOM 的東西。⚠️ 存疑：這兩句（來自先前對話）我查不到官方文件明講命名由來，MDN、HTML Standard、ECMA-262 都只說有這個內部標記，沒說 DDA 三個字母怎麼展開，先保留原句、不當作已證實 |
 
 - (f-2) ⭐ **`document.all` 是規範裡刻意開的後門**。它是 IE 時代用來抓元素的 API（`document.all.myId`）。當年很多網站用 `if (document.all)` 來**偵測是不是 IE**，如果其他瀏覽器實作它並讓它 truthy，就會被誤判成 IE 而走進爛的相容路徑。所以規範給它一個特殊內部標記 **`[[IsHTMLDDA]]`**，讓它：
   1. `Boolean(document.all)` → `false`
   2. `typeof document.all` → `"undefined"`（而不是 `"object"`）
   3. `document.all == null` → `true`
   你**永遠不需要用它**，記住它只是為了答面試題「falsy 有哪幾個」。
+
+  - (f-2-1) **「所有東西」指什麼？** 指文件裡的**所有元素（Element）**。HTML Standard 的原文是 `all` 屬性「must return an `HTMLAllCollection` rooted at the `Document` node, whose filter matches all elements」，意思是以 `document` 為根、過濾條件為「所有元素」。下表是 2026-10-17 在 Chrome 152 對 `example.com` 實測的結果：
+
+    | 項目 | 在 `document.all` 裡嗎 | 實測 |
+    |---|---|---|
+    | `<html>`、`<head>`、`<body>` | 在 | `document.all[0]` 是 `HTML`，`[1]` 是 `HEAD` |
+    | 所有後代元素（`<div>`、`<p>`、`<script>`…） | 在，依文件順序排列 | `length` 為 22，與 `querySelectorAll('*')` 的 22 相同 |
+    | 文字節點、註解節點 | 不在 | 集合裡找不到 `nodeType !== 1` 的成員 |
+    | `document` 本身 | 不在 | 它是集合的根（root），不是成員 |
+
+    「filter matches all elements」的 **filter（過濾條件）** 是規格定義 collection 的方式：collection 由「根（root）」加「filter」組成，瀏覽器從 root 往下依文件順序走過每個節點，對每個節點問一次 filter「要不要收」，回答 true 的就放進集合。`document.all` 的 filter 是「只要這個節點是元素就收」，所以文字節點與 `<!DOCTYPE>` 會被擋掉。因為集合是 live 的，之後新增或移除元素，`length` 會跟著變。可在 console 貼上這段驗證（2026-10-17 在 Chrome 152 實測：matched 22、docAll 22、sameOrder true、被擋掉的是 11 個 TEXT 與 1 個 DOCTYPE、新增一個 `div` 後 22 變 23）：
+
+    ```js
+    const filter = (node) => node.nodeType === Node.ELEMENT_NODE; // 規格說的 filter：是元素才收
+    const matched = [], rejected = [];
+    const walker = document.createTreeWalker(document, NodeFilter.SHOW_ALL); // 從 document 往下走過每個節點
+    let node;
+    while ((node = walker.nextNode())) {
+      if (filter(node)) matched.push(node);   // filter 回傳 true：收進集合
+      else rejected.push(node);               // filter 回傳 false：擋掉
+    }
+
+    console.log('自己走訪加 filter 收到的元素數', matched.length);
+    console.log('document.all.length', document.all.length);
+    console.log('內容與順序完全相同？', matched.length === document.all.length && matched.every((el, i) => el === document.all[i]));
+    console.log('被 filter 擋掉的節點 nodeType', rejected.map((n) => n.nodeType)); // 3 是文字、10 是 DOCTYPE
+
+    const before = document.all.length; // live 集合：新增元素後 length 會變
+    document.body.appendChild(document.createElement('div'));
+    console.log('新增一個 div 後', before, '→', document.all.length);
+    document.body.lastChild.remove();
+    ```
+
+    這段程式碼的四個讀法（2026-10-17 在 Chrome 152 實測）：
+
+    | 寫法 | 意思 |
+    |---|---|
+    | `NodeFilter.SHOW_ALL` | `createTreeWalker(root, whatToShow)` 的第二個參數 `whatToShow`，是**位元遮罩（bitmask）**，決定 walker 要停在哪幾種節點上。`SHOW_ALL` 是 `0xFFFFFFFF`（4294967295），每個位元都開，所以所有種類的節點都會走過。`SHOW_ELEMENT` 是 `1`、`SHOW_TEXT` 是 `4`，可用 `\|` 組合。實測 `SHOW_ALL` 走 34 個、`SHOW_ELEMENT` 走 22 個、`SHOW_TEXT` 走 11 個、`SHOW_ELEMENT \| SHOW_TEXT` 走 33 個 |
+    | 打 `NodeFilter.` 會跳出提示 | `NodeFilter` 是瀏覽器內建物件，`SHOW_ALL` 等是它的靜態常數；提示是 DevTools Console 的自動完成列出來的，不是 JavaScript 語法本身的功能 |
+    | `while ((node = walker.nextNode()))` | 外層括號是 `while (...)` 本身的語法；內層括號包住 `node = walker.nextNode()`。賦值運算式的值就是右邊的值，所以 `node` 被設成下一個節點，同時整個條件就是那個節點；走完時 `nextNode()` 回傳 `null`，是 falsy，迴圈結束。多包一層括號是慣例，用來告訴讀者與 ESLint「我是故意在條件裡賦值，不是把 `===` 打成 `=`」，這個坑見本篇 (g-2) |
+    | `(filter(node) ? matched : rejected).push(node)` | 三元運算子先選出一個陣列，再對選出的陣列呼叫 `push`。括號不能省：沒有括號時 `.push(node)` 只會綁在 `rejected` 上，條件為 true 時什麼都不會 push |
+
+    `filter` 在這裡是我們自己寫的函式：**輸入一個節點，輸出一個布林值**（`true` 收、`false` 擋），它不回傳元素，被收進集合的是「那個節點本身」。規格裡的 filter 是描述用的概念，不是實際存在的 JavaScript 函式。⚠️ 不要和 `createTreeWalker` 的第三個參數搞混，那個是另一個機制（回傳 `FILTER_ACCEPT`／`FILTER_SKIP`／`FILTER_REJECT`），本篇沒用到。若只是想取元素，`createTreeWalker(document, NodeFilter.SHOW_ELEMENT)` 一行就夠（實測數量同為 22），本篇用 `SHOW_ALL` 是為了把被擋掉的文字節點與 DOCTYPE 也印出來看。
+
+    **為什麼變數叫 `node` 而不叫 `element`？** 因為 `SHOW_ALL` 的 walker 走過的東西可能是 `Text`、`Comment`、`DocumentType`，它們是 `Node` 但不是 `Element`；在 `filter` 判斷之前就叫 `element` 會名不符實，讀的人會以為已經確定是元素。通過 `filter` 之後，裝進 `matched` 的才保證是 `Element`，所以後面比對時我才用 `el` 當名稱（`matched.every((el, i) => ...)`）。如果改用 `SHOW_ELEMENT`，walker 只會停在元素上，這時迴圈變數改叫 `element` 就是合理的。
+
+    程式裡的 `node` 與 `HTMLDivElement`、`HTMLElement`、`Element`、`Node`、`EventTarget` 是**同一條原型鏈（prototype chain）上的不同層**，越右邊越通用。`node` 只是一個變數名稱，指到的實際物件是哪一種，要看它是什麼節點。2026-10-17 在 Chrome 152 用 `Object.getPrototypeOf` 逐層往上走的實測結果：
+
+    | 實際物件 | 原型鏈（左邊最具體，右邊最通用） |
+    |---|---|
+    | `<div>` | `HTMLDivElement → HTMLElement → Element → Node → EventTarget → Object` |
+    | `<body>` | `HTMLBodyElement → HTMLElement → Element → Node → EventTarget → Object` |
+    | 文字節點 | `Text → CharacterData → Node → EventTarget → Object` |
+    | 註解節點 | `Comment → CharacterData → Node → EventTarget → Object` |
+    | `document` | `HTMLDocument → Document → Node → EventTarget → Object` |
+    | `<svg>` | `SVGSVGElement → SVGGraphicsElement → SVGElement → Element → Node → EventTarget → Object` |
+
+    | 這一層 | 負責提供什麼 | 本篇的關係 |
+    |---|---|---|
+    | `EventTarget` | `addEventListener`、`removeEventListener`、`dispatchEvent`，也就是「能被監聽事件」 | 最底層，連 `document` 都繼承它 |
+    | `Node` | `nodeType`、`nodeName`、`childNodes`、`parentNode` 等，也就是「在 DOM 樹上的一個節點」 | `TreeWalker` 走過的每個 `node` 都至少是 `Node`，所以才能讀 `node.nodeType` |
+    | `Element` | `tagName`、`id`、`className`、`querySelector` 等，也就是「元素」 | `filter` 條件 `nodeType === 1` 挑出的就是 `Element`，也就是 `document.all` 收的東西 |
+    | `HTMLElement` | `style`、`hidden`、`innerText`、`dataset` 等，也就是「HTML 元素共有的功能」 | `<div>`、`<p>` 都有；`<svg>` 沒有，它走 `SVGElement` 這條支線 |
+    | `HTMLDivElement` | `<div>` 自己專屬的少數屬性 | 最具體的一層，`node` 是 `<div>` 時就是它 |
+
+    所以 `filter` 把 `node` 判成元素，等於問「這個 `Node` 同時也是 `Element` 嗎」。實測 `div instanceof` 上述五個建構函式全為 `true`；`document.all` 裡的元素除了 HTML 元素，也可能是 SVG 元素，因為集合收的是 `Element`，不限 `HTMLElement`。
+
+  - (f-2-2) **什麼是「爛的相容路徑」？** 指舊網站裡**專門寫給 IE 的那一條 `if` 分支**。那條分支用了其他瀏覽器沒有的 IE 專屬 API，只要走進去就會報錯或版面壞掉：
+
+    ```js
+    if (document.all) {
+      // 路徑 A（IE 專屬，這就是「爛的相容路徑」）
+      el = document.all["menu"];
+      el.attachEvent("onclick", fn);        // 只有 IE 有；標準是 addEventListener
+    } else if (document.getElementById) {
+      // 路徑 B（W3C 標準）
+      el = document.getElementById("menu");
+      el.addEventListener("click", fn);
+    }
+    ```
+
+    若 Chrome／Firefox 把 `document.all` 做成普通的 truthy 物件，這段舊程式會誤判成 IE、走進路徑 A，然後在 `attachEvent` 那行丟出 `is not a function`（Chrome 152 實測 `typeof document.body.attachEvent` 為 `"undefined"`）。所以才讓 `if (document.all)` 判成 false，逼它走路徑 B。
+
+  - (f-2-3) **「讓瀏覽器自己決定，那不就防不到嗎？」** 這裡不是瀏覽器去識別「這個網站是誰」，也不是防禦誰，而是瀏覽器對**所有呼叫者一視同仁**，把 `document.all` 做成「**用得到、但偵測不到**」。兩件事要分開看：
+
+    | 網站的寫法 | 瀏覽器的行為 | 目的 |
+    |---|---|---|
+    | `document.all.myId`、`document.all[0]`、`document.all.length` | 照常運作 | 只是拿來「取元素」的舊網站不會壞 |
+    | `if (document.all)`、`typeof document.all`、`document.all == null` | 當作不存在 | 拿來「偵測 IE」的舊網站會改走標準路徑 |
+    | `document.all === undefined`、`'all' in document` | **偵測得到**：前者為 `false`、後者為 `true`（Chrome 152 實測） | 規範只擋最常見的三種寫法，沒有要擋全部 |
+
+    所以你的直覺是對的：這**不是**防偵測的機制，而是「賭舊網站大多用 `if (document.all)` 這種寫法」的相容性補丁。網站若改用嚴格相等或 `in` 運算子，仍然分得出來。W3C 郵件列表（2009-10）有人描述 WebKit 讓 `if (document.all)` 判成 false、`typeof document.all` 回傳 `"undefined"`，也有人說 Opera、WebKit、Firefox 在 `typeof` 這點上互通。⚠️ 我沒查到各瀏覽器「從哪個版本開始」的一手資料，所以不寫版本號與先後順序。
 
 - (f-3) **「其餘一律 truthy」比背清單更重要**。判斷方法是「**它在不在那 7 個裡**」，不是「它看起來像不像 false」：
 
@@ -388,6 +480,10 @@ console.log(onlineUser);   // ["alice", "online"]
 | 本篇 (g-2)(l)(m)(n) 的 Gemini 對話 | https://gemini.google.com/app/8641800775c043cc | Gemini Flash，2026-09-17 擷取 |
 | 賦值表達式的回傳值（`e = 2` 求值為 `2`） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Assignment | MDN 現行版本，2026-09-17 查證 |
 | 本篇 (g-3) 的 Gemini 對話（property accessor 為何是賦值目標） | https://gemini.google.com/app/c0190f9cd3bc8a08 | Gemini Flash，2026-09-21 擷取 |
+| (f-2-1) `document.all` 的定義與內容 | https://developer.mozilla.org/en-US/docs/Web/API/Document/all 、 https://developer.mozilla.org/en-US/docs/Web/API/HTMLAllCollection | MDN 現行版本（標示已棄用，建議改用 `querySelectorAll`），2026-10-17 查證 |
+| (f-2-1) `all` 屬性的規範原文（§16.3.3） | https://html.spec.whatwg.org/multipage/obsolete.html#dom-document-all | WHATWG HTML Standard Living Standard，2026-10-17 查證 |
+| (f-2-3) 瀏覽器讓 `document.all` 偽裝成 `undefined` 的歷史討論 | https://lists.w3.org/Archives/Public/public-html/2009Oct/0367.html 、 https://lists.w3.org/Archives/Public/public-html/2009Oct/0351.html | W3C public-html 郵件列表，2009-10；僅為討論串，非規範，2026-10-17 查證 |
+| (f-2) 實測 | 在 Chrome 152（Claude 內建瀏覽器）對 https://example.com 執行 console 指令 | 2026-10-17 實測 |
 | 屬性存取器（Property Accessors，`.` 與 `[]` 語法） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Property_accessors | MDN 現行版本，2026-09-21 查證 |
 | 解構賦值（Destructuring assignment） | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring | MDN 現行版本，2026-09-21 查證 |
 | 規範原文：AssignmentTargetType 與合法賦值目標 | https://tc39.es/ecma262/#sec-assignment-operators | ECMA-262，2026-09-21 查證 |

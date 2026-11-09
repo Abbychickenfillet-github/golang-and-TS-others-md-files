@@ -153,9 +153,24 @@ c. <mark style="background: #ADCCFFA6;">回到圖上：D跟E之間沒有畫箭�
 
 <mark style="background: #FF5582A6;">誠實講：libuv 官方 README 並沒有解釋這個名字的由來或縮寫意義</mark>，網路上流傳的各種「uv 代表 XXX」說法都查無官方出處，這裡不瞎猜、不寫進筆記當事實。比較重要、也查證得到的是**它實際做什麼**：
 
-- **事件迴圈（Event Loop）**：跨平台的事件迴圈實作，底層依系統分別用 Linux 的 `epoll`、macOS 的 `kqueue`、Windows 的 `IOCP`。
-- **非同步 I/O**：TCP/UDP socket、檔案讀寫、DNS 解析、檔案系統變化通知，全部做成非阻塞。
-- **Thread Pool（執行緒池）**：某些系統呼叫本質上是阻塞的（例如部分檔案系統操作、DNS 查詢），libuv 用背景執行緒池去跑這些阻塞呼叫，跑完再把結果丟回主執行緒的事件迴圈——這也是為什麼「JS 單執行緒」但「檔案 I/O 不會卡住整個程式」的底層原因。
+[libuv 官方文件](https://docs.libuv.org/en/v1.x/)（查證日 2026-11-08，頁面未標版本）列出的功能共 12 項，並寫明 libuv「primarily developed for use by Node.js」。「事件迴圈」與「非同步 I/O」是其中最核心的兩塊，但不是全部：
+
+| 官方列出的功能 | 白話 | 補充 |
+|---|---|---|
+| Full-featured event loop，底層依平台用 epoll、kqueue、IOCP、event ports | 跨平台事件迴圈 | Linux 用 `epoll`、macOS 與 BSD 用 `kqueue`、Windows 用 `IOCP`、SunOS 用 event ports |
+| Asynchronous TCP and UDP sockets | 非阻塞的 TCP、UDP 網路連線 | 非同步 I/O 的網路部分，靠上面那個平台機制監看 socket |
+| Asynchronous DNS resolution | 非同步 DNS 解析 | Node 的 `dns.lookup()` 實際是在執行緒池上呼叫 `getaddrinfo` |
+| Asynchronous file and file system operations | 非同步的檔案讀寫與檔案系統操作 | 一般檔案不能用 epoll（回 EPERM），所以走執行緒池，原因見表後的延伸筆記 |
+| File system events | 檔案變化通知 | 監看檔案或資料夾被改動 |
+| ANSI escape code controlled TTY | 終端機（TTY）控制 | 處理終端機的輸入輸出與控制碼 |
+| IPC with socket sharing（Unix domain sockets、Windows named pipes） | 行程間通訊與 socket 共享 | 處理程序之間傳資料 |
+| Child processes | 子處理程序 | 啟動與管理外部程式 |
+| Thread pool | 執行緒池 | 某些系統呼叫本質上是阻塞的（部分檔案操作、DNS 查詢），libuv 用背景執行緒池跑這些阻塞呼叫，跑完再把結果丟回主執行緒的事件迴圈——這就是「JS 單執行緒」但「檔案 I/O 不會卡住整個程式」的底層原因 |
+| Signal handling | 信號處理 | 例如收到終止信號時通知程式 |
+| High resolution clock | 高解析度時鐘 | 精確計時 |
+| Threading and synchronization primitives | 執行緒與同步原語 | 鎖、條件變數等基本工具 |
+
+所以「libuv 負責事件迴圈、非同步 I/O」是對的，只是還要加上<mark style="background: #FFF3A3A6;">執行緒池、計時、子處理程序、信號、檔案變化通知</mark>等。至於 `epoll` 為什麼不支援一般檔案、`epoll_wait` 與 `kqueue`、`IOCP` 的關係，見 [[延遲Latency-DNS遞迴查詢-TCP握手-行動網路-OSI七層串聯]] 的重點 (v)。
 
 一句話：libuv 就是讓 Node.js 的**單一 JS 主執行緒**能用非阻塞方式做檔案/網路/DNS 這些事情的**跨平台非同步 I/O 引擎**，跟 [[事件循環-Event-Loop-微任務與巨任務]] 裡瀏覽器的 Web APIs 扮演的角色是同一個位置——只是瀏覽器裡那層是瀏覽器自己實作，Node.js 裡這層換成 libuv。
 

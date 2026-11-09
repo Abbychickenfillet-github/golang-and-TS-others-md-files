@@ -143,7 +143,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 
 <article class="card">
 <h1 id="fcp-seo">FCP 首次內容繪製 — 與 SEO 爬蟲的關係，以及打包五步驟怎麼影響它</h1>
-<p>本篇重點 a–y，共 25 個</p>
+<p>本篇重點 a–z，共 26 個</p>
 <h2 id="_1">重點整理</h2>
 <h3 id="fcp-fp">一、FCP 是什麼、跟 FP 差在哪</h3>
 <p>a. <mark style="background: #ADCCFF;">FCP（First Contentful Paint，首次內容繪製）</mark>是指瀏覽器從回應使用者請求、開始載入網頁，到<mark style="background: #FFF3A3;">首次在畫面上渲染出「任何 DOM 內容」</mark>的那個時間點。</p>
@@ -318,6 +318,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
 <p>常見的 B 成因是 <mark style="background: #ADCCFF;">CSR bailout</mark>（例如在上層元件呼叫 <code>useSearchParams</code>），細節見 <span class="wikilink" title="Obsidian 連結：usePathname與useSearchParams-預渲染Bailout">usePathname與useSearchParams-預渲染Bailout</span>。</p>
 <p>x. <mark style="background: #ADCCFF;">Render-blocking（阻塞繪製）</mark>是第二條與體積無關的路徑。瀏覽器在解析 HTML 時遇到 <code>&lt;link rel="stylesheet"&gt;</code>，或遇到沒有標 <code>async</code> / <code>defer</code> 的 <code>&lt;script&gt;</code>，會<mark style="background: #FFF3A3;">完全暫停渲染</mark>，等資源下載並解析完才繼續。它堅持這樣做是為了避免畫面先閃一下沒有樣式的內容（FOUC，Flash of Unstyled Content）。</p>
 <p>y. 字型是 render-blocking 裡最容易被忽略的一種。<mark style="background: #FF5582;">如果 <code>@font-face</code> 設了 <code>font-display: block</code>，在字型檔下載完成前文字會完全隱形</mark>，這叫 <mark style="background: #ADCCFF;">FOIT（Flash of Invisible Text，不可見文字閃爍）</mark>，FCP 會被硬生生拉長。<mark style="background: #BBFABB;">修法是改成 <code>font-display: swap</code></mark>，讓瀏覽器先用系統字型把字畫出來，字型檔到了再換掉。在 Next.js 用 <code>next/font</code> 會自動幫你設好這件事。</p>
+<p>z. <mark style="background:#ADCCFF">14 KB 規則</mark>（2026-11-09 追加）：RFC 6928 把 TCP 初始擁塞視窗定為 10 個 MSS，約 14.6 KB，所以首批 HTML 壓縮後 ≤ 14 KB 才能在第 1 個 RTT 送完。<mark style="background:#BBFABB">外部 JS／CSS 本來就不可能在第 1 個 RTT 到達</mark>（要先 parse HTML 才會發請求），只有 inline 的內容才算。<mark style="background:#FF5582">⚠️ 存疑／更正</mark>：Gemini 說 defer／async 會讓 document.write() 被忽略並不精確（parser 結束後的 document.write 會 document.open() 清空整份文件）；且 TLS 憑證也吃同一個視窗。規格原文未即時查證，請核對 <a href="https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html">HTML Living Standard</a> 與 <a href="https://www.rfc-editor.org/rfc/rfc6928">RFC 6928</a>。來源對話：<a href="https://gemini.google.com/app/c83e35b701d895ea">SPA 效能優化策略</a>。</p>
 <h2 id="_2">圖解</h2>
 <p><img alt="FCP 與 Googlebot 時間線對比圖" src="images/FCP與Googlebot時間線對比.svg" /></p>
 <p>對照 (x)(y) 的 render-blocking，下面這張是 2026-09-16 在 DevTools 裡實際查這件事的畫面。左邊是本 vault 的 <code>css-兩種卡頓-render-blocking與執行期jank</code> 那篇筆記，右邊是 DevTools 的 Performance 面板：<mark style="background: #BBFABB;">第一種卡頓（阻塞首屏）要看 Performance 開頭的 Parse Stylesheet，第二種卡頓（執行期 jank）要看滑動時的紅色三角形 Long Task</mark>，兩種卡的量測指標完全不同，不要拿錯面板查。</p>

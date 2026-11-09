@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SSG 與 Headless CMS</title>
+<link rel="stylesheet" href="../../assets/note-interactive.css">
+<style>
+  .matrix{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;margin:14px 0;font-size:14px}
+  .matrix > div{padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+  .matrix .h{background:var(--head);font-weight:600;text-align:center}
+  .matrix .hit{background:var(--okbg);border-color:var(--ok)}
+  .matrix button{width:100%;text-align:left;white-space:normal;line-height:1.6;border:0;background:transparent;padding:0;color:var(--ink)}
+  #mxDetail{margin:8px 0;padding:10px 14px;background:var(--card);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:0 10px 10px 0;min-height:3.4em}
+  @media (max-width:600px){ .matrix{grid-template-columns:auto 1fr 1fr;font-size:13px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>SSG 與 Headless CMS<br>為什麼常常一起出現，但其實是兩件事</h1>
+  <div class="pills"><span class="pill">ssg</span><span class="pill">headless-cms</span><span class="pill">isr</span><span class="pill">nextjs</span><span class="pill">gatsby</span></div>
+  <div class="meta">建立 2026-10-26 ｜ 接在 <a href="nextjs-prerender-and-csr-bailout.html">Prerender 與 CSR Bailout</a> 之後 ｜ 名詞可 hover、聚焦或點擊</div>
+  <span class="idx">本篇重點 a–g，共 7 個</span>
+</header>
+
+<h2 id="answer">a. 先回答「為什麼無頭就是跟 SSG」</h2>
+<div class="callout ok"><b>答案</b>
+  不是「就是」。<span class="term" data-term="headless">Headless</span> 管的是內容放在哪裡、怎麼取得。<span class="term" data-term="ssg">SSG</span> 管的是 HTML 什麼時候產生。兩者可以獨立選擇，只是常搭配，因為 headless 把內容變成 API，需要有東西把 API 內容變成頁面，而 SSG 在建置時做這件事最快、最便宜、可放 <span class="term" data-term="cdn">CDN</span>。</div>
+
+<h2 id="two">b. 兩個概念各管什麼</h2>
+<table>
+  <thead><tr><th>項目</th><th>Headless（<span class="term" data-term="headless-cms">Headless CMS</span>）</th><th>SSG</th></tr></thead>
+  <tbody>
+    <tr><td>回答的問題</td><td>內容存在哪裡，誰編輯，怎麼提供給前端</td><td>HTML 在哪一刻、由誰產生</td></tr>
+    <tr><td>分離的是什麼</td><td>內容後台與前端展示層分離，內容透過 API 提供</td><td>建置期與請求期分離，頁面在建置期就先算好</td></tr>
+    <tr><td>前端可以怎麼做</td><td>CSR、SSR、SSG 都可以</td><td>內容可以來自檔案、資料庫、API 任何來源</td></tr>
+    <tr><td>換掉它會怎樣</td><td>換前端框架不用搬內容</td><td>改成 SSR 則每次請求重算</td></tr>
+  </tbody>
+</table>
+
+<h2 id="matrix">c. 四象限：點格子看例子</h2>
+<div class="matrix" role="group" aria-label="四象限">
+  <div class="h"></div><div class="h">SSG（建置時產生 HTML）</div><div class="h">非 SSG（請求時或瀏覽器產生）</div>
+  <div class="h">Headless</div>
+  <div><button type="button" data-k="hs">Headless 加 SSG<br>建置時呼叫 CMS 的 API，產出靜態頁</button></div>
+  <div><button type="button" data-k="hn">Headless 加 SSR 或 CSR<br>請求時才呼叫 API</button></div>
+  <div class="h">非 Headless</div>
+  <div><button type="button" data-k="ns">非 Headless 加 SSG<br>內容是檔案，例如 Markdown</button></div>
+  <div><button type="button" data-k="nn">傳統 CMS 每次請求由伺服器組頁面</button></div>
+</div>
+<div id="mxDetail" aria-live="polite">點上面的格子。</div>
+<div class="callout note"><b>範例來源</b>
+  「Abby-notes 用 Jekyll 轉成 GitHub Pages」那一格，是你 vault 的設定（<code>notes.css</code> 與 <code>_config.yml</code>）。其他格的產品名稱是常見做法的口頭舉例，未逐一查證。</div>
+
+<h2 id="why">d. 為什麼常搭配</h2>
+<table>
+  <thead><tr><th>理由</th><th>說明</th><th>依據</th></tr></thead>
+  <tbody>
+    <tr><td>需要有人把 API 內容變成頁面</td><td>Headless 只給資料，前端要自己做成 HTML。建置時做完最簡單</td><td>整理</td></tr>
+    <tr><td>結果是檔案</td><td>預渲染的結果是 HTML 與 RSC Payload，可快取並從 CDN 送出</td><td>Next.js 詞彙表，2026-10-01</td></tr>
+    <tr><td>可放在任何靜態主機</td><td>Static export 產出 HTML、CSS、JS，任何能送靜態檔案的伺服器都能部署</td><td>Next.js Static Exports，2026-08-09</td></tr>
+    <tr><td>便宜且快</td><td>請求時不用再算頁面，伺服器負載小</td><td>ISR 頁面說明「大部分請求送預渲染的靜態頁以減少伺服器負載」，2026-10-15</td></tr>
+    <tr><td>更安全</td><td>常見說法是訪客只拿到靜態檔，不碰資料庫</td><td>未查證</td></tr>
+  </tbody>
+</table>
+
+<h2 id="cost">e. 代價與解法：內容更新怎麼辦</h2>
+<p>SSG 的頁面在建置時就定案，CMS 裡改了內容，網站不會自己變。常見解法在 Next.js 官方文件裡叫做 <span class="term" data-term="isr">ISR</span>。</p>
+<table>
+  <thead><tr><th>做法</th><th>怎麼運作</th><th>程式碼</th></tr></thead>
+  <tbody>
+    <tr><td>時間型重新驗證</td><td>設定秒數，過期後下一個請求仍回舊頁，同時背景重新產生，成功後換掉快取。官方建議設高一點，例如一小時而不是一秒</td><td><code>export const revalidate = 3600</code></td></tr>
+    <tr><td><span class="term" data-term="on-demand-revalidation">按需重新驗證</span>（整頁）</td><td>內容一變就讓該路徑的快取失效，下一次請求才重新產生</td><td><code>revalidatePath('/posts')</code></td></tr>
+    <tr><td>按需重新驗證（標籤）</td><td>fetch 帶 tags，內容變更時讓該標籤的資料失效</td><td><code>revalidateTag('posts', 'max')</code></td></tr>
+    <tr><td>怎麼觸發</td><td>官方範例放在 Server Action，也可以放在 Route Handler。讓 CMS 在內容發佈時呼叫它，是常見接法</td><td>CMS 接 webhook 的部分為整理，官方頁未寫 CMS</td></tr>
+  </tbody>
+</table>
+<table>
+  <thead><tr><th>限制</th><th>內容</th></tr></thead>
+  <tbody>
+    <tr><td>Static export 不支援 ISR</td><td>官方列為不支援功能，Static Exports 頁與 ISR 頁都有寫</td></tr>
+    <tr><td>多個實例時</td><td>預設檔案系統快取是每個實例各一份，按需重新驗證只會讓收到呼叫的那個實例失效，要用共用的 cache handler</td></tr>
+    <tr><td>需要即時資料</td><td>官方建議改成動態渲染</td></tr>
+  </tbody>
+</table>
+
+<h2 id="table">f. CSR、SSR、SSG、ISR 對照</h2>
+<table>
+  <thead><tr><th>方式</th><th>HTML 何時產生</th><th>誰產生</th><th>資料新鮮度</th><th>更新內容</th></tr></thead>
+  <tbody>
+    <tr><td><span class="term" data-term="csr">CSR</span></td><td>瀏覽器執行 JS 之後</td><td>使用者的瀏覽器</td><td>每次開頁最新，但要等 JS</td><td>不需任何動作</td></tr>
+    <tr><td><span class="term" data-term="ssr">SSR</span></td><td>每個請求進來時</td><td>伺服器</td><td>每個請求都最新</td><td>不需任何動作</td></tr>
+    <tr><td><span class="term" data-term="ssg">SSG</span></td><td>建置時</td><td>建置機器</td><td>建置當下的快照</td><td>重新建置</td></tr>
+    <tr><td><span class="term" data-term="isr">ISR</span></td><td>建置時先產一份，之後背景重新產生</td><td>建置機器加伺服器</td><td>可設定的過期時間，或內容變更時失效</td><td>自動或按需</td></tr>
+  </tbody>
+</table>
+<p class="meta">SSG 與 SSR 的分法來自你 vault 的 SSR 筆記。官方詞彙表則稱建置時或背景重新驗證的渲染為 Prerendering，請求時渲染為 Dynamic rendering，所以 SSR 在官方歸類是 Dynamic rendering。</p>
+
+<h2 id="video">g. 影片是 2021 年的，哪些後來有變</h2>
+<div class="callout"><b>影片內容沒有逐字稿</b>
+  我找不到影片本體，所以沒有引用影片裡其他內容。下面只寫你引述的那一句，以及我的解釋。影片連結請你之後補在這裡：（待補）。</div>
+<table>
+  <thead><tr><th>項目</th><th>內容</th><th>狀態</th></tr></thead>
+  <tbody>
+    <tr><td>影片引述</td><td>「If you're going to go headless … your web experience are based on the JavaScript framework. And the problem is that JavaScript frameworks are evolving all the time」</td><td>引自使用者，未對照影片</td></tr>
+    <tr><td>我的解釋</td><td>Headless 讓內容與前端框架解耦。框架一直在變，內容留在 CMS，換前端不用搬內容。這是解釋，不是影片原意</td><td>解釋</td></tr>
+    <tr><td>ISR 與按需重新驗證</td><td>Next.js 官方版本歷程標示 Pages Router 的 ISR 在 v9.5.0 穩定，按需 ISR 在 v12.2.0 穩定。哪個版本落在 2021 年之前或之後，這裡沒有查日期</td><td>版本號已查證，年份未查證</td></tr>
+    <tr><td>App Router 與 Server Components</td><td>App Router 在 v13.0.0 引入，v13.4.0 起穩定並支援 Static Export 搭配 Server Components 與 Route Handlers。現在的建議是用 App Router 的做法</td><td>已查證版本</td></tr>
+    <tr><td>Static export 的指令</td><td>v14.0.0 起 <code>next export</code> 移除，改為設定 <code>output: 'export'</code></td><td>已查證</td></tr>
+    <tr><td>Gatsby</td><td>Netlify 說明 Gatsby Cloud 將結束服務，每位客戶依合約有結束日，並表示不影響 Gatsby JS，Gatsby JS 會持續維護。GitHub 上最新發行為 5.16.1，頁面標「Latest」，發布日只顯示 10 Feb 沒有年份</td><td>Netlify 文章頁面沒有發布日期。5.16.0 的說明提到 2026 年 1 月，所以 5.16.x 推定為 2026 年，屬推論</td></tr>
+  </tbody>
+</table>
+
+<h2 id="practice">練習</h2>
+<h3>填空</h3>
+<div class="toolbar"><button type="button" id="showAll">全部顯示</button><button type="button" id="hideAll">全部隱藏</button></div>
+<div id="fills"></div>
+<h3>是非題</h3>
+<div id="tf"></div>
+<h3>申論題</h3>
+<div id="essay"></div>
+
+<h2 id="related">關聯筆記與關聯原因</h2>
+<table>
+  <thead><tr><th>筆記</th><th>為什麼相關</th></tr></thead>
+  <tbody>
+    <tr><td><a href="nextjs-prerender-and-csr-bailout.html">Prerender 與 CSR Bailout</a></td><td>SSG 就是建置期的預渲染，本篇的 ISR 也是預渲染的背景重新產生</td></tr>
+    <tr><td><a href="../react/SSR-renderToString與Hydration-伺服器端渲染流程.html">SSR、renderToString 與 Hydration</a></td><td>CSR、SSR、SSG 的「HTML 在哪一刻長出來」對照表的來源</td></tr>
+    <tr><td><a href="../web-platform/YAML-Frontmatter與SSG-Foreword-Preface概念.md">YAML Frontmatter 與 SSG 概念</a></td><td>Markdown 加模板的 SSG，是「內容是檔案」那一格</td></tr>
+    <tr><td><a href="../gatsby-static-site-generator.md">Gatsby 靜態網站產生器</a></td><td>Gatsby 是 SSG 工具，本篇補上它目前的狀態</td></tr>
+    <tr><td><a href="../react/TipTap-Headless編輯器架構.md">TipTap Headless 編輯器</a></td><td>同樣叫 headless，但指沒有預設 UI 的元件庫，和 headless CMS 指「沒有綁前端的內容後台」意思不同</td></tr>
+  </tbody>
+</table>
+
+<h2 id="sources">資料來源（含查證時間）</h2>
+<p class="meta">查閱日 2026-10-26。</p>
+<table>
+  <thead><tr><th>主題</th><th>連結</th><th>頁面標示的日期</th></tr></thead>
+  <tbody>
+    <tr><td>Next.js ISR</td><td><a href="https://nextjs.org/docs/app/guides/incremental-static-regeneration" target="_blank" rel="noopener">nextjs.org/docs/app/guides/incremental-static-regeneration</a></td><td>2026-10-15</td></tr>
+    <tr><td>Next.js Static Exports</td><td><a href="https://nextjs.org/docs/app/guides/static-exports" target="_blank" rel="noopener">nextjs.org/docs/app/guides/static-exports</a></td><td>2026-08-09</td></tr>
+    <tr><td>Next.js 詞彙表</td><td><a href="https://nextjs.org/docs/app/glossary" target="_blank" rel="noopener">nextjs.org/docs/app/glossary</a></td><td>2026-10-01</td></tr>
+    <tr><td>Netlify：Gatsby Cloud 的演進</td><td><a href="https://www.netlify.com/blog/gatsby-cloud-evolution/" target="_blank" rel="noopener">netlify.com/blog/gatsby-cloud-evolution</a></td><td>文章未標發布日期，查閱日 2026-10-26</td></tr>
+    <tr><td>Gatsby GitHub releases</td><td><a href="https://github.com/gatsbyjs/gatsby/releases" target="_blank" rel="noopener">github.com/gatsbyjs/gatsby/releases</a></td><td>最新 5.16.1，只顯示 10 Feb 無年份</td></tr>
+  </tbody>
+</table>
+<p><b>未查證</b>：影片本體與其逐字內容、「SSG 更安全」的說法、各四象限格子中的產品舉例、ISR 與按需 ISR 的發布年份、Gatsby JS 實際的維護活躍度。</p>
+
+<footer>SSG 與 Headless CMS · 2026-10-26</footer>
+</div>
+
+<script src="nextjs-terms.js"></script>
+<script src="../../assets/note-quiz.js"></script>
+<script>
+(function () {
+  var MX = {
+    hs: 'Headless 加 SSG：建置時向 CMS 的 API 要內容，產出靜態 HTML 放 CDN。內容更新要重新建置，或用 ISR 與按需重新驗證。這是最常被一起提到的組合。',
+    hn: 'Headless 加 SSR 或 CSR：前端在請求時或瀏覽器端才向 CMS 要內容。內容永遠最新，但每次請求都要算或要等 JS。',
+    ns: '非 Headless 加 SSG：內容是 Markdown 之類的檔案，在建置時轉成 HTML。你的 Abby-notes 用 Jekyll 轉成 GitHub Pages 就是這一格，它是 SSG，但沒有 CMS。',
+    nn: '傳統 CMS 每次請求由伺服器組頁面：後台與前台綁在一起，由同一個系統在請求時產生 HTML。具體產品未查證。'
+  }
+  var detail = document.getElementById('mxDetail')
+  Array.prototype.forEach.call(document.querySelectorAll('.matrix button'), function (b) {
+    b.addEventListener('click', function () {
+      detail.textContent = MX[b.getAttribute('data-k')]
+      Array.prototype.forEach.call(document.querySelectorAll('.matrix button'), function (x) { x.parentNode.classList.remove('hit') })
+      b.parentNode.classList.add('hit')
+    })
+  })
+
+  NoteQuiz.mount({
+    fills: [
+      ['Headless 管的是內容放在哪裡，SSG 管的是 ', 'HTML', ' 什麼時候產生。'],
+      ['SSG 在 ', '建置', ' 時把頁面轉成 HTML。'],
+      ['時間型重新驗證在 Next.js 寫成 export const ', 'revalidate', ' = 3600。'],
+      ['內容一變就讓整頁快取失效用 ', 'revalidatePath', '。'],
+      ['Static export 設定是 output: ', "'export'", '，而且不支援 ISR。'],
+      ['你的 Abby-notes 用 Jekyll 產出 GitHub Pages，是 SSG 但不是 ', 'Headless', ' CMS。']
+    ],
+    tf: [
+      { q: 'Headless CMS 一定要搭配 SSG。', a: false, e: '錯。Headless 只是內容與前端分離，前端可以用 CSR、SSR 或 SSG。' },
+      { q: 'SSG 的內容一定來自 CMS。', a: false, e: '錯。內容可以是 Markdown 檔，例如 Jekyll。' },
+      { q: 'SSG 的頁面在 CMS 改內容後會自動更新。', a: false, e: '錯。要重新建置，或用 ISR 的時間型或按需重新驗證。' },
+      { q: 'Static export 可以使用 ISR。', a: false, e: '錯。Next.js 官方把 ISR 列為 static export 不支援的功能。' },
+      { q: '依 Next.js 官方詞彙表，SSR 屬於 Prerendering。', a: false, e: '錯。官方把請求時才渲染的稱為 Dynamic rendering，Prerendering 是建置時或背景重新驗證的渲染。' },
+      { q: '時間型 ISR 過期後，下一個請求會等頁面重新產生完才回應。', a: false, e: '錯。官方說明過期後下一個請求仍回傳舊頁，同時背景重新產生，成功後才換掉。' }
+    ],
+    essay: [
+      { q: '用自己的話回答「為什麼無頭就是跟 SSG」。',
+        m: '不是就是。Headless 是內容後台與前端分離、內容走 API，SSG 是建置時產生 HTML，是兩個獨立的選擇。常搭配是因為 headless 的內容要有東西變成頁面，SSG 在建置時做完，結果是檔案，可放 CDN，快又便宜。代價是更新要重建，所以有 ISR 與按需重新驗證。' },
+      { q: '你的 CMS 改了一篇文章，網站要怎麼在不重跑整個 build 的情況下更新？',
+        m: '用 ISR。設定時間型 revalidate 讓頁面定期背景重新產生，或在 CMS 發佈時呼叫一個 Server Action 或 Route Handler，裡面執行 revalidatePath 或 revalidateTag，讓該頁快取失效，下一次請求才重新產生。Static export 不支援這個做法。' }
+    ]
+  })
+})()
+</script>
+<script src="../../assets/notes.js" defer></script>
+</body>
+</html>

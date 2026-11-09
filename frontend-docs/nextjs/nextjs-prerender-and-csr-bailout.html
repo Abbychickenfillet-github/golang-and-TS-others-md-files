@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prerender 預渲染與 CSR Bailout</title>
+<style>
+  :root{
+    --ink:#1F2937; --sub:#55617A; --line:#E3E7EE; --bg:#FBFCFD; --card:#FFFFFF; --soft:#F7F9FC; --head:#EEF2F8;
+    --accent:#4A5A75; --warn:#C2455E; --ok:#2F7D3E; --mid:#B7791F; --no:#7B8494;
+    --okbg:#E7F6EA; --warnbg:#FFF1F3; --midbg:#FFF6DF; --nobg:#EEF0F4;
+    --hl-yellow:#FFF3A3; --hl-green:#BBFABB; --hl-blue:#ADCCFF; --hl-pink:#FFB8EB; --code:#242B38;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ink:#E6EAF2; --sub:#A4AEC2; --line:#2E3A50; --bg:#12161E; --card:#1A202B; --soft:#1E2532; --head:#232C3C;
+      --accent:#9DBCF0; --warn:#FF8FA3; --ok:#7FD99A; --mid:#F0C070; --no:#9AA4B8;
+      --okbg:#1B3326; --warnbg:#3A1F27; --midbg:#3A3019; --nobg:#262C38;
+      --hl-yellow:#5C5420; --hl-green:#25512B; --hl-blue:#27456E; --hl-pink:#5B2A52; --code:#0E1219;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans TC","Microsoft JhengHei",-apple-system,"Segoe UI",sans-serif;line-height:1.8}
+  .wrap{max-width:980px;margin:0 auto;padding:36px 16px 80px}
+  header{border-bottom:2px solid var(--line);padding-bottom:20px;margin-bottom:30px}
+  h1{font-family:"Noto Serif TC",Georgia,serif;font-size:27px;line-height:1.45;margin:0 0 12px}
+  h2{font-family:"Noto Serif TC",Georgia,serif;font-size:21px;margin:46px 0 8px;padding-left:12px;border-left:5px solid var(--accent)}
+  h3{font-size:17px;margin:28px 0 8px}
+  .pills{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+  .pill{font-size:12px;padding:3px 11px;border-radius:999px;background:var(--head);color:var(--accent);border:1px solid var(--line)}
+  .meta{font-size:13px;color:var(--sub)}
+  .idx{font-size:14px;color:var(--sub);background:var(--head);display:inline-block;padding:4px 13px;border-radius:999px;margin-top:10px}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14.5px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:var(--head);font-weight:600}
+  tbody tr:nth-child(even){background:var(--soft)}
+  code{font-family:"Cascadia Code",Consolas,monospace;font-size:13.5px}
+  p code,li code,td code{background:var(--head);padding:1px 5px;border-radius:4px}
+  pre{background:var(--code);color:#E6EAF2;padding:14px 16px;border-radius:9px;overflow-x:auto;font-size:13.5px;line-height:1.6}
+  .callout{border-left:5px solid var(--warn);background:var(--warnbg);padding:12px 16px;border-radius:0 9px 9px 0;margin:16px 0}
+  .callout.ok{border-color:var(--ok);background:var(--okbg)}
+  .callout.note{border-color:var(--mid);background:var(--midbg)}
+  .callout b{display:block;margin-bottom:3px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:16px 0}
+  .fig{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;margin:16px 0;overflow-x:auto}
+  .fig svg{display:block;width:100%;height:auto;min-width:760px}
+  mark{padding:1px 3px;border-radius:3px;color:inherit}
+  .y{background:var(--hl-yellow)} .g{background:var(--hl-green)} .b{background:var(--hl-blue)} .p{background:var(--hl-pink)}
+  a{color:#3B6FB5}
+  @media (prefers-color-scheme: dark){ a{color:#8DB6F0} }
+  button{font-family:inherit;font-size:14px;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--accent);cursor:pointer}
+  button:hover{background:var(--head)}
+  button:focus-visible,.term:focus-visible,.blank:focus-visible{outline:3px solid #2563EB;outline-offset:2px}
+
+  /* ---- 名詞 hover：沿用 notes.css 的 .term，這裡只補窄螢幕與靠邊對齊 ---- */
+  .term-missing{background:#FFD9DE;border-bottom-color:#C2455E}
+  .wrap{overflow-x:clip}
+  .term[data-align="left"]::after{left:0 !important;transform:none !important}
+  .term[data-align="right"]::after{left:auto !important;right:0 !important;transform:none !important}
+  .term[data-pos="below"]::after{bottom:auto !important;top:140% !important}
+  .term[data-pos="below"]::before{bottom:auto !important;top:140% !important;margin-bottom:0 !important;margin-top:-12px !important;
+    border-top-color:transparent !important;border-bottom-color:#243b33 !important}
+  @media (max-width:900px){
+    .term::after,.term[data-align]::after,.term[data-pos]::after,.term[data-align][data-pos]::after{
+      position:fixed !important;left:12px !important;right:12px !important;bottom:14px !important;top:auto !important;
+      width:auto !important;max-width:none !important;transform:none !important;font-size:.92em;z-index:9999}
+    .term::before,.term[data-pos]::before{display:none !important}
+  }
+
+  /* ---- 主軸時間線 ---- */
+  .groups{display:grid;grid-template-columns:1fr 2fr 4fr 3fr;gap:4px;margin:14px 0 4px;font-size:12px;text-align:center}
+  .groups div{padding:3px 4px;border-radius:6px;background:var(--head);color:var(--sub)}
+  .groups .g1{background:#E3EEFB;color:#244B7A} .groups .g2{background:#EEE9FB;color:#4B3A8A}
+  .groups .g3{background:#FDECD8;color:#8A4B12} .groups .g4{background:#DDF3E3;color:#1F6B35}
+  @media (prefers-color-scheme: dark){
+    .groups .g1{background:#1F3350;color:#BBD4F5} .groups .g2{background:#2F2950;color:#CFC4F5}
+    .groups .g3{background:#4A3220;color:#F5D2AE} .groups .g4{background:#1E3F2A;color:#BDEBC9}
+  }
+  .tl{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;position:relative;margin:4px 0 14px}
+  .tl::before{content:"";position:absolute;left:6%;right:6%;top:20px;height:4px;background:var(--line);z-index:0;border-radius:2px}
+  .tl-node{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;
+           background:transparent;border:0;padding:0;color:var(--ink);font-size:12.5px;line-height:1.4}
+  .tl-node:hover{background:transparent}
+  .tl-dot{width:40px;height:40px;border-radius:50%;border:3px solid var(--accent);background:var(--card);
+          display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--accent);transition:.15s}
+  .tl-node:hover .tl-dot{transform:scale(1.08)}
+  .tl-node.done .tl-dot{background:var(--head)}
+  .tl-node.on .tl-dot{background:var(--accent);color:var(--card);transform:scale(1.14)}
+  .tl-lb{max-width:11em;text-align:center}
+  .tl-node.on .tl-lb{font-weight:700}
+  @media (max-width:900px){
+    .groups{display:none}
+    .tl{grid-template-columns:1fr;gap:6px}
+    .tl::before{left:20px;right:auto;top:20px;bottom:20px;width:4px;height:auto}
+    .tl-node{flex-direction:row;gap:12px;text-align:left}
+    .tl-lb{max-width:none;text-align:left}
+  }
+  .detail{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .detail h3{margin:0 0 4px}
+  .detail .where{font-size:13.5px;color:var(--sub);margin-bottom:12px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+  .st{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--soft);font-size:14px}
+  .st .k{font-size:12.5px;color:var(--sub)}
+  .badge{display:inline-block;font-size:13px;font-weight:700;padding:1px 10px;border-radius:999px;margin:2px 0 4px}
+  .badge.yes{background:var(--okbg);color:var(--ok)} .badge.no{background:var(--nobg);color:var(--no)} .badge.mid{background:var(--midbg);color:var(--mid)}
+  .bail{margin-top:10px;border-left:5px solid var(--warn);background:var(--warnbg);padding:9px 13px;border-radius:0 8px 8px 0;font-size:14px}
+  .out{margin-top:10px;font-size:14px}
+  .navbtns{display:flex;gap:8px;margin-top:12px}
+
+  /* ---- 練習 ---- */
+  .blank{display:inline-block;min-width:4.5em;text-align:center;background:var(--head);border-bottom:2px dashed var(--accent);
+         border-radius:4px;padding:0 10px;cursor:pointer;color:transparent;user-select:none;font-weight:700}
+  .blank.on{color:var(--ink);background:var(--hl-green);border-bottom-style:solid}
+  .fill{margin:10px 0;padding:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .quiz{border:1px solid var(--line);border-radius:10px;padding:13px 16px;margin:12px 0;background:var(--card)}
+  .quiz .q{font-weight:600;margin-bottom:8px}
+  .opt{display:flex;gap:8px}
+  .fb{display:none;margin-top:9px;padding:9px 12px;border-radius:7px;font-size:14.5px}
+  .fb.show{display:block}
+  .fb.right{background:var(--okbg);border-left:4px solid var(--ok)}
+  .fb.wrong{background:var(--warnbg);border-left:4px solid var(--warn)}
+  textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:10px;font-family:inherit;font-size:14.5px;
+           background:var(--card);color:var(--ink);resize:vertical}
+  .model{display:none;margin-top:10px;background:var(--soft);border:1px dashed var(--line);border-radius:8px;padding:11px 14px;font-size:14.5px}
+  .model.show{display:block}
+  #glossary-table{overflow-x:auto}
+  footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--sub);text-align:center}
+</style>
+<link rel="stylesheet" href="../../assets/notes.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Prerender 預渲染與 CSR Bailout<br>HTML 到 DOM 了嗎，降級成使用者端渲染還算預渲染嗎</h1>
+  <div class="pills"><span class="pill">nextjs</span><span class="pill">prerender</span><span class="pill">bailout</span><span class="pill">hydration</span><span class="pill">suspense</span><span class="pill">next build</span></div>
+  <div class="meta">建立 2026-10-26 ｜ 滑鼠移到有虛線底線的名詞上，或用 Tab 鍵聚焦，或手機點一下，就會出現解釋 ｜ 名詞表見 <a href="#spec">名詞 hover 規格</a></div>
+  <span class="idx">本篇重點 a–h，共 8 個</span>
+</header>
+
+<h2 id="answer">a. 先看三個問題的答案</h2>
+<table>
+  <thead><tr><th>你的問題</th><th>答案</th><th style="white-space:nowrap">往哪看</th></tr></thead>
+  <tbody>
+    <tr><td>Prerender 是什麼</td><td>在 <span class="term" data-term="build-time">建置期</span>（或重新驗證的背景中）先<span class="term" data-term="render">渲染</span>，也就是<span class="term" data-term="run-component">執行元件函式</span>並轉成文字，把結果存成 <span class="term" data-term="html">HTML</span> 與 <span class="term" data-term="rsc-payload">RSC Payload</span>。請求進來才渲染的叫 <span class="term" data-term="dynamic-rendering">動態渲染</span>，官方詞彙表把兩者分開。</td><td><a href="#prerender">b</a></td></tr>
+    <tr><td>預渲染出的 HTML 到 DOM 了嗎</td><td>還沒。HTML 只是文字，瀏覽器解析之後才有 <span class="term" data-term="dom">DOM</span>，最後 <span class="term" data-term="hydration">Hydration</span> 才接上事件。</td><td><a href="#timeline">c</a></td></tr>
+    <tr><td>降級成使用者端渲染算預渲染嗎</td><td>不算。<span class="term" data-term="bailout">Bailout</span> 指某棵子樹被放棄預渲染。而 <span class="term" data-term="use-client">'use client'</span> 的元件本身照樣會被預渲染成 HTML，兩件事不要混在一起。</td><td><a href="#bailout">d</a></td></tr>
+  </tbody>
+</table>
+
+<h2 id="prerender">b. Prerender 的定義與功能</h2>
+<table>
+  <thead><tr><th>名稱</th><th>什麼時候<span class="term" data-term="render">渲染</span></th><th>在哪裡<span class="term" data-term="run-component">執行元件函式</span></th><th>官方詞彙表怎麼歸類</th></tr></thead>
+  <tbody>
+    <tr><td><span class="term" data-term="prerender">Prerender</span> 預渲染</td><td>建置時，或重新驗證的背景中</td><td>建置機器的 Node.js，不是瀏覽器</td><td>Prerendering，也稱 Static rendering</td></tr>
+    <tr><td><span class="term" data-term="ssg">SSG</span></td><td>建置時</td><td>建置機器</td><td>等於預渲染的一種做法</td></tr>
+    <tr><td><span class="term" data-term="ssr">SSR</span></td><td>每個請求進來時</td><td>伺服器的 Node.js，不是瀏覽器</td><td>Dynamic rendering，不叫 Prerendering</td></tr>
+    <tr><td><span class="term" data-term="csr">CSR</span></td><td>瀏覽器執行 JS 之後</td><td>使用者的瀏覽器</td><td>不在伺服器渲染</td></tr>
+  </tbody>
+</table>
+<div class="callout note"><b>存疑與更正</b>
+  本 vault 的舊筆記寫「廣義上 SSR 也算預渲染」，但 Next.js 詞彙表（頁面標示 2026-10-01）把 Prerendering 限定在建置時或重新驗證的背景，請求當下才渲染的叫 Dynamic rendering。本篇以官方詞彙表為準，舊筆記相關句已加上存疑標註。</div>
+<table>
+  <thead><tr><th>預渲染的功能</th><th>為什麼有用</th></tr></thead>
+  <tbody>
+    <tr><td>結果是檔案</td><td>可以放在 <span class="term" data-term="cdn">CDN</span>，不必每次請求都重算</td></tr>
+    <tr><td>第一份 HTML 就有內容</td><td>瀏覽器收到後立刻能畫，<span class="term" data-term="fcp">FCP</span> 提早到 HTML 與 CSS 就緒時，不必等 JS 跑完</td></tr>
+    <tr><td>爬蟲讀得到內容</td><td>空殼 HTML 只有 <code>&lt;div id="root"&gt;</code>，預渲染的 HTML 有文字</td></tr>
+  </tbody>
+</table>
+
+<h2 id="timeline">c. 主軸時間線：HTML 什麼時候變成 DOM</h2>
+<p>點擊下面的節點，看「當下有沒有 <span class="term" data-term="dom">DOM</span>、有沒有 JS、使用者看到什麼」。也可以用左右方向鍵切換。</p>
+<div class="groups" aria-hidden="true"><div class="g1">建置期</div><div class="g2">伺服器與網路</div><div class="g3">瀏覽器：還沒有 JS 接手</div><div class="g4">瀏覽器：JS 接手</div></div>
+<div class="tl" id="tl" role="group" aria-label="預渲染到 Hydration 的八個階段"></div>
+<div class="detail" id="detail" aria-live="polite"></div>
+<div class="navbtns"><button id="prev" type="button">上一步</button><button id="next" type="button">下一步</button></div>
+<div class="callout ok"><b>回答「HTML 到 DOM 了嗎」</b>
+  第 1 到 3 步的 HTML 只是字串與位元組，沒有 DOM。第 4 步瀏覽器解析後 DOM 才誕生。第 8 步 Hydration 不是重建 DOM，而是 <span class="term" data-term="hydrateroot">hydrateRoot</span> 認領第 4 步建好的那份 DOM 並掛上事件。</div>
+
+<h2 id="bailout">d. CSR Bailout 算不算預渲染</h2>
+<table>
+  <thead><tr><th>情境</th><th>建置期有預渲染嗎</th><th>HTML 裡有什麼</th><th>Hydration 時</th></tr></thead>
+  <tbody>
+    <tr><td><span class="term" data-term="server-component">Server Component</span></td><td>有</td><td>完整內容</td><td>不需要，JS 不送到瀏覽器</td></tr>
+    <tr><td><span class="term" data-term="client-component">Client Component</span>（正常）</td><td>有，官方說 Client Components 與 RSC Payload 用來預渲染 HTML</td><td>完整內容</td><td>認領既有 DOM 並掛事件</td></tr>
+    <tr><td>被 Bailout 的 Client 子樹</td><td>沒有，這棵子樹被放棄</td><td>最近 <span class="term" data-term="suspense">Suspense</span> 的 <span class="term" data-term="fallback">fallback</span> 或空殼</td><td>React 在瀏覽器重試渲染，成功就取代 fallback</td></tr>
+    <tr><td>Suspense 以外的部分</td><td>有，照常預渲染</td><td>完整內容</td><td>認領既有 DOM</td></tr>
+  </tbody>
+</table>
+<p>結論：<mark class="y">Bailout 是預渲染這個動作在某棵子樹上被放棄，所以「降級成使用者端渲染」本身不是預渲染</mark>。但同一頁的其他部分仍然是預渲染。<span class="term" data-term="use-client">'use client'</span> 只宣告打包邊界，沒有說不要在伺服器渲染。</p>
+
+<h3>常見觸發原因</h3>
+<table>
+  <thead><tr><th>觸發點</th><th>為什麼建置期做不到</th><th>怎麼處理</th><th>依據</th></tr></thead>
+  <tbody>
+    <tr><td><span class="term" data-term="usesearchparams">useSearchParams()</span> 外面沒有 Suspense</td><td>查詢字串是請求時才有的資料</td><td>用最小範圍的 Suspense 包住呼叫點，或改用 page 的 <code>searchParams</code> prop，或改用 <code>usePathname</code></td><td>Next.js 錯誤頁與 useSearchParams 文件，已查證</td></tr>
+    <tr><td><span class="term" data-term="next-dynamic">next/dynamic</span> 設 <span class="term" data-term="ssr-false">ssr: false</span></td><td>明確要求跳過預渲染</td><td>只用在真的需要瀏覽器 API 的元件，並給 loading</td><td>Lazy Loading 文件，已查證。安裝的 next 15.5.28 原始碼中，<code>dynamic-bailout-to-csr.js</code> 處理這個選項</td></tr>
+    <tr><td>元件在伺服器渲染時丟錯，例如 <code>typeof window === 'undefined'</code> 就 throw</td><td>錯誤被最近的 Suspense 接住，伺服器 HTML 放 fallback</td><td>這是 React 提供的刻意做法，非刻意時要修掉</td><td>React Suspense 文件，已查證</td></tr>
+    <tr><td>其他觸發原因</td><td>未查證</td><td>未查證</td><td>不在本次查證範圍</td></tr>
+  </tbody>
+</table>
+
+<h3>你專案裡的實例（已打開檔案確認）</h3>
+<table>
+  <thead><tr><th>位置</th><th>實際內容</th><th>說明了什麼</th></tr></thead>
+  <tbody>
+    <tr><td><code>hooks/use-loader/index.js</code></td><td>提交 dd2b895（2026-09-17）把 <code>useSearchParams</code> 從 <code>LoaderProvider</code> 移除，現在只用 <code>usePathname</code>。檔案頂端兩個 loader 用 <code>dynamic(..., { ssr: false })</code></td><td>真正出現「useSearchParams 與 Suspense 打架」的是這個檔案。<code>app/providers.js</code> 把它放在全域，所以當年整站 Client 樹受影響</td></tr>
+    <tr><td><code>app/dashboard/page.js</code></td><td>第 1 行 <code>'use client'</code>，整個檔案沒有呼叫 <code>useSearchParams</code>。第 89 到 95 行與 374 到 380 行各有一個帶 fallback 的 Suspense，第 1109 行在載入中 <code>return null</code></td><td>dashboard 自己不是觸發點，是被全域 Provider 拖下水。FCP 5.24 秒的診斷結論是 FCP 主因為 682 KB 的 render-blocking CSS，Bailout 主要拖慢 LCP 與可用時間</td></tr>
+    <tr><td><code>app/layout.js</code></td><td>第 34 行 <code>&lt;Suspense&gt;</code> 沒有 fallback，包著 <code>Providers</code></td><td>Bailout 發生時 HTML 只剩空殼，Suspense 外的 Footer 才有內容</td></tr>
+    <tr><td><code>app/ecpay/callback/page.js</code> 等四個頁面</td><td>匯出的頁面元件用 <code>&lt;Suspense fallback&gt;</code> 包住內部呼叫 <code>useSearchParams</code> 的元件</td><td>正確寫法：Bailout 被關在 Suspense 裡</td></tr>
+    <tr><td><code>app/ship/_hooks/use-ship-711-store/index.js</code></td><td>檔案內沒有 <code>useSearchParams</code>、<code>Suspense</code>、<code>ssr: false</code>，沒有 <code>'use client'</code>，只是用 useState、useRef、useEffect 的 hook</td><td>它不是 Bailout 觸發點。原本以為提交 dd2b895 改的是這個檔案，實際改的是 <code>hooks/use-loader/index.js</code></td></tr>
+  </tbody>
+</table>
+<p class="meta">dashboard 當時的 HTML 內容（Footer 有、Navbar 沒有、<code>BAILOUT_TO_CLIENT_SIDE_RENDERING</code> 墓碑）來自 <a href="FCP-5.24秒-Next.js效能診斷實錄-從指令到根因.md">FCP 診斷筆記</a> 的 Step 6，本次沒有重跑 build，所以沒有重新驗證那份 .next 產物。</p>
+
+<h2 id="flow">e. 流程圖：Bailout 與 Prerender 的關係</h2>
+<div class="fig"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 1000" role="img" aria-labelledby="ttl dsc" font-family="'Noto Sans TC','Microsoft JhengHei',sans-serif">
+  <title id="ttl">Prerender 與 CSR Bailout 的關係流程圖</title>
+  <desc id="dsc">元件在 next build 被執行，判斷是否碰到建置期無法得知的東西，再判斷外層有沒有 Suspense，最後到瀏覽器端怎麼走。</desc>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <style>
+      .t{font-size:14px;fill:#0f172a}
+      .tb{font-size:14px;fill:#0f172a;font-weight:700}
+      .lb{font-size:13px;fill:#7c2d12;font-weight:700}
+      .ln{stroke:#334155;stroke-width:2;fill:none}
+      .sm{font-size:12px;fill:#475569}
+    </style>
+  </defs>
+  <rect width="1100" height="1000" rx="14" fill="#ffffff" stroke="#cbd5e1"/>
+
+  <!-- 起點：端點 -->
+  <rect x="400" y="16" width="200" height="44" rx="22" fill="#e2e8f0" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="43" text-anchor="middle" class="tb">元件進入 next build</text>
+  <path class="ln" d="M500,60 V90" marker-end="url(#ar)"/>
+
+  <!-- 處理：執行元件函式 -->
+  <rect x="330" y="90" width="340" height="56" fill="#dbeafe" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="114" text-anchor="middle" class="tb">執行元件函式</text>
+  <text x="500" y="134" text-anchor="middle" class="sm">Server 與 Client Component 都會被執行</text>
+  <path class="ln" d="M500,146 V162" marker-end="url(#ar)"/>
+
+  <!-- 決策 1 -->
+  <polygon points="500,162 660,226 500,290 340,226" fill="#fef3c7" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="214" text-anchor="middle" class="tb">渲染途中碰到</text>
+  <text x="500" y="233" text-anchor="middle" class="tb">建置期無法得知的東西？</text>
+  <text x="500" y="252" text-anchor="middle" class="sm">useSearchParams、ssr: false、丟錯</text>
+
+  <!-- 否 -->
+  <path class="ln" d="M340,226 H230 V330" marker-end="url(#ar)"/>
+  <text x="285" y="216" text-anchor="middle" class="lb">否</text>
+  <!-- 文件：HTML -->
+  <path d="M90,330 H370 V396 Q300,376 230,396 T90,396 Z" fill="#dcfce7" stroke="#334155" stroke-width="2"/>
+  <text x="230" y="356" text-anchor="middle" class="tb">完整預渲染</text>
+  <text x="230" y="376" text-anchor="middle" class="sm">HTML 字串 + RSC Payload</text>
+  <text x="230" y="392" text-anchor="middle" class="sm">存成 .next/server/app 下的 .html</text>
+
+  <!-- 是 -->
+  <path class="ln" d="M660,226 H730 V284" marker-end="url(#ar)"/>
+  <text x="695" y="216" text-anchor="middle" class="lb">是</text>
+
+  <!-- 決策 2 -->
+  <polygon points="730,284 860,340 730,396 600,340" fill="#fef3c7" stroke="#334155" stroke-width="2"/>
+  <text x="730" y="336" text-anchor="middle" class="tb">外層有</text>
+  <text x="730" y="356" text-anchor="middle" class="tb">Suspense 包住？</text>
+
+  <!-- 沒有 -->
+  <path class="ln" d="M860,340 H900" marker-end="url(#ar)"/>
+  <text x="880" y="330" text-anchor="middle" class="lb">沒有</text>
+  <rect x="900" y="296" width="190" height="88" rx="30" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
+  <text x="995" y="324" text-anchor="middle" class="tb">next build 報錯</text>
+  <text x="995" y="344" text-anchor="middle" class="sm">Missing Suspense boundary</text>
+  <text x="995" y="362" text-anchor="middle" class="sm">官方說明：整頁會變 CSR</text>
+
+  <!-- 有 -->
+  <path class="ln" d="M730,396 V436" marker-end="url(#ar)"/>
+  <text x="746" y="420" class="lb">有</text>
+  <rect x="580" y="436" width="300" height="92" fill="#ffe4e6" stroke="#334155" stroke-width="2"/>
+  <text x="730" y="460" text-anchor="middle" class="tb">只放棄這棵子樹（Bailout）</text>
+  <text x="730" y="481" text-anchor="middle" class="sm">HTML 裡放最近 Suspense 的 fallback</text>
+  <text x="730" y="499" text-anchor="middle" class="sm">並留下 BAILOUT_TO_CLIENT_SIDE_RENDERING</text>
+  <text x="730" y="517" text-anchor="middle" class="sm">Suspense 以外的部分照常預渲染</text>
+
+  <!-- 匯流 → 瀏覽器 -->
+  <path class="ln" d="M230,396 V598 H330" marker-end="url(#ar)"/>
+  <path class="ln" d="M730,528 V598 H670" marker-end="url(#ar)"/>
+  <rect x="330" y="570" width="340" height="56" fill="#dbeafe" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="594" text-anchor="middle" class="tb">瀏覽器解析 HTML 字串</text>
+  <text x="500" y="614" text-anchor="middle" class="sm">此刻才建立 DOM（伺服器端沒有 DOM）</text>
+  <path class="ln" d="M500,626 V660" marker-end="url(#ar)"/>
+
+  <rect x="330" y="660" width="340" height="56" fill="#dbeafe" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="684" text-anchor="middle" class="tb">下載並執行 JS chunk</text>
+  <text x="500" y="704" text-anchor="middle" class="sm">React 開始接手</text>
+  <path class="ln" d="M500,716 V730" marker-end="url(#ar)"/>
+
+  <!-- 決策 3 -->
+  <polygon points="500,730 650,790 500,850 350,790" fill="#fef3c7" stroke="#334155" stroke-width="2"/>
+  <text x="500" y="782" text-anchor="middle" class="tb">這棵子樹的 HTML</text>
+  <text x="500" y="802" text-anchor="middle" class="tb">是預渲染的結果嗎？</text>
+
+  <path class="ln" d="M350,790 H230 V850" marker-end="url(#ar)"/>
+  <text x="290" y="780" text-anchor="middle" class="lb">是</text>
+  <rect x="90" y="850" width="280" height="96" fill="#dcfce7" stroke="#334155" stroke-width="2"/>
+  <text x="230" y="876" text-anchor="middle" class="tb">Hydration</text>
+  <text x="230" y="898" text-anchor="middle" class="sm">hydrateRoot 認領既有 DOM</text>
+  <text x="230" y="916" text-anchor="middle" class="sm">只掛事件，不重建節點</text>
+  <text x="230" y="934" text-anchor="middle" class="sm">看得到的時間 = FCP 快</text>
+
+  <path class="ln" d="M650,790 H730 V850" marker-end="url(#ar)"/>
+  <text x="690" y="780" text-anchor="middle" class="lb">否（Bailout）</text>
+  <rect x="580" y="850" width="300" height="96" fill="#ffe4e6" stroke="#334155" stroke-width="2"/>
+  <text x="730" y="876" text-anchor="middle" class="tb">瀏覽器端重新渲染這個邊界</text>
+  <text x="730" y="898" text-anchor="middle" class="sm">React 重試渲染，成功就取代 fallback</text>
+  <text x="730" y="916" text-anchor="middle" class="sm">要等 JS 跑完才有內容</text>
+  <text x="730" y="934" text-anchor="middle" class="sm">拖慢的是 LCP 與可用時間</text>
+
+  <!-- 圖例 -->
+  <g transform="translate(900,560)">
+    <text x="0" y="0" class="tb">圖例（ISO 5807）</text>
+    <rect x="0" y="12" width="46" height="22" rx="11" fill="#e2e8f0" stroke="#334155" stroke-width="1.5"/>
+    <text x="56" y="28" class="sm">端點</text>
+    <rect x="0" y="44" width="46" height="22" fill="#dbeafe" stroke="#334155" stroke-width="1.5"/>
+    <text x="56" y="60" class="sm">處理步驟</text>
+    <polygon points="23,76 46,92 23,108 0,92" fill="#fef3c7" stroke="#334155" stroke-width="1.5"/>
+    <text x="56" y="96" class="sm">判斷</text>
+    <path d="M0,118 H46 V138 Q35,132 23,138 T0,138 Z" fill="#dcfce7" stroke="#334155" stroke-width="1.5"/>
+    <text x="56" y="132" class="sm">文件 / 產物</text>
+    <rect x="0" y="150" width="46" height="22" fill="#ffe4e6" stroke="#334155" stroke-width="1.5"/>
+    <text x="56" y="166" class="sm">Bailout 路徑</text>
+  </g>
+</svg>
+</div>
+
+<h2 id="build">f. 你在 npm run build 看到 prerender 錯誤，怎麼讀</h2>
+<p><span class="term" data-term="prerender">Prerender</span> 發生在 <span class="term" data-term="build-time">建置期</span>，所以元件被拿到 Node.js 裡真的執行一遍。凡是在 Node.js 裡跑不過、或需要請求時資料的東西，都會在這時失敗。<code>next dev</code> 是按需渲染，官方明說 dev 裡 useSearchParams 不會 suspend，所以 dev 正常不代表 build 會過。</p>
+<table>
+  <thead><tr><th>build 輸出可能的樣子</th><th>意思</th><th>先做什麼</th><th>查證狀態</th></tr></thead>
+  <tbody>
+    <tr><td><code>Missing Suspense boundary with useSearchParams</code></td><td>靜態路由裡有 Client 元件呼叫 <code>useSearchParams()</code> 又沒有 Suspense</td><td>找呼叫點，用最小範圍的 Suspense 包住。查不到位置就加 <code>next build --debug-prerender</code></td><td>錯誤頁與參數都已查證</td></tr>
+    <tr><td><code>window is not defined</code> 或 <code>document is not defined</code></td><td>元件本體或模組頂層在 Node.js 預渲染時碰了瀏覽器 API</td><td>移進 <code>useEffect</code>，或該元件改用 <code>ssr: false</code></td><td>原理已查證（Node 沒有 window 與 document）。訊息字樣未查證</td></tr>
+    <tr><td><code>Error occurred prerendering page "/xxx"</code></td><td>某個路徑預渲染時丟出例外的總括訊息</td><td>往上找第一個真正的 error，總括訊息本身不是原因</td><td>字樣未查證</td></tr>
+    <tr><td>build 時抓資料失敗（例如後端 API 沒起來）</td><td>Server Component 的 fetch 在建置期就被執行</td><td>確認 build 環境連得到資料來源，或把該頁改成動態渲染</td><td>推論，未查證</td></tr>
+  </tbody>
+</table>
+<div class="callout"><b>還缺你的實際訊息</b>
+  我在你的終端機沒有看到 build 輸出，所以不能判定是上表哪一種。把 <code>npm run build</code> 輸出中第一個 error 那幾行貼過來，才能對到具體檔案。</div>
+
+<h2 id="practice">g. 互動練習</h2>
+<h3>填空：點方框顯示答案</h3>
+<div class="toolbar"><button type="button" id="showAll">全部顯示</button><button type="button" id="hideAll">全部隱藏</button></div>
+<div id="fills"></div>
+
+<h3>是非題</h3>
+<div id="tf"></div>
+
+<h3>申論題</h3>
+<div id="essay"></div>
+
+<h2 id="spec">h. 名詞 hover 規格</h2>
+<p>目前這頁的做法稱為「做法 A：HTML 加名詞表」。未來要變成 Next.js 的 React 元件稱為「做法 B：React 元件化 vault」。兩者共用同一份名詞表資料，之後可以搬。</p>
+
+<h3>做法 A 的運作方式</h3>
+<table>
+  <thead><tr><th>步驟</th><th>內容</th></tr></thead>
+  <tbody>
+    <tr><td>1 單一名詞表</td><td><code>nextjs-terms.js</code> 裡的 <code>window.NOTE_TERMS</code>，每個詞一筆：<code>t</code> 顯示名稱，<code>d</code> 一句定義，<code>s</code> 依據。改定義只改這一處</td></tr>
+    <tr><td>2 內文標記</td><td><code>&lt;span class="term" data-term="hydration"&gt;Hydration&lt;/span&gt;</code></td></tr>
+    <tr><td>3 載入時填入</td><td>載入器依 <code>data-term</code> 寫入 <code>data-def</code> 與 <code>tabindex="0"</code>。找不到 id 會標成紅底並在 console 警告，避免同詞不同說法或打錯字</td></tr>
+    <tr><td>4 顯示</td><td>沿用 <code>assets/notes.css</code> 的 <code>.term::after { content: attr(data-def) }</code>，顯示與隱藏是純 CSS 的 <code>:hover</code> 與 <code>:focus</code></td></tr>
+    <tr><td>5 窄螢幕</td><td>寬度 900px 以下氣泡改成貼螢幕底部的固定面板，不會超出畫面。手機點一下元素即聚焦並顯示</td></tr>
+    <tr><td>6 靠邊對齊</td><td>氣泡太靠左右邊界時，載入器只加上 <code>data-align</code> 屬性，位置由 CSS 決定</td></tr>
+    <tr><td>7 與現有點擊釘選相容</td><td><code>assets/notes.js</code> 已有點擊後釘成可拖曳說明卡，會讀同一個 <code>data-def</code>，不衝突</td></tr>
+  </tbody>
+</table>
+
+<h3>放進其他筆記</h3>
+<table>
+  <thead><tr><th>目標</th><th>做法</th><th>限制</th></tr></thead>
+  <tbody>
+    <tr><td>獨立 .html 筆記</td><td>引入 <code>notes.css</code>、<code>nextjs-terms.js</code>，內文寫 <code>data-term</code>，把本頁 style 裡「名詞 hover」那段複製過去，或之後併入 notes.css</td><td>要放在同一個資料夾或改 script 相對路徑</td></tr>
+    <tr><td>Obsidian 的 .md</td><td>啟用 <code>.obsidian/snippets/term-tooltip.css</code>，直接寫 <code>&lt;span class="term" data-def="..."&gt;</code></td><td>Obsidian 不執行 JS，所以不能用 data-term，定義要手動貼</td></tr>
+    <tr><td>Jekyll 轉出的 .md 頁</td><td>用 vault 既有的 <code>.tip-glossary</code> 機制：<code>&lt;div class="tip-glossary" data-term="DNS" data-text="..."&gt;&lt;/div&gt;</code>，整頁出現的該詞都會變成 hover</td><td>它是字串比對，詞若是別個詞的一部分也會被換</td></tr>
+  </tbody>
+</table>
+
+<h3>做法 B：React 元件化</h3>
+<p>把 <code>NOTE_TERMS</code> 原樣存成 <code>terms.json</code>，元件讀同一份資料。因為只用 CSS 的 hover，可以當 Server Component，不寫 <code>'use client'</code>，不增加瀏覽器端 JS。</p>
+<pre>// components/term.jsx
+import terms from '@/data/terms.json'
+
+export function Term({ id, children }) {
+  const item = terms[id]
+  if (!item) throw new Error(`terms.json 沒有 ${id}`)
+  return (
+    &lt;span className="term" tabIndex={0} data-def={`${item.t}：${item.d}`}&gt;
+      {children ?? item.t}
+    &lt;/span&gt;
+  )
+}
+
+// 用法
+// &lt;Term id="hydration" /&gt;</pre>
+<table>
+  <thead><tr><th>比較</th><th>做法 A：HTML 加名詞表</th><th>做法 B：React 元件化 vault</th></tr></thead>
+  <tbody>
+    <tr><td>現在能用</td><td>是，已完成</td><td>否，要建 Next.js 專案</td></tr>
+    <tr><td>Obsidian 與 GitHub Pages</td><td>.html 可用，.md 需手動貼定義</td><td>vault 變成獨立網站，Obsidian 只當編輯器</td></tr>
+    <tr><td>單一定義來源</td><td>是，nextjs-terms.js</td><td>是，terms.json</td></tr>
+    <tr><td>寫錯 id 時</td><td>執行時紅底與 console 警告</td><td>元件 throw，build 時就失敗</td></tr>
+    <tr><td>互連與搜尋</td><td>靠 wikilink 與瀏覽器</td><td>可做名詞索引頁、反向連結</td></tr>
+    <tr><td>維護成本</td><td>低</td><td>中，要維護專案與部署</td></tr>
+  </tbody>
+</table>
+<p>搬遷成本低：名詞表欄位兩邊相同，內文把 <code>&lt;span class="term" data-term="x"&gt;</code> 換成 <code>&lt;Term id="x" /&gt;</code> 可以用腳本批次完成。</p>
+
+<h3>目前的名詞表</h3>
+<div id="glossary-table"></div>
+
+<h2 id="rsc">i. RSC Payload 長怎樣</h2>
+<p><span class="term" data-term="rsc-payload">RSC Payload</span> 不是 HTML，是算完的 Server 結果加上 Client 元件的佔位。按步驟看它怎麼長出來。</p>
+<style>
+  .ra-stage{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}
+  .ra-col{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:280px}
+  .ra-col h4{margin:0;font-size:15px}
+  .ra-code{background:var(--code);color:#E6EAF2;border-radius:8px;padding:8px 10px;font-family:"Cascadia Code",Consolas,monospace;font-size:12.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;min-height:3em}
+  .ra-code .ln{display:block;border-radius:3px;padding:0 4px}
+  .ra-code .ln.cur{background:#35507A}
+  .ra-code .srv{color:#8EC5FF} .ra-code .ref{color:#F5B97A} .ra-code .prop{color:#8FE0A8} .ra-code .dim{opacity:.35}
+  .ra-legend{display:flex;flex-wrap:wrap;gap:6px;font-size:12.5px}
+  .ra-legend span{padding:0 8px;border-radius:999px;border:1px solid var(--line)}
+  .ra-say{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:0 10px 10px 0;padding:8px 14px;margin:8px 0;font-weight:600}
+  .ra-screen{background:#fff;color:#111;border:2px solid #9AA4B8;border-radius:8px;min-height:90px;padding:8px 10px;font-size:14px}
+  .ra-screen.empty{color:#999;display:flex;align-items:center;justify-content:center}
+  .ra-screen button{margin-top:6px;color:#111;background:#F1F3F8;border:1px solid #9AA4B8}
+  .ra-screen button[disabled]{opacity:.5;cursor:not-allowed}
+  .ra-badges{display:flex;flex-wrap:wrap;gap:6px}
+  .ra-steps{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .ra-steps button.cur{background:var(--accent);color:var(--card);border-color:var(--accent)}
+  @media (max-width:900px){ .ra-stage{grid-template-columns:1fr} .ra-col{min-height:0} }
+</style>
+<div class="ra-steps" id="raSteps" role="group" aria-label="RSC Payload 動畫步驟"></div>
+<div class="ra-say" id="raSay" aria-live="polite"></div>
+<div class="ra-legend"><span style="color:#2F6FB5">藍：Server 結果</span><span style="color:#B7680F">橘：Client 佔位與 JS 位置</span><span style="color:#2F7D3E">綠：props</span></div>
+<div class="ra-stage">
+  <div class="ra-col"><h4>伺服器：執行元件</h4><div class="ra-code" id="raSrc"></div></div>
+  <div class="ra-col"><h4>送出的東西</h4><div class="meta">RSC Payload</div><div class="ra-code" id="raPay"></div><div class="meta">預渲染的 HTML</div><div class="ra-code" id="raHtml"></div></div>
+  <div class="ra-col"><h4>瀏覽器</h4><div class="ra-badges" id="raBadges"></div><div class="ra-screen empty" id="raScreen">畫面：空白</div><div class="meta" id="raNote"></div></div>
+</div>
+<div class="toolbar"><button type="button" id="raPrev">上一步</button><button type="button" id="raNext">下一步</button><button type="button" id="raPlay">自動播放</button></div>
+<p class="meta">Payload 格式為示意，非官方規範。第 7 步起按鈕可點。來源：Next.js Server and Client Components，2026-10-05。</p>
+
+<h2 id="related">關聯筆記與關聯原因</h2>
+<table>
+  <thead><tr><th>筆記</th><th>為什麼相關</th></tr></thead>
+  <tbody>
+    <tr><td><a href="usePathname與useSearchParams-預渲染Bailout.html">usePathname 與 useSearchParams</a></td><td>你引用的那句「Next.js 在建置期放棄把某棵元件樹預渲染成 HTML」就出自該篇的 f。本篇補上 Prerender 的定義與 HTML 到 DOM 的時間線</td></tr>
+    <tr><td><a href="FCP-5.24秒-Next.js效能診斷實錄-從指令到根因.md">FCP 5.24 秒診斷實錄</a></td><td>提供 dashboard 的實證：墓碑標記、Footer 有而 Navbar 沒有、原始碼 throw 的位置</td></tr>
+    <tr><td><a href="../FCP首次內容繪製-SEO爬蟲與打包五步驟.html">FCP 與 SEO 爬蟲</a></td><td>解釋為什麼 HTML 沒內容會讓 FCP 與爬蟲一起受害</td></tr>
+    <tr><td><a href="../react/SSR-renderToString與Hydration-伺服器端渲染流程.html">SSR、renderToString 與 Hydration</a></td><td>時間線第 3 到 8 步的來源：伺服器沒有 DOM、瀏覽器解析後才有 DOM、Hydration 認領</td></tr>
+    <tr><td><a href="../編譯期vs執行期三條分界線-AST與CSSOM-編譯與打包-前端與後端記憶體.html">編譯期與執行期三條分界線</a></td><td>預渲染發生在建置期，這篇說明建置期能做什麼、不能做什麼，解釋為何查詢字串在建置期不可知</td></tr>
+    <tr><td><a href="../react/Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪-互動版.html">Critical Rendering Path</a></td><td>時間線第 4 到 6 步 DOM、CSSOM、Layout、Paint 的細節</td></tr>
+    <tr><td><a href="nextjs-crawler-html-vs-browser-dom-animation.html">爬蟲看到的 HTML 與瀏覽器的 DOM</a></td><td>接續本篇：預渲染的 HTML 文字就是爬蟲拿到的那份，該篇用三欄動畫說明爬蟲與瀏覽器的差別</td></tr>
+    <tr><td><a href="nextjs-ssg-and-headless-cms.html">SSG 與 Headless CMS</a></td><td>SSG 是建置期預渲染，該篇說明為何常與 headless 搭配以及 ISR 怎麼更新內容</td></tr>
+    <tr><td><a href="../javascript/JS_CheatSheet_and_APIs/url-parse-vs-url-class-parse-legacy-vs-whatwg.html">url.parse 與 URL.parse</a></td><td>build 時出現的 Node 棄用警告，與建置期程式碼跑在 Node 裡是同一個原因</td></tr>
+    <tr><td><a href="App-Router與Pages-Router-RSC與Streaming-SSR-loading與error約定.html">App Router 與 RSC、Streaming</a></td><td>Suspense 邊界與 Server Component 的背景，說明 Suspense 為何決定靜態外殼的範圍</td></tr>
+  </tbody>
+</table>
+
+<h2 id="sources">資料來源（含查證時間）</h2>
+<p class="meta">查閱日 2026-10-26。頁面有標示更新日期的寫標示值，沒有標示的寫「頁面未標示，查閱日」。</p>
+<table>
+  <thead><tr><th>主題</th><th>連結</th><th>頁面標示的更新日期</th></tr></thead>
+  <tbody>
+    <tr><td>Next.js 詞彙表（Prerendering、Dynamic rendering、Hydration）</td><td><a href="https://nextjs.org/docs/app/glossary" target="_blank" rel="noopener">nextjs.org/docs/app/glossary</a></td><td>2026-10-01</td></tr>
+    <tr><td>Next.js Server and Client Components（伺服器如何預渲染 Client Components）</td><td><a href="https://nextjs.org/docs/app/getting-started/server-and-client-components" target="_blank" rel="noopener">nextjs.org/docs/app/getting-started/server-and-client-components</a></td><td>2026-10-05</td></tr>
+    <tr><td>Next.js Missing Suspense boundary with useSearchParams</td><td><a href="https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout" target="_blank" rel="noopener">nextjs.org/docs/messages/missing-suspense-with-csr-bailout</a></td><td>頁面未標示，查閱日 2026-10-26</td></tr>
+    <tr><td>Next.js Lazy Loading（next/dynamic、ssr: false）</td><td><a href="https://nextjs.org/docs/app/guides/lazy-loading" target="_blank" rel="noopener">nextjs.org/docs/app/guides/lazy-loading</a></td><td>2026-03-10</td></tr>
+    <tr><td>Next.js useSearchParams</td><td><a href="https://nextjs.org/docs/app/api-reference/functions/use-search-params" target="_blank" rel="noopener">nextjs.org/docs/app/api-reference/functions/use-search-params</a></td><td>2026-07-14</td></tr>
+    <tr><td>React hydrateRoot</td><td><a href="https://react.dev/reference/react-dom/client/hydrateRoot" target="_blank" rel="noopener">react.dev/reference/react-dom/client/hydrateRoot</a></td><td>頁面未標示，查閱日 2026-10-26</td></tr>
+    <tr><td>React renderToString</td><td><a href="https://react.dev/reference/react-dom/server/renderToString" target="_blank" rel="noopener">react.dev/reference/react-dom/server/renderToString</a></td><td>頁面未標示，查閱日 2026-10-26</td></tr>
+    <tr><td>React Suspense</td><td><a href="https://react.dev/reference/react/Suspense" target="_blank" rel="noopener">react.dev/reference/react/Suspense</a></td><td>頁面未標示，查閱日 2026-10-26</td></tr>
+    <tr><td>專案實測</td><td>git 提交 dd2b895、hooks/use-loader/index.js、app/dashboard/page.js、app/layout.js、node_modules/next 15.5.28</td><td>查閱日 2026-10-26</td></tr>
+  </tbody>
+</table>
+<p><b>未查證</b>：build 輸出中 <code>window is not defined</code> 與 <code>Error occurred prerendering page</code> 的確切字樣、Bailout 的其他觸發原因、JS 檔實際開始下載的時間點（時間線第 7 步依本 vault SSR 筆記的順序，實務上下載常與解析 HTML 並行）、dashboard 的 .next 產物本次未重跑 build。</p>
+
+<footer>Prerender 與 CSR Bailout · 2026-10-26</footer>
+</div>
+
+<script src="nextjs-terms.js"></script>
+<script>
+(function () {
+  /* ---------- 時間線資料 ---------- */
+  var STEPS = [
+    { n: '執行元件函式', where: '你的電腦或 CI 的 Node.js，指令 next build', dom: ['no', '沒有'], domT: 'Node.js 沒有 document 與 window，建置期不可能有 DOM。',
+      js: ['mid', '只在 Node 跑'], jsT: '元件函式在 Node 裡執行一次，瀏覽器還不存在。', see: ['no', '還沒有人看'], seeT: '部署前就做完，沒有使用者。',
+      out: '產物：<span class="term" data-term="html">HTML</span> 字串與 <span class="term" data-term="rsc-payload">RSC Payload</span>，存成檔案。',
+      bail: 'Bailout 就在這一步決定：碰到 <span class="term" data-term="usesearchparams">useSearchParams</span> 沒有 Suspense，或 <span class="term" data-term="ssr-false">ssr: false</span>，這棵子樹被放棄，HTML 改放 fallback。' },
+    { n: '伺服器或 CDN 送出', where: '伺服器或 CDN，回應 HTTP 請求', dom: ['no', '沒有'], domT: '送出去的是檔案內容，仍然是文字。',
+      js: ['no', '沒有'], jsT: '瀏覽器還沒拿到任何東西可以執行。', see: ['no', '等待中'], seeT: '瀏覽器在轉圈圈，畫面是空白或上一頁。',
+      out: '回應時間稱為 <span class="term" data-term="ttfb">TTFB</span>。預渲染好的檔案直接送，所以很快。若是動態渲染，元件函式改成在這一步才執行。',
+      bail: '沒有差別，被 Bailout 的子樹只是檔案裡少了內容。' },
+    { n: '網路傳輸 HTML', where: '網路上的位元組串流', dom: ['no', '沒有'], domT: 'HTML 在傳輸中只是位元組，不是節點。',
+      js: ['no', '沒有'], jsT: '沒有 JS 在執行。', see: ['no', '等待中'], seeT: '仍是空白。',
+      out: '重點：HTML 是純文字。DOM 是瀏覽器收到後才在記憶體裡建立的結構。',
+      bail: '沒有差別。' },
+    { n: '瀏覽器解析成 DOM', where: '瀏覽器的 HTML parser', dom: ['yes', '有'], domT: 'DOM 在這一步才誕生，邊解析邊長成節點樹。',
+      js: ['no', '還沒接手'], jsT: 'JS 可能已在下載，但 React 還沒 hydrate。', see: ['no', '通常還是白的'], seeT: '要等 CSS 就緒才會畫。',
+      out: '這時 DOM 已有預渲染的內容節點，只是還沒畫出來也沒有事件。',
+      bail: '被 Bailout 的子樹在 DOM 裡只有 <span class="term" data-term="fallback">fallback</span> 對應的節點，或一個空殼標記。' },
+    { n: '下載解析 CSS 成 CSSOM', where: '瀏覽器的 CSS parser', dom: ['yes', '有'], domT: 'DOM 已經在。',
+      js: ['no', '還沒接手'], jsT: '同上。', see: ['no', '仍然是白的'], seeT: '<span class="term" data-term="cssom">CSSOM</span> 沒建好前不繪製，所以 CSS 越大越晚。',
+      out: '這就是 <span class="term" data-term="render-blocking">render-blocking</span>。你的專案曾因 682 KB 的 CSS 讓 FCP 到 5.24 秒。',
+      bail: '沒有差別，CSS 擋的是所有內容。' },
+    { n: 'Layout 與 Paint', where: '瀏覽器的渲染引擎', dom: ['yes', '有'], domT: 'DOM 與 CSSOM 合成 Render Tree。',
+      js: ['no', '還沒接手'], jsT: '事件還沒掛上。', see: ['yes', '看到內容，按不動'], seeT: '<span class="term" data-term="paint">Paint</span> 完成，這一刻是 <span class="term" data-term="fcp">FCP</span>。',
+      out: '預渲染讓 FCP 發生在 HTML 與 CSS 就緒時，不必等 JS。',
+      bail: '被 Bailout 的部分只畫得出 fallback 或空白。Suspense 外的 Footer 這類內容照常畫出。' },
+    { n: '下載並執行 JS', where: '瀏覽器的 JS 引擎', dom: ['yes', '有'], domT: '仍是第 4 步建好的那份。',
+      js: ['mid', '下載與執行中'], jsT: 'React 與元件程式碼載入。實務上下載常與解析 HTML 並行，這裡畫的是執行的先後。', see: ['mid', '內容在，按鈕沒反應'], seeT: '點了沒有任何事發生。',
+      out: '這段空窗期拉長，<span class="term" data-term="tti">TTI</span> 就晚。',
+      bail: '被 Bailout 的子樹還是 fallback。' },
+    { n: 'Hydration', where: '瀏覽器，<span class="term" data-term="hydrateroot">hydrateRoot</span>', dom: ['yes', '有，同一份'], domT: '認領既有 DOM，不是重建。',
+      js: ['yes', '已接手'], jsT: '事件處理器掛上，狀態開始運作。', see: ['yes', '可以互動'], seeT: '<span class="term" data-term="tti">TTI</span> 到達。',
+      out: '預渲染的部分到此完成。<span class="term" data-term="hydration">Hydration</span> 前後 DOM 節點是同一批。',
+      bail: '被 Bailout 的子樹在這時由瀏覽器端 React 重新渲染並取代 fallback。真正的主內容到此才出現，所以 <span class="term" data-term="lcp">LCP</span> 常落在這裡。' }
+  ]
+
+  var tl = document.getElementById('tl')
+  var detail = document.getElementById('detail')
+  var cur = 0
+  var nodes = []
+
+  STEPS.forEach(function (s, i) {
+    var b = document.createElement('button')
+    b.type = 'button'
+    b.className = 'tl-node'
+    b.setAttribute('aria-label', '第 ' + (i + 1) + ' 步：' + s.n)
+    b.innerHTML = '<span class="tl-dot">' + (i + 1) + '</span><span class="tl-lb">' + s.n + '</span>'
+    b.addEventListener('click', function () { show(i) })
+    tl.appendChild(b)
+    nodes.push(b)
+  })
+
+  function card(k, v, t) {
+    return '<div class="st"><div class="k">' + k + '</div><span class="badge ' + v[0] + '">' + v[1] + '</span><div>' + t + '</div></div>'
+  }
+
+  function show(i) {
+    cur = i
+    var s = STEPS[i]
+    nodes.forEach(function (n, j) {
+      n.classList.toggle('on', j === i)
+      n.classList.toggle('done', j < i)
+      n.setAttribute('aria-pressed', j === i ? 'true' : 'false')
+    })
+    detail.innerHTML =
+      '<h3>第 ' + (i + 1) + ' 步　' + s.n + '</h3>' +
+      '<div class="where">發生在：' + s.where + '</div>' +
+      '<div class="cards">' + card('有沒有 DOM', s.dom, s.domT) + card('有沒有 JS 在跑', s.js, s.jsT) + card('使用者看到什麼', s.see, s.seeT) + '</div>' +
+      '<div class="out">' + s.out + '</div>' +
+      '<div class="bail"><b>被 Bailout 的子樹在這一步</b>' + s.bail + '</div>'
+    if (window.fillNoteTerms) window.fillNoteTerms()
+  }
+
+  document.getElementById('prev').addEventListener('click', function () { show(Math.max(0, cur - 1)) })
+  document.getElementById('next').addEventListener('click', function () { show(Math.min(STEPS.length - 1, cur + 1)) })
+  tl.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { show(Math.min(STEPS.length - 1, cur + 1)); nodes[cur].focus(); e.preventDefault() }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { show(Math.max(0, cur - 1)); nodes[cur].focus(); e.preventDefault() }
+  })
+  show(0)
+
+  /* ---------- 填空 ---------- */
+  var FILLS = [
+    ['預渲染的結果是 ', 'HTML 字串', ' 與 RSC Payload，存成檔案。'],
+    ['瀏覽器把 HTML 解析之後，才會產生 ', 'DOM', '。伺服器端沒有它。'],
+    ['讓靜態 HTML 接上事件、變成可互動的步驟叫 ', 'Hydration', '。'],
+    ['在靜態路由用 useSearchParams() 卻沒包 ', 'Suspense', '，next build 會報 Missing Suspense boundary。'],
+    ['寫了 use client 的元件，初次載入時在伺服器 ', '會', '（會或不會）被預渲染成 HTML。'],
+    ['next/dynamic 設 ssr: false，預渲染階段會 ', '跳過', ' 該元件。'],
+    ['Bailout 時，HTML 裡留下的是最近 Suspense 的 ', 'fallback', '。']
+  ]
+  var fills = document.getElementById('fills')
+  FILLS.forEach(function (f, i) {
+    var d = document.createElement('div')
+    d.className = 'fill'
+    d.innerHTML = (i + 1) + '. ' + f[0] + '<span class="blank" tabindex="0" role="button" aria-label="點擊顯示答案">' + f[1] + '</span>' + f[2]
+    fills.appendChild(d)
+  })
+  function toggleBlank(el) { el.classList.toggle('on') }
+  fills.addEventListener('click', function (e) { if (e.target.classList.contains('blank')) toggleBlank(e.target) })
+  fills.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('blank')) { e.preventDefault(); toggleBlank(e.target) }
+  })
+  document.getElementById('showAll').addEventListener('click', function () {
+    fills.querySelectorAll('.blank').forEach(function (b) { b.classList.add('on') })
+  })
+  document.getElementById('hideAll').addEventListener('click', function () {
+    fills.querySelectorAll('.blank').forEach(function (b) { b.classList.remove('on') })
+  })
+
+  /* ---------- 是非題 ---------- */
+  var TF = [
+    { q: '伺服器送到瀏覽器的 HTML 字串，在送達的那一刻已經是 DOM。', a: false,
+      e: '錯。HTML 只是文字，瀏覽器解析之後才建立 DOM。伺服器端的 Node.js 根本沒有 DOM。' },
+    { q: '寫了 use client 的元件，不會被預渲染成 HTML。', a: false,
+      e: '錯。Next.js 文件說伺服器會用 Client Components 與 RSC Payload 預渲染 HTML。use client 只宣告打包邊界。' },
+    { q: 'CSR Bailout 發生時，整個頁面一定都沒有 HTML 內容。', a: false,
+      e: '錯。只到最近 Suspense 邊界為止。Suspense 以外的部分照常預渲染，你專案的 Footer 在 Suspense 外面，所以 HTML 裡有它。' },
+    { q: '依 Next.js 詞彙表，Prerendering 發生在建置時或重新驗證的背景，請求當下才渲染的叫 Dynamic rendering。', a: true,
+      e: '對。詞彙表頁面標示更新日期 2026-10-01。' },
+    { q: '被 Bailout 的子樹，HTML 裡放的是 fallback，之後 React 在瀏覽器重試渲染並取代它。', a: true,
+      e: '對。React Suspense 文件描述伺服器渲染出錯時放最近 Suspense 的 fallback，客戶端再試一次。Next.js useSearchParams 文件也說 fallback 會在 hydration 時被取代。' },
+    { q: 'next dev 沒出現錯誤，就代表 next build 不會有 prerender 問題。', a: false,
+      e: '錯。官方說明 dev 是按需渲染，useSearchParams 不會 suspend，所以不加 Suspense 在 dev 看起來也正常，build 才會失敗。' },
+    { q: '被 Bailout 的主內容通常拖慢的是 LCP 與可用時間，而不一定是 FCP。', a: true,
+      e: '對，這是你的 FCP 5.24 秒診斷結論：FCP 主因是 render-blocking CSS，Bailout 主要影響 LCP。注意這是本專案實測，不是通則。' }
+  ]
+  var tfBox = document.getElementById('tf')
+  TF.forEach(function (item, i) {
+    var d = document.createElement('div')
+    d.className = 'quiz'
+    d.innerHTML = '<div class="q">' + (i + 1) + '. ' + item.q + '</div>' +
+      '<div class="opt"><button type="button" data-v="1">對</button><button type="button" data-v="0">錯</button></div><div class="fb"></div>'
+    d.querySelectorAll('.opt button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var ok = (b.dataset.v === '1') === item.a
+        var fb = d.querySelector('.fb')
+        fb.className = 'fb show ' + (ok ? 'right' : 'wrong')
+        fb.textContent = (ok ? '答對了。' : '再想一下。') + item.e
+      })
+    })
+    tfBox.appendChild(d)
+  })
+
+  /* ---------- 申論題 ---------- */
+  var ESSAY = [
+    { q: '用自己的話說明預渲染的產物是什麼，為什麼說 HTML 到瀏覽器時還不是 DOM。',
+      m: '產物是 HTML 字串與 RSC Payload，存成檔案。HTML 是文字，傳輸中只是位元組。瀏覽器的 parser 解析之後才在記憶體建立 DOM，之後 Hydration 認領這份 DOM 並掛事件。伺服器與建置機器的 Node.js 沒有 document，所以不可能在那裡產生 DOM。' },
+    { q: 'use client 是否等於 CSR？用你專案的 Footer 與 Navbar 說明。',
+      m: '不等於。use client 宣告打包邊界，元件仍會在伺服器預渲染。Footer 與 Navbar 都是 use client，但 Footer 在 Suspense 外面所以 HTML 有內容，Navbar 在被 Bailout 的 Suspense 裡面所以 HTML 沒有。差別是 Bailout，不是 use client。' },
+    { q: 'npm run build 出現 prerender 的錯誤，你會依什麼順序排查？',
+      m: '先看第一個真正的 error，不看總括訊息。判斷屬於哪一類：Missing Suspense、瀏覽器 API 在 Node 不存在、或建置期抓資料失敗。要定位元件就加 next build --debug-prerender 取得未壓縮的堆疊。修法由輕到重：改用 usePathname 或 page 的 searchParams prop，其次用最小範圍的 Suspense 包住，最後才考慮 ssr: false 或改成動態渲染。' }
+  ]
+  var eBox = document.getElementById('essay')
+  ESSAY.forEach(function (item, i) {
+    var d = document.createElement('div')
+    d.className = 'quiz'
+    d.innerHTML = '<div class="q">' + (i + 1) + '. ' + item.q + '</div><textarea aria-label="你的答案"></textarea>' +
+      '<div class="toolbar"><button type="button">顯示參考答案</button></div><div class="model"></div>'
+    var m = d.querySelector('.model')
+    m.textContent = item.m
+    d.querySelector('button').addEventListener('click', function () { m.classList.toggle('show') })
+    eBox.appendChild(d)
+  })
+})()
+</script>
+<script>
+(function () {
+  var SRC = [
+    ['// app/[id]/page.js  Server Component', 0],
+    ['const post = await getPost(id)', 1],
+    ['// post = { title: "Hello", likes: 12 }', 1],
+    ['return (', 0],
+    ['  <main>', 0],
+    ['    <h1>{post.title}</h1>', 1],
+    ['    <LikeButton likes={post.likes} />', 2],
+    ['  </main>', 0],
+    [')', 0]
+  ]
+  // 每個 payload 行：文字、種類、從第幾步開始出現
+  var PAY = [
+    ['0:["$","main",null,{"children":[', 'srv', 1],
+    ['  ["$","h1",null,{"children":"Hello"}],', 'srv', 1],
+    ['  ["$","$L1",null,{', 'ref', 2],
+    ['     "likes":12', 'prop', 3],
+    ['  }]', 'ref', 3],
+    [']}]', 'srv', 3],
+    ['1:I["app/ui/like-button.js", ["static/chunks/like-button.js"], "default"]', 'ref', 2]
+  ]
+  var HTML = ['<main>', '  <h1>Hello</h1>', '  <button>12 likes</button>', '</main>', '<script>…payload…<\/script>']
+  // 每步原始碼要亮哪一行
+  var HL = { 1: [1, 2], 2: [6], 3: [6], 4: [4, 5, 6, 7] }
+  var TEXT = {
+    1: "Server 算完，結果寫進 Payload",
+    2: "Client 元件只留佔位與 JS 位置",
+    3: "props 一起寫進 Payload",
+    4: "同時預渲染出 HTML",
+    5: "看得到，按不動",
+    6: "依 Payload 載入 JS",
+    7: "Hydration 完成，按鈕可點",
+    8: "換頁：Payload 預取，Client 元件在瀏覽器渲染"
+  }
+  var STEPNAMES = ['1 算 Server 結果', '2 Client 佔位', '3 序列化 props', '4 預渲染 HTML', '5 瀏覽器看到', '6 依 Payload 載入', '7 Hydration', '8 換頁']
+  var step = 1, likes = 12, timer = null
+
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
+
+  function render() {
+    var hl = HL[step] || []
+    document.getElementById('raSrc').innerHTML = SRC.map(function (l, i) {
+      var cur = hl.indexOf(i) >= 0
+      return '<span class="ln' + (cur ? ' cur' : '') + '">' + esc(l[0]) + '</span>'
+    }).join('')
+    document.getElementById('raPay').innerHTML = PAY.map(function (l) {
+      return l[2] <= step ? '<span class="ln ' + l[1] + '">' + esc(l[0]) + '</span>' : ''
+    }).join('') || '<span class="ln dim">（還沒有內容）</span>'
+    document.getElementById('raHtml').innerHTML = step >= 4
+      ? HTML.map(function (l) { return '<span class="ln">' + esc(l.replace('12 likes', likes + ' likes')) + '</span>' }).join('')
+      : '<span class="ln dim">（還沒有內容）</span>'
+
+    var scr = document.getElementById('raScreen')
+    var note = document.getElementById('raNote')
+    var dom, js, inter
+    if (step < 5) { dom = ['no', 'DOM：沒有']; js = ['no', 'JS：沒有']; inter = ['no', '互動：否'] }
+    else if (step === 5) { dom = ['yes', 'DOM：有']; js = ['no', 'JS：還沒接手']; inter = ['no', '互動：否'] }
+    else if (step === 6) { dom = ['yes', 'DOM：有']; js = ['mid', 'JS：下載中']; inter = ['no', '互動：否'] }
+    else { dom = ['yes', 'DOM：有']; js = ['yes', 'JS：已接手']; inter = ['yes', '互動：是'] }
+    document.getElementById('raBadges').innerHTML = [dom, js, inter].map(function (b) { return '<span class="badge ' + b[0] + '">' + b[1] + '</span>' }).join('')
+
+    if (step < 5) { scr.className = 'ra-screen empty'; scr.textContent = '畫面：空白，還沒有任何東西送到瀏覽器'; note.textContent = '' }
+    else if (step === 8) {
+      scr.className = 'ra-screen'
+      scr.innerHTML = '<b>/about</b>（另一頁）<br>Payload 預取後已快取，點連結不必重抓整頁 HTML。'
+      note.textContent = 'Client Component 在瀏覽器渲染'
+    } else {
+      scr.className = 'ra-screen'
+      var live = step >= 7
+      scr.innerHTML = '<h4 style="margin:0 0 4px">Hello</h4><button type="button" id="raBtn"' + (live ? '' : ' disabled') + '>' + likes + ' likes</button>'
+      note.textContent = live ? '按鈕可以點，likes 是瀏覽器裡的狀態' : '按鈕灰的，點不動'
+      var btn = document.getElementById('raBtn')
+      if (live) btn.addEventListener('click', function () { likes++; render() })
+    }
+    document.getElementById('raSay').textContent = TEXT[step]
+    Array.prototype.forEach.call(document.querySelectorAll('#raSteps button'), function (b, i) { b.classList.toggle('cur', i + 1 === step) })
+  }
+
+  var box = document.getElementById('raSteps')
+  STEPNAMES.forEach(function (n, i) {
+    var b = document.createElement('button')
+    b.type = 'button'
+    b.textContent = n
+    b.addEventListener('click', function () { step = i + 1; render() })
+    box.appendChild(b)
+  })
+  document.getElementById('raPrev').addEventListener('click', function () { step = Math.max(1, step - 1); render() })
+  document.getElementById('raNext').addEventListener('click', function () { step = Math.min(8, step + 1); render() })
+  document.getElementById('raPlay').addEventListener('click', function () {
+    var btn = this
+    if (timer) { clearInterval(timer); timer = null; btn.textContent = '自動播放'; return }
+    step = 1; likes = 12; render(); btn.textContent = '停止'
+    timer = setInterval(function () {
+      if (step >= 8) { clearInterval(timer); timer = null; btn.textContent = '自動播放'; return }
+      step++; render()
+    }, 2200)
+  })
+  render()
+})()
+</script>
+<script src="../../assets/notes.js" defer></script>
+</body>
+</html>

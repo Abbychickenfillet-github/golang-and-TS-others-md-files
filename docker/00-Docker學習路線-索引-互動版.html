@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker 學習路線：索引與待辦</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
+.wrap{padding:28px 20px 80px;}
+header.note{background:linear-gradient(135deg,#ecfeff,#eef2ff);border:1px solid var(--line);border-radius:16px;padding:22px 26px;margin-bottom:18px;}
+header.note h1{margin:0 0 10px;font-size:1.6rem;}
+.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:2px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
+.meta{color:var(--muted);font-size:.85rem;margin-top:6px;}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;}
+h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
+h3{font-size:1.05rem;margin:1.1em 0 .4em;}
+code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
+table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:.93rem;}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;}
+th{background:#f1f5f9;}
+mark{padding:.05em .25em;border-radius:4px;cursor:pointer;background:#FFF3A3A6;}
+mark.hidden-ans{color:transparent!important;background:#d8dbe0!important;}
+blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
+.lvl{display:inline-block;border-radius:6px;padding:0 8px;font-size:.8rem;font-weight:700;}
+.must{background:#dcfce7;color:#166534}.know{background:#e0f2fe;color:#075985}.skip{background:#f3f4f6;color:#6b7280}
+.route{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:.6em 0;}
+.route a{display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:4px 10px;color:#3730a3;text-decoration:none;font-size:.88rem;}
+.route span.arw{color:#94a3b8}
+.todo label{display:block;padding:5px 8px;border-radius:6px;cursor:pointer;}
+.todo label:hover{background:#f8fafc;}
+.todo input:checked + span{text-decoration:line-through;color:#9ca3af;}
+.prog{height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin:6px 0 12px;}
+.prog > i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s;}
+.btn{background:#fff;color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:5px 12px;font-size:.85rem;cursor:pointer;margin-right:6px;}
+.tf{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:8px 0;}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+</style><link rel="stylesheet" href="../assets/notes.css">
+</head><body>
+<div class="wrap">
+<header class="note">
+<h1>Docker 學習路線：索引與待辦</h1>
+<span class="pill">#docker</span><span class="pill">#學習路線</span><span class="pill">#後端</span><span class="pill">#索引</span>
+<div class="meta">把 docker/ 資料夾裡散落的筆記照學習順序串起來 · 建立於 2026-10-14</div>
+</header>
+
+<section class="card"><h2>1. 要學多深</h2>
+<p>目標定位：<mark>前端工程師、有全端基礎，能自己把後端開發環境跑起來、看得懂也改得動 compose 和 Dockerfile、出問題會自己查</mark>。不用學到 DevOps 的程度。</p>
+<table>
+<tr><th>程度</th><th>內容</th></tr>
+<tr><td><span class="lvl must">必會</span></td><td>image 和 container 的差別、常用指令（ps、logs、exec、up、down）、讀懂並修改 compose 和 Dockerfile、volume、service 名稱連線、env 變數、清理 vhdx</td></tr>
+<tr><td><span class="lvl know">知道就好</span></td><td>client 和 daemon 的架構、layer cache、multi-stage build、healthcheck、CI 裡 build 映像檔再推到 registry</td></tr>
+<tr><td><span class="lvl skip">先不用</span></td><td>Kubernetes、Docker Swarm、自訂網路驅動、映像檔簽章、dockerd 的進階參數</td></tr>
+</table>
+<p>面試時能講出「我用 compose 起 Go＋MySQL＋Redis 的開發環境，backend 用 service 名稱連 DB，env 在執行時注入，密碼不進 git」就很夠了。</p>
+</section>
+
+<section class="card"><h2>2. 調整後的學習順序</h2>
+<div class="route">
+<a href="#s1">1 架構</a><span class="arw">→</span><a href="#s2">2 image 與 container</a><span class="arw">→</span><a href="#s3">3 基本指令</a><span class="arw">→</span><a href="#s4">4 Dockerfile</a><span class="arw">→</span><a href="#s5">5 volume</a><span class="arw">→</span><a href="#s6">6 網路與 port</a><span class="arw">→</span><a href="#s7">7 compose 與 env</a><span class="arw">→</span><a href="#s8">8 啟動與關閉</a><span class="arw">→</span><a href="#s9">9 清理 vhdx</a><span class="arw">→</span><a href="#s10">10 選修 CI/CD</a>
+</div>
+<h3>你原本的順序 → 調整後</h3>
+<table>
+<tr><th>你原本</th><th>調整後</th><th>為什麼這樣調</th></tr>
+<tr><td>00 daemon 架構</td><td>1</td><td>不變，先有整體圖</td></tr>
+<tr><td>04 映像檔的意義</td><td>2</td><td>往前移。指令幾乎都在操作 image 或 container，先分清楚兩者，指令才看得懂</td></tr>
+<tr><td>01 docker 指令</td><td>3</td><td>不變</td></tr>
+<tr><td>03 Dockerfile</td><td>4</td><td>移到 compose 前面。compose 的 <code>build:</code> 會去讀 Dockerfile，先懂 Dockerfile 才知道 compose 在 build 什麼</td></tr>
+<tr><td>05 volume</td><td>5</td><td>移到 compose 前面，compose 裡的 volumes 才看得懂</td></tr>
+<tr><td>（沒有）</td><td>6 網路與 port</td><td><mark>新增</mark>。容器之間怎麼互連、為什麼 host 寫 mysql，是連資料庫最常卡的地方</td></tr>
+<tr><td>02 docker-compose</td><td>7</td><td>移到後面，因為 compose 是把 4、5、6 組起來的設定檔，env 變數也放這站</td></tr>
+<tr><td>06 compose up 怎麼開</td><td>8</td><td>和「關掉」合併成同一站</td></tr>
+<tr><td>07 要記得關掉</td><td>8＋9</td><td>拆開，見下方提醒</td></tr>
+</table>
+<blockquote>修正一個觀念：<mark>容器沒關不會讓 vhdx 變大</mark>，只會吃 CPU 和記憶體。vhdx 變大是因為反覆 <code>--build</code> 留下的舊映像檔、build cache、volume 資料，而且 vhdx 只會長不會自己縮。所以第 8 站是「用完要 down」，第 9 站才是「定期 prune 再壓縮 vhdx」。</blockquote>
+</section>
+
+<section class="card"><h2>3. 各站內容與既有筆記</h2>
+<h3 id="s1">第 1 站：架構（client、daemon、Docker Desktop、WSL2）<span class="lvl know">知道就好</span></h3>
+<p>docker CLI（client）把指令透過 socket 或 named pipe 傳給 dockerd（daemon），daemon 才真的去建映像檔和容器。Docker Desktop 是 GUI，加上一台跑在 WSL2 裡的 Linux VM，資料都存在那顆 vhdx 裡。</p>
+<p>筆記：[[docker-引擎-context-image-container-觀念]]、[[Docker-Socket與Client-Daemon通訊-var-lib-docker路徑解剖]]、[[windows-用-linux-的方式]]、[[如何啟動docker-desktop與WSL]]、[[Docker-Desktop-卡在starting或distro-stopped-排查]]、[[比較Git bash 與Docker WSL bash]]</p>
+
+<h3 id="s2">第 2 站：image 與 container、映像檔注意事項 <span class="lvl must">必會</span></h3>
+<p>image 是唯讀的模板（由很多層 layer 疊成），container 是用 image 跑起來的執行個體。注意事項：</p>
+<p>　a. 不要用 <code>latest</code> 當正式版本的 tag，會不知道實際跑的是哪一版。</p>
+<p>　b. alpine 映像檔小，但用的是 musl 而不是 glibc，偶爾會有相容問題。</p>
+<p>　c. 密碼、金鑰不要寫進映像檔，拿到映像檔的人都看得到。</p>
+<p>筆記：[[docker-引擎-context-image-container-觀念]]、[[建立IMAGE指令]]、[[docker-scout常用指令與介紹]]</p>
+
+<h3 id="s3">第 3 站：docker 基本指令 <span class="lvl must">必會</span></h3>
+<p>先熟這 8 個：<code>ps</code>、<code>images</code>、<code>logs</code>、<code>exec</code>、<code>run</code>、<code>stop</code>、<code>rm</code>、<code>pull</code>。</p>
+<p>筆記：[[docker-本次指令清單-中英對照]]、[[docker-notes]]、[[CONTAINER_PATH_AND_SHELL_EXPLANATION]]、[[mysql-docker-cli]]</p>
+
+<h3 id="s4">第 4 站：Dockerfile <span class="lvl must">必會</span></h3>
+<p>看懂 <code>FROM</code>、<code>WORKDIR</code>、<code>COPY</code>、<code>RUN</code>、<code>EXPOSE</code>、<code>CMD</code>。重點是 layer cache：先 COPY <code>go.mod</code> 再 <code>go mod download</code>，最後才 COPY 全部原始碼，這樣改程式碼時不用重抓套件。Go 正式版常用 multi-stage build（知道就好）。</p>
+<p>筆記：[[建置失敗排查-Module-not-found與ESLint在哪一階段-npm-ci與Dockerfile-WORKDIR]]、[[建立IMAGE指令]]</p>
+
+<h3 id="s5">第 5 站：volume <span class="lvl must">必會</span></h3>
+<p>named volume（例如 <code>mysql-data</code>）讓資料庫資料在容器刪掉後還在。bind mount（例如 <code>.:/app</code>）把你的原始碼掛進容器，熱重載靠它。<code>down -v</code> 會連 named volume 一起刪掉，資料庫資料就沒了。</p>
+<p>筆記：[[2025-12-01_volume_在docker-compose.yml是什麼意思跟用途_696a2788]]、[[MySQL資料庫備份指南]]、[[PostgreSQL-Checkpoint與SIGTERM-Docker停止機制]]</p>
+
+<h3 id="s6">第 6 站：網路與 port <span class="lvl must">必會</span></h3>
+<p>compose 裡的 service 名稱就是內部網路的主機名稱。<code>ports:</code> 是開給主機用的，容器互連不需要它。</p>
+<p>筆記：[[Docker-Compose連資料庫-env變數與DSN]]（第 4 節）、[[DOCKER_PORT_CONFLICT_SOLUTION]]、[[PORT_CONFLICT_TROUBLESHOOTING]]、[[QUICK_FIX_5004_PORT]]、[[ROUTING_AND_DOCKER_EXPLANATION]]、[[Nginx-反向代理與動靜分離]]</p>
+
+<h3 id="s7">第 7 站：docker compose 與 env 變數 <span class="lvl must">必會</span></h3>
+<p>services、build、ports、volumes、depends_on、healthcheck、environment、env_file。env 在執行時注入，Vite 的 <code>VITE_*</code> 卻是 build 時寫死，這個對比要記住。</p>
+<p>筆記：[[Docker-Compose連資料庫-env變數與DSN]]（今天新寫）、[[2025-11-25_docker-compose-guide]]、[[DOCKER_COMPOSE_COMMAND_EXPLANATION架構]]、[[compose-dev-references-dockerfile-dev-and-mysql-host-check]]、[[docker-compose-modes]]、[[docker-compose-develop-section]]、[[並行串行]]、[[docker-compose-ps-and-unix-ps]]</p>
+
+<h3 id="s8">第 8 站：啟動、熱重載、關閉 <span class="lvl must">必會</span></h3>
+<table>
+<tr><th>指令</th><th>做什麼</th></tr>
+<tr><td><code>docker compose -f 檔案 up --build</code></td><td>重新 build 後啟動，log 印在前景</td></tr>
+<tr><td><code>docker compose -f 檔案 up -d</code></td><td>在背景啟動，env 有改會自動重建容器</td></tr>
+<tr><td><code>docker compose -f 檔案 logs -f backend-go</code></td><td>持續看某個 service 的 log</td></tr>
+<tr><td><code>docker compose -f 檔案 down</code></td><td>停止並刪除容器和網路，volume 保留</td></tr>
+<tr><td><code>docker compose -f 檔案 down -v</code></td><td>連 volume 一起刪，資料庫資料會消失</td></tr>
+</table>
+<p>VS Code 裝 Docker 擴充套件後，對 compose 檔按右鍵選 Compose Up 和打指令效果一樣。</p>
+<p>筆記：[[docker-compose-watch-vs-npm-dev]]、[[air-docker-compose]]、[[WATCH_AND_RELOAD_TROUBLESHOOTING]]、[[docker-compose-switch-mode]]、[[docker-compose-watch]]</p>
+
+<h3 id="s9">第 9 站：清理與壓縮 vhdx <span class="lvl must">必會</span></h3>
+<p>先用 <code>docker system df</code> 看誰佔空間，再 prune build cache 和沒用的映像檔，最後用 diskpart compact 把 vhdx 縮回來。</p>
+<p>筆記：[[Docker問題prune+壓縮vhdx(虛擬磁碟)解決硬碟爆掉]]、[[Docker磁碟清理與WinRE事件4502(互動測驗)]]、skill：docker-vhdx-cleanup</p>
+
+<h3 id="s10">第 10 站：選修 CI/CD <span class="lvl know">知道就好</span></h3>
+<p>筆記：[[GitHub-Actions-CICD-ghcr與Docker映像檔]]</p>
+</section>
+
+<section class="card todo"><h2>4. 後端複習待辦</h2>
+<div class="prog"><i id="bar"></i></div><div id="cnt" style="color:var(--muted);font-size:.85rem"></div>
+<div id="todos"></div>
+<button class="btn" onclick="__resetTodo()">全部取消勾選</button>
+</section>
+
+<section class="card"><h2>5. 小測驗</h2><div id="tfbox"></div></section>
+
+<section class="card"><h2>6. 資料來源</h2>
+<table>
+<tr><th>主題</th><th>連結</th><th>查閱時間</th></tr>
+<tr><td>Docker 架構</td><td><a href="https://docs.docker.com/get-started/docker-overview/">Docker Docs — Docker overview</a></td><td>2026-10-14</td></tr>
+<tr><td>Dockerfile 與 build cache</td><td><a href="https://docs.docker.com/build/cache/">Docker Docs — Docker build cache</a></td><td>2026-10-14</td></tr>
+<tr><td>volume</td><td><a href="https://docs.docker.com/engine/storage/volumes/">Docker Docs — Volumes</a></td><td>2026-10-14</td></tr>
+<tr><td>compose 網路</td><td><a href="https://docs.docker.com/compose/how-tos/networking/">Docker Docs — Networking in Compose</a></td><td>2026-10-14</td></tr>
+<tr><td>compose down</td><td><a href="https://docs.docker.com/reference/cli/docker/compose/down/">Docker Docs — docker compose down</a></td><td>2026-10-14</td></tr>
+<tr><td>system df 與 prune</td><td><a href="https://docs.docker.com/reference/cli/docker/system/prune/">Docker Docs — docker system prune</a></td><td>2026-10-14</td></tr>
+</table></section>
+<footer>Claude 整理 · 2026-10-14</footer>
+</div>
+<script>
+var TODOS=[
+"第 1 站：看一支 Docker 架構影片，能畫出 client → daemon → container 的圖",
+"第 2 站：用自己的話講出 image 和 container 的差別",
+"第 3 站：在票務系統專案跑 docker ps、logs、exec 各一次",
+"第 4 站：逐行讀懂 backend-go/Dockerfile.dev，說出為什麼先 COPY go.mod",
+"第 5 站：分清楚 mysql-data（named volume）和 .:/app（bind mount）",
+"第 6 站：說出 backend-go 為什麼 MYSQL_HOST=mysql 而不是 localhost",
+"第 7 站：讀完〈Docker Compose 連資料庫〉並做完是非題和申論題",
+"第 7 站：用 docker compose config 和 exec env 看實際拿到的 env",
+"安全：確認 GitHub repo 是 private，把 compose 裡的金鑰搬到 .env 並加進 .gitignore",
+"第 8 站：練習 up -d、logs -f、down，搞懂 restart 和 up -d 的差別",
+"第 9 站：跑 docker system df，照筆記清一次 build cache"
+];
+var KEY='docker-route-todo';
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};}}
+function save(o){try{localStorage.setItem(KEY,JSON.stringify(o));}catch(e){}}
+function render(){var st=load(),box=document.getElementById('todos');box.innerHTML='';var done=0;
+TODOS.forEach(function(t,i){var l=document.createElement('label');l.innerHTML='<input type="checkbox"'+(st[i]?' checked':'')+'> <span>'+t+'</span>';if(st[i])done++;
+l.querySelector('input').onchange=function(e){var s=load();s[i]=e.target.checked;save(s);render();};box.appendChild(l);});
+document.getElementById('bar').style.width=(done/TODOS.length*100)+'%';document.getElementById('cnt').textContent='完成 '+done+' / '+TODOS.length;}
+window.__resetTodo=function(){save({});render();};render();
+var TF=[["容器沒有關掉，vhdx 就會一直變大。",false,"容器開著只吃 CPU 和記憶體，vhdx 變大是因為映像檔、build cache、volume 資料累積。"],
+["compose 的 build: 會去讀 Dockerfile，所以 Dockerfile 排在 compose 前面學比較順。",true,"compose 是把 Dockerfile、volume、網路組起來的設定檔。"],
+["docker compose down 會把資料庫的 named volume 一起刪掉。",false,"要加 -v 才會刪 volume。"]];
+(function(){var box=document.getElementById('tfbox');TF.forEach(function(q,i){var d=document.createElement('div');d.className='tf';d.innerHTML='<div>'+(i+1)+'. '+q[0]+'</div><button class="btn">○ 對</button><button class="btn">✕ 錯</button><span class="r" style="font-weight:700;margin-left:6px"></span><div class="why" style="display:none;color:#4b5563;margin-top:6px"></div>';var bs=d.querySelectorAll('button'),r=d.querySelector('.r'),w=d.querySelector('.why');[true,false].forEach(function(v,k){bs[k].onclick=function(){var ok=v===q[1];r.textContent=ok?'答對了':'答錯了';r.style.color=ok?'#15803d':'#b91c1c';w.textContent='解析：'+q[2];w.style.display='block';};});box.appendChild(d);});})();
+document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
+</script>
+<script src="../assets/wikilink.js" data-root="../"></script>
+<script src="../assets/notes.js" defer></script>
+</body></html>

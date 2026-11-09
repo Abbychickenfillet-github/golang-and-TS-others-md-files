@@ -9,7 +9,8 @@ sources:
   - https://gemini.google.com/app/296e1a879bb61062
   - https://gemini.google.com/app/d54c36b18b457e25
   - https://gemini.google.com/app/7461a8e128a56871
-updated: 2026-10-13
+  - https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide
+updated: 2026-11-08
 ---
 
 # JavaScript 事件循環 Event Loop（微任務 vs 巨任務）
@@ -256,6 +257,37 @@ C++、Java 這類語言習慣直接開多條執行緒（Python、Go、Rust、C# 
 
 <mark style="background: #FFF3A3A6;">反直覺例子</mark>：`setTimeout(fn,0)`（宏任務、瞬間結束）遇上一個內含 5 秒死迴圈的 `Promise.then`（微任務）→ 網頁會<mark style="background: #FF5582A6;">先卡死 5 秒印出微任務</mark>，才印出那個 0 秒的 setTimeout。證明微任務再慢也優先。
 
+> [!question] Abby 的疑問：Promise 為什麼是微任務、setTimeout 為什麼是巨任務？兩個不都是非同步嗎？
+> <mark style="background: #BBFABBA6;">對，兩個都是非同步，所以「同步或非同步」、「任務大小」、「時間長短」都不能拿來區分微任務與巨任務</mark>。真正的分界只有一個：<mark style="background: #FFF3A3A6;">這個回呼被放進哪一條佇列、什麼時候被跑</mark>。另外「微／巨」只是 micro／macro 的字面翻譯，HTML 規格的正式用詞是 task 與 microtask，沒有「大小」的意思。
+
+| 你可能拿來區分的標準 | 能不能區分微／巨 | 原因 |
+|---|---|---|
+| 同步還是非同步 | 不能 | Promise.then 與 setTimeout 都是非同步，卻一個微一個巨；同步程式碼根本不進佇列，它就是「目前這個任務」本身的一部分 |
+| 任務的大小 | 不能 | 微／巨不是工作量的大小，見上面「5 秒死迴圈的微任務」例子 |
+| 做事時間長短 | 不能 | 引擎執行前無法預知程式會跑多久 |
+| 回呼放進哪一條佇列、何時被跑 | <mark style="background: #BBFABBA6;">能，這才是標準</mark> | 微任務：目前任務結束、stack 清空後立刻全部清光；任務：每一圈只取一個，且渲染與輸入事件可以插在兩個任務之間 |
+
+兩者同為非同步，差別在於「它在等什麼」：
+
+| 比較 | Promise.then（微任務） | setTimeout（任務） |
+|---|---|---|
+| 回呼為什麼要晚一點才跑 | 不能在目前這行程式裡同步跑，要等目前這段 JS 做完，但<mark style="background: #FFF3A3A6;">不需要等任何外部事件</mark> | 要等外面的時鐘走完指定時間，是<mark style="background: #FFF3A3A6;">一個新的、獨立的外部事件</mark> |
+| 什麼時候跑 | 目前任務一結束、stack 一清空，就在「微任務檢查點」立刻跑 | 時間到後，宿主環境把回呼放進任務佇列，排隊等輪到 |
+| 能被渲染或使用者輸入插隊嗎 | 不能，微任務全部清空之前，瀏覽器不會去渲染或處理下一個任務 | 能，兩個任務之間瀏覽器可以渲染、處理點擊 |
+| 判斷口訣 | 「接續目前這段 JS 的收尾」 | 「等外部發生一件新事」 |
+
+一次 `fetch` 其實<mark style="background: #ADCCFFA6;">同時用到兩條佇列</mark>：等網路回應是外部事件（任務），回應到了讓 Promise 完成，之後 `.then` 的回呼就是微任務。MDN 對應的說法有三句：微任務是「在建立它的函式或程式結束後，且 JavaScript 執行堆疊為空時，才在把控制權交還給事件迴圈之前執行」；「tasks and microtasks are kept on separate queues, and that microtasks run first」；`setTimeout` 時間到時「the corresponding callback [is] added to the task queue」，而 Promise 與 MutationObserver 的回呼都走微任務佇列。
+
+可以跑這支示範：[微任務vs巨任務-Promise與setTimeout順序示範.js](微任務vs巨任務-Promise與setTimeout順序示範.js)（Node v24.14.0 實測，2026-11-08）。同步 1、2 先印；接著 Promise.then、queueMicrotask、await 之後的程式這三個微任務依排入順序印出（3、4、5）；最後才輪到 setTimeout（6）。第二段證明：微任務 A 裡再排的微任務 B，仍先於已經排隊的 setTimeout（B1、B2、B3），所以 MDN 警告微任務若不斷再排微任務，會讓事件迴圈一直處理微任務、拖住渲染與其他回呼。
+
+| 輸出 | 來源 | 屬於 |
+|---|---|---|
+| 1、2 | 同步 console.log | 目前任務本身，不進佇列 |
+| 3、4、5 | Promise.then、queueMicrotask、await 之後 | 微任務，依排入順序 |
+| 6 | setTimeout（0 毫秒） | 任務 |
+| B1、B2 | 第二段：微任務 A 與 A 裡新排的 B | 微任務，先於 B3 |
+| B3 | 第二段的 setTimeout | 任務 |
+
 ### 追加：為什麼 I/O 與 UI 渲染是宏任務？
 
 - <mark style="background: #FFF3A3A6;">I/O</mark>：是<mark style="background: #ADCCFFA6;">來自作業系統／硬體的「全新外部事件」</mark>（何時完成 JS 無法預測），不是引擎內部的收尾，沒資格插隊微任務 → 乖乖去宏任務排隊。
@@ -372,5 +404,7 @@ Gemini：JS 是單執行緒語言，結合 Call Stack、Web APIs、Callback Queu
 | Worker 在另一條執行緒、不能操作 DOM、資料以 postMessage 複製；Worker 可用 fetch／XMLHttpRequest／setTimeout／WebSockets／IndexedDB；Dedicated／Shared／Service Worker；Shared Worker 須同源、以 port 通訊、無人參照時關閉 | https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers | MDN，2026-10-13 查證 |
 | Service Worker 跑在 worker context、沒有 DOM、在不同執行緒、像代理伺服器攔截請求 | https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API | MDN，2026-10-13 查證 |
 | Node.js worker_threads 是「獨立的 JavaScript 執行緒」；適合 CPU 密集、對 I/O 密集幫助不大；未逐字寫各有 Event Loop | https://nodejs.org/api/worker_threads.html | Node.js 官方文件，2026-10-13 查證 |
+| 微任務的定義、微任務佇列何時清空、tasks 與 microtasks 分開兩條佇列且微任務先跑、setTimeout 回呼進 task queue、Promise 與 MutationObserver 走微任務佇列、微任務不斷再排微任務的風險 | https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide | MDN，頁面最後修改 2025-10-05、查證日 2026-11-08 |
+| HTML 事件迴圈把 jobs 分成 tasks 與 microtasks，微任務佇列先清空才取任務佇列；對已完成的 Promise 附加回呼會「立刻被排成 job」 | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Event_loop | MDN，頁面最後修改 2026-11-02、查證日 2026-11-08；該頁未逐字寫「Promise 回呼是微任務」，此點以 Microtask guide 為準 |
 
 > 查證方式：用 WebFetch 擷取上列頁面並比對原文；擷取工具有摘要成分，引文請以原頁為準。

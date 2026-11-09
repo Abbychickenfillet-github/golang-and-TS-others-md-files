@@ -13,7 +13,7 @@ updated: 2026-09-15
 # Mermaid 流程圖——ISO 5807 標準符號與 `Error parsing` 排錯
 
 > 本篇重點 a–m，共 13 個。
-> 關聯筆記：[[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]]（vault 裡第一張照 ISO 5807 畫的流程圖）、[[Vue腳手架套件全表與Linter工具鏈-npm生命週期鉤子-Oxlint與ESLint分工-Vite-Dev-Inspector]]（那篇的主軸圖就是照本篇規則畫的）、[[Jekyll與GitHub-Pages把Markdown筆記變成免費網站]]（同一張圖在 GitHub Pages 上能不能渲染）。
+> 關聯筆記：[[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]]（vault 裡第一張照 ISO 5807 畫的流程圖）、[[Vue腳手架套件全表與Linter工具鏈-npm生命週期鉤子-Oxlint與ESLint分工-Vite-Dev-Inspector]]（那篇的主軸圖就是照本篇規則畫的）、[[Jekyll與GitHub-Pages把Markdown筆記變成免費網站]]（同一張圖在 GitHub Pages 上能不能渲染）。
 > 關聯的原因：Abby 的筆記規範要求「每篇一張主軸流程圖」，本篇就是那條規範的工具手冊——符號怎麼選、語法為什麼爆、三個平台（Obsidian／iThome／GitHub Pages）能不能渲染。
 
 ## 一、`flowchart TD` 本身沒有錯

@@ -69,6 +69,7 @@ React 可以在兩個地方做這件事：
 
 **嚴格講，「預渲染」通常指 SSG**（build 時就產生好 HTML 檔案躺在硬碟上）。
 但廣義上 SSR 也算「預」——因為它也是在瀏覽器拿到東西之前，就先在 server 算好 HTML。
+（⚠️ 存疑，2026-10-26：Next.js 官方詞彙表把 Prerendering 限定在建置時或重新驗證的背景，請求時才渲染的叫 Dynamic rendering，不叫預渲染。上面「廣義」是口語說法，以官方詞彙表為準。見 [[nextjs-prerender-and-csr-bailout]]）
 
 兩者的共同點才是重點：**瀏覽器收到的第一份 HTML 裡面已經有內容了。**
 

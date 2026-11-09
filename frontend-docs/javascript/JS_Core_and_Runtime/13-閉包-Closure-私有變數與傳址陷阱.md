@@ -112,7 +112,7 @@ flowchart LR
 
 2. 執行到幾次就做幾次 → 屬於執行期（第 ⑤ 格），例如「生出一個函式物件並掛上環境」
 
-上面第 1 點的「編譯」發生在 runtime，跟 buildtime 的打包是不同階段。對照如下（用詞約定見 [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】]]：buildtime 說「轉譯」，runtime 才說「編譯」）：
+上面第 1 點的「編譯」發生在 runtime，跟 buildtime 的打包是不同階段。對照如下（用詞約定見 [[03-前端開發工具-【打包buildtime】轉譯Lint與Parser-]]：buildtime 說「轉譯」，runtime 才說「編譯」）：
 
 | 階段 | 詞 | 誰做 | 什麼時候 | 做什麼 |
 |---|---|---|---|---|

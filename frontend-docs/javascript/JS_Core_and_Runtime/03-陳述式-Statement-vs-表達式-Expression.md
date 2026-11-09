@@ -29,15 +29,15 @@ updated: 2026-08-06
 > b. 這也是為什麼要改用 `&&` 與三元運算子：它們是<mark style="background: #BBFABBA6;">表達式</mark>，塞得進那個洞；`if` 是陳述式，塞不進去。
 > 一句話記法：<mark style="background: #BBFABBA6;">陳述式與表達式的差別，決定的是「能不能放在這個位置」，不是「跑起來會怎樣」。</mark>
 
-| 5W1H | 問題 | 一句話答案 |
-|---|---|---|
-| **What** 是什麼 | 兩者分別在回答什麼問題？ | a. <mark style="background: #BBFABBA6;">表達式</mark>回答「這是什麼**值**？」——會求值出一個值<br>b. <mark style="background: #FFF3A3A6;">陳述式</mark>回答「這一步**做了什麼**？」——執行一個動作，不保證有值 |
-| **When** 什麼時候 | 這個區分在哪一格定案？ | 在 <mark style="background: #ADCCFFA6;">runtime 執行期的 Parse 那一格</mark>，Parser 依 Syntactic Grammar 決定，<mark style="background: #FFF3A3A6;">每個檔案只做一次</mark>。不是執行到那行才判斷——判斷失敗的話根本輪不到執行 |
-| **Who** 誰做的 | 誰在裁決？裁決失敗會怎樣？ | 引擎的 <mark style="background: #ADCCFFA6;">Parser</mark>。裁決失敗丟 `SyntaxError`，而且是**整支檔案都不執行**，不像 `TypeError` 那樣跑到才爆（對照 [[06-靜態檢查vs動態檢查-TS-vs-JS]]） |
-| **Where** 在哪裡 | 差別在哪裡看得見？ | a. 規範上：ECMA-262 的 Syntactic Grammar<br>b. 結構上：AST 節點名稱（`BinaryExpression` vs `IfStatement` vs `ExpressionStatement`）<br>c. 實務上：JSX 的 `{ }`、箭頭函式的 `ConciseBody`、`return` 後面 |
-| **Which** 哪一種 | 哪些位置「只收表達式」？ | a. 函式呼叫的引數：`foo(___)`<br>b. 賦值的等號右邊：`const x = ___`<br>c. JSX 的大括號：`<div>{___}</div>`<br>d. 三元運算子的三個位置<br>e. 箭頭函式 `=>` 後面沒加大括號時 |
-| **How** 怎麼做到 | 怎麼快速判斷是哪一種？ | 塞進 `console.log(___)` 或 `const x = ___` 的洞裡：<mark style="background: #BBFABBA6;">合法就是表達式</mark>，<mark style="background: #FF5582A6;">丟 SyntaxError 就是陳述式</mark> |
-| **Why** 為什麼 | 為什麼一定要分？ | 因為文法規定某些位置只能放其中一種。搞懂這件事，才知道 JSX 為什麼要用 `&&` 與三元、`return` 為什麼不能換行、`{ }` 為什麼有時是區塊有時是物件字面量 |
+| 5W1H          | 問題            | 一句話答案                                                                                                                                                                             |
+| ------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **What** 是什麼  | 兩者分別在回答什麼問題？  | a. <mark style="background: #BBFABBA6;">表達式</mark>回答「這是什麼**值**？」——會求值出一個值<br>b. <mark style="background: #FFF3A3A6;">陳述式</mark>回答「這一步**做了什麼**？」——執行一個動作，不保證有值                     |
+| **When** 什麼時候 | 這個區分在哪一格定案？   | 在 <mark style="background: #ADCCFFA6;">runtime 執行期的 Parse 那一格</mark>，Parser 依 Syntactic Grammar 決定，<mark style="background: #FFF3A3A6;">每個檔案只做一次</mark>。不是執行到那行才判斷——判斷失敗的話根本輪不到執行 |
+| **Who** 誰做的   | 誰在裁決？裁決失敗會怎樣？ | 引擎的 <mark style="background: #ADCCFFA6;">Parser</mark>。裁決失敗丟 `SyntaxError`，而且是**整支檔案都不執行**，不像 `TypeError` 那樣跑到才爆（對照 [[06-靜態檢查vs動態檢查-TS-vs-JS]]）                                   |
+| **Where** 在哪裡 | 差別在哪裡看得見？     | a. 規範上：ECMA-262 的 Syntactic Grammar<br>b. 結構上：AST 節點名稱（`BinaryExpression` vs `IfStatement` vs `ExpressionStatement`）<br>c. 實務上：JSX 的 `{ }`、箭頭函式的 `ConciseBody`、`return` 後面        |
+| **Which** 哪一種 | 哪些位置「只收表達式」？  | a. 函式呼叫的引數：`foo(___)`<br>b. 賦值的等號右邊：`const x = ___`<br>c. JSX 的大括號：`<div>{___}</div>`<br>d. 三元運算子的三個位置<br>e. 箭頭函式 `=>` 後面沒加大括號時                                                   |
+| **How** 怎麼做到  | 怎麼快速判斷是哪一種？   | 塞進 `console.log(___)` 或 `const x = ___` 的洞裡：<mark style="background: #BBFABBA6;">合法就是表達式</mark>，<mark style="background: #FF5582A6;">丟 SyntaxError 就是陳述式</mark>                   |
+| **Why** 為什麼   | 為什麼一定要分？      | 因為文法規定某些位置只能放其中一種。搞懂這件事，才知道 JSX 為什麼要用 `&&` 與三元、`return` 為什麼不能換行、`{ }` 為什麼有時是區塊有時是物件字面量                                                                                            |
 
 ### 時間軸：這件事發生在哪一格
 

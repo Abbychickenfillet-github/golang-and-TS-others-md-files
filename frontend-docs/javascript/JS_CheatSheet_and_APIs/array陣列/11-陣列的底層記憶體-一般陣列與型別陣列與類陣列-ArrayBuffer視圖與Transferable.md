@@ -5,6 +5,7 @@ source: Gemini
 tags: [gemini, javascript, array, typedarray, arraybuffer, v8, memory, webworker]
 sources:
   - https://gemini.google.com/app/fb2e1580ca06e598
+  - https://gemini.google.com/app/2c6a08750da7aa01
 updated: 2026-09-15
 ---
 
@@ -77,6 +78,13 @@ arr.customKey;     // 'I am not an index'
 　　「2 倍」比較像 C++ `std::vector` 常見的做法，不要跟 V8 混為一談。
 
 ---
+
+### 追加 2026-10-30：和 C# 陣列的對照（指回圖上 ① 區）
+
+- **C#**：`System.Array` 是連續且固定大小的記憶體，元素同型別，CPU 用指標偏移量 O(1) 存取。要動態大小用 `List<T>`（底層仍是連續陣列，滿了就配置更大的連續空間並複製）。
+- **JS**：Array 長度可動態變化、允許稀疏與混型別。
+- ⚠️ 存疑／更正：Gemini 說「JS Array 本質是雜湊對象、通常不連續」只對了一半。V8 對 packed／holey 陣列使用連續的 fast elements 後端儲存，只有極稀疏（例如 arr[1000000] = 1）才退化成 dictionary elements 。見本篇 ① 與文末 V8 elements kinds 來源。
+- 來源對話：https://gemini.google.com/app/2c6a08750da7aa01 （擷取於 2026-10-30）
 
 ## ② 型別陣列 TypedArray：資料與解讀分離
 

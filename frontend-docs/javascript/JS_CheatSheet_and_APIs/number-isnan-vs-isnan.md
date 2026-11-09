@@ -37,7 +37,7 @@ parseFloat('12.3x')          // 12.3（部分成功）
 
 ```js
 Math.sqrt(-1)               // NaN（負數無平方根）
-0 / 0                       // NaN（零除零）
+0 / 0                       // NaN（零除零）；
 Math.log(-5)                // NaN（負數無對數）
 ```
 

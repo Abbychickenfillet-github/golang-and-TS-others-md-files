@@ -98,7 +98,7 @@ flowchart LR
 > [!warning]- 為什麼這麼多人會誤以為參數綁定在 Parse 階段？三個原因
 > a. <mark style="background: #FFF3A3A6;">V8 的 lazy parsing 讓兩者在時間上黏得很近</mark>：內層函式的完整 Parse 可能被延到「第一次被呼叫前」才做，於是「編譯」跟「第一次執行」幾乎同時發生，看起來像同一件事。但規格上它們是兩個獨立步驟：Parse 只做一次，Creation Phase 每次呼叫都重做。
 > b. <mark style="background: #ADCCFFA6;">Scope Analysis 確實在 Parse 階段就「看到」了參數</mark>，容易被誤讀成「已經建立好了」。但它做的是**決策**（這個變數會不會被閉包捕獲？該放 Stack 還是 Heap？），不是**執行**（真的在 RAM 挖一塊位置、把值寫進去）。決策一次就夠，執行每次都要。
-> c. <mark style="background: #BBFABBA6;">「編譯」這個詞被兩邊共用</mark>：buildtime 的 Babel／tsc 做的是**轉譯 transpile**（高階→高階），runtime 的 V8 做的才是**編譯 compile**（AST→Bytecode→機器碼）。用詞約定見 [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】|03-前端開發工具（打包 buildtime）]]，完整管線見 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】|04-V8引擎完整管線（編譯 runtime）]]。
+> c. <mark style="background: #BBFABBA6;">「編譯」這個詞被兩邊共用</mark>：buildtime 的 Babel／tsc 做的是**轉譯 transpile**（高階→高階），runtime 的 V8 做的才是**編譯 compile**（AST→Bytecode→機器碼）。用詞約定見 [[03-前端開發工具-【打包buildtime】轉譯Lint與Parser-|03-前端開發工具（打包 buildtime）]]，完整管線見 [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】|04-V8引擎完整管線（編譯 runtime）]]。
 
 ### 一句話驗證法
 

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>元件掛載卸載與渲染時間軸</title>
+<style>
+:root {
+  --bg: #fbfaf7; --panel: #ffffff; --ink: #1f2430; --muted: #5d6475; --line: #d9d6cc;
+  --render: #3b6fd4; --commit: #d9822b; --paint: #7a8190; --effect: #2f9e6b; --unmount: #d04a4a;
+  --ok: #e8f5ee; --warn: #fdecec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161b; --panel: #1d2028; --ink: #e8eaf0; --muted: #a2a8b8; --line: #343845;
+    --render: #6f9bf0; --commit: #f0a35c; --paint: #9aa1b2; --effect: #58c796; --unmount: #f27d7d;
+    --ok: #17342a; --warn: #3a1d1d;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 16px; background: var(--bg); color: var(--ink); font: 15px/1.6 "Noto Sans TC", system-ui, sans-serif; }
+main { max-width: 980px; margin: 0 auto; }
+h1 { font-size: 1.4rem; margin: 0 0 4px; }
+.sub { color: var(--muted); margin: 0 0 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+svg { width: 100%; height: auto; display: block; }
+.node { cursor: pointer; }
+.node text { font-size: 13px; fill: var(--ink); }
+.lbl { font-size: 12px; fill: var(--muted); }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+button { font: inherit; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+button:hover, button:focus-visible { border-color: var(--render); }
+button[disabled] { opacity: .4; cursor: default; }
+.badge { display: inline-block; padding: 1px 10px; border-radius: 999px; color: #fff; font-size: .85rem; }
+h2 { font-size: 1.1rem; margin: 0 0 6px; }
+ul { margin: 6px 0 0; padding-left: 1.2rem; }
+li { margin: 3px 0; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; width: 34%; }
+td code { background: color-mix(in srgb, var(--line) 50%, transparent); padding: 1px 6px; border-radius: 6px; }
+.gone { color: var(--unmount); }
+.live { color: var(--effect); }
+.rules li { margin: 4px 0; }
+details { margin-top: 8px; }
+details summary { cursor: pointer; font-weight: 600; }
+.ans { background: var(--ok); border-radius: 8px; padding: 6px 10px; margin-top: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>元件掛載、更新、卸載與渲染時間軸</h1>
+  <p class="sub">點節點或按「下一步」。例子：use-slide-deck.js 的 deckRef 與 goTo</p>
+
+  <div class="card">
+    <svg viewBox="0 0 940 230" role="img" aria-label="元件實例從掛載到卸載的時間軸">
+      <!-- 實例壽命條：節點 2 到節點 7 -->
+      <rect id="lifebar" x="205" y="150" width="545" height="22" rx="11" fill="var(--effect)" opacity=".25"/>
+      <text class="lbl" x="478" y="166" text-anchor="middle">元件已掛載（deckRef.current 有值，goTo 快取存在）</text>
+      <line x1="30" y1="95" x2="910" y2="95" stroke="var(--line)" stroke-width="3"/>
+      <g id="nodes"></g>
+      <text class="lbl" x="30" y="205">render 階段：只算畫面，不碰 DOM</text>
+      <text class="lbl" x="470" y="205">commit 階段：改 DOM、接 ref</text>
+      <text class="lbl" x="760" y="205">effect：繪製後執行</text>
+    </svg>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <button id="prev">上一步</button>
+      <button id="next">下一步</button>
+      <button id="reset">重來</button>
+      <span id="phase" class="badge"></span>
+    </div>
+    <h2 id="title"></h2>
+    <ul id="points"></ul>
+  </div>
+
+  <div class="card">
+    <table>
+      <tr><th>deckRef.current</th><td id="s-ref"></td></tr>
+      <tr><th>goTo 函式身分</th><td id="s-fn"></td></tr>
+      <tr><th>DOM（&lt;div ref={deckRef}&gt;）</th><td id="s-dom"></td></tr>
+      <tr><th>使用者看到</th><td id="s-view"></td></tr>
+    </table>
+  </div>
+
+  <div class="card rules">
+    <h2>規則</h2>
+    <ul>
+      <li>render 階段是純函式：同樣輸入得到同樣輸出，不寫 DOM、不綁事件</li>
+      <li>副作用（量高度、綁事件）放 useEffect，在 commit 之後執行</li>
+      <li>ref 在 commit 階段才被填入，render 階段讀到的是 null</li>
+      <li>useCallback 快取的壽命 = 元件實例的壽命，卸載即消失</li>
+      <li>條件渲染消失、key 改變、換頁，都會卸載後重新掛載，快取從零開始</li>
+      <li>StrictMode 開發模式會刻意：掛載、清理、再掛載，並把元件函式呼叫兩次</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>自我測驗</h2>
+    <details><summary>1. render 階段能讀到 deckRef.current 嗎？</summary>
+      <div class="ans">不能，是 null。ref 在 commit 階段才填入。</div></details>
+    <details><summary>2. 第二次渲染產生的 goTo#2 去哪了？</summary>
+      <div class="ans">依賴 [deckRef] 沒變，useCallback 丟掉 goTo#2，回傳 goTo#1。</div></details>
+    <details><summary>3. 離開頁面後再回來，goTo 還是 goTo#1 嗎？</summary>
+      <div class="ans">不是。卸載時實例與 hook 資料被丟棄，再造訪是新實例，產生新的函式。</div></details>
+    <details><summary>4. 清理函式什麼時候執行？</summary>
+      <div class="ans">依賴變了，在下一次 setup 之前。卸載時，在實例消失之前。</div></details>
+  </div>
+
+  <div class="card">
+    <h2>來源</h2>
+    <ul>
+      <li>react.dev，<a href="https://react.dev/reference/react/useCallback">useCallback</a>：第一次渲染回傳傳入的函式，之後用 Object.is 比依賴，查閱日 2026-10-26</li>
+      <li>react.dev，<a href="https://react.dev/learn/preserving-and-resetting-state">Preserving and Resetting State</a>：元件移除時 state 銷毀，key 可重置，查閱日 2026-10-26</li>
+      <li>未查證：effect 在繪製前後的精確時機（離散事件觸發的更新會提前同步執行）來自 React 原始碼行為，未重新打開原始碼確認</li>
+    </ul>
+  </div>
+</main>
+
+<script>
+const COLORS = { render: 'var(--render)', commit: 'var(--commit)', paint: 'var(--paint)', effect: 'var(--effect)', unmount: 'var(--unmount)', idle: 'var(--paint)' };
+const STEPS = [
+  { x: 60, short: '未掛載', phase: 'idle', phaseName: '起點', title: '0　未掛載',
+    pts: ['實例還不存在', '沒有任何 hook 資料'],
+    ref: ['不存在', 'gone'], fn: ['不存在', 'gone'], dom: ['沒有', 'gone'], view: ['空白', 'gone'] },
+  { x: 150, short: '渲染 #1', phase: 'render', phaseName: 'render 階段', title: '1　第一次渲染',
+    pts: ['呼叫元件函式', 'useRef(null) → { current: null }', 'useCallback 第一次：記下 [goTo#1, [deckRef]]', '只產生描述畫面的 React 元素，不碰 DOM', 'StrictMode（開發）會呼叫兩次'],
+    ref: ['null', 'gone'], fn: ['goTo#1 剛建立', 'live'], dom: ['還沒建', 'gone'], view: ['空白', 'gone'] },
+  { x: 240, short: '提交 #1', phase: 'commit', phaseName: 'commit 階段', title: '2　第一次提交（掛載）',
+    pts: ['建立 DOM 節點並插入頁面', '把 <div> 放進 deckRef.current', 'useLayoutEffect 在此同步執行'],
+    ref: ['&lt;div&gt;（真實 DOM）', 'live'], fn: ['goTo#1', 'live'], dom: ['已插入', 'live'], view: ['尚未繪製', 'gone'] },
+  { x: 330, short: '繪製', phase: 'paint', phaseName: '瀏覽器繪製', title: '3　瀏覽器繪製',
+    pts: ['計算樣式、排版、繪製', '使用者第一次看到畫面'],
+    ref: ['&lt;div&gt;', 'live'], fn: ['goTo#1', 'live'], dom: ['已插入', 'live'], view: ['看到首頁', 'live'] },
+  { x: 420, short: 'effect setup', phase: 'effect', phaseName: 'effect', title: '4　useEffect 的 setup',
+    pts: ['通常在繪製之後執行（點擊等離散事件觸發的更新會提前同步執行）', 'use-slide-deck：量 --deck-h、綁 resize、keydown、wheel、加 snapClass', '此時讀 deckRef.current 才安全'],
+    ref: ['&lt;div&gt;', 'live'], fn: ['goTo#1', 'live'], dom: ['已插入', 'live'], view: ['可以滾輪換頁', 'live'] },
+  { x: 560, short: '渲染 #2', phase: 'render', phaseName: 'render 階段', title: '5　第二次渲染（setActive 觸發）',
+    pts: ['再呼叫元件函式', '每次渲染都會建立新函式 goTo#2', 'useCallback：Object.is 比 [deckRef]，相同', '丟掉 goTo#2，回傳 goTo#1', 'useRef 盒子是同一個'],
+    ref: ['&lt;div&gt;（同一個盒子）', 'live'], fn: ['goTo#1（沿用，goTo#2 被丟掉）', 'live'], dom: ['已插入', 'live'], view: ['畫面不變', 'live'] },
+  { x: 650, short: '提交 #2', phase: 'commit', phaseName: 'commit 階段', title: '6　第二次提交（更新）',
+    pts: ['只更新有差異的 DOM（例如圓點的 aria-current）', 'deckRef.current 不變', 'effect 依賴 [deckRef, snapClass] 沒變，不重跑'],
+    ref: ['&lt;div&gt;', 'live'], fn: ['goTo#1', 'live'], dom: ['已插入，局部更新', 'live'], view: ['圓點亮在新的一張', 'live'] },
+  { x: 750, short: '卸載', phase: 'unmount', phaseName: '卸載', title: '7　卸載（離開頁面）',
+    pts: ['React 先執行 effect 清理：removeEventListener、disconnect、classList.remove', 'deckRef.current 設回 null', 'DOM 節點被移除'],
+    ref: ['null', 'gone'], fn: ['goTo#1（即將丟棄）', 'gone'], dom: ['移除中', 'gone'], view: ['離開', 'gone'] },
+  { x: 850, short: '實例消失', phase: 'unmount', phaseName: '卸載', title: '8　實例消失',
+    pts: ['fiber 與所有 hook 資料被丟棄：state、useRef 盒子、useCallback 快取', '沒有其他地方引用 goTo#1 時，可被垃圾回收'],
+    ref: ['不存在', 'gone'], fn: ['不存在', 'gone'], dom: ['沒有', 'gone'], view: ['空白', 'gone'] }
+];
+const svgNS = 'http://www.w3.org/2000/svg';
+const nodesG = document.getElementById('nodes');
+let cur = 0;
+STEPS.forEach((s, i) => {
+  const g = document.createElementNS(svgNS, 'g');
+  g.setAttribute('class', 'node'); g.setAttribute('tabindex', '0'); g.dataset.i = i;
+  const c = document.createElementNS(svgNS, 'circle');
+  c.setAttribute('cx', s.x); c.setAttribute('cy', 95); c.setAttribute('r', 16);
+  c.setAttribute('fill', COLORS[s.phase]); c.setAttribute('stroke', 'var(--ink)'); c.setAttribute('stroke-width', 0);
+  const t = document.createElementNS(svgNS, 'text');
+  t.setAttribute('x', s.x); t.setAttribute('y', 130); t.setAttribute('text-anchor', 'middle'); t.textContent = s.short;
+  const n = document.createElementNS(svgNS, 'text');
+  n.setAttribute('x', s.x); n.setAttribute('y', 100); n.setAttribute('text-anchor', 'middle');
+  n.setAttribute('fill', '#fff'); n.style.fontSize = '12px'; n.textContent = i;
+  g.append(c, t, n); nodesG.append(g);
+  g.addEventListener('click', () => go(i));
+  g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(i); } });
+});
+function cell(id, v) { const el = document.getElementById(id); el.innerHTML = '<span class="' + v[1] + '">' + v[0] + '</span>'; }
+function go(i) {
+  cur = Math.max(0, Math.min(STEPS.length - 1, i));
+  const s = STEPS[cur];
+  document.querySelectorAll('.node circle').forEach((c, k) => c.setAttribute('stroke-width', k === cur ? 4 : 0));
+  const b = document.getElementById('phase'); b.textContent = s.phaseName; b.style.background = COLORS[s.phase];
+  document.getElementById('title').textContent = s.title;
+  document.getElementById('points').innerHTML = s.pts.map(p => '<li>' + p.replace(/</g, '&lt;') + '</li>').join('');
+  cell('s-ref', s.ref); cell('s-fn', s.fn); cell('s-dom', s.dom); cell('s-view', s.view);
+  document.getElementById('prev').disabled = cur === 0;
+  document.getElementById('next').disabled = cur === STEPS.length - 1;
+}
+document.getElementById('prev').onclick = () => go(cur - 1);
+document.getElementById('next').onclick = () => go(cur + 1);
+document.getElementById('reset').onclick = () => go(0);
+document.addEventListener('keydown', e => { if (e.key === 'ArrowRight') go(cur + 1); if (e.key === 'ArrowLeft') go(cur - 1); });
+go(0);
+</script>
+</body>
+</html>

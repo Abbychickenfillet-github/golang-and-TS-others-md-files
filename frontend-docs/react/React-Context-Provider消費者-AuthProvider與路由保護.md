@@ -11,7 +11,7 @@ updated: 2026-06-27
 # React Context（Provider/Consumer）、AuthProvider 與路由保護
 
 > 互動考題版：[[React-Context-Provider消費者-AuthProvider與路由保護.html|點我做題（填空／是非／申論）]]
-> 相關筆記：[[useMemo-return]]、[[樂觀更新-Optimistic-Update]]、[[Cookie-與-Session]]、[[JWT_TOKEN_EXPLANATION]]、[[GOOGLE_OAUTH_SETUP]]
+> 相關筆記：[[useMemo-return]]、[[樂觀更新-Optimistic-Update]]、[[1-Cookie-與-Session]]、[[JWT_TOKEN_EXPLANATION]]、[[GOOGLE_OAUTH_SETUP]]
 
 ## 重點整理
 
@@ -93,8 +93,8 @@ useEffect(() => {
 
 ## 🔁 對照與補遺（跟既有筆記交叉比對）
 
-- **這份是「前端登入」，剛好接上你 vault 的「後端登入」**：`AuthProvider` 管的是瀏覽器端的登入狀態，而真正驗證身分在後端——對照 [[GOOGLE_OAUTH_SETUP]]（後端 OAuth 發 JWT）、[[Cookie-與-Session]]、[[JWT_TOKEN_EXPLANATION]]。前端 Context 存的多半是「後端發回來的 token / 使用者資訊」。
-- **安全補充（既有筆記與本對話都沒強調）**：對話裡用 `localStorage` 存 auth 來「模擬伺服器」。要注意 <mark style="background: #FF5582A6;">localStorage 可被 XSS 讀取</mark>，正式環境的敏感 token 較建議放 <mark style="background: #ADCCFFA6;">`HttpOnly` cookie</mark>（JS 讀不到）——見 [[Cookie-與-Session]] 的 Cookie 安全旗標。
+- **這份是「前端登入」，剛好接上你 vault 的「後端登入」**：`AuthProvider` 管的是瀏覽器端的登入狀態，而真正驗證身分在後端——對照 [[GOOGLE_OAUTH_SETUP]]（後端 OAuth 發 JWT）、[[1-Cookie-與-Session]]、[[JWT_TOKEN_EXPLANATION]]。前端 Context 存的多半是「後端發回來的 token / 使用者資訊」。
+- **安全補充（既有筆記與本對話都沒強調）**：對話裡用 `localStorage` 存 auth 來「模擬伺服器」。要注意 <mark style="background: #FF5582A6;">localStorage 可被 XSS 讀取</mark>，正式環境的敏感 token 較建議放 <mark style="background: #ADCCFFA6;">`HttpOnly` cookie</mark>（JS 讀不到）——見 [[1-Cookie-與-Session]] 的 Cookie 安全旗標。
 - **效能對照**：Context value 變動造成的重渲染，跟 [[useMemo-return]]（memo 化避免重算）是同一條效能線；常見解法是把 value 用 `useMemo` 包、或拆分多個小 Context。
 - **Context vs useReducer vs Redux**：
 

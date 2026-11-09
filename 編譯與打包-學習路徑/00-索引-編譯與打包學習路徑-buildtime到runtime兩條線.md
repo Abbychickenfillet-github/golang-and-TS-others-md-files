@@ -45,7 +45,7 @@ updated: 2026-09-09
 | **4** | `SSR-renderToString與Hydration-伺服器端渲染流程`（在 `frontend-docs/react/`） | run-time · 收尾 | hydration：把互動掛回既有 DOM |
 | 周邊 | `05-JSX轉譯` / `06-React錯誤` / `07-選型` / `08-09-npm scripts` / `10-chunks` | 補充 | 各主題細節 |
 
-wikilink 版（給 Obsidian 點）：[[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】]]、[[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]]、[[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]]、[[script載入方式+前因後果]]、[[SSR-renderToString與Hydration-伺服器端渲染流程]]。
+wikilink 版（給 Obsidian 點）：[[03-前端開發工具-【打包buildtime】轉譯Lint與Parser-]]、[[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]]、[[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]]、[[script載入方式+前因後果]]、[[SSR-renderToString與Hydration-伺服器端渲染流程]]。
 
 ## 你問的三個關係
 

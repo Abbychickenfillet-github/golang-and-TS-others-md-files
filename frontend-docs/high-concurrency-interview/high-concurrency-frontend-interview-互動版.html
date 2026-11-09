@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>高併發定義與前端面試說法 — 請求流程圖互動版</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#1a2233; --panel2:#141b29; --ink:#e8edf6; --muted:#9fb0c8;
+    --line:#2b3750; --accent:#5b9dff; --gold:#ffd166; --green:#57d9a3; --red:#ff6b6b; --purple:#b794f6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;padding:24px 16px;
+    font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+  .wrap{max-width:980px;margin:0 auto}
+  h1{font-size:1.55rem;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:.9rem;margin:0 0 20px}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:0 0 22px}
+  h2{font-size:1.15rem;margin:0 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  h3{font-size:1rem;margin:16px 0 6px}
+  .tag{font-size:.72rem;color:var(--bg);background:var(--gold);border-radius:999px;padding:2px 9px;font-weight:700}
+  .note{color:var(--muted);font-size:.85rem;margin:2px 0 12px}
+  a{color:var(--accent)}
+  code,.mono{font-family:Consolas,"SF Mono",monospace}
+  code{background:#0a0f1a;border:1px solid var(--line);border-radius:5px;padding:0 5px;font-size:.88em}
+  table{width:100%;border-collapse:collapse;font-size:.88rem;margin:8px 0}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--gold)}
+  button{background:var(--accent);color:#06122b;border:0;border-radius:9px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:.88rem}
+  button:hover{filter:brightness(1.1)}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  button.on{background:var(--gold)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}
+  input[type=number],input[type=text]{background:#0a0f1a;color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-size:.9rem}
+  .box{background:var(--panel2);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-size:.9rem}
+  .box.warn{border-color:var(--red)} .box.ok{border-color:var(--green)}
+  .hide{display:none}
+  .toc{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 18px}
+  .toc a{font-size:.8rem;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 11px;text-decoration:none;color:var(--ink)}
+
+  /* flowchart */
+  .fc-wrap{display:block}
+  #detail{position:sticky;bottom:10px;background:#101a30;border:1px solid var(--accent);border-left-width:4px;box-shadow:0 -6px 18px rgba(0,0,0,.5);max-height:42vh;overflow:auto}
+  svg text{font-family:inherit;fill:var(--ink);font-size:14px;pointer-events:none}
+  .node{cursor:pointer}
+  .node .shape{fill:var(--panel2);stroke:var(--accent);stroke-width:2;transition:.2s}
+  .node.decision .shape{stroke:var(--gold)}
+  .node.term .shape{stroke:var(--green)}
+  .node.store .shape{stroke:var(--purple)}
+  .node:hover .shape{fill:#1e2a44}
+  .node.sel .shape{fill:#27406e;stroke-width:3.5}
+  .node.run .shape{fill:#5b4a14}
+  .edge{fill:none;stroke:var(--muted);stroke-width:1.8}
+  .edge.loop{stroke:var(--red);stroke-dasharray:6 4}
+  .elabel{font-size:12px;fill:var(--gold)}
+  #detail h3{margin-top:0}
+  .pill{display:inline-block;font-size:.72rem;border-radius:999px;padding:1px 9px;margin-right:6px;border:1px solid var(--line);color:var(--muted)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin:6px 0}
+  .legend i{display:inline-block;width:14px;height:14px;border:2px solid;margin-right:4px;vertical-align:-3px}
+
+  /* code */
+  table.code td{padding:3px 8px;font-size:.84rem}
+  table.code td:first-child{font-family:Consolas,monospace;white-space:pre;background:#0a0f1a;color:#d6e2ff;width:48%}
+  table.code.noexp td:nth-child(2){display:none}
+  table.code.noexp td:first-child{width:100%}
+
+  /* waterfall */
+  .wf{background:#0a0f1a;border:1px solid var(--line);border-radius:10px;padding:10px;position:relative}
+  .wfrow{display:grid;grid-template-columns:70px 1fr;align-items:center;gap:8px;height:20px;font-size:.72rem;color:var(--muted)}
+  .wfbar{position:relative;height:12px}
+  .wfq{position:absolute;height:12px;background:repeating-linear-gradient(45deg,#6b7280 0 4px,#4b5563 4px 8px);border-radius:2px}
+  .wfd{position:absolute;height:12px;background:var(--accent);border-radius:2px}
+  .anno{position:absolute;border:3px solid var(--red);border-radius:6px;pointer-events:none}
+  .annot{position:absolute;background:var(--red);color:#fff;font-weight:700;font-size:.78rem;padding:2px 8px;border-radius:5px;pointer-events:none;white-space:nowrap}
+
+  /* quiz */
+  .q{border-top:1px dashed var(--line);padding:10px 0}
+  .fill{width:130px}
+  .good{border-color:var(--green)!important} .bad{border-color:var(--red)!important}
+  .ans{color:var(--green)}
+  details{margin:6px 0}
+  summary{cursor:pointer;color:var(--gold)}
+  .star dt{color:var(--gold);font-weight:700;margin-top:10px}
+  .star dd{margin:2px 0 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>高併發是什麼？前端面試怎麼說</h1>
+  <p class="sub">查證日期 2026-10-22　本篇重點 a–h，共 8 個　主軸圖：一個請求從使用者點擊走到資料庫的每一層優化點　對應 md：<code>high-concurrency-frontend-interview.md</code></p>
+  <div class="toc">
+    <a href="#a">a 定義與指標</a><a href="#b">b 主軸流程圖</a><a href="#c">c 排隊瀑布圖</a><a href="#d">d 程式碼逐行</a>
+    <a href="#e">e 底層觀念</a><a href="#f">f STAR 口語稿</a><a href="#g">g 專案實證</a><a href="#h">h 自我測驗與來源</a>
+  </div>
+
+  <!-- a -->
+  <section id="a">
+    <h2><span class="tag">a</span>定義：高併發 = 同一時間有很多請求在系統內「進行中」</h2>
+    <p class="note">先講全名與意思，再用縮寫。表格內不放 wikilink（避免 pipe 拆表），關聯筆記集中在最後一節。</p>
+    <table>
+      <tr><th>名詞</th><th>全名與意思</th><th>面試白話</th></tr>
+      <tr><td>併發 concurrency</td><td>多個獨立任務在時間上交錯推進，結構上能同時處理（<a href="https://go.dev/blog/waza-talk">Go 官方部落格引述 Rob Pike</a>：獨立執行程序的組合）</td><td>一個人輪流照顧多個鍋子</td></tr>
+      <tr><td>並行 parallelism</td><td>多個計算在同一個瞬間真的同時執行（需要多核心）</td><td>多個人各炒一個鍋</td></tr>
+      <tr><td>QPS</td><td>Queries Per Second，每秒查詢數，常指伺服器每秒收到的請求數</td><td>入口流量</td></tr>
+      <tr><td>RPS</td><td>Requests Per Second，每秒請求數，與 QPS 在 HTTP 情境常通用</td><td>同上</td></tr>
+      <tr><td>TPS</td><td>Transactions Per Second，每秒完成的交易數（一筆交易可含多個請求）</td><td>業務完成量</td></tr>
+      <tr><td>吞吐量 throughput</td><td>單位時間內系統成功處理的工作量</td><td>出口產能</td></tr>
+      <tr><td>P95 與 P99 延遲</td><td>Percentile，95% 或 99% 的請求不慢於此時間，用來看長尾</td><td>平均值會騙人，要看 P99</td></tr>
+      <tr><td>同時在線人數</td><td>Concurrent Users，同一時間連著系統的使用者，不等於同時發請求</td><td>在線不等於在打 API</td></tr>
+    </table>
+    <div class="box"><b>一句話定義：</b>高併發沒有固定門檻數字，是「同時在處理的請求數」逼近或超過系統某一層的容量（連線池、執行緒、資料庫連線、頻寬）。所以說高併發一定要指出<b>瓶頸在哪一層</b>。</div>
+    <h3>Little's law 計算機：同時在飛的請求數 L = λ × W</h3>
+    <p class="note">L 是系統內平均同時存在的請求數，λ（lambda）是平均到達率（QPS），W 是每個請求平均停留時間。來源：<a href="https://en.wikipedia.org/wiki/Little%27s_law">Wikipedia Little's law</a>（頁面最後編輯 2026-08-20 UTC）。</p>
+    <div class="row">
+      QPS <input id="qps" type="number" value="1000" min="1" style="width:90px">
+      平均延遲 ms <input id="lat" type="number" value="200" min="1" style="width:90px">
+      單台可同時處理 <input id="cap" type="number" value="100" min="1" style="width:80px">
+      <button onclick="calcLittle()">計算</button>
+    </div>
+    <div id="littleOut" class="box ok"></div>
+  </section>
+
+  <!-- b -->
+  <section id="b">
+    <h2><span class="tag">b</span>主軸流程圖：一個請求的旅程與每層優化點</h2>
+    <p class="note">點任一方框看說明，或按「逐步走一次」。圖例採標準流程圖語意：圓角框是起訖，長方形是處理，菱形是判斷，圓柱是資料儲存，實線箭頭是流向，紅色虛線是重試迴圈。</p>
+    <div class="legend">
+      <span><i style="border-color:#57d9a3;border-radius:10px"></i>起訖</span>
+      <span><i style="border-color:#5b9dff"></i>處理</span>
+      <span><i style="border-color:#ffd166;transform:rotate(45deg) scale(.8)"></i>判斷</span>
+      <span><i style="border-color:#b794f6;border-radius:6px/3px"></i>資料儲存</span>
+    </div>
+    <div class="row"><button id="stepBtn" onclick="stepRun()">逐步走一次</button><button class="ghost" onclick="resetRun()">重設</button></div>
+    <div class="fc-wrap">
+      <svg id="fc" viewBox="0 0 900 1195" width="100%" role="img" aria-label="請求從使用者點擊到資料庫的流程圖"></svg>
+      <div id="detail" class="box"></div>
+    </div>
+  </section>
+
+  <!-- c -->
+  <section id="c">
+    <h2><span class="tag">c</span>瀏覽器排隊瀑布圖（模擬）</h2>
+    <p class="note">這是用同一個規則算出的<b>模擬</b>瀑布圖，不是真的 DevTools 截圖。真實畫面請在 DevTools Network 面板看 Waterfall 欄位，灰色斜線段對應 Queueing。HTTP/1.x 同網域常見上限 6 條連線，HTTP/2 單一連線可多工（來源：<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x">MDN 連線管理</a>，2026-09-11 修改）。</p>
+    <div class="row">
+      請求數 <input id="wn" type="number" value="20" min="1" max="40" style="width:70px">
+      每個耗時 ms <input id="wd" type="number" value="300" min="50" style="width:80px">
+      連線上限 <input id="wc" type="number" value="6" min="1" max="40" style="width:70px">
+      <button onclick="drawWF()">重畫</button>
+      <button class="ghost" onclick="setC(6)">HTTP/1.x（6 條）</button>
+      <button class="ghost" onclick="setC(40)">HTTP/2 多工（近似無排隊）</button>
+      <button class="ghost" onclick="drawWF(true)">加上標註框</button>
+    </div>
+    <div id="wf" class="wf"></div>
+    <div id="wfSum" class="box"></div>
+  </section>
+
+  <!-- d -->
+  <section id="d">
+    <h2><span class="tag">d</span>程式碼逐行：併發池、取消舊請求、退避重試</h2>
+    <p class="note">三份都能直接 <code>node demo-0X-xxx.js</code> 執行（檔案與本篇同資料夾）。</p>
+    <div class="row">
+      <button class="on" data-c="0" onclick="showCode(0)">併發池</button>
+      <button class="ghost" data-c="1" onclick="showCode(1)">去重與取消</button>
+      <button class="ghost" data-c="2" onclick="showCode(2)">退避重試</button>
+      <button class="ghost" onclick="toggleExp()">切換顯示逐行解釋</button>
+    </div>
+    <table class="code" id="codeTbl"></table>
+    <div id="codeNote" class="box"></div>
+  </section>
+
+  <!-- e -->
+  <section id="e">
+    <h2><span class="tag">e</span>底層觀念如何對應到每個手段</h2>
+    <table>
+      <tr><th>底層觀念</th><th>一句話</th><th>對應手段</th></tr>
+      <tr><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Event_loop">event loop</a>（2026-04-06）</td><td>JS 單執行緒，每個 job 跑到完才換下一個（run-to-completion）</td><td>長任務會卡住點擊與捲動，所以要切片或丟 Web Worker</td></tr>
+      <tr><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises">microtask 與 macrotask</a>（2026-09-22）</td><td>Promise 的 then 是 microtask，在下一個 task 前清空。setTimeout 是 task</td><td>併發池 worker 迴圈用 await 讓出，debounce 靠 setTimeout 延後</td></tr>
+      <tr><td>同源連線數上限</td><td>HTTP/1.x 同網域常見 6 條，多的請求在瀏覽器排隊</td><td>減少請求數、合併、併發池控制在上限內</td></tr>
+      <tr><td>HTTP/2 多工</td><td>單一連線可同時跑多個請求，不需要網域分片</td><td>請求量仍要控制，因為伺服器與資料庫沒有變多</td></tr>
+      <tr><td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching">HTTP 快取</a>（2026-08-14）</td><td>max-age 內的回應直接重用，不打來源</td><td>靜態資源 hash 檔名加長快取，API 看資料新舊度</td></tr>
+      <tr><td><a href="https://nextjs.org/docs/app/guides/incremental-static-regeneration">ISR</a>（Next.js 文件 2026-10-15）</td><td>先回快取頁，過期後背景重新產生</td><td>大量讀取的頁面不進 API 與資料庫</td></tr>
+      <tr><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers">Web Worker</a>（2026-08-27）</td><td>在背景執行緒跑運算，不卡主執行緒</td><td>大量資料排序與統計</td></tr>
+    </table>
+  </section>
+
+  <!-- f -->
+  <section id="f">
+    <h2><span class="tag">f</span>面試怎麼說：先破題再分層再 STAR</h2>
+    <div class="box"><b>破題（先講這句）：</b>「前端不直接扛高併發，扛的是後端。前端能做的是讓進到後端的請求<b>變少、變慢進來、變重複少</b>，以及流量失敗時<b>優雅降級</b>。」</div>
+    <table>
+      <tr><th>層次</th><th>手段</th><th>一句話</th></tr>
+      <tr><td>1 少發</td><td>debounce、throttle、合併請求、快取、CDN、Service Worker</td><td>最快的請求是不發的請求</td></tr>
+      <tr><td>2 發得聰明</td><td>去重、AbortController 取消、併發池、SSR 與 SSG 與 ISR</td><td>同一件事只做一次，過期的丟掉</td></tr>
+      <tr><td>3 失敗得漂亮</td><td>重試加退避、降級、骨架屏、樂觀更新</td><td>不要讓使用者看到白畫面</td></tr>
+      <tr><td>4 看得見</td><td>RUM（Real User Monitoring）、Web Vitals</td><td>用真實使用者數據證明有改善</td></tr>
+    </table>
+    <details><summary>展開：可直接背的 STAR 口語稿（引用的數字都來自我的專案程式碼與 commit）</summary>
+      <dl class="star">
+        <dt>S 情境</dt><dd>「我做了一個 Next.js 的時間紀錄網站 timelog。儀表板一進來要載入時間紀錄、已分享清單和 AI 分析，而且免費與付費使用者有不同的 API 額度，所以我很在意重複與無效的請求。」</dd>
+        <dt>T 任務</dt><dd>「目標是流量變大時，不讓無效請求打到資料庫，同時讓首屏夠快。」</dd>
+        <dt>A 行動</dt><dd>「後端我在 <code>lib/rate-limit.js</code> 用記憶體 Map 做滑動視窗，依 userId 與類型限額，免費用戶每小時 50 次，超過回 429。前端收到 429 才用動態 import 載入 SweetAlert2，不佔首包。AI 分析區塊用 <code>React.lazy</code> 加 Suspense 延後載入。檢查額度的 API 我改讀 <code>current_log_count</code> 欄位，避免每次 COUNT 查詢。另外我把中文字體子集化，讓 LCP 從 2.4 秒降到 0.81 秒。」</dd>
+        <dt>R 結果</dt><dd>「LCP 降到 0.81 秒（commit 敘述）。我也自己檢查出缺口：儀表板的 fetch 還沒有 AbortController，已分享清單是等時間紀錄回來後才依序請求，這兩點是我下一步會用取消舊請求與並行請求補上的。」</dd>
+      </dl>
+      <div class="box warn">面試加分點：主動講缺口與下一步，比誇大成果可信。不要說「我撐過幾萬 QPS」，除非真的壓測過。</div>
+    </details>
+  </section>
+
+  <!-- g -->
+  <section id="g">
+    <h2><span class="tag">g</span>你的專案實證（已實際讀過程式碼）</h2>
+    <table>
+      <tr><th>位置</th><th>事實</th><th>對應面試說法</th></tr>
+      <tr><td><code>lib/rate-limit.js:7</code> 與 <code>:50</code></td><td>模組層級 Map 存每個 <code>userId:type</code> 的時間戳陣列，checkRateLimit 過濾視窗內紀錄，滿額回 allowed false</td><td>滑動視窗限流，保護後端</td></tr>
+      <tr><td><code>lib/rate-limit.js:34</code></td><td>免費 api 每小時 50、db 每天 120。付費 api 120、db 520，可用環境變數覆寫</td><td>分級額度</td></tr>
+      <tr><td><code>lib/rate-limit.js:25</code></td><td>setInterval 每小時清過期紀錄</td><td>避免記憶體無限成長</td></tr>
+      <tr><td><code>lib/rate-limit.js:93</code></td><td>rateLimitMiddleware 是 Express 風格 (req, res, next)，專案內實際只有 checkRateLimit 被 route 呼叫</td><td>如實說：中介層版本目前沒用</td></tr>
+      <tr><td><code>app/dashboard/page.js:823</code></td><td>收到 429 且 errorType 是 rate_limit，才 <code>await import('@/lib/swal-rate-limit')</code></td><td>降級提示與 code splitting</td></tr>
+      <tr><td><code>app/dashboard/page.js:24</code></td><td>AvatarUpload 與 AIAnalysisSection 用 React.lazy</td><td>非首屏功能延後載入</td></tr>
+      <tr><td><code>app/dashboard/page.js:811</code> 與 <code>:857</code></td><td>fetchTimeLogs 成功後才 await fetchSharedLogIds，兩個請求串行。fetch 沒有帶 signal</td><td>缺口：可改 Promise.all 並加 AbortController</td></tr>
+      <tr><td><code>app/(api)/api/timelogs/route.js</code></td><td>timeLog.findMany 沒有 take 或分頁，並 include steps</td><td>缺口：資料變多要分頁或游標</td></tr>
+      <tr><td><code>stores/useTimeLogStore.js:248</code> 與 <code>app/(api)/api/timelog/route.js:67</code></td><td>儲存流程先 GET check-limit 再 POST timelog，兩支 route 都呼叫 checkRateLimit，一次儲存吃兩次 api 額度</td><td>可合併成一次請求</td></tr>
+      <tr><td><code>app/api/timelog/check-limit/route.js</code></td><td>註解寫明用 current_log_count 欄位避免 COUNT 查詢</td><td>用冗餘欄位換資料庫負載</td></tr>
+      <tr><td><code>services/rest-client/use-fetcher.js</code></td><td>使用 SWR 的 useSWR。SWR 同 key 並行請求會去重（<a href="https://swr.vercel.app/docs/advanced/performance">SWR 文件</a>）</td><td>請求去重來源</td></tr>
+      <tr><td>專案全文搜尋</td><td>找不到 AbortController、debounce、throttle 的使用</td><td>如實說還沒做</td></tr>
+    </table>
+    <div class="box warn">推論（非程式碼事實）：rate-limit 的 Map 存在單一程序記憶體，若部署成多個實例，每個實例各算各的。Next.js 文件對 ISR 檔案快取也有同樣的「每個實例各自一份」警告。</div>
+  </section>
+
+  <!-- h -->
+  <section id="h">
+    <h2><span class="tag">h</span>自我測驗</h2>
+    <h3>填空（按 Enter 或離開欄位自動批改）</h3>
+    <div id="fills"></div>
+    <h3>是非題（點選後顯示解析）</h3>
+    <div id="tfs"></div>
+    <h3>申論題（先自己講一遍再展開參考答案）</h3>
+    <div id="essays"></div>
+
+    <h3>LeetCode 與 NeetCode 類似題目</h3>
+    <table>
+      <tr><th>題目</th><th>對應本篇</th><th>備註</th></tr>
+      <tr><td><a href="https://leetcode.com/problems/promise-pool/">2636 Promise Pool</a>（Medium）</td><td>併發池</td><td>鎖定題（premium）。slug 經 <a href="https://leetcode.doocs.org/en/lc/2636/">doocs 鏡像</a>核對</td></tr>
+      <tr><td><a href="https://leetcode.com/problems/design-bounded-blocking-queue/">1188 Design Bounded Blocking Queue</a>（Medium）</td><td>有上限的生產者與消費者</td><td>鎖定題，多執行緒觀念。<a href="https://leetcode.doocs.org/en/lc/1188/">doocs 鏡像</a></td></tr>
+      <tr><td><a href="https://leetcode.com/problems/debounce/">2627 Debounce</a>（Medium）</td><td>debounce</td><td><a href="https://leetcode.doocs.org/en/lc/2627/">doocs 鏡像</a></td></tr>
+      <tr><td><a href="https://leetcode.com/problems/throttle/">2676 Throttle</a>（Medium）</td><td>throttle</td><td>鎖定題</td></tr>
+      <tr><td><a href="https://leetcode.com/problems/logger-rate-limiter/">359 Logger Rate Limiter</a>（Easy）</td><td>限流</td><td>鎖定題，與 rate-limit.js 同概念</td></tr>
+    </table>
+    <p class="note">LeetCode 官網我這邊回 403 無法直接開，連結 slug 是依 doocs 鏡像頁面資訊核對，點開前請以官網為準。</p>
+
+    <h3>關聯筆記（為什麼相關）</h3>
+    <table>
+      <tr><th>筆記</th><th>關聯原因</th></tr>
+      <tr><td><a href="../../debounce-與-React計時器/debounce為什麼一定要setTimeout-以及React的useRef.md">debounce 為什麼一定要 setTimeout</a></td><td>「少發」那一層的 debounce 與 throttle 原理與 React 寫法</td></tr>
+      <tr><td><a href="../nextjs/FCP-5.24秒-Next.js效能診斷實錄-從指令到根因.md">FCP 5.24 秒 Next.js 效能診斷實錄</a></td><td>同一個專案的首屏效能，與字體子集化 LCP 數據互補</td></tr>
+      <tr><td><a href="../nextjs/App-Router與Pages-Router-RSC與Streaming-SSR-loading與error約定.md">App Router 與 RSC 與 Streaming</a></td><td>SSR、Streaming 與 loading 約定是「伺服器壓力」那一層的基礎</td></tr>
+      <tr><td><a href="../瀏覽器快取-chunk-content-hash-與強制重新整理-互動版.html">瀏覽器快取與 content hash</a></td><td>HTTP 快取命中那個判斷菱形的實作細節</td></tr>
+      <tr><td><a href="../Axios-vs-Fetch-回應解析與錯誤處理.md">Axios vs Fetch</a></td><td>fetch 的 signal 取消與錯誤處理差異</td></tr>
+      <tr><td><a href="../../%E5%BE%85%E5%AD%B8%E7%BF%92%E7%9A%84%E6%8A%80%E8%A1%93%EF%BD%9C%E9%9D%A2%E8%A9%A6/費米問題-Fermi-Estimation-面試估算技巧-互動版.html">費米估算面試技巧</a></td><td>面試被問「怎麼估 QPS」時的估算方法，搭配 Little's law</td></tr>
+    </table>
+
+    <h3>資料來源（含查證時間）</h3>
+    <table>
+      <tr><th>主題</th><th>連結</th><th>版本或時間</th></tr>
+      <tr><td>併發與並行定義</td><td><a href="https://go.dev/blog/waza-talk">Go Blog：Concurrency is not parallelism</a></td><td>文章 2013-01-16，查證 2026-10-22</td></tr>
+      <tr><td>Little's law</td><td><a href="https://en.wikipedia.org/wiki/Little%27s_law">Wikipedia</a></td><td>最後編輯 2026-08-20</td></tr>
+      <tr><td>AbortController</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/AbortController">MDN</a></td><td>2025-09-17</td></tr>
+      <tr><td>HTTP 快取</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching">MDN</a></td><td>2026-08-14</td></tr>
+      <tr><td>連線管理與 HTTP/2 多工</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x">MDN</a></td><td>2026-09-11</td></tr>
+      <tr><td>Promise 與 microtask</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises">MDN</a></td><td>2026-09-22</td></tr>
+      <tr><td>event loop</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Event_loop">MDN</a></td><td>2026-04-06</td></tr>
+      <tr><td>Web Workers</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers">MDN</a></td><td>2026-08-27</td></tr>
+      <tr><td>ISR</td><td><a href="https://nextjs.org/docs/app/guides/incremental-static-regeneration">Next.js Docs</a></td><td>lastUpdated 2026-10-15</td></tr>
+      <tr><td>SWR 去重與預設值</td><td><a href="https://swr.vercel.app/docs/advanced/performance">SWR 效能</a>、<a href="https://swr.vercel.app/docs/api">SWR API</a></td><td>dedupingInterval 預設 2000ms，查證 2026-10-22</td></tr>
+      <tr><td>Core Web Vitals 門檻</td><td><a href="https://web.dev/articles/vitals">web.dev</a></td><td>2024-10-31 更新。LCP 2.5 秒、INP 200 毫秒、CLS 0.1</td></tr>
+    </table>
+  </section>
+</div>
+
+<script>
+/* ---------- a. Little's law ---------- */
+function calcLittle(){
+  const q=+document.getElementById('qps').value, l=+document.getElementById('lat').value, c=+document.getElementById('cap').value
+  const L=q*l/1000, n=Math.ceil(L/c)
+  document.getElementById('littleOut').innerHTML =
+    `L = λ × W = ${q} × ${l/1000} 秒 = <b>${L.toFixed(0)}</b> 個請求同時在系統內。單台撐 ${c} 個，至少需要 <b>${n}</b> 台。` +
+    `<br>延遲若從 ${l}ms 惡化成 ${l*3}ms，同時在飛數變成 <b>${(q*l*3/1000).toFixed(0)}</b>，這就是「變慢會自己放大成高併發」。`
+}
+calcLittle()
+
+/* ---------- b. flowchart ---------- */
+const N=[
+ {id:'n1',t:'term',x:300,y:40,w:200,h:46,txt:['使用者點擊或輸入'],
+  d:'起點。每一次點擊或按鍵都可能變成一個請求，後面每一層都在決定「這個請求要不要真的出去」。',
+  pro:'timelog 儀表板切換分頁或載入就會觸發 fetchTimeLogs。', say:'先講「請求從哪裡來」，再講每層怎麼攔。'},
+ {id:'n2',t:'dec',x:300,y:150,w:230,h:90,txt:['事件是否很頻繁？','（輸入框或捲動）'],
+  d:'輸入框每個字元、scroll、resize 會在短時間觸發很多次。',
+  pro:'專案全文搜尋沒有 debounce 或 throttle 的使用。',say:'debounce 適合「停下來才送」（搜尋建議），throttle 適合「固定頻率」（scroll）。'},
+ {id:'r2',t:'proc',x:710,y:150,w:230,h:54,txt:['1 debounce 或 throttle'],
+  d:'debounce 把一串事件壓成安靜後的一次。throttle 限制單位時間最多一次。兩者都靠 setTimeout 與閉包保存計時器。',
+  pro:'詳見關聯筆記 debounce 與 React 計時器。',say:'注意：它們只是少發請求，不能取消已經送出的請求。'},
+ {id:'n3',t:'dec',x:300,y:290,w:240,h:90,txt:['前端快取已有資料？','（SWR 或 React Query）'],
+  d:'SWR 與 React Query 把結果存在記憶體，同 key 並行請求會合併成一個。',
+  pro:'services/rest-client/use-fetcher.js 使用 useSWR（dedupingInterval 預設 2000ms）。',say:'快取命中就零請求，是最便宜的優化。'},
+ {id:'r3',t:'term',x:710,y:290,w:230,h:46,txt:['直接渲染，零請求'],
+  d:'命中快取後先顯示舊資料，背景再重新驗證（stale-while-revalidate 概念）。',pro:'',say:'要說明資料新舊度的取捨。'},
+ {id:'n4',t:'proc',x:300,y:420,w:300,h:60,txt:['2 請求去重 加 AbortController','取消已過期的舊請求'],
+  d:'同一件事只發一次，使用者切換條件時把上一個請求 abort，避免舊回應覆蓋新畫面（race condition）。',
+  pro:'缺口：dashboard fetchTimeLogs 沒帶 signal。',say:'abort 只中斷客戶端，伺服器可能仍在處理，所以不能取代限流。'},
+ {id:'n5',t:'proc',x:300,y:530,w:300,h:60,txt:['3 併發池排隊','（同時最多 N 個請求）'],
+  d:'一次要發 100 個請求時，用 worker 迴圈限制同時在飛數，不要一次全丟給瀏覽器排隊。',
+  pro:'對應 demo-01 與 LeetCode 2636。',say:'瀏覽器 HTTP/1.x 同網域約 6 條連線，多的會在 Queueing 排隊。'},
+ {id:'n6',t:'dec',x:300,y:660,w:260,h:90,txt:['CDN 或 HTTP 快取命中？','（或 ISR 靜態頁）'],
+  d:'Cache-Control max-age 內直接重用。ISR 先回快取頁，過期後背景重新產生。',
+  pro:'專案 app 內沒有找到 Cache-Control 或 revalidate 設定。',say:'讀多寫少的頁面用 SSG 或 ISR，直接讓 CDN 扛。'},
+ {id:'r6',t:'term',x:710,y:660,w:230,h:46,txt:['304 或快取回應'],
+  d:'請求在邊緣或瀏覽器就結束，完全沒碰到你的伺服器。',pro:'',say:'這是對「伺服器壓力」最有效的一層。'},
+ {id:'n7',t:'proc',x:300,y:800,w:300,h:60,txt:['4 伺服器限流','checkRateLimit（滑動視窗）'],
+  d:'依 userId 與類型計數，超額直接回 429，保護資料庫。',
+  pro:'lib/rate-limit.js：免費用戶 api 每小時 50 次。Map 在單一程序記憶體。',say:'限流是最後防線，多實例要改用共享儲存（例如 Redis，推論）。'},
+ {id:'n8',t:'dec',x:300,y:920,w:230,h:90,txt:['超過額度或失敗？','（429 或 5xx）'],
+  d:'失敗要分類：429 與暫時性錯誤可重試，其他 4xx 不該重試。',
+  pro:'dashboard 在 429 時動態 import SweetAlert2 提示。',say:'重試一定要退避加 jitter，否則會變成 retry storm。'},
+ {id:'r8',t:'proc',x:710,y:920,w:230,h:60,txt:['5 退避重試','加降級與骨架屏'],
+  d:'指數退避（100、200、400ms）加隨機 jitter，並顯示骨架屏或快取內容，不給白畫面。',pro:'對應 demo-03。',say:'重試迴圈回到併發池，不要繞過它。'},
+ {id:'n9',t:'store',x:300,y:1050,w:230,h:60,txt:['資料庫查詢（Prisma）'],
+  d:'最難擴充的一層。前面所有手段的目的，都是讓請求少碰到這裡。',
+  pro:'check-limit 用 current_log_count 欄位避免 COUNT。timelogs 的 findMany 沒有分頁。',say:'前端可以間接減壓：少請求、分頁、只取需要欄位。'},
+ {id:'n10',t:'proc',x:300,y:1140,w:320,h:50,txt:['6 渲染：樂觀更新、列表虛擬化','大量運算丟 Web Worker'],
+  d:'回應回來後別讓主執行緒被卡住。寫入操作可先樂觀更新畫面，失敗再回滾。',pro:'',say:'大量資料用虛擬化只渲染可見列。'},
+ {id:'n11',t:'term',x:710,y:1140,w:230,h:46,txt:['7 RUM 與 Web Vitals 監控'],
+  d:'用真實使用者數據（LCP 2.5 秒、INP 200 毫秒、CLS 0.1 為良好門檻）證明優化有效。',pro:'專案 commit 記錄 LCP 2.4 秒降到 0.81 秒。',say:'面試時用數字收尾。'}
+]
+const E=[
+ ['n1','n2'],['n2','n3','否'],['n2','r2','是','h'],['r2','n3','','rj'],
+ ['n3','n4','否'],['n3','r3','是','h'],['n4','n5'],['n5','n6'],['n6','n7','否'],['n6','r6','是','h'],
+ ['n7','n8'],['n8','n9','否'],['n8','r8','是','h'],['n9','n10'],['n10','n11','','h']
+]
+const byId=Object.fromEntries(N.map(n=>[n.id,n]))
+const svg=document.getElementById('fc'), NS='http://www.w3.org/2000/svg'
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);(parent||svg).appendChild(e);return e}
+const defs=el('defs',{})
+const mk=el('marker',{id:'ar',viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'7',markerHeight:'7',orient:'auto-start-reverse'},defs)
+el('path',{d:'M0 0L10 5L0 10z',fill:'#9fb0c8'},mk)
+const mk2=el('marker',{id:'ar2',viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'7',markerHeight:'7',orient:'auto-start-reverse'},defs)
+el('path',{d:'M0 0L10 5L0 10z',fill:'#ff6b6b'},mk2)
+function edge(a,b,label,mode){
+  const A=byId[a],B=byId[b]; let pts
+  if(mode==='h') pts=[[A.x+A.w/2,A.y],[B.x-B.w/2,B.y]]
+  else if(mode==='rj') pts=[[A.x,A.y+A.h/2],[A.x,A.y+70],[B.x,A.y+70]]
+  else pts=[[A.x,A.y+A.h/2],[B.x,B.y-B.h/2]]
+  const d=pts.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ')
+  el('path',{d,class:'edge','marker-end':'url(#ar)'})
+  if(label){const m=pts[0],n=pts[1];el('text',{x:(m[0]+n[0])/2+(mode==='h'?0:12),y:(m[1]+n[1])/2-(mode==='h'?6:-4),class:'elabel'}).textContent=label}
+}
+function loopEdge(){
+  const A=byId.r8,B=byId.n5
+  const p=[[A.x+A.w/2,A.y],[860,A.y],[860,B.y],[B.x+B.w/2,B.y]]
+  el('path',{d:p.map((q,i)=>(i?'L':'M')+q[0]+' '+q[1]).join(' '),class:'edge loop','marker-end':'url(#ar2)'})
+  el('text',{x:882,y:(A.y+B.y)/2,'text-anchor':'middle',class:'elabel',transform:`rotate(-90 882 ${(A.y+B.y)/2})`}).textContent='重試（回到併發池）'
+}
+E.forEach(e=>edge(e[0],e[1],e[2],e[3]))
+loopEdge()
+N.forEach(n=>{
+  const g=el('g',{class:'node '+(n.t==='dec'?'decision':n.t==='term'?'term':n.t==='store'?'store':''),id:'g_'+n.id,tabindex:0})
+  const cx=n.x,cy=n.y
+  if(n.t==='dec') el('polygon',{class:'shape',points:`${cx},${cy-n.h/2} ${cx+n.w/2},${cy} ${cx},${cy+n.h/2} ${cx-n.w/2},${cy}`},g)
+  else if(n.t==='term') el('rect',{class:'shape',x:cx-n.w/2,y:cy-n.h/2,width:n.w,height:n.h,rx:n.h/2},g)
+  else if(n.t==='store'){
+    el('path',{class:'shape',d:`M${cx-n.w/2} ${cy-n.h/2+10} a${n.w/2} 10 0 0 1 ${n.w} 0 v${n.h-20} a${n.w/2} 10 0 0 1 ${-n.w} 0 z`},g)
+    el('path',{class:'shape',d:`M${cx-n.w/2} ${cy-n.h/2+10} a${n.w/2} 10 0 0 0 ${n.w} 0`,style:'fill:none'},g)
+  } else el('rect',{class:'shape',x:cx-n.w/2,y:cy-n.h/2,width:n.w,height:n.h,rx:4},g)
+  n.txt.forEach((t,i)=>{el('text',{x:cx,y:cy+4+(i-(n.txt.length-1)/2)*17,'text-anchor':'middle'},g).textContent=t})
+  g.addEventListener('click',()=>pick(n.id)); g.addEventListener('keydown',ev=>{if(ev.key==='Enter')pick(n.id)})
+})
+function pick(id){
+  document.querySelectorAll('.node').forEach(g=>g.classList.remove('sel'))
+  document.getElementById('g_'+id).classList.add('sel')
+  const n=byId[id], kind={dec:'判斷',term:'起訖',proc:'處理',store:'資料儲存'}[n.t]
+  document.getElementById('detail').innerHTML=
+   `<h3>${n.txt.join(' ')}</h3><span class="pill">${kind}</span><p>${n.d}</p>`+
+   (n.pro?`<p><b>你的專案：</b>${n.pro}</p>`:'')+`<p><b>面試可以說：</b>${n.say}</p>`
+}
+const order=['n1','n2','r2','n3','r3','n4','n5','n6','r6','n7','n8','r8','n9','n10','n11']
+let si=-1
+function stepRun(){
+  document.querySelectorAll('.node').forEach(g=>g.classList.remove('run'))
+  si=(si+1)%order.length
+  document.getElementById('g_'+order[si]).classList.add('run'); pick(order[si])
+  document.getElementById('stepBtn').textContent=`下一步（${si+1}/${order.length}）`
+}
+function resetRun(){si=-1;document.querySelectorAll('.node').forEach(g=>g.classList.remove('run','sel'));document.getElementById('stepBtn').textContent='逐步走一次'
+  document.getElementById('detail').innerHTML='點上方任一方框看說明。'}
+resetRun()
+
+/* ---------- c. waterfall ---------- */
+function setC(v){document.getElementById('wc').value=v;drawWF()}
+function drawWF(annot){
+  const n=+document.getElementById('wn').value,d=+document.getElementById('wd').value,c=Math.max(1,+document.getElementById('wc').value)
+  const free=Array(Math.min(c,n)).fill(0), rows=[]
+  for(let i=0;i<n;i++){
+    let k=0;for(let j=1;j<free.length;j++)if(free[j]<free[k])k=j
+    const start=free[k]; free[k]=start+d; rows.push({i,start,end:start+d})
+  }
+  const total=Math.max(...rows.map(r=>r.end)), W=100
+  const box=document.getElementById('wf'); box.innerHTML=''
+  rows.forEach(r=>{
+    const row=document.createElement('div');row.className='wfrow'
+    row.innerHTML=`<span>req ${r.i+1}</span><div class="wfbar"><div class="wfq" style="left:0;width:${r.start/total*W}%"></div><div class="wfd" style="left:${r.start/total*W}%;width:${d/total*W}%"></div></div>`
+    box.appendChild(row)
+  })
+  const queued=rows.filter(r=>r.start>0).length, maxQ=Math.max(...rows.map(r=>r.start))
+  document.getElementById('wfSum').innerHTML=`${n} 個請求，連線上限 ${c}：<b>${queued}</b> 個需要排隊，最久排 <b>${maxQ}ms</b>，全部完成 <b>${total}ms</b>。灰色斜線是 Queueing，藍色是實際下載。`
+  if(annot && queued>0){
+    const first=rows.findIndex(r=>r.start>0), h=box.querySelectorAll('.wfrow')[0].offsetHeight
+    const bw=box.clientWidth-20-78
+    const a=document.createElement('div');a.className='anno'
+    a.style.cssText=`left:${10+78}px;top:${10+first*h-2}px;width:${bw*maxQ/total}px;height:${(n-first)*h+4}px`
+    const t=document.createElement('div');t.className='annot';t.textContent='Queueing：瀏覽器連線已滿，請求在排隊'
+    t.style.cssText=`left:${10+78+bw*0.62}px;top:${10+first*h+8}px`
+    box.appendChild(a);box.appendChild(t)
+    const b=document.createElement('div');b.className='annot';b.style.background='#1d4ed8';b.textContent='前 '+Math.min(c,n)+' 個請求立即開始'
+    b.style.cssText+=`;left:${10+78+bw*0.55}px;top:${10+h*0}px;background:#ffd166;color:#111`
+    box.appendChild(b)
+  }
+}
+drawWF(location.hash==='#annot')
+
+/* ---------- d. code ---------- */
+const CODE=[
+ {note:'對應檔案：demo-01-promise-pool.js。底層：JS 單執行緒 run-to-completion，所以 next++ 不會被其他 worker 插隊，await 才是讓出點。',
+  rows:[
+  ['async function promisePool(tasks, limit) {','async：宣告非同步函式，回傳 Promise，裡面才能用 await。tasks 是「回傳 Promise 的函式」陣列，不是 Promise 本身，這樣才能控制何時啟動'],
+  ['  let next = 0','下一個要領取的任務編號，所有 worker 共用的計數器（閉包變數）'],
+  ['  async function worker(id) {','一個 worker 就是一條「領任務、做完、再領」的迴圈，同一時間最多 limit 條'],
+  ['    while (next < tasks.length) {','還有任務沒被領走就繼續。條件與 next++ 之間沒有 await，所以不會被插隊'],
+  ['      const i = next++','領一個編號再把計數加一。單執行緒下這兩步是原子的'],
+  ['      await tasks[i]()','啟動任務並等它完成。await 讓出執行權給 event loop，其他 worker 才有機會領任務。完成後的續行是 microtask'],
+  ['    }','迴圈結束代表任務全被領完'],
+  ['  }',''],
+  ['  const workers = Array.from({ length: Math.min(limit, tasks.length) }, (_, id) => worker(id))','建立 limit 個 worker 並立刻啟動（呼叫 worker(id) 會同步跑到第一個 await），得到 Promise 陣列。Math.min 避免任務比上限少時多開 worker'],
+  ['  await Promise.all(workers)','Promise.all：全部 resolve 才 resolve，任一 reject 就整體 reject。等所有 worker 做完'],
+  ['}','']]},
+ {note:'對應檔案：demo-02-latest-only-fetch.js。取消只中斷客戶端，伺服器是否停止要看伺服器是否偵測斷線（一般知識，非本篇查證項目）。',
+  rows:[
+  ['const inflight = new Map()','Map：key 對應進行中的 Promise。模組層級變數，所有呼叫者共用'],
+  ['function dedupedFetch(url) {','去重函式：同一個 url 同時只發一次'],
+  ['  if (inflight.has(url)) return inflight.get(url)','已有人在請求就直接回傳同一個 Promise，後來的人共享結果'],
+  ['  const p = fakeFetch(url).finally(() => inflight.delete(url))','發請求。finally：無論成功失敗都清掉紀錄，否則失敗會永遠卡住'],
+  ['  inflight.set(url, p)','登記進行中，之後的呼叫會命中上一行'],
+  ['  return p',''],
+  ['}',''],
+  ['let controller = null','保存上一次請求的 AbortController'],
+  ['async function searchLatestOnly(keyword) {',''],
+  ['  controller?.abort()','?. 可選串接：controller 為 null 時略過。abort() 讓上一個請求的 signal 觸發 abort 事件，fetch 會以 AbortError reject'],
+  ['  controller = new AbortController()','每次請求都要新的 controller，因為 abort 是一次性的'],
+  ['  return await fakeFetch(`/search?q=${keyword}`, { signal: controller.signal })','把 signal 交給 fetch。await 必須寫在 try 內才能 catch 到取消造成的 reject（程式中包在 try/catch）']]},
+ {note:'對應檔案：demo-03-retry-backoff.js。對應 LeetCode 沒有直接題，屬於系統設計常考。',
+  rows:[
+  ['async function withRetry(fn, { retries = 3, baseMs = 100 } = {}) {','解構預設值：呼叫者不傳選項也能運作。retries 是最多重試次數，baseMs 是第一次等待基準'],
+  ['  for (let attempt = 0; ; attempt++) {','無窮迴圈靠 return 或 throw 離開，attempt 記錄第幾次'],
+  ['    try { return await fn(attempt) }','成功就 return 離開。必須 return await 才能讓 catch 接到非同步錯誤'],
+  ['    catch (err) {',''],
+  ['      if (attempt >= retries || !err.retryable) throw err','超過次數或不可重試的錯誤（例如 400）直接丟出，不要浪費請求'],
+  ['      const backoff = baseMs * 2 ** attempt','指數退避：100、200、400ms。** 是次方運算子'],
+  ['      const jitter = Math.random() * backoff * 0.5','隨機抖動：避免大量客戶端同一時刻重試造成 retry storm'],
+  ['      await sleep(Math.round(backoff + jitter))','sleep 是包 setTimeout 的 Promise。setTimeout 回呼是 task，到期才 resolve，期間不佔用主執行緒']]}
+]
+let curCode=0
+function showCode(i){
+  curCode=i
+  document.querySelectorAll('[data-c]').forEach(b=>{b.className=(+b.dataset.c===i)?'on':'ghost'})
+  document.getElementById('codeTbl').innerHTML=CODE[i].rows.map(r=>`<tr><td></td><td>${r[1]}</td></tr>`).join('')
+  document.querySelectorAll('#codeTbl tr').forEach((tr,k)=>{tr.firstChild.textContent=CODE[i].rows[k][0]})
+  document.getElementById('codeNote').textContent=CODE[i].note
+}
+function toggleExp(){document.getElementById('codeTbl').classList.toggle('noexp')}
+showCode(0)
+
+/* ---------- h. quiz ---------- */
+const FILL=[
+ ['「併發」的英文是 ___（對照：真的同時執行叫 parallelism）','concurrency','concurrency'],
+ ['Little\'s law：L = λ × ___','W|w','W，平均停留時間'],
+ ['HTTP/1.x 同網域瀏覽器常見同時連線上限約 ___ 條','6','6（MDN：現今通常 6）'],
+ ['要取消進行中的 fetch，需把 AbortController 的 ___ 傳給 fetch','signal','controller.signal'],
+ ['Promise 的 then 回呼屬於 ___ 任務','microtask|微任務','microtask，在下一個 task 前清空'],
+ ['重試時為了避免大家同時重試，要在退避時間加上隨機的 ___','jitter|抖動','jitter']
+]
+document.getElementById('fills').innerHTML=FILL.map((f,i)=>`<div class="q"><div>${i+1}. ${f[0]}</div>
+ <input class="fill" id="f${i}" type="text" onchange="chkFill(${i})" onkeydown="if(event.key==='Enter')chkFill(${i})">
+ <button class="ghost" onclick="showFill(${i})">顯示答案</button> <span id="fa${i}" class="ans"></span></div>`).join('')
+function norm(s){return s.trim().toLowerCase()}
+function chkFill(i){const v=norm(document.getElementById('f'+i).value),ok=String(FILL[i][1]).split('|').map(norm).includes(v)
+  const e=document.getElementById('f'+i);e.classList.toggle('good',ok);e.classList.toggle('bad',!ok&&v!=='')}
+function showFill(i){document.getElementById('fa'+i).textContent='答案：'+FILL[i][2]}
+const TF=[
+ ['前端工程師可以直接決定後端撐得住多少 QPS。',false,'不能。前端只能減少、整形與延後進到後端的流量，並在失敗時降級。'],
+ ['併發與並行是同一件事。',false,'併發是結構上交錯處理，並行是同一瞬間多個計算真的同時跑。'],
+ ['debounce 可以取消已經送出的 HTTP 請求。',false,'不行。debounce 只延後「要不要送」，取消已送出的請求要用 AbortController。'],
+ ['重試時應該搭配指數退避與 jitter。',true,'否則大量客戶端同時重試會形成 retry storm，把剛恢復的服務再打垮。'],
+ ['記憶體 Map 實作的限流在多個伺服器實例下，每個實例會各自計數。',true,'屬於推論：Map 在單一程序記憶體，要共用需改用共享儲存。'],
+ ['HTTP/2 之後，前端就不需要控制同時請求數了。',false,'多工解決連線排隊，但伺服器與資料庫容量沒變，仍需控制請求量。']
+]
+document.getElementById('tfs').innerHTML=TF.map((t,i)=>`<div class="q"><div>${i+1}. ${t[0]}</div>
+ <button class="ghost" onclick="tf(${i},true)">是</button> <button class="ghost" onclick="tf(${i},false)">非</button>
+ <div id="tf${i}" class="hide box"></div></div>`).join('')
+function tf(i,v){const b=document.getElementById('tf'+i);b.classList.remove('hide');const ok=v===TF[i][1]
+  b.className='box '+(ok?'ok':'warn');b.innerHTML=(ok?'答對。':'答錯。正確是「'+(TF[i][1]?'是':'非')+'」。')+TF[i][2]}
+const ES=[
+ ['用兩分鐘說明「前端工程師怎麼面對高併發」。','破題：前端不扛後端，負責少發、發得聰明、失敗得漂亮、看得見。接著依序講快取與去重、debounce 與 throttle、AbortController、併發池、SSR 與 ISR、退避重試與降級、RUM。最後用自己專案的真實數字收尾（例如 LCP 2.4 秒到 0.81 秒）。'],
+ ['一次要發 200 個請求，你會怎麼設計？為什麼不直接 Promise.all？','Promise.all 會一次全丟，瀏覽器同網域約 6 條連線，其餘在 Queueing 排隊，還會瞬間壓垮後端。用併發池（worker 迴圈）限制同時 N 個，搭配 AbortController 可取消與失敗重試。可以優先考慮能否合併成批次 API。'],
+ ['Little\'s law 在高併發討論中有什麼用？','L = λ × W，QPS 不變時延遲變 3 倍，同時在飛請求就變 3 倍，連線池與執行緒會先耗盡。所以高併發常是「變慢」的結果，優化延遲等於降低併發壓力。']
+]
+document.getElementById('essays').innerHTML=ES.map((e,i)=>`<details><summary>${i+1}. ${e[0]}</summary><div class="box ok">${e[1]}</div></details>`).join('')
+</script>
+</body>
+</html>

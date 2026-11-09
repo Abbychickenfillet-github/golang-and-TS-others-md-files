@@ -17,6 +17,7 @@ updated: 2026-09-05
 # 瀏覽器相容性 — Polyfill 補 API、Babel 降語法、Browserslist 一次設定全家套用
 
 > [!info]- 🔗 與既有筆記的關聯
+> (0) 前綴（`-webkit-`、`-moz-`）是給哪個瀏覽器引擎看的、本專案實測有沒有被補：見 [[css-建構期-Sass編譯-PostCSS-Autoprefixer-CSS-Modules雜湊]] 第四節；與 Baseline 核心瀏覽器的差別：見 [[為了將固定深色背景自動調整成白色字]] (i)。
 > (1) 本篇歸在 `build-and-compilation/`，因為 Polyfill 與 Babel 都是「建置階段」的事，跟 [[Dev-Server在Node環境-devServer-proxy繞過CORS-HMR用WebSocket-與原生語言打包工具]] 同屬前端 toolchain 的一環——那篇講開發期的 dev server，本篇講產出期的降級與補丁。
 > (2) 開頭那段 `addEventListener` 的匿名函式屬於閉包主題，與 [[13-閉包-Closure-私有變數與傳址陷阱]]、[[事件流與事件代理]] 直接相關，本篇只保留「為什麼要包一層匿名函式」這個切面，細節請看那兩篇。
 

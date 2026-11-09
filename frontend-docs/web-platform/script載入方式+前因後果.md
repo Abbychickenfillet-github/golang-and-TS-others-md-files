@@ -283,7 +283,7 @@ function createTokenizer() {
 > **每一個位元組都是完整的，不完整的是「由多個位元組組成的那個東西」。**
 
 > [!note] 完整可執行範例
-> 上面所有輸出都來自 `packet-boundary-demo.js`（在 `iThome鐵人賽-2026/` 與 `JavaScript-practicing/refactoring/` 兩處），`node packet-boundary-demo.js` 即可重跑。詳細版說明見 [[文章-一個div可能被切成兩半-從TCP封包到DOM樹]]。
+> 上面所有輸出都來自 `packet-boundary-demo.js`（在 `iThome鐵人賽-2026/` 與 `JavaScript-practicing/refactoring/` 兩處），`node packet-boundary-demo.js` 即可重跑。詳細版說明見 [[文章-一個div可能被切成兩半-HTML解析器如何從TCP封包到DOM樹]]。
 
 > [!note] 注意 HTTP 版本的差異
 > 上面講的是 TCP 層，**HTTP/1.1 與 HTTP/2 都跑在 TCP 上**，所以都適用。

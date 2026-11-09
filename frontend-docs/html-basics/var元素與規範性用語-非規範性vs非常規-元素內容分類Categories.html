@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>&lt;var&gt; 元素、規範性用語（非規範性 vs 非常規）與 HTML 元素內容分類（Categories）</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>&lt;var&gt; 元素、規範性用語（非規範性 vs 非常規）與 HTML 元素內容分類（Categories）</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#html</span><span class="pill">#var</span><span class="pill">#spec</span><span class="pill">#content-categories</span><span class="pill">#語意化</span></div>
+  <div class="meta">
+    <span>更新於 2026-10-23</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/2b8407f2cdd83035" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/f6a294f58e2cc5fd" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">`&lt;var&gt;` 標籤是用來儲存換行符號的。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是 variable 的縮寫，用來標記變數或佔位符；換行是 `&lt;br&gt;`。</div></li><li><p class="qq">Non-normative（非規範性）指的是你寫的標記違反規格。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">那是 Non-conforming（非常規）；非規範性是規格書中的補充說明文字。</div></li><li><p class="qq">head 元素在規格書的 Categories 欄是 None。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">代表它不屬於任何內容類別。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">要保留原始排版與換行的區塊標籤是 <input class="blank" data-a="pre" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">Preformatted Text。</div></li><li><p class="qq">`p`、`div` 屬於 <input class="blank" data-a="Flow" placeholder="填答案" autocomplete="off"> content（流程內容）。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">img、strong 則屬於 Phrasing content。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">請說明 Non-normative 與 Non-conforming 的差別並各舉一例。</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：Non-normative 修飾規格書的文字，指補充說明不具強制力（歷史背景、範例）；Non-conforming 修飾作者寫的標記，指違反規格（使用已廢棄標籤）。</div></li></ol></section>
+
+<article class="card">
+<h1 id="var-vs-html-categories"><code>&lt;var&gt;</code> 元素、規範性用語（非規範性 vs 非常規）與 HTML 元素內容分類（Categories）</h1>
+<p>本篇重點 a–h，共 8 個</p>
+<blockquote>
+<p>關聯原因：<span class="wikilink" title="Obsidian 連結：abbr元素-縮寫與acronym的差異-title屬性怎麼被看見">abbr元素-縮寫與acronym的差異-title屬性怎麼被看見</span> 同樣是「語意化行內元素」，本篇再補上 <code>&lt;var&gt;</code>，並把讀規格書（WHATWG HTML Spec）時會遇到的兩組詞彙一次講清楚。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>&lt;var&gt;</code></mark> 是 variable（變數）的縮寫，<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">用途是在文章段落中標記「變數或佔位符」</mark>，跟換行完全無關。<br />
+　　規格書範例：<code>&lt;p&gt;If there are &lt;var&gt;n&lt;/var&gt; pipes…&lt;/p&gt;</code>，渲染後 n 預設以斜體顯示。</p>
+<p>(b) 會把 <code>&lt;var&gt;</code> 誤認成換行，是因為跟 <code>&lt;br&gt;</code>（Line Break，真正的換行）與 <code>&lt;pre&gt;</code>（Preformatted Text，保留原始排版與換行）搞混。<br />
+　　<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要換行用 <code>&lt;br&gt;</code>，要保留排版用 <code>&lt;pre&gt;</code>，要標示變數才用 <code>&lt;var&gt;</code></mark>。</p>
+<p>(c) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">非規範性（Non-normative）</mark>指「參考用、非強制」的內容，例如規格書裡的歷史背景、舉例與備註。<br />
+　　不看這段，實作出來的行為仍然完全符合標準。</p>
+<p>(d) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">非常規的（Non-conforming）</mark>指「違反規定、不合標準」的寫法。<br />
+　　<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">兩者中文很像但意思相反方向：前者是「說明文字的性質」，後者是「你寫的 code 有問題」</mark>。</p>
+<p>(e) 對照表：</p>
+<table>
+<thead>
+<tr>
+<th>詞彙</th>
+<th>修飾對象</th>
+<th>意思</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Non-normative（非規範性）</td>
+<td>規格書的某段文字</td>
+<td>補充說明，不具強制力</td>
+<td>歷史沿革、範例</td>
+</tr>
+<tr>
+<td>Non-conforming（非常規）</td>
+<td>作者寫的標記或實作</td>
+<td>違反規格，可能出問題</td>
+<td>使用已廢棄的標籤</td>
+</tr>
+</tbody>
+</table>
+<p>(f) HTML 規格把元素依用法分成「內容類別（Content Categories）」，例如 Flow content（流程內容）、Phrasing content（短語內容）。<br />
+<code>p</code>、<code>div</code> 屬於 Flow content，<code>img</code>、<code>strong</code> 屬於 Phrasing content，一個元素可同時屬於多類。</p>
+<p>(g) 分類的好處：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">規範「哪個元素可以放進哪個元素裡面」，讓 parser 與開發者對巢狀結構有共同的規則</mark>。</p>
+<p>(h) 不是所有元素都必須有類別：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>head</code> 的 Categories 欄寫 None</mark>，代表它不屬於任何內容類別，它只能出現在 <code>html</code> 的固定位置。</p>
+<p>⚠️ 存疑/更正：Gemini 第二段回答「幫助瀏覽器正確解析網頁結構」說法偏簡化。內容類別主要是規範「內容模型（Content Model，誰能放進誰）」，瀏覽器 parser 對錯誤巢狀其實有容錯演算法，並不依賴這個分類才能運作。</p>
+<h2 id="_2">各對話來源（原文）</h2>
+<h3 id="2026-10-httpsgeminigooglecomapp2b8407f2cdd83035">祖先來源物件解析（2026-10）— https://gemini.google.com/app/2b8407f2cdd83035</h3>
+<p><strong>使用者：</strong> <var>標籤我第一次看到它是一個可以儲存n換行符號的標籤嗎</p>
+<p><strong>Gemini：</strong> 不是的！<var> 標籤不是用來儲存換行符號的，它跟換行完全沒有關係。在 HTML 中，<var> 是 Variable（變數）的縮寫，用來在文字段落中標記一個「變數」或「佔位符」。…… 預設樣式：瀏覽器通常會把 <var> 內文字用斜體顯示。（節錄）</p>
+<p><strong>使用者：</strong> 非常規的跟非規範性的意思上有差嗎</p>
+<p><strong>Gemini：</strong> 非規範性（Non-normative）：指的是「這不是硬性規定／標準」（例如規格書中的補充說明、舉例、歷史背景）。非常規的（Non-conforming）：指的是「不符合常規、不合規定」。簡單對照：非規範性＝參考用、不看也無所謂；非常規＝違反規定、會出問題。（節錄）</p>
+<h3 id="html-2026-10-httpsgeminigooglecomappf6a294f58e2cc5fd">HTML 元素分類（2026-10）— https://gemini.google.com/app/f6a294f58e2cc5fd</h3>
+<p><strong>使用者：</strong> 這個 Waterbury 的 Spark 。都寫 categories none 。那 head element 它沒有 categories 。那有 categories 的 element 會是哪一些呢？（語音輸入，原文如此）</p>
+<p><strong>Gemini：</strong> 在 HTML 規範中，會將元素分類到不同的類別中，比如「流程內容」或「短語內容」。像是 p 或 div 就是流程內容，而 img 或 strong 則屬於短語內容。有些元素可能同時屬於多個類別，而像 head 這樣特定的元素，則可能不屬於任何類別。</p>
+<p><strong>使用者：</strong> 這樣子對他們來說有什麼好處嗎？或是幫助？</p>
+<p><strong>Gemini：</strong> 這些分類能幫助瀏覽器正確解析網頁結構，並確保元素能正確呈現。（回答被截斷）</p>
+<p><strong>使用者：</strong> 是它一定要有分類嗎？</p>
+<p><strong>Gemini：</strong> 不一定，並不是所有的 HTML 元素都需要有分類。head 元素的 categories 就寫著 None。</p>
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;var&gt;</code> 元素</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/var">MDN：var</a></td>
+<td>2026-10-23 依常識列出，未逐字核對</td>
+</tr>
+<tr>
+<td>內容類別（Kinds of content）</td>
+<td><a href="https://html.spec.whatwg.org/multipage/dom.html#kinds-of-content">WHATWG HTML Living Standard</a></td>
+<td>Living Standard，持續更新，2026-10-23 列出</td>
+</tr>
+<tr>
+<td>對話原文</td>
+<td>上列兩則 Gemini 連結</td>
+<td>2026-10</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-10-23</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

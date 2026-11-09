@@ -7,12 +7,13 @@ sources:
   - https://gemini.google.com/app/9e25a1fa1fe501e3
   - https://gemini.google.com/app/7ee6da02bef71e28
   - https://gemini.google.com/app/d5f7dbd042133ecb
-updated: 2026-09-16
+  - https://gemini.google.com/app/c83e35b701d895ea
+updated: 2026-11-09
 ---
 
 # FCP 首次內容繪製 — 與 SEO 爬蟲的關係，以及打包五步驟怎麼影響它
 
-本篇重點 a–y，共 25 個
+本篇重點 a–z，共 26 個
 
 ## 重點整理
 
@@ -119,6 +120,11 @@ x. <mark style="background: #ADCCFF;">Render-blocking（阻塞繪製）</mark>�
 
 y. 字型是 render-blocking 裡最容易被忽略的一種。<mark style="background: #FF5582;">如果 `@font-face` 設了 `font-display: block`，在字型檔下載完成前文字會完全隱形</mark>，這叫 <mark style="background: #ADCCFF;">FOIT（Flash of Invisible Text，不可見文字閃爍）</mark>，FCP 會被硬生生拉長。<mark style="background: #BBFABB;">修法是改成 `font-display: swap`</mark>，讓瀏覽器先用系統字型把字畫出來，字型檔到了再換掉。在 Next.js 用 `next/font` 會自動幫你設好這件事。
 
+z. <mark style="background: #ADCCFF;">14 KB 規則</mark>是第三條與 TTFB 後「首批資料量」有關的路徑（2026-11-09 追加）。
+   1. 為什麼是 14 KB：RFC 6928 把 TCP 的初始擁塞視窗（Initial Congestion Window, IW10）定為 10 個 MSS（Maximum Segment Size，最大分段大小，約 1460 bytes），10 × 1460 ≈ 14.6 KB。伺服器在收到第一個 ACK 之前，最多只能送出這麼多資料，所以 <mark style="background: #FFF3A3;">首批 HTML 壓縮後若 ≤ 14 KB，就能在第 1 個 RTT 內送完</mark>，細節見 [[DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能]]。
+   2. <mark style="background: #BBFABB;">外部 JS／CSS 檔本來就不可能在第 1 個 RTT 到達</mark>：瀏覽器要先 parse 完 HTML，讀到 `<script src>` 或 `<link>` 才會發出新請求，至少再多 1 個 RTT。只有「內聯（inline）在 HTML 裡的 CSS／JS」才算進那 14 KB。所以 Abby 追問「JS 哪部分會在第一個 RTT」的答案是：只有 inline 的那一小段（例如 Critical CSS、極小的啟動腳本），外部 bundle 不會。
+   3. <mark style="background: #FF5582;">⚠️ 存疑／更正</mark>：Gemini 對 Abby 的敘述回「完全正確」，但有兩處不精確。第一，「defer／async 會讓 `document.write()` 被忽略」在 HTML Living Standard 並不是這樣寫的：defer／async 腳本執行時，若 parser 已結束，`document.write()` 會先呼叫 `document.open()` 把整份文件清空重寫（比被忽略更危險）。只有在 ignore-destructive-writes 計數大於 0（例如 `document.open()` 期間）或 throw-on-dynamic-markup-insertion 計數大於 0（例如 custom element 建構、XML 文件）時才會被忽略或丟錯。第二，14 KB 只是 TCP 第一批能送的量，<mark style="background: #FFB8EB;">TLS 握手的憑證等資料也會吃掉同一個視窗</mark>，實務上留給 HTML 的常小於 14 KB，也不是「壓到 14 KB 就保證 FCP 好」。本條我沒有即時查證規格原文，請 Abby 對照下方資料來源再確認。
+
 ## 圖解
 
 ![FCP 與 Googlebot 時間線對比圖](images/FCP與Googlebot時間線對比.svg)
@@ -173,6 +179,17 @@ Gemini：頁面 Bundle 體積很小（僅約 177 KB gzip）FCP 卻高達 5.24 �
 
 Gemini：你以前學的是純前端 SPA／CSR 的流程，而 Next.js 採用的是伺服器端預渲染。（1）傳統 SPA：建置階段打包工具只產生一個幾乎空無一物的 `index.html`（裡面只有 `<div id="root"></div>`）跟打包好的 JS；執行階段使用者開啟網頁後瀏覽器下載 JS、執行 React、在瀏覽器裡動態生成 HTML 節點，這時才第一次發生渲染；這套模式下確實不會有任何預渲染好的 HTML 檔案。（2）Next.js：核心概念是「能先做好的事，在打包或伺服器端就先做完」。執行 `npm run build` 時，Next.js 在你的電腦或伺服器上用 Node.js 把 `Dashboard.tsx` 執行了一遍，將 React 元件樹直接轉換成純 HTML 標籤與文字，儲存成一份實體 `.html` 檔案放到 `.next` 資料夾裡。使用者存取時伺服器不需要重新算 React，直接把寫好的 `.html` 丟給瀏覽器，瞬間就能把畫面畫出來，隨後 JS 下載下來進行 Hydration 讓頁面接管互動。（3）為什麼這次 FCP 還是會爛：打開那份 HTML 若寫滿真實標籤，代表預渲染有做好，問題出在 CSS 阻塞或水合塞車；若只有 `<div id="app"></div>` 或一個 spinner，代表伺服器根本沒渲染出真正的內容（可能因為寫了 `use client`，或資料請求沒處理好）。總結：CSR 的 HTML 是瀏覽器執行 JS 時憑空產生的 DOM，硬碟裡沒有 HTML 檔；預渲染（SSG／SSR）的 HTML 是 Node.js 在打包或收到請求時先 Render to String 寫好的，硬碟或記憶體裡有實體 HTML 內容。
 
+### SPA 效能優化策略（2026-11-09 擷取）— https://gemini.google.com/app/c83e35b701d895ea
+
+使用者：在HTML Living Standard有規定script標籤在使用defer或async屬性時，document.write()將會被忽略，以防止解析中斷並確保載入安全，這也可以避免初始擁塞窗口解析中斷，並且不再干擾主執行緒中DOM的建立。初始壅塞窗口第一輪往返大概能送14KB，只要將SPA(CSR)的index.html跟CSS, JS壓在14KB就可以讓FCP或者LCP比較理想。我這樣說對嗎
+
+Gemini：（回「完全正確」，分三點：IW10 與 14KB 規則、document.write 與 defer／async、SPA 實務建議。引用 joeldare、tugrik.net 等；此處為摘要，原文過長且含上述不精確之處。）
+
+使用者：我剛剛說成JS 那JS哪部分會在第一個RTT嗎？還是JS其實不會在第一次RTT?
+
+Gemini：（擷取當下尚未產生回覆。）
+
+
 ## 資料來源（含查證時間）
 
 | 主題 | 連結 | 版本／查證時間 |
@@ -189,3 +206,5 @@ Gemini：你以前學的是純前端 SPA／CSR 的流程，而 Next.js 採用的
 | Chrome for Developers — Lighthouse Performance scoring | https://developer.chrome.com/docs/lighthouse/performance/performance-scoring | 2026-08-27 查證 |
 | MDN — font-display（避免 FOIT） | https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display | 2026-08-27 查證 |
 | Rollup 官方文件 — Code Splitting | https://rollupjs.org/tutorial/#code-splitting | 2026-08-27 查證 |
+| RFC 6928 — Increasing TCP's Initial Window | https://www.rfc-editor.org/rfc/rfc6928 | 2013；2026-11-09 未重新查證 |
+| WHATWG HTML Living Standard — Dynamic markup insertion（document.write） | https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html | 2026-11-09 僅憑記憶，待 Abby 核對 |

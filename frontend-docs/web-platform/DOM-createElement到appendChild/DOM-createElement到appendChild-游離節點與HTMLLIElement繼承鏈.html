@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>createElement 到 appendChild：游離節點與 HTMLLIElement 繼承鏈</title>
+<link rel="stylesheet" href="../../../assets/notes.css">
+<style>
+:root{
+  --bg:#fbfaf7; --card:#fff; --ink:#23303b; --muted:#6b7b88; --line:#e4e8ec;
+  --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --mem:#8a5a00; --mem-soft:#fff6e0; --tree:#2f6b45; --tree-soft:#e9f6ee;
+  --hl-core:#FFF3A3; --hl-ok:#BBFABB; --hl-term:#ADCCFF; --hl-warn:#FF5582;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;font-size:16.5px;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,"Segoe UI",sans-serif}
+.wrap{width:100%;padding:28px clamp(16px,3vw,48px) 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:24px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 10px;font-size:1.7rem;line-height:1.4;font-family:"Noto Serif TC",Georgia,serif}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;border-radius:999px;padding:2px 11px;font-size:.78rem}
+.meta{font-size:.85rem;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:0 0 14px;padding-bottom:8px;border-bottom:2px solid var(--accent-soft);font-family:"Noto Serif TC",Georgia,serif}
+h3{font-size:1.06rem;margin:22px 0 8px;color:#2c4a5e}
+code{background:#eef1f4;padding:1px 6px;border-radius:5px;font-size:.88em;font-family:"JetBrains Mono",Consolas,monospace}
+pre{background:#1f2933;color:#e6edf3;padding:14px 18px;border-radius:11px;overflow-x:auto;font-size:.86rem;line-height:1.6}
+pre code{background:none;color:inherit;padding:0}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.93rem}
+.tbl{overflow-x:auto}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;white-space:nowrap}
+.indent{margin-left:1.6em;padding-left:12px;border-left:3px solid var(--accent-soft);color:#3b4c59}
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;color:inherit}
+mark.hl-core{background:var(--hl-core)} mark.hl-ok{background:var(--hl-ok)} mark.hl-term{background:var(--hl-term)}
+mark.hl.masked{background:#cfd6dc!important;color:transparent!important}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+button{font-family:inherit;cursor:pointer}
+.toolbar button,.btn{background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 13px;font-size:.85rem;color:var(--ink)}
+.toolbar button:hover,.btn:hover{background:var(--accent-soft)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;border-radius:5px;font-size:.93em;color:#6b5c42;text-decoration:none}
+.fig{margin:16px 0;text-align:center}
+.fig img{max-width:100%;border-radius:10px;border:1px solid #e6e3dc}
+.fig figcaption{font-size:.85rem;color:var(--muted);margin-top:6px}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+
+/* ===== 主軸圖 ===== */
+.stage{display:grid;grid-template-columns:minmax(260px,1fr) minmax(300px,1.4fr);gap:18px}
+@media(max-width:760px){.stage{grid-template-columns:1fr}}
+.zone{border-radius:14px;padding:14px 16px;min-height:300px;position:relative}
+.zone h4{margin:0 0 4px;font-size:.98rem}
+.zone .sub{font-size:.8rem;margin:0 0 12px}
+.zone.mem{background:var(--mem-soft);border:2px dashed #e0b860}
+.zone.mem h4,.zone.mem .sub{color:var(--mem)}
+.zone.tree{background:var(--tree-soft);border:2px solid #9fd0b0}
+.zone.tree h4,.zone.tree .sub{color:var(--tree)}
+.nbox{border:1.5px solid #9aa9b5;border-radius:9px;padding:6px 10px 8px;margin:6px 0;background:#fff;font-size:.85rem}
+.nbox>.tag{font-family:Consolas,monospace;font-weight:700;color:#2c4a5e;font-size:.82rem}
+.nbox .desc{color:var(--muted);font-size:.74rem;margin-left:6px}
+.nbox.ul.focus{outline:3px solid #f0a030;outline-offset:2px}
+.liv{background:#b4463b;color:#fff;border-radius:6px;padding:3px 10px;margin:4px 0;font-size:.85rem;list-style:none}
+.demo-ul{margin:4px 0;padding:0}
+.demo-ul li.demo-new{background:#d27a3a;animation:pop .6s ease}
+@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+.mock{border:2px solid #d27a3a;background:#fff;border-radius:9px;padding:6px 10px;margin:8px 0;font-size:.85rem;animation:pop .5s ease}
+.mock .tag{font-family:Consolas,monospace;font-weight:700;color:#b35a1e}
+.textnode{display:inline-block;border:1.5px dashed #7a8a97;border-radius:6px;padding:1px 8px;margin-top:4px;font-family:Consolas,monospace;font-size:.8rem;background:#f8fafb}
+.varlabel{font-size:.74rem;color:var(--mem);font-family:Consolas,monospace}
+.steps{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.codeline{font-family:Consolas,monospace;font-size:.88rem;background:#1f2933;color:#e6edf3;border-radius:10px;padding:10px 14px;margin:10px 0}
+.codeline .now{background:#3c5a2f;border-radius:4px;padding:0 4px}
+.status{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:10px}
+.status div{background:#f6f8fa;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.85rem}
+.status b{display:block;font-family:Consolas,monospace;font-size:.95rem}
+.status .t{color:#2f6b45}.status .f{color:#b03a4a}
+.explain{background:#f6f8fa;border-left:4px solid var(--accent);border-radius:0 8px 8px 0;padding:10px 14px;margin-top:10px;font-size:.92rem}
+
+/* ===== 繼承鏈 ===== */
+.chain{display:flex;flex-direction:column;align-items:stretch;gap:0;max-width:100%}
+.layer{border:1.5px solid #b9c7d2;border-radius:11px;background:#fff;padding:10px 14px;cursor:pointer;transition:.15s}
+.layer:hover,.layer.on{background:#eef5fa;border-color:var(--accent)}
+.layer .nm{font-family:Consolas,monospace;font-weight:700;color:#1d3b50}
+.layer .what{font-size:.85rem;color:#41525f}
+.layer .props{font-family:Consolas,monospace;font-size:.8rem;margin-top:4px}
+.layer .props span{display:inline-block;margin:2px 4px 2px 0;padding:1px 7px;border-radius:5px;background:#f0f3f6}
+.layer .props span.ok{background:#dff3e5}.layer .props span.no{background:#fbe1e4}
+.arrow{text-align:center;color:var(--muted);font-size:.78rem;line-height:1.6;padding:2px 0}
+.arrow::before{content:"▲ ";}
+
+/* ===== 測驗 ===== */
+.quiz ol>li{margin:12px 0}
+input.blank{border:none;border-bottom:2px solid #9aa9b5;background:#f7f9fb;padding:2px 8px;width:11em;font-family:Consolas,monospace;font-size:.9rem}
+input.blank.good{border-color:#2f8a4f;background:#e6f6eb} input.blank.bad{border-color:#c0394d;background:#fbe8eb}
+.fb{display:none;font-size:.88rem;color:#41525f;background:#f6f8fa;border-radius:8px;padding:6px 10px;margin-top:6px}
+.fb.show{display:block}
+button.tf.good{background:#2f8a4f;color:#fff} button.tf.bad{background:#c0394d;color:#fff}
+.qbtn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:3px 10px;font-size:.82rem;margin-left:4px}
+textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:inherit;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>createElement 到 appendChild：游離節點與 HTMLLIElement 繼承鏈</h1>
+  <div class="pills"><span class="pill">DOM</span><span class="pill">createElement</span><span class="pill">appendChild</span><span class="pill">detached node</span><span class="pill">prototype chain</span><span class="pill">Web IDL</span></div>
+  <div class="meta">更新於 2026-11-04　·　書本範例 c05/js/add-element.js（p222–223）　·　程式範例 <a class="wikilink" href="demo-add-element.html">demo-add-element.html</a></div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">遮住所有螢光筆（考自己）</button>
+  <button id="showAll">顯示所有螢光筆</button>
+</div>
+
+<!-- ============ 1 ============ -->
+<section class="card">
+<h2>1. 主軸圖：一顆 li 從記憶體走進 DOM 樹</h2>
+<p><mark class="hl hl-core">createElement 和 appendChild 是兩個獨立的方法，各做一件事</mark>。
+createElement 負責造出節點，appendChild 負責把節點接到某個父節點底下。
+書上說的「步驟 3 之前還不會被加入 DOM 樹」是在提醒只做步驟 1 不夠，要自己再呼叫 appendChild。</p>
+<p>下圖右邊的 <code>&lt;ul&gt;</code> 是本頁真的 DOM，下方四格狀態是本頁 JS 對真的 <code>newEl</code> 量出來的值。按「下一行」逐行執行書上的程式。</p>
+
+<div class="codeline" id="codeline"></div>
+<div class="steps">
+  <button class="btn primary" id="next">下一行 ▶</button>
+  <button class="btn" id="reset">重來</button>
+</div>
+
+<div class="stage">
+  <div class="zone mem">
+    <h4>記憶體（游離區）</h4>
+    <p class="sub">JS 變數抓著，但沒有父節點；畫面畫不出來</p>
+    <div id="memArea"></div>
+  </div>
+  <div class="zone tree">
+    <h4>document 樹（外框包內框＝父包子）</h4>
+    <p class="sub">從 document 往下走得到的節點才會被畫出來</p>
+    <div class="nbox"><span class="tag">document</span><span class="desc">整份文件的根節點</span>
+      <div class="nbox"><span class="tag">&lt;html&gt;</span>
+        <div class="nbox"><span class="tag">&lt;body&gt;</span>
+          <div class="nbox ul" id="ulBox"><span class="tag">&lt;ul&gt;</span><span class="desc">position 指向它</span>
+            <ul class="demo-ul" id="demoUl">
+              <li class="liv">fresh figs</li><li class="liv">pine nuts</li><li class="liv">honey</li><li class="liv">balsamic vinegar</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="status">
+  <div>newEl.parentNode<b id="sParent">—</b></div>
+  <div>newEl.isConnected<b id="sConn">—</b></div>
+  <div>document.querySelector('li.demo-new')<b id="sQuery">—</b></div>
+  <div>newEl.constructor.name<b id="sCtor">—</b></div>
+</div>
+<div class="explain" id="explain">按「下一行」開始。</div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section class="card">
+<h2>2. 三步驟流程圖（ISO 5807）</h2>
+<p>書上的步驟 2 可以省略：只想放一個空的 <code>&lt;li&gt;</code> 就直接跳去找位置。</p>
+<svg viewBox="0 0 760 820" width="100%" style="max-width:760px;display:block;margin:auto" font-family="Noto Sans TC,Microsoft JhengHei,sans-serif" font-size="14">
+  <defs><marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#5b6b78"/></marker></defs>
+  <g stroke="#5b6b78" stroke-width="1.6" fill="none" marker-end="url(#ah)">
+    <line x1="260" y1="64" x2="260" y2="98"/>
+    <line x1="260" y1="150" x2="260" y2="178"/>
+    <line x1="260" y1="230" x2="260" y2="243"/>
+    <line x1="260" y1="337" x2="260" y2="368"/>
+    <line x1="260" y1="420" x2="260" y2="448"/>
+    <line x1="260" y1="500" x2="260" y2="524"/>
+    <polyline points="350,290 600,290 600,540 278,540"/>
+    <line x1="260" y1="556" x2="260" y2="588"/>
+    <line x1="260" y1="640" x2="260" y2="668"/>
+    <line x1="260" y1="720" x2="260" y2="748"/>
+  </g>
+  <!-- 端點：開始 -->
+  <rect x="170" y="20" width="180" height="44" rx="22" fill="#eef2f5" stroke="#5b6b78" stroke-width="1.6"/>
+  <text x="260" y="47" text-anchor="middle">開始</text>
+  <!-- 處理 -->
+  <rect x="110" y="100" width="300" height="50" fill="#fff" stroke="#3f6f8f" stroke-width="1.8"/>
+  <text x="260" y="122" text-anchor="middle" font-family="Consolas,monospace">document.createElement('li')</text>
+  <text x="260" y="141" text-anchor="middle" font-size="12" fill="#6b7b88">步驟 1：造出元件節點</text>
+  <!-- 資料 -->
+  <polygon points="140,180 420,180 380,230 100,230" fill="#fff6e0" stroke="#c8962a" stroke-width="1.8"/>
+  <text x="260" y="203" text-anchor="middle" font-family="Consolas,monospace">newEl</text>
+  <text x="260" y="221" text-anchor="middle" font-size="12" fill="#8a5a00">游離的 &lt;li&gt;（parentNode = null）</text>
+  <!-- 判斷 -->
+  <polygon points="260,245 350,290 260,335 170,290" fill="#fff" stroke="#7a4fb0" stroke-width="1.8"/>
+  <text x="260" y="295" text-anchor="middle">要放文字嗎？</text>
+  <text x="270" y="356" font-size="12" fill="#7a4fb0">是</text>
+  <text x="470" y="282" font-size="12" fill="#7a4fb0">否（可跳過步驟 2）</text>
+  <!-- 處理 -->
+  <rect x="110" y="370" width="300" height="50" fill="#fff" stroke="#3f6f8f" stroke-width="1.8"/>
+  <text x="260" y="392" text-anchor="middle" font-family="Consolas,monospace">document.createTextNode('quinoa')</text>
+  <text x="260" y="411" text-anchor="middle" font-size="12" fill="#6b7b88">步驟 2a：造出文字節點 newText</text>
+  <rect x="110" y="450" width="300" height="50" fill="#fff" stroke="#3f6f8f" stroke-width="1.8"/>
+  <text x="260" y="472" text-anchor="middle" font-family="Consolas,monospace">newEl.appendChild(newText)</text>
+  <text x="260" y="491" text-anchor="middle" font-size="12" fill="#6b7b88">步驟 2b：文字掛進 li（仍在記憶體）</text>
+  <!-- 連接點 -->
+  <circle cx="260" cy="540" r="16" fill="#fff" stroke="#5b6b78" stroke-width="1.6"/>
+  <text x="260" y="545" text-anchor="middle" font-size="13">A</text>
+  <!-- 處理 -->
+  <rect x="90" y="590" width="340" height="50" fill="#fff" stroke="#3f6f8f" stroke-width="1.8"/>
+  <text x="260" y="612" text-anchor="middle" font-family="Consolas,monospace">getElementsByTagName('ul')[0]</text>
+  <text x="260" y="631" text-anchor="middle" font-size="12" fill="#6b7b88">找出要掛的父節點 position</text>
+  <rect x="110" y="670" width="300" height="50" fill="#e9f6ee" stroke="#2f6b45" stroke-width="2"/>
+  <text x="260" y="692" text-anchor="middle" font-family="Consolas,monospace">position.appendChild(newEl)</text>
+  <text x="260" y="711" text-anchor="middle" font-size="12" fill="#2f6b45">步驟 3：這一刻才進入 DOM 樹</text>
+  <!-- 端點：結束 -->
+  <rect x="150" y="750" width="220" height="44" rx="22" fill="#eef2f5" stroke="#5b6b78" stroke-width="1.6"/>
+  <text x="260" y="777" text-anchor="middle">結束：畫面出現 quinoa</text>
+  <!-- 圖例 -->
+  <g font-size="12" fill="#41525f">
+    <rect x="480" y="610" width="26" height="16" fill="#fff" stroke="#3f6f8f"/><text x="514" y="623">處理（直角矩形）</text>
+    <polygon points="484,640 510,640 504,656 478,656" fill="#fff6e0" stroke="#c8962a"/><text x="514" y="653">資料（平行四邊形）</text>
+    <polygon points="493,666 506,674 493,682 480,674" fill="#fff" stroke="#7a4fb0"/><text x="514" y="679">判斷（菱形）</text>
+    <circle cx="493" cy="700" r="8" fill="#fff" stroke="#5b6b78"/><text x="514" y="704">連接點（圓形）</text>
+    <rect x="480" y="716" width="26" height="16" rx="8" fill="#eef2f5" stroke="#5b6b78"/><text x="514" y="729">端點（開始／結束）</text>
+  </g>
+</svg>
+</section>
+
+<!-- ============ 3 ============ -->
+<section class="card">
+<h2>3. HTMLLIElement 是什麼：介面繼承鏈</h2>
+<p><mark class="hl hl-term">HTMLLIElement</mark>的全名是 HTML <b>L</b>ist <b>I</b>tem Element，也就是 <code>&lt;li&gt;</code>（list item，清單項目）專屬的介面。
+名字裡有兩個 L，第一個 L 是 HTML 的 L，第二個 L 是 List 的 L。</p>
+
+<h3>3-1. 為什麼每個標籤都有自己的介面</h3>
+<p>HTML 規格用 <a href="https://webidl.spec.whatwg.org/">Web IDL</a>（Interface Definition Language，介面定義語言）替每一種標籤宣告一個介面。
+<code>document.createElement('li')</code> 會拿標籤名去查規格的對照表，查到 li 對應 HTMLLIElement，就建立一個屬於這個介面的物件。</p>
+<div class="indent">介面在 JS 裡長成一個建構函式加一個 prototype 物件，彼此用原型鏈串起來，概念上就像 <code>class HTMLLIElement extends HTMLElement</code>。
+<br>瀏覽器不讓你直接 <code>new HTMLLIElement()</code>（會丟 <code>TypeError: Illegal constructor</code>），一定要透過 createElement 或 HTML parser 產生。</div>
+
+<h3>3-2. 繼承鏈：點每一層看它提供什麼</h3>
+<p>平常寫的 <code>appendChild</code>、<code>className</code>、<code>addEventListener</code> 都是從上面幾層繼承來的，HTMLLIElement 自己只多了一個 <code>value</code>，所以平常感覺不到它的存在。
+標籤右邊的綠色＝本頁用 <code>hasOwnProperty</code> 實測確認「這個屬性就定義在這一層」。</p>
+<div class="chain" id="chain"></div>
+
+<h3>3-3. 標籤名對應的介面（本頁即時實測）</h3>
+<div class="tbl"><table id="tagTable"><thead><tr><th>createElement 傳入</th><th>規格對應的介面</th><th>本頁實測 constructor.name</th><th>白話</th></tr></thead><tbody></tbody></table></div>
+<p>文字節點走另一條鏈：<code>Text → CharacterData → Node → EventTarget → Object</code>。
+它沒有 Element 這一層，所以文字節點沒有 <code>className</code>、<code>querySelector</code>，也不能再掛子節點。</p>
+</section>
+
+<!-- ============ 4 ============ -->
+<section class="card">
+<h2>4. 游離節點與已連接節點對照</h2>
+<div class="tbl"><table>
+<thead><tr><th>項目</th><th>游離節點（createElement 後）</th><th>已連接節點（appendChild 進樹後）</th></tr></thead>
+<tbody>
+<tr><td>是不是真的物件</td><td>是，完整的 HTMLLIElement</td><td>是，同一個物件</td></tr>
+<tr><td>parentNode</td><td>null</td><td>父節點（例如 ul）</td></tr>
+<tr><td>isConnected</td><td>false</td><td>true</td></tr>
+<tr><td>document.querySelector 找得到嗎</td><td>找不到</td><td>找得到</td></tr>
+<tr><td>newEl.querySelector 找自己底下</td><td>找得到</td><td>找得到</td></tr>
+<tr><td>能設屬性、綁事件嗎</td><td>可以</td><td>可以</td></tr>
+<tr><td>會被畫到畫面上嗎</td><td>不會</td><td>會（觸發 reflow 與 repaint）</td></tr>
+</tbody></table></div>
+
+<h3>4-1. 為什麼 document.querySelector 找不到游離節點</h3>
+<p><mark class="hl hl-core">querySelector 從呼叫它的節點出發，以深度優先、前序（tree order）走訪子孫節點</mark>。
+從 document 出發走不到沒有父節點的 newEl，從 newEl 自己出發就走得到它底下的 span。</p>
+<pre><code>var newEl = document.createElement('li');
+newEl.innerHTML = '&lt;span&gt;quinoa&lt;/span&gt;';
+document.querySelector('span');  // null
+newEl.querySelector('span');     // &lt;span&gt;quinoa&lt;/span&gt;</code></pre>
+<div class="indent">第 1 行在記憶體造一個 li，第 2 行在它裡面塞一個 span。
+<br>第 3 行從整份文件往下找 span，走不到 newEl 所以回傳 null。
+<br>第 4 行從 newEl 自己往下找，第一個子孫就是 span。</div>
+
+<h3>4-2. 為什麼先在記憶體組好再一次掛上去</h3>
+<p>節點還游離時改它，瀏覽器不需要重新排版。
+<mark class="hl hl-ok">先在記憶體把整包組好，最後一次 appendChild，版面只重算一次</mark>。
+同一顆節點 appendChild 到第二個父節點時會從原本位置搬走，因為一個節點只能有一個 parentNode。</p>
+</section>
+
+<!-- ============ 5 ============ -->
+<section class="card">
+<h2>5. 書本與實測截圖</h2>
+<div class="figs">
+  <figure class="fig"><img src="../../../obsidian-attachment/學習-JavaScript%20(2026-06)/學習JS_書本_利用DOM控制處理加入元件三步驟p222_2026-11-04.jpeg" alt="書本 p222 三步驟"><figcaption>書本 p222：createElement → createTextNode → appendChild 三步驟</figcaption></figure>
+  <figure class="fig"><img src="../../../obsidian-attachment/學習-JavaScript%20(2026-06)/學習JS_書本_在DOM樹中加入元件add-element範例p223_2026-11-04.jpeg" alt="書本 p223 範例"><figcaption>書本 p223：c05/js/add-element.js 範例與結果</figcaption></figure>
+</div>
+<figure class="fig"><img src="../../../obsidian-attachment/學習-JavaScript%20(2026-06)/學習JS_網頁_demo游離節點狀態與HTMLLIElement原型鏈實測_2026-11-04.png" alt="demo 實測"><figcaption>同資料夾 demo-add-element.html 在 Chromium 實際執行：步驟 1、2 之後 parentNode 都是 null，步驟 3 之後才變成 ul</figcaption></figure>
+</section>
+
+<!-- ============ 6 ============ -->
+<section class="card">
+<h2>6. 相關筆記與關聯原因</h2>
+<div class="tbl"><table>
+<thead><tr><th>筆記</th><th>關聯原因</th></tr></thead>
+<tbody>
+<tr><td><a class="wikilink" href="../../css/style.setProperty-是DOM方法-與Web-IDL及BNF的差別.html">style.setProperty 是 DOM 方法</a></td><td>那篇講 Web IDL 怎麼宣告 CSSStyleDeclaration，本篇的 HTMLLIElement 也是同一套 Web IDL 宣告出來的介面</td></tr>
+<tr><td><a class="wikilink" href="../../html-basics/HTML-Parsing-瀏覽器拿到HTTP-response-body之後.html">HTML Parsing：DOM 樹建立過程</a></td><td>HTML parser 讀到 &lt;li&gt; 時建立的也是 HTMLLIElement，跟 createElement 產生的物件同一種，差別只在誰負責 append</td></tr>
+<tr><td><a class="wikilink" href="../../react/Critical-Rendering-Path-關鍵渲染路徑-重排vs重繪-互動版.html">Critical Rendering Path：重排與重繪</a></td><td>appendChild 讓節點進樹那一刻才會觸發 reflow，這是 4-2「先組好再一次掛」省效能的原因</td></tr>
+<tr><td><a class="wikilink" href="../../javascript/JS_Core_and_Runtime/物件/class底層是原型鏈-宣告vs表達式-CFp.html">class 底層是原型鏈</a></td><td>HTMLLIElement → HTMLElement → Element → Node 就是一條 extends 原型鏈，查屬性的規則完全一樣</td></tr>
+<tr><td><a class="wikilink" href="../CSR初始DOM只有空div-root-DOM建立的時機與阻塞.html">CSR 初始 DOM 只有空 div#root</a></td><td>React 在 #root 底下長出畫面時，底層一樣是 createElement 建節點、appendChild 掛進樹</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ============ 7 ============ -->
+<section class="card">
+<h2>7. 延伸練習（LeetCode）</h2>
+<div class="tbl"><table>
+<thead><tr><th>題目</th><th>跟本篇的關係</th></tr></thead>
+<tbody>
+<tr><td><a href="https://leetcode.com/problems/n-ary-tree-preorder-traversal/">589. N-ary Tree Preorder Traversal</a></td><td>DOM 是 N 叉樹，querySelector 的 tree order 就是前序走訪</td></tr>
+<tr><td><a href="https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree-iii/">1650. Lowest Common Ancestor of a Binary Tree III</a></td><td>節點帶 parent 指標，跟 parentNode 一路往上走判斷 isConnected 的想法相同</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ============ 8 ============ -->
+<section class="card quiz">
+<h2>8. 自我測驗</h2>
+<h3>8-1. 填空</h3>
+<ol>
+<li>createElement('li') 回傳物件的介面名稱是 <input class="blank" data-a="HTMLLIElement"> <button class="qbtn chk">檢查</button><button class="qbtn rev">看答案</button><div class="fb">HTML List Item Element。</div></li>
+<li>游離節點的 parentNode 是 <input class="blank" data-a="null"> <button class="qbtn chk">檢查</button><button class="qbtn rev">看答案</button><div class="fb">還沒有父節點。</div></li>
+<li>判斷節點是否接到 document 的屬性是 <input class="blank" data-a="isConnected"> <button class="qbtn chk">檢查</button><button class="qbtn rev">看答案</button><div class="fb">定義在 Node 那一層。</div></li>
+<li>appendChild 定義在原型鏈的 <input class="blank" data-a="Node"> 那一層 <button class="qbtn chk">檢查</button><button class="qbtn rev">看答案</button><div class="fb">所以文字節點也有 appendChild（但對文字節點呼叫會丟錯）。</div></li>
+<li>addEventListener 定義在 <input class="blank" data-a="EventTarget"> <button class="qbtn chk">檢查</button><button class="qbtn rev">看答案</button><div class="fb">鏈的最上層（Object 之前）。</div></li>
+</ol>
+<h3>8-2. 是非題</h3>
+<ol>
+<li>createElement 執行完，節點就會出現在畫面上。 <button class="qbtn tf" data-v="true" data-ok="false">○</button><button class="qbtn tf" data-v="false" data-ok="false">✕</button><div class="fb" data-ans="✕">要等 appendChild 接進 DOM 樹才會畫出來。</div></li>
+<li>游離節點也可以 addEventListener。 <button class="qbtn tf" data-v="true" data-ok="true">○</button><button class="qbtn tf" data-v="false" data-ok="true">✕</button><div class="fb" data-ans="○">它是完整物件，掛進樹之後事件照樣會觸發。</div></li>
+<li>同一顆節點 appendChild 到第二個父節點，會複製一份。 <button class="qbtn tf" data-v="true" data-ok="false">○</button><button class="qbtn tf" data-v="false" data-ok="false">✕</button><div class="fb" data-ans="✕">會搬家；要複製得用 cloneNode。</div></li>
+<li>document.createElement('foo') 回傳 HTMLUnknownElement。 <button class="qbtn tf" data-v="true" data-ok="true">○</button><button class="qbtn tf" data-v="false" data-ok="true">✕</button><div class="fb" data-ans="○">規格裡查不到的非自訂元素名稱都歸到 HTMLUnknownElement。</div></li>
+<li>可以用 new HTMLLIElement() 直接建立 li。 <button class="qbtn tf" data-v="true" data-ok="false">○</button><button class="qbtn tf" data-v="false" data-ok="false">✕</button><div class="fb" data-ans="✕">會丟 TypeError: Illegal constructor。</div></li>
+<li>文字節點的原型鏈裡沒有 Element。 <button class="qbtn tf" data-v="true" data-ok="true">○</button><button class="qbtn tf" data-v="false" data-ok="true">✕</button><div class="fb" data-ans="○">Text → CharacterData → Node → EventTarget。</div></li>
+</ol>
+<h3>8-3. 申論題</h3>
+<ol>
+<li>為什麼 newEl.querySelector 找得到 span，document.querySelector 卻找不到？<textarea placeholder="先自己寫"></textarea><button class="qbtn rev2">顯示參考答案</button><div class="fb">querySelector 從呼叫者出發走訪子孫。newEl 沒有父節點，不在 document 的子孫裡，所以從 document 出發走不到；從 newEl 出發，span 就是它的子節點。</div></li>
+<li>說明 HTMLLIElement 繼承鏈每一層各提供什麼。<textarea placeholder="先自己寫"></textarea><button class="qbtn rev2">顯示參考答案</button><div class="fb">HTMLLIElement 提供 li 專屬的 value。HTMLElement 提供所有 HTML 元素共用的 hidden、innerText、style。Element 提供 className、id、querySelector、setAttribute。Node 提供 parentNode、appendChild、isConnected 這類樹狀結構操作。EventTarget 提供 addEventListener。</div></li>
+<li>為什麼建議先在記憶體組好節點，再一次 appendChild？<textarea placeholder="先自己寫"></textarea><button class="qbtn rev2">顯示參考答案</button><div class="fb">游離節點不參與版面計算，修改它不會觸發 reflow。全部組好後一次掛進樹，版面只需重算一次。</div></li>
+</ol>
+</section>
+
+<!-- ============ 9 ============ -->
+<section class="card">
+<h2>9. 資料來源</h2>
+<div class="tbl"><table>
+<thead><tr><th>來源</th><th>用途</th><th>版本／時間</th></tr></thead>
+<tbody>
+<tr><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/Document/createElement">MDN Document.createElement()</a></td><td>回傳新元素、未知標籤回 HTMLUnknownElement</td><td>查閱 2026-11-04</td></tr>
+<tr><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/Node/appendChild">MDN Node.appendChild()</a></td><td>已存在的節點會被搬移</td><td>查閱 2026-11-04</td></tr>
+<tr><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLLIElement">MDN HTMLLIElement</a></td><td>介面屬性 value 與繼承鏈</td><td>查閱 2026-11-04</td></tr>
+<tr><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/Node/isConnected">MDN Node.isConnected</a></td><td>判斷是否連到文件</td><td>查閱 2026-11-04</td></tr>
+<tr><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/Element/querySelector">MDN Element.querySelector()</a></td><td>深度優先前序走訪子孫</td><td>查閱 2026-11-04</td></tr>
+<tr><td><a href="https://html.spec.whatwg.org/multipage/grouping-content.html#the-li-element">HTML Living Standard：the li element</a></td><td>li 對應 HTMLLIElement 的 Web IDL 定義</td><td>Living Standard，查閱 2026-11-04</td></tr>
+<tr><td><a href="https://dom.spec.whatwg.org/#interface-node">DOM Living Standard：Interface Node</a></td><td>Node、parentNode、appendChild 規格</td><td>Living Standard，查閱 2026-11-04</td></tr>
+<tr><td>書本 p222–223「利用 DOM 控制處理加入元件」「在 DOM 樹中加入元件」（第 5 章 文件物件模型，範例檔 c05/js/add-element.js）</td><td>原始範例程式</td><td>Abby 拍照 2026-11-04</td></tr>
+<tr><td>同資料夾 demo-add-element.html</td><td>parentNode、isConnected、原型鏈實測</td><td>Chromium（Playwright）執行 2026-11-04</td></tr>
+</tbody></table></div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  /* ---------- 螢光筆遮罩 ---------- */
+  document.querySelectorAll('mark.hl').forEach(function(m){ m.addEventListener('click',function(){ m.classList.toggle('masked'); }); });
+  document.getElementById('maskAll').onclick=function(){ document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');}); };
+  document.getElementById('showAll').onclick=function(){ document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');}); };
+
+  /* ---------- 1. 主軸圖 ---------- */
+  var lines=[
+    "var newEl = document.createElement('li');",
+    "var newText = document.createTextNode('quinoa');",
+    "newEl.appendChild(newText);",
+    "var position = demoBody.getElementsByTagName('ul')[0];",
+    "position.appendChild(newEl);"
+  ];
+  var tips=[
+    "<b>第 1 行（書上步驟 1）</b>：在記憶體造出一個空的 &lt;li&gt;，變數 newEl 抓著它。它已經是完整的 HTMLLIElement，但 parentNode 是 null。",
+    "<b>第 2 行（書上步驟 2a）</b>：再造一個內容是 quinoa 的文字節點 newText，它也是游離的。",
+    "<b>第 3 行（書上步驟 2b）</b>：把文字節點掛到 li 底下。li 有了子節點，但 li 自己還是沒有父節點，所以整包仍在記憶體。",
+    "<b>第 4 行</b>：找出要掛的位置。書上寫 document.getElementsByTagName('ul')[0]，本圖改從示意的 body 找，避免抓到筆記本身其他的 ul。這一行只是拿到參照，什麼都沒搬。",
+    "<b>第 5 行（書上步驟 3）</b>：把 li 接到 ul 的最後一個子節點後面。這一刻 parentNode 變成 ul、isConnected 變成 true，document.querySelector 找得到，畫面出現 quinoa。"
+  ];
+  var step=0, newEl=null, newText=null, position=null;
+  var mem=document.getElementById('memArea'), ulBox=document.getElementById('ulBox'), demoUl=document.getElementById('demoUl');
+  function setB(id,v){ var b=document.getElementById(id); b.textContent=v; b.className=(v==='true'||v==='找到'||v==='<ul>')?'t':(v==='false'||v==='null')?'f':''; }
+  function measure(){
+    if(!newEl){ ['sParent','sConn','sQuery','sCtor'].forEach(function(i){setB(i,'—');}); return; }
+    setB('sParent', newEl.parentNode ? '<'+newEl.parentNode.nodeName.toLowerCase()+'>' : 'null');
+    setB('sConn', String(newEl.isConnected));
+    setB('sQuery', document.querySelector('li.demo-new') ? '找到' : 'null');
+    setB('sCtor', newEl.constructor.name);
+  }
+  function renderCode(){
+    document.getElementById('codeline').innerHTML = lines.map(function(l,i){
+      var esc=l.replace(/</g,'&lt;');
+      return '<div>'+(i<step-1?'<span style="opacity:.55">':i===step-1?'<span class="now">':'<span style="opacity:.3">')+esc+'</span></div>';
+    }).join('');
+  }
+  function renderMem(){
+    var h='';
+    if(step>=1 && step<5){
+      h+='<div class="varlabel">newEl →</div><div class="mock"><span class="tag">&lt;li&gt;</span>'+(step>=3?'<br><span class="textnode">#text "quinoa"</span>':'<span class="desc" style="color:#6b7b88;font-size:.74rem"> 空的，沒有子節點</span>')+'</div>';
+    }
+    if(step===2){ h+='<div class="varlabel">newText →</div><div class="mock" style="border-style:dashed"><span class="textnode">#text "quinoa"</span></div>'; }
+    if(step>=5){ h='<p style="color:#8a5a00;font-size:.85rem">已清空：newEl 仍然指向同一個物件，只是它現在住在右邊的 ul 底下。</p>'; }
+    mem.innerHTML=h;
+  }
+  function run(){
+    if(step===1){ newEl=document.createElement('li'); newEl.className='liv demo-new'; }
+    if(step===2){ newText=document.createTextNode('quinoa'); }
+    if(step===3){ newEl.appendChild(newText); }
+    if(step===4){ position=demoUl; ulBox.classList.add('focus'); }
+    if(step===5){ position.appendChild(newEl); ulBox.classList.remove('focus'); }
+  }
+  function render(){ renderCode(); renderMem(); measure(); document.getElementById('explain').innerHTML = step? tips[step-1] : '按「下一行」開始。'; document.getElementById('next').disabled = step>=5; }
+  document.getElementById('next').onclick=function(){ if(step<5){ step++; run(); render(); } };
+  document.getElementById('reset').onclick=function(){ if(newEl && newEl.parentNode) newEl.parentNode.removeChild(newEl); newEl=newText=position=null; step=0; ulBox.classList.remove('focus'); render(); };
+  render();
+
+  /* ---------- 3-2. 繼承鏈（即時實測） ---------- */
+  var layers=[
+    {nm:'HTMLLIElement', what:'li 專屬：清單項目的序號', props:['value']},
+    {nm:'HTMLElement', what:'所有 HTML 元素共用：顯示與文字', props:['hidden','innerText','title']},
+    {nm:'Element', what:'所有元素共用：屬性、class、選取子孫', props:['className','id','querySelector','setAttribute']},
+    {nm:'Node', what:'所有節點共用：樹狀結構的上下左右與增刪', props:['parentNode','childNodes','appendChild','isConnected']},
+    {nm:'EventTarget', what:'所有能收事件的物件共用', props:['addEventListener','removeEventListener']},
+    {nm:'Object', what:'JS 所有物件的根', props:['hasOwnProperty','toString']}
+  ];
+  var ch=document.getElementById('chain');
+  layers.forEach(function(L,i){
+    var C=window[L.nm], proto=C && C.prototype;
+    var props=L.props.map(function(p){ var ok=proto && Object.prototype.hasOwnProperty.call(proto,p); return '<span class="'+(ok?'ok':'no')+'">'+p+'</span>'; }).join('');
+    if(i>0){ var a=document.createElement('div'); a.className='arrow'; a.textContent='[[Prototype]]：上一層找不到，就往這一層找'; ch.appendChild(a); }
+    var d=document.createElement('div'); d.className='layer'+(i===0?' on':'');
+    d.innerHTML='<div class="nm">'+L.nm+'.prototype</div><div class="what">'+L.what+'</div><div class="props">'+props+'</div>';
+    d.onclick=function(){ ch.querySelectorAll('.layer').forEach(function(x){x.classList.remove('on');}); d.classList.add('on'); };
+    ch.appendChild(d);
+  });
+
+  /* ---------- 3-3. 標籤 → 介面 ---------- */
+  var tags=[['li','HTMLLIElement','清單項目'],['ul','HTMLUListElement','無序清單'],['ol','HTMLOListElement','有序清單'],['div','HTMLDivElement','區塊'],['a','HTMLAnchorElement','超連結'],['p','HTMLParagraphElement','段落'],['foo','HTMLUnknownElement','規格裡查不到的名稱'],['my-card','HTMLElement','合法的自訂元素名稱（含連字號），尚未註冊']];
+  var tb=document.querySelector('#tagTable tbody');
+  tags.forEach(function(t){
+    var real=document.createElement(t[0]).constructor.name;
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td><code>\''+t[0]+'\'</code></td><td>'+t[1]+'</td><td style="color:'+(real===t[1]?'#2f6b45':'#b03a4a')+'">'+real+'</td><td>'+t[2]+'</td>';
+    tb.appendChild(tr);
+  });
+
+  /* ---------- 8. 測驗 ---------- */
+  var norm=function(s){return (s||'').trim().toLowerCase();};
+  document.querySelectorAll('button.chk').forEach(function(b){ b.onclick=function(){ var li=b.closest('li'),inp=li.querySelector('input'); var ok=norm(inp.value)===norm(inp.dataset.a); inp.classList.remove('good','bad'); inp.classList.add(ok?'good':'bad'); if(ok) li.querySelector('.fb').classList.add('show'); }; });
+  document.querySelectorAll('button.rev').forEach(function(b){ b.onclick=function(){ var li=b.closest('li'),inp=li.querySelector('input'); inp.value=inp.dataset.a; inp.classList.add('good'); li.querySelector('.fb').classList.add('show'); }; });
+  document.querySelectorAll('input.blank').forEach(function(inp){ inp.addEventListener('keydown',function(e){ if(e.key==='Enter') inp.closest('li').querySelector('.chk').click(); }); });
+  document.querySelectorAll('button.tf').forEach(function(b){ b.onclick=function(){ var li=b.closest('li'); var ok=b.dataset.ok==='true', picked=b.dataset.v==='true'; li.querySelectorAll('.tf').forEach(function(x){x.classList.remove('good','bad');}); b.classList.add(ok===picked?'good':'bad'); var fb=li.querySelector('.fb'); if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; } fb.classList.add('show'); }; });
+  document.querySelectorAll('button.rev2').forEach(function(b){ b.onclick=function(){ var fb=b.closest('li').querySelector('.fb'); fb.classList.toggle('show'); b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案'; }; });
+})();
+</script>
+<script src="../../../assets/notes.js" defer></script>
+</body>
+</html>

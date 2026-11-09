@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>demo：createElement 到 appendChild 的節點狀態</title>
+<style>
+  body{margin:0;padding:24px;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;background:#fbfaf7;color:#23303b}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+  .box{background:#fff;border:1px solid #e4e8ec;border-radius:12px;padding:16px 20px}
+  h1{font-size:1.25rem;margin:0 0 14px}
+  h2{font-size:1rem;margin:0 0 10px;color:#3f6f8f}
+  ul#list li{background:#b4463b;color:#fff;margin:4px 0;padding:6px 12px;border-radius:6px;list-style:none}
+  ul#list{padding:0}
+  ul#list li.new{background:#d27a3a}
+  table{border-collapse:collapse;width:100%;font-size:.9rem}
+  td,th{border:1px solid #e4e8ec;padding:6px 10px;text-align:left}
+  th{background:#eaf2f7}
+  code{font-family:Consolas,monospace;background:#eef1f4;padding:1px 5px;border-radius:4px}
+  .chain{font-family:Consolas,monospace;font-size:.9rem;line-height:2}
+  .chain span{background:#eaf2f7;border:1px solid #cfe0ea;border-radius:6px;padding:2px 8px}
+</style>
+</head>
+<body>
+<h1>書本範例 c05/js/add-element.js：每一步之後 newEl 的真實狀態</h1>
+<div class="grid">
+  <div class="box">
+    <h2>頁面上的 &lt;ul&gt;（DOM 樹）</h2>
+    <ul id="list">
+      <li>fresh figs</li><li>pine nuts</li><li>honey</li><li>balsamic vinegar</li>
+    </ul>
+  </div>
+  <div class="box">
+    <h2>每一步之後量到的值（由本頁 JS 實際執行）</h2>
+    <table id="log"><thead><tr><th>時間點</th><th>parentNode</th><th>isConnected</th><th>document.querySelector('li.new')</th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="box" style="grid-column:1/-1">
+    <h2>newEl 的原型鏈（Object.getPrototypeOf 一層一層往上問）</h2>
+    <div class="chain" id="chain"></div>
+    <h2 style="margin-top:14px">newText 的原型鏈</h2>
+    <div class="chain" id="chain2"></div>
+  </div>
+</div>
+<script>
+  // 把「某個節點現在的狀態」量出來，加一列到表格
+  function snap(label, node){
+    var tr = document.createElement('tr');
+    var p = node.parentNode ? '&lt;' + node.parentNode.nodeName.toLowerCase() + '&gt;' : 'null';
+    tr.innerHTML = '<td>' + label + '</td><td>' + p + '</td><td>' + node.isConnected +
+                   '</td><td>' + (document.querySelector('li.new') ? '找到' : 'null') + '</td>';
+    document.querySelector('#log tbody').appendChild(tr);
+  }
+  // 從物件本身開始往上走原型鏈，收集每一層建構函式的名字
+  function chainOf(obj){
+    var names = [], p = Object.getPrototypeOf(obj);
+    while (p) { names.push(p.constructor.name); p = Object.getPrototypeOf(p); }
+    return names.map(function(n){ return '<span>' + n + '</span>'; }).join(' → ') + ' → null';
+  }
+
+  // ===== 以下是書上的四行，中間插入量測 =====
+  var newEl = document.createElement('li');          // 步驟 1：造出 <li>
+  newEl.className = 'new';
+  snap('步驟 1 createElement 之後', newEl);
+
+  var newText = document.createTextNode('quinoa');   // 步驟 2：造出文字節點
+  newEl.appendChild(newText);                        //        掛到 <li> 底下
+  snap('步驟 2 文字節點掛進 li 之後', newEl);
+
+  var position = document.getElementsByTagName('ul')[0]; // 找到第一個 <ul>
+  position.appendChild(newEl);                       // 步驟 3：掛進 DOM 樹
+  snap('步驟 3 appendChild 進 ul 之後', newEl);
+
+  document.getElementById('chain').innerHTML  = chainOf(newEl);
+  document.getElementById('chain2').innerHTML = chainOf(newText);
+</script>
+</body>
+</html>

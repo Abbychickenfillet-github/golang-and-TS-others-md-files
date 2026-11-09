@@ -139,7 +139,7 @@ socket.onmessage = (event) => {
 - [[2026-06-02-Dev-Server-功能與價值]] — 那篇是從 Vite 腳手架初始化的角度紀錄的（`npm create vite`、`react-scripts` 對比），本篇則是同一個 Dev Server 的網路與執行環境剖面。
 - [[編輯器與執行環境-VSCode是Electron與Toolchain]] — 同樣是「這個工具其實跑在什麼環境上」的思路：VSCode 是 Electron，Dev Server 是 Node.js。
 - [[XMLHttpRequest-CORS-explanation]] — (i) 說的「CORS 是瀏覽器實施的」在那篇有完整的預檢請求（Preflight）流程。
-- [[Cookie隔離邊界與跨站請求安全-Origin-SameSite-CSRF-Token與Bearer]] — 同源政策的另一面：那篇談的是「同源擋得住讀取但擋不住發送」，本篇談的是「代理如何合法地繞過同源」。
+- [[2-Cookie隔離邊界與跨站請求安全-Origin-SameSite-CSRF-Token與Bearer]] — 同源政策的另一面：那篇談的是「同源擋得住讀取但擋不住發送」，本篇談的是「代理如何合法地繞過同源」。
 - [[WebTransport-雙向傳輸-Streams與Datagrams-掉封包與FEC]] — (m) 提到的 WebSocket 跑在 TCP 上，那篇有它跟 QUIC／WebTransport 的協定層對照。
 - [[前端開發工具-打包編譯Lint與Parser]] — (q) 那張三角色表格的延伸：Lint 與 Parser 又是另一組跑在 Node 上的工具。
 

@@ -1,15 +1,28 @@
 ---
-title: "不是 JS 的東西怎麼變成 JS：三個轉譯層級與 Vue / Angular / Svelte / Solid"
+title: 不是 JS 的東西怎麼變成 JS：三個轉譯層級與 Vue / Angular / Svelte / Solid
 type: topic-note
 source: Claude
 category: 技術
-tags: [transpile, compiler, vue, sfc, angular, ivy, svelte, solid, jsx, tsx, build-time, runtime, tokenize]
+tags:
+  - transpile
+  - compiler
+  - vue
+  - sfc
+  - angular
+  - ivy
+  - svelte
+  - solid
+  - jsx
+  - tsx
+  - build-time
+  - runtime
+  - tokenize
 related:
   - "[[05-JSX轉譯機制-createElement與jsx-runtime-Babel與SWC三步驟]]"
-  - "[[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】]]"
+  - "[[03-前端開發工具-【打包buildtime】轉譯Lint與Parser-]]"
   - "[[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]]"
   - "[[script載入方式+前因後果]]"
-  - "[[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]]"
+  - "[[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]]"
 updated: 2026-09-10
 ---
 
@@ -113,7 +126,7 @@ createElementVNode("div", {
 | `vue.esm-bundler.js` / CDN 完整版 | runtime ＋ compiler | **run-time**，在瀏覽器裡編譯 template 字串 |
 
   完整版體積多約 14 KB，而且因為用 `new Function()` 產生 render function，**會被嚴格的 CSP（Content Security Policy）擋掉**。
-  → 這正好是 [[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]] §3-b 說的「轉譯與 parse 沒有固定先後」的實例：**編譯這件事可以發生在 build-time，也可以發生在 run-time，取決於你選哪個產物。**
+  → 這正好是 [[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]] §3-b 說的「轉譯與 parse 沒有固定先後」的實例：**編譯這件事可以發生在 build-time，也可以發生在 run-time，取決於你選哪個產物。**
 
 - (j) 📌 待查證：Vue 3.6 的 **Vapor Mode**（不產生 virtual DOM、直接編譯成 DOM 操作，屬於 Level 3）在 2026 年中被多家技術部落格報導為 feature-complete／RC，但**官方 Glossary 目前還沒有這個詞條**。引用前請先核對 vuejs/core 的 release notes。
 
@@ -199,13 +212,13 @@ export default "data:image/png;base64,iVBO…"; // 小檔：內嵌 data URI
 
 - [[05-JSX轉譯機制-createElement與jsx-runtime-Babel與SWC三步驟]]
   **理由**：那篇是本篇 Level 2 的單一案例深挖（JSX 一種），本篇是把所有格式攤開來做橫向比較。先讀那篇懂機制，再讀本篇看全景。
-- [[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】]]
+- [[03-前端開發工具-【打包buildtime】轉譯Lint與Parser-]]
   **理由**：那篇講「誰在做轉譯」（Babel／SWC／esbuild 的工具選型），本篇講「轉譯的野心分幾級」。工具 × 層級是兩個正交的軸。
 - [[04-V8引擎完整管線-Parse到Deoptimization-【編譯runtime】]]
   **理由**：本篇 §0 那張表的右半欄（run-time tokenize）整條管線在那篇。
 - [[script載入方式+前因後果]]
   **理由**：本篇 (d) 的動機「能搬去 build 做的都先搬」，源頭是那篇 (b)「主執行緒只有一條」。本篇等於是那條公理在框架設計上的推論。
-- [[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]]
+- [[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]]
   **理由**：本篇 §2-3（Vue 完整版可以在瀏覽器編譯 template）是那篇 §3-b「轉譯與 HTML Parsing 沒有固定先後」的實例。
 
 ---

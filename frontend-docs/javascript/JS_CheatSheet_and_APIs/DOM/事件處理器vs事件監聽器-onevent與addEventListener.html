@@ -118,7 +118,7 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
   <h1>事件處理器 vs 事件監聽器 — on-event 與 addEventListener 差在哪</h1>
   <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#dom</span><span class="pill">#event-handler</span><span class="pill">#event-listener</span><span class="pill">#addEventListener</span><span class="pill">#once</span><span class="pill">#capture</span><span class="pill">#事件</span></div>
   <div class="meta">
-    <span>更新於 2026-09-21</span>
+    <span>更新於 2026-10-31</span>
     <span>來源：Gemini</span>
     <a href="https://gemini.google.com/app/8e9aa6457858bff9" target="_blank" rel="noopener">原始對話 1</a>
   </div>
@@ -162,7 +162,7 @@ el.addEventListener(&#x27;blur&#x27;, () =&gt; checkUsername(&#x27;abby&#x27;));
 
 <article class="card">
 <h1 id="vs-on-event-addeventlistener">事件處理器 vs 事件監聽器 — on-event 與 addEventListener 差在哪</h1>
-<p>本篇重點 a–l，共 12 個</p>
+<p>本篇重點 a–p，共 16 個</p>
 <blockquote>
 <p>關聯原因：<span class="wikilink" title="Obsidian 連結：事件流與事件代理">事件流與事件代理</span> 講的是事件「在 DOM 樹上怎麼跑」（捕獲 → 目標 → 冒泡），這篇講的是「你要怎麼把函式掛上去接它」。<br />
   兩篇合起來才完整：先知道事件會經過誰，再知道用哪種方式接。<br />
@@ -283,9 +283,58 @@ btn.addEventListener('click', function () {
 btn.addEventListener('click', handleSubmit, { signal: ac.signal });
 ac.abort();   // 想拔掉的時候自己喊停，比記住函式參考再 removeEventListener 乾淨
 </code></pre>
+<h2>四之二、listener 與 options 的合法寫法（三型態、capture、傳播階段）</h2>
+<p>（m）<code>addEventListener(type, listener, options)</code> 的第二個參數 <code>listener</code> 可以放三種東西：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">一個函式、一個帶有 <code>handleEvent()</code> 方法的物件、或 <code>null</code></mark>。
+    事件發生時，瀏覽器對函式直接呼叫，對物件則呼叫它的 <code>handleEvent(event)</code>，此時 <code>this</code> 指向該物件本身，所以類別實例可以直接當 listener 用。</p>
+<pre><code class="language-js">class Menu {
+  count = 0;
+  handleEvent(e) { this.count++; console.log(e.type, this.count); }   // this 是 Menu 實例
+}
+btn.addEventListener('click', new Menu());   // 傳物件，不用另外 bind
+</code></pre>
+<p>（n）<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點"><code>null</code></mark> 是 WebIDL 規格裡「可為空的 callback」，傳入時瀏覽器直接不註冊任何東西，也不會丟 TypeError。
+    <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ 存疑：Gemini 舉的「條件式註冊」「動態暫停」等情境是它自己推論的用法，MDN 並沒有這樣說明。</mark>實務上要條件式綁定請寫 <code>if</code>，不要靠傳 <code>null</code>，不然讀程式碼的人會不知道你是故意還是漏傳。</p>
+<p>（o）第三個參數有兩種寫法，效果相同：<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">現代寫法傳物件 <code>{ capture: true }</code>，舊寫法直接傳布林 <code>true</code></mark>。<code>capture</code> 預設是 <code>false</code>，代表 listener 掛在冒泡階段，設成 <code>true</code> 則掛在捕獲階段。</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>掛在哪個階段</th>
+<th>備註</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>addEventListener('click', fn)</code></td>
+<td>冒泡</td>
+<td>預設</td>
+</tr>
+<tr>
+<td><code>addEventListener('click', fn, false)</code></td>
+<td>冒泡</td>
+<td>舊式布林</td>
+</tr>
+<tr>
+<td><code>addEventListener('click', fn, true)</code></td>
+<td>捕獲</td>
+<td>舊式布林</td>
+</tr>
+<tr>
+<td><code>addEventListener('click', fn, { capture: true })</code></td>
+<td>捕獲</td>
+<td>現代寫法，可再加 once、passive、signal</td>
+</tr>
+</tbody>
+</table>
+<p>（p）事件傳播分三段：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">捕獲階段由 window 與 document 往下傳到目標的父層，接著到達目標階段，最後冒泡階段從目標往上回傳到最外層。</mark>
+    Abby 在對話中的兩個確認點都是對的：（1）冒泡不是「顯示結果的必要條件」，目標元素上的 listener 在目標階段就會執行，不用等冒泡。（2）冒泡可以被 <code>event.stopPropagation()</code> 中止，後面的祖先元素就不會再收到這個事件。</p>
+<pre><code>window → document → html → body → div(父) →【目標 button】→ div(父) → body → html → document → window
+         └──────── 捕獲 capture（往下）────────┘  目標階段  └──────── 冒泡 bubble（往上）────────┘
+</code></pre>
+<p>詳細的事件代理與 <code>stopPropagation</code> 實測見 [[事件流與事件代理]]。</p>
 <hr />
 <h2 id="_3">五、⚠️ 存疑／更正</h2>
-<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ Gemini 把第三個參數只講了 <code>capture</code> 與 <code>once</code>，漏掉常考的另外兩個。</mark>完整的 options 物件有四個常用欄位：<code>capture</code>（在捕獲階段觸發）、<code>once</code>（觸發一次後自動移除）、<code>passive</code>（承諾不呼叫 <code>preventDefault</code>，讓瀏覽器可以放心優化捲動效能）、<code>signal</code>（搭配 <code>AbortController</code> 移除）。面試問到 <code>addEventListener</code> 第三個參數時，<code>passive</code> 幾乎一定會被追問，因為它跟捲動效能直接相關。</p>
+<p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ 對話標題與內容不一致：</mark>側欄標題「React 自定義 Props 命名」「handleEvent 的運作機制」實際討論的分別是 addEventListener 第三參數與事件傳播階段，與標題無關，歸檔時以內容為準。另外 Gemini 對 <code>null</code> listener 的使用情境屬推論，見（n）。</p><p><mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">⚠️ Gemini 把第三個參數只講了 <code>capture</code> 與 <code>once</code>，漏掉常考的另外兩個。</mark>完整的 options 物件有四個常用欄位：<code>capture</code>（在捕獲階段觸發）、<code>once</code>（觸發一次後自動移除）、<code>passive</code>（承諾不呼叫 <code>preventDefault</code>，讓瀏覽器可以放心優化捲動效能）、<code>signal</code>（搭配 <code>AbortController</code> 移除）。面試問到 <code>addEventListener</code> 第三個參數時，<code>passive</code> 幾乎一定會被追問，因為它跟捲動效能直接相關。</p>
 <hr />
 <h2 id="_4">六、自己動手</h2>
 <p>配套檔案：<code>demo-handler-vs-listener.html</code>（同一層資料夾，用瀏覽器直接開，四個按鈕各示範一種行為）</p>
@@ -306,7 +355,25 @@ ac.abort();   // 想拔掉的時候自己喊停，比記住函式參考再 remov
 <p>Gemini：兩者最大的差別在於能不能同時綁定多個函式，以及語法與彈性。（1）事件處理器（Event Handlers）就是傳統寫法，例如 <code>element.onclick = functionName</code>，只能綁定一個函式，如果對同一個事件重複指定，後面的會覆蓋掉前面的。優點是語法簡單直覺、相容性極高；缺點是無法讓同一個事件同時執行多個獨立的任務，移除時只能設為 <code>null</code>。（2）事件監聽器（Event Listeners）是現代 JavaScript 最推薦的標準寫法，使用 <code>addEventListener()</code>，對同一個事件綁定多個函式時它們會依序執行，不會互相覆蓋；事件名稱第一個參數寫 <code>'click'</code>、<code>'blur'</code>、<code>'mouseover'</code>，前面不用加 <code>on</code>；可以傳入第三個參數控制捕獲／冒泡階段（capture）或讓事件只觸發一次（<code>once: true</code>）；隨時可以用 <code>removeEventListener()</code> 移除特定的監聽函式。在現代開發中，基本上都建議優先使用 <code>addEventListener</code>。</p>
 <p>使用者：Once！</p>
 <p>Gemini：對，<code>once: true</code> 是 <code>addEventListener</code> 非常好用的一個進階設定。當你傳入 <code>{ once: true }</code> 時，這個事件監聽器在被觸發執行完一次之後，就會自動自我銷毀（自動移除），後面再怎麼點擊或觸發都不會再執行了。常見的使用情境：領取優惠券／折扣碼按鈕（防止使用者重複點擊領取）、表單提交或送出按鈕（避免使用者因為網路慢連續點擊導致重複送出表單）、初次導覽教學的一次性彈出。</p>
-<hr />
+
+<h3>事件名稱需加引號（2026-10-31 擷取）— https://gemini.google.com/app/bf9d16ab85fc2734</h3>
+<p>使用者：這邊要加引號對嗎？（當時停在 MDN addEventListener 頁面，選取 "A case-sensitive string representing the event type to listen for."）</p>
+<p>Gemini：事件類型是字串，必須加引號（單雙皆可），例如 <code>element.addEventListener("click", (e) =&gt; {})</code>。沒加引號會被當成未定義的變數 <code>click</code>，引發 ReferenceError。</p>
+<p>使用者：listener: 會接收通知的物件，an Object that implements the Event interface。我之前覺得 Event interface 到 HTMLDivElement 的繼承鏈很重要所以有畫筆記。當一個特定的類別事件產生，這個第二個參數 listener 一定是 null，不太懂。an object with a handleEvent() method, or a JS function，為何會為 NULL？</p>
+<p>Gemini：第二個參數型別支援三種：函式、帶 <code>handleEvent()</code> 的物件、<code>null</code>。傳 <code>null</code> 時瀏覽器會略過不註冊。列出情境一（條件式註冊：<code>element.addEventListener("click", shouldListen ? myClickHandler : null)</code>）、情境二（動態切換或暫時停用）、情境三（TypeScript 介面 <code>handler: EventListenerOrEventListenerObject | null</code> 預設值為 null）。總結：傳入 <code>null</code> 不代表事件發生時什麼都不做，而是此時此刻沒有要註冊任何監聽函式。</p>
+<h3>handleEvent 的運作機制（2026-10-31 擷取）— https://gemini.google.com/app/8eb0c54a82866f4e</h3>
+<p>（原對話為語音輸入，文字帶有空格，此處已還原。）</p>
+<p>使用者：流程是指使用者點選會先經過 document，然後再慢慢傳到 target element 上面，這個過程叫做捕獲階段。</p>
+<p>Gemini：沒錯，這個由上而下，從最外層往下傳遞到目標。</p>
+<p>使用者：目標物件之後，再傳遞到外層顯示結果，這個叫做冒泡階段，我說的對嗎？</p>
+<p>Gemini：完全正確。冒泡階段就是事件從目標元素觸發後，一路往上傳遞回最外層的過程。</p>
+<p>使用者：它必須要往外傳遞才能顯示結果給我們看嗎？</p>
+<p>Gemini：不是，在目標元素上監聽就能直接觸發並處理結果，不需要冒泡到外層。</p>
+<p>使用者：事實上冒泡的行為是可以停止的，因為它跟顯示結果並沒有一定關係。</p>
+<p>Gemini：是的，可以透過呼叫事件物件的 stopPropagation 方法來停止冒泡，避免後續傳遞。</p>
+<h3>React 自定義 Props 命名（2026-10-31 擷取）— https://gemini.google.com/app/7d240dd4028aae23</h3>
+<p>使用者：addEventListener 事件監聽器的第三個參數怎麼寫，可以控制 capture/bubbling phase 的。</p>
+<p>Gemini：兩種寫法。（1）現代寫法傳設定物件 <code>{ capture: true }</code>，<code>capture: false</code>（預設）代表冒泡階段觸發；可用屬性有 <code>capture</code>、<code>once</code>（觸發一次後自動移除）、<code>passive</code>（承諾不呼叫 <code>e.preventDefault()</code>，提升捲動效能，常搭配 touchmove 或 scroll）。（2）傳統寫法直接傳布林，<code>true</code> 為捕獲、<code>false</code> 或不寫為冒泡。並簡述捕獲階段由 window/document 往下到目標，冒泡階段從目標往外回傳到 window。</p><hr />
 <h2 id="_7">九、資料來源（含查證時間）</h2>
 <table>
 <thead>
@@ -337,11 +404,15 @@ ac.abort();   // 想拔掉的時候自己喊停，比記住函式參考再 remov
 <td>https://gemini.google.com/app/8e9aa6457858bff9</td>
 <td>2026-09-21 擷取</td>
 </tr>
+<tr><td>Gemini 對話原文（引號與 null listener）</td><td>https://gemini.google.com/app/bf9d16ab85fc2734</td><td>2026-10-31 擷取</td></tr>
+<tr><td>Gemini 對話原文（捕獲與冒泡）</td><td>https://gemini.google.com/app/8eb0c54a82866f4e</td><td>2026-10-31 擷取</td></tr>
+<tr><td>Gemini 對話原文（第三參數）</td><td>https://gemini.google.com/app/7d240dd4028aae23</td><td>2026-10-31 擷取</td></tr>
+<tr><td>handleEvent 物件與 this、null listener、stopPropagation</td><td>https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener</td><td>MDN 條目，本次依既有知識撰寫，尚未重新抓取，待複查</td></tr>
 </tbody>
 </table>
 </article>
 
-<footer>由 Gemini 對話自動整理 · 更新於 2026-09-21</footer>
+<footer>由 Gemini 對話自動整理 · 更新於 2026-10-31</footer>
 </div>
 <script>
 (function(){

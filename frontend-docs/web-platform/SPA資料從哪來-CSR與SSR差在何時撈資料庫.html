@@ -1,0 +1,35 @@
+<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SPA 資料從哪來 CSR 與 SSR</title><style>
+body{font:16px/1.7 system-ui,"Noto Sans TC",sans-serif;background:#f6f7f9;color:#222;margin:0}main{max-width:820px;margin:auto;padding:24px 16px}
+h1{font-family:Georgia,serif}h2{border-left:5px solid #5b8def;padding-left:10px;margin-top:2em}
+p{background:#fff;padding:10px 14px;border-radius:8px}.pt{cursor:pointer;border-left:4px solid #BBFABB}.pt.off{filter:blur(6px)}
+table{border-collapse:collapse;width:100%;background:#fff}td,th{border:1px solid #ddd;padding:6px 10px}tr:nth-child(even) td{background:#f3f6fb}
+footer{color:#888;font-size:13px;margin-top:2em}</style></head><body><main>
+<div style="color:#666">tags: gemini · spa · csr · ssr · 更新 2026-10-27 · <a href="https://gemini.google.com/app/90238341c2cf482e">來源</a></div>
+<h1>SPA 資料從哪來 — CSR 與 SSR 差在「何時、在哪裡」去資料庫撈值並組出畫面</h1>
+<p>本篇重點 a–e，共 5 個</p>
+<h2>重點整理</h2>
+<p class="pt" title="點一下隱藏／顯示"><b>(a)</b> <mark style="background:#ADCCFFA6">SPA（Single-page application，單頁應用）</mark>：瀏覽器一開始只下載一份近乎空白的 HTML。</p>
+<p>接著頁面裡的 JavaScript 用 fetch／AJAX 在背景向後端 API 要資料（資料庫撈出後以 JSON 回傳）。</p>
+<p>拿到 JSON 後，前端 JavaScript 再把內容動態渲染進畫面，切頁時不必整頁重載。</p>
+<p class="pt" title="點一下隱藏／顯示"><b>(b)</b> <mark style="background:#FFF3A3A6">CSR 與 SSR 的核心差異，就是「什麼時候去資料庫撈值」與「在哪裡把畫面組好」</mark>。</p>
+<p class="pt" title="點一下隱藏／顯示"><b>(c)</b> CSR（Client-side rendering，客戶端渲染）：</p>
+<p>伺服器只回傳空殼 HTML 加 JavaScript。</p>
+<p>瀏覽器執行 JavaScript，才透過 API 打到後端撈資料，再自己組出 HTML 畫面。</p>
+<p>首次載入較慢（要先下載並執行 JS 再 fetch），之後局部更新很快。</p>
+<p>比喻：端上桌的是空盤子，菜由客人（瀏覽器）自己裝。</p>
+<p class="pt" title="點一下隱藏／顯示"><b>(d)</b> SSR（Server-side rendering，伺服器端渲染）：</p>
+<p>伺服器收到請求後，先去資料庫撈資料，再與 HTML 模板在伺服器端組成完整頁面，整包丟給瀏覽器直接顯示。</p>
+<p>首次載入快、對 SEO（搜尋引擎最佳化）友善，但每次換大頁面都要伺服器重跑一次組合流程。</p>
+<p>比喻：廚房把菜擺好盤再上桌。</p>
+<p class="pt" title="點一下隱藏／顯示"><b>(e)</b> 對照表</p>
+<table><tr><th>項目</th><th>CSR</th><th>SSR</th></tr><tr><td>誰撈資料庫</td><td>瀏覽器 JS 經 API 向後端要</td><td>伺服器直接撈</td></tr><tr><td>誰組 HTML</td><td>瀏覽器</td><td>伺服器</td></tr><tr><td>首屏</td><td>較慢，初始 DOM 只有空 div</td><td>較快，拿到即完整</td></tr><tr><td>切頁</td><td>局部更新，很快</td><td>常需重新請求頁面</td></tr><tr><td>SEO</td><td>需額外處理</td><td>友善</td></tr></table>
+<p>⚠️ 存疑／更正：未發現明顯錯誤。補充：SPA 與 CSR 其實是兩條獨立的軸（SPA 指路由模型，CSR 指首屏渲染位置），詳見 <em>SPA架構-入口點-CSR客戶端效能與狀態-部署</em>。</p>
+<h2>各對話來源（原文）</h2>
+<h3>SPA 運作原理（2026-10-27 抓取）— https://gemini.google.com/app/90238341c2cf482e</h3>
+<p>使用者：所以她是透過打到後端API去更新一些應該要從資料庫撈到值的東西嗎？</p>
+<p>Gemini：完全說中 SPA 核心：先下載空殼 HTML，JS 用 Fetch/AJAX 向後端要 JSON 資料再動態渲染；好處是切頁不重載，代價是前端路由、狀態管理、SEO。</p>
+<p>使用者：可是差別在於什麼時候去資料庫撈值這是CSR或SSR的差異嗎 我還是很矇</p>
+<p>Gemini：沒錯，這就是 CSR 與 SSR 最主要的差異（餐廳比喻：空盤 vs 擺好盤），詳見上方 (c)(d)(e)。</p>
+<h2>資料來源（含查證時間）</h2>
+<table><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr><tr><td>Gemini 對話 SPA 運作原理</td><td>https://gemini.google.com/app/90238341c2cf482e</td><td>2026-10-27</td></tr><tr><td>概念對照（未另查外部文獻，可回補 MDN Client-side rendering / Next.js Rendering）</td><td>見 <em>SPA架構-入口點-CSR客戶端效能與狀態-部署</em></td><td>2026-10-27</td></tr></table><footer>由 Gemini 對話自動整理 · 更新於 2026-10-27（點重點段落可模糊／還原，自我測驗用）</footer></main>
+<script>document.querySelectorAll('.pt').forEach(e=>e.onclick=()=>e.classList.toggle('off'))</script></body></html>

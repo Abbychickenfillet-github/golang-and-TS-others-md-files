@@ -3,11 +3,21 @@ title: CSR 的初始 DOM 只有一個空 div#root — DOM 在哪一刻建立、�
 type: topic-note
 source: Gemini
 category: 技術
-tags: [gemini, csr, dom, html-parsing, domcontentloaded, onload, render-blocking, cssom, spa, 白屏]
+tags:
+  - gemini
+  - csr
+  - dom
+  - html-parsing
+  - domcontentloaded
+  - onload
+  - render-blocking
+  - cssom
+  - spa
+  - 白屏
 sources:
   - https://gemini.google.com/app/f6b5fdfb1d51c86f
 related:
-  - "[[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]]"
+  - "[[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]]"
   - "[[SPA架構-入口點-CSR客戶端效能與狀態-部署]]"
   - "[[SPA現況-為何說不流行了-與SSR-SSG混合架構]]"
   - "[[script載入方式+前因後果]]"
@@ -19,7 +29,7 @@ updated: 2026-09-21
 
 本篇重點 a–m，共 13 個
 
-> 關聯原因：[[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]] 拆的是「bytes 怎麼變成 DOM」這條流水線的內部機制；這篇問的是<mark style="background: #FFF3A3A6;">「那 CSR 的畫面到底是在哪一格才長出來」</mark>，答案剛好落在那條流水線跑完之後的第 4、5 格。
+> 關聯原因：[[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]] 拆的是「bytes 怎麼變成 DOM」這條流水線的內部機制；這篇問的是<mark style="background: #FFF3A3A6;">「那 CSR 的畫面到底是在哪一格才長出來」</mark>，答案剛好落在那條流水線跑完之後的第 4、5 格。
 > 	[[SPA架構-入口點-CSR客戶端效能與狀態-部署]] 講的則是為什麼入口 HTML 會長成「一個空 div 加一支 script」的樣子，三篇是同一件事的三個切面。
 
 ---
@@ -110,7 +120,7 @@ updated: 2026-09-21
 <mark style="background: #FF5582A6;">⚠️ Gemini 在四步流水線裡把第三步叫做 “Lexing”，這個用詞不精確。</mark>
 	在編譯器術語裡 lexing（詞法分析）指的就是 tokenization 本身，兩者是同義詞，不該拆成前後兩步。
 	HTML 規範的官方分法是兩個階段：**tokenization**（產生 token）與 **tree construction**（依 insertion mode 把 token 組成樹），中間沒有一個叫 lexing 的獨立步驟。
-	這篇沿用 Gemini 的四格是為了對照原文，但<mark style="background: #BBFABBA6;">面試時請講規範的兩階段版本</mark>，細節見 [[HTML-Parsing-瀏覽器拿到HTTP-response-body之後]]。
+	這篇沿用 Gemini 的四格是為了對照原文，但<mark style="background: #BBFABBA6;">面試時請講規範的兩階段版本</mark>，細節見 [[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]]。
 
 ---
 

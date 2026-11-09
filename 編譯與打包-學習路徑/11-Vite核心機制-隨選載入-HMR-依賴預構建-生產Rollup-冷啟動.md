@@ -1,6 +1,9 @@
 ---
 title: 11-Vite 核心機制：隨選載入 · HMR · 依賴預構建 · 生產 Rollup · 冷啟動
-aliases: [Vite核心機制, Vite面試重點, Vite dev HMR 預構建 冷啟動]
+aliases:
+  - Vite核心機制
+  - Vite面試重點
+  - Vite dev HMR 預構建 冷啟動
 type: topic-note
 category: 技術
 tags:
@@ -13,7 +16,7 @@ tags:
   - buildtime
   - 面試
 related:
-  - "[[03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】]]"
+  - "[[03-前端開發工具-【打包buildtime】轉譯Lint與Parser-]]"
   - "[[script載入方式+前因後果]]"
   - "[[ESM模組作用域-為何不需要IIFE-與傳統Script對比]]"
   - "[[07-前端專案建立與打包選型-Vite與createVue與NextJS與npm鎖版本]]"

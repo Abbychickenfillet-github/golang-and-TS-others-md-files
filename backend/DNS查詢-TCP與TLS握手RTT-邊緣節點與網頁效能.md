@@ -15,27 +15,45 @@ tags:
   - edge
   - socket
   - performance
+  - websocket
+  - Uint8Array
 aliases:
   - DNS查詢與網頁效能
   - TLS握手RTT
   - 邊緣節點Edge-Nodes
 related:
   - "[[CloudFront-CDN概念與快取失效Invalidation]]"
-  - "[[Cookie-與-Session]]"
+  - "[[1-Cookie-與-Session]]"
   - "[[script載入方式+前因後果]]"
+  - "[[延遲Latency-DNS遞迴查詢-TCP握手-行動網路-OSI七層串聯]]"
 sources:
   - https://gemini.google.com/app/1f474e0298a19e6b
   - https://gemini.google.com/app/d3170a12b286f9b1
   - https://gemini.google.com/app/3adc7c0aa29f8a2d
-updated: 2026-09-25
+  - https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work
+updated: 2026-11-01
 ---
+
+<div class="tip-glossary" data-term="DNS" data-text="Domain Name System，網域名稱系統。把人看得懂的網域（example.com）翻譯成機器用的 IP 位址（93.184.216.34）的分散式查詢系統。1983 年由 Paul Mockapetris 提出，規範是 RFC 1034／1035。它是整條連線的第一步，查不到就什麼都連不上。"></div>
+<div class="tip-glossary" data-term="TCP" data-text="Transmission Control Protocol，傳輸控制協定。提供可靠、有序、有流量控制的位元組串流。靠三次握手建立連線、序號與 ACK 保證不漏不亂序、接收視窗（window）做流量控制。規範是 RFC 9293（取代舊的 RFC 793）。"></div>
+<div class="tip-glossary" data-term="TLS" data-text="Transport Layer Security，傳輸層安全性協定。在 TCP 之上加密的那一層，HTTPS 的 S 就是它。前身是 SSL（Netscape 於 1990 年代提出），1999 年改名 TLS。目前主流是 TLS 1.3（RFC 8446），握手只要 1 個 RTT，比 TLS 1.2 的 2 個 RTT 少一輪。"></div>
+<div class="tip-glossary" data-term="RTT" data-text="Round-Trip Time，來回時間。一個封包送出去到收到對方回應所花的時間。它是網路延遲的基本單位，而且受物理距離限制（光速），所以跨太平洋大約 100～150 毫秒是省不掉的。優化網頁效能的核心就是「減少 RTT 的次數」。"></div>
+<div class="tip-glossary" data-term="CDN" data-text="Content Delivery Network，內容傳遞網路。把資源複製到全球各地的邊緣節點（edge node），讓使用者連到地理上最近的那一台，藉此縮短 RTT。Vercel、Cloudflare、Akamai 都是。"></div>
+<div class="tip-glossary" data-term="TTFB" data-text="Time To First Byte，首位元組時間。從發出請求到收到回應的第一個位元組所花的時間，涵蓋 DNS 查詢、TCP 握手、TLS 握手、伺服器處理與網路傳輸。它是衡量「後端加網路」整體速度的指標，不包含瀏覽器渲染。"></div>
+<div class="tip-glossary" data-term="SSL" data-text="Secure Sockets Layer，安全通訊端層。TLS 的前身，由 Netscape 在 1990 年代提出。SSL 3.0 之後改名為 TLS 1.0，所有 SSL 版本現在都已經因為安全漏洞被廢棄，但「SSL 憑證」這個講法沿用至今，實際上指的都是 TLS。"></div>
+<div class="tip-glossary" data-term="QUIC" data-text="Quick UDP Internet Connections。Google 提出、後由 IETF 標準化（RFC 9000）的傳輸協定，跑在 UDP 之上，把 TCP 握手與 TLS 握手合併成一輪，還解決了 TCP 的隊頭阻塞（head-of-line blocking）。HTTP/3 就是跑在 QUIC 上。"></div>
+
+> 💡 本篇的縮寫（DNS、TCP、TLS、RTT、CDN、TTFB、SSL、QUIC）滑鼠移上去會顯示全名與說明。
 
 # DNS 查詢、TCP 與 TLS 握手 RTT、邊緣節點與網頁效能
 
 > 與 [[CloudFront-CDN概念與快取失效Invalidation]] 相關的原因：那篇談的是 CDN「快取內容」與「失效機制」的操作面，這篇補上它「為什麼會快」的物理層原因（光纖傳輸距離與 RTT），兩篇合看才會知道 CDN 省下的到底是什麼成本。
-> 與 [[Cookie-與-Session]] 相關的原因：那篇談 HTTP 之上的狀態管理，這篇談 HTTP 之下的連線建立（TCP＋TLS），是同一條請求路徑的上下兩層。
+> 與 [[1-Cookie-與-Session]] 相關的原因：那篇談 HTTP 之上的狀態管理，這篇談 HTTP 之下的連線建立（TCP＋TLS），是同一條請求路徑的上下兩層。
 
-**本篇重點 a–y，共 25 個。**（2026-09-21 由 Gemini 對話補入 (u)(v)(w)(x)：TCP Slow Start 慢啟動；2026-09-25 補入 (y)：三向握手正名）
+**本篇重點 a–z，共 26 個。**（2026-09-21 由 Gemini 對話補入 (u)(v)(w)(x)：TCP Slow Start 慢啟動；2026-09-25 補入 (y)：三向握手正名；2026-11-01 補入 (z) 與第九節：MDN 原文導讀）
+
+> [!note] 已滿 26 個重點
+> 本篇重點已用到 z，後續新內容改寫到 [[延遲Latency-DNS遞迴查詢-TCP握手-行動網路-OSI七層串聯]]（延遲定義與正常／慢的標準、Recursive Lookup 流程圖、行動網路路徑、OSI 七層對照、I/O 多路複用），不再往這篇加。
 
 ## 重點整理
 
@@ -140,13 +158,13 @@ Client (瀏覽器)                                Server (伺服器)
 
 ##### 先認字
 
-| 縮寫 | 全名 | 中文 | 這一位元設成 1 代表 |
-|---|---|---|---|
-| <mark style="background: #FFF3A3A6;">**SYN**</mark> | **Syn**chronize | 同步 | 「我要建立連線，並且同步序號」 |
-| <mark style="background: #FFF3A3A6;">**ACK**</mark> | **Ack**nowledge | 確認 | 「我確認收到你到某個序號為止的資料」 |
-| **FIN** | **Fin**ish | 結束 | 「我沒有資料要再傳了」（正常關閉用） |
-| **RST** | **R**e**s**e**t** | 重設 | 「這個連線有問題，立刻砍掉」（異常中斷用） |
-| **PSH** | **P**u**sh** | 推送 | 「別再等緩衝區裝滿了，馬上交給應用程式」 |
+| 縮寫                                                  | 全名                | 中文  | 這一位元設成 1 代表           |
+| --------------------------------------------------- | ----------------- | --- | --------------------- |
+| <mark style="background: #FFF3A3A6;">**SYN**</mark> | **Syn**chronize   | 同步  | 「我要建立連線，並且同步序號」       |
+| <mark style="background: #FFF3A3A6;">**ACK**</mark> | **Ack**nowledge   | 確認  | 「我確認收到你到某個序號為止的資料」    |
+| **FIN**                                             | **Fin**ish        | 結束  | 「我沒有資料要再傳了」（正常關閉用）    |
+| **RST**                                             | **R**e**s**e**t** | 重設  | 「這個連線有問題，立刻砍掉」（異常中斷用） |
+| **PSH**                                             | **P**u**sh**      | 推送  | 「別再等緩衝區裝滿了，馬上交給應用程式」  |
 
 <mark style="background: #FF5582A6;">所以「SYN-ACK」不是一種新的封包類型，它是**同一個封包裡把 SYN 和 ACK 兩個位元同時設成 1**。</mark>它在一次傳輸裡同時說了兩句話：「我同意建立連線」＋「我確認收到你剛剛那個」。
 
@@ -289,7 +307,7 @@ TLS（<mark style="background: #ADCCFFA6;">Transport Layer Security，傳輸層�
 - <mark style="background: #BBFABBA6;">身分驗證（Authentication）</mark>：靠 CA（憑證頒發機構）簽發的憑證，確認連到的是真網站而非釣魚站。
 
 TLS 與 SSL 是新舊代關係：SSL 由 Netscape 於 1990 年代開發（1.0／2.0／3.0），<mark style="background: #FF5582A6;">因嚴重漏洞已全部廢棄</mark>；TLS 1.0 其實就是 SSL 3.1。現在網路上跑的全是 TLS 1.2 與 1.3，大家口中的「SSL 憑證」正式名稱其實是「TLS 憑證」。
-
+！要注意：切換TLS 版本號可能主機都正常但是服務斷掉。
 ```text
 +------------------------------------+
 | 應用層 (HTTP, WebSocket, SMTP)     |  <-- 業務資料
@@ -312,6 +330,28 @@ TLS 與 SSL 是新舊代關係：SSL 由 Netscape 於 1990 年代開發（1.0／
 - <mark style="background: #ADCCFFA6;">Server</mark>：24 小時開機、有固定 IP 的遠端主機，靜靜等待連線。
 - <mark style="background: #ADCCFFA6;">Client</mark>：任何打開瀏覽器輸入你網址的人，<mark style="background: #D2B3FFA6;">包括你自己用手機測試的時候</mark>。
 - 公路<mark style="background: #FF5582A6;">不是預先蓋好的</mark>：每一位訪客按下 Enter 的那一刻，才會與你的伺服器動態建立一條專屬於該次存取的加密通道。
+
+### 九、原文導讀：Populating the page 的「Navigation」一節
+
+(z) MDN 這一篇的標題是 <mark style="background: #ADCCFFA6;">Populating the page: how browsers work（填充畫面：瀏覽器如何運作）</mark>。<mark style="background: #FFF3A3A6;">它把一次連線寫成一段旅程：先問路（DNS）、再握手（TCP）、換暗號（TLS）、最後才說出來意（請求）</mark>。
+
+> [!quote] 旅程版讀法
+> 瀏覽器一開始並不知道 example.com 的家在哪，只能向名稱伺服器問路；問到門牌（IP）之後，才與那一戶人家握手、換上只有彼此懂的暗號，最後才敲門說出真正的來意。若你是用手機，這趟問路還得先爬上基地台的塔、穿過電信公司的機房，才進得了網際網路。距離，就是延遲的全部故事。
+
+![MDN How browsers work 的 Navigation 一節紅框標註：①DNS lookup 先問 name server 並會被快取；②手機經基地台與電信公司才到 Internet；③行動網路每次 DNS lookup 都先到基地台；④TLS 一句的 five round trips 是舊數字；⑤時序圖依序為 DNS、TCP 三條箭頭、TLS 五條箭頭](../obsidian-attachment/MDN_How-browsers-work_Navigation_DNS到TLS握手_紅框標註_2026-10-03.png)
+
+| 原文片語（節錄） | 中文意思 | 對應本篇哪一格 |
+|---|---|---|
+| Navigation is the first step in loading a web page | 導覽是載入網頁的第一步 | (a) 前往網頁的第一步是找到資源在哪 |
+| eventually fielded by a name server | 最終由名稱伺服器接手回應 | (b) field 借自棒球的「接球」 |
+| the IP will likely be cached for a time | IP 多半會被快取一段時間 | (c) 快取 |
+| once per hostname for a page load | 一次載入每個主機名稱查一次 | (d) 單位是 hostname |
+| from the phone to the cell tower | 從手機到基地台 | (f) 行動網路吃虧 |
+| can add significant latency | 可能增加顯著延遲 | (g) 增加顯著的延遲時間 |
+| three more messages back and forth | 又多出三個來回的訊息 | (r) 三向握手 |
+| five more round trips | 又要五個往返（舊說法） | (s) 依 RFC 算法 TLS 1.2 約 2 RTT、TLS 1.3 為 1 RTT |
+
+MDN 圖中 TCP 畫了 3 條箭頭、TLS 畫了 5 條箭頭，原文結尾的「eight round trips」其實是把 3＋5 條單趟箭頭當成往返來數，詳見 [[延遲Latency-DNS遞迴查詢-TCP握手-行動網路-OSI七層串聯]] 第五節的重點 (o)。另外 Overview 一節的 `Network latency is the time it takes to transmit bytes over the air to computers` 把延遲說成「無線」，MDN 另一篇 Understanding latency 的定義是不分有線無線的封包來源到目的地時間，也在該篇第七節第 1 題校正。
 
 ## 自我測驗
 
@@ -414,6 +454,7 @@ Gemini：TCP Slow Start（慢啟動）是一種為了防止網路擁塞而採取
 | RFC 6928：Increasing TCP's Initial Window（初始 CWND 提高到 10 個 MSS 的依據） | https://www.rfc-editor.org/rfc/rfc6928 | RFC 發布 2013-04、查證日 2026-09-21 |
 | RFC 9002：QUIC Loss Detection and Congestion Control（QUIC 同樣有 Slow Start） | https://www.rfc-editor.org/rfc/rfc9002 | RFC 發布 2021-05、查證日 2026-09-21 |
 | MDN：TCP slow start 與 TTFB／效能的關係 | https://developer.mozilla.org/en-US/docs/Glossary/TCP_slow_start | 查證日 2026-09-21 |
+| MDN：Populating the page（第九節原文導讀與截圖；Navigation 一節逐段核對） | https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work | 頁面最後修改 2025-12-18、查證日 2026-10-03；截圖紅框為 2026-10-03 後製 |
 
 > [!warning] ⚠️ 存疑／提醒
 > (1) Gemini 說「TLS 1.2 需要 2 個 RTT」是<mark style="background: #FFF3A3A6;">標準完整握手</mark>的情況；實務上 TLS 1.2 若使用 <mark style="background: #D2B3FFA6;">False Start</mark> 或 <mark style="background: #D2B3FFA6;">Session Resumption</mark>，可縮短到 1 個 RTT，這點對話中沒有提到。

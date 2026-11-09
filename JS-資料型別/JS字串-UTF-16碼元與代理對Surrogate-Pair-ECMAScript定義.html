@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JS 字串 — ECMAScript 的定義、UTF-16 碼元與代理對（Surrogate Pair）</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>JS 字串 — ECMAScript 的定義、UTF-16 碼元與代理對（Surrogate Pair）</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#string</span><span class="pill">#utf-16</span><span class="pill">#unicode</span><span class="pill">#ecmascript</span></div>
+  <div class="meta">
+    <span>更新於 2026-10-23</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/420cb46c3d9bb0af" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/ab67eaf810cc056a" target="_blank" rel="noopener">原始對話 2</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">JS 字串的元素是 Unicode Code Point。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">是 UTF-16 碼元（16-bit）。</div></li><li><p class="qq">`&#x27;😀&#x27;.length` 的結果是 2。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">它由高位代理與低位代理兩個碼元組成。</div></li><li><p class="qq">`[...str]` 會依 Code Point 迭代，能正確處理 emoji。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">字串的迭代器以 Code Point 為單位。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">高位代理的範圍是 0xD800 到 <input class="blank" data-a="0xDBFF" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">低位代理是 0xDC00–0xDFFF。</div></li><li><p class="qq">U+1F600 在 JS 裡拆成 0xD83D 與 <input class="blank" data-a="0xDE00" placeholder="填答案" autocomplete="off">。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">兩個碼元合稱代理對。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">為什麼用 `.length` 與 `[i]` 處理含 emoji 的字串會出錯？應該改用什麼？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：它們以 16-bit 碼元為單位，emoji 佔兩個碼元，會被切成孤立代理。應改用 `[...str]`、`for...of` 或 `codePointAt`。</div></li></ol></section>
+
+<article class="card">
+<h1 id="js-ecmascript-utf-16-surrogate-pair">JS 字串 — ECMAScript 的定義、UTF-16 碼元與代理對（Surrogate Pair）</h1>
+<p>本篇重點 a–i，共 9 個</p>
+<blockquote>
+<p>關聯原因：<span class="wikilink" title="Obsidian 連結：JavaScript資料型別總覽-原始型別與物件">JavaScript資料型別總覽-原始型別與物件</span> 把 String 列為原始型別，本篇往下挖「規格書到底怎麼定義 String」以及「為什麼 emoji 的 length 是 2」。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Textual data（文本資料）</mark>是以文字、字元或符號記錄、用來傳達人類語言的資料，通常是非結構化或半結構化。<br />
+　　應用包含 NLP（Natural Language Processing，自然語言處理）、搜尋引擎索引、文本探勘。</p>
+<p>(b) ECMAScript 規格 6.1.4 The String Type 的定義：<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">String 型別是「所有由零個或多個 16 位元無號整數所組成的有序序列」的集合</mark>。<br />
+　　ordered（有序）：<code>"ab"</code> 與 <code>"ba"</code> 是不同字串，每個位置有固定 index。<br />
+　　zero or more（零個或多個）：長度可為 0，長度 0 就是空字串 <code>""</code>。</p>
+<p>(c) <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JS 字串的元素是 UTF-16 碼元（Code Unit），不是 Unicode 字元（Code Point）</mark>。<br />
+　　一個碼元就是一個 16-bit 數值，範圍 0x0000–0xFFFF。</p>
+<p>(d) 規格的另一句：「ECMAScript operations that do not interpret String contents apply no further semantics」，意思是<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">不需要理解內容的操作，只把字串當成 16-bit 數值陣列處理，不附加任何額外語意</mark>。</p>
+<p>(e) 兩類操作的差別：</p>
+<table>
+<thead>
+<tr>
+<th>類型</th>
+<th>例子</th>
+<th>引擎做了什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>不解析內容</td>
+<td><code>+</code> 拼接、<code>.length</code>、<code>[i]</code>、<code>substring</code></td>
+<td>只複製或計算碼元，不管它是不是代理對</td>
+</tr>
+<tr>
+<td>解析內容</td>
+<td><code>normalize()</code>、<code>localeCompare()</code>、正規表達式 <code>u</code> flag</td>
+<td>把碼元還原成 Code Point，並套用語言或文字規則</td>
+</tr>
+</tbody>
+</table>
+<p>(f) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">代理對（Surrogate Pair）</mark>：超過 U+FFFF 的字元（如 emoji）無法放進單一 16-bit，所以拆成「高位代理 + 低位代理」兩個碼元。<br />
+　　高位代理範圍 0xD800–0xDBFF，低位代理範圍 0xDC00–0xDFFF。</p>
+<p>(g) 具體例子「😀」（Grinning Face）：Code Point 是 U+1F600，在 JS 裡拆成 0xD83D（高位）與 0xDE00（低位）。</p>
+<pre><code class="language-js">const emoji = &quot;😀&quot;;
+console.log(emoji.length);                      // 2，因為佔 2 個碼元
+console.log(emoji.charCodeAt(0).toString(16));  // &quot;d83d&quot; 高位代理
+console.log(emoji.charCodeAt(1).toString(16));  // &quot;de00&quot; 低位代理
+console.log(&quot;😀&quot;);                    // &quot;😀&quot; 兩個碼元拼起來才是完整字元
+console.log([...emoji].length);                 // 1，展開運算子依 Code Point 迭代
+</code></pre>
+<p>(h) <mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">陷阱：<code>.length</code>、<code>[i]</code>、<code>charAt</code> 看的是碼元，所以含 emoji 的字串用它們切割會切出「孤立代理」（亂碼）</mark>。<br />
+　　<mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">要依字元處理請用 <code>[...str]</code>、<code>for...of</code> 或 <code>codePointAt</code></mark>。</p>
+<p>(i) 設計目的：保持基本字串操作極快，不必每次都做完整 Unicode 檢查。</p>
+<p>⚠️ 存疑/更正：Gemini 說「<code>emoji[0]</code> 會印出亂碼或問號」，實際輸出依 console 與字型而定（可能是 <code>�</code> 或空白），重點是它「不是合法字元」。另外並非所有 emoji 都是 2 個碼元，組合 emoji（如家庭、膚色、旗幟）由多個 Code Point 以 ZWJ（Zero Width Joiner，零寬連接符）串起，長度更長。</p>
+<h2 id="leetcode-neetcode">LeetCode / NeetCode 相關題目</h2>
+<ul>
+<li><a href="https://leetcode.com/problems/utf-8-validation/">393. UTF-8 Validation</a>：練習判斷多位元組編碼的位元規則，和代理對的概念同屬「變長編碼」。</li>
+<li><a href="https://leetcode.com/problems/reverse-string/">344. Reverse String</a>：若字串含代理對，天真地反轉碼元會破壞 emoji，可作為延伸思考。</li>
+</ul>
+<h2 id="_2">各對話來源（原文）</h2>
+<h3 id="textual-data-2026-10-httpsgeminigooglecomapp420cb46c3d9bb0af">Textual Data 簡介（2026-10）— https://gemini.google.com/app/420cb46c3d9bb0af</h3>
+<p><strong>使用者：</strong> 說明一下： textual data</p>
+<p><strong>Gemini：</strong> Textual data（文本資料）是指以文字、字元或符號形式記錄的非結構化或半結構化資料，主要用於傳達人類語言與意思。（組成單位、編碼方式、應用等，節錄）</p>
+<p><strong>使用者：</strong> 說明一下： interpret String contents apply no further semantics.</p>
+<p><strong>Gemini：</strong> 這句話出自 ECMAScript 規範中關於 String 的定義：「ECMAScript operations that do not interpret String contents apply no further semantics.」意思是對於不需要解析字串內容的操作，不會為該字串施加任何額外的語意。（節錄）</p>
+<p><strong>使用者：</strong> 具象化：「是不是高低代理對（Surrogate Pairs，如 Emoji 符號是由兩個 16-bit 碼元組成的 Unicode 碼位）。」長怎樣</p>
+<p><strong>Gemini：</strong> 以「😀」為例：Unicode 碼位 U+1F600，拆成高位代理 0xD83D 與低位代理 0xDE00，兩塊積木扣在一起才是完整的笑臉。（程式碼見上方 (g)）</p>
+<h3 id="ecmascript-2026-10-httpsgeminigooglecomappab67eaf810cc056a">解說 ECMAScript 字串定義（2026-10）— https://gemini.google.com/app/ab67eaf810cc056a</h3>
+<p><strong>使用者：</strong> 說明一下： of all ordered sequences of zero or more</p>
+<p><strong>Gemini：</strong> 翻譯為「所有由零個或多個…所組成的有序序列」。完整句子為 The String type is the set of all ordered sequences of zero or more 16-bit unsigned integer values…（節錄）</p>
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>String Type 定義</td>
+<td><a href="https://tc39.es/ecma262/#sec-ecmascript-language-types-string-type">ECMA-262 String Type</a></td>
+<td>Living Draft，2026-10-23 列出</td>
+</tr>
+<tr>
+<td>代理對與 length</td>
+<td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length">MDN：String.length</a></td>
+<td>2026-10-23 列出，未逐字核對</td>
+</tr>
+<tr>
+<td>對話原文</td>
+<td>上列兩則 Gemini 連結</td>
+<td>2026-10</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-10-23</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

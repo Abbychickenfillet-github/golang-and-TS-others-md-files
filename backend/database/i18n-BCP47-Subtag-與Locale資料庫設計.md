@@ -142,5 +142,5 @@ Gemini：（見上方重點 m–o）解釋 Suppress-Script 是 IANA 對語言標
 
 ## 相關筆記
 
-- Cookie 與 Session 基礎概念：[[Cookie-與-Session]]（因為 domain_switch_send 的持久化正是靠 set-cookie，兩篇可互相對照）
+- Cookie 與 Session 基礎概念：[[1-Cookie-與-Session]]（因為 domain_switch_send 的持久化正是靠 set-cookie，兩篇可互相對照）
 - GraphQL 與 REST 比較：[[GraphQL-概念與REST對比]]（同屬 API 設計決策的延伸主題）

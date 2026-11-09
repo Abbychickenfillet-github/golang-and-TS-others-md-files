@@ -45,10 +45,12 @@ charset: utf-8
 | `Content-Type` | 兩邊都有 | 送出方 | 宣告 body 的媒體型別與字元編碼，例如 `text/css; charset=UTF-8`、`application/json` |
 | `Content-Encoding` | Response | 伺服器 | 宣告 body 用哪種壓縮演算法壓過，例如 `gzip`，瀏覽器據此解壓，目的是縮小傳輸體積 |
 | `Cross-Origin-Opener-Policy`（COOP） | Response | 伺服器 | 控制這份文件跟它用 `window.open()` 開出來的新分頁，要不要放在同一個 browsing context group |
-| `x-goog-api-key` / `Authorization` | Request | 呼叫方程式 | 攜帶 API 金鑰做身分驗證 |
+| `x-goog-api-key` / `Authorization` | Request | 呼叫方程式 | 攜帶 API 金鑰做身分驗證。`Authorization` 的值格式是 `<auth-scheme> <credentials>`，scheme（驗證方案）常見 `Basic`（帳密 Base64 編碼）、`Bearer`（持有權杖，JWT 常用）、`Digest`、`Negotiate`。寫給中間 proxy 的是 `Proxy-Authorization`，格式相同，被擋時回 407 而不是 401（來源：MDN Proxy-Authorization，最後修改 2026-09-17，查證 2026-10-11） |
 
 (e) <mark style="background: #ADCCFFA6;">`Content-Type` 的兩段式寫法</mark>：`text/css` 是媒體型別（MIME type），`charset=UTF-8` 是字元編碼。
 	<mark style="background: #FF5582A6;">要分清楚</mark>：UTF-8 是**字元編碼**，不是壓縮演算法；壓縮是 `Content-Encoding: gzip` 那一條在管的。對話裡這兩個詞曾混在一起講，這裡拆開。
+
+(e-2) <mark style="background: #ADCCFFA6;">gzip 同時是壓縮演算法也是檔案格式</mark>：格式規格是 RFC 1952，裡面包的演算法是 DEFLATE（LZ77 反向參照加 Huffman 編碼，MDN 該頁未寫，屬一般知識）。副檔名 `.gz` 是存成硬碟檔案的慣例（例如 `archive.tar.gz`），HTTP 上不看副檔名，看的是 `Content-Encoding: gzip`。流程是瀏覽器用 `Accept-Encoding: br, gzip` 表明自己懂哪些，伺服器挑一種壓縮後回標頭，並加 `Vary: Accept-Encoding` 讓快取把壓縮與未壓縮版本分開存。<mark style="background: #BBFABBA6;">所以「40KB gzip」是指壓縮後實際在網路上傳輸的大小</mark>，因為關心的是下載時間而不是解壓後的大小。來源：MDN Compression in HTTP（https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Compression ，最後修改 2026-08-27，查證 2026-10-11）。
 
 (f) <mark style="background: #ADCCFFA6;">COOP 的 `same-origin-allow-popups`</mark>：這份文件自己被隔離在獨立的 browsing context group，<mark style="background: #BBFABBA6;">但它主動開出來的 popup 仍然保留 `window.opener` 參照</mark>，代價是拿不到 cross-origin isolation。
 	典型用途是 <mark style="background: #FFB8EBA6;">OAuth 彈窗登入</mark>：授權頁在 popup 開啟，結果要靠 `window.opener` 回傳給母視窗，所以不能把參照切斷（延伸見 [[OAuth與RESTful-Firebase登入-彈窗vs重定向]]）。

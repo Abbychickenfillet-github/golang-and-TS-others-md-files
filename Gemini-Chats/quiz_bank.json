@@ -4991,5 +4991,147 @@
     "a": "參考方向：因為定位來源不是 AirTag 自己，而是路過的其他 Apple 裝置。這是一種群眾外包（crowdsourced）架構，密度決定覆蓋率與更新頻率。市區 Apple 裝置密集，幾分鐘內就會有人經過並回報；山區沒有人經過，就沒有任何節點能把座標上傳，AirTag 的廣播等於發給空氣。由此可反推：這張網的效能與使用者密度成正比，且它本質上是機會式（opportunistic）的，不保證即時。"
    }
   ]
+ },
+ "frontend-docs/html-basics/var元素與規範性用語-非規範性vs非常規-元素內容分類Categories.md": {
+  "tf": [
+   {
+    "q": "`<var>` 標籤是用來儲存換行符號的。",
+    "a": false,
+    "why": "它是 variable 的縮寫，用來標記變數或佔位符；換行是 `<br>`。"
+   },
+   {
+    "q": "Non-normative（非規範性）指的是你寫的標記違反規格。",
+    "a": false,
+    "why": "那是 Non-conforming（非常規）；非規範性是規格書中的補充說明文字。"
+   },
+   {
+    "q": "head 元素在規格書的 Categories 欄是 None。",
+    "a": true,
+    "why": "代表它不屬於任何內容類別。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "要保留原始排版與換行的區塊標籤是 ____。",
+    "a": "pre",
+    "why": "Preformatted Text。"
+   },
+   {
+    "q": "`p`、`div` 屬於 ____ content（流程內容）。",
+    "a": "Flow",
+    "why": "img、strong 則屬於 Phrasing content。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "請說明 Non-normative 與 Non-conforming 的差別並各舉一例。",
+    "a": "參考方向：Non-normative 修飾規格書的文字，指補充說明不具強制力（歷史背景、範例）；Non-conforming 修飾作者寫的標記，指違反規格（使用已廢棄標籤）。",
+    "why": ""
+   }
+  ]
+ },
+ "JS-資料型別/JS字串-UTF-16碼元與代理對Surrogate-Pair-ECMAScript定義.md": {
+  "tf": [
+   {
+    "q": "JS 字串的元素是 Unicode Code Point。",
+    "a": false,
+    "why": "是 UTF-16 碼元（16-bit）。"
+   },
+   {
+    "q": "`'😀'.length` 的結果是 2。",
+    "a": true,
+    "why": "它由高位代理與低位代理兩個碼元組成。"
+   },
+   {
+    "q": "`[...str]` 會依 Code Point 迭代，能正確處理 emoji。",
+    "a": true,
+    "why": "字串的迭代器以 Code Point 為單位。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "高位代理的範圍是 0xD800 到 ____。",
+    "a": "0xDBFF",
+    "why": "低位代理是 0xDC00–0xDFFF。"
+   },
+   {
+    "q": "U+1F600 在 JS 裡拆成 0xD83D 與 ____。",
+    "a": "0xDE00",
+    "why": "兩個碼元合稱代理對。"
+   }
+  ],
+  "essay": [
+   {
+    "q": "為什麼用 `.length` 與 `[i]` 處理含 emoji 的字串會出錯？應該改用什麼？",
+    "a": "參考方向：它們以 16-bit 碼元為單位，emoji 佔兩個碼元，會被切成孤立代理。應改用 `[...str]`、`for...of` 或 `codePointAt`。",
+    "why": ""
+   }
+  ]
+ },
+ "backend/database/儲存留言-收藏資料表設計-多對多與BFS無關.md": {
+  "tf": [
+   {
+    "q": "Facebook 儲存留言是用 BFS 走訪社交圖譜。",
+    "a": false,
+    "why": "只是一筆關聯寫入，用索引直接定位。"
+   },
+   {
+    "q": "收藏表應在 (user_id, comment_id) 建聯合唯一索引。",
+    "a": true,
+    "why": "避免同一人重複收藏同一則留言。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "使用者與留言之間的收藏屬於 ____ 關係。",
+    "a": "多對多",
+    "why": "所以需要一張對應表。"
+   },
+   {
+    "q": "支援依時間分頁的複合索引是 (user_id, ____)。",
+    "a": "created_at",
+    "why": ""
+   }
+  ],
+  "essay": [
+   {
+    "q": "設計「儲存留言」資料表時，原留言被刪除該如何處理？",
+    "a": "參考方向：軟刪除加動態檢查狀態，清單顯示「此留言已被刪除」；或存內容快照，但資料量會膨脹。",
+    "why": ""
+   }
+  ]
+ },
+ "frontend-docs/vue/Vue編譯器在建構工具外掛中執行-VirtualDOM與批次更新.md": {
+  "tf": [
+   {
+    "q": "Vite 打包本身內建 Vue 編譯器。",
+    "a": false,
+    "why": "是 @vitejs/plugin-vue 外掛呼叫 Vue 編譯器。"
+   },
+   {
+    "q": "Batching 的意思是用 debounce 等待一段時間再渲染。",
+    "a": false,
+    "why": "是把同一週期內多次狀態變更合併成一次渲染。"
+   }
+  ],
+  "cloze": [
+   {
+    "q": "Vue 外掛在 bundler 的 ____ 階段攔截 .vue 檔。",
+    "a": "transform",
+    "why": "讀取檔案並轉換內容的階段。"
+   },
+   {
+    "q": "React 18 的自動合併多次 setState 稱為 Automatic ____。",
+    "a": "Batching",
+    "why": ""
+   }
+  ],
+  "essay": [
+   {
+    "q": "請描述 .vue 檔從 import 到變成 JS 模組的流程。",
+    "a": "參考方向：bundler 讀到 import → plugin transform hook → 呼叫 @vue/compiler-sfc 把 template 編成 render function → 產出 JS 模組 → 回到 bundler 打包。",
+    "why": ""
+   }
+  ]
  }
 }

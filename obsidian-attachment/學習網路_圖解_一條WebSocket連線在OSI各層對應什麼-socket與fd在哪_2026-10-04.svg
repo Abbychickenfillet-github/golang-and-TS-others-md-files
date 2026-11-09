@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 820" width="940" height="820" font-family="Microsoft JhengHei, Noto Sans TC, PingFang TC, sans-serif">
+<title>一條 WebSocket 連線在 OSI 各層對應什麼，以及 socket、fd、event loop 各在哪</title>
+<desc>由上而下：你的程式（event loop 與處理函式）、L7 WebSocket 與 HTTP Upgrade、L6 TLS、L5 會談層、socket API 分界線、L4 TCP、L3 IP、L2 訊框、L1 實體。紅框標出 WebSocket 在 L7、TCP 在 L4。</desc>
+<rect width="940" height="820" fill="#ffffff"/>
+<text x="20" y="32" font-size="14" fill="#555" font-weight="700" text-anchor="start">層級</text>
+<text x="100" y="32" font-size="14" fill="#555" font-weight="700" text-anchor="start">名稱</text>
+<text x="262" y="32" font-size="14" fill="#555" font-weight="700" text-anchor="start">這一層出現的協定／名詞</text>
+<text x="600" y="32" font-size="14" fill="#555" font-weight="700" text-anchor="start">一條 WebSocket 連線在這一層對應的東西</text>
+<line x1="10" y1="42" x2="930" y2="42" stroke="#999" stroke-width="2"/>
+<rect x="40" y="56" width="880" height="62" rx="8" fill="#eceff1" stroke="#90a4ae" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="104" y="80" font-size="15" fill="#37474f" font-weight="700" text-anchor="start">你的程式（Node.js／Python asyncio／Go）</text>
+<text x="104" y="102" font-size="14" fill="#37474f" font-weight="400" text-anchor="start">event loop ＋ 處理函式，跑在 1 條 thread 上；每條連線只是一個物件或一個 coroutine</text>
+<text x="740" y="86" font-size="15" fill="#b3261e" font-weight="700" text-anchor="start">不是網路層</text>
+<text x="740" y="106" font-size="13" fill="#37474f" font-weight="400" text-anchor="start">（程式結構與 OS 排程）</text>
+<g opacity="1">
+<rect x="40" y="128" width="880" height="76" rx="8" fill="#dbe6f7"/>
+<rect x="40" y="128" width="52" height="76" rx="8" fill="#4a78c2"/>
+<text x="66" y="174.0" font-size="24" fill="#fff" font-weight="800" text-anchor="middle">7</text>
+<text x="104" y="152.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">應用層</text>
+<text x="104" y="172.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">Application</text>
+<text x="262" y="150" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">WebSocket：先用 HTTP Upgrade 握手</text>
+<text x="262" y="171" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">（GET … 101 Switching Protocols），</text>
+<text x="262" y="192" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">之後改傳 WebSocket 訊框</text>
+<text x="600" y="150" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">一個 WebSocket 連線物件</text>
+<text x="600" y="171" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">（Node 的 ws 物件、asyncio 的一個 Task）</text>
+</g>
+<rect x="254" y="132" width="330" height="68" rx="6" fill="none" stroke="#dc143c" stroke-width="4"/>
+<g opacity="1">
+<rect x="40" y="212" width="880" height="66" rx="8" fill="#d6f1f7"/>
+<rect x="40" y="212" width="52" height="66" rx="8" fill="#1fb0cf"/>
+<text x="66" y="253.0" font-size="24" fill="#fff" font-weight="800" text-anchor="middle">6</text>
+<text x="104" y="231.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">展示層</text>
+<text x="104" y="251.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">Presentation</text>
+<text x="262" y="234" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">TLS：wss:// 才有，ws:// 沒有</text>
+<text x="262" y="255" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">（OSI 沒有明確位置，常被放在此層）</text>
+<text x="600" y="244" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">一個 TLS session（加密狀態與金鑰）</text>
+</g>
+<g opacity="0.55">
+<rect x="40" y="286" width="880" height="48" rx="8" fill="#dff0df"/>
+<rect x="40" y="286" width="52" height="48" rx="8" fill="#4caf50"/>
+<text x="66" y="318.0" font-size="24" fill="#fff" font-weight="800" text-anchor="middle">5</text>
+<text x="104" y="296.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">會談層</text>
+<text x="104" y="316.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">Session</text>
+<text x="262" y="318" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">TCP/IP 模型把 5～7 層合併為應用層，實務少獨立看待</text>
+<text x="600" y="318" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">—</text>
+</g>
+<rect x="40" y="342" width="880" height="56" fill="#f3e5f5" stroke="#8e24aa" stroke-width="3" stroke-dasharray="8 5"/>
+<text x="60" y="366" font-size="15.5" fill="#6a1b9a" font-weight="700" text-anchor="start">Socket API（作業系統提供給程式的介面）— 不屬於 OSI 任何一層</text>
+<text x="60" y="388" font-size="13.5" fill="#4a148c" font-weight="400" text-anchor="start">使用者空間（上）與核心（下）的分界；read／write／accept 都從這裡進核心</text>
+<text x="660" y="366" font-size="15" fill="#b3261e" font-weight="700" text-anchor="start">一條連線 ＝ 一個 socket ＝ 一個 fd</text>
+<text x="660" y="388" font-size="13.5" fill="#4a148c" font-weight="400" text-anchor="start">（一個整數編號，epoll 監看的就是它）</text>
+<g opacity="1">
+<rect x="40" y="406" width="880" height="76" rx="8" fill="#fbf0c4"/>
+<rect x="40" y="406" width="52" height="76" rx="8" fill="#e6b800"/>
+<text x="66" y="452.0" font-size="24" fill="#fff" font-weight="800" text-anchor="middle">4</text>
+<text x="104" y="430.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">傳輸層</text>
+<text x="104" y="450.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">Transport</text>
+<text x="262" y="428" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">TCP：三向握手、可靠傳輸、序號</text>
+<text x="262" y="449" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">（區段 segment）；UDP 也在這層</text>
+<text x="600" y="428" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">一條 TCP 連線，由四個值標識：</text>
+<text x="600" y="449" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">來源 IP、來源埠、目的 IP、目的埠</text>
+</g>
+<rect x="254" y="410" width="330" height="68" rx="6" fill="none" stroke="#dc143c" stroke-width="4"/>
+<g opacity="1">
+<rect x="40" y="490" width="880" height="62" rx="8" fill="#fbe0c6"/>
+<rect x="40" y="490" width="52" height="62" rx="8" fill="#ef8a2d"/>
+<text x="66" y="529.0" font-size="24" fill="#fff" font-weight="800" text-anchor="middle">3</text>
+<text x="104" y="507.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">網路層</text>
+<text x="104" y="527.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">Network</text>
+<text x="262" y="512" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">IP：位址與路由（封包 packet）</text>
+<text x="262" y="533" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">TCP 不在這層，這層是 IP</text>
+<text x="600" y="522" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">兩端的 IP 位址（例如 203.0.113.10）</text>
+</g>
+<g opacity="1">
+<rect x="40" y="560" width="880" height="62" rx="8" fill="#f6d5e7"/>
+<rect x="40" y="560" width="52" height="62" rx="8" fill="#d9459b"/>
+<text x="66" y="599.0" font-size="24" fill="#fff" font-weight="800" text-anchor="middle">2</text>
+<text x="104" y="577.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">資料連結層</text>
+<text x="104" y="597.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">Data Link</text>
+<text x="262" y="582" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">Wi-Fi 802.11、Ethernet（訊框 frame）</text>
+<text x="262" y="603" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">MAC 位址、網卡驅動</text>
+<text x="600" y="592" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">下一跳的 MAC 位址</text>
+</g>
+<g opacity="1">
+<rect x="40" y="630" width="880" height="62" rx="8" fill="#f7d2d0"/>
+<rect x="40" y="630" width="52" height="62" rx="8" fill="#d9302c"/>
+<text x="66" y="669.0" font-size="24" fill="#fff" font-weight="800" text-anchor="middle">1</text>
+<text x="104" y="647.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">實體層</text>
+<text x="104" y="667.0" font-size="15" fill="#222" font-weight="700" text-anchor="start">Physical</text>
+<text x="262" y="662" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">光纖、無線電波、雙絞線（位元 bit）</text>
+<text x="600" y="662" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">電波或光訊號</text>
+</g>
+<rect x="10" y="56" width="20" height="338" rx="4" fill="#90a4ae"/>
+<text transform="translate(26,225) rotate(-90)" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">使用者空間（程式與函式庫）</text>
+<rect x="10" y="404" width="20" height="218" rx="4" fill="#5d4037"/>
+<text transform="translate(26,513) rotate(-90)" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">作業系統核心</text>
+<rect x="10" y="628" width="20" height="64" rx="4" fill="#455a64"/>
+<text transform="translate(26,660) rotate(-90)" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">硬體</text>
+<rect x="40" y="710" width="880" height="96" rx="8" fill="#fff8e1" stroke="#dc143c" stroke-width="3"/>
+<text x="56" y="736" font-size="15.5" fill="#b3261e" font-weight="700" text-anchor="start">常見誤會（紅框處）</text>
+<text x="56" y="760" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">① WebSocket 在最上層 L7（應用層）；TCP 在 L4（傳輸層），不是 L3 網路層，L3 是 IP。</text>
+<text x="56" y="782" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">② socket 不是 OSI 的一層，是程式呼叫核心的介面；一條 WebSocket ＝ 一條 TCP 連線 ＝ 一個 socket（fd）。</text>
+<text x="56" y="802" font-size="14.5" fill="#222" font-weight="400" text-anchor="start">③ 上萬連線 ≠ 上萬條 thread：一條 thread 用 epoll 同時監看上萬個 fd。</text>
+</svg>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>url.parse 與 URL.parse 差異</title>
+<link rel="stylesheet" href="../../../assets/note-interactive.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>url.parse 與 URL.parse<br>小寫是 Node 舊 API，大寫是 WHATWG 標準</h1>
+  <div class="pills"><span class="pill">node</span><span class="pill">url</span><span class="pill">whatwg</span><span class="pill">deprecation</span><span class="pill">security</span></div>
+  <div class="meta">建立 2026-10-26 ｜ 實測環境 Node v24.14.0 ｜ 名詞可 hover、聚焦或點擊</div>
+  <span class="idx">本篇重點 a–g，共 7 個</span>
+</header>
+
+<h2 id="compare">a. 三個寫法一次對照</h2>
+<table>
+  <thead><tr><th>項目</th><th>url.parse()</th><th>URL.parse()</th><th>new URL()</th></tr></thead>
+  <tbody>
+    <tr><td>怎麼取得</td><td><code>require('url')</code> 模組，小寫 url</td><td>全域 <code>URL</code> 類別的靜態方法，大寫</td><td>同左，建構式</td></tr>
+    <tr><td>屬於哪一派</td><td><span class="term" data-term="legacy-url">Legacy URL API</span>，只有 Node</td><td><span class="term" data-term="whatwg-url">WHATWG URL</span></td><td>WHATWG URL</td></tr>
+    <tr><td>哪裡能用</td><td>只有 Node</td><td>瀏覽器 Baseline 2024（2024 年 9 月起）與 Node v22.1.0 起</td><td>瀏覽器與 Node 都能</td></tr>
+    <tr><td>官方狀態</td><td>Stability 0 Deprecated。Node 24.0.0 起 DEP0169 為 Application deprecation，會在執行期印警告</td><td>現行標準</td><td>現行標準</td></tr>
+    <tr><td>輸入無效時</td><td>很寬鬆，多半不丟錯。非字串才丟 TypeError</td><td>回傳 <code>null</code></td><td>丟 <code>ERR_INVALID_URL</code></td></tr>
+    <tr><td>相對路徑</td><td>接受，host 為 null</td><td>要給 base，否則 <code>null</code></td><td>要給 base，否則丟錯</td></tr>
+    <tr><td>回傳形狀</td><td>auth、query、path 等</td><td>URL 物件</td><td>URL 物件</td></tr>
+  </tbody>
+</table>
+<div class="callout note"><b>記憶法</b>小寫 url 是「模組」，大寫 URL 是「類別」。要換掉的是前者，後兩者是標準，差別只在無效輸入時回 null 還是丟錯。</div>
+
+<h2 id="official">b. 官方怎麼說 url.parse()</h2>
+<table>
+  <thead><tr><th>重點</th><th>內容</th><th>來源</th></tr></thead>
+  <tbody>
+    <tr><td>標示</td><td>Legacy URL API 整體標 Stability 3 Legacy，<code>url.parse()</code> 本身標 Stability 0 Deprecated</td><td>Node.js url 文件（頁面為 v26.12.1，未標更新日期）</td></tr>
+    <tr><td>安全警告</td><td>使用寬鬆、非標準的解析演算法，容易有主機名稱欺騙與帳密處理不當的問題，不要用於不可信輸入。url.parse() 的漏洞不核發 CVE</td><td>同上</td></tr>
+    <tr><td>DEP0169</td><td>Type 是 Application，也就是只針對非 node_modules 的程式碼。v24.0.0 變成 Application deprecation，v19.0.0 與 v18.13.0 僅文件棄用，v19.9.0 與 v18.17.0 支援 <code>--pending-deprecation</code></td><td>Node.js deprecations 文件（v26.12.1，未標更新日期）</td></tr>
+    <tr><td>連帶範圍</td><td><code>url.format(urlString)</code> 與 <code>url.resolve()</code> 內部會呼叫 url.parse()，也在這個棄用範圍內</td><td>同上</td></tr>
+    <tr><td>遷移工具</td><td><code>npx codemod@latest @nodejs/node-url-to-whatwg-url</code></td><td>Node.js url 文件</td></tr>
+    <tr><td>URL.parse() 在 Node</td><td>v22.1.0 加入。無法解析時回傳 null，不丟錯。<code>URL.canParse()</code> 加入於 v19.9.0 與 v18.17.0</td><td>Node.js url 文件</td></tr>
+    <tr><td>URL.parse() 在瀏覽器</td><td>Baseline 2024，Newly available，2024 年 9 月起可用</td><td>MDN，頁面標示 last modified Jun 23, 2025</td></tr>
+  </tbody>
+</table>
+
+<h2 id="test">c. 實測：同一個字串兩個 parser 看到什麼</h2>
+<p>Node v24.14.0，2026-10-26 重跑。表中 host 欄是 parser 認定的主機，path 欄是路徑與查詢字串。</p>
+<table>
+  <thead><tr><th>輸入字串</th><th>url.parse</th><th>new URL</th><th>URL.parse</th><th>有差異嗎</th></tr></thead>
+  <tbody>
+    <tr><td><code>/a/b?x=1</code></td><td>接受。host null，path <code>/a/b?x=1</code></td><td>丟 ERR_INVALID_URL</td><td>null</td><td><span class="badge mid">有，寬鬆 vs 嚴格</span></td></tr>
+    <tr><td><code>//a.com/x</code></td><td>host null，path <code>//a.com/x</code></td><td>丟 ERR_INVALID_URL</td><td>null</td><td><span class="badge mid">有</span></td></tr>
+    <tr><td><code>http:a.com/x</code>（少 //）</td><td>host <b>null</b>，path <code>a.com/x</code></td><td>host <b>a.com</b>，path <code>/x</code></td><td>http://a.com/x</td><td><span class="badge no" style="background:var(--warnbg);color:var(--warn)">有，主機不同</span></td></tr>
+    <tr><td>反斜線 <code>http:\\a.com\x</code></td><td>host a.com，path /x</td><td>host a.com，path /x</td><td>http://a.com/x</td><td><span class="badge yes">沒有</span></td></tr>
+    <tr><td><code>http://a.com\@evil.com/x</code></td><td>host a.com，path /@evil.com/x</td><td>host a.com，path /@evil.com/x</td><td>同 new URL</td><td><span class="badge yes">沒有</span></td></tr>
+    <tr><td><code>HTTP://A.COM/X</code>（大小寫）</td><td>host a.com，path /X</td><td>host a.com，path /X</td><td>http://a.com/X</td><td><span class="badge yes">沒有</span></td></tr>
+    <tr><td>前後有空白</td><td>host a.com，path /x</td><td>host a.com，path /x</td><td>http://a.com/x</td><td><span class="badge yes">沒有</span></td></tr>
+    <tr><td><code>http://a.com@evil.com/x</code></td><td>host evil.com，auth a.com</td><td>host evil.com，username a.com</td><td>同 new URL</td><td><span class="badge yes">沒有</span></td></tr>
+  </tbody>
+</table>
+<div class="callout"><b>重要：不要把反斜線、大小寫、前後空白寫成兩者有差</b>這三項實測結果兩個 parser 相同。真正會讓兩者「認出不同主機」的是少一個斜線的 <code>http:a.com/x</code>。</div>
+
+<h2 id="differential">d. Parser differential：檢查與發請求用不同 parser</h2>
+<p>對 <code>http:a.com/x</code>，<code>url.parse</code> 認為沒有主機，<code>new URL</code> 認為主機是 <code>a.com</code>。這種「兩個 <span class="term" data-term="parser-differential">parser</span> 對同一字串解讀不同」就是 parser differential。</p>
+<pre>// 危險：檢查用一個 parser，發請求用另一個
+const allowed = new URL(input).host === 'a.com'      // WHATWG：host 是 a.com，通過
+if (allowed) {
+  const target = url.parse(input)                    // Legacy：host 是 null，path 是 a.com/x
+  // 後面若用 target 去發請求，請求端看到的目標可能不是 a.com
+}</pre>
+<p class="meta">差異本身已實測。實際能不能被利用要看請求端怎麼處理 host 為 null 的物件，這部分沒有實測，不要當成已證實的漏洞。處理原則：檢查與使用同一個 parser，並且用標準的那一個。</p>
+
+<h2 id="shape">e. 回傳物件形狀不同</h2>
+<table>
+  <thead><tr><th>要拿什麼</th><th>url.parse(str, true)</th><th>new URL(str)</th></tr></thead>
+  <tbody>
+    <tr><td>協定</td><td><code>protocol</code></td><td><code>protocol</code></td></tr>
+    <tr><td>帳號與密碼</td><td><code>auth</code>，一個字串 <code>user:pw</code></td><td><code>username</code> 與 <code>password</code>，分開</td></tr>
+    <tr><td>主機與連接埠</td><td><code>host</code>、<code>hostname</code>、<code>port</code></td><td>同名</td></tr>
+    <tr><td>路徑加查詢</td><td><code>path</code></td><td>沒有現成屬性，要自己組 <code>pathname + search</code></td></tr>
+    <tr><td>查詢參數</td><td><code>query</code>：物件（第二參數給 true 時）</td><td><code>searchParams</code>：<code>.get('q')</code></td></tr>
+    <tr><td>來源</td><td>沒有</td><td><code>origin</code>，不含帳密</td></tr>
+    <tr><td>能不能改</td><td>一般物件</td><td>屬性是 getter 與 setter，<code>delete</code> 不會生效</td></tr>
+  </tbody>
+</table>
+
+<h2 id="trace">f. 怎麼找出誰在呼叫 url.parse</h2>
+<pre>npx cross-env NODE_OPTIONS=--trace-deprecation npm run build</pre>
+<table>
+  <thead><tr><th>要點</th><th>說明</th><th>驗證</th></tr></thead>
+  <tbody>
+    <tr><td>為什麼用 NODE_OPTIONS</td><td>它是環境變數，子行程都繼承，所以 next build 的 worker 也吃得到。直接寫 <code>node --trace-deprecation</code> 只作用在第一個行程</td><td>已實測：父行程用旗標時子行程只印一行警告沒有堆疊，用 NODE_OPTIONS 則子行程印出完整堆疊</td></tr>
+    <tr><td>為什麼可能找不到</td><td>DEP0169 是 Application 類型，只有非 node_modules 的程式碼呼叫才會印警告。依賴套件內的呼叫是靜默的，加 <code>--pending-deprecation</code> 也一樣</td><td>已實測 Node v24.14.0：app 程式碼有警告，node_modules 內呼叫兩種情況都沒有</td></tr>
+    <tr><td>所以看到警告代表什麼</td><td>呼叫點在非 node_modules 路徑。可能是專案檔、設定檔，或被 Next.js 打包進 <code>.next/server</code> 的依賴程式碼</td><td>後半是推論，未驗證</td></tr>
+    <tr><td>build 後再搜</td><td><code>grep -rn "url.parse" .next/server</code>，找被打包進去的呼叫</td><td>指令未執行</td></tr>
+    <tr><td>你的專案現況</td><td>專案自己的程式碼沒有 url.parse，依賴掃描也沒找到，呼叫者未知</td><td>依來源 session 的掃描結果，本次未重掃</td></tr>
+  </tbody>
+</table>
+<p class="meta">這個警告在 <code>npm run build</code> 出現，和 <a href="../../nextjs/nextjs-prerender-and-csr-bailout.html#build">預渲染時元件在 Node 裡真的執行一遍</a> 是同一個原因：建置期程式碼跑在 Node，所以 Node 的棄用警告會出現在 build 輸出。</p>
+
+<h2 id="migrate">g. 遷移寫法與練習</h2>
+<table>
+  <thead><tr><th>舊寫法</th><th>新寫法</th><th>注意</th></tr></thead>
+  <tbody>
+    <tr><td><code>url.parse(str).pathname</code></td><td><code>new URL(str).pathname</code></td><td>輸入是相對路徑要給 base</td></tr>
+    <tr><td><code>url.parse(req.url, true).query</code></td><td><code>new URL(req.url, 'https://example.com').searchParams</code></td><td>Node 的 req.url 是相對路徑，base 可從 host 標頭組出，官方文件有範例</td></tr>
+    <tr><td>用 try 與 catch 包 new URL</td><td><code>URL.parse(str, base)</code> 判斷是否為 null</td><td>瀏覽器要 2024 年 9 月後的版本，舊環境改用 <code>URL.canParse()</code> 或 try 與 catch</td></tr>
+  </tbody>
+</table>
+
+<h3>填空</h3>
+<div class="toolbar"><button type="button" id="showAll">全部顯示</button><button type="button" id="hideAll">全部隱藏</button></div>
+<div id="fills"></div>
+<h3>是非題</h3>
+<div id="tf"></div>
+
+<h2 id="related">關聯筆記與關聯原因</h2>
+<table>
+  <thead><tr><th>筆記</th><th>為什麼相關</th></tr></thead>
+  <tbody>
+    <tr><td><a href="../../nextjs/nextjs-prerender-and-csr-bailout.html">Prerender 與 CSR Bailout</a></td><td>這個警告出現在 npm run build，原因是建置期元件在 Node 裡執行</td></tr>
+    <tr><td><a href="Node-global與process物件屬性逐行解釋-互動版.html">Node global 與 process</a></td><td>同屬 Node 專有 API 的對照，說明 Node 環境與瀏覽器環境的差異</td></tr>
+  </tbody>
+</table>
+
+<h2 id="sources">資料來源（含查證時間）</h2>
+<p class="meta">查閱日 2026-10-26。</p>
+<table>
+  <thead><tr><th>主題</th><th>連結</th><th>頁面標示的日期</th></tr></thead>
+  <tbody>
+    <tr><td>Node.js url 模組</td><td><a href="https://nodejs.org/api/url.html" target="_blank" rel="noopener">nodejs.org/api/url.html</a></td><td>頁面未標示，查閱日 2026-10-26（頁面版本 v26.12.1）</td></tr>
+    <tr><td>Node.js deprecations（DEP0169）</td><td><a href="https://nodejs.org/api/deprecations.html" target="_blank" rel="noopener">nodejs.org/api/deprecations.html</a></td><td>頁面未標示，查閱日 2026-10-26（頁面版本 v26.12.1）</td></tr>
+    <tr><td>MDN URL.parse()</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/API/URL/parse_static" target="_blank" rel="noopener">developer.mozilla.org/.../URL/parse_static</a></td><td>last modified Jun 23, 2025</td></tr>
+    <tr><td>實測</td><td>Node v24.14.0，腳本在暫存資料夾</td><td>2026-10-26</td></tr>
+  </tbody>
+</table>
+<p><b>未查證</b>：differential 在真實請求函式庫中是否可被利用，被打包進 .next/server 的呼叫點是哪個套件，不同 Node 版本（例如 v26）的行為是否與 v24.14.0 實測相同。</p>
+
+<footer>url.parse 與 URL.parse · 2026-10-26</footer>
+</div>
+
+<script src="../../nextjs/nextjs-terms.js"></script>
+<script src="../../../assets/note-quiz.js"></script>
+<script>
+NoteQuiz.mount({
+  fills: [
+    ['小寫 url.parse 屬於 ', 'Legacy', ' URL API，只有 Node 有。'],
+    ['大寫 URL.parse 遇到無效輸入回傳 ', 'null', '，new URL 則會丟錯。'],
+    ['URL.parse 在瀏覽器的 Baseline 年份是 ', '2024', ' 年。'],
+    ['會讓兩個 parser 認出不同主機的字串是少一個斜線的 ', 'http:a.com/x', '。'],
+    ['要讓子行程也吃到 --trace-deprecation，要用環境變數 ', 'NODE_OPTIONS', '。'],
+    ['DEP0169 的 Type 是 ', 'Application', '，只針對非 node_modules 程式碼。']
+  ],
+  tf: [
+    { q: '反斜線會讓 url.parse 與 new URL 認出不同的主機。', a: false, e: '錯。實測 http:\\\\a.com\\x 兩者都認出 a.com，不要寫成有差。' },
+    { q: '大小寫與前後空白也會讓兩個 parser 結果不同。', a: false, e: '錯。實測兩者結果相同，空白都被去掉，大小寫的 host 都轉成小寫。' },
+    { q: 'new URL("/a/b?x=1") 不給 base 會丟錯。', a: true, e: '對。實測丟 ERR_INVALID_URL。url.parse 同一字串卻接受。' },
+    { q: 'Node 官方會為 url.parse 的漏洞核發 CVE。', a: false, e: '錯。官方明說 url.parse() 的漏洞不核發 CVE，也不建議用於不可信輸入。' },
+    { q: '依賴套件在 node_modules 裡呼叫 url.parse，也會印出 DEP0169 警告。', a: false, e: '錯。DEP0169 是 Application 類型。實測 node_modules 內的呼叫沒有警告，加 --pending-deprecation 也沒有。' },
+    { q: '直接寫 node --trace-deprecation 可以讓 next build 的 worker 也印出堆疊。', a: false, e: '錯。旗標只作用在第一個行程。要用 NODE_OPTIONS，子行程才會繼承。' }
+  ]
+})
+</script>
+<script src="../../../assets/notes.js" defer></script>
+</body>
+</html>

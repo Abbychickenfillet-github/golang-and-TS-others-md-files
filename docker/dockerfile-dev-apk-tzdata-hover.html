@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dockerfile.dev 逐行 hover 解釋</title>
+<link rel="stylesheet" href="../assets/notes.css">
+<style>
+  pre.df { background: #fff; border: 1px solid #d8d8d0; border-radius: 8px; padding: 16px; overflow: visible;
+           font: 14px/2.1 ui-monospace, Consolas, monospace; white-space: pre-wrap; }
+  pre.df .cm { color: #6b7280; }
+  @media (prefers-color-scheme: dark) { pre.df { background: #1e2127; border-color: #34383f; } pre.df .cm { color: #9aa0a6; } }
+  table.t { border-collapse: collapse; width: 100%; margin-top: 20px; }
+  table.t th, table.t td { border: 1px solid #d8d8d0; padding: 8px 10px; text-align: left; vertical-align: top; }
+  .quiz { margin-top: 24px; border: 1px solid #d8d8d0; border-radius: 8px; padding: 14px 16px; }
+  .quiz button { font: inherit; padding: 6px 12px; border: 1px solid #b8b8b0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+  #ans { margin-top: 10px; display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Dockerfile.dev 逐行 hover 解釋</h1>
+  <p>滑鼠移到有綠色虛線底線的字上會顯示解釋；<b>點一下會釘成說明卡，可以拖曳標題列移動</b>，Esc 關閉全部。來源檔：backend-go/Dockerfile.dev。相關筆記：[[compose-dev-references-dockerfile-dev-and-mysql-host-check]]</p>
+
+<pre class="df">
+<span class="cm"># Development Dockerfile with Air for hot reload</span>
+<span class="term" tabindex="0" data-def="FROM = 基底映像。每個 Dockerfile 的起點，後面的指令都疊在這個 image 上面。">FROM</span> <span class="term" tabindex="0" data-def="裝好 Go 1.26 的 Alpine Linux。Alpine 約 5 MB，什麼工具都沒預裝，要自己用 apk 補。">golang:1.26-alpine</span>
+
+<span class="term" tabindex="0" data-def="RUN：在「建 image 的時候」執行一次指令，結果會存進 image 的一層。">RUN</span> <span class="term" tabindex="0" data-def="apk = Alpine Package Keeper，Alpine Linux 的套件管理員，等同 Ubuntu 的 apt、macOS 的 brew。Alpine 上裝軟體就用它。">apk</span> add <span class="term" tabindex="0" data-def="裝完不保留套件索引快取（/var/cache/apk），讓 image 少幾 MB。">--no-cache</span> <span class="term" tabindex="0" data-def="git：go mod download 遇到 git 來源的依賴時需要。">git</span> <span class="term" tabindex="0" data-def="HTTPS 根憑證。後端呼叫 ECPay、S3、Mailgun 時要靠它驗證對方憑證，沒有就會出現 x509 錯誤。">ca-certificates</span> <span class="term" tabindex="0" data-def="tzdata = IANA 時區資料庫，安裝後在 /usr/share/zoneinfo/ 有 Asia/Taipei 等檔案。Go 的 time.LoadLocation(&quot;Asia/Taipei&quot;) 靠它，沒裝會回 unknown time zone。你的後端目前沒呼叫 LoadLocation（付款服務用 FixedZone），所以是保險用。">tzdata</span> <span class="term" tabindex="0" data-def="wget：容器內下載檔案或做簡易健康檢查。">wget</span>
+
+<span class="term" tabindex="0" data-def="WORKDIR：設定之後指令的工作資料夾，不存在會自動建立。compose 的 volume 也是掛到 /app。">WORKDIR /app</span>
+
+<span class="cm"># Install Air for hot reload</span>
+RUN <span class="term" tabindex="0" data-def="air：存檔後自動重新編譯並重啟的熱更新工具，設定檔是 .air.toml。">go install github.com/air-verse/air@latest</span>
+
+<span class="cm"># Copy go mod files</span>
+<span class="term" tabindex="0" data-def="先只複製依賴清單：依賴沒變時，下一行 go mod download 會用快取，不用每次重新下載。">COPY go.mod go.sum ./</span>
+RUN go mod download
+
+<span class="term" tabindex="0" data-def="複製全部原始碼，讓 image 單獨也能跑。開發時 compose 的 volume 會把本機資料夾蓋在 /app 上面，所以你改檔案即時生效。">COPY . .</span>
+
+<span class="term" tabindex="0" data-def="EXPOSE 只是「宣告」容器聽 8080，並不會對外開放。真正對外開放是 compose 的 ports: &quot;8080:8080&quot;。">EXPOSE 8080</span>
+
+<span class="term" tabindex="0" data-def="CMD：容器「啟動時」執行的指令（跟 RUN 不同，RUN 是建 image 時）。這裡啟動 air，由 air 去編譯並執行後端。">CMD ["air", "-c", ".air.toml"]</span>
+</pre>
+
+<table class="t">
+  <tr><th>apk 指令</th><th>意思</th></tr>
+  <tr><td><code>apk add 套件</code></td><td>安裝套件</td></tr>
+  <tr><td><code>apk del 套件</code></td><td>移除套件</td></tr>
+  <tr><td><code>apk search 關鍵字</code></td><td>搜尋套件</td></tr>
+  <tr><td><code>apk info -s 套件</code></td><td>查看已安裝套件資訊（例如 tzdata-2026e）</td></tr>
+</table>
+
+<div class="quiz">
+  <p><b>小測驗：</b>容器內 <code>date</code> 顯示 UTC，已經裝了 tzdata，為什麼時間還是 UTC？</p>
+  <button type="button" id="show">顯示答案</button>
+  <div id="ans">tzdata 只是「提供時區資料」，不會改變容器預設時區。要讓容器用台北時間，必須再設定環境變數 <code>TZ=Asia/Taipei</code>。</div>
+</div>
+</main>
+<script>
+  document.getElementById('show').addEventListener('click', function () {
+    var a = document.getElementById('ans');
+    a.style.display = a.style.display === 'block' ? 'none' : 'block';
+  });
+</script>
+<script src="../assets/notes.js" defer></script>
+</body>
+</html>

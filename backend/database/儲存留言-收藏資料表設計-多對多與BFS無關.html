@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>「儲存留言」收藏功能的資料表設計 — 多對多關聯表，與 BFS 無關</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{margin:22px 0;text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e6e3dc;background:#fff}
+.missing-img{color:#b03a4a;font-size:.9em}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;
+  border-radius:5px;font-size:.93em;color:#6b5c42;cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;
+  outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;
+  border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;
+  position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid #ddd;padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{counter-reset:none;padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;
+  padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);
+  border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;
+  padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+@media print{.toolbar,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>「儲存留言」收藏功能的資料表設計 — 多對多關聯表，與 BFS 無關</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#database</span><span class="pill">#schema</span><span class="pill">#many-to-many</span><span class="pill">#bfs</span><span class="pill">#index</span></div>
+  <div class="meta">
+    <span>更新於 2026-10-23</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/66c40313d2bfb00d" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Facebook 儲存留言是用 BFS 走訪社交圖譜。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">只是一筆關聯寫入，用索引直接定位。</div></li><li><p class="qq">收藏表應在 (user_id, comment_id) 建聯合唯一索引。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">避免同一人重複收藏同一則留言。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">使用者與留言之間的收藏屬於 <input class="blank" data-a="多對多" placeholder="填答案" autocomplete="off"> 關係。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">所以需要一張對應表。</div></li><li><p class="qq">支援依時間分頁的複合索引是 (user_id, <input class="blank" data-a="created_at" placeholder="填答案" autocomplete="off">)。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb"></div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">設計「儲存留言」資料表時，原留言被刪除該如何處理？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：軟刪除加動態檢查狀態，清單顯示「此留言已被刪除」；或存內容快照，但資料量會膨脹。</div></li></ol></section>
+
+<article class="card">
+<h1 id="bfs">「儲存留言」收藏功能的資料表設計 — 多對多關聯表，與 BFS 無關</h1>
+<p>本篇重點 a–h，共 8 個</p>
+<blockquote>
+<p>關聯原因：購物車資料表設計（資料夾） 同樣是「使用者 ID + 某個目標 ID」的關聯表思維，本篇是更單純的收藏（Bookmark）版本。</p>
+</blockquote>
+<h2 id="_1">重點整理</h2>
+<p>(a) <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">BFS（Breadth-First Search，廣度優先搜尋）</mark>用於圖論的最短路徑、社群「你可能認識的人」、爬蟲逐層抓連結。<br />
+　　<mark class="hl hl-warn" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">「儲存留言」只是一筆寫入，跟 BFS 沒有關係</mark>。</p>
+<p>(b) Facebook 常出現 Graph 一詞，是因為它把人、貼文、留言的關係視為社交圖譜（Social Graph）。<br />
+　　但<mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">查單一留言是用索引直接定位，複雜度 O(1) 或 O(log n)，不需要整張圖逐層走訪</mark>。</p>
+<p>(c) 收藏的本質是<mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">多對多（Many-to-Many）</mark>：一個使用者可收藏多則留言，一則留言也可被多個使用者收藏，所以用一張對應表。</p>
+<p>(d) 資料表結構（表名可叫 <code>user_saved_comments</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>型態</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td>BIGINT 或 UUID</td>
+<td>主鍵，這筆收藏紀錄本身的編號</td>
+</tr>
+<tr>
+<td>user_id</td>
+<td>BIGINT</td>
+<td>誰按了儲存</td>
+</tr>
+<tr>
+<td>comment_id</td>
+<td>BIGINT</td>
+<td>儲存的是哪則留言</td>
+</tr>
+<tr>
+<td>created_at</td>
+<td>TIMESTAMP</td>
+<td>收藏時間，用於「最近儲存」排序</td>
+</tr>
+</tbody>
+</table>
+<p>(e) <mark class="hl hl-ok" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">在 (user_id, comment_id) 建立聯合唯一索引（Composite Unique Index）</mark>，保證同一人對同一則留言只能收藏一次，重複點擊就走「取消收藏」而不是重複 INSERT。</p>
+<p>(f) 效能索引：<code>user_id</code> 索引加速「我的已儲存清單」，<code>(user_id, created_at)</code> 複合索引支援依時間分頁。</p>
+<p>(g) 原留言被刪除的兩種策略：<br />
+　　軟刪除（Soft Delete）：原留言標 <code>is_deleted = true</code>，清單顯示「此留言已被刪除」。<br />
+　　快照（Snapshot）：收藏表多存 <code>comment_content_snapshot</code>，資料量膨脹快，大型社群通常不採用。</p>
+<p>(h) 完整寫入流程：前端送 API 請求 → 後端在資料庫建立一筆收藏關聯 → 之後從「已儲存」清單用 <code>user_id</code> 索引撈回。</p>
+<p>⚠️ 存疑/更正：Gemini 說 Meta 用「MySQL 或分散式 NoSQL」屬於泛稱，無法證實 Facebook 的收藏功能具體用哪個儲存。Facebook 公開論文中描述的社交圖譜儲存系統是 TAO（The Associations and Objects），底層為 MySQL 加快取層，但與「儲存留言」的實作細節是否一致，本篇不下定論。</p>
+<h2 id="leetcode-neetcode">LeetCode / NeetCode 相關題目</h2>
+<ul>
+<li><a href="https://leetcode.com/problems/binary-tree-level-order-traversal/">102. Binary Tree Level Order Traversal</a>：BFS 的基本題型，可與本篇「為什麼收藏不需要 BFS」對照。</li>
+<li><a href="https://leetcode.com/problems/two-sum/">1. Two Sum</a>：用 Hash Map 以 O(1) 查找，對應「用索引直接定位」的觀念。</li>
+</ul>
+<h2 id="_2">各對話來源（原文）</h2>
+<h3 id="bfs2026-10-httpsgeminigooglecomapp66c40313d2bfb00d">儲存留言與BFS（2026-10）— https://gemini.google.com/app/66c40313d2bfb00d</h3>
+<p><strong>使用者：</strong> Facebook儲存別人的留言的留言是用什麼BFS廣度追蹤嗎？</p>
+<p><strong>Gemini：</strong> 不是的。BFS 通常用在圖論尋找最短路徑、社交網路中找「你可能認識的人」，或網頁爬蟲按層級抓取連結。儲存留言只是一個簡單的「建立關聯與資料寫入」操作，跟 BFS 沒有關係。（節錄）</p>
+<p><strong>使用者：</strong> 儲存留言的資料表怎麼設計的</p>
+<p><strong>Gemini：</strong> 核心概念是建立多對多關係的對應表，欄位為 id、user_id、comment_id、created_at；在 (user_id, comment_id) 建聯合唯一索引；原留言被刪除可用軟刪除或快照。（節錄，詳見上方 (d)–(g)）</p>
+<h2 id="_3">資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Facebook 社交圖譜儲存 TAO</td>
+<td><a href="https://www.usenix.org/conference/atc13/technical-sessions/presentation/bronson">TAO: Facebook's Distributed Data Store for the Social Graph（USENIX ATC 2013）</a></td>
+<td>2013，已過時多年，僅供概念參考</td>
+</tr>
+<tr>
+<td>對話原文</td>
+<td><a href="https://gemini.google.com/app/66c40313d2bfb00d">Gemini 對話</a></td>
+<td>2026-10</td>
+</tr>
+</tbody>
+</table>
+</article>
+
+<footer>由 Gemini 對話自動整理 · 更新於 2026-10-23</footer>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+</body>
+</html>

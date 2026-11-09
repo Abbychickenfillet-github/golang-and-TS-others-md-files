@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>class生命週期方法-vs-function-component-useEffect</title>
+<style>
+:root{
+  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
+  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --user:#4a7c59; --ai:#5b6bb5;
+  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
+  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px;-webkit-font-smoothing:antialiased}
+/* ---- fluid 滿版版面 ---- */
+.wrap{max-width:none;margin:0;padding:26px 30px 80px}
+.layout{display:flex;gap:28px;align-items:flex-start}
+.content{flex:1 1 auto;min-width:0}
+/* ---- 左側大綱 sidebar ---- */
+.toc{position:sticky;top:18px;flex:0 0 250px;max-height:calc(100vh - 36px);overflow:auto;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 14px;font-size:.88rem}
+.toc h4{margin:0 0 10px;font-size:.74rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.toc ol{list-style:none;padding:0;margin:0}
+.toc li{margin:2px 0}
+.toc a{display:block;padding:6px 10px;border-radius:8px;color:var(--ink);text-decoration:none;
+  border-left:2px solid transparent;transition:.15s;line-height:1.4}
+.toc a:hover{background:var(--accent-soft)}
+.toc a.active{background:var(--accent-soft);border-left-color:var(--accent);color:var(--accent);font-weight:600}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
+  border-radius:16px;padding:26px 28px;margin-bottom:22px}
+header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
+  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
+  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 20px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 28px;margin-bottom:20px}
+h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
+  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36;scroll-margin-top:16px}
+.card>h2:first-child{margin-top:0}
+h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e;scroll-margin-top:16px}
+h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
+p{margin:11px 0}
+blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:6px 0}
+ul,ol{padding-left:1.5em}
+li{margin:6px 0}
+.plain{color:#5a6b76;font-size:.93em;margin:6px 0 14px;padding-left:12px;border-left:3px solid #d8e2e9}
+.plain b{color:#3d5567}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
+  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
+pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
+  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+.cmt{color:#8fa3b0}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfc}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;border-radius:5px;font-size:.93em;color:#6b5c42}
+/* ---- 並排程式碼 ---- */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+.split>div{min-width:0}
+.split h4{margin:0 0 6px}
+@media(max-width:860px){.split{grid-template-columns:1fr}}
+/* ---- 生命週期時間軸圖 ---- */
+.timeline{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 18px;margin:18px 0;overflow-x:auto}
+.tl-row{display:flex;align-items:stretch;gap:0;min-width:560px}
+.tl-stage{flex:1;text-align:center;position:relative;padding:0 6px}
+.tl-dot{display:inline-block;padding:7px 12px;border-radius:999px;font-size:.8rem;font-weight:600;color:#fff}
+.tl-mount{background:#4a9b5e}.tl-update{background:#3f6f8f}.tl-unmount{background:#b0506a}
+.tl-arrow{color:#9aa8b2;align-self:center;font-size:1.3rem;flex:0 0 26px;text-align:center}
+.tl-body{margin-top:10px;font-size:.8rem;line-height:1.5;color:#41525f}
+.tl-body .run{display:block;background:#eaf6ee;border:1px solid #bfe3c9;border-radius:7px;padding:4px 6px;margin:4px 0;color:#2f6b43}
+.tl-body .clean{display:block;background:#fdeef2;border:1px solid #f3c4d1;border-radius:7px;padding:4px 6px;margin:4px 0;color:#9c3a55}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;outline:none;color:inherit}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;border-radius:4px;user-select:none;text-shadow:none}
+mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 測驗 ---- */
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist{padding-left:1.4em}
+.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.qlist>li:last-child{border-bottom:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
+.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
+input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:860px){
+  .wrap{padding:18px 14px 60px}
+  .layout{flex-direction:column}
+  .toc{position:static;flex:none;width:100%;max-height:none}
+}
+@media print{.toolbar,.toc,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="layout">
+
+<!-- ================= 左側大綱 ================= -->
+<nav class="toc" id="toc">
+  <h4>大綱</h4>
+  <ol>
+    <li><a href="#s1">1. 核心觀念：三方法 → 一個 useEffect</a></li>
+    <li><a href="#s2">2. 三個生命週期方法各自是什麼</a></li>
+    <li><a href="#s3">3. useEffect 用依賴陣列取代三者</a></li>
+    <li><a href="#s4">4. class vs function 對照表</a></li>
+    <li><a href="#s5">5. 完整範例：Clock 計時器並排</a></li>
+    <li><a href="#s6">6. cleanup 清理函式的時序</a></li>
+    <li><a href="#s7">7. 容易踩的雷</a></li>
+    <li><a href="#s8">8. 自我測驗</a></li>
+    <li><a href="#s9">9. 資料來源</a></li>
+  </ol>
+</nav>
+
+<!-- ================= 內容 ================= -->
+<div class="content">
+
+<header class="hero">
+  <h1>class 生命週期方法 vs function component（useEffect）</h1>
+  <div class="pills"><span class="pill">#react</span><span class="pill">#hooks</span><span class="pill">#useEffect</span><span class="pill">#lifecycle</span><span class="pill">#class-component</span><span class="pill">#cleanup</span></div>
+  <div class="meta">
+    <span>更新於 2026-11-04</span>
+    <span>來源：React 官方文件</span>
+    <a href="https://react.dev/reference/react/useEffect" target="_blank" rel="noopener">react.dev / useEffect</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB">正解建議</span>
+  <span style="background:#ADCCFF">術語定義</span>
+  <span style="background:#FFB8EB">數據補充</span>
+  <span style="background:#D2B3FF">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<!-- ===== 1 ===== -->
+<article class="card">
+<h2 id="s1">1. 核心觀念：三個生命週期方法 → 一個 useEffect</h2>
+<p><mark class="hl hl-term" tabindex="0" role="button">生命週期方法（lifecycle methods）</mark>是 class component 專屬的機制：你在 class 裡定義特定名字的方法，React 會在元件的不同階段（掛載、更新、卸載）自動幫你呼叫它們。</p>
+<p>function component <mark class="hl hl-warn" tabindex="0" role="button">沒有這些方法</mark>，改用一個 <code>useEffect</code> Hook 把三件事統一起來。</p>
+<blockquote><p>一句話記住：<mark class="hl hl-core" tabindex="0" role="button">三個生命週期方法，被一個 <code>useEffect</code> 取代，靠「依賴陣列」決定什麼時候跑</mark>。</p></blockquote>
+<p>先認識三個名詞的中英全名，後面都會用到：</p>
+<ul>
+<li><b>mount（掛載）</b>：元件第一次被放到畫面上</li>
+<li><b>update（更新）</b>：元件因為 props 或 state 改變而重新 render</li>
+<li><b>unmount（卸載）</b>：元件從畫面上被移除</li>
+</ul>
+
+<h3>1-1. 真正的關係：不是「三合一」，而是「換一個思考框架」</h3>
+<p>最容易誤會的地方：useEffect <mark class="hl hl-warn" tabindex="0" role="button">不是把 componentDidMount ＋ DidUpdate ＋ WillUnmount 三個方法黏在一起</mark>。它是把<mark class="hl hl-core" tabindex="0" role="button">同一件事換一個角度描述</mark>。</p>
+<table>
+<thead><tr><th></th><th>生命週期方法（class）</th><th>useEffect（function）</th></tr></thead>
+<tbody>
+<tr><td>思考單位</td><td><mark class="hl hl-term" tabindex="0" role="button">元件的「時間點」</mark></td><td><mark class="hl hl-term" tabindex="0" role="button">跟某些值的「同步（synchronization）」</mark></td></tr>
+<tr><td>你對 React 說</td><td>「mount 時做 A、update 時做 B、unmount 時做 C」</td><td>「這個 effect 要跟 <code>[deps]</code> 保持同步，這是 setup、這是 cleanup」</td></tr>
+<tr><td>誰決定何時跑</td><td>你，綁死在三個時刻</td><td><mark class="hl hl-ok" tabindex="0" role="button">React，依 deps 自己推算</mark>何時 setup／cleanup</td></tr>
+<tr><td>可以跑幾次</td><td>各時刻各一次</td><td>一段 effect 可反覆 setup→cleanup→setup…很多次</td></tr>
+</tbody>
+</table>
+<p class="plain"><b>白話：</b>生命週期是你盯著「元件走到哪個階段」，在那個階段插程式碼；useEffect 是你盯著「某個值」，宣告「<mark class="hl hl-core" tabindex="0" role="button">只要這個值在，這個 effect 就同步存在；值變了或元件沒了就清掉</mark>」。剩下「什麼時候像 mount、什麼時候像 unmount」交給 React 算。</p>
+<blockquote><p>所以兩者可以互相「對照」（下面第 4 章），是因為 useEffect 的行為<mark class="hl hl-note" tabindex="0" role="button">涵蓋</mark>了那三個時刻；但 React 官方建議：寫 useEffect 時<mark class="hl hl-warn" tabindex="0" role="button">不要再用 mount／update／unmount 的腦袋想</mark>，改用「我的 effect 跟哪些值同步」來想，才不會漏寫依賴、寫出 bug。生命週期對照只是幫你從舊觀念接過來的橋。</p></blockquote>
+</article>
+
+<!-- ===== 2 ===== -->
+<article class="card">
+<h2 id="s2">2. 三個生命週期方法各自是什麼</h2>
+
+<h3>2-1. componentDidMount()：掛載後跑一次</h3>
+<p>時機：元件<mark class="hl hl-term" tabindex="0" role="button">第一次 render 到畫面上之後</mark>，跑一次。</p>
+<p>用途：抓後端資料、設定訂閱、啟動計時器、操作剛生成的 DOM。</p>
+<pre><code>componentDidMount() {
+  this.timerID = setInterval(() =&gt; this.tick(), 1000);
+}</code></pre>
+<p class="plain"><b>白話：</b>元件一出現在畫面上，就開一個每 1000 毫秒跳一次的計時器，並把它的編號存到 <code>this.timerID</code>，之後要關掉它時才找得到。</p>
+
+<h3>2-2. componentDidUpdate(prevProps, prevState)：每次更新後跑</h3>
+<p>時機：<mark class="hl hl-term" tabindex="0" role="button">每次重新 render 之後</mark>跑；<mark class="hl hl-warn" tabindex="0" role="button">第一次 mount 不會跑</mark>。</p>
+<p>它會收到兩個參數 <code>prevProps</code>、<code>prevState</code>（前一次的 props 與 state），讓你比對「到底哪個值變了」再決定要不要做事。</p>
+<pre><code>componentDidUpdate(prevProps) {
+  <span class="cmt">// 先比對：只有 userId 真的變了才重抓，否則會無限迴圈</span>
+  if (prevProps.userId !== this.props.userId) {
+    this.fetchData(this.props.userId);
+  }
+}</code></pre>
+<p class="plain"><b>白話：</b>拿「上一次的 userId」跟「這一次的 userId」比，<mark class="hl hl-ok" tabindex="0" role="button">只有真的不一樣才去重新抓資料</mark>。少了這個 if，每次 render 都 setState、又觸發 render，會變成無窮迴圈。</p>
+
+<h3>2-3. componentWillUnmount()：卸載前跑，負責清理</h3>
+<p>時機：元件<mark class="hl hl-term" tabindex="0" role="button">要從畫面上移除之前</mark>跑。</p>
+<p>用途：<mark class="hl hl-core" tabindex="0" role="button">清理（cleanup）</mark>——清掉計時器、取消訂閱、移除事件監聽，避免元件消失後資源還在背景跑造成<mark class="hl hl-warn" tabindex="0" role="button">記憶體洩漏（memory leak）</mark>。</p>
+<pre><code>componentWillUnmount() {
+  clearInterval(this.timerID);
+}</code></pre>
+<p class="plain"><b>白話：</b>元件要消失了，把 2-1 開的那個計時器用它的編號關掉，不然元件不見了、計時器還每秒跑，記憶體就被白白佔著。</p>
+</article>
+
+<!-- ===== 3 ===== -->
+<article class="card">
+<h2 id="s3">3. useEffect 如何用「依賴陣列」一次取代三者</h2>
+<p>function component 把上面三件事濃縮成一個 <code>useEffect</code>：</p>
+<pre><code>useEffect(() =&gt; {
+  <span class="cmt">// A：effect 本體 —— 每次 render 之後執行</span>
+  return () =&gt; {
+    <span class="cmt">// B：cleanup 清理函式 —— 下次 effect 重跑前、或 unmount 時執行</span>
+  };
+}, [deps]); <span class="cmt">// C：依賴陣列 —— 決定 effect 什麼時候重跑</span></code></pre>
+<p class="plain"><b>白話：</b>傳給 <code>useEffect</code> 的第一個參數是一個函式（effect 本體）；這個函式<mark class="hl hl-core" tabindex="0" role="button">可以 return 另一個函式，那個被 return 的函式就是清理函式</mark>；第二個參數 <code>[deps]</code> 這個陣列，控制整個 effect 多久重跑一次。</p>
+
+<h3>3-1. 依賴陣列的三種寫法（這是全部的關鍵）</h3>
+<table>
+<thead><tr><th>寫法</th><th>什麼時候跑 effect</th><th>對應 class</th></tr></thead>
+<tbody>
+<tr><td><code>useEffect(fn)</code>　<b>不給陣列</b></td><td>每次 render 後都跑</td><td>componentDidMount ＋ 每次 componentDidUpdate</td></tr>
+<tr><td><code>useEffect(fn, [])</code>　<b>空陣列</b></td><td><mark class="hl hl-core" tabindex="0" role="button">只在 mount 後跑一次</mark>；cleanup 在 unmount 跑</td><td>componentDidMount ＋ componentWillUnmount</td></tr>
+<tr><td><code>useEffect(fn, [a,b])</code>　<b>有依賴</b></td><td>mount 後跑一次，之後只要 a 或 b 變就再跑</td><td>≈ componentDidUpdate（但 mount 時也會跑）</td></tr>
+</tbody>
+</table>
+<p class="plain"><b>白話：</b>陣列是空的 <code>[]</code>，代表「我沒有任何會變的依賴」，所以 React 只在第一次跑一次就不再跑；陣列裡放 <code>[a,b]</code>，代表「a 或 b 變了我就要重跑」。</p>
+</article>
+
+<!-- ===== 4 ===== -->
+<article class="card">
+<h2 id="s4">4. class vs function 對照表</h2>
+<table>
+<thead><tr><th>class 生命週期</th><th>function（useEffect）寫法</th><th>重點</th></tr></thead>
+<tbody>
+<tr><td><code>componentDidMount</code></td><td><code>useEffect(() =&gt; {...}, [])</code></td><td>空陣列 ＝ 只 mount 跑一次</td></tr>
+<tr><td><code>componentDidUpdate</code></td><td><code>useEffect(() =&gt; {...}, [dep])</code></td><td>dep 變才跑（<mark class="hl hl-warn" tabindex="0" role="button">但 mount 時也會跑一次</mark>）</td></tr>
+<tr><td><code>componentWillUnmount</code></td><td><code>useEffect(() =&gt; { return () =&gt; {...} }, [])</code></td><td>return 的清理函式在 unmount 跑</td></tr>
+<tr><td><b>三者合一</b></td><td><code>useEffect(() =&gt; {...; return () =&gt; {...}}, [dep])</code></td><td><mark class="hl hl-ok" tabindex="0" role="button">一個 effect 同時管 setup ＋ teardown</mark></td></tr>
+</tbody>
+</table>
+</article>
+
+<!-- ===== 5 ===== -->
+<article class="card">
+<h2 id="s5">5. 完整範例：Clock 計時器（class vs function 並排）</h2>
+<p>這是最經典的對照，一眼看出差別：</p>
+<div class="split">
+<div>
+<h4>❌ class 寫法（setup 與 teardown 分兩處）</h4>
+<pre><code>class Clock extends React.Component {
+  state = { date: new Date() };
+
+  componentDidMount() {          <span class="cmt">// 掛載後</span>
+    this.timerID = setInterval(
+      () =&gt; this.tick(), 1000
+    );
+  }
+  componentWillUnmount() {       <span class="cmt">// 卸載前</span>
+    clearInterval(this.timerID);
+  }
+  tick() {
+    this.setState({ date: new Date() });
+  }
+  render() {
+    return &lt;h1&gt;{this.state.date
+      .toLocaleTimeString()}&lt;/h1&gt;;
+  }
+}</code></pre>
+</div>
+<div>
+<h4>✅ function 寫法（setup 與 teardown 同一處）</h4>
+<pre><code>function Clock() {
+  const [date, setDate] = useState(new Date());
+
+  useEffect(() =&gt; {
+    const timerID = setInterval(      <span class="cmt">// = didMount</span>
+      () =&gt; setDate(new Date()), 1000
+    );
+    return () =&gt; clearInterval(timerID); <span class="cmt">// = willUnmount</span>
+  }, []); <span class="cmt">// 空陣列：只在 mount 設定一次</span>
+
+  return &lt;h1&gt;{date.toLocaleTimeString()}&lt;/h1&gt;;
+}</code></pre>
+</div>
+</div>
+<p class="plain"><b>白話：</b>兩邊做的事一樣——掛載時開每秒跳的計時器、卸載時關掉它。差別在 class 把「開」寫在 <code>componentDidMount</code>、「關」寫在 <code>componentWillUnmount</code>，兩個方法離得很遠；function 把<mark class="hl hl-core" tabindex="0" role="button">「開」跟「關」寫在同一個 <code>useEffect</code> 裡</mark>（開在本體、關在 return 的函式），一組邏輯放在一起，比較不會忘記清理。</p>
+<blockquote><p>這就是 Hooks 設計的核心動機：<mark class="hl hl-ok" tabindex="0" role="button">把「同一個功能的 setup 與 teardown」放在一起</mark>，而不是依「生命週期時機」拆散到不同方法。</p></blockquote>
+</article>
+
+<!-- ===== 6 ===== -->
+<article class="card">
+<h2 id="s6">6. cleanup 清理函式的時序（最多人搞混）</h2>
+<p><mark class="hl hl-warn" tabindex="0" role="button">cleanup 不是只有 unmount 才跑</mark>。當依賴陣列裡有值時，每次 effect 要重跑之前，React 會<mark class="hl hl-core" tabindex="0" role="button">先跑上一次的 cleanup，再跑這次的 effect</mark>。</p>
+
+<div class="timeline">
+<div class="tl-row">
+  <div class="tl-stage">
+    <span class="tl-dot tl-mount">① Mount 掛載</span>
+    <div class="tl-body"><span class="run">effect 本體跑（訂閱 A）</span></div>
+  </div>
+  <div class="tl-arrow">→</div>
+  <div class="tl-stage">
+    <span class="tl-dot tl-update">② Update 依賴變</span>
+    <div class="tl-body">
+      <span class="clean">先跑上次 cleanup（退訂 A）</span>
+      <span class="run">再跑新 effect（訂閱 B）</span>
+    </div>
+  </div>
+  <div class="tl-arrow">→</div>
+  <div class="tl-stage">
+    <span class="tl-dot tl-unmount">③ Unmount 卸載</span>
+    <div class="tl-body"><span class="clean">最後跑 cleanup（退訂 B）</span></div>
+  </div>
+</div>
+</div>
+
+<pre><code>useEffect(() =&gt; {
+  const sub = api.subscribe(userId);   <span class="cmt">// 訂閱這個 userId</span>
+  return () =&gt; sub.unsubscribe();       <span class="cmt">// 換 userId 或卸載前，先退訂舊的</span>
+}, [userId]);</code></pre>
+<p class="plain"><b>白話：</b>userId 從 A 換成 B 時，React 會<mark class="hl hl-core" tabindex="0" role="button">先退訂 A（跑 cleanup），再訂閱 B（跑新的 effect）</mark>，所以不會兩個訂閱疊在一起。cleanup 的任務就是「把上一次 effect 留下的東西收乾淨」，因此它在「下次 effect 開始前」和「元件消失時」都會跑。</p>
+</article>
+
+<!-- ===== 7 ===== -->
+<article class="card">
+<h2 id="s7">7. 容易踩的雷</h2>
+
+<h3>7-1. 有依賴的 useEffect，mount 時也會跑</h3>
+<p><code>componentDidUpdate</code> 第一次 mount 不跑，但 <code>useEffect(fn, [dep])</code> 在 <mark class="hl hl-warn" tabindex="0" role="button">mount 時也會跑一次</mark>。要完全模擬「只有 update 才跑、mount 不跑」，得自己用 <code>useRef</code> 擋掉第一次：</p>
+<pre><code>const first = useRef(true);
+useEffect(() =&gt; {
+  if (first.current) { first.current = false; return; } <span class="cmt">// 第一次略過</span>
+  doSomethingOnUpdate();
+}, [dep]);</code></pre>
+<p class="plain"><b>白話：</b>用一個 <code>useRef</code> 記「是不是第一次」，第一次就直接 return 不做事、把旗標關掉；之後才真的執行。這樣才等於「只在 update 跑」。</p>
+
+<h3>7-2. 執行時機：useEffect 在 paint 之後（非同步）</h3>
+<p>這是跟 class 一個真實但細微的差別：</p>
+<ul>
+<li><code>componentDidMount</code> / <code>componentDidUpdate</code>：在 DOM 更新後、瀏覽器<mark class="hl hl-term" tabindex="0" role="button">繪製（paint）前「同步」</mark>跑</li>
+<li><code>useEffect</code>：在 paint <mark class="hl hl-warn" tabindex="0" role="button">「之後」才跑（非同步）</mark>，所以如果你在 effect 裡改版面，使用者可能會看到<mark class="hl hl-warn" tabindex="0" role="button">閃一下</mark></li>
+</ul>
+<p>要在 paint 前同步做（量 DOM 尺寸、避免閃爍），用 <mark class="hl hl-ok" tabindex="0" role="button"><code>useLayoutEffect</code></mark>，它才對應 class 的同步時機。</p>
+<p class="plain"><b>白話：</b>大部分情況用 <code>useEffect</code> 就好；只有「必須在使用者看到畫面之前就把 DOM 量好或改好」的少數狀況，才換成 <code>useLayoutEffect</code>。</p>
+
+<h3>7-3. 開發環境下 effect 會跑兩次（React 18 StrictMode）</h3>
+<p>React 18 的 <code>&lt;StrictMode&gt;</code> 在<mark class="hl hl-note" tabindex="0" role="button">開發環境（production 不會）</mark>會故意掛載 → 卸載 → 再掛載一次，讓 effect 跑兩次（setup → cleanup → setup）。<mark class="hl hl-ok" tabindex="0" role="button">這是刻意的，用來幫你抓出「沒寫 cleanup」的 bug</mark>——如果你的 effect 有正確清理，跑兩次也不會出問題。</p>
+</article>
+
+<!-- ===== 8 ===== -->
+<article class="card quiz">
+<h2 id="s8">8. 自我測驗</h2>
+<ol class="qlist">
+
+<li>
+<p class="qq">(填空) function component 裡，<code>componentDidMount</code> 對應的寫法是 <code>useEffect(fn, </code><input class="blank" data-a="[]">​<code>)</code>（填依賴陣列）。</p>
+<div class="btns"><button class="chk">檢查</button><button class="rev">看答案</button></div>
+<div class="fb">空陣列 <code>[]</code> 代表沒有會變的依賴，所以 effect 只在 mount 後跑一次，等同 componentDidMount。</div>
+</li>
+
+<li>
+<p class="qq">(是非) cleanup 清理函式只有在元件 unmount 時才會執行。</p>
+<div class="btns"><button class="tf" data-v="true" data-ok="false">O 正確</button><button class="tf" data-v="false" data-ok="true">X 錯誤</button></div>
+<div class="fb" data-ans="X">當依賴陣列有值時，每次 effect 重跑之前也會先跑上一次的 cleanup，不是只有 unmount 才跑。</div>
+</li>
+
+<li>
+<p class="qq">(填空) 要清掉 <code>setInterval</code> 開的計時器，cleanup 裡要呼叫 <input class="blank" data-a="clearInterval">​<code>(timerID)</code>。</p>
+<div class="btns"><button class="chk">檢查</button><button class="rev">看答案</button></div>
+<div class="fb">用 <code>clearInterval(timerID)</code>，timerID 是當初 <code>setInterval</code> 回傳的編號。</div>
+</li>
+
+<li>
+<p class="qq">(是非) <code>useEffect(fn, [userId])</code> 在元件第一次 mount 時不會執行，只有 userId 變了才執行。</p>
+<div class="btns"><button class="tf" data-v="true" data-ok="false">O 正確</button><button class="tf" data-v="false" data-ok="true">X 錯誤</button></div>
+<div class="fb" data-ans="X">有依賴的 useEffect 在 mount 時也會跑一次，之後才在 userId 改變時重跑。這正是它跟 componentDidUpdate 的差別。</div>
+</li>
+
+<li>
+<p class="qq">(申論) 用 Clock 計時器的例子，說明為什麼「把 setup 和 teardown 寫在同一個 useEffect」比 class 拆成兩個方法好。</p>
+<textarea class="essay" rows="3" placeholder="寫寫看…"></textarea>
+<div class="btns"><button class="rev2">顯示參考答案</button></div>
+<div class="fb ref">class 把「開計時器」放 componentDidMount、「關計時器」放 componentWillUnmount，兩段相關邏輯分散在相隔很遠的方法裡，容易改了一邊忘了另一邊、漏掉清理造成 memory leak。useEffect 把開（本體）跟關（return 的 cleanup）寫在一起，一組功能一個 effect，新增或刪除功能時 setup 與 teardown 一起動，較不易出錯。</div>
+</li>
+
+<li>
+<p class="qq">(申論) <code>useEffect</code> 與 <code>useLayoutEffect</code> 的執行時機差在哪？什麼時候該用後者？</p>
+<textarea class="essay" rows="3" placeholder="寫寫看…"></textarea>
+<div class="btns"><button class="rev2">顯示參考答案</button></div>
+<div class="fb ref">useEffect 在瀏覽器 paint 之後才非同步執行；useLayoutEffect 在 DOM 更新後、paint 之前同步執行（對應 class 的 componentDidMount/Update 時機）。當你必須在使用者看到畫面之前先量好或改好 DOM（避免畫面閃動）時，才用 useLayoutEffect，其餘情況用 useEffect。</div>
+</li>
+
+</ol>
+</article>
+
+<!-- ===== 9 ===== -->
+<article class="card">
+<h2 id="s9">9. 資料來源（含查證時間）</h2>
+<table>
+<thead><tr><th>主題</th><th>連結</th><th>查證時間</th></tr></thead>
+<tbody>
+<tr><td>React 官方：useEffect 參考（依賴陣列、cleanup）</td><td><a href="https://react.dev/reference/react/useEffect" target="_blank" rel="noopener">react.dev/reference/react/useEffect</a></td><td>2026-11-04</td></tr>
+<tr><td>React 官方：Synchronizing with Effects（effect 與 cleanup 時序）</td><td><a href="https://react.dev/learn/synchronizing-with-effects" target="_blank" rel="noopener">react.dev/learn/synchronizing-with-effects</a></td><td>2026-11-04</td></tr>
+<tr><td>React 官方：Lifecycle of Reactive Effects（依賴變動時的重跑）</td><td><a href="https://react.dev/learn/lifecycle-of-reactive-effects" target="_blank" rel="noopener">react.dev/learn/lifecycle-of-reactive-effects</a></td><td>2026-11-04</td></tr>
+<tr><td>React 官方：Component（legacy class API，componentDidMount 等）</td><td><a href="https://react.dev/reference/react/Component" target="_blank" rel="noopener">react.dev/reference/react/Component</a></td><td>2026-11-04</td></tr>
+<tr><td>React 官方：useLayoutEffect（paint 前同步時機）</td><td><a href="https://react.dev/reference/react/useLayoutEffect" target="_blank" rel="noopener">react.dev/reference/react/useLayoutEffect</a></td><td>2026-11-04</td></tr>
+</tbody>
+</table>
+<blockquote><p>練習題補充：React 生命週期／Hooks 偏框架概念，不屬於 LeetCode／NeetCode 的演算法題範圍。想做互動練習題，前端專門的題庫在 <a href="https://www.greatfrontend.com/" target="_blank" rel="noopener">GreatFrontEnd</a> 與 <a href="https://bigfrontend.dev/" target="_blank" rel="noopener">BigFrontEnd.dev</a>（兩者都有 React 實作題）。</p></blockquote>
+<p>關聯筆記：<span class="wikilink">[[useRef的current存放位置與useSyncExternalStore外部Store]]</span>　<span class="wikilink">[[debounce-與-React計時器]]</span></p>
+</article>
+
+<footer>React 生命週期 vs useEffect · 更新於 2026-11-04</footer>
+
+</div><!-- /content -->
+</div><!-- /layout -->
+</div><!-- /wrap -->
+
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.setAttribute('tabindex','0');
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+
+  // 大綱 scroll-spy：捲動時標記目前章節
+  var links=[].slice.call(document.querySelectorAll('#toc a'));
+  var map={};
+  links.forEach(function(a){ var id=a.getAttribute('href').slice(1); map[id]=a; });
+  var heads=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  var spy=function(){
+    var pos=window.scrollY+120, cur=heads[0];
+    heads.forEach(function(h){ if(h.offsetTop<=pos) cur=h; });
+    links.forEach(function(a){a.classList.remove('active');});
+    if(cur&&map[cur.id]) map[cur.id].classList.add('active');
+  };
+  window.addEventListener('scroll',spy,{passive:true});
+  spy();
+})();
+</script>
+</body>
+</html>
