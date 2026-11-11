@@ -170,6 +170,60 @@ describe('buildWikilinkIndex', () => {
     expect(listShadowedTitles(new Map())).toEqual([]);
   });
 
+  // R26：檔名鍵只有一篇 md 認領時，md 贏過任何 html（不同資料夾、複本都算），html 不是候選；
+  it('R26：md 贏過其他資料夾的同名 html，也贏過同名 html 複本', () => {
+    // 一篇 md、另一個資料夾的 html、再加同資料夾的 html 配對與 Claude outputs 的 html 複本；
+    const index = indexOf(note('a/X.md'), note('b/X.html'), note('a/Y.md'), note('a/Y.html'), note('Claude outputs/Y.html'));
+    // X 沒有歧義，公開 Map 指向 md；
+    expect(index.get('X')).toBe('/a/X');
+    // Y 同樣指向 md（配對與複本都不是候選）；
+    expect(index.get('Y')).toBe('/a/Y');
+    // 沒有任何歧義鍵；
+    expect(listAmbiguousKeys(index)).toEqual([]);
+    // 解析結果與回報也一致；
+    expect(resolveWikilink('X', index)?.href).toBe('/a/X');
+    // 複本不造成歧義；
+    expect(findAmbiguity('Y', index)).toBeNull();
+  });
+
+  // R26：兩篇以上 md 認領同一鍵仍歧義，但候選只列 md；
+  it('R26：兩篇 md 加一篇 html → 歧義，候選只有兩篇 md', () => {
+    // 兩篇 md 與一篇 html；
+    const index = indexOf(note('a/Z.md'), note('b/Z.md'), note('c/Z.html'));
+    // 歧義鍵的候選只有 md；
+    expect(listAmbiguousKeys(index)).toEqual([{ key: 'Z', candidates: ['a/Z.md', 'b/Z.md'] }]);
+    // findAmbiguity 同樣只回 md；
+    expect(findAmbiguity('Z', index)).toEqual(['a/Z.md', 'b/Z.md']);
+    // 公開 Map 不含歧義鍵，複本也視為找不到（fail closed）；
+    expect(index.has('Z')).toBe(false);
+    // 複本找不到；
+    expect(resolveWikilink('Z', new Map(index))).toBeNull();
+  });
+
+  // R26：只有 html 認領的鍵照舊：一篇就解析，多篇歧義；
+  it('R26：只有 html 認領的鍵：一篇可解析、多篇歧義', () => {
+    // 兩篇 html 同名、一篇 html 獨有；
+    const index = indexOf(note('a/H.html'), note('b/H.html'), note('c/G.html'));
+    // 獨有的可解析；
+    expect(index.get('G')).toBe('/c/G');
+    // 同名的歧義，兩篇 html 都是候選；
+    expect(listAmbiguousKeys(index)).toEqual([{ key: 'H', candidates: ['a/H.html', 'b/H.html'] }]);
+  });
+
+  // R26：明確副檔名與資料夾仍優先；
+  it('R26：[[x.html]] 仍指向 html，[[x.md]] 指向 md，資料夾先消歧', () => {
+    // 一篇 md 與另一資料夾的同名 html；
+    const index = indexOf(note('a/X.md'), note('b/X.html'));
+    // 指名 html；
+    expect(resolveWikilink('X.html', index)?.href).toBe('/b/X');
+    // 指名 md；
+    expect(resolveWikilink('X.md', index)?.href).toBe('/a/X');
+    // 資料夾指到 html 所在處：資料夾先消歧，所以連到 html；
+    expect(resolveWikilink('b/X', index)?.href).toBe('/b/X');
+    // 沒給資料夾：md 贏；
+    expect(resolveWikilink('X', index)?.href).toBe('/a/X');
+  });
+
   // R3：同資料夾同名的 md 與 html 是配對，不算衝突，偏好 md；
   it('同資料夾同名的 md 與 html 不算衝突，索引偏好 md', () => {
     // 先 html 後 md，順序不影響結果；

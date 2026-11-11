@@ -54,6 +54,14 @@ function preferMarkdown(notes: NoteEntry[]): NoteEntry[] {
   });
 }
 
+// R26：一個鍵的「有效候選」：只要有任何 md 認領這個鍵，html 就一律不是候選（不同資料夾、複本都算）；沒有 md 時才看 html；
+function effectiveCandidates(notes: NoteEntry[]): NoteEntry[] {
+  // 取出 md；
+  const mds = notes.filter((n) => n.kind === 'md');
+  // 有 md 就只用 md，否則維持原清單（只有 html 認領的鍵照舊）；
+  return mds.length > 0 ? mds : notes;
+}
+
 // 依鍵把筆記分組；keyOf 決定每篇筆記屬於哪個鍵（可能沒有鍵，回傳 undefined 就略過）；
 function groupBy(notes: NoteEntry[], keyOf: (note: NoteEntry) => string | undefined): Map<string, NoteEntry[]> {
   // 累積結果的 Map；
@@ -95,10 +103,12 @@ export function buildWikilinkIndex(notes: NoteEntry[]): Map<string, string> {
     const sorted = preferMarkdown(list);
     // 旁路表保留完整清單供種類、資料夾與歧義判斷；
     registry.set(key, sorted);
-    // 不同邏輯筆記超過一篇就是歧義：不寫入公開 Map，複製或序列化後的 Map 看不到它，解析時會當成找不到；
-    if (new Set(sorted.map(logicalId)).size > 1) return;
-    // 唯一（或 md／html 配對）才寫入網址，取第一篇（偏好 md）；
-    index.set(key, urlOf(sorted[0]));
+    // 以有效候選（R26：有 md 時只看 md）判斷；不同邏輯筆記超過一篇就是歧義：不寫入公開 Map，複製或序列化後的 Map 看不到它，解析時會當成找不到；
+    const effective = effectiveCandidates(sorted);
+    // 歧義就不寫入；
+    if (new Set(effective.map(logicalId)).size > 1) return;
+    // 唯一才寫入網址，取第一篇（排序後 md 在前）；
+    index.set(key, urlOf(effective[0]));
   };
   // 先放檔名鍵；
   for (const [key, list] of byName) register(key, list);
@@ -138,8 +148,10 @@ export function listAmbiguousKeys(index: Map<string, string>): { key: string; ca
   if (!registry) return out;
   // 逐鍵檢查；
   for (const [key, list] of registry) {
-    // 不同邏輯筆記超過一篇才算歧義（md 與 html 同 slug 的配對不算）；
-    if (new Set(list.map(logicalId)).size > 1) out.push({ key, candidates: list.map((n) => n.relPath) });
+    // 以有效候選（R26：有 md 時只看 md）計算；
+    const effective = effectiveCandidates(list);
+    // 不同邏輯筆記超過一篇才算歧義（md 與 html 同 slug 的配對不算）；候選只列有效候選；
+    if (new Set(effective.map(logicalId)).size > 1) out.push({ key, candidates: effective.map((n) => n.relPath) });
   }
   // 回傳；
   return out;
@@ -220,6 +232,8 @@ function lookup(index: Map<string, string>, key: string, kind: 'md' | 'html' | u
     // 有符合的才縮小範圍；
     if (matched.length > 0) candidates = matched;
   }
+  // 資料夾消歧之後才套用 R26：有 md 時 html 不是候選；指名 .html 時清單裡本來就沒有 md，所以不受影響；
+  candidates = effectiveCandidates(candidates);
   // 沒有候選（例如指定種類後空了）；
   if (candidates.length === 0) return null;
   // 篩完仍有不同「邏輯筆記」超過一篇：歧義，回報所有剩下的候選 relPath；

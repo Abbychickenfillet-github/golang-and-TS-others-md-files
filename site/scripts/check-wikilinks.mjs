@@ -103,10 +103,10 @@ const top = Array.from(missing).sort((a, b) => b[1] - a[1]).slice(0, 10);
 console.log(`top unresolved targets (${missing.size} distinct):`);
 // 逐行印出；
 for (const [target, count] of top) console.log(`  ${count}\t[[${target}]]`);
-// 取次數最多的前 10 個歧義目標；
-const topAmbiguous = Array.from(ambiguousTargets).sort((a, b) => b[1].count - a[1].count).slice(0, 10);
+// 全部歧義目標依次數由大到小排序（R26 之後數量不多，Abby 需要逐一決定，所以不截斷）；候選已排除 html（有 md 認領的鍵）；
+const topAmbiguous = Array.from(ambiguousTargets).sort((a, b) => b[1].count - a[1].count);
 // 印出標題；
-console.log(`top ambiguous targets (${ambiguousTargets.size} distinct):`);
+console.log(`ambiguous targets (${ambiguousTargets.size} distinct):`);
 // 逐行印出目標、次數與候選 relPath；
 for (const [target, { count, candidates }] of topAmbiguous) console.log(`  ${count}\t[[${target}]]\n\t  candidates: ${candidates.join(' ; ')}`);
 // 有任何歧義連結時以非 0 結束碼結束（Task 11 的建置會因此失敗）；
