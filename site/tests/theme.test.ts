@@ -292,3 +292,22 @@ describe('note-theme.css 測驗列', () => {
     }
   });
 });
+
+// 第五組：.sr-only（註腳區塊的隱藏標籤用它）；
+describe('note-theme.css .sr-only', () => {
+  // 案例：視覺上隱藏但仍留在無障礙樹裡，不能用 display:none 或 visibility:hidden（那會連螢幕閱讀器也讀不到）；
+  it('.sr-only 用 clip 與 1px 寬高把文字藏在畫面外，而不是 display:none', () => {
+    // 取所有 .sr-only 規則；
+    const rules = rulesWith('.sr-only');
+    // 至少要有一條；
+    expect(rules.length).toBeGreaterThan(0);
+    // 絕對定位讓它不佔版面；
+    expect(rules.some((rule) => declValue(rule, 'position') === 'absolute')).toBe(true);
+    // 寬高 1px；
+    expect(rules.some((rule) => declValue(rule, 'width') === '1px' && declValue(rule, 'height') === '1px')).toBe(true);
+    // 裁切成空；
+    expect(rules.some((rule) => declValue(rule, 'clip') === 'rect(0,0,0,0)')).toBe(true);
+    // 不可用 display:none；
+    for (const rule of rules) expect(declValue(rule, 'display')).toBeUndefined();
+  });
+});

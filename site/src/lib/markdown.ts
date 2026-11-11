@@ -64,7 +64,9 @@ export async function renderMarkdown(source: string, ctx: RenderContext): Promis
     // `> [!note] 標題` 轉成 callout 結構；放在 wikilink 與 == 之後，標題與內文裡的連結、螢光筆已經是節點；
     .use(remarkCallout)
     // 轉成 hast，allowDangerousHtml 讓 Markdown 裡的原始 HTML 以 raw 節點保留下來（交給 rehype-raw 解析）；
-    .use(remarkRehype, { allowDangerousHtml: true })
+    // footnoteLabelTagName: 'p' 把註腳區塊的隱藏標籤從預設的 <h2> 改成 <p>（仍帶 sr-only 類別與 id="footnote-label"，aria-describedby 還指得到它），
+    // 否則 notes.js 會把它放進大綱，並讓只有一個真標題的短文湊滿「至少 2 個標題」的門檻；footnoteLabel 改成中文；
+    .use(remarkRehype, { allowDangerousHtml: true, footnoteLabelTagName: 'p', footnoteLabel: '註腳' })
     // 解析 raw 節點成真正的元素；
     .use(rehypeRaw)
     // 替 h1 到 h6 加 id（放在 rehype-raw 之後，手寫 HTML 標題也一併處理）；

@@ -542,14 +542,30 @@ describe('GFM', () => {
     expect(out).toContain('註腳內容');
   });
 
-  // 有註腳時註腳標題（已有 id）不會被改掉，也不影響其他標題；
-  it('註腳標題的 id 不被覆蓋', async () => {
+  // 有註腳時註腳標籤（已有 id）不會被改掉，也不影響其他標題；
+  it('註腳標籤的 id 不被覆蓋', async () => {
     // 一個標題加一個註腳；
     const out = await html('## 標題\n\n字[^a]\n\n[^a]: 內容\n');
-    // 註腳標題保留 remark-rehype 給的 id；
+    // 註腳標籤保留 remark-rehype 給的 id（內文裡註腳參照的 aria-describedby 指向它）；
     expect(out).toContain('id="footnote-label"');
     // 一般標題照常；
     expect(out).toContain('<h2 id="標題">標題</h2>');
+  });
+
+  // 註腳區塊的隱藏標籤不可是 h1–h6：notes.js 會把 h2／h3 放進大綱，也會把它算進「至少 2 個標題」的門檻；
+  it('註腳標籤不是標題（沒有 h2#footnote-label），註腳區塊仍保留且仍可被 aria-describedby 指到', async () => {
+    // 一個標題加一個註腳；
+    const out = await html('## 標題\n\n字[^a]\n\n[^a]: 內容\n');
+    // 不是 h1 到 h6 的任何一個標題標籤；
+    expect(out).not.toMatch(/<h[1-6][^>]*footnote-label/);
+    // 全篇只有一個 h2（就是「標題」），所以大綱門檻不會被註腳標籤湊滿；
+    expect(out.match(/<h[1-6][\s>]/g)).toHaveLength(1);
+    // 註腳區塊還在，裡面有註腳內容；
+    expect(out).toContain('<section data-footnotes="" class="footnotes">');
+    // 標籤改成 p，仍帶 sr-only 類別（螢幕閱讀器可讀、畫面上看不到）與原本的 id；
+    expect(out).toMatch(/<p class="sr-only" id="footnote-label">[^<]+<\/p>/);
+    // 註腳參照仍指向這個 id；
+    expect(out).toContain('aria-describedby="footnote-label"');
   });
 });
 
