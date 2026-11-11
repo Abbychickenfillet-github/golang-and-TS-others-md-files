@@ -10,6 +10,8 @@ import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import * as path from 'node:path';
 // 匯入 fileURLToPath，把 file:// 網址轉成路徑；
 import { fileURLToPath } from 'node:url';
+// 匯入建置後驗證的連結檢查（R33 的測試用它確認改寫後的連結在 out/ 找得到檔案）；
+import { checkLinks } from '../src/lib/verify/check-links';
 // 匯入 createRequire：用 CommonJS 的 require 載入 jsdom（專案沒有 @types/jsdom，靜態 import 會讓 next build 的型別檢查失敗）；
 import { createRequire } from 'node:module';
 
@@ -263,6 +265,26 @@ describe('npm run build（tests/site-vault）', () => {
     expect(readOut('特殊/C# 筆記.html')).toContain('<title>C# 筆記｜Abby 的筆記</title>');
     // html 筆記取 <title>；
     expect(readOut('前端/日期 物件-互動版.html')).toContain('<title>日期物件互動版｜Abby 的筆記</title>');
+  });
+
+  // R33：指到筆記原始檔的連結改寫成頁面；
+  it('md 的 [x](../簡報.md) 與 html 的 <a href="日期%20物件.md"> 改寫成 .html，checkLinks 找得到目標，摘要列出改寫數', async () => {
+    // md 頁；
+    const deck = readOut('簡報/deck.html');
+    // 改寫後的連結（相對前綴保留，中文由 Markdown 輸出時編碼）；
+    expect(deck).toContain('<a href="../%E7%B0%A1%E5%A0%B1.html">總覽</a>');
+    // html 頁；
+    const page = readOut('前端/日期 物件-互動版.html');
+    // 改寫後的連結（原本的 %20 寫法保留）；
+    expect(page).toContain('<a href="日期%20物件.html">md 版</a>');
+    // 用建置後驗證的連結檢查掃整個輸出；
+    const result = await checkLinks(outDir);
+    // 兩個改寫後的連結都不在壞連結清單裡；
+    expect(result.broken.filter((b) => b.href === '../%E7%B0%A1%E5%A0%B1.html' || b.href === '日期%20物件.html')).toEqual([]);
+    // 也沒有任何以 .md 結尾的壞連結（改寫前它們會 404）；
+    expect(result.broken.filter((b) => /\.md([?#]|$)/.test(b.href))).toEqual([]);
+    // 摘要列出改寫數；
+    expect(build.stdout).toContain('改寫成頁面網址的連結：2 個');
   });
 
   // 本地附件（B）：md 的圖片網址與 out/ 的檔案位置一致；
