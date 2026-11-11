@@ -105,6 +105,18 @@ describe('renderMarkdown 邊界輸入', () => {
     expect(out.html.match(/<hr>/g)).toHaveLength(2);
   });
 
+  // R22：兩條 --- 夾著 Markdown 標題時不是前言，標題與內文都要渲染出來；
+  it('--- 夾 # 標題 --- 時標題與內文都保留', async () => {
+    // 分隔線、標題、分隔線、內文；
+    const out = await renderMarkdown('---\n\n# 標題\n\n---\n\n內文\n', makeCtx());
+    // 前言為空；
+    expect(out.frontmatter).toEqual({});
+    // 標題有渲染；
+    expect(out.html).toContain('<h1 id="標題">標題</h1>');
+    // 內文有渲染；
+    expect(out.html).toContain('<p>內文</p>');
+  });
+
   // 內文中間的 --- 是分隔線；
   it('內文中間的 --- 是 hr', async () => {
     // 前言之後再有一條分隔線；
@@ -762,6 +774,18 @@ describe('標題 id', () => {
     expect(out).toContain('<h2 id="foo">別的字</h2>');
     // 後面的 foo 要避開 foo；
     expect(out).toContain('<h2 id="foo-2">foo</h2>');
+  });
+
+  // 標題元素自己帶被排除的 class：執行期 closest 也會比對元素自身，所以同樣略過、不占用；
+  it('標題自己帶 auto-toc 或 tipcard 時不給 id', async () => {
+    // 兩種自帶 class 的標題，後面一個正常同名標題；
+    const out = await html('<h2 class="auto-toc">Docker</h2>\n\n<h3 class="tipcard">Docker</h3>\n\n## Docker\n');
+    // 自帶 class 的沒有 id；
+    expect(out).toContain('<h2 class="auto-toc">Docker</h2>');
+    // 自帶 class 的沒有 id；
+    expect(out).toContain('<h3 class="tipcard">Docker</h3>');
+    // 正常標題拿到 docker；
+    expect(out).toContain('<h2 id="docker">Docker</h2>');
   });
 
   // 手寫 id 出現在後面：先編號的 Markdown 標題照執行期順序處理（執行期同樣是文件順序、遇到才占用）；

@@ -37,7 +37,8 @@ function collectHeadings(node: Nodes, skipped: boolean, out: Heading[]): void {
     // 只看元素；
     if (child.type !== 'element') continue;
     // 這個元素是標題：記錄；正規表示式 /^h[1-6]$/ 要求標籤名剛好是 h 加一個 1 到 6 的數字；
-    if (/^h[1-6]$/.test(child.tagName)) out.push({ node: child, skipped });
+    // 執行期的 closest() 也會比對元素自身，所以標題自己帶 auto-toc 或 tipcard 也要略過；
+    if (/^h[1-6]$/.test(child.tagName)) out.push({ node: child, skipped: skipped || isExcludedContainer(child) });
     // 往下走：自己若是被排除的容器，底下全部標為 skipped；
     collectHeadings(child, skipped || isExcludedContainer(child), out);
   }

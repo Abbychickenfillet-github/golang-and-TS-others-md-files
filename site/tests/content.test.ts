@@ -366,11 +366,21 @@ describe('listNotes 的前言解析（與渲染端共用）', () => {
   // 案例：前言 YAML 壞掉：frontmatter 為 {}，前言區塊從內文拿掉，標題取剩下內文的第一個 h1；
   it('壞掉的 YAML：frontmatter 為 {}，標題取前言之後的第一個 h1', async () => {
     // 壞前言後接 h1；
-    const entry = await scan('broken.md', '---\ntitle: [壞掉\n# 前言裡的假 h1\n---\n# 真正的 h1\n');
+    const entry = await scan('broken.md', '---\ntitle: [壞掉\ntags: [a\n---\n# 真正的 h1\n');
     // 前言為空；
     expect(entry.frontmatter).toEqual({});
-    // 前言區塊被拿掉，所以前言裡那行不會被當成 h1；
+    // 前言區塊被拿掉，標題取剩下內文的 h1；
     expect(entry.title).toBe('真正的 h1');
+  });
+
+  // 案例（R22）：兩條 --- 夾 Markdown 標題不是前言，標題取第一個 h1（夾在中間的那個），內文不被吃掉；
+  it('--- 夾 # 標題 --- 時標題取該 h1', async () => {
+    // 分隔線夾標題；
+    const entry = await scan('hr-heading.md', '---\n\n# 夾在中間的 h1\n\n---\n\n內文\n');
+    // 標題是夾在中間的 h1，不是檔名；
+    expect(entry.title).toBe('夾在中間的 h1');
+    // 沒有前言；
+    expect(entry.frontmatter).toEqual({});
   });
 
   // 案例：---js 區塊不是前言：程式碼不會被執行，frontmatter 為 {}；
