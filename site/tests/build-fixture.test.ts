@@ -37,13 +37,24 @@ function readOut(relPath: string): string {
   return readFileSync(path.join(outDir, relPath), 'utf8');
 }
 
+// 讀建置報告裡的頁面清單（slug 用 / 接起來）；每次呼叫都重讀，因為 STRICT 測試會覆寫報告檔；
+function pageList(): string[] {
+  // 讀 JSON 並把每個 slug 陣列接成字串；
+  return (JSON.parse(readFileSync(path.join(siteDir, '.build-report.json'), 'utf8')).pages as string[][]).map((s) => s.join('/'));
+}
+
 // 模擬 GitHub Pages 對沒有副檔名的網址的處理：解碼路徑後找「路徑.html」；回傳是否找得到檔案；
-// 不接受同名資料夾（Next 會為每頁輸出一個放 RSC 資料的同名資料夾，那不是頁面）；
+// GitHub Pages 遇到同名資料夾時行為未查證（可能轉址到 X/ 而 404），所以：同名資料夾 X/ 存在時，
+// 只有在 X/ 底下確實有真頁面（合理的並存，例如 簡報.md 與 簡報/deck.md）才算可開，Next 的 RSC 殘留資料夾一律不算；
 function servable(href: string): boolean {
-  // 去掉錨點與查詢字串，再解碼百分比編碼；
-  const decoded = decodeURIComponent(href.replace(/[?#].*$/, ''));
-  // 找 .html 檔；
-  return existsSync(path.join(outDir, `${decoded}.html`));
+  // 去掉錨點與查詢字串，再解碼百分比編碼，並去掉開頭的 /；
+  const decoded = decodeURIComponent(href.replace(/[?#].*$/, '')).replace(/^\//, '');
+  // 沒有 .html 檔就不可開；
+  if (!existsSync(path.join(outDir, `${decoded}.html`))) return false;
+  // 沒有同名資料夾就可開；
+  if (!existsSync(path.join(outDir, decoded))) return true;
+  // 有同名資料夾：必須有頁面在它底下；startsWith 比對前綴；
+  return pageList().some((p) => p.startsWith(`${decoded}/`));
 }
 
 // 整組只建置一次（真正的 next build 很慢）；
@@ -88,6 +99,43 @@ describe('npm run build（tests/site-vault）', () => {
     }
     // 被 Next 跳脫的 %23 檔名已改回原名，不留殘骸；
     expect(readdirSync(path.join(outDir, '特殊')).some((n) => n.includes('%23'))).toBe(false);
+  });
+
+  // R29：根目錄的 index 不發布；
+  it('根目錄的 index.html 不發布：out/index.html 是網站首頁，沒有 out/index/，摘要列出 reserved', () => {
+    // 首頁不是舊的根目錄索引；
+    expect(readOut('index.html')).not.toContain('OLD-ROOT-INDEX');
+    // 首頁是網站首頁；
+    expect(readOut('index.html')).toContain('<h1>Abby 的筆記</h1>');
+    // 沒有 index 資料夾；
+    expect(existsSync(path.join(outDir, 'index'))).toBe(false);
+    // 摘要列出；
+    expect(build.stdout).toContain('網址是保留名稱而不發布的筆記：1 個');
+  });
+
+  // R30：RSC 產物被清掉；
+  it('建置後沒有 RSC 產物（.txt、__next.*），_next/ 與頁面都還在，合理並存的資料夾被列出', () => {
+    // 列出 _next 以外的所有檔案；recursive 列出整棵樹；
+    const files = readdirSync(outDir, { recursive: true, withFileTypes: true })
+      .filter((e) => e.isFile())
+      .map((e) => path.relative(outDir, path.join(e.parentPath, e.name)).replace(/\\/g, '/'))
+      .filter((p) => !p.startsWith('_next/'));
+    // 沒有 .txt；
+    expect(files.filter((p) => p.endsWith('.txt'))).toEqual([]);
+    // 沒有 __next. 開頭的檔案；
+    expect(files.filter((p) => p.split('/').at(-1)?.startsWith('__next.'))).toEqual([]);
+    // _next 靜態資源還在；
+    expect(existsSync(path.join(outDir, '_next', 'static'))).toBe(true);
+    // 頁面還在、讀得到；
+    expect(readOut('簡報/deck.html')).toContain('snap-deck');
+    // 頁面的 RSC 同名資料夾已刪；
+    expect(existsSync(path.join(outDir, '前端', '日期 物件'))).toBe(false);
+    // 合理並存：簡報.html 與 簡報/（裡面有 deck.html）；兩個網址都可開；
+    expect(servable('/%E7%B0%A1%E5%A0%B1')).toBe(true);
+    // 同上；
+    expect(servable('/%E7%B0%A1%E5%A0%B1/deck')).toBe(true);
+    // 摘要列出並存數；
+    expect(build.stdout).toContain('並存（X/ 裡有真頁面）：1 個');
   });
 
   // 排除；
@@ -136,8 +184,8 @@ describe('npm run build（tests/site-vault）', () => {
     const home = readOut('index.html');
     // 取出 main 裡的連結（略過 _next 等資源）；
     const hrefs = Array.from(home.matchAll(/<li><a href="([^"]+)"/g), (m) => m[1]);
-    // 發布 10 篇；
-    expect(hrefs).toHaveLength(10);
+    // 發布 11 篇（根目錄的 index.html 依 R29 不發布）；
+    expect(hrefs).toHaveLength(11);
     // 每個都找得到；
     for (const href of hrefs) expect(servable(href), href).toBe(true);
   });
@@ -203,4 +251,14 @@ describe('npm run build（tests/site-vault）', () => {
     // 錯誤訊息點名 STRICT_LINKS；
     expect(`${strict.stdout}${strict.stderr}`).toContain('STRICT_LINKS=1：有 1 個有歧義的 wikilink');
   }, 120_000);
+
+  // 小修 (a)：跳過 site-report.mjs、直接跑 next build 也繞不過 STRICT_LINKS（放最後，因為失敗的建置可能弄亂輸出資料夾）；
+  it('STRICT_LINKS=1 時直接執行 next build 也會失敗並點名筆記與連結', () => {
+    // npx next build；shell: true 讓 Windows 找得到 npx.cmd；
+    const direct = spawnSync('npx', ['next', 'build'], { cwd: siteDir, env: { ...baseEnv, STRICT_LINKS: '1' }, shell: true, encoding: 'utf8' });
+    // 非 0 結束碼；
+    expect(direct.status).not.toBe(0);
+    // 錯誤訊息點名筆記與連結；
+    expect(`${direct.stdout}${direct.stderr}`).toMatch(/前端\/日期 物件\.md 的 \[\[說明\]\] 有歧義/);
+  }, 600_000);
 });
