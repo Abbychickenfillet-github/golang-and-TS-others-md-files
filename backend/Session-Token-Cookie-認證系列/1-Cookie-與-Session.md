@@ -21,8 +21,8 @@ updated: 2026-06-10
 
 **為什麼需要 Cookie / Session?**
 
-HTTP 協定本身是**無狀態的(Stateless)**:伺服器**把每個請求都當成獨立事件,沒有內建機制把「同一個客戶端的前後兩個請求」關聯起來**(這比「伺服器不記得你是誰」精確)。
-所以任何要「跨請求記住狀態」的功能——登入、購物車、偏好設定、多步驟表單——都需要額外的狀態管理,Cookie 就是 RFC 2109 為此設計的機制。
+HTTP 協定本身是**無狀態的(Stateless)**:<mark style="background: #FFB8EBA6;">伺服器**把每個請求都當成獨立事件,沒有內建機制把「同一個客戶端的前後兩個請求」關聯起來**(這比「伺服器不記得你是誰」精確)。</mark>
+<mark style="background: #FF5582A6;">所以任何要「跨請求記住狀態」的功能——登入、購物車、偏好設定、多步驟表單——都需要額外的狀態管理,Cookie 就是 RFC 2109 為此設計的機制。</mark>
 
 > ⚠️ 原筆記檢討(為什麼原本那三行寫得不夠好):
 > a. **太登入導向**:原文說「為了維持登入狀態才需要」,但登入只是其中一種應用;Cookie/Session 是通用的**狀態管理**(購物車、偏好都算)。
@@ -131,6 +131,23 @@ model Session {
 ```
 
 > 注意:這是「有狀態 Session」自建 store 的設計。你 next-one 現在用的 **iron-session 是加密 cookie 派(stateless、沒有這張表)**;只有當你想要「能即時撤銷、server 端查表」時,才需要像這樣建 `sessions` 表。見 [[3-Session與JWT-有狀態與無狀態驗證-過期機制與Base64url]]。
+
+### 實作補充(2026-11-10 共讀 DB session 時釐清)
+
+a. **iron-session 的加密發生在 `session.save()`**:不是你寫 `session.sid = ...` 當下,而是呼叫 `save()` 時,iron 才用 `ironOptions.password` 把資料**加密 ＋ 簽章**後寫進 cookie。
+
+b. **`lib/prisma.js` 的 `global` 單例寫法**:`PrismaClient` 本身**不是連線池**,但它**內部管理一個連線池**。Next.js 開發模式會頻繁**熱重載(hot reload)**,每次重載若都 `new PrismaClient()` 會**很快耗盡資料庫連線數**。所以用 `global.prisma` 把實例掛在全域物件下重用:
+```js
+const prisma = global.prisma || new PrismaClient()      // 有就重用，沒有才新建
+if (process.env.NODE_ENV === 'development') global.prisma = prisma  // 只在開發模式掛全域
+```
+白話:**只有開發模式需要這招**(生產模式模組只載入一次、本來就單例);`next dev` 指令會自動把 `NODE_ENV` 設成 `development`,所以用它判斷。這是 Prisma 官方文件特別強調的規範。
+
+c. **`cookies()`(Next.js 伺服器)vs `document.cookie`(瀏覽器)**:`cookies()` 是 Next.js 的**伺服器端**函式,結構化地讀寫請求/回應裡的 cookie;`document.cookie` 是**瀏覽器原生、客戶端** API,用字串操作 cookie。不同端、不同用途。詳見 [[延伸/SPA單頁應用與document-cookie-是兩件事]]。
+
+d. **session id vs access token**:兩者都是「令牌(token)」——登入後拿到、之後每次請求出示的憑證。差別:session id 通常存加密 cookie、伺服器拿它**查狀態**(有狀態);access token 常是**自帶資料**的憑證、用於 API 驗證(無狀態)。
+
+e. **JSDoc 不是 TypeScript**:JSDoc(`/** @param {string} x */`)只是**說明文件 ＋ 編輯器提示**,**不會在編譯時強制型別檢查**;TypeScript 才會硬性約束。`{Promise<string>}` 是宣告「這個非同步函式回傳一個**會解析成字串的 Promise**」;`ttlMs` 的 **TTL ＝ Time To Live(存活時間)**,單位毫秒,`7 * 24 * 60 * 60 * 1000` 就是 7 天換算成毫秒。
 
 ## 名詞定義與用詞校正(讀 RFC 2109 時)
 

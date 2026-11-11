@@ -15,7 +15,7 @@ updated: 2026-10-30
 # Session 與 JWT：有狀態 vs 無狀態驗證、過期機制、Base64url
 
 > 本篇重點 a–p ，共 16 個。
-> 前置概念見 [[1-Cookie-與-Session]]（Cookie 與 Session 基本運作）與 [[XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線]]（HttpOnly 為何能擋 XSS）。關聯原因：本篇是把前兩篇的 Session ID 放進「有狀態／無狀態」這條主軸上比較。
+> 前置概念見 [[1-Cookie-與-Session]]（Cookie 與 Session 基本運作）與 [[8-XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線]]（HttpOnly 為何能擋 XSS）。關聯原因：本篇是把前兩篇的 Session ID 放進「有狀態／無狀態」這條主軸上比較。
 
 ## 一張主軸：有狀態（Session）vs 無狀態（JWT）
 

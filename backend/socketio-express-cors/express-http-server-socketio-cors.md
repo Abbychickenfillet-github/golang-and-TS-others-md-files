@@ -116,7 +116,7 @@ httpServer.listen(3000)                   // 讓 server 開始監聽 3000 埠
 
 原生 App 登入有沒有 Cookie：App 不是瀏覽器，沒有「自動附上 Cookie」的機制，常見做法是把 access token 存進系統安全儲存（iOS Keychain 或 Android Keystore）再放進 `Authorization` 標頭。至於 HTTP 函式庫會不會自己存 Cookie，各平台不同，我這次沒有查證，不下結論。內嵌網頁的 WebView 則是瀏覽器，會有 Cookie。
 
-重點：WebSocket 連線本身不受 CORS 約束，CORS 設定只對 HTTP long-polling 生效。要擋來源要用 `allowRequest` 在握手時自己檢查 `Origin` 標頭，並且真正的授權要靠登入驗證。範例見 `server.js`。相關觀念見 [[2-Cookie隔離邊界與跨站請求安全-Origin-SameSite-CSRF-Token與Bearer]]、[[CSRF-與-Antiforgery-Cookie]]、[[HTTP-Headers-Request與Response-誰送給誰]]。
+重點：WebSocket 連線本身不受 CORS 約束，CORS 設定只對 HTTP long-polling 生效。要擋來源要用 `allowRequest` 在握手時自己檢查 `Origin` 標頭，並且真正的授權要靠登入驗證。範例見 `server.js`。相關觀念見 [[2-Cookie隔離邊界與跨站請求安全-Origin-SameSite-CSRF-Token與Bearer]]、[[9-CSRF-與-Antiforgery-Cookie]]、[[HTTP-Headers-Request與Response-誰送給誰]]。
 
 ## g. WebSocket 算事件基系統嗎
 

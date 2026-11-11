@@ -26,6 +26,15 @@
 | ES256 / ES384 / ES512 | ECDSA（P-256 / P-384 / P-521） | 非對稱 | 金鑰與簽章都很短 |
 | EdDSA | Ed25519 | 非對稱 | 簽章是確定性的，沒有 nonce 風險 |
 
+### 為什麼三個都是「256」?——那是 SHA-256,它們共用的雜湊
+
+- `256` **不是金鑰長度**,而是**雜湊函式 SHA-256**(Secure Hash Algorithm,安全雜湊演算法)——這是 **HS256、RS256、ES256 三個都使用的雜湊函式**。
+- 三個都**先用 SHA-256** 把任意長度的訊息壓成一個**固定 256 位元(256 ÷ 8 ＝ 32 bytes)的摘要**,再用各自的方式(HMAC／RSA／ECDSA)簽那個摘要。
+- 為什麼要先雜湊:簽章/HMAC 是對**固定長度的摘要**動作,不是對原始(任意長度)的訊息。
+- 這個固定長度 **≠ 金鑰長度**。金鑰各不相同:HMAC 是一把 secret、RSA 建議 ≥ 2048 位元、ECDSA 用 P-256 曲線。
+- **P-256 曲線**:ES256 用的橢圓曲線(別名 `secp256r1`／`prime256v1`),定義在一個 **256 位元的質數體**上,所以它的點與金鑰約 256 位元。ES256 剛好「SHA-256 ＋ P-256」兩個都是 256,是**巧合**。
+- 換數字就是換 SHA:384／512 版本(HS384、ES512…)用的是 SHA-384／SHA-512(摘要 384／512 位元)。
+
 ## 二、嚴謹性排序（高到低）
 
 依「金鑰外洩面與部署風險」排：
@@ -114,7 +123,7 @@ model RefreshToken {
 - `family_id`：同一次登入換出的所有 refresh token 同一家族
 - `replaced_by`：旋轉後指向新 token，用來偵測舊 token 被重複使用
 
-### 流程圖
+### 流程圖 如何建立一個基本的session跟cookie
 
 ```mermaid
 sequenceDiagram
@@ -166,13 +175,91 @@ sequenceDiagram
 - 兩個 cookie 都刪除
 - 效果：被偷的 Access Token 最多再活 15 分鐘（目前純 JWT 是 3 天），被偷的 Refresh Token 立刻失效
 
-### 前端（Next.js 實作要點）
+## jose 套件 API 詳解(next-one 實際用的)
+
+> jose 是維護中的 JWT／JWS／JWE 函式庫,Edge runtime 也能跑。實際原始碼在 `node_modules/jose/dist/node/cjs/`。
+> 找檔法:`node -e "console.log(require.resolve('jose'))"`,或看 `node_modules/jose/package.json` 的 `exports`。
+
+### SignJWT —— 簽章、產生 JWT
+
+原始碼:`node_modules/jose/dist/node/cjs/jwt/sign.js`(繼承 `ProduceJWT`)。
+
+```js
+const token = await new SignJWT(payload)      // payload：要放進 token 的物件,如 { userId }
+  .setProtectedHeader({ alg: 'HS256' })       // 設 header,必填 alg
+  .setIssuedAt()                              // 加 iat(簽發時間)
+  .setExpirationTime('7d')                    // 加 exp(過期)
+  .sign(key);                                 // 用金鑰簽章,回傳字串 token
+```
+白話:它是**建造者模式(builder)**,一路 `.setXxx()` 設定、最後 `.sign()` 產出。各方法收什麼:
+
+a. `new SignJWT(payload)`:收一個**物件**當 payload(放進 token 的資料)。
+b. `.setProtectedHeader({ alg })`:設定 header,**`alg` 必填**(如 `HS256`);回傳 this 所以可以鏈。
+c. `.setIssuedAt(iat?)`:設 `iat`,不給參數就用現在時間。
+d. `.setExpirationTime(exp)`:設 `exp`,收**數字(秒)或字串**(`'7d'`、`'2h'`、`'30m'`)。
+e. `.setNotBefore()` / `.setSubject()` / `.setIssuer()` / `.setAudience()`:設 `nbf` / `sub` / `iss` / `aud`(選用)。
+f. `.sign(key, options?)`:收**金鑰**,回傳 `Promise<string>`(compact JWS 字串)。HS256 的 key 是 `new TextEncoder().encode(secret)` 產的 `Uint8Array`。
+
+> 原始碼裡有一段檢查:若 header 設了 `crit:['b64']` 且 `b64:false`,直接丟錯 `JWTs MUST NOT use unencoded payload`——呼應前面 RFC 7797,**JWT 規定不准用未編碼 payload**。
+
+### jwtVerify —— 驗章、檢查 JWT
+
+原始碼:`.../jwt/verify.js`。
+
+```js
+const { payload, protectedHeader } = await jwtVerify(token, key, {
+  algorithms: ['HS256'],   // 白名單：只接受 HS256,擋掉 alg 混淆與 alg:none 攻擊
+});
+```
+白話:它**不是建造者**,是一個直接呼叫的函式,收三個參數:
+
+a. `token`:要驗的 JWT 字串。
+b. `key`:驗章金鑰(HS256 跟簽章同一把 secret)。
+c. `options`(選用但建議設):`algorithms`(**強烈建議的白名單**)、`issuer`、`audience`、`clockTolerance`(容許時鐘誤差秒數)等。
+
+回傳:`{ payload, protectedHeader }`。**驗章失敗(簽章不符、過期、alg 不在白名單)會丟例外**,所以要 `try/catch`。
+注意:jwtVerify 做的是**驗簽章 ＋ 檢查 exp／nbf**,**不是解密**(payload 本來就讀得到)。
+
+### EncryptJWT／jwtDecrypt —— 真的加密(JWE)
+
+若要連內容都看不到,用這組(對應下面 AES-256-GCM):
+
+```js
+const token = await new EncryptJWT(payload)
+  .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })  // dir=直接用對稱金鑰；A256GCM=AES-256-GCM
+  .encrypt(key);                                        // key 需 32 bytes
+const { payload } = await jwtDecrypt(token, key);       // 要金鑰才解得回來
+```
+白話:`EncryptJWT().encrypt()` 產出的是**加密的 JWE**,payload 被藏起來;`jwtDecrypt` 才解得回。你專案的 iron-session 走的就是這種「加密」路線(不是 SignJWT 那種簽章)。
+
+## AES-256-GCM 是什麼
+
+a. **AES ＝ Advanced Encryption Standard(進階加密標準)**,目前最通用的**對稱**加密演算法。
+b. **是對稱,不是非對稱**:加密、解密用**同一把金鑰**。(非對稱是 RSA、ECDSA 那種公私鑰一對。)
+c. **256**:金鑰長度 256 位元。
+d. **GCM ＝ Galois／Counter Mode**:一種 **AEAD(Authenticated Encryption with Associated Data,帶認證的加密)** 模式——一次做到**加密(藏資料)＋ 完整性驗證(防竄改)**兩件事,不用再外掛 HMAC。
+e. 快:現代 CPU 有 **AES-NI(AES New Instructions)** 硬體指令直接加速。
+f. 用在:iron-session 的 cookie 封印、JWE(上面 `enc: 'A256GCM'`)。
+g. 📖 來源:[NIST AES(FIPS 197)](https://csrc.nist.gov/pubs/fips/197/final)、[RFC 7518 — JWA(定義 A256GCM 等 `enc`)](https://datatracker.ietf.org/doc/html/rfc7518)。
+
+### 前端
+（Next.js 實作要點）
 
 - `cookies().set` 只能在 Route Handler 與 Server Action 內使用，Server Component 渲染時不行 → refresh 必須是 Route Handler
 - 在 `services/rest-client/use-fetcher.js` 的 fetch 包一層：收到 401 → 呼叫一次 refresh → 重試原請求
 - 同時多個請求都 401 時，共用同一個 in-flight Promise，只打一次 refresh（否則旋轉會讓第二次請求被判重複使用）
 - refresh 失敗 → 清狀態、導向登入頁
 - middleware 跑在 Edge，Prisma 預設不能直接用，refresh 不要放 middleware
+#### document.cookie = newCookie;
+設定cookie的方式，設定一個cookie內容是"test_user=abby; path=/;
+newCookie是一個鍵值對型是的字符串。用這個方法一次只能對一個cookie進行設置或更新
+再console.log(document.cookie)
+#### allCookies = document.cookie
+想要看到目前網頁所有的cookie，算是把目前的cookies都存到allCookies identifier中。然後印出
+```
+const allCookies = document.cookie;
+console.log(allCookies)
+```
 
 ### Cookie 設定
 

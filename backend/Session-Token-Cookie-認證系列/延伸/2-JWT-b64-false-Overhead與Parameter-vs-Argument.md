@@ -7,7 +7,8 @@ sources:
   - https://gemini.google.com/app/26e8e0541fdfa2f6
   - https://gemini.google.com/app/d5140214d9702616
   - https://gemini.google.com/app/c1cd87f58d9ea467
-updated: 2026-11-05
+  - https://gemini.google.com/app/66ffdf732755b2ae
+updated: 2026-11-09
 ---
 
 # JWT b64:false、Overhead 與 Parameter vs Argument
@@ -43,6 +44,16 @@ RFC 7797 為 JWS 新增 `b64` header parameter，可讓 payload 不經 Base64url
 (j) UTF-8 是支援中文的可變長度字元編碼（Unicode 的實作方式）：ASCII 英數 1 byte，常見中文字 3 bytes，罕見字與 emoji 可到 4 bytes。所以 JWT 內含中文時，必須先 UTF-8 轉 bytes 再 Base64url。
 
 > ⚠️ 存疑/更正：d5140214d9702616（JWS 串接運算解析）較早的幾輪問答在頁面中無法載入（只讀到最後兩輪），標題顯示該對話原本在談「Header || '.' || Payload」串接，本篇僅收錄讀得到的內容。
+
+### 追加 2026-11-09：JWS 與 JWT 的層級、為何 b64:false 還要放進 crit
+
+(追加 a) <mark style="background: #ADCCFFA6;">JWT（RFC 7519）是上層容器規範</mark>，定義 Claims 的格式。簽章的 JWT 本質上就是一個 JWS（RFC 7515），JWS 規定「頭部、載荷（Payload）、簽章」如何組合與保護。
+
+(追加 b) 啟用 RFC 7797 未編碼載荷時，Protected Header 長這樣：`{"alg":"HS256","b64":false,"crit":["b64"]}`。
+
+(追加 c) <mark style="background: #FFF3A3A6;">`b64:false` 是「載荷不做 Base64URL 編碼」，`crit:["b64"]` 是「接收方不認得 b64 就必須拒絕」</mark>。
+　沒有 crit 時，舊版驗證端會忽略不認識的 b64，照舊把載荷當 Base64URL 解碼，結果驗簽失敗或解出亂碼。
+　所以 RFC 7797 規定用 b64:false 就必須把 b64 列進 crit。
 
 ## 自我測驗（點開看答案）
 
@@ -93,6 +104,11 @@ RFC 7797 為 JWS 新增 `b64` header parameter，可讓 payload 不經 Base64url
 **使用者：** 編碼算加密嗎
 
 **Gemini：** （節錄）不算。編碼是公開可逆的格式轉換、不需金鑰；加密靠金鑰保護隱私。
+
+### Protected Header 區別（2026-11-09）— https://gemini.google.com/app/66ffdf732755b2ae
+
+使用者：JSON Web Signature 跟 JWT 的層級是什麼？載荷應該是 payload？可以畫給我看 critical 頭部參數中包含的 b64 嗎？……都說不要用 b64 了那 crit 還要 b64？
+Gemini：JWT 為上層、JWS 為底層簽章規範；Payload 為官方術語；示範 Protected Header；說明 crit 讓不支援擴充的舊版接收端拒絕而非誤驗（如追加 a–c）。
 
 ## 資料來源（含查證時間）
 

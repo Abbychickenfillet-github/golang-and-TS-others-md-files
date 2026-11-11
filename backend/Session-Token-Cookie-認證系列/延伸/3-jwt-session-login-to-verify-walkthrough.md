@@ -2,7 +2,7 @@
 
 本篇重點 a–j，共 10 個
 實驗日期：2026-11-05，`jose` 5.10.0，程式在 `lib/jwt-session.js`
-相關筆記：[[6-next-one-jwt-session-review]]（找問題）、[[JWT_TOKEN_EXPLANATION]]、[[3-Session與JWT-有狀態與無狀態驗證-過期機制與Base64url]]、[[1-Cookie-與-Session]]、[[5-Refresh-Token與Token-Endpoint-雙Token機制與JWT關係]]
+相關筆記：[[6-next-one-jwt-session-review]]（找問題）、[[1-JWT_TOKEN_EXPLANATION]]、[[3-Session與JWT-有狀態與無狀態驗證-過期機制與Base64url]]、[[1-Cookie-與-Session]]、[[5-Refresh-Token與Token-Endpoint-雙Token機制與JWT關係]]
 
 ## 先看全局：一次登入到一次驗證
 
@@ -110,7 +110,7 @@ new SignJWT(payload)                          // 要簽的資料
 | 情境 | 結果 |
 |---|---|
 | 使用者按登出 | 只刪瀏覽器的 cookie，被偷走的 token 3 天內仍有效 |
-| 想立刻踢人 / 改密碼後失效 | 需要黑名單或 token version（見 [[BLACKLIST_TOKEN_MANAGEMENT_GUIDE]]） |
+| 想立刻踢人 / 改密碼後失效 | 需要黑名單或 token version（見 [[6-BLACKLIST_TOKEN_MANAGEMENT_GUIDE]]） |
 | 想短期有效又不頻繁登入 | Access token 短命 + Refresh token（見 [[5-Refresh-Token與Token-Endpoint-雙Token機制與JWT關係]]） |
 | secret 洩漏 | 全部 token 可偽造，必須換 secret（見 [[6-next-one-jwt-session-review]] P0） |
 

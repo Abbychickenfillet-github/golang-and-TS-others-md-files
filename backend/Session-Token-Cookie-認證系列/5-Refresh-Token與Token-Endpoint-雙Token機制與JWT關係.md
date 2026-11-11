@@ -102,10 +102,10 @@ l. <mark style="background: #D2B3FF;">面試可延伸的一句話</mark>：Refre
 
 ## 關聯筆記（附關聯原因）
 
-- [[JWT_TOKEN_EXPLANATION]] — 那篇講 JWT 的結構（Header、Payload、Signature）與簽章原理，本篇 (i) 正好接著回答「這個結構裡有沒有內建更新機制」。
-- [[BLACKLIST_TOKEN_MANAGEMENT_GUIDE]] — 本篇 (h) 提到伺服器可以用黑名單強制登出，那篇就是這件事的實作細節。
-- [[LOGOUT_AND_LOGIN_EXPLANATION]] — 登出流程要不要一併作廢 Refresh Token，是本篇雙 token 機制的直接後果。
-- [[OAuth與RESTful-Firebase登入-彈窗vs重定向]] — OAuth 標準的 `/oauth/token` 就是本篇 (c) 說的 Token Endpoint，那篇是同一個端點在第三方登入情境下的用法。
+- [[1-JWT_TOKEN_EXPLANATION]] — 那篇講 JWT 的結構（Header、Payload、Signature）與簽章原理，本篇 (i) 正好接著回答「這個結構裡有沒有內建更新機制」。
+- [[6-BLACKLIST_TOKEN_MANAGEMENT_GUIDE]] — 本篇 (h) 提到伺服器可以用黑名單強制登出，那篇就是這件事的實作細節。
+- [[5-LOGOUT_AND_LOGIN_EXPLANATION]] — 登出流程要不要一併作廢 Refresh Token，是本篇雙 token 機制的直接後果。
+- [[13-OAuth與RESTful-Firebase登入-彈窗vs重定向]] — OAuth 標準的 `/oauth/token` 就是本篇 (c) 說的 Token Endpoint，那篇是同一個端點在第三方登入情境下的用法。
 - [[1-Cookie-與-Session]] — 本篇 (d) 建議把 Refresh Token 放 HttpOnly Cookie，那篇解釋 Cookie 的屬性與 Session 的差別。
 
 ## 各對話來源（原文）

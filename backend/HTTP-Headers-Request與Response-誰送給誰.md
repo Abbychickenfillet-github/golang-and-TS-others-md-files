@@ -53,7 +53,7 @@ charset: utf-8
 (e-2) <mark style="background: #ADCCFFA6;">gzip 同時是壓縮演算法也是檔案格式</mark>：格式規格是 RFC 1952，裡面包的演算法是 DEFLATE（LZ77 反向參照加 Huffman 編碼，MDN 該頁未寫，屬一般知識）。副檔名 `.gz` 是存成硬碟檔案的慣例（例如 `archive.tar.gz`），HTTP 上不看副檔名，看的是 `Content-Encoding: gzip`。流程是瀏覽器用 `Accept-Encoding: br, gzip` 表明自己懂哪些，伺服器挑一種壓縮後回標頭，並加 `Vary: Accept-Encoding` 讓快取把壓縮與未壓縮版本分開存。<mark style="background: #BBFABBA6;">所以「40KB gzip」是指壓縮後實際在網路上傳輸的大小</mark>，因為關心的是下載時間而不是解壓後的大小。來源：MDN Compression in HTTP（https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Compression ，最後修改 2026-08-27，查證 2026-10-11）。
 
 (f) <mark style="background: #ADCCFFA6;">COOP 的 `same-origin-allow-popups`</mark>：這份文件自己被隔離在獨立的 browsing context group，<mark style="background: #BBFABBA6;">但它主動開出來的 popup 仍然保留 `window.opener` 參照</mark>，代價是拿不到 cross-origin isolation。
-	典型用途是 <mark style="background: #FFB8EBA6;">OAuth 彈窗登入</mark>：授權頁在 popup 開啟，結果要靠 `window.opener` 回傳給母視窗，所以不能把參照切斷（延伸見 [[OAuth與RESTful-Firebase登入-彈窗vs重定向]]）。
+	典型用途是 <mark style="background: #FFB8EBA6;">OAuth 彈窗登入</mark>：授權頁在 popup 開啟，結果要靠 `window.opener` 回傳給母視窗，所以不能把參照切斷（延伸見 [[13-OAuth與RESTful-Firebase登入-彈窗vs重定向]]）。
 
 ### 3. API 金鑰放在哪裡
 

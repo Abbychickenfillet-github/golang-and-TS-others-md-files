@@ -1,0 +1,102 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JWT b64:false、Overhead 與 Parameter vs Argument</title><style>body{font-family:-apple-system,'Noto Sans TC','Microsoft JhengHei',sans-serif;background:#f6f7f9;color:#222;line-height:1.7;margin:0}
+.w{max-width:820px;margin:0 auto;padding:32px 20px 60px}h1{font-family:Georgia,'Noto Serif TC',serif;font-size:1.9em;margin:.2em 0}
+h2{border-left:5px solid #6b8fd6;padding-left:10px;margin-top:2em}h3{color:#3b5a99}.pill{display:inline-block;background:#e4ebf8;color:#34518f;border-radius:99px;padding:1px 12px;margin:0 6px 6px 0;font-size:.85em}
+.meta{color:#666;font-size:.9em}pre{background:#1f2430;color:#e6e6e6;padding:14px;border-radius:8px;overflow-x:auto}code{font-family:Consolas,monospace}
+p code,li code,td code{background:#eceef3;padding:1px 5px;border-radius:4px;color:#b02a5b}table{border-collapse:collapse;width:100%;background:#fff}th,td{border:1px solid #d5d9e2;padding:6px 10px}tr:nth-child(even){background:#f1f4f9}
+blockquote{border-left:4px solid #e0a43a;background:#fff8e6;margin:1em 0;padding:6px 14px;border-radius:0 6px 6px 0}
+details{background:#fff;border:1px solid #d5d9e2;border-radius:8px;padding:8px 14px;margin:8px 0}summary{cursor:pointer;font-weight:600}
+mark{padding:0 2px;border-radius:3px}.foot{margin-top:40px;color:#888;font-size:.85em;border-top:1px solid #ddd;padding-top:10px}a{color:#2f6fd6}
+.card{background:#fff;border-radius:10px;padding:4px 18px 14px;margin-top:1em;box-shadow:0 1px 3px #0001}
+.toggle{cursor:pointer;background:#6b8fd6;color:#fff;border:0;border-radius:6px;padding:4px 12px;margin:6px 0}
+</style></head><body><div class="w"><h1>JWT b64:false、Overhead 與 Parameter vs Argument</h1><div><span class="pill">gemini</span><span class="pill">jwt</span><span class="pill">rfc7797</span><span class="pill">術語</span></div><div class="meta">更新 2026-11-09 ・ <a href="https://gemini.google.com/app/26e8e0541fdfa2f6">來源</a> <a href="https://gemini.google.com/app/d5140214d9702616">來源</a> <a href="https://gemini.google.com/app/c1cd87f58d9ea467">來源</a> <a href="https://gemini.google.com/app/66ffdf732755b2ae">來源</a> <button class="toggle" onclick="document.querySelectorAll('details').forEach(d=>d.open=!d.open)">全部展開／收合答案</button></div><div class="card">
+<p>RFC 7797 為 JWS 新增 <code>b64</code> header parameter，可讓 payload 不經 Base64url 編碼。順便釐清兩個容易混淆的術語。相關：[[3-Session與JWT-有狀態與無狀態驗證-過期機制與Base64url]]（Base64url 的來龍去脈）。</p>
+<h2>重點整理</h2>
+<p>本篇重點 a–j，共 10 個</p>
+<p>(a) <code>b64</code> 是 JWS Header 裡的<mark style="background: #ADCCFFA6;">布林值 parameter</mark>，預設 <code>true</code>（payload 必須 Base64url 編碼）。設 <code>"b64": false</code> 時，規範允許 payload 保持原樣（Unencoded）直接簽章與傳送。所以「可不編碼」就是因為它是可選的 true／false 旗標。</p>
+<p>(b) <mark style="background: #ADCCFFA6;">Overhead（開銷）</mark>：為完成任務而額外消耗、但不是核心資料本身的資源（時間、記憶體、頻寬）。比喻：寄 200 公克的書，紙箱與氣泡紙就是 overhead。</p>
+<p>(c) Base64 的 overhead 有兩種：<mark style="background: #FFB8EBA6;">資料體積</mark>（每 3 bytes 變 4 字元，約膨脹 33%，3 MB 變 4 MB）與<mark style="background: #FFB8EBA6;">CPU 運算</mark>（發送端編碼、接收端解碼）。<code>b64:false</code> 就是為了省掉這兩者。</p>
+<p>(d) Overhead 一詞來自會計：工廠只要「屋頂（overhead）還在」就必須付的固定費用（租金、電費、行政薪水），相對於直接成本（原料、產線人力）。後來借用到電腦科學。</p>
+<p>(e) <mark style="background: #ADCCFFA6;">Parameter（參數）</mark>是規格或函式宣告中的欄位名稱（<code>function add(a,b)</code> 的 a、b）。<mark style="background: #ADCCFFA6;">Argument（引數）</mark>是呼叫時實際傳入的值（<code>add(3,5)</code> 的 3、5）。</p>
+<p>(f) RFC 7515（JWS）與 RFC 7519（JWT）把 header 的 key（<code>alg</code>、<code>typ</code>、<code>crit</code>、<code>b64</code>）統稱 <mark style="background: #FFF3A3A6;">Header Parameter</mark>，因為規範是在「定義欄位結構」而不是「呼叫函式」。實際填入的 <code>false</code>、<code>"HS256"</code> 才是值。</p>
+<blockquote>
+<p>⚠️ 存疑/更正：<code>b64:false</code> 使用時 RFC 7797 要求 header 的 <code>crit</code> 也要列出 <code>b64</code>，且 unencoded payload 不能含 <code>.</code> 等會破壞 compact serialization 的字元，Gemini 本次回答沒提到，Abby 若要實作請讀 RFC 7797 第 5 節。（此為我依 RFC 內容補充，未重新抓取全文，請核對。）</p>
+</blockquote>
+<h3>追加 2026-11-05</h3>
+<p>(g) 常見 JWT 用的是 JWS Compact Serialization：<mark style="background: #FFF3A3A6;">Header、Payload、Signature 三段都經過 Base64url 編碼，再用 <code>.</code> 串接</mark>。Header 與 Payload 是 JSON 先以 UTF-8 轉成 bytes 再 Base64url；Signature 是對「編碼後的 Header + <code>.</code> + 編碼後的 Payload」做簽章後再 Base64url。</p>
+<p>(h) <mark style="background: #FF5582A6;">Base64url 是編碼（Encoding）不是加密（Encryption）</mark>：任何人解碼就能讀 Payload，所以不能把密碼、個資放進 Payload。唯一例外是 (a) 的 <code>b64:false</code> 讓 Payload 不編碼，但那是更明文，不是更安全。</p>
+<p>(i) 編碼與加密的差別：<mark style="background: #ADCCFFA6;">編碼</mark>是公開、可逆的轉換規則，目的是跨系統正確傳輸，不需要金鑰（Base64、URL encoding）。<mark style="background: #ADCCFFA6;">加密</mark>是用演算法加金鑰保護隱私，沒金鑰就無法輕易還原。口訣：編碼是公開的翻譯，加密是加上密碼的鎖。</p>
+<p>(j) UTF-8 是支援中文的可變長度字元編碼（Unicode 的實作方式）：ASCII 英數 1 byte，常見中文字 3 bytes，罕見字與 emoji 可到 4 bytes。所以 JWT 內含中文時，必須先 UTF-8 轉 bytes 再 Base64url。</p>
+<blockquote>
+<p>⚠️ 存疑/更正：d5140214d9702616（JWS 串接運算解析）較早的幾輪問答在頁面中無法載入（只讀到最後兩輪），標題顯示該對話原本在談「Header || '.' || Payload」串接，本篇僅收錄讀得到的內容。</p>
+</blockquote>
+<h3>追加 2026-11-09：JWS 與 JWT 的層級、為何 b64:false 還要放進 crit</h3>
+<p>(追加 a) <mark style="background: #ADCCFFA6;">JWT（RFC 7519）是上層容器規範</mark>，定義 Claims 的格式。簽章的 JWT 本質上就是一個 JWS（RFC 7515），JWS 規定「頭部、載荷（Payload）、簽章」如何組合與保護。</p>
+<p>(追加 b) 啟用 RFC 7797 未編碼載荷時，Protected Header 長這樣：<code>{"alg":"HS256","b64":false,"crit":["b64"]}</code>。</p>
+<p>(追加 c) <mark style="background: #FFF3A3A6;"><code>b64:false</code> 是「載荷不做 Base64URL 編碼」，<code>crit:["b64"]</code> 是「接收方不認得 b64 就必須拒絕」</mark>。
+　沒有 crit 時，舊版驗證端會忽略不認識的 b64，照舊把載荷當 Base64URL 解碼，結果驗簽失敗或解出亂碼。
+　所以 RFC 7797 規定用 b64:false 就必須把 b64 列進 crit。</p>
+<h2>自我測驗（點開看答案）</h2>
+<blockquote>
+<p>[!question]- <code>b64:false</code> 省下什麼？
+Base64url 造成的約 33% 體積膨脹與編解碼 CPU 開銷。</p>
+<p>[!question]- 是非題：<code>alg</code> 是 JWT 的 argument。
+錯。<code>alg</code> 是 Header Parameter 名稱，<code>"HS256"</code> 才是填入的值。</p>
+<p>[!question]- 申論：為什麼 overhead 會被翻成開銷？
+源自會計的間接固定費用，引申為完成核心工作所必須額外付出的資源成本。</p>
+<p>[!question]- 是非題：Base64url 編碼過的 JWT Payload 是安全的，別人看不到。
+錯。編碼不是加密，任何人解碼即可讀取。</p>
+<p>[!question]- 一個常見中文字在 UTF-8 通常佔幾 bytes？
+3 bytes。</p>
+</blockquote>
+<h2>各對話來源</h2>
+<p>（Gemini 回答為節錄，使用者提問為原文）</p>
+<h3>JWT RFC 更新說明（2026-11-03）— https://gemini.google.com/app/26e8e0541fdfa2f6</h3>
+<p><strong>使用者：</strong> 為什麼有b64是允許不經過b64編碼 是因為他true false可選的意思嗎？何謂overhead的定義</p>
+<p><strong>Gemini：</strong> （節錄）是，b64 為布林值預設 true；overhead 是額外消耗的資源，舉 33% 膨脹與 CPU 編解碼。</p>
+<p><strong>使用者：</strong> 為什麼？他是parameter不是argument</p>
+<p><strong>Gemini：</strong> （節錄）RFC 是在定義欄位結構，故稱 Header Parameter；實際值才是 argument。</p>
+<p><strong>使用者：</strong> 為什麼overhead是開銷的意思</p>
+<p><strong>Gemini：</strong> （節錄）Over＋Head，會計上的屋頂下固定費用，延伸到電腦科學。</p>
+<h3>JWS 串接運算解析（2026-11-05）— https://gemini.google.com/app/d5140214d9702616</h3>
+<p><strong>使用者：</strong> 所以JWT都有經過base64編碼嗎</p>
+<p><strong>Gemini：</strong> （節錄）常見 JWT 的 Header 與 Payload 預設都經 Base64url 編碼；Base64url 不是加密；例外是 RFC 7797 <code>b64:false</code>。</p>
+<p><strong>使用者：</strong> UTF-8算中文嗎</p>
+<p><strong>Gemini：</strong> （節錄）算。UTF-8 可變長度，常見中文字 3 bytes，少見字或 emoji 4 bytes。</p>
+<h3>編碼與加密差異（2026-11-05）— https://gemini.google.com/app/c1cd87f58d9ea467</h3>
+<p><strong>使用者：</strong> 編碼算加密嗎</p>
+<p><strong>Gemini：</strong> （節錄）不算。編碼是公開可逆的格式轉換、不需金鑰；加密靠金鑰保護隱私。</p>
+<h3>Protected Header 區別（2026-11-09）— https://gemini.google.com/app/66ffdf732755b2ae</h3>
+<p>使用者：JSON Web Signature 跟 JWT 的層級是什麼？載荷應該是 payload？可以畫給我看 critical 頭部參數中包含的 b64 嗎？……都說不要用 b64 了那 crit 還要 b64？
+Gemini：JWT 為上層、JWS 為底層簽章規範；Payload 為官方術語；示範 Protected Header；說明 crit 讓不支援擴充的舊版接收端拒絕而非誤驗（如追加 a–c）。</p>
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>b64 header parameter</td>
+<td>https://datatracker.ietf.org/doc/html/rfc7797</td>
+<td>RFC 7797（2016-02），本次未重新抓取全文（2026-11-03）</td>
+</tr>
+<tr>
+<td>Header Parameter 術語</td>
+<td>https://datatracker.ietf.org/doc/html/rfc7515</td>
+<td>RFC 7515（2015-05），本次未重新抓取全文（2026-11-03）</td>
+</tr>
+<tr>
+<td>JWS Compact Serialization 三段 Base64url</td>
+<td>https://datatracker.ietf.org/doc/html/rfc7515#section-7.1</td>
+<td>RFC 7515（2015-05），Gemini 回答未重新抓取原文（2026-11-05）</td>
+</tr>
+<tr>
+<td>UTF-8 位元組長度</td>
+<td>https://datatracker.ietf.org/doc/html/rfc3629</td>
+<td>RFC 3629（2003-11），Gemini 回答未重新抓取原文（2026-11-05）</td>
+</tr>
+</tbody>
+</table></div><div class="foot">由 Gemini 對話自動整理 · 更新於 2026-11-09</div></div></body></html>

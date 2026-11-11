@@ -2,7 +2,7 @@
 
 本篇重點：步驟 1–7，重點 a–f，共 6 個
 設計日期：2026-11-05，只是設計與範例程式，尚未寫進專案
-相關筆記：[[jwt-session-login-to-verify-walkthrough]]、[[5-Refresh-Token與Token-Endpoint-雙Token機制與JWT關係]]、[[6-next-one-jwt-session-review]]、[[BLACKLIST_TOKEN_MANAGEMENT_GUIDE]]
+相關筆記：[[3-jwt-session-login-to-verify-walkthrough]]、[[5-Refresh-Token與Token-Endpoint-雙Token機制與JWT關係]]、[[6-next-one-jwt-session-review]]、[[6-BLACKLIST_TOKEN_MANAGEMENT_GUIDE]]
 
 ## a. 要改成什麼樣
 

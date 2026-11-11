@@ -12,7 +12,7 @@ updated: 2026-06-25
 # OAuth 與 RESTful、Firebase 登入（彈窗 vs 重定向）與登入狀態維持
 
 > 互動考題版：[[OAuth與RESTful-Firebase登入-彈窗vs重定向.html|點我做題（填空／是非／申論）]]
-> 相關筆記：[[1-Cookie-與-Session]]、[[session]]、[[JWT_TOKEN_EXPLANATION]]、[[GOOGLE_OAUTH_SETUP]]、[[LOGOUT_AND_LOGIN_EXPLANATION]]
+> 相關筆記：[[1-Cookie-與-Session]]、[[12-session]]、[[1-JWT_TOKEN_EXPLANATION]]、[[14-GOOGLE_OAUTH_SETUP]]、[[5-LOGOUT_AND_LOGIN_EXPLANATION]]
 
 ## 重點整理
 
@@ -45,22 +45,22 @@ updated: 2026-06-25
 | 主導方 | <mark style="background: #ADCCFFA6;">瀏覽器端 SDK</mark>（`signInWithPopup/Redirect`） | <mark style="background: #BBFABBA6;">後端</mark>（`fastapi-sso`） |
 | 流程 | 前端直接跟 Google 互動，拿到結果 | `/auth/google/login` → Google → `/auth/google/callback` |
 | 最後拿到什麼 | Firebase 的使用者憑證 | 後端核發**自家 JWT**，重定向回前端 `?token=xxx` |
-| 對應筆記 | （本篇） | [[GOOGLE_OAUTH_SETUP]] |
+| 對應筆記 | （本篇） | [[14-GOOGLE_OAUTH_SETUP]] |
 
 > 關鍵體會：你問 ChatGPT 的是「前端 Firebase 怎麼登入」，而專案真正用的是「後端 code flow，最後發 JWT」。兩者都叫 OAuth，但 token 落在哪、誰跟 Google 對話不同。Authorization Code（後端）較安全，client secret 不外洩。
 
 ### 2. 補上既有筆記沒明寫的觀念
 
-- **Session（有狀態）vs JWT（無狀態）** — vault 裡 [[1-Cookie-與-Session]] 講 session、[[JWT_TOKEN_EXPLANATION]] 講 token，但沒並排比較：
+- **Session（有狀態）vs JWT（無狀態）** — vault 裡 [[1-Cookie-與-Session]] 講 session、[[1-JWT_TOKEN_EXPLANATION]] 講 token，但沒並排比較：
 
   | | Session（有狀態） | JWT（無狀態） |
   |---|---|---|
   | 狀態存哪 | 伺服器（記憶體/DB） | <mark style="background: #FFF3A3A6;">token 自己帶</mark>，伺服器不存 |
-  | 登出/撤銷 | 刪伺服器那筆即可 | 難主動撤銷 → 才需要 [[LOGOUT_AND_LOGIN_EXPLANATION|黑名單 jti]] |
+  | 登出/撤銷 | 刪伺服器那筆即可 | 難主動撤銷 → 才需要 [[5-LOGOUT_AND_LOGIN_EXPLANATION|黑名單 jti]] |
   | 水平擴展 | 要共享 session store | 容易（無狀態） |
 
-- **Cookie 安全旗標**（[[1-Cookie-與-Session]] 可補）：`HttpOnly`（JS 讀不到，防 XSS 偷 cookie）、`Secure`（只走 HTTPS）、`SameSite`（防 CSRF，搭配 [[CSRF-與-Antiforgery-Cookie]]）、`Expires/Max-Age`（決定關機後是否還在）。
-- **「session」在你 vault 有三個意思**，別混：① 身分驗證 session（[[1-Cookie-與-Session]]）；② 資料庫 ORM session（[[session]]，SQLModel 的交易窗口）；③ OAuth 登入 session（本篇登入狀態維持）。
+- **Cookie 安全旗標**（[[1-Cookie-與-Session]] 可補）：`HttpOnly`（JS 讀不到，防 XSS 偷 cookie）、`Secure`（只走 HTTPS）、`SameSite`（防 CSRF，搭配 [[9-CSRF-與-Antiforgery-Cookie]]）、`Expires/Max-Age`（決定關機後是否還在）。
+- **「session」在你 vault 有三個意思**，別混：① 身分驗證 session（[[1-Cookie-與-Session]]）；② 資料庫 ORM session（[[12-session]]，SQLModel 的交易窗口）；③ OAuth 登入 session（本篇登入狀態維持）。
 - **OAuth 是授權不是認證**：純 OAuth 解決「准你存取資源」；要「證明你是誰」是 OpenID Connect（OIDC）疊在 OAuth 之上——既有筆記都沒提到這層。
 
 ## 各對話來源

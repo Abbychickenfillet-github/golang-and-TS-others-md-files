@@ -39,7 +39,7 @@ updated: 2026-09-01
 | --- | --- | --- |
 | `_fbp` | Meta（Facebook）Pixel 廣告追蹤，記錄站上行為做再行銷 | `_fb` 開頭幾乎都是 Meta 系 |
 | `_ybar_latest_match` | 第三方元件或分析模組的狀態紀錄 | 帶 `bar`、`match`、`latest` 這類字眼多半是 UI 或分析狀態 |
-| `.AspNetCore.Antiforgery` | CSRF 防護 token（見 [[CSRF-與-Antiforgery-Cookie]]） | 出現 `Antiforgery`、`XSRF`、`csrf` 就是防護用 |
+| `.AspNetCore.Antiforgery` | CSRF 防護 token（見 [[9-CSRF-與-Antiforgery-Cookie]]） | 出現 `Antiforgery`、`XSRF`、`csrf` 就是防護用 |
 | `LOGIN_INFO` | YouTube／Google 系的登入狀態 | Domain 會是 `.youtube.com` 而不是你正在看的站 |
 
 (g) <mark style="background: #FF5582A6;">看不到登入 Cookie 不代表沒登入。</mark>兩種常見原因：一是 Token 已被清除或自然過期（伺服器發 `Set-Cookie` 把到期時間設成過去，或瀏覽器依 `Expires`／`Max-Age` 自動刪掉）；二是<mark style="background: #BBFABBA6;">現代 SPA 根本不用 Cookie 存驗證權杖，而是把 JWT 放在 Application → Local Storage 或 Session Storage</mark>，所以要換一個地方找。
@@ -144,12 +144,12 @@ fetch('https://api.your-app.com/v1/user/profile', {
 ## 關聯筆記
 
 - [[1-Cookie-與-Session]] — 那篇講「為什麼需要 Cookie／Session」這個更前面的問題（HTTP 是無狀態的），本篇則是接著問「有了之後，邊界跟風險在哪」。先看那篇再看這篇順序才對。
-- [[CSRF-與-Antiforgery-Cookie]] — 那篇是從一支實際的 `.AspNetCore.Antiforgery` Cookie 反推它的用途，是本篇 (o)(p) 的實機案例版；(f) 的判讀表也直接沿用了那篇的除錯手法。
+- [[9-CSRF-與-Antiforgery-Cookie]] — 那篇是從一支實際的 `.AspNetCore.Antiforgery` Cookie 反推它的用途，是本篇 (o)(p) 的實機案例版；(f) 的判讀表也直接沿用了那篇的除錯手法。
 - [[5-Refresh-Token與Token-Endpoint-雙Token機制與JWT關係]] — 補完 (r) 那張表沒展開的部分：實務上不會純選一邊，而是雙 Token 各放一處。
 - [[剪貼簿劫持攻擊-ClickFix與網站惡意注入排查]] — (r) 提到的 XSS 風險在真實世界怎麼發生，那篇有完整的注入排查流程。
 - [[ClickFix社交工程攻擊-假驗證碼誘騙貼上PowerShell與網站被注入的處置]] — 同上，並且那篇有 F12 Application 分頁的實機截圖，可以搭配本篇 (e) 一起看。
 - [[XMLHttpRequest-CORS-explanation]] — (l) 提到 CORS 是防線之一，那篇解釋 CORS 的預檢請求與同源判定細節。
-- [[JWT_TOKEN_EXPLANATION]] — (q) 的 `Bearer ${userToken}` 裡那串東西的內部結構（Header／Payload／Signature）在那篇。
+- [[1-JWT_TOKEN_EXPLANATION]] — (q) 的 `Bearer ${userToken}` 裡那串東西的內部結構（Header／Payload／Signature）在那篇。
 
 ## 各對話來源（原文）
 

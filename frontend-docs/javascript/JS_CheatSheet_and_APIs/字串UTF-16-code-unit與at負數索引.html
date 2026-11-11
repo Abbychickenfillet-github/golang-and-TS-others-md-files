@@ -1,0 +1,56 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JS 字串為何是 UTF-16 與 at() 的負數索引</title><style>body{font-family:-apple-system,'Noto Sans TC','Microsoft JhengHei',sans-serif;background:#f6f7f9;color:#222;line-height:1.7;margin:0}
+.w{max-width:820px;margin:0 auto;padding:32px 20px 60px}h1{font-family:Georgia,'Noto Serif TC',serif;font-size:1.9em;margin:.2em 0}
+h2{border-left:5px solid #6b8fd6;padding-left:10px;margin-top:2em}h3{color:#3b5a99}.pill{display:inline-block;background:#e4ebf8;color:#34518f;border-radius:99px;padding:1px 12px;margin:0 6px 6px 0;font-size:.85em}
+.meta{color:#666;font-size:.9em}pre{background:#1f2430;color:#e6e6e6;padding:14px;border-radius:8px;overflow-x:auto}code{font-family:Consolas,monospace}
+p code,li code,td code{background:#eceef3;padding:1px 5px;border-radius:4px;color:#b02a5b}table{border-collapse:collapse;width:100%;background:#fff}th,td{border:1px solid #d5d9e2;padding:6px 10px}tr:nth-child(even){background:#f1f4f9}
+blockquote{border-left:4px solid #e0a43a;background:#fff8e6;margin:1em 0;padding:6px 14px;border-radius:0 6px 6px 0}
+details{background:#fff;border:1px solid #d5d9e2;border-radius:8px;padding:8px 14px;margin:8px 0}summary{cursor:pointer;font-weight:600}
+mark{padding:0 2px;border-radius:3px}.foot{margin-top:40px;color:#888;font-size:.85em;border-top:1px solid #ddd;padding-top:10px}a{color:#2f6fd6}
+.card{background:#fff;border-radius:10px;padding:4px 18px 14px;margin-top:1em;box-shadow:0 1px 3px #0001}
+.toggle{cursor:pointer;background:#6b8fd6;color:#fff;border:0;border-radius:6px;padding:4px 12px;margin:6px 0}
+</style></head><body><div class="w"><h1>JS 字串為何是 UTF-16 與 at() 的負數索引</h1><div><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">string</span><span class="pill">utf-16</span><span class="pill">es2022</span></div><div class="meta">更新 2026-11-09 ・ <a href="https://gemini.google.com/app/432e3b4a8690e328">來源</a> <button class="toggle" onclick="document.querySelectorAll('details').forEach(d=>d.open=!d.open)">全部展開／收合答案</button></div><div class="card">
+<p>本篇重點 a–e，共 5 個。關聯：[[JavaScript-字串方法]]（字串方法總表）。</p>
+<h2>重點整理</h2>
+<p>(a) <mark style="background: #ADCCFFA6;">String</mark> 是 JavaScript 全域物件與建構子，字串字面值可用單引號 <code>'</code>、雙引號 <code>"</code> 或樣板字面值 <code>`</code> 建立，這種稱為 primitive string，用 <code>String()</code> 轉型也得到 primitive，用 <code>new String()</code> 才得到物件。</p>
+<p>(b) <mark style="background: #FFF3A3A6;">JavaScript 字串內部以 UTF-16 儲存</mark>，每個基本單位叫 code unit，長度 16 位元。
+　原因：1995 年設計語言時，UTF-16 足以涵蓋當時 Unicode 的 BMP 範圍，所以沿用至今，並非選 UTF-8。</p>
+<p>(c) Emoji 或罕見字超出 BMP，需要兩個 code unit（surrogate pair，代理對）表示。
+　<code>charAt()</code>、<code>at()</code>、索引 <code>str[i]</code> 都以 code unit 為單位，遇到 Emoji 可能切到半個字元。<mark style="background: #FF5582A6;">這是用索引處理 Emoji 的陷阱</mark>。</p>
+<p>(d) <code>at()</code> 是 ES2022 新增的方法，可傳負整數，從字串尾端倒數。</p>
+<pre><code class="language-js">const s = &quot;hello&quot;;
+s.charAt(-1);      // &quot;&quot;（charAt 不支援負數，回傳空字串）
+s[s.length - 1];   // &quot;o&quot;（舊寫法，較繁瑣）
+s.at(-1);          // &quot;o&quot;（倒數第 1 個）
+s.at(-2);          // &quot;l&quot;（倒數第 2 個）
+</code></pre>
+<p>(e) 常用實體方法：<code>toLowerCase</code>、<code>toUpperCase</code>、<code>trim</code>、<code>replace</code>、<code>split</code>、<code>indexOf</code>、<code>substring</code>。</p>
+<h2>自我測驗（點開看答案）</h2>
+<details><summary>1. JS 字串底層是 UTF-8 還是 UTF-16？為什麼？</summary>UTF-16。1995 年設計時 UTF-16 足以涵蓋 BMP，沿用至今。</details>
+
+<details><summary>2. 為何用索引處理 Emoji 會出錯？</summary>Emoji 佔兩個 code unit（surrogate pair），索引以 code unit 計算，可能只取到一半。</details>
+
+<details><summary>3. 是非題：charAt(-1) 會回傳最後一個字元。</summary>非。charAt 不接受負數，回傳空字串；要用 at(-1)。</details>
+
+<h2>各對話來源</h2>
+<h3>JS 字串說明（2026-11-09）— https://gemini.google.com/app/432e3b4a8690e328</h3>
+<p>使用者：（貼上 MDN String 頁面）你說了什麼意思
+Gemini：說明 String 全域物件與建構子：字串建立、length、concat、indexOf、substring、charAt 與索引存取、大小寫轉換、trim、replace、split。</p>
+<p>使用者：為什麼這邊是 UTF16 不是 UTF-8？at the specified index accept negative integer 允許負整數 which count back from the last string character
+Gemini：整理如重點 (b)(c)(d)。</p>
+<h2>資料來源（含查證時間）</h2>
+<table>
+<thead>
+<tr>
+<th>主題</th>
+<th>連結</th>
+<th>版本/時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>String 與 at()</td>
+<td>https://developer.mozilla.org/zh-TW/docs/Web/JavaScript/Reference/Global_Objects/String/at</td>
+<td>MDN，本次未重新抓取（2026-11-09），ES2022 導入 at()</td>
+</tr>
+</tbody>
+</table></div><div class="foot">由 Gemini 對話自動整理 · 更新於 2026-11-09</div></div></body></html>
