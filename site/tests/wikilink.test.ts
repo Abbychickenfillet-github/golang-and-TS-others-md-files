@@ -17,7 +17,7 @@ import remarkRehype from 'remark-rehype';
 // 匯入 rehype-stringify，把 hast 輸出成 HTML 字串；
 import rehypeStringify from 'rehype-stringify';
 // 匯入被測模組的公開函式；
-import { buildWikilinkIndex, headingSlug, remarkWikilink, resolveWikilink, rewriteWikilinksInHtml } from '../src/lib/wikilink';
+import { buildWikilinkIndex, findAmbiguity, headingSlug, listAmbiguousKeys, remarkWikilink, resolveWikilink, rewriteWikilinksInHtml } from '../src/lib/wikilink';
 // 匯入 NoteEntry 型別；`import type` 整句只在編譯期存在；
 import type { NoteEntry } from '../src/lib/content';
 
@@ -34,16 +34,18 @@ const note = (relPath: string, title?: string): NoteEntry => {
 // 小工具：用一組筆記建索引；
 const indexOf = (...notes: NoteEntry[]) => buildWikilinkIndex(notes);
 
-// 小工具：把 Markdown 走完整管線輸出成 HTML 字串，並回報找不到的連結；
+// 小工具：把 Markdown 走完整管線輸出成 HTML 字串，並回報找不到與有歧義的連結；
 const render = (md: string, index: Map<string, string>, basePath?: string) => {
   // vi.fn() 建立可記錄呼叫的假函式，用來檢查 onMissing 有沒有被呼叫；
   const onMissing = vi.fn();
+  // 同上，記錄有歧義的連結；
+  const onAmbiguous = vi.fn();
   // 組管線：解析 → GFM → wikilink 外掛 → 轉 hast → 輸出；processSync 同步處理；
   const html = String(
-    unified().use(remarkParse).use(remarkGfm).use(remarkWikilink, { index, onMissing, basePath }).use(remarkRehype).use(rehypeStringify).processSync(md),
+    unified().use(remarkParse).use(remarkGfm).use(remarkWikilink, { index, onMissing, onAmbiguous, basePath }).use(remarkRehype).use(rehypeStringify).processSync(md),
   );
-  // 回傳 HTML 與假函式；
-  return { html, onMissing };
+  // 回傳 HTML 與兩個假函式；
+  return { html, onMissing, onAmbiguous };
 };
 
 // 建索引的測試；
@@ -58,22 +60,66 @@ describe('buildWikilinkIndex', () => {
     expect(index.get('日期 物件')).toBe('/前端/日期物件');
   });
 
-  // 兩篇不同筆記同標題要失敗並列出衝突；
-  it('兩篇不同筆記標題相同時丟錯並列出兩個路徑', () => {
+  // R15：索引永遠不丟錯；兩篇不同 md 同標題只是標記為有歧義；
+  it('兩篇不同筆記標題相同：索引照樣建得出來，並標記該鍵有歧義', () => {
     // 檔名不同、標題相同；
-    const build = () => indexOf(note('a/甲.md', '共同標題'), note('b/乙.md', '共同標題'));
-    // 丟錯，訊息要含鍵與兩個路徑；
-    expect(build).toThrow(/共同標題/);
-    // 訊息同時列出兩個路徑；
-    expect(build).toThrow(/a\/甲\.md[\s\S]*b\/乙\.md/);
+    const index = indexOf(note('a/甲.md', '共同標題'), note('b/乙.md', '共同標題'));
+    // 沒丟錯，兩個檔名鍵與標題鍵都在；
+    expect(index.has('甲') && index.has('乙') && index.has('共同標題')).toBe(true);
+    // 歧義鍵清單只有標題鍵，候選列出兩個 relPath；
+    expect(listAmbiguousKeys(index)).toEqual([{ key: '共同標題', candidates: ['a/甲.md', 'b/乙.md'] }]);
   });
 
-  // 檔名重複（不同資料夾）也算衝突；
-  it('不同資料夾的同名檔案丟錯並列出兩個路徑', () => {
-    // 兩個資料夾都有 README.md；
-    const build = () => indexOf(note('a/README.md'), note('b/README.md'));
-    // 訊息點名鍵與兩個路徑；
-    expect(build).toThrow(/README[\s\S]*a\/README\.md[\s\S]*b\/README\.md/);
+  // 指向有歧義的鍵：不連、原文保留、用 onAmbiguous 回報；加資料夾可消歧；
+  it('[[標題]] 經 onAmbiguous 回報並保留純文字；[[資料夾/標題]] 可解析', () => {
+    // 兩篇同標題的 md；
+    const index = indexOf(note('a/甲.md', '共同標題'), note('b/乙.md', '共同標題'));
+    // 只寫標題：歧義；
+    const bare = render('見 [[共同標題]]', index);
+    // 原文不變；
+    expect(bare.html).toBe('<p>見 [[共同標題]]</p>');
+    // 回報原始內文與候選 relPath；
+    expect(bare.onAmbiguous).toHaveBeenCalledWith('共同標題', ['a/甲.md', 'b/乙.md']);
+    // 不算缺漏；
+    expect(bare.onMissing).not.toHaveBeenCalled();
+    // 寫上資料夾：以資料夾尾段消歧，成功連到 a 資料夾那篇；
+    const withFolder = render('見 [[a/共同標題]]', index);
+    // 連到 /a/甲；
+    expect(withFolder.html).toContain('href="/a/%E7%94%B2"');
+    // 不再回報；
+    expect(withFolder.onAmbiguous).not.toHaveBeenCalled();
+  });
+
+  // 檔名重複（不同資料夾）也是歧義，不是丟錯；
+  it('不同資料夾的同名檔案：標記歧義，[[backend/README]] 可消歧，[[README]] 不連', () => {
+    // 四個 README，其中兩個在同名資料夾 x 下的不同父層；
+    const index = indexOf(note('a/README.md'), note('backend/README.md'), note('b/x/README.md'), note('c/x/README.md'));
+    // 歧義清單含 README 與所有候選；
+    expect(listAmbiguousKeys(index)).toEqual([{ key: 'README', candidates: ['a/README.md', 'b/x/README.md', 'backend/README.md', 'c/x/README.md'] }]);
+    // 資料夾唯一符合：解析成功；
+    expect(resolveWikilink('backend/README', index)?.href).toBe('/backend/README');
+    // 沒給資料夾：回傳 null，並可用 findAmbiguity 取得候選；
+    expect(resolveWikilink('README', index)).toBeNull();
+    // 候選是全部四個；
+    expect(findAmbiguity('README', index)).toHaveLength(4);
+    // 資料夾尾段 x 仍符合兩篇：還是歧義，候選只剩那兩篇；
+    expect(findAmbiguity('x/README', index)).toEqual(['b/x/README.md', 'c/x/README.md']);
+    // 能解析的連結 findAmbiguity 回傳 null；
+    expect(findAmbiguity('backend/README', index)).toBeNull();
+    // 相對路徑記號 .. 與 . 被忽略，只用其後的資料夾片段消歧；
+    expect(resolveWikilink('../backend/README|別名', index)?.href).toBe('/backend/README');
+  });
+
+  // html 不登記標題鍵：md 與 -互動版 html 同標題時沒有歧義，標題鍵歸 md；
+  it('html 不登記標題鍵：md 與 -互動版 html 同標題不歧義，標題鍵指向 md', () => {
+    // md 與改名後的互動版 html 標題相同；
+    const index = indexOf(note('f/CDN.md', '快取失效'), note('f/CDN-互動版.html', '快取失效'));
+    // 標題鍵只由 md 擁有；
+    expect(index.get('快取失效')).toBe('/f/CDN');
+    // html 仍可用自己的檔名鍵；
+    expect(index.get('CDN-互動版')).toBe('/f/CDN-互動版');
+    // 沒有任何歧義鍵；
+    expect(listAmbiguousKeys(index)).toEqual([]);
   });
 
   // R3：同資料夾同名的 md 與 html 是配對，不算衝突，偏好 md；
@@ -364,7 +410,7 @@ describe('rewriteWikilinksInHtml', () => {
     // 回報用的假函式；
     const onMissing = vi.fn();
     // 重寫；
-    const out = rewriteWikilinksInHtml('<p>看 [[日期物件|別名]] 吧</p>', index, onMissing);
+    const out = rewriteWikilinksInHtml('<p>看 [[日期物件|別名]] 吧</p>', index, onMissing, vi.fn());
     // 連結文字是原字串；
     expect(out).toBe('<p>看 <a class="wikilink" href="/%E5%89%8D%E7%AB%AF/%E6%97%A5%E6%9C%9F%E7%89%A9%E4%BB%B6">[[日期物件|別名]]</a> 吧</p>');
     // 沒有缺漏；
@@ -378,9 +424,29 @@ describe('rewriteWikilinksInHtml', () => {
     // 輸入沒有可解析的目標；
     const html = '<p>[[不存在]]</p>';
     // 輸出與輸入完全相同；
-    expect(rewriteWikilinksInHtml(html, index, onMissing)).toBe(html);
+    expect(rewriteWikilinksInHtml(html, index, onMissing, vi.fn())).toBe(html);
     // 有回報；
     expect(onMissing).toHaveBeenCalledWith('不存在');
+  });
+
+  // 有歧義：保留原文並呼叫 onAmbiguous（不是 onMissing）；
+  it('指向有歧義的鍵時保留原文，呼叫 onAmbiguous 而非 onMissing', () => {
+    // 兩個同名 README；
+    const amb = indexOf(note('a/README.md'), note('b/README.md'));
+    // 假函式；
+    const onMissing = vi.fn();
+    // 另一個假函式；
+    const onAmbiguous = vi.fn();
+    // 輸入；
+    const html = '<p>[[README]] 與 [[b/README]]</p>';
+    // 第一個歧義保留，第二個有資料夾所以連結；
+    expect(rewriteWikilinksInHtml(html, amb, onMissing, onAmbiguous)).toBe('<p>[[README]] 與 <a class="wikilink" href="/b/README">[[b/README]]</a></p>');
+    // 回報候選；
+    expect(onAmbiguous).toHaveBeenCalledWith('README', ['a/README.md', 'b/README.md']);
+    // 只呼叫一次；
+    expect(onAmbiguous).toHaveBeenCalledTimes(1);
+    // 不算缺漏；
+    expect(onMissing).not.toHaveBeenCalled();
   });
 
   // script、style、a、code、pre、textarea 內不碰；
@@ -390,7 +456,7 @@ describe('rewriteWikilinksInHtml', () => {
     // 假函式；
     const onMissing = vi.fn();
     // 輸出與輸入逐字相同；
-    expect(rewriteWikilinksInHtml(html, index, onMissing)).toBe(html);
+    expect(rewriteWikilinksInHtml(html, index, onMissing, vi.fn())).toBe(html);
     // 這些位置也不回報；
     expect(onMissing).not.toHaveBeenCalled();
   });
@@ -400,7 +466,7 @@ describe('rewriteWikilinksInHtml', () => {
     // 含單引號屬性與自閉合標籤，重新序列化就會改變；
     const html = "<!DOCTYPE html><html><body><img src='a.png'/><br/></body></html>";
     // 逐字相同；
-    expect(rewriteWikilinksInHtml(html, index, vi.fn())).toBe(html);
+    expect(rewriteWikilinksInHtml(html, index, vi.fn(), vi.fn())).toBe(html);
   });
 
   // 完整文件：doctype、單引號屬性、其他結構逐字保留，只有 wikilink 那段被換掉；
@@ -408,7 +474,7 @@ describe('rewriteWikilinksInHtml', () => {
     // 含 doctype、單引號屬性、自閉合標籤、script 內含 [[；
     const html = "<!DOCTYPE html>\n<html lang='zh-TW'>\n<head><meta charset='utf-8'><title>T [[日期物件]]</title></head>\n<body class='x'>\n<p data-a='1'>見 [[日期物件]]&nbsp;&amp;</p><br/>\n<script>var s = '[[日期物件]]';</script>\n</body>\n</html>\n";
     // 重寫；
-    const out = rewriteWikilinksInHtml(html, index, vi.fn());
+    const out = rewriteWikilinksInHtml(html, index, vi.fn(), vi.fn());
     // 預期：只有 p 內那一個 wikilink 被換成連結，其餘（含 title 內的）逐字不變；
     const expected = html.replace('見 [[日期物件]]', '見 <a class="wikilink" href="/%E5%89%8D%E7%AB%AF/%E6%97%A5%E6%9C%9F%E7%89%A9%E4%BB%B6">[[日期物件]]</a>');
     // 比對；
@@ -420,7 +486,7 @@ describe('rewriteWikilinksInHtml', () => {
     // 片段含單引號屬性；
     const html = "<div class='a'><p>[[日期物件]]</p><img src='x.png'></div>";
     // 重寫；
-    const out = rewriteWikilinksInHtml(html, index, vi.fn(), '/b');
+    const out = rewriteWikilinksInHtml(html, index, vi.fn(), vi.fn(), '/b');
     // 預期；
     expect(out).toBe("<div class='a'><p><a class=\"wikilink\" href=\"/b/%E5%89%8D%E7%AB%AF/%E6%97%A5%E6%9C%9F%E7%89%A9%E4%BB%B6\">[[日期物件]]</a></p><img src='x.png'></div>");
   });
@@ -430,7 +496,7 @@ describe('rewriteWikilinksInHtml', () => {
     // 前面有 CRLF 與中文，後面才出現 wikilink；
     const html = '<p>第一行\r\n第二行</p>\r\n<p>[[日期物件]]</p>\r\n';
     // 重寫；
-    const out = rewriteWikilinksInHtml(html, index, vi.fn());
+    const out = rewriteWikilinksInHtml(html, index, vi.fn(), vi.fn());
     // 只換掉 wikilink，CRLF 全部保留；
     expect(out).toBe(html.replace('[[日期物件]]', '<a class="wikilink" href="/%E5%89%8D%E7%AB%AF/%E6%97%A5%E6%9C%9F%E7%89%A9%E4%BB%B6">[[日期物件]]</a>'));
   });
@@ -442,7 +508,7 @@ describe('rewriteWikilinksInHtml', () => {
     // 輸入；
     const html = '<p>![[img.png]]</p>';
     // 原樣；
-    expect(rewriteWikilinksInHtml(html, index, onMissing)).toBe(html);
+    expect(rewriteWikilinksInHtml(html, index, onMissing, vi.fn())).toBe(html);
     // 不回報；
     expect(onMissing).not.toHaveBeenCalled();
   });
@@ -452,7 +518,7 @@ describe('rewriteWikilinksInHtml', () => {
     // 這篇檔名含 &；encodeURIComponent 會把 & 編成 %26，所以 href 裡本來就沒有裸 &，確認輸出是合法 HTML；
     const idx = indexOf(note('a/R&D.md'));
     // 重寫；
-    const out = rewriteWikilinksInHtml('<p>[[R&amp;D]]</p>', idx, vi.fn());
+    const out = rewriteWikilinksInHtml('<p>[[R&amp;D]]</p>', idx, vi.fn(), vi.fn());
     // 解碼 &amp; 後能找到，href 內為 %26；
     expect(out).toBe('<p><a class="wikilink" href="/a/R%26D">[[R&amp;D]]</a></p>');
   });

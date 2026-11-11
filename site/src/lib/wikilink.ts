@@ -15,6 +15,8 @@ export type RemarkWikilinkOptions = {
   index: Map<string, string>;
   // onMissing：找不到連結目標時的回呼，參數是 `[[` 與 `]]` 之間的原始文字；
   onMissing: (raw: string) => void;
+  // onAmbiguous：目標有歧義（同名筆記不只一篇且資料夾無法消歧）時的回呼，參數是原始內文與候選 relPath 陣列；此時保留原文、不產生連結；
+  onAmbiguous: (raw: string, candidates: string[]) => void;
   // basePath：網站部署在子路徑時的前綴（例如 '/Abby-notes'），省略代表網站根目錄；
   basePath?: string;
 };
@@ -69,34 +71,14 @@ function groupBy(notes: NoteEntry[], keyOf: (note: NoteEntry) => string | undefi
   return groups;
 }
 
-// 建立 wikilink 索引：鍵是檔名（去副檔名）與 frontmatter 標題，值是未編碼的站內路徑；
-// 規則：同資料夾同檔名的 md／html 配對不算衝突（偏好 md）；檔名鍵優先於標題鍵；其餘「不同筆記同鍵」一律丟錯並列出每個衝突；
+// 建立 wikilink 索引：鍵是檔名（去副檔名，md 與 html 都登記）與 frontmatter 標題（只有 md 登記，R15），值是未編碼的站內路徑；
+// 規則：同資料夾同檔名的 md／html 配對視為同一篇（偏好 md，R3）；檔名鍵優先於標題鍵；
+// 「不同筆記同鍵」不丟錯，只在旁路表中成為歧義鍵（Map 的值取第一個候選），到解析時才處理（見 resolveWikilinkDetailed）；
 export function buildWikilinkIndex(notes: NoteEntry[]): Map<string, string> {
   // 檔名鍵分組：slug 的最後一段就是去掉副檔名的檔名；`.at(-1)` 取最後一個元素；
   const byName = groupBy(notes, (n) => n.slug.at(-1));
-  // 標題鍵分組：標題前後空白去掉；
-  const byTitle = groupBy(notes, (n) => n.title.trim());
-  // 收集所有衝突，最後一次丟出，讓使用者一次看到全部；
-  const conflicts: string[] = [];
-  // 檢查一組分組：不同「邏輯筆記」超過一篇就是衝突；label 是訊息裡的種類說明；skip 是要略過的鍵（被檔名鍵蓋過的標題鍵）；
-  const check = (groups: Map<string, NoteEntry[]>, label: string, skip: (key: string) => boolean) => {
-    // 逐組檢查；
-    for (const [key, list] of groups) {
-      // 被更高優先序的鍵蓋過就不算衝突；
-      if (skip(key)) continue;
-      // 用 Set 去重取得不同邏輯筆記的數量；
-      if (new Set(list.map(logicalId)).size > 1) {
-        // 把每個衝突的 relPath 一行一個列出；
-        conflicts.push(`  ${label}「${key}」：\n${list.map((n) => `    - ${n.relPath}`).join('\n')}`);
-      }
-    }
-  };
-  // 檔名鍵不會被誰蓋過；
-  check(byName, '檔名', () => false);
-  // 標題鍵若同時是某個檔名鍵，就由檔名鍵勝出，不檢查；
-  check(byTitle, '標題', (key) => byName.has(key));
-  // 有任何衝突就丟錯（繁體中文），不默默挑一篇；
-  if (conflicts.length > 0) throw new Error(`發現 ${conflicts.length} 組 wikilink 鍵衝突（不同筆記共用同一個檔名或標題，無法決定連到哪一篇）：\n${conflicts.join('\n')}`);
+  // 標題鍵分組：只有 md 登記標題鍵（html 的 <title> 常與配對的 md 相同，登記只會製造假衝突）；標題前後空白去掉；
+  const byTitle = groupBy(notes, (n) => (n.kind === 'md' ? n.title.trim() : undefined));
   // 索引本體：鍵 → 網址；
   const index = new Map<string, string>();
   // 旁路表：鍵 → 筆記陣列；
@@ -125,6 +107,23 @@ export function buildWikilinkIndex(notes: NoteEntry[]): Map<string, string> {
   registries.set(index, registry);
   // 回傳索引；
   return index;
+}
+
+// 列出索引中所有歧義鍵（同一個鍵被兩篇以上「不同」筆記登記）與各自的候選 relPath；給檢查腳本與建置報告用；
+export function listAmbiguousKeys(index: Map<string, string>): { key: string; candidates: string[] }[] {
+  // 取旁路表；手寫的普通 Map 沒有旁路表，視為沒有歧義；
+  const registry = registries.get(index);
+  // 結果陣列；
+  const out: { key: string; candidates: string[] }[] = [];
+  // 沒有旁路表就回傳空陣列；
+  if (!registry) return out;
+  // 逐鍵檢查；
+  for (const [key, list] of registry) {
+    // 不同邏輯筆記超過一篇才算歧義（md 與 html 同 slug 的配對不算）；
+    if (new Set(list.map(logicalId)).size > 1) out.push({ key, candidates: list.map((n) => n.relPath) });
+  }
+  // 回傳；
+  return out;
 }
 
 // 與 assets/notes.js 的 slug() 逐字相同：notes.js 在瀏覽器執行期用它替標題加上 id，所以錨點必須用同一套規則；
@@ -169,12 +168,20 @@ function folderMatches(note: NoteEntry, wanted: string[]): boolean {
   return folder.slice(folder.length - wanted.length).every((segment, i) => segment === wanted[i]);
 }
 
-// 在索引裡找一個鍵，回傳未編碼的站內路徑或 null；kind 指定種類，folder 是資料夾片段（可為空陣列）；
-function lookup(index: Map<string, string>, key: string, kind: 'md' | 'html' | undefined, folder: string[]): string | null {
+// 單一鍵的查詢結果：找到（url）、有歧義（candidates 是候選 relPath）、或沒有（null）；
+type Lookup = { url: string } | { candidates: string[] } | null;
+
+// 在索引裡找一個鍵；kind 指定種類，folder 是資料夾片段（可為空陣列）；
+function lookup(index: Map<string, string>, key: string, kind: 'md' | 'html' | undefined, folder: string[]): Lookup {
   // 取旁路表；
   const registry = registries.get(index);
-  // 沒有旁路表（手寫的普通 Map）：只看 Map 的值，無法依種類或資料夾過濾；
-  if (!registry) return index.get(key) ?? null;
+  // 沒有旁路表（手寫的普通 Map）：只看 Map 的值，無法依種類或資料夾過濾，也沒有歧義資訊；
+  if (!registry) {
+    // 取值；
+    const value = index.get(key);
+    // 沒有這個鍵就回 null，否則包成 { url }；
+    return value === undefined ? null : { url: value };
+  }
   // 取這個鍵對應的筆記清單；
   let candidates = registry.get(key);
   // 沒有這個鍵；
@@ -188,12 +195,23 @@ function lookup(index: Map<string, string>, key: string, kind: 'md' | 'html' | u
     // 有符合的才縮小範圍；
     if (matched.length > 0) candidates = matched;
   }
-  // 清單已是 md 優先，取第一個；沒有候選就回 null；
-  return candidates.length > 0 ? urlOf(candidates[0]) : null;
+  // 沒有候選（例如指定種類後空了）；
+  if (candidates.length === 0) return null;
+  // 篩完仍有不同「邏輯筆記」超過一篇：歧義，回報所有剩下的候選 relPath；
+  if (new Set(candidates.map(logicalId)).size > 1) return { candidates: candidates.map((n) => n.relPath) };
+  // 唯一（或只是 md／html 配對）：清單已是 md 優先，取第一個；
+  return { url: urlOf(candidates[0]) };
 }
 
-// 解析一段 wikilink 的內文（`[[` 與 `]]` 之間；若傳入帶括號的完整字串也接受）；找不到回傳 null；
-export function resolveWikilink(raw: string, index: Map<string, string>, basePath = ''): { href: string; text: string } | null {
+// resolveWikilinkDetailed 的三種結果（辨別聯集：以 status 欄位區分）：ok 有連結、ambiguous 有歧義、missing 找不到；
+export type WikilinkResult =
+  | { status: 'ok'; href: string; text: string }
+  | { status: 'ambiguous'; candidates: string[] }
+  | { status: 'missing' };
+
+// 解析一段 wikilink 的內文（`[[` 與 `]]` 之間；若傳入帶括號的完整字串也接受），並區分「成功／歧義／找不到」；
+// 歧義的定義：鍵被兩篇以上不同筆記登記，且資料夾部分（若有）仍無法縮成一篇；此時不產生連結；
+export function resolveWikilinkDetailed(raw: string, index: Map<string, string>, basePath = ''): WikilinkResult {
   // 去掉可能帶進來的外層 [[ ]]，並把轉義的 \| 還原成 |（Markdown 表格儲存格裡的寫法）；
   const inner = raw.replace(/^\[\[|\]\]$/g, '').replace(/\\\|/g, '|');
   // 第一個 | 之前是目標，之後是別名；indexOf 找不到回傳 -1；
@@ -203,7 +221,7 @@ export function resolveWikilink(raw: string, index: Map<string, string>, basePat
   // 別名：去頭尾空白，空字串視為沒有別名（用 undefined 表示）；
   const alias = pipe === -1 ? undefined : inner.slice(pipe + 1).trim() || undefined;
   // 沒有目標（例如 [[ ]] 或 [[|x]]）無法解析；
-  if (target === '') return null;
+  if (target === '') return { status: 'missing' };
   // 找出要查的「路徑部分」與「段落」：先整串當鍵（檔名可能本身含 #，例如 C#），找不到才在第一個 # 切開；
   let pathPart = target;
   // 段落標題，預設沒有；
@@ -223,7 +241,7 @@ export function resolveWikilink(raw: string, index: Map<string, string>, basePat
   // 錨點字串：有段落就是 # 加 headingSlug；
   const fragment = heading ? `#${headingSlug(heading)}` : '';
   // 路徑部分為空代表同一頁的段落連結（[[#段落]]）；此時不需要索引，連結文字用別名或段落名；
-  if (pathPart === '') return heading ? { href: fragment, text: alias ?? heading } : null;
+  if (pathPart === '') return heading ? { status: 'ok', href: fragment, text: alias ?? heading } : { status: 'missing' };
   // 連結文字：別名優先，否則是「最後一個 / 之後」的標題原文；split 後 at(-1) 取最後一段；
   const text = alias ?? (pathPart.split('/').at(-1) as string).trim();
   // 依序嘗試的查詢方式：先整串原樣，再處理 .md／.html 副檔名；
@@ -234,8 +252,8 @@ export function resolveWikilink(raw: string, index: Map<string, string>, basePat
   if (ext) attempts.push({ name: pathPart.slice(0, ext.index), kind: ext[1].toLowerCase() as 'md' | 'html' });
   // 逐一嘗試；
   for (const { name, kind } of attempts) {
-    // 把名稱依 / 切成片段，去掉空段；
-    const parts = name.split('/').map((p) => p.trim()).filter((p) => p !== '');
+    // 把名稱依 / 切成片段，去掉空段與相對路徑記號 . 和 ..（例如 [[../資料夾/README]] 只取「資料夾/README」當消歧線索）；
+    const parts = name.split('/').map((p) => p.trim()).filter((p) => p !== '' && p !== '.' && p !== '..');
     // 沒有片段就換下一種嘗試；
     if (parts.length === 0) continue;
     // 最後一段是標題或檔名，其前面是資料夾；
@@ -245,13 +263,33 @@ export function resolveWikilink(raw: string, index: Map<string, string>, basePat
     // 先試整串（標題本身含 / 的情況），再試最後一段；
     for (const key of new Set([name.trim(), last])) {
       // 查詢；整串當鍵時沒有資料夾資訊，所以傳空陣列；
-      const url = lookup(index, key, kind, key === last ? folder : []);
+      const found = lookup(index, key, kind, key === last ? folder : []);
+      // 沒找到就換下一個鍵；
+      if (found === null) continue;
+      // 有歧義：立刻回報，不再嘗試其他鍵（否則可能默默連到別篇）；`in` 檢查物件有沒有 candidates 欄位；
+      if ('candidates' in found) return { status: 'ambiguous', candidates: found.candidates };
       // 找到就組出結果；
-      if (url !== null) return { href: toHref(url, basePath) + fragment, text };
+      return { status: 'ok', href: toHref(found.url, basePath) + fragment, text };
     }
   }
   // 全部都找不到；
-  return null;
+  return { status: 'missing' };
+}
+
+// 與舊版相容的簡單介面：成功回傳 { href, text }，找不到「或有歧義」都回傳 null；要區分兩者請用 resolveWikilinkDetailed 或 findAmbiguity；
+export function resolveWikilink(raw: string, index: Map<string, string>, basePath = ''): { href: string; text: string } | null {
+  // 先取得詳細結果；
+  const r = resolveWikilinkDetailed(raw, index, basePath);
+  // 只有 ok 才有連結資訊；
+  return r.status === 'ok' ? { href: r.href, text: r.text } : null;
+}
+
+// 若這個 wikilink 有歧義，回傳候選 relPath 陣列，否則回傳 null；
+export function findAmbiguity(raw: string, index: Map<string, string>): string[] | null {
+  // 取得詳細結果；
+  const r = resolveWikilinkDetailed(raw, index);
+  // 只有 ambiguous 有候選；
+  return r.status === 'ambiguous' ? r.candidates : null;
 }
 
 // 判斷一個字串是不是索引裡的鍵（只用來決定要不要在 # 切開）；
@@ -309,9 +347,16 @@ export function remarkWikilink(opts: RemarkWikilinkOptions): (tree: Root) => voi
       // 逐一處理；
       for (const f of found) {
         // 解析；
-        const r = resolveWikilink(f.inner, opts.index, opts.basePath ?? '');
-        // 找不到：回報，並且不切開（原文留在前後文字裡）；
-        if (!r) {
+        const r = resolveWikilinkDetailed(f.inner, opts.index, opts.basePath ?? '');
+        // 有歧義：回報候選，並且不切開（原文留在前後文字裡）；
+        if (r.status === 'ambiguous') {
+          // 回報原始內文與候選 relPath；
+          opts.onAmbiguous(f.inner, r.candidates);
+          // 換下一個；
+          continue;
+        }
+        // 找不到：回報，同樣保留原文；
+        if (r.status === 'missing') {
           // 回報原始內文；
           opts.onMissing(f.inner);
           // 換下一個；
@@ -371,7 +416,7 @@ function looksLikeDocument(html: string): boolean {
 // 重寫 HTML 文字節點中的 wikilink：連結文字保留完整的 [[…]] 原樣（舊版執行期腳本的外觀），class 是 wikilink；
 // 作法：cheerio 的 parse5 解析器可記下每個文字節點在原始字串中的起訖位置，我們只把「含 [[ 的文字節點」那一段原始字串換掉，
 // 其他位元組一律不動，所以 doctype、單引號屬性、自閉合標籤、空白都原樣保留（不經過重新序列化）；
-export function rewriteWikilinksInHtml(html: string, index: Map<string, string>, onMissing: (raw: string) => void, basePath = ''): string {
+export function rewriteWikilinksInHtml(html: string, index: Map<string, string>, onMissing: (raw: string) => void, onAmbiguous: (raw: string, candidates: string[]) => void, basePath = ''): string {
   // 沒有 [[ 就完全不需要解析，原樣回傳；
   if (!html.includes('[[')) return html;
   // 解析：sourceCodeLocationInfo 要求 parse5 記錄位置；第三個參數 isDocument：完整文件為 true，片段為 false；
@@ -405,9 +450,16 @@ export function rewriteWikilinksInHtml(html: string, index: Map<string, string>,
           // 解析前先把 HTML 實體還原成真正的字元；
           const inner = decodeBasicEntities(f.inner);
           // 解析；
-          const r = resolveWikilink(inner, index, basePath);
+          const r = resolveWikilinkDetailed(inner, index, basePath);
+          // 有歧義：回報候選、保留原文；
+          if (r.status === 'ambiguous') {
+            // 回報還原後的內文與候選 relPath；
+            onAmbiguous(inner, r.candidates);
+            // 換下一個；
+            continue;
+          }
           // 找不到：回報、保留原文；
-          if (!r) {
+          if (r.status === 'missing') {
             // 回報還原後的內文；
             onMissing(inner);
             // 換下一個；

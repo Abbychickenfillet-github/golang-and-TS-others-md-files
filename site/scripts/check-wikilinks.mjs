@@ -4,8 +4,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 // 匯入 content.ts 的函式；Node 24 內建「型別剝除」，可直接匯入 .ts 檔，所以副檔名要寫完整；
 import { listNotes, loadExclude } from '../src/lib/content.ts';
-// 匯入 wikilink.ts 的索引建立與解析函式；
-import { buildWikilinkIndex, resolveWikilink } from '../src/lib/wikilink.ts';
+// 匯入 wikilink.ts 的索引建立、歧義清單與詳細解析函式；
+import { buildWikilinkIndex, listAmbiguousKeys, resolveWikilinkDetailed } from '../src/lib/wikilink.ts';
 
 // 筆記根目錄：優先讀環境變數 NOTES_ROOT，沒有就用上一層（repo 根目錄）；`??` 只在左邊是 undefined 或 null 時才取右邊；
 const root = path.resolve(process.env.NOTES_ROOT ?? '..');
@@ -18,46 +18,34 @@ console.log(`root: ${root}`);
 // 印出筆記數；
 console.log(`notes: ${notes.length}`);
 
-// 建立索引；若有真正的鍵衝突會丟錯，這裡要把衝突清單完整印出（這是 Abby 需要的資料），不能吞掉；
-let index;
-// try/catch 接住 buildWikilinkIndex 丟出的衝突錯誤；
-try {
-  // 建索引；
-  index = buildWikilinkIndex(notes);
-} catch (error) {
-  // 印出完整的衝突訊息（訊息本身已列出每個鍵與所有衝突的 relPath）；
-  console.log('INDEX BUILD FAILED（鍵衝突）：');
-  // error 在 JS 裡可能是任何值，所以先判斷是不是 Error；
-  console.log(error instanceof Error ? error.message : String(error));
-  // 記下結束碼為失敗；腳本仍繼續用「降級索引」跑統計，讓 Abby 看到衝突之外的整體數字；
-  process.exitCode = 1;
-  // 降級索引：只供這支腳本統計用，不代表網站實際會這樣連；鍵衝突時「先出現者勝」，且檔名鍵優先於標題鍵；
-  index = new Map();
-  // 先放所有檔名鍵；slug 的最後一段就是去掉副檔名的檔名；
-  for (const note of notes) if (!index.has(note.slug.at(-1))) index.set(note.slug.at(-1), `/${note.slug.join('/')}`);
-  // 再放標題鍵，已有的不覆蓋；
-  for (const note of notes) if (!index.has(note.title.trim())) index.set(note.title.trim(), `/${note.slug.join('/')}`);
-  // 提醒下面的數字是降級索引算出來的；
-  console.log('（以下統計改用降級索引：鍵衝突時先出現者勝，僅供參考）');
-}
+// 建立索引；R15 之後 buildWikilinkIndex 不會丟錯，同鍵不同筆記只標成歧義鍵；
+const index = buildWikilinkIndex(notes);
 // 印出索引的鍵數；
 console.log(`index keys: ${index.size}`);
+// 取得歧義鍵清單；
+const ambiguousKeys = listAmbiguousKeys(index);
+// 印出歧義鍵數；
+console.log(`ambiguous keys: ${ambiguousKeys.length}`);
 
-// 印出 00-閱讀順序 的解析結果（它先前不在舊的執行期索引裡）；
-console.log(`00-閱讀順序 ->`, JSON.stringify(resolveWikilink('00-閱讀順序', index)));
+// 印出 00-閱讀順序 的解析結果（它先前不在舊的執行期索引裡）；JSON.stringify 把物件印成一行文字；
+console.log(`00-閱讀順序 ->`, JSON.stringify(resolveWikilinkDetailed('00-閱讀順序', index)));
 // 順便印出帶資料夾寫法的解析結果；
-console.log(`backend/Session-Token-Cookie-認證系列/00-閱讀順序 ->`, JSON.stringify(resolveWikilink('backend/Session-Token-Cookie-認證系列/00-閱讀順序', index)));
+console.log(`backend/Session-Token-Cookie-認證系列/00-閱讀順序 ->`, JSON.stringify(resolveWikilinkDetailed('backend/Session-Token-Cookie-認證系列/00-閱讀順序', index)));
 
 // 掃描用的正規表示式：可選的 !、[[、不含 [ 或 ] 的內文、]]；g 旗標找全部；
 const re = /(!?)\[\[([^[\]]+)\]\]/g;
-// 已解析與未解析的計數；
+// 已解析的計數；
 let resolved = 0;
-// 未解析的計數；
+// 找不到的計數；
 let unresolved = 0;
+// 指向歧義鍵而不連結的計數；
+let ambiguous = 0;
 // 嵌入語法（![[…]]）的計數，這支腳本不處理它；
 let embeds = 0;
-// 未解析目標的出現次數：Map 的鍵是內文，值是次數；
+// 找不到目標的出現次數：Map 的鍵是內文，值是次數；
 const missing = new Map();
+// 歧義目標：Map 的鍵是內文，值是 { count, candidates }；
+const ambiguousTargets = new Map();
 // 逐篇讀檔掃描；
 for (const note of notes) {
   // 讀成 UTF-8 字串；
@@ -78,25 +66,42 @@ for (const note of notes) {
       // 下一個；
       continue;
     }
-    // 解析；
-    if (resolveWikilink(m[2], index)) {
+    // 以還原轉義後、去空白的內文當鍵，方便合併相同目標；
+    const key = m[2].replace(/\\\|/g, '|').trim();
+    // 詳細解析；
+    const r = resolveWikilinkDetailed(m[2], index);
+    // 依狀態累加；
+    if (r.status === 'ok') {
       // 找得到；
       resolved += 1;
+    } else if (r.status === 'ambiguous') {
+      // 有歧義：累加總數，並記下候選；
+      ambiguous += 1;
+      // 取舊紀錄；
+      const prev = ambiguousTargets.get(key) ?? { count: 0, candidates: r.candidates };
+      // 次數加一後寫回；
+      ambiguousTargets.set(key, { count: prev.count + 1, candidates: r.candidates });
     } else {
-      // 找不到：累加總數，並以內文為鍵累加次數；
+      // 找不到：累加總數與該目標的次數；
       unresolved += 1;
-      // 以還原轉義後、去空白的內文當鍵，方便合併相同目標；
-      const key = m[2].replace(/\\\|/g, '|').trim();
       // 寫回次數；
       missing.set(key, (missing.get(key) ?? 0) + 1);
     }
   }
 }
 // 印出統計；
-console.log(`wikilinks: resolved=${resolved} unresolved=${unresolved} (embeds skipped=${embeds})`);
+console.log(`wikilinks: resolved=${resolved} unresolved=${unresolved} ambiguous-referenced=${ambiguous} (embeds skipped=${embeds})`);
 // 取次數最多的前 10 個未解析目標：Array.from 轉陣列，sort 依次數由大到小；
 const top = Array.from(missing).sort((a, b) => b[1] - a[1]).slice(0, 10);
 // 印出標題；
 console.log(`top unresolved targets (${missing.size} distinct):`);
 // 逐行印出；
 for (const [target, count] of top) console.log(`  ${count}\t[[${target}]]`);
+// 取次數最多的前 10 個歧義目標；
+const topAmbiguous = Array.from(ambiguousTargets).sort((a, b) => b[1].count - a[1].count).slice(0, 10);
+// 印出標題；
+console.log(`top ambiguous targets (${ambiguousTargets.size} distinct):`);
+// 逐行印出目標、次數與候選 relPath；
+for (const [target, { count, candidates }] of topAmbiguous) console.log(`  ${count}\t[[${target}]]\n\t  candidates: ${candidates.join(' ; ')}`);
+// 有任何歧義連結時以非 0 結束碼結束（Task 11 的建置會因此失敗）；
+if (ambiguous > 0) process.exitCode = 1;
