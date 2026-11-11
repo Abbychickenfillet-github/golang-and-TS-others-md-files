@@ -19,7 +19,7 @@ import type { NoteEntry } from '../src/lib/content';
 const vault = fileURLToPath(new URL('./site-vault', import.meta.url));
 
 // 已發布的筆記原始檔（relPath）；
-const published = new Set(['a/note.md', 'a/other.md', 'a/sub/other.md', 'up/other.md', 'a/my note.md', 'a/h.html', 'a/中文 筆記.md', 'a/old.md']);
+const published = new Set(['a/note.md', 'a/other.md', 'a/sub/other.md', 'up/other.md', 'a/my note.md', 'a/h.html', 'a/中文 筆記.md', 'a/old.md', 'a/renamed.md']);
 // 被取代的舊 html（R25）；
 const superseded = new Set(['a/old.html']);
 
@@ -71,6 +71,24 @@ describe('makeNoteHrefRewriter（R33）', () => {
     expect(seen.rewritten).toBe(0);
     // 沒有未發布；
     expect(seen.unpublished).toEqual([]);
+  });
+  // 原始檔不存在、但同名頁面存在：X.html 的原始檔已改名成 X-互動版.html，X.md 仍發布成 X.html（真實 repo 的情況）；
+  it('renamed.html 的原始檔不存在但 renamed.md 發布成同一個頁面：不改寫、也不算未發布', () => {
+    // 建立；
+    const { rewrite, seen } = setup();
+    // 不改；
+    expect(rewrite('renamed.html#x')).toBeNull();
+    // 不算未發布；
+    expect(seen.unpublished).toEqual([]);
+  });
+  // 反過來：寫成 h.md，但發布的是 h.html 筆記（頁面同樣是 h.html）；
+  it('h.md 的原始檔不存在但 h.html 筆記已發布：改寫成 h.html', () => {
+    // 建立；
+    const { rewrite, seen } = setup();
+    // 改成頁面；
+    expect(rewrite('h.md')).toBe('h.html');
+    // 計數；
+    expect(seen.rewritten).toBe(1);
   });
   // 指到沒發布的筆記：不改、記入；
   it.each([

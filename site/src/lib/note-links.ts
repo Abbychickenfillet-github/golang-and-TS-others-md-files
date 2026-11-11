@@ -37,6 +37,8 @@ function safeDecode(text: string): string {
 export function makeNoteHrefRewriter(ctx: NoteLinkContext): (href: string) => string | null {
   // 目前筆記所在資料夾；posix.dirname 對根層檔案回傳 '.'；
   const dir = posix.dirname(ctx.from);
+  // 已發布頁面的路徑（原始檔去掉 .md／.html）：頁面檔就是「這個路徑.html」；用來處理「原始檔名寫錯副檔名、但同名頁面存在」的連結；
+  const pages = new Set(Array.from(ctx.published, (p) => p.replace(/\.(md|html)$/, '')));
   // 回傳箭頭函式；
   return (href: string) => {
     // 空字串、# 開頭（同頁錨點）、/ 開頭（絕對路徑與 //host 協定相對網址）都不處理；
@@ -62,8 +64,9 @@ export function makeNoteHrefRewriter(ctx: NoteLinkContext): (href: string) => st
       // 不改；
       return null;
     }
-    // 指到已發布的筆記：md 改成 .html；html 筆記本來就是 .html，不用改；
-    if (ctx.published.has(resolved)) {
+    // 指到已發布的筆記原始檔，或副檔名不同但同名頁面已發布（例如舊 X.html 已改名成 X-互動版.html、X.md 仍發布成 X.html）：
+    // md 改成 .html；寫 .html 的本來就指到頁面，不用改；
+    if (ctx.published.has(resolved) || pages.has(resolved.slice(0, -ext[0].length))) {
       // html 不改；
       if (ext[1] === 'html') return null;
       // 計數；
