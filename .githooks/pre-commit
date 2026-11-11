@@ -1,0 +1,10 @@
+#!/bin/sh
+# 每次 commit 前自動重建 index.html（規則見 build-index.py）。
+# 失敗只警告、不擋 commit。
+PY=$(command -v python || command -v python3)
+if [ -n "$PY" ] && "$PY" build-index.py >/dev/null 2>&1; then
+  git add index.html
+else
+  echo "[pre-commit] build-index.py 執行失敗，略過索引更新" >&2
+fi
+exit 0
