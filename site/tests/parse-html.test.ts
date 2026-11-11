@@ -532,9 +532,9 @@ describe('parseHtmlNote', () => {
 
   // 用真實樣板頁：確認結構、共用規則被抽掉、頁面自己的 inline script 仍在；
   it('真實樣板頁：結構正確、script 保留', () => {
-    // 讀樣板檔；
+    // 讀樣板檔（同名配對改名後的檔名帶 -互動版，內容沒變）；
     const html = readFileSync(
-      path.join(repoRoot, 'backend', 'Session-Token-Cookie-認證系列', '1-Cookie-與-Session.html'),
+      path.join(repoRoot, 'backend', 'Session-Token-Cookie-認證系列', '1-Cookie-與-Session-互動版.html'),
       'utf8',
     );
     // 解析；
