@@ -275,10 +275,10 @@ function pruneRule(rule: Rule, shared: Set<string>, ctx: PruneCtx): void {
   const condition = effectiveCondition(ctx.chain);
   // 判斷一個選擇器是不是「在同一個條件下」被共用樣式定義；
   const isShared = (selector: string): boolean => shared.has(keyOf(condition, normalizeSelector(selector)));
-  // 只保留「不在共用集合內」的選擇器；
-  const kept = selectors.filter((selector) => !isShared(selector));
-  // 每個選擇器都是共用的，整條規則移除；
-  if (kept.length === 0) {
+  // 不在共用集合內的選擇器；
+  const nonShared = selectors.filter((selector) => !isShared(selector));
+  // 每個選擇器都是共用的：走宣告層級修剪（或舊式集合的整條移除）；
+  if (nonShared.length === 0) {
     // 每個選擇器在共用樣式裡的鍵；
     const keys = selectors.map((s) => keyOf(condition, normalizeSelector(s)));
     // 宣告層級修剪：共用集合對這些選擇器都有「宣告資訊」（`鍵{` 標記）才做；舊式手寫集合沒有標記，維持整條移除；
@@ -311,10 +311,24 @@ function pruneRule(rule: Rule, shared: Set<string>, ctx: PruneCtx): void {
     // 這條已不存在，不用再處理；
     return;
   }
-  // 有些選擇器被丟掉：統計被丟掉的，並把規則的選擇器改寫成剩下的；
+  // 清單只有一部分是共用的：逐選擇器做宣告層級判斷——共用樣式「對該選擇器宣告了這條規則的每一個屬性」才把它從清單拿掉（舊式集合沒有宣告標記，直接拿掉）；
+  // 否則留在清單裡（共用樣式與頁面兩邊都套用，頁面的宣告靠原始碼順序勝出），避免默默丟掉頁面額外的宣告（例如 `button, select{font-family; font-size}` 的 button）；
+  const covered = (selector: string): boolean => {
+    // 不是共用選擇器就不算；
+    if (!isShared(selector)) return false;
+    // 這個選擇器在共用集合的鍵；
+    const key = keyOf(condition, normalizeSelector(selector));
+    // 沒有宣告標記（舊式手寫集合）：視為完全涵蓋；
+    if (!shared.has(`${key}{`)) return true;
+    // 每個宣告都要是「一般屬性且共用樣式也宣告過」（自訂屬性不算涵蓋）；非宣告節點（註解）略過；
+    return (rule.nodes as ChildNode[]).every((child) => child.type !== 'decl' || (!child.prop.startsWith('--') && shared.has(`${key}{${child.prop.toLowerCase()}`)));
+  };
+  // 留下的選擇器；
+  const kept = selectors.filter((selector) => !covered(selector));
+  // 有些選擇器被拿掉：統計被拿掉的，並把規則的選擇器改寫成剩下的；
   if (kept.length !== selectors.length) {
-    // 被丟掉的選擇器（在共用集合內的）；
-    ctx.tally.selectorsRemoved.push(...selectors.filter((s) => isShared(s)).map(normalizeSelector));
+    // 被拿掉的選擇器；
+    ctx.tally.selectorsRemoved.push(...selectors.filter((s) => covered(s)).map(normalizeSelector));
     // 改寫；
     rule.selector = kept.map((s) => s.trim()).join(', ');
   }

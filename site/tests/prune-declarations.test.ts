@@ -55,10 +55,13 @@ describe('pruneSharedRules：宣告層級（共用樣式沒宣告的屬性要保
     expect(pruneSharedRules('body{MARGIN:0;--x:1}', theme)).toBe('body{--x:1}');
   });
 
-  // 選擇器清單只有部分共用：維持原本行為（丟掉共用選擇器，其餘保留全部宣告）；
-  it('選擇器清單部分共用時維持原行為', () => {
-    // body 共用、.mine 不共用；
-    expect(pruneSharedRules('body, .mine{margin:0;padding:1px}', theme)).toBe('.mine{margin:0;padding:1px}');
+  // 選擇器清單只有部分共用：（R39 後續調整，原本是「丟掉共用選擇器」）逐選擇器做宣告層級判斷，
+  // body 的共用樣式沒宣告 padding，所以 body 留在清單裡；共用樣式涵蓋全部屬性時才拿掉；
+  it('選擇器清單部分共用時逐選擇器判斷', () => {
+    // body 沒被完全涵蓋（padding）：清單原樣；
+    expect(pruneSharedRules('body, .mine{margin:0;padding:1px}', theme)).toBe('body, .mine{margin:0;padding:1px}');
+    // body 被完全涵蓋（margin、background）：拿掉；
+    expect(pruneSharedRules('body, .mine{margin:0;background:red}', theme)).toBe('.mine{margin:0;background:red}');
   });
 
   // 沒有宣告資訊的共用集合（舊式手寫集合）維持選擇器層級：整條移除；
