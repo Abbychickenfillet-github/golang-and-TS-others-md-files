@@ -3,7 +3,8 @@ import { load } from 'cheerio';
 // 型別匯入：domhandler 的 Element 型別，只在編譯期使用；
 import type { Element } from 'domhandler';
 // 匯入 parse-html 的工具：共用集合載入、檔名擷取、開始標籤結尾位置、帶統計的修剪函式；
-import { fileNameOf, hasOwnDarkPalette, loadDefaultSharedSelectors, openTagEnd, pruneSharedRulesDetailed } from './parse-html';
+import { hasOwnDarkPalette } from './dark-palette';
+import { fileNameOf, loadDefaultSharedSelectors, openTagEnd, pruneSharedRulesDetailed } from './parse-html';
 
 // 遷移統計；linksAdded 與 scriptsAdded 放實際寫進檔案的 href 或 src（例如 ../assets/note-theme.css）；
 export type MigrateStats = {

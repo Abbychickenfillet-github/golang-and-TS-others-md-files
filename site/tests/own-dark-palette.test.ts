@@ -3,7 +3,8 @@
 // 從 vitest 匯入測試骨架；
 import { describe, expect, it } from 'vitest';
 // 匯入被測函式；
-import { hasOwnDarkPalette, parseHtmlNote } from '../src/lib/parse-html';
+import { hasOwnDarkPalette } from '../src/lib/dark-palette';
+import { parseHtmlNote } from '../src/lib/parse-html';
 import { migrateHtml } from '../src/lib/migrate-html';
 
 // 失敗類別 B（12 頁抽樣檢查）：頁面自己設計了深色配色（body 背景是深色、卡片也是深色、文字是淺色），
