@@ -3,13 +3,15 @@
 // 從 vitest 匯入測試骨架：describe 分組、it 定義單一案例、expect 斷言；
 import { describe, expect, it } from 'vitest';
 // 匯入 Node 內建的同步讀檔函式，測試要讀真實的 note-theme.css 與樣板 html；
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 // 匯入 path 模組，用 resolve 把相對路徑組成絕對路徑；
 import * as path from 'node:path';
+// 匯入 os 模組的 tmpdir，取得系統暫存資料夾來建立臨時的筆記根目錄；
+import { tmpdir } from 'node:os';
 // 匯入 postcss 的預設匯出，用它驗證輸出的 CSS 還能被重新解析；
 import postcss from 'postcss';
 // 匯入被測模組的三個函式；
-import { parseHtmlNote, pruneSharedRules, sharedSelectors } from '../src/lib/parse-html';
+import { loadDefaultSharedSelectors, parseHtmlNote, pruneSharedRules, sharedSelectors, sharedSelectorsOf } from '../src/lib/parse-html';
 
 // vitest 從 site/ 執行，所以 `..` 就是 repo 根目錄；用 process.cwd() 定位，不靠 import.meta.url；
 const repoRoot = path.resolve(process.cwd(), '..');
@@ -513,6 +515,7 @@ describe('parseHtmlNote', () => {
       bodyHtml: '',
       pageCss: '',
       pageStylesheets: [],
+      rawStyleBlocks: [],
       pageScripts: [],
     });
   });
@@ -549,5 +552,145 @@ describe('parseHtmlNote', () => {
     }
     // pageCss 不再含共用的 .card 規則；
     expect(reparse(note.pageCss).nodes.some((n) => n.type === 'rule' && n.selector === '.card')).toBe(false);
+  });
+});
+
+// 第四組：無法解析的 <style> 不能被串接（R27）；
+describe('parseHtmlNote 無法解析的 style 區塊', () => {
+  // 複現審查發現的案例：壞區塊後面的區塊不能被吞掉；
+  it('壞區塊進 rawStyleBlocks 原樣保留，pageCss 只含解析成功的區塊與覆寫區塊', () => {
+    // 三個區塊：壞的、好的、覆寫；
+    const note = parseHtmlNote(
+      '<head><style>.m{a:b</style><style>.n{c:d}</style><style data-override>.o{e:f}</style></head><body></body>',
+    );
+    // 壞區塊逐字放進 rawStyleBlocks，沒有 media 與 override 欄位；
+    expect(note.rawStyleBlocks).toEqual([{ css: '.m{a:b' }]);
+    // pageCss 本身是合法 CSS，且依序只有好區塊與覆寫區塊；
+    const rules = reparse(note.pageCss).nodes.map((n) => (n as postcss.Rule).selector);
+    expect(rules).toEqual(['.n', '.o']);
+    // 壞區塊的文字沒有混進 pageCss；
+    expect(note.pageCss).not.toContain('.m');
+  });
+
+  // media 屬性的壞區塊不包 @media，改記在 media 欄位；
+  it('無法解析的 <style media="print"> 進 rawStyleBlocks 且不包 @media', () => {
+    // 解析；
+    const note = parseHtmlNote('<head><style media="print">.m{a:b</style></head><body></body>');
+    // 逐字保留並帶 media；
+    expect(note.rawStyleBlocks).toEqual([{ css: '.m{a:b', media: 'print' }]);
+    // pageCss 沒有任何東西；
+    expect(note.pageCss).toBe('');
+  });
+
+  // 壞的 data-override 區塊也走 raw，並標記 override:true 讓呼叫端排最後；
+  it('無法解析的 data-override 區塊進 rawStyleBlocks 並標記 override: true', () => {
+    // 一個好的一般區塊加一個壞的覆寫區塊；
+    const note = parseHtmlNote('<head><style>.n{c:d}</style><style data-override>.o{e:f</style></head><body></body>');
+    // 壞覆寫區塊帶旗標；
+    expect(note.rawStyleBlocks).toEqual([{ css: '.o{e:f', override: true }]);
+    // 好區塊仍在 pageCss；
+    expect(note.pageCss).toContain('.n');
+  });
+
+  // 多個壞區塊依文件順序；
+  it('多個壞區塊依文件順序排列', () => {
+    // 兩個壞區塊；
+    const note = parseHtmlNote('<head><style>.a{x</style><style>.b{y</style></head><body></body>');
+    // 順序與原文一致；
+    expect(note.rawStyleBlocks.map((b) => b.css)).toEqual(['.a{x', '.b{y']);
+  });
+});
+
+// 第五組：預設共用集合是 note-theme.css 與 notes.css 的聯集（R27）；
+describe('預設共用集合', () => {
+  // 工具：建立臨時筆記根目錄，內含 assets/ 與指定內容的兩個樣式檔（內容為 null 表示不建立該檔）；
+  function makeRoot(theme: string | null, notes: string | null): string {
+    // mkdtempSync 在系統暫存資料夾建立唯一名稱的資料夾；
+    const dir = mkdtempSync(path.join(tmpdir(), 'parse-html-'));
+    // 建立 assets 子資料夾；
+    mkdirSync(path.join(dir, 'assets'));
+    // 依參數寫檔；
+    if (theme !== null) writeFileSync(path.join(dir, 'assets', 'note-theme.css'), theme);
+    if (notes !== null) writeFileSync(path.join(dir, 'assets', 'notes.css'), notes);
+    // 回傳根目錄；
+    return dir;
+  }
+
+  // 工具：暫時把 NOTES_ROOT 設成指定值執行函式，結束後還原；
+  function withRoot<T>(dir: string, fn: () => T): T {
+    // 記下舊值；
+    const old = process.env.NOTES_ROOT;
+    // 設定新值；
+    process.env.NOTES_ROOT = dir;
+    // try/finally：不論成功或丟錯都還原；
+    try {
+      return fn();
+    } finally {
+      // 舊值是 undefined 時要刪除環境變數，而不是設成字串 "undefined"；
+      if (old === undefined) delete process.env.NOTES_ROOT;
+      else process.env.NOTES_ROOT = old;
+    }
+  }
+
+  // notes.css 擁有 .toc 規則，真實檔案下它要被當成共用而修剪；
+  it('.toc 規則因為 notes.css 有定義而被修剪（真實檔案）', () => {
+    // 不指定 NOTES_ROOT，用預設 `..`；
+    const note = parseHtmlNote('<head><style>.toc{x:1}.my-chart{y:2}</style></head><body></body>');
+    // .my-chart 留下；
+    expect(note.pageCss).toContain('.my-chart');
+    // .toc 消失；
+    expect(note.pageCss).not.toContain('.toc');
+  });
+
+  // 聯集 helper：選擇器與自訂屬性兩個檔案都收；
+  it('sharedSelectorsOf 取多份 CSS 的聯集', () => {
+    // 兩份各有一個選擇器與一個 :root 變數；
+    const set = sharedSelectorsOf(['.a{x:1}:root{--v1:1}', '.b{y:2}:root{--v2:2}']);
+    // 四個鍵都在；
+    expect([...set].sort()).toEqual(['--v1', '--v2', '.a', '.b']);
+  });
+
+  // 缺 notes.css 要大聲失敗；
+  it('缺少 notes.css 時丟錯', () => {
+    // 只建主題；
+    const dir = makeRoot('.a{x:1}', null);
+    try {
+      expect(() => withRoot(dir, () => loadDefaultSharedSelectors())).toThrow();
+    } finally {
+      // 清掉臨時資料夾；
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // 兩個檔都是空的，聯集沒有任何選擇器，要丟錯而不是默默不修剪；
+  it('兩個 CSS 檔都是空的（聯集 0 個選擇器）時丟錯', () => {
+    // 兩檔皆空；
+    const dir = makeRoot('', '');
+    try {
+      expect(() => withRoot(dir, () => loadDefaultSharedSelectors())).toThrow(/selector/i);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // 快取以解析後的根目錄為鍵：換 NOTES_ROOT 就得到另一組集合；
+  it('NOTES_ROOT 在兩次呼叫之間改變時，得到不同的共用集合', () => {
+    // 兩個根目錄各有不同的選擇器；
+    const a = makeRoot('.aaa{x:1}', '.bbb{x:1}');
+    const b = makeRoot('.ccc{x:1}', '.ddd{x:1}');
+    try {
+      // 第一次；
+      const setA = withRoot(a, () => loadDefaultSharedSelectors());
+      // 第二次換根目錄；
+      const setB = withRoot(b, () => loadDefaultSharedSelectors());
+      // 內容不同，且各自包含兩個檔案的選擇器；
+      expect([...setA].sort()).toEqual(['.aaa', '.bbb']);
+      expect([...setB].sort()).toEqual(['.ccc', '.ddd']);
+      // 再換回 a 仍然正確（快取命中也不能串台）；
+      expect(withRoot(a, () => loadDefaultSharedSelectors()).has('.aaa')).toBe(true);
+    } finally {
+      rmSync(a, { recursive: true, force: true });
+      rmSync(b, { recursive: true, force: true });
+    }
   });
 });

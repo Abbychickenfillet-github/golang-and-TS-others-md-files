@@ -28,6 +28,8 @@ let bytesBefore = 0;
 let bytesAfter = 0;
 // 含 data-override 的篇數；
 let withOverride = 0;
+// 無法解析而走 rawStyleBlocks 的 <style> 區塊總數（真實筆記庫預期為 0）；
+let rawBlocks = 0;
 // 頁面腳本的總數：內嵌與外部；
 let inlineScripts = 0;
 let externalScripts = 0;
@@ -65,6 +67,13 @@ for (const note of notes) {
     if (hasOverride) withOverride += 1;
     // 修剪後的位元組數（含 data-override 與 media 包裝）；
     bytesAfter += Buffer.byteLength(result.pageCss, 'utf8');
+    // 無法解析而逐字保留的區塊：累計個數，位元組也算進「修剪後」，因為它們會原樣輸出；
+    for (const block of result.rawStyleBlocks) {
+      // 區塊數加一；
+      rawBlocks += 1;
+      // 位元組數累加；
+      bytesAfter += Buffer.byteLength(block.css, 'utf8');
+    }
     // pageCss 是否為空；
     if (result.pageCss.trim() === '') cssEmpty += 1;
     else cssNonEmpty += 1;
@@ -132,6 +141,7 @@ console.log(`<style> bytes before pruning: ${bytesBefore}`);
 console.log(`<style> bytes after pruning: ${bytesAfter}`);
 // 縮減比例，避免除以零；toFixed(1) 取小數一位；
 console.log(`reduction: ${bytesBefore === 0 ? 'n/a' : (((bytesBefore - bytesAfter) / bytesBefore) * 100).toFixed(1)}%`);
+console.log(`unparseable <style> blocks (rawStyleBlocks): ${rawBlocks}`);
 console.log(`notes with data-override: ${withOverride}`);
 console.log(`notes whose pageCss still has its own :root: ${withOwnRoot}`);
 console.log(`pageScripts inline: ${inlineScripts}`);

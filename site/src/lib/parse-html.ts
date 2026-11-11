@@ -15,6 +15,9 @@ import type { AtRule, ChildNode, Container, Rule } from 'postcss';
 // `?` 表示欄位可省略；`Record<string, string>` 表示鍵與值都是字串的物件；
 export type PageScript = { src?: string; inline?: string; attrs: Record<string, string> };
 
+// 無法解析的樣式區塊：css 是原文，media 是 <style media> 的值（沒有就省略），override 為 true 表示它是 data-override 區塊；
+export type RawStyleBlock = { css: string; media?: string; override?: true };
+
 // 解析一篇 html 筆記的結果；Task 11 用它在 React layout 裡重建頁面；
 export type ParsedHtmlNote = {
   // 文件標題：<title> 文字，沒有就用第一個 h1，再沒有就是空字串；
@@ -26,7 +29,11 @@ export type ParsedHtmlNote = {
   // <body> 的內層 html，已移除 script、style 與樣式表連結，其餘標記逐字保留作者原文；
   bodyHtml: string;
   // 頁面獨有的 CSS：一般 <style> 抽掉共用規則後依文件順序串接，data-override 區塊整段保留並接在最後；
+  // 只含 PostCSS 解析成功的區塊，所以串接後仍是合法 CSS；
   pageCss: string;
+  // PostCSS 無法解析的 <style> 區塊，逐字保留、依文件順序；絕不併入 pageCss 也不包 @media（串接會吞掉後面的區塊），
+  // Task 11 要把每一筆輸出成「各自獨立的 <style>」（瀏覽器對各個 style 元素分別容錯）；override 為 true 的是 data-override 區塊，要排在最後；
+  rawStyleBlocks: RawStyleBlock[];
   // 非共用的 <link rel=stylesheet> 的 href（例如 Google Fonts）；
   pageStylesheets: string[];
   // 頁面自己的腳本（內嵌與外部），共用腳本已濾掉；head 的在前、body 的在後，各自維持文件順序；
@@ -158,8 +165,15 @@ function pruneRule(rule: Rule, shared: Set<string>): void {
 //   選擇器清單只丟共用的選擇器，全部共用才丟整條規則；:root 規則只移除共用自訂屬性，空了才丟；
 //   @media／@supports 遞迴處理、清空就移除；@keyframes、@font-face、@import 等其他 at-rule 原樣保留；
 //   註解一律移除（規則內外都是），輸出較小也不會留下孤兒註解；
-//   輸入無法解析時（例如少一個右大括號）原樣回傳，不丟錯，交給瀏覽器自己的容錯處理；
+//   輸入無法解析時（例如少一個右大括號）本函式原樣回傳、不丟錯；它「不是」瀏覽器式的容錯：
+//   呼叫端若要把多個區塊串接，不可使用這個回傳值，要改用 pruneOrNull 偵測失敗並把壞區塊分開處理（R27）；
 export function pruneSharedRules(css: string, shared: Set<string>): string {
+  // 修剪成功就回傳結果；`??` 在左邊是 null（解析失敗）時改回傳原文；
+  return pruneOrNull(css, shared) ?? css;
+}
+
+// 修剪 CSS；PostCSS 無法解析時回傳 null（讓呼叫端知道這個區塊不能與別的區塊串接）；
+function pruneOrNull(css: string, shared: Set<string>): string | null {
   // 先宣告變數，因為 try 區塊內的 const 在區塊外看不到；
   let root: ReturnType<typeof postcss.parse>;
   // try/catch：postcss.parse 遇到語法錯誤會丟 CssSyntaxError；
@@ -167,8 +181,8 @@ export function pruneSharedRules(css: string, shared: Set<string>): string {
     // 解析成語法樹；
     root = postcss.parse(css);
   } catch {
-    // 無法解析就原樣交還；
-    return css;
+    // 無法解析就回傳 null；
+    return null;
   }
   // 先把所有註解移除；walkComments 走訪每個註解節點；
   root.walkComments((comment) => {
@@ -181,21 +195,60 @@ export function pruneSharedRules(css: string, shared: Set<string>): string {
   return root.toString().trim();
 }
 
-// 快取預設共用集合，避免每篇筆記都重新讀檔與解析；`| undefined` 表示尚未載入；
-let defaultShared: Set<string> | undefined;
-
-// 取得預設共用集合：讀 `$NOTES_ROOT/assets/note-theme.css`（NOTES_ROOT 預設是 site/ 的上一層，與其他腳本一致）；
-// 檔案不存在會丟錯：主題缺失是建置設定問題，要大聲失敗而不是默默不修剪；
-export function loadDefaultSharedSelectors(): Set<string> {
-  // 第一次才讀；
-  if (!defaultShared) {
-    // 筆記根目錄；`??` 只在左邊是 undefined 或 null 時取右邊；
-    const root = path.resolve(process.cwd(), process.env.NOTES_ROOT ?? '..');
-    // 讀主題樣式並收集；
-    defaultShared = sharedSelectors(readFileSync(path.join(root, 'assets', 'note-theme.css'), 'utf8'));
+// 判斷一段 CSS 能不能被 PostCSS 解析（覆寫區塊不修剪，但仍要確認它串接後不會破壞別的區塊）；
+function canParseCss(css: string): boolean {
+  // try/catch：解析失敗會丟錯；
+  try {
+    // 只要解析不丟錯就是合法；
+    postcss.parse(css);
+    // 合法；
+    return true;
+  } catch {
+    // 不合法；
+    return false;
   }
-  // 回傳快取；
-  return defaultShared;
+}
+
+// 取多份 CSS 的聯集：每份各自用 sharedSelectors 收集選擇器與 :root 自訂屬性名稱，再合併成同一個 Set；
+// `...` 展開運算子把每個 Set 的元素攤開，new Set 去重；
+export function sharedSelectorsOf(cssTexts: string[]): Set<string> {
+  // 準備結果集合；
+  const union = new Set<string>();
+  // 逐份處理；
+  for (const css of cssTexts) {
+    // 把這份的鍵全部加進聯集；
+    for (const key of sharedSelectors(css)) union.add(key);
+  }
+  // 回傳；
+  return union;
+}
+
+// 快取預設共用集合，避免每篇筆記都重新讀檔與解析；鍵是「解析後的根目錄路徑」，換 NOTES_ROOT 就不會用到舊結果；
+const defaultSharedCache = new Map<string, Set<string>>();
+
+// 取得預設共用集合：讀 `$NOTES_ROOT/assets/note-theme.css` 與 `assets/notes.css` 兩個檔案的聯集
+// （兩者都由 layout／已遷移頁面載入，notes.css 負責 .toc 與 .term 規則；NOTES_ROOT 預設是 site/ 的上一層，與其他腳本一致）；
+// 任一檔案不存在會丟錯（readFileSync 的 ENOENT），聯集沒有任何選擇器也丟錯：
+// 這是建置設定問題，要大聲失敗而不是默默不修剪；
+export function loadDefaultSharedSelectors(): Set<string> {
+  // 筆記根目錄；`??` 只在左邊是 undefined 或 null 時取右邊；
+  const root = path.resolve(process.cwd(), process.env.NOTES_ROOT ?? '..');
+  // 以根目錄查快取；
+  const cached = defaultSharedCache.get(root);
+  // 命中就直接回傳；
+  if (cached) return cached;
+  // 讀兩個樣式檔並取聯集；
+  const set = sharedSelectorsOf(
+    ['note-theme.css', 'notes.css'].map((name) => readFileSync(path.join(root, 'assets', name), 'utf8')),
+  );
+  // 沒有任何選擇器代表樣式檔是空的或壞掉，丟錯而不是默默什麼都不修剪；
+  if (![...set].some((key) => !key.startsWith('--'))) {
+    throw new Error(`共用樣式沒有任何 selector（${root}/assets 的 note-theme.css 與 notes.css 都是空的？）`);
+  }
+  // 存進快取；
+  defaultSharedCache.set(root, set);
+  // 回傳；
+  return set;
 }
 
 // 找出開始標籤結尾的 `>` 位置：從 start 往後掃，略過引號內的 `>`（屬性值可以含 >）；找不到就回傳最後一個字元的位置；
@@ -262,7 +315,7 @@ function rawText(el: Element): string {
   return el.children.map((child) => (child.type === 'text' ? (child as unknown as { data: string }).data : '')).join('');
 }
 
-// 解析一篇 html 筆記；shared 是共用選擇器集合，不傳就讀預設的 assets/note-theme.css；
+// 解析一篇 html 筆記；shared 是共用選擇器集合，不傳就讀預設的（note-theme.css 與 notes.css 的聯集）；
 // 設計：用 cheerio 的 htmlparser2 模式取得「每個節點在原文的位置」，bodyHtml 與腳本內容直接從原始字串切出，
 // 所以作者的實體、CRLF、自閉合標籤、屬性引號與 <pre> 空白都不會被解析器改寫；殘缺輸入也不會丟錯；
 export function parseHtmlNote(html: string, shared?: Set<string>): ParsedHtmlNote {
@@ -290,6 +343,8 @@ export function parseHtmlNote(html: string, shared?: Set<string>): ParsedHtmlNot
   const normalCss: string[] = [];
   // data-override 區塊的文字，最後才接上；
   const overrideCss: string[] = [];
+  // 無法解析的區塊（依文件順序）；
+  const rawStyleBlocks: RawStyleBlock[] = [];
   // 頁面腳本；
   const pageScripts: PageScript[] = [];
   // 真正使用的共用集合（沒傳就讀預設）；`??` 在 shared 是 undefined 時才呼叫載入函式；
@@ -319,19 +374,27 @@ export function parseHtmlNote(html: string, shared?: Set<string>): ParsedHtmlNot
       // 切掉；
       removals.push(range);
       // 取樣式文字；
-      let css = rawText(el);
-      // data-override：整段保留不動，晚點接在最後讓它在層疊中勝出；
-      if ('data-override' in el.attribs) {
-        // 覆寫區塊同樣要處理 media 屬性，下面統一包裝；
-        css = wrapMedia(css, el.attribs.media);
-        // 放進覆寫清單；
-        overrideCss.push(css);
-      } else {
-        // 一般區塊：抽掉共用規則；空結果就不放；
-        const pruned = wrapMedia(pruneSharedRules(css, sharedSet), el.attribs.media);
-        // 非空才收；
-        if (pruned.trim() !== '') normalCss.push(pruned);
+      const css = rawText(el);
+      // 是不是 data-override 區塊；
+      const isOverride = 'data-override' in el.attribs;
+      // media 屬性（沒有就是 undefined）；
+      const media = el.attribs.media;
+      // 一般區塊先修剪（失敗得 null），覆寫區塊不修剪、只檢查能不能解析（能解析就沿用原文）；
+      const processed = isOverride ? (canParseCss(css) ? css : null) : pruneOrNull(css, sharedSet);
+      // 無法解析：絕不串接也不包 @media（R27），逐字放進 rawStyleBlocks 交給呼叫端各自輸出成獨立 <style>；
+      if (processed === null) {
+        // 組出區塊物件；`...(條件 ? {…} : {})` 是「有值才加欄位」的展開寫法，避免出現值為 undefined 的欄位；
+        rawStyleBlocks.push({
+          css,
+          ...(media !== undefined && media.trim() !== '' ? { media } : {}),
+          ...(isOverride ? { override: true as const } : {}),
+        });
+        // 這個區塊處理完了；
+        continue;
       }
+      // 覆寫區塊整段保留不動、晚點接在最後讓它在層疊中勝出；一般區塊空結果就不放；
+      if (isOverride) overrideCss.push(wrapMedia(processed, media));
+      else if (processed.trim() !== '') normalCss.push(wrapMedia(processed, media));
     } else if (el.name === 'link') {
       // rel 可以有多個值（以空白分隔），其中有 stylesheet 才算樣式表；
       const isSheet = (el.attribs.rel ?? '').toLowerCase().split(/\s+/).includes('stylesheet');
@@ -405,7 +468,7 @@ export function parseHtmlNote(html: string, shared?: Set<string>): ParsedHtmlNot
   }
 
   // 組合結果；
-  return { title, lang, bodyAttrs, bodyHtml, pageCss, pageStylesheets, pageScripts };
+  return { title, lang, bodyAttrs, bodyHtml, pageCss, rawStyleBlocks, pageStylesheets, pageScripts };
 }
 
 // 有 media 屬性的 <style> 只在該媒體條件下生效，合併進 pageCss 時要包回 @media，否則會變成永遠生效；
