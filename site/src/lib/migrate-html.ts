@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 // 型別匯入：domhandler 的 Element 型別，只在編譯期使用；
 import type { Element } from 'domhandler';
 // 匯入 parse-html 的工具：共用集合載入、檔名擷取、開始標籤結尾位置、帶統計的修剪函式；
-import { fileNameOf, loadDefaultSharedSelectors, openTagEnd, pruneSharedRulesDetailed } from './parse-html';
+import { fileNameOf, hasOwnDarkPalette, loadDefaultSharedSelectors, openTagEnd, pruneSharedRulesDetailed } from './parse-html';
 
 // 遷移統計；linksAdded 與 scriptsAdded 放實際寫進檔案的 href 或 src（例如 ../assets/note-theme.css）；
 export type MigrateStats = {
@@ -177,6 +177,13 @@ export function migrateHtml(html: string, relPathToAssets: string, shared?: Set<
     const sharedSet = shared ?? loadDefaultSharedSelectors();
     // 所有閉合的 <style>；
     const styles = collectStyles($, source);
+    // 頁面自帶深色配色：卡片與文字色是為深色底設計的，換成主題的淺色底會看不清楚，跳過不遷移，交給人工處理；
+    if (styles.some((span) => !('data-override' in span.el.attribs) && hasOwnDarkPalette(source.slice(span.innerStart, span.innerEnd)))) {
+      // 說明原因；
+      stats.skipped = '頁面自帶深色配色（body 背景是深色），套用淺色主題會讓文字看不清楚，請人工處理';
+      // 原樣回傳；
+      return unchanged(html, stats);
+    }
     // 先把「修剪前」的位元組算好；Buffer.byteLength 以 UTF-8 計（中文一字 3 位元組）；
     for (const span of styles) stats.styleBytesBefore += Buffer.byteLength(source.slice(span.innerStart, span.innerEnd), 'utf8');
 
