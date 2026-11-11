@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 // 匯入 Task 6 的載入器與型別；`type` 前綴的匯入只在編譯期存在；
 import { listNotes, loadExclude, type NoteEntry } from '../src/lib/content';
 // 匯入待測的兩個函式；`.mjs` 副檔名要寫出來，因為 ESM 的相對匯入不會自動補副檔名；
-import { applyRenames, planRenames } from '../scripts/rename-interactive-pairs.mjs';
+import { applyRenames, planRenames, planRenamesDetailed } from '../scripts/rename-interactive-pairs.mjs';
 
 // 假筆記庫的路徑，用 new URL 以本檔為基準解析後轉成一般路徑；
 const vault = fileURLToPath(new URL('./fixture-vault', import.meta.url));
@@ -126,6 +126,30 @@ describe('planRenames', () => {
     const plan = planRenames([note('a.html'), note('b.md'), note('x/c.md'), note('y/c.html')]);
     // 斷言沒有任何規劃；
     expect(plan).toEqual([]);
+  });
+
+  // 案例：目標 -互動版.html 已經存在的三方撞名配對不規劃，改記在 skipped；
+  it('三方撞名（X.md、X.html、X-互動版.html 都在）不規劃，記入 skipped 並帶三個路徑', () => {
+    // 準備三方撞名加一組正常配對；
+    const result = planRenamesDetailed([
+      note('d/X.md'), note('d/X.html'), note('d/X-互動版.html'), note('A.md'), note('A.html'),
+    ]);
+    // 規劃只剩正常那組；
+    expect(result.plan).toEqual([{ from: 'A.html', to: 'A-互動版.html' }]);
+    // 跳過清單含 md、舊 html、已存在的目標三個路徑；
+    expect(result.skipped).toEqual([{ md: 'd/X.md', html: 'd/X.html', target: 'd/X-互動版.html' }]);
+    // planRenames 的回傳與 plan 相同；
+    expect(planRenames([note('d/X.md'), note('d/X.html'), note('d/X-互動版.html'), note('A.md'), note('A.html')])).toEqual(result.plan);
+  });
+
+  // 案例：目標只存在於磁碟（不在筆記清單內，例如被排除不發布的檔案）也算已存在；
+  it('目標在磁碟上已存在（由 existing 參數提供）也跳過', () => {
+    // 筆記清單內沒有 X-互動版.html，但 existing 說磁碟上有；
+    const result = planRenamesDetailed([note('X.md'), note('X.html')], ['X-互動版.html']);
+    // 不規劃；
+    expect(result.plan).toEqual([]);
+    // 記入 skipped；
+    expect(result.skipped).toEqual([{ md: 'X.md', html: 'X.html', target: 'X-互動版.html' }]);
   });
 
   // 案例：多組配對各自獨立、保持輸入順序；
@@ -355,14 +379,20 @@ describe('applyRenames', () => {
     expect(await snapshot(root)).toEqual(before);
   });
 
-  // 案例：目標名稱已存在就拒絕；
-  it('目標檔名已存在時拒絕套用且不動任何檔案', async () => {
-    // d.md＋d.html 配對，但 d-互動版.html 已經存在；
-    await initRepoWith(root, { 'd.md': '# d\n', 'd.html': '<h1>d</h1>\n', 'd-互動版.html': '<h1>existing</h1>\n' });
-    // 規劃：d.html → d-互動版.html（已存在）；已帶後綴的那份不會再被規劃；
+  // 案例：規劃之後、套用之前目標才出現，仍要拒絕（規劃時已存在的三方撞名改為跳過，見 planRenames 的測試）；
+  it('規劃後、套用前目標檔名才出現時拒絕套用且不動任何檔案', async () => {
+    // d.md＋d.html 配對，規劃時 d-互動版.html 還不存在；
+    await initRepoWith(root, { 'd.md': '# d\n', 'd.html': '<h1>d</h1>\n' });
+    // 規劃：d.html → d-互動版.html；
     const plan = await planOf();
-    // 先確認規劃確實撞名；
+    // 先確認規劃內容；
     expect(plan).toEqual([{ from: 'd.html', to: 'd-互動版.html' }]);
+    // 規劃之後才冒出同名檔案，並提交讓工作目錄保持乾淨；
+    await seed(root, { 'd-互動版.html': '<h1>existing</h1>\n' });
+    // 加入暫存區；
+    git(root, 'add', '-A');
+    // 提交；
+    git(root, 'commit', '-q', '-m', 'late target');
     // dry-run 不拒絕，但把撞名的目標列在 conflicts；
     expect((await applyRenames(plan, root, { dryRun: true })).conflicts).toEqual(['d-互動版.html']);
     // 記下現況；
@@ -387,12 +417,18 @@ describe('applyRenames', () => {
 
   // 案例：多筆規劃中最後一筆撞名，整批在動手前就被拒絕，前面的不會先改；
   it('多筆規劃中最後一筆目標已存在：整批拒絕，一個檔案都不動', async () => {
-    // c-互動版.html 已存在，所以規劃的第三筆 c.html → c-互動版.html 會撞名；
-    await seedMulti({ 'c-互動版.html': '<h1>existing</h1>\n' });
+    // 先準備三組配對；
+    await seedMulti();
     // 規劃：a、b、c 三筆；
     const plan = await planOf();
-    // 確認有三筆且最後一筆是撞名的那筆；
+    // 確認有三筆且最後一筆是 c；
     expect(plan.map((r) => r.from)).toEqual(['a.html', 'b.html', 'c.html']);
+    // 規劃之後 c-互動版.html 才出現，所以最後一筆會撞名；提交以保持工作目錄乾淨；
+    await seed(root, { 'c-互動版.html': '<h1>existing</h1>\n' });
+    // 加入暫存區；
+    git(root, 'add', '-A');
+    // 提交；
+    git(root, 'commit', '-q', '-m', 'late target');
     // 記下現況；
     const before = await snapshot(root);
     // 記下 git status；
@@ -655,37 +691,87 @@ describe('rename-interactive-pairs CLI', () => {
     await expect(fs.access(path.join(root, 'd.html'))).resolves.toBeUndefined();
   });
 
-  // 案例：三方撞名（X.md、X.html、X-互動版.html 都在）時 --apply 拒絕且不動任何檔案；
-  it('--apply 遇到 X.md、X.html、X-互動版.html 三方撞名時拒絕並不改任何檔案', async () => {
-    // 建立三方撞名的 repo，另加一組正常配對，確認正常那組也不會先被改；
-    await initRepoWith(root, {
+  // 小工具：三方撞名的 repo（X.md、X.html、X-互動版.html 都在）另加一組正常配對 A 與連到兩邊的 md；
+  const seedThreeWay = () =>
+    // 初始化並提交；
+    initRepoWith(root, {
       // 設定檔；
       '_config.yml': 'exclude: []\n',
-      // 三方撞名；
+      // 三方撞名的 md（連到被跳過的 X.html，不該被改寫）；
       'X.md': '# X\n[互動](X.html)\n',
-      // X.html；
+      // 被跳過的 X.html；
       'X.html': '<h1>X</h1>\n',
       // 已存在的互動版；
       'X-互動版.html': '<h1>X2</h1>\n',
-      // 排在前面的正常配對；
+      // 正常配對；
       'A.md': '# A\n',
       // A.html；
       'A.html': '<h1>A</h1>\n',
+      // 同時連到 A.html（要改）與 X.html（不改）的檔案；
+      'links.md': '[a](A.html)\n[x](X.html)\n[[X.html]]\n',
     });
-    // 記下現況；
-    const before = await snapshot(root);
+
+  // 案例：三方撞名的配對被跳過，其餘照常套用，被跳過的檔案位元組不變；
+  it('--apply 遇到三方撞名時跳過該配對，其餘照常改名，被跳過的檔案與連結不動', async () => {
+    // 建立 repo；
+    await seedThreeWay();
+    // 記下被跳過的三個檔案的原始位元組；
+    const skippedBefore = {
+      // X.md；
+      md: await fs.readFile(path.join(root, 'X.md')),
+      // X.html；
+      html: await fs.readFile(path.join(root, 'X.html')),
+      // X-互動版.html；
+      target: await fs.readFile(path.join(root, 'X-互動版.html')),
+    };
     // 執行 --apply；
     const result = await runCli(root, '--apply');
-    // 非 0 結束；
-    expect(result.status).not.toBe(0);
-    // 訊息說明已存在，並點名撞名目標；
-    expect(result.stderr).toContain('已存在');
-    // 點名目標；
-    expect(result.stderr).toContain('X-互動版.html');
+    // 成功結束；
+    expect(result.status).toBe(0);
+    // 輸出列出被跳過的配對與數量；
+    expect(result.stdout).toContain('跳過');
+    // 含配對的三個路徑；
+    expect(result.stdout).toContain('X-互動版.html');
+    // 數量 1；
+    expect(result.stdout).toMatch(/跳過[^\n]*1/);
+    // 正常配對已改名；
+    await expect(fs.access(path.join(root, 'A-互動版.html'))).resolves.toBeUndefined();
+    // 被跳過的 X.html 仍在原位；
+    await expect(fs.access(path.join(root, 'X.html'))).resolves.toBeUndefined();
+    // 被跳過的三個檔案位元組完全不變；
+    expect((await fs.readFile(path.join(root, 'X.md'))).equals(skippedBefore.md)).toBe(true);
+    // X.html；
+    expect((await fs.readFile(path.join(root, 'X.html'))).equals(skippedBefore.html)).toBe(true);
+    // X-互動版.html；
+    expect((await fs.readFile(path.join(root, 'X-互動版.html'))).equals(skippedBefore.target)).toBe(true);
+    // 連到 A.html 的連結被改、連到被跳過 X.html 的連結（含 wikilink）不動；
+    expect(await read(root, 'links.md')).toBe('[a](A-互動版.html)\n[x](X.html)\n[[X.html]]\n');
+  });
+
+  // 案例：dry-run 同樣列出被跳過的配對與數量，且不動檔案；
+  it('dry-run 列出被跳過的三方撞名配對與數量', async () => {
+    // 建立 repo；
+    await seedThreeWay();
+    // 記下現況；
+    const before = await snapshot(root);
+    // 預覽；
+    const result = await runCli(root);
+    // 成功；
+    expect(result.status).toBe(0);
+    // 規劃只有 A 一組；
+    expect(result.stdout).toContain('共 1 組');
+    // 列出跳過的數量與三個路徑；
+    expect(result.stdout).toMatch(/跳過[^\n]*1/);
+    // X.md；
+    expect(result.stdout).toContain('X.md');
+    // X.html；
+    expect(result.stdout).toContain('X.html');
+    // X-互動版.html；
+    expect(result.stdout).toContain('X-互動版.html');
+    // 沒有撞名警告（已改為跳過）；
+    expect(result.stdout).not.toContain('--apply 會拒絕，除非');
     // 什麼都沒動；
     expect(await snapshot(root)).toEqual(before);
-    // git 沒有暫存的變更；
-    expect(git(root, 'status', '--porcelain')).toBe('');
   });
 
   // 案例：dry-run 遇到含糊 wikilink 時要說明 --apply 會拒絕；

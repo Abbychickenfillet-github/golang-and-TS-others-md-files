@@ -28,16 +28,21 @@ function stripExt(relPath) {
 }
 
 /**
- * 規劃改名：只對「同路徑同主檔名同時有 .md 與 .html」的 .html 產生 <原檔名>-互動版.html。
+ * 規劃改名並回報被跳過的配對：目標 <原檔名>-互動版.html 已經存在（在筆記清單內或 existing 提供的磁碟路徑內）的三方撞名配對不規劃，改記入 skipped。
  * @param {NoteEntry[]} notes 筆記清單（listNotes 的結果）
- * @returns {RenamePlan[]} 改名規劃，順序沿用輸入順序
+ * @param {Iterable<string>} [existing] 額外已知存在於磁碟的相對路徑（例如被排除不發布的檔案）
+ * @returns {{ plan: RenamePlan[]; skipped: { md: string; html: string; target: string }[] }} 規劃與跳過清單，順序沿用輸入順序
  */
 // `export function` 匯出具名函式；
-export function planRenames(notes) {
-  // 用 Set 收集所有 md 的「去副檔名路徑」，之後 O(1) 查詢有沒有同名 md；
-  const mdStems = new Set(notes.filter((n) => n.kind === 'md').map((n) => stripExt(n.relPath)));
-  // 累積結果的陣列；
+export function planRenamesDetailed(notes, existing = []) {
+  // 用 Map 收集所有 md：鍵是「去副檔名路徑」，值是該 md 的實際路徑（跳過清單要回報它）；
+  const mdByStem = new Map(notes.filter((n) => n.kind === 'md').map((n) => [stripExt(n.relPath), n.relPath]));
+  // 已存在的所有路徑：筆記清單加上磁碟額外提供的；Set 讓查詢是 O(1)；
+  const present = new Set([...notes.map((n) => n.relPath), ...existing]);
+  // 累積規劃的陣列；
   const plan = [];
+  // 累積被跳過配對的陣列；
+  const skipped = [];
   // 逐筆檢查筆記；
   for (const n of notes) {
     // 只處理 html；
@@ -45,14 +50,36 @@ export function planRenames(notes) {
     // 去副檔名後的路徑（同時用來比對 md 與組新檔名）；
     const stem = stripExt(n.relPath);
     // 沒有同路徑同主檔名的 md 就不是配對，略過；
-    if (!mdStems.has(stem)) continue;
+    const md = mdByStem.get(stem);
+    // Map.get 找不到回傳 undefined；
+    if (md === undefined) continue;
     // 主檔名已以 -互動版 結尾就不再加；endsWith 檢查字串結尾；
     if (stem.endsWith(SUFFIX)) continue;
-    // 加入規劃：新檔名固定用小寫 .html；
-    plan.push({ from: n.relPath, to: `${stem}${SUFFIX}.html` });
+    // 新檔名固定用小寫 .html；
+    const target = `${stem}${SUFFIX}.html`;
+    // 目標已經存在：這是三方撞名，依 Abby 的決定跳過、不處理，改記在 skipped；
+    if (present.has(target)) {
+      // 記下 md、舊 html、已存在的目標三個路徑；
+      skipped.push({ md, html: n.relPath, target });
+      // 不加入規劃；
+      continue;
+    }
+    // 加入規劃；
+    plan.push({ from: n.relPath, to: target });
   }
-  // 回傳規劃；
-  return plan;
+  // 回傳規劃與跳過清單；
+  return { plan, skipped };
+}
+
+/**
+ * 規劃改名：只對「同路徑同主檔名同時有 .md 與 .html」的 .html 產生 <原檔名>-互動版.html；目標已存在的配對會被跳過。
+ * @param {NoteEntry[]} notes 筆記清單（listNotes 的結果）
+ * @returns {RenamePlan[]} 改名規劃，順序沿用輸入順序
+ */
+// 只回傳規劃的簡化版，維持原本的介面；
+export function planRenames(notes) {
+  // 取 planRenamesDetailed 結果中的 plan；
+  return planRenamesDetailed(notes).plan;
 }
 
 // 遞迴列出 root 底下所有 .md 與 .html（相對路徑、正斜線）；跳過點開頭資料夾、node_modules 與根層的 site/；
@@ -471,8 +498,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const exclude = await loadExclude(path.join(root, '_config.yml'));
     // 掃描所有會發布的筆記；
     const notes = await listNotes(root, exclude);
-    // 規劃改名；
-    const plan = planRenames(notes);
+    // 磁碟上所有 md／html（含被排除不發布的），讓「目標已存在於被排除資料夾」也能被判斷為跳過；
+    const onDisk = await collectFiles(root);
+    // 規劃改名；目標已存在的三方撞名配對不規劃，記在 skipped；
+    const { plan, skipped } = planRenamesDetailed(notes, onDisk);
     // --allow-partial 明確同意「略過含糊與不安全的項目」繼續套用；
     const allowPartial = args.includes('--allow-partial');
     // 套用或預覽；
@@ -481,6 +510,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.log(`${apply ? '已套用' : '預覽（dry-run，未改動任何檔案）'}：共 ${plan.length} 組 md＋html 同名配對`);
     // 逐筆印出 from → to；
     for (const r of plan) console.log(`  ${r.from} → ${r.to}`);
+    // 列出被跳過的三方撞名配對與數量（目標 -互動版.html 已存在，依決定不處理，也不會讓 --apply 拒絕）；
+    console.log(`跳過（目標 -互動版.html 已存在，不處理）：${skipped.length} 組`);
+    // 逐組印出 md、舊 html、已存在的目標；
+    for (const s of skipped) console.log(`  跳過：${s.md}｜${s.html}｜${s.target}`);
     // 印出連結更新統計；
     console.log(`${apply ? '已改寫' : '會改寫'}連結的檔案：${result.filesChanged.length} 個，連結共 ${result.linksChanged} 個`);
     // 撞名要明確列出；
