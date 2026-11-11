@@ -29,22 +29,64 @@ export async function loadExclude(configPath: string): Promise<string[]> {
   const text = await fs.readFile(configPath, 'utf8');
   // 用 yaml 解析；空檔案會得到 null，所以結果型別標成 unknown 再自行檢查；
   const config: unknown = parseYaml(text);
-  // 設定不是物件（例如空檔）時視為沒有 exclude；typeof null 也是 'object'，所以要多擋 null；
-  if (typeof config !== 'object' || config === null) return [];
+  // 設定不是 mapping（空檔、陣列、純文字）時丟錯：排除清單讀不到就不能默默發布整個筆記庫，所以失敗即關閉；typeof null 也是 'object'，所以要多擋 null，Array.isArray 擋陣列；
+  if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+    // 訊息點名設定檔與問題；
+    throw new Error(`設定檔 ${configPath} 的最上層必須是 mapping（key: value），空檔或其他格式無法讀出 exclude`);
+  }
+  // 沒有 exclude 這個 key 才視為「沒有要排除的東西」；`in` 運算子檢查物件上有沒有這個鍵（值是 null 也算有）；
+  if (!('exclude' in config)) return [];
   // 以型別斷言取出 exclude 欄位；`as` 只改變型別檢查，不會改變執行期的值；
-  const raw = (config as { exclude?: unknown }).exclude;
-  // exclude 不是陣列（沒寫或寫錯型別）時回傳空陣列；
-  if (!Array.isArray(raw)) return [];
-  // filter 搭配型別守衛 (x): x is string 只留下字串項目，並讓回傳型別收斂成 string[]；
-  return raw.filter((item): item is string => typeof item === 'string');
+  const raw = (config as { exclude: unknown }).exclude;
+  // exclude 這個 key 存在卻不是陣列（例如 `exclude: private/` 純量或空值）就丟錯，否則整個排除清單會被忽略；
+  if (!Array.isArray(raw)) throw new Error(`設定檔 ${configPath} 的 exclude 必須是陣列（每個項目前面加 - ），目前不是陣列`);
+  // entries() 同時給出索引與項目，方便在錯誤訊息裡指出第幾項；
+  for (const [index, item] of raw.entries()) {
+    // 項目必須是非空字串；數字（例如 - 2024）、null、空字串都會被 YAML 或後續比對默默忽略，所以一律丟錯；
+    if (typeof item !== 'string' || item.trim() === '') {
+      // 訊息點名設定檔、第幾項與實際內容（JSON.stringify 把值印成可讀的字面形式）；
+      throw new Error(`設定檔 ${configPath} 的 exclude 第 ${index + 1} 項必須是非空字串，目前是 ${JSON.stringify(item)}`);
+    }
+  }
+  // 項目都是字串後，再檢查有沒有本載入器不支援的樣式，有就丟錯；
+  const patterns = raw as string[];
+  // 驗證函式會在不支援時丟錯；
+  assertSupportedPatterns(patterns);
+  // 回傳通過檢查的排除清單；
+  return patterns;
 }
 
-// 把只含 * 與 ? 的簡單萬用字元轉成正規表示式；* 不跨資料夾，? 代表單一個非斜線字元；
+// 支援的樣式（與 Jekyll 的 exclude 對照，偏向「多排除」）：
+//   1. `名稱/`：排除根層的該資料夾（可含 / 的多層路徑，但不可含 * 或 ?）；
+//   2. `*.ext`、`a?c.md` 這類不含 / 的萬用字元：依檔名或資料夾名在任何深度比對；
+//   3. `docs/*.md` 這類含 / 的路徑萬用字元：比對整條相對路徑，* 可跨越 /（所以會排除更深層）；
+//   4. 不含萬用字元的裸名稱：只比對根層該路徑；
+//   * 代表任意多個字元，? 代表剛好一個字元；
+//   不支援（載入時丟錯，絕不默默比對不到）：`**`、`[` `]`、`{` `}`，以及結尾是 / 的樣式裡出現 * 或 ?；
+// 檢查每個樣式是否屬於支援的形狀，不支援就丟出點名該樣式的錯誤；export 讓 listNotes 與測試共用；
+export function assertSupportedPatterns(patterns: string[]): void {
+  // 逐條檢查；
+  for (const pattern of patterns) {
+    // 雙星號：Jekyll 另有語意，這裡不實作，丟錯避免漏排除；
+    if (pattern.includes('**')) throw new Error(`exclude 樣式 "${pattern}" 含有 **，目前不支援，請改寫成單層的 * 或明確路徑`);
+    // 中括號字元集合不支援（若逐字比對會讓原本想排除的檔案漏網）；
+    if (/[[\]]/.test(pattern)) throw new Error(`exclude 樣式 "${pattern}" 含有 [ 或 ]（字元集合），目前不支援`);
+    // 大括號展開不支援；
+    if (/[{}]/.test(pattern)) throw new Error(`exclude 樣式 "${pattern}" 含有 { 或 }（大括號展開），目前不支援`);
+    // 結尾斜線的資料夾樣式裡出現萬用字元不支援；
+    if (pattern.endsWith('/') && /[*?]/.test(pattern)) {
+      // 訊息點名樣式；
+      throw new Error(`exclude 樣式 "${pattern}" 是結尾斜線的資料夾樣式卻含有萬用字元（* 或 ?），目前不支援`);
+    }
+  }
+}
+
+// 把只含 * 與 ? 的簡單萬用字元轉成正規表示式；* 與 ? 都不在乎斜線（* 可跨資料夾），偏向多排除；
 function globToRegExp(glob: string): RegExp {
   // 先把正規表示式的特殊字元加上反斜線跳脫，`$&` 代表「整段比對到的字元」；* 與 ? 不在跳脫清單內，留待下一步轉換；
   const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-  // 再把 * 換成 [^/]*、? 換成 [^/]，並用 ^ 與 $ 要求整串完全相符；
-  return new RegExp(`^${escaped.replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]')}$`);
+  // 再把 * 換成 .*（任意多個字元，含 /）、? 換成 .（剛好一個字元），並用 ^ 與 $ 要求整串完全相符；
+  return new RegExp(`^${escaped.replace(/\*/g, '.*').replace(/\?/g, '.')}$`);
 }
 
 // 判斷一個路徑該不該被排除；relPath 是相對根目錄的正斜線路徑，isDir 表示它是資料夾；
@@ -193,6 +235,8 @@ async function walk(root: string, dirRel: string, patterns: string[], out: NoteE
 
 // 掃描筆記根目錄，回傳依 relPath 排序的筆記清單；slug 重複時「不」丟錯（改名前 md／html 配對本來就同 slug），要檢查請呼叫 assertUniqueSlugs；
 export async function listNotes(root: string, exclude: string[]): Promise<NoteEntry[]> {
+  // 呼叫端直接傳入的樣式也要檢查，遇到不支援的形狀就 reject，不默默漏排除；
+  assertSupportedPatterns(exclude);
   // 累積結果的陣列；
   const out: NoteEntry[] = [];
   // 從根層（相對路徑為空字串）開始遞迴；

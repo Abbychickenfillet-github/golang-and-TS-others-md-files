@@ -1,7 +1,11 @@
 // @vitest-environment node
 // 上一行是 vitest 的檔案層級指令：此測試只碰檔案系統，改用 node 環境（jsdom 環境下 import.meta.url 不是 file:// 網址）；
 // 從 vitest 匯入測試骨架：describe 分組、it 定義單一案例、expect 斷言；
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+// 匯入 fs 的 promise 版 API，測試要即時寫出各種壞掉的設定檔；
+import * as fs from 'node:fs/promises';
+// 匯入 os 模組，取得系統暫存資料夾；
+import * as os from 'node:os';
 // 匯入 url 模組的 fileURLToPath，把 file:// URL 轉成作業系統的檔案路徑；
 import { fileURLToPath } from 'node:url';
 // 匯入 path 模組，用 path.join 組合路徑；
@@ -316,5 +320,153 @@ describe('assertUniqueSlugs', () => {
     const notes = await listNotes(vault, await loadExclude(configPath));
     // 預期丟錯且訊息含兩個衝突路徑；
     expect(() => assertUniqueSlugs(notes)).toThrow(/衝突\/配對\.md[\s\S]*衝突\/配對\.html|衝突\/配對\.html[\s\S]*衝突\/配對\.md/);
+  });
+});
+
+// describe 分組：loadExclude 對壞掉的設定「失敗即關閉」，寧可丟錯也不默默發布私人資料；
+describe('loadExclude 失敗即關閉', () => {
+  // 每個案例專用的暫存資料夾；
+  let tmp = '';
+  // 每個案例前建立暫存資料夾；mkdtemp 會在前綴後補隨機字元；
+  beforeEach(async () => {
+    // 建立並記下路徑；
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'content-config-'));
+  });
+  // 每個案例後刪掉暫存資料夾；
+  afterEach(async () => {
+    // recursive 與 force 讓不存在或有內容都不丟錯；
+    await fs.rm(tmp, { recursive: true, force: true });
+  });
+  // 小工具：把文字寫成暫存設定檔並呼叫 loadExclude；
+  const load = async (yaml: string) => {
+    // 組出設定檔路徑；
+    const file = path.join(tmp, '_config.yml');
+    // 寫入內容；
+    await fs.writeFile(file, yaml, 'utf8');
+    // 回傳 loadExclude 的 Promise；
+    return loadExclude(file);
+  };
+  // 案例：空檔案、頂層不是 mapping 都要丟錯，錯誤訊息要指出設定檔名稱；
+  it.each([
+    // 空檔案；
+    ['空檔案', ''],
+    // 頂層是陣列；
+    ['頂層是陣列', '- private/\n'],
+    // 頂層是純文字；
+    ['頂層是純文字', 'private/\n'],
+  ])('%s 時丟錯並指出檔名', async (_label, yaml) => {
+    // 訊息要含檔名 _config.yml；
+    await expect(load(yaml)).rejects.toThrow(/_config\.yml/);
+  });
+  // 案例：exclude 存在但不是陣列（純量或空值）；
+  it.each([
+    // 純量字串；
+    ['exclude: private/\n'],
+    // 有鍵但沒有值（null）；
+    ['exclude:\n'],
+    // 物件；
+    ['exclude:\n  a: b\n'],
+  ])('exclude 不是陣列時丟錯：%j', async (yaml) => {
+    // 訊息要指出 exclude 欄位；
+    await expect(load(yaml)).rejects.toThrow(/exclude/);
+  });
+  // 案例：項目不是非空字串；
+  it.each([
+    // 數字項目；
+    ['數字', 'exclude:\n  - 2024\n'],
+    // 空字串項目；
+    ['空字串', 'exclude:\n  - ""\n'],
+    // 只有空白的項目；
+    ['空白', 'exclude:\n  - "  "\n'],
+    // 空值項目；
+    ['null', 'exclude:\n  - \n'],
+  ])('項目是%s時丟錯', async (_label, yaml) => {
+    // 訊息要指出 exclude 欄位；
+    await expect(load(yaml)).rejects.toThrow(/exclude/);
+  });
+  // 案例：不支援的樣式一律在載入時丟錯，且訊息點名該樣式；
+  it.each([
+    // 雙星號；
+    '**/x.md',
+    // 左中括號；
+    '[abc].md',
+    // 只有右中括號；
+    'a].md',
+    // 左大括號；
+    '{a,b}.md',
+    // 只有右大括號；
+    'a}.md',
+    // 結尾斜線加星號；
+    '*/private/',
+    // 結尾斜線加星號（字首）；
+    'draft*/',
+    // 結尾斜線加問號；
+    'dr?ft/',
+  ])('不支援的樣式 %s 丟錯並點名', async (pattern) => {
+    // YAML 用雙引號包住樣式；
+    await expect(load(`exclude:\n  - "${pattern}"\n`)).rejects.toThrow(pattern);
+  });
+  // 案例：支援的樣式都能正常載入；
+  it('支援的樣式正常載入', async () => {
+    // 結尾斜線、副檔名萬用字元、路徑萬用字元、問號、裸檔名；
+    expect(await load('exclude:\n  - private/\n  - "*.sh"\n  - "docs/*.md"\n  - "a?c.md"\n  - x.py\n')).toEqual([
+      'private/',
+      '*.sh',
+      'docs/*.md',
+      'a?c.md',
+      'x.py',
+    ]);
+  });
+  // 案例：listNotes 直接收到不支援的樣式時也要拒絕，不能靜默比對不到；
+  it('listNotes 收到不支援的樣式時 rejects', async () => {
+    // 雙星號樣式；
+    await expect(listNotes(vault, ['**/x'])).rejects.toThrow('**/x');
+  });
+});
+
+// describe 分組：萬用字元的比對方向偏向「多排除」；
+describe('萬用字元比對', () => {
+  // 案例：? 剛好代表一個字元；
+  it('? 剛好一個字元', () => {
+    // 一個字元符合；
+    expect(isExcluded('abc.md', false, ['a?c.md'])).toBe(true);
+    // 零個字元不符合；
+    expect(isExcluded('ac.md', false, ['a?c.md'])).toBe(false);
+    // 兩個字元不符合；
+    expect(isExcluded('abbc.md', false, ['a?c.md'])).toBe(false);
+  });
+  // 案例：含斜線的樣式中 * 可以跨越 /；
+  it('路徑樣式的 * 跨越斜線', () => {
+    // 第一層符合；
+    expect(isExcluded('docs/top.md', false, ['docs/*.md'])).toBe(true);
+    // 更深層也符合；
+    expect(isExcluded('docs/sub/a.md', false, ['docs/*.md'])).toBe(true);
+    // 不在 docs 下的不符合；
+    expect(isExcluded('other/a.md', false, ['docs/*.md'])).toBe(false);
+  });
+  // 案例：路徑樣式透過 listNotes 排除較深層的真實筆記；
+  it('docs/*.md 透過 listNotes 排除 docs/sub/a.md', async () => {
+    // 不帶排除清單時兩篇都在；
+    const before = paths(await listNotes(vault, []));
+    // docs 下的兩篇都出現；
+    expect(before).toContain('docs/sub/a.md');
+    expect(before).toContain('docs/top.md');
+    // 帶路徑樣式後兩篇都消失；
+    const after = paths(await listNotes(vault, ['docs/*.md']));
+    // 深層的不在；
+    expect(after).not.toContain('docs/sub/a.md');
+    // 第一層的也不在；
+    expect(after).not.toContain('docs/top.md');
+  });
+  // 案例：*.draft.md 這種無斜線樣式依檔名排除真實筆記；
+  it('*.draft.md 透過 listNotes 排除 idea.draft.md', async () => {
+    // 不排除時有；
+    expect(paths(await listNotes(vault, []))).toContain('idea.draft.md');
+    // 排除後沒有，但其他筆記仍在；
+    const after = paths(await listNotes(vault, ['*.draft.md']));
+    // 草稿被排除；
+    expect(after).not.toContain('idea.draft.md');
+    // 其他筆記不受影響；
+    expect(after).toContain('plain.html');
   });
 });
