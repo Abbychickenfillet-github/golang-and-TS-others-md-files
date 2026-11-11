@@ -121,8 +121,8 @@ describe('npm run build（tests/site-vault）', () => {
       .filter((e) => e.isFile())
       .map((e) => path.relative(outDir, path.join(e.parentPath, e.name)).replace(/\\/g, '/'))
       .filter((p) => !p.startsWith('_next/'));
-    // 沒有 .txt；
-    expect(files.filter((p) => p.endsWith('.txt'))).toEqual([]);
+    // 沒有 RSC 的 .txt；唯一的 .txt 是被筆記引用、由 copy-local-assets 複製進來的附件 簡報.txt（見下方附件測試）；
+    expect(files.filter((p) => p.endsWith('.txt'))).toEqual(['簡報.txt']);
     // 沒有 __next. 開頭的檔案；
     expect(files.filter((p) => p.split('/').at(-1)?.startsWith('__next.'))).toEqual([]);
     // _next 靜態資源還在；
@@ -263,6 +263,79 @@ describe('npm run build（tests/site-vault）', () => {
     expect(readOut('特殊/C# 筆記.html')).toContain('<title>C# 筆記｜Abby 的筆記</title>');
     // html 筆記取 <title>；
     expect(readOut('前端/日期 物件-互動版.html')).toContain('<title>日期物件互動版｜Abby 的筆記</title>');
+  });
+
+  // 本地附件（B）：md 的圖片網址與 out/ 的檔案位置一致；
+  it('md 頁 <img src> 指到的圖片都在 out/ 的同一路徑（絕對網址與相對網址都找得到），找不到的與被排除的圖不輸出', () => {
+    // 讀 md 頁；
+    const page = readOut('前端/日期 物件.html');
+    // 取出所有 <img> 的 src；
+    const srcs = Array.from(page.matchAll(/<img[^>]*?src="([^"]+)"/g), (m) => m[1]);
+    // 嵌入的 pic.png（絕對網址）、相對路徑的圖檔、找不到的 nope.png、被排除而找不到的 secret.png；
+    expect(srcs).toEqual(['/%E5%89%8D%E7%AB%AF/pic.png', 'nope.png', 'secret.png', '%E5%9C%96%20%E6%AA%94.png']);
+    // 解析成 out/ 內的相對路徑：/ 開頭是從站台根目錄算，否則相對於頁面所在資料夾 前端/；
+    const resolve = (src: string) => (src.startsWith('/') ? decodeURIComponent(src).slice(1) : `前端/${decodeURIComponent(src)}`);
+    // 找得到圖的兩個都存在（模擬瀏覽器請求）；
+    for (const src of ['/%E5%89%8D%E7%AB%AF/pic.png', '%E5%9C%96%20%E6%AA%94.png']) expect(existsSync(path.join(outDir, resolve(src))), src).toBe(true);
+    // 嵌入的圖與原檔位元組相同；
+    expect(readFileSync(path.join(outDir, '前端', 'pic.png')).equals(readFileSync(path.join(siteDir, 'tests', 'site-vault', '前端', 'pic.png')))).toBe(true);
+    // 找不到的圖沒有被造出來；
+    expect(existsSync(path.join(outDir, resolve('nope.png')))).toBe(false);
+    // 全站輸出裡沒有任何叫 secret.png 的檔案，也沒有 private 資料夾（被排除的圖絕不外洩）；
+    const all = readdirSync(outDir, { recursive: true, encoding: 'utf8' }).map((p) => p.replace(/\\/g, '/'));
+    // 沒有 secret.png；
+    expect(all.filter((p) => p.endsWith('secret.png'))).toEqual([]);
+    // 沒有 private；
+    expect(all.filter((p) => p === 'private' || p.startsWith('private/'))).toEqual([]);
+  });
+
+  // 本地附件（B）：html 頁與 md 連結的附件；
+  it('html 頁與 md 連結引用的附件複製進 out/ 且位元組相同，被排除的 private 不複製且列入警告，找不到的列入報告', () => {
+    // 讀報告；
+    const local = JSON.parse(readFileSync(path.join(siteDir, '.build-report.json'), 'utf8')).localAssets;
+    // 複製的檔案：md 嵌入、md 相對圖與連結、html 的 img／a／link／script、md 連結的 txt（排序後比對）；
+    expect([...local.files].sort()).toEqual(['前端/docs/手冊.pdf', '前端/pic.png', '前端/互動.js', '前端/圖 檔.png', '前端/頁面.css', '簡報.txt'].sort());
+    // 逐檔位元組相同；
+    for (const rel of local.files as string[]) {
+      // 來源在測試筆記庫，輸出在 out-fixture；
+      expect(readFileSync(path.join(outDir, ...rel.split('/'))).equals(readFileSync(path.join(siteDir, 'tests', 'site-vault', ...rel.split('/')))), rel).toBe(true);
+    }
+    // 被排除的檔案：兩篇已發布的筆記指到它，不複製；
+    expect(local.excludedReferenced).toEqual({ '簡報.md': ['private/secret.png'], '前端/日期 物件-互動版.html': ['private/secret.png'] });
+    // 找不到的本地檔案；
+    expect(local.missingLocal).toEqual({ '前端/日期 物件.md': ['前端/missing-file.zip'] });
+    // 沒有跑出根目錄的引用；
+    expect(local.outsideRoot).toEqual({});
+    // 摘要印出三類資訊；
+    expect(build.stdout).toContain('複製的本地附件：6 個檔案');
+    // 警告被排除；
+    expect(build.stdout).toContain('已發布的筆記指到「不發布」的檔案：2 個引用、2 篇筆記');
+    // 列出筆記與目標；
+    expect(build.stdout).toContain('簡報.md → private/secret.png');
+    // 找不到；
+    expect(build.stdout).toContain('找不到的本地檔案引用：1 個');
+    // 輸出裡的 html 頁面仍引用原本的相對網址（page-relative 網址在輸出的同一路徑找得到）；
+    const html = readOut('前端/日期 物件-互動版.html');
+    // 頁面樣式表與腳本都以相對網址保留；
+    expect(html).toContain('href="頁面.css"');
+    // 腳本；
+    expect(html).toContain('src="互動.js"');
+  });
+
+  // 順序（C 與 B）：copy 在 prune 之後；
+  it('檔名與頁面同名的 .txt 附件（簡報.txt）在建置後仍在：prune-export 早於 copy-local-assets', () => {
+    // 內容完整；
+    expect(readOut('簡報.txt')).toBe('ATTACHED-TXT-SAME-STEM-AS-PAGE\n');
+    // 同層頁面還在；
+    expect(existsSync(path.join(outDir, '簡報.html'))).toBe(true);
+  });
+
+  // .nojekyll（C）；
+  it('out/.nojekyll 存在且是空檔案（在 prune 與 copy 之後仍在）', () => {
+    // 存在；
+    expect(existsSync(path.join(outDir, '.nojekyll'))).toBe(true);
+    // 空檔案；
+    expect(readOut('.nojekyll')).toBe('');
   });
 
   // 嚴格模式：在 next build 之前的 site-report.mjs 就失敗，所以很快；

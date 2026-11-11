@@ -180,8 +180,8 @@ describe('loadSite（site-vault）', () => {
     if (r.kind !== 'html') throw new Error('應該是 html');
     // wikilink 改寫成連結；
     expect(r.parsed.bodyHtml).toContain('href="/%E5%89%8D%E7%AB%AF/%E6%97%A5%E6%9C%9F%20%E7%89%A9%E4%BB%B6"');
-    // 共用腳本被濾掉，只剩三段 inline；
-    expect(r.parsed.pageScripts.map((s) => s.src ?? 'inline')).toEqual(['inline', 'inline', 'inline']);
+    // 共用腳本被濾掉，只剩頁面自己的三段 inline 與一支外部的 互動.js（依原順序，外部的在第二段 inline 之後）；
+    expect(r.parsed.pageScripts.map((s) => s.src ?? 'inline')).toEqual(['inline', 'inline', '互動.js', 'inline']);
     // 不需要 note-quiz；
     expect(r.needsQuiz).toBe(false);
     // 測驗頁需要；

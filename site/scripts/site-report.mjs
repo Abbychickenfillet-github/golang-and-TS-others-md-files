@@ -1,3 +1,11 @@
+// ===== `npm run build` 的整條建置鏈（package.json 的 build；任何一步失敗就停在那一步，後面不會執行）=====
+//   1. scripts/sync-assets.mjs       把筆記根目錄的 assets/（共用樣式與腳本）複製到 public/assets，讓 Next 原樣放進輸出；
+//   2. scripts/site-report.mjs       （本檔）建置前整站檢查，寫 .build-report.json；STRICT_LINKS=1 且有歧義 wikilink 時在這裡失敗；
+//   3. next build                    靜態匯出所有頁面（首頁與每篇筆記）到 out/（或 SITE_OUT_DIR）；
+//   4. scripts/fix-export-names.mjs  把 Next 跳脫過的檔名（# ? \ → %23 等）改回與網址一致的原名；
+//   5. scripts/prune-export.mjs      刪掉 Next 的 RSC 產物（X.txt、__next.*、__PAGE__.txt）；必須早於第 6 步，否則會誤刪同名的 .txt 附件；
+//   6. scripts/copy-local-assets.mjs 把筆記引用的本地附件（圖片、pdf、頁面自己的 js／css…）複製進輸出，指到不發布的檔案只警告不複製；
+//   7. scripts/write-nojekyll.mjs    寫空的 .nojekyll，GitHub Pages 才不會用 Jekyll 忽略 _next/；放最後，前面任何清理都碰不到它；
 // 建置前的整站檢查：載入網站、把每篇筆記用與頁面相同的 renderNote 渲染一次，彙整所有警告後印出摘要並寫成 .build-report.json；
 // 為什麼不在 next build 裡彙整：Next 用多個 worker 行程平行渲染頁面，每個行程只看得到自己那批頁面，沒有「全部頁面都渲染完」的掛鉤；
 // 這支腳本在 next build 之前單獨跑完全部筆記，結果完整且確定；STRICT_LINKS=1 且有歧義連結時以結束碼 1 結束，npm 的 && 串接會讓 build 停在這裡；
