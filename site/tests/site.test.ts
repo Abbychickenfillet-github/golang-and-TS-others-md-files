@@ -16,6 +16,14 @@ import { assertStrictLinks, formatReport } from '../src/lib/report';
 import { getBasePath } from '../src/lib/base-path';
 // 匯入型別；
 import type { NoteEntry } from '../src/lib/content';
+// 匯入建置後的檔名修正函式（.mjs，靠 allowJs 讓 TypeScript 讀得到）；
+import { fixExportNames } from '../scripts/fix-export-names.mjs';
+// 匯入 fs 的 promise 版 API，用來造暫存資料夾；
+import * as fs from 'node:fs/promises';
+// 匯入 os，取得系統暫存資料夾位置；
+import * as os from 'node:os';
+// 匯入 path 模組；
+import * as path from 'node:path';
 
 // 測試用筆記庫的絕對路徑；new URL 以本檔為基準解析相對路徑；
 const vault = fileURLToPath(new URL('./site-vault', import.meta.url));
@@ -187,6 +195,33 @@ describe('loadSite（site-vault）', () => {
     expect(findNoteBySlug(site, ['特殊', 'C++ (入門) 100%'])?.relPath).toBe('特殊/C++ (入門) 100%.md');
     // 編碼過；map 逐段編碼；
     expect(findNoteBySlug(site, ['特殊', 'C++ (入門) 100%'].map(encodeURIComponent))?.relPath).toBe('特殊/C++ (入門) 100%.md');
+  });
+});
+
+// 建置後的檔名修正；
+describe('fixExportNames', () => {
+  // 把 %23 改回 #，資料夾與檔案都改，不需要跳脫的不動；
+  it('把 Next 跳脫成 %23 的資料夾、.html、.txt 改回原名', async () => {
+    // 在系統暫存區開一個新資料夾；mkdtemp 會在前綴後補亂數；
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'fix-names-'));
+    // 造出 Next 會寫的結構：資料夾 C%23/ 底下有 a%23b.html、a%23b.txt 與同名資料夾；recursive 一次建好多層；
+    await fs.mkdir(path.join(dir, 'C%23', 'a%23b'), { recursive: true });
+    // 頁面檔；
+    await fs.writeFile(path.join(dir, 'C%23', 'a%23b.html'), 'page');
+    // RSC 資料；
+    await fs.writeFile(path.join(dir, 'C%23', 'a%23b.txt'), 'rsc');
+    // 不需要跳脫的頁面；
+    await fs.writeFile(path.join(dir, 'plain.html'), 'plain');
+    // 執行；
+    const log = await fixExportNames(dir, [['C#', 'a#b'], ['plain']]);
+    // 改了 4 個：資料夾、html、txt、同名資料夾；
+    expect(log).toHaveLength(4);
+    // 讀改名後的頁面；
+    expect(await fs.readFile(path.join(dir, 'C#', 'a#b.html'), 'utf8')).toBe('page');
+    // 不需要跳脫的檔案沒動；
+    expect(await fs.readFile(path.join(dir, 'plain.html'), 'utf8')).toBe('plain');
+    // 清掉暫存資料夾；
+    await fs.rm(dir, { recursive: true, force: true });
   });
 });
 
