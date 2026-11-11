@@ -61,6 +61,20 @@ Invoke-WebRequest -Method POST -ContentType "application/json" -Uri "http://127.
 
 ---
 
+## 四、curl 是「打網址」嗎？前端還是後端都能打
+
+curl 是命令列的 **HTTP(S) 用戶端**：你給它一個網址，它代替瀏覽器送出請求，把回應印出來。它不在乎對方是「前端」還是「後端」——對它而言，對面只是一台會回 HTTP 的伺服器。
+
+| 打的對象 | 例子 | 回來的東西 |
+|---|---|---|
+| 靜態網頁（前端部署，如 GitHub Pages） | `curl https://…github.io/…/index.html` | 原始 HTML 文字 |
+| 後端 API | `curl http://localhost:8080/api/v1/events` | 通常是 JSON |
+| 只想知道狀態 | `curl -s -o /dev/null -w '%{http_code}' <網址>` | 只印 HTTP 狀態碼（200、404…） |
+
+與瀏覽器的差別：curl **不會執行 JavaScript、不渲染畫面**，拿到的是伺服器當下送出的原始內容。所以打一個 React／Next 的 CSR 頁面，只會看到空殼 HTML，看不到 JS 跑完後的畫面（SSR／靜態頁才看得到內容）。常用旗標：`-s` 不顯示進度、`-o /dev/null` 丟掉內容、`-w` 自訂輸出格式、`-I` 只要回應標頭。
+
+---
+
 ## 相關筆記
 - [[PowerShell-找檔案與遞迴搜尋陷阱]] —— `CommandType`（Application / Cmdlet / Alias）、`.Source` 給不給路徑、`where.exe` vs `where`
 - [[where-vs-get-command]]
