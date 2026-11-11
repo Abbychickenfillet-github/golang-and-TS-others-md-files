@@ -17,7 +17,8 @@ date: 2026-11-11
 | 新增筆記 | 不會自動出現在索引 | 約 97 篇漏列（frontend-docs 38、backend 30…） |
 | 搬移／改名筆記 | 索引仍指舊路徑，點下去 404 | 認證系列搬進資料夾後 16 筆死連結；11/11 又加序號改名，再斷 10 筆 |
 | 資料夾被 Jekyll 排除 | 索引有列，線上卻 404 | `Git/` 28 篇、`系統維護-C槽清理/` 344 篇 |
-| 檔名以 `_` 開頭 | Jekyll 不發布，線上 404 | `__init__.py解釋.html`、`__proto__…` |
+| 檔名以 `_` 開頭 | Jekyll 不發布，線上 404 | `__init__.py解釋`、`__proto__三種寫法差在哪`、`_封存-B+樹索引…` 3 篇；已在檔名前加序號 `1-` 解決（2026-11-11） |
+| `assets/wikilink-index.json`（網站端 wikilink 對照表） | 同樣是手動快照，改名後目標不存在 | 1136 筆中 30 筆死掉；目前仍需手動維護，build-index.py 還沒涵蓋 |
 
 ## b. 現在怎麼運作
 
@@ -41,6 +42,13 @@ python build-index.py --check  # 只檢查；索引過期時 exit code = 1
 
 ## d. 自動觸發（需要你自己啟用一次）
 
+| 問題 | 答案 |
+|---|---|
+| `git config core.hooksPath .githooks` 做了什麼 | 不會建立 hook；只是告訴 Git「hook 腳本去 `.githooks/` 找，不要去預設的 `.git/hooks/`」。腳本本身是 repo 內已存在的 `.githooks/pre-commit` |
+| 觸發時機 | 執行 `git commit` 時，在 commit 建立之前（`pre-commit`）；`git push` 不會觸發 |
+| 設定存在哪 | 本機 `.git/config`，不會被 push、不會被 clone |
+| 要確認推上線有沒有成功 | push 之後執行 `gh run list --limit 1`，看 `pages build and deployment` 是不是 `success` |
+
 repo 內已附 `.githooks/pre-commit`：每次 commit 前自動執行 `build-index.py` 並把 `index.html` 加進這次 commit；腳本失敗只警告、不擋 commit。Git 預設不會讀這個資料夾，要在這個 repo 執行一次：
 
 ```bash
@@ -50,6 +58,17 @@ git config core.hooksPath .githooks
 這個設定只存在本機 `.git/config`，不會被 push；換電腦要再執行一次。
 
 ## e. 重要副作用：被 exclude 的資料不再出現在索引
+
+舊索引顯示 1306 篇、新索引 1003 篇，差異如下（舊的 1306 裡有一大部分在線上根本打不開）：
+
+| 項目 | 篇數 | 原因 |
+|---|---|---|
+| 舊索引收錄 | 1306 | 手動快照，含 404 連結 |
+| 扣掉 `系統維護-C槽清理/` | -344 | `_config.yml` 排除，線上 404 |
+| 扣掉 `Git/` | -28 | `_config.yml` 排除，線上 404 |
+| 扣掉改名後失效的舊路徑與底線檔 | -15 | 路徑已不存在或 Jekyll 不發布 |
+| 補上漏列的新筆記 | +80 | 新增與改名後的新路徑 |
+| 新索引 | 999 → 1003 | +1 本說明筆記；+3 底線檔改名加序號後可被發布、收進索引 |
 
 `_config.yml` 的 `exclude` 是單一真相。`Git/` 和 `系統維護-C槽清理/` 因為被排除，線上本來就是 404，所以新索引不再列它們（共 372 篇）。若想讓 `Git/` 的筆記公開，把 `_config.yml` 裡的 `- Git/` 那行拿掉，再執行一次 `build-index.py` 即可，索引會自動補回。
 
