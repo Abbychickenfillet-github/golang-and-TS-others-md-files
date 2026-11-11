@@ -165,7 +165,7 @@ describe('migrate-html-notes：--apply', () => {
     // 前三個位元組仍是 BOM，且只有一組；
     const bytes = read('bom.html');
     expect([...bytes.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
-    expect(bytes.subarray(3, 6).toString('utf8')).not.toBe('﻿');
+    expect(bytes.subarray(3, 6).toString('utf8')).not.toBe(String.fromCharCode(0xfeff));
   }, T);
 
   // 第二次執行不再有變更；

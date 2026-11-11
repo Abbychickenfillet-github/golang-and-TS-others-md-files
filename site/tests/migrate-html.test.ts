@@ -414,14 +414,16 @@ describe('migrateHtml：保真', () => {
 
   // BOM：保留且只有一個；
   it('BOM 保留且只出現在開頭一次', () => {
+    // BOM 字元（U+FEFF）：用 String.fromCharCode 產生，不在原始碼放看不見的字面字元；
+    const bom = String.fromCharCode(0xfeff);
     // 前面加 BOM；
-    const input = `﻿${page('<style>\n.card{a:b}\n.mine{c:d}\n</style>\n')}`;
+    const input = `${bom}${page('<style>\n.card{a:b}\n.mine{c:d}\n</style>\n')}`;
     // 遷移；
     const result = migrateHtml(input, REL, shared);
     // 以 BOM 開頭；
-    expect(result.html.startsWith('﻿<!DOCTYPE')).toBe(true);
+    expect(result.html.startsWith(`${bom}<!DOCTYPE`)).toBe(true);
     // 只有一個；
-    expect(result.html.split('﻿')).toHaveLength(2);
+    expect(result.html.split(bom)).toHaveLength(2);
     // 去掉 BOM 之後與沒有 BOM 的結果相同；
     expect(result.html.slice(1)).toBe(migrateHtml(page('<style>\n.card{a:b}\n.mine{c:d}\n</style>\n'), REL, shared).html);
   });
@@ -548,6 +550,17 @@ describe('migrateHtml：真實樣板頁', () => {
     // 內嵌腳本（測驗與遮罩）逐位元組保留；
     const inline = /<script>[\s\S]*?<\/script>/.exec(original)?.[0] as string;
     expect(result.html).toContain(inline);
+  });
+
+  // 資料與工具不能默默分家：已提交的樣板頁必須等於「用目前的工具遷移原檔」的結果（換行統一成 LF 再比，避免檢出時的 autocrlf 影響）；
+  // 這個測試失敗代表工具改了但樣板頁沒有重新遷移（或反過來），要用工具重新產生樣板頁並另外 commit；
+  it('已提交的樣板頁等於目前工具遷移原檔的結果', () => {
+    // 已提交的樣板頁（遷移後的檔案）；
+    const committed = readFileSync(path.join(repoRoot, samplePath), 'utf8');
+    // 目前工具對原檔的輸出；
+    const expected = migrateHtml(original, rel, realShared).html;
+    // 逐字相同（換行正規化）；
+    expect(committed.replace(/\r\n/g, '\n')).toBe(expected.replace(/\r\n/g, '\n'));
   });
 
   // R37：print 規則中共用樣式沒有對應版本的（.toc）要留下；有對應的（.toolbar、.quiz）才抽掉；

@@ -33,6 +33,9 @@ const THEME_CSS = 'note-theme.css';
 const NOTES_CSS = 'notes.css';
 const SCRIPT_FILES = ['notes.js', 'note-mask.js'];
 
+// 位元組順序記號（BOM，U+FEFF）：用 String.fromCharCode(0xfeff) 產生，不在原始碼裡放看不見的字面字元；
+const BOM = String.fromCharCode(0xfeff);
+
 // 一個編輯：把原文的 [start, end) 換成 text；start 等於 end 就是純插入；
 type Edit = { start: number; end: number; text: string };
 
@@ -357,7 +360,7 @@ export function migrateHtml(html: string, relPathToAssets: string, shared?: Set<
     }
 
     // 套用所有編輯並接回 BOM；
-    const out = `${hasBom ? '﻿' : ''}${applyEdits(source, edits)}`;
+    const out = `${hasBom ? BOM : ''}${applyEdits(source, edits)}`;
     // 回傳；
     return { html: out, changed: out !== html, stats };
   } catch (error) {

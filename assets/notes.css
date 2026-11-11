@@ -157,29 +157,29 @@ h2[id]:target, h3[id]:target, h4[id]:target { animation: notes-hl 1.4s ease; }
   flex: 0 0 250px; align-self: flex-start;           /* 固定 250px 寬、不被內文擠壓，高度只取內容高 */
   max-height: calc(100vh - 36px); overflow: auto;    /* 目錄很長時在卡片內捲動 */
   margin: 0;                                         /* 蓋掉 .toc 預設的上下外距，兩欄頂端才對齊 */
-  background: var(--card, oklch(0.985 0.004 255));
-  border: 1px solid var(--line, oklch(0.84 0.02 255));
-  border-radius: 14px;
-  padding: 16px 14px;
-  font-size: .88rem;
+  background: var(--card, oklch(0.985 0.004 255));   /* 卡片底色：主題的 --card，沒載入主題時用 oklch 備用值 */
+  border: 1px solid var(--line, oklch(0.84 0.02 255));   /* 邊線：主題的 --line */
+  border-radius: 14px;                               /* 圓角，與主題的卡片一致 */
+  padding: 16px 14px;                                /* 內距：上下 16、左右 14 */
+  font-size: .88rem;                                 /* 側欄字級略小於內文 */
 }
-.layout > nav.toc ol, .layout > nav.toc ul { list-style: none; padding: 0; margin: 0; }
-.layout > nav.toc ol ol, .layout > nav.toc ul ul { padding-left: 1em; }
-.layout > nav.toc li { margin: 2px 0; font-weight: 400; font-size: 1em; }
+.layout > nav.toc ol, .layout > nav.toc ul { list-style: none; padding: 0; margin: 0; }   /* 清單不要項目符號與縮排，避免與連結文字的編號重複 */
+.layout > nav.toc ol ol, .layout > nav.toc ul ul { padding-left: 1em; }   /* 第二層才縮排一格 */
+.layout > nav.toc li { margin: 2px 0; font-weight: 400; font-size: 1em; }   /* 項目間距小一點；蓋掉 .toc 第一層預設的粗體與縮小字級 */
 .layout > nav.toc a {
-  display: block; padding: 6px 10px;
-  border-radius: 8px; border-bottom: 0; border-left: 2px solid transparent;
-  color: var(--ink, oklch(0.27 0.03 260)); text-decoration: none; line-height: 1.4;
-  transition: .15s;
+  display: block; padding: 6px 10px;                 /* 連結撐滿一行，點擊範圍大 */
+  border-radius: 8px; border-bottom: 0; border-left: 2px solid transparent;   /* 圓角；去掉 .toc a 的底線；左邊留一條透明線，active 時才上色 */
+  color: var(--ink, oklch(0.27 0.03 260)); text-decoration: none; line-height: 1.4;   /* 文字用主題的主要文字色，不加底線，行高緊一點 */
+  transition: .15s;                                  /* hover 與 active 的底色切換有短暫過渡 */
 }
-.layout > nav.toc a:hover { background: var(--soft, oklch(0.965 0.008 255)); color: var(--ink, oklch(0.27 0.03 260)); border-bottom: 0; }
-.layout > nav.toc a.active, .layout > nav.toc a.here {
-  background: var(--head, oklch(0.93 0.02 255)); border-left-color: var(--accent, oklch(0.42 0.08 255));
-  color: var(--accent, oklch(0.42 0.08 255)); font-weight: 600;
+.layout > nav.toc a:hover { background: var(--soft, oklch(0.965 0.008 255)); color: var(--ink, oklch(0.27 0.03 260)); border-bottom: 0; }   /* 滑過時換淡底；文字色與去底線要重寫，才蓋得過 .toc a:hover */
+.layout > nav.toc a.active, .layout > nav.toc a.here {   /* 目前所在章節（頁面自己的捲動偵測用 active，notes.js 用 here） */
+  background: var(--head, oklch(0.93 0.02 255)); border-left-color: var(--accent, oklch(0.42 0.08 255));   /* 較深的底色與左側強調線 */
+  color: var(--accent, oklch(0.42 0.08 255)); font-weight: 600;   /* 強調色文字、半粗體 */
 }
 /* 窄螢幕（860px 以下）：note-theme.css 讓 .layout 變上下堆疊，大綱也從黏住的側欄變成滿寬的一般區塊 */
 @media (max-width: 860px) {
-  .layout > nav.toc { position: static; flex: none; width: 100%; max-height: none; }
+  .layout > nav.toc { position: static; flex: none; width: 100%; max-height: none; }   /* 取消黏住、取消固定寬、取消高度限制 */
 }
 
 .toc::-webkit-scrollbar { width: 8px; }
