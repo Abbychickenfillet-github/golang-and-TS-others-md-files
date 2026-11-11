@@ -196,6 +196,22 @@ describe('collectLocalAssets 與 copyLocalAssets', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  // 共用腳本與樣式表不論寫在哪個資料夾（舊頁面常寫成 資料夾/assets/notes.js 而那裡根本沒有這個檔），都由 layout 提供，不算找不到；
+  it('指到共用腳本與樣式表（任何資料夾的 assets/notes.js、note-theme.css 等）不算找不到也不複製', async () => {
+    // 造筆記庫：html 引用不存在的 sub/assets/notes.js、sub/assets/notes.css，以及一個真正找不到的 own.js；
+    const root = await tempVault({ 'sub/h.html': '<html><head><link rel="stylesheet" href="assets/notes.css"><script src="assets/notes.js"></script><script src="own.js"></script></head></html>' });
+    // 收集；
+    const report = await collect(root);
+    // 只有 own.js 找不到；
+    expect(obj(report.missingLocal)).toEqual({ 'sub/h.html': ['sub/own.js'] });
+    // 共用的兩個計入已提供；
+    expect(report.providedByAssets).toBe(2);
+    // 沒有要複製的；
+    expect(report.files).toEqual([]);
+    // 清掉；
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   // 隱私：被排除的檔案絕不複製，而且要報告是哪篇筆記指到它；
   it('被排除的 private/secret.png 不複製，並列入 excludedReferenced（筆記 → 目標）', async () => {
     // 造筆記庫；

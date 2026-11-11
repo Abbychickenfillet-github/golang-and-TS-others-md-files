@@ -53,6 +53,15 @@ function fileNameOf(url: string): string {
   return (clean.split(/[\\/]/).pop() ?? '').toLowerCase();
 }
 
+// 這個網址（或路徑）的檔名是不是共用腳本或共用樣式表（不論它放在哪個資料夾）；
+// parseHtmlNote 會把這類引用濾掉、改由 layout 統一載入，所以複製本地附件時也不該把它們當成「找不到」或「要複製」；
+export function isSharedAssetFile(url: string): boolean {
+  // 取檔名（已轉小寫）；
+  const name = fileNameOf(url);
+  // 兩個集合任一個包含就是共用檔案；
+  return SHARED_SCRIPT_FILES.has(name) || SHARED_STYLESHEET_FILES.has(name);
+}
+
 // 把一個選擇器正規化成比對用的鍵：空白收斂成單一空格，組合子與逗號兩側的空白拿掉，前後去空白；
 // 引號字串內的內容不動（例如屬性選擇器的值）；
 function normalizeSelector(raw: string): string {

@@ -324,8 +324,10 @@ describe('npm run build（tests/site-vault）', () => {
 
   // 順序（C 與 B）：copy 在 prune 之後；
   it('檔名與頁面同名的 .txt 附件（簡報.txt）在建置後仍在：prune-export 早於 copy-local-assets', () => {
-    // 內容完整；
-    expect(readOut('簡報.txt')).toBe('ATTACHED-TXT-SAME-STEM-AS-PAGE\n');
+    // 內容與來源檔完全相同（以來源檔為準，而不是寫死字串：Windows 的 git autocrlf 檢出時會把來源檔的換行改成 CRLF）；
+    expect(readOut('簡報.txt')).toBe(readFileSync(path.join(siteDir, 'tests', 'site-vault', '簡報.txt'), 'utf8'));
+    // 而且是我們放的那個檔；
+    expect(readOut('簡報.txt')).toContain('ATTACHED-TXT-SAME-STEM-AS-PAGE');
     // 同層頁面還在；
     expect(existsSync(path.join(outDir, '簡報.html'))).toBe(true);
   });

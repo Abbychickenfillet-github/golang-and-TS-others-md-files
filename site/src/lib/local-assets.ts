@@ -16,6 +16,8 @@ import { visit } from 'unist-util-visit';
 import { splitFrontmatter } from './frontmatter.ts';
 // 匯入排除判斷（與掃描筆記、掃描圖片用的同一個函式，所以「被排除」的定義只有一份）；
 import { isExcluded } from './content.ts';
+// 匯入「是不是共用腳本或共用樣式表」的判斷（與 parseHtmlNote 濾掉共用檔案用的同一份清單）；
+import { isSharedAssetFile } from './parse-html.ts';
 // `import type` 只匯入型別，編譯後整行消失；
 import type { NoteEntry } from './content.ts';
 
@@ -32,7 +34,7 @@ export type LocalAssetsReport = {
   missingLocal: NoteTargets;
   // 用 .. 跑出筆記根目錄的引用（原始字串）：一律不處理；
   outsideRoot: NoteTargets;
-  // 指到根目錄 assets/ 底下的引用數：那個資料夾已由 sync-assets 整個放進輸出，不重複複製；
+  // 已由別處提供而不複製的引用數：指到根目錄 assets/ 底下的（sync-assets 已整個放進輸出），以及指到共用腳本與共用樣式表的（layout 統一載入）；
   providedByAssets: number;
 };
 
@@ -206,6 +208,13 @@ export async function collectLocalAssets(site: { root: string; notes: NoteEntry[
     const stem = ext === '.html' || ext === '.md' ? rel.slice(0, -ext.length) : rel;
     // 指到已發布的頁面（含改名後只剩 .md 的舊 .html 連結、沒寫副檔名的連結）：是頁面，輸出時另有檔案，不是附件；
     if ((ext === '.html' || ext === '.md' || ext === '') && (pageSlugs.has(stem) || noteFiles.has(rel))) return;
+    // 共用腳本與共用樣式表（notes.js、note-theme.css 等，不論寫在哪個資料夾）：頁面解析時已被濾掉，由 layout 統一載入 assets/ 裡的那一份，不複製也不算找不到；
+    if (isSharedAssetFile(rel)) {
+      // 計入「已由別處提供」；
+      report.providedByAssets += 1;
+      // 結束；
+      return;
+    }
     // 根目錄 assets/ 底下的引用：整個資料夾已由 sync-assets 放進輸出；仍要確認檔案存在，否則是找不到；
     if (rel.startsWith('assets/')) {
       // 查詢；
@@ -266,8 +275,13 @@ export async function collectLocalAssets(site: { root: string; notes: NoteEntry[
       const res = resolveReference(note.relPath, raw);
       // 不是本地引用就略過；
       if (res.kind === 'skip') continue;
-      // 跑出根目錄：記下原始字串；
-      if (res.kind === 'outside') addTarget(report.outsideRoot, note.relPath, raw.trim());
+      // 跑出根目錄：若檔名是共用腳本或樣式表（例如 ../../../assets/wikilink.js），layout 已統一載入，計入已提供；否則記下原始字串；
+      if (res.kind === 'outside') {
+        // 共用檔案；
+        if (isSharedAssetFile(raw)) report.providedByAssets += 1;
+        // 其他；
+        else addTarget(report.outsideRoot, note.relPath, raw.trim());
+      }
       // 本地：交給 handle 處理；
       else await handle(note.relPath, res.rel);
     }
@@ -336,7 +350,7 @@ export function formatLocalAssetsReport(report: LocalAssetsReport, stats: CopySt
   // 標題；
   lines.push('===== 本地附件複製摘要 =====');
   // 複製數量與大小；
-  lines.push(`複製的本地附件：${stats.count} 個檔案、${mb(stats.bytes)} MB（指到根目錄 assets/ 的 ${report.providedByAssets} 個引用不重複複製）`);
+  lines.push(`複製的本地附件：${stats.count} 個檔案、${mb(stats.bytes)} MB（另有 ${report.providedByAssets} 個引用指到根目錄 assets/ 或共用腳本與樣式表，已由 sync-assets 與 layout 提供，不重複複製）`);
   // 輸出資料夾總大小；
   lines.push(`輸出資料夾目前總大小：${mb(outBytes)} MB`);
   // 超過門檻的警告；
