@@ -35,6 +35,10 @@ export type SiteReport = {
   ambiguousImages: Map<string, string[]>;
   // 被引用、要複製進 out/ 的圖片 relPath（給 11b 用）；
   images: Set<string>;
+  // R33：被改寫成頁面網址的「指到筆記原始檔」連結數；
+  noteLinksRewritten: number;
+  // R33：指到沒發布筆記原始檔的連結，每筆是「筆記 → 目標」字串（Set 去重）；只警告，不讓建置失敗；
+  unpublishedNoteLinks: Set<string>;
 };
 
 // loadSite 的回傳值；
@@ -67,6 +71,8 @@ export function emptyReport(): SiteReport {
     missingImages: new Map(), // 空 Map；
     ambiguousImages: new Map(), // 空 Map；
     images: new Set(), // 空集合；
+    noteLinksRewritten: 0, // 計數從 0 開始；
+    unpublishedNoteLinks: new Set(), // 空集合；
   };
 }
 

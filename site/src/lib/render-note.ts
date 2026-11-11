@@ -10,6 +10,8 @@ import { parseHtmlNote } from './parse-html.ts';
 import type { ParsedHtmlNote } from './parse-html.ts';
 // 匯入 HTML 版的 wikilink 改寫函式；
 import { rewriteWikilinksInHtml } from './wikilink.ts';
+// 匯入 R33 的原始檔連結改寫（產生改寫函式、改寫 html 的 a／area）；
+import { makeNoteHrefRewriter, rewriteNoteLinksInHtml } from './note-links.ts';
 // 匯入型別；
 import type { NoteEntry } from './content.ts';
 // 匯入型別；
@@ -88,6 +90,14 @@ export async function renderNote(site: LoadedSite, note: NoteEntry, basePath: st
     // 寫回；
     report.ambiguousLinks.set(key, entry);
   };
+  // R33：md 與 html 共用的「原始檔連結改寫」函式；已發布集合取自網站的發布清單（已去掉被取代與保留名稱的）；
+  const rewriteHref = makeNoteHrefRewriter({
+    from: note.relPath, // 目前筆記；
+    published: new Set(site.notes.map((n) => n.relPath)), // 已發布的原始檔；
+    superseded: new Set(site.report.superseded.map((s) => s.relPath)), // 被取代的舊 html；
+    onRewrite: () => (report.noteLinksRewritten += 1), // 每改寫一個加一；
+    onUnpublished: (target) => report.unpublishedNoteLinks.add(`${note.relPath} → ${target}`), // 記下「筆記 → 目標」；
+  });
   // md 走 Markdown 管線；
   if (note.kind === 'md') {
     // 圖片嵌入的回呼：找得到就記錄並回傳編碼後的網址，找不到就記入報告並把名稱原樣當 src；
@@ -107,14 +117,16 @@ export async function renderNote(site: LoadedSite, note: NoteEntry, basePath: st
       return encodeSitePath(relPath, basePath);
     };
     // 渲染；
-    const { html, frontmatter } = await renderMarkdown(source, { index: site.index, onMissing, onAmbiguous, onImage, basePath });
+    const { html, frontmatter } = await renderMarkdown(source, { index: site.index, onMissing, onAmbiguous, onImage, basePath, rewriteHref });
     // 回傳 md 結果；
     return { kind: 'md', note, html, frontmatter };
   }
   // html：先解析；
   const parsed = parseHtmlNote(source);
   // 改寫 body 內的 wikilink；
-  const bodyHtml = rewriteWikilinksInHtml(parsed.bodyHtml, site.index, onMissing, onAmbiguous, basePath);
+  const withWikilinks = rewriteWikilinksInHtml(parsed.bodyHtml, site.index, onMissing, onAmbiguous, basePath);
+  // 再改寫 a／area 指到筆記原始檔的 href（R33）；wikilink 產生的是 / 開頭的絕對網址，不受影響；
+  const bodyHtml = rewriteNoteLinksInHtml(withWikilinks, rewriteHref);
   // 原頁有沒有載入 note-quiz.js（parseHtmlNote 會把它當共用腳本濾掉，但頁面的 inline 腳本會在解析時同步呼叫 NoteQuiz）；/i 不分大小寫；
   const needsQuiz = /<script[^>]*\ssrc\s*=\s*["']?[^"'\s>]*note-quiz\.js/i.test(source);
   // 回傳 html 結果；`...parsed` 展開後覆寫 bodyHtml；

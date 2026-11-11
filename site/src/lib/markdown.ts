@@ -16,6 +16,8 @@ import { splitFrontmatter } from './frontmatter';
 import { remarkWikilink } from './wikilink';
 // 匯入自寫的 remark 外掛：圖片嵌入；
 import { remarkEmbed } from './remark/embed';
+// 匯入自寫的 remark 外掛：改寫連結網址；
+import { remarkRewriteHref } from './remark/rewrite-href';
 // 匯入自寫的 remark 外掛：==螢光筆==；
 import { remarkHighlight } from './remark/highlight';
 // 匯入自寫的 remark 外掛：callout；
@@ -35,6 +37,8 @@ export type RenderContext = {
   onImage: (name: string) => string;
   // basePath：網站部署在子路徑時的前綴，省略代表網站根目錄；
   basePath?: string;
+  // rewriteHref：改寫 Markdown 連結、參考定義與圖片的網址（R33：指到筆記原始檔的連結改成頁面）；回傳 null 或 undefined 代表不改；省略就不改寫；
+  rewriteHref?: (href: string) => string | null | undefined;
 };
 
 // `export type` 匯出型別別名：renderMarkdown 的回傳值；
@@ -59,6 +63,8 @@ export async function renderMarkdown(source: string, ctx: RenderContext): Promis
     .use(remarkEmbed, { onImage: ctx.onImage })
     // [[wikilink]] 轉成連結；放在 == 之前，這樣 [[a==b]] 這種連結內文不會被當成螢光筆記號；
     .use(remarkWikilink, { index: ctx.index, onMissing: ctx.onMissing, onAmbiguous: ctx.onAmbiguous, basePath: ctx.basePath })
+    // 改寫一般連結的網址（R33）；wikilink 產生的是 / 開頭的絕對網址，改寫函式會略過；沒有 rewriteHref 時給一個永遠不改的函式；
+    .use(remarkRewriteHref, { rewrite: ctx.rewriteHref ?? (() => null) })
     // ==字== 轉成 <mark>；
     .use(remarkHighlight)
     // `> [!note] 標題` 轉成 callout 結構；放在 wikilink 與 == 之後，標題與內文裡的連結、螢光筆已經是節點；

@@ -57,6 +57,12 @@ export function formatReport(report: SiteReport, ambiguousKeys: AmbiguousKey[] =
   for (const [name, candidates] of report.ambiguousImages) lines.push(`  ${name}：${candidates.join('、')}`);
   // 被引用的圖片數；
   lines.push(`被引用的圖片：${report.images.size} 張`);
+  // R33：改寫成頁面網址的原始檔連結數；
+  lines.push(`指到筆記原始檔（.md／.html）而改寫成頁面網址的連結：${report.noteLinksRewritten} 個`);
+  // R33：指到沒發布筆記的連結；
+  lines.push(`指到「沒發布」筆記原始檔的連結：${report.unpublishedNoteLinks.size} 個（保持原樣，只列前 20 個）`);
+  // 前 20 個；Array.from 把 Set 轉陣列；
+  for (const item of Array.from(report.unpublishedNoteLinks).slice(0, 20)) lines.push(`  ${item}`);
   // 用換行接起來；
   return lines.join('\n');
 }
@@ -84,5 +90,7 @@ export function reportToJson(report: SiteReport): Record<string, unknown> {
     missingImages: setMap(report.missingImages), // 同 missingLinks；
     ambiguousImages: Object.fromEntries(report.ambiguousImages), // Map<字串, 陣列> 直接轉物件；
     images: Array.from(report.images).sort(), // Set 轉陣列並排序，讓輸出穩定；
+    noteLinksRewritten: report.noteLinksRewritten, // 數字原樣放；
+    unpublishedNoteLinks: Array.from(report.unpublishedNoteLinks).sort(), // Set 轉陣列並排序；
   };
 }
