@@ -2,9 +2,15 @@
 # 每次 commit 前自動重建 index.html（規則見 build-index.py）。
 # 失敗只警告、不擋 commit。
 PY=$(command -v python || command -v python3)
+# 嘗試尋找系統中的python 或python3指令，並將路徑存入變數PY。
 if [ -n "$PY" ] && "$PY" build-index.py >/dev/null 2>&1; then
+# 檢查是否有找到Python，如果有的話則執行build-index.py，並將標準輸出和標準錯誤輸出重定向到/dev/null也就是空裝置，這樣就不會在終端顯示任何訊息。
   git add index.html
+  # 若上述執行成功，將產出的index.html加入Git 暫存區
 else
   echo "[pre-commit] build-index.py 執行失敗，略過索引更新" >&2
 fi
+# fi是Shell腳本中用來結束if條件判斷的正確寫法，就像是把if倒過來拚一樣，所以語法是完全正確的。
+# else...fi則是如果Python執行失敗，則會輸出錯誤訊息到標準錯誤，並在不中斷流程的情況下結束。
 exit 0
+# exit 0 表示腳本正常結束。
