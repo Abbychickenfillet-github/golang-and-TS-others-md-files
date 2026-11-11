@@ -251,7 +251,8 @@ function rewriteContent(content, fileRel, kind, ctx) {
 // 在 root 執行 git 並回傳標準輸出；失敗時丟錯；
 function git(root, ...args) {
   // 第三個參數的 cwd 讓 git 在筆記根目錄執行；encoding 讓輸出直接是字串；
-  return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  // maxBuffer 放大到 256 MB，避免 git ls-files 列出整個筆記庫的檔案時超過預設的 1 MB 上限；
+  return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 256 * 1024 * 1024 });
 }
 
 // 檢查檔案或資料夾是否存在；
@@ -272,7 +273,7 @@ async function exists(p) {
  * 套用（或 dry-run 預覽）改名與連結更新。
  * @param {RenamePlan[]} plan planRenames 的結果
  * @param {string} root 筆記根目錄（必須在 git repo 內）
- * @param {{ dryRun?: boolean }} [opts] dryRun 預設 true；為 false 才真的用 git mv 改名並寫入連結
+ * @param {{ dryRun?: boolean; allowPartial?: boolean }} [opts] dryRun 預設 true；為 false 才真的用 git mv 改名並寫入連結；allowPartial 預設 false，為 true 才允許在有含糊 wikilink 或不安全檔案時仍繼續（那些連結會被留在原樣）
  * @returns {Promise<ApplyResult>} 規劃、撞名清單、會改動的檔案與連結數
  */
 // 預設參數 `opts = { dryRun: true }`：不傳第三個參數時就是 dry-run；
@@ -368,23 +369,79 @@ export async function applyRenames(plan, root, opts = { dryRun: true }) {
     // 丟錯並把變更清單附上，方便使用者看到是哪些檔案；
     throw new Error(`git 工作目錄不乾淨，請先 commit 或 stash 後再執行 --apply：\n${status}`);
   }
-  // 目標檔名已存在就拒絕，避免覆蓋；
-  if (conflicts.length > 0) {
-    // 丟錯並列出所有撞名目標；
-    throw new Error(`目標檔名已存在或重複，拒絕套用：\n${conflicts.map((c) => `  ${c}`).join('\n')}`);
+  // 取得 git 已追蹤的檔案集合：-z 以 NUL 分隔且不跳脫中文路徑；split('\0') 切開，filter(Boolean) 去掉結尾空字串；
+  const tracked = new Set(git(root, 'ls-files', '-z').split('\0').filter(Boolean));
+  // 在動任何檔案之前，把整份規劃一次驗完，蒐集「所有」有問題的項目；
+  const problems = [];
+  // 已出現的目標，偵測規劃內重複；
+  const targetsSeen = new Set();
+  // 逐筆檢查；
+  for (const r of plan) {
+    // 來源必須存在於磁碟，否則 git mv 會中途失敗；
+    if (!(await exists(path.join(root, r.from)))) problems.push(`  ${r.from}（來源檔案不存在）`);
+    // 來源存在但沒被 git 追蹤（例如被 .gitignore 忽略，git status 仍乾淨）也會讓 git mv 失敗；
+    else if (!tracked.has(r.from)) problems.push(`  ${r.from}（來源檔案未被 git 追蹤，例如被 .gitignore 忽略或尚未 add）`);
+    // 目標已存在會被覆蓋或讓 git mv 失敗；
+    if (await exists(path.join(root, r.to))) problems.push(`  ${r.to}（目標檔名已存在）`);
+    // 規劃內兩筆指向同一個目標；
+    if (targetsSeen.has(r.to)) problems.push(`  ${r.to}（規劃內重複的目標檔名）`);
+    // 記下已出現的目標；
+    targetsSeen.add(r.to);
+  }
+  // 有任何問題就整批拒絕，此時還沒有動過任何檔案；
+  if (problems.length > 0) {
+    // 一次列出全部問題；
+    throw new Error(`規劃驗證失敗，拒絕套用（尚未改動任何檔案）：\n${problems.join('\n')}`);
+  }
+  // 含糊 wikilink 或不安全檔案代表有連結會被留成舊名而失效；沒有明確同意（allowPartial）就拒絕；
+  if ((unsafe.length > 0 || ambiguous.length > 0) && !(opts.allowPartial ?? false)) {
+    // 組出兩段清單，沒有的就不列；
+    const parts = [];
+    // 不安全檔案清單；
+    if (unsafe.length > 0) parts.push(`含舊連結但不是合法 UTF-8、無法安全改寫的檔案（${unsafe.length} 個）：\n${unsafe.map((u) => `  ${u}`).join('\n')}`);
+    // 含糊 wikilink 清單；
+    if (ambiguous.length > 0) parts.push(`含糊的 wikilink（${ambiguous.length} 個，無法判斷指向哪個同名 html）：\n${ambiguous.map((a) => `  ${a}`).join('\n')}`);
+    // 丟錯並說明解除方式；
+    throw new Error(`套用後會有連結失效，拒絕套用（尚未改動任何檔案）：\n${parts.join('\n')}\n若要略過這些項目仍然繼續，請加 --allow-partial（函式選項 allowPartial: true）`);
   }
 
-  // 先用 git mv 改名，讓 git 歷史跟著走（-- 之後的參數一律視為路徑）；
-  for (const r of plan) {
-    // 執行 git mv；
-    git(root, 'mv', '--', r.from, r.to);
-  }
-  // 再寫入改寫後的內容；被改名的檔案要寫到新路徑；
-  for (const c of changes) {
-    // 該檔若剛被改名就用新路徑，否則原路徑；
-    const target = renameMap.get(c.file) ?? c.file;
-    // 以 UTF-8 寫出；字串中的 BOM 字元會原樣寫回，換行未經正規化；
-    await fs.writeFile(path.join(root, target), c.text, 'utf8');
+  // 目前進行到哪一步，失敗時用來告訴使用者；
+  let step = '尚未開始';
+  // 是否已經動過檔案；
+  let mutated = false;
+  // 變更階段整段包在 try，失敗時說明樹的狀態；不做自動回復；
+  try {
+    // 先用 git mv 改名，讓 git 歷史跟著走（-- 之後的參數一律視為路徑）；`entries()` 同時給出索引與項目；
+    for (const [i, r] of plan.entries()) {
+      // 記錄步驟；
+      step = `git mv 第 ${i + 1}／${plan.length} 筆（${r.from} → ${r.to}）`;
+      // 執行 git mv；
+      git(root, 'mv', '--', r.from, r.to);
+      // 成功後才算動過檔案；
+      mutated = true;
+    }
+    // 再寫入改寫後的內容；被改名的檔案要寫到新路徑；
+    for (const c of changes) {
+      // 該檔若剛被改名就用新路徑，否則原路徑；
+      const target = renameMap.get(c.file) ?? c.file;
+      // 記錄步驟；
+      step = `寫入連結：${target}`;
+      // 寫入可能留下半寫檔案，所以在寫之前就視為已動過；
+      mutated = true;
+      // 以 UTF-8 寫出；字串中的 BOM 字元會原樣寫回，換行未經正規化；
+      await fs.writeFile(path.join(root, target), c.text, 'utf8');
+    }
+  } catch (error) {
+    // 取出原始錯誤訊息；
+    const reason = error instanceof Error ? error.message : String(error);
+    // 還沒動過任何檔案（第一步就失敗）就直接原樣丟出；
+    if (!mutated) throw error;
+    // 否則丟出新錯誤：說明部分修改、失敗步驟、回復方式；cause 保留原始錯誤；
+    throw new Error(
+      `變更階段中途失敗，工作目錄已部分修改！失敗的步驟：${step}\n原因：${reason}\n` +
+        '請執行 `git reset --hard HEAD` 回復（改名已用 git mv 暫存、連結改寫是工作目錄修改，兩者都會被還原；套用前工作目錄是乾淨的，所以只會丟掉本次變更）。腳本不會自動回復。',
+      { cause: error },
+    );
   }
   // 標記已套用；
   summary.applied = true;
@@ -416,8 +473,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const notes = await listNotes(root, exclude);
     // 規劃改名；
     const plan = planRenames(notes);
+    // --allow-partial 明確同意「略過含糊與不安全的項目」繼續套用；
+    const allowPartial = args.includes('--allow-partial');
     // 套用或預覽；
-    const result = await applyRenames(plan, root, { dryRun: !apply });
+    const result = await applyRenames(plan, root, { dryRun: !apply, allowPartial });
     // 印出標題與筆數；
     console.log(`${apply ? '已套用' : '預覽（dry-run，未改動任何檔案）'}：共 ${plan.length} 組 md＋html 同名配對`);
     // 逐筆印出 from → to；
@@ -434,14 +493,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     // 含糊的 wikilink；
     if (result.ambiguous.length > 0) {
       // 標題；
-      console.log(`⚠️ 含糊的 [[wikilink]]（同名 html 有的改名有的不改，未改動）：${result.ambiguous.length} 個`);
+      console.log(`⚠️ 含糊的 [[wikilink]]（同名 html 有的改名有的不改，未改動；--apply 會拒絕，除非加 --allow-partial）：${result.ambiguous.length} 個`);
       // 逐筆列出；
       for (const a of result.ambiguous) console.log(`  ${a}`);
     }
     // 不能安全改寫的檔案；
     if (result.unsafe.length > 0) {
       // 標題；
-      console.log(`⚠️ 含非 UTF-8 位元組、未改寫的檔案：${result.unsafe.length} 個`);
+      console.log(`⚠️ 含非 UTF-8 位元組、未改寫的檔案（--apply 會拒絕，除非加 --allow-partial）：${result.unsafe.length} 個`);
       // 逐筆列出；
       for (const u of result.unsafe) console.log(`  ${u}`);
     }

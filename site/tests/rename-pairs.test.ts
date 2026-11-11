@@ -331,8 +331,8 @@ describe('applyRenames', () => {
   it('含糊的 wikilink（同名 html 有的被改名有的沒有）不改並列入 ambiguous', async () => {
     // 一組配對 x/d，另一個不同資料夾的 y/d.html 沒有 md 所以不改名；
     await initRepoWith(root, { 'x/d.md': '# d\n', 'x/d.html': '<h1>d</h1>\n', 'y/d.html': '<h1>y</h1>\n', 'n.md': '[[d.html]]\n' });
-    // 套用；
-    const result = await applyRenames(await planOf(), root, { dryRun: false });
+    // 套用；含糊項目預設會讓套用被拒絕，這個案例要驗證「不改」本身，所以明確傳 allowPartial；
+    const result = await applyRenames(await planOf(), root, { dryRun: false, allowPartial: true });
     // 連結原樣；
     expect(await read(root, 'n.md')).toBe('[[d.html]]\n');
     // 回報含糊的項目，內含檔名；
@@ -371,6 +371,199 @@ describe('applyRenames', () => {
     await expect(applyRenames(plan, root, { dryRun: false })).rejects.toThrow(/已存在/);
     // 什麼都沒動；
     expect(await snapshot(root)).toEqual(before);
+  });
+
+  // 小工具：做出「三組配對、最後一組撞名」的 repo，並附一個會被改寫連結的檔案；
+  const seedMulti = async (extra: Record<string, string | Buffer> = {}) =>
+    // 呼叫 initRepoWith 初始化並 commit；
+    initRepoWith(root, {
+      // 三組配對；
+      'a.md': '# a\n', 'a.html': '<h1>a</h1>\n', 'b.md': '# b\n', 'b.html': '<h1>b</h1>\n', 'c.md': '# c\n', 'c.html': '<h1>c</h1>\n',
+      // 一個連到 a.html 的檔案，若有任何改寫就會被發現；
+      'link.md': '[a](a.html)\n[b](b.html)\n',
+      // 其餘額外檔案；
+      ...extra,
+    });
+
+  // 案例：多筆規劃中最後一筆撞名，整批在動手前就被拒絕，前面的不會先改；
+  it('多筆規劃中最後一筆目標已存在：整批拒絕，一個檔案都不動', async () => {
+    // c-互動版.html 已存在，所以規劃的第三筆 c.html → c-互動版.html 會撞名；
+    await seedMulti({ 'c-互動版.html': '<h1>existing</h1>\n' });
+    // 規劃：a、b、c 三筆；
+    const plan = await planOf();
+    // 確認有三筆且最後一筆是撞名的那筆；
+    expect(plan.map((r) => r.from)).toEqual(['a.html', 'b.html', 'c.html']);
+    // 記下現況；
+    const before = await snapshot(root);
+    // 記下 git status；
+    const statusBefore = git(root, 'status', '--porcelain');
+    // 拒絕，且訊息點名撞名的目標；
+    await expect(applyRenames(plan, root, { dryRun: false })).rejects.toThrow(/c-互動版\.html/);
+    // 檔案內容完全相同；
+    expect(await snapshot(root)).toEqual(before);
+    // git status 也相同（沒有任何已暫存的 rename）；
+    expect(git(root, 'status', '--porcelain')).toBe(statusBefore);
+  });
+
+  // 案例：規劃中間一筆的 from 被 gitignore（未追蹤但 status 仍乾淨），在第一次 git mv 前就拒絕；
+  it('規劃中間一筆的 from 未被 git 追蹤（gitignore）：動手前拒絕並不改任何檔案', async () => {
+    // .gitignore 忽略 b.html，所以 b.html 在磁碟上但沒被追蹤；
+    await seedMulti({ '.gitignore': 'b.html\n' });
+    // 規劃來自磁碟掃描，所以三筆都在；
+    const plan = await planOf();
+    // 確認 b.html 在規劃內；
+    expect(plan.map((r) => r.from)).toContain('b.html');
+    // git status 此時是乾淨的（被忽略的檔案不列出）；
+    expect(git(root, 'status', '--porcelain')).toBe('');
+    // 記下現況；
+    const before = await snapshot(root);
+    // 拒絕，訊息說明該檔案未被 git 追蹤；
+    await expect(applyRenames(plan, root, { dryRun: false })).rejects.toThrow(/b\.html[\s\S]*未被 git 追蹤|未被 git 追蹤[\s\S]*b\.html/);
+    // 什麼都沒動，連 a.html 也沒被改名；
+    expect(await snapshot(root)).toEqual(before);
+    // git 沒有任何暫存變更；
+    expect(git(root, 'status', '--porcelain')).toBe('');
+  });
+
+  // 案例：過期的規劃（from 在磁碟上不存在）也在動手前拒絕，且一次列出所有問題項目；
+  it('規劃的 from 不存在：動手前拒絕，並一次列出所有有問題的項目', async () => {
+    // 準備 repo；
+    await seedMulti();
+    // 手動組一份規劃：第一筆正常、第二筆 from 不存在、第三筆目標已存在（先補一個 c-互動版.html 並 commit）；
+    await seed(root, { 'c-互動版.html': 'x\n' });
+    // 加入並提交，保持工作目錄乾淨；
+    git(root, 'add', '-A');
+    // 提交；
+    git(root, 'commit', '-q', '-m', 'add existing');
+    // 手動規劃；
+    const plan = [
+      { from: 'a.html', to: 'a-互動版.html' },
+      { from: 'ghost.html', to: 'ghost-互動版.html' },
+      { from: 'c.html', to: 'c-互動版.html' },
+    ];
+    // 記下現況；
+    const before = await snapshot(root);
+    // 取得被拒絕的錯誤；rejects.toThrow 之後另外用 catch 取訊息；
+    const message = await applyRenames(plan, root, { dryRun: false }).then(
+      // 不應成功；
+      () => '',
+      // 取出錯誤訊息；
+      (e: Error) => e.message,
+    );
+    // 兩個問題項目都在訊息內；
+    expect(message).toContain('ghost.html');
+    // 撞名項目也在訊息內；
+    expect(message).toContain('c-互動版.html');
+    // 什麼都沒動；
+    expect(await snapshot(root)).toEqual(before);
+  });
+
+  // 案例：規劃內兩筆指向同一個目標；
+  it('規劃內兩筆指向同一個目標：拒絕', async () => {
+    // 準備 repo；
+    await seedMulti();
+    // 手動規劃：兩筆 to 相同；
+    const plan = [
+      { from: 'a.html', to: 'x-互動版.html' },
+      { from: 'b.html', to: 'x-互動版.html' },
+    ];
+    // 拒絕，訊息提到重複；
+    await expect(applyRenames(plan, root, { dryRun: false })).rejects.toThrow(/重複/);
+  });
+
+  // 案例：有連結但含非 UTF-8 位元組的檔案，預設拒絕，加 allowPartial 才繼續並回報；
+  it('含非 UTF-8 位元組且有舊連結的檔案：預設拒絕，allowPartial 才繼續並回報略過', async () => {
+    // 內容含單獨的 0xFF 位元組（不是合法 UTF-8）與一個要改的連結；
+    const bin = Buffer.concat([Buffer.from('[a](a.html)\n', 'utf8'), Buffer.from([0xff, 0x0a])]);
+    // 準備 repo；
+    await seedMulti({ 'bin.md': bin });
+    // 規劃；
+    const plan = await planOf();
+    // 記下現況；
+    const before = await snapshot(root);
+    // 預設拒絕，訊息點名該檔案與 --allow-partial；
+    await expect(applyRenames(plan, root, { dryRun: false })).rejects.toThrow(/bin\.md[\s\S]*allowPartial|allowPartial[\s\S]*bin\.md/);
+    // 什麼都沒動；
+    expect(await snapshot(root)).toEqual(before);
+    // dry-run 仍照常回報 unsafe；
+    expect((await applyRenames(plan, root, { dryRun: true })).unsafe).toEqual(['bin.md']);
+    // allowPartial 時繼續執行；
+    const result = await applyRenames(plan, root, { dryRun: false, allowPartial: true });
+    // 回報略過的檔案；
+    expect(result.unsafe).toEqual(['bin.md']);
+    // 改名確實發生；
+    await expect(fs.access(path.join(root, 'a-互動版.html'))).resolves.toBeUndefined();
+    // 該檔案位元組不變；
+    expect((await fs.readFile(path.join(root, 'bin.md'))).equals(bin)).toBe(true);
+    // 其他檔案的連結照常改寫；
+    expect(await read(root, 'link.md')).toBe('[a](a-互動版.html)\n[b](b-互動版.html)\n');
+  });
+
+  // 案例：含糊的 wikilink 預設拒絕，allowPartial 才繼續；
+  it('含糊的 wikilink：預設拒絕，allowPartial 才繼續', async () => {
+    // y/a.html 沒有 md 所以不改名，造成 [[a.html]] 含糊；
+    await seedMulti({ 'y/a.html': '<h1>y</h1>\n', 'n.md': '[[a.html]]\n' });
+    // 規劃；
+    const plan = await planOf();
+    // 記下現況；
+    const before = await snapshot(root);
+    // 預設拒絕，訊息點名含糊的 wikilink；
+    await expect(applyRenames(plan, root, { dryRun: false })).rejects.toThrow(/含糊[\s\S]*n\.md/);
+    // 什麼都沒動；
+    expect(await snapshot(root)).toEqual(before);
+    // allowPartial 時繼續，並回報含糊清單；
+    const result = await applyRenames(plan, root, { dryRun: false, allowPartial: true });
+    // 含糊清單內含該檔；
+    expect(result.ambiguous.join('\n')).toContain('n.md');
+    // 含糊的連結原樣；
+    expect(await read(root, 'n.md')).toBe('[[a.html]]\n');
+  });
+
+  // 案例：已追蹤的檔案被修改（不是未追蹤）也算工作目錄不乾淨；
+  it('已追蹤的檔案有未提交修改時拒絕', async () => {
+    // 準備 repo；
+    await seedMulti();
+    // 修改一個已追蹤的檔案；
+    await fs.writeFile(path.join(root, 'a.md'), '# a changed\n');
+    // 確認 git status 顯示 M；
+    expect(git(root, 'status', '--porcelain')).toMatch(/^ M a\.md/);
+    // 規劃；
+    const plan = await planOf();
+    // 拒絕；
+    await expect(applyRenames(plan, root, { dryRun: false })).rejects.toThrow(/不乾淨/);
+    // 修改內容仍在、沒有改名；
+    expect(await read(root, 'a.md')).toBe('# a changed\n');
+    // a.html 仍在；
+    await expect(fs.access(path.join(root, 'a.html'))).resolves.toBeUndefined();
+  });
+
+  // 案例：變更階段中途失敗時，訊息要說明樹已部分修改並教使用者回復；
+  it('變更階段失敗時丟出說明「部分已修改」並含 git reset --hard HEAD 的訊息', async () => {
+    // link.md 會被改寫；把它設成唯讀，讓寫入階段失敗；
+    await seedMulti();
+    // 規劃；
+    const plan = await planOf();
+    // chmod 0o444 在 Windows 設唯讀屬性、在 POSIX 移除寫入權限；
+    await fs.chmod(path.join(root, 'link.md'), 0o444);
+    // try／finally 確保測試結束前一定恢復可寫，否則暫存資料夾刪不掉；
+    try {
+      // 取得錯誤訊息；
+      const message = await applyRenames(plan, root, { dryRun: false }).then(
+        // 不應成功；
+        () => '',
+        // 取出錯誤訊息；
+        (e: Error) => e.message,
+      );
+      // 訊息說明部分修改；
+      expect(message).toContain('部分');
+      // 訊息點名失敗的步驟與檔案；
+      expect(message).toContain('link.md');
+      // 訊息教使用者回復；
+      expect(message).toContain('git reset --hard HEAD');
+    } finally {
+      // 恢復可寫；
+      await fs.chmod(path.join(root, 'link.md'), 0o644);
+    }
   });
 });
 
@@ -460,5 +653,65 @@ describe('rename-interactive-pairs CLI', () => {
     expect(result.stderr).toContain('不乾淨');
     // 檔案沒動；
     await expect(fs.access(path.join(root, 'd.html'))).resolves.toBeUndefined();
+  });
+
+  // 案例：三方撞名（X.md、X.html、X-互動版.html 都在）時 --apply 拒絕且不動任何檔案；
+  it('--apply 遇到 X.md、X.html、X-互動版.html 三方撞名時拒絕並不改任何檔案', async () => {
+    // 建立三方撞名的 repo，另加一組正常配對，確認正常那組也不會先被改；
+    await initRepoWith(root, {
+      // 設定檔；
+      '_config.yml': 'exclude: []\n',
+      // 三方撞名；
+      'X.md': '# X\n[互動](X.html)\n',
+      // X.html；
+      'X.html': '<h1>X</h1>\n',
+      // 已存在的互動版；
+      'X-互動版.html': '<h1>X2</h1>\n',
+      // 排在前面的正常配對；
+      'A.md': '# A\n',
+      // A.html；
+      'A.html': '<h1>A</h1>\n',
+    });
+    // 記下現況；
+    const before = await snapshot(root);
+    // 執行 --apply；
+    const result = await runCli(root, '--apply');
+    // 非 0 結束；
+    expect(result.status).not.toBe(0);
+    // 訊息說明已存在，並點名撞名目標；
+    expect(result.stderr).toContain('已存在');
+    // 點名目標；
+    expect(result.stderr).toContain('X-互動版.html');
+    // 什麼都沒動；
+    expect(await snapshot(root)).toEqual(before);
+    // git 沒有暫存的變更；
+    expect(git(root, 'status', '--porcelain')).toBe('');
+  });
+
+  // 案例：dry-run 遇到含糊 wikilink 時要說明 --apply 會拒絕；
+  it('dry-run 遇到含糊 wikilink 時印出警告並說明 --apply 會拒絕', async () => {
+    // 建立含糊情境；
+    await initRepoWith(root, {
+      // 設定檔；
+      '_config.yml': 'exclude: []\n',
+      // 配對；
+      'x/d.md': '# d\n',
+      // 會改名的 html；
+      'x/d.html': '<h1>d</h1>\n',
+      // 不會改名的同名 html；
+      'y/d.html': '<h1>y</h1>\n',
+      // 含糊的 wikilink；
+      'n.md': '[[d.html]]\n',
+    });
+    // 預覽；
+    const result = await runCli(root);
+    // 成功結束（dry-run 不拒絕）；
+    expect(result.status).toBe(0);
+    // 印出含糊清單；
+    expect(result.stdout).toContain('n.md');
+    // 說明 --apply 會拒絕與 --allow-partial 的存在；
+    expect(result.stdout).toContain('--apply 會拒絕');
+    // 提到解除方式；
+    expect(result.stdout).toContain('--allow-partial');
   });
 });
