@@ -88,8 +88,33 @@ function insideKeyframes(rule: Rule): boolean {
   return parent?.type === 'atrule' && /keyframes$/i.test((parent as AtRule).name);
 }
 
+// 把一個條件式 at-rule 正規化成比對用的字串：名稱小寫加一個空格再接參數；參數轉小寫、空白收斂，冒號與逗號兩側及括號內側的空白拿掉；
+// 例如 `@media   (max-width: 860px)` 與 `@media(max-width:860px)` 都變成 `media (max-width:860px)`；
+function normalizeCondition(name: string, params: string): string {
+  // 先整理參數；每個 replace 的用途依序是：收斂空白、冒號與逗號兩側、左括號後與右括號前；
+  const p = params.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\s*([:,])\s*/g, '$1').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')');
+  // 名稱小寫，與參數以一個空格相接（沒有參數就不留尾端空格）；
+  return `${name.toLowerCase()} ${p}`.trim();
+}
+
+// 由外而內的條件鏈換算成「有效條件字串」（R37）：
+// 鏈中任何一層含 prefers-color-scheme 就回傳空字串（深色模式維持與上下文無關，由主題的自訂屬性處理）；否則用 ` > ` 接起來，空鏈也是空字串；
+function effectiveCondition(chain: string[]): string {
+  // 含深色模式條件：與上下文無關；
+  if (chain.some((c) => c.includes('prefers-color-scheme'))) return '';
+  // 其餘依序連接；
+  return chain.join(' > ');
+}
+
+// 組出共用集合的鍵：頂層（條件為空）就是選擇器或自訂屬性名稱本身，條件式 at-rule 內是 `條件|選擇器`；
+function keyOf(condition: string, item: string): string {
+  // 空條件回傳原字串；
+  return condition === '' ? item : `${condition}|${item}`;
+}
+
 // 收集共用主題的「選擇器」與「:root 內宣告的自訂屬性名稱」，放進同一個 Set（選擇器不會以 -- 開頭，所以不會混淆）；
-// 規則（R24）：選擇器正規化後收錄、遞迴 @media／@supports；:root 本身不收；:root 區塊（淺色與深色）內的 --name 收錄；
+// 規則（R24、R37）：選擇器正規化後收錄；頂層規則的鍵就是選擇器，@media／@supports 內的規則鍵是 `條件|選擇器`（prefers-color-scheme 例外：維持頂層鍵）；
+// :root 本身不收；:root 區塊內的 --name 依同樣方式收錄（淺色與深色都算頂層）；
 export function sharedSelectors(themeCss: string): Set<string> {
   // 準備結果集合；
   const result = new Set<string>();
@@ -99,6 +124,17 @@ export function sharedSelectors(themeCss: string): Set<string> {
   root.walkRules((rule) => {
     // @keyframes 裡的影格不是選擇器，跳過；
     if (insideKeyframes(rule)) return;
+    // 由內往外收集祖先 at-rule 的條件（unshift 放到陣列最前面，得到由外而內的順序）；
+    const chain: string[] = [];
+    // 往上走：父節點是 at-rule 就記錄，直到不是為止；
+    for (let parent = rule.parent; parent && parent.type === 'atrule'; parent = parent.parent) {
+      // 取出 at-rule；
+      const at = parent as AtRule;
+      // 記錄正規化的條件；
+      chain.unshift(normalizeCondition(at.name, at.params));
+    }
+    // 這條規則的有效條件；
+    const condition = effectiveCondition(chain);
     // 記錄這條規則的選擇器清單有沒有 :root；
     let hasRoot = false;
     // rule.selectors 是 postcss 依逗號拆好的選擇器陣列（括號內的逗號不會被拆）；
@@ -107,15 +143,15 @@ export function sharedSelectors(themeCss: string): Set<string> {
       const normalized = normalizeSelector(selector);
       // :root 只用來找自訂屬性，不當選擇器收錄；
       if (normalized === ':root') hasRoot = true;
-      // 其餘非空的選擇器收錄；
-      else if (normalized !== '') result.add(normalized);
+      // 其餘非空的選擇器收錄（帶條件）；
+      else if (normalized !== '') result.add(keyOf(condition, normalized));
     }
     // :root 規則：把裡面宣告的自訂屬性名稱（--bg 之類）也收進來；
     if (hasRoot) {
       // walkDecls 走訪規則內每一個宣告；
       rule.walkDecls((decl) => {
         // 自訂屬性一律以兩個連字號開頭；
-        if (decl.prop.startsWith('--')) result.add(decl.prop);
+        if (decl.prop.startsWith('--')) result.add(keyOf(condition, decl.prop));
       });
     }
   });
@@ -127,10 +163,11 @@ export function sharedSelectors(themeCss: string): Set<string> {
 export type PruneTally = { rulesRemoved: number; selectorsRemoved: string[]; customPropsRemoved: string[] };
 
 // 修剪選項：keepComments 為 true 時保留作者的 CSS 註解與倖存規則的原始格式（預設 false，與網站建置的行為相同）；
-export type PruneOptions = { keepComments?: boolean };
+// media 是 <style media="…"> 的屬性值：這個區塊整體處於該媒體條件下，規則要以 `media <條件>|選擇器` 比對（空或 all 視為沒有）；
+export type PruneOptions = { keepComments?: boolean; media?: string };
 
-// 修剪過程共用的內部狀態：是否保留註解，以及統計物件（會被就地累加）；
-type PruneCtx = { keepComments: boolean; tally: PruneTally };
+// 修剪過程共用的內部狀態：是否保留註解、統計物件（會被就地累加），以及目前所在的條件鏈（進出 @media／@supports 時推入與彈出）；
+type PruneCtx = { keepComments: boolean; tally: PruneTally; chain: string[] };
 
 // 把容器內「第一個倖存節點」的前置空白還原成「原本第一個節點」的前置空白（保留註解模式用）：
 // 原本第一個節點被移除後，後面的節點可能帶著「同一行接續」的空白，會讓輸出縮在大括號後面或多出空行；
@@ -199,8 +236,10 @@ function pruneContainer(container: Container, shared: Set<string>, ctx: PruneCtx
     } else if (node.type === 'atrule') {
       // 只有 @media 與 @supports 遞迴；@keyframes、@font-face、@import 等一律原樣保留；
       if (/^(media|supports)$/i.test(node.name) && node.nodes) {
-        // 遞迴修剪內層；
+        // 進入條件：把這層的條件推進條件鏈，遞迴修剪內層，再彈出（push／pop 是陣列尾端的加入與移除）；
+        ctx.chain.push(normalizeCondition(node.name, node.params));
         pruneContainer(node, shared, ctx);
+        ctx.chain.pop();
         // 內層清空了，整個 at-rule 一起移除；
         if (node.nodes.length === 0) node.remove();
       }
@@ -219,8 +258,12 @@ function pruneContainer(container: Container, shared: Set<string>, ctx: PruneCtx
 function pruneRule(rule: Rule, shared: Set<string>, ctx: PruneCtx): void {
   // 取出選擇器清單；
   const selectors = rule.selectors;
+  // 目前所在的有效條件（頂層或深色模式為空字串，其餘是條件鏈）；
+  const condition = effectiveCondition(ctx.chain);
+  // 判斷一個選擇器是不是「在同一個條件下」被共用樣式定義；
+  const isShared = (selector: string): boolean => shared.has(keyOf(condition, normalizeSelector(selector)));
   // 只保留「不在共用集合內」的選擇器；
-  const kept = selectors.filter((selector) => !shared.has(normalizeSelector(selector)));
+  const kept = selectors.filter((selector) => !isShared(selector));
   // 每個選擇器都是共用的，整條規則移除；
   if (kept.length === 0) {
     // 統計：一條規則、全部選擇器；
@@ -234,7 +277,7 @@ function pruneRule(rule: Rule, shared: Set<string>, ctx: PruneCtx): void {
   // 有些選擇器被丟掉：統計被丟掉的，並把規則的選擇器改寫成剩下的；
   if (kept.length !== selectors.length) {
     // 被丟掉的選擇器（在共用集合內的）；
-    ctx.tally.selectorsRemoved.push(...selectors.filter((s) => shared.has(normalizeSelector(s))).map(normalizeSelector));
+    ctx.tally.selectorsRemoved.push(...selectors.filter((s) => isShared(s)).map(normalizeSelector));
     // 改寫；
     rule.selector = kept.map((s) => s.trim()).join(', ');
   }
@@ -245,7 +288,7 @@ function pruneRule(rule: Rule, shared: Set<string>, ctx: PruneCtx): void {
     // 複製一份子節點再迭代，因為會移除節點；
     for (const child of [...(rule.nodes as ChildNode[])]) {
       // 宣告的屬性名是共用的自訂屬性就移除；頁面獨有的（例如 --brick）留下；
-      if (child.type === 'decl' && child.prop.startsWith('--') && shared.has(child.prop)) {
+      if (child.type === 'decl' && child.prop.startsWith('--') && shared.has(keyOf(condition, child.prop))) {
         // 統計被丟掉的自訂屬性名稱；
         ctx.tally.customPropsRemoved.push(child.prop);
         // 移除；
@@ -303,7 +346,11 @@ export function pruneSharedRulesDetailed(css: string, shared: Set<string>, optio
   // 統計物件，修剪過程就地累加；
   const tally: PruneTally = { rulesRemoved: 0, selectorsRemoved: [], customPropsRemoved: [] };
   // 修剪整棵樹；
-  pruneContainer(root, shared, { keepComments, tally });
+  // 初始條件鏈：<style media="print"> 這種區塊整體處於該媒體條件下；空字串與 all 視為沒有條件；
+  const media = (options.media ?? '').trim();
+  const chain = media === '' || media.toLowerCase() === 'all' ? [] : [normalizeCondition('media', media)];
+  // 修剪；
+  pruneContainer(root, shared, { keepComments, tally, chain });
   // 轉回文字；預設模式去掉前後空白（被移除的節點會在前面留下空行），保留註解模式則逐字保留；
   const text = root.toString();
   // 回傳；
@@ -311,9 +358,9 @@ export function pruneSharedRulesDetailed(css: string, shared: Set<string>, optio
 }
 
 // 修剪 CSS；PostCSS 無法解析時回傳 null（讓呼叫端知道這個區塊不能與別的區塊串接）；
-function pruneOrNull(css: string, shared: Set<string>): string | null {
+function pruneOrNull(css: string, shared: Set<string>, media?: string): string | null {
   // 轉呼叫詳細版，只取文字部分；`?.` 在結果是 null 時整串變成 undefined，再用 ?? 轉成 null；
-  return pruneSharedRulesDetailed(css, shared)?.css ?? null;
+  return pruneSharedRulesDetailed(css, shared, { media })?.css ?? null;
 }
 
 // 判斷一段 CSS 能不能被 PostCSS 解析（覆寫區塊不修剪，但仍要確認它串接後不會破壞別的區塊）；
@@ -501,7 +548,7 @@ export function parseHtmlNote(html: string, shared?: Set<string>): ParsedHtmlNot
       // media 屬性（沒有就是 undefined）；
       const media = el.attribs.media;
       // 一般區塊先修剪（失敗得 null），覆寫區塊不修剪、只檢查能不能解析（能解析就沿用原文）；
-      const processed = isOverride ? (canParseCss(css) ? css : null) : pruneOrNull(css, sharedSet);
+      const processed = isOverride ? (canParseCss(css) ? css : null) : pruneOrNull(css, sharedSet, media);
       // 無法解析：絕不串接也不包 @media（R27），逐字放進 rawStyleBlocks 交給呼叫端各自輸出成獨立 <style>；
       if (processed === null) {
         // 組出區塊物件；`...(條件 ? {…} : {})` 是「有值才加欄位」的展開寫法，避免出現值為 undefined 的欄位；

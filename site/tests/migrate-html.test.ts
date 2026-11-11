@@ -192,8 +192,8 @@ describe('migrateHtml：style 區塊', () => {
 
   // 有 media 屬性的 style 保留屬性；
   it('<style media> 保留 media 屬性', () => {
-    // 含 media 的區塊；
-    const result = migrateHtml(page('<style media="print">\n.card{a:b}\n.mine{c:d}\n</style>\n'), REL, shared);
+    // 含 media 的區塊；共用集合帶 print 條件的 .card（R37：<style media> 內以該條件比對，頂層的 .card 不算）；
+    const result = migrateHtml(page('<style media="print">\n.card{a:b}\n.mine{c:d}\n</style>\n'), REL, new Set(['media print|.card']));
     // 標籤原樣、內容被修剪；
     expect(result.html).toContain('<style media="print">\n.mine{c:d}\n</style>\n');
   });
@@ -248,8 +248,8 @@ describe('migrateHtml：修剪細節', () => {
     // 輸入；
     const css = '/*! license */\n@media print{.card{a:b}}\n@keyframes k{from{a:b}to{a:c}}\n.mine{x:y}\n';
     // 遷移；
-    const result = migrateHtml(page(`<style>\n${css}</style>\n`), REL, shared);
-    // 授權註解、keyframes、獨有規則都在；@media 不見了；
+    const result = migrateHtml(page(`<style>\n${css}</style>\n`), REL, new Set(['media print|.card']));
+    // 授權註解、keyframes、獨有規則都在；@media 不見了（R37 調整：共用集合要有 print 條件的 .card 才會被抽掉）；
     expect(result.html).toContain('<style>\n/*! license */\n@keyframes k{from{a:b}to{a:c}}\n.mine{x:y}\n</style>\n');
   });
 
@@ -499,8 +499,9 @@ describe('migrateHtml：冪等與跳過', () => {
 describe('migrateHtml：真實樣板頁', () => {
   // 樣板頁的相對位置與內容；
   const samplePath = 'backend/Session-Token-Cookie-認證系列/1-Cookie-與-Session-互動版.html';
-  // 讀原文（CRLF、無 BOM）；
-  const original = readFileSync(path.join(repoRoot, samplePath), 'utf8');
+  // 讀遷移前的原文（固定樣本 tests/fixtures/sample-cookie-session-original.html，取自 ca9f033 之前的版本；樣板頁本身已被遷移）；
+  // 工作目錄的樣板頁是 CRLF（git 的 autocrlf 在檢出時轉換），這裡把換行統一成 CRLF 以重現同樣的條件；
+  const original = readFileSync(path.join(process.cwd(), 'tests', 'fixtures', 'sample-cookie-session-original.html'), 'utf8').replace(/\r?\n/g, '\r\n');
 
   // 樣板頁在兩層資料夾底下，相對路徑前綴是 ../../assets/；
   const rel = assetsRelPath(samplePath);
@@ -547,6 +548,14 @@ describe('migrateHtml：真實樣板頁', () => {
     // 內嵌腳本（測驗與遮罩）逐位元組保留；
     const inline = /<script>[\s\S]*?<\/script>/.exec(original)?.[0] as string;
     expect(result.html).toContain(inline);
+  });
+
+  // R37：print 規則中共用樣式沒有對應版本的（.toc）要留下；有對應的（.toolbar、.quiz）才抽掉；
+  it('樣板頁的 @media print 保留共用樣式沒有 print 版本的 .toc', () => {
+    // 遷移；
+    const result = migrateHtml(original, rel, realShared);
+    // 輸出含 print 區塊與 .toc，不含 .quiz 的 print 規則；
+    expect(result.html).toContain('@media print{.toc{display:none}}');
   });
 
   // 冪等；

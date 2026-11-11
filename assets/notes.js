@@ -79,24 +79,57 @@
   }
 
   /* ---------- 2. 統一版面：左側大綱 + 右側內文 ---------- */
+  // 頁面是否已經自己排好「左大綱＋右內文」：手寫的 nav.toc 在 .layout 裡面，
+  // 或它的父層裡同時還有內容容器（.content 或 main，且不在 nav 裡面）。這種頁面不能再被 layout() 重排，
+  // 否則只有第一個 article 會被包進格線，其餘內容掉到格線下面（R35）
+  function ownsLayout(nav) {
+    if (nav.closest('.layout')) return true;
+    var parent = nav.parentElement;
+    if (!parent) return false;
+    return Array.prototype.some.call(parent.querySelectorAll('.content, main'), function (c) {
+      return !nav.contains(c);
+    });
+  }
+
+  // 頂層的 article：不在別的 article 裡面的那些
+  function topArticles() {
+    return Array.prototype.filter.call(document.querySelectorAll('article'), function (a) {
+      return !(a.parentElement && a.parentElement.closest('article'));
+    });
+  }
+
+  // 一組元素的共同祖先（最近的、同時包含它們全部的元素）
+  function commonAncestor(els) {
+    var p = els[0].parentElement;
+    while (p && !els.every(function (e) { return p.contains(e); })) p = p.parentElement;
+    return p || document.body;
+  }
+
   function layout() {
     if (document.querySelector('.notes-grid')) return;
+
+    // 頁面自己有版面就不重排（R35）；其他功能（名詞說明卡等）不受影響
+    var own = document.querySelector('nav.toc');
+    if (own && ownsLayout(own)) return;
 
     // 這些是頁面外框，要留在格線外面維持滿版
     var CHROME = 'header, footer, script, style, link, nav.toc, .auto-toc, .tipbar, .bar, .notes-grid';
 
-    var art = document.querySelector('article');
+    var arts = topArticles();
+    var art = arts.length === 1 ? arts[0] : null;   // 只有單一 article 才直接拿它當內容區
     var main, host;
 
     if (art) {
       main = art;                                  // 本來就有 article，直接當內容區
       host = art.parentNode;
     } else {
-      host = document.querySelector('.post-content') ||
+      // 多個 article：用它們的共同祖先當內容區，全部 article 才會一起進格線（R35）
+      host = arts.length > 1 ? commonAncestor(arts) :
+             document.querySelector('.post-content') ||
              document.querySelector('.wrap') ||
              document.body;
       // body 底下若只有單一包裝元素，往下鑽一層，才不會把 header 一起捲進格線
-      if (host === document.body) {
+      if (host === document.body && !arts.length) {
         var only = Array.prototype.filter.call(host.children, function (c) {
           return !/^(SCRIPT|STYLE|LINK|NOSCRIPT)$/.test(c.tagName);
         });

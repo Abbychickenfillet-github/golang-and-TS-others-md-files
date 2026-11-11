@@ -51,11 +51,12 @@ describe('sharedSelectors', () => {
     expect(set.has('header.hero h1')).toBe(true);
   });
 
-  // @media 裡的選擇器也要收錄（例如 print 區塊的 .toolbar）；
-  it('遞迴收錄 @media 內的選擇器', () => {
-    // `.toolbar,.quiz` 在 @media print 內；
-    expect(set.has('.toolbar')).toBe(true);
-    expect(set.has('.quiz')).toBe(true);
+  // @media 裡的選擇器也要收錄，但鍵帶著條件（R37：例如 print 區塊的 .toolbar 是 `media print|.toolbar`，不是頂層的 .toolbar）；
+  // 本測試原本斷言頂層鍵 `.toolbar`／`.quiz`（舊的「與上下文無關」行為），R37 改成條件鍵；
+  it('遞迴收錄 @media 內的選擇器（鍵帶條件）', () => {
+    // `.toolbar,.quiz` 在 @media print 內：條件鍵存在；
+    expect(set.has('media print|.toolbar')).toBe(true);
+    expect(set.has('media print|.quiz')).toBe(true);
   });
 
   // 自訂屬性名稱來自 :root，淺色與深色兩個區塊都算；
@@ -140,9 +141,10 @@ describe('pruneSharedRules', () => {
   });
 
   // @media 內遞迴處理，同一個區塊裡共用的移除、獨有的留下；
+  // （R37 調整：共用集合要有「同一個條件」的鍵 `media (max-width:860px)|.toc`，頂層的 .toc 不再讓 @media 內的 .toc 被抽掉）；
   it('@media 區塊遞迴修剪，剩下的規則保留', () => {
-    // 輸入窄螢幕區塊，一條共用 .toc、一條獨有 .my；
-    const out = pruneSharedRules('@media (max-width:860px){.toc{display:none}.my{color:red}}', shared);
+    // 輸入窄螢幕區塊，一條共用 .toc、一條獨有 .my；共用集合帶同條件的鍵；
+    const out = pruneSharedRules('@media (max-width:860px){.toc{display:none}.my{color:red}}', new Set(['media (max-width:860px)|.toc']));
     // @media 還在；
     expect(out).toContain('@media (max-width:860px)');
     // .my 還在；
@@ -155,16 +157,16 @@ describe('pruneSharedRules', () => {
 
   // @media 內全部共用時整個區塊移除；
   it('@media 內規則全被抽掉時整個區塊移除', () => {
-    // 只有共用規則；
-    const out = pruneSharedRules('@media (max-width:860px){.toc{display:none}}', shared);
+    // 只有共用規則（同條件的鍵；R37 調整）；
+    const out = pruneSharedRules('@media (max-width:860px){.toc{display:none}}', new Set(['media (max-width:860px)|.toc']));
     // 輸出為空；
     expect(out.trim()).toBe('');
   });
 
-  // @supports 與 @media 一樣遞迴；
+  // @supports 與 @media 一樣遞迴；（R37 調整：共用集合帶 supports 條件的鍵）
   it('@supports 區塊也遞迴修剪', () => {
     // 輸入 @supports 內含共用與獨有規則；
-    const out = pruneSharedRules('@supports (display:grid){.card{a:b}.my{c:d}}', shared);
+    const out = pruneSharedRules('@supports (display:grid){.card{a:b}.my{c:d}}', new Set(['supports (display:grid)|.card']));
     // 獨有規則留下；
     expect(out).toContain('.my');
     // 共用規則消失；

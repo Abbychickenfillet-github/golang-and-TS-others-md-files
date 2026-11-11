@@ -90,10 +90,17 @@
       // 放在 h2 後面（也就是 .quiz-head 的最後）；
       head.appendChild(actions);
     }
+    // 搬移前先記下按鈕原本的父層，搬完才能檢查它們是不是空了；
+    var parents = buttons.map(function (b) { return b.parentNode; });
     // 依序把兩顆按鈕搬進 .quiz-actions；
     buttons.forEach(function (b) {
       // 同樣是 appendChild 搬移，順序會維持 mask-all 在前、show-all 在後；
       actions.appendChild(b);
+    });
+    // 原本的 .toolbar 搬空（沒有任何元素子節點，只剩空白文字也算）就在執行時移除，檔案本身不改（R38）；
+    parents.forEach(function (p) {
+      // 只處理 .toolbar，其他父層（例如普通的 div）一律不動；父層可能因為兩顆按鈕同父而重複出現，移除過的 parentNode 為 null 會被略過；
+      if (p && p.classList && p.classList.contains('toolbar') && p.children.length === 0 && p.parentNode) p.parentNode.removeChild(p);
     });
   }
 

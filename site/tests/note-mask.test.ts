@@ -268,8 +268,39 @@ describe('note-mask.js：舊結構（#maskAll／#showAll）', () => {
     expect(head.children.length).toBe(2);
     // 第二個 h2 不受影響，仍直接在 quiz 底下；
     expect(must('#second').parentElement).toBe(quiz);
-    // 原本的 .toolbar 裡不再有這兩顆按鈕；
-    expect(must('.toolbar').querySelector('button')).toBeNull();
+    // 原本的 .toolbar 因為搬空而被移除（R38；本斷言原本是「.toolbar 裡沒有按鈕」，現在整個 .toolbar 都不在了）；
+    expect(document.querySelector('.toolbar')).toBeNull();
+  });
+
+  // 案例（R38）：.toolbar 搬空才移除，還有其他元素子節點就保留；
+  it('.toolbar 搬走按鈕後仍有其他元素時保留', () => {
+    // 工具列裡多一顆別的按鈕；
+    setBody(`<div class="toolbar"><button id="maskAll">🙈 遮</button><button id="showAll">👀 顯</button><button id="other">別的</button></div><div class="quiz"><h2>測驗</h2></div>`);
+    // 載入；
+    loadScript();
+    // 工具列還在，且只剩那顆別的按鈕；
+    expect(must('.toolbar').children.length).toBe(1);
+    expect(must('.toolbar').children[0].id).toBe('other');
+  });
+
+  // 案例（R38）：只含純文字或註解、沒有元素子節點也算空；
+  it('.toolbar 只剩空白文字時視為空並移除', () => {
+    // 工具列只有兩顆按鈕與空白；
+    setBody(`<div class="toolbar">\n  <button id="maskAll">🙈 遮</button>\n  <button id="showAll">👀 顯</button>\n</div><div class="quiz"><h2>測驗</h2></div>`);
+    // 載入；
+    loadScript();
+    // 移除；
+    expect(document.querySelector('.toolbar')).toBeNull();
+  });
+
+  // 案例（R38）：按鈕不在 .toolbar 裡時，不誤刪它們的父層；
+  it('按鈕的父層不是 .toolbar 時不移除父層', () => {
+    // 按鈕放在普通 div；
+    setBody(`<div id="box"><button id="maskAll">🙈 遮</button><button id="showAll">👀 顯</button></div><div class="quiz"><h2>測驗</h2></div>`);
+    // 載入；
+    loadScript();
+    // 普通 div 還在（雖然空了）；
+    expect(document.querySelector('#box')).not.toBeNull();
   });
 
   // 案例：沒有 quiz；

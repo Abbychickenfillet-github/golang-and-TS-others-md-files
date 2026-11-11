@@ -219,7 +219,7 @@ export function migrateHtml(html: string, relPathToAssets: string, shared?: Set<
         continue;
       }
       // 修剪並保留註解；失敗（null）代表無法解析，原樣保留且不丟錯；
-      const result = pruneSharedRulesDetailed(css, sharedSet, { keepComments: true });
+      const result = pruneSharedRulesDetailed(css, sharedSet, { keepComments: true, media: span.el.attribs.media });
       // 無法解析，或沒有任何改動：原樣；
       if (result === null || result.css === css) {
         // 後位元組等於前位元組；

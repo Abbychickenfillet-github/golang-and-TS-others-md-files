@@ -147,6 +147,40 @@ h2[id]:target, h3[id]:target, h4[id]:target { animation: notes-hl 1.4s ease; }
   color: #1b3570;
 }
 
+/* ---------- 頁面自帶版面：.layout > nav.toc（R36） ----------
+   頁面自己寫了「左側大綱 .layout > nav.toc ＋ 右側 .content」時，notes.js 不會重排（R35），版面完全由這裡與 note-theme.css 的 .layout／.content 負責；
+   外觀沿用早期互動頁的側欄：黏在視窗左側的卡片，連結一條一條、不加項目符號（連結文字本身已帶編號，避免出現「1. 1.」），窄螢幕時變成一般的區塊；
+   顏色用主題變數（--card、--line…），後面的 oklch 是頁面沒載入主題時的備用值 */
+.layout > nav.toc {
+  position: sticky; top: 18px;                       /* 捲動時黏在視窗上緣下 18px */
+  flex: 0 0 250px; align-self: flex-start;           /* 固定 250px 寬、不被內文擠壓，高度只取內容高 */
+  max-height: calc(100vh - 36px); overflow: auto;    /* 目錄很長時在卡片內捲動 */
+  margin: 0;                                         /* 蓋掉 .toc 預設的上下外距，兩欄頂端才對齊 */
+  background: var(--card, oklch(0.985 0.004 255));
+  border: 1px solid var(--line, oklch(0.84 0.02 255));
+  border-radius: 14px;
+  padding: 16px 14px;
+  font-size: .88rem;
+}
+.layout > nav.toc ol, .layout > nav.toc ul { list-style: none; padding: 0; margin: 0; }
+.layout > nav.toc ol ol, .layout > nav.toc ul ul { padding-left: 1em; }
+.layout > nav.toc li { margin: 2px 0; font-weight: 400; font-size: 1em; }
+.layout > nav.toc a {
+  display: block; padding: 6px 10px;
+  border-radius: 8px; border-bottom: 0; border-left: 2px solid transparent;
+  color: var(--ink, oklch(0.27 0.03 260)); text-decoration: none; line-height: 1.4;
+  transition: .15s;
+}
+.layout > nav.toc a:hover { background: var(--soft, oklch(0.965 0.008 255)); color: var(--ink, oklch(0.27 0.03 260)); border-bottom: 0; }
+.layout > nav.toc a.active, .layout > nav.toc a.here {
+  background: var(--head, oklch(0.93 0.02 255)); border-left-color: var(--accent, oklch(0.42 0.08 255));
+  color: var(--accent, oklch(0.42 0.08 255)); font-weight: 600;
+}
+/* 窄螢幕（860px 以下）：note-theme.css 讓 .layout 變上下堆疊，大綱也從黏住的側欄變成滿寬的一般區塊 */
+@media (max-width: 860px) {
+  .layout > nav.toc { position: static; flex: none; width: 100%; max-height: none; }
+}
+
 .toc::-webkit-scrollbar { width: 8px; }
 .toc::-webkit-scrollbar-thumb { background: #c9d4e8; border-radius: 8px; }
 
