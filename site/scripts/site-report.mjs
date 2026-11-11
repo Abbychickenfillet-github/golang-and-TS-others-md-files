@@ -35,7 +35,8 @@ console.log(formatReport(site.report, ambiguousKeysOf(site)));
 // 報告檔放在 site/ 底下（cwd），11b 用其中的 images 複製圖片；
 const reportPath = path.resolve(process.cwd(), '.build-report.json');
 // 寫成縮排 2 格的 JSON；
-await fs.writeFile(reportPath, `${JSON.stringify({ root: site.root, basePath, notes: site.notes.length, ...reportToJson(site.report) }, null, 2)}\n`, 'utf8');
+// pages 是每篇筆記的 slug 片段陣列，建置後的 fix-export-names.mjs 依它把 Next 跳脫過的檔名改回原名；
+await fs.writeFile(reportPath, `${JSON.stringify({ root: site.root, basePath, notes: site.notes.length, pages: site.notes.map((n) => n.slug), ...reportToJson(site.report) }, null, 2)}\n`, 'utf8');
 // 印出報告檔位置；
 console.log(`site-report：報告已寫入 ${reportPath}`);
 // 嚴格模式：有歧義連結就丟錯，未捕捉的錯誤會讓 Node 以結束碼 1 結束；
