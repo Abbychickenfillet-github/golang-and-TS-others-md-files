@@ -227,13 +227,68 @@ describe('note-theme.css 捲動吸附', () => {
   });
 });
 
-// 第四組：Task 4 會接手的測驗列骨架先確認存在；
-describe('note-theme.css 測驗列骨架', () => {
+// 第四組：測驗標題列（Task 4 完成）；
+describe('note-theme.css 測驗列', () => {
   // 案例：.quiz-head 是 flex，.quiz-actions 存在；
   it('.quiz-head 為 flex，.quiz-actions 存在', () => {
     // .quiz-head 的 display 應為 flex；
     expect(someRuleHas('.quiz-head', 'display', 'flex')).toBe(true);
     // .quiz-actions 至少有一條規則；
     expect(rulesWith('.quiz-actions').length).toBeGreaterThan(0);
+  });
+
+  // 案例：兩端對齊，標題在左、按鈕在右；
+  it('.quiz-head 兩端對齊且垂直置中', () => {
+    // space-between 把第一個子元素推到最左、最後一個推到最右；
+    expect(someRuleHas('.quiz-head', 'justify-content', 'space-between')).toBe(true);
+    // align-items:center 讓標題與按鈕在垂直方向置中；
+    expect(someRuleHas('.quiz-head', 'align-items', 'center')).toBe(true);
+  });
+
+  // 案例：寬度不足時折行，而不是橫向溢出；
+  it('.quiz-head 設 flex-wrap: wrap 且有 gap', () => {
+    // wrap 讓空間不夠時子元素換到下一行；
+    expect(someRuleHas('.quiz-head', 'flex-wrap', 'wrap')).toBe(true);
+    // 折行後兩行之間仍要有間距，所以 gap 必須存在；
+    expect(rulesWith('.quiz-head').some((rule) => declValue(rule, 'gap') !== undefined)).toBe(true);
+  });
+
+  // 案例：.quiz-actions 排在列的最後端（靠右），折行後仍貼右；
+  it('.quiz-actions 靠右：margin-left: auto', () => {
+    // margin-left:auto 會吃掉左側剩餘空間，把自己推到最右邊；
+    expect(someRuleHas('.quiz-actions', 'margin-left', 'auto')).toBe(true);
+  });
+
+  // 案例：標題允許縮小，長標題不會把整列撐出視窗；
+  it('.quiz-head h2 設 min-width: 0', () => {
+    // flex 子項預設 min-width:auto，長字串不縮；改成 0 才能在窄螢幕縮小或折行；
+    expect(someRuleHas('.quiz-head h2', 'min-width', '0')).toBe(true);
+  });
+
+  // 案例：icon 按鈕要有足夠的觸控尺寸，且字級放大到 emoji 清楚可辨；
+  it('.quiz-actions button 觸控尺寸至少 44px 且 emoji 字級放大', () => {
+    // 取所有 `.quiz-actions button` 規則；
+    const rules = rulesWith('.quiz-actions button');
+    // 至少要有一條；
+    expect(rules.length).toBeGreaterThan(0);
+    // 對寬與高各自斷言 44px（WCAG 2.5.5 建議的觸控目標最小值）；
+    for (const prop of ['min-width', 'min-height']) {
+      // 任何一條規則設了 44px 即可；
+      expect(rules.some((rule) => declValue(rule, prop) === '44px'), prop).toBe(true);
+    }
+    // 字級要比一般按鈕的 .85rem 大；
+    expect(rules.some((rule) => declValue(rule, 'font-size') === '1.25rem')).toBe(true);
+  });
+
+  // 案例：這個任務不動字距變數，按鈕規則裡也不得出現 letter-spacing 數值；
+  it('.quiz-head 相關規則不自訂 letter-spacing', () => {
+    // 逐一檢查四組選擇器；
+    for (const sel of ['.quiz-head', '.quiz-head h2', '.quiz-actions', '.quiz-actions button']) {
+      // 每條規則都不能有 letter-spacing，字距交給 body 繼承；
+      for (const rule of rulesWith(sel)) {
+        // 取值應為 undefined；
+        expect(declValue(rule, 'letter-spacing'), sel).toBeUndefined();
+      }
+    }
   });
 });
