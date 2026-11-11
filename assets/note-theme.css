@@ -1,0 +1,311 @@
+/* ==========================================================================
+   note-theme.css：全站共用主題（獨立 .html 筆記與 Next.js 站點共用的唯一外觀來源）
+   變數名稱沿用 note-interactive.css，但本檔自己宣告完整變數，不 @import，離線用 file:// 開啟也能獨立運作
+   .term 提示框與側欄大綱 .toc 由 notes.css 負責，本檔不重複定義
+   ========================================================================== */
+
+/* :root 是文件根元素（<html>），在這裡宣告的 --名稱 全頁都能用 var(--名稱) 取值；這一組是淺色模式 */
+:root{ /* 開始淺色變數區塊 */
+  /* oklch(明度 彩度 色相) 是感知均勻的色彩函式；--bg 是頁面底色，刻意取中等明度的灰藍，讓亮色卡片浮出來 */
+  --bg:oklch(0.74 0.04 255); /* 頁面底色：中明度灰藍，與卡片對比度約 2.2 比 1 */
+  --card:oklch(0.985 0.004 255); /* 卡片底色：接近白但帶一點藍，不寫死 #fff */
+  --ink:oklch(0.27 0.03 260); /* 主要文字色：深藍灰，在頁面底與卡片上都清楚 */
+  --sub:oklch(0.44 0.04 258); /* 次要文字色：比主文字淡，但在卡片上仍有約 7 比 1 的對比 */
+  --line:oklch(0.84 0.02 255); /* 邊線色：比卡片深一階，畫出分隔但不搶眼 */
+  --soft:oklch(0.965 0.008 255); /* 淡底色：斑馬紋、引用區用 */
+  --head:oklch(0.93 0.02 255); /* 表頭與行內程式碼底色：比淡底再深一點 */
+  --accent:oklch(0.42 0.08 255); /* 強調色：深藍，用於小標題、膠囊文字、粗線 */
+  --link:oklch(0.48 0.13 258); /* 連結色：偏亮的藍，與一般文字區分 */
+  /* 下面幾個狀態色沿用 note-interactive.css 的十六進位值；原本就有的色票不改，只有新增的顏色才寫 oklch */
+  --warn:#C2455E; --ok:#2F7D3E; --mid:#B7791F; --no:#7B8494; /* 警示紅、正確綠、提醒橘、否定灰 */
+  --okbg:#E7F6EA; --warnbg:#FFF1F3; --midbg:#FFF6DF; --nobg:#EEF0F4; /* 上面四種狀態對應的淡色背景 */
+  --code:#242B38; /* 程式碼區塊底色：深色，固定淺色字 */
+  --pre-ink:oklch(0.93 0.01 255); /* 程式碼區塊內的文字色，不隨模式變，因為底色一直是深的 */
+  --cmt:oklch(0.72 0.03 240); /* 程式碼註解色：淡藍灰，在深底上仍清楚 */
+  --hl-yellow:var(--hl-core); --hl-green:var(--hl-ok); /* 舊名稱 --hl-yellow、--hl-green 改指向新語意色，var() 可以引用另一個變數 */
+  /* 六種螢光筆底色（語意：核心、警告、正解、術語、數據、備註），文字沿用 --ink */
+  --hl-core:oklch(0.95 0.12 100); /* 核心重點：黃 */
+  --hl-warn:oklch(0.72 0.19 5); /* 警告陷阱：粉紅紅，需要搭配深色字 */
+  --hl-warn-ink:oklch(0.22 0.07 10); /* 警告螢光筆上的文字色：極深紅，對比約 6.5 比 1 */
+  --hl-ok:oklch(0.93 0.13 150); /* 正解建議：綠 */
+  --hl-term:oklch(0.84 0.08 255); /* 術語定義：藍 */
+  --hl-data:oklch(0.85 0.12 335); /* 數據補充：粉紅紫 */
+  --hl-note:oklch(0.80 0.10 305); /* 次要備註：紫 */
+  --mask-bg:oklch(0.80 0.015 250); /* 螢光筆被遮起來時的灰底 */
+  --mask-ink:oklch(0.40 0.03 250); /* 遮起來時顯示的問號顏色 */
+  --brick:oklch(0.50 0.13 28); /* 對齊互動被點亮時的磚紅色，白字對比足夠 */
+  --fig-bg:oklch(0.985 0.004 255); /* 圖表底色：SVG 圖上的深色線條需要亮底，所以兩種模式都用亮色 */
+  --hero-from:oklch(0.96 0.02 235); --hero-to:oklch(0.96 0.025 80); /* 頁首漸層的起點與終點色 */
+  /* 字距變數：每個只在這裡宣告一次，其餘地方一律用 var() 引用，要調整只改這四行 */
+  --ls-body:0.2rem; /* 內文字距；rem 是相對根字級的單位，不隨區塊字級改變 */
+  --ls-pill:0.25rem; /* 標籤 pills 與 hashtag 字距 */
+  --ls-mono:0.1rem; /* 等寬字（code、pre、.align-demo）字距 */
+  --ls-legend:1.18em; /* 圖例色塊字距；em 是相對該元素自己的字級 */
+} /* 淺色變數區塊結束 */
+
+/* @media (prefers-color-scheme: dark) 是媒體查詢：使用者系統設定為深色模式時，才套用大括號裡的規則 */
+@media (prefers-color-scheme: dark){ /* 開始深色模式區塊 */
+  :root{ /* 深色模式再宣告一次同名變數，覆蓋上面的淺色值，其他規則完全不用改 */
+    --bg:oklch(0.14 0.012 260); /* 頁面底色：近黑，讓較亮的卡片浮出來 */
+    --card:oklch(0.42 0.03 258); /* 卡片底色：偏亮的石板藍，與近黑底對比約 2.4 比 1 */
+    --ink:oklch(0.96 0.01 258); /* 主要文字色：近白 */
+    --sub:oklch(0.86 0.025 258); /* 次要文字色：淡藍灰 */
+    --line:oklch(0.56 0.03 258); /* 邊線色：比卡片亮一階 */
+    --soft:oklch(0.45 0.03 258); /* 淡底色：比卡片亮一點 */
+    --head:oklch(0.47 0.035 258); /* 表頭底色：再亮一點 */
+    --accent:oklch(0.90 0.07 258); /* 強調色：淺藍，在暗卡片上清楚 */
+    --link:oklch(0.86 0.09 258); /* 連結色：淺藍 */
+    --warn:#FF8FA3; --ok:#7FD99A; --mid:#F0C070; --no:#9AA4B8; /* 狀態色深色版，亮度提高才看得清楚 */
+    --okbg:#1B3326; --warnbg:#3A1F27; --midbg:#3A3019; --nobg:#262C38; /* 淡色背景深色版，改成暗色調 */
+    --code:#0E1219; /* 程式碼區塊底色：比卡片更暗，一眼分得出來 */
+    /* 深色螢光筆：底色明度降到 0.5 左右，搭配近白文字，對比都在 4.9 比 1 以上 */
+    --hl-core:oklch(0.52 0.10 95); /* 核心重點：暗黃 */
+    --hl-warn:oklch(0.50 0.17 10); /* 警告陷阱：暗紅 */
+    --hl-warn-ink:oklch(0.97 0.01 10); /* 警告螢光筆上的文字色：近白，因為底色變暗了 */
+    --hl-ok:oklch(0.50 0.11 150); /* 正解建議：暗綠 */
+    --hl-term:oklch(0.50 0.11 255); /* 術語定義：暗藍 */
+    --hl-data:oklch(0.50 0.14 335); /* 數據補充：暗粉紫 */
+    --hl-note:oklch(0.50 0.12 300); /* 次要備註：暗紫 */
+    --mask-bg:oklch(0.56 0.02 250); /* 遮起來時的灰底（深色版） */
+    --mask-ink:oklch(0.97 0.01 250); /* 遮起來時的問號顏色（深色版）：近白 */
+    --hero-from:oklch(0.47 0.05 245); --hero-to:oklch(0.44 0.05 300); /* 頁首漸層深色版 */
+  } /* 深色 :root 結束 */
+} /* 深色媒體查詢結束 */
+
+/* *、::before、::after 一起選：所有元素寬高都把 padding 與 border 算進去，加內距不會撐破版面 */
+*,*::before,*::after{box-sizing:border-box} /* box-sizing:border-box 改變寬高的計算方式 */
+/* html：點錨點連結時平滑捲動，而不是瞬間跳過去 */
+html{scroll-behavior:smooth} /* scroll-behavior 控制捲動動畫 */
+
+/* body：整頁的底色、文字色、字型、字距 */
+body{ /* 選擇器 body 就是 <body> 標籤 */
+  margin:0; /* 去掉瀏覽器預設的外距 */
+  background:var(--bg); /* 底色用變數，深淺色模式自動切換 */
+  color:var(--ink); /* 文字色用變數 */
+  line-height:1.75; /* 行高 1.75 倍字級，中文大段文字比較好讀 */
+  letter-spacing:var(--ls-body); /* 內文字距，全頁繼承（letter-spacing 是會被子元素繼承的屬性） */
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,"Segoe UI",sans-serif; /* 字型依序嘗試，前面的找不到就換後面的 */
+  font-size:16.5px; /* 基本字級 */
+  -webkit-font-smoothing:antialiased; /* 在 WebKit 系瀏覽器（macOS）讓字邊緣更平滑 */
+} /* body 規則結束 */
+
+/* .wrap：最外層容器，左右留白，內容寬度由 notes.css 另外放寬 */
+.wrap{max-width:none;margin:0;padding:26px 30px 80px} /* padding 依序是上、左右、下 */
+/* .layout：側欄加內文的橫向排列（flex 彈性盒），align-items:flex-start 讓兩欄各自頂端對齊 */
+.layout{display:flex;gap:28px;align-items:flex-start} /* gap 是兩欄之間的間距 */
+/* .content：內文欄，flex:1 1 auto 表示可以放大縮小；min-width:0 允許內容比欄寬窄時不撐破 */
+.content{flex:1 1 auto;min-width:0} /* min-width:0 是 flex 子元素防止被長內容撐寬的常用寫法 */
+
+/* 頁首區塊 header.hero：漸層底的標題卡 */
+header.hero{ /* 選擇器 header.hero 表示同時是 header 標籤且有 hero 類別 */
+  background:linear-gradient(135deg,var(--hero-from),var(--hero-to)); /* 135 度斜向漸層，起訖色來自變數 */
+  border:1px solid var(--line); /* 1px 實線邊框 */
+  border-radius:16px; /* 圓角 */
+  padding:24px 26px; /* 內距：上下 24、左右 26 */
+  margin-bottom:20px; /* 與下方內容隔開 */
+} /* hero 規則結束 */
+/* hero 裡的 h1：襯線字型、略大 */
+header.hero h1{margin:0 0 10px;font-size:1.7rem;font-family:"Noto Serif TC",Georgia,serif;color:var(--ink)} /* 後代選擇器：header.hero 底下的 h1 */
+
+/* .pills：標籤列，橫向排列、放不下自動換行 */
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;letter-spacing:var(--ls-pill)} /* flex-wrap:wrap 讓子項目換行；字距用標籤專用變數 */
+/* .pill：單顆標籤，膠囊形，淡底加邊線 */
+.pill{ /* 單顆標籤規則開始 */
+  background:var(--head); /* 淡底色 */
+  color:var(--accent); /* 強調色文字 */
+  border:1px solid var(--line); /* 邊線 */
+  border-radius:999px; /* 極大的圓角值會變成膠囊形 */
+  padding:3px 11px; /* 內距：上下 3、左右 11 */
+  font-size:.78rem; /* 小字級 */
+  letter-spacing:var(--ls-pill); /* 標籤字距：單顆本身也宣告，避免被別處覆蓋 */
+} /* .pill 規則結束 */
+/* .meta：來源、日期等補充資訊 */
+.meta{font-size:.84rem;color:var(--sub)} /* 小字加次要文字色 */
+
+/* .toolbar：一排工具按鈕，橫向排列可換行 */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 18px} /* gap 為按鈕間距 */
+/* button：統一按鈕外觀；用卡片底色與文字色，放在頁面底色上也清楚 */
+button{ /* 按鈕規則開始 */
+  background:var(--card); /* 卡片底色 */
+  color:var(--ink); /* 文字色 */
+  border:1px solid var(--line); /* 邊線 */
+  border-radius:10px; /* 圓角 */
+  padding:8px 14px; /* 內距 */
+  font-size:.85rem; /* 字級 */
+  font-family:inherit; /* inherit 讓按鈕沿用周圍的字型，預設按鈕不會自動繼承 */
+  cursor:pointer; /* 手指游標，表示可點 */
+  transition:.15s; /* 狀態改變時 0.15 秒漸變 */
+} /* button 規則結束 */
+/* 滑鼠移到按鈕上（:hover 偽類別）時，換成表頭底色 */
+button:hover{background:var(--head)} /* :hover 在游標停在元素上時成立 */
+/* 鍵盤用 Tab 聚焦到按鈕、可聚焦元素時，畫出明顯外框；:focus-visible 只在鍵盤操作時成立 */
+button:focus-visible,mark.hl:focus-visible,.seg:focus-visible{outline:3px solid var(--link);outline-offset:2px} /* outline-offset 讓外框離元素 2px */
+
+/* .legend：螢光筆圖例列，橫向排列可換行；放在頁面底色上，所以文字色用 --ink 而不是 --sub */
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 22px;font-size:.74rem;color:var(--ink)} /* 圖例整列的外觀 */
+/* .legend span：每個色塊的字距用專用變數 1.18em（刻意很寬，讓圖例像一顆顆色塊） */
+.legend span{padding:2px 9px;border-radius:6px;letter-spacing:var(--ls-legend)} /* 後代選擇器：.legend 底下的所有 span */
+
+/* .card：內容卡片，用卡片底色，與頁面底色拉開對比 */
+.card{ /* 卡片規則開始 */
+  background:var(--card); /* 卡片底色用變數，不寫死白色 */
+  color:var(--ink); /* 卡片上的文字色，確保在深色模式也清楚 */
+  border:1px solid var(--line); /* 邊線 */
+  border-radius:14px; /* 圓角 */
+  padding:22px 26px; /* 內距：上下 22、左右 26 */
+  margin-bottom:18px; /* 卡片之間的間距 */
+} /* .card 規則結束 */
+/* 卡片內第一個子元素若是 h2，去掉它的上外距，避免卡片頂端多出一塊空白 */
+.card>h2:first-child{margin-top:0} /* > 是子代選擇器；:first-child 選到同層第一個 */
+
+/* 標題與段落 */
+h2{ /* 章節標題規則開始 */
+  font-size:1.28rem; /* 字級 */
+  margin:30px 0 12px; /* 外距：上 30、左右 0、下 12 */
+  padding-bottom:9px; /* 底部內距，讓底線離文字遠一點 */
+  border-bottom:2px solid var(--line); /* 底部 2px 分隔線 */
+  font-family:"Noto Serif TC",Georgia,serif; /* 襯線字型 */
+  color:var(--ink); /* 文字色 */
+  scroll-margin-top:16px; /* 點錨點跳轉時，標題離視窗頂端留 16px */
+} /* h2 規則結束 */
+h3{font-size:1.06rem;margin:22px 0 9px;color:var(--accent);scroll-margin-top:16px} /* 小節標題：強調色 */
+p{margin:10px 0} /* 段落上下外距 */
+ul,ol{padding-left:1.5em} /* 清單左側縮排；逗號代表兩種標籤共用 */
+li{margin:5px 0} /* 清單項目上下間距 */
+
+/* blockquote：引用區，左側粗線加淡底 */
+blockquote{ /* 引用區規則開始 */
+  margin:14px 0; /* 上下外距 */
+  padding:11px 16px; /* 內距 */
+  background:var(--soft); /* 淡底色 */
+  border-left:4px solid var(--accent); /* 左側 4px 強調色粗線 */
+  border-radius:0 8px 8px 0; /* 圓角四值依序為左上、右上、右下、左下：左側直角貼線，右側圓角 */
+  color:var(--ink); /* 文字色 */
+} /* blockquote 規則結束 */
+blockquote p{margin:5px 0} /* 引用區裡的段落間距縮小 */
+/* .plain：白話補充，左側細線、縮小字級 */
+.plain{color:var(--sub);font-size:.93em;margin:6px 0 12px;padding-left:12px;border-left:3px solid var(--line)} /* 次要文字色加左細線 */
+.plain b{color:var(--ink)} /* 白話補充裡的粗體改回主要文字色，讓關鍵字突出 */
+/* a：連結用變數色，深淺色模式各自調整 */
+a{color:var(--link)} /* 連結文字色 */
+/* .wikilink：筆記間的 [[連結]] 外觀，像一顆小標籤 */
+.wikilink{background:var(--head);border-bottom:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:.93em;color:var(--accent)} /* 行內小標籤 */
+
+/* 程式碼：code、pre、.align-demo 共用等寬字距 0.1rem，比內文窄，對齊才好看 */
+code,pre,.align-demo{letter-spacing:var(--ls-mono)} /* 選擇器清單用逗號分隔，三者共用同一條規則 */
+/* code：行內程式碼，等寬字型加淡底 */
+code{background:var(--head);padding:2px 6px;border-radius:5px;font-size:.88em;font-family:"JetBrains Mono","Cascadia Code",Consolas,monospace} /* 字型依序嘗試等寬字型 */
+/* pre：程式碼區塊，固定深色底與淺色字；內容過寬時出現橫向捲軸 */
+pre{ /* 程式碼區塊規則開始 */
+  background:var(--code); /* 深色底 */
+  color:var(--pre-ink); /* 固定淺色字 */
+  padding:15px 17px; /* 內距 */
+  border-radius:11px; /* 圓角 */
+  overflow-x:auto; /* 超出寬度時出現橫向捲軸，而不是撐破版面 */
+  font-size:.85rem; /* 字級 */
+  line-height:1.6; /* 行高 */
+  margin:13px 0; /* 上下外距 */
+} /* pre 規則結束 */
+pre code{background:none;color:inherit;padding:0} /* pre 裡面的 code 不再加淡底與內距，文字色沿用 pre */
+.cmt{color:var(--cmt)} /* 程式碼裡的註解文字色 */
+
+/* 表格：外觀統一，寬度撐滿，窄螢幕自己橫向捲動 */
+table{border-collapse:collapse;width:100%;margin:15px 0;font-size:.92rem;display:block;overflow-x:auto} /* border-collapse 讓相鄰邊框合併成單線；display:block 搭配 overflow-x:auto 才能出現捲軸 */
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top} /* 儲存格的邊線、內距、靠左與靠上對齊 */
+th{background:var(--head);color:var(--ink);font-weight:600;white-space:nowrap} /* 表頭加底色、半粗體、不換行 */
+tbody tr:nth-child(even){background:var(--soft)} /* :nth-child(even) 選偶數列，做斑馬紋 */
+
+/* .split：兩欄並排（例如 Cookie 與 Session 對照），放不下就上下堆疊 */
+.split{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start} /* flex 橫向排列並允許換行 */
+.split>div{flex:1;min-width:300px;border:1px solid var(--line);border-radius:10px;padding:14px} /* 子欄平分寬度，至少 300px，不夠就換行 */
+
+/* 提示框 .callout：預設是警示樣式，左側粗線加淡底 */
+.callout{border-left:5px solid var(--warn);background:var(--warnbg);padding:12px 16px;border-radius:0 9px 9px 0;margin:16px 0} /* 左線顏色表示類型 */
+.callout.ok{border-color:var(--ok);background:var(--okbg)} /* .callout.ok 同時有兩個類別：正確樣式 */
+.callout.note{border-color:var(--mid);background:var(--midbg)} /* 提醒樣式 */
+.callout b{display:block;margin-bottom:3px} /* 提示框裡的粗體當小標題，獨佔一行 */
+/* .idx：「本篇重點 a–z」那一行索引，膠囊底 */
+.idx{font-size:14px;color:var(--sub);background:var(--head);display:inline-block;padding:4px 13px;border-radius:999px;margin-top:10px} /* inline-block 讓底色只包住文字 */
+/* 圖表：.fig 與直接放在卡片裡的 svg 都用亮底，因為 SVG 內的線條與文字是寫死的深色 */
+.fig,.card>svg{background:var(--fig-bg);border:1px solid var(--line);border-radius:12px;padding:10px;margin:16px 0;overflow-x:auto} /* 兩個選擇器共用一條規則 */
+svg{max-width:100%;letter-spacing:normal} /* svg 不超出容器；letter-spacing:normal 取消內文字距，避免圖上的字被撐開 */
+
+/* 螢光筆：generic 類別選擇器，<mark class="hl hl-core"> 與圖例裡的 <span class="hl-core"> 都吃得到 */
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;color:inherit} /* 可點擊遮蓋的螢光筆；color:inherit 沿用上層文字色 */
+.hl-core{background:var(--hl-core)} /* 核心重點底色 */
+.hl-warn{background:var(--hl-warn);color:var(--hl-warn-ink)} /* 警告底色並指定可讀的文字色 */
+.hl-ok{background:var(--hl-ok)} /* 正解建議底色 */
+.hl-term{background:var(--hl-term)} /* 術語定義底色 */
+.hl-data{background:var(--hl-data)} /* 數據補充底色 */
+.hl-note{background:var(--hl-note)} /* 次要備註底色 */
+.y{background:var(--hl-yellow)} .g{background:var(--hl-green)} /* 舊版螢光筆類別 .y .g，顏色指向新語意色 */
+mark{padding:1px 3px;border-radius:3px;color:inherit} /* 沒有 .hl 的一般 <mark> 也給最基本的內距與繼承文字色 */
+/* 遮蓋狀態：點螢光筆後文字變透明、換成灰底；!important 確保蓋過 .hl-* 的底色與文字色 */
+mark.hl.masked{color:transparent!important;background:var(--mask-bg)!important;user-select:none} /* user-select:none 禁止選取文字，避免偷看答案 */
+mark.hl.masked::after{content:"？";color:var(--mask-ink);font-weight:700;position:absolute;margin-left:-.8em} /* ::after 偽元素在遮蓋時顯示問號 */
+
+/* ====== Set-Cookie 與 Cookie 對齊互動 ====== */
+.align-demo{ /* 對齊示範區：深色底的等寬字區塊 */
+  font-family:"JetBrains Mono","Cascadia Code",Consolas,monospace; /* 等寬字型，上下兩行的字元才會對齊 */
+  font-size:.92rem; /* 字級 */
+  background:var(--code); /* 深色底 */
+  color:var(--pre-ink); /* 固定淺色字 */
+  border-radius:11px; /* 圓角 */
+  padding:16px 18px; /* 內距 */
+  margin:14px 0; /* 上下外距 */
+  overflow-x:auto; /* 內容過寬時橫向捲動 */
+} /* .align-demo 規則結束 */
+.align-line{white-space:nowrap;padding:5px 0;line-height:2} /* 每一行不換行，才能保持上下對齊 */
+.al-label{color:oklch(0.78 0.10 255);margin-right:6px;user-select:none} /* 標頭名稱用淺藍；user-select:none 讓複製時不會帶到 */
+.al-dir{color:oklch(0.80 0.12 150);font-size:.8rem;margin-right:10px;user-select:none} /* 方向箭頭文字用淺綠 */
+.seg{padding:2px 6px;border-radius:5px;cursor:pointer;transition:background .12s,color .12s;outline:none} /* 可互動的片段；transition 可一次列出多個屬性 */
+.seg.lit{background:var(--brick);color:oklch(0.99 0 0)} /* 被點亮：磚紅底配近白字 */
+.align-hint{font-size:.82rem;color:var(--sub);margin-top:8px} /* 對齊示範下方的小提示 */
+
+/* ====== 測驗 ====== */
+.quiz{background:linear-gradient(180deg,var(--card),var(--soft))} /* 測驗卡片：由卡片色漸層到淡底色，與一般卡片略有區分 */
+/* .quiz-head：測驗標題列，標題靠左、操作按鈕靠右，放不下才換行（Task 4 會再完成細節） */
+.quiz-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px} /* space-between 讓兩端對齊；wrap 只在空間不夠時才換行 */
+.quiz-head h2{margin:0;flex:1 1 auto} /* 標題在列內撐開，並去掉預設上外距 */
+.quiz-actions{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto} /* 操作按鈕靠右排列；margin-left:auto 把自己推到最右邊 */
+.qlist{padding-left:1.4em} /* 題目清單的縮排 */
+.qlist>li{margin:16px 0;padding-bottom:12px;border-bottom:1px dashed var(--line)} /* 每題之間用虛線分隔 */
+.qlist>li:last-child{border-bottom:none} /* 最後一題不需要分隔線 */
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0} /* 作答按鈕列 */
+.btns button{padding:6px 15px;border-radius:9px} /* 作答按鈕比工具列按鈕小一點 */
+.btns button.good{background:var(--okbg);border-color:var(--ok)} /* 答對的按鈕：綠底綠邊 */
+.btns button.bad{background:var(--warnbg);border-color:var(--warn)} /* 答錯的按鈕：紅底紅邊 */
+input.blank{ /* 填空輸入框規則開始 */
+  border:none; /* 先去掉四周邊框 */
+  border-bottom:2px solid var(--accent); /* 只留底線，像填空線 */
+  background:var(--soft); /* 淡底色 */
+  color:var(--ink); /* 文字色，深色模式才不會黑字黑底 */
+  padding:2px 8px; /* 內距 */
+  font-size:1rem; /* 字級 */
+  font-family:inherit; /* 沿用周圍字型 */
+  min-width:8em; /* 最小寬度，空格才夠寫 */
+  outline:none; /* 去掉預設外框，改由底線顏色表示狀態 */
+} /* input.blank 規則結束 */
+input.blank.good{border-color:var(--ok);background:var(--okbg)} /* 答對：綠底線 */
+input.blank.bad{border-color:var(--warn);background:var(--warnbg)} /* 答錯：紅底線 */
+/* .fb：作答後的回饋框，預設隱藏，加上 .show 才顯示 */
+.fb{display:none;margin-top:9px;padding:10px 14px;background:var(--soft);border-left:3px solid var(--accent);border-radius:0 7px 7px 0;font-size:.9rem;color:var(--ink)} /* display:none 完全不佔版面 */
+.fb.show{display:block} /* 由 JS 加上 show 後顯示 */
+
+/* .snap-deck：卡片牆，縱向捲動並一張一張吸附；只有這個容器有捲動吸附，body 與 .content 不能有，否則整頁會被卡住 */
+.snap-deck{max-height:85vh;overflow-y:auto;scroll-snap-type:y mandatory} /* vh 是視窗高度百分比；y mandatory 表示縱向一定吸附到某張卡 */
+.snap-deck > *{scroll-snap-align:start} /* 子代選擇器 > 加萬用字元 *：每個直接子元素的上緣是吸附點 */
+
+/* footer：頁尾放在頁面底色上，文字用 --ink 才清楚 */
+footer{text-align:center;color:var(--ink);font-size:.8rem;margin-top:40px;padding-top:18px;border-top:1px solid color-mix(in oklch,var(--ink) 30%,transparent)} /* color-mix 把 30% 的文字色與透明混合，得到淡淡的分隔線 */
+
+/* 窄螢幕（860px 以下）：縮小留白，側欄與內文改成上下堆疊 */
+@media(max-width:860px){ /* 視窗寬度不超過 860px 時才套用 */
+  .wrap{padding:16px 14px 60px} /* 縮小外層留白 */
+  .layout{flex-direction:column} /* 橫向排列改成縱向堆疊 */
+} /* 窄螢幕區塊結束 */
+/* 列印時：隱藏工具列與測驗，遮蓋的螢光筆還原顯示，紙本才看得到內容 */
+@media print{ /* 只在列印時套用 */
+  .toolbar,.quiz{display:none} /* 列印不需要按鈕與測驗 */
+  mark.hl.masked{color:inherit!important;background:var(--hl-core)!important} /* 遮蓋狀態在紙上還原成可讀的黃底 */
+} /* 列印區塊結束 */
