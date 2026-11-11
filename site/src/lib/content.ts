@@ -2,8 +2,8 @@
 import * as fs from 'node:fs/promises';
 // 匯入 path 模組，只用它的 extname／basename／join 處理檔名，relPath 與 slug 一律另外轉成正斜線；
 import * as path from 'node:path';
-// 匯入 gray-matter（預設匯出是函式），用來把 md 的 YAML frontmatter 與內文拆開；
-import matter from 'gray-matter';
+// 匯入前言拆分函式（與 markdown.ts 共用，兩邊對同一份 md 的前言判斷一致）；副檔名寫 .ts：scripts 底下的檢查腳本用 Node 直接載入 content.ts，Node 的型別剝除只認完整檔名；tsconfig 已開 allowImportingTsExtensions；
+import { splitFrontmatter } from './frontmatter.ts';
 // 匯入 cheerio 的 load 函式，用來在 Node 端解析 html（語法像 jQuery）；
 import { load } from 'cheerio';
 // 匯入 yaml 套件的 parse，用來解析 _config.yml；
@@ -152,25 +152,10 @@ function cleanTitle(value: unknown): string | undefined {
   return text === '' ? undefined : text;
 }
 
-// 解析一份 md：回傳 frontmatter 與標題；
+// 解析一份 md：回傳 frontmatter 與標題；前言的邊界與錯誤處理全在共用的 splitFrontmatter（壞 YAML 得到 {} 並把前言區塊拿掉、沒有結尾的 --- 不算前言、---js 不執行）；
 function readMarkdown(raw: string, baseName: string): { frontmatter: Record<string, unknown>; title: string } {
-  // 去掉檔案開頭可能的 BOM（﻿），否則 gray-matter 認不出開頭的 ---；
-  const text = raw.replace(/^﻿/, '');
-  // 預設沒有 frontmatter，內文就是整份檔案；
-  let frontmatter: Record<string, unknown> = {};
-  // 內文，後面可能被換成去掉前言的版本；
-  let content = text;
-  // try/catch：frontmatter 的 YAML 壞掉時 gray-matter 會丟錯，這裡接住並視為沒有前言，不讓整個建置失敗；
-  try {
-    // 第二個參數傳 {}：gray-matter 在沒有選項時會用「檔案內容」當快取鍵並回傳同一個物件，傳空物件可關掉快取；
-    const parsed = matter(text, {});
-    // data 是解析出的前言物件；
-    frontmatter = parsed.data;
-    // content 是去掉前言後的內文；
-    content = parsed.content;
-  } catch {
-    // 不帶變數的 catch 區塊（可省略錯誤參數）；維持預設值即可；
-  }
+  // 拆出前言資料與內文；解構時把 data 改名為 frontmatter、body 改名為 content；
+  const { data: frontmatter, body: content } = splitFrontmatter(raw);
   // 標題依序取：前言 title、內文第一個 h1、檔名；?? 在左邊是 undefined 或 null 時才取右邊；
   const title = cleanTitle(frontmatter.title) ?? firstMarkdownH1(content) ?? baseName;
   // 回傳整理好的結果；

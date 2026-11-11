@@ -127,18 +127,22 @@ describe('renderMarkdown 邊界輸入', () => {
     expect(out.html).not.toContain('壞掉');
   });
 
-  // ---js 前言會執行程式碼，必須停用；
-  it('---js 前言不會被執行', async () => {
-    // 前言想在建置時寫旗標；
+  // 開頭是 ---js 的區塊不是前言：機制是前言的開頭行必須剛好是 ---（見 frontmatter.ts），所以程式碼不會被執行，整份當一般 Markdown 渲染；
+  it('---js 區塊不被執行，且整份當內文渲染', async () => {
+    // 旗標掛在 globalThis 上，被執行過就會被設成 true；
     const g = globalThis as { __pwned?: boolean };
     // 先確保旗標沒設；
     delete g.__pwned;
-    // 渲染含 ---js 前言的來源；
+    // 渲染含 ---js 區塊的來源；
     const out = await renderMarkdown('---js\n{ title: (globalThis.__pwned = true, "x") }\n---\n內文\n', makeCtx());
     // 程式碼沒有跑；
     expect(g.__pwned).toBeUndefined();
     // 前言為空；
     expect(out.frontmatter).toEqual({});
+    // 區塊原文出現在頁面上（它被當成普通內文）；
+    expect(out.html).toContain('globalThis.__pwned');
+    // 後面的內文仍在；
+    expect(out.html).toContain('內文');
   });
 });
 
@@ -653,16 +657,72 @@ describe('標題 id', () => {
     expect(out).toContain('<h2 id="重複-3">重複</h2>');
   });
 
-  // 去重產生的 id 若剛好與後面標題的 slug 相同，也要避開（與執行期的 while 迴圈一致）；
-  it('去重 id 與後面標題撞名時繼續遞增', async () => {
+  // 去重產生的 id 若剛好與後面標題的 slug 相同，也要避開（與執行期的 while 迴圈一致，這是 h2、h3 的行為）；
+  it('h2 去重 id 與後面標題撞名時繼續遞增', async () => {
     // 標題依序：a、a、a-2；
-    const out = await html('# a\n\n# a\n\n# a-2\n');
+    const out = await html('## a\n\n## a\n\n## a-2\n');
     // 第一個 a；
-    expect(out).toContain('<h1 id="a">a</h1>');
+    expect(out).toContain('<h2 id="a">a</h2>');
     // 第二個 a-2；
-    expect(out).toContain('<h1 id="a-2">a</h1>');
+    expect(out).toContain('<h2 id="a-2">a</h2>');
     // 第三個標題 slug 是 a-2 已被占用，變成 a-2-2；
-    expect(out).toContain('<h1 id="a-2-2">a-2</h1>');
+    expect(out).toContain('<h2 id="a-2-2">a-2</h2>');
+  });
+
+  // R18 第一點：執行期只替 h2、h3 編號；h1 在前、h2 在後同名時，h2 必須拿到執行期的值（docker），h1 讓位成 docker-2；
+  it('# Docker 在前、## Docker 在後：h2 取 docker，h1 取 docker-2', async () => {
+    // h1 先出現、h2 後出現；
+    const out = await html('# Docker\n\n## Docker\n');
+    // h2 的 id 與執行期相同；
+    expect(out).toContain('<h2 id="docker">Docker</h2>');
+    // h1 在第二輪才編號，避開已用的 docker；
+    expect(out).toContain('<h1 id="docker-2">Docker</h1>');
+  });
+
+  // h4 在前也不會改變 h2 的 id；
+  it('h4 不會讓 h2 的 id 位移', async () => {
+    // h4 先、h2 後，同名；
+    const out = await html('#### Docker\n\n## Docker\n\n### Docker\n');
+    // h2 仍是 docker；
+    expect(out).toContain('<h2 id="docker">Docker</h2>');
+    // h3 與 h2 同組，是 -2；
+    expect(out).toContain('<h3 id="docker-2">Docker</h3>');
+    // h4 最後編號，避開前兩個，是 -3；
+    expect(out).toContain('<h4 id="docker-3">Docker</h4>');
+  });
+
+  // h2 與 h3 共用同一組編號；
+  it('h2 與 h3 重複標題共用編號 -2、-3', async () => {
+    // 三個同名，層級混用；
+    const out = await html('## 重 複\n\n### 重 複\n\n## 重 複\n');
+    // 依文件順序；
+    expect(out).toBe('<h2 id="重-複">重 複</h2>\n<h3 id="重-複-2">重 複</h3>\n<h2 id="重-複-3">重 複</h2>');
+  });
+
+  // 文字為空的標題：執行期略過，不給 id（也不占用編號）；
+  it('文字為空的標題不給 id', async () => {
+    // 空的 h2、h1，後面有正常的 sec 標題（slug 為空時才用 sec）；
+    const out = await html('##\n\n#\n\n## ！\n');
+    // 空 h2 沒有 id；
+    expect(out).toContain('<h2></h2>');
+    // 空 h1 沒有 id；
+    expect(out).toContain('<h1></h1>');
+    // 只有符號的標題文字不空，slug 空，退回 sec；
+    expect(out).toContain('<h2 id="sec">！</h2>');
+  });
+
+  // nav.toc、.auto-toc、.tipcard 內的標題：執行期略過，不給 id、不占用；
+  it('nav.toc、.auto-toc、.tipcard 內的標題不給 id 也不占用', async () => {
+    // 三種容器各放一個 h2，後面一個正常同名標題；
+    const out = await html('<nav class="toc"><h2>Docker</h2></nav>\n\n<div class="auto-toc"><h2>Docker</h2></div>\n\n<div class="tipcard"><h3>Docker</h3></div>\n\n## Docker\n');
+    // 容器內的沒有 id；
+    expect(out).toContain('<nav class="toc"><h2>Docker</h2></nav>');
+    // 容器內的沒有 id；
+    expect(out).toContain('<div class="auto-toc"><h2>Docker</h2></div>');
+    // 容器內的沒有 id；
+    expect(out).toContain('<div class="tipcard"><h3>Docker</h3></div>');
+    // 正常標題拿到第一個 docker（沒被容器內的占走）；
+    expect(out).toContain('<h2 id="docker">Docker</h2>');
   });
 
   // slug 為空時退回 sec，並同樣去重；
@@ -702,5 +762,15 @@ describe('標題 id', () => {
     expect(out).toContain('<h2 id="foo">別的字</h2>');
     // 後面的 foo 要避開 foo；
     expect(out).toContain('<h2 id="foo-2">foo</h2>');
+  });
+
+  // 手寫 id 出現在後面：先編號的 Markdown 標題照執行期順序處理（執行期同樣是文件順序、遇到才占用）；
+  it('h1 的 id 避開所有 h2、h3（含手寫 id）', async () => {
+    // h1 在最前面，後面 h2 手寫 id="x"；
+    const out = await html('# x\n\n<h2 id="x">手寫</h2>\n');
+    // h2 手寫 id 保留；
+    expect(out).toContain('<h2 id="x">手寫</h2>');
+    // h1 第二輪編號，避開 x；
+    expect(out).toContain('<h1 id="x-2">x</h1>');
   });
 });

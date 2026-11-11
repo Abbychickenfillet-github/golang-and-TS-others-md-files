@@ -10,8 +10,8 @@ import remarkRehype from 'remark-rehype';
 import rehypeRaw from 'rehype-raw';
 // 匯入 rehype-stringify，把 hast 輸出成 HTML 字串；
 import rehypeStringify from 'rehype-stringify';
-// 匯入 gray-matter（預設匯出是函式），把 md 的前言與內文拆開；
-import matter from 'gray-matter';
+// 匯入前言拆分函式（與 content.ts 共用）；
+import { splitFrontmatter } from './frontmatter';
 // 匯入 Task 8 的 wikilink 外掛；
 import { remarkWikilink } from './wikilink';
 // 匯入自寫的 remark 外掛：圖片嵌入；
@@ -45,45 +45,10 @@ export type RenderResult = {
   frontmatter: Record<string, unknown>;
 };
 
-// 停用 gray-matter 的 `---js` 引擎：前言裡的 JavaScript 會被執行（eval），筆記內容不該有這種能力；
-// 作法：把 js 與 javascript 兩個引擎換成會丟錯的函式，遇到 `---js` 前言就丟錯；
-const NO_JS_ENGINE = (): never => {
-  // 丟出說明原因的錯；
-  throw new Error('frontmatter 不支援 ---js 引擎');
-};
-
-// 判斷一個值是不是「純物件」（不是 null、不是陣列），前言必須是 key: value 的 mapping 才算數；
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  // typeof null 也是 'object'，所以要多擋 null；Array.isArray 擋陣列；
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-// 把原始文字拆成前言與內文；
-function splitFrontmatter(source: string): { frontmatter: Record<string, unknown>; content: string } {
-  // 去掉檔案開頭可能的 BOM（﻿），否則認不出開頭的 ---；
-  const text = source.replace(/^﻿/, '');
-  // 沒有開頭的 --- 行就一定沒有前言，不必呼叫 gray-matter；正規表示式：開頭三個 -、可有空白、然後換行（CRLF 或 LF）；
-  if (!/^---[ \t]*\r?\n/.test(text)) return { frontmatter: {}, content: text };
-  // 開頭是 --- 時，必須有「單獨一行的 ---」當結尾才算前言；否則它只是分隔線，gray-matter 卻會把整篇當成前言，所以先自己檢查；
-  if (!/^---[ \t]*\r?\n(?:[\s\S]*?\r?\n)?---[ \t]*(?:\r?\n|$)/.test(text)) return { frontmatter: {}, content: text };
-  // try/catch：YAML 壞掉或遇到 ---js 時 gray-matter 會丟錯；
-  try {
-    // 第二個參數傳選項物件：同時關掉 gray-matter 以內容為鍵的快取（回傳同一物件）並停用 js 引擎；
-    const parsed = matter(text, { engines: { js: NO_JS_ENGINE, javascript: NO_JS_ENGINE } });
-    // 解析結果不是 mapping（例如兩條分隔線中間夾一段普通文字被當成 YAML 純量）就視為沒有前言，整篇照常渲染；
-    if (!isPlainObject(parsed.data)) return { frontmatter: {}, content: text };
-    // 回傳前言物件與去掉前言的內文；
-    return { frontmatter: parsed.data, content: parsed.content };
-  } catch {
-    // 壞掉的前言：與 content.ts 一致視為沒有前言（frontmatter 為 {}），但把那一段從內文拿掉，免得 YAML 原文出現在頁面上；
-    return { frontmatter: {}, content: text.replace(/^---[ \t]*\r?\n(?:[\s\S]*?\r?\n)?---[ \t]*(?:\r?\n|$)/, '') };
-  }
-}
-
 // 把 Markdown 筆記渲染成 HTML 字串（建置時呼叫）；async 函式一律回傳 Promise；
 export async function renderMarkdown(source: string, ctx: RenderContext): Promise<RenderResult> {
-  // 先拆出前言與內文；
-  const { frontmatter, content } = splitFrontmatter(source);
+  // 先拆出前言與內文；與 content.ts 共用 frontmatter.ts，兩邊對同一份檔案的判斷一致（含 ---js 不是前言、不執行程式碼）；
+  const { data: frontmatter, body: content } = splitFrontmatter(source);
   // 組管線：每個 .use 加一個階段，順序就是處理順序；
   const file = await unified()
     // 解析 Markdown 成 mdast；

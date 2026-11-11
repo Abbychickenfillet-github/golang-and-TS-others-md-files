@@ -323,6 +323,73 @@ describe('assertUniqueSlugs', () => {
   });
 });
 
+// describe 分組：md 前言與 markdown.ts 共用 frontmatter.ts，標題與前言的判斷必須與渲染端一致；
+describe('listNotes 的前言解析（與渲染端共用）', () => {
+  // 每個案例專用的暫存筆記庫；
+  let tmp = '';
+  // 每個案例前建立暫存資料夾；
+  beforeEach(async () => {
+    // 建立並記下路徑；
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'content-fm-'));
+  });
+  // 每個案例後刪掉；
+  afterEach(async () => {
+    // 遞迴刪除；
+    await fs.rm(tmp, { recursive: true, force: true });
+  });
+  // 小工具：寫一份 md 並掃描，回傳該篇的 NoteEntry；
+  const scan = async (name: string, text: string): Promise<NoteEntry> => {
+    // 寫入檔案；
+    await fs.writeFile(path.join(tmp, name), text, 'utf8');
+    // 掃描（不排除任何東西）並取出該篇；
+    return byPath(await listNotes(tmp, []), name);
+  };
+
+  // 案例：開頭是單獨一條 --- 分隔線（沒有結尾分隔線）時，它不是前言，標題來自內文的 h1；
+  it('開頭 --- 沒有結尾時不吃掉內文，標題取第一個 h1', async () => {
+    // 分隔線、h1、段落，全文沒有第二條 ---；
+    const entry = await scan('bare-hr.md', '---\n\n# 分隔線之後的 h1\n\n內文\n');
+    // 標題來自 h1，不是檔名；
+    expect(entry.title).toBe('分隔線之後的 h1');
+    // 沒有前言；
+    expect(entry.frontmatter).toEqual({});
+  });
+
+  // 案例：開頭是 --- 且沒有結尾、也沒有 h1 時，標題退回檔名；
+  it('開頭 --- 沒有結尾且沒有 h1 時標題取檔名', async () => {
+    // 只有分隔線與段落；
+    const entry = await scan('bare-hr-only.md', '---\n\n只有段落\n');
+    // 退回檔名；
+    expect(entry.title).toBe('bare-hr-only');
+  });
+
+  // 案例：前言 YAML 壞掉：frontmatter 為 {}，前言區塊從內文拿掉，標題取剩下內文的第一個 h1；
+  it('壞掉的 YAML：frontmatter 為 {}，標題取前言之後的第一個 h1', async () => {
+    // 壞前言後接 h1；
+    const entry = await scan('broken.md', '---\ntitle: [壞掉\n# 前言裡的假 h1\n---\n# 真正的 h1\n');
+    // 前言為空；
+    expect(entry.frontmatter).toEqual({});
+    // 前言區塊被拿掉，所以前言裡那行不會被當成 h1；
+    expect(entry.title).toBe('真正的 h1');
+  });
+
+  // 案例：---js 區塊不是前言：程式碼不會被執行，frontmatter 為 {}；
+  it('---js 區塊不會被執行', async () => {
+    // 旗標掛在 globalThis 上；
+    const g = globalThis as { __pwned?: boolean };
+    // 先清掉；
+    delete g.__pwned;
+    // 區塊內的 JavaScript 若被執行會設旗標，也會把 title 變成 x；
+    const entry = await scan('js-fm.md', '---js\n{ title: (globalThis.__pwned = true, "x") }\n---\n# 內文 h1\n');
+    // 沒有執行；
+    expect(g.__pwned).toBeUndefined();
+    // 前言為空；
+    expect(entry.frontmatter).toEqual({});
+    // 標題不是 x（沒有被前言覆寫）；
+    expect(entry.title).not.toBe('x');
+  });
+});
+
 // describe 分組：loadExclude 對壞掉的設定「失敗即關閉」，寧可丟錯也不默默發布私人資料；
 describe('loadExclude 失敗即關閉', () => {
   // 每個案例專用的暫存資料夾；
