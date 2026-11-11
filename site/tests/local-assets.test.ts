@@ -69,6 +69,21 @@ describe('rawReferences', () => {
     expect(rawReferences('html', html).sort()).toEqual(['a.png', 'au.mp3', 'b.png', 'c.png', 'd.webp', 'doc.pdf', 'e.webp', 'f.webp', 'map.png', 'p.jpg', 's.css', 's.js', 'v.mp4', 'v2.webm'].sort());
   });
 
+  // srcset 依 WHATWG 規則解析：網址是「一路到空白為止」的那一段，所以網址裡的逗號不會把它切碎；
+  it.each([
+    // [說明, srcset 屬性值, 預期的網址們]；
+    ['網址含逗號', 'a,b.png 1x, c.png 2x', ['a,b.png', 'c.png']],
+    ['data: 網址（內含逗號）整段保留', 'data:image/png;base64,iVBORw0KGgo= 1x, d.png 2x', ['data:image/png;base64,iVBORw0KGgo=', 'd.png']],
+    ['網址後面緊接逗號（沒有描述）', 'a.png, b.png', ['a.png', 'b.png']],
+    ['描述後面緊接逗號、沒有空白', 'a.png 1x,b.png 2x', ['a.png', 'b.png']],
+    ['寬度描述與多餘空白', '  a.png  640w ,  b.png  1280w  ', ['a.png', 'b.png']],
+    ['只有一個、沒有描述', 'only.png', ['only.png']],
+    ['空字串', '', []],
+  ] as const)('srcset：%s', (_name, srcset, expected) => {
+    // 組一個只有 srcset 的 img；屬性值用單引號包住，因為值裡可能有雙引號以外的字元；
+    expect(rawReferences('html', `<img srcset='${srcset}'>`)).toEqual(expected);
+  });
+
   // md：連結、圖片、連結定義、手寫 html；程式碼區塊與行內程式碼不算；
   it('md：連結、圖片、參考式定義與手寫 html 都抽到，程式碼裡的不算，前言不算', () => {
     // 準備；
@@ -335,6 +350,58 @@ describe('collectLocalAssets 與 copyLocalAssets', () => {
     await fs.rm(out, { recursive: true, force: true });
   });
 
+  // 複製的碰撞防護：目的地已有別的輸出（Next 的 favicon.ico、頁面、_next、assets…）時，不能默默蓋掉；
+  it('輸出資料夾已有內容不同的同名檔案時，列出全部衝突（筆記 → 目標 → 既有輸出路徑）並丟錯，一個檔案都不複製', async () => {
+    // 造筆記庫：兩個附件與輸出資料夾裡既有的檔案同名，另有一個沒衝突的；
+    const root = await tempVault({ 'n.md': '[a](favicon.ico) [b](docs/file.svg) [c](ok.png)\n', 'favicon.ico': 'VAULT-ICON', 'docs/file.svg': 'VAULT-SVG', 'ok.png': 'ok' });
+    // 收集；
+    const report = await collect(root);
+    // 三個都在複製清單；
+    expect(report.files).toEqual(['docs/file.svg', 'favicon.ico', 'ok.png']);
+    // 輸出資料夾：已有 Next 產生的、內容不同的 favicon.ico，以及 docs/file.svg 這個路徑被一個「資料夾」佔走；
+    const out = await fs.mkdtemp(path.join(os.tmpdir(), 'local-assets-out-'));
+    // Next 的 favicon.ico；
+    await fs.writeFile(path.join(out, 'favicon.ico'), 'NEXT-ICON');
+    // 路徑被資料夾佔走；
+    await fs.mkdir(path.join(out, 'docs', 'file.svg'), { recursive: true });
+    // 複製會丟錯；
+    const err = await copyLocalAssets(root, out, report.files, report.referencedBy).then(() => null, (e: Error) => e);
+    // 有丟錯；
+    expect(err).not.toBeNull();
+    // 訊息列出兩個衝突，格式是「筆記 → 目標 → 既有輸出路徑」，並說明共 2 個；
+    expect(err?.message).toContain('2 個衝突');
+    // 第一個；
+    expect(err?.message).toContain(`n.md → favicon.ico → ${path.join(out, 'favicon.ico')}`);
+    // 第二個；
+    expect(err?.message).toContain(`n.md → docs/file.svg → ${path.join(out, 'docs', 'file.svg')}`);
+    // 沒衝突的 ok.png 也沒有被複製（全有或全無）；
+    await expect(fs.access(path.join(out, 'ok.png'))).rejects.toThrow();
+    // 既有的 favicon.ico 沒被蓋掉；
+    expect(await fs.readFile(path.join(out, 'favicon.ico'), 'utf8')).toBe('NEXT-ICON');
+    // 清掉；
+    await fs.rm(root, { recursive: true, force: true });
+    // 同上；
+    await fs.rm(out, { recursive: true, force: true });
+  });
+
+  // 重跑：目的地已有「位元組完全相同」的檔案（上一次複製的結果）不算衝突；
+  it('目的地已有位元組相同的檔案（重跑）不算衝突', async () => {
+    // 造筆記庫；
+    const root = await tempVault({ 'n.md': '[a](a.bin)\n', 'a.bin': Buffer.from([0, 1, 2, 255]) });
+    // 收集；
+    const report = await collect(root);
+    // 輸出資料夾；
+    const out = await fs.mkdtemp(path.join(os.tmpdir(), 'local-assets-out-'));
+    // 第一次；
+    await copyLocalAssets(root, out, report.files, report.referencedBy);
+    // 第二次不丟錯；
+    await expect(copyLocalAssets(root, out, report.files, report.referencedBy)).resolves.toMatchObject({ count: 1 });
+    // 清掉；
+    await fs.rm(root, { recursive: true, force: true });
+    // 同上；
+    await fs.rm(out, { recursive: true, force: true });
+  });
+
   // 摘要：被排除的全部列出、找不到的只列前 20 個並給總數、超過門檻有警告；
   it('摘要列出全部 excludedReferenced、missingLocal 總數與前 20 個，超過 900 MB 會警告', async () => {
     // 造筆記庫：一篇 md 連到 25 個不存在的檔案與一個私人檔案；
@@ -359,6 +426,16 @@ describe('collectLocalAssets 與 copyLocalAssets', () => {
     expect(text).toContain('警告：輸出資料夾超過 900.0 MB');
     // 沒超過就沒有這行；
     expect(formatLocalAssetsReport(report, { count: 0, bytes: 0 }, 10 * 1024 * 1024)).not.toContain('輸出資料夾超過');
+    // 沒有任何被排除的引用時，不印「指到不發布的檔案」那行警告（零個就不要製造雜訊）；
+    const clean = await tempVault({ 'n.md': '[x](nope.zip)\n' });
+    // 收集；
+    const cleanReport = await collect(clean);
+    // 確認真的是 0；
+    expect(cleanReport.excludedReferenced.size).toBe(0);
+    // 摘要不含這行；
+    expect(formatLocalAssetsReport(cleanReport, { count: 0, bytes: 0 }, 1)).not.toContain('不發布');
+    // 清掉；
+    await fs.rm(clean, { recursive: true, force: true });
     // 清掉；
     await fs.rm(root, { recursive: true, force: true });
   });

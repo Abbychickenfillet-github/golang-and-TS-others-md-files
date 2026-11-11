@@ -36,7 +36,62 @@ export type LocalAssetsReport = {
   outsideRoot: NoteTargets;
   // 已由別處提供而不複製的引用數：指到根目錄 assets/ 底下的（sync-assets 已整個放進輸出），以及指到共用腳本與共用樣式表的（layout 統一載入）；
   providedByAssets: number;
+  // 每個要複製的檔案是被哪些筆記引用的（檔案 relPath → 筆記集合）；複製遇到碰撞時用它列出「筆記 → 目標」；
+  referencedBy: Map<string, Set<string>>;
 };
+
+// 依 WHATWG 的 srcset 解析規則取出所有候選網址（不要描述）：
+//   1. 先跳過空白與逗號；
+//   2. 網址是「一路到空白為止」的連續非空白字元（所以網址裡的逗號，例如 data:image/png;base64,AAAA，會整段保留）；
+//   3. 網址尾端的逗號全部去掉，而且這代表「沒有描述」，這個候選到此結束；
+//   4. 否則後面是描述（640w、2x 等），讀到下一個「括號外的逗號」為止，那個逗號是候選之間的分隔；
+export function parseSrcset(value: string): string[] {
+  // 結果；
+  const urls: string[] = [];
+  // 目前位置；
+  let i = 0;
+  // 字串走完為止；
+  while (i < value.length) {
+    // 跳過空白與逗號；`/[\s,]/` 比對單一空白字元或逗號；
+    while (i < value.length && /[\s,]/.test(value[i])) i += 1;
+    // 走完了就結束；
+    if (i >= value.length) break;
+    // 網址：從這裡讀到空白前；
+    const start = i;
+    // 逐字前進；
+    while (i < value.length && !/\s/.test(value[i])) i += 1;
+    // 取出這段；
+    let url = value.slice(start, i);
+    // 結尾有逗號：全部去掉，這個候選沒有描述；
+    if (url.endsWith(',')) {
+      // 去掉所有結尾的逗號；
+      url = url.replace(/,+$/, '');
+      // 收下（空字串不收）；
+      if (url !== '') urls.push(url);
+      // 下一個候選；
+      continue;
+    }
+    // 收下網址；
+    urls.push(url);
+    // 讀描述：到下一個括號外的逗號為止；depth 記錄目前在幾層括號裡；
+    let depth = 0;
+    // 逐字前進；
+    while (i < value.length) {
+      // 目前字元；
+      const ch = value[i];
+      // 括號外的逗號：描述結束；
+      if (ch === ',' && depth === 0) break;
+      // 左括號進一層；
+      if (ch === '(') depth += 1;
+      // 右括號出一層（不低於 0）；
+      else if (ch === ')' && depth > 0) depth -= 1;
+      // 前進；
+      i += 1;
+    }
+  }
+  // 回傳；
+  return urls;
+}
 
 // 依筆記種類，從原文取出「原始引用字串」（還沒解碼、沒解析成路徑）；
 export function rawReferences(kind: 'md' | 'html', source: string): string[] {
@@ -67,17 +122,10 @@ export function rawReferences(kind: 'md' | 'html', source: string): string[] {
       // 有值才收；
       if (v !== undefined) refs.push(v);
     });
-    // srcset：「網址 [寬度或倍率描述], 網址 …」；以空白與逗號切開，丟掉 `640w`、`2x` 這類描述；
+    // srcset：「網址 [寬度或倍率描述], 網址 …」；依 WHATWG 規則解析（見 parseSrcset），網址裡的逗號與 data: 網址不會被切碎；
     $('[srcset]').each((_, el) => {
-      // 讀屬性值；
-      const v = $(el).attr('srcset') ?? '';
-      // 切開後逐一處理；filter(Boolean) 去掉空字串；
-      for (const token of v.split(/[\s,]+/).filter(Boolean)) {
-        // 寬度或倍率描述（例如 640w、1.5x）不是網址；
-        if (/^\d+(?:\.\d+)?[wx]$/.test(token)) continue;
-        // 收下；
-        refs.push(token);
-      }
+      // 解析後全部收下；展開運算子 `...` 把陣列元素逐一傳給 push；
+      refs.push(...parseSrcset($(el).attr('srcset') ?? ''));
     });
   };
   // html 筆記：整份文件都掃（head 的樣式表與腳本、body 的圖片與連結）；
@@ -191,7 +239,7 @@ function addTarget(map: NoteTargets, note: string, target: string): void {
 // 收集所有要複製的本地檔案；site 只需要根目錄與已發布的筆記；images 是 md 管線記錄的 ![[…]] 圖片 relPath（site-report 寫進 .build-report.json）；
 export async function collectLocalAssets(site: { root: string; notes: NoteEntry[] }, exclude: string[], images: Iterable<string> = []): Promise<LocalAssetsReport> {
   // 結果；
-  const report: LocalAssetsReport = { files: [], excludedReferenced: new Map(), missingLocal: new Map(), outsideRoot: new Map(), providedByAssets: 0 };
+  const report: LocalAssetsReport = { files: [], excludedReferenced: new Map(), missingLocal: new Map(), outsideRoot: new Map(), providedByAssets: 0, referencedBy: new Map() };
   // 去重用：要複製的檔案集合；
   const files = new Set<string>();
   // 筆記根目錄的真實路徑（解開符號連結與 8.3 短檔名，之後與 realpath 的結果才能相減）；
@@ -264,6 +312,8 @@ export async function collectLocalAssets(site: { root: string; notes: NoteEntry[
     if (ext === '.md' || ext === '.html') return;
     // 其餘是附件：加入複製清單；
     files.add(rel);
+    // 記下是誰引用它的（Set 自動去重）；
+    report.referencedBy.set(rel, (report.referencedBy.get(rel) ?? new Set<string>()).add(from));
   };
   // 逐篇筆記掃描引用；
   for (const note of site.notes) {
@@ -297,23 +347,76 @@ export async function collectLocalAssets(site: { root: string; notes: NoteEntry[
 // 複製結果：複製的檔案數與位元組數；
 export type CopyStats = { count: number; bytes: number };
 
+// 檢查一個目的地能不能安全寫入；回傳衝突的路徑（字串）或 undefined（可以寫）：
+// 目的地已有「位元組完全相同」的檔案不算衝突（那是同一個附件上一次複製的結果，重跑腳本不該失敗）；
+// 已有內容不同的檔案、同名的資料夾、或上層路徑是檔案，都是衝突：那是 Next 或 public 輸出的東西（favicon.ico、頁面、_next/…、assets/…），不能蓋掉；
+async function conflictOf(from: string, to: string): Promise<string | undefined> {
+  // try/catch：不存在時 lstat 會丟 ENOENT；
+  try {
+    // 查詢目的地現況；lstat 不跟隨符號連結；
+    const stat = await fs.lstat(to);
+    // 不是一般檔案（資料夾、連結等）：衝突；
+    if (!stat.isFile()) return to;
+    // 是檔案：位元組相同才算沒事；Buffer.equals 逐位元組比較；
+    const same = (await fs.readFile(from)).equals(await fs.readFile(to));
+    // 不同就是衝突；
+    return same ? undefined : to;
+  } catch (err) {
+    // 不存在：可以寫；
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    // 上層路徑的某一段是檔案（ENOTDIR）：寫不進去，也是衝突；
+    if ((err as NodeJS.ErrnoException).code === 'ENOTDIR') return to;
+    // 其他錯誤（權限等）原樣丟出；
+    throw err;
+  }
+}
+
 // 把檔案從筆記根目錄複製到輸出資料夾的「同一個相對路徑」，位元組原樣保留（copyFile 不經過任何編碼轉換）；
-export async function copyLocalAssets(root: string, outDir: string, files: string[]): Promise<CopyStats> {
+// 全有或全無：先算出所有目的地並檢查碰撞，有任何衝突就丟錯（列出全部「筆記 → 目標 → 既有輸出路徑」），一個檔案都不複製；referencedBy 是 collectLocalAssets 回傳的引用者表，只用來讓錯誤訊息點名筆記；
+export async function copyLocalAssets(root: string, outDir: string, files: string[], referencedBy: Map<string, Set<string>> = new Map()): Promise<CopyStats> {
   // 計數器；
   const stats: CopyStats = { count: 0, bytes: 0 };
   // 輸出資料夾的絕對路徑；
   const absOut = path.resolve(outDir);
-  // 逐檔複製；
-  for (const rel of files) {
+  // 先算出每個檔案的來源與目的地，並檢查目的地在輸出資料夾裡面（rel 已經不可能含 ..，這是第二道防線）；
+  const plan = files.map((rel) => {
     // 來源；
     const from = path.join(root, ...rel.split('/'));
     // 目的地；
     const to = path.join(absOut, ...rel.split('/'));
-    // 防呆：目的地必須在輸出資料夾裡面（rel 已經不可能含 ..，這是第二道防線）；
+    // 防呆；
     if (path.relative(absOut, to).startsWith('..')) throw new Error(`複製目的地跑出輸出資料夾：${rel}`);
+    // 回傳一筆計畫；
+    return { rel, from, to };
+  });
+  // 收集所有衝突，最後一次丟出；
+  const conflicts: string[] = [];
+  // 同一次複製裡，在不分大小寫的檔案系統上會互相覆蓋的檔案：鍵是「小寫加 NFC」的路徑，值是第一個登記的 relPath；
+  const seen = new Map<string, string>();
+  // 逐檔檢查；
+  for (const { rel, from, to } of plan) {
+    // 引用它的筆記（沒有資料就寫「（未知）」）；
+    const notes = Array.from(referencedBy.get(rel) ?? ['（未知）']).join('、');
+    // 同次複製裡的大小寫碰撞鍵；
+    const key = rel.normalize('NFC').toLowerCase();
+    // 已有人佔用；
+    const other = seen.get(key);
+    // 記錄衝突：在不分大小寫的系統（Windows、macOS）上兩個檔案會變成同一個；
+    if (other !== undefined) conflicts.push(`${notes} → ${rel} → 與同次複製的 ${other} 只差大小寫，會互相覆蓋`);
+    // 否則登記；
+    else seen.set(key, rel);
+    // 目的地現況；
+    const existing = await conflictOf(from, to);
+    // 有衝突就記下；
+    if (existing !== undefined) conflicts.push(`${notes} → ${rel} → ${existing}`);
+  }
+  // 有任何衝突：整批不做；
+  if (conflicts.length > 0) throw new Error(`本地附件的目的地已有不同的輸出檔案，複製會蓋掉它們（${conflicts.length} 個衝突，未複製任何檔案）：\n  ${conflicts.join('\n  ')}`);
+  // 沒衝突：逐檔複製；
+  for (const { from, to } of plan) {
     // 先建資料夾；recursive 讓多層一次建好、已存在不丟錯；
     await fs.mkdir(path.dirname(to), { recursive: true });
-    // 複製；已存在的同名檔會被覆蓋，所以可以重跑；
+    // 複製；目的地若是上一次複製的相同檔案就覆蓋成一樣的內容，所以可以重跑；
     await fs.copyFile(from, to);
     // 累計位元組；
     stats.bytes += (await fs.stat(to)).size;
@@ -357,10 +460,13 @@ export function formatLocalAssetsReport(report: LocalAssetsReport, stats: CopySt
   if (outBytes > OUT_SIZE_WARN_BYTES) lines.push(`警告：輸出資料夾超過 ${mb(OUT_SIZE_WARN_BYTES)} MB，GitHub Pages 站台上限約 1 GB（未查證），請檢查大檔案`);
   // 被排除的檔案：全部列出，因為這是「已發布的筆記指向私人檔案」，需要作者逐一處理；
   const excluded = Array.from(report.excludedReferenced);
-  // 筆記數與引用數；
-  lines.push(`警告：已發布的筆記指到「不發布」的檔案：${excluded.reduce((n, [, t]) => n + t.size, 0)} 個引用、${excluded.length} 篇筆記（這些檔案不會複製，頁面上會是壞連結或壞圖，全部列出）`);
-  // 逐篇列出；
-  for (const [note, targets] of excluded) lines.push(`  ${note} → ${Array.from(targets).join('、')}`);
+  // 有才印（零個就不要製造雜訊）：筆記數與引用數；
+  if (excluded.length > 0) {
+    // 警告行；
+    lines.push(`警告：已發布的筆記指到「不發布」的檔案：${excluded.reduce((n, [, t]) => n + t.size, 0)} 個引用、${excluded.length} 篇筆記（這些檔案不會複製，頁面上會是壞連結或壞圖，全部列出）`);
+    // 逐篇列出；
+    for (const [note, targets] of excluded) lines.push(`  ${note} → ${Array.from(targets).join('、')}`);
+  }
   // 找不到的本地檔案：只列前 20 筆；
   const missing = Array.from(report.missingLocal).flatMap(([note, targets]) => Array.from(targets, (t) => `${note} → ${t}`));
   // 數量；

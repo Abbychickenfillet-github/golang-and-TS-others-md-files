@@ -40,7 +40,8 @@ const exclude = await loadExclude(path.join(site.root, '_config.yml'));
 // 收集要複製的檔案與警告；
 const report = await collectLocalAssets(site, exclude, buildReport.images ?? []);
 // 複製；
-const stats = await copyLocalAssets(site.root, outDir, report.files);
+// 全有或全無：目的地已有不同的輸出檔案（favicon.ico、頁面、_next/…、assets/…）時丟錯並列出全部衝突，一個檔案都不複製；
+const stats = await copyLocalAssets(site.root, outDir, report.files, report.referencedBy);
 // 複製後輸出資料夾的總大小；
 const outBytes = await dirSize(outDir);
 // 印出摘要；
