@@ -19,6 +19,9 @@
   /* 下面幾個狀態色沿用 note-interactive.css 的十六進位值；原本就有的色票不改，只有新增的顏色才寫 oklch */
   --warn:#C2455E; --ok:#2F7D3E; --mid:#B7791F; --no:#7B8494; /* 警示紅、正確綠、提醒橘、否定灰 */
   --okbg:#E7F6EA; --warnbg:#FFF1F3; --midbg:#FFF6DF; --nobg:#EEF0F4; /* 上面四種狀態對應的淡色背景 */
+  /* 以下是 callout 的資訊（藍）與提問（紫）兩組新色票，前者給 info／note／abstract，後者給 question；都用 oklch 寫，--*bg 是淡底，文字一律用 --ink */
+  --info:oklch(0.50 0.13 245); --infobg:oklch(0.955 0.03 245); /* 資訊藍：左線色與淡底，淡底與 --ink 對比約 13 比 1 */
+  --q:oklch(0.48 0.15 305); --qbg:oklch(0.955 0.035 305); /* 提問紫：左線色與淡底 */
   --code:#242B38; /* 程式碼區塊底色：深色，固定淺色字 */
   --pre-ink:oklch(0.93 0.01 255); /* 程式碼區塊內的文字色，不隨模式變，因為底色一直是深的 */
   --cmt:oklch(0.72 0.03 240); /* 程式碼註解色：淡藍灰，在深底上仍清楚 */
@@ -57,6 +60,8 @@
     --link:oklch(0.86 0.09 258); /* 連結色：淺藍 */
     --warn:#FF8FA3; --ok:#7FD99A; --mid:#F0C070; --no:#9AA4B8; /* 狀態色深色版，亮度提高才看得清楚 */
     --okbg:#1B3326; --warnbg:#3A1F27; --midbg:#3A3019; --nobg:#262C38; /* 淡色背景深色版，改成暗色調 */
+    --info:oklch(0.80 0.10 245); --infobg:oklch(0.30 0.05 250); /* 資訊藍深色版：左線亮、淡底暗 */
+    --q:oklch(0.80 0.11 305); --qbg:oklch(0.30 0.05 305); /* 提問紫深色版 */
     --code:#0E1219; /* 程式碼區塊底色：比卡片更暗，一眼分得出來 */
     /* 深色螢光筆：底色明度降到 0.5 左右，搭配近白文字，對比都在 4.9 比 1 以上 */
     --hl-core:oklch(0.52 0.10 95); /* 核心重點：暗黃 */
@@ -224,6 +229,18 @@ tbody tr:nth-child(even){background:var(--soft)} /* :nth-child(even) 選偶數�
 .callout.ok{border-color:var(--ok);background:var(--okbg)} /* .callout.ok 同時有兩個類別：正確樣式 */
 .callout.note{border-color:var(--mid);background:var(--midbg)} /* 提醒樣式 */
 .callout b{display:block;margin-bottom:3px} /* 提示框裡的粗體當小標題，獨佔一行 */
+/* callout 類型：md 管線輸出 <div class="callout callout-類型" data-callout="類型">，裡面有 .callout-title 與 .callout-content；每個類型只換左線色與淡底，顏色來自 :root 的 token，深淺色模式自動切換；data-fold 摺疊記號不需要樣式 */
+.callout-info,.callout-note,.callout-abstract,.callout-summary,.callout-tldr,.callout-todo{border-color:var(--info);background:var(--infobg)} /* 資訊、筆記、摘要：藍；後面宣告所以蓋過基本的 .callout 警示色，兩者特異度相同，以出現順序決定 */
+.callout-tip,.callout-hint,.callout-success,.callout-check,.callout-done{border-color:var(--ok);background:var(--okbg)} /* 技巧、成功、完成：綠 */
+.callout-question,.callout-help,.callout-faq{border-color:var(--q);background:var(--qbg)} /* 提問與說明：紫 */
+.callout-warning,.callout-caution,.callout-attention{border-color:var(--mid);background:var(--midbg)} /* 警告與注意：橘 */
+.callout-danger,.callout-bug,.callout-fail,.callout-failure,.callout-missing,.callout-error{border-color:var(--warn);background:var(--warnbg)} /* 危險、錯誤：紅 */
+.callout-important{border-color:var(--accent);background:var(--head)} /* 重要：強調色左線配表頭底色，與其他類型區隔 */
+.callout-quote,.callout-cite,.callout-example{border-color:var(--no);background:var(--nobg)} /* 引用與範例：灰 */
+.callout-title,.callout-content{color:var(--ink)} /* 標題與內文一律用主要文字色，在每種淡底上對比度都至少 4.5 比 1 */
+.callout-title{font-weight:700;margin-bottom:4px} /* 標題加粗，與內文隔開一點 */
+.callout-content>:first-child{margin-top:0} /* 子代選擇器 >：內容區第一個區塊不要多出上外距 */
+.callout-content>:last-child{margin-bottom:0} /* 最後一個區塊不要多出下外距，callout 底部才不會空一塊 */
 /* .sr-only：只給螢幕閱讀器讀、畫面上看不到的文字（md 管線的註腳區塊用它放隱藏標籤，改成 p 之後不會被當成標題） */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0} /* 縮成 1px 並裁切掉，但不用 display:none，才不會連螢幕閱讀器也讀不到；margin:-1px 抵銷那 1px */
 /* .idx：「本篇重點 a–z」那一行索引，膠囊底 */

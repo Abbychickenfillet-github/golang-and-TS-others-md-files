@@ -311,3 +311,109 @@ describe('note-theme.css .sr-only', () => {
     for (const rule of rules) expect(declValue(rule, 'display')).toBeUndefined();
   });
 });
+
+// 工具函式：把 `var(--x)` 解析成該模式下的實際色值（支援 var 指向 var）；不是 var() 就原樣回傳；
+function resolveVar(value: string, vars: Record<string, string>): string {
+  // 比對 var(--名稱)；`^var\((--[\w-]+)\)$` 要求整串就是一個 var()；
+  const m = /^var\((--[\w-]+)\)$/.exec(value.trim());
+  // 不是 var()，原樣回傳；
+  if (!m) return value;
+  // 取變數值；
+  const next = vars[m[1]];
+  // 變數沒宣告，直接丟錯讓測試失敗並點名；
+  if (next === undefined) throw new Error(`變數 ${m[1]} 沒有宣告`);
+  // 可能又指向別的變數，遞迴解析；
+  return resolveVar(next, vars);
+}
+
+// 第六組：callout 樣式（md 管線輸出 <div class="callout callout-類型">）；
+describe('note-theme.css callout 類型', () => {
+  // 建置前掃描真實 repo 的 924 篇 md，712 個 callout 共 13 種類型（info 214、warning 124、question 104、tip 83、note 68、important 65、success 14、danger 13、check 11、quote 9、example 5、bug 1、abstract 1）；
+  const occurring = ['info', 'warning', 'question', 'tip', 'note', 'important', 'success', 'danger', 'check', 'quote', 'example', 'bug', 'abstract'];
+  // Obsidian 內建的其他別名也一併涵蓋，之後新筆記用到不會變成預設的紅色警示框；
+  const aliases = ['summary', 'tldr', 'todo', 'hint', 'done', 'help', 'faq', 'caution', 'attention', 'fail', 'failure', 'missing', 'error', 'cite'];
+  // 全部要測的類型；
+  const all = [...occurring, ...aliases];
+
+  // 案例：每個類型都有自己的規則，而且換了左線顏色與淡底；
+  it.each(all)('.callout-%s 規則同時宣告 border-color 與 background', (type) => {
+    // 取規則；
+    const rules = rulesWith(`.callout-${type}`);
+    // 至少一條；
+    expect(rules.length, `.callout-${type}`).toBeGreaterThan(0);
+    // 同一條規則裡有左線色與底色；
+    expect(rules.some((r) => declValue(r, 'border-color') !== undefined && declValue(r, 'background') !== undefined)).toBe(true);
+  });
+
+  // 兩種模式各驗證文字與背景的對比度；
+  for (const mode of ['light', 'dark'] as const) {
+    // 案例：標題與內文用 --ink，放在每種 callout 的淡底上至少 4.5:1（WCAG AA 一般文字）；
+    it.each(all)(`${mode} 模式 .callout-%s 的文字（--ink）在淡底上對比度至少 4.5:1`, (type) => {
+      // 該模式的變數；
+      const vars = rootVars(mode);
+      // 找出宣告 background 的那條規則；
+      const rule = rulesWith(`.callout-${type}`).find((r) => declValue(r, 'background') !== undefined) as Rule;
+      // 解析淡底色；
+      const bg = parseColor(resolveVar(declValue(rule, 'background') as string, vars));
+      // 文字色：標題與內容都宣告 color:var(--ink)；
+      const ink = parseColor(resolveVar('var(--ink)', vars));
+      // 兩個都要能解析；
+      expect(bg, `${type} 底色可解析`).toBeDefined();
+      // 同上；
+      expect(ink, '--ink 可解析').toBeDefined();
+      // 斷言對比度；
+      expect(wcagContrast(ink!, bg!), `${mode} ${type}`).toBeGreaterThanOrEqual(4.5);
+    });
+    // 案例：左線顏色在卡片上至少 3:1（WCAG 1.4.11 非文字元件），這樣類型顏色才看得出來；
+    it.each(all)(`${mode} 模式 .callout-%s 的左線在卡片上對比度至少 3:1`, (type) => {
+      // 該模式的變數；
+      const vars = rootVars(mode);
+      // 找出宣告 border-color 的規則；
+      const rule = rulesWith(`.callout-${type}`).find((r) => declValue(r, 'border-color') !== undefined) as Rule;
+      // 解析左線色；
+      const line = parseColor(resolveVar(declValue(rule, 'border-color') as string, vars));
+      // 卡片色；
+      const card = parseColor(resolveVar('var(--card)', vars));
+      // 斷言；
+      expect(wcagContrast(line!, card!), `${mode} ${type}`).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  // 案例：標題與內容的文字色指定為 --ink（上面的對比度測試以它為準），標題加粗；
+  it('.callout-title 與 .callout-content 用 color:var(--ink)，標題加粗', () => {
+    // 兩個選擇器各自斷言；
+    for (const sel of ['.callout-title', '.callout-content']) {
+      // 有一條規則設了 --ink；
+      expect(someRuleHas(sel, 'color', 'var(--ink)'), sel).toBe(true);
+    }
+    // 標題是粗體；
+    expect(someRuleHas('.callout-title', 'font-weight', '700')).toBe(true);
+  });
+
+  // 案例：新增的色票都用 oklch()，淺色與深色兩組各宣告一次；
+  it('新增的 --info、--infobg、--q、--qbg 兩種模式都宣告，且是 oklch()', () => {
+    // 逐模式、逐變數檢查；
+    for (const mode of ['light', 'dark'] as const) {
+      // 該模式的變數；
+      const vars = rootVars(mode);
+      // 四個新變數；
+      for (const name of ['--info', '--infobg', '--q', '--qbg']) {
+        // 開頭必須是 oklch(；
+        expect(vars[name], `${mode} ${name}`).toMatch(/^oklch\(/);
+      }
+    }
+  });
+
+  // 案例：callout 規則不寫死白色、不動字距；
+  it('callout 相關規則沒有 #fff，也沒有 letter-spacing', () => {
+    // 走訪所有選擇器含 .callout 的規則；
+    root.walkRules((rule) => {
+      // 只看 callout 相關；
+      if (!rule.selectors.some((s) => s.includes('.callout'))) return;
+      // 不可有 #fff 或 #ffffff（後面不接十六進位字元，避免誤判 #fff1f3）；
+      expect(rule.toString()).not.toMatch(/#f{3}(?![0-9a-f])|#f{6}(?![0-9a-f])/i);
+      // 不可自訂字距；
+      expect(declValue(rule, 'letter-spacing'), rule.selector).toBeUndefined();
+    });
+  });
+});
