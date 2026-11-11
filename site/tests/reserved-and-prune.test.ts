@@ -65,7 +65,8 @@ describe('applyReservedSlugs（R29）', () => {
     expect(reserved).toEqual(['index.html']);
   });
   // 其他保留名稱丟錯並點名路徑；each 對每個路徑跑一次；
-  it.each(['404.md', '_next/x.md', 'assets/x.html', 'Assets/y.md'])('保留的 slug %s 丟錯並點名路徑', (relPath) => {
+  // 根層的 assets.md、assets.html（slug 剛好是 ['assets']）也要丟錯，因為頁面 /assets 會與共用資源資料夾 assets/ 同名並存；
+  it.each(['404.md', '_next/x.md', 'assets/x.html', 'Assets/y.md', 'assets.md', 'assets.html', 'Assets.md'])('保留的 slug %s 丟錯並點名路徑', (relPath) => {
     // toThrow 的參數是字串時，訊息要包含它；
     expect(() => applyReservedSlugs([fake(relPath)])).toThrow(relPath);
   });
@@ -79,7 +80,7 @@ describe('applyReservedSlugs（R29）', () => {
     expect(site.report.reserved).toEqual(['index.html']);
   });
   // loadSite：404 與 assets 底下的筆記讓載入失敗；
-  it.each([['404.md'], ['assets/readme.md']])('loadSite 遇到 %s 丟錯', async (rel) => {
+  it.each([['404.md'], ['assets/readme.md'], ['assets.md']])('loadSite 遇到 %s 丟錯', async (rel) => {
     // 造筆記庫；
     const root = await tempVault({ [rel]: '# x\n', 'ok.md': '# ok\n' });
     // rejects.toThrow 斷言 Promise 失敗且訊息含路徑；

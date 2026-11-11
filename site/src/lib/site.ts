@@ -112,7 +112,7 @@ export function dropSuperseded(notes: NoteEntry[]): { published: NoteEntry[]; su
 }
 
 // R29：保留的 slug。根目錄的 index（build-index.py 產生的舊首頁）不發布、列入 reserved，因為 out/index.html 是網站首頁；
-// 根目錄的 404 與 _next、第一段是 assets 的 slug 會與 Next 或共用資源的輸出撞在一起，一律丟錯（絕不默默丟掉）；
+// 根目錄的 404 與 _next、第一段是 assets 的 slug（包含根層的 assets.md、assets.html）會與 Next 或共用資源的輸出撞在一起，一律丟錯（絕不默默丟掉）；
 // 比對時轉小寫，因為 Windows／macOS 的檔案系統不分大小寫（Index.html 也會蓋掉 index.html）；
 export function applyReservedSlugs(notes: NoteEntry[]): { published: NoteEntry[]; reserved: string[] } {
   // 被排除的根目錄 index；
@@ -130,8 +130,8 @@ export function applyReservedSlugs(notes: NoteEntry[]): { published: NoteEntry[]
       // 不發布；
       continue;
     }
-    // 根目錄的 404 或 _next（_next 開頭本來就被底線規則排除，這裡是第二道防線）、或第一段是 assets：丟錯並點名路徑；
-    if ((note.slug.length === 1 && first === '404') || first === '_next' || (first === 'assets' && note.slug.length > 1)) {
+    // 根目錄的 404 或 _next（_next 開頭本來就被底線規則排除，這裡是第二道防線）、或第一段是 assets（含根層的 assets.md，其 slug 剛好只有一段）：丟錯並點名路徑；
+    if ((note.slug.length === 1 && first === '404') || first === '_next' || first === 'assets') {
       // 丟錯；
       throw new Error(`筆記 ${note.relPath} 的網址會與網站保留的路徑（/404、/_next、/assets/…）衝突，請改名或移到其他資料夾，或在 _config.yml 的 exclude 排除它`);
     }
