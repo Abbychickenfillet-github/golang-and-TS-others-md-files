@@ -19,6 +19,8 @@ register('./ts-resolve-hook.mjs', import.meta.url);
 const { listNotes, loadExclude } = await import('../src/lib/content.ts');
 // 匯入與網站建置相同的「發布範圍」規則：被取代的舊 html、保留的 slug；
 const { applyReservedSlugs, dropSuperseded } = await import('../src/lib/site.ts');
+// 匯入原子寫檔；
+const { atomicWriteFile } = await import('../src/lib/atomic-write.ts');
 // 匯入遷移函式與相對路徑計算；
 const { assetsRelPath, migrateHtml } = await import('../src/lib/migrate-html.ts');
 // 匯入共用集合的聯集函式；
@@ -136,8 +138,16 @@ function assertCleanAndTracked(root) {
     // 轉訊息；
     throw new Error(`無法執行 git status，請確認筆記根目錄在 git repo 內：${error instanceof Error ? error.message : String(error)}`);
   }
-  // 逐行過濾：只有 .superpowers（已被 git 忽略的工作紀錄資料夾）不算髒；
-  const dirty = status.split('\n').filter((line) => line.trim() !== '' && !line.slice(3).startsWith('.superpowers'));
+  // 逐行過濾：只有 .superpowers（工作紀錄資料夾）不算髒；porcelain 每行前三個字元是狀態與空格，路徑可能被引號包住、資料夾以 / 結尾；
+  // 必須是「第一段路徑剛好等於 .superpowers」（精確比對，不是前綴：.superpowers-extra 不豁免）；
+  const dirty = status.split('\n').filter((line) => {
+    // 空行略過；
+    if (line.trim() === '') return false;
+    // 取路徑、去掉可能的引號，並取第一段；
+    const first = line.slice(3).replace(/^"|"$/g, '').split('/')[0];
+    // 第一段不是 .superpowers 才算髒；
+    return first !== '.superpowers';
+  });
   // 有任何其他變更就拒絕；
   if (dirty.length > 0) {
     // 最多列 10 行；
@@ -181,8 +191,8 @@ async function processFile(root, relPath, shared, apply, tracked) {
     if (apply && result.changed) {
       // 沒被 git 追蹤就回報錯誤、不寫；
       if (!tracked.has(relPath)) throw new Error('檔案未被 git 追蹤，無法用 git 回復，不寫入');
-      // 寫位元組；
-      await fs.writeFile(abs, Buffer.from(result.html, 'utf8'));
+      // 原子寫入：先寫同資料夾的暫存檔再改名覆蓋，中途失敗不會留下寫到一半的筆記（並保留原檔模式）；
+      await atomicWriteFile(abs, Buffer.from(result.html, 'utf8'));
     }
   } catch (error) {
     // 記錄錯誤訊息；

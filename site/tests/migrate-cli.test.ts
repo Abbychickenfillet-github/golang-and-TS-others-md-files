@@ -120,6 +120,20 @@ describe('migrate-html-notes：--apply', () => {
     expect(read('a/one.html').toString('utf8')).toBe(note());
   }, T);
 
+  // .superpowers 資料夾（工作紀錄）不算髒，但只有「整段路徑第一段」剛好是 .superpowers 才豁免，名稱只是以它開頭的不行；
+  it('.superpowers 資料夾不算髒，.superpowers-extra 這種只是同前綴的算髒', () => {
+    // 未追蹤的 .superpowers/ 底下有檔案：豁免，可以套用；
+    put('.superpowers/log.txt', 'x');
+    expect(run('--apply', '--only', 'top.html').code).toBe(0);
+    // 還原剛才的套用（讓工作目錄回到只有 .superpowers 的狀態）；
+    git('checkout', '--', 'top.html');
+    // 名稱只是以 .superpowers 開頭的未追蹤檔案：不豁免；
+    put('.superpowers-extra.txt', 'x');
+    const refused = run('--apply', '--only', 'top.html');
+    expect(refused.code).not.toBe(0);
+    expect(refused.out).toMatch(/工作目錄不乾淨/);
+  }, T);
+
   // 套用後內容改變、保留 CRLF，被排除與 md 檔不動；
   it('--apply 寫入遷移結果，保留 CRLF，不動被排除的檔案與 md', () => {
     // 執行；
