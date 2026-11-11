@@ -31,5 +31,8 @@ describe('共用樣式：在主題底色上的可讀性', () => {
     const rule = /th,td\{[^}]*\}/.exec(themeCss)?.[0] ?? '';
     // 含 overflow-wrap:anywhere；
     expect(rule).toContain('overflow-wrap:anywhere');
+    // notes.css 晚於主題載入，它的 td、th 規則也必須是 anywhere，否則會被 break-word 蓋回去（break-word 不縮小表格最小寬度）；
+    expect(notesCss).toMatch(/td, th \{ overflow-wrap: anywhere; \}/);
+    expect(notesCss).not.toMatch(/p, li, td, th/);
   });
 });
