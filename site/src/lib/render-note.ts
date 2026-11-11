@@ -65,8 +65,12 @@ export function resolveImage(site: Pick<LoadedSite, 'images'>, noteRelPath: stri
   return near;
 }
 
+// renderNote 的選項：strictLinks 為 true 時，遇到歧義 wikilink 立刻丟錯（頁面路由依 STRICT_LINKS 設定，讓直接跑 next build 也繞不過）；
+// 建置前的 site-report.mjs 不開它，因為它要先收集全部歧義再一次列出；
+export type RenderOptions = { strictLinks?: boolean };
+
 // 渲染一篇筆記；report 收集連結與圖片的警告（預設寫進 site.report）；basePath 是網址前綴；
-export async function renderNote(site: LoadedSite, note: NoteEntry, basePath: string, report: SiteReport = site.report): Promise<RenderedNote> {
+export async function renderNote(site: LoadedSite, note: NoteEntry, basePath: string, report: SiteReport = site.report, options: RenderOptions = {}): Promise<RenderedNote> {
   // 讀原文；
   const source = await fs.readFile(path.join(site.root, note.relPath), 'utf8');
   // 找不到的 wikilink：記下內文與這篇筆記；箭頭函式；
@@ -75,6 +79,8 @@ export async function renderNote(site: LoadedSite, note: NoteEntry, basePath: st
   const onAmbiguous = (raw: string, candidates: string[]) => {
     // 以去頭尾空白的內文為鍵；
     const key = raw.trim();
+    // 嚴格模式：直接丟錯，訊息點名筆記、連結與候選；
+    if (options.strictLinks) throw new Error(`STRICT_LINKS=1：${note.relPath} 的 [[${key}]] 有歧義（候選：${candidates.join('、')}），請加上資料夾前綴`);
     // 取出或新建紀錄；
     const entry = report.ambiguousLinks.get(key) ?? { candidates, from: new Set<string>() };
     // 加入這篇；

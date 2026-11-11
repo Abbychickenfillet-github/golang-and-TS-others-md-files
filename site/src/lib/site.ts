@@ -19,6 +19,8 @@ export type LinkIssue = { raw: string; from: string[] };
 export type SiteReport = {
   // 被取代而不發布的舊 html；
   superseded: SupersededEntry[];
+  // 因為 slug 是保留名稱而不發布的筆記 relPath（R29：根目錄的 index，由網站首頁取代）；
+  reserved: string[];
   // 只差大小寫或 Unicode 正規化的 slug 組（在 Windows／macOS 會寫到同一個檔案）；每組是 relPath 陣列；
   caseCollisions: string[][];
   // 被檔名鍵蓋過的 md 標題（listShadowedTitles 的結果）；
@@ -57,6 +59,7 @@ export function emptyReport(): SiteReport {
   // 物件字面值逐欄初始化；
   return {
     superseded: [], // 空陣列；
+    reserved: [], // 空陣列；
     caseCollisions: [], // 空陣列；
     shadowedTitles: [], // 空陣列；
     missingLinks: new Map(), // 空 Map，型別由 SiteReport 推得；
@@ -106,6 +109,37 @@ export function dropSuperseded(notes: NoteEntry[]): { published: NoteEntry[]; su
   const published = notes.filter((n) => !dropped.has(n.relPath));
   // 回傳結果；
   return { published, superseded };
+}
+
+// R29：保留的 slug。根目錄的 index（build-index.py 產生的舊首頁）不發布、列入 reserved，因為 out/index.html 是網站首頁；
+// 根目錄的 404 與 _next、第一段是 assets 的 slug 會與 Next 或共用資源的輸出撞在一起，一律丟錯（絕不默默丟掉）；
+// 比對時轉小寫，因為 Windows／macOS 的檔案系統不分大小寫（Index.html 也會蓋掉 index.html）；
+export function applyReservedSlugs(notes: NoteEntry[]): { published: NoteEntry[]; reserved: string[] } {
+  // 被排除的根目錄 index；
+  const reserved: string[] = [];
+  // 要發布的；
+  const published: NoteEntry[] = [];
+  // 逐篇檢查；
+  for (const note of notes) {
+    // 第一段轉小寫；
+    const first = note.slug[0].toLowerCase();
+    // 根目錄的 index：排除並記錄；
+    if (note.slug.length === 1 && first === 'index') {
+      // 記錄；
+      reserved.push(note.relPath);
+      // 不發布；
+      continue;
+    }
+    // 根目錄的 404 或 _next（_next 開頭本來就被底線規則排除，這裡是第二道防線）、或第一段是 assets：丟錯並點名路徑；
+    if ((note.slug.length === 1 && first === '404') || first === '_next' || (first === 'assets' && note.slug.length > 1)) {
+      // 丟錯；
+      throw new Error(`筆記 ${note.relPath} 的網址會與網站保留的路徑（/404、/_next、/assets/…）衝突，請改名或移到其他資料夾，或在 _config.yml 的 exclude 排除它`);
+    }
+    // 其餘發布；
+    published.push(note);
+  }
+  // 回傳；
+  return { published, reserved };
 }
 
 // 找出「轉小寫並做 NFC 正規化後相同」的 slug 組；這些在不分大小寫的檔案系統上會互相覆蓋，只警告不丟錯；
@@ -181,7 +215,9 @@ export async function loadSite(root: string): Promise<LoadedSite> {
   // 掃描所有筆記；
   const all = await listNotes(absRoot, exclude);
   // R25：去掉被取代的舊 html；
-  const { published, superseded } = dropSuperseded(all);
+  const { published: current, superseded } = dropSuperseded(all);
+  // R29：排除根目錄的 index，其他保留名稱丟錯；
+  const { published, reserved } = applyReservedSlugs(current);
   // 去掉之後 slug 必須唯一，其他重複是真正的錯誤，直接丟錯讓建置失敗；
   assertUniqueSlugs(published);
   // 建 wikilink 索引（只用要發布的筆記，被取代的舊 html 不會成為連結目標）；
@@ -192,6 +228,8 @@ export async function loadSite(root: string): Promise<LoadedSite> {
   const report = emptyReport();
   // 填入被取代清單；
   report.superseded = superseded;
+  // 填入保留名稱而不發布的筆記；
+  report.reserved = reserved;
   // 填入大小寫衝突；
   report.caseCollisions = findCaseCollisions(published);
   // 填入被蓋過的標題；

@@ -56,7 +56,8 @@ export default async function NotePage({ params }: PageProps) {
   // 讀取前綴；
   const basePath = getBasePath();
   // 渲染；警告寫進這個行程的 site.report，但整站彙整由建置前的 site-report.mjs 負責（見該檔開頭說明）；
-  const rendered = await renderNote(site, note, basePath);
+  // STRICT_LINKS=1 時遇到歧義連結直接丟錯，所以就算跳過 site-report.mjs 直接跑 next build 也會失敗；
+  const rendered = await renderNote(site, note, basePath, site.report, { strictLinks: process.env.STRICT_LINKS === '1' });
   // md 與 html 分流；
   return rendered.kind === 'md' ? <MdNote rendered={rendered} /> : <HtmlNote rendered={rendered} basePath={basePath} />;
 }

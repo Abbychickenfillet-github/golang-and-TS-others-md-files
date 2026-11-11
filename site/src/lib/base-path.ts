@@ -6,10 +6,11 @@ export function getBasePath(env: Record<string, string | undefined> = process.en
   const raw = env.BASE_PATH ?? '';
   // 沒設定（或設成空字串）代表網站放在網域根目錄，前綴就是空字串；
   if (raw === '') return '';
-  // 正規表示式：開頭必須是 /，後面至少一個字元，不可含空白、反斜線、?、#，而且最後一個字元不能是 /；
-  if (!/^\/[^\s\\?#]*[^\s\\?#/]$/.test(raw)) {
+  // 正規表示式：一個以上的「/ 加一段非空的路徑片段」；片段不可含 /、空白、反斜線、?、#、:，
+  // 所以 //host（協定相對網址）、/a//b（空片段）、結尾的 /、https://x 這類 scheme 都不合格；`(…)+` 表示整組重複一次以上；
+  if (!/^(\/[^/\s\\?#:]+)+$/.test(raw)) {
     // 格式不對就丟錯，讓建置立刻失敗（JSON.stringify 把值印成帶引號的字面形式，空白也看得出來）；
-    throw new Error(`BASE_PATH 必須以 / 開頭、結尾不能有 /，也不能含空白、?、#，例如 /Abby-notes；目前是 ${JSON.stringify(raw)}`);
+    throw new Error(`BASE_PATH 必須是 / 加路徑片段（例如 /Abby-notes），不能有 //、結尾的 /、空白、?、#、:；目前是 ${JSON.stringify(raw)}`);
   }
   // 驗證通過就原樣回傳；
   return raw;

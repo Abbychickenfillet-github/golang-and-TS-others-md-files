@@ -21,16 +21,18 @@ async function exists(p) {
   return fs.access(p).then(() => true, () => false);
 }
 
-// 把 dir 底下名為 escaped 的項目改名成 wanted；wanted 已存在就不動並回傳 false（避免覆蓋）；
+// 把 dir 底下名為 escaped 的項目改名成 wanted；wanted 已存在且沒有被跳脫的名稱時不用改；兩者同時存在就丟錯（不覆蓋、也不默默略過）；
 async function renameIfNeeded(dir, wanted, escapedNames, log) {
-  // 目標名稱已存在就不用改；
-  if (await exists(path.join(dir, wanted))) return false;
+  // 目標名稱是否已存在；
+  const wantedExists = await exists(path.join(dir, wanted));
   // 逐一嘗試可能被跳脫的名稱；
   for (const escaped of escapedNames) {
     // 與目標相同就跳過；
     if (escaped === wanted) continue;
-    // 被跳脫的名稱存在才改名；
+    // 被跳脫的名稱存在才處理；
     if (await exists(path.join(dir, escaped))) {
+      // 原名也已存在：無法判斷哪個是對的，丟錯並點名兩個路徑；
+      if (wantedExists) throw new Error(`fix-export-names：${path.join(dir, wanted)} 與 ${path.join(dir, escaped)} 同時存在，無法把後者改回原名，請檢查是否有兩篇筆記對到同一個檔名`);
       // fs.rename 改名（同一資料夾內）；
       await fs.rename(path.join(dir, escaped), path.join(dir, wanted));
       // 記錄；
@@ -47,6 +49,18 @@ async function renameIfNeeded(dir, wanted, escapedNames, log) {
 export async function fixExportNames(outDir, pages) {
   // 改名紀錄；
   const log = [];
+  // 先檢查衝突：某篇筆記被 Next 跳脫後的路徑，剛好是另一篇筆記的原名（例如字面上叫 C%23 的筆記與 C# 筆記），兩者會寫到同一個檔案；
+  const real = new Set(pages.map((slug) => slug.join('/')));
+  // 逐篇檢查；
+  for (const slug of pages) {
+    // 兩種跳脫方式的整條路徑；
+    for (const escapeEncoded of [false, true]) {
+      // 逐段跳脫後接起來；
+      const escaped = slug.map((s) => escapeSegment(s, escapeEncoded)).join('/');
+      // 跳脫後與自己不同、卻等於另一篇的原名：丟錯並點名兩篇；
+      if (escaped !== slug.join('/') && real.has(escaped)) throw new Error(`fix-export-names：筆記 ${slug.join('/')} 與 ${escaped} 會輸出成同一個檔名，請改名其中一篇`);
+    }
+  }
   // 逐篇處理；
   for (const slug of pages) {
     // 目前所在的資料夾（實際存在的路徑）；

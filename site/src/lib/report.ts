@@ -39,6 +39,10 @@ export function formatReport(report: SiteReport, ambiguousKeys: AmbiguousKey[] =
   lines.push(`被「-互動版.html」取代而不發布的舊 html：${report.superseded.length} 個`);
   // 逐一列出；
   for (const s of report.superseded) lines.push(`  ${s.relPath} → ${s.replacedBy}`);
+  // 保留名稱而不發布的筆記（R29）；
+  lines.push(`網址是保留名稱而不發布的筆記：${report.reserved.length} 個（根目錄的 index 由網站首頁取代）`);
+  // 逐一列出；
+  for (const relPath of report.reserved) lines.push(`  ${relPath}`);
   // 大小寫衝突；
   lines.push(`只差大小寫或 Unicode 正規化的網址：${report.caseCollisions.length} 組（在 Windows／macOS 會互相覆蓋）`);
   // 逐組列出；
@@ -72,6 +76,7 @@ export function reportToJson(report: SiteReport): Record<string, unknown> {
   // 逐欄轉換；
   return {
     superseded: report.superseded, // 已是純陣列，原樣放；
+    reserved: report.reserved, // 字串陣列，原樣放；
     caseCollisions: report.caseCollisions, // 陣列的陣列，原樣放；
     shadowedTitles: report.shadowedTitles, // 物件陣列，原樣放；
     missingLinks: setMap(report.missingLinks), // Map<字串, Set> 轉成 { 內文: [筆記…] }；
