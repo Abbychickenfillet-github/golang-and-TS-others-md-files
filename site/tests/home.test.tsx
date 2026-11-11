@@ -68,8 +68,28 @@ describe('buildHomeSections', () => {
     expect(sections[1]).toMatchObject({ heading: 'sub', level: 3 });
   });
 
-  // 排序是碼點順序（JS 的 < 比較），不是 localeCompare：大寫在小寫前、ASCII 在中文前；
-  it('資料夾與筆記依碼點順序排序，不受輸入順序影響', () => {
+  // 數字連續段比數值（與 build-index.py 的 natural_key 相同），所以編號系列不會變成 10 在 2 前面；資料夾與筆記都一樣；
+  it('編號系列依自然排序：筆記 2-x 在 10-x 前、資料夾 Day2 在 Day10 前（真實 repo 的 延伸／ 與 工作日誌／ 的情況）', () => {
+    // 仿 backend/Session-Token-Cookie-認證系列/延伸 與 工作日誌：筆記以數字開頭，資料夾名稱以數字結尾；
+    const sections = buildHomeSections([note('延伸/10-SPA.md'), note('延伸/2-JWT.md'), note('延伸/1-Cookie.md'), note('工作日誌/10.2026_03_13.md'), note('工作日誌/2.2026_01_03.md'), note('Day10/x.md'), note('Day2/x.md'), note('Day03/x.md'), note('Day16/x.md')]);
+    // 頂層資料夾順序：Day2、Day03 的數值是 2 與 3，所以 Day2、Day03、Day10、Day16，然後是中文資料夾（延伸、工作日誌依碼點：工 U+5DE5 在 延 U+5EF6 前）；
+    expect(sections.filter((s) => s.level === 2).map((s) => s.heading)).toEqual(['Day2', 'Day03', 'Day10', 'Day16', '工作日誌', '延伸']);
+    // 延伸 裡的筆記：1、2、10；
+    expect(sections.find((s) => s.heading === '延伸')?.items.map((i) => i.path)).toEqual(['延伸/1-Cookie', '延伸/2-JWT', '延伸/10-SPA']);
+    // 工作日誌 裡的筆記：2. 在 10. 前；
+    expect(sections.find((s) => s.heading === '工作日誌')?.items.map((i) => i.path)).toEqual(['工作日誌/2.2026_01_03', '工作日誌/10.2026_03_13']);
+  });
+
+  // 巢狀資料夾的每一段也是自然排序；
+  it('巢狀資料夾逐段自然排序（part2 在 part10 前，子樹不被打斷）', () => {
+    // 準備；
+    const sections = buildHomeSections([note('a/part10/x.md'), note('a/part2/deep/x.md'), note('a/part2/x.md'), note('a/top.md')]);
+    // 順序：a、part2、part2/deep、part10；
+    expect(sections.map((s) => s.heading)).toEqual(['a', 'part2', 'part2/deep', 'part10']);
+  });
+
+  // 排序是碼點順序的自然排序（文字段比碼點），不是 localeCompare：大寫在小寫前、ASCII 在中文前；
+  it('資料夾與筆記依自然排序（文字段碼點順序），不受輸入順序影響', () => {
     // 輸入故意亂序；
     const input = [note('中/z.md'), note('b/x.md'), note('B/x.md'), note('a/c.md'), note('a/B.md'), note('a/a.md'), note('a/中.md')];
     // 區塊順序：B、a、b、中；
@@ -153,6 +173,35 @@ describe('HomeIndex', () => {
     const marks = Array.from(container.querySelectorAll('li'), (li) => li.querySelector('.pill')?.textContent ?? null);
     // 只有第三個（前端的互動版）有；
     expect(marks).toEqual([null, null, '互動版', null]);
+  });
+
+  // React 的 key 必須唯一：兩個不同頂層資料夾底下的同名巢狀資料夾（真實 repo 的 frontend-docs/nextjs 與 react/nextjs）不能撞 key；
+  it('兩個同名巢狀資料夾的區塊 key 不同，渲染時 React 沒有重複 key 警告', () => {
+    // 準備：兩個頂層資料夾底下各有一個叫 nextjs 的子資料夾；
+    const same = buildHomeSections([note('frontend-docs/nextjs/a.md'), note('react/nextjs/b.md'), note('react/c.md'), note('root.md')]);
+    // 區塊 key 全部不同；
+    const keys = same.map((s) => s.key);
+    // Set 去重後數量不變；
+    expect(new Set(keys).size).toBe(keys.length);
+    // 監看 console.error：React 遇到重複 key 會用它印警告；
+    const errors: unknown[][] = [];
+    // 暫時換掉 console.error，記下呼叫參數；
+    const original = console.error;
+    // 換掉；
+    console.error = (...args: unknown[]) => {
+      // 記下；
+      errors.push(args);
+    };
+    // try/finally 確保一定還原；
+    try {
+      // 渲染；
+      render(<HomeIndex sections={same} total={4} basePath="" />);
+    } finally {
+      // 還原；
+      console.error = original;
+    }
+    // 沒有任何警告；
+    expect(errors).toEqual([]);
   });
 
   // 巢狀資料夾用 h3；

@@ -34,14 +34,14 @@ export function HomeIndex({ sections, total, basePath }: HomeIndexProps) {
           <Hero title="Abby Notes" pills={[]} meta={`共 ${total} 篇筆記`} />
           {/* 一張卡片裝全部區塊； */}
           <Card>
-            {/* 逐區塊輸出；標題文字加上篇數；key 用層級加標題，頂層與巢狀不會同名衝突（頂層標題互不相同，巢狀路徑也互不相同）； */}
+            {/* 逐區塊輸出；標題文字加上篇數；key 用區塊自己的 key（由完整資料夾路徑組成，不同頂層資料夾底下的同名巢狀資料夾也不會撞）； */}
             {sections.map((section) => {
               // 標題標籤依層級決定；JSX 的標籤名可以是大寫變數或字串變數，這裡用小寫字串變數需要先指定給大寫開頭的常數；
               const Heading = section.level === 2 ? 'h2' : 'h3';
               // 回傳一組標題加清單；
               return (
                 // Fragment 加 key（短語法 <> 不能帶 key）；
-                <Fragment key={`${section.level}:${section.heading}`}>
+                <Fragment key={section.key}>
                   {/* 資料夾標題；篇數用 meta 小字；notes.js 的大綱會取整段文字； */}
                   <Heading>
                     {section.heading}
