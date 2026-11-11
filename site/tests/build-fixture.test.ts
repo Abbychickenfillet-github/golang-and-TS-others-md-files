@@ -64,7 +64,8 @@ describe('npm run build（tests/site-vault）', () => {
   // 整組前執行；
   beforeAll(() => {
     // 先清掉舊的輸出，確保斷言看到的是這次的結果；force 讓不存在時不丟錯；
-    rmSync(outDir, { recursive: true, force: true });
+    // maxRetries 與 retryDelay 讓 Windows 上暫時被佔用（防毒軟體或剛結束的行程還握著檔案，會丟 EPERM）時自動重試；
+    rmSync(outDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
     // 建置；
     build = runBuild(baseEnv);
   }, 600_000);
@@ -105,8 +106,8 @@ describe('npm run build（tests/site-vault）', () => {
   it('根目錄的 index.html 不發布：out/index.html 是網站首頁，沒有 out/index/，摘要列出 reserved', () => {
     // 首頁不是舊的根目錄索引；
     expect(readOut('index.html')).not.toContain('OLD-ROOT-INDEX');
-    // 首頁是網站首頁；
-    expect(readOut('index.html')).toContain('<h1>Abby 的筆記</h1>');
+    // 首頁是網站首頁（Hero 的標題是 Abby Notes）；
+    expect(readOut('index.html')).toContain('<h1>Abby Notes</h1>');
     // 沒有 index 資料夾；
     expect(existsSync(path.join(outDir, 'index'))).toBe(false);
     // 摘要列出；
@@ -178,16 +179,38 @@ describe('npm run build（tests/site-vault）', () => {
     expect(page).not.toMatch(/href="[^"]*private/);
   });
 
-  // 首頁的連結也都能開；
-  it('首頁列出的每個連結都找得到檔案', () => {
+  // 首頁的連結也都能開，而且正好是「已發布」的全部筆記；
+  it('首頁為每篇已發布的筆記列出一個連結，href 解碼後找得到輸出檔，沒有被排除或被取代的', () => {
     // 讀首頁；
     const home = readOut('index.html');
-    // 取出 main 裡的連結（略過 _next 等資源）；
+    // 取出清單裡的連結（略過 _next 等資源）；
     const hrefs = Array.from(home.matchAll(/<li><a href="([^"]+)"/g), (m) => m[1]);
-    // 發布 11 篇（根目錄的 index.html 依 R29 不發布）；
-    expect(hrefs).toHaveLength(11);
-    // 每個都找得到；
+    // 發布清單（根目錄的 index.html 依 R29 不發布、被取代的舊 html 與互動版同網址所以不另列）；
+    const pages = pageList();
+    // 發布 11 篇；
+    expect(pages).toHaveLength(11);
+    // 解碼後的連結路徑；
+    const decoded = hrefs.map((h) => decodeURIComponent(h).replace(/^\//, ''));
+    // 與發布清單完全一致（每篇一個、不多不少、沒有重複）；
+    expect([...decoded].sort()).toEqual([...pages].sort());
+    // 每個都找得到檔案（模擬 GitHub Pages）；
     for (const href of hrefs) expect(servable(href), href).toBe(true);
+    // 被排除的資料夾與筆記沒有出現在首頁的連結或文字裡；
+    expect(home).not.toMatch(/private|_hidden|secret/);
+    // 舊的根目錄索引沒有留下痕跡；
+    expect(home).not.toContain('OLD-ROOT-INDEX');
+    // 去掉 React 在相鄰文字節點之間插入的註解標記，方便比對文字；
+    const text = home.replace(/<!-- -->/g, '');
+    // 頁首的篇數；
+    expect(text).toContain('共 11 篇筆記');
+    // 每個資料夾一個 h2（含篇數），依碼點順序：根目錄在最前，其後 a、b、quiz、前端、特殊、簡報、舊；
+    expect(Array.from(text.matchAll(/<h2>(.*?)<span class="meta">（(\d+)）<\/span><\/h2>/g), (m) => `${m[1]}${m[2]}`)).toEqual(['根目錄1', 'a1', 'b1', 'quiz1', '前端2', '特殊2', '簡報1', '舊2']);
+    // 首頁自己也有 notes.js 要用的結構：一個 article.card 裝全部區塊；
+    expect(text.match(/<article class="card"/g)).toHaveLength(1);
+    // 互動版筆記旁邊有可見的「互動版」標記，一般筆記沒有；
+    expect(text).toMatch(/日期物件互動版<\/a> <span class="pill">互動版<\/span>/);
+    // 標記只出現兩次（前端的與舊的兩篇互動版）；
+    expect(text.match(/<span class="pill">互動版<\/span>/g)).toHaveLength(2);
   });
 
   // html 頁的腳本；

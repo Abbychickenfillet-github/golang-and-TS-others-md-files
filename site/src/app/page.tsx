@@ -1,36 +1,23 @@
+// `import type` 只匯入型別：Metadata 描述頁面 <head> 的標題等資訊；
+import type { Metadata } from 'next';
 // 匯入快取版的網站載入函式；
 import { getSite } from '../lib/site';
-// 匯入網址編碼工具；
-import { encodeSitePath } from '../lib/render-note';
+// 匯入首頁分組函式；
+import { buildHomeSections } from '../lib/home';
 // 匯入 basePath 讀取；
 import { getBasePath } from '../lib/base-path';
+// 匯入首頁清單元件；
+import { HomeIndex } from '../components/HomeIndex';
 
-// 暫時的首頁（11b 會換成依資料夾分組的正式首頁）：列出所有筆記的連結，讓 next build 有 / 這個路由；
+// 首頁的 <title>：用 absolute 跳過 layout 的 `%s｜Abby 的筆記` 樣板，直接是 Abby Notes；
+export const metadata: Metadata = { title: { absolute: 'Abby Notes' } };
+
+// 首頁：列出「已發布」的全部筆記（與 [...slug] 路由用同一份 site.notes，所以被排除、被取代、保留名稱的筆記都不會出現），取代 build-index.py 產生的根目錄 index.html；
 export default async function Home() {
-  // 載入網站；
+  // 載入網站（每個行程只載一次）；
   const site = await getSite();
   // 讀取前綴；
   const basePath = getBasePath();
-  // 回傳 JSX；
-  return (
-    // 與筆記頁相同的外層結構；
-    <div className="wrap">
-      {/* 主要內容區； */}
-      <main className="content">
-        {/* 頁面標題； */}
-        <h1>Abby 的筆記</h1>
-        {/* 筆記清單； */}
-        <ul>
-          {/* 每篇一個連結；網址是 slug 逐段編碼；relPath 唯一，當 key； */}
-          {site.notes.map((note) => (
-            // 清單項目；
-            <li key={note.relPath}>
-              {/* 一般 a 連結（整頁載入，讓每頁自己的腳本都會執行）； */}
-              <a href={encodeSitePath(note.slug.join('/'), basePath)}>{note.title}</a>
-            </li>
-          ))}
-        </ul>
-      </main>
-    </div>
-  );
+  // 分組後交給元件；
+  return <HomeIndex sections={buildHomeSections(site.notes)} total={site.notes.length} basePath={basePath} />;
 }
