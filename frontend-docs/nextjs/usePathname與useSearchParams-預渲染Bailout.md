@@ -14,7 +14,7 @@ updated: 2026-09-17
 > 本篇重點 a–n，共 14 個（2026-09-17 補入 k-2、k-3：靜態／動態／CSR 三個渲染時機的定義，以及「加不加 Suspense 決定損失範圍」）
 
 > [!info] 互動筆記（需 Obsidian HTML Reader 外掛）
-> ![[usePathname與useSearchParams-預渲染Bailout.html]]
+> ![[usePathname與useSearchParams-預渲染Bailout-互動版.html]]
 
 ## 主軸圖
 

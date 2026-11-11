@@ -11,7 +11,7 @@ updated: 2026-10-26
 > 本篇重點 a–f，共 6 個
 
 > [!info] 互動版（四象限、填空、是非、申論）
-> ![[nextjs-ssg-and-headless-cms.html]]
+> ![[nextjs-ssg-and-headless-cms-互動版.html]]
 
 ## a. 答案
 

@@ -11,7 +11,7 @@ updated: 2026-10-26
 > 本篇重點 a–e，共 5 個
 
 > [!info] 互動動畫（三欄並排、可切換 CSR 空殼與預渲染、可切換爬蟲類型）
-> ![[nextjs-crawler-html-vs-browser-dom-animation.html]]
+> ![[nextjs-crawler-html-vs-browser-dom-animation-互動版.html]]
 
 ## a. 精確說法
 

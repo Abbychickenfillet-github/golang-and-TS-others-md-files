@@ -11,7 +11,7 @@ updated: 2026-10-26
 > 本篇重點 a–g，共 7 個
 
 > [!info] 互動筆記（滑鼠移到名詞上看解釋、時間線可點擊、有填空與是非題）
-> ![[nextjs-prerender-and-csr-bailout.html]]
+> ![[nextjs-prerender-and-csr-bailout-互動版.html]]
 
 ## 主軸圖
 

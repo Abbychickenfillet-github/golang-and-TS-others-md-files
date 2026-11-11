@@ -5,7 +5,7 @@ tags: [react, hooks, useEffect, lifecycle, class-component, cleanup]
 
 # class 生命週期方法 vs function component（useEffect）
 
-> 主筆記是互動 HTML（可點擊遮答案、自我測驗）：[class生命週期方法-vs-useEffect.html](./class生命週期方法-vs-useEffect.html)
+> 主筆記是互動 HTML（可點擊遮答案、自我測驗）：[class生命週期方法-vs-useEffect.html](./class生命週期方法-vs-useEffect-互動版.html)
 > 這個 `.md` 只是薄索引，給 Obsidian 的 graph、全文搜尋與 `[[wikilink]]` 用，內容不重複寫。
 
 ## 一句話

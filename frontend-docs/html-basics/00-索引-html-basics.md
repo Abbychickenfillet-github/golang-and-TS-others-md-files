@@ -17,8 +17,8 @@ updated: 2026-10-23
 2. **[[DTD-文件類型定義]]** — SGML 衍生出的「規則檔」。舊版 DOCTYPE 指向的就是它，讀完才懂 HTML5 為何能把 DOCTYPE 砍到剩一行。
 3. **[[HTML文件結構-DOCTYPE與骨架]]** — 本資料夾主幹。最小 HTML5 文件、DOCTYPE 開關、`html` / `head` / `body` 骨架、`lang` 與 `charset` 的差別一次講清。權威來源：[WHATWG HTML Living Standard](https://html.spec.whatwg.org/)
 4. **[[HTML-Parsing DOM樹建立過程-瀏覽器拿到HTTP-response-body之後]]** — 承接第 3 章：瀏覽器拿到 HTML 字串後，怎麼一步步 parse 成 DOM 樹。互動版：[[HTML-Parsing-瀏覽器拿到HTTP-response-body之後.html]]
-5. **[[content-attribute-vs-IDL-property-與表單提交機制]]** — DOM 建好後，元素屬性其實有兩個世界：HTML 的 content attribute 與 JS 的 IDL property。互動版：[[content-attribute-vs-IDL-property-與表單提交機制.html]]｜範例：[[form-attribute-vs-property-demo.html]]
-6. **[[abbr元素-縮寫與acronym的差異-title屬性怎麼被看見]]** — 把前面概念落到一個具體語意元素上（text-level semantics）。互動版：[[abbr元素-縮寫與acronym的差異-title屬性怎麼被看見.html]]｜範例：[[demo-abbr.html]]
+5. **[[content-attribute-vs-IDL-property-與表單提交機制]]** — DOM 建好後，元素屬性其實有兩個世界：HTML 的 content attribute 與 JS 的 IDL property。互動版：[[content-attribute-vs-IDL-property-與表單提交機制-互動版.html]]｜範例：[[form-attribute-vs-property-demo.html]]
+6. **[[abbr元素-縮寫與acronym的差異-title屬性怎麼被看見]]** — 把前面概念落到一個具體語意元素上（text-level semantics）。互動版：[[abbr元素-縮寫與acronym的差異-title屬性怎麼被看見-互動版.html]]｜範例：[[demo-abbr.html]]
 
 ## 🔗 依賴關係（為什麼是這個順序）
 

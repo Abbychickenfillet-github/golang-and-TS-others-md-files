@@ -11,7 +11,7 @@ updated: 2026-10-26
 > 本篇重點 a–f，共 6 個
 
 > [!info] 互動版（點擊填空與是非題）
-> ![[url-parse-vs-url-class-parse-legacy-vs-whatwg.html]]
+> ![[url-parse-vs-url-class-parse-legacy-vs-whatwg-互動版.html]]
 
 ## a. 三個寫法對照
 
