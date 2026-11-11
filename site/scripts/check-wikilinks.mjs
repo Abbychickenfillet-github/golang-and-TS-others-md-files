@@ -5,7 +5,7 @@ import * as path from 'node:path';
 // 匯入 content.ts 的函式；Node 24 內建「型別剝除」，可直接匯入 .ts 檔，所以副檔名要寫完整；
 import { listNotes, loadExclude } from '../src/lib/content.ts';
 // 匯入 wikilink.ts 的索引建立、歧義清單與詳細解析函式；
-import { buildWikilinkIndex, listAmbiguousKeys, resolveWikilinkDetailed } from '../src/lib/wikilink.ts';
+import { buildWikilinkIndex, listAmbiguousKeys, listShadowedTitles, resolveWikilinkDetailed } from '../src/lib/wikilink.ts';
 
 // 筆記根目錄：優先讀環境變數 NOTES_ROOT，沒有就用上一層（repo 根目錄）；`??` 只在左邊是 undefined 或 null 時才取右邊；
 const root = path.resolve(process.env.NOTES_ROOT ?? '..');
@@ -24,8 +24,14 @@ const index = buildWikilinkIndex(notes);
 console.log(`index keys: ${index.size}`);
 // 取得歧義鍵清單；
 const ambiguousKeys = listAmbiguousKeys(index);
-// 印出歧義鍵數；
+// 印出歧義鍵數（這些鍵不在公開 Map 裡，只存在旁路表，所以上面的 index keys 不含它們）；
 console.log(`ambiguous keys: ${ambiguousKeys.length}`);
+// 取得被檔名鍵蓋過的標題清單（優先序：檔名鍵勝，這裡只是留下紀錄）；
+const shadowed = listShadowedTitles(index);
+// 印出數量；
+console.log(`shadowed titles: ${shadowed.length}`);
+// 印出前 10 筆：標題鍵、贏家（檔名擁有者）與被蓋過者；
+for (const s of shadowed.slice(0, 10)) console.log(`  「${s.key}」 winner=${s.winner} shadowed=${s.shadowed.join(' ; ')}`);
 
 // 印出 00-閱讀順序 的解析結果（它先前不在舊的執行期索引裡）；JSON.stringify 把物件印成一行文字；
 console.log(`00-閱讀順序 ->`, JSON.stringify(resolveWikilinkDetailed('00-閱讀順序', index)));

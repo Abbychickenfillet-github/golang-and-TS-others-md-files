@@ -24,8 +24,12 @@ export type RemarkWikilinkOptions = {
 // ---------- 索引的「種類資訊」旁路表 ----------
 // 設計：索引的型別依規定是 Map<鍵, 網址>，但「[[x.html]] 要指定種類」與「[[資料夾/標題]] 要用路徑尾段消歧」需要知道每個鍵對應的筆記；
 // 做法：buildWikilinkIndex 另外把「鍵 → NoteEntry[]」存進這個 WeakMap，以索引 Map 物件本身當鍵；
-// WeakMap 的鍵是弱參照，索引被回收時旁路表會自動跟著消失，不會洩漏記憶體；手寫的普通 Map 查不到旁路表，就退回只看 Map 的值；
+// WeakMap 的鍵是弱參照，索引被回收時旁路表會自動跟著消失，不會洩漏記憶體；
+// 重點（R16）：歧義鍵「不」放進公開 Map，只存在旁路表；所以 Map 的複本、展開、序列化後還原、手寫的普通 Map 都看不到歧義鍵，
+// 這些情況查不到旁路表就只看 Map 的值，歧義鍵視為不存在（找不到、保留純文字），絕不會默默連到第一個候選；
 const registries = new WeakMap<Map<string, string>, Map<string, NoteEntry[]>>();
+// 被檔名鍵蓋過的標題紀錄，同樣以索引 Map 為鍵的旁路資料；
+const shadowedTitles = new WeakMap<Map<string, string>, { key: string; winner: string; shadowed: string[] }[]>();
 
 // 筆記的站內路徑（未編碼）：開頭一個 /，加上 slug 片段用 / 連起來；
 function urlOf(note: NoteEntry): string {
@@ -73,7 +77,7 @@ function groupBy(notes: NoteEntry[], keyOf: (note: NoteEntry) => string | undefi
 
 // 建立 wikilink 索引：鍵是檔名（去副檔名，md 與 html 都登記）與 frontmatter 標題（只有 md 登記，R15），值是未編碼的站內路徑；
 // 規則：同資料夾同檔名的 md／html 配對視為同一篇（偏好 md，R3）；檔名鍵優先於標題鍵；
-// 「不同筆記同鍵」不丟錯，只在旁路表中成為歧義鍵（Map 的值取第一個候選），到解析時才處理（見 resolveWikilinkDetailed）；
+// 「不同筆記同鍵」不丟錯：歧義鍵只留在旁路表、不放進公開 Map（fail closed），到解析時才處理（見 resolveWikilinkDetailed）；
 export function buildWikilinkIndex(notes: NoteEntry[]): Map<string, string> {
   // 檔名鍵分組：slug 的最後一段就是去掉副檔名的檔名；`.at(-1)` 取最後一個元素；
   const byName = groupBy(notes, (n) => n.slug.at(-1));
@@ -83,28 +87,43 @@ export function buildWikilinkIndex(notes: NoteEntry[]): Map<string, string> {
   const index = new Map<string, string>();
   // 旁路表：鍵 → 筆記陣列；
   const registry = new Map<string, NoteEntry[]>();
-  // 先放檔名鍵；
-  for (const [key, list] of byName) {
+  // 被檔名鍵蓋過的標題紀錄；
+  const shadowed: { key: string; winner: string; shadowed: string[] }[] = [];
+  // 登記一個鍵：md 優先排序後存進旁路表；只有「沒有歧義」的鍵才放進公開 Map（R16：歧義鍵 fail closed，不給任何人第一個候選）；
+  const register = (key: string, list: NoteEntry[]) => {
     // md 優先排序；
     const sorted = preferMarkdown(list);
-    // 網址取第一篇（偏好 md）；
-    index.set(key, urlOf(sorted[0]));
-    // 旁路表保留完整清單供種類與資料夾比對；
+    // 旁路表保留完整清單供種類、資料夾與歧義判斷；
     registry.set(key, sorted);
-  }
-  // 再放標題鍵，已有檔名鍵的就不覆蓋；
+    // 不同邏輯筆記超過一篇就是歧義：不寫入公開 Map，複製或序列化後的 Map 看不到它，解析時會當成找不到；
+    if (new Set(sorted.map(logicalId)).size > 1) return;
+    // 唯一（或 md／html 配對）才寫入網址，取第一篇（偏好 md）；
+    index.set(key, urlOf(sorted[0]));
+  };
+  // 先放檔名鍵；
+  for (const [key, list] of byName) register(key, list);
+  // 再放標題鍵，已有檔名鍵的不覆蓋（檔名鍵優先，與 Obsidian 以檔名連結一致），但要記錄被蓋過的標題；
   for (const [key, list] of byTitle) {
-    // 檔名鍵優先；
-    if (byName.has(key)) continue;
-    // 同上；
-    const sorted = preferMarkdown(list);
-    // 寫入索引；
-    index.set(key, urlOf(sorted[0]));
-    // 寫入旁路表；
-    registry.set(key, sorted);
+    // 沒有同名的檔名鍵：正常登記；
+    const winners = registry.get(key);
+    // 沒有贏家就登記標題鍵；
+    if (!winners) {
+      // 登記；
+      register(key, list);
+      // 下一個鍵；
+      continue;
+    }
+    // 贏家筆記的邏輯識別集合；
+    const winnerIds = new Set(winners.map(logicalId));
+    // 被蓋過者：標題相同、但不是贏家本人（筆記標題剛好等於自己檔名不算）；
+    const lost = list.filter((n) => !winnerIds.has(logicalId(n)));
+    // 有被蓋過者才記錄；贏家取候選清單第一個的 relPath；
+    if (lost.length > 0) shadowed.push({ key, winner: winners[0].relPath, shadowed: lost.map((n) => n.relPath) });
   }
   // 把旁路表掛在這個索引上；
   registries.set(index, registry);
+  // 把被蓋過的標題紀錄也掛上去；
+  shadowedTitles.set(index, shadowed);
   // 回傳索引；
   return index;
 }
@@ -124,6 +143,12 @@ export function listAmbiguousKeys(index: Map<string, string>): { key: string; ca
   }
   // 回傳；
   return out;
+}
+
+// 列出被檔名鍵蓋過的標題：某篇 md 的 frontmatter 標題等於另一篇筆記的檔名時，該標題鍵不生效（檔名鍵優先），這裡留下紀錄供建置顯示警告；
+export function listShadowedTitles(index: Map<string, string>): { key: string; winner: string; shadowed: string[] }[] {
+  // 沒有旁路資料（手寫或複製的 Map）就回傳空陣列；
+  return shadowedTitles.get(index) ?? [];
 }
 
 // 與 assets/notes.js 的 slug() 逐字相同：notes.js 在瀏覽器執行期用它替標題加上 id，所以錨點必須用同一套規則；
@@ -175,7 +200,7 @@ type Lookup = { url: string } | { candidates: string[] } | null;
 function lookup(index: Map<string, string>, key: string, kind: 'md' | 'html' | undefined, folder: string[]): Lookup {
   // 取旁路表；
   const registry = registries.get(index);
-  // 沒有旁路表（手寫的普通 Map）：只看 Map 的值，無法依種類或資料夾過濾，也沒有歧義資訊；
+  // 沒有旁路表（手寫、複製、還原後的普通 Map）：只看 Map 的值，無法依種類或資料夾過濾；歧義鍵不在 Map 內，所以會是「找不到」，不會連到任何候選；
   if (!registry) {
     // 取值；
     const value = index.get(key);
@@ -294,8 +319,8 @@ export function findAmbiguity(raw: string, index: Map<string, string>): string[]
 
 // 判斷一個字串是不是索引裡的鍵（只用來決定要不要在 # 切開）；
 function isKnownKey(index: Map<string, string>, key: string): boolean {
-  // Map 的 has 檢查鍵是否存在；
-  return index.has(key);
+  // 公開 Map 有這個鍵，或旁路表有（歧義鍵只在旁路表）；`?.` 在旁路表不存在時回傳 undefined，`??` 再補成 false；
+  return index.has(key) || (registries.get(index)?.has(key) ?? false);
 }
 
 // 在一段文字裡找所有 `[[…]]`；`!` 開頭的是嵌入語法，整個略過不處理；

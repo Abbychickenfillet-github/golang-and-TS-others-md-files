@@ -17,7 +17,7 @@ import remarkRehype from 'remark-rehype';
 // 匯入 rehype-stringify，把 hast 輸出成 HTML 字串；
 import rehypeStringify from 'rehype-stringify';
 // 匯入被測模組的公開函式；
-import { buildWikilinkIndex, findAmbiguity, headingSlug, listAmbiguousKeys, remarkWikilink, resolveWikilink, rewriteWikilinksInHtml } from '../src/lib/wikilink';
+import { buildWikilinkIndex, findAmbiguity, headingSlug, listAmbiguousKeys, listShadowedTitles, remarkWikilink, resolveWikilink, resolveWikilinkDetailed, rewriteWikilinksInHtml } from '../src/lib/wikilink';
 // 匯入 NoteEntry 型別；`import type` 整句只在編譯期存在；
 import type { NoteEntry } from '../src/lib/content';
 
@@ -64,8 +64,10 @@ describe('buildWikilinkIndex', () => {
   it('兩篇不同筆記標題相同：索引照樣建得出來，並標記該鍵有歧義', () => {
     // 檔名不同、標題相同；
     const index = indexOf(note('a/甲.md', '共同標題'), note('b/乙.md', '共同標題'));
-    // 沒丟錯，兩個檔名鍵與標題鍵都在；
-    expect(index.has('甲') && index.has('乙') && index.has('共同標題')).toBe(true);
+    // 沒丟錯，兩個檔名鍵都在；歧義的標題鍵「不」放進公開 Map（R16：fail closed）；
+    expect(index.has('甲') && index.has('乙')).toBe(true);
+    // 歧義鍵在公開 Map 中不存在；
+    expect(index.has('共同標題')).toBe(false);
     // 歧義鍵清單只有標題鍵，候選列出兩個 relPath；
     expect(listAmbiguousKeys(index)).toEqual([{ key: '共同標題', candidates: ['a/甲.md', 'b/乙.md'] }]);
   });
@@ -120,6 +122,52 @@ describe('buildWikilinkIndex', () => {
     expect(index.get('CDN-互動版')).toBe('/f/CDN-互動版');
     // 沒有任何歧義鍵；
     expect(listAmbiguousKeys(index)).toEqual([]);
+  });
+
+  // R16：歧義鍵不在公開 Map 內，複製、展開、手寫的 Map 看不到它，所以會當成「找不到」而不是默默連到第一個候選；
+  it('歧義鍵 fail closed：Map 的複本與展開都不會連到任何一篇，原索引仍回報歧義', () => {
+    // 兩個 README（歧義）加一篇唯一的筆記；
+    const amb = indexOf(note('a/README.md'), note('b/README.md'), note('c/獨一.md'));
+    // 歧義鍵不在 Map 內，唯一的鍵在；
+    expect(amb.has('README')).toBe(false);
+    // 唯一的鍵值正常；
+    expect(amb.get('獨一')).toBe('/c/獨一');
+    // 複製（失去旁路表）：歧義鍵視為找不到，不丟錯；
+    expect(resolveWikilink('README', new Map(amb))).toBeNull();
+    // 展開成陣列再重建（模擬序列化再還原）：同樣視為找不到；
+    expect(resolveWikilink('README', new Map([...amb]))).toBeNull();
+    // 複本回報的是「找不到」而不是「歧義」；
+    expect(resolveWikilinkDetailed('README', new Map(amb)).status).toBe('missing');
+    // 複本的唯一鍵仍能解析；
+    expect(resolveWikilink('獨一', new Map(amb))?.href).toBe('/c/%E7%8D%A8%E4%B8%80');
+    // 原索引（旁路表還在）：用 remark 外掛走一遍，保留純文字並呼叫 onAmbiguous；
+    const { html, onAmbiguous, onMissing } = render('[[README]]', amb);
+    // 原文不變；
+    expect(html).toBe('<p>[[README]]</p>');
+    // 回報歧義與候選；
+    expect(onAmbiguous).toHaveBeenCalledWith('README', ['a/README.md', 'b/README.md']);
+    // 不算缺漏；
+    expect(onMissing).not.toHaveBeenCalled();
+  });
+
+  // R16：標題鍵被別人的檔名鍵蓋過時，要留下紀錄（優先序不變：檔名鍵勝）；
+  it('標題被他人檔名鍵蓋過：listShadowedTitles 記錄贏家與被蓋過者', () => {
+    // A 的檔名是「圖解」，B 的標題也是「圖解」，另有 C 的標題不撞任何鍵；
+    const index = indexOf(note('a/圖解.md'), note('b/別的.md', '圖解'), note('c/丙.md', '獨特標題'));
+    // 優先序不變：「圖解」仍指向 A；
+    expect(index.get('圖解')).toBe('/a/圖解');
+    // 只有被蓋過的那一筆被列出；
+    expect(listShadowedTitles(index)).toEqual([{ key: '圖解', winner: 'a/圖解.md', shadowed: ['b/別的.md'] }]);
+  });
+
+  // 沒被蓋過的標題、以及筆記自己的標題等於自己的檔名，都不列；
+  it('沒被蓋過的標題與「標題等於自己檔名」不列入 listShadowedTitles', () => {
+    // 一篇標題等於檔名，一篇標題獨特；
+    const index = indexOf(note('a/同名.md', '同名'), note('b/乙.md', '獨特標題'));
+    // 空清單；
+    expect(listShadowedTitles(index)).toEqual([]);
+    // 手寫的普通 Map 沒有旁路表，也回傳空清單而不丟錯；
+    expect(listShadowedTitles(new Map())).toEqual([]);
   });
 
   // R3：同資料夾同名的 md 與 html 是配對，不算衝突，偏好 md；
