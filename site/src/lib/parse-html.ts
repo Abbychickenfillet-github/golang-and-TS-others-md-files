@@ -46,7 +46,7 @@ const SHARED_SCRIPT_FILES = new Set(['notes.js', 'note-mask.js', 'note-quiz.js',
 const SHARED_STYLESHEET_FILES = new Set(['notes.css', 'note-theme.css', 'note-interactive.css']);
 
 // 取出網址或路徑的「檔名」：去掉查詢字串與錨點，再取最後一段，並轉小寫方便比對；
-function fileNameOf(url: string): string {
+export function fileNameOf(url: string): string {
   // 正規表示式 `[?#].*$` 比對從第一個 ? 或 # 到結尾的全部文字，替換成空字串；
   const clean = url.replace(/[?#].*$/, '');
   // 依正斜線或反斜線切開（Windows 路徑也考慮），pop 取最後一段；`?? ''` 在陣列為空時給空字串；
@@ -123,66 +123,164 @@ export function sharedSelectors(themeCss: string): Set<string> {
   return result;
 }
 
+// 修剪時的統計：被整條移除的規則數、被丟掉的選擇器（已正規化）、被丟掉的共用自訂屬性名稱（依文件順序）；
+export type PruneTally = { rulesRemoved: number; selectorsRemoved: string[]; customPropsRemoved: string[] };
+
+// 修剪選項：keepComments 為 true 時保留作者的 CSS 註解與倖存規則的原始格式（預設 false，與網站建置的行為相同）；
+export type PruneOptions = { keepComments?: boolean };
+
+// 修剪過程共用的內部狀態：是否保留註解，以及統計物件（會被就地累加）；
+type PruneCtx = { keepComments: boolean; tally: PruneTally };
+
+// 把容器內「第一個倖存節點」的前置空白還原成「原本第一個節點」的前置空白（保留註解模式用）：
+// 原本第一個節點被移除後，後面的節點可能帶著「同一行接續」的空白，會讓輸出縮在大括號後面或多出空行；
+function restoreFirstBefore(container: Container, firstOriginal: ChildNode | undefined): void {
+  // 沒有原本第一個節點、或容器已空，什麼都不用做；
+  if (!firstOriginal || !container.nodes || container.nodes.length === 0) return;
+  // 第一個倖存節點就是原本第一個節點，空白本來就對；
+  const first = container.nodes[0];
+  // 不同節點才需要還原；raws.before 是 postcss 記錄的「節點前面的原始空白」，型別是 string | undefined；
+  if (first !== firstOriginal && typeof firstOriginal.raws.before === 'string') first.raws.before = firstOriginal.raws.before;
+}
+
+// 丟掉「孤兒註解」（保留註解模式用）：區段標題註解（獨占一行的註解）底下的規則全被移除了，標題就沒有意義；
+// 行尾註解（與前一條規則同一行）跟著前一條規則走：規則被移除，它也一起移除；`/*! … */` 授權註解一律保留；
+function dropOrphanComments(nodes: ChildNode[]): void {
+  // 目前區段的標題註解與底下的規則；
+  let header: ChildNode | null = null;
+  let members: ChildNode[] = [];
+  // 前一個非註解節點，行尾註解要看它的存亡；
+  let prev: ChildNode | null = null;
+  // 結算一個區段：標題底下至少有一條規則、而且全被移除（移除後 parent 變成 undefined）才丟標題；
+  const flush = (): void => {
+    // 條件成立就移除標題；
+    if (header && members.length > 0 && members.every((m) => m.parent === undefined)) header.remove();
+  };
+  // 依原本順序走過每個節點；
+  for (const node of nodes) {
+    // 註解節點；
+    if (node.type === 'comment') {
+      // 授權註解（內文以 ! 開頭）永遠保留，也不當成區段標題；
+      if (node.text.startsWith('!')) continue;
+      // 獨占一行：第一個節點，或前面的空白含換行；
+      const standalone = node === nodes[0] || (node.raws.before ?? '').includes('\n');
+      // 行尾註解：前一條規則被移除就一起移除；
+      if (!standalone && prev) {
+        // 前一條已被移除；
+        if (prev.parent === undefined) node.remove();
+        // 處理下一個節點；
+        continue;
+      }
+      // 結算上一個區段，開新區段；
+      flush();
+      header = node;
+      members = [];
+      // 處理下一個節點；
+      continue;
+    }
+    // 非註解節點屬於目前區段；
+    members.push(node);
+    prev = node;
+  }
+  // 結算最後一個區段；
+  flush();
+}
+
 // 在容器（根節點或 @media／@supports）內做修剪；遞迴呼叫自己處理巢狀的條件式 at-rule；
-function pruneContainer(container: Container, shared: Set<string>): void {
+function pruneContainer(container: Container, shared: Set<string>, ctx: PruneCtx): void {
   // 先複製一份子節點陣列再迭代，因為迴圈裡會移除節點，直接迭代原陣列會跳過元素；
-  for (const node of [...(container.nodes as ChildNode[])]) {
+  const original = [...(container.nodes as ChildNode[])];
+  // 逐個節點處理；
+  for (const node of original) {
     // 只處理規則與 at-rule，宣告與其他節點原樣保留；
     if (node.type === 'rule') {
       // 修剪這條規則；
-      pruneRule(node, shared);
+      pruneRule(node, shared, ctx);
     } else if (node.type === 'atrule') {
       // 只有 @media 與 @supports 遞迴；@keyframes、@font-face、@import 等一律原樣保留；
       if (/^(media|supports)$/i.test(node.name) && node.nodes) {
         // 遞迴修剪內層；
-        pruneContainer(node, shared);
+        pruneContainer(node, shared, ctx);
         // 內層清空了，整個 at-rule 一起移除；
         if (node.nodes.length === 0) node.remove();
       }
     }
   }
+  // 保留註解模式：丟孤兒註解，並把第一個倖存節點的前置空白還原成原本第一個節點的；
+  if (ctx.keepComments) {
+    // 孤兒註解；
+    dropOrphanComments(original);
+    // 還原前置空白；
+    restoreFirstBefore(container, original[0]);
+  }
 }
 
 // 修剪單一規則：丟掉共用選擇器；:root 規則則丟掉共用的自訂屬性宣告；
-function pruneRule(rule: Rule, shared: Set<string>): void {
+function pruneRule(rule: Rule, shared: Set<string>, ctx: PruneCtx): void {
   // 取出選擇器清單；
   const selectors = rule.selectors;
   // 只保留「不在共用集合內」的選擇器；
   const kept = selectors.filter((selector) => !shared.has(normalizeSelector(selector)));
   // 每個選擇器都是共用的，整條規則移除；
   if (kept.length === 0) {
+    // 統計：一條規則、全部選擇器；
+    ctx.tally.rulesRemoved += 1;
+    ctx.tally.selectorsRemoved.push(...selectors.map(normalizeSelector));
     // 從語法樹拿掉；
     rule.remove();
     // 這條已不存在，不用再處理；
     return;
   }
-  // 有些選擇器被丟掉：把規則的選擇器改寫成剩下的；
-  if (kept.length !== selectors.length) rule.selector = kept.map((s) => s.trim()).join(', ');
+  // 有些選擇器被丟掉：統計被丟掉的，並把規則的選擇器改寫成剩下的；
+  if (kept.length !== selectors.length) {
+    // 被丟掉的選擇器（在共用集合內的）；
+    ctx.tally.selectorsRemoved.push(...selectors.filter((s) => shared.has(normalizeSelector(s))).map(normalizeSelector));
+    // 改寫；
+    rule.selector = kept.map((s) => s.trim()).join(', ');
+  }
   // 這條規則含 :root 嗎？只有 :root 要處理自訂屬性；
   if (kept.some((selector) => normalizeSelector(selector) === ':root')) {
+    // 原本的第一個子節點，用來還原縮排；
+    const firstOriginal = (rule.nodes as ChildNode[])[0];
     // 複製一份子節點再迭代，因為會移除節點；
     for (const child of [...(rule.nodes as ChildNode[])]) {
       // 宣告的屬性名是共用的自訂屬性就移除；頁面獨有的（例如 --brick）留下；
-      if (child.type === 'decl' && child.prop.startsWith('--') && shared.has(child.prop)) child.remove();
+      if (child.type === 'decl' && child.prop.startsWith('--') && shared.has(child.prop)) {
+        // 統計被丟掉的自訂屬性名稱；
+        ctx.tally.customPropsRemoved.push(child.prop);
+        // 移除；
+        child.remove();
+      }
     }
-    // 宣告全被抽掉，規則已空，整條移除；
-    if (rule.nodes.length === 0) rule.remove();
+    // 沒有任何宣告或規則留下（只剩註解也算空）：整條 :root 移除；預設模式註解早已被移除，所以等同「nodes 為空」；
+    if (rule.nodes.every((child) => child.type === 'comment')) {
+      // 統計；
+      ctx.tally.rulesRemoved += 1;
+      ctx.tally.selectorsRemoved.push(':root');
+      // 移除；
+      rule.remove();
+    } else if (ctx.keepComments) {
+      // 保留註解模式：第一個倖存宣告若原本與別的宣告同行，換到原本第一個宣告所在的那一行；
+      restoreFirstBefore(rule, firstOriginal);
+    }
   }
 }
 
 // 依共用集合修剪 CSS，回傳頁面獨有的 CSS（R24）：
 //   選擇器清單只丟共用的選擇器，全部共用才丟整條規則；:root 規則只移除共用自訂屬性，空了才丟；
 //   @media／@supports 遞迴處理、清空就移除；@keyframes、@font-face、@import 等其他 at-rule 原樣保留；
-//   註解一律移除（規則內外都是），輸出較小也不會留下孤兒註解；
+//   預設註解一律移除（規則內外都是），輸出較小也不會留下孤兒註解；options.keepComments 為 true 時改為保留註解與原格式（遷移 html 檔用）；
 //   輸入無法解析時（例如少一個右大括號）本函式原樣回傳、不丟錯；它「不是」瀏覽器式的容錯：
 //   呼叫端若要把多個區塊串接，不可使用這個回傳值，要改用 pruneOrNull 偵測失敗並把壞區塊分開處理（R27）；
-export function pruneSharedRules(css: string, shared: Set<string>): string {
+export function pruneSharedRules(css: string, shared: Set<string>, options: PruneOptions = {}): string {
   // 修剪成功就回傳結果；`??` 在左邊是 null（解析失敗）時改回傳原文；
-  return pruneOrNull(css, shared) ?? css;
+  return pruneSharedRulesDetailed(css, shared, options)?.css ?? css;
 }
 
-// 修剪 CSS；PostCSS 無法解析時回傳 null（讓呼叫端知道這個區塊不能與別的區塊串接）；
-function pruneOrNull(css: string, shared: Set<string>): string | null {
+// 修剪並回傳統計；PostCSS 無法解析時回傳 null；
+// keepComments 為 false（預設）時輸出會去掉前後空白；為 true 時輸出保留前後的原始空白，方便原地取代 <style> 的內容；
+// 回傳的 empty 為 true 代表修剪後除了註解以外沒有任何節點（呼叫端可據此移除整個 <style>）；
+export function pruneSharedRulesDetailed(css: string, shared: Set<string>, options: PruneOptions = {}): { css: string; tally: PruneTally; empty: boolean } | null {
   // 先宣告變數，因為 try 區塊內的 const 在區塊外看不到；
   let root: ReturnType<typeof postcss.parse>;
   // try/catch：postcss.parse 遇到語法錯誤會丟 CssSyntaxError；
@@ -193,15 +291,29 @@ function pruneOrNull(css: string, shared: Set<string>): string | null {
     // 無法解析就回傳 null；
     return null;
   }
-  // 先把所有註解移除；walkComments 走訪每個註解節點；
-  root.walkComments((comment) => {
-    // 從語法樹拿掉；
-    comment.remove();
-  });
+  // 是否保留註解；
+  const keepComments = options.keepComments === true;
+  // 預設模式先把所有註解移除；walkComments 走訪每個註解節點；
+  if (!keepComments) {
+    root.walkComments((comment) => {
+      // 從語法樹拿掉；
+      comment.remove();
+    });
+  }
+  // 統計物件，修剪過程就地累加；
+  const tally: PruneTally = { rulesRemoved: 0, selectorsRemoved: [], customPropsRemoved: [] };
   // 修剪整棵樹；
-  pruneContainer(root, shared);
-  // 轉回文字並去掉前後空白（被移除的節點會在前面留下空行）；
-  return root.toString().trim();
+  pruneContainer(root, shared, { keepComments, tally });
+  // 轉回文字；預設模式去掉前後空白（被移除的節點會在前面留下空行），保留註解模式則逐字保留；
+  const text = root.toString();
+  // 回傳；
+  return { css: keepComments ? text : text.trim(), tally, empty: (root.nodes ?? []).every((node) => node.type === 'comment') };
+}
+
+// 修剪 CSS；PostCSS 無法解析時回傳 null（讓呼叫端知道這個區塊不能與別的區塊串接）；
+function pruneOrNull(css: string, shared: Set<string>): string | null {
+  // 轉呼叫詳細版，只取文字部分；`?.` 在結果是 null 時整串變成 undefined，再用 ?? 轉成 null；
+  return pruneSharedRulesDetailed(css, shared)?.css ?? null;
 }
 
 // 判斷一段 CSS 能不能被 PostCSS 解析（覆寫區塊不修剪，但仍要確認它串接後不會破壞別的區塊）；
@@ -261,7 +373,7 @@ export function loadDefaultSharedSelectors(): Set<string> {
 }
 
 // 找出開始標籤結尾的 `>` 位置：從 start 往後掃，略過引號內的 `>`（屬性值可以含 >）；找不到就回傳最後一個字元的位置；
-function openTagEnd(source: string, start: number): number {
+export function openTagEnd(source: string, start: number): number {
   // 目前所在的引號字元，null 表示不在引號內；
   let quote: string | null = null;
   // 從標籤開頭的下一個字元開始掃；
