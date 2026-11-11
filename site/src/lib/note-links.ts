@@ -37,10 +37,10 @@ function safeDecode(text: string): string {
 export function makeNoteHrefRewriter(ctx: NoteLinkContext): (href: string) => string | null {
   // 目前筆記所在資料夾；posix.dirname 對根層檔案回傳 '.'；
   const dir = posix.dirname(ctx.from);
-  // 已發布頁面的路徑（原始檔去掉 .md／.html）：頁面檔就是「這個路徑.html」；用來處理「原始檔名寫錯副檔名、但同名頁面存在」的連結；
-  const pages = new Set(Array.from(ctx.published, (p) => p.replace(/\.(md|html)$/, '')));
-  // 回傳箭頭函式；
-  return (href: string) => {
+  // 回傳箭頭函式；第二個參數 dryRun 為 true 時只判斷、不呼叫 onRewrite（html 改寫要先確認原文能安全替換才計數）；
+  return (rawHref: string, dryRun = false) => {
+    // 前後的 ASCII 空白（空格、tab、換行、換頁）先拆出來，判斷用去掉空白的值，改寫結果再把原本的空白接回去；
+    const [, lead, href, trail] = /^([\t\n\f\r ]*)([\s\S]*?)([\t\n\f\r ]*)$/.exec(rawHref) as RegExpExecArray;
     // 空字串、# 開頭（同頁錨點）、/ 開頭（絕對路徑與 //host 協定相對網址）都不處理；
     if (href === '' || href.startsWith('#') || href.startsWith('/')) return null;
     // 有 scheme 的（https:、mailto:、tel:、javascript:、data: …）不處理；正規式依 URL 規格的 scheme 字元；
@@ -64,17 +64,16 @@ export function makeNoteHrefRewriter(ctx: NoteLinkContext): (href: string) => st
       // 不改；
       return null;
     }
-    // 指到已發布的筆記原始檔，或副檔名不同但同名頁面已發布（例如舊 X.html 已改名成 X-互動版.html、X.md 仍發布成 X.html）：
-    // md 改成 .html；寫 .html 的本來就指到頁面，不用改；
-    if (ctx.published.has(resolved) || pages.has(resolved.slice(0, -ext[0].length))) {
+    // R34：只有「解析後正好是已發布筆記的原始檔」才算有效；md 改成 .html，html 筆記本來就是 .html，不用改；
+    if (ctx.published.has(resolved)) {
       // html 不改；
       if (ext[1] === 'html') return null;
-      // 計數；
-      ctx.onRewrite();
-      // 只把原始路徑結尾的 .md 換成 .html：前面的 ../、./ 與百分比編碼的寫法都保持原樣；查詢與錨點接回去；
-      return `${pathPart.slice(0, -3)}.html${suffix}`;
+      // 不是試算才計數；
+      if (!dryRun) ctx.onRewrite();
+      // 只把原始路徑結尾的 .md 換成 .html：前面的 ../、./ 與百分比編碼的寫法都保持原樣；查詢、錨點與原本的前後空白接回去；
+      return `${lead}${pathPart.slice(0, -3)}.html${suffix}${trail}`;
     }
-    // 被取代的舊 X.html：網址 X.html 正好是 md 頁，不改也不算未發布；
+    // 被取代的舊 X.html（R25）：網址 X.html 正好是 md 頁，不改也不算未發布；這是唯一不列為未發布的例外；
     if (ctx.superseded.has(resolved)) return null;
     // 其餘：沒發布（被排除、保留名稱、不存在）；記下並保持原樣；
     ctx.onUnpublished(resolved);
@@ -84,7 +83,8 @@ export function makeNoteHrefRewriter(ctx: NoteLinkContext): (href: string) => st
 }
 
 // 改寫 html 中 a 與 area 的 href：用 parse5 的位置資訊只替換屬性值那一段原始字串，其他位元組一律不動（與 wikilink 的 HTML 改寫同一做法）；
-export function rewriteNoteLinksInHtml(html: string, rewrite: (href: string) => string | null): string {
+// rewrite 是 makeNoteHrefRewriter 產生的函式：第二個參數 true 代表只試算（不計數）；
+export function rewriteNoteLinksInHtml(html: string, rewrite: (href: string, dryRun?: boolean) => string | null): string {
   // 沒有 href 字樣就不必解析；/i 不分大小寫；
   if (!/href/i.test(html)) return html;
   // 解析：sourceCodeLocationInfo 要求記錄位置；第三個參數 false 代表當成片段解析（bodyHtml 是 body 的內層）；
@@ -109,20 +109,25 @@ export function rewriteNoteLinksInHtml(html: string, rewrite: (href: string) => 
           const raw = html.slice(loc.startOffset, loc.endOffset);
           // 拆成「名稱與等號」「引號」「值」；`([\s\S]*?)\2$` 要求值後面是同一個引號（或沒有引號）；
           const m = /^([^\s=]+\s*=\s*)(["']?)([\s\S]*?)\2$/.exec(raw);
-          // 用解碼後的屬性值（cheerio 已還原實體）判斷要不要改、並計數；
-          const next = m ? rewrite(el.attribs.href) : null;
-          // 要改：在原始值上做同樣的變更（路徑結尾的 .md 換成 .html），保留原本的實體寫法、查詢與錨點；
+          // 用解碼後的屬性值（cheerio 已還原實體）試算要不要改；dryRun 為 true，這一步不計數；
+          const next = m ? rewrite(el.attribs.href, true) : null;
+          // 要改：在原始值上做同樣的變更（路徑結尾的 .md 換成 .html），保留原本的實體寫法、前後空白、查詢與錨點；
           if (m && next !== null) {
-            // 原始值；
-            const value = m[3];
-            // 原始值的路徑部分結尾位置；
-            const cut = value.search(/[?#]/);
+            // 原始值拆成前空白、本體、後空白；
+            const [, lead, core, trail] = /^([\t\n\f\r ]*)([\s\S]*?)([\t\n\f\r ]*)$/.exec(m[3]) as RegExpExecArray;
+            // 本體的路徑部分結尾位置（實體 &#63; 裡的 # 也會在這裡切開，於是下面的 .md 判斷不成立而不改）；
+            const cut = core.search(/[?#]/);
             // 路徑部分；
-            const pathPart = cut === -1 ? value : value.slice(0, cut);
+            const pathPart = cut === -1 ? core : core.slice(0, cut);
             // 查詢與錨點；
-            const suffix = cut === -1 ? '' : value.slice(cut);
-            // 路徑結尾是 .md 才換（理論上一定是）；
-            if (pathPart.endsWith('.md')) edits.push({ start: loc.startOffset, end: loc.endOffset, value: `${m[1]}${m[2]}${pathPart.slice(0, -3)}.html${suffix}${m[2]}` });
+            const suffix = cut === -1 ? '' : core.slice(cut);
+            // 原文的路徑結尾是 .md 才能安全替換；不行就不改，也不計數；
+            if (pathPart.endsWith('.md')) {
+              // 記下替換；
+              edits.push({ start: loc.startOffset, end: loc.endOffset, value: `${m[1]}${m[2]}${lead}${pathPart.slice(0, -3)}.html${suffix}${trail}${m[2]}` });
+              // 真的改了才計數（再呼叫一次、這次不是試算）；
+              rewrite(el.attribs.href);
+            }
           }
         }
       }

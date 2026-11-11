@@ -72,23 +72,73 @@ describe('makeNoteHrefRewriter（R33）', () => {
     // 沒有未發布；
     expect(seen.unpublished).toEqual([]);
   });
-  // 原始檔不存在、但同名頁面存在：X.html 的原始檔已改名成 X-互動版.html，X.md 仍發布成 X.html（真實 repo 的情況）；
-  it('renamed.html 的原始檔不存在但 renamed.md 發布成同一個頁面：不改寫、也不算未發布', () => {
+  // R34：html 原始檔不存在（或被排除），即使 renamed.md 已發布，也不算有效：不改、記為未發布；
+  it('renamed.html 的原始檔沒發布、renamed.md 已發布：不改寫並記為未發布', () => {
     // 建立；
     const { rewrite, seen } = setup();
     // 不改；
     expect(rewrite('renamed.html#x')).toBeNull();
+    // 記為未發布；
+    expect(seen.unpublished).toEqual(['a/renamed.html']);
+  });
+  // R34：寫成 h.md，但 h.md 沒發布（不存在或被排除），發布的是無關的 h.html 筆記：不能改寫成 h.html；
+  it('h.md 沒發布、無關的 h.html 筆記已發布：不改寫並記為未發布', () => {
+    // 建立；
+    const { rewrite, seen } = setup();
+    // 不改；
+    expect(rewrite('h.md')).toBeNull();
+    // 沒有改寫；
+    expect(seen.rewritten).toBe(0);
+    // 記為未發布；
+    expect(seen.unpublished).toEqual(['a/h.md']);
+  });
+  // R34：被取代的舊 X.html 只靠 superseded 判斷：這裡的已發布集合刻意不含 old.md，同名頁面規則抓不到它；
+  it('被取代的舊 old.html：不改寫、不算未發布（走 superseded 分支）', () => {
+    // 計數；
+    const seen = { rewritten: 0, unpublished: [] as string[] };
+    // 已發布集合不含 a/old.md；
+    const rewrite = makeNoteHrefRewriter({
+      from: 'a/note.md', // 目前筆記；
+      published: new Set(['a/note.md']), // 只有自己；
+      superseded: new Set(['a/old.html']), // 被取代的舊 html；
+      onRewrite: () => (seen.rewritten += 1), // 計數；
+      onUnpublished: (t: string) => seen.unpublished.push(t), // 記下；
+    });
+    // 不改；
+    expect(rewrite('old.html')).toBeNull();
     // 不算未發布；
     expect(seen.unpublished).toEqual([]);
   });
-  // 反過來：寫成 h.md，但發布的是 h.html 筆記（頁面同樣是 h.html）；
-  it('h.md 的原始檔不存在但 h.html 筆記已發布：改寫成 h.html', () => {
+  // 前後的 ASCII 空白先去掉再判斷；改寫後保留原本的空白；
+  it('前後有空白的 href：去掉空白再判斷，改寫結果保留原空白；外部網址不動', () => {
     // 建立；
     const { rewrite, seen } = setup();
-    // 改成頁面；
-    expect(rewrite('h.md')).toBe('h.html');
-    // 計數；
+    // 改寫並保留空白；
+    expect(rewrite(' other.md\n')).toBe(' other.html\n');
+    // 外部網址不動也不計入；
+    expect(rewrite(' https://x/y.md')).toBeNull();
+    // 計數只有一次；
     expect(seen.rewritten).toBe(1);
+    // 沒有未發布；
+    expect(seen.unpublished).toEqual([]);
+  });
+  // 其他邊界；
+  it.each(['a.md/b', 'x.markdown', 'pic.png?v=a.md', 'pic.png#a.md'])('%s 不是筆記原始檔：不改寫、不計入', (input) => {
+    // 建立；
+    const { rewrite, seen } = setup();
+    // 不改；
+    expect(rewrite(input)).toBeNull();
+    // 沒計數；
+    expect(seen.rewritten + seen.unpublished.length).toBe(0);
+  });
+  // 跑出根目錄；
+  it('../../x.md（從 a/ 跑出根目錄）不改寫並記為未發布', () => {
+    // 建立；
+    const { rewrite, seen } = setup();
+    // 不改；
+    expect(rewrite('../../x.md')).toBeNull();
+    // 記下原始連結；
+    expect(seen.unpublished).toEqual(['../../x.md']);
   });
   // 指到沒發布的筆記：不改、記入；
   it.each([
@@ -178,6 +228,45 @@ describe('rewriteNoteLinksInHtml', () => {
     expect(seen.rewritten).toBe(3);
     // 未發布；
     expect(seen.unpublished).toEqual(['a/missing.md']);
+  });
+  // 實體：原始路徑與解碼後不同、無法在原文上安全替換時不改，也不計數；可以替換的才計數；
+  it('href 含實體：&#63; 讓原文的路徑與解碼值不同 → 不改不計數；&amp; 在路徑裡 → 照常改寫並計數', () => {
+    // 計數；
+    const seen = { rewritten: 0, unpublished: [] as string[] };
+    // 已發布集合多一個檔名含 & 的筆記；
+    const rewrite = makeNoteHrefRewriter({
+      from: 'a/note.md', // 目前筆記；
+      published: new Set(['a/other.md', 'a/a&b.md']), // 已發布；
+      superseded: new Set(), // 沒有被取代的；
+      onRewrite: () => (seen.rewritten += 1), // 計數；
+      onUnpublished: (t: string) => seen.unpublished.push(t), // 記下；
+    });
+    // 輸入；
+    const input = '<a href="other.md&#63;x=1">甲</a><a href="a&amp;b.md">乙</a>';
+    // 第一個不動，第二個改；
+    expect(rewriteNoteLinksInHtml(input, rewrite)).toBe('<a href="other.md&#63;x=1">甲</a><a href="a&amp;b.html">乙</a>');
+    // 只計第二個；
+    expect(seen.rewritten).toBe(1);
+  });
+  // 空白：保留屬性值前後原本的空白，其餘位元組不動；外部網址不動；
+  it('href 前後有空白：改寫路徑並保留原空白；外部網址不動', () => {
+    // 建立；
+    const { rewrite, seen } = setup();
+    // 輸入；
+    const input = '<a href=" other.md ">甲</a><a href=" https://x/y.md">乙</a>';
+    // 預期；
+    expect(rewriteNoteLinksInHtml(input, rewrite)).toBe('<a href=" other.html ">甲</a><a href=" https://x/y.md">乙</a>');
+    // 計數；
+    expect(seen.rewritten).toBe(1);
+  });
+  // CRLF：換行位元組完全保留；
+  it('CRLF 換行的 html：只換 href，CRLF 原樣保留', () => {
+    // 建立；
+    const { rewrite } = setup();
+    // 輸入；
+    const input = '<p>\r\n<a\r\n href="other.md">甲</a>\r\n</p>\r\n';
+    // 斷言；
+    expect(rewriteNoteLinksInHtml(input, rewrite)).toBe('<p>\r\n<a\r\n href="other.html">甲</a>\r\n</p>\r\n');
   });
   // 沒有可改的就原樣回傳同一個字串；
   it('沒有連結時原樣回傳', () => {
