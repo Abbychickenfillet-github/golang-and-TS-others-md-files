@@ -210,7 +210,7 @@ describe('pruneSharedRules', () => {
     // 建立真實集合；
     const real = sharedSelectors(themeCss);
     // 輸入三條規則；
-    const out = pruneSharedRules('.align-demo{color:red}.seg{color:red}.my-chart{color:red}', real);
+    const out = pruneSharedRules('.align-demo{padding:1px}.seg{cursor:pointer}.my-chart{color:red}', real);
     // 只剩 .my-chart；
     expect(out).toContain('.my-chart');
     expect(out).not.toContain('.align-demo');
@@ -347,7 +347,7 @@ describe('parseHtmlNote', () => {
 
   // 全是共用規則的頁面，pageCss 為空字串；
   it('所有規則都共用時 pageCss 為空字串', () => {
-    expect(parseHtmlNote('<head><style>.card{a:b}</style></head><body></body>').pageCss.trim()).toBe('');
+    expect(parseHtmlNote('<head><style>.card{a:b}</style></head><body></body>', new Set(['.card'])).pageCss.trim()).toBe('');
   });
 
   // 非共用樣式表連結才進 pageStylesheets；
@@ -637,7 +637,7 @@ describe('預設共用集合', () => {
   // notes.css 擁有 .toc 規則，真實檔案下它要被當成共用而修剪；
   it('.toc 規則因為 notes.css 有定義而被修剪（真實檔案）', () => {
     // 不指定 NOTES_ROOT，用預設 `..`；
-    const note = parseHtmlNote('<head><style>.toc{x:1}.my-chart{y:2}</style></head><body></body>');
+    const note = parseHtmlNote('<head><style>.toc{margin:0}.my-chart{y:2}</style></head><body></body>');
     // .my-chart 留下；
     expect(note.pageCss).toContain('.my-chart');
     // .toc 消失；
@@ -649,7 +649,7 @@ describe('預設共用集合', () => {
     // 兩份各有一個選擇器與一個 :root 變數；
     const set = sharedSelectorsOf(['.a{x:1}:root{--v1:1}', '.b{y:2}:root{--v2:2}']);
     // 四個鍵都在；
-    expect([...set].sort()).toEqual(['--v1', '--v2', '.a', '.b']);
+    expect([...set].filter((k) => !k.includes('{')).sort()).toEqual(['--v1', '--v2', '.a', '.b']);
   });
 
   // 缺 notes.css 要大聲失敗；
@@ -686,8 +686,8 @@ describe('預設共用集合', () => {
       // 第二次換根目錄；
       const setB = withRoot(b, () => loadDefaultSharedSelectors());
       // 內容不同，且各自包含兩個檔案的選擇器；
-      expect([...setA].sort()).toEqual(['.aaa', '.bbb']);
-      expect([...setB].sort()).toEqual(['.ccc', '.ddd']);
+      expect([...setA].filter((k) => !k.includes('{')).sort()).toEqual(['.aaa', '.bbb']);
+      expect([...setB].filter((k) => !k.includes('{')).sort()).toEqual(['.ccc', '.ddd']);
       // 再換回 a 仍然正確（快取命中也不能串台）；
       expect(withRoot(a, () => loadDefaultSharedSelectors()).has('.aaa')).toBe(true);
     } finally {

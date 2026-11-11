@@ -144,7 +144,18 @@ export function sharedSelectors(themeCss: string): Set<string> {
       // :root 只用來找自訂屬性，不當選擇器收錄；
       if (normalized === ':root') hasRoot = true;
       // 其餘非空的選擇器收錄（帶條件）；
-      else if (normalized !== '') result.add(keyOf(condition, normalized));
+      else if (normalized !== '') {
+        // 選擇器鍵；
+        const selectorKey = keyOf(condition, normalized);
+        result.add(selectorKey);
+        // 宣告資訊：`選擇器鍵{` 是「這個選擇器有宣告資訊」的標記，`選擇器鍵{屬性` 是它宣告過的屬性（小寫、不含自訂屬性），
+        // 修剪時據此只移除共用樣式「也宣告了」的屬性，頁面額外加的（例如 body 的 padding）保留；
+        result.add(`${selectorKey}{`);
+        rule.each((child) => {
+          // 只看這條規則自己的宣告（巢狀規則不算），自訂屬性不算；
+          if (child.type === 'decl' && !child.prop.startsWith('--')) result.add(`${selectorKey}{${child.prop.toLowerCase()}`);
+        });
+      }
     }
     // :root 規則：把裡面宣告的自訂屬性名稱（--bg 之類）也收進來；
     if (hasRoot) {
@@ -160,7 +171,7 @@ export function sharedSelectors(themeCss: string): Set<string> {
 }
 
 // 修剪時的統計：被整條移除的規則數、被丟掉的選擇器（已正規化）、被丟掉的共用自訂屬性名稱（依文件順序）；
-export type PruneTally = { rulesRemoved: number; selectorsRemoved: string[]; customPropsRemoved: string[] };
+export type PruneTally = { rulesRemoved: number; selectorsRemoved: string[]; customPropsRemoved: string[]; declsRemoved: number };
 
 // 修剪選項：keepComments 為 true 時保留作者的 CSS 註解與倖存規則的原始格式（預設 false，與網站建置的行為相同）；
 // media 是 <style media="…"> 的屬性值：這個區塊整體處於該媒體條件下，規則要以 `media <條件>|選擇器` 比對（空或 all 視為沒有）；
@@ -266,6 +277,30 @@ function pruneRule(rule: Rule, shared: Set<string>, ctx: PruneCtx): void {
   const kept = selectors.filter((selector) => !isShared(selector));
   // 每個選擇器都是共用的，整條規則移除；
   if (kept.length === 0) {
+    // 每個選擇器在共用樣式裡的鍵；
+    const keys = selectors.map((s) => keyOf(condition, normalizeSelector(s)));
+    // 宣告層級修剪：共用集合對這些選擇器都有「宣告資訊」（`鍵{` 標記）才做；舊式手寫集合沒有標記，維持整條移除；
+    // 只移除「每個選擇器在共用樣式裡都宣告過」的屬性；共用樣式沒宣告的（頁面額外加的，例如 body 的 padding）保留，否則頁面版面會壞掉；
+    if (keys.every((k) => shared.has(`${k}{`))) {
+      // 原本的第一個子節點，用來還原縮排；
+      const firstOriginal = (rule.nodes as ChildNode[])[0];
+      // 複製一份子節點再迭代，因為會移除節點；
+      for (const child of [...(rule.nodes as ChildNode[])]) {
+        // 一般屬性（自訂屬性一律保留）且每個選擇器都被共用樣式宣告過：移除；
+        if (child.type === 'decl' && !child.prop.startsWith('--') && keys.every((k) => shared.has(`${k}{${child.prop.toLowerCase()}`))) {
+          // 統計後移除；
+          ctx.tally.declsRemoved += 1;
+          child.remove();
+        }
+      }
+      // 還有宣告（或其他非註解內容）留下：保留這條規則，只是變瘦了；
+      if (!rule.nodes.every((child) => child.type === 'comment')) {
+        // 保留註解模式：第一個倖存宣告換到原本第一個宣告所在的那一行；
+        if (ctx.keepComments) restoreFirstBefore(rule, firstOriginal);
+        // 處理完畢；
+        return;
+      }
+    }
     // 統計：一條規則、全部選擇器；
     ctx.tally.rulesRemoved += 1;
     ctx.tally.selectorsRemoved.push(...selectors.map(normalizeSelector));
@@ -344,7 +379,7 @@ export function pruneSharedRulesDetailed(css: string, shared: Set<string>, optio
     });
   }
   // 統計物件，修剪過程就地累加；
-  const tally: PruneTally = { rulesRemoved: 0, selectorsRemoved: [], customPropsRemoved: [] };
+  const tally: PruneTally = { rulesRemoved: 0, selectorsRemoved: [], customPropsRemoved: [], declsRemoved: 0 };
   // 修剪整棵樹；
   // 初始條件鏈：<style media="print"> 這種區塊整體處於該媒體條件下；空字串與 all 視為沒有條件；
   const media = (options.media ?? '').trim();
