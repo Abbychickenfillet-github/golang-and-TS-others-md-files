@@ -167,8 +167,9 @@ describe('note-theme.css 顏色', () => {
 
   // 兩組模式各產生一個對比度案例；
   for (const mode of ['light', 'dark'] as const) {
-    // 案例：背景與卡片的 WCAG 對比度至少 2:1（暫定門檻）；
-    it(`${mode} 模式 --bg 與 --card 對比度至少 2:1`, () => {
+    // 案例：背景與卡片的 WCAG 對比度門檻；淺色模式 Abby 指定要淺藍背景（2026-11-12），門檻降為 1.25 並靠邊線分隔卡片，深色維持 2；
+    const minContrast = mode === 'light' ? 1.25 : 2;
+    it(`${mode} 模式 --bg 與 --card 對比度至少 ${minContrast}:1`, () => {
       // 讀出該模式的變數；
       const vars = rootVars(mode);
       // 兩個變數都必須存在；
@@ -183,8 +184,8 @@ describe('note-theme.css 顏色', () => {
       expect(bg, '--bg 可解析').toBeDefined();
       // 同上；
       expect(card, '--card 可解析').toBeDefined();
-      // 算 WCAG 對比度並斷言至少 2；
-      expect(wcagContrast(bg!, card!)).toBeGreaterThanOrEqual(2);
+      // 算 WCAG 對比度並斷言至少達到該模式的門檻；
+      expect(wcagContrast(bg!, card!)).toBeGreaterThanOrEqual(minContrast);
     });
   }
 
