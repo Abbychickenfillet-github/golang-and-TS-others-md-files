@@ -1,0 +1,87 @@
+# 部署 Next.js 靜態筆記站到 GitHub Pages
+# 設定前提：Settings → Pages → Build and deployment → Source 要選「GitHub Actions」
+name: Deploy notes site to GitHub Pages # 工作流程名稱，顯示在 Actions 分頁
+
+on: # 觸發條件
+  push: # 有人 push 時
+    branches: [main] # 只有 main 分支會部署；功能分支不會觸發，省 CI 費用
+  workflow_dispatch: # 允許在 Actions 分頁手動按「Run workflow」
+
+permissions: # 給這個工作流程的 GITHUB_TOKEN 最小權限
+  contents: read # 讀取程式碼
+  pages: write # 寫入 Pages
+  id-token: write # deploy-pages 驗證身分需要
+
+concurrency: # 同時只讓一個部署在跑
+  group: pages # 同一個群組
+  cancel-in-progress: false # 已在部署的不要中途取消，等它跑完
+
+jobs: # 工作清單
+  build: # 第一個工作：建置與驗證
+    runs-on: ubuntu-latest # 在 GitHub 提供的 Ubuntu 機器上執行
+    env: # 這個工作內所有步驟共用的環境變數
+      STRICT_LINKS: ${{ vars.STRICT_LINKS }} # 壞連結是否擋部署：變數要精確設成 1 才嚴格，沒設或 0 只列出
+      ROOT_SITE: ${{ vars.ROOT_SITE }} # 設成 1 代表網站在網域根目錄（自訂網域或 帳號.github.io 倉庫），不加子路徑前綴
+      CUSTOM_BASE_PATH: ${{ vars.BASE_PATH }} # 想自己指定子路徑前綴時用（例如 /my-notes）
+    steps: # 步驟
+      - name: Checkout # 取得程式碼
+        uses: actions/checkout@v4 # 官方檢出動作
+
+      - name: Setup Node # 安裝 Node
+        uses: actions/setup-node@v4 # 官方動作
+        with: # 動作參數
+          node-version: 24 # 與本機相同的 Node 版本；腳本直接匯入 .ts 需要較新的 Node
+          cache: npm # 快取 npm 套件
+          cache-dependency-path: site/package-lock.json # 以鎖定檔為快取依據
+
+      - name: Decide BASE_PATH # 決定子路徑前綴：專案頁網址是 https://帳號.github.io/倉庫名/，所以預設 /倉庫名
+        run: | # 多行 shell；把結果寫進 GITHUB_ENV，後面的步驟才讀得到
+          if [ "$ROOT_SITE" = "1" ]; then
+            echo "BASE_PATH=" >> "$GITHUB_ENV"
+          elif [ -n "$CUSTOM_BASE_PATH" ]; then
+            echo "BASE_PATH=$CUSTOM_BASE_PATH" >> "$GITHUB_ENV"
+          else
+            echo "BASE_PATH=/${{ github.event.repository.name }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check STRICT_LINKS value # 檢查嚴格模式變數的值
+        run: | # 多行 shell
+          case "$STRICT_LINKS" in
+            ""|0|1) ;;
+            *) echo "::warning::STRICT_LINKS 必須是 1（嚴格）或 0／未設定（寬鬆）；目前是 '$STRICT_LINKS'，會被當成寬鬆" ;;
+          esac
+
+      - name: Install dependencies # 安裝依賴
+        working-directory: site # 在 site/ 底下執行
+        run: npm ci # 依鎖定檔乾淨安裝
+
+      - name: Run tests # 單元測試
+        working-directory: site # 在 site/ 底下執行
+        run: npm test # vitest
+
+      - name: Build site # 建置：同步共用資源、掃描壞連結、next build、整理輸出
+        working-directory: site # 在 site/ 底下執行
+        run: npm run build # 見 site/package.json 的 build 腳本
+
+      - name: Verify output # 驗證：私人檔案外洩、敏感檔名、容量、壞連結
+        working-directory: site # 在 site/ 底下執行
+        run: npm run verify # 外洩／敏感／超量一律失敗；壞連結只在 STRICT_LINKS=1 失敗
+
+      - name: Setup Pages # 取得 Pages 設定
+        uses: actions/configure-pages@v5 # 官方動作
+
+      - name: Upload artifact # 上傳建置結果
+        uses: actions/upload-pages-artifact@v3 # 官方動作
+        with: # 參數
+          path: site/out # 靜態輸出資料夾
+
+  deploy: # 第二個工作：部署
+    needs: build # 等建置工作成功
+    runs-on: ubuntu-latest # 執行環境
+    environment: # 部署環境，Pages 要求
+      name: github-pages # 固定名稱
+      url: ${{ steps.deployment.outputs.page_url }} # 部署完成後顯示的網址
+    steps: # 步驟
+      - name: Deploy to GitHub Pages # 部署
+        id: deployment # 讓上面的 url 能取到輸出
+        uses: actions/deploy-pages@v4 # 官方動作
