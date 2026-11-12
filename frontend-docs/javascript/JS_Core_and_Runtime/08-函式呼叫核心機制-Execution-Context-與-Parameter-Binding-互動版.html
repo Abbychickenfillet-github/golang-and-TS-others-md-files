@@ -2,29 +2,17 @@
 <html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>函式呼叫核心機制互動版：Execution Context、Creation Phase 與參數綁定</title>
+<link rel="stylesheet" href="../../../assets/note-theme.css">
 <style>
-:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;
-  --ok:#15803d;--err:#b91c1c;--warn:#c2410c;--violet:#6d28d9;}
-*{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
-.wrap{max-width:900px;margin:0 auto;padding:28px 20px 80px;}
+:root{--muted:#6b7280;--err:#b91c1c;--violet:#6d28d9;}
 header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
 header.note h1{margin:0 0 12px;font-size:1.5rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
 .pills{margin:6px 0;}
-.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
-.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.pill{display:inline-block;margin:3px 5px 3px 0;}
+.meta{margin-top:8px;}
 section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
-h2{font-size:1.15rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
-h3{font-size:1rem;margin:1.2em 0 .5em;color:#374151;}
-code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
-mark{padding:.05em .25em;border-radius:4px;}
-.y{background:#fff3a3}.b{background:#adccff}.r{background:#ff5582}.g{background:#bbfabb}.v{background:#d2b3ff}.o{background:#ffb86c}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.89rem;}
-th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;}
-th{background:#f1f5f9;}
-pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;color:#abb2bf;font-size:.85rem;line-height:1.65;}
+h2{border-left:5px solid var(--accent);padding-left:12px;}.b{background:#adccff}.r{background:#ff5582}.v{background:#d2b3ff}.o{background:#ffb86c}
 pre .cm{color:#7f848e;}pre .kw{color:#c678dd;}pre .op{color:#e5c07b;}pre .ok{color:#98c379;}pre .no{color:#e06c75;}
-footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
 .indent{margin-left:1.6em;color:var(--muted);font-size:.94em;}
 
 .grammar-tree{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:18px 10px;justify-content:center;}
@@ -52,11 +40,8 @@ footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
 
 .paren-table td.role-yes{color:var(--ok);font-weight:600;}
 .paren-table td.role-no{color:var(--err);}
-
-.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #7c6f9b;background:#faf9fc;border-radius:10px;}
 .callout.warn{border-left-color:var(--err);background:#fef2f2;}
-.callout.ok{border-left-color:var(--ok);background:#f0fdf4;}
-.callout-title{font-weight:700;margin-bottom:4px;}
+.callout.ok{border-left-color:var(--ok);}
 
 .three{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:14px 0;}
 .three>div{border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:12px 14px;background:#fff;}
@@ -67,9 +52,9 @@ footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
   color:transparent;background:#eef1f6;border-radius:4px 4px 0 0;cursor:pointer;user-select:none;
   font-family:"JetBrains Mono",Consolas,monospace;font-size:.88em;}
 .blank.shown{color:#4338ca;background:#bbfabb;border-bottom-style:solid;font-weight:600;}
-button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:5px 12px;}
+button{font:inherit;}
 button:hover{border-color:var(--accent);color:var(--accent);}
-.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.toolbar{margin-bottom:16px;}
 </style><link rel="stylesheet" href="../../../assets/notes.css">
 </head><body>
 <div class="wrap">
@@ -303,4 +288,5 @@ document.querySelectorAll('.blank').forEach(el=>{
 function allBlanks(s){document.querySelectorAll('.blank').forEach(el=>el.classList.toggle('shown',s))}
 </script>
 <script src="../../../assets/notes.js" defer></script>
+<script src="../../../assets/note-mask.js"></script>
 </body></html>
