@@ -411,7 +411,7 @@ updated: 2026-08-06
 >     EFC_13064_1592913036: '1',
 >     FPS_BROWSER_APP_PROFILE_STRING: 'Internet Explorer',
 >     FPS_BROWSER_USER_PROFILE_STRING: 'Default',
->     GOOGLE_GEMINI_API: 'AIzaSyDhuoTLG-IPUxrUUFSZCnZa0X-bgs6lOww',       
+>     GOOGLE_GEMINI_API: 'AIzaSy*********************************',       
 >     GOPATH: 'C:\\Users\\User\\go',
 >     HOMEDRIVE: 'C:',
 >     HOMEPATH: '\\Users\\User',
@@ -461,7 +461,7 @@ updated: 2026-08-06
 >     VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
 >     VSCODE_GIT_ASKPASS_MAIN: 'c:\\Users\\User\\AppData\\Local\\Programs\\cursor\\resources\\app\\extensions\\git\\dist\\askpass-main.js',       
 >     VSCODE_GIT_IPC_HANDLE: '\\\\.\\pipe\\vscode-git-33c49173cf-sock',   
->     VSCODE_GIT_IPC_AUTH_TOKEN: '7986a658c854ea2dd82bd297a60c405835cb31565f3c574cc01b62f48945383c',
+>     VSCODE_GIT_IPC_AUTH_TOKEN: '****************************************************************',
 >     VSCODE_INJECTION: '1'
 >   },
 >   title: 'C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
