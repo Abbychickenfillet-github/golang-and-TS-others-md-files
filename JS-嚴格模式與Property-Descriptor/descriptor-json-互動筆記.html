@@ -4,51 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>嚴格模式、Property Descriptor 與 JSON</title>
+<link rel="stylesheet" href="../assets/note-theme.css">
 <style>
   :root{
-    --bg:#faf8f5; --panel:#ffffff; --ink:#23262b; --muted:#6b7280; --line:#e6e1d8;
-    --accent:#b4552e; --accent-soft:#fbeee6; --ok:#2c7a4b; --ok-soft:#e3efe6;
-    --warn:#a8801f; --warn-soft:#fff6e8; --bad:#b04a4a; --bad-soft:#fbe3e3;
-    --code:#f5f2ec; --purple:#6a5ba8; --purple-soft:#f2effa;
+    --panel:#ffffff; --muted:#6b7280; --accent-soft:#fbeee6; --ok-soft:#e3efe6; --warn-soft:#fff6e8; --bad:#b04a4a; --bad-soft:#fbe3e3; --purple:#6a5ba8; --purple-soft:#f2effa;
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --bg:#1a1c20; --panel:#232629; --ink:#e8e6e1; --muted:#9aa0a8; --line:#383b40;
-      --accent:#e08a5f; --accent-soft:#3a2a22; --ok:#7fc79a; --ok-soft:#1f3328;
-      --warn:#e0be6a; --warn-soft:#3a3222; --bad:#e08a8a; --bad-soft:#3a2424;
-      --code:#1f2226; --purple:#a798e0; --purple-soft:#2a2740;
+      --panel:#232629; --muted:#9aa0a8; --accent-soft:#3a2a22; --ok-soft:#1f3328; --warn-soft:#3a3222; --bad:#e08a8a; --bad-soft:#3a2424; --purple:#a798e0; --purple-soft:#2a2740;
     }
   }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
-    line-height:1.85;font-size:16px}
-  .wrap{max-width:900px;margin:0 auto;padding:32px 20px 96px}
   header{border-bottom:3px solid var(--accent);padding-bottom:18px;margin-bottom:28px}
   h1{font-size:26px;margin:0 0 8px;letter-spacing:.3px}
   .sub{color:var(--muted);font-size:14px}
-  h2{font-size:20px;margin:44px 0 14px;padding-left:12px;border-left:5px solid var(--accent)}
-  h3{font-size:16.5px;margin:26px 0 10px;color:var(--accent)}
-  p{margin:10px 0}
-  code{background:var(--code);padding:2px 6px;border-radius:4px;
-    font-family:"JetBrains Mono","Fira Code",Consolas,monospace;font-size:13.5px}
-  pre{background:var(--code);border:1px solid var(--line);border-radius:8px;
-    padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.7}
-  pre code{background:none;padding:0}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
-    padding:18px 20px;margin:16px 0}
+  h2{padding-left:12px;border-left:5px solid var(--accent)}
+  pre{border:1px solid var(--line)}
+  .card{margin:16px 0}
   .card.ok{border-left:5px solid var(--ok);background:var(--ok-soft)}
   .card.warn{border-left:5px solid var(--warn);background:var(--warn-soft)}
   .card.bad{border-left:5px solid var(--bad);background:var(--bad-soft)}
   .card.info{border-left:5px solid var(--purple);background:var(--purple-soft)}
   .card h4{margin:0 0 8px;font-size:15px}
-  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
-  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
-  th{background:var(--accent-soft);font-weight:700}
-  img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;background:#fff}
+  img{height:auto;border:1px solid var(--line);border-radius:8px;background:#fff}
   figure{margin:20px 0}
   figcaption{color:var(--muted);font-size:13px;text-align:center;margin-top:8px}
-  a{color:var(--accent)}
 
   /* 填空 */
   .cloze{background:var(--accent);color:var(--accent);border-radius:4px;padding:1px 10px;
@@ -61,9 +40,7 @@
   .bar{position:sticky;top:0;z-index:30;background:var(--panel);border:1px solid var(--line);
     border-radius:10px;padding:10px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;
     margin-bottom:22px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
-  button{font-family:inherit;font-size:13.5px;padding:7px 14px;border-radius:7px;
-    border:1px solid var(--accent);background:var(--panel);color:var(--accent);cursor:pointer;transition:.15s}
-  button:hover{background:var(--accent);color:#fff}
+  button:hover{color:#fff}
   button.on{background:var(--accent);color:#fff}
   .score{margin-left:auto;font-size:13.5px;color:var(--muted)}
 
@@ -84,9 +61,6 @@
   .model.show{display:block}
   .tag{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:99px;
     background:var(--accent-soft);color:var(--accent);margin-right:6px;vertical-align:middle}
-  ol,ul{padding-left:26px}
-  li{margin:6px 0}
-  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
 </style>
 <link rel="stylesheet" href="../assets/notes.css">
 </head>
@@ -487,5 +461,6 @@ document.getElementById('btnReset').addEventListener('click', ()=>{
 updateScore();
 </script>
 <script src="../assets/notes.js" defer></script>
+<script src="../assets/note-mask.js"></script>
 </body>
 </html>

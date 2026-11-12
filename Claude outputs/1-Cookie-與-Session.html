@@ -4,95 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cookie 與 Session</title>
+<link rel="stylesheet" href="../assets/note-theme.css">
+<link rel="stylesheet" href="../assets/notes.css">
 <style>
 :root{
-  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
-  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
-  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
-  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
-  --brick:#a94438;
+  --muted:#6b7b88; --accent-soft:#eaf2f7;
 }
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
-  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,"Segoe UI",sans-serif;
-  font-size:16.5px;-webkit-font-smoothing:antialiased}
-.wrap{max-width:none;margin:0;padding:26px 30px 80px}
-.layout{display:flex;gap:28px;align-items:flex-start}
-.content{flex:1 1 auto;min-width:0}
-.toc{position:sticky;top:18px;flex:0 0 250px;max-height:calc(100vh - 36px);overflow:auto;
-  background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 14px;font-size:.88rem}
+.toc{position:sticky;top:18px;flex:0 0 250px;max-height:calc(100vh - 36px);overflow:auto;font-size:.88rem}
 .toc h4{margin:0 0 10px;font-size:.74rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
-.toc ol{list-style:none;padding:0;margin:0}
+.toc ol{list-style:none;padding:0}
 .toc li{margin:2px 0}
-.toc a{display:block;padding:6px 10px;border-radius:8px;color:var(--ink);text-decoration:none;
-  border-left:2px solid transparent;transition:.15s;line-height:1.4}
-.toc a:hover{background:var(--accent-soft)}
+.toc a{display:block;padding:6px 10px;border-radius:8px;
+  border-left:2px solid transparent;line-height:1.4}
 .toc a.active{background:var(--accent-soft);border-left-color:var(--accent);color:var(--accent);font-weight:600}
-header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
-  border-radius:16px;padding:24px 26px;margin-bottom:20px}
-header.hero h1{margin:0 0 10px;font-size:1.7rem;font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
-.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
-.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;border-radius:999px;padding:3px 11px;font-size:.78rem}
-.meta{font-size:.84rem;color:var(--muted)}
-.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 18px}
 .toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);font-family:inherit;transition:.15s}
 .toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
-.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 22px;font-size:.74rem;color:var(--muted)}
-.legend span{padding:2px 9px;border-radius:6px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin-bottom:18px}
-h2{font-size:1.28rem;margin:30px 0 12px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36;scroll-margin-top:16px}
-.card>h2:first-child{margin-top:0}
-h3{font-size:1.06rem;margin:22px 0 9px;color:#2c4a5e;scroll-margin-top:16px}
-p{margin:10px 0}
-ul,ol{padding-left:1.5em}
-li{margin:5px 0}
-blockquote{margin:14px 0;padding:11px 16px;background:#f6f8fa;border-left:4px solid var(--accent);border-radius:0 8px 8px 0;color:#41525f}
-blockquote p{margin:5px 0}
-.plain{color:#5a6b76;font-size:.93em;margin:6px 0 12px;padding-left:12px;border-left:3px solid #d8e2e9}
-.plain b{color:#3d5567}
-code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;font-family:"JetBrains Mono",Consolas,monospace}
-pre{background:#1f2933;color:#e6edf3;padding:15px 17px;border-radius:11px;overflow-x:auto;font-size:.85rem;line-height:1.6;margin:13px 0}
-pre code{background:none;color:inherit;padding:0}
-.cmt{color:#8fa3b0}
-table{border-collapse:collapse;width:100%;margin:15px 0;font-size:.92rem;display:block;overflow-x:auto}
-th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
-th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
-tbody tr:nth-child(even){background:#fafbfc}
-.split{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
-.split>div{flex:1;min-width:300px;border:1px solid var(--line);border-radius:10px;padding:14px}
-.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;border-radius:5px;font-size:.93em;color:#6b5c42}
-mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;color:inherit}
 mark.hl-core{background:var(--hl-core)} mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
 mark.hl-ok{background:var(--hl-ok)} mark.hl-term{background:var(--hl-term)}
 mark.hl-data{background:var(--hl-data)} mark.hl-note{background:var(--hl-note)}
-mark.hl.masked{color:transparent!important;background:#c9d2d8!important;user-select:none}
-mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;position:absolute;margin-left:-.8em}
 /* ====== Set-Cookie / Cookie 對齊互動 ====== */
-.align-demo{font-family:"JetBrains Mono",Consolas,monospace;font-size:.92rem;background:#1f2933;color:#e6edf3;border-radius:11px;padding:16px 18px;margin:14px 0;overflow-x:auto}
-.align-line{white-space:nowrap;padding:5px 0;line-height:2}
-.al-label{color:#8ab4f8;margin-right:6px;user-select:none}
-.al-dir{color:#81c995;font-size:.8rem;margin-right:10px;user-select:none}
-.seg{padding:2px 6px;border-radius:5px;cursor:pointer;transition:background .12s,color .12s;outline:none}
 .seg:focus-visible{box-shadow:0 0 0 2px #8ab4f8}
-.seg.lit{background:var(--brick);color:#fff}      /* 磚紅色素色,白字對比足 (約 5:1) */
-.align-hint{font-size:.82rem;color:var(--muted);margin-top:8px}
 /* ====== 測驗 ====== */
-.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
-.qlist{padding-left:1.4em}
-.qlist>li{margin:16px 0;padding-bottom:12px;border-bottom:1px dashed var(--line)}
-.qlist>li:last-child{border-bottom:none}
-.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
-.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit}
+.btns button{background:#fff;border:1px solid var(--line);cursor:pointer;font-size:.85rem;font-family:inherit}
 .btns button:hover{background:var(--accent-soft)}
-.btns button.good{background:#d8f5dd;border-color:#9fd8ab} .btns button.bad{background:#ffdde4;border-color:#f3a8b9}
-input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;padding:2px 8px;font-size:1rem;font-family:inherit;min-width:8em;outline:none}
-input.blank.good{border-color:#4a9b5e;background:#f0fbf3} input.blank.bad{border-color:#d1476a;background:#fdf1f4}
-.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
-.fb.show{display:block}
-footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:40px;padding-top:18px;border-top:1px solid var(--line)}
-@media(max-width:860px){.wrap{padding:16px 14px 60px}.layout{flex-direction:column}.toc{position:static;flex:none;width:100%;max-height:none}}
-@media print{.toolbar,.toc,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+@media(max-width:860px){.toc{position:static;flex:none;width:100%;max-height:none}}
+@media print{.toc{display:none}}
 </style>
 </head>
 <body>
@@ -403,5 +339,7 @@ model Session {
   addEventListener('scroll',spy,{passive:true});spy();
 })();
 </script>
+<script src="../assets/notes.js"></script>
+<script src="../assets/note-mask.js"></script>
 </body>
 </html>
