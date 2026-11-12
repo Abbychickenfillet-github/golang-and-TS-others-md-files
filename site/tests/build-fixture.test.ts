@@ -25,7 +25,8 @@ const siteDir = fileURLToPath(new URL('..', import.meta.url));
 // 建置測試的輸出資料夾（next.config.ts 依 SITE_OUT_DIR 設 distDir），不會蓋掉開發者的 out/；
 const outDir = path.join(siteDir, 'out-fixture');
 // 建置用的環境變數：測試筆記庫、輸出資料夾；STRICT_LINKS 明確清掉，避免外部環境影響；
-const baseEnv = { ...process.env, NOTES_ROOT: 'tests/site-vault', SITE_OUT_DIR: 'out-fixture', STRICT_LINKS: '' };
+// BASE_PATH 也明確清成空字串：CI 的 pages.yml 會在跑測試前把 BASE_PATH 設成 /倉庫名，不清掉的話測試期待的無前綴連結會對不上；
+const baseEnv = { ...process.env, NOTES_ROOT: 'tests/site-vault', SITE_OUT_DIR: 'out-fixture', STRICT_LINKS: '', BASE_PATH: '' };
 
 // 執行 npm run build；shell: true 讓 Windows 找得到 npm.cmd；encoding 讓輸出是字串；
 function runBuild(env: NodeJS.ProcessEnv) {

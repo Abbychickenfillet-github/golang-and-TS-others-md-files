@@ -7,10 +7,8 @@ on: # 觸發條件
     branches: [main] # 只有 main 分支會部署；功能分支不會觸發，省 CI 費用
   workflow_dispatch: # 允許在 Actions 分頁手動按「Run workflow」
 
-permissions: # 給這個工作流程的 GITHUB_TOKEN 最小權限
+permissions: # 給這個工作流程的 GITHUB_TOKEN 最小權限（最上層只給讀取；寫入 Pages 的權限只放在 deploy 工作，build 工作執行 npm ci 時拿不到）
   contents: read # 讀取程式碼
-  pages: write # 寫入 Pages
-  id-token: write # deploy-pages 驗證身分需要
 
 concurrency: # 同時只讓一個部署在跑
   group: pages # 同一個群組
@@ -23,6 +21,7 @@ jobs: # 工作清單
       STRICT_LINKS: ${{ vars.STRICT_LINKS }} # 壞連結是否擋部署：變數要精確設成 1 才嚴格，沒設或 0 只列出
       ROOT_SITE: ${{ vars.ROOT_SITE }} # 設成 1 代表網站在網域根目錄（自訂網域或 帳號.github.io 倉庫），不加子路徑前綴
       CUSTOM_BASE_PATH: ${{ vars.BASE_PATH }} # 想自己指定子路徑前綴時用（例如 /my-notes）
+      REPO_NAME: ${{ github.event.repository.name }} # 倉庫名先放進環境變數，下面 run 裡不直接內嵌 ${{ }}，避免注入
     steps: # 步驟
       - name: Checkout # 取得程式碼
         uses: actions/checkout@v4 # 官方檢出動作
@@ -41,7 +40,7 @@ jobs: # 工作清單
           elif [ -n "$CUSTOM_BASE_PATH" ]; then
             echo "BASE_PATH=$CUSTOM_BASE_PATH" >> "$GITHUB_ENV"
           else
-            echo "BASE_PATH=/${{ github.event.repository.name }}" >> "$GITHUB_ENV"
+            echo "BASE_PATH=/$REPO_NAME" >> "$GITHUB_ENV"
           fi
 
       - name: Check STRICT_LINKS value # 檢查嚴格模式變數的值
@@ -78,6 +77,9 @@ jobs: # 工作清單
   deploy: # 第二個工作：部署
     needs: build # 等建置工作成功
     runs-on: ubuntu-latest # 執行環境
+    permissions: # 只有部署工作需要的權限
+      pages: write # 寫入 Pages
+      id-token: write # deploy-pages 驗證身分需要
     environment: # 部署環境，Pages 要求
       name: github-pages # 固定名稱
       url: ${{ steps.deployment.outputs.page_url }} # 部署完成後顯示的網址
