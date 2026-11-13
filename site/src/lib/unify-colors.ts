@@ -92,8 +92,9 @@ const DARK_TEXT = 'oklch(0.22 0.03 260)';
 const LIGHT_TEXT = 'oklch(0.96 0.01 258)';
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 // 淺色卡片與深色卡片的近似底色（主題的 --card 兩種模式）：半透明螢光筆混在它們上面，算出實際看到的底色；
-const LIGHT_BASE = '#f7f9fc';
-const DARK_BASE = 'rgb(75,86,102)';
+// 螢光筆可能落在卡片上，也可能直接落在頁面底色上，所以每種模式各備兩個底色，挑「兩種底都看得清楚」的字色；
+const LIGHT_BASE = ['#f7f9fc', 'oklch(0.89 0.055 240)'];
+const DARK_BASE = ['rgb(67,78,94)', 'rgb(10,12,20)'];
 
 // 值裡有沒有「括號外」的逗號（多層背景）；rgba(1,2,3,.5) 裡的逗號不算；
 function hasTopLevelComma(value: string): boolean {
@@ -160,14 +161,20 @@ function literalBg(rule: postcss.Rule, varLits: Map<string, string>): LiteralBg 
 }
 
 // 半透明背景混在某個底色上之後，深字與淺字哪個對比高就用哪個；
-function pickText(bg: LiteralBg, baseColor: string): string {
-  // 底色轉 rgb；
-  const base = rgb(parse(baseColor) ?? { mode: 'rgb', r: 1, g: 1, b: 1 });
-  // 依透明度混色（瀏覽器在 sRGB 空間混合）；
-  const mixed = { mode: 'rgb' as const, r: bg.color.r * bg.a + base.r * (1 - bg.a), g: bg.color.g * bg.a + base.g * (1 - bg.a), b: bg.color.b * bg.a + base.b * (1 - bg.a) };
-  // 兩種字色對這個底的對比；
-  const darkRatio = wcagContrast(mixed, parse(DARK_TEXT) ?? '#000');
-  const lightRatio = wcagContrast(mixed, parse(LIGHT_TEXT) ?? '#fff');
+function pickText(bg: LiteralBg, baseColors: string[]): string {
+  // 兩種字色在各個底色上的最低對比；
+  let darkRatio = Infinity;
+  let lightRatio = Infinity;
+  // 逐一底色混色；
+  for (const baseColor of baseColors) {
+    // 底色轉 rgb；
+    const base = rgb(parse(baseColor) ?? { mode: 'rgb', r: 1, g: 1, b: 1 });
+    // 依透明度混色（瀏覽器在 sRGB 空間混合）；
+    const mixed = { mode: 'rgb' as const, r: bg.color.r * bg.a + base.r * (1 - bg.a), g: bg.color.g * bg.a + base.g * (1 - bg.a), b: bg.color.b * bg.a + base.b * (1 - bg.a) };
+    // 記下較差的那一個；
+    darkRatio = Math.min(darkRatio, wcagContrast(mixed, parse(DARK_TEXT) ?? '#000'));
+    lightRatio = Math.min(lightRatio, wcagContrast(mixed, parse(LIGHT_TEXT) ?? '#fff'));
+  }
   // 取較高者；
   return darkRatio >= lightRatio ? DARK_TEXT : LIGHT_TEXT;
 }
@@ -398,7 +405,9 @@ export function unifyCssColors(css: string): UnifyResult {
     // 「我們先前補上的」文字色（固定深字、固定淺字、--ink）可以被改寫；頁面自己寫的顏色不碰；
     const ours = colorDecl === undefined || colorDecl.value === DARK_TEXT || colorDecl.value === LIGHT_TEXT || colorDecl.value === 'var(--ink)';
     // 只處理有單色背景、而且文字色是空的或我們補的；
-    if (hasLiteralBg && bg !== undefined && ours) {
+    // 行內樣式已經整理成 --c-l / --c-d 兩個自訂屬性的，不再補；
+    const hasPair = rule.nodes.some((n) => n.type === 'decl' && n.prop.toLowerCase() === '--c-l');
+    if (hasLiteralBg && bg !== undefined && ours && !hasPair) {
       // 不透明：亮底配固定深字、暗底配固定淺字，不隨模式改變；
       // 半透明：淺色模式的底是「螢光筆混在淺色卡片上」、深色模式是「混在深色卡片上」，兩邊各挑對比較高的字色；
       const light = bg.a >= 0.9 ? (bg.l >= 0.55 ? DARK_TEXT : LIGHT_TEXT) : pickText(bg, LIGHT_BASE);
@@ -415,6 +424,39 @@ export function unifyCssColors(css: string): UnifyResult {
   });
   // 輸出；
   return { text: root.toString(), changes };
+}
+
+// 把「x{…}」（可能後面跟著一個深色模式的 @media 覆寫）整理成行內 style 能放的宣告字串；
+function inlineDecls(text: string): string {
+  // 沒有 @media：直接取大括號內容（原本的行為，位元組不變）；
+  if (!text.includes('@media')) return text.slice(2, -1);
+  // 解析；
+  const root = postcss.parse(text);
+  // 主規則與深色覆寫裡的 color；
+  let main: postcss.Rule | undefined;
+  let darkColor: string | undefined;
+  // 走訪；
+  root.each((n) => {
+    // 第一條規則是主規則；
+    if (n.type === 'rule' && main === undefined) main = n;
+    // @media 裡的 color 是深色字色；
+    if (n.type === 'atrule') n.walkDecls('color', (d) => { darkColor = d.value; });
+  });
+  // 結構不符就退回原本行為；
+  if (main === undefined || darkColor === undefined) return text.slice(2, -1);
+  // 主規則的 color 抽出來當淺色字色，換成兩個自訂屬性；
+  const rule: postcss.Rule = main;
+  const lightDecl = rule.nodes.find((n): n is postcss.Declaration => n.type === 'decl' && n.prop.toLowerCase() === 'color');
+  // 沒有淺色字色就退回；
+  if (lightDecl === undefined) return text.slice(2, -1);
+  // 先記下淺色值再移除；
+  const light = lightDecl.value;
+  lightDecl.remove();
+  // 補兩個自訂屬性；
+  rule.append({ prop: '--c-l', value: light });
+  rule.append({ prop: '--c-d', value: darkColor });
+  // 輸出主規則的大括號內容；
+  return rule.toString().slice(2, -1);
 }
 
 // 轉換整份 html：<style> 區塊與 style="…" 屬性；其餘位元組完全不動；
@@ -438,8 +480,8 @@ export function unifyHtmlColors(html: string): UnifyResult {
     if (r.changes === 0) return open + body + close;
     // 累計；
     total += r.changes;
-    // 取出大括號內的內容；
-    const inner = r.text.slice(2, -1);
+    // 取出大括號內的內容；行內樣式沒辦法寫 @media，所以深色模式不同的字色改成兩個自訂屬性 --c-l（淺色）與 --c-d（深色），由主題的屬性選擇器套用；
+    const inner = inlineDecls(r.text);
     // 屬性值裡不能出現雙引號；
     return open + inner.replace(/"/g, "'") + close;
   });

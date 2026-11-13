@@ -94,9 +94,15 @@ describe('unifyCssColors：螢光筆變數與半透明底', () => {
   });
   // 半透明螢光筆會透出頁面底色，文字用跟著模式走的 --ink；
   it('半透明底依混色後的對比挑文字色', () => {
-    expect(css('mark{background:#ff5582a6}')).toBe('mark{background:#ff5582a6;color:oklch(0.22 0.03 260)}');
+    // 黃色半透明：兩種模式都是深字；
+    expect(css('mark{background:#fff3a3a6}')).toBe('mark{background:#fff3a3a6;color:oklch(0.22 0.03 260)}');
+    // 紅色半透明：淺色模式深字，深色模式混在近黑底上變暗，改淺字（補 @media 覆寫）；
+    const red = css('mark{background:#ff5582a6}');
+    expect(red).toContain('mark{background:#ff5582a6;color:oklch(0.22 0.03 260)}');
+    expect(red).toContain('@media (prefers-color-scheme: dark)');
+    expect(red).toContain('oklch(0.96 0.01 258)');
     // 先前版本補上的 var(--ink)，遇到半透明底改成對比較高的固定色；
-    expect(css('mark{background:#ff5582a6;color:var(--ink)}')).toBe('mark{background:#ff5582a6;color:oklch(0.22 0.03 260)}');
+    expect(css('mark{background:#fff3a3a6;color:var(--ink)}')).toBe('mark{background:#fff3a3a6;color:oklch(0.22 0.03 260)}');
     // 半透明的白（玻璃遮罩）不是螢光筆，不補文字色；
     expect(css('a{background:rgba(255,255,255,.3)}')).toBe('a{background:rgba(255,255,255,.3)}');
     // rgba() 內的逗號不算複合背景，近白的 rgba 會換成 --card；
@@ -166,6 +172,15 @@ describe('unifyHtmlColors', () => {
   it('跑第二次不再變動', () => {
     const once = unifyHtmlColors('<style>a{background:#fff;color:#222}</style>').text;
     expect(unifyHtmlColors(once).changes).toBe(0);
+    expect(unifyHtmlColors(once).text).toBe(once);
+  });
+  // 行內半透明紅色螢光筆：淺色深字、深色淺字，行內寫不了 @media，所以改成 --c-l / --c-d 兩個自訂屬性；
+  it('行內樣式的字色因模式而異時改寫成 --c-l 與 --c-d，且冪等', () => {
+    const once = unifyHtmlColors('<mark style="background:#FF5582A6">x</mark>').text;
+    expect(once).toContain('--c-l:');
+    expect(once).toContain('--c-d:');
+    expect(once).not.toMatch(/[^-]color:/);
+    expect(once).not.toContain('@media');
     expect(unifyHtmlColors(once).text).toBe(once);
   });
   // 壞掉的 CSS 不處理也不丟錯；
