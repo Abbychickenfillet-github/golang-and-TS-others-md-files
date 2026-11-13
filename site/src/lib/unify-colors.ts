@@ -303,8 +303,8 @@ export function unifyCssColors(css: string): UnifyResult {
     const names = [...d.value.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]);
     // 文字色用法；
     if (d.prop.toLowerCase() === 'color') for (const n of names) textVars.add(n);
-    // 背景、邊線、填色、陰影等其他用法一律視為「不是只當文字」；
-    else if (!d.prop.startsWith('--')) for (const n of names) bgVars.add(n);
+    // 背景與填色用法視為「不是只當文字」（提亮會讓上面的白字變難讀）；邊線、外框、陰影跟著提亮沒問題，不算；
+    else if (/^(background|fill)/i.test(d.prop)) for (const n of names) bgVars.add(n);
   });
   // 逐條規則處理（at-rule 裡的規則也會被走訪到）；
   root.walkRules((rule) => {
