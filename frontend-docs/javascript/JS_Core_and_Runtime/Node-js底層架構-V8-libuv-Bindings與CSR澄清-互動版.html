@@ -30,7 +30,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 </style><link rel="stylesheet" href="../../../assets/notes.css">
 </head><body>
 <div class="wrap">
-<header class="note"><h1>Node.js 底層架構——V8 + libuv + C++ Bindings，以及 CSR 澄清</h1><div class="pills"><span class="pill">#nodejs</span><span class="pill">#libuv</span><span class="pill">#v8</span><span class="pill">#csr</span><span class="pill">#ssr</span><span class="pill">#host-environment</span><span class="pill">#JS_Core_and_Runtime</span></div><div class="meta"><a href="https://gemini.google.com/app/35f68098963fef1d" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/22e7959c0c3c36e4" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/75aeb1c279e7c8f6" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<header class="note"><h1>Node.js 底層架構——V8 + libuv + C++ Bindings，以及 CSR 澄清</h1><div class="pills"><span class="pill">#nodejs</span><span class="pill">#libuv</span><span class="pill">#v8</span><span class="pill">#csr</span><span class="pill">#ssr</span><span class="pill">#host-environment</span><span class="pill">#JS_Core_and_Runtime</span></div><div class="meta"><a href="https://gemini.google.com/app/35f68098963fef1d" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/22e7959c0c3c36e4" target="_blank">原始對話</a> · <a href="https://gemini.google.com/app/75aeb1c279e7c8f6" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3;color:oklch(0.22 0.03 260)"></i>核心重點</span><span><i style="background:#FF5582;color:oklch(0.22 0.03 260)"></i>警告</span><span><i style="background:#BBFABB;color:oklch(0.22 0.03 260)"></i>正解</span><span><i style="background:#ADCCFF;color:oklch(0.22 0.03 260)"></i>術語</span><span><i style="background:#FFB8EB;color:oklch(0.22 0.03 260)"></i>數據</span><span><i style="background:#D2B3FF;color:oklch(0.22 0.03 260)"></i>次要備註</span></div></header>
 <div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
 <section class="card"><h1>Node.js 底層架構：V8 + libuv + C++ Bindings</h1>
 <blockquote>
@@ -48,7 +48,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 </code></pre>
 <p>也就是說 Node.js＝<strong>V8（跑 JS）＋ libuv（事件迴圈/非同步 I/O）＋ C++ Bindings（連接兩者）＋ 其他專門函式庫（加密、壓縮、DNS、HTTP 解析）＋ 一層用 JS 寫的核心標準庫（<code>fs</code>、<code>http</code>… 這些你直接呼叫的 API）</strong>——libuv 只負責其中「非同步 I/O 與事件迴圈」這一塊，不是全部。</p>
 </section><section class="card"><h2>(b) libuv 是什麼的縮寫？</h2>
-<p><mark style="background: #FF5582A6;">誠實講：libuv 官方 README 並沒有解釋這個名字的由來或縮寫意義</mark>，網路上流傳的各種「uv 代表 XXX」說法都查無官方出處，這裡不瞎猜、不寫進筆記當事實。比較重要、也查證得到的是<strong>它實際做什麼</strong>：</p>
+<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">誠實講：libuv 官方 README 並沒有解釋這個名字的由來或縮寫意義</mark>，網路上流傳的各種「uv 代表 XXX」說法都查無官方出處，這裡不瞎猜、不寫進筆記當事實。比較重要、也查證得到的是<strong>它實際做什麼</strong>：</p>
 <ul>
 <li><strong>事件迴圈（Event Loop）</strong>：跨平台的事件迴圈實作，底層依系統分別用 Linux 的 <code>epoll</code>、macOS 的 <code>kqueue</code>、Windows 的 <code>IOCP</code>。</li>
 <li><strong>非同步 I/O</strong>：TCP/UDP socket、檔案讀寫、DNS 解析、檔案系統變化通知，全部做成非阻塞。</li>
@@ -101,7 +101,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 <li>SSR 渲染那一段程式碼（因為它是在伺服器的 Node.js 裡執行，見 (c)）。</li>
 </ul>
 </section><section class="card"><h2>(e-1) Deno 跟 Node.js、V8 的關係</h2>
-<p><mark style="background: #ADCCFFA6;">Deno底層也嵌入V8這顆引擎</mark>——跟Node.js一樣，都是「V8＋其他東西」組成的host環境，呼應[[引擎-Engine-到底是什麼]]「V8是獨立元件、誰都能包」那個論點。但Deno不是隨便一個團隊做的：<mark style="background: #FFF3A3A6;">Deno是Node.js原作者Ryan Dahl自己跳出來「重做一次」的專案</mark>，用意是修正他自己當年設計Node.js時留下的一些遺憾。</p>
+<p><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Deno底層也嵌入V8這顆引擎</mark>——跟Node.js一樣，都是「V8＋其他東西」組成的host環境，呼應[[引擎-Engine-到底是什麼]]「V8是獨立元件、誰都能包」那個論點。但Deno不是隨便一個團隊做的：<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">Deno是Node.js原作者Ryan Dahl自己跳出來「重做一次」的專案</mark>，用意是修正他自己當年設計Node.js時留下的一些遺憾。</p>
 <p>主要差異：</p>
 <table>
 <thead>
@@ -144,7 +144,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 </tr>
 </tbody>
 </table>
-<p>一句話：<mark style="background: #BBFABBA6;">Node.js跟Deno是同一顆V8引擎、兩種不同host外殼——Deno可以看成是原作者事後反省Node.js的安全性/工具鏈設計，用更現代的技術棧（Rust+Tokio）重做一次的結果。</mark></p>
+<p>一句話：<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">Node.js跟Deno是同一顆V8引擎、兩種不同host外殼——Deno可以看成是原作者事後反省Node.js的安全性/工具鏈設計，用更現代的技術棧（Rust+Tokio）重做一次的結果。</mark></p>
 </section><section class="card"><h2>(e) 小結對照表</h2>
 <table>
 <thead>
@@ -177,7 +177,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 <p>本次追加重點 (f)–(h)，共 3 個。起點：Abby 提出「V8 宿主環境是 Node.js 跟 Chrome，兩者各提供 DOM/fetch/fs/http，中間夾了一層 runtime，這個 runtime 到底是什麼」的追問，跟本篇 (a)–(e) 談的是同一組分層，只是換了一次更完整的三層命名法再確認一遍。</p>
 </blockquote>
 <h3>(f) Runtime 一詞的兩種意思＋三層架構命名對照</h3>
-<p><mark style="background: #FFF3A3A6;">「Runtime」本身有兩種常被混用的意思</mark>：</p>
+<p><mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">「Runtime」本身有兩種常被混用的意思</mark>：</p>
 <ul>
 <li><strong>執行階段（Runtime Phase）</strong>：與 Compile Time 相對的時間概念，例如「這個變數未定義的錯誤要到 Runtime 才會觸發」。</li>
 <li><strong>執行環境（Runtime Environment）</strong>：讓某種語言能運作的完整軟體套件，例如 "Node.js is a JavaScript runtime" 講的就是這個意思。</li>
@@ -195,12 +195,12 @@ img{border-radius:8px;border:1px solid var(--line);}
 <tr>
 <td>① JS Engine</td>
 <td>V8、SpiderMonkey、JavaScriptCore</td>
-<td>解析／編譯 JS、維護 <mark style="background: #ADCCFFA6;">Call Stack 與 Heap</mark>、GC。<strong>完全不知道</strong> <code>document.getElementById</code> 或 <code>fs.readFile</code> 是什麼</td>
+<td>解析／編譯 JS、維護 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Call Stack 與 Heap</mark>、GC。<strong>完全不知道</strong> <code>document.getElementById</code> 或 <code>fs.readFile</code> 是什麼</td>
 </tr>
 <tr>
 <td>② Runtime Bridge（中間夾帶層）</td>
 <td>Event Loop、Task Queues、C++ Binding</td>
-<td>讓非同步任務能運作；Node.js 這層的核心就是本篇 (a)(b) 講的 <mark style="background: #ADCCFFA6;">libuv</mark>，Chrome 這層是 Chromium/Blink 的 Event Loop + IPC</td>
+<td>讓非同步任務能運作；Node.js 這層的核心就是本篇 (a)(b) 講的 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">libuv</mark>，Chrome 這層是 Chromium/Blink 的 Event Loop + IPC</td>
 </tr>
 <tr>
 <td>③ Host Environment APIs</td>
@@ -209,16 +209,16 @@ img{border-radius:8px;border:1px solid var(--line);}
 </tr>
 </tbody>
 </table>
-<p><mark style="background: #BBFABBA6;">跟本篇 (d) 的 Core/Browser/Node 那張圖是同一件事，只是這裡把「①引擎」跟「②橋接層」拆更細——強調 Event Loop／libuv 這類非同步底層機制並不屬於 V8 引擎本身，而是 host 環境另外補上的橋樑</mark>。</p>
+<p><mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">跟本篇 (d) 的 Core/Browser/Node 那張圖是同一件事，只是這裡把「①引擎」跟「②橋接層」拆更細——強調 Event Loop／libuv 這類非同步底層機制並不屬於 V8 引擎本身，而是 host 環境另外補上的橋樑</mark>。</p>
 <h3>(g) Heap 與 Stack 算「引擎」的還是「記憶體 Runtime」的？——兩者都對，只是說的是不同面向</h3>
-<p>Abby 追問：Heap/Stack 不是應該屬於「記憶體的運行時」嗎，為什麼算在 Engine 頭上？答案是<mark style="background: #FFF3A3A6;">兩個描述講的是不同層次，不衝突</mark>：</p>
+<p>Abby 追問：Heap/Stack 不是應該屬於「記憶體的運行時」嗎，為什麼算在 Engine 頭上？答案是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">兩個描述講的是不同層次，不衝突</mark>：</p>
 <ul>
-<li><mark style="background: #ADCCFFA6;">實體面（Memory at Runtime）</mark>：Heap 和 Stack 確實是程式<strong>執行階段</strong>才存在於 RAM 裡的記憶體空間——這件事發生在 Runtime（時間點意義）沒有錯。</li>
-<li><mark style="background: #ADCCFFA6;">管理面（Engine 職責）</mark>：但「這塊空間要怎麼排版、怎麼配發、怎麼回收」的具體演算法與資料結構，完全由 V8 引擎（一支 C++ 程式）自己定義並執行——OS 只負責把一整塊未結構化的原始記憶體丟給 process，V8 接手後才劃出 Call Stack（Stack Pointer 記錄目前執行到哪個 Function Execution Context）與 Heap（New/Old/Large Object Space，GC 演算法如 Scavenger/Mark-Sweep）。</li>
+<li><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">實體面（Memory at Runtime）</mark>：Heap 和 Stack 確實是程式<strong>執行階段</strong>才存在於 RAM 裡的記憶體空間——這件事發生在 Runtime（時間點意義）沒有錯。</li>
+<li><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">管理面（Engine 職責）</mark>：但「這塊空間要怎麼排版、怎麼配發、怎麼回收」的具體演算法與資料結構，完全由 V8 引擎（一支 C++ 程式）自己定義並執行——OS 只負責把一整塊未結構化的原始記憶體丟給 process，V8 接手後才劃出 Call Stack（Stack Pointer 記錄目前執行到哪個 Function Execution Context）與 Heap（New/Old/Large Object Space，GC 演算法如 Scavenger/Mark-Sweep）。</li>
 </ul>
-<p>一句話：<mark style="background: #BBFABBA6;">「發生在哪個時間點」是 Runtime Phase 的問題，「由誰定義怎麼管理」是 Engine 的職責——技術文件把 Stack/Heap 標註為引擎組件，指的是後者。</mark></p>
+<p>一句話：<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">「發生在哪個時間點」是 Runtime Phase 的問題，「由誰定義怎麼管理」是 Engine 的職責——技術文件把 Stack/Heap 標註為引擎組件，指的是後者。</mark></p>
 <h3>(h) ECMAScript 規範完全沒寫 window 或 fs——由 WHATWG／Node API 各自定義</h3>
-<p><mark style="background: #FF5582A6;">TC39 的 ECMA-262 規範裡找不到 <code>window</code> 或 <code>fs</code> 這些詞</mark>，規範只用 <strong>Host Environment（宿主環境）</strong> 與 <strong>Host Objects（宿主物件）</strong> 這種抽象說法，透過 <strong>Host Hooks（宿主鉤子，例如 <code>HostEnqueuePromiseJob</code>）</strong> 跟宿主環境溝通。這樣設計是刻意的，理由有三：</p>
+<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">TC39 的 ECMA-262 規範裡找不到 <code>window</code> 或 <code>fs</code> 這些詞</mark>，規範只用 <strong>Host Environment（宿主環境）</strong> 與 <strong>Host Objects（宿主物件）</strong> 這種抽象說法，透過 <strong>Host Hooks（宿主鉤子，例如 <code>HostEnqueuePromiseJob</code>）</strong> 跟宿主環境溝通。這樣設計是刻意的，理由有三：</p>
 <ul>
 <li><strong>安全沙盒與硬體邊界</strong>：瀏覽器要跑陌生的網路程式碼，若 ECMAScript 強制內建 <code>fs</code>，任何網站都能讀你電腦的檔案；反之 Node.js 沒有螢幕，也不需要 <code>window</code>。</li>
 <li><strong>核心邏輯的通用性（Isomorphic JS）</strong>：不涉及宿主 API 的純邏輯（演算法、<code>dayjs</code>、Redux 這類狀態管理）才能在瀏覽器／Node.js／Deno／嵌入式裝置間無縫移植。</li>
@@ -273,14 +273,14 @@ img{border-radius:8px;border:1px solid var(--line);}
 </tr>
 </tbody>
 </table>
-<p><mark style="background: #D2B3FFA6;">跨瀏覽器（Chrome/Firefox/Safari/Edge）的 <code>window</code>/<code>fetch</code> 行為之所以一致，是因為大家共同遵守 WHATWG／W3C 標準，跟 ECMAScript 無關；ECMAScript 只保證「語法」（<code>[1,2].map()</code>、<code>async/await</code>）到處一樣。</mark> 這也回答了 Runtime 如何影響 <code>fs</code>：Node.js 執行 <code>fs.readFile()</code> 時，是內建的 C++ 模組（結合 libuv）直接呼叫 OS 系統呼叫；Chrome 的 Runtime 核心根本沒把硬碟 I/O 暴露給 V8，V8 執行時找不到 <code>fs</code> 就直接丟 <code>ReferenceError</code>。</p>
+<p><mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">跨瀏覽器（Chrome/Firefox/Safari/Edge）的 <code>window</code>/<code>fetch</code> 行為之所以一致，是因為大家共同遵守 WHATWG／W3C 標準，跟 ECMAScript 無關；ECMAScript 只保證「語法」（<code>[1,2].map()</code>、<code>async/await</code>）到處一樣。</mark> 這也回答了 Runtime 如何影響 <code>fs</code>：Node.js 執行 <code>fs.readFile()</code> 時，是內建的 C++ 模組（結合 libuv）直接呼叫 OS 系統呼叫；Chrome 的 Runtime 核心根本沒把硬碟 I/O 暴露給 V8，V8 執行時找不到 <code>fs</code> 就直接丟 <code>ReferenceError</code>。</p>
 <p>來源查證：V8 官方 Embedder's Guide（v8.dev）、TC39 ECMA-262 規範（Host environment／<code>HostEnqueuePromiseJob</code>）、MDN Concurrency model and the event loop、Node.js 官方 About／System Architecture 文件（經 Gemini 轉述，查證日 2026-07-31）。</p>
 </section><section class="card"><h2>追加 2026-08-06：V8 的 C++ Binding 機制、Context 沙盒、與 d8 開發工具</h2>
 <blockquote>
 <p>本次追加重點 (i)–(n)，共 6 個。起點：Abby 從「Blink 解析 HTML 建立 DOM Tree、V8 執行 JS」延伸追問「Chrome/Node.js 到底怎麼把功能注入 V8」「Context 是什麼」「能不能直接把 V8 當執行檔跑」，跟本篇 (a)–(h) 談的是同一層架構，但把「② Runtime Bridge／C++ Binding」這塊剖得更細。</p>
 </blockquote>
 <h3>(i) V8 提供的 C++ API：Isolate、Context、FunctionTemplate、ObjectTemplate</h3>
-<p>V8 本身是<mark style="background: #ADCCFFA6;">已經編譯好的機器碼（Library）</mark>，不需要每次被重新編譯——是它去編譯並執行你寫的 JavaScript。V8 對外提供一套 C++ 類別／方法，讓宿主環境的 C++ 開發者能操控 JS 環境，常見的有：</p>
+<p>V8 本身是<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">已經編譯好的機器碼（Library）</mark>，不需要每次被重新編譯——是它去編譯並執行你寫的 JavaScript。V8 對外提供一套 C++ 類別／方法，讓宿主環境的 C++ 開發者能操控 JS 環境，常見的有：</p>
 <ul>
 <li><code>v8::Isolate</code>：代表一個獨立的 V8 虛擬機器實例，有自己的 Heap 記憶體與 GC。</li>
 <li><code>v8::Context</code>：代表一個獨立的 JS 全域執行環境（見 (k)）。</li>
@@ -288,8 +288,8 @@ img{border-radius:8px;border:1px solid var(--line);}
 <li><code>v8::ObjectTemplate</code>：用 C++ 定義一個 JS 物件的結構。</li>
 </ul>
 <h3>(j) Binding 的具體運作：不是「寫進 V8 一起編譯」，而是「執行期註冊」</h3>
-<p><mark style="background: #FF5582A6;">常見誤解：以為宿主環境是把自己的 C++ 功能「寫進 V8 原始碼裡一起編譯」</mark>。實際上 V8 在下載下來時就已經可以單獨編譯成軟體庫（<code>libv8.a</code>／<code>v8.dll</code>），不需要修改 V8 內部原始碼——如果每次新增功能都要改 V8 原始碼重編，專案會極度混亂難維護。</p>
-<p>正確做法是<mark style="background: #BBFABBA6;">執行期動態註冊／綁定（Binding）</mark>：宿主環境利用 V8 提供的 C++ API，在 runtime 把自己的 C++ 函式「暴露」給 V8 的 JS 環境，過程像開餐廳：</p>
+<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">常見誤解：以為宿主環境是把自己的 C++ 功能「寫進 V8 原始碼裡一起編譯」</mark>。實際上 V8 在下載下來時就已經可以單獨編譯成軟體庫（<code>libv8.a</code>／<code>v8.dll</code>），不需要修改 V8 內部原始碼——如果每次新增功能都要改 V8 原始碼重編，專案會極度混亂難維護。</p>
+<p>正確做法是<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">執行期動態註冊／綁定（Binding）</mark>：宿主環境利用 V8 提供的 C++ API，在 runtime 把自己的 C++ 函式「暴露」給 V8 的 JS 環境，過程像開餐廳：</p>
 <ol>
 <li>V8 建立一個乾淨的 JS 執行環境（Context），裡面只有 JS 原生語法（<code>Object</code>、<code>Array</code>、<code>Math</code>）——像一張空菜單。</li>
 <li>宿主環境（如 Node.js）用 C++ 寫好實體函式（例如 <code>CPP_ReadFile()</code>）——像準備好的廚師。</li>
@@ -308,9 +308,9 @@ global_template-&gt;Set(
   v8::FunctionTemplate::New(isolate, MyCppLog)
 );
 </code></pre>
-<p>執行完這段 C++ 後，JS 就能直接呼叫 <code>customLog()</code>，背後執行的是 C++ 的 <code>MyCppLog</code>。<mark style="background: #D2B3FFA6;">這套「註冊/綁定」流程不是遊戲引擎特有的機制，而是任何宿主環境（Chrome／Node.js／嵌入 V8 的遊戲引擎）想讓 JS 擁有額外功能時必走的路。</mark></p>
+<p>執行完這段 C++ 後，JS 就能直接呼叫 <code>customLog()</code>，背後執行的是 C++ 的 <code>MyCppLog</code>。<mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">這套「註冊/綁定」流程不是遊戲引擎特有的機制，而是任何宿主環境（Chrome／Node.js／嵌入 V8 的遊戲引擎）想讓 JS 擁有額外功能時必走的路。</mark></p>
 <h3>(k) Context = 獨立沙盒：一個分頁／iframe 一個 Context</h3>
-<p><mark style="background: #ADCCFFA6;">Context 就是「執行上下文（Execution Context）」／全域執行環境</mark>，可以想像成一個完全隔離的沙盒——每個 Context 有自己獨立的全域物件。瀏覽器開 3 個分頁，或頁面裡有 <code>&lt;iframe&gt;</code>，每個分頁／iframe 都有自己獨立的 V8 Context，確保 Tab A 的 JS 變數不會污染 Tab B。Chrome 啟動一個分頁時，就會為它建立全新的 V8 Context，並把 DOM、Web API 註冊進這個 Context 的全域物件。</p>
+<p><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Context 就是「執行上下文（Execution Context）」／全域執行環境</mark>，可以想像成一個完全隔離的沙盒——每個 Context 有自己獨立的全域物件。瀏覽器開 3 個分頁，或頁面裡有 <code>&lt;iframe&gt;</code>，每個分頁／iframe 都有自己獨立的 V8 Context，確保 Tab A 的 JS 變數不會污染 Tab B。Chrome 啟動一個分頁時，就會為它建立全新的 V8 Context，並把 DOM、Web API 註冊進這個 Context 的全域物件。</p>
 <h3>(l) window／document／DOM 節點的歸屬：屬性、物件、方法怎麼分</h3>
 <table>
 <thead>
@@ -343,13 +343,13 @@ global_template-&gt;Set(
 </tr>
 </tbody>
 </table>
-<p><mark style="background: #BBFABBA6;">關係圖：<code>window</code>（V8 中的 Global Object）→ <code>setTimeout</code>／<code>fetch</code>（window 的方法，指向 Blink 的 C++ 實作）→ <code>document</code>（window 的屬性，指向 Document 物件本人）→ <code>getElementById</code>（document 的方法，指向 Blink 的 C++ DOM 搜尋）。</mark>V8 對這些 C++ 功能的角色像「轉接員／經手錢的人」：它知道呼叫對應到哪個 C++ 函式、也經手了傳遞的參數，但不關心該 C++ 功能內部具體怎麼實作。</p>
+<p><mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">關係圖：<code>window</code>（V8 中的 Global Object）→ <code>setTimeout</code>／<code>fetch</code>（window 的方法，指向 Blink 的 C++ 實作）→ <code>document</code>（window 的屬性，指向 Document 物件本人）→ <code>getElementById</code>（document 的方法，指向 Blink 的 C++ DOM 搜尋）。</mark>V8 對這些 C++ 功能的角色像「轉接員／經手錢的人」：它知道呼叫對應到哪個 C++ 函式、也經手了傳遞的參數，但不關心該 C++ 功能內部具體怎麼實作。</p>
 <h3>(m) d8：純 V8 開發殼層，跟 Chrome／Node.js 差在哪</h3>
-<p><mark style="background: #ADCCFFA6;"><code>d8</code></mark> 是 V8 開發團隊為了測試 JS 引擎而編譯出來的命令行工具（Developer Shell），只有純粹的 V8 引擎，沒有載入任何 DOM／Blink／Node.js API：</p>
+<p><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>d8</code></mark> 是 V8 開發團隊為了測試 JS 引擎而編譯出來的命令行工具（Developer Shell），只有純粹的 V8 引擎，沒有載入任何 DOM／Blink／Node.js API：</p>
 <ul>
 <li>啟動極快：沒有載入任何宿主 API，幾毫秒內啟動。</li>
 <li>能跑：<code>console.log</code>、<code>1+1</code>、<code>Math.random()</code> 等純 ECMAScript 語法。</li>
-<li><mark style="background: #FF5582A6;">不能跑</mark>：<code>document.getElementById</code>（瀏覽器 API）或 <code>require('fs')</code>／<code>fetch</code>（Node/Blink API）——會直接報 <code>ReferenceError</code>，因為它是沒注入任何外置 C++ 功能的裸引擎。</li>
+<li><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不能跑</mark>：<code>document.getElementById</code>（瀏覽器 API）或 <code>require('fs')</code>／<code>fetch</code>（Node/Blink API）——會直接報 <code>ReferenceError</code>，因為它是沒注入任何外置 C++ 功能的裸引擎。</li>
 <li>取得方式：官方沒有一般安裝包，多透過開源工具 <code>jsvu</code>（<code>npm install -g jsvu</code> 後執行 <code>jsvu</code> 選 Windows x64 + v8）從 Google CI/CD 儲存庫抓取編譯好的 <code>d8.exe</code>。</li>
 <li>對照：<code>node script.js</code> 則是 Node.js（同樣嵌入 V8）在啟動時額外把 <code>fs</code>／<code>net</code>／<code>process</code> 等 C++ API 註冊進 Context，因此能操作系統層功能，但一樣不認得 <code>document</code>／<code>window</code>（那是 Blink 專屬的宿主功能）。</li>
 </ul>

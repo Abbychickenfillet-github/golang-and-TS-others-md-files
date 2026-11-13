@@ -30,31 +30,31 @@ img{border-radius:8px;border:1px solid var(--line);}
 </style><link rel="stylesheet" href="../../assets/notes.css">
 </head><body>
 <div class="wrap">
-<header class="note"><h1>i18n 資料庫設計—Locale 建表、BCP 47 Subtag 與業界做法拆解</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#i18n</span><span class="pill">#database</span><span class="pill">#bcp47</span><span class="pill">#locale</span><span class="pill">#api</span><span class="pill">#backend</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/63511ff0c6b920fd" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<header class="note"><h1>i18n 資料庫設計—Locale 建表、BCP 47 Subtag 與業界做法拆解</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#i18n</span><span class="pill">#database</span><span class="pill">#bcp47</span><span class="pill">#locale</span><span class="pill">#api</span><span class="pill">#backend</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/63511ff0c6b920fd" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3;color:oklch(0.22 0.03 260)"></i>核心重點</span><span><i style="background:#FF5582;color:oklch(0.22 0.03 260)"></i>警告</span><span><i style="background:#BBFABB;color:oklch(0.22 0.03 260)"></i>正解</span><span><i style="background:#ADCCFF;color:oklch(0.22 0.03 260)"></i>術語</span><span><i style="background:#FFB8EB;color:oklch(0.22 0.03 260)"></i>數據</span><span><i style="background:#D2B3FF;color:oklch(0.22 0.03 260)"></i>次要備註</span></div></header>
 <div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
 <section class="card"><blockquote>
 <p>🔖 本篇重點索引：a–o，共 15 個。</p>
 </blockquote>
 </section><section class="card"><h2>重點整理</h2>
 <h3>一、資料庫建表 vs JSON：兩者的分工</h3>
-<p><strong>(a)</strong> <mark style="background: #ADCCFFA6;">i18n 不是「存 JSON 或存 Table 二選一」</mark>：資料庫建表（如 <code>languages</code>／<code>locales</code> 表）是<mark style="background: #FFF3A3A6;">持久化儲存</mark>的最穩定源頭；JSON 只是 API 傳輸時的「運輸包裝」，把資料庫內容打包送給前端；前端負責解析 JSON 並渲染選單。三者是合作關係，不是互斥選項。</p>
-<p><strong>(b)</strong> <mark style="background: #FFB8EBA6;">典型 locales 表欄位</mark>：<code>id</code>、<code>code</code>（Key，如 <code>zh-TW</code>）、<code>name</code>（給管理員看）、<code>native_name</code>（給使用者看，如「繁體中文」）、<code>sort</code>、<code>is_enabled</code>。</p>
-<p><strong>(c)</strong> <mark style="background: #BBFABBA6;">後端資料流程</mark>：Query 從 <code>locales</code> 表撈資料 → Convert 轉成 Go struct（或 DTO）→ Marshal 用 <code>json.Marshal</code> 轉成 JSON → 回傳給前端跑 <code>.map()</code> 產生下拉選單。前端不在乎背後是建表還是存檔案，只在乎 API 回傳的格式好不好用。</p>
+<p><strong>(a)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">i18n 不是「存 JSON 或存 Table 二選一」</mark>：資料庫建表（如 <code>languages</code>／<code>locales</code> 表）是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">持久化儲存</mark>的最穩定源頭；JSON 只是 API 傳輸時的「運輸包裝」，把資料庫內容打包送給前端；前端負責解析 JSON 並渲染選單。三者是合作關係，不是互斥選項。</p>
+<p><strong>(b)</strong> <mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">典型 locales 表欄位</mark>：<code>id</code>、<code>code</code>（Key，如 <code>zh-TW</code>）、<code>name</code>（給管理員看）、<code>native_name</code>（給使用者看，如「繁體中文」）、<code>sort</code>、<code>is_enabled</code>。</p>
+<p><strong>(c)</strong> <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">後端資料流程</mark>：Query 從 <code>locales</code> 表撈資料 → Convert 轉成 Go struct（或 DTO）→ Marshal 用 <code>json.Marshal</code> 轉成 JSON → 回傳給前端跑 <code>.map()</code> 產生下拉選單。前端不在乎背後是建表還是存檔案，只在乎 API 回傳的格式好不好用。</p>
 <h3>二、如何「觀察業界做法」而非看原始碼</h3>
-<p><strong>(d)</strong> <mark style="background: #ADCCFFA6;">兩大觀察途徑</mark>：⑴ 黑箱推導——用瀏覽器開發者工具（F12 → Network → Fetch/XHR）觀察大型網站切換語系時打的 API；⑵ 開源參考——在 GitHub 找知名 i18n 框架（如 <code>nicksnyder/go-i18n</code>）或大公司釋出的架構設計（如 <code>google/go-genproto</code> 的語系標籤命名、CLDR 標準資料）。</p>
-<p><strong>(e)</strong> <mark style="background: #FFF3A3A6;">觀察大牌網站的步驟</mark>：切換網站語系 → F12 開 Network，過濾 Fetch/XHR → 找名稱含 <code>locale</code>／<code>lang</code>／<code>i18n</code>／<code>translations</code> 的 API → 看 Payload（送出什麼）與 Preview（拿回什麼）。常見發現：回傳 <code>en-US</code> 而非單純 <code>US</code>（驗證 BCP 47）；回傳原生語言名稱（如「日本語」）供使用者辨識。</p>
-<p><strong>(f)</strong> <mark style="background: #FF5582A6;">關鍵區分：點網站自己的 UI，不是瀏覽器原生翻譯</mark>。網站 UI 切換（i18n）：開發者提供精準翻譯，切換後通常重新導向 URL（如 <code>/en/</code>）或重打 API；瀏覽器原生翻譯（如 Google 翻譯外掛）：強行把 DOM 文字替換掉，程式碼完全不知情，容易把專有名詞翻爛（如「Apple Watch」被誤譯），也可能造成<mark style="background: #FF5582A6;">排版跑版、JS 操作 DOM 崩潰</mark>。</p>
-<p><strong>(g)</strong> <mark style="background: #ADCCFFA6;">大牌的「初次自動引導」流程</mark>：前端用 <code>navigator.language</code> 偵測瀏覽器偏好語言 → 後端拿這組 code 去 Locale API 找最匹配標籤 → 彈窗詢問是否切換（如 Airbnb）或直接跳轉對應路徑（如 GitHub 的 <code>github.com/en/...</code>）。切換後常見做法：URL 加語系標籤持久化分享連結、把 BCP 47 code 存進 Cookie／LocalStorage 供下次直接讀取。</p>
+<p><strong>(d)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">兩大觀察途徑</mark>：⑴ 黑箱推導——用瀏覽器開發者工具（F12 → Network → Fetch/XHR）觀察大型網站切換語系時打的 API；⑵ 開源參考——在 GitHub 找知名 i18n 框架（如 <code>nicksnyder/go-i18n</code>）或大公司釋出的架構設計（如 <code>google/go-genproto</code> 的語系標籤命名、CLDR 標準資料）。</p>
+<p><strong>(e)</strong> <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">觀察大牌網站的步驟</mark>：切換網站語系 → F12 開 Network，過濾 Fetch/XHR → 找名稱含 <code>locale</code>／<code>lang</code>／<code>i18n</code>／<code>translations</code> 的 API → 看 Payload（送出什麼）與 Preview（拿回什麼）。常見發現：回傳 <code>en-US</code> 而非單純 <code>US</code>（驗證 BCP 47）；回傳原生語言名稱（如「日本語」）供使用者辨識。</p>
+<p><strong>(f)</strong> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">關鍵區分：點網站自己的 UI，不是瀏覽器原生翻譯</mark>。網站 UI 切換（i18n）：開發者提供精準翻譯，切換後通常重新導向 URL（如 <code>/en/</code>）或重打 API；瀏覽器原生翻譯（如 Google 翻譯外掛）：強行把 DOM 文字替換掉，程式碼完全不知情，容易把專有名詞翻爛（如「Apple Watch」被誤譯），也可能造成<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">排版跑版、JS 操作 DOM 崩潰</mark>。</p>
+<p><strong>(g)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">大牌的「初次自動引導」流程</mark>：前端用 <code>navigator.language</code> 偵測瀏覽器偏好語言 → 後端拿這組 code 去 Locale API 找最匹配標籤 → 彈窗詢問是否切換（如 Airbnb）或直接跳轉對應路徑（如 GitHub 的 <code>github.com/en/...</code>）。切換後常見做法：URL 加語系標籤持久化分享連結、把 BCP 47 code 存進 Cookie／LocalStorage 供下次直接讀取。</p>
 <h3>三、實際拆解 Airbnb 的語系切換 API</h3>
-<p><strong>(h)</strong> <mark style="background: #FFB8EBA6;"><code>H4sIA</code> 開頭的亂碼是什麼</mark>：這是 <mark style="background: #ADCCFFA6;">Gzip 壓縮後再經 Base64 編碼</mark>的結果，用於在傳輸大型 JSON（如多國語系設定或排序清單）時節省流量、加快載入。解壓後其實是一個標準 JSON 物件，並非亂碼或加密。</p>
-<p><strong>(i)</strong> <mark style="background: #FF5582A6;">觀察時要排除雜訊請求</mark>：滾動頁面時會噴出大量 <code>proxytown</code>、<code>messages</code> 等請求，這些與語系切換<mark style="background: #FF5582A6;">無關</mark>，是 Airbnb 內部的「數據代理／埋點（Proxy/Telemetry）」系統，用極簡化的批量請求（<code>{F, Q, V, a}</code> 這種一字元欄位）同步 Cookie／使用者狀態，跟滾動同步偵測登入狀態有關，不要誤判為語系邏輯的一部分。</p>
-<p><strong>(j)</strong> <mark style="background: #ADCCFFA6;">真正的語系切換 API 是 <code>domain_switch_send</code></mark>，觀察其 Headers 可得到幾個業界共識：</p>
+<p><strong>(h)</strong> <mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);"><code>H4sIA</code> 開頭的亂碼是什麼</mark>：這是 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Gzip 壓縮後再經 Base64 編碼</mark>的結果，用於在傳輸大型 JSON（如多國語系設定或排序清單）時節省流量、加快載入。解壓後其實是一個標準 JSON 物件，並非亂碼或加密。</p>
+<p><strong>(i)</strong> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">觀察時要排除雜訊請求</mark>：滾動頁面時會噴出大量 <code>proxytown</code>、<code>messages</code> 等請求，這些與語系切換<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">無關</mark>，是 Airbnb 內部的「數據代理／埋點（Proxy/Telemetry）」系統，用極簡化的批量請求（<code>{F, Q, V, a}</code> 這種一字元欄位）同步 Cookie／使用者狀態，跟滾動同步偵測登入狀態有關，不要誤判為語系邏輯的一部分。</p>
+<p><strong>(j)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">真正的語系切換 API 是 <code>domain_switch_send</code></mark>，觀察其 Headers 可得到幾個業界共識：</p>
 <ul>
 <li>Request URL 隨語系導向不同 ccTLD（如 <code>airbnb.co.uk</code>）：語系與網域／子網域連動。</li>
-<li>Referer 網址帶 <code>&amp;locale=en&amp;country_override=US</code>：<mark style="background: #FFF3A3A6;">「語言」與「國家」分開傳參</mark>——<code>locale</code> 是 BCP 47 語系代碼（決定文字顯示），<code>country_override</code> 是 ISO 3166 國家代碼（決定政策／稅務／圖片內容），兩者不是同一件事。</li>
-<li>Response Body 為空、<code>Content-Length: 0</code>、Method 為 POST：這是<mark style="background: #BBFABBA6;">「純動作 API（Imperative API）」</mark>，不需要回傳資料，它只負責告訴伺服器「更新這個使用者的語系 Session」；真正的效果落在 <code>set-cookie</code>（如 <code>bev</code>、<code>_airbed_session_id</code>）——後端把語系狀態寫進 Cookie／Session，下次使用者進站直接從 Cookie 讀取，不必重新選擇。</li>
+<li>Referer 網址帶 <code>&amp;locale=en&amp;country_override=US</code>：<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">「語言」與「國家」分開傳參</mark>——<code>locale</code> 是 BCP 47 語系代碼（決定文字顯示），<code>country_override</code> 是 ISO 3166 國家代碼（決定政策／稅務／圖片內容），兩者不是同一件事。</li>
+<li>Response Body 為空、<code>Content-Length: 0</code>、Method 為 POST：這是<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">「純動作 API（Imperative API）」</mark>，不需要回傳資料，它只負責告訴伺服器「更新這個使用者的語系 Session」；真正的效果落在 <code>set-cookie</code>（如 <code>bev</code>、<code>_airbed_session_id</code>）——後端把語系狀態寫進 Cookie／Session，下次使用者進站直接從 Cookie 讀取，不必重新選擇。</li>
 </ul>
-<p><strong>(k)</strong> <mark style="background: #D2B3FFA6;">給 Go 後端的實作參考</mark>：</p>
+<p><strong>(k)</strong> <mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">給 Go 後端的實作參考</mark>：</p>
 <pre><code class="language-go">type DomainSwitchRequest struct {
     Locale  string `json:&quot;locale&quot;`          // BCP 47：en
     Country string `json:&quot;country_override&quot;` // ISO 3166：US
@@ -74,7 +74,7 @@ func HandleDomainSwitch(w http.ResponseWriter, r *http.Request) {
 }
 </code></pre>
 <h3>四、BCP 47 語系標籤的 Subtag 結構</h3>
-<p><strong>(l)</strong> <mark style="background: #ADCCFFA6;">Subtag（子標籤）</mark>是組成語系標籤的最小單位，本身只是代碼，意義取決於它在整串標籤中的<mark style="background: #FFF3A3A6;">位置與長度</mark>，不需要查表也能大致辨識。以 <code>zh-Hant-TW</code> 為例：</p>
+<p><strong>(l)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Subtag（子標籤）</mark>是組成語系標籤的最小單位，本身只是代碼，意義取決於它在整串標籤中的<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">位置與長度</mark>，不需要查表也能大致辨識。以 <code>zh-Hant-TW</code> 為例：</p>
 <table>
 <thead>
 <tr>
@@ -101,15 +101,15 @@ func HandleDomainSwitch(w http.ResponseWriter, r *http.Request) {
 </tr>
 </tbody>
 </table>
-<p><strong>(m)</strong> <mark style="background: #FF5582A6;">Suppress-Script（抑制腳本）＝「廢話過濾機制」</mark>：這是 IANA 語系子標籤註冊表（Language Subtag Registry）裡對每個語言標籤的一條<mark style="background: #FFF3A3A6;">規範</mark>，規定「當某語言通常只用某種文字書寫時，該文字的 Script Subtag 必須省略，不可寫出來」，目的是避免標籤冗長。例如：英文只用拉丁文書寫，所以 <code>en</code> 的註冊資料寫著 <code>Suppress-Script: Latn</code>，正確寫法是 <code>en</code>，<code>en-Latn</code> 是錯誤的過度宣告；日文同理，<code>ja</code> 而非 <code>ja-Jpan</code>。<mark style="background: #BBFABBA6;">唯一例外</mark>：中文（<code>zh</code>）因為同時有繁體（Hant）與簡體（Hans）兩種主流書寫系統，屬於「有分歧」的情況，沒有設定 Suppress-Script，所以 <code>zh-Hant</code>、<code>zh-Hans</code> 才是正確且必須寫出來的。</p>
-<p><strong>(n)</strong> <mark style="background: #D2B3FFA6;">Suppress-Script 不是程式語法，而是「官方字典裡的規定」</mark>，它靠<mark style="background: #FFF3A3A6;">各程式語言的 i18n 套件在底層自動比對執行（Canonicalization）</mark>，而不是逼你的程式碼直接崩潰報錯。流程：你輸入不規範標籤（如 <code>en-Latn-US</code>）→ 程式內建的語系套件查 IANA 官方註冊表 → 發現 <code>en</code> 有 <code>Suppress-Script: Latn</code> → 自動把多餘的 <code>Latn</code> 剃除 → 得到規範化的 <code>en-US</code>。Go 語言範例：</p>
+<p><strong>(m)</strong> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">Suppress-Script（抑制腳本）＝「廢話過濾機制」</mark>：這是 IANA 語系子標籤註冊表（Language Subtag Registry）裡對每個語言標籤的一條<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">規範</mark>，規定「當某語言通常只用某種文字書寫時，該文字的 Script Subtag 必須省略，不可寫出來」，目的是避免標籤冗長。例如：英文只用拉丁文書寫，所以 <code>en</code> 的註冊資料寫著 <code>Suppress-Script: Latn</code>，正確寫法是 <code>en</code>，<code>en-Latn</code> 是錯誤的過度宣告；日文同理，<code>ja</code> 而非 <code>ja-Jpan</code>。<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">唯一例外</mark>：中文（<code>zh</code>）因為同時有繁體（Hant）與簡體（Hans）兩種主流書寫系統，屬於「有分歧」的情況，沒有設定 Suppress-Script，所以 <code>zh-Hant</code>、<code>zh-Hans</code> 才是正確且必須寫出來的。</p>
+<p><strong>(n)</strong> <mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">Suppress-Script 不是程式語法，而是「官方字典裡的規定」</mark>，它靠<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">各程式語言的 i18n 套件在底層自動比對執行（Canonicalization）</mark>，而不是逼你的程式碼直接崩潰報錯。流程：你輸入不規範標籤（如 <code>en-Latn-US</code>）→ 程式內建的語系套件查 IANA 官方註冊表 → 發現 <code>en</code> 有 <code>Suppress-Script: Latn</code> → 自動把多餘的 <code>Latn</code> 剃除 → 得到規範化的 <code>en-US</code>。Go 語言範例：</p>
 <pre><code class="language-go">import &quot;golang.org/x/text/language&quot;
 
 tag, _ := language.Parse(&quot;en-Latn-US&quot;)
 canonicalTag := tag.Canonicalize()
 fmt.Println(canonicalTag.String()) // 輸出：en-US（自動省去 Latn）
 </code></pre>
-<p><strong>(o)</strong> <mark style="background: #FF5582A6;">若自建系統硬用不規範標籤的後果</mark>：如果 locales 表的 <code>code</code> 欄位存成 <code>en-Latn-US</code> 這種過度宣告的值，資料庫不會報錯，但會出現兩種實務問題——⑴ 前端對不上：瀏覽器 <code>navigator.language</code> 通常只回傳規範化的 <code>en-US</code>，拿去查資料庫裡的 <code>en-Latn-US</code> 會因字串不符而找不到翻譯；⑵ 套件直接判無效：許多現代 i18n 框架偵測到不合規範標籤會直接判定無效，自動 fallback 回預設語系（如變成中文），而不是報錯讓你注意到問題。</p>
+<p><strong>(o)</strong> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">若自建系統硬用不規範標籤的後果</mark>：如果 locales 表的 <code>code</code> 欄位存成 <code>en-Latn-US</code> 這種過度宣告的值，資料庫不會報錯，但會出現兩種實務問題——⑴ 前端對不上：瀏覽器 <code>navigator.language</code> 通常只回傳規範化的 <code>en-US</code>，拿去查資料庫裡的 <code>en-Latn-US</code> 會因字串不符而找不到翻譯；⑵ 套件直接判無效：許多現代 i18n 框架偵測到不合規範標籤會直接判定無效，自動 fallback 回預設語系（如變成中文），而不是報錯讓你注意到問題。</p>
 </section><section class="card src"><h2>各對話來源</h2>
 <h3>i18n 資料庫設計：子母表模式（2026 年，多輪）— https://gemini.google.com/app/63511ff0c6b920fd</h3>
 <p>使用者：我們 i18n 有建表，不用 JSON，還是你說的 JSON 是用在 API？</p>
@@ -168,7 +168,7 @@ fmt.Println(canonicalTag.String()) // 輸出：en-US（自動省去 Latn）
 </tr>
 </tbody>
 </table>
-<p>⚠️ 存疑／更正：Gemini 針對 Airbnb <code>H4sIA...</code> 字串與 <code>domain_switch_send</code> API 的解讀（如「Gzip+Base64」「純動作 API」）屬<mark style="background: #FF5582A6;">合理技術推測</mark>，並非 Airbnb 官方文件證實，僅供架構參考，不宜當作 Airbnb 內部實作的確定事實引用。另外 <code>x-airbnb-sureride</code>、<code>origin-trial</code> 等欄位屬 Airbnb 內部或瀏覽器實驗性機制，本篇未深入查證其確切用途。</p>
+<p>⚠️ 存疑／更正：Gemini 針對 Airbnb <code>H4sIA...</code> 字串與 <code>domain_switch_send</code> API 的解讀（如「Gzip+Base64」「純動作 API」）屬<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">合理技術推測</mark>，並非 Airbnb 官方文件證實，僅供架構參考，不宜當作 Airbnb 內部實作的確定事實引用。另外 <code>x-airbnb-sureride</code>、<code>origin-trial</code> 等欄位屬 Airbnb 內部或瀏覽器實驗性機制，本篇未深入查證其確切用途。</p>
 </section><section class="card"><h2>相關筆記</h2>
 <ul>
 <li>Cookie 與 Session 基礎概念：[[Cookie-與-Session]]（因為 domain_switch_send 的持久化正是靠 set-cookie，兩篇可互相對照）</li>

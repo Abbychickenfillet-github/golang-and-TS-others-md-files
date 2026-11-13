@@ -43,9 +43,9 @@ img{border-radius:10px;border:1px solid var(--line);}
 <h1>claude-code CLI 出現「不是有效的 Win32 應用程式」（NativeCommandFailed）修復</h1>
 <p>本篇重點 a–c，共 3 個</p>
 <h2>重點整理</h2>
-<p>a. <mark class="hl tog" style="background:#FF5582;">錯誤本質不是 PATH 問題</mark>：在 PowerShell 執行 <code>claude</code> 出現「所指定的可執行檔不是這個作業系統平台的有效應用程式」(<code>ApplicationFailedException</code> / <code>NativeCommandFailed</code>)時，通常「不是」環境變數(PATH)跑掉造成的。判斷依據：如果真的是 PATH 跑掉，錯誤訊息會是「'claude' 不是內部或外部命令、可執行的程式或批次檔」，而不是這種「應用程式無效」的訊息。</p>
-<p>b. <mark class="hl tog" style="background:#ADCCFF;">真正原因</mark>：<code>.exe</code> 檔案損壞、架構不相容(例如誤裝了非 Windows 平台的二進位檔)，或 npm 安裝過程中產生了錯誤的 wrapper／shim。常見觸發情境：安裝中斷導致檔案不完整、下載到錯誤平台的 binary、防毒軟體攔截並損壞了執行檔。</p>
-<p>c. <mark class="hl tog" style="background:#BBFABB;">修復步驟(由快到慢)</mark>：</p>
+<p>a. <mark class="hl tog" style="background:#FF5582;color:oklch(0.22 0.03 260);">錯誤本質不是 PATH 問題</mark>：在 PowerShell 執行 <code>claude</code> 出現「所指定的可執行檔不是這個作業系統平台的有效應用程式」(<code>ApplicationFailedException</code> / <code>NativeCommandFailed</code>)時，通常「不是」環境變數(PATH)跑掉造成的。判斷依據：如果真的是 PATH 跑掉，錯誤訊息會是「'claude' 不是內部或外部命令、可執行的程式或批次檔」，而不是這種「應用程式無效」的訊息。</p>
+<p>b. <mark class="hl tog" style="background:#ADCCFF;color:oklch(0.22 0.03 260);">真正原因</mark>：<code>.exe</code> 檔案損壞、架構不相容(例如誤裝了非 Windows 平台的二進位檔)，或 npm 安裝過程中產生了錯誤的 wrapper／shim。常見觸發情境：安裝中斷導致檔案不完整、下載到錯誤平台的 binary、防毒軟體攔截並損壞了執行檔。</p>
+<p>c. <mark class="hl tog" style="background:#BBFABB;color:oklch(0.22 0.03 260);">修復步驟(由快到慢)</mark>：</p>
 <pre><code class="language-powershell"># 1. 強制重新安裝，讓 npm 重新產生正確的執行檔與 shim
 npm install -g @anthropic-ai/claude-code --force
 
@@ -57,7 +57,7 @@ npm install -g @anthropic-ai/claude-code
 node -v
 node -p &quot;process.arch&quot;
 </code></pre>
-<p>Abby 實測結果：<mark class="hl tog" style="background:#BBFABB;">單純執行 <code>npm install -g @anthropic-ai/claude-code --force</code> 重新安裝後就解決了</mark>，不需要進到清快取或檢查架構那一步。</p>
+<p>Abby 實測結果：<mark class="hl tog" style="background:#BBFABB;color:oklch(0.22 0.03 260);">單純執行 <code>npm install -g @anthropic-ai/claude-code --force</code> 重新安裝後就解決了</mark>，不需要進到清快取或檢查架構那一步。</p>
 <h2>各對話來源(原文，節錄)</h2>
 <h3>解決 claude-code 無法執行問題 (2026-07-23) — https://gemini.google.com/app/3cfa169876e28986</h3>
 <p><strong>使用者:</strong></p>

@@ -19,10 +19,10 @@ section.card{background:var(--card);border:1px solid var(--line);border-radius:1
 h2{border-left:5px solid var(--accent);padding-left:12px}
 p,li,td,th{font-size:.98rem}
 pre{font-family:"JetBrains Mono",Consolas,monospace}
-.hl-g{background:#c8f2c8;padding:.05em .3em;border-radius:4px}
-.hl-b{background:#cfe0ff;padding:.05em .3em;border-radius:4px}
-.hl-y{background:#fdf0a8;padding:.05em .3em;border-radius:4px}
-.hl-r{background:#ffc0c9;padding:.05em .3em;border-radius:4px}
+.hl-g{background:#c8f2c8;padding:.05em .3em;border-radius:4px;color:oklch(0.22 0.03 260)}
+.hl-b{background:#cfe0ff;padding:.05em .3em;border-radius:4px;color:oklch(0.22 0.03 260)}
+.hl-y{background:#fdf0a8;padding:.05em .3em;border-radius:4px;color:oklch(0.22 0.03 260)}
+.hl-r{background:#ffc0c9;padding:.05em .3em;border-radius:4px;color:oklch(0.22 0.03 260)}
 
 /* 時間軸 */
 .tl{display:flex;gap:0;flex-wrap:nowrap;overflow-x:auto;padding:6px 0 14px}
@@ -148,10 +148,10 @@ footer a{color:var(--accent)}
   .rt-box h4{margin:0 0 6px;font-size:.92rem}
   .rt-code{background:#1f2430;color:#e8ecf3;border-radius:8px;padding:8px 0;font-family:"JetBrains Mono",Consolas,monospace;font-size:.8rem;line-height:1.8;overflow-x:auto}
   .rt-code div{padding:0 12px;white-space:pre}
-  .rt-code div.hl{background:#3a4468;border-left:4px solid #ffd166}
+  .rt-code div.hl{background:#3a4468;border-left:4px solid #ffd166;color:oklch(0.96 0.01 258)}
   .rt-stack{display:flex;flex-direction:column-reverse;gap:5px;min-height:120px;background:var(--soft);border:2px dashed var(--line);border-radius:10px;padding:7px}
   .rt-can{background:var(--soft);border:2px solid #6ab0f0;border-radius:8px;padding:3px 8px;font-size:.84rem;font-weight:700}
-  .rt-can.top{background:#fff0a8;border-color:#ffb800}
+  .rt-can.top{background:#fff0a8;border-color:#ffb800;color:oklch(0.22 0.03 260)}
   .rt-can.cl{background:var(--soft);border-color:#e04a5f}
   .rt-empty{margin:auto;color:#a08f80;font-weight:700;font-size:.85rem;text-align:center}
   .rt-row{background:var(--card);border:2px solid #ffe08a;border-radius:8px;padding:4px 9px;margin:5px 0;font-size:.84rem;font-weight:700}
@@ -512,14 +512,14 @@ constructor() &#123;
     onCleanup(() =&gt; controller.abort());
   &#125;);
 &#125;</code></pre>
-<p><mark style="background:#FFF3A3;padding:1px 4px;border-radius:3px"><b>同一個觀念換三個名字：React 叫 cleanup function，Vue 與 Angular 都叫 onCleanup——但只有 React 需要你自己把依賴列出來。</b></mark></p>
+<p><mark style="background:#FFF3A3;padding:1px 4px;border-radius:3px;color:oklch(0.22 0.03 260)"><b>同一個觀念換三個名字：React 叫 cleanup function，Vue 與 Angular 都叫 onCleanup——但只有 React 需要你自己把依賴列出來。</b></mark></p>
 <div style="border-left:5px solid #d94f6b;background:var(--soft);border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:.92rem"><b>⚠️ 更正</b><br>原對話說 React 內部有「Fiber DOM」——<b>沒有這個東西</b>。正確說法是 Fiber 節點（<code>FiberNode</code>）<b>映射到</b>真實 DOM 的 Host Component。另外原對話附的「框架 Runtime 體積」數字版本一改就過時，本篇不收錄。</div>
 <p><b>申論：</b>為什麼 Vue 與 Angular 不會有「依賴寫漏」的問題？</p>
 <button style="background:#23262d;color:#fff;border:0;border-radius:8px;padding:7px 14px;font-size:.83rem;cursor:pointer;margin:8px 6px 0 0" data-g915target="ue-a1">顯示答案</button>
 <div id="ue-a1" style="display:none;margin-top:10px;background:var(--soft);border-left:5px solid #0f9d76;border-radius:0 8px 8px 0;padding:12px 16px;font-size:.92rem">因為依賴不是你「宣告」的，是框架在 effect <b>第一次執行時偷看你讀了誰</b>而收集來的。Vue 的 <code>watchEffect</code> 執行時，任何被讀到的 <code>ref.value</code> 都會觸發 Proxy 的 getter，Vue 就把這個 effect 登記成該 ref 的訂閱者；Angular 的 <code>effect()</code> 讀到 Signal 時同理。既然清單是自動產生的，就不存在「人寫漏了」這件事。React 反過來要你手寫陣列，是因為 React 的元件函式每次都整個重跑，沒有一個穩定的「讀取時機」可以攔截。</div>
 
 </div>
-<p style="font-size:.8rem;color:#6b7280;text-align:center;margin-top:24px">由 Gemini 對話自動整理 · 更新於 2026-09-15 ｜ 來源：<a href="https://gemini.google.com/app/5b6fc934e5d7f253">gemini.google.com/app/5b6fc934e5d7f253</a></p>
+<p style="font-size:.8rem;color:var(--sub);text-align:center;margin-top:24px">由 Gemini 對話自動整理 · 更新於 2026-09-15 ｜ 來源：<a href="https://gemini.google.com/app/5b6fc934e5d7f253">gemini.google.com/app/5b6fc934e5d7f253</a></p>
 </section>
 <script>
 document.addEventListener('click',function(e){

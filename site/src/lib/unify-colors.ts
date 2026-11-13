@@ -106,9 +106,21 @@ function mapTokens(value: string, mapper: (token: string) => string | undefined)
   return { value: changed ? next.join(' ') : value, changed };
 }
 
-// 自訂屬性名稱的用途猜測：名稱帶這些字的才視為背景／文字；猜不出來就不動，避免把「深色程式碼底」當成文字色換掉；
+// 次要文字色：不透明、中等明度（0.3 到 0.75）、近乎無彩的灰，換成 --sub；專門給 --muted 這類「次要文字」變數用（它們是頁面表面上的說明字，不會放在深色程式碼底上）；
+function mapMuted(token: string): string | undefined {
+  // 解析；
+  const t = toneOf(token);
+  // 不是顏色、太透明、太亮或太暗、有彩度都不換；
+  if (t === undefined || t.a < 0.9 || t.l < 0.3 || t.l > 0.75 || t.c > 0.05) return undefined;
+  // 換成主題的次要文字色；
+  return 'var(--sub)';
+}
+
+// 自訂屬性名稱的用途猜測：名稱帶這些字的才視為背景／文字／次要文字／邊線；猜不出來就不動，避免把「深色程式碼底」當成文字色換掉；
 const BG_NAME = /(bg|background|card|panel|surface|paper|soft|white|chip)/i;
 const INK_NAME = /(ink|text|fg|foreground|body-color)/i;
+const MUTED_NAME = /(muted|dim|faint|subtle|gray|grey|(^|-)sub($|-))/i;
+const LINE_NAME = /(line|border|divider|rule)/i;
 
 // 主函式：轉換一段 CSS 文字；解析失敗就原樣回傳（changes 為 0）；
 export function unifyCssColors(css: string): UnifyResult {
@@ -137,6 +149,16 @@ export function unifyCssColors(css: string): UnifyResult {
       // 其餘（有彩度的色、漸層、圖片）算實體背景；
       hasLiteralBg = true;
     });
+    // 這條規則的背景是不是主題的螢光筆變數（var(--hl-warn)、var(--hl-core)…）：這些底色在深色模式會變暗，頁面寫死的深字就會看不見；
+    // 用物件包起來：TypeScript 對「在回呼裡才賦值的 let 變數」會誤判成永遠 undefined，改成物件屬性就不會；
+    const hl: { name?: string } = {};
+    // 掃背景宣告，取出 --hl- 後面的名稱；
+    rule.walkDecls(/^background(-color)?$/i, (decl) => {
+      // 比對 var(--hl-名稱)；
+      const m = /^var\(--hl-([a-z]+)\)/i.exec(decl.value.trim());
+      // 有就記下；
+      if (m) hl.name = m[1].toLowerCase();
+    });
     // 動畫關鍵影格（from、50%、to）不是一般規則，不處理；
     if (rule.parent?.type === 'atrule' && /keyframes$/i.test((rule.parent as postcss.AtRule).name)) return;
     // 逐一宣告處理；
@@ -155,6 +177,14 @@ export function unifyCssColors(css: string): UnifyResult {
       }
       // 文字色：用 color 屬性（不含 background-color 這類，因為上面已經 return）；
       if (prop === 'color') {
+        // 背景是主題螢光筆變數、文字卻寫死顏色：改成跟著模式走的螢光筆文字色（warn 有專用的 --hl-warn-ink，其餘用 --ink）；
+        if (hl.name !== undefined) {
+          // 目標值；
+          const to = hl.name === 'warn' ? 'var(--hl-warn-ink)' : 'var(--ink)';
+          // 已經是變數就不動，否則換；
+          if (!decl.value.includes('var(')) { decl.value = to; changes += 1; }
+          return;
+        }
         // 同規則有實體背景就不動；
         if (hasLiteralBg) return;
         // 換；
@@ -174,7 +204,7 @@ export function unifyCssColors(css: string): UnifyResult {
       // 自訂屬性：依名稱猜用途；
       if (prop.startsWith('--')) {
         // 名稱像背景：換成表面變數；名稱像文字：換成文字變數；
-        const mapper = BG_NAME.test(prop) ? mapSurface : INK_NAME.test(prop) ? mapText : undefined;
+        const mapper = BG_NAME.test(prop) ? mapSurface : INK_NAME.test(prop) ? mapText : MUTED_NAME.test(prop) ? mapMuted : LINE_NAME.test(prop) ? mapLine : undefined;
         // 猜不出來就不動；
         if (mapper === undefined) return;
         // 換；
@@ -208,8 +238,10 @@ export function unifyCssColors(css: string): UnifyResult {
       });
       // 有找到就補文字色；
       if (tone !== undefined) {
-        // 亮底用深色字，暗底用淺色字；
-        rule.append({ prop: 'color', value: (tone as Tone).l >= 0.55 ? 'oklch(0.22 0.03 260)' : 'oklch(0.96 0.01 258)' });
+        // 半透明底（例如 #ff5582a6）會透出下面的頁面色：淺色模式變淺、深色模式變暗，所以文字用跟著模式走的 --ink；
+        // 不透明的亮底用固定深字、暗底用固定淺字，不隨模式改變；
+        const t = tone as Tone;
+        rule.append({ prop: 'color', value: t.a < 0.9 ? 'var(--ink)' : t.l >= 0.55 ? 'oklch(0.22 0.03 260)' : 'oklch(0.96 0.01 258)' });
         // 計數；
         changes += 1;
       }

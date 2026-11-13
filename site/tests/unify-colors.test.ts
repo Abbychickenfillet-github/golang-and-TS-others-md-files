@@ -78,6 +78,18 @@ describe('unifyCssColors：實體背景補文字色', () => {
   });
 });
 
+describe('unifyCssColors：螢光筆變數與半透明底', () => {
+  // 底色是主題螢光筆變數，寫死的深字要跟著模式走；
+  it('var(--hl-warn) 底的深字換成 --hl-warn-ink，其他 --hl-* 換成 --ink', () => {
+    expect(css('mark.w{background:var(--hl-warn);color:#4a0a1c}')).toBe('mark.w{background:var(--hl-warn);color:var(--hl-warn-ink)}');
+    expect(css('mark.c{background:var(--hl-core);color:#222}')).toBe('mark.c{background:var(--hl-core);color:var(--ink)}');
+  });
+  // 半透明螢光筆會透出頁面底色，文字用跟著模式走的 --ink；
+  it('半透明底補 var(--ink)', () => {
+    expect(css('mark{background:#ff5582a6}')).toBe('mark{background:#ff5582a6;color:var(--ink)}');
+  });
+});
+
 describe('unifyCssColors：邊線與自訂屬性', () => {
   // 淺灰邊線換成 --line，其他 token 保留；
   it('border 簡寫只換顏色 token', () => {
@@ -91,6 +103,9 @@ describe('unifyCssColors：邊線與自訂屬性', () => {
     expect(css(':root{--ink:#111;--x:1}')).toBe(':root{--x:1}');
     expect(css(':root{--code-bg:#1e1e1e}')).toBe(':root{--code-bg:#1e1e1e}');
     expect(css(':root{--gap:#fff}')).toBe(':root{--gap:#fff}');
+    // 次要文字與邊線變數：--muted 換成 --sub，--rule 換成 --line；
+    expect(css(':root{--muted:#6b7280}')).toBe(':root{--muted:var(--sub)}');
+    expect(css(':root{--rule:#e5e7eb}')).toBe(':root{--rule:var(--line)}');
   });
 });
 

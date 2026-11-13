@@ -7,11 +7,11 @@ details{background:var(--card);border:1px solid var(--line);border-radius:8px;pa
 </style></head><body><div class="w"><h1>JS 字串為何是 UTF-16 與 at() 的負數索引</h1><div><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">string</span><span class="pill">utf-16</span><span class="pill">es2022</span></div><div class="meta">更新 2026-11-09 ・ <a href="https://gemini.google.com/app/432e3b4a8690e328">來源</a> <button class="toggle" onclick="document.querySelectorAll('details').forEach(d=>d.open=!d.open)">全部展開／收合答案</button></div><div class="card">
 <p>本篇重點 a–e，共 5 個。關聯：[[JavaScript-字串方法]]（字串方法總表）。</p>
 <h2>重點整理</h2>
-<p>(a) <mark style="background: #ADCCFFA6;">String</mark> 是 JavaScript 全域物件與建構子，字串字面值可用單引號 <code>'</code>、雙引號 <code>"</code> 或樣板字面值 <code>`</code> 建立，這種稱為 primitive string，用 <code>String()</code> 轉型也得到 primitive，用 <code>new String()</code> 才得到物件。</p>
-<p>(b) <mark style="background: #FFF3A3A6;">JavaScript 字串內部以 UTF-16 儲存</mark>，每個基本單位叫 code unit，長度 16 位元。
+<p>(a) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">String</mark> 是 JavaScript 全域物件與建構子，字串字面值可用單引號 <code>'</code>、雙引號 <code>"</code> 或樣板字面值 <code>`</code> 建立，這種稱為 primitive string，用 <code>String()</code> 轉型也得到 primitive，用 <code>new String()</code> 才得到物件。</p>
+<p>(b) <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">JavaScript 字串內部以 UTF-16 儲存</mark>，每個基本單位叫 code unit，長度 16 位元。
 　原因：1995 年設計語言時，UTF-16 足以涵蓋當時 Unicode 的 BMP 範圍，所以沿用至今，並非選 UTF-8。</p>
 <p>(c) Emoji 或罕見字超出 BMP，需要兩個 code unit（surrogate pair，代理對）表示。
-　<code>charAt()</code>、<code>at()</code>、索引 <code>str[i]</code> 都以 code unit 為單位，遇到 Emoji 可能切到半個字元。<mark style="background: #FF5582A6;">這是用索引處理 Emoji 的陷阱</mark>。</p>
+　<code>charAt()</code>、<code>at()</code>、索引 <code>str[i]</code> 都以 code unit 為單位，遇到 Emoji 可能切到半個字元。<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">這是用索引處理 Emoji 的陷阱</mark>。</p>
 <p>(d) <code>at()</code> 是 ES2022 新增的方法，可傳負整數，從字串尾端倒數。</p>
 <pre><code class="language-js">const s = &quot;hello&quot;;
 s.charAt(-1);      // &quot;&quot;（charAt 不支援負數，回傳空字串）

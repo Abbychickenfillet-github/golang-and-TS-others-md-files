@@ -47,7 +47,7 @@ footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:
 
 <section class="card"><h2>重點整理</h2>
 <h3>這支腳本在做什麼</h3>
-<p><code>ingest.py</code> 是把 <mark style="background: #FFF3A3A6;">Markdown 檔案匯入 pgvector</mark> 的進入點(entry point),供 RAG 存放 embedding。</p>
+<p><code>ingest.py</code> 是把 <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">Markdown 檔案匯入 pgvector</mark> 的進入點(entry point),供 RAG 存放 embedding。</p>
 <p>執行模式(命令列旗標):</p>
 <table>
 <thead>
@@ -59,7 +59,7 @@ footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:
 <tbody>
 <tr>
 <td>(預設)</td>
-<td><mark style="background: #BBFABBA6;">增量匯入(incremental)</mark>:只處理有變動的檔案</td>
+<td><mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">增量匯入(incremental)</mark>:只處理有變動的檔案</td>
 </tr>
 <tr>
 <td><code>--full</code></td>
@@ -67,19 +67,19 @@ footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:
 </tr>
 <tr>
 <td><code>--dry-run</code></td>
-<td><mark style="background: #ADCCFFA6;">預演:只回報「會更新哪些檔案」,但不實際改動資料庫</mark></td>
+<td><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">預演:只回報「會更新哪些檔案」,但不實際改動資料庫</mark></td>
 </tr>
 </tbody>
 </table>
 <h3>這些旗標哪來的?argparse</h3>
-<p><mark style="background: #ADCCFFA6;"><code>argparse</code> 是 Python 標準函式庫</mark>(內建,不用安裝),負責處理命令列參數。<code>--dry-run</code>、<code>--full</code> 這些選項就是<mark style="background: #FFF3A3A6;">在這支 <code>ingest.py</code> 的 <code>main()</code> 函式裡,用 argparse 自己定義出來的</mark>,不是來自其他外部套件。</p>
+<p><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>argparse</code> 是 Python 標準函式庫</mark>(內建,不用安裝),負責處理命令列參數。<code>--dry-run</code>、<code>--full</code> 這些選項就是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">在這支 <code>ingest.py</code> 的 <code>main()</code> 函式裡,用 argparse 自己定義出來的</mark>,不是來自其他外部套件。</p>
 <h3>增量匯入與 --dry-run 的核心:雜湊比對</h3>
-<p>腳本判斷檔案有沒有變動的方法是<mark style="background: #FFF3A3A6;">比對「目前檔案的 hash」與「資料庫中已存的 hash」</mark>:</p>
+<p>腳本判斷檔案有沒有變動的方法是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">比對「目前檔案的 hash」與「資料庫中已存的 hash」</mark>:</p>
 <ul>
-<li>兩者<mark style="background: #BBFABBA6;">相同 → 檔案沒變 → 跳過(skip)</mark>。</li>
+<li>兩者<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">相同 → 檔案沒變 → 跳過(skip)</mark>。</li>
 <li>兩者不同 → 檔案有更新 → 刪除舊 chunks、插入新 chunks。</li>
 </ul>
-<p>當 <code>args.dry_run</code> 為真時,腳本<mark style="background: #FF5582A6;">只「回報」哪些檔案會被更新,但刻意略過資料庫修改步驟(不刪除、不插入 chunks)</mark>,所以不會對 pgvector 做任何實際變更。</p>
+<p>當 <code>args.dry_run</code> 為真時,腳本<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">只「回報」哪些檔案會被更新,但刻意略過資料庫修改步驟(不刪除、不插入 chunks)</mark>,所以不會對 pgvector 做任何實際變更。</p>
 <blockquote>
 <p>[!tip] dry-run 的價值:在真的動資料庫前,先安全地預覽「這次會改到哪些檔案」,避免誤刪/誤改 embedding。增量 + hash 比對則讓重複執行很便宜(沒變的檔案不重做)。</p>
 </blockquote>
