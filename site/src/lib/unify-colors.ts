@@ -251,7 +251,9 @@ function mapMuted(token: string): string | undefined {
 const BG_NAME = /(bg|background|card|panel|surface|paper|soft|white|chip)/i;
 const INK_NAME = /(ink|text|fg|foreground|body-color)/i;
 const MUTED_NAME = /(muted|dim|faint|subtle|gray|grey|(^|-)sub($|-))/i;
-const LINE_NAME = /(line|border|divider|rule)/i;
+// 「文字 + 次要」的名稱（--text-soft、--sub-text、--ink-light）：名稱含 soft 但其實是文字色，要先於 BG_NAME 判斷；
+const TEXT_SOFT_NAME = /((^|-)(text|ink|fg)-(soft|sub|light|dim|muted|secondary)($|-))|((^|-)(sub|soft|secondary)-?(text|ink)($|-))/i;
+const LINE_NAME =/(line|border|divider|rule)/i;
 
 // 主函式：轉換一段 CSS 文字；解析失敗就原樣回傳（changes 為 0）；
 export function unifyCssColors(css: string): UnifyResult {
@@ -372,7 +374,7 @@ export function unifyCssColors(css: string): UnifyResult {
       // 自訂屬性：依名稱猜用途；
       if (prop.startsWith('--')) {
         // 名稱像背景：換成表面變數；名稱像文字：換成文字變數；
-        const mapper = BG_NAME.test(prop) ? mapSurface : INK_NAME.test(prop) ? mapText : MUTED_NAME.test(prop) ? mapMuted : LINE_NAME.test(prop) ? mapLine : undefined;
+        const mapper = TEXT_SOFT_NAME.test(prop) ? mapMuted : BG_NAME.test(prop) ? mapSurface : INK_NAME.test(prop) ? mapText : MUTED_NAME.test(prop) ? mapMuted : LINE_NAME.test(prop) ? mapLine : undefined;
         // 猜不出來就不動；
         if (mapper === undefined) return;
         // 換；

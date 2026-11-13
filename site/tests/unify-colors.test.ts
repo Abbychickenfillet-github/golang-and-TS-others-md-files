@@ -146,6 +146,8 @@ describe('unifyCssColors：邊線與自訂屬性', () => {
     expect(css(':root{--ink:#111;--x:1}')).toBe(':root{--x:1}');
     expect(css(':root{--code-bg:#1e1e1e}')).toBe(':root{--code-bg:#1e1e1e}');
     expect(css(':root{--gap:#fff}')).toBe(':root{--gap:#fff}');
+    // 名稱含 soft 的文字色（--text-soft、--sub-text）是文字不是底色；
+    expect(css(':root{--text-soft:#6b6b6b}')).toBe(':root{--text-soft:var(--sub)}');
     // 次要文字與邊線變數：--muted 換成 --sub，--rule 換成 --line；
     expect(css(':root{--muted:#6b7280}')).toBe(':root{--muted:var(--sub)}');
     expect(css(':root{--rule:#e5e7eb}')).toBe(':root{--rule:var(--line)}');
