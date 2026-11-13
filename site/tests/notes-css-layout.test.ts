@@ -54,9 +54,9 @@ describe('notes.css：.layout > nav.toc 側欄（R36）', () => {
     expect(d?.['max-height']).toBe('calc(100vh - 36px)');
     expect(d?.overflow).toBe('auto');
     expect(d?.['border-radius']).toBe('14px');
-    // 顏色用主題變數（帶備用值）；
-    expect(d?.background).toMatch(/^var\(--card,/);
-    expect(d?.border).toMatch(/var\(--line,/);
+    // 顏色用大綱自己的 --toc-* 變數（帶備用值），不借頁面配色，頁面深色時大綱仍是白底深字；
+    expect(d?.background).toMatch(/^var\(--toc-bg,/);
+    expect(d?.border).toMatch(/var\(--toc-line,/);
   });
 
   // 清單不要項目符號，避免與連結文字的編號重複；
@@ -73,7 +73,7 @@ describe('notes.css：.layout > nav.toc 側欄（R36）', () => {
     // 一般；
     expect(declsOf(notesCss, '.layout > nav.toc a')?.display).toBe('block');
     // hover；
-    expect(declsOf(notesCss, '.layout > nav.toc a:hover')?.background).toMatch(/var\(--soft/);
+    expect(declsOf(notesCss, '.layout > nav.toc a:hover')?.background).toMatch(/var\(--toc-soft/);
     // active（與 here 共用規則）；
     expect(declsOf(notesCss, '.layout > nav.toc a.active')?.['font-weight']).toBe('600');
   });

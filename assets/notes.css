@@ -157,8 +157,8 @@ h2[id]:target, h3[id]:target, h4[id]:target { animation: notes-hl 1.4s ease; }
   flex: 0 0 250px; align-self: flex-start;           /* 固定 250px 寬、不被內文擠壓，高度只取內容高 */
   max-height: calc(100vh - 36px); overflow: auto;    /* 目錄很長時在卡片內捲動 */
   margin: 0;                                         /* 蓋掉 .toc 預設的上下外距，兩欄頂端才對齊 */
-  background: var(--card, oklch(0.985 0.004 255));   /* 卡片底色：主題的 --card，沒載入主題時用 oklch 備用值 */
-  border: 1px solid var(--line, oklch(0.84 0.02 255));   /* 邊線：主題的 --line */
+  background: var(--toc-bg, oklch(0.985 0.004 255));   /* 卡片底色：大綱自己的 --toc-bg（不借頁面配色，頁面深色時也維持白底深字） */
+  border: 1px solid var(--toc-line, oklch(0.84 0.02 255));   /* 邊線：大綱自己的 --toc-line */
   border-radius: 14px;                               /* 圓角，與主題的卡片一致 */
   padding: 16px 14px;                                /* 內距：上下 16、左右 14 */
   font-size: .88rem;                                 /* 側欄字級略小於內文 */
@@ -169,13 +169,13 @@ h2[id]:target, h3[id]:target, h4[id]:target { animation: notes-hl 1.4s ease; }
 .layout > nav.toc a {
   display: block; padding: 6px 10px;                 /* 連結撐滿一行，點擊範圍大 */
   border-radius: 8px; border-bottom: 0; border-left: 2px solid transparent;   /* 圓角；去掉 .toc a 的底線；左邊留一條透明線，active 時才上色 */
-  color: var(--ink, oklch(0.27 0.03 260)); text-decoration: none; line-height: 1.4;   /* 文字用主題的主要文字色，不加底線，行高緊一點 */
+  color: var(--toc-ink, oklch(0.27 0.03 260)); text-decoration: none; line-height: 1.4;   /* 文字用大綱自己的文字色，不加底線，行高緊一點 */
   transition: .15s;                                  /* hover 與 active 的底色切換有短暫過渡 */
 }
-.layout > nav.toc a:hover { background: var(--soft, oklch(0.965 0.008 255)); color: var(--ink, oklch(0.27 0.03 260)); border-bottom: 0; }   /* 滑過時換淡底；文字色與去底線要重寫，才蓋得過 .toc a:hover */
+.layout > nav.toc a:hover { background: var(--toc-soft, oklch(0.965 0.008 255)); color: var(--toc-strong, oklch(0.27 0.03 260)); border-bottom: 0; }   /* 滑過時換淡底；文字色與去底線要重寫，才蓋得過 .toc a:hover */
 .layout > nav.toc a.active, .layout > nav.toc a.here {   /* 目前所在章節（頁面自己的捲動偵測用 active，notes.js 用 here） */
-  background: var(--head, oklch(0.93 0.02 255)); border-left-color: var(--accent, oklch(0.42 0.08 255));   /* 較深的底色與左側強調線 */
-  color: var(--accent, oklch(0.42 0.08 255)); font-weight: 600;   /* 強調色文字、半粗體 */
+  background: var(--toc-here, oklch(0.93 0.02 255)); border-left-color: var(--toc-strong, oklch(0.42 0.08 255));   /* 較深的底色與左側強調線 */
+  color: var(--toc-strong, oklch(0.42 0.08 255)); font-weight: 600;   /* 強調色文字、半粗體 */
 }
 /* 窄螢幕（860px 以下）：note-theme.css 讓 .layout 變上下堆疊，大綱也從黏住的側欄變成滿寬的一般區塊 */
 @media (max-width: 860px) {
@@ -184,6 +184,25 @@ h2[id]:target, h3[id]:target, h4[id]:target { animation: notes-hl 1.4s ease; }
 
 .toc::-webkit-scrollbar { width: 8px; }
 .toc::-webkit-scrollbar-thumb { background: #c9d4e8; border-radius: 8px; }
+
+/* ---------- 大綱獨立配色（Abby 規則：大綱是白底就一律深字，不可被頁面自己的 .toc 規則改成深底或深色螢光底） ----------
+   原因：有些互動頁自己寫了 .toc a{background:var(--chip);color:var(--ink)} 這類「晶片式目錄」規則，
+   跟公版大綱疊在一起就變成深色底配深色字。大綱的底色、文字色、邊線、連結底色全部用下面這組 --toc-* 變數，
+   選擇器用 html body nav.toc（權重比頁面的 .toc a 高），頁面配色不管是淺是深都影響不到大綱 */
+html body nav.toc, html body .auto-toc {
+  --toc-bg: #f7f9fc; --toc-line: #dbe3f0; --toc-ink: #2f4d8c; --toc-strong: #1b3570; --toc-soft: #e9effa; --toc-here: #e3ecfb;   /* 大綱專用色：淺底、深藍字 */
+  background: var(--toc-bg); border-color: var(--toc-line); color: var(--toc-ink);   /* 容器自己的底、邊線、文字色 */
+  display: block;   /* 頁面若把 .toc 設成 flex 晶片列，這裡改回一般區塊，大綱才會是直排清單 */
+}
+html body nav.toc a, html body .auto-toc a {
+  background: transparent; box-shadow: none; color: var(--toc-ink);   /* 連結不帶底色、不帶陰影，文字用大綱深色字 */
+  border-color: transparent;   /* 頁面晶片的邊線不顯示 */
+}
+html body nav.toc a:hover, html body .auto-toc a:hover { background: var(--toc-soft); color: var(--toc-strong); }   /* 滑過：淡藍底、更深的字 */
+html body nav.toc a.here, html body nav.toc a.active { background: var(--toc-here); color: var(--toc-strong); }   /* 目前章節：淡藍底、更深的字 */
+@media (prefers-color-scheme: dark) {   /* 系統深色模式：大綱改成深底淺字，仍然是「深底配淺字」 */
+  html body nav.toc, html body .auto-toc { --toc-bg: #1b2230; --toc-line: #2e3a50; --toc-ink: #9dbcf0; --toc-strong: #cfe0ff; --toc-soft: #26324a; --toc-here: #2b3a55; }
+}
 
 /* ---------- Gemini 對話區塊（各對話來源／追加回合）：預設收合，由 notes.js 的 initFold 包成 details ---------- */
 details.fold { margin: 22px 0 10px; border-top: 1px dashed var(--line, #c9d4e8); }
