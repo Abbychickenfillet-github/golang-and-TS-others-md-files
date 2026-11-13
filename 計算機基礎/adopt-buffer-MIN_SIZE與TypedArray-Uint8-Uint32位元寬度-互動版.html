@@ -18,14 +18,22 @@ button{margin-right:8px}
 details.src{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin:10px 0}
 .defbox{background:var(--soft);border:1px solid var(--line);border-left:5px solid #3f9e7f;border-radius:0 10px 10px 0;padding:14px 20px;margin:18px 0}
 .defbox h2{border:0;padding:0;margin:0 0 10px;font-size:1.12em;color:#2c6b57}
+@media (prefers-color-scheme: dark){
+.defbox h2{color:oklch(0.80 0.073 170)}}
 .defbox .one{font-size:1.04em;font-weight:600;margin:0 0 10px;color:#1f4a3c}
+@media (prefers-color-scheme: dark){
+.defbox .one{color:oklch(0.80 0.054 169)}}
 .defbox ol{margin:8px 0 0;padding-left:1.4em}
 .defbox li{margin:.35em 0}
 .defbox .warn{margin:12px 0 0;padding:8px 12px;background:var(--card);border-radius:8px;font-size:.93em}
 .defbox .warn b{color:#9a6b00}
+@media (prefers-color-scheme: dark){
+.defbox .warn b{color:oklch(0.80 0.117 78)}}
 @keyframes hl{0%,55%{background:#fff2b8}100%{background:transparent}}
 </style><link rel="stylesheet" href="../assets/notes.css">
-</head><body><div class="wrap"><header><h1>adopt-buffer-MIN_SIZE與TypedArray-Uint8-Uint32位元寬度</h1><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">TypedArray</span><span class="pill">Uint32Array</span><span class="pill">Buffer</span><span class="pill">css-tree</span><span class="pill">GC</span><div class="meta">更新 2026-10-10 ・ <a href="https://gemini.google.com/app/0fa113dfd0ee9e71">來源</a></div></header><div class="bar"><button onclick="setAll(true)">全部隱藏重點</button><button onclick="setAll(false)">全部顯示</button><span style="color:#888;font-size:.85em">點 (a)(b)… 重點可單獨隱藏／顯示，自我測驗　｜　<b style="color:#2c6b57">綠色虛線名詞：滑過看解釋，點一下釘住並可拖曳</b></span></div><article>
+</head><body><div class="wrap"><header><h1>adopt-buffer-MIN_SIZE與TypedArray-Uint8-Uint32位元寬度</h1><span class="pill">gemini</span><span class="pill">javascript</span><span class="pill">TypedArray</span><span class="pill">Uint32Array</span><span class="pill">Buffer</span><span class="pill">css-tree</span><span class="pill">GC</span><div class="meta">更新 2026-10-10 ・ <a href="https://gemini.google.com/app/0fa113dfd0ee9e71">來源</a></div></header><div class="bar"><button onclick="setAll(true)">全部隱藏重點</button><button onclick="setAll(false)">全部顯示</button><span style="color:#888;font-size:.85em">點 (a)(b)… 重點可單獨隱藏／顯示，自我測驗　｜　<b style="color:#2c6b57}
+@media (prefers-color-scheme: dark){
+x{color:oklch(0.80 0.073 170)}">綠色虛線名詞：滑過看解釋，點一下釘住並可拖曳</b></span></div><article>
 
 
 <section class="defbox">
@@ -33,7 +41,9 @@ details.src{background:var(--card);border:1px solid var(--line);border-radius:10
 <p class="one">就是一條 <code>Uint32Array</code> —— 一塊連續記憶體，每格固定 4 bytes，專門存 CSS tokenizer 掃描過程中產生的「純數字<span class="term" tabindex="0" data-def="metadata：描述資料的資料。這裡存的不是 CSS 文字本身，而是「關於那段文字的資訊」—— 它從第幾個字元開始、到第幾個字元結束、是什麼型別、在第幾行第幾欄。就像書的目錄不是書的內容，但告訴你內容在哪裡。">中繼資料</span>」。</p>
 <p style="margin:0 0 10px">它不是檔案內容，也不是字串。原始 CSS 文字另外存在 <code>source</code> 裡；buffer 只存「第幾個字元到第幾個字元是一個 <span class="term" tabindex="0" data-def="詞法單元：tokenizer 把一長串 CSS 文字切成的最小有意義單位，例如一個選擇器名稱、一個冒號、一個數值、一個分號。切完才輪到 parser 組成語法樹。">token</span>、它是什麼型別、在第幾行第幾欄」這類<b><span class="term" tabindex="0" data-def="也就是「位置資訊」—— 第幾個字元、第幾行、第幾欄、第幾號型別，全部都是整數，所以才能塞進 Uint32Array。">座標與編號</span></b>。</p>
 
-<h3 id="arraybuffer" style="color:#2c6b57;margin:20px 0 8px;font-size:1.02em">⬛ 退一步：這條 Uint32Array 底下是什麼 —— ArrayBuffer</h3>
+<h3 id="arraybuffer" style="color:#2c6b57;margin:20px 0 8px;font-size:1.02em}
+@media (prefers-color-scheme: dark){
+x{color:oklch(0.80 0.073 170)}">⬛ 退一步：這條 Uint32Array 底下是什麼 —— ArrayBuffer</h3>
 <pre><code class="language-js">// ① 開一塊原始記憶體
 var buffer = new ArrayBuffer(8);
 //                          └─ 單位永遠是 byte，不是 bit
@@ -105,7 +115,9 @@ asU32[0]   // 16777216
 
 <p style="margin:10px 0 0"><b>📌 補充（ES2024 起）</b>：「固定長度」已經不是絕對。<code>new ArrayBuffer(8, { maxByteLength: 16 })</code> 可以建立 resizable buffer，之後用 <code>.resize(16)</code> 改大小；一般寫法 <code>new ArrayBuffer(8)</code> 的 <code>.resizable</code> 是 <code>false</code>，仍然是固定的。另外 <code>.transfer()</code> 會把所有權轉走並讓原本那個 <code>.detached === true</code>，這就是 Worker 之間零複製傳遞（Transferable）的基礎。</p>
 
-<h3 style="color:#2c6b57;margin:22px 0 8px;font-size:1.02em">📐 TypedArray 跟一般陣列差在哪</h3>
+<h3 style="color:#2c6b57;margin:22px 0 8px;font-size:1.02em}
+@media (prefers-color-scheme: dark){
+x{color:oklch(0.80 0.073 170)}">📐 TypedArray 跟一般陣列差在哪</h3>
 
 <pre><code class="language-text">【plain Array】  const arr = [1, "x", {name:"abby"}, true];
 
@@ -163,24 +175,32 @@ asU32[0]   // 16777216
 </table>
 <p style="margin:10px 0 0"><b>為什麼長度用 <code>source.length</code>？</b>因為 token 數事先不知道，所以拿「最壞情況 ＝ 每個字元都自成一個 token」當上界先開好，寧可開大也不要中途擴容。</p>
 
-<h3 id="why32" style="color:#2c6b57;margin:20px 0 8px;font-size:1.02em">🔑 這才是非用 32-bit 不可的真正原因（補強下面的 (k)）</h3>
+<h3 id="why32" style="color:#2c6b57;margin:20px 0 8px;font-size:1.02em}
+@media (prefers-color-scheme: dark){
+x{color:oklch(0.80 0.073 170)}">🔑 這才是非用 32-bit 不可的真正原因（補強下面的 (k)）</h3>
 <pre><code class="language-js">const OFFSET_MASK = 0x00FFFFFF;   // 低 24 bits
 const TYPE_SHIFT  = 24;
 offsetAndType[index] = (type &lt;&lt; TYPE_SHIFT) | end;   // 型別與 offset 打包進同一個數字</code></pre>
 <p style="margin:0">白話：<b>它把兩個資訊塞進同一個 32-bit 整數</b> —— 左移 24 位把 token 型別推到高 8 bits，再用 <code>|</code> 把結束 offset 填進低 24 bits。一格就同時回答「這是什麼 token」和「它到哪裡結束」，不必開兩條陣列。所以不是「32-bit 比較夠用」，是<b>結構上需要 24+8 這個切法</b>，Uint8Array 根本塞不下。</p>
 <p style="margin:8px 0 0">副作用：offset 只有 24 bits，上限 16,777,215 —— 也就是 css-tree 能處理的 CSS 原始碼<b>最大約 16 MB</b>。</p>
 
-<h3 id="word" style="color:#2c6b57;margin:20px 0 8px;font-size:1.02em">那「buffer」這個詞本身呢</h3>
+<h3 id="word" style="color:#2c6b57;margin:20px 0 8px;font-size:1.02em}
+@media (prefers-color-scheme: dark){
+x{color:oklch(0.80 0.073 170)}">那「buffer」這個詞本身呢</h3>
 <p style="margin:0">通用定義是「一塊事先配置好、大小固定的連續記憶體，用來暫存正在流動中的資料」，存在的理由是<b>兩端速度對不上</b>（例如讀檔、網路封包）。但 <b>css-tree 用的是另一種意思</b>：它不是接資料流的桶子，而是<b>可重複使用的工作區（scratch space）</b>。同一個詞，這裡的重點在「重用」而不是「緩衝」—— 這也是 <code>adoptBuffer</code> 的 adopt（領養、沿用）這個字的由來。</p>
 <p style="margin:14px 0 6px"><b>🔗 往下挖的兩個方向</b></p>
 <ol style="margin:0 0 10px">
 <li><b><a href="../編譯與打包-學習路徑/01-CPU五大單元-ALU-CU-暫存器-快取與微指令-互動版.html">byte addressability（位元組可定址性）</a></b>　
-<span style="color:#2c6b57">✅ 強相關，而且是因果關係</span><br>
+<span style="color:#2c6b57}
+@media (prefers-color-scheme: dark){
+x{color:oklch(0.80 0.073 170)}">✅ 強相關，而且是因果關係</span><br>
 記憶體最小的「可定址單位」就是一個 <span class="term" tabindex="0" data-def="byte 可定址性：CPU 的位址匯流排每一個位址對應一個 byte，不是一個 bit。所以你可以說「第 1000 個 byte」，但沒有「第 1000 個 bit」這種位址。">byte</span>，每個 byte 有自己的門牌號碼，<b>但單一個 bit 沒有位址</b>。
 這直接決定了三件事：<code>new ArrayBuffer(8)</code> 的 8 為什麼是 byte 而不是 bit、<code>byteOffset</code> 為什麼以 byte 計、以及<b>為什麼 css-tree 想在一格裡塞兩個資訊就只能自己做位元運算</b> —— 因為硬體不讓你定址到 bit，<code>(type &lt;&lt; 24) | end</code> 就是在「一個可定址的 byte 群組內部」自己切出 8+24 的格子。</li>
 
 <li><b><a href="../backend/DNS查詢-TCP與TLS握手RTT-邊緣節點與網頁效能-原文Populating-the-page導讀.html">TCP 的接收視窗與流量控制</a></b>　
-<span style="color:#9a6b00">⚠️ 間接相關，接點要講精確</span><br>
+<span style="color:#9a6b00}
+@media (prefers-color-scheme: dark){
+x{color:oklch(0.80 0.117 78)}">⚠️ 間接相關，接點要講精確</span><br>
 <b>「三次握手」本身不是 buffer 概念</b> —— SYN / SYN-ACK / ACK 做的是建立連線與交換初始序號（ISN）。
 真正的接點是：TCP 標頭裡有一個 <b>16-bit 的 Window 欄位</b>，每一個封包都帶著它，<b>SYN 也不例外</b>，而那個數字的意思就是「<b>我的接收 buffer 還剩多少空間</b>」。
 握手只是雙方<b>第一次互相通告</b> window 大小、並順便協商 Window Scale 選項（把 65535 bytes 的上限放大）的時機。
