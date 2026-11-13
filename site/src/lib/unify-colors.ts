@@ -72,7 +72,7 @@ function mapText(token: string): string | undefined {
   // 解析；
   const t = toneOf(token);
   // 不是顏色、太透明、太亮、有彩度（紅、藍、綠的強調字）都不換；
-  if (t === undefined || t.a < 0.9 || t.l > 0.58 || t.c > 0.05) return undefined;
+  if (t === undefined || t.a < 0.9 || t.l > 0.72 || t.c > 0.05) return undefined;
   // 深色用主要文字色，中等灰用次要文字色；
   return t.l <= 0.36 ? 'var(--ink)' : 'var(--sub)';
 }
@@ -184,7 +184,7 @@ function liftColor(token: string): string | undefined {
   // 解析明度、彩度、透明度；
   const t = toneOf(token);
   // 不是顏色、太透明、已經夠亮、幾乎無彩（灰色走 mapText）都不處理；
-  if (t === undefined || t.a < 0.9 || t.l > 0.62 || t.c <= 0.05) return undefined;
+  if (t === undefined || t.a < 0.9 || t.l > 0.76 || t.c <= 0.05) return undefined;
   // 取色相；
   const parsed = parse(token);
   // 解析失敗就不處理；
@@ -325,7 +325,7 @@ export function unifyCssColors(css: string): UnifyResult {
     // 掃背景宣告；
     rule.walkDecls(/^background(-color)?$/i, (decl) => {
       // 比對 var(--accent) 或 var(--link)；頁面自己重新定義過同名變數時，那個顏色不會跟著深色模式變淺，白字照舊可讀，不處理；
-      const m = /^var\((--(?:accent|link))\)$/i.exec(decl.value.trim());
+      const m = /^var\((--(?:accent|link|ink))\)$/i.exec(decl.value.trim());
       if (m && !ownVars.has(m[1].toLowerCase())) accentBg = true;
     });
     // 動畫關鍵影格（from、50%、to）不是一般規則，不處理；

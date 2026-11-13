@@ -53,7 +53,11 @@ describe('unifyCssColors：文字', () => {
   it('紅藍強調字、白字、淺灰字不換', () => {
     expect(css('p{color:#b03a4a}')).toContain('p{color:#b03a4a}');
     expect(css('p{color:#fff}')).toBe('p{color:#fff}');
-    expect(css('p{color:#888}')).toBe('p{color:#888}');
+    expect(css('p{color:#bbb}')).toBe('p{color:#bbb}');
+    // 中等灰（#888）在深色卡片上對比不足，換成跟著模式走的 --sub；
+    expect(css('p{color:#888}')).toBe('p{color:var(--sub)}');
+    // 偏亮的藍色標籤字（#7a9cc6）補深色模式提亮覆寫；
+    expect(css('b{color:#7a9cc6}')).toContain('@media (prefers-color-scheme: dark)');
   });
   // 同一條規則有螢光筆底色時，文字色是成對設計，不能換；
   it('同規則有實體背景時文字色不換', () => {
@@ -132,6 +136,8 @@ describe('unifyCssColors：強調色底的白字', () => {
   it('background:var(--accent) 配白字換成 var(--on-accent)', () => {
     expect(css('.on{background:var(--accent);color:#fff}')).toBe('.on{background:var(--accent);color:var(--on-accent)}');
     expect(css('.p{color:white;background:var(--link)}')).toBe('.p{color:var(--on-accent);background:var(--link)}');
+    // 反相按鈕：--ink 底配白字，深色模式 --ink 變淺，同樣換成 --on-accent；
+    expect(css('.t{background:var(--ink);color:#fff}')).toBe('.t{background:var(--ink);color:var(--on-accent)}');
   });
   // 其他底色的白字不動；
   it('非強調色底的白字不動', () => {
