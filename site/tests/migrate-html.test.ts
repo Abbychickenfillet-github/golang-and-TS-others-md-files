@@ -8,6 +8,8 @@ import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 // 匯入被測模組：遷移函式、相對路徑計算與共用集合載入；
 import { assetsRelPath, migrateHtml } from '../src/lib/migrate-html';
+// 匯入顏色統一函式：已提交的樣板頁是「遷移＋顏色統一」兩步的結果；
+import { unifyHtmlColors } from '../src/lib/unify-colors';
 // 匯入 parse-html 的修剪函式與共用集合工具，測「保留註解」選項與預設行為不變；
 import { pruneSharedRules, pruneSharedRulesDetailed, sharedSelectorsOf } from '../src/lib/parse-html';
 
@@ -557,8 +559,8 @@ describe('migrateHtml：真實樣板頁', () => {
   it('已提交的樣板頁等於目前工具遷移原檔的結果', () => {
     // 已提交的樣板頁（遷移後的檔案）；
     const committed = readFileSync(path.join(repoRoot, samplePath), 'utf8');
-    // 目前工具對原檔的輸出；
-    const expected = migrateHtml(original, rel, realShared).html;
+    // 目前工具對原檔的輸出：先遷移，再把寫死的顏色統一成主題變數（兩步都跑過才是已提交的樣子）；
+    const expected = unifyHtmlColors(migrateHtml(original, rel, realShared).html).text;
     // 逐字相同（換行正規化）；
     expect(committed.replace(/\r\n/g, '\n')).toBe(expected.replace(/\r\n/g, '\n'));
   });
