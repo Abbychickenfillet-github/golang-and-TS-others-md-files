@@ -281,6 +281,10 @@ export function unifyCssColors(css: string): UnifyResult {
     const t = toneOf(d.value.trim());
     if (t !== undefined && t.a >= 0.3 && t.c > 0.045) varLits.set(d.prop, d.value.trim());
   });
+  // 頁面自己宣告過的自訂屬性名稱（小寫）；
+  const ownVars = new Set<string>();
+  // 收集；
+  root.walkDecls(/^--/, (d) => { ownVars.add(d.prop.toLowerCase()); });
   // 逐條規則處理（at-rule 裡的規則也會被走訪到）；
   root.walkRules((rule) => {
     // 這條規則有沒有「換不掉的實體背景」（螢光筆色、漸層、深色底）：有的話文字色就不能換，兩者是成對設計的；
@@ -306,6 +310,14 @@ export function unifyCssColors(css: string): UnifyResult {
       const m = /^var\(--hl-([a-z]+)\)/i.exec(decl.value.trim());
       // 有就記下；
       if (m && !varLits.has('--hl-' + m[1].toLowerCase())) hl.name = m[1].toLowerCase();
+    });
+    // 背景是主題強調色（--accent、--link）：深色模式這兩個變數會變淺藍，頁面寫死的白字就看不見；
+    let accentBg = false;
+    // 掃背景宣告；
+    rule.walkDecls(/^background(-color)?$/i, (decl) => {
+      // 比對 var(--accent) 或 var(--link)；頁面自己重新定義過同名變數時，那個顏色不會跟著深色模式變淺，白字照舊可讀，不處理；
+      const m = /^var\((--(?:accent|link))\)$/i.exec(decl.value.trim());
+      if (m && !ownVars.has(m[1].toLowerCase())) accentBg = true;
     });
     // 動畫關鍵影格（from、50%、to）不是一般規則，不處理；
     if (rule.parent?.type === 'atrule' && /keyframes$/i.test((rule.parent as postcss.AtRule).name)) return;
@@ -337,6 +349,8 @@ export function unifyCssColors(css: string): UnifyResult {
           if (!decl.value.includes('var(')) { decl.value = to; changes += 1; }
           return;
         }
+        // 強調色底配寫死的白字：換成跟著模式走的 --on-accent（淺色模式白、深色模式深色）；
+        if (accentBg && /^(#fff|#ffffff|white)$/i.test(decl.value.trim())) { decl.value = 'var(--on-accent)'; changes += 1; return; }
         // 同規則有實體背景就不動；
         if (hasLiteralBg) return;
         // 換；

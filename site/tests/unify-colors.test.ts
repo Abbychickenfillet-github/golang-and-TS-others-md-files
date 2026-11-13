@@ -121,6 +121,18 @@ describe('unifyCssColors：頁面自己定義的字面螢光筆色', () => {
   });
 });
 
+describe('unifyCssColors：強調色底的白字', () => {
+  // 深色模式 --accent 變淺藍，白字看不見；
+  it('background:var(--accent) 配白字換成 var(--on-accent)', () => {
+    expect(css('.on{background:var(--accent);color:#fff}')).toBe('.on{background:var(--accent);color:var(--on-accent)}');
+    expect(css('.p{color:white;background:var(--link)}')).toBe('.p{color:var(--on-accent);background:var(--link)}');
+  });
+  // 其他底色的白字不動；
+  it('非強調色底的白字不動', () => {
+    expect(css('.x{background:#123456;color:#fff}')).toBe('.x{background:#123456;color:#fff}');
+  });
+});
+
 describe('unifyCssColors：邊線與自訂屬性', () => {
   // 淺灰邊線換成 --line，其他 token 保留；
   it('border 簡寫只換顏色 token', () => {
