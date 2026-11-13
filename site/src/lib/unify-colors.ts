@@ -70,7 +70,7 @@ function mapText(token: string): string | undefined {
   // 解析；
   const t = toneOf(token);
   // 不是顏色、太透明、太亮、有彩度（紅、藍、綠的強調字）都不換；
-  if (t === undefined || t.a < 0.9 || t.l > 0.55 || t.c > 0.05) return undefined;
+  if (t === undefined || t.a < 0.9 || t.l > 0.58 || t.c > 0.05) return undefined;
   // 深色用主要文字色，中等灰用次要文字色；
   return t.l <= 0.36 ? 'var(--ink)' : 'var(--sub)';
 }
@@ -137,6 +137,8 @@ export function unifyCssColors(css: string): UnifyResult {
       // 其餘（有彩度的色、漸層、圖片）算實體背景；
       hasLiteralBg = true;
     });
+    // 動畫關鍵影格（from、50%、to）不是一般規則，不處理；
+    if (rule.parent?.type === 'atrule' && /keyframes$/i.test((rule.parent as postcss.AtRule).name)) return;
     // 逐一宣告處理；
     rule.walkDecls((decl) => {
       // 屬性名稱轉小寫；
@@ -187,6 +189,31 @@ export function unifyCssColors(css: string): UnifyResult {
         changes += 1;
       }
     });
+    // 規則帶著「換不掉的實體單色背景」（螢光筆黃、藍、粉，或深色底）卻沒寫自己的文字色：文字會繼承上層，深色模式時上層是淺字，
+    // 淺字落在淺色螢光筆上就看不見；所以替它補一個固定的文字色：亮底配深字、暗底配淺字，不隨模式改變；
+    if (hasLiteralBg && !rule.some((n) => n.type === 'decl' && n.prop.toLowerCase() === 'color')) {
+      // 找出這條規則的單色實體背景（漸層與圖片沒有單一明度，不補）；
+      let tone: Tone | undefined;
+      // 掃背景宣告；
+      rule.walkDecls(/^background(-color)?$/i, (decl) => {
+        // 複合背景略過；
+        if (/[,]|url\(|gradient|var\(/i.test(decl.value)) return;
+        // 取第一個能解析且夠不透明的顏色 token；
+        for (const tok of splitTokens(decl.value)) {
+          // 解析；
+          const t = toneOf(tok);
+          // 半透明太淡的（例如 5% 白）看不出底色，不補；
+          if (t !== undefined && t.a >= 0.3 && tone === undefined) tone = t;
+        }
+      });
+      // 有找到就補文字色；
+      if (tone !== undefined) {
+        // 亮底用深色字，暗底用淺色字；
+        rule.append({ prop: 'color', value: (tone as Tone).l >= 0.55 ? 'oklch(0.22 0.03 260)' : 'oklch(0.96 0.01 258)' });
+        // 計數；
+        changes += 1;
+      }
+    }
   });
   // 輸出；
   return { text: root.toString(), changes };

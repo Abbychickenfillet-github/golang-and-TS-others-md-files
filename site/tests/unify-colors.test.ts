@@ -19,14 +19,14 @@ describe('unifyCssColors：背景', () => {
     expect(css('a{background-color:#f1f3f6}')).toBe('a{background-color:var(--soft)}');
   });
   // 螢光筆色有彩度，不能動；
-  it('螢光筆色（黃、藍、粉）不換', () => {
-    expect(css('mark{background:#fff3a3}')).toBe('mark{background:#fff3a3}');
-    expect(css('mark{background:#adccff}')).toBe('mark{background:#adccff}');
+  it('螢光筆色（黃、藍、粉）的顏色不換，但補上固定深字', () => {
+    expect(css('mark{background:#fff3a3}')).toBe('mark{background:#fff3a3;color:oklch(0.22 0.03 260)}');
+    expect(css('mark{background:#adccff}')).toBe('mark{background:#adccff;color:oklch(0.22 0.03 260)}');
   });
   // 半透明、深色底、漸層不換；
   it('半透明、深色底、漸層不換', () => {
     expect(css('a{background:rgba(255,255,255,.3)}')).toBe('a{background:rgba(255,255,255,.3)}');
-    expect(css('a{background:#0b0e1c}')).toBe('a{background:#0b0e1c}');
+    expect(css('a{background:#0b0e1c}')).toBe('a{background:#0b0e1c;color:oklch(0.96 0.01 258)}');
     expect(css('a{background:linear-gradient(#fff,#eee)}')).toBe('a{background:linear-gradient(#fff,#eee)}');
   });
   // !important 與前後格式保留；
@@ -54,6 +54,27 @@ describe('unifyCssColors：文字', () => {
   // 同一條規則的背景會被換成變數時，文字色一起換；
   it('背景被換成變數時文字色也換', () => {
     expect(css('a{background:#fff;color:#222}')).toBe('a{background:var(--card);color:var(--ink)}');
+  });
+});
+
+describe('unifyCssColors：實體背景補文字色', () => {
+  // 規則已經寫了文字色就不補；
+  it('已有 color 不補', () => {
+    expect(css('mark{background:#fff3a3;color:#222}')).toBe('mark{background:#fff3a3;color:#222}');
+  });
+  // 漸層與變數背景沒有單一明度，不補；
+  it('漸層與 var() 背景不補', () => {
+    expect(css('a{background:linear-gradient(#fff3a3,#adccff)}')).toBe('a{background:linear-gradient(#fff3a3,#adccff)}');
+    expect(css('a{background:var(--hl-core)}')).toBe('a{background:var(--hl-core)}');
+  });
+  // 動畫關鍵影格不處理；
+  it('keyframes 裡的影格不補', () => {
+    expect(css('@keyframes k{50%{background:#fff3a3}}')).toBe('@keyframes k{50%{background:#fff3a3}}');
+  });
+  // 補完再跑一次不再變；
+  it('冪等', () => {
+    const once = css('mark{background:#fff3a3}');
+    expect(css(once)).toBe(once);
   });
 });
 

@@ -19,10 +19,10 @@ pre code .l.active{background:#ffdf5d2b;border-left-color:#ffdf5d;color:#fff;fon
 .stage{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0;position:relative;}
 .zone{flex:1 1 260px;min-width:230px;border:2px dashed var(--line);border-radius:12px;padding:10px;}
 .zone-title{font-size:.78rem;color:var(--muted);margin-bottom:6px;font-weight:700;}
-.zone.stack-zone{background:#fafbff;}
-.zone.heap-zone{background:#fffaf5;}
+.zone.stack-zone{background:var(--card);}
+.zone.heap-zone{background:var(--card);}
 .frames{display:flex;flex-direction:column-reverse;gap:6px;min-height:140px;}
-.frame{background:#eef1ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 12px;font-size:.82rem;font-family:"JetBrains Mono",Consolas,monospace;color:#4338ca;animation:pop .25s ease;}
+.frame{background:var(--soft);border:1px solid #c7d2fe;border-radius:8px;padding:8px 12px;font-size:.82rem;font-family:"JetBrains Mono",Consolas,monospace;color:#4338ca;animation:pop .25s ease;}
 .frame.top{background:#4f46e5;color:#fff;border-color:#4f46e5;}
 .frame .fr-name{font-weight:700;margin-bottom:3px;}
 .frame .fr-row{font-size:.74rem;opacity:.88;padding:1px 0;}
@@ -30,10 +30,10 @@ pre code .l.active{background:#ffdf5d2b;border-left-color:#ffdf5d;color:#fff;fon
 .sp-badge{display:inline-block;background:#facc15;color:#7c4a03;border-radius:5px;padding:0 5px;font-size:.68rem;font-weight:700;margin-right:5px;vertical-align:1px;}
 .frame-empty,.heap-empty{color:var(--muted);font-size:.82rem;text-align:center;margin:auto;padding:20px 0;}
 .heap-objs{display:flex;flex-direction:column;gap:8px;min-height:140px;}
-.hobj{border-radius:8px;padding:8px 12px;font-size:.82rem;font-family:"JetBrains Mono",Consolas,monospace;border:2px solid #fdba74;background:#fff7ed;color:#9a3412;transition:all .3s;animation:pop .25s ease;}
+.hobj{border-radius:8px;padding:8px 12px;font-size:.82rem;font-family:"JetBrains Mono",Consolas,monospace;border:2px solid #fdba74;background:var(--card);color:#9a3412;transition:all .3s;animation:pop .25s ease;}
 .hobj .ho-name{font-weight:700;margin-bottom:3px;}
 .hobj .ho-row{font-size:.78rem;}
-.hobj.marked{border-color:#22c55e;background:#f0fdf4;color:#15803d;}
+.hobj.marked{border-color:#22c55e;background:var(--card);color:#15803d;}
 .hobj.marked::before{content:'✅ marked ';font-weight:700;}
 .hobj.swept{opacity:.25;text-decoration:line-through;border-style:dashed;}
 .hobj.swept::before{content:'🗑️ swept ';font-weight:700;}
@@ -44,10 +44,10 @@ pre code .l.active{background:#ffdf5d2b;border-left-color:#ffdf5d;color:#fff;fon
 
 .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 8px;}
 .controls button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 13px;font-size:.82rem;cursor:pointer;}
-.controls button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.controls button.alt{background:var(--card);color:var(--accent);border:1px solid var(--accent);}
 .controls button:disabled{opacity:.4;cursor:not-allowed;}
 .step-num{font-size:.78rem;color:var(--muted);margin-left:4px;}
-.desc{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:.6em 1em;font-size:.9rem;min-height:2.4em;}
+.desc{background:var(--card);border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:.6em 1em;font-size:.9rem;min-height:2.4em;}
 </style><link rel="stylesheet" href="../../../assets/notes.css">
 </head><body>
 <div class="wrap">
@@ -60,7 +60,7 @@ pre code .l.active{background:#ffdf5d2b;border-left-color:#ffdf5d;color:#fff;fon
 
 <section class="card">
 <h2>① Stack Frame push/pop 動畫（counter() 閉包例子）</h2>
-<p class="desc" style="border-left-color:#5b7cfa;background:#eef2ff;">
+<p class="desc" style="border-left-color:#5b7cfa;background:var(--soft);">
 <strong>先釐清一個容易誤會的地方：</strong>下面方塊裡的「counter()」「(anonymous)()」，代表的是<strong>這次呼叫產生的 Stack Frame（呼叫紀錄）</strong>，不是把函式本體當成一個 primitive 值塞進 Stack。函式在 JS 裡本身是一種<strong>物件</strong>（Function 是 Object 的一種）：它的程式碼定義、之後可能形成的 closure 環境，實際存放位置是 <strong>Heap</strong>，不是 Stack。被呼叫的當下，Stack 上 push 的只是這次呼叫的執行紀錄——裡面裝的是這次呼叫的參數、區域變數（可能是 primitive 值，也可能是指向 Heap 物件的位址）、以及 return 要跳回哪一行的返回位址，跟「函式定義本身放在哪裡」是完全獨立的兩件事。
 </p>
 <pre><code id="sfCode"><span class="l" data-l="1">function counter() {</span>
