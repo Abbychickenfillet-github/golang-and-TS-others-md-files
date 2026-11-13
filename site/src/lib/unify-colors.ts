@@ -71,6 +71,8 @@ function mapSurface(token: string): string | undefined {
 function mapText(token: string): string | undefined {
   // 解析；
   const t = toneOf(token);
+  // 工具自己補的固定深字、固定淺字（以及頁面刻意寫成同值的深色模式字色）不換：換成 --ink 會在深色模式變成淺字；
+  if (token.trim() === DARK_TEXT || token.trim() === LIGHT_TEXT) return undefined;
   // 不是顏色、太透明、太亮、有彩度（紅、藍、綠的強調字）都不換；
   if (t === undefined || t.a < 0.9 || t.l > 0.72 || t.c > 0.05) return undefined;
   // 深色用主要文字色，中等灰用次要文字色；

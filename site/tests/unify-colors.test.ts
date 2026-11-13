@@ -159,6 +159,13 @@ describe('unifyCssColors：只當文字用的狀態色變數', () => {
   });
 });
 
+describe('unifyCssColors：固定深字不被換成 --ink', () => {
+  // 頁面深色模式刻意寫的固定深字（落在淺色底上）不能換成 --ink；
+  it('color:oklch(0.22 0.03 260) 維持原樣', () => {
+    expect(css('.u{background:var(--card);color:oklch(0.22 0.03 260)}')).toBe('.u{background:var(--card);color:oklch(0.22 0.03 260)}');
+  });
+});
+
 describe('unifyCssColors：邊線與自訂屬性', () => {
   // 淺灰邊線換成 --line，其他 token 保留；
   it('border 簡寫只換顏色 token', () => {
