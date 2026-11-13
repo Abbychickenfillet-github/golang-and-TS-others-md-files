@@ -329,9 +329,7 @@ Gemini 的回答本身沒有錯，但<mark class="hl hl-warn" tabindex="0" role=
 <tr><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top">Angular</td><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top">Class 實體化一次，靠 CD／Signals 更新</td><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top"><code>viewChild('id')</code>（v17.2+）或 <code>@ViewChild</code></td><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top">class property <code>private count = 0</code>，附在 <code>this</code> 上</td></tr>
 </tbody></table>
 
-<h3 style="font-size:1.05rem;margin:24px 0 10px;color:#33406e}
-@media (prefers-color-scheme: dark){
-x{color:oklch(0.80 0.080 270)}">「全函式執行」的正確順序</h3>
+<h3 style="font-size:1.05rem;margin:24px 0 10px;--c-l:#33406e;--c-d:oklch(0.80 0.080 270)">「全函式執行」的正確順序</h3>
 <p>順序是<b>反過來</b>的：呼叫 setter → React 在 Fiber 記下新狀態並向 scheduler 登記要重畫 → scheduler 在下一個 render phase <b>重新呼叫元件函式</b> → 函式從第一行跑到最後一行，每個 <code>let</code>／<code>const</code> 都重新宣告。所以是「重新渲染 ⇒ 整個函式重新執行」，不是反過來。</p>
 <table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem"><thead><tr><th style="border:1px solid var(--line);padding:9px 11px;background:var(--soft);text-align:left">寫法</th><th style="border:1px solid var(--line);padding:9px 11px;background:var(--soft);text-align:left">記憶體發生什麼事</th><th style="border:1px solid var(--line);padding:9px 11px;background:var(--soft);text-align:left">結果</th></tr></thead><tbody>
 <tr><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top">函式內 <code>let count = 0</code></td><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top">Render 1 在位址 A，Render 2 時 A 被 GC，另在 B 重建</td><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top">每次歸零，活不過一次渲染</td></tr>
@@ -339,9 +337,7 @@ x{color:oklch(0.80 0.080 270)}">「全函式執行」的正確順序</h3>
 <tr><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top"><code>useRef(0)</code></td><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top">Mount 時在該元件的 Fiber 上配置 <code>&#123;current:0&#125;</code>，之後回傳同一位址</td><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top">每個實例各一份，跨渲染存活</td></tr>
 </tbody></table>
 
-<h3 style="font-size:1.05rem;margin:24px 0 10px;color:#33406e}
-@media (prefers-color-scheme: dark){
-x{color:oklch(0.80 0.080 270)}">React 19 之後 useRef 的職責分流</h3>
+<h3 style="font-size:1.05rem;margin:24px 0 10px;--c-l:#33406e;--c-d:oklch(0.80 0.080 270)">React 19 之後 useRef 的職責分流</h3>
 <table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem"><thead><tr><th style="border:1px solid var(--line);padding:9px 11px;background:var(--soft);text-align:left">以前用 useRef 硬做的事</th><th style="border:1px solid var(--line);padding:9px 11px;background:var(--soft);text-align:left">React 19+ 的做法</th></tr></thead><tbody>
 <tr><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top">用 <code>forwardRef</code> 轉接 ref</td><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top"><b>不再需要</b>，<code>ref</code> 已升格為普通 prop</td></tr>
 <tr><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top">用 <code>useEffect</code> 搭 ref 處理 DOM 卸載清理</td><td style="border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top">ref callback 可直接 <code>return</code> 一個 cleanup 函式</td></tr>
@@ -360,9 +356,7 @@ function MyInput(&#123; ref, ...props &#125;) &#123; return &lt;input ref=&#123;
 <p><mark style="background:#BBFABB;padding:1px 4px;border-radius:3px;color:oklch(0.22 0.03 260)"><b>結論：現在只有兩件事該用 useRef——存取真實 DOM 節點，以及跨渲染持久化非 UI 變數（timerId、WebSocket 實體）。</b></mark></p>
 <div style="border-left:5px solid #d94f6b;background:var(--soft);border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;font-size:.92rem"><b>⚠️ 版本提醒</b><br><code>useTemplateRef</code> 需 Vue 3.5+；<code>viewChild()</code> 需 Angular v17.2+；ref 當 prop 與 ref callback cleanup 需 React 19。舊版請回退到 <code>ref(null)</code>／<code>@ViewChild</code>／<code>forwardRef</code>。</div>
 
-<h3 style="font-size:1.05rem;margin:24px 0 10px;color:#33406e}
-@media (prefers-color-scheme: dark){
-x{color:oklch(0.80 0.080 270)}">自己考自己</h3>
+<h3 style="font-size:1.05rem;margin:24px 0 10px;--c-l:#33406e;--c-d:oklch(0.80 0.080 270)">自己考自己</h3>
 <div class="g915-tf" data-ans="F" data-why="順序反了：是重新渲染導致函式重新執行。" style="margin:12px 0">
  <div style="font-weight:600;margin-bottom:6px">1. 函式元件重新執行，所以才觸發重新渲染。</div>
  <button data-g915tf="T" style="border:1px solid var(--line);background:var(--card);border-radius:8px;padding:5px 16px;margin-right:8px;cursor:pointer">O</button>
