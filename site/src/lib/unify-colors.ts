@@ -60,7 +60,9 @@ function mapSurface(token: string): string | undefined {
   // 解析；
   const t = toneOf(token);
   // 不是顏色，或太透明（半透明遮罩不是表面），或有明顯彩度（螢光筆、狀態色）就不換；
-  if (t === undefined || t.a < 0.85 || t.l < 0.93 || t.c > 0.045) return undefined;
+  if (t === undefined || t.a < 0.85 || t.l < 0.9 || t.c > 0.045) return undefined;
+  // 明度 0.90 到 0.93 的只收「幾乎純灰」（彩度 0.02 以下，例如 #e8e7e5 的淡灰底）；再有彩度的淡色多半是刻意的色調，不收；
+  if (t.l < 0.93 && t.c > 0.02) return undefined;
   // 最亮的白色系用卡片底色，其餘淡色用淡底色；
   return t.l >= 0.975 ? 'var(--card)' : 'var(--soft)';
 }
@@ -221,6 +223,32 @@ export function unifyCssColors(css: string): UnifyResult {
     });
     // 規則帶著「換不掉的實體單色背景」（螢光筆黃、藍、粉，或深色底）卻沒寫自己的文字色：文字會繼承上層，深色模式時上層是淺字，
     // 淺字落在淺色螢光筆上就看不見；所以替它補一個固定的文字色：亮底配深字、暗底配淺字，不隨模式改變；
+    // 先前版本補上的固定文字色（深字或淺字）若遇到半透明底，要改成跟著模式走的 --ink；
+    if (hasLiteralBg) {
+      // 找這條規則的單色背景是否半透明；
+      let translucent = false;
+      // 掃背景宣告；
+      rule.walkDecls(/^background(-color)?$/i, (decl) => {
+        // 複合背景略過；
+        if (/[,]|url\(|gradient|var\(/i.test(decl.value)) return;
+        // 任何一個 token 是半透明（0.3 到 0.9）就算；
+        for (const tok of splitTokens(decl.value)) {
+          // 解析；
+          const t = toneOf(tok);
+          // 判斷；
+          if (t !== undefined && t.a >= 0.3 && t.a < 0.9) translucent = true;
+        }
+      });
+      // 是半透明：把我們先前補的兩種固定色換掉；
+      if (translucent) {
+        // 掃文字色宣告；
+        rule.walkDecls(/^color$/i, (decl) => {
+          // 只動「補上的固定色」，頁面自己寫的不碰；
+          if (decl.value === 'oklch(0.22 0.03 260)' || decl.value === 'oklch(0.96 0.01 258)') { decl.value = 'var(--ink)'; changes += 1; }
+        });
+      }
+    }
+    // 規則帶著實體單色背景卻沒寫文字色，補一個；
     if (hasLiteralBg && !rule.some((n) => n.type === 'decl' && n.prop.toLowerCase() === 'color')) {
       // 找出這條規則的單色實體背景（漸層與圖片沒有單一明度，不補）；
       let tone: Tone | undefined;

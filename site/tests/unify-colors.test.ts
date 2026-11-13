@@ -87,6 +87,10 @@ describe('unifyCssColors：螢光筆變數與半透明底', () => {
   // 半透明螢光筆會透出頁面底色，文字用跟著模式走的 --ink；
   it('半透明底補 var(--ink)', () => {
     expect(css('mark{background:#ff5582a6}')).toBe('mark{background:#ff5582a6;color:var(--ink)}');
+    // 先前版本補上的固定深字，遇到半透明底也改成 --ink；
+    expect(css('mark{background:#ff5582a6;color:oklch(0.22 0.03 260)}')).toBe('mark{background:#ff5582a6;color:var(--ink)}');
+    // 幾乎純灰的淡底（#e8e7e5）也算表面色；
+    expect(css('a{background:#e8e7e5}')).toBe('a{background:var(--soft)}');
   });
 });
 
