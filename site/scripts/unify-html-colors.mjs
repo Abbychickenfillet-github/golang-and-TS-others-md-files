@@ -53,7 +53,7 @@ async function main() {
   // --apply 要求工作目錄乾淨（.superpowers 資料夾不算）；
   if (opts.apply) {
     // 取 porcelain 狀態；
-    const dirty = git(root, 'status', '--porcelain').split('\n').filter((l) => l.trim() !== '' && l.slice(3).replace(/^"|"$/g, '').split('/')[0] !== '.superpowers');
+    const dirty = git(root, 'status', '--porcelain').split('\n').filter((l) => l.trim() !== '' && !['.superpowers', 'node_modules'].includes(l.slice(3).replace(/^"|"$/g, '').split('/')[0]));
     // 有變更就拒絕；
     if (dirty.length > 0) throw new Error(`git 工作目錄不乾淨，請先 commit 後再 --apply：\n${dirty.slice(0, 10).join('\n')}`);
   }
