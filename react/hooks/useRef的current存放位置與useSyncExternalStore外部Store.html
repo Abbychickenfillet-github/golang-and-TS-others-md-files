@@ -24,7 +24,7 @@ details.src{background:var(--card);border:1px solid var(--line);border-radius:10
 <li class="pt">(b) 之後 re-render 走 <code>updateRef</code>，直接回傳 <code>hook.memoizedState</code> 裡同一個物件，所以 <code>current</code> 能跨 render 保留，且修改它不會觸發重新 render。</li>
 <li class="pt">(c) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">external store（外部 store）</mark>指不在 <code>useState</code> / <code>useReducer</code> 管理的 React state tree 內的資料來源，例如 Redux、Zustand、MobX、Jotai，或瀏覽器 API。</li>
 <li class="pt">(d) 要搭配 <code>useSyncExternalStore</code> 使用，external store 必須提供 <code>subscribe(callback)</code>：資料變動時呼叫 callback 通知 React，並回傳 unsubscribe 函式供元件卸載時清理。</li>
-<li class="pt">(e) 還必須提供 <code>getSnapshot()</code>：回傳目前資料快照。<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">資料沒變時，重複呼叫必須回傳同一個值或同一個 reference</mark>，否則每次回傳新物件會造成無限重新 render。</li>
+<li class="pt">(e) 還必須提供 <code>getSnapshot()</code>：回傳目前資料快照。<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">資料沒變時，重複呼叫必須回傳同一個值或同一個 reference</mark>，否則每次回傳新物件會造成無限重新 render。</li>
 <li class="pt">(f) 瀏覽器內建的 external store 例子：<code>navigator.onLine</code>（聽 <code>online</code> / <code>offline</code> 事件）、<code>window.innerWidth</code> / <code>matchMedia</code>（聽 <code>resize</code> 或 media query change）、<code>location.pathname</code>（聽 <code>popstate</code>）。</li>
 <li class="pt">(g) 純 JS 的 module 層級 pub/sub 物件或自訂 event emitter 也算 external store。</li>
 <li class="pt">(h) 兩者關聯：<code>useRef</code> 的 <code>{current}</code> 本身就是「存在 Fiber 上、不參與 render 通知」的可變容器；external store 則是「存在 React 外、需要主動 subscribe 才能通知 React」的可變容器。</li>

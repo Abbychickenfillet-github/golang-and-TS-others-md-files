@@ -35,7 +35,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 <section class="card"><h2>重點整理</h2>
 <h3>先搞懂問題：什麼是「熱點行」排隊等鎖</h3>
 <p>當很多事務在<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">短時間內更新同一行資料（熱點行 hot row）</mark>時，只有一個事務能更新，其他必須等待。</p>
-<p>關鍵釐清：這些等待的事務<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">並不是「各自有一個鎖」</mark>，而是<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">排隊等待取得「同一個」行鎖</mark>。持有鎖的事務 commit 或 rollback 釋放鎖後，下一個排隊者才拿得到。</p>
+<p>關鍵釐清：這些等待的事務<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">並不是「各自有一個鎖」</mark>，而是<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">排隊等待取得「同一個」行鎖</mark>。持有鎖的事務 commit 或 rollback 釋放鎖後，下一個排隊者才拿得到。</p>
 <blockquote>
 <p>[!note] 名詞釐清<br />
 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">PolarDB</mark> 是阿里雲自研的<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">「雲原生資料庫（Cloud-Native Database）」</mark>，名稱跟 Hulu 影集、MySQL 都無關（對話中 Gemini 一度語音辨識錯亂，特此標註）。</p>
@@ -52,7 +52,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 <h3>優化技術二：Statement Queue（語句隊列）</h3>
 <p>如果<strong>沒有</strong>開啟上面的熱點行優化，PolarDB 還提供另一種排隊機制。</p>
 <ul>
-<li>痛點：原生 MySQL 中，多條語句對同一行並發操作時，執行緒會在 InnoDB 行鎖上<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">「硬碰硬」競爭</mark>，造成嚴重鎖等待與衝突，系統吞吐量暴跌。</li>
+<li>痛點：原生 MySQL 中，多條語句對同一行並發操作時，執行緒會在 InnoDB 行鎖上<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">「硬碰硬」競爭</mark>，造成嚴重鎖等待與衝突，系統吞吐量暴跌。</li>
 <li>做法：透過 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Hint 語法</mark>，把這些衝突語句在進入資料庫引擎前，先用 <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">Hash 演算法路由到一個共享的「排隊桶（Bucket）」</mark>，讓語句在隊列中依序排隊，而不是直接去頻繁申請/釋放鎖 → <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">降低內核的鎖衝突開銷</mark>。</li>
 </ul>
 <h3>它如何把高並發熱點行更新做到「並行處理」</h3>
@@ -60,7 +60,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 <h3>數字累加 vs 字串更新的差別</h3>
 <ul>
 <li>數字（<code>1 + 1 + 1</code>）本質是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">累加</mark>，組內可以一次合併算完。</li>
-<li>字串一直被改寫時，會按<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">先後順序分批處理與提交</mark>，<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">最終值取決於「最後一個成功執行的更新」</mark>。</li>
+<li>字串一直被改寫時，會按<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">先後順序分批處理與提交</mark>，<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">最終值取決於「最後一個成功執行的更新」</mark>。</li>
 </ul>
 <h3>想找官方文件</h3>
 <p>到<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">阿里雲幫助中心（Alibaba Cloud Help Center）</mark>搜尋關鍵字：<code>PolarDB 热点行性能优化</code>（英：Hot row optimization）或 <code>PolarDB Statement Queue</code>。</p>

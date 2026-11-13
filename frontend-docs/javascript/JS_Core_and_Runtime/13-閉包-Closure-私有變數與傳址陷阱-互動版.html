@@ -63,7 +63,7 @@ counter.increment(); // 2
   setTimeout(() =&gt; { console.log(i); }, 1000);
 }
 </code></pre>
-<p>直覺以為 1,2,3；<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">實際是 4, 4, 4</mark>。<br />
+<p>直覺以為 1,2,3；<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">實際是 4, 4, 4</mark>。<br />
 因為 <code>var</code> 是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">函式作用域</mark>，迴圈裡沒有函式包裹時它幾乎等同全域變數；1 秒後回呼執行時迴圈早跑完，全域 <code>i</code> 已累加到 4，三個閉包指向同一個 <code>i</code>。<br />
 修正：把 <code>var</code> 改成 <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);"><code>let</code>（區塊作用域）</mark>，每次迭代建立獨立範疇，三個閉包各自鎖定 1, 2, 3。</p>
 <h3>魔王題：閉包「漏水」（傳值 vs 傳址）</h3>
@@ -84,13 +84,13 @@ myWallet.spend(20);                     // money 50
 myWallet.checkBalance(); // 50
 myWallet.getHistory();   // ['Spent 30','Found 100 on the street','Spent 20']
 </code></pre>
-<p>核心反思：<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">用閉包做私有變數時，若直接回傳物件或陣列，私有性就破功了</mark>——外部拿到參照就能繞過你的方法任意改內部資料。<br />
+<p>核心反思：<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">用閉包做私有變數時，若直接回傳物件或陣列，私有性就破功了</mark>——外部拿到參照就能繞過你的方法任意改內部資料。<br />
 正解：回傳時<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">切斷參照，回傳複本</mark>，例如 <code>getHistory: () =&gt; [...history]</code>（展開運算子產生新陣列）。</p>
 <h3>觀念釐清（是非題）</h3>
 <ul>
-<li><code>return money</code> 會不會讓 money 變成全域變數？ <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不會。</mark> money 既不在全域、也沒「回到」函式內部，而是被封裝在專屬 <code>myWallet</code> 的閉包環境裡。<code>return</code> 只是把值<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">複印一份</mark>送給外面的變數，口袋裡的本體不會穿透到外面。</li>
-<li><code>money</code> 是 <code>checkBalance</code> 的區域變數嗎？ <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不是。</mark> <code>money</code> 是 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>createWallet</code> 函式的區域變數</mark>，<code>checkBalance</code> 是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">透過閉包</mark>才能存取到外層 <code>createWallet</code> 裡的 <code>money</code>。（注意：判斷一個變數屬於誰，看的是它<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">宣告在哪個函式</mark>，而不是被哪個函式用到。）</li>
-<li><code>myWallet</code> 是「函式物件變數」嗎？ <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不是。</mark> <code>createWallet</code> 本身才是<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">函式物件（可被呼叫）</mark>；<code>myWallet</code> 是 <code>createWallet(100)</code> 回傳的<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">普通物件（Plain Object）</mark>，<code>myWallet()</code> 會噴 <code>TypeError: myWallet is not a function</code>。物件裡的 <code>spend</code>、<code>checkBalance</code> 因綁在物件上，正名是<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">方法（Method）</mark>。</li>
+<li><code>return money</code> 會不會讓 money 變成全域變數？ <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">不會。</mark> money 既不在全域、也沒「回到」函式內部，而是被封裝在專屬 <code>myWallet</code> 的閉包環境裡。<code>return</code> 只是把值<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">複印一份</mark>送給外面的變數，口袋裡的本體不會穿透到外面。</li>
+<li><code>money</code> 是 <code>checkBalance</code> 的區域變數嗎？ <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">不是。</mark> <code>money</code> 是 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>createWallet</code> 函式的區域變數</mark>，<code>checkBalance</code> 是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">透過閉包</mark>才能存取到外層 <code>createWallet</code> 裡的 <code>money</code>。（注意：判斷一個變數屬於誰，看的是它<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">宣告在哪個函式</mark>，而不是被哪個函式用到。）</li>
+<li><code>myWallet</code> 是「函式物件變數」嗎？ <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">不是。</mark> <code>createWallet</code> 本身才是<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">函式物件（可被呼叫）</mark>；<code>myWallet</code> 是 <code>createWallet(100)</code> 回傳的<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">普通物件（Plain Object）</mark>，<code>myWallet()</code> 會噴 <code>TypeError: myWallet is not a function</code>。物件裡的 <code>spend</code>、<code>checkBalance</code> 因綁在物件上，正名是<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">方法（Method）</mark>。</li>
 </ul>
 <h3>實戰除錯：按鈕計數器（Counter）綁定陷阱</h3>
 <p>另一個常見的閉包實戰場景，是「每顆按鈕各自獨立計數」的 UI：</p>
@@ -108,8 +108,8 @@ createCounter('counter2');
 <p>除錯時踩到的幾個真實陷阱：</p>
 <ul>
 <li><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>buttonId</code> 抓的是「HTML 元素的 id 屬性」，不是變數名稱</mark>——<code>document.getElementById(buttonId)</code> 是拿參數的<strong>值</strong>（字串）去比對 DOM 上 <code>id="..."</code> 屬性，跟這個參數叫什麼變數名完全無關。容易誤以為傳入的是「變數名稱」本身。</li>
-<li><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">呼叫 <code>createCounter()</code> 時傳入的字串，必須跟 HTML 裡按鈕的實際 <code>id</code> 完全一致</mark>（例如 HTML 是 <code>id="counter1"</code>，就不能傳 <code>"buttonId1"</code>），否則 <code>getElementById</code> 拿到 <code>null</code>。</li>
-<li><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">一旦某次 <code>getElementById</code> 綁錯（拿到 <code>null</code>）就對它呼叫 <code>addEventListener</code>，會直接丟出 TypeError 中斷整段程式碼的執行</mark>——後面所有按鈕的事件綁定都會被連帶跳過而失效，畫面上看起來像「全部按鈕都壞掉了」，但根因往往只是最前面一個 ID 打錯字。</li>
+<li><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">呼叫 <code>createCounter()</code> 時傳入的字串，必須跟 HTML 裡按鈕的實際 <code>id</code> 完全一致</mark>（例如 HTML 是 <code>id="counter1"</code>，就不能傳 <code>"buttonId1"</code>），否則 <code>getElementById</code> 拿到 <code>null</code>。</li>
+<li><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">一旦某次 <code>getElementById</code> 綁錯（拿到 <code>null</code>）就對它呼叫 <code>addEventListener</code>，會直接丟出 TypeError 中斷整段程式碼的執行</mark>——後面所有按鈕的事件綁定都會被連帶跳過而失效，畫面上看起來像「全部按鈕都壞掉了」，但根因往往只是最前面一個 ID 打錯字。</li>
 <li>這裡的閉包核心：<code>count</code> 和 <code>button</code> 都被鎖在 <code>createCounter</code> 的作用域裡，每呼叫一次 <code>createCounter(...)</code>，就會產生一個<strong>全新、互不干擾</strong>的 <code>count</code>，這就是「各按鈕獨立計數」的原理——與前面 <code>createWallet</code> 私有變數是同一套機制的不同應用。</li>
 <li><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">術語補充：<code>const button = document.getElementById(buttonId)</code> 這種「把 DOM 查詢結果存進變數」的寫法叫做 <b>Caching the DOM elements（快取 DOM 元素）</b></mark>——好處是只查詢一次 DOM、存進變數重複使用，不用每次要操作這顆按鈕時都重新呼叫 <code>getElementById</code> 整份文件重找一次，效能更好。</li>
 </ul>
@@ -125,7 +125,7 @@ createCounter('counter2');
 <p>照 ECMAScript 文法一路展開：<code>FormalParameter → BindingElement → SingleNameBinding → BindingIdentifier Initializer(opt) → BindingIdentifier → Identifier</code>。<br />
 也就是說參數名稱在文法上<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">就是一個 Identifier production</mark>，跟你寫 <code>let x</code>、<code>const y</code> 的 <code>x</code>、<code>y</code> 是同一種文法節點，必須遵守一樣的規則（不能是保留字、不能用數字開頭等）。這點跟「宣告位置不符合 Identifier 定義」的猜測相反——參數位置的名稱在文法上是正牌 Identifier，只是它被「誰來初始化、什麼時候初始化」這件事跟一般變數宣告不同（由呼叫時傳入的引數決定，而不是你在等號右邊手寫的值）。</p>
 <h4>(c) 名稱是不是「具備唯一性」？——規格其實沒有全面保障，這是歷史包袱</h4>
-<p>這是三點裡最違反直覺的地方：<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">同一個參數列表裡出現重複名稱，不一定會報錯</mark>，要看兩個條件——是否為 strict mode、參數列表是不是「simple（簡單）」。</p>
+<p>這是三點裡最違反直覺的地方：<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">同一個參數列表裡出現重複名稱，不一定會報錯</mark>，要看兩個條件——是否為 strict mode、參數列表是不是「simple（簡單）」。</p>
 <table>
 <thead>
 <tr>
@@ -205,7 +205,7 @@ function add4(name, { name }) {} // SyntaxError（解構參數 → 非 simple �
 <p>一句話：<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">Early Error 是語言引擎實作靜態檢查裡最底層、最基礎的一塊；TypeScript／ESLint 則是把檢查再往前推到開發階段（Dev/Build Time）</mark>，兩者共同的核心價值都是「錯誤越早發現、修復成本越低」。跟本篇主題的關聯：與 [[06-靜態檢查vs動態檢查-TS-vs-JS]] 對照著看——那篇談的是 TypeScript 靜態型別 vs JS TypeError 動態檢查的分界；這裡補上的是「JS 自己内建的 Early Error，本身就是最底層的靜態檢查」這一塊拼圖。</p>
 <p>來源：<a href="https://tc39.es/ecma262/#sec-early-errors">ECMA-262 Early Errors</a></p>
 <h3>延伸提問：閉包是不是微任務？算不算非同步任務？</h3>
-<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">都不是。</mark> 閉包（Closure）是<strong>同步、結構性的語言機制</strong>，跟微任務／巨任務（[[事件循環-Event-Loop-微任務與巨任務]] 講的那套 Event Loop 排程）是<strong>完全不同層次</strong>的東西，只是很容易因為常出現在同一段程式碼裡而被搞混。</p>
+<p><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">都不是。</mark> 閉包（Closure）是<strong>同步、結構性的語言機制</strong>，跟微任務／巨任務（[[事件循環-Event-Loop-微任務與巨任務]] 講的那套 Event Loop 排程）是<strong>完全不同層次</strong>的東西，只是很容易因為常出現在同一段程式碼裡而被搞混。</p>
 <table>
 <thead>
 <tr>
@@ -270,7 +270,7 @@ function add4(name, { name }) {} // SyntaxError（解構參數 → 非 simple �
 </table>
 <ul>
 <li><mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">傳值捕捉 <code>[count]</code></mark>：建立當下複製數值進閉包，外層銷毀也安全。</li>
-<li>引用捕捉 <code>[&amp;money]</code>：像 JS 一樣能改外部變數，但<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">回傳引用捕捉的 Stack 變數會造成懸空引用（Dangling Reference），觸發未定義行為甚至 Crash</mark>。</li>
+<li>引用捕捉 <code>[&amp;money]</code>：像 JS 一樣能改外部變數，但<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">回傳引用捕捉的 Stack 變數會造成懸空引用（Dangling Reference），觸發未定義行為甚至 Crash</mark>。</li>
 </ul>
 </section><section class="card src"><h2>各對話來源</h2>
 <h3>JavaScript 事件循環核心觀念複習（2026-06-30）— https://gemini.google.com/app/82167bcb1c15c00c</h3>

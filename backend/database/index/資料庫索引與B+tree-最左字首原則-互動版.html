@@ -181,7 +181,7 @@
 - <strong>非叢集索引（Non-clustered）</strong>：葉子節點存的是<mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">指向資料的「地址」</mark>，必須再多一次查詢才能拿到完整資料。</p>
 </div>
 <ul>
-<li>MySQL（InnoDB）的資料表<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">本身就是叢集索引（索引組織表）</mark>，會自動且強制依主鍵（Primary Key）順序實體儲存，所以 <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">MySQL 不支援也不需要 <code>CLUSTER</code> 指令</mark>。</li>
+<li>MySQL（InnoDB）的資料表<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">本身就是叢集索引（索引組織表）</mark>，會自動且強制依主鍵（Primary Key）順序實體儲存，所以 <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">MySQL 不支援也不需要 <code>CLUSTER</code> 指令</mark>。</li>
 <li>PostgreSQL 才有 <code>CLUSTER 表名 USING 索引名;</code>，用來依某索引把資料表做一次性的實體重排。</li>
 </ul>
 <h3>4. 哪些欄位「適合」建索引</h3>
@@ -193,8 +193,8 @@
 </ul>
 <h3>5. 哪些欄位「不適合」建索引</h3>
 <div class="callout warning"><div class="callout-title">⚠️ 索引不是越多越好</div><p>- 資料量極小的表（幾十～幾百筆）：直接全表掃描（Sequential Scan）通常更快。<br />
-- <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">低選擇性欄位</mark>：如 <code>gender</code>、<code>is_deleted</code>（true/false），建了 B-tree 也常被查詢器忽略。<br />
-- <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">頻繁被更新的欄位</mark>：每次資料變更都要同步改所有相關索引，太多索引嚴重拖慢寫入。<br />
+- <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">低選擇性欄位</mark>：如 <code>gender</code>、<code>is_deleted</code>（true/false），建了 B-tree 也常被查詢器忽略。<br />
+- <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">頻繁被更新的欄位</mark>：每次資料變更都要同步改所有相關索引，太多索引嚴重拖慢寫入。<br />
 - 超長文字（<code>TEXT</code>/<code>BLOB</code>）：要搜尋請用全文檢索（Full-Text Search）或 Partial Index。</p>
 </div>
 <p>維運健康值：<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">每張表維持 3～5 個核心索引</mark>最理想；18 個明顯偏多。</p>
@@ -255,7 +255,7 @@ FROM information_schema.statistics
 WHERE TABLE_SCHEMA = 'your_db'
 ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;
 </code></pre>
-<div class="callout danger"><div class="callout-title">🚨 常見踩雷：跑錯資料庫系統 / 打錯字</div><p>- <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);"><code>pg_class</code>、<code>pg_index</code>、<code>pg_attribute</code> 是 PostgreSQL 專屬系統目錄，MySQL 看不懂</mark>。錯誤訊息出現 <code>corresponds to your MySQL server version</code> 就是「走錯棚」。<br />
+<div class="callout danger"><div class="callout-title">🚨 常見踩雷：跑錯資料庫系統 / 打錯字</div><p>- <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);"><code>pg_class</code>、<code>pg_index</code>、<code>pg_attribute</code> 是 PostgreSQL 專屬系統目錄，MySQL 看不懂</mark>。錯誤訊息出現 <code>corresponds to your MySQL server version</code> 就是「走錯棚」。<br />
 - 打錯字：<code>= =ix.indexrelid</code>（多一個 <code>=</code>）、<code>ix.indkey_</code>（尾巴多底線）都會語法錯誤。<br />
 - MySQL 不支援 PostgreSQL 的陣列操作符 <code>ANY(...)</code>。</p>
 </div>
@@ -284,7 +284,7 @@ ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;
 <div class="callout info"><div class="callout-title">ℹ️ O(log n) 是什麼</div><p><strong>O(n)（全表掃描）</strong>：像看小說找情節，要從第一頁翻到最後一頁。<br />
 <strong>O(log n)（走索引）</strong>：像查字典，每次翻開中間那一頁，就能排除掉一半不需要看的內容。</p>
 </div>
-<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">為什麼對欄位下函數會讓索引失效、退化成 O(n)</mark>：</p>
+<p><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">為什麼對欄位下函數會讓索引失效、退化成 O(n)</mark>：</p>
 <pre><code class="language-sql">-- ❌ 對欄位做函數運算 → 索引失效 → 全表掃描 O(n)
 WHERE order_number LIKE CONCAT(REPLACE(order_number, '-', ''), '%')
 </code></pre>

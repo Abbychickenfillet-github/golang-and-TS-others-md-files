@@ -78,16 +78,16 @@ hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
 <hr />
 <h2 id="js-style-inline-style">問題一：用 JS 設 <code>style</code> 算不算 inline style</h2>
 <p>(a) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">算</mark>。<code>el.style.left = '120px'</code> 跟直接在 HTML 寫 <code>&lt;div style="left:120px"&gt;</code> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">結果完全一樣</mark>——它操作的就是元素的 inline style 屬性，會出現在 DOM 的 <code>style</code> attribute 上。</p>
-<p>(b) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">CSS 優先序（specificity）上，inline style 高於任何選擇器</mark>（只輸給 <code>!important</code>）。<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">這正是它「好用」與「危險」的同一個原因</mark>：它一定蓋得過去，所以也一定不受樣式表管轄。</p>
+<p>(b) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">CSS 優先序（specificity）上，inline style 高於任何選擇器</mark>（只輸給 <code>!important</code>）。<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">這正是它「好用」與「危險」的同一個原因</mark>：它一定蓋得過去，所以也一定不受樣式表管轄。</p>
 <hr />
 <h2 id="_1">問題二：這樣會不好嗎——分兩種情況</h2>
-<p>(c) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">會不好的情況：把「靜態的、事先就知道的」樣式寫進 JS</mark>。</p>
+<p>(c) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">會不好的情況：把「靜態的、事先就知道的」樣式寫進 JS</mark>。</p>
 <pre><code class="language-js">// ✗ 不好：這些值從頭到尾都不會變，卻散在 JS 裡
 box.style.backgroundColor = '#c0392b';
 box.style.borderRadius = '8px';
 box.style.padding = '12px';
 </code></pre>
-<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">壞處</mark>：改配色要翻 JS、無法被 CSS 變數或主題切換影響、沒辦法用媒體查詢做 RWD、樣式散落兩處難維護。</p>
+<p><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">壞處</mark>：改配色要翻 JS、無法被 CSS 變數或主題切換影響、沒辦法用媒體查詢做 RWD、樣式散落兩處難維護。</p>
 <p>(d) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">正解：抽成 class，用 <code>className</code> 或 <code>classList</code> 切換</mark>。</p>
 <pre><code class="language-js">// ✓ 好：狀態用 class 表達，長相交給 CSS 決定
 box.classList.add('is-active');
@@ -112,7 +112,7 @@ bar.style.width = `${value / max * 100}%`;
 }
 // 三顆按鈕全部印出 3
 </code></pre>
-<p>(i) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">原因</mark>：<code>var</code> 是函式作用域，被 hoist 到迴圈外，<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">從頭到尾只有「一格」記憶體</mark>。三個 onclick 函式的作用域鏈（scope chain）全部指向同一格，迴圈結束時那一格已經被累加到 3，所以誰讀都是 3。</p>
+<p>(i) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">原因</mark>：<code>var</code> 是函式作用域，被 hoist 到迴圈外，<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">從頭到尾只有「一格」記憶體</mark>。三個 onclick 函式的作用域鏈（scope chain）全部指向同一格，迴圈結束時那一格已經被累加到 3，所以誰讀都是 3。</p>
 <p>(j) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">改成 <code>let</code> 就好了</mark>：<code>let</code> 是區塊作用域，<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">每一輪迭代都會建立一個新的綁定</mark>（規格上叫 per-iteration binding），三個函式各自捕捉到不同的那一格，所以會分別印出 0、1、2。</p>
 <hr />
 <h2 id="_3">關聯筆記與關聯原因</h2>

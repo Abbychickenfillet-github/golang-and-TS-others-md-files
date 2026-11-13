@@ -48,7 +48,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 </code></pre>
 <p>也就是說 Node.js＝<strong>V8（跑 JS）＋ libuv（事件迴圈/非同步 I/O）＋ C++ Bindings（連接兩者）＋ 其他專門函式庫（加密、壓縮、DNS、HTTP 解析）＋ 一層用 JS 寫的核心標準庫（<code>fs</code>、<code>http</code>… 這些你直接呼叫的 API）</strong>——libuv 只負責其中「非同步 I/O 與事件迴圈」這一塊，不是全部。</p>
 </section><section class="card"><h2>(b) libuv 是什麼的縮寫？</h2>
-<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">誠實講：libuv 官方 README 並沒有解釋這個名字的由來或縮寫意義</mark>，網路上流傳的各種「uv 代表 XXX」說法都查無官方出處，這裡不瞎猜、不寫進筆記當事實。比較重要、也查證得到的是<strong>它實際做什麼</strong>：</p>
+<p><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">誠實講：libuv 官方 README 並沒有解釋這個名字的由來或縮寫意義</mark>，網路上流傳的各種「uv 代表 XXX」說法都查無官方出處，這裡不瞎猜、不寫進筆記當事實。比較重要、也查證得到的是<strong>它實際做什麼</strong>：</p>
 <ul>
 <li><strong>事件迴圈（Event Loop）</strong>：跨平台的事件迴圈實作，底層依系統分別用 Linux 的 <code>epoll</code>、macOS 的 <code>kqueue</code>、Windows 的 <code>IOCP</code>。</li>
 <li><strong>非同步 I/O</strong>：TCP/UDP socket、檔案讀寫、DNS 解析、檔案系統變化通知，全部做成非阻塞。</li>
@@ -218,7 +218,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 </ul>
 <p>一句話：<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">「發生在哪個時間點」是 Runtime Phase 的問題，「由誰定義怎麼管理」是 Engine 的職責——技術文件把 Stack/Heap 標註為引擎組件，指的是後者。</mark></p>
 <h3>(h) ECMAScript 規範完全沒寫 window 或 fs——由 WHATWG／Node API 各自定義</h3>
-<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">TC39 的 ECMA-262 規範裡找不到 <code>window</code> 或 <code>fs</code> 這些詞</mark>，規範只用 <strong>Host Environment（宿主環境）</strong> 與 <strong>Host Objects（宿主物件）</strong> 這種抽象說法，透過 <strong>Host Hooks（宿主鉤子，例如 <code>HostEnqueuePromiseJob</code>）</strong> 跟宿主環境溝通。這樣設計是刻意的，理由有三：</p>
+<p><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">TC39 的 ECMA-262 規範裡找不到 <code>window</code> 或 <code>fs</code> 這些詞</mark>，規範只用 <strong>Host Environment（宿主環境）</strong> 與 <strong>Host Objects（宿主物件）</strong> 這種抽象說法，透過 <strong>Host Hooks（宿主鉤子，例如 <code>HostEnqueuePromiseJob</code>）</strong> 跟宿主環境溝通。這樣設計是刻意的，理由有三：</p>
 <ul>
 <li><strong>安全沙盒與硬體邊界</strong>：瀏覽器要跑陌生的網路程式碼，若 ECMAScript 強制內建 <code>fs</code>，任何網站都能讀你電腦的檔案；反之 Node.js 沒有螢幕，也不需要 <code>window</code>。</li>
 <li><strong>核心邏輯的通用性（Isomorphic JS）</strong>：不涉及宿主 API 的純邏輯（演算法、<code>dayjs</code>、Redux 這類狀態管理）才能在瀏覽器／Node.js／Deno／嵌入式裝置間無縫移植。</li>
@@ -288,7 +288,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 <li><code>v8::ObjectTemplate</code>：用 C++ 定義一個 JS 物件的結構。</li>
 </ul>
 <h3>(j) Binding 的具體運作：不是「寫進 V8 一起編譯」，而是「執行期註冊」</h3>
-<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">常見誤解：以為宿主環境是把自己的 C++ 功能「寫進 V8 原始碼裡一起編譯」</mark>。實際上 V8 在下載下來時就已經可以單獨編譯成軟體庫（<code>libv8.a</code>／<code>v8.dll</code>），不需要修改 V8 內部原始碼——如果每次新增功能都要改 V8 原始碼重編，專案會極度混亂難維護。</p>
+<p><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">常見誤解：以為宿主環境是把自己的 C++ 功能「寫進 V8 原始碼裡一起編譯」</mark>。實際上 V8 在下載下來時就已經可以單獨編譯成軟體庫（<code>libv8.a</code>／<code>v8.dll</code>），不需要修改 V8 內部原始碼——如果每次新增功能都要改 V8 原始碼重編，專案會極度混亂難維護。</p>
 <p>正確做法是<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">執行期動態註冊／綁定（Binding）</mark>：宿主環境利用 V8 提供的 C++ API，在 runtime 把自己的 C++ 函式「暴露」給 V8 的 JS 環境，過程像開餐廳：</p>
 <ol>
 <li>V8 建立一個乾淨的 JS 執行環境（Context），裡面只有 JS 原生語法（<code>Object</code>、<code>Array</code>、<code>Math</code>）——像一張空菜單。</li>
@@ -349,7 +349,7 @@ global_template-&gt;Set(
 <ul>
 <li>啟動極快：沒有載入任何宿主 API，幾毫秒內啟動。</li>
 <li>能跑：<code>console.log</code>、<code>1+1</code>、<code>Math.random()</code> 等純 ECMAScript 語法。</li>
-<li><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不能跑</mark>：<code>document.getElementById</code>（瀏覽器 API）或 <code>require('fs')</code>／<code>fetch</code>（Node/Blink API）——會直接報 <code>ReferenceError</code>，因為它是沒注入任何外置 C++ 功能的裸引擎。</li>
+<li><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">不能跑</mark>：<code>document.getElementById</code>（瀏覽器 API）或 <code>require('fs')</code>／<code>fetch</code>（Node/Blink API）——會直接報 <code>ReferenceError</code>，因為它是沒注入任何外置 C++ 功能的裸引擎。</li>
 <li>取得方式：官方沒有一般安裝包，多透過開源工具 <code>jsvu</code>（<code>npm install -g jsvu</code> 後執行 <code>jsvu</code> 選 Windows x64 + v8）從 Google CI/CD 儲存庫抓取編譯好的 <code>d8.exe</code>。</li>
 <li>對照：<code>node script.js</code> 則是 Node.js（同樣嵌入 V8）在啟動時額外把 <code>fs</code>／<code>net</code>／<code>process</code> 等 C++ API 註冊進 Context，因此能操作系統層功能，但一樣不認得 <code>document</code>／<code>window</code>（那是 Blink 專屬的宿主功能）。</li>
 </ul>

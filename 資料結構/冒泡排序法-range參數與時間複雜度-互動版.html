@@ -38,7 +38,7 @@ footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:
 <h3>為什麼內層 <code>range()</code> 的 stop 要寫 <code>n-1</code>？</h3>
 <p>關鍵在於冒泡排序是<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">兩兩比較</mark>，程式碼會同時存取 <code>arr[j]</code> 和 <code>arr[j+1]</code>。</p>
 <ul>
-<li>若寫 <code>range(0, n)</code>：最後 <code>j = n-1</code> 時會去比 <code>arr[n-1]</code> 與 <code>arr[n]</code> → <code>arr[n]</code> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">超出索引、IndexError</mark>。</li>
+<li>若寫 <code>range(0, n)</code>：最後 <code>j = n-1</code> 時會去比 <code>arr[n-1]</code> 與 <code>arr[n]</code> → <code>arr[n]</code> <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">超出索引、IndexError</mark>。</li>
 <li>若寫 <code>range(0, n-1)</code>：因為 Python 的 <code>range(start, stop)</code> 是<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">「包含起點、不包含終點」</mark>，索引最大只到 <code>n-2</code>，剛好拿 <code>arr[n-2]</code> 與 <code>arr[n-1]</code>（最後一項）比，完美覆蓋又不越界。</li>
 </ul>
 <blockquote>
@@ -68,7 +68,7 @@ for i in range(len(x)):   # range(6) -&gt; 0,1,2,3,4,5
 若只是想把每個元素丟進函式處理，直接 <code>for num in numbers: square(num)</code>（迭代 Iterable）比 <code>for i in range(len(...))</code> 更乾淨。</p>
 </blockquote>
 <h3>單一參數的 <code>range()</code> 代表什麼？</h3>
-<p><code>range()</code> 完整簽名是 <code>range(start, stop, step)</code>，其中 <mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">start 預設 0、step 預設 1</mark>。當只給一個參數時，Python 把它當作 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">stop</mark>（而非 start），所以 <code>range(10)</code> = <code>0,1,...,9</code> 共 10 個。這是 <code>range</code> 這個函式自己的參數設計，<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">並非所有 Python 函式都這樣</mark>。</p>
+<p><code>range()</code> 完整簽名是 <code>range(start, stop, step)</code>，其中 <mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">start 預設 0、step 預設 1</mark>。當只給一個參數時，Python 把它當作 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">stop</mark>（而非 start），所以 <code>range(10)</code> = <code>0,1,...,9</code> 共 10 個。這是 <code>range</code> 這個函式自己的參數設計，<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">並非所有 Python 函式都這樣</mark>。</p>
 <h3>外層 <code>j</code> 為什麼跑 <code>range(n)</code>？真的是 N×N 次嗎？</h3>
 <p>每跑完一整輪內層，就有一個當前最大值被定位到最右端。理論上外層只要 <code>n-1</code> 輪就夠（最後一個自動歸位），但教學常直接寫 <code>range(n)</code>：直覺好懂，且最後一輪 <code>range(0, 0)</code> 是空迴圈、不會出錯。</p>
 <p><strong>實際比較次數不是 N×N</strong>。以 <code>arr=[80,50,44,50,70,11]</code>（n=6）為例：</p>
@@ -84,7 +84,7 @@ j=5 -&gt; range(0,0) -&gt; 0 次
 <p>[!warning] 大 O 為什麼還是 O(N²)？<br />
 精確次數是 N×(N-1)/2 = ½N² − ½N。當 N 很大時，後面的 ½N 與常數係數 ½ 都會被忽略，只看成長「等級」，所以統一記作 <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">O(N²)</mark>。實際大約只做「一半」的次數，但等級不變。</p>
 <p>[!note] 小提醒：<code>print(arr)</code> 縮排<br />
-若把 <code>print(arr)</code> 縮排在 <code>if</code> 裡，代表<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">「只有發生交換才印」</mark>，印出的次數是「交換次數」而非「比較次數」，會少於 15 次。</p>
+若把 <code>print(arr)</code> 縮排在 <code>if</code> 裡，代表<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">「只有發生交換才印」</mark>，印出的次數是「交換次數」而非「比較次數」，會少於 15 次。</p>
 </blockquote>
 <h3>優化寫法</h3>
 <pre><code class="language-python">arr = [80, 50, 44, 50, 70, 11]

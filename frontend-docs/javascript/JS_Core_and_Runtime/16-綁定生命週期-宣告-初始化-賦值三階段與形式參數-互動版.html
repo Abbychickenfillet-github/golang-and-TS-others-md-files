@@ -77,7 +77,7 @@ hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
 <hr />
 <h2 id="execution-context">起手式：Execution Context 包含哪些階段</h2>
 <p>(a) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">一個完整的 Execution Context（執行上下文）包含兩個階段</mark>：先是 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Creation Phase（建立階段）</mark>做環境設置，接著才是 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Execution Phase（執行階段）</mark>逐行跑程式碼。</p>
-<p>(b) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">常見誤解</mark>：以為「Execution Context = Creation Phase」，或以為 Execution Phase 是另一個獨立的東西。<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">兩者合起來才是一個完整的執行環境</mark>。</p>
+<p>(b) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">常見誤解</mark>：以為「Execution Context = Creation Phase」，或以為 Execution Phase 是另一個獨立的東西。<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">兩者合起來才是一個完整的執行環境</mark>。</p>
 <p>(c) 形式參數（Formal Parameter，函式定義時寫在括號裡的那些名字）<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">是在 Creation Phase 被處理的</mark>，也就是在函式內部的程式碼真正開始跑之前。</p>
 <p>(d) 引數（Argument）綁定到哪裡？<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">綁定到執行上下文的環境紀錄（Environment Record）</mark>，函式執行時就是從這裡查值。</p>
 <hr />
@@ -95,7 +95,7 @@ hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
 <tr>
 <td><strong>1. 宣告／建立</strong>（Declaration）</td>
 <td>在 Environment Record 中<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">建立名稱（Binding），配置記憶體空間</mark></td>
-<td><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不能</mark>，記憶體位置預留了但還沒有值</td>
+<td><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">不能</mark>，記憶體位置預留了但還沒有值</td>
 </tr>
 <tr>
 <td><strong>2. 初始化</strong>（Initialization）</td>
@@ -109,7 +109,7 @@ hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
 </tr>
 </tbody>
 </table>
-<p>(f) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">關鍵觀念：配置記憶體 ≠ 初始化</mark>。配置記憶體屬於第 1 階段，只是「預留了一個位置」；<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">初始化是第 2 階段，是「第一次把值放進去」</mark>。這是 Abby 在對話中直接追問到的點，也是最容易被含糊帶過的地方。</p>
+<p>(f) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">關鍵觀念：配置記憶體 ≠ 初始化</mark>。配置記憶體屬於第 1 階段，只是「預留了一個位置」；<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">初始化是第 2 階段，是「第一次把值放進去」</mark>。這是 Abby 在對話中直接追問到的點，也是最容易被含糊帶過的地方。</p>
 <hr />
 <h2 id="var">那為什麼 <code>var</code> 好像沒有這個問題？</h2>
 <p>(g) 因為對 <code>var</code> 和形式參數來說，<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">引擎把「初始化」的時間點提前到 Creation Phase 一起做掉了</mark>：</p>
@@ -117,8 +117,8 @@ hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
 <li><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>var</code></mark>：Creation Phase 配置記憶體，<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">並順便初始化為 <code>undefined</code></mark>。</li>
 <li><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">形式參數</mark>：Creation Phase 配置記憶體，<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">並順便初始化為傳入的引數值</mark>（沒傳就是 <code>undefined</code>）。</li>
 </ul>
-<p>(h) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">所以不是「配置記憶體這個動作叫做初始化」</mark>，而是「這兩種綁定的初始化時機剛好被提前了」。這兩句話聽起來像同一件事，但只有後者能解釋 <code>let</code> 為什麼不一樣。</p>
-<p>(i) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>let</code> 與 <code>const</code></mark>：Creation Phase 只做第 1 階段（建立 Binding），<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不做初始化</mark>。所以從函式／區塊開始，到執行到那一行為止，這個名字處於 <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">TDZ（Temporal Dead Zone，暫時性死區）</mark>，這段期間存取會丟 <code>ReferenceError</code>。</p>
+<p>(h) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">所以不是「配置記憶體這個動作叫做初始化」</mark>，而是「這兩種綁定的初始化時機剛好被提前了」。這兩句話聽起來像同一件事，但只有後者能解釋 <code>let</code> 為什麼不一樣。</p>
+<p>(i) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>let</code> 與 <code>const</code></mark>：Creation Phase 只做第 1 階段（建立 Binding），<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">不做初始化</mark>。所以從函式／區塊開始，到執行到那一行為止，這個名字處於 <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">TDZ（Temporal Dead Zone，暫時性死區）</mark>，這段期間存取會丟 <code>ReferenceError</code>。</p>
 <p>(j) <code>let x = 1</code> 執行到那一行時，<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">才同時完成第 2 階段（初始化）與第 3 階段（賦值）</mark>。</p>
 <hr />
 <h2 id="functiondeclarationinstantiation">規格上的名字：<code>FunctionDeclarationInstantiation</code></h2>
@@ -127,7 +127,7 @@ hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
 <li>建立環境紀錄（Environment Record）</li>
 <li>綁定形式參數並初始化為引數值</li>
 <li>處理函式內部的 <code>var</code> 宣告（初始化為 <code>undefined</code>）</li>
-<li>建立 <code>let</code> / <code>const</code> 的綁定但<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不初始化</mark></li>
+<li>建立 <code>let</code> / <code>const</code> 的綁定但<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">不初始化</mark></li>
 </ol>
 <p>(l) <mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">記憶法</mark>：同一個作業裡，<code>var</code> 與參數走「建立＋初始化」兩步到位；<code>let</code> / <code>const</code> 只走「建立」一步，剩下那一步留給 Execution Phase。<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">TDZ 就是那一步之間的空隙</mark>。</p>
 <hr />
@@ -156,9 +156,9 @@ hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
 </tr>
 <tr>
 <td><code>let</code> / <code>const</code></td>
-<td><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">只建立，不初始化</mark></td>
+<td><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">只建立，不初始化</mark></td>
 <td>執行到那行才初始化＋賦值</td>
-<td><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);"><code>ReferenceError</code>（TDZ）</mark></td>
+<td><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);"><code>ReferenceError</code>（TDZ）</mark></td>
 </tr>
 <tr>
 <td>函式宣告</td>

@@ -74,11 +74,11 @@ dict['__proto__'] = maliciousValue; // 這裡走的是 Object.prototype 上的 _
 </code></pre>
 <p><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">用<code>Object.create(null)</code>建的物件完全沒有這個問題</mark>——因為它整條原型鏈上根本沒有<code>Object.prototype</code>，也就沒有那個<code>hasOwnProperty</code>、<code>toString</code>、<code>__proto__</code> setter可以被意外撞名或觸發。這時候<code>dict['__proto__'] = maliciousValue</code>只會乖乖建立一個名字叫<code>__proto__</code>的<strong>普通own property</strong>，不會真的改到原型——這正好呼應(a)提到「動態賦值不會觸發改原型」的行為，因為那個特殊行為的setter本身就活在<code>Object.prototype</code>上，null原型物件沒有繼承到它。這也是為什麼Node.js的<code>Map</code>、還有一些函式庫在處理「當純字典用」的場景時，會刻意選<code>Object.create(null)</code>而不是<code>{}</code>。</p>
 </section><section class="card"><h2>(d) 更根本的一層：<code>Object.prototype</code>自己的原型也是 null</h2>
-<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">這才是整段MDN引文為什麼要特別排除null原型物件的真正原因——原型鏈不能無限往上追，一定要有個終點，而這個終點本身就定義成null。</mark></p>
+<p><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">這才是整段MDN引文為什麼要特別排除null原型物件的真正原因——原型鏈不能無限往上追，一定要有個終點，而這個終點本身就定義成null。</mark></p>
 <pre><code class="language-js">Object.getPrototypeOf(Object.prototype); // null
 </code></pre>
 <p>一般物件的原型鏈長這樣：<code>myObj → Object.prototype → null</code>。<code>Object.prototype</code>是這條鏈<strong>唯一保證存在</strong>的中繼點，而它自己的原型欄位，ECMAScript規格書直接定義成<code>null</code>——不是「找不到所以是null」，是規格明文寫死「這裡就是終點」。如果沒有這個明文規定的null終點，<code>Object.prototype</code>還要有自己的原型，那個原型又要有原型，會變成無限往上找、找不到底。</p>
-<p>一句話：<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">一個物件的原型會是<code>null</code>，只有三種主動做法（<code>Object.create(null)</code>、物件字面量寫<code>{ __proto__: null }</code>、<code>Object.setPrototypeOf(obj, null)</code>），加上鏈式繼承時「往上走最後摸到的是另一個null原型物件」；而整個原型系統之所以需要處理「null原型」這個例外情況，根源是<code>Object.prototype</code>自己的原型就被規格定義成null，這是所有一般物件原型鏈最終、唯一保證的終點。</mark></p>
+<p>一句話：<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">一個物件的原型會是<code>null</code>，只有三種主動做法（<code>Object.create(null)</code>、物件字面量寫<code>{ __proto__: null }</code>、<code>Object.setPrototypeOf(obj, null)</code>），加上鏈式繼承時「往上走最後摸到的是另一個null原型物件」；而整個原型系統之所以需要處理「null原型」這個例外情況，根源是<code>Object.prototype</code>自己的原型就被規格定義成null，這是所有一般物件原型鏈最終、唯一保證的終點。</mark></p>
 <hr />
 </section><section class="card src"><h2>資料來源（含查證時間）</h2>
 <table>

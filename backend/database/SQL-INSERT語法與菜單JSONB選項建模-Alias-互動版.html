@@ -214,7 +214,7 @@ FROM booth WHERE deleted_at IS NULL;
 <details class="kp">
 <summary>f. 價格欄位的建模陷阱</summary>
 <div class="kp-body">
-<p>f. <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">價格欄位的建模陷阱</mark>：若品項有「冷熱不同價」或多種規格（容量、豆種），單一 <code>price</code> 欄位無法表達。解法是把 <code>price</code> 升級成 <code>options</code>（JSONB）欄位，存放動態屬性：</p>
+<p>f. <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">價格欄位的建模陷阱</mark>：若品項有「冷熱不同價」或多種規格（容量、豆種），單一 <code>price</code> 欄位無法表達。解法是把 <code>price</code> 升級成 <code>options</code>（JSONB）欄位，存放動態屬性：</p>
 </div>
 </details>
 <pre><code class="language-json">// 冷熱同價
@@ -258,7 +258,7 @@ FROM booth WHERE deleted_at IS NULL;
 <details class="kp">
 <summary>h. JOIN、子查詢（Subquery）、聚合函式（SUM/AVG/COUNT）都屬於「…</summary>
 <div class="kp-body">
-<p>h. JOIN、子查詢（Subquery）、聚合函式（<code>SUM</code>/<code>AVG</code>/<code>COUNT</code>）都屬於「資料庫運算」而非要搬到程式碼的運算。真正該搬到程式碼算的是：<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">會讓索引失效的函式運算</mark>，例如對欄位用 <code>REPLACE(order_number, '-', '')</code> 再比對——每筆資料都要先跑一次函式，索引失效變全表掃描。正確做法是在 Go/Python 裡先把字串處理好（例如去掉 <code>-</code>），再丟給 SQL 做「精確匹配」，索引才會生效。</p>
+<p>h. JOIN、子查詢（Subquery）、聚合函式（<code>SUM</code>/<code>AVG</code>/<code>COUNT</code>）都屬於「資料庫運算」而非要搬到程式碼的運算。真正該搬到程式碼算的是：<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">會讓索引失效的函式運算</mark>，例如對欄位用 <code>REPLACE(order_number, '-', '')</code> 再比對——每筆資料都要先跑一次函式，索引失效變全表掃描。正確做法是在 Go/Python 裡先把字串處理好（例如去掉 <code>-</code>），再丟給 SQL 做「精確匹配」，索引才會生效。</p>
 </div>
 </details>
 <details class="kp">

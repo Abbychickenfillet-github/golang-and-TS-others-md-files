@@ -89,7 +89,7 @@ footer.page-foot {
 <h2>1. 不可變性再覆述一次（a）</h2>
 <p>(a) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">原始型別的值不能被修改，重新賦值改變的是「變數指向哪個記憶體位址」，不是原本位址上的值</mark>：<code>let name = "Alice"</code> 時 <code>name</code> 指向存 <code>"Alice"</code> 的位址；<code>name = "Bob"</code> 是在新位址存 <code>"Bob"</code>，讓 <code>name</code> 改指向新位址，原本 <code>"Alice"</code> 那格沒有被動過，之後沒有變數再指向它就會被 GC 回收。物件則相反：<code>let user = {name:"Alice"}; user.name = "Bob"</code> 是在同一個記憶體位址上直接改內容。完整的四層 immutable 拆解、與 <code>Object.freeze</code> 的關係，見 [[Day1-型別辨別-自動轉換-與immutable的四個層次]]。</p>
 <h2>2. Console 除錯案例：變數名打錯導致誤判（b）</h2>
-<p>(b) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">字串比較 <code>===</code>／<code>==</code> 一定是大小寫敏感（case-sensitive）的</mark>，<code>"string" === "String"</code> 必然是 <code>false</code>。Abby 在 Console 印出 <code>true</code> 的原因不是語言規則例外，而是打字時比較的變數名跟宣告的變數名不一致——宣告了 <code>c</code>、<code>d</code>，但 <code>console.log</code> 裡誤寫成比較 <code>a</code>、<code>b</code>，而 Console 之前的操作歷史裡 <code>a</code>、<code>b</code>剛好被賦過相同的值，所以印出 <code>true</code>。</p>
+<p>(b) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">字串比較 <code>===</code>／<code>==</code> 一定是大小寫敏感（case-sensitive）的</mark>，<code>"string" === "String"</code> 必然是 <code>false</code>。Abby 在 Console 印出 <code>true</code> 的原因不是語言規則例外，而是打字時比較的變數名跟宣告的變數名不一致——宣告了 <code>c</code>、<code>d</code>，但 <code>console.log</code> 裡誤寫成比較 <code>a</code>、<code>b</code>，而 Console 之前的操作歷史裡 <code>a</code>、<code>b</code>剛好被賦過相同的值，所以印出 <code>true</code>。</p>
 <pre><code class="hljs language-js">let c = &quot;string&quot;;
 let d = &quot;String&quot;;
 console.log(a == b);   // 比的是 a、b，不是 c、d！

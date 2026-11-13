@@ -36,7 +36,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 <p>本篇重點 a–h，共 8 個。</p>
 <p>[!info] 為什麼跟其他筆記有關聯<br />
 a. 與 [[15-ToPrimitive-ToNumber-型別轉換抽象操作]] 相關：<code>valueOf()</code> 是 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">ToPrimitive</mark> 抽象操作實際會去呼叫的兩個方法之一（另一個是 <code>toString()</code>）。那篇講「規格層級發生什麼事」，這篇講「你在 console 打下去會看到什麼」。<br />
-b. 與 [[查看plain-object的prototype]] 相關：<code>valueOf</code> 就住在 <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);"><code>Object.prototype</code></mark> 上，所以 <code>Object.create(null)</code> 造出來的 null 原型物件<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">連 <code>valueOf</code> 都沒有</mark>，任何隱式型別轉換都會直接爆 TypeError。</p>
+b. 與 [[查看plain-object的prototype]] 相關：<code>valueOf</code> 就住在 <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);"><code>Object.prototype</code></mark> 上，所以 <code>Object.create(null)</code> 造出來的 null 原型物件<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">連 <code>valueOf</code> 都沒有</mark>，任何隱式型別轉換都會直接爆 TypeError。</p>
 </blockquote>
 </section><section class="card"><h2>重點整理</h2>
 <h3>一、核心結論</h3>
@@ -50,7 +50,7 @@ arr.valueOf() === arr;              // true
 Array.isArray(arr.valueOf());       // true ← 回傳的還是那個陣列，當然還是陣列
 arr.valueOf() === undefined;        // false ← 不會回傳 undefined
 </code></pre>
-<p>e. <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">最常見的誤解</mark>：以為 <code>valueOf()</code> 一定會「把物件變成原始值」。<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">預設實作根本不會。</mark>物件之所以能被拿去做數學運算，是因為 <code>valueOf()</code> 失敗（回傳的還是物件、不是原始值）之後，引擎<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">退而求其次改呼叫 <code>toString()</code></mark>——這才是 <code>[] + {}</code> 那類怪現象的真正來源。</p>
+<p>e. <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">最常見的誤解</mark>：以為 <code>valueOf()</code> 一定會「把物件變成原始值」。<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">預設實作根本不會。</mark>物件之所以能被拿去做數學運算，是因為 <code>valueOf()</code> 失敗（回傳的還是物件、不是原始值）之後，引擎<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">退而求其次改呼叫 <code>toString()</code></mark>——這才是 <code>[] + {}</code> 那類怪現象的真正來源。</p>
 <h3>二、包裝物件才是 valueOf 真正有用的地方</h3>
 <p>f. <code>Number</code>、<code>String</code>、<code>Boolean</code> 這三個<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">包裝物件（wrapper object）</mark>各自<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">覆寫了 <code>valueOf</code></mark>，會回傳裡面裝的那個原始值：</p>
 <pre><code class="language-js">const n = new Number(42);
@@ -71,7 +71,7 @@ money + 50;      // 150 ← 引擎做加法時走 ToPrimitive，呼叫到你寫�
 </code></pre>
 <hr />
 </section><section class="card"><h2>⚠️ 存疑／更正</h2>
-<p>原始對話是語音輸入，Gemini 有一句回答是「comparing the result to undefined results in false」，語意混亂（前面問的是 <code>Array.isArray()</code>，不是跟 <code>undefined</code> 比較）。<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">該句已剔除</mark>，改以 MDN 規格行為重寫。上面第 e、f、h 三點的 ToPrimitive 退回機制與自訂覆寫範例，為依 MDN 補充，非對話原文。</p>
+<p>原始對話是語音輸入，Gemini 有一句回答是「comparing the result to undefined results in false」，語意混亂（前面問的是 <code>Array.isArray()</code>，不是跟 <code>undefined</code> 比較）。<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">該句已剔除</mark>，改以 MDN 規格行為重寫。上面第 e、f、h 三點的 ToPrimitive 退回機制與自訂覆寫範例，為依 MDN 補充，非對話原文。</p>
 </section><section class="card src"><h2>各對話來源</h2>
 <h3>預設行為的價值（2026-08-14）— https://gemini.google.com/app/7bff9994e4f315a7</h3>
 <blockquote>

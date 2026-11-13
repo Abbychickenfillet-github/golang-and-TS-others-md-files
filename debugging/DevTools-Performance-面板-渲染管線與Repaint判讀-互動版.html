@@ -44,8 +44,8 @@ b. 與 [[11-記憶體模型-stack-heap-動態配置-GC]] 相關：面板裡的 G
 <p>d. 這個過程內部依序包含：<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Style（樣式計算）→ Layout（版面配置）→ Paint（繪製）→ Composite（合成）</mark>。</p>
 <h3>二、Reflow 與 Repaint 的分界（面試常考）</h3>
 <p>e. <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Repaint（重繪）</mark>：元素的<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">外觀</mark>改變，但<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">大小與位置沒變</mark>時，瀏覽器只需要重新畫這個元素。例如改 <code>color</code>、<code>background-color</code>、<code>visibility</code>。</p>
-<p>f. <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Reflow／Layout（重排）</mark>：元素的<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">尺寸或位置</mark>改變，瀏覽器必須重新計算版面。例如改 <code>width</code>、<code>height</code>、<code>margin</code>、<code>top</code>。</p>
-<p>g. <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">成本關係：Reflow 一定會連帶觸發 Repaint，反過來不會。</mark>所以 Reflow 比 Repaint 貴，優化時優先消滅 Reflow。</p>
+<p>f. <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Reflow／Layout（重排）</mark>：元素的<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">尺寸或位置</mark>改變，瀏覽器必須重新計算版面。例如改 <code>width</code>、<code>height</code>、<code>margin</code>、<code>top</code>。</p>
+<p>g. <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">成本關係：Reflow 一定會連帶觸發 Repaint，反過來不會。</mark>所以 Reflow 比 Repaint 貴，優化時優先消滅 Reflow。</p>
 <p>h. <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">正解做法</mark>：做動畫時改用 <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);"><code>transform</code> 與 <code>opacity</code></mark>。這兩個屬性可以直接交給<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">合成線程（Compositor Thread）</mark>處理，<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">跳過主線程的 Layout 與 Paint</mark>，主線程就不會被卡死。用 <code>left</code>／<code>top</code> 做位移則每一幀都要 Reflow。</p>
 <h3>三、面板上怎麼看</h3>
 <p>i. 在 Performance 面板錄製 Trace 之後，看<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">主線程（Main Thread）</mark>那條火焰圖：<mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">紫色區塊代表 Layout 與 Style 計算</mark>，<mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">綠色區塊代表 Paint／Repaint 活動</mark>。</p>
@@ -58,7 +58,7 @@ b. 與 [[11-記憶體模型-stack-heap-動態配置-GC]] 相關：面板裡的 G
 <hr />
 </section><section class="card"><h2>⚠️ 存疑／更正</h2>
 <ul>
-<li>Gemini 在對話中兩次宣稱「已經幫您把 Trace 檔案儲存到影片資料夾」並給了具體檔名 <code>Trace-20260618T164145_performance_track.json.gz</code>。<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">Gemini 沒有寫入本機檔案系統的能力，這是幻覺（hallucination）</mark>。Trace 檔實際上要在 DevTools 面板左上角自己按下載箭頭匯出，請自行確認檔案是否真的存在。</li>
+<li>Gemini 在對話中兩次宣稱「已經幫您把 Trace 檔案儲存到影片資料夾」並給了具體檔名 <code>Trace-20260618T164145_performance_track.json.gz</code>。<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">Gemini 沒有寫入本機檔案系統的能力，這是幻覺（hallucination）</mark>。Trace 檔實際上要在 DevTools 面板左上角自己按下載箭頭匯出，請自行確認檔案是否真的存在。</li>
 <li>對話中 Gemini 只說「紫色是渲染、綠色是重繪」，並未區分 Reflow 與 Repaint 的成本差異。上面第 e–h 點的 Reflow／Repaint 分界與 <code>transform</code>／<code>opacity</code> 的合成線程機制，是我依 web.dev 官方文件補上的，非對話原文。</li>
 </ul>
 </section><section class="card src"><h2>各對話來源</h2>

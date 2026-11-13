@@ -36,7 +36,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 </section><section class="card"><h2>重點整理</h2>
 <p>(a) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">資料沒有壞掉、也不是亂碼</mark>：把 ChatGPT 對話資料匯出後，用一般文字編輯器打開看到一堆看不懂的符號（例如 <code>你好</code> 這種格式），其實是 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Unicode 跳脫序列（Unicode escape sequence）</mark>——JSON 格式為了讓檔案能安全跨平台傳輸、避免編碼衝突，會把非 ASCII 字元（如中文）轉成 <code>\uXXXX</code> 這種「用 ASCII 字元表示任意 Unicode 字元」的寫法儲存。</p>
 <p>(b) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">解法：用支援 Unicode 的工具開啟</mark>：只要用能正確解析 JSON／支援 Unicode 的軟體（例如 VS Code 開啟並用 JSON 格式檢視、或用程式語言的 JSON 解析器 <code>json.loads()</code> / <code>JSON.parse()</code> 讀取），<code>\uXXXX</code> 就會自動還原顯示成正常的中文字，不需要手動「反轉」或「解碼」。</p>
-<p>(c) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">常見誤解</mark>：使用者直覺會覺得「檔案裡都是英文字母跟數字，怎麼可能是我打的中文」，因而懷疑檔案壞掉或編碼跑掉；但這其實是 JSON 規格本身的正常行為（<code>\u</code> 跳脫是 JSON 標準允許的字元表示法之一），不是資料損毀，也不影響餵給其他 AI 使用——只要對方讀取時用的是標準 JSON 解析器，就能正確還原文字內容。</p>
+<p>(c) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">常見誤解</mark>：使用者直覺會覺得「檔案裡都是英文字母跟數字，怎麼可能是我打的中文」，因而懷疑檔案壞掉或編碼跑掉；但這其實是 JSON 規格本身的正常行為（<code>\u</code> 跳脫是 JSON 標準允許的字元表示法之一），不是資料損毀，也不影響餵給其他 AI 使用——只要對方讀取時用的是標準 JSON 解析器，就能正確還原文字內容。</p>
 <p>(d) <mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">實務意義</mark>：這類匯出檔（如 ChatGPT/Gemini 對話紀錄的 <code>.json</code>）本質上仍是完整、可用的純文字資料，適合用來餵給其他 AI 工具做二次利用（例如整理成筆記、建置 RAG）；重點是用「解析 JSON 的方式」讀，而不是用純文字編輯器「肉眼直接讀」。</p>
 </section><section class="card"><h2>相關筆記</h2>
 <ul>

@@ -59,13 +59,13 @@ mark.hidden *{color:transparent!important;}
 </ul>
 <p><strong>(c)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Unix Domain Socket（UDS，Unix 網域通訊端）</mark>：Docker 在 Linux 上的<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">預設</mark>通訊方式，路徑是 <code>/var/run/docker.sock</code>。三個關鍵特性——</p>
 <ul>
-<li>它<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不是網路協定，而是一個特殊的檔案</mark>（用 <code>ls -l</code> 看，檔案類型是 <code>s</code>）。</li>
+<li>它<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">不是網路協定，而是一個特殊的檔案</mark>（用 <code>ls -l</code> 看，檔案類型是 <code>s</code>）。</li>
 <li>僅限<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">同一台機器</mark>上的不同行程（Process）互通。</li>
 <li>效能極高，因為不需要經過 TCP/IP 協定堆疊的封裝與解封裝。</li>
 </ul>
-<p><strong>(d)</strong> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">UDS 的安全模型＝檔案權限</mark>：因為它就是一個檔案，誰能存取 Docker 完全由這個檔案的擁有者與群組決定。<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">這就是為什麼你要嘛加 <code>sudo</code>，要嘛把自己加進 <code>docker</code> 群組</mark>。</p>
-<p><strong>(e)</strong> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">⚠️ 把 docker.sock 掛進容器＝把 root 權限送出去</mark>：常見寫法 <code>-v /var/run/docker.sock:/var/run/docker.sock</code>（例如 Portainer、CI runner）等於讓容器內的程式可以任意操控主機的 Docker Daemon，包含起一個掛載主機根目錄的特權容器。<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">這在安全上等同交出主機 root，只在完全信任的映像檔上才這樣做</mark>。</p>
-<p><strong>(f)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">TCP Socket（Remote API）</mark>：需要<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">遠端操控</mark>另一台伺服器的 Docker 時使用，形式是 <code>tcp://&lt;IP&gt;:2375</code>（未加密）或 <code>tcp://&lt;IP&gt;:2376</code>（TLS 加密）。資料會封裝進 TCP 封包經網路卡送出。<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">2375 未加密埠絕對不可以曝露在公網</mark>，等於開放無密碼的 root shell。</p>
+<p><strong>(d)</strong> <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">UDS 的安全模型＝檔案權限</mark>：因為它就是一個檔案，誰能存取 Docker 完全由這個檔案的擁有者與群組決定。<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">這就是為什麼你要嘛加 <code>sudo</code>，要嘛把自己加進 <code>docker</code> 群組</mark>。</p>
+<p><strong>(e)</strong> <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">⚠️ 把 docker.sock 掛進容器＝把 root 權限送出去</mark>：常見寫法 <code>-v /var/run/docker.sock:/var/run/docker.sock</code>（例如 Portainer、CI runner）等於讓容器內的程式可以任意操控主機的 Docker Daemon，包含起一個掛載主機根目錄的特權容器。<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">這在安全上等同交出主機 root，只在完全信任的映像檔上才這樣做</mark>。</p>
+<p><strong>(f)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">TCP Socket（Remote API）</mark>：需要<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">遠端操控</mark>另一台伺服器的 Docker 時使用，形式是 <code>tcp://&lt;IP&gt;:2375</code>（未加密）或 <code>tcp://&lt;IP&gt;:2376</code>（TLS 加密）。資料會封裝進 TCP 封包經網路卡送出。<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">2375 未加密埠絕對不可以曝露在公網</mark>，等於開放無密碼的 root shell。</p>
 <h3>二、Docker 到底是 Client 還是 Server</h3>
 <p><strong>(g)</strong> <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">答案：Docker 是一個完整的 C/S（Client-Server，主從式）系統，兩部分都包含</mark>。</p>
 <table>
@@ -80,7 +80,7 @@ mark.hidden *{color:transparent!important;}
 <tr>
 <td>Docker Client（<code>docker</code> CLI）</td>
 <td><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">發令者</mark></td>
-<td>我們在終端機打的 <code>docker build</code>／<code>pull</code>／<code>run</code>。它<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不負責執行容器</mark>，只把指令打包成 API 請求送給後端</td>
+<td>我們在終端機打的 <code>docker build</code>／<code>pull</code>／<code>run</code>。它<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">不負責執行容器</mark>，只把指令打包成 API 請求送給後端</td>
 </tr>
 <tr>
 <td>Docker Daemon（<code>dockerd</code>）</td>
@@ -90,7 +90,7 @@ mark.hidden *{color:transparent!important;}
 </tbody>
 </table>
 <p><strong>(h)</strong> <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">「Server 部分只有 Daemon 嗎？」嚴格來說是的</mark>：真正處理運算、存取資源、執行管理邏輯的伺服器端就是 <code>dockerd</code>，它對外提供一套 REST API。</p>
-<p><strong>(i)</strong> <mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">即使同機也要走 Socket</mark>：Client 與 Daemon 就算在同一台電腦上，Client <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">仍然得透過 Socket 送請求</mark>，邏輯跟瀏覽器連到網頁伺服器一模一樣。這解釋了為什麼 Docker Desktop 沒開時 <code>docker ps</code> 會報「Cannot connect to the Docker daemon」——不是指令壞了，是<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">電話那頭沒人接</mark>。</p>
+<p><strong>(i)</strong> <mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">即使同機也要走 Socket</mark>：Client 與 Daemon 就算在同一台電腦上，Client <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">仍然得透過 Socket 送請求</mark>，邏輯跟瀏覽器連到網頁伺服器一模一樣。這解釋了為什麼 Docker Desktop 沒開時 <code>docker ps</code> 會報「Cannot connect to the Docker daemon」——不是指令壞了，是<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">電話那頭沒人接</mark>。</p>
 <p><strong>(j)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>docker run</code> 的完整流向（六步）</mark>：</p>
 <ol>
 <li>使用者在終端機輸入 <code>docker run hello-world</code>。</li>
@@ -127,7 +127,7 @@ mark.hidden *{color:transparent!important;}
 </tr>
 <tr>
 <td><code>overlay2/</code></td>
-<td>實際的磁碟層資料，<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">佔硬碟空間最大的地方</mark></td>
+<td>實際的磁碟層資料，<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">佔硬碟空間最大的地方</mark></td>
 </tr>
 </tbody>
 </table>
@@ -160,7 +160,7 @@ mark.hidden *{color:transparent!important;}
 </tr>
 <tr>
 <td>容器刪除後</td>
-<td>卷變成<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">「孤兒（dangling）」</mark>殘留在硬碟</td>
+<td>卷變成<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">「孤兒（dangling）」</mark>殘留在硬碟</td>
 <td>保留，名稱清晰好找</td>
 </tr>
 <tr>
@@ -170,10 +170,10 @@ mark.hidden *{color:transparent!important;}
 </tr>
 </tbody>
 </table>
-<p><strong>(r)</strong> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">匿名卷的兩大痛點與實務建議</mark>：</p>
+<p><strong>(r)</strong> <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">匿名卷的兩大痛點與實務建議</mark>：</p>
 <ul>
-<li><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">難以識別</mark>：跑十個容器就有十個亂碼資料夾，根本分不出誰是誰。</li>
-<li><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">生命週期陷阱</mark>：刪容器時若下 <code>docker rm -v</code>，Docker 會<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">連匿名卷一起刪掉</mark>；具名卷通常會被保留。</li>
+<li><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">難以識別</mark>：跑十個容器就有十個亂碼資料夾，根本分不出誰是誰。</li>
+<li><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">生命週期陷阱</mark>：刪容器時若下 <code>docker rm -v</code>，Docker 會<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">連匿名卷一起刪掉</mark>；具名卷通常會被保留。</li>
 <li>建議：開發測試圖方便可以用匿名卷；<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">正式環境與重要資料一律用具名卷或 Bind Mount</mark>，這樣升級容器版本時才能把舊資料輕鬆掛到新容器。</li>
 </ul>
 <pre><code class="language-bash"># 查看所有「孤兒」卷（沒被任何容器使用）
@@ -200,7 +200,7 @@ docker pull docker.io/library/nginx:latest
 # 完整語法
 docker pull [OPTIONS] NAME[:TAG|@DIGEST]
 </code></pre>
-<p><mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">三個被省略的東西</mark>：<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">registry（登錄機構）</mark>預設補 <code>docker.io</code>、<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">namespace（命名空間）</mark>對官方映像檔預設補 <code>library</code>、<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">tag（標籤）</mark>預設補 <code>latest</code>。<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);"><code>latest</code> 不代表「最新版」，它只是一個普通標籤名</mark>，正式環境請釘死版本號或用 <code>@sha256:</code> digest。</p>
+<p><mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">三個被省略的東西</mark>：<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">registry（登錄機構）</mark>預設補 <code>docker.io</code>、<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">namespace（命名空間）</mark>對官方映像檔預設補 <code>library</code>、<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">tag（標籤）</mark>預設補 <code>latest</code>。<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);"><code>latest</code> 不代表「最新版」，它只是一個普通標籤名</mark>，正式環境請釘死版本號或用 <code>@sha256:</code> digest。</p>
 <h2>各對話來源</h2>
 <h3>Docker Socket: Client-Daemon 通訊（2026 年，共 6 個使用者回合）— https://gemini.google.com/app/557471f26b6cf7d4</h3>
 <p><mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">使用者：Client-Server 架構：Docker Client（如 docker CLI）透過 REST API 或 Unix Socket（預設 /var/run/docker.sock）與 Daemon 通訊。Socket 是什麼</mark></p>
@@ -215,8 +215,8 @@ docker pull [OPTIONS] NAME[:TAG|@DIGEST]
 <div class="src-gem"><span class="role">Gemini</span>回覆 <code>docker pull</code> 的完整寫法。<mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">（此回合內容因含登錄機構網址被擷取工具的隱私過濾擋下，本篇「補充」段落改依 Docker 官方 CLI 文件重新整理，語意等價。）</mark></div>
 <h2>⚠️ 存疑／更正</h2>
 <ul>
-<li>Gemini 未提醒 <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">把 <code>/var/run/docker.sock</code> 掛進容器等同交出主機 root 權限</mark>，這是實務上最常被忽略的重大風險，本篇重點 (e) 已補上（依 Docker 官方安全文件）。</li>
-<li>Gemini 未提醒 <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">TCP 2375 埠未加密</mark>，曝露到公網等於開放無密碼 root shell，本篇重點 (f) 已補上。</li>
+<li>Gemini 未提醒 <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">把 <code>/var/run/docker.sock</code> 掛進容器等同交出主機 root 權限</mark>，這是實務上最常被忽略的重大風險，本篇重點 (e) 已補上（依 Docker 官方安全文件）。</li>
+<li>Gemini 未提醒 <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">TCP 2375 埠未加密</mark>，曝露到公網等於開放無密碼 root shell，本篇重點 (f) 已補上。</li>
 <li>Gemini 說「<code>/var/run</code> 專門存放系統啟動後到現在的資訊」——這個描述正確，但現代 Linux 發行版<mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">實際目錄已改為 <code>/run</code>，<code>/var/run</code> 只是保留給舊程式的符號連結（symlink）</mark>。實務上兩個路徑都能用，但除錯時看到 <code>/run/docker.sock</code> 不要以為是不同東西。</li>
 </ul>
 <h2>資料來源（含查證時間）</h2>

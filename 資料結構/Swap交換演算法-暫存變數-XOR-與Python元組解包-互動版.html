@@ -93,8 +93,8 @@ b = b ^ a
 a = a ^ b
 </code></pre>
 <p>原理是 XOR 的自反性：<code>x ^ y ^ y == x</code>。</p>
-<p>(e) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">XOR swap 有一個致命陷阱：當 a 與 b 指向同一個記憶體位置（例如 <code>swap(arr[i], arr[i])</code>）時，結果會直接變成 0</mark>。而且它只適用於整數型別，浮點數與物件不能這樣做。</p>
-<p>(f) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">實務上不要用 XOR swap</mark>。現代編譯器對「暫存變數版」的最佳化已經比 XOR 版好，XOR 版還會破壞指令層級的平行性。它的價值只剩「面試時展示你懂位元運算」。</p>
+<p>(e) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">XOR swap 有一個致命陷阱：當 a 與 b 指向同一個記憶體位置（例如 <code>swap(arr[i], arr[i])</code>）時，結果會直接變成 0</mark>。而且它只適用於整數型別，浮點數與物件不能這樣做。</p>
+<p>(f) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">實務上不要用 XOR swap</mark>。現代編譯器對「暫存變數版」的最佳化已經比 XOR 版好，XOR 版還會破壞指令層級的平行性。它的價值只剩「面試時展示你懂位元運算」。</p>
 <h3 id="g-python-tuple-unpacking">(g) 路線三：Python 的元組解包（Tuple Unpacking）</h3>
 <pre><code class="language-python">a, b = b, a
 </code></pre>
@@ -102,7 +102,7 @@ a = a ^ b
 <hr />
 <h2 id="a-b-b-a">⚠️ 存疑／更正：<code>a, b = b, a</code> 到底有沒有建立元組？</h2>
 <p>(h) 原始對話中 Gemini 說：「右側的 <code>b, a</code> 會先在記憶體中建立一個隱式的元組 <code>(b, a)</code>，接著解包並分別賦予給左側」。</p>
-<p>(i) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">這個說法在「兩個變數」的情況下是不正確的</mark>。CPython 的窺孔最佳化器（peephole optimizer）會檢查右側序列長度：</p>
+<p>(i) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">這個說法在「兩個變數」的情況下是不正確的</mark>。CPython 的窺孔最佳化器（peephole optimizer）會檢查右側序列長度：</p>
 <table>
 <thead>
 <tr>
@@ -125,11 +125,11 @@ a = a ^ b
 <tr>
 <td>4 個以上</td>
 <td><code>BUILD_TUPLE</code> + <code>UNPACK_SEQUENCE</code></td>
-<td><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">有</mark></td>
+<td><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">有</mark></td>
 </tr>
 </tbody>
 </table>
-<p>(j) 也就是說，<code>a, b = b, a</code> <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">只是把直譯器堆疊（stack）上最頂端的兩個參考換位置，沒有任何記憶體配置</mark>。Gemini 講的「比傳統變數對調更快」<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">結論是對的</mark>，但它給的理由（建立元組再解包）<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">跟真正的原因剛好相反</mark>——正是因為「沒有建立元組」才快。</p>
+<p>(j) 也就是說，<code>a, b = b, a</code> <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">只是把直譯器堆疊（stack）上最頂端的兩個參考換位置，沒有任何記憶體配置</mark>。Gemini 講的「比傳統變數對調更快」<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">結論是對的</mark>，但它給的理由（建立元組再解包）<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">跟真正的原因剛好相反</mark>——正是因為「沒有建立元組」才快。</p>
 <p>(k) 想自己驗證，用內建的 <code>dis</code> 模組看位元組碼即可：</p>
 <pre><code class="language-python">import dis
 dis.dis(compile(&quot;a, b = b, a&quot;, &quot;&lt;s&gt;&quot;, &quot;exec&quot;))

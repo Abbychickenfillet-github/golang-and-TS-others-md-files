@@ -56,7 +56,7 @@ mark.hidden *{color:transparent!important;}
 <li>Inner Join（內聯結）＝交集：只保留兩張表都有出現的資料，A 表某列在 B 表找不到對應就整列消失。</li>
 <li>Left Join（左外部聯結）＝以左表為主：保留左表<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">全部</mark>資料，右表沒對應時，右表的欄位補 <code>NULL</code>。</li>
 </ul>
-<p><strong>(c)</strong> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">Inner Join 沒有「主表」的概念</mark>：因為結果是交集，把 <code>Students</code> 放左邊或把 <code>Grades</code> 放左邊，最終列數完全一樣，兩表地位對等。</p>
+<p><strong>(c)</strong> <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">Inner Join 沒有「主表」的概念</mark>：因為結果是交集，把 <code>Students</code> 放左邊或把 <code>Grades</code> 放左邊，最終列數完全一樣，兩表地位對等。</p>
 <p><strong>(d)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">語法位置上的稱呼（跟主從無關）</mark>：寫在 <code>FROM</code> 後面的叫<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">左表（Left Table）</mark>，寫在 <code>JOIN</code> 後面的叫<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">右表（Right Table）</mark>。這只是「位置」的稱呼，只有在 Outer Join 才會升格成「主表」。</p>
 <p><strong>(e)</strong> <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">主表判定口訣（考自己用）</mark>：</p>
 <table>
@@ -94,7 +94,7 @@ INNER JOIN Grades ON Students.id = Grades.student_id;
 SELECT * FROM Students
 LEFT JOIN Grades ON Students.id = Grades.student_id;
 </code></pre>
-<p><strong>(g)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Inner Join 的顯示邏輯，就是一道過濾器</mark>：不管是「學生沒參加考試（Grades 表裡根本沒有那個 <code>student_id</code>）」還是「成績級距沒填」，只要 <code>ON Students.id = Grades.student_id</code> 這個條件不成立，該名學生就<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">完全不會出現</mark>在結果中。</p>
+<p><strong>(g)</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Inner Join 的顯示邏輯，就是一道過濾器</mark>：不管是「學生沒參加考試（Grades 表裡根本沒有那個 <code>student_id</code>）」還是「成績級距沒填」，只要 <code>ON Students.id = Grades.student_id</code> 這個條件不成立，該名學生就<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">完全不會出現</mark>在結果中。</p>
 <p><strong>(h)</strong> <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">Left Join 的顯示規則</mark>：學生有成績就正常顯示 A／B／C；學生沒成績時，<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">主表（學生）依然出現在清單上</mark>，只有從表（成績）的欄位自動補 <code>NULL</code>。</p>
 <p><strong>(i)</strong> <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">Left 與 Right 的關係—只是方向不同</mark>：邏輯完全一樣，差別只在「誰當主角」。用文氏圖（Venn Diagram）記——<code>A LEFT JOIN B</code> 是圓圈 A 完整、B 只取重疊；<code>A RIGHT JOIN B</code> 是圓圈 B 完整、A 只取重疊。</p>
 <pre><code class="language-sql">-- 情境 A：想列出「所有學生」，看他們參加什麼社團 → 學生是主角
@@ -108,8 +108,8 @@ FROM Students
 RIGHT JOIN Clubs ON Students.club_id = Clubs.id;
 </code></pre>
 <p><strong>(j)</strong> <mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">為什麼工程師幾乎不用 Right Join</mark>：因為 <code>A RIGHT JOIN B</code> 的結果<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">完全等於 <code>B LEFT JOIN A</code></mark>，而人類閱讀習慣是從左到右。實務上會把「最重要的主表」寫在 <code>FROM</code> 後面，然後一路 <code>LEFT JOIN</code> 下去，程式碼比較好讀。</p>
-<p><strong>(k)</strong> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">陷阱一—資料膨脹（Row Multiplication）</mark>：如果 Join 的 Key 不是唯一的（一對多），結果的列數會<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">比原來的表更多</mark>。例如一個學生有五科成績，Join 之後這名學生就會出現五列。做 <code>SUM</code>／<code>COUNT</code> 前一定要先確認這件事，否則金額會莫名其妙被灌大。</p>
-<p><strong>(l)</strong> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">陷阱二—<code>WHERE</code> 會把 Left Join 偷偷變成 Inner Join</mark>：在 Left Join 中，如果把「右表的過濾條件」放在 <code>WHERE</code> 而不是 <code>ON</code>，因為沒對應的列右表欄位是 <code>NULL</code>，而 <code>NULL</code> 會被 <code>WHERE</code> 過濾掉，結果就退化成 Inner Join。</p>
+<p><strong>(k)</strong> <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">陷阱一—資料膨脹（Row Multiplication）</mark>：如果 Join 的 Key 不是唯一的（一對多），結果的列數會<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">比原來的表更多</mark>。例如一個學生有五科成績，Join 之後這名學生就會出現五列。做 <code>SUM</code>／<code>COUNT</code> 前一定要先確認這件事，否則金額會莫名其妙被灌大。</p>
+<p><strong>(l)</strong> <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">陷阱二—<code>WHERE</code> 會把 Left Join 偷偷變成 Inner Join</mark>：在 Left Join 中，如果把「右表的過濾條件」放在 <code>WHERE</code> 而不是 <code>ON</code>，因為沒對應的列右表欄位是 <code>NULL</code>，而 <code>NULL</code> 會被 <code>WHERE</code> 過濾掉，結果就退化成 Inner Join。</p>
 <pre><code class="language-sql">-- ❌ 這其實變成 Inner Join：沒成績的學生被 WHERE 濾掉了
 SELECT * FROM Students
 LEFT JOIN Grades ON Students.id = Grades.student_id
@@ -137,7 +137,7 @@ LEFT JOIN Grades ON Students.id = Grades.student_id AND Grades.score &gt; 60;
 <div class="src-gem"><span class="role">Gemini</span>用文氏圖說明兩者邏輯相同、只是主角方向不同（重點 i）；用 Students／Clubs 兩個情境對照 Left 與 Right 的寫法；解釋為什麼 90% 的工程師只用 <code>LEFT JOIN</code>——<code>A RIGHT JOIN B</code> 完全等於 <code>B LEFT JOIN A</code>，而人類閱讀習慣是從左到右（重點 j）。</div>
 <h2>⚠️ 存疑／補充</h2>
 <ul>
-<li>Gemini 原始回答提到「成績級距還沒填入（Grades 欄位是空的／NULL）」時 Inner Join 也不會顯示——這個說法<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">要看是哪個欄位是 NULL</mark>。若是 <code>Grades.score</code> 是 NULL 但 <code>student_id</code> 有對應，Inner Join <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">仍然會列出該列</mark>，只是 score 顯示 NULL；只有當「連結用的 Key（<code>student_id</code>）」對不上時，該列才會整個消失。本篇重點 (g) 已依此修正。</li>
+<li>Gemini 原始回答提到「成績級距還沒填入（Grades 欄位是空的／NULL）」時 Inner Join 也不會顯示——這個說法<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">要看是哪個欄位是 NULL</mark>。若是 <code>Grades.score</code> 是 NULL 但 <code>student_id</code> 有對應，Inner Join <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">仍然會列出該列</mark>，只是 score 顯示 NULL；只有當「連結用的 Key（<code>student_id</code>）」對不上時，該列才會整個消失。本篇重點 (g) 已依此修正。</li>
 <li>Gemini 未提到「把過濾條件放進 <code>ON</code> 才能保留 Left Join 語意」的正確寫法，只提到陷阱本身。本篇重點 (l) 已補上正確範例。</li>
 </ul>
 <h2>資料來源（含查證時間）</h2>

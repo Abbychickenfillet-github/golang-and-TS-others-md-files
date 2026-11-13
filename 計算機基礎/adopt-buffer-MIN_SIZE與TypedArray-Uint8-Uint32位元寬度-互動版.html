@@ -217,7 +217,7 @@ x{color:oklch(0.80 0.117 78)}">⚠️ 間接相關，接點要講精確</span><b
 <li class="pt">(e) <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">MIN_SIZE = 16 * 1024 是 16384 個「元素」，不是 16 KB</mark>；<code>Uint32Array</code> 每元素 4 Bytes，所以實際是 16384 × 4 = 65536 Bytes = 64 KB。</li>
 <li class="pt">(f) <code>Math.max(size + 1024, MIN_SIZE)</code>：需求小（例如 100）時取保底 16384；需求大（例如 20000）時取 <code>size + 1024 = 21024</code>，多預留 1024 個元素當緩衝。</li>
 <li class="pt">(g) <code>new Uint8Array(2)</code> 的 <code>2</code> 是「長度（元素個數）」，不是數值上限，總記憶體 = 2 × 1 Byte。</li>
-<li class="pt">(h) <code>uint8 = [1,2,3,...]</code> 沒有報錯，是因為這句是把變數 <code>uint8</code> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">重新賦值成一個普通 Array</mark>，原本的 Uint8Array 被丟棄，並不是改了 Uint8Array 的長度。</li>
+<li class="pt">(h) <code>uint8 = [1,2,3,...]</code> 沒有報錯，是因為這句是把變數 <code>uint8</code> <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">重新賦值成一個普通 Array</mark>，原本的 Uint8Array 被丟棄，並不是改了 Uint8Array 的長度。</li>
 <li class="pt">(i) TypedArray 長度固定：<code>uint8[2] = 3</code> 寫入越界索引會被忽略，<code>uint8[2]</code> 仍是 <code>undefined</code>，<code>length</code> 仍為 2。</li>
 <li class="pt">(j) 8-bit 的限制在「元素值」：Uint8 範圍 0–255，存入 256 會 wrap（模 256）變 0，257 變 1。</li>
 <li class="pt">(k) Uint32Array 範圍 0–4,294,967,295，適合存索引與偏移量（offset），所以 css-tree 用 32-bit 而不是 8-bit。</li>

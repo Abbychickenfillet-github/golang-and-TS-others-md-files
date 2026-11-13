@@ -73,7 +73,7 @@ e. 呼應 [[Object建構子-plain-object的建立與存取]]：本篇 q 節提�
 <h2>重點整理</h2>
 <h3>一、Symbol 本身是什麼（a–g）</h3>
 <p><strong>a.</strong> 在 JavaScript 的物件裡，屬性的 key <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">只允許兩種型別：String 與 Symbol</mark>。其他型別（數字、布林、物件）拿來當 key 都會被自動轉成字串。這也是為什麼 <code>Reflect.ownKeys(obj)</code> 會把字串跟 Symbol 混在同一個陣列裡回傳。</p>
-<p><strong>b.</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Symbol 是「基本型態（Primitive Type）」</mark>，不是建構子。JavaScript 一共 8 種資料型態：String、Number、Boolean、Null、Undefined、BigInt、Symbol、Object，Symbol 是其中之一。因為它是基本型態，所以 <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">寫 <code>new Symbol()</code> 會直接丟 TypeError</mark>。</p>
+<p><strong>b.</strong> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Symbol 是「基本型態（Primitive Type）」</mark>，不是建構子。JavaScript 一共 8 種資料型態：String、Number、Boolean、Null、Undefined、BigInt、Symbol、Object，Symbol 是其中之一。因為它是基本型態，所以 <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">寫 <code>new Symbol()</code> 會直接丟 TypeError</mark>。</p>
 <p><strong>c.</strong> 每呼叫一次 <code>Symbol()</code> 都會生出一個全世界獨一無二的值。就算傳入一模一樣的描述字串也一樣不相等：</p>
 <pre><code class="language-js">Symbol(&quot;foo&quot;) === Symbol(&quot;foo&quot;);   // false ← 描述字串只是給人看的標籤，不參與比較
 </code></pre>
@@ -147,7 +147,7 @@ console.log(JSON.stringify(user));        // '{&quot;name&quot;:&quot;Alice&quot
 const symbols = Object.getOwnPropertySymbols(user);
 console.log(user[symbols[0]]);            // 9527
 </code></pre>
-<p><strong>i.</strong> 之所以叫「弱」，是因為 JS 留了後門：<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);"><code>Object.getOwnPropertySymbols(obj)</code> 與 <code>Reflect.ownKeys(obj)</code> 只要有人想硬挖就挖得到</mark>。它不像 <code>#privateField</code> 那樣是語法層級的真私有。一句話記法：Symbol 是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">防君子不防小人</mark>。</p>
+<p><strong>i.</strong> 之所以叫「弱」，是因為 JS 留了後門：<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);"><code>Object.getOwnPropertySymbols(obj)</code> 與 <code>Reflect.ownKeys(obj)</code> 只要有人想硬挖就挖得到</mark>。它不像 <code>#privateField</code> 那樣是語法層級的真私有。一句話記法：Symbol 是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">防君子不防小人</mark>。</p>
 <p><strong>j.</strong> <code>Reflect.ownKeys</code> 的底層就是把兩種 key 合起來：</p>
 <pre><code>Reflect.ownKeys(obj) === Object.getOwnPropertyNames(obj) + Object.getOwnPropertySymbols(obj)
 </code></pre>
@@ -177,7 +177,7 @@ const t2 = new Task2();
 // console.log(t2.#status);    // SyntaxError（這是早期錯誤，連跑都跑不起來）
 </code></pre>
 <div class="callout c-warn"><span class="ttl">⚠️ 陷阱</span><p>
-只在變數名前面加底線的 <code>_status</code> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">完全不是私有</mark>，那只是「拜託你不要碰」的命名慣例，技術上一點防護都沒有。</p>
+只在變數名前面加底線的 <code>_status</code> <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">完全不是私有</mark>，那只是「拜託你不要碰」的命名慣例，技術上一點防護都沒有。</p>
 </div>
 <hr />
 <h3>三、順手釐清的 JSON 三題（m–o）</h3>
@@ -186,7 +186,7 @@ const t2 = new Task2();
 <ul>
 <li>屬性值是 <code>undefined</code>、<code>Function</code> 或 <mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);"><code>Symbol</code> 時會被直接丟棄</mark>。</li>
 <li>物件有循環引用（Circular Reference）時直接丟 TypeError。</li>
-<li>所以 <code>JSON.parse(JSON.stringify(obj))</code> 這種偷懶深拷貝<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">會默默吃掉 Date、Map、Set、Function、Symbol</mark>，不是萬用解。</li>
+<li>所以 <code>JSON.parse(JSON.stringify(obj))</code> 這種偷懶深拷貝<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">會默默吃掉 Date、Map、Set、Function、Symbol</mark>，不是萬用解。</li>
 </ul>
 <p><strong>o.</strong> <code>JSON.parse(JSON.stringify(obj))</code> 裡誰在複製？<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">兩個一起才完成複製，但真正「建立新物件」的是 <code>JSON.parse</code></mark>。<code>stringify</code> 負責把物件壓成純文字，順手斬斷跟原本記憶體位址的引用關係（鋪路）；<code>parse</code> 才在記憶體裡重新蓋出一份全新的物件（執行）。</p>
 <hr />
@@ -266,7 +266,7 @@ class MySet extends Set {
 new MySet([1,2,3]).union(new Set([4])) instanceof MySet;   // false
 console.log(setCalled);                                     // 0
 </code></pre>
-<p><mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">整段翻成中文</mark>：我做一個叫 <code>MySet</code> 的類別，它 <code>extends</code>（繼承）<code>Set</code>，所以自動擁有 <code>Set</code> 的所有能力。在這個<strong>類別本身</strong>（不是它產出的實例）上，我用 <code>static get</code> 掛一個名字叫 <code>Symbol.species</code> 的存取器屬性——只要有人讀它，計數器就加一，然後回傳 <code>Set</code>。接著我用 <code>[1,2,3]</code> 建一個 <code>MySet</code>，對它呼叫 <code>union</code> 並傳入一個普通 <code>Set</code>。最後檢查 <code>union</code> 吐回來的東西是不是 <code>MySet</code> 的實例——答案是 <code>false</code>，而且計數器停在 <code>0</code>，代表 <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);"><code>union</code> 從頭到尾根本沒讀過 species</mark>。</p>
+<p><mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">整段翻成中文</mark>：我做一個叫 <code>MySet</code> 的類別，它 <code>extends</code>（繼承）<code>Set</code>，所以自動擁有 <code>Set</code> 的所有能力。在這個<strong>類別本身</strong>（不是它產出的實例）上，我用 <code>static get</code> 掛一個名字叫 <code>Symbol.species</code> 的存取器屬性——只要有人讀它，計數器就加一，然後回傳 <code>Set</code>。接著我用 <code>[1,2,3]</code> 建一個 <code>MySet</code>，對它呼叫 <code>union</code> 並傳入一個普通 <code>Set</code>。最後檢查 <code>union</code> 吐回來的東西是不是 <code>MySet</code> 的實例——答案是 <code>false</code>，而且計數器停在 <code>0</code>，代表 <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);"><code>union</code> 從頭到尾根本沒讀過 species</mark>。</p>
 <p>逐字拆解每個關鍵字：</p>
 <table>
 <thead>
@@ -311,9 +311,9 @@ console.log(setCalled);                                     // 0
 </table>
 <div class="callout c-warn"><span class="ttl">⚠️ 存疑與更正（對照 TC39 一手資料）</span><p>
 Gemini 說「TC39 傾向未來可能逐漸廢棄（Deprecate）」——這個方向<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">大致正確，但講法要更精確</mark>。實際狀況是：
-1. <code>Symbol.species</code> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">並沒有被正式標記為 deprecated</mark>，舊有的 Array、RegExp、Promise、TypedArray 仍然照舊會讀它。
+1. <code>Symbol.species</code> <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">並沒有被正式標記為 deprecated</mark>，舊有的 Array、RegExp、Promise、TypedArray 仍然照舊會讀它。
 2. TC39 的官方文件用詞是「committee has largely come to regret <code>Symbol.species</code>」（委員會大致上已經後悔了）。ES2025 新加的 Set 方法（<code>union</code>、<code>intersection</code>、<code>difference</code> 等）<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">刻意不使用 species，永遠直接建立基底 <code>Set</code> 型別的實例</mark>——這正是上面那段程式碼跑出 <code>false</code> 與 <code>0</code> 的規格依據。
-3. 委員會給的理由是：內建方法透過 <code>@@species</code> 建立子類別實例，被許多實作者視為「TC39 對這個語言犯下最大的錯誤之一」，因為它讓引擎最佳化變得極度複雜，並且<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">直接導致過許多資安漏洞</mark>。
+3. 委員會給的理由是：內建方法透過 <code>@@species</code> 建立子類別實例，被許多實作者視為「TC39 對這個語言犯下最大的錯誤之一」，因為它讓引擎最佳化變得極度複雜，並且<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">直接導致過許多資安漏洞</mark>。
 4. 另有一份提案 <code>proposal-rm-builtin-subclassing</code>（移除內建型別的 subclassing）正在推動更徹底的清理。</p>
 </div>
 <hr />
