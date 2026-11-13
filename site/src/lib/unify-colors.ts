@@ -117,17 +117,29 @@ function isComplexBackground(value: string): boolean {
   return hasTopLevelComma(value) || /url\(|gradient/i.test(value);
 }
 
+// 值若是 var(--名稱) 且頁面把該名稱定義成字面色，就換成字面色；否則原樣；
+function resolveVarLit(value: string, varLits: Map<string, string>): string {
+  // 比對整個值就是單一 var(--名稱)；
+  const m = /^var\((--[\w-]+)\)$/.exec(value.trim());
+  // 不是就原樣；
+  if (m === null) return value;
+  // 查對照表，沒有就原樣；
+  return varLits.get(m[1]) ?? value;
+}
+
 // 規則的單色實體背景：回傳明度 l 與透明度 a 以及原色；沒有或不是單色就回傳 undefined；
 type LiteralBg = { l: number; a: number; color: NonNullable<ReturnType<typeof rgb>> };
-function literalBg(rule: postcss.Rule): LiteralBg | undefined {
+function literalBg(rule: postcss.Rule, varLits: Map<string, string>): LiteralBg | undefined {
   // 結果；
   let out: LiteralBg | undefined;
   // 掃背景宣告；
   rule.walkDecls(/^background(-color)?$/i, (decl) => {
-    // 變數、複合背景不處理；
-    if (/var\(/i.test(decl.value) || isComplexBackground(decl.value)) return;
+    // 頁面自己定義的字面色變數先換成字面值；
+    const value = resolveVarLit(decl.value, varLits);
+    // 其他變數、複合背景不處理；
+    if (/var\(/i.test(value) || isComplexBackground(value)) return;
     // 逐 token 找第一個能解析且夠不透明的顏色；
-    for (const tok of splitTokens(decl.value)) {
+    for (const tok of splitTokens(value)) {
       // 解析明度與透明度；
       const t = toneOf(tok);
       // 半透明太淡的（例如 5% 白）看不出底色，不處理；
@@ -253,6 +265,22 @@ export function unifyCssColors(css: string): UnifyResult {
   }
   // 改了幾個宣告；
   let changes = 0;
+  // 頁面在 @media 以外定義的「字面色自訂屬性」（例如 --hl-y:#FFF3A3）；同名屬性若在 @media 裡又被重新定義，代表頁面自己處理深色，不收；
+  const varLits = new Map<string, string>();
+  // 在 @media 裡出現過的自訂屬性名稱；
+  const inMedia = new Set<string>();
+  // 先收 @media 內的名稱；
+  root.walkDecls(/^--/, (d) => { if (d.parent?.parent?.type === 'atrule' && (d.parent.parent as postcss.AtRule).name === 'media') inMedia.add(d.prop); });
+  // 再收 @media 外、值是單一字面色的屬性；
+  root.walkDecls(/^--/, (d) => {
+    // 在 @media 裡的略過；
+    if (d.parent?.parent?.type === 'atrule' || inMedia.has(d.prop)) return;
+    // 值含 var() 或複合的略過；
+    if (/var\(/i.test(d.value) || isComplexBackground(d.value)) return;
+    // 能解析成夠不透明的有彩度色才收（灰與白黑由 mapSurface 處理）；
+    const t = toneOf(d.value.trim());
+    if (t !== undefined && t.a >= 0.3 && t.c > 0.045) varLits.set(d.prop, d.value.trim());
+  });
   // 逐條規則處理（at-rule 裡的規則也會被走訪到）；
   root.walkRules((rule) => {
     // 這條規則有沒有「換不掉的實體背景」（螢光筆色、漸層、深色底）：有的話文字色就不能換，兩者是成對設計的；
@@ -261,7 +289,8 @@ export function unifyCssColors(css: string): UnifyResult {
     rule.walkDecls(/^background(-color|-image)?$/i, (decl) => {
       // 取值並去空白；
       const v = decl.value.trim().toLowerCase();
-      // 關鍵字或已經是變數：不算實體背景；
+      // 頁面自己定義的字面色變數視同字面色，其他變數與關鍵字不算實體背景；
+      if (varLits.has(v.replace(/^var\(|\)$/g, ''))) { hasLiteralBg = true; return; }
       if (v === 'none' || v === 'transparent' || v === 'inherit' || v === 'initial' || v === 'unset' || v.startsWith('var(')) return;
       // 單一顏色且會被換成表面變數：不算；
       if (mapSurface(decl.value.trim()) !== undefined) return;
@@ -276,7 +305,7 @@ export function unifyCssColors(css: string): UnifyResult {
       // 比對 var(--hl-名稱)；
       const m = /^var\(--hl-([a-z]+)\)/i.exec(decl.value.trim());
       // 有就記下；
-      if (m) hl.name = m[1].toLowerCase();
+      if (m && !varLits.has('--hl-' + m[1].toLowerCase())) hl.name = m[1].toLowerCase();
     });
     // 動畫關鍵影格（from、50%、to）不是一般規則，不處理；
     if (rule.parent?.type === 'atrule' && /keyframes$/i.test((rule.parent as postcss.AtRule).name)) return;
@@ -347,7 +376,7 @@ export function unifyCssColors(css: string): UnifyResult {
     // 規則帶著「換不掉的實體單色背景」（螢光筆黃、藍、粉，或深色底）時，文字色要自己寫死，不能繼承上層：
     // 深色模式上層是淺字，淺字落在淺色螢光筆上就看不見；反過來半透明的粉紅螢光筆疊在深色卡片上會變暗，深字也看不見；
     // 單色背景（漸層、圖片、變數沒有單一明度，不處理）；
-    const bg = literalBg(rule);
+    const bg = literalBg(rule, varLits);
     // 這條規則的文字色宣告（沒有就是 undefined）；
     const colorDecl = rule.nodes.find((n): n is postcss.Declaration => n.type === 'decl' && n.prop.toLowerCase() === 'color');
     // 「我們先前補上的」文字色（固定深字、固定淺字、--ink）可以被改寫；頁面自己寫的顏色不碰；

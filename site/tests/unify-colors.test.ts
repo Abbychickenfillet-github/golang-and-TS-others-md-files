@@ -106,6 +106,21 @@ describe('unifyCssColors：螢光筆變數與半透明底', () => {
   });
 });
 
+describe('unifyCssColors：頁面自己定義的字面螢光筆色', () => {
+  // --hl-y 是頁面寫死的黃色，.hy 沒有文字色，深色模式會繼承淺字；要補固定深字；
+  it('var(--hl-y) 且 --hl-y 是字面色：補固定深字', () => {
+    expect(css(':root{--hl-y:#FFF3A3}.hy{background:var(--hl-y)}')).toBe(':root{--hl-y:#FFF3A3}.hy{background:var(--hl-y);color:oklch(0.22 0.03 260)}');
+  });
+  // 先前補的 var(--ink) 也改成固定深字；
+  it('已寫 color:var(--ink) 改成固定深字', () => {
+    expect(css(':root{--hl-r:#FF5582}.hr{background:var(--hl-r);color:var(--ink)}')).toBe(':root{--hl-r:#FF5582}.hr{background:var(--hl-r);color:oklch(0.22 0.03 260)}');
+  });
+  // 主題內建的 --hl-warn 沒有在頁面定義字面色，維持原本行為；
+  it('沒有頁面字面定義的 --hl-* 不變', () => {
+    expect(css('mark.w{background:var(--hl-warn);color:#4a0a1c}')).toBe('mark.w{background:var(--hl-warn);color:var(--hl-warn-ink)}');
+  });
+});
+
 describe('unifyCssColors：邊線與自訂屬性', () => {
   // 淺灰邊線換成 --line，其他 token 保留；
   it('border 簡寫只換顏色 token', () => {
