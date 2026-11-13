@@ -85,10 +85,14 @@ describe('unifyCssColors：螢光筆變數與半透明底', () => {
     expect(css('mark.c{background:var(--hl-core);color:#222}')).toBe('mark.c{background:var(--hl-core);color:var(--ink)}');
   });
   // 半透明螢光筆會透出頁面底色，文字用跟著模式走的 --ink；
-  it('半透明底補 var(--ink)', () => {
-    expect(css('mark{background:#ff5582a6}')).toBe('mark{background:#ff5582a6;color:var(--ink)}');
-    // 先前版本補上的固定深字，遇到半透明底也改成 --ink；
-    expect(css('mark{background:#ff5582a6;color:oklch(0.22 0.03 260)}')).toBe('mark{background:#ff5582a6;color:var(--ink)}');
+  it('半透明底依混色後的對比挑文字色', () => {
+    expect(css('mark{background:#ff5582a6}')).toBe('mark{background:#ff5582a6;color:oklch(0.22 0.03 260)}');
+    // 先前版本補上的 var(--ink)，遇到半透明底改成對比較高的固定色；
+    expect(css('mark{background:#ff5582a6;color:var(--ink)}')).toBe('mark{background:#ff5582a6;color:oklch(0.22 0.03 260)}');
+    // 半透明的白（玻璃遮罩）不是螢光筆，不補文字色；
+    expect(css('a{background:rgba(255,255,255,.3)}')).toBe('a{background:rgba(255,255,255,.3)}');
+    // rgba() 內的逗號不算複合背景，近白的 rgba 會換成 --card；
+    expect(css('a{background:rgba(247,248,250,.92)}')).toBe('a{background:var(--card)}');
     // 幾乎純灰的淡底（#e8e7e5）也算表面色；
     expect(css('a{background:#e8e7e5}')).toBe('a{background:var(--soft)}');
   });

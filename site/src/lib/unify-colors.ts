@@ -3,7 +3,7 @@
 // 匯入 postcss：解析 CSS，改完值再輸出時其餘格式（空白、註解、順序）原樣保留；
 import postcss from 'postcss';
 // 匯入 culori：parse 把各種色彩寫法（#fff、rgb()、white…）解析成色彩物件，oklch 轉成感知均勻的明度／彩度／色相；
-import { oklch, parse } from 'culori';
+import { oklch, parse, rgb, wcagContrast } from 'culori';
 
 // 一個色彩寫法的感知特徵；
 type Tone = { l: number; c: number; a: number };
@@ -85,6 +85,79 @@ function mapLine(token: string): string | undefined {
   if (t === undefined || t.a < 0.85 || t.l < 0.78 || t.l > 0.975 || t.c > 0.045) return undefined;
   // 換成主題邊線色；
   return 'var(--line)';
+}
+
+// 補文字色用的固定色與深色模式的查詢字串；
+const DARK_TEXT = 'oklch(0.22 0.03 260)';
+const LIGHT_TEXT = 'oklch(0.96 0.01 258)';
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+// 淺色卡片與深色卡片的近似底色（主題的 --card 兩種模式）：半透明螢光筆混在它們上面，算出實際看到的底色；
+const LIGHT_BASE = '#f7f9fc';
+const DARK_BASE = 'rgb(75,86,102)';
+
+// 值裡有沒有「括號外」的逗號（多層背景）；rgba(1,2,3,.5) 裡的逗號不算；
+function hasTopLevelComma(value: string): boolean {
+  // 括號深度；
+  let depth = 0;
+  // 逐字掃；
+  for (const ch of value) {
+    // 進出括號；
+    if (ch === '(') depth += 1;
+    if (ch === ')') depth -= 1;
+    // 括號外的逗號；
+    if (ch === ',' && depth === 0) return true;
+  }
+  // 沒有；
+  return false;
+}
+
+// 是不是複合背景（多層、url、漸層）：這種沒有單一明度，不處理；
+function isComplexBackground(value: string): boolean {
+  // 多層、url()、漸層任一個；
+  return hasTopLevelComma(value) || /url\(|gradient/i.test(value);
+}
+
+// 規則的單色實體背景：回傳明度 l 與透明度 a 以及原色；沒有或不是單色就回傳 undefined；
+type LiteralBg = { l: number; a: number; color: NonNullable<ReturnType<typeof rgb>> };
+function literalBg(rule: postcss.Rule): LiteralBg | undefined {
+  // 結果；
+  let out: LiteralBg | undefined;
+  // 掃背景宣告；
+  rule.walkDecls(/^background(-color)?$/i, (decl) => {
+    // 變數、複合背景不處理；
+    if (/var\(/i.test(decl.value) || isComplexBackground(decl.value)) return;
+    // 逐 token 找第一個能解析且夠不透明的顏色；
+    for (const tok of splitTokens(decl.value)) {
+      // 解析明度與透明度；
+      const t = toneOf(tok);
+      // 半透明太淡的（例如 5% 白）看不出底色，不處理；
+      if (t === undefined || t.a < 0.3 || out !== undefined) continue;
+      // 半透明又幾乎無彩（白或黑的玻璃、陰影遮罩）不是螢光筆，文字色不該為它改；
+      if (t.a < 0.9 && t.c <= 0.045) continue;
+      // 轉成 rgb 供混色；
+      const c = parse(tok);
+      // 解析失敗就略過；
+      const converted = c === undefined ? undefined : rgb(c);
+      if (converted === undefined) continue;
+      // 記錄；
+      out = { l: t.l, a: t.a, color: converted };
+    }
+  });
+  // 回傳；
+  return out;
+}
+
+// 半透明背景混在某個底色上之後，深字與淺字哪個對比高就用哪個；
+function pickText(bg: LiteralBg, baseColor: string): string {
+  // 底色轉 rgb；
+  const base = rgb(parse(baseColor) ?? { mode: 'rgb', r: 1, g: 1, b: 1 });
+  // 依透明度混色（瀏覽器在 sRGB 空間混合）；
+  const mixed = { mode: 'rgb' as const, r: bg.color.r * bg.a + base.r * (1 - bg.a), g: bg.color.g * bg.a + base.g * (1 - bg.a), b: bg.color.b * bg.a + base.b * (1 - bg.a) };
+  // 兩種字色對這個底的對比；
+  const darkRatio = wcagContrast(mixed, parse(DARK_TEXT) ?? '#000');
+  const lightRatio = wcagContrast(mixed, parse(LIGHT_TEXT) ?? '#fff');
+  // 取較高者；
+  return darkRatio >= lightRatio ? DARK_TEXT : LIGHT_TEXT;
 }
 
 // 把一個值裡的每個 token 逐一用 mapper 換；回傳新字串與是否有變；
@@ -170,7 +243,7 @@ export function unifyCssColors(css: string): UnifyResult {
       // 背景：只處理單一顏色值；
       if (prop === 'background' || prop === 'background-color') {
         // 含逗號、url、漸層的複合背景不動；
-        if (/[,]|url\(|gradient/i.test(decl.value)) return;
+        if (isComplexBackground(decl.value)) return;
         // 換；
         const r = mapTokens(decl.value, mapSurface);
         // 有變才寫回；
@@ -221,57 +294,47 @@ export function unifyCssColors(css: string): UnifyResult {
         changes += 1;
       }
     });
-    // 規則帶著「換不掉的實體單色背景」（螢光筆黃、藍、粉，或深色底）卻沒寫自己的文字色：文字會繼承上層，深色模式時上層是淺字，
-    // 淺字落在淺色螢光筆上就看不見；所以替它補一個固定的文字色：亮底配深字、暗底配淺字，不隨模式改變；
-    // 先前版本補上的固定文字色（深字或淺字）若遇到半透明底，要改成跟著模式走的 --ink；
-    if (hasLiteralBg) {
-      // 找這條規則的單色背景是否半透明；
-      let translucent = false;
-      // 掃背景宣告；
-      rule.walkDecls(/^background(-color)?$/i, (decl) => {
-        // 複合背景略過；
-        if (/[,]|url\(|gradient|var\(/i.test(decl.value)) return;
-        // 任何一個 token 是半透明（0.3 到 0.9）就算；
-        for (const tok of splitTokens(decl.value)) {
-          // 解析；
-          const t = toneOf(tok);
-          // 判斷；
-          if (t !== undefined && t.a >= 0.3 && t.a < 0.9) translucent = true;
+    // 規則帶著「換不掉的實體單色背景」（螢光筆黃、藍、粉，或深色底）時，文字色要自己寫死，不能繼承上層：
+    // 深色模式上層是淺字，淺字落在淺色螢光筆上就看不見；反過來半透明的粉紅螢光筆疊在深色卡片上會變暗，深字也看不見；
+    // 單色背景（漸層、圖片、變數沒有單一明度，不處理）；
+    const bg = literalBg(rule);
+    // 這條規則的文字色宣告（沒有就是 undefined）；
+    const colorDecl = rule.nodes.find((n): n is postcss.Declaration => n.type === 'decl' && n.prop.toLowerCase() === 'color');
+    // 「我們先前補上的」文字色（固定深字、固定淺字、--ink）可以被改寫；頁面自己寫的顏色不碰；
+    const ours = colorDecl === undefined || colorDecl.value === DARK_TEXT || colorDecl.value === LIGHT_TEXT || colorDecl.value === 'var(--ink)';
+    // 只處理有單色背景、而且文字色是空的或我們補的；
+    if (hasLiteralBg && bg !== undefined && ours) {
+      // 不透明：亮底配固定深字、暗底配固定淺字，不隨模式改變；
+      // 半透明：淺色模式的底是「螢光筆混在淺色卡片上」、深色模式是「混在深色卡片上」，兩邊各挑對比較高的字色；
+      const light = bg.a >= 0.9 ? (bg.l >= 0.55 ? DARK_TEXT : LIGHT_TEXT) : pickText(bg, LIGHT_BASE);
+      // 深色模式的字色；
+      const dark = bg.a >= 0.9 ? light : pickText(bg, DARK_BASE);
+      // 寫入淺色（預設）字色：已有就改值，沒有就補；值沒變就不算改動；
+      if (colorDecl === undefined) { rule.append({ prop: 'color', value: light }); changes += 1; }
+      else if (colorDecl.value !== light) { colorDecl.value = light; changes += 1; }
+      // 深色模式字色不同時，在這條規則後面補一個 @media 覆寫；
+      if (dark !== light) {
+        // 下一個節點若已是我們補過的 @media，就只更新它；
+        const next = rule.next();
+        // 判斷是不是我們的 @media；
+        const mine = next !== undefined && next.type === 'atrule' && (next as postcss.AtRule).name === 'media' && (next as postcss.AtRule).params === DARK_QUERY;
+        // 已有：更新裡面的 color；
+        if (mine) {
+          // 找裡面第一個 color 宣告；
+          let found = false;
+          (next as postcss.AtRule).walkDecls('color', (d) => { found = true; if (d.value !== dark) { d.value = dark; changes += 1; } });
+          // 找不到就補；
+          if (!found) { (next as postcss.AtRule).append(postcss.rule({ selector: rule.selector, nodes: [postcss.decl({ prop: 'color', value: dark })] })); changes += 1; }
+        } else {
+          // 沒有：新建 @media，裡面放同一個選擇器的 color；
+          const media = postcss.atRule({ name: 'media', params: DARK_QUERY });
+          // 放規則；
+          media.append(postcss.rule({ selector: rule.selector, nodes: [postcss.decl({ prop: 'color', value: dark })] }));
+          // 插在原規則後面；
+          rule.after(media);
+          // 計數；
+          changes += 1;
         }
-      });
-      // 是半透明：把我們先前補的兩種固定色換掉；
-      if (translucent) {
-        // 掃文字色宣告；
-        rule.walkDecls(/^color$/i, (decl) => {
-          // 只動「補上的固定色」，頁面自己寫的不碰；
-          if (decl.value === 'oklch(0.22 0.03 260)' || decl.value === 'oklch(0.96 0.01 258)') { decl.value = 'var(--ink)'; changes += 1; }
-        });
-      }
-    }
-    // 規則帶著實體單色背景卻沒寫文字色，補一個；
-    if (hasLiteralBg && !rule.some((n) => n.type === 'decl' && n.prop.toLowerCase() === 'color')) {
-      // 找出這條規則的單色實體背景（漸層與圖片沒有單一明度，不補）；
-      let tone: Tone | undefined;
-      // 掃背景宣告；
-      rule.walkDecls(/^background(-color)?$/i, (decl) => {
-        // 複合背景略過；
-        if (/[,]|url\(|gradient|var\(/i.test(decl.value)) return;
-        // 取第一個能解析且夠不透明的顏色 token；
-        for (const tok of splitTokens(decl.value)) {
-          // 解析；
-          const t = toneOf(tok);
-          // 半透明太淡的（例如 5% 白）看不出底色，不補；
-          if (t !== undefined && t.a >= 0.3 && tone === undefined) tone = t;
-        }
-      });
-      // 有找到就補文字色；
-      if (tone !== undefined) {
-        // 半透明底（例如 #ff5582a6）會透出下面的頁面色：淺色模式變淺、深色模式變暗，所以文字用跟著模式走的 --ink；
-        // 不透明的亮底用固定深字、暗底用固定淺字，不隨模式改變；
-        const t = tone as Tone;
-        rule.append({ prop: 'color', value: t.a < 0.9 ? 'var(--ink)' : t.l >= 0.55 ? 'oklch(0.22 0.03 260)' : 'oklch(0.96 0.01 258)' });
-        // 計數；
-        changes += 1;
       }
     }
   });

@@ -20,12 +20,12 @@ details.src{background:var(--card);border:1px solid var(--line);border-radius:10
 <p>本篇重點 a–g，共 7 個。</p>
 <h2>重點整理</h2>
 <ul>
-<li class="pt">(a) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">closure（閉包）</mark>指內層函式（<code>increment</code> / <code>decrement</code>）把它引用的外層變數（<code>count</code>）一起帶走：外層函式 <code>createCounter()</code> 執行完後其 Stack Frame 會 Pop 清除，但被內層函式引用的變數不會消失。</li>
+<li class="pt">(a) <mark style="background: #ADCCFFA6;color: var(--ink);">closure（閉包）</mark>指內層函式（<code>increment</code> / <code>decrement</code>）把它引用的外層變數（<code>count</code>）一起帶走：外層函式 <code>createCounter()</code> 執行完後其 Stack Frame 會 Pop 清除，但被內層函式引用的變數不會消失。</li>
 <li class="pt">(b) 引擎（V8（Chrome 的 JS 引擎））每呼叫一次 <code>createCounter()</code>，就在 Heap 配置一份新的 Environment Record（環境記錄，存放被捕捉變數的物件），<code>count</code> 住在那裡，而不是住在 Stack。</li>
-<li class="pt">(c) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">呼叫一次 createCounter()</mark>：<code>increment</code> 與 <code>decrement</code> 指向同一份 Environment Record，所以共用同一個 <code>count</code>。</li>
-<li class="pt">(d) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">呼叫兩次 createCounter()</mark>：<code>counterA</code> 與 <code>counterB</code> 各有獨立的 Environment Record，<code>counterA.increment()</code> 不會影響 <code>counterB</code>。</li>
+<li class="pt">(c) <mark style="background: #BBFABBA6;color: var(--ink);">呼叫一次 createCounter()</mark>：<code>increment</code> 與 <code>decrement</code> 指向同一份 Environment Record，所以共用同一個 <code>count</code>。</li>
+<li class="pt">(d) <mark style="background: #BBFABBA6;color: var(--ink);">呼叫兩次 createCounter()</mark>：<code>counterA</code> 與 <code>counterB</code> 各有獨立的 Environment Record，<code>counterA.increment()</code> 不會影響 <code>counterB</code>。</li>
 <li class="pt">(e) 只要還有外部變數（例如 <code>counter</code>）引用著內層函式，這份 Environment Record 就不會被 GC（Garbage Collection，垃圾回收）清掉。</li>
-<li class="pt">(f) 在 React Effect 的脈絡下被問到「context 主要記住的是函式，還是內部函式引用的變數」：答案是 <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">記住的是內部函式所引用的外部變數（閉包捕捉的環境資料），不是函式本身</mark>。</li>
+<li class="pt">(f) 在 React Effect 的脈絡下被問到「context 主要記住的是函式，還是內部函式引用的變數」：答案是 <mark style="background: #FFF3A3A6;color: var(--ink);">記住的是內部函式所引用的外部變數（閉包捕捉的環境資料），不是函式本身</mark>。</li>
 <li class="pt">(g) 不需要 HTML 也能驗證：用 Node.js 直接執行 <code>node 檔名.js</code>，加 <code>console.log</code> 即可；要「觸發」必須加小括號呼叫，<code>counter.increment</code> 只是取得函式物件，不會執行。</li>
 </ul>
 <pre><code class="language-js">function createCounter() {

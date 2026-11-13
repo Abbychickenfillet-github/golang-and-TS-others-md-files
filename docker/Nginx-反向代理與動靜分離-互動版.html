@@ -36,14 +36,14 @@ img{border-radius:8px;border:1px solid var(--line);}
 <h3>Nginx 的「多重身份」</h3>
 <p>Nginx 在同一份設定檔（<code>nginx.conf</code>）裡可以同時扮演兩個角色：</p>
 <ul>
-<li><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">靜態網頁伺服器（Web Server）</mark>：請求索取 <code>index.html</code>、圖片等檔案時，直接從硬碟把檔案送出去。</li>
-<li><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">反向代理（Reverse Proxy）</mark>：請求是「查資料庫 / 登入」等動態邏輯時，Nginx 自己處理不了，於是把請求<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">轉發給後端容器</mark>（Node.js、Python…）。</li>
+<li><mark style="background: #ADCCFFA6;color: var(--ink);">靜態網頁伺服器（Web Server）</mark>：請求索取 <code>index.html</code>、圖片等檔案時，直接從硬碟把檔案送出去。</li>
+<li><mark style="background: #ADCCFFA6;color: var(--ink);">反向代理（Reverse Proxy）</mark>：請求是「查資料庫 / 登入」等動態邏輯時，Nginx 自己處理不了，於是把請求<mark style="background: #FFF3A3A6;color: var(--ink);">轉發給後端容器</mark>（Node.js、Python…）。</li>
 </ul>
 <blockquote>
-<p>把前端打包好的檔案放進 Nginx，不代表 Nginx 變成後端。Nginx 像是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">派送貨物的卡車</mark>，只負責把檔案送出去，本身不生產內容（不執行後端邏輯）。</p>
+<p>把前端打包好的檔案放進 Nginx，不代表 Nginx 變成後端。Nginx 像是<mark style="background: #FFF3A3A6;color: var(--ink);">派送貨物的卡車</mark>，只負責把檔案送出去，本身不生產內容（不執行後端邏輯）。</p>
 </blockquote>
 <h3>反向代理是「每次」都會運行嗎？</h3>
-<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不一定</mark>，取決於路由規則（routing rules）。在 <code>nginx.conf</code> 裡依路徑分流：</p>
+<p><mark style="background: #FF5582A6;color: var(--ink);">不一定</mark>，取決於路由規則（routing rules）。在 <code>nginx.conf</code> 裡依路徑分流：</p>
 <table>
 <thead>
 <tr>
@@ -68,17 +68,17 @@ img{border-radius:8px;border:1px solid var(--line);}
 </tr>
 </tbody>
 </table>
-<p>這種「<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">動靜分離</mark>」設計：靜態檔案像不動的裝潢、由 Nginx 直接送；動態請求才轉給後端現場製作。</p>
+<p>這種「<mark style="background: #BBFABBA6;color: var(--ink);">動靜分離</mark>」設計：靜態檔案像不動的裝潢、由 Nginx 直接送；動態請求才轉給後端現場製作。</p>
 <h3><code>.conf</code> 是什麼</h3>
-<p><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>.conf</code> = Configuration（設定檔／配置檔案）</mark>。讓軟體在<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">不改原始碼</mark>的情況下改變運作行為；程式「啟動時」會先讀取它，決定 Port、資料路徑、允許的使用者等。</p>
+<p><mark style="background: #ADCCFFA6;color: var(--ink);"><code>.conf</code> = Configuration（設定檔／配置檔案）</mark>。讓軟體在<mark style="background: #FFF3A3A6;color: var(--ink);">不改原始碼</mark>的情況下改變運作行為；程式「啟動時」會先讀取它，決定 Port、資料路徑、允許的使用者等。</p>
 <ul>
 <li>常見：<code>nginx.conf</code>（流量轉發/靜態檔位置）、<code>resolv.conf</code>（DNS）、<code>sysctl.conf</code>（核心參數）。</li>
 <li>現代等價替代：<code>.yaml</code>/<code>.yml</code>（如 <code>docker-compose.yml</code>，可讀性高）、<code>.json</code>、<code>.ini</code>、<code>.env</code>（放環境變數/密碼）。</li>
 </ul>
 <h3>Proxy（代理伺服器）是什麼</h3>
-<p>Proxy 是一個<mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">技術概念／功能角色（中間人）</mark>，<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">不是某一間公司的產品</mark>。就像「汽車」是概念、Toyota 才是產品；「保全」是職位、Nginx 是某家公司派來的明星保全。</p>
-<p>實作 Proxy 的常見軟體：<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">Nginx</mark>（最受歡迎的反向代理，由 Nginx 公司開發、後被 F5 收購）、Apache、Squid（專做正向代理＋快取）、HAProxy（高效能負載平衡）。</p>
-<p>核心價值：隱私（隱藏真實 IP）、安全（第一線防火牆）、效能（<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">快取 Cache</mark> 減少重複請求）。</p>
+<p>Proxy 是一個<mark style="background: #D2B3FFA6;color: var(--ink);">技術概念／功能角色（中間人）</mark>，<mark style="background: #FF5582A6;color: var(--ink);">不是某一間公司的產品</mark>。就像「汽車」是概念、Toyota 才是產品；「保全」是職位、Nginx 是某家公司派來的明星保全。</p>
+<p>實作 Proxy 的常見軟體：<mark style="background: #BBFABBA6;color: var(--ink);">Nginx</mark>（最受歡迎的反向代理，由 Nginx 公司開發、後被 F5 收購）、Apache、Squid（專做正向代理＋快取）、HAProxy（高效能負載平衡）。</p>
+<p>核心價值：隱私（隱藏真實 IP）、安全（第一線防火牆）、效能（<mark style="background: #FFF3A3A6;color: var(--ink);">快取 Cache</mark> 減少重複請求）。</p>
 <h3>正向代理 vs 反向代理</h3>
 <table>
 <thead>
@@ -93,25 +93,25 @@ img{border-radius:8px;border:1px solid var(--line);}
 <tr>
 <td>正向代理 Forward Proxy</td>
 <td>使用者 → Proxy → 網路</td>
-<td>使用者<mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">主動設定</mark></td>
+<td>使用者<mark style="background: #FFB8EBA6;color: var(--ink);">主動設定</mark></td>
 <td>翻牆、隱藏身份、企業內部管控</td>
 </tr>
 <tr>
 <td>反向代理 Reverse Proxy</td>
 <td>網路 → Proxy → 後端伺服器</td>
-<td>使用者<mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">不知道</mark>（以為它就是目標網站）</td>
+<td>使用者<mark style="background: #FFB8EBA6;color: var(--ink);">不知道</mark>（以為它就是目標網站）</td>
 <td>Nginx 主打：負載平衡、保護後端、SSL 加密</td>
 </tr>
 </tbody>
 </table>
 <h3>為什麼 Proxy 能省資源？</h3>
-<p>盲點是<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">以為每個人各自在自己電腦架 Proxy</mark>——那樣確實無法省資源。能省資源的 Proxy 是<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">很多人共用同一台</mark>、且架在伺服器端：100 個同事共用機房裡一台高效能 Proxy，<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">第一個人抓過的熱門頁面會被快取</mark>，後面的人直接從快取拿，不必再跑一次網際網路。</p>
+<p>盲點是<mark style="background: #FF5582A6;color: var(--ink);">以為每個人各自在自己電腦架 Proxy</mark>——那樣確實無法省資源。能省資源的 Proxy 是<mark style="background: #BBFABBA6;color: var(--ink);">很多人共用同一台</mark>、且架在伺服器端：100 個同事共用機房裡一台高效能 Proxy，<mark style="background: #FFF3A3A6;color: var(--ink);">第一個人抓過的熱門頁面會被快取</mark>，後面的人直接從快取拿，不必再跑一次網際網路。</p>
 <h3>靜態 vs 動態：關鍵不在「有沒有 JS」</h3>
 <ul>
-<li>「靜態」指的是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">伺服器端的行為</mark>：伺服器只是「檔案夾」，你要 <code>index.html</code> 它就原封不動丟給你，不跑程式、不查資料庫組裝內容。</li>
-<li><mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">靜態網頁絕對可以有 JS</mark>——那個 JS 是傳到瀏覽器（Client）後才執行的（動畫、AJAX/Fetch）。只要伺服器端是「單純傳檔案」，架構上仍算靜態。</li>
-<li>純靜態：每個使用者拿到的檔案<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">一模一樣</mark>。動態：伺服器跑 PHP/Node.js → 查資料庫 → 把資料塞進 HTML 模板 → 產出「<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">專屬於你</mark>」的 HTML（例如登入後的 Facebook）。</li>
-<li>因此用「有無 JS」分辨純不純靜態並不準確——判準是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">「誰在組裝內容」</mark>（伺服器 vs 瀏覽器）。</li>
+<li>「靜態」指的是<mark style="background: #FFF3A3A6;color: var(--ink);">伺服器端的行為</mark>：伺服器只是「檔案夾」，你要 <code>index.html</code> 它就原封不動丟給你，不跑程式、不查資料庫組裝內容。</li>
+<li><mark style="background: #BBFABBA6;color: var(--ink);">靜態網頁絕對可以有 JS</mark>——那個 JS 是傳到瀏覽器（Client）後才執行的（動畫、AJAX/Fetch）。只要伺服器端是「單純傳檔案」，架構上仍算靜態。</li>
+<li>純靜態：每個使用者拿到的檔案<mark style="background: #FFF3A3A6;color: var(--ink);">一模一樣</mark>。動態：伺服器跑 PHP/Node.js → 查資料庫 → 把資料塞進 HTML 模板 → 產出「<mark style="background: #FFF3A3A6;color: var(--ink);">專屬於你</mark>」的 HTML（例如登入後的 Facebook）。</li>
+<li>因此用「有無 JS」分辨純不純靜態並不準確——判準是<mark style="background: #FFF3A3A6;color: var(--ink);">「誰在組裝內容」</mark>（伺服器 vs 瀏覽器）。</li>
 </ul>
 </section><section class="card src"><h2>各對話來源</h2>
 <h3>Docker 與 Nginx 的關係（2026-06）— https://gemini.google.com/app/7d15064578a8c2f4</h3>

@@ -87,9 +87,9 @@ footer.page-foot {
 2. 呼應 [[箭頭函式的兩組括號-參數小括弧與主體大括弧-隱式回傳]]：本篇 (b) 是那篇「隱式回傳／明確回傳」規則的一次實戰應用（字串比較函式）。</p>
 </blockquote>
 <h2>1. 不可變性再覆述一次（a）</h2>
-<p>(a) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">原始型別的值不能被修改，重新賦值改變的是「變數指向哪個記憶體位址」，不是原本位址上的值</mark>：<code>let name = "Alice"</code> 時 <code>name</code> 指向存 <code>"Alice"</code> 的位址；<code>name = "Bob"</code> 是在新位址存 <code>"Bob"</code>，讓 <code>name</code> 改指向新位址，原本 <code>"Alice"</code> 那格沒有被動過，之後沒有變數再指向它就會被 GC 回收。物件則相反：<code>let user = {name:"Alice"}; user.name = "Bob"</code> 是在同一個記憶體位址上直接改內容。完整的四層 immutable 拆解、與 <code>Object.freeze</code> 的關係，見 [[Day1-型別辨別-自動轉換-與immutable的四個層次]]。</p>
+<p>(a) <mark style="background: #ADCCFFA6;color: var(--ink);">原始型別的值不能被修改，重新賦值改變的是「變數指向哪個記憶體位址」，不是原本位址上的值</mark>：<code>let name = "Alice"</code> 時 <code>name</code> 指向存 <code>"Alice"</code> 的位址；<code>name = "Bob"</code> 是在新位址存 <code>"Bob"</code>，讓 <code>name</code> 改指向新位址，原本 <code>"Alice"</code> 那格沒有被動過，之後沒有變數再指向它就會被 GC 回收。物件則相反：<code>let user = {name:"Alice"}; user.name = "Bob"</code> 是在同一個記憶體位址上直接改內容。完整的四層 immutable 拆解、與 <code>Object.freeze</code> 的關係，見 [[Day1-型別辨別-自動轉換-與immutable的四個層次]]。</p>
 <h2>2. Console 除錯案例：變數名打錯導致誤判（b）</h2>
-<p>(b) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">字串比較 <code>===</code>／<code>==</code> 一定是大小寫敏感（case-sensitive）的</mark>，<code>"string" === "String"</code> 必然是 <code>false</code>。Abby 在 Console 印出 <code>true</code> 的原因不是語言規則例外，而是打字時比較的變數名跟宣告的變數名不一致——宣告了 <code>c</code>、<code>d</code>，但 <code>console.log</code> 裡誤寫成比較 <code>a</code>、<code>b</code>，而 Console 之前的操作歷史裡 <code>a</code>、<code>b</code>剛好被賦過相同的值，所以印出 <code>true</code>。</p>
+<p>(b) <mark style="background: #FF5582A6;color: var(--ink);">字串比較 <code>===</code>／<code>==</code> 一定是大小寫敏感（case-sensitive）的</mark>，<code>"string" === "String"</code> 必然是 <code>false</code>。Abby 在 Console 印出 <code>true</code> 的原因不是語言規則例外，而是打字時比較的變數名跟宣告的變數名不一致——宣告了 <code>c</code>、<code>d</code>，但 <code>console.log</code> 裡誤寫成比較 <code>a</code>、<code>b</code>，而 Console 之前的操作歷史裡 <code>a</code>、<code>b</code>剛好被賦過相同的值，所以印出 <code>true</code>。</p>
 <pre><code class="hljs language-js">let c = &quot;string&quot;;
 let d = &quot;String&quot;;
 console.log(a == b);   // 比的是 a、b，不是 c、d！
@@ -99,7 +99,7 @@ console.log(a === b);  // 同上
 <p>🔧 除錯技巧：懷疑變數作用域或殘留值有問題時，直接比對字面值（string literal）排除變數污染：<code>console.log("string" === "String")</code> 必然印出 <code>false</code>，若結果不同，問題出在變數本身而非語言規則。</p>
 </blockquote>
 <h2>3. 箭頭函式隱式回傳複習（c）</h2>
-<p>(c) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">箭頭函式省略大括號 <code>{}</code> 時，會自動把後面的運算式（Expression）結果當回傳值</mark>，稱為隱式回傳（Implicit Return）／運算式主體（Expression Body）；一旦加上 <code>{}</code>（區塊主體／Block Body），就必須手動寫 <code>return</code>，否則預設回傳 <code>undefined</code>：</p>
+<p>(c) <mark style="background: #BBFABBA6;color: var(--ink);">箭頭函式省略大括號 <code>{}</code> 時，會自動把後面的運算式（Expression）結果當回傳值</mark>，稱為隱式回傳（Implicit Return）／運算式主體（Expression Body）；一旦加上 <code>{}</code>（區塊主體／Block Body），就必須手動寫 <code>return</code>，否則預設回傳 <code>undefined</code>：</p>
 <pre><code class="hljs language-js">// 隱式回傳：單一運算式，不用 return，不用 {}
 const areEqualInUpperCase = (str1, str2) =&gt;
   str1.toUpperCase() === str2.toUpperCase();
@@ -111,12 +111,12 @@ const areEqualInUpperCase2 = (str1, str2) =&gt; {
 </code></pre>
 <p>語法上更精確的講法：箭頭函式省略 <code>{}</code> 時後面只能接「單一運算式（Single Expression）」，不能放「陳述式（Statement，如 <code>if</code>、<code>for</code>、<code>const x=1;</code>）」；「有沒有 <code>{}</code>」才是判斷 Implicit／Explicit Return 的關鍵，這個規則的完整推演見 [[箭頭函式的兩組括號-參數小括弧與主體大括弧-隱式回傳]]。</p>
 <h2>4. localeCompare：語系敏感的字串比較（d–e）</h2>
-<p>(d) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>localeCompare()</code> 是 JS 內建、語系敏感（Locale-aware）的字串比較方法</mark>，設計邏輯類似 C 語言的 <code>strcmp()</code>：回傳 <code>0</code> 代表相等，負數代表第一個字串排序在前，正數代表排序在後。</p>
+<p>(d) <mark style="background: #ADCCFFA6;color: var(--ink);"><code>localeCompare()</code> 是 JS 內建、語系敏感（Locale-aware）的字串比較方法</mark>，設計邏輯類似 C 語言的 <code>strcmp()</code>：回傳 <code>0</code> 代表相等，負數代表第一個字串排序在前，正數代表排序在後。</p>
 <pre><code class="hljs language-js">&quot;a&quot;.localeCompare(&quot;b&quot;); // 負數，&quot;a&quot; 排在 &quot;b&quot; 前面
 &quot;b&quot;.localeCompare(&quot;a&quot;); // 正數，&quot;b&quot; 排在 &quot;a&quot; 後面
 &quot;a&quot;.localeCompare(&quot;a&quot;); // 0，相等
 </code></pre>
-<p>(e) <mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">帶入語言代碼（ISO 639-1）可以讓比較符合該語言的拼字／字母等價規則</mark>，因為不同語言對「大小寫」與「字母等價性」的規則不同：</p>
+<p>(e) <mark style="background: #FFB8EBA6;color: var(--ink);">帶入語言代碼（ISO 639-1）可以讓比較符合該語言的拼字／字母等價規則</mark>，因為不同語言對「大小寫」與「字母等價性」的規則不同：</p>
 <pre><code class="hljs language-js">// 德語（de）：ß 與 ss 視為相同字母
 &quot;ß&quot;.localeCompare(&quot;ss&quot;, &quot;de&quot;, { sensitivity: &quot;base&quot; }); // 0（相等）
 
@@ -125,7 +125,7 @@ const areEqualInUpperCase2 = (str1, str2) =&gt; {
 </code></pre>
 <p><code>de</code> = 德語（German），<code>tr</code> = 土耳其語（Turkish），皆為 ISO 639-1 語言代碼。</p>
 <h2>5. charAt 是 zero-based index（f）</h2>
-<p>(f) <mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);"><code>charAt()</code> 使用 zero-based index（以 0 為起始的索引）</mark>：第一個字元索引是 <code>0</code>，最後一個字元索引是 <code>string.length - 1</code>。</p>
+<p>(f) <mark style="background: #D2B3FFA6;color: var(--ink);"><code>charAt()</code> 使用 zero-based index（以 0 為起始的索引）</mark>：第一個字元索引是 <code>0</code>，最後一個字元索引是 <code>string.length - 1</code>。</p>
 <pre><code class="hljs language-js">const str = &quot;cat&quot;;
 str.charAt(0); // &quot;c&quot;
 str.charAt(1); // &quot;a&quot;

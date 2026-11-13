@@ -37,30 +37,30 @@ img{border-radius:8px;border:1px solid var(--line);}
 </blockquote>
 </section><section class="card"><h2>重點整理</h2>
 <h3>(a) Vite 開發階段「免打包」的原理</h3>
-<p><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Vite 在開發階段（<code>vite dev</code>）確實是不用打包的開發伺服器</mark>，原理是利用瀏覽器本身對 <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">Native ES Module</mark> 的支援：</p>
+<p><mark style="background: #ADCCFFA6;color: var(--ink);">Vite 在開發階段（<code>vite dev</code>）確實是不用打包的開發伺服器</mark>，原理是利用瀏覽器本身對 <mark style="background: #FFF3A3A6;color: var(--ink);">Native ES Module</mark> 的支援：</p>
 <ol>
 <li>Vite 伺服器收到瀏覽器對模組（<code>import X from './X.js'</code>）的請求。</li>
 <li>伺服器即時把該檔案做<strong>轉換</strong>（Transform）：<code>.vue</code> 轉 JS、Sass 轉 CSS、TypeScript 轉 JavaScript。</li>
 <li>轉換後的檔案以標準 ES Module 形式回傳給瀏覽器。</li>
 </ol>
-<p>優勢：<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">省去傳統 Webpack 等工具啟動時「整包打包」的時間</mark>，因此有極快的啟動速度與即時的請求處理。</p>
+<p>優勢：<mark style="background: #BBFABBA6;color: var(--ink);">省去傳統 Webpack 等工具啟動時「整包打包」的時間</mark>，因此有極快的啟動速度與即時的請求處理。</p>
 <h3>(b) 「只能在開發階段使用」是誤解</h3>
-<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">正確認知：Vite 的免打包機制只適用於開發階段，但 Vite 本身並非只能在開發階段使用的工具</mark>——它是完整的建置系統，生產環境（<code>vite build</code>）仍會用 <strong>Rollup</strong> 執行傳統打包（優化、Tree Shaking、Code Splitting），生成可部署的靜態檔案。</p>
+<p><mark style="background: #FF5582A6;color: var(--ink);">正確認知：Vite 的免打包機制只適用於開發階段，但 Vite 本身並非只能在開發階段使用的工具</mark>——它是完整的建置系統，生產環境（<code>vite build</code>）仍會用 <strong>Rollup</strong> 執行傳統打包（優化、Tree Shaking、Code Splitting），生成可部署的靜態檔案。</p>
 <h3>(c) HMR 的定義</h3>
-<p><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">HMR（Hot Module Replacement）</mark>的目標是<strong>替換程式碼的局部模組</strong>，不必刷新整個頁面、也不丟失應用程式狀態。Vite 利用 ES Module 的依賴圖譜，檔案被修改時只把該檔案及其依賴樹上的相關模組推送給瀏覽器替換。</p>
+<p><mark style="background: #ADCCFFA6;color: var(--ink);">HMR（Hot Module Replacement）</mark>的目標是<strong>替換程式碼的局部模組</strong>，不必刷新整個頁面、也不丟失應用程式狀態。Vite 利用 ES Module 的依賴圖譜，檔案被修改時只把該檔案及其依賴樹上的相關模組推送給瀏覽器替換。</p>
 <h3>(d) 畫面空白／HMR 降級的兩種成因</h3>
-<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">「壞掉就整頁空白」不代表 HMR 失敗，而是降級為 Full Reload 的保護機制</mark>：</p>
+<p><mark style="background: #FF5582A6;color: var(--ink);">「壞掉就整頁空白」不代表 HMR 失敗，而是降級為 Full Reload 的保護機制</mark>：</p>
 <ol>
-<li><strong>致命編譯錯誤</strong>（語法錯誤、找不到模組）：Vite 伺服器無法完成轉換，或瀏覽器無法解析收到的模組 → Vite 執行 <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">Full Reload（整頁刷新）</mark>，並把錯誤覆蓋在畫面上以確保執行環境乾淨。</li>
+<li><strong>致命編譯錯誤</strong>（語法錯誤、找不到模組）：Vite 伺服器無法完成轉換，或瀏覽器無法解析收到的模組 → Vite 執行 <mark style="background: #FFF3A3A6;color: var(--ink);">Full Reload（整頁刷新）</mark>，並把錯誤覆蓋在畫面上以確保執行環境乾淨。</li>
 <li><strong>根組件或核心程式碼發生錯誤</strong>：若修改的是應用程式的根組件（Root Component）或全域狀態（Global State）初始化邏輯，即使 HMR 成功替換模組，應用程式狀態可能已壞到無法恢復，導致頁面崩潰或無法渲染。</li>
 </ol>
 <h3>(e) 與 Next.js／其他框架的 HMR 品質差異</h3>
 <ul>
-<li>Next.js（或部分 Webpack 架構）可能提供更精細的 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Error Boundary（錯誤邊界）</mark>處理，讓非核心組件的錯誤不致整頁崩潰。</li>
+<li>Next.js（或部分 Webpack 架構）可能提供更精細的 <mark style="background: #ADCCFFA6;color: var(--ink);">Error Boundary（錯誤邊界）</mark>處理，讓非核心組件的錯誤不致整頁崩潰。</li>
 <li>HMR 的實際品質高度依賴<strong>所使用的框架</strong>（如 React Fast Refresh vs. Vue HMR API）及其錯誤處理機制；畫面空白多半是 HMR 機制無法安全替換模組，或錯誤過於嚴重而降級為 Full Reload。</li>
 </ul>
 <h3>(f) Rollup 是什麼</h3>
-<p><mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Rollup</mark> 是專門針對 JavaScript 模組（尤其是 ES Modules）設計的模組打包工具，由 Svelte 創辦人 <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">Rich Harris</mark> 開發，是 JS 生態系中最早引入 <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">Tree Shaking</mark>（剔除未使用程式碼）技術的打包器。核心特性：</p>
+<p><mark style="background: #ADCCFFA6;color: var(--ink);">Rollup</mark> 是專門針對 JavaScript 模組（尤其是 ES Modules）設計的模組打包工具，由 Svelte 創辦人 <mark style="background: #FFF3A3A6;color: var(--ink);">Rich Harris</mark> 開發，是 JS 生態系中最早引入 <mark style="background: #FFF3A3A6;color: var(--ink);">Tree Shaking</mark>（剔除未使用程式碼）技術的打包器。核心特性：</p>
 <ul>
 <li>Tree Shaking：透過靜態分析 ES Module 的 import/export，精準剔除沒被實際呼叫的函式或變數，把打包檔案體積降到最低。</li>
 <li>乾淨的輸出（Scope Hoisting）：不像 Webpack 會注入大量模組載入器與膠水程式碼，Rollup 傾向把模組串聯提升在同一層級，產出程式碼乾淨易讀，近似手寫原始碼。</li>
@@ -94,7 +94,7 @@ img{border-radius:8px;border:1px solid var(--line);}
 </tbody>
 </table>
 <h3>(h) Vite 為什麼生產環境選 Rollup</h3>
-<p><mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">Vite 開發環境用 esbuild 做預打包與檔案轉換，追求極致啟動速度；生產環境改用 Rollup 做最終打包</mark>，原因是 Rollup 在 CSS 處理、靜態資源優化、程式碼分割（Code Splitting）以及套件生態系（Plugin API）上非常成熟，能確保輸出最適合線上環境運行的檔案。</p>
+<p><mark style="background: #BBFABBA6;color: var(--ink);">Vite 開發環境用 esbuild 做預打包與檔案轉換，追求極致啟動速度；生產環境改用 Rollup 做最終打包</mark>，原因是 Rollup 在 CSS 處理、靜態資源優化、程式碼分割（Code Splitting）以及套件生態系（Plugin API）上非常成熟，能確保輸出最適合線上環境運行的檔案。</p>
 </section><section class="card src"><h2>各對話來源</h2>
 <h3>Vite 開發模式與 HMR 探討（2026-08-05）— https://gemini.google.com/app/645397a8aa918a79</h3>
 <p>使用者：vite可以說是不用打包只能在開發階段使用的dev server嗎，因為直接跟ES module溝通所以免去了打包的時間並且有HMR的功能，但是壞掉的話也是整個畫面空白這樣算HMR嗎這樣我覺得還比NEXT差</p>
