@@ -190,18 +190,18 @@ offsetAndType[index] = (type &lt;&lt; TYPE_SHIFT) | end;   // 型別與 offset �
 </section>
 <h2 id="points">重點整理</h2>
 <ul>
-<li class="pt">(a) <mark style="background: #ADCCFFA6;color: var(--ink);">adopt-buffer</mark> 是 css-tree（CSS parser 套件）內部的小工具函式：呼叫端傳入「既存的 Buffer（上一輪已配置好的 TypedArray）」與需要的 <code>size</code>，容量夠就原樣回傳重用，不夠才配置新的。</li>
-<li class="pt">(b) 目的是<mark style="background: #BBFABBA6;color: var(--ink);">減少記憶體配置與 <span class="term" tabindex="0" data-def="Garbage Collection 垃圾回收：引擎自動找出沒人再引用的物件並釋放其記憶體。回收當下會短暫暫停 JS 執行，配置越頻繁就暫停越頻繁，表現出來就是卡頓。">GC（垃圾回收）</span>壓力</mark>：若每次解析都 <code>new Uint32Array(size)</code>，會頻繁配置並觸發 V8 垃圾回收，造成卡頓。</li>
+<li class="pt">(a) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">adopt-buffer</mark> 是 css-tree（CSS parser 套件）內部的小工具函式：呼叫端傳入「既存的 Buffer（上一輪已配置好的 TypedArray）」與需要的 <code>size</code>，容量夠就原樣回傳重用，不夠才配置新的。</li>
+<li class="pt">(b) 目的是<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">減少記憶體配置與 <span class="term" tabindex="0" data-def="Garbage Collection 垃圾回收：引擎自動找出沒人再引用的物件並釋放其記憶體。回收當下會短暫暫停 JS 執行，配置越頻繁就暫停越頻繁，表現出來就是卡頓。">GC（垃圾回收）</span>壓力</mark>：若每次解析都 <code>new Uint32Array(size)</code>，會頻繁配置並觸發 V8 垃圾回收，造成卡頓。</li>
 <li class="pt">(c) 這裡的 Buffer 就是「放資料的容器」：連續記憶體，裡面存 token 的起訖 offset、字元碼、換行位置等數字。</li>
 <li class="pt">(d) 可信的實作形狀（依我所知 css-tree 原始碼）：<code>const MIN_SIZE = 16 * 1024;</code>，容量不足時 <code>return new Uint32Array(Math.max(size + 1024, MIN_SIZE))</code>，足夠時 <code>return buffer</code>。</li>
-<li class="pt">(e) <mark style="background: #FFF3A3A6;color: var(--ink);">MIN_SIZE = 16 * 1024 是 16384 個「元素」，不是 16 KB</mark>；<code>Uint32Array</code> 每元素 4 Bytes，所以實際是 16384 × 4 = 65536 Bytes = 64 KB。</li>
+<li class="pt">(e) <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">MIN_SIZE = 16 * 1024 是 16384 個「元素」，不是 16 KB</mark>；<code>Uint32Array</code> 每元素 4 Bytes，所以實際是 16384 × 4 = 65536 Bytes = 64 KB。</li>
 <li class="pt">(f) <code>Math.max(size + 1024, MIN_SIZE)</code>：需求小（例如 100）時取保底 16384；需求大（例如 20000）時取 <code>size + 1024 = 21024</code>，多預留 1024 個元素當緩衝。</li>
 <li class="pt">(g) <code>new Uint8Array(2)</code> 的 <code>2</code> 是「長度（元素個數）」，不是數值上限，總記憶體 = 2 × 1 Byte。</li>
-<li class="pt">(h) <code>uint8 = [1,2,3,...]</code> 沒有報錯，是因為這句是把變數 <code>uint8</code> <mark style="background: #FF5582A6;color: var(--ink);">重新賦值成一個普通 Array</mark>，原本的 Uint8Array 被丟棄，並不是改了 Uint8Array 的長度。</li>
+<li class="pt">(h) <code>uint8 = [1,2,3,...]</code> 沒有報錯，是因為這句是把變數 <code>uint8</code> <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">重新賦值成一個普通 Array</mark>，原本的 Uint8Array 被丟棄，並不是改了 Uint8Array 的長度。</li>
 <li class="pt">(i) TypedArray 長度固定：<code>uint8[2] = 3</code> 寫入越界索引會被忽略，<code>uint8[2]</code> 仍是 <code>undefined</code>，<code>length</code> 仍為 2。</li>
 <li class="pt">(j) 8-bit 的限制在「元素值」：Uint8 範圍 0–255，存入 256 會 wrap（模 256）變 0，257 變 1。</li>
 <li class="pt">(k) Uint32Array 範圍 0–4,294,967,295，適合存索引與偏移量（offset），所以 css-tree 用 32-bit 而不是 8-bit。</li>
-<li class="pt">(l) 另一則對話順帶說明 Vue 的 <mark style="background: #ADCCFFA6;color: var(--ink);">v-model</mark>：它是 <code>:value</code> + <code>@input</code> 的語法糖，實現表單元素的雙向綁定；修飾符 <code>.lazy</code>（改在 change 事件同步）、<code>.number</code>（轉數字）、<code>.trim</code>（去頭尾空白）。</li>
+<li class="pt">(l) 另一則對話順帶說明 Vue 的 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">v-model</mark>：它是 <code>:value</code> + <code>@input</code> 的語法糖，實現表單元素的雙向綁定；修飾符 <code>.lazy</code>（改在 change 事件同步）、<code>.number</code>（轉數字）、<code>.trim</code>（去頭尾空白）。</li>
 </ul>
 <pre><code class="language-js">var uint8 = new Uint8Array(2);
 uint8[0] = 256; uint8[1] = 257;

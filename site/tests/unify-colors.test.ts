@@ -41,9 +41,17 @@ describe('unifyCssColors：文字', () => {
     expect(css('p{color:#222}')).toBe('p{color:var(--ink)}');
     expect(css('p{color:#4b5563}')).toBe('p{color:var(--sub)}');
   });
+  // 有彩度的偏暗強調字：淺色模式不動，深色模式補一個同色相、明度 0.80 的覆寫；
+  it('金、藍強調字補深色模式提亮覆寫，且冪等', () => {
+    const once = css('b{color:#b07a00}');
+    expect(once).toContain('b{color:#b07a00}');
+    expect(once).toContain('@media (prefers-color-scheme: dark)');
+    expect(once).toMatch(/color:oklch\(0\.80 0\.12\d? \d+\)/);
+    expect(css(once)).toBe(once);
+  });
   // 有彩度的強調字、白字、淺灰字不動；
   it('紅藍強調字、白字、淺灰字不換', () => {
-    expect(css('p{color:#b03a4a}')).toBe('p{color:#b03a4a}');
+    expect(css('p{color:#b03a4a}')).toContain('p{color:#b03a4a}');
     expect(css('p{color:#fff}')).toBe('p{color:#fff}');
     expect(css('p{color:#888}')).toBe('p{color:#888}');
   });

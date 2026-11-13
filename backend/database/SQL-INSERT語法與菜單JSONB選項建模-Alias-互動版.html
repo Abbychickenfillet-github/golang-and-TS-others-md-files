@@ -154,7 +154,7 @@
 <details class="kp">
 <summary>a. 把實體菜單圖片轉換成 PostgreSQL INSERT 語法時，要先確認目標資料表…</summary>
 <div class="kp-body">
-<p>a. 把實體菜單圖片轉換成 PostgreSQL <code>INSERT</code> 語法時，要先確認目標資料表的<mark style="background: #FFF3A3A6;color: var(--ink);">欄位順序與型別</mark>，欄位順序錯了即使值對也會插進錯欄位：</p>
+<p>a. 把實體菜單圖片轉換成 PostgreSQL <code>INSERT</code> 語法時，要先確認目標資料表的<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">欄位順序與型別</mark>，欄位順序錯了即使值對也會插進錯欄位：</p>
 </div>
 </details>
 <pre><code class="language-sql">INSERT INTO menu_items (
@@ -174,13 +174,13 @@
 <details class="kp">
 <summary>c. Schema 常見約束</summary>
 <div class="kp-body">
-<p>c. Schema 常見約束：<code>id</code> 用 <code>char(36)</code>（UUID 格式）、<code>price</code> 用 <code>decimal(10,2)</code>（限制小數位數，符合金額精度）、<code>status</code> 用 <code>varchar(20) default 'active'</code>、<code>deleted_at</code> 支援 <mark style="background: #ADCCFFA6;color: var(--ink);">軟刪除（Soft Delete）</mark>——預設 <code>NULL</code>，刪除時填入時間戳而非真的砍掉資料列。</p>
+<p>c. Schema 常見約束：<code>id</code> 用 <code>char(36)</code>（UUID 格式）、<code>price</code> 用 <code>decimal(10,2)</code>（限制小數位數，符合金額精度）、<code>status</code> 用 <code>varchar(20) default 'active'</code>、<code>deleted_at</code> 支援 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">軟刪除（Soft Delete）</mark>——預設 <code>NULL</code>，刪除時填入時間戳而非真的砍掉資料列。</p>
 </div>
 </details>
 <details class="kp">
 <summary>d. SELECT COUNT(*) AS total 中的 AS（別名 Alias）</summary>
 <div class="kp-body">
-<p>d. <mark style="background: #ADCCFFA6;color: var(--ink);"><code>SELECT COUNT(*) AS total</code></mark> 中的 <code>AS</code>（別名 Alias）：把計算結果的欄位名稱從預設的 <code>COUNT(*)</code> 改成好讀、好在程式中對應的 <code>total</code>。若不加別名，輸出欄位抬頭會直接顯示 <code>COUNT(*)</code>，在後端 Struct 映射或程式中讀取會很麻煩。</p>
+<p>d. <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>SELECT COUNT(*) AS total</code></mark> 中的 <code>AS</code>（別名 Alias）：把計算結果的欄位名稱從預設的 <code>COUNT(*)</code> 改成好讀、好在程式中對應的 <code>total</code>。若不加別名，輸出欄位抬頭會直接顯示 <code>COUNT(*)</code>，在後端 Struct 映射或程式中讀取會很麻煩。</p>
 </div>
 </details>
 <pre><code class="language-sql">SELECT COUNT(*) AS total,
@@ -199,7 +199,7 @@ FROM booth WHERE deleted_at IS NULL;
 <details class="kp">
 <summary>f. 價格欄位的建模陷阱</summary>
 <div class="kp-body">
-<p>f. <mark style="background: #FF5582A6;color: var(--ink);">價格欄位的建模陷阱</mark>：若品項有「冷熱不同價」或多種規格（容量、豆種），單一 <code>price</code> 欄位無法表達。解法是把 <code>price</code> 升級成 <code>options</code>（JSONB）欄位，存放動態屬性：</p>
+<p>f. <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">價格欄位的建模陷阱</mark>：若品項有「冷熱不同價」或多種規格（容量、豆種），單一 <code>price</code> 欄位無法表達。解法是把 <code>price</code> 升級成 <code>options</code>（JSONB）欄位，存放動態屬性：</p>
 </div>
 </details>
 <pre><code class="language-json">// 冷熱同價
@@ -211,7 +211,7 @@ FROM booth WHERE deleted_at IS NULL;
 <details class="kp">
 <summary>g. 黃金準則</summary>
 <div class="kp-body">
-<p>g. <mark style="background: #FFB8EBA6;color: var(--ink);">黃金準則：能在程式碼算的就不要在資料庫裡算</mark>——但這條準則的適用範圍是有限的：</p>
+<p>g. <mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">黃金準則：能在程式碼算的就不要在資料庫裡算</mark>——但這條準則的適用範圍是有限的：</p>
 </div>
 </details>
 <table>
@@ -243,7 +243,7 @@ FROM booth WHERE deleted_at IS NULL;
 <details class="kp">
 <summary>h. JOIN、子查詢（Subquery）、聚合函式（SUM/AVG/COUNT）都屬於「…</summary>
 <div class="kp-body">
-<p>h. JOIN、子查詢（Subquery）、聚合函式（<code>SUM</code>/<code>AVG</code>/<code>COUNT</code>）都屬於「資料庫運算」而非要搬到程式碼的運算。真正該搬到程式碼算的是：<mark style="background: #FF5582A6;color: var(--ink);">會讓索引失效的函式運算</mark>，例如對欄位用 <code>REPLACE(order_number, '-', '')</code> 再比對——每筆資料都要先跑一次函式，索引失效變全表掃描。正確做法是在 Go/Python 裡先把字串處理好（例如去掉 <code>-</code>），再丟給 SQL 做「精確匹配」，索引才會生效。</p>
+<p>h. JOIN、子查詢（Subquery）、聚合函式（<code>SUM</code>/<code>AVG</code>/<code>COUNT</code>）都屬於「資料庫運算」而非要搬到程式碼的運算。真正該搬到程式碼算的是：<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">會讓索引失效的函式運算</mark>，例如對欄位用 <code>REPLACE(order_number, '-', '')</code> 再比對——每筆資料都要先跑一次函式，索引失效變全表掃描。正確做法是在 Go/Python 裡先把字串處理好（例如去掉 <code>-</code>），再丟給 SQL 做「精確匹配」，索引才會生效。</p>
 </div>
 </details>
 <details class="kp">

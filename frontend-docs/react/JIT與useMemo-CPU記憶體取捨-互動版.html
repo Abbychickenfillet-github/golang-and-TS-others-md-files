@@ -12,7 +12,7 @@ header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",seri
 .pill{display:inline-block;margin:3px 5px 3px 0;}
 .meta{margin-top:8px;}
 .meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
-.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar{position:sticky;top:0;z-index:5;background:var(--card);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
 .toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
 .toolbar button.alt{background:var(--card);color:var(--accent);border:1px solid var(--accent);}
 .toolbar .hint{color:var(--muted);font-size:.78rem;}
@@ -39,17 +39,17 @@ img{border-radius:8px;border:1px solid var(--line);}
 </blockquote>
 </section><section class="card"><h2>本篇重點 a–j，共 10 個</h2>
 </section><section class="card"><h2>重點整理</h2>
-<p>a. <mark style="background: #FFF3A3A6;color: var(--ink);">JIT（Just-In-Time）不是特定公司或個人開發的技術</mark>，而是隨電腦科學發展成熟的通用概念：在程式<strong>執行時</strong>動態把代碼編譯成機器碼以提升效能。V8、SpiderMonkey（Mozilla）、JavaScriptCore（Apple）都各自實作了自己的 JIT。</p>
-<p>b. <mark style="background: #ADCCFFA6;color: var(--ink);">V8 引擎的 JIT 具體分兩階段</mark>：先由 <mark style="background: #ADCCFFA6;color: var(--ink);">Ignition</mark>（直譯器）快速掃過並執行程式碼，同時記錄哪些代碼被頻繁執行（熱點）；當某段代碼夠「熱門」，V8 會派出 <mark style="background: #ADCCFFA6;color: var(--ink);">TurboFan</mark>（優化編譯器）把它一次編譯成高速機器碼。這樣兼顧了啟動速度（Ignition 先跑）與後續執行效能（TurboFan 優化熱點）。</p>
-<p>c. <mark style="background: #FFF3A3A6;color: var(--ink);">為什麼 useMemo 需要依賴陣列</mark>：JS 中變數本質是記憶體位址（Reference）。<code>useMemo</code> 的邏輯是「如果依賴的這些變數位址都沒變，就直接用上次存在記憶體裡的 <code>memoizedValue</code>」。React 每次渲染時，會拿「現在的依賴值」跟「上一次的依賴值」做<mark style="background: #ADCCFFA6;color: var(--ink);">淺比較（<code>Object.is</code>）</mark>：位址一樣 → 回傳舊值；位址不同 → 重新計算。沒有依賴陣列，React 根本不知道何時該更新，<code>useMemo</code> 就完全失去意義。</p>
-<p>d. <mark style="background: #FF5582A6;color: var(--ink);">useMemo 這個 Runtime 機制本身確實吃 CPU、也吃記憶體</mark>，是一種「代價交換（trade-off）」：<br />
-   - <strong>CPU 代價</strong>：即使是 <code>a + b</code> 這種低成本計算，加上 <code>useMemo</code> 之後，Runtime 每次都要多做「比較依賴項位址」+「讀取記憶體中舊結果」這兩個動作。<mark style="background: #FF5582A6;color: var(--ink);">如果計算成本 &lt; 檢查成本，這就是反效果</mark>——濫用 <code>useMemo</code> 反而更慢。<br />
+<p>a. <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">JIT（Just-In-Time）不是特定公司或個人開發的技術</mark>，而是隨電腦科學發展成熟的通用概念：在程式<strong>執行時</strong>動態把代碼編譯成機器碼以提升效能。V8、SpiderMonkey（Mozilla）、JavaScriptCore（Apple）都各自實作了自己的 JIT。</p>
+<p>b. <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">V8 引擎的 JIT 具體分兩階段</mark>：先由 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Ignition</mark>（直譯器）快速掃過並執行程式碼，同時記錄哪些代碼被頻繁執行（熱點）；當某段代碼夠「熱門」，V8 會派出 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">TurboFan</mark>（優化編譯器）把它一次編譯成高速機器碼。這樣兼顧了啟動速度（Ignition 先跑）與後續執行效能（TurboFan 優化熱點）。</p>
+<p>c. <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">為什麼 useMemo 需要依賴陣列</mark>：JS 中變數本質是記憶體位址（Reference）。<code>useMemo</code> 的邏輯是「如果依賴的這些變數位址都沒變，就直接用上次存在記憶體裡的 <code>memoizedValue</code>」。React 每次渲染時，會拿「現在的依賴值」跟「上一次的依賴值」做<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">淺比較（<code>Object.is</code>）</mark>：位址一樣 → 回傳舊值；位址不同 → 重新計算。沒有依賴陣列，React 根本不知道何時該更新，<code>useMemo</code> 就完全失去意義。</p>
+<p>d. <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">useMemo 這個 Runtime 機制本身確實吃 CPU、也吃記憶體</mark>，是一種「代價交換（trade-off）」：<br />
+   - <strong>CPU 代價</strong>：即使是 <code>a + b</code> 這種低成本計算，加上 <code>useMemo</code> 之後，Runtime 每次都要多做「比較依賴項位址」+「讀取記憶體中舊結果」這兩個動作。<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">如果計算成本 &lt; 檢查成本，這就是反效果</mark>——濫用 <code>useMemo</code> 反而更慢。<br />
    - <strong>記憶體代價</strong>：<code>memoizedValue</code> 必須佔用實際記憶體空間。到處濫用等於把記憶體塞滿無用的「舊結果」，增加瀏覽器 GC（垃圾回收）掃描壓力。</p>
-<p>e. <mark style="background: #FFF3A3A6;color: var(--ink);">為什麼保留下來的東西叫「舊結果」</mark>：當依賴項改變、React 重新計算並把新結果覆蓋進「記憶體置物櫃」時，原本那個舊結果若已無人引用，會被 GC 清除；但如果還有殘留引用（例如被 <code>useRef</code> 存起來、或被閉包偷偷抓著），這個舊結果就會永遠卡在記憶體裡，變成典型的<mark style="background: #FF5582A6;color: var(--ink);">記憶體洩漏（Memory Leak）</mark>。</p>
-<p>f. <mark style="background: #ADCCFFA6;color: var(--ink);">GC 壓力從哪來</mark>：如果在每個簡單變數都套用 <code>useMemo</code>，每次渲染都在產生新的計算結果與新的記憶體位址；GC 必須不停掃描「這幾千個舊結果，哪些真的沒用了、哪些還有人在用」，這種持續掃描記憶體的過程非常耗時——這正是「濫用 useMemo 反而讓網頁卡頓」的根因。</p>
-<p>g. <mark style="background: #FFF3A3A6;color: var(--ink);">React 為什麼要把計算結果「關在記憶體裡」</mark>：React 的核心是「畫面同步」，狀態改變就重新執行整個元件函式（Re-render）。沒有 <code>useMemo</code> 時，函式內所有變數都在這次 Render 結束、隨作用域結束被 GC 自動清除；用了 <code>useMemo</code>，等於告訴 React「幫我記住這塊結果，不要隨這次 Render 結束丟掉」——React 透過 <mark style="background: #ADCCFFA6;color: var(--ink);">Fiber Node</mark>（元件的內部狀態儲存結構）把這個結果綁定在該元件的生命週期裡。</p>
-<p>h. <mark style="background: #BBFABBA6;color: var(--ink);">什麼時候才會真正回收</mark>：取決於「元件的生死」——元件被 Unmount（從畫面移除、或條件渲染不再成立）時，React 丟棄對該計算結果的引用；此後只要程式碼裡沒有其他變數（全域變數、閉包）還抓著它，V8 的垃圾回收器才會在下一次掃描時真正清除。</p>
-<p>i. <mark style="background: #FFF3A3A6;color: var(--ink);">一般函式的變數，每次重新 Render 後都會重新建立</p></section>
+<p>e. <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">為什麼保留下來的東西叫「舊結果」</mark>：當依賴項改變、React 重新計算並把新結果覆蓋進「記憶體置物櫃」時，原本那個舊結果若已無人引用，會被 GC 清除；但如果還有殘留引用（例如被 <code>useRef</code> 存起來、或被閉包偷偷抓著），這個舊結果就會永遠卡在記憶體裡，變成典型的<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">記憶體洩漏（Memory Leak）</mark>。</p>
+<p>f. <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">GC 壓力從哪來</mark>：如果在每個簡單變數都套用 <code>useMemo</code>，每次渲染都在產生新的計算結果與新的記憶體位址；GC 必須不停掃描「這幾千個舊結果，哪些真的沒用了、哪些還有人在用」，這種持續掃描記憶體的過程非常耗時——這正是「濫用 useMemo 反而讓網頁卡頓」的根因。</p>
+<p>g. <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">React 為什麼要把計算結果「關在記憶體裡」</mark>：React 的核心是「畫面同步」，狀態改變就重新執行整個元件函式（Re-render）。沒有 <code>useMemo</code> 時，函式內所有變數都在這次 Render 結束、隨作用域結束被 GC 自動清除；用了 <code>useMemo</code>，等於告訴 React「幫我記住這塊結果，不要隨這次 Render 結束丟掉」——React 透過 <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Fiber Node</mark>（元件的內部狀態儲存結構）把這個結果綁定在該元件的生命週期裡。</p>
+<p>h. <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">什麼時候才會真正回收</mark>：取決於「元件的生死」——元件被 Unmount（從畫面移除、或條件渲染不再成立）時，React 丟棄對該計算結果的引用；此後只要程式碼裡沒有其他變數（全域變數、閉包）還抓著它，V8 的垃圾回收器才會在下一次掃描時真正清除。</p>
+<p>i. <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">一般函式的變數，每次重新 Render 後都會重新建立</p></section>
 <footer>由 Gemini 對話自動整理 · 更新於 2026-07-31</footer>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" onerror="window.__nohl=1"></script>

@@ -160,6 +160,50 @@ function pickText(bg: LiteralBg, baseColor: string): string {
   return darkRatio >= lightRatio ? DARK_TEXT : LIGHT_TEXT;
 }
 
+// 有彩度、偏暗的文字色（深金、深藍、深紫）在深色卡片上對比不足：回傳同色相、明度提高到 0.80 的版本；不需要提亮就回傳 undefined；
+function liftColor(token: string): string | undefined {
+  // 解析明度、彩度、透明度；
+  const t = toneOf(token);
+  // 不是顏色、太透明、已經夠亮、幾乎無彩（灰色走 mapText）都不處理；
+  if (t === undefined || t.a < 0.9 || t.l > 0.62 || t.c <= 0.05) return undefined;
+  // 取色相；
+  const parsed = parse(token);
+  // 解析失敗就不處理；
+  const lch = parsed === undefined ? undefined : oklch(parsed);
+  // 沒有色相也不處理；
+  if (lch === undefined || lch.h === undefined) return undefined;
+  // 彩度上限 0.12，避免亮色太刺眼；
+  return `oklch(0.80 ${Math.min(t.c, 0.12).toFixed(3)} ${lch.h.toFixed(0)})`;
+}
+
+// 在規則後面補（或更新）一個深色模式的文字色覆寫：@media (prefers-color-scheme: dark){ 同選擇器{ color: … } }；回傳改動數；
+function setDarkColor(rule: postcss.Rule, value: string): number {
+  // 下一個節點若已是我們補過的 @media，就只更新它；
+  const next = rule.next();
+  // 判斷是不是我們的 @media；
+  const mine = next !== undefined && next.type === 'atrule' && (next as postcss.AtRule).name === 'media' && (next as postcss.AtRule).params === DARK_QUERY;
+  // 已有：更新裡面的 color；
+  if (mine) {
+    // 改動數與是否找到；
+    let n = 0;
+    let found = false;
+    // 找裡面的 color 宣告；
+    (next as postcss.AtRule).walkDecls('color', (d) => { found = true; if (d.value !== value) { d.value = value; n += 1; } });
+    // 找不到就補；
+    if (!found) { (next as postcss.AtRule).append(postcss.rule({ selector: rule.selector, nodes: [postcss.decl({ prop: 'color', value })] })); n += 1; }
+    // 回傳；
+    return n;
+  }
+  // 沒有：新建 @media，裡面放同一個選擇器的 color；
+  const media = postcss.atRule({ name: 'media', params: DARK_QUERY });
+  // 放規則；
+  media.append(postcss.rule({ selector: rule.selector, nodes: [postcss.decl({ prop: 'color', value })] }));
+  // 插在原規則後面；
+  rule.after(media);
+  // 一個改動；
+  return 1;
+}
+
 // 把一個值裡的每個 token 逐一用 mapper 換；回傳新字串與是否有變；
 function mapTokens(value: string, mapper: (token: string) => string | undefined): { value: string; changed: boolean } {
   // 切 token；
@@ -236,6 +280,10 @@ export function unifyCssColors(css: string): UnifyResult {
     });
     // 動畫關鍵影格（from、50%、to）不是一般規則，不處理；
     if (rule.parent?.type === 'atrule' && /keyframes$/i.test((rule.parent as postcss.AtRule).name)) return;
+    // 深色模式提亮的字色（逐宣告時才會填）；用物件包起來避免 TypeScript 對回呼內賦值的誤判；
+    const lift: { value?: string } = {};
+    // 已經在 @media 裡的規則（包含我們自己補的深色覆寫）不再補，避免無限增生；
+    const insideMedia = rule.parent?.type === 'atrule' && (rule.parent as postcss.AtRule).name === 'media';
     // 逐一宣告處理；
     rule.walkDecls((decl) => {
       // 屬性名稱轉小寫；
@@ -266,6 +314,8 @@ export function unifyCssColors(css: string): UnifyResult {
         const r = mapTokens(decl.value, mapText);
         // 有變才寫回；
         if (r.changed) { decl.value = r.value; changes += 1; }
+        // 沒換成變數：看看是不是需要在深色模式提亮的強調字；
+        else lift.value = liftColor(decl.value.trim());
         return;
       }
       // 邊線：border、border-top…、border-color 都處理，逐 token 換顏色；
@@ -313,30 +363,10 @@ export function unifyCssColors(css: string): UnifyResult {
       if (colorDecl === undefined) { rule.append({ prop: 'color', value: light }); changes += 1; }
       else if (colorDecl.value !== light) { colorDecl.value = light; changes += 1; }
       // 深色模式字色不同時，在這條規則後面補一個 @media 覆寫；
-      if (dark !== light) {
-        // 下一個節點若已是我們補過的 @media，就只更新它；
-        const next = rule.next();
-        // 判斷是不是我們的 @media；
-        const mine = next !== undefined && next.type === 'atrule' && (next as postcss.AtRule).name === 'media' && (next as postcss.AtRule).params === DARK_QUERY;
-        // 已有：更新裡面的 color；
-        if (mine) {
-          // 找裡面第一個 color 宣告；
-          let found = false;
-          (next as postcss.AtRule).walkDecls('color', (d) => { found = true; if (d.value !== dark) { d.value = dark; changes += 1; } });
-          // 找不到就補；
-          if (!found) { (next as postcss.AtRule).append(postcss.rule({ selector: rule.selector, nodes: [postcss.decl({ prop: 'color', value: dark })] })); changes += 1; }
-        } else {
-          // 沒有：新建 @media，裡面放同一個選擇器的 color；
-          const media = postcss.atRule({ name: 'media', params: DARK_QUERY });
-          // 放規則；
-          media.append(postcss.rule({ selector: rule.selector, nodes: [postcss.decl({ prop: 'color', value: dark })] }));
-          // 插在原規則後面；
-          rule.after(media);
-          // 計數；
-          changes += 1;
-        }
-      }
+      if (dark !== light) changes += setDarkColor(rule, dark);
     }
+    // 寫死的「有彩度深色字」（金、藍、紫的強調字）在深色卡片上看不清楚：補一個深色模式覆寫，同色相、明度提高到 0.80；
+    if (lift.value !== undefined && !insideMedia) changes += setDarkColor(rule, lift.value);
   });
   // 輸出；
   return { text: root.toString(), changes };

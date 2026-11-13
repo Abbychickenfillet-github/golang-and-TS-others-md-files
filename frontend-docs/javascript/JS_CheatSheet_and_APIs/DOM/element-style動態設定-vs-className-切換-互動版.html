@@ -72,49 +72,49 @@ hr{border:0;border-top:1px dashed var(--line);margin:2em 0}
 <p><img alt="Abby 做的 var 函式作用域動畫：三個按鈕的函式全部指向同一格記憶體，迴圈結束時 i 已經是 3" src="../../../../obsidian-attachment/螢幕擷取畫面%202026-08-09%20110946.png" /></p>
 <hr />
 <h2 id="js-style-inline-style">問題一：用 JS 設 <code>style</code> 算不算 inline style</h2>
-<p>(a) <mark style="background: #BBFABBA6;color: var(--ink);">算</mark>。<code>el.style.left = '120px'</code> 跟直接在 HTML 寫 <code>&lt;div style="left:120px"&gt;</code> <mark style="background: #ADCCFFA6;color: var(--ink);">結果完全一樣</mark>——它操作的就是元素的 inline style 屬性，會出現在 DOM 的 <code>style</code> attribute 上。</p>
-<p>(b) <mark style="background: #ADCCFFA6;color: var(--ink);">CSS 優先序（specificity）上，inline style 高於任何選擇器</mark>（只輸給 <code>!important</code>）。<mark style="background: #FF5582A6;color: var(--ink);">這正是它「好用」與「危險」的同一個原因</mark>：它一定蓋得過去，所以也一定不受樣式表管轄。</p>
+<p>(a) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">算</mark>。<code>el.style.left = '120px'</code> 跟直接在 HTML 寫 <code>&lt;div style="left:120px"&gt;</code> <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">結果完全一樣</mark>——它操作的就是元素的 inline style 屬性，會出現在 DOM 的 <code>style</code> attribute 上。</p>
+<p>(b) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">CSS 優先序（specificity）上，inline style 高於任何選擇器</mark>（只輸給 <code>!important</code>）。<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">這正是它「好用」與「危險」的同一個原因</mark>：它一定蓋得過去，所以也一定不受樣式表管轄。</p>
 <hr />
 <h2 id="_1">問題二：這樣會不好嗎——分兩種情況</h2>
-<p>(c) <mark style="background: #FF5582A6;color: var(--ink);">會不好的情況：把「靜態的、事先就知道的」樣式寫進 JS</mark>。</p>
+<p>(c) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">會不好的情況：把「靜態的、事先就知道的」樣式寫進 JS</mark>。</p>
 <pre><code class="language-js">// ✗ 不好：這些值從頭到尾都不會變，卻散在 JS 裡
 box.style.backgroundColor = '#c0392b';
 box.style.borderRadius = '8px';
 box.style.padding = '12px';
 </code></pre>
-<p><mark style="background: #FF5582A6;color: var(--ink);">壞處</mark>：改配色要翻 JS、無法被 CSS 變數或主題切換影響、沒辦法用媒體查詢做 RWD、樣式散落兩處難維護。</p>
-<p>(d) <mark style="background: #BBFABBA6;color: var(--ink);">正解：抽成 class，用 <code>className</code> 或 <code>classList</code> 切換</mark>。</p>
+<p><mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">壞處</mark>：改配色要翻 JS、無法被 CSS 變數或主題切換影響、沒辦法用媒體查詢做 RWD、樣式散落兩處難維護。</p>
+<p>(d) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">正解：抽成 class，用 <code>className</code> 或 <code>classList</code> 切換</mark>。</p>
 <pre><code class="language-js">// ✓ 好：狀態用 class 表達，長相交給 CSS 決定
 box.classList.add('is-active');
 box.classList.toggle('is-highlighted', shouldHighlight);
 </code></pre>
-<p>(e) <mark style="background: #BBFABBA6;color: var(--ink);">不會不好的情況：值是「執行期才算得出來的」</mark>——動畫座標、拖曳位置、依資料算出的長度或角度、跟著滑鼠跑的元素。</p>
+<p>(e) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">不會不好的情況：值是「執行期才算得出來的」</mark>——動畫座標、拖曳位置、依資料算出的長度或角度、跟著滑鼠跑的元素。</p>
 <pre><code class="language-js">// ✓ 好：這個數字 CSS 事先不可能知道
 line.style.left = `${btn.offsetLeft + btn.offsetWidth / 2}px`;
 bar.style.width = `${value / max * 100}%`;
 </code></pre>
-<p>(f) <mark style="background: #FFF3A3A6;color: var(--ink);">判準一句話：CSS 事先寫得出來的值就交給 CSS，只有執行期才算得出來的數字才寫進 <code>style</code></mark>。Abby 在對話中自己補的那句「那個應該算動態」，用的就是這個判準，方向是對的。</p>
-<p>(g) <mark style="background: #D2B3FFA6;color: var(--ink);">現代折衷做法</mark>：把動態的數字寫進 CSS 自訂屬性，長相仍然留在樣式表裡。<mark style="background: #BBFABBA6;color: var(--ink);">這樣既保留了動態性，又讓所有視覺規則集中在 CSS</mark>。</p>
+<p>(f) <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">判準一句話：CSS 事先寫得出來的值就交給 CSS，只有執行期才算得出來的數字才寫進 <code>style</code></mark>。Abby 在對話中自己補的那句「那個應該算動態」，用的就是這個判準，方向是對的。</p>
+<p>(g) <mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">現代折衷做法</mark>：把動態的數字寫進 CSS 自訂屬性，長相仍然留在樣式表裡。<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">這樣既保留了動態性，又讓所有視覺規則集中在 CSS</mark>。</p>
 <pre><code class="language-js">el.style.setProperty('--x', `${x}px`);
 </code></pre>
 <pre><code class="language-css">.node { transform: translateX(var(--x)); transition: transform .3s; }
 </code></pre>
 <hr />
 <h2 id="_2">順帶複習：那支動畫在演什麼</h2>
-<p>(h) 截圖裡那支動畫演的是<mark style="background: #FFF3A3A6;color: var(--ink);">迴圈中 <code>var</code> 的經典陷阱</mark>：</p>
+<p>(h) 截圖裡那支動畫演的是<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">迴圈中 <code>var</code> 的經典陷阱</mark>：</p>
 <pre><code class="language-js">for (var i = 0; i &lt; 3; i++) {
   btn[i].onclick = function () { console.log(i); };
 }
 // 三顆按鈕全部印出 3
 </code></pre>
-<p>(i) <mark style="background: #ADCCFFA6;color: var(--ink);">原因</mark>：<code>var</code> 是函式作用域，被 hoist 到迴圈外，<mark style="background: #FF5582A6;color: var(--ink);">從頭到尾只有「一格」記憶體</mark>。三個 onclick 函式的作用域鏈（scope chain）全部指向同一格，迴圈結束時那一格已經被累加到 3，所以誰讀都是 3。</p>
-<p>(j) <mark style="background: #BBFABBA6;color: var(--ink);">改成 <code>let</code> 就好了</mark>：<code>let</code> 是區塊作用域，<mark style="background: #BBFABBA6;color: var(--ink);">每一輪迭代都會建立一個新的綁定</mark>（規格上叫 per-iteration binding），三個函式各自捕捉到不同的那一格，所以會分別印出 0、1、2。</p>
+<p>(i) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">原因</mark>：<code>var</code> 是函式作用域，被 hoist 到迴圈外，<mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">從頭到尾只有「一格」記憶體</mark>。三個 onclick 函式的作用域鏈（scope chain）全部指向同一格，迴圈結束時那一格已經被累加到 3，所以誰讀都是 3。</p>
+<p>(j) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">改成 <code>let</code> 就好了</mark>：<code>let</code> 是區塊作用域，<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">每一輪迭代都會建立一個新的綁定</mark>（規格上叫 per-iteration binding），三個函式各自捕捉到不同的那一格，所以會分別印出 0、1、2。</p>
 <hr />
 <h2 id="_3">關聯筆記與關聯原因</h2>
 <ul>
-<li>13-閉包-Closure-私有變數與傳址陷阱：<mark style="background: #D2B3FFA6;color: var(--ink);">(h)–(j) 就是那篇「傳址陷阱」在迴圈場景的具體案例</mark>。閉包捕捉的是「綁定」不是「值」，這支動畫把那句抽象的話畫成了畫面。</li>
-<li>05-作用域-scope-global-function-block：<mark style="background: #D2B3FFA6;color: var(--ink);">函式作用域 vs 區塊作用域的差別，決定了 (i) 與 (j) 的不同結果</mark>。那篇是理論，這裡是它造成的實際 bug。</li>
-<li>事件流與事件代理：<mark style="background: #D2B3FFA6;color: var(--ink);">同樣是「一個迴圈綁一堆事件」的場景</mark>。事件代理提供的是另一條解法——根本不要綁三次，綁在父層用一次。</li>
+<li>13-閉包-Closure-私有變數與傳址陷阱：<mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">(h)–(j) 就是那篇「傳址陷阱」在迴圈場景的具體案例</mark>。閉包捕捉的是「綁定」不是「值」，這支動畫把那句抽象的話畫成了畫面。</li>
+<li>05-作用域-scope-global-function-block：<mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">函式作用域 vs 區塊作用域的差別，決定了 (i) 與 (j) 的不同結果</mark>。那篇是理論，這裡是它造成的實際 bug。</li>
+<li>事件流與事件代理：<mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">同樣是「一個迴圈綁一堆事件」的場景</mark>。事件代理提供的是另一條解法——根本不要綁三次，綁在父層用一次。</li>
 </ul>
 <hr />
 <h2 id="_4">各對話來源（原文）</h2>

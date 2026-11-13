@@ -87,8 +87,8 @@ footer.page-foot {
 2. 呼應 [[控制流與錯誤處理-區塊語句-falsy-switch貫穿-throw-try-catch-finally]] 的 (o)(p)(q)：<code>document.all</code> 之所以會被特許轉成 falsy，前提就是本篇 (a) 講的「<code>document</code> 是被物件化出來的 JS 物件」。</p>
 </blockquote>
 <h2>1. 為什麼瀏覽器要把頁面跟視窗「物件化」（a–b）</h2>
-<p>(a) <mark style="background: #ADCCFFA6;color: var(--ink);">JavaScript 引擎不能直接理解 HTML 原始碼或瀏覽器視窗本身</mark>，所以瀏覽器會把這些東西轉化成 JS 看得懂的物件結構，才能被程式碼讀取與修改。HTML 原始碼只是純文字（例如 <code>&lt;button id="btn"&gt;按我&lt;/button&gt;</code>），瀏覽器解析後會建立對應的 JS 物件，掛上屬性與方法，例如 <code>document.getElementById('btn')</code> 拿到的 <code>button</code> 物件可以直接讀 <code>button.textContent</code>、寫 <code>button.style.color = 'red'</code>。</p>
-<p>(b) <mark style="background: #FFF3A3A6;color: var(--ink);">DOM（Document Object Model）管頁面內容，BOM（Browser Object Model）管瀏覽器視窗本身</mark>，兩者是不同層級的物件化結果：</p>
+<p>(a) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">JavaScript 引擎不能直接理解 HTML 原始碼或瀏覽器視窗本身</mark>，所以瀏覽器會把這些東西轉化成 JS 看得懂的物件結構，才能被程式碼讀取與修改。HTML 原始碼只是純文字（例如 <code>&lt;button id="btn"&gt;按我&lt;/button&gt;</code>），瀏覽器解析後會建立對應的 JS 物件，掛上屬性與方法，例如 <code>document.getElementById('btn')</code> 拿到的 <code>button</code> 物件可以直接讀 <code>button.textContent</code>、寫 <code>button.style.color = 'red'</code>。</p>
+<p>(b) <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">DOM（Document Object Model）管頁面內容，BOM（Browser Object Model）管瀏覽器視窗本身</mark>，兩者是不同層級的物件化結果：</p>
 <pre><code class="hljs language-text">window   (BOM 頂層物件，代表瀏覽器本身)
 └── document   (DOM 頂層物件，代表當前載入的 HTML 頁面)
     └── &lt;html&gt;
@@ -98,7 +98,7 @@ footer.page-foot {
 <p>DOM 部分：瀏覽器解析 HTML 時把每個標籤、文字、屬性都轉成一個個 JS 物件並組成樹狀結構（DOM Tree），根物件是 <code>document</code>。</p>
 <p>BOM 部分：整個瀏覽器視窗（網址列、瀏覽歷史、螢幕解析度、視窗大小）被封裝成以 <code>window</code> 為頂層的物件，例如 <code>window.location</code>（網址，<code>window.location.href = '...'</code> 可轉址）、<code>window.history</code>（瀏覽歷史，<code>window.history.back()</code> 模擬上一頁）、<code>window.navigator</code>（使用者裝置與瀏覽器資訊）。</p>
 <h2>2. 樹狀導覽：原生 DOM 屬性 vs jQuery 方法（c–e）</h2>
-<p>(c) <mark style="background: #BBFABBA6;color: var(--ink);">「樹狀導覽（Tree Navigation）」屬性是 JavaScript 原生（Vanilla JS）的 DOM 屬性，不是 jQuery 專屬</mark>——<code>parentNode</code>、<code>childNodes</code>、<code>firstChild</code>、<code>lastChild</code>、<code>previousSibling</code>、<code>nextSibling</code> 全部是 DOM Level 1 標準就有的原生屬性。會覺得眼熟是因為 jQuery 本來就是為了封裝、簡化這些原生操作而設計的：</p>
+<p>(c) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">「樹狀導覽（Tree Navigation）」屬性是 JavaScript 原生（Vanilla JS）的 DOM 屬性，不是 jQuery 專屬</mark>——<code>parentNode</code>、<code>childNodes</code>、<code>firstChild</code>、<code>lastChild</code>、<code>previousSibling</code>、<code>nextSibling</code> 全部是 DOM Level 1 標準就有的原生屬性。會覺得眼熟是因為 jQuery 本來就是為了封裝、簡化這些原生操作而設計的：</p>
 <table>
 <thead>
 <tr>
@@ -140,7 +140,7 @@ footer.page-foot {
 </tr>
 </tbody>
 </table>
-<p>(d) <mark style="background: #FF5582A6;color: var(--ink);">原生 DOM 陷阱：<code>Node</code>（節點）包含文字節點、註解節點，不只有 <code>Element</code>（HTML 標籤）</mark>。用 <code>childNodes</code>／<code>firstChild</code> 存取時，換行與空格會被算成獨立的文字節點：</p>
+<p>(d) <mark style="background: #FF5582A6;color: oklch(0.22 0.03 260);">原生 DOM 陷阱：<code>Node</code>（節點）包含文字節點、註解節點，不只有 <code>Element</code>（HTML 標籤）</mark>。用 <code>childNodes</code>／<code>firstChild</code> 存取時，換行與空格會被算成獨立的文字節點：</p>
 <pre><code class="hljs language-html">&lt;div id=&quot;parent&quot;&gt;
   &lt;p&gt;Hello&lt;/p&gt;
 &lt;/div&gt;
@@ -149,9 +149,9 @@ footer.page-foot {
 console.log(parent.firstChild);
 // 拿到的不是 &lt;p&gt;！而是 &lt;div&gt; 與 &lt;p&gt; 之間的「換行＋空格」文字節點
 </code></pre>
-<p>(e) <mark style="background: #BBFABBA6;color: var(--ink);">解法是改用帶有 Element 字眼的現代屬性</mark>，只回傳真正的 HTML 元素、自動濾掉空白文字節點：<code>parentElement</code>、<code>children</code>（取代 <code>childNodes</code>）、<code>firstElementChild</code>（取代 <code>firstChild</code>）、<code>lastElementChild</code>（取代 <code>lastChild</code>）、<code>previousElementSibling</code>（取代 <code>previousSibling</code>）、<code>nextElementSibling</code>（取代 <code>nextSibling</code>）。這正是 jQuery 當年大受歡迎的原因之一——<code>$(node).children()</code> 自動濾空白，原生 DOM 後來才補上對應版本。</p>
+<p>(e) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">解法是改用帶有 Element 字眼的現代屬性</mark>，只回傳真正的 HTML 元素、自動濾掉空白文字節點：<code>parentElement</code>、<code>children</code>（取代 <code>childNodes</code>）、<code>firstElementChild</code>（取代 <code>firstChild</code>）、<code>lastElementChild</code>（取代 <code>lastChild</code>）、<code>previousElementSibling</code>（取代 <code>previousSibling</code>）、<code>nextElementSibling</code>（取代 <code>nextSibling</code>）。這正是 jQuery 當年大受歡迎的原因之一——<code>$(node).children()</code> 自動濾空白，原生 DOM 後來才補上對應版本。</p>
 <h2>3. Property（屬性存取）vs Attribute（HTML 標籤屬性）（f–h）</h2>
-<p>(f) <mark style="background: #ADCCFFA6;color: var(--ink);">原生 DOM 提供大量「Property（屬性）」，意思就是可以用點記號 <code>.</code> 直接讀寫，不用加括號呼叫</mark>。Property 代表物件的狀態／資料（直接存取），Method（方法）代表物件的行為／動作（要加 <code>()</code> 呼叫執行）：</p>
+<p>(f) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">原生 DOM 提供大量「Property（屬性）」，意思就是可以用點記號 <code>.</code> 直接讀寫，不用加括號呼叫</mark>。Property 代表物件的狀態／資料（直接存取），Method（方法）代表物件的行為／動作（要加 <code>()</code> 呼叫執行）：</p>
 <pre><code class="hljs language-js">// Property：直接讀寫，不加括號
 const el = node.parentElement;
 node.textContent = &quot;Hello World&quot;;
@@ -161,7 +161,7 @@ node.appendChild(newChild);
 document.getElementById(&quot;myId&quot;);
 </code></pre>
 <p>(g) 三類常見的可直接存取 Property：① 樹狀導覽（唯讀）如 <code>box.parentElement</code>、<code>box.children</code>、<code>box.nextElementSibling</code>；② 內容操作（可讀寫）如 <code>title.textContent = '新標題'</code>、<code>title.style.color = 'red'</code>；③ HTML 標籤屬性的直接映射（可讀寫）如 <code>img.src = '...'</code>、<code>input.value = '...'</code>、<code>input.disabled = true</code>。</p>
-<p>(h) <mark style="background: #FFF3A3A6;color: var(--ink);">DOM Property 與 HTML Attribute 是兩個經常被混淆的概念</mark>：</p>
+<p>(h) <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">DOM Property 與 HTML Attribute 是兩個經常被混淆的概念</mark>：</p>
 <table>
 <thead>
 <tr>
