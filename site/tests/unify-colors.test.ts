@@ -145,6 +145,20 @@ describe('unifyCssColors：強調色底的白字', () => {
   });
 });
 
+describe('unifyCssColors：只當文字用的狀態色變數', () => {
+  // --g 只用在 color:var(--g)：深色模式補一個提亮版，淺色模式不變；
+  it('只當文字色用的 --g 補深色提亮，且冪等', () => {
+    const once = css(':root{--g:#10b981}.yes{color:var(--g)}');
+    expect(once).toContain(':root{--g:#10b981}');
+    expect(once).toMatch(/@media \(prefers-color-scheme: dark\)\{\s*:root\{--g:oklch\(0\.80/);
+    expect(css(once)).toBe(once);
+  });
+  // 同一個變數也被拿來當背景：提亮會讓白字看不清楚，不處理；
+  it('也當過背景的變數不處理', () => {
+    expect(css(':root{--g:#10b981}.yes{color:var(--g)}.bar{background:var(--g)}')).not.toContain('--g:oklch');
+  });
+});
+
 describe('unifyCssColors：邊線與自訂屬性', () => {
   // 淺灰邊線換成 --line，其他 token 保留；
   it('border 簡寫只換顏色 token', () => {

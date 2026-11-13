@@ -196,7 +196,7 @@ function liftColor(token: string): string | undefined {
 }
 
 // 在規則後面補（或更新）一個深色模式的文字色覆寫：@media (prefers-color-scheme: dark){ 同選擇器{ color: … } }；回傳改動數；
-function setDarkColor(rule: postcss.Rule, value: string): number {
+function setDarkColor(rule: postcss.Rule, value: string, prop = 'color'): number {
   // 下一個節點若已是我們補過的 @media，就只更新它；
   const next = rule.next();
   // 判斷是不是我們的 @media；
@@ -207,16 +207,16 @@ function setDarkColor(rule: postcss.Rule, value: string): number {
     let n = 0;
     let found = false;
     // 找裡面的 color 宣告；
-    (next as postcss.AtRule).walkDecls('color', (d) => { found = true; if (d.value !== value) { d.value = value; n += 1; } });
+    (next as postcss.AtRule).walkDecls(prop, (d) => { found = true; if (d.value !== value) { d.value = value; n += 1; } });
     // 找不到就補；
-    if (!found) { (next as postcss.AtRule).append(postcss.rule({ selector: rule.selector, nodes: [postcss.decl({ prop: 'color', value })] })); n += 1; }
+    if (!found) { (next as postcss.AtRule).append(postcss.rule({ selector: rule.selector, nodes: [postcss.decl({ prop, value })] })); n += 1; }
     // 回傳；
     return n;
   }
   // 沒有：新建 @media，裡面放同一個選擇器的 color；
   const media = postcss.atRule({ name: 'media', params: DARK_QUERY });
   // 放規則；
-  media.append(postcss.rule({ selector: rule.selector, nodes: [postcss.decl({ prop: 'color', value })] }));
+  media.append(postcss.rule({ selector: rule.selector, nodes: [postcss.decl({ prop, value })] }));
   // 插在原規則後面；
   rule.after(media);
   // 一個改動；
@@ -294,6 +294,18 @@ export function unifyCssColors(css: string): UnifyResult {
   const ownVars = new Set<string>();
   // 收集；
   root.walkDecls(/^--/, (d) => { ownVars.add(d.prop.toLowerCase()); });
+  // 只拿來當文字色的自訂屬性（--g 綠、--r 紅這類狀態色）：用在 color:var(--x)、而且從沒當過背景；
+  const textVars = new Set<string>();
+  const bgVars = new Set<string>();
+  // 掃一遍用法；
+  root.walkDecls((d) => {
+    // 取出值裡所有 var(--名稱)；
+    const names = [...d.value.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]);
+    // 文字色用法；
+    if (d.prop.toLowerCase() === 'color') for (const n of names) textVars.add(n);
+    // 背景、邊線、填色、陰影等其他用法一律視為「不是只當文字」；
+    else if (!d.prop.startsWith('--')) for (const n of names) bgVars.add(n);
+  });
   // 逐條規則處理（at-rule 裡的規則也會被走訪到）；
   root.walkRules((rule) => {
     // 這條規則有沒有「換不掉的實體背景」（螢光筆色、漸層、深色底）：有的話文字色就不能換，兩者是成對設計的；
@@ -332,6 +344,8 @@ export function unifyCssColors(css: string): UnifyResult {
     if (rule.parent?.type === 'atrule' && /keyframes$/i.test((rule.parent as postcss.AtRule).name)) return;
     // 深色模式提亮的字色（逐宣告時才會填）；用物件包起來避免 TypeScript 對回呼內賦值的誤判；
     const lift: { value?: string } = {};
+    // 自訂屬性要補深色提亮的清單；
+    const varLifts: Array<[string, string]> = [];
     // 已經在 @media 裡的規則（包含我們自己補的深色覆寫）不再補，避免無限增生；
     const insideMedia = rule.parent?.type === 'atrule' && (rule.parent as postcss.AtRule).name === 'media';
     // 逐一宣告處理；
@@ -380,6 +394,13 @@ export function unifyCssColors(css: string): UnifyResult {
       }
       // 自訂屬性：依名稱猜用途；
       if (prop.startsWith('--')) {
+        // 只當文字色用的有彩度偏暗色：記下來，規則處理完後補深色模式提亮版（同一個屬性名，不碰頁面自己在 @media 裡的定義）；
+        if (textVars.has(decl.prop) && !bgVars.has(decl.prop) && !inMedia.has(decl.prop) && !insideMedia) {
+          // 算提亮色；
+          const lifted = liftColor(decl.value.trim());
+          // 有就記；
+          if (lifted !== undefined) varLifts.push([decl.prop, lifted]);
+        }
         // 名稱像背景：換成表面變數；名稱像文字：換成文字變數；
         const mapper = TEXT_SOFT_NAME.test(prop) ? mapMuted : BG_NAME.test(prop) ? mapSurface : INK_NAME.test(prop) ? mapText : MUTED_NAME.test(prop) ? mapMuted : LINE_NAME.test(prop) ? mapLine : undefined;
         // 猜不出來就不動；
@@ -421,6 +442,8 @@ export function unifyCssColors(css: string): UnifyResult {
     }
     // 寫死的「有彩度深色字」（金、藍、紫的強調字）在深色卡片上看不清楚：補一個深色模式覆寫，同色相、明度提高到 0.80；
     if (lift.value !== undefined && !insideMedia) changes += setDarkColor(rule, lift.value);
+    // 只當文字用的自訂屬性（狀態色）也補深色提亮；
+    for (const [prop, value] of varLifts) changes += setDarkColor(rule, value, prop);
   });
   // 輸出；
   return { text: root.toString(), changes };
