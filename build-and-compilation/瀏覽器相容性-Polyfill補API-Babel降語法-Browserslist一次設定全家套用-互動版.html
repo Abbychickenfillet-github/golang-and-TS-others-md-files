@@ -98,19 +98,19 @@ textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding
 </blockquote>
 <h2>重點整理</h2>
 <h3>一、事件監聽為什麼要包一層匿名函式（a–c）</h3>
-<p>(a) <mark style="background: #FF5582A6;">不能寫 <code>el.addEventListener('blur', checkUsername(5))</code></mark>。這樣寫會在執行到這一行時「立刻執行」<code>checkUsername(5)</code>，再把它的回傳值交給監聽器，達不到「等 blur 發生才執行」的目的。</p>
+<p>(a) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">不能寫 <code>el.addEventListener('blur', checkUsername(5))</code></mark>。這樣寫會在執行到這一行時「立刻執行」<code>checkUsername(5)</code>，再把它的回傳值交給監聽器，達不到「等 blur 發生才執行」的目的。</p>
 <pre><code class="language-js">// ✅ 包一層匿名函式，事件發生時才執行內部呼叫
 el.addEventListener('blur', function () {
   checkUsername(5);
 }, false);
 </code></pre>
-<p>(b) <mark style="background: #ADCCFFA6;">詞法作用域（Lexical Scope）是規則</mark>：這個匿名函式在「定義的位置」就決定了它能存取外層的 <code>checkUsername</code> 與數字 <code>5</code>。</p>
-<p>(c) <mark style="background: #FFF3A3A6;">閉包（Closure）是現象與機制</mark>：匿名函式被註冊給 DOM 元素之後，主程式跑完它仍留在記憶體裡等待觸發；blur 發生時它在全新的執行環境中被呼叫，卻依然能存取當初定義時捕獲的環境。<mark style="background: #FFF3A3A6;">所以這題的核心答案是「閉包」，詞法作用域只是它成立的前提。</mark></p>
+<p>(b) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">詞法作用域（Lexical Scope）是規則</mark>：這個匿名函式在「定義的位置」就決定了它能存取外層的 <code>checkUsername</code> 與數字 <code>5</code>。</p>
+<p>(c) <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">閉包（Closure）是現象與機制</mark>：匿名函式被註冊給 DOM 元素之後，主程式跑完它仍留在記憶體裡等待觸發；blur 發生時它在全新的執行環境中被呼叫，卻依然能存取當初定義時捕獲的環境。<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">所以這題的核心答案是「閉包」，詞法作用域只是它成立的前提。</mark></p>
 <h3>二、相容性程式碼不用手寫（d–g）</h3>
-<p>(d) <mark style="background: #FF5582A6;">全部手寫 <code>if...else</code> 檢查瀏覽器能力，程式碼會很髒且難以維護</mark>。現代前端早就交給自動化編譯工具處理。</p>
-<p>(e) <mark style="background: #ADCCFFA6;">Polyfill（墊片庫）＝補「缺失的 API」</mark>，代表套件是 <code>core-js</code>。你正常寫 <code>el.addEventListener(...)</code>，Polyfill 會在載入時偵測環境，發現舊瀏覽器不支援就自動掛上模擬的 API。</p>
-<p>(f) <mark style="background: #ADCCFFA6;">Transpiler（語法轉譯器）＝把「新語法」翻成「舊語法」</mark>，代表工具是 <code>Babel</code>（現代專案大多已整合在 Vite、Next.js、Webpack 底層）。箭頭函式、<code>async/await</code>、<code>const</code>/<code>let</code> 都會被翻成 ES5 的 <code>var</code> 與 <code>function</code>。</p>
-<p>(g) 兩者的分工一句話記：<mark style="background: #FFF3A3A6;">Babel 管「語法（syntax）」，Polyfill 管「內建物件與方法（API）」</mark>。<code>Promise</code>、<code>Array.prototype.includes</code> 這些是 API，Babel 翻不出來，只能靠 Polyfill 補。</p>
+<p>(d) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">全部手寫 <code>if...else</code> 檢查瀏覽器能力，程式碼會很髒且難以維護</mark>。現代前端早就交給自動化編譯工具處理。</p>
+<p>(e) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Polyfill（墊片庫）＝補「缺失的 API」</mark>，代表套件是 <code>core-js</code>。你正常寫 <code>el.addEventListener(...)</code>，Polyfill 會在載入時偵測環境，發現舊瀏覽器不支援就自動掛上模擬的 API。</p>
+<p>(f) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Transpiler（語法轉譯器）＝把「新語法」翻成「舊語法」</mark>，代表工具是 <code>Babel</code>（現代專案大多已整合在 Vite、Next.js、Webpack 底層）。箭頭函式、<code>async/await</code>、<code>const</code>/<code>let</code> 都會被翻成 ES5 的 <code>var</code> 與 <code>function</code>。</p>
+<p>(g) 兩者的分工一句話記：<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">Babel 管「語法（syntax）」，Polyfill 管「內建物件與方法（API）」</mark>。<code>Promise</code>、<code>Array.prototype.includes</code> 這些是 API，Babel 翻不出來，只能靠 Polyfill 補。</p>
 <table>
 <thead>
 <tr>
@@ -142,22 +142,22 @@ el.addEventListener('blur', function () {
 </tbody>
 </table>
 <h3>三、Browserslist 是什麼（h–k）</h3>
-<p>(h) <mark style="background: #FF5582A6;">Browserslist 不是瀏覽器外掛（Extension）</mark>，而是前端工具生態系的「共用設定規格＋一個 npm 套件」。</p>
-<p>(i) <mark style="background: #ADCCFFA6;">它的核心工作是把「人類語言的條件」轉成「確切的瀏覽器與版本號清單」</mark>。</p>
+<p>(h) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">Browserslist 不是瀏覽器外掛（Extension）</mark>，而是前端工具生態系的「共用設定規格＋一個 npm 套件」。</p>
+<p>(i) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">它的核心工作是把「人類語言的條件」轉成「確切的瀏覽器與版本號清單」</mark>。</p>
 <pre><code>你寫的條件：
 &gt; 0.5%, last 2 versions, not dead
 
 Browserslist 解析出來的結果：
 chrome 124, chrome 123, safari 17.4, safari 17.3, edge 124, firefox 125...
 </code></pre>
-<p>(j) <mark style="background: #FFF3A3A6;">它是前端建置流程的「中央指令中心」：一次設定，Babel、Autoprefixer、PostCSS、SWC 全家套用</mark>，不必在每個工具的設定檔各寫一次相容目標。</p>
+<p>(j) <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">它是前端建置流程的「中央指令中心」：一次設定，Babel、Autoprefixer、PostCSS、SWC 全家套用</mark>，不必在每個工具的設定檔各寫一次相容目標。</p>
 <pre><code>                   ┌──&gt; Babel        （決定語法要降到哪個 ES 版本）
                    │
 .browserslistrc ───┼──&gt; Autoprefixer （決定 CSS 要加哪些 -webkit- / -moz- 前綴）
                    │
                    └──&gt; PostCSS / SWC（決定要打包哪些 Polyfill）
 </code></pre>
-<p>(k) <mark style="background: #BBFABBA6;">不需要把每個瀏覽器都列出來</mark>，這些條件之間是 OR（聯集）關係：</p>
+<p>(k) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">不需要把每個瀏覽器都列出來</mark>，這些條件之間是 OR（聯集）關係：</p>
 <table>
 <thead>
 <tr>
@@ -187,7 +187,7 @@ chrome 124, chrome 123, safari 17.4, safari 17.3, edge 124, firefox 125...
 <div class="callout" style="border-left-color:#BBFABB"><div class="callout-title">💡 要指定特定瀏覽器才需要寫死</div><div class="callout-body"><p><code>Chrome &gt;= 80</code>、<code>iOS &gt;= 12</code>、<code>ie 11</code>、<code>last 2 Chrome versions</code>。大部分現代專案只要 <code>&gt; 0.5%</code> / <code>last 2 versions</code> / <code>not dead</code> 三行。</p></div></div>
 
 <h3>四、寫在 package.json 的兩種格式（l–n）</h3>
-<p>(l) <mark style="background: #BBFABBA6;">陣列格式（一般專案）</mark>：在根層級加一個 <code>"browserslist"</code> 欄位，值是字串陣列，元素之間同樣是 OR 關係。</p>
+<p>(l) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">陣列格式（一般專案）</mark>：在根層級加一個 <code>"browserslist"</code> 欄位，值是字串陣列，元素之間同樣是 OR 關係。</p>
 <pre><code class="language-json">{
   &quot;name&quot;: &quot;my-project&quot;,
   &quot;version&quot;: &quot;1.0.0&quot;,
@@ -200,7 +200,7 @@ chrome 124, chrome 123, safari 17.4, safari 17.3, edge 124, firefox 125...
   ]
 }
 </code></pre>
-<p>(m) <mark style="background: #D2B3FFA6;">物件格式（分環境）</mark>：開發環境只支援最新瀏覽器以換取編譯速度，正式環境才追求相容性。</p>
+<p>(m) <mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">物件格式（分環境）</mark>：開發環境只支援最新瀏覽器以換取編譯速度，正式環境才追求相容性。</p>
 <pre><code class="language-json">{
   &quot;browserslist&quot;: {
     &quot;production&quot;: [&quot;&gt; 0.5%&quot;, &quot;last 2 versions&quot;, &quot;not dead&quot;],
@@ -212,18 +212,18 @@ chrome 124, chrome 123, safari 17.4, safari 17.3, edge 124, firefox 125...
   }
 }
 </code></pre>
-<p>(n) <mark style="background: #FFB8EBA6;">寫在 <code>package.json</code> 的好處是少維護一個 <code>.browserslistrc</code> 檔案</mark>，中小型專案更乾淨；大型專案或需要註解時才拆成獨立檔（<code>.browserslistrc</code> 支援 <code>#</code> 註解，JSON 不支援）。</p>
+<p>(n) <mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">寫在 <code>package.json</code> 的好處是少維護一個 <code>.browserslistrc</code> 檔案</mark>，中小型專案更乾淨；大型專案或需要註解時才拆成獨立檔（<code>.browserslistrc</code> 支援 <code>#</code> 註解，JSON 不支援）。</p>
 <h3>追加 2026-11-15：@babel/preset-env 的「env」指什麼</h3>
-<p>(a) <mark style="background: #ADCCFFA6;">preset-env</mark> 的 env 指「目標執行環境」（特定版本的瀏覽器或 Node.js 宿主環境，host environment）。不是環境變數 env。
+<p>(a) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">preset-env</mark> 的 env 指「目標執行環境」（特定版本的瀏覽器或 Node.js 宿主環境，host environment）。不是環境變數 env。
 (b) Babel 依目標環境決定哪些語法需要 transpile，並引入對應 polyfill。
 (c) Babel 主要針對 JavaScript，不處理 CSS（CSS 由 Autoprefixer／PostCSS 依 Browserslist 處理）。
 (d) 設定方式：在專案中透過設定檔（例如 .babelrc）指定，Babel 不會自動生效。
 (e) 同對話順帶：testing-library/jest-dom 唸作 Testing Library slash Jest DOM，提供斷言 DOM 節點狀態的擴充 matcher，確保 UI 反映應用程式狀態。testing-library/react 提供 helper functions，以使用者實際操作方式測試 React 元件。</p>
 <h2>⚠️ 存疑／更正</h2>
 <ul>
-<li>Gemini 說 Browserslist 的資料「來自 Can I Use」。<mark style="background: #FF5582A6;">更精確的說法是：版本與支援度資料來自 <code>caniuse-lite</code>，但市佔率統計來自 StatCounter GlobalStats</mark>，兩者是不同來源。這也代表 <code>&gt; 0.5%</code> 的結果會隨 <code>caniuse-lite</code> 版本更新而變動，所以官方建議定期執行 <code>npx update-browserslist-db@latest</code>——這點 Gemini 完全沒提，卻是實務上最常出現的建置警告。</li>
-<li>Gemini 舉的解析結果（chrome 124 / safari 17.4）是 2024 年前後的版本號，<mark style="background: #FF5582A6;">當作示意即可，不要當成現在的實際輸出</mark>。</li>
-<li>Gemini 提到「Vue CLI」。<mark style="background: #FF5582A6;">Vue CLI 已於 2024 年進入維護模式</mark>，新專案官方建議改用 <code>create-vue</code> + Vite。</li>
+<li>Gemini 說 Browserslist 的資料「來自 Can I Use」。<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">更精確的說法是：版本與支援度資料來自 <code>caniuse-lite</code>，但市佔率統計來自 StatCounter GlobalStats</mark>，兩者是不同來源。這也代表 <code>&gt; 0.5%</code> 的結果會隨 <code>caniuse-lite</code> 版本更新而變動，所以官方建議定期執行 <code>npx update-browserslist-db@latest</code>——這點 Gemini 完全沒提，卻是實務上最常出現的建置警告。</li>
+<li>Gemini 舉的解析結果（chrome 124 / safari 17.4）是 2024 年前後的版本號，<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">當作示意即可，不要當成現在的實際輸出</mark>。</li>
+<li>Gemini 提到「Vue CLI」。<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">Vue CLI 已於 2024 年進入維護模式</mark>，新專案官方建議改用 <code>create-vue</code> + Vite。</li>
 </ul>
 <h2>各對話來源</h2>
 <h3>瀏覽器相容性處理的原理與原因（2026-09）— https://gemini.google.com/app/a1a14102e2207433</h3>
