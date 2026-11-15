@@ -2,35 +2,76 @@
 <html lang="zh-TW">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CSRF 與 Antiforgery Cookie（.AspNetCore.Antiforgery）</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-<link rel="stylesheet" href="../../../assets/note-theme.css">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CSRF 與 Antiforgery Cookie</title>
 <style>
-:root{--muted:var(--sub);--accent-soft:var(--soft);}
-header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
-h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
-.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
-.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
-.meta{margin-top:8px;}
-.meta a{color:var(--accent);text-decoration:none;}
-.meta a:hover{text-decoration:underline;}
-.card{margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
-h2{padding-left:11px;border-left:4px solid var(--accent);}
-h4{font-size:.98rem;margin:1.1em 0 .4em;color:var(--sub);}
-mark{cursor:pointer;transition:color .12s,background .12s;}
-mark.quiz-hidden{color:transparent!important;background:#cbd2dc!important;border-radius:4px;box-shadow:inset 0 0 0 1px #aab3c0;user-select:none;}
-mark.quiz-hidden *{color:transparent!important;}
-.quiz-bar{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap;}
-.quiz-btn{cursor:pointer;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:.8rem;padding:5px 14px;border-radius:999px;}
-.quiz-btn:hover{background:var(--accent);color:var(--on-accent);}
-.quiz-hint{color:var(--muted);font-size:.76rem;}
-pre code{display:block;font-size:.86rem;line-height:1.6;}
-tr:nth-child(even) td{background:var(--card);}
-img{border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
-footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+:root{--bg:#fbfaf7;--card:#fff;--ink:#23303b;--muted:#6b7b88;--line:#e4e8ec;--accent:#3f6f8f;--accent-soft:#eaf2f7;
+--hl-core:#FFF3A3;--hl-warn:#FF5582;--hl-ok:#BBFABB;--hl-term:#ADCCFF;--hl-data:#FFB8EB;--hl-note:#D2B3FF}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,"Segoe UI",sans-serif;font-size:16.5px}
+.wrap{max-width:none;margin:0;padding:26px 30px 80px}
+.layout{display:flex;gap:28px;align-items:flex-start}
+.content{flex:1 1 auto;min-width:0}
+.toc{position:sticky;top:18px;flex:0 0 260px;max-height:calc(100vh - 36px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 14px;font-size:.87rem}
+.toc h4{margin:0 0 10px;font-size:.74rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.toc ol{list-style:none;padding:0;margin:0}
+.toc a{display:block;padding:6px 10px;border-radius:8px;color:var(--ink);text-decoration:none;border-left:2px solid transparent;transition:.15s;line-height:1.35}
+.toc a:hover{background:var(--accent-soft)}
+.toc a.active{background:var(--accent-soft);border-left-color:var(--accent);color:var(--accent);font-weight:600}
+header.hero{background:linear-gradient(135deg,#f8eef0,#f8f4ee);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:18px}
+header.hero h1{margin:0 0 10px;font-size:1.55rem;font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;border-radius:999px;padding:3px 11px;font-size:.78rem}
+.meta{font-size:.84rem;color:var(--muted);margin-top:10px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 16px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 20px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin-bottom:18px}
+.card>h2:first-child{margin-top:0}
+h2{font-size:1.24rem;margin:30px 0 12px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36;scroll-margin-top:16px}
+h3{font-size:1.04rem;margin:20px 0 9px;color:#2c4a5e}
+p{margin:10px 0}ul,ol{padding-left:1.5em}li{margin:5px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;font-family:"JetBrains Mono",Consolas,monospace}
+pre{background:#1f2933;color:#e6edf3;padding:15px 17px;border-radius:11px;overflow-x:auto;font-size:.85rem;line-height:1.6;margin:13px 0}
+pre code{background:none;color:inherit;padding:0}.cmt{color:#8fa3b0}
+blockquote{margin:14px 0;padding:11px 16px;background:#f6f8fa;border-left:4px solid var(--accent);border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:5px 0}
+.plain{color:#5a6b76;font-size:.93em;margin:6px 0 12px;padding-left:12px;border-left:3px solid #d8e2e9}
+.plain b{color:#3d5567}
+.ask{background:#fff6e5;border:1px solid #f0d8a0;border-left:4px solid #e0a53a;border-radius:0 9px 9px 0;padding:10px 15px;margin:14px 0;font-size:.95rem}
+.ask b{color:#9a6a12}
+.diagram{background:#fcfdfe;border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0;text-align:center}
+.diagram svg{max-width:100%;height:auto}
+.cap{font-size:.8rem;color:var(--muted);margin-top:8px}
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;color:inherit}
+mark.hl-core{background:var(--hl-core)}mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}mark.hl-term{background:var(--hl-term)}mark.hl-data{background:var(--hl-data)}mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;user-select:none}
+mark.hl.masked::after{content:"?";color:#5c6b76;font-weight:700;position:absolute;margin-left:-.8em}
+.devtools{font-family:"JetBrains Mono",Consolas,monospace;font-size:.8rem;border:1px solid #c9d2d8;border-radius:8px;overflow:hidden;margin:12px 0}
+.devtools .bar{background:#f1f3f4;padding:6px 12px;color:#5f6368;border-bottom:1px solid #d9dde1;font-size:.78rem}
+.devtools table{width:100%;border-collapse:collapse;display:table}
+.devtools th{background:#f8f9fa;color:#3c4043;text-align:left;padding:6px 10px;border-bottom:1px solid #d9dde1;font-weight:600;white-space:nowrap}
+.devtools td{padding:6px 10px;border-bottom:1px solid #eceff1;white-space:nowrap}
+.devtools .ss{font-weight:700;color:#b23}
+.cmp{display:flex;gap:14px;flex-wrap:wrap}
+.cmp>div{flex:1;min-width:250px;border:1px solid var(--line);border-radius:10px;padding:14px}
+.ic{width:38px;height:38px;vertical-align:middle}
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist>li{margin:16px 0;padding-bottom:12px;border-bottom:1px dashed var(--line)}.qlist>li:last-child{border-bottom:none}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;padding:2px 8px;font-size:1rem;font-family:inherit;min-width:7em;outline:none}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:40px;padding-top:18px;border-top:1px solid var(--line)}
+@media(max-width:860px){.wrap{padding:16px 14px 60px}.layout{flex-direction:column}.toc{position:static;flex:none;width:100%;max-height:none}}
+@media print{.toolbar,.toc,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
 </style>
-<link rel="stylesheet" href="../../../assets/notes.css">
 </head>
 <body>
 
@@ -64,9 +105,9 @@ footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:
 
 <div class="toolbar"><button id="maskAll">🙈 全部遮起來</button><button id="showAll">👀 全部顯示</button></div>
 <div class="legend">
-<span style="background:#FFF3A3;color:oklch(0.22 0.03 260)">核心重點</span><span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
-<span style="background:#BBFABB;color:oklch(0.22 0.03 260)">正解建議</span><span style="background:#ADCCFF;color:oklch(0.22 0.03 260)">術語定義</span>
-<span style="background:#FFB8EB;color:oklch(0.22 0.03 260)">數據補充</span><span style="background:#D2B3FF;color:oklch(0.22 0.03 260)">次要備註</span>
+<span style="background:#FFF3A3">核心重點</span><span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+<span style="background:#BBFABB">正解建議</span><span style="background:#ADCCFF">術語定義</span>
+<span style="background:#FFB8EB">數據補充</span><span style="background:#D2B3FF">次要備註</span>
 <span>　← 點螢光筆可遮</span>
 </div>
 
@@ -110,9 +151,9 @@ footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:
 <article class="card">
 <h2 id="s2">2. 為什麼 cookie 會害你中招</h2>
 <ul>
-<li><code>.AspNetCore.Antiforgery</code> 這支 cookie 的用途是<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">防止跨站請求偽造攻擊（CSRF, Cross-Site Request Forgery）</mark>，用來驗證表單送出時的安全性。</li>
-<li><mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">它跟「帳戶被鎖定」沒有關係，刪掉它也不會解鎖帳戶。</mark>帳戶鎖定通常是後端的登入失敗次數 / 安全策略造成的。</li>
-<li><mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">正解：</mark>系統顯示「用戶帳戶被鎖定」時，應直接聯絡該網站客服處理，而不是自己刪 cookie。</li>
+<li>瀏覽器規則:<mark class="hl hl-core" tabindex="0">只要請求送往某網域,就自動帶上「屬於該網域」的 cookie</mark>——不管這個請求是你自己按的,還是別的網站偷偷發起的。</li>
+<li>所以 evil.com 不需要知道你的 cookie 內容,只要<mark class="hl hl-warn" tabindex="0">「對 bank.com 發請求」這個動作由你的瀏覽器執行</mark>,cookie 就自動跟上。</li>
+<li>這也是為什麼 <b>純靠 cookie 當身分憑證</b>的動作(轉帳、改密碼、刪資料)特別需要 CSRF 防護。</li>
 </ul>
 </article>
 
@@ -145,8 +186,9 @@ footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:
 <div class="cap">Origin ＝「哪個網站」；Referer ＝「哪一個網頁」（更細，含路徑）</div>
 </div>
 <ul>
-<li>送出請求後若 DevTool 的 Network 沒有出現 <code>200</code> 成功回應，代表該動作<mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">沒有真的串到 API</mark>（前端表單可能根本沒打到後端）。這是判斷「重置密碼到底有沒有生效」的好線索。</li>
-<li>查 cookie 用途：F12 → Application → Cookies，看 cookie 的 <code>name</code> 與 domain。看到 <code>Antiforgery</code>、<code>XSRF-TOKEN</code>、<code>csrf</code> 這類字眼，多半就是 CSRF 防護 token，不是身分驗證或鎖定相關。</li>
+<li><b>Origin</b>:只到<mark class="hl hl-term" tabindex="0">網站層級 <code>scheme://host:port</code></mark>,<b>不含路徑</b>。POST／跨站請求幾乎都會帶。</li>
+<li><b>Referer</b>(歷史拼錯,少一個 r):是<mark class="hl hl-term" tabindex="0">發出請求那「個網頁」的完整網址</mark>,含 path;可能被 <code>Referrer-Policy</code> 砍短或拿掉。</li>
+<li>CSRF 防禦用法:<mark class="hl hl-ok" tabindex="0">後端檢查 Origin／Referer 是不是自家網域</mark>,是 evil.com 就擋。</li>
 </ul>
 </article>
 
@@ -240,17 +282,40 @@ footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:
 
 <script>
 (function(){
-  var marks=[].slice.call(document.querySelectorAll('mark'));
-  marks.forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('quiz-hidden');});});
-  var btn=document.getElementById('quizToggle'),hidden=false;
-  if(btn){btn.addEventListener('click',function(){
-    hidden=!hidden;
-    marks.forEach(function(m){m.classList.toggle('quiz-hidden',hidden);});
-    btn.textContent=hidden?'👀 顯示全部重點':'🙈 隱藏全部重點（自我測驗）';
-  });}
-})();</script>
-<script src="../assets/wikilink.js" data-root="../"></script>
-<script src="../../../assets/notes.js" defer></script>
-<script src="../../../assets/note-mask.js"></script>
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var t=function(){m.classList.toggle('masked')};
+    m.addEventListener('click',t);
+    m.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();t()}});
+  });
+  document.getElementById('maskAll').addEventListener('click',function(){document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked')})});
+  document.getElementById('showAll').addEventListener('click',function(){document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked')})});
+  document.querySelectorAll('button.tf').forEach(function(b){b.addEventListener('click',function(){
+    var li=b.closest('li');li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad')});
+    b.classList.add(b.dataset.ok==='true'?'good':'bad');
+    var fb=li.querySelector('.fb');fb.classList.add('show');
+    if(!fb.dataset.done&&fb.dataset.ans){fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent;fb.dataset.done='1'}
+  })});
+  var norm=function(s){return (s||'').trim().toLowerCase()};
+  document.querySelectorAll('button.chk').forEach(function(b){b.addEventListener('click',function(){
+    var li=b.closest('li'),ok=true;
+    li.querySelectorAll('input.blank').forEach(function(i){var g=norm(i.value)===norm(i.dataset.a);i.classList.remove('good','bad');i.classList.add(g?'good':'bad');if(!g)ok=false});
+    if(ok)li.querySelector('.fb').classList.add('show');
+  })});
+  document.querySelectorAll('button.rev').forEach(function(b){b.addEventListener('click',function(){
+    var li=b.closest('li');li.querySelectorAll('input.blank').forEach(function(i){i.value=i.dataset.a;i.classList.remove('bad');i.classList.add('good')});
+    li.querySelector('.fb').classList.add('show');
+  })});
+  document.querySelectorAll('button.rev2').forEach(function(b){b.addEventListener('click',function(){
+    var fb=b.closest('li').querySelector('.fb');fb.classList.toggle('show');
+    b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+  })});
+  var links=[].slice.call(document.querySelectorAll('#toc a')),map={};
+  links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  var heads=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1))}).filter(Boolean);
+  var spy=function(){var pos=scrollY+120,cur=heads[0];heads.forEach(function(h){if(h.offsetTop<=pos)cur=h});
+    links.forEach(function(a){a.classList.remove('active')});if(cur&&map[cur.id])map[cur.id].classList.add('active')};
+  addEventListener('scroll',spy,{passive:true});spy();
+})();
+</script>
 </body>
 </html>
