@@ -4,41 +4,41 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>延遲 Latency：DNS 遞迴查詢、TCP 握手、行動網路與 OSI 七層串聯（互動版）</title>
+<link rel="stylesheet" href="../assets/note-theme.css">
 <style>
 :root {
-  --bg: #f7f6f3; --card: #ffffff; --text: #2b2b2b; --muted: #6b6b6b;
-  --border: #e6e3dc; --accent: #6b8f71; --accent-d: #45614a;
+  --text: var(--ink); --muted: var(--sub);
+  --border: var(--line); --accent-d: #45614a;
   --hl: #dc143c; --hl-bg: #fff3c4;
   --dns: #4f8bd6; --tcp: #e0902b; --tls: #8e5fc7; --http: #3f9d6b;
 }
-* { box-sizing: border-box; }
 body {
-  margin: 0; padding: 0 16px 70px; background: var(--bg); color: var(--text);
-  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
-  line-height: 1.7; font-size: 16px;
+  padding: 0 16px 70px;
 }
-.wrap { max-width: 880px; margin: 0 auto; }
 header.page-head { padding: 34px 0 18px; border-bottom: 2px solid var(--border); margin-bottom: 8px; }
 h1 { font-family: "Noto Serif TC", Georgia, serif; font-size: 1.6em; margin: 0 0 8px; line-height: 1.4; }
-.meta { color: var(--muted); font-size: .9em; }
 .meta a { color: var(--accent-d); }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; margin: 22px 0; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
-h2 { font-size: 1.22em; border-left: 5px solid var(--accent); padding-left: 12px; margin: 0 0 14px; }
-mark { background: #fff3a3; padding: 0 3px; border-radius: 3px; }
+.card { margin: 22px 0; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+h2 { border-left: 5px solid var(--accent); padding-left: 12px; }
+mark { background: #fff3a3; color: oklch(0.22 0.03 260); }
 button, select, input { font: inherit; }
 .btn { cursor: pointer; background: var(--accent-d); color: #fff; border: 0; border-radius: 8px; padding: 7px 14px; font-size: .9em; margin: 3px 4px 3px 0; }
-.btn:hover { background: #37513c; }
-.btn.ghost { background: #eef2ea; color: var(--accent-d); border: 1px solid #d7e2d2; }
+.btn:hover { background: #37513c; color: oklch(0.96 0.01 258); }
+.btn.ghost { background: var(--soft); color: var(--accent-d); border: 1px solid var(--line); }
 .btn.ghost.on { background: var(--accent-d); color: #fff; }
 .btn:disabled { opacity: .45; cursor: default; }
 .hint { color: var(--muted); font-size: .88em; }
 
 /* ---------- flowchart ---------- */
 .fc-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 10px; }
-.info { position: sticky; top: 0; z-index: 5; background: var(--hl-bg); border: 2px solid var(--hl); border-radius: 10px; padding: 10px 14px; margin: 8px 0 12px; min-height: 92px; }
+.info { position: sticky; top: 0; z-index: 5; background: var(--hl-bg); border: 2px solid var(--hl); border-radius: 10px; padding: 10px 14px; margin: 8px 0 12px; min-height: 92px; color: oklch(0.22 0.03 260); }
 .info b { color: #8a0f2a; }
+@media (prefers-color-scheme: dark) {
+  .info b {
+    color: oklch(0.80 0.120 17);
+  }
+}
 .info .tag { display: inline-block; font-size: .78em; background: var(--hl); color: #fff; border-radius: 999px; padding: 1px 10px; margin-right: 6px; }
-.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .85em; color: var(--muted); margin: 6px 0 10px; }
 .legend svg { vertical-align: middle; margin-right: 4px; }
 svg.fc { width: 100%; height: auto; max-width: 760px; display: block; margin: 0 auto; }
 .node { cursor: pointer; }
@@ -56,11 +56,8 @@ svg.fc { width: 100%; height: auto; max-width: 760px; display: block; margin: 0 
 .grid label { display: block; font-size: .88em; color: var(--muted); }
 .grid input[type=range] { width: 100%; }
 .grid select, .grid input[type=number] { width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; }
-.bar { display: flex; height: 38px; border-radius: 8px; overflow: hidden; margin: 8px 0; background: #eee; }
+.bar { display: flex; height: 38px; border-radius: 8px; overflow: hidden; margin: 8px 0; background: var(--soft); }
 .bar div { display: flex; align-items: center; justify-content: center; color: #fff; font-size: .8em; white-space: nowrap; overflow: hidden; transition: width .25s; }
-table { border-collapse: collapse; width: 100%; font-size: .93em; }
-th, td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; vertical-align: top; }
-th { background: #f1efe9; }
 .total { font-size: 1.15em; font-weight: 700; }
 
 /* ---------- OSI ---------- */
@@ -69,47 +66,73 @@ th { background: #f1efe9; }
 .layer:hover { transform: translateX(3px); }
 .layer .n { display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 1.2em; }
 .layer .b { padding: 8px 12px; font-size: .92em; }
-.layer .b small { color: #444; display: block; }
+.layer .b small { color: var(--sub); display: block; }
 .layer.hit { border-color: var(--hl); box-shadow: 0 0 0 3px #dc143c33; }
-.l7 .n { background: #4a78c2; } .l7 .b { background: #dbe6f7; }
-.l6 .n { background: #1fb0cf; } .l6 .b { background: #d6f1f7; }
-.l5 .n { background: #4caf50; } .l5 .b { background: #dff0df; }
-.l4 .n { background: #e6b800; } .l4 .b { background: #fbf0c4; }
-.l3 .n { background: #ef8a2d; } .l3 .b { background: #fbe0c6; }
-.l2 .n { background: #d9459b; } .l2 .b { background: #f6d5e7; }
-.l1 .n { background: #d9302c; } .l1 .b { background: #f7d2d0; }
+.l7 .n { background: #4a78c2; color: oklch(0.22 0.03 260); } .l7 .b { background: #dbe6f7; color: oklch(0.22 0.03 260); }
+.l6 .n { background: #1fb0cf; color: oklch(0.22 0.03 260); } .l6 .b { background: var(--soft); }
+.l5 .n { background: #4caf50; color: oklch(0.22 0.03 260); } .l5 .b { background: var(--soft); }
+.l4 .n { background: #e6b800; color: oklch(0.22 0.03 260); } .l4 .b { background: #fbf0c4; color: oklch(0.22 0.03 260); }
+.l3 .n { background: #ef8a2d; color: oklch(0.22 0.03 260); } .l3 .b { background: #fbe0c6; color: oklch(0.22 0.03 260); }
+.l2 .n { background: #d9459b; color: oklch(0.22 0.03 260); } .l2 .b { background: #f6d5e7; color: oklch(0.22 0.03 260); }
+.l1 .n { background: #d9302c; color: oklch(0.22 0.03 260); } .l1 .b { background: #f7d2d0; color: oklch(0.22 0.03 260); }
 
 
 /* ---------- event loop ---------- */
 .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 10px 0; }
-.box { border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px; background: #fbfaf7; }
+.box { border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--card); }
 .box h3 { margin: 0 0 6px; font-size: 1em; }
 .dots { display: flex; flex-wrap: wrap; gap: 3px; min-height: 28px; margin: 6px 0; }
-.dot { width: 9px; height: 9px; border-radius: 50%; background: #b9c4bb; }
-.dot.t { background: #d9302c; border-radius: 2px; }
-.dot.ready { background: var(--hl); box-shadow: 0 0 0 2px #dc143c44; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #b9c4bb; color: oklch(0.22 0.03 260); }
+.dot.t { background: #d9302c; border-radius: 2px; color: oklch(0.22 0.03 260); }
+.dot.ready { background: var(--hl); box-shadow: 0 0 0 2px #dc143c44; color: oklch(0.22 0.03 260); }
 .state { display: inline-block; padding: 2px 12px; border-radius: 999px; font-size: .88em; font-weight: 700; color: #fff; }
-.state.sleep { background: #6b7a6f; } .state.wake { background: #e0902b; } .state.run { background: #d9302c; }
+.state.sleep { background: #6b7a6f; color: oklch(0.22 0.03 260); } .state.wake { background: #e0902b; color: oklch(0.22 0.03 260); } .state.run { background: #d9302c; color: oklch(0.22 0.03 260); }
 .warn { color: #b3261e; font-weight: 700; }
+@media (prefers-color-scheme: dark) {
+  .warn {
+    color: oklch(0.80 0.120 29);
+  }
+}
 .steps { margin: 8px 0; padding-left: 0; list-style: none; }
-.steps li { padding: 6px 10px; margin: 4px 0; border-radius: 8px; border: 1px solid var(--border); background: #fff; }
-.steps li.on { border-color: var(--hl); background: var(--hl-bg); font-weight: 700; }
+.steps li { padding: 6px 10px; margin: 4px 0; border-radius: 8px; border: 1px solid var(--border); background: var(--card); }
+.steps li.on { border-color: var(--hl); background: var(--hl-bg); font-weight: 700; color: oklch(0.22 0.03 260); }
 
 
 /* ---------- 第一節 ---------- */
 .search { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; margin: 6px 0 10px; }
 .tscroll { overflow-x: auto; }
-h3 { font-size: 1.05em; color: #3d4f3f; margin: 22px 0 8px; }
 
 /* ---------- quiz ---------- */
-.q { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 10px 0; background: #fbfaf7; }
-.ans { display: none; margin-top: 8px; padding: 8px 12px; background: #eef7ee; border-left: 4px solid var(--accent); border-radius: 6px; }
+.q { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 10px 0; background: var(--card); }
+.ans { display: none; margin-top: 8px; padding: 8px 12px; background: var(--soft); border-left: 4px solid var(--accent); border-radius: 6px; }
 .ans.show { display: block; }
-.blank { cursor: pointer; background: #dfe6dd; color: transparent; border-radius: 4px; padding: 0 10px; user-select: none; border-bottom: 2px solid var(--accent-d); }
-.blank.open { background: #d8f1d6; color: #1a4d22; font-weight: 700; user-select: auto; }
+.blank { cursor: pointer; background: var(--soft); color: transparent; border-radius: 4px; padding: 0 10px; user-select: none; border-bottom: 2px solid var(--accent-d); }
+.blank.open { background: var(--soft); color: #1a4d22; font-weight: 700; user-select: auto; }
+@media (prefers-color-scheme: dark) {
+  .blank.open {
+    color: oklch(0.80 0.089 146);
+  }
+}
 .tf button.pick { margin-right: 6px; }
-.right { color: #1a7a33; font-weight: 700; } .wrong { color: #b3261e; font-weight: 700; }
+.right { color: #1a7a33; font-weight: 700; }
+@media (prefers-color-scheme: dark) {
+  .right {
+    color: oklch(0.80 0.120 147);
+  }
+} .wrong { color: #b3261e; font-weight: 700; } @media (prefers-color-scheme: dark) {
+  .wrong {
+    color: oklch(0.80 0.120 29);
+  }
+}
 @media (max-width: 600px) { .card { padding: 16px 14px; } h1 { font-size: 1.3em; } }
+/* 深色模式個別修正（顏色統一第 14 輪） */
+@media (prefers-color-scheme: dark){
+.btn.ghost:not(.on){color:oklch(0.86 0.06 150)}
+}
+/* 深色模式個別修正（顏色統一第 16 輪） */
+@media (prefers-color-scheme: dark){
+:root{--tcp:oklch(0.52 0.12 60)} .l7 .b small,.l4 .b small,.l3 .b small,.l2 .b small,.l1 .b small{color:oklch(0.42 0.06 258)} .meta a{color:var(--link)}
+}
 </style>
 <link rel="stylesheet" href="../assets/notes.css">
 </head>
@@ -288,7 +311,7 @@ h3 { font-size: 1.05em; color: #3d4f3f; margin: 22px 0 8px; }
   <p class="hint">TLS 在 OSI 沒有明確位置，常被放在 L6；TCP/IP 四層模型把 5～7 層合併為應用層。<mark>DNS 在 L7，查出來的 IP 是 L3 位址。</mark></p>
   <h3>一條 WebSocket 連線，每個名詞在哪一層</h3>
   <p><mark>WebSocket 在 L7（最上層）；TCP 在 L4 傳輸層，不是 L3；socket 與 fd 不屬於七層，是程式呼叫核心的 API。</mark></p>
-  <img src="../obsidian-attachment/學習網路_圖解_一條WebSocket連線在OSI各層對應什麼-socket與fd在哪_2026-10-04.svg" alt="一條 WebSocket 連線在 OSI 各層對應什麼：L7 WebSocket、L6 TLS、socket API 分界、L4 TCP、L3 IP、L2、L1" style="width:100%;height:auto;border:1px solid var(--border);border-radius:10px;background:#fff">
+  <img src="../obsidian-attachment/學習網路_圖解_一條WebSocket連線在OSI各層對應什麼-socket與fd在哪_2026-10-04.svg" alt="一條 WebSocket 連線在 OSI 各層對應什麼：L7 WebSocket、L6 TLS、socket API 分界、L4 TCP、L3 IP、L2、L1" style="width:100%;height:auto;border:1px solid var(--border);border-radius:10px;background:var(--card)">
 </section>
 
 <!-- ============ 4. TCP vs TLS 年代 ============ -->
@@ -760,5 +783,6 @@ $('essay').innerHTML = essays.map((e,i)=>`<div class="q">${i+1}. ${e.q}<br><butt
 document.querySelectorAll('#essay .btn').forEach(b=>b.onclick=()=>b.nextElementSibling.classList.toggle('show'));
 </script>
 <script src="../assets/notes.js" defer></script>
+<script src="../assets/note-mask.js"></script>
 </body>
 </html>

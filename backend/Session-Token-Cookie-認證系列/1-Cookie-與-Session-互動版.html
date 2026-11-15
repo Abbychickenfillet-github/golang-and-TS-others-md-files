@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cookie 與 Session</title>
+<link rel="stylesheet" href="../../assets/note-theme.css">
+<link rel="stylesheet" href="../../assets/notes.css">
+<style>
+:root{
+  --muted:var(--sub); --accent-soft:var(--soft);
+}
+.toc{position:sticky;top:18px;flex:0 0 250px;max-height:calc(100vh - 36px);overflow:auto;font-size:.88rem}
+.toc h4{margin:0 0 10px;font-size:.74rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.toc ol{list-style:none;padding:0}
+.toc li{margin:2px 0}
+.toc a{display:block;padding:6px 10px;border-radius:8px;
+  border-left:2px solid transparent;line-height:1.4}
+.toc a.active{background:var(--accent-soft);border-left-color:var(--accent);color:var(--accent);font-weight:600}
+.toolbar button{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);font-family:inherit;transition:.15s}
+.toolbar button:hover{background:var(--accent-soft);border-color:var(--line)}
+mark.hl-core{background:var(--hl-core)} mark.hl-warn{background:var(--hl-warn);color:var(--hl-warn-ink)}
+mark.hl-ok{background:var(--hl-ok)} mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)} mark.hl-note{background:var(--hl-note)}
+/* ====== Set-Cookie / Cookie 對齊互動 ====== */
+.seg:focus-visible{box-shadow:0 0 0 2px #8ab4f8}
+/* ====== 測驗 ====== */
+.btns button{background:var(--card);border:1px solid var(--line);cursor:pointer;font-size:.85rem;font-family:inherit}
+.btns button:hover{background:var(--accent-soft)}
+@media(max-width:860px){.toc{position:static;flex:none;width:100%;max-height:none}}
+@media print{.toc{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="layout">
+
+<nav class="toc" id="toc">
+<h4>大綱</h4>
+<ol>
+<li><a href="#s1">1. 為什麼需要 Cookie / Session</a></li>
+<li><a href="#s2">2. Cookie vs Session(存哪裡)</a></li>
+<li><a href="#s3">3. acme 購物流程逐步(RFC 2109)</a></li>
+<li><a href="#s4">4. Set-Cookie / Cookie 對齊(互動)</a></li>
+<li><a href="#s5">5. 造訪 ≠ 登入;最小 cookie session</a></li>
+<li><a href="#s6">6. session-based vs JWT-based 路徑</a></li>
+<li><a href="#s7">7. $Version / $Path 的 dollar sign</a></li>
+<li><a href="#s8">8. 登入拿到自己的 cookie + 演算法時機</a></li>
+<li><a href="#s9">9. F12 觀察重點</a></li>
+<li><a href="#s10">10. Cookie 安全旗標</a></li>
+<li><a href="#s11">11. 自建 session store(DB 表)</a></li>
+<li><a href="#s12">12. 名詞定義 / RFC 是什麼</a></li>
+<li><a href="#s13">13. 自我測驗</a></li>
+</ol>
+</nav>
+
+<div class="content">
+<header class="hero">
+<h1>Cookie 與 Session</h1>
+<div class="pills"><span class="pill">#cookie</span><span class="pill">stateful session</span><span class="pill">#RFC2109</span><span class="pill">http協定</span><span class="pill">#auth</span><span class="pill">跨請求記住狀態</span></div>
+<div class="meta">互動版 · 更新於 2026-11-11 · 系列入口 <span class="wikilink">[[00-閱讀順序]]</span></div>
+</header>
+
+<div class="toolbar">
+<button id="maskAll">🙈 </button>
+<button id="showAll">👀 </button>
+</div>
+<div class="legend">
+<span style="background:#FFF3A3;color:oklch(0.22 0.03 260)">核心重點</span><span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+<span style="background:#BBFABB;color:oklch(0.22 0.03 260)">正解建議</span><span style="background:#ADCCFF;color:oklch(0.22 0.03 260)">術語定義</span>
+<span style="background:#FFB8EB;color:oklch(0.22 0.03 260)">數據補充</span><span style="background:#D2B3FF;color:oklch(0.22 0.03 260)">次要備註</span>
+<span>　←　點螢光筆可遮起來</span>
+</div>
+
+<article class="card">
+<h2 id="s1">1. 為什麼需要 Cookie / Session</h2>
+<p>HTTP 協定本身是<mark class="hl hl-term" tabindex="0">無狀態的(Stateless)</mark>:伺服器<mark class="hl hl-core" tabindex="0">把每個請求都當成獨立事件,沒有內建機制把「同一個客戶端的前後兩個請求」關聯起來</mark>(這比「伺服器不記得你是誰」精確)。</p>
+<p>所以任何要「跨請求記住狀態」的功能——登入、購物車、偏好設定、多步驟表單——都需要額外的狀態管理,<mark class="hl hl-core" tabindex="0">Cookie 就是 RFC 2109 為此設計的機制</mark>。</p>
+<blockquote><p><b>一句話分層</b>:<mark class="hl hl-ok" tabindex="0">Cookie 是「傳遞機制」(RFC 定義的兩個 header),Session 是蓋在它上面的「有狀態的一段期間」</mark>,兩者不同層,不是同類並列。</p></blockquote>
+
+<h3>小圖示:HTTP 請求與回應 →(create)→ stateful session</h3>
+<svg viewBox="0 0 780 195" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans TC',sans-serif" style="max-width:100%">
+<defs><marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#7d8a94"/></marker></defs>
+<polygon points="40,60 250,60 220,130 10,130" fill="#eaf2f7" stroke="#3f6f8f" stroke-width="1.6"/>
+<text x="130" y="88" text-anchor="middle" font-size="14" fill="#1d2b36" font-weight="600">HTTP 請求與回應</text>
+<text x="130" y="108" text-anchor="middle" font-size="11.5" fill="#41525f">Set-Cookie↓ ／ Cookie↑</text>
+<line x1="252" y1="95" x2="300" y2="95" stroke="#7d8a94" stroke-width="1.8" marker-end="url(#ar)"/>
+<rect x="302" y="60" width="202" height="70" fill="#fff" stroke="#3f6f8f" stroke-width="1.6"/>
+<text x="403" y="84" text-anchor="middle" font-size="13.5" fill="#1d2b36" font-weight="600">create（建立關聯）</text>
+<text x="403" y="110" text-anchor="middle" font-size="11" fill="#41525f">用兩個 header 反覆交換</text>
+<line x1="506" y1="95" x2="554" y2="95" stroke="#7d8a94" stroke-width="1.8" marker-end="url(#ar)"/>
+<polygon points="586,60 770,60 744,130 560,130" fill="#eafaf0" stroke="#4a9b5e" stroke-width="1.8"/>
+<text x="665" y="88" text-anchor="middle" font-size="14" fill="#1d2b36" font-weight="700">有狀態 session</text>
+<text x="665" y="108" text-anchor="middle" font-size="11.5" fill="#2f6b43">stateful session</text>
+<text x="390" y="165" text-anchor="middle" font-size="11" fill="#6b7b88">形狀:▱ 平行四邊形＝資料　▭ 直角矩形＝處理(ISO 5807)</text>
+</svg>
+</article>
+
+<article class="card">
+<h2 id="s2">2. Cookie vs Session(資料存哪裡)</h2>
+<div class="split">
+<div><h3 style="margin-top:0">Cookie(客戶端儲存)</h3>
+<ul><li>一小段文字,伺服器發送、存在<b>使用者瀏覽器</b>。</li>
+<li>瀏覽器<mark class="hl hl-core" tabindex="0">後續每次請求自動把 Cookie 帶回(放請求標頭)</mark>。</li>
+<li><mark class="hl hl-warn" tabindex="0">容易被竄改或竊取,不適合放敏感資料</mark>。</li></ul></div>
+<div><h3 style="margin-top:0">Session(伺服器端儲存)</h3>
+<ul><li>資料存在<b>伺服器</b>(記憶體/DB)。</li>
+<li>給使用者一張「身分證」<code>session_id</code>,透過 cookie 傳給瀏覽器。</li>
+<li><mark class="hl hl-ok" tabindex="0">安全性較高</mark>:使用者只看到 id、看不到內容。</li></ul></div>
+</div>
+<p class="plain"><b>白話:</b>cookie 是「瀏覽器自動帶回」的小紙條;session 是把真資料留伺服器、紙條上只寫一個 id。</p>
+</article>
+
+<article class="card">
+<h2 id="s3">3. acme 購物流程逐步(RFC 2109 經典例子)</h2>
+<p>RFC 2109 用「買火箭發射器」示範:伺服器一路用 <code>Set-Cookie</code> 存狀態,瀏覽器一路用 <code>Cookie</code> 帶回、<b>累加</b>。</p>
+<pre><code><span class="cmt"># 步驟 1  瀏覽器→伺服器:登入(送表單)</span>
+POST /acme/login HTTP/1.1
+
+<span class="cmt"># 步驟 2  伺服器→瀏覽器:登入成功,發 cookie 記住身分</span>
+HTTP/1.1 200 OK
+Set-Cookie: Customer="WILE_E_COYOTE"; Version="1"; Path="/acme"
+
+<span class="cmt"># 步驟 3  瀏覽器→伺服器:加入購物車(自動帶上剛拿到的 cookie)</span>
+POST /acme/pickitem HTTP/1.1
+Cookie: $Version="1"; Customer="WILE_E_COYOTE"; $Path="/acme"
+
+<span class="cmt"># 步驟 4  伺服器→瀏覽器:再發一顆 cookie 記住商品</span>
+Set-Cookie: Part_Number="Rocket_Launcher_0001"; Version="1"; Path="/acme"
+
+<span class="cmt"># 步驟 5+ 之後每次請求,瀏覽器把累加的 cookie 全帶回…</span></code></pre>
+<p class="plain"><b>白話:</b>每一步「伺服器發 <code>Set-Cookie</code> → 瀏覽器下次用 <code>Cookie</code> 帶回」。注意 <mark class="hl hl-warn" tabindex="0">這是 RFC 2109 的老示範:它把「商品、運送方式」等<b>實際資料</b>直接塞進 cookie</mark>。</p>
+<blockquote><p>⚠️ <b>實作時別學這點</b>:現代做法是 <mark class="hl hl-ok" tabindex="0">cookie 只放 <code>session_id</code>,購物車/商品資料存在伺服器 DB</mark>(用 id 查回)。把 Part_Number 塞 cookie 是過時的。</p></blockquote>
+</article>
+
+<article class="card">
+<h2 id="s4">4. Set-Cookie 與 Cookie 的對齊(互動)</h2>
+<p>你發現「<mark class="hl hl-core" tabindex="0">Set-Cookie 發出去的 <code>名=值</code>,瀏覽器會原封帶回</mark>」——沒錯。<b>把滑鼠移到任一段,上下對應的那段會同時亮(磚紅色)</b>:</p>
+<div class="align-demo">
+<div class="align-line"><span class="al-dir">伺服器→瀏覽器</span><span class="al-label">Set-Cookie:</span> <span class="seg" data-pair="customer" tabindex="0">Customer="WILE_E_COYOTE"</span>; <span class="seg" data-pair="version" tabindex="0">Version="1"</span>; <span class="seg" data-pair="path" tabindex="0">Path="/acme"</span></div>
+<div class="align-line"><span class="al-dir">瀏覽器→伺服器</span><span class="al-label">Cookie:　　</span> <span class="seg" data-pair="version" tabindex="0">$Version="1"</span>; <span class="seg" data-pair="customer" tabindex="0">Customer="WILE_E_COYOTE"</span>; <span class="seg" data-pair="path" tabindex="0">$Path="/acme"</span></div>
+</div>
+<p class="align-hint">對應關係:<code>Customer=…</code> ↔ <code>Customer=…</code>、<code>Version="1"</code> ↔ <code>$Version="1"</code>、<code>Path="/acme"</code> ↔ <code>$Path="/acme"</code>。</p>
+<ul>
+<li><mark class="hl hl-core" tabindex="0"><code>Customer="WILE_E_COYOTE"</code> 兩邊一模一樣</mark>——瀏覽器把拿到的 <code>名=值</code> 原封帶回。</li>
+<li><code>Version</code>、<code>Path</code> 帶回時多了 <code>$</code>——下一節解釋。</li>
+</ul>
+</article>
+
+<article class="card">
+<h2 id="s5">5. 造訪 ≠ 登入;Set-Cookie 就是建立最小 session</h2>
+<ul>
+<li><mark class="hl hl-core" tabindex="0">造訪網站就是一個「請求」,不一定要登入</mark>。HTTP 永遠「先請求、才有回應」,所以步驟 1(請求)<b>不是 optional,是必做</b>。</li>
+<li>你的 <code>curl -I https://github.com</code> 就是<mark class="hl hl-term" tabindex="0">步驟 1(造訪)＋步驟 2(回 Set-Cookie)</mark>,只是步驟 1 是「造訪首頁」不是「登入」。</li>
+<li><mark class="hl hl-ok" tabindex="0">沒錯——步驟 2 伺服器回 Set-Cookie 的那一刻,就已經建立了一個「最小的 cookie-based session」</mark>。GitHub 連登入都不用、光造訪就發 <code>_gh_sess</code>(匿名 session),印證 <b>session ≠ 登入</b>。</li>
+</ul>
+<blockquote><p>呼應 RFC 2109:session 是「<mark class="hl hl-core" tabindex="0">有狀態的一段期間</mark>」,跟有沒有登入無關。</p></blockquote>
+</article>
+
+<article class="card">
+<h2 id="s6">6. session-based vs JWT-based 的路徑(連 ByteByteGo)</h2>
+<p>不管哪種「X-based」,<mark class="hl hl-core" tabindex="0">整體形狀都一樣:登入 → 拿到憑證 → 之後每次請求帶憑證</mark>。差別在「帶什麼、走哪個標頭」:</p>
+<table>
+<thead><tr><th></th><th>Session-based</th><th>JWT-based</th></tr></thead>
+<tbody>
+<tr><td>憑證是什麼</td><td>session_id(短、要查 server)</td><td>JWT(自帶資料、驗簽不查 server)</td></tr>
+<tr><td>走哪個標頭</td><td><code>Cookie</code>(瀏覽器<b>自動</b>帶)</td><td>常走 <code>Authorization: Bearer</code>(<b>手動</b>);也可放 cookie</td></tr>
+<tr><td>acme 這個流程</td><td>✅ 就是它</td><td>❌ 不一定走 Set-Cookie/Cookie</td></tr>
+</tbody>
+</table>
+<p class="plain"><b>白話:</b>你貼的 acme 流程 ＝ <mark class="hl hl-ok" tabindex="0">session-based(走 Cookie)</mark> 那一條。JWT 若用 <code>Authorization: Bearer</code>,就<b>不是</b>走 acme 的 Set-Cookie/Cookie 路徑了。詳見 <span class="wikilink">[[3-Session與JWT-有狀態與無狀態驗證-過期機制與Base64url]]</span>。</p>
+</article>
+
+<article class="card">
+<h2 id="s7">7. 為何帶回去要加 $(<code>$Version</code>、<code>$Path</code>)</h2>
+<ul>
+<li><code>$</code> 是 <mark class="hl hl-term" tabindex="0">RFC 2109／2965 的「保留屬性標記」</mark>:帶 <code>$</code> 的<b>不是 cookie 本身,是關於 cookie 的 metadata(屬性)</b>,用 <code>$</code> 跟真正的 <code>名=值</code> 區分。</li>
+<li><code>$Version</code> ＝ 用哪版 cookie 規格;<code>$Path</code> ＝ 這顆 cookie 的作用路徑(<mark class="hl hl-term" tabindex="0">Path 就是 cookie 的生效範圍</mark>)。</li>
+<li><mark class="hl hl-warn" tabindex="0">重點:這個 <code>$</code> 語法早就淘汰了</mark>。現行 <b>RFC 6265</b> 的 Cookie 標頭<b>沒有 <code>$</code></b>,就是 <code>Cookie: name1=value1; name2=value2</code>。你 curl 抓到的現代 cookie 也沒有 <code>$</code>——它只在這份老 RFC 看得到。</li>
+</ul>
+</article>
+
+<article class="card">
+<h2 id="s8">8. 登入會拿到自己的 cookie(step 3)+ 演算法時機</h2>
+<p><b>問:登入 GitHub 會得到自己的 cookie 嗎?</b></p>
+<p>會。造訪時先拿到<mark class="hl hl-term" tabindex="0">匿名 cookie</mark>(<code>_gh_sess</code>、<code>logged_in=no</code>);<mark class="hl hl-core" tabindex="0">按下登入、帳密驗證成功後,那個回應會再 Set-Cookie 一顆代表「你是誰」的已驗證 cookie</mark>(如 <code>user_session</code>),並把 <code>logged_in</code> 改成 <code>yes</code>。等於把匿名 session <b>升級成已驗證 session</b>。</p>
+<p><b>問:演算法在 Set-Cookie 的時候就執行完畢了嗎?</b></p>
+<p><mark class="hl hl-ok" tabindex="0">對。加密／簽章是伺服器「送出 Set-Cookie 之前」就跑完的</mark>,<code>Set-Cookie</code> 帶的值<b>已經是加密/簽好的成品</b>。瀏覽器只負責<b>存</b>,不跑任何加密。所以你看到 Set-Cookie 時,演算法早在 server 端做完了(例如 GitHub 的 <code>_gh_sess</code> 是 Rails 用 AES-256-GCM 封好才送出,見 <span class="wikilink">[[4-jwt-signing-algorithms-and-access-refresh-flow]]</span> 的 GCM 動畫)。</p>
+</article>
+
+<article class="card">
+<h2 id="s9">9. F12 觀察重點:Set-Cookie 在哪、為什麼有時看不到</h2>
+<ul>
+<li><b>口訣:<mark class="hl hl-core" tabindex="0"><code>Set-Cookie</code> 是伺服器設定給我(response header)、<code>Cookie</code> 是我帶回去(request header)</mark>。</b></li>
+<li>坑:F12 複製「Response」看不到 Set-Cookie,因為你複製到<b>回應主體(body)</b>,而 Set-Cookie 是<b>標頭</b>。要看:點請求 → <mark class="hl hl-note" tabindex="0">Headers 分頁 → Response Headers</mark>。</li>
+<li>就算看 Headers 也可能沒有:<mark class="hl hl-warn" tabindex="0">Set-Cookie 只在「發新/更新 cookie」時出現</mark>(登入、登出、換 session);平常載入只是你帶 Cookie 上去。</li>
+</ul>
+<details style="margin-top:10px">
+<summary style="cursor:pointer;font-weight:600;color:var(--sub)">📂 點開:我自己 <code>curl -I https://github.com</code> 的實測(2026-11-10)</summary>
+<pre style="margin-top:10px"><code>HTTP/1.1 200 OK
+Content-Type: text/html; charset=utf-8
+Strict-Transport-Security: max-age=31536000; includeSubdomains; preload
+X-Frame-Options: deny
+Content-Security-Policy: default-src 'none'; ...(超長,略)...
+Server: github.com
+Set-Cookie: _gh_sess=CEyDhjWFL%2B...(加密亂碼)...%3D%3D; path=/; HttpOnly; secure; SameSite=Lax
+Set-Cookie: _octo=GH1.1.1000111298.1794301386; expires=...2027...; domain=.github.com; path=/; secure; SameSite=Lax
+Set-Cookie: logged_in=no; expires=...2027...; domain=.github.com; path=/; HttpOnly; secure; SameSite=Lax</code></pre>
+<p>三顆 Set-Cookie,都在「還沒登入」就發了:</p>
+<ul>
+<li><code>_gh_sess</code>:<mark class="hl hl-term" tabindex="0">加密 session cookie</mark>(值用 <code>--</code> 分三段 ＝ 密文/IV/驗證標籤,Rails 的 AES-256-GCM 格式);裝防 CSRF token、要跳回哪頁這種暫時狀態。</li>
+<li><code>_octo</code>:訪客識別碼(名字來自吉祥物 Octocat),做流量分析,跟登入無關,效期約一年。</li>
+<li><code>logged_in=no</code>:標記還沒登入;登入成功後改成 <code>yes</code> 並另發 <code>user_session</code>。</li>
+</ul>
+</details>
+</article>
+
+<article class="card">
+<h2 id="s10">10. Cookie 安全旗標</h2>
+<ul>
+<li><code>HttpOnly</code>:<mark class="hl hl-ok" tabindex="0">JS 讀不到(防 XSS 偷 cookie)</mark>。</li>
+<li><code>Secure</code>:只走 HTTPS。</li>
+<li><code>SameSite</code>(Lax/Strict/None):防 CSRF,搭配 <span class="wikilink">[[9-CSRF-與-Antiforgery-Cookie]]</span>。</li>
+<li><code>Expires</code>／<code>Max-Age</code>:決定關瀏覽器後是否還在(沒設 ＝ session cookie,關了就消失)。</li>
+</ul>
+<p class="plain"><b>白話:</b>登入 cookie 三件套 <mark class="hl hl-core" tabindex="0"><code>HttpOnly</code> ＋ <code>Secure</code> ＋ <code>SameSite</code></mark> 一起上。查法:F12 → Application → Cookies。</p>
+</article>
+
+<article class="card">
+<h2 id="s11">11. 如果要自己用資料表存 session_id(有狀態 store)</h2>
+<pre><code><span class="cmt">// Prisma(next-one 用)</span>
+model Session {
+  id           String    @id            <span class="cmt">// session_id（建議存雜湊值）</span>
+  userId       Int
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data         Json?
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  revoked      Boolean   @default(false) <span class="cmt">// 強制登出用</span>
+  @@index([userId])
+}</code></pre>
+<ul>
+<li><code>id</code>:session_id 當主鍵,<mark class="hl hl-ok" tabindex="0">建議存雜湊(SHA-256)後的值</mark>(DB 外洩也不能直接冒用)。</li>
+<li><code>revoked</code> 或直接刪列 ＝ <mark class="hl hl-core" tabindex="0">強制登出</mark>——有狀態 session 勝過 JWT 的地方(能即時踢人)。</li>
+</ul>
+<blockquote><p>注意:你 next-one 現在用的 <b>iron-session 是加密 cookie 派(stateless、沒這張表)</b>;只有想「即時撤銷、server 端查表」才需要建它。</p></blockquote>
+</article>
+
+<article class="card">
+<h2 id="s12">12. 名詞定義 / RFC 是什麼</h2>
+<ul>
+<li><b>user agent(使用者代理)</b>:發 HTTP 請求的<b>客戶端程式</b>,最常見是瀏覽器,也含 App 的 HTTP client、<code>curl</code>、爬蟲。RFC 用這詞是<mark class="hl hl-term" tabindex="0">不假設一定是瀏覽器</mark>。</li>
+<li><b>origin server(原始伺服器)</b>:真正持有資源、產生<b>權威回應</b>那台(資源源頭),對照 CDN/快取/proxy。來源:<a href="https://datatracker.ietf.org/doc/html/rfc9110" target="_blank" rel="noopener">RFC 9110</a>。</li>
+</ul>
+<h3>RFC ＝ Request for Comments(名字是歷史遺留)</h3>
+<ul>
+<li>1969 ARPANET 時真的是「徵求評論」的草稿,名字沿用至今;<mark class="hl hl-warn" tabindex="0">不是每個 RFC 都是標準</mark>(看狀態:Standards Track / BCP / Informational…)。</li>
+<li>標準會被取代:cookie 的 <mark class="hl hl-core" tabindex="0">RFC 2109(1997)→ 2965 → 現行 6265</mark>,前兩個是 Historic。</li>
+<li>歷史:RFC 2109(1997-02)比 Ajax(2005 命名)早八年;當時主流瀏覽器是 Netscape Navigator(cookie 是 Netscape 1994 發明的)。</li>
+<li><b>ECMAScript 跟 RFC 無直接關係</b>:它由 Ecma International(TC39)維護(ECMA-262),跟 IETF 不同組織;但 JSON 同時被 ECMA-404 與 RFC 8259 定義、保持相容。</li>
+</ul>
+</article>
+
+<article class="card quiz">
+<h2 id="s13">13. 自我測驗</h2>
+<ol class="qlist">
+<li><p>(是非)造訪網站一定要登入,伺服器才會發 Set-Cookie。</p>
+<div class="btns"><button class="tf" data-v="true" data-ok="false">O 正確</button><button class="tf" data-v="false" data-ok="true">X 錯誤</button></div>
+<div class="fb" data-ans="X">光造訪(匿名)伺服器也會發 cookie,例如 GitHub 的 _gh_sess。session ≠ 登入。</div></li>
+
+<li><p>(填空)口訣:<code>Set-Cookie</code> 在 <input class="blank" data-a="response"> 標頭,<code>Cookie</code> 在 <input class="blank" data-a="request"> 標頭。</p>
+<div class="btns"><button class="chk">檢查</button><button class="rev">看答案</button></div>
+<div class="fb">Set-Cookie 是伺服器設定給你(response)、Cookie 是你帶回去(request)。</div></li>
+
+<li><p>(是非)現代 RFC 6265 的 Cookie 標頭還要寫 <code>$Version</code>、<code>$Path</code>。</p>
+<div class="btns"><button class="tf" data-v="true" data-ok="false">O 正確</button><button class="tf" data-v="false" data-ok="true">X 錯誤</button></div>
+<div class="fb" data-ans="X">$ 語法是 RFC 2109/2965 的老東西,已淘汰。現行只寫 name=value。</div></li>
+
+<li><p>(申論)同樣是「登入→拿憑證→每次帶憑證」,session-based 和 JWT-based 差在哪?</p>
+<div class="btns"><button class="rev2">顯示參考答案</button></div>
+<div class="fb">憑證不同:session_id(短、要查 server)vs JWT(自帶資料、驗簽不查 server);傳輸不同:session 走 Cookie 自動帶,JWT 常走 Authorization: Bearer 手動帶(也可放 cookie)。</div></li>
+</ol>
+</article>
+
+<footer>Cookie 與 Session 互動版 · 2026-11-11 · <span class="wikilink">[[00-閱讀順序]]</span></footer>
+</div>
+</div>
+</div>
+
+<script>
+(function(){
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var t=function(){m.classList.toggle('masked')};
+    m.addEventListener('click',t);
+    m.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();t()}});
+  });
+  var ma=document.getElementById('maskAll'),sa=document.getElementById('showAll');
+  ma&&ma.addEventListener('click',function(){document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked')})});
+  sa&&sa.addEventListener('click',function(){document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked')})});
+
+  // 對齊互動:hover 一段,同 data-pair 的全亮(磚紅素色)
+  document.querySelectorAll('.seg').forEach(function(s){
+    var p=s.dataset.pair;
+    var on=function(){document.querySelectorAll('.seg[data-pair="'+p+'"]').forEach(function(x){x.classList.add('lit')})};
+    var off=function(){document.querySelectorAll('.seg[data-pair="'+p+'"]').forEach(function(x){x.classList.remove('lit')})};
+    s.addEventListener('mouseenter',on); s.addEventListener('mouseleave',off);
+    s.addEventListener('focus',on); s.addEventListener('blur',off);
+  });
+
+  // 測驗
+  document.querySelectorAll('button.tf').forEach(function(b){b.addEventListener('click',function(){
+    var ok=b.dataset.ok==='true',pick=b.dataset.v==='true',li=b.closest('li');
+    li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad')});
+    b.classList.add(ok===pick?'good':'bad');
+    var fb=li.querySelector('.fb');fb.classList.add('show');
+    if(!fb.dataset.done){fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent;fb.dataset.done='1'}
+  })});
+  var norm=function(s){return (s||'').trim().toLowerCase()};
+  document.querySelectorAll('button.chk').forEach(function(b){b.addEventListener('click',function(){
+    var li=b.closest('li'),ins=li.querySelectorAll('input.blank'),allok=true;
+    ins.forEach(function(inp){var ok=norm(inp.value)===norm(inp.dataset.a);inp.classList.remove('good','bad');inp.classList.add(ok?'good':'bad');if(!ok)allok=false});
+    if(allok)li.querySelector('.fb').classList.add('show');
+  })});
+  document.querySelectorAll('button.rev').forEach(function(b){b.addEventListener('click',function(){
+    var li=b.closest('li');li.querySelectorAll('input.blank').forEach(function(inp){inp.value=inp.dataset.a;inp.classList.remove('bad');inp.classList.add('good')});
+    li.querySelector('.fb').classList.add('show');
+  })});
+  document.querySelectorAll('button.rev2').forEach(function(b){b.addEventListener('click',function(){
+    var fb=b.closest('li').querySelector('.fb');fb.classList.toggle('show');
+    b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+  })});
+
+  // 大綱 scroll-spy
+  var links=[].slice.call(document.querySelectorAll('#toc a')),map={};
+  links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  var heads=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1))}).filter(Boolean);
+  var spy=function(){var pos=scrollY+120,cur=heads[0];heads.forEach(function(h){if(h.offsetTop<=pos)cur=h});
+    links.forEach(function(a){a.classList.remove('active')});if(cur&&map[cur.id])map[cur.id].classList.add('active')};
+  addEventListener('scroll',spy,{passive:true});spy();
+})();
+</script>
+<script src="../../assets/notes.js"></script>
+<script src="../../assets/note-mask.js"></script>
+</body>
+</html>

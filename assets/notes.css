@@ -49,7 +49,8 @@ table { width: 100%; }
 
 /* 不讓長網址、長檔名、長程式碼字串撐破版面 */
 a, code, kbd, samp { overflow-wrap: anywhere; }
-p, li, td, th, dd, figcaption { overflow-wrap: break-word; }
+p, li, dd, figcaption { overflow-wrap: break-word; }
+td, th { overflow-wrap: anywhere; }   /* anywhere 會縮小表格的最小寬度：長網址欄不再把表格撐寬、右側欄位不被裁掉（break-word 不會） */
 
 /* 窄螢幕：表格改成自己橫向捲動，而不是把整頁撐寬 */
 @media (max-width: 900px) {
@@ -147,26 +148,80 @@ h2[id]:target, h3[id]:target, h4[id]:target { animation: notes-hl 1.4s ease; }
   color: #1b3570;
 }
 
+/* ---------- 頁面自帶版面：.layout > nav.toc（R36） ----------
+   頁面自己寫了「左側大綱 .layout > nav.toc ＋ 右側 .content」時，notes.js 不會重排（R35），版面完全由這裡與 note-theme.css 的 .layout／.content 負責；
+   外觀沿用早期互動頁的側欄：黏在視窗左側的卡片，連結一條一條、不加項目符號（連結文字本身已帶編號，避免出現「1. 1.」），窄螢幕時變成一般的區塊；
+   顏色用主題變數（--card、--line…），後面的 oklch 是頁面沒載入主題時的備用值 */
+.layout > nav.toc {
+  position: sticky; top: 18px;                       /* 捲動時黏在視窗上緣下 18px */
+  flex: 0 0 250px; align-self: flex-start;           /* 固定 250px 寬、不被內文擠壓，高度只取內容高 */
+  max-height: calc(100vh - 36px); overflow: auto;    /* 目錄很長時在卡片內捲動 */
+  margin: 0;                                         /* 蓋掉 .toc 預設的上下外距，兩欄頂端才對齊 */
+  background: var(--toc-bg, oklch(0.985 0.004 255));   /* 卡片底色：大綱自己的 --toc-bg（不借頁面配色，頁面深色時也維持白底深字） */
+  border: 1px solid var(--toc-line, oklch(0.84 0.02 255));   /* 邊線：大綱自己的 --toc-line */
+  border-radius: 14px;                               /* 圓角，與主題的卡片一致 */
+  padding: 16px 14px;                                /* 內距：上下 16、左右 14 */
+  font-size: .88rem;                                 /* 側欄字級略小於內文 */
+}
+.layout > nav.toc ol, .layout > nav.toc ul { list-style: none; padding: 0; margin: 0; }   /* 清單不要項目符號與縮排，避免與連結文字的編號重複 */
+.layout > nav.toc ol ol, .layout > nav.toc ul ul { padding-left: 1em; }   /* 第二層才縮排一格 */
+.layout > nav.toc li { margin: 2px 0; font-weight: 400; font-size: 1em; }   /* 項目間距小一點；蓋掉 .toc 第一層預設的粗體與縮小字級 */
+.layout > nav.toc a {
+  display: block; padding: 6px 10px;                 /* 連結撐滿一行，點擊範圍大 */
+  border-radius: 8px; border-bottom: 0; border-left: 2px solid transparent;   /* 圓角；去掉 .toc a 的底線；左邊留一條透明線，active 時才上色 */
+  color: var(--toc-ink, oklch(0.27 0.03 260)); text-decoration: none; line-height: 1.4;   /* 文字用大綱自己的文字色，不加底線，行高緊一點 */
+  transition: .15s;                                  /* hover 與 active 的底色切換有短暫過渡 */
+}
+.layout > nav.toc a:hover { background: var(--toc-soft, oklch(0.965 0.008 255)); color: var(--toc-strong, oklch(0.27 0.03 260)); border-bottom: 0; }   /* 滑過時換淡底；文字色與去底線要重寫，才蓋得過 .toc a:hover */
+.layout > nav.toc a.active, .layout > nav.toc a.here {   /* 目前所在章節（頁面自己的捲動偵測用 active，notes.js 用 here） */
+  background: var(--toc-here, oklch(0.93 0.02 255)); border-left-color: var(--toc-strong, oklch(0.42 0.08 255));   /* 較深的底色與左側強調線 */
+  color: var(--toc-strong, oklch(0.42 0.08 255)); font-weight: 600;   /* 強調色文字、半粗體 */
+}
+/* 窄螢幕（860px 以下）：note-theme.css 讓 .layout 變上下堆疊，大綱也從黏住的側欄變成滿寬的一般區塊 */
+@media (max-width: 860px) {
+  .layout > nav.toc { position: static; flex: none; width: 100%; max-height: none; }   /* 取消黏住、取消固定寬、取消高度限制 */
+}
+
 .toc::-webkit-scrollbar { width: 8px; }
 .toc::-webkit-scrollbar-thumb { background: #c9d4e8; border-radius: 8px; }
 
+/* ---------- 大綱獨立配色（Abby 規則：大綱是白底就一律深字，不可被頁面自己的 .toc 規則改成深底或深色螢光底） ----------
+   原因：有些互動頁自己寫了 .toc a{background:var(--chip);color:var(--ink)} 這類「晶片式目錄」規則，
+   跟公版大綱疊在一起就變成深色底配深色字。大綱的底色、文字色、邊線、連結底色全部用下面這組 --toc-* 變數，
+   選擇器用 html body nav.toc（權重比頁面的 .toc a 高），頁面配色不管是淺是深都影響不到大綱 */
+html body nav.toc, html body .auto-toc {
+  --toc-bg: #f7f9fc; --toc-line: #dbe3f0; --toc-ink: #2f4d8c; --toc-strong: #1b3570; --toc-soft: #e9effa; --toc-here: #e3ecfb; --toc-muted: #5f6a85;   /* 大綱專用色：淺底、深藍字；--toc-muted 是輔助說明字 */
+  background: var(--toc-bg); border-color: var(--toc-line); color: var(--toc-ink);   /* 容器自己的底、邊線、文字色 */
+  display: block;   /* 頁面若把 .toc 設成 flex 晶片列，這裡改回一般區塊，大綱才會是直排清單 */
+}
+html body nav.toc a, html body .auto-toc a {
+  background: transparent; box-shadow: none; color: var(--toc-ink);   /* 連結不帶底色、不帶陰影，文字用大綱深色字 */
+  border-color: transparent;   /* 頁面晶片的邊線不顯示 */
+}
+html body nav.toc .toc-h span, html body .auto-toc .toc-h span { color: var(--toc-muted); }   /* 「點標題直接跳」這類輔助小字：加深以達到可讀對比 */
+html body nav.toc a:hover, html body .auto-toc a:hover { background: var(--toc-soft); color: var(--toc-strong); }   /* 滑過：淡藍底、更深的字 */
+html body nav.toc a.here, html body nav.toc a.active { background: var(--toc-here); color: var(--toc-strong); }   /* 目前章節：淡藍底、更深的字 */
+@media (prefers-color-scheme: dark) {   /* 系統深色模式：大綱改成深底淺字，仍然是「深底配淺字」 */
+  html body nav.toc, html body .auto-toc { --toc-bg: #1b2230; --toc-line: #2e3a50; --toc-ink: #9dbcf0; --toc-strong: #cfe0ff; --toc-soft: #26324a; --toc-here: #2b3a55; --toc-muted: #9aa6c4; }
+}
+
 /* ---------- Gemini 對話區塊（各對話來源／追加回合）：預設收合，由 notes.js 的 initFold 包成 details ---------- */
-details.fold { margin: 22px 0 10px; border-top: 1px dashed #c9d4e8; }
+details.fold { margin: 22px 0 10px; border-top: 1px dashed var(--line, #c9d4e8); }
 details.fold > summary {
   cursor: pointer; list-style: none; padding: 8px 0;
-  display: flex; align-items: baseline; gap: .5em; color: #8a93a6;
+  display: flex; align-items: baseline; gap: .5em; color: var(--sub, #8a93a6);   /* 用主題的次要文字色：頁面底色是中明度灰藍時，寫死的淺灰會看不清楚 */
 }
 details.fold > summary::-webkit-details-marker { display: none; }
 details.fold > summary::before { content: "▶"; font-size: .75em; transition: transform .15s; }
 details.fold[open] > summary::before { transform: rotate(90deg); }
-details.fold > summary::after { content: "（預設收合，點開看對話原文）"; font-size: .8em; color: #9aa3b5; }
+details.fold > summary::after { content: "（預設收合，點開看對話原文）"; font-size: .8em; color: var(--sub, #9aa3b5); }
 details.fold[open] > summary::after { content: ""; }
 details.fold > summary > h2, details.fold > summary > h3, details.fold > summary > h4 {
   display: inline; margin: 0; padding: 0; border: 0; font-size: 1em; font-weight: 500; color: inherit;
 }
 @media (prefers-color-scheme: dark) {
-  details.fold { border-top-color: #2e3a50; }
-  details.fold > summary, details.fold > summary::after { color: #8b97ad; }
+  details.fold { border-top-color: var(--line, #2e3a50); }
+  details.fold > summary, details.fold > summary::after { color: var(--sub, #8b97ad); }
 }
 
 /* ---------- 3. 名詞解釋 .term ---------- */

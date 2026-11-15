@@ -3,45 +3,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Python repr() 是什麼？物件記憶體位址為何用十六進位顯示</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<link rel="stylesheet" href="../assets/note-theme.css">
 <style>
-:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
-*{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);
- font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
- line-height:1.75;font-size:16px;}
-.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
+:root{--muted:var(--sub);}
 header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
 h1{font-family:"Noto Serif TC",Georgia,serif;font-size:30px;line-height:1.3;margin:.2em 0;}
-h2{font-family:"Noto Serif TC",Georgia,serif;font-size:22px;margin:1.6em 0 .6em;
- border-left:5px solid var(--accent);padding-left:12px;}
-h3{font-size:17px;margin:1.3em 0 .4em;color:#3a3a3a;}
-.meta{color:var(--muted);font-size:13px;margin-top:8px;}
-.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
- padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+h2{border-left:5px solid var(--accent);padding-left:12px;}
+.meta{margin-top:8px;}
+.pill{display:inline-block;margin:3px 5px 3px 0;}
 .src{display:block;font-size:12px;color:#2563eb;word-break:break-all;margin-top:3px;}
+@media (prefers-color-scheme: dark){
+.src{color:oklch(0.80 0.120 263);}}
 .toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
  border-bottom:1px solid var(--line);margin-bottom:10px;}
 .btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
  padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
-.btn:hover{background:#f1eefe;}
-mark.hl{padding:1px 3px;border-radius:4px;}
+.btn:hover{background:var(--soft);}
 mark.tog{cursor:pointer;transition:.15s;}
 mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
  user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
-pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;
- line-height:1.55;}
-code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
-:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
-th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
-th{background:#f3f1fb;}
-tr:nth-child(even) td{background:#faf9fd;}
-blockquote{border-left:4px solid #ffd27d;background:#fff8ec;margin:1em 0;padding:8px 14px;
- border-radius:0 8px 8px 0;color:#7a5a1e;}
-img{max-width:100%;border-radius:10px;border:1px solid var(--line);}
-footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
- border-top:1px solid var(--line);padding-top:16px;}
-.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;
+:not(pre)>code{background:var(--soft);color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+@media (prefers-color-scheme: dark){
+:not(pre)>code{color:oklch(0.80 0.120 282);}}
+tr:nth-child(even) td{background:var(--card);}
+img{border-radius:10px;border:1px solid var(--line);}
+.hint{font-size:12.5px;color:var(--muted);background:var(--soft);border-radius:8px;
  padding:7px 12px;margin:6px 0 14px;}
 </style><link rel="stylesheet" href="../assets/notes.css">
 </head>
@@ -65,13 +51,13 @@ footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
 <h2>重點整理</h2>
 <p>本篇重點 (a)–(c)，共 3 個。</p>
 <h3>(a) repr 是什麼</h3>
-<p><mark class="hl tog" style="background:#ADCCFF;">repr 是「representation（表示法）」的縮寫</mark>，<code>repr()</code> 是 Python 內建函式，用來回傳一個物件的「官方」字串表示形式。這個字串的設計目標是<mark class="hl tog" style="background:#FFF3A3;">盡可能明確且無歧義</mark>，主要用途是讓開發者在除錯（debugging）時能清楚知道物件的內部狀態。</p>
+<p><mark class="hl tog" style="background:#ADCCFF;color:oklch(0.22 0.03 260);">repr 是「representation（表示法）」的縮寫</mark>，<code>repr()</code> 是 Python 內建函式，用來回傳一個物件的「官方」字串表示形式。這個字串的設計目標是<mark class="hl tog" style="background:#FFF3A3;color:oklch(0.22 0.03 260);">盡可能明確且無歧義</mark>，主要用途是讓開發者在除錯（debugging）時能清楚知道物件的內部狀態。</p>
 <h3>(b) 為什麼自訂類別的 repr() 會印出十六進位位址</h3>
-<p>當建立一個自訂類別的物件（例如 <code>JustAnExample</code>），且沒有特別定義它的顯示方式（沒有覆寫 <code>__repr__</code>）時，<mark class="hl tog" style="background:#ADCCFF;">Python 預設的 repr() 輸出行為，是印出該物件的模組與類別名稱，以及它在記憶體中的實體位址</mark>，例如 <code>&lt;__main__.JustAnExample object at 0x1077f2f10&gt;</code>。Python 會自動以十六進位（Hexadecimal）形式顯示這個記憶體位址，因為十六進位能比十進位更簡潔地對應底層的二進位資料。</p>
+<p>當建立一個自訂類別的物件（例如 <code>JustAnExample</code>），且沒有特別定義它的顯示方式（沒有覆寫 <code>__repr__</code>）時，<mark class="hl tog" style="background:#ADCCFF;color:oklch(0.22 0.03 260);">Python 預設的 repr() 輸出行為，是印出該物件的模組與類別名稱，以及它在記憶體中的實體位址</mark>，例如 <code>&lt;__main__.JustAnExample object at 0x1077f2f10&gt;</code>。Python 會自動以十六進位（Hexadecimal）形式顯示這個記憶體位址，因為十六進位能比十進位更簡潔地對應底層的二進位資料。</p>
 <h3>(c) 1 位十六進位＝4 bits，1 byte 要用 2 位十六進位</h3>
-<p><mark class="hl tog" style="background:#ADCCFF;">1 個 16 進位數字＝4 個 bits（位元）</mark>：二進位中 4 個 bits 的組合剛好能產生 16 種不同數值（<code>0000</code>~<code>1111</code>，即十進位 0~15），完美對應 16 進位的 <code>0</code>~<code>F</code>。</p>
-<p><mark class="hl tog" style="background:#ADCCFF;">1 個 byte＝8 bits＝2 位十六進位數字</mark>：byte 的標準大小是 8 個 bits，既然 1 個 16 進位數字只佔 4 bits，就需要 2 個 16 進位數字才能拼湊出一個完整的 byte（4+4=8 bits）。這也是電腦記憶體「最小可定址單位」通常是 1 byte、而該 byte 剛好能用剛好兩位十六進位數字表示的原因。</p>
-<p><mark class="hl tog" style="background:#D2B3FF;">這一段換算規則跟 [[進位制-二進制-十六進制-Bytes與RGB|進位制筆記]] 第 2 節「為什麼到處是十六進制」完全同一套邏輯，只是這裡是 Python <code>repr()</code> 印記憶體位址這個具體應用場景。</mark></p>
+<p><mark class="hl tog" style="background:#ADCCFF;color:oklch(0.22 0.03 260);">1 個 16 進位數字＝4 個 bits（位元）</mark>：二進位中 4 個 bits 的組合剛好能產生 16 種不同數值（<code>0000</code>~<code>1111</code>，即十進位 0~15），完美對應 16 進位的 <code>0</code>~<code>F</code>。</p>
+<p><mark class="hl tog" style="background:#ADCCFF;color:oklch(0.22 0.03 260);">1 個 byte＝8 bits＝2 位十六進位數字</mark>：byte 的標準大小是 8 個 bits，既然 1 個 16 進位數字只佔 4 bits，就需要 2 個 16 進位數字才能拼湊出一個完整的 byte（4+4=8 bits）。這也是電腦記憶體「最小可定址單位」通常是 1 byte、而該 byte 剛好能用剛好兩位十六進位數字表示的原因。</p>
+<p><mark class="hl tog" style="background:#D2B3FF;color:oklch(0.22 0.03 260);">這一段換算規則跟 [[進位制-二進制-十六進制-Bytes與RGB|進位制筆記]] 第 2 節「為什麼到處是十六進制」完全同一套邏輯，只是這裡是 Python <code>repr()</code> 印記憶體位址這個具體應用場景。</mark></p>
 <h2>各對話來源</h2>
 <h3>Python repr 與十六進位表示（2026-08-05）— https://gemini.google.com/app/41f1bf8c77763be4</h3>
 <p>使用者：repr?</p>
@@ -113,4 +99,5 @@ sa.onclick=()=>document.querySelectorAll('mark.tog').forEach(m=>m.classList.remo
 </script>
 <script src="../assets/wikilink.js" data-root="../"></script>
 <script src="../assets/notes.js" defer></script>
+<script src="../assets/note-mask.js"></script>
 </body></html>

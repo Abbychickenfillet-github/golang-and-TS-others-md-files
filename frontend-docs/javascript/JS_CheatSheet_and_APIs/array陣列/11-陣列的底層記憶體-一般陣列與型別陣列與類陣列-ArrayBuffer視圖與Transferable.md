@@ -16,7 +16,7 @@ updated: 2026-09-15
 
 ![[學習JS_圖解_三種陣列的記憶體佈局-一般陣列vs型別陣列vs類陣列_2026-09-15.svg]]
 
-互動版（可自己考自己）：[11-陣列的底層記憶體-一般陣列與型別陣列與類陣列-ArrayBuffer視圖與Transferable.html](11-陣列的底層記憶體-一般陣列與型別陣列與類陣列-ArrayBuffer視圖與Transferable.html)
+互動版（可自己考自己）：[11-陣列的底層記憶體-一般陣列與型別陣列與類陣列-ArrayBuffer視圖與Transferable.html](11-陣列的底層記憶體-一般陣列與型別陣列與類陣列-ArrayBuffer視圖與Transferable-互動版.html)
 可執行範例：[11-demo-typedarray-view與transferable.js](11-demo-typedarray-view與transferable.js)
 
 ---

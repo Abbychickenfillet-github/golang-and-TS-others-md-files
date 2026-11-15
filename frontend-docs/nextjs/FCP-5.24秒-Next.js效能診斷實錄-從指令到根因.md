@@ -3,7 +3,7 @@
 > 專案：`C:\coding\next-one-main`（Next.js 15.5.3, App Router）
 > 症狀：登入後導向 `/dashboard`，FCP = 5.24 秒
 > 日期：2026-09-16
-> 相關筆記：[FCP首次內容繪製-SEO爬蟲與打包五步驟](../FCP首次內容繪製-SEO爬蟲與打包五步驟.md)、[CSS 的兩種卡頓](../css/css-兩種卡頓-render-blocking與執行期jank.md)、[App-Router與Pages-Router-RSC與Streaming-SSR](./App-Router與Pages-Router-RSC與Streaming-SSR-loading與error約定.html)
+> 相關筆記：[FCP首次內容繪製-SEO爬蟲與打包五步驟](../FCP首次內容繪製-SEO爬蟲與打包五步驟.md)、[CSS 的兩種卡頓](../css/css-兩種卡頓-render-blocking與執行期jank.md)、[App-Router與Pages-Router-RSC與Streaming-SSR](./App-Router與Pages-Router-RSC與Streaming-SSR-loading與error約定-互動版.html)
 
 ---
 

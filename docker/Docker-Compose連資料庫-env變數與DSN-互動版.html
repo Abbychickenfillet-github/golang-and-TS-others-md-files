@@ -2,39 +2,29 @@
 <html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Docker Compose 怎麼連資料庫：env 變數 → DSN → MySQL 握手</title>
+<link rel="stylesheet" href="../assets/note-theme.css">
 <style>
-:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--warn:#f59e0b;--bad:#ef4444;--ok:#10b981;}
-*{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
-.wrap{padding:28px 20px 80px;}
+:root{--muted:var(--sub);--bad:#ef4444;}
 header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:22px 26px;margin-bottom:18px;}
 header.note h1{margin:0 0 10px;font-size:1.6rem;line-height:1.35;}
-.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:2px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
-.meta{color:var(--muted);font-size:.85rem;margin-top:6px;}
-.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.93);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
-.toolbar button,.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
-.btn.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.pill{display:inline-block;margin:3px 5px 3px 0;}
+.meta{margin-top:6px;}
+.toolbar{position:sticky;top:0;z-index:5;background:var(--card);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button,.btn{background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:7px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.btn.alt{background:var(--card);color:var(--accent);border:1px solid var(--accent);}
 section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;}
-h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
-h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
-mark{padding:.05em .25em;border-radius:4px;cursor:pointer;background:#FFF3A3A6;}
+h2{border-left:5px solid var(--accent);padding-left:12px;}
+mark{cursor:pointer;background:#FFF3A3A6;color:oklch(0.22 0.03 260);}
 mark.hidden-ans{color:transparent!important;background:#d8dbe0!important;user-select:none;}
-code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
-pre{background:#282c34;border-radius:10px;overflow-x:auto;margin:.6em 0;}
-pre code{background:none;color:#abb2bf;display:block;padding:14px 18px;font-size:.88rem;line-height:1.6;}
-.explain{margin:.2em 0 1em 1.2em;color:#374151;}
-blockquote{border-left:4px solid var(--warn);background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
-blockquote.bad{border-color:var(--bad);background:#fef2f2;}
-table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:.93rem;}
-th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;}
-th{background:#f1f5f9;}
-.indent{margin-left:1.6em;color:#4b5563;}
+pre code{display:block;font-size:.88rem;line-height:1.6;}
+.explain{margin:.2em 0 1em 1.2em;color:var(--sub);}
+blockquote.bad{border-color:var(--bad);background:var(--soft);}
+.indent{margin-left:1.6em;color:var(--sub);}
 .tf{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:8px 0;}
 .tf .r{margin-left:8px;font-weight:700;}
-.essay .ans{display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-top:8px;}
+.essay .ans{display:none;background:var(--card);border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-top:8px;}
 .essay.open .ans{display:block;}
 svg text{font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;}
-footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
 </style><link rel="stylesheet" href="../assets/notes.css">
 </head><body>
 <div class="wrap">
@@ -287,10 +277,11 @@ var TF=[
 ["Go 後端連 MySQL 時，密碼不會以明文在網路上傳送。",true,"caching_sha2_password 用 server 給的隨機 salt 算雜湊再送出。"],
 ["Vite 的 VITE_API_URL 改了之後一定要重新 build 前端。",true,"VITE_* 在 build 時就被寫死進 JS。"]
 ];
-(function(){var box=document.getElementById('tfbox');TF.forEach(function(q,i){var d=document.createElement('div');d.className='tf';d.innerHTML='<div>'+(i+1)+'. '+q[0]+'</div><button class="btn alt">○ 對</button><button class="btn alt">✕ 錯</button><span class="r"></span><div class="why" style="display:none;color:#4b5563;margin-top:6px"></div>';var bs=d.querySelectorAll('button'),r=d.querySelector('.r'),w=d.querySelector('.why');[true,false].forEach(function(v,k){bs[k].onclick=function(){var ok=v===q[1];r.textContent=ok?'答對了':'答錯了';r.style.color=ok?'#15803d':'#b91c1c';w.textContent='解析：'+q[2];w.style.display='block';};});box.appendChild(d);});})();
+(function(){var box=document.getElementById('tfbox');TF.forEach(function(q,i){var d=document.createElement('div');d.className='tf';d.innerHTML='<div>'+(i+1)+'. '+q[0]+'</div><button class="btn alt">○ 對</button><button class="btn alt">✕ 錯</button><span class="r"></span><div class="why" style="display:none;color:var(--sub);margin-top:6px"></div>';var bs=d.querySelectorAll('button'),r=d.querySelector('.r'),w=d.querySelector('.why');[true,false].forEach(function(v,k){bs[k].onclick=function(){var ok=v===q[1];r.textContent=ok?'答對了':'答錯了';r.style.color=ok?'#15803d':'#b91c1c';w.textContent='解析：'+q[2];w.style.display='block';};});box.appendChild(d);});})();
 document.querySelectorAll('mark').forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('hidden-ans');});});
 var __h=false;window.__toggleAll=function(){__h=!__h;document.querySelectorAll('mark').forEach(function(m){m.classList.toggle('hidden-ans',__h);});document.getElementById('toggleAll').textContent=__h?'顯示所有重點':'遮住所有重點（自我考試）';};
 </script>
 <script src="../assets/wikilink.js" data-root="../"></script>
 <script src="../assets/notes.js" defer></script>
+<script src="../assets/note-mask.js"></script>
 </body></html>

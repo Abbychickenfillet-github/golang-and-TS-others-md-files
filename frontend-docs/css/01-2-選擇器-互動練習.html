@@ -3,54 +3,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>選擇器（組合／後代／手足／相鄰／偽選擇器）互動練習</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<link rel="stylesheet" href="../../assets/note-theme.css">
 <style>
-:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
-*{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);
- font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
- line-height:1.75;font-size:16px;}
-.wrap{max-width:860px;margin:0 auto;padding:32px 20px 64px;}
+:root{--muted:var(--sub);}
 header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
 h1{font-family:"Noto Serif TC",Georgia,serif;font-size:26px;line-height:1.3;margin:.2em 0;}
-h2{font-family:"Noto Serif TC",Georgia,serif;font-size:20px;margin:1.8em 0 .6em;
- border-left:5px solid var(--accent);padding-left:12px;}
-.meta{color:var(--muted);font-size:13px;margin-top:8px;}
-.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
- padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+h2{border-left:5px solid var(--accent);padding-left:12px;}
+.meta{margin-top:8px;}
+.pill{display:inline-block;margin:3px 5px 3px 0;}
 .toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
  border-bottom:1px solid var(--line);margin-bottom:10px;}
 .btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
  padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
-.btn:hover{background:#f1eefe;}
-mark.hl{padding:1px 3px;border-radius:4px;}
+.btn:hover{background:var(--soft);}
 mark.tog{cursor:pointer;transition:.15s;}
 mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
  user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
-pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.55;}
-code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
-:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
-th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
-th{background:#f3f1fb;}
-.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;padding:7px 12px;margin:6px 0 14px;}
+:not(pre)>code{background:var(--soft);color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+@media (prefers-color-scheme: dark){
+:not(pre)>code{color:oklch(0.80 0.120 282);}}
+.hint{font-size:12.5px;color:var(--muted);background:var(--soft);border-radius:8px;padding:7px 12px;margin:6px 0 14px;}
 .cloze{display:inline-block;min-width:2.4em;text-align:center;padding:1px 8px;border-radius:6px;
- background:#eef0ff;border:1px dashed #9fa8ff;color:#3b3b3b;cursor:pointer;font-weight:600;}
-.cloze.revealed{background:#e3fbe3;border:1px solid #6bcB6b;color:#1c5f1c;}
+ background:var(--soft);border:1px dashed #9fa8ff;color:var(--ink);cursor:pointer;font-weight:600;}
+.cloze.revealed{background:var(--soft);border:1px solid #6bcB6b;color:#1c5f1c;}
+@media (prefers-color-scheme: dark){
+.cloze.revealed{color:oklch(0.80 0.120 143);}}
 .qa-card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:14px 0;background:var(--card);}
 .qa-q{font-weight:700;margin-bottom:8px;}
 .tf-btns{display:flex;gap:8px;margin:8px 0;}
-.tf-btn{cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:5px 16px;background:#fff;font-size:14px;}
-.tf-btn.correct-picked{background:#dff5df;border-color:#4caf50;}
-.tf-btn.wrong-picked{background:#fbe1e1;border-color:#e05353;}
-.tf-explain{display:none;margin-top:8px;font-size:14px;background:#f6f6fb;border-radius:8px;padding:9px 12px;}
+.tf-btn{cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:5px 16px;background:var(--card);font-size:14px;}
+.tf-btn.correct-picked{background:var(--soft);border-color:#4caf50;}
+.tf-btn.wrong-picked{background:var(--soft);border-color:#e05353;}
+.tf-explain{display:none;margin-top:8px;font-size:14px;background:var(--soft);border-radius:8px;padding:9px 12px;}
 .tf-explain.show{display:block;}
 .essay-toggle{cursor:pointer;color:#5b4bd6;font-size:13px;text-decoration:underline;user-select:none;}
-.essay-answer{display:none;margin-top:10px;background:#f6f6fb;border-radius:8px;padding:10px 14px;font-size:14.5px;}
+@media (prefers-color-scheme: dark){
+.essay-toggle{color:oklch(0.80 0.120 282);}}
+.essay-answer{display:none;margin-top:10px;background:var(--soft);border-radius:8px;padding:10px 14px;font-size:14.5px;}
 .essay-answer.show{display:block;}
 textarea{width:100%;min-height:60px;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:inherit;font-size:14px;margin-top:6px;}
-.demo{border:1px solid var(--line);border-radius:8px;padding:12px;margin:10px 0;background:#fbfbfd;}
+.demo{border:1px solid var(--line);border-radius:8px;padding:12px;margin:10px 0;background:var(--card);}
 .demo-select{margin-bottom:8px;}
-.demo-select button{margin-right:6px;padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:13px;}
+.demo-select button{margin-right:6px;padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-size:13px;}
 .demo-select button.active{background:#7c6cff;color:#fff;border-color:#7c6cff;}
 .demo-box-outer{border:2px dashed #c9a227;padding:0;position:relative;}
 </style><link rel="stylesheet" href="../../assets/notes.css">
@@ -68,16 +62,16 @@ textarea{width:100%;min-height:60px;border:1px solid var(--line);border-radius:8
 <div class="hint">💡 螢光標記可點擊切換顯示/隱藏；填空區塊（虛線框）點一下顯示答案；是非題點按鈕作答；申論題點連結展開參考答案；下面還有一個可互動的手足選擇器demo。</div>
 
 <h2>零‧先分清楚：Compound selector跟Combinator不是同一件事</h2>
-<p>官方分類（來源：<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Selectors/Selector_structure" target="_blank">CSS selector structure - MDN</a>，最後更新於2025-12-16）：<mark class="hl tog" style="background:#FFF3A3;">compound selector是好幾個simple selector黏在一起、中間沒有分隔符，同時作用在同一個元素上</mark>，例如<code>.image.active</code>；<mark class="hl tog" style="background:#BBFABB;">complex selector才是用combinator（空白、&gt;、+、~）分隔、代表兩個不同元素之間關係</mark>的選擇器，例如<code>.image .active</code>（中間有空白，變成後代組合器）。下面四種是complex selector裡會用到的combinator，先弄清楚這個前提再往下看。</p>
+<p>官方分類（來源：<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Selectors/Selector_structure" target="_blank">CSS selector structure - MDN</a>，最後更新於2025-12-16）：<mark class="hl tog" style="background:#FFF3A3;color:oklch(0.22 0.03 260);">compound selector是好幾個simple selector黏在一起、中間沒有分隔符，同時作用在同一個元素上</mark>，例如<code>.image.active</code>；<mark class="hl tog" style="background:#BBFABB;color:oklch(0.22 0.03 260);">complex selector才是用combinator（空白、&gt;、+、~）分隔、代表兩個不同元素之間關係</mark>的選擇器，例如<code>.image .active</code>（中間有空白，變成後代組合器）。下面四種是complex selector裡會用到的combinator，先弄清楚這個前提再往下看。</p>
 
 <h2>一‧四種組合選擇器對照</h2>
 <table>
 <thead><tr><th>名稱</th><th>語法</th><th>範圍</th></tr></thead>
 <tbody>
-<tr><td>後代選擇器</td><td><code>A B</code></td><td><mark class="hl tog" style="background:#FFF3A3;">任意深度的子孫都算</mark></td></tr>
-<tr><td>子選擇器</td><td><code>A &gt; B</code></td><td><mark class="hl tog" style="background:#FFF3A3;">只算直接子層，隔一層就不算</mark></td></tr>
-<tr><td>相鄰兄弟選擇器（相鄰選擇器）</td><td><code>A + B</code></td><td><mark class="hl tog" style="background:#FFF3A3;">只選緊接在A後面的那一個B</mark></td></tr>
-<tr><td>一般手足選擇器（手足選擇器）</td><td><code>A ~ B</code></td><td><mark class="hl tog" style="background:#FFF3A3;">選A後面同層所有的B，不用緊接</mark></td></tr>
+<tr><td>後代選擇器</td><td><code>A B</code></td><td><mark class="hl tog" style="background:#FFF3A3;color:oklch(0.22 0.03 260);">任意深度的子孫都算</mark></td></tr>
+<tr><td>子選擇器</td><td><code>A &gt; B</code></td><td><mark class="hl tog" style="background:#FFF3A3;color:oklch(0.22 0.03 260);">只算直接子層，隔一層就不算</mark></td></tr>
+<tr><td>相鄰兄弟選擇器（相鄰選擇器）</td><td><code>A + B</code></td><td><mark class="hl tog" style="background:#FFF3A3;color:oklch(0.22 0.03 260);">只選緊接在A後面的那一個B</mark></td></tr>
+<tr><td>一般手足選擇器（手足選擇器）</td><td><code>A ~ B</code></td><td><mark class="hl tog" style="background:#FFF3A3;color:oklch(0.22 0.03 260);">選A後面同層所有的B，不用緊接</mark></td></tr>
 </tbody>
 </table>
 
@@ -108,7 +102,7 @@ textarea{width:100%;min-height:60px;border:1px solid var(--line);border-radius:8
   <div class="demo-box-outer" id="demoArea" style="padding:12px;">
     <h2 style="margin:4px 0;">標題 h2</h2>
     <p data-label="p1" style="margin:4px 0;padding:2px 6px;">段落一 p（緊接在h2後面）</p>
-    <div style="margin:4px 0;padding:2px 6px;background:#eee;">分隔用的div（不是p）</div>
+    <div style="margin:4px 0;padding:2px 6px;background:var(--soft);">分隔用的div（不是p）</div>
     <p data-label="p2" style="margin:4px 0;padding:2px 6px;">段落二 p（隔了一個div）</p>
   </div>
   <div style="font-size:12.5px;color:var(--muted);margin-top:6px;">試試看：選「h2 + p」只會標記段落一；選「h2 ~ p」段落一跟段落二都會被標記。</div>
@@ -207,4 +201,5 @@ demoButtons.forEach(function(btn){
 </script>
 <script src="../../assets/wikilink.js" data-root="../../"></script>
 <script src="../../assets/notes.js" defer></script>
+<script src="../../assets/note-mask.js"></script>
 </body></html>

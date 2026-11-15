@@ -4,44 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>事件流與事件代理 · 互動筆記</title>
+<link rel="stylesheet" href="../../../../assets/note-theme.css">
 <style>
   :root{
-    --hl-yellow:#FFF3A3; --hl-red:#FF5582; --hl-green:#BBFABB;
-    --hl-blue:#ADCCFF; --hl-pink:#FFB8EB; --hl-purple:#D2B3FF;
-    --bg:#fbfaf7; --card:#ffffff; --ink:#2b2b33; --muted:#6b6b76;
-    --line:#e8e6df; --accent:#4f7cff; --code-bg:#1e2230; --code-ink:#e6e6e6;
+    --hl-red:#FF5582;
+    --hl-blue:#ADCCFF; --hl-pink:#FFB8EB; --hl-purple:#D2B3FF; --muted:var(--sub); --code-bg:#1e2230; --code-ink:#e6e6e6;
   }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-    font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
-  .wrap{max-width:860px;margin:0 auto;padding:32px 20px 80px;}
   header.top{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:8px;}
   h1{font-size:1.7rem;margin:0 0 6px;font-family:Georgia,"Songti TC",serif;}
   .sub{color:var(--muted);font-size:.92rem;}
-  .pills{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;}
-  .pill{background:#eef1ff;color:#3a51b8;border-radius:999px;padding:2px 11px;font-size:.74rem;}
+  .pills{margin-top:10px;}
   a.lnk{color:var(--accent);text-decoration:none;font-size:.82rem;}
   a.lnk:hover{text-decoration:underline;}
   section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
     padding:20px 22px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.03);}
-  h2{font-size:1.2rem;margin:0 0 6px;display:flex;align-items:center;gap:8px;}
-  h2 .tag{font-size:.7rem;background:var(--hl-yellow);color:#7a6a00;border-radius:6px;padding:1px 7px;font-weight:600;}
-  h3{font-size:1rem;margin:18px 0 6px;}
-  p{margin:.4rem 0;}
-  .hint{color:var(--muted);font-size:.86rem;}
-  mark{padding:.05em .25em;border-radius:4px;}
-  .y{background:var(--hl-yellow)} .r{background:var(--hl-red)} .g{background:var(--hl-green)}
-  .b{background:var(--hl-blue)} .pk{background:var(--hl-pink)} .pp{background:var(--hl-purple)}
-  code{background:#eee9df;border-radius:5px;padding:.05em .35em;font-family:"SF Mono",Consolas,monospace;font-size:.92em;}
-  pre{background:var(--code-bg);color:var(--code-ink);border-radius:10px;padding:14px 16px;overflow:auto;
-    font-family:"SF Mono",Consolas,monospace;font-size:.84rem;line-height:1.6;}
-  table{border-collapse:collapse;width:100%;font-size:.9rem;margin:10px 0;}
-  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
-  th{background:#f4f1ea;}
-  tr:nth-child(even) td{background:#faf9f5;}
-  .callout{border-left:4px solid var(--hl-yellow);background:#fffdf2;border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:.9rem;}
-  .callout.warn{border-left-color:var(--hl-red);background:#fff5f7;}
-  .callout.tip{border-left-color:var(--hl-green);background:#f3fcf3;}
+  h2{display:flex;align-items:center;gap:8px;}
+  h2 .tag{font-size:.7rem;background:var(--hl-yellow);color:var(--ink);border-radius:6px;padding:1px 7px;font-weight:600;}
+  .hint{color:var(--muted);font-size:.86rem;} .r{background:var(--hl-red);color:oklch(0.22 0.03 260)}
+  .b{background:var(--hl-blue);color:oklch(0.22 0.03 260)} .pk{background:var(--hl-pink);color:oklch(0.22 0.03 260)} .pp{background:var(--hl-purple);color:oklch(0.22 0.03 260)}
+  pre{overflow:auto;
+    font-family:"SF Mono",Consolas,monospace;}
+  tr:nth-child(even) td{background:var(--card);}
+  .callout{font-size:.9rem;}
+  .callout.warn{border-left-color:var(--hl-red);background:var(--card);}
+  .callout.tip{border-left-color:var(--hl-green);background:var(--card);}
 
   /* demo */
   .ctrls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;}
@@ -51,11 +37,26 @@
   .lhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
   .lname{font-size:.9rem;}
   .toggles{display:flex;gap:6px;}
-  .tg{font-size:.74rem;padding:3px 9px;border-radius:7px;border:1px solid var(--line);background:#fff;cursor:pointer;}
-  .tg.cap{background:#fff1d6;border-color:#f0d48a;color:#8a6a10;}
-  .tg.bub{background:#e9f0ff;border-color:#c2d2ff;color:#3a51b8;}
-  .tg.stopon{background:#ffe3ea;border-color:#ffb8c9;color:#a8264a;}
-  #kidbox{width:100%;border:none;border-radius:10px;background:var(--hl-blue);color:#1b3aa0;
+  .tg{font-size:.74rem;padding:3px 9px;border-radius:7px;border:1px solid var(--line);background:var(--card);cursor:pointer;}
+  .tg.cap{background:var(--soft);border-color:#f0d48a;color:#8a6a10;}
+  @media (prefers-color-scheme: dark){
+    .tg.cap{
+        color:oklch(0.80 0.106 87);
+    }
+}
+  .tg.bub{background:var(--soft);border-color:#c2d2ff;color:#3a51b8;}
+  @media (prefers-color-scheme: dark){
+    .tg.bub{
+        color:oklch(0.80 0.120 270);
+    }
+}
+  .tg.stopon{background:var(--soft);border-color:#ffb8c9;color:#a8264a;}
+  @media (prefers-color-scheme: dark){
+    .tg.stopon{
+        color:oklch(0.80 0.120 10);
+    }
+}
+  #kidbox{width:100%;border:none;border-radius:10px;background:var(--hl-blue);color:oklch(0.22 0.03 260);
     padding:16px;text-align:center;cursor:pointer;font-size:.92rem;font-weight:600;}
   #kidbox:hover{filter:brightness(.97);}
   .console{margin-top:12px;background:#11141c;color:#d7dcea;border-radius:10px;padding:12px 14px;
@@ -72,7 +73,6 @@
   ul.list li.on{background:#d9d9de;color:#444;}
   .counter{font-size:.82rem;color:var(--muted);}
   .counter b{color:var(--accent);}
-  footer{margin-top:34px;text-align:center;color:var(--muted);font-size:.78rem;}
 </style>
 <link rel="stylesheet" href="../../../../assets/notes.css">
 </head>
@@ -118,12 +118,12 @@
     <p class="hint">點最內層藍色「子 li」。每層可切 <mark class="b">冒泡</mark>↔<mark class="y">捕獲</mark>,或開 <mark class="r">stopPropagation</mark> 看事件被攔截。</p>
     <div class="ctrls"><button class="btn" id="d1reset">清除紀錄</button></div>
 
-    <div class="lbox" id="gp" style="background:#fafafa">
+    <div class="lbox" id="gp" style="background:var(--card)">
       <div class="lhead">
         <span class="lname">祖父 <code>#grandpa</code> <span class="hint">div</span></span>
         <div class="toggles"><button class="tg bub" data-ph="gp">冒泡</button><button class="tg" data-stop="gp">stop✗</button></div>
       </div>
-      <div class="lbox" id="dad" style="background:#fff">
+      <div class="lbox" id="dad" style="background:var(--card)">
         <div class="lhead">
           <span class="lname">父 <code>#dad</code> <span class="hint">ul</span></span>
           <div class="toggles"><button class="tg bub" data-ph="dad">冒泡</button><button class="tg" data-stop="dad">stop✗</button></div>
@@ -131,7 +131,7 @@
         <button id="kidbox">👆 點我　子 <code>#kid</code> · li (target)</button>
       </div>
     </div>
-    <div class="console" id="d1log"><span class="hint" style="color:#7a8197">（這裡會顯示觸發順序…）</span></div>
+    <div class="console" id="d1log"><span class="hint" style="color:var(--sub)">（這裡會顯示觸發順序…）</span></div>
     <div class="callout tip" style="margin-top:14px">把<strong>祖父</strong>切成「捕獲」再點 → 祖父會變<strong>第一個</strong>跑(捕獲由外往內,先經過它)。這證明<mark class="g">順序是看「階段」決定的</mark>,不是看誰被點。</div>
   </section>
 
@@ -159,7 +159,7 @@
     <ul class="list" id="list">
       <li>項目一</li><li>項目二</li><li>項目三</li>
     </ul>
-    <div class="console" id="d2log" style="min-height:30px"><span class="hint" style="color:#7a8197">（點 li 看 e.target…）</span></div>
+    <div class="console" id="d2log" style="min-height:30px"><span class="hint" style="color:var(--sub)">（點 li 看 e.target…）</span></div>
 <pre>const ul = document.querySelector('ul');
 ul.addEventListener('click', (e) =&gt; {
   if (e.target.tagName === '<mark class="r">LI</mark>') {        // tagName 永遠大寫
@@ -206,7 +206,7 @@ ul.addEventListener('click', (e) =&gt; {
   var stop={gp:false,dad:false,kid:false};
   var handlers={}, order=0;
   var log=document.getElementById('d1log');
-  function clear(){order=0;log.innerHTML='<span class="hint" style="color:#7a8197">（這裡會顯示觸發順序…）</span>';}
+  function clear(){order=0;log.innerHTML='<span class="hint" style="color:var(--sub)">（這裡會顯示觸發順序…）</span>';}
   function phInfo(p){return p===1?['cap','捕獲']:p===3?['bub','冒泡']:['tgt','目標'];}
   function mk(L){return function(e){
     if(order===0) log.innerHTML='';
@@ -266,5 +266,6 @@ ul.addEventListener('click', (e) =&gt; {
 </script>
 <script src="../../../../assets/wikilink.js" data-root="../../../../"></script>
 <script src="../../../../assets/notes.js" defer></script>
+<script src="../../../../assets/note-mask.js"></script>
 </body>
 </html>

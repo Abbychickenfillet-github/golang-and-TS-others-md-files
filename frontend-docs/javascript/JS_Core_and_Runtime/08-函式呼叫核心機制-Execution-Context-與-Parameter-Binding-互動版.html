@@ -2,35 +2,33 @@
 <html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>函式呼叫核心機制互動版：Execution Context、Creation Phase 與參數綁定</title>
+<link rel="stylesheet" href="../../../assets/note-theme.css">
 <style>
-:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;
-  --ok:#15803d;--err:#b91c1c;--warn:#c2410c;--violet:#6d28d9;}
-*{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
-.wrap{max-width:900px;margin:0 auto;padding:28px 20px 80px;}
+:root{--muted:var(--sub);--err:#b91c1c;--violet:#6d28d9;}
+@media (prefers-color-scheme: dark){
+:root{--err:oklch(0.80 0.120 28);}}
 header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
 header.note h1{margin:0 0 12px;font-size:1.5rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
 .pills{margin:6px 0;}
-.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
-.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.pill{display:inline-block;margin:3px 5px 3px 0;}
+.meta{margin-top:8px;}
 section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
-h2{font-size:1.15rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
-h3{font-size:1rem;margin:1.2em 0 .5em;color:#374151;}
-code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
-mark{padding:.05em .25em;border-radius:4px;}
-.y{background:#fff3a3}.b{background:#adccff}.r{background:#ff5582}.g{background:#bbfabb}.v{background:#d2b3ff}.o{background:#ffb86c}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.89rem;}
-th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;}
-th{background:#f1f5f9;}
-pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;color:#abb2bf;font-size:.85rem;line-height:1.65;}
-pre .cm{color:#7f848e;}pre .kw{color:#c678dd;}pre .op{color:#e5c07b;}pre .ok{color:#98c379;}pre .no{color:#e06c75;}
-footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
+h2{border-left:5px solid var(--accent);padding-left:12px;}.b{background:#adccff;color:oklch(0.22 0.03 260)}.r{background:#ff5582;color:oklch(0.22 0.03 260)}.v{background:#d2b3ff;color:oklch(0.22 0.03 260)}.o{background:#ffb86c;color:oklch(0.22 0.03 260)}
+pre .cm{color:var(--sub);}pre .kw{color:#c678dd;}@media (prefers-color-scheme: dark){
+pre .kw{color:oklch(0.80 0.120 318);}}pre .op{color:#e5c07b;}pre .ok{color:#98c379;}pre .no{color:#e06c75;}@media (prefers-color-scheme: dark){
+pre .no{color:oklch(0.80 0.120 17);}}
 .indent{margin-left:1.6em;color:var(--muted);font-size:.94em;}
 
 .grammar-tree{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:18px 10px;justify-content:center;}
-.gt-node{position:relative;background:#eef1ff;border:2px solid #c7d2fe;border-radius:10px;padding:10px 14px;font-family:"JetBrains Mono",Consolas,monospace;font-size:.85rem;color:#4338ca;cursor:help;white-space:nowrap;}
-.gt-node.optional{background:#fff7ed;border-color:#fed7aa;color:#c2410c;font-size:.78rem;white-space:normal;max-width:180px;}
-.gt-node.required{background:#ecfdf5;border-color:#a7f3d0;color:#047857;font-size:.78rem;white-space:normal;max-width:180px;}
+.gt-node{position:relative;background:var(--soft);border:2px solid #c7d2fe;border-radius:10px;padding:10px 14px;font-family:"JetBrains Mono",Consolas,monospace;font-size:.85rem;color:#4338ca;cursor:help;white-space:nowrap;}
+@media (prefers-color-scheme: dark){
+.gt-node{color:oklch(0.80 0.120 277);}}
+.gt-node.optional{background:var(--card);border-color:#fed7aa;color:#c2410c;font-size:.78rem;white-space:normal;max-width:180px;}
+@media (prefers-color-scheme: dark){
+.gt-node.optional{color:oklch(0.80 0.120 38);}}
+.gt-node.required{background:var(--card);border-color:#a7f3d0;color:#047857;font-size:.78rem;white-space:normal;max-width:180px;}
+@media (prefers-color-scheme: dark){
+.gt-node.required{color:oklch(0.80 0.105 166);}}
 .gt-node:hover{background:#4f46e5;color:#fff;border-color:#4f46e5;z-index:5;}
 .gt-node.optional:hover{background:#ea580c;border-color:#ea580c;color:#fff;}
 .gt-node.required:hover{background:#047857;border-color:#047857;color:#fff;}
@@ -52,24 +50,21 @@ footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
 
 .paren-table td.role-yes{color:var(--ok);font-weight:600;}
 .paren-table td.role-no{color:var(--err);}
-
-.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #7c6f9b;background:#faf9fc;border-radius:10px;}
-.callout.warn{border-left-color:var(--err);background:#fef2f2;}
-.callout.ok{border-left-color:var(--ok);background:#f0fdf4;}
-.callout-title{font-weight:700;margin-bottom:4px;}
+.callout.warn{border-left-color:var(--err);background:var(--soft);}
+.callout.ok{border-left-color:var(--ok);}
 
 .three{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:14px 0;}
-.three>div{border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:12px 14px;background:#fff;}
+.three>div{border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:12px 14px;background:var(--card);}
 .three b{display:block;margin-bottom:4px;font-size:.95rem;}
 .three small{color:var(--muted);}
 
 .blank{display:inline-block;min-width:78px;padding:1px 9px;margin:0 2px;border-bottom:2px dashed var(--accent);
-  color:transparent;background:#eef1f6;border-radius:4px 4px 0 0;cursor:pointer;user-select:none;
+  color:transparent;background:var(--soft);border-radius:4px 4px 0 0;cursor:pointer;user-select:none;
   font-family:"JetBrains Mono",Consolas,monospace;font-size:.88em;}
 .blank.shown{color:#4338ca;background:#bbfabb;border-bottom-style:solid;font-weight:600;}
-button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:5px 12px;}
+button{font:inherit;}
 button:hover{border-color:var(--accent);color:var(--accent);}
-.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.toolbar{margin-bottom:16px;}
 </style><link rel="stylesheet" href="../../../assets/notes.css">
 </head><body>
 <div class="wrap">
@@ -81,7 +76,7 @@ button:hover{border-color:var(--accent);color:var(--accent);}
 本頁是<strong>文法產生式（grammar production）專篇</strong>，可以單獨讀，編號從 1 開始。<br>
 執行期的完整逐點論述（Execution Context 怎麼建、Creation Phase 做什麼、參數怎麼綁）見同資料夾
 <code>08-函式呼叫核心機制-Execution-Context-與-Parameter-Binding.md</code>。<br>
-<span style="color:#b91c1c">2026-09-29 改版</span>：原本沿用 .md 的 (d)(m) 編號，現在改成 1／2／3／4 獨立編號，並新增第 3、4 節（宣告的文法產生式、<code>lexical</code> 這個字的三種意思）。
+<span style="--c-l:#b91c1c;--c-d:oklch(0.80 0.120 28)">2026-09-29 改版</span>：原本沿用 .md 的 (d)(m) 編號，現在改成 1／2／3／4 獨立編號，並新增第 3、4 節（宣告的文法產生式、<code>lexical</code> 這個字的三種意思）。
 </div>
 </header>
 
@@ -303,4 +298,5 @@ document.querySelectorAll('.blank').forEach(el=>{
 function allBlanks(s){document.querySelectorAll('.blank').forEach(el=>el.classList.toggle('shown',s))}
 </script>
 <script src="../../../assets/notes.js" defer></script>
+<script src="../../../assets/note-mask.js"></script>
 </body></html>

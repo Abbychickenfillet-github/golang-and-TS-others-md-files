@@ -4,28 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>為何 setCount(count++) 無效而 setCount(count + 1) 可以｜互動版</title>
+<link rel="stylesheet" href="../../assets/note-theme.css">
 <style>
   :root{
-    --bg:#fafafa; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
-    --good:#059669; --goodbg:#d1fae5; --bad:#dc2626; --badbg:#fee2e2;
-    --warn:#d97706; --warnbg:#fef3c7; --info:#0284c7; --infobg:#e0f2fe;
-    --code:#1e293b;
+    --muted:var(--sub);
+    --good:#059669; --goodbg:#d1fae5; --bad:#dc2626; --badbg:var(--soft);
   }
-  *{box-sizing:border-box}
-  body{margin:0;padding:32px 16px 80px;background:var(--bg);color:var(--ink);
-       font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;line-height:1.85}
-  .wrap{max-width:880px;margin:0 auto}
+@media (prefers-color-scheme: dark){
+    :root{
+        --good:oklch(0.80 0.120 163);
+    }
+    :root{
+        --bad:oklch(0.80 0.120 27);
+    }
+}
+  body{padding:32px 16px 80px}
   h1{font-size:26px;margin:0 0 6px}
   .sub{color:var(--muted);font-size:14px;margin:0 0 28px}
-  h2{font-size:19px;margin:36px 0 12px;padding-left:10px;border-left:4px solid var(--info)}
-  h3{font-size:16px;margin:22px 0 8px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
-  pre{background:var(--code);color:#e2e8f0;padding:14px 16px;border-radius:8px;overflow-x:auto;
-      font-family:'Cascadia Code',Consolas,monospace;font-size:13.5px;line-height:1.7}
-  code{font-family:'Cascadia Code',Consolas,monospace}
-  .inline-code{background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:13px}
-  ol,ul{padding-left:22px}
-  li{margin:6px 0}
+  h2{padding-left:10px;border-left:4px solid var(--info)}
+  .card{margin:14px 0}
+  pre{font-family:'Cascadia Code',Consolas,monospace}
+  .inline-code{background:var(--soft);padding:1px 6px;border-radius:4px;font-size:13px}
   .tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;margin-right:6px}
   .tag-bad{background:var(--badbg);color:var(--bad)}
   .tag-good{background:var(--goodbg);color:var(--good)}
@@ -36,19 +35,15 @@
   .blank{border:none;border-bottom:2px dashed var(--info);background:transparent;
          font-family:'Cascadia Code',Consolas,monospace;font-size:14px;color:var(--ink);
          width:150px;text-align:center;padding:2px 4px;outline:none}
-  .blank:focus{border-bottom-color:var(--good);background:#f0fdf4}
+  .blank:focus{border-bottom-color:var(--good);background:var(--card)}
   .blank.ok{border-bottom:2px solid var(--good);color:var(--good);font-weight:600}
   .blank.no{border-bottom:2px solid var(--bad);color:var(--bad)}
-
-  button{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;
-         padding:7px 14px;font-size:13.5px;font-family:inherit;transition:.15s}
-  button:hover{background:#f1f5f9}
   .btn-primary{background:var(--info);color:#fff;border-color:var(--info)}
-  .btn-primary:hover{background:#0369a1}
+  .btn-primary:hover{background:#0369a1;color:oklch(0.96 0.01 258)}
   .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 
   .answer{display:none;margin-top:12px;padding:14px 16px;border-radius:8px;
-          background:var(--goodbg);border-left:4px solid var(--good);font-size:14.5px}
+          background:var(--goodbg);border-left:4px solid var(--good);font-size:14.5px;color:oklch(0.22 0.03 260)}
   .answer.show{display:block}
 
   /* 是非題 */
@@ -60,22 +55,24 @@
   .tf-fb.ok{color:var(--good)}
   .tf-fb.no{color:var(--bad)}
   .tf-why{display:none;margin-top:8px;font-size:13.5px;color:var(--muted);
-          background:#f8fafc;padding:10px 12px;border-radius:6px}
+          background:var(--card);padding:10px 12px;border-radius:6px}
   .tf-why.show{display:block}
 
   textarea{width:100%;min-height:110px;border:1px solid var(--line);border-radius:8px;
            padding:10px 12px;font-family:inherit;font-size:14px;resize:vertical;line-height:1.7}
   .score{font-weight:700;color:var(--info)}
   figure{margin:16px 0}
-  figure img{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff}
+  figure img{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--card)}
   figcaption{font-size:13px;color:var(--muted);margin-top:6px;text-align:center}
   .src{font-size:13px;color:var(--muted)}
   .src a{color:var(--info)}
-  .live{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:10px;
+  .live{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:10px;
         font-family:'Cascadia Code',Consolas,monospace;font-size:12.5px;white-space:pre-wrap}
-  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px}
-  th,td{padding:7px 9px;border:1px solid var(--line);text-align:left}
-  th{background:#f1f5f9}
+  table{margin-top:10px}
+/* 深色模式個別修正（顏色統一第 14 輪） */
+@media (prefers-color-scheme: dark){
+.btn-primary{color:oklch(0.22 0.03 260)} .tag-good{color:oklch(0.35 0.1 150)} .tag-bad{color:oklch(0.82 0.12 20)}
+}
 </style>
 <link rel="stylesheet" href="../../assets/notes.css">
 </head>
@@ -150,13 +147,13 @@ count++                                  // TypeError: Assignment to constant va
       <tr><th>寫法</th><th>Reference 種類</th><th>Base</th><th>ReferencedName</th><th>const 管得到嗎</th></tr>
       <tr><td><span class="inline-code">count++</span></td><td>identifier reference</td>
           <td>作用域的 Environment Record</td><td><span class="inline-code">"count"</span></td>
-          <td style="color:#dc2626">管得到 → TypeError</td></tr>
+          <td style="--c-l:#dc2626;--c-d:oklch(0.80 0.120 27)">管得到 → TypeError</td></tr>
       <tr><td><span class="inline-code">obj.n++</span></td><td>property reference</td>
           <td>obj 這個物件</td><td><span class="inline-code">"n"</span></td>
-          <td style="color:#059669">管不到 → 合法</td></tr>
+          <td style="--c-l:#059669;--c-d:oklch(0.80 0.120 163)">管不到 → 合法</td></tr>
       <tr><td><span class="inline-code">0++</span></td><td>不是 Reference，是一個值</td>
           <td>沒有</td><td>沒有</td>
-          <td style="color:#dc2626">解析就被擋 → SyntaxError</td></tr>
+          <td style="--c-l:#dc2626;--c-d:oklch(0.80 0.120 27)">解析就被擋 → SyntaxError</td></tr>
     </table>
     <p style="margin-top:12px"><b>三個常見誤解</b></p>
     <ol>
@@ -245,30 +242,30 @@ setCount(prev =&gt; prev + 1)   // 結算時 prev = 4 → 5</pre>
   <p><span class="tag tag-bad">結論</span>不是「比較好」，是「壞得比較不明顯」，這反而更危險。</p>
   <table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:10px">
     <thead>
-      <tr style="background:#f1f5f9">
-        <th style="text-align:left;padding:8px;border:1px solid #e2e8f0">關卡</th>
-        <th style="text-align:left;padding:8px;border:1px solid #e2e8f0">count++</th>
-        <th style="text-align:left;padding:8px;border:1px solid #e2e8f0">++count</th>
-        <th style="text-align:left;padding:8px;border:1px solid #e2e8f0">count + 1</th>
+      <tr style="background:var(--soft)">
+        <th style="text-align:left;padding:8px;border:1px solid var(--line)">關卡</th>
+        <th style="text-align:left;padding:8px;border:1px solid var(--line)">count++</th>
+        <th style="text-align:left;padding:8px;border:1px solid var(--line)">++count</th>
+        <th style="text-align:left;padding:8px;border:1px solid var(--line)">count + 1</th>
       </tr>
     </thead>
     <tbody>
-      <tr><td style="padding:8px;border:1px solid #e2e8f0">1. const 綁定不能賦值</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626">過不了，TypeError</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626"><b>一樣過不了</b></td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#059669">過關，沒有賦值</td></tr>
-      <tr><td style="padding:8px;border:1px solid #e2e8f0">2. 傳給 setCount 的值</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626">舊值，等於沒改</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#d97706">新值，看起來對了</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#059669">新值，正確</td></tr>
-      <tr><td style="padding:8px;border:1px solid #e2e8f0">3. render 期間改動快照（side effect）</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626">有，違反規則</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626"><b>一樣有</b></td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#059669">沒有</td></tr>
-      <tr><td style="padding:8px;border:1px solid #e2e8f0">4. 同一輪連呼叫兩次</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626">錯</td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626"><b>一樣錯</b></td>
-          <td style="padding:8px;border:1px solid #e2e8f0;color:#d97706">一樣錯，要改用 updater</td></tr>
+      <tr><td style="padding:8px;border:1px solid var(--line)">1. const 綁定不能賦值</td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#dc2626;--c-d:oklch(0.80 0.120 27)">過不了，TypeError</td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#dc2626;--c-d:oklch(0.80 0.120 27)"><b>一樣過不了</b></td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#059669;--c-d:oklch(0.80 0.120 163)">過關，沒有賦值</td></tr>
+      <tr><td style="padding:8px;border:1px solid var(--line)">2. 傳給 setCount 的值</td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#dc2626;--c-d:oklch(0.80 0.120 27)">舊值，等於沒改</td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#d97706;--c-d:oklch(0.80 0.120 58)">新值，看起來對了</td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#059669;--c-d:oklch(0.80 0.120 163)">新值，正確</td></tr>
+      <tr><td style="padding:8px;border:1px solid var(--line)">3. render 期間改動快照（side effect）</td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#dc2626;--c-d:oklch(0.80 0.120 27)">有，違反規則</td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#dc2626;--c-d:oklch(0.80 0.120 27)"><b>一樣有</b></td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#059669;--c-d:oklch(0.80 0.120 163)">沒有</td></tr>
+      <tr><td style="padding:8px;border:1px solid var(--line)">4. 同一輪連呼叫兩次</td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#dc2626;--c-d:oklch(0.80 0.120 27)">錯</td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#dc2626;--c-d:oklch(0.80 0.120 27)"><b>一樣錯</b></td>
+          <td style="padding:8px;border:1px solid var(--line);--c-l:#d97706;--c-d:oklch(0.80 0.120 58)">一樣錯，要改用 updater</td></tr>
     </tbody>
   </table>
   <div class="btn-row"><button onclick="toggle('a5')">切換顯示逐點解說</button></div>
@@ -489,5 +486,6 @@ setCount(prev =&gt; prev + 1)   // 結算時 prev = 4 → 5</pre>
   }
 </script>
 <script src="../../assets/notes.js" defer></script>
+<script src="../../assets/note-mask.js"></script>
 </body>
 </html>

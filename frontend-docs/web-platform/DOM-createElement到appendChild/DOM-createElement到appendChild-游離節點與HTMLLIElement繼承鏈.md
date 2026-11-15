@@ -13,7 +13,7 @@ updated: 2026-11-04
 
 # createElement 到 appendChild：游離節點與 HTMLLIElement 繼承鏈
 
-主檔是互動版 [[DOM-createElement到appendChild-游離節點與HTMLLIElement繼承鏈.html]]（主軸圖可逐行執行、即時量 parentNode／isConnected、測驗）。
+主檔是互動版 [[DOM-createElement到appendChild-游離節點與HTMLLIElement繼承鏈-互動版.html]]（主軸圖可逐行執行、即時量 parentNode／isConnected、測驗）。
 程式範例：同資料夾 `demo-add-element.html`
 
 ## 大綱

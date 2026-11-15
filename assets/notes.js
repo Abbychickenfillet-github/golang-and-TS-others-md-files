@@ -79,24 +79,57 @@
   }
 
   /* ---------- 2. 統一版面：左側大綱 + 右側內文 ---------- */
+  // 頁面是否已經自己排好「左大綱＋右內文」：手寫的 nav.toc 在 .layout 裡面，
+  // 或它的父層裡同時還有內容容器（.content 或 main，且不在 nav 裡面）。這種頁面不能再被 layout() 重排，
+  // 否則只有第一個 article 會被包進格線，其餘內容掉到格線下面（R35）
+  function ownsLayout(nav) {
+    if (nav.closest('.layout')) return true;       // closest 往上找最近的 .layout 祖先；找到代表大綱就在自己的版面容器內
+    var parent = nav.parentElement;                // 大綱的父元素
+    if (!parent) return false;                     // 沒有父元素（理論上不會）就當作沒有自己的版面
+    return Array.prototype.some.call(parent.querySelectorAll('.content, main'), function (c) {   // 把 NodeList 借用陣列的 some：父層底下有沒有內容容器
+      return !nav.contains(c);                     // 內容容器不能在大綱自己裡面
+    });
+  }
+
+  // 頂層的 article：不在別的 article 裡面的那些
+  function topArticles() {
+    return Array.prototype.filter.call(document.querySelectorAll('article'), function (a) {   // 借用陣列的 filter 篩 NodeList
+      return !(a.parentElement && a.parentElement.closest('article'));   // 父層往上找不到 article 才是頂層
+    });
+  }
+
+  // 一組元素的共同祖先（最近的、同時包含它們全部的元素）
+  function commonAncestor(els) {
+    var p = els[0].parentElement;                  // 從第一個元素的父層開始往上找
+    while (p && !els.every(function (e) { return p.contains(e); })) p = p.parentElement;   // 還沒包含全部就繼續往上一層
+    return p || document.body;                     // 一路到頂都沒有就退回 body
+  }
+
   function layout() {
-    if (document.querySelector('.notes-grid')) return;
+    if (document.querySelector('.notes-grid')) return;   // 已經有格線就不重複建立
+
+    // 頁面自己有版面就不重排（R35）；其他功能（名詞說明卡等）不受影響
+    var own = document.querySelector('nav.toc');   // 頁面手寫的大綱（可能沒有）
+    if (own && ownsLayout(own)) return;            // 有手寫大綱而且它已在自己的版面裡：整個 layout() 不做事
 
     // 這些是頁面外框，要留在格線外面維持滿版
     var CHROME = 'header, footer, script, style, link, nav.toc, .auto-toc, .tipbar, .bar, .notes-grid';
 
-    var art = document.querySelector('article');
-    var main, host;
+    var arts = topArticles();                      // 所有頂層 article
+    var art = arts.length === 1 ? arts[0] : null;   // 只有單一 article 才直接拿它當內容區
+    var main, host;                                // main 是內容區元素，host 是格線要放進去的父層
 
     if (art) {
       main = art;                                  // 本來就有 article，直接當內容區
-      host = art.parentNode;
+      host = art.parentNode;                       // 格線放在 article 原本的位置
     } else {
-      host = document.querySelector('.post-content') ||
-             document.querySelector('.wrap') ||
-             document.body;
+      // 多個 article：用它們的共同祖先當內容區，全部 article 才會一起進格線（R35）
+      host = arts.length > 1 ? commonAncestor(arts) :   // 多個 article：取共同祖先
+             document.querySelector('.post-content') ||   // 沒有 article：先找 .post-content
+             document.querySelector('.wrap') ||     // 再找 .wrap
+             document.body;                         // 最後退回 body
       // body 底下若只有單一包裝元素，往下鑽一層，才不會把 header 一起捲進格線
-      if (host === document.body) {
+      if (host === document.body && !arts.length) {   // 只有「沒有 article」的情況才往下鑽
         var only = Array.prototype.filter.call(host.children, function (c) {
           return !/^(SCRIPT|STYLE|LINK|NOSCRIPT)$/.test(c.tagName);
         });

@@ -46,7 +46,8 @@ INDEX = os.path.join(ROOT, "index.html")
 
 # 不管 _config.yml 有沒有寫，這些資料夾一律不掃（圖片、套件、共用資源，裡面沒有筆記）。
 # 用 set（集合）是因為「某個名字在不在裡面」查起來最快。
-ALWAYS_SKIP_DIRS = {"assets", "obsidian-attachment", "node_modules", "vendor"}
+# site 是 Next.js 部落格專案（含自己的 README、AGENTS、out/ 建置輸出），不是筆記，索引不該列出。
+ALWAYS_SKIP_DIRS = {"assets", "obsidian-attachment", "node_modules", "vendor", "site"}
 
 # 互動版的檔名約定：「X-互動版.html」會被視為「X」的互動版，併在 X 後面當 [互動版] 連結。
 ALT_SUFFIX = "-互動版"

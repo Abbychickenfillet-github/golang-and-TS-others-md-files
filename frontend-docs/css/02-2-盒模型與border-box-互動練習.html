@@ -3,62 +3,56 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>盒模型與border-box互動練習</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<link rel="stylesheet" href="../../assets/note-theme.css">
 <style>
-:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
-*{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);
- font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
- line-height:1.75;font-size:16px;}
-.wrap{max-width:860px;margin:0 auto;padding:32px 20px 64px;}
+:root{--muted:var(--sub);}
 header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
 h1{font-family:"Noto Serif TC",Georgia,serif;font-size:26px;line-height:1.3;margin:.2em 0;}
-h2{font-family:"Noto Serif TC",Georgia,serif;font-size:20px;margin:1.8em 0 .6em;
- border-left:5px solid var(--accent);padding-left:12px;}
-.meta{color:var(--muted);font-size:13px;margin-top:8px;}
-.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
- padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+h2{border-left:5px solid var(--accent);padding-left:12px;}
+.meta{margin-top:8px;}
+.pill{display:inline-block;margin:3px 5px 3px 0;}
 .toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
  border-bottom:1px solid var(--line);margin-bottom:10px;}
 .btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
  padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
-.btn:hover{background:#f1eefe;}
-mark.hl{padding:1px 3px;border-radius:4px;}
+.btn:hover{background:var(--soft);}
 mark.tog{cursor:pointer;transition:.15s;}
 mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
  user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
-pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.55;}
-code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
-:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
-th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
-th{background:#f3f1fb;}
-.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;padding:7px 12px;margin:6px 0 14px;}
+:not(pre)>code{background:var(--soft);color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+@media (prefers-color-scheme: dark){
+:not(pre)>code{color:oklch(0.80 0.120 282);}}
+.hint{font-size:12.5px;color:var(--muted);background:var(--soft);border-radius:8px;padding:7px 12px;margin:6px 0 14px;}
 .cloze{display:inline-block;min-width:2.4em;text-align:center;padding:1px 8px;border-radius:6px;
- background:#eef0ff;border:1px dashed #9fa8ff;color:#3b3b3b;cursor:pointer;font-weight:600;}
-.cloze.revealed{background:#e3fbe3;border:1px solid #6bcB6b;color:#1c5f1c;}
+ background:var(--soft);border:1px dashed #9fa8ff;color:var(--ink);cursor:pointer;font-weight:600;}
+.cloze.revealed{background:var(--soft);border:1px solid #6bcB6b;color:#1c5f1c;}
+@media (prefers-color-scheme: dark){
+.cloze.revealed{color:oklch(0.80 0.120 143);}}
 .qa-card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:14px 0;background:var(--card);}
 .qa-q{font-weight:700;margin-bottom:8px;}
 .tf-btns{display:flex;gap:8px;margin:8px 0;}
-.tf-btn{cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:5px 16px;background:#fff;font-size:14px;}
-.tf-btn.correct-picked{background:#dff5df;border-color:#4caf50;}
-.tf-btn.wrong-picked{background:#fbe1e1;border-color:#e05353;}
-.tf-explain{display:none;margin-top:8px;font-size:14px;background:#f6f6fb;border-radius:8px;padding:9px 12px;}
+.tf-btn{cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:5px 16px;background:var(--card);font-size:14px;}
+.tf-btn.correct-picked{background:var(--soft);border-color:#4caf50;}
+.tf-btn.wrong-picked{background:var(--soft);border-color:#e05353;}
+.tf-explain{display:none;margin-top:8px;font-size:14px;background:var(--soft);border-radius:8px;padding:9px 12px;}
 .tf-explain.show{display:block;}
 .essay-toggle{cursor:pointer;color:#5b4bd6;font-size:13px;text-decoration:underline;user-select:none;}
-.essay-answer{display:none;margin-top:10px;background:#f6f6fb;border-radius:8px;padding:10px 14px;font-size:14.5px;}
+@media (prefers-color-scheme: dark){
+.essay-toggle{color:oklch(0.80 0.120 282);}}
+.essay-answer{display:none;margin-top:10px;background:var(--soft);border-radius:8px;padding:10px 14px;font-size:14.5px;}
 .essay-answer.show{display:block;}
 textarea{width:100%;min-height:60px;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:inherit;font-size:14px;margin-top:6px;}
-.demo{border:1px solid var(--line);border-radius:8px;padding:16px;margin:10px 0;background:#fbfbfd;}
+.demo{border:1px solid var(--line);border-radius:8px;padding:16px;margin:10px 0;background:var(--card);}
 .demo-controls{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
-.demo-controls button{padding:5px 14px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:13px;}
+.demo-controls button{padding:5px 14px;border-radius:6px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-size:13px;}
 .demo-controls button.active{background:#7c6cff;color:#fff;border-color:#7c6cff;}
 .demo-stage{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;}
 .demo-visual{position:relative;}
-.box-margin{background:#fdf0d5;padding:24px;}
-.box-border{background:#f6c945;transition:all .25s;}
-.box-padding{background:#a7d8a0;transition:all .25s;}
+.box-margin{background:var(--soft);padding:24px;}
+.box-border{background:#f6c945;transition:all .25s;color:oklch(0.22 0.03 260);}
+.box-padding{background:#a7d8a0;transition:all .25s;color:oklch(0.22 0.03 260);}
 .box-content{background:#7fb6e8;display:flex;align-items:center;justify-content:center;color:#0b2e63;font-size:13px;font-weight:bold;transition:all .25s;}
-.demo-readout{font-size:13.5px;background:#f6f6fb;border-radius:8px;padding:10px 14px;min-width:220px;}
+.demo-readout{font-size:13.5px;background:var(--soft);border-radius:8px;padding:10px 14px;min-width:220px;}
 .demo-readout div{margin:3px 0;}
 </style><link rel="stylesheet" href="../../assets/notes.css">
 </head>
@@ -75,7 +69,7 @@ textarea{width:100%;min-height:60px;border:1px solid var(--line);border-radius:8
 <div class="hint">💡 螢光標記可點擊切換顯示/隱藏；填空區塊點一下顯示答案；下面有一個可即時切換box-sizing的互動demo，數字會跟著變。</div>
 
 <h2>一‧盒模型四層</h2>
-<p>由內到外：<mark class="hl tog" style="background:#7fb6e8;">content內容</mark> → <mark class="hl tog" style="background:#a7d8a0;">padding內距</mark> → <mark class="hl tog" style="background:#f6c945;">border邊框</mark> → <mark class="hl tog" style="background:#fdf0d5;">margin外距</mark>。</p>
+<p>由內到外：<mark class="hl tog" style="background:#7fb6e8;color:oklch(0.22 0.03 260);">content內容</mark> → <mark class="hl tog" style="background:#a7d8a0;color:oklch(0.22 0.03 260);">padding內距</mark> → <mark class="hl tog" style="background:#f6c945;color:oklch(0.22 0.03 260);">border邊框</mark> → <mark class="hl tog" style="background:var(--soft);">margin外距</mark>。</p>
 
 <h2>二‧互動demo：content-box vs border-box（width固定160px、padding20px、border8px實心紅框示意）</h2>
 <div class="demo">
@@ -180,7 +174,7 @@ function render(mode){
       '<div><b>box-sizing: content-box</b></div>' +
       '<div>width設定值：'+WIDTH+'px（只算content）</div>' +
       '<div>實際總寬度：'+(WIDTH+PADDING*2+BORDER*2)+'px</div>' +
-      '<div style="color:#c0392b;">總寬度比設定值多出 '+(PADDING*2+BORDER*2)+'px</div>';
+      '<div style="--c-l:#c0392b;--c-d:oklch(0.80 0.120 30);;">總寬度比設定值多出 '+(PADDING*2+BORDER*2)+'px</div>';
   } else {
     var innerWidth = WIDTH - PADDING*2 - BORDER*2;
     contentBox.style.width = innerWidth+'px';
@@ -202,4 +196,5 @@ render('content');
 </script>
 <script src="../../assets/wikilink.js" data-root="../../"></script>
 <script src="../../assets/notes.js" defer></script>
+<script src="../../assets/note-mask.js"></script>
 </body></html>

@@ -3,44 +3,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CSS方法論時間軸與OOCSS結構觀念（互動練習）</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<link rel="stylesheet" href="../../assets/note-theme.css">
 <style>
-:root{--bg:#faf9f7;--card:#fff;--ink:#2b2b2b;--muted:#6b7280;--line:#e7e5e1;--accent:#7c6cff;}
-*{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);
- font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
- line-height:1.75;font-size:16px;}
-.wrap{max-width:860px;margin:0 auto;padding:32px 20px 64px;}
+:root{--muted:var(--sub);}
 header.note{margin-bottom:28px;border-bottom:2px solid var(--line);padding-bottom:18px;}
 h1{font-family:"Noto Serif TC",Georgia,serif;font-size:28px;line-height:1.3;margin:.2em 0;}
-h2{font-family:"Noto Serif TC",Georgia,serif;font-size:21px;margin:1.8em 0 .6em;
- border-left:5px solid var(--accent);padding-left:12px;}
-h3{font-size:16.5px;margin:1.3em 0 .4em;color:#3a3a3a;}
-.meta{color:var(--muted);font-size:13px;margin-top:8px;}
-.pill{display:inline-block;background:#efeafe;color:#5b4bd6;border-radius:999px;
- padding:2px 11px;font-size:12px;margin:3px 5px 3px 0;}
+h2{border-left:5px solid var(--accent);padding-left:12px;}
+.meta{margin-top:8px;}
+.pill{display:inline-block;margin:3px 5px 3px 0;}
 .src{display:block;font-size:12px;color:#2563eb;word-break:break-all;margin-top:3px;}
+@media (prefers-color-scheme: dark){
+.src{color:oklch(0.80 0.120 263);}}
 .toolbar{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;
  border-bottom:1px solid var(--line);margin-bottom:10px;}
 .btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:8px;
  padding:6px 13px;font-size:13px;color:var(--ink);margin-right:8px;}
-.btn:hover{background:#f1eefe;}
-mark.hl{padding:1px 3px;border-radius:4px;}
+.btn:hover{background:var(--soft);}
 mark.tog{cursor:pointer;transition:.15s;}
 mark.tog.hidden{color:transparent !important;background:#d9d6d0 !important;border-radius:4px;
  user-select:none;box-shadow:inset 0 0 0 1px #cfccc6;}
-pre{background:#282c34;border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:13.5px;
- line-height:1.55;}
-code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace;}
-:not(pre)>code{background:#f0eef9;color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:14.5px;}
-th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;}
-th{background:#f3f1fb;}
-tr:nth-child(even) td{background:#faf9fd;}
-blockquote{border-left:4px solid #ffd27d;background:#fff8ec;margin:1em 0;padding:8px 14px;
- border-radius:0 8px 8px 0;color:#7a5a1e;}
-footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
- border-top:1px solid var(--line);padding-top:16px;}
-.hint{font-size:12.5px;color:var(--muted);background:#f3f1fb;border-radius:8px;
+:not(pre)>code{background:var(--soft);color:#5b4bd6;padding:1.5px 5px;border-radius:5px;font-size:.9em;}
+@media (prefers-color-scheme: dark){
+:not(pre)>code{color:oklch(0.80 0.120 282);}}
+tr:nth-child(even) td{background:var(--card);}
+.hint{font-size:12.5px;color:var(--muted);background:var(--soft);border-radius:8px;
  padding:7px 12px;margin:6px 0 14px;}
 
 .timeline{position:relative;margin:20px 0;padding-left:26px;border-left:3px solid var(--accent);}
@@ -51,23 +37,30 @@ footer{margin-top:40px;color:var(--muted);font-size:12px;text-align:center;
 .tl-title{font-weight:700;margin:2px 0 4px;}
 .tl-src{font-size:12px;color:var(--muted);}
 .tl-src a{color:#2563eb;}
+@media (prefers-color-scheme: dark){
+.tl-src a{color:oklch(0.80 0.120 263);}}
 
 .cloze{display:inline-block;min-width:2.4em;text-align:center;padding:1px 8px;border-radius:6px;
- background:#eef0ff;border:1px dashed #9fa8ff;color:#3b3b3b;cursor:pointer;font-weight:600;}
-.cloze.revealed{background:#e3fbe3;border:1px solid #6bcB6b;color:#1c5f1c;}
+ background:var(--soft);border:1px dashed #9fa8ff;color:var(--ink);cursor:pointer;font-weight:600;}
+.cloze.revealed{background:var(--soft);border:1px solid #6bcB6b;color:#1c5f1c;}
+@media (prefers-color-scheme: dark){
+.cloze.revealed{color:oklch(0.80 0.120 143);}}
 .cloze .blank{letter-spacing:2px;}
 
 .qa-card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:14px 0;background:var(--card);}
 .qa-q{font-weight:700;margin-bottom:8px;}
 .tf-btns{display:flex;gap:8px;margin:8px 0;}
-.tf-btn{cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:5px 16px;background:#fff;font-size:14px;}
-.tf-btn.correct-picked{background:#dff5df;border-color:#4caf50;}
-.tf-btn.wrong-picked{background:#fbe1e1;border-color:#e05353;}
-.tf-explain{display:none;margin-top:8px;font-size:14px;background:#f6f6fb;border-radius:8px;padding:9px 12px;}
+.tf-btn{cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:5px 16px;background:var(--card);font-size:14px;}
+.tf-btn.correct-picked{background:var(--soft);border-color:#4caf50;}
+.tf-btn.wrong-picked{background:var(--soft);border-color:#e05353;}
+.tf-explain{display:none;margin-top:8px;font-size:14px;background:var(--soft);border-radius:8px;padding:9px 12px;}
 .tf-explain.show{display:block;}
 
 .essay-toggle{cursor:pointer;color:#5b4bd6;font-size:13px;text-decoration:underline;user-select:none;}
-.essay-answer{display:none;margin-top:10px;background:#f6f6fb;border-radius:8px;padding:10px 14px;font-size:14.5px;}
+
+@media (prefers-color-scheme: dark){
+.essay-toggle{color:oklch(0.80 0.120 282);}}
+.essay-answer{display:none;margin-top:10px;background:var(--soft);border-radius:8px;padding:10px 14px;font-size:14.5px;}
 .essay-answer.show{display:block;}
 textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8px;padding:8px;
  font-family:inherit;font-size:14px;margin-top:6px;}
@@ -90,25 +83,25 @@ textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8
   <div class="tl-item">
     <div class="tl-year">2009年</div>
     <div class="tl-title">OOCSS —— Nicole Sullivan</div>
-    <div>提出<mark class="hl tog" style="background:#FFF3A3;">結構與外觀分離、容器與內容分離</mark>兩大原則，四者中最早出現。</div>
+    <div>提出<mark class="hl tog" style="background:#FFF3A3;color:oklch(0.22 0.03 260);">結構與外觀分離、容器與內容分離</mark>兩大原則，四者中最早出現。</div>
     <div class="tl-src">來源：<a href="https://www.bennadel.com/blog/1633-object-oriented-css-oocss-by-nicole-sullivan.htm" target="_blank">Ben Nadel（2009-07-08）</a>‧<a href="https://en.wikipedia.org/wiki/OOCSS" target="_blank">OOCSS - Wikipedia</a></div>
   </div>
   <div class="tl-item">
     <div class="tl-year">2005起步‧2009正式成形</div>
     <div class="tl-title">BEM —— Yandex團隊</div>
-    <div>2005年萌芽、2007年提出Independent Block、<mark class="hl tog" style="background:#FFF3A3;">2009年3月Lego 2.0發布正式定型為BEM</mark>、2010年開源。</div>
+    <div>2005年萌芽、2007年提出Independent Block、<mark class="hl tog" style="background:#FFF3A3;color:oklch(0.22 0.03 260);">2009年3月Lego 2.0發布正式定型為BEM</mark>、2010年開源。</div>
     <div class="tl-src">來源：<a href="https://en.bem.info/methodology/history/" target="_blank">History / Methodology / BEM</a>‧<a href="https://www.webdesignmuseum.org/web-design-history/bem-2009" target="_blank">BEM - Web Design Museum</a></div>
   </div>
   <div class="tl-item">
     <div class="tl-year">2011年</div>
     <div class="tl-title">SMACSS —— Jonathan Snook</div>
-    <div>取材自Yahoo! Mail改版經驗，<mark class="hl tog" style="background:#FFF3A3;">把CSS規則分五類管理</mark>的架構思維。</div>
+    <div>取材自Yahoo! Mail改版經驗，<mark class="hl tog" style="background:#FFF3A3;color:oklch(0.22 0.03 260);">把CSS規則分五類管理</mark>的架構思維。</div>
     <div class="tl-src">來源：<a href="https://smacss.com/book/about/" target="_blank">SMACSS - About</a></div>
   </div>
   <div class="tl-item">
     <div class="tl-year">2014年11月</div>
     <div class="tl-title">ITCSS —— Harry Roberts</div>
-    <div>在dafed研討會首次公開發表《Managing CSS Projects with ITCSS》，四者中<mark class="hl tog" style="background:#FFF3A3;">最晚出現、唯一管檔案分層與載入順序</mark>。</div>
+    <div>在dafed研討會首次公開發表《Managing CSS Projects with ITCSS》，四者中<mark class="hl tog" style="background:#FFF3A3;color:oklch(0.22 0.03 260);">最晚出現、唯一管檔案分層與載入順序</mark>。</div>
     <div class="tl-src">來源：<a href="https://csswizardry.net/talks/2014/11/itcss-dafed.pdf" target="_blank">Csswizardry - ITCSS投影片（2014-11）</a></div>
   </div>
 </div>
@@ -223,4 +216,5 @@ document.querySelectorAll('.qa-card').forEach(function(card){
 </script>
 <script src="../../assets/wikilink.js" data-root="../../"></script>
 <script src="../../assets/notes.js" defer></script>
+<script src="../../assets/note-mask.js"></script>
 </body></html>

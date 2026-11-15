@@ -4,129 +4,79 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>class生命週期方法-vs-function-component-useEffect</title>
+<link rel="stylesheet" href="../../assets/note-theme.css">
+<link rel="stylesheet" href="../../assets/notes.css">
 <style>
 :root{
-  --bg:#fbfaf7; --card:#ffffff; --ink:#23303b; --muted:#6b7b88;
-  --line:#e4e8ec; --accent:#3f6f8f; --accent-soft:#eaf2f7;
+  --muted:var(--sub); --accent-soft:var(--soft);
   --user:#4a7c59; --ai:#5b6bb5;
-  --hl-core:#FFF3A3; --hl-warn:#FF5582; --hl-ok:#BBFABB;
-  --hl-term:#ADCCFF; --hl-data:#FFB8EB; --hl-note:#D2B3FF;
 }
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;
-  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  font-size:16.5px;-webkit-font-smoothing:antialiased}
-/* ---- fluid 滿版版面 ---- */
-.wrap{max-width:none;margin:0;padding:26px 30px 80px}
-.layout{display:flex;gap:28px;align-items:flex-start}
-.content{flex:1 1 auto;min-width:0}
 /* ---- 左側大綱 sidebar ---- */
-.toc{position:sticky;top:18px;flex:0 0 250px;max-height:calc(100vh - 36px);overflow:auto;
-  background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 14px;font-size:.88rem}
+.toc{position:sticky;top:18px;flex:0 0 250px;max-height:calc(100vh - 36px);overflow:auto;font-size:.88rem}
 .toc h4{margin:0 0 10px;font-size:.74rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
-.toc ol{list-style:none;padding:0;margin:0}
+.toc ol{list-style:none;padding:0}
 .toc li{margin:2px 0}
-.toc a{display:block;padding:6px 10px;border-radius:8px;color:var(--ink);text-decoration:none;
-  border-left:2px solid transparent;transition:.15s;line-height:1.4}
-.toc a:hover{background:var(--accent-soft)}
+.toc a{display:block;padding:6px 10px;border-radius:8px;
+  border-left:2px solid transparent;line-height:1.4}
 .toc a.active{background:var(--accent-soft);border-left-color:var(--accent);color:var(--accent);font-weight:600}
-header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);
-  border-radius:16px;padding:26px 28px;margin-bottom:22px}
-header.hero h1{margin:0 0 12px;font-size:1.75rem;line-height:1.4;letter-spacing:.01em;
-  font-family:"Noto Serif TC",Georgia,"Songti TC",serif;color:#1d2b36}
-.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
-.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;
-  border-radius:999px;padding:3px 11px;font-size:.78rem;letter-spacing:.02em}
-.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+header.hero h1{line-height:1.4;letter-spacing:.01em}
+.meta{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
 .meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
-.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 20px}
-.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;
+.toolbar button{background:var(--card);border:1px solid var(--line);border-radius:10px;
   padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;font-family:inherit}
-.toolbar button:hover{background:var(--accent-soft);border-color:#cfe0ea}
-.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 24px;font-size:.74rem;color:var(--muted)}
-.legend span{padding:2px 9px;border-radius:6px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 28px;margin-bottom:20px}
-h2{font-size:1.3rem;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);
-  font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36;scroll-margin-top:16px}
-.card>h2:first-child{margin-top:0}
-h3{font-size:1.08rem;margin:26px 0 10px;color:#2c4a5e;scroll-margin-top:16px}
-h4{font-size:.98rem;margin:20px 0 8px;color:#3d5567}
-p{margin:11px 0}
-blockquote{margin:16px 0;padding:12px 18px;background:#f6f8fa;border-left:4px solid var(--accent);
-  border-radius:0 8px 8px 0;color:#41525f}
-blockquote p{margin:6px 0}
-ul,ol{padding-left:1.5em}
-li{margin:6px 0}
-.plain{color:#5a6b76;font-size:.93em;margin:6px 0 14px;padding-left:12px;border-left:3px solid #d8e2e9}
-.plain b{color:#3d5567}
-code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;
-  font-family:"JetBrains Mono",Consolas,"Courier New",monospace}
-pre{background:#1f2933;color:#e6edf3;padding:16px 18px;border-radius:11px;
-  overflow-x:auto;font-size:.86rem;line-height:1.6;margin:14px 0}
-pre code{background:none;color:inherit;padding:0;font-size:inherit}
-.cmt{color:#8fa3b0}
-table{border-collapse:collapse;width:100%;margin:16px 0;font-size:.93rem;display:block;overflow-x:auto}
-th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
-th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
-tbody tr:nth-child(even){background:#fafbfc}
+.toolbar button:hover{background:var(--accent-soft);border-color:var(--line)}
+h4{font-size:.98rem;margin:20px 0 8px;color:var(--sub)}
+pre code{font-size:inherit}
 hr{border:none;border-top:1px solid var(--line);margin:30px 0}
-.wikilink{background:#f0ece4;border-bottom:1px solid #d8cfbe;padding:1px 6px;border-radius:5px;font-size:.93em;color:#6b5c42}
 /* ---- 並排程式碼 ---- */
-.split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
-.split>div{min-width:0}
+.split{grid-template-columns:1fr 1fr;margin:14px 0}
 .split h4{margin:0 0 6px}
 @media(max-width:860px){.split{grid-template-columns:1fr}}
 /* ---- 生命週期時間軸圖 ---- */
-.timeline{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 18px;margin:18px 0;overflow-x:auto}
+.timeline{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 18px;margin:18px 0;overflow-x:auto}
 .tl-row{display:flex;align-items:stretch;gap:0;min-width:560px}
 .tl-stage{flex:1;text-align:center;position:relative;padding:0 6px}
 .tl-dot{display:inline-block;padding:7px 12px;border-radius:999px;font-size:.8rem;font-weight:600;color:#fff}
-.tl-mount{background:#4a9b5e}.tl-update{background:#3f6f8f}.tl-unmount{background:#b0506a}
+.tl-mount{background:#4a9b5e;color:oklch(0.22 0.03 260)}.tl-update{background:#3f6f8f;color:oklch(0.96 0.01 258)}.tl-unmount{background:#b0506a;color:oklch(0.22 0.03 260)}
 .tl-arrow{color:#9aa8b2;align-self:center;font-size:1.3rem;flex:0 0 26px;text-align:center}
-.tl-body{margin-top:10px;font-size:.8rem;line-height:1.5;color:#41525f}
-.tl-body .run{display:block;background:#eaf6ee;border:1px solid #bfe3c9;border-radius:7px;padding:4px 6px;margin:4px 0;color:#2f6b43}
-.tl-body .clean{display:block;background:#fdeef2;border:1px solid #f3c4d1;border-radius:7px;padding:4px 6px;margin:4px 0;color:#9c3a55}
+.tl-body{margin-top:10px;font-size:.8rem;line-height:1.5;color:var(--sub)}
+.tl-body .run{display:block;background:var(--soft);border:1px solid #bfe3c9;border-radius:7px;padding:4px 6px;margin:4px 0;color:#2f6b43}
+@media (prefers-color-scheme: dark){
+  .tl-body .run{
+    color:oklch(0.80 0.090 152);
+  }
+}
+.tl-body .clean{display:block;background:var(--soft);border:1px solid #f3c4d1;border-radius:7px;padding:4px 6px;margin:4px 0;color:#9c3a55}
+@media (prefers-color-scheme: dark){
+  .tl-body .clean{
+    color:oklch(0.80 0.120 6);
+  }
+}
 /* ---- 流程圖 ---- */
 .flowfig{margin:18px 0;text-align:center}
 .flowfig svg{max-width:420px;width:100%;height:auto}
 .flowlegend{font-size:.78rem;color:var(--muted);margin:8px 0 0;line-height:1.6}
 /* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
-mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;outline:none;color:inherit}
+mark.hl{outline:none}
 mark.hl-core{background:var(--hl-core)}
-mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-warn{background:var(--hl-warn);color:var(--hl-warn-ink)}
 mark.hl-ok{background:var(--hl-ok)}
 mark.hl-term{background:var(--hl-term)}
 mark.hl-data{background:var(--hl-data)}
 mark.hl-note{background:var(--hl-note)}
-mark.hl.masked{color:transparent!important;background:#c9d2d8!important;border-radius:4px;user-select:none;text-shadow:none}
-mark.hl.masked::after{content:"？";color:#5c6b76;font-weight:700;position:absolute;margin-left:-.8em;pointer-events:none}
+mark.hl.masked{border-radius:4px;text-shadow:none}
+mark.hl.masked::after{pointer-events:none}
 mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
 /* ---- 測驗 ---- */
-.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
-.qlist{padding-left:1.4em}
-.qlist>li{margin:18px 0;padding-bottom:14px;border-bottom:1px dashed var(--line)}
-.qlist>li:last-child{border-bottom:none}
 .qq{font-weight:500;margin:0 0 10px}
-.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
-.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button{background:var(--card);border:1px solid var(--line);cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
 .btns button:hover{background:var(--accent-soft)}
-.btns button.good{background:#d8f5dd;border-color:#9fd8ab}
-.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
-input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;padding:2px 8px;font-size:1rem;font-family:inherit;min-width:9em;outline:none;color:var(--ink)}
-input.blank.good{border-color:#4a9b5e;background:#f0fbf3}
-input.blank.bad{border-color:#d1476a;background:#fdf1f4}
-textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:#fdfdfd;color:var(--ink)}
-.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
-.fb.show{display:block}
-.fb.ref{background:#f3f0f8;border-left-color:#8a6db5}
-footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:var(--card);color:var(--ink)}
+.fb.ref{background:var(--soft);border-left-color:#8a6db5}
 @media(max-width:860px){
-  .wrap{padding:18px 14px 60px}
-  .layout{flex-direction:column}
   .toc{position:static;flex:none;width:100%;max-height:none}
 }
-@media print{.toolbar,.toc,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+@media print{.toc{display:none}}
 </style>
 </head>
 <body>
@@ -168,12 +118,12 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:44px;padd
 </div>
 
 <div class="legend">
-  <span style="background:#FFF3A3">核心重點</span>
+  <span style="background:#FFF3A3;color:oklch(0.22 0.03 260)">核心重點</span>
   <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
-  <span style="background:#BBFABB">正解建議</span>
-  <span style="background:#ADCCFF">術語定義</span>
-  <span style="background:#FFB8EB">數據補充</span>
-  <span style="background:#D2B3FF">次要備註</span>
+  <span style="background:#BBFABB;color:oklch(0.22 0.03 260)">正解建議</span>
+  <span style="background:#ADCCFF;color:oklch(0.22 0.03 260)">術語定義</span>
+  <span style="background:#FFB8EB;color:oklch(0.22 0.03 260)">數據補充</span>
+  <span style="background:#D2B3FF;color:oklch(0.22 0.03 260)">次要備註</span>
   <span>　←　點任一個螢光筆可以把它遮起來</span>
 </div>
 
@@ -602,5 +552,7 @@ useEffect(() =&gt; {
   spy();
 })();
 </script>
+<script src="../../assets/notes.js"></script>
+<script src="../../assets/note-mask.js"></script>
 </body>
 </html>

@@ -3,50 +3,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>reduce() 累加器、匿名 Callback 與 split() 拆字</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" onerror="this.remove()">
+<link rel="stylesheet" href="../../../../assets/note-theme.css">
 <style>
-:root{--bg:#f7f8fa;--card:#fff;--ink:#2b2d33;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;}
-*{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.75;font-size:16px;}
-.wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px;}
+:root{--muted:var(--sub);}
 header.note{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px;}
 header.note h1{margin:0 0 12px;font-size:1.7rem;font-family:"Noto Serif TC",serif;line-height:1.35;}
 .pills{margin:6px 0;}
-.pill{display:inline-block;background:#fff;border:1px solid #c7d2fe;color:#4f46e5;border-radius:999px;padding:3px 12px;font-size:.78rem;margin:3px 5px 3px 0;}
-.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
+.pill{display:inline-block;margin:3px 5px 3px 0;}
+.meta{margin-top:8px;}
 .meta a{color:var(--accent);text-decoration:none;} .meta a:hover{text-decoration:underline;}
-.toolbar{position:sticky;top:0;z-index:5;background:rgba(247,248,250,.92);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
-.toolbar button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
-.toolbar button.alt{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+.toolbar{position:sticky;top:0;z-index:5;background:var(--card);backdrop-filter:blur(4px);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);}
+.toolbar button{background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:8px 14px;font-size:.85rem;cursor:pointer;margin-right:8px;}
+.toolbar button.alt{background:var(--card);color:var(--accent);border:1px solid var(--accent);}
 .toolbar .hint{color:var(--muted);font-size:.78rem;}
 section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
-h2{font-size:1.25rem;border-left:5px solid var(--accent);padding-left:12px;margin:.2em 0 .7em;}
-h3{font-size:1.05rem;margin:1.2em 0 .5em;color:#374151;}
+h2{border-left:5px solid var(--accent);padding-left:12px;}
 p,li{font-size:1rem;}
-mark{padding:.05em .25em;border-radius:4px;cursor:pointer;transition:all .15s;}
+mark{cursor:pointer;transition:all .15s;}
 mark.hidden-ans{color:transparent !important;background:#d8dbe0 !important;border-radius:4px;user-select:none;box-shadow:inset 0 0 0 1px #c4c8cf;}
-code{background:#eef1f6;padding:.1em .4em;border-radius:4px;font-size:.9em;font-family:"JetBrains Mono",Consolas,monospace;}
-pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;}
-pre code{background:none;color:#abb2bf;display:block;padding:16px 18px;font-size:.88rem;line-height:1.6;}
-blockquote{border-left:4px solid #f59e0b;background:#fffbeb;margin:1em 0;padding:.6em 1em;border-radius:0 8px 8px 0;}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
-th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;}
-th{background:#f1f5f9;} tr:nth-child(even) td{background:#fafbfc;}
-img{max-width:100%;border-radius:8px;border:1px solid var(--line);}
-.src{background:#fafafa;} .src h3{color:var(--accent);}
-footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
-.legend{font-size:.75rem;color:var(--muted);margin-top:10px;}
+pre code{display:block;font-size:.88rem;line-height:1.6;} tr:nth-child(even) td{background:var(--card);}
+img{border-radius:8px;border:1px solid var(--line);}
+.src{background:var(--card);} .src h3{color:var(--accent);}
+.legend{margin-top:10px;}
 .legend span{display:inline-block;margin-right:10px;}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
 </style><link rel="stylesheet" href="../../../../assets/notes.css">
 </head><body>
 <div class="wrap">
-<header class="note"><h1>reduce() 累加器、匿名 Callback 與 split() 拆字</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#array</span><span class="pill">#reduce</span><span class="pill">#callback</span><span class="pill">#split</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/c3a6c9bbff0bac21" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3"></i>核心重點</span><span><i style="background:#FF5582"></i>警告</span><span><i style="background:#BBFABB"></i>正解</span><span><i style="background:#ADCCFF"></i>術語</span><span><i style="background:#FFB8EB"></i>數據</span><span><i style="background:#D2B3FF"></i>次要備註</span></div></header>
+<header class="note"><h1>reduce() 累加器、匿名 Callback 與 split() 拆字</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#javascript</span><span class="pill">#array</span><span class="pill">#reduce</span><span class="pill">#callback</span><span class="pill">#split</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/c3a6c9bbff0bac21" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3;color:oklch(0.22 0.03 260)"></i>核心重點</span><span><i style="background:#FF5582;color:oklch(0.22 0.03 260)"></i>警告</span><span><i style="background:#BBFABB;color:oklch(0.22 0.03 260)"></i>正解</span><span><i style="background:#ADCCFF;color:oklch(0.22 0.03 260)"></i>術語</span><span><i style="background:#FFB8EB;color:oklch(0.22 0.03 260)"></i>數據</span><span><i style="background:#D2B3FF;color:oklch(0.22 0.03 260)"></i>次要備註</span></div></header>
 <div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
 <section class="card"><p>本篇重點 a–h，共 8 個</p>
 </section><section class="card"><h2>重點整理</h2>
-<p>(a) <mark style="background: #ADCCFFA6;">Callback 不需要有名字</mark>：Abby 原本的疑問是「這邊的 callback 為什麼可以叫 callback，它又不是一個具名函式？」<mark style="background: #BBFABBA6;">判準只有一個</mark>——只要「被當成引數傳進另一個函式、並由那個外層函式在稍後呼叫」，它就是 callback；具名、匿名（Anonymous Function）、箭頭函式（Arrow Function）都算。</p>
-<p>(b) <mark style="background: #FF5582A6;">常見誤解</mark>：以為「callback 一定要先 <code>function foo(){}</code> 宣告好再傳進去」。其實 <code>arr.reduce((acc, cur) =&gt; acc + cur, 0)</code> 裡那個箭頭函式，就是一個標準的 callback，只是它沒有名字而已。</p>
-<p>(c) <mark style="background: #FFF3A3A6;">reduce() 的 callback 最多接四個參數</mark>：</p>
+<p>(a) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">Callback 不需要有名字</mark>：Abby 原本的疑問是「這邊的 callback 為什麼可以叫 callback，它又不是一個具名函式？」<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">判準只有一個</mark>——只要「被當成引數傳進另一個函式、並由那個外層函式在稍後呼叫」，它就是 callback；具名、匿名（Anonymous Function）、箭頭函式（Arrow Function）都算。</p>
+<p>(b) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">常見誤解</mark>：以為「callback 一定要先 <code>function foo(){}</code> 宣告好再傳進去」。其實 <code>arr.reduce((acc, cur) =&gt; acc + cur, 0)</code> 裡那個箭頭函式，就是一個標準的 callback，只是它沒有名字而已。</p>
+<p>(c) <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">reduce() 的 callback 最多接四個參數</mark>：</p>
 <pre><code class="language-js">arr.reduce(function (accumulator, currentValue, currentIndex, array) {
   // ...
   return accumulator;      // 這次的回傳值 = 下一輪的 accumulator
@@ -78,18 +68,18 @@ footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:30px;}
 </tr>
 </tbody>
 </table>
-<p>(d) <mark style="background: #FFF3A3A6;">累加器的「接力棒」性質</mark>：每次呼叫 callback 時，<code>accumulator</code> 都會把「上一輪 return 的值」帶進來，因此一定要 <code>return</code>，否則下一輪的 accumulator 會變成 <code>undefined</code>。</p>
-<p>(e) <mark style="background: #FF5582A6;">累加器不一定是數字，也不一定是陣列</mark>：<mark style="background: #BBFABBA6;">它的型別完全由 <code>initialValue</code> 決定</mark>——給 <code>0</code> 就是數字、給 <code>[]</code> 就是陣列、給 <code>{}</code> 就是物件。這是 Abby 當時最容易搞混的一點。</p>
+<p>(d) <mark style="background: #FFF3A3A6;color: oklch(0.22 0.03 260);">累加器的「接力棒」性質</mark>：每次呼叫 callback 時，<code>accumulator</code> 都會把「上一輪 return 的值」帶進來，因此一定要 <code>return</code>，否則下一輪的 accumulator 會變成 <code>undefined</code>。</p>
+<p>(e) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">累加器不一定是數字，也不一定是陣列</mark>：<mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">它的型別完全由 <code>initialValue</code> 決定</mark>——給 <code>0</code> 就是數字、給 <code>[]</code> 就是陣列、給 <code>{}</code> 就是物件。這是 Abby 當時最容易搞混的一點。</p>
 <pre><code class="language-js">[1, 2, 3].reduce((a, c) =&gt; a + c, 0);        // 6         → number
 [1, 2, 3].reduce((a, c) =&gt; [...a, c * 2], []); // [2,4,6] → array
 ['a','b'].reduce((a, c) =&gt; ({ ...a, [c]: 1 }), {}); // {a:1,b:1} → object
 </code></pre>
-<p>(f) <mark style="background: #ADCCFFA6;"><code>split()</code> 回傳的一定是陣列</mark>：<code>split()</code> 把字串依分隔符切開成陣列，所以 <code>const digits = String(n).split('')</code> 的 <code>digits</code> 會是「每個字元一格」的字串陣列。<mark style="background: #FFB8EBA6;">注意元素仍然是字串，不是數字</mark>，要算數值得再 <code>Number()</code> 或 <code>parseInt()</code>。</p>
+<p>(f) <mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>split()</code> 回傳的一定是陣列</mark>：<code>split()</code> 把字串依分隔符切開成陣列，所以 <code>const digits = String(n).split('')</code> 的 <code>digits</code> 會是「每個字元一格」的字串陣列。<mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">注意元素仍然是字串，不是數字</mark>，要算數值得再 <code>Number()</code> 或 <code>parseInt()</code>。</p>
 <pre><code class="language-js">const digits = String(1234).split('');   // ['1','2','3','4'] ← 字串陣列
 const product = digits.reduce((acc, d) =&gt; acc * Number(d), 1); // 24
 </code></pre>
-<p>(g) <mark style="background: #BBFABBA6;">split → map / filter → reduce 是常見組合技</mark>：先用 <code>split</code> 拆、用 <code>filter</code> 篩掉不要的、用 <code>map</code> 轉型，最後用 <code>reduce</code> 彙整成單一結果。這條「管線（Pipeline）」的思路比一路寫 <code>for</code> 迴圈更好讀。</p>
-<p>(h) <mark style="background: #D2B3FFA6;">次要備註</mark>：<code>reduce</code> 若省略 <code>initialValue</code>，會拿陣列第一個元素當初始累加器、從第二個元素開始跑；<mark style="background: #FF5582A6;">空陣列又沒給初始值會直接 throw TypeError</mark>，所以建議一律明確寫出 <code>initialValue</code>。</p>
+<p>(g) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">split → map / filter → reduce 是常見組合技</mark>：先用 <code>split</code> 拆、用 <code>filter</code> 篩掉不要的、用 <code>map</code> 轉型，最後用 <code>reduce</code> 彙整成單一結果。這條「管線（Pipeline）」的思路比一路寫 <code>for</code> 迴圈更好讀。</p>
+<p>(h) <mark style="background: #D2B3FFA6;color: oklch(0.22 0.03 260);">次要備註</mark>：<code>reduce</code> 若省略 <code>initialValue</code>，會拿陣列第一個元素當初始累加器、從第二個元素開始跑；<mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">空陣列又沒給初始值會直接 throw TypeError</mark>，所以建議一律明確寫出 <code>initialValue</code>。</p>
 </section><section class="card"><h2>相關筆記</h2>
 <ul>
 <li>[[filter方法與callback定義]]（同樣在回答「callback 到底是什麼」；該篇從 MDN 定義、記憶體位址傳遞與閉包切入，本篇補上「匿名函式也算 callback」以及 reduce 特有的累加器參數，兩篇合看可完整理解 callback 在不同陣列方法中的角色）</li>
@@ -158,4 +148,5 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 </script><script src="../../../../assets/wikilink.js" data-root="../../../../"></script>
 <script src="../../../../assets/notes.js" defer></script>
+<script src="../../../../assets/note-mask.js"></script>
 </body></html>

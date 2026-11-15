@@ -4,50 +4,42 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>原型鏈階數｜getPrototypeOf 只跳一階（互動版）</title>
+<link rel="stylesheet" href="../../../../assets/note-theme.css">
 <style>
-  :root{--bg:#fbfbfd;--card:#fff;--line:#e5e7eb;--ink:#111827;--dim:#6b7280;
+  :root{--dim:var(--sub);
         --g:#10b981;--y:#f59e0b;--b:#3b82f6;--p:#8b5cf6;--r:#dc2626}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-       font-family:"Noto Sans TC",system-ui,"Microsoft JhengHei",sans-serif;line-height:1.8}
-  .wrap{max-width:940px;margin:0 auto;padding:28px 20px 90px}
   h1{font-size:1.5rem;margin:0 0 4px}
   .sub{color:var(--dim);font-size:.87rem;margin-bottom:26px}
   section{background:var(--card);border:1px solid var(--line);border-radius:14px;
           padding:20px 22px;margin-bottom:20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-  h2{font-size:1.1rem;margin:0 0 4px;display:flex;align-items:center;gap:9px}
+  h2{display:flex;align-items:center;gap:9px}
   h2 .n{width:24px;height:24px;border-radius:7px;background:var(--p);color:#fff;
         font-size:.78rem;display:grid;place-items:center;flex:none}
   .hint{color:var(--dim);font-size:.84rem;margin:0 0 14px}
-  code{font-family:"Cascadia Code",Consolas,monospace;background:#f3f4f6;
-       padding:1px 5px;border-radius:4px;font-size:.88em}
-  pre{background:#0f1117;color:#e8eaf0;border-radius:9px;padding:13px 15px;
-      overflow-x:auto;font-size:.83rem;font-family:"Cascadia Code",Consolas,monospace}
-  table{border-collapse:collapse;width:100%;font-size:.86rem;margin-top:10px}
-  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
-  th{background:#f9fafb}
+  pre{font-family:"Cascadia Code",Consolas,monospace}
+  table{margin-top:10px}
   td.mono{font-family:"Cascadia Code",Consolas,monospace;font-size:.83rem}
 
   /* stepper */
   .lanes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:14px}
-  .lane{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fcfcfd}
+  .lane{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--card)}
   .lane h3{margin:0 0 10px;font-size:.9rem;text-align:center}
   .node{border-radius:9px;padding:9px 11px;margin-bottom:0;text-align:center;
-        border:1px solid var(--line);background:#fff;opacity:.32;transition:all .35s}
+        border:1px solid var(--line);background:var(--card);opacity:.32;transition:all .35s}
   .node.on{opacity:1;transform:translateY(0)}
   .node .t{font-family:"Cascadia Code",Consolas,monospace;font-size:.82rem}
   .node .s{font-size:.72rem;color:var(--dim);margin-top:2px}
   .arrow{height:34px;display:grid;place-items:center;color:#c7c9d1;font-size:.72rem;
          opacity:.25;transition:opacity .35s}
   .arrow.on{opacity:1;color:var(--p);font-weight:700}
-  .node.obj{background:#faf5ff;border-color:var(--p)}
-  .node.arr{background:#fff7ed;border-color:var(--y)}
-  .node.map{background:#eff6ff;border-color:var(--b)}
+  .node.obj{background:var(--card);border-color:var(--p)}
+  .node.arr{background:var(--card);border-color:var(--y)}
+  .node.map{background:var(--soft);border-color:var(--b)}
   .node.nul{background:#111827;color:#f9fafb;border-color:#111827}
-  .node.nul .s{color:#9ca3af}
-  .stepbar{margin-top:16px;padding:12px 14px;border-radius:10px;background:#f9fafb;
+  .node.nul .s{color:var(--sub)}
+  .stepbar{margin-top:16px;padding:12px 14px;border-radius:10px;background:var(--card);
            border:1px solid var(--line);font-size:.88rem;min-height:56px}
-  .stepbar code{background:#eef0f4}
+  .stepbar code{background:var(--soft)}
 
   .anchor{background:#fef3c7;border-left:3px solid var(--y);padding:10px 14px;
           border-radius:0 8px 8px 0;font-size:.87rem;color:#78350f;margin:14px 0}
@@ -56,18 +48,21 @@
   .tf p{margin:0 0 9px;font-size:.92rem}
   .tf .fb{display:none;margin-top:9px;font-size:.86rem;padding:9px 12px;border-radius:8px}
   .tf .fb.show{display:block}
-  .fb.right{background:#ecfdf5;color:#065f46;border-left:3px solid var(--g)}
-  .fb.wrong{background:#fef2f2;color:#991b1b;border-left:3px solid var(--r)}
+  .fb.right{background:var(--card);color:#065f46;border-left:3px solid var(--g)}
+  @media (prefers-color-scheme: dark){
+.fb.right{color:oklch(0.80 0.086 167)}}
+  .fb.wrong{background:var(--soft);color:#991b1b;border-left:3px solid var(--r)}
+  @media (prefers-color-scheme: dark){
+.fb.wrong{color:oklch(0.80 0.120 27)}}
 
   .blank{display:inline-block;min-width:120px;border:none;border-bottom:2px solid var(--p);
-         background:#faf5ff;font-family:"Cascadia Code",Consolas,monospace;font-size:.87rem;
+         background:var(--card);font-family:"Cascadia Code",Consolas,monospace;font-size:.87rem;
          text-align:center;padding:2px 6px;border-radius:4px 4px 0 0;color:var(--ink)}
-  .blank.ok{border-bottom-color:var(--g);background:#ecfdf5}
-  .blank.no{border-bottom-color:var(--r);background:#fef2f2}
+  .blank.ok{border-bottom-color:var(--g);background:var(--card)}
+  .blank.no{border-bottom-color:var(--r);background:var(--soft)}
   .fillrow{margin:9px 0}
 
-  button{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 15px;
-         cursor:pointer;font-size:.85rem;font-family:inherit;color:var(--ink);margin-right:6px}
+  button{margin-right:6px}
   button:hover{border-color:var(--p);color:var(--p)}
   .primary{background:var(--p);color:#fff;border-color:var(--p)}
   .primary:hover{background:#7c3aed;color:#fff}
@@ -75,8 +70,7 @@
   details{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:11px}
   details summary{cursor:pointer;font-weight:600;font-size:.92rem}
   details[open] summary{margin-bottom:10px;color:var(--p)}
-  details .ans{font-size:.87rem;color:#374151;border-top:1px dashed var(--line);padding-top:10px}
-  ul{padding-left:20px}li{margin:4px 0;font-size:.9rem}
+  details .ans{font-size:.87rem;color:var(--sub);border-top:1px dashed var(--line);padding-top:10px}li{font-size:.9rem}
   .score{font-size:.9rem;color:var(--dim);margin-top:12px}
   .src{font-size:.8rem;color:var(--dim);border-top:1px solid var(--line);padding-top:14px;margin-top:8px}
   @media(max-width:720px){.lanes{grid-template-columns:1fr}}
@@ -261,7 +255,7 @@ var NARRATION = [
   '起點。三個都是「值」本身，還沒開始往上走。',
   '<strong>第 1 次呼叫 <code>Object.getPrototypeOf(x)</code></strong>：<code>{}</code> 直接到 <code>Object.prototype</code>；' +
     '但 <code>[]</code> 只到 <code>Array.prototype</code>，<code>new Map()</code> 只到 <code>Map.prototype</code>。' +
-    '<span style="color:#dc2626">←這一步就是你的疑問的答案，它只跳一階。</span>',
+    '<span style="--c-l:#dc2626;--c-d:oklch(0.80 0.120 27)">←這一步就是你的疑問的答案，它只跳一階。</span>',
   '<strong>第 2 次呼叫</strong>：<code>{}</code> 已經到 <code>null</code> 收工；' +
     '另外兩條這時候才走到 <code>Object.prototype</code>。可見它們並不是「跟 Object 無關」。',
   '<strong>第 3 次呼叫</strong>：三條鏈全部到 <code>null</code>。終點一樣，差別只在中間多不多一層。'
@@ -299,7 +293,7 @@ render();
     tr.innerHTML = '<td class="mono">' + r[0] + '</td>' +
       '<td><strong>' + r[1].length + '</strong> 個</td>' +
       '<td style="font-size:.82rem">' + r[2] + '</td>' +
-      '<td style="color:' + (has ? '#10b981' : '#dc2626') + ';font-weight:700">' +
+      '<td style="' + (has ? '--c-l:#10b981;--c-d:oklch(0.80 0.15 160)' : '--c-l:#dc2626;--c-d:oklch(0.80 0.12 27)') + ';font-weight:700">' +
         (has ? '有（共用層）' : '沒有') + '</td>';
     tb.appendChild(tr);
   });
@@ -366,5 +360,6 @@ TF.forEach(function(item, i){
 </script>
 </div>
 <script src="../../../../assets/notes.js" defer></script>
+<script src="../../../../assets/note-mask.js"></script>
 </body>
 </html>

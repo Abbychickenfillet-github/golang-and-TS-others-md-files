@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <title>讀書自評 — Abby</title>
+<link rel="stylesheet" href="../assets/note-theme.css">
 <style>
   :root{
-    --ink:#1b2a2f;
-    --paper:#eef1ea;
+    --paper:var(--soft);
     --paper-line:#c9cfc2;
     --pencil:#3d5a52;
     --mark:#b4652a;
@@ -14,58 +14,59 @@
     --star-on:#c9962f;
     --star-off:#d8d4c4;
     --done:#5c7a5c;
-    --card:#ffffff;
     --row-alt:#f6f7f2;
   }
-  *{box-sizing:border-box}
+@media (prefers-color-scheme: dark){
+    :root{
+        --mark:oklch(0.80 0.120 54);
+    }
+}
   body{
-    margin:0;
-    background:var(--paper);
-    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
-    color:var(--ink);
     padding:32px 16px 80px;
   }
-  .wrap{max-width:880px;margin:0 auto}
   header{margin-bottom:24px}
   .eyebrow{font-size:12px;letter-spacing:.16em;color:var(--mark);font-weight:700;text-transform:uppercase}
   h1{margin:6px 0 4px;font-size:26px;font-weight:900;border-bottom:3px solid var(--ink);display:inline-block;padding-bottom:4px}
-  .sub{font-size:13px;color:#5b6660;margin-top:8px;line-height:1.6}
+  .sub{font-size:13px;color:var(--sub);margin-top:8px;line-height:1.6}
   .rule{
     margin-top:14px;padding:10px 14px;background:var(--mark-soft);border-left:4px solid var(--mark);
     border-radius:4px;font-size:12.5px;color:#5c3418;line-height:1.6;
   }
-  .progress-bar{margin-top:16px;height:10px;border-radius:6px;background:#dde3d6;overflow:hidden;border:1px solid var(--paper-line)}
-  .progress-fill{height:100%;background:var(--done);width:0%;transition:width .3s}
-  .progress-label{font-size:12px;margin-top:6px;color:#5b6660}
+  @media (prefers-color-scheme: dark){
+    .rule{
+        color:oklch(0.32 0.06 54);
+    }
+}
+  .progress-bar{margin-top:16px;height:10px;border-radius:6px;background:var(--soft);overflow:hidden;border:1px solid var(--paper-line);color:var(--ink)}
+  .progress-fill{height:100%;background:var(--done);width:0%;transition:width .3s;color:oklch(0.96 0.01 258)}
+  .progress-label{font-size:12px;margin-top:6px;color:var(--sub)}
 
   .section-title{margin:28px 0 10px;font-size:13px;font-weight:800;color:var(--pencil);display:flex;align-items:center;gap:8px}
   .section-title::after{content:"";flex:1;height:1px;background:var(--paper-line)}
 
-  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--paper-line);border-radius:6px;overflow:hidden}
+  table{background:var(--card);border:1px solid var(--paper-line);border-radius:6px;overflow:hidden}
   thead th{
-    text-align:left;font-size:11px;color:#6b756e;font-weight:800;letter-spacing:.05em;
-    padding:8px 12px;border-bottom:2px solid var(--paper-line);background:#f2f4ee;
+    text-align:left;font-size:11px;color:var(--sub);font-weight:800;letter-spacing:.05em;
+    padding:8px 12px;border-bottom:2px solid var(--paper-line);background:var(--soft);
   }
   th.col-reps, td.col-reps{text-align:left}
   th.col-star, td.col-star{text-align:left;white-space:nowrap}
   tbody tr{border-bottom:1px solid var(--paper-line)}
-  tbody tr:nth-child(even){background:var(--row-alt)}
   tbody tr.done{opacity:.7}
   tbody tr.done .item-title{text-decoration:line-through;text-decoration-color:var(--done)}
-  td{padding:10px 12px;vertical-align:middle}
   .item-title{font-size:14px;font-weight:700;margin:0 0 2px}
-  .item-note{font-size:11.5px;color:#7a837c;line-height:1.5;margin:0}
+  .item-note{font-size:11.5px;color:var(--sub);line-height:1.5;margin:0}
   .item-note a{color:var(--mark)}
 
   .reps{display:flex;gap:5px}
   .rep-box{
     width:22px;height:22px;border:2px solid var(--pencil);border-radius:5px;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;flex:0 0 22px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--card);flex:0 0 22px;
   }
   .rep-box svg{width:12px;height:12px;opacity:0;transition:opacity .15s}
-  .rep-box.checked{background:var(--done);border-color:var(--done)}
+  .rep-box.checked{background:var(--done);border-color:var(--done);color:oklch(0.96 0.01 258)}
   .rep-box.checked svg{opacity:1}
-  .rep-count{font-size:10.5px;color:#8a8f86;margin-top:4px}
+  .rep-count{font-size:10.5px;color:var(--sub);margin-top:4px}
 
   .stars{display:flex;gap:2px;cursor:pointer}
   .stars svg{width:16px;height:16px}
@@ -73,13 +74,18 @@
   .stars svg.on path{fill:var(--star-on)}
 
   .reset-row{margin-top:32px;text-align:right}
-  .reset-btn{font-size:12px;color:#8a8f86;background:none;border:1px solid var(--paper-line);padding:6px 12px;border-radius:5px;cursor:pointer}
+  .reset-btn{font-size:12px;color:var(--sub);background:none;border:1px solid var(--paper-line);padding:6px 12px;border-radius:5px;cursor:pointer}
   .reset-btn:hover{border-color:var(--mark);color:var(--mark)}
-  .loading{font-size:13px;color:#8a8f86;padding:20px 0}
+  .loading{font-size:13px;color:var(--sub);padding:20px 0}
   .footer-reminder{
     margin-top:20px;padding:12px 16px;background:var(--card);border:1px dashed var(--mark);
     border-radius:6px;font-size:12px;color:#5c3418;line-height:1.7;text-align:center;
   }
+  @media (prefers-color-scheme: dark){
+    .footer-reminder{
+        color:oklch(0.80 0.071 54);
+    }
+}
   .footer-reminder a{color:var(--mark)}
 
   @media (max-width:640px){
@@ -88,6 +94,10 @@
     tr{padding:10px 0;border-bottom:1px solid var(--paper-line)}
     td{padding:4px 12px}
   }
+/* 深色模式個別修正（顏色統一第 14 輪） */
+@media (prefers-color-scheme: dark){
+:root{--pencil:oklch(0.82 0.06 170)}
+}
 </style>
 <link rel="stylesheet" href="../assets/notes.css">
 </head>
@@ -348,5 +358,6 @@ document.getElementById("resetBtn").onclick = resetAll;
 init();
 </script>
 <script src="../assets/notes.js" defer></script>
+<script src="../assets/note-mask.js"></script>
 </body>
 </html>
