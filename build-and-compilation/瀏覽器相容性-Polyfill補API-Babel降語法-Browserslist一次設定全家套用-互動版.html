@@ -2,74 +2,97 @@
 <html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>瀏覽器相容性 — Polyfill 補 API、Babel 降語法、Browserslist 一次設定全家套用</title>
+<link rel="stylesheet" href="../assets/note-theme.css">
 <style>
-:root{--bg:#fbfaf7;--card:#ffffff;--ink:#2b2b2b;--muted:#6b6b6b;--line:#e7e3da;--accent:#7c6f9b;}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);
- font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;}
-.wrap{max-width:820px;margin:0 auto;padding:32px 22px 64px;}
-header.note-head{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:26px;}
-h1.title{font-family:Georgia,"Songti TC",serif;font-size:30px;margin:0 0 12px;line-height:1.3;}
-.pills{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0;}
-.pill{background:#efeaf7;color:#5b4f7a;border:1px solid #ded3f0;border-radius:999px;
- padding:3px 11px;font-size:12.5px;}
-.meta{color:var(--muted);font-size:13px;margin-top:6px;}
-.meta a{color:var(--accent);}
-.toolbar{display:flex;gap:10px;margin:18px 0 8px;flex-wrap:wrap;}
-.btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:9px;
- padding:7px 14px;font-size:13.5px;color:#4a4458;box-shadow:0 1px 0 rgba(0,0,0,.02);}
-.btn:hover{background:#f4f1fb;}
-h2{font-size:21px;margin:34px 0 12px;padding-left:11px;border-left:5px solid var(--accent);}
-h3{font-size:17px;margin:22px 0 8px;color:#3b3550;}
-h4{font-size:15px;margin:16px 0 6px;color:#574f6b;}
-section.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
- padding:20px 22px;margin:16px 0;box-shadow:0 2px 10px rgba(60,50,90,.04);}
-p{margin:10px 0;}
-ul,ol{margin:8px 0 8px 4px;padding-left:22px;}
-li{margin:5px 0;}
-code{background:#f1eef8;border-radius:5px;padding:1px 6px;font-size:.92em;
- font-family:"SFMono-Regular",Consolas,"Cascadia Code",monospace;}
-pre{background:#1f1b2e;color:#eee;border-radius:11px;padding:15px 16px;overflow-x:auto;
- font-size:13.5px;line-height:1.6;}
-pre code{background:none;padding:0;color:inherit;}
-table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;}
-th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
-th{background:#f1ecf8;}
-tbody tr:nth-child(even){background:#faf8fd;}
-mark{padding:.5px 3px;border-radius:3px;}
-mark.y{background:#FFF3A3;} mark.r{background:#FF5582;} mark.g{background:#BBFABB;}
-mark.b{background:#ADCCFF;} mark.p{background:#FFB8EB;} mark.v{background:#D2B3FF;}
-mark.hidden{color:transparent;background:#d8d3c9;border-radius:3px;user-select:none;}
-mark.hidden *{color:transparent!important;}
-blockquote{margin:12px 0;padding:6px 14px;border-left:4px solid var(--line);color:var(--muted);background:#faf9f6;border-radius:6px;}
-.callout{margin:14px 0;padding:12px 16px;border-left:6px solid #888;background:#faf9fc;
- border-radius:10px;}
-.callout-title{font-weight:700;margin-bottom:4px;}
-.callout-body>:first-child{margin-top:0;}
-.callout-body>:last-child{margin-bottom:0;}
-.src-turn{margin:14px 0;}
-.src-user{background:#eef4ff;border-left:4px solid #ADCCFF;border-radius:8px;padding:9px 13px;margin:8px 0;}
-.src-gem{background:#f4f1ec;border-left:4px solid #cdbfa6;border-radius:8px;padding:9px 13px;margin:8px 0;}
-.role{font-weight:700;font-size:12.5px;letter-spacing:.04em;color:#7a6f55;display:block;margin-bottom:3px;}
-.src-user .role{color:#3f63a8;}
-.spoiler{background:#3b3550;color:transparent;border-radius:5px;padding:1px 8px;cursor:pointer;
- transition:.15s;user-select:none;box-shadow:inset 0 0 0 1px #ccc;}
-.spoiler::after{content:"　點此看答案　";color:#cdbfe8;font-size:.85em;}
-.spoiler.on{background:#e7ffe7;color:#1c5e1c;box-shadow:inset 0 0 0 1px #BBFABB;user-select:text;}
-.spoiler.on::after{content:"";}
-footer{margin-top:46px;padding-top:16px;border-top:1px solid var(--line);
- color:var(--muted);font-size:12.5px;text-align:center;}
-</style></head><body><div class="wrap">
-<header class="note-head"><h1 class="title">瀏覽器相容性 — Polyfill 補 API、Babel 降語法、Browserslist 一次設定全家套用</h1>
-<div class="pills"><span class="pill">#gemini</span><span class="pill">#瀏覽器相容性</span><span class="pill">#polyfill</span><span class="pill">#babel</span><span class="pill">#browserslist</span><span class="pill">#core-js</span><span class="pill">#autoprefixer</span><span class="pill">#閉包</span></div><div class="meta">更新：2026-09-05　· 來源：<a href="https://gemini.google.com/app/d829752fc3b97749" target="_blank">來源1</a> · <a href="https://gemini.google.com/app/a1a14102e2207433" target="_blank">來源2</a></div>
-<div class="toolbar"><span class="btn" onclick="toggleAll(false)">🙈 隱藏所有答案</span>
-<span class="btn" onclick="toggleAll(true)">👀 顯示所有答案</span></div>
+:root{
+  --muted:var(--sub); --accent-soft:var(--soft);
+  --user:#4a7c59; --ai:#5b6bb5;
+}
+header.hero h1{line-height:1.4;letter-spacing:.01em}
+.meta{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px dotted var(--accent)}
+.toolbar button{background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);transition:.15s;
+  font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft);border-color:var(--line)}
+.toolbar button.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+h4{font-size:.98rem;margin:20px 0 8px;color:var(--sub)}
+pre code{font-size:inherit}
+hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+.fig{text-align:center}
+.fig img{max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line);background:var(--card)}
+.missing-img{color:#b03a4a;font-size:.9em}
+@media (prefers-color-scheme: dark){
+  .missing-img{
+    color:oklch(0.80 0.120 16);
+  }
+}
+.wikilink{cursor:help}
+/* ---- 螢光筆：點一下遮起來，再點一下顯示 ---- */
+mark.hl{outline:none}
+mark.hl-core{background:var(--hl-core)}
+mark.hl-warn{background:var(--hl-warn);color:var(--hl-warn-ink)}
+mark.hl-ok{background:var(--hl-ok)}
+mark.hl-term{background:var(--hl-term)}
+mark.hl-data{background:var(--hl-data)}
+mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{border-radius:4px;text-shadow:none}
+mark.hl.masked::after{pointer-events:none}
+mark.hl:focus-visible{box-shadow:0 0 0 2px var(--accent)}
+/* ---- 對話原文 ---- */
+.turn{border-left:4px solid var(--line);padding:2px 0 2px 14px;margin:14px 0;border-radius:0 8px 8px 0}
+/* ---- 測驗 ---- */
+.qlist{counter-reset:none}
+.qq{font-weight:500;margin:0 0 10px}
+.btns button{background:var(--card);border:1px solid var(--line);cursor:pointer;font-size:.85rem;font-family:inherit;transition:.15s}
+.btns button:hover{background:var(--accent-soft)}
+textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  font-family:inherit;font-size:.95rem;line-height:1.6;resize:vertical;background:var(--card);color:var(--ink)}
+.fb.ref{background:var(--soft);border-left-color:#8a6db5}
+@media(max-width:640px){
+  .wrap{padding:18px 14px 60px}
+  .card{padding:18px 16px}
+  header.hero{padding:20px 18px}
+  header.hero h1{font-size:1.4rem}
+}
+</style>
+<link rel="stylesheet" href="../assets/notes.css">
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>瀏覽器相容性 — Polyfill 補 API、Babel 降語法、Browserslist 一次設定全家套用</h1>
+  <div class="pills"><span class="pill">#gemini</span><span class="pill">#瀏覽器相容性</span><span class="pill">#polyfill</span><span class="pill">#babel</span><span class="pill">#browserslist</span><span class="pill">#core-js</span><span class="pill">#autoprefixer</span><span class="pill">#閉包</span></div>
+  <div class="meta">
+    <span>更新於 2026-09-05</span>
+    <span>來源：Gemini</span>
+    <a href="https://gemini.google.com/app/a1a14102e2207433" target="_blank" rel="noopener">原始對話 1</a>
+  </div>
 </header>
 <h1>瀏覽器相容性 — Polyfill 補 API、Babel 降語法、Browserslist 一次設定全家套用</h1>
 <div class="callout" style="border-left-color:#ADCCFF"><div class="callout-title">ℹ️ 🔗 與既有筆記的關聯</div><div class="callout-body"><p>(0) 前綴（<code>-webkit-</code>、<code>-moz-</code>）是給哪個瀏覽器引擎看的、本專案實測有沒有被補：見 [[css-建構期-Sass編譯-PostCSS-Autoprefixer-CSS-Modules雜湊]] 第四節；與 Baseline 核心瀏覽器的差別：見 [[為了將固定深色背景自動調整成白色字]] (i)。
 (1) 本篇歸在 <code>build-and-compilation/</code>，因為 Polyfill 與 Babel 都是「建置階段」的事，跟 [[Dev-Server在Node環境-devServer-proxy繞過CORS-HMR用WebSocket-與原生語言打包工具]] 同屬前端 toolchain 的一環——那篇講開發期的 dev server，本篇講產出期的降級與補丁。
 (2) 開頭那段 <code>addEventListener</code> 的匿名函式屬於閉包主題，與 [[13-閉包-Closure-私有變數與傳址陷阱]]、[[事件流與事件代理]] 直接相關，本篇只保留「為什麼要包一層匿名函式」這個切面，細節請看那兩篇。</p></div></div>
 
+<div class="toolbar">
+  <button id="maskAll">🙈 全部遮起來（自己考自己）</button>
+  <button id="showAll">👀 全部顯示</button>
+</div>
+
+<div class="legend">
+  <span style="background:#FFF3A3;color:oklch(0.22 0.03 260)">核心重點</span>
+  <span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+  <span style="background:#BBFABB;color:oklch(0.22 0.03 260)">正解建議</span>
+  <span style="background:#ADCCFF;color:oklch(0.22 0.03 260)">術語定義</span>
+  <span style="background:#FFB8EB;color:oklch(0.22 0.03 260)">數據補充</span>
+  <span style="background:#D2B3FF;color:oklch(0.22 0.03 260)">次要備註</span>
+  <span>　←　點任一個螢光筆可以把它遮起來</span>
+</div>
+
+<section class="card quiz"><h2>🧠 自我測驗</h2><h3>是非題</h3><ol class="qlist"><li><p class="qq">Babel 可以把舊瀏覽器缺少的 Promise 補回來。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">Babel 管語法，Promise 是執行期的 API，要靠 core-js 這類 Polyfill 補。</div></li><li><p class="qq">Browserslist 是一個瀏覽器外掛（Extension）。</p><div class="btns"><button class="tf" data-ok="false" data-v="true">○ 對</button><button class="tf" data-ok="false" data-v="false">✕ 錯</button></div><div class="fb" data-ans="✕ 錯">它是一個設定規格加上一個 npm 套件，被 Babel、Autoprefixer、Vite、Webpack 共用。</div></li><li><p class="qq">.browserslistrc 裡的多行條件之間是 OR（聯集）關係。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">所以 &gt; 0.5% 一行就涵蓋所有市佔達標的瀏覽器，不必逐一列舉。</div></li><li><p class="qq">把事件處理包成 el.addEventListener(&#x27;blur&#x27;, function(){ checkUsername(5) }) 這件事，核心概念是閉包。</p><div class="btns"><button class="tf" data-ok="true" data-v="true">○ 對</button><button class="tf" data-ok="true" data-v="false">✕ 錯</button></div><div class="fb" data-ans="○ 對">詞法作用域是規則，閉包是「函式連同定義時的環境一起被保存下來等待觸發」這個現象。</div></li></ol><h3>填空題</h3><ol class="qlist"><li><p class="qq">自動補上舊瀏覽器缺少的 API，這種墊片庫叫做 <input class="blank" data-a="Polyfill" placeholder="填答案" autocomplete="off">，代表套件是 core-js。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">跟 Transpiler 分工：一個補 API、一個降語法。</div></li><li><p class="qq">Browserslist 條件 not <input class="blank" data-a="dead" placeholder="填答案" autocomplete="off"> 用來排除官方已停止維護的廢棄瀏覽器。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">超過 24 個月沒更新且沒市佔的會被排掉。</div></li><li><p class="qq">寫在 package.json 時，欄位名稱是 &quot;<input class="blank" data-a="browserslist" placeholder="填答案" autocomplete="off">&quot;，值是字串陣列或分環境的物件。</p><div class="btns"><button class="chk">核對</button><button class="rev">看答案</button></div><div class="fb">好處是少維護一個獨立設定檔。</div></li></ol><h3>申論題</h3><ol class="qlist"><li><p class="qq">同事說「我們專案有裝 Babel，所以不用管舊瀏覽器了」。你會怎麼補充？</p><textarea class="essay" rows="4" placeholder="先自己寫，寫完再看參考答案"></textarea><div class="btns"><button class="rev2">顯示參考答案</button></div><div class="fb ref">參考方向：(1) 先肯定一半——Babel 確實會把 ES6+ 語法降級成 ES5，箭頭函式、class、async/await 都能處理。(2) 但 Babel 只翻語法，翻不出「執行期才存在的東西」：Promise、Array.prototype.includes、Object.assign、fetch 這些是 API，舊瀏覽器根本沒有這些物件與方法，必須靠 core-js 之類的 Polyfill 在執行時掛上去。(3) 兩者要一起設定，而且都應該讀同一份 Browserslist 目標，否則會出現「語法降到 ES5 但用了 IE 沒有的 API」這種只在正式環境炸掉的狀況。(4) 另外要提醒定期跑 npx update-browserslist-db@latest，否則 caniuse-lite 資料過期會讓 &gt; 0.5% 的判斷失準，建置時也會一直跳警告。</div></li></ol></section>
+
+<article class="card">
+<h1 id="polyfill-apibabel-browserslist">瀏覽器相容性 — Polyfill 補 API、Babel 降語法、Browserslist 一次設定全家套用</h1>
 <blockquote>
 <p>本篇重點 a–n，共 14 個。</p>
 </blockquote>
@@ -264,14 +287,74 @@ chrome 124, chrome 123, safari 17.4, safari 17.3, edge 124, firefox 125...
 <hr />
 <p>由 Gemini 對話自動整理 · 更新於 2026-09-05</p>
 <footer>由 Gemini 對話自動整理 · 更新於 2026-09-05</footer>
-</div><script>
-function toggleAll(show){document.querySelectorAll('.spoiler').forEach(function(s){
- if(show){s.classList.add('on');}else{s.classList.remove('on');}});}
-document.addEventListener('click',function(e){
- if(e.target.classList&&e.target.classList.contains('spoiler')){e.target.classList.toggle('on');}});
-(function(){var l=document.createElement('link');l.rel='stylesheet';
- l.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
- document.head.appendChild(l);var s=document.createElement('script');
- s.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
- s.onload=function(){try{hljs.highlightAll();}catch(e){}};document.head.appendChild(s);})();
-</script></body></html>
+</div>
+<script>
+(function(){
+  // 螢光筆：點擊遮蔽／顯示
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var toggle=function(){ m.classList.toggle('masked'); };
+    m.addEventListener('click',toggle);
+    m.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}
+    });
+  });
+  var maskAll=document.getElementById('maskAll');
+  var showAll=document.getElementById('showAll');
+  if(maskAll)maskAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked');});
+  });
+  if(showAll)showAll.addEventListener('click',function(){
+    document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked');});
+  });
+
+  // 是非題
+  document.querySelectorAll('button.tf').forEach(function(b){
+    b.addEventListener('click',function(){
+      var ok=b.dataset.ok==='true', picked=b.dataset.v==='true';
+      var li=b.closest('li');
+      li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad');});
+      b.classList.add(ok===picked?'good':'bad');
+      var fb=li.querySelector('.fb');
+      fb.classList.add('show');
+      if(!fb.dataset.done){ fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent; fb.dataset.done='1'; }
+    });
+  });
+
+  // 填空題
+  var norm=function(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'');};
+  document.querySelectorAll('button.chk').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      var ok=norm(inp.value)===norm(inp.dataset.a);
+      inp.classList.remove('good','bad');
+      inp.classList.add(ok?'good':'bad');
+      if(ok){ li.querySelector('.fb').classList.add('show'); }
+    });
+  });
+  document.querySelectorAll('button.rev').forEach(function(b){
+    b.addEventListener('click',function(){
+      var li=b.closest('li'), inp=li.querySelector('input.blank');
+      inp.value=inp.dataset.a; inp.classList.remove('bad'); inp.classList.add('good');
+      li.querySelector('.fb').classList.add('show');
+    });
+  });
+  document.querySelectorAll('input.blank').forEach(function(inp){
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){ e.preventDefault(); inp.closest('li').querySelector('button.chk').click(); }
+    });
+  });
+
+  // 申論題
+  document.querySelectorAll('button.rev2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var fb=b.closest('li').querySelector('.fb');
+      fb.classList.toggle('show');
+      b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+    });
+  });
+})();
+</script>
+<script src="../assets/notes.js" defer></script>
+<script src="../assets/note-mask.js"></script>
+</body>
+</html>
