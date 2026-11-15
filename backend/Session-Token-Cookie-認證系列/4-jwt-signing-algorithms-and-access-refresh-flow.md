@@ -10,6 +10,9 @@
 - JWT 的 `alg` 欄位只是「簽章家族 + 雜湊」的名字
 
 > 名詞全稱（縮寫先攤開，避免忘記）：
+> - **MAC ＝ Message Authentication Code，訊息鑑別碼**：統稱，凡是「用金鑰算出驗證碼、證明資料沒被改過」的做法都叫 MAC。HMAC 是其中一種，其他還有 CMAC（用 AES 算）、Poly1305（搭配 ChaCha20）。AES-GCM 的 Authentication Tag 也是內建的 MAC。
+> - **digest（摘要）**：雜湊函式的輸出，沒有金鑰、誰都算得出來。MAC 可以想成「加了金鑰的 digest」。
+> - 嚴格來說 HS256 算出的是 MAC（對稱），RS256／ES256／EdDSA 算出的才是數位簽章（非對稱）。JWT 規格把兩種都叫 signature。
 > - **HMAC ＝ Hash-based Message Authentication Code，雜湊訊息鑑別碼**：拿一把共享金鑰（secret）搭配雜湊函式，算出一段「防偽章」。驗章的人要有**同一把金鑰**才驗得過，所以它是對稱的。
 > - **SHA ＝ Secure Hash Algorithm，安全雜湊演算法**；`SHA-256` 代表輸出 256 位元的雜湊值。
 > - **RSA**：三位發明人 Rivest–Shamir–Adleman 的姓氏縮寫（非對稱）。
@@ -239,7 +242,8 @@ b. **是對稱,不是非對稱**:加密、解密用**同一把金鑰**。(非對
 c. **256**:金鑰長度 256 位元。
 d. **GCM ＝ Galois／Counter Mode**:一種 **AEAD(Authenticated Encryption with Associated Data,帶認證的加密)** 模式——一次做到**加密(藏資料)＋ 完整性驗證(防竄改)**兩件事,不用再外掛 HMAC。
 e. 快:現代 CPU 有 **AES-NI(AES New Instructions)** 硬體指令直接加速。
-f. 用在:iron-session 的 cookie 封印、JWE(上面 `enc: 'A256GCM'`)。
+f. 用在:JWE(上面 `enc: 'A256GCM'`)。iron-session 用的是另一組:**AES-256-CBC 加密＋HMAC-SHA256 簽章**,兩步合起來達到跟 GCM 一樣的效果。
+    JWS／JWE／iron 三種格式的並排圖在互動版 HTML 第 5 節。
 g. 📖 來源:[NIST AES(FIPS 197)](https://csrc.nist.gov/pubs/fips/197/final)、[RFC 7518 — JWA(定義 A256GCM 等 `enc`)](https://datatracker.ietf.org/doc/html/rfc7518)。
 
 ### 前端

@@ -1,0 +1,503 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>字元編碼-Unicode-ASCII-Base64-UTF-8關係與亂碼Mojibake</title><style>
+body{margin:0;background:#f6f5f2;color:#2b2b2b;font:16px/1.7 -apple-system,'Noto Sans TC','Microsoft JhengHei',sans-serif}
+.layout{display:block;padding:24px clamp(12px,3vw,40px) 64px}
+nav.toc{position:sticky;top:16px;align-self:start;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 1px 4px #0001;font-size:.9em;max-height:calc(100vh - 32px);overflow:auto}
+nav.toc b{display:block;margin-bottom:6px;color:#34508f}
+nav.toc a{display:block;color:#34508f;text-decoration:none;padding:3px 0}
+nav.toc a:hover{text-decoration:underline}
+
+header{background:#fff;border-radius:14px;padding:24px 28px;box-shadow:0 1px 4px #0001;margin-bottom:24px}
+h1{font-family:'Noto Serif TC',Georgia,serif;margin:0 0 10px;font-size:1.7em}
+.pill{display:inline-block;background:#e8eefc;color:#34508f;border-radius:99px;padding:1px 12px;margin:2px 4px 2px 0;font-size:.82em}
+.meta{color:#777;font-size:.88em;margin-top:8px}
+article{background:#fff;border-radius:14px;padding:8px 28px 24px;box-shadow:0 1px 4px #0001}
+h2{border-left:5px solid #7a9cd6;padding-left:12px;margin-top:2em}
+h3{color:#34508f}
+pre{background:#1e2230;color:#e6e9f2;padding:14px 16px;border-radius:10px;overflow-x:auto;font:.88em/1.55 Consolas,monospace}
+code{background:#eef0f5;padding:1px 6px;border-radius:5px;font-family:Consolas,monospace;font-size:.9em}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.93em}
+th,td{border:1px solid #d9dce3;padding:6px 10px;text-align:left}
+tr:nth-child(even) td{background:#f7f8fb}th{background:#e9edf6}
+blockquote{margin:1em 0;border-left:5px solid #e6b422;background:#fff8e0;padding:6px 16px;border-radius:0 8px 8px 0}
+img,svg{max-width:100%;height:auto}
+li.pt{cursor:pointer;list-style:none;margin:.4em 0;padding:6px 10px;border-radius:8px;background:#f3f6fd;border:1px dashed #b8c6e6}
+li.pt.hide{color:transparent;text-shadow:none;background:#dfe5f3;user-select:none}
+li.pt.hide *{color:transparent!important;background:transparent!important}
+li.pt .sub{display:block;margin-left:1.5em;color:#555}
+li.pt .sub2{margin-left:3em}
+ul:has(li.pt){padding-left:0}
+.bar{position:sticky;top:0;background:#f6f5f2;padding:8px 0;z-index:5}
+button{background:#34508f;color:#fff;border:0;border-radius:8px;padding:6px 14px;margin-right:8px;cursor:pointer}
+.blank{display:inline-block;min-width:4em;border-bottom:2px solid #34508f;cursor:pointer;color:transparent;background:#e9edf6;border-radius:4px;padding:0 4px}
+.blank.show{color:#b23a48;background:#fff3a3}
+.quiz{background:#f7f8fb;border:1px solid #d9dce3;border-radius:10px;padding:10px 14px;margin:10px 0}
+.ans{display:none;margin-top:6px;color:#2f6b3a}
+.quiz.open .ans{display:block}
+.diagram{background:#fbfcff;border:1px solid #d9dce3;border-radius:12px;padding:10px;margin:1em 0;overflow:visible}
+.diagram svg{display:block;width:100%;max-width:100%;height:auto}
+footer{text-align:center;color:#999;font-size:.82em;margin-top:28px}
+details.src{background:#fafafa;border:1px solid #e3e3e3;border-radius:10px;padding:8px 14px;margin:10px 0}
+</style><link rel="stylesheet" href="../assets/notes.css">
+</head><body><div class="layout">
+<nav class="toc"><b>大綱</b>
+<a href="#points">1. 重點整理</a>
+<a href="#venn">2. 主軸圖：四者關係（文氏圖）</a>
+<a href="#layers">&nbsp;&nbsp;2-2 編號 → 位元組 → 壓縮 → 傳送</a>
+<a href="#utf16">&nbsp;&nbsp;2-3 UTF-8 與 UTF-16 怎麼包裝位元</a>
+<a href="#charset">3. charset 機制：瀏覽器怎麼選解碼規則</a>
+<a href="#popular">4. UTF-8 的普及程度</a>
+<a href="#quiz">5. 自我測驗</a>
+<a href="#related">6. 相關筆記</a>
+<a href="#origin">7. 各對話來源</a>
+<a href="#sources">8. 資料來源</a>
+</nav>
+<main>
+<header><h1>字元編碼-Unicode-ASCII-Base64-UTF-8關係與亂碼Mojibake</h1><span class="pill">編碼</span><span class="pill">Mojibake</span><span class="pill">Unicode</span><span class="pill">UTF-8</span><span class="pill">ASCII</span><span class="pill">Base64</span><span class="pill">Big5</span><span class="pill">RFC</span><div class="meta">更新 2026-11-15 ・ <a href="https://gemini.google.com/app/5ffb905872a44279">原始來源</a></div></header>
+<div class="bar"><button onclick="setAll(true)">全部隱藏重點</button><button onclick="setAll(false)">全部顯示</button><span style="color:#888;font-size:.85em">點(a)(b)…重點可單獨隱藏／顯示，自我測驗</span></div>
+<article>
+
+<h2 id="points">1. 重點整理</h2>
+<ul>
+<li class="pt">(a) 看到像 <code>Sðpc-20 g*NØk&gt;</code> 的符號，是<mark style="background: #ADCCFFA6;">Mojibake（亂碼，日文「文字化け」）</mark>：檔案實際儲存的編碼與讀取時使用的編碼不一致。
+<span class="sub">例：最常見的組合是，檔案以 Big5（繁中）或 GBK（簡中）儲存，卻被當成 UTF-8 或 Windows-1252／ISO-8859-1（Latin-1，西歐編碼）讀取。</span>
+<span class="sub sub2"><code>ð</code>、<code>û</code>、<code>›</code> 這類字元，是多位元組中文被拆成單位元組後的典型殘影。</span></li>
+<li class="pt">(b) 台灣環境中，Excel 匯出的 CSV 極大機率是 Big5。開發環境與資料庫統一用 UTF-8，匯入時再轉碼。
+<span class="sub">票務系統專案實際踩過的是「檔名」而不是「內容」：2025-12-31 匯出「廠商支付_亞洲香水節.xlsx」時，中文檔名放進 HTTP 標頭觸發 <code>UnicodeEncodeError: 'latin-1'</code>，改用 RFC 5987 的 <code>filename*=UTF-8''</code> 加上 URL 編碼解決。詳見 <a href="../backend-error-log/2025-12-31-http-header-chinese-encoding.md">2025-12-31-http-header-chinese-encoding</a>。</span>
+<span class="sub">Excel 內容本身不會亂：專案用 excelize 產生 .xlsx，.xlsx 是壓縮過的 XML，固定用 UTF-8，沒有 CSV 那種 Big5／UTF-8 猜錯的問題。</span></li>
+<li class="pt">(c) Node.js 修復：用 <code>fs.readFileSync</code> 讀成 Buffer（不要直接讀字串），再用 <code>iconv-lite</code> 的 <code>iconv.decode(buffer, 'big5')</code> 轉成 UTF-8 字串。
+<span class="sub">狀態：觀念筆記，尚未在票務系統專案實際使用（2026-11-15 查 git，<code>iconv-lite</code> 只以套件相依性出現在 package-lock.json，程式碼裡沒有呼叫）。</span></li>
+<li class="pt">(d) 瀏覽器修復：<code>FileReader.readAsText(file, 'big5')</code> 的第二個參數指定編碼。</li>
+<li class="pt">(e) <mark style="background: #FFF3A3A6;">UTF = Unicode Transformation Format</mark>（Unicode 轉換格式），UTF-8／UTF-16／UTF-32 是把 Unicode 碼位（code point）編成位元組序列的不同方案。
+<span class="sub">四者關係見 <a href="#venn">2. 主軸圖</a>。</span></li>
+<li class="pt">(f) <mark style="background: #BBFABBA6;">Unicode 是字元集，負責定編號</mark>：像一本大字典，給全世界每個字元一個碼位，例如 a 是 U+0061，「中」是 U+4E2D。
+<span class="sub">它只定編號，不規定怎麼存成位元組，所以嚴格說 Unicode 不是編碼。日常說的「Unicode 編碼」，指的是 UTF-8、UTF-16 這類以 Unicode 為字典的編碼。</span></li>
+<li class="pt">(g) <mark style="background: #BBFABBA6;">UTF-8 是編碼，負責把碼位轉成位元組</mark>：英文 1 個位元組，中文通常 3 個位元組（「中」＝<code>E4 B8 AD</code>）。
+<span class="sub">「編碼（encoding）」的定義就是「把字元轉成位元組的規則」，所以稱 UTF-8 為編碼、或稱它為轉換規則，指的是同一件事。</span>
+<span class="sub">反方向叫解碼：瀏覽器用 UTF-8 規則把 <code>E4 B8 AD</code> 還原成 U+4E2D，也就是「中」。用哪套規則解碼，由 charset 決定（見 <a href="#charset">3. charset 機制</a>）。</span></li>
+<li class="pt">(h) <mark style="background: #ADCCFFA6;">ASCII 同時是字元集也是編碼</mark>，只有 128 個字元，每個 1 個位元組。它是早期的小規模版本，現在被 UTF-8 吸收成前 128 個碼位，仍在使用（例如 HTTP 標頭）。
+<span class="sub">兩個刻意設計讓它跟 UTF-8 完全相容：Unicode 的 U+0000–U+007F 直接沿用 ASCII 編號，UTF-8 又規定這 128 個碼位用 1 個位元組、直接存編號本身。</span>
+<span class="sub">所以 a 在兩種編碼裡都是 <code>01100001</code>，只有英文的檔案，用 ASCII 或 UTF-8 存，位元組完全相同。</span></li>
+<li class="pt">(i) <mark style="background: #FFB8EBA6;">Base64 方向相反：把任意位元組轉成安全文字</mark>，只用 A–Z、a–z、0–9、<code>+</code>、<code>/</code>（加上補位的 <code>=</code>），方便把圖片等二進位資料塞進只接受文字的地方，例如 email、data URL。
+<span class="sub">64 個字元＝A–Z（26）＋a–z（26）＋0–9（10）＋<code>+</code> 和 <code>/</code>（2）。網址用的 Base64URL 把 <code>+</code>、<code>/</code> 換成 <code>-</code>、<code>_</code>，因為前兩個在網址裡有特殊意義。</span>
+<span class="sub">「任意位元組」就是任何一串位元組：圖片、壓縮檔，甚至 UTF-8 文字本身都可以。做法是每 3 個位元組（24 位元）切成 4 段 6 位元，每段對應一個字元，所以資料約變大三分之一。</span>
+<span class="sub">Base64 解碼＝安全字元 → 原本的位元組，跟 UTF-8 解碼（位元組 → 字元）方向相反。兩者常串接，例如 data URL：PNG 位元組 → Base64 字元 → 寫進 HTML 檔 → 再用 UTF-8 存成位元組。</span></li>
+<li class="pt">(j) 傳輸時的 0 和 1 代表「文字」，不是「指令」：JS 檔用 UTF-8 編成位元組 → gzip／Brotli 壓縮 → 網路送出 → 瀏覽器解壓縮、用 UTF-8 解碼還原成 JS 文字。
+<span class="sub">要等 V8 把 JS parse、編譯之後，才產生 CPU 能執行的機器碼。</span>
+<span class="sub">gzip／Brotli 不屬於 UTF-8，是另一個選用的無損壓縮步驟。HTTP 用兩個不同標頭分開宣告：<code>Content-Type: text/javascript; charset=utf-8</code> 管「位元組怎麼變回文字」，<code>Content-Encoding: br</code> 管「壓縮過的位元組怎麼還原」。</span></li>
+<li class="pt">(k) <mark style="background: #ADCCFFA6;">RFC（Request for Comments）</mark>文件標頭的「Memo」是歷史沿用稱呼，RFC 1034（Domain Names – Concepts and Facilities，DNS 核心觀念）是 Internet Standard（STD 13）。</li>
+<li class="pt">(l) 「Distribution of this memo is unlimited」意思是<mark style="background: #BBFABBA6;">本文件散佈不受限制</mark>，任何人可自由閱讀、複製、轉載。</li>
+<li class="pt">(m) 診斷小技巧：先猜來源編碼（Big5／GBK／UTF-8），用 <code>iconv</code> 或編輯器「以編碼重新開啟」逐一試，通常 1–2 次就能還原。</li>
+</ul>
+<pre><code class="language-js">const fs = require('fs');
+const iconv = require('iconv-lite');
+const buffer = fs.readFileSync('data.txt');   // 讀成 Buffer（原始位元組），不要直接讀成字串
+console.log(iconv.decode(buffer, 'big5'));    // 用 Big5 規則把位元組解碼成 JS 字串
+</code></pre>
+<p>白話：先拿到檔案的原始位元組，再告訴程式「這些位元組是用 Big5 編的」，它就能還原成正確的中文。</p>
+<blockquote>
+<p>⚠️ 更正：Gemini 原回答把 Mojibake 寫成「加持（Mojibake）」，正確中文是「亂碼」。它從亂碼推測原內容是「電器規格或出貨清單」，無法由亂碼證實（500W、110V 只是殘留的 ASCII 字元）。</p>
+</blockquote>
+
+<h2 id="venn">2. 主軸圖：Unicode、ASCII、Base64、UTF-8 的關係</h2>
+<h3>2-1 文氏圖：左邊是字元，右邊是位元組，箭頭是編碼與解碼</h3>
+<p style="font-size:.85em;color:#666">讀法：外圈包內圈＝包含關係。<span style="color:#c2185b">粉紅實線</span>＝編碼（往右、往位元組），<span style="color:#34508f">藍色實線</span>＝解碼（往左、回到字元），<span style="color:#7b3fa0">紫色曲線</span>＝Base64（方向相反）。</p>
+<div class="diagram">
+<svg width="1300" height="720" style="width:100%;height:auto;aspect-ratio:1300/720" viewBox="0 0 1300 720" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans TC,Microsoft JhengHei,sans-serif" font-size="15">
+<defs>
+<marker id="vp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#c2185b"/></marker>
+<marker id="vb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#34508f"/></marker>
+<marker id="vv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7b3fa0"/></marker>
+<marker id="vg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#888"/></marker>
+</defs>
+<!-- 頂部順序箭頭 -->
+<text x="60" y="34" font-weight="bold">順序：</text>
+<text x="130" y="34">① 字元集（定編號）</text>
+<line x1="310" y1="29" x2="560" y2="29" stroke="#888" stroke-width="2" marker-end="url(#vg)"/>
+<text x="575" y="34">② 編碼規則（UTF-8）</text>
+<line x1="760" y1="29" x2="1010" y2="29" stroke="#888" stroke-width="2" marker-end="url(#vg)"/>
+<text x="1025" y="34">③ 位元組</text>
+<!-- 左：字元這一側 -->
+<text x="300" y="72" text-anchor="middle" font-weight="bold" fill="#6b3a8f">字元這一側（字元集）</text>
+<circle cx="300" cy="340" r="245" fill="#f3e8fc" stroke="#6b3a8f" stroke-width="3"/>
+<text x="300" y="130" text-anchor="middle" font-size="20" font-weight="bold" fill="#6b3a8f">Unicode 字元集</text>
+<text x="300" y="154" text-anchor="middle" font-size="13">全世界的字元都有編號</text>
+<text x="300" y="178" text-anchor="middle" font-size="13" font-family="Consolas,monospace">中 U+4E2D　é U+00E9</text>
+<circle cx="300" cy="400" r="150" fill="#e6fbf7" stroke="#2a9d8f" stroke-width="3"/>
+<text x="300" y="290" text-anchor="middle" font-size="18" font-weight="bold" fill="#2a9d8f">ASCII 128 個</text>
+<text x="300" y="312" text-anchor="middle" font-size="13" font-family="Consolas,monospace">U+0000–U+007F　a U+0061</text>
+<circle cx="300" cy="440" r="85" fill="#fde8f2" stroke="#7b3fa0" stroke-width="3"/>
+<text x="300" y="428" text-anchor="middle" font-size="15" font-weight="bold" fill="#7b3fa0">Base64 的</text>
+<text x="300" y="448" text-anchor="middle" font-size="15" font-weight="bold" fill="#7b3fa0">64 個安全字元</text>
+<text x="300" y="472" text-anchor="middle" font-size="12" font-family="Consolas,monospace">A–Z a–z 0–9 + /</text>
+<!-- 右：位元組這一側 -->
+<text x="1000" y="72" text-anchor="middle" font-weight="bold" fill="#b8860b">位元組這一側</text>
+<circle cx="1000" cy="340" r="245" fill="#fff8e0" stroke="#b8860b" stroke-width="3"/>
+<text x="1000" y="130" text-anchor="middle" font-size="20" font-weight="bold" fill="#b8860b">所有位元組序列</text>
+<text x="1000" y="154" text-anchor="middle" font-size="13">任意的 0 和 1，例如 PNG 圖片</text>
+<text x="1000" y="178" text-anchor="middle" font-size="13" font-family="Consolas,monospace">89 50 4E 47 …　FF</text>
+<circle cx="1000" cy="390" r="165" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="3"/>
+<text x="1000" y="262" text-anchor="middle" font-size="17" font-weight="bold" fill="#2f6b3a">UTF-8 合法的位元組</text>
+<text x="1000" y="284" text-anchor="middle" font-size="13" font-family="Consolas,monospace">中 → E4 B8 AD（3 位元組）</text>
+<circle cx="1000" cy="440" r="85" fill="#e6fbf7" stroke="#2a9d8f" stroke-width="3"/>
+<text x="1000" y="428" text-anchor="middle" font-size="15" font-weight="bold" fill="#2a9d8f">ASCII 範圍</text>
+<text x="1000" y="448" text-anchor="middle" font-size="13">單一位元組 00–7F</text>
+<text x="1000" y="472" text-anchor="middle" font-size="12" font-family="Consolas,monospace">a → 01100001</text>
+<!-- UTF-8 編碼 / 解碼 -->
+<path d="M500 230 Q650 190 815 255" fill="none" stroke="#c2185b" stroke-width="3" marker-end="url(#vp)"/>
+<rect x="575" y="178" width="150" height="26" fill="#fff" stroke="#c2185b"/>
+<text x="650" y="196" text-anchor="middle" font-size="13" fill="#c2185b">UTF-8 編碼 Encode</text>
+<path d="M820 300 Q650 330 515 285" fill="none" stroke="#34508f" stroke-width="3" marker-end="url(#vb)"/>
+<rect x="575" y="300" width="150" height="26" fill="#fff" stroke="#34508f"/>
+<text x="650" y="318" text-anchor="middle" font-size="13" fill="#34508f">UTF-8 解碼 Decode</text>
+<!-- ASCII 甜蜜點 -->
+<line x1="440" y1="390" x2="920" y2="405" stroke="#2a9d8f" stroke-width="2" stroke-dasharray="7 5"/>
+<rect x="500" y="372" width="300" height="44" fill="#fff" stroke="#2a9d8f"/>
+<text x="650" y="390" text-anchor="middle" font-size="13" fill="#2a9d8f">ASCII 甜蜜點：編號＝位元組值</text>
+<text x="650" y="408" text-anchor="middle" font-size="12" fill="#2a9d8f">a＝97＝0x61，兩邊一一對應</text>
+<!-- Base64 編碼 / 解碼 -->
+<path d="M840 520 Q650 660 385 485" fill="none" stroke="#7b3fa0" stroke-width="3" marker-end="url(#vv)"/>
+<rect x="520" y="560" width="260" height="26" fill="#fff" stroke="#7b3fa0"/>
+<text x="650" y="578" text-anchor="middle" font-size="13" fill="#7b3fa0">Base64 編碼：任意位元組 → 安全字元</text>
+<path d="M370 530 Q650 720 880 560" fill="none" stroke="#7b3fa0" stroke-width="2" stroke-dasharray="8 4" marker-end="url(#vv)"/>
+<rect x="520" y="640" width="260" height="26" fill="#fff" stroke="#7b3fa0" stroke-dasharray="4 3"/>
+<text x="650" y="658" text-anchor="middle" font-size="13" fill="#7b3fa0">Base64 解碼：安全字元 → 原本位元組</text>
+</svg>
+</div>
+<ul>
+<li class="pt">(a) <mark style="background: #BBFABBA6;">左邊是字元的包含關係：Base64 的 64 個字元 ⊂ ASCII 128 個 ⊂ Unicode</mark>。
+<span class="sub">Base64 產出的字元全部在 ASCII 裡，ASCII 又全部在 Unicode 裡。</span></li>
+<li class="pt">(b) <mark style="background: #BBFABBA6;">右邊是位元組的包含關係：ASCII 位元組 ⊂ UTF-8 合法序列 ⊂ 所有位元組序列</mark>。
+<span class="sub">不是每串位元組都是合法 UTF-8，例如 <code>FF</code> 在 UTF-8 裡永遠不會出現。</span></li>
+<li class="pt">(c) <mark style="background: #FFF3A3A6;">UTF-8 不是一個圈，而是左右之間的箭頭</mark>：編碼把左邊的字元搬到右邊的綠圈，解碼反過來。順序固定是 ① 字元集 → ② 編碼規則 → ③ 位元組。</li>
+<li class="pt">(d) ASCII 在左右兩邊各有一圈，而且一一對應：在這個範圍內，編號就是位元組的值，這就是 ASCII 檔案不用轉換就是合法 UTF-8 的原因。</li>
+<li class="pt">(e) <mark style="background: #FFB8EBA6;">Base64 把右邊最外圈的任意位元組，搬進左邊最內圈的安全字元</mark>。
+<span class="sub">圖片位元組不是合法 UTF-8，無法直接當文字放進 HTML 或 email，所以先用 Base64 變成安全字元。</span>
+<span class="sub">這些安全字元又在 ASCII 裡，再用 UTF-8 存檔時走的是甜蜜點那條線，形成 data URL 的完整循環。</span></li>
+</ul>
+
+<h3 id="layers">2-2 編號 → 位元組 → 壓縮 → 傳送（依手繪稿）</h3>
+<p>這張圖依 Abby 手繪稿（2026-11-15）重繪：中間粗線左邊是「定編號」的 Unicode，右邊是「編號轉位元組」的 UTF-8，底下一條箭頭穿過粗線，就是 Encode 這一步。</p>
+<p style="font-size:.85em;color:#666">圖例（ISO 5807）：平行四邊形＝資料，直角矩形＝處理，虛線框＝選用步驟。外框包內框＝包含關係。</p>
+<div class="diagram">
+<svg width="1400" height="660" style="width:100%;height:auto;aspect-ratio:1400/660" viewBox="0 0 1400 660" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans TC,Microsoft JhengHei,sans-serif" font-size="15">
+<defs>
+<marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#c2185b"/></marker>
+<marker id="m2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#34508f"/></marker>
+</defs>
+<rect x="30" y="20" width="500" height="220" rx="4" fill="#f3e8fc" stroke="#6b3a8f" stroke-width="2"/>
+<text x="50" y="52" font-size="22" font-weight="bold" fill="#c2185b">Unicode 字元集（大字典）</text>
+<text x="50" y="84" fill="#c26a1b">給全世界每一個字元一個編號（碼位）</text>
+<text x="50" y="112" font-size="13" fill="#555">只定編號，不管位元組，所以不是編碼</text>
+<text x="90" y="160">a</text><text x="260" y="160" font-family="Consolas,monospace">U+0061</text>
+<text x="90" y="205">中</text><text x="260" y="205" font-family="Consolas,monospace">U+4E2D</text>
+<line x1="570" y1="10" x2="570" y2="360" stroke="#c2185b" stroke-width="8"/>
+<line x1="360" y1="155" x2="612" y2="155" stroke="#555" stroke-width="1.5" marker-end="url(#m2)"/>
+<line x1="360" y1="200" x2="612" y2="200" stroke="#555" stroke-width="1.5" marker-end="url(#m2)"/>
+<rect x="615" y="20" width="560" height="220" rx="4" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="2"/>
+<text x="635" y="52" font-size="22" font-weight="bold" fill="#c2185b">UTF-8（Encoding 編碼）</text>
+<text x="635" y="84">把 Unicode 編號轉成位元組的規則</text>
+<text x="635" y="112" font-size="13" fill="#555">charset 告訴瀏覽器用哪套規則解碼（見第 3 節）</text>
+<text x="635" y="160" font-family="Consolas,monospace">01100001（1 位元組）</text>
+<text x="635" y="205" font-family="Consolas,monospace">E4 B8 AD（3 位元組）</text>
+<polygon points="150,280 420,280 400,345 130,345" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="275" y="320" text-anchor="middle" font-size="26" font-weight="bold" fill="#c2185b">編號</text>
+<line x1="415" y1="312" x2="650" y2="312" stroke="#c2185b" stroke-width="4" marker-end="url(#m1)"/>
+<rect x="455" y="265" width="90" height="30" fill="#fff" stroke="#c2185b"/>
+<text x="500" y="286" text-anchor="middle" font-size="14" fill="#c2185b">Encode</text>
+<polygon points="675,280 905,280 885,345 655,345" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="780" y="320" text-anchor="middle" font-size="26" font-weight="bold" fill="#c2185b">位元組</text>
+<line x1="900" y1="312" x2="950" y2="312" stroke="#34508f" stroke-width="2" marker-end="url(#m2)"/>
+<rect x="952" y="280" width="200" height="65" fill="#e8eefc" stroke="#34508f" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="1052" y="306" text-anchor="middle">經過 gzip 或 Brotli</text>
+<text x="1052" y="330" text-anchor="middle" font-size="13">壓縮（選用，不屬於 UTF-8）</text>
+<line x1="1152" y1="312" x2="1190" y2="312" stroke="#34508f" stroke-width="2" marker-end="url(#m2)"/>
+<polygon points="1212,280 1395,280 1378,345 1195,345" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="1295" y="306" text-anchor="middle" fill="#c2185b">位元組變小</text>
+<text x="1295" y="330" text-anchor="middle" font-size="13">網路上傳送 0 和 1</text>
+<text x="1052" y="372" text-anchor="middle" font-size="12" fill="#34508f">標頭：Content-Encoding: br</text>
+<text x="780" y="372" text-anchor="middle" font-size="12" fill="#2f6b3a">標頭：Content-Type 的 charset=utf-8</text>
+<line x1="780" y1="420" x2="780" y2="385" stroke="#555" stroke-width="1.5" marker-end="url(#m2)"/>
+<text x="792" y="408" font-size="13">被吸收</text>
+<ellipse cx="700" cy="475" rx="300" ry="55" fill="#e6fbf7" stroke="#5cc8b5" stroke-width="3"/>
+<text x="470" y="468" font-size="20" font-weight="bold" fill="#c2185b">ASCII</text>
+<text x="470" y="494" font-size="13">UTF-8 的前 128 個</text>
+<text x="640" y="468">早期的小規模版本</text>
+<text x="640" y="494" font-size="13">每一個是 1 個位元組，仍在使用</text>
+<text x="30" y="560" font-weight="bold" fill="#c2185b">Base64：方向相反</text>
+<text x="30" y="582" font-size="12" fill="#555">64＝A–Z(26)＋a–z(26)＋0–9(10)＋ + /(2)</text>
+<polygon points="360,580 600,580 580,640 340,640" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="470" y="617" text-anchor="middle" font-size="22" font-weight="bold" fill="#c2185b">安全字元</text>
+<polygon points="1000,580 1240,580 1220,640 980,640" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="1110" y="617" text-anchor="middle" font-size="22" font-weight="bold" fill="#c2185b">位元組</text>
+<line x1="985" y1="595" x2="598" y2="595" stroke="#c2185b" stroke-width="3" marker-end="url(#m1)"/>
+<rect x="700" y="568" width="180" height="26" fill="#fff" stroke="#c2185b"/>
+<text x="790" y="586" text-anchor="middle" font-size="13" fill="#c2185b">Base64 編碼</text>
+<line x1="585" y1="628" x2="982" y2="628" stroke="#34508f" stroke-width="2" marker-end="url(#m2)"/>
+<rect x="700" y="630" width="180" height="24" fill="#fff" stroke="#34508f"/>
+<text x="790" y="647" text-anchor="middle" font-size="13" fill="#34508f">Base64 解碼</text>
+</svg>
+</div>
+<p>一句話記：<b>Unicode 定編號，UTF-8 和 ASCII 把文字變位元組，gzip／Brotli 把位元組變小，Base64 把位元組變文字。</b></p>
+<details class="src"><summary>延伸圖：JS 檔從伺服器到 CPU（含 V8 編譯）</summary>
+<div class="diagram">
+<svg width="1100" height="520" style="width:100%;height:auto;aspect-ratio:1100/520" viewBox="0 0 1100 520" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans TC,Microsoft JhengHei,sans-serif" font-size="14">
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#34508f"/></marker>
+<marker id="arp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b23a6f"/></marker>
+</defs>
+<!-- 第 1 列：文字變位元組 -->
+<text x="10" y="24" font-weight="bold" fill="#34508f">文字 → 位元組（UTF-8 這條路）</text>
+<polygon points="30,50 190,50 170,120 10,120" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="100" y="78" text-anchor="middle">資料：字元</text>
+<text x="100" y="102" text-anchor="middle">「a」「中」</text>
+<line x1="185" y1="85" x2="228" y2="85" stroke="#34508f" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="230" y="40" width="200" height="90" fill="#e8eefc" stroke="#34508f" stroke-width="2"/>
+<text x="330" y="64" text-anchor="middle" font-weight="bold">Unicode（字元集）</text>
+<text x="330" y="88" text-anchor="middle">查字典、定碼位</text>
+<text x="330" y="112" text-anchor="middle" font-size="13">a＝U+0061　中＝U+4E2D</text>
+<line x1="430" y1="85" x2="478" y2="85" stroke="#34508f" stroke-width="2" marker-end="url(#ar)"/>
+<!-- UTF-8 外框包 ASCII 內框 -->
+<rect x="480" y="30" width="260" height="150" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="2"/>
+<text x="610" y="52" text-anchor="middle" font-weight="bold">UTF-8（編碼）</text>
+<text x="610" y="72" text-anchor="middle" font-size="13">碼位 → 1 到 4 個位元組</text>
+<rect x="496" y="84" width="228" height="82" fill="#fff" stroke="#2f6b3a" stroke-dasharray="5 3"/>
+<text x="610" y="104" text-anchor="middle" font-weight="bold" font-size="13">ASCII 範圍 U+0000–U+007F</text>
+<text x="610" y="126" text-anchor="middle" font-size="13">共 128 個，1 位元組，跟 ASCII 相同</text>
+<text x="610" y="150" text-anchor="middle" font-size="13">其他字元（如中文）：通常 3 位元組</text>
+<line x1="740" y1="105" x2="788" y2="105" stroke="#34508f" stroke-width="2" marker-end="url(#ar)"/>
+<polygon points="810,70 1090,70 1070,140 790,140" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="940" y="96" text-anchor="middle">資料：位元組</text>
+<text x="940" y="120" text-anchor="middle" font-size="13">a＝01100001　中＝E4 B8 AD</text>
+<!-- 第 2 列：傳輸到執行 -->
+<text x="10" y="232" font-weight="bold" fill="#34508f">JS 檔從伺服器到 CPU</text>
+<line x1="940" y1="140" x2="940" y2="168" stroke="#34508f" stroke-width="2"/>
+<line x1="940" y1="168" x2="110" y2="168" stroke="#34508f" stroke-width="2"/>
+<line x1="110" y1="168" x2="110" y2="246" stroke="#34508f" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="20" y="250" width="180" height="70" fill="#e8eefc" stroke="#34508f" stroke-width="2"/>
+<text x="110" y="278" text-anchor="middle">gzip／Brotli 壓縮</text>
+<text x="110" y="302" text-anchor="middle" font-size="13">伺服器把位元組變小</text>
+<line x1="200" y1="285" x2="238" y2="285" stroke="#34508f" stroke-width="2" marker-end="url(#ar)"/>
+<polygon points="260,250 420,250 400,320 240,320" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="330" y="278" text-anchor="middle">資料：網路上的 0／1</text>
+<text x="330" y="302" text-anchor="middle" font-size="13">代表「文字」</text>
+<line x1="415" y1="285" x2="453" y2="285" stroke="#34508f" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="455" y="250" width="200" height="70" fill="#e8eefc" stroke="#34508f" stroke-width="2"/>
+<text x="555" y="278" text-anchor="middle">瀏覽器解壓縮</text>
+<text x="555" y="302" text-anchor="middle" font-size="13">再用 UTF-8 解碼</text>
+<line x1="655" y1="285" x2="688" y2="285" stroke="#34508f" stroke-width="2" marker-end="url(#ar)"/>
+<polygon points="710,250 860,250 840,320 690,320" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="775" y="290" text-anchor="middle">資料：JS 文字</text>
+<line x1="855" y1="285" x2="888" y2="285" stroke="#34508f" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="890" y="250" width="200" height="70" fill="#f3e8fc" stroke="#6b3a8f" stroke-width="2"/>
+<text x="990" y="278" text-anchor="middle">V8 parse、編譯</text>
+<text x="990" y="302" text-anchor="middle" font-size="13">產生機器碼＝「指令」</text>
+<!-- 第 3 列：Base64 反方向 -->
+<text x="10" y="392" font-weight="bold" fill="#b23a6f">位元組 → 文字（Base64 這條路，方向相反）</text>
+<polygon points="40,420 260,420 240,490 20,490" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="140" y="448" text-anchor="middle">資料：任意位元組</text>
+<text x="140" y="472" text-anchor="middle" font-size="13">例如一張 PNG 圖片</text>
+<line x1="255" y1="455" x2="318" y2="455" stroke="#b23a6f" stroke-width="2" marker-end="url(#arp)"/>
+<rect x="320" y="420" width="260" height="70" fill="#fde8f2" stroke="#b23a6f" stroke-width="2"/>
+<text x="450" y="448" text-anchor="middle" font-weight="bold">Base64 編碼</text>
+<text x="450" y="472" text-anchor="middle" font-size="13">每 3 位元組 → 4 個安全字元</text>
+<line x1="580" y1="455" x2="638" y2="455" stroke="#b23a6f" stroke-width="2" marker-end="url(#arp)"/>
+<polygon points="660,420 1000,420 980,490 640,490" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="820" y="448" text-anchor="middle">資料：只含 A–Z a–z 0–9 + / 的文字</text>
+<text x="820" y="472" text-anchor="middle" font-size="13">可放進 email、data URL，體積約 +33%</text>
+</svg>
+</div>
+</details>
+
+<h3 id="utf16">2-3 UTF-8 與 UTF-16：以 1 位元組或 2 位元組為單位怎麼包裝</h3>
+<p>「單位」（code unit，碼元）是編碼一次讀寫的最小格子，每個字元都由整數個格子組成。同一個 Unicode 編號，兩種編碼用不同大小的格子去裝。</p>
+<p style="font-size:.85em;color:#666">讀法：每個方框是一個碼元。<span style="color:#999">灰色位元</span>＝標頭（告訴解碼器「這格是開頭還是接續」），<b>黑色位元</b>＝真正裝編號的內容。</p>
+<div class="diagram">
+<svg width="1300" height="470" style="width:100%;height:auto;aspect-ratio:1300/470" viewBox="0 0 1300 470" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans TC,Microsoft JhengHei,sans-serif" font-size="14">
+<text x="30" y="30" font-weight="bold">字元</text>
+<text x="90" y="30" font-weight="bold" fill="#6b3a8f">Unicode 編號（二進位）</text>
+<text x="400" y="30" font-weight="bold" fill="#2f6b3a">UTF-8：每格 1 位元組（8 位元）</text>
+<text x="900" y="30" font-weight="bold" fill="#34508f">UTF-16：每格 2 位元組（16 位元）</text>
+<line x1="20" y1="42" x2="1290" y2="42" stroke="#ccc"/>
+<!-- A -->
+<text x="40" y="95" font-size="28" font-weight="bold">A</text>
+<text x="90" y="85" font-family="Consolas,monospace">U+0041</text>
+<text x="90" y="107" font-family="Consolas,monospace">100 0001</text>
+<rect x="400" y="62" width="115" height="56" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="2"/>
+<text x="457" y="86" text-anchor="middle" font-family="Consolas,monospace"><tspan fill="#999">0</tspan>1000001</text>
+<text x="457" y="108" text-anchor="middle" font-weight="bold" fill="#2f6b3a">41</text>
+<text x="530" y="95" font-size="13" fill="#555">1 格＝1 位元組，跟 ASCII 相同</text>
+<rect x="900" y="62" width="230" height="56" fill="#e8eefc" stroke="#34508f" stroke-width="2"/>
+<text x="1015" y="86" text-anchor="middle" font-family="Consolas,monospace">00000000 01000001</text>
+<text x="1015" y="108" text-anchor="middle" font-weight="bold" fill="#34508f">0041</text>
+<text x="1140" y="95" font-size="13" fill="#555">1 格＝2 位元組</text>
+<!-- 中 -->
+<text x="36" y="200" font-size="28" font-weight="bold">中</text>
+<text x="90" y="190" font-family="Consolas,monospace">U+4E2D</text>
+<text x="90" y="212" font-family="Consolas,monospace">0100 1110 0010 1101</text>
+<rect x="400" y="167" width="115" height="56" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="2"/>
+<text x="457" y="191" text-anchor="middle" font-family="Consolas,monospace"><tspan fill="#999">1110</tspan>0100</text>
+<text x="457" y="213" text-anchor="middle" font-weight="bold" fill="#2f6b3a">E4</text>
+<rect x="520" y="167" width="115" height="56" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="2"/>
+<text x="577" y="191" text-anchor="middle" font-family="Consolas,monospace"><tspan fill="#999">10</tspan>111000</text>
+<text x="577" y="213" text-anchor="middle" font-weight="bold" fill="#2f6b3a">B8</text>
+<rect x="640" y="167" width="115" height="56" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="2"/>
+<text x="697" y="191" text-anchor="middle" font-family="Consolas,monospace"><tspan fill="#999">10</tspan>101101</text>
+<text x="697" y="213" text-anchor="middle" font-weight="bold" fill="#2f6b3a">AD</text>
+<text x="765" y="200" font-size="13" fill="#555">3 格＝3 位元組</text>
+<rect x="900" y="167" width="230" height="56" fill="#e8eefc" stroke="#34508f" stroke-width="2"/>
+<text x="1015" y="191" text-anchor="middle" font-family="Consolas,monospace">01001110 00101101</text>
+<text x="1015" y="213" text-anchor="middle" font-weight="bold" fill="#34508f">4E2D</text>
+<text x="1140" y="192" font-size="13" fill="#555">1 格＝2 位元組</text>
+<text x="1140" y="212" font-size="13" fill="#555">編號直接放進去</text>
+<!-- 😀 -->
+<text x="34" y="310" font-size="28">😀</text>
+<text x="90" y="300" font-family="Consolas,monospace">U+1F600</text>
+<text x="90" y="322" font-family="Consolas,monospace">1 1111 0110 0000 0000</text>
+<text x="90" y="344" font-size="12" fill="#b23a48">超過 16 位元能裝的 U+FFFF</text>
+<rect x="400" y="277" width="115" height="56" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="2"/>
+<text x="457" y="301" text-anchor="middle" font-family="Consolas,monospace"><tspan fill="#999">11110</tspan>000</text>
+<text x="457" y="323" text-anchor="middle" font-weight="bold" fill="#2f6b3a">F0</text>
+<rect x="520" y="277" width="115" height="56" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="2"/>
+<text x="577" y="301" text-anchor="middle" font-family="Consolas,monospace"><tspan fill="#999">10</tspan>011111</text>
+<text x="577" y="323" text-anchor="middle" font-weight="bold" fill="#2f6b3a">9F</text>
+<rect x="640" y="277" width="115" height="56" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="2"/>
+<text x="697" y="301" text-anchor="middle" font-family="Consolas,monospace"><tspan fill="#999">10</tspan>011000</text>
+<text x="697" y="323" text-anchor="middle" font-weight="bold" fill="#2f6b3a">98</text>
+<rect x="760" y="277" width="115" height="56" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="2"/>
+<text x="817" y="301" text-anchor="middle" font-family="Consolas,monospace"><tspan fill="#999">10</tspan>000000</text>
+<text x="817" y="323" text-anchor="middle" font-weight="bold" fill="#2f6b3a">80</text>
+<rect x="900" y="277" width="190" height="56" fill="#e8eefc" stroke="#34508f" stroke-width="2"/>
+<text x="995" y="301" text-anchor="middle" font-family="Consolas,monospace" font-size="13"><tspan fill="#999">110110</tspan>0000111101</text>
+<text x="995" y="323" text-anchor="middle" font-weight="bold" fill="#34508f">D83D</text>
+<rect x="1095" y="277" width="190" height="56" fill="#e8eefc" stroke="#34508f" stroke-width="2"/>
+<text x="1190" y="301" text-anchor="middle" font-family="Consolas,monospace" font-size="13"><tspan fill="#999">110111</tspan>1000000000</text>
+<text x="1190" y="323" text-anchor="middle" font-weight="bold" fill="#34508f">DE00</text>
+<text x="1092" y="352" text-anchor="middle" font-size="12" fill="#34508f">代理對：編號先減 0x10000，剩下 20 位元切成前 10＋後 10</text>
+<!-- 位元組順序 -->
+<rect x="400" y="385" width="885" height="70" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="420" y="412">UTF-16 一格有 2 個位元組，要決定誰先誰後：UTF-16BE 存成 <tspan font-family="Consolas,monospace">4E 2D</tspan>，UTF-16LE 存成 <tspan font-family="Consolas,monospace">2D 4E</tspan></text>
+<text x="420" y="438">檔案開頭用 BOM 標示：<tspan font-family="Consolas,monospace">FE FF</tspan>＝BE，<tspan font-family="Consolas,monospace">FF FE</tspan>＝LE。UTF-8 一格只有 1 個位元組，沒有順序問題。</text>
+</svg>
+</div>
+<ul>
+<li class="pt">(a) <mark style="background: #BBFABBA6;">UTF-8 用「標頭位元」說明長度</mark>：第一格開頭有幾個 1，這個字元就佔幾格，後續格一律以 <code>10</code> 開頭。
+<span class="sub"><code>0xxxxxxx</code>＝1 格，<code>110xxxxx</code>＝2 格，<code>1110xxxx</code>＝3 格，<code>11110xxx</code>＝4 格。</span>
+<span class="sub">標頭佔掉一些位元，所以「中」的 16 位元編號要切成 4＋6＋6，分進 3 格。</span></li>
+<li class="pt">(b) <mark style="background: #ADCCFFA6;">UTF-16 編號在 U+FFFF 以內就直接放進一格</mark>，沒有標頭位元，「中」的 <code>4E2D</code> 就是編號本身。
+<span class="sub">超過 U+FFFF 才拆成兩格的代理對：前半以 <code>110110</code> 開頭（D8–DB），後半以 <code>110111</code> 開頭（DC–DF）。</span></li>
+<li class="pt">(c) 體積比較：英文 UTF-8 較小（1 對 2 位元組），中文 UTF-16 較小（2 對 3 位元組），emoji 兩者都是 4 位元組。
+<span class="sub">網頁有大量 HTML 標籤和英文程式碼，整體仍是 UTF-8 較省。</span></li>
+<li class="pt">(d) UTF-16 有位元組順序（endianness，位元組序）問題，需要 BOM 或標明 BE／LE。UTF-8 沒有這個問題。</li>
+<li class="pt">(e) <mark style="background: #FFF3A3A6;">JS 字串內部用 UTF-16 碼元</mark>，所以 <code>'😀'.length</code> 是 2，<code>charCodeAt(0)</code> 拿到 55357（0xD83D，代理對前半），<code>codePointAt(0)</code> 才拿到完整編號 128512（0x1F600）。
+<span class="sub">詳見 <a href="../JS-資料型別/JS字串-UTF-16碼元與代理對Surrogate-Pair-ECMAScript定義.html">JS字串-UTF-16碼元與代理對</a>。</span></li>
+</ul>
+<pre><code class="language-js">'😀'.length          // 2，😀 佔 2 個 UTF-16 碼元
+'😀'.charCodeAt(0)   // 55357（0xD83D），只拿到代理對前半
+'😀'.codePointAt(0)  // 128512（0x1F600），完整的 Unicode 編號
+</code></pre>
+<p>白話：<code>length</code> 和 <code>charCodeAt</code> 都是以 UTF-16 碼元為單位在數，碰到 emoji 會算成兩個，要拿完整編號就用 <code>codePointAt</code>。</p>
+
+<h2 id="charset">3. charset 機制：瀏覽器怎麼選解碼規則</h2>
+<p>伺服器送出的只是位元組，瀏覽器必須先決定「用哪套規則解碼」，才能還原成字元。<code>charset</code> 字面是「字元集」，實際填的是編碼名稱，是歷史沿用的叫法。</p>
+<div class="diagram">
+<svg width="1300" height="330" style="width:100%;height:auto;aspect-ratio:1300/330" viewBox="0 0 1300 330" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans TC,Microsoft JhengHei,sans-serif" font-size="14">
+<defs><marker id="m3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#34508f"/></marker></defs>
+<polygon points="30,40 200,40 180,110 10,110" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="105" y="70" text-anchor="middle">資料：收到的</text><text x="105" y="92" text-anchor="middle">位元組與標頭</text>
+<line x1="195" y1="75" x2="238" y2="75" stroke="#34508f" stroke-width="2" marker-end="url(#m3)"/>
+<polygon points="330,20 420,75 330,130 240,75" fill="#fffbe6" stroke="#b8860b" stroke-width="2"/>
+<text x="330" y="72" text-anchor="middle">檔案開頭</text><text x="330" y="92" text-anchor="middle">有 BOM？</text>
+<line x1="420" y1="75" x2="488" y2="75" stroke="#34508f" stroke-width="2" marker-end="url(#m3)"/><text x="440" y="66" font-size="12">否</text>
+<polygon points="590,20 690,75 590,130 490,75" fill="#fffbe6" stroke="#b8860b" stroke-width="2"/>
+<text x="590" y="68" text-anchor="middle" font-size="13">HTTP Content-Type</text><text x="590" y="88" text-anchor="middle" font-size="13">有 charset？</text>
+<line x1="690" y1="75" x2="758" y2="75" stroke="#34508f" stroke-width="2" marker-end="url(#m3)"/><text x="710" y="66" font-size="12">否</text>
+<polygon points="865,20 970,75 865,130 760,75" fill="#fffbe6" stroke="#b8860b" stroke-width="2"/>
+<text x="865" y="68" text-anchor="middle" font-size="13">前 1024 位元組</text><text x="865" y="88" text-anchor="middle" font-size="13">有 meta charset？</text>
+<line x1="970" y1="75" x2="1038" y2="75" stroke="#34508f" stroke-width="2" marker-end="url(#m3)"/><text x="990" y="66" font-size="12">否</text>
+<rect x="1040" y="45" width="240" height="60" fill="#e8eefc" stroke="#34508f" stroke-width="2"/>
+<text x="1160" y="72" text-anchor="middle">瀏覽器自行猜測</text><text x="1160" y="94" text-anchor="middle" font-size="12">（依內容、地區預設）</text>
+<line x1="330" y1="130" x2="330" y2="190" stroke="#34508f" stroke-width="2"/><text x="338" y="160" font-size="12">是</text>
+<line x1="590" y1="130" x2="590" y2="190" stroke="#34508f" stroke-width="2"/><text x="598" y="160" font-size="12">是</text>
+<line x1="865" y1="130" x2="865" y2="190" stroke="#34508f" stroke-width="2"/><text x="873" y="160" font-size="12">是</text>
+<line x1="1160" y1="105" x2="1160" y2="190" stroke="#34508f" stroke-width="2"/>
+<line x1="330" y1="190" x2="1160" y2="190" stroke="#34508f" stroke-width="2"/>
+<line x1="700" y1="190" x2="700" y2="218" stroke="#34508f" stroke-width="2" marker-end="url(#m3)"/>
+<rect x="540" y="220" width="320" height="40" fill="#e8f6ea" stroke="#2f6b3a" stroke-width="2"/>
+<text x="700" y="245" text-anchor="middle">用選定的規則把位元組解碼</text>
+<line x1="700" y1="260" x2="700" y2="278" stroke="#34508f" stroke-width="2" marker-end="url(#m3)"/>
+<polygon points="580,280 840,280 820,320 560,320" fill="#fff8e0" stroke="#e6b422" stroke-width="2"/>
+<text x="700" y="305" text-anchor="middle">字元（選錯規則就是亂碼）</text>
+</svg>
+</div>
+<ul>
+<li class="pt">(a) 伺服器在 HTTP 標頭寫 <code>Content-Type: text/html; charset=utf-8</code>，HTML 裡寫 <code>&lt;meta charset="utf-8"&gt;</code>，兩者都是告訴瀏覽器「用 UTF-8 解碼」。</li>
+<li class="pt">(b) <mark style="background: #BBFABBA6;">優先順序：BOM → HTTP 標頭的 charset → 前 1024 位元組內的 meta charset → 瀏覽器猜測</mark>。<code>&lt;meta charset&gt;</code> 要放在 <code>&lt;head&gt;</code> 最前面，才會落在前 1024 位元組內。</li>
+<li class="pt">(c) 選錯規則就是重點 (a) 的 Mojibake，例如 Big5 檔案被當成 UTF-8 解碼。</li>
+</ul>
+
+<h2 id="popular">4. UTF-8 的普及程度</h2>
+<ul>
+<li class="pt">(a) 在已知編碼的網站中，UTF-8 佔 99%（W3Techs，2026-08-31）。</li>
+<li class="pt">(b) 成長軌跡：2015 年初 82.3% → 2026 年初 98.9%，剩下的多半是 ISO-8859-1 這類舊的單一語系編碼。</li>
+<li class="pt">(c) ASCII 在統計裡幾乎看不到，原因是它被 UTF-8 吸收：純英文檔案標成 UTF-8 即可，位元組不變，所以不需要另外宣告 ASCII。</li>
+</ul>
+<p style="font-size:.88em;color:#666">標準現況：UTF-8 的現行規格是 <a href="https://www.rfc-editor.org/rfc/rfc3629">RFC 3629</a>（2003-11，STD 63），Base64 的現行規格是 <a href="https://www.rfc-editor.org/rfc/rfc4648">RFC 4648</a>（2006-10）。兩份至 2026 年都仍是現行標準，值得學。</p>
+
+<h2 id="quiz">5. 自我測驗</h2>
+<h3>填空（點底線顯示答案）</h3>
+<p>1. Unicode 給「中」的碼位是 <span class="blank">U+4E2D</span>，UTF-8 把它編成 <span class="blank">3</span> 個位元組。</p>
+<p>2. UTF-8 的前 <span class="blank">128</span> 個碼位，跟 <span class="blank">ASCII</span> 的位元組完全相同。</p>
+<p>3. Base64 每 <span class="blank">3</span> 個位元組變成 <span class="blank">4</span> 個字元，體積約增加 <span class="blank">三分之一</span>。</p>
+<p>4. 瀏覽器決定解碼規則的優先順序：<span class="blank">BOM</span> → <span class="blank">HTTP 標頭的 charset</span> → 前 1024 位元組內的 <span class="blank">meta charset</span>。</p>
+<h3>是非題（點題目顯示答案）</h3>
+<div class="quiz" onclick="this.classList.toggle('open')">1. UTF-8 只是在描述「用幾個位元組」，本身不是編碼。<div class="ans">✗ 錯。UTF-8 就是編碼本身，是把碼位轉成位元組的完整規則。</div></div>
+<div class="quiz" onclick="this.classList.toggle('open')">2. JS chunk 在網路上傳送時，已經是 CPU 能直接執行的機器碼。<div class="ans">✗ 錯。傳送的 0／1 代表 UTF-8 文字，要等 V8 編譯後才變成機器碼。</div></div>
+<div class="quiz" onclick="this.classList.toggle('open')">3. Base64 的用途是把二進位資料轉成只含安全字元的文字。<div class="ans">✓ 對。</div></div>
+<div class="quiz" onclick="this.classList.toggle('open')">4. Unicode 是一種編碼。<div class="ans">✗ 錯。Unicode 是字元集，只定編號，UTF-8、UTF-16 才是編碼。</div></div>
+<div class="quiz" onclick="this.classList.toggle('open')">5. gzip／Brotli 壓縮是 UTF-8 編碼的一部分。<div class="ans">✗ 錯。壓縮是另一個選用步驟，用 Content-Encoding 標頭宣告，UTF-8 用 Content-Type 的 charset 宣告。</div></div>
+<div class="quiz" onclick="this.classList.toggle('open')">6. 「中」用 UTF-16 存比用 UTF-8 存更省空間。<div class="ans">✓ 對。UTF-16 是 2 位元組，UTF-8 是 3 位元組。</div></div>
+<h3>申論題（點題目顯示參考答案）</h3>
+<div class="quiz" onclick="this.classList.toggle('open')">為什麼 UTF-8 能幾乎無痛取代 ASCII？<div class="ans">參考答案：Unicode 的前 128 個碼位沿用 ASCII 編號，UTF-8 又規定這 128 個用 1 個位元組直接存編號本身，所以所有舊的 ASCII 檔案不用轉換就是合法的 UTF-8。程式碼大多是英文，因此切換到 UTF-8 幾乎沒有成本。</div></div>
+
+<h2 id="related">6. 相關筆記</h2>
+<ul>
+<li><a href="../JS-資料型別/JS字串-UTF-16碼元與代理對Surrogate-Pair-ECMAScript定義.html">JS字串-UTF-16碼元與代理對</a>：同一個 Unicode 碼位，JS 內部用 UTF-16 存，跟本篇的 UTF-8 是不同編碼方案，<code>.length</code> 算的是 UTF-16 碼元數。</li>
+<li><a href="../編譯與打包-學習路徑/03-前端開發工具-打包轉譯Lint與Parser-【打包buildtime】-互動版.html">03-打包轉譯Lint與Parser</a>：打包工具產出的 chunk 就是本篇分層圖第 2 列傳輸的那份 JS 文字。</li>
+<li><a href="ASCII-美國資訊交換標準碼.md">ASCII-美國資訊交換標準碼</a>：位元層級的細節（為什麼最高位永遠是 0、UTF-8 的 <code>0xxxxxxx</code>／<code>1110xxxx</code> 開頭規則、完整對照表）放在那篇，本篇只講四者關係。另外：ASCII 範圍的字元不會亂，所以亂碼裡的 <code>500W 110V</code> 還看得到。</li>
+</ul>
+
+<h2 id="origin">7. 各對話來源（原文節錄）</h2>
+<h3>亂碼問題解析與 JavaScript 解決方案 — https://gemini.google.com/app/5ffb905872a44279</h3>
+<p>使用者：（貼上一份含 <code>Sðpc-20 g*NØk&gt; –ûR›—lB 500W 110V</code> 的亂碼清單）為什麼會有這個符號</p>
+<p>Gemini：這是文字編碼錯誤（Mojibake）……Big5／GBK 被誤當 UTF-8 或 Latin-1 讀取……Node.js 用 iconv-lite、前端用 FileReader 指定 big5。</p>
+<p>使用者：UTF stands for what — Spell out</p>
+<p>Gemini：UTF stands for Unicode Transformation Format.</p>
+<h3>解讀 RFC 1034 檔案性質與授權 — https://gemini.google.com/app/b830fcafe8b84cbe</h3>
+<p>使用者：意思是這篇 RFC1034 是一個 MEMO，而他的產出發行無限？</p>
+<p>Gemini：「MEMO」是 RFC 的慣用稱呼；「Distribution of this memo is unlimited」指本文件發行不受限制。</p>
+<h3>Claude 對話（2026-11-15）</h3>
+<p>Unicode、UTF-8、ASCII、Base64 分層比較，ASCII 與 UTF-8 相容的原因，JS 傳輸時 0／1 的意義，UTF-8 普及率。</p>
+
+<h2 id="sources">8. 資料來源</h2>
+<table>
+<thead><tr><th>主題</th><th>連結</th><th>版本／時間</th></tr></thead>
+<tbody>
+<tr><td>字元編碼使用率</td><td><a href="https://w3techs.com/technologies/overview/character_encoding/all">W3Techs 字元編碼統計</a></td><td>2026-08-31 數據</td></tr>
+<tr><td>字元編碼歷年趨勢</td><td><a href="https://w3techs.com/technologies/history_overview/character_encoding/ms/y">W3Techs Historical yearly trends</a></td><td>2015-01 至 2026-01</td></tr>
+<tr><td>UTF-8 規格</td><td><a href="https://www.rfc-editor.org/rfc/rfc3629">RFC 3629</a></td><td>2003-11，現行標準 STD 63</td></tr>
+<tr><td>Base64 規格</td><td><a href="https://www.rfc-editor.org/rfc/rfc4648">RFC 4648</a></td><td>2006-10，現行標準</td></tr>
+<tr><td>瀏覽器判斷編碼順序</td><td><a href="https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding">WHATWG HTML：Determining the character encoding</a></td><td>Living Standard，持續更新</td></tr>
+<tr><td>HTTP Content-Encoding</td><td><a href="https://www.rfc-editor.org/rfc/rfc9110#name-content-encoding">RFC 9110</a></td><td>2022-06，現行標準</td></tr>
+<tr><td>Unicode 編碼說明</td><td><a href="https://www.unicode.org/faq/utf_bom.html">Unicode UTF FAQ</a></td><td>官方 FAQ</td></tr>
+<tr><td>Gemini 對話（亂碼）</td><td><a href="https://gemini.google.com/app/5ffb905872a44279">連結</a></td><td>2026-10-07 擷取</td></tr>
+<tr><td>Gemini 對話（RFC 1034）</td><td><a href="https://gemini.google.com/app/b830fcafe8b84cbe">連結</a></td><td>2026-10-07 擷取</td></tr>
+<tr><td>RFC 1034</td><td><a href="https://www.rfc-editor.org/rfc/rfc1034">RFC 1034</a></td><td>1987-11（Mockapetris）</td></tr>
+</tbody>
+</table>
+</article><footer>更新於 2026-11-15</footer></main></div><script>
+document.querySelectorAll('li.pt').forEach(l=>l.onclick=()=>l.classList.toggle('hide'));
+function setAll(h){document.querySelectorAll('li.pt').forEach(l=>l.classList.toggle('hide',h))}
+document.querySelectorAll('.blank').forEach(b=>b.onclick=()=>b.classList.toggle('show'));
+</script><script src="../assets/notes.js" defer></script>
+</body></html>

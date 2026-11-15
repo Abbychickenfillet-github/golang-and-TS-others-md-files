@@ -70,6 +70,9 @@ updated: 2026-10-30
 3. 通常省略結尾補齊用的 = 。
 這是 JWT 被稱為「compact, URL-safe」的原因（RFC 7519）。
 
+![[base64用btoa去測試轉換出來的字元_2026-11-15 141442.png]]
+實測：`btoa('{"')` 得到 `eyI=`。btoa＝binary to ASCII，用 Base64 把 bytes 轉成 ASCII 字元。接上更多內容後第 3 個字元才變成 `J`（`eyJ`）。
+
 **o.** JWT 確實會出現在網址中（Email 驗證連結、密碼重設連結、OAuth／OIDC 轉址、臨時下載連結），但即使它主要放在 Authorization Header ，採用 Base64url 也讓同一套編碼能同時用在 Header 與 URL 。
 
 **p.** ⚠️ 存疑／更正：Gemini 把「JWT 放在 URL query」講得像常態做法，沒有提到風險。Token 放在網址會進入瀏覽器歷史、伺服器 access log 與 Referer 標頭而外洩，一般建議 Access Token 放 Header 或 HttpOnly Cookie ，網址上只適合「單次、短效期」的連結。另外 OIDC 的 implicit flow（把 id_token 放在 # fragment 回傳）已不被建議，現行建議用 Authorization Code Flow 加 PKCE 。

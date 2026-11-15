@@ -110,6 +110,8 @@ npm create vue@latest            # 官方現行推薦，基於 Vite
 }
 ```
 
+完整規則（三段的意義、上限 `<9.0.0`、0.x 例外、`npm ls` 查實際版本）展開在 [[13-SemVer語意化版本-版本號的caret與tilde怎麼看]]。
+
 > [!warning] 常見誤會
 > 很多人以為 `package-lock.json` 可以不用 commit 進 git——<mark style="background: #FF5582A6;">恰恰相反，一定要 commit</mark>，它就是「重現同一份 node_modules」的唯一依據。真正不該 commit 的是 `node_modules` 資料夾本身。
 

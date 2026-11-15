@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Windows 記憶體｜關掉 Chrome 後剩多少</title>
+<link rel="stylesheet" href="../assets/note-interactive.css">
+<link rel="stylesheet" href="../assets/notes.css">
+<style>
+/* 本頁新增的顏色一律用 oklch()；底色用 note-interactive.css 的變數（--card、--head…），深色主題才不會出現白底卡片 */
+:root{
+  --c-reserved:oklch(58% 0.02 260);
+  --c-others:oklch(66% 0.09 250);
+  --c-chrome:oklch(76% 0.15 70);
+  --c-avail:oklch(78% 0.14 150);
+  --c-bar-ink:oklch(22% 0.03 260);
+}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:16px 0;overflow-x:auto}
+/* ---- 主軸圖：32GB 堆疊長條 ---- */
+.bar{display:flex;width:100%;height:64px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--head)}
+.seg{flex:0 0 0%;min-width:0;display:flex;align-items:center;justify-content:center;
+     color:var(--c-bar-ink);font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;
+     transition:flex-basis .6s ease}
+.seg.reserved{background:var(--c-reserved)}
+.seg.others{background:var(--c-others)}
+.seg.chrome{background:var(--c-chrome)}
+.seg.avail{background:var(--c-avail)}
+.seg.unknown{background:repeating-linear-gradient(135deg,oklch(80% 0.03 260) 0 10px,oklch(70% 0.03 260) 10px 20px)}
+.scale{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin:4px 2px 0}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.sw.reserved{background:var(--c-reserved)} .sw.others{background:var(--c-others)}
+.sw.chrome{background:var(--c-chrome)} .sw.avail{background:var(--c-avail)}
+.sw.unknown{background:repeating-linear-gradient(135deg,oklch(80% 0.03 260) 0 4px,oklch(70% 0.03 260) 4px 8px)}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.statebox{margin:10px 0 2px;font-size:14.5px}
+/* ---- 流程圖（SVG）：框線與字色都用變數，換主題會跟著變 ---- */
+svg.flow{width:100%;min-width:760px;height:auto;display:block}
+svg.flow text{fill:var(--ink);font-size:14px;font-family:inherit}
+svg.flow .lbl{font-size:13px;font-weight:700;fill:var(--accent)}
+svg.flow .box{fill:var(--card);stroke:var(--accent);stroke-width:1.6}
+svg.flow .term-box{fill:var(--head);stroke:var(--accent);stroke-width:1.6}
+svg.flow .dec{fill:var(--midbg);stroke:var(--mid);stroke-width:1.8}
+svg.flow .good{fill:var(--okbg);stroke:var(--ok);stroke-width:1.6}
+svg.flow .warnb{fill:var(--warnbg);stroke:var(--warn);stroke-width:1.6}
+svg.flow .dash{fill:var(--soft);stroke:var(--sub);stroke-width:1.2;stroke-dasharray:5 4}
+svg.flow .arrow{stroke:var(--sub);stroke-width:1.8;fill:none}
+svg.flow marker path{fill:var(--sub)}
+.cmdbar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Windows 記憶體 —— 32GB 關掉 Chrome 以後剩多少？會每天自動重整嗎？</h1>
+  <div class="pills"><span class="pill">#計算機基礎</span><span class="pill">#Windows</span><span class="pill">#記憶體</span><span class="pill">#Standby</span><span class="pill">#本機實測</span></div>
+  <div class="meta">更新於 2026-11-12 · 數據來源：本機 PowerShell 實測 · 文字完整版：<a href="Windows記憶體-關掉Chrome後剩多少-Standby快取與重開機.md">Windows記憶體-關掉Chrome後剩多少-Standby快取與重開機.md</a></div>
+  <div class="idx">本篇重點 a–e，共 5 個</div>
+</header>
+
+<h2>a. 結論</h2>
+<div class="callout ok"><b>不會每天自動重整，關掉 Chrome 也不會回到 32GB。</b>
+RAM 沒有每日重置機制，只有<b style="display:inline">重新啟動</b>（或斷電）才會清空。
+關掉 Chrome 只會還回 Chrome 佔的那一份，約從「可用 4.8 GB」變成「可用約 14 GB」。</div>
+
+<h2>b. 主軸圖：32GB 的三種狀態</h2>
+<p>按下面按鈕切換狀態。前兩個的數字來自本機實測與推估，第三個沒有實測數字，所以用斜線表示「待你自己量」。</p>
+<div class="toolbar" id="states">
+  <button type="button" data-s="on" class="sel" aria-pressed="true">Chrome 開著（實測）</button>
+  <button type="button" data-s="off" aria-pressed="false">關掉 Chrome（推估）</button>
+  <button type="button" data-s="reboot" aria-pressed="false">重新啟動後（待量）</button>
+</div>
+<div class="panel">
+  <div class="bar" id="bar" role="img" aria-label="32GB 記憶體分配長條圖"></div>
+  <div class="scale"><span>0</span><span>8 GB</span><span>16 GB</span><span>24 GB</span><span>32 GB</span></div>
+  <div class="statebox" id="statebox"></div>
+  <table>
+    <thead><tr><th>區塊</th><th>GB</th><th>這塊是什麼</th></tr></thead>
+    <tbody id="legend"></tbody>
+  </table>
+</div>
+<div class="callout note"><b>為什麼 Chrome 只能叫「上限 9.5 GB」</b>
+各行程的<span class="term" tabindex="0" data-def="Working Set：這個行程目前實際放在實體 RAM 裡的頁面總量。共用的 DLL 頁面每個行程都會各算一次，所以加總會偏大。">工作集</span>加總是 28.5 GB，比「總量減可用」的 26.9 GB 還大，因為 Chrome 的 85 個行程共用的 DLL 頁面被重複計算了。
+「關掉 Chrome」這一欄是我用 4.8 ＋ 9.5 推出來的，沒有真的關掉去量。</div>
+
+<h2>c. 流程圖：關掉 Chrome 後，那 9.5 GB 去哪了？</h2>
+<p><span class="term" tabindex="0" data-def="待命：讀過的檔案快取，硬碟上已有備份，要用時可立刻丟掉給別人，不必先寫回硬碟。">Standby</span> 與 Free 加起來，就是工作管理員顯示的「可用」。</p>
+<div class="panel">
+<svg class="flow" viewBox="0 0 900 380" role="img" aria-label="關閉 Chrome 後記憶體流向的流程圖">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker>
+  </defs>
+  <!-- 起點（終端框） -->
+  <rect class="term-box" x="20" y="150" width="130" height="50" rx="25"/>
+  <text x="85" y="170" text-anchor="middle">關閉 Chrome</text>
+  <text x="85" y="188" text-anchor="middle">85 個行程結束</text>
+  <path class="arrow" d="M150 175 H178" marker-end="url(#ah)"/>
+  <!-- 判斷（菱形） -->
+  <polygon class="dec" points="290,113 400,175 290,237 180,175"/>
+  <text x="290" y="170" text-anchor="middle">這塊記憶體有</text>
+  <text x="290" y="188" text-anchor="middle">檔案當後盾嗎？</text>
+  <!-- 是：上支線 -->
+  <path class="arrow" d="M290 113 V70 H438" marker-end="url(#ah)"/>
+  <text class="lbl" x="300" y="98">是</text>
+  <rect class="box" x="440" y="42" width="190" height="56" rx="8"/>
+  <text x="535" y="66" text-anchor="middle">檔案快取頁面</text>
+  <text x="535" y="85" text-anchor="middle">.exe／.dll 映射</text>
+  <path class="arrow" d="M630 70 H668" marker-end="url(#ah)"/>
+  <rect class="good" x="670" y="42" width="190" height="56" rx="8"/>
+  <text x="765" y="66" text-anchor="middle">Standby（待命）</text>
+  <text x="765" y="85" text-anchor="middle">要用時直接丟棄</text>
+  <!-- 否：下支線 -->
+  <path class="arrow" d="M290 237 V290 H438" marker-end="url(#ah)"/>
+  <text class="lbl" x="300" y="268">否</text>
+  <rect class="warnb" x="440" y="262" width="190" height="56" rx="8"/>
+  <text x="535" y="286" text-anchor="middle">私有記憶體</text>
+  <text x="535" y="305" text-anchor="middle">JS 堆積、分頁內容</text>
+  <path class="arrow" d="M630 290 H668" marker-end="url(#ah)"/>
+  <rect class="good" x="670" y="262" width="190" height="56" rx="8"/>
+  <text x="765" y="286" text-anchor="middle">Free（空閒）</text>
+  <text x="765" y="305" text-anchor="middle">填零後直接可用</text>
+  <!-- 合流 -->
+  <path class="arrow" d="M765 98 V148" marker-end="url(#ah)"/>
+  <path class="arrow" d="M765 262 V202" marker-end="url(#ah)"/>
+  <rect class="term-box" x="640" y="150" width="220" height="50" rx="8"/>
+  <text x="750" y="170" text-anchor="middle">工作管理員「可用」</text>
+  <text x="750" y="188" text-anchor="middle">＝ Free ＋ Standby</text>
+  <!-- 補充：Modified -->
+  <rect class="dash" x="440" y="338" width="420" height="34" rx="8"/>
+  <text x="650" y="360" text-anchor="middle">Modified（已修改）→ 寫回硬碟後 → 轉成 Standby</text>
+</svg>
+</div>
+
+<h2>d. 「每天重整」其實是：關機 vs 重新啟動</h2>
+<p>你的 Uptime 是 3 天 13 小時，而且<span class="term" tabindex="0" data-def="Fast Startup：關機時把核心狀態存到 hiberfil.sys，下次開機直接載回，開機更快，但核心的記憶體狀態沒有重置。">快速啟動</span>是開著的（登錄檔 HiberbootEnabled = 1），所以按「關機」並不等於重置。</p>
+<table>
+  <thead><tr><th>動作</th><th>記憶體會清空嗎</th><th>原因</th></tr></thead>
+  <tbody>
+    <tr><td>關機（快速啟動開）</td><td><span class="badge no">核心部分不清</span></td><td>核心狀態存成 hiberfil.sys，下次載回</td></tr>
+    <tr><td>重新啟動</td><td><span class="badge yes">完整清空</span></td><td>略過快速啟動，核心整個重新載入</td></tr>
+    <tr><td>睡眠</td><td><span class="badge no">不清</span></td><td>RAM 持續供電</td></tr>
+    <tr><td>休眠</td><td><span class="badge mid">寫硬碟再載回</span></td><td>關電後從 hiberfil.sys 還原</td></tr>
+  </tbody>
+</table>
+
+<h2>e. 自己量一次，再考考自己</h2>
+<pre><code>$os = Get-CimInstance Win32_OperatingSystem
+"Total={0:N1}  Available={1:N1}  Used={2:N1}" -f ($os.TotalVisibleMemorySize/1MB), ($os.FreePhysicalMemory/1MB), (($os.TotalVisibleMemorySize-$os.FreePhysicalMemory)/1MB)</code></pre>
+<p>建議重新啟動後等 5 分鐘、什麼都不開，記下「使用中」當<b>基線</b>，就能補上主軸圖第三個狀態的數字。<span class="term" tabindex="0" data-def="pagefile.sys：RAM 不夠時，Windows 把暫時用不到的資料換出到硬碟上的檔案。">分頁檔</span>使用量持續上升加上系統卡頓，才是記憶體真的不夠。</p>
+
+<h3>填空題（點空格顯示答案）</h3>
+<div class="toolbar"><button type="button" id="showAll">全部顯示</button><button type="button" id="hideAll">全部隱藏</button></div>
+<div id="fills"></div>
+<h3>是非題</h3>
+<div id="tf"></div>
+<h3>申論題</h3>
+<div id="essay"></div>
+
+<footer>Abby-notes · 計算機基礎 · 數據：本機 PowerShell 實測 2026-11-12（Windows 11 Home 10.0.26200）· 相關：CPU與主記憶體-為何加RAM會變快</footer>
+</div>
+
+<script src="../assets/note-quiz.js"></script>
+<script>
+/* ---- 主軸圖資料：單位 GB；實測與推估的來源見上方 callout ---- */
+// 每個狀態是一組區塊；key 對應 .seg 的顏色 class
+var STATES = {
+  on: {
+    note: '實測：總量 31.7 GB，可用 4.8 GB（Standby 約 3.1 GB ＋ Free 約 0.2 GB，其餘差額未逐一量）。',
+    segs: [
+      { k:'reserved', n:'硬體保留', gb:0.3, d:'內顯、韌體保留；32.0 GB 裝了，Windows 只看得到 31.7 GB。' },
+      { k:'others',   n:'Windows＋其他程式', gb:17.4, d:'總量減可用 26.9 GB，扣掉 Chrome 後的部分：VS Code、Claude、系統服務等。' },
+      { k:'chrome',   n:'Chrome', gb:9.5, d:'85 個行程，工作集約 9.6 GB（含共用頁面重複計算，所以是上限）。' },
+      { k:'avail',    n:'可用', gb:4.8, d:'Standby 快取 ＋ Free，需要時隨時可以被程式拿去用。' }
+    ]
+  },
+  off: {
+    note: '推估：沒有真的關掉去量，是用 4.8 ＋ 9.5 ＝ 14.3 GB 算出來的。Chrome 的私有記憶體變 Free，DLL 頁面可能留在 Standby。',
+    segs: [
+      { k:'reserved', n:'硬體保留', gb:0.3, d:'關不掉。' },
+      { k:'others',   n:'Windows＋其他程式', gb:17.4, d:'不受影響，仍在使用。' },
+      { k:'chrome',   n:'Chrome', gb:0, d:'已關閉。' },
+      { k:'avail',    n:'可用', gb:14.3, d:'原本的 4.8 GB 加上 Chrome 還回來的約 9.5 GB。' }
+    ]
+  },
+  reboot: {
+    note: '沒有實測數字。重新啟動會清空所有行程與快取，只剩 Windows 開機後的基線；請照 e 的指令自己量一次。',
+    segs: [
+      { k:'reserved', n:'硬體保留', gb:0.3, d:'仍然拿不回來。' },
+      { k:'unknown',  n:'待你自己量', gb:31.7, d:'Windows 基線（使用中）＋ Free；重新啟動後 Standby 快取也從零開始累積。' }
+    ]
+  }
+};
+var TOTAL = 32; // 實體安裝容量（GB），長條圖以它為 100%
+var bar = document.getElementById('bar');
+var legend = document.getElementById('legend');
+var statebox = document.getElementById('statebox');
+// 五種區塊事先全部建好，切換狀態時只改寬度，CSS transition 才會有動畫
+['reserved','others','chrome','avail','unknown'].forEach(function (k) {
+  var s = document.createElement('div'); s.className = 'seg ' + k; s.dataset.k = k; bar.appendChild(s);
+});
+function render(key) {
+  var st = STATES[key];
+  var byKey = {}; st.segs.forEach(function (s) { byKey[s.k] = s; });
+  bar.querySelectorAll('.seg').forEach(function (el) {
+    var s = byKey[el.dataset.k];
+    var pct = s ? (s.gb / TOTAL * 100) : 0;
+    el.style.flexBasis = pct + '%';
+    el.textContent = (s && pct >= 9) ? s.n + ' ' + s.gb + ' GB' : '';
+  });
+  legend.innerHTML = '';
+  st.segs.forEach(function (s) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><span class="sw ' + s.k + '"></span>' + s.n + '</td><td class="num">' + s.gb + '</td><td>' + s.d + '</td>';
+    legend.appendChild(tr);
+  });
+  statebox.textContent = st.note;
+}
+document.getElementById('states').addEventListener('click', function (e) {
+  var b = e.target.closest('button'); if (!b) return;
+  this.querySelectorAll('button').forEach(function (x) { var on = x === b; x.classList.toggle('sel', on); x.setAttribute('aria-pressed', on); });
+  render(b.dataset.s);
+});
+render('on');
+
+/* ---- 練習題：資料格式見 assets/note-quiz.js 開頭說明 ---- */
+NoteQuiz.mount({
+  fills: [
+    ['工作管理員的「可用」＝ Free ＋ ', 'Standby', '。'],
+    ['Chrome 的 JS 堆積這種沒有檔案當後盾的私有記憶體，關掉後會直接變成 ', 'Free', '。'],
+    ['想真正清空記憶體，要按「', '重新啟動', '」，而不是「關機」。'],
+    ['各行程工作集加總比實際使用量大，是因為 Chrome 各行程共用的 ', 'DLL', ' 頁面被重複計算。']
+  ],
+  tf: [
+    { q: 'RAM 每天午夜會自動重置，所以隔天一定是全新的 32GB。', a: false, e: '沒有每日重置機制，只有重新啟動或斷電才會清空。' },
+    { q: '關掉 Chrome 後，可用記憶體會回到接近 32GB。', a: false, e: 'Windows、VS Code、Defender 等還在用，硬體也保留約 0.3GB；本機推估約 14GB 可用。' },
+    { q: '可用記憶體只剩 4.8GB，代表記憶體不夠用。', a: false, e: '可用包含 Standby 快取，需要時會讓出來；要看可用是否長期逼近 0、分頁檔是否持續增加、系統是否卡頓。' },
+    { q: '快速啟動開著時，按「關機」會完整清空核心的記憶體狀態。', a: false, e: '核心狀態會存成 hiberfil.sys 下次載回；重新啟動才會略過快速啟動。' }
+  ],
+  essay: [
+    { q: '用自己的話說明：為什麼閒置記憶體被拿去當 Standby 快取，不算浪費？',
+      m: 'Standby 裡的頁面在硬碟上已有備份，需要記憶體時可以立刻丟掉給別人，不必先寫回硬碟；平常則讓重複讀取的檔案直接從 RAM 取得，比 SSD 快約 1000 倍。閒著不用才是真正的浪費。' },
+    { q: 'Uptime 已經 3 天 13 小時，你懷疑某個程式洩漏記憶體，會怎麼確認？',
+      m: '先按「重新啟動」（不是關機）清掉狀態，等 5 分鐘記下基線；用一段時間後，用 Get-Process 依程式名稱加總工作集，看哪一個一路上升不回落，再單獨結束它確認使用量是否掉下來。' }
+  ]
+});
+</script>
+<script src="../assets/notes.js" defer></script>
+</body>
+</html>

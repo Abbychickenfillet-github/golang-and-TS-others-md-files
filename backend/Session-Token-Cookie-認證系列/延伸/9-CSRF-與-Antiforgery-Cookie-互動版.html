@@ -1,96 +1,321 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CSRF 與 Antiforgery Cookie（.AspNetCore.Antiforgery）</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CSRF 與 Antiforgery Cookie</title>
 <style>
-:root{--bg:#f5f6f8;--card:#fff;--ink:#23272f;--muted:#6b7280;--line:#e5e7eb;--accent:#5b7cfa;--accent-soft:#eef1ff;}
-*{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",-apple-system,system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
-.wrap{max-width:820px;margin:0 auto;padding:32px 20px 64px;}
-header.note-head{margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--line);}
-h1.note-title{font-family:"Noto Serif TC",Georgia,"Microsoft JhengHei",serif;font-size:1.9rem;margin:.2em 0 .5em;line-height:1.3;}
-.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
-.tag{background:var(--accent-soft);color:var(--accent);font-size:.78rem;padding:3px 11px;border-radius:999px;font-weight:600;}
-.meta{color:var(--muted);font-size:.85rem;margin-top:8px;}
-.meta a{color:var(--accent);text-decoration:none;}
-.meta a:hover{text-decoration:underline;}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:22px 0;box-shadow:0 1px 3px rgba(20,30,60,.04);}
-h2{font-size:1.32rem;margin:.2em 0 .7em;padding-left:11px;border-left:4px solid var(--accent);}
-h3{font-size:1.08rem;margin:1.3em 0 .5em;color:#374151;}
-h4{font-size:.98rem;margin:1.1em 0 .4em;color:#4b5563;}
-p{margin:.6em 0;}
-ul,ol{padding-left:1.4em;} li{margin:.3em 0;}
-mark{padding:1px 3px;border-radius:3px;cursor:pointer;transition:color .12s,background .12s;}
-mark.quiz-hidden{color:transparent!important;background:#cbd2dc!important;border-radius:4px;box-shadow:inset 0 0 0 1px #aab3c0;user-select:none;}
-mark.quiz-hidden *{color:transparent!important;}
-.quiz-bar{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap;}
-.quiz-btn{cursor:pointer;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:.8rem;padding:5px 14px;border-radius:999px;}
-.quiz-btn:hover{background:var(--accent);color:#fff;}
-.quiz-hint{color:var(--muted);font-size:.76rem;}
-a{color:var(--accent);}
-code{font-family:"JetBrains Mono",Consolas,monospace;background:#eceef3;padding:1.5px 6px;border-radius:5px;font-size:.9em;}
-pre{background:#282c34;border-radius:10px;padding:0;overflow-x:auto;margin:1em 0;}
-pre code{display:block;background:none;padding:16px 18px;color:#abb2bf;font-size:.86rem;line-height:1.6;}
-table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92rem;}
-th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;}
-th{background:var(--accent-soft);}
-tr:nth-child(even) td{background:#fafbfc;}
-blockquote{margin:1em 0;padding:10px 16px;background:#fff8e6;border-left:4px solid #f5c518;border-radius:0 8px 8px 0;color:#5c4d12;}
-img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin:.6em 0;}
-footer.note-foot{margin-top:40px;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:18px;}
+:root{--bg:#fbfaf7;--card:#fff;--ink:#23303b;--muted:#6b7b88;--line:#e4e8ec;--accent:#3f6f8f;--accent-soft:#eaf2f7;
+--hl-core:#FFF3A3;--hl-warn:#FF5582;--hl-ok:#BBFABB;--hl-term:#ADCCFF;--hl-data:#FFB8EB;--hl-note:#D2B3FF}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,"Segoe UI",sans-serif;font-size:16.5px}
+.wrap{max-width:none;margin:0;padding:26px 30px 80px}
+.layout{display:flex;gap:28px;align-items:flex-start}
+.content{flex:1 1 auto;min-width:0}
+.toc{position:sticky;top:18px;flex:0 0 260px;max-height:calc(100vh - 36px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 14px;font-size:.87rem}
+.toc h4{margin:0 0 10px;font-size:.74rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.toc ol{list-style:none;padding:0;margin:0}
+.toc a{display:block;padding:6px 10px;border-radius:8px;color:var(--ink);text-decoration:none;border-left:2px solid transparent;transition:.15s;line-height:1.35}
+.toc a:hover{background:var(--accent-soft)}
+.toc a.active{background:var(--accent-soft);border-left-color:var(--accent);color:var(--accent);font-weight:600}
+header.hero{background:linear-gradient(135deg,#f8eef0,#f8f4ee);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:18px}
+header.hero h1{margin:0 0 10px;font-size:1.55rem;font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;border-radius:999px;padding:3px 11px;font-size:.78rem}
+.meta{font-size:.84rem;color:var(--muted);margin-top:10px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 16px}
+.toolbar button{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:.85rem;cursor:pointer;color:var(--ink);font-family:inherit}
+.toolbar button:hover{background:var(--accent-soft)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 20px;font-size:.74rem;color:var(--muted)}
+.legend span{padding:2px 9px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin-bottom:18px}
+.card>h2:first-child{margin-top:0}
+h2{font-size:1.24rem;margin:30px 0 12px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36;scroll-margin-top:16px}
+h3{font-size:1.04rem;margin:20px 0 9px;color:#2c4a5e}
+p{margin:10px 0}ul,ol{padding-left:1.5em}li{margin:5px 0}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;font-family:"JetBrains Mono",Consolas,monospace}
+pre{background:#1f2933;color:#e6edf3;padding:15px 17px;border-radius:11px;overflow-x:auto;font-size:.85rem;line-height:1.6;margin:13px 0}
+pre code{background:none;color:inherit;padding:0}.cmt{color:#8fa3b0}
+blockquote{margin:14px 0;padding:11px 16px;background:#f6f8fa;border-left:4px solid var(--accent);border-radius:0 8px 8px 0;color:#41525f}
+blockquote p{margin:5px 0}
+.plain{color:#5a6b76;font-size:.93em;margin:6px 0 12px;padding-left:12px;border-left:3px solid #d8e2e9}
+.plain b{color:#3d5567}
+.ask{background:#fff6e5;border:1px solid #f0d8a0;border-left:4px solid #e0a53a;border-radius:0 9px 9px 0;padding:10px 15px;margin:14px 0;font-size:.95rem}
+.ask b{color:#9a6a12}
+.diagram{background:#fcfdfe;border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0;text-align:center}
+.diagram svg{max-width:100%;height:auto}
+.cap{font-size:.8rem;color:var(--muted);margin-top:8px}
+mark.hl{padding:1px 3px;border-radius:4px;cursor:pointer;transition:.18s;color:inherit}
+mark.hl-core{background:var(--hl-core)}mark.hl-warn{background:var(--hl-warn);color:#4a0a1c}
+mark.hl-ok{background:var(--hl-ok)}mark.hl-term{background:var(--hl-term)}mark.hl-data{background:var(--hl-data)}mark.hl-note{background:var(--hl-note)}
+mark.hl.masked{color:transparent!important;background:#c9d2d8!important;user-select:none}
+mark.hl.masked::after{content:"?";color:#5c6b76;font-weight:700;position:absolute;margin-left:-.8em}
+.devtools{font-family:"JetBrains Mono",Consolas,monospace;font-size:.8rem;border:1px solid #c9d2d8;border-radius:8px;overflow:hidden;margin:12px 0}
+.devtools .bar{background:#f1f3f4;padding:6px 12px;color:#5f6368;border-bottom:1px solid #d9dde1;font-size:.78rem}
+.devtools table{width:100%;border-collapse:collapse;display:table}
+.devtools th{background:#f8f9fa;color:#3c4043;text-align:left;padding:6px 10px;border-bottom:1px solid #d9dde1;font-weight:600;white-space:nowrap}
+.devtools td{padding:6px 10px;border-bottom:1px solid #eceff1;white-space:nowrap}
+.devtools .ss{font-weight:700;color:#b23}
+.cmp{display:flex;gap:14px;flex-wrap:wrap}
+.cmp>div{flex:1;min-width:250px;border:1px solid var(--line);border-radius:10px;padding:14px}
+.ic{width:38px;height:38px;vertical-align:middle}
+.quiz{background:linear-gradient(180deg,#fdfcfa,#f9fbfc)}
+.qlist>li{margin:16px 0;padding-bottom:12px;border-bottom:1px dashed var(--line)}.qlist>li:last-child{border-bottom:none}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.btns button{background:#fff;border:1px solid var(--line);border-radius:9px;padding:6px 15px;cursor:pointer;font-size:.85rem;font-family:inherit}
+.btns button.good{background:#d8f5dd;border-color:#9fd8ab}.btns button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;padding:2px 8px;font-size:1rem;font-family:inherit;min-width:7em;outline:none}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);border-radius:0 7px 7px 0;font-size:.9rem;color:#3d5567}
+.fb.show{display:block}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:40px;padding-top:18px;border-top:1px solid var(--line)}
+@media(max-width:860px){.wrap{padding:16px 14px 60px}.layout{flex-direction:column}.toc{position:static;flex:none;width:100%;max-height:none}}
+@media print{.toolbar,.toc,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
 </style>
-<link rel="stylesheet" href="../assets/notes.css">
 </head>
 <body>
-<div class="wrap">
-<header class="note-head">
-  <h1 class="note-title">CSRF 與 Antiforgery Cookie（.AspNetCore.Antiforgery）</h1>
-  <div class="tags"><span class="tag">#gemini</span><span class="tag">#backend</span><span class="tag">#資安</span><span class="tag">#cookie</span><span class="tag">#CSRF</span></div>
-  <div class="meta">更新於 2026-06-20　·　<a href="https://gemini.google.com/app/fe3d731199365110" target="_blank">來源連結</a></div>
-  <div class="quiz-bar">
-    <button class="quiz-btn" id="quizToggle" type="button">🙈 隱藏全部重點（自我測驗）</button>
-    <span class="quiz-hint">點任一螢光筆可單獨顯示／隱藏答案</span>
-  </div>
-</header>
-<h1>CSRF 與 Antiforgery Cookie（.AspNetCore.Antiforgery）</h1>
 
-<section class="card"><h2>重點整理</h2>
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+<symbol id="ic-server" viewBox="0 0 48 48"><rect x="11" y="5" width="26" height="38" rx="3" fill="#3f6f8f"/><rect x="15" y="10" width="18" height="6" rx="1" fill="#fff" opacity=".9"/><rect x="15" y="20" width="18" height="6" rx="1" fill="#fff" opacity=".9"/><circle cx="18" cy="13" r="1.4" fill="#4a9b5e"/><circle cx="18" cy="23" r="1.4" fill="#4a9b5e"/><rect x="15" y="31" width="18" height="8" rx="1" fill="#24455c"/></symbol>
+<symbol id="ic-client" viewBox="0 0 48 48"><rect x="5" y="8" width="38" height="27" rx="3" fill="#6b7b88"/><rect x="8" y="14" width="32" height="18" rx="1" fill="#eaf2f7"/><rect x="8" y="11" width="32" height="3" fill="#cfd9e0"/><circle cx="11" cy="12.5" r="1" fill="#fff"/><rect x="18" y="35" width="12" height="4" fill="#6b7b88"/><rect x="13" y="39" width="22" height="3" rx="1.5" fill="#6b7b88"/></symbol>
+<symbol id="ic-hacker" viewBox="0 0 48 48"><path d="M24 5c-8 0-13 6-13 14v5h26v-5c0-8-5-14-13-14z" fill="#3a0a16"/><rect x="11" y="22" width="26" height="7" rx="2" fill="#1f1f1f"/><circle cx="18" cy="25.5" r="2" fill="#FF5582"/><circle cx="30" cy="25.5" r="2" fill="#FF5582"/><path d="M13 29c3 7 19 7 22 0v8c0 2-2 4-4 4H17c-2 0-4-2-4-4z" fill="#3a0a16"/></symbol>
+<symbol id="ic-cookie" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="#c98a3a"/><circle cx="18" cy="18" r="2.4" fill="#6b3f12"/><circle cx="29" cy="16" r="2" fill="#6b3f12"/><circle cx="31" cy="27" r="2.4" fill="#6b3f12"/><circle cx="20" cy="30" r="2" fill="#6b3f12"/><circle cx="25" cy="23" r="1.6" fill="#6b3f12"/></symbol>
+<symbol id="ic-lock" viewBox="0 0 48 48"><rect x="12" y="21" width="24" height="20" rx="3" fill="#4a9b5e"/><path d="M17 21v-5a7 7 0 0 1 14 0v5" fill="none" stroke="#4a9b5e" stroke-width="3.4"/><circle cx="24" cy="30" r="2.6" fill="#fff"/></symbol>
+</svg>
+
+<div class="wrap"><div class="layout">
+
+<nav class="toc" id="toc"><h4>大綱</h4><ol>
+<li><a href="#s1">1. CSRF 是什麼（攻擊流程）</a></li>
+<li><a href="#s2">2. 為什麼 cookie 會害你中招</a></li>
+<li><a href="#s3">3. Origin 與 Referer 指到哪裡</a></li>
+<li><a href="#s4">4. 三道防線</a></li>
+<li><a href="#s5">5. SameSite 在 F12 長怎樣</a></li>
+<li><a href="#s6">6. 認 cookie：Antiforgery / XSRF-TOKEN</a></li>
+<li><a href="#s7">7. CSRF vs XSS（別搞混）</a></li>
+<li><a href="#s8">8. 自我測驗</a></li>
+</ol></nav>
+
+<div class="content">
+<header class="hero">
+<h1>CSRF 與 Antiforgery Cookie</h1>
+<div class="pills"><span class="pill">#CSRF</span><span class="pill">#SameSite</span><span class="pill">#Origin</span><span class="pill">#Referer</span><span class="pill">#antiforgery</span></div>
+<div class="meta">互動版 · 2026-11-12 · 延伸 9 · 相關 [[1-Cookie-與-Session]]、[[8-XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線]]</div>
+</header>
+
+<div class="toolbar"><button id="maskAll">🙈 全部遮起來</button><button id="showAll">👀 全部顯示</button></div>
+<div class="legend">
+<span style="background:#FFF3A3">核心重點</span><span style="background:#FF5582;color:#4a0a1c">警告陷阱</span>
+<span style="background:#BBFABB">正解建議</span><span style="background:#ADCCFF">術語定義</span>
+<span style="background:#FFB8EB">數據補充</span><span style="background:#D2B3FF">次要備註</span>
+<span>　← 點螢光筆可遮</span>
+</div>
+
+<article class="card">
+<h2 id="s1">1. CSRF 是什麼（攻擊流程）</h2>
+<p><mark class="hl hl-term" tabindex="0">CSRF ＝ Cross-Site Request Forgery，跨站請求偽造</mark>。核心:利用「<mark class="hl hl-core" tabindex="0">瀏覽器會自動帶上該網站的 cookie</mark>」這個特性,在你<b>已登入</b> A 網站的狀態下,誘導你的瀏覽器對 A 發出你沒打算發的請求。</p>
+<div class="diagram">
+<svg viewBox="0 0 820 300" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans TC',sans-serif">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#7d8a94"/></marker>
+<marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#d1476a"/></marker></defs>
+<!-- 三個角色 -->
+<svg x="40" y="18" width="46" height="46"><use href="#ic-client"/></svg><text x="63" y="78" text-anchor="middle" font-size="11.5" fill="#41525f">你的瀏覽器</text>
+<svg x="385" y="18" width="46" height="46"><use href="#ic-hacker"/></svg><text x="408" y="78" text-anchor="middle" font-size="11.5" fill="#4a0a1c">evil.com</text>
+<svg x="720" y="18" width="46" height="46"><use href="#ic-server"/></svg><text x="743" y="78" text-anchor="middle" font-size="11.5" fill="#41525f">bank.com</text>
+<!-- 1 登入 -->
+<line x1="92" y1="100" x2="716" y2="100" stroke="#7d8a94" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="400" y="94" text-anchor="middle" font-size="12" fill="#41525f">① 你登入 bank.com</text>
+<!-- 2 發cookie -->
+<line x1="716" y1="128" x2="92" y2="128" stroke="#4a9b5e" stroke-width="1.5" marker-end="url(#a)"/>
+<svg x="398" y="112" width="20" height="20"><use href="#ic-cookie"/></svg>
+<text x="400" y="150" text-anchor="middle" font-size="12" fill="#2f6b43">② bank 發 session cookie → 存你瀏覽器</text>
+<!-- 3 點開evil -->
+<line x1="92" y1="180" x2="380" y2="180" stroke="#7d8a94" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="235" y="174" text-anchor="middle" font-size="12" fill="#41525f">③ 你被誘導點開 evil.com</text>
+<!-- 4 evil誘導瀏覽器對bank發請求 -->
+<line x1="432" y1="208" x2="92" y2="208" stroke="#d1476a" stroke-width="1.6" marker-end="url(#ar)"/>
+<text x="250" y="202" text-anchor="middle" font-size="12" fill="#d1476a">④ evil 頁面藏表單/img,叫你的瀏覽器對 bank 發「轉帳」</text>
+<!-- 5 瀏覽器自動帶cookie送bank -->
+<line x1="92" y1="238" x2="716" y2="238" stroke="#d1476a" stroke-width="1.6" marker-end="url(#ar)"/>
+<svg x="390" y="222" width="20" height="20"><use href="#ic-cookie"/></svg>
+<text x="400" y="260" text-anchor="middle" font-size="12" fill="#d1476a">⑤ 瀏覽器「自動帶上 bank 的 cookie」一起送出</text>
+<!-- 6 bank執行 -->
+<rect x="560" y="268" width="250" height="26" rx="6" fill="#fdeef0" stroke="#d1476a"/>
+<text x="685" y="285" text-anchor="middle" font-size="11.5" fill="#b23">⑥ bank 看到有效 cookie → 以為是你 → 執行 ✗</text>
+</svg>
+<div class="cap">攻擊者從頭到尾「沒看到也沒偷到」你的 cookie，只是借用你已登入的狀態</div>
+</div>
+<p class="plain"><b>白話:</b>CSRF 不是偷 cookie（偷 cookie 是 XSS）,是<mark class="hl hl-core" tabindex="0">讓你的瀏覽器替攻擊者送請求</mark>,反正瀏覽器會自動附上你的登入 cookie。</p>
+</article>
+
+<article class="card">
+<h2 id="s2">2. 為什麼 cookie 會害你中招</h2>
 <ul>
-<li><code>.AspNetCore.Antiforgery</code> 這支 cookie 的用途是<mark style="background: #ADCCFFA6;">防止跨站請求偽造攻擊（CSRF, Cross-Site Request Forgery）</mark>，用來驗證表單送出時的安全性。</li>
-<li><mark style="background: #FF5582A6;">它跟「帳戶被鎖定」沒有關係，刪掉它也不會解鎖帳戶。</mark>帳戶鎖定通常是後端的登入失敗次數 / 安全策略造成的。</li>
-<li><mark style="background: #BBFABBA6;">正解：</mark>系統顯示「用戶帳戶被鎖定」時，應直接聯絡該網站客服處理，而不是自己刪 cookie。</li>
+<li>瀏覽器規則:<mark class="hl hl-core" tabindex="0">只要請求送往某網域,就自動帶上「屬於該網域」的 cookie</mark>——不管這個請求是你自己按的,還是別的網站偷偷發起的。</li>
+<li>所以 evil.com 不需要知道你的 cookie 內容,只要<mark class="hl hl-warn" tabindex="0">「對 bank.com 發請求」這個動作由你的瀏覽器執行</mark>,cookie 就自動跟上。</li>
+<li>這也是為什麼 <b>純靠 cookie 當身分憑證</b>的動作(轉帳、改密碼、刪資料)特別需要 CSRF 防護。</li>
+</ul>
+</article>
+
+<article class="card">
+<h2 id="s3">3. Origin 與 Referer 到底指到哪裡（你問的）</h2>
+<div class="ask"><b>你問:</b>Origin、Referer 到底是指哪裡?畫出來。</div>
+<p>兩個都是瀏覽器自動加的<b>請求標頭</b>,告訴後端「這個請求是從哪個頁面發出來的」。差別在<mark class="hl hl-core" tabindex="0">範圍不同</mark>:</p>
+<div class="diagram">
+<svg viewBox="0 0 780 230" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans TC',sans-serif">
+<!-- URL 分段 -->
+<rect x="40" y="30" width="120" height="34" rx="5" fill="#ADCCFF"/><text x="100" y="52" text-anchor="middle" font-size="13" fill="#1d2b36">https://</text>
+<rect x="162" y="30" width="150" height="34" rx="5" fill="#BBFABB"/><text x="237" y="52" text-anchor="middle" font-size="13" fill="#1d2b36">evil.com</text>
+<rect x="314" y="30" width="70" height="34" rx="5" fill="#FFF3A3"/><text x="349" y="52" text-anchor="middle" font-size="13" fill="#1d2b36">:443</text>
+<rect x="386" y="30" width="190" height="34" rx="5" fill="#FFB8EB"/><text x="481" y="52" text-anchor="middle" font-size="13" fill="#1d2b36">/attack.html</text>
+<rect x="578" y="30" width="110" height="34" rx="5" fill="#D2B3FF"/><text x="633" y="52" text-anchor="middle" font-size="13" fill="#1d2b36">?x=1</text>
+<text x="100" y="80" text-anchor="middle" font-size="10.5" fill="#6b7b88">scheme</text>
+<text x="237" y="80" text-anchor="middle" font-size="10.5" fill="#6b7b88">host</text>
+<text x="349" y="80" text-anchor="middle" font-size="10.5" fill="#6b7b88">port</text>
+<text x="481" y="80" text-anchor="middle" font-size="10.5" fill="#6b7b88">path</text>
+<text x="633" y="80" text-anchor="middle" font-size="10.5" fill="#6b7b88">query</text>
+<!-- Origin 範圍 -->
+<path d="M40 96 L40 108 L384 108 L384 96" fill="none" stroke="#3f6f8f" stroke-width="1.6"/>
+<text x="212" y="126" text-anchor="middle" font-size="13" fill="#2c4a5e" font-weight="600">Origin：scheme + host + port（到這，不含路徑）</text>
+<text x="212" y="146" text-anchor="middle" font-size="11.5" fill="#41525f">Origin: https://evil.com</text>
+<!-- Referer 範圍 -->
+<path d="M40 162 L40 174 L688 174 L688 162" fill="none" stroke="#8a5cc0" stroke-width="1.6"/>
+<text x="364" y="192" text-anchor="middle" font-size="13" fill="#5a3a80" font-weight="600">Referer：整個頁面的完整網址（含 path，有時含 query）</text>
+<text x="364" y="212" text-anchor="middle" font-size="11.5" fill="#41525f">Referer: https://evil.com/attack.html</text>
+</svg>
+<div class="cap">Origin ＝「哪個網站」；Referer ＝「哪一個網頁」（更細，含路徑）</div>
+</div>
+<ul>
+<li><b>Origin</b>:只到<mark class="hl hl-term" tabindex="0">網站層級 <code>scheme://host:port</code></mark>,<b>不含路徑</b>。POST／跨站請求幾乎都會帶。</li>
+<li><b>Referer</b>(歷史拼錯,少一個 r):是<mark class="hl hl-term" tabindex="0">發出請求那「個網頁」的完整網址</mark>,含 path;可能被 <code>Referrer-Policy</code> 砍短或拿掉。</li>
+<li>CSRF 防禦用法:<mark class="hl hl-ok" tabindex="0">後端檢查 Origin／Referer 是不是自家網域</mark>,是 evil.com 就擋。</li>
+</ul>
+</article>
+
+<article class="card">
+<h2 id="s4">4. 三道防線</h2>
+<div class="cmp">
+<div><h3 style="margin-top:0">① SameSite cookie</h3>
+<p style="font-size:.92rem"><mark class="hl hl-core" tabindex="0">現代主力</mark>。叫瀏覽器「跨站請求時不要帶這顆 cookie」。</p>
+<ul style="font-size:.9rem">
+<li><code>Strict</code>:跨站一律不帶(連點外站連結進來都不帶)。</li>
+<li><code>Lax</code>:跨站的安全導航(點連結 GET)會帶,但跨站 <b>POST／表單／img</b> 不帶 → 擋掉大多數 CSRF。<mark class="hl hl-note" tabindex="0">現代瀏覽器預設 Lax</mark>。</li>
+<li><code>None</code>:跨站也帶(必須配 <code>Secure</code>),給需要跨站嵌入的場景。</li>
+</ul></div>
+<div><h3 style="margin-top:0">② CSRF token（anti-forgery）</h3>
+<p style="font-size:.92rem">後端產一個<mark class="hl hl-core" tabindex="0">隨機 token</mark>,放進頁面(表單 hidden 欄位或 meta);送請求時前端把它一起帶上,後端比對。</p>
+<p class="plain" style="font-size:.9rem"><mark class="hl hl-ok" tabindex="0">evil.com 受同源政策擋著,讀不到也猜不到這個 token,補不上就被擋</mark>。<code>.AspNetCore.Antiforgery</code>、<code>XSRF-TOKEN</code> 就是這類。</p></div>
+<div><h3 style="margin-top:0">③ 驗 Origin / Referer</h3>
+<p style="font-size:.92rem">後端檢查請求的 <code>Origin</code>／<code>Referer</code> 標頭是不是<mark class="hl hl-core" tabindex="0">自家網域</mark>,不是就拒絕(搭配第 3 節)。</p></div>
+</div>
+</article>
+
+<article class="card">
+<h2 id="s5">5. SameSite 在 F12 長怎樣（示意）</h2>
+<p>查法:<mark class="hl hl-term" tabindex="0">F12 → Application → Cookies</mark> → 點該網域,看右邊表格的 <b>SameSite</b> 欄。示意(仿 DevTools 畫面):</p>
+<div class="devtools">
+<div class="bar">Application ▸ Storage ▸ Cookies ▸ https://bank.com</div>
+<table>
+<thead><tr><th>Name</th><th>Value</th><th>Domain</th><th>Path</th><th>HttpOnly</th><th>Secure</th><th>SameSite</th></tr></thead>
+<tbody>
+<tr><td>session_id</td><td>a1b2c3…</td><td>bank.com</td><td>/</td><td>✓</td><td>✓</td><td class="ss">Lax</td></tr>
+<tr><td>XSRF-TOKEN</td><td>k9f2…</td><td>bank.com</td><td>/</td><td></td><td>✓</td><td class="ss">Strict</td></tr>
+<tr><td>_ga</td><td>GA1.2…</td><td>.bank.com</td><td>/</td><td></td><td></td><td class="ss">Lax</td></tr>
+</tbody>
+</table>
+</div>
+<p class="plain"><b>白話:</b>看到 <b>SameSite</b> 欄是 <code>Lax</code> 或 <code>Strict</code>,就代表這顆 cookie 已經有「跨站不帶」的 CSRF 防護;<code>XSRF-TOKEN</code> 這種名字就是防 CSRF 的 token(不是身分驗證,也跟帳號鎖定無關)。</p>
+</article>
+
+<article class="card">
+<h2 id="s6">6. 認 cookie：Antiforgery / XSRF-TOKEN（融合原筆記）</h2>
+<ul>
+<li><code>.AspNetCore.Antiforgery</code> 這顆 cookie 的用途是 <mark class="hl hl-term" tabindex="0">防 CSRF、驗證表單送出安全性</mark>。</li>
+<li><mark class="hl hl-warn" tabindex="0">它跟「帳戶被鎖定」沒關係,刪掉它也不會解鎖</mark>。帳戶鎖定通常是後端登入失敗次數／安全策略造成的。</li>
+<li><mark class="hl hl-ok" tabindex="0">正解:看到「帳戶被鎖定」,直接聯絡該網站客服,而不是自己刪 cookie</mark>。</li>
+<li>認法:F12 → Application → Cookies,看到 <code>Antiforgery</code>、<code>XSRF-TOKEN</code>、<code>csrf</code> 這類字眼,多半就是 CSRF 防護 token,不是身分驗證或鎖定相關。</li>
 </ul>
 <h3>除錯小技巧（這次情境學到的）</h3>
-<ul>
-<li>送出請求後若 DevTool 的 Network 沒有出現 <code>200</code> 成功回應，代表該動作<mark style="background: #FFF3A3A6;">沒有真的串到 API</mark>（前端表單可能根本沒打到後端）。這是判斷「重置密碼到底有沒有生效」的好線索。</li>
-<li>查 cookie 用途：F12 → Application → Cookies，看 cookie 的 <code>name</code> 與 domain。看到 <code>Antiforgery</code>、<code>XSRF-TOKEN</code>、<code>csrf</code> 這類字眼，多半就是 CSRF 防護 token，不是身分驗證或鎖定相關。</li>
-</ul>
-<blockquote>
-<p>相關筆記：[[Cookie-與-Session]]、[[剪貼簿劫持攻擊-ClickFix與網站惡意注入排查]]</p>
-</blockquote>
-</section>
-<section class="card"><h2>各對話來源</h2>
-<h3>Cookie 疑惑與帳戶鎖定（2026-06）— https://gemini.google.com/app/fe3d731199365110</h3>
-<p><strong>使用者：</strong> 在某網站註冊，重置密碼時 DevTool 右側沒看到 200 成功；之後登入顯示「用戶帳戶被鎖定」。看了 Application cookies，有一支 name 是 <code>.AspNetCore.Antiforgery</code>，猜是防仿冒、應該跟鎖定有關，是不是刪掉就可以了？</p>
-<p><strong>Gemini：</strong> <code>.AspNetCore.Antiforgery</code> 是用來防止 CSRF 攻擊、驗證表單送出安全性的，跟帳戶鎖定無關，刪掉問題也不會解決。既然系統顯示帳戶被鎖定，建議直接聯絡網站客服協助。</p></section>
-<footer class="note-foot">由 Gemini 對話自動整理 · 更新於 2026-06-20</footer>
+<blockquote><p>送出請求後若 DevTools 的 <b>Network</b> 沒有出現 <code>200</code> 成功回應,代表這個動作<mark class="hl hl-core" tabindex="0">根本沒真的串到 API</mark>（前端表單可能沒打到後端）。這是判斷「重置密碼到底有沒有生效」的好線索。</p></blockquote>
+<p class="plain" style="font-size:.86rem">來源:原筆記整理自 Gemini 對話（2026-06）。</p>
+</article>
+
+<article class="card">
+<h2 id="s7">7. CSRF vs XSS（最容易搞混）</h2>
+<div class="cmp">
+<div><h3 style="margin-top:0">CSRF（跨站請求偽造）</h3>
+<ul style="font-size:.92rem">
+<li>攻擊者<mark class="hl hl-core" tabindex="0">看不到、偷不到</mark>你的 cookie。</li>
+<li>是「借用」你已登入的狀態,讓你的瀏覽器替他送請求。</li>
+<li>防:SameSite、CSRF token、驗 Origin／Referer。</li>
+</ul></div>
+<div><h3 style="margin-top:0">XSS（跨站腳本）</h3>
+<ul style="font-size:.92rem">
+<li>攻擊者<mark class="hl hl-warn" tabindex="0">真的注入 JS、能讀到頁面資料</mark>(可偷非 HttpOnly 的 cookie)。</li>
+<li>是「在你的頁面裡跑他的程式」。</li>
+<li>防:輸出轉義、CSP、<code>HttpOnly</code> cookie(見 [[8-XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線]])。</li>
+</ul></div>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script>try{hljs.highlightAll();}catch(e){}
+<p class="plain"><b>一句話分:</b><mark class="hl hl-core" tabindex="0">CSRF 借你的「身分」,XSS 偷你的「資料」</mark>。</p>
+</article>
+
+<article class="card quiz">
+<h2 id="s8">8. 自我測驗</h2>
+<ol class="qlist">
+<li><p>(是非)CSRF 攻擊中,攻擊者必須先偷到你的 cookie 才能得手。</p>
+<div class="btns"><button class="tf" data-ok="false">O 正確</button><button class="tf" data-ok="true">X 錯誤</button></div>
+<div class="fb" data-ans="X">不用。CSRF 是「借用」你已登入的狀態,瀏覽器會自動帶 cookie;偷 cookie 那是 XSS。</div></li>
+<li><p>(填空)<code>Origin</code> 標頭只到 <input class="blank" data-a="port"> 層級(scheme+host+這個),不含路徑;<code>Referer</code> 則含 <input class="blank" data-a="path">。</p>
+<div class="btns"><button class="chk">檢查</button><button class="rev">看答案</button></div>
+<div class="fb">Origin ＝ scheme://host:port(到 port);Referer ＝ 完整網址,含 path。</div></li>
+<li><p>(是非)現代瀏覽器 cookie 的 SameSite 預設是 <code>Lax</code>,能擋掉大多數跨站 POST 的 CSRF。</p>
+<div class="btns"><button class="tf" data-ok="true">O 正確</button><button class="tf" data-ok="false">X 錯誤</button></div>
+<div class="fb" data-ans="O">對。Lax 下跨站 POST／表單／img 不帶 cookie,擋掉多數 CSRF。</div></li>
+<li><p>(申論)看到名為 <code>.AspNetCore.Antiforgery</code> 的 cookie,它是做什麼的?跟帳號被鎖定有關嗎?</p>
+<div class="btns"><button class="rev2">顯示參考答案</button></div>
+<div class="fb">它是 CSRF 防護的 anti-forgery token,驗證表單送出安全性;跟帳號鎖定無關,刪它也不會解鎖,帳號鎖定要找客服。</div></li>
+</ol>
+</article>
+
+<footer>CSRF 與 Antiforgery Cookie · 互動版 · 2026-11-12 · 融合自延伸 9 .md + Gemini 對話</footer>
+</div></div></div>
+
+<script>
 (function(){
-  var marks=[].slice.call(document.querySelectorAll('mark'));
-  marks.forEach(function(m){m.addEventListener('click',function(){m.classList.toggle('quiz-hidden');});});
-  var btn=document.getElementById('quizToggle'),hidden=false;
-  if(btn){btn.addEventListener('click',function(){
-    hidden=!hidden;
-    marks.forEach(function(m){m.classList.toggle('quiz-hidden',hidden);});
-    btn.textContent=hidden?'👀 顯示全部重點':'🙈 隱藏全部重點（自我測驗）';
-  });}
-})();</script>
-<script src="../assets/wikilink.js" data-root="../"></script>
-<script src="../assets/notes.js" defer></script>
+  document.querySelectorAll('mark.hl').forEach(function(m){
+    var t=function(){m.classList.toggle('masked')};
+    m.addEventListener('click',t);
+    m.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();t()}});
+  });
+  document.getElementById('maskAll').addEventListener('click',function(){document.querySelectorAll('mark.hl').forEach(function(m){m.classList.add('masked')})});
+  document.getElementById('showAll').addEventListener('click',function(){document.querySelectorAll('mark.hl').forEach(function(m){m.classList.remove('masked')})});
+  document.querySelectorAll('button.tf').forEach(function(b){b.addEventListener('click',function(){
+    var li=b.closest('li');li.querySelectorAll('button.tf').forEach(function(x){x.classList.remove('good','bad')});
+    b.classList.add(b.dataset.ok==='true'?'good':'bad');
+    var fb=li.querySelector('.fb');fb.classList.add('show');
+    if(!fb.dataset.done&&fb.dataset.ans){fb.textContent='正解 '+fb.dataset.ans+'　'+fb.textContent;fb.dataset.done='1'}
+  })});
+  var norm=function(s){return (s||'').trim().toLowerCase()};
+  document.querySelectorAll('button.chk').forEach(function(b){b.addEventListener('click',function(){
+    var li=b.closest('li'),ok=true;
+    li.querySelectorAll('input.blank').forEach(function(i){var g=norm(i.value)===norm(i.dataset.a);i.classList.remove('good','bad');i.classList.add(g?'good':'bad');if(!g)ok=false});
+    if(ok)li.querySelector('.fb').classList.add('show');
+  })});
+  document.querySelectorAll('button.rev').forEach(function(b){b.addEventListener('click',function(){
+    var li=b.closest('li');li.querySelectorAll('input.blank').forEach(function(i){i.value=i.dataset.a;i.classList.remove('bad');i.classList.add('good')});
+    li.querySelector('.fb').classList.add('show');
+  })});
+  document.querySelectorAll('button.rev2').forEach(function(b){b.addEventListener('click',function(){
+    var fb=b.closest('li').querySelector('.fb');fb.classList.toggle('show');
+    b.textContent=fb.classList.contains('show')?'收起參考答案':'顯示參考答案';
+  })});
+  var links=[].slice.call(document.querySelectorAll('#toc a')),map={};
+  links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  var heads=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1))}).filter(Boolean);
+  var spy=function(){var pos=scrollY+120,cur=heads[0];heads.forEach(function(h){if(h.offsetTop<=pos)cur=h});
+    links.forEach(function(a){a.classList.remove('active')});if(cur&&map[cur.id])map[cur.id].classList.add('active')};
+  addEventListener('scroll',spy,{passive:true});spy();
+})();
+</script>
 </body>
 </html>

@@ -20,6 +20,7 @@ title: "編譯與打包 - 學習路徑"
 | 08 | [[08-npm-run-script-mechanism]] | `npm run dev`／`npm run build` 這些指令本身是怎麼被 npm 找到並執行的 | 承接 07，選好工具後，「跑起來」這件事本身的機制 |
 | 09 | [[09-npm-scripts-pre-post-生命週期鉤子]] | `pre`/`post` 前後鉤子怎麼運作，擴充 08 | 承接 08 |
 | 10 | [[10-next-turbopack-server-chunks-hash-comparison]] | 真實除錯案例：`.next/server/chunks/` 雜湊檔名規則、Turbopack dev server 熱更新沒生效的判斷證據 | 承接 04、07-09 全部知識的綜合應用，系列收尾 |
+| 13 | [[13-SemVer語意化版本-版本號的caret與tilde怎麼看]] | `package.json` 裡 `^`、`~` 的版本範圍與 SemVer 三段的意義 | 承接 07 的 l 節 |
 
 ## 為什麼這樣排
 

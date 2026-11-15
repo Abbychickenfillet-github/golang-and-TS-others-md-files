@@ -131,6 +131,7 @@ model Session {
 ```
 
 > 注意:這是「有狀態 Session」自建 store 的設計。你 next-one 現在用的 **iron-session 是加密 cookie 派(stateless、沒有這張表)**;只有當你想要「能即時撤銷、server 端查表」時,才需要像這樣建 `sessions` 表。見 [[3-Session與JWT-有狀態與無狀態驗證-過期機制與Base64url]]。
+> iron-session 和 JWT 的格式差在哪（簽章只防改、加密才藏內容）：見 [[4-jwt-signing-algorithms-and-access-refresh-flow]] 第 5 節的 JWS／JWE／iron 比較。
 
 ### 實作補充(2026-11-10 共讀 DB session 時釐清)
 

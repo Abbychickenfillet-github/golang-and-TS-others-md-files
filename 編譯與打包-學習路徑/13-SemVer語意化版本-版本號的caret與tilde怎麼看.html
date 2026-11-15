@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SemVer 語意化版本｜版本號的 ^ 與 ~ 怎麼看</title>
+<style>
+:root{--bg:#fbfaf7;--card:#fff;--ink:#23303b;--muted:#6b7b88;--line:#e4e8ec;--accent:#3f6f8f;--accent-soft:#eaf2f7;
+--hl-core:#FFF3A3;--hl-warn:#FF5582;--hl-ok:#BBFABB;--hl-term:#ADCCFF;--hl-step:#FFB86CA6;
+--major:#d1476a;--minor:#3f6f8f;--patch:#4a9b5e}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,"Segoe UI",sans-serif;font-size:16.5px}
+.wrap{max-width:none;margin:0;padding:26px 30px 80px}
+.layout{display:flex;gap:28px;align-items:flex-start}
+.content{flex:1 1 auto;min-width:0}
+.toc{position:sticky;top:18px;flex:0 0 260px;max-height:calc(100vh - 36px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 14px;font-size:.86rem}
+.toc h4{margin:0 0 10px;font-size:.74rem;letter-spacing:.1em;color:var(--muted)}
+.toc ol{list-style:none;padding:0;margin:0}
+.toc a{display:block;padding:5px 10px;border-radius:8px;color:var(--ink);text-decoration:none;border-left:2px solid transparent;line-height:1.35}
+.toc a:hover{background:var(--accent-soft)}
+.toc a.active{background:var(--accent-soft);border-left-color:var(--accent);color:var(--accent);font-weight:600}
+header.hero{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:18px}
+header.hero h1{margin:0 0 10px;font-size:1.55rem;font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36}
+.pills{display:flex;flex-wrap:wrap;gap:7px}
+.pill{background:var(--accent-soft);color:var(--accent);border:1px solid #d5e3ec;border-radius:999px;padding:3px 11px;font-size:.78rem}
+.meta{font-size:.84rem;color:var(--muted);margin-top:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin-bottom:18px}
+h2{font-size:1.24rem;margin:0 0 12px;padding-bottom:9px;border-bottom:2px solid var(--accent-soft);font-family:"Noto Serif TC",Georgia,serif;color:#1d2b36;scroll-margin-top:16px}
+h3{font-size:1.04rem;margin:20px 0 9px;color:#2c4a5e}
+p{margin:10px 0}ul,ol{padding-left:1.5em}li{margin:5px 0}
+.sub{margin-left:1.6em;padding-left:12px;border-left:3px solid #d8e2e9;color:#4b5d69}
+code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:.88em;font-family:"JetBrains Mono",Consolas,monospace}
+pre{background:#1f2933;color:#e6edf3;padding:15px 17px;border-radius:11px;overflow-x:auto;font-size:.85rem;line-height:1.6;margin:13px 0}
+pre code{background:none;color:inherit;padding:0}.cmt{color:#8fa3b0}
+table{border-collapse:collapse;width:100%;margin:15px 0;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);color:#2c4a5e;font-weight:600;white-space:nowrap}
+mark{padding:1px 3px;border-radius:4px;color:inherit}
+.m-core{background:var(--hl-core)}.m-ok{background:var(--hl-ok)}.m-term{background:var(--hl-term)}.m-warn{background:var(--hl-warn);color:#4a0a1c}
+.diagram{background:#fcfdfe;border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0}
+.diagram svg{width:100%;height:auto;display:block}
+.cap{font-size:.82rem;color:var(--muted);margin-top:8px;text-align:center}
+.pt{cursor:pointer}.pt:hover circle{stroke-width:4}
+#ptinfo{min-height:3.2em;background:#f6f8fa;border-left:4px solid var(--accent);border-radius:0 8px 8px 0;padding:10px 14px;margin-top:10px;font-size:.93rem}
+.ver{font-family:"JetBrains Mono",Consolas,monospace;font-size:1.05em;font-weight:700}
+.v-major{color:var(--major)}.v-minor{color:var(--minor)}.v-patch{color:var(--patch)}
+.callout{border-radius:10px;padding:12px 16px;margin:14px 0;border:1px solid}
+.callout.info{background:#eef5fb;border-color:#cfe0ee}
+.callout.tip{background:#f0fbf3;border-color:#bfe5c8}
+.callout .ttl{font-weight:700;display:block;margin-bottom:4px}
+.qlist>li{margin:16px 0;padding-bottom:12px;border-bottom:1px dashed var(--line)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+button{background:#fff;border:1px solid var(--line);border-radius:9px;padding:6px 15px;cursor:pointer;font-size:.86rem;font-family:inherit;color:var(--ink)}
+button:hover{background:var(--accent-soft)}
+button.good{background:#d8f5dd;border-color:#9fd8ab}button.bad{background:#ffdde4;border-color:#f3a8b9}
+input.blank{border:none;border-bottom:2px solid var(--accent);background:#fbfdfe;padding:2px 8px;font-size:1rem;font-family:inherit;width:8em;outline:none}
+input.blank.good{border-color:#4a9b5e;background:#f0fbf3}input.blank.bad{border-color:#d1476a;background:#fdf1f4}
+.fb{display:none;margin-top:9px;padding:10px 14px;background:#eef4f8;border-left:3px solid var(--accent);border-radius:0 7px 7px 0;font-size:.92rem;color:#3d5567}
+.fb.show{display:block}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:40px;padding-top:18px;border-top:1px solid var(--line)}
+@media(max-width:860px){.wrap{padding:16px 14px 60px}.layout{flex-direction:column}.toc{position:static;flex:none;width:100%;max-height:none}}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="layout">
+
+<nav class="toc" id="toc"><h4>大綱</h4><ol>
+<li><a href="#s1">1. 三段數字各代表什麼</a></li>
+<li><a href="#s2">2. 發新版時怎麼決定加哪一段</a></li>
+<li><a href="#s3">3. 主軸圖：^ 與 ~ 的範圍</a></li>
+<li><a href="#s4">4. 讀版本號的三個提醒</a></li>
+<li><a href="#s5">5. 0.x 版本的例外</a></li>
+<li><a href="#s6">6. 實際裝的是哪一版</a></li>
+<li><a href="#s7">7. 自我測驗</a></li>
+<li><a href="#s8">8. 相關筆記</a></li>
+<li><a href="#s9">9. 參考來源</a></li>
+</ol></nav>
+
+<main class="content">
+<header class="hero">
+<h1>SemVer 語意化版本｜版本號的 ^ 與 ~ 怎麼看</h1>
+<div class="pills"><span class="pill">npm</span><span class="pill">package.json</span><span class="pill">semver</span><span class="pill">package-lock.json</span><span class="pill">iron-session</span></div>
+<div class="meta">系列：編譯與打包學習路徑 第 13 篇｜承接 07（npm 鎖版本）｜建立於 2026-11-14</div>
+</header>
+
+<!-- 1 -->
+<section class="card" id="s1">
+<h2>1. 三段數字各代表什麼</h2>
+<p><a href="https://semver.org/lang/zh-TW/">SemVer（Semantic Versioning，語意化版本）</a>規定版本號寫成 <code>MAJOR.MINOR.PATCH</code>：兩個英文句點把<mark class="m-core">三個非負整數</mark>連在一起。</p>
+
+<div class="diagram">
+<svg style="width:100%;height:auto;display:block;max-width:100%" viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans TC,Microsoft JhengHei,sans-serif" font-size="15" text-anchor="middle">
+  <rect x="305" y="6" width="290" height="58" rx="8" fill="#eaf2f7" stroke="#3f6f8f"/>
+  <text x="450" y="29" font-weight="700" fill="#3f6f8f">MINOR（次版本號）</text>
+  <text x="450" y="52" fill="#23303b">新增功能，向下相容</text>
+  <line x1="450" y1="64" x2="450" y2="92" stroke="#3f6f8f" stroke-width="2"/>
+  <g font-family="JetBrains Mono,Consolas,monospace" font-size="64">
+    <text x="300" y="150" font-weight="700" fill="#d1476a">8</text>
+    <text x="375" y="150" fill="#6b7b88">.</text>
+    <text x="450" y="150" font-weight="700" fill="#3f6f8f">0</text>
+    <text x="525" y="150" fill="#6b7b88">.</text>
+    <text x="600" y="150" font-weight="700" fill="#4a9b5e">4</text>
+  </g>
+  <line x1="300" y1="164" x2="300" y2="186" stroke="#d1476a" stroke-width="2"/>
+  <rect x="150" y="188" width="290" height="62" rx="8" fill="#fdf1f4" stroke="#d1476a"/>
+  <text x="295" y="212" font-weight="700" fill="#d1476a">MAJOR（主版本號）</text>
+  <text x="295" y="236" fill="#23303b">有破壞性變更，舊寫法可能壞掉</text>
+  <line x1="600" y1="164" x2="600" y2="186" stroke="#4a9b5e" stroke-width="2"/>
+  <rect x="460" y="188" width="290" height="62" rx="8" fill="#f0fbf3" stroke="#4a9b5e"/>
+  <text x="605" y="212" font-weight="700" fill="#4a9b5e">PATCH（修補號）</text>
+  <text x="605" y="236" fill="#23303b">向下相容的 bug 修正</text>
+</svg>
+<div class="cap">以 TimeLog 專案的 <code>"iron-session": "^8.0.4"</code> 為例</div>
+</div>
+
+<h3>「向下相容」的例子</h3>
+<p><b>向下相容（backward compatible）</b>是指<mark class="m-ok">新版本發布後，照舊版寫法寫的程式碼不用改，也能繼續正常運作</mark>。</p>
+<table>
+<tr><th>升級</th><th>發生什麼事</th><th>妳的程式碼</th></tr>
+<tr><td><span class="ver">8.0.4 → 8.0.5</span><br>PATCH</td><td>作者修好一個 bug，例如 cookie 過期時間算錯幾秒</td><td>不用改</td></tr>
+<tr><td><span class="ver">8.0.4 → 8.1.0</span><br>MINOR</td><td>假設作者替 <code>sessionOptions</code> 多加一個選填欄位</td><td>不用改，舊的 <code>getIronSession(cookies(), sessionOptions)</code> 照樣能用<br>想用新功能時再自己加上去</td></tr>
+<tr><td><span class="ver">7.x → 8.0.0</span><br>MAJOR</td><td>真實案例：v8 <b>移除了</b> <code>withIronSessionApiRoute</code>、<code>withIronSessionSsr</code>，統一改用 <code>getIronSession()</code></td><td><b>要改</b>，照 v7 寫法的程式碼會直接報錯</td></tr>
+</table>
+<p class="sub">MAJOR 變更的判斷依據是<b>舊程式碼會不會壞</b>，跟改動規模大小無關。<br>拿掉一個函式只是一行改動，但舊程式碼會壞，所以算 MAJOR。</p>
+</section>
+
+<!-- 2 -->
+<section class="card" id="s2">
+<h2>2. 發新版時怎麼決定加哪一段</h2>
+<p>套件作者發新版時，照下面的流程決定要加哪一段。進位時，<mark class="m-core">右邊的數字全部歸零</mark>。</p>
+<div class="diagram">
+<svg style="width:100%;height:auto;display:block;max-width:100%" viewBox="0 0 980 360" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans TC,Microsoft JhengHei,sans-serif" font-size="14">
+  <defs><marker id="ar" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8z" fill="#6b7b88"/></marker></defs>
+  <!-- 端點：起止符號（橢圓） -->
+  <rect x="20" y="30" width="150" height="48" rx="24" fill="#eef1f4" stroke="#6b7b88"/>
+  <text x="95" y="59" text-anchor="middle">開始：準備發新版</text>
+  <line x1="170" y1="54" x2="222" y2="54" stroke="#6b7b88" stroke-width="2" marker-end="url(#ar)"/>
+  <!-- 判斷 1 -->
+  <polygon points="320,10 418,54 320,98 222,54" fill="#fff8e1" stroke="#e0a53a"/>
+  <text x="320" y="50" text-anchor="middle">舊寫法</text><text x="320" y="68" text-anchor="middle">會壞嗎？</text>
+  <line x1="418" y1="54" x2="520" y2="54" stroke="#6b7b88" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="468" y="46" text-anchor="middle" fill="#d1476a">是</text>
+  <rect x="522" y="26" width="250" height="56" fill="#fdf1f4" stroke="#d1476a"/>
+  <text x="647" y="50" text-anchor="middle" font-weight="700" fill="#d1476a">MAJOR + 1</text>
+  <text x="647" y="70" text-anchor="middle">8.3.2 → 9.0.0</text>
+  <line x1="320" y1="98" x2="320" y2="148" stroke="#6b7b88" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="334" y="128" fill="#4a9b5e">否</text>
+  <!-- 判斷 2 -->
+  <polygon points="320,150 418,194 320,238 222,194" fill="#fff8e1" stroke="#e0a53a"/>
+  <text x="320" y="190" text-anchor="middle">有新增</text><text x="320" y="208" text-anchor="middle">功能嗎？</text>
+  <line x1="418" y1="194" x2="520" y2="194" stroke="#6b7b88" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="468" y="186" text-anchor="middle" fill="#3f6f8f">是</text>
+  <rect x="522" y="166" width="250" height="56" fill="#eaf2f7" stroke="#3f6f8f"/>
+  <text x="647" y="190" text-anchor="middle" font-weight="700" fill="#3f6f8f">MINOR + 1</text>
+  <text x="647" y="210" text-anchor="middle">8.3.2 → 8.4.0</text>
+  <line x1="320" y1="238" x2="320" y2="282" stroke="#6b7b88" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="334" y="266" fill="#4a9b5e">否</text>
+  <rect x="195" y="284" width="250" height="56" fill="#f0fbf3" stroke="#4a9b5e"/>
+  <text x="320" y="308" text-anchor="middle" font-weight="700" fill="#4a9b5e">PATCH + 1（只修 bug）</text>
+  <text x="320" y="328" text-anchor="middle">8.3.2 → 8.3.3</text>
+  <!-- 匯流到結束 -->
+  <line x1="772" y1="54" x2="860" y2="54" stroke="#6b7b88" stroke-width="2"/>
+  <line x1="772" y1="194" x2="860" y2="194" stroke="#6b7b88" stroke-width="2"/>
+  <line x1="445" y1="312" x2="860" y2="312" stroke="#6b7b88" stroke-width="2"/>
+  <line x1="860" y1="54" x2="860" y2="312" stroke="#6b7b88" stroke-width="2"/>
+  <line x1="860" y1="183" x2="880" y2="183" stroke="#6b7b88" stroke-width="2" marker-end="url(#ar)"/>
+  <rect x="882" y="160" width="90" height="48" rx="24" fill="#eef1f4" stroke="#6b7b88"/>
+  <text x="927" y="189" text-anchor="middle">發布</text>
+</svg>
+<div class="cap">ISO 5807 符號：橢圓＝起止，菱形＝判斷，直角矩形＝處理</div>
+</div>
+</section>
+
+<!-- 3 -->
+<section class="card" id="s3">
+<h2>3. 主軸圖：^ 與 ~ 的範圍</h2>
+<p><code>package.json</code> 裡的符號規定<b>「npm 可以自動接受哪些新版本」</b>。點圖上的版本號可以看說明。</p>
+<div class="diagram">
+<svg style="width:100%;height:auto;display:block;max-width:100%" viewBox="0 0 1000 250" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans TC,Microsoft JhengHei,sans-serif" font-size="14" id="axis">
+  <!-- ^ 範圍 -->
+  <rect x="80" y="40" width="742" height="34" rx="6" fill="#ADCCFF" opacity=".75"/>
+  <text x="90" y="62" font-weight="700" fill="#1d3b57">^8.0.4　→　&gt;=8.0.4 &lt;9.0.0（MINOR 與 PATCH 都可以升）</text>
+  <!-- ~ 範圍 -->
+  <rect x="80" y="82" width="300" height="34" rx="6" fill="#BBFABB" opacity=".9"/>
+  <text x="90" y="104" font-weight="700" fill="#1f5130">~8.0.4　→　&gt;=8.0.4 &lt;8.1.0</text>
+  <!-- 固定 -->
+  <rect x="72" y="124" width="16" height="34" rx="4" fill="#FFF3A3" stroke="#c9b84a"/>
+  <text x="96" y="146" fill="#6b5a10">8.0.4（不加符號）＝只能是這一版</text>
+  <!-- 數線 -->
+  <line x1="40" y1="190" x2="960" y2="190" stroke="#23303b" stroke-width="2"/>
+  <line x1="826" y1="34" x2="826" y2="200" stroke="#d1476a" stroke-width="2" stroke-dasharray="6 5"/>
+  <g class="pt" data-i="0"><circle cx="80" cy="190" r="8" fill="#fff" stroke="#23303b" stroke-width="2"/><text x="80" y="220" text-anchor="middle" font-family="Consolas,monospace">8.0.4</text></g>
+  <g class="pt" data-i="1"><circle cx="230" cy="190" r="8" fill="#fff" stroke="#4a9b5e" stroke-width="2"/><text x="230" y="220" text-anchor="middle" font-family="Consolas,monospace">8.0.5</text></g>
+  <g class="pt" data-i="2"><circle cx="340" cy="190" r="8" fill="#fff" stroke="#4a9b5e" stroke-width="2"/><text x="340" y="220" text-anchor="middle" font-family="Consolas,monospace">8.0.17</text></g>
+  <g class="pt" data-i="3"><circle cx="420" cy="190" r="8" fill="#fff" stroke="#3f6f8f" stroke-width="2"/><text x="420" y="220" text-anchor="middle" font-family="Consolas,monospace">8.1.0</text></g>
+  <g class="pt" data-i="4"><circle cx="700" cy="190" r="8" fill="#fff" stroke="#3f6f8f" stroke-width="2"/><text x="700" y="220" text-anchor="middle" font-family="Consolas,monospace">8.12.30</text></g>
+  <g class="pt" data-i="5"><circle cx="890" cy="190" r="8" fill="#fdf1f4" stroke="#d1476a" stroke-width="2"/><text x="890" y="220" text-anchor="middle" font-family="Consolas,monospace" fill="#d1476a">9.0.0</text></g>
+  <text x="832" y="30" fill="#d1476a" font-size="13">上限（不含）</text>
+</svg>
+<div id="ptinfo">點數線上的版本號。</div>
+</div>
+<pre><code>{
+  "dependencies": {
+    "iron-session": "^8.0.4",  <span class="cmt">// ^：鎖住最左邊非 0 的那一段，這裡鎖 MAJOR 8</span>
+    "axios": "~1.7.2",         <span class="cmt">// ~：鎖住 MAJOR 和 MINOR，只放行 PATCH</span>
+    "lodash": "4.17.21"        <span class="cmt">// 沒符號：固定這一版</span>
+  }
+}</code></pre>
+<p class="sub">第一行白話：TimeLog 接受 iron-session 從 8.0.4 開始、9.0.0 之前的任何版本。<br>第二行白話：axios 只接受 1.7.2 到 1.7.x 的修補版。<br>第三行白話：lodash 只裝 4.17.21。</p>
+</section>
+
+<!-- 4 -->
+<section class="card" id="s4">
+<h2>4. 讀版本號的三個提醒</h2>
+<ol type="a">
+<li><b>每一段是一個整數，可以超過 9。</b>
+  <div class="sub"><code>8.12.30</code> 讀作「主版本 8、次版本 12、修補 30」。<br><code>^8.0.4</code> 的上限是 <b>&lt;9.0.0</b>，不是 8.9.9，所以 8.12.30 也在範圍內。<br>寫筆記時用「段」或「欄位」稱呼，不用 digit（個位數字）。</div></li>
+<li><b>PATCH ＝ 向下相容的 bug 修正。</b>
+  <div class="sub">SemVer 看的是<b>公開 API（別人呼叫妳套件的方式）</b>有沒有變，與改動是不是 UI 無關。<br>以 UI 元件庫為例：按鈕顏色修正可能是 PATCH，新增一個 <code>size</code> prop 是 MINOR，把 <code>variant</code> prop 改名是 MAJOR。</div></li>
+<li><b>MINOR 歸零規則。</b>
+  <div class="sub">MINOR 進位時 PATCH 歸零：<code>8.0.4 → 8.1.0</code>。<br>MAJOR 進位時後兩段都歸零：<code>8.3.2 → 9.0.0</code>。</div></li>
+</ol>
+</section>
+
+<!-- 5 -->
+<section class="card" id="s5">
+<h2>5. 0.x 版本的例外</h2>
+<p>MAJOR 是 0 代表套件還在初期開發，<mark class="m-core">隨時可能有破壞性變更</mark>。所以 <code>^</code> 會改成鎖住<b>最左邊第一個非 0 的段</b>：</p>
+<table>
+<tr><th>寫法</th><th>實際範圍</th></tr>
+<tr><td><code>^8.0.4</code></td><td><code>&gt;=8.0.4 &lt;9.0.0</code>（鎖 8）</td></tr>
+<tr><td><code>^0.2.3</code></td><td><code>&gt;=0.2.3 &lt;0.3.0</code>（鎖 0.2，效果跟 <code>~</code> 一樣）</td></tr>
+<tr><td><code>^0.0.3</code></td><td><code>&gt;=0.0.3 &lt;0.0.4</code>（只能是 0.0.3）</td></tr>
+</table>
+</section>
+
+<!-- 6 -->
+<section class="card" id="s6">
+<h2>6. 實際裝的是哪一版</h2>
+<p><code>package.json</code> 寫的是<b>可接受的範圍</b>，<code>package-lock.json</code> 記錄的是<b>實際安裝的版本</b>（詳見 07 的 k 節）。</p>
+<pre><code>npm ls iron-session</code></pre>
+<p class="sub">在專案根目錄的 terminal 執行：npm 讀取 <code>node_modules</code>，列出 iron-session 實際安裝的版本，以及是哪個套件依賴它。</p>
+<ol>
+<li><code>npm install</code>：照 lock 檔安裝，每台電腦和 Vercel 都會裝到同一版。</li>
+<li><code>npm update iron-session</code>：在 <code>^</code> 範圍內升到最新版，並且改寫 lock 檔。</li>
+<li><code>npm outdated</code>：列出每個套件的 Current（目前）、Wanted（範圍內最新）、Latest（npm 上最新）三欄。</li>
+</ol>
+<div class="callout tip"><span class="ttl">LeetCode 練習</span><a href="https://leetcode.com/problems/compare-version-numbers/">165. Compare Version Numbers</a>：用 <code>.</code> 切開版本號，逐段比大小。這題剛好練到「每一段是整數，不是個位數」這個觀念。</div>
+</section>
+
+<!-- 7 -->
+<section class="card" id="s7">
+<h2>7. 自我測驗</h2>
+<div class="toolbar"><button id="showAll">顯示全部答案</button><button id="hideAll">隱藏全部答案</button></div>
+<h3>填空題</h3>
+<ol class="qlist">
+<li><code>MAJOR.MINOR.PATCH</code> 中，新增功能而且向下相容時要加 <input class="blank" data-ans="MINOR"> 。
+  <div class="btns"><button class="chk">檢查</button><button class="tog">顯示答案</button></div><div class="fb">MINOR（見第 1 節）</div></li>
+<li><code>^8.0.4</code> 的範圍是 &gt;=8.0.4 &lt; <input class="blank" data-ans="9.0.0"> 。
+  <div class="btns"><button class="chk">檢查</button><button class="tog">顯示答案</button></div><div class="fb">9.0.0（見第 3 節主軸圖）</div></li>
+<li>查專案實際安裝的 iron-session 版本，要執行 npm <input class="blank" data-ans="ls"> iron-session。
+  <div class="btns"><button class="chk">檢查</button><button class="tog">顯示答案</button></div><div class="fb">ls（見第 6 節）</div></li>
+</ol>
+<h3>是非題</h3>
+<ol class="qlist">
+<li><code>^8.0.4</code> 不會自動裝到 8.12.30。
+  <div class="btns"><button class="tf" data-a="F">是</button><button class="tf" data-a="T">非</button></div><div class="fb">非。每一段是整數，8.12.30 小於 9.0.0，在範圍內。</div></li>
+<li><code>~1.7.2</code> 可以裝到 1.7.9，但不能裝到 1.8.0。
+  <div class="btns"><button class="tf" data-a="T">是</button><button class="tf" data-a="F">非</button></div><div class="fb">是。<code>~</code> 鎖住 MAJOR 和 MINOR，只放行 PATCH。</div></li>
+<li><code>^0.2.3</code> 可以裝到 0.3.0。
+  <div class="btns"><button class="tf" data-a="F">是</button><button class="tf" data-a="T">非</button></div><div class="fb">非。0.x 時 <code>^</code> 鎖最左邊非 0 的段，範圍是 &lt;0.3.0。</div></li>
+</ol>
+<h3>申論題</h3>
+<ol class="qlist">
+<li>iron-session 從 v7 升到 v8 為什麼是 MAJOR？用「向下相容」解釋。
+  <div class="btns"><button class="tog">顯示參考答案</button></div><div class="fb">v8 移除了 <code>withIronSessionApiRoute</code> 與 <code>withIronSessionSsr</code>，改用單一的 <code>getIronSession()</code>。照 v7 寫法的程式碼呼叫不存在的函式，升級後會直接壞掉，代表沒有向下相容，所以 MAJOR 要加 1。<code>^7.x</code> 也因此不會自動升到 v8。</div></li>
+<li>既然 <code>package.json</code> 寫 <code>^8.0.4</code>，為什麼同事和 Vercel 還是會裝到同一版？
+  <div class="btns"><button class="tog">顯示參考答案</button></div><div class="fb"><code>npm install</code> 優先照 <code>package-lock.json</code> 記錄的確切版本安裝。<code>^</code> 只在 lock 檔沒有記錄，或執行 <code>npm update</code> 時才發揮作用。所以 lock 檔要 commit 進 git。</div></li>
+</ol>
+</section>
+
+<!-- 8 -->
+<section class="card" id="s8">
+<h2>8. 相關筆記</h2>
+<ul>
+<li><a href="07-前端專案建立與打包選型-Vite與createVue與NextJS與npm鎖版本.html">07 前端專案建立與打包選型與 npm 鎖版本</a>
+  <div class="sub">關聯原因：07 的 k、l 節講 package.json 與 lock 檔的分工，本篇把 l 節的 <code>^</code>、<code>~</code> 展開成完整規則。</div></li>
+<li><a href="08-npm-run-script-mechanism.md">08 npm run script 機制</a>
+  <div class="sub">關聯原因：同一組 npm 工具鏈，08 講指令怎麼跑，本篇講套件版本怎麼解讀。</div></li>
+<li><a href="../backend/Session-Token-Cookie-認證系列/00-閱讀順序.md">Session／Token／Cookie 認證系列</a>
+  <div class="sub">關聯原因：本篇的例子 iron-session 就是 TimeLog 的 session 套件，它把加密後的 session 存在 cookie，屬於無狀態驗證（第 3 篇）。</div></li>
+<li><a href="../Redis/Redis介紹.md">Redis 介紹</a>
+  <div class="sub">關聯原因：傳統有狀態 session 需要伺服器端的儲存空間，正式環境常用 Redis，而 iron-session 不需要它。</div></li>
+</ul>
+</section>
+
+<!-- 9 -->
+<section class="card" id="s9">
+<h2>9. 參考來源</h2>
+<table>
+<tr><th>來源</th><th>時間</th></tr>
+<tr><td><a href="https://semver.org/lang/zh-TW/">語意化版本 2.0.0（semver.org）</a></td><td>規格 2.0.0 發布於 2013 年，2026 年仍是現行版本</td></tr>
+<tr><td><a href="https://docs.npmjs.com/about-semantic-versioning">npm Docs：About semantic versioning</a></td><td>2026-11-14 查證</td></tr>
+<tr><td><a href="https://github.com/npm/node-semver#caret-ranges-123-025-004">node-semver：Caret Ranges（0.x 規則）</a></td><td>2026-11-14 查證</td></tr>
+<tr><td><a href="https://newreleases.io/project/npm/iron-session/release/8.0.0">iron-session v8.0.0 release notes</a>（移除 withIronSessionApiRoute 等 API）</td><td>v8 約 2023 年發布，2026-11-14 查證</td></tr>
+<tr><td><a href="https://www.npmjs.com/package/iron-session">iron-session（npm）</a></td><td>目前最新 8.0.4，2026-11-14 查證</td></tr>
+</table>
+</section>
+
+<footer>編譯與打包學習路徑 · 13 · SemVer 語意化版本</footer>
+</main>
+</div></div>
+
+<script>
+/** 數線上每個版本點的說明 */
+const info=[
+ '<b>8.0.4</b>：package.json 寫的起點，三種寫法都接受。',
+ '<b>8.0.5</b>：PATCH 更新（修 bug）。<code>~</code> 與 <code>^</code> 都接受。',
+ '<b>8.0.17</b>：PATCH 可以超過 9。<code>~</code> 與 <code>^</code> 都接受。',
+ '<b>8.1.0</b>：MINOR 更新（新功能，向下相容），PATCH 歸零。只有 <code>^</code> 接受，<code>~</code> 到此為止。',
+ '<b>8.12.30</b>：MINOR 12、PATCH 30，仍然小於 9.0.0，<code>^</code> 接受。',
+ '<b>9.0.0</b>：MAJOR 更新（有破壞性變更）。三種寫法都不會自動升級，要自己改 package.json 並照 migration guide 改程式碼。'
+];
+document.querySelectorAll('#axis .pt').forEach(g=>g.addEventListener('click',()=>{document.getElementById('ptinfo').innerHTML=info[g.dataset.i]}));
+
+/** 填空題：比對答案（忽略大小寫與空白） */
+document.querySelectorAll('.chk').forEach(b=>b.addEventListener('click',()=>{
+  const li=b.closest('li'),inp=li.querySelector('input.blank');
+  const ok=inp.value.trim().toLowerCase()===inp.dataset.ans.toLowerCase();
+  inp.classList.toggle('good',ok);inp.classList.toggle('bad',!ok);
+}));
+/** 是非題：data-a="T" 代表選這顆是對的 */
+document.querySelectorAll('.tf').forEach(b=>b.addEventListener('click',()=>{
+  b.classList.add(b.dataset.a==='T'?'good':'bad');
+  b.closest('li').querySelector('.fb').classList.add('show');
+}));
+/** 切換單題答案 */
+document.querySelectorAll('.tog').forEach(b=>b.addEventListener('click',()=>b.closest('li').querySelector('.fb').classList.toggle('show')));
+document.getElementById('showAll').onclick=()=>document.querySelectorAll('#s7 .fb').forEach(f=>f.classList.add('show'));
+document.getElementById('hideAll').onclick=()=>document.querySelectorAll('#s7 .fb').forEach(f=>f.classList.remove('show'));
+
+/** 大綱：捲動時標示目前所在章節 */
+const links=[...document.querySelectorAll('.toc a')];
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){links.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id))}}),{rootMargin:'0px 0px -70% 0px'});
+document.querySelectorAll('main section').forEach(s=>io.observe(s));
+</script>
+</body>
+</html>

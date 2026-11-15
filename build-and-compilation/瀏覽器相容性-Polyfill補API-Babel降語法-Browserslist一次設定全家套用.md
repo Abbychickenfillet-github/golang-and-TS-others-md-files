@@ -10,6 +10,7 @@ related:
   - "[[13-閉包-Closure-私有變數與傳址陷阱]]"
   - "[[事件流與事件代理]]"
 sources:
+  - https://gemini.google.com/app/d829752fc3b97749
   - https://gemini.google.com/app/a1a14102e2207433
 updated: 2026-09-05
 ---
@@ -127,6 +128,14 @@ chrome 124, chrome 123, safari 17.4, safari 17.3, edge 124, firefox 125...
 
 (n) <mark style="background: #FFB8EBA6;">寫在 `package.json` 的好處是少維護一個 `.browserslistrc` 檔案</mark>，中小型專案更乾淨；大型專案或需要註解時才拆成獨立檔（`.browserslistrc` 支援 `#` 註解，JSON 不支援）。
 
+### 追加 2026-11-15：@babel/preset-env 的「env」指什麼
+
+(a) <mark style="background: #ADCCFFA6;">preset-env</mark> 的 env 指「目標執行環境」（特定版本的瀏覽器或 Node.js 宿主環境，host environment）。不是環境變數 env。
+(b) Babel 依目標環境決定哪些語法需要 transpile，並引入對應 polyfill。
+(c) Babel 主要針對 JavaScript，不處理 CSS（CSS 由 Autoprefixer／PostCSS 依 Browserslist 處理）。
+(d) 設定方式：在專案中透過設定檔（例如 .babelrc）指定，Babel 不會自動生效。
+(e) 同對話順帶：testing-library/jest-dom 唸作 Testing Library slash Jest DOM，提供斷言 DOM 節點狀態的擴充 matcher，確保 UI 反映應用程式狀態。testing-library/react 提供 helper functions，以使用者實際操作方式測試 React 元件。
+
 ## ⚠️ 存疑／更正
 
 - Gemini 說 Browserslist 的資料「來自 Can I Use」。<mark style="background: #FF5582A6;">更精確的說法是：版本與支援度資料來自 `caniuse-lite`，但市佔率統計來自 StatCounter GlobalStats</mark>，兩者是不同來源。這也代表 `> 0.5%` 的結果會隨 `caniuse-lite` 版本更新而變動，所以官方建議定期執行 `npx update-browserslist-db@latest`——這點 Gemini 完全沒提，卻是實務上最常出現的建置警告。
@@ -152,6 +161,10 @@ chrome 124, chrome 123, safari 17.4, safari 17.3, edge 124, firefox 125...
 **使用者：** 「或直接寫在 package.json 裡的 browserslist 欄位」這邊怎麼寫？
 
 **Gemini：** 在根層級新增 `"browserslist"` 欄位，值用字串陣列（條件之間同樣是 OR）。也可以改寫成物件格式做分環境設定，`production` 注重相容性、`development` 只支援最新瀏覽器以追求編譯速度。寫在 `package.json` 的優點是少維護一個獨立的 `.browserslistrc` 檔案。
+
+### Babel Preset-Env 簡介（2026-11）— https://gemini.google.com/app/d829752fc3b97749
+
+（對話為短問答，要點已併入上方「追加 2026-11-15」。）
 
 ## 資料來源（含查證時間）
 
