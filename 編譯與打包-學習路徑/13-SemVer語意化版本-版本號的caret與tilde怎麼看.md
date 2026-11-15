@@ -7,12 +7,12 @@ created: 2026-11-14
 # SemVer 語意化版本｜版本號的 ^ 與 ~ 怎麼看
 
 > [!info] 主檔是互動版 HTML
-> 備用連結（內嵌沒顯示時點這個）：[13-SemVer語意化版本-版本號的caret與tilde怎麼看.html](<13-SemVer語意化版本-版本號的caret與tilde怎麼看.html>)
+> 備用連結（內嵌沒顯示時點這個）：[13-SemVer語意化版本-版本號的caret與tilde怎麼看.html](<13-SemVer語意化版本-版本號的caret與tilde怎麼看-互動版.html>)
 > 承接 [[07-前端專案建立與打包選型-Vite與createVue與NextJS與npm鎖版本]] 的 k、l 節
 
 ## 內嵌 HTML（測試 HTML Reader 是否支援）
 
-![[13-SemVer語意化版本-版本號的caret與tilde怎麼看.html]]
+![[13-SemVer語意化版本-版本號的caret與tilde怎麼看-互動版.html]]
 
 ## 大綱
 

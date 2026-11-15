@@ -4,7 +4,7 @@ aliases: [亂碼Mojibake-編碼不一致與UTF全名-附RFC1034備忘錄, 字元
 ---
 # 字元編碼-Unicode-ASCII-Base64-UTF-8關係與亂碼Mojibake
 
-主檔：[互動版 HTML](./字元編碼-Unicode-ASCII-Base64-UTF-8關係與亂碼Mojibake.html)
+主檔：[互動版 HTML](./字元編碼-Unicode-ASCII-Base64-UTF-8關係與亂碼Mojibake-互動版.html)
 
 - 主軸圖：Unicode、ASCII、Base64、UTF-8 的文氏圖（字元側與位元組側，箭頭表示編碼與解碼）
 - charset 機制：BOM → HTTP 標頭 → meta charset → 瀏覽器猜測
