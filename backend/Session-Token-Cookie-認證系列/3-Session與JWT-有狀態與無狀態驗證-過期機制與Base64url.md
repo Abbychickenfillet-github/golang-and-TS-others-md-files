@@ -19,15 +19,29 @@ updated: 2026-11-15
 > 本篇重點 a–u ，共 21 個。
 > 前置概念見 [[1-Cookie-與-Session]]（Cookie 與 Session 基本運作）與 [[8-XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線]]（HttpOnly 為何能擋 XSS）。關聯原因：本篇是把前兩篇的 Session ID 放進「有狀態／無狀態」這條主軸上比較。
 
-## 一張主軸：有狀態（Session）vs 無狀態（JWT）
+## 一張主軸：四種做法比較（Session／JWT／JWS／iron-session）
 
-| 比較面向 | 有狀態：集中式 Session | 無狀態：JWT（JSON Web Token） |
-| --- | --- | --- |
-| 狀態存在哪 | 伺服器（記憶體／Redis／MySQL）的 session store | 客戶端手上的 Token 本身 |
-| 客戶端拿到什麼 | 一個短短的 Session ID（通常放 Cookie） | 一包 Header.Payload.Signature |
-| 伺服器怎麼驗 | 拿 Session ID 去 session store 查表 | 用密鑰重算簽章再比對 |
-| 要強制踢人 | 刪掉該筆 Session 即時失效 | 很難即時作廢（Revocation） |
-| 擴展性 | 多台伺服器要共用 store（例如 Redis Cluster） | 資源伺服器只要能驗簽章就不必共用 store |
+互動版可以點表格上螢光（元件：`assets/compare-table.js`）。
+
+| 比較面向 | Session-based | JWT-based（JWS 簽章版） | JWS-based（通用簽章格式） | iron-session |
+| --- | --- | --- | --- | --- |
+| 資料存在哪 | 伺服器的 session store | 客戶端的 token | 不規定，通常是一次性訊息 | 客戶端的 cookie |
+| 客戶端拿到什麼 | 隨機 Session ID | header.payload.signature | header.payload.signature | Fe26.2 開頭的 8 段字串 |
+| 伺服器怎麼驗 | 拿 ID 查表 | 重算 HMAC 或用公鑰驗，再檢查 exp | 驗簽章，claims 要自己加 | 驗 HMAC 再用 password 解密 |
+| 看得到內容嗎 | 看不到 | 看得到（只有 Base64url） | 看得到 | 看不到（AES-256-CBC） |
+| 防竄改靠什麼 | 資料不離開伺服器 | 簽章（HMAC 或數位簽章） | 簽章 | HMAC-SHA256 |
+| 有沒有加密 | 不需要 | 沒有，要藏就用 JWE | 沒有 | 有 |
+| 格式 | 隨機字串 | 3 段，全部 Base64url | 3 段，b64:false 時 payload 不編碼 | 8 段，用 * 分隔 |
+| 是不是標準 | 常見做法（cookie 依 RFC 6265） | RFC 7519 | RFC 7515、RFC 7797 | 不是 RFC（hapi Iron 格式） |
+| 能不能立即撤銷 | 可以 | 不行，等 exp 或黑名單 | 一次性訊息，不需要 | 不行，等 ttl |
+| 大小限制 | 不受 cookie 限制 | 放 cookie 時約 4KB | 依傳輸方式 | 約 4KB，加密後更大 |
+| 多台伺服器 | 要共用 store（Redis） | 有金鑰就能驗 | 有金鑰就能驗 | 共用 password 就能解 |
+| 適合用在 | 傳統網站、需要即時踢人 | 跨服務 API、行動 App | API 請求簽章、webhook | 自己發自己讀的暫存資料 |
+| 在 TimeLog 專案 | 還沒用（Issue #12 Phase 3） | 登入狀態 lib/jwt-session.js | 沒有用 | LINE Login、OTP、LINE Pay 暫存 |
+| Node.js 套件 | express-session、connect-redis | jose（SignJWT） | jose（CompactSign） | iron-session |
+
+- JWT 是拿 JWS 當外殼裝 claims 的用法，RFC 7797 規定 JWT 不得用 b64:false。見 [[4-jwt-signing-algorithms-and-access-refresh-flow]] 第 1 節。
+- iron-session 的效果接近 JWE（藏起來＋防竄改），格式比較見 [[4-jwt-signing-algorithms-and-access-refresh-flow]] 第 5 節。
 
 ## 重點整理
 

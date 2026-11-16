@@ -49,6 +49,24 @@ function cmpPath(a: string, b: string): number {
   return pa.length - pb.length;
 }
 
+// 檔名開頭的序號，例如 4-jwt-… 的 4、00-閱讀順序 的 00；正規表達式 ^(\d+)- 表示「開頭一串數字，後面接一個連字號」；
+const SERIES_NUMBER = /^(\d+)-/;
+
+/**
+ * 系列筆記的標題補上檔名序號：frontmatter 或 <title> 的標題通常不含序號，首頁只顯示標題會讓 1、2、3… 的閱讀順序消失
+ * @param {string} title 筆記標題（已 trim）
+ * @param {string} stem 檔名（slug 最後一段）
+ * @returns {string} 檔名有序號、而標題開頭還沒有這個序號時，回傳「序號. 標題」；否則原樣回傳
+ */
+export function withSeriesNumber(title: string, stem: string): string {
+  // match 找不到時回傳 null，用 ?. 安全取第 1 個擷取群組；
+  const num = stem.match(SERIES_NUMBER)?.[1];
+  // 檔名沒有序號，或標題本來就以這個序號開頭（例如標題就是檔名），不重複加；
+  if (!num || title.startsWith(num)) return title;
+  // 範本字串組成「4. JWT 簽章演算法…」；
+  return `${num}. ${title}`;
+}
+
 // 把筆記轉成首頁項目並排序（依檔名自然排序，與 build-index.py 相同：2 在 10 前面）；不改動傳入的陣列（先用展開運算子複製再排序）；
 function toItems(list: NoteEntry[]): HomeItem[] {
   // 檔名（slug 最後一段）當排序鍵；
@@ -57,8 +75,8 @@ function toItems(list: NoteEntry[]): HomeItem[] {
   return [...list]
     .sort((a, b) => naturalCompare(stem(a), stem(b)))
     .map((n) => ({
-      // 標題空白就退回檔名；trim 去頭尾空白；
-      title: n.title.trim() || stem(n),
+      // 標題空白就退回檔名；有序號的系列筆記在標題前補上序號；trim 去頭尾空白；
+      title: withSeriesNumber(n.title.trim() || stem(n), stem(n)),
       // 頁面路徑；
       path: n.slug.join('/'),
       // 種類；

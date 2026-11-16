@@ -108,6 +108,20 @@ describe('buildHomeSections', () => {
     expect(items.map((i) => i.title)).toEqual(['漂亮標題', 'y']);
   });
 
+  // 系列筆記（檔名以「數字-」開頭）的標題前面補上序號，讓首頁看得出閱讀順序；
+  it('檔名有序號時標題前補上「序號. 」，標題已以序號開頭或檔名沒有序號時不補', () => {
+    // 準備：有序號且標題不含序號、互動版、00 開頭、標題就是檔名、沒有序號；
+    const items = buildHomeSections([
+      note('s/4-jwt.md', 'JWT 簽章演算法'),
+      note('s/4-jwt-互動版.html', 'JWT 互動版'),
+      note('s/00-閱讀順序.md', '閱讀順序'),
+      note('s/10-SPA.md'),
+      note('s/readme.md', '說明'),
+    ])[0].items;
+    // 依檔名自然排序：00、4、4-互動版、10、readme；10-SPA 的標題就是檔名，本來就以 10 開頭，不重複加；
+    expect(items.map((i) => i.title)).toEqual(['00. 閱讀順序', '4. JWT 簽章演算法', '4. JWT 互動版', '10-SPA', '說明']);
+  });
+
   // 互動版 html（檔名以 -互動版 結尾）要標記；md 就算檔名結尾相同也不標；
   it('只有檔名以 -互動版 結尾的 html 標記為互動版', () => {
     // 準備；

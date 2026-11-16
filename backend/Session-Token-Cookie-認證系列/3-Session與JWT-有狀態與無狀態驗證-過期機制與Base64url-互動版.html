@@ -66,7 +66,7 @@ textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding
   <h1>Session 與 JWT：有狀態 vs 無狀態驗證、過期機制、Base64url</h1>
   <div class="pills"><span class="pill">#gemini</span><span class="pill">#backend</span><span class="pill">#session</span><span class="pill">#jwt</span><span class="pill">#stateless</span><span class="pill">#cookie</span><span class="pill">#base64url</span><span class="pill">#owasp</span></div>
   <div class="meta">
-    <span>更新於 2026-11-15</span>
+    <span>更新於 2026-11-16</span>
     <span>來源：Gemini</span>
     <a href="https://gemini.google.com/app/9118a11b50bbd667" target="_blank" rel="noopener">原始對話 1</a><a href="https://gemini.google.com/app/287b2caf42deb314" target="_blank" rel="noopener">原始對話 2</a><a href="https://gemini.google.com/app/fba7a832cdf298fe" target="_blank" rel="noopener">原始對話 3</a><a href="https://gemini.google.com/app/b2a539467cfc9322" target="_blank" rel="noopener">原始對話 4</a><a href="https://gemini.google.com/app/5e31f473f93dbfee" target="_blank" rel="noopener">原始對話 5</a><a href="https://gemini.google.com/app/b6db47e361e8b160" target="_blank" rel="noopener">原始對話 6</a>
   </div>
@@ -95,43 +95,33 @@ textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding
 <p>本篇重點 a–u ，共 21 個。<br />
 前置概念見 <span class="wikilink" title="Obsidian 連結：Cookie-與-Session">Cookie-與-Session</span>（Cookie 與 Session 基本運作）與 <span class="wikilink" title="Obsidian 連結：XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線">XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線</span>（HttpOnly 為何能擋 XSS）。關聯原因：本篇是把前兩篇的 Session ID 放進「有狀態／無狀態」這條主軸上比較。</p>
 </blockquote>
-<h2 id="sessionvs-jwt">一張主軸：有狀態（Session）vs 無狀態（JWT）</h2>
-<table>
+<h2 id="sessionvs-jwt">一張主軸：四種做法比較（Session／JWT／JWS／iron-session）</h2>
+<p>四種做法都在回答同一個問題：<b>伺服器怎麼知道「這個請求是誰發的、資料有沒有被改過」</b>。差別在於資料放在哪、用什麼保護。</p>
+<table class="compare-table">
 <thead>
-<tr>
-<th>比較面向</th>
-<th>有狀態：集中式 Session</th>
-<th>無狀態：JWT（JSON Web Token）</th>
-</tr>
+<tr><th>比較面向</th><th>Session-based<br><small>有狀態</small></th><th>JWT-based<br><small>無狀態，JWS 簽章版</small></th><th>JWS-based<br><small>通用簽章格式</small></th><th>iron-session<br><small>無狀態，加密 cookie</small></th></tr>
 </thead>
 <tbody>
-<tr>
-<td>狀態存在哪</td>
-<td>伺服器（記憶體／Redis／MySQL）的 session store</td>
-<td>客戶端手上的 Token 本身</td>
-</tr>
-<tr>
-<td>客戶端拿到什麼</td>
-<td>一個短短的 Session ID（通常放 Cookie）</td>
-<td>一包 Header.Payload.Signature</td>
-</tr>
-<tr>
-<td>伺服器怎麼驗</td>
-<td>拿 Session ID 去 session store 查表</td>
-<td>用密鑰重算簽章再比對</td>
-</tr>
-<tr>
-<td>要強制踢人</td>
-<td>刪掉該筆 Session 即時失效</td>
-<td>很難即時作廢（Revocation）</td>
-</tr>
-<tr>
-<td>擴展性</td>
-<td>多台伺服器要共用 store（例如 Redis Cluster）</td>
-<td>資源伺服器只要能驗簽章就不必共用 store</td>
-</tr>
+<tr><th scope="row">資料存在哪</th><td>伺服器的 session store（記憶體、Redis 或資料庫）</td><td>客戶端手上的 token 本身</td><td>JWS 只是簽章格式，不規定存在哪，通常是一次性的訊息</td><td>客戶端的 cookie 本身</td></tr>
+<tr><th scope="row">客戶端拿到什麼</th><td>一個隨機的 Session ID，通常放在 cookie</td><td><code>header.payload.signature</code> 三段字串</td><td><code>header.payload.signature</code>，payload 可以是任何資料</td><td><code>Fe26.2*…</code> 開頭的 8 段字串</td></tr>
+<tr><th scope="row">伺服器怎麼驗</th><td>拿 Session ID 去 session store 查表</td><td>用 secret 重算 HMAC（或用公鑰驗簽章），再檢查 <code>exp</code></td><td>驗簽章。<code>exp</code> 這類 claims 不在 JWS 規範內，要自己加</td><td>先驗 HMAC，再用 password 解密</td></tr>
+<tr><th scope="row">客戶端看得到內容嗎</th><td>看不到，只拿到一個沒有意義的 ID</td><td>看得到，payload 只做 Base64url 編碼</td><td>看得到；用 <code>b64:false</code> 時 payload 直接放原文</td><td>看不到，內容經過 AES-256-CBC 加密</td></tr>
+<tr><th scope="row">防竄改靠什麼</th><td>資料不離開伺服器，加上 ID 夠隨機、猜不到</td><td>簽章：HS256 是 HMAC，RS256／ES256／EdDSA 是數位簽章</td><td>簽章（同左）</td><td>HMAC-SHA256</td></tr>
+<tr><th scope="row">有沒有加密</th><td>不需要，資料留在伺服器</td><td>沒有。要藏內容就改用 JWE</td><td>沒有</td><td>有，AES-256-CBC</td></tr>
+<tr><th scope="row">格式</th><td>一個隨機字串</td><td>3 段，用 <code>.</code> 分隔，三段都 Base64url 編碼</td><td>3 段；<code>b64:false</code> 時 payload 不編碼，也可以把 payload 分開傳（detached）</td><td>8 段，用 <code>*</code> 分隔</td></tr>
+<tr><th scope="row">是不是標準</th><td>常見做法，沒有單一 RFC；cookie 本身依 RFC 6265</td><td>RFC 7519（外殼是 RFC 7515 的 JWS）</td><td>RFC 7515；<code>b64</code> 選項是 RFC 7797</td><td>不是 RFC，是 hapi 自己定的 Iron 格式</td></tr>
+<tr><th scope="row">能不能立即撤銷</th><td>可以，刪掉那筆 session 就立刻失效</td><td>不行，要等 <code>exp</code> 到期或另外做黑名單</td><td>通常是一次性訊息，沒有撤銷的需求</td><td>不行，要等 <code>ttl</code> 到期</td></tr>
+<tr><th scope="row">大小限制</th><td>cookie 只放 ID，資料量不受 cookie 限制</td><td>放在 cookie 時受約 4KB 限制</td><td>依傳輸方式而定</td><td>受約 4KB 限制，加密後會更大</td></tr>
+<tr><th scope="row">多台伺服器</th><td>要共用同一個 store，例如 Redis</td><td>有金鑰就能驗，不必共用 store</td><td>有金鑰就能驗</td><td>共用同一個 password 就能解</td></tr>
+<tr><th scope="row">適合用在</th><td>傳統網站、需要即時踢人下線</td><td>跨服務 API、行動 App、微服務</td><td>API 請求簽章（例如開放銀行）、webhook</td><td>自己發、自己讀的小型暫存資料</td></tr>
+<tr><th scope="row">在 TimeLog 專案</th><td>還沒用，Issue #12 Phase 3 計畫改成 Redis session</td><td>登入狀態：<code>lib/jwt-session.js</code>，HS256，7 天</td><td>沒有用</td><td>LINE Login 的 state 與 nonce、OTP hash、LINE Pay reservation</td></tr>
+<tr><th scope="row">Node.js 套件</th><td><code>express-session</code>、<code>connect-redis</code>、Upstash</td><td><code>jose</code>（<code>SignJWT</code>、<code>jwtVerify</code>）</td><td><code>jose</code>（<code>CompactSign</code>、<code>FlattenedSign</code>）</td><td><code>iron-session</code>（底層 <code>iron-webcrypto</code>）</td></tr>
 </tbody>
 </table>
+<p class="sub" style="color:var(--sub)">1. <b>JWT 和 JWS 的關係</b>：JWS 是「整個簽過章的物件」的通用格式，JWT 是拿 JWS 當外殼來裝 claims（userId、exp…）的一種用法，所以 JWT 欄的「防竄改」和 JWS 欄相同。<br>
+　　RFC 7797 規定 JWT 不得使用 <code>b64:false</code>，這個選項只有一般 JWS 能用。詳見第 4 篇 <a href="4-jwt-signing-algorithms-and-access-refresh-flow-互動版.html#s1">相關公式一覽</a>。<br>
+2. <b>iron-session 的效果接近 JWE</b>：兩者都是「藏起來＋防竄改」，差別在 JWE 是 RFC 標準、可以交給別的系統讀；iron-session 適合自己發、自己讀。三種格式的並排圖見第 4 篇 <a href="4-jwt-signing-algorithms-and-access-refresh-flow-互動版.html#s5">第 5 節</a>。</p>
+
 <h2 id="_1">重點整理</h2>
 <p><strong>a.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HTTP 是無狀態（Stateless）協定</mark>：它沒有內建機制把前後兩個獨立請求關聯起來。所以網站要記住「這個人已登入」就得額外做 Session 管理。</p>
 <p><strong>b.</strong> Session 驗證流程（Abby 自己的說法，Gemini 判定正確）：<br />
@@ -166,7 +156,7 @@ textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding
 3. <code>btoa</code> 輸出的是標準 Base64（含 <code>+ / =</code>）。要得到 Base64url，Node 可用 <code>Buffer.from(字串).toString('base64url')</code>。</p>
 <p><strong>o.</strong> JWT 確實會出現在網址中（Email 驗證連結、密碼重設連結、OAuth／OIDC 轉址、臨時下載連結），但即使它主要放在 Authorization Header ，採用 Base64url 也讓同一套編碼能同時用在 Header 與 URL 。</p>
 
-<div class="callout-like" style="border:1px solid #cfe0ee;background:#eef5fb;border-radius:10px;padding:12px 16px;margin:12px 0">
+<div class="callout-like" style="border:1px solid var(--line);background:var(--soft);border-radius:10px;padding:12px 16px;margin:12px 0">
 <p><b>o-1. 什麼時候會用到 Base64url：token 為什麼會放進網址</b></p>
 <p>1. <b>Base64url 是為了網址傳輸設計的</b>：token 有時要夾在網址參數裡傳遞，用 Base64url 編碼可以確保它在路由或解析時不會因為特殊字元而壞掉。<br>
 　　Base64url 是<b>換一套字母表</b>，而不是轉義：把 <code>+</code> 換成 <code>-</code>、<code>/</code> 換成 <code>_</code>、拿掉結尾的 <code>=</code>，編碼出來的字元全部屬於網址可以直接出現的字元，所以<mark style="background: #BBFABBA6;">放進網址時根本不需要再做百分比編碼（percent-encoding）</mark>。</p>
@@ -334,6 +324,7 @@ const { payload } = await jwtVerify(jwt, publicKey, { algorithms: [&#x27;EdDSA&#
 })();
 </script>
 <script src="../../assets/notes.js"></script>
+<script src="../../assets/compare-table.js"></script>
 <script src="../../assets/note-mask.js"></script>
 </body>
 </html>
