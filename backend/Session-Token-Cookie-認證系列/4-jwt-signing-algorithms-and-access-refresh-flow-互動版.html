@@ -76,6 +76,7 @@ input.blank.good{border-color:#4a9b5e;background:#f0fbf3}input.blank.bad{border-
 footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:40px;padding-top:18px;border-top:1px solid var(--line)}
 @media(max-width:860px){.wrap{padding:16px 14px 60px}.layout{flex-direction:column}.toc{position:static;flex:none;width:100%;max-height:none}}
 @media print{.toolbar,.toc,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
+table.compare-table th[scope=row]{white-space:nowrap;text-align:left}
 </style>
 </head>
 <body>
@@ -224,8 +225,8 @@ MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有
 <table class="compare-table">
 <thead><tr><th></th><th>一般 JWS</th><th><code>b64: false</code></th></tr></thead>
 <tbody>
-<tr><th scope="row">header</th><td>Base64url 編碼</td><td>Base64url 編碼（不變）</td></tr>
-<tr><th scope="row">payload</th><td>Base64url 編碼</td><td><b>不編碼，直接放原文</b></td></tr>
+<tr><th scope="row">header 標頭</th><td>Base64url 編碼</td><td>Base64url 編碼（不變）</td></tr>
+<tr><th scope="row">payload 酬載(傳輸資料中真正有效的內容，加密前的原始資料，也就是明文PlainText)</th><td>Base64url 編碼</td><td><b>不編碼，直接放原文</b></td></tr>
 <tr><th scope="row">signature</th><td>Base64url 編碼</td><td>Base64url 編碼（不變）</td></tr>
 </tbody>
 </table>
@@ -407,14 +408,19 @@ MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有
 </svg>
 </div>
 <table class="compare-table">
-<thead><tr><th></th><th>JWS（一般 JWT）</th><th>JWE</th><th>iron-session</th></tr></thead>
+<thead><tr><th>比較面向</th><th>JWS（一般說的 JWT）</th><th>JWE</th><th>iron-session</th></tr></thead>
 <tbody>
-<tr><th scope="row">分隔</th><td>3 段，用 <code>.</code></td><td>5 段，用 <code>.</code></td><td>8 段，用 <code>*</code></td></tr>
-<tr><th scope="row">演算法用途</th><td>簽章</td><td>加密（GCM 同時驗證）</td><td>先加密（AES-256-CBC），再簽章（HMAC-SHA256）</td></tr>
-<tr><th scope="row">看得到內容嗎</th><td>看得到</td><td>看不到</td><td>看不到</td></tr>
-<tr><th scope="row">改得了嗎</th><td>改不了</td><td>改不了</td><td>改不了</td></tr>
+<tr><th scope="row">分成幾段</th><td>3 段，用 <code>.</code> 分隔：header、payload、signature</td><td>5 段，用 <code>.</code> 分隔：header、encrypted key、IV、ciphertext、tag</td><td>8 段，用 <code>*</code> 分隔</td></tr>
+<tr><th scope="row">資料放在哪一段</th><td>第 2 段 payload</td><td>第 4 段 ciphertext（密文）</td><td>第 5 段「加密後的資料」</td></tr>
+<tr><th scope="row">資料本身有沒有加密</th><td>沒有。payload 只做 Base64url 編碼，任何人都能解回明文</td><td>有。用 AES-GCM 加密，沒有金鑰就解不開</td><td>有。用 AES-256-CBC 加密，沒有 password 就解不開</td></tr>
+<tr><th scope="row">防竄改的值放在哪一段</th><td>第 3 段 signature。它是獨立的一段，<b>不在 payload 裡面</b></td><td>第 5 段 authentication tag</td><td>第 8 段 HMAC</td></tr>
+<tr><th scope="row">防竄改的值怎麼算</th><td>伺服器用 secret，對「第 1 段 + <code>.</code> + 第 2 段」算 HMAC-SHA256（HS256）。RS256、ES256、EdDSA 則是用私鑰算數位簽章</td><td>伺服器用 AES-GCM 加密時，同時算出 tag，涵蓋 header 與密文</td><td>伺服器用 password 推導出的金鑰，對前 6 段算 HMAC-SHA256</td></tr>
+<tr><th scope="row">拿到 token 的人看得到資料嗎</th><td>看得到</td><td>看不到</td><td>看不到</td></tr>
+<tr><th scope="row">改了資料會怎樣</th><td colspan="3">三種都一樣：伺服器重算防竄改的值，跟 token 上那一段比對，對不上就拒絕</td></tr>
 </tbody>
 </table>
+<p class="plain"><b>白話：</b>常聽到「JWT 是明文 payload 加上防竄改的簽名」，這是口語上的簡化。簽名<b>不會放進 payload 裡</b>，它是 token 的第 3 段，由 secret、header、payload 三樣東西一起算出來，用來保護前兩段。<br>
+　　所以「加上」的意思是：token 在 payload 後面多接了一段簽章，而不是把簽章塞進 payload。</p>
 <p class="plain"><b>白話：</b>iron-session 的效果接近 JWE，都是「藏起來＋防改」，只是 iron 是 hapi 自己定的格式，不是 RFC 標準。next-one 用 iron-session 存 session，所以 cookie 裡的 userId 從瀏覽器端看不到。<br>
 📖 來源：<a href="https://www.hapi.dev/module/iron/api">@hapi/iron API（預設 aes-256-cbc＋sha256）</a>、<a href="https://datatracker.ietf.org/doc/html/rfc7516">RFC 7516 — JWE（5 段 compact 格式）</a>，2026-11-14 查證。</p>
 <h3>Iron 是什麼：seal（封印）三步驟</h3>
