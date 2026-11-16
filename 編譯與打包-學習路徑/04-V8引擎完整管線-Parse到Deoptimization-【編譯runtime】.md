@@ -1,8 +1,21 @@
 ---
 title: 【編譯 runtime】V8 引擎完整管線 — Parse → Ignition → TurboFan → Deoptimization
 type: topic-note
-tags: [v8, javascript, compiler, jit, ignition, turbofan, escape-analysis, inline-caching, deoptimization, JS_Core_and_Runtime]
-aliases: [V8引擎完整管線-Parse到Deoptimization, 04-V8引擎完整管線-Parse到Deoptimization]
+tags:
+  - v8
+  - javascript
+  - compiler
+  - jit
+  - ignition
+  - turbofan
+  - escape-analysis
+  - inline-caching
+  - deoptimization
+  - JS_Core_and_Runtime
+  - Scanner產生的token給parserr建立語法樹
+aliases:
+  - V8引擎完整管線-Parse到Deoptimization
+  - 04-V8引擎完整管線-Parse到Deoptimization
 related:
   - "[[機器碼與bytecode的差異]]"
   - "[[作用域-scope-global-function-block]]"
@@ -46,7 +59,8 @@ Node.js 在一般前端「打包」流程裡的角色（跟 SSR 不是同一件�
 
 > [!warning]+ 這張圖到底在講哪個時間點？——全程都是「編譯 runtime（執行期）」
 > a. 下圖從「JavaScript 原始碼」一路到 Deoptimization 的每一站，都發生在**瀏覽器／Node.js 載入並執行這支腳本的當下**，由 V8 引擎自己完成。這裡的「編譯」指的是 JIT（Just-In-Time Compilation，即時編譯）——名字裡的 Just-In-Time 就是「執行到的那一刻才編譯」的意思。
-> b. **打包 buildtime（建置期）發生在這張圖的左邊界之外**：Babel／tsc／SWC 把 TSX/JSX 轉成標準 JS、bundler（webpack／Vite／Rollup／Turbopack）把多個模組合併壓縮，這些都是在你的電腦或 CI 上跑完、部署之前就結束的事。V8 拿到的永遠是「已經轉譯打包完的標準 JS」，它看不到你原本寫的 TSX。
+> b. V8 拿到的永遠是「已經轉譯打包完的標準 JS」，它看不到你原本寫的 TSX。
+> 	**打包 buildtime（建置期）發生在這張圖的左邊界之外**：Babel／tsc／SWC 把 TSX/JSX 轉成標準 JS、bundler（webpack／Vite／Rollup／Turbopack）把多個模組合併壓縮，這些都是在你的電腦或 CI 上跑完、部署之前就結束的事。
 > c. <mark style="background: #FF5582A6;">用詞請跟著本資料夾的約定走：buildtime 那一段一律叫「轉譯（transpile）」與「打包（bundle）」，不要叫「編譯」</mark>；「編譯（compile）」這個詞只留給 V8 在執行期做的 AST → Bytecode → 機器碼。理由是方向不同——轉譯是高階語言 → 另一個同樣高階的語言（TSX → 標準 JS），編譯是高階 → 更低階的表示法。這組用詞的完整分辨與工具對照，主場在 [[03-前端開發工具-【打包buildtime】轉譯Lint與Parser-|03-前端開發工具（打包 buildtime）]]，本篇只放結論。
 > d. 想看 buildtime 那一段的完整流程，請改讀同資料夾的 [[03-前端開發工具-【打包buildtime】轉譯Lint與Parser-|03-前端開發工具（打包 buildtime）]]（那篇開頭有〈buildtime 全流程地圖〉表格，逐步對應到各篇）；至於這些步驟是**誰觸發、依什麼順序跑**，主場在 [[08-npm-run-script-mechanism]] 與 [[09-npm-scripts-pre-post-生命週期鉤子]]——`npm run build` 才是把所有 buildtime 工具串起來的那根線。打包工具選型另見 [[07-前端專案建立與打包選型-Vite與createVue與NextJS與npm鎖版本]]。
 
@@ -85,10 +99,23 @@ flowchart TD
 
 ## 各階段名詞解釋
 
-### Parse 階段
+### 編譯─ Parse 階段
 
-- **Scanner（詞法分析／Lexer／Tokenizer）**：三個詞<mark style="background: #BBFABBA6;">可以直接畫等號——Scanner＝Lexer＝Tokenizer</mark>，業界混用，指同一件事：把原始碼文字**逐字掃過**，切成一顆顆有意義的最小單位——**Token**（也叫 Lexeme／語素；關鍵字、identifier、運算子、字面量…）。這一步只管「切詞」，不管文法對不對。
-- **Parser（語法分析）**：把 Token 序列按 JS 文法規則組成樹狀結構 **AST**，同時檢查語法對不對（少個括號這種錯誤在這裡就會被抓到）。遇到解構參數（`{a,b}`／`[a,b]`）這種寫法時，Parser 具體依據的正是 [ECMA-262 Destructuring Binding Patterns](https://tc39.es/ecma262/#sec-destructuring-binding-patterns) 這份規格條文——**關係**：規格文字定義「合法的解構模式長怎樣」，Parser 就是把這份規格條文轉成程式邏輯的那個實作；**重要性**：Scanner 產生的 Token 是 Lexical Grammar 的產物（見 [[字面量-關鍵字-識別碼基礎]]），Parser 再依這份 Syntactic Grammar 規則把 Token 組合成樹——兩份文件合起來，正好對應 Parse 階段「先切詞、再組句」的兩個步驟。
+- <mark style="background: #FFB8EBA6;">**Scanner（詞法分析／Lexer／Tokenizer）**</mark>：
+	- 三個詞<mark style="background: #BBFABBA6;">可以直接畫等號——Scanner＝Lexer＝Tokenizer</mark>，業界混用，指同一件事：把原始碼文字**逐字掃過**，切成一顆顆有意義的最小單位——**Token**（也叫 Lexeme／語素；關鍵字、identifier、運算子、字面量…）。
+	- <mark style="background: #FFB8EBA6;">這一步只管「切詞」，不管文法對不對</mark>。
+- **Parser（語法分析）**：
+  - 把 Token 序列按 JS 文法規則組成樹狀結構 **AST**，
+  - 同時檢查語法對不對（少個括號這種錯誤在這裡就會被抓到）。
+  - 遇到解構參數（`{a,b}`／`[a,b]`）這種寫法時，Parser 具體依據的正是 [ECMA-262 Destructuring Binding Patterns](https://tc39.es/ecma262/#sec-destructuring-binding-patterns) 這份規格條文——
+    - **關係**：
+    規格文字定義「合法的解構模式長怎樣」，Parser 就是把這份規格條文轉成程式邏輯的那個實作；
+    - **重要性**：
+    Scanner 產生的 Token 是 Lexical Grammar 不是一個獨立的檔案或軟體而是直接寫在引擎的規範(ECMAScript)裡，就像語言的拼字與單詞規則。
+  它定義了哪些字元組合能構成合法的Token,比如關鍵字、變數名稱或符號，並排除無效字元，讓Scanner能精準切分程式碼。
+   的
+   ## 產物
+  （見 [[字面量-關鍵字-識別碼基礎]]），Parser 再依這份 Syntactic Grammar 規則把 Token 組合成樹——兩份文件合起來，正好對應 Parse 階段「先切詞、再組句」的兩個步驟。
 - **Scope Analysis（範疇分析）**：在建好 AST 後，V8 對每個 scope 做的事**不只「判斷閉包捕獲」一項**，而是把整個靜態範疇結構都定下來：
   - **解析變數的歸屬（scope chain 解析）**：把 AST 裡每一個識別碼的「使用」都對應回它到底是**哪個 scope 宣告的**（或者哪個都不是、屬於全域/未宣告），建立完整的範疇鏈——這是所有後續判斷的地基。
   - **判斷閉包捕獲，決定放 Stack 還是 Heap**：這個變數有沒有被內層函式（閉包）捕獲？**沒被捕獲** → 留在**快速的 Stack／暫存器**（函式執行完直接釋放，效能好，見 [[return-清理記憶體-stack-frame與閉包例外]]）；**有被捕獲** → 放進**堆積（Heap）上的 Context 物件**，讓閉包長期抓著它。這是**初步／必要的**判定（決定正確性，不是可有可無的優化），只看**語法結構**——「AST 上有沒有內層函式引用這個變數」，不看實際執行狀況。
@@ -219,6 +246,31 @@ V8 監控函式的**呼叫次數**（以及迴圈的**執行次數**，這種情
 
 > [!question]- 「超過一次呼叫」就算 Hot Code 嗎？——不是
 > <mark style="background: #FF5582A6;">門檻不是「呼叫次數 > 1」這種離散計數器</mark>，而是一個**額度（interrupt budget）**：Ignition 執行時依「跑了多少 bytecode／迴圈 back-edge 次數」持續扣掉這個額度，扣到 0 才觸發「該不該送去優化」的判斷——扣額度看的是**累積執行量**，不是單純數「第幾次呼叫」。也因此：一個函式**只呼叫一次**、但內部跑超大迴圈，一樣可能透過 OSR 變熱（見下面「實例：拿掉 return 的無窮迴圈」，就是只呼叫一次卻觸發 OSR 的案例）；反過來，呼叫兩三次但函式體很小，額度通常扣不完，還是留在 Ignition。
+>
+> **為什麼用「扣」不用「加」？** 把它想成預付卡：每個函式出廠時就領一張額度不同的卡（大函式額度大、小函式額度小），Ignition 每次迴圈跳回或函式 return，就依這段跑掉的 bytecode 量扣一筆，扣到負數才呼叫 runtime 做「要不要優化」的判斷。兩種做法的數學結果等價（累積到某量就觸發），差別在實作成本：
+>
+> | | 累加計數器（`count++` 到 N） | 扣額度（`budget -= 重量`，< 0 觸發） |
+> |---|---|---|
+> | 每次檢查 | 要先查「這個函式的門檻 N」再比較 | 只看「是不是負的」，門檻已藏在初始額度裡 |
+> | 每個函式門檻不同 | 每個函式另外存一個 N | 初始額度設不同值即可 |
+> | 每次變動的量 | 通常固定 +1 | 每次扣的「重量」可以不同，跑越多 bytecode 扣越多 |
+>
+> **`budget -= weight` 怎麼讀**：`-=` 是「自己減掉右邊，結果存回自己」，等於 `budget = budget - weight`，被改變的只有 `budget`，`weight` 不會變。例：額度 1000、這次重量 40 → 額度變 960。
+>
+> **門檻 N 到底是多少（✅ 已查證原始碼）**：N 是一組寫死在旗標裡的「呼叫次數」，初始額度 = N × 該函式的 bytecode 長度（`ScaleInterruptBudget`：`budget = invocations * bytecode_length`）；Return 時扣的重量 ≈ bytecode 長度（從函式開頭到 return 的位移），迴圈 JumpLoop 時扣的重量 = 往回跳的距離。所以「跑完整個函式一次」大約扣掉 1/N 的額度——它其實就是在數呼叫次數，只是換算成 bytecode 單位，讓迴圈也能一起算進去。<mark style="background: #FFF3A3A6;">這修正了上面「不是呼叫次數」說太絕對的地方：門檻是以呼叫次數定義的，只是計量用額度。</mark>
+>
+> | 旗標（V8 main，桌面預設） | 值 | 意思 |
+> |---|---|---|
+> | `invocation_count_for_feedback_allocation` | 8 | 配置 feedback vector、先升 Sparkplug |
+> | `invocation_count_for_maglev` | 400（Android 1000） | 升 Maglev |
+> | `invocation_count_for_maglev_osr` | 100 | Maglev 的 OSR |
+> | `invocation_count_for_turbofan` | 3000 | 升 TurboFan |
+> | `invocation_count_for_osr` | 500 | 一般 OSR |
+> | `max_optimized_bytecode_size` | 60 KB | 超過就不優化（額度設成近乎無限） |
+>
+> 額度扣到負數後，由 `TieringManager::OnInterruptTick` 接手：沒有 feedback vector 就先建、還在 Ignition 就排 Sparkplug 編譯，之後才由 `ShouldOptimize` 決定升 Maglev 或 TurboFan，並把額度重設。
+>
+> ⚠️ 「為什麼設計成扣而不是加」的動機，原始碼沒有明寫，仍是我的推論（見上表的實作成本差異）；以上旗標值與公式是 2026-11-16 讀 V8 main 分支的結果，數字會隨版本調整，見文末資料來源。
 >
 > 另外現代 V8 其實是**多層 tiering**，不是只有本篇簡化畫的 Ignition／TurboFan 兩層：Ignition（直譯）→ **Sparkplug**（baseline JIT，門檻很低，幾乎跑沒幾次就會編，但不做激進優化）→ **Maglev**（中階優化）→ **TurboFan**（最高階，門檻最高，要累積夠多 Profiling Data 才划算送進去）。門檻高低跟編譯成本成正比：越激進的優化器，門檻設越高。
 
@@ -595,6 +647,9 @@ flowchart LR
 
 | 主題 | 連結 | 版本／時間 |
 |---|---|---|
+| Interrupt budget 的扣法（`UpdateInterruptBudget`、`DecreaseInterruptBudget`、Return 重量＝bytecode 位移、JumpLoop 重量＝跳回距離） | https://github.com/v8/v8/blob/main/src/interpreter/interpreter-assembler.cc | 2026-11-16 讀取 main 分支 |
+| 初始額度公式 `ScaleInterruptBudget`（`invocations * bytecode_length`）、`OnInterruptTick`／`ShouldOptimize` 流程 | https://github.com/v8/v8/blob/main/src/execution/tiering-manager.cc | 2026-11-16 讀取 main 分支 |
+| `invocation_count_for_*` 各旗標預設值（8／400／100／3000／500）與 `max_optimized_bytecode_size`（60 KB） | https://github.com/v8/v8/blob/main/src/flags/flag-definitions.h | 2026-11-16 讀取 main 分支 |
 | Sparkplug 與 TurboFan 以 Bytecode 為輸入、code cache 的版本／旗標／原始碼檢查 | https://github.com/v8/v8/blob/main/src/baseline/baseline-compiler.cc 、https://github.com/v8/v8/blob/main/src/compiler/bytecode-graph-builder.cc 、https://github.com/v8/v8/blob/main/src/snapshot/code-serializer.cc | 2026-10-07 讀取 main 分支 |
 | accumulator 在 x64 對應 `rax`、arm64 對應 `x0` | https://github.com/v8/v8/blob/main/src/codegen/x64/register-x64.h 、https://github.com/v8/v8/blob/main/src/codegen/arm64/register-arm64.h | 2026-10-07 讀取 main 分支 |
 | Ignition 是 register machine、accumulator 隱含暫存器 | https://v8.dev/blog/ignition-interpreter | 發表 2016-08-23，2026-10-07 查證（讀取 v8/v8.dev 倉庫原始檔） |

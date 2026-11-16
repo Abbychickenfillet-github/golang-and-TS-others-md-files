@@ -33,10 +33,40 @@
 
 - `256` **不是金鑰長度**,而是**雜湊函式 SHA-256**(Secure Hash Algorithm,安全雜湊演算法)——這是 **HS256、RS256、ES256 三個都使用的雜湊函式**。
 - 三個都**先用 SHA-256** 把任意長度的訊息壓成一個**固定 256 位元(256 ÷ 8 ＝ 32 bytes)的摘要**,再用各自的方式(HMAC／RSA／ECDSA)簽那個摘要。
+- 密碼學雜湊的安全要求：原像阻抗性（不可逆）、第二原像阻抗性、抗碰撞性。另外好的雜湊函式有雪崩效應：輸入改一個位元，輸出就劇烈改變。
 - 為什麼要先雜湊:簽章/HMAC 是對**固定長度的摘要**動作,不是對原始(任意長度)的訊息。
 - 這個固定長度 **≠ 金鑰長度**。金鑰各不相同:HMAC 是一把 secret、RSA 建議 ≥ 2048 位元、ECDSA 用 P-256 曲線。
 - **P-256 曲線**:ES256 用的橢圓曲線(別名 `secp256r1`／`prime256v1`),定義在一個 **256 位元的質數體**上,所以它的點與金鑰約 256 位元。ES256 剛好「SHA-256 ＋ P-256」兩個都是 256,是**巧合**。
 - 換數字就是換 SHA:384／512 版本(HS384、ES512…)用的是 SHA-384／SHA-512(摘要 384／512 位元)。
+
+
+### JWT 是 JWS 的一種：所以 JWT 不能用 b64:false
+
+```
+JWS（通用簽章格式，RFC 7515）
+├─ 一般 JWS：可以用 b64:false，此時只有 payload 不編碼
+└─ JWT（RFC 7519）：RFC 7797 第 7 節規定不得用 b64:false
+     → header、payload、signature 三段全部 Base64url 編碼
+```
+
+- RFC 7519：JWT 是把 claims 寫成 JSON 物件，編碼進 JWS 或 JWE 裡。每一段都是 base64url 編碼的值。
+- RFC 7797：更新 RFC 7519，規定 JWT 不得把 "b64" 設成 false。
+- JWS 是「整個簽過章的物件」的名稱（header、payload、signature 三段都算），不是只指簽章那一段。JWT 用 JWS 當外殼裝 claims，也可以改用 JWE。
+- 講 JWT 時 header 和 payload 一定要編碼。講一般 JWS 時 payload 才可以不編碼。
+- 來源：[RFC 7519](https://rfc-editor.org/rfc/rfc7519)、[RFC 7797](https://www.rfc-editor.org/rfc/rfc7797.html)，2026-11-16 查證。
+
+### b64:false 只影響 payload（RFC 7797）
+
+| | 一般 JWS | `b64: false` |
+|---|---|---|
+| header | Base64url 編碼 | Base64url 編碼（不變） |
+| payload | Base64url 編碼 | **不編碼，直接放原文** |
+| signature | Base64url 編碼 | Base64url 編碼（不變） |
+
+- `b64` 的意思是「payload 要不要做 base64」，所以只影響 payload。
+- header 一定要編碼，因為 `b64: false` 這個設定本身就寫在 header 裡，而且受到簽章保護。
+- signature 一律編碼，因為它是 32 bytes 的二進位資料，不編碼就放不進文字格式的 token。
+- JWT 不能用這個選項，它只開放給一般 JWS（RFC 7797 更新了 RFC 7519）。
 
 ## 二、嚴謹性排序（高到低）
 

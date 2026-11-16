@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>grep-options</title>
+<style>
+:root{--bg:#fbfaf7;--card:#fff;--ink:#23303b;--muted:#6b7b88;--line:#e4e8ec;--accent:#3f6f8f;--soft:#eaf2f7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);line-height:1.75;font-family:"Noto Sans TC","Microsoft JhengHei",-apple-system,"Segoe UI",sans-serif;font-size:16.5px}
+.wrap{max-width:820px;margin:0 auto;padding:32px 18px 80px}
+header{background:linear-gradient(135deg,#eef4f8,#f8f4ee);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin-bottom:22px}
+h1{margin:0 0 10px;font-size:1.7rem;font-family:"Noto Serif TC",Georgia,serif}
+.pill{display:inline-block;background:var(--soft);color:var(--accent);border:1px solid #d5e3ec;border-radius:999px;padding:2px 10px;font-size:.78rem;margin:0 6px 6px 0}
+.meta{font-size:.85rem;color:var(--muted)}.meta a{color:var(--accent);margin-right:12px}
+main{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 26px 24px}
+h2{border-left:5px solid var(--accent);padding-left:10px;margin-top:30px}h3{color:#38566b}
+mark{border-radius:3px;padding:0 2px}
+pre{background:#1f2933;color:#e6edf3;padding:14px;border-radius:10px;overflow-x:auto;line-height:1.5}
+code{font-family:Consolas,"Fira Code",monospace;font-size:.92em}p code,li code,td code{background:#f0f3f6;padding:1px 5px;border-radius:4px}pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.95rem}th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}tbody tr:nth-child(even){background:#f7f9fb}th{background:var(--soft)}
+blockquote{border-left:4px solid #e0b84c;background:#fff9e6;margin:12px 0;padding:6px 14px;border-radius:0 8px 8px 0}
+.u,.g{display:inline-block;border-radius:6px;padding:0 8px;font-size:.8rem;color:#fff}.u{background:#4a7c59}.g{background:#5b6bb5}
+.pt{cursor:pointer}.pt.off .c{filter:blur(7px);user-select:none}
+img{max-width:100%}footer{text-align:center;color:var(--muted);font-size:.82rem;margin-top:26px}
+</style></head><body><div class="wrap">
+<header><h1>grep-options</h1><div></div><div class="meta">更新 　</div></header>
+<main><h2>顯示上下文行數</h2>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>說明</th>
+<th>範例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-B n</code></td>
+<td>顯示匹配行<strong>之前</strong> n 行 (Before)</td>
+<td><code>grep -B5 "error" file.txt</code></td>
+</tr>
+<tr>
+<td><code>-A n</code></td>
+<td>顯示匹配行<strong>之後</strong> n 行 (After)</td>
+<td><code>grep -A5 "error" file.txt</code></td>
+</tr>
+<tr>
+<td><code>-C n</code></td>
+<td>顯示匹配行<strong>前後各</strong> n 行 (Context)</td>
+<td><code>grep -C5 "error" file.txt</code></td>
+</tr>
+</tbody>
+</table>
+<h2>範例</h2>
+<pre><code class="language-bash"># 找 &quot;error&quot; 並顯示前 20 行
+grep -B20 &quot;error&quot; log.txt
+
+# 找 &quot;error&quot; 並顯示後 10 行
+grep -A10 &quot;error&quot; log.txt
+
+# 找 &quot;error&quot; 並顯示前後各 5 行
+grep -C5 &quot;error&quot; log.txt
+
+# 組合使用：前 3 行，後 5 行
+grep -B3 -A5 &quot;error&quot; log.txt
+</code></pre>
+<h2>記憶方式</h2>
+<ul>
+<li><strong>B</strong> = Before（之前）</li>
+<li><strong>A</strong> = After（之後）</li>
+<li><strong>C</strong> = Context（上下文）</li>
+</ul>
+<h2>其他常用選項（含縮寫展開）</h2>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>縮寫展開</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-n</code></td>
+<td>line <strong>n</strong>umber</td>
+<td>顯示行號</td>
+</tr>
+<tr>
+<td><code>-i</code></td>
+<td><strong>i</strong>gnore case</td>
+<td>忽略大小寫（"rag" 也匹配 "RAG"）</td>
+</tr>
+<tr>
+<td><code>-r</code></td>
+<td><strong>r</strong>ecursive</td>
+<td>遞迴搜尋目錄底下所有檔案</td>
+</tr>
+<tr>
+<td><code>-l</code></td>
+<td>files with matches (<strong>l</strong>ist)</td>
+<td>只顯示有匹配的檔名（不顯示內容）</td>
+</tr>
+<tr>
+<td><code>-c</code></td>
+<td><strong>c</strong>ount</td>
+<td>只顯示匹配數量</td>
+</tr>
+<tr>
+<td><code>-v</code></td>
+<td>in<strong>v</strong>ert match</td>
+<td>反向匹配（不含此模式的行）</td>
+</tr>
+<tr>
+<td><code>-E</code></td>
+<td><strong>E</strong>xtended regex</td>
+<td>啟用延伸正規表達式（<code>\|</code>、<code>+</code>、<code>?</code>、<code>()</code> 等符號生效）</td>
+</tr>
+<tr>
+<td><code>-w</code></td>
+<td><strong>w</strong>hole word</td>
+<td>只匹配完整單字（"cat" 不會匹配 "category"）</td>
+</tr>
+<tr>
+<td><code>-o</code></td>
+<td><strong>o</strong>nly matching</td>
+<td>只印出匹配的部分（不印整行）</td>
+</tr>
+</tbody>
+</table>
+<h2>⚠️ <code>-E</code> 的重要意義</h2>
+<p>沒 <code>-E</code> 時，正則的「進階」符號（<code>|</code>、<code>+</code>、<code>?</code>、<code>()</code>）會被當成<strong>字面字元</strong>：</p>
+<pre><code class="language-bash">grep &quot;rag|RAG&quot; file.txt          # 找包含 &quot;rag|RAG&quot; 字串（含 | 字元）的行 → 通常找不到
+grep -E &quot;rag|RAG&quot; file.txt       # 把 | 當「或」運算子 → 找 &quot;rag&quot; 或 &quot;RAG&quot;
+</code></pre>
+<h2>⚠️ <code>-i</code> 的重要意義（容易跟 sed 搞混！）</h2>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th><code>-i</code> 意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>grep</strong></td>
+<td><strong>i</strong>gnore case（忽略大小寫）</td>
+</tr>
+<tr>
+<td><strong>sed</strong></td>
+<td><strong>i</strong>n-place（直接改原檔案）</td>
+</tr>
+</tbody>
+</table>
+<p>→ <strong>同一個 <code>-i</code> 在不同指令意思完全不同</strong>，看到 <code>-i</code> 要先想「這是什麼指令的」。</p>
+<h2>一句話速記</h2>
+<ul>
+<li><code>-i</code> = ignore case（grep）/ in-place（sed）</li>
+<li><code>-E</code> = Extended regex（讓 <code>|</code>、<code>+</code> 等生效）</li>
+<li><code>-r</code> = recursive</li>
+<li><code>-v</code> = invert（反向）</li>
+<li><code>-l</code> = list filenames only</li>
+<li><code>-n</code> = line number</li>
+<li><code>-c</code> = count</li>
+</ul>
+<h2>實用範例</h2>
+<pre><code class="language-bash"># 不分大小寫找 &quot;rag&quot; 或 &quot;RAG&quot;（其實 -i 後面只寫一個就夠）
+grep -iE &quot;rag|RAG&quot; file.txt
+grep -i &quot;rag&quot; file.txt              # 等價
+
+# 遞迴搜尋目錄底下所有 .md 檔，找含 &quot;TODO&quot; 的行
+grep -rn &quot;TODO&quot; --include=&quot;*.md&quot; .
+
+# 反向：印出「不」含 &quot;DEBUG&quot; 的行
+grep -v &quot;DEBUG&quot; log.txt
+
+# 只印檔名（不印內容），找哪些檔案含 &quot;secret&quot;
+grep -l &quot;secret&quot; *.txt
+
+# 只印匹配數量（不印內容）
+grep -c &quot;error&quot; log.txt
+</code></pre>
+<h2>補充（Gemini 2026-11-15）：grep 不是 PowerShell 專用</h2>
+<p class="pt" title="點一下隱藏／顯示"><strong>a.</strong><span class="c"> <code>grep</code> 原本是 Unix／Linux 的文字搜尋工具，不是 PowerShell 專用。Windows 上可透過 Git Bash 或 WSL 使用；PowerShell 內建的對應工具是 <code>Select-String</code>。</span></p>
+<p class="pt" title="點一下隱藏／顯示"><strong>b.</strong><span class="c"> 使用者貼了一段（截圖中的）指令，用 <code>grep</code> 分別計算 Markdown 檔中含特定語法的檔案數量（前端內容、網路連結、圖片）並顯示各類別統計。⚠️ 存疑：指令原文只在截圖中，Gemini 的描述偏籠統，未逐段拆解，要確認細節請對照原指令與上方「實用範例」的 <code>-r</code>、<code>-l</code>、<code>-c</code> 選項。</span></p>
+<p>來源：<a href="https://gemini.google.com/app/8bd8722fb47887c4">Gemini 對話「解釋指令含義」</a>（擷取於 2026-11-15）；GNU grep 手冊 https://www.gnu.org/software/grep/manual/grep.html（本次未重新抓取）；PowerShell Select-String https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/select-string（本次未重新抓取）。</p></main>
+<footer>由 Gemini 對話自動整理 · 更新於 （點重點段落可模糊／顯示，方便自測）</footer></div>
+<script>document.querySelectorAll('.pt').forEach(function(p){p.addEventListener('click',function(){p.classList.toggle('off')})});</script>
+</body></html>

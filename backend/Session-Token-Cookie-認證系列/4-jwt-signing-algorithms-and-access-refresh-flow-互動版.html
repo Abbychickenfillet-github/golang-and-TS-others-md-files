@@ -193,6 +193,46 @@ message = ASCII( base64url(UTF8(header)) + "." ) + payload原文
 <span class="cmt">// 4. digest 和 MAC 的差別</span>
 digest = SHA-256(message)                <span class="cmt">// 沒有金鑰，誰都算得出來</span>
 MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有持有 secret 的人算得出來</span></code></pre>
+<h3>JWT 是 JWS 的一種：所以 JWT 不能用 b64:false</h3>
+<div class="diagram">
+<svg style="width:100%;height:auto;display:block" viewBox="0 0 1000 250" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans TC',sans-serif" font-size="13">
+<rect x="10" y="10" width="980" height="230" rx="12" fill="#eaf2f7" stroke="#3f6f8f"/>
+<text x="30" y="38" font-size="15" font-weight="700" fill="#24455c">JWS（JSON Web Signature，通用的簽章格式，RFC 7515）</text>
+<text x="30" y="60" font-size="12" fill="#24455c">什麼資料都能簽，例如開放銀行的 API 請求</text>
+<rect x="30" y="78" width="450" height="145" rx="10" fill="#fff" stroke="#3f6f8f"/>
+<text x="50" y="104" font-size="14" font-weight="700" fill="#1d2b36">一般 JWS</text>
+<text x="50" y="130" fill="#2f6b43">可以用 b64:false（RFC 7797）</text>
+<text x="50" y="154">設成 false 時：只有 payload 不編碼</text>
+<text x="50" y="178">header、signature 照樣 Base64url 編碼</text>
+<rect x="510" y="78" width="460" height="145" rx="10" fill="#FFF3A3" stroke="#c9b84a"/>
+<text x="530" y="104" font-size="14" font-weight="700" fill="#1d2b36">JWT（JSON Web Token，RFC 7519）</text>
+<text x="530" y="128" font-size="12">把 claims（userId、exp…）當 payload 裝進 JWS 的用法</text>
+<text x="530" y="154" fill="#a3203f" font-weight="700">RFC 7797 第 7 節：JWT 不得使用 b64:false</text>
+<text x="530" y="178">→ header、payload、signature 三段</text>
+<text x="530" y="200">　全部 Base64url 編碼，沒有例外</text>
+</svg>
+<div class="cap">外框包內框＝父子關係：JWT 是 JWS 裡面的一種用法，不是另一套格式</div>
+</div>
+<ul>
+<li>RFC 7519 對 JWT 的定義：把 claims 寫成 JSON 物件，<b>編碼進 JWS 或 JWE 裡</b>。JWT 一律使用 JWS 或 JWE 的 Compact Serialization，每一段都是 base64url 編碼的值。</li>
+<li>RFC 7797 摘要與第 7 節：更新 RFC 7519，規定 <mark class="hl hl-warn" tabindex="0">JWT 不得把 "b64" 設成 false</mark>，理由是互通性。</li>
+<li><b>JWS 是「整個簽過章的物件」的名稱</b>，不是只指第 3 段簽章。JWS 包含 header、payload、signature 三段。所以「JWT 是 JWS 的一種」的意思是：JWT 用 JWS 當外殼來裝 claims，不是說 token 等於簽章。JWT 也可以改用 JWE 當外殼。</li>
+<li>所以兩句話都成立：講 <b>JWT</b> 時，header 和 payload 一定要編碼。講<b>一般 JWS</b> 時，payload 才可以選擇不編碼。</li>
+</ul>
+<p class="plain">📖 來源：<a href="https://rfc-editor.org/rfc/rfc7519">RFC 7519 — JWT</a>（datatracker 標註 Updated by RFC 8725、RFC 7797）、<a href="https://www.rfc-editor.org/rfc/rfc7797.html">RFC 7797 — JWS Unencoded Payload Option</a>，2026-11-16 查證。</p>
+<h3>b64:false 只影響 payload</h3>
+<table>
+<tr><th></th><th>一般 JWS</th><th><code>b64: false</code></th></tr>
+<tr><td>header</td><td>Base64url 編碼</td><td>Base64url 編碼（不變）</td></tr>
+<tr><td>payload</td><td>Base64url 編碼</td><td><b>不編碼，直接放原文</b></td></tr>
+<tr><td>signature</td><td>Base64url 編碼</td><td>Base64url 編碼（不變）</td></tr>
+</table>
+<ul>
+<li><code>b64</code> 的意思是「payload 要不要做 base64」，所以只影響 payload。</li>
+<li>header 一定要編碼，因為 <code>b64: false</code> 這個設定本身就寫在 header 裡，而且受到簽章保護。</li>
+<li>signature 一律編碼，因為它是 32 bytes 的二進位資料，不編碼就放不進文字格式的 token。</li>
+<li><mark class="hl hl-warn" tabindex="0">JWT 不能用這個選項</mark>，它只開放給一般 JWS（RFC 7797 更新了 RFC 7519）。</li>
+</ul>
 <p class="plain"><b>白話：</b>第 1 組是發 token。第 2 組是驗 token，做法就是用同一把 secret 重算一次，再跟第 3 段比對。第 3 組是 payload 不編碼的特例。第 4 組說明 MAC 等於「加了金鑰的 digest」。HMAC 本身怎麼算見第 4 節。<br>
 📖 來源：<a href="https://www.rfc-editor.org/rfc/rfc7515">RFC 7515 — JWS</a>、<a href="https://www.rfc-editor.org/info/rfc7797">RFC 7797 — Unencoded Payload Option</a>、<a href="https://www.rfc-editor.org/rfc/rfc2104">RFC 2104 — HMAC</a>，2026-11-15 查證。</p>
 </article>
@@ -232,11 +272,13 @@ MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有
 <li>為何先雜湊:簽章是對<b>固定長度的摘要</b>動作,不是對任意長度的原文。</li>
 </ul>
 <div class="ask"><b>你問:</b>摘要（digest）到底是什麼?</div>
-<p><mark class="hl hl-term" tabindex="0">摘要 ＝ 雜湊函式吐出的固定長度輸出,等於輸入的「指紋」</mark>。三個性質:</p>
+<p><mark class="hl hl-term" tabindex="0">摘要 ＝ 雜湊函式吐出的固定長度輸出,等於輸入的「指紋」</mark>。五個性質（密碼學上正式的安全要求是第 2、3、4 點，第 5 點雪崩效應是好的雜湊函式設計上應有的表現）:</p>
 <ol>
 <li><b>固定長度</b>:不管輸入多長,SHA-256 一律吐 256 位元。</li>
-<li><b>雪崩效應</b>:輸入改一個字,摘要整個大變,看不出關聯。</li>
-<li><b>不可逆</b>:由摘要幾乎不可能倒推回原文。</li>
+<li><b>原像阻抗性（preimage resistance）</b>:由摘要幾乎不可能倒推回原文（不可逆）。</li>
+<li><b>第二原像阻抗性（second-preimage resistance）</b>:給定一份原文,幾乎不可能找到另一份不同的原文算出同樣的摘要。</li>
+<li><b>抗碰撞性（collision resistance）</b>:連「任意挑兩份不同輸入讓摘要相同」在計算上都極難做到。</li>
+<li><b>雪崩效應（avalanche effect）</b>:輸入只要改動一個位元,摘要就會劇烈且不可預測地改變,看不出關聯。</li>
 </ol>
 <p class="plain"><b>補充:</b>ES256 剛好「SHA-256 ＋ P-256 曲線」兩個都 256,是<b>巧合</b>;換數字就是換 SHA（HS384 用 SHA-384…）。金鑰長度跟這個 256 無關（HMAC 一把 secret、RSA ≥ 2048 bit、ECDSA 用 P-256）。</p>
 </article>

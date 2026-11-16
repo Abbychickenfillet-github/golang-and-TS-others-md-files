@@ -32,11 +32,19 @@ img{border-radius:8px;border:1px solid var(--line);}
 <div class="wrap">
 <header class="note"><h1>檔案命名禁用字元與空格規則</h1><div class="pills"><span class="pill">#gemini</span><span class="pill">#檔案系統</span><span class="pill">#windows</span><span class="pill">#macos</span><span class="pill">#檔名</span></div><div class="meta">來源：Gemini · <a href="https://gemini.google.com/app/7336611289855c74" target="_blank">原始對話</a></div><div class="legend"><span><i style="background:#FFF3A3;color:oklch(0.22 0.03 260)"></i>核心重點</span><span><i style="background:#FF5582;color:oklch(0.22 0.03 260)"></i>警告</span><span><i style="background:#BBFABB;color:oklch(0.22 0.03 260)"></i>正解</span><span><i style="background:#ADCCFF;color:oklch(0.22 0.03 260)"></i>術語</span><span><i style="background:#FFB8EB;color:oklch(0.22 0.03 260)"></i>數據</span><span><i style="background:#D2B3FF;color:oklch(0.22 0.03 260)"></i>次要備註</span></div></header>
 <div class="toolbar"><button id="toggleAll" class="alt" onclick="window.__toggleAll()">遮住所有重點(自我考試)</button><span class="hint">點任一螢光標示可單獨遮住/顯示答案</span></div>
-<section class="card"><p>本篇重點 a–b，共 2 個</p>
-</section><section class="card"><h2>重點整理</h2>
+<section class="card"><h2>大綱</h2><ol><li><a href="#s-key">重點整理</a>：(a) 作業系統禁用字元、(b) 空格、(c) 作業系統允許不等於網址安全</li><li><a href="#s-conv">各對話來源</a></li><li><a href="#s-src">資料來源（含查證時間）</a></li></ol>
+</section><section class="card"><h2 id="s-key">重點整理</h2>
 <p>(a) <mark style="background: #FF5582A6;--c-l: oklch(0.22 0.03 260);--c-d: oklch(0.96 0.01 258);">Windows／macOS 等現代作業系統禁止用在檔名中的特殊字元</mark>：<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);"><code>\ / : * ? " &lt; &gt; |</code></mark> 這幾個符號，其中最容易被忽略的是<mark style="background: #FFB8EBA6;color: oklch(0.22 0.03 260);">結尾處的冒號 <code>:</code></mark>——實測案例中使用者一直找不到問題字元，最後才發現是檔名結尾藏了一個冒號，導致系統拒絕重新命名。</p>
 <p>(b) <mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">空格是允許的</mark>：只要不使用上述那組禁用符號，檔名中間留空格在 Windows 和 macOS 都能正常命名，不會被系統拒絕。</p>
-</section><section class="card src"><h2>各對話來源</h2>
+<p>(c) <mark style="background: #FF5582A6;">作業系統允許的字元，放進網址不一定安全</mark>：網址只允許一小組字元直接出現，其他字元都要經過<mark style="background: #ADCCFFA6;color: oklch(0.22 0.03 260);">百分比編碼（percent-encoding）</mark>，轉成 <code>%</code> 加兩位十六進位的形式。</p>
+<ol style="margin-left:1.2em">
+<li>可以直接出現的是 RFC 3986 的 unreserved 字元：<code>A-Z a-z 0-9 - . _ ~</code>。</li>
+<li>其他字元都要編碼，例如空格變成 <code>%20</code>，<code>^</code> 變成 <code>%5E</code>，中文先轉成 UTF-8 的 bytes，每個 byte 寫成一組 <code>%XX</code>（「與」變成 <code>%E8%88%87</code>）。</li>
+<li>實際案例（2026-11-15）：筆記檔名 <code>13-SemVer語意化版本-版本號的^與~怎麼看.html</code> 在 Obsidian 打得開，用 VS Code Live Server 開卻出現 <code>Cannot GET</code>。錯誤訊息裡的網址解碼後是「版本號的與~怎麼看」，<code>^</code> 在組網址的過程中被丟掉了，沒有被正確編碼成 <code>%5E</code>，伺服器因此去找一個不存在的檔名。<code>~</code> 屬於 unreserved 字元，所以留了下來。<br>Obsidian 打得開，是因為它直接讀硬碟上的檔案，不經過網址這一層。</li>
+<li>處理方式：把檔名改成 <code>13-SemVer語意化版本-版本號的caret與tilde怎麼看.html</code>（caret 是 <code>^</code> 的英文名稱，tilde 是 <code>~</code>）。</li>
+<li><mark style="background: #BBFABBA6;color: oklch(0.22 0.03 260);">之後要用 Live Server 或 GitHub Pages 開的檔名，只用英數字、<code>-</code>、<code>_</code> 和中文</mark>，避開 <code>^ # % &amp; + ?</code> 和空格這類在網址裡有特殊意義、或需要編碼的字元。</li>
+</ol>
+</section><section class="card src"><h2 id="s-conv">各對話來源</h2>
 <h3>檔案命名限制與資料庫查詢（2026-07-23）— https://gemini.google.com/app/7336611289855c74</h3>
 <p>使用者：（提供檔名重新命名失敗的錯誤截圖）為什麼不能重新命名？<br />
 Gemini：說明檔名含有作業系統不允許的特殊字元（如斜線、冒號），並指出截圖內容其實是資料庫查詢語法。</p>
@@ -44,7 +52,7 @@ Gemini：說明檔名含有作業系統不允許的特殊字元（如斜線、�
 Gemini：逐步排查後確認問題出在檔名結尾的冒號字元。</p>
 <p>使用者：那空格可以嗎？<br />
 Gemini：確認 Windows／macOS 檔名可包含空格，只要不使用 <code>\ / : * ? " &lt; &gt; |</code> 這組禁用字元即可。</p>
-</section><section class="card src"><h2>資料來源（含查證時間）</h2>
+</section><section class="card src"><h2 id="s-src">資料來源（含查證時間）</h2>
 <table>
 <thead>
 <tr>
@@ -58,6 +66,11 @@ Gemini：確認 Windows／macOS 檔名可包含空格，只要不使用 <code>\ 
 <td>對話原始出處</td>
 <td>https://gemini.google.com/app/7336611289855c74</td>
 <td>2026-07-23 查證</td>
+</tr>
+<tr>
+<td>RFC 3986 §2（百分比編碼與 unreserved 字元）</td>
+<td><a href="https://www.rfc-editor.org/rfc/rfc3986#section-2">https://www.rfc-editor.org/rfc/rfc3986#section-2</a></td>
+<td>2005-01 發布，2026 年仍是現行標準，2026-11-16 查證</td>
 </tr>
 <tr>
 <td>Windows 檔名限制字元官方說明</td>

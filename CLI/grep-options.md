@@ -95,3 +95,11 @@ grep -l "secret" *.txt
 # 只印匹配數量（不印內容）
 grep -c "error" log.txt
 ```
+
+## 補充（Gemini 2026-11-15）：grep 不是 PowerShell 專用
+
+**a.** `grep` 原本是 Unix／Linux 的文字搜尋工具，不是 PowerShell 專用。Windows 上可透過 Git Bash 或 WSL 使用；PowerShell 內建的對應工具是 `Select-String`。
+
+**b.** 使用者貼了一段（截圖中的）指令，用 `grep` 分別計算 Markdown 檔中含特定語法的檔案數量（前端內容、網路連結、圖片）並顯示各類別統計。⚠️ 存疑：指令原文只在截圖中，Gemini 的描述偏籠統，未逐段拆解，要確認細節請對照原指令與上方「實用範例」的 `-r`、`-l`、`-c` 選項。
+
+來源：[Gemini 對話「解釋指令含義」](https://gemini.google.com/app/8bd8722fb47887c4)（擷取於 2026-11-15）；GNU grep 手冊 https://www.gnu.org/software/grep/manual/grep.html（本次未重新抓取）；PowerShell Select-String https://learn.microsoft.com/powershell/module/microsoft.powershell.utility/select-string（本次未重新抓取）。

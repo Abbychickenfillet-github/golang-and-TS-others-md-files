@@ -9,12 +9,14 @@ sources:
   - https://gemini.google.com/app/287b2caf42deb314
   - https://gemini.google.com/app/fba7a832cdf298fe
   - https://gemini.google.com/app/b2a539467cfc9322
-updated: 2026-10-30
+  - https://gemini.google.com/app/5e31f473f93dbfee
+  - https://gemini.google.com/app/b6db47e361e8b160
+updated: 2026-11-15
 ---
 
 # Session 與 JWT：有狀態 vs 無狀態驗證、過期機制、Base64url
 
-> 本篇重點 a–p ，共 16 個。
+> 本篇重點 a–u ，共 21 個。
 > 前置概念見 [[1-Cookie-與-Session]]（Cookie 與 Session 基本運作）與 [[8-XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線]]（HttpOnly 為何能擋 XSS）。關聯原因：本篇是把前兩篇的 Session ID 放進「有狀態／無狀態」這條主軸上比較。
 
 ## 一張主軸：有狀態（Session）vs 無狀態（JWT）
@@ -75,7 +77,45 @@ updated: 2026-10-30
 
 **o.** JWT 確實會出現在網址中（Email 驗證連結、密碼重設連結、OAuth／OIDC 轉址、臨時下載連結），但即使它主要放在 Authorization Header ，採用 Base64url 也讓同一套編碼能同時用在 Header 與 URL 。
 
+> [!info] o-1. 什麼時候會用到 Base64url：token 為什麼會放進網址
+> 1. **Base64url 是為了網址傳輸設計的**：token 有時要夾在網址參數裡傳遞，用 Base64url 編碼可以確保它在路由或解析時不會因為特殊字元而壞掉。
+>     Base64url 是**換一套字母表**，而不是轉義：`+` 換成 `-`、`/` 換成 `_`、拿掉結尾的 `=`，編碼出來的字元都是網址可以直接出現的字元，所以放進網址時不需要再做百分比編碼。
+> 2. **為什麼 token 要放在網址**：有些情境下網址是唯一能帶資料的地方。
+>     - Email 驗證連結、重設密碼連結：使用者點下去時可能已經不在原本的登入狀態，或換了瀏覽器，沒有 cookie 可以帶，所以把 token 放進網址完成一次性的身分確認。
+>     - OAuth／OIDC 登入跳轉：瀏覽器跳回來時只能透過網址帶資料（`?code=…&state=…`）。
+>     - WebSocket、EventSource：瀏覽器原生 API 不能設 `Authorization` header。
+>     - 臨時下載連結：AWS S3 presigned URL。
+> 3. **重設密碼連結能放 token，靠的是「能收到這封信」，而不是「本來就有密碼」**：token 證明的是「你控制這個 email」。網址會留在瀏覽器紀錄、伺服器 log 與 `Referer` 裡，所以這類 token 要隨機且夠長、只能用一次、很快過期。很多系統用的是存在資料庫的隨機字串，不一定是 JWT。
+> 4. **Instagram 分享連結**：貼文網址 `/p/短碼/` 的字元集是 `A-Z a-z 0-9 - _`，跟 Base64url 相同，一般認為是把貼文數字 ID 換算成 64 進位字元。分享時帶的 `igsh=` 是分享識別碼，Instagram 沒有公開編碼方式，「記錄了分享人」屬於推測。
+
 **p.** ⚠️ 存疑／更正：Gemini 把「JWT 放在 URL query」講得像常態做法，沒有提到風險。Token 放在網址會進入瀏覽器歷史、伺服器 access log 與 Referer 標頭而外洩，一般建議 Access Token 放 Header 或 HttpOnly Cookie ，網址上只適合「單次、短效期」的連結。另外 OIDC 的 implicit flow（把 id_token 放在 # fragment 回傳）已不被建議，現行建議用 Authorization Code Flow 加 PKCE 。
+
+**q.** `create session` 譯成「建立工作階段」或「建立會話」，不要譯成「創造一個對話」。session 在後端指伺服器與客戶端之間的一段互動期間，不是 ChatGPT 那種聊天 Chat。情境對照：一般網路架構譯「建立工作階段」，登入認證譯「建立登入狀態」，資料庫或網路連線譯「建立連線」。
+
+**r.** 純 JWT 不含傳統的 Session ID。伺服器不在資料庫存狀態（Stateless），使用者身分、權限、過期時間都打包在 Header.Payload.Signature 裡，伺服器用密鑰驗簽章就能信任內容。常見混合用法：在 Payload 放 `jti`（JWT ID，token 識別碼）做黑名單，或搭配存在資料庫的 Refresh Token，此時 Refresh Token 的運作就很像 Session。
+
+**s.** 簽 JWT 用 EdDSA 時，header 正確寫法是 `{ alg: 'EdDSA' }`，沒有 `EdDSA256` 這個名稱。ES256、ES384、ES512 帶數字，是因為 ECDSA 可搭 P-256、P-384、P-521 多種曲線；EdDSA 在 RFC 8037 預設搭 Ed25519 曲線，演算法名稱就叫 `EdDSA`。
+
+**t.** 非對稱金鑰不是字串，也不是像 HS256 那樣直接傳 `'my-secret-key'`。流程是：PEM 文字（DER 二進位經 Base64 編碼、再加 `-----BEGIN ...-----` 頭尾）→ 用 jose 的 `importPKCS8`（私鑰）或 `importSPKI`（公鑰）轉成金鑰物件 → 交給 `.sign()` 或 `jwtVerify()`。私鑰常見格式是 PKCS#8，公鑰是 SPKI；舊版 RSA 私鑰標頭是 `BEGIN RSA PRIVATE KEY`（PKCS#1）。多行 PEM 放進 `.env` 時，換行要寫成 `\n` 或用引號包住多行。
+
+```javascript
+import { generateKeyPair, SignJWT, jwtVerify } from 'jose'
+
+// 1. 在記憶體產生 Ed25519（EdDSA）公私鑰對
+const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' })
+
+// 2. 用私鑰簽發 JWT（protected header 的 alg 寫 'EdDSA'）
+const jwt = await new SignJWT({ userId: 'user_123', role: 'engineer' })
+  .setProtectedHeader({ alg: 'EdDSA' })
+  .setIssuedAt()
+  .setExpirationTime('2h')
+  .sign(privateKey)
+
+// 3. 用公鑰驗證，並限定只接受 EdDSA
+const { payload } = await jwtVerify(jwt, publicKey, { algorithms: ['EdDSA'] })
+```
+
+**u.** ⚠️ 存疑／更正：(1) Gemini 說 `KeyLike` 可以是 JWK 物件，但 JWK 通常要先用 `importJWK` 轉成金鑰物件，且 jose 新版（v6）已移除 `KeyLike` 型別，改用 `CryptoKey`、`KeyObject`、`Uint8Array` 表示，實際型別請以你安裝版本的官方文件為準（本次未重新抓取）。(2) Gemini 示範的 PEM 內容（如 `MC4CAQAwBQYDK2VwBCIEIJ...`）是示意字串，不是可用金鑰，不能直接拿去驗證。
 
 ## 各對話來源（原文摘錄）
 
@@ -103,6 +143,18 @@ Gemini：不行。竄改 exp 會讓簽章失效，後端用密鑰重算簽章比
 
 Gemini：說明 Base64url 與標準 Base64 差異；並舉 Email 連結、OAuth／OIDC 轉址、臨時下載連結三種 JWT 出現在網址的情境。（整合進 m 、 n 、 o ，並於 p 標注存疑。）
 
+### Create Session 翻譯解析（2026-11-15 擷取） — https://gemini.google.com/app/5e31f473f93dbfee
+
+使用者：create session 可以翻譯成創造一個對話？→ 這邊 jwt 也是包含 session ID？（使用者開著 YouTube 影片「Session Vs JWT: The Differences You May Not Know!」）
+
+Gemini：建議譯「建立工作階段／會話」，不是「創造一個對話」；純 JWT 無傳統 Session ID，混用時用 jti 或 Refresh Token。（整合進 q、r。）
+
+### JWT 演算法設定（2026-11-15 擷取） — https://gemini.google.com/app/b6db47e361e8b160
+
+使用者：setProtectedHeader 應寫 EdDSA256 還是有縮寫？cryptoKey 或 KeyLike 也是字串嗎？長怎樣、用什麼編碼？→ 示範 Ed25519 → PEM 長怎樣
+
+Gemini：正確寫法 `alg: 'EdDSA'`；金鑰是 PEM（DER 經 Base64）轉成的物件，示範 generateKeyPair 簽發與驗證。（整合進 s、t、u，並於 u 標注存疑。）
+
 ## 練習題（LeetCode／NeetCode）
 
 此主題為後端驗證概念，無直接對應的演算法題。相關基礎可練習雜湊表：[1. Two Sum](https://leetcode.com/problems/two-sum/) ，因為 session store 的本質就是 key（Session ID）對 value（使用者狀態）的查表。
@@ -111,8 +163,10 @@ Gemini：說明 Base64url 與標準 Base64 差異；並舉 Email 連結、OAuth�
 
 | 主題 | 連結 | 版本／時間 |
 | --- | --- | --- |
-| Gemini 原始對話（4 則） | 見 frontmatter sources | 對話擷取於 2026-10-30 |
+| Gemini 原始對話（6 則） | 見 frontmatter sources | 對話擷取於 2026-10-30 |
 | OWASP Session Management Cheat Sheet（對話中使用者開啟並請 Gemini 翻譯的頁面） | https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html | 官方持續更新，本次未重新抓取，僅依對話內容整理，請以最新版為準 |
 | RFC 7519 JSON Web Token | https://www.rfc-editor.org/rfc/rfc7519 | 2015-05 發布 |
 | RFC 4648 §5 Base64url | https://www.rfc-editor.org/rfc/rfc4648#section-5 | 2006-10 發布 |
 | MDN Set-Cookie（Expires、Max-Age） | https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie | MDN ，本次未重新抓取 |
+| jose 官方文件（generateKeyPair、importPKCS8、importSPKI、金鑰型別） | https://github.com/panva/jose | 本次未重新抓取，版本差異請查你安裝版本的文件 |
+| RFC 8037 EdDSA 於 JOSE | https://www.rfc-editor.org/rfc/rfc8037 | 2017-01 發布 |
