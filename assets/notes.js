@@ -7,8 +7,38 @@
    ========================================================================== */
 (function () {
   'use strict';
-  if (window.__notesInit) return;          // 防止同頁重複初始化
+  // 防止同一頁重複初始化（例如頁面自己引入一次、網站 layout 又引入一次）：
+  //   第一次執行時旗標還是 undefined，條件不成立，往下走並把旗標設成 true；
+  //   第二次執行時旗標已經是 true，直接 return 結束，所以不是無條件執行，而是「只有第一次會執行」
+  if (window.__notesInit) return;
   window.__notesInit = true;
+
+  /* ---------- 0. 自動載入共用元件：表格螢光筆 compare-table.js、單字卡片 term-cards.js、連連看 link-lines.js ----------
+     做法：找到 notes.js 自己的 <script> 標籤 → 讀它的網址 → 把網址最後的檔名換成元件的檔名 →
+           建立新的 <script> 放進 <head>，瀏覽器就會下載並執行那個元件。
+     元件自己會在執行時用 document.querySelectorAll 找頁面上的表格、卡片；這裡只負責「把檔案載進來」。 */
+  (function loadSharedComponents() {   // 立即執行函式（IIFE）：包起來讓 me、s 這些變數不會變成全域變數
+    // document.currentScript：瀏覽器「正在執行的這支 <script> 元素」，也就是 notes.js 自己的標籤；
+    // 只有腳本最外層、正在執行的當下拿得到，等到 DOMContentLoaded 之後再讀會是 null，所以放在檔案最前面
+    var me = document.currentScript;
+    if (!me || !me.src) return;         // 拿不到（例如 notes.js 被直接貼成內嵌腳本，沒有 src）就不載，避免組出錯的網址
+    // 每一組是 [元件檔名, 該元件初始化後在 window 上設定的旗標名稱]
+    //   pair[0]：元件檔名，用來組出元件網址
+    //   pair[1]：旗標名稱，window[pair[1]] 為 true 代表頁面已經自己載入過這個元件，就不重複載
+    [['compare-table.js', '__compareTableInit'], ['term-cards.js', '__termCardsInit'], ['link-lines.js', '__linkLinesInit']].forEach(function (pair) {
+      if (window[pair[1]]) return;      // 這裡的 return 只是跳過這一組，繼續處理下一組
+      var s = document.createElement('script');
+      // String.prototype.replace(要找的東西, 換成什麼)：
+      //   第 1 個參數：正規表達式 /notes\.js(\?.*)?$/
+      //       notes\.js   比對字面上的「notes.js」（\. 代表真的句點，不是「任意字元」）
+      //       (\?.*)?     後面可以接一段查詢字串，例如 ?v=3，也可以沒有（最後的 ? 表示可有可無）
+      //       $           必須在網址的最尾端，避免誤換到資料夾名稱裡的 notes.js
+      //   第 2 個參數：pair[0]，例如 'compare-table.js'，用來取代比對到的那一段
+      //   結果：https://…/assets/notes.js 變成 https://…/assets/compare-table.js，資料夾路徑不變
+      s.src = me.src.replace(/notes\.js(\?.*)?$/, pair[0]);
+      document.head.appendChild(s);      // 放進 <head>，瀏覽器開始下載並執行
+    });
+  })();
 
   function ready(fn) {
     if (document.readyState !== 'loading') fn();

@@ -29,14 +29,14 @@
 | ES256 / ES384 / ES512 | ECDSA（P-256 / P-384 / P-521） | 非對稱 | 金鑰與簽章都很短 |
 | EdDSA | Ed25519 | 非對稱 | 簽章是確定性的，沒有 nonce 風險 |
 
-### 為什麼三個都是「256」?——那是 SHA-256,它們共用的雜湊
+### 為什麼三個都是「256」?——那是 SHA-256，它們共用的雜湊
 
-- `256` **不是金鑰長度**,而是**雜湊函式 SHA-256**(Secure Hash Algorithm,安全雜湊演算法)——這是 **HS256、RS256、ES256 三個都使用的雜湊函式**。
-- 三個都**先用 SHA-256** 把任意長度的訊息壓成一個**固定 256 位元(256 ÷ 8 ＝ 32 bytes)的摘要**,再用各自的方式(HMAC／RSA／ECDSA)簽那個摘要。
+- `256` **不是金鑰長度**，而是**雜湊函式 SHA-256**(Secure Hash Algorithm，安全雜湊演算法)——這是 **HS256、RS256、ES256 三個都使用的雜湊函式**。
+- 三個都**先用 SHA-256** 把任意長度的訊息壓成一個**固定 256 位元(256 ÷ 8 ＝ 32 bytes)的摘要**，再用各自的方式(HMAC／RSA／ECDSA)簽那個摘要。
 - 密碼學雜湊的安全要求：原像阻抗性（不可逆）、第二原像阻抗性、抗碰撞性。另外好的雜湊函式有雪崩效應：輸入改一個位元，輸出就劇烈改變。
-- 為什麼要先雜湊:簽章/HMAC 是對**固定長度的摘要**動作,不是對原始(任意長度)的訊息。
-- 這個固定長度 **≠ 金鑰長度**。金鑰各不相同:HMAC 是一把 secret、RSA 建議 ≥ 2048 位元、ECDSA 用 P-256 曲線。
-- **P-256 曲線**:ES256 用的橢圓曲線(別名 `secp256r1`／`prime256v1`),定義在一個 **256 位元的質數體**上,所以它的點與金鑰約 256 位元。ES256 剛好「SHA-256 ＋ P-256」兩個都是 256,是**巧合**。
+- 為什麼要先雜湊：簽章/HMAC 是對**固定長度的摘要**動作，不是對原始(任意長度)的訊息。
+- 這個固定長度 **≠ 金鑰長度**。金鑰各不相同：HMAC 是一把 secret、RSA 建議 ≥ 2048 位元、ECDSA 用 P-256 曲線。
+- **P-256 曲線**:ES256 用的橢圓曲線(別名 `secp256r1`／`prime256v1`)，定義在一個 **256 位元的質數體**上，所以它的點與金鑰約 256 位元。ES256 剛好「SHA-256 ＋ P-256」兩個都是 256，是**巧合**。
 - 換數字就是換 SHA:384／512 版本(HS384、ES512…)用的是 SHA-384／SHA-512(摘要 384／512 位元)。
 
 
@@ -65,8 +65,17 @@ JWS（通用簽章格式，RFC 7515）
 
 - `b64` 的意思是「payload 要不要做 base64」，所以只影響 payload。
 - header 一定要編碼，因為 `b64: false` 這個設定本身就寫在 header 裡，而且受到簽章保護。
-- signature 一律編碼，因為它是 32 bytes 的二進位資料，不編碼就放不進文字格式的 token。
+- signature 一律編碼，因為它是二進位資料（以 HS256 為例是 32 bytes），不編碼就放不進文字格式的 token。
+    HS256 的簽章就是 HMAC-SHA256 的輸出，SHA-256 輸出 256 bits＝32 bytes（[RFC 7518 §3.2](https://www.rfc-editor.org/rfc/rfc7518#section-3.2)、[FIPS 180-4](https://csrc.nist.gov/pubs/fips/180-4/upd1/final)）。RS256 用 2048-bit 金鑰時是 256 bytes，ES256 是 64 bytes。
 - JWT 不能用這個選項，它只開放給一般 JWS（RFC 7797 更新了 RFC 7519）。
+
+白話：用 secret 把 header 和 payload 一起算出一段驗證碼，接在 token 的最後面當第 3 段。
+妳問：那為什麼又說「payload 加上了防竄改的簽名」？
+那是口語上的簡化說法，意思是「token 在 payload 後面多接了一段簽章，這段簽章保護 payload」，而不是把簽章塞進 payload 裡。payload 本身還是原本的明文，只做了 Base64url 編碼。
+
+JWS 允許不編碼，主要是為了支援：
+- 分離式簽章（detached payload）
+- 傳輸效率
 
 ## 二、嚴謹性排序（高到低）
 
@@ -210,12 +219,12 @@ sequenceDiagram
 
 ## jose 套件 API 詳解(next-one 實際用的)
 
-> jose 是維護中的 JWT／JWS／JWE 函式庫,Edge runtime 也能跑。實際原始碼在 `node_modules/jose/dist/node/cjs/`。
-> 找檔法:`node -e "console.log(require.resolve('jose'))"`,或看 `node_modules/jose/package.json` 的 `exports`。
+> jose 是維護中的 JWT／JWS／JWE 函式庫，Edge runtime 也能跑。實際原始碼在 `node_modules/jose/dist/node/cjs/`。
+> 找檔法：`node -e "console.log(require.resolve('jose'))"`，或看 `node_modules/jose/package.json` 的 `exports`。
 
 ### SignJWT —— 簽章、產生 JWT
 
-原始碼:`node_modules/jose/dist/node/cjs/jwt/sign.js`(繼承 `ProduceJWT`)。
+原始碼：`node_modules/jose/dist/node/cjs/jwt/sign.js`(繼承 `ProduceJWT`)。
 
 ```js
 const token = await new SignJWT(payload)      // payload：要放進 token 的物件,如 { userId }
@@ -224,38 +233,43 @@ const token = await new SignJWT(payload)      // payload：要放進 token 的�
   .setExpirationTime('7d')                    // 加 exp(過期)
   .sign(key);                                 // 用金鑰簽章,回傳字串 token
 ```
-白話:它是**建造者模式(builder)**,一路 `.setXxx()` 設定、最後 `.sign()` 產出。各方法收什麼:
+白話：它是**建造者模式(builder)**，一路 `.setXxx()` 設定、最後 `.sign()` 產出。各方法收什麼：
 
-a. `new SignJWT(payload)`:收一個**物件**當 payload(放進 token 的資料)。
-b. `.setProtectedHeader({ alg })`:設定 header,**`alg` 必填**(如 `HS256`);回傳 this 所以可以鏈。
-c. `.setIssuedAt(iat?)`:設 `iat`,不給參數就用現在時間。
-d. `.setExpirationTime(exp)`:設 `exp`,收**數字(秒)或字串**(`'7d'`、`'2h'`、`'30m'`)。
-e. `.setNotBefore()` / `.setSubject()` / `.setIssuer()` / `.setAudience()`:設 `nbf` / `sub` / `iss` / `aud`(選用)。
-f. `.sign(key, options?)`:收**金鑰**,回傳 `Promise<string>`(compact JWS 字串)。HS256 的 key 是 `new TextEncoder().encode(secret)` 產的 `Uint8Array`。
+a. `new SignJWT(payload)`：收一個**物件**當 payload(放進 token 的資料)。
+b. `.setProtectedHeader({ alg })`：設定 header,**`alg` 必填**(如 `HS256`);回傳 this 所以可以鏈。
+c. `.setIssuedAt(iat?)`：設 `iat`，不給參數就用現在時間。
+d. `.setExpirationTime(exp)`：設 `exp`，收**數字(秒)或字串**(`'7d'`、`'2h'`、`'30m'`)。
+e. `.setNotBefore()` / `.setSubject()` / `.setIssuer()` / `.setAudience()`：設 `nbf` / `sub` / `iss` / `aud`(選用)。
+f. `.sign(key, options?)`：收**金鑰**，回傳 `Promise<string>`(compact JWS 字串)。HS256 的 key 是 `new TextEncoder().encode(secret)` 產的 `Uint8Array`。
 
-> 原始碼裡有一段檢查:若 header 設了 `crit:['b64']` 且 `b64:false`,直接丟錯 `JWTs MUST NOT use unencoded payload`——呼應前面 RFC 7797,**JWT 規定不准用未編碼 payload**。
+> 原始碼裡有一段檢查：若 header 設了 `crit:['b64']` 且 `b64:false`，直接丟錯 `JWTs MUST NOT use unencoded payload`——呼應前面 RFC 7797,**JWT 規定不准用未編碼 payload**。
 
 ### jwtVerify —— 驗章、檢查 JWT
 
-原始碼:`.../jwt/verify.js`。
+原始碼：`.../jwt/verify.js`。
 
 ```js
 const { payload, protectedHeader } = await jwtVerify(token, key, {
   algorithms: ['HS256'],   // 白名單：只接受 HS256,擋掉 alg 混淆與 alg:none 攻擊
 });
 ```
-白話:它**不是建造者**,是一個直接呼叫的函式,收三個參數:
+白話：它**不是建造者**，是一個直接呼叫的函式，收三個參數：
 
-a. `token`:要驗的 JWT 字串。
-b. `key`:驗章金鑰(HS256 跟簽章同一把 secret)。
+a. `token`：要驗的 JWT 字串。
+b. `key`：驗章金鑰(HS256 跟簽章同一把 secret)。
 c. `options`(選用但建議設):`algorithms`(**強烈建議的白名單**)、`issuer`、`audience`、`clockTolerance`(容許時鐘誤差秒數)等。
 
-回傳:`{ payload, protectedHeader }`。**驗章失敗(簽章不符、過期、alg 不在白名單)會丟例外**,所以要 `try/catch`。
-注意:jwtVerify 做的是**驗簽章 ＋ 檢查 exp／nbf**,**不是解密**(payload 本來就讀得到)。
+回傳：`{ payload, protectedHeader }`。**驗章失敗(簽章不符、過期、alg 不在白名單)會丟例外**，所以要 `try/catch`。
+注意：jwtVerify 做的是**驗簽章 ＋ 檢查 exp／nbf**,**不是解密**(payload 本來就讀得到)。
+
+> [!note] 簽章怎麼保護 payload
+> 整個 token 的保護力，來自別人無法複製出正確的 signature。
+> 	signature 是伺服器用 secret 對 header 與 payload 算出來的。secret 本身不在 signature 裡，也無法從 signature 反推回 secret。
+> payload 其實是裸的：只做 Base64url 編碼，任何人都看得到內容，只是改了就會被發現。
 
 ### EncryptJWT／jwtDecrypt —— 真的加密(JWE)
 
-若要連內容都看不到,用這組(對應下面 AES-256-GCM):
+若要連內容都看不到，用這組(對應下面 AES-256-GCM):
 
 ```js
 const token = await new EncryptJWT(payload)
@@ -263,18 +277,18 @@ const token = await new EncryptJWT(payload)
   .encrypt(key);                                        // key 需 32 bytes
 const { payload } = await jwtDecrypt(token, key);       // 要金鑰才解得回來
 ```
-白話:`EncryptJWT().encrypt()` 產出的是**加密的 JWE**,payload 被藏起來;`jwtDecrypt` 才解得回。你專案的 iron-session 走的就是這種「加密」路線(不是 SignJWT 那種簽章)。
+白話：`EncryptJWT().encrypt()` 產出的是**加密的 JWE**,payload 被藏起來;`jwtDecrypt` 才解得回。你專案的 iron-session 走的就是這種「加密」路線(不是 SignJWT 那種簽章)。
 
 ## AES-256-GCM 是什麼
 
-a. **AES ＝ Advanced Encryption Standard(進階加密標準)**,目前最通用的**對稱**加密演算法。
-b. **是對稱,不是非對稱**:加密、解密用**同一把金鑰**。(非對稱是 RSA、ECDSA 那種公私鑰一對。)
-c. **256**:金鑰長度 256 位元。
-d. **GCM ＝ Galois／Counter Mode**:一種 **AEAD(Authenticated Encryption with Associated Data,帶認證的加密)** 模式——一次做到**加密(藏資料)＋ 完整性驗證(防竄改)**兩件事,不用再外掛 HMAC。
-e. 快:現代 CPU 有 **AES-NI(AES New Instructions)** 硬體指令直接加速。
-f. 用在:JWE(上面 `enc: 'A256GCM'`)。iron-session 用的是另一組:**AES-256-CBC 加密＋HMAC-SHA256 簽章**,兩步合起來達到跟 GCM 一樣的效果。
+a. **AES ＝ Advanced Encryption Standard(進階加密標準)**，目前最通用的**對稱**加密演算法。
+b. **是對稱，不是非對稱**：加密、解密用**同一把金鑰**。(非對稱是 RSA、ECDSA 那種公私鑰一對。)
+c. **256**：金鑰長度 256 位元。
+d. **GCM ＝ Galois／Counter Mode**：一種 **AEAD(Authenticated Encryption with Associated Data，帶認證的加密)** 模式——一次做到**加密(藏資料)＋ 完整性驗證(防竄改)**兩件事，不用再外掛 HMAC。
+e. 快：現代 CPU 有 **AES-NI(AES New Instructions)** 硬體指令直接加速。
+f. 用在：JWE(上面 `enc: 'A256GCM'`)。iron-session 用的是另一組：**AES-256-CBC 加密＋HMAC-SHA256 簽章**，兩步合起來達到跟 GCM 一樣的效果。
     JWS／JWE／iron 三種格式的並排圖在互動版 HTML 第 5 節。
-g. 📖 來源:[NIST AES(FIPS 197)](https://csrc.nist.gov/pubs/fips/197/final)、[RFC 7518 — JWA(定義 A256GCM 等 `enc`)](https://datatracker.ietf.org/doc/html/rfc7518)。
+g. 📖 來源：[NIST AES(FIPS 197)](https://csrc.nist.gov/pubs/fips/197/final)、[RFC 7518 — JWA(定義 A256GCM 等 `enc`)](https://datatracker.ietf.org/doc/html/rfc7518)。
 
 ### 前端
 （Next.js 實作要點）

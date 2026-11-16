@@ -11,12 +11,13 @@ sources:
   - https://gemini.google.com/app/b2a539467cfc9322
   - https://gemini.google.com/app/5e31f473f93dbfee
   - https://gemini.google.com/app/b6db47e361e8b160
-updated: 2026-11-15
+  - https://gemini.google.com/app/8f092013fa494dbd
+updated: 2026-11-16
 ---
 
 # Session 與 JWT：有狀態 vs 無狀態驗證、過期機制、Base64url
 
-> 本篇重點 a–u ，共 21 個。
+> 本篇重點 a–x ，共 24 個。
 > 前置概念見 [[1-Cookie-與-Session]]（Cookie 與 Session 基本運作）與 [[8-XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線]]（HttpOnly 為何能擋 XSS）。關聯原因：本篇是把前兩篇的 Session ID 放進「有狀態／無狀態」這條主軸上比較。
 
 ## 一張主軸：四種做法比較（Session／JWT／JWS／iron-session）
@@ -47,7 +48,7 @@ updated: 2026-11-15
 
 **a.** <mark style="background: #ADCCFFA6;">HTTP 是無狀態（Stateless）協定</mark>：它沒有內建機制把前後兩個獨立請求關聯起來。所以網站要記住「這個人已登入」就得額外做 Session 管理。
 
-**b.** Session 驗證流程（Abby 自己的說法，Gemini 判定正確）：
+**b.** Session 驗證流程：
 1. 使用者登入送出 credentials。
 2. 伺服器 authenticate 是否 valid。
 3. 伺服器建立 Session，把 Session ID 存進 session store。
@@ -77,6 +78,11 @@ updated: 2026-11-15
 **k.** 後端驗證 JWT 的步驟：後端用自己的密鑰，對收到的 Header 與 Payload 重新做簽章運算，算出結果與第三段比對，不一致就拒絕。
 
 **l.** ⚠️ 補充（Gemini 沒講）：JWT 的 Payload 「可被任何人讀」，所以不要放密碼等機敏資料。簽章保證的是「沒被改」，不是「看不到」。
+
+> [!note] 簽章怎麼保護 payload
+> 整個 token 的保護力，來自別人無法複製出正確的 signature。
+> 	signature 是伺服器用 secret 對 header 與 payload 算出來的。secret 本身不在 signature 裡，也無法從 signature 反推回 secret。
+> payload 其實是裸的：只做 Base64url 編碼，任何人都看得到內容，只是改了就會被發現。
 
 **m.** URL-safe 的意思：資料編碼後只含不會破壞 URL 結構的字元。標準 URL 的保留字元（? & / =）與不安全字元（空格 + # < >）若混在資料裡，會被誤判為網址結構。
 
@@ -131,6 +137,20 @@ const { payload } = await jwtVerify(jwt, publicKey, { algorithms: ['EdDSA'] })
 
 **u.** ⚠️ 存疑／更正：(1) Gemini 說 `KeyLike` 可以是 JWK 物件，但 JWK 通常要先用 `importJWK` 轉成金鑰物件，且 jose 新版（v6）已移除 `KeyLike` 型別，改用 `CryptoKey`、`KeyObject`、`Uint8Array` 表示，實際型別請以你安裝版本的官方文件為準（本次未重新抓取）。(2) Gemini 示範的 PEM 內容（如 `MC4CAQAwBQYDK2VwBCIEIJ...`）是示意字串，不是可用金鑰，不能直接拿去驗證。
 
+### 追加 2026-11-16：JWS 兩種序列化格式（Compact vs JSON）與 kid
+
+(v) <mark style="background: #ADCCFFA6;">JWS Compact Serialization（緊湊序列化）</mark>：把 JWS 表示成三段以點（.）隔開的 URL-safe 字串：BASE64URL(Protected Header).BASE64URL(Payload).BASE64URL(Signature)
+    只能有一個簽章，整個 Header 都是 Protected Header（不支援 Unprotected Header），體積小，常放在 Authorization: Bearer 標頭或 URI 查詢參數，JWT 就是用這種格式。
+
+(w) <mark style="background: #ADCCFFA6;">JWS JSON Serialization（JSON 序列化）</mark>：把 JWS 表示成 JSON 物件，成員有 protected、header、payload、signature（或 signatures 陣列）
+    支援多重簽章與 Unprotected Header，體積較大，適合多方簽章的場景。
+    <mark style="background: #FFF3A3A6;">protected 與 header 的差別在「是否被簽章涵蓋」</mark>：protected（Base64URL 編碼）會納入簽章計算，放 alg 這類不可被竄改的參數
+    header 是明文 JSON，不受簽章保護，放 kid 這類提示性參數，竄改它不會讓簽章失效，所以不可放安全關鍵資訊。
+
+(x) <mark style="background: #ADCCFFA6;">kid（Key ID，金鑰識別碼）</mark>：Header 裡的提示欄位，告訴驗證方這份簽章用哪一把金鑰簽的。
+    因為伺服器會定期輪替金鑰（Key Rotation），手上可能同時有多把公鑰（常放在 JWK Set）。有 kid 時驗證方先讀 kid，直接去金鑰庫取對應公鑰驗章
+    沒有 kid 就得每把公鑰逐一試驗，效率差。（出處：RFC 7515，見文末資料來源）
+
 ## 各對話來源（原文摘錄）
 
 ### Session 驗證機制（2026-10）— https://gemini.google.com/app/9118a11b50bbd667
@@ -169,6 +189,11 @@ Gemini：建議譯「建立工作階段／會話」，不是「創造一個對�
 
 Gemini：正確寫法 `alg: 'EdDSA'`；金鑰是 PEM（DER 經 Base64）轉成的物件，示範 generateKeyPair 簽發與驗證。（整合進 s、t、u，並於 u 標注存疑。）
 
+### JWS 序列化格式差異（2026-11-16 擷取）— https://gemini.google.com/app/8f092013fa494dbd
+
+使用者：JWS Compact Serialization 意思是什麼跟 JWS JSON Serialization 差在哪、protected 跟 header 存放的東西差異、kid 是什麼
+Gemini：見上方追加 (v)(w)(x)，摘要版（未逐字收錄）。
+
 ## 練習題（LeetCode／NeetCode）
 
 此主題為後端驗證概念，無直接對應的演算法題。相關基礎可練習雜湊表：[1. Two Sum](https://leetcode.com/problems/two-sum/) ，因為 session store 的本質就是 key（Session ID）對 value（使用者狀態）的查表。
@@ -183,4 +208,5 @@ Gemini：正確寫法 `alg: 'EdDSA'`；金鑰是 PEM（DER 經 Base64）轉成�
 | RFC 4648 §5 Base64url | https://www.rfc-editor.org/rfc/rfc4648#section-5 | 2006-10 發布 |
 | MDN Set-Cookie（Expires、Max-Age） | https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie | MDN ，本次未重新抓取 |
 | jose 官方文件（generateKeyPair、importPKCS8、importSPKI、金鑰型別） | https://github.com/panva/jose | 本次未重新抓取，版本差異請查你安裝版本的文件 |
+| RFC 7515 JSON Web Signature（Compact／JSON Serialization、protected／header、kid） | https://www.rfc-editor.org/rfc/rfc7515 | 2015-05 發布，對話引用，本次未重新抓取 |
 | RFC 8037 EdDSA 於 JOSE | https://www.rfc-editor.org/rfc/rfc8037 | 2017-01 發布 |

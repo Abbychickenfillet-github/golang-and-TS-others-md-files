@@ -77,6 +77,10 @@ footer{text-align:center;color:var(--muted);font-size:.8rem;margin-top:40px;padd
 @media(max-width:860px){.wrap{padding:16px 14px 60px}.layout{flex-direction:column}.toc{position:static;flex:none;width:100%;max-height:none}}
 @media print{.toolbar,.toc,.quiz{display:none}mark.hl.masked{color:inherit!important;background:var(--hl-core)!important}}
 table.compare-table th[scope=row]{white-space:nowrap;text-align:left}
+.srcnote{position:relative;border-bottom:1.5px dashed var(--accent);cursor:help;font-weight:600}
+.srcnote .srcpop{display:none;position:absolute;left:0;top:100%;z-index:40;min-width:300px;max-width:420px;margin-top:6px;padding:10px 13px;border-radius:9px;background:var(--card,#fff);border:1px solid var(--line);box-shadow:0 8px 22px rgba(0,0,0,.14);font-weight:400;font-size:.84rem;line-height:1.6;color:var(--ink)}
+.srcnote .srcpop::before{content:"";position:absolute;left:0;right:0;top:-8px;height:8px} /* 透明橋接：滑鼠從文字移到卡片途中不會讓卡片消失 */
+.srcnote:hover .srcpop,.srcnote:focus-within .srcpop{display:block}
 </style>
 </head>
 <body>
@@ -97,7 +101,7 @@ table.compare-table th[scope=row]{white-space:nowrap;text-align:left}
 <li><a href="#s3">3. 為何都是 256?摘要是什麼</a></li>
 <li><a href="#s4">4. HMAC 兩層 hash 拆到底</a></li>
 <li><a href="#s5">5. 簽章 ≠ 加密（JWS／JWE／iron 比較）</a></li>
-<li><a href="#s6">6. HS256 是對稱:一把 secret</a></li>
+<li><a href="#s6">6. HS256 是對稱：一把 secret</a></li>
 <li><a href="#s7">7. 驗章流程圖(ISO 5807)</a></li>
 <li><a href="#s8">8. header 的 alg + 看真實 JWT</a></li>
 <li><a href="#s9">9. 演算法混淆攻擊(畫面)</a></li>
@@ -125,7 +129,7 @@ table.compare-table th[scope=row]{white-space:nowrap;text-align:left}
 </div>
 
 <article class="card">
-<h2 id="s1">1. JWT 長怎樣 + 這次重點:signature 公式</h2>
+<h2 id="s1">1. JWT 長怎樣 + 這次重點：signature 公式</h2>
 <h3>名詞先講清楚：MAC 家族與數位簽章</h3>
 <p>JWT 第 3 段統稱 signature，但背後其實分成兩大類：<mark class="hl hl-term" tabindex="0">對稱的 MAC</mark> 和 <mark class="hl hl-term" tabindex="0">非對稱的數位簽章</mark>。</p>
 <div class="diagram">
@@ -150,15 +154,17 @@ table.compare-table th[scope=row]{white-space:nowrap;text-align:left}
 <text x="528" y="242" font-size="12" fill="#41525f">不必交出能簽章的私鑰</text>
 </svg>
 </div>
-<ul>
-<li><b>MAC 是統稱（職稱），HMAC 是其中一種做法</b>。官方文件說「附上 MAC」時，只講角色、不綁定演算法。</li>
-<li><b>digest（摘要）</b>＝雜湊函式的輸出，例如 <code>SHA-256(message)</code>，沒有金鑰、誰都算得出來。<b>MAC</b> 可以想成「加了金鑰的 digest」。</li>
-<li><b>SHA ＝ Secure Hash Algorithm（安全雜湊演算法）</b>，SHA-256 輸出 256 bits（32 bytes）。</li>
-<li>嚴格來說，HS256 算出來的是 <b>MAC</b>，RS256、ES256、EdDSA 算出來的才是 <b>數位簽章</b>。JWT 規格把兩種都叫 signature。</li>
-</ul>
+<div class="term-cards">
+<article class="term-card"><h4 class="tc-term">MAC</h4><p class="tc-full">Message Authentication Code，訊息鑑別碼</p><p class="tc-desc">統稱。用金鑰對訊息算出一段驗證碼，證明資料沒被改過，而且出自持有同一把金鑰的人。官方文件說「附上 MAC」時只講角色，不綁定演算法。</p></article>
+<article class="term-card"><h4 class="tc-term">HMAC</h4><p class="tc-full">Hash-based Message Authentication Code</p><p class="tc-desc">MAC 的其中一種做法：用雜湊函式（例如 SHA-256）搭配 secret 算驗證碼。JWT 的 HS256 就是 HMAC 加上 SHA-256。</p></article>
+<article class="term-card"><h4 class="tc-term">digest</h4><p class="tc-full">摘要</p><p class="tc-desc">雜湊函式的輸出，例如 <code>SHA-256(message)</code>。沒有金鑰，誰都算得出來，所以只能檢查資料有沒有損壞。MAC 可以想成「加了金鑰的 digest」。</p></article>
+<article class="term-card"><h4 class="tc-term">SHA-256</h4><p class="tc-full">Secure Hash Algorithm，安全雜湊演算法</p><p class="tc-desc">不管輸入多長，一律輸出 256 bits（32 bytes）的摘要。HS256、RS256、ES256 名字裡的 256 指的都是它，不是金鑰長度。</p></article>
+<article class="term-card"><h4 class="tc-term">數位簽章</h4><p class="tc-full">Digital Signature</p><p class="tc-desc">非對稱做法：私鑰簽章、公鑰驗章，例如 RS256、ES256、EdDSA。嚴格來說 HS256 算出的是 MAC，這些才是數位簽章，JWT 規格把兩種都叫 signature。</p></article>
+<article class="term-card"><h4 class="tc-term">JWS</h4><p class="tc-full">JSON Web Signature，RFC 7515</p><p class="tc-desc">「整個簽過章的物件」的通用格式，包含 header、payload、signature 三段，不是只指第 3 段。JWT 是拿 JWS 當外殼裝 claims 的一種用法。</p></article>
+</div>
 <p class="plain">📖 來源：<a href="https://www.rfc-editor.org/rfc/rfc2104">RFC 2104 — HMAC</a>、<a href="https://www.rfc-editor.org/rfc/rfc4493">RFC 4493 — AES-CMAC</a>、<a href="https://www.rfc-editor.org/rfc/rfc8439">RFC 8439 — ChaCha20 與 Poly1305</a>、<a href="https://www.rfc-editor.org/rfc/rfc7518">RFC 7518 — JWA</a>，2026-11-15 查證。</p>
 <h3>JWT 的 signature 怎麼算</h3>
-<p>一顆 JWT 就是三段字串,用兩個點接起來:<code>header.payload.signature</code>。第三段 signature 是這樣算出來的(HS256):</p>
+<p>一顆 JWT 就是三段字串，用兩個點接起來：<code>header.payload.signature</code>。第三段 signature 是這樣算出來的(HS256):</p>
 <div class="diagram">
 <svg style="width:100%;height:auto;display:block;max-width:100%" viewBox="0 0 820 230" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans TC',sans-serif">
 <rect x="20" y="24" width="190" height="40" rx="6" fill="#ADCCFF"/><text x="115" y="49" text-anchor="middle" font-size="14" fill="#1d2b36">base64url(header)</text>
@@ -173,27 +179,29 @@ table.compare-table th[scope=row]{white-space:nowrap;text-align:left}
 <rect x="60" y="132" width="700" height="72" rx="10" fill="#1f2933"/>
 <svg x="78" y="150" width="36" height="36"><use href="#ic-key"/></svg>
 <text x="400" y="162" text-anchor="middle" font-size="15" fill="#e6edf3" font-weight="600">signature = HMAC-SHA256( secret , base64url(header) + "." + base64url(payload) )</text>
-<text x="400" y="188" text-anchor="middle" font-size="12.5" fill="#9fd8ab">拿 secret 當鑰匙,對「header 點 payload」整串算一個 HMAC-SHA256,結果就是第三段</text>
+<text x="400" y="188" text-anchor="middle" font-size="12.5" fill="#9fd8ab">拿 secret 當鑰匙，對「header 點 payload」整串算一個 HMAC-SHA256，結果就是第三段</text>
 </svg>
-<div class="cap">核心公式:signature ＝ secret ＋ 雜湊簽章演算法（HMAC-SHA256）＋ header ＋ payload</div>
+<div class="cap">核心公式：signature ＝ secret ＋ 雜湊簽章演算法（HMAC-SHA256）＋ header ＋ payload</div>
 </div>
-<p class="plain"><b>白話:</b>signature 不是隨便一段亂碼,是<mark class="hl hl-core" tabindex="0">「用 secret 把 header＋payload 算出來的防偽章」</mark>。改了 header 或 payload 任何一個字,重算的章就對不上,就被抓到竄改。</p>
+<p class="plain"><b>白話：</b>signature 不是隨便一段亂碼，是<mark class="hl hl-core" tabindex="0">「用 secret 把 header＋payload 算出來的防偽章」</mark>。改了 header 或 payload 任何一個字，重算的章就對不上，就被抓到竄改。</p>
 <h3>相關公式一覽</h3>
-<pre><code><span class="cmt">// 1. 簽章（發 token 時，伺服器算一次）</span>
+<pre><code><span id="f-sign"><span class="cmt">// 1. 簽章（發 token 時，伺服器算一次）</span>
 message   = base64url(header) + "." + base64url(payload)
-signature = base64url( HMAC-SHA256(secret, message) )
+signature = base64url( HMAC-SHA256(secret, message) )</span>
 
-<span class="cmt">// 2. 驗章（token 帶回來時，伺服器重算一次再比對）</span>
+<span id="f-verify"><span class="cmt">// 2. 驗章（token 帶回來時，伺服器重算一次再比對）</span>
 重算值 = base64url( HMAC-SHA256(secret, 收到的 header + "." + 收到的 payload) )
-重算值 === 收到的 signature  → 一模一樣才通過，差一個字元就拒絕
+重算值 === 收到的 signature  → 一模一樣才通過，差一個字元就拒絕</span>
 
-<span class="cmt">// 3. RFC 7797 的 b64:false（只限一般 JWS，JWT 不得使用）</span>
+<span id="f-b64"><span class="cmt">// 3. RFC 7797 的 b64:false（只限一般 JWS，JWT 不得使用）</span>
 message = ASCII( base64url(UTF8(header)) + "." ) + payload原文
-<span class="cmt">// header 照樣編碼，payload 不編碼但仍在 message 裡，所以一樣受簽章保護</span>
+<span class="cmt">// header 照樣編碼，payload 不編碼但仍在 message 裡，所以一樣受簽章保護</span></span>
 
-<span class="cmt">// 4. digest 和 MAC 的差別</span>
+<span id="f-digest"><span class="cmt">// 4. digest 和 MAC 的差別</span>
 digest = SHA-256(message)                <span class="cmt">// 沒有金鑰，誰都算得出來</span>
-MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有持有 secret 的人算得出來</span></code></pre>
+MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有持有 secret 的人算得出來</span></span></code></pre>
+<p class="plain"><b>白話：</b><span class="ll-src" data-link-to="#f-sign">第 1 組是發 token</span>。<span class="ll-src" data-link-to="#f-verify">第 2 組是驗 token</span>，做法就是用同一把 secret 重算一次，再跟第 3 段比對。<span class="ll-src" data-link-to="#f-b64">第 3 組是 payload 不編碼的特例</span>。<span class="ll-src" data-link-to="#f-digest">第 4 組說明 MAC 等於「加了金鑰的 digest」</span>。<span class="ll-src" data-link-to="#s4">HMAC 本身怎麼算見第 4 節</span>。<br>
+📖 來源：<a href="https://www.rfc-editor.org/rfc/rfc7515">RFC 7515 — JWS</a>、<a href="https://www.rfc-editor.org/info/rfc7797">RFC 7797 — Unencoded Payload Option</a>、<a href="https://www.rfc-editor.org/rfc/rfc2104">RFC 2104 — HMAC</a>，2026-11-15 查證。</p>
 <h3>JWT 是 JWS 的一種：所以 JWT 不能用 b64:false</h3>
 <div class="diagram">
 <svg style="width:100%;height:auto;display:block" viewBox="0 0 1000 250" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans TC',sans-serif" font-size="13">
@@ -230,66 +238,67 @@ MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有
 <tr><th scope="row">signature</th><td>Base64url 編碼</td><td>Base64url 編碼（不變）</td></tr>
 </tbody>
 </table>
+<span>JWS允許Payload不編碼，主要是為了支援分離式簽章與傳輸效率<br>在這種模式下，簽章資料是分開傳送的，不用把原始訊息綁在Token裡面，能節省空間並簡化驗證流程。簽章依然覆蓋原始位元。計算簽章時，演算法會直接讀取Payload的原始位元組進行運算。即使文字沒有經過Base64編碼直接傳輸，任何中途竄改都會改變原始位元。這邊的涵蓋是數學運算範圍header跟payload兩遮都會被涵蓋在演算法公式中進行運算。簽章保護的是完整性，是防竄改而不是機密性confidentiality</span>
 <ul>
 <li><code>b64</code> 的意思是「payload 要不要做 base64」，所以只影響 payload。</li>
 <li>header 一定要編碼，因為 <code>b64: false</code> 這個設定本身就寫在 header 裡，而且受到簽章保護。</li>
-<li>signature 一律編碼，因為它是 32 bytes 的二進位資料，不編碼就放不進文字格式的 token。</li>
+<li>signature 一律編碼，因為它是二進位資料（以 HS256 為例是 <span class="srcnote" tabindex="0">32 bytes<span class="srcpop" role="tooltip">HS256 的簽章就是 HMAC-SHA256 的輸出。SHA-256 的輸出長度是 256 bits，256 ÷ 8 ＝ 32 bytes。<br>RS256 用 2048-bit 金鑰時是 256 bytes，ES256 是 64 bytes。<br>來源：<a href="https://www.rfc-editor.org/rfc/rfc7518#section-3.2" target="_blank" rel="noopener">RFC 7518 §3.2（HMAC with SHA-2）</a>、<a href="https://csrc.nist.gov/pubs/fips/180-4/upd1/final" target="_blank" rel="noopener">FIPS 180-4（SHA-256 輸出 256 bits）</a></span></span>），不編碼就放不進文字格式的 token。</li>
 <li><mark class="hl hl-warn" tabindex="0">JWT 不能用這個選項</mark>，它只開放給一般 JWS（RFC 7797 更新了 RFC 7519）。</li>
 </ul>
-<p class="plain"><b>白話：</b>第 1 組是發 token。第 2 組是驗 token，做法就是用同一把 secret 重算一次，再跟第 3 段比對。第 3 組是 payload 不編碼的特例。第 4 組說明 MAC 等於「加了金鑰的 digest」。HMAC 本身怎麼算見第 4 節。<br>
-📖 來源：<a href="https://www.rfc-editor.org/rfc/rfc7515">RFC 7515 — JWS</a>、<a href="https://www.rfc-editor.org/info/rfc7797">RFC 7797 — Unencoded Payload Option</a>、<a href="https://www.rfc-editor.org/rfc/rfc2104">RFC 2104 — HMAC</a>，2026-11-15 查證。</p>
+
+
 </article>
 
 <article class="card">
-<h2 id="s2">2. 三種簽法:HS256 / RS256 / ES256（把名稱 hover 看拆解）</h2>
-<p>JWT header 的 <code>alg</code> 就是「<mark class="hl hl-term" tabindex="0">簽章家族 ＋ 雜湊</mark>」的名字。三張卡,滑鼠移到名稱上看全名與結構:</p>
+<h2 id="s2">2. 三種簽法：HS256 / RS256 / ES256（把名稱 hover 看拆解）</h2>
+<p>JWT header 的 <code>alg</code> 就是「<mark class="hl hl-term" tabindex="0">簽章家族 ＋ 雜湊</mark>」的名字。三張卡，滑鼠移到名稱上看全名與結構：</p>
 <div class="cards3">
 <div class="algc">
 <svg class="ic"><use href="#ic-key"/></svg>
-<h3><span class="term" tabindex="0" data-tip="HS256 = HMAC + SHA-256&#10;H = HMAC(雜湊訊息鑑別碼)&#10;S = SHA(安全雜湊演算法)&#10;256 = SHA-256,摘要 256 bits&#10;→ 對稱:同一把 secret 又簽又驗">HS256</span></h3>
-<p style="font-size:.9rem;margin:4px 0"><b>HMAC</b>,<mark class="hl hl-core" tabindex="0">對稱</mark>。一把共用 <code>secret</code>,簽與驗同一把。</p>
+<h3><span class="term" tabindex="0" data-tip="HS256 = HMAC + SHA-256&#10;H = HMAC(雜湊訊息鑑別碼)&#10;S = SHA(安全雜湊演算法)&#10;256 = SHA-256，摘要 256 bits&#10;→ 對稱：同一把 secret 又簽又驗">HS256</span></h3>
+<p style="font-size:.9rem;margin:4px 0"><b>HMAC</b>,<mark class="hl hl-core" tabindex="0">對稱</mark>。一把共用 <code>secret</code>，簽與驗同一把。</p>
 <p class="plain" style="margin:4px 0">單體服務、自家前後端(next-one 用這個)。</p>
 </div>
 <div class="algc">
 <svg class="ic"><use href="#ic-key"/></svg><svg class="ic"><use href="#ic-lock"/></svg>
-<h3><span class="term" tabindex="0" data-tip="RS256 = RSA + SHA-256&#10;R = RSA(Rivest–Shamir–Adleman)&#10;S = SHA-256&#10;→ 非對稱:私鑰簽、公鑰驗&#10;私鑰只留一處,公鑰可發給很多驗證方">RS256</span></h3>
-<p style="font-size:.9rem;margin:4px 0"><b>RSA</b>,<mark class="hl hl-core" tabindex="0">非對稱</mark>。私鑰簽、公鑰驗,金鑰 ≥ 2048 bit。</p>
+<h3><span class="term" tabindex="0" data-tip="RS256 = RSA + SHA-256&#10;R = RSA(Rivest–Shamir–Adleman)&#10;S = SHA-256&#10;→ 非對稱：私鑰簽、公鑰驗&#10;私鑰只留一處，公鑰可發給很多驗證方">RS256</span></h3>
+<p style="font-size:.9rem;margin:4px 0"><b>RSA</b>,<mark class="hl hl-core" tabindex="0">非對稱</mark>。私鑰簽、公鑰驗，金鑰 ≥ 2048 bit。</p>
 <p class="plain" style="margin:4px 0">分散式、多服務、第三方驗章。</p>
 </div>
 <div class="algc">
 <svg class="ic"><use href="#ic-lock"/></svg>
-<h3><span class="term" tabindex="0" data-tip="ES256 = ECDSA + SHA-256&#10;E = ECDSA(橢圓曲線數位簽章)&#10;S = SHA-256&#10;搭 P-256 曲線&#10;→ 非對稱,簽章更短、運算更省">ES256</span></h3>
+<h3><span class="term" tabindex="0" data-tip="ES256 = ECDSA + SHA-256&#10;E = ECDSA(橢圓曲線數位簽章)&#10;S = SHA-256&#10;搭 P-256 曲線&#10;→ 非對稱，簽章更短、運算更省">ES256</span></h3>
 <p style="font-size:.9rem;margin:4px 0"><b>ECDSA</b>（P-256），<mark class="hl hl-core" tabindex="0">非對稱</mark>。金鑰與簽章都很短。</p>
 <p class="plain" style="margin:4px 0">行動、IoT、要省頻寬。</p>
 </div>
 </div>
-<p style="margin-top:14px">還有兩個常見的:<span class="term" tabindex="0" data-tip="PS256 = RSA-PSS + SHA-256&#10;比 RS256 新的 RSA 填充法&#10;→ 建議優先於 RS256">PS256</span>（RSA-PSS，建議優先於 RS256）、<span class="term" tabindex="0" data-tip="EdDSA = Edwards-curve Digital Signature Algorithm&#10;用 Ed25519 曲線&#10;→ 簽章確定性,沒有 nonce 風險">EdDSA</span>（Ed25519，簽章確定性、沒有 nonce 風險）。</p>
+<p style="margin-top:14px">還有兩個常見的：<span class="term" tabindex="0" data-tip="PS256 = RSA-PSS + SHA-256&#10;比 RS256 新的 RSA 填充法&#10;→ 建議優先於 RS256">PS256</span>（RSA-PSS，建議優先於 RS256）、<span class="term" tabindex="0" data-tip="EdDSA = Edwards-curve Digital Signature Algorithm&#10;用 Ed25519 曲線&#10;→ 簽章確定性，沒有 nonce 風險">EdDSA</span>（Ed25519，簽章確定性、沒有 nonce 風險）。</p>
 <blockquote><p>📖 官方：<a href="https://datatracker.ietf.org/doc/html/rfc7519" target="_blank" rel="noopener">RFC 7519 — JWT</a>、<a href="https://datatracker.ietf.org/doc/html/rfc7515" target="_blank" rel="noopener">RFC 7515 — JWS（簽章）</a>、<a href="https://datatracker.ietf.org/doc/html/rfc7518" target="_blank" rel="noopener">RFC 7518 — JWA（定義 HS256／RS256／ES256 等 alg 值）</a>、<a href="https://datatracker.ietf.org/doc/html/rfc2104" target="_blank" rel="noopener">RFC 2104 — HMAC</a>、<a href="https://jwt.io" target="_blank" rel="noopener">jwt.io（線上解碼）</a></p></blockquote>
 </article>
 
 <article class="card">
-<h2 id="s3">3. 為什麼三個都是「256」?——那是 SHA-256,也說清楚「摘要」</h2>
+<h2 id="s3">3. 為什麼三個都是「256」?——那是 SHA-256，也說清楚「摘要」</h2>
 <ul>
-<li><code>256</code> <mark class="hl hl-warn" tabindex="0">不是金鑰長度</mark>,是雜湊函式 <b>SHA-256</b>——HS256、RS256、ES256 三個都用它。</li>
-<li>三個都<mark class="hl hl-core" tabindex="0">先用 SHA-256 把任意長度訊息壓成固定 256 位元(32 bytes)的摘要</mark>,再用各自方式（HMAC／RSA／ECDSA）簽那個摘要。</li>
-<li>為何先雜湊:簽章是對<b>固定長度的摘要</b>動作,不是對任意長度的原文。</li>
+<li><code>256</code> <mark class="hl hl-warn" tabindex="0">不是金鑰長度</mark>，是雜湊函式 <b>SHA-256</b>——HS256、RS256、ES256 三個都用它。</li>
+<li>三個都<mark class="hl hl-core" tabindex="0">先用 SHA-256 把任意長度訊息壓成固定 256 位元(32 bytes)的摘要</mark>，再用各自方式（HMAC／RSA／ECDSA）簽那個摘要。</li>
+<li>為何先雜湊：簽章是對<b>固定長度的摘要</b>動作，不是對任意長度的原文。</li>
 </ul>
-<div class="ask"><b>你問:</b>摘要（digest）到底是什麼?</div>
-<p><mark class="hl hl-term" tabindex="0">摘要 ＝ 雜湊函式吐出的固定長度輸出,等於輸入的「指紋」</mark>。五個性質（密碼學上正式的安全要求是第 2、3、4 點，第 5 點雪崩效應是好的雜湊函式設計上應有的表現）:</p>
+<div class="ask"><b>你問：</b>摘要（digest）到底是什麼?</div>
+<p><mark class="hl hl-term" tabindex="0">摘要 ＝ 雜湊函式吐出的固定長度輸出，等於輸入的「指紋」</mark>。五個性質（密碼學上正式的安全要求是第 2、3、4 點，第 5 點雪崩效應是好的雜湊函式設計上應有的表現）：</p>
 <ol>
-<li><b>固定長度</b>:不管輸入多長,SHA-256 一律吐 256 位元。</li>
-<li><b>原像阻抗性（preimage resistance）</b>:由摘要幾乎不可能倒推回原文（不可逆）。</li>
-<li><b>第二原像阻抗性（second-preimage resistance）</b>:給定一份原文,幾乎不可能找到另一份不同的原文算出同樣的摘要。</li>
-<li><b>抗碰撞性（collision resistance）</b>:連「任意挑兩份不同輸入讓摘要相同」在計算上都極難做到。</li>
-<li><b>雪崩效應（avalanche effect）</b>:輸入只要改動一個位元,摘要就會劇烈且不可預測地改變,看不出關聯。</li>
+<li><b>固定長度</b>：不管輸入多長，SHA-256 一律吐 256 位元。</li>
+<li><b>原像阻抗性（preimage resistance）</b>：由摘要幾乎不可能倒推回原文（不可逆）。</li>
+<li><b>第二原像阻抗性（second-preimage resistance）</b>：給定一份原文，幾乎不可能找到另一份不同的原文算出同樣的摘要。</li>
+<li><b>抗碰撞性（collision resistance）</b>：連「任意挑兩份不同輸入讓摘要相同」在計算上都極難做到。</li>
+<li><b>雪崩效應（avalanche effect）</b>：輸入只要改動一個位元，摘要就會劇烈且不可預測地改變，看不出關聯。</li>
 </ol>
-<p class="plain"><b>補充:</b>ES256 剛好「SHA-256 ＋ P-256 曲線」兩個都 256,是<b>巧合</b>;換數字就是換 SHA（HS384 用 SHA-384…）。金鑰長度跟這個 256 無關（HMAC 一把 secret、RSA ≥ 2048 bit、ECDSA 用 P-256）。</p>
+<p class="plain"><b>補充：</b>ES256 剛好「SHA-256 ＋ P-256 曲線」兩個都 256，是<b>巧合</b>;換數字就是換 SHA（HS384 用 SHA-384…）。金鑰長度跟這個 256 無關（HMAC 一把 secret、RSA ≥ 2048 bit、ECDSA 用 P-256）。</p>
 </article>
 
 <article class="card">
 <h2 id="s4">4. HMAC 的「兩層 hash」拆到底（你的手寫問題）</h2>
-<div class="ask"><b>你問:</b>內層 SHA 會把 KEY（是 .env 那把嗎?）拼訊息;你寫的 <code>+</code> 跟 ipad 是什麼?<code>‖</code> 是 or 嗎、是不是選配?外層 opad 也是同一把 secret 嗎?</div>
-<p>一次回答清楚。公式是這樣（<mark class="hl hl-core" tabindex="0">同一把 .env secret，分別配兩個固定常數</mark>）:</p>
+<div class="ask"><b>你問：</b>內層 SHA 會把 KEY（是 .env 那把嗎?）拼訊息;你寫的 <code>+</code> 跟 ipad 是什麼?<code>‖</code> 是 or 嗎、是不是選配?外層 opad 也是同一把 secret 嗎?</div>
+<p>一次回答清楚。公式是這樣（<mark class="hl hl-core" tabindex="0">同一把 .env secret，分別配兩個固定常數</mark>）：</p>
 <div class="diagram">
 <svg style="width:100%;height:auto;display:block;max-width:100%" viewBox="0 0 820 300" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans TC',sans-serif">
 <defs><marker id="arr2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#7d8a94"/></marker></defs>
@@ -327,36 +336,36 @@ MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有
 步驟 4　HMAC   = SHA-256( k_out ‖ inner )  <span class="cmt">// 外層子鑰匙接在 inner 前面，做第二次雜湊，結果就是 MAC</span></code></pre>
 <p class="plain"><b>白話：</b>公式從左往右「寫」，但要從內往外「算」。外層的 SHA-256 需要 inner 當輸入，所以內層一定先跑完。⊕ 是 XOR，‖ 是把兩串 bytes 接在一起。</p>
 
-<p>逐點回答你:</p>
+<p>逐點回答你：</p>
 <ol>
 <li><b>key 是 .env 那把嗎?</b> <mark class="hl hl-ok" tabindex="0">是</mark>。HS256 的 HMAC key 就是你 <code>.env</code> 的 secret（jose 用 <code>new TextEncoder().encode(secret)</code> 轉成 bytes）。</li>
-<li><b>內外層同一把嗎?</b> <mark class="hl hl-core" tabindex="0">同一把</mark>,只是分別跟兩個<b>固定公開常數</b>做 XOR：內層配 <code>ipad</code>(0x36 重複)、外層配 <code>opad</code>(0x5C 重複)，變出兩把暫時子鑰匙。</li>
-<li><b><code>⊕</code> 是什麼?</b> 是 <mark class="hl hl-term" tabindex="0">XOR（互斥或）</mark>,位元運算,不是加號。</li>
-<li><b><code>‖</code> 是 or 嗎?選配嗎?</b> 都不是。<mark class="hl hl-term" tabindex="0"><code>‖</code> ＝ 串接（concatenation）</mark>,把左右兩串<b>接成一串</b>;是公式的<b>必要</b>步驟,不能省。（跟程式的 <code>||</code> 邏輯或完全無關。）</li>
+<li><b>內外層同一把嗎?</b> <mark class="hl hl-core" tabindex="0">同一把</mark>，只是分別跟兩個<b>固定公開常數</b>做 XOR：內層配 <code>ipad</code>(0x36 重複)、外層配 <code>opad</code>(0x5C 重複)，變出兩把暫時子鑰匙。</li>
+<li><b><code>⊕</code> 是什麼?</b> 是 <mark class="hl hl-term" tabindex="0">XOR（互斥或）</mark>，位元運算，不是加號。</li>
+<li><b><code>‖</code> 是 or 嗎?選配嗎?</b> 都不是。<mark class="hl hl-term" tabindex="0"><code>‖</code> ＝ 串接（concatenation）</mark>，把左右兩串<b>接成一串</b>;是公式的<b>必要</b>步驟，不能省。（跟程式的 <code>||</code> 邏輯或完全無關。）</li>
 </ol>
-<div class="ask"><b>你問:</b>什麼是「長度延伸攻擊」（length-extension）?</div>
-<p>假設有人偷懶,把防偽章寫成 <code>SHA256(secret ‖ msg)</code>（只包一層）。因為 SHA-256 是<mark class="hl hl-term" tabindex="0">一塊一塊往下接著算的（Merkle–Damgård 結構）</mark>,攻擊者就算<b>不知道 secret</b>,只要拿到這個章和長度,就能<mark class="hl hl-warn" tabindex="0">接著往後補一段 <code>extra</code>,算出 <code>SHA256(secret ‖ msg ‖ extra)</code> 的合法章</mark>,偽造出「加料後」的訊息。</p>
-<p><mark class="hl hl-ok" tabindex="0">HMAC 的兩層（內層算完再用 opad 包一次）把內部狀態藏住,外面接不下去,就擋掉這種攻擊</mark>。所以那兩層是刻意設計,不是多餘。</p>
+<div class="ask"><b>你問：</b>什麼是「長度延伸攻擊」（length-extension）?</div>
+<p>假設有人偷懶，把防偽章寫成 <code>SHA256(secret ‖ msg)</code>（只包一層）。因為 SHA-256 是<mark class="hl hl-term" tabindex="0">一塊一塊往下接著算的（Merkle–Damgård 結構）</mark>，攻擊者就算<b>不知道 secret</b>，只要拿到這個章和長度，就能<mark class="hl hl-warn" tabindex="0">接著往後補一段 <code>extra</code>，算出 <code>SHA256(secret ‖ msg ‖ extra)</code> 的合法章</mark>，偽造出「加料後」的訊息。</p>
+<p><mark class="hl hl-ok" tabindex="0">HMAC 的兩層（內層算完再用 opad 包一次）把內部狀態藏住，外面接不下去，就擋掉這種攻擊</mark>。所以那兩層是刻意設計，不是多餘。</p>
 
 <h3>⊕ XOR 到底在幹嘛（為何 HMAC 要用它）</h3>
-<p><mark class="hl hl-term" tabindex="0">XOR（Exclusive OR,互斥或,符號 ⊕）</mark>規則超簡單:<b>相同得 0、不同得 1</b>（排除「兩者皆真」,所以叫 Exclusive）。</p>
+<p><mark class="hl hl-term" tabindex="0">XOR（Exclusive OR，互斥或，符號 ⊕）</mark>規則超簡單：<b>相同得 0、不同得 1</b>（排除「兩者皆真」，所以叫 Exclusive）。</p>
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0;font-family:'JetBrains Mono',Consolas,monospace">
 <span style="background:#eaf2f7;border:1px solid #cfe0ea;border-radius:8px;padding:6px 12px">0 ⊕ 0 = <b>0</b></span>
 <span style="background:#eaf2f7;border:1px solid #cfe0ea;border-radius:8px;padding:6px 12px">1 ⊕ 1 = <b>0</b></span>
 <span style="background:#eafaf0;border:1px solid #bfe6cb;border-radius:8px;padding:6px 12px">1 ⊕ 0 = <b>1</b></span>
 <span style="background:#eafaf0;border:1px solid #bfe6cb;border-radius:8px;padding:6px 12px">0 ⊕ 1 = <b>1</b></span>
 </div>
-<p>HMAC 用它的兩個理由:</p>
+<p>HMAC 用它的兩個理由：</p>
 <ol>
-<li><b>可逆遮罩（masking）</b>:<code>A ⊕ K = C</code> 看起來像亂碼,但 <code>C ⊕ K</code> 又能完美還原回 <code>A</code>——是高效的混淆工具。</li>
-<li><b>打散金鑰特徵</b>:<code>secret ⊕ ipad</code> 與 <code>secret ⊕ opad</code> 會產生兩把「<mark class="hl hl-core" tabindex="0">位元結構完全不同、卻源自同一把 secret</mark>」的衍生子鑰匙,內外兩層才不會用到一模一樣的鑰匙。</li>
+<li><b>可逆遮罩（masking）</b>:<code>A ⊕ K = C</code> 看起來像亂碼，但 <code>C ⊕ K</code> 又能完美還原回 <code>A</code>——是高效的混淆工具。</li>
+<li><b>打散金鑰特徵</b>:<code>secret ⊕ ipad</code> 與 <code>secret ⊕ opad</code> 會產生兩把「<mark class="hl hl-core" tabindex="0">位元結構完全不同、卻源自同一把 secret</mark>」的衍生子鑰匙，內外兩層才不會用到一模一樣的鑰匙。</li>
 </ol>
 
 <h3>為什麼 ipad 是 0x36、而且要填到 64 bytes</h3>
 <ol>
-<li><code>0x36</code> 是 <mark class="hl hl-term" tabindex="0">16 進位表示法</mark>,換成 8 個二進位位元就是 <code>00110110</code>（1 byte）。它只是 RFC 2104 作者選的固定公開「魔術常數（magic constant）」,目的是讓金鑰位元充分變化。</li>
+<li><code>0x36</code> 是 <mark class="hl hl-term" tabindex="0">16 進位表示法</mark>，換成 8 個二進位位元就是 <code>00110110</code>（1 byte）。它只是 RFC 2104 作者選的固定公開「魔術常數（magic constant）」，目的是讓金鑰位元充分變化。</li>
 <li><b>重複填到 64 bytes</b> ＝ 64 個 <code>0x36</code> 串起來（＝ 512 bits）;<code>opad</code> 同理是 <code>0x5C</code> 重複 64 bytes。</li>
-<li><b>為何偏偏 64 bytes?</b> 因為 <mark class="hl hl-core" tabindex="0">SHA-256 一次吃 64 bytes（512 bits）當一個 block</mark>,ipad／opad 要跟 block 大小對齊,衍生金鑰才能整齊塞進一個區塊。</li>
+<li><b>為何偏偏 64 bytes?</b> 因為 <mark class="hl hl-core" tabindex="0">SHA-256 一次吃 64 bytes（512 bits）當一個 block</mark>,ipad／opad 要跟 block 大小對齊，衍生金鑰才能整齊塞進一個區塊。</li>
 </ol>
 </article>
 
@@ -377,7 +386,7 @@ MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有
 <text x="570" y="116" text-anchor="middle" font-size="12" fill="#5a3a80">要另用 EncryptJWT（第 13 節）</text>
 </svg>
 </div>
-<p class="plain"><b>白話:</b>你的 JWT 是<mark class="hl hl-core" tabindex="0">簽起來防改,不是鎖起來防看</mark>。image 1 那句「Signed means can be verified but read by anyone」就是這件事。</p>
+<p class="plain"><b>白話：</b>你的 JWT 是<mark class="hl hl-core" tabindex="0">簽起來防改，不是鎖起來防看</mark>。image 1 那句「Signed means can be verified but read by anyone」就是這件事。</p>
 
 <h3>三種格式並排：JWS、JWE、iron-session</h3>
 <p><mark class="hl hl-core" tabindex="0">簽章只負責發現資料有沒有被改過，不負責把內容藏起來</mark>。header 裡的 <code>alg</code>（例如 HS256）是<b>簽章演算法</b>，不是加密演算法。要把內容藏起來，要用 JWE 或 iron。</p>
@@ -421,6 +430,10 @@ MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有
 </table>
 <p class="plain"><b>白話：</b>常聽到「JWT 是明文 payload 加上防竄改的簽名」，這是口語上的簡化。簽名<b>不會放進 payload 裡</b>，它是 token 的第 3 段，由 secret、header、payload 三樣東西一起算出來，用來保護前兩段。<br>
 　　所以「加上」的意思是：token 在 payload 後面多接了一段簽章，而不是把簽章塞進 payload。</p>
+<blockquote><p><b>簽章怎麼保護 payload</b>：整個 token 的保護力，來自別人無法複製出正確的 signature。<br>
+　　signature 是伺服器用 secret 對 header 與 payload 算出來的。secret 本身不在 signature 裡，也無法從 signature 反推回 secret。<br>
+payload 其實是裸的：只做 Base64url 編碼，任何人都看得到內容，只是改了就會被發現。</p></blockquote>
+
 <p class="plain"><b>白話：</b>iron-session 的效果接近 JWE，都是「藏起來＋防改」，只是 iron 是 hapi 自己定的格式，不是 RFC 標準。next-one 用 iron-session 存 session，所以 cookie 裡的 userId 從瀏覽器端看不到。<br>
 📖 來源：<a href="https://www.hapi.dev/module/iron/api">@hapi/iron API（預設 aes-256-cbc＋sha256）</a>、<a href="https://datatracker.ietf.org/doc/html/rfc7516">RFC 7516 — JWE（5 段 compact 格式）</a>，2026-11-14 查證。</p>
 <h3>Iron 是什麼：seal（封印）三步驟</h3>
@@ -450,7 +463,7 @@ HMAC金鑰 = PBKDF2(password, HMAC salt)              <span class="cmt">// 第 7
 
 <article class="card">
 <h2 id="s6">6. HS256 是「對稱」：就一把 secret，不是公鑰也不是私鑰（你的問題）</h2>
-<div class="ask"><b>你問:</b>HS256 的鑰匙是公鑰還是私鑰?你只寫「一把共用 secret」。</div>
+<div class="ask"><b>你問：</b>HS256 的鑰匙是公鑰還是私鑰?你只寫「一把共用 secret」。</div>
 <p><mark class="hl hl-core" tabindex="0">都不是。公鑰／私鑰是「非對稱」的講法</mark>:</p>
 <div class="diagram">
 <svg style="width:100%;height:auto;display:block;max-width:100%" viewBox="0 0 760 170" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans TC',sans-serif">
@@ -461,20 +474,20 @@ HMAC金鑰 = PBKDF2(password, HMAC salt)              <span class="cmt">// 第 7
 <text x="190" y="66" text-anchor="middle" font-size="12.5" fill="#b23">同一把 secret</text>
 <svg x="248" y="48" width="30" height="30"><use href="#ic-key"/></svg>
 <svg x="300" y="40" width="40" height="40"><use href="#ic-server"/></svg><text x="320" y="96" text-anchor="middle" font-size="11" fill="#41525f">驗</text>
-<text x="190" y="120" text-anchor="middle" font-size="11.5" fill="#6b7b88">一把,簽驗共用,必須保密</text>
+<text x="190" y="120" text-anchor="middle" font-size="11.5" fill="#6b7b88">一把，簽驗共用，必須保密</text>
 <line x1="400" y1="85" x2="420" y2="85" stroke="#ccc" stroke-width="1"/>
 <text x="585" y="22" text-anchor="middle" font-size="13.5" fill="#1d2b36" font-weight="600">非對稱（RS256／ES256）</text>
 <svg x="445" y="40" width="40" height="40"><use href="#ic-server"/></svg><text x="465" y="96" text-anchor="middle" font-size="11" fill="#b23">私鑰簽</text>
 <line x1="490" y1="70" x2="650" y2="70" stroke="#7d8a94" stroke-width="1.5" marker-end="url(#arr3)"/>
 <svg x="665" y="40" width="40" height="40"><use href="#ic-client"/></svg><text x="685" y="96" text-anchor="middle" font-size="11" fill="#4a9b5e">公鑰驗</text>
-<text x="585" y="120" text-anchor="middle" font-size="11.5" fill="#6b7b88">一對,公鑰可公開、私鑰保密</text>
+<text x="585" y="120" text-anchor="middle" font-size="11.5" fill="#6b7b88">一對，公鑰可公開、私鑰保密</text>
 </svg>
 </div>
 <ul>
-<li>HS256 ＝ <mark class="hl hl-core" tabindex="0">對稱:就一把 secret</mark>,簽的人和驗的人用同一把,<b>這把必須保密、絕不公開</b>（它像「私」的,但不是非對稱那種「私鑰」）。</li>
-<li>RS256／ES256 ＝ 非對稱:一對鑰匙,<b>私鑰簽、公鑰驗</b>,公鑰可以大方公開。</li>
+<li>HS256 ＝ <mark class="hl hl-core" tabindex="0">對稱：就一把 secret</mark>，簽的人和驗的人用同一把，<b>這把必須保密、絕不公開</b>（它像「私」的，但不是非對稱那種「私鑰」）。</li>
+<li>RS256／ES256 ＝ 非對稱：一對鑰匙，<b>私鑰簽、公鑰驗</b>，公鑰可以大方公開。</li>
 </ul>
-<blockquote><p>HS256 secret 要求（<a href="https://datatracker.ietf.org/doc/html/rfc7518#section-3.2" target="_blank" rel="noopener">RFC 7518 §3.2</a>）:長度 ≥ 雜湊輸出（256 bit／32 bytes）;用 <code>openssl rand -base64 32</code> 產;放環境變數不進 repo;換 secret ＝ 所有已簽發 token 立即失效。</p></blockquote>
+<blockquote><p>HS256 secret 要求（<a href="https://datatracker.ietf.org/doc/html/rfc7518#section-3.2" target="_blank" rel="noopener">RFC 7518 §3.2</a>）：長度 ≥ 雜湊輸出（256 bit／32 bytes）;用 <code>openssl rand -base64 32</code> 產;放環境變數不進 repo;換 secret ＝ 所有已簽發 token 立即失效。</p></blockquote>
 </article>
 
 <article class="card">
@@ -498,38 +511,38 @@ HMAC金鑰 = PBKDF2(password, HMAC salt)              <span class="cmt">// 第 7
 <line x1="250" y1="151" x2="206" y2="151" stroke="#7d8a94" stroke-width="1.6" marker-end="url(#arr4)"/>
 <polygon points="112,124 202,151 112,178 22,151" fill="#fff6e5" stroke="#e0a53a"/><text x="112" y="148" text-anchor="middle" font-size="11.5" fill="#1d2b36">兩個簽章</text><text x="112" y="163" text-anchor="middle" font-size="11.5" fill="#1d2b36">相等?</text>
 <line x1="112" y1="178" x2="112" y2="214" stroke="#7d8a94" stroke-width="1.6" marker-end="url(#arr4)"/><text x="124" y="200" font-size="11" fill="#4a9b5e">是</text>
-<rect x="30" y="216" width="164" height="40" rx="6" fill="#eafaf0" stroke="#4a9b5e"/><text x="112" y="241" text-anchor="middle" font-size="12" fill="#1d2b36">通過,沒被竄改</text>
+<rect x="30" y="216" width="164" height="40" rx="6" fill="#eafaf0" stroke="#4a9b5e"/><text x="112" y="241" text-anchor="middle" font-size="12" fill="#1d2b36">通過，沒被竄改</text>
 <text x="250" y="210" font-size="11" fill="#d1476a">否 → 拒絕（被竄改 / tamper）</text>
 <text x="700" y="288" text-anchor="end" font-size="10.5" fill="#6b7b88">○連接點　▭處理　▱資料　◇判斷（ISO 5807）</text>
 </svg>
 <div class="cap">你手寫的驗章 1-2-3：拆開 → 用同 secret 同演算法重算 → 比對兩個 signature，一樣就是沒被改</div>
 </div>
-<blockquote><p>⚠️ 這是 <mark class="hl hl-core" tabindex="0">HS256（對稱）才能「重算比對」</mark>。RS256／ES256 的「重算」改成「<b>用公鑰驗章</b>」,因為驗證端沒私鑰、無法重算。</p></blockquote>
+<blockquote><p>⚠️ 這是 <mark class="hl hl-core" tabindex="0">HS256（對稱）才能「重算比對」</mark>。RS256／ES256 的「重算」改成「<b>用公鑰驗章</b>」，因為驗證端沒私鑰、無法重算。</p></blockquote>
 </article>
 
 <article class="card">
 <h2 id="s8">8. 為什麼 header 裡有 <code>alg</code>？怎麼看真實 JWT</h2>
-<div class="ask"><b>你問:</b>為何 header 裡面有 alg?能不能用有名的網址讓我看一下?</div>
-<p><b>為何有 <code>alg</code>:</b>讓驗章的程式庫知道「這顆 token 是用哪種演算法簽的」,才知道怎麼驗。但<mark class="hl hl-warn" tabindex="0">「照 header 說的 alg 去驗」正是漏洞來源</mark>（第 9 節）。</p>
-<p><mark class="hl hl-ok" tabindex="0">你的直覺對了：驗章要用「自己程式碼寫死的 alg」,不要信 header 自報的</mark>——就是 <code>jwtVerify(token, key, { algorithms: ['HS256'] })</code>。</p>
+<div class="ask"><b>你問：</b>為何 header 裡面有 alg?能不能用有名的網址讓我看一下?</div>
+<p><b>為何有 <code>alg</code>:</b>讓驗章的程式庫知道「這顆 token 是用哪種演算法簽的」，才知道怎麼驗。但<mark class="hl hl-warn" tabindex="0">「照 header 說的 alg 去驗」正是漏洞來源</mark>（第 9 節）。</p>
+<p><mark class="hl hl-ok" tabindex="0">你的直覺對了：驗章要用「自己程式碼寫死的 alg」，不要信 header 自報的</mark>——就是 <code>jwtVerify(token, key, { algorithms: ['HS256'] })</code>。</p>
 <h3>怎麼看真實 JWT 的 header</h3>
-<p>JWT 第一段 base64url 解開就是 header。拿這段經典範例:</p>
+<p>JWT 第一段 base64url 解開就是 header。拿這段經典範例：</p>
 <pre><code><span class="cmt"># JWT 第一段</span>
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
         │ base64url 解碼 ↓
 { "alg": "HS256", "typ": "JWT" }   <span class="cmt"># alg 就在這</span></code></pre>
-<p class="plain"><b>白話:</b>看到 <code>eyJ</code> 開頭就是 JWT（那是 <code>{"</code> 的 base64url）。把整串 <code>eyJ...</code> 貼到 <a href="https://jwt.io" target="_blank" rel="noopener">jwt.io</a> 就會拆成 header／payload／signature,header 裡看得到 <code>alg</code>。</p>
+<p class="plain"><b>白話：</b>看到 <code>eyJ</code> 開頭就是 JWT（那是 <code>{"</code> 的 base64url）。把整串 <code>eyJ...</code> 貼到 <a href="https://jwt.io" target="_blank" rel="noopener">jwt.io</a> 就會拆成 header／payload／signature,header 裡看得到 <code>alg</code>。</p>
 <ol>
-<li>開 <a href="https://jwt.io" target="_blank" rel="noopener">jwt.io</a>,把一顆 JWT 貼進左邊,右邊 Header 就顯示 <code>{"alg":"...","typ":"JWT"}</code>。</li>
-<li>哪裡找真實 JWT:F12 → Network → 看請求的 <code>Authorization: Bearer eyJ...</code>,或某些 cookie 是 <code>eyJ...</code> 開頭。</li>
+<li>開 <a href="https://jwt.io" target="_blank" rel="noopener">jwt.io</a>，把一顆 JWT 貼進左邊，右邊 Header 就顯示 <code>{"alg":"...","typ":"JWT"}</code>。</li>
+<li>哪裡找真實 JWT:F12 → Network → 看請求的 <code>Authorization: Bearer eyJ...</code>，或某些 cookie 是 <code>eyJ...</code> 開頭。</li>
 <li><mark class="hl hl-warn" tabindex="0">GitHub 的 <code>_gh_sess</code> 不是 JWT</mark>（是 Rails 的加密 cookie，沒有 <code>eyJ</code> 開頭）。想看漂亮的 RS256 JWT,Google 登入回的 <code>id_token</code> 就是。</li>
 </ol>
 </article>
 
 <article class="card">
 <h2 id="s9">9. 演算法混淆攻擊（RS256 → HS256）——畫面</h2>
-<div class="ask"><b>你問:</b>攻擊者怎麼「改」的?它拿到公鑰之後做什麼?</div>
-<p>先講清楚:<mark class="hl hl-core" tabindex="0">攻擊者改的是「那顆 token」,不是改你 server 的程式碼</mark>。公鑰本來就設計成公開的（例如放在 <code>/.well-known/jwks.json</code>），攻擊者下載得到。</p>
+<div class="ask"><b>你問：</b>攻擊者怎麼「改」的?它拿到公鑰之後做什麼?</div>
+<p>先講清楚：<mark class="hl hl-core" tabindex="0">攻擊者改的是「那顆 token」，不是改你 server 的程式碼</mark>。公鑰本來就設計成公開的（例如放在 <code>/.well-known/jwks.json</code>），攻擊者下載得到。</p>
 <div class="diagram">
 <svg style="width:100%;height:auto;display:block;max-width:100%" viewBox="0 0 820 320" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans TC',sans-serif">
 <defs><marker id="arr5" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#7d8a94"/></marker>
@@ -557,18 +570,18 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
 <text x="400" y="268" text-anchor="middle" font-size="12" fill="#1d2b36">關鍵：公鑰是「公開」的，一旦被當成「對稱 secret」就等於把鑰匙交給全世界</text>
 </svg>
 </div>
-<p>所以同一份筆記的三條防線:</p>
+<p>所以同一份筆記的三條防線：</p>
 <ol>
-<li>擋 <code>alg:none</code>:攻擊者把 header 改 <code>none</code>、拿掉簽章。</li>
-<li>擋演算法混淆:就是上圖 RS256 → HS256。</li>
-<li><mark class="hl hl-ok" tabindex="0">驗證端以「自己程式碼設定的演算法」為準,不信 token header 自報的 <code>alg</code></mark>:<code>jwtVerify(token, key, { algorithms: ['HS256'] })</code>。</li>
+<li>擋 <code>alg:none</code>：攻擊者把 header 改 <code>none</code>、拿掉簽章。</li>
+<li>擋演算法混淆：就是上圖 RS256 → HS256。</li>
+<li><mark class="hl hl-ok" tabindex="0">驗證端以「自己程式碼設定的演算法」為準，不信 token header 自報的 <code>alg</code></mark>:<code>jwtVerify(token, key, { algorithms: ['HS256'] })</code>。</li>
 </ol>
 <blockquote><p>📖 <a href="https://portswigger.net/web-security/jwt/algorithm-confusion" target="_blank" rel="noopener">PortSwigger — JWT algorithm confusion attacks</a></p></blockquote>
 </article>
 
 <article class="card">
 <h2 id="s10">10. 嚴謹性排序（金鑰管理模型，不是數學強度）</h2>
-<p>依「金鑰外洩面與部署風險」由嚴到寬:<mark class="hl hl-core" tabindex="0">ECDSA(ES256)／EdDSA ＞ RSA(RS256／PS256) ＞ HMAC(HS256)</mark>。</p>
+<p>依「金鑰外洩面與部署風險」由嚴到寬：<mark class="hl hl-core" tabindex="0">ECDSA(ES256)／EdDSA ＞ RSA(RS256／PS256) ＞ HMAC(HS256)</mark>。</p>
 <table class="compare-table">
 <thead><tr><th>比較點</th><th>ECDSA</th><th>RSA</th><th>HMAC</th></tr></thead>
 <tbody>
@@ -580,15 +593,15 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
 <tr><th scope="row">常見陷阱</th><td>nonce 重複洩私鑰；簽章是 r‖s 不是 DER</td><td>小金鑰（&lt;2048）；PKCS#1 v1.5 歷史瑕疵</td><td>secret 太短或寫死在 repo</td></tr>
 </tbody>
 </table>
-<p class="plain"><b>補充:</b>排序不代表演算法可被破解——256 bit 隨機 secret 的 HS256 現實中無法暴力破解。排序反映的是「金鑰管理模型」。<b>（這張是純比較資料,留表格最省;其餘概念都改成圖了。）</b></p>
+<p class="plain"><b>補充：</b>排序不代表演算法可被破解——256 bit 隨機 secret 的 HS256 現實中無法暴力破解。排序反映的是「金鑰管理模型」。<b>（這張是純比較資料，留表格最省;其餘概念都改成圖了。）</b></p>
 <h3>為什麼 next-one 用 HS256</h3>
 <ol>
-<li>簽發與驗證都在同一個 Next.js 應用內,只有一方持有 secret。</li>
+<li>簽發與驗證都在同一個 Next.js 應用內，只有一方持有 secret。</li>
 <li>沒有第三方／其他微服務要獨立驗 token。</li>
 <li>簽與驗最快、token 最短、cookie 體積小。</li>
-<li><code>jose</code> 用 <code>TextEncoder</code> 就能產 key,不用管 PEM／JWKS。</li>
+<li><code>jose</code> 用 <code>TextEncoder</code> 就能產 key，不用管 PEM／JWKS。</li>
 </ol>
-<p><b>何時換非對稱:</b>多服務要驗同一種 token、對外提供 JWKS（<code>/.well-known/jwks.json</code>）、想讓「驗證端被攻破 ≠ 能偽造 token」、需要 key rotation（<code>kid</code> + JWKS）。</p>
+<p><b>何時換非對稱：</b>多服務要驗同一種 token、對外提供 JWKS（<code>/.well-known/jwks.json</code>）、想讓「驗證端被攻破 ≠ 能偽造 token」、需要 key rotation（<code>kid</code> + JWKS）。</p>
 </article>
 
 <article class="card">
@@ -601,8 +614,8 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
 <tr><th scope="row">效期</th><td>15 分鐘</td><td>7～30 天</td></tr>
 <tr><th scope="row">瀏覽器儲存</th><td>httpOnly Cookie <code>ACCESS_TOKEN</code></td><td>httpOnly Cookie <code>REFRESH_TOKEN</code></td></tr>
 <tr><th scope="row">Cookie path</th><td><code>/</code></td><td><code>/api/auth/refresh</code>（只在換 token 時送）</td></tr>
-<tr><th scope="row">伺服器儲存</th><td>不存（無狀態）</td><td>DB 只存 SHA-256 雜湊,不存明文</td></tr>
-<tr><th scope="row">可否撤銷</th><td>否,等過期</td><td>是,改 DB 狀態</td></tr>
+<tr><th scope="row">伺服器儲存</th><td>不存（無狀態）</td><td>DB 只存 SHA-256 雜湊，不存明文</td></tr>
+<tr><th scope="row">可否撤銷</th><td>否，等過期</td><td>是，改 DB 狀態</td></tr>
 </tbody>
 </table>
 <h3>資料表</h3>
@@ -622,68 +635,68 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
 }</code></pre>
 <h3>Refresh 端點邏輯</h3>
 <ol>
-<li>讀 <code>REFRESH_TOKEN</code> cookie,沒有 → 401。</li>
-<li><code>sha256(token)</code> 查 DB,找不到 → 401。</li>
+<li>讀 <code>REFRESH_TOKEN</code> cookie，沒有 → 401。</li>
+<li><code>sha256(token)</code> 查 DB，找不到 → 401。</li>
 <li><code>expires_at &lt; now</code> → 401。</li>
-<li><code>revoked_at</code> 有值 → <mark class="hl hl-warn" tabindex="0">重用偵測</mark>:同 <code>family_id</code> 全部 revoke,回 401。</li>
-<li>通過:舊的寫 <code>revoked_at</code> 與 <code>replaced_by</code>,產新的（同 <code>family_id</code>）。</li>
-<li>簽新 Access Token,兩個 cookie 一起 <code>Set-Cookie</code>。</li>
+<li><code>revoked_at</code> 有值 → <mark class="hl hl-warn" tabindex="0">重用偵測</mark>：同 <code>family_id</code> 全部 revoke，回 401。</li>
+<li>通過：舊的寫 <code>revoked_at</code> 與 <code>replaced_by</code>，產新的（同 <code>family_id</code>）。</li>
+<li>簽新 Access Token，兩個 cookie 一起 <code>Set-Cookie</code>。</li>
 <li>回 200。</li>
 </ol>
-<h3>實作:這個 <code>sha256(token)</code> 怎麼算（Node crypto／OpenSSL）</h3>
+<h3>實作：這個 <code>sha256(token)</code> 怎麼算（Node crypto／OpenSSL）</h3>
 <pre><code>const { createHash } = require('node:crypto');
 const token_hash = createHash('sha256').update(token).digest('hex');
   <span class="cmt">// 64 字元的 16 進位字串,就是存進 DB 的 token_hash</span></code></pre>
 <ol>
-<li><code>createHash('sha256')</code>:建一個 SHA-256 的 hash 物件（也支援 sha512、md5…）。</li>
-<li><code>.update(input)</code>:把資料餵進去,可連續呼叫分批讀大檔。</li>
-<li><code>.digest('hex' | 'base64')</code>:算出摘要並選輸出編碼。<code>'hex'</code> ＝ 64 字元（0-9、a-f）;<code>'base64'</code> 更精簡;不給參數則回傳 raw <code>Buffer</code>。</li>
+<li><code>createHash('sha256')</code>：建一個 SHA-256 的 hash 物件（也支援 sha512、md5…）。</li>
+<li><code>.update(input)</code>：把資料餵進去，可連續呼叫分批讀大檔。</li>
+<li><code>.digest('hex' | 'base64')</code>：算出摘要並選輸出編碼。<code>'hex'</code> ＝ 64 字元（0-9、a-f）;<code>'base64'</code> 更精簡;不給參數則回傳 raw <code>Buffer</code>。</li>
 </ol>
-<p class="plain"><b>底層是 OpenSSL:</b>Node 的 <code>crypto</code> 不是用 JS 重寫演算法,而是<mark class="hl hl-term" tabindex="0">轉去呼叫 OpenSSL（C 函式庫）</mark>——密碼學超級工具箱（SHA／HMAC／AES／RSA／ECC ＋ TLS ＋ 憑證）。<code>crypto</code> 只是它的 JS 包裝介面。</p>
-<p class="plain"><mark class="hl hl-warn" tabindex="0">注意:高熵的 token 用 SHA-256 雜湊沒問題;但「使用者密碼」不能只用 SHA-256</mark>,要用 bcrypt／argon2 這種加鹽、刻意放慢的雜湊,否則容易被字典/暴力破解。</p>
+<p class="plain"><b>底層是 OpenSSL:</b>Node 的 <code>crypto</code> 不是用 JS 重寫演算法，而是<mark class="hl hl-term" tabindex="0">轉去呼叫 OpenSSL（C 函式庫）</mark>——密碼學超級工具箱（SHA／HMAC／AES／RSA／ECC ＋ TLS ＋ 憑證）。<code>crypto</code> 只是它的 JS 包裝介面。</p>
+<p class="plain"><mark class="hl hl-warn" tabindex="0">注意：高熵的 token 用 SHA-256 雜湊沒問題;但「使用者密碼」不能只用 SHA-256</mark>，要用 bcrypt／argon2 這種加鹽、刻意放慢的雜湊，否則容易被字典/暴力破解。</p>
 <blockquote><p>📖 <a href="https://nodejs.org/api/crypto.html#cryptocreatehashalgorithm-options" target="_blank" rel="noopener">Node.js — crypto.createHash()</a>、<a href="https://nodejs.org/api/crypto.html#hashdigestencoding" target="_blank" rel="noopener">hash.digest()</a></p></blockquote>
 
-<p><b>登出:</b>把該 refresh token 所屬 family 全部 revoke、兩個 cookie 都刪。效果:被偷的 Access Token 最多再活 15 分鐘,被偷的 Refresh Token 立刻失效。</p>
-<blockquote><p>下面圖 2（第 15 節）就是這段的視覺版:正常流程 1-13 + 失敗的竊取 14-19。</p></blockquote>
+<p><b>登出：</b>把該 refresh token 所屬 family 全部 revoke、兩個 cookie 都刪。效果：被偷的 Access Token 最多再活 15 分鐘，被偷的 Refresh Token 立刻失效。</p>
+<blockquote><p>下面圖 2（第 15 節）就是這段的視覺版：正常流程 1-13 + 失敗的竊取 14-19。</p></blockquote>
 </article>
 
 <article class="card">
 <h2 id="s12">12. jose 套件 API（next-one 實際用的）</h2>
-<p>jose 是維護中的 JWT／JWS／JWE 函式庫,Edge runtime 也能跑。原始碼在 <code>node_modules/jose/dist/node/cjs/</code>；找檔:<code>node -e "console.log(require.resolve('jose'))"</code>。</p>
+<p>jose 是維護中的 JWT／JWS／JWE 函式庫，Edge runtime 也能跑。原始碼在 <code>node_modules/jose/dist/node/cjs/</code>；找檔：<code>node -e "console.log(require.resolve('jose'))"</code>。</p>
 <h3>SignJWT —— 簽章、產生 JWT（建造者模式）</h3>
 <pre><code>const token = await new SignJWT(payload)      <span class="cmt">// payload:放進 token 的物件,如 { userId }</span>
   .setProtectedHeader({ alg: 'HS256' })       <span class="cmt">// 設 header,alg 必填</span>
   .setIssuedAt()                              <span class="cmt">// 加 iat(簽發時間)</span>
   .setExpirationTime('7d')                    <span class="cmt">// 加 exp(過期)</span>
   .sign(key);                                 <span class="cmt">// 用金鑰簽,回傳字串 token</span></code></pre>
-<p class="plain"><b>白話:</b>一路 <code>.setXxx()</code> 設定、最後 <code>.sign()</code> 產出。HS256 的 key 是 <code>new TextEncoder().encode(secret)</code> 產的 <code>Uint8Array</code>。</p>
+<p class="plain"><b>白話：</b>一路 <code>.setXxx()</code> 設定、最後 <code>.sign()</code> 產出。HS256 的 key 是 <code>new TextEncoder().encode(secret)</code> 產的 <code>Uint8Array</code>。</p>
 <ul>
-<li><code>.setExpirationTime(exp)</code>:收數字（秒）或字串（<code>'7d'</code>、<code>'2h'</code>、<code>'30m'</code>）。</li>
-<li><code>.setSubject()／.setIssuer()／.setAudience()</code>:設 <code>sub／iss／aud</code>(選用)。</li>
+<li><code>.setExpirationTime(exp)</code>：收數字（秒）或字串（<code>'7d'</code>、<code>'2h'</code>、<code>'30m'</code>）。</li>
+<li><code>.setSubject()／.setIssuer()／.setAudience()</code>：設 <code>sub／iss／aud</code>(選用)。</li>
 </ul>
-<blockquote><p>原始碼有段檢查:若 header 設 <code>crit:['b64']</code> 且 <code>b64:false</code>,直接丟 <code>JWTs MUST NOT use unencoded payload</code>——<mark class="hl hl-warn" tabindex="0">JWT 規定不准用未編碼 payload</mark>（RFC 7797）。</p></blockquote>
+<blockquote><p>原始碼有段檢查：若 header 設 <code>crit:['b64']</code> 且 <code>b64:false</code>，直接丟 <code>JWTs MUST NOT use unencoded payload</code>——<mark class="hl hl-warn" tabindex="0">JWT 規定不准用未編碼 payload</mark>（RFC 7797）。</p></blockquote>
 <h3>jwtVerify —— 驗章</h3>
 <pre><code>const { payload, protectedHeader } = await jwtVerify(token, key, {
   algorithms: ['HS256'],   <span class="cmt">// 白名單:只接受 HS256,擋 alg 混淆與 alg:none</span>
 });</code></pre>
-<p class="plain"><b>白話:</b>直接呼叫的函式,收 <code>token</code>、<code>key</code>、<code>options</code>。驗章失敗（簽章不符、過期、alg 不在白名單）<mark class="hl hl-warn" tabindex="0">會丟例外,要 try/catch</mark>。它做的是「驗簽章 ＋ 檢查 exp／nbf」,<b>不是解密</b>。</p>
+<p class="plain"><b>白話：</b>直接呼叫的函式，收 <code>token</code>、<code>key</code>、<code>options</code>。驗章失敗（簽章不符、過期、alg 不在白名單）<mark class="hl hl-warn" tabindex="0">會丟例外，要 try/catch</mark>。它做的是「驗簽章 ＋ 檢查 exp／nbf」，<b>不是解密</b>。</p>
 <h3>EncryptJWT／jwtDecrypt —— 真加密（JWE）</h3>
 <pre><code>const token = await new EncryptJWT(payload)
   .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })  <span class="cmt">// dir=直接用對稱金鑰;A256GCM=AES-256-GCM</span>
   .encrypt(key);                                        <span class="cmt">// key 需 32 bytes</span>
 const { payload } = await jwtDecrypt(token, key);       <span class="cmt">// 要金鑰才解得回</span></code></pre>
-<p class="plain"><b>白話:</b>產出的是加密 JWE,payload 被藏起來。你專案的 <mark class="hl hl-term" tabindex="0">iron-session 走的就是這種「加密」路線</mark>,不是 SignJWT 的簽章。</p>
+<p class="plain"><b>白話：</b>產出的是加密 JWE,payload 被藏起來。你專案的 <mark class="hl hl-term" tabindex="0">iron-session 走的就是這種「加密」路線</mark>，不是 SignJWT 的簽章。</p>
 </article>
 
 <article class="card">
 <h2 id="s13">13. AES-256-GCM 是什麼（真加密那組）</h2>
 <ol>
-<li><b>AES ＝ Advanced Encryption Standard（進階加密標準）</b>,最通用的<mark class="hl hl-core" tabindex="0">對稱</mark>加密。</li>
-<li>對稱:加密、解密用<b>同一把金鑰</b>（非對稱才是公私鑰一對）。</li>
-<li><b>256</b>:金鑰長度 256 位元。</li>
-<li><b>GCM ＝ Galois／Counter Mode</b>:一種 <mark class="hl hl-term" tabindex="0">AEAD（帶認證的加密）</mark>模式——一次做到<b>加密（藏資料）＋ 完整性驗證（防竄改）</b>,不用再外掛 HMAC。</li>
-<li>快:現代 CPU 有 <b>AES-NI</b> 硬體指令加速。</li>
-<li>用在:JWE（上面 <code>enc:'A256GCM'</code>）。iron-session 用的是另一組：<b>AES-256-CBC 加密＋HMAC-SHA256 簽章</b>，兩步合起來達到跟 GCM 一樣的「藏起來＋防竄改」（見第 5 節三格式比較）。</li>
+<li><b>AES ＝ Advanced Encryption Standard（進階加密標準）</b>，最通用的<mark class="hl hl-core" tabindex="0">對稱</mark>加密。</li>
+<li>對稱：加密、解密用<b>同一把金鑰</b>（非對稱才是公私鑰一對）。</li>
+<li><b>256</b>：金鑰長度 256 位元。</li>
+<li><b>GCM ＝ Galois／Counter Mode</b>：一種 <mark class="hl hl-term" tabindex="0">AEAD（帶認證的加密）</mark>模式——一次做到<b>加密（藏資料）＋ 完整性驗證（防竄改）</b>，不用再外掛 HMAC。</li>
+<li>快：現代 CPU 有 <b>AES-NI</b> 硬體指令加速。</li>
+<li>用在：JWE（上面 <code>enc:'A256GCM'</code>）。iron-session 用的是另一組：<b>AES-256-CBC 加密＋HMAC-SHA256 簽章</b>，兩步合起來達到跟 GCM 一樣的「藏起來＋防竄改」（見第 5 節三格式比較）。</li>
 </ol>
 <blockquote><p>📖 <a href="https://csrc.nist.gov/pubs/fips/197/final" target="_blank" rel="noopener">NIST AES（FIPS 197）</a>、<a href="https://datatracker.ietf.org/doc/html/rfc7518" target="_blank" rel="noopener">RFC 7518（定義 A256GCM 等 enc）</a></p></blockquote>
 </article>
@@ -691,17 +704,17 @@ const { payload } = await jwtDecrypt(token, key);       <span class="cmt">// 要
 <article class="card">
 <h2 id="s14">14. next-one 實作要點</h2>
 <ul>
-<li><code>cookies().set</code> 只能在 Route Handler 與 Server Action 內用,Server Component 渲染時不行 → <mark class="hl hl-core" tabindex="0">refresh 必須是 Route Handler</mark>。</li>
-<li>在 <code>services/rest-client/use-fetcher.js</code> 的 fetch 包一層:收到 401 → 呼叫一次 refresh → 重試原請求。</li>
-<li>同時多個請求都 401 時,<mark class="hl hl-ok" tabindex="0">共用同一個 in-flight Promise,只打一次 refresh</mark>（否則旋轉會讓第二次請求被判重用）。</li>
+<li><code>cookies().set</code> 只能在 Route Handler 與 Server Action 內用，Server Component 渲染時不行 → <mark class="hl hl-core" tabindex="0">refresh 必須是 Route Handler</mark>。</li>
+<li>在 <code>services/rest-client/use-fetcher.js</code> 的 fetch 包一層：收到 401 → 呼叫一次 refresh → 重試原請求。</li>
+<li>同時多個請求都 401 時，<mark class="hl hl-ok" tabindex="0">共用同一個 in-flight Promise，只打一次 refresh</mark>（否則旋轉會讓第二次請求被判重用）。</li>
 <li>refresh 失敗 → 清狀態、導向登入頁。</li>
-<li>middleware 跑在 Edge,Prisma 預設不能直接用,refresh 不要放 middleware。</li>
+<li>middleware 跑在 Edge,Prisma 預設不能直接用，refresh 不要放 middleware。</li>
 </ul>
 <h3>瀏覽器端操作 cookie（document.cookie）</h3>
 <pre><code>document.cookie = "test_user=abby; path=/";   <span class="cmt">// 一次只能設/更新一顆</span>
 const allCookies = document.cookie;            <span class="cmt">// 讀「目前網頁所有 cookie」成一串</span>
 console.log(allCookies);</code></pre>
-<p class="plain"><b>白話:</b><code>document.cookie</code> 寫入是「一次一顆」的鍵值對字串;讀出來是把目前可見的 cookie 全部串成一條字串（httpOnly 的讀不到）。</p>
+<p class="plain"><b>白話：</b><code>document.cookie</code> 寫入是「一次一顆」的鍵值對字串;讀出來是把目前可見的 cookie 全部串成一條字串（httpOnly 的讀不到）。</p>
 <h3>Cookie 設定</h3>
 <table class="compare-table">
 <thead><tr><th>Cookie</th><th>httpOnly</th><th>secure</th><th>sameSite</th><th>path</th><th>maxAge</th></tr></thead>
@@ -713,15 +726,15 @@ console.log(allCookies);</code></pre>
 <h3>實作清單（next-one）</h3>
 <ul>
 <li>☐ <code>lib/jwt-session.js</code>:Access 效期改 15m;<code>secure</code> 改看 <code>NODE_ENV</code>;移除 <code>updateSession</code>。</li>
-<li>☐ <code>prisma/schema.prisma</code>:新增 <code>RefreshToken</code>,跑 migration。</li>
-<li>☐ <code>lib/refresh-token.js</code>:產生、雜湊、旋轉、revoke family。</li>
-<li>☐ <code>app/(api)/api/auth/refresh/route.js</code>:新增。</li>
-<li>☐ 登入路由（local／google／line）:登入後同時發兩個 token。</li>
-<li>☐ 登出路由:revoke + 刪 cookie。</li>
+<li>☐ <code>prisma/schema.prisma</code>：新增 <code>RefreshToken</code>，跑 migration。</li>
+<li>☐ <code>lib/refresh-token.js</code>：產生、雜湊、旋轉、revoke family。</li>
+<li>☐ <code>app/(api)/api/auth/refresh/route.js</code>：新增。</li>
+<li>☐ 登入路由（local／google／line）：登入後同時發兩個 token。</li>
+<li>☐ 登出路由：revoke + 刪 cookie。</li>
 <li>☐ <code>use-fetcher.js</code>:401 攔截 + 單一 in-flight refresh。</li>
 <li>☐ 定期清理 <code>expires_at</code> 過期的列。</li>
 </ul>
-<p class="plain"><b>未查證:</b>Google／LINE 登入路由目前各自如何設 cookie;<code>use-auth.js</code>／<code>use-user.js</code> 對 401 的現有處理。</p>
+<p class="plain"><b>未查證：</b>Google／LINE 登入路由目前各自如何設 cookie;<code>use-auth.js</code>／<code>use-user.js</code> 對 401 的現有處理。</p>
 </article>
 
 <article class="card quiz">
@@ -735,18 +748,18 @@ console.log(allCookies);</code></pre>
 
 <h3>自我測驗</h3>
 <ol class="qlist">
-<li><p>(是非)HS256 的 secret 是「公鑰」,可以公開放 JWKS。</p>
+<li><p>(是非)HS256 的 secret 是「公鑰」，可以公開放 JWKS。</p>
 <div class="btns"><button class="tf" data-ok="false">O 正確</button><button class="tf" data-ok="true">X 錯誤</button></div>
-<div class="fb" data-ans="X">HS256 是對稱,就一把 secret,必須保密、絕不公開。公鑰/私鑰是非對稱（RS/ES256）的講法。</div></li>
-<li><p>(填空)HMAC 公式裡 <code>⊕</code> 是 <input class="blank" data-a="XOR"> 運算,<code>‖</code> 是 <input class="blank" data-a="串接"> （把兩段接成一串）。</p>
+<div class="fb" data-ans="X">HS256 是對稱，就一把 secret，必須保密、絕不公開。公鑰/私鑰是非對稱（RS/ES256）的講法。</div></li>
+<li><p>(填空)HMAC 公式裡 <code>⊕</code> 是 <input class="blank" data-a="XOR"> 運算，<code>‖</code> 是 <input class="blank" data-a="串接"> （把兩段接成一串）。</p>
 <div class="btns"><button class="chk">檢查</button><button class="rev">看答案</button></div>
 <div class="fb">⊕＝XOR（互斥或）;‖＝串接（concatenation），不是邏輯 or、不是選配。（填「concatenation」也算對。）</div></li>
-<li><p>(是非)演算法混淆攻擊裡,攻擊者是去改伺服器的驗章程式碼。</p>
+<li><p>(是非)演算法混淆攻擊裡，攻擊者是去改伺服器的驗章程式碼。</p>
 <div class="btns"><button class="tf" data-ok="false">O 正確</button><button class="tf" data-ok="true">X 錯誤</button></div>
 <div class="fb" data-ans="X">攻擊者改的是「那顆 token」（header 的 alg + 用公鑰當 HMAC secret 自簽），不是改 server 程式。防禦是 server 寫死 alg。</div></li>
 <li><p>(申論)為什麼驗章要用 <code>algorithms:['HS256']</code> 白名單?</p>
 <div class="btns"><button class="rev2">顯示參考答案</button></div>
-<div class="fb">不信 token header 自報的 alg,以自己程式碼設定的為準,才能同時擋 alg:none（拿掉簽章）與演算法混淆（RS256→HS256 拿公鑰當 HMAC secret）。</div></li>
+<div class="fb">不信 token header 自報的 alg，以自己程式碼設定的為準，才能同時擋 alg:none（拿掉簽章）與演算法混淆（RS256→HS256 拿公鑰當 HMAC secret）。</div></li>
 </ol>
 </article>
 
@@ -791,5 +804,7 @@ console.log(allCookies);</code></pre>
 })();
 </script>
 <script src="../../assets/compare-table.js"></script>
+<script src="../../assets/term-cards.js"></script>
+<script src="../../assets/link-lines.js"></script>
 </body>
 </html>

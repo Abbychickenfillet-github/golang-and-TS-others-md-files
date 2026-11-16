@@ -92,7 +92,7 @@ textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding
 <article class="card">
 <h1 id="session-jwt-vs-base64url">Session 與 JWT：有狀態 vs 無狀態驗證、過期機制、Base64url</h1>
 <blockquote>
-<p>本篇重點 a–u ，共 21 個。<br />
+<p>本篇重點 a–x ，共 24 個。<br />
 前置概念見 <span class="wikilink" title="Obsidian 連結：Cookie-與-Session">Cookie-與-Session</span>（Cookie 與 Session 基本運作）與 <span class="wikilink" title="Obsidian 連結：XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線">XSS竊取Cookie原理與Next-cookies-API-HttpOnly防線</span>（HttpOnly 為何能擋 XSS）。關聯原因：本篇是把前兩篇的 Session ID 放進「有狀態／無狀態」這條主軸上比較。</p>
 </blockquote>
 <h2 id="sessionvs-jwt">一張主軸：四種做法比較（Session／JWT／JWS／iron-session）</h2>
@@ -124,7 +124,7 @@ textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding
 
 <h2 id="_1">重點整理</h2>
 <p><strong>a.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">HTTP 是無狀態（Stateless）協定</mark>：它沒有內建機制把前後兩個獨立請求關聯起來。所以網站要記住「這個人已登入」就得額外做 Session 管理。</p>
-<p><strong>b.</strong> Session 驗證流程（Abby 自己的說法，Gemini 判定正確）：<br />
+<p><strong>b.</strong> Session 驗證流程：<br />
 1. 使用者登入送出 credentials。<br />
 2. 伺服器 authenticate 是否 valid。<br />
 3. 伺服器建立 Session，把 Session ID 存進 session store。<br />
@@ -144,13 +144,17 @@ textarea.essay{width:100%;border:1px solid var(--line);border-radius:9px;padding
 <p><strong>j.</strong> <mark class="hl hl-core" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">JWT 被改過 exp 無法登入</mark>：JWT 由 Header、Payload、Signature 三段組成，Signature 是伺服器用密鑰對前兩段運算出來的。你可以輕易解碼並修改 Payload（它只是 Base64url 編碼，不是加密），但改完後簽章與內容對不上；你沒有密鑰就無法重新產生正確簽章，後端驗證失敗回 401 Unauthorized 。</p>
 <p><strong>k.</strong> 後端驗證 JWT 的步驟：後端用自己的密鑰，對收到的 Header 與 Payload 重新做簽章運算，算出結果與第三段比對，不一致就拒絕。</p>
 <p><strong>l.</strong> ⚠️ 補充（Gemini 沒講）：JWT 的 Payload 「可被任何人讀」，所以不要放密碼等機敏資料。簽章保證的是「沒被改」，不是「看不到」。</p>
+<blockquote><p><b>簽章怎麼保護 payload</b>：整個 token 的保護力，來自別人無法複製出正確的 signature。<br>
+　　signature 是伺服器用 secret 對 header 與 payload 算出來的。secret 本身不在 signature 裡，也無法從 signature 反推回 secret。<br>
+payload 其實是裸的：只做 Base64url 編碼，任何人都看得到內容，只是改了就會被發現。</p></blockquote>
+
 <p><strong>m.</strong> URL-safe 的意思：資料編碼後只含不會破壞 URL 結構的字元。標準 URL 的保留字元（? &amp; / =）與不安全字元（空格 + # &lt; &gt;）若混在資料裡，會被誤判為網址結構。</p>
 <p><strong>n.</strong> <mark class="hl hl-term" tabindex="0" role="button" aria-label="點擊可遮蔽或顯示重點">Base64url 與標準 Base64 的差異</mark>：<br />
 1. 把 + 換成 - 。<br />
 2. 把 / 換成 _ 。<br />
 3. 通常省略結尾補齊用的 = 。<br />
 這是 JWT 被稱為「compact, URL-safe」的原因（RFC 7519）。</p>
-<figure style="max-width:420px"><img src="data:image/png;base64,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" alt="btoa('{\"') 回傳 eyI="><figcaption>Abby 實測（2026-11-15）：在 DevTools Console 執行 <code>btoa('{"')</code>，得到 <code>'eyI='</code></figcaption></figure>
+<figure style="max-width:420px"><img src="data:image/png;base64,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" alt="btoa('{\"') 回傳 eyI="><figcaption>實測（2026-11-15）：在 DevTools Console 執行 <code>btoa('{"')</code>，得到 <code>'eyI='</code></figcaption></figure>
 <p class="sub" style="color:var(--sub)">1. <code>btoa</code> 的名字是 <b>binary to ASCII</b>：把 bytes 轉成 ASCII 可見字元，用的方法就是 Base64，所以輸出的 64 個字元全部落在 ASCII 範圍內。<br>
 2. 只編碼 <code>{"</code> 兩個 bytes 時，第 3 個字元是 <code>I</code>，結尾補一個 <code>=</code>。後面接上更多內容，例如 <code>btoa('{"alg"')</code>，第 3 個字元才會變成 <code>J</code>，得到 JWT 常見的 <code>eyJ</code> 開頭。<br>
 3. <code>btoa</code> 輸出的是標準 Base64（含 <code>+ / =</code>）。要得到 Base64url，Node 可用 <code>Buffer.from(字串).toString('base64url')</code>。</p>
@@ -193,6 +197,10 @@ const jwt = await new SignJWT({ userId: &#x27;user_123&#x27;, role: &#x27;engine
 // 3. 用公鑰驗證，並限定只接受 EdDSA
 const { payload } = await jwtVerify(jwt, publicKey, { algorithms: [&#x27;EdDSA&#x27;] })</code></pre>
 <p><strong>u.</strong> ⚠️ 存疑／更正：(1) Gemini 說 <code>KeyLike</code> 可以是 JWK 物件，但 JWK 通常要先用 <code>importJWK</code> 轉成金鑰物件，且 jose 新版（v6）已移除 <code>KeyLike</code> 型別，改用 <code>CryptoKey</code>、<code>KeyObject</code>、<code>Uint8Array</code> 表示，實際型別請以你安裝版本的官方文件為準（本次未重新抓取）。(2) Gemini 示範的 PEM 內容（如 <code>MC4CAQAwBQYDK2VwBCIEIJ...</code>）是示意字串，不是可用金鑰，不能直接拿去驗證。</p>
+<h3>追加 2026-11-16：JWS 兩種序列化格式與 kid</h3>
+<p><strong>v.</strong> <mark style="background:#ADCCFFA6">JWS Compact Serialization（緊湊序列化）</mark>：三段以點隔開的 URL-safe 字串 BASE64URL(Protected Header).BASE64URL(Payload).BASE64URL(Signature)，只能單一簽章，整個 Header 都是 Protected Header，常用於 Authorization: Bearer 與 JWT。</p>
+<p><strong>w.</strong> <mark style="background:#ADCCFFA6">JWS JSON Serialization</mark>：JSON 物件，成員 protected／header／payload／signature(s)，支援多重簽章與 Unprotected Header。<mark style="background:#FFF3A3A6">protected 與 header 差在是否被簽章涵蓋</mark>：protected 放 alg 等不可竄改參數；header 是明文，放 kid 這類提示，不可放安全關鍵資訊。</p>
+<p><strong>x.</strong> <mark style="background:#ADCCFFA6">kid（Key ID）</mark>：告訴驗證方用哪把公鑰驗章。金鑰會輪替（Key Rotation），有 kid 可直接從 JWK Set 取對應公鑰，沒有就得逐把試。（出處：RFC 7515）</p>
 <h2 id="_2">各對話來源（原文摘錄）</h2>
 <h3 id="session-2026-10-httpsgeminigooglecomapp9118a11b50bbd667">Session 驗證機制（2026-10）— https://gemini.google.com/app/9118a11b50bbd667</h3>
 <p>使用者：在 session based 的驗證的話，使用者登入後會得到一個 credentials 。然後 server 去做驗證，去 authenticate 是否 valid 。然後會把這個 session ID 存在 session store ，我這樣說對嗎？</p>
@@ -212,6 +220,8 @@ const { payload } = await jwtVerify(jwt, publicKey, { algorithms: [&#x27;EdDSA&#
 <h3>JWT 演算法設定（2026-11-15 擷取） — https://gemini.google.com/app/b6db47e361e8b160</h3>
 <p>使用者：setProtectedHeader 應寫 EdDSA256 還是有縮寫？cryptoKey 或 KeyLike 也是字串嗎？長怎樣、用什麼編碼？→ 示範 Ed25519 → PEM 長怎樣</p>
 <p>Gemini：正確寫法 <code>alg: 'EdDSA'</code>；金鑰是 PEM（DER 經 Base64）轉成的物件，示範 generateKeyPair 簽發與驗證。（整合進 s、t、u，並於 u 標注存疑。）</p>
+<h3>JWS 序列化格式差異（2026-11-16 擷取）— https://gemini.google.com/app/8f092013fa494dbd</h3>
+<p>摘要見上方 v–x。</p>
 <h2 id="leetcodeneetcode">練習題（LeetCode／NeetCode）</h2>
 <p>此主題為後端驗證概念，無直接對應的演算法題。相關基礎可練習雜湊表：<a href="https://leetcode.com/problems/two-sum/">1. Two Sum</a> ，因為 session store 的本質就是 key（Session ID）對 value（使用者狀態）的查表。</p>
 <h2 id="_3">資料來源（含查證時間）</h2>
@@ -225,7 +235,7 @@ const { payload } = await jwtVerify(jwt, publicKey, { algorithms: [&#x27;EdDSA&#
 </thead>
 <tbody>
 <tr>
-<td>Gemini 原始對話（6 則）</td>
+<td>Gemini 原始對話（7 則）</td>
 <td>見 frontmatter sources</td>
 <td>對話擷取於 2026-10-30</td>
 </tr>
@@ -251,6 +261,7 @@ const { payload } = await jwtVerify(jwt, publicKey, { algorithms: [&#x27;EdDSA&#
 </tr>
 <tr><td>jose 官方文件</td><td>https://github.com/panva/jose</td><td>本次未重新抓取，版本差異請查你安裝版本的文件</td></tr>
 <tr><td>RFC 8037 EdDSA 於 JOSE</td><td>https://www.rfc-editor.org/rfc/rfc8037</td><td>2017-01 發布</td></tr>
+<tr><td>RFC 7515 JSON Web Signature</td><td>https://www.rfc-editor.org/rfc/rfc7515</td><td>2015-05 發布，未重新抓取</td></tr>
 </tbody>
 </table>
 </article>

@@ -39,6 +39,11 @@ RFC 7797 為 JWS 新增 `b64` header parameter，可讓 payload 不經 Base64url
 
 (h) <mark style="background: #FF5582A6;">Base64url 是編碼（Encoding）不是加密（Encryption）</mark>：任何人解碼就能讀 Payload，所以不能把密碼、個資放進 Payload。唯一例外是 (a) 的 `b64:false` 讓 Payload 不編碼，但那是更明文，不是更安全。
 
+> [!note] 簽章怎麼保護 payload
+> 整個 token 的保護力，來自別人無法複製出正確的 signature。
+> 	signature 是伺服器用 secret 對 header 與 payload 算出來的。secret 本身不在 signature 裡，也無法從 signature 反推回 secret。
+> payload 其實是裸的：只做 Base64url 編碼，任何人都看得到內容，只是改了就會被發現。
+
 (i) 編碼與加密的差別：<mark style="background: #ADCCFFA6;">編碼</mark>是公開、可逆的轉換規則，目的是跨系統正確傳輸，不需要金鑰（Base64、URL encoding）。<mark style="background: #ADCCFFA6;">加密</mark>是用演算法加金鑰保護隱私，沒金鑰就無法輕易還原。口訣：編碼是公開的翻譯，加密是加上密碼的鎖。
 
 (j) UTF-8 是支援中文的可變長度字元編碼（Unicode 的實作方式）：ASCII 英數 1 byte，常見中文字 3 bytes，罕見字與 emoji 可到 4 bytes。所以 JWT 內含中文時，必須先 UTF-8 轉 bytes 再 Base64url。

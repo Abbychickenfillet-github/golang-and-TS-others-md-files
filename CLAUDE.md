@@ -32,7 +32,7 @@ title: "CLAUDE"
 ### 📌 個人偏好（從 Claude Desktop 設定同步過來，方便版本控管、也讓排程／各 session 都讀得到）
 > 注意：Claude Desktop「設定裡的記憶」是**全域、app 層級**的偏好，跟這個 vault 的 CLAUDE.md **不會自動同步**；以下是手動鏡射，兩邊若有衝突以 Abby 當下指示為準。
 你是那个这个有时候上次- **回應精簡直接**：少廢話、能刪的字就刪。
-- **問問題就寫筆記**：回答的同時寫進 `Abby-notes` 最適合的位置，做**精美 JS 互動 HTML**（除了一般的chart, graph我希望你更重視流程圖：又稱程式方塊圖是表示演算法、工作流或流程的一種方塊圖表示，它以不同類型的框代表不同種類的步驟，每兩個步驟之間則以箭頭連接。這種表示方法便於說明解決已知問題的方法。流程圖在分析、設計、記錄及操控許多領域的流程或程式都有廣泛應用。更顯專業https://zh.wikipedia.org/zh-tw/%E6%B5%81%E7%A8%8B%E5%9B%BE。
+- **問問題就寫筆記**：回答的同時寫進 `Abby-notes` 最適合的位置，做**精美 JS 互動 HTML**（表格一律使用共用元件 `assets/compare-table.js`，`notes.js` 會自動載入它，沒有引入 `notes.js` 的頁面要在 `</body>` 前自己加 `<script src>`；除了一般的chart, graph我希望你更重視流程圖：又稱程式方塊圖是表示演算法、工作流或流程的一種方塊圖表示，它以不同類型的框代表不同種類的步驟，每兩個步驟之間則以箭頭連接。這種表示方法便於說明解決已知問題的方法。流程圖在分析、設計、記錄及操控許多領域的流程或程式都有廣泛應用。更顯專業https://zh.wikipedia.org/zh-tw/%E6%B5%81%E7%A8%8B%E5%9B%BE。
 - 點擊填空、切換顯示/隱藏答案、是非題、申論題，方便自己考自己）。
 - **愛關聯**：多用 `[[wikilink]]` 互連，但要兼顧obsidian跟ithome還有github.io的github pages能否使用連結；不要吝嗇**截圖**（例如問到 Cookie/Session 就去截 F12 的 Cookie），能用美麗圖表或截圖展示的就做。
 - **程式碼示範**：把 `.html/.js/.css/.go/.py` 這類檔案跟它的筆記 `.md` 放在**同一個資料夾**。
@@ -45,16 +45,22 @@ title: "CLAUDE"
 - **視覺設計先找範本再動工**：做表格互動、配色、圖表或版面之前，先到 Pinterest 用關鍵字搜尋（例如 `table highlighter excel`、`comparison table design`、`work report infographic`），挑 1–2 張專業範本當依據，並在回報時說明參考了哪一張、借用了哪個做法，不要憑感覺配色。（2026-11 Abby 指示）
   - 配色以**單一主色的深淺**為主（例如 Abby 給的綠色 WORK REPORT 範本：同一個綠色系做標題、底色、強調）。
   - **同一種意思只用一種顏色**：例如比較表「標整列」和「標整欄」都是「我在看這裡」，就用同一個標示色，不要列一色、欄一色、單格又一色。
-  - 比較表的互動參考 Excel「整列標示」技巧（條件式格式公式 `=CELL("row")=ROW()`），共用元件是 `assets/compare-table.js`。
+  - 比較表共用元件是 `assets/compare-table.js`：螢光筆效果（點格子標單格並淡淡標出所在列與欄，點列標題標整列，點欄標題標整欄），只用螢光黃一個色相的深淺，不要七彩；整個 vault 的表格都會自動套用。
+- **筆記是寫給一般讀者看的**：內文不要出現「Abby 的說法」「Abby 自己的說法」「Abby 實測」這類個人稱呼，直接寫成中性的知識內容（例如標題寫「簽章怎麼保護 payload」就好）。（2026-11 Abby 指示）
+- **共用互動元件**（都在 `assets/`，`notes.js` 會自動載入；沒有引入 `notes.js` 的頁面要自己在 `</body>` 前加 `<script src>`）：（2026-11 Abby 指示）
+  - `compare-table.js`：所有兩欄以上的表格自動套用螢光筆效果。不要套用的表格加 `data-no-compare`。
+  - `term-cards.js`：名詞、單字介紹做成卡片（`<div class="term-cards"><article class="term-card"><h4 class="tc-term">…`），點擊會放大約 1.8 倍。桌機版面很寬，名詞介紹優先用卡片，不要用長串列點。
+  - `link-lines.js`：文字裡出現「第 2 組」「圖中的 tag」這種抽象指代時，被指的地方加 `id`，指代文字包成 `<span class="ll-src" data-link-to="#id">`，點一下會畫一條線連過去，約 1 秒後淡出，不擋住其他文字。
+- **程式碼一律要有註解**：筆記裡的範例程式、`assets/*.js` 這類共用腳本、專案程式碼都一樣，每個函式上方寫 JSDoc 區塊（`/** 一句功能說明 @param {型別} 名稱 中文說明 @returns {型別} 說明 */`），關鍵行加中文 inline 註解說明「為什麼這樣做」；檔頭的說明（例如顏色、用法）改了程式就要一起改，不能讓註解跟程式對不上。（2026-11 Abby 指示）
 - **一篇筆記一張主軸圖**：每個主題的互動 HTML 筆記，盡量固定用**同一張圖／動畫**當主軸（例如 `return-清理記憶體-stack-frame與閉包例外.html` 的 Stack/Heap 分欄動畫）。同主題後續追問，優先**擴充或指回這張圖裡的特定位置**（某個步驟、某個方框、某個標籤），不要每次都另開新章節——視覺定位比純文字更好記，Abby 可以直接「指回剛剛那個位子」。
 - **術語統一：一律用「transpile（轉譯）」**：中文的「轉」、英文的「transform」若指的是「原始碼→原始碼（JSX/TS→JS）」這件事，全部統一寫成 **transpile**，不要混用「轉／transform 類」等不對稱說法。（2026-09 Abby 指示）
 - **補內容用「融合」不「另開區塊」**：對既有筆記補充時，優先**把新內容融合進最相關的既有段落／表格**，不要動不動就新開一個 `##`／`###` 區塊。（2026-09 Abby 指示）
 - <mark style="background: #FFF3A3A6;">**寫工具／流程：動詞—受詞—拋接關係都要寫清楚，別只用「＋」號連名詞**</mark>：寫成完整句子「**誰 用什麼 做什麼、產物是什麼、再拋給誰**」（例：<mark style="background: #BBFABBA6;">bundler 用 acorn 把原始碼 parse 成 AST → 讀出 import 的 specifier → 交給 enhanced-resolve resolve 成實際檔路徑</mark>）。工具屬性用**小字／顏色括號註在名稱右邊**（例：`acorn`（輕量 parser））。把散落各處講同一件事的內容**統整在一起**。（2026-09 Abby 指示）
 - 寫句子的時候主詞動詞受詞謂語都要寫清楚成完整的一句話。不要同一個表格內用不同名詞去講同一件事情，像是transpile就叫transpile不要突然用transoform來說。
 - 筆記同一段要善用5H1W，如果是上一句話的解釋要記得Enter以後再一個tab縮排表示是上一句的內層！
+每次修改前請先解釋使用什麼語法，每次撰寫JS檔案請你每一行都寫上註解，因為我程度很差，我需要知道每一個變數跟每一個function傳參的意義。
 ---
 
-每次修改前請先解釋使用什麼語法
 ## 作系統 人員資料表
 user資料表是後台系統方的管理員名單，
 member資料表才是真正註冊的主辦單位|攤販|消費者
@@ -71,142 +77,7 @@ TEST:
 Commit以及PR前保持良好習慣前後端皆須建立單元測試
 前端用Vitest
 - [ ] Added or updated unit tests for all changes
-- [ ] Added or updated documentation for all changes
-- [ ] Successfully built and ran all unit tests or manual tests locally
-- [ ] PR title follows "[title]: Brief Description" format (if related to an issue) eg. `[fix] flaky e2e test w/ relaxation`
 
-Co-Authored-By: Claude Opus 4.5 noreply@anthropic.com
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository."
-
-## Project Architecture
-
-This is a multi-component full-stack application with three main parts:
-- **Frontend**: React TypeScript app using Chakra UI, TanStack Query/Router (port 5173)是後臺系統的前端畫面
-- **Backend**: FastAPI Python application with SQLModel/PostgreSQL
-- **Official Website**: Standalone React TypeScript marketing site using Chakra UI v3 (port 5174)
-這邊是前台系統(售票給消費者B to C)的前端畫面
-
-### Technology Stack
-- **Frontend**: Vite + React + TypeScript + TanStack Query + TanStack Router + Chakra UI v2
-- **Backend**: FastAPI + SQLModel + PostgreSQL + Alembic + uv package manager
-- **Official Website**: Vite + React + TypeScript + Chakra UI v3 + i18next
-
-## Development Commands
-
-### Frontend (main application)
-```bash
-cd frontend
-npm install
-npm run dev                    # Start dev server on port 5173
-npm run build                  # Build production
-npm run lint                   # Run Biome linter
-npm run generate-client        # Generate API client from OpenAPI
-npm run preview                # Preview production build
-```
-
-### Backend (FastAPI)
-```bash
-cd backend
-uv sync                        # Install dependencies
-source .venv/bin/activate      # Activate virtual environment
-# For tests:
-bash ./scripts/test.sh                           # Run all tests
-docker compose exec backend bash scripts/tests-start.sh  # Run tests in container
-# For database:
-alembic revision --autogenerate -m "message"    # Create migration
-alembic upgrade head                             # Apply migrations
-```
-
-### Official Website
-```bash
-cd official_website
-npm install
-npm run dev        # Start dev server on port 5174
-npm run build      # Build with TypeScript check
-npm run lint       # Run ESLint
-npm run preview    # Preview production build
-```
-
-### Docker Development
-```bash
-docker compose watch           # Start development environment with live reload
-docker compose up -d --wait backend  # Start only backend for testing
-docker compose down -v         # Stop and clean volumes
-```
-
-## Code Architecture
-
-### Frontend Structure
-- Uses TanStack Router for file-based routing in `src/routes/`
-- API client generated from backend OpenAPI spec in `src/client/`
-- Chakra UI v2 components with custom theme in `theme.tsx`
-- TanStack Query for server state management
-- React Hook Form + Zod for form handling
-
-### Backend Structure
-- FastAPI app in `app/main.py` with modular API routes in `app/api/`
-- SQLModel models in `app/models.py` with Alembic migrations
-- CRUD operations and utilities in `app/crud.py`
-- Authentication using JWT tokens
-- Background tasks and email templates support
-
-### Official Website
-- Standalone React app with internationalization (i18n)
-- Chakra UI v3 with updated syntax (`gap` instead of `spacing`)
-- Google Analytics integration with custom hooks
-- Multi-language support (English/Chinese Traditional)
-
-## Important Notes
-
-### API Client Generation
-The frontend uses generated API clients from the backend's OpenAPI schema:
-1. Start backend to expose OpenAPI at `/api/v1/openapi.json`
-2. Run `npm run generate-client` in frontend directory
-3. Generated client appears in `frontend/src/client/`
-
-### Database Migrations
-This project does not use Alembic migrations. Always provide direct SQL commands for database schema changes instead of migration scripts. When creating new tables or modifying existing ones, generate the raw SQL statements that can be executed directly on the database.
-
-All SQL scripts are stored in `backend/sql/` directory with numbered naming convention (e.g., `001_create_member_table.sql`). Include detailed comments and follow the established patterns in existing scripts.
-
-### Chakra UI Versions
-- Frontend uses Chakra UI v2 (spacing prop)
-- Official website uses Chakra UI v3 (gap prop)
-
-### Testing
-- Frontend: Playwright E2E tests (`npx playwright test`)
-- Backend: Pytest with coverage (`bash ./scripts/test.sh`)
-- Both require Docker stack running for full integration tests
-
-### Environment Variables
-- Frontend: Uses `VITE_` prefixed variables
-- Official Website: Uses `VITE_GA_TRACKING_ID` for Google Analytics
-- Backend: Configured via `.env` files with different environments
-
-### Package Managers
-- Frontend & Official Website: npm
-- Backend: uv (Python package manager)
-
-### memo for Claude
-## 建立欄位到API的順序
-當我說幫我建立某一個資料表的模型也就是要有
-SQL 遷移腳本
-Python 模型 app/models
-CRUD 層 app/crud
-Service 層 app/service
-API Routes 層
-
-當debug的時候則是反方向回來
-當解釋困難的或是我問你套件的意思是什麼盡量簡單化
-
-9.486 src/components/Events/EditEvent.tsx(96,5): error TS6133: 'reset' is declared but its value is never read.
-9.486 src/components/Events/EditEvent.tsx(485,15): error TS2322: Type 'boolean | null | undefined' is not assignable to type 'boolean | undefined'.
-9.486   Type 'null' is not assignable to type 'boolean | undefined'.
-切勿使用undefined做型別定義也不要宣告變數之後又不用它
-或者寫了TODO但沒有DO
-英文存進資料庫都要小寫喔!
-
----
 
 ## 🛠️ 疑難排解紀錄 (Troubleshooting Log)
 
