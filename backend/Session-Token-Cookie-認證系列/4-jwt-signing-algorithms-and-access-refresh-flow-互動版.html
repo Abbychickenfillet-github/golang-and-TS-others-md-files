@@ -221,11 +221,13 @@ MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有
 </ul>
 <p class="plain">📖 來源：<a href="https://rfc-editor.org/rfc/rfc7519">RFC 7519 — JWT</a>（datatracker 標註 Updated by RFC 8725、RFC 7797）、<a href="https://www.rfc-editor.org/rfc/rfc7797.html">RFC 7797 — JWS Unencoded Payload Option</a>，2026-11-16 查證。</p>
 <h3>b64:false 只影響 payload</h3>
-<table>
-<tr><th></th><th>一般 JWS</th><th><code>b64: false</code></th></tr>
-<tr><td>header</td><td>Base64url 編碼</td><td>Base64url 編碼（不變）</td></tr>
-<tr><td>payload</td><td>Base64url 編碼</td><td><b>不編碼，直接放原文</b></td></tr>
-<tr><td>signature</td><td>Base64url 編碼</td><td>Base64url 編碼（不變）</td></tr>
+<table class="compare-table">
+<thead><tr><th></th><th>一般 JWS</th><th><code>b64: false</code></th></tr></thead>
+<tbody>
+<tr><th scope="row">header</th><td>Base64url 編碼</td><td>Base64url 編碼（不變）</td></tr>
+<tr><th scope="row">payload</th><td>Base64url 編碼</td><td><b>不編碼，直接放原文</b></td></tr>
+<tr><th scope="row">signature</th><td>Base64url 編碼</td><td>Base64url 編碼（不變）</td></tr>
+</tbody>
 </table>
 <ul>
 <li><code>b64</code> 的意思是「payload 要不要做 base64」，所以只影響 payload。</li>
@@ -404,12 +406,14 @@ MAC    = HMAC-SHA256(secret, message)    <span class="cmt">// 有金鑰，只有
 <text x="10" y="312" font-size="12" fill="#6b7b88">資料本體：只有 JWS 是明文（紅虛線框），JWE 與 iron 都是密文（紫色）。三種的最後一段都負責防竄改（綠色）。</text>
 </svg>
 </div>
-<table>
-<tr><th></th><th>JWS（一般 JWT）</th><th>JWE</th><th>iron-session</th></tr>
-<tr><td>分隔</td><td>3 段，用 <code>.</code></td><td>5 段，用 <code>.</code></td><td>8 段，用 <code>*</code></td></tr>
-<tr><td>演算法用途</td><td>簽章</td><td>加密（GCM 同時驗證）</td><td>先加密（AES-256-CBC），再簽章（HMAC-SHA256）</td></tr>
-<tr><td>看得到內容嗎</td><td>看得到</td><td>看不到</td><td>看不到</td></tr>
-<tr><td>改得了嗎</td><td>改不了</td><td>改不了</td><td>改不了</td></tr>
+<table class="compare-table">
+<thead><tr><th></th><th>JWS（一般 JWT）</th><th>JWE</th><th>iron-session</th></tr></thead>
+<tbody>
+<tr><th scope="row">分隔</th><td>3 段，用 <code>.</code></td><td>5 段，用 <code>.</code></td><td>8 段，用 <code>*</code></td></tr>
+<tr><th scope="row">演算法用途</th><td>簽章</td><td>加密（GCM 同時驗證）</td><td>先加密（AES-256-CBC），再簽章（HMAC-SHA256）</td></tr>
+<tr><th scope="row">看得到內容嗎</th><td>看得到</td><td>看不到</td><td>看不到</td></tr>
+<tr><th scope="row">改得了嗎</th><td>改不了</td><td>改不了</td><td>改不了</td></tr>
+</tbody>
 </table>
 <p class="plain"><b>白話：</b>iron-session 的效果接近 JWE，都是「藏起來＋防改」，只是 iron 是 hapi 自己定的格式，不是 RFC 標準。next-one 用 iron-session 存 session，所以 cookie 裡的 userId 從瀏覽器端看不到。<br>
 📖 來源：<a href="https://www.hapi.dev/module/iron/api">@hapi/iron API（預設 aes-256-cbc＋sha256）</a>、<a href="https://datatracker.ietf.org/doc/html/rfc7516">RFC 7516 — JWE（5 段 compact 格式）</a>，2026-11-14 查證。</p>
@@ -559,15 +563,15 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
 <article class="card">
 <h2 id="s10">10. 嚴謹性排序（金鑰管理模型，不是數學強度）</h2>
 <p>依「金鑰外洩面與部署風險」由嚴到寬:<mark class="hl hl-core" tabindex="0">ECDSA(ES256)／EdDSA ＞ RSA(RS256／PS256) ＞ HMAC(HS256)</mark>。</p>
-<table>
+<table class="compare-table">
 <thead><tr><th>比較點</th><th>ECDSA</th><th>RSA</th><th>HMAC</th></tr></thead>
 <tbody>
-<tr><td>驗證端能否偽造</td><td>不能</td><td>不能</td><td><mark class="hl hl-warn" tabindex="0">能（驗證 ＝ 持有 secret）</mark></td></tr>
-<tr><td>金鑰洩漏範圍</td><td>只有簽發端</td><td>只有簽發端</td><td>所有驗證端</td></tr>
-<tr><td>同等強度金鑰長度</td><td>256 bit ≈ RSA 3072</td><td>2048／3072 bit</td><td>256 bit 隨機值</td></tr>
-<tr><td>token 大小</td><td>小（約 64B 簽章）</td><td>大（256B 簽章）</td><td>小（32B）</td></tr>
-<tr><td>簽發速度</td><td>快</td><td>慢</td><td>最快</td></tr>
-<tr><td>常見陷阱</td><td>nonce 重複洩私鑰；簽章是 r‖s 不是 DER</td><td>小金鑰（&lt;2048）；PKCS#1 v1.5 歷史瑕疵</td><td>secret 太短或寫死在 repo</td></tr>
+<tr><th scope="row">驗證端能否偽造</th><td>不能</td><td>不能</td><td><mark class="hl hl-warn" tabindex="0">能（驗證 ＝ 持有 secret）</mark></td></tr>
+<tr><th scope="row">金鑰洩漏範圍</th><td>只有簽發端</td><td>只有簽發端</td><td>所有驗證端</td></tr>
+<tr><th scope="row">同等強度金鑰長度</th><td>256 bit ≈ RSA 3072</td><td>2048／3072 bit</td><td>256 bit 隨機值</td></tr>
+<tr><th scope="row">token 大小</th><td>小（約 64B 簽章）</td><td>大（256B 簽章）</td><td>小（32B）</td></tr>
+<tr><th scope="row">簽發速度</th><td>快</td><td>慢</td><td>最快</td></tr>
+<tr><th scope="row">常見陷阱</th><td>nonce 重複洩私鑰；簽章是 r‖s 不是 DER</td><td>小金鑰（&lt;2048）；PKCS#1 v1.5 歷史瑕疵</td><td>secret 太短或寫死在 repo</td></tr>
 </tbody>
 </table>
 <p class="plain"><b>補充:</b>排序不代表演算法可被破解——256 bit 隨機 secret 的 HS256 現實中無法暴力破解。排序反映的是「金鑰管理模型」。<b>（這張是純比較資料,留表格最省;其餘概念都改成圖了。）</b></p>
@@ -583,16 +587,16 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
 
 <article class="card">
 <h2 id="s11">11. Access Token 與 Refresh Token 流程</h2>
-<table>
+<table class="compare-table">
 <thead><tr><th></th><th>Access Token</th><th>Refresh Token</th></tr></thead>
 <tbody>
-<tr><td>用途</td><td>每次 API 請求證明身分</td><td>只用來換新的 Access Token</td></tr>
-<tr><td>格式</td><td>JWT（HS256）</td><td>隨機不透明字串（32B），不是 JWT</td></tr>
-<tr><td>效期</td><td>15 分鐘</td><td>7～30 天</td></tr>
-<tr><td>瀏覽器儲存</td><td>httpOnly Cookie <code>ACCESS_TOKEN</code></td><td>httpOnly Cookie <code>REFRESH_TOKEN</code></td></tr>
-<tr><td>Cookie path</td><td><code>/</code></td><td><code>/api/auth/refresh</code>（只在換 token 時送）</td></tr>
-<tr><td>伺服器儲存</td><td>不存（無狀態）</td><td>DB 只存 SHA-256 雜湊,不存明文</td></tr>
-<tr><td>可否撤銷</td><td>否,等過期</td><td>是,改 DB 狀態</td></tr>
+<tr><th scope="row">用途</th><td>每次 API 請求證明身分</td><td>只用來換新的 Access Token</td></tr>
+<tr><th scope="row">格式</th><td>JWT（HS256）</td><td>隨機不透明字串（32B），不是 JWT</td></tr>
+<tr><th scope="row">效期</th><td>15 分鐘</td><td>7～30 天</td></tr>
+<tr><th scope="row">瀏覽器儲存</th><td>httpOnly Cookie <code>ACCESS_TOKEN</code></td><td>httpOnly Cookie <code>REFRESH_TOKEN</code></td></tr>
+<tr><th scope="row">Cookie path</th><td><code>/</code></td><td><code>/api/auth/refresh</code>（只在換 token 時送）</td></tr>
+<tr><th scope="row">伺服器儲存</th><td>不存（無狀態）</td><td>DB 只存 SHA-256 雜湊,不存明文</td></tr>
+<tr><th scope="row">可否撤銷</th><td>否,等過期</td><td>是,改 DB 狀態</td></tr>
 </tbody>
 </table>
 <h3>資料表</h3>
@@ -693,11 +697,11 @@ const allCookies = document.cookie;            <span class="cmt">// 讀「目前
 console.log(allCookies);</code></pre>
 <p class="plain"><b>白話:</b><code>document.cookie</code> 寫入是「一次一顆」的鍵值對字串;讀出來是把目前可見的 cookie 全部串成一條字串（httpOnly 的讀不到）。</p>
 <h3>Cookie 設定</h3>
-<table>
+<table class="compare-table">
 <thead><tr><th>Cookie</th><th>httpOnly</th><th>secure</th><th>sameSite</th><th>path</th><th>maxAge</th></tr></thead>
 <tbody>
-<tr><td>ACCESS_TOKEN</td><td>true</td><td>production true</td><td>lax</td><td><code>/</code></td><td>15 分鐘</td></tr>
-<tr><td>REFRESH_TOKEN</td><td>true</td><td>production true</td><td>strict</td><td><code>/api/auth/refresh</code></td><td>30 天</td></tr>
+<tr><th scope="row">ACCESS_TOKEN</th><td>true</td><td>production true</td><td>lax</td><td><code>/</code></td><td>15 分鐘</td></tr>
+<tr><th scope="row">REFRESH_TOKEN</th><td>true</td><td>production true</td><td>strict</td><td><code>/api/auth/refresh</code></td><td>30 天</td></tr>
 </tbody>
 </table>
 <h3>實作清單（next-one）</h3>
@@ -780,5 +784,6 @@ console.log(allCookies);</code></pre>
   addEventListener('scroll',spy,{passive:true});spy();
 })();
 </script>
+<script src="../../assets/compare-table.js"></script>
 </body>
 </html>
